@@ -878,7 +878,9 @@ impl Session {
         let ctx = context(self.network(), &refs, &policies);
         let made = self.keys.recompute_signatures(c, psbt);
         let mut rows = Vec::new();
-        for input in faraday_psbt::verify::verify_signatures(psbt, &ctx) {
+        let signatures = faraday_psbt::verify::verify_signatures(psbt, &ctx);
+        let reused = faraday_psbt::verify::repeated_nonces(psbt, &signatures);
+        for input in signatures {
             for sig in input.signatures {
                 // A row not checked, a leaf not run among them, gets no
                 // verdict from a recompute that cannot match.
@@ -927,7 +929,7 @@ impl Session {
             fields_refused,
             rows,
             mismatched,
-            reused: faraday_psbt::verify::repeated_nonces(psbt, &ctx),
+            reused,
             unread,
             disagree,
         }
@@ -2062,7 +2064,7 @@ impl Spend {
         bytes: &[u8],
         source: &str,
     ) -> Result<Vec<Fingerprint>, String> {
-        let other = read_psbt(c, bytes).ok_or(EN.wallet_not_a_psbt)?;
+        let other = (read_psbt(c, bytes)).ok_or(EN.wallet_not_a_psbt)?;
         if other.unsigned_tx().compute_txid() != self.txid {
             return Err(fill(EN.wallet_psbt_other_transaction, &[source]));
         }
@@ -2181,8 +2183,7 @@ impl Spend {
             return Err(fill(EN.wallet_sighash_other, &[source]));
         }
         self.psbt = merged;
-        let added: Vec<Fingerprint> = self
-            .counted(c, session, Some(&inspection))
+        let added: Vec<Fingerprint> = (self.counted(c, session, Some(&inspection)))
             .into_iter()
             .filter(|fp| !before.contains(fp))
             .collect();
@@ -2332,12 +2333,12 @@ fn no_output(merged: &faraday_bip::bitcoin::Psbt, i: usize, otherwise: Conflict)
 
 /// Costs, per input, a comparison of the file's rows and entries with the
 /// spend's; where the spend's rows differ from the merged file's and an
-/// output is read, two `script_row_verdicts` (a classify, a signature
+/// output is read, two `script_row_verdicts` (a copy of the file, a classify, a signature
 /// check per row, a control block check per script entry, and per row a
 /// read of its leaf's script); a `tap_entry_commits` (a control block
 /// check) per differing script entry, each a classify of the whole PSBT;
 /// and, for an input with a final, a `settle_finals` and a classify, a
-/// finalize of a copy of the input. After a merge, what the spend keeps of its own over what a
+/// finalize of a copy of the whole file. After a merge, what the spend keeps of its own over what a
 /// file brought: a `tap_scripts` entry that commits to the output, over a
 /// file's entry of the same control block that does not; an own partial
 /// Schnorr row over the file's row for the same key and leaf where the
@@ -2441,9 +2442,9 @@ fn keep_own_over_file(
     Ok(())
 }
 
-/// Costs a clone of the whole merged PSBT twice (and a third where two
-/// scripts are not run), a classify of the input in each, and a finalize of
-/// a copy of the input. Where the spend
+/// Costs a classify of the input twice, and, where two scripts are not
+/// run, a copy of the whole file and the finalizer's work on the input
+/// (`input_finishes`). Where the spend
 /// and a file hold different finals for input `i`: the one the output
 /// judges true over one for a script not run; two scripts not run, or no
 /// output to read them against, refused unless the rows finish.
@@ -2463,35 +2464,54 @@ fn settle_finals(
     if !output_read {
         return Err(no_output(merged, i, Conflict::Finals(i)));
     }
-    // Each final as the input would read it with that one in place.
-    let with = |first: &faraday_bip::bitcoin::psbt::Input,
-                second: &faraday_bip::bitcoin::psbt::Input| {
-        let mut m = merged.clone();
-        m.inputs[i].final_script_sig = first
-            .final_script_sig
-            .clone()
-            .or_else(|| second.final_script_sig.clone());
-        m.inputs[i].final_script_witness = first
-            .final_script_witness
-            .clone()
-            .or_else(|| second.final_script_witness.clone());
-        m
+    // Each final as the input would read it with that one in place: put in
+    // the input for the one read and taken out again.
+    let mut with = |first: &faraday_bip::bitcoin::psbt::Input,
+                    second: &faraday_bip::bitcoin::psbt::Input| {
+        let held = (
+            merged.inputs[i].final_script_sig.take(),
+            merged.inputs[i].final_script_witness.take(),
+        );
+        let placed = (
+            first
+                .final_script_sig
+                .clone()
+                .or_else(|| second.final_script_sig.clone()),
+            first
+                .final_script_witness
+                .clone()
+                .or_else(|| second.final_script_witness.clone()),
+        );
+        merged.inputs[i].final_script_sig = placed.0;
+        merged.inputs[i].final_script_witness = placed.1;
+        let unread = not_evaluated(merged, i);
+        let placed = (
+            merged.inputs[i].final_script_sig.take(),
+            merged.inputs[i].final_script_witness.take(),
+        );
+        merged.inputs[i].final_script_sig = held.0;
+        merged.inputs[i].final_script_witness = held.1;
+        (unread, placed)
     };
-    let (mine, theirs) = (with(own, file), with(file, own));
-    match (not_evaluated(&mine, i), not_evaluated(&theirs, i)) {
+    let ((mine, _), (theirs, theirs_fields)) = (with(own, file), with(file, own));
+    match (mine, theirs) {
         // The file's final is one the output judges: it stands over a
         // script not run.
         (true, false) => {
-            merged.inputs[i].final_script_sig = theirs.inputs[i].final_script_sig.clone();
-            merged.inputs[i].final_script_witness = theirs.inputs[i].final_script_witness.clone();
+            merged.inputs[i].final_script_sig = theirs_fields.0;
+            merged.inputs[i].final_script_witness = theirs_fields.1;
         }
         // Two scripts not run: rows that finish beat both, else neither
         // can be checked.
         (true, true) => {
-            let mut bare = merged.clone();
-            bare.inputs[i].final_script_sig = None;
-            bare.inputs[i].final_script_witness = None;
-            if !faraday_psbt::input_finishes(&bare, i) {
+            let held = (
+                merged.inputs[i].final_script_sig.take(),
+                merged.inputs[i].final_script_witness.take(),
+            );
+            let finishes = faraday_psbt::input_finishes(merged, i);
+            merged.inputs[i].final_script_sig = held.0;
+            merged.inputs[i].final_script_witness = held.1;
+            if !finishes {
                 return Err(Conflict::Finals(i));
             }
         }
@@ -2540,7 +2560,10 @@ fn file_witness_refusal(file: &faraday_bip::bitcoin::Psbt, source: &str) -> Opti
     Some(fill(EN.psbt_final_signature_refused, &[&i.to_string()]))
 }
 
-/// Costs a few classifies per input and a tweak per final taproot witness. Why
+/// Costs a copy of the whole file for the signature checks of every input
+/// (once), a few classifies per input and a tweak per final taproot
+/// witness, and for each final input a signature check per row and the
+/// interpreter's run. Why
 /// nothing finished is made from `psbt`: the first input, in order, with
 /// anything to say, and for that input the first of these: its finalized
 /// `scriptSig` or witness does not match the output it spends, its `witness_utxo` and
@@ -2550,13 +2573,18 @@ fn file_witness_refusal(file: &faraday_bip::bitcoin::Psbt, source: &str) -> Opti
 /// taproot key-path one, or the interpreter refuses a Tap miniscript leaf's)
 /// ([`faraday_psbt::verify::final_invalid`]). There is no priority across inputs.
 fn refusal_of(psbt: &faraday_bip::bitcoin::Psbt) -> Option<FinalRefusal> {
+    // One copy of the file for the signature checks of every input.
+    let mut pass: Option<faraday_psbt::verify::Pass> = None;
     (0..psbt.inputs.len()).find_map(|i| {
         let text = |t: &str| Some(FinalRefusal::Text(fill(t, &[&i.to_string()])));
         // The script refuses the final fields: a signature of the file's
         // where one reads wrong, else the fields alone.
-        let fields = |i: usize| {
+        let fields = |i: usize, pass: &mut Option<faraday_psbt::verify::Pass>| {
             let line = fill(EN.psbt_final_signature_refused, &[&i.to_string()]);
-            if faraday_psbt::verify::final_signature_wrong(psbt, i) {
+            if pass
+                .get_or_insert_with(|| faraday_psbt::verify::Pass::new(psbt))
+                .final_signature_wrong(psbt, i)
+            {
                 Some(FinalRefusal::Signature(line))
             } else {
                 Some(FinalRefusal::Text(line))
@@ -2565,15 +2593,18 @@ fn refusal_of(psbt: &faraday_bip::bitcoin::Psbt) -> Option<FinalRefusal> {
         if faraday_psbt::verify::witness_shape_mismatch(psbt, i) {
             text(EN.psbt_warn_witness_mismatch)
         } else if faraday_psbt::verify::witness_mismatch(psbt, i) {
-            fields(i)
+            fields(i, &mut pass)
         } else if faraday_psbt::verify::utxos_disagree(psbt, i) {
             text(EN.psbt_final_prev_disagree)
         } else if faraday_psbt::verify::final_unread(psbt, i) {
             text(EN.psbt_final_prev_unread)
         } else if faraday_psbt::verify::states_false(psbt, i) {
             text(EN.psbt_prev_false)
-        } else if faraday_psbt::verify::final_invalid(psbt, i) {
-            fields(i)
+        } else if pass
+            .get_or_insert_with(|| faraday_psbt::verify::Pass::new(psbt))
+            .final_invalid(psbt, i)
+        {
+            fields(i, &mut pass)
         } else {
             None
         }
@@ -2846,10 +2877,11 @@ pub struct SpendState {
     pub out_names: OutNames,
     /// The finished transaction's hex is shown.
     pub show_hex: bool,
-    /// The last nonce check, with the PSBT bytes it was made over: it
-    /// signs again to compare, so it runs once per set of signatures,
-    /// not once per frame.
-    pub(crate) nonce_check: std::cell::RefCell<Option<(Vec<u8>, std::rc::Rc<NonceCheck>)>>,
+    /// The last nonce check, with the PSBT it was made over: it signs
+    /// again to compare, so it runs once per set of signatures, not once
+    /// per frame. [`Faraday::refresh_spend`] makes it where the file
+    /// changes; a frame that finds the PSBT other than this one makes it.
+    pub(crate) nonce_check: std::cell::RefCell<Option<(Psbt, std::rc::Rc<NonceCheck>)>>,
     /// The step column's scroll, in design units.
     pub scroll: f32,
     /// The open step changed: scroll it into view on the next frame.
@@ -3229,7 +3261,7 @@ impl Faraday {
         }
     }
 
-    /// Costs an inspection when the PSBT or the session changed, and
+    /// Costs an inspection and the nonce check when the PSBT or the session changed, and
     /// what `aggregate_musig`, `signers_by` and `wallet_for` cost. Keeps the open spend in
     /// step with the session: its inspection, signers, wallet and steps.
     pub(crate) fn refresh_spend(&mut self) {
@@ -3252,6 +3284,10 @@ impl Faraday {
                 }
                 s.inspected = Some((s.spend.psbt.clone(), inputs));
                 s.refused = s.spend.refused();
+                // Worked out here, where the file changed, so the first
+                // frame after reads it.
+                let check = std::rc::Rc::new(self.session.nonce_check(&c, &s.spend.psbt));
+                *s.nonce_check.borrow_mut() = Some((s.spend.psbt.clone(), check));
             }
             if fresh || !s.opened {
                 let view = s.musig.as_ref().map(|m| m.view());

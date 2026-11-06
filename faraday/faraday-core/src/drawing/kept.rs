@@ -822,20 +822,21 @@ impl View<'_> {
 
     /// The nonce check of the spend's PSBT `psbt`
     /// ([`crate::wallet::Session::nonce_check`]), kept on the spend by the
-    /// PSBT's bytes; `None` with no spend open. Costs the session's
-    /// account keys, a derivation per signature made here and the checks
-    /// the first time.
+    /// PSBT; `None` with no spend open. [`crate::Faraday::refresh_spend`]
+    /// makes it where the file changes, and a PSBT that is other than the
+    /// kept one (a write that did not refresh) is checked here. Costs the
+    /// session's account keys, a derivation per signature made here and
+    /// the checks, in that case.
     pub(crate) fn nonce_check(&self, psbt: &faraday_psbt::Psbt) -> Option<Rc<NonceCheck>> {
         let s = self.wallets.spend()?;
-        let bytes = psbt.to_bytes();
         let mut cache = s.nonce_check.borrow_mut();
-        if let Some((b, check)) = cache.as_ref()
-            && *b == bytes
+        if let Some((p, check)) = cache.as_ref()
+            && p == psbt
         {
             return Some(check.clone());
         }
         let check = Rc::new(self.kept(|c| self.session.nonce_check(c, psbt)));
-        *cache = Some((bytes, check.clone()));
+        *cache = Some((psbt.clone(), check.clone()));
         Some(check)
     }
 

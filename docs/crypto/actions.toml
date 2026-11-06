@@ -4547,6 +4547,7 @@ functions = [
   "core/faraday-psbt/src/psbt.rs::Psbt::inner",
   "core/faraday-psbt/src/psbt.rs::Psbt::inner_mut",
   "core/faraday-psbt/src/psbt.rs::Psbt::into_inner",
+  "core/faraday-psbt/src/psbt.rs::Psbt::from",
   "faraday/faraday-core/src/wallet.rs::classify_read",
 ]
 code = ["core/faraday-psbt/src/psbt.rs::Psbt::parse_bytes", "core/faraday-psbt/src/psbt.rs::Psbt::parse_base64"]

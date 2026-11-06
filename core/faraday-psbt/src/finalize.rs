@@ -56,21 +56,22 @@ pub fn is_complete(psbt: &Psbt) -> bool {
     if prevout_missing(psbt.inner()).is_some() {
         return false;
     }
-    (0..psbt.inner().inputs.len()).all(|i| {
-        let input = &psbt.inner().inputs[i];
-        let c = classify(psbt.inner(), i);
+    let mut work = psbt.inner().clone();
+    (0..work.inputs.len()).all(|i| {
+        let c = classify(&work, i);
         if !c.problems.is_empty() {
             return false;
         }
+        let input = &work.inputs[i];
         if input.final_script_sig.is_some() || input.final_script_witness.is_some() {
             return true;
         }
-        build_final(psbt.inner(), i, &c, input).is_ok_and(|f| f.is_some())
+        build_final(&mut work, i, &c).is_ok_and(|f| f.is_some())
     })
 }
 
-/// Costs a classify and the finalizer's work on one input, as [`finalize`]
-/// does it. Whether input `index` of `psbt`, taken as it stands, has enough
+/// Costs a classify, a copy of the whole PSBT and the finalizer's work on
+/// one input, as [`finalize`] does it. Whether input `index` of `psbt`, taken as it stands, has enough
 /// signatures to be finalized, whatever any other input needs: no input
 /// misses its spent output, the input states nothing false and a final
 /// witness is built for it. An input that is final already, or that the
@@ -88,7 +89,7 @@ pub fn input_finishes(psbt: &bitcoin::Psbt, index: usize) -> bool {
     let c = classify(psbt, index);
     c.problems.is_empty()
         && c.utxo.is_some()
-        && build_final(psbt, index, &c, input).is_ok_and(|f| f.is_some())
+        && build_final(&mut psbt.clone(), index, &c).is_ok_and(|f| f.is_some())
 }
 
 /// Finalizes every input that has enough signatures, and refuses an input
@@ -112,6 +113,9 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
         return Err(Error::Finalize { input, reason });
     }
     let mut all_final = true;
+    // One working copy for the pass: the satisfier puts an input's fields
+    // in it and takes them out, so no input copies the whole file.
+    let mut work = psbt.inner().clone();
     for i in 0..psbt.inner().inputs.len() {
         let input = &psbt.inner().inputs[i];
         let c = classify(psbt.inner(), i);
@@ -129,7 +133,7 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
             all_final = false;
             continue;
         }
-        match build_final(psbt.inner(), i, &c, input)? {
+        match build_final(&mut work, i, &c)? {
             Some((script_sig, witness)) => {
                 let input = &mut psbt.inner_mut().inputs[i];
                 input.final_script_sig = script_sig;
@@ -138,6 +142,7 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
                 // rest; proprietary fields are cleared too, which it does not
                 // require keeping.
                 clear_signing_fields(input);
+                work.inputs[i] = input.clone();
             }
             None => all_final = false,
         }
@@ -214,33 +219,32 @@ type Final = (Option<ScriptBuf>, Option<Witness>);
 /// The final scriptSig and witness for a supported input, `None` when
 /// signatures are missing.
 fn build_final(
-    psbt: &bitcoin::Psbt,
+    psbt: &mut bitcoin::Psbt,
     index: usize,
     c: &Classified,
-    input: &Input,
 ) -> Result<Option<Final>, Error> {
     let index_err = |reason| Error::Finalize {
         input: index,
         reason,
     };
     Ok(match c.kind {
-        ScriptKind::P2pkh | ScriptKind::P2wpkh => satisfy(psbt, index),
+        ScriptKind::P2pkh | ScriptKind::P2wpkh => satisfy_key_hash(psbt, index),
         ScriptKind::P2shP2wpkh => {
-            let redeem = input
+            let redeem = psbt.inputs[index]
                 .redeem_script
                 .as_ref()
                 .expect("classified as p2sh-p2wpkh");
             push_script(redeem).ok_or(index_err(Reason::RedeemScriptTooLong))?;
-            satisfy(psbt, index)
+            satisfy_key_hash(psbt, index)
         }
-        ScriptKind::P2trKey => input.tap_key_sig.and_then(|sig| {
+        ScriptKind::P2trKey => psbt.inputs[index].tap_key_sig.and_then(|sig| {
             let found = (None, Some(Witness::p2tr_key_spend(&sig)));
             // The key-path signature is checked like any witness.
             let utxo = c.utxo.as_ref()?;
             accepted(psbt, index, utxo, &found).then_some(found)
         }),
         ScriptKind::Multisig { wrapper, .. } => {
-            let redeem = input.redeem_script.as_ref();
+            let redeem = psbt.inputs[index].redeem_script.as_ref();
             if matches!(wrapper, Wrapper::P2sh | Wrapper::P2shP2wsh)
                 && redeem.is_some_and(|r| push_script(r).is_none())
             {
@@ -254,7 +258,7 @@ fn build_final(
                 // the m smallest, whose check would fail on an invalid one
                 // among them: the first m signers' are then tried alone.
                 None => c.utxo.as_ref().and_then(|utxo| {
-                    let found = first_signers(c, input, wrapper, &(None, None))?;
+                    let found = first_signers(c, &psbt.inputs[index], wrapper, &(None, None))?;
                     accepted(psbt, index, utxo, &found).then_some(found)
                 }),
             }
@@ -282,28 +286,55 @@ fn build_final(
 /// written; and the key it would push is 33 bytes where the leaf hashed
 /// 32. Such a leaf is signed for and left for the coordinator to
 /// finalize; any other leaf, or the key path, still finalizes here.
-fn satisfy(psbt: &bitcoin::Psbt, index: usize) -> Option<Final> {
+fn satisfy(psbt: &mut bitcoin::Psbt, index: usize) -> Option<Final> {
     satisfy_leaves(psbt, index, |_| true)
+}
+
+/// [`satisfy`] for a key hash output (p2pkh, p2wpkh, p2sh-p2wpkh), whose
+/// descriptor `miniscript` builds from the input's own partial signatures
+/// and from no other input's key origins. `miniscript` hashes every
+/// input's key origins on each call to make a map only a script with a
+/// raw key hash reads, so the other inputs' are set aside for the call
+/// and put back: the answer is the same and the call no longer reads the
+/// whole file's keys.
+fn satisfy_key_hash(psbt: &mut bitcoin::Psbt, index: usize) -> Option<Final> {
+    let aside: Vec<_> = psbt
+        .inputs
+        .iter_mut()
+        .enumerate()
+        .filter(|(i, input)| *i != index && !input.bip32_derivation.is_empty())
+        .map(|(i, input)| (i, core::mem::take(&mut input.bip32_derivation)))
+        .collect();
+    let found = satisfy(psbt, index);
+    for (i, origins) in aside {
+        psbt.inputs[i].bip32_derivation = origins;
+    }
+    found
 }
 
 /// [`satisfy`] with only the taproot leaves `keep` accepts, by control
 /// block, left in the input.
 fn satisfy_leaves(
-    psbt: &bitcoin::Psbt,
+    psbt: &mut bitcoin::Psbt,
     index: usize,
     keep: impl Fn(&ControlBlock) -> bool,
 ) -> Option<Final> {
     let secp = Secp256k1::verification_only();
-    let mut attempt = psbt.clone();
-    attempt.inputs[index]
+    // The attempt is made on the input itself and the input put back, so
+    // an input costs its own size and not the file's.
+    let saved = psbt.inputs[index].clone();
+    psbt.inputs[index]
         .tap_scripts
         .retain(|control, (script, _)| keep(control) && !leaf_has_pkh(script));
-    attempt.finalize_inp_mut(&secp, index).ok()?;
-    let input = &attempt.inputs[index];
-    Some((
-        input.final_script_sig.clone(),
-        input.final_script_witness.clone(),
-    ))
+    let done = psbt.finalize_inp_mut(&secp, index).ok().map(|()| {
+        let input = &psbt.inputs[index];
+        (
+            input.final_script_sig.clone(),
+            input.final_script_witness.clone(),
+        )
+    });
+    psbt.inputs[index] = saved;
+    done
 }
 
 /// Costs one signature check per signature of every leaf the PSBT
@@ -322,7 +353,7 @@ fn satisfy_leaves(
 /// its shortest control block (then the smaller by bytes), and takes a
 /// later leaf only when it is strictly smaller. What can be finalized
 /// at all is unchanged: an input no leaf satisfies stays partial.
-fn by_leaf(psbt: &bitcoin::Psbt, index: usize) -> Option<Final> {
+fn by_leaf(psbt: &mut bitcoin::Psbt, index: usize) -> Option<Final> {
     let mut controls: Vec<ControlBlock> = psbt.inputs[index].tap_scripts.keys().cloned().collect();
     if controls.is_empty() {
         return satisfy(psbt, index);
@@ -685,7 +716,11 @@ fn accepts_tap(psbt: &bitcoin::Psbt, index: usize, utxo: &TxOut, tap: &TapSpend)
         Some(Err(_)) => return Judgement::Rejects,
         None => None,
     };
-    let all: Option<Vec<&TxOut>> = (0..tx.input.len()).map(|i| spent_output(psbt, i)).collect();
+    let all: Option<Vec<&TxOut>> = if utxo.script_pubkey.is_p2tr() {
+        (0..tx.input.len()).map(|i| spent_output(psbt, i)).collect()
+    } else {
+        None
+    };
     let prevouts = match &all {
         Some(outs) => Prevouts::All(outs),
         None => Prevouts::One(index, utxo),
@@ -766,7 +801,11 @@ fn accepts(
     };
     let secp = Secp256k1::verification_only();
     // Taproot signs every spent output; the others only their own.
-    let all: Option<Vec<&TxOut>> = (0..tx.input.len()).map(|i| spent_output(psbt, i)).collect();
+    let all: Option<Vec<&TxOut>> = if utxo.script_pubkey.is_p2tr() {
+        (0..tx.input.len()).map(|i| spent_output(psbt, i)).collect()
+    } else {
+        None
+    };
     let prevouts = match &all {
         Some(outs) => Prevouts::All(outs),
         None => Prevouts::One(index, utxo),

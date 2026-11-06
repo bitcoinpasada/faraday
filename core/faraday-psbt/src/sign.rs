@@ -21,6 +21,7 @@
 //! the check is of the signing itself and not of the randomness.
 //! Anti-exfil is a later milestone.
 
+use alloc::borrow::Cow;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use core::fmt;
@@ -288,6 +289,8 @@ pub fn sign(
     let tx = psbt.inner().unsigned_tx.clone();
     let txid = tx.compute_txid();
     let mut cache = SighashCache::new(&tx);
+    // Every input's taproot sighash reads the same outputs: worked out once.
+    let outputs = Outputs::default();
     let mut signed_inputs = Vec::new();
     let mut nonces_shared = 0usize;
 
@@ -312,7 +315,9 @@ pub fn sign(
         }
         let cl = classify(psbt.inner(), i);
         if cl.kind == ScriptKind::P2trKey {
-            musig_precheck(c, psbt, &mut cache, i, &cl, musig, &mine, txid, session)?;
+            musig_precheck(
+                c, psbt, &mut cache, &outputs, i, &cl, musig, &mine, txid, session,
+            )?;
         }
     }
 
@@ -429,15 +434,17 @@ pub fn sign(
                     continue;
                 }
                 let done = sign_musig(
-                    c, psbt, &mut cache, i, &cl, musig, &mine, &selected, aux, txid, session, seed,
+                    c, psbt, &mut cache, &outputs, i, &cl, musig, &mine, &selected, aux, txid,
+                    session, seed,
                 )?;
                 nonces_shared += done.nonces_shared;
                 signed_inputs.extend(done.signatures);
             }
             ScriptKind::P2trKey => {
                 for (xonly, fp, path, master) in tap_claims {
-                    let sig =
-                        sign_taproot(c, psbt, &mut cache, i, &cl, xonly, &path, master, aux, None)?;
+                    let sig = sign_taproot(
+                        c, psbt, &mut cache, &outputs, i, &cl, xonly, &path, master, aux, None,
+                    )?;
                     signed_inputs.push(InputSignature {
                         index: i,
                         fingerprint: fp,
@@ -470,7 +477,8 @@ pub fn sign(
                             continue;
                         }
                         let sig = sign_tap_leaf(
-                            c, psbt, &mut cache, i, &cl, *xonly, *leaf_hash, path, master, aux,
+                            c, psbt, &mut cache, &outputs, i, &cl, *xonly, *leaf_hash, path,
+                            master, aux,
                         )?;
                         signed_inputs.push(InputSignature {
                             index: i,
@@ -499,7 +507,7 @@ pub fn sign(
                         continue;
                     }
                     let sig = sign_taproot(
-                        c, psbt, &mut cache, i, &cl, xonly, &path, master, aux, merkle,
+                        c, psbt, &mut cache, &outputs, i, &cl, xonly, &path, master, aux, merkle,
                     )?;
                     signed_inputs.push(InputSignature {
                         index: i,
@@ -625,6 +633,7 @@ fn sign_tap_leaf(
     c: &Compute,
     psbt: &Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,
+    outputs: &Outputs,
     index: usize,
     cl: &Classified,
     xonly: XOnlyPublicKey,
@@ -638,7 +647,7 @@ fn sign_tap_leaf(
     if derived.to_xpub(c).public_key.x_only_public_key().0 != xonly {
         return Err(Error::KeyMismatch { input: index });
     }
-    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
+    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index, outputs)?;
     let sighash = cache
         .taproot_script_spend_signature_hash(index, &prevouts.as_ref(), leaf_hash, sighash_type)
         .map_err(|_| Error::Sighash { input: index })?;
@@ -663,12 +672,13 @@ fn sign_tap_leaf(
 
 /// The taproot sighash type the input asks for and the prevouts that
 /// sighash commits to: the one input under `ANYONECANPAY`, every input
-/// otherwise.
-fn tap_sighash_inputs(
+/// otherwise (from `outputs`, worked out once for the pass).
+fn tap_sighash_inputs<'a>(
     psbt: &Psbt,
     cl: &Classified,
     index: usize,
-) -> Result<(TapSighashType, PrevoutSet), Error> {
+    outputs: &'a Outputs,
+) -> Result<(TapSighashType, PrevoutSet<'a>), Error> {
     let input = &psbt.inner().inputs[index];
     let sighash_type = match input.sighash_type {
         None => TapSighashType::Default,
@@ -676,52 +686,100 @@ fn tap_sighash_inputs(
             .taproot_hash_ty()
             .map_err(|_| Error::Sighash { input: index })?,
     };
-    Ok((sighash_type, tap_prevouts(psbt, cl, index, sighash_type)?))
+    Ok((
+        sighash_type,
+        tap_prevouts_from(outputs.of(psbt.inner()), cl, index, sighash_type)?,
+    ))
 }
 
-/// The prevouts a taproot sighash of type `sighash_type` commits to.
-/// Split out so that [`crate::verify`] checks a signature that arrived
-/// against the prevouts this crate would have signed over, under the
-/// sighash type the signature itself states.
+/// The output every input of a PSBT spends, or the first input that
+/// states none: what a taproot sighash that commits to all inputs
+/// reads. The same for every input of a PSBT, so a pass works it out once.
+pub(crate) type AllOutputs = Result<Vec<TxOut>, usize>;
+
+/// Costs a txid per input that carries a previous transaction. The
+/// output every input of `psbt` spends ([`AllOutputs`]).
+pub(crate) fn all_outputs(psbt: &bitcoin::Psbt) -> AllOutputs {
+    (0..psbt.inputs.len())
+        .map(|j| spent_output(psbt, j).cloned().ok_or(j))
+        .collect()
+}
+
+/// [`AllOutputs`] of one PSBT, worked out when first asked for and kept
+/// for the rest of a pass over it.
+#[derive(Default)]
+pub(crate) struct Outputs(core::cell::OnceCell<AllOutputs>);
+
+impl Outputs {
+    /// Costs what [`all_outputs`] costs, on the first call only.
+    pub(crate) fn of(&self, psbt: &bitcoin::Psbt) -> &AllOutputs {
+        self.0.get_or_init(|| all_outputs(psbt))
+    }
+}
+
+/// Costs [`all_outputs`] unless the type is `ANYONECANPAY`. The prevouts a
+/// taproot sighash of type `sighash_type` commits to. Split out so that
+/// [`crate::verify`] checks a signature that arrived against the prevouts
+/// this crate would have signed over, under the sighash type the signature
+/// itself states. A pass over many inputs uses [`tap_prevouts_from`].
 pub(crate) fn tap_prevouts(
-    psbt: &Psbt,
+    psbt: &bitcoin::Psbt,
     cl: &Classified,
     index: usize,
     sighash_type: TapSighashType,
-) -> Result<PrevoutSet, Error> {
-    let anyone_can_pay = matches!(
+) -> Result<PrevoutSet<'static>, Error> {
+    if anyone_can_pay(sighash_type) {
+        return one_prevout(cl, index);
+    }
+    match all_outputs(psbt) {
+        Ok(all) => Ok(PrevoutSet::All(Cow::Owned(all))),
+        Err(input) => Err(Error::MissingUtxo { input }),
+    }
+}
+
+/// [`tap_prevouts`] over `all`, the outputs of the whole PSBT worked out
+/// once, copying none of them.
+pub(crate) fn tap_prevouts_from<'a>(
+    all: &'a AllOutputs,
+    cl: &Classified,
+    index: usize,
+    sighash_type: TapSighashType,
+) -> Result<PrevoutSet<'a>, Error> {
+    if anyone_can_pay(sighash_type) {
+        return one_prevout(cl, index);
+    }
+    match all {
+        Ok(all) => Ok(PrevoutSet::All(Cow::Borrowed(all))),
+        Err(input) => Err(Error::MissingUtxo { input: *input }),
+    }
+}
+
+fn anyone_can_pay(sighash_type: TapSighashType) -> bool {
+    matches!(
         sighash_type,
         TapSighashType::AllPlusAnyoneCanPay
             | TapSighashType::NonePlusAnyoneCanPay
             | TapSighashType::SinglePlusAnyoneCanPay
-    );
-    if anyone_can_pay {
-        let utxo = cl.utxo.clone().ok_or(Error::MissingUtxo { input: index })?;
-        return Ok(PrevoutSet::One(index, utxo));
-    }
-    let mut prevouts: Vec<TxOut> = Vec::with_capacity(psbt.inner().inputs.len());
-    for j in 0..psbt.inner().inputs.len() {
-        prevouts.push(
-            spent_output(psbt.inner(), j)
-                .cloned()
-                .ok_or(Error::MissingUtxo { input: j })?,
-        );
-    }
-    Ok(PrevoutSet::All(prevouts))
+    )
 }
 
-/// The prevouts a taproot sighash commits to, owned so that the caller
-/// can hand out the borrowed `Prevouts` the sighash cache wants.
-pub(crate) enum PrevoutSet {
+fn one_prevout(cl: &Classified, index: usize) -> Result<PrevoutSet<'static>, Error> {
+    let utxo = cl.utxo.clone().ok_or(Error::MissingUtxo { input: index })?;
+    Ok(PrevoutSet::One(index, utxo))
+}
+
+/// The prevouts a taproot sighash commits to, owned or borrowed so that
+/// the caller can hand out the borrowed `Prevouts` the sighash cache wants.
+pub(crate) enum PrevoutSet<'a> {
     One(usize, TxOut),
-    All(Vec<TxOut>),
+    All(Cow<'a, [TxOut]>),
 }
 
-impl PrevoutSet {
+impl PrevoutSet<'_> {
     pub(crate) fn as_ref(&self) -> Prevouts<'_, TxOut> {
         match self {
             PrevoutSet::One(index, utxo) => Prevouts::One(*index, utxo.clone()),
-            PrevoutSet::All(all) => Prevouts::All(all),
+            PrevoutSet::All(all) => Prevouts::All(all.as_ref()),
         }
     }
 }
@@ -742,6 +800,7 @@ fn sign_taproot(
     c: &Compute,
     psbt: &Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,
+    outputs: &Outputs,
     index: usize,
     cl: &Classified,
     xonly: secp256k1::XOnlyPublicKey,
@@ -765,7 +824,7 @@ fn sign_taproot(
         return Err(Error::KeyMismatch { input: index });
     }
 
-    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
+    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index, outputs)?;
     let sighash = cache
         .taproot_key_spend_signature_hash(index, &prevouts.as_ref(), sighash_type)
         .map_err(|_| Error::Sighash { input: index })?;
@@ -836,6 +895,7 @@ fn sign_musig(
     c: &Compute,
     psbt: &mut Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,
+    outputs: &Outputs,
     index: usize,
     cl: &Classified,
     musig: &crate::inspect::MusigInput,
@@ -850,7 +910,7 @@ fn sign_musig(
     let secp = selected
         .first()
         .map_or_else(secp256k1::Secp256k1::new, |(_, m)| m.secp().clone());
-    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
+    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index, outputs)?;
     if sighash_type != TapSighashType::Default {
         return Err(Error::Unsupported {
             input: index,
@@ -1290,6 +1350,7 @@ fn musig_precheck(
     c: &Compute,
     psbt: &Psbt,
     cache: &mut SighashCache<&bitcoin::Transaction>,
+    outputs: &Outputs,
     index: usize,
     cl: &Classified,
     musig: &crate::inspect::MusigInput,
@@ -1299,7 +1360,7 @@ fn musig_precheck(
 ) -> Result<(), Error> {
     // The refusals `sign_musig` makes before it takes anything, with the
     // same errors: a pass that will refuse takes no kept nonce.
-    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index)?;
+    let (sighash_type, prevouts) = tap_sighash_inputs(psbt, cl, index, outputs)?;
     if sighash_type != TapSighashType::Default {
         return Err(Error::Unsupported {
             input: index,

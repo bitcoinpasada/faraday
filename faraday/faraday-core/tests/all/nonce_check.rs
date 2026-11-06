@@ -46,6 +46,9 @@ enum How {
     First,
     /// One nonce chosen for every input: the key given away.
     SameNonce,
+    /// A nonce of the signer's own choosing, one input: a signature that
+    /// verifies and that no nonce rule here makes.
+    OwnNonce,
 }
 
 /// ECDSA with the nonce `k` chosen here rather than by RFC 6979, so that
@@ -137,7 +140,9 @@ fn signed_elsewhere(how: How) -> faraday_psbt::Psbt {
         let signature = match how {
             How::LowR => secp.sign_ecdsa_low_r(&msg, derived.secret_key()),
             How::First => secp.sign_ecdsa(&msg, derived.secret_key()),
-            How::SameNonce => ecdsa_with_k(derived.secret_key(), hash.to_byte_array(), &k),
+            How::SameNonce | How::OwnNonce => {
+                ecdsa_with_k(derived.secret_key(), hash.to_byte_array(), &k)
+            }
         };
         psbt.inner_mut().inputs[i].partial_sigs.insert(
             PublicKey::new(*pk),
@@ -442,6 +447,112 @@ fn a_key_loaded_since_the_check_opened_is_counted_on_the_way_back() {
             .iter()
             .all(|r| r.recomputed == Some(Some(NonceMode::LowR))),
         "the check follows the keys"
+    );
+}
+
+/// A PSBT of the kit, signed by keys the session holds and so by the
+/// device that is to read it as signed elsewhere.
+fn signed_by_seeds(id: &str) -> (Kit, Vec<u8>) {
+    let k = kit(id);
+    let c = testkit::compute();
+    let mut s = testkit::session();
+    for (w, l) in testkit::TEST_SEEDS {
+        s.keys
+            .add_words(&c, &testkit::test_words(w), l, None)
+            .unwrap();
+    }
+    s.add_wallet(
+        &c,
+        "W",
+        &k.descriptor,
+        "Test wallet",
+        faraday_core::wallet::Origin::Named,
+    )
+    .unwrap();
+    let mut made = testkit::unsigned(&k).unwrap();
+    let accepted: Vec<_> = s
+        .inspect(&c, &made)
+        .warnings
+        .iter()
+        .map(|w| w.kind.clone())
+        .collect();
+    s.sign_with(
+        &c,
+        &mut made,
+        &faraday_crypto::Zeroizing::new([7; 32]),
+        &mut None,
+        None,
+        &accepted,
+    )
+    .unwrap();
+    (k, made.to_bytes())
+}
+
+/// The Nonce check line of the Finish card as drawn.
+fn finish_line(app: &mut Faraday) -> Option<String> {
+    let _ = app.frame();
+    app.drawn_texts()
+        .into_iter()
+        .find(|t| t.starts_with("Nonce check ·"))
+}
+
+#[test]
+fn the_finish_cards_nonce_line_follows_a_key_loaded_while_it_is_drawn() {
+    for id in ["spending", "taproot"] {
+        let (k, bytes) = signed_by_seeds(id);
+        let mut app = with_inbox(vec![
+            ("spend.psbt", bytes),
+            ("w.txt", k.descriptor.as_bytes().to_vec()),
+        ]);
+        let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
+        app.press(Action::LoadWallet(at(&app, "w.txt")));
+        app.press(Action::StartSpend(at(&app, "spend.psbt")));
+        app.press(Action::Step(faraday_core::wallet::step::FINISH));
+        assert_eq!(
+            finish_line(&mut app).as_deref(),
+            Some("Nonce check · 1 signature valid · 0 recomputed here"),
+            "{id}: no key here"
+        );
+        add_key(&mut app, "bacon");
+        assert_eq!(
+            finish_line(&mut app).as_deref(),
+            Some("Nonce check · 1 signature valid · 1 recomputed here"),
+            "{id}: the key came in after the card was drawn"
+        );
+        app.press(Action::RemoveKeys);
+        // Keys removed close the spend: there is no card left to read.
+        assert!(app.spend().is_none(), "{id}");
+        assert_eq!(finish_line(&mut app), None, "{id}");
+    }
+}
+
+#[test]
+fn a_collect_that_brings_a_changed_signature_shows_its_verdict_in_the_check() {
+    let k = kit("savings");
+    let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let mut app = with_inbox(vec![
+        ("spend.psbt", unsigned.to_bytes()),
+        ("savings-wallet.txt", k.descriptor.into_bytes()),
+        ("from-a.psbt", signed_elsewhere(How::LowR).to_bytes()),
+        ("from-b.psbt", signed_elsewhere(How::OwnNonce).to_bytes()),
+    ]);
+    let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
+    app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
+    add_key(&mut app, "bacon");
+    app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    app.press(Action::SignHere);
+    app.press(Action::Collect(at(&app, "from-a.psbt")));
+    add_key(&mut app, "zebra");
+    assert_eq!(
+        finish_line(&mut app).as_deref(),
+        Some("Nonce check · 2 signatures valid · 2 recomputed here")
+    );
+    // The file brings zebra's signature again, made with a nonce of its
+    // own: it verifies, and is not the one this device makes.
+    app.press(Action::Collect(at(&app, "from-b.psbt")));
+    assert_eq!(
+        finish_line(&mut app).as_deref(),
+        Some("Nonce check · a signature is wrong")
     );
 }
 

@@ -47,7 +47,7 @@ use crate::finalize::{self, Judgement};
 use crate::inspect::SighashKind;
 use crate::psbt::Psbt;
 use crate::reason::Reason;
-use crate::sign::{SigKind, tap_prevouts};
+use crate::sign::{Outputs, SigKind, tap_prevouts_from};
 use crate::v2;
 
 /// The key a signature is under, as the transaction names it. One key is
@@ -454,10 +454,12 @@ struct Present {
 /// anything to say about it.
 pub fn verify_signatures(psbt: &Psbt, ctx: &Context) -> Vec<InputSignatures> {
     let secp = Secp256k1::verification_only();
+    // One copy of the PSBT for the whole pass, not one per input.
+    let mut rest = Rest::new(psbt.inner());
     (0..psbt.inner().inputs.len())
         .map(|index| InputSignatures {
             index,
-            signatures: input_signatures(&secp, psbt, ctx, index),
+            signatures: input_rows(&secp, psbt.inner(), &mut rest, ctx, index).0,
         })
         .collect()
 }
@@ -484,15 +486,6 @@ pub fn count_signatures(psbt: &Psbt) -> usize {
         .sum()
 }
 
-fn input_signatures<C: secp256k1::Verification>(
-    secp: &Secp256k1<C>,
-    psbt: &Psbt,
-    ctx: &Context,
-    index: usize,
-) -> Vec<SignaturePresent> {
-    input_rows(secp, psbt, ctx, index).0
-}
-
 /// The most finalized ECDSA signatures of one input that are verified.
 /// Consensus allows 201 opcodes in a script and a signature check is one,
 /// so no true spend holds more; the rows past it read Unchecked.
@@ -503,23 +496,23 @@ const ROW_BOUND: usize = 201;
 /// output, or is over consensus's limits).
 fn input_rows<C: secp256k1::Verification>(
     secp: &Secp256k1<C>,
-    psbt: &Psbt,
+    psbt: &bitcoin::Psbt,
+    rest: &mut Rest,
     ctx: &Context,
     index: usize,
 ) -> (Vec<SignaturePresent>, Judgement) {
-    let c = classify(psbt.inner(), index);
-    let input = &psbt.inner().inputs[index];
+    let c = classify(psbt, index);
+    let input = &psbt.inputs[index];
     let filed = FiledLeaves::new();
     let separators = core::cell::OnceCell::new();
     let present = collect(&c, input);
-    let restored = restore(psbt, index, &c);
     let mismatch = hand_mismatch(&c, input, false);
     // An input over consensus's limits is a mismatch whatever its rows say:
     // none of them is verified.
     let limited = mismatch && over_consensus_limits(&c, input);
     let is_final = input.final_script_sig.is_some() || input.final_script_witness.is_some();
     let judgement = match c.utxo.as_ref() {
-        Some(utxo) if is_final && !mismatch => finalize::judge(psbt.inner(), index, utxo),
+        Some(utxo) if is_final && !mismatch => finalize::judge(psbt, index, utxo),
         _ => Judgement::NotJudged,
     };
     // A script that is not run proves no signature on it wrong.
@@ -528,18 +521,23 @@ fn input_rows<C: secp256k1::Verification>(
     let mut checked = Vec::with_capacity(present.len());
     let mut messages = BTreeMap::new();
     let mut verified = 0;
-    for p in &present {
-        let mut preimage = false;
-        if p.finalized && p.kind == SigKind::Ecdsa {
-            verified += 1;
-            if limited || verified > ROW_BOUND {
-                let unchecked = Verdict::Unchecked(Unchecked::UnsupportedScript);
-                checked.push((p.key.clone(), unchecked, false));
-                continue;
+    if !present.is_empty() {
+        rest.with(index, &c, |restored, hashes| {
+            for p in &present {
+                let mut preimage = false;
+                if p.finalized && p.kind == SigKind::Ecdsa {
+                    verified += 1;
+                    if limited || verified > ROW_BOUND {
+                        let unchecked = Verdict::Unchecked(Unchecked::UnsupportedScript);
+                        checked.push((p.key.clone(), unchecked, false));
+                        continue;
+                    }
+                }
+                let at = (&mut *restored, &mut *hashes);
+                let (key, verdict) = check(secp, at, &c, index, p, &mut preimage, &mut messages);
+                checked.push((key, verdict, preimage));
             }
-        }
-        let (key, verdict) = check(secp, &restored, &c, index, p, &mut preimage, &mut messages);
-        checked.push((key, verdict, preimage));
+        });
     }
     // A multisig's signatures stand in the script's key order, each key
     // walked forward as `OP_CHECKMULTISIG` walks them. What the
@@ -547,7 +545,8 @@ fn input_rows<C: secp256k1::Verification>(
     let mismatch = mismatch
         || (judgement != Judgement::Accepts
             && out_of_order(
-                final_multisig(&restored, &c, index).as_ref(),
+                rest.with(index, &c, |restored, _| final_multisig(restored, &c, index))
+                    .as_ref(),
                 &present,
                 &checked,
             ));
@@ -663,8 +662,8 @@ fn out_of_order(
     false
 }
 
-/// Costs a classify, a signature check per row of the input, a control
-/// block check per `tap_scripts` entry (once for the input), and per row a
+/// Costs a copy of the whole PSBT, a classify, a signature check per row of
+/// the input, a control block check per `tap_scripts` entry (once for the input), and per row a
 /// read of its leaf's script, which under a large committing leaf is a pass
 /// over that leaf for each row. The verdicts of the partial Schnorr rows of input `index`,
 /// each as the review reads it with no key loaded, by the key and leaf of
@@ -673,26 +672,37 @@ pub fn script_row_verdicts(
     psbt: &bitcoin::Psbt,
     index: usize,
 ) -> Vec<(XOnlyPublicKey, TapLeafHash, Verdict)> {
-    if psbt.inputs.get(index).is_none() {
-        return Vec::new();
+    Pass::new(psbt).script_row_verdicts(psbt, index)
+}
+
+impl Pass {
+    /// Costs what [`script_row_verdicts`] costs, with no copy of the file.
+    /// [`script_row_verdicts`] of the file this pass was made for.
+    pub fn script_row_verdicts(
+        &mut self,
+        psbt: &bitcoin::Psbt,
+        index: usize,
+    ) -> Vec<(XOnlyPublicKey, TapLeafHash, Verdict)> {
+        if psbt.inputs.get(index).is_none() {
+            return Vec::new();
+        }
+        let ctx = Context {
+            network: faraday_bip::keys::Network::Mainnet,
+            keys: &[],
+            wallets: &[],
+            musig_session: None,
+        };
+        let secp = Secp256k1::verification_only();
+        input_rows(&secp, psbt, &mut self.0, &ctx, index)
+            .0
+            .into_iter()
+            .filter(|s| !s.finalized)
+            .filter_map(|s| match (s.key, s.leaf) {
+                (SigKey::Schnorr(key), Some(leaf)) => Some((key, leaf, s.verdict)),
+                _ => None,
+            })
+            .collect()
     }
-    let own = Psbt::from(psbt.clone());
-    let ctx = Context {
-        network: faraday_bip::keys::Network::Mainnet,
-        keys: &[],
-        wallets: &[],
-        musig_session: None,
-    };
-    let secp = Secp256k1::verification_only();
-    input_rows(&secp, &own, &ctx, index)
-        .0
-        .into_iter()
-        .filter(|s| !s.finalized)
-        .filter_map(|s| match (s.key, s.leaf) {
-            (SigKey::Schnorr(key), Some(leaf)) => Some((key, leaf, s.verdict)),
-            _ => None,
-        })
-        .collect()
 }
 
 /// Costs a classify and a control block check. Whether a `tap_scripts`
@@ -717,7 +727,7 @@ pub fn tap_entry_commits(
         && control.verify_taproot_commitment(&Secp256k1::verification_only(), paid, script)
 }
 
-/// Costs a classify, a verification per signature (up to a bound of 201
+/// Costs a copy of the whole PSBT, a classify, a verification per signature (up to a bound of 201
 /// per input, each tried against the script's keys, so up to 201 times the
 /// keys a script of 10,000 bytes holds: some 58,000 verifications for an
 /// input of 999 signature-shaped elements under 290 keys, none of them
@@ -734,48 +744,55 @@ pub fn tap_entry_commits(
 /// is a Tap miniscript (version 0xc0), each signature read over the message
 /// that includes the annex, and else is not run and not refused here.
 pub fn final_invalid(psbt: &bitcoin::Psbt, index: usize) -> bool {
-    let Some(input) = psbt.inputs.get(index) else {
-        return false;
-    };
-    if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
-        return false;
-    }
-    let c = classify(psbt, index);
-    let own = Psbt::from(psbt.clone());
-    let restored = restore(&own, index, &c);
-    let separator = |s: &Script| {
-        s.instructions()
+    Pass::new(psbt).final_invalid(psbt, index)
+}
+
+impl Pass {
+    /// Costs what [`final_invalid`] costs, with no copy of the file.
+    /// [`final_invalid`] of the file this pass was made for.
+    pub fn final_invalid(&mut self, psbt: &bitcoin::Psbt, index: usize) -> bool {
+        let Some(input) = psbt.inputs.get(index) else {
+            return false;
+        };
+        if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
+            return false;
+        }
+        let c = classify(psbt, index);
+        let put = restored_input(input, &c);
+        let separator = |s: &Script| {
+            s.instructions()
             .any(|i| matches!(i, Ok(Instruction::Op(op)) if op == bitcoin::opcodes::all::OP_CODESEPARATOR))
-    };
-    let restored_input = &restored.inputs[index];
-    if c.utxo.as_ref().is_some_and(|u| separator(&u.script_pubkey))
-        || restored_input
-            .redeem_script
-            .as_deref()
-            .is_some_and(separator)
-        || restored_input
-            .witness_script
-            .as_deref()
-            .is_some_and(separator)
-    {
-        return false;
-    }
-    let ctx = Context {
-        network: faraday_bip::keys::Network::Mainnet,
-        keys: &[],
-        wallets: &[],
-        musig_session: None,
-    };
-    let secp = Secp256k1::verification_only();
-    let (rows, judgement) = input_rows(&secp, &own, &ctx, index);
-    let wrong = || rows.iter().any(wrong_row);
-    match judgement {
-        Judgement::Accepts => false,
-        Judgement::Rejects => true,
-        // A script not run is never refused here. Its ECDSA rows read
-        // Unchecked, and so do its Schnorr rows.
-        Judgement::NotJudged if not_evaluated_of(&c, input) => false,
-        Judgement::NotJudged => wrong(),
+        };
+        let restored_input = put.as_ref().unwrap_or(input);
+        if c.utxo.as_ref().is_some_and(|u| separator(&u.script_pubkey))
+            || restored_input
+                .redeem_script
+                .as_deref()
+                .is_some_and(separator)
+            || restored_input
+                .witness_script
+                .as_deref()
+                .is_some_and(separator)
+        {
+            return false;
+        }
+        let ctx = Context {
+            network: faraday_bip::keys::Network::Mainnet,
+            keys: &[],
+            wallets: &[],
+            musig_session: None,
+        };
+        let secp = Secp256k1::verification_only();
+        let (rows, judgement) = input_rows(&secp, psbt, &mut self.0, &ctx, index);
+        let wrong = || rows.iter().any(wrong_row);
+        match judgement {
+            Judgement::Accepts => false,
+            Judgement::Rejects => true,
+            // A script not run is never refused here. Its ECDSA rows read
+            // Unchecked, and so do its Schnorr rows.
+            Judgement::NotJudged if not_evaluated_of(&c, input) => false,
+            Judgement::NotJudged => wrong(),
+        }
     }
 }
 
@@ -784,21 +801,31 @@ pub fn final_invalid(psbt: &bitcoin::Psbt, index: usize) -> bool {
 /// and the nonce check), as against a refusal by the script alone, such as
 /// a time lock the transaction does not meet or a non-minimal push.
 pub fn final_signature_wrong(psbt: &bitcoin::Psbt, index: usize) -> bool {
-    let Some(input) = psbt.inputs.get(index) else {
-        return false;
-    };
-    if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
-        return false;
+    Pass::new(psbt).final_signature_wrong(psbt, index)
+}
+
+impl Pass {
+    /// Costs what [`final_invalid`] costs, with no copy of the file.
+    /// [`final_signature_wrong`] of the file this pass was made for.
+    pub fn final_signature_wrong(&mut self, psbt: &bitcoin::Psbt, index: usize) -> bool {
+        let Some(input) = psbt.inputs.get(index) else {
+            return false;
+        };
+        if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
+            return false;
+        }
+        let ctx = Context {
+            network: faraday_bip::keys::Network::Mainnet,
+            keys: &[],
+            wallets: &[],
+            musig_session: None,
+        };
+        let secp = Secp256k1::verification_only();
+        input_rows(&secp, psbt, &mut self.0, &ctx, index)
+            .0
+            .iter()
+            .any(wrong_row)
     }
-    let own = Psbt::from(psbt.clone());
-    let ctx = Context {
-        network: faraday_bip::keys::Network::Mainnet,
-        keys: &[],
-        wallets: &[],
-        musig_session: None,
-    };
-    let secp = Secp256k1::verification_only();
-    input_rows(&secp, &own, &ctx, index).0.iter().any(wrong_row)
 }
 
 /// A final row that is a signature read wrong: an ECDSA one, or a taproot
@@ -1974,15 +2001,102 @@ fn ecdsa_candidates(elements: &[Vec<u8>], keys: &[SigKey]) -> Vec<Present> {
         .collect()
 }
 
-/// The PSBT with input `index`'s scripts put back where a finalized
-/// input cleared them, so that the sighash can be computed from the
-/// same fields the signer computed it from.
-fn restore(psbt: &Psbt, index: usize, c: &Classified) -> bitcoin::Psbt {
-    let mut inner = psbt.inner().clone();
-    let input = &mut inner.inputs[index];
-    let Some(utxo) = c.utxo.as_ref() else {
-        return inner;
-    };
+/// One file's working copy for a pass over its inputs, made once
+/// ([`Pass::new`]) and used for every input's check, so that a loop over
+/// the inputs copies the file once and not once per input. It holds the
+/// file as it was when the pass was made: a file changed after is a new
+/// pass.
+pub struct Pass(Rest);
+
+impl Pass {
+    /// Costs a copy of `psbt`. A pass over `psbt`.
+    pub fn new(psbt: &bitcoin::Psbt) -> Self {
+        Pass(Rest::new(psbt))
+    }
+}
+
+/// One PSBT's copy for a pass over its inputs: [`Rest::with`] hands out
+/// the PSBT with one input put back as `restored_input` does, and takes the
+/// original back after, so a pass copies the PSBT once and each input only
+/// itself, not the whole file once per input.
+struct Rest {
+    work: bitcoin::Psbt,
+    /// The segwit v0 hashes of `work`'s transaction, made on the first call
+    /// and shared by every input's message. They read the transaction
+    /// only, which no input's put-back changes.
+    cache: SighashCache<bitcoin::Transaction>,
+    /// The output every input spends, made on the first taproot message and
+    /// shared by all. Putting an input back changes its `witness_utxo` to
+    /// the output `classify` reads, which is the one `spent_output` reads,
+    /// so the list is the same for every input of the pass.
+    outputs: Outputs,
+}
+
+/// What a pass shares between the inputs it checks: the segwit and
+/// taproot hashes of the transaction, and the output every input spends.
+struct Hashes<'a> {
+    cache: &'a mut SighashCache<bitcoin::Transaction>,
+    outputs: &'a Outputs,
+}
+
+impl Rest {
+    /// Costs a copy of `psbt`.
+    fn new(psbt: &bitcoin::Psbt) -> Self {
+        Rest {
+            cache: SighashCache::new(psbt.unsigned_tx.clone()),
+            outputs: Outputs::default(),
+            work: psbt.clone(),
+        }
+    }
+
+    /// Puts input `index` with its scripts put back where a finalized input cleared them; the input it replaced
+    /// goes to [`Rest::undo`].
+    fn put(&mut self, index: usize, c: &Classified) -> Option<bitcoin::psbt::Input> {
+        let fixed = restored_input(&self.work.inputs[index], c)?;
+        Some(core::mem::replace(&mut self.work.inputs[index], fixed))
+    }
+
+    /// Puts back the input [`Rest::put`] replaced.
+    fn undo(&mut self, index: usize, saved: Option<bitcoin::psbt::Input>) {
+        if let Some(saved) = saved {
+            self.work.inputs[index] = saved;
+        }
+    }
+
+    /// Runs `f` on the PSBT with input `index` with its scripts put back where a finalized input cleared them.
+    fn with<R>(
+        &mut self,
+        index: usize,
+        c: &Classified,
+        f: impl FnOnce(&mut bitcoin::Psbt, &mut Hashes<'_>) -> R,
+    ) -> R {
+        let Some(fixed) = restored_input(&self.work.inputs[index], c) else {
+            return f(
+                &mut self.work,
+                &mut Hashes {
+                    cache: &mut self.cache,
+                    outputs: &self.outputs,
+                },
+            );
+        };
+        let saved = core::mem::replace(&mut self.work.inputs[index], fixed);
+        let out = f(
+            &mut self.work,
+            &mut Hashes {
+                cache: &mut self.cache,
+                outputs: &self.outputs,
+            },
+        );
+        self.work.inputs[index] = saved;
+        out
+    }
+}
+
+/// `input` with its scripts put back where a finalized input cleared
+/// them (`restored_input`), or `None` where nothing is put back.
+fn restored_input(input: &bitcoin::psbt::Input, c: &Classified) -> Option<bitcoin::psbt::Input> {
+    let utxo = c.utxo.as_ref()?;
+    let mut input = input.clone();
     // `bitcoin`'s signature hash reads `witness_utxo` first; a node reads
     // the previous transaction, which is what `classify` holds.
     if input.witness_utxo.is_some() {
@@ -1991,9 +2105,9 @@ fn restore(psbt: &Psbt, index: usize, c: &Classified) -> bitcoin::Psbt {
     let Some(script_sig) = input.final_script_sig.clone() else {
         if let Some(witness) = input.final_script_witness.clone() {
             input.redeem_script = None;
-            restore_witness(input, &utxo.script_pubkey, &witness);
+            restore_witness(&mut input, &utxo.script_pubkey, &witness);
         }
-        return inner;
+        return Some(input);
     };
     // A final input's scripts are the ones its final data holds: a
     // `redeem_script` or `witness_script` field beside it is not read.
@@ -2005,8 +2119,8 @@ fn restore(psbt: &Psbt, index: usize, c: &Classified) -> bitcoin::Psbt {
         utxo.script_pubkey.clone()
     };
     let witness = input.final_script_witness.clone().unwrap_or_default();
-    restore_witness(input, &effective, &witness);
-    inner
+    restore_witness(&mut input, &effective, &witness);
+    Some(input)
 }
 
 /// The witness script a finalized p2wsh witness carries as its last
@@ -2022,7 +2136,7 @@ fn restore_witness(input: &mut bitcoin::psbt::Input, effective: &Script, witness
 /// Checks one signature, and says which key it is under.
 fn check<C: secp256k1::Verification>(
     secp: &Secp256k1<C>,
-    restored: &bitcoin::Psbt,
+    (restored, hashes): (&mut bitcoin::Psbt, &mut Hashes<'_>),
     c: &Classified,
     index: usize,
     p: &Present,
@@ -2043,7 +2157,7 @@ fn check<C: secp256k1::Verification>(
             // One message per sighash type for the input.
             let msg = *messages
                 .entry(sig.sighash_type.to_u32())
-                .or_insert_with(|| ecdsa_message(restored, index, sig.sighash_type));
+                .or_insert_with(|| ecdsa_message(restored, hashes.cache, index, sig.sighash_type));
             let Some(msg) = msg else {
                 return (
                     p.key.clone(),
@@ -2090,7 +2204,8 @@ fn check<C: secp256k1::Verification>(
             if p.finalized && single && index >= restored.unsigned_tx.output.len() {
                 return never(preimage);
             }
-            let Some(msg) = taproot_message(restored, c, index, p.leaf, sig.sighash_type) else {
+            let Some(msg) = taproot_message(restored, hashes, c, index, p.leaf, sig.sighash_type)
+            else {
                 *preimage = p.preimage;
                 return (
                     p.key.clone(),
@@ -2154,30 +2269,34 @@ fn settle(p: &Present, verify: impl Fn(&SigKey) -> bool, preimage: &mut bool) ->
 /// The ECDSA sighash for `ty`, computed the way [`crate::sign`] computes
 /// it: through `bitcoin`'s own signer path, with the type the signature
 /// states in place of the one the input asks for.
-fn ecdsa_message(restored: &bitcoin::Psbt, index: usize, ty: EcdsaSighashType) -> Option<Message> {
+fn ecdsa_message(
+    restored: &mut bitcoin::Psbt,
+    cache: &mut SighashCache<bitcoin::Transaction>,
+    index: usize,
+    ty: EcdsaSighashType,
+) -> Option<Message> {
     spent_output(restored, index)?;
-    let mut psbt = restored.clone();
-    psbt.inputs[index].sighash_type = Some(ty.into());
-    let tx = psbt.unsigned_tx.clone();
-    let mut cache = SighashCache::new(&tx);
-    psbt.sighash_ecdsa(index, &mut cache)
+    // The type is put in place for the one hash and the input left as it was.
+    let was = restored.inputs[index].sighash_type.replace(ty.into());
+    let message = restored
+        .sighash_ecdsa(index, cache)
         .ok()
-        .map(|(msg, _)| msg)
+        .map(|(msg, _)| msg);
+    restored.inputs[index].sighash_type = was;
+    message
 }
 
 /// The taproot sighash for a key path (`leaf` is `None`) or a script
 /// path, over the prevouts [`crate::sign`] commits to.
 fn taproot_message(
     restored: &bitcoin::Psbt,
+    hashes: &mut Hashes<'_>,
     c: &Classified,
     index: usize,
     leaf: Option<TapLeafHash>,
     ty: TapSighashType,
 ) -> Option<Message> {
-    let psbt = Psbt::from(restored.clone());
-    let prevouts = tap_prevouts(&psbt, c, index, ty).ok()?;
-    let tx = psbt.unsigned_tx().clone();
-    let mut cache = SighashCache::new(&tx);
+    let prevouts = tap_prevouts_from(hashes.outputs.of(restored), c, index, ty).ok()?;
     // A final witness with an annex (BIP-341: a last element of two or more
     // starting 0x50) signs over it.
     let annex = restored.inputs[index]
@@ -2187,7 +2306,8 @@ fn taproot_message(
         .and_then(|w| w.last())
         .and_then(|a| bitcoin::sighash::Annex::new(a).ok());
     let separator = leaf.map(|leaf| (leaf, 0xFFFF_FFFF));
-    let sighash = cache
+    let sighash = hashes
+        .cache
         .taproot_signature_hash(index, &prevouts.as_ref(), annex, separator, ty)
         .ok()?;
     Some(Message::from(sighash))
@@ -2197,15 +2317,12 @@ fn taproot_message(
 /// under any keys, or one point of a MuSig2 public nonce in two places,
 /// which is the private key in two pieces.
 ///
-/// Finalized signatures count: a transaction that carries one signature
+/// `signatures` is [`verify_signatures`] of `psbt`, which the caller has
+/// already worked out. Finalized signatures count: a transaction that carries one signature
 /// in a witness and another in a partial-signature field has still
 /// leaked the key.
-pub fn repeated_nonces(psbt: &Psbt, ctx: &Context) -> Vec<NonceReuse> {
-    let mut out = nonce_reuse_among(
-        verify_signatures(psbt, ctx)
-            .into_iter()
-            .flat_map(|i| i.signatures),
-    );
+pub fn repeated_nonces(psbt: &Psbt, signatures: &[InputSignatures]) -> Vec<NonceReuse> {
+    let mut out = nonce_reuse_among(signatures.iter().flat_map(|i| i.signatures.iter().cloned()));
     out.extend(repeated_pub_nonces(&[psbt]));
     out
 }
@@ -2220,6 +2337,8 @@ pub fn repeated_pub_nonces(psbts: &[&Psbt]) -> Vec<NonceReuse> {
     /// A place: the input and the pair's key, whole.
     type Place = (usize, Vec<u8>);
     let mut points: Vec<(Vec<u8>, Vec<Place>)> = Vec::new();
+    // Where in `points` each x coordinate is.
+    let mut at: BTreeMap<Vec<u8>, usize> = BTreeMap::new();
     for psbt in psbts {
         for (i, input) in psbt.inner().inputs.iter().enumerate() {
             for (key, value) in &input.unknown {
@@ -2228,10 +2347,13 @@ pub fn repeated_pub_nonces(psbts: &[&Psbt]) -> Vec<NonceReuse> {
                 }
                 for point in [&value[..33], &value[33..]] {
                     let place = (i, key.key.clone());
-                    match points.iter_mut().find(|(p, _)| p[1..] == point[1..]) {
+                    match at.get(&point[1..]).map(|&i| &mut points[i]) {
                         Some((_, places)) if places.contains(&place) => {}
                         Some((_, places)) => places.push(place),
-                        None => points.push((point.to_vec(), alloc::vec![place])),
+                        None => {
+                            at.insert(point[1..].to_vec(), points.len());
+                            points.push((point.to_vec(), alloc::vec![place]));
+                        }
                     }
                 }
             }
@@ -2293,6 +2415,8 @@ pub(crate) fn nonce_reuse_among(
         input: usize,
     }
     let mut seen: Vec<Seen> = Vec::new();
+    // Where in `seen` each nonce is, so a signature meets only those of its nonce.
+    let mut by_nonce: BTreeMap<Vec<u8>, Vec<usize>> = BTreeMap::new();
     for sig in signatures {
         if sig.key == SigKey::Unknown {
             continue;
@@ -2304,11 +2428,14 @@ pub(crate) fn nonce_reuse_among(
         // The same bytes in two places are one signature written
         // twice, not two signatures under one nonce: under one key, or on
         // one input, whichever key each field reads it under.
-        if seen.iter().any(|s| {
-            s.nonce == nonce && s.bytes == sig.bytes && (s.key == sig.key || s.input == sig.input)
+        let same = by_nonce.entry(nonce.clone()).or_default();
+        if same.iter().any(|&i| {
+            let s = &seen[i];
+            s.bytes == sig.bytes && (s.key == sig.key || s.input == sig.input)
         }) {
             continue;
         }
+        same.push(seen.len());
         seen.push(Seen {
             key: sig.key,
             kind: sig.kind,
@@ -2318,9 +2445,10 @@ pub(crate) fn nonce_reuse_among(
         });
     }
     let mut out: Vec<(NonceReuse, usize)> = Vec::new();
+    let mut at: BTreeMap<Vec<u8>, usize> = BTreeMap::new();
     for found in seen {
         let nonce = hex(&found.nonce);
-        match out.iter_mut().find(|(r, _)| r.nonce == nonce) {
+        match at.get(&found.nonce).map(|&i| &mut out[i]) {
             Some((hit, count)) => {
                 *count += 1;
                 if !hit.keys.contains(&found.key) {
@@ -2330,16 +2458,19 @@ pub(crate) fn nonce_reuse_among(
                     hit.inputs.push(found.input);
                 }
             }
-            None => out.push((
-                NonceReuse {
-                    keys: alloc::vec![found.key],
-                    unread: Vec::new(),
-                    kind: found.kind,
-                    nonce,
-                    inputs: alloc::vec![found.input],
-                },
-                1,
-            )),
+            None => {
+                at.insert(found.nonce.clone(), out.len());
+                out.push((
+                    NonceReuse {
+                        keys: alloc::vec![found.key],
+                        unread: Vec::new(),
+                        kind: found.kind,
+                        nonce,
+                        inputs: alloc::vec![found.input],
+                    },
+                    1,
+                ));
+            }
         }
     }
     out.into_iter()
@@ -2368,10 +2499,17 @@ pub fn deterministic(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Deter
 /// tried): the signer check reads from it which masters were given.
 pub fn deterministic_all(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<Determinism> {
     let mut out = Vec::new();
+    let mut rest = Rest::new(psbt.inner());
     for index in 0..psbt.inner().inputs.len() {
         let cl = classify(psbt.inner(), index);
         let input = &psbt.inner().inputs[index];
-        let restored = restore(psbt, index, &cl);
+        let saved = rest.put(index, &cl);
+        let Rest {
+            work: restored,
+            cache,
+            outputs,
+        } = &mut rest;
+        let mut hashes = Hashes { cache, outputs };
         for (pk, sig) in &input.partial_sigs {
             let Some((fp, path)) = input.bip32_derivation.get(&pk.inner) else {
                 continue;
@@ -2382,7 +2520,7 @@ pub fn deterministic_all(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<D
             else {
                 continue;
             };
-            let msg = ecdsa_message(&restored, index, sig.sighash_type);
+            let msg = ecdsa_message(restored, hashes.cache, index, sig.sighash_type);
             out.push(Determinism {
                 input: index,
                 key: SigKey::Ecdsa(*pk),
@@ -2411,7 +2549,7 @@ pub fn deterministic_all(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<D
             else {
                 break 'key_path;
             };
-            let msg = taproot_message(&restored, &cl, index, None, sig.sighash_type);
+            let msg = taproot_message(restored, &mut hashes, &cl, index, None, sig.sighash_type);
             out.push(Determinism {
                 input: index,
                 key: key_path_key(&cl, input),
@@ -2434,7 +2572,14 @@ pub fn deterministic_all(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<D
             else {
                 continue;
             };
-            let msg = taproot_message(&restored, &cl, index, Some(*leaf), sig.sighash_type);
+            let msg = taproot_message(
+                restored,
+                &mut hashes,
+                &cl,
+                index,
+                Some(*leaf),
+                sig.sighash_type,
+            );
             out.push(Determinism {
                 input: index,
                 key: SigKey::Schnorr(*xonly),
@@ -2445,6 +2590,7 @@ pub fn deterministic_all(c: &Compute, psbt: &Psbt, keys: &[&MasterKey]) -> Vec<D
                 mode: msg.and_then(|m| schnorr_mode(c, master, path, &m, None, sig)),
             });
         }
+        rest.undo(index, saved);
     }
     out
 }

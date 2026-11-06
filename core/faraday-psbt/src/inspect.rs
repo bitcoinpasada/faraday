@@ -1336,6 +1336,9 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
         .filter(|i| crate::verify::witness_shape_mismatch(inner, *i))
         .collect();
     sighash::signature_cards(&mut warnings, &signatures, &inputs, &mismatched);
+    // Made at the first input that needs it: one copy of the file for the
+    // whole loop.
+    let mut pass: Option<crate::verify::Pass> = None;
     for input in 0..inner.inputs.len() {
         if crate::verify::witness_shape_mismatch(inner, input) {
             warn(
@@ -1345,7 +1348,9 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
                 Detail::WitnessMismatch { input },
             );
         } else if crate::verify::witness_mismatch(inner, input)
-            && !crate::verify::final_signature_wrong(inner, input)
+            && !pass
+                .get_or_insert_with(|| crate::verify::Pass::new(inner))
+                .final_signature_wrong(inner, input)
         {
             warn(
                 &mut warnings,
@@ -1355,7 +1360,7 @@ pub fn inspect(c: &Compute, psbt: &Psbt, ctx: &Context) -> Inspection {
             );
         }
     }
-    let nonce_reuse = crate::verify::repeated_nonces(psbt, ctx);
+    let nonce_reuse = crate::verify::repeated_nonces(psbt, &signatures);
     for reuse in &nonce_reuse {
         warn(
             &mut warnings,

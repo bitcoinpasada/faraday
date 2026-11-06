@@ -249,7 +249,8 @@ pub(crate) fn round_of(
     if cl.utxo.is_none() {
         return Err(Gap::Sighash);
     }
-    let prevouts = crate::sign::tap_prevouts(psbt, &cl, index, ty).map_err(|_| Gap::Sighash)?;
+    let prevouts =
+        crate::sign::tap_prevouts(psbt.inner(), &cl, index, ty).map_err(|_| Gap::Sighash)?;
     let tx = psbt.unsigned_tx().clone();
     let hash = SighashCache::new(&tx)
         .taproot_key_spend_signature_hash(index, &prevouts.as_ref(), ty)

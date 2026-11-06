@@ -41,7 +41,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             };
             let psbt = Psbt::parse_bytes(&c, &bytes(req, "psbt")).map_err(err)?;
             if name == "reuse" {
-                let reused: Vec<Value> = repeated_nonces(&psbt, &ctx)
+                let reused: Vec<Value> = repeated_nonces(&psbt, &verify_signatures(&psbt, &ctx))
                     .iter()
                     .map(|r| {
                         let mut keys: Vec<String> = r.keys.iter().map(|k| k.hex()).collect();

@@ -1154,7 +1154,7 @@ fn two_signatures_under_one_nonce_are_found() {
 
     let found = verdicts(&psbt);
     assert_eq!(found, vec![Verdict::Valid, Verdict::Valid], "{found:?}");
-    let reuse = repeated_nonces(&psbt, &ctx(&keys, &[]));
+    let reuse = repeated_nonces(&psbt, &verify_signatures(&psbt, &ctx(&keys, &[])));
     assert_eq!(reuse.len(), 1, "{reuse:?}");
     assert_eq!(reuse[0].inputs, vec![0, 1]);
 
