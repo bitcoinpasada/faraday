@@ -18,4 +18,4 @@ Blocks are not minutes. Ten minutes a block is the average the network aims for,
 
 The coordinator builds the transaction, and the transaction is what picks the path: the sequence and locktime fields it sets, and the signatures it collects. This device does not choose. It reads what arrived, shows you the wallet and its paths, and signs what you approve.
 
-So a spend path you can see in the review is not a spend path that will work today. Whether the wait has passed is a fact about the chain, and this device is not connected to it. Tools › Miniscript compiler writes a policy of your own as a descriptor; the Tools page describes it.
+So a spend path you can see in the review is not a spend path that will work today. Whether the wait has passed is a fact about the chain, and this device is not connected to it. Tools → Miniscript compiler writes a policy of your own as a descriptor; the Tools page describes it.

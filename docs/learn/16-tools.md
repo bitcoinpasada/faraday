@@ -30,7 +30,7 @@ Give it any of them and the tool shows all of them, with the network, the depth,
 
 ## Miniscript compiler
 
-Tools › Miniscript compiler compiles a policy into a descriptor, and says whether this device loads it. Where a policy names a key, the fingerprint of a key this device already holds stands for that key's account key, so pk(73c5da0a) is accepted and needs no xpub typed. The Keys row above the field lists the fingerprints it will take; with no key loaded there is no such row and every key must be written out.
+Tools → Miniscript compiler compiles a policy into a descriptor, and says whether this device loads it. Where a policy names a key, the fingerprint of a key this device already holds stands for that key's account key, so pk(73c5da0a) is accepted and needs no xpub typed. The Keys row above the field lists the fingerprints it will take; with no key loaded there is no such row and every key must be written out.
 
 ## Units
 

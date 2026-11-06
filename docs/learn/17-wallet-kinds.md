@@ -36,7 +36,7 @@ Use it when all the signers are reachable and what the chain reveals matters; no
 
 A wallet can name one key that spends at any time and another that spends alone after a wait. That is two spend paths in one script, and it is how Liana's wallets are shaped. It gives you a recovery that needs no second person on the day, and an inheritance an heir can execute by waiting. It costs a timelock whose clock restarts every time the coins move, so the wallet has to be refreshed or the recovery path opens while you are still using it. Spend paths and timelocks has the details.
 
-Make a new wallet does not offer this kind; Faraday reads one from its descriptor, including one with more than one recovery path, and names every path and every wait. Tools › Miniscript compiler writes a policy of your own as a descriptor.
+Make a new wallet does not offer this kind; Faraday reads one from its descriptor, including one with more than one recovery path, and names every path and every wait. Tools → Miniscript compiler writes a policy of your own as a descriptor.
 
 ## Silent payments
 

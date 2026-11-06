@@ -1322,6 +1322,103 @@ fn flow_bar_name(rig: &mut Rig) -> Option<(String, f32)> {
         .next()
 }
 
+/// Sign a transaction with nothing loaded names itself on the bar beside
+/// Cancel: whole words or none, and never under Cancel.
+#[test]
+fn on_the_pi_sign_a_transaction_with_nothing_loaded_names_itself_beside_cancel() {
+    const NAME: &str = "Sign a transaction";
+    for mode in [Mode::Mainnet, Mode::Testnet] {
+        let mut rig = rig(On::Stick, mode, Vec::new());
+        open(&mut rig, Screen::Spend);
+        let (_, texts) = rig.drawn_past_sides_and_text();
+        let cancel = texts
+            .iter()
+            .find(|(t, _)| t == "Cancel")
+            .unwrap_or_else(|| panic!("{mode:?}: Cancel is on the bar"));
+        // Where no whole word fits beside the tools the bar names
+        // nothing.
+        let Some(name) = texts
+            .iter()
+            .find(|(t, _)| NAME.starts_with(t.trim_end_matches('…')) && t.len() > 1)
+        else {
+            continue;
+        };
+        let words = name.0.trim_end_matches('…');
+        assert!(
+            words == NAME || NAME[words.len()..].starts_with(' '),
+            "{mode:?}: {:?} cuts a word",
+            name.0
+        );
+        assert!(
+            name.1.0 + name.1.2 <= cancel.1.0,
+            "{mode:?}: {:?} runs under Cancel",
+            name.0
+        );
+    }
+}
+
+/// The Learn sheet's tab of the page on show reads whole where the panel
+/// has room for one tab only: its words wrap inside the tab, none runs
+/// under an arrow or Done.
+#[test]
+fn on_the_pi_the_learn_sheets_tab_name_is_read_whole_between_the_arrows() {
+    let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());
+    open(&mut rig, Screen::KeyGen);
+    rig.press(Action::Learn);
+    let _ = rig.frame();
+    let pages = rig.learn().pages.len();
+    assert!(pages > 2, "the sheet has tabs to move between");
+    for p in 0..pages {
+        rig.press(Action::LearnPage(p as u8));
+        let (_, texts) = rig.drawn_past_sides_and_text();
+        let title = faraday_core::learn::tab_label(rig.learn().pages[p]);
+        let words: Vec<&str> = title.split(' ').collect();
+        let others: Vec<_> = (0..pages)
+            .filter(|&j| j != p)
+            .filter_map(|j| rig.hit_box(Action::LearnPage(j as u8)))
+            .map(|b| [b.0, b.1, b.2, b.3].map(i32::from))
+            .collect();
+        assert!(!others.is_empty(), "{title}: an arrow beside its tab");
+        let in_row = |r: &(i32, i32, i32, i32)| {
+            others
+                .iter()
+                .any(|b| r.1 >= b[1] && r.1 + r.3 <= b[1] + b[3])
+        };
+        let tab: Vec<_> = texts
+            .iter()
+            .filter(|(t, r)| in_row(r) && t.split(' ').all(|w| words.contains(&w)))
+            .collect();
+        assert!(!tab.is_empty(), "{title}: its tab is drawn");
+        let own = rig.hit_box(Action::LearnPage(p as u8)).expect("its tab");
+        let mut drawn = String::new();
+        for (t, r) in &tab {
+            // A label cut by its tab's edge is drawn flush against it:
+            // a whole one stands clear of both.
+            let clear = 8;
+            assert!(
+                r.0 >= i32::from(own.0) + clear
+                    && r.0 + r.2 <= i32::from(own.0) + i32::from(own.2) - clear,
+                "{title}: {t:?} touches the edge of its tab"
+            );
+            drawn.push_str(t);
+            drawn.push(' ');
+            for b in &others {
+                let across = r.0 < b[0] + b[2] && b[0] < r.0 + r.2;
+                let level = r.1 < b[1] + b[3] && b[1] < r.1 + r.3;
+                assert!(
+                    !(across && level),
+                    "{title}: {t:?} runs under another tab or arrow"
+                );
+            }
+        }
+        assert_eq!(
+            drawn.trim(),
+            title,
+            "{title}: every word of the tab is drawn whole"
+        );
+    }
+}
+
 #[test]
 fn on_the_small_panel_both_segments_of_a_vaults_choice_are_on_the_page_and_the_second_can_be_pressed()
  {

@@ -43,6 +43,19 @@ pub struct Tab<'s, A> {
 }
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
+    /// Costs measuring each label. Whether `items` all fit a row `w`
+    /// wide at once, so that it does not scroll.
+    pub fn tabs_fit(&self, w: f32, items: &[Tab<'_, A>]) -> bool {
+        let icon = CODEX32_TAB_ICON + GAP_SMALL;
+        let total: f32 = items
+            .iter()
+            .map(|t| {
+                self.measure_as(TITLE_S, t.label) + if t.done { icon } else { 0.0 } + 2.0 * TAB_PAD
+            })
+            .sum();
+        total <= w
+    }
+
     /// Costs measuring each label. `items` as a row of tabs of `kind`
     /// from (x, y), `w` wide and `h` tall, or taller where the text size
     /// needs it. Returns the row's height.
@@ -54,7 +67,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     ) -> f32 {
         let h = self.button_height(h);
         let icon = CODEX32_TAB_ICON + GAP_SMALL;
-        let content: Vec<f32> = items
+        let mut content: Vec<f32> = items
             .iter()
             .map(|t| self.measure_as(TITLE_S, t.label) + if t.done { icon } else { 0.0 })
             .collect();
@@ -71,34 +84,28 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         } else {
             whole_tabs(&natural, on, w, self.touch)
         };
+        // A tab wider than the whole row by itself wraps its label onto
+        // as many lines as it needs, at word breaks (Material 3 Tabs
+        // allow two lines), and the row grows to hold them.
+        let line = self.line_as(TITLE_S);
+        let mut lines = vec![1usize; items.len()];
+        let mut h = h;
+        for (i, tw) in shown.clone().zip(&widths) {
+            if let Some(item) = items.get(i).filter(|_| *tw < natural[i]) {
+                content[i] = (tw - 2.0 * TAB_PAD).max(0.0);
+                lines[i] = self.wrap_lines_as(TITLE_S, item.label, content[i]);
+                h = h.max(lines[i] as f32 * line + 2.0 * GAP_SMALL);
+            }
+        }
         self.rule(x, y + h - 1.0, w, Role::OutlineVariant);
         let row = self.rect(x, y, w, h);
         self.c.push_clip(row);
-        let cut_from = (self.c.cut_mark(), self.cut.len());
         let mut tx = x + if before { self.touch } else { 0.0 };
-        let mut narrow = false;
         for (i, tw) in shown.clone().zip(&widths) {
             if let Some(item) = items.get(i) {
-                // Only a tab wider than the whole row is narrowed: its
-                // label is held to its own box.
-                let own = *tw < natural[i];
-                narrow |= own;
-                if own {
-                    let clip = self.rect(tx, y, *tw, h);
-                    self.c.push_clip(clip);
-                }
-                self.tab(item, kind, (tx, y, *tw, h), content[i]);
-                if own {
-                    self.c.pop_clip();
-                }
+                self.tab(item, kind, (tx, y, *tw, h), (content[i], lines[i]));
             }
             tx += tw;
-        }
-        // That tab's label runs on under the row's edge as a scrolled
-        // row's would, not cut off.
-        if narrow {
-            self.c.scrolled_across(cut_from.0);
-            self.cut.truncate(cut_from.1);
         }
         let prev = shown.start.checked_sub(1).and_then(|i| items.get(i));
         if let Some(prev) = prev.filter(|_| before) {
@@ -126,13 +133,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     }
 
     /// One tab of [`Ui::tabs`] in the box (x, y, w, h), its label and
-    /// check `content` wide.
+    /// check `content` wide, over `lines` lines.
     fn tab(
         &mut self,
         item: &Tab<'_, A>,
         kind: TabKind,
         (x, y, w, h): (f32, f32, f32, f32),
-        content: f32,
+        (content, lines): (f32, usize),
     ) {
         let ink: Paint = match (item.on, kind) {
             (true, TabKind::Primary) => Role::Primary.paint(),
@@ -153,7 +160,12 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             );
             lx += CODEX32_TAB_ICON + GAP_SMALL;
         }
-        self.text_mid_as((lx, y, h), TITLE_S, ink, item.label);
+        if lines > 1 {
+            let top = y + (h - lines as f32 * self.line_as(TITLE_S)) / 2.0;
+            self.wrap_as((lx, top, content), TITLE_S, ink, item.label);
+        } else {
+            self.text_mid_as((lx, y, h), TITLE_S, ink, item.label);
+        }
         if item.on {
             match kind {
                 TabKind::Primary => {

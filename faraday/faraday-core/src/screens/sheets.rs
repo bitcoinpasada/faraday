@@ -1969,6 +1969,18 @@ pub(super) fn learn_body(
     // own divider.
     let tabs = learn_tab_items(app);
     let row = tabs.len() > 1 || look.one_tab_row;
+    // Tabs that would scroll beside Done on a small panel stand under it
+    // instead, across the whole box, so a tab's name has room to be read.
+    let under = row && ui.compact && look.end > 0.0 && !ui.tabs_fit(tabs_w, &tabs);
+    if under {
+        let below_done = ui.button_height(BUTTON_H) + T::GAP_SMALL;
+        tabs_h = tabs_h.max(below_done);
+    }
+    let tabs_w = if under {
+        sw - 2.0 * look.tabs_edge
+    } else {
+        tabs_w
+    };
     tabs_h += if row {
         let at = (
             x + look.tabs_edge,

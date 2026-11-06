@@ -16,7 +16,7 @@ AMT reaches the network through the computer's Intel network adapters, wired or 
 
 ## What has been found
 
-In 2009 Alexander Tereshkin and Rafal Wojtczuk of Invisible Things Lab showed at Black Hat USA that code could be made to run on the Management Engine's processor, below the operating system ("Ring −3").
+In 2009 Alexander Tereshkin and Rafal Wojtczuk of Invisible Things Lab showed at Black Hat USA that code could be made to run on the Management Engine's processor, below the operating system ("Ring -3").
 
 In 2017 Intel published INTEL-SA-00075 (CVE-2017-5689): AMT firmware versions 6 to 11.6 let someone on the network take control of a computer where AMT was set up. Intel says it does not exist on consumer PCs with consumer firmware.
 

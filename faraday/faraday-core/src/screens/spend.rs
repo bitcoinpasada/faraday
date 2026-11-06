@@ -175,21 +175,33 @@ pub(crate) const STEPS: [&str; 10] = [
     EN.app_nonces,
 ];
 
+/// The head of the page with nothing loaded, and how far down it ends. On
+/// the wide layout the top app bar names the page. On the small panel it
+/// is the bar with its tools drawn over its right end
+/// (`compact::flow_bar_tools`): the name is kept left of them, whole words
+/// or none.
+fn empty_head(app: &View, ui: &mut Ui, cw: f32) -> f32 {
+    let back = app.named_back((EN.spend_wallets, Action::Nav(Screen::WalletsStart)));
+    if !ui.compact {
+        return super::bar_head(ui, Some(back), EN.spend_sign_a_transaction);
+    }
+    let head = faraday_ui::nav::AppBar {
+        back: Some(back),
+        title: EN.spend_sign_a_transaction,
+        back_tip: EN.tip_back,
+    };
+    let right = ui.bar_tools_x.unwrap_or(cw);
+    faraday_ui::nav::app_bar(ui, cw, &head, right);
+    crate::compact::BAR_H + faraday_draw::tokens::GAP
+}
+
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let panel_w = side_panel_w(cw);
     let col_x = x0 + 40.0;
     let col_w = cw - panel_w - 72.0;
     let needed = app.spend_needed();
     if app.wallets.spend().is_none() {
-        // On the wide layout the top app bar names the page; on the
-        // one-column layouts its own head does.
-        let top = if ui.compact {
-            faraday_ui::parts::title(ui, col_x, 28.0, EN.spend_sign_a_transaction);
-            80.0
-        } else {
-            let back = app.named_back((EN.spend_wallets, Action::Nav(Screen::WalletsStart)));
-            super::bar_head(ui, Some(back), EN.spend_sign_a_transaction)
-        };
+        let top = empty_head(app, ui, cw);
         ui.text_as(
             col_x,
             top,

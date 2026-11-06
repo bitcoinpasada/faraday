@@ -22,13 +22,13 @@ A passphrase you make up yourself is weaker than it looks: song lines, names wit
 
 Create a vault rolls one for you, under Generate with dice. You pick a list and how many words, and you throw a die. Five throws name one word of the long list, four throws name one word of a short list. The device only looks the words up.
 
-The lists are the ones the Electronic Frontier Foundation publishes, and Tools › Word lists shows each of them. The long list has 7776 words, 12.9 bits a word; the short lists have 1296, 10.3 bits a word. Six words from the long list are 77.5 bits, which is more than offline guessing reaches. Vaults states the strength of the one you choose.
+The lists are the ones the Electronic Frontier Foundation publishes, and Tools → Word lists shows each of them. The long list has 7776 words, 12.9 bits a word; the short lists have 1296, 10.3 bits a word. Six words from the long list are 77.5 bits, which is more than offline guessing reaches. Vaults states the strength of the one you choose.
 
 A rolled passphrase is text like any other. Create a vault uses it as the vault's passphrase; rolled the same way, it can be the BIP-39 passphrase on a key.
 
 ## Vanity addresses
 
-Tools › Vanity address tries one candidate after another until the first address of the account begins with the characters you asked for. Each free character costs 32 tries on a bech32 address and 58 on a base58 one, and the device states the rate it manages and how long that takes.
+Tools → Vanity address tries one candidate after another until the first address of the account begins with the characters you asked for. Each free character costs 32 tries on a bech32 address and 58 on a base58 one, and the device states the rate it manages and how long that takes.
 
 There are two dials. The passphrase counter appends characters to the key's BIP-39 passphrase, so every candidate is a different key and costs a full derivation; taking the find loads that key beside the one you started from. The account index steps through the accounts of the key you already have, which is far cheaper and adds a wallet rather than a key.
 

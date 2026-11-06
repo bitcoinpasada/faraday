@@ -16,7 +16,7 @@ The device therefore trusts nothing it is sent. A wallet is shown in full before
 
 Before you give out a receiving address, show the same address on Faraday and compare it character by character with the one on your coordinator. Check the first group, the last group, and several groups in the middle. Attackers make addresses that match at the start and the end.
 
-You can also check an address the other way round: Tools › Check an address scans it and searches the loaded wallets for it. What it does not tell you is where the address came from: the screen you copied it from is still the screen to compare against.
+You can also check an address the other way round: Tools → Check an address scans it and searches the loaded wallets for it. What it does not tell you is where the address came from: the screen you copied it from is still the screen to compare against.
 
 ## Sending
 
@@ -28,7 +28,7 @@ The Nonce check lists every signature the transaction already carries, with the 
 
 ## Checking a signer
 
-Tools › Check a signer compares two PSBTs: the one sent to a signing device and the one that came back. It compares the unsigned transaction (version, locktime, every input and output), every signature and final field, the key origins and scripts, any other field, unknown and proprietary pairs included, and the bytes of the returned file.
+Tools → Check a signer compares two PSBTs: the one sent to a signing device and the one that came back. It compares the unsigned transaction (version, locktime, every input and output), every signature and final field, the key origins and scripts, any other field, unknown and proprietary pairs included, and the bytes of the returned file.
 
 A clean verdict, "Only signatures were added", says that the transaction is the one sent and that the only differences are signatures added under keys the sent PSBT names, which verify over this transaction, and inputs finalized from such signatures. "Only nonces and signatures were added" is the same for a MuSig2 PSBT, which also gains public nonces. A clean verdict says nothing more: it does not say the signatures are the ones you wanted, or that the coordinator's transaction was right. Read the transaction in Spend before signing.
 

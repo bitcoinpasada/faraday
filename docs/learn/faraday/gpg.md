@@ -91,7 +91,7 @@ the key the one others know are in the public key, so it is needed too.
 It comes into Files on a stick visit, the file Faraday wrote when the
 key was made or one exported elsewhere, or as its code: Scan the public
 key, on the sheet Restore a GPG key. Restore from its
-paperkey is in the public key's ⋮ in Files, and Restore from a paperkey
+paperkey is in the public key's menu in Files, and Restore from a paperkey
 is on the GPG kind in Vault contents. The restore takes the backup
 flow's steps: where it will be kept, the sticks, the vaults. Its first
 card shows the public key and the digits line 1 of its paperkey must

@@ -18,7 +18,7 @@ A vault is one encrypted file on a stick. Unlocking it with its passphrase loads
 
 ## The idle lock
 
-Faraday locks after 30 minutes without input, and turns the computer off after 60. Settings › Lock after and Power off after change the two times. It does not turn the computer off while files wait to be written to a stick.
+Faraday locks after 30 minutes without input, and turns the computer off after 60. Settings → Lock after and Power off after change the two times. It does not turn the computer off while files wait to be written to a stick.
 
 From Make a new wallet begun until its keys are sealed in their vaults, or its backup is done, the idle lock does not come, and the sidebar says "Auto-lock off until backup complete". Until then the keys are kept nowhere but in memory. Lock still works, asks first, and ends Make a new wallet.
 

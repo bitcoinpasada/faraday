@@ -10,7 +10,7 @@ SLIP-39 is Shamir's Secret Sharing over a word list, published by Trezor. It spl
 
 Its words are not BIP-39's. The list is a different one, a share is a different length from a seed phrase, and a share cannot be typed into a wallet that expects seed words. A SLIP-39 backup and a BIP-39 backup of the same wallet are not interchangeable: you choose one at the moment the key is made.
 
-Pick it when you want a real threshold and your devices and heirs will have SLIP-39 software. Faraday reads it, groups and all, and writes it. Add a key › Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one. Add a key › Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz. Tools › Convert a seed writes a key loaded from a master seed (codex32 or SLIP-39) as a SLIP-39 set of k of n shares, or of groups, with the same wallet. A key made of BIP-39 words is not backed up as SLIP-39 shares: a BIP-39 key's seed is 64 bytes, which no SLIP-39 implementation takes.
+Pick it when you want a real threshold and your devices and heirs will have SLIP-39 software. Faraday reads it, groups and all, and writes it. Add a key → Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one. Add a key → Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz. Tools → Convert a seed writes a key loaded from a master seed (codex32 or SLIP-39) as a SLIP-39 set of k of n shares, or of groups, with the same wallet. A key made of BIP-39 words is not backed up as SLIP-39 shares: a BIP-39 key's seed is 64 bytes, which no SLIP-39 implementation takes.
 
 ## Codex32
 
@@ -24,7 +24,7 @@ The guide to read beside this page is the codex32 user flow guide of SeedSigner'
 
 ## Making codex32 shares in Faraday
 
-New key › Codex32 makes a key as the booklet does, every step on screen. Scheme sets the length, 48 or 74 characters, and the split: 2 of 3, 3 of 5, Other (a threshold of 2 to 9 and up to 31 strings), or None, the secret alone. Identifier takes four characters, typed before any entropy as the booklet orders it; Suggest fills four from this device's randomness. The identifier is not secret. One already used by the strings typed in Add a key is refused.
+New key → Codex32 makes a key as the booklet does, every step on screen. Scheme sets the length, 48 or 74 characters, and the split: 2 of 3, 3 of 5, Other (a threshold of 2 to 9 and up to 31 strings), or None, the secret alone. Identifier takes four characters, typed before any entropy as the booklet orders it; Suggest fills four from this device's randomness. The identifier is not secret. One already used by the strings typed in Add a key is refused.
 
 The entropy is your own. Roll dice follows the booklet's dice de-biasing worksheet: five dice are rolled twice; a die whose second value is lower than its first gives 0, one whose second value is higher gives 1, and a die with two equal values is rolled twice again. The five bits are one character, die 1's bit first. The dice may have any number of faces up to twenty: the booklet's sheet has pads 1 to 6 and, for larger dice, pads 7 to 20, and the comparison is the same whatever the faces. Choose the dice on the Entropy card, and a colour for each die, so the sheet's markers match the dice on the table. A ten-faced die's 0 is entered as 10. On a keyboard, a face of two digits is typed as two digits, and a 1 or a 2 alone is followed by Space or Enter. Type the characters takes characters made on paper, from dice or a worksheet. Characters a person makes up are not random, and a share built from them can give the seed away to someone holding fewer than k strings. Faraday's own randomness does not make the seed here.
 
@@ -44,7 +44,7 @@ The booklet publishes checksum worksheets for 48 and 74 characters, and translat
 
 ## Codex32 strings in
 
-Add a key › codex32, also New key › Type codex32 strings, takes one string at a time, typed or scanned, and checks each at once. A string whose checksum fails is not taken, and is named by its index. A string with another identifier is refused. The same string again is already in. A different string at an index already in is shown beside the one held, with the boxes that differ, to keep one or the other. Once k strings of one set are in, the key loads.
+Add a key → codex32, also New key → Type codex32 strings, takes one string at a time, typed or scanned, and checks each at once. A string whose checksum fails is not taken, and is named by its index. A string with another identifier is refused. The same string again is already in. A different string at an index already in is shown beside the one held, with the boxes that differ, to keep one or the other. Once k strings of one set are in, the key loads.
 
 Check a string, on the same form, says whether one string's checksum holds, what the string is, and whether it is of the set typed in. It loads and keeps nothing.
 
@@ -80,7 +80,7 @@ All but the last part are random, and the last is worked out so that the parts X
 
 Each part is also a valid set of seed words, so each is a working wallet with addresses of its own. Coins sent to an address derived from a part are held by that part alone, not by your key. Treat every part with the same care as the original words.
 
-In Faraday, a backup splits a seed among its copies by hand into two or three parts, with the random parts drawn from the device's own generator. Add a key › Type Seed XOR parts combines them into the key that already existed. Convert a seed writes a key of words as two to four parts too, with the number of parts under Settings, and reads the parts back to your key before it shows them.
+In Faraday, a backup splits a seed among its copies by hand into two or three parts, with the random parts drawn from the device's own generator. Add a key → Type Seed XOR parts combines them into the key that already existed. Convert a seed writes a key of words as two to four parts too, with the number of parts under Settings, and reads the parts back to your key before it shows them.
 
 ## A vault
 
@@ -88,7 +88,7 @@ A vault is a file on a stick holding your words encrypted under a passphrase you
 
 ## Converting between forms
 
-Tools › Convert a seed writes a key that is loaded in Faraday in another form. It offers a form only where the result restores the same wallet, with the same fingerprint, and Faraday reads the result back before it shows it. A form that would open a different wallet is listed dimmed, with its reason.
+Tools → Convert a seed writes a key that is loaded in Faraday in another form. It offers a form only where the result restores the same wallet, with the same fingerprint, and Faraday reads the result back before it shows it. A form that would open a different wallet is listed dimmed, with its reason.
 
 A key of BIP-39 words can be written as the same words in another spelling (word numbers, four-letter starts, hex entropy, SeedQR and CompactSeedQR), as its master seed in hex or its xprv, and as Seed XOR parts. It cannot become SLIP-39 shares or a codex32 string as the same wallet. Each standard makes its seed in its own way: BIP-39 runs the words through PBKDF2 into 64 bytes, while SLIP-39 and codex32 carry the master seed itself. Written into either, the same words would open a different wallet with no coins in it, and nothing would say so until the balance did not appear. The tool offers neither.
 
@@ -98,7 +98,7 @@ A SLIP-39 passphrase is never put on a result: a SLIP-39 set Faraday writes has 
 
 An LND aezeed is read as a source and goes one way. Its entropy is a 16-byte seed, which the tool writes as hex, an xprv, codex32 or SLIP-39, and it says the aezeed's birthday. Only the on-chain coins are the same wallet: channels come back through LND's channel backup, not through the seed.
 
-A SLIP-39 set can also be changed there. Tools › Convert a seed takes the shares of a set you type, one at a time, and with enough of them it adds a share, replaces a lost one with the very share that was lost, or rotates the set into a new one of the same secret. Rotating is not enough when shares have been exposed or lost beyond what the set tolerates: the old shares may be in other hands, and the coins belong in a new key. No passphrase is asked, and the set's own passphrase still opens the same wallet. Nothing is kept, and no plan or vault changes.
+A SLIP-39 set can also be changed there. Tools → Convert a seed takes the shares of a set you type, one at a time, and with enough of them it adds a share, replaces a lost one with the very share that was lost, or rotates the set into a new one of the same secret. Rotating is not enough when shares have been exposed or lost beyond what the set tolerates: the old shares may be in other hands, and the coins belong in a new key. No passphrase is asked, and the set's own passphrase still opens the same wallet. Nothing is kept, and no plan or vault changes.
 
 Each result is held until you leave the tool, shown behind an eye, and checked against a typed copy or saved only when you ask. Practice converts a public sample key into its other spellings, a codex32 secret and a SLIP-39 share of 1 of 1, but makes no split into parts, since parts would look like a real backup.
 

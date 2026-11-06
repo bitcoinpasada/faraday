@@ -4,7 +4,7 @@
 
 An xpub, or extended public key, is the public key for one account of your wallet. Your coordinator needs it to find your funds, show your balance, and build transactions. It is what you give a read-only wallet.
 
-Faraday shows it as a QR code or writes it as a file, together with the fingerprint and derivation path the coordinator needs to use it: Show xpub QR and Xpub file, on a key of the wallet's chart. A wallet's public files carry the account keys it is built on. Tools › Explore a key shows a key's extended public key at any path. The same key is written xpub, ypub or zpub to say which script type it is for; Tools › Convert an xpub shows every spelling.
+Faraday shows it as a QR code or writes it as a file, together with the fingerprint and derivation path the coordinator needs to use it: Show xpub QR and Xpub file, on a key of the wallet's chart. A wallet's public files carry the account keys it is built on. Tools → Explore a key shows a key's extended public key at any path. The same key is written xpub, ypub or zpub to say which script type it is for; Tools → Convert an xpub shows every spelling.
 
 ## What it reveals
 
