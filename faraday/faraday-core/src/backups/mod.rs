@@ -1079,21 +1079,92 @@ impl Faraday {
         (format!("{} · {state}", f.name), tone)
     }
 
-    /// Costs what [`Faraday::backups_now`] costs: the wallet card's backup
-    /// line, for a decision ([`Faraday::backup_line_in`]).
+    /// Costs what `backup_map_of` costs: the wallet card's backup line, for
+    /// a decision ([`Faraday::backup_line_from`]).
     pub fn backup_line(&self, c: &Compute, i: usize) -> String {
-        self.backup_line_in(i, self.backups_now(c))
+        if self.session.wallets.get(i).is_none() {
+            return String::new();
+        }
+        self.backup_line_from(self.backup_map_of(c, i))
+    }
+
+    /// Costs what `backup_lines` costs. Loaded wallet `i`'s map as its
+    /// entry of [`Faraday::backups_now`] has it, worked out for that one
+    /// wallet: the first loaded wallet with its descriptor checksum stands
+    /// for it there, so it does here.
+    pub(crate) fn backup_map_of(&self, c: &Compute, i: usize) -> Option<Vec<Line>> {
+        let sum = self.session.wallets.get(i)?.checksum().to_string();
+        let (first, w) = self
+            .session
+            .wallets
+            .iter()
+            .enumerate()
+            .find(|(_, w)| w.checksum() == sum)?;
+        self.backup_lines(c, w, Some(first), &sum)
+    }
+
+    /// Costs what `plan_load_of` costs. How many wallets are known and how
+    /// many of them have no map, the two counts of Home's Backups tile: the
+    /// length of [`Faraday::backups_now`] and its entries with no lines,
+    /// worked out without the lines.
+    pub fn backup_counts_now(&self, c: &Compute) -> (usize, usize) {
+        let mut seen: Vec<String> = Vec::new();
+        let mut without = 0;
+        let mut note = |sum: &str, mapped: &dyn Fn() -> bool| {
+            if seen.iter().any(|s| s == sum) {
+                return;
+            }
+            seen.push(sum.to_string());
+            if !mapped() {
+                without += 1;
+            }
+        };
+        for w in &self.session.wallets {
+            let sum = w.checksum().to_string();
+            note(&sum, &|| self.wallet_has_map(c, w, &sum));
+        }
+        for v in &self.vaults.open {
+            for (_, r, d) in self.vaults.described_of(c, v.id, kind::WALLET) {
+                note(&d.checksum, &|| {
+                    let w = Wallet::new(
+                        crate::vault::wallet_name_in(r, field::WALLET_NAME, EN.backups_wallet)
+                            .into_owned(),
+                        d.policy.clone(),
+                        EN.backups_vault.to_string(),
+                        crate::wallet::Origin::Vault,
+                    );
+                    self.wallet_has_map(c, &w, &d.checksum)
+                });
+            }
+        }
+        for s in &self.vaults.summaries {
+            for sum in s
+                .sums
+                .iter()
+                .take(s.wallets.len())
+                .filter(|x| !x.is_empty())
+            {
+                note(sum, &|| {
+                    self.backups_area.record(sum).is_some() || s.planned.contains(sum)
+                });
+            }
+        }
+        (seen.len(), without)
+    }
+
+    /// Costs what `plan_load_of` costs. Whether [`Faraday::backup_lines`]
+    /// has a map for `w`: a record of its backup, or a plan an open vault
+    /// keeps for it.
+    fn wallet_has_map(&self, c: &Compute, w: &Wallet, sum: &str) -> bool {
+        self.backups_area.record(sum).is_some()
+            || self.plan_load_of(c, w, &self.plan_shape_of(w)).is_some()
     }
 
     /// The wallet card's backup line (`docs/history/SIMPLIFY.md` §5.2): "Backup:
     /// paper ×2 checked · vault.kdbx · for the stick", or "Not backed up",
-    /// from `backups`, every wallet known and where its backup is. Cheap.
-    pub(crate) fn backup_line_in(&self, i: usize, backups: Vec<Entry>) -> String {
-        let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {
-            return String::new();
-        };
-        let entry = backups.into_iter().find(|e| e.sum == sum);
-        let Some(lines) = entry.and_then(|e| e.lines) else {
+    /// from the wallet's map ([`Faraday::backup_map_of`]). Cheap.
+    pub(crate) fn backup_line_from(&self, map: Option<Vec<Line>>) -> String {
+        let Some(lines) = map else {
             return EN.backups_not_backed.to_string();
         };
         let mut parts: Vec<String> = Vec::new();

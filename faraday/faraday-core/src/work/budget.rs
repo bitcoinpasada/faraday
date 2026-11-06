@@ -117,8 +117,9 @@ const FRAME_COSTS_PI: &[(&str, u64, u64)] = &[
     ("GPG Sign a file", 4524, 17),
     ("GPG sign sheet", 540, 9),
     ("Spend", 252, 22),
-    ("Home", 1087, 17),
-    ("Wallets", 1012, 13),
+    // Home counts the wallets with no backup plan without their maps (was 1087 and 1012).
+    ("Home", 690, 17),
+    ("Wallets", 400, 13),
     ("Files", 5768, 18),
     ("Vaults", 143, 12),
     ("Vault contents", 4524, 17),

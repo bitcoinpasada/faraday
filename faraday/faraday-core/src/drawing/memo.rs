@@ -29,6 +29,16 @@ impl View<'_> {
             .clone()
     }
 
+    /// How many wallets are known and how many have no map
+    /// ([`crate::Faraday::backup_counts_now`]), once a frame: Home's
+    /// Backups tile.
+    pub fn backup_counts(&self) -> (usize, usize) {
+        *self
+            .drawing
+            .backup_counts
+            .get_or_init(|| self.filled(|c| self.app.backup_counts_now(c)))
+    }
+
     /// The sticks the wallet being backed up is written to
     /// ([`crate::Faraday::wallet_stick_rows_now`]), once a frame.
     pub fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
@@ -125,9 +135,13 @@ impl View<'_> {
     }
 
     /// The wallet card's backup line ([`crate::Faraday::backup_line`]),
-    /// from the memo's [`View::backups`].
+    /// worked out from that wallet's map alone, not from every wallet's.
     pub fn backup_line(&self, i: usize) -> String {
-        self.app.backup_line_in(i, self.backups())
+        if self.session.wallets.get(i).is_none() {
+            return String::new();
+        }
+        self.app
+            .backup_line_from(self.filled(|c| self.app.backup_map_of(c, i)))
     }
 
     /// The wallet card's first button ([`crate::Faraday::spend_button`]),

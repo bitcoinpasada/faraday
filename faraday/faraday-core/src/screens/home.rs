@@ -275,14 +275,13 @@ pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)
             Action::Nav(Screen::Visit),
         ));
     }
-    let known = app.backups();
-    if !known.is_empty() {
-        let without = known.iter().filter(|e| e.lines.is_none()).count();
+    let (known, without) = app.backup_counts();
+    if known > 0 {
         t.push((
             Glyph::Icon(Icon::Shield),
             EN.home_ways_backups,
             if without == 0 {
-                fill(EN.home_ways_with_a_plan, &[&known.len().to_string()])
+                fill(EN.home_ways_with_a_plan, &[&known.to_string()])
             } else {
                 fill(EN.home_ways_not_backed, &[&without.to_string()])
             },

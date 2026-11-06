@@ -960,9 +960,8 @@ fn tiles(app: &View) -> Vec<Tile> {
         ),
     ];
     // Backups once any wallet is known (§5), after Wallets.
-    let known = app.backups();
-    if !known.is_empty() {
-        let without = known.iter().filter(|e| e.lines.is_none()).count();
+    let (known, without) = app.backup_counts();
+    if known > 0 {
         t.insert(
             2,
             (

@@ -350,6 +350,78 @@ fn the_wallet_card_of_a_fresh_wallet_says_it_is_not_backed_up() {
     assert!(app.offers(Action::Backup(0)), "the card offers Back up");
 }
 
+/// Home's count of wallets with no backup plan, and the count the
+/// Backups screen's list gives, as the same wallets.
+fn counts_agree(app: &Faraday) -> (usize, usize) {
+    let c = testkit::compute();
+    let all = app.backups_now(&c);
+    let counts = app.backup_counts_now(&c);
+    let without = all.iter().filter(|e| e.lines.is_none()).count();
+    assert_eq!(counts, (all.len(), without), "{all:?}");
+    counts
+}
+
+#[test]
+fn home_counts_a_wallet_without_a_plan_until_its_backup_is_planned() {
+    let mut app = with_a_wallet();
+    app.press(Action::Nav(Screen::Home));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "1 not backed up"), "{texts:?}");
+    assert_eq!(counts_agree(&app), (1, 1));
+
+    // A vault opening does not give the wallet a plan.
+    open_a_vault(&mut app);
+    app.press(Action::Nav(Screen::Home));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "1 not backed up"), "{texts:?}");
+
+    // A plan made in the backup flow does.
+    app.press(Action::Backup(0));
+    preset_saved(&mut app, 2);
+    app.press(Action::BChecklist);
+    app.press(Action::Nav(Screen::Home));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "1 with a plan"), "{texts:?}");
+    assert!(
+        !texts.iter().any(|t| t.ends_with("not backed up")),
+        "{texts:?}"
+    );
+    assert_eq!(counts_agree(&app), (1, 0));
+}
+
+#[test]
+fn home_counts_a_wallet_known_only_from_a_vault_or_a_locked_vaults_summary() {
+    let mut app = with_a_wallet();
+    open_a_vault(&mut app);
+    app.press(Action::Vault(V::AddKind(1)));
+    app.press(Action::Vault(V::SaveWallet(0)));
+    // The wallet is loaded and in the vault: one wallet, listed once.
+    assert_eq!(counts_agree(&app), (1, 1));
+    crate::common::lock(&mut app);
+    let (inbox, outbox, kept) = saved(&mut app);
+    let mut app = shown(inbox, outbox, kept);
+    assert!(app.session.wallets.is_empty());
+    assert_eq!(counts_agree(&app), (1, 1));
+    app.press(Action::Nav(Screen::Home));
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "1 not backed up"), "{texts:?}");
+}
+
+#[test]
+fn the_wallet_card_follows_the_backup_as_it_is_planned() {
+    let mut app = with_a_wallet();
+    app.press(Action::Nav(Screen::Wallets));
+    assert!(app.drawn_texts().iter().any(|t| t == "Not backed up"));
+    open_a_vault(&mut app);
+    app.press(Action::Backup(0));
+    preset_saved(&mut app, 2);
+    app.press(Action::BChecklist);
+    app.press(Action::Nav(Screen::Wallets));
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t == "Not backed up"), "{texts:?}");
+    assert!(texts.iter().any(|t| t.starts_with("Backup: ")), "{texts:?}");
+}
+
 /// Back up's plan as preset `k` (by `Preset::ALL`) fills it over a place
 /// per key, two for a single key: as a plan saved before plans kept at
 /// most one place per key has it (`docs/BACKUP-FLOW.md` §17.19).

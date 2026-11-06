@@ -88,6 +88,9 @@ pub(crate) struct Drawing {
     /// Every wallet known and where its backup is
     /// ([`crate::Faraday::backups_now`]).
     pub backups: OnceCell<Vec<crate::backups::Entry>>,
+    /// How many wallets are known and how many have no map
+    /// ([`crate::Faraday::backup_counts_now`]).
+    pub backup_counts: OnceCell<(usize, usize)>,
     /// The keys and wallets each open vault holds, by its place among
     /// the open vaults ([`crate::Faraday::vault_rows_now`]).
     pub vault_rows: RefCell<Vec<(usize, Vec<crate::vault::VaultRow>)>>,
