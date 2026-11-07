@@ -167,7 +167,7 @@ Read this table, then only the decision you need.
 | [F150](decisions/F150.md) | The looser build is named Compatible, every HDMI screen shares one image, and the Pi 4 is built on the terms its reach asks | 2026-10-28 | Amended by F153, F185, F186 | release |
 | [F151](decisions/F151.md) | A review rule a change triggers is attested in the commit | 2026-10-28 | Active | repository |
 | [F152](decisions/F152.md) | Touch targets are tested over the snapshot tours, and a press cannot be made without its state layer | 2026-10-28 | Amended by F188 | design |
-| [F153](decisions/F153.md) | No kernel patch of Faraday's own on the Pi, and a new USB touchscreen approves itself by tapping a target: nothing is trusted by name | 2026-10-28 | Amended by F185, F202, F205 | security |
+| [F153](decisions/F153.md) | No kernel patch of Faraday's own on the Pi, and a new USB touchscreen approves itself by tapping a target: nothing is trusted by name | 2026-10-28 | Amended by F185, F202, F205, F221 | security |
 | [F154](decisions/F154.md) | Random bytes are taken from the source, an answer for every 32, or expanded by HKDF-Expand | 2026-10-28 | Active | security |
 | [F155](decisions/F155.md) | The other refusals of input a standard allows: keys, wallet files, PSBTs, transfers, shares, the vault and the paperkey | 2026-10-28 | Active | crypto |
 | [F156](decisions/F156.md) | Schnorr signatures are made with zero aux_rand | 2026-10-28 | Active | security |
@@ -235,3 +235,4 @@ Read this table, then only the decision you need.
 | [F218](decisions/F218.md) | The list of what was plugged in at start can be dismissed, by its × or Escape, never by a held device | 2026-11-05 | Active | security |
 | [F219](decisions/F219.md) | KEF, Krux's encrypted code, enters Faraday, all twelve versions read and written, checked against Krux's code and not on a device | 2026-11-05 | Active, the crate built and the screens not | crypto |
 | [F220](decisions/F220.md) | What a cosigner's partial MuSig2 signature proves on the device | 2026-11-05 | Active | security |
+| [F221](decisions/F221.md) | Two more kernel patches of Faraday's own on the Pi: a 32-bit framebuffer with red first, and vc4's output polling stopped on unbind | 2026-11-06 | Active | security |

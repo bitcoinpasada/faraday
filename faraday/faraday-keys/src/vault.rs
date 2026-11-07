@@ -3651,7 +3651,8 @@ pub fn create(
 }
 
 /// Costs an Argon2id run at the file's stated cost, thrown away: the time
-/// a vault's unlock takes on this computer, measured.
-pub fn measure(c: &Compute, facts: &fv::file::Facts) {
-    let _ = fv::file::measure(c, facts);
+/// a vault's unlock takes on this computer, measured. A pass that could
+/// not run (the memory is not there) is the error, with no time.
+pub fn measure(c: &Compute, facts: &fv::file::Facts) -> Result<(), fv::file::Error> {
+    fv::file::measure(c, facts)
 }

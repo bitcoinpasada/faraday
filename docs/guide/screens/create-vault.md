@@ -26,9 +26,9 @@ order: **Where will you open it?**, **Unlock cost** and **Space**.
 
 ### Size
 
-![Create a vault on Size: PCs only and PCs and a Raspberry Pi, the second chosen, Customise, and Your choices at the right](../pictures/create-vault-size.png)
+![Create a vault on Size: PCs only and PCs and a Raspberry Pi, the second chosen, and Customise](../pictures/create-vault-size.png)
 
-*Create a vault opened from **Vaults**, on **Size**: **PCs only** "512 MiB · 3 passes", **PCs and a Raspberry Pi** "64 MiB · 3 passes" chosen, each "Unlock time not measured yet", and **Customise**; **Name and passphrase** below reads "Not chosen yet". **Your choices** at the right, and **Create vault**.*
+*Create a vault opened from **Vaults**, on **Size**: **PCs only** "512 MiB · 3 passes", **PCs and a Raspberry Pi** "64 MiB · 3 passes" chosen, "Unlocks in about 4.3 s here" and "Unlocks in about 0.5 s here", and **Customise**; **Name and passphrase** below reads "Not chosen yet".*
 
 | Control | What it does |
 |---|---|

@@ -197,6 +197,18 @@ pub struct SignWrap {
     lines: std::rc::Rc<[(usize, usize)]>,
 }
 
+impl Seen {
+    /// Drops every file the page remembers, wiping the texts.
+    pub(crate) fn drop_all(kept: &std::cell::RefCell<Vec<Seen>>) {
+        for e in kept.borrow_mut().iter_mut() {
+            if let Some(t) = e.text.as_mut() {
+                zeroize::Zeroize::zeroize(t);
+            }
+        }
+        kept.borrow_mut().clear();
+    }
+}
+
 impl SignWrap {
     /// The lines of `text` for `basis`, from `kept` when it holds them,
     /// else from `make`, which breaks the text, and then kept.
@@ -218,6 +230,19 @@ impl SignWrap {
             lines: lines.clone(),
         });
         lines
+    }
+
+    /// Drops every entry, wiping the text each was broken from.
+    pub(crate) fn drop_all(kept: &std::cell::RefCell<Vec<SignWrap>>) {
+        for e in kept.borrow_mut().iter_mut() {
+            zeroize::Zeroize::zeroize(&mut e.text);
+        }
+        kept.borrow_mut().clear();
+    }
+
+    /// How many entries are kept.
+    pub(crate) fn kept_count(kept: &std::cell::RefCell<Vec<SignWrap>>) -> usize {
+        kept.borrow().len()
     }
 
     /// Drops the entries of texts no file on the page has now.

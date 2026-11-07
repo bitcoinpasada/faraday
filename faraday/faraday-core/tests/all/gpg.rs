@@ -1598,3 +1598,24 @@ fn signs_both(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     }
     assert_eq!(app.outbox.len(), before + files.len());
 }
+
+/// The text of a file on the signing page is not held after a lock.
+#[test]
+fn a_lock_leaves_none_of_a_signed_files_text_held() {
+    let mut app = signing();
+    let _ = app.frame();
+    assert!(
+        testkit::sign_text_kept(&app) > 0,
+        "the page holds the text it drew"
+    );
+    app.press(Action::Lock);
+    app.press(Action::LockUnsealed);
+    settle(&mut app, 1);
+    assert!(
+        app.restart_requested(),
+        "{:?} {:?}",
+        app.sheet,
+        app.toast_text()
+    );
+    assert_eq!(testkit::sign_text_kept(&app), 0);
+}

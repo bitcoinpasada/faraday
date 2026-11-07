@@ -521,7 +521,8 @@ pub(crate) struct MeasureWork;
 
 /// The measurement's answer: the milliseconds the pass took.
 pub(crate) struct MeasureDone {
-    ms: u64,
+    /// None where the pass could not run: no figure is recorded.
+    ms: Option<u64>,
 }
 
 impl MeasureWork {
@@ -547,16 +548,22 @@ impl MeasureWork {
             size: Some(faraday_vault::file::SIZES[0]),
         };
         let from = std::time::Instant::now();
-        faraday_keys::vault::measure(c, &facts);
+        let ran = faraday_keys::vault::measure(c, &facts);
         let took = from.elapsed();
         work::note_vault_took(
             VaultAct::Measured,
             cost,
-            VaultEnded::Ran,
+            match &ran {
+                Ok(()) => VaultEnded::Ran,
+                Err(faraday_vault::file::Error::Memory(_)) => VaultEnded::NoMemory,
+                Err(_) => VaultEnded::Refused,
+            },
             work::vault_clock().map(|_| took),
         );
         MeasureDone {
-            ms: u64::try_from(took.as_millis()).unwrap_or(u64::MAX).max(1),
+            ms: ran
+                .ok()
+                .map(|()| u64::try_from(took.as_millis()).unwrap_or(u64::MAX).max(1)),
         }
     }
 }
@@ -583,6 +590,24 @@ pub(crate) fn measured(app: &mut Faraday, done: MeasureDone) -> bool {
     if app.vaults.state.ms_per_unit.is_some() {
         return false;
     }
-    app.vaults.state.ms_per_unit = Some(done.ms);
+    let Some(ms) = done.ms else {
+        return false;
+    };
+    app.vaults.state.ms_per_unit = Some(ms);
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A pass that could not run leaves no time to show.
+    #[test]
+    fn a_failed_measuring_pass_records_no_figure() {
+        let mut app = Faraday::new();
+        assert!(!measured(&mut app, MeasureDone { ms: None }));
+        assert_eq!(app.vaults.state.ms_per_unit, None);
+        assert!(measured(&mut app, MeasureDone { ms: Some(900) }));
+        assert_eq!(app.vaults.state.ms_per_unit, Some(900));
+    }
 }

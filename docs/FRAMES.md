@@ -587,8 +587,7 @@ motion carried a new frame" is `carried_pct` when the grid's step is one
 frame; at a step of two it is about 50 by design, and `missed` is the
 number to read.
 
-**Which CRTC the wait follows** *(Built in the image; not yet run on a
-panel)*. `drm_fb_helper_ioctl` waits on the first CRTC of the device
+**Which CRTC the wait follows** *(Built in the image; run on the panel)*. `drm_fb_helper_ioctl` waits on the first CRTC of the device
 only, and when that CRTC is not enabled it returns 0 at once; the first
 CRTC is the first one vc4 created (`drm_for_each_crtc`). vc4 binds the
 TXP, the video core's writeback block, before the pixelvalves, and
@@ -605,6 +604,11 @@ device and is not among vc4's components. Nothing in Faraday uses
 writeback. The first CRTC is then the first pixelvalve, `3f206000`,
 which feeds the DPI panel. An HDMI screen is on the third pixelvalve and
 is not the first CRTC, so its wait stays off as before.
+
+With the writeback off, the wait has run on the 2.8-inch panel at the 22 MHz
+pixel clock: it held a measured 16.68 ms, and a run showed no tearing to the
+eye. In that run 64% of the frames that moved were shown at one refresh and
+27% at two.
 
 **A window on a larger screen** *(Built; its figure on a card is not yet
 taken)*. `faraday.window=WxH` on the kernel command line draws in a

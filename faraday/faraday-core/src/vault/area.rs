@@ -1983,6 +1983,19 @@ impl Vaults {
         self.code = None;
     }
 
+    /// At a lock: the signing page's kept texts (the files' text and the
+    /// lines broken from it) are wiped and dropped.
+    pub(crate) fn drop_sign_text(&self) {
+        crate::gpg::SignWrap::drop_all(&self.sign_wraps);
+        crate::gpg::Seen::drop_all(&self.sign_seen);
+    }
+
+    /// How many files' texts the signing page keeps: the lines broken from
+    /// each small text file and the files it remembers.
+    pub(crate) fn sign_text_kept(&self) -> usize {
+        crate::gpg::SignWrap::kept_count(&self.sign_wraps) + self.sign_seen.borrow().len()
+    }
+
     /// Closes every open vault, at a lock what is shown with them.
     pub fn close_all(&mut self) {
         self.drop_shown();

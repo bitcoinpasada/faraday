@@ -2145,6 +2145,12 @@ pub fn select_wallet(app: &mut crate::Faraday, i: usize) {
     app.wallets.set_wallet(i);
 }
 
+/// How many files' texts the signing page holds (broken lines and files
+/// remembered).
+pub fn sign_text_kept(app: &crate::Faraday) -> usize {
+    app.vaults.sign_text_kept()
+}
+
 /// Puts `item` at the end of the Inbox.
 pub fn inbox_push(app: &mut crate::Faraday, item: crate::Item) {
     app.inbox.push(item);

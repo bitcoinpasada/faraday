@@ -574,6 +574,8 @@ fn lock_finish(app: &mut Faraday) {
     app.session.wipe();
     // The charts and the backup list kept across moved frames.
     app.kept.charts_drop();
+    // The signing page's kept text of the Inbox's small files.
+    app.vaults.drop_sign_text();
     app.own_wipe();
     app.wallets.clear_spend();
     app.seed_read.clear();

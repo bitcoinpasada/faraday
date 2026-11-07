@@ -12,15 +12,15 @@ the kernel can reach".
 
 A patch of Faraday's own is code nobody else runs that way, carried by hand
 through every kernel update. F153 set the rule against them, F205 made one
-exception and says any other needs a decision of its own. 0003 and 0004 on
-the Pi have none yet.
+exception and F221 two more, and each says any other needs a decision of its
+own.
 
 | Board | Patch | What it does | From | Decision |
 |---|---|---|---|---|
 | Pi | 0001 | A failed EDID read gives fallback modes, not an error | Mainline | F205 names it |
 | Pi | 0002 | A failed read of a later EDID block keeps the blocks before it | Faraday's own | F205 |
-| Pi | 0003 | vc4's framebuffer is 32 bits with red first | Faraday's own | None yet |
-| Pi | 0004 | vc4 stops output polling when it unbinds | Faraday's own | None yet |
+| Pi | 0003 | vc4's framebuffer is 32 bits with red first | Faraday's own | F221 |
+| Pi | 0004 | vc4 stops output polling when it unbinds | Faraday's own | F221 |
 | PC | 0001 to 0005 | The EFI stub puts the screen's EDID in `boot_params` | Mainline, Linux 6.19 | F23 |
 
 ## The Pi

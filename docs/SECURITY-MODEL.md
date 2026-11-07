@@ -96,7 +96,8 @@ internal error rather than carrying on.
   turned off in the device tree, so no sound card exists. Its `/dev/snd`
   nodes, if any, are root's, as every node `mdev.conf` names no owner for.
   It is the board's kernel source with only the patches
-  `docs/KERNEL-PATCHES.md` lists, none of which touches `KCMP`, so it also
+  `docs/KERNEL-PATCHES.md` lists (three of Faraday's own, F205 and F221; no
+  network code), none of which touches `KCMP`, so it also
   has `kcmp()`, which the kernel's DRM selects (F153):
   it says only whether two processes share a kernel object, for
   processes that pass ptrace's read check against the caller, and each

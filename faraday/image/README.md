@@ -64,7 +64,7 @@ side through DRM with its framebuffer emulation, the sound core vc4 cannot
 build without (and no sound driver), the generic USB HID drivers, and USB
 storage and SCSI; the board's `kernel.required` and `kernel.forbidden`
 hold each of those to the PC's rules. It compiles the board's kernel
-source with the patches `docs/KERNEL-PATCHES.md` lists (F153, F205): vc4 binds the
+source with the patches `docs/KERNEL-PATCHES.md` lists (F153, F205, F221): vc4 binds the
 Pi 3's V3D and creates a render node, which
 `common/rootfs-overlay/etc/mdev.conf` gives to root alone with
 `/dev/dri/card0`, and DRM selects `KCMP`, which the Pi allows while the
@@ -321,7 +321,7 @@ is the point of it and useless when the question is why the panel is blank.
 | Firmware | On a Pi, `rpi-firmware`, the `PI_X` variant, so `start_x.elf` and `fixup_x.dat` are on the card. On the stick, none: the machine's own firmware runs the kernel, and no blob of any kind is in the image |
 | Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, and `/usr/bin/faraday`; nothing that finds a filesystem by its label or UUID (`findfs`, `blkid`, `volume_id`). No `/lib/*.so` |
 | The binary | Built on the host by `just faraday-pi-bin` with the board's toolchain, as a static executable, and installed by `package/faraday`. Buildroot never builds Rust |
-| Overlays | The Pi's screens' overlays are merged at build time by Raspberry Pi's `ovmerge` (`utils`, at a pinned commit and sha256) from the pinned kernel's overlay sources, and compiled by Buildroot's `dtc`; the 2.8-inch's touch overlay is a source file in its screen's directory, compiled by the same `dtc`. The Pi board also carries `faraday-txp-off.dts`, an overlay of Faraday's own that `config.txt` loads after `vc4-kms-v3d` to turn the video core's writeback block (the TXP) off again: vc4 binds it before the pixelvalves and the framebuffer's `FBIO_WAITFORVSYNC` waits on the first CRTC only, so with it the wait returns at once (`docs/FRAMES.md` §6). The board's `post-image.sh` compiles it into the boot partition's `overlays/`, and `build.sh` builds that `dtc` first. Not yet run on a panel |
+| Overlays | The Pi's screens' overlays are merged at build time by Raspberry Pi's `ovmerge` (`utils`, at a pinned commit and sha256) from the pinned kernel's overlay sources, and compiled by Buildroot's `dtc`; the 2.8-inch's touch overlay is a source file in its screen's directory, compiled by the same `dtc`. The Pi board also carries `faraday-txp-off.dts`, an overlay of Faraday's own that `config.txt` loads after `vc4-kms-v3d` to turn the video core's writeback block (the TXP) off again: vc4 binds it before the pixelvalves and the framebuffer's `FBIO_WAITFORVSYNC` waits on the first CRTC only, so with it the wait returns at once (`docs/FRAMES.md` §6). The board's `post-image.sh` compiles it into the boot partition's `overlays/`, and `build.sh` builds that `dtc` first. Run on the panel with the pixel clock at 22 MHz: the wait held a measured 16.68 ms, and a run showed no tearing to the eye |
 
 ### The kernel is the defconfig with its modules dropped
 
