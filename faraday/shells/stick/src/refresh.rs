@@ -2,8 +2,10 @@
 //! vertical blank, the refresh length it measures once, and the frame grid
 //! tied to it (`docs/FRAMES.md` §6, `docs/MOTION.md` §3.2).
 //!
-//! The writer thread first waits for sixteen vblanks back to back
-//! ([`measure`]); the median gap is the refresh for the run. After that it
+//! After its first write the writer thread waits for sixteen vblanks back
+//! to back ([`measure`]); the median gap is the refresh for the run. A set
+//! of waits that all returned at once is no measurement and is tried
+//! again after a later write, a bounded number of times. Once measured it
 //! waits for a vblank before it writes a frame ([`Vblank`]) and tells
 //! [`Beat`] when the wait returned; those gaps only count refreshes and
 //! never change the length. The main loop
@@ -51,6 +53,10 @@ const SHORTEST: Duration = Duration::from_millis(8);
 const LONGEST: Duration = Duration::from_millis(34);
 /// Gaps between back-to-back waits taken to measure the refresh.
 const SAMPLES: usize = 16;
+/// A median gap shorter than this means the waits returned at once.
+const AT_ONCE: Duration = Duration::from_millis(2);
+/// Sets of waits that may all return at once before the wait is off.
+const TRIES: u32 = 3;
 /// The measured gaps show a steady beat when at least this many of them
 /// are within [`OFF_GRID`] of the median.
 const STEADY: usize = SAMPLES / 2;
@@ -84,6 +90,8 @@ struct State {
     /// The grid's step in frames, as the loop last set it.
     step: u32,
     bad: u32,
+    /// Sets of back-to-back waits that returned at once.
+    at_once: u32,
     /// Frames written a vblank later than the step allowed, not yet
     /// taken by the loop.
     late: u64,
@@ -148,6 +156,7 @@ impl Beat {
             basis: None,
             step: 1,
             bad: 0,
+            at_once: 0,
             late: 0,
             tally: Tally::default(),
         }))
@@ -183,6 +192,12 @@ impl Beat {
     pub fn measured(&self) -> bool {
         let st = self.state();
         st.on && st.refresh.is_some()
+    }
+
+    /// Whether the wait is on and the refresh is still to be measured.
+    pub fn unmeasured(&self) -> bool {
+        let st = self.state();
+        st.on && st.refresh.is_none()
     }
 
     /// How many frames were written a vblank later than the step allowed
@@ -223,6 +238,15 @@ impl Beat {
         let Some(&median) = sorted.get(sorted.len() / 2) else {
             return self.off("no waits to measure");
         };
+        if median < AT_ONCE {
+            let mut st = self.state();
+            st.at_once += 1;
+            if st.at_once >= TRIES && st.on {
+                st.on = false;
+                st.why = format!("the waits returned at once, {TRIES} times");
+            }
+            return;
+        }
         if !(SHORTEST..=LONGEST).contains(&median) {
             return self.off(&format!(
                 "refresh of {:.1} ms is out of range",
@@ -304,7 +328,7 @@ impl Beat {
         );
         if let (Some(r), Some((n, least, most))) = (st.refresh, st.basis) {
             out.push_str(&format!(
-                "refresh  {:>7.2} ms, median of {n} back-to-back waits at the start (least {:.2}, most {:.2})\n",
+                "refresh  {:>7.2} ms, median of {n} back-to-back waits (least {:.2}, most {:.2})\n",
                 ms(r),
                 ms(least),
                 ms(most),
@@ -323,8 +347,10 @@ impl Beat {
 }
 
 /// Measures the refresh once: waits back to back, `SAMPLES` gaps, and
-/// gives the median to `beat`. A failed wait turns the wait off. `clock`
-/// says when each wait returned.
+/// gives the median to `beat`. A failed wait turns the wait off; a set
+/// whose waits all returned at once leaves the refresh unmeasured, to be
+/// tried again, and turns the wait off at the last try. `clock` says when
+/// each wait returned.
 pub fn measure(v: &mut dyn Vblank, beat: &Beat, clock: &mut dyn FnMut() -> Instant) {
     let mut times = Vec::with_capacity(SAMPLES + 1);
     for _ in 0..=SAMPLES {
@@ -471,6 +497,41 @@ mod tests {
         assert!(!beat.on());
         assert!(beat.grid(base + ms(t)).is_none());
         assert!(beat.report().contains("off ("));
+    }
+
+    #[test]
+    fn waits_that_return_at_once_and_then_keep_a_beat_end_measured_with_the_wait_on() {
+        let beat = Beat::new();
+        let base = Instant::now();
+        let at_once: Vec<f64> = (0..=SAMPLES).map(|k| 0.01 * k as f64).collect();
+        let mut at = at_once.iter();
+        measure(&mut Instant0, &beat, &mut || {
+            base + ms(*at.next().expect("a time"))
+        });
+        assert!(beat.on() && beat.unmeasured());
+        let steady = beat_of(11.5, &[]);
+        let mut at = steady.iter();
+        measure(&mut Instant0, &beat, &mut || {
+            base + ms(100.0 + *at.next().expect("a time"))
+        });
+        assert!(beat.on() && !beat.unmeasured());
+        let g = beat.grid(base + ms(300.0)).expect("a grid");
+        assert!((g.refresh.as_secs_f64() - 0.0115).abs() < 0.0002);
+    }
+
+    #[test]
+    fn waits_that_never_block_turn_the_wait_off_and_say_why() {
+        let beat = Beat::new();
+        let base = Instant::now();
+        for _ in 0..TRIES {
+            let mut k = 0.0;
+            measure(&mut Instant0, &beat, &mut || {
+                k += 0.01;
+                base + ms(k)
+            });
+        }
+        assert!(!beat.on());
+        assert!(beat.report().contains("returned at once"));
     }
 
     #[test]

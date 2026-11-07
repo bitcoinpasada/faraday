@@ -107,8 +107,9 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
 - **The grid on the Pi is the screen's own** (the stick, where the
   framebuffer waits for the vblank, `docs/FRAMES.md` §6). The writer
   thread waits for a vblank before it writes a frame and tells the loop
-  when it came; the loop takes the refresh's length, measured once at the
-  start of the run as the median of sixteen back-to-back waits, for its
+  when it came; the loop takes the refresh's length, measured once, after the
+  first write, as the median of sixteen back-to-back waits (waits that all
+  return at once are tried again, then the wait is off), for its
   step (one refresh, two, ...: the logic above is unchanged) and puts
   each deadline on the vblank's grid, early enough that the pass ends a
   couple of milliseconds before a vblank, so a frame is written just

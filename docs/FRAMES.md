@@ -561,7 +561,12 @@ thread is not held, and a blank, a lock, a power-off or an exit waits for
 at most one wait. The thread tells `refresh.rs` when each wait returned;
 that gives the last vblank, which the loop's grid is tied to; the
 refresh length is not smoothed from them but measured once, by sixteen
-waits back to back before the first write, and is the median gap. A
+waits back to back after the first write, between writes (before it the
+call returned at once on the panel),
+and is the median gap; the first frame is written with no wait. Sixteen
+waits that all returned at once (a median under 2 ms) are no
+measurement: they are tried again after a later write, and the third
+such set turns the wait off for the run, saying so. A
 median outside 8 to 34 ms, or gaps with no steady beat (fewer than half
 within a quarter of the median), turn the wait off for the run; later
 waits only count how many refreshes passed, so a late wake-up never moves

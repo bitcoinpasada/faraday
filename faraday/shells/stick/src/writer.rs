@@ -14,7 +14,9 @@
 //! thread is never held by the wait. The wait is off for the run on its
 //! first error, or when its returns are not on a grid of refreshes. The
 //! thread measures the refresh once, with sixteen waits back to back
-//! before its first write, while the loop starts.
+//! after its first write, between writes; waits that all return at once
+//! are tried again after a later write, a few times, and then turn the
+//! wait off.
 //!
 //! At most one write is out. The next frame waits for it before it
 //! touches the kept copy, so nothing queues, the loop pays what the write
@@ -78,14 +80,14 @@ impl Writer {
         let thread = std::thread::Builder::new()
             .name("fb-write".into())
             .spawn(move || {
-                // The refresh is measured once, before the first write.
-                if let (Some(v), Some(b)) = (vblank.as_mut(), own_beat.as_ref()) {
-                    crate::refresh::measure(v.as_mut(), b, &mut Instant::now);
-                }
                 for job in rx {
                     let mut waited = None;
+                    // Until the refresh is measured a frame is written
+                    // without a wait: before the first write the call may
+                    // return at once.
                     if let (Some(v), Some(b)) = (vblank.as_mut(), own_beat.as_ref())
                         && b.on()
+                        && !b.unmeasured()
                     {
                         match v.wait() {
                             Ok(()) => {
@@ -104,6 +106,13 @@ impl Writer {
                     }
                     if tx.send(Done { took, result }).is_err() {
                         break;
+                    }
+                    // The refresh is measured once, between writes, after
+                    // the first one: only then can the waits answer.
+                    if let (Some(v), Some(b)) = (vblank.as_mut(), own_beat.as_ref())
+                        && b.unmeasured()
+                    {
+                        crate::refresh::measure(v.as_mut(), b, &mut Instant::now);
                     }
                 }
             })
@@ -289,9 +298,15 @@ mod tests {
         p.beat().map(|_| (panel, p))
     }
 
-    /// Lets the thread measure a steady refresh of 12 ms, as a screen
-    /// would, before the frames start.
-    fn let_it_measure(release: &std::sync::mpsc::Sender<()>) {
+    /// Writes the first frame, then lets the thread measure a steady
+    /// refresh of 12 ms, as a screen would once it is being written.
+    fn let_it_measure(
+        release: &std::sync::mpsc::Sender<()>,
+        panel: &Arc<Mutex<Panel<Vec<u8>>>>,
+        p: &mut Presenter,
+    ) {
+        put(p, panel, &frame(0x01));
+        p.settle(None).expect("written");
         for _ in 0..=16 {
             release.send(()).expect("released");
             std::thread::sleep(Duration::from_millis(12));
@@ -304,10 +319,15 @@ mod tests {
         let Some((panel, mut p)) = rig_waiting(Box::new(Gate(gate))) else {
             return;
         };
-        let_it_measure(&release);
+        let_it_measure(&release, &panel, &mut p);
+        let before = lock(&panel).rows_written();
         put(&mut p, &panel, &frame(0x42));
         std::thread::sleep(Duration::from_millis(60));
-        assert_eq!(lock(&panel).rows_written(), 0, "written before the vblank");
+        assert_eq!(
+            lock(&panel).rows_written(),
+            before,
+            "written before the vblank"
+        );
         release.send(()).expect("released");
         p.settle(None).expect("written");
         assert_eq!(*lock(&panel).sink(), frame(0x42));
@@ -332,7 +352,7 @@ mod tests {
         let Some((panel, mut p)) = rig_waiting(Box::new(Gate(gate))) else {
             return;
         };
-        let_it_measure(&release);
+        let_it_measure(&release, &panel, &mut p);
         put(&mut p, &panel, &frame(0x77));
         // The writer is waiting; the panel's lock is free.
         lock(&panel).blank();
