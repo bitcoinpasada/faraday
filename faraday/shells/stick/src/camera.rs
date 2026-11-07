@@ -341,7 +341,9 @@ const LADDER: [Size; 3] = [Size::FULL_HD, Size::HD, Size::VGA];
 const FIRST_FRAME: Duration = Duration::from_millis(1500);
 
 // The whole ladder, every try waiting out its time, ends before the scan
-// sheet says there is no picture; a first frame takes 50 to 92 ms.
+// sheet says there is no picture; a first frame takes 50 to 92 ms. (The
+// stick links `faraday-draw` in its tests only, so this holds there.)
+#[cfg(test)]
 const _: () = assert!(
     FIRST_FRAME.as_millis() as u64 * LADDER.len() as u64
         < faraday_draw::tokens::NO_PICTURE_MS
