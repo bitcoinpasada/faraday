@@ -258,6 +258,94 @@ fn capture(path: &Path) -> io::Result<Option<Capture>> {
     })
 }
 
+/// The kernel's own words about the camera, for a shell that logs why a
+/// try gave no picture.
+///
+/// Reads `/dev/kmsg` without blocking, which needs the right to read the
+/// kernel log; a program without it gets no lines, never an error.
+#[derive(Clone, Copy, Debug)]
+pub struct KernelLog {
+    seq: u64,
+}
+
+impl KernelLog {
+    /// Notes where the kernel log ends now.
+    #[must_use]
+    pub fn mark() -> KernelLog {
+        let seq = records().iter().map(|(seq, _)| *seq).max().unwrap_or(0);
+        KernelLog { seq }
+    }
+
+    /// The lines about the camera driver, the firmware link and memory
+    /// that came after the mark, at most the last `max` of them.
+    #[must_use]
+    pub fn since(&self, max: usize) -> Vec<String> {
+        let mut lines: Vec<String> = records()
+            .into_iter()
+            .filter(|(seq, text)| *seq > self.seq && is_camera_line(text))
+            .map(|(_, text)| text)
+            .collect();
+        let drop = lines.len().saturating_sub(max);
+        lines.drain(..drop);
+        lines
+    }
+}
+
+/// Whether a kernel line is about the camera path.
+fn is_camera_line(text: &str) -> bool {
+    let low = text.to_ascii_lowercase();
+    [
+        "bcm2835",
+        "mmal",
+        "vchiq",
+        "vc04",
+        "camera",
+        "video0",
+        "v4l2",
+        "cma",
+        "out of memory",
+        "alloc",
+    ]
+    .iter()
+    .any(|w| low.contains(w))
+}
+
+/// Every record `/dev/kmsg` holds now, as (sequence number, message).
+fn records() -> Vec<(u64, String)> {
+    use std::io::Read;
+    use std::os::unix::fs::OpenOptionsExt;
+    let Ok(mut file) = OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NONBLOCK)
+        .open("/dev/kmsg")
+    else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    let mut buf = vec![0u8; 8192];
+    // One read is one record; `EAGAIN` is the end, `EPIPE` a record
+    // overwritten while reading, which the next read steps over.
+    for _ in 0..100_000 {
+        match file.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => {
+                let text = String::from_utf8_lossy(&buf[..n]);
+                let head = text.lines().next().unwrap_or_default();
+                // `priority,sequence,timestamp,flags;message`
+                if let Some((meta, message)) = head.split_once(';') {
+                    let seq = meta.split(',').nth(1).and_then(|n| n.parse().ok());
+                    if let Some(seq) = seq {
+                        out.push((seq, message.to_string()));
+                    }
+                }
+            }
+            Err(e) if e.raw_os_error() == Some(libc::EPIPE) => {}
+            Err(_) => break,
+        }
+    }
+    out
+}
+
 /// A streaming camera: the device, its negotiated format, and the four
 /// mapped buffers.
 ///
@@ -279,6 +367,19 @@ pub struct Camera {
     max_fps: u8,
     buffers: Vec<Mapped>,
     streaming: bool,
+    stats: Stats,
+}
+
+/// What the driver has handed back since the stream started, for a shell
+/// that logs why a camera gave no picture.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Stats {
+    /// Buffers taken off the driver's queue, good or not.
+    pub dequeued: u32,
+    /// Of those, buffers the driver flagged as damaged.
+    pub flagged: u32,
+    /// Of those, unflagged buffers too short for the negotiated frame.
+    pub short: u32,
 }
 
 /// One mmap'd capture buffer.
@@ -342,6 +443,7 @@ impl Camera {
             max_fps: MAX_FPS,
             buffers: Vec::new(),
             streaming: false,
+            stats: Stats::default(),
         };
         camera.map_buffers()?;
         camera.stream_on()?;
@@ -368,6 +470,11 @@ impl Camera {
         self.max_fps
     }
 
+    /// The buffers the driver has handed back so far.
+    pub fn stats(&self) -> Stats {
+        self.stats
+    }
+
     /// The negotiated FourCC as its four characters (`GREY`, `YUYV`).
     pub fn format(&self) -> String {
         String::from_utf8_lossy(&self.format.to_le_bytes()).into_owned()
@@ -377,9 +484,10 @@ impl Camera {
     /// requeues the buffer. `None` when the timeout passed with nothing
     /// to dequeue, and for a frame the driver marked damaged or wrote
     /// short of its size: that buffer is given back and the stream goes
-    /// on. A UVC webcam waking from USB autosuspend may hand back such a
-    /// frame first, and the kernel passes it on flagged rather than
-    /// dropping it; the error is only for the device itself failing.
+    /// on, and [`Camera::stats`] counts it as flagged or short. A UVC
+    /// webcam waking from USB autosuspend may hand back such a frame
+    /// first, and the kernel passes it on flagged rather than dropping
+    /// it; the error is only for the device itself failing.
     pub fn frame(&mut self, timeout: Duration) -> io::Result<Option<Frame>> {
         if !self.wait(timeout)? {
             return Ok(None);
@@ -396,6 +504,7 @@ impl Camera {
             Err(e) => return Err(e),
         }
 
+        self.stats.dequeued += 1;
         let index = buf.index as usize;
         let Some(mapped) = self.buffers.get(index) else {
             return Err(io::Error::other(format!(
@@ -404,8 +513,13 @@ impl Camera {
         };
         let frame = if buf.flags & abi::BUF_FLAG_ERROR == 0 {
             let used = (buf.bytesused as usize).min(mapped.len);
-            self.convert(mapped.as_slice(used))
+            let frame = self.convert(mapped.as_slice(used));
+            if frame.is_none() {
+                self.stats.short += 1;
+            }
+            frame
         } else {
+            self.stats.flagged += 1;
             None
         };
 

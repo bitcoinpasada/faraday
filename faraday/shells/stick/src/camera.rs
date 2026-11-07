@@ -8,8 +8,12 @@
 //! The device is asked for 1920 × 1080 (`Size::FULL_HD`): a dense code,
 //! version 23 at error correction H, has too few pixels a module at
 //! 640 × 480 for the decoder to find. A camera without that mode gives
-//! the nearest it has, and the size and format it gave are printed once
-//! (the dev image's boot report holds them).
+//! the nearest it has. If no usable frame comes within 2.5 s the device
+//! is closed and asked for 1280 × 720, then 640 × 480, so that the
+//! scanner is not left dead; those are a fallback, not the goal. Each
+//! try prints one line (size asked, size and format given, buffers
+//! dequeued, flagged and short, milliseconds to the first frame), and a
+//! try that gave nothing prints the kernel's lines about the camera.
 //!
 //! Each frame is reduced here, on the capture thread, before it is
 //! queued: the core only wants the frame for the preview, so it is
@@ -43,11 +47,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, SyncSender, TryRecvError, sync_channel};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use faraday_scanner::{reduce, reduce_chroma, reduce_factor};
 use faraday_shell_api::CameraFailure;
-use faraday_v4l2::{Camera as Device, Failure, Frame, Size};
+use faraday_v4l2::{Camera as Device, Failure, Frame, KernelLog, Size};
 use zeroize::Zeroizing;
 
 use crate::Wake;
@@ -254,36 +258,41 @@ fn capture(
     wake: &SyncSender<Wake>,
     stop: &AtomicBool,
 ) {
-    let opened = match device {
-        Some(p) => open(&p),
+    let path = match device {
+        Some(p) => p,
         None => match faraday_v4l2::find_or_failure() {
-            Ok(p) => open(&p),
-            Err(why) => Err((
-                String::from("no /dev/video* is a streaming capture device"),
-                Some(app_reason(why)),
-            )),
+            Ok(p) => p,
+            Err(why) => {
+                let _ = tx.send(Message::Unavailable(
+                    String::from("no /dev/video* is a streaming capture device"),
+                    Some(app_reason(why)),
+                ));
+                let _ = wake.try_send(Wake::Frame);
+                return;
+            }
         },
     };
-    let opened = match opened {
-        Ok(mut device) => {
-            let got = device.size();
-            eprintln!(
-                "camera gave {}x{} {} (asked {}x{})",
-                got.width,
-                got.height,
-                device.format(),
-                ASKED.width,
-                ASKED.height
-            );
-            device.set_max_fps(FPS);
-            device
-        }
-        Err((reason, why)) => {
+    let (opened, first) = match climb(&LADDER, |size| attempt(&path, size, stop)) {
+        Climb::Got(device, first) => (device, first),
+        Climb::Failed(reason, why) => {
             let _ = tx.send(Message::Unavailable(reason, why));
             let _ = wake.try_send(Wake::Frame);
             return;
         }
+        // A camera that gave nothing at any size: say nothing more, as a
+        // camera that streams nothing does; the core's wait ends in "The
+        // camera sends no picture".
+        Climb::Nothing => {
+            while !stop.load(Ordering::Relaxed) {
+                std::thread::sleep(POLL);
+            }
+            return;
+        }
+        Climb::Stopped => return,
     };
+    if tx.try_send(Message::Frame(prepare(first))).is_ok() {
+        let _ = wake.try_send(Wake::Frame);
+    }
     let (frames_tx, frames) = sync_channel(QUEUE);
     let inner_stop = Arc::new(AtomicBool::new(false));
     let inner = faraday_v4l2::spawn(opened, frames_tx, Arc::clone(&inner_stop));
@@ -303,18 +312,128 @@ fn capture(
     let _ = inner.join();
 }
 
-/// The size asked of the device.
-const ASKED: Size = Size::FULL_HD;
+/// The sizes asked of the device, in order: 1920 × 1080 is the goal, and
+/// the smaller two are only so that the scanner is never left with no
+/// picture at all.
+const LADDER: [Size; 3] = [Size::FULL_HD, Size::HD, Size::VGA];
 
-/// Opens `path` at [`ASKED`], or says why not: the text for `--verbose` and
-/// the reason the app has a line for, when the error gives one.
-fn open(path: &std::path::Path) -> Result<Device, (String, Option<CameraFailure>)> {
-    Device::open(path, ASKED).map_err(|e| {
-        (
-            format!("cannot open {}: {e}", path.display()),
-            Failure::of_io(&e).map(app_reason),
-        )
-    })
+/// How long a try waits for its first usable frame before the device is
+/// closed and the next size is tried.
+const FIRST_FRAME: Duration = Duration::from_millis(2500);
+
+/// What one try at one size came to.
+enum Try<D> {
+    /// The device streams: it, and the first usable frame.
+    Frame(D, Frame),
+    /// The device opened and gave no usable frame in time.
+    Silent,
+    /// The shell said stop during the try.
+    Stopped,
+    /// The device would not open or broke, with the reason for
+    /// `--verbose` and the one the app has a line for, when there is one.
+    Failed(String, Option<CameraFailure>),
+}
+
+/// What the whole ladder came to.
+enum Climb<D> {
+    /// A size that streams.
+    Got(D, Frame),
+    /// Every size that opened gave no frame.
+    Nothing,
+    /// The shell said stop.
+    Stopped,
+    /// No size opened.
+    Failed(String, Option<CameraFailure>),
+}
+
+/// Tries `sizes` in order with `attempt`, which opens the device at the
+/// size and closes it again unless it streams, and stops at the first
+/// that streams. A device the kernel refuses, holds elsewhere or lacks
+/// ends the climb at once, as another size would meet the same.
+fn climb<D>(sizes: &[Size], mut attempt: impl FnMut(Size) -> Try<D>) -> Climb<D> {
+    let mut silent = false;
+    let mut failed = None;
+    for &size in sizes {
+        match attempt(size) {
+            Try::Frame(device, first) => return Climb::Got(device, first),
+            Try::Stopped => return Climb::Stopped,
+            Try::Silent => silent = true,
+            Try::Failed(reason, Some(why)) => return Climb::Failed(reason, Some(why)),
+            Try::Failed(reason, None) => failed = Some(reason),
+        }
+    }
+    match failed {
+        Some(reason) if !silent => Climb::Failed(reason, None),
+        _ => Climb::Nothing,
+    }
+}
+
+/// One try: opens `path` at `size`, waits up to [`FIRST_FRAME`] for a
+/// usable frame and prints one line saying what happened, with the
+/// kernel's own lines about the camera when nothing came.
+fn attempt(path: &std::path::Path, size: Size, stop: &AtomicBool) -> Try<Device> {
+    let log = KernelLog::mark();
+    let asked = format!("{}x{}", size.width, size.height);
+    let mut device = match Device::open(path, size) {
+        Ok(device) => device,
+        Err(e) => {
+            eprintln!("camera asked {asked}: cannot open {}: {e}", path.display());
+            kernel_lines(&log);
+            let why = Failure::of_io(&e).map(app_reason);
+            return Try::Failed(format!("cannot open {}: {e}", path.display()), why);
+        }
+    };
+    device.set_max_fps(FPS);
+    let started = Instant::now();
+    let mut first = None;
+    let mut broke = None;
+    while first.is_none() && broke.is_none() && started.elapsed() < FIRST_FRAME {
+        if stop.load(Ordering::Relaxed) {
+            return Try::Stopped;
+        }
+        match device.frame(POLL) {
+            Ok(frame) => first = frame,
+            Err(e) => broke = Some(e),
+        }
+    }
+    let got = device.size();
+    let stats = device.stats();
+    let when = match &first {
+        Some(_) => format!("first frame {} ms", started.elapsed().as_millis()),
+        None => format!("no frame in {} ms", started.elapsed().as_millis()),
+    };
+    eprintln!(
+        "camera asked {asked}: gave {}x{} {}, dequeued {}, flagged {}, short {}, {when}",
+        got.width,
+        got.height,
+        device.format(),
+        stats.dequeued,
+        stats.flagged,
+        stats.short,
+    );
+    if let Some(e) = broke {
+        eprintln!("camera asked {asked}: the device failed: {e}");
+        kernel_lines(&log);
+        return Try::Failed(format!("the device failed: {e}"), None);
+    }
+    match first {
+        Some(frame) => Try::Frame(device, frame),
+        None => {
+            kernel_lines(&log);
+            Try::Silent
+        }
+    }
+}
+
+/// Prints the kernel's lines about the camera since `log` was marked.
+fn kernel_lines(log: &KernelLog) {
+    let lines = log.since(12);
+    if lines.is_empty() {
+        eprintln!("camera kernel log: nothing new (or not readable)");
+    }
+    for line in lines {
+        eprintln!("camera kernel log: {line}");
+    }
 }
 
 /// The app's reason for a V4L2 one.
@@ -387,4 +506,88 @@ pub fn list() -> Vec<(String, String)> {
     }
     out.sort();
     out.into_iter().map(|(_, p, n)| (p, n)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn frame(size: Size) -> Frame {
+        Frame {
+            width: size.width,
+            height: size.height,
+            luma: vec![0; usize::from(size.width) * usize::from(size.height)],
+            chroma: None,
+        }
+    }
+
+    /// A camera that streams only at `works`, noting each size asked.
+    fn camera(works: Option<Size>, asked: &mut Vec<Size>) -> impl FnMut(Size) -> Try<Size> + '_ {
+        move |size| {
+            asked.push(size);
+            if Some(size) == works {
+                Try::Frame(size, frame(size))
+            } else {
+                Try::Silent
+            }
+        }
+    }
+
+    #[test]
+    fn a_camera_that_streams_only_smaller_reaches_the_scanner() {
+        let mut asked = Vec::new();
+        let got = climb(&LADDER, camera(Some(Size::VGA), &mut asked));
+        assert!(matches!(got, Climb::Got(Size::VGA, f) if f.width == 640 && f.height == 480));
+        assert_eq!(asked, [Size::FULL_HD, Size::HD, Size::VGA]);
+    }
+
+    #[test]
+    fn a_camera_that_streams_at_full_hd_is_not_asked_for_less() {
+        let mut asked = Vec::new();
+        let got = climb(&LADDER, camera(Some(Size::FULL_HD), &mut asked));
+        assert!(matches!(got, Climb::Got(Size::FULL_HD, _)));
+        assert_eq!(asked, [Size::FULL_HD]);
+    }
+
+    #[test]
+    fn a_camera_that_streams_nowhere_says_so() {
+        let mut asked = Vec::new();
+        let got = climb(&LADDER, camera(None, &mut asked));
+        assert!(matches!(got, Climb::Nothing));
+        assert_eq!(asked.len(), 3);
+    }
+
+    #[test]
+    fn a_stop_ends_the_climb_at_once() {
+        let mut asked = 0;
+        let got = climb(&LADDER, |_| {
+            asked += 1;
+            Try::<Size>::Stopped
+        });
+        assert!(matches!(got, Climb::Stopped));
+        assert_eq!(asked, 1);
+    }
+
+    #[test]
+    fn a_camera_held_elsewhere_ends_the_climb_with_its_reason() {
+        let mut asked = 0;
+        let got = climb(&LADDER, |_| {
+            asked += 1;
+            Try::<Size>::Failed(String::from("busy"), Some(CameraFailure::InUse))
+        });
+        assert!(matches!(got, Climb::Failed(_, Some(CameraFailure::InUse))));
+        assert_eq!(asked, 1);
+    }
+
+    #[test]
+    fn a_size_that_will_not_open_is_followed_by_one_that_does() {
+        let got = climb(&LADDER, |size| {
+            if size == Size::FULL_HD {
+                Try::Failed(String::from("no such mode"), None)
+            } else {
+                Try::Frame(size, frame(size))
+            }
+        });
+        assert!(matches!(got, Climb::Got(Size::HD, _)));
+    }
 }
