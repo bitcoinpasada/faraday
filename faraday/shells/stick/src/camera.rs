@@ -8,7 +8,7 @@
 //! The device is asked for 1920 × 1080 (`Size::FULL_HD`): a dense code,
 //! version 23 at error correction H, has too few pixels a module at
 //! 640 × 480 for the decoder to find. A camera without that mode gives
-//! the nearest it has. If no usable frame comes within 2.5 s the device
+//! the nearest it has. If no usable frame comes within 1.5 s the device
 //! is closed and asked for 1280 × 720, then 640 × 480, so that the
 //! scanner is not left dead; those are a fallback, not the goal. Each
 //! try prints one line (size asked, size and format given, buffers
