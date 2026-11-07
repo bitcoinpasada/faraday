@@ -338,7 +338,14 @@ const LADDER: [Size; 3] = [Size::FULL_HD, Size::HD, Size::VGA];
 
 /// How long a try waits for its first usable frame before the device is
 /// closed and the next size is tried.
-const FIRST_FRAME: Duration = Duration::from_millis(2500);
+const FIRST_FRAME: Duration = Duration::from_millis(1500);
+
+// The whole ladder, every try waiting out its time, ends before the scan
+// sheet says there is no picture; a first frame takes 50 to 92 ms.
+const _: () = assert!(
+    FIRST_FRAME.as_millis() as u64 * LADDER.len() as u64
+        < faraday_draw::tokens::NO_PICTURE_MS
+);
 
 /// What one try at one size came to.
 enum Try<D> {
