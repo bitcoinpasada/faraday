@@ -1619,3 +1619,42 @@ fn a_lock_leaves_none_of_a_signed_files_text_held() {
     );
     assert_eq!(testkit::sign_text_kept(&app), 0);
 }
+
+/// The lines a text file was broken into are kept with the text and the
+/// width they were broken for: a file whose text changes, and a
+/// display of another width, each show on the next frame.
+#[test]
+fn the_page_follows_a_files_text_and_the_displays_width() {
+    let mut app = signing();
+    let page = drawn(&mut app);
+    assert!(page.contains("3d6f"), "{page}");
+    let at = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "SHA256SUMS")
+        .unwrap();
+    testkit::inbox_item_mut(&mut app, at).bytes =
+        b"# Faraday 0.1.0, commit 7fcc43a\n9a1e  faraday-0.1.0-linux-x86_64\n".to_vec();
+    let page = drawn(&mut app);
+    assert!(page.contains("9a1e"), "{page}");
+    assert!(!page.contains("3d6f"), "{page}");
+    for (width, dpi) in [(700, 160), (1000, 160), (1366, 160)] {
+        app.event(Event::Display(DisplayInfo {
+            width,
+            height: 768,
+            dpi,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        let page = drawn(&mut app);
+        assert!(
+            page.contains("9a1e") && page.contains("linux"),
+            "{width} {dpi}: {page}"
+        );
+    }
+}

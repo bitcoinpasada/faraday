@@ -174,6 +174,35 @@ fn a_single_key_with_paper_and_vault_shows_two_places_and_the_vault() {
     }
 }
 
+/// The chart is kept while the wallet's page scrolls; a plan made after
+/// the page was scrolled shows on the chart at the next frame.
+#[test]
+fn the_chart_follows_the_plan_after_the_page_was_scrolled() {
+    let mut app = desktop();
+    let w = one_key(&mut app);
+    app.press(Action::OpenWallet(w));
+    for _ in 0..3 {
+        app.event(Event::Wheel {
+            x: 400,
+            y: 300,
+            dy: 40,
+        });
+        let _ = app.frame();
+    }
+    assert!(app.drawn_texts().iter().any(|t| t == "No backup plan"));
+    planned(&mut app, w, 2);
+    for _ in 0..3 {
+        app.event(Event::Wheel {
+            x: 400,
+            y: 300,
+            dy: 40,
+        });
+        let _ = app.frame();
+    }
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t == "No backup plan"), "{texts:?}");
+}
+
 #[test]
 fn a_cosigners_key_is_xpub_only_and_no_backup_node_holds_its_seed() {
     let mut app = desktop();
