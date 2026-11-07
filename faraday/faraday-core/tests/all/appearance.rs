@@ -213,3 +213,38 @@ fn reduce_motion_is_a_switch_and_is_kept_across_a_lock() {
     app.press(Action::ReduceMotion(false));
     assert!(!restarted(&mut app).reduce_motion());
 }
+
+/// A restart as the stick shell does it on an HDMI screen (F222): the screen is
+/// announced first, the kept set arrives after.
+fn restarted_on_hdmi(app: &mut Faraday) -> Faraday {
+    let mut kept = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { kept: k, .. } = c {
+            kept = k;
+        }
+    }
+    let mut next = Faraday::new();
+    next.event(faraday_shell_api::Event::ExternalScreen);
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: Vec::new(),
+        kept,
+    });
+    next
+}
+
+#[test]
+fn on_an_hdmi_screen_motion_starts_reduced_and_the_choice_wins() {
+    let mut app = Faraday::new();
+    app.event(faraday_shell_api::Event::ExternalScreen);
+    assert!(app.reduce_motion(), "no fades on a first start on HDMI");
+    assert!(restarted_on_hdmi(&mut app).reduce_motion());
+    assert!(
+        !restarted(&mut app).reduce_motion(),
+        "the panel keeps its fades"
+    );
+    app.press(Action::ReduceMotion(false));
+    assert!(!restarted_on_hdmi(&mut app).reduce_motion());
+    app.press(Action::ReduceMotion(true));
+    assert!(restarted_on_hdmi(&mut app).reduce_motion());
+}

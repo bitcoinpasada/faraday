@@ -158,7 +158,10 @@ A directory under `boards/` with three fragments and a `board.conf`:
   `genimage`: whatever the layout expects to find in `images/`.
 - `config.txt` — only on a board whose `FIRMWARE` is `rpi`.
 - `dev/` — optional: the parts that are this board's *and* the dev
-  variant's, which today is the console the probe lines go to.
+  variant's, which today is the console the probe lines go to. Its
+  `cmdline.txt` does not set `faraday.window=`, so the dev image draws
+  an HDMI screen at the full mode the Pi sends; the window itself
+  (`docs/FRAMES.md` §6) is kept, and a card's `cmdline.txt` can add it.
 
 A board whose toolchain is not already installed is that much more work:
 `rustup target add` its Rust target and a cross-compiler from the

@@ -5750,13 +5750,10 @@ impl App for Faraday {
                 }
                 // A live clock or a TOTP code on screen moves on by the
                 // second, with nothing else moving.
-                if self.shows_clock() {
-                    let now = self.clock_now();
-                    if now != self.clock_drawn {
-                        self.clock_drawn = now;
-                        self.out.redraw();
-                        self.out.commands.push_back(Command::Draw);
-                    }
+                if self.shows_clock() && self.clock_now() != self.clock_drawn {
+                    self.clock_drawn = self.clock_now();
+                    self.out.redraw();
+                    self.out.commands.push_back(Command::Draw);
                 }
                 self.vanity_tick(now_ms);
                 self.zero_tick();
@@ -5806,6 +5803,7 @@ impl App for Faraday {
             Event::Clipboard { text, .. } => self.pasted(zeroize::Zeroizing::new(text)),
             Event::ClipboardUnavailable { .. } => self.pasted(String::new().into()),
             Event::RotationOffered { native } => self.rotation_offered_by(native),
+            Event::ExternalScreen => self.external_screen(),
             _ => return,
         }
         if settle {

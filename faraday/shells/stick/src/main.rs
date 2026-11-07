@@ -2055,6 +2055,9 @@ fn run(args: Args) -> Result<Exit, String> {
     } else {
         orient::drm_edid(Path::new(DRM_CLASS))
     };
+    // A connected HDMI connector is how the shell knows the screen is not
+    // the panel (the boot script picks the HDMI directory the same way).
+    let hdmi = !drm_edid.is_empty();
     let edid_size = faraday_core::edid::from_boot_params(&boot_params)
         .or_else(|| (!drm_edid.is_empty()).then_some(drm_edid.as_slice()))
         .and_then(faraday_core::edid::size)
@@ -2312,6 +2315,10 @@ fn run(args: Args) -> Result<Exit, String> {
     if shell.setup.offered {
         let native = shell.setup.native();
         shell.send(Event::RotationOffered { native });
+    }
+    // A Pi's HDMI screen is not the panel: fades start off there.
+    if hdmi {
+        shell.send(Event::ExternalScreen);
     }
     // What the process before a lock left in the Inbox and Outbox, then
     // the sticks present now.

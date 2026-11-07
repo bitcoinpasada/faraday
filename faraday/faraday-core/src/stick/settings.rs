@@ -59,8 +59,13 @@ pub(crate) struct Settings {
     theme: crate::ui::Theme,
     /// How large text is drawn (`docs/TEXT-SIZE.md` §2).
     text: crate::ui::TextSize,
-    /// Reduce motion: nothing slides, glides, coasts or stretches.
-    reduce_motion: bool,
+    /// Reduce motion as the person chose it: nothing slides, glides,
+    /// coasts or stretches. `None` until they choose, then the default
+    /// below holds.
+    reduce_motion: Option<bool>,
+    /// What Reduce motion is until the person chooses: on for a screen
+    /// that is not the device's own panel (`docs/MOTION.md` §3).
+    reduce_motion_default: bool,
     /// Minutes without input before the session locks; 0 for never
     /// (`docs/history/PLAN.md` §12.3).
     idle_lock_min: u16,
@@ -89,7 +94,8 @@ impl Default for Settings {
             rotation_native: None,
             theme: crate::ui::Theme::default(),
             text: crate::ui::TextSize::Standard,
-            reduce_motion: false,
+            reduce_motion: None,
+            reduce_motion_default: false,
             idle_lock_min: crate::IDLE_LOCK_MIN,
             qr_frame_ms: crate::QR_SPEEDS[0],
             idle_off_min: crate::IDLE_OFF_MIN,
@@ -148,7 +154,12 @@ impl Settings {
 
     /// Whether motion is reduced.
     pub(crate) fn reduce_motion(&self) -> bool {
-        self.reduce_motion
+        self.reduce_motion.unwrap_or(self.reduce_motion_default)
+    }
+
+    /// Sets what Reduce motion is until the person chooses.
+    pub(crate) fn set_reduce_motion_default(&mut self, on: bool) {
+        self.reduce_motion_default = on;
     }
 
     /// Minutes of idle before the lock; 0 for never.
@@ -198,7 +209,7 @@ impl Settings {
 
     /// Sets reduce motion.
     pub(crate) fn set_reduce_motion(&mut self, on: bool) {
-        self.reduce_motion = on;
+        self.reduce_motion = Some(on);
     }
 
     /// Sets the idle lock time.
@@ -231,17 +242,19 @@ impl Settings {
     /// file holds after its first line, and the start of the kept set.
     pub(crate) fn body(&self) -> String {
         format!(
-            "scale={}\nrotation={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\nmotion={}\nguided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
+            "scale={}\nrotation={}\ntheme={}\nmode={}\ncontrast={}\ntext={}\n{}guided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
             self.scale_pct,
             self.orientation.id(),
             self.theme.name.id(),
             self.theme.mode.id(),
             self.theme.contrast.id(),
             self.text.id(),
-            if self.reduce_motion {
-                "reduced"
-            } else {
-                "full"
+            // Only a choice is kept, so a default does not outlive the
+            // screen it was for.
+            match self.reduce_motion {
+                Some(true) => "motion=reduced\n",
+                Some(false) => "motion=full\n",
+                None => "",
             },
             u8::from(self.guided),
             self.qr_frame_ms,
@@ -300,8 +313,8 @@ impl Settings {
                 }
             }
             "motion" => match value {
-                "reduced" => self.reduce_motion = true,
-                "full" => self.reduce_motion = false,
+                "reduced" => self.reduce_motion = Some(true),
+                "full" => self.reduce_motion = Some(false),
                 _ => {}
             },
             "guided" => match value {
@@ -412,6 +425,14 @@ impl Faraday {
     pub(crate) fn rotation_offered_by(&mut self, native: Orientation) {
         self.settings.set_rotation_native(native);
         self.ask_orientation();
+    }
+
+    /// The screen is not the device's own panel (`Event::ExternalScreen`):
+    /// Reduce motion is on until the person chooses, and a choice kept or
+    /// made wins.
+    pub(crate) fn external_screen(&mut self) {
+        self.settings.set_reduce_motion_default(true);
+        self.out.redraw();
     }
 
     /// The scale just set, from the kept set or a stick, laid out at once.

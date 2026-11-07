@@ -333,9 +333,12 @@ extent; a motion left from another screen or sheet is stopped.
   a dice tumble and its pause are skipped, and a wheel notch moves at
   once with no coast and no stretch past an end. It is kept with the other
   settings (`motion=reduced` or `motion=full` in the settings file and
-  the kept set, `stick/settings.rs`) and is off on a first start:
-  Faraday reads no system setting for reduced motion (no shell reports
-  one).
+  the kept set, `stick/settings.rs`) and is off on a first
+  start, except on a Pi's HDMI screen, where the stick shell sends
+  `Event::ExternalScreen` and it is on until the person chooses; a kept
+  or new choice wins, and only a choice is kept in the file. Faraday
+  reads no system setting for reduced motion (no shell reports one);
+  the HDMI default is F222.
 - **Motion** (all time-based, all off under Reduce motion):
   - a sheet and its scrim appear at once (cross-fades removed
     2026-10-07, `docs/history/MOTION-LOG.md` §5 item 3.9);

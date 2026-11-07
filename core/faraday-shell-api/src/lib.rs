@@ -726,6 +726,12 @@ pub enum Event {
         /// The panel's own orientation.
         native: Orientation,
     },
+    /// The screen is an external one (a Pi's HDMI monitor), not the
+    /// device's own panel. Sent once at start by a shell that knows; the
+    /// core then starts with Reduce motion on (`docs/MOTION.md` §3), a
+    /// kept or new choice of the person winning. A shell that never
+    /// sends it keeps the default of motion on.
+    ExternalScreen,
 }
 
 /// Core → shell.
