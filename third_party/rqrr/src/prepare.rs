@@ -24,6 +24,8 @@ pub(crate) const MAX_REGIONS: usize = 251;
 pub struct PreparedImage<S> {
     buffer: S,
     regions: Box<RegionTable>,
+    /// What this frame's search has spent so far ([`WORK_PER_PIXEL`]).
+    work: u64,
 }
 
 /// The regions coloured so far, indexed by region index, least recently
@@ -112,6 +114,32 @@ const MAX_PAIRS_PER_CAPSTONE: usize = 8;
 /// capstones rank first.
 const MAX_GROUP_TRIES: usize = 128;
 
+/// The work one frame's search may spend, for each pixel of the frame.
+/// Past it the frame gives no read, as any frame the search cannot read
+/// does. One unit is about what one pixel of a flood fill costs; the
+/// figures for real frames and crafted ones are in `PATCHES.md`.
+const WORK_PER_PIXEL: u64 = 64;
+
+/// The least any frame may spend, however small: a code that fills a small
+/// frame costs as much to fit as the same code in a large one.
+const MIN_WORK: u64 = 1 << 26;
+
+/// The work of a flood-filled row beside its pixels: taking it from the
+/// queue, and looking for it above and below.
+const WORK_PER_ROW: u64 = 8;
+
+/// The work of finding the region to drop when the table is full, which
+/// reads every entry.
+const WORK_PER_EVICTION: u64 = MAX_REGIONS as u64;
+
+/// How many pixels of a copy of the frame make a unit of work. Copying is
+/// far cheaper than painting, but a frame may ask for `MAX_GROUP_TRIES`.
+const PIXELS_PER_WORK_OF_COPY: u64 = 4;
+
+/// The work of fitting a grid to a group of capstones, for each module of
+/// its side: `jiggle_perspective` samples about 1,000 points for each.
+pub(crate) const WORK_PER_GRID_MODULE: u64 = 60_000;
+
 impl<S> Clone for PreparedImage<S>
 where
     S: Clone,
@@ -120,6 +148,7 @@ where
         PreparedImage {
             buffer: self.buffer.clone(),
             regions: self.regions.clone(),
+            work: self.work,
         }
     }
 }
@@ -312,6 +341,7 @@ where
         PreparedImage {
             buffer: buf,
             regions: RegionTable::new(),
+            work: 0,
         }
     }
 
@@ -332,6 +362,11 @@ where
             .into_iter()
             .filter_map(|v| crate::SkewedGridLocation::from_group(self, v))
             .collect();
+        // A frame past its budget gives no read, whatever it found first:
+        // the fills it stopped have left the image half painted.
+        if self.out_of_work() {
+            return res;
+        }
         for grid_location in locations {
             // A grid whose own four corners cannot be placed in the
             // image is not a grid worth reporting.
@@ -376,6 +411,10 @@ where
                     return groups;
                 }
                 tries += 1;
+                let copy_work = self.pixels() / PIXELS_PER_WORK_OF_COPY;
+                if !self.spend(copy_work) {
+                    return Vec::new();
+                }
                 let group_under_test = CapStoneGroup(
                     capstones[pair.0].clone(),
                     capstones[idx].clone(),
@@ -385,9 +424,16 @@ where
                 // A copy of the input image is used to not contaminate the
                 // original on an incorrect set of CapStones
                 let mut image_copy = self.clone();
-                if crate::SkewedGridLocation::from_group(&mut image_copy, group_under_test.clone())
-                    .is_none()
-                {
+                let viable =
+                    crate::SkewedGridLocation::from_group(&mut image_copy, group_under_test.clone())
+                        .is_some();
+                // The copy spends this frame's budget, not one of its own.
+                self.work = image_copy.work;
+                drop(image_copy);
+                if self.out_of_work() {
+                    return Vec::new();
+                }
+                if !viable {
                     continue;
                 }
                 // This is a viable set, save this grouping
@@ -410,7 +456,35 @@ where
         PreparedImage {
             buffer: buf,
             regions: RegionTable::new(),
+            work: 0,
         }
+    }
+
+    /// The frame's pixels, as the budget counts them.
+    fn pixels(&self) -> u64 {
+        self.width() as u64 * self.height() as u64
+    }
+
+    /// Takes `work` from the frame's budget, and whether any was left.
+    pub(crate) fn spend(&mut self, work: u64) -> bool {
+        self.work = self.work.saturating_add(work);
+        !self.out_of_work()
+    }
+
+    /// Whether the search has spent the frame's budget: the frame gives no
+    /// read.
+    pub fn out_of_work(&self) -> bool {
+        self.work > self.work_allowed()
+    }
+
+    /// The most this frame's search may spend.
+    fn work_allowed(&self) -> u64 {
+        self.pixels().saturating_mul(WORK_PER_PIXEL).max(MIN_WORK)
+    }
+
+    /// The work spent on this frame so far, and the most it may spend.
+    pub fn work(&self) -> (u64, u64) {
+        (self.work, self.work_allowed())
     }
 
     /// Return the width of the image
@@ -427,15 +501,18 @@ where
     /// give.
     ///
     /// `None` means the pixel is white, or names a region index the
-    /// table no longer holds, or could not be repainted. Every caller
-    /// treats all three as "nothing of interest at this pixel".
-    /// Upstream panicked on the first two.
+    /// table no longer holds, or could not be repainted, or the frame's
+    /// budget is spent. Every caller treats all of these as "nothing of
+    /// interest at this pixel". Upstream panicked on the first two.
     pub(crate) fn get_region(&mut self, (x, y): (usize, usize)) -> Option<ColoredRegion> {
         let color: PixelColor = self.buffer.get_pixel(x, y).into();
         match color {
             PixelColor::Discarded(r) => self.regions.get(r),
             PixelColor::Black => {
                 let (reg_idx, evicted) = self.regions.claim();
+                if evicted.is_some() {
+                    self.spend(WORK_PER_EVICTION);
+                }
                 // The evicted region goes back to plain black, so that
                 // it can be found again later under another index.
                 if let Some(ColoredRegion::Unclaimed {
@@ -478,7 +555,8 @@ where
     /// A white pixel has no region, and a pixel already in the target
     /// colour has been repainted by an earlier candidate — an alignment
     /// pattern shared with another capstone group reaches the second
-    /// case. Upstream panicked on both.
+    /// case. Upstream panicked on both. A fill the frame's budget stopped
+    /// is `None` too: it covered only part of the region, perhaps none.
     pub(crate) fn repaint_and_apply<F>(
         &mut self,
         (x, y): (usize, usize),
@@ -493,7 +571,8 @@ where
             return None;
         }
 
-        Some(self.flood_fill(x, y, src, target_color.into(), fill))
+        let fill = self.flood_fill(x, y, src, target_color.into(), fill);
+        (!self.out_of_work()).then_some(fill)
     }
 
     pub fn get_pixel_at_point(&self, p: Point) -> PixelColor {
@@ -547,6 +626,9 @@ where
         queue.push((x, y));
 
         while let Some((x, y)) = queue.pop() {
+            if self.out_of_work() {
+                return fill;
+            }
             // Bail early in case there is nothing to fill
             if self.buffer.get_pixel(x, y) == to || self.buffer.get_pixel(x, y) != from {
                 continue;
@@ -568,6 +650,7 @@ where
             }
 
             fill.update(Row { left, right, y });
+            self.spend((right - left + 1) as u64 + WORK_PER_ROW);
 
             /* Seed new flood-fills */
             if y > 0 {
@@ -674,6 +757,7 @@ mod tests {
         PreparedImage {
             buffer,
             regions: RegionTable::new(),
+            work: 0,
         }
     }
 

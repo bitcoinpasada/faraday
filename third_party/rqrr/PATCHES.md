@@ -179,8 +179,53 @@ frame over a bound give no read, as any unreadable frame does.
   about 10^11 steps. An estimate over (longer side / 17) squared, 12,700
   pixels at 1920x1080, is refused. That bounds the search to about 1.3
   million steps. No frame reaching this was found: 4,000 warped version 2
-  codes at 1920x1080 all ended in under 150 ms. The bound stands because
-  nothing else limits the loop.
+  codes at 1920x1080 all ended in under 150 ms. Each step also counts
+  against the work budget below.
+- **Work budget** (`src/prepare.rs`, `WORK_PER_PIXEL` = 64, `MIN_WORK` =
+  2^26). The bounds above stop only frames that make capstones. Full-height
+  stripes repeating black 1, white 1, black 3, white 1, black 1, white 1 make
+  none: each row touches 480 stripes against the 251 entries of the region
+  table, so every touch evicts one stripe and repaints another, 1080 rows
+  each, about 1.1 x 10^9 rows for the frame. Black 2, white 2, black 5,
+  white 2, black 2, white 1 does the same, and so does the alignment search
+  crossing radial spokes. So each frame has one budget of work, shared with
+  the copies each group try makes, and past it the search stops and the
+  frame is no read, whatever it found first. A unit is about one pixel of a
+  flood fill: every route through `flood_fill` is charged per row (its width
+  plus `WORK_PER_ROW` = 8), and so are the things a frame can repeat that are
+  not fills: finding a region to evict (251), a copy of the frame (a quarter
+  of a unit a pixel), a step of the alignment search (1) and fitting a grid
+  (60,000 a module of its side). At 1920x1080 the budget is 132.7 million,
+  and at 960x540 or smaller 67 million.
+
+  Spent on generated frames (the search alone, of the budget):
+
+  | Frame | Spent, millions | Budget over that |
+  |---|---|---|
+  | Version 23 at 1920x1080, 6 to 9 pixels a module, blurred, noisy | 14.0 to 14.3 | 9.3 times |
+  | The same on a textured background | 16.1 | 8.2 times |
+  | Six version 2 codes on one sheet | 25.1 | 5.3 times |
+  | Fine noise at 2 pixels, nothing to read | 24.3 | 5.5 times |
+  | Version 23 reduced to 960x540 | 13.4 | 5.0 times |
+  | Version 40 alone at 2, 3 pixels a module (370x370, 555x555) | 21.4, 21.6 | 3.1 times |
+  | Version 40 alone at 6 pixels a module (1110x1110) | 22.5 | 3.5 times |
+  | Version 1 alone, any size | 2.5 to 2.8 | over 20 times |
+
+  A code's fit takes nearly all of it and is fixed by its version, so these
+  move little from frame to frame; none of them was a camera's own picture.
+  A code in the same frame as stripes of this kind is not read while they
+  are in the frame.
+
+  In a release build on an x86 desktop core a frame that spends all of it
+  takes 120 to 150 ms, at about 1 ns a unit for each kind of frame tried
+  (stripes, spokes, lattices of 60 to 220 capstones, codes); before, the
+  stripes' rows alone came to about 10 s there, by arithmetic. Not measured
+  on a Pi 3B+. If a row costs one 55 to 165 ns (7 to 20 times the desktop's,
+  an estimate) a frame that spends all of it takes 1 to 3 s there.
+  `Scanner::stop` waits for the pass it interrupts, and a pass in the reduced
+  mode reads at most the reduced copy and then the full frame, so closing the
+  scan sheet on such a frame holds the loop for 1.5 to 4 s at most, by the
+  same estimate.
 - **Capstone centre** (`src/detect.rs`). A capstone whose centre lies more
   than a frame's width or height outside the frame is no capstone. Later
   scans (`BresenhamScan`) run between points derived from it. Not shown

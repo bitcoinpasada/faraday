@@ -1,7 +1,7 @@
 //! A camera frame is the untrusted side's: a crafted one may be any
 //! picture, and the scanner must end it in bounded time, with no read,
 //! the same as any frame it cannot read. (The scanner's stop waits for
-//! the frame being decoded.)
+//! the frame being decoded, so this bound is what a stop can cost.)
 
 use faraday_codec::decode_luma;
 use faraday_codec::qr::{self, Ecc, Payload};
@@ -51,12 +51,139 @@ fn capstone_lattice(pitch: usize) -> Vec<u8> {
     img
 }
 
+/// How long the frames that hold the search to its budget may take, on a
+/// loaded machine in any build. They take about 150 ms alone.
+const LIMIT: Duration = Duration::from_secs(5);
+
+/// What the search alone spends on a frame, and whether that was all it may.
+fn spent(frame: &[u8]) -> (u64, bool) {
+    let mut image = rqrr::PreparedImage::prepare_from_greyscale(W, H, |x, y| frame[y * W + x]);
+    drop(image.detect_grids());
+    (image.work().0, image.out_of_work())
+}
+
+/// Full-height stripes, their runs of black and white repeating `runs`.
+fn stripes(runs: &[usize]) -> Vec<u8> {
+    let mut row = Vec::with_capacity(W);
+    for (i, run) in runs.iter().cycle().enumerate() {
+        if row.len() >= W {
+            break;
+        }
+        row.extend(std::iter::repeat_n(
+            if i % 2 == 0 { 25u8 } else { 235 },
+            *run,
+        ));
+    }
+    row.truncate(W);
+    row.repeat(H)
+}
+
+/// The three corner marks and the timing lines of a version 2 code at
+/// `MODULE` pixels a module, and around the point where the alignment
+/// search goes, more radial spokes than the region table has entries, each
+/// too small to be taken for the pattern and far enough apart to stay apart.
+fn spokes() -> Vec<u8> {
+    const MODULE: usize = 40;
+    let (ox, oy) = (200, 10);
+    let c = Compute::unchecked();
+    let code = qr::encode(&c, Payload::Bytes(b"spokes around the search"), Ecc::Low).unwrap();
+    let (side, _, modules) = code.to_luma(1, 0);
+    assert_eq!(side, 25);
+    let centre = |o: usize| (o + 21 * MODULE + MODULE / 2) as f64;
+    let (cx, cy) = (centre(ox), centre(oy));
+    let turn = std::f64::consts::TAU;
+    let sectors = 750.0;
+    let mut img = vec![235u8; W * H];
+    for y in 0..H {
+        for x in 0..W {
+            let (mx, my) = (x.wrapping_sub(ox) / MODULE, y.wrapping_sub(oy) / MODULE);
+            if mx < side && my < side {
+                let mark = (mx <= 7 || mx >= 17) && my <= 7 || mx <= 7 && my >= 17;
+                if (mark || mx == 6 || my == 6) && modules[my * side + mx] < 128 {
+                    img[y * W + x] = 25;
+                }
+            }
+            if mx <= 8 || my <= 8 {
+                continue;
+            }
+            let (dx, dy) = (x as f64 + 0.5 - cx, y as f64 + 0.5 - cy);
+            let r = dx.hypot(dy);
+            let sector = ((dy.atan2(dx) + turn / 2.0) / turn * sectors) as usize;
+            if (150.0..=343.0).contains(&r) && sector.is_multiple_of(2) {
+                img[y * W + x] = 25;
+            }
+        }
+    }
+    img
+}
+
+#[test]
+fn a_frame_of_repeating_stripes_ends_without_a_read() {
+    let patterns: [&[usize]; 2] = [&[1, 1, 3, 1, 1, 1], &[2, 2, 5, 2, 2, 1]];
+    for runs in patterns {
+        let frame = stripes(runs);
+        assert!(
+            spent(&frame).1,
+            "{runs:?} should have taken all of its budget"
+        );
+        let (_, read) = decode_within(frame, LIMIT)
+            .unwrap_or_else(|| panic!("{runs:?} still being decoded after {LIMIT:?}"));
+        assert_eq!(read, 0);
+    }
+}
+
+#[test]
+fn a_frame_of_spokes_around_the_alignment_search_ends_without_a_read() {
+    let frame = spokes();
+    // No grid is fitted here, so this is all fills, and many times what
+    // finding a real dense code's regions takes (about 1.2 million).
+    assert!(spent(&frame).0 > 20_000_000, "the search crossed no spokes");
+    let (_, read) = decode_within(frame, LIMIT).expect("still being decoded");
+    assert_eq!(read, 0);
+}
+
+#[test]
+fn a_dense_code_reads_with_most_of_its_budget_left() {
+    let c = Compute::unchecked();
+    let payload: Vec<u8> = (0..qr::byte_capacity(23, Ecc::High))
+        .map(|i| (i * 7 + i / 13) as u8)
+        .collect();
+    let code = qr::encode(&c, Payload::Bytes(&payload), Ecc::High).unwrap();
+    let (side, _, modules) = code.to_luma(1, 0);
+    let module = 8;
+    let mut img = vec![235u8; W * H];
+    for y in 0..side * module {
+        for x in 0..side * module {
+            if modules[(y / module) * side + x / module] < 128 {
+                img[(100 + y) * W + 500 + x] = 25;
+            }
+        }
+    }
+    let mut image = rqrr::PreparedImage::prepare_from_greyscale(W, H, |x, y| img[y * W + x]);
+    drop(image.detect_grids());
+    let (spent, allowed) = image.work();
+    assert!(spent < allowed / 4, "{spent} of {allowed}");
+    let (_, read) = decode_within(img, LIMIT).expect("still being decoded");
+    assert_eq!(read, 1);
+}
+
 #[test]
 fn a_frame_of_tens_of_thousands_of_corner_marks_ends_without_a_read() {
     let frame = capstone_lattice(8);
     let (_, read) = decode_within(frame, Duration::from_secs(120))
         .expect("the frame was still being decoded after two minutes");
     assert_eq!(read, 0);
+}
+
+/// Few enough corner marks to pass the count, in groups the search tries
+/// and fits: these spend the budget on copies and fits rather than fills.
+#[test]
+fn a_frame_of_a_few_hundred_corner_marks_ends_without_a_read() {
+    for pitch in [100, 130, 200] {
+        let (_, read) = decode_within(capstone_lattice(pitch), LIMIT)
+            .unwrap_or_else(|| panic!("pitch {pitch} still being decoded after {LIMIT:?}"));
+        assert_eq!(read, 0);
+    }
 }
 
 #[test]

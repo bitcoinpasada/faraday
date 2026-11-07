@@ -4,7 +4,7 @@ use crate::{
     geometry,
     identify::match_capstones::CapStoneGroup,
     prepare::PreparedImage,
-    prepare::{AreaFiller, ColoredRegion, ImageBuffer, PixelColor, Row},
+    prepare::{AreaFiller, ColoredRegion, ImageBuffer, PixelColor, Row, WORK_PER_GRID_MODULE},
     version_db::VERSION_DATA_BASE,
     BitGrid, CapStone, Point,
 };
@@ -128,6 +128,9 @@ impl SkewedGridLocation {
             return None;
         }
 
+        if !img.spend(WORK_PER_GRID_MODULE * grid_size as u64) {
+            return None;
+        }
         let c = setup_perspective(img, &group, align, grid_size)?;
 
         Some(SkewedGridLocation { grid_size, c })
@@ -350,6 +353,11 @@ where
         const DX_MAP: [i32; 4] = [1, 0, -1, 0];
         const DY_MAP: [i32; 4] = [0, -1, 0, 1];
         for _pass in 0..step_size {
+            // Each step counts against the frame's budget, whether or not
+            // it lands on anything.
+            if !img.spend(1) {
+                return None;
+            }
             let x = align_seed.x as usize;
             let y = align_seed.y as usize;
 

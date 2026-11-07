@@ -45,6 +45,10 @@ where
     let mut res = Vec::new();
 
     for y in 0..img.height() {
+        // A frame past its budget gives no read.
+        if img.out_of_work() {
+            return Vec::new();
+        }
         let mut finder = LineScanner::new(img.get_pixel_at(0, y));
         for x in 1..img.width() {
             let linepos = match finder.advance(img.get_pixel_at(x, y)) {

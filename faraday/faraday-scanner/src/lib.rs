@@ -416,6 +416,35 @@ mod tests {
         m.to_luma(scale, QUIET_ZONE)
     }
 
+    /// A frame whose search takes all of its budget (`rqrr`'s `PATCHES.md`):
+    /// closing the sheet on it waits for that much and no longer.
+    #[test]
+    fn a_stop_during_a_crafted_frame_ends_soon() {
+        const W: usize = 1920;
+        let runs = [1, 1, 3, 1, 1, 1];
+        let mut row = Vec::with_capacity(W);
+        for (i, run) in runs.iter().cycle().enumerate() {
+            if row.len() >= W {
+                break;
+            }
+            row.extend(std::iter::repeat_n(
+                if i % 2 == 0 { 25u8 } else { 235 },
+                *run,
+            ));
+        }
+        row.truncate(W);
+        let frame = row.repeat(1080);
+        for mode in [ReadMode::Full, ReadMode::Reduced] {
+            let mut scanner = Scanner::new(mode);
+            scanner.offer(W as u16, 1080, frame.clone());
+            std::thread::sleep(Duration::from_millis(5));
+            let began = Instant::now();
+            scanner.stop();
+            let took = began.elapsed();
+            assert!(took < Duration::from_secs(5), "{mode:?}: {took:?}");
+        }
+    }
+
     #[test]
     fn a_read_code_is_outlined_where_it_is() {
         let (w, h, px) = frame(6);
