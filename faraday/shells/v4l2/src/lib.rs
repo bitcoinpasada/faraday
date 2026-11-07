@@ -2,11 +2,13 @@
 //! and hand back 8-bit luma frames, with the colour beside them where
 //! the device has colour to give.
 //!
-//! The order the formats are asked for is colour first — `YUYV`, then
-//! `NV12`, `YU12`, and `GREY` last — because the core draws the
-//! viewfinder's preview in colour when a frame carries chroma, and
-//! decodes from the luma either way (§16.33 wrote the order the other
-//! way round, when the preview was grey).
+//! The order the formats are asked for is colour first, because the core
+//! draws the viewfinder's preview in colour when a frame carries chroma,
+//! and decodes from the luma either way: `YUYV`, `NV12`, `YU12`, then
+//! `GREY` at 1280 x 720 and below. Above that size the planar formats
+//! come first, `YU12`, `NV12`, `YUYV`, `GREY`, since a frame of them is
+//! three quarters of the bytes of a `YUYV` one, and a Pi's camera gives
+//! frames at 1920 x 1080 in `YU12` where `YUYV` gives none.
 //!
 //! # Why this crate may use `unsafe`
 //!
@@ -18,8 +20,9 @@
 //! > through `libc` (already in the dependency graph): query
 //! > capabilities, set a 640 × 480 format, four memory-mapped buffers,
 //! > stream, `poll`, dequeue, hand the luma to the core, requeue.
-//! > Formats asked for in order: `GREY`, then `YUYV` (every second
-//! > byte), then `NV12`/`YU12` (the first width × height bytes). The
+//! > Formats asked for in order: `YUYV` (every second byte), then
+//! > `NV12`/`YU12` (the first width × height bytes), then `GREY`; above
+//! > 1280 x 720 the planar ones first. The
 //! > V4L2 structs and request numbers are declared in the module, about
 //! > two hundred lines; no `v4l` crate. The first `/dev/video*` that
 //! > streams a video format is the camera; no device chooser yet.
@@ -258,94 +261,6 @@ fn capture(path: &Path) -> io::Result<Option<Capture>> {
     })
 }
 
-/// The kernel's own words about the camera, for a shell that logs why a
-/// try gave no picture.
-///
-/// Reads `/dev/kmsg` without blocking, which needs the right to read the
-/// kernel log; a program without it gets no lines, never an error.
-#[derive(Clone, Copy, Debug)]
-pub struct KernelLog {
-    seq: u64,
-}
-
-impl KernelLog {
-    /// Notes where the kernel log ends now.
-    #[must_use]
-    pub fn mark() -> KernelLog {
-        let seq = records().iter().map(|(seq, _)| *seq).max().unwrap_or(0);
-        KernelLog { seq }
-    }
-
-    /// The lines about the camera driver, the firmware link and memory
-    /// that came after the mark, at most the last `max` of them.
-    #[must_use]
-    pub fn since(&self, max: usize) -> Vec<String> {
-        let mut lines: Vec<String> = records()
-            .into_iter()
-            .filter(|(seq, text)| *seq > self.seq && is_camera_line(text))
-            .map(|(_, text)| text)
-            .collect();
-        let drop = lines.len().saturating_sub(max);
-        lines.drain(..drop);
-        lines
-    }
-}
-
-/// Whether a kernel line is about the camera path.
-fn is_camera_line(text: &str) -> bool {
-    let low = text.to_ascii_lowercase();
-    [
-        "bcm2835",
-        "mmal",
-        "vchiq",
-        "vc04",
-        "camera",
-        "video0",
-        "v4l2",
-        "cma",
-        "out of memory",
-        "alloc",
-    ]
-    .iter()
-    .any(|w| low.contains(w))
-}
-
-/// Every record `/dev/kmsg` holds now, as (sequence number, message).
-fn records() -> Vec<(u64, String)> {
-    use std::io::Read;
-    use std::os::unix::fs::OpenOptionsExt;
-    let Ok(mut file) = OpenOptions::new()
-        .read(true)
-        .custom_flags(libc::O_NONBLOCK)
-        .open("/dev/kmsg")
-    else {
-        return Vec::new();
-    };
-    let mut out = Vec::new();
-    let mut buf = vec![0u8; 8192];
-    // One read is one record; `EAGAIN` is the end, `EPIPE` a record
-    // overwritten while reading, which the next read steps over.
-    for _ in 0..100_000 {
-        match file.read(&mut buf) {
-            Ok(0) => break,
-            Ok(n) => {
-                let text = String::from_utf8_lossy(&buf[..n]);
-                let head = text.lines().next().unwrap_or_default();
-                // `priority,sequence,timestamp,flags;message`
-                if let Some((meta, message)) = head.split_once(';') {
-                    let seq = meta.split(',').nth(1).and_then(|n| n.parse().ok());
-                    if let Some(seq) = seq {
-                        out.push((seq, message.to_string()));
-                    }
-                }
-            }
-            Err(e) if e.raw_os_error() == Some(libc::EPIPE) => {}
-            Err(_) => break,
-        }
-    }
-    out
-}
-
 /// A streaming camera: the device, its negotiated format, and the four
 /// mapped buffers.
 ///
@@ -393,7 +308,8 @@ impl Camera {
     /// and starts the stream.
     ///
     /// The formats are asked for colour first - `YUYV`, `NV12`, `YU12`,
-    /// then `GREY` - and the first the driver grants is used. A driver
+    /// then `GREY`; above 1280 x 720 `YU12`, `NV12`, `YUYV`, `GREY` -
+    /// and the first the driver grants is used. A driver
     /// is free to adjust the size, and whatever it returns is what the
     /// frames will be; a mode much wider than 1280 pixels is shrunk by an
     /// integer factor before the frame leaves this crate.
@@ -681,8 +597,24 @@ unsafe impl Send for Camera {}
 ///
 /// The camera is dropped on the thread, so joining the returned handle
 /// is what guarantees the device is closed.
-pub fn spawn(mut camera: Camera, tx: SyncSender<Frame>, stop: Arc<AtomicBool>) -> JoinHandle<()> {
+pub fn spawn(camera: Camera, tx: SyncSender<Frame>, stop: Arc<AtomicBool>) -> JoinHandle<()> {
+    spawn_reporting(camera, tx, stop, Duration::MAX, |_, _, _| {})
+}
+
+/// [`spawn`], and once, `after` the thread starts, `report` is called
+/// with the frame size, the format's four characters and the
+/// [`Stats`] so far, for a shell that logs the sustained rate. It runs
+/// on the capture thread and is not called when the thread ends first.
+pub fn spawn_reporting(
+    mut camera: Camera,
+    tx: SyncSender<Frame>,
+    stop: Arc<AtomicBool>,
+    after: Duration,
+    report: impl FnOnce(Size, String, Stats) + Send + 'static,
+) -> JoinHandle<()> {
     std::thread::spawn(move || {
+        let begun = Instant::now();
+        let mut report = Some(report);
         let interval = Duration::from_millis(1000 / u64::from(camera.max_fps()));
         // A deadline that advances by the interval, not by the time of
         // the last send. Comparing against the last send beats against a
@@ -691,6 +623,11 @@ pub fn spawn(mut camera: Camera, tx: SyncSender<Frame>, stop: Arc<AtomicBool>) -
         // averages out to the cap whatever the driver's rate.
         let mut next = Instant::now();
         while !stop.load(Ordering::Relaxed) {
+            if begun.elapsed() >= after
+                && let Some(report) = report.take()
+            {
+                report(camera.size(), camera.format(), camera.stats());
+            }
             match camera.frame(POLL) {
                 Ok(Some(frame)) => {
                     let now = Instant::now();
@@ -790,25 +727,47 @@ fn try_format(fd: RawFd, request: u32, format: u32, want: Size) -> io::Result<ab
 /// return value. When none of the four is granted outright but the
 /// driver's own substitute is one of them, that one is set instead.
 fn negotiate(fd: RawFd, want: Size) -> io::Result<abi::PixFormat> {
+    negotiate_with(format_order(want), |format| {
+        try_format(fd, abi::VIDIOC_S_FMT, format, want).map(|fmt| fmt.pix)
+    })
+}
+
+/// The formats in the order they are asked for at `want`: planar first
+/// above 1280 x 720, where a smaller frame matters, else colour packed
+/// first.
+fn format_order(want: Size) -> [u32; 4] {
+    if want.width > Size::HD.width || want.height > Size::HD.height {
+        abi::FORMATS_LARGE
+    } else {
+        abi::FORMATS
+    }
+}
+
+/// [`negotiate`] over any way of setting a format, which answers with
+/// what the driver would give.
+fn negotiate_with(
+    order: [u32; 4],
+    mut set: impl FnMut(u32) -> io::Result<abi::PixFormat>,
+) -> io::Result<abi::PixFormat> {
     let mut substitute = None;
     // A driver that refuses a format outright, rather than substituting
     // one as the specification asks, is asked for the next; its error is
     // kept for when none is granted, since a device another program holds
     // refuses them all.
     let mut refused = None;
-    for &format in &abi::FORMATS {
-        let fmt = match try_format(fd, abi::VIDIOC_S_FMT, format, want) {
+    for &format in &order {
+        let fmt = match set(format) {
             Ok(fmt) => fmt,
             Err(e) => {
                 refused.get_or_insert(e);
                 continue;
             }
         };
-        if fmt.pix.pixelformat == format {
-            return Ok(fmt.pix);
+        if fmt.pixelformat == format {
+            return Ok(fmt);
         }
-        if substitute.is_none() && convert::luma_step(fmt.pix.pixelformat).is_some() {
-            substitute = Some(fmt.pix.pixelformat);
+        if substitute.is_none() && convert::luma_step(fmt.pixelformat).is_some() {
+            substitute = Some(fmt.pixelformat);
         }
     }
     let Some(format) = substitute else {
@@ -816,9 +775,9 @@ fn negotiate(fd: RawFd, want: Size) -> io::Result<abi::PixFormat> {
             io::Error::other("the camera offers none of YUYV, NV12, YU12 or GREY")
         }));
     };
-    let fmt = try_format(fd, abi::VIDIOC_S_FMT, format, want)?;
-    if fmt.pix.pixelformat == format {
-        Ok(fmt.pix)
+    let fmt = set(format)?;
+    if fmt.pixelformat == format {
+        Ok(fmt)
     } else {
         Err(io::Error::other(
             "the camera would not settle on a pixel format",
@@ -862,5 +821,62 @@ mod tests {
         assert!(Failure::Refused > Failure::InUse);
         assert!(Failure::InUse > Failure::NotFound);
         assert_eq!(None.max(Some(Failure::NotFound)), Some(Failure::NotFound));
+    }
+
+    /// A driver that grants exactly the formats in `offers` and, for any
+    /// other, answers with the first of them, as the specification asks.
+    fn driver(
+        offers: &[u32],
+        asked: &mut Vec<u32>,
+    ) -> impl FnMut(u32) -> io::Result<abi::PixFormat> {
+        let offers = offers.to_vec();
+        move |format| {
+            asked.push(format);
+            let given = if offers.contains(&format) {
+                format
+            } else {
+                offers[0]
+            };
+            Ok(abi::PixFormat {
+                pixelformat: given,
+                ..abi::PixFormat::default()
+            })
+        }
+    }
+
+    #[test]
+    fn full_hd_opens_in_yu12_when_the_camera_offers_it() {
+        let mut asked = Vec::new();
+        let got = negotiate_with(
+            format_order(Size::FULL_HD),
+            driver(&[abi::PIX_FMT_YUYV, abi::PIX_FMT_YU12], &mut asked),
+        )
+        .unwrap();
+        assert_eq!(got.pixelformat, abi::PIX_FMT_YU12);
+        assert_eq!(asked, [abi::PIX_FMT_YU12]);
+    }
+
+    #[test]
+    fn a_yuyv_only_camera_still_opens_at_full_hd() {
+        let mut asked = Vec::new();
+        let got = negotiate_with(
+            format_order(Size::FULL_HD),
+            driver(&[abi::PIX_FMT_YUYV], &mut asked),
+        )
+        .unwrap();
+        assert_eq!(got.pixelformat, abi::PIX_FMT_YUYV);
+    }
+
+    #[test]
+    fn at_720p_and_below_the_packed_format_stays_first() {
+        for size in [Size::HD, Size::VGA] {
+            let mut asked = Vec::new();
+            let got = negotiate_with(
+                format_order(size),
+                driver(&[abi::PIX_FMT_YUYV, abi::PIX_FMT_YU12], &mut asked),
+            )
+            .unwrap();
+            assert_eq!(got.pixelformat, abi::PIX_FMT_YUYV);
+        }
     }
 }

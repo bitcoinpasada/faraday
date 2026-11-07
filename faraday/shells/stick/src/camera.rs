@@ -12,8 +12,11 @@
 //! is closed and asked for 1280 × 720, then 640 × 480, so that the
 //! scanner is not left dead; those are a fallback, not the goal. Each
 //! try prints one line (size asked, size and format given, buffers
-//! dequeued, flagged and short, milliseconds to the first frame), and a
-//! try that gave nothing prints the kernel's lines about the camera.
+//! dequeued, flagged and short, milliseconds to the first frame), each
+//! in one write, and about 5 s after the first frame one more line says
+//! the same counts for the run, which is the sustained rate. At this size
+//! the planar formats are asked for first (`YU12`, `NV12`, then `YUYV`):
+//! a Pi's camera gives 1080p frames in `YU12` and none in `YUYV`.
 //!
 //! Each frame is reduced here, on the capture thread, before it is
 //! queued: the core only wants the frame for the preview, so it is
@@ -51,7 +54,7 @@ use std::time::{Duration, Instant};
 
 use faraday_scanner::{reduce, reduce_chroma, reduce_factor};
 use faraday_shell_api::CameraFailure;
-use faraday_v4l2::{Camera as Device, Failure, Frame, KernelLog, Size};
+use faraday_v4l2::{Camera as Device, Failure, Frame, Size};
 use zeroize::Zeroizing;
 
 use crate::Wake;
@@ -295,7 +298,23 @@ fn capture(
     }
     let (frames_tx, frames) = sync_channel(QUEUE);
     let inner_stop = Arc::new(AtomicBool::new(false));
-    let inner = faraday_v4l2::spawn(opened, frames_tx, Arc::clone(&inner_stop));
+    let inner = faraday_v4l2::spawn_reporting(
+        opened,
+        frames_tx,
+        Arc::clone(&inner_stop),
+        SUSTAINED,
+        |size, format, stats| {
+            say(format!(
+                "camera after {} s: {}x{} {format}, dequeued {}, flagged {}, short {}",
+                SUSTAINED.as_secs(),
+                size.width,
+                size.height,
+                stats.dequeued,
+                stats.flagged,
+                stats.short,
+            ));
+        },
+    );
     while !stop.load(Ordering::Relaxed) {
         match frames.recv_timeout(POLL) {
             Ok(frame) => {
@@ -369,16 +388,16 @@ fn climb<D>(sizes: &[Size], mut attempt: impl FnMut(Size) -> Try<D>) -> Climb<D>
 }
 
 /// One try: opens `path` at `size`, waits up to [`FIRST_FRAME`] for a
-/// usable frame and prints one line saying what happened, with the
-/// kernel's own lines about the camera when nothing came.
+/// usable frame and prints one line saying what happened.
 fn attempt(path: &std::path::Path, size: Size, stop: &AtomicBool) -> Try<Device> {
-    let log = KernelLog::mark();
     let asked = format!("{}x{}", size.width, size.height);
     let mut device = match Device::open(path, size) {
         Ok(device) => device,
         Err(e) => {
-            eprintln!("camera asked {asked}: cannot open {}: {e}", path.display());
-            kernel_lines(&log);
+            say(format!(
+                "camera asked {asked}: cannot open {}: {e}",
+                path.display()
+            ));
             let why = Failure::of_io(&e).map(app_reason);
             return Try::Failed(format!("cannot open {}: {e}", path.display()), why);
         }
@@ -402,7 +421,7 @@ fn attempt(path: &std::path::Path, size: Size, stop: &AtomicBool) -> Try<Device>
         Some(_) => format!("first frame {} ms", started.elapsed().as_millis()),
         None => format!("no frame in {} ms", started.elapsed().as_millis()),
     };
-    eprintln!(
+    say(format!(
         "camera asked {asked}: gave {}x{} {}, dequeued {}, flagged {}, short {}, {when}",
         got.width,
         got.height,
@@ -410,31 +429,27 @@ fn attempt(path: &std::path::Path, size: Size, stop: &AtomicBool) -> Try<Device>
         stats.dequeued,
         stats.flagged,
         stats.short,
-    );
+    ));
     if let Some(e) = broke {
-        eprintln!("camera asked {asked}: the device failed: {e}");
-        kernel_lines(&log);
+        say(format!("camera asked {asked}: the device failed: {e}"));
         return Try::Failed(format!("the device failed: {e}"), None);
     }
     match first {
         Some(frame) => Try::Frame(device, frame),
-        None => {
-            kernel_lines(&log);
-            Try::Silent
-        }
+        None => Try::Silent,
     }
 }
 
-/// Prints the kernel's lines about the camera since `log` was marked.
-fn kernel_lines(log: &KernelLog) {
-    let lines = log.since(12);
-    if lines.is_empty() {
-        eprintln!("camera kernel log: nothing new (or not readable)");
-    }
-    for line in lines {
-        eprintln!("camera kernel log: {line}");
-    }
+/// Prints one camera line in a single write, so that it reaches the
+/// kernel log whole and not in fragments.
+fn say(mut line: String) {
+    use std::io::Write;
+    line.push('\n');
+    let _ = std::io::stderr().write_all(line.as_bytes());
 }
+
+/// How long after the first frame the sustained rate is printed.
+const SUSTAINED: Duration = Duration::from_secs(5);
 
 /// The app's reason for a V4L2 one.
 fn app_reason(why: Failure) -> CameraFailure {

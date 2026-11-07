@@ -58,6 +58,11 @@ pub const PIX_FMT_YU12: u32 = fourcc(b'Y', b'U', b'1', b'2');
 /// and `GREY` last as the format with none to give.
 pub const FORMATS: [u32; 4] = [PIX_FMT_YUYV, PIX_FMT_NV12, PIX_FMT_YU12, PIX_FMT_GREY];
 
+/// The order above 1280 x 720: the planar formats first, whose frame is
+/// three quarters of a `YUYV` one, and which a Pi's camera streams at
+/// 1920 x 1080 where `YUYV` gives no frame.
+pub const FORMATS_LARGE: [u32; 4] = [PIX_FMT_YU12, PIX_FMT_NV12, PIX_FMT_YUYV, PIX_FMT_GREY];
+
 // --- Structs -------------------------------------------------------------
 
 /// `struct v4l2_capability`: 104 bytes on every target.
