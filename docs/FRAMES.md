@@ -658,8 +658,10 @@ block were 17, 31 and 50 ms, each held once in a while a frame of the
 loop. They now run on one thread of its own (`diskwork.rs`), which the
 first of them starts and `Work::finish` ends and joins. The disk
 process's handle is shared under a lock, held by the thread for one call
-at a time; the app's own file calls take the same lock, so one of them
-can still wait for a call that is under way, never for more than that one.
+at a time. The loop's pass over the app's file requests takes the same
+lock: with a request waiting it waits for a call that is under way, never
+for more than that one; with none waiting it only tries the lock, and a
+busy disk skips that pass's serving, which the next pass makes.
 The thread holds the list of sticks and the text of the two diagnostic
 files, and nothing of the app, a key or a vault. A look is asked on
 the pass it is due and its answer taken on a later pass, then told to the

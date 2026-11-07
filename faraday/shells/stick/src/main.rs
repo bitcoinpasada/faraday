@@ -1631,9 +1631,17 @@ impl Shell {
                 let locking = app.restart_requested();
                 let watch = costly::Watch::start(self.timings.as_ref());
                 // The disk process is one conversation: the thread that
-                // calls it for the shell waits its turn here, and the
-                // loop waits for no more than one of its calls.
-                let mut disk = self.disk.as_ref().map(|d| lock(d));
+                // calls it for the shell holds the lock for one call. A
+                // request waiting for a stick takes its turn; with none,
+                // a busy disk skips this pass's serving rather than hold
+                // the frame.
+                let asked = app.storage_pending();
+                let mut disk = None;
+                let mut busy = false;
+                if let Some(d) = self.disk.as_ref() {
+                    disk = diskwork::for_pass(d, asked);
+                    busy = disk.is_none();
+                }
                 let mut sticks = costly::Timed {
                     sticks: match disk.as_deref_mut() {
                         Some(disk) => disk as &mut dyn Sticks,
@@ -1641,7 +1649,11 @@ impl Shell {
                     },
                     timings: self.timings.as_mut(),
                 };
-                let said = serve_with(app, &mut self.boxes, None, &mut sticks);
+                let said = if busy {
+                    Vec::new()
+                } else {
+                    serve_with(app, &mut self.boxes, None, &mut sticks)
+                };
                 if let (Some(w), Some(t)) = (watch, sticks.timings) {
                     w.end(t, " (stick files served)");
                 }

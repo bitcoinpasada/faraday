@@ -19,7 +19,7 @@
 
 use std::path::Path;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
@@ -32,6 +32,22 @@ use crate::{bootreport, radios};
 
 /// The disk process's handle, shared by the loop and this thread.
 pub type Disk = Arc<Mutex<DiskProcess>>;
+
+/// The disk for one pass of the loop. The app asked (a request waits for
+/// the stick): wait for the lock, the thread holding it for one call at a
+/// time. Nothing asked: take it only if it is free, and `None` when the
+/// thread is mid-call, so the pass serves nothing and no frame waits on a
+/// slow listing. A lock poisoned by a panic is taken all the same.
+pub fn for_pass<T>(disk: &Mutex<T>, asked: bool) -> Option<MutexGuard<'_, T>> {
+    if asked {
+        return Some(lock(disk));
+    }
+    match disk.try_lock() {
+        Ok(g) => Some(g),
+        Err(TryLockError::Poisoned(e)) => Some(e.into_inner()),
+        Err(TryLockError::WouldBlock) => None,
+    }
+}
 
 /// What a look at the sticks found.
 pub struct Listing {
@@ -249,5 +265,33 @@ fn run(disk: &Disk, job: Job) -> Reply {
                 took: start.elapsed(),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_pass_with_nothing_asked_skips_a_busy_disk_and_one_asking_waits() {
+        let m = Mutex::new(1u8);
+        assert!(for_pass(&m, false).is_some());
+        let held = lock(&m);
+        assert!(for_pass(&m, false).is_none());
+        drop(held);
+        assert!(for_pass(&m, true).is_some());
+    }
+
+    #[test]
+    fn a_disk_lock_poisoned_by_a_panic_is_still_taken() {
+        let m = Arc::new(Mutex::new(1u8));
+        let m2 = Arc::clone(&m);
+        let _ = thread::spawn(move || {
+            let _g = m2.lock().unwrap();
+            panic!("held");
+        })
+        .join();
+        assert!(for_pass(&m, false).is_some());
+        assert!(for_pass(&m, true).is_some());
     }
 }
