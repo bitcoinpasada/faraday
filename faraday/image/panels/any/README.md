@@ -77,8 +77,11 @@ written under `/run` by the build; the boot script writes
 `screens/waveshare-28dpi/display.line` is the whole of the panel's display
 setup: the firmware's `vc4-kms-dpi-generic` with Waveshare's documented
 timings (`hdmi_timings` there: 480 and 640 active, horizontal porches 26,
-16 and 10, vertical 25, 10 and 15, 32 MHz, both syncs active low) and the
-18-bit pin set. The colour order is its pixel format parameter,
+16 and 10, vertical 25, 10 and 15, both syncs active low) and the 18-bit
+pin set. The pixel clock is 22 MHz, not Waveshare's documented 32 MHz:
+the mode is 532 x 690 pixels with its porches, so 32 MHz refreshes it at
+87.17 Hz (11.47 ms) and 22 MHz at 59.93 Hz (16.69 ms), and the frame
+grid of 60 Hz (`docs/MOTION.md` §3.2) needs the second. The colour order is its pixel format parameter,
 `rgb666-padhi`. The colour fix the display needed on the firmware's
 framebuffer (`dpi_output_format=0x7F216` with `framebuffer_ignore_alpha=1`)
 is worked out again here: it goes in this line, and in nothing else.

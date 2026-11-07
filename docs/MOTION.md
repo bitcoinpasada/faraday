@@ -118,7 +118,9 @@ shell sends `Wheel` for `LineDelta`, `Scroll` for `PixelDelta`,
   drift against the screen on one that is not exactly 60 Hz. Positions
   still come from the clock. Where the call fails, or is not there (a
   PC's firmware framebuffer), the wait is off for the run and the grid
-  is the 16.67 ms timer as before. `--timings` says where the refresh comes from, labels the
+  is the 16.67 ms timer as before. The 2.8-inch panel's pixel clock is
+  22 MHz, which refreshes its mode at 59.93 Hz; Waveshare's 32 MHz would
+  be 87 Hz (`faraday/image/panels/any/README.md`). `--timings` says where the refresh comes from, labels the
   `grid` line in milliseconds of that refresh, and says how many refreshes
   carried a new frame and how many were missed while something moved.
 - **With the wait working, the step follows the vblank, not the cost**
