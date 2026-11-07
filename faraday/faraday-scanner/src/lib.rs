@@ -329,7 +329,10 @@ pub fn look(
 /// on a crafted frame: the differences are taken in `f64`, where they
 /// cannot wrap.
 fn side_len(p: rqrr::Point, q: rqrr::Point) -> f64 {
-    let (dx, dy) = (f64::from(p.x) - f64::from(q.x), f64::from(p.y) - f64::from(q.y));
+    let (dx, dy) = (
+        f64::from(p.x) - f64::from(q.x),
+        f64::from(p.y) - f64::from(q.y),
+    );
     (dx * dx + dy * dy).sqrt()
 }
 
@@ -404,7 +407,15 @@ mod tests {
             y: i32::MIN,
         };
         let near = rqrr::Point { x: 0, y: 0 };
-        assert!(side_len(far, rqrr::Point { x: i32::MIN, y: i32::MAX }) > 6.0e9);
+        assert!(
+            side_len(
+                far,
+                rqrr::Point {
+                    x: i32::MIN,
+                    y: i32::MAX
+                }
+            ) > 6.0e9
+        );
         assert!(side_len(far, near) > 2.0e9);
         assert_eq!(corner_in(far, 3, (640, 480)), (640, 0));
         let low = rqrr::Point {
