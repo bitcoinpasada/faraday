@@ -2779,13 +2779,14 @@ fn detail(
             if let Some(t) = &f.text {
                 // The lines are kept with the text and what they are
                 // broken from, so a page of files breaks each once.
-                let basis = ui.wrap_basis(BODY_S.mono(), dw - 30.0);
+                let indent = 30.0;
+                let basis = ui.wrap_basis(BODY_S.mono(), dw - indent);
                 let lines =
                     crate::gpg::SignWrap::lines_of(&app.vaults.sign_wraps, t, basis, || {
-                        ui.wrap_ranges(BODY_S.mono(), t, dw - 30.0)
+                        ui.wrap_ranges(BODY_S.mono(), t, dw - indent)
                     });
-                let laid = ui.wrapped_with(BODY_S.mono(), t, dw - 30.0, lines);
-                ui.draw_wrapped((dx + 30.0, ey), ink, &laid);
+                let laid = ui.wrapped_with(BODY_S.mono(), t, dw - indent, lines);
+                ui.draw_wrapped((dx + indent, ey), ink, &laid);
                 ey += laid.h + 6.0;
             }
             ui.rule(dx, ey, dw, Role::OutlineVariant);
