@@ -632,6 +632,11 @@ make -C /output linux-configure
     "$(ls -d /output/build/linux-*/.config | grep -v /linux-headers | head -1)" \
     "${parts[@]}"
 
+if [ "$board_firmware" = rpi ]; then
+    # The board's post-image.sh compiles its own overlay with it.
+    make -C /output host-dtc
+fi
+
 echo "==> building"
 make -C /output
 

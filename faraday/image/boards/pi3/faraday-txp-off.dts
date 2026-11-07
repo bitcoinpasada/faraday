@@ -1,0 +1,18 @@
+// Faraday: leaves the TXP (the video core's writeback block) off. Applied by
+// the firmware after vc4-kms-v3d, whose last fragments turn it on
+// (config.txt, docs/FRAMES.md §6). Compiled by post-image.sh with
+// Buildroot's dtc into overlays/faraday-txp-off.dtbo.
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "brcm,bcm2835";
+
+	fragment@0 {
+		target = <&txp>;
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+};

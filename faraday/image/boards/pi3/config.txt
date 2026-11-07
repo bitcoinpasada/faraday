@@ -57,6 +57,16 @@ dtparam=audio=off
 # mdev.conf, F153), and the app never opens it.
 dtoverlay=vc4-kms-v3d,noaudio,cma-64
 
+# vc4-kms-v3d turns the video core's writeback block (the TXP) on. vc4 binds
+# it before the pixelvalves, so its CRTC comes first in the device's list,
+# and the framebuffer's FBIO_WAITFORVSYNC waits on the first CRTC only
+# (docs/FRAMES.md §6): the wait would return at once whatever the screen
+# does. Faraday's own overlay turns it off again, so the first CRTC is a
+# pixelvalve. It must come after vc4-kms-v3d, whose fragment it overrides;
+# nothing in Faraday uses writeback. post-image.sh compiles it
+# (boards/pi3/faraday-txp-off.dts).
+dtoverlay=faraday-txp-off
+
 # The firmware's own HDMI-CEC handling off; the kernel builds no CEC.
 hdmi_ignore_cec=1
 hdmi_ignore_cec_init=1

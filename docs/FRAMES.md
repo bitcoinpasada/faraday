@@ -587,6 +587,25 @@ motion carried a new frame" is `carried_pct` when the grid's step is one
 frame; at a step of two it is about 50 by design, and `missed` is the
 number to read.
 
+**Which CRTC the wait follows** *(Built in the image; not yet run on a
+panel)*. `drm_fb_helper_ioctl` waits on the first CRTC of the device
+only, and when that CRTC is not enabled it returns 0 at once; the first
+CRTC is the first one vc4 created (`drm_for_each_crtc`). vc4 binds the
+TXP, the video core's writeback block, before the pixelvalves, and
+`vc4-kms-v3d` turns it on, so with it the first CRTC is the writeback's
+and a wait on the panel returns at once, which is what the `vblank` line
+reported (the waits returned at once, three times). The Pi's
+`config.txt` therefore loads `faraday-txp-off`, an overlay of Faraday's
+own (`faraday/image/boards/pi3/faraday-txp-off.dts`, compiled by that
+board's `post-image.sh`) after `vc4-kms-v3d`, which sets the TXP's
+status back to disabled. The firmware applies it before the kernel
+starts, so the panel's overlay loaded later through configfs, and the
+second bind of vc4 it causes, find the same device tree: the TXP has no
+device and is not among vc4's components. Nothing in Faraday uses
+writeback. The first CRTC is then the first pixelvalve, `3f206000`,
+which feeds the DPI panel. An HDMI screen is on the third pixelvalve and
+is not the first CRTC, so its wait stays off as before.
+
 **A window on a larger screen** *(Built; its figure on a card is not yet
 taken)*. `faraday.window=WxH` on the kernel command line draws in a
 centred window of that size on a larger screen, so fewer pixels are
