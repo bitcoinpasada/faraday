@@ -137,7 +137,8 @@ const WORK_PER_EVICTION: u64 = MAX_REGIONS as u64;
 const PIXELS_PER_WORK_OF_COPY: u64 = 4;
 
 /// The work of fitting a grid to a group of capstones, for each module of
-/// its side: `jiggle_perspective` samples about 1,000 points for each.
+/// its side: `jiggle_perspective` samples about 5,600 to 6,700 points for each
+/// (81 fitness runs).
 pub(crate) const WORK_PER_GRID_MODULE: u64 = 60_000;
 
 impl<S> Clone for PreparedImage<S>

@@ -635,7 +635,7 @@ pub const HOLD_MS: u64 = 1500;
 pub const NOTE_FLASH_MS: u64 = 2000;
 /// Milliseconds the scanner waits for the camera's first frame before
 /// it says the camera sends no picture (`docs/QR.md` §8 item 6).
-pub const NO_PICTURE_MS: u64 = 6000;
+pub const NO_PICTURE_MS: u64 = 9000;
 /// Milliseconds a QR is seen large enough and not read before the
 /// scanner says how to hold it (`docs/QR.md` §8 item 8).
 pub const POOR_PICTURE_MS: u64 = 4000;

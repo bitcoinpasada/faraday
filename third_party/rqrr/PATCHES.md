@@ -206,7 +206,7 @@ frame over a bound give no read, as any unreadable frame does.
   | The same on a textured background | 16.1 | 8.2 times |
   | Six version 2 codes on one sheet | 25.1 | 5.3 times |
   | Fine noise at 2 pixels, nothing to read | 24.3 | 5.5 times |
-  | Version 23 reduced to 960x540 | 13.4 | 5.0 times |
+  | Version 23 at 1920x1080 reduced to 640x360 (`reduce_factor` 3) | 13.4 | 5.0 times |
   | Version 40 alone at 2, 3 pixels a module (370x370, 555x555) | 21.4, 21.6 | 3.1 times |
   | Version 40 alone at 6 pixels a module (1110x1110) | 22.5 | 3.5 times |
   | Version 1 alone, any size | 2.5 to 2.8 | over 20 times |
@@ -224,8 +224,12 @@ frame over a bound give no read, as any unreadable frame does.
   an estimate) a frame that spends all of it takes 1 to 3 s there.
   `Scanner::stop` waits for the pass it interrupts, and a pass in the reduced
   mode reads at most the reduced copy and then the full frame, so closing the
-  scan sheet on such a frame holds the loop for 1.5 to 4 s at most, by the
-  same estimate.
+  scan sheet on such a frame holds the loop for 1.5 to 4 s at most on a Pi
+  3B+: an estimate from the figures above, not measured.
+  A sheet of several dense codes reads nothing: a version 23 code costs
+  about 13 million units to fit, so the budget holds about five of them at
+  1280x720 or smaller and about ten at 1920x1080, and past that the frame
+  is refused.
 - **Capstone centre** (`src/detect.rs`). A capstone whose centre lies more
   than a frame's width or height outside the frame is no capstone. Later
   scans (`BresenhamScan`) run between points derived from it. Not shown

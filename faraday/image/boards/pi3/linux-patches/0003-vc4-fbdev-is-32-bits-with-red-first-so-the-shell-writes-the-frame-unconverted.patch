@@ -22,7 +22,9 @@ framebuffer as it is.
 
 The second and fourth changes reach every driver that uses the generic
 fbdev emulation or a DRM client; vc4 is the only DRM driver this board
-builds. A format the legacy table gives comes out the same either way.
+builds. The fourth gives a format the legacy table gives the same either
+way; the second changes XRGB8888 to XBGR8888 for any driver, with no
+effect today.
 
 --- a/drivers/gpu/drm/drm_client.c
 +++ b/drivers/gpu/drm/drm_client.c

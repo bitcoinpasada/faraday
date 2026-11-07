@@ -530,7 +530,7 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    `Key::Paste` and does what the tile does; with the scanner closed it
    is Paste words where the words form has the keyboard (F75), and
    nothing anywhere else.
-6. **Camera failures.** If no frame arrives `NO_PICTURE_MS` (6 s) after
+6. **Camera failures.** If no frame arrives `NO_PICTURE_MS` (9 s) after
    the sheet opens, the square says "The camera sends no picture". A
    frame arriving later clears it. Every Linux shell skips a frame the
    driver marks damaged or writes short (`faraday-v4l2`) rather than

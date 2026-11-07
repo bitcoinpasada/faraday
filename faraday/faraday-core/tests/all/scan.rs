@@ -740,9 +740,9 @@ fn a_camera_that_sends_no_picture_is_said_to() {
     let mut app = scanning(Vec::new());
     app.event(Event::Tick { now_ms: 1_000 });
     assert_eq!(state(&app), "Starting the camera");
-    app.event(Event::Tick { now_ms: 5_000 });
+    app.event(Event::Tick { now_ms: 9_000 });
     assert_eq!(state(&app), "Starting the camera");
-    app.event(Event::Tick { now_ms: 7_100 });
+    app.event(Event::Tick { now_ms: 10_100 });
     assert_eq!(state(&app), "The camera sends no picture");
     assert!(app.scan().is_some(), "the scanner closed");
     // A picture after all.
@@ -778,13 +778,13 @@ fn a_camera_slow_to_its_first_frame_reaches_the_picture() {
 fn a_scanner_opened_again_waits_afresh_for_the_camera() {
     let mut app = scanning(Vec::new());
     app.event(Event::Tick { now_ms: 1_000 });
-    app.event(Event::Tick { now_ms: 7_100 });
+    app.event(Event::Tick { now_ms: 10_100 });
     assert_eq!(state(&app), "The camera sends no picture");
     // Cancel, and the scanner again: the camera has its full wait.
     app.press(Action::Cancel);
     app.press(Action::Scan);
     app.event(Event::Tick { now_ms: 8_000 });
-    app.event(Event::Tick { now_ms: 13_000 });
+    app.event(Event::Tick { now_ms: 16_000 });
     assert_eq!(state(&app), "Starting the camera");
     frame(&mut app);
     assert_eq!(state(&app), "Hold the QR in front of the camera");

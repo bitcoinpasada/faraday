@@ -8,9 +8,12 @@
 //! The device is asked for 1920 × 1080 (`Size::FULL_HD`): a dense code,
 //! version 23 at error correction H, has too few pixels a module at
 //! 640 × 480 for the decoder to find. A camera without that mode gives
-//! the nearest it has. If no usable frame comes within 1.5 s the device
+//! the nearest it has. If no usable frame comes within 2.5 s the device
 //! is closed and asked for 1280 × 720, then 640 × 480, so that the
-//! scanner is not left dead; those are a fallback, not the goal. Each
+//! scanner is not left dead; those are a fallback, not the goal. The last
+//! of them does not give up: it waits for a first frame until the shell
+//! says stop, so a slow camera still gets a picture, and a camera that
+//! gives nothing ends in the core's "The camera sends no picture". Each
 //! try prints one line (size asked, size and format given, buffers
 //! dequeued, flagged and short, milliseconds to the first frame), each
 //! in one write, and about 5 s after the first frame one more line says
@@ -337,16 +340,37 @@ fn capture(
 const LADDER: [Size; 3] = [Size::FULL_HD, Size::HD, Size::VGA];
 
 /// How long a try waits for its first usable frame before the device is
-/// closed and the next size is tried.
-const FIRST_FRAME: Duration = Duration::from_millis(1500);
+/// closed and the next size is tried. The last size waits without limit.
+const FIRST_FRAME: Duration = Duration::from_millis(2500);
 
-// The whole ladder, every try waiting out its time, ends before the scan
-// sheet says there is no picture; a first frame takes 50 to 92 ms. (The
-// stick links `faraday-draw` in its tests only, so this holds there.)
+// The two tries that give up, each waiting out its time, end before the
+// scan sheet says there is no picture, with a margin for opening the
+// device; a first frame takes 50 to 92 ms. (The stick links
+// `faraday-draw` in its tests only, so this holds there.)
 #[cfg(test)]
 const _: () = assert!(
-    (FIRST_FRAME.as_millis() as u64) * (LADDER.len() as u64) < faraday_draw::tokens::NO_PICTURE_MS
+    (FIRST_FRAME.as_millis() as u64) * (LADDER.len() as u64 - 1) + 1000
+        <= faraday_draw::tokens::NO_PICTURE_MS
 );
+
+/// Polls `next` until it gives a frame or fails, up to `limit` (none: until
+/// the shell says stop). `Err(None)` is a stop, `Ok(None)` is time up.
+fn wait_first<E>(
+    limit: Option<Duration>,
+    stop: &AtomicBool,
+    mut next: impl FnMut() -> Result<Option<Frame>, E>,
+) -> Result<Option<Frame>, Option<E>> {
+    let started = Instant::now();
+    while limit.is_none_or(|l| started.elapsed() < l) {
+        if stop.load(Ordering::Relaxed) {
+            return Err(None);
+        }
+        if let Some(frame) = next().map_err(Some)? {
+            return Ok(Some(frame));
+        }
+    }
+    Ok(None)
+}
 
 /// What one try at one size came to.
 enum Try<D> {
@@ -395,9 +419,10 @@ fn climb<D>(sizes: &[Size], mut attempt: impl FnMut(Size) -> Try<D>) -> Climb<D>
     }
 }
 
-/// One try: opens `path` at `size`, waits up to [`FIRST_FRAME`] for a
-/// usable frame and prints one line saying what happened.
+/// One try: opens `path` at `size`, waits up to [`FIRST_FRAME`] (for ever on
+/// the last size of the ladder) for a usable frame and prints one line saying what happened.
 fn attempt(path: &std::path::Path, size: Size, stop: &AtomicBool) -> Try<Device> {
+    let limit = (size != LADDER[LADDER.len() - 1]).then_some(FIRST_FRAME);
     let asked = format!("{}x{}", size.width, size.height);
     let mut device = match Device::open(path, size) {
         Ok(device) => device,
@@ -412,17 +437,11 @@ fn attempt(path: &std::path::Path, size: Size, stop: &AtomicBool) -> Try<Device>
     };
     device.set_max_fps(FPS);
     let started = Instant::now();
-    let mut first = None;
-    let mut broke = None;
-    while first.is_none() && broke.is_none() && started.elapsed() < FIRST_FRAME {
-        if stop.load(Ordering::Relaxed) {
-            return Try::Stopped;
-        }
-        match device.frame(POLL) {
-            Ok(frame) => first = frame,
-            Err(e) => broke = Some(e),
-        }
-    }
+    let (first, broke) = match wait_first(limit, stop, || device.frame(POLL)) {
+        Ok(first) => (first, None),
+        Err(None) => return Try::Stopped,
+        Err(Some(e)) => (None, Some(e)),
+    };
     let got = device.size();
     let stats = device.stats();
     let when = match &first {
@@ -578,6 +597,44 @@ mod tests {
         let got = climb(&LADDER, camera(None, &mut asked));
         assert!(matches!(got, Climb::Nothing));
         assert_eq!(asked.len(), 3);
+    }
+
+    fn never() -> Result<Option<Frame>, ()> {
+        std::thread::sleep(Duration::from_millis(5));
+        Ok(None)
+    }
+
+    #[test]
+    fn a_camera_slow_only_at_full_hd_by_under_the_wait_stays_there() {
+        let stop = AtomicBool::new(false);
+        let mut polls = 0;
+        let got = wait_first(Some(FIRST_FRAME), &stop, || {
+            polls += 1;
+            Ok::<_, ()>((polls == 3).then(|| frame(Size::FULL_HD)))
+        });
+        assert!(matches!(got, Ok(Some(f)) if f.width == 1920));
+    }
+
+    #[test]
+    fn the_last_size_waits_until_a_stop() {
+        let stop = AtomicBool::new(false);
+        let mut polls = 0;
+        let got = wait_first(None, &stop, || {
+            polls += 1;
+            if polls == 20 {
+                stop.store(true, Ordering::Relaxed);
+            }
+            never()
+        });
+        assert!(matches!(got, Err(None)));
+        assert_eq!(polls, 20);
+    }
+
+    #[test]
+    fn a_size_with_a_limit_gives_up_when_it_passes() {
+        let stop = AtomicBool::new(false);
+        let got = wait_first(Some(Duration::from_millis(30)), &stop, never);
+        assert!(matches!(got, Ok(None)));
     }
 
     #[test]

@@ -619,7 +619,8 @@ mod tests {
 
     #[test]
     fn the_alignment_search_at_the_edge_of_i32_ends_with_no_pattern() {
-        let mut img = PreparedImage::prepare_from_greyscale(8, 8, |_, _| 0);
+        // 34 wide is the least that lets the spiral start (`side` is 2).
+        let mut img = PreparedImage::prepare_from_greyscale(34, 34, |_, _| 0);
         for seed in [
             Point {
                 x: i32::MAX,

@@ -81,8 +81,10 @@ The Raspberry Pi 6.1 tree, in `faraday/image/boards/pi3/linux-patches/`.
   `/dev/fb0` as before. The framebuffer takes twice the memory, about 1.2 MiB
   on the 2.8-inch panel and 7.9 MiB at 1080p, in place of half that. Two of the
   changes are in code shared by every driver using the generic emulation or a
-  DRM client; vc4 is the only one this board builds, and a format the legacy
-  table gives comes out the same either way. This is the largest of the
+  DRM client; vc4 is the only one this board builds. The `addfb2` change
+  gives a format the legacy table gives the same either way; the generic
+  emulation's pick changes XRGB8888 to XBGR8888 for any driver that asks
+  for it, with no effect today. This is the largest of the
   patches, in code that changes between kernel versions, so it is the likeliest
   to need rewriting at an update.
 - **When it can go.** When a kernel the Pi moves to lets vc4 ask for this

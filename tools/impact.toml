@@ -460,6 +460,15 @@ with = ["CLAUDE.md"]
 misses = "a change to the scope written only in one of the two"
 
 [[rule]]
+id = "repo.kernel-patches"
+title = "a kernel patch of Faraday's own added, changed or dropped is in docs/KERNEL-PATCHES.md, with what it does, why, where it is from, its trade-off and when it can go"
+source = ["docs/decisions/F221.md", "docs/decisions/F205.md"]
+when = ["faraday/image/boards/*/linux-patches/**"]
+kind = "pair"
+with = ["docs/KERNEL-PATCHES.md"]
+misses = "a patch whose entry no longer says what it does"
+
+[[rule]]
 id = "repo.developing"
 title = "a recipe, prerequisite or output path changed is changed in DEVELOPING.md or tools/README.md"
 source = ["CLAUDE.md"]
