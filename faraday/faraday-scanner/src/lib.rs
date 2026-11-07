@@ -302,19 +302,10 @@ pub fn look(
     let mut seen = None;
     for grid in image.detect_grids() {
         let b = grid.bounds;
-        let side = |i: usize, j: usize| {
-            let (dx, dy) = (f64::from(b[i].x - b[j].x), f64::from(b[i].y - b[j].y));
-            (dx * dx + dy * dy).sqrt()
-        };
+        let side = |i: usize, j: usize| side_len(b[i], b[j]);
         let edge = (side(0, 1) + side(1, 2) + side(2, 3) + side(3, 0)) / 4.0;
         let modules = rqrr::BitGrid::size(&grid.grid).max(1) as f64;
-        let s = scale as i32;
-        let corner = |i: usize| {
-            (
-                (b[i].x * s).clamp(0, i32::from(frame.0)) as u16,
-                (b[i].y * s).clamp(0, i32::from(frame.1)) as u16,
-            )
-        };
+        let corner = |i: usize| corner_in(b[i], scale, frame);
         let mut bytes = Vec::new();
         let read = grid.decode_to(&mut bytes).is_ok();
         let here = Seen {
@@ -332,6 +323,24 @@ pub fn look(
         seen.get_or_insert(here);
     }
     (None, seen)
+}
+
+/// The distance between two grid points. Points can lie anywhere in `i32`
+/// on a crafted frame: the differences are taken in `f64`, where they
+/// cannot wrap.
+fn side_len(p: rqrr::Point, q: rqrr::Point) -> f64 {
+    let (dx, dy) = (f64::from(p.x) - f64::from(q.x), f64::from(p.y) - f64::from(q.y));
+    (dx * dx + dy * dy).sqrt()
+}
+
+/// A grid point in the frame, `scale` times its place in the copy, held
+/// to the frame. The product is taken in `i64`, where it cannot wrap.
+fn corner_in(p: rqrr::Point, scale: usize, frame: (u16, u16)) -> (u16, u16) {
+    let s = scale as i64;
+    (
+        (i64::from(p.x) * s).clamp(0, i64::from(frame.0)) as u16,
+        (i64::from(p.y) * s).clamp(0, i64::from(frame.1)) as u16,
+    )
 }
 
 /// What the reduced mode carries from one pass to the next.
@@ -387,6 +396,23 @@ fn read(job: &Job, mode: ReadMode, st: &mut Reading) -> (Option<Vec<u8>>, Option
 mod tests {
     use super::*;
     use faraday_codec::qr::{self, Ecc, Payload, QUIET_ZONE};
+
+    #[test]
+    fn far_off_grid_points_give_a_length_and_a_clamped_corner_without_a_wrap() {
+        let far = rqrr::Point {
+            x: i32::MAX,
+            y: i32::MIN,
+        };
+        let near = rqrr::Point { x: 0, y: 0 };
+        assert!(side_len(far, rqrr::Point { x: i32::MIN, y: i32::MAX }) > 6.0e9);
+        assert!(side_len(far, near) > 2.0e9);
+        assert_eq!(corner_in(far, 3, (640, 480)), (640, 0));
+        let low = rqrr::Point {
+            x: i32::MIN,
+            y: i32::MAX,
+        };
+        assert_eq!(corner_in(low, 3, (640, 480)), (0, 480));
+    }
 
     /// A token for the work these tests ask, counting nothing. Cheap.
     #[expect(

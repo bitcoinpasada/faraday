@@ -291,10 +291,11 @@ fn projected_module_area(seed: Point, c0: &CapStone, c2: &CapStone) -> Option<us
     let a = c0.c.map(u, v + 1.0)?;
     let (u, v) = c2.c.unmap(&seed);
     let c = c2.c.map(u + 1.0, v)?;
-    Some(
-        ((a.x - seed.x) * -(c.y - seed.y) + (a.y - seed.y) * (c.x - seed.x)).unsigned_abs()
-            as usize,
-    )
+    // Points can lie anywhere in i32 on a crafted frame: the differences
+    // and their products are worked out in i128, where they cannot wrap.
+    let d = |p: i32, q: i32| i128::from(p) - i128::from(q);
+    let area = d(a.x, seed.x) * -d(c.y, seed.y) + d(a.y, seed.y) * d(c.x, seed.x);
+    usize::try_from(area.unsigned_abs()).ok()
 }
 
 /// The area, in pixels, of one module of the capstone, taking its ring
@@ -376,8 +377,8 @@ where
                 }
             }
 
-            align_seed.x += DX_MAP[dir];
-            align_seed.y += DY_MAP[dir];
+            align_seed.x = align_seed.x.checked_add(DX_MAP[dir])?;
+            align_seed.y = align_seed.y.checked_add(DY_MAP[dir])?;
         }
 
         // Cycle directions
@@ -584,4 +585,56 @@ where
             - fitness_ring(img, perspective, x + 3, y + 3, 2)?
             + fitness_ring(img, perspective, x + 3, y + 3, 3)?,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::geometry::Perspective;
+
+    fn scaled(s: f64) -> Perspective {
+        Perspective([s, 0.0, 0.0, 0.0, s, 0.0, 0.0, 0.0])
+    }
+
+    fn capstone(c: Perspective) -> CapStone {
+        let p = Point { x: 0, y: 0 };
+        CapStone {
+            corners: [p; 4],
+            center: p,
+            c,
+        }
+    }
+
+    #[test]
+    fn the_module_area_of_far_off_points_does_not_wrap() {
+        // The guessed corners lie 2e9 pixels from the seed: the i32
+        // products wrapped in release and panicked in debug.
+        let seed = Point {
+            x: -1_000_000_000,
+            y: -1_000_000_000,
+        };
+        let area = projected_module_area(seed, &capstone(scaled(2e9)), &capstone(scaled(2e9)));
+        assert!(area.is_some_and(|a| a > 3_000_000_000_000_000_000));
+    }
+
+    #[test]
+    fn the_alignment_search_at_the_edge_of_i32_ends_with_no_pattern() {
+        let mut img = PreparedImage::prepare_from_greyscale(8, 8, |_, _| 0);
+        for seed in [
+            Point {
+                x: i32::MAX,
+                y: i32::MAX,
+            },
+            Point {
+                x: i32::MIN,
+                y: i32::MIN,
+            },
+            Point {
+                x: i32::MAX - 1,
+                y: i32::MIN,
+            },
+        ] {
+            assert_eq!(find_alignment_pattern(&mut img, seed, 4), None);
+        }
+    }
 }

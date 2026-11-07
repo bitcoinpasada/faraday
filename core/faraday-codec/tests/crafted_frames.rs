@@ -213,3 +213,52 @@ fn a_real_code_still_reads_beside_a_few_stray_corner_marks() {
     let (_, read) = decode_within(img, Duration::from_secs(120)).expect("decode ended");
     assert_eq!(read, 1);
 }
+
+/// A corner mark of `module` pixels a module, centred at `(cx, cy)` and
+/// turned by `angle` radians.
+fn draw_mark(img: &mut [u8], cx: f64, cy: f64, module: f64, angle: f64) {
+    let (sin, cos) = angle.sin_cos();
+    let reach = (module * 6.0) as i64;
+    for dy in -reach..=reach {
+        for dx in -reach..=reach {
+            let (x, y) = (cx as i64 + dx, cy as i64 + dy);
+            if x < 0 || y < 0 || x >= W as i64 || y >= H as i64 {
+                continue;
+            }
+            let (px, py) = (dx as f64, dy as f64);
+            let d = ((px * cos + py * sin).abs()).max((py * cos - px * sin).abs()) / module;
+            if d <= 1.5 || (d > 2.5 && d <= 3.5) {
+                img[y as usize * W + x as usize] = 25;
+            }
+        }
+    }
+}
+
+/// Three corner marks whose edges are nearly parallel, as far apart as
+/// the frame allows, with the turns of the three a hair apart: the lines
+/// the search draws through them cross far outside the frame, or nearly
+/// never. Whatever it makes of them, the search must end and not wrap an
+/// integer (this test is meant to run in a dev build, where it would panic).
+#[test]
+fn marks_with_nearly_parallel_edges_end_without_a_wrap() {
+    let mut seed = 0x2545_f491_4f6c_dd1d_u64;
+    let mut unit = move || {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        (seed >> 11) as f64 / (1u64 << 53) as f64
+    };
+    for n in 0..24 {
+        let module = 6.0 + (n % 4) as f64 * 3.0;
+        let base = (unit() - 0.5) * 0.02;
+        let hair = [1e-6, 1e-4, 1e-3][n % 3];
+        let mut img = vec![235u8; W * H];
+        let spots = [(80.0, 80.0), (1840.0, 90.0), (90.0 + unit() * 40.0, 990.0)];
+        for (i, (x, y)) in spots.into_iter().enumerate() {
+            draw_mark(&mut img, x, y, module, base + hair * i as f64);
+        }
+        let (_, read) = decode_within(img, LIMIT)
+            .unwrap_or_else(|| panic!("frame {n} still being decoded after {LIMIT:?}"));
+        assert!(read <= 1);
+    }
+}

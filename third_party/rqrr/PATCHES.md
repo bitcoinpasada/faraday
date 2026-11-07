@@ -236,8 +236,13 @@ frame over a bound give no read, as any unreadable frame does.
   debug). `BresenhamScan::new` returns `None` for a span over 2^30 or a
   difference that overflows (`i32::MIN` has no absolute value);
   `timing_scan` passes that on and the group is rejected. The side-of-line
-  tests and `LeftMostFinder`'s score are in `i64`. Nothing is saturated: a
-  value out of range rejects the group.
+  tests and `LeftMostFinder`'s score are in `i64`. `projected_module_area`
+  takes its differences in `i128` and gives no area when the result is
+  not a `usize`; the alignment spiral's step is `checked_add`, and a seed
+  that would leave `i32` ends the search with no pattern. Nothing is
+  saturated: a value out of range rejects the group. (The scanner, in
+  `faraday-scanner`, takes the sides of a found grid in `f64` and
+  clamps the corners after multiplying in `i64`.)
 
 Tested in `core/faraday-codec/tests/crafted_frames.rs` (the lattice frame is
 generated) and in `src/geometry.rs`.
