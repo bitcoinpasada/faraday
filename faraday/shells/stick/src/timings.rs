@@ -626,8 +626,15 @@ impl Timings {
             ));
         }
         let [s1, s2, s3, s4] = self.steps;
+        // The labels are the grid's steps in milliseconds: whole refreshes
+        // of the measured length while the wait works.
+        let one = self
+            .beat
+            .as_ref()
+            .map_or(crate::pace::FRAME, |b| b.length());
+        let [l1, l2, l3, l4] = [1, 2, 3, 4].map(|k| ms(one * k));
         out.push_str(&format!(
-            "grid     16.7ms {s1} 33.3ms {s2} 50.0ms {s3} 66.7ms {s4} cost {:.2} changes {} late {} coarsened {} recovered {}\n",
+            "grid     {l1:.1}ms {s1} {l2:.1}ms {s2} {l3:.1}ms {s3} {l4:.1}ms {s4} cost {:.2} changes {} late {} coarsened {} recovered {}\n",
             ms(self.pace_cost),
             self.step_changes,
             self.paced.late,

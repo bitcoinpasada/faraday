@@ -1,9 +1,12 @@
 //! The screen's refresh, as the writer thread sees it: the wait for the
-//! vertical blank, the refresh length it measures, and the frame grid
+//! vertical blank, the refresh length it measures once, and the frame grid
 //! tied to it (`docs/FRAMES.md` §6, `docs/MOTION.md` §3.2).
 //!
-//! The writer thread waits for a vblank before it writes a frame
-//! ([`Vblank`]) and tells [`Beat`] when the wait returned. The main loop
+//! The writer thread first waits for sixteen vblanks back to back
+//! ([`measure`]); the median gap is the refresh for the run. After that it
+//! waits for a vblank before it writes a frame ([`Vblank`]) and tells
+//! [`Beat`] when the wait returned; those gaps only count refreshes and
+//! never change the length. The main loop
 //! reads the last vblank and the refresh length from the same place and
 //! puts its next deadline on the refresh's own grid ([`Grid::align`]),
 //! so a frame is ready just before a vblank instead of at a moment of
@@ -41,14 +44,16 @@ const RUN: f64 = 8.0;
 const OFF_GRID: f64 = 0.25;
 /// This many waits in a row off the grid turn the wait off.
 const BAD_WAITS: u32 = 8;
-/// Waits that are not about one refresh apart are counted unjudged this
-/// many times before the refresh is learned.
-const UNLEARNED: u32 = 8;
 /// A vblank older than this is no reference for the grid.
 const STALE: Duration = Duration::from_secs(2);
 /// The shortest and longest refresh the loop's grid takes.
 const SHORTEST: Duration = Duration::from_millis(8);
 const LONGEST: Duration = Duration::from_millis(34);
+/// Gaps between back-to-back waits taken to measure the refresh.
+const SAMPLES: usize = 16;
+/// The measured gaps show a steady beat when at least this many of them
+/// are within [`OFF_GRID`] of the median.
+const STEADY: usize = SAMPLES / 2;
 
 /// What the waits came to since the last block of `--timings`.
 #[derive(Default)]
@@ -60,11 +65,6 @@ struct Tally {
     /// Refreshes a frame was due on, by the grid's step, that carried
     /// none.
     missed: u64,
-    /// The measured refresh lengths: how many, their sum, least, most.
-    lengths: u64,
-    length_sum: Duration,
-    least: Option<Duration>,
-    most: Duration,
     /// Writes finished: how many, the time from vblank to the write's
     /// end summed, the longest.
     writes: u64,
@@ -76,18 +76,17 @@ struct State {
     on: bool,
     /// Why the wait is off.
     why: String,
-    /// The last vblank, and the refresh length smoothed.
+    /// The last vblank, and the refresh length measured at the start.
     last: Option<Instant>,
     refresh: Option<Duration>,
+    /// How the refresh was measured: waits taken, least gap, most gap.
+    basis: Option<(usize, Duration, Duration)>,
     /// The grid's step in frames, as the loop last set it.
     step: u32,
     bad: u32,
     /// Frames written a vblank later than the step allowed, not yet
     /// taken by the loop.
     late: u64,
-    /// Waits too far apart to learn the refresh from, before it was
-    /// learned.
-    unlearned: u32,
     tally: Tally,
 }
 
@@ -146,10 +145,10 @@ impl Beat {
             why: String::new(),
             last: None,
             refresh: None,
+            basis: None,
             step: 1,
             bad: 0,
             late: 0,
-            unlearned: 0,
             tally: Tally::default(),
         }))
     }
@@ -205,29 +204,57 @@ impl Beat {
         })
     }
 
-    /// A wait returned at `at`.
+    /// The refresh as the loop uses it: the measured length while the
+    /// wait is on, otherwise the nominal one.
+    pub fn length(&self) -> Duration {
+        let st = self.state();
+        match st.refresh {
+            Some(r) if st.on => r.clamp(SHORTEST, LONGEST),
+            _ => FRAME,
+        }
+    }
+
+    /// The refresh is `gaps` apart at their median, the last vblank was
+    /// `last`: the length for the run, or the wait off when the median is
+    /// outside the range the grid takes or the gaps show no steady beat.
+    fn learn(&self, gaps: &[Duration], last: Instant) {
+        let mut sorted = gaps.to_vec();
+        sorted.sort();
+        let Some(&median) = sorted.get(sorted.len() / 2) else {
+            return self.off("no waits to measure");
+        };
+        if !(SHORTEST..=LONGEST).contains(&median) {
+            return self.off(&format!(
+                "refresh of {:.1} ms is out of range",
+                median.as_secs_f64() * 1000.0
+            ));
+        }
+        let m = median.as_secs_f64();
+        let steady = sorted
+            .iter()
+            .filter(|g| (g.as_secs_f64() - m).abs() <= OFF_GRID * m)
+            .count();
+        if steady < STEADY {
+            return self.off("no steady beat");
+        }
+        let mut st = self.state();
+        st.refresh = Some(median);
+        st.basis = Some((sorted.len(), sorted[0], sorted[sorted.len() - 1]));
+        st.last = Some(last);
+    }
+
+    /// A wait returned at `at`. The gap from the one before only counts
+    /// refreshes; the length stays as measured.
     pub fn vblank(&self, at: Instant) {
         let mut st = self.state();
-        let r = st.refresh.unwrap_or(FRAME);
+        let r = st.refresh.unwrap_or(FRAME).as_secs_f64();
         let step = u64::from(st.step);
         let mut seen = 1;
         if let Some(prev) = st.last {
-            let gap = at.saturating_duration_since(prev);
-            let g = gap.as_secs_f64();
-            // Before the refresh is known, only a wait about one nominal
-            // refresh after the last is taken as a measure of it; the
-            // others are counted against the nominal length, unjudged,
-            // for a few waits.
-            let judged = st.refresh.is_some()
-                || st.unlearned >= UNLEARNED
-                || (0.6 * r.as_secs_f64()..1.5 * r.as_secs_f64()).contains(&g);
-            if !judged {
-                st.unlearned += 1;
-                seen = (g / r.as_secs_f64()).round().max(1.0) as u64;
-            } else if g <= RUN * r.as_secs_f64() {
-                let n = (gap.as_secs_f64() / r.as_secs_f64()).round().max(1.0);
-                let off = (gap.as_secs_f64() - n * r.as_secs_f64()).abs();
-                if off > OFF_GRID * r.as_secs_f64() {
+            let g = at.saturating_duration_since(prev).as_secs_f64();
+            if g <= RUN * r {
+                let n = (g / r).round().max(1.0);
+                if (g - n * r).abs() > OFF_GRID * r {
                     st.bad += 1;
                     if st.bad >= BAD_WAITS && st.on {
                         st.on = false;
@@ -238,19 +265,6 @@ impl Beat {
                 }
                 st.bad = 0;
                 seen = n as u64;
-                let one = gap.div_f64(n);
-                let smooth = match st.refresh {
-                    Some(old) if n < 5.0 => (old * 7 + one) / 8,
-                    Some(old) => old,
-                    None => one,
-                };
-                if n < 5.0 {
-                    st.refresh = Some(smooth);
-                    st.tally.lengths += 1;
-                    st.tally.length_sum += one;
-                    st.tally.least = Some(st.tally.least.map_or(one, |l| l.min(one)));
-                    st.tally.most = st.tally.most.max(one);
-                }
             }
         }
         st.tally.seen += seen;
@@ -288,13 +302,12 @@ impl Beat {
                 .checked_div(t.seen)
                 .map_or("-".to_owned(), |p| p.to_string()),
         );
-        if t.lengths > 0 {
+        if let (Some(r), Some((n, least, most))) = (st.refresh, st.basis) {
             out.push_str(&format!(
-                "refresh  {:>7} {:>9.2} {:>9.2} {:>9.2}\n",
-                t.lengths,
-                ms(t.length_sum) / t.lengths as f64,
-                ms(t.least.unwrap_or_default()),
-                ms(t.most),
+                "refresh  {:>7.2} ms, median of {n} back-to-back waits at the start (least {:.2}, most {:.2})\n",
+                ms(r),
+                ms(least),
+                ms(most),
             ));
         }
         if t.writes > 0 {
@@ -307,6 +320,24 @@ impl Beat {
         }
         out
     }
+}
+
+/// Measures the refresh once: waits back to back, `SAMPLES` gaps, and
+/// gives the median to `beat`. A failed wait turns the wait off. `clock`
+/// says when each wait returned.
+pub fn measure(v: &mut dyn Vblank, beat: &Beat, clock: &mut dyn FnMut() -> Instant) {
+    let mut times = Vec::with_capacity(SAMPLES + 1);
+    for _ in 0..=SAMPLES {
+        if let Err(e) = v.wait() {
+            return beat.off(&format!("error: {e}"));
+        }
+        times.push(clock());
+    }
+    let gaps: Vec<Duration> = times
+        .windows(2)
+        .map(|w| w[1].saturating_duration_since(w[0]))
+        .collect();
+    beat.learn(&gaps, times[SAMPLES]);
 }
 
 #[cfg(test)]
@@ -352,36 +383,112 @@ mod tests {
         assert!(d > now && (at - at.round()).abs() < 1e-3);
     }
 
-    #[test]
-    fn waits_a_whole_refresh_apart_measure_the_refresh_and_count_what_carried() {
+    /// A wait that returns at once; the clock says when it did.
+    struct Instant0;
+
+    impl Vblank for Instant0 {
+        fn wait(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// A beat that measured waits returning at `times` ms after the start.
+    fn measured(times: &[f64]) -> (Beat, Instant) {
         let beat = Beat::new();
         let base = Instant::now();
-        // 20 ms refreshes; frames written on every other one.
-        for k in 0..5 {
-            beat.vblank(base + ms(20.0 * f64::from(k)));
+        let mut at = times.iter();
+        measure(&mut Instant0, &beat, &mut || {
+            base + ms(*at.next().expect("a time"))
+        });
+        (beat, base)
+    }
+
+    /// 17 returns of a refresh `r` ms, `late` ms added at the given ones.
+    fn beat_of(r: f64, late: &[(usize, f64)]) -> Vec<f64> {
+        (0..=SAMPLES)
+            .map(|k| {
+                r * k as f64
+                    + late
+                        .iter()
+                        .filter(|(i, _)| *i == k)
+                        .map(|(_, l)| l)
+                        .sum::<f64>()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn waits_with_a_few_late_wake_ups_keep_the_true_refresh_and_the_wait_on() {
+        let (beat, base) = measured(&beat_of(11.47, &[(3, 3.5), (8, 4.0), (13, 2.5)]));
+        assert!(beat.on());
+        let g = beat.grid(base + ms(200.0)).expect("a grid");
+        assert!((g.refresh.as_secs_f64() - 0.01147).abs() < 0.0003);
+    }
+
+    #[test]
+    fn a_wait_much_later_than_the_rest_does_not_change_the_refresh() {
+        let (beat, base) = measured(&beat_of(11.47, &[]));
+        // A frame that took three refreshes, then a run of single ones.
+        let mut t = 16.0 * 11.47 + 34.4;
+        beat.vblank(base + ms(t));
+        for _ in 0..20 {
+            t += 11.47;
+            beat.vblank(base + ms(t));
         }
-        for k in 0..20 {
-            beat.vblank(base + ms(80.0 + 40.0 * f64::from(k)));
-        }
-        let g = beat.grid(base + ms(900.0)).expect("a grid");
-        assert!((g.refresh.as_secs_f64() - 0.020).abs() < 0.002);
+        let g = beat.grid(base + ms(t)).expect("a grid");
+        assert!((g.refresh.as_secs_f64() - 0.01147).abs() < 0.0001);
+        assert!(beat.on());
+    }
+
+    #[test]
+    fn waits_a_whole_refresh_apart_count_what_carried() {
+        let (beat, base) = measured(&beat_of(20.0, &[]));
         beat.set_step(2);
+        // Frames written on every other refresh.
+        for k in 0..20 {
+            beat.vblank(base + ms(360.0 + 40.0 * f64::from(k)));
+        }
         let text = beat.report();
         assert!(text.contains("wait on"), "{text}");
-        assert!(text.contains("carried_pct"), "{text}");
+        assert!(text.contains("carried 20"), "{text}");
+        assert!(text.contains("missed 0"), "{text}");
+        assert!(text.contains("refresh    20.00 ms"), "{text}");
+    }
+
+    #[test]
+    fn waits_with_no_steady_beat_turn_the_wait_off() {
+        let gaps = [
+            5.0, 20.0, 8.0, 30.0, 12.0, 6.0, 25.0, 9.0, 18.0, 7.0, 28.0, 10.0, 22.0, 5.0, 15.0,
+            31.0,
+        ];
+        let mut t = 0.0;
+        let mut times = vec![0.0];
+        for g in gaps {
+            t += g;
+            times.push(t);
+        }
+        let (beat, base) = measured(&times);
+        assert!(!beat.on());
+        assert!(beat.grid(base + ms(t)).is_none());
+        assert!(beat.report().contains("off ("));
+    }
+
+    #[test]
+    fn a_steady_beat_outside_the_range_turns_the_wait_off() {
+        for r in [4.0, 40.0] {
+            let (beat, _) = measured(&beat_of(r, &[]));
+            assert!(!beat.on(), "{r} ms");
+        }
     }
 
     #[test]
     fn waits_that_fall_off_the_grid_again_and_again_turn_the_wait_off() {
-        let beat = Beat::new();
-        let base = Instant::now();
-        let mut t = 0.0;
+        let (beat, base) = measured(&beat_of(20.0, &[]));
+        let mut t = 320.0;
         for k in 0..20 {
-            t += if k % 2 == 0 { 7.0 } else { 9.0 };
+            t += if k % 2 == 0 { 7.0 } else { 33.0 };
             beat.vblank(base + ms(t));
         }
         assert!(!beat.on());
-        assert!(beat.grid(base + ms(t)).is_none());
-        assert!(beat.report().contains("off ("));
     }
 }

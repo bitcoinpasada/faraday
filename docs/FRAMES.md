@@ -559,9 +559,13 @@ a handle of its own from `try_clone`) before it writes a frame's bands,
 outside the panel's lock: the main loop keeps drawing, the arrow's
 thread is not held, and a blank, a lock, a power-off or an exit waits for
 at most one wait. The thread tells `refresh.rs` when each wait returned;
-that gives the refresh length (smoothed over the waits that are a whole
-number of refreshes apart) and the last vblank, which the loop's grid is
-tied to (`docs/MOTION.md` §3.2). Any error from the call (`ENOTTY` on a
+that gives the last vblank, which the loop's grid is tied to; the
+refresh length is not smoothed from them but measured once, by sixteen
+waits back to back before the first write, and is the median gap. A
+median outside 8 to 34 ms, or gaps with no steady beat (fewer than half
+within a quarter of the median), turn the wait off for the run; later
+waits only count how many refreshes passed, so a late wake-up never moves
+the length (`docs/MOTION.md` §3.2). Any error from the call (`ENOTTY` on a
 framebuffer without it, a PC's firmware framebuffer; `EBUSY` while
 something holds the display), or eight waits in a row that do not fall on
 a grid of refreshes (the call returning at once), turns the wait off for
@@ -571,8 +575,8 @@ below the line the display is at; the wait times the start of the write,
 not its end. `--timings` gives, per block, a `vblank` line (the wait on or
 off and why, refreshes seen while frames were written, those that carried
 a new frame, those a frame was due on and none carried, and the
-percentage that carried), a `refresh` line (count, mean, least, most of
-the measured length in ms) and a `vb_write` line (count, mean and worst
+percentage that carried), a `refresh` line (the measured length in ms, and the
+least and most of the gaps it is the median of) and a `vb_write` line (count, mean and worst
 of the time from the vblank to the write's end). "X% of refreshes during
 motion carried a new frame" is `carried_pct` when the grid's step is one
 frame; at a step of two it is about 50 by design, and `missed` is the

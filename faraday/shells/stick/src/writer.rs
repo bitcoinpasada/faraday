@@ -12,7 +12,9 @@
 //! waits for one before it writes a frame, on a handle of its own and
 //! outside the panel's lock, so the loop keeps drawing and the arrow's
 //! thread is never held by the wait. The wait is off for the run on its
-//! first error, or when its returns are not on a grid of refreshes.
+//! first error, or when its returns are not on a grid of refreshes. The
+//! thread measures the refresh once, with sixteen waits back to back
+//! before its first write, while the loop starts.
 //!
 //! At most one write is out. The next frame waits for it before it
 //! touches the kept copy, so nothing queues, the loop pays what the write
@@ -76,6 +78,10 @@ impl Writer {
         let thread = std::thread::Builder::new()
             .name("fb-write".into())
             .spawn(move || {
+                // The refresh is measured once, before the first write.
+                if let (Some(v), Some(b)) = (vblank.as_mut(), own_beat.as_ref()) {
+                    crate::refresh::measure(v.as_mut(), b, &mut Instant::now);
+                }
                 for job in rx {
                     let mut waited = None;
                     if let (Some(v), Some(b)) = (vblank.as_mut(), own_beat.as_ref())
@@ -283,12 +289,22 @@ mod tests {
         p.beat().map(|_| (panel, p))
     }
 
+    /// Lets the thread measure a steady refresh of 12 ms, as a screen
+    /// would, before the frames start.
+    fn let_it_measure(release: &std::sync::mpsc::Sender<()>) {
+        for _ in 0..=16 {
+            release.send(()).expect("released");
+            std::thread::sleep(Duration::from_millis(12));
+        }
+    }
+
     #[test]
     fn a_frame_is_written_after_the_vblank_and_not_before() {
         let (release, gate) = std::sync::mpsc::channel();
         let Some((panel, mut p)) = rig_waiting(Box::new(Gate(gate))) else {
             return;
         };
+        let_it_measure(&release);
         put(&mut p, &panel, &frame(0x42));
         std::thread::sleep(Duration::from_millis(60));
         assert_eq!(lock(&panel).rows_written(), 0, "written before the vblank");
@@ -316,6 +332,7 @@ mod tests {
         let Some((panel, mut p)) = rig_waiting(Box::new(Gate(gate))) else {
             return;
         };
+        let_it_measure(&release);
         put(&mut p, &panel, &frame(0x77));
         // The writer is waiting; the panel's lock is free.
         lock(&panel).blank();
