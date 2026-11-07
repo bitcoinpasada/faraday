@@ -240,6 +240,7 @@ impl SignWrap {
         kept.borrow_mut().clear();
     }
 
+    #[cfg(any(test, feature = "testkit"))]
     /// How many entries are kept.
     pub(crate) fn kept_count(kept: &std::cell::RefCell<Vec<SignWrap>>) -> usize {
         kept.borrow().len()

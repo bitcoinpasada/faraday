@@ -1990,6 +1990,7 @@ impl Vaults {
         crate::gpg::Seen::drop_all(&self.sign_seen);
     }
 
+    #[cfg(any(test, feature = "testkit"))]
     /// How many files' texts the signing page keeps: the lines broken from
     /// each small text file and the files it remembers.
     pub(crate) fn sign_text_kept(&self) -> usize {
