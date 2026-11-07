@@ -29,6 +29,7 @@ pub(super) fn show_psbt(t: &mut Tour, bytes: &[u8], mid: Option<&str>) -> Result
                 corners: [(220, 120), (430, 130), (420, 340), (210, 330)],
                 module_tenths: 60,
                 read: true,
+                whole: true,
             });
             t.shot(name)?;
             // The screen reference's camera with a code found.

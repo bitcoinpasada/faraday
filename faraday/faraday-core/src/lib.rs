@@ -1493,6 +1493,7 @@ impl Faraday {
                 corners,
                 module_tenths,
                 read,
+                whole,
             } => {
                 let now_ms = self.now_ms;
                 if let Some(s) = self.camera.scan_mut() {
@@ -1510,10 +1511,13 @@ impl Faraday {
                         now,
                     ));
                     let fine = module_tenths < TOO_FINE_TENTHS;
-                    if !read && fine {
-                        s.too_fine += 1;
-                    } else {
+                    // Only a whole-frame pass counts: a reduced copy is
+                    // fine because it is small, and leaves the count alone
+                    // unless it read the code.
+                    if read || (whole && !fine) {
                         s.too_fine = 0;
+                    } else if whole {
+                        s.too_fine += 1;
                     }
                     if s.too_fine >= TOO_FINE_PASSES {
                         s.note = Some(qr_view::too_fine_line(&s.purpose).to_string());

@@ -354,6 +354,8 @@ pub enum StorageEvent {
         module_tenths: u16,
         /// It read.
         read: bool,
+        /// The pass was over the whole frame, not a reduced copy.
+        whole: bool,
     },
     /// What input is trusted: a device of the machine's own, or one a
     /// person let in, still being read. With nothing trusted that can

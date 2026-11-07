@@ -375,12 +375,17 @@ fn a_descriptor_scanned_with_no_wallet_being_made_goes_to_files() {
 }
 
 fn seen(app: &mut Faraday, module_tenths: u16, read: bool) {
+    seen_pass(app, module_tenths, read, true);
+}
+
+fn seen_pass(app: &mut Faraday, module_tenths: u16, read: bool, whole: bool) {
     app.storage(StorageEvent::QrSeen {
         width: 640,
         height: 480,
         corners: [(100, 100), (300, 100), (300, 300), (100, 300)],
         module_tenths,
         read,
+        whole,
     });
 }
 
@@ -400,6 +405,26 @@ fn a_code_too_fine_for_the_camera_is_said_to_be() {
         seen(&mut app, 60, false);
     }
     assert!(!note(&app).contains("Too fine"));
+}
+
+#[test]
+fn only_whole_frame_passes_say_a_code_is_too_fine() {
+    // Reduced copies are small by design: never "Too fine".
+    let mut app = scanning(Vec::new());
+    for _ in 0..6 {
+        seen_pass(&mut app, 14, false, false);
+    }
+    assert!(!note(&app).contains("Too fine"));
+    // Alternating with whole passes, three whole ones say it.
+    let mut app = scanning(Vec::new());
+    for _ in 0..2 {
+        seen_pass(&mut app, 14, false, true);
+        seen_pass(&mut app, 8, false, false);
+    }
+    assert!(!note(&app).contains("Too fine"));
+    seen_pass(&mut app, 8, false, false);
+    seen_pass(&mut app, 14, false, true);
+    assert!(note(&app).contains("Too fine"), "{}", note(&app));
 }
 
 #[test]

@@ -87,6 +87,7 @@ fn show(app: &mut Faraday, luma: &[u8]) {
             corners: seen.corners,
             module_tenths: (seen.module_px * 10.0).clamp(0.0, 65535.0) as u16,
             read: seen.read,
+            whole: seen.whole,
         });
     }
 }

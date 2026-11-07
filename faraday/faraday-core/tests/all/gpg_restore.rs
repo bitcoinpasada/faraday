@@ -852,6 +852,7 @@ fn a_paperkey_code_too_fine_for_the_camera_says_to_type_it() {
             corners: [(100, 100), (300, 100), (300, 300), (100, 300)],
             module_tenths: 14,
             read: false,
+            whole: true,
         });
     }
     assert_eq!(

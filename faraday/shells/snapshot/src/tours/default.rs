@@ -742,6 +742,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
                 corners: [(220, 120), (430, 130), (420, 340), (210, 330)],
                 module_tenths: 60,
                 read: true,
+                whole: true,
             });
             t.shot("scan-progress")?;
         }

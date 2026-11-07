@@ -4,10 +4,11 @@
 //!
 //! A pass that finds a code's finder patterns reports a [`Seen`]: its
 //! four corners in the frame, the size of one module in pixels, and
-//! whether it read. The scan sheet outlines the code with the corners,
-//! and a code that is found but never read, its modules under
-//! [`TOO_FINE_PX`] pixels, is one this camera cannot resolve: the sheet
-//! says so and offers the fix (an animated code, or a file).
+//! whether it read, and whether the pass was over the whole frame. The
+//! scan sheet outlines the code with the corners; the core says a code
+//! found in whole-frame passes but never read, its modules small, is one
+//! this camera cannot resolve, and offers the fix (an animated code, or
+//! a file).
 //!
 //! The newest frame replaces the one not
 //! yet taken, and a frame, a reduced copy and a payload are wiped when
@@ -53,11 +54,6 @@ pub enum ReadMode {
     Full,
 }
 
-/// Below this many pixels a module, a code is too fine to read: `rqrr`
-/// samples one point a module, and a camera's blur spreads a module over
-/// about two pixels.
-pub const TOO_FINE_PX: f32 = 2.5;
-
 /// What one pass saw of a code.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Seen {
@@ -75,15 +71,6 @@ pub struct Seen {
     /// The pass looked at the whole frame, not a reduced copy of it:
     /// only then is `module_px` a measure of what the camera resolves.
     pub whole: bool,
-}
-
-impl Seen {
-    /// Found, in the whole frame, but too fine for this camera to read.
-    /// A code seen only in the reduced copy is read whole on the next
-    /// pass, and that pass says.
-    pub fn too_fine(&self) -> bool {
-        !self.read && self.whole && self.module_px < TOO_FINE_PX
-    }
 }
 
 /// What a pass found: a code's payload, what it saw, and how long it
@@ -607,7 +594,7 @@ mod tests {
         let mut st = Reading::default();
         let (code, seen) = read(&job, ReadMode::Reduced, &mut st);
         if let (None, Some(seen)) = (code, seen) {
-            assert!(!seen.too_fine(), "the copy gives no verdict");
+            assert!(!seen.whole, "the copy gives no verdict");
             let (code, seen) = read(&job, ReadMode::Reduced, &mut st);
             assert!(seen.is_none_or(|s| s.whole));
             assert!(code.is_none_or(|c| c == payload));

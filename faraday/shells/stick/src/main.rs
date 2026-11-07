@@ -2722,6 +2722,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
                 corners: seen.corners,
                 module_tenths: (seen.module_px * 10.0).clamp(0.0, 65535.0) as u16,
                 read: seen.read,
+                whole: seen.whole,
             });
         }
         // A camera the person chose on the scan sheet.

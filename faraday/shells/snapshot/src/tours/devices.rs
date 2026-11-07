@@ -274,6 +274,7 @@ pub(crate) fn scan_tour(t: &mut Tour) -> Result<(), String> {
             corners: [(l, tp), (r, tp), (r, b), (l, b)],
             module_tenths: 60,
             read,
+            whole: true,
         });
         t.shot(name)?;
     }
