@@ -301,7 +301,7 @@ fn confirm_writes_the_disk_confirmed_with_its_serial_and_size() {
         "Maker Stick",
         "/dev/sdb",
         "SN-sdb",
-        "16 GB",
+        "16\u{a0}GB",
         "Erase and write",
     ] {
         assert!(shows(&mut starter, s), "{s}");

@@ -681,7 +681,7 @@ fn the_free_space_is_zeroed_a_step_a_tick() {
     let _ = app.frame();
     let text = app.drawn_texts().join(" ");
     // 3 GiB, in the decimal units every size is written in.
-    assert!(text.contains("3.2 GB to write"), "{text}");
+    assert!(text.contains("3.2\u{a0}GB to write"), "{text}");
     assert!(text.contains("partition table"), "{text}");
     asked(&mut app);
     hold_go(&mut app, 1_000);

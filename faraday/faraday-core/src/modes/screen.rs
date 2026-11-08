@@ -16,7 +16,7 @@ use crate::ui::{Style, Ui};
 use crate::wallet::network_name;
 use faraday_draw::tokens::{BODY_M, LABEL_L, LABEL_M};
 use faraday_draw::tokens::{
-    GAP, LABEL, MODE_PILL_HEIGHT, MODE_PILL_PAD, MODE_ROW, MODE_SHEET_WIDTH, PAD,
+    GAP, LABEL, MODE_PILL_HEIGHT, MODE_PILL_PAD, MODE_ROW, MODE_SHEET_WIDTH, PAD, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 
@@ -47,20 +47,43 @@ pub(crate) fn pill_width(app: &View, ui: &Ui) -> f32 {
 }
 
 /// One pill at (`px`, `py`), `pw` wide, in `tone`, pressed for `action`.
-fn chip(ui: &mut Ui, (px, py, pw): (f32, f32, f32), label: &str, tone: Paint, action: Action) {
+fn chip(
+    ui: &mut Ui,
+    (px, py, pw): (f32, f32, f32),
+    label: &str,
+    tone: Paint,
+    action: Action,
+    bar_h: Option<f32>,
+) {
     let h = MODE_PILL_HEIGHT;
     // In its tone's container, never a tint (`docs/DESIGN.md` §3).
     let (bg, fg) = crate::ui::container_of(tone);
     let shape = Shape::new(px, py, pw, h, h / 2.0);
     ui.fill(px, py, pw, h, h / 2.0, bg);
     // Its layer in its label's colour, under the label.
-    ui.press(shape, fg.paint(), action);
+    // The press is the touch floor high round the pill, inside its bar.
+    let mut ty = py + h / 2.0 - TOUCH / 2.0;
+    if let Some(bar_h) = bar_h {
+        ty = ty.min(bar_h - TOUCH);
+    }
+    ui.press_to(shape, (px, ty.max(0.0), pw, TOUCH), fg.paint(), action);
     ui.text_mid_as((px + MODE_PILL_PAD, py, h), LABEL_M, fg, label);
 }
 
 /// The mode pill at (`px`, `py`), in the caution tone: it names the
 /// mode and opens the sheet. Returns its width.
 pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
+    pill_within(app, ui, px, py, None)
+}
+
+/// [`pill`] at the foot of a bar `bar_h` tall: its press target is the
+/// touch floor high and kept inside the bar, so it is not cut where the
+/// pill stands against the bar's lower edge.
+pub(crate) fn pill_in_bar(app: &View, ui: &mut Ui, px: f32, py: f32, bar_h: f32) -> f32 {
+    pill_within(app, ui, px, py, Some(bar_h))
+}
+
+fn pill_within(app: &View, ui: &mut Ui, px: f32, py: f32, bar_h: Option<f32>) -> f32 {
     let mw = mode_width(app, ui);
     let label = pill_label(app, ui);
     chip(
@@ -69,6 +92,7 @@ pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
         label,
         Role::Warning.paint(),
         Action::ModeSheet,
+        bar_h,
     );
     mw
 }

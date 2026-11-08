@@ -260,7 +260,7 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
         let pw = crate::modes::screen::pill_width(app, ui);
         let end = title_end(right, w);
         let px = end - GAP_SMALL - pw;
-        crate::modes::screen::pill(app, ui, px, faraday_ui::nav::pill_top(ui));
+        crate::modes::screen::pill_in_bar(app, ui, px, faraday_ui::nav::pill_top(ui), BAR_H);
     }
     right
 }

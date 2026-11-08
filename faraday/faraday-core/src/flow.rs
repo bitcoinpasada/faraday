@@ -483,8 +483,16 @@ fn paged(
             let lh = ui.line_as(TITLE_M);
             let th = ui.wrap_as((M, y, title_w), TITLE_M, Role::OnSurface, &card.title);
             ui.text_right_as((M + inner, y, lh), BODY_S, Role::OnSurfaceVariant, &count);
-            ui.press_box(M, y, inner, th, card.toggle);
-            y += th + 10.0;
+            // On a compact layout, under defaults rows (the Change rows) a one-line title
+            // has no room for a full target: the row is made the target's
+            // height, so it is not cut by the row above or the tabs below.
+            let hh = if defaults && ui.touch < tokens::TOUCH {
+                th.max(ui.touch)
+            } else {
+                th
+            };
+            ui.press_box(M, y, inner, hh, card.toggle);
+            y += hh + 10.0;
             y += body(ui, i, M, y, inner);
             // The walk-through comes after the controls, behind a tap:
             // on a small panel it would otherwise take the room the
