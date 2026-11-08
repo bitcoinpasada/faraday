@@ -277,6 +277,8 @@ pub(crate) enum Scrolled {
     SignerCheck,
     /// Convert a seed.
     Convert,
+    /// The Krux code tool.
+    KefTool,
     /// New key.
     KeyGen,
     /// Vanity.
@@ -454,6 +456,9 @@ impl Faraday {
                 }
                 Scrolled::Convert => {
                     self.tools.convert_mut().set_scroll(to);
+                }
+                Scrolled::KefTool => {
+                    self.tools.kef_tool_mut().set_scroll(to);
                 }
                 Scrolled::KeyGen => {
                     self.keygen.set_scroll(to);

@@ -1,9 +1,12 @@
 //! The scanned Krux encrypted code tour (`docs/KEF.md` §15): its card,
 //! the passphrase sheet and the one failure message.
 
-use crate::tour::{Tour, type_text};
+use crate::tour::{Tour, scroll_to, type_text};
 use faraday_core::board::{BoardPress as BP, Chip, Thing};
+use faraday_core::kef_form::{IdKind, KefAct};
+use faraday_core::kef_tool::{KefToolAction as K, Pick};
 use faraday_core::{Action, Screen, qstep};
+use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event, Key};
 
 /// Krux's own AES-GCM code (`tools/vectors/kef/`).
@@ -55,4 +58,77 @@ pub(crate) fn kef_menu_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::Board(BP::Menu(Chip::List(Thing::Seed(0)))));
     t.shot("kef-seed-menu-dimmed")
+}
+
+/// Costs what `key_text_of` and `add_wallet` cost. Tools' Krux code: Contents typed and from a loaded wallet, the first
+/// step, Options, the work running, the Code card and Check my code
+/// (`docs/KEF.md` §15.2).
+pub(crate) fn kef_make_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
+    let form = |a| Action::KefTool(K::Form(a));
+    t.press(Action::Entry(None));
+    t.type_key(0);
+    let text = crate::tour::key_text_of(
+        c,
+        &t.app.session.keys,
+        0,
+        faraday_core::create::NewKind::NativeSegwit,
+    )?;
+    t.app
+        .session
+        .add_wallet(
+            c,
+            "Spending",
+            &format!("wpkh({text}/<0;1>/*)"),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .map_err(|e| e.text())?;
+    t.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|tile| tile.name == "Krux code")
+        .ok_or("no Krux code tile")?;
+    t.press(Action::Catalog(tile as u8));
+    t.shot("kef-make-contents")?;
+    t.press(Action::KefTool(K::Pick(Pick::Wallet)));
+    t.shot("kef-make-contents-wallet")?;
+    t.press(Action::KefTool(K::Pick(Pick::Type)));
+    type_text(t, "a note to keep with the backup");
+    t.shot("kef-make-contents-typed")?;
+    t.press(Action::KefTool(K::Next));
+    t.shot("kef-make-first-step")?;
+    type_text(t, "a passphrase");
+    t.shot("kef-make-passphrase")?;
+    t.press(form(KefAct::Options));
+    t.shot("kef-make-options")?;
+    t.press(form(KefAct::Rounds));
+    for _ in 0..8 {
+        t.app.event(Event::Key(Key::Backspace));
+    }
+    type_text(t, "10000");
+    t.press(form(KefAct::Id(IdKind::Label)));
+    type_text(t, "my label");
+    t.shot("kef-make-options-typing")?;
+    t.press(Action::Osk(faraday_core::OskPress::Hide));
+    t.shot("kef-make-options-label")?;
+    t.press(form(KefAct::Back));
+    t.app.run_jobs_inline(false);
+    faraday_core::testkit::hold_worker();
+    faraday_core::testkit::press_on_worker(&mut t.app, form(KefAct::Make));
+    t.shot("kef-make-making")?;
+    faraday_core::testkit::release_worker();
+    faraday_core::testkit::settle(&mut t.app);
+    t.app.run_jobs_inline(true);
+    t.tick();
+    scroll_to(t, form(KefAct::Another));
+    t.shot("kef-make-code")?;
+    t.press(form(KefAct::Check));
+    t.shot("kef-make-check")?;
+    type_text(t, "a passphrase");
+    t.press(form(KefAct::Compare));
+    t.tick();
+    scroll_to(t, form(KefAct::Another));
+    t.shot("kef-make-checked")?;
+    t.press(form(KefAct::Another));
+    t.shot("kef-make-another")
 }

@@ -27,6 +27,8 @@ pub enum Go {
     Bip85,
     /// Convert a seed.
     Convert,
+    /// Make a Krux encrypted code.
+    KefCode,
     /// A vanity address.
     Vanity,
     /// Silent payments.
@@ -170,6 +172,13 @@ pub const TILES: &[Tile] = &[
         line: EN.catalog_convert_a_seed_line,
         tags: &["BIP-32", "BIP-39"],
         go: Go::Convert,
+    },
+    Tile {
+        group: EN.catalog_keys_and_seeds,
+        name: EN.catalog_krux_code,
+        line: EN.catalog_krux_code_line,
+        tags: &["KEF"],
+        go: Go::KefCode,
     },
     Tile {
         group: EN.catalog_keys_and_seeds,
@@ -505,6 +514,7 @@ impl Faraday {
             Go::Explore => self.act(Action::Explore),
             Go::Bip85 => self.act(Action::Bip85),
             Go::Convert => self.act(Action::Convert(crate::convert::ConvertAction::Open)),
+            Go::KefCode => self.act(Action::KefTool(crate::kef_tool::KefToolAction::Open)),
             Go::Vanity => self.act(Action::Vanity(crate::vanity::VanityAction::Open)),
             Go::Silent => self.act(Action::Silent),
             Go::Lightning => self.act(Action::Lightning),

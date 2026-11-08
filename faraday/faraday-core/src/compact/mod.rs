@@ -47,6 +47,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
             | Screen::KeyGen
             | Screen::Bip85
             | Screen::Convert
+            | Screen::KefTool
             | Screen::Silent
             | Screen::Vanity
             | Screen::CreateVault
@@ -80,6 +81,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::KeyGen => EN.compact_new_key,
         Screen::Bip85 => EN.compact_bip_85,
         Screen::Convert => EN.convert_title,
+        Screen::KefTool => EN.kef_tool_title,
         Screen::Silent => EN.compact_silent_payments,
         Screen::Explore => EN.compact_explore_a_key,
         Screen::Lightning => EN.compact_lightning,
@@ -1308,6 +1310,9 @@ impl Faraday {
         }
         if self.sheet == Some(crate::Sheet::Register) {
             return self.register_typing();
+        }
+        if self.sheet == Some(crate::Sheet::KefOptions) {
+            return crate::kef_tool::field(self).is_some();
         }
         if self.sheet.is_some() {
             return false;

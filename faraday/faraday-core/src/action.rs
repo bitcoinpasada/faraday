@@ -744,6 +744,8 @@ pub enum Action {
     Vanity(vanity::VanityAction),
     /// A Convert a seed action.
     Convert(crate::convert::ConvertAction),
+    /// A Krux code tool action.
+    KefTool(crate::kef_tool::KefToolAction),
     /// Fill a slot with the account key in an Inbox file.
     CSlotFile(u8, usize),
     /// Empty a slot.

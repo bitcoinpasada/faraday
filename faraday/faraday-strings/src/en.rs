@@ -12765,4 +12765,36 @@ strings! {
     board_menu_kef: "Krux code…",
     /// The title of the menu of boxes a seed's Krux code can go to.
     board_menu_kef_to: "Krux code to…",
+    /// Tools: the tile that makes a Krux encrypted code.
+    catalog_krux_code: "Krux code",
+    /// Tools: the line under the Krux code tile.
+    catalog_krux_code_line: "A passphrase, note or wallet as an encrypted code",
+    /// The Krux code tool's heading.
+    kef_tool_title: "Krux code",
+    /// The Krux code tool: the Back button's name when opened from Tools.
+    kef_tool_tools: "Tools",
+    /// The Krux code tool's first card: what the code holds.
+    kef_tool_contents: "Contents",
+    /// The Krux code tool's second card: the form.
+    kef_tool_make: "Passphrase",
+    /// The Krux code tool's third card: the code made.
+    kef_tool_code: "Code",
+    /// Contents: the choice of typing the text.
+    kef_tool_type: "Type it",
+    /// Contents: the choice of a loaded wallet's descriptor.
+    kef_tool_wallet: "A loaded wallet",
+    /// Contents: the typed text's field label.
+    kef_tool_text: "Text",
+    /// Contents: goes on to the passphrase.
+    kef_tool_continue: "Continue",
+    /// Contents: no wallet is loaded.
+    kef_tool_no_wallet: "No wallet is loaded.",
+    /// Contents, closed: typed text. `{}`: its length in bytes.
+    kef_tool_typed_sum: "Typed text, {} bytes",
+    /// Contents, closed: a wallet's descriptor. `{}`: the wallet's name.
+    kef_tool_wallet_sum: "Descriptor of {}",
+    /// The Code card, closed: the code is made.
+    kef_tool_code_sum: "Made",
+    /// The Code card, closed: the code is made and checked.
+    kef_tool_code_checked_sum: "Checked",
 }

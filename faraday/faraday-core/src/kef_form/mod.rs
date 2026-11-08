@@ -15,7 +15,6 @@ use faraday_keys::kef::{DEFAULT_ID_LEN, ID_MAX, LONG_ID_LEN};
 use faraday_shell_api::Key;
 use zeroize::Zeroizing;
 
-#[expect(dead_code, reason = "the owners that draw the form come after it")]
 pub(crate) mod screen;
 
 /// The dice entry's tag: the form has one passphrase.
@@ -89,6 +88,8 @@ pub enum KefAct {
     Eye,
     /// Opens the dice entry.
     Dice,
+    /// Typing goes to the dice rolls.
+    DiceField,
     /// Opens Options.
     Options,
     /// Closes Options.
@@ -140,9 +141,22 @@ pub struct KefForm {
     check: TextBox,
     check_shown: bool,
     checked: bool,
+    offered: Option<[u8; 4]>,
 }
 
 impl KefForm {
+    /// Whether the form holds something typed that is secret: the
+    /// passphrase, the passphrase typed again to check, or dice rolls
+    /// still being entered (for the clean state, `Faraday::clean`).
+    pub(crate) fn holds_secret(&self) -> bool {
+        !self.pass.text.is_empty()
+            || !self.check.text.is_empty()
+            || self
+                .dice
+                .open()
+                .is_some_and(|(_, rolls, _)| !rolls.text.is_empty())
+    }
+
     /// A form for `source`; `paper` where the code is also copied by hand,
     /// so that its side is shown before it is made.
     pub fn new(source: Source, paper: bool) -> Self {
@@ -167,7 +181,13 @@ impl KefForm {
             check: TextBox::default(),
             check_shown: false,
             checked: false,
+            offered: None,
         }
+    }
+
+    /// Offers a fingerprint as the id on a text: a loaded wallet's.
+    pub fn offer_fingerprint(&mut self, fingerprint: Option<[u8; 4]>) {
+        self.offered = fingerprint;
     }
 
     /// Whether the code was opened and held what it was made from.
@@ -183,6 +203,21 @@ impl KefForm {
     /// The options as chosen now.
     pub fn options(&self) -> &Options {
         &self.options
+    }
+
+    /// The field typing goes to, with the press that focuses it and its
+    /// text; none for the dice entry, which has its own keys.
+    pub(crate) fn field(&self) -> Option<(KefAct, &str)> {
+        let entry = self.stage == Stage::Entry;
+        match self.focus? {
+            Focus::Pass | Focus::Rounds | Focus::Label if !entry => None,
+            Focus::Check if self.stage != Stage::Check => None,
+            Focus::Pass => Some((KefAct::Field, self.pass.text.as_str())),
+            Focus::Check => Some((KefAct::CheckField, self.check.text.as_str())),
+            Focus::Rounds => Some((KefAct::Rounds, self.rounds.text.as_str())),
+            Focus::Label => Some((KefAct::Label, self.label.text.as_str())),
+            Focus::Dice(_) => None,
+        }
     }
 
     /// The passphrase as typed.
@@ -224,7 +259,7 @@ impl KefForm {
     pub fn fingerprint(&self) -> Option<[u8; 4]> {
         match &self.source {
             Source::Seed { fingerprint, .. } => *fingerprint,
-            Source::Text(_) => None,
+            Source::Text(_) => self.offered,
         }
     }
 
@@ -284,6 +319,11 @@ impl KefForm {
                 if app.may_load_keys() {
                     let p = self.dice.start(DICE_TAG);
                     self.apply(app, p);
+                }
+            }
+            KefAct::DiceField => {
+                if self.dice.open().is_some() {
+                    self.focus = Some(Focus::Dice(Part::Dice));
                 }
             }
             KefAct::Options => {

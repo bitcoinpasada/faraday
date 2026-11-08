@@ -443,6 +443,7 @@ impl Faraday {
             return self.register_typing();
         }
         match self.screen {
+            Screen::KefTool => crate::kef_tool::field(self).is_some(),
             Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
             Screen::Restore => self.seeds_typing(),
             Screen::Unlock
@@ -524,6 +525,7 @@ impl Faraday {
                 .map(|f| Action::SeedRead(crate::seeds::read::Choice::Field(f)));
         }
         match self.screen {
+            Screen::KefTool => crate::kef_tool::field(self).map(|(a, _)| a),
             Screen::Family | Screen::Restore if self.seeds_typing() => self
                 .seeds()?
                 .focus
@@ -623,6 +625,7 @@ impl Faraday {
             Action::EntryPassphrase => &self.entry.state().passphrase,
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
             Action::KefRead(_) => crate::seeds::kef::kef_field(self)?,
+            Action::KefTool(_) => crate::kef_tool::field(self)?.1,
             Action::Rename => self.wallets.renaming().map(String::as_str)?,
             crate::file_menu::FIELD => &self.visit.files_menu().renaming.as_ref()?.stem,
             Action::RegisterField => &self.wallets.spend()?.register.as_ref()?.name,
@@ -675,6 +678,40 @@ impl Faraday {
             _ => return None,
         };
         Some(SecretText::of(text))
+    }
+
+    /// Whether anything secret is being typed: seed words, a BIP-39 or
+    /// vault passphrase, a prompt's line. A secret sheet for an Inbox file
+    /// on its way to another stick does not count: it holds a copy of
+    /// what the Inbox already holds, and the stick it goes to must stay
+    /// open (`docs/history/PLAN.md` §5.4).
+    pub(crate) fn secret_typed(&self) -> bool {
+        self.keygen.state().is_some()
+            || self.secrets.out().is_some_and(|o| !o.to_visit)
+            || self.lightning.state().is_some()
+            || !self.entry.state().typed.is_empty()
+            || !self.entry.state().passphrase.is_empty()
+            || !self.vaults.passphrase.text.is_empty()
+            || self
+                .inbox
+                .potential()
+                .is_some_and(|p| !p.passphrase.is_empty())
+            || self
+                .vaults
+                .prompt
+                .as_ref()
+                .is_some_and(|p| !p.text.text.is_empty())
+            || self.seed_read.holds_secret()
+            || self
+                .tools
+                .kef_tool()
+                .state()
+                .is_some_and(crate::kef_tool::KefToolState::holds_secret)
+            || self.vaults.create.as_ref().is_some_and(|c| {
+                c.phrases
+                    .iter()
+                    .any(|(a, b)| !a.text.is_empty() || !b.text.is_empty())
+            })
     }
 
     /// Whether the field typing goes to is one of several lines, where

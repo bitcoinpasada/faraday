@@ -118,6 +118,7 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Entry
         | Screen::Bip85
         | Screen::Convert
+        | Screen::KefTool
         | Screen::Silent
         | Screen::Lightning
         | Screen::Vanity
@@ -449,6 +450,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::CopyTo => crate::vault::copy_screen::draw(app, ui, w, h),
             Sheet::SaveKeeps => crate::vault::copy_screen::draw_keep(app, ui, w, h),
             Sheet::Trim => crate::vault::trim::draw(app, ui, w, h),
+            Sheet::KefOptions => crate::kef_tool::screen::options_sheet(app, ui, w, h),
             Sheet::ChildRecord => crate::bip85::screen::record_dialog(app, ui, w, h),
             Sheet::ChildNotice => crate::screens::create::child_notice(app, ui, w, h),
             Sheet::PassphraseSeeds => crate::vault::load_screen::pass_seeds(app, ui, w, h),
@@ -586,6 +588,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::KeyGen => crate::keygen::screen::draw(app, ui, x, cw, h),
         Screen::Bip85 => crate::bip85::screen::draw(app, ui, x, cw, h),
         Screen::Convert => crate::convert::screen::draw(app, ui, x, cw, h),
+        Screen::KefTool => crate::kef_tool::screen::draw(app, ui, x, cw, h),
         Screen::Silent => crate::silent::screen::draw(app, ui, x, cw, h),
         Screen::Explore => crate::explore::screen::draw(app, ui, x, cw, h),
         Screen::Lightning => crate::lightning::screen::draw(app, ui, x, cw, h),

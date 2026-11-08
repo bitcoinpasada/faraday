@@ -169,7 +169,7 @@ macro_rules! every {
 fn screens() -> Vec<Screen> {
     every!(Screen: Home, WalletsStart, Wallets, Spend, Files, Visit, Entry, Backup,
         Message, CheckMessage, Create, Restore, Settings, SetTime, Randomness, Vaults,
-        Backups, CreateVault, KeyGen, Bip85, Convert, Silent, Explore, Lightning, Tools, Unlock,
+        Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, Silent, Explore, Lightning, Tools, Unlock,
         VaultContents, Codes, Family, Vanity, Decode, NonceCheck, SignerCheck, Catalog, Transfer, BackupFlow)
 }
 
@@ -180,7 +180,7 @@ fn sheets() -> Vec<Sheet> {
         CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, SaveAlso, CopyTo, SaveKeeps, Trim, OlderCopy,
         ChildRecord, ChildNotice,
         PassphraseSeeds, GpgSign, Mode, Samples, NavMenu(None), KeyLengths, KeyPath, Account, Register,
-        GpgRestore, FigMenu, LaterAsk, StickSheet, VaultPassphrase, VaultMemory,
+        GpgRestore, FigMenu, LaterAsk, StickSheet, KefOptions, VaultPassphrase, VaultMemory,
         Sweep);
     // A compact bar's overflow menu, holding every tool it can.
     all.push(Sheet::NavMenu(Some(Overflow {

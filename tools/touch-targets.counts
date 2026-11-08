@@ -78,6 +78,7 @@ small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
 small_240x320 Family Family 1
 small_240x320 Home Import 1
+small_240x320 KefTool KefTool 1
 small_240x320 KeyGen Codex32 17
 small_240x320 KeyGen KStep 3
 small_240x320 KeyGen WordList 4
@@ -105,6 +106,7 @@ small_480x640 Family Family 1
 small_480x640 Family Slide 14
 small_480x640 Home Import 1
 small_480x640 Home Nav 1
+small_480x640 KefTool KefTool 1
 small_480x640 KeyGen Codex32 30
 small_480x640 KeyGen KByDie 2
 small_480x640 KeyGen KStep 3
@@ -173,6 +175,8 @@ stick_1024x600 Files StartSpend 1
 stick_1024x600 Home Import 2
 stick_1024x600 Home Nav 1
 stick_1024x600 Home Osk 38
+stick_1024x600 KefTool KefTool 3
+stick_1024x600 KefTool Osk 38
 stick_1024x600 KeyGen Codex32 7
 stick_1024x600 KeyGen EntryKey 19
 stick_1024x600 KeyGen KGroup 2

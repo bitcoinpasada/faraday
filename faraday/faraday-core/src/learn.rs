@@ -293,7 +293,7 @@ impl Faraday {
             Screen::Vanity => vec![&EN.passphrases, &EN.wallet_kinds],
             Screen::Lightning => vec![&EN.tools, &EN.glossary],
             Screen::Tools => vec![&EN.tools, &EN.glossary],
-            Screen::Bip85 | Screen::Convert => {
+            Screen::Bip85 | Screen::Convert | Screen::KefTool => {
                 vec![&EN.words, &EN.passphrases, &EN.tools, &EN.glossary]
             }
             Screen::Backup => {

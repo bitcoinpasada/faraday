@@ -99,6 +99,7 @@
 //! | `KeyGen` | `keygen/screen.rs` |
 //! | `Bip85` | `bip85/screen.rs` |
 //! | `Convert` | `convert/screen.rs` |
+//! | `KefTool` | `kef_tool/screen.rs` |
 //! | `Silent` | `silent/screen.rs` |
 //! | `Explore` | `explore/screen.rs` |
 //! | `Lightning` | `lightning/screen.rs` |
@@ -182,6 +183,7 @@ pub mod gpg;
 pub mod grind;
 pub mod inbox;
 pub mod kef_form;
+pub mod kef_tool;
 pub mod keygen;
 pub mod lightning;
 pub mod paper;
@@ -336,6 +338,8 @@ pub enum Screen {
     Bip85,
     /// A loaded key written in another standard, the same wallet.
     Convert,
+    /// Tools' Krux code: a text or a wallet's descriptor as an encrypted code.
+    KefTool,
     /// Silent payments: a loaded key's address and scan key.
     Silent,
     /// A loaded key's public side at any path.
@@ -674,6 +678,8 @@ pub enum Sheet {
     Trim,
     /// **Record it as a child seed?**: BIP-85 child words held (F166).
     ChildRecord,
+    /// **Options** of the Krux code tool's form.
+    KefOptions,
     /// **A BIP-85 child seed**: a wallet made over one recorded (F166).
     ChildNotice,
     /// **Seeds with no passphrase stored**, from a wallet short of a key:
@@ -1608,35 +1614,6 @@ impl Faraday {
         self.out.commands.push_back(Command::Draw);
     }
 
-    /// Whether anything secret is being typed: seed words, a BIP-39 or
-    /// vault passphrase, a prompt's line. A secret sheet for an Inbox file
-    /// on its way to another stick does not count: it holds a copy of
-    /// what the Inbox already holds, and the stick it goes to must stay
-    /// open (`docs/history/PLAN.md` §5.4).
-    fn secret_typed(&self) -> bool {
-        self.keygen.state().is_some()
-            || self.secrets.out().is_some_and(|o| !o.to_visit)
-            || self.lightning.state().is_some()
-            || !self.entry.state().typed.is_empty()
-            || !self.entry.state().passphrase.is_empty()
-            || !self.vaults.passphrase.text.is_empty()
-            || self
-                .inbox
-                .potential()
-                .is_some_and(|p| !p.passphrase.is_empty())
-            || self
-                .vaults
-                .prompt
-                .as_ref()
-                .is_some_and(|p| !p.text.text.is_empty())
-            || self.seed_read.holds_secret()
-            || self.vaults.create.as_ref().is_some_and(|c| {
-                c.phrases
-                    .iter()
-                    .any(|(a, b)| !a.text.is_empty() || !b.text.is_empty())
-            })
-    }
-
     fn note_secrets(&mut self) {
         if self.holds_secret() || self.secret_typed() {
             self.tainted = true;
@@ -1727,6 +1704,7 @@ impl Faraday {
                 self.idle.set_warn_min(idle / min);
                 self.explore_hide();
                 convert::hide(self);
+                kef_tool::hide(self);
             }
             let left = (lock - idle).div_ceil(1000);
             if self.sheet == Some(Sheet::IdleWarn) && self.idle.shown() != Some(left) {
@@ -2482,6 +2460,7 @@ impl Faraday {
                 self.vaults.clear_stick_save();
                 self.devices.cancel();
                 // A seed read and not loaded is wiped.
+                kef_tool::cancel(self);
                 self.kef_job_drop();
                 self.seed_read.clear();
                 self.stick.clear_delete_ask();
@@ -2582,6 +2561,7 @@ impl Faraday {
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
             Action::Convert(c) => convert::act(self, c),
+            Action::KefTool(k) => kef_tool::act(self, k),
             Action::Learn | Action::LearnClose | Action::How => self.learn_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
@@ -4558,7 +4538,7 @@ impl Faraday {
         if self.tools_key(key) {
             return;
         }
-        if self.lightning_key(key) || convert::key(self, key) {
+        if self.lightning_key(key) || convert::key(self, key) || kef_tool::key(self, key) {
             return;
         }
         if self.explore_key(key) {
@@ -5381,6 +5361,7 @@ impl Faraday {
         }
         self.shown_tidy();
         convert::tidy(self);
+        kef_tool::tidy(self);
         if self.screen != Screen::Tools {
             self.tools.close();
         }
@@ -5713,7 +5694,9 @@ impl App for Faraday {
                     self.pointer.set_scroll_at(None);
                     self.scroll.release(self.f);
                 }
-                let tip = self.pointer.tip_tick(now_ms) | self.keygen.dice_tick(now_ms);
+                let tip = self.pointer.tip_tick(now_ms)
+                    | self.keygen.dice_tick(now_ms)
+                    | kef_tool::tick(self);
                 let (own, motion) = (self.own_tick(now_ms), self.motion_tick(now_ms));
                 if own || fading || tip {
                     self.out.redraw();

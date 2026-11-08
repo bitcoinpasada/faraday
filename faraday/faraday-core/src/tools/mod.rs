@@ -173,6 +173,8 @@ pub struct ToolsArea {
     catalog_find: String,
     /// Convert a seed, a tool with a flow of its own.
     convert: crate::convert::ConvertArea,
+    /// The Krux code tool.
+    kef_tool: crate::kef_tool::KefToolArea,
 }
 
 impl ToolsArea {
@@ -189,6 +191,16 @@ impl ToolsArea {
     /// Convert a seed's flow, to change.
     pub(crate) fn convert_mut(&mut self) -> &mut crate::convert::ConvertArea {
         &mut self.convert
+    }
+
+    /// The Krux code tool.
+    pub(crate) fn kef_tool(&self) -> &crate::kef_tool::KefToolArea {
+        &self.kef_tool
+    }
+
+    /// The Krux code tool, to change.
+    pub(crate) fn kef_tool_mut(&mut self) -> &mut crate::kef_tool::KefToolArea {
+        &mut self.kef_tool
     }
 
     /// What is typed in Find a tool.

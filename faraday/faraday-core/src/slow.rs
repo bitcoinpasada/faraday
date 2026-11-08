@@ -19,6 +19,9 @@ pub(crate) fn starts_job(a: Action) -> bool {
             | Action::BChecklist
             | Action::BFilesMake
             | Action::PublicOut(_, 2 | 4 | 14)
+            | Action::KefTool(crate::kef_tool::KefToolAction::Form(
+                crate::kef_form::KefAct::Make | crate::kef_form::KefAct::Compare,
+            ))
     )
 }
 

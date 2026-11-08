@@ -233,11 +233,15 @@ impl Faraday {
             Done::Sign(d) => crate::signing::signed_spend(self, *d),
             Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
             Done::Files(d) => crate::public_files::files_made(self, *d),
-            Done::KefSeal(d) => self.worker.kef_mut().sealed_done(*d),
+            Done::KefSeal(d) => {
+                self.worker.kef_mut().sealed_done(*d);
+                crate::kef_tool::poll(self);
+            }
             Done::KefTime(_) | Done::Measured(_) => {}
             Done::KefOpen(d) => {
                 self.worker.kef_mut().opened_done(*d);
                 crate::seeds::kef::kef_opened_here(self);
+                crate::kef_tool::poll(self);
                 self.seed_carried_tidy();
             }
         }
