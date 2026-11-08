@@ -426,7 +426,7 @@ an opaque page, its alpha is 255 everywhere.
 kernel's vc4 with the generic framebuffer emulation (`FB_BCM2708`, the
 firmware's driver, is not in the image: `faraday/image/boards/pi3/kernel.forbidden`).
 vc4 sets that emulation up at 16 bits a pixel
-(`drm_fbdev_generic_setup(drm, 16)`), which the boot report shows as
+(`drm_client_setup_with_fourcc(drm, DRM_FORMAT_RGB565)` in 6.18), which the boot report shows as
 `panel 1920x1080 16bpp` on an HDMI screen, so the shell converted every
 pixel of a changed row to RGB565. On a Pi 3B+ at 1400 MHz at 1080p that
 `convert` bucket averaged 19.6 ms of a 25.9 ms frame, and the write
@@ -437,8 +437,9 @@ which would still have been a reordering.
 `faraday/image/boards/pi3/linux-patches/0003-vc4-fbdev-is-32-bits-with-red-first-so-the-shell-writes-the-frame-unconverted.patch`
 (not from mainline), makes three changes:
 
-- vc4 asks for a 32-bit emulation (`drm_fbdev_generic_setup(drm, 32)`).
-- The generic emulation picks XBGR8888, red first in memory, where the
+- vc4 asks for a 32-bit emulation
+  (`drm_client_setup_with_fourcc(drm, DRM_FORMAT_XBGR8888)`).
+- The generic DMA emulation picks XBGR8888, red first in memory, where the
   legacy table gives XRGB8888. The display engine reads XBGR8888 as it
   is (it is among `vc4_plane.c`'s formats).
 - `drm_fb_helper_fill_pixel_fmt` reports red at bit 0 and blue at bit 16

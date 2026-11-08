@@ -5,21 +5,20 @@
 
 Every change the images make to their kernel's source, on every board. The
 patches are the files in each board's `linux-patches/`, applied in order by
-the build. There are eight: three on the Pi, all Faraday's own, and
+the build. There are seven: two on the Pi, both Faraday's own, and
 five on the PC, all from mainline. Nothing else changes the kernel's source;
 what is built into it is the configuration, `docs/SECURITY-MODEL.md`, "What
 the kernel can reach".
 
 A patch of Faraday's own is code nobody else runs that way, carried by hand
 through every kernel update. F153 set the rule against them, F205 made one
-exception and F221 two more, and each says any other needs a decision of its
+exception and F221 two more (one of which went with 6.18), and each says any other needs a decision of its
 own.
 
 | Board | Patch | What it does | From | Decision |
 |---|---|---|---|---|
 | Pi | 0002 | A failed read of a later EDID block keeps the blocks before it | Faraday's own | F205 |
 | Pi | 0003 | vc4's framebuffer is 32 bits with red first | Faraday's own | F221 |
-| Pi | 0004 | vc4 stops output polling when it unbinds | Faraday's own | F221 |
 | PC | 0001 to 0005 | The EFI stub puts the screen's EDID in `boot_params` | Mainline, Linux 6.19 | F23 |
 
 ## The Pi
@@ -50,12 +49,13 @@ The Raspberry Pi 6.18 tree (6.18.59), in `faraday/image/boards/pi3/linux-patches
 
 ### 0003: vc4's framebuffer is 32 bits with red first
 
-- **What it does.** Four changes. vc4 asks for a 32-bit framebuffer emulation
-  where it asked for 16. The generic emulation picks XBGR8888, red first in
-  memory, where the legacy table gives XRGB8888. `drm_fb_helper_fill_pixel_fmt`
-  reports red at bit 0 and blue at bit 16 for that format. And
-  `drm_client_framebuffer_create` calls `drm_mode_addfb2`, which takes a
-  format, where `drm_mode_addfb` worked XRGB8888 out again from bits and depth.
+- **What it does.** Three changes. vc4 asks for an XBGR8888 framebuffer
+  emulation, red first in memory, where it asked for RGB565
+  (`drm_client_setup_with_fourcc`). The generic DMA emulation picks XBGR8888
+  where the legacy table gives XRGB8888: the emulation keeps only the bits a
+  pixel of the format it is given, so the format itself has to be chosen
+  there. And `drm_fb_helper_fill_pixel_fmt` reports red at bit 0 and blue at
+  bit 16 for that format, so the console and the boot logo keep their colours.
 - **Why.** The app's frame is red first. At 16 bits the shell converted every
   changed pixel on the CPU; now it copies the frame as it is (`docs/FRAMES.md`
   §5), and the screen shows 8 bits a colour where it showed 5 or 6. Each pixel
@@ -66,31 +66,14 @@ The Raspberry Pi 6.18 tree (6.18.59), in `faraday/image/boards/pi3/linux-patches
 - **Trade-off.** No new device node, command or permission: the app writes to
   `/dev/fb0` as before. The framebuffer takes twice the memory, about 1.2 MiB
   on the 2.8-inch panel and 7.9 MiB at 1080p, in place of half that. Two of the
-  changes are in code shared by every driver using the generic emulation or a
-  DRM client; vc4 is the only one this board builds. The `addfb2` change
-  gives a format the legacy table gives the same either way; the generic
-  emulation's pick changes XRGB8888 to XBGR8888 for any driver that asks
-  for it, with no effect today. This is the largest of the
+  changes are in code shared by every driver using the generic DMA emulation;
+  vc4 is the only one this board builds. The emulation's pick changes XRGB8888
+  to XBGR8888 for any driver that asks for it, with no effect today. This is the largest of the
   patches, in code that changes between kernel versions, so it is the likeliest
   to need rewriting at an update.
 - **When it can go.** When a kernel the Pi moves to lets vc4 ask for this
   format itself, or if the shell goes back to converting each frame and takes
   that cost.
-
-### 0004: vc4 stops output polling when it unbinds
-
-- **What it does.** One call in `vc4_drv.c`: `drm_kms_helper_poll_fini` when
-  the driver unbinds.
-- **Why.** vc4 starts the poll's delayed work and never stops it, so unbinding
-  frees the device while the timer is pending, and the timer then fires from
-  freed memory. The Pi's boot unbinds and binds vc4 again to bring up a DPI
-  panel, so a Pi on the 2.8-inch panicked about 13 s after power-on.
-- **From.** Faraday's own.
-- **Trade-off.** It removes a use of freed memory and adds no reach. It only
-  runs on an unbind, which HDMI's route does not do. The cost is one more
-  patch to carry through an update.
-- **When it can go.** When a kernel the Pi moves to stops the poll itself, or
-  when the boot no longer unbinds vc4.
 
 ## The PC
 

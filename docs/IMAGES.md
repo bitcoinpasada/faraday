@@ -47,11 +47,10 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
 - **DRM, for the display only.** vc4's display side, the DPI panel's
   driver, and the 2.8-inch's I²C touch controller. The Pi
   builds the board's kernel source with the patches
-  `docs/KERNEL-PATCHES.md` lists: three of Faraday's own, one to the EDID
-  read (owner, F153, F205), one that makes vc4's framebuffer 32 bits with
+  `docs/KERNEL-PATCHES.md` lists: two of Faraday's own, one to the EDID
+  read (owner, F153, F205) and one that makes vc4's framebuffer 32 bits with
   red first, so the shell writes its frame without a conversion
-  (`docs/FRAMES.md` §5), and one that stops vc4's output polling on unbind
-  (owner, F221). vc4 also binds the GPU's 3D block,
+  (`docs/FRAMES.md` §5; owner, F221). vc4 also binds the GPU's 3D block,
   V3D, and creates a render node, `/dev/dri/renderD128`; Kconfig has no
   switch for either. **The render node is root's alone, no patch:**
   `faraday/image/common/rootfs-overlay/etc/mdev.conf` gives it and
@@ -207,10 +206,8 @@ probe that finds nothing removes what it loaded before the next starts.
    in the 6.18 tree.) The second patch there is not about
    the EDID: vc4's framebuffer emulation is 32 bits a pixel in XBGR8888,
    red first in memory, with the colours the console reports to match
-   (`docs/FRAMES.md` §5). The third stops vc4's output polling when the
-   driver unbinds: without it, the rebind below leaves the poll's timer
-   pending on the freed device, and a Pi on the 2.8-inch panics about
-   13 s after power-on.
+   (`docs/FRAMES.md` §5). The rebind below leaves no output poll pending
+   on the freed device: 6.18's vc4 stops it when the device is released.
 2. **The 2.8-inch's GT911**, on the bit-banged I²C its touch overlay
    declares on the GPIO header: the touch overlay is loaded whenever
    HDMI does not read connected. It declares the GT911 at either of its
