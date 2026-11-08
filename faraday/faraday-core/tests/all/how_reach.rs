@@ -54,6 +54,7 @@ fn screen(name: &str) -> Screen {
         "Catalog" => S::Catalog,
         "Transfer" => S::Transfer,
         "BackupFlow" => S::BackupFlow,
+        "KefTool" => S::KefTool,
         other => panic!("{other} is not a Screen"),
     }
 }
@@ -135,6 +136,14 @@ fn on_screen(name: &str, w: u16, h: u16, dpi: u16) -> Faraday {
         app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Inbox(
             0,
         )));
+    } else if name == "KefTool" {
+        // It opens from its tile in Tools' catalog.
+        app.press(Action::Nav(Screen::Catalog));
+        let tile = faraday_core::catalog::TILES
+            .iter()
+            .position(|t| t.name == "Krux code")
+            .unwrap();
+        app.press(Action::Catalog(tile as u8));
     } else {
         app.press(Action::Nav(screen(name)));
     }
