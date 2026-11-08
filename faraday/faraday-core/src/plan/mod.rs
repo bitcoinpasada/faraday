@@ -2624,9 +2624,11 @@ pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
             paper.push(Item::Passphrase(i));
         }
     }
-    if paper
-        .iter()
-        .any(|i| matches!(i, Item::Copy(_) | Item::Codex32(_)))
+    let kef_paper = shape.here().into_iter().any(|i| kef_paper_on(m, i));
+    if kef_paper
+        || paper
+            .iter()
+            .any(|i| matches!(i, Item::Copy(_) | Item::Codex32(_)))
     {
         out.push(Item::Templates);
     }
@@ -2763,6 +2765,44 @@ pub fn templates_on(shape: &Shape, m: &Mapped) -> usize {
                 .count()
         })
         .sum()
+}
+
+/// Whether seed `i`'s Krux code is on Paper at some place of the map
+/// (`docs/KEF.md` §15.1).
+pub fn kef_paper_on(m: &Mapped, i: usize) -> bool {
+    kef_paper_places(m, i) > 0
+}
+
+/// How many places of the map hold seed `i`'s Krux code on Paper: one
+/// blank template each (`docs/KEF.md` §15.5).
+pub fn kef_paper_places(m: &Mapped, i: usize) -> usize {
+    m.map
+        .iter()
+        .filter(|s| matches!(s.at, At::Place(_)))
+        .filter(|s| s.holds.iter().any(|(w, _)| *w == What::KefCodePaper(i)))
+        .count()
+}
+
+/// **Not on Paper** for seed `i`'s Krux code (`docs/KEF.md` §15.1): the
+/// code on Paper comes off every place, and the plan is the edited map
+/// from then on (§9.7). A copy on a stick stays. Costs a map of the plan.
+pub fn kef_not_on_paper(shape: &Shape, a: &Answers, i: usize) -> Answers {
+    let mut out = a.clone();
+    let mut m = stored_map(shape, a);
+    let at: Vec<At> = m
+        .iter()
+        .filter(|s| matches!(s.at, At::Place(_)))
+        .filter(|s| s.holds.iter().any(|(w, _)| *w == What::KefCodePaper(i)))
+        .map(|s| s.at)
+        .collect();
+    if at.is_empty() {
+        return out;
+    }
+    for p in at {
+        m = without(&m, p, What::KefCodePaper(i));
+    }
+    out.set_map(m);
+    out
 }
 
 /// **Keep the words only** for seed `i` (`docs/history/NEW-WALLET.md` §14.7 item

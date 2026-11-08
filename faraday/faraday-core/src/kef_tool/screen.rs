@@ -21,6 +21,8 @@ fn ask() -> Ask {
         wrap,
         wrap_dice: |p| Action::KefTool(K::Dice(p)),
         on_rolls: |_| wrap(crate::kef_form::KefAct::DiceField),
+        pin: |n| wrap(crate::kef_form::KefAct::Pin(n)),
+        rows: |r| wrap(crate::kef_form::KefAct::Rows(r)),
     }
 }
 

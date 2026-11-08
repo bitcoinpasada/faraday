@@ -2133,3 +2133,5 @@ pub const KEF_CAPTION_ADVANCE: f32 = 22.0;
 /// The Krux code form: the largest side, in modules, of a code the blank
 /// template takes to copy by hand.
 pub const KEF_BY_HAND_MAX_SIDE: usize = 37;
+/// The side of a Krux code on a blank template when none is made yet (`docs/KEF.md` §10).
+pub const KEF_DEFAULT_SIDE: usize = 33;

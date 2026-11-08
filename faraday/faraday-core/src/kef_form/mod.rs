@@ -120,6 +120,12 @@ pub enum KefAct {
     CheckBack,
     /// Make another: back to the first step.
     Another,
+    /// On Paper: marks block (row) `n` of the grid to copy.
+    Pin(usize),
+    /// On Paper: marks the grid row by row (`true`) or block by block.
+    Rows(bool),
+    /// On Paper: takes the code off every place (`Faraday::kef_not_on_paper`).
+    NotOnPaper,
 }
 
 /// The form that makes a code.
@@ -132,6 +138,9 @@ pub struct KefForm {
     label: TextBox,
     rounds: TextBox,
     paper: bool,
+    pin: usize,
+    rows: bool,
+    scanned: bool,
     focus: Option<Focus>,
     sheet: bool,
     legacy: bool,
@@ -179,6 +188,9 @@ impl KefForm {
             label: TextBox::default(),
             rounds,
             paper,
+            pin: 0,
+            rows: false,
+            scanned: false,
             focus: Some(Focus::Pass),
             sheet: false,
             legacy: false,
@@ -248,12 +260,29 @@ impl KefForm {
         self.saved.as_ref()
     }
 
+    /// Whether the drawn copy on Paper was scanned and held the code.
+    pub fn scanned(&self) -> bool {
+        self.scanned
+    }
+
+    /// The grid's mark on Paper: the block or row, and whether by rows.
+    pub fn grid_mark(&self) -> (usize, bool) {
+        (self.pin, self.rows)
+    }
+
+    /// Where the code is copied by hand now: the plan's map has it on
+    /// Paper at a place.
+    pub(crate) fn set_paper(&mut self, paper: bool) {
+        self.paper = paper;
+    }
+
     /// Takes up a code made before, read back from its file: the form
-    /// stands at the code, `checked` as it was.
-    pub(crate) fn restore(&mut self, made: Made, saved: Saved, checked: bool) {
+    /// stands at the code, `checked` and `scanned` as they were.
+    pub(crate) fn restore(&mut self, made: Made, saved: Saved, checked: bool, scanned: bool) {
         self.made = Some(made);
         self.saved = Some(saved);
         self.checked = checked;
+        self.scanned = scanned;
         self.stage = Stage::Made;
     }
 
@@ -321,6 +350,11 @@ impl KefForm {
                 self.focus = Some(Focus::Check);
             }
             (Stage::Made, KefAct::Another) => self.again(),
+            (Stage::Made, KefAct::Pin(n)) => self.pin = n.min(faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE - 1),
+            (Stage::Made, KefAct::Rows(r)) => {
+                self.rows = r;
+                self.pin = 0;
+            }
             (Stage::Check, KefAct::CheckField) => self.focus = Some(Focus::Check),
             (Stage::Check, KefAct::CheckEye) => self.check_shown = !self.check_shown,
             (Stage::Check, KefAct::Compare) => self.compare(app),
@@ -394,7 +428,10 @@ impl KefForm {
             | KefAct::CheckEye
             | KefAct::Compare
             | KefAct::CheckBack
-            | KefAct::Another => {}
+            | KefAct::Another
+            | KefAct::Pin(_)
+            | KefAct::Rows(_)
+            | KefAct::NotOnPaper => {}
         }
     }
 
@@ -535,6 +572,8 @@ impl KefForm {
         if matches!(self.stage, Stage::Made | Stage::Check) {
             self.made = None;
             self.saved = None;
+            self.scanned = false;
+            self.pin = 0;
             self.pass.clear();
             self.check.clear();
             self.checked = false;

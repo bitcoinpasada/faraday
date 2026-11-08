@@ -12743,6 +12743,22 @@ strings! {
     kef_opt_by_hand_no: "No",
     /// Options, on Paper: a side in modules. `{}`: the side, twice.
     kef_opt_side: "{} × {}",
+    /// The Code card, on Paper: the sheet a code that fits one is copied on. `{}`: the side, twice.
+    kef_by_hand_sheet: "Sheet: Faraday Starter, Blank templates, Krux code, {} × {}",
+    /// The Code card, on Paper: the line for the largest side that fits a blank template.
+    kef_largest: "Largest",
+    /// The Code card, on Paper: whether the drawn copy was scanned.
+    kef_drawn_copy: "Drawn copy",
+    /// The Code card, on Paper: the drawn copy was not scanned.
+    kef_not_scanned: "Not scanned",
+    /// The Code card, on Paper: takes the code off Paper.
+    kef_not_on_paper: "Not on Paper",
+    /// Templates item: the Krux code sheets, after the others'. `{}`: how many, the side twice.
+    kef_templates_clause: "{} from Blank templates, Krux code, {} × {}",
+    /// Templates item: the Krux code sheets alone. `{}`: how many, the side twice.
+    kef_templates_starter: "Print {} from Faraday Starter: Blank templates, Krux code, {} × {}",
+    /// Templates item's line with only Krux code sheets. `{}`: the side twice.
+    kef_templates_sub: "Krux code, {} × {}",
     /// The Code card: opens the check of the code against what it holds.
     kef_check_my_code: "Check my code",
     /// The Code card: goes back to the first step.

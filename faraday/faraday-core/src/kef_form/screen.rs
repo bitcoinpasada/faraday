@@ -23,6 +23,10 @@ pub(crate) struct Ask {
     pub wrap: fn(KefAct) -> Action,
     pub wrap_dice: fn(Press) -> Action,
     pub on_rolls: fn(usize) -> Action,
+    /// The press that marks block (row) `n` of the grid on Paper.
+    pub pin: fn(usize) -> Action,
+    /// The press that marks the grid by rows (`true`) or blocks.
+    pub rows: fn(bool) -> Action,
 }
 
 /// The first step, at (x, y), `w` wide. Returns its height. Drawn in every stage.
@@ -35,7 +39,7 @@ pub(crate) fn draw(
 ) -> f32 {
     let mut cy = y;
     match f.stage {
-        Stage::Made => return code_card(ui, (x, cy, w), f, ask),
+        Stage::Made => return code_card(app, ui, (x, cy, w), f, ask),
         Stage::Check => return check_card(app, ui, (x, cy, w), f, ask),
         Stage::Making | Stage::Comparing => {
             let line = if f.stage == Stage::Making {
@@ -118,13 +122,51 @@ pub(crate) fn draw(
 }
 
 /// The Code card: the code's picture, Checked once it is, **Check my
-/// code** and **Make another**. Returns its height.
-fn code_card(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f32 {
+/// code** and **Make another**. On Paper, in place of the picture of a
+/// code that fits a blank template, **Size**, **By hand** and the grid to
+/// copy it from (`docs/KEF.md` §15.1). Returns its height.
+fn code_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f32 {
+    use faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE as MAX;
     let mut cy = y;
     if let Some(m) = &f.made {
         match &m.view {
             Ok(v) => {
-                if let Some(q) = v.frames.get(v.frame) {
+                let code = v.frames.get(v.frame);
+                let side = code.map(|q| q.size());
+                let grid = code.filter(|q| f.paper && q.size() <= MAX);
+                if let Some(s) = side.filter(|_| f.paper) {
+                    let s2 = [s.to_string(), s.to_string()];
+                    let by_hand = if s <= MAX {
+                        fill(EN.kef_by_hand_sheet, &[&s2[0], &s2[1]])
+                    } else {
+                        EN.kef_opt_by_hand_no.to_string()
+                    };
+                    let size = fill(EN.kef_opt_side, &[&s2[0], &s2[1]]);
+                    for line in [
+                        format!("{}: {size}", EN.kef_opt_size),
+                        format!("{}: {by_hand}", EN.kef_opt_by_hand),
+                    ] {
+                        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line);
+                    }
+                    if s > MAX {
+                        let big = fill(EN.kef_opt_side, &[&MAX.to_string(), &MAX.to_string()]);
+                        let line = format!("{}: {big}", EN.kef_largest);
+                        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line);
+                    }
+                    cy += GAP;
+                }
+                if let Some(q) = grid {
+                    let g = crate::screens::CopyGrid {
+                        m: q,
+                        printed: crate::wallet_backup::structural_fixed,
+                        lettered: false,
+                        rows: f.rows,
+                        pin: f.pin,
+                        pick: ask.pin,
+                        mode: ask.rows,
+                    };
+                    cy += crate::screens::copy_grid(ui, x, cy, w, &g) + GAP;
+                } else if let Some(q) = code {
                     let size = if ui.compact {
                         faraday_draw::geom::SizeClass::Small
                     } else {
@@ -142,10 +184,17 @@ fn code_card(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> 
             Err(e) => cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, e) + GAP,
         }
     }
-    if f.checked {
+    // On Paper the code counts once its drawn copy was scanned back, or
+    // with no camera to scan it with, once it opened (§15.1).
+    let no_camera = app.cameras().is_empty();
+    if f.paper && !f.scanned {
+        let line = format!("{}: {}", EN.kef_drawn_copy, EN.kef_not_scanned);
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + GAP;
+    }
+    if f.checked && (!f.paper || f.scanned || no_camera) {
         ui.text_as(x, cy, LABEL_L, Role::Ok, EN.kef_checked);
         cy += ui.advance_as(LABEL_L, faraday_draw::tokens::KEF_HEAD_ADVANCE);
-    } else {
+    } else if !f.checked {
         ui.button(
             x,
             cy,
@@ -157,6 +206,8 @@ fn code_card(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> 
         );
         cy += BUTTON_H + GAP;
     }
+    // Part B: **Scan my copy** (`ScanPurpose::CheckKef`) goes here, for a
+    // code on Paper that opened and is not scanned, with a camera.
     ui.button(
         x,
         cy,

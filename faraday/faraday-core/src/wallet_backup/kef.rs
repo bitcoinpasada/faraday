@@ -81,10 +81,32 @@ fn kept(app: &Faraday, i: usize) -> Option<KefMark> {
                 sha: m.sha,
                 low: m.low,
                 label: m.label,
+                scanned: f.scanned(),
+                side: side_of_made(m),
             })
         }
         None => app.kef_mark(i),
     }
+}
+
+/// The side in modules of a made code's picture, 0 where it fits none.
+fn side_of_made(m: &kef_make::Made) -> u16 {
+    m.view
+        .as_ref()
+        .ok()
+        .and_then(|v| v.frames.first())
+        .and_then(|q| u16::try_from(q.size()).ok())
+        .unwrap_or(0)
+}
+
+/// Costs a map of the plan. Whether the plan puts seed `i`'s Krux code on
+/// Paper at a place.
+fn on_paper(app: &Faraday, c: &Compute, i: usize) -> bool {
+    let Some(b) = app.backup.state() else {
+        return false;
+    };
+    let shape = app.plan_shape_now(b.wallet);
+    plan::kef_paper_on(&app.kept.plan_mapped(c, &shape, &b.answers), i)
 }
 
 /// Which box holds the first copy of `name`, in the order the stick's
@@ -131,8 +153,26 @@ pub(crate) fn pending(app: &Faraday, i: usize) -> bool {
 /// Costs a SHA-256 pass over the `.kef` file. Whether seed `i`'s Krux code
 /// was opened back and held the seed, with both its files there and the
 /// `.kef` file's bytes the ones made.
+///
+/// On Paper the code also counts once the drawn copy was scanned back, or
+/// with no camera to scan it with (`docs/KEF.md` §15.1).
 pub(crate) fn checked(app: &Faraday, c: &Compute, i: usize) -> bool {
-    kept(app, i).is_some_and(|m| m.checked && named(app, &m) && kef_bytes(app, c, &m).is_some())
+    kept(app, i).is_some_and(|m| {
+        m.checked
+            && named(app, &m)
+            && kef_bytes(app, c, &m).is_some()
+            && (m.scanned || app.cameras().is_empty() || !on_paper(app, c, i))
+    })
+}
+
+/// The side in modules of seed `i`'s Krux code
+/// on a blank template: the code's if one is made, else §10's default
+/// (`docs/KEF.md` §15.5).
+pub(crate) fn template_side(app: &Faraday, i: usize) -> usize {
+    kept(app, i)
+        .map(|m| usize::from(m.side))
+        .filter(|&s| s > 0)
+        .unwrap_or(faraday_draw::tokens::KEF_DEFAULT_SIDE)
 }
 
 /// Seed `i`'s Krux code files as the stick lists them: the picture's name
@@ -225,6 +265,7 @@ fn restore(app: &mut Faraday, i: usize, form: &mut KefForm) {
             file: m.file,
         },
         m.checked,
+        m.scanned,
     );
 }
 
@@ -265,7 +306,7 @@ fn with_open<R>(app: &mut Faraday, f: impl FnOnce(&mut KefForm, &mut Faraday) ->
 }
 
 /// A form for seed `i`: its bytes, its wallet's fingerprint.
-fn new_form(app: &Faraday, i: usize) -> Option<KefForm> {
+fn new_form(app: &Faraday, c: &Compute, i: usize) -> Option<KefForm> {
     let w = app.backup.state()?.wallet;
     let key = app.backup_seed_list_now(w).get(i)?.1?;
     let info = app.session.keys.info(key)?;
@@ -276,7 +317,7 @@ fn new_form(app: &Faraday, i: usize) -> Option<KefForm> {
             bytes,
             fingerprint: Some(info.fingerprint.0),
         },
-        false,
+        on_paper(app, c, i),
     ))
 }
 
@@ -291,10 +332,14 @@ pub(crate) fn opened(app: &mut Faraday) {
     }
     if let Some(i) = cur
         && app.backup.kef_form(i).is_none()
-        && let Some(mut form) = new_form(app, i)
+        && let c = app.compute()
+        && let Some(mut form) = new_form(app, &c, i)
     {
         restore(app, i, &mut form);
         app.backup.kef_put(i, form);
+    }
+    if let Some(i) = cur {
+        sync_paper(app, i);
     }
     if let Some(i) = cur
         && app.backup.kef_form(i).is_some_and(|f| f.made().is_some())
@@ -304,8 +349,38 @@ pub(crate) fn opened(app: &mut Faraday) {
     sync(app);
 }
 
+/// Seed `i`'s form follows the map: on Paper where a place holds the
+/// code.
+fn sync_paper(app: &mut Faraday, i: usize) {
+    let c = app.compute();
+    let paper = on_paper(app, &c, i);
+    with_form(app, i, |f, _| f.set_paper(paper));
+}
+
+/// Not on Paper: the open item's code comes off every place
+/// (`docs/KEF.md` §15.1). The item goes with it where no stick holds the
+/// code either; the drawn copy no longer counts.
+fn not_on_paper(app: &mut Faraday) {
+    let Some(i) = app.backup.kef_open() else {
+        return;
+    };
+    let Some(b) = app.backup.state() else {
+        return;
+    };
+    let shape = app.plan_shape_now(b.wallet);
+    let answers = plan::kef_not_on_paper(&shape, &b.answers, i);
+    app.backup.set_answers(answers);
+    app.plan_save();
+    app.backups_sync();
+    sync_paper(app, i);
+}
+
 /// A press on the form.
 pub(crate) fn act(app: &mut Faraday, a: KefAct) {
+    if a == KefAct::NotOnPaper {
+        not_on_paper(app);
+        return;
+    }
     let before = app
         .backup
         .kef_open()
@@ -429,6 +504,8 @@ pub(crate) fn ask() -> Ask {
     Ask {
         wrap: |a| Action::KefTool(KefToolAction::Backup(a)),
         wrap_dice: |p| Action::KefTool(KefToolAction::BackupDice(p)),
+        pin: |n| Action::KefTool(KefToolAction::Backup(KefAct::Pin(n))),
+        rows: |r| Action::KefTool(KefToolAction::Backup(KefAct::Rows(r))),
         on_rolls: |_| Action::KefTool(KefToolAction::Backup(KefAct::DiceField)),
     }
 }

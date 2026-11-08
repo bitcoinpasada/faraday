@@ -79,6 +79,11 @@ pub struct KefMark {
     pub low: bool,
     /// The picture carries a typed id's line.
     pub label: bool,
+    /// The drawn copy on Paper was scanned and held the code.
+    pub scanned: bool,
+    /// The code's side in modules, 0 where the picture does not fit one
+    /// code.
+    pub side: u16,
 }
 
 /// A record's marks, as a backup opened again takes them up.
@@ -191,6 +196,36 @@ fn hex4(b: [u8; 4]) -> String {
 }
 
 /// A flag as the record writes it: `0` or `1`.
+/// A `kef` line's fields into the last record `out` holds; a field that
+/// does not read drops the line.
+fn read_kef(out: &mut [Record], f: [&str; 9]) {
+    let [fp, png, file, checked, sha, low, label, scanned, side] = f;
+    if let (Some(fp), Some(sha), Some(r)) = (read_hex4(fp), read_hex32(sha), out.last_mut())
+        && !file.is_empty()
+        && let (Some(checked), Some(low), Some(label), Some(scanned), Ok(side)) = (
+            read_flag(checked),
+            read_flag(low),
+            read_flag(label),
+            read_flag(scanned),
+            side.parse::<u16>(),
+        )
+    {
+        r.kefs.push((
+            fp,
+            KefMark {
+                png: (!png.is_empty()).then(|| png.to_string()),
+                file: file.to_string(),
+                checked,
+                sha,
+                low,
+                label,
+                scanned,
+                side,
+            },
+        ));
+    }
+}
+
 fn read_flag(s: &str) -> Option<bool> {
     match s {
         "0" => Some(false),
@@ -283,14 +318,16 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
         }
         for (fp, k) in &r.kefs {
             out.push_str(&format!(
-                "kef\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                "kef\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
                 hex4(*fp),
                 kept_field(k.png.as_deref().unwrap_or("")),
                 kept_field(&k.file),
                 u8::from(k.checked),
                 hex32(&k.sha),
                 u8::from(k.low),
-                u8::from(k.label)
+                u8::from(k.label),
+                u8::from(k.scanned),
+                k.side
             ));
         }
         if !r.answers.is_empty() {
@@ -362,25 +399,13 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
             // A flag other than 0 or 1 drops the line too.
             // A line without the hash and the options (kept before they
             // were) is dropped: the code reads Not made.
+            // A line kept before the drawn copy and the side were (eight
+            // fields) reads as not scanned, side unknown.
             ["kef", fp, png, file, checked, sha, low, label] => {
-                if let (Some(fp), Some(sha), Some(r)) =
-                    (read_hex4(fp), read_hex32(sha), out.last_mut())
-                    && !file.is_empty()
-                    && let (Some(checked), Some(low), Some(label)) =
-                        (read_flag(checked), read_flag(low), read_flag(label))
-                {
-                    r.kefs.push((
-                        fp,
-                        KefMark {
-                            png: (!png.is_empty()).then(|| png.to_string()),
-                            file: file.to_string(),
-                            checked,
-                            sha,
-                            low,
-                            label,
-                        },
-                    ));
-                }
+                read_kef(&mut out, [fp, png, file, checked, sha, low, label, "0", "0"]);
+            }
+            ["kef", fp, png, file, checked, sha, low, label, scanned, side] => {
+                read_kef(&mut out, [fp, png, file, checked, sha, low, label, scanned, side]);
             }
             ["check", fp, n] => {
                 if let (Some(fp), Ok(n), Some(r)) = (read_hex4(fp), n.parse(), out.last_mut()) {

@@ -60,11 +60,19 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
             let mapped = reads.plan_mapped(&shape, a);
             let words_n = crate::plan::templates_on(&shape, &mapped);
             let c32 = crate::plan::codex32::templates_of(a, &mapped);
-            let k = (words_n + c32.iter().map(|&(_, _, n)| n).sum::<usize>()).max(1);
-            // Only codex32 sheets: the line names their length (§9.3).
-            let line = match c32.first() {
-                Some(&(len, _, _)) if words_n == 0 => {
+            let kef = kef_templates(app, &shape, &mapped);
+            let k = (words_n
+                + c32.iter().map(|&(_, _, n)| n).sum::<usize>()
+                + kef.iter().map(|&(_, n)| n).sum::<usize>())
+            .max(1);
+            // Only codex32 sheets: the line names their length (§9.3);
+            // only Krux code sheets, their side.
+            let line = match (c32.first(), kef.first()) {
+                (Some(&(len, _, _)), _) if words_n == 0 => {
                     fill(EN.c32_templates_sub, &[&len.to_string()])
+                }
+                (None, Some(&(side, _))) if words_n == 0 => {
+                    fill(EN.kef_templates_sub, &[&side.to_string(), &side.to_string()])
                 }
                 _ => fill(EN.item_title_template_n, &[&b.words.to_string()]),
             };
@@ -837,8 +845,9 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let mapped = app.plan_mapped(&shape, &b.answers);
             let words_n = crate::plan::templates_on(&shape, &mapped);
             let c32 = crate::plan::codex32::templates_of(&b.answers, &mapped);
+            let kef = kef_templates(app, &shape, &mapped);
             let mut clauses: Vec<String> = Vec::new();
-            if words_n > 0 || c32.is_empty() {
+            if words_n > 0 || (c32.is_empty() && kef.is_empty()) {
                 clauses.push(fill(
                     EN.item_templates_starter,
                     &[&words_n.max(1).to_string(), &b.words.to_string(), copy],
@@ -846,6 +855,14 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             }
             for (len, copy, n) in c32 {
                 clauses.push(c32_templates_clause(clauses.is_empty(), len, copy, n));
+            }
+            for (side, n) in kef {
+                let (n, side) = (n.to_string(), side.to_string());
+                clauses.push(if clauses.is_empty() {
+                    fill(EN.kef_templates_starter, &[&n, &side, &side])
+                } else {
+                    fill(EN.kef_templates_clause, &[&n, &side, &side])
+                });
             }
             let line = clauses.join("; ");
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + 16.0;
@@ -1029,6 +1046,20 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     crate::wallet_backup::kef::ask(),
                 );
                 cy += T::GAP;
+            }
+            if app.backup.kef_form(i).is_some_and(|f| f.on_paper()) {
+                ui.button(
+                    x,
+                    cy,
+                    None,
+                    BUTTON_H,
+                    EN.kef_not_on_paper,
+                    Style::Ghost,
+                    Action::KefTool(crate::kef_tool::KefToolAction::Backup(
+                        crate::kef_form::KefAct::NotOnPaper,
+                    )),
+                );
+                cy += BUTTON_H + T::GAP;
             }
             if app.backup_item_done(crate::plan::Item::KefCode(i))
                 && item_next(app, ui, x, cy, w, n)
@@ -1911,6 +1942,30 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// characters copied as `copy`, named as the Starter's Blank templates
 /// name them (`docs/CODEX32.md` §9.3, §11): "3 from Blank templates,
 /// codex32, 48 characters, Codex32QR". `first` says it opens the line.
+/// The Krux code sheets the plan prints, by side and number: one per
+/// place and seed holding its code on Paper, at the side of the code if
+/// one is made (`docs/KEF.md` §15.5). Sides in order.
+fn kef_templates(
+    app: &Faraday,
+    shape: &crate::plan::Shape,
+    mapped: &crate::plan::Mapped,
+) -> Vec<(usize, usize)> {
+    let mut out: Vec<(usize, usize)> = Vec::new();
+    for i in shape.here() {
+        let n = crate::plan::kef_paper_places(mapped, i);
+        if n == 0 {
+            continue;
+        }
+        let side = crate::wallet_backup::kef::template_side(app, i);
+        match out.iter_mut().find(|(s, _)| *s == side) {
+            Some((_, k)) => *k += n,
+            None => out.push((side, n)),
+        }
+    }
+    out.sort_unstable();
+    out
+}
+
 fn c32_templates_clause(
     first: bool,
     len: u8,
