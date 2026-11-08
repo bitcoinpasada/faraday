@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified; the first two steps of §3 are built (`Ui::region`, the whole-pixel offset, the pages and panes laid out from offset 0 and the content layer; the moved frame with `moved.rs`, `Out::redraw` and `Out::moved`, `Parts::moved` and the two tests of §3.2 and §3.4, opted in by the small panel's Settings, Wallets, a wallet's page, Files, Vault contents, Backups, the backup board and checklist and the step columns the test walks, and by the wide Wallets, Vault contents, Settings, Backups and those step-column pages), and so are the Pi's frame written without a conversion (§5, the kernel patch and the shell's red-first depth; its figure on a card is not yet taken), the framebuffer write's first three points (§6) and the face kept per size, `Ui::wrap_lines` linear in its words and Home's backup count and a wallet's backup line worked out without every wallet's map, the signing page's text lines kept by file, the Backups screen's list and the wallet chart kept across moved frames and the shell's calls to the disk process on a thread of their own, of §7; the stick shell takes the moved frame (§3.7: `Presenter::present_moved`, in ordinary memory, with the panel written bands rather than a span), and the frame drawn in bands across the cores (§4: `faraday-core`'s `bands.rs`, in every whole frame; a moved frame paints its strip as it is called); and the stick's centred window on a larger screen (§6, `faraday.window=`); the rest is not. Faraday Demo ignores `Parts::moved`, as §3.6 says
-**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the stick's moved frame timed on the dev card with `--timings` (§3.5), the window's frame time on a card beside the whole screen's, the stick's look for input devices and its calls to the disk process, off the main loop, timed on the dev card, what a frame does beside its pixels that §7 has not yet found or fixed (among it, the Backups screen's list and the wallet chart, which a whole frame still works out, the first moved frame after it too). While the scanner sheet is open the stick asks its camera for 1920 × 1080 so that a dense QR reads, and the sheet's preview is the 640 × 360 reduction of it (three times the bytes of the 320 × 240 before), moved and wiped per frame; no other screen pays, and the cost of the sheet on a Pi is not measured
+**Open:** the rest of it: `Moves::Yes` on the wide Files page and its Files-out pane, which the test drives to no moved frame (so they draw whole), `Moves::Yes` on the step columns the test does not walk (Convert, BIP-85, Silent, Keygen, Vanity, Message, Restore, Family, Signer check, Create vault: they draw whole), with the regions still laid out at their offset (the Board's list, the codex32 dice sheet and worksheet, Learn's body, the wide Family tab and the wide Files page's head, which draw in pixels of their own or in a scrolled place that depends on the offset; `Region::from_zero` is on every other), the stick's moved frame timed on the dev card with `--timings` (§3.5), the window's frame time on a card beside the whole screen's, the stick's look for input devices and its calls to the disk process, off the main loop, timed on the dev card, what a frame does beside its pixels that §7 has not yet found or fixed (among it, the Backups screen's list and the wallet chart, which a whole frame still works out, the first moved frame after it too). While the scanner sheet is open the stick asks its camera for 1920 × 1080 so that a dense QR reads, and the sheet's preview is the 640 × 360 reduction of it (three times the bytes of the 320 × 240 before), moved and wiped per frame; no other screen pays, and the cost of the sheet on a Pi is not measured The Pi's vsync wait does not follow the screen, since the first CRTC is the video core's writeback block and turning that block off left the Pi with no picture (§6).
 
 The Pi's frame grid runs at 15 Hz while a finger drags, and at 30 Hz
 once its clock follows the work (`docs/MOTION.md` §3.2); the aim is
@@ -588,28 +588,23 @@ motion carried a new frame" is `carried_pct` when the grid's step is one
 frame; at a step of two it is about 50 by design, and `missed` is the
 number to read.
 
-**Which CRTC the wait follows** *(Built in the image; run on the panel)*. `drm_fb_helper_ioctl` waits on the first CRTC of the device
+**Which CRTC the wait follows** *(Open: the wait does not follow the screen on the Pi)*. `drm_fb_helper_ioctl` waits on the first CRTC of the device
 only, and when that CRTC is not enabled it returns 0 at once; the first
 CRTC is the first one vc4 created (`drm_for_each_crtc`). vc4 binds the
 TXP, the video core's writeback block, before the pixelvalves, and
-`vc4-kms-v3d` turns it on, so with it the first CRTC is the writeback's
-and a wait on the panel returns at once, which is what the `vblank` line
-reported (the waits returned at once, three times). The Pi's
-`config.txt` therefore loads `faraday-txp-off`, an overlay of Faraday's
-own (`faraday/image/boards/pi3/faraday-txp-off.dts`, compiled by that
-board's `post-image.sh`) after `vc4-kms-v3d`, which sets the TXP's
-status back to disabled. The firmware applies it before the kernel
-starts, so the panel's overlay loaded later through configfs, and the
-second bind of vc4 it causes, find the same device tree: the TXP has no
-device and is not among vc4's components. Nothing in Faraday uses
-writeback. The first CRTC is then the first pixelvalve, `3f206000`,
-which feeds the DPI panel. An HDMI screen is on the third pixelvalve and
-is not the first CRTC, so its wait stays off as before.
+`vc4-kms-v3d` turns it on, so the first CRTC is the writeback's and a
+wait on the panel returns at once, which is what the `vblank` line
+reported (the waits returned at once, three times). The image leaves the
+writeback block on: an overlay that turned it off was tried, and the Pi
+with it showed no picture on HDMI or on the panel and wrote no boot
+report, while the same card without it booted to the app on both. The
+cause is not known. So the first CRTC on the Pi is the TXP, the vsync
+wait does not follow the screen, and the shell's own timer paces the
+frames; this is open. Nothing in Faraday uses writeback.
 
-With the writeback off, the wait has run on the 2.8-inch panel at the 22 MHz
-pixel clock: it held a measured 16.68 ms, and a run showed no tearing to the
-eye. In that run 64% of the frames that moved were shown at one refresh and
-27% at two.
+An earlier run with the writeback off, a pixelvalve as the first CRTC, held a
+measured 16.68 ms on the 2.8-inch panel at the 22 MHz pixel clock and
+showed no tearing to the eye; that is the result to reach again.
 
 **A window on a larger screen** *(Built; its figure on a card is not yet
 taken)*. `faraday.window=WxH` on the kernel command line draws in a
