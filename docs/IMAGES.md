@@ -51,7 +51,7 @@ What the Pi's kernel adds to the common kernel's reach, against `docs/SECURITY-M
   read (owner, F153, F205), one that makes vc4's framebuffer 32 bits with
   red first, so the shell writes its frame without a conversion
   (`docs/FRAMES.md` §5), and one that stops vc4's output polling on unbind
-  (owner, F221), and one mainline commit. vc4 also binds the GPU's 3D block,
+  (owner, F221). vc4 also binds the GPU's 3D block,
   V3D, and creates a render node, `/dev/dri/renderD128`; Kconfig has no
   switch for either. **The render node is root's alone, no patch:**
   `faraday/image/common/rootfs-overlay/etc/mdev.conf` gives it and
@@ -199,15 +199,15 @@ probe that finds nothing removes what it loaded before the next starts.
    can read connected and give no modes (its EDID read failed), which
    leaves no `/dev/fb0`: when none comes within the wait, the script
    writes `on-digital` to that file, and the forced connector's next
-   probe reads the EDID again. Two patches in the board's `linux-patches/`
-   keep a failed read from leaving a screen with nothing. `i2c-bcm2835`
+   probe reads the EDID again. A patch in the board's `linux-patches/`
+   keeps a failed read from leaving a screen with nothing: `i2c-bcm2835`
    cannot be relied on for the three messages an EDID's block 2 or later
-   takes, so a read that fails keeps the blocks before it (F205); and an
-   EDID with no block read at all gives the kernel's fallback modes up to
-   1024x768 (mainline abf493988e38). The third patch there is not about
+   takes, so a read that fails keeps the blocks before it (F205). (The
+   kernel's own fallback modes for an EDID with no block read at all are
+   in the 6.18 tree.) The second patch there is not about
    the EDID: vc4's framebuffer emulation is 32 bits a pixel in XBGR8888,
    red first in memory, with the colours the console reports to match
-   (`docs/FRAMES.md` §5). The fourth stops vc4's output polling when the
+   (`docs/FRAMES.md` §5). The third stops vc4's output polling when the
    driver unbinds: without it, the rebind below leaves the poll's timer
    pending on the freed device, and a Pi on the 2.8-inch panics about
    13 s after power-on.

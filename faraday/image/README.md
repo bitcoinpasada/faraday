@@ -137,6 +137,7 @@ A directory under `boards/` with three fragments and a `board.conf`:
   | `FIRMWARE` | `rpi` if the firmware reads `config.txt` and `cmdline.txt` off the boot partition; `none` otherwise |
   | `CMDLINE` | `file` if the firmware passes the kernel its command line; `kernel` if the line is compiled in (`CONFIG_CMDLINE_OVERRIDE`) |
   | `DTBS` | the device trees that go on the boot partition and into `BR2_LINUX_KERNEL_INTREE_DTS_NAME`; absent on a machine described by ACPI |
+  | `DTS_DIR` | the folder of the kernel's `arch/<arch>/boot/dts` the `DTBS` are in, if not the top (`broadcom` on the Pi); put before each name for `BR2_LINUX_KERNEL_INTREE_DTS_NAME`, not on the card |
   | `EXCHANGE` | the data partition of the medium the machine started from, written to `/etc/faraday/exchange`: a node, or `layout` for a stick, which `faraday-grant --find-boot` finds at start by its layout and the build it holds (`docs/STICK-IDENTITY.md` §5.2) |
   | `CONSOLE_TTY` | where the dev variant's getty runs |
   | `IMAGE` | what this board's `genimage.cfg` calls the finished image |
@@ -319,7 +320,7 @@ is the point of it and useless when the question is why the panel is blank.
 | Piece | Choice |
 |---|---|
 | Buildroot | 2024.02 LTS, pinned to a release tag in the `justfile` |
-| Kernel | The board's, **with its defconfig's `=m` lines dropped**, plus the `linux.fragment`s: for `pi3`, the Raspberry Pi 6.1 tree at the commit Buildroot 2024.02 pins, with the patches `docs/KERNEL-PATCHES.md` lists (`linux-patches/`, `docs/IMAGES.md` §3.2), and its `bcm2709` configuration; for `x86_64-uefi`, mainline 6.18.56 (6.18 longterm) from kernel.org with five commits from 6.19 that put the screen's EDID in `boot_params` (`linux-patches/`, `docs/KERNEL-PATCHES.md`, F23) and `x86_64_defconfig`. Each board's `buildroot.fragment` carries the tarball's sha256 and `build.sh` checks it |
+| Kernel | The board's, **with its defconfig's `=m` lines dropped**, plus the `linux.fragment`s: for `pi3`, the Raspberry Pi 6.18 tree (6.18.59) at the commit its `buildroot.fragment` pins, with the patches `docs/KERNEL-PATCHES.md` lists (`linux-patches/`, `docs/IMAGES.md` §3.2), and its `bcm2709` configuration; for `x86_64-uefi`, mainline 6.18.56 (6.18 longterm) from kernel.org with five commits from 6.19 that put the screen's EDID in `boot_params` (`linux-patches/`, `docs/KERNEL-PATCHES.md`, F23) and `x86_64_defconfig`. Each board's `buildroot.fragment` carries the tarball's sha256 and `build.sh` checks it |
 | C library | musl, static only. BusyBox is the one package Buildroot builds for the target, so there is no shared library in the image at all |
 | Firmware | On a Pi, `rpi-firmware`, the `PI_X` variant, so `start_x.elf` and `fixup_x.dat` are on the card. On the stick, none: the machine's own firmware runs the kernel, and no blob of any kind is in the image |
 | Root filesystem | An initramfs (cpio) linked into the kernel image. BusyBox `init`, one shell, `mdev`, `setpriv`, `setuidgid`, `poweroff`, and `/usr/bin/faraday`; nothing that finds a filesystem by its label or UUID (`findfs`, `blkid`, `volume_id`). No `/lib/*.so` |

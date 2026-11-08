@@ -5,7 +5,7 @@
 
 Every change the images make to their kernel's source, on every board. The
 patches are the files in each board's `linux-patches/`, applied in order by
-the build. There are nine: four on the Pi, three of them Faraday's own, and
+the build. There are eight: three on the Pi, all Faraday's own, and
 five on the PC, all from mainline. Nothing else changes the kernel's source;
 what is built into it is the configuration, `docs/SECURITY-MODEL.md`, "What
 the kernel can reach".
@@ -17,7 +17,6 @@ own.
 
 | Board | Patch | What it does | From | Decision |
 |---|---|---|---|---|
-| Pi | 0001 | A failed EDID read gives fallback modes, not an error | Mainline | F205 names it |
 | Pi | 0002 | A failed read of a later EDID block keeps the blocks before it | Faraday's own | F205 |
 | Pi | 0003 | vc4's framebuffer is 32 bits with red first | Faraday's own | F221 |
 | Pi | 0004 | vc4 stops output polling when it unbinds | Faraday's own | F221 |
@@ -25,21 +24,8 @@ own.
 
 ## The Pi
 
-The Raspberry Pi 6.1 tree, in `faraday/image/boards/pi3/linux-patches/`.
+The Raspberry Pi 6.18 tree (6.18.59), in `faraday/image/boards/pi3/linux-patches/`.
 `docs/IMAGES.md` §3.2 says where each one matters at boot.
-
-### 0001: a failed EDID read gives fallback modes
-
-- **What it does.** One line in `vc4_hdmi.c`: when no EDID can be read,
-  `.get_modes()` returns 0 where it returned `-ENODEV`, so the probe helper
-  adds the kernel's fallback modes, up to 1024x768.
-- **Why.** A monitor whose EDID cannot be read otherwise has no modes, so no
-  `/dev/fb0` and no picture.
-- **From.** Mainline commit abf493988e38, its one line applied to this tree.
-- **Trade-off.** None for reach: no new interface, and no more of the
-  monitor's data is read. An HDMI screen that gave no EDID now gets a picture
-  at a low resolution where before it got none.
-- **When it can go.** When the Pi moves to a kernel that has this commit.
 
 ### 0002: a failed read of a later EDID block keeps the blocks before it
 

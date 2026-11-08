@@ -12,7 +12,7 @@ with two messages.
 diff --git a/drivers/gpu/drm/drm_edid.c b/drivers/gpu/drm/drm_edid.c
 --- a/drivers/gpu/drm/drm_edid.c
 +++ b/drivers/gpu/drm/drm_edid.c
-@@ -2348,8 +2348,16 @@
+@@ -2423,8 +2423,16 @@
  		edid_block_status_print(status, block, i);
  
  		if (!edid_block_status_valid(status, edid_block_tag(block))) {

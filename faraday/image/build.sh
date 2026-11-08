@@ -82,6 +82,7 @@ export FORCE_UNSAFE_CONFIGURE=1
 board_name="$NAME"
 board_status="${STATUS:-untested}"
 board_dtbs="${DTBS:-}"
+board_dts_dir="${DTS_DIR:-}"
 board_firmware="${FIRMWARE:-none}"
 board_cmdline="${CMDLINE:-kernel}"
 board_exchange="${EXCHANGE:-}"
@@ -392,7 +393,14 @@ overlays+=("$gen/overlay")
     echo "BR2_ROOTFS_OVERLAY=\"${overlays[*]}\""
     echo "BR2_ROOTFS_POST_IMAGE_SCRIPT=\"${post_image[*]}\""
     if [ -n "$board_dtbs" ]; then
-        echo "BR2_LINUX_KERNEL_INTREE_DTS_NAME=\"$board_dtbs\""
+        # DTS_DIR is the folder under arch/<arch>/boot/dts the kernel keeps
+        # them in; Buildroot installs each by its basename, which is what
+        # genimage.cfg lists.
+        intree_dts=""
+        for d in $board_dtbs; do
+            intree_dts="$intree_dts${intree_dts:+ }${board_dts_dir:+$board_dts_dir/}$d"
+        done
+        echo "BR2_LINUX_KERNEL_INTREE_DTS_NAME=\"$intree_dts\""
     fi
     if [ "$board_firmware" = rpi ]; then
         echo "BR2_PACKAGE_RPI_FIRMWARE_CONFIG_FILE=\"$gen/config.txt\""
@@ -420,6 +428,17 @@ if [ ! -f /output/.config ]; then
     stale=yes
 elif [ -n "$(find "${parts[@]}" "$external" "$gen/paths.fragment" -newer /output/.config -print -quit)" ]; then
     stale=yes
+fi
+
+# The firmware package's version is the board's, a `# RPI_FIRMWARE_VERSION
+# <commit>` line in buildroot.fragment. Buildroot 2024.02 fixes it in the
+# package and has no option for another, so it goes on every make's command
+# line (MAKEFLAGS reaches them all). The tarball's hash is then looked up
+# in the board's BR2_GLOBAL_PATCH_DIR, where Buildroot checks it.
+rpi_firmware_version="$(sed -n 's/^# RPI_FIRMWARE_VERSION \([0-9a-f]\{40\}\)$/\1/p' \
+    "$board_dir/buildroot.fragment")"
+if [ -n "$rpi_firmware_version" ]; then
+    export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }RPI_FIRMWARE_VERSION=$rpi_firmware_version"
 fi
 
 if [ "$stale" = yes ]; then

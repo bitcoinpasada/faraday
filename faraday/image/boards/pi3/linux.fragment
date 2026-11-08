@@ -99,7 +99,7 @@ CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
 # config.txt disables the radio, so it is not built.
 CONFIG_MMC=y
 CONFIG_MMC_BLOCK=y
-CONFIG_MMC_BCM2835_SDHOST=y
+CONFIG_MMC_BCM2835=y
 CONFIG_MMC_BCM2835_MMC=y
 CONFIG_MMC_BCM2835_DMA=y
 # CONFIG_MMC_SDHCI_IPROC is not set
@@ -168,8 +168,8 @@ CONFIG_EXPERT=y
 
 # ---- the display: vc4's display side, through DRM ----
 # The HVS, the pixel valves, the HDMI encoder and the DSI hosts are one
-# driver, vc4, and the kernel source is the board's as it is: Faraday
-# carries no kernel patch of its own (F153). vc4 also binds the GPU's 3D
+# driver, vc4, and the kernel source is the board's; Faraday's patches to
+# it are in docs/KERNEL-PATCHES.md (F153, F205, F221). vc4 also binds the GPU's 3D
 # block, V3D, and gives the device a render node, /dev/dri/renderD128,
 # beside /dev/dri/card0. Only the app opens a display node, and it opens
 # /dev/fb0, DRM's framebuffer emulation; common/rootfs-overlay/etc/mdev.conf
@@ -190,9 +190,8 @@ CONFIG_DRM_FBDEV_EMULATION=y
 CONFIG_KCMP=y
 # The rest of DRM is for other hardware, or for a desktop.
 # CONFIG_DRM_V3D is not set
-# CONFIG_DRM_DP_AUX_CHARDEV is not set
+# CONFIG_DRM_DISPLAY_DP_AUX_CHARDEV is not set
 # CONFIG_DRM_LOAD_EDID_FIRMWARE is not set
-# CONFIG_DRM_LEGACY is not set
 # CONFIG_DRM_VC4_KUNIT_TEST is not set
 
 # ---- sound: only because vc4 depends on it ----

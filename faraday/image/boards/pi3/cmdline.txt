@@ -11,6 +11,14 @@ init_on_free=1
 init_on_alloc=1
 usbcore.authorized_default=2
 
+# Faraday: the firmware's seed (/chosen/rng-seed) is mixed in but not
+# credited as entropy, and neither is a CPU generator. Linux 6.2 removed
+# the Kconfig options for this and trusts both by default; these two
+# parameters are all that is left, as on the stick
+# (docs/OWN-RANDOMNESS.md §3.2, §3.3).
+random.trust_cpu=off
+random.trust_bootloader=off
+
 # Faraday: loglevel=5, after common's `quiet`. The framebuffer console
 # draws no logo when the console log level is `quiet`'s 4 or lower
 # (fbcon_init in drivers/video/fbdev/core/fbcon.c), so with `quiet` alone

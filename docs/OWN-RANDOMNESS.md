@@ -252,8 +252,8 @@ off.
 Read from `faraday/image/boards/pi3/buildroot.fragment`, its
 `linux.fragment`, `cmdline.txt` and the Zero 2 W's, which match.
 
-- **The kernel is 6.1, not 6.6.** It is the Raspberry Pi 6.1 tree at the
-  commit Buildroot 2024.02 pins (`17f135b7…`), `bcm2709` defconfig, 32-bit.
+- **The kernel is 6.18.** It is the Raspberry Pi 6.18 tree at commit
+  `9b488bc7…` (6.18.59), `bcm2709` defconfig, 32-bit.
 - **bcm2835-rng is built in and credited.** `linux.fragment:81-84` sets
   `CONFIG_HW_RANDOM=y` and `CONFIG_HW_RANDOM_BCM2835=y`. The hwrng core
   feeds a built-in generator into the pool from the moment it probes and
@@ -261,11 +261,12 @@ Read from `faraday/image/boards/pi3/buildroot.fragment`, its
   this kernel for a driver that states no quality of its own, as
   bcm2835-rng does not. The command line sets no `rng_core.` parameter.
   So the CRNG is ready shortly after the driver probes, early in boot.
-- **No CPU generator.** 32-bit ARM has no RDRAND equivalent; 6.1's
-  `CONFIG_RANDOM_TRUST_CPU` has nothing to trust there. Whether
-  `bcm2709_defconfig` sets `CONFIG_RANDOM_TRUST_BOOTLOADER`, and whether
-  the Pi firmware writes `/chosen/rng-seed`, is not in the repository;
-  §3.4 reads both.
+- **No CPU generator, and the firmware's seed is not credited.** 32-bit
+  ARM has no RDRAND equivalent. Since Linux 6.2 the kernel trusts a
+  CPU generator and the bootloader's seed by default, with no Kconfig
+  option left; the Pi's `cmdline.txt` sets `random.trust_cpu=off` and
+  `random.trust_bootloader=off`, as the stick does (§3.3), so a seed the
+  firmware writes to `/chosen/rng-seed` is mixed in, not credited.
 - **Jitter** is there as a fallback, timed by the ARM generic timer.
 - **A comment to correct.** `linux.fragment:81-82` says the session key
   is drawn from `/dev/urandom`; the shell reads `/dev/random`.
@@ -362,7 +363,7 @@ real PC, is still to read.
   first display is a system that gives none: a press that needs it then
   says so and does nothing.
 - **The Pi mixes bcm2835-rng and does not credit it.** `rng_core.`'s
-  quality is set to 0 on the command line. Where the Pi's 6.1 kernel
+  quality is set to 0 on the command line. Where the Pi's kernel
   then stops feeding the generator into the pool (its hwrng thread
   starts only for a quality above 0), the Pi's shell reads
   `/dev/hwrng` and writes the bytes to `/dev/random`, which mixes them
