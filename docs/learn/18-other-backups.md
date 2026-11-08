@@ -72,6 +72,20 @@ Blank templates in Faraday Starter print a sheet for a Krux code with Form set t
 
 Faraday draws these sheets itself, in the booklet's layout and numbering, from BIP-93's arithmetic. The booklet's notice, at the foot of this page, is kept here and is not printed on the sheets.
 
+## Krux codes
+
+A Krux code is an encrypted QR code of a seed or of a short text, in the format the Krux signing device made for itself (KEF). Faraday opens it with its passphrase: scan it, press Open, type the passphrase, and the seed comes to the seed sheet. The Krux code tile in Tools makes one from typed text or from a loaded wallet's descriptor, and a seed's code can be made from its backup form.
+
+Faraday's plan does not count a Krux code as a backup of a seed. The plan cannot hold the passphrase, and it cannot know where the code is kept, so it cannot tell whether the code and its passphrase together are still readable. The words or the other backups on this page are what the plan counts. A Krux code is an addition to them, made for a Krux device or for a short code to carry. Faraday's codes are checked against Krux's own code, not on a Krux device.
+
+The passphrase is the whole of the protection. Anyone who has the code can copy it unnoticed and try passphrases against it for ever. A passphrase of a few words picked by dice holds for a long time. A short word with a few digits, or a few letters, can be found by a program in minutes to weeks on one graphics card. The code does not say whether a guess is near: the check inside it only says the passphrase was probably right.
+
+Rounds are how many times the passphrase is stretched before it opens the code. The default is 100,000. More rounds make each guess slower for an attacker and the opening slower for you: Faraday shows the time a scanned code takes to open on this device, and Cancel stops the work. A code made with a high count can take a long time on a slow device. The rounds are written in the code and are not secret.
+
+The code itself is not secret. It says what version it is, its rounds and its id, and it shows whether it holds 12 or 24 words by its size. It may be printed, kept with other papers, or sent; the passphrase must not be kept with it. Faraday labels a code with its version, its rounds and an id you typed, never with what it holds.
+
+To keep a code on paper, copy it by hand onto a blank template. Faraday Starter prints one for each size, with the squares every code of that size shares already black. You draw the rest from the screen. Versions differ in size and in what they protect against; the default, version 20, is Krux's own default.
+
 ## Seed XOR
 
 Seed XOR splits one key into two or more parts. Each part is a full set of seed words of the same length as the original, and combining the parts with the XOR operation gives the original key back. It is Coldcard's scheme: parts made here combine on a Coldcard, and parts made on a Coldcard combine here.

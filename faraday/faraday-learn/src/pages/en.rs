@@ -772,6 +772,12 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
+                heading: "Krux code",
+                paragraphs: &[
+                    "Makes an encrypted QR code in Krux's format from text you type or from a loaded wallet's descriptor, under a passphrase. Options sets the version, the rounds and the id; the defaults are version 20, 100,000 rounds and a random id. The code comes with Check my code, which opens it again with the passphrase to show it holds what you gave. The text and the passphrase are wiped when you leave the tool. What a Krux code is, and what its passphrase has to carry, is on the page about other backups.",
+                ],
+            },
+            Section {
                 heading: "Lightning node key",
                 paragraphs: &[
                     "A Lightning node has an identity key, and a backup of that node is either an LND cipher seed — twenty-four words that are not a BIP-39 phrase — or the BIP-39 words an ldk-node wallet was built from. The tool reads either one and says which node it is: the public key the network knows the node by, and for a cipher seed the version and the birthday it carries.",
@@ -920,6 +926,17 @@ pub static EN: Learn = Learn {
                 paragraphs: &[
                     "Blank templates in Faraday Starter print a sheet for a Krux code with Form set to Krux code: Size is 25 × 25, 29 × 29, 33 × 33 or 37 × 37, each option saying which codes fit it, and the sheet prints the squares every code of that size shares black, leaves the format squares blank for you to draw, and says the passphrase is never written on it. Blank templates print codex32 sheets with Form set to codex32. Length is 48, 74 or 127 characters. Copy is String, Codex32QR or Both, the last two at 48 only. Worksheets is None, or Dice, checksum and translation: at 48 characters the dice de-biasing sheet as the booklet draws it, its tree and five die tracks on two pages, the checksum sheet and the translation sheets for k = 2 and k = 3; at 74 the dice sheet and the 256-bit checksum sheet; none at 127. A share sheet has ms1 printed in boxes 1 to 3, boxes for the threshold, the identifier and the share index, every box numbered, a box for the fingerprint, and the alphabet with 0, 7, S and Z slashed as handwriting should be. The sheets print at true size and hold nothing until written on.",
                     "Faraday draws these sheets itself, in the booklet's layout and numbering, from BIP-93's arithmetic. The booklet's notice, at the foot of this page, is kept here and is not printed on the sheets.",
+                ],
+            },
+            Section {
+                heading: "Krux codes",
+                paragraphs: &[
+                    "A Krux code is an encrypted QR code of a seed or of a short text, in the format the Krux signing device made for itself (KEF). Faraday opens it with its passphrase: scan it, press Open, type the passphrase, and the seed comes to the seed sheet. The Krux code tile in Tools makes one from typed text or from a loaded wallet's descriptor, and a seed's code can be made from its backup form.",
+                    "Faraday's plan does not count a Krux code as a backup of a seed. The plan cannot hold the passphrase, and it cannot know where the code is kept, so it cannot tell whether the code and its passphrase together are still readable. The words or the other backups on this page are what the plan counts. A Krux code is an addition to them, made for a Krux device or for a short code to carry. Faraday's codes are checked against Krux's own code, not on a Krux device.",
+                    "The passphrase is the whole of the protection. Anyone who has the code can copy it unnoticed and try passphrases against it for ever. A passphrase of a few words picked by dice holds for a long time. A short word with a few digits, or a few letters, can be found by a program in minutes to weeks on one graphics card. The code does not say whether a guess is near: the check inside it only says the passphrase was probably right.",
+                    "Rounds are how many times the passphrase is stretched before it opens the code. The default is 100,000. More rounds make each guess slower for an attacker and the opening slower for you: Faraday shows the time a scanned code takes to open on this device, and Cancel stops the work. A code made with a high count can take a long time on a slow device. The rounds are written in the code and are not secret.",
+                    "The code itself is not secret. It says what version it is, its rounds and its id, and it shows whether it holds 12 or 24 words by its size. It may be printed, kept with other papers, or sent; the passphrase must not be kept with it. Faraday labels a code with its version, its rounds and an id you typed, never with what it holds.",
+                    "To keep a code on paper, copy it by hand onto a blank template. Faraday Starter prints one for each size, with the squares every code of that size shares already black. You draw the rest from the screen. Versions differ in size and in what they protect against; the default, version 20, is Krux's own default.",
                 ],
             },
             Section {

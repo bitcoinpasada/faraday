@@ -338,7 +338,7 @@ Practice's alone (`Faraday::roller_offered`).
 | Vault contents, an entry's password | **Use faraday** | §5.4 |
 | Make a new wallet, a slot's passphrase | **Use faraday** | §5.4 |
 | A seed read's passphrase sheet; the potential wallet's sheet | **Use faraday** | §5.4 |
-| The scanner, every purpose that takes a sample | **Load sample seed**, **share**, **key**, **wallet**, **PSBT**, **SeedQR**, **code**, **address** | A public sample in place of a scan |
+| The scanner, every purpose that takes a sample | **Load sample seed**, **share**, **key**, **wallet**, **PSBT**, **SeedQR**, **code**, **Krux code**, **address** | A public sample in place of a scan |
 | The Spend tab: What do you have?, the first step's shortcut, Write the payment | **Load sample PSBT** | A public transaction in place of the person's own |
 | Restore, seeds first, a cosigner's box | **Use a sample**, for the first empty box | A public account key in place of a cosigner's |
 | Lightning node key, the LND cipher seed | **Use a sample**; **Use faraday** for its passphrase | LND's published seed (§6) |

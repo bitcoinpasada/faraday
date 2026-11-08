@@ -146,7 +146,7 @@ Every row of `docs/DEMO.md` §14.1 leaves the app area for the strip.
 | Vault contents, an entry's password | **Use faraday** | button |
 | Make a new wallet, a slot's passphrase | **Use faraday** | button |
 | A seed read's passphrase sheet; the potential wallet's sheet | **Use faraday** | button |
-| The scanner, every purpose that takes a sample | **Load sample seed**, **share**, **key**, **wallet**, **PSBT**, **SeedQR**, **code**, **address** | buttons, while the sheet is open |
+| The scanner, every purpose that takes a sample | **Load sample seed**, **share**, **key**, **wallet**, **PSBT**, **SeedQR**, **code**, **Krux code**, **address** | buttons, while the sheet is open |
 | The Spend tab: What do you have?, the first step's shortcut, Write the payment | **Load sample PSBT** | button |
 | Restore, seeds first, a cosigner's box | **Use a sample** | button |
 | Lightning node key, the LND cipher seed | **Use a sample**; **Use faraday** | buttons |

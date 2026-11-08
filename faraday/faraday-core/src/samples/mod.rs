@@ -185,6 +185,13 @@ pub struct SampleInputs {
     pub signer_returned: &'static [u8],
     /// That Returned with one proprietary pair added.
     pub signer_returned_proprietary: &'static [u8],
+    /// A Krux encrypted code (KEF) of the first English words sample
+    /// (`sample_guide`), under the passphrase `faraday`. It is fixed data:
+    /// made once, by `Faraday::kef_make_seed` at the defaults of
+    /// `docs/KEF.md` §10 (version 20, an 8-byte random id, 100,000
+    /// rounds), and `regenerate` does not remake it, since a remake would
+    /// draw a new id and IV. Empty where a set has none.
+    pub krux_code: &'static [u8],
 }
 
 /// Every sample, as the samples crate holds them.
@@ -495,9 +502,23 @@ pub(crate) struct SamplesArea {
     /// strip (`docs/DESKTOP-HOST.md` §3). Written once a frame; read by
     /// the host after it.
     aids: std::cell::RefCell<Vec<faraday_ui::demo::DemoItem<crate::Action>>>,
+    /// The seed scanner's next Sample press gives the Krux code: set by a
+    /// press that gave a seed, cleared by the one that gave the code, so
+    /// the two alternate.
+    krux_next: bool,
 }
 
 impl SamplesArea {
+    /// Whether the seed scanner's next Sample press gives the Krux code.
+    pub(crate) fn krux_next(&self) -> bool {
+        self.krux_next
+    }
+
+    /// Sets whether the seed scanner's next Sample press gives the Krux code.
+    pub(crate) fn set_krux_next(&mut self, next: bool) {
+        self.krux_next = next;
+    }
+
     /// The Load samples sheet's rows.
     pub(crate) fn sheet(&self) -> &SheetState {
         &self.sheet

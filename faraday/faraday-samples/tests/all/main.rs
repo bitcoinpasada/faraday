@@ -8,6 +8,7 @@ mod demo_strip;
 mod files;
 mod guide_key;
 mod handouts;
+mod kef_sample;
 mod keys;
 mod load;
 mod passphrase;

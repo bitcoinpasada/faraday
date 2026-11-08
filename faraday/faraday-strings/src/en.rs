@@ -9809,6 +9809,8 @@ strings! {
     scan_sample_seedqr: "Load sample SeedQR",
     /// The scanner's tile that hands over a sample code.
     scan_sample_code: "Load sample code",
+    /// The scanner's tile that hands over a sample Krux code.
+    scan_sample_krux: "Load sample Krux code",
     /// The scanner's tile that hands over a sample address.
     scan_sample_address: "Load sample address",
     // ----- samples (faraday-core/src/samples/) -----

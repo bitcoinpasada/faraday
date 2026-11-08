@@ -42,6 +42,10 @@ Decode shows the review that Sign a transaction shows, for a transaction that is
 
 Use it to read what a coordinator produced before you sign it anywhere, or to see what a raw transaction from a block explorer actually pays.
 
+## Krux code
+
+Makes an encrypted QR code in Krux's format from text you type or from a loaded wallet's descriptor, under a passphrase. Options sets the version, the rounds and the id; the defaults are version 20, 100,000 rounds and a random id. The code comes with Check my code, which opens it again with the passphrase to show it holds what you gave. The text and the passphrase are wiped when you leave the tool. What a Krux code is, and what its passphrase has to carry, is on the page about other backups.
+
 ## Lightning node key
 
 A Lightning node has an identity key, and a backup of that node is either an LND cipher seed — twenty-four words that are not a BIP-39 phrase — or the BIP-39 words an ldk-node wallet was built from. The tool reads either one and says which node it is: the public key the network knows the node by, and for a cipher seed the version and the birthday it carries.

@@ -323,11 +323,26 @@ impl Faraday {
         }
     }
 
+    /// Whether the Sample tile on the seed scanner is at the Krux code:
+    /// the press after one that gave a seed, when the set has a code. A
+    /// lookup.
+    fn krux_slot(&self, set: &Samples) -> bool {
+        !set.inputs.krux_code.is_empty()
+            && self.sample_area.krux_next()
+            && self
+                .camera
+                .scan()
+                .is_some_and(|s| s.purpose == ScanPurpose::Seed)
+    }
+
     /// What the Sample tile on the scanner on screen hands over, as the
     /// words on it: a lookup.
     pub fn scan_sample_label(&self) -> &'static str {
         let purpose = self.camera.scan().map(|s| s.purpose);
         match purpose {
+            Some(ScanPurpose::Seed) if self.put_on().is_some_and(|set| self.krux_slot(set)) => {
+                EN.scan_sample_krux
+            }
             Some(ScanPurpose::Seed) => EN.scan_sample_seed,
             Some(ScanPurpose::KeyPart) => EN.scan_sample_share,
             Some(ScanPurpose::WalletKey(_)) => EN.scan_sample_key,
@@ -420,7 +435,12 @@ impl Faraday {
         match purpose {
             ScanPurpose::Seed => {
                 let cands: Vec<usize> = english_keys(set).map(|(i, _)| i).collect();
+                if self.krux_slot(set) {
+                    self.sample_area.set_krux_next(false);
+                    return Some(set.inputs.krux_code.to_vec());
+                }
                 let (i, next) = self.sample_choose(set, &cands, cursor)?;
+                self.sample_area.set_krux_next(true);
                 if let Some(s) = self.camera.scan_mut() {
                     s.sample = next;
                 }

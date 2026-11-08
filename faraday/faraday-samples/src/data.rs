@@ -686,6 +686,7 @@ pub(crate) static INPUTS: SampleInputs = SampleInputs {
     signer_sent: include_bytes!("../data/signer-sent.psbt"),
     signer_returned: include_bytes!("../data/signer-returned.psbt"),
     signer_returned_proprietary: include_bytes!("../data/signer-returned-proprietary.psbt"),
+    krux_code: include_bytes!("../data/krux-code.kef"),
 };
 
 /// Every sample.
