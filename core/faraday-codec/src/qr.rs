@@ -294,6 +294,14 @@ pub fn byte_capacity(version: u8, ecc: Ecc) -> usize {
     bits.saturating_sub(4 + usize::from(Mode::Byte.count_bits(version))) / 8
 }
 
+/// Most alphanumeric-mode characters that fit version `version` at `ecc`.
+pub fn alphanumeric_capacity(version: u8, ecc: Ecc) -> usize {
+    let version = version.clamp(1, 40);
+    let bits = (num_data_codewords(version, ecc) * 8)
+        .saturating_sub(4 + usize::from(Mode::Alphanumeric.count_bits(version)));
+    bits / 11 * 2 + usize::from(bits % 11 >= 6)
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Numeric,

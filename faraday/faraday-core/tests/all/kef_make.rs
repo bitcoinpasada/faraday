@@ -224,3 +224,24 @@ fn the_picture_and_the_file_go_to_the_outbox() {
         .unwrap();
     assert_eq!(file.bytes, code.bytes);
 }
+
+#[test]
+fn the_size_a_code_will_be_is_known_before_it_is_made() {
+    use faraday_core::worker::kef_make::side;
+    let at = |version, low| Options {
+        version,
+        low,
+        ..Options::default()
+    };
+    assert_eq!(side(&at(20, false), 32), Some(33));
+    assert_eq!(side(&at(20, false), 16), Some(33));
+    assert_eq!(side(&at(5, false), 16), Some(29));
+    assert_eq!(side(&at(5, false), 32), Some(33));
+    assert_eq!(side(&at(5, true), 16), Some(25));
+    assert_eq!(side(&at(5, true), 32), Some(29));
+    let long_id = Options {
+        id: IdChoice::Random(16),
+        ..Options::default()
+    };
+    assert_eq!(side(&long_id, 32), Some(37));
+}

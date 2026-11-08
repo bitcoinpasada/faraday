@@ -5,7 +5,8 @@
 //! on the backup board and the tool in Tools both call these; neither has
 //! a copy.
 
-use faraday_codec::kef::{Mode, VERSIONS, id_text, spec_of};
+use faraday_codec::kef::{Mode, Padding, VERSIONS, id_text, spec_of};
+use faraday_codec::qr::{Ecc, alphanumeric_capacity};
 use faraday_crypto::work::Compute;
 use faraday_keys::kef::{
     COUNT_MIN, COUNT_SETTING_MAX, DEFAULT_COUNT, DEFAULT_ID_LEN, DEFAULT_VERSION, ID_MAX,
@@ -84,6 +85,44 @@ impl Options {
             IdChoice::Fingerprint(f) => KefId::Public(f.to_vec()),
         }
     }
+}
+
+/// The side, in modules, of the code a seed's entropy or a text of
+/// `plaintext_len` bytes will make with `options` (`docs/KEF.md` §5): the
+/// smallest version that holds the envelope as base43 text. `None` for a
+/// compressed version, whose size is not known before the work, and for
+/// contents too large for one code.
+pub fn side(options: &Options, plaintext_len: usize) -> Option<usize> {
+    let spec = spec_of(options.version)?;
+    if spec.compressed {
+        return None;
+    }
+    let id_len = match &options.id {
+        IdChoice::Random(n) => *n,
+        IdChoice::Label(l) => l.len(),
+        IdChoice::Fingerprint(_) => 4,
+    };
+    let hidden = usize::from(spec.auth.unsigned_abs()) * usize::from(spec.auth < 0);
+    let exposed = usize::from(spec.auth.max(0).unsigned_abs());
+    let body = plaintext_len + hidden;
+    let body = match spec.padding {
+        Padding::Nul => body.next_multiple_of(16),
+        Padding::Pkcs7 => (body / 16 + 1) * 16,
+        Padding::None => body,
+    };
+    let n = 5 + id_len + spec.iv_len() + body + exposed;
+    // The envelope's first byte is the version, so the number is below
+    // (version + 1) * 256^(n - 1).
+    let bits = f64::from(options.version + 1).log2() + (8 * (n - 1)) as f64;
+    let chars = (bits * std::f64::consts::LN_2 / 43f64.ln()).floor() as usize + 1;
+    let ecc = if options.low && options.low_offered() {
+        Ecc::Low
+    } else {
+        Ecc::Medium
+    };
+    (1..=25u8)
+        .find(|&v| alphanumeric_capacity(v, ecc) >= chars)
+        .map(|v| 17 + 4 * usize::from(v))
 }
 
 /// The versions Options lists in one mode, not the legacy ones.
