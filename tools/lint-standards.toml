@@ -75,6 +75,10 @@ file = "faraday/faraday-core/src/worker/kef.rs"
 reason = "A short timed PBKDF2 over fixed bytes, to say how long a Krux code takes to open; its output is thrown away. Sealing and opening are faraday-keys', which the kef area cross-checks."
 
 [[uncovered]]
+file = "faraday/faraday-core/src/worker/kef_make.rs"
+reason = "SHA-256 over a Krux code's public `.kef` bytes, kept in the backup record to tell that file from another of the same name; no secret, and the hash is faraday-crypto's, cross-checked there. Sealing is faraday-keys', which the kef area cross-checks."
+
+[[uncovered]]
 file = "faraday/faraday-core/src/vault/seal.rs"
 reason = "SHA-256 over a domain string, a fresh random answer and a counter, for the UUIDs of a seal's new entries and groups: they need to differ, not to be secret, and the hash is faraday-crypto's, cross-checked there."
 
