@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (`faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (`faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (`core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
-**Open:** a split wallet's Files list, whose per-file Add signatures has no Randomness row yet (§8.1 row 14, planned); §3.5's late seed and the Pi's generator (F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Open:** a split wallet's Files list, whose per-file Add signatures has no Randomness row yet (§8.1 row 14, planned); §3.5's late seed and the Pi's generator (F102), and the firmware's seed on the Pi, which is credited whatever `random.trust_bootloader` says (§3.2); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and
@@ -261,12 +261,21 @@ Read from `faraday/image/boards/pi3/buildroot.fragment`, its
   this kernel for a driver that states no quality of its own, as
   bcm2835-rng does not. The command line sets no `rng_core.` parameter.
   So the CRNG is ready shortly after the driver probes, early in boot.
-- **No CPU generator, and the firmware's seed is not credited.** 32-bit
-  ARM has no RDRAND equivalent. Since Linux 6.2 the kernel trusts a
-  CPU generator and the bootloader's seed by default, with no Kconfig
-  option left; the Pi's `cmdline.txt` sets `random.trust_cpu=off` and
-  `random.trust_bootloader=off`, as the stick does (§3.3), so a seed the
-  firmware writes to `/chosen/rng-seed` is mixed in, not credited.
+- **No CPU generator, and the firmware's seed is credited.** 32-bit
+  ARM has no RDRAND equivalent, so `random.trust_cpu=off` has nothing to
+  act on. Since Linux 6.2 the kernel trusts the bootloader's seed by
+  default, with no Kconfig option left (the earlier 6.1.61 kernel had
+  `CONFIG_RANDOM_TRUST_BOOTLOADER=y`, so this is not new). The Pi's
+  `cmdline.txt` sets `random.trust_bootloader=off`, as the stick does
+  (§3.3), but on 32-bit ARM `setup_machine_fdt` (`arch/arm/kernel/setup.c`)
+  reaches `early_init_dt_scan_chosen` (`drivers/of/fdt.c`) before
+  `parse_early_param`, and that calls `add_bootloader_randomness` on
+  `/chosen/rng-seed`, which `drivers/char/random.c` credits while
+  `trust_bootloader` is still at its default of true. So the seed the
+  firmware writes to `/chosen/rng-seed` is credited and the parameter
+  comes too late; a dev boot report shows "random: crng init done" at
+  0.000000 s, right after "OF: fdt: Machine model". Not crediting the seed
+  on the Pi needs a change the image does not make.
 - **Jitter** is there as a fallback, timed by the ARM generic timer.
 - **A comment to correct.** `linux.fragment:81-82` says the session key
   is drawn from `/dev/urandom`; the shell reads `/dev/random`.
@@ -370,6 +379,10 @@ real PC, is still to read.
   without crediting them, before its own read of `/dev/random`. The
   pool is then ready on the kernel's jitter alone, timed by the ARM
   generic timer.
+- **The firmware's seed stays credited.** Not crediting bcm2835-rng would
+  still leave the CRNG ready at once from the seed in `/chosen/rng-seed`
+  (§3.2), so the pool is not ready on jitter alone as written above. This
+  is open.
 - **The Pi's wait** is read off a dev Pi's log in passing (the owner),
   as the PC's is in §3.4.
 
