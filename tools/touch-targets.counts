@@ -139,12 +139,13 @@ stick_1024x600 Backup BC32 19
 stick_1024x600 Backup BName 1
 stick_1024x600 Backup BQ 2
 stick_1024x600 Backup BReveal 1
-stick_1024x600 Backup BStep 7
+stick_1024x600 Backup BStep 8
 stick_1024x600 Backup BWallets 1
 stick_1024x600 Backup Board 66
 stick_1024x600 Backup EntryKey 25
 stick_1024x600 Backup EntryKeyBack 1
 stick_1024x600 Backup LearnShares 1
+stick_1024x600 Backup Osk 38
 stick_1024x600 BackupFlow Board 6
 stick_1024x600 BackupFlow Flow 11
 stick_1024x600 BackupFlow LearnTopic 1

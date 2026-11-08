@@ -239,3 +239,4 @@ Read this table, then only the decision you need.
 | [F222](decisions/F222.md) | On a Pi's HDMI screen, fades start off | 2026-11-07 | Active | design |
 | [F223](decisions/F223.md) | On the small panel off mainnet, the mode pill stands on the top bar's second line | 2026-11-08 | Active | design |
 | [F224](decisions/F224.md) | A kernel patch of Faraday's own on the Pi: the bootloader's seed is not credited unless the command line says to | 2026-11-08 | Active | security |
+| [F225](decisions/F225.md) | The open checklist card's header at 1024 × 600 is held at eight under the touch-target floor | 2026-11-08 | Active | design |
