@@ -1327,6 +1327,7 @@ fn flow_bar_name(rig: &mut Rig) -> Option<(String, f32)> {
 /// whole, and the pill is drawn whole and can be pressed.
 #[test]
 fn on_the_pi_the_mode_pill_leaves_a_pages_name_whole_on_the_bars_first_line() {
+    // F223: off mainnet the pill stands on the bar's second line.
     for (mode, pill) in [(Mode::Testnet, "Testnet"), (Mode::Practice, "Practice")] {
         {
             let (screen, name) = (Screen::Convert, "Convert a seed");
