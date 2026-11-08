@@ -12677,6 +12677,68 @@ strings! {
     kef_ecb_line: "ECB writes equal blocks alike, so a code with two equal blocks is refused.",
     /// The line on the passphrase step and Options about a typed id.
     kef_public_id_line: "A typed id or the fingerprint is printed on the code and is not secret.",
+    /// The primary action of the Krux code form: roll dice for the passphrase.
+    kef_form_dice: "Generate with dice",
+    /// The button that opens the code's options.
+    kef_form_options: "Options",
+    /// The options button's line. `{}`: version, rounds, the id.
+    kef_form_summary: "Version {} · {} rounds · {}",
+    /// The options line with the code's side. `{}`: the line, the side, the side.
+    kef_form_summary_side: "{} · {} × {}",
+    /// Makes the code.
+    kef_form_make: "Make the code",
+    /// The code cannot start until the session has fresh randomness.
+    kef_form_need_random: "Add randomness, then make the code.",
+    /// In the options line: an 8-byte random id.
+    kef_id_random8_fact: "random id",
+    /// In the options line: a 16-byte random id.
+    kef_id_random16_fact: "16-byte random id",
+    /// In the options line: a typed id.
+    kef_id_label_fact: "label id",
+    /// In the options line: the fingerprint as id.
+    kef_id_fingerprint_fact: "fingerprint id",
+    /// Options: the versions.
+    kef_opt_version: "Version",
+    /// Options: the legacy versions' group.
+    kef_opt_legacy: "Legacy",
+    /// Options: a compressed version's button. `{}`: the version.
+    kef_opt_compressed: "{} compressed",
+    /// Options: the GCM versions' name.
+    kef_mode_gcm: "AES-GCM",
+    /// Options: the CTR versions' name.
+    kef_mode_ctr: "AES-CTR",
+    /// Options: the CBC versions' name.
+    kef_mode_cbc: "AES-CBC",
+    /// Options: the ECB versions' name.
+    kef_mode_ecb: "AES-ECB",
+    /// Options: low error correction, for version 5.
+    kef_opt_low: "Low error correction",
+    /// Options: the number of rounds.
+    kef_opt_rounds: "Rounds",
+    /// Options: the id.
+    kef_opt_id: "Id",
+    /// Options: an 8-byte random id.
+    kef_opt_id_random8: "Random 8 bytes",
+    /// Options: a 16-byte random id.
+    kef_opt_id_random16: "Random 16 bytes",
+    /// Options: a typed id.
+    kef_opt_id_label: "A label",
+    /// Options: the fingerprint as id.
+    kef_opt_id_fingerprint: "The fingerprint",
+    /// Options: the typed id's field.
+    kef_opt_label: "Label",
+    /// Options, on Paper: the code's side.
+    kef_opt_size: "Size",
+    /// Options, on Paper: whether the code can be copied by hand.
+    kef_opt_by_hand: "By hand",
+    /// Options, on Paper: a compressed version's size is known after it is made.
+    kef_opt_size_after: "Known once made",
+    /// Options, on Paper: a code that fits a blank template.
+    kef_opt_by_hand_yes: "Sheet",
+    /// Options, on Paper: a code too large for a blank template.
+    kef_opt_by_hand_no: "No",
+    /// Options, on Paper: a side in modules. `{}`: the side, twice.
+    kef_opt_side: "{} × {}",
     /// Text in `label`: a seed's Krux code as files on a stick. `{}`: `seed(i)`.
     plan_kef_code: "Seed {}: Krux code",
     /// Text in `label`: a seed's Krux code copied by hand onto paper. `{}`: `seed(i)`.

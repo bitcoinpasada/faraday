@@ -98,6 +98,7 @@ mod interop;
 mod interop_outcomes;
 mod kdbx;
 mod kef;
+mod kef_form;
 mod kef_make;
 mod kef_scan;
 mod key_path;

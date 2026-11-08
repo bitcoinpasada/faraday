@@ -2126,3 +2126,10 @@ pub const KRUX_CAPTION_GAP: f32 = 6.0;
 pub const TPL_OPTION_INDENT: f32 = 36.0;
 /// Blank templates: the room under an option's line.
 pub const TPL_OPTION_GAP: f32 = 10.0;
+/// The Krux code form: the room a heading takes, its line and the gap.
+pub const KEF_HEAD_ADVANCE: f32 = 26.0;
+/// The Krux code form: the room a caption line takes.
+pub const KEF_CAPTION_ADVANCE: f32 = 22.0;
+/// The Krux code form: the largest side, in modules, of a code the blank
+/// template takes to copy by hand.
+pub const KEF_BY_HAND_MAX_SIDE: usize = 37;

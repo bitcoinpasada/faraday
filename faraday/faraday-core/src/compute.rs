@@ -343,6 +343,22 @@ impl Faraday {
         self.worker.kef_mut().clear();
     }
 
+    /// Stops the Krux code being made and drops its answer, as Cancel on
+    /// the form does.
+    pub(crate) fn kef_make_cancel(&mut self) {
+        if self
+            .worker
+            .busy()
+            .is_some_and(|b| b.kind == crate::worker::Kind::KefSeal)
+        {
+            self.worker.stale();
+            self.worker.kef_mut().stop();
+            self.worker.set_busy(None);
+            crate::vault::stretch::ended(self);
+        }
+        self.worker.kef_mut().clear();
+    }
+
     /// A lock: the running job's answer has nowhere to go.
     pub(crate) fn job_locked(&mut self) {
         self.worker.locked();

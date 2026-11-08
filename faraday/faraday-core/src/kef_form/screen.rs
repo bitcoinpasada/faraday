@@ -1,0 +1,367 @@
+//! The form that makes a Krux code, drawn (`docs/KEF.md` §15.3): the
+//! first step and the Options sheet. What a press does is `mod.rs`.
+
+use super::{Focus, IdKind, KefAct, KefForm, Stage};
+use crate::Action;
+use crate::dice_entry::Press;
+use crate::dice_entry::screen::{Ask as DiceAsk, dice_panel};
+use crate::drawing::View;
+use crate::screens::{dice_pad, randomness};
+use crate::strings::{EN, fill};
+use crate::ui::pal::*;
+use crate::ui::{Style, Ui};
+use crate::vault::screen::{secret_box, text_box};
+use crate::worker::kef_make::{self, IdChoice};
+use faraday_codec::kef::{Mode, spec_of};
+use faraday_draw::tokens::{BODY_S, BUTTON_H, FIELD_H, GAP, LABEL_L};
+use faraday_draw::widgets::Icon;
+
+/// What the owner gives the drawing: how a press is wrapped as an
+/// `Action`, and the action that puts the keys on the dice rolls.
+#[derive(Clone, Copy)]
+pub(crate) struct Ask {
+    pub wrap: fn(KefAct) -> Action,
+    pub wrap_dice: fn(Press) -> Action,
+    pub on_rolls: fn(usize) -> Action,
+}
+
+/// The first step, at (x, y), `w` wide. Returns its height. Drawn while
+/// the stage is entry or making; the made stage draws nothing here.
+pub(crate) fn draw(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    f: &KefForm,
+    ask: Ask,
+) -> f32 {
+    let mut cy = y;
+    match f.stage {
+        Stage::Made => return 0.0,
+        Stage::Making => {
+            ui.text_as(x, cy, LABEL_L, Role::OnSurface, EN.kef_making);
+            cy += ui.advance_as(LABEL_L, faraday_draw::tokens::KEF_HEAD_ADVANCE);
+            if let Some(b) = app.busy() {
+                crate::screens::busy_bar(app, ui, (x, cy, w), b);
+                cy += faraday_draw::tokens::PROGRESS_H + GAP;
+            }
+            ui.button(
+                x,
+                cy,
+                None,
+                BUTTON_H,
+                EN.kef_cancel,
+                Style::Secondary,
+                Action::Cancel,
+            );
+            return cy + BUTTON_H - y;
+        }
+        Stage::Entry => {}
+    }
+    if f.dice.open().is_some() {
+        return dice_view(app, ui, (x, cy, w), f, ask);
+    }
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.kef_form_dice,
+        Style::Primary,
+        (ask.wrap)(KefAct::Dice),
+    );
+    cy += BUTTON_H + GAP;
+    cy += ui.field_label(x, cy, EN.kef_passphrase);
+    let show = app.pass_shows(f.shown, f.pass.text.as_str());
+    secret_box(
+        ui,
+        x,
+        cy,
+        w,
+        &f.pass,
+        show,
+        f.focus == Some(Focus::Pass),
+        (ask.wrap)(KefAct::Field),
+        (ask.wrap)(KefAct::Eye),
+    );
+    cy += FIELD_H + GAP;
+    let options = (ask.wrap)(KefAct::Options);
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.kef_form_options,
+        Style::Secondary,
+        options,
+    );
+    cy += BUTTON_H + GAP;
+    cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &f.summary()) + GAP;
+    cy += randomness::row(app, ui, (x, cy, w));
+    if let Some(e) = &f.error {
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, e) + GAP;
+    }
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.kef_form_make,
+        Style::Primary,
+        (ask.wrap)(KefAct::Make),
+    );
+    cy + BUTTON_H - y
+}
+
+/// The dice entry, open, with its pad. Returns its height.
+fn dice_view(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f32 {
+    let mut cy = y;
+    let focus = match f.focus {
+        Some(Focus::Dice(p)) => Some(p),
+        _ => None,
+    };
+    let dask = DiceAsk {
+        entry: &f.dice,
+        focus,
+        wrap: ask.wrap_dice,
+        on_rolls: ask.on_rolls,
+        cost: (64, 3),
+    };
+    cy += dice_panel(app, ui, (x, cy, w), (super::DICE_TAG, dask), false) + GAP;
+    let key = faraday_draw::tokens::DICE_PAD_KEY_H;
+    let pad_w = w - key - GAP;
+    dice_pad(ui, (x, cy, pad_w), &|_| Style::Secondary, |face| {
+        (ask.wrap_dice)(Press::Face(face))
+    });
+    ui.button(
+        x + w - key,
+        cy,
+        Some(key),
+        key,
+        "",
+        Style::Secondary,
+        (ask.wrap_dice)(Press::Face(0)),
+    );
+    ui.icon(
+        x + w - key + (key - faraday_draw::tokens::ICON_SMALL) / 2.0,
+        cy + (key - faraday_draw::tokens::ICON_SMALL) / 2.0,
+        faraday_draw::tokens::ICON_SMALL,
+        Icon::Delete,
+        faraday_draw::tokens::CODEX32_TAB_GLYPH,
+        Role::OnSurface,
+    );
+    cy + key + GAP - y
+}
+
+/// Options, as a dialog over a page `w` by `h`.
+pub(crate) fn sheet(app: &View, ui: &mut Ui, (w, h): (f32, f32), f: &KefForm, ask: Ask) {
+    let items = [(EN.kef_done, Style::Primary, (ask.wrap)(KefAct::Back))];
+    let head = (
+        Icon::Keys.into(),
+        Role::Primary.paint(),
+        EN.kef_form_options,
+    );
+    let body =
+        |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 { options_body(app, ui, (x, y, iw), f, ask) };
+    crate::compact::dialog(
+        ui,
+        (w, h, faraday_draw::tokens::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| body(ui, x, y, iw),
+        &items,
+    );
+}
+
+fn choice(on: bool) -> Style {
+    if on {
+        Style::Selected
+    } else {
+        Style::Secondary
+    }
+}
+
+fn heading(ui: &mut Ui, (x, y): (f32, f32), text: &str) -> f32 {
+    ui.text_as(x, y, LABEL_L, Role::OnSurface, text);
+    ui.advance_as(LABEL_L, faraday_draw::tokens::KEF_HEAD_ADVANCE)
+}
+
+fn options_body(
+    _app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    f: &KefForm,
+    ask: Ask,
+) -> f32 {
+    let mut cy = y;
+    let o = &f.options;
+    cy += heading(ui, (x, cy), EN.kef_opt_version);
+    for mode in kef_make::MODES {
+        let name = match mode {
+            Mode::Gcm => EN.kef_mode_gcm,
+            Mode::Ctr => EN.kef_mode_ctr,
+            Mode::Cbc => EN.kef_mode_cbc,
+            Mode::Ecb => EN.kef_mode_ecb,
+        };
+        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, name);
+        cy += ui.advance_as(BODY_S, faraday_draw::tokens::KEF_CAPTION_ADVANCE);
+        cy += version_buttons(ui, (x, cy, w), &kef_make::versions_in(mode), f, ask);
+        if mode == Mode::Ecb {
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                kef_make::ecb_line(),
+            ) + GAP;
+        }
+    }
+    let legacy = kef_make::legacy_versions();
+    let open = f.legacy || legacy.contains(&o.version);
+    let items = [(
+        EN.kef_opt_legacy.to_string(),
+        choice(open),
+        (ask.wrap)(KefAct::Legacy),
+    )];
+    cy += faraday_ui::parts::button_rows(ui, x, cy, w, &items);
+    if open {
+        cy += version_buttons(ui, (x, cy, w), &legacy, f, ask);
+    }
+    if o.low_offered() {
+        cy += ui.switch_row((x, cy, w), EN.kef_opt_low, o.low, (ask.wrap)(KefAct::Low)) + GAP;
+    }
+    cy += heading(ui, (x, cy), EN.kef_opt_rounds);
+    text_box(
+        ui,
+        x,
+        cy,
+        w,
+        &f.rounds,
+        false,
+        f.focus == Some(Focus::Rounds),
+        (ask.wrap)(KefAct::Rounds),
+    );
+    cy += FIELD_H + GAP;
+    if o.problem() == Some(EN.kef_refuse_count) {
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, EN.kef_refuse_count) + GAP;
+    }
+    cy += id_part(ui, (x, cy, w), f, ask);
+    cy += paper_part(ui, (x, cy), f);
+    cy - y
+}
+
+fn version_buttons(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    versions: &[u8],
+    f: &KefForm,
+    ask: Ask,
+) -> f32 {
+    let items: Vec<_> = versions
+        .iter()
+        .map(|&v| {
+            let label = if spec_of(v).is_some_and(|s| s.compressed) {
+                fill(EN.kef_opt_compressed, &[&v.to_string()])
+            } else {
+                v.to_string()
+            };
+            (
+                label,
+                choice(f.options.version == v),
+                (ask.wrap)(KefAct::Version(v)),
+            )
+        })
+        .collect();
+    faraday_ui::parts::button_rows(ui, x, y, w, &items)
+}
+
+/// Options: the id and its field.
+fn id_part(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f32 {
+    let mut cy = y;
+    let o = &f.options;
+    cy += heading(ui, (x, cy), EN.kef_opt_id);
+    let mut ids = vec![
+        (
+            EN.kef_opt_id_random8,
+            IdKind::Random8,
+            matches!(o.id, IdChoice::Random(n) if n != faraday_keys::kef::LONG_ID_LEN),
+        ),
+        (
+            EN.kef_opt_id_random16,
+            IdKind::Random16,
+            matches!(o.id, IdChoice::Random(n) if n == faraday_keys::kef::LONG_ID_LEN),
+        ),
+        (
+            EN.kef_opt_id_label,
+            IdKind::Label,
+            matches!(o.id, IdChoice::Label(_)),
+        ),
+    ];
+    if f.fingerprint().is_some() {
+        ids.push((
+            EN.kef_opt_id_fingerprint,
+            IdKind::Fingerprint,
+            matches!(o.id, IdChoice::Fingerprint(_)),
+        ));
+    }
+    let items: Vec<_> = ids
+        .into_iter()
+        .map(|(l, k, on)| (l.to_string(), choice(on), (ask.wrap)(KefAct::Id(k))))
+        .collect();
+    cy += faraday_ui::parts::button_rows(ui, x, cy, w, &items);
+    if matches!(o.id, IdChoice::Label(_)) {
+        cy += ui.field_label(x, cy, EN.kef_opt_label);
+        text_box(
+            ui,
+            x,
+            cy,
+            w,
+            &f.label,
+            false,
+            f.focus == Some(Focus::Label),
+            (ask.wrap)(KefAct::Label),
+        );
+        cy += FIELD_H + GAP;
+    }
+    if matches!(o.id, IdChoice::Label(_) | IdChoice::Fingerprint(_)) {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            kef_make::public_id_line(),
+        ) + GAP;
+    }
+    cy - y
+}
+
+/// Options, on Paper: the size and whether it is copied by hand.
+fn paper_part(ui: &mut Ui, (x, y): (f32, f32), f: &KefForm) -> f32 {
+    let mut cy = y;
+    if f.paper {
+        let (size, by_hand) = match f.side() {
+            Some(s) => (
+                fill(EN.kef_opt_side, &[&s.to_string(), &s.to_string()]),
+                if s <= faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE {
+                    EN.kef_opt_by_hand_yes
+                } else {
+                    EN.kef_opt_by_hand_no
+                },
+            ),
+            None => (EN.kef_opt_size_after.to_string(), EN.kef_opt_size_after),
+        };
+        ui.text_as(
+            x,
+            cy,
+            BODY_S,
+            Role::OnSurfaceVariant,
+            &format!("{}: {size}", EN.kef_opt_size),
+        );
+        cy += ui.advance_as(BODY_S, faraday_draw::tokens::KEF_CAPTION_ADVANCE);
+        ui.text_as(
+            x,
+            cy,
+            BODY_S,
+            Role::OnSurfaceVariant,
+            &format!("{}: {by_hand}", EN.kef_opt_by_hand),
+        );
+        cy += ui.advance_as(BODY_S, faraday_draw::tokens::KEF_CAPTION_ADVANCE);
+    }
+    cy - y
+}
