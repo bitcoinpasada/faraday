@@ -181,3 +181,88 @@ fn cancel_stops_the_work() {
     rounds(&mut form, &mut app, "10000");
     assert_eq!(make(&mut form, &mut app).version, 20);
 }
+
+/// A form that has made its code, with the passphrase `pass`.
+fn made_form(app: &mut Faraday, pass: &str) -> KefForm {
+    let mut form = seed_form();
+    form.act(app, KefAct::Field);
+    type_in(&mut form, app, pass);
+    rounds(&mut form, app, "10000");
+    make(&mut form, app);
+    form
+}
+
+fn compare(form: &mut KefForm, app: &mut Faraday, pass: &str) {
+    form.act(app, KefAct::Check);
+    assert_eq!(form.stage(), Stage::Check);
+    type_in(form, app, pass);
+    form.act(app, KefAct::Compare);
+    assert_eq!(form.stage(), Stage::Comparing);
+    testkit::settle(app);
+    assert!(form.poll(app));
+}
+
+#[test]
+fn a_right_passphrase_reads_checked() {
+    let mut app = app_with_seed();
+    let mut form = made_form(&mut app, "a passphrase");
+    assert!(!form.checked());
+    compare(&mut form, &mut app, "a passphrase");
+    assert!(form.checked());
+    assert_eq!(form.stage(), Stage::Made);
+}
+
+#[test]
+fn a_wrong_passphrase_reads_not_matching_and_can_be_tried_again() {
+    let mut app = app_with_seed();
+    let mut form = made_form(&mut app, "a passphrase");
+    compare(&mut form, &mut app, "another one");
+    assert!(!form.checked());
+    assert_eq!(form.stage(), Stage::Check);
+    assert!(form.error().is_some_and(|e| e.starts_with("Not matching")));
+    for _ in 0..11 {
+        form.key(&mut app, Key::Backspace);
+    }
+    type_in(&mut form, &mut app, "a passphrase");
+    form.act(&mut app, KefAct::Compare);
+    testkit::settle(&mut app);
+    assert!(form.poll(&mut app));
+    assert!(form.checked());
+}
+
+#[test]
+fn a_typed_text_is_checked_against_the_text_the_form_holds() {
+    let mut app = app_with_seed();
+    let mut form = KefForm::new(Source::Text(Zeroizing::new("a note".to_string())), false);
+    form.act(&mut app, KefAct::Field);
+    type_in(&mut form, &mut app, "a passphrase");
+    rounds(&mut form, &mut app, "10000");
+    make(&mut form, &mut app);
+    compare(&mut form, &mut app, "a passphrase");
+    assert!(form.checked());
+}
+
+#[test]
+fn make_another_starts_over_with_the_field_empty() {
+    let mut app = app_with_seed();
+    let mut form = made_form(&mut app, "a passphrase");
+    form.act(&mut app, KefAct::Another);
+    assert_eq!(form.stage(), Stage::Entry);
+    assert_eq!(form.passphrase(), "");
+    assert!(form.made().is_none());
+    assert!(!form.checked());
+}
+
+#[test]
+fn cancel_during_compare_stops_it() {
+    let mut app = app_with_seed();
+    let mut form = made_form(&mut app, "a passphrase");
+    form.act(&mut app, KefAct::Check);
+    type_in(&mut form, &mut app, "a passphrase");
+    form.act(&mut app, KefAct::Compare);
+    form.cancel(&mut app);
+    testkit::settle(&mut app);
+    assert!(!form.poll(&mut app));
+    assert_eq!(form.stage(), Stage::Check);
+    assert!(!form.checked());
+}

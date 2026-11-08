@@ -143,3 +143,9 @@ pub fn seed_plaintext(keys: &crate::Keys, c: &Compute, i: usize) -> Option<Zeroi
     keys.kef_entropy(c, i, crate::Reveal::KefCode)
         .map(|held| held.release())
 }
+
+/// Costs what `Keys::kef_matches` costs. Whether `plaintext`, what a code
+/// opened to, is seed `i`'s entropy (`Reveal::KefCode`): a yes or a no.
+pub fn seed_matches(keys: &crate::Keys, c: &Compute, i: usize, plaintext: &[u8]) -> bool {
+    keys.kef_matches(c, i, crate::Reveal::KefCode, plaintext)
+}

@@ -226,6 +226,28 @@ fn the_picture_and_the_file_go_to_the_outbox() {
 }
 
 #[test]
+fn a_second_code_with_the_same_label_keeps_the_first_in_the_outbox() {
+    let mut app = app_with(TWENTY_FOUR);
+    let options = Options {
+        id: IdChoice::Label("cold".into()),
+        ..quick()
+    };
+    app.kef_make_seed(0, pass(), &options).unwrap();
+    let first = made(&mut app, &options);
+    let first_name = app.kef_save_made(&first);
+    app.kef_make_seed(0, pass(), &options).unwrap();
+    let second = made(&mut app, &options);
+    let second_name = app.kef_save_made(&second);
+    assert_ne!(first_name, second_name);
+    for code in [&first, &second] {
+        assert!(
+            app.outbox.iter().any(|i| i.bytes == code.bytes),
+            "a code's file is missing from the Outbox"
+        );
+    }
+}
+
+#[test]
 fn the_size_a_code_will_be_is_known_before_it_is_made() {
     use faraday_core::worker::kef_make::side;
     let at = |version, low| Options {

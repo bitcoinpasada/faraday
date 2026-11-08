@@ -343,14 +343,15 @@ impl Faraday {
         self.worker.kef_mut().clear();
     }
 
-    /// Stops the Krux code being made and drops its answer, as Cancel on
-    /// the form does.
+    /// Stops the Krux code being made or being opened to check it, and
+    /// drops its answer, as Cancel on the form does.
     pub(crate) fn kef_make_cancel(&mut self) {
-        if self
-            .worker
-            .busy()
-            .is_some_and(|b| b.kind == crate::worker::Kind::KefSeal)
-        {
+        if self.worker.busy().is_some_and(|b| {
+            matches!(
+                b.kind,
+                crate::worker::Kind::KefSeal | crate::worker::Kind::KefOpen
+            )
+        }) {
             self.worker.stale();
             self.worker.kef_mut().stop();
             self.worker.set_busy(None);
@@ -635,14 +636,18 @@ impl Faraday {
     }
 
     /// Puts the code's picture (when it fits one code) and its file in
-    /// the Outbox. Neither is a secret (`docs/QR.md` §7.1).
-    pub fn kef_save_made(&mut self, made: &kef_make::Made) {
+    /// the Outbox, beside any other of the same name. Neither is a secret
+    /// (`docs/QR.md` §7.1). Gives the name the toast reads: the picture's,
+    /// or the file's when there is no picture.
+    pub fn kef_save_made(&mut self, made: &kef_make::Made) -> String {
         let c = self.compute();
-        if let Ok(view) = &made.view
-            && let Some((name, png)) = view.png(&c)
-        {
-            self.put_outbox(&name, png);
-        }
-        self.put_outbox(&made.file_name, made.bytes.clone());
+        let png = match &made.view {
+            Ok(view) => view
+                .png(&c)
+                .map(|(name, png)| self.put_outbox_beside(&name, png)),
+            Err(_) => None,
+        };
+        let file = self.put_outbox_beside(&made.file_name, made.bytes.clone());
+        png.unwrap_or(file)
     }
 }

@@ -46,6 +46,10 @@ pub enum Stage {
     Making,
     /// The code is made.
     Made,
+    /// Check my code asks for the passphrase.
+    Check,
+    /// The code is being opened to compare.
+    Comparing,
 }
 
 /// Where typing goes.
@@ -57,6 +61,8 @@ pub enum Focus {
     Rounds,
     /// A typed id, in Options.
     Label,
+    /// The passphrase of Check my code.
+    Check,
     /// The dice entry.
     Dice(Part),
 }
@@ -101,6 +107,18 @@ pub enum KefAct {
     Label,
     /// Makes the code.
     Make,
+    /// Opens Check my code, on the Code card.
+    Check,
+    /// Typing goes to the check's passphrase.
+    CheckField,
+    /// The eye on the check's passphrase.
+    CheckEye,
+    /// Opens the code under the check's passphrase and compares.
+    Compare,
+    /// Closes Check my code.
+    CheckBack,
+    /// Make another: back to the first step.
+    Another,
 }
 
 /// The form that makes a code.
@@ -119,6 +137,9 @@ pub struct KefForm {
     stage: Stage,
     error: Option<String>,
     made: Option<Made>,
+    check: TextBox,
+    check_shown: bool,
+    checked: bool,
 }
 
 impl KefForm {
@@ -143,7 +164,15 @@ impl KefForm {
             stage: Stage::Entry,
             error: None,
             made: None,
+            check: TextBox::default(),
+            check_shown: false,
+            checked: false,
         }
+    }
+
+    /// Whether the code was opened and held what it was made from.
+    pub fn checked(&self) -> bool {
+        self.checked
     }
 
     /// Where the form stands.
@@ -228,6 +257,23 @@ impl KefForm {
 
     /// A press.
     pub fn act(&mut self, app: &mut Faraday, a: KefAct) {
+        match (self.stage, a) {
+            (Stage::Made, KefAct::Check) => {
+                self.stage = Stage::Check;
+                self.error = None;
+                self.focus = Some(Focus::Check);
+            }
+            (Stage::Made, KefAct::Another) => self.again(),
+            (Stage::Check, KefAct::CheckField) => self.focus = Some(Focus::Check),
+            (Stage::Check, KefAct::CheckEye) => self.check_shown = !self.check_shown,
+            (Stage::Check, KefAct::Compare) => self.compare(app),
+            (Stage::Check, KefAct::CheckBack) => {
+                self.check.clear();
+                self.error = None;
+                self.stage = Stage::Made;
+            }
+            _ => {}
+        }
         if self.stage != Stage::Entry {
             return;
         }
@@ -281,6 +327,12 @@ impl KefForm {
                 self.focus = Some(Focus::Label);
             }
             KefAct::Make => self.make(app),
+            KefAct::Check
+            | KefAct::CheckField
+            | KefAct::CheckEye
+            | KefAct::Compare
+            | KefAct::CheckBack
+            | KefAct::Another => {}
         }
     }
 
@@ -301,6 +353,9 @@ impl KefForm {
 
     /// Typing. Returns whether the key was taken.
     pub fn key(&mut self, app: &mut Faraday, key: Key) -> bool {
+        if self.stage == Stage::Check {
+            return self.check_key(app, key);
+        }
         if self.stage != Stage::Entry {
             return false;
         }
@@ -330,6 +385,7 @@ impl KefForm {
                 }
                 _ => false,
             },
+            Some(Focus::Check) => false,
             Some(Focus::Rounds) => match key {
                 Key::Char(c) if c.is_ascii_digit() => {
                     if self.rounds.text.len() < 7 {
@@ -368,12 +424,21 @@ impl KefForm {
     /// the form: the code made, or what was refused. Returns whether
     /// anything changed.
     pub fn poll(&mut self, app: &mut Faraday) -> bool {
-        if self.stage != Stage::Making {
-            return false;
+        match self.stage {
+            Stage::Making => self.poll_made(app),
+            Stage::Comparing => self.poll_compared(app),
+            _ => false,
         }
+    }
+
+    fn poll_made(&mut self, app: &mut Faraday) -> bool {
         match app.kef_take_made(&self.options) {
             None => false,
             Some(Ok(m)) => {
+                // The job has the passphrase; the field is wiped.
+                self.pass.clear();
+                let name = app.kef_save_made(&m);
+                app.toast_out(&name);
                 self.made = Some(m);
                 self.stage = Stage::Made;
                 true
@@ -388,18 +453,106 @@ impl KefForm {
 
     /// Cancel while the work runs: it stops and its answer is dropped.
     pub fn cancel(&mut self, app: &mut Faraday) {
-        if self.stage == Stage::Making {
-            app.kef_make_cancel();
+        match self.stage {
+            Stage::Making => {
+                app.kef_make_cancel();
+                self.stage = Stage::Entry;
+            }
+            Stage::Comparing => {
+                app.kef_make_cancel();
+                self.stage = Stage::Check;
+            }
+            _ => {}
+        }
+    }
+
+    /// Takes the form back to its first step, as Make another does: the
+    /// passphrase and the check's are empty.
+    pub fn again(&mut self) {
+        if matches!(self.stage, Stage::Made | Stage::Check) {
+            self.made = None;
+            self.pass.clear();
+            self.check.clear();
+            self.checked = false;
+            self.error = None;
+            self.focus = Some(Focus::Pass);
             self.stage = Stage::Entry;
         }
     }
 
-    /// Takes the form back to its entry, as Make another does.
-    pub fn again(&mut self) {
-        if self.stage == Stage::Made {
-            self.made = None;
-            self.stage = Stage::Entry;
+    fn check_key(&mut self, app: &mut Faraday, key: Key) -> bool {
+        match key {
+            Key::Char(c) => {
+                let room = self.check.text.chars().count() < faraday_keys::kef::PASSPHRASE_MAX;
+                if (' '..='~').contains(&c) && room {
+                    self.check.text.push(c);
+                    self.error = None;
+                }
+                true
+            }
+            Key::Backspace => {
+                self.check.text.pop();
+                true
+            }
+            Key::Enter => {
+                self.compare(app);
+                true
+            }
+            _ => false,
         }
+    }
+
+    /// Costs a PBKDF2 of the code's rounds, on the worker. Opens the code
+    /// under the check's passphrase.
+    fn compare(&mut self, app: &mut Faraday) {
+        let Some(made) = &self.made else { return };
+        let Ok(envelope) = faraday_keys::kef::unwrap(&made.bytes) else {
+            return;
+        };
+        self.error = None;
+        let pass = Zeroizing::new(self.check.text.as_str().as_bytes().to_vec());
+        app.kef_open(pass, envelope, EN.kef_comparing);
+        self.stage = Stage::Comparing;
+    }
+
+    /// Costs a parse of the seed's words. Takes the open's answer and
+    /// compares what it holds with what the code was made from.
+    fn poll_compared(&mut self, app: &mut Faraday) -> bool {
+        let Some(answer) = app.kef_take_opened() else {
+            return false;
+        };
+        match answer {
+            Ok(opened) => {
+                let same = match &self.source {
+                    Source::Seed { index, .. } => {
+                        let c = app.compute();
+                        faraday_keys::kef::seed_matches(
+                            &app.session.keys,
+                            &c,
+                            *index,
+                            &opened.plaintext,
+                        )
+                    }
+                    Source::Text(t) => opened.plaintext.as_slice() == t.as_bytes(),
+                };
+                if same {
+                    self.checked = true;
+                    self.check.clear();
+                    self.error = None;
+                    self.stage = Stage::Made;
+                } else {
+                    self.no_match();
+                }
+            }
+            Err(faraday_keys::kef::OpenError::Cancelled) => self.stage = Stage::Check,
+            Err(_) => self.no_match(),
+        }
+        true
+    }
+
+    fn no_match(&mut self) {
+        self.error = Some(EN.kef_check_no_match.to_string());
+        self.stage = Stage::Check;
     }
 
     fn sync_rounds(&mut self) {

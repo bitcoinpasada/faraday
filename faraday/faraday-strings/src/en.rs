@@ -12739,6 +12739,20 @@ strings! {
     kef_opt_by_hand_no: "No",
     /// Options, on Paper: a side in modules. `{}`: the side, twice.
     kef_opt_side: "{} × {}",
+    /// The Code card: opens the check of the code against what it holds.
+    kef_check_my_code: "Check my code",
+    /// The Code card: goes back to the first step.
+    kef_make_another: "Make another",
+    /// Check my code: the button that opens the code and compares.
+    kef_compare: "Compare",
+    /// Check my code: the field's label.
+    kef_check_pass: "Passphrase of the code",
+    /// Check my code: the working line while the code is opened.
+    kef_comparing: "Comparing the code",
+    /// Check my code: the code opened and holds what it was made from.
+    kef_checked: "Checked",
+    /// Check my code: the code did not open or holds something else.
+    kef_check_no_match: "Not matching. Try the passphrase again.",
     /// Text in `label`: a seed's Krux code as files on a stick. `{}`: `seed(i)`.
     plan_kef_code: "Seed {}: Krux code",
     /// Text in `label`: a seed's Krux code copied by hand onto paper. `{}`: `seed(i)`.

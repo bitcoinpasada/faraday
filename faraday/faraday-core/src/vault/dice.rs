@@ -4,8 +4,8 @@
 //! and the randomness, and wraps its presses as vault actions.
 
 use super::{Focus, VaultAction as V};
-use crate::dice_entry::{DiceEntry, Env, Part, Press, Pressed};
 use crate::dice_entry::screen::Ask;
+use crate::dice_entry::{DiceEntry, Env, Part, Press, Pressed};
 use crate::drawing::View;
 use crate::ui::Ui;
 use crate::{Action, Faraday};

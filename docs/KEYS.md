@@ -254,6 +254,10 @@ impl Keys {
     Reveal::KefCode)`, 16 bytes for a seed of 12 English words and 32 for 24,
     held and wiped on drop, and nothing for a seed of 15, 18 or 21 words, another
     list's or a key with no words (`docs/KEF.md` §6). Costs a parse of the words.
+  - whether what a Krux encrypted code opened to is a seed's entropy:
+    `Keys::kef_matches(c, i, Reveal::KefCode, plaintext)`, a yes or a no; the
+    entropy is held for the comparison and wiped, and never leaves
+    `faraday-keys` (`docs/KEF.md` §15.1). Costs a parse of the words.
 
   Each comes back as `Held` (an `XprivAscii`, a `WifAscii`, or
   `Zeroizing` strings, every one wiped on drop) and is made once, at the

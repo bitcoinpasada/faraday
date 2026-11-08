@@ -1491,6 +1491,16 @@ impl Keys {
         )))
     }
 
+    /// Costs a parse of the words. Whether `plaintext` is key `i`'s seed
+    /// entropy as a Krux encrypted code holds it (`Reveal::KefCode`,
+    /// `docs/KEF.md` §15.1): a yes or a no, and the entropy goes no
+    /// further. `false` for another reason, for a seed with no entropy to
+    /// give (`kef_entropy`) or no such key.
+    pub fn kef_matches(&self, c: &Compute, i: usize, why: Reveal, plaintext: &[u8]) -> bool {
+        self.kef_entropy(c, i, why)
+            .is_some_and(|held| held.release().as_slice() == plaintext)
+    }
+
     /// Costs a key derivation. Key `i`'s extended private key at `path`
     /// below its master (the empty path: the root's), as text (`xprv…` on
     /// mainnet, `tprv…` on the test networks), for Explore to show

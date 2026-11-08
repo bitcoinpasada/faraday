@@ -25,8 +25,7 @@ pub(crate) struct Ask {
     pub on_rolls: fn(usize) -> Action,
 }
 
-/// The first step, at (x, y), `w` wide. Returns its height. Drawn while
-/// the stage is entry or making; the made stage draws nothing here.
+/// The first step, at (x, y), `w` wide. Returns its height. Drawn in every stage.
 pub(crate) fn draw(
     app: &View,
     ui: &mut Ui,
@@ -36,9 +35,15 @@ pub(crate) fn draw(
 ) -> f32 {
     let mut cy = y;
     match f.stage {
-        Stage::Made => return 0.0,
-        Stage::Making => {
-            ui.text_as(x, cy, LABEL_L, Role::OnSurface, EN.kef_making);
+        Stage::Made => return code_card(ui, (x, cy, w), f, ask),
+        Stage::Check => return check_card(app, ui, (x, cy, w), f, ask),
+        Stage::Making | Stage::Comparing => {
+            let line = if f.stage == Stage::Making {
+                EN.kef_making
+            } else {
+                EN.kef_comparing
+            };
+            ui.text_as(x, cy, LABEL_L, Role::OnSurface, line);
             cy += ui.advance_as(LABEL_L, faraday_draw::tokens::KEF_HEAD_ADVANCE);
             if let Some(b) = app.busy() {
                 crate::screens::busy_bar(app, ui, (x, cy, w), b);
@@ -108,6 +113,100 @@ pub(crate) fn draw(
         EN.kef_form_make,
         Style::Primary,
         (ask.wrap)(KefAct::Make),
+    );
+    cy + BUTTON_H - y
+}
+
+/// The Code card: the code's picture, Checked once it is, **Check my
+/// code** and **Make another**. Returns its height.
+fn code_card(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f32 {
+    let mut cy = y;
+    if let Some(m) = &f.made {
+        match &m.view {
+            Ok(v) => {
+                if let Some(q) = v.frames.get(v.frame) {
+                    let size = if ui.compact {
+                        faraday_draw::geom::SizeClass::Small
+                    } else {
+                        faraday_draw::geom::SizeClass::Wide
+                    };
+                    let side = faraday_draw::tokens::qr_side(size).min(w);
+                    faraday_ui::parts::qr_code(ui, q, x + (w - side) / 2.0, cy, side);
+                    cy += side + GAP;
+                }
+                for line in &v.label {
+                    cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, line);
+                }
+                cy += GAP;
+            }
+            Err(e) => cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, e) + GAP,
+        }
+    }
+    if f.checked {
+        ui.text_as(x, cy, LABEL_L, Role::Ok, EN.kef_checked);
+        cy += ui.advance_as(LABEL_L, faraday_draw::tokens::KEF_HEAD_ADVANCE);
+    } else {
+        ui.button(
+            x,
+            cy,
+            None,
+            BUTTON_H,
+            EN.kef_check_my_code,
+            Style::Primary,
+            (ask.wrap)(KefAct::Check),
+        );
+        cy += BUTTON_H + GAP;
+    }
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.kef_make_another,
+        Style::Secondary,
+        (ask.wrap)(KefAct::Another),
+    );
+    cy + BUTTON_H - y
+}
+
+/// Check my code: one masked field and **Compare**. Returns its height.
+fn check_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f32 {
+    let mut cy = y;
+    cy += ui.field_label(x, cy, EN.kef_check_pass);
+    let show = app.pass_shows(f.check_shown, f.check.text.as_str());
+    secret_box(
+        ui,
+        x,
+        cy,
+        w,
+        &f.check,
+        show,
+        f.focus == Some(Focus::Check),
+        (ask.wrap)(KefAct::CheckField),
+        (ask.wrap)(KefAct::CheckEye),
+    );
+    cy += FIELD_H + GAP;
+    if let Some(e) = &f.error {
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, e) + GAP;
+    }
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.kef_compare,
+        Style::Primary,
+        (ask.wrap)(KefAct::Compare),
+    );
+    cy += BUTTON_H + GAP;
+    ui.button(
+        x,
+        cy,
+        None,
+        BUTTON_H,
+        EN.kef_done,
+        Style::Secondary,
+        (ask.wrap)(KefAct::CheckBack),
     );
     cy + BUTTON_H - y
 }

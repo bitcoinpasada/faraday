@@ -11,9 +11,9 @@
 //! says it is working has been drawn.
 
 mod area;
-pub(crate) mod dice;
 pub(crate) mod copy;
 pub(crate) mod copy_screen;
+pub(crate) mod dice;
 pub(crate) mod errors;
 pub(crate) mod keep;
 pub mod load;

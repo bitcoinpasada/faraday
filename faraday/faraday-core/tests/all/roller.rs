@@ -159,7 +159,10 @@ fn a_rolls_values_are_entered_at_the_click_and_the_die_tumbles_a_moment() {
     assert_eq!(rolls(&app).len(), 5, "all five at the click");
     tick(&mut app, t0 + 16);
     assert_eq!(rolls(&app).len(), 5, "and no more after it");
-    assert!(app.vaults().dice.roller().progress() > 0.0, "the die tumbles");
+    assert!(
+        app.vaults().dice.roller().progress() > 0.0,
+        "the die tumbles"
+    );
     tick(&mut app, t0 + 1_000);
     assert!(!app.vaults().dice.roller().active(), "and rests");
     assert_eq!(rolls(&app).len(), 5);
