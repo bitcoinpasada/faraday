@@ -2185,6 +2185,26 @@ pub fn backup_set_q(app: &mut crate::Faraday, q: Option<u8>) {
     }
 }
 
+/// The picture's PNG the Code card of seed `i`'s Krux code shows in the
+/// backup under way; `None` while the code is not made or fits no picture.
+pub fn kef_card_png(app: &crate::Faraday, i: usize) -> Option<Vec<u8>> {
+    let made = app.backup.kef_form(i)?.made()?;
+    made.view.as_ref().ok()?.png(&compute()).map(|(_, png)| png)
+}
+
+/// Moves the Outbox files called `names` to Files, as a flow does with the
+/// public files it wrote to the sticks.
+pub fn outbox_to_files(app: &mut crate::Faraday, names: &[String]) {
+    let moved: Vec<_> = app
+        .outbox
+        .iter()
+        .filter(|i| names.contains(&i.name))
+        .cloned()
+        .collect();
+    app.outbox.retain(|i| !names.contains(&i.name));
+    app.inbox.extend(moved);
+}
+
 /// Drops the backup under way, as a lock does.
 pub fn backup_drop(app: &mut crate::Faraday) {
     app.backup.close();

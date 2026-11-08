@@ -6,11 +6,15 @@
 //! `screens/backup.rs`.
 
 use super::WalletBackupArea;
+use crate::backups::KefMark;
 use crate::dice_entry::Press;
 use crate::kef_form::screen::Ask;
 use crate::kef_form::{KefAct, KefForm, Source};
 use crate::kef_tool::KefToolAction;
+use crate::receipt::sha256_of;
+use crate::worker::kef_make::{self, IdChoice, Options, Saved};
 use crate::{Action, Faraday, Screen, Sheet, bstep, plan};
+use faraday_crypto::work::Compute;
 use faraday_shell_api::Key;
 
 impl WalletBackupArea {
@@ -43,16 +47,6 @@ impl WalletBackupArea {
             .is_some_and(|b| b.kef.iter().any(|(_, f)| f.holds_secret()))
     }
 
-    /// Whether seed `i`'s Krux code was made in this backup.
-    pub(crate) fn kef_made(&self, i: usize) -> bool {
-        self.kef_form(i).is_some_and(|f| f.made().is_some())
-    }
-
-    /// Whether seed `i`'s Krux code was opened and held the seed.
-    pub(crate) fn kef_checked(&self, i: usize) -> bool {
-        self.kef_form(i).is_some_and(KefForm::checked)
-    }
-
     fn kef_take(&mut self, i: usize) -> Option<KefForm> {
         let kef = &mut self.state.as_mut()?.kef;
         let at = kef.iter().position(|(j, _)| *j == i)?;
@@ -71,6 +65,167 @@ impl WalletBackupArea {
             .map(|b| b.kef.iter().map(|(i, _)| *i).collect())
             .unwrap_or_default()
     }
+}
+
+/// Seed `i`'s Krux code as it stands: from the form once the item was
+/// opened, else from the record.
+fn kept(app: &Faraday, i: usize) -> Option<KefMark> {
+    match app.backup.kef_form(i) {
+        Some(f) => {
+            let m = f.made()?;
+            let s = f.saved()?;
+            Some(KefMark {
+                png: s.png.clone(),
+                file: s.file.clone(),
+                checked: f.checked(),
+                sha: m.sha,
+                low: m.low,
+                label: m.label,
+            })
+        }
+        None => app.kef_mark(i),
+    }
+}
+
+/// Which box holds the first copy of `name`, in the order the stick's
+/// writer takes: the Outbox (`false`), then Files (`true`).
+fn box_of(app: &Faraday, name: &str) -> Option<bool> {
+    if app.outbox.iter().any(|o| o.name == name) {
+        Some(false)
+    } else if app.inbox.iter().any(|o| o.name == name) {
+        Some(true)
+    } else {
+        None
+    }
+}
+
+/// Costs a SHA-256 pass over the file. The bytes of the `.kef` file `m`
+/// names, from the first copy of the name (the Outbox, else Files, where
+/// the files the flow wrote are moved to), when they are the bytes the
+/// record has the hash of. A file of the name made since is another code:
+/// the answer is then `None`.
+fn kef_bytes(app: &Faraday, c: &Compute, m: &KefMark) -> Option<Vec<u8>> {
+    app.outbox
+        .iter()
+        .chain(app.inbox.iter())
+        .find(|o| o.name == m.file)
+        .filter(|o| sha256_of(c, &o.bytes) == m.sha)
+        .map(|o| o.bytes.clone())
+}
+
+/// Whether the files of code `m` are there by their names, the picture in
+/// the box of the `.kef` file: in the Outbox or written (Files). Drawing
+/// and the stick's list read this; the bytes are held to the hash where
+/// the item is counted done and where it is taken up again.
+fn named(app: &Faraday, m: &KefMark) -> bool {
+    let at = box_of(app, &m.file);
+    at.is_some() && m.png.as_deref().is_none_or(|p| box_of(app, p) == at)
+}
+
+/// Whether seed `i`'s Krux code is made and not yet opened back, by its
+/// files' names: what the closed item reads Not checked for.
+pub(crate) fn pending(app: &Faraday, i: usize) -> bool {
+    kept(app, i).is_some_and(|m| !m.checked && named(app, &m))
+}
+
+/// Costs a SHA-256 pass over the `.kef` file. Whether seed `i`'s Krux code
+/// was opened back and held the seed, with both its files there and the
+/// `.kef` file's bytes the ones made.
+pub(crate) fn checked(app: &Faraday, c: &Compute, i: usize) -> bool {
+    kept(app, i).is_some_and(|m| m.checked && named(app, &m) && kef_bytes(app, c, &m).is_some())
+}
+
+/// Seed `i`'s Krux code files as the stick lists them: the picture's name
+/// when it has one, and the `.kef` file's. Nothing while the code is not
+/// made.
+pub(crate) fn stick_names(app: &Faraday, i: usize) -> Vec<String> {
+    let Some(m) = kept(app, i).filter(|m| named(app, m)) else {
+        return Vec::new();
+    };
+    m.png.into_iter().chain([m.file]).collect()
+}
+
+/// Costs a SHA-256 pass, the picture and what `kef_make::made` costs.
+/// Puts seed `i`'s Krux code back in the Outbox from Files, under its
+/// names as the record has them: the bytes the record has the hash of and
+/// the picture made from them. Only where neither name is taken in the
+/// Outbox; no file is replaced. Nothing is put where the bytes are not
+/// there.
+pub(crate) fn stick_put(app: &mut Faraday, i: usize) {
+    let Some(m) = kept(app, i) else {
+        return;
+    };
+    let c = app.compute();
+    let Some(bytes) = kef_bytes(app, &c, &m) else {
+        return;
+    };
+    // A file of a name already in the Outbox is never replaced.
+    let free = |n: &str| !app.outbox.iter().any(|o| o.name == n);
+    if box_of(app, &m.file) != Some(true) || !free(&m.file) {
+        return;
+    }
+    if let Some(name) = &m.png
+        && !free(name)
+    {
+        return;
+    }
+    if let Some(name) = &m.png
+        && let Some(made) = remade(&c, bytes.clone(), &m)
+        && let Ok(view) = &made.view
+        && let Some((_, png)) = view.png(&c)
+    {
+        app.put_outbox(name, png);
+    }
+    app.put_outbox(&m.file, bytes);
+}
+
+/// Costs what `kef_make::made` costs. The code of `bytes` as the record
+/// `m` has it drawn; `None` where the bytes do not read.
+fn remade(c: &Compute, bytes: Vec<u8>, m: &KefMark) -> Option<kef_make::Made> {
+    let env = faraday_keys::kef::unwrap(&bytes).ok()?;
+    let options = Options {
+        version: env.version,
+        low: m.low,
+        count: env.count,
+        id: if m.label {
+            IdChoice::Label(String::new())
+        } else {
+            Options::default().id
+        },
+    };
+    Some(kef_make::made(c, bytes, &options))
+}
+
+/// Keeps seed `i`'s code in the record as its form stands.
+fn sync_record(app: &mut Faraday, i: usize) {
+    let mark = app.backup.kef_form(i).and_then(|_| kept(app, i));
+    app.backups_kef_set(i, mark);
+}
+
+/// Costs what `kef_make::made` costs. Takes up the code the record keeps
+/// for seed `i` from its `.kef` file, in the Outbox or written, with no
+/// passphrase: the file is read as anything from outside is, and is the
+/// code only with the bytes the record has the hash of. A file that is
+/// gone, differs or does not read leaves the form at the first step.
+fn restore(app: &mut Faraday, i: usize, form: &mut KefForm) {
+    let Some(m) = app.kef_mark(i) else {
+        return;
+    };
+    let c = app.compute();
+    let Some(bytes) = kef_bytes(app, &c, &m).filter(|_| named(app, &m)) else {
+        return;
+    };
+    let Some(made) = remade(&c, bytes, &m) else {
+        return;
+    };
+    form.restore(
+        made,
+        Saved {
+            png: m.png,
+            file: m.file,
+        },
+        m.checked,
+    );
 }
 
 /// Runs `f` on seed `i`'s form, taken out of the state for it so that it
@@ -136,17 +291,32 @@ pub(crate) fn opened(app: &mut Faraday) {
     }
     if let Some(i) = cur
         && app.backup.kef_form(i).is_none()
-        && let Some(form) = new_form(app, i)
+        && let Some(mut form) = new_form(app, i)
     {
+        restore(app, i, &mut form);
         app.backup.kef_put(i, form);
+    }
+    if let Some(i) = cur
+        && app.backup.kef_form(i).is_some_and(|f| f.made().is_some())
+    {
+        sync_record(app, i);
     }
     sync(app);
 }
 
 /// A press on the form.
 pub(crate) fn act(app: &mut Faraday, a: KefAct) {
+    let before = app
+        .backup
+        .kef_open()
+        .is_some_and(|i| app.backup.kef_form(i).is_some_and(|f| f.made().is_some()));
     with_open(app, |f, app| f.act(app, a));
     poll(app);
+    if let Some(i) = app.backup.kef_open()
+        && (before || app.backup.kef_form(i).is_some_and(|f| f.made().is_some()))
+    {
+        sync_record(app, i);
+    }
     sync(app);
 }
 
@@ -206,6 +376,9 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
 /// After a worker's answer: the open form takes it.
 pub(crate) fn poll(app: &mut Faraday) {
     if with_open(app, |f, app| f.poll(app)).unwrap_or(false) {
+        if let Some(i) = app.backup.kef_open() {
+            sync_record(app, i);
+        }
         sync(app);
         app.out.redraw();
     }

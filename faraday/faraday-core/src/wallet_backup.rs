@@ -2159,7 +2159,7 @@ impl Faraday {
                         .contains(&(k.fingerprint.0, plan::CopyForm::Passphrase))
                 })
             }
-            plan::Item::KefCode(i) => self.backup.kef_checked(i),
+            plan::Item::KefCode(i) => kef::checked(self, c, i),
             plan::Item::Vault(v) => self.backup_vault_fits(c, v).is_some(),
             plan::Item::SeedFiles => {
                 !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))

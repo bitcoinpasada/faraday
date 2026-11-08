@@ -552,6 +552,8 @@ impl Faraday {
             P::Codex32ShareFile(..) | P::Codex32QrFile(..) => {
                 crate::codex32_backup::stick_names(shape, a, what)
             }
+            // The Krux code's files, under the names the Outbox gave them.
+            P::KefCode(i) => crate::wallet_backup::kef::stick_names(self, i),
             _ => Vec::new(),
         }
     }
@@ -645,11 +647,41 @@ impl Faraday {
                 P::Codex32ShareFile(..) | P::Codex32QrFile(..) => {
                     expect.extend(self.c32_stick_file(&c, &list, what, &names));
                 }
+                // The code's picture reads as the base43 text of its file.
+                P::KefCode(i) => {
+                    crate::wallet_backup::kef::stick_put(self, i);
+                    expect.extend(self.kef_readback(&c, &names));
+                }
                 _ => {}
             }
         }
         self.save_boxes();
         expect
+    }
+
+    /// Costs a hash. What a Krux code's picture among `names` must read
+    /// back as: the SHA-256 of the base43 text of its `.kef` file, which
+    /// is public.
+    fn kef_readback(
+        &self,
+        c: &Compute,
+        names: &[String],
+    ) -> Vec<(String, crate::backup_flow::ReadBack)> {
+        let Some(png) = names.iter().find(|n| n.ends_with(".png")) else {
+            return Vec::new();
+        };
+        let Some(file) = names
+            .iter()
+            .find(|n| !n.ends_with(".png"))
+            .and_then(|n| self.outbox.iter().find(|o| o.name == *n))
+        else {
+            return Vec::new();
+        };
+        let text = faraday_codec::kef::base43_encode(&file.bytes);
+        vec![(
+            png.clone(),
+            crate::backup_flow::ReadBack::Codes(crate::sha256_of(c, text.as_bytes())),
+        )]
     }
 
     /// Costs what `parse_words` costs. Writes out the digits session key

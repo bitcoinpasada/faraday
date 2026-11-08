@@ -10,7 +10,7 @@ use crate::dice_entry::{DiceEntry, Env, Part, Press, Pressed, Used};
 use crate::strings::{EN, fill};
 use crate::vault::TextBox;
 use crate::worker::kef::KefStart;
-use crate::worker::kef_make::{self, IdChoice, Made, MakeStart, Options};
+use crate::worker::kef_make::{self, IdChoice, Made, MakeStart, Options, Saved};
 use faraday_keys::kef::{DEFAULT_ID_LEN, ID_MAX, LONG_ID_LEN};
 use faraday_shell_api::Key;
 use zeroize::Zeroizing;
@@ -138,6 +138,7 @@ pub struct KefForm {
     stage: Stage,
     error: Option<String>,
     made: Option<Made>,
+    saved: Option<Saved>,
     check: TextBox,
     check_shown: bool,
     checked: bool,
@@ -184,6 +185,7 @@ impl KefForm {
             stage: Stage::Entry,
             error: None,
             made: None,
+            saved: None,
             check: TextBox::default(),
             check_shown: false,
             checked: false,
@@ -239,6 +241,20 @@ impl KefForm {
     /// The code, once made.
     pub fn made(&self) -> Option<&Made> {
         self.made.as_ref()
+    }
+
+    /// The names the Outbox gave the code's files.
+    pub fn saved(&self) -> Option<&Saved> {
+        self.saved.as_ref()
+    }
+
+    /// Takes up a code made before, read back from its file: the form
+    /// stands at the code, `checked` as it was.
+    pub(crate) fn restore(&mut self, made: Made, saved: Saved, checked: bool) {
+        self.made = Some(made);
+        self.saved = Some(saved);
+        self.checked = checked;
+        self.stage = Stage::Made;
     }
 
     /// Whether Options is open.
@@ -483,8 +499,9 @@ impl KefForm {
             Some(Ok(m)) => {
                 // The job has the passphrase; the field is wiped.
                 self.pass.clear();
-                let name = app.kef_save_made(&m);
-                app.toast_out(&name);
+                let saved = app.kef_save_files(&m);
+                app.toast_out(saved.toast_name());
+                self.saved = Some(saved);
                 self.made = Some(m);
                 self.stage = Stage::Made;
                 true
@@ -517,6 +534,7 @@ impl KefForm {
     pub fn again(&mut self) {
         if matches!(self.stage, Stage::Made | Stage::Check) {
             self.made = None;
+            self.saved = None;
             self.pass.clear();
             self.check.clear();
             self.checked = false;

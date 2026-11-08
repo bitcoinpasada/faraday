@@ -207,9 +207,31 @@ pub struct Made {
     pub png_name: String,
     /// The bytes' file name.
     pub file_name: String,
+    /// The SHA-256 of the bytes; public.
+    pub sha: [u8; 32],
+    /// The picture was drawn at low error correction.
+    pub low: bool,
+    /// The picture carries a typed id's line.
+    pub label: bool,
 }
 
-/// Costs what `QrView::kef` costs. The code for `bytes`, labelled with
+/// The names the Outbox gave a code's files.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Saved {
+    /// The picture's, when the code fits one.
+    pub png: Option<String>,
+    /// The bytes' file.
+    pub file: String,
+}
+
+impl Saved {
+    /// The name a toast reads: the picture's, else the file's.
+    pub fn toast_name(&self) -> &str {
+        self.png.as_deref().unwrap_or(&self.file)
+    }
+}
+
+/// Costs what `QrView::kef` costs, and a SHA-256 pass over the bytes. The code for `bytes`, labelled with
 /// what is on the paper anyway: the version, the count and a typed id; it
 /// never says what the code holds.
 pub(crate) fn made(c: &Compute, bytes: Vec<u8>, options: &Options) -> Made {
@@ -224,23 +246,24 @@ pub(crate) fn made(c: &Compute, bytes: Vec<u8>, options: &Options) -> Made {
     let png_name = fill(EN.kef_code_png_name, &[&v, &hex]);
     let file_name = fill(EN.kef_code_file_name, &[&v, &hex]);
     let mut lines = vec![fill(EN.kef_code_label_version, &[&v, &count.to_string()])];
+    let mut label = false;
     if matches!(options.id, IdChoice::Label(_))
         && let Some(t) = id_text(&id)
     {
         lines.push(fill(EN.kef_code_label_id, &[t]));
+        label = true;
     }
     let text = faraday_codec::kef::base43_encode(&bytes);
-    let view = QrView::kef(
-        c,
-        &text,
-        options.low && options.low_offered(),
-        &png_name,
-        lines,
-    );
+    let low = options.low && options.low_offered();
+    let view = QrView::kef(c, &text, low, &png_name, lines);
+    let sha = faraday_crypto::sha256_whole(c, &bytes);
     Made {
         bytes,
         view,
         png_name,
         file_name,
+        sha,
+        low,
+        label,
     }
 }

@@ -56,6 +56,29 @@ pub struct Record {
     /// the fingerprint only finds a candidate (F65). Empty in a record
     /// kept before it was written.
     pub ids: Vec<([u8; 4], [u8; 32])>,
+    /// Each seed's Krux code made in this wallet's backup, by fingerprint:
+    /// the names of its files and whether it was opened back. Nothing of
+    /// the passphrase or the seed is in it (`docs/KEF.md` §15.1). Empty in
+    /// a record kept before it was written.
+    pub kefs: Vec<([u8; 4], KefMark)>,
+}
+
+/// A Krux code made in a wallet's backup, as its record keeps it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct KefMark {
+    /// The picture's name in the Outbox, when the code fits one.
+    pub png: Option<String>,
+    /// The `.kef` file's name in the Outbox.
+    pub file: String,
+    /// The code was opened back with its passphrase and held the seed.
+    pub checked: bool,
+    /// The SHA-256 of the `.kef` file's bytes: a file of that name with
+    /// other bytes is not this code.
+    pub sha: [u8; 32],
+    /// The picture was drawn at low error correction.
+    pub low: bool,
+    /// The picture carries a typed id's line.
+    pub label: bool,
 }
 
 /// A record's marks, as a backup opened again takes them up.
@@ -167,6 +190,15 @@ fn hex4(b: [u8; 4]) -> String {
     faraday_crypto::hex::encode_string(&b)
 }
 
+/// A flag as the record writes it: `0` or `1`.
+fn read_flag(s: &str) -> Option<bool> {
+    match s {
+        "0" => Some(false),
+        "1" => Some(true),
+        _ => None,
+    }
+}
+
 fn read_hex4(s: &str) -> Option<[u8; 4]> {
     faraday_crypto::hex::decode_exact(s)
 }
@@ -249,6 +281,18 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
         for (fp, id) in &r.ids {
             out.push_str(&format!("id\t{}\t{}\n", hex4(*fp), hex32(id)));
         }
+        for (fp, k) in &r.kefs {
+            out.push_str(&format!(
+                "kef\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n",
+                hex4(*fp),
+                kept_field(k.png.as_deref().unwrap_or("")),
+                kept_field(&k.file),
+                u8::from(k.checked),
+                hex32(&k.sha),
+                u8::from(k.low),
+                u8::from(k.label)
+            ));
+        }
         if !r.answers.is_empty() {
             out.push_str(&format!(
                 "plan\t{}\n",
@@ -313,6 +357,29 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
                     (read_hex4(fp), read_hex32(id), out.last_mut())
                 {
                     r.ids.push((fp, id));
+                }
+            }
+            // A flag other than 0 or 1 drops the line too.
+            // A line without the hash and the options (kept before they
+            // were) is dropped: the code reads Not made.
+            ["kef", fp, png, file, checked, sha, low, label] => {
+                if let (Some(fp), Some(sha), Some(r)) =
+                    (read_hex4(fp), read_hex32(sha), out.last_mut())
+                    && !file.is_empty()
+                    && let (Some(checked), Some(low), Some(label)) =
+                        (read_flag(checked), read_flag(low), read_flag(label))
+                {
+                    r.kefs.push((
+                        fp,
+                        KefMark {
+                            png: (!png.is_empty()).then(|| png.to_string()),
+                            file: file.to_string(),
+                            checked,
+                            sha,
+                            low,
+                            label,
+                        },
+                    ));
                 }
             }
             ["check", fp, n] => {
@@ -402,8 +469,30 @@ impl BackupsArea {
                 passphrases: Vec::new(),
                 answers,
                 ids,
+                kefs: Vec::new(),
             }),
         }
+    }
+
+    /// Seed `fp`'s Krux code in wallet `sum`'s record: kept, or (`None`)
+    /// not made.
+    pub(crate) fn kef_set(&mut self, sum: &str, fp: [u8; 4], mark: Option<KefMark>) {
+        let Some(r) = self.record_mut(sum) else {
+            return;
+        };
+        r.kefs.retain(|(f, _)| *f != fp);
+        if let Some(m) = mark {
+            r.kefs.push((fp, m));
+        }
+    }
+
+    /// Seed `fp`'s Krux code as wallet `sum`'s record keeps it.
+    pub(crate) fn kef_of(&self, sum: &str, fp: [u8; 4]) -> Option<&KefMark> {
+        self.record(sum)?
+            .kefs
+            .iter()
+            .find(|(f, _)| *f == fp)
+            .map(|(_, m)| m)
     }
 
     /// Whether wallet `sum` has a record.
@@ -607,7 +696,15 @@ impl Faraday {
                         // A Krux code is an extra copy, not a copy of the
                         // seed, and its files are named when made
                         // (`docs/KEF.md` §15.1).
-                        What::KefCode(_) | What::KefCodePaper(_) => {}
+                        What::KefCode(i) => {
+                            if let Some(m) = fp_of(i)
+                                .and_then(|fp| self.backups_area.kef_of(wallet.checksum(), fp))
+                            {
+                                out.files.extend(m.png.clone());
+                                out.files.push(m.file.clone());
+                            }
+                        }
+                        What::KefCodePaper(_) => {}
                         What::Wallet if spot.at == At::Files => out.files.extend(public.clone()),
                         What::Wallet if spot.at == At::Software && a.form[plan::form::TEXT] => {
                             out.files.extend(public.clone())
@@ -735,6 +832,47 @@ impl Faraday {
             return;
         };
         self.backups_area.passphrase_checked(&sum, fp);
+    }
+
+    /// Seed `i`'s Krux code of the backup under way as the record keeps
+    /// it: the names, the hash of its `.kef` file and whether it was
+    /// checked. Whether the files are still there is
+    /// `wallet_backup::kef`'s to say.
+    pub(crate) fn kef_mark(&self, i: usize) -> Option<KefMark> {
+        let b = self.backup.state()?;
+        let sum = self.session.wallets.get(b.wallet)?.checksum();
+        let fp = self.kef_fp(b.wallet, i)?;
+        self.backups_area.kef_of(sum, fp).cloned()
+    }
+
+    /// The fingerprint of seed `i` of wallet `w`'s backup, when its key is
+    /// loaded.
+    fn kef_fp(&self, w: usize, i: usize) -> Option<[u8; 4]> {
+        let k = self.backup_seed_list_now(w).get(i)?.1?;
+        Some(self.session.keys.info(k)?.fingerprint.0)
+    }
+
+    /// Seed `i`'s Krux code of the backup under way is `mark` (`None`:
+    /// not made): the record keeps it, for a backup opened again after a
+    /// lock, and the plan's places list its files.
+    pub(crate) fn backups_kef_set(&mut self, i: usize, mark: Option<KefMark>) {
+        let Some(w) = self.backup.state().map(|b| b.wallet) else {
+            return;
+        };
+        let (Some(sum), Some(fp)) = (
+            self.session
+                .wallets
+                .get(w)
+                .map(|x| x.checksum().to_string()),
+            self.kef_fp(w, i),
+        ) else {
+            return;
+        };
+        if self.backups_area.kef_of(&sum, fp) == mark.as_ref() {
+            return;
+        }
+        self.backups_area.kef_set(&sum, fp, mark);
+        self.backups_sync();
     }
 
     /// What loaded wallet `i`'s backup was marked with that nothing else
@@ -868,6 +1006,7 @@ impl Faraday {
             envelopes: false,
             passphrases: Vec::new(),
             answers: String::new(),
+            kefs: Vec::new(),
         };
         Some(self.record_lines(c, &r, &names))
     }

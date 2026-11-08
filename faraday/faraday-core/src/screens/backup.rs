@@ -118,7 +118,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
             ),
             if done {
                 EN.item_title_checked
-            } else if app.backup.kef_made(i) {
+            } else if crate::wallet_backup::kef::pending(app, i) {
                 EN.item_title_not_checked
             } else {
                 EN.item_title_not_made
