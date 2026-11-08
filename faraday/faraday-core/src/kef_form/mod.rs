@@ -350,7 +350,9 @@ impl KefForm {
                 self.focus = Some(Focus::Check);
             }
             (Stage::Made, KefAct::Another) => self.again(),
-            (Stage::Made, KefAct::Pin(n)) => self.pin = n.min(faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE - 1),
+            (Stage::Made, KefAct::Pin(n)) => {
+                self.pin = n.min(faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE - 1)
+            }
             (Stage::Made, KefAct::Rows(r)) => {
                 self.rows = r;
                 self.pin = 0;

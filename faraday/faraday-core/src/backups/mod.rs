@@ -402,10 +402,27 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
             // A line kept before the drawn copy and the side were (eight
             // fields) reads as not scanned, side unknown.
             ["kef", fp, png, file, checked, sha, low, label] => {
-                read_kef(&mut out, [fp, png, file, checked, sha, low, label, "0", "0"]);
+                read_kef(
+                    &mut out,
+                    [fp, png, file, checked, sha, low, label, "0", "0"],
+                );
             }
-            ["kef", fp, png, file, checked, sha, low, label, scanned, side] => {
-                read_kef(&mut out, [fp, png, file, checked, sha, low, label, scanned, side]);
+            [
+                "kef",
+                fp,
+                png,
+                file,
+                checked,
+                sha,
+                low,
+                label,
+                scanned,
+                side,
+            ] => {
+                read_kef(
+                    &mut out,
+                    [fp, png, file, checked, sha, low, label, scanned, side],
+                );
             }
             ["check", fp, n] => {
                 if let (Some(fp), Ok(n), Some(r)) = (read_hex4(fp), n.parse(), out.last_mut()) {

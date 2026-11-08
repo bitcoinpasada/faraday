@@ -11,7 +11,7 @@ use faraday_core::kef_form::KefAct;
 use faraday_core::kef_tool::KefToolAction as K;
 use faraday_core::plan::{Item, Preset};
 use faraday_core::seeds::SeedsAction as S;
-use faraday_core::{Action, Faraday, Screen, bstep, qstep, testkit};
+use faraday_core::{Action, Faraday, Screen, StorageEvent, bstep, qstep, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
 
 /// A one-key wallet whose plan keeps seed A's Krux code on a new stick,
@@ -690,4 +690,231 @@ fn a_code_goes_beside_files_holding_only_the_picture_of_an_earlier_one_under_one
         .collect();
     assert_eq!(stems[0], stems[1], "one stem: {names:?}");
     assert!(stems[0].ends_with("-2"), "{names:?}");
+}
+
+/// As [`at_the_checklist`], the code on Paper at the first place and on
+/// no stick, with `camera` or none.
+fn on_paper(camera: bool) -> Faraday {
+    let mut app = at_the_checklist();
+    reopen_on_paper(&mut app, true);
+    app.storage(StorageEvent::Cameras(if camera {
+        vec![("cam".to_string(), "Camera".to_string())]
+    } else {
+        Vec::new()
+    }));
+    app
+}
+
+/// The plan made again with the code on Paper and, if `stick`, on a new
+/// stick.
+fn reopen_on_paper(app: &mut Faraday, paper_only: bool) {
+    let w = app.backup().unwrap().wallet;
+    testkit::backup_drop(app);
+    app.press(Action::Backup(w));
+    testkit::backup_as(app, Preset::Paper);
+    board(app, BP::Menu(Chip::List(Thing::Seed(0))));
+    board(app, BP::MenuVerb(Verb::Kef));
+    board(app, BP::MenuTo(Zone::Paper(0)));
+    if !paper_only {
+        board(app, BP::Menu(Chip::List(Thing::Seed(0))));
+        board(app, BP::MenuVerb(Verb::Kef));
+        board(app, BP::MenuTo(Zone::NewStick(0)));
+    }
+    take_off(app, Zone::Paper(0), Thing::Seed(0));
+    app.press(Action::BQ(qstep::PLAN));
+    app.press(Action::BChecklist);
+    if app
+        .backup_items_now(&testkit::compute())
+        .contains(&bstep::BLANK)
+    {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    app.settle();
+}
+
+/// Whether `text` is drawn, scrolling down to it.
+fn seen(app: &mut Faraday, text: &str) -> bool {
+    for _ in 0..30 {
+        if crate::common::texts(app).iter().any(|t| t == text) {
+            return true;
+        }
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 120,
+        });
+    }
+    false
+}
+
+#[test]
+fn the_code_on_paper_shows_its_size_the_sheet_and_a_grid_whose_mark_is_kept() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    for t in ["Size", "By hand"] {
+        assert!(
+            crate::common::texts(&mut app)
+                .iter()
+                .any(|x| x.starts_with(t)),
+            "{t}"
+        );
+    }
+    let texts = crate::common::texts(&mut app);
+    assert!(
+        texts.iter().any(|t| t.starts_with("By hand: Sheet: Faraday Starter, Blank templates, Krux code, ")),
+        "{texts:?}"
+    );
+    assert!(seen(&mut app, "Blocks"), "{texts:?}");
+    assert!(seen(&mut app, "Rows"));
+    assert!(seen(&mut app, "Block 0 · 0"));
+    app.press(Action::KefTool(K::Backup(KefAct::Pin(7))));
+    let marked = crate::common::texts(&mut app)
+        .into_iter()
+        .find(|t| t.starts_with("Block ") && t != "Block 0 · 0")
+        .expect("the mark moved");
+    // Closed and opened again, the mark stands.
+    app.press(Action::BStep(bstep::KEF));
+    open_item(&mut app, bstep::KEF);
+    assert!(seen(&mut app, &marked), "{marked}");
+}
+
+#[test]
+fn check_my_code_alone_on_paper_waits_for_the_drawn_copy_with_a_camera() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    check_with(&mut app, "a passphrase");
+    assert!(!done(&app), "not checked until the drawn copy is scanned");
+    assert!(seen(&mut app, "Drawn copy: Not scanned"));
+    let mut shell = Shell::new();
+    to_lock(&mut app, &mut shell);
+    assert!(app.flow().is_none(), "the lock is held");
+}
+
+#[test]
+fn check_my_code_alone_on_paper_ends_the_item_with_no_camera() {
+    let mut app = on_paper(false);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    check_with(&mut app, "a passphrase");
+    assert!(done(&app));
+    open_item(&mut app, bstep::KEF);
+    assert!(seen(&mut app, "Drawn copy: Not scanned"));
+}
+
+#[test]
+fn not_on_paper_takes_the_code_off_every_place_and_the_item_goes_with_no_stick_copy() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    app.press(Action::KefTool(K::Backup(KefAct::NotOnPaper)));
+    assert!(
+        !app.backup_items_now(&testkit::compute())
+            .contains(&bstep::KEF),
+        "no copy left anywhere"
+    );
+    // With a stick copy too, the item stays.
+    let mut app = at_the_checklist();
+    reopen_on_paper(&mut app, false);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    app.press(Action::KefTool(K::Backup(KefAct::NotOnPaper)));
+    assert!(
+        app.backup_items_now(&testkit::compute())
+            .contains(&bstep::KEF)
+    );
+    assert!(!seen(&mut app, "Not on Paper"));
+}
+
+#[test]
+fn the_templates_item_names_the_krux_code_sheet_at_the_codes_side() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    let side = crate::common::texts(&mut app)
+        .into_iter()
+        .find_map(|t| {
+            t.strip_prefix("Sheet: Faraday Starter, Blank templates, Krux code, ")
+                .map(str::to_string)
+        })
+        .or_else(|| {
+            crate::common::texts(&mut app).into_iter().find_map(|t| {
+                t.strip_prefix("By hand: Sheet: Faraday Starter, Blank templates, Krux code, ")
+                    .map(str::to_string)
+            })
+        })
+        .expect("the sheet's name");
+    app.press(Action::BStep(bstep::KEF));
+    open_item(&mut app, bstep::BLANK);
+    let want = format!("Krux code, {side}");
+    let texts = crate::common::texts(&mut app);
+    assert!(
+        texts
+            .iter()
+            .any(|t| t.contains(&want) && t.contains("Blank templates")),
+        "{want}: {texts:?}"
+    );
+}
+
+#[test]
+fn a_code_larger_than_the_largest_sheet_reads_by_hand_no() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Id(
+        faraday_core::kef_form::IdKind::Label,
+    ))));
+    app.press(Action::KefTool(K::Backup(KefAct::Label)));
+    type_in(&mut app, &"x".repeat(60));
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    testkit::settle(&mut app);
+    assert!(
+        seen(&mut app, "By hand: No"),
+        "{:?}",
+        crate::common::texts(&mut app)
+    );
+    assert!(seen(&mut app, "Largest: 37 × 37"));
+    assert!(!seen(&mut app, "Blocks"));
+}
+
+#[test]
+fn a_record_with_the_old_eight_field_code_line_still_reads() {
+    let mut shell = Shell::new();
+    let mut app = at_the_checklist();
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    check_with(&mut app, "a passphrase");
+    to_lock(&mut app, &mut shell);
+    shell.pump(&mut app);
+    let _ = shell.restart();
+    let (inbox, outbox, mut kept) = shell.boxes.clone();
+    for (n, bytes) in kept.iter_mut() {
+        if n == "backups" {
+            let text = String::from_utf8_lossy(bytes).to_string();
+            let old: Vec<String> = text
+                .lines()
+                .map(|l| {
+                    if l.starts_with("kef\t") {
+                        let f: Vec<&str> = l.split('\t').collect();
+                        assert_eq!(f.len(), 10, "{l}");
+                        f[..8].join("\t")
+                    } else {
+                        l.to_string()
+                    }
+                })
+                .collect();
+            *bytes = format!("{}\n", old.join("\n")).into_bytes();
+        }
+    }
+    let mut app = crate::common::process(inbox, outbox, kept);
+    app.press(Action::Nav(Screen::Backups));
+    let texts = crate::common::texts(&mut app);
+    assert!(
+        texts.iter().any(|t| t.starts_with("Backup of")),
+        "{texts:?}"
+    );
 }

@@ -369,7 +369,8 @@ fn not_on_paper(app: &mut Faraday) {
     };
     let shape = app.plan_shape_now(b.wallet);
     let answers = plan::kef_not_on_paper(&shape, &b.answers, i);
-    app.backup.set_answers(answers);
+    let w = b.wallet;
+    app.backup.follow_answers(w, answers);
     app.plan_save();
     app.backups_sync();
     sync_paper(app, i);

@@ -1077,6 +1077,7 @@ impl WalletBackupArea {
     }
 
     /// The plan's answers replaced.
+    #[cfg(test)]
     pub(crate) fn set_answers(&mut self, answers: plan::Answers) {
         if let Some(b) = self.state.as_mut() {
             b.answers = answers;

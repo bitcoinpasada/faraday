@@ -71,9 +71,10 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                 (Some(&(len, _, _)), _) if words_n == 0 => {
                     fill(EN.c32_templates_sub, &[&len.to_string()])
                 }
-                (None, Some(&(side, _))) if words_n == 0 => {
-                    fill(EN.kef_templates_sub, &[&side.to_string(), &side.to_string()])
-                }
+                (None, Some(&(side, _))) if words_n == 0 => fill(
+                    EN.kef_templates_sub,
+                    &[&side.to_string(), &side.to_string()],
+                ),
                 _ => fill(EN.item_title_template_n, &[&b.words.to_string()]),
             };
             (
