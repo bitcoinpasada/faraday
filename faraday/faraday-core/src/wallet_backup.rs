@@ -37,6 +37,7 @@ use faraday_shell_api::Key as KeyIn;
 use faraday_ui::keyboard::OskPress;
 use zeroize::Zeroize;
 
+pub(crate) mod kef;
 mod shown;
 
 /// The public files of wallet `w` that are under Public files' More
@@ -626,6 +627,8 @@ pub struct BackupState {
     pub seen: Option<(u8, bool)>,
     /// What the person unticked on the Keep sheet in this backup.
     pub keeps: crate::vault::keep::Left,
+    /// The forms of the Krux code items opened, by seed (`kef.rs`).
+    pub(crate) kef: Vec<(usize, crate::kef_form::KefForm)>,
 }
 
 /// The wallet backup checklist (`Screen::Backup`): the backup under way,
@@ -2053,7 +2056,10 @@ impl Faraday {
         let key = n
             .and_then(bstep::item)
             .and_then(|it| match it {
-                plan::Item::Copy(i) | plan::Item::Passphrase(i) | plan::Item::Codex32(i) => Some(i),
+                plan::Item::Copy(i)
+                | plan::Item::Passphrase(i)
+                | plan::Item::Codex32(i)
+                | plan::Item::KefCode(i) => Some(i),
                 // A vault's item shows its first seed.
                 plan::Item::Vault(v) => {
                     let b = self.backup.state()?;
@@ -2076,6 +2082,7 @@ impl Faraday {
                 })
             });
         self.backup.open_item(n, more, key);
+        kef::opened(self);
     }
 
     /// The public files the plan's software calls for, as
@@ -2152,6 +2159,7 @@ impl Faraday {
                         .contains(&(k.fingerprint.0, plan::CopyForm::Passphrase))
                 })
             }
+            plan::Item::KefCode(i) => self.backup.kef_checked(i),
             plan::Item::Vault(v) => self.backup_vault_fits(c, v).is_some(),
             plan::Item::SeedFiles => {
                 !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))

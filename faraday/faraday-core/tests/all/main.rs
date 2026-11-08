@@ -101,6 +101,7 @@ mod kef;
 mod kef_form;
 mod kef_make;
 mod kef_scan;
+mod kef_step;
 mod kef_tool;
 mod key_path;
 mod keyboard_over_field;

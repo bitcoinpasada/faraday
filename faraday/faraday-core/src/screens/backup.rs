@@ -111,6 +111,20 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
             }
             .to_string(),
         ),
+        Item::KefCode(i) => (
+            fill(
+                EN.item_title_kef,
+                &[(shape.seeds.get(i).map_or("", |s| s.name.as_str()))],
+            ),
+            if done {
+                EN.item_title_checked
+            } else if app.backup.kef_made(i) {
+                EN.item_title_not_checked
+            } else {
+                EN.item_title_not_made
+            }
+            .to_string(),
+        ),
         Item::Vault(v) => {
             let names: Vec<&str> = a
                 .vault_seeds(&shape, v)
@@ -494,6 +508,7 @@ pub(crate) fn held_item(
         (At::Place(_), What::Passphrase(i)) => Item::Passphrase(i),
         (_, What::Passphrase(_)) => return None,
         (_, What::Words(i) | What::SeedQr(i)) => Item::Copy(i),
+        (_, What::KefCode(i) | What::KefCodePaper(i)) => Item::KefCode(i),
         (_, What::Sheet | What::Share(_)) => Item::Sheets,
         (At::Vault(v), _) => Item::Vault(v),
         (At::Software, _) if has(Item::ShowDescriptor) => Item::ShowDescriptor,
@@ -1003,6 +1018,24 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += 48.0;
             }
         }
+        n if bstep::is_kef(n) => {
+            let i = usize::from(n - bstep::KEF);
+            if let Some(f) = app.backup.kef_form(i) {
+                cy += crate::kef_form::screen::draw(
+                    app,
+                    ui,
+                    (x, cy, w),
+                    f,
+                    crate::wallet_backup::kef::ask(),
+                );
+                cy += T::GAP;
+            }
+            if app.backup_item_done(crate::plan::Item::KefCode(i))
+                && item_next(app, ui, x, cy, w, n)
+            {
+                cy += T::TOUCH;
+            }
+        }
         bstep::PUBLIC => {
             cy += public_rows_for(app, ui, x, cy, w, b.wallet, Some(&app.backup_public()));
             cy += 12.0;
@@ -1496,6 +1529,8 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
             )),
         },
         Item::SeedFiles => (EN.item_action_make.to_string(), Action::BFile),
+        // The form on the card has its own presses.
+        Item::KefCode(_) => next,
         Item::Sheets if split => (EN.item_action_make_them.to_string(), Action::BOut(4)),
         Item::Sheets => (EN.item_action_make.to_string(), Action::BOut(3)),
         Item::PublicFiles => (EN.item_action_make_them.to_string(), Action::BFilesMake),

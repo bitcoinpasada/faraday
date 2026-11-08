@@ -9,8 +9,9 @@ use crate::{boot_import, seeds, vanity};
 /// Whether a press starts a job on the worker (`docs/WORKERS.md` §2.1):
 /// its work is over the line, so it is not drawn first; the screen stays
 /// and shows the busy line while the worker runs it. Practice's samples
-/// loaded, the backup's checklist and its Make the files, and a wallet's multisig config, split
-/// shares and Specter DIY pictures; the other presses move
+/// loaded, the backup's checklist and its Make the files, a wallet's multisig config, split
+/// shares and Specter DIY pictures, and Make the code and Compare of a
+/// Krux code, in Tools and on the checklist; the other presses move
 /// here from [`drawn_first`] as they are shown to need it.
 pub(crate) fn starts_job(a: Action) -> bool {
     matches!(
@@ -19,6 +20,9 @@ pub(crate) fn starts_job(a: Action) -> bool {
             | Action::BChecklist
             | Action::BFilesMake
             | Action::PublicOut(_, 2 | 4 | 14)
+            | Action::KefTool(crate::kef_tool::KefToolAction::Backup(
+                crate::kef_form::KefAct::Make | crate::kef_form::KefAct::Compare,
+            ))
             | Action::KefTool(crate::kef_tool::KefToolAction::Form(
                 crate::kef_form::KefAct::Make | crate::kef_form::KefAct::Compare,
             ))

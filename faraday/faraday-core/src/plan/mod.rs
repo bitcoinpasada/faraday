@@ -2574,6 +2574,9 @@ pub enum Item {
     /// The seeds as files on the stick of files of a plan saved before
     /// the places kept files, past the secret sheet.
     SeedFiles,
+    /// Seed `i`'s Krux code, made and checked (`docs/KEF.md` §15.1): one
+    /// per seed with a code anywhere on the map.
+    KefCode(usize),
     /// The wallet sheet or the shares, on paper.
     Sheets,
     /// The public files for the software and form chosen.
@@ -2635,6 +2638,16 @@ pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
     let files = holds_in(boxes, At::Files);
     if files.iter().any(|w| matches!(w, What::SeedFile(_))) {
         out.push(Item::SeedFiles);
+    }
+    // A Krux code on a stick or on Paper: one item for the seed, made once.
+    for i in shape.here() {
+        if boxes.iter().any(|s| {
+            s.holds
+                .iter()
+                .any(|(w, _)| matches!(w, What::KefCode(x) | What::KefCodePaper(x) if *x == i))
+        }) {
+            out.push(Item::KefCode(i));
+        }
     }
     if at_places(&|w| matches!(w, What::Sheet | What::Share(_))) {
         out.push(Item::Sheets);

@@ -931,8 +931,8 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         rows.push(row(EN.c32_glance_set, "", Some(a)));
                     }
                 }
-                // A Krux code is made in no checklist item yet, and no
-                // check counts it: nothing to do from here.
+                // A Krux code is made in its checklist item, and no check
+                // counts it: nothing to do from here.
                 What::KefCode(_) | What::KefCodePaper(_) => {}
                 What::Sheet => {
                     rows.push(row(EN.glance_sheet_reprint, "PDF", doing(Step::Out(3))));

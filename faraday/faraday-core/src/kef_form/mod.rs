@@ -526,6 +526,27 @@ impl KefForm {
         }
     }
 
+    /// Puts the form away where it is held between visits: the work stops,
+    /// the passphrase, the check's and the dice rolls are wiped and the
+    /// sheets close. What was made and whether it was checked stay, and a
+    /// Check my code left open is back at the code.
+    pub fn close(&mut self, app: &mut Faraday) {
+        self.cancel(app);
+        self.pass.clear();
+        self.check.clear();
+        self.dice.close();
+        self.shown = false;
+        self.check_shown = false;
+        self.sheet = false;
+        self.error = None;
+        if self.stage == Stage::Check {
+            self.stage = Stage::Made;
+        }
+        if self.stage == Stage::Entry {
+            self.focus = Some(Focus::Pass);
+        }
+    }
+
     fn check_key(&mut self, app: &mut Faraday, key: Key) -> bool {
         match key {
             Key::Char(c) => {

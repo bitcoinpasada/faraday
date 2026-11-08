@@ -132,3 +132,74 @@ pub(crate) fn kef_make_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(form(KefAct::Another));
     t.shot("kef-make-another")
 }
+
+/// A seed's Krux code on the backup checklist (`docs/KEF.md` §15.1): the
+/// item Not made, its card with the form, the card after the code is made,
+/// and the item Not checked and then Checked.
+pub(crate) fn kef_step_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::board::{Verb, Zone};
+    use faraday_core::plan::Preset;
+    use faraday_core::seeds::SeedsAction as S;
+    use faraday_core::{bstep, testkit};
+    let step = |a| Action::KefTool(K::Backup(a));
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::Entry(None));
+    type_text(t, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    t.press(Action::EntryAdd);
+    let fp = t.app.session.keys.last().ok_or("no key")?.fingerprint.0;
+    t.press(Action::KeyWallet(fp, 1));
+    t.press(Action::Seeds(S::Make));
+    let w = t.app.session.wallets.len() - 1;
+    t.press(Action::Backup(w));
+    testkit::backup_as(&mut t.app, Preset::Paper);
+    t.press(Action::Board(BP::Menu(Chip::List(Thing::Seed(0)))));
+    t.press(Action::Board(BP::MenuVerb(Verb::Kef)));
+    t.press(Action::Board(BP::MenuTo(Zone::NewStick(0))));
+    // The words are kept in the vault of another backup: only the code.
+    t.press(Action::Board(BP::Off(Zone::Paper(0), Thing::Seed(0))));
+    t.press(Action::BQ(qstep::PLAN));
+    t.press(Action::BChecklist);
+    if t.app.backup().and_then(|b| b.open) == Some(bstep::BLANK) {
+        t.press(Action::BNext(bstep::BLANK));
+    }
+    // Closed, the item reads Not made.
+    if t.app.backup().and_then(|b| b.open) == Some(bstep::KEF) {
+        t.press(Action::BStep(bstep::KEF));
+    }
+    t.shot("kef-step-listed")?;
+    t.press(Action::BStep(bstep::KEF));
+    t.shot("kef-step-form-keyboard")?;
+    t.press(Action::Osk(faraday_core::OskPress::Hide));
+    t.shot("kef-step-form")?;
+    t.press(step(KefAct::Options));
+    t.press(step(KefAct::Rounds));
+    for _ in 0..8 {
+        t.app.event(Event::Key(Key::Backspace));
+    }
+    type_text(t, "10000");
+    t.press(step(KefAct::Back));
+    t.press(step(KefAct::Field));
+    type_text(t, "a passphrase");
+    t.press(step(KefAct::Make));
+    testkit::settle(&mut t.app);
+    t.tick();
+    scroll_to(t, step(KefAct::Check));
+    t.shot("kef-step-code")?;
+    t.press(Action::BStep(bstep::KEF));
+    t.shot("kef-step-not-checked")?;
+    t.press(Action::BStep(bstep::KEF));
+    t.press(step(KefAct::Check));
+    type_text(t, "a passphrase");
+    t.press(step(KefAct::Compare));
+    testkit::settle(&mut t.app);
+    t.tick();
+    // Checked, the card goes on to the next item: put it away for the row.
+    if t.app.backup().and_then(|b| b.open).is_some() {
+        let open = t.app.backup().and_then(|b| b.open).ok_or("no card")?;
+        t.press(Action::BStep(open));
+    }
+    t.shot("kef-step-listed-checked")?;
+    t.press(Action::BStep(bstep::KEF));
+    scroll_to(t, step(KefAct::Check));
+    t.shot("kef-step-checked")
+}

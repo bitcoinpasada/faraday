@@ -546,6 +546,7 @@ impl Faraday {
             }
             Going::Backup => {
                 let i = self.wallet_flow_of_backup();
+                crate::wallet_backup::kef::dropped(self);
                 let Some(b) = self.backup.take() else {
                     return;
                 };
@@ -624,6 +625,7 @@ impl Faraday {
             .then(|| self.wallet_flow_of_backup())
             .flatten();
         if self.backup_going() == Some(Going::Create) {
+            crate::wallet_backup::kef::dropped(self);
             self.backup.close();
         }
         self.create.clear();

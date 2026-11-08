@@ -459,11 +459,13 @@ impl Faraday {
             Screen::Entry => true,
             Screen::SetTime => self.set_time.focus().is_some(),
             // A passphrase on paper typed back for Check my copy.
-            Screen::Backup => self
-                .backup
-                .state()
-                .and_then(|b| b.check.as_ref())
-                .is_some_and(|c| c.passphrase),
+            Screen::Backup => {
+                self.backup
+                    .state()
+                    .and_then(|b| b.check.as_ref())
+                    .is_some_and(|c| c.passphrase)
+                    || crate::wallet_backup::kef::field(self).is_some()
+            }
             Screen::Wallets => self.wallets.renaming().is_some(),
             Screen::Convert => {
                 self.tools.convert().check().is_some() || self.tools.convert().entering_share()
@@ -526,6 +528,9 @@ impl Faraday {
         }
         match self.screen {
             Screen::KefTool => crate::kef_tool::field(self).map(|(a, _)| a),
+            Screen::Backup if crate::wallet_backup::kef::field(self).is_some() => {
+                crate::wallet_backup::kef::field(self).map(|(a, _)| a)
+            }
             Screen::Family | Screen::Restore if self.seeds_typing() => self
                 .seeds()?
                 .focus
@@ -702,6 +707,7 @@ impl Faraday {
                 .as_ref()
                 .is_some_and(|p| !p.text.text.is_empty())
             || self.seed_read.holds_secret()
+            || self.backup.kef_holds_secret()
             || self
                 .tools
                 .kef_tool()

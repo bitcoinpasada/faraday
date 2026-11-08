@@ -450,6 +450,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::CopyTo => crate::vault::copy_screen::draw(app, ui, w, h),
             Sheet::SaveKeeps => crate::vault::copy_screen::draw_keep(app, ui, w, h),
             Sheet::Trim => crate::vault::trim::draw(app, ui, w, h),
+            Sheet::KefOptions if app.screen == Screen::Backup => {
+                crate::wallet_backup::kef::options_sheet(app, ui, w, h)
+            }
             Sheet::KefOptions => crate::kef_tool::screen::options_sheet(app, ui, w, h),
             Sheet::ChildRecord => crate::bip85::screen::record_dialog(app, ui, w, h),
             Sheet::ChildNotice => crate::screens::create::child_notice(app, ui, w, h),

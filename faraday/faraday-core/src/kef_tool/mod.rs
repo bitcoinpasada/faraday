@@ -56,6 +56,10 @@ pub enum KefToolAction {
     Form(KefAct),
     /// A press on the dice entry or the roller.
     Dice(Press),
+    /// A press on the form of a seed's Krux code item of the checklist.
+    Backup(KefAct),
+    /// A press on that form's dice entry or roller.
+    BackupDice(Press),
 }
 
 /// The tool, while it is open.
@@ -203,6 +207,8 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
         KefToolAction::Dice(p) => {
             with_form(app, |f, app| f.dice_press(app, p));
         }
+        KefToolAction::Backup(a) => return crate::wallet_backup::kef::act(app, a),
+        KefToolAction::BackupDice(p) => return crate::wallet_backup::kef::dice(app, p),
     }
     // A job run inline has its answer by now.
     poll(app);
@@ -289,6 +295,9 @@ fn sync(app: &mut Faraday) {
 /// The field typing goes to on the tool, with the press that focuses it
 /// and its text: the typed contents, or a field of the form.
 pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
+    if app.screen == Screen::Backup {
+        return crate::wallet_backup::kef::field(app);
+    }
     if app.screen != Screen::KefTool {
         return None;
     }
@@ -304,6 +313,9 @@ pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
 /// Escape closes Options, otherwise it is Back. Returns whether it was
 /// taken.
 pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
+    if app.screen == Screen::Backup {
+        return crate::wallet_backup::kef::key(app, key);
+    }
     if app.screen != Screen::KefTool || state(app).is_none() {
         return false;
     }
@@ -365,7 +377,7 @@ pub(crate) fn poll(app: &mut Faraday) {
 
 /// The dice roller's tick. Returns whether a frame is needed.
 pub(crate) fn tick(app: &mut Faraday) -> bool {
-    with_form(app, |f, app| f.tick(app)).unwrap_or(false)
+    with_form(app, |f, app| f.tick(app)).unwrap_or(false) | crate::wallet_backup::kef::tick(app)
 }
 
 /// Cancel while the work runs.
@@ -373,6 +385,7 @@ pub(crate) fn cancel(app: &mut Faraday) {
     if with_form(app, |f, app| f.cancel(app)).is_some() {
         sync(app);
     }
+    crate::wallet_backup::kef::cancel(app);
 }
 
 /// Closes the eye: the idle warning.
@@ -383,12 +396,14 @@ pub(crate) fn hide(app: &mut Faraday) {
             f.hide_eyes();
         }
     }
+    crate::wallet_backup::kef::hide(app);
 }
 
 /// After a press: the tool ends, what was typed with it, unless it is on
 /// show or Add randomness, opened from it, will come back. Options
 /// closed from outside is closed in the form too.
 pub(crate) fn tidy(app: &mut Faraday) {
+    crate::wallet_backup::kef::tidy(app);
     let kept = matches!(app.screen, Screen::KefTool | Screen::Randomness);
     if !kept {
         app.tools.kef_tool_mut().clear();

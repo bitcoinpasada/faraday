@@ -236,12 +236,14 @@ impl Faraday {
             Done::KefSeal(d) => {
                 self.worker.kef_mut().sealed_done(*d);
                 crate::kef_tool::poll(self);
+                crate::wallet_backup::kef::poll(self);
             }
             Done::KefTime(_) | Done::Measured(_) => {}
             Done::KefOpen(d) => {
                 self.worker.kef_mut().opened_done(*d);
                 crate::seeds::kef::kef_opened_here(self);
                 crate::kef_tool::poll(self);
+                crate::wallet_backup::kef::poll(self);
                 self.seed_carried_tidy();
             }
         }

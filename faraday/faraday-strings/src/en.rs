@@ -6260,6 +6260,8 @@ strings! {
     item_title_checked: "Checked",
     /// Text in `item_title`.
     item_title_not_checked: "Not checked",
+    /// Text in `item_title`: a seed's Krux code. `{}`: the seed's name.
+    item_title_kef: "Krux code of {}",
     /// Text in `item_title`. `{}`: `v + 1`.
     item_title_vault_number: "Vault {}",
     /// Text in `item_title`. `{}`: `v + 1`, `names.join(", ")`.

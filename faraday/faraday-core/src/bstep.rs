@@ -24,8 +24,12 @@ pub const COPY: u8 = 16;
 /// [`PASSPHRASE`] (`docs/CODEX32.md` §9.2).
 pub const CODEX32: u8 = 44;
 /// Seed i's passphrase on paper, checked: `PASSPHRASE + i`, below
-/// [`VAULT`].
+/// [`KEF`].
 pub const PASSPHRASE: u8 = 72;
+/// Seed i's Krux code made and checked: `KEF + i`, the top of the
+/// passphrases' range, which the passphrases' seeds leave unused, below
+/// [`VAULT`] (`docs/KEF.md` §15.1).
+pub const KEF: u8 = VAULT - SEEDS as u8;
 /// Vault v made and filled: `VAULT + v`, the first vault `VAULT`.
 pub const VAULT: u8 = 128;
 /// How many seeds the numbers above give an item each: the narrowest of
@@ -44,7 +48,12 @@ pub fn is_codex32(n: u8) -> bool {
 
 /// Whether `n` is a seed's passphrase on paper.
 pub fn is_passphrase(n: u8) -> bool {
-    (PASSPHRASE..VAULT).contains(&n)
+    (PASSPHRASE..KEF).contains(&n)
+}
+
+/// Whether `n` is a seed's Krux code.
+pub fn is_kef(n: u8) -> bool {
+    (KEF..VAULT).contains(&n)
 }
 
 /// An item's number.
@@ -53,7 +62,8 @@ pub fn of(item: Item) -> u8 {
         Item::Templates => BLANK,
         Item::Copy(i) => COPY + i.min(usize::from(CODEX32 - COPY - 1)) as u8,
         Item::Codex32(i) => CODEX32 + i.min(usize::from(PASSPHRASE - CODEX32 - 1)) as u8,
-        Item::Passphrase(i) => PASSPHRASE + i.min(usize::from(VAULT - PASSPHRASE - 1)) as u8,
+        Item::Passphrase(i) => PASSPHRASE + i.min(usize::from(KEF - PASSPHRASE - 1)) as u8,
+        Item::KefCode(i) => KEF + i.min(usize::from(VAULT - KEF - 1)) as u8,
         Item::Vault(v) => VAULT.saturating_add(v.min(127) as u8),
         Item::SeedFiles => FILES,
         Item::Sheets => SHEETS,
@@ -75,6 +85,7 @@ pub fn item(n: u8) -> Option<Item> {
         ENVELOPE => Item::Envelopes,
         STICKS => Item::Sticks,
         n if n >= VAULT => Item::Vault(usize::from(n - VAULT)),
+        n if n >= KEF => Item::KefCode(usize::from(n - KEF)),
         n if n >= PASSPHRASE => Item::Passphrase(usize::from(n - PASSPHRASE)),
         n if n >= CODEX32 => Item::Codex32(usize::from(n - CODEX32)),
         n if n >= COPY => Item::Copy(usize::from(n - COPY)),
