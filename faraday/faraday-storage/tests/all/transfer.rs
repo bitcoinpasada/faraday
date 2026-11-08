@@ -188,7 +188,7 @@ fn a_file_over_256_kib_is_refused_unread() {
     app.press(Action::TransferSend(0));
     assert_eq!(
         app.transfer().refused.as_deref(),
-        Some("Larger than 262.1 KB: carry it on a stick")
+        Some("Larger than 262.1\u{a0}KB: carry it on a stick")
     );
     assert!(app.qr().is_none());
     assert!(
