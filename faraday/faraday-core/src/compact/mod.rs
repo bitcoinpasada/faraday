@@ -20,8 +20,8 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui};
 use crate::{Action, Faraday, Screen};
 use faraday_draw::tokens::{
-    APP_BAR_H, BODY_S, BUTTON_H, GAP_SMALL, ICON_BUTTON, LABEL_L, LABEL_S, MARGIN_COMPACT,
-    SHAPE_M, SHAPE_XS,
+    APP_BAR_H, BODY_S, BUTTON_H, GAP_SMALL, ICON_BUTTON, LABEL_L, LABEL_S, MARGIN_COMPACT, SHAPE_M,
+    SHAPE_XS,
 };
 use faraday_ui::nav::AppBar;
 pub(crate) use faraday_ui::sheet::{

@@ -984,7 +984,12 @@ pub(super) fn machine_rows(
         ui.checkbox(x, cy + (row - tick) / 2.0, on, true);
         let room = w - tokens::CHECK_LABEL_INDENT - tokens::GAP;
         if ui.measure_as(LABEL_L, label) + tokens::GAP + ui.measure_as(BODY_S, side) <= room {
-            ui.text_mid_as((x + tokens::CHECK_LABEL_INDENT, cy, row), LABEL_L, ink, label);
+            ui.text_mid_as(
+                (x + tokens::CHECK_LABEL_INDENT, cy, row),
+                LABEL_L,
+                ink,
+                label,
+            );
             ui.text_right_as((x + w, cy, row), BODY_S, muted, side);
         } else {
             // Too wide for one line: the memory goes under the label.
@@ -992,7 +997,13 @@ pub(super) fn machine_rows(
             let top = cy + (row - a - b) / 2.0;
             ui.text_as(x + tokens::CHECK_LABEL_INDENT, top, LABEL_L, ink, label);
             let side = ui.fit_as(BODY_S, side, room);
-            ui.text_as(x + tokens::CHECK_LABEL_INDENT, top + a, BODY_S, muted, &side);
+            ui.text_as(
+                x + tokens::CHECK_LABEL_INDENT,
+                top + a,
+                BODY_S,
+                muted,
+                &side,
+            );
         }
         ui.press_box(x, cy, w, row, act);
         ui.rule(x, cy + row, w, Role::OutlineVariant);

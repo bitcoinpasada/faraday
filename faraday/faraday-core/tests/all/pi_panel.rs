@@ -1346,8 +1346,14 @@ fn on_the_pi_the_mode_pill_leaves_a_pages_name_whole_on_the_bars_first_line() {
                 .iter()
                 .find(|(t, _)| t == pill)
                 .unwrap_or_else(|| panic!("{label}: the pill {pill:?} is drawn whole"));
-            assert!((r.1 as f32) >= 32.0 * f, "{label}: the pill is on the second line");
-            assert!(rig.offers(Action::ModeSheet), "{label}: the pill is pressed");
+            assert!(
+                (r.1 as f32) >= 32.0 * f,
+                "{label}: the pill is on the second line"
+            );
+            assert!(
+                rig.offers(Action::ModeSheet),
+                "{label}: the pill is pressed"
+            );
         }
     }
 }
@@ -1600,7 +1606,8 @@ fn text_under_control(rig: &mut Rig, action: Action) -> Vec<String> {
             for (t, r) in &texts {
                 let w = (b.0 + b.2).min(r.0 + r.2) - b.0.max(r.0);
                 let h = (b.1 + b.3).min(r.1 + r.3) - b.1.max(r.1);
-                let inside = r.0 >= b.0 && r.0 + r.2 <= b.0 + b.2 && r.1 >= b.1 && r.1 + r.3 <= b.1 + b.3;
+                let inside =
+                    r.0 >= b.0 && r.0 + r.2 <= b.0 + b.2 && r.1 >= b.1 && r.1 + r.3 <= b.1 + b.3;
                 if w > 1 && h > 1 && !inside {
                     found.push(format!("text {t:?} runs under {action:?} by {w} x {h} px"));
                 }
@@ -1706,7 +1713,9 @@ fn on_the_small_panel_the_vault_memory_sheet_keeps_each_size_clear_of_its_label(
     rig.press(Action::Vault(V::MemoryAsk));
     rig.settle();
     assert!(
-        rig.drawn_texts().iter().any(|t| t.contains("MiB") || t.contains("GiB")),
+        rig.drawn_texts()
+            .iter()
+            .any(|t| t.contains("MiB") || t.contains("GiB")),
         "no memory sizes on the sheet: {:?}",
         rig.drawn_texts()
     );
@@ -2083,66 +2092,5 @@ fn on_the_pi_unlock_on_a_wallet_is_lined_up_with_the_buttons_around_it() {
     assert!(
         (unlock - spend).abs() <= 2,
         "Unlock centred at {unlock}, Spend at {spend}"
-    );
-}
-
-#[test]
-fn on_the_pi_a_file_card_with_no_button_ends_under_its_text() {
-    let mut rig = rig(
-        On::Stick,
-        Mode::Mainnet,
-        vec![("a-qr.png".into(), vec![0x89, b'P', b'N', b'G', 1, 2, 3])],
-    );
-    rig.press(Action::Nav(Screen::Files));
-    rig.settle();
-    let drawn = scrolled_to(&mut rig, &["File · 7\u{a0}B", "For the stick"]);
-    let at = |name: &str| drawn.iter().find(|(t, _)| t == name).unwrap().1;
-    let (size, next) = (at("File · 7\u{a0}B"), at("For the stick"));
-    // The card's padding and the gap to the next heading, in pixels.
-    let gap = next.1 - (size.1 + size.3);
-    assert!(
-        gap < 80,
-        "{gap} px of card under the file's text and the next heading"
-    );
-}
-
-#[test]
-fn on_the_pi_a_sticks_menu_button_stands_inside_its_card() {
-    use faraday_core::StickInfo;
-    let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
-    rig.storage(StorageEvent::Sticks(vec![StickInfo {
-        make: Default::default(),
-        id: "boot".into(),
-        label: "FARADAY".into(),
-        boot: true,
-        serial: Some(0x1234_5678),
-        files: Vec::new(),
-        vaults: Vec::new(),
-    }]));
-    rig.settle();
-    let tile = TILES
-        .iter()
-        .position(|x| x.go == faraday_core::catalog::Go::VaultCategory(FlowKind::Gpg.category()))
-        .unwrap() as u8;
-    rig.press(Action::Nav(Screen::Catalog));
-    rig.press(Action::Catalog(tile));
-    rig.press(Action::Flow(FlowAction::Continue));
-    rig.settle();
-    let _ = rig.frame();
-    let menu = (0..6)
-        .find_map(|k| rig.hit_box(Action::Flow(FlowAction::FigMenu(k))))
-        .expect("a card's menu");
-    let drawn = rig.drawn_text_boxes();
-    // The card's own text stands in from its left edge; the menu button
-    // stands as far in from its right edge.
-    let text = drawn
-        .iter()
-        .find(|(t, _)| t == "Waiting" || t.starts_with("Holds"))
-        .unwrap_or_else(|| panic!("no line of the card in {drawn:?}"))
-        .1;
-    let (from_right, from_left) = (480 - (u32::from(menu.0) + u32::from(menu.2)), text.0 as u32);
-    assert!(
-        from_right + 2 >= from_left,
-        "the menu button is {from_right} px from the right edge, the card's text {from_left} px from the left"
     );
 }

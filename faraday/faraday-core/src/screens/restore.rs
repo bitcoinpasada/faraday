@@ -426,7 +426,9 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let change_w = ui.measure_as(LABEL_L, EN.restore_seeds_change) + 32.0;
     let not_here_w = ui.measure_as(BODY_S, EN.restore_seeds_not_here);
     let fp_end = 22.0 + ui.measure_as(BODY_M.mono(), "00000000") + 8.0;
-    let col = 124.0_f32.min(w - change_w - not_here_w - GAP_SMALL).max(fp_end);
+    let col = 124.0_f32
+        .min(w - change_w - not_here_w - GAP_SMALL)
+        .max(fp_end);
     // One row: the slot's number, its fingerprint, what fills it.
     let row = |ui: &mut Ui, cy: f32, k: usize, fp: &str, line: &str, color| {
         ui.text_mid_as(
