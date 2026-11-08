@@ -250,6 +250,33 @@ impl Faraday {
         free
     }
 
+    /// Costs a comparison with a file of that name. Like
+    /// [`Faraday::put_outbox_beside`], and a name that Files holds for a
+    /// file with other bytes is taken too, so that the file goes beside it
+    /// and not over it when the flow's files move to Files. A file of that
+    /// name holding the same bytes, in the Outbox or in Files, is left as it
+    /// is. The name it ended up under.
+    pub(crate) fn put_outbox_beside_files(&mut self, name: &str, bytes: Vec<u8>) -> String {
+        let same = |i: &crate::Item| i.name == name && i.bytes == bytes;
+        if self.outbox.iter().any(same) {
+            return name.to_string();
+        }
+        let mut taken: Vec<String> = self
+            .outbox
+            .iter()
+            .map(|i| i.name.to_ascii_lowercase())
+            .collect();
+        taken.extend(
+            self.inbox
+                .iter()
+                .filter(|i| !same(i))
+                .map(|i| i.name.to_ascii_lowercase()),
+        );
+        let free = free_name(&taken, name);
+        self.put_outbox(&free, bytes);
+        free
+    }
+
     /// The stick visit's state.
     pub fn visit(&self) -> &crate::VisitState {
         &self.visit

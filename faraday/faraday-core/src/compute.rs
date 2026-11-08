@@ -642,7 +642,7 @@ impl Faraday {
     }
 
     /// Puts the code's picture (when it fits one code) and its file in
-    /// the Outbox, beside any other of the same name. Neither is a secret
+    /// the Outbox, beside any other of the same name in the Outbox or Files. Neither is a secret
     /// (`docs/QR.md` §7.1). Gives the name the toast reads: the picture's,
     /// or the file's when there is no picture.
     pub fn kef_save_made(&mut self, made: &kef_make::Made) -> String {
@@ -658,10 +658,10 @@ impl Faraday {
         let png = match &made.view {
             Ok(view) => view
                 .png(&c)
-                .map(|(name, png)| self.put_outbox_beside(&name, png)),
+                .map(|(name, png)| self.put_outbox_beside_files(&name, png)),
             Err(_) => None,
         };
-        let file = self.put_outbox_beside(&made.file_name, made.bytes.clone());
+        let file = self.put_outbox_beside_files(&made.file_name, made.bytes.clone());
         kef_make::Saved { png, file }
     }
 }

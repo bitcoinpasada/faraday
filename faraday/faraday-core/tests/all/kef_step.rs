@@ -596,3 +596,66 @@ fn a_code_made_with_other_options_reopens_to_the_same_picture() {
     open_item(&mut app, bstep::KEF);
     assert_eq!(testkit::kef_card_png(&app, 0), Some(made));
 }
+
+/// As [`make`], the code's id the wallet's fingerprint, so that two wallets
+/// of one seed name their codes alike.
+fn make_by_fingerprint(app: &mut Faraday) {
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Id(
+        faraday_core::kef_form::IdKind::Fingerprint,
+    ))));
+    app.press(Action::KefTool(K::Backup(KefAct::Rounds)));
+    for _ in 0..8 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    type_in(app, "10000");
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    testkit::settle(app);
+}
+
+#[test]
+fn a_second_wallet_of_the_same_seed_keeps_the_first_wallets_code_in_files() {
+    let mut app = at_the_checklist();
+    open_item(&mut app, bstep::KEF);
+    make_by_fingerprint(&mut app);
+    check_with(&mut app, "a passphrase");
+    let first = app.backup().unwrap().wallet;
+    let first_names = kef_files(&app);
+    testkit::outbox_to_files(&mut app, &first_names);
+    testkit::backup_drop(&mut app);
+    // The same seed in a second wallet, its code made and locked in turn.
+    let fp = app.session.keys.last().unwrap().fingerprint;
+    app.press(Action::KeyWallet(fp.0, 1));
+    app.press(Action::Seeds(S::Shape));
+    app.press(Action::Seeds(S::Account(true)));
+    app.press(Action::Seeds(S::Make));
+    let second = app.session.wallets.len() - 1;
+    assert_ne!(first, second);
+    app.press(Action::Backup(second));
+    plan_the_code(&mut app, 1);
+    open_item(&mut app, bstep::KEF);
+    make_by_fingerprint(&mut app);
+    check_with(&mut app, "a passphrase");
+    let second_names = kef_files(&app);
+    assert_eq!(second_names.len(), 2, "{second_names:?}");
+    assert!(
+        second_names.iter().all(|n| !first_names.contains(n)),
+        "the second code goes beside the first: {first_names:?} {second_names:?}"
+    );
+    testkit::outbox_to_files(&mut app, &second_names);
+    let in_files = app
+        .inbox()
+        .iter()
+        .filter(|i| i.name.starts_with("krux-v"))
+        .count();
+    assert_eq!(in_files, 4, "both codes are in Files");
+    assert!(done(&app), "the second wallet's item");
+    testkit::backup_drop(&mut app);
+    app.press(Action::Backup(first));
+    plan_the_code(&mut app, 1);
+    assert!(done(&app), "the first wallet's item still reads its status");
+    assert_eq!(status(&mut app), "Checked");
+}
