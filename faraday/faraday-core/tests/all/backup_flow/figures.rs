@@ -25,7 +25,7 @@ fn a_checked_figure_tells_the_sticks_maker_model_size_and_name() {
             size: Some(15_700_000_000),
         },
     );
-    assert!(has(&mut app, "SanDisk Ultra · 16 GB · BACKUP"));
+    assert!(has(&mut app, "SanDisk Ultra · 16\u{a0}GB · BACKUP"));
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn a_cards_figure_tells_its_name_size_and_label() {
             size: Some(31_900_000_000),
         },
     );
-    assert!(has(&mut app, "SD32G · 32 GB · DATA"));
+    assert!(has(&mut app, "SD32G · 32\u{a0}GB · DATA"));
 }
 
 #[test]
@@ -51,7 +51,7 @@ fn a_small_stick_reads_in_megabytes_and_one_that_tells_nothing_shows_its_name() 
             size: Some(512_000_000),
         },
     );
-    assert!(has(&mut app, "512 MB · TINY"));
+    assert!(has(&mut app, "512\u{a0}MB · TINY"));
     let mut app = checked_with("PLAIN", Default::default());
     assert!(has(&mut app, "PLAIN"));
 }
@@ -86,9 +86,9 @@ fn a_press_on_a_checked_figure_opens_the_sticks_sheet_and_close_closes_it() {
     shell.flow(&mut app, F::Want(0));
     assert!(has(&mut app, "BACKUP"));
     assert!(has(&mut app, "SanDisk Ultra"));
-    assert!(has(&mut app, "16 GB"));
+    assert!(has(&mut app, "16\u{a0}GB"));
     assert!(has(&mut app, "1234-5678"));
-    assert!(has(&mut app, "notes.txt: 1.5 KB"));
+    assert!(has(&mut app, "notes.txt: 1.5\u{a0}KB"));
     assert!(has(&mut app, "other.kdbx"));
     assert!(has(&mut app, "Close"));
     shell.press(&mut app, Action::Cancel);

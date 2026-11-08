@@ -518,11 +518,10 @@ fn the_step_being_rolled_is_the_top_app_bars_title_while_the_page_scrolls() {
     }
 }
 
-/// On the Pi's panel off mainnet, where the mode pill leaves the bar no
-/// room for the step even in its short form, the open card reads it in
-/// place of Characters, so where the entry stands is still on screen;
-/// the way back, with no room for "Back to Entropy", reads the step's
-/// name as far as it fits (F146).
+/// On the Pi's panel off mainnet the mode pill stands on the bar's second
+/// line, so the bar has the first line for the entry's step: it reads the
+/// short form, "Share A · 2 of 26", the card keeps its name, Characters,
+/// and the way back is named after Entropy.
 #[test]
 fn on_the_pi_panel_off_mainnet_the_card_reads_the_step_the_bar_has_no_room_for() {
     let mut app = on_at(480, 640, 286);
@@ -541,17 +540,14 @@ fn on_the_pi_panel_off_mainnet_the_card_reads_the_step_the_bar_has_no_room_for()
     app.settle();
     let _ = app.frame();
     let texts = app.drawn_texts();
-    // The card's title wraps where the panel is narrow: its lines joined.
-    let read = texts.join(" ");
-    let step = "Share A · character 2 of 26";
     assert_eq!(
-        read.matches(step).count(),
+        texts.iter().filter(|t| *t == "Share A · 2 of 26").count(),
         1,
-        "{step} drawn once: {texts:?}"
+        "the bar reads the step once: {texts:?}"
     );
     assert!(
-        !texts.iter().any(|t| t == "Share A · 2 of 26"),
-        "the bar has no short form beside it: {texts:?}"
+        texts.iter().any(|t| t == "Characters"),
+        "the card keeps its name: {texts:?}"
     );
     assert!(
         texts.iter().any(|t| t.starts_with("Entr")) && !texts.iter().any(|t| t.starts_with("Back")),
