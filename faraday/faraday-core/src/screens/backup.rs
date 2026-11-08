@@ -1062,6 +1062,13 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 );
                 cy += BUTTON_H + T::GAP;
             }
+            let misses = b.kef_misses_of(i);
+            if misses >= crate::copy_check::MISSES
+                && app.backup.kef_form(i).is_some_and(|f| f.on_paper())
+            {
+                let line = fill(EN.copy_check_scans_without, &[&misses.to_string()]);
+                cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + T::GAP;
+            }
             if app.backup_item_done(crate::plan::Item::KefCode(i))
                 && item_next(app, ui, x, cy, w, n)
             {

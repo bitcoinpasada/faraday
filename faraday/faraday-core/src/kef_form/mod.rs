@@ -126,6 +126,8 @@ pub enum KefAct {
     Rows(bool),
     /// On Paper: takes the code off every place (`Faraday::kef_not_on_paper`).
     NotOnPaper,
+    /// On Paper: the camera on the drawn copy (`ScanPurpose::CheckKef`).
+    ScanCopy,
 }
 
 /// The form that makes a code.
@@ -141,6 +143,7 @@ pub struct KefForm {
     pin: usize,
     rows: bool,
     scanned: bool,
+    from_scan: bool,
     focus: Option<Focus>,
     sheet: bool,
     legacy: bool,
@@ -191,6 +194,7 @@ impl KefForm {
             pin: 0,
             rows: false,
             scanned: false,
+            from_scan: false,
             focus: Some(Focus::Pass),
             sheet: false,
             legacy: false,
@@ -263,6 +267,38 @@ impl KefForm {
     /// Whether the drawn copy on Paper was scanned and held the code.
     pub fn scanned(&self) -> bool {
         self.scanned
+    }
+
+    /// Whether the code is on Paper at a side the drawn copy is scanned
+    /// back for (25 to 37), and not scanned yet: **Scan my copy** shows.
+    pub fn scan_offered(&self) -> bool {
+        self.paper && !self.scanned && self.stage == Stage::Made && self.by_hand_side().is_some()
+    }
+
+    fn by_hand_side(&self) -> Option<usize> {
+        let q = self.made.as_ref()?.view.as_ref().ok()?.frames.first()?;
+        (q.size() <= faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE).then(|| q.size())
+    }
+
+    /// The code as its picture holds it: the base43 text of its bytes.
+    pub(crate) fn code_text(&self) -> Option<String> {
+        self.by_hand_side()?;
+        Some(faraday_codec::kef::base43_encode(
+            &self.made.as_ref()?.bytes,
+        ))
+    }
+
+    /// The drawn copy was read and is the code: one field and Compare,
+    /// run on the bytes scanned, which are the code's.
+    pub(crate) fn scan_matched(&mut self) {
+        if self.made.is_none() {
+            return;
+        }
+        self.from_scan = true;
+        self.check.clear();
+        self.error = None;
+        self.focus = Some(Focus::Check);
+        self.stage = Stage::Check;
     }
 
     /// The grid's mark on Paper: the block or row, and whether by rows.
@@ -345,6 +381,7 @@ impl KefForm {
     pub fn act(&mut self, app: &mut Faraday, a: KefAct) {
         match (self.stage, a) {
             (Stage::Made, KefAct::Check) => {
+                self.from_scan = false;
                 self.stage = Stage::Check;
                 self.error = None;
                 self.focus = Some(Focus::Check);
@@ -361,6 +398,7 @@ impl KefForm {
             (Stage::Check, KefAct::CheckEye) => self.check_shown = !self.check_shown,
             (Stage::Check, KefAct::Compare) => self.compare(app),
             (Stage::Check, KefAct::CheckBack) => {
+                self.from_scan = false;
                 self.check.clear();
                 self.error = None;
                 self.stage = Stage::Made;
@@ -433,7 +471,8 @@ impl KefForm {
             | KefAct::Another
             | KefAct::Pin(_)
             | KefAct::Rows(_)
-            | KefAct::NotOnPaper => {}
+            | KefAct::NotOnPaper
+            | KefAct::ScanCopy => {}
         }
     }
 
@@ -575,6 +614,7 @@ impl KefForm {
             self.made = None;
             self.saved = None;
             self.scanned = false;
+            self.from_scan = false;
             self.pin = 0;
             self.pass.clear();
             self.check.clear();
@@ -663,6 +703,8 @@ impl KefForm {
                 };
                 if same {
                     self.checked = true;
+                    self.scanned |= self.from_scan;
+                    self.from_scan = false;
                     self.check.clear();
                     self.error = None;
                     self.stage = Stage::Made;

@@ -580,6 +580,9 @@ pub struct BackupState {
     /// that closed without one (`docs/history/NEW-WALLET.md` §14.7 item 3). Goes
     /// with a lock, which drops the backup.
     pub misses: Vec<([u8; 4], u8)>,
+    /// The reads of each seed's drawn Krux code that were not the code,
+    /// by the seed's item (`docs/KEF.md` §15.1).
+    pub kef_misses: Vec<(usize, u8)>,
     /// Template word count.
     pub words: usize,
     /// What went to the Outbox, for the summary.
@@ -1253,6 +1256,17 @@ impl WalletBackupArea {
         match b.misses.iter_mut().find(|(f, _)| *f == fp) {
             Some((_, n)) => *n = n.saturating_add(1),
             None => b.misses.push((fp, 1)),
+        }
+    }
+
+    /// A read of seed `i`'s drawn Krux code that was not the code.
+    pub(crate) fn kef_missed(&mut self, i: usize) {
+        let Some(b) = self.state.as_mut() else {
+            return;
+        };
+        match b.kef_misses.iter_mut().find(|(j, _)| *j == i) {
+            Some((_, n)) => *n = n.saturating_add(1),
+            None => b.kef_misses.push((i, 1)),
         }
     }
 

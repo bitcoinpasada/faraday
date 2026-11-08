@@ -47,6 +47,10 @@ pub enum ScanPurpose {
     /// backup's codex32 item: compared with it there, never loaded
     /// (`docs/CODEX32.md` §9.5).
     CheckCodex32,
+    /// The hand-drawn Krux code of seed `i`'s item on the backup's
+    /// checklist: compared with the code made there, never loaded
+    /// (`docs/KEF.md` §15.1).
+    CheckKef(usize),
     /// Transfer's Receive: anything, saved by the shell into Downloads,
     /// never into the Inbox.
     Transfer,

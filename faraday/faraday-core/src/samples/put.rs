@@ -314,6 +314,7 @@ impl Faraday {
             ScanPurpose::Files => true,
             ScanPurpose::CheckCopy(fp) => english_keys(set)
                 .any(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0)),
+            ScanPurpose::CheckKef(i) => crate::wallet_backup::kef::sample_text(self, i).is_some(),
             ScanPurpose::Transfer
             | ScanPurpose::CheckCodex32
             | ScanPurpose::GpgPublic
@@ -347,6 +348,7 @@ impl Faraday {
             Some(ScanPurpose::KeyPart) => EN.scan_sample_share,
             Some(ScanPurpose::WalletKey(_)) => EN.scan_sample_key,
             Some(ScanPurpose::CheckCopy(_)) => EN.scan_sample_seedqr,
+            Some(ScanPurpose::CheckKef(_)) => EN.scan_sample_krux,
             Some(ScanPurpose::VaultEntry) => EN.scan_sample_code,
             Some(ScanPurpose::Files) if self.screen == Screen::Restore => EN.scan_sample_wallet,
             Some(ScanPurpose::Files) if self.screen == Screen::Catalog => EN.scan_sample_address,
@@ -457,6 +459,9 @@ impl Faraday {
                 let (_, k) = english_keys(set)
                     .find(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0))?;
                 seedqr_digits(k.parts.first()?)
+            }
+            ScanPurpose::CheckKef(i) => {
+                crate::wallet_backup::kef::sample_text(self, i).map(String::into_bytes)
             }
             ScanPurpose::VaultEntry => Some(set.inputs.totp.as_bytes().to_vec()),
             ScanPurpose::Intake => self.sample_spend(c, set).map(<[u8]>::to_vec),

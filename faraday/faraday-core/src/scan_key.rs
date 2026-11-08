@@ -692,6 +692,7 @@ impl Faraday {
                 ScanPurpose::VaultEntry
                 | ScanPurpose::CheckCopy(_)
                 | ScanPurpose::CheckCodex32
+                | ScanPurpose::CheckKef(_)
                 | ScanPurpose::GpgPaperkey => false,
             })
     }
@@ -965,6 +966,7 @@ impl Faraday {
             ScanPurpose::KeyPart => self.part_scanned(bytes),
             ScanPurpose::CheckCopy(fp) => self.copy_scanned(fp, bytes),
             ScanPurpose::CheckCodex32 => self.c32_copy_scanned(bytes),
+            ScanPurpose::CheckKef(i) => crate::wallet_backup::kef::scanned(self, i, &bytes),
             ScanPurpose::WalletKey(w) => self.wallet_key_code(w, bytes),
             ScanPurpose::Seed => self.seed_code_scanned(bytes),
             _ => self.files_scanned(bytes, camera),

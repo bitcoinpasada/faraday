@@ -12751,6 +12751,10 @@ strings! {
     kef_drawn_copy: "Drawn copy",
     /// The Code card, on Paper: the drawn copy was not scanned.
     kef_not_scanned: "Not scanned",
+    /// The Code card, on Paper: the camera on the drawn copy.
+    kef_scan_my_copy: "Scan my copy",
+    /// The scanner for the drawn Krux code: what it read is not the code.
+    kef_not_this_code: "Not this code",
     /// The Code card, on Paper: takes the code off Paper.
     kef_not_on_paper: "Not on Paper",
     /// Templates item: the Krux code sheets, after the others'. `{}`: how many, the side twice.

@@ -918,3 +918,151 @@ fn a_record_with_the_old_eight_field_code_line_still_reads() {
         "{texts:?}"
     );
 }
+
+/// The made code's base43 text, as its picture holds it.
+fn code_text(app: &Faraday) -> Vec<u8> {
+    let file = app
+        .outbox
+        .iter()
+        .find(|i| i.name.ends_with(".kef"))
+        .expect("the code's file");
+    faraday_codec::kef::base43_encode(&file.bytes).into_bytes()
+}
+
+fn scan_copy(app: &mut Faraday, bytes: Vec<u8>) {
+    app.event(Event::Scanned { bytes });
+    let _ = app.frame();
+}
+
+fn scan_note(app: &Faraday) -> String {
+    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+}
+
+fn open_scan_my_copy(app: &mut Faraday) {
+    app.press(Action::KefTool(K::Backup(KefAct::ScanCopy)));
+    assert!(app.scan().is_some(), "the camera is open");
+}
+
+#[test]
+fn scanning_the_made_code_then_its_passphrase_checks_it_and_the_record_keeps_it() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    assert!(!done(&app));
+    let text = code_text(&app);
+    open_scan_my_copy(&mut app);
+    scan_copy(&mut app, text);
+    assert!(app.scan().is_none(), "the camera closed");
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Compare)));
+    testkit::settle(&mut app);
+    assert!(done(&app));
+    assert_eq!(status(&mut app), "Checked");
+    // Lock and unlock: the backup is made again from the record.
+    let w = app.backup().unwrap().wallet;
+    testkit::backup_drop(&mut app);
+    app.press(Action::Backup(w));
+    app.press(Action::BChecklist);
+    app.settle();
+    assert!(done(&app));
+}
+
+#[test]
+fn another_code_reads_not_this_code_and_three_reads_offer_not_on_paper() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    open_scan_my_copy(&mut app);
+    for n in 1..=3 {
+        scan_copy(&mut app, b"HTTPS://EXAMPLE.ORG/OTHER".to_vec());
+        assert_eq!(scan_note(&app), "Not this code");
+        assert!(app.scan().is_some(), "the camera stays open after {n}");
+    }
+    app.press(Action::Cancel);
+    assert!(seen(&mut app, "3 scans without a match"));
+    assert!(seen(&mut app, "Not on Paper"));
+    app.press(Action::KefTool(K::Backup(KefAct::NotOnPaper)));
+    assert!(
+        !app.backup_items_now(&testkit::compute())
+            .contains(&bstep::KEF)
+    );
+}
+
+#[test]
+fn a_wrong_passphrase_after_a_good_scan_reads_so_and_the_right_one_checks() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    let text = code_text(&app);
+    open_scan_my_copy(&mut app);
+    scan_copy(&mut app, text);
+    type_in(&mut app, "not it");
+    app.press(Action::KefTool(K::Backup(KefAct::Compare)));
+    testkit::settle(&mut app);
+    assert!(seen(&mut app, "Not matching. Try the passphrase again."));
+    assert!(!done(&app));
+    for _ in 0.."not it".len() {
+        app.event(Event::Key(Key::Backspace));
+    }
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Compare)));
+    testkit::settle(&mut app);
+    assert!(done(&app));
+}
+
+#[test]
+fn nothing_scanned_for_the_drawn_code_is_loaded_or_filed() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    let (keys, wallets, inbox) = (
+        app.session.keys.len(),
+        app.session.wallets.len(),
+        app.inbox().len(),
+    );
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    open_scan_my_copy(&mut app);
+    scan_copy(&mut app, words.into_bytes());
+    scan_copy(&mut app, b"HTTPS://EXAMPLE.ORG".to_vec());
+    assert_eq!(app.session.keys.len(), keys);
+    assert_eq!(app.session.wallets.len(), wallets);
+    assert_eq!(app.inbox().len(), inbox);
+}
+
+#[test]
+fn in_practice_the_sample_tile_gives_the_made_code() {
+    let mut app = on_paper(true);
+    app.session.set_demo(testkit::demo_samples());
+    app.samples = Some(testkit::demo_samples());
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    open_scan_my_copy(&mut app);
+    app.press(Action::ScanSample);
+    assert!(app.scan().is_none(), "the sample was the code");
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Compare)));
+    testkit::settle(&mut app);
+    assert!(done(&app));
+}
+
+#[test]
+fn a_code_larger_than_the_largest_sheet_has_no_scan_my_copy() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Id(
+        faraday_core::kef_form::IdKind::Label,
+    ))));
+    app.press(Action::KefTool(K::Backup(KefAct::Label)));
+    type_in(&mut app, &"x".repeat(60));
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    testkit::settle(&mut app);
+    assert!(!seen(&mut app, "Scan my copy"));
+    let mut small = on_paper(true);
+    open_item(&mut small, bstep::KEF);
+    make(&mut small);
+    assert!(seen(&mut small, "Scan my copy"));
+}

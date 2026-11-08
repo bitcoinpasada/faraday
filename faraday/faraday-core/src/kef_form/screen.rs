@@ -206,8 +206,18 @@ fn code_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, a
         );
         cy += BUTTON_H + GAP;
     }
-    // Part B: **Scan my copy** (`ScanPurpose::CheckKef`) goes here, for a
-    // code on Paper that opened and is not scanned, with a camera.
+    if f.scan_offered() && !no_camera {
+        ui.button(
+            x,
+            cy,
+            None,
+            BUTTON_H,
+            EN.kef_scan_my_copy,
+            Style::Primary,
+            (ask.wrap)(KefAct::ScanCopy),
+        );
+        cy += BUTTON_H + GAP;
+    }
     ui.button(
         x,
         cy,

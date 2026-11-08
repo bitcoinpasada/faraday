@@ -749,9 +749,12 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (crate::ScanPurpose::CheckSent, _) => EN.signer_scan_sent.to_string(),
         (crate::ScanPurpose::CheckReturned, _) => EN.signer_scan_returned.to_string(),
         (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr.to_string(),
-        (crate::ScanPurpose::CheckCopy(_) | crate::ScanPurpose::CheckCodex32, _) => {
-            EN.scan_scan_your_copy.to_string()
-        }
+        (
+            crate::ScanPurpose::CheckCopy(_)
+            | crate::ScanPurpose::CheckCodex32
+            | crate::ScanPurpose::CheckKef(_),
+            _,
+        ) => EN.scan_scan_your_copy.to_string(),
         (crate::ScanPurpose::Transfer, _) => EN.scan_receive_into_downloads.to_string(),
         (crate::ScanPurpose::GpgPublic, _) => EN.gpg_restore_scan.to_string(),
         (crate::ScanPurpose::GpgPaperkey, _) => EN.gpg_restore_scan_paperkey.to_string(),

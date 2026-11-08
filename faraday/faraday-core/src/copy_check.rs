@@ -217,6 +217,17 @@ impl BackupState {
     }
 }
 
+impl BackupState {
+    /// How many reads of seed `i`'s drawn Krux code were not the code in
+    /// this backup.
+    pub fn kef_misses_of(&self, i: usize) -> u8 {
+        self.kef_misses
+            .iter()
+            .find(|(j, _)| *j == i)
+            .map_or(0, |(_, n)| *n)
+    }
+}
+
 // ---------------------------------------------------------------------
 // The SeedQR's copy grid, marked by blocks or rows
 // (`docs/BACKUP-FLOW.md` §17.24)

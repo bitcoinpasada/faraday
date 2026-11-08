@@ -12,6 +12,7 @@ use crate::kef_form::screen::Ask;
 use crate::kef_form::{KefAct, KefForm, Source};
 use crate::kef_tool::KefToolAction;
 use crate::receipt::sha256_of;
+use crate::strings::EN;
 use crate::worker::kef_make::{self, IdChoice, Options, Saved};
 use crate::{Action, Faraday, Screen, Sheet, bstep, plan};
 use faraday_crypto::work::Compute;
@@ -376,10 +377,67 @@ fn not_on_paper(app: &mut Faraday) {
     sync_paper(app, i);
 }
 
+/// **Scan my copy**: the camera on the drawn code of the open item. A
+/// lookup.
+fn scan_open(app: &mut Faraday) {
+    let Some(i) = app.backup.kef_open() else {
+        return;
+    };
+    if !app.backup.kef_form(i).is_some_and(KefForm::scan_offered) || app.cameras().is_empty() {
+        return;
+    }
+    let mut scan = crate::ScanState::default();
+    scan.purpose = crate::ScanPurpose::CheckKef(i);
+    app.camera.open(scan);
+    app.sheet = Some(Sheet::Scan);
+    app.out
+        .commands
+        .push_back(faraday_shell_api::Command::CameraOn);
+}
+
+/// What the camera read for seed `i`'s drawn Krux code: the code's base43
+/// text, byte for byte, closes the camera and opens the field and Compare;
+/// anything else is named on the scanner and counts one miss. Nothing read
+/// is loaded or filed.
+pub(crate) fn scanned(app: &mut Faraday, i: usize, bytes: &[u8]) {
+    let text = app.backup.kef_form(i).and_then(KefForm::code_text);
+    let Some(text) = text else {
+        app.camera.close();
+        app.sheet = None;
+        app.out
+            .commands
+            .push_back(faraday_shell_api::Command::CameraOff);
+        return;
+    };
+    if bytes.trim_ascii() == text.as_bytes() {
+        with_form(app, i, |f, _| f.scan_matched());
+        app.camera.close();
+        app.sheet = None;
+        app.out
+            .commands
+            .push_back(faraday_shell_api::Command::CameraOff);
+        sync_record(app, i);
+    } else {
+        app.backup.kef_missed(i);
+        if let Some(scan) = app.camera.scan_mut() {
+            scan.note = Some(EN.kef_not_this_code.to_string());
+        }
+    }
+}
+
+/// The code made for seed `i` as a scanner's sample: its base43 text.
+pub(crate) fn sample_text(app: &Faraday, i: usize) -> Option<String> {
+    app.backup.kef_form(i)?.code_text()
+}
+
 /// A press on the form.
 pub(crate) fn act(app: &mut Faraday, a: KefAct) {
     if a == KefAct::NotOnPaper {
         not_on_paper(app);
+        return;
+    }
+    if a == KefAct::ScanCopy {
+        scan_open(app);
         return;
     }
     let before = app
