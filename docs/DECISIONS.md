@@ -237,3 +237,4 @@ Read this table, then only the decision you need.
 | [F220](decisions/F220.md) | What a cosigner's partial MuSig2 signature proves on the device | 2026-11-05 | Active | security |
 | [F221](decisions/F221.md) | Two more kernel patches of Faraday's own on the Pi: a 32-bit framebuffer with red first, and vc4's output polling stopped on unbind | 2026-11-06 | Active | security |
 | [F222](decisions/F222.md) | On a Pi's HDMI screen, fades start off | 2026-11-07 | Active | design |
+| [F223](decisions/F223.md) | On the small panel off mainnet, the mode pill stands on the top bar's second line | 2026-11-08 | Active | design |
