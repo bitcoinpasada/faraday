@@ -1511,7 +1511,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[m("Reveal::KefCode"), p("The GCM tag is compared in constant time by aes-gcm; the check bytes of the other versions are compared as Krux does; AES and PBKDF2 state nothing more."), p("The key, the passphrase bytes and the opened plaintext are Zeroizing values wiped on drop.")],
         limits: &[p("A written passphrase is printable ASCII of at most 200 characters; a read one is tried as typed, in NFC and in NFD."), p("A code that inflates past 100 KiB does not open."), p("A count over 550,000 is not written; PBKDF2 runs in steps of 5,000 rounds and stops when told.")],
         own_calls: &[p("What Krux refuses to write is refused here, and a refusal names a version that works. Conservative, F219.")],
-        screens: &[],
+        screens: &["KefTool"],
         learn: "other_backups",
     },
     Block {

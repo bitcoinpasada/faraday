@@ -1064,6 +1064,7 @@ impl Faraday {
             Screen::Explore => self.explore.state().is_some(),
             Screen::Lightning => self.lightning.state().is_some(),
             Screen::Tools => self.tools.state().is_some(),
+            Screen::KefTool => self.tools.kef_tool().state().is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
             Screen::Decode => self.decode().is_some(),

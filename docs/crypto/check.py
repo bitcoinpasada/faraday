@@ -1099,6 +1099,8 @@ TILE_SCREENS = {
     "Calculator": ("Tools",), "WordList": ("Tools",),
     # The Sweep sheet, over Tools.
     "Sweep": ("Tools",),
+    # Krux code, the tool that makes one.
+    "KefCode": ("KefTool",),
 }
 
 

@@ -145,6 +145,12 @@ pub struct KefForm {
 }
 
 impl KefForm {
+    /// Closes the passphrase's eye and the check's: the idle warning.
+    pub(crate) fn hide_eyes(&mut self) {
+        self.shown = false;
+        self.check_shown = false;
+    }
+
     /// Whether the form holds something typed that is secret: the
     /// passphrase, the passphrase typed again to check, or dice rolls
     /// still being entered (for the clean state, `Faraday::clean`).

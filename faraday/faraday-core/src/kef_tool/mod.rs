@@ -379,6 +379,9 @@ pub(crate) fn cancel(app: &mut Faraday) {
 pub(crate) fn hide(app: &mut Faraday) {
     if let Some(s) = st(app) {
         s.shown = false;
+        if let Some(f) = s.form.as_mut() {
+            f.hide_eyes();
+        }
     }
 }
 

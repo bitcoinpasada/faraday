@@ -111,9 +111,9 @@ pub fn side(options: &Options, plaintext_len: usize) -> Option<usize> {
         Padding::None => body,
     };
     let n = 5 + id_len + spec.iv_len() + body + exposed;
-    // The envelope's first byte is the version, so the number is below
-    // (version + 1) * 256^(n - 1).
-    let bits = f64::from(options.version + 1).log2() + (8 * (n - 1)) as f64;
+    // The envelope's first byte is the id's length, so the number is
+    // below (id length + 1) * 256^(n - 1).
+    let bits = ((id_len + 1) as f64).log2() + (8 * (n - 1)) as f64;
     let chars = (bits * std::f64::consts::LN_2 / 43f64.ln()).floor() as usize + 1;
     let ecc = if options.low && options.low_offered() {
         Ecc::Low

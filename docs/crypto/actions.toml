@@ -5951,7 +5951,7 @@ action = "Writes and reads a Krux encrypted code (KEF): a passphrase and a count
 row = "kef"
 standards = ["KEF"]
 learn = "other_backups"
-screens = []
+screens = ["KefTool"]
 functions = [
   "faraday/faraday-kef/src/lib.rs::seal",
   "faraday/faraday-kef/src/lib.rs::seal_with_key",
@@ -5963,6 +5963,8 @@ functions = [
   "core/faraday-crypto/src/hash.rs::pbkdf2_hmac_sha256_block",
   "faraday/faraday-keys/src/session.rs::Keys::kef_entropy",
   "faraday/faraday-keys/src/kef.rs::seed_plaintext",
+  "faraday/faraday-keys/src/session.rs::Keys::kef_matches",
+  "faraday/faraday-keys/src/kef.rs::seed_matches",
   "faraday/faraday-core/src/worker/kef.rs::TimeWork::run",
   "faraday/faraday-keys/src/kef.rs::SealJob::run",
   "faraday/faraday-keys/src/kef.rs::OpenJob::run",

@@ -267,3 +267,49 @@ fn the_size_a_code_will_be_is_known_before_it_is_made() {
     };
     assert_eq!(side(&long_id, 32), Some(37));
 }
+
+#[test]
+fn the_size_predicted_is_the_size_of_the_code_made() {
+    use faraday_core::worker::kef_make::{MODES, side, versions_in};
+    let mut app = app_with(TWENTY_FOUR);
+    let mut cases = vec![(10u8, false, 16usize, 49usize)];
+    for mode in MODES {
+        for v in versions_in(mode) {
+            for id in [8, 16] {
+                for len in [1, 16, 32, 49, 120] {
+                    cases.push((v, false, id, len));
+                    cases.push((v, true, id, len));
+                }
+            }
+        }
+    }
+    for (version, low, id, len) in cases {
+        let options = Options {
+            version,
+            low,
+            count: 10_000,
+            id: IdChoice::Random(id),
+        };
+        let Some(predicted) = side(&options, len) else {
+            continue;
+        };
+        // No two blocks alike, which the ECB versions refuse.
+        let counted: String = (0..len / 8 + 1).map(|i| format!("{i:08}")).collect();
+        let text = Zeroizing::new(counted[..len].to_string());
+        for i in 0..2u8 {
+            app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
+        }
+        // A text some version refuses (ECB takes whole blocks) makes no code.
+        if let Err(e) = app.kef_make_text(pass(), text, &options) {
+            assert_ne!((version, low, id, len), (10, false, 16, 49), "{e:?}");
+            continue;
+        }
+        let code = made(&mut app, &options);
+        let view = code.view.as_ref().expect("one code");
+        assert_eq!(
+            view.frames[0].size(),
+            predicted,
+            "version {version}, low {low}, id {id}, text {len}"
+        );
+    }
+}

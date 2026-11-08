@@ -201,3 +201,16 @@ fn on_a_small_panel_the_keyboard_types_the_text_and_the_passphrases() {
     testkit::settle(&mut app);
     assert!(kef_tool::state(&app).unwrap().form().unwrap().checked());
 }
+
+#[test]
+fn forward_after_leaving_the_tool_does_not_open_an_empty_page() {
+    let mut app = started();
+    open(&mut app);
+    let _ = app.frame();
+    app.event(Event::Back);
+    let _ = app.frame();
+    assert_ne!(app.screen, Screen::KefTool);
+    app.event(Event::Forward);
+    let _ = app.frame();
+    assert_ne!(app.screen, Screen::KefTool);
+}
