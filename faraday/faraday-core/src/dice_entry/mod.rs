@@ -3,11 +3,16 @@
 //! rolled value lands on the rolls as a key pressed would, and is marked
 //! as this computer's, so that the passphrase's strength line says
 //! "simulated dice".
+//!
+//! [`DiceEntry`] holds the rolls, the list and the roller and knows
+//! nothing of who opened it: the owner passes its focus, the time, the
+//! randomness for the roller and how a [`Press`] is wrapped as an
+//! `Action`, and takes back from Use the phrase, its bits and the
+//! simulated marks.
 
-use crate::Faraday;
-use crate::fresh::roller::{Act, PerClick};
+use crate::fresh::roller::{Act, PerClick, Roller, Sim};
 use crate::strings::{EN, fill};
-use crate::vault::{Focus, TextBox, VaultAction as V};
+use crate::vault::TextBox;
 use faraday_shell_api::Key as K;
 use zeroize::Zeroizing;
 
@@ -61,162 +66,237 @@ pub fn dice_word_indices(rolls: &str, list: faraday_bip::diceware::List) -> Vec<
 /// The most words the roller adds, one click or many.
 const MAX_WORDS: usize = 20;
 
-/// How many more rolls the entry takes now: up to [`MAX_WORDS`] words'
-/// worth, and for To the end only as far as a strong passphrase (a
-/// lookup).
-pub(crate) fn room(app: &Faraday) -> usize {
-    let Some((_, rolls, list)) = app.vaults.dice.as_ref() else {
-        return 0;
-    };
-    let per = list.dice_per_word();
-    let end = if app.vaults.roller.per() == PerClick::ToEnd {
-        (STRONG_BITS as f32 / list.bits_per_word()).ceil() as usize
-    } else {
-        MAX_WORDS
-    };
-    (end * per).saturating_sub(rolls.text.len())
+/// Where typing goes inside the entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Part {
+    /// The dice rolls.
+    Dice,
+    /// The roller's typed number of rolls per click.
+    Rolls,
 }
 
 /// A press on the dice entry or the roller.
-pub(crate) fn act(app: &mut Faraday, a: V) {
-    match a {
-        V::DiceKey(0) => {
-            if let Some((_, rolls, _)) = app.vaults.state_mut().dice.as_mut() {
-                rolls.text.pop();
-                let len = rolls.text.len();
-                app.vaults.state_mut().roller.trim(len);
-            }
-        }
-        V::DiceKey(f @ 1..=6) => {
-            if let Some((_, rolls, _)) = app.vaults.state_mut().dice.as_mut() {
-                rolls.text.push(char::from(b'0' + f));
-            }
-        }
-        V::Dice(_) if !app.may_load_keys() => {}
-        V::Dice(i) => {
-            // Pressed again, the rolls box keeps what is rolled.
-            if app.vaults.dice.as_ref().is_none_or(|d| d.0 != i) {
-                app.vaults.state_mut().dice =
-                    Some((i, TextBox::default(), faraday_bip::diceware::List::Large));
-                app.vaults.state_mut().roller.reset();
-            }
-            app.vaults.state_mut().focus = Some(Focus::Dice);
-        }
-        V::DiceList(k) => {
-            if let Some((_, rolls, list)) = app.vaults.state_mut().dice.as_mut()
-                && let Some(&l) = faraday_bip::diceware::List::ALL.get(usize::from(k))
-                && l != *list
-            {
-                *list = l;
-                rolls.clear();
-                app.vaults.state_mut().roller.reset();
-            }
-        }
-        V::DiceUse => use_words(app),
-        V::DiceClose => {
-            app.vaults.state_mut().dice = None;
-            app.vaults.state_mut().focus = None;
-            app.vaults.state_mut().roller.reset();
-        }
-        V::Roller(r) if app.roller_offered() => roll(app, r),
-        _ => {}
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Press {
+    /// A key of the pad: a face, 1 to 6, or 0 for Backspace.
+    Face(u8),
+    /// The list's place in `faraday-bip`'s lists.
+    List(u8),
+    /// Use these words.
+    Use,
+    /// Put the dice away.
+    Close,
+    /// A press on the roller (Faraday Demo).
+    Roller(Act),
 }
 
-/// Fills the passphrase with the words the rolls made.
-fn use_words(app: &mut Faraday) {
-    let Some((i, rolls, list)) = app.vaults.state_mut().dice.take() else {
-        return;
-    };
-    let words = dice_words(&rolls.text, list);
-    let sim = app.vaults.roller.sim(words.len() * list.dice_per_word());
-    // The demo puts its public passphrase in place of the rolled words,
-    // which are dropped (`docs/DEMO.md` §5.2).
-    let public = !app.makes_secrets();
-    if let Some(c) = app.vaults.state_mut().create.as_mut()
-        && let Some((a, b)) = c.phrases.get_mut(i)
-        && !words.is_empty()
-    {
-        let (phrase, bits) = if public {
-            (Zeroizing::new(crate::demo::PASSPHRASE.to_string()), 0.0)
-        } else {
-            (
-                Zeroizing::new(words.join("")),
-                words.len() as f32 * list.bits_per_word(),
-            )
+/// What the owner gives a press: the time, whether Reduce motion is on
+/// and the randomness for the roller (32 fresh bytes, or none yet).
+pub struct Env<'a> {
+    /// The clock, in milliseconds.
+    pub now_ms: u64,
+    /// Whether Reduce motion is on.
+    pub reduce: bool,
+    /// Asks for 32 fresh bytes.
+    pub draw: &'a mut dyn FnMut() -> Option<[u8; 32]>,
+}
+
+/// What a press did for the owner.
+#[derive(Default)]
+pub struct Pressed {
+    /// `Some(f)`: the focus is now `f` (and none when the entry is put
+    /// away). `None`: the focus is as it was.
+    pub focus: Option<Option<Part>>,
+    /// Use: what the rolls made.
+    pub used: Option<Used>,
+}
+
+/// What Use hands back: the words the rolls made.
+pub struct Used {
+    /// The owner's tag the entry was opened with.
+    pub tag: usize,
+    /// The words joined; empty when the rolls made none.
+    pub phrase: Zeroizing<String>,
+    /// Their bits.
+    pub bits: f32,
+    /// Which of the rolls this computer made.
+    pub sim: Sim,
+}
+
+/// Generate with dice: the rolls typed, the list they are read in and
+/// the roller, while the entry is open.
+#[derive(Default)]
+pub struct DiceEntry {
+    /// The owner's tag, the rolls and the list, while open.
+    open: Option<(usize, TextBox, faraday_bip::diceware::List)>,
+    /// The roller beside the rolls (Faraday Demo).
+    roller: Roller,
+}
+
+impl DiceEntry {
+    /// The tag, rolls and list while the entry is open.
+    pub fn open(&self) -> Option<&(usize, TextBox, faraday_bip::diceware::List)> {
+        self.open.as_ref()
+    }
+
+    /// The rolls, to type into, while open.
+    pub fn typing(&mut self) -> Option<&mut TextBox> {
+        self.open.as_mut().map(|o| &mut o.1)
+    }
+
+    /// The roller.
+    pub fn roller(&self) -> &Roller {
+        &self.roller
+    }
+
+    /// Opens the entry for `tag`; pressed again for the same tag, the
+    /// rolls box keeps what is rolled. The focus is the rolls.
+    pub fn start(&mut self, tag: usize) -> Pressed {
+        if self.open.as_ref().is_none_or(|d| d.0 != tag) {
+            self.open = Some((tag, TextBox::default(), faraday_bip::diceware::List::Large));
+            self.roller.reset();
+        }
+        Pressed {
+            focus: Some(Some(Part::Dice)),
+            used: None,
+        }
+    }
+
+    /// Puts the entry away.
+    pub fn close(&mut self) {
+        self.open = None;
+        self.roller.reset();
+    }
+
+    /// How many more rolls the entry takes now: up to [`MAX_WORDS`]
+    /// words' worth, and for To the end only as far as a strong
+    /// passphrase (a lookup).
+    pub fn room(&self) -> usize {
+        let Some((_, rolls, list)) = self.open.as_ref() else {
+            return 0;
         };
-        a.set(&phrase);
-        b.set(&phrase);
-        if let Some(d) = c.from_dice.get_mut(i) {
-            *d = Some((phrase, bits, sim));
-        }
+        let per = list.dice_per_word();
+        let end = if self.roller.per() == PerClick::ToEnd {
+            (STRONG_BITS as f32 / list.bits_per_word()).ceil() as usize
+        } else {
+            MAX_WORDS
+        };
+        (end * per).saturating_sub(rolls.text.len())
     }
-    app.vaults.state_mut().roller.reset();
-    app.vaults.state_mut().focus = None;
-}
 
-/// A press on the roller: its choice, or Roll, whose values are entered
-/// at once, in the frame that shows the press.
-fn roll(app: &mut Faraday, r: Act) {
-    let (room, now) = (room(app), app.now_ms());
-    app.vaults.state_mut().roller.act(r, room, now);
-    app.vaults.state_mut().focus = Some(if r == Act::Count {
-        Focus::Rolls
-    } else {
-        Focus::Dice
-    });
-    if r == Act::Roll {
-        tick(app, now);
-    }
-}
-
-/// The roller's tick: the values it made land on the rolls. Returns
-/// whether the screen needs a frame.
-pub(crate) fn tick(app: &mut Faraday, now_ms: u64) -> bool {
-    if !app.vaults.roller.active() {
-        return false;
-    }
-    let (reduce, room) = (app.reduce_motion(), room(app));
-    let Some(len) = app.vaults.dice.as_ref().map(|d| d.1.text.len()) else {
-        app.vaults.state_mut().roller.reset();
-        return false;
-    };
-    let mut roller = std::mem::take(&mut app.vaults.state_mut().roller);
-    let (values, redraw) = roller.tick(now_ms, reduce, len, room, &mut || {
-        app.fresh(b"faraday dice roller")
-    });
-    app.vaults.state_mut().roller = roller;
-    if let Some((_, rolls, _)) = app.vaults.state_mut().dice.as_mut() {
-        for v in values {
-            rolls.text.push(char::from(b'0' + v));
-        }
-    }
-    redraw
-}
-
-/// Typing while the rolls or the roller's number has the keys. Returns
-/// whether the key was taken.
-pub(crate) fn key(app: &mut Faraday, focus: Focus, key: K) -> bool {
-    if focus == Focus::Rolls {
-        match key {
-            K::Char(c) => app.vaults.state_mut().roller.digit(c),
-            K::Backspace => app.vaults.state_mut().roller.backspace(),
-            K::Enter => app.vaults.state_mut().focus = Some(Focus::Dice),
-            _ => {}
-        }
-        return true;
-    }
-    if let Some((_, rolls, _)) = app.vaults.state_mut().dice.as_mut() {
-        match key {
-            K::Char(c) if ('1'..='6').contains(&c) => rolls.text.push(c),
-            K::Backspace => {
-                rolls.text.pop();
-                let len = rolls.text.len();
-                app.vaults.state_mut().roller.trim(len);
+    /// A press. The roller's is the owner's to allow (Faraday Demo).
+    pub fn press(&mut self, p: Press, env: &mut Env) -> Pressed {
+        let mut out = Pressed::default();
+        match p {
+            Press::Face(0) => {
+                if let Some((_, rolls, _)) = self.open.as_mut() {
+                    rolls.text.pop();
+                    let len = rolls.text.len();
+                    self.roller.trim(len);
+                }
             }
-            K::Enter => act(app, V::DiceUse),
-            _ => {}
+            Press::Face(f @ 1..=6) => {
+                if let Some((_, rolls, _)) = self.open.as_mut() {
+                    rolls.text.push(char::from(b'0' + f));
+                }
+            }
+            Press::Face(_) => {}
+            Press::List(k) => {
+                if let Some((_, rolls, list)) = self.open.as_mut()
+                    && let Some(&l) = faraday_bip::diceware::List::ALL.get(usize::from(k))
+                    && l != *list
+                {
+                    *list = l;
+                    rolls.clear();
+                    self.roller.reset();
+                }
+            }
+            Press::Use => {
+                out.used = self.use_words();
+                if out.used.is_some() {
+                    out.focus = Some(None);
+                }
+            }
+            Press::Close => {
+                self.close();
+                out.focus = Some(None);
+            }
+            Press::Roller(r) => {
+                let (room, now) = (self.room(), env.now_ms);
+                self.roller.act(r, room, now);
+                out.focus = Some(Some(if r == Act::Count {
+                    Part::Rolls
+                } else {
+                    Part::Dice
+                }));
+                if r == Act::Roll {
+                    self.tick(env);
+                }
+            }
         }
+        out
     }
-    true
+
+    /// Takes the words the rolls made and puts the entry away.
+    fn use_words(&mut self) -> Option<Used> {
+        let (tag, rolls, list) = self.open.take()?;
+        let words = dice_words(&rolls.text, list);
+        let sim = self.roller.sim(words.len() * list.dice_per_word());
+        self.roller.reset();
+        Some(Used {
+            tag,
+            phrase: Zeroizing::new(words.join("")),
+            bits: words.len() as f32 * list.bits_per_word(),
+            sim,
+        })
+    }
+
+    /// The roller's tick: the values it made land on the rolls. Returns
+    /// whether the screen needs a frame.
+    pub fn tick(&mut self, env: &mut Env) -> bool {
+        if !self.roller.active() {
+            return false;
+        }
+        let room = self.room();
+        let Some(len) = self.open.as_ref().map(|d| d.1.text.len()) else {
+            self.roller.reset();
+            return false;
+        };
+        let (values, redraw) = self
+            .roller
+            .tick(env.now_ms, env.reduce, len, room, &mut *env.draw);
+        if let Some((_, rolls, _)) = self.open.as_mut() {
+            for v in values {
+                rolls.text.push(char::from(b'0' + v));
+            }
+        }
+        redraw
+    }
+
+    /// Typing while the rolls or the roller's number has the keys.
+    pub fn key(&mut self, part: Part, key: K, env: &mut Env) -> Pressed {
+        let mut out = Pressed::default();
+        if part == Part::Rolls {
+            match key {
+                K::Char(c) => self.roller.digit(c),
+                K::Backspace => self.roller.backspace(),
+                K::Enter => out.focus = Some(Some(Part::Dice)),
+                _ => {}
+            }
+            return out;
+        }
+        if let Some((_, rolls, _)) = self.open.as_mut() {
+            match key {
+                K::Char(c) if ('1'..='6').contains(&c) => rolls.text.push(c),
+                K::Backspace => {
+                    rolls.text.pop();
+                    let len = rolls.text.len();
+                    self.roller.trim(len);
+                }
+                K::Enter => return self.press(Press::Use, env),
+                _ => {}
+            }
+        }
+        out
+    }
 }

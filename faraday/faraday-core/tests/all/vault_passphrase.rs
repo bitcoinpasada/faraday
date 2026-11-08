@@ -22,7 +22,7 @@ fn rolling() -> Faraday {
 #[test]
 fn the_long_list_is_where_rolling_starts() {
     let app = rolling();
-    let (_, _, list) = app.vaults().dice.as_ref().unwrap();
+    let (_, _, list) = app.vaults().dice.open().unwrap();
     assert_eq!(*list, List::Large);
 }
 
@@ -45,7 +45,7 @@ fn the_same_rolls_spell_different_words_on_different_lists() {
 
     let mut app = rolling();
     app.press(Action::Vault(V::DiceList(1))); // Short1
-    let (_, _, list) = app.vaults().dice.as_ref().unwrap();
+    let (_, _, list) = app.vaults().dice.open().unwrap();
     assert_eq!(*list, List::Short1);
     for c in ['1', '2', '3', '4'] {
         app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Char(
@@ -91,10 +91,10 @@ fn choosing_a_list_clears_rolls_already_typed() {
             c,
         )));
     }
-    assert_eq!(app.vaults().dice.as_ref().unwrap().1.text.len(), 3);
+    assert_eq!(app.vaults().dice.open().unwrap().1.text.len(), 3);
     app.press(Action::Vault(V::DiceList(1)));
     assert!(
-        app.vaults().dice.as_ref().unwrap().1.text.is_empty(),
+        app.vaults().dice.open().unwrap().1.text.is_empty(),
         "switching lists mid-roll must not spell a word under the wrong list"
     );
 }

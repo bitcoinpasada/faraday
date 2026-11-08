@@ -142,6 +142,6 @@ fn create_a_vaults_dice_pad_at_the_foot_types_the_rolls() {
     for f in [3, 5, 0, 6] {
         tap(&mut app, Action::Vault(V::DiceKey(f)));
     }
-    let (_, rolls, _) = app.vaults().dice.as_ref().unwrap();
+    let (_, rolls, _) = app.vaults().dice.open().unwrap();
     assert_eq!(rolls.text.as_str(), "36", "3, 5, Backspace, 6");
 }

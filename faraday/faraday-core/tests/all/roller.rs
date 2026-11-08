@@ -37,7 +37,7 @@ fn roller(a: Act) -> Action {
 fn rolls(app: &Faraday) -> String {
     app.vaults()
         .dice
-        .as_ref()
+        .open()
         .map(|d| d.1.text.to_string())
         .unwrap_or_default()
 }
@@ -159,9 +159,9 @@ fn a_rolls_values_are_entered_at_the_click_and_the_die_tumbles_a_moment() {
     assert_eq!(rolls(&app).len(), 5, "all five at the click");
     tick(&mut app, t0 + 16);
     assert_eq!(rolls(&app).len(), 5, "and no more after it");
-    assert!(app.vaults().roller.progress() > 0.0, "the die tumbles");
+    assert!(app.vaults().dice.roller().progress() > 0.0, "the die tumbles");
     tick(&mut app, t0 + 1_000);
-    assert!(!app.vaults().roller.active(), "and rests");
+    assert!(!app.vaults().dice.roller().active(), "and rests");
     assert_eq!(rolls(&app).len(), 5);
 
     // Reduce motion: all five at the click too, and no tumble.
@@ -169,7 +169,7 @@ fn a_rolls_values_are_entered_at_the_click_and_the_die_tumbles_a_moment() {
     app.press(roller(Act::Per(PerClick::Five)));
     app.press(roller(Act::Roll));
     assert_eq!(rolls(&app).len(), 5);
-    assert!(!app.vaults().roller.active(), "no tumble");
+    assert!(!app.vaults().dice.roller().active(), "no tumble");
 }
 
 #[test]

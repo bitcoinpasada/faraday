@@ -165,7 +165,7 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
         "nothing secret is typed while a stick is attached"
     );
     assert!(
-        app.vaults().dice.is_none(),
+        app.vaults().dice.open().is_none(),
         "no dice are rolled with a stick in"
     );
 

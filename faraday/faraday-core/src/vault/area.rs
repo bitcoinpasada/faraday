@@ -108,7 +108,7 @@ impl VaultArea {
                 .fields
                 .get_mut(k)
                 .map(|f| &mut f.2),
-            Focus::Dice => self.state.dice.as_mut().map(|d| &mut d.1),
+            Focus::Dice => self.state.dice.typing(),
             Focus::Rolls | Focus::Search(_) => None,
             Focus::Prompt => self.state.prompt.as_mut().map(|p| &mut p.text),
             Focus::Name => self.state.create.as_mut().map(|c| &mut c.name),
@@ -1568,12 +1568,10 @@ pub struct Vaults {
     /// Create a vault was opened from Home: Back goes to Home, not the
     /// list.
     pub from_home: bool,
-    /// Dice being rolled for a passphrase: which one, the rolls, and
-    /// which of the three EFF lists.
-    pub dice: Option<(usize, TextBox, faraday_bip::diceware::List)>,
-    /// The roller beside the rolls (Faraday Demo): which of their
-    /// positions this computer made.
-    pub roller: crate::fresh::roller::Roller,
+    /// Dice being rolled for a passphrase (its number is the entry's
+    /// tag): the rolls, the list and the roller beside them (Faraday
+    /// Demo).
+    pub dice: crate::dice_entry::DiceEntry,
     /// The prompt in the contents.
     pub prompt: Option<Prompt>,
     /// This computer's clock, Unix seconds, as the shell last said.

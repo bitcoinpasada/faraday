@@ -45,6 +45,6 @@ fn rolling_ten_values_with_their_ticks_and_frames_does_no_costly_work() {
         }
         assert!(work.of(k) == 0, "the roller did {k:?} {}", work.of(k));
     }
-    let (_, rolls, _) = app.vaults().dice.as_ref().expect("the dice are open");
+    let (_, rolls, _) = app.vaults().dice.open().expect("the dice are open");
     assert_eq!(rolls.text.len(), 10, "all ten values landed");
 }

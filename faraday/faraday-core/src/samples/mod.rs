@@ -769,7 +769,7 @@ impl Faraday {
             });
         let vault = self.screen == Screen::CreateVault
             && self.vaults.create.is_some()
-            && self.vaults.dice.is_some();
+            && self.vaults.dice.open().is_some();
         if keygen {
             Some(Roller::KeyGen)
         } else if vault {

@@ -11,6 +11,7 @@
 //! says it is working has been drawn.
 
 mod area;
+pub(crate) mod dice;
 pub(crate) mod copy;
 pub(crate) mod copy_screen;
 pub(crate) mod errors;
@@ -509,7 +510,7 @@ impl Faraday {
                     self.vaults.state.typed_shown = false;
                     self.vaults.state.unlock_error = None;
                     self.vaults.state.create = None;
-                    self.vaults.state.dice = None;
+                    self.vaults.state.dice.close();
                     self.vaults.state.focus = None;
                     // The way back from making or unlocking a vault for a
                     // secret is its Cancel: the secret is dropped.
@@ -980,7 +981,7 @@ impl Faraday {
             }
             V::SbCheck(k) => self.sb_check(k),
             // The dice entry's and the roller's.
-            _ => crate::dice_entry::act(self, a),
+            _ => dice::act(self, a),
         }
     }
 
@@ -1186,7 +1187,7 @@ impl Faraday {
             self.signer_check_sync();
         }
         redraw
-            | crate::dice_entry::tick(self, now_ms)
+            | dice::tick(self, now_ms)
             | self.vault_older_settle()
             | self.vault_save_also_settle()
             | copy::settle(self)
@@ -2210,7 +2211,7 @@ impl Faraday {
             return true;
         }
         if matches!(focus, Focus::Dice | Focus::Rolls) {
-            return crate::dice_entry::key(self, focus, key);
+            return dice::key(self, focus, key);
         }
         if focus == Focus::Prompt {
             if let Some(p) = self.vaults.state.prompt.as_mut() {

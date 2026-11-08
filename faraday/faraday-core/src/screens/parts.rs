@@ -1648,7 +1648,7 @@ pub(crate) fn dice_pad(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     style: &dyn Fn(u8) -> Style,
-    press: fn(u8) -> Action,
+    press: impl Fn(u8) -> Action,
 ) -> f32 {
     // A pad keeps its size whatever the text size, as a keyboard's keys
     // do (`docs/TEXT-SIZE.md` §3).

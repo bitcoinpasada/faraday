@@ -271,7 +271,7 @@ fn roller_of(app: &Faraday, which: Roller) -> Option<DieOf<'_>> {
         }),
         Roller::Vault => {
             let act: fn(DieAct) -> Action = |a| Action::Vault(crate::vault::VaultAction::Roller(a));
-            Some((&app.vaults.roller, act, crate::dice_entry::room(app) > 0))
+            Some((app.vaults.dice.roller(), act, app.vaults.dice.room() > 0))
         }
     }
 }

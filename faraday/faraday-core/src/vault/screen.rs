@@ -837,7 +837,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // A small panel has no side panel, nor has a window too low to hold
     // it whole: its summary and Create vault follow the last step.
     let compact = ui.compact || h < create_panel_h(app, ui, panel_w);
-    let foot = crate::dice_entry::screen::foot(app, ui);
+    let foot = super::dice::foot(app, ui);
     let col = flow::Column {
         area_x: x0,
         area_w: if compact { cw } else { cw - panel_w },
@@ -868,7 +868,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::CreateVault, next, again);
-    crate::dice_entry::screen::foot_panel(app, ui, (&col, h), foot);
+    crate::dice_entry::screen::foot_panel(ui, (&col, h), foot, super::dice::ask(app));
     if !compact {
         create_panel(app, ui, x0 + cw - panel_w, panel_w, h, &summaries);
     }
@@ -1361,7 +1361,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
             );
             cy += 42.0;
             for (i, (a, b)) in c.phrases.iter().enumerate() {
-                let rolling = app.vaults.dice.as_ref().is_some_and(|d| d.0 == i);
+                let rolling = app.vaults.dice.open().is_some_and(|d| d.0 == i);
                 ui.text_mid_as((x, cy, 36.0), LABEL_L, ink, EN.vault_passphrase);
                 cy += 44.0;
                 // Two ways to make it, side by side: dice, or typed.
@@ -1464,7 +1464,13 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 // The demo's public passphrase stands in for the rolled
                 // words: the "Demo only" card says so (`docs/DEMO.md` §5.2).
                 cy += 12.0;
-                cy += crate::dice_entry::screen::dice_panel(app, ui, (x, cy, w), i);
+                cy += crate::dice_entry::screen::dice_panel(
+                    app,
+                    ui,
+                    (x, cy, w),
+                    (i, super::dice::ask(app)),
+                    super::dice::foot(app, ui).is_some(),
+                );
             }
             // A small panel has no side panel: what will be made, and
             // Create vault, come after the last step's controls.
