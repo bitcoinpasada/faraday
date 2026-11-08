@@ -301,7 +301,7 @@ fn before_import_the_sheet_lists_names_and_sizes_and_nothing_is_read() {
         assert!(f.chosen && f.enabled, "{name} is not ticked");
         assert!(f.line.contains("by its name"), "{name}: {}", f.line);
         if bytes.len() < 1000 {
-            let size = format!("{} B", bytes.len());
+            let size = format!("{}\u{a0}B", bytes.len());
             assert!(f.line.contains(&size), "{name}: {}", f.line);
         }
     }

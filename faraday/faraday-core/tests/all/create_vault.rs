@@ -360,8 +360,8 @@ fn the_unlock_memory_reads_the_same_on_the_size_and_the_summary() {
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let text = app.drawn_texts();
     assert!(text.iter().any(|t| t == "Unlock memory"), "{text:?}");
-    assert!(text.iter().any(|t| t == "64 MiB"), "{text:?}");
-    assert!(!text.iter().any(|t| t.contains("164 MiB")), "{text:?}");
+    assert!(text.iter().any(|t| t == "64\u{a0}MiB"), "{text:?}");
+    assert!(!text.iter().any(|t| t.contains("164\u{a0}MiB")), "{text:?}");
 }
 
 /// Customise's This computer is ticked and can be unticked; its row reads
@@ -378,7 +378,11 @@ fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
     app.press(Action::Vault(V::CCustomise));
     let _ = app.frame();
     let text = app.drawn_texts();
-    assert!(text.iter().any(|t| t == "1 GiB (1.2 GiB free)"), "{text:?}");
+    assert!(
+        text.iter()
+            .any(|t| t == "1\u{a0}GiB (1.2\u{a0}GiB\u{a0}free)"),
+        "{text:?}"
+    );
     let suggested = |app: &Faraday| PRESETS[app.vaults().suggested()].1;
     // PCs and a Raspberry Pi chose other PCs and the Pi 3: half the
     // Pi's 1 GB.
@@ -406,7 +410,7 @@ fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
     assert!(
         app.drawn_texts()
             .iter()
-            .any(|t| t == "4 GiB (14.6 GiB free)")
+            .any(|t| t == "4\u{a0}GiB (14.6\u{a0}GiB\u{a0}free)")
     );
 }
 

@@ -249,7 +249,10 @@ fn disks_the_computer_uses_and_small_ones_are_shown_dimmed_with_the_reason() {
         "Used by this computer: mounted at /home"
     ));
     assert!(shows(&mut starter, "Used by this computer: swap"));
-    assert!(shows(&mut starter, "Smaller than the image: needs 4.0 GB"));
+    assert!(shows(
+        &mut starter,
+        "Smaller than the image: needs 4.0\u{a0}GB"
+    ));
     assert!(!shows(&mut starter, "Maker Internal"));
     for id in ["sdb", "sdc", "sdd"] {
         let n = number(&starter, id);
@@ -480,7 +483,7 @@ fn writing_shows_progress_then_done_or_the_writers_reason() {
         done: GB,
         total: 4 * GB,
     });
-    assert!(shows(&mut starter, "Written 1.0 GB of 4.0 GB"));
+    assert!(shows(&mut starter, "Written 1.0\u{a0}GB of 4.0\u{a0}GB"));
     assert_eq!(starter.drawn_progress(), vec![Some(0.25)]);
     starter.starter_event(StarterEvent::WriteProgress {
         stage: faraday_starter::api::WriteStage::ReadingBack,

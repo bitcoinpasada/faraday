@@ -228,7 +228,7 @@ fn sign(app: &mut Faraday) {
 /// Everything drawn, as one string without spaces.
 fn drawn(app: &mut Faraday) -> String {
     let _ = app.frame();
-    app.drawn_texts().join("").replace(' ', "")
+    app.drawn_texts().join("").replace([' ', '\u{a0}'], "")
 }
 
 /// On the stick, with the clock not checked, Make a key opens Set the
@@ -280,7 +280,7 @@ fn on_the_stick_sign_opens_the_sheet_with_the_time_and_signs_nothing() {
     assert!(page.contains("SHA256SUMS·"), "the file chosen: {page}");
     assert!(!page.contains("v0.1.0.tag·"), "a file not chosen: {page}");
     assert!(page.contains("Signaturetime"), "{page}");
-    let now = app.now_local_text().replace(' ', "");
+    let now = app.now_local_text().replace([' ', '\u{a0}'], "");
     assert!(page.contains(&now), "the clock's time: {page}");
     assert!(page.contains("Holdtosign1file"), "{page}");
     app.press(Action::Vault(V::GpgHoldSign));
@@ -815,7 +815,7 @@ fn the_page_shows_the_bytes_and_the_key_it_signs_with() {
     for (name, bytes) in release_files() {
         let hash = gpg::sha256_hex(&c, &bytes);
         assert!(page.contains(&hash), "{name}'s SHA-256 on the page");
-        assert!(page.contains(&name.replace(' ', "")), "{name}");
+        assert!(page.contains(&name.replace([' ', '\u{a0}'], "")), "{name}");
     }
     // A small text file's text, and not a binary's.
     assert!(page.contains("object7fcc43a"), "the tag's text");

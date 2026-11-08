@@ -217,11 +217,15 @@ fn learn_keeps_the_rail_or_the_bar_and_a_destination_leaves_it() {
         let t = s.drawn_texts();
         // The top app bar names it; the guides are under it.
         assert!(t.iter().any(|x| x == "Learn"), "{w}: {t:?}");
-        assert!(
-            t.iter()
-                .any(|x| x == "Starting a Windows computer from the stick"),
-            "{w}: {t:?}"
-        );
+        // On a narrow window the title wraps onto a second line.
+        let whole = t
+            .iter()
+            .any(|x| x == "Starting a Windows computer from the stick");
+        let wrapped = t
+            .iter()
+            .any(|x| x == "Starting a Windows computer from the")
+            && t.iter().any(|x| x == "stick");
+        assert!(whole || wrapped, "{w}: {t:?}");
         for d in DESTINATIONS {
             let (x, y) = at(&mut s, d).expect("a destination beside Learn");
             if w < 600 {

@@ -656,12 +656,12 @@ fn a_files_size_reads_the_same_on_the_visit_and_the_delete_sheet() {
             .collect()
     };
     let visit = size(&mut app);
-    assert!(visit.iter().any(|t| t.contains("9.0 KB")), "{visit:?}");
+    assert!(visit.iter().any(|t| t.contains("9.0\u{a0}KB")), "{visit:?}");
     app.press(Action::DeleteFiles);
     asked(&mut app);
     let sheet = size(&mut app);
-    assert!(sheet.iter().any(|t| t == "9.0 KB"), "{sheet:?}");
-    assert!(sheet.iter().all(|t| !t.contains("8 KB")), "{sheet:?}");
+    assert!(sheet.iter().any(|t| t == "9.0\u{a0}KB"), "{sheet:?}");
+    assert!(sheet.iter().all(|t| !t.contains("8\u{a0}KB")), "{sheet:?}");
 }
 
 /// The free space, chosen on the same sheet: each step is asked for on
