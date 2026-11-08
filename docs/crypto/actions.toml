@@ -5966,6 +5966,7 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::kef_matches",
   "faraday/faraday-keys/src/kef.rs::seed_matches",
   "faraday/faraday-core/src/worker/kef.rs::TimeWork::run",
+  "faraday/faraday-core/src/worker/kef_make.rs::made",
   "faraday/faraday-keys/src/kef.rs::SealJob::run",
   "faraday/faraday-keys/src/kef.rs::OpenJob::run",
 ]
