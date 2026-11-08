@@ -5,20 +5,21 @@
 
 Every change the images make to their kernel's source, on every board. The
 patches are the files in each board's `linux-patches/`, applied in order by
-the build. There are seven: two on the Pi, both Faraday's own, and
+the build. There are eight: three on the Pi, all Faraday's own, and
 five on the PC, all from mainline. Nothing else changes the kernel's source;
 what is built into it is the configuration, `docs/SECURITY-MODEL.md`, "What
 the kernel can reach".
 
 A patch of Faraday's own is code nobody else runs that way, carried by hand
 through every kernel update. F153 set the rule against them, F205 made one
-exception and F221 two more (one of which went with 6.18), and each says any other needs a decision of its
+exception, F221 two more (one of which went with 6.18) and F224 one, and each says any other needs a decision of its
 own.
 
 | Board | Patch | What it does | From | Decision |
 |---|---|---|---|---|
 | Pi | 0002 | A failed read of a later EDID block keeps the blocks before it | Faraday's own | F205 |
 | Pi | 0003 | vc4's framebuffer is 32 bits with red first | Faraday's own | F221 |
+| Pi | 0004 | The bootloader's seed is not credited unless the command line says to | Faraday's own | F224 |
 | PC | 0001 to 0005 | The EFI stub puts the screen's EDID in `boot_params` | Mainline, Linux 6.19 | F23 |
 
 ## The Pi
@@ -74,6 +75,24 @@ The Raspberry Pi 6.18 tree (6.18.59), in `faraday/image/boards/pi3/linux-patches
 - **When it can go.** When a kernel the Pi moves to lets vc4 ask for this
   format itself, or if the shell goes back to converting each frame and takes
   that cost.
+
+### 0004: the bootloader's seed is not credited unless the command line says to
+
+- **What it does.** In `drivers/char/random.c`, `trust_bootloader` starts
+  false where it started true. The seed is still mixed into the pool; it is
+  credited only by `random.trust_bootloader=on`. One line.
+- **Why.** The Pi's firmware writes `/chosen/rng-seed`, and on 32-bit ARM
+  `setup_machine_fdt` credits it before `parse_early_param` has read the command
+  line, so `random.trust_bootloader=off` comes too late and the pool counts as
+  ready at the first line of the log. The firmware has no setting that leaves the
+  seed out (`docs/OWN-RANDOMNESS.md` §3.2). With the seed uncounted, F102's
+  rule that only the kernel's jitter makes the pool ready can hold.
+- **From.** Faraday's own.
+- **Trade-off.** It credits less, never more: no new reach, no new code path,
+  no kept copy of anything. The pool is ready later, on bcm2835-rng until
+  that is uncounted too, then on jitter. It is carried through every kernel update.
+- **When it can go.** When the Pi's kernel reads the command line before the
+  device tree's seed, or the firmware can leave the seed out.
 
 ## The PC
 

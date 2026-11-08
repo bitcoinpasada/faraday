@@ -13,12 +13,12 @@ usbcore.authorized_default=2
 
 # Faraday: no CPU generator and no bootloader seed credited, as on the
 # stick (docs/OWN-RANDOMNESS.md §3.2, §3.3). Linux 6.2 removed the Kconfig
-# options and trusts both by default; these two parameters are what is
-# left. On 32-bit ARM trust_cpu=off has nothing to act on, as there is no
-# CPU generator. trust_bootloader=off comes too late for the firmware's
-# seed: setup_machine_fdt reads /chosen/rng-seed and credits it before the
-# kernel parses the command line, so the Pi's seed is credited whatever
-# this says. Both are kept for the kernel's other paths.
+# options and trusts both by default. On 32-bit ARM trust_cpu=off has
+# nothing to act on, as there is no CPU generator, and trust_bootloader=off
+# comes too late for the firmware's seed, which the kernel reads before it
+# parses the command line; the Pi's kernel patch 0004 (docs/KERNEL-PATCHES.md)
+# makes the seed uncounted by default. Both parameters are kept for the
+# kernel's other paths.
 random.trust_cpu=off
 random.trust_bootloader=off
 

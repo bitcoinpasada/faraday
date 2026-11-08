@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (`faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (`faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (`core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
-**Open:** a split wallet's Files list, whose per-file Add signatures has no Randomness row yet (§8.1 row 14, planned); §3.5's late seed and the Pi's generator (F102), and the firmware's seed on the Pi, which is credited whatever `random.trust_bootloader` says (§3.2); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Open:** a split wallet's Files list, whose per-file Add signatures has no Randomness row yet (§8.1 row 14, planned); §3.5's late seed and the Pi's generator (F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and
@@ -274,8 +274,13 @@ Read from `faraday/image/boards/pi3/buildroot.fragment`, its
   `trust_bootloader` is still at its default of true. So the seed the
   firmware writes to `/chosen/rng-seed` is credited and the parameter
   comes too late; a dev boot report shows "random: crng init done" at
-  0.000000 s, right after "OF: fdt: Machine model". Not crediting the seed
-  on the Pi needs a change the image does not make.
+  0.000000 s, right after "OF: fdt: Machine model". The firmware has no
+  setting that leaves the seed out (the string `/chosen/rng-seed` is in
+  the firmware next to the other chosen properties, and neither the firmware
+  nor its overlay README names a `config.txt` line for it). The
+  one-line kernel patch 0004 (`docs/KERNEL-PATCHES.md`) starts
+  `trust_bootloader` false, so the seed is mixed and not credited; tested on a Pi 3B+ ("random: crng init done" at 0.17 s, after
+  bcm2835-rng registers, where it was 0.000000 s) and decided in F224.
 - **Jitter** is there as a fallback, timed by the ARM generic timer.
 - **A comment to correct.** `linux.fragment:81-82` says the session key
   is drawn from `/dev/urandom`; the shell reads `/dev/random`.
@@ -379,10 +384,11 @@ real PC, is still to read.
   without crediting them, before its own read of `/dev/random`. The
   pool is then ready on the kernel's jitter alone, timed by the ARM
   generic timer.
-- **The firmware's seed stays credited.** Not crediting bcm2835-rng would
-  still leave the CRNG ready at once from the seed in `/chosen/rng-seed`
-  (§3.2), so the pool is not ready on jitter alone as written above. This
-  is open.
+- **The firmware's seed is uncounted by patch 0004.** Not crediting
+  bcm2835-rng would still leave the CRNG ready at once from the seed in
+  `/chosen/rng-seed` (§3.2), so the pool is not ready on jitter alone as
+  written above. Patch 0004 (`docs/KERNEL-PATCHES.md`) leaves the seed
+  uncounted (F224); what remains open is bcm2835-rng, still credited.
 - **The Pi's wait** is read off a dev Pi's log in passing (the owner),
   as the PC's is in §3.4.
 

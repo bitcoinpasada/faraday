@@ -1,0 +1,23 @@
+random: do not credit the bootloader's seed unless the command line says to
+
+Faraday's own change, not upstream's. Since Linux 6.2 the kernel credits
+the bootloader's seed by default, and `random.trust_bootloader=off` is the
+only way to stop it. On 32-bit ARM the device tree's /chosen/rng-seed,
+which the Pi's firmware always writes, is read and credited in
+setup_machine_fdt, before parse_early_param has read the command line, so
+the parameter comes too late and the pool is counted ready at the first
+line of the log. Here the default is off: the seed is still mixed into the
+pool, and only a command line with `random.trust_bootloader=on` credits it.
+
+diff --git a/drivers/char/random.c b/drivers/char/random.c
+--- a/drivers/char/random.c
++++ b/drivers/char/random.c
+@@ -811,7 +811,7 @@
+  **********************************************************************/
+ 
+ static bool trust_cpu __initdata = true;
+-static bool trust_bootloader __initdata = true;
++static bool trust_bootloader __initdata = false;
+ static int __init parse_trust_cpu(char *arg)
+ {
+ 	return kstrtobool(arg, &trust_cpu);
