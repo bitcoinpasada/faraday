@@ -72,7 +72,7 @@ fn key_in(app: &mut Faraday) {
 /// Make a new wallet, its first step done: a flow in progress.
 fn flow_begun(app: &mut Faraday) {
     app.press(Action::CreateWallet);
-    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CKind(0));
     app.press(Action::Nav(Screen::Home));
 }
 

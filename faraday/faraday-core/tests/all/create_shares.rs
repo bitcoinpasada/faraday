@@ -58,13 +58,13 @@ const NAME: &str = "Single key, backup in shares (codex32)";
 const TIP: &str = "codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.";
 
 #[test]
-fn make_a_new_wallet_opens_on_kind_with_the_backup_in_shares_first_and_ticked() {
+fn make_a_new_wallet_opens_on_kind_with_no_row_ticked_and_the_backup_in_shares_third() {
     let mut app = app();
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::CreateWallet);
     let c = app.create().expect("Make a new wallet");
     assert_eq!(c.open, Some(cstep::KIND), "Kind is open");
-    assert_eq!(c.kind, NewKind::Shares, "the backup in shares is ticked");
+    assert!(c.kind_unchosen, "no row is ticked");
     let texts = app.drawn_texts();
     let at = |name: &str| texts.iter().position(|t| t == name);
     let (shares, single, multi) = (
@@ -72,7 +72,7 @@ fn make_a_new_wallet_opens_on_kind_with_the_backup_in_shares_first_and_ticked() 
         at("Single key · native SegWit").expect("Single key"),
         at("Multisig · native SegWit").expect("Multisig"),
     );
-    assert!(shares < single && single < multi, "{texts:?}");
+    assert!(single < multi && multi < shares, "{texts:?}");
     assert!(
         texts
             .iter()
@@ -82,14 +82,16 @@ fn make_a_new_wallet_opens_on_kind_with_the_backup_in_shares_first_and_ticked() 
 }
 
 #[test]
-fn next_with_nothing_changed_opens_the_backup_in_shares_quorum() {
-    for next in [Action::CNext(cstep::KIND), Action::CKind(shares_index())] {
+fn next_waits_for_a_kind_and_the_backup_in_shares_row_opens_its_quorum() {
+    {
         let mut app = app();
         app.press(Action::CreateWallet);
-        app.press(next);
+        app.press(Action::CNext(cstep::KIND));
+        assert_eq!(app.create().unwrap().open, Some(cstep::KIND));
+        app.press(Action::CKind(shares_index()));
         let c = app.create().unwrap();
         assert_eq!(c.kind, NewKind::Shares);
-        assert_eq!(c.open, Some(cstep::QUORUM), "{next:?}");
+        assert_eq!(c.open, Some(cstep::QUORUM));
         let texts = app.drawn_texts();
         assert!(
             texts.iter().any(|t| t == "How many to rebuild it"),
@@ -144,8 +146,8 @@ fn the_pointer_resting_on_codex32_shows_its_tooltip_and_leaving_hides_it() {
     assert!(!tip_shows(&mut app));
     let c = app.create().unwrap();
     assert_eq!(
-        (c.kind, c.open),
-        (NewKind::Shares, Some(cstep::KIND)),
+        (c.kind_unchosen, c.open),
+        (true, Some(cstep::KIND)),
         "hovering pressed nothing"
     );
 }

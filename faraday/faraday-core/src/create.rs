@@ -106,10 +106,10 @@ impl NewKind {
     }
 
     /// Make a new wallet's Kind rows, by place in [`NewKind::ALL`], in the
-    /// order shown: Single key backup in shares, the default, then Single
-    /// key and Multisig (`docs/CODEX32.md` §6.9, owner 2026-10-24), then
-    /// the others behind **More kinds**.
-    pub(crate) const CREATE_ROWS: [usize; 10] = [9, 0, 4, 1, 2, 3, 5, 6, 7, 8];
+    /// order shown: Single key, Multisig, then Single key, backup in
+    /// shares (`docs/CODEX32.md` §6.9, owner 2026-11-09), then the others
+    /// behind **More kinds**.
+    pub(crate) const CREATE_ROWS: [usize; 10] = [0, 4, 9, 1, 2, 3, 5, 6, 7, 8];
 
     /// How many of [`NewKind::CREATE_ROWS`] show before **More kinds**.
     pub(crate) const CREATE_FIRST: usize = 3;
@@ -1109,22 +1109,17 @@ impl Faraday {
                 self.screen = Screen::Create;
             }
             Action::CreateWallet | Action::CreateOver => {
-                // Create opens on Kind, open, with Single key, backup in
-                // shares ticked where Make codex32 shares is offered, else
-                // Single key (owner, 2026-10-24; `docs/CODEX32.md` §6.9):
-                // the ticked row pressed again takes it. Back goes where
-                // it was opened from, Home or Wallets.
+                // Create opens on Kind, open, with no row ticked until one
+                // is pressed (owner, 2026-11-09; `docs/CODEX32.md` §6.9).
+                // Back goes where it was opened from, Home or Wallets.
                 let done = [false; cstep::COUNT];
                 let owner = self.fresh_owner();
                 self.create.state = Some(CreateState {
                     owner,
                     done,
                     open: Some(cstep::KIND),
-                    kind: if MAKE_OFFERED {
-                        NewKind::Shares
-                    } else {
-                        NewKind::NativeSegwit
-                    },
+                    kind: NewKind::NativeSegwit,
+                    kind_unchosen: true,
                     // Start over keeps it.
                     from_home: self.screen == Screen::Home
                         || (self.screen == Screen::Create

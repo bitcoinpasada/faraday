@@ -258,7 +258,7 @@ fn a_lock_with_no_vault_open_is_cancelled_not_back_to_a_vault() {
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);
-    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CKind(0));
     app.press(Action::LockAsk);
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     let texts = app.drawn_texts();

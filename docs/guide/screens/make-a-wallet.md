@@ -33,14 +33,13 @@ sticks" and **Vaults** (while the backup uses vaults), **Keys**,
 
 ## Kind
 
-A row pressed is chosen and the next card opens. **Single key, backup in
-shares (codex32)** is ticked at first.
+A row pressed is chosen and the next card opens. No row is ticked at first.
 
 | Row | Line |
 |---|---|
-| **Single key, backup in shares (codex32)** | "One key, its backup in 3 shares, any 2 rebuild it" |
 | **Single key · native SegWit** | **One key, its words on paper** |
 | **Multisig · native SegWit** | "3 keys, any 2 sign" |
+| **Single key, backup in shares (codex32)** | "One key, its backup in 3 shares, any 2 rebuild it" |
 | **More kinds** | opens the rest: **Single key · Taproot**, **Single key · nested SegWit**, **Single key · legacy**, **Multisig · nested SegWit**, **Multisig · legacy**, **Multisig · Taproot**, **All keys · MuSig2**, each with its line |
 | the ⓘ after "(codex32)" | the pointer resting on it or on the word, or a press: the tip **codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.** |
 | **Start over** | while a wallet is part made: forgets it and starts again |

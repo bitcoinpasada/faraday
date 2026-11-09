@@ -137,7 +137,7 @@ Sources read for it, each as data and none vendored:
     or recovery wallet's slot; a codex32 key already loaded is accepted
     in any slot (§6.9).
 20. **A wallet kind, "Single key, backup in shares"**, on Make a new
-    wallet's Kind card (its place and default since item 24): single-sig
+    wallet's Kind card (its place since item 24, changed 2026-11-09, §6.9): single-sig
     on chain, its Quorum the share scheme, its one slot made by Make
     codex32 shares; codex32 only, not SLIP-39 (§6.9).
 21. **SLIP-39 words and other conversions** leave this spec (owner,
@@ -149,9 +149,9 @@ Sources read for it, each as data and none vendored:
 23. **A codex32 key in a vault** is saved and shown as any key is: the
     vault gives nothing it holds special treatment (owner, 2026-10-23).
 24. **Codex32 first on Make a new wallet** (owner, 2026-10-24): the flow
-    opens on Kind; "Single key, backup in shares (codex32)" is its top
-    row and the default, ticked as the card opens, so the ticked row
-    pressed again opens its Quorum; each row's second line stays as
+    opens on Kind; "Single key, backup in shares (codex32)" was its top
+    row and the default (the order and the default are changed by the
+    owner's call of 2026-11-09, §6.9); each row's second line stays as
     §6.9 states it. The word "codex32" in that name carries a tooltip,
     "codex32 is the only method that makes a seed and its shares fully
     by hand, the checksum included.": the one explanation on a working
@@ -161,8 +161,8 @@ Sources read for it, each as data and none vendored:
 25. **Move the money opens Kind with nothing ticked** (owner,
     2026-10-24): the person moves money to a wallet of their choosing,
     so Faraday does not guess. The rows are in the same order; Next waits
-    until a row is chosen, and a row chosen moves on as any does. Make a
-    new wallet opened on its own keeps the codex32 row ticked (§6.9).
+    until a row is chosen, and a row chosen moves on as any does. Since 2026-11-09 a
+    new wallet opened on its own has no row ticked either (§6.9).
     Its key record keeps the codex32 set for the backup plan (§9.4), and
     the board names a backup-in-shares seed placed whole in a vault
     (§9.5, §9.6).
@@ -1424,20 +1424,21 @@ it is offered where the person chooses what kind of wallet to make, as
 an answer of its own, each row stating plainly what it is.
 
 **Make a new wallet's Kind card** (FLOWS, Make a new wallet; DESIGN
-§4.2, Option row). The flow opens on it, open, the first row ticked
-(owner, 2026-10-24, §1.1 item 24):
+§4.2, Option row). The flow opens on it, open, in this order, no row
+ticked (owner, 2026-11-09, replacing the call of 2026-10-24, §1.1 items
+24 and 25):
 
-- **Single key, backup in shares (codex32)**, the default: one key, its
-  backup in 3 shares, any 2 rebuild it (the line follows the scheme
-  chosen).
 - **Single key**: one key, its words on paper.
 - **Multisig**: 3 keys, any 2 sign.
+- **Single key, backup in shares (codex32)**: one key, its backup in 3
+  shares, any 2 rebuild it (the line follows the scheme chosen).
 - **More kinds**, as today.
 
-The ticked row pressed again opens its Quorum, as any row does (F103).
-Opened by a chart's **Move the money**, the card has no row ticked:
-the person chooses, and Next waits until they have (owner, 2026-10-24,
-§1.1 item 25).
+Whatever opens Create (Home, Wallets, Start over, a chart's **Move the
+money**) leaves the card with no row ticked: the person chooses, and
+Next waits until they have. A Tools tile that opens Create with a kind
+chosen ticks that kind. A row pressed opens the next card, as any row
+does (F103).
 
 Right after "(codex32)" in the first row's name stands Material's info
 icon button (the outlined "info" symbol, in the row's secondary ink, a

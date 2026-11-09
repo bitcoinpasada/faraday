@@ -31,8 +31,7 @@ plan does not track it.
 
 Press **Wallets** in the sidebar, then [**Make a new wallet**](../screens/make-a-wallet.md). The page
 is **Make a new wallet**, one card per step. It opens on **Kind**,
-with **Single key, backup in shares (codex32)** chosen; a choice moves
-on to the next card by itself.
+with no row chosen; a choice moves on to the next card by itself.
 
 | Kind | Use vaults |
 |---|---|

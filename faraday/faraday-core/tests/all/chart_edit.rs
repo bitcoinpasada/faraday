@@ -508,10 +508,10 @@ fn move_money_opens_kind_with_no_kind_ticked_and_next_waits_for_one() {
     assert_eq!(c.open, Some(cstep::KIND));
     let texts = app.drawn_texts();
     assert!(
-        texts
-            .iter()
-            .position(|t| t == "Single key, backup in shares (codex32)")
-            < texts.iter().position(|t| t == "Single key · native SegWit"),
+        texts.iter().position(|t| t == "Single key · native SegWit")
+            < texts
+                .iter()
+                .position(|t| t == "Single key, backup in shares (codex32)"),
         "the rows in the same order: {texts:?}"
     );
     app.press(Action::CNext(cstep::KIND));
@@ -528,10 +528,35 @@ fn move_money_opens_kind_with_no_kind_ticked_and_next_waits_for_one() {
     let c = app.create().unwrap();
     assert_eq!((c.kind, c.kind_unchosen), (NewKind::Multi, false));
     assert_eq!(c.open, Some(cstep::QUORUM), "Multisig's Quorum");
-    // Make a new wallet on its own still opens with codex32 ticked.
+    // Make a new wallet on its own opens with none ticked too.
     app.press(Action::CreateOver);
+    assert!(app.create().unwrap().kind_unchosen);
+}
+
+#[test]
+fn create_from_home_ticks_no_kind_until_a_row_is_pressed() {
+    use faraday_core::create::NewKind;
+    use faraday_core::cstep;
+    let mut app = desktop();
+    app.press(Action::CreateWallet);
+    let c = app.create().unwrap();
+    assert!(c.kind_unchosen, "no kind ticked");
+    assert_eq!(c.open, Some(cstep::KIND));
+    let texts = app.drawn_texts();
+    let at = |s: &str| texts.iter().position(|t| t == s);
+    assert!(
+        at("Single key · native SegWit") < at("Multisig · native SegWit")
+            && at("Multisig · native SegWit") < at("Single key, backup in shares (codex32)"),
+        "the rows in order: {texts:?}"
+    );
+    let shares = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Shares)
+        .unwrap() as u8;
+    app.press(Action::CKind(shares));
     let c = app.create().unwrap();
     assert_eq!((c.kind, c.kind_unchosen), (NewKind::Shares, false));
+    assert_eq!(c.open, Some(cstep::QUORUM));
 }
 
 #[test]

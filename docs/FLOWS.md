@@ -1095,18 +1095,18 @@ guarantees for this file's rule:
   (decision 50).
 - **Make a new wallet** (decisions 17, 20 and 37; F53, F55, F98; `docs/CODEX32.md` §14 D5).
   The cards are Kind · Quorum · Use vaults · Keys · Check · Back up;
-  the flow opens on Kind, open, its first row ticked. Kind offers
-  **Single key, backup in shares (codex32)** ("One key, its backup in 3
-  shares, any 2 rebuild it", the counts the scheme's), the default,
-  then Single key ("One key, its words on paper") and Multisig ("3 keys,
-  any 2 sign", the quorum's), all three native SegWit; the other seven
+  the flow opens on Kind, open, no row ticked (owner, 2026-11-09). Kind
+  offers Single key ("One key, its words on paper"), Multisig ("3 keys,
+  any 2 sign", the quorum's) and **Single key, backup in shares
+  (codex32)** ("One key, its backup in 3 shares, any 2 rebuild it", the
+  counts the scheme's), all three native SegWit; the other seven
   are behind **More kinds**. An info
-  button follows "(codex32)" in the first row's name; it and the word
+  button follows "(codex32)" in the third row's name; it and the word
   carry a tooltip (DESIGN §4.12, Tooltip; F112): "codex32 is the only
   method that makes a seed and its shares fully by hand, the checksum
   included." A kind pressed closes Kind and opens the next card, the
-  ticked one pressed again too. Opened by Move the money, Kind has no
-  row ticked and Next waits until one is chosen (owner, 2026-10-24). Use vaults' **Yes** opens
+  one pressed again too. Next waits until a row is chosen; a Tools tile
+  that opens Create with a kind chosen ticks it. Use vaults' **Yes** opens
   How many, **No** opens Keys; closed before it is answered it reads
   "Not answered".
 - **Single key, backup in shares** (`docs/CODEX32.md` §6.9, §14 D5). On

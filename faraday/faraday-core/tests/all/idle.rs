@@ -212,7 +212,7 @@ fn creating() -> Faraday {
     }
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);
-    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CKind(0));
     app
 }
 

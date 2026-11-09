@@ -438,7 +438,7 @@ fn the_small_homes_first_tile_opens_the_flow_in_progress() {
     assert!(on_panel(&mut app, row).is_none(), "nothing in progress");
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CKind(0));
     let open = app.create().unwrap().open;
     tap(&mut app, Action::Nav(Screen::Home));
     assert_eq!(app.screen, Screen::Home);
@@ -462,7 +462,7 @@ fn the_small_home_offers_a_flow_in_progress_once_its_tile() {
     use faraday_core::in_progress::Going;
     let mut app = panel();
     tap(&mut app, Action::CreateWallet);
-    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CKind(0));
     tap(&mut app, Action::Nav(Screen::Home));
     let _ = app.frame();
     let texts = app.drawn_texts();

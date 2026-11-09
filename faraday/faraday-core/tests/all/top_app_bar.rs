@@ -144,7 +144,7 @@ fn a_wide_flow_in_progress_has_cancel_on_its_top_app_bar() {
     }
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);
-    app.press(Action::CNext(faraday_core::cstep::KIND));
+    app.press(Action::CKind(0));
     tick(&mut app);
     assert_eq!(app.screen, Screen::Create, "Make a new wallet is open");
     let (x, y) = app
