@@ -1264,6 +1264,16 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if active != Some(Source::Device) && foot.is_none() {
         cy += super::dice_panel::progress(k, ui, x, cy, w);
     }
+    // On the small panel, where the choices under the progress line are a
+    // touch target tall and the page is short, the dice pad stands before
+    // them so that it shows in the card at scroll 0.
+    let pad_first = active == Some(Source::Dice)
+        && !k.typing
+        && foot.is_none()
+        && crate::flow::small_touch(ui) > 0.0;
+    if pad_first {
+        cy += super::dice_panel::pad(k, ui, (x, cy, w));
+    }
     if matches!(active, Some(Source::Dice | Source::Coins)) {
         cy = entry_style(k, ui, x, cy, w);
     }
@@ -1281,7 +1291,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         Some(Source::Dice) => {
-            if foot.is_none() {
+            if foot.is_none() && !pad_first {
                 cy += super::dice_panel::pad(k, ui, (x, cy, w));
             }
             if k.reveals() {
