@@ -17,7 +17,6 @@ faraday-pgp = { path = "../faraday-pgp" }
 subtle.workspace = true
 faraday-sb = { path = "../faraday-sb" }
 faraday-vault = { path = "../faraday-vault" }
-faraday-backup = { path = "../../core/faraday-backup" }
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 faraday-intake = { path = "../faraday-intake" }
 # Krux's encrypted code, sealed and opened as a job (docs/KEF.md).
