@@ -82,7 +82,8 @@ pub fn policy_error(e: &policy::Error) -> String {
     .into()
 }
 
-/// A key-derivation refusal.
+
+        E::Name => EN.bip_silent_name,/// A key-derivation refusal.
 pub fn keys_error(e: &keys::Error) -> String {
     match e {
         keys::Error::IndexOutOfRange => EN.bip_index_out_of_range,

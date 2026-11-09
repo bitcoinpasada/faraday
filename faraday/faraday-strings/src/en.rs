@@ -8109,6 +8109,10 @@ strings! {
     silent_public_watch: "Public: watch only, spends nothing",
     /// Text in `silent_code`.
     silent_silent_payments_record: "Silent payments record",
+    /// Title in `silent_code`.
+    silent_silent_payments_dns_record: "Silent payments DNS record",
+    /// Error in `silent_code`.
+    silent_no_dns_record: "Type a name and a domain first",
     /// Toast in `silent_act`.
     silent_no_vault_open: "No vault is open",
     /// Text in `silent_act`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
@@ -8182,6 +8186,16 @@ strings! {
     silent_record: "Record {}",
     /// Text in `card`.
     silent_record_as_qr: "Record as QR",
+    /// Heading in `dns_card`.
+    silent_dns_record: "DNS record",
+    /// Field label in `dns_card`.
+    silent_dns_name: "Name",
+    /// Field label in `dns_card`.
+    silent_dns_domain: "Domain",
+    /// Error in `dns_card`.
+    silent_dns_invalid: "Not a valid DNS name",
+    /// Button in `dns_card`.
+    silent_dns_record_as_qr: "DNS record as QR",
     /// Text in `card`.
     silent_record_as_png: "Record as PNG",
     /// Text in `card`.
@@ -12183,7 +12197,9 @@ strings! {
     bip_policy_threshold: "threshold must be between 1 and the number of keys",
     /// A descriptor whose checksum is wrong.
     bip_policy_checksum: "descriptor checksum does not match",
-    /// An extended private key that is not a master key.
+A DNS record name or domain that is not letters, digits and hyphens in labels of 1 to 63 characters.
+    bip_silent_name: "not a valid DNS name",
+    ///     /// An extended private key that is not a master key.
     bip_keys_not_master: "extended private key is not a master key",
     /// A codex32 string with a non-ASCII character.
     bip_codex32_not_printable: "string holds a character outside printable ASCII",

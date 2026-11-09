@@ -87,6 +87,49 @@ fn the_address_is_bip352s_for_the_key_and_a_label_makes_another() {
     assert_eq!(w.address(), plain);
 }
 
+/// Types `text` into the DNS record field `here`.
+fn type_into(app: &mut Faraday, here: faraday_core::edit::Here, text: &str) {
+    app.press(Action::TypeHere(here));
+    for c in text.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+}
+
+#[test]
+fn a_name_and_a_domain_show_the_addresss_dns_record_and_a_bad_domain_shows_none() {
+    use faraday_core::edit::Here;
+    let mut app = with_key();
+    app.press(Action::Silent);
+    let text = drawn(&mut app);
+    assert!(text.contains("DNS record"), "{text}");
+    assert!(!text.contains("@"), "{text}");
+    type_into(&mut app, Here::SilentName, "matt");
+    assert!(!drawn(&mut app).contains("DNS record as QR"));
+    type_into(&mut app, Here::SilentDomain, "example.com");
+    let text = drawn(&mut app);
+    assert!(text.contains("\u{20bf}matt@example.com"), "{text}");
+    assert!(text.contains("DNS record as QR"), "{text}");
+    let c = faraday_core::testkit::compute();
+    let address = app.silent_address(&c).unwrap();
+    let view = app
+        .code_view(&c, faraday_core::Code::SilentDns)
+        .expect("the record's code");
+    let _ = view;
+    let want = silent::dns_record("matt", "example.com", &address).unwrap();
+    assert!(
+        want.as_str()
+            .starts_with("matt.user._bitcoin-payment.example.com. IN TXT")
+    );
+
+    // A domain that is not DNS's: a line, no record.
+    app.event(Event::Key(Key::Char(' ')));
+    let text = drawn(&mut app);
+    assert!(text.contains("Not a valid DNS name"), "{text}");
+    assert!(!text.contains("DNS record as QR"), "{text}");
+    assert!(!text.contains("_bitcoin-payment"), "{text}");
+    assert!(app.code_view(&c, faraday_core::Code::SilentDns).is_err());
+}
+
 #[test]
 fn the_scan_key_leaves_only_through_the_secret_sheet() {
     let mut app = with_key();

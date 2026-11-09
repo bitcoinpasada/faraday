@@ -389,6 +389,8 @@ pub enum Code {
     Silent(bool),
     /// The silent payments record, `silent-{fp}.txt`.
     SilentRecord,
+    /// The silent payments address's BIP-353 DNS record, `silent-{fp}-dns`.
+    SilentDns,
     /// The signed message.
     Message,
     /// The selected GPG key's public certificate.
@@ -1202,7 +1204,7 @@ impl Faraday {
                         .public(&format!("xpub-{}-bsms.png", k.fp), lines),
                 )
             }
-            Code::Silent(_) | Code::SilentRecord => self.silent_code(c, code),
+            Code::Silent(_) | Code::SilentRecord | Code::SilentDns => self.silent_code(c, code),
             Code::Message => {
                 let m = self.message.state().ok_or(EN.code_view_no_message)?;
                 let sig = m.signed.as_ref().ok_or(EN.code_view_the_message)?;

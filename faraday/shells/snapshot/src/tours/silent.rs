@@ -4,6 +4,7 @@ use crate::tour::Tour;
 use faraday_bip::silent_wallet::SilentWallet;
 use faraday_core::{Action, Screen};
 use faraday_crypto::work::Compute;
+use faraday_ui::keyboard::OskPress;
 
 /// Costs what the record and the pages drawn cost. A silent payments
 /// wallet's record from Files: without its key, its
@@ -15,6 +16,25 @@ pub(crate) fn silent_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.type_key(0);
     t.press(Action::Silent);
     let honest = t.app.silent_record(c).ok_or("no silent payments record")?;
+    t.shot("silent-dns-empty")?;
+    for (here, text) in [
+        (faraday_core::edit::Here::SilentName, "matt"),
+        (faraday_core::edit::Here::SilentDomain, "example.com"),
+    ] {
+        t.press(Action::TypeHere(here));
+        crate::tour::type_text(t, text);
+    }
+    t.shot("silent-dns")?;
+    t.press(Action::Osk(OskPress::Hide));
+    t.shot("silent-dns-record")?;
+    t.press(Action::ShowCode(faraday_core::Code::SilentDns));
+    t.shot("silent-dns-qr")?;
+    t.press(Action::Cancel);
+    t.press(Action::TypeHere(faraday_core::edit::Here::SilentDomain));
+    crate::tour::type_text(t, " x");
+    t.shot("silent-dns-bad")?;
+    t.press(Action::Osk(OskPress::Hide));
+    t.shot("silent-dns-bad-closed")?;
     let mut other = SilentWallet::parse(&honest).ok_or("the record does not read")?;
     other.scan = other.spend;
     for (name, text, key) in [

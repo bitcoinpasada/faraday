@@ -562,6 +562,31 @@ fn an_address_travels_as_a_descriptor_a_uri_and_a_record() {
         )
     );
 
+    // A name or domain that is not DNS's is refused, not written.
+    let long = "a".repeat(64);
+    let wide = format!("{0}.{0}.{0}.{0}", "a".repeat(60));
+    for (user, domain) in [
+        ("", "example.com"),
+        ("matt", ""),
+        ("matt", "example..com"),
+        ("matt", "example.com."),
+        ("ma tt", "example.com"),
+        ("ma.tt", "example.com"),
+        ("-matt", "example.com"),
+        ("matt", "exa_mple.com"),
+        ("matt", "exämple.com"),
+        (long.as_str(), "example.com"),
+        ("matt", long.as_str()),
+        ("matt", wide.as_str()),
+    ] {
+        assert_eq!(
+            silent::dns_record(user, domain, address.as_str()).err(),
+            Some(silent::Error::Name),
+            "{user:?} {domain:?}"
+        );
+    }
+    assert!(silent::dns_record("Matt-1", "sub.example.com", address.as_str()).is_ok());
+
     // A test-network wallet writes the test-network parts.
     let receiver = Receiver::new(scan, spend.public_key(&secp), Network::Signet);
     assert!(

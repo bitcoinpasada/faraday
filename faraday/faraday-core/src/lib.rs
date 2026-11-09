@@ -4539,7 +4539,7 @@ impl Faraday {
         if self.lightning_key(key) || convert::key(self, key) || kef_tool::key(self, key) {
             return;
         }
-        if self.explore_key(key) {
+        if self.explore_key(key) || self.silent_key(key) {
             return;
         }
         if self.bip85_key(key) || self.keygen_key(key) || self.create_pass_key(key) {

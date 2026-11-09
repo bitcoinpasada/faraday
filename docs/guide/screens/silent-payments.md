@@ -50,6 +50,7 @@ Closed, the address, shortened.
 | **Record for the stick** | the wallet's record as a file, `silent-3dca6805.txt`, for the stick |
 | **Record as QR**, **Record as PNG** | the record as a code, or as a picture file for the stick |
 | **Add as a wallet** | while the key has no silent payments wallet loaded: adds one |
+| **DNS record**: **Name**, **Domain** | a name and a domain to publish the address under (BIP-353). With both typed, the name as it reads (`₿name@domain`), the TXT record line for the domain's DNS, and **DNS record as QR**, the line as a code. A name or domain that is not letters, digits and hyphens reads **Not a valid DNS name** in red, with no record. Faraday looks nothing up |
 | **Continue** | closes the card and opens **Scan key** |
 
 For a wallet whose key is not loaded, the card shows the wallet's

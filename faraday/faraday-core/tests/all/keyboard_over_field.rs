@@ -253,3 +253,33 @@ fn add_a_key_s_passphrase_stands_above_the_keyboard() {
         above_keyboard(&mut app, &format!("{size:?} Add a key, the passphrase"));
     }
 }
+
+#[test]
+fn a_bad_dns_domain_s_error_line_stands_above_the_keyboard_with_its_field() {
+    use faraday_core::edit::Here;
+    for size in PANELS {
+        let mut app = panel(size);
+        press(&mut app, Action::Entry(None));
+        for c in faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0).chars() {
+            app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+        }
+        press(&mut app, Action::EntryAdd);
+        press(&mut app, Action::Silent);
+        press(&mut app, Action::TypeHere(Here::SilentDomain));
+        for c in "example.com x".chars() {
+            app.press(Action::Osk(OskPress::Char(c)));
+        }
+        above_keyboard(&mut app, &format!("{size:?} the domain"));
+        let top = i32::from(app.keyboard_top().expect("the keyboard is up"));
+        let (_, (_, y, _, h)) = app
+            .drawn_text_boxes()
+            .into_iter()
+            .find(|(t, _)| t == "Not a valid DNS name")
+            .unwrap_or_else(|| panic!("{size:?}: the error line is drawn"));
+        assert!(
+            y >= 0 && y + h <= top,
+            "{size:?}: the error line ({y} to {}) is above the keyboard ({top})",
+            y + h
+        );
+    }
+}

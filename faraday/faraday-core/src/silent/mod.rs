@@ -58,9 +58,54 @@ pub struct SilentState {
     pub check: Option<(String, crate::silent::check::Check)>,
     /// Where the flow returns to.
     pub back: Screen,
+    /// The name typed for the address's DNS record.
+    pub dns_name: String,
+    /// The domain typed for the address's DNS record.
+    pub dns_domain: String,
+    /// Which of the two fields typing goes to: `Some(false)` the name,
+    /// `Some(true)` the domain.
+    pub dns_focus: Option<bool>,
     /// What the page shows of the key, kept by what it is derived from
     /// ([`Faraday::silent_shown`]). Public: no key is kept.
     pub(crate) shown: std::cell::RefCell<Option<(SilentShownOf, SilentShown)>>,
+}
+
+/// What the DNS record of the address on show comes to, from the name and
+/// domain typed.
+pub(crate) struct Dns {
+    /// The name is typed and is not a DNS label.
+    pub name_bad: bool,
+    /// The domain is typed and is not a DNS name.
+    pub domain_bad: bool,
+    /// The human-readable name and the record line, when both fields are
+    /// filled and valid.
+    pub record: Option<(String, String)>,
+}
+
+impl SilentState {
+    /// The DNS record of `address` for the name and domain typed. Only
+    /// string formatting.
+    pub(crate) fn dns(&self, address: &str) -> Dns {
+        use faraday_bip::silent::dns_record;
+        let (n, d) = (&self.dns_name, &self.dns_domain);
+        let name_bad = !n.is_empty() && dns_record(n, "a", address).is_err();
+        let domain_bad = !d.is_empty() && dns_record("a", d, address).is_err();
+        let record = if n.is_empty() || d.is_empty() {
+            None
+        } else {
+            dns_record(n, d, address)
+                .ok()
+                .map(|r| (format!("\u{20bf}{n}@{d}"), r.as_str().to_string()))
+        };
+        Dns {
+            name_bad,
+            // Each fine alone but too long together: the domain is the
+            // one to shorten.
+            domain_bad: domain_bad
+                || (!name_bad && !n.is_empty() && !d.is_empty() && record.is_none()),
+            record,
+        }
+    }
 }
 
 /// What the Silent page shows that is derived from its key: whether the
@@ -160,9 +205,47 @@ impl SilentArea {
         self.state.as_ref()
     }
 
+    /// Typing goes to the DNS record's domain (`true`) or name (`false`),
+    /// while the flow is open.
+    pub(crate) fn focus_dns(&mut self, domain: bool) {
+        if let Some(s) = self.state.as_mut() {
+            s.dns_focus = Some(domain);
+        }
+    }
+
     /// Forgets the flow's state.
     pub(crate) fn clear(&mut self) {
         self.state = None;
+    }
+
+    /// A key typed into the DNS record's name or domain, while the
+    /// address card is open and one of them has focus. Returns whether
+    /// the key was taken.
+    pub(crate) fn key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
+        let Some(s) = self.state.as_mut() else {
+            return false;
+        };
+        let Some(domain) = s.dns_focus.filter(|_| s.open == Some(sstep::ADDRESS)) else {
+            return false;
+        };
+        let text = if domain {
+            &mut s.dns_domain
+        } else {
+            &mut s.dns_name
+        };
+        match key {
+            K::Char(c) if !c.is_control() => {
+                if text.chars().count() < 253 {
+                    text.push(c);
+                }
+            }
+            K::Backspace => {
+                text.pop();
+            }
+            _ => return false,
+        }
+        true
     }
 
     /// The column's scroll, while the flow is open.
@@ -208,6 +291,9 @@ impl SilentArea {
             wallet,
             check: None,
             back,
+            dns_name: String::new(),
+            dns_domain: String::new(),
+            dns_focus: None,
             shown: Default::default(),
         });
     }
@@ -230,6 +316,9 @@ impl SilentArea {
             wallet: Some(i),
             check: None,
             back: Screen::Wallets,
+            dns_name: String::new(),
+            dns_domain: String::new(),
+            dns_focus: None,
             shown: Default::default(),
         });
         true
@@ -432,6 +521,19 @@ impl SilentArea {
                     lines.push(fill(EN.silent_not_checked, &[&fp.to_string()]));
                 }
                 (EN.silent_silent_payments_address, text, name)
+            }
+            crate::Code::SilentDns => {
+                let a = self.address(c, session).ok_or(EN.silent_no_address)?;
+                let (_, text) = s.dns(&a).record.ok_or(EN.silent_no_dns_record)?;
+                lines.push(EN.silent_public_receives.to_string());
+                if check == Some(RecordCheck::Unchecked) {
+                    lines.push(fill(EN.silent_not_checked, &[&fp.to_string()]));
+                }
+                (
+                    EN.silent_silent_payments_dns_record,
+                    text,
+                    format!("silent-{fp}-dns"),
+                )
             }
             _ => {
                 let text = self.record(c, session).ok_or(EN.silent_no_record)?;
@@ -757,6 +859,11 @@ impl Faraday {
     /// view of the address on show or of the record.
     pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, String> {
         self.silent.code(c, &self.session, code)
+    }
+
+    /// A key for the DNS record's fields; whether it was taken.
+    pub(crate) fn silent_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        self.screen == Screen::Silent && self.silent.key(key)
     }
 
     /// One press inside the flow.

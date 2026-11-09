@@ -78,6 +78,11 @@ pub enum Error {
     NoInputs,
     /// The text did not fit the buffer it was written into.
     TooLong,
+    /// A name or domain for a DNS record that is not printable ASCII
+    /// letters, digits and hyphens in labels of 1 to 63 characters, with
+    /// the whole record name over 253 characters or a domain without a
+    /// dot-separated label.
+    Name,
 }
 
 // ---------------------------------------------------------------------
@@ -312,7 +317,26 @@ pub fn uri(address: &str) -> Result<UriText, Error> {
 
 /// BIP-353's TXT record: the owner name a resolver looks the address up
 /// at, and the URI as the record's one character-string.
+///
+/// The user is one DNS label and the domain dot-separated labels, each
+/// of 1 to 63 ASCII letters, digits and hyphens, neither starting or
+/// ending with a hyphen, the whole owner name within 253 characters
+/// (BIP-353 takes printable ASCII or punycode, RFC 1035 the label
+/// limits); anything else is [`Error::Name`].
 pub fn dns_record(user: &str, domain: &str, address: &str) -> Result<RecordText, Error> {
+    let label = |l: &str| {
+        (1..=63).contains(&l.len())
+            && l.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+            && !l.starts_with('-')
+            && !l.ends_with('-')
+    };
+    let suffix = ".user._bitcoin-payment.";
+    if !label(user)
+        || !domain.split('.').all(label)
+        || user.len() + suffix.len() + domain.len() > 253
+    {
+        return Err(Error::Name);
+    }
     let uri = uri(address)?;
     let mut out = RecordText::new();
     let mut write = |s: &str| fmt::Write::write_str(&mut out, s).map_err(|_| Error::TooLong);

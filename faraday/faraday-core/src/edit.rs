@@ -226,6 +226,10 @@ pub enum Here {
     Query,
     /// BIP-85's index.
     Index,
+    /// The Silent payments address's DNS record: its name.
+    SilentName,
+    /// The Silent payments address's DNS record: its domain.
+    SilentDomain,
     /// Vanity's prefix, after the address kind's fixed characters.
     Prefix,
     /// A chart sheet's field: a key's holder, a vault's name, or a
@@ -297,6 +301,17 @@ impl Faraday {
             Screen::Bip85 if self.bip85.state()?.open == Some(crate::bip85::pstep::INDEX) => {
                 Here::Index
             }
+            Screen::Silent => {
+                let s = self.silent.state()?;
+                if s.open != Some(crate::silent::sstep::ADDRESS) {
+                    return None;
+                }
+                if s.dns_focus? {
+                    Here::SilentDomain
+                } else {
+                    Here::SilentName
+                }
+            }
             Screen::Vanity if self.vanity.typing_prefix() => Here::Prefix,
             Screen::Lightning => {
                 let l = self.lightning.state()?;
@@ -344,6 +359,9 @@ impl Faraday {
             }
             Here::Entry | Here::Keyed if self.entry.state().on_passphrase => {
                 self.act(Action::EntryPassphrase);
+            }
+            Here::SilentName | Here::SilentDomain => {
+                self.silent.focus_dns(h == Here::SilentDomain);
             }
             Here::Aezeed if self.lightning.state().is_some_and(|l| l.on_passphrase) => {
                 self.act(Action::LPassphrase);
@@ -458,6 +476,9 @@ impl Faraday {
             }
             Screen::Entry => true,
             Screen::SetTime => self.set_time.focus().is_some(),
+            Screen::Silent => self.silent.state().is_some_and(|s| {
+                s.dns_focus.is_some() && s.open == Some(crate::silent::sstep::ADDRESS)
+            }),
             // A passphrase on paper typed back for Check my copy.
             Screen::Backup => {
                 self.backup
@@ -646,6 +667,8 @@ impl Faraday {
                 Here::Path => &self.explore.state()?.path,
                 Here::Query => &self.explore.state()?.query,
                 Here::Index => &self.bip85.state()?.index,
+                Here::SilentName => &self.silent.state()?.dns_name,
+                Here::SilentDomain => &self.silent.state()?.dns_domain,
                 Here::Message => &self.message.state()?.text,
                 Here::Entry => &self.entry.state().typed,
                 Here::Tools => &self.tools.state()?.typed,

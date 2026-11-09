@@ -10,7 +10,9 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::fp_text;
 use crate::{Action, Code, flow};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, LABEL_L, PAD, TITLE_M};
+use faraday_draw::tokens::{
+    BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_PAD, GAP, GAP_SMALL, LABEL_L, PAD, TITLE_M,
+};
 use faraday_ui::Status;
 
 pub(crate) const TITLES: [&str; sstep::COUNT] = [
@@ -164,6 +166,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 ),
             ];
             cy += button_rows(ui, x, cy, w, &row);
+            cy += dns_card(app, s, ui, x, cy, w);
         }
         sstep::ADDRESS => {
             let mw = ui.button(
@@ -229,6 +232,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
                 ));
             }
             cy += button_rows(ui, x, cy, w, &row);
+            cy += dns_card(app, s, ui, x, cy, w);
             if next_button(ui, x, cy, w, EN.silent_continue, Action::SNext) {
                 cy += 48.0;
             }
@@ -257,6 +261,68 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             ));
             cy += button_rows(ui, x, cy, w, &row);
         }
+    }
+    cy - y
+}
+
+/// The address's DNS record: a name and a domain, and once both are
+/// filled and valid the name as it reads, the record line and its QR; a
+/// plain line under a field that is not a valid DNS name.
+fn dns_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    use crate::edit::Here;
+    let Some(address) = app.silent_shown().address else {
+        return 0.0;
+    };
+    let mut cy = y + GAP;
+    let dns = s.dns(&address);
+    ui.text_as(x, cy, LABEL_L, Role::OnSurface, EN.silent_dns_record);
+    cy += ui.line_as(LABEL_L) + GAP_SMALL;
+    for (label, text, here, bad, focus) in [
+        (
+            EN.silent_dns_name,
+            &s.dns_name,
+            Here::SilentName,
+            dns.name_bad,
+            s.dns_focus == Some(false),
+        ),
+        (
+            EN.silent_dns_domain,
+            &s.dns_domain,
+            Here::SilentDomain,
+            dns.domain_bad,
+            s.dns_focus == Some(true),
+        ),
+    ] {
+        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, label);
+        cy += ui.line_as(BODY_S) + GAP_SMALL;
+        let error = bad.then_some(EN.silent_dns_invalid);
+        let fh = ui.field_h();
+        let used = ui.field_box((x, cy, w), focus, error);
+        let press = Action::TypeHere(here);
+        ui.press_box(x, cy, w, fh, press);
+        ui.typed(
+            x + FIELD_PAD,
+            cy,
+            fh,
+            BODY_L.size,
+            crate::ui::W::M,
+            Role::OnSurface,
+            text,
+            w - FIELD_PAD * 2.0,
+            focus,
+            press,
+        );
+        cy += used + GAP;
+    }
+    if let Some((human, record)) = dns.record {
+        cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &human) + GAP;
+        cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &record) + 14.0;
+        let row = vec![(
+            EN.silent_dns_record_as_qr.to_string(),
+            Style::Secondary,
+            Action::ShowCode(Code::SilentDns),
+        )];
+        cy += button_rows(ui, x, cy, w, &row);
     }
     cy - y
 }
