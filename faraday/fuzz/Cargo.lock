@@ -841,7 +841,6 @@ dependencies = [
 name = "faraday-desktop"
 version = "0.1.10"
 dependencies = [
- "faraday-bip",
  "faraday-core",
  "faraday-crypto",
  "faraday-samples",
@@ -866,7 +865,6 @@ version = "0.1.0"
 dependencies = [
  "faraday-bip",
  "faraday-crypto",
- "zeroize",
 ]
 
 [[package]]
@@ -954,7 +952,6 @@ dependencies = [
 name = "faraday-keys"
 version = "0.1.10"
 dependencies = [
- "faraday-backup",
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
