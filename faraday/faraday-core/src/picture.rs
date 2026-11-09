@@ -12,6 +12,7 @@
 //! says; the label is plain statements, one a line, each wrapped to the
 //! picture's width.
 
+use crate::strings::{EN, fill};
 use faraday_codec::qr::{QUIET_ZONE, QrMatrix};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens;
@@ -161,6 +162,40 @@ pub struct Labelled {
     pub title: String,
     /// The lines under the title, one statement each.
     pub lines: Vec<String>,
+}
+
+/// Costs nothing. The pictures of `codes`, one per name in `names`: each
+/// headed `title`, a numbered part line first when there are several
+/// codes, then `lines`.
+pub(crate) fn labelled_parts(
+    codes: Vec<QrMatrix>,
+    names: Vec<String>,
+    title: &str,
+    lines: &[String],
+) -> Vec<Labelled> {
+    let k = codes.len();
+    codes
+        .into_iter()
+        .zip(names)
+        .enumerate()
+        .map(|(j, (code, name))| {
+            let mut label = if k == 1 {
+                Vec::new()
+            } else {
+                vec![fill(
+                    EN.public_pictures_part,
+                    &[&(j + 1).to_string(), &k.to_string()],
+                )]
+            };
+            label.extend(lines.iter().cloned());
+            Labelled {
+                name,
+                code,
+                title: title.to_string(),
+                lines: label,
+            }
+        })
+        .collect()
 }
 
 impl Labelled {

@@ -141,11 +141,11 @@ pub struct Boot {
     pub len: u64,
 }
 
-fn le32(b: &[u8], at: usize) -> u32 {
+pub(crate) fn le32(b: &[u8], at: usize) -> u32 {
     u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]])
 }
 
-fn le64(b: &[u8], at: usize) -> u64 {
+pub(crate) fn le64(b: &[u8], at: usize) -> u64 {
     u64::from(le32(b, at)) | (u64::from(le32(b, at + 4)) << 32)
 }
 

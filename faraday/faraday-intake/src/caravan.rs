@@ -129,7 +129,7 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
 }
 
 /// A key shortened for a refusal.
-fn short(k: &str) -> String {
+pub(crate) fn short(k: &str) -> String {
     if k.len() > 16 && k.is_ascii() {
         format!("{}…{}", &k[..8], &k[k.len() - 6..])
     } else {

@@ -140,7 +140,7 @@ impl KefRead {
 fn id_shown(id: &[u8]) -> String {
     let whole = match faraday_codec::kef::id_text(id) {
         Some(t) => t.to_string(),
-        None => format!("0x{}", hex(id)),
+        None => format!("0x{}", faraday_crypto::hex::encode_string(id)),
     };
     if whole.chars().count() <= ID_SHOWN {
         return whole;
@@ -148,10 +148,6 @@ fn id_shown(id: &[u8]) -> String {
     let mut cut: String = whole.chars().take(ID_SHOWN).collect();
     cut.push('…');
     cut
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// Whole bytes from hex text, spaces left out.
@@ -474,7 +470,11 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         return;
     }
     let Ok(text) = std::str::from_utf8(&plain) else {
-        return kef_show(app, Stage::Bytes, Zeroizing::new(hex(&plain)));
+        return kef_show(
+            app,
+            Stage::Bytes,
+            faraday_crypto::hex::encode_secret(&plain),
+        );
     };
     // Past the depth, or said not to be encrypted: a code that parses as
     // one goes on as an unknown code, never as a new card at depth 0.

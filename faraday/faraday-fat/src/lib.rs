@@ -810,9 +810,9 @@ impl<D: Disk> Volume<D> {
         Ok(self.list()?.into_iter().find(|e| same_name(&e.name, name)))
     }
 
-    /// A file's contents, refused when larger than `max` bytes.
-    pub fn read(&mut self, name: &str, max: u32) -> Result<Vec<u8>, Error> {
-        let e = self.find(name)?.filter(|e| !e.dir).ok_or(Error::NotFound)?;
+    /// A file's contents, from its entry, refused when larger than `max`
+    /// bytes.
+    fn read_entry(&mut self, e: &Entry, max: u32) -> Result<Vec<u8>, Error> {
         if e.size > max {
             return Err(Error::TooLarge);
         }
@@ -828,6 +828,12 @@ impl<D: Disk> Volume<D> {
             self.disk.read_at(at, part)?;
         }
         Ok(out)
+    }
+
+    /// A file's contents, refused when larger than `max` bytes.
+    pub fn read(&mut self, name: &str, max: u32) -> Result<Vec<u8>, Error> {
+        let e = self.find(name)?.filter(|e| !e.dir).ok_or(Error::NotFound)?;
+        self.read_entry(&e, max)
     }
 
     /// A file's first `n` bytes (fewer where it is shorter), refused when
@@ -1349,21 +1355,7 @@ impl<D: Disk> Volume<D> {
     /// entered.
     pub fn read_in(&mut self, path: &[&str], max: u32) -> Result<Vec<u8>, Error> {
         let (e, _) = self.find_in(path)?;
-        if e.size > max {
-            return Err(Error::TooLarge);
-        }
-        if e.size == 0 {
-            return Ok(Vec::new());
-        }
-        let size = e.size as usize;
-        let cb = self.cluster_bytes as usize;
-        let chain = self.chain_start(e.cluster, size.div_ceil(cb))?;
-        let mut out = vec![0u8; size];
-        for (k, part) in out.chunks_mut(cb).enumerate() {
-            let at = self.cluster_at(chain[k]);
-            self.disk.read_at(at, part)?;
-        }
-        Ok(out)
+        self.read_entry(&e, max)
     }
 
     /// Costs a read of the folders on `path` and a write of `data`: the

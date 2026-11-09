@@ -127,7 +127,6 @@ pub(crate) fn file_text(c: &Compute, net: Network, w: &Wallet, what: u8) -> Opti
 /// parts past one code; for 4, each split share's code, one beside each
 /// share's sheet and text; for 14, Specter DIY's `addwallet` in its numbered
 /// parts. None for any other file.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labelled> {
     if inp.blank {
         return Vec::new();
@@ -152,30 +151,8 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
     // `name{part}j-of-k` for each part when there are more.
     let codes_of = |name: &str, part: &str, text: &str, lines: Vec<String>| {
         let codes = picture::picture_codes(c, text).unwrap_or_default();
-        let k = codes.len();
         let names = picture::picture_names(name, part, text);
-        codes
-            .into_iter()
-            .zip(names)
-            .enumerate()
-            .map(|(j, (code, name))| {
-                let mut label = if k == 1 {
-                    Vec::new()
-                } else {
-                    vec![fill(
-                        EN.public_pictures_part,
-                        &[&(j + 1).to_string(), &k.to_string()],
-                    )]
-                };
-                label.extend(lines.iter().cloned());
-                picture::Labelled {
-                    name,
-                    code,
-                    title: w.name.clone(),
-                    lines: label,
-                }
-            })
-            .collect::<Vec<_>>()
+        picture::labelled_parts(codes, names, &w.name, &lines)
     };
     match what {
         8 => {

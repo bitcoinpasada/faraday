@@ -1448,7 +1448,6 @@ pub(crate) fn specter_diy_pictures(
     let Ok((_, codes)) = faraday_qr::send::parts_frames(c, &text, QR_PARTS[1]) else {
         return Vec::new();
     };
-    let k = codes.len();
     let mut lines = vec![shape];
     if !fps.is_empty() {
         let word = if fps.len() == 1 {
@@ -1460,28 +1459,7 @@ pub(crate) fn specter_diy_pictures(
     }
     lines.push(EN.public_files_specter_diy_reads.to_string());
     lines.push(EN.public_pictures_public_watch.to_string());
-    codes
-        .into_iter()
-        .zip(specter_diy_names(stem, &text))
-        .enumerate()
-        .map(|(j, (code, name))| {
-            let mut label = if k == 1 {
-                Vec::new()
-            } else {
-                vec![fill(
-                    EN.public_pictures_part,
-                    &[&(j + 1).to_string(), &k.to_string()],
-                )]
-            };
-            label.extend(lines.iter().cloned());
-            picture::Labelled {
-                name,
-                code,
-                title: w.name.clone(),
-                lines: label,
-            }
-        })
-        .collect()
+    picture::labelled_parts(codes, specter_diy_names(stem, &text), &w.name, &lines)
 }
 
 /// The line that names a cosigner's key under its code: `Key {fp} ·

@@ -26,7 +26,7 @@ use faraday_boot::layout::{BOOT_SECTORS, DATA_SECTORS, DATA_START, SECTOR};
 use faraday_crypto::crc32;
 use faraday_starter::api::StickFault;
 
-use crate::gpt;
+use crate::gpt::{self, le32, le64};
 
 /// The start of an image read before its partition table is known.
 pub const HEAD: usize = 64 << 10;
@@ -718,12 +718,4 @@ fn nonzero(random: &mut dyn FnMut(&mut [u8])) -> [u8; 4] {
         b[0] = 1;
     }
     b
-}
-
-fn le32(b: &[u8], at: usize) -> u32 {
-    u32::from_le_bytes([b[at], b[at + 1], b[at + 2], b[at + 3]])
-}
-
-fn le64(b: &[u8], at: usize) -> u64 {
-    u64::from(le32(b, at)) | (u64::from(le32(b, at + 4)) << 32)
 }

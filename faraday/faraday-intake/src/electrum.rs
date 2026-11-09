@@ -21,6 +21,7 @@
 //! A file whose keystores hold an `xprv`, a `seed` or imported private
 //! keys is a secret ([`holds_secret`]); only its public keys are read.
 
+use crate::caravan::short;
 use crate::single_key::path_h;
 use faraday_bip::json::{self, Value};
 use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
@@ -419,15 +420,6 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
         }
     };
     Ok(wrap.replace('K', &format!("sortedmulti({m},{})", keys.join(","))))
-}
-
-/// A key shortened for a refusal.
-fn short(k: &str) -> String {
-    if k.len() > 16 && k.is_ascii() {
-        format!("{}…{}", &k[..8], &k[k.len() - 6..])
-    } else {
-        k.to_string()
-    }
 }
 
 /// The wallet type Electrum gives the wallet and the script type its keys'
