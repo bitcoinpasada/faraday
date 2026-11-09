@@ -29,6 +29,8 @@ faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }
 # Tests only: the PNG decoder the shells and the disk process read
 # pictures with, to read back what `png` writes.
 png.workspace = true
+# Tests only: BOLT #11's published vectors (`tools/vectors/lightning-bolt11`).
+serde_json = { workspace = true, features = ["std"] }
 
 [lints]
 workspace = true

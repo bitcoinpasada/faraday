@@ -264,3 +264,10 @@ path = "fuzz_targets/signer_check.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "bolt11"
+path = "fuzz_targets/bolt11.rs"
+test = false
+doc = false
+bench = false

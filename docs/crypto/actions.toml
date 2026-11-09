@@ -486,6 +486,12 @@ what = "Message signing (`core/faraday-psbt/src/message.rs`)"
 completeness = "BIP 322 \"simple\" only: no \"full\" form, no proof of funds, no nested SegWit; BIP 137 header ranges as Electrum and Trezor use"
 
 [[row]]
+id = "bolt11"
+section = 5
+what = "Lightning invoices, BOLT #11 (`core/faraday-codec/src/bolt11.rs`)"
+completeness = "Read only: the fields of an invoice and its signature, nothing paid or made. BOLT #11 makes a bad checksum, a `p`, `h`, `s` or `n` field of another length, a repeated `p` or `s`, no payment hash or payment secret, both or neither of a description and its hash, mixed case, an amount finer than a millisatoshi, a `c`, `x` or `9` field that begins with a zero value and an unknown required feature (anything outside bits 0, 8, 12, 14, 16, 24, 44 and 48) a refusal, and so does Faraday. Faraday is stricter where BOLT #11 leaves a case open: an invoice over 1023 characters, an amount with a leading zero, a repeated `x`, `c`, `m`, `9`, `d`, `h` or `n`, a malformed fallback of a version it defines, an empty route hint or a hop key that is not a curve point, an `n` key that is not on the curve, and a non-zero padding bit in a `p`, `s`, `h`, `n`, `d`, `m`, `r` or `f` field"
+
+[[row]]
 id = "qr-code"
 section = 4
 what = "QR codes (`core/faraday-codec/src/qr.rs`)"
@@ -867,6 +873,12 @@ name = "ldk-node and rust-lightning node key from a BIP-39 seed"
 status = "Convention"
 checked = "2026-10-28"
 source = "tools/reference/aezeed/README.md"
+
+[standard."BOLT 11"]
+name = "BOLT #11: Invoice Protocol for Lightning Payments"
+status = "Deployed"
+checked = "2026-11-09"
+source = "lightning/bolts master"
 
 [[action]]
 id = "words-read"
@@ -4072,6 +4084,78 @@ reviewed = "2026-11-05"
 places = [
   "core/faraday-bip/README.md",
   "tools/reference/vanity/README.md",
+]
+
+[[action]]
+id = "bolt11"
+name = "Read a Lightning invoice"
+action = "Reads a BOLT #11 invoice: Bech32, the amount, the timestamp and the tagged fields, and checks the signature against the `n` field or recovers the payee's key from it."
+row = "bolt11"
+standards = [
+  "BOLT 11",
+]
+learn = "none"
+screens = []
+functions = [
+  "core/faraday-codec/src/bolt11.rs::decode",
+  "core/faraday-codec/src/bolt11.rs::Fallback::address",
+]
+code = [
+  "core/faraday-codec/src/bolt11.rs::decode",
+  "core/faraday-codec/src/bolt11.rs::Fallback::address",
+]
+
+[action.implementation]
+crate = "core/faraday-codec"
+libraries = [
+  "bitcoin",
+]
+adds = "The invoice's fields are read here, over the bitcoin crate's Bech32 and secp256k1; reading only, nothing is paid, signed or stored, and every refusal is a named reason."
+
+[action.checked]
+vectors = [
+  "lightning-bolt11",
+]
+tests = [
+  "core/faraday-codec/tests/bolt11.rs::every_valid_example_is_read_and_every_invalid_one_refused",
+  "core/faraday-codec/tests/bolt11.rs::donation_of_any_amount",
+  "core/faraday-codec/tests/bolt11.rs::amounts_and_japanese_description",
+  "core/faraday-codec/tests/bolt11.rs::hashed_description_and_fallbacks",
+  "core/faraday-codec/tests/bolt11.rs::features_metadata_case_and_ignored_fields",
+  "core/faraday-codec/tests/bolt11.rs::recovered_key_with_high_s_and_the_n_field",
+  "core/faraday-codec/tests/bolt11.rs::refusals_say_why",
+  "core/faraday-codec/tests/bolt11.rs::prefix_and_length",
+  "core/faraday-codec/tests/bolt11.rs::expiry_cltv_and_features_with_a_leading_zero_are_refused",
+]
+crosscheck = "lightning"
+against = "the `bolt11` package by lnbits, with a stand-in for its libsecp256k1 binding over btclib"
+independence = { class = "outside", author = "the `bolt11` package (lnbits), over the bech32 and bitstring packages, with a stand-in for its libsecp256k1 binding over btclib; Faraday's stricter refusals are stated differences of the area" }
+fuzz = [
+  "bolt11",
+]
+
+[action.secrets]
+reveal = "none"
+constant_time = "Not stated; an invoice holds no secret."
+wiped = "Nothing secret is held."
+
+[action.limits]
+lines = [
+  "Reading only: no invoice is written, paid or stored.",
+  "A text over 1023 characters, mixed case or a checksum that fails is refused.",
+  "Fields of a tag BOLT #11 does not define, and a fallback address of an unknown version, are listed and not used.",
+]
+
+[[action.own]]
+text = "BOLT #11 makes mixed case, an amount finer than a millisatoshi and a `c`, `x` or `9` field that begins with a zero value (the minimal form of zero is an empty field) a refusal, and Faraday refuses them. Where BOLT #11 leaves a case open, Faraday refuses the invoice: an amount with a leading zero, a repeated `x`, `c`, `m`, `9`, `d`, `h` or `n`, a malformed fallback of a version it defines, an empty route hint or a hop key that is not a curve point, an `n` key that is not on the curve, a non-zero padding bit, and a text over 1023 characters (what the Bech32 checksum guarantees)."
+kind = "Conservative"
+decision = "no decision"
+
+[action.review]
+reviewed = "2026-11-09"
+places = [
+  "tools/vectors/lightning-bolt11/README.md",
+  "tools/reference/bolt11/README.md",
 ]
 
 [[action]]
@@ -9415,6 +9499,10 @@ by = "toml-test (toml-lang/toml-test), the TOML v1.0.0 cases for tables, inline 
 [vector.aezeed]
 source = "published"
 by = "LND's aezeed test package, by Lightning Labs; the node keys computed with LND's and ldk-node's code, as `tools/reference/aezeed/README.md` records"
+
+[vector.lightning-bolt11]
+source = "published"
+by = "BOLT #11's authors (lightning/bolts): the examples of `bolt11/invoice-test.json`, valid and invalid"
 
 [vector.backup]
 source = "own"

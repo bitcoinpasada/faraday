@@ -32,7 +32,8 @@ place of the generated one. `standard_note` follows the standards a row's
 actions name.
 
 The Verified by cell names a cross-check area by its `name` and says what it is
-compared against: the area's `reference` up to its first clause, read from
+compared against: the action's `against` when it has one, else the area's
+`reference` up to its first clause, read from
 tools/crosscheck/area_<file>.py without importing it, and, where the row's
 actions on that area compare Faraday, wholly or in part, with an implementation
 Faraday's authors wrote (`independence`, F160, F177), that it is, or is in part,
@@ -223,6 +224,9 @@ def verified_cell(actions, areas):
         parts.append("vectors " + ", ".join(f"`tools/vectors/{v}`" for v in vec))
     for stem in ccs:
         name, against = areas.get(stem, (stem, ""))
+        against = next((a["checked"]["against"] for a in actions
+                        if a.get("checked", {}).get("crosscheck") == stem
+                        and a["checked"].get("against")), against)
         classes = {(a["checked"].get("independence") or {}).get("class") for a in actions
                    if a.get("checked", {}).get("crosscheck") == stem}
         weakest = next((k for k in reversed(INDEPENDENCE) if k in classes), "outside")

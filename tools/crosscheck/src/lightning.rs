@@ -5,6 +5,7 @@
 use bitcoin::secp256k1::{PublicKey, Secp256k1};
 use faraday_bip::aezeed::{self, ENTROPY_SIZE, NUM_WORDS};
 use faraday_bip::keys::{DerivedKey, Network};
+use faraday_codec::bolt11::{self, Fallback};
 use faraday_crypto::Secret;
 use faraday_crypto::work::Compute;
 use serde_json::{Value, json};
@@ -20,6 +21,69 @@ fn node(key: &DerivedKey) -> Value {
     let secret = key.secret_key();
     let public = PublicKey::from_secret_key(&Secp256k1::new(), secret);
     json!({"secret": hex(&secret.secret_bytes()), "node_id": hex(&public.serialize())})
+}
+
+/// A BOLT #11 invoice as the cross-check compares it: fields as numbers,
+/// text and lowercase hex, a fallback as its 5-bit version (17 pay to
+/// public key hash, 18 pay to script hash) and its data.
+fn invoice(i: &bolt11::Invoice) -> Value {
+    let hrp = match i.network {
+        Network::Mainnet => "bc",
+        Network::Testnet => "tb",
+        Network::Signet => "tbs",
+        Network::Regtest => "bcrt",
+    };
+    let fallbacks: Vec<Value> = i
+        .fallbacks
+        .iter()
+        .map(|f| match f {
+            Fallback::P2pkh(h) => json!({"version": 17, "data": hex(h)}),
+            Fallback::P2sh(h) => json!({"version": 18, "data": hex(h)}),
+            Fallback::Witness { version, program } => {
+                json!({"version": version, "data": hex(program)})
+            }
+        })
+        .collect();
+    let hints: Vec<Vec<Value>> = i
+        .route_hints
+        .iter()
+        .map(|hops| {
+            hops.iter()
+                .map(|h| {
+                    json!({
+                        "node_id": hex(&h.node_id),
+                        "short_channel_id": h.short_channel_id,
+                        "fee_base_msat": h.fee_base_msat,
+                        "fee_proportional_millionths": h.fee_proportional_millionths,
+                        "cltv_expiry_delta": h.cltv_expiry_delta,
+                    })
+                })
+                .collect()
+        })
+        .collect();
+    let unknown: Vec<Value> = i
+        .unknown
+        .iter()
+        .map(|u| json!({"tag": u.tag.to_string(), "data": u.data}))
+        .collect();
+    json!({
+        "network": hrp,
+        "amount_msat": i.amount_msat,
+        "timestamp": i.timestamp,
+        "payment_hash": hex(&i.payment_hash),
+        "description": i.description,
+        "description_hash": i.description_hash.map(|h| hex(&h)),
+        "payee": hex(&i.payee),
+        "payee_from_field": i.payee_from_field,
+        "expiry": i.expiry,
+        "min_final_cltv_expiry": i.min_final_cltv_expiry,
+        "fallbacks": fallbacks,
+        "route_hints": hints,
+        "features": i.features,
+        "payment_secret": hex(&i.payment_secret),
+        "metadata": i.metadata.as_ref().map(|m| hex(m)),
+        "unknown": unknown,
+    })
 }
 
 /// Handles `lightning.<name>`.
@@ -65,6 +129,10 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 "entropy": hex(seed.entropy().expose()),
             }))
         }
+        // A BOLT #11 invoice read, or the name of the refusal.
+        "bolt11" => bolt11::decode(text(req, "invoice"))
+            .map(|i| invoice(&i))
+            .map_err(|e| format!("{e:?}")),
         // Which AES round this command runs: `soft` when the cross-check
         // built it with the aes crate's software backend (`run.sh`).
         "backend" => {

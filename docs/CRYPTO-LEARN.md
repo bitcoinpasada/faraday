@@ -142,6 +142,7 @@ decision = "F…"
 vectors = ["psbt"]           # folders under tools/vectors/
 tests = ["core/faraday-psbt/tests/all/sign.rs::rfc6979_vectors"]
 crosscheck = "sign"          # tools/crosscheck/area_sign.py; or not_crosschecked = "<reason>"
+# against = "…"              # optional: what the Verified by cell names, where the area also compares another action with another reference
 independence = { class = "outside-and-own", author = "Bitcoin Core v31.1, by the Bitcoin Core developers …", ours = "Faraday's refusals …" }
                              # F160, F177, with crosscheck only: class outside, outside-and-own or own;
                              # author, others' code (not for own); ours, the part
@@ -1052,7 +1053,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-The manifest's 101 actions, each from its entry in `docs/crypto/actions.toml`
+The manifest's 102 actions, each from its entry in `docs/crypto/actions.toml`
 as the review of the generated text left them (2026-10-28): what it does, its roots (the functions
 the entry names, by module), the `Screen` variants that offer it, and
 its Learn page. The inventory finds 861 cryptographic functions under
@@ -1145,6 +1146,7 @@ page lists.
 | vanity | Grinds a counter on a key's passphrase or account index until its first address, or a silent payment code, begins with the characters chosen. | `faraday_bip::vanity`: `grind`, `grind_passphrase`, `grind_account`; `faraday_keys::vanity`: `grind`; `faraday_keys::operations`: `Keys::vanity_grind` | Vanity | passphrases |
 | aezeed | Reads an LND aezeed: 24 words, checksum, scrypt key and AEZ decipher, giving the entropy, version and birthday. | `faraday_bip::aezeed`: `decode`, `decode_at_cost`, `decode_bytes`; `faraday_bip::aez`: `extract`, `hash`, `prf`, `encrypt`, `decrypt` | Lightning | tools |
 | lightning-node | Derives a Lightning node key from words (ldk-node) or from an aezeed (LND). | `faraday_bip::aezeed`: `node_key`, `ldk_node_key`; `faraday_keys::lightning`: `node_from_words`, `node_from_aezeed`, `Node::private_hex`, `Keys::node_from_aezeed`; `faraday_keys::operations`: `Keys::lightning_node` | Lightning | tools |
+| bolt11 | Reads a BOLT #11 invoice: Bech32, the amount, the timestamp and the tagged fields, and checks the signature against the `n` field or recovers the payee's key from it. | `faraday_codec::bolt11`: `decode`, `Fallback::address` | none | none |
 | silent-receive | Derives a silent payments address, labels and scan key (BIP 352, 392) and finds the payments a transaction makes to them. | `faraday_bip::silent`: `Receiver::derive`, `Receiver::new`, `Receiver::scan_public_key`, `Receiver::spend_public_key`, `Receiver::address`, `Receiver::label_tweak`, `Receiver::label_point`, `Receiver::labelled_spend_key`, `Receiver::labelled_address`, `Receiver::scan_key_text`, `Receiver::descriptor`, `address_of`, `decode_address`, `encode_address`, `scan_path`, `spend_path`, `input_public_key`, `input_sum_and_hash`, `scan`, `find_payments`; `faraday_bip::silent_wallet`: `SilentWallet::address`, `SilentWallet::to_text`, `SilentWallet::parse`; `faraday_keys::silent`: `receiver`, `Receiver::scan_key`, `Receiver::address`, `Receiver::payments_in`, `Receiver::scan_public_key`, `Receiver::spend_public_key`; `faraday_keys::operations`: `Keys::silent_receiver`; `faraday_core::silent::check`: `Check::prevouts`, `Check::tx`, `Check::waiting_for` | Silent, Wallets | silent_payments |
 | silent-send | Adds this signer's ECDH shares and BIP 374 proofs to a silent payments PSBT, and sets the output scripts the shares give. | `faraday_psbt::silent`: `add_shares`, `add_shares_for_keys`, `compute_scripts`, `fill_scripts`, `scan_keys`, `signable`, `tap_origin`, `add_input`; `faraday_bip::dleq`: `secret_mul`, `generate_proof`, `generate_proof_with`, `verify_proof`, `verify_proof_with`; `faraday_bip::silent`: `sender_outputs` | none | none |
 

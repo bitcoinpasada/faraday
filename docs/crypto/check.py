@@ -115,7 +115,7 @@ ACTION_KEYS = {"id", "name", "screens_not", "action", "row", "standards", "learn
                "novel_rank", "implementation", "checked", "secrets", "limits", "own", "review", "label"}
 IMPL_KEYS = {"crate", "libraries", "through", "adds", "written_here"}
 CHECKED_KEYS = {"vectors", "tests", "crosscheck", "not_crosschecked", "selftest", "fuzz",
-                "fuzz_none", "other", "independence"}
+                "fuzz_none", "other", "independence", "against"}
 SECRETS_KEYS = {"reveal", "constant_time", "wiped"}
 OWN_KEYS = {"text", "kind", "decision"}
 # Crates whose closures stop at glue (§4.4): faraday-core's screens and state.

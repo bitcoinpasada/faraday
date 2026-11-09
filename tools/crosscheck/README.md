@@ -228,7 +228,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `vanity` | `faraday_bip::vanity` (the counter, prefixes and their expected work, the search on both dials, for the four script types and a silent payment code) | EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written out in `area_vanity.py` over python-mnemonic, each candidate's child key derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for the script and address text only (`deriveaddresses` on regtest, from the bare key) and Core's framework, as the `addr` area writes it; a silent payment code by the BIP-352 reference's own bech32m from btclib's keys at BIP-352's paths | EntropyLab's two finds | counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after |
 | `qrvault` | `faraday_vault::qr` (the QR vault sealed and opened, with `faraday_pgp::message`) | Sequoia's `sq`, the distribution's package, over Nettle (judges the primitives except Argon2, which it shares with the app's lineage); rPGP (`tools/crosscheck/rpgp/`, a program outside the workspace, on RustCrypto like the app: judges the format only); PyCA cryptography's Argon2id, HKDF-SHA-256 and AES-256-OCB (OpenSSL's), which judge the primitives, under the OpenPGP framing written in the area from RFC 9580 and `docs/VAULT.md` §1.2 (Faraday's second version, not another program's); the QR TOML `qr_toml` written in the area from §2.1, each opened item also read by CPython's `tomllib` | the seven vaults of `tools/vectors/vault/qr/` opened by `sq`, rPGP and the PyCA judge to the item each holds and by Faraday; the four refused messages refused by Faraday and by the PyCA judge; the PyCA judge refuses a vector with a byte changed in each field | an item of every kind of §2.1 (12 and 24 words, a codex32 share, a passphrase, a note with markup, control characters and several scripts, the empty vault) sealed by Faraday and opened by `sq`, rPGP, the PyCA judge and Faraday, and sealed by rPGP and by the PyCA judge (memory 2^13 to 2^16 KiB) and opened by Faraday, each opened item read by `tomllib`; each memory step of §3 (2^16 to 2^20 KiB) sealed by Faraday at scale 1, each message equal byte for byte to the PyCA judge's seal of the same random bytes; items at the size limits (a note of 216 and 217 bytes, a passphrase of 193 and 194, a 24-word seed of the longest words); a passphrase in NFD or NFC either way; a wrong passphrase; a 15-word seed and a document of two keys sealed by rPGP, refused by Faraday; the messages `sq` writes, refused by Faraday and the PyCA judge; two items sealed by rPGP in chunks of 64 bytes (chunk size octet 0), opened by Faraday |
 | `kef` | `faraday_kef` (`seal`, `seal_with_key`, `open`, `open_with_key`, `suggest_versions`), `faraday_codec::kef::unwrap` | krux's `kef.py` (`krux/`, unchanged), by the krux developers, on three small shims for the firmware's AES, SHA-256 and PBKDF2, and deflate modules (PyCA cryptography's AES, `hashlib`, zlib at `wbits` -10) | krux's test data for versions 5, 15 and 20 (`tools/vectors/kef/`): a CTR code under `key`, a GCM code under `test key` at 100,000 rounds, and the version 5 code opened by `abc` and by a wrong passphrase that passes its 3-byte check | each of the twelve versions sealed by Faraday and by krux, byte for byte for the ten that do not compress and opened by the other for all twelve, over entropy of 16 and 32 bytes, short and long text, text up to 1,024 bytes, text ending in NUL, text whose hidden check ends in 0x00, repeated blocks, ids of 0, 8, 252 and random lengths, every edge of the count, and wrong IV lengths; codes under a passphrase at 10,000 to 30,000 rounds, one of 200 characters with an id of 252 bytes, and keys of raw bytes (to 200 bytes) krux seals and Faraday opens; codes from a writer that skipped the NUL rules, with 1 to 8 NULs at the end; envelopes cut or changed; the suggested versions for each mode at every length to 1,024 |
-| `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read) | LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as `tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` over btclib's BIP-32 (`btclib/`, on btclib's own curve) | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`) | random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code |
+| `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read), `faraday_codec::bolt11::decode` (a BOLT #11 invoice read) | LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as `tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` over btclib's BIP-32 (`btclib/`, on btclib's own curve); for invoices, the `bolt11` package by lnbits (2.2.0, `tools/reference/bolt11/`: its wheels over the bech32, base58 and bitstring packages, with a stand-in for its libsecp256k1 binding `coincurve` written over btclib's curve), and invoices written in `bolt11_enc.py` from BOLT #11 and signed with btclib | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`); BOLT #11's 31 examples, valid and invalid (`tools/vectors/lightning-bolt11/`) | random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code; 150 invoices written with every kind of field (amounts in every multiplier, description or its hash, payee key, expiry, final cltv, fallbacks of every version, route hints, features, metadata, fields BOLT #11 does not define) and signed, read by Faraday and by the package field by field, then each with one Bech32 character changed, with one letter in upper case, and with two of these spoiled: a repeated p or x, a wrong-length p, s, h or n, no p, no s, both or neither of d and h, an unknown required feature, a leading zero value in a longer x, c or 9, a leading zero or a fraction of a millisatoshi in the amount, a bad multiplier, an unknown network, a high-S signature, a field cut short, a text over 1023 characters, a description that is not UTF-8 |
 
 ### How each reference is checked
 
@@ -485,12 +485,21 @@ leaves uncompared.
   be soft (the tags `noasm` and `purego`; no AES-NI instruction in
   Faraday's command) and the command says it was built soft; ldk-node's
   derivation is written in the area from the sources the README quotes,
-  and ldk's published answers are required of it as well as of Faraday.
-  Not compared: ldk-node's node key is compared with a derivation
-  written here, not with ldk's code (Rust, not vendored): only ldk's
-  five published answers are outside it; LND's key path numbers are
-  written in the Go program from `keychain/derivation.go`, as LND
-  derives through btcwallet, which is not vendored.
+  and ldk's published answers are required of it as well as of Faraday;
+  the `bolt11` package's wheels and its stand-in are hashed against
+  `references.sha256` before any run, and each of BOLT #11's 31
+  published examples is required to be read by Faraday as the BOLT says
+  (a valid one read, an invalid one refused), the package reading the
+  valid ones to the same fields. Not compared: ldk-node's node key is
+  compared with a derivation written here, not with ldk's code (Rust,
+  not vendored): only ldk's five published answers are outside it; LND's
+  key path numbers are written in the Go program from
+  `keychain/derivation.go`, as LND derives through btcwallet, which is
+  not vendored; the `bolt11` package is not asked the fields it does not
+  read (fields BOLT #11 does not define, a fallback of a witness version
+  above 16, a second or later fallback), which are compared with the
+  writer's own list; its signature check runs on btclib's curve, not
+  libsecp256k1's, and refuses a high-S signature as libsecp256k1 does.
 <!-- facts:end what-runs -->
 
 <!-- facts:begin known-differences -->
@@ -996,6 +1005,30 @@ difference"), and says why.
   - KEF: the compressed versions are not equal byte for byte, as
     Faraday's deflate and zlib's write different streams. Each opens the
     other's; krux's decryption inflates under zlib at `wbits` -10.
+- `lightning`
+  - BOLT #11 invoices: the package skips a p, h, s or n field of the
+    wrong length, reads the first of a repeated p or s, and accepts both
+    or neither of a description and its hash, mixed case, an amount
+    finer than a millisatoshi and a leading zero value in x, c or 9, all
+    of which BOLT #11 makes a refusal or says "should" of and Faraday
+    refuses; it also accepts what BOLT #11 leaves open, which Faraday is
+    stricter on: a repeated x, c, m, 9, d, h or n, a text over 1023
+    characters, an amount with a leading zero, and a required feature
+    bit Faraday does not know; the area counts each refusal as known,
+    naming its reason
+  - BOLT #11 route hints: the package reads a hop's fees and delta as
+    signed integers (a fee above 2^31 reads negative); the area reads
+    them modulo 2^32 and 2^16 before comparing, and keeps a hint to
+    three hops, as the package drops the last hop of a hint of a
+    multiple of five
+  - BOLT #11 fallbacks: the package reads only the first fallback
+    address and writes the others in bech32 for every witness version,
+    no bech32m; the area compares Faraday's whole list of fallbacks with
+    the writer's f fields of versions 0 to 18, in order, and its fields
+    of an unknown version by the writer's list
+  - BOLT #11 features: the package keeps one state per feature, so a
+    feature with both its required and its supported bit set reads as
+    supported only; the writer sets one bit of each pair
 <!-- facts:end known-differences -->
 
 ## Where each reference comes from
@@ -1103,6 +1136,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `roller` | Faraday's second version | none | Faraday Demo's roller, written out in `area_roller.py` from `docs/CODEX32.md` §5.6 | roller |
 | `bip85` | others' code | btclib-wallet's `bip85`, by the btclib developers, on btclib's own curve and run as written over bip39_slip39, by the btclib developers; ethankosakovsky/bip85, by Ethan Kosakovsky, over python-mnemonic, by Trezor (SatoshiLabs), and btclib through a pycoin shim | none | bip85 |
 | `vanity` | others' code and, for a part, Faraday's second version | python-mnemonic, by Trezor (SatoshiLabs), Bitcoin Core v31.1 (`deriveaddresses`), by the Bitcoin Core developers, and btclib, by the btclib developers, which derives each candidate's child keys on its own curve (Core judges the script and the address text only, and shares libsecp256k1's curve maths with Faraday's) | EntropyLab's counter, the prefix rules, the expected work and the search loop, written out in `area_vanity.py` from a quotation | vanity |
+| `lightning` | others' code | the `bolt11` package (lnbits), over the bech32 and bitstring packages, with a stand-in for its libsecp256k1 binding over btclib; Faraday's stricter refusals are stated differences of the area | none | bolt11 |
 | `lightning` | others' code | Lightning Labs (LND), Yawning Angel (AEZ): compared with the processor's AES round on both sides and again with the aes crate's software round against Yawning Angel's AEZ built without assembly | none | aezeed |
 | `lightning` | others' code and, for a part, Faraday's second version | LND's node key by btcd's `hdkeychain` in LND's vendored tree, by Lightning Labs and the btcd developers, for LND; btclib-wallet's `bip32`, by the btclib developers, and python-mnemonic, by Trezor (SatoshiLabs), for each step of ldk-node's key | ldk-node's node key, composed in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes (each step btclib's), and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go` | lightning-node |
 | `sp` | others' code | BIP-352's `reference.py`, by the BIP's authors, over `secp256k1lab`, and btclib-wallet's `silent_payments.py`, by the btclib developers, on btclib's own curve: addresses, labels, input keys and hash, the sender's outputs and the receiver's scan; for BIP 392's spscan key, which has no published code or vectors, that reference's bech32m and curve and btclib's | none | silent-receive |

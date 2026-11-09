@@ -50,6 +50,12 @@ d6a068ca1e73b1a66dfca95637f2233eaac9f1368c8c89bc598b62e798c059cc  tools/referenc
 f91b8c817eadfa1ea961419864f0b97808831992c2b8ef1f9a2026429aa2b7e0  tools/reference/bip85/shims/pycoin/encoding/bytes32.py
 e1930b16118cdd57e68a7549116d709731c1bef7036d2b6c1998e0fb7ddeaf9c  tools/reference/bip85/shims/pycoin/symbols/__init__.py
 118991856d1ae9245645f385b035d0bb9d8d57594e0b4902fa489b77a1d1797e  tools/reference/bip85/shims/pycoin/symbols/btc.py
+11a36f4d3ce51dfc1043f3218591ac4eb1ceb172919cebe05b52a5bcc8d245c2  tools/reference/bolt11/base58-2.1.1-py3-none-any.whl
+990dc8e5a5e4feabbdf55207b5315fdd9b73db40be294a19b3752cde9e79d981  tools/reference/bolt11/bech32-1.2.0-py3-none-any.whl
+0de167daa6a00c9386255a7cac931b45e6e24e0ad7ea64f1f92a64ac23ad4578  tools/reference/bolt11/bitstring-3.1.9-py3-none-any.whl
+4684ac33cf274a2ee00f45b5a691d6743ede04ef455b4c12046648b4f20e2a81  tools/reference/bolt11/bolt11-2.2.0-py3-none-any.whl
+ca694248dfc7e8f02bfdfc2cdb600f308e0a2b0fd9f2397661273665fd20e985  tools/reference/bolt11/shims/coincurve/__init__.py
+0b5674b9e46c3494ff54e062a448b5fff57563ccf27c9c2762c398a9cec61c76  tools/reference/bolt11/shims/coincurve/ecdsa.py
 10db068dbe11e2b3d652a3d4ae3cdd7998b84b12cdefe3d8083a2b63c295c13f  tools/reference/btcd-bip322/LICENSE-btcd
 3beb23881bb8bcfb881d7f7ecb114c3e84f7abec9bcadb6f15484218b9e91304  tools/reference/btcd-bip322/go.mod
 386350d91c893f772c7ea0af3e11148acf6bd343c0e8d8f671c0e347d4e81ed8  tools/reference/btcd-bip322/go.sum

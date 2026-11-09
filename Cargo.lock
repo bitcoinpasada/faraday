@@ -825,6 +825,7 @@ dependencies = [
  "faraday-crypto",
  "png",
  "rqrr",
+ "serde_json",
  "zeroize",
 ]
 
