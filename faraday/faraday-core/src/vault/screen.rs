@@ -1374,18 +1374,19 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 } else {
                     Style::Secondary
                 };
+                let bh = BUTTON_H.max(crate::flow::small_touch(ui));
                 let dw = ui.button(
                     x,
                     cy,
                     None,
-                    BUTTON_H,
+                    bh,
                     EN.vault_generate_dice,
                     dice_style,
                     va(V::Dice(i)),
                 );
                 // Beside the button; on a small panel under it.
                 if ui.compact {
-                    cy += 46.0;
+                    cy += 46.0 + (bh - BUTTON_H);
                     ui.text_as(x, cy, BODY_S, muted, EN.vault_or_type_your);
                     cy += ui.advance_as(BODY_S, 26.0);
                 } else {

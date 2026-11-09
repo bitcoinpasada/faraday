@@ -183,7 +183,7 @@ pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
             EN.codex32_d10_zero,
         ) + t::GAP_SMALL;
     }
-    let cols = super::pad_columns(n);
+    let cols = super::pad_columns();
     let rows = n.div_ceil(cols);
     let row = t::CODEX32_KEY_ROW;
     let gap = t::GAP_SMALL;

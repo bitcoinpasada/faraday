@@ -483,19 +483,12 @@ fn paged(
             let lh = ui.line_as(TITLE_M);
             let th = ui.wrap_as((M, y, title_w), TITLE_M, Role::OnSurface, &card.title);
             ui.text_right_as((M + inner, y, lh), BODY_S, Role::OnSurfaceVariant, &count);
-            // On a compact layout, under defaults rows (the Change rows) a one-line title
-            // has no room for a full target: the row is made the target's
-            // height, so it is not cut by the row above or the tabs below.
-            let hh = if defaults && ui.touch < tokens::TOUCH {
-                th.max(ui.touch)
-            } else {
-                th
-            };
             // Its press is a touch target tall, reaching down over the gap
-            // under it; drawn after the body, so a control there keeps its
-            // own press and the page is no taller for it.
+            // under it, on a small panel too, where a one-line title is
+            // shorter than one; drawn after the body, so a control there
+            // keeps its own press and the page is no taller for it.
             let head_y = y;
-            y += hh + 10.0;
+            y += th + 10.0;
             y += body(ui, i, M, y, inner);
             ui.press_box(M, head_y, inner, th.max(ui.touch), card.toggle);
             // The walk-through comes after the controls, behind a tap:
@@ -592,7 +585,7 @@ fn paged(
 
 /// The touch target's side on the small panel's own, shorter one, 0 where
 /// the target is the usual size: what a row grows to there. A lookup.
-fn small_touch(ui: &Ui) -> f32 {
+pub(crate) fn small_touch(ui: &Ui) -> f32 {
     if ui.touch < tokens::TOUCH {
         ui.touch
     } else {

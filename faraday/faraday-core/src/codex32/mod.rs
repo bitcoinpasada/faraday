@@ -169,16 +169,11 @@ pub const WAYS: [Way; 3] = [Way::Dice, Way::Typed, Way::Shares];
 /// faces fits; these are the dice sold in sets.
 pub const DIE_SIZES: [u8; 6] = [4, 6, 8, 10, 12, 20];
 
-/// The columns of keys of the pad of a die of `n` faces: five where
-/// they divide it (d10, d20), six (d12), else four (d4, d8).
-pub(crate) fn pad_columns(n: usize) -> usize {
-    if n.is_multiple_of(5) {
-        5
-    } else if n.is_multiple_of(6) {
-        6
-    } else {
-        4
-    }
+/// The columns of face keys of a die's pad, Backspace in
+/// one more: four, so that a key is a touch target wide on the small
+/// panel, which is where the pad stands in the page. A lookup.
+pub(crate) fn pad_columns() -> usize {
+    4
 }
 
 /// A die's colour (§5.1, owner 2026-10-24): the booklet asks for five
@@ -956,7 +951,7 @@ impl Codex32Make {
         if n == 6 || self.way != Way::Dice {
             return 0.0;
         }
-        let rows = n.div_ceil(pad_columns(n));
+        let rows = n.div_ceil(pad_columns());
         let label = if n == 10 {
             faraday_draw::tokens::PAD + faraday_draw::tokens::GAP_SMALL
         } else {

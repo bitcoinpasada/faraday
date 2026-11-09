@@ -1437,6 +1437,8 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// next row starts.
 fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
+    let bh = BUTTON_H.max(crate::flow::small_touch(ui));
+    let grow = bh - BUTTON_H;
     let style = Style::chosen;
     let mut bx = x;
     if k.active() == Some(Source::Coins) {
@@ -1445,7 +1447,7 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 bx,
                 cy,
                 None,
-                BUTTON_H,
+                bh,
                 label,
                 style(k.by_die == on),
                 Action::KByDie(on),
@@ -1460,7 +1462,7 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .sum();
         if bx + need > x + w {
             bx = x;
-            cy += 42.0;
+            cy += 42.0 + grow;
         }
     }
     for (label, on) in [(EN.keygen_typed, true), (EN.keygen_buttons, false)] {
@@ -1468,13 +1470,13 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             bx,
             cy,
             None,
-            BUTTON_H,
+            bh,
             label,
             style(k.typing == on),
             Action::KTyping(on),
         ) + 6.0;
     }
-    cy += 46.0;
+    cy += 46.0 + grow;
     if k.active() == Some(Source::Coins) {
         let line = if k.by_die {
             EN.keygen_dice_flip_rule

@@ -72,7 +72,6 @@ small_240x320 Catalog WordList 1
 small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
 small_240x320 Home Import 1
-small_240x320 KeyGen Codex32 17
 small_240x320 KeyGen WordList 4
 small_240x320 Settings Theme 42
 small_240x320 Silent SQr 1
@@ -89,7 +88,7 @@ small_480x640 Entry EntryCandidate 17
 small_480x640 Family Slide 14
 small_480x640 Home Import 1
 small_480x640 Home Nav 1
-small_480x640 KeyGen Codex32 21
+small_480x640 KeyGen Codex32 9
 small_480x640 KeyGen WordList 4
 small_480x640 Settings Theme 46
 small_480x640 Silent SQr 1
