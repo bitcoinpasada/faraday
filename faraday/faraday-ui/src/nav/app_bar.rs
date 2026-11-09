@@ -62,6 +62,13 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
         let line = (room(x) - ui.bar_pill_w).max(0.0);
         let label = if ui.measure_as(LABEL_M, &back_to) <= line {
             back_to
+        } else if label
+            .split_whitespace()
+            .next()
+            .is_some_and(|word| ui.measure_as(LABEL_M, word) > line)
+        {
+            // Not even its first word shows whole: left off, never "T…".
+            String::new()
         } else {
             ui.fit_as(LABEL_M, label, line)
         };
@@ -75,12 +82,16 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
     }
 }
 
-/// Where the top of the mode pill is on the bar's second line, level with
-/// where Back goes: the line's middle with the name in title large.
+/// Where the top of the mode pill is on the bar's second line: level with
+/// where Back goes, but never above the name's line, so that it does not
+/// cover the name's descenders, and never below the bar.
 pub fn pill_top<A: Copy + PartialEq>(ui: &Ui<A>) -> f32 {
     let (th, lh) = (ui.line_as(TITLE_L), ui.line_as(LABEL_M));
-    let mid = (APP_BAR_H - th - lh) / 2.0 + th + lh / 2.0;
-    (mid - MODE_PILL_HEIGHT / 2.0).min(APP_BAR_H - MODE_PILL_HEIGHT)
+    let top = (APP_BAR_H - th - lh) / 2.0;
+    let mid = top + th + lh / 2.0;
+    (mid - MODE_PILL_HEIGHT / 2.0)
+        .max(top + th)
+        .min(APP_BAR_H - MODE_PILL_HEIGHT)
 }
 
 /// The top app bar's container (`docs/THEMES.md` §7): surface, and
