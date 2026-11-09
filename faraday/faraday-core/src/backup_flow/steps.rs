@@ -16,10 +16,9 @@ use crate::{Action, Faraday, FileKind, Item, Screen, Sheet, StickInfo, StorageCo
 
 pub use super::action::{Built, FlowAction, RestorePress, is_hold};
 
-/// The room a new vault is counted at before its size is chosen: the
-/// default size's file.
+/// The room a new vault is counted at: a new vault's file, one step.
 pub(crate) fn new_vault_len() -> u64 {
-    fv::file::file_len(fv::file::DEFAULT_SIZE) as u64
+    crate::vault::new_file_len() as u64
 }
 
 impl Faraday {
@@ -781,6 +780,8 @@ impl Faraday {
         self.flow_start_reading(i, slot, purpose, &st, chosen);
     }
 
+    /// Costs a read of the free memory (on macOS a process, `vm_stat`;
+    /// elsewhere one small file). Starts reading a stick's vault files.
     fn flow_start_reading(
         &mut self,
         i: usize,
@@ -789,12 +790,21 @@ impl Faraday {
         st: &StickInfo,
         chosen: bool,
     ) {
-        let kdbx: Vec<String> = st
-            .files
-            .iter()
-            .filter(|(n, _)| n.to_ascii_lowercase().ends_with(".kdbx"))
-            .map(|(n, _)| n.clone())
-            .collect();
+        // Which vault files fit is by what is free now.
+        self.vaults.read_free();
+        let mut short = None;
+        let mut kdbx: Vec<String> = Vec::new();
+        for (n, size) in &st.files {
+            if !n.to_ascii_lowercase().ends_with(".kdbx") {
+                continue;
+            }
+            match self.vaults.read_refusal(true, *size) {
+                None => kdbx.push(n.clone()),
+                Some(why) => short = short.or(Some(why)),
+            }
+        }
+        // A file that does not fit is left unread, and the stick is refused
+        // for it only if the plan needs a vault it might be.
         let mut r = Reading {
             id: st.id.clone(),
             slot,
@@ -808,6 +818,7 @@ impl Faraday {
             free: None,
             files: Vec::new(),
             problem: None,
+            short,
             picks: Vec::new(),
             bound: false,
             hold: false,
@@ -1080,7 +1091,11 @@ impl Faraday {
             if offer.is_empty() {
                 if vp.existing {
                     if let Some(r) = self.flows.all[i].live.reading.as_mut() {
-                        r.problem = Some(Problem::NoVault(v));
+                        // A file not read for memory may be the vault.
+                        r.problem = Some(match r.short.clone() {
+                            Some(why) => Problem::Memory(why),
+                            None => Problem::NoVault(v),
+                        });
                     }
                     return;
                 }
@@ -1092,6 +1107,12 @@ impl Faraday {
             if let [k] = offer.as_slice()
                 && vp.existing
             {
+                // A file not read for memory may be the vault: the one
+                // offered is not taken as it, and memory is what the card
+                // says.
+                if self.flow_memory_problem(i) {
+                    return;
+                }
                 // One file at an existing place is that vault: the unlock
                 // proves it and the write replaces only what was proved.
                 self.flow_pick_file(i, v, *k);
@@ -1101,6 +1122,19 @@ impl Faraday {
             return;
         }
         self.flow_picks_done(i);
+    }
+
+    /// Sets flow `i`'s problem to memory, and says so, when a file of the
+    /// stick was not read for want of it: that file may be the vault.
+    fn flow_memory_problem(&mut self, i: usize) -> bool {
+        let Some(r) = self.flows.all[i].live.reading.as_mut() else {
+            return false;
+        };
+        let Some(why) = r.short.clone() else {
+            return false;
+        };
+        r.problem = Some(Problem::Memory(why));
+        true
     }
 
     /// The files of the stick that vault `v`, with nothing chosen, may be:
@@ -2149,9 +2183,8 @@ impl Faraday {
         // Every vault takes it, or none does.
         for &o in &opens {
             let vid = self.vaults.open[o].id;
-            if !self.vaults.store().fits(c, vid, &[], &[&built.record]) {
-                let why = self.vault_no_room_text(c, vid);
-                return self.toast(why);
+            if let Some(why) = self.vault_refuses(c, vid, &[], &[&built.record]) {
+                return self.toast(&why);
             }
         }
         for &o in &opens {
@@ -2247,9 +2280,8 @@ impl Faraday {
                 continue;
             }
             let vid = self.vaults.open[o].id;
-            if !self.vaults.store().fits(&c, vid, &[], &[&*copy]) {
-                let why = self.vault_no_room_text(&c, vid);
-                return self.toast(why);
+            if let Some(why) = self.vault_refuses(&c, vid, &[], &[&*copy]) {
+                return self.toast(&why);
             }
         }
         for &v in &added {
@@ -3321,6 +3353,7 @@ impl Faraday {
             Problem::NotFat => fill(FEN.backup_flow_not_fat, &[m, m]),
             Problem::Unreadable => fill(FEN.backup_flow_unreadable, &[m, m]),
             Problem::ReadOnly => fill(FEN.backup_flow_read_only, &[m]),
+            Problem::Memory(why) => why.clone(),
             Problem::NoRoom(need, free) => fill(
                 FEN.backup_flow_no_room,
                 &[

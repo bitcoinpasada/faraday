@@ -1,7 +1,9 @@
 //! gzip (RFC 1952), read only: the body of a KDBX file a KeePass app
 //! saved with compression. One member, its CRC-32 and length checked,
-//! inflated into a buffer sized from the length it states, which is
-//! bounded before anything is allocated.
+//! inflated into a buffer sized from the length it states. That length is
+//! only trusted once the file's HMACs have verified (F206 point 5); it is
+//! bounded by the ceiling and asked of the caller's budget before anything
+//! is allocated, and inflating cannot write past the buffer.
 
 use alloc::vec::Vec;
 
@@ -17,7 +19,14 @@ const FNAME: u8 = 8;
 const FCOMMENT: u8 = 16;
 
 /// The inflated bytes of the one gzip member `data` is, at most `limit`.
-pub(super) fn inflate(data: &[u8], limit: usize) -> Result<Zeroizing<Vec<u8>>, Error> {
+/// `budget` is asked with the length the member states, before the one
+/// buffer of that length is allocated: `Err(mib)` is the memory that could
+/// not be found, and nothing is allocated.
+pub(super) fn inflate(
+    data: &[u8],
+    limit: usize,
+    budget: &mut dyn FnMut(usize) -> Result<(), u32>,
+) -> Result<Zeroizing<Vec<u8>>, Error> {
     if data.len() < 18 || data[0] != 0x1F || data[1] != 0x8B || data[2] != 8 {
         return Err(Error::Damaged);
     }
@@ -59,6 +68,7 @@ pub(super) fn inflate(data: &[u8], limit: usize) -> Result<Zeroizing<Vec<u8>>, E
     if size > limit {
         return Err(Error::TooLarge);
     }
+    budget(size).map_err(Error::Memory)?;
     let mut out = Zeroizing::new(Vec::new());
     out.try_reserve_exact(size)
         .map_err(|_| super::no_memory(size))?;

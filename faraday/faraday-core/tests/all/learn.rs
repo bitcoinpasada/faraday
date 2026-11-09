@@ -259,8 +259,15 @@ fn the_vaults_page_goes_on_to_how_the_vault_is_built_and_passphrase_strength() {
             "{w}x{h}: the vault's account"
         );
         assert!(has("Passphrase strength"), "{w}x{h}: after it");
-        assert!(has("The keys") && has("File"), "{w}x{h}: the sizes' table");
-        assert!(has("4 194 797"), "{w}x{h}: the largest vault's file length");
+        assert!(
+            has("The file") && has("The keys"),
+            "{w}x{h}: the file, then the keys"
+        );
+        let read = lines.join(" ");
+        assert!(
+            read.contains("32 KiB steps, from one step to 128 MiB"),
+            "{w}x{h}: a vault grows in steps up to 128 MiB"
+        );
         assert!(has("77.5"), "{w}x{h}: six words of the large list");
         assert!(past.is_empty(), "{w}x{h}: nothing past a side: {past:?}");
     }

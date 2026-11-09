@@ -35,26 +35,25 @@ On **Home**, press **Create a vault** (**None yet**), or press
 With a stick in, the page says **Remove the stick, then type the
 passphrases**: pull it first.
 
-![Create a vault with Size closed, the name Passwords and a passphrase that matches, Your choices beside it, Create vault outlined](../pictures/create-vault-passphrases.png)
+![Create a vault with Opens on closed, the name Passwords and a passphrase that matches, Your choices beside it, Create vault outlined](../pictures/create-vault-passphrases.png)
 
-**Create a vault** is a column of cards. **Size** is closed on **PCs
+**Create a vault** is a column of cards. **Opens on** is closed on **PCs
 and a Raspberry Pi · 64 MiB · 3 passes**, with **Change**:
 
-| Size | Unlock memory | Opens on |
+| Row | Unlock memory | Opens on |
 |---|---|---|
 | **PCs and a Raspberry Pi** | 64 MiB, 3 passes | any PC and a Raspberry Pi |
 | **PCs only** | 512 MiB, 3 passes | PCs only |
 
 Each row gives its unlock time on this computer. **Customise** opens
-three cards in place of Size:
+three cards in place of Opens on:
 
 | Card | Choices |
 |---|---|
-| **Where will you open it?** | **This computer** and each other kind of machine, Other PCs and a Raspberry Pi 3 among them, all ticked as Size had them; the cost suggested next fits the one with the least memory |
+| **Where will you open it?** | **This computer** and each other kind of machine, Other PCs and a Raspberry Pi 3 among them, all ticked as Opens on had them; the cost suggested next fits the one with the least memory |
 | **Unlock cost** | **Light**, **Standard**, **Medium**, **Strong**, **Maximum** and **Custom**, each with its memory, passes and the bits it adds; one reads **Suggested**, the others **Fits** or "Too large for" the weakest machine |
-| **Space** | the room each passphrase's contents get, and the file's size |
 
-The cost and the space are fixed for the life of the vault. Leave Size
+The cost is fixed for the life of the vault. Leave Opens on
 as it is.
 
 Under **Name and passphrase**:
@@ -196,7 +195,7 @@ Under **Entries**, beside **Add an entry**, are **Scan a code** and
 | **Scan a code** | opens the camera; a site's TOTP setup QR code fills a new entry's form with its title, account and secret, to save |
 | "Import from Files" and a count | adds every entry of the entries files in Files |
 
-Entries that do not fit the vault's space are not added, and a line
+Entries that would take the vault over the most a vault holds are not added, and a line
 says how many bytes they take and how many are left. With entries in
 the list, **Search entries** over it keeps those whose title holds what
 is typed; usernames, URLs and notes are not searched.
@@ -334,7 +333,7 @@ copy: sealed 2 times." and the count of the newer one, and opened only on
 
 ## 11. A new passphrase
 
-Passphrases, the cost and the space are fixed when a vault is made. To
+The passphrase and the cost are fixed when a vault is made. To
 change one, create a new vault, unlock both, and save into the new one
 what the old one holds: load the keys and wallets and **Save** them,
 and add the entries and notes again. Write the new vault, then delete

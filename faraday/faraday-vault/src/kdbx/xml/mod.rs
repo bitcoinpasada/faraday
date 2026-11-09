@@ -100,6 +100,39 @@ pub use refs::referenced;
 /// The deepest nesting of elements a document may have.
 pub const MAX_DEPTH: usize = 64;
 
+/// The most memory, in bytes, the model's structures may take for each
+/// byte of the document (a format limit like `MAX_BINARIES`, named in
+/// `docs/VAULT.md` §4): the reader keeps a running charge and refuses with
+/// [`Refused::TooLarge`] once it passes this times the document's length
+/// plus [`MODEL_BASE`].
+///
+/// What is charged is what the reader holds for each element it keeps: its
+/// slot in the parent's list (a list grows by doubling, so twice), the box
+/// the element is in, the list of its own parts at its capacity, its tags,
+/// and for each stretch of carried bytes twice a piece and a small
+/// allocation. The text itself is not charged: it is copied at most a few
+/// times (a pair keeps its key and value once read and once as written), a
+/// multiple of the length the 4 x file of F206 point 4 allows for.
+///
+/// The charge is held to the memory really taken by
+/// `tests/reader_memory.rs`, which counts the allocations: never less, for
+/// empty groups and entries, fields, items and times, and for the shapes of
+/// real files. Measured (64-bit): a bare `<Entry/>` of 8 bytes holds 92
+/// bytes a byte and is charged 120, a bare `<Group/>` holds 66 and is
+/// charged 88: what this limit refuses past its base. A group with an
+/// attribute (`<Group a="xxxxxxxxxx"/>`) holds 24 a byte and is charged 32.
+/// A real entry of a KeePass app (a UUID, times, five strings, one
+/// protected, each element on its own line, about 1,000 bytes) holds 5.6 a
+/// byte and is charged 8.5; a flat list of KeePassXC's empty groups holds
+/// 3.2 and is charged 5.3. The limit is 40, more than four times that, so a
+/// real file is not refused. A crafted file is held to 40 bytes of
+/// structures for each byte (the charge is never less than what is held).
+pub const MODEL_PER_BYTE: usize = 40;
+
+/// What a small document may take besides [`MODEL_PER_BYTE`] of its
+/// length: 1 MiB.
+pub const MODEL_BASE: usize = 1 << 20;
+
 /// Seconds from 0001-01-01 to the Unix epoch: KDBX 4 times count from the
 /// former.
 const EPOCH_GAP: i64 = 62_135_596_800;
@@ -153,6 +186,12 @@ pub enum Refused {
     Uuid,
     /// A structure the model cannot place (what).
     Structure(&'static str),
+    /// A document whose elements would take more memory to hold than
+    /// [`MODEL_PER_BYTE`] allows for its length.
+    TooLarge,
+    /// The reader's charge passed the memory the caller allows it: the
+    /// bytes charged when it stopped.
+    Memory(usize),
 }
 
 type R<T> = Result<T, Refused>;
@@ -236,9 +275,43 @@ struct Leaf {
     protected: bool,
 }
 
+/// Where a write goes: a buffer, or a count of what a buffer would hold
+/// (the same code path, so the two cannot differ).
+enum Out {
+    Buffer(Zeroizing<Vec<u8>>),
+    Count(usize),
+}
+
+impl Out {
+    fn extend_from_slice(&mut self, b: &[u8]) {
+        match self {
+            Self::Buffer(v) => v.extend_from_slice(b),
+            Self::Count(n) => *n += b.len(),
+        }
+    }
+
+    fn push(&mut self, b: u8) {
+        self.extend_from_slice(&[b]);
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            Self::Buffer(v) => v.len(),
+            Self::Count(n) => *n,
+        }
+    }
+
+    fn truncate(&mut self, len: usize) {
+        match self {
+            Self::Buffer(v) => v.truncate(len),
+            Self::Count(n) => *n = (*n).min(len),
+        }
+    }
+}
+
 /// The writer's output and the inner stream it encrypts under.
 struct W<'s> {
-    out: Zeroizing<Vec<u8>>,
+    out: Out,
     stream: &'s mut InnerStream,
 }
 
@@ -271,6 +344,12 @@ impl W<'_> {
     }
 
     fn secret(&mut self, plain: &[u8]) {
+        if let Out::Count(n) = &mut self.out {
+            // The Base64 of the encrypted value is as long as that of the
+            // plain one; the stream is not needed for a length.
+            *n += Base64::encoded_len(plain);
+            return;
+        }
         let mut ct = Zeroizing::new(plain.to_vec());
         self.stream.apply(&mut ct);
         let text = Base64::encode_string(&ct);
@@ -603,8 +682,8 @@ impl Part for TimesPart {
 enum EntryPart {
     Carried(Carried),
     Uuid,
-    Field(Pair),
-    Times(Frame<TimesPart>),
+    Field(Box<Pair>),
+    Times(Box<Frame<TimesPart>>),
     Custom,
 }
 
@@ -663,7 +742,7 @@ impl Entry {
                 .iter()
                 .position(|p| matches!(p, EntryPart::Uuid))
                 .map_or(0, |i| i + 1);
-            parts.insert(at, EntryPart::Times(times));
+            parts.insert(at, EntryPart::Times(Box::new(times)));
         }
         if !parts.iter().any(|p| matches!(p, EntryPart::Custom)) {
             parts.push(EntryPart::Custom);
@@ -693,7 +772,7 @@ impl Entry {
     /// The fields, in order.
     pub fn fields(&self) -> impl Iterator<Item = &Pair> {
         self.frame.parts.iter().filter_map(|p| match p {
-            EntryPart::Field(f) => Some(f),
+            EntryPart::Field(f) => Some(&**f),
             _ => None,
         })
     }
@@ -721,9 +800,10 @@ impl Entry {
             .iter()
             .rposition(|p| matches!(p, EntryPart::Field(_) | EntryPart::Times(_)))
             .map_or(0, |i| i + 1);
-        self.frame
-            .parts
-            .insert(at, EntryPart::Field(Pair::new(key, value, protected)));
+        self.frame.parts.insert(
+            at,
+            EntryPart::Field(Box::new(Pair::new(key, value, protected))),
+        );
         Ok(())
     }
 
@@ -836,8 +916,8 @@ enum GroupPart {
     Uuid,
     Name,
     Custom,
-    Group(Group),
-    Entry(Entry),
+    Group(Box<Group>),
+    Entry(Box<Entry>),
 }
 
 impl Part for GroupPart {
@@ -951,7 +1031,7 @@ impl Group {
     /// The groups directly under this one.
     pub fn groups(&self) -> impl Iterator<Item = &Group> {
         self.frame.parts.iter().filter_map(|p| match p {
-            GroupPart::Group(g) => Some(g),
+            GroupPart::Group(g) => Some(&**g),
             _ => None,
         })
     }
@@ -959,7 +1039,7 @@ impl Group {
     /// The groups directly under this one, to change.
     pub fn groups_mut(&mut self) -> impl Iterator<Item = &mut Group> {
         self.frame.parts.iter_mut().filter_map(|p| match p {
-            GroupPart::Group(g) => Some(g),
+            GroupPart::Group(g) => Some(&mut **g),
             _ => None,
         })
     }
@@ -967,7 +1047,7 @@ impl Group {
     /// The entries directly in this group.
     pub fn entries(&self) -> impl Iterator<Item = &Entry> {
         self.frame.parts.iter().filter_map(|p| match p {
-            GroupPart::Entry(e) => Some(e),
+            GroupPart::Entry(e) => Some(&**e),
             _ => None,
         })
     }
@@ -975,7 +1055,7 @@ impl Group {
     /// The entries directly in this group, to change.
     pub fn entries_mut(&mut self) -> impl Iterator<Item = &mut Entry> {
         self.frame.parts.iter_mut().filter_map(|p| match p {
-            GroupPart::Entry(e) => Some(e),
+            GroupPart::Entry(e) => Some(&mut **e),
             _ => None,
         })
     }
@@ -983,14 +1063,14 @@ impl Group {
     /// Adds an entry at the end.
     pub fn push_entry(&mut self, entry: Entry) -> R<()> {
         self.editable()?;
-        self.frame.parts.push(GroupPart::Entry(entry));
+        self.frame.parts.push(GroupPart::Entry(Box::new(entry)));
         Ok(())
     }
 
     /// Adds a group at the end.
     pub fn push_group(&mut self, group: Group) -> R<()> {
         self.editable()?;
-        self.frame.parts.push(GroupPart::Group(group));
+        self.frame.parts.push(GroupPart::Group(Box::new(group)));
         Ok(())
     }
 
@@ -1110,10 +1190,50 @@ pub struct Document {
     file: Frame<FilePart>,
     history: usize,
     dropped: usize,
+    /// What the reader charged for what it built ([`MODEL_PER_BYTE`]).
+    charged: usize,
+}
+
+/// The reader's running charge for what it holds, and where it stops.
+struct Meter {
+    charged: usize,
+    /// The most the format allows for the document's length.
+    limit: usize,
+    /// The most the caller allows, if it says.
+    budget: Option<usize>,
+}
+
+impl Meter {
+    /// Charges `n` bytes of what is about to be held, and refuses once the
+    /// charge passes the budget ([`Refused::Memory`]) or the limit
+    /// ([`Refused::TooLarge`]); no more is taken after.
+    fn spend(&mut self, n: usize) -> R<()> {
+        self.charged = self.charged.saturating_add(n);
+        if let Some(budget) = self.budget
+            && self.charged > budget
+        {
+            return Err(Refused::Memory(self.charged));
+        }
+        if self.charged > self.limit {
+            return Err(Refused::TooLarge);
+        }
+        Ok(())
+    }
 }
 
 /// The XML a new vault starts from.
 const PROLOG: &[u8] = b"<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n";
+
+/// How many documents have been written in this process.
+static WRITES: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+
+/// How many times a document has been written in this process, by
+/// anything: a test that an edit writes none compares two readings. The
+/// counter is process-wide, so such a test is exact only where it runs
+/// alone in its process, as nextest runs each test.
+pub fn writes() -> usize {
+    WRITES.load(core::sync::atomic::Ordering::Relaxed)
+}
 
 impl Document {
     /// The document Faraday makes for a new vault: the root group named as
@@ -1135,13 +1255,29 @@ impl Document {
     }
 
     /// Costs an encryption of the protected values and a copy of the
-    /// document, linear in its size (at most the vault's largest, 4 MiB):
+    /// document, linear in its size (at most the vault's largest, 128 MiB):
     /// writes it, the values encrypted in document order under
     /// `inner_key`. It has no padding; `seal` adds it.
     pub fn write(&self, inner_key: &[u8]) -> Zeroizing<Vec<u8>> {
+        WRITES.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        match self.written(Out::Buffer(Zeroizing::new(Vec::new())), inner_key) {
+            Out::Buffer(v) => v,
+            Out::Count(_) => unreachable!("a buffer stays a buffer"),
+        }
+    }
+
+    /// Costs a walk of the document, linear in its size and keeping none
+    /// of it: how many bytes [`Document::write`] gives, counted by the same
+    /// code and not written.
+    pub fn written_len(&self) -> usize {
+        self.written(Out::Count(0), &[0]).len()
+    }
+
+    /// The document written into `out`.
+    fn written(&self, out: Out, inner_key: &[u8]) -> Out {
         let mut stream = InnerStream::new(inner_key);
         let mut w = W {
-            out: Zeroizing::new(Vec::new()),
+            out,
             stream: &mut stream,
         };
         w.raw(&self.prolog);
@@ -1159,13 +1295,21 @@ impl Document {
 
     /// Marks the groups and the entries whose UUID another group or entry
     /// has.
-    fn mark_duplicates(&mut self) {
-        fn collect(g: &Group, groups: &mut Vec<[u8; 16]>, entries: &mut Vec<[u8; 16]>) {
+    fn mark_duplicates(&mut self, meter: &mut Meter) -> R<()> {
+        fn collect(
+            g: &Group,
+            groups: &mut Vec<[u8; 16]>,
+            entries: &mut Vec<[u8; 16]>,
+            meter: &mut Meter,
+        ) -> R<()> {
+            // Two lists that grow by doubling: 32 bytes for each UUID.
+            meter.spend(32 * (1 + g.entries().count()))?;
             groups.push(g.uuid);
             entries.extend(g.entries().map(|e| e.uuid));
             for sub in g.groups() {
-                collect(sub, groups, entries);
+                collect(sub, groups, entries, meter)?;
             }
+            Ok(())
         }
         fn repeated(mut all: Vec<[u8; 16]>) -> Vec<[u8; 16]> {
             all.sort_unstable();
@@ -1187,11 +1331,12 @@ impl Document {
             }
         }
         let (mut groups, mut entries) = (Vec::new(), Vec::new());
-        collect(self.root(), &mut groups, &mut entries);
+        collect(self.root(), &mut groups, &mut entries, meter)?;
         let (groups, entries) = (repeated(groups), repeated(entries));
         if !groups.is_empty() || !entries.is_empty() {
             mark(self.root_mut(), &groups, &entries);
         }
+        Ok(())
     }
 
     /// How many entries have history, kept in the document.
@@ -1315,5 +1460,7 @@ pub fn fuzz_document(document: &[u8]) -> bool {
     assert_eq!(&first[..], &again.write(NEW)[..]);
     // The attachment references of what is written are read.
     let _ = referenced(&first, 3);
+    // The length counted without a write is the length written.
+    assert_eq!(doc.written_len(), first.len());
     true
 }

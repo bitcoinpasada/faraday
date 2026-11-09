@@ -2666,7 +2666,7 @@ impl Faraday {
         self.vaults.merge_summaries(fresh);
     }
 
-    /// Costs what `vault_summaries_refresh` and `seals_unlocked` cost.
+    /// Costs what `vault_summaries_refresh` costs.
     /// Open vault `v`, just unlocked: what the app remembers of the vaults
     /// refreshed, and the slot's seal count against what was seen, with
     /// the other copies in Files read with the key just opened
@@ -2682,8 +2682,7 @@ impl Faraday {
     ) -> bool {
         let before = self.vaults.summary_before(v);
         self.vault_summaries_refresh();
-        let c = self.compute();
-        self.vaults.seals_unlocked(&c, v);
+        self.vaults.seals_unlocked(v);
         // The bytes opened are a copy of the vault seen.
         if let (Some(o), Some(sha)) = (self.vaults.open.get(v), sha) {
             self.vaults.copy_seen(&o.vault_id(), sha);

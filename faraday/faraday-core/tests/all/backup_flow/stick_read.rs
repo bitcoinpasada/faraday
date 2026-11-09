@@ -90,6 +90,38 @@ fn a_vault_opened_from_files_is_not_the_copy_of_another_vault_sharing_its_name()
 }
 
 #[test]
+fn a_stick_whose_vault_file_the_free_memory_does_not_hold_is_not_read_and_says_what_it_needs() {
+    let mut shell = Shell::new();
+    let a = vault("Alpha", PHRASE, 0x61);
+    let mut s1 = Disk::empty("S1", "ONE");
+    s1.serial = Some(1);
+    s1.files = vec![("vault.kdbx".into(), a.clone())];
+    shell.add(s1);
+    let mut app = process(Vec::new(), vec![("vault.kdbx".into(), a)], Vec::new());
+    keep_time(&mut app);
+    start(&mut app, Kind::Gpg);
+    shell.flow(&mut app, F::VaultExisting(0));
+    through_where(&mut shell, &mut app);
+    app.storage(faraday_core::StorageEvent::Memory { available_mib: 0 });
+    shell.plug_known(&mut app, "S1");
+    assert!(
+        has(&mut app, "Needs 1 MiB. This computer has 0 MiB free."),
+        "{:?}",
+        app.drawn_texts()
+    );
+    assert!(
+        app.flow()
+            .unwrap()
+            .live
+            .reading
+            .as_ref()
+            .unwrap()
+            .files
+            .is_empty()
+    );
+}
+
+#[test]
 fn two_vaults_never_opened_stay_in_files_when_one_is_picked_from_a_stick() {
     let mut shell = Shell::new();
     let x = vault("Xray", PHRASE, 0x63);

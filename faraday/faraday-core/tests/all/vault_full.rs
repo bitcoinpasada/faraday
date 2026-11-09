@@ -1,4 +1,4 @@
-//! A vault's file is a fixed size. Entries the camera reads that do not fit
+//! A vault holds up to a ceiling. Entries the camera reads that do not fit
 //! in the room left add nothing and say how much room is left; a vault
 //! changed this session whose contents cannot be sealed stays open at the
 //! lock with its changes, and the lock says which vault and why.
@@ -49,11 +49,11 @@ fn entry_of(n: usize) -> Record {
 fn entries_scanned_that_do_not_fit_add_nothing_and_say_how_much_room_is_left() {
     let mut app = open_vault();
     let id = app.vaults().open[0].id;
+    // Past a limit of nothing the size is counted, not bounded.
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(0));
     let used = app.vaults().records(id).used(&testkit::compute());
-    let slot = app.vaults().open[0].facts().size.expect("a Faraday seal");
-    testkit::vault_edit(&mut app, id, |s| {
-        s.insert(id, entry_of(slot - used - 2_000))
-    });
+    // The most a vault may hold, lowered to just over what it holds.
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used + 2_000));
     let before = app.vaults().records(id).used(&testkit::compute());
     let changes = app.vaults().open[0].changes;
 
@@ -77,15 +77,18 @@ fn entries_scanned_that_do_not_fit_add_nothing_and_say_how_much_room_is_left() {
     );
 }
 
-/// A vault changed this session whose contents do not fit its file is
+/// A vault changed this session whose contents are over that ceiling is
 /// not sealed: the lock goes no further, the vault stays open with its
 /// changes and nothing is written.
 #[test]
 fn a_vault_changed_this_session_that_cannot_be_sealed_stays_open_at_the_lock() {
     let mut app = open_vault();
     let id = app.vaults().open[0].id;
-    let slot = app.vaults().open[0].facts().size.expect("a Faraday seal");
-    testkit::vault_edit(&mut app, id, |s| s.insert(id, entry_of(slot)));
+    // Past a limit of nothing the size is counted, not bounded.
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(0));
+    let used = app.vaults().records(id).used(&testkit::compute());
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used + 2_000));
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, entry_of(4_000)));
     testkit::vault_changed(&mut app, id);
 
     crate::common::top_up(&mut app);

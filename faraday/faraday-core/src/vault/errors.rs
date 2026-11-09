@@ -16,8 +16,22 @@ pub fn error_text(e: &Error) -> String {
         Error::Unwritable(_) => EN.vault_error_unwritable.to_string(),
         Error::ReadOnly => EN.vault_error_read_only.to_string(),
         Error::Full { .. } => EN.vault_error_full.to_string(),
-        Error::Size => EN.vault_error_size.to_string(),
         Error::Memory(mib) => fill(EN.vault_error_memory, &[&mib.to_string()]),
+    }
+}
+
+/// [`error_text`] for a vault `name` whose open or seal stopped, saying the
+/// numbers a person can act on: the bytes a seal is over the most a vault
+/// holds, and, where `free_mib` (what the computer has free) is known, the
+/// memory a vault needs against it.
+pub fn stopped_text(e: &Error, name: &str, free_mib: Option<u32>) -> String {
+    match (e, free_mib) {
+        (Error::Full { over }, _) => fill(EN.vault_cannot_seal, &[name, &over.to_string()]),
+        (Error::Memory(need), Some(free)) => fill(
+            EN.vaults_needs_this_computer,
+            &[&super::mib_text(*need), &super::mib_text(free)],
+        ),
+        _ => error_text(e),
     }
 }
 

@@ -203,7 +203,7 @@ Press **Make a vault**.
 
 ![Create a vault on Name and passphrase, Your choices and Will create beside it](../pictures/4-8-create-vault.png)
 
-[**Create a vault**](../screens/create-vault.md) opens with **Size** chosen (**PCs and a Raspberry Pi
+[**Create a vault**](../screens/create-vault.md) opens with **Opens on** chosen (**PCs and a Raspberry Pi
 · 64 MiB · 3 passes**). **Your choices** and **Will create** on the
 right sum up the vault. Under **Name and passphrase**:
 

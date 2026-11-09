@@ -284,7 +284,7 @@ fn place<'a>(uuid: [u8; 16], group: &'a str, title: &'a str, now: Option<u64>) -
 }
 
 /// Costs the vault's own Argon2id run: `file::create` of an empty vault at the
-/// cost and size asked; with `items`, the same document the app seals (each
+/// cost asked (its size follows its contents); with `items`, the same document the app seals (each
 /// put through `items::put`, the plan and amounts through theirs) sealed by
 /// `kdbx::seal` at that cost, since `file::seal` always takes the 64 MiB step.
 /// Gives the file as hex.
@@ -293,7 +293,6 @@ fn create(c: &Compute, req: &Value) -> Answer {
     let label = s(req, "label");
     let passphrase = s(req, "passphrase");
     let cost = cost(req)?;
-    let size = num(req, "size") as usize;
     let random = random_of(req);
     let now = now_of(req);
     let list: Vec<Put> = req["items"]
@@ -301,11 +300,8 @@ fn create(c: &Compute, req: &Value) -> Answer {
         .map(|a| a.iter().enumerate().map(|(n, v)| item(n, v)).collect())
         .unwrap_or_default();
     if list.is_empty() {
-        let file = file::create(c, id, label, cost, size, passphrase, &random, now).map_err(err)?;
+        let file = file::create(c, id, label, cost, passphrase, &random, now).map_err(err)?;
         return Ok(json!({"file": hex(&file)}));
-    }
-    if !file::SIZES.contains(&size) {
-        return Err("no such size".into());
     }
     let mut doc = Document::new(id, label);
     items::stamp(&mut doc, 1, now.and_then(items::utc_time).as_deref()).map_err(err)?;
@@ -329,6 +325,12 @@ fn create(c: &Compute, req: &Value) -> Answer {
         }
     }
     let xml = doc.write(kdbx::inner_key_of(&random));
+    // The size follows the contents, as a seal's does: the smallest multiple
+    // of a step that holds them.
+    let size = kdbx::plain_needs(&kdbx::Binaries::all(&[]), xml.len())
+        .div_ceil(file::STEP)
+        .max(1)
+        * file::STEP;
     let file = kdbx::seal(
         c,
         core::str::from_utf8(&kdbx::passphrase_bytes(passphrase).map_err(err)?).map_err(err)?,

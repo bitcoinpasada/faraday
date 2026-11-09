@@ -1561,9 +1561,8 @@ impl Faraday {
             });
             let adds: Vec<&Staged> = w.add.iter().collect();
             let vid = self.vaults.open[o].id;
-            if !self.vaults.store().fits(&c, vid, &w.out, &adds) {
-                let why = self.vault_no_room_text(&c, vid);
-                return self.toast(why);
+            if let Some(why) = self.vault_refuses(&c, vid, &w.out, &adds) {
+                return self.toast(&why);
             }
             work.push(w);
         }

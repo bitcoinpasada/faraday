@@ -200,14 +200,13 @@ impl Vaults {
         }
     }
 
-    /// Costs a SHA-256 over the file opened (counted as a file hash), and
-    /// what `plan_seals_check` costs. Open vault `v`, just unlocked: its
+    /// Open vault `v`, just unlocked: its
     /// count raises the highest seen, a count lower than the highest
     /// seen, or the same with other bytes, is kept for Unlock and the
     /// vault's head to say (§5.3 item 1), and the backup plans of the
     /// open vaults are read for the counts they record (§5.6). Other
     /// copies in Files are not read: a copy's count costs its own unlock.
-    pub(crate) fn seals_unlocked(&mut self, c: &Compute, v: usize) {
+    pub(crate) fn seals_unlocked(&mut self, v: usize) {
         let Some(o) = self.open.get(v) else {
             return;
         };
@@ -215,7 +214,7 @@ impl Vaults {
         let Some((_, seals)) = self.store().seal_state(id) else {
             return;
         };
-        let Some(digest) = self.store().opened_digest(c, id) else {
+        let Some(digest) = self.store().opened_digest(id) else {
             return;
         };
         let order = self.seals_raise(

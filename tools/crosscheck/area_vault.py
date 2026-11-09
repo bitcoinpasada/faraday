@@ -445,7 +445,7 @@ class Vault(Area):
                 f"unicode-normalization's {theirs}: a code point only one side composes could "
                 "differ")
 
-    LOOPS = (("argon", 60), ("payload", 1500), ("nfc", 1000), ("faraday", 16), ("export", 16), ("foreign", 16),
+    LOOPS = (("argon", 60), ("payload", 1500), ("nfc", 1000), ("faraday", 16), ("large", 2), ("export", 16), ("foreign", 16),
              ("kpxc", 6), ("rsfixed", 1), ("rsread", 6), ("rswrite", 8))
 
     def prelude(self):
@@ -728,11 +728,11 @@ class Vault(Area):
 
     # Faraday writes.
 
-    def create(self, items, size, cost, passphrase, label, now):
+    def create(self, items, cost, passphrase, label, now):
         rng = self.rng
         ans = self.rust.call(
             "vault.create", vault_id=rng.randbytes(16).hex(), label=label, passphrase=passphrase,
-            memory_kib=cost[0], passes=cost[1], lanes=cost[2], size=size,
+            memory_kib=cost[0], passes=cost[1], lanes=cost[2],
             random=rng.randbytes(140).hex(), now=now, items=items)
         self.compared += 1
         if ans[0] != "ok":
@@ -740,7 +740,7 @@ class Vault(Area):
             for it in items:
                 one = self.rust.call(
                     "vault.create", vault_id="00" * 16, label=label, passphrase=passphrase,
-                    memory_kib=cost[0], passes=cost[1], lanes=cost[2], size=size,
+                    memory_kib=cost[0], passes=cost[1], lanes=cost[2],
                     random=rng.randbytes(140).hex(), now=now, items=[it])
                 if one[0] != "ok":
                     alone.append((it, one[1]))
@@ -818,19 +818,24 @@ class Vault(Area):
         on = self.kpxc_on()
         return on and self.rng.random() < rare
 
-    def faraday_case(self, kinds=None, kpxc=None):
-        """A vault Faraday writes at a small cost, read by all, then sealed once more."""
+    def faraday_case(self, kinds=None, kpxc=None, big=()):
+        """A vault Faraday writes at a small cost, read by all, then sealed once more.
+        `big` is the length in bytes of the note of each of that many more entries (a note is
+        at most 65,535 bytes): the document and the file then pass one block of the format
+        (1 MiB)."""
         rng = self.rng
         kinds = kinds if kinds is not None else self.pick()
         entries = rng.choice([0, 0, 1, 2])
         items = self.items(kinds, entries=entries)
+        for k, n in enumerate(big):
+            it = self.item("entry", 200 + k)
+            it["notes"] = base64.b64encode(rng.randbytes(n * 3 // 4)).decode()
+            items.append(it)
         p = vf.passphrase(self.rng)
-        size = rng.choice([262_144, 262_144, 1_048_576]) if len(items) > 3 else \
-            rng.choice([65_536, 262_144])
         cost = (8192, rng.choice([1, 2]), rng.choice([1, 2]))
         now = rng.choice([None, rng.randrange(1_500_000_000, 2_200_000_000)])
         label = word(rng, 1, 20)
-        data = self.create(items, size, cost, p, label, now)
+        data = self.create(items, cost, p, label, now)
         kpxc = self.wants_kpxc() if kpxc is None else kpxc
         v = self.read_all(data, p, kpxc)
         if v["label"] != label:
@@ -846,6 +851,16 @@ class Vault(Area):
 
     def case_faraday(self):
         self.faraday_case()
+
+    def case_large(self):
+        """A document past one 1 MiB block of the format, and one past two, read all ways."""
+        rng = self.rng
+        # Notes of 60,000 bytes: 24 of them pass one block, 48 pass two. The first
+        # case of each pair is over one block and the second over two, so every run
+        # has both; the count varies within each.
+        sizes = (60_000,) * rng.choice([24, 30] if self.case_at[1] % 2 == 0 else [48, 52])
+        self.faraday_case(kinds=rng.sample(list(vf.KINDS), rng.randint(0, 3)), kpxc=self.kpxc_on(),
+                          big=sizes)
 
     # They write.
 
@@ -913,7 +928,7 @@ class Vault(Area):
             self.second["uncovered"] += 1
             return
         p = vf.passphrase(rng)
-        empty = self.create([], rng.choice([65_536, 262_144]), (8192, 1, 1), p, word(rng, 1, 10),
+        empty = self.create([], (8192, 1, 1), p, word(rng, 1, 10),
                             rng.choice([None, 1_700_000_000]))
         with readers.Kpxc(empty) as k:
             model = vf.kpxc_edit(rng, k, p)
@@ -1101,8 +1116,7 @@ class Vault(Area):
         rng = self.rng
         items = self.items(self.pick(), entries=rng.choice([0, 1, 2]))
         p = vf.passphrase(rng)
-        size = rng.choice([262_144, 1_048_576]) if len(items) > 3 else rng.choice([65_536, 262_144])
-        data = self.create(items, size, (8192, rng.choice([1, 2]), rng.choice([1, 2])), p,
+        data = self.create(items, (8192, rng.choice([1, 2]), rng.choice([1, 2])), p,
                            word(rng, 1, 20), rng.choice([None, rng.randrange(1_500_000_000, 2_200_000_000)]))
         v = self.read_all(data, p, False)
         self.rs_checks(data, p, v)
@@ -1149,7 +1163,7 @@ class Vault(Area):
         rng = self.rng
         try:
             p = vf.passphrase(rng)
-            data = self.create(self.items(list(vf.KINDS), entries=1), 262_144, (8192, 1, 1), p,
+            data = self.create(self.items(list(vf.KINDS), entries=1), (8192, 1, 1), p,
                                word(rng, 1, 20), None)
             self.rs_checks(data, p, self.read_all(data, p, False))
             for name, (setting, why) in rs.REFUSED.items():

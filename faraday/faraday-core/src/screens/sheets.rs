@@ -579,18 +579,35 @@ fn qr_speed_labels() -> [&'static str; 3] {
 }
 
 pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let blocked = app.vaults().seal_blocked_seen();
+    let blocks = app.vaults().lock_blocks_seen();
+    // Every vault a press of Lock without saving lets go is named with its
+    // line (the idle lock never does this). Memory short alone: Lock tries
+    // again; the person chooses.
+    let lines = blocks.lines.join(" ");
+    let mut also: Option<(&str, Action)> = None;
     let (head, line, lock) = if app.seal_waits() {
         (
             (Icon::Error.into(), Role::Error.paint(), EN.vault_lock),
             (EN.seed_missing, Role::Error.paint()),
             (EN.vault_lock_without_sealing, Action::LockUnsealed),
         )
-    } else if let Some(why) = blocked.as_deref() {
+    } else if blocks.loses {
+        let label = if blocks.short {
+            EN.vault_lock_without_saving
+        } else {
+            EN.vault_lock_without_sealing
+        };
         (
             (Icon::Error.into(), Role::Error.paint(), EN.vault_lock),
-            (why, Role::Error.paint()),
-            (EN.vault_lock_without_sealing, Action::LockUnsealed),
+            (lines.as_str(), Role::Error.paint()),
+            (label, Action::LockUnsealed),
+        )
+    } else if blocks.short {
+        also = Some((EN.vault_lock_without_saving, Action::LockUnsealed));
+        (
+            (Icon::Error.into(), Role::Error.paint(), EN.vault_lock),
+            (lines.as_str(), Role::Error.paint()),
+            (EN.vault_lock, Action::Lock),
         )
     } else {
         (
@@ -612,10 +629,18 @@ pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         head,
         (line.0, line.1, None, None),
         &kept_sections(app, false, true, EN.lock_ask_then.to_string()),
-        &[
-            (back, Style::Secondary, Action::Cancel),
-            (lock.0, Style::Primary, lock.1),
-        ],
+        &if let Some((label, action)) = also {
+            vec![
+                (back, Style::Secondary, Action::Cancel),
+                (label, Style::Secondary, action),
+                (lock.0, Style::Primary, lock.1),
+            ]
+        } else {
+            vec![
+                (back, Style::Secondary, Action::Cancel),
+                (lock.0, Style::Primary, lock.1),
+            ]
+        },
     );
 }
 

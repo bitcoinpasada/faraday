@@ -10,7 +10,7 @@ use super::*;
     clippy::disallowed_methods,
     reason = "a mint: faraday-vault's tests, which cannot reach faraday-core's testkit"
 )]
-fn compute() -> faraday_crypto::work::Compute {
+pub(crate) fn compute() -> faraday_crypto::work::Compute {
     faraday_crypto::work::Compute::new(|_| {})
 }
 

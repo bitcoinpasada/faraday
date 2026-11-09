@@ -311,9 +311,12 @@ everything below about the process still applies.
 - **Seal count.** The file holds a count of the times it has been sealed
   and the time of the last seal, inside the encrypted body, so whoever
   opens it can tell an older copy from a newer one.
-- **Fixed size.** The contents are padded to a size chosen at creation,
-  from 64 KiB to 4 MiB, with line feeds after the document. The file does
-  not grow as entries are added and does not show how much it holds.
+- **Padded to a step.** A file vault starts at 32 KiB of contents and
+  each seal pads them with line feeds after the document to the smallest
+  multiple of 32 KiB that holds them, up to 128 MiB. No size is chosen:
+  the length shows how much the vault holds to within 32 KiB, and that it
+  grew or shrank between two copies. Memory is checked before a file is
+  read, an unlock and a seal.
 - **Limits before work.** A reader checks the stated cost against fixed
   limits before allocating memory, and checks every HMAC before parsing
   anything inside.

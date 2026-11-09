@@ -240,7 +240,7 @@ fn create_a_vault_back_opens_the_size_and_a_size_pressed_moves_on() {
 }
 
 #[test]
-fn create_a_vault_customised_cost_and_space_move_on() {
+fn create_a_vault_customised_cost_moves_on() {
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
@@ -249,10 +249,7 @@ fn create_a_vault_customised_cost_and_space_move_on() {
     app.press(Action::Vault(V::CNext(vstep::WHERE)));
     assert_eq!(vault_open(&app), Some(vstep::COST));
     app.press(Action::Vault(V::CPreset(0)));
-    assert_eq!(vault_open(&app), Some(vstep::SIZE), "a cost moves on");
-    app.press(Action::Vault(V::CSize(0)));
-    assert_eq!(vault_open(&app), Some(vstep::PHRASES), "a space moves on");
-    back(&mut app);
+    assert_eq!(vault_open(&app), Some(vstep::PHRASES), "a cost moves on");
     back(&mut app);
     assert_eq!(vault_open(&app), Some(vstep::COST));
 }

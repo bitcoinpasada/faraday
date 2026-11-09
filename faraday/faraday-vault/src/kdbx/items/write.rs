@@ -272,14 +272,18 @@ fn changeable(
     if n == 0 {
         return Ok(n);
     }
-    let owned;
-    let read = match known {
-        Some(r) => r,
-        None => {
-            owned = super::read(c, doc);
-            &owned
-        }
-    };
+    match known {
+        Some(read) => changeable_n(read, n, uuid),
+        None => changeable_n(&super::read(c, doc), n, uuid),
+    }
+}
+
+/// [`changeable`] from the number of entries with the UUID and the `read`
+/// of the document.
+fn changeable_n(read: &Read, n: usize, uuid: &[u8; 16]) -> Result<usize, Unwritable> {
+    if n > 1 {
+        return Err(Unwritable::Unreadable);
+    }
     if read
         .unreadable
         .iter()
@@ -523,6 +527,74 @@ pub fn stamp(doc: &mut Document, seals: u64, sealed: Option<&str>) -> Result<(),
         None => {
             custom.remove("faraday.sealed").map_err(bad)?;
         }
+    }
+    Ok(())
+}
+
+/// Costs a parse of a wallet's text: whether `change` would be refused as
+/// [`Unwritable`] if applied to `doc`, found against `read` (the document
+/// as it was read) and without a copy of the document or a write of it.
+/// The refusals of [`put`], [`remove`], [`put_plan`],
+/// [`put_signed`], [`remove_custom`] and [`stamp`] that depend on the
+/// change and the document as read; the seal applies the changes one after
+/// another and refuses what only that order shows.
+pub fn check(
+    c: &Compute,
+    doc: &Document,
+    read: &Read,
+    index: &super::Index,
+    change: &crate::file::Change<'_>,
+) -> Result<(), Unwritable> {
+    use crate::file::Change;
+    locked(doc)?;
+    match change {
+        Change::Put { place, body } => {
+            if doc.root().ambiguous().is_some() {
+                return Err(Unwritable::Unreadable);
+            }
+            let n = changeable_n(read, index.count(&place.uuid), &place.uuid)?;
+            let (fl, cd) = fields_for(c, body, place.title)?;
+            for (key, value, _) in fl.iter().chain(cd.iter()) {
+                core::str::from_utf8(value).map_err(|_| Unwritable::Value(key))?;
+            }
+            let k = body.kind();
+            let named_kind = KINDS.iter().any(|(_, n)| *n == k);
+            match n {
+                0 if named_kind => {
+                    let group = doc.root().groups().find(|g| g.name() == place.group);
+                    if group.is_some_and(|g| g.duplicate_uuid() || g.ambiguous().is_some()) {
+                        return Err(Unwritable::Unreadable);
+                    }
+                }
+                0 => {}
+                1 => {
+                    if index.bad(&place.uuid) {
+                        return Err(Unwritable::Unreadable);
+                    }
+                }
+                _ => return Err(Unwritable::Unreadable),
+            }
+        }
+        Change::Remove(uuid) => {
+            changeable_n(read, index.count(uuid), uuid)?;
+        }
+        Change::Plan { n, record } => {
+            if *n == 0 {
+                return Err(Unwritable::Plan);
+            }
+            let v = contents::write_plan(record).map_err(|_| Unwritable::Plan)?;
+            core::str::from_utf8(&v).map_err(|_| Unwritable::Plan)?;
+            custom_readable(doc, &text::plan_key(*n))?;
+        }
+        Change::Signed(record) => {
+            if record.kind != kind::AMOUNTS || record.check().is_err() {
+                return Err(Unwritable::Record(record.kind));
+            }
+            let key = text::signed_key(&forms::hex(record.field(field::AMOUNTS_TX).unwrap_or(&[])));
+            custom_readable(doc, &key)?;
+        }
+        Change::RemoveCustom(key) => custom_readable(doc, key)?,
+        Change::Label(_) => {}
     }
     Ok(())
 }

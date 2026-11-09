@@ -220,7 +220,7 @@ Read this table, then only the decision you need.
 | [F203](decisions/F203.md) | A vault's name taken by a file nothing proves is a question: overwrite or save beside | 2026-11-04 | Active | security |
 | [F204](decisions/F204.md) | SLIP-39's set actions are in Convert a seed; codex32's stay with the backup | 2026-11-04 | Active | keys |
 | [F205](decisions/F205.md) | One kernel patch of Faraday's own on the Pi: a failed read of a later EDID block keeps the blocks before it | 2026-11-04 | Active | security |
-| [F206](decisions/F206.md) | A file vault grows by itself: no size to choose, 32 KiB steps, up to 256 MiB as long as it fits in memory | 2026-11-04 | Active | security |
+| [F206](decisions/F206.md) | A file vault grows by itself: no size to choose, 32 KiB steps, up to 128 MiB as long as it fits in memory | 2026-11-04 | Active | security |
 | [F207](decisions/F207.md) | A KeePass file keeps its entry history and recycle bin, written back and never shown | 2026-11-04 | Active | security |
 | [F208](decisions/F208.md) | A file vault takes a key file, and a KeePassXC file protected by a YubiKey opens from that key's typed secret | 2026-11-04 | Active | security |
 | [F209](decisions/F209.md) | Check a signer carries the step card's touch-target exception | 2026-11-04 | Active | design |

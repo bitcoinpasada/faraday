@@ -55,6 +55,7 @@ mod text;
 mod write;
 
 use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 use faraday_bip::bip39::Language;
@@ -74,8 +75,8 @@ pub use text::{
 };
 use text::{Name, Path, Sealed, damage, title_of};
 pub use write::{
-    Place, Unwritable, put, put_known, put_plan, put_signed, remove, remove_custom, remove_known,
-    stamp,
+    Place, Unwritable, check, put, put_known, put_plan, put_signed, remove, remove_custom,
+    remove_known, stamp,
 };
 
 /// The `faraday.format` this build reads and writes.
@@ -516,18 +517,23 @@ struct Marks {
 /// Every entry with its group path and the marks of its groups.
 type Walked<'a> = Vec<(Path, Marks, &'a Entry)>;
 
-fn walk<'a>(g: &'a Group, path: &mut Path, marked: Marks, out: &mut Walked<'a>) {
+/// `names` are the groups from the root down to `g`, each stored once; the
+/// entries of `g` share one [`Path`] made from them (at most `MAX_DEPTH`
+/// pointers), so a group name is never copied per entry.
+fn walk<'a>(g: &'a Group, names: &mut Vec<Arc<str>>, marked: Marks, out: &mut Walked<'a>) {
     let marked = Marks {
         same_uuid: marked.same_uuid || g.duplicate_uuid(),
         ambiguous: marked.ambiguous.or(g.ambiguous()),
     };
+    let mut path: Option<Path> = None;
     for e in g.entries() {
-        out.push((path.clone(), marked, e));
+        let path = path.get_or_insert_with(|| names.as_slice().into());
+        out.push((Arc::clone(path), marked, e));
     }
     for sub in g.groups() {
-        path.push(sub.name().into());
-        walk(sub, path, marked, out);
-        path.pop();
+        names.push(sub.name().into());
+        walk(sub, names, marked, out);
+        names.pop();
     }
 }
 
@@ -672,6 +678,55 @@ fn find_mut<'a>(g: &'a mut Group, uuid: &[u8; 16]) -> Option<&'a mut Entry> {
     g.groups_mut().find_map(|s| find_mut(s, uuid))
 }
 
+/// How many entries of a document have each UUID, and whether the one that
+/// has it cannot be told apart from what it was read as: built by one walk
+/// of the document as read, so that a change to it is checked from the one
+/// entry it touches.
+pub struct Index {
+    entries: alloc::collections::BTreeMap<[u8; 16], (usize, bool)>,
+}
+
+impl Index {
+    /// Costs a walk of the document, linear in its size.
+    pub fn of(doc: &Document) -> Self {
+        fn walk(g: &Group, into: &mut alloc::collections::BTreeMap<[u8; 16], (usize, bool)>) {
+            for e in g.entries() {
+                let bad = has_same_field(e).is_some() || e.ambiguous().is_some();
+                let at = into.entry(e.uuid()).or_insert((0, bad));
+                at.0 += 1;
+            }
+            for s in g.groups() {
+                walk(s, into);
+            }
+        }
+        let mut entries = alloc::collections::BTreeMap::new();
+        walk(doc.root(), &mut entries);
+        Self { entries }
+    }
+
+    /// What the index holds: a count of its entries, no copy.
+    pub fn held(&self) -> usize {
+        // A key, a value and the tree's own nodes, with room to spare.
+        self.entries.len() * 96
+    }
+
+    /// Whether an entry has this UUID: a lookup.
+    pub(crate) fn holds(&self, uuid: &[u8; 16]) -> bool {
+        self.entries.contains_key(uuid)
+    }
+
+    /// How many entries have this UUID.
+    fn count(&self, uuid: &[u8; 16]) -> usize {
+        self.entries.get(uuid).map_or(0, |e| e.0)
+    }
+
+    /// Whether the entry with this UUID is ambiguous or has two fields of
+    /// one key.
+    fn bad(&self, uuid: &[u8; 16]) -> bool {
+        self.entries.get(uuid).is_some_and(|e| e.1)
+    }
+}
+
 fn count_uuid(g: &Group, uuid: &[u8; 16]) -> usize {
     g.entries().filter(|e| e.uuid() == *uuid).count()
         + g.groups().map(|s| count_uuid(s, uuid)).sum::<usize>()
@@ -690,7 +745,6 @@ fn read_meta(
     let mut format = Format::Foreign;
     let mut seals = 0;
     let mut sealed = None;
-    let mut seen: Vec<&str> = Vec::new();
     if ambiguous.is_some() {
         // The values cannot be told apart: each is named and kept as it
         // is, and the vault is read-only.
@@ -715,11 +769,9 @@ fn read_meta(
                 what: damage(key, fault),
             });
         };
-        if seen.contains(&key) {
-            bad(Fault::Twice);
-            continue;
-        }
-        seen.push(key);
+        // No key is met twice here: custom data lists only `faraday.*`
+        // keys, and the reader marks a repeat of one ambiguous, which
+        // returned above.
         match key {
             "faraday.format" => {
                 format = if value == FORMAT {

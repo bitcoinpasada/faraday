@@ -1545,16 +1545,11 @@ exception is in writing, under Security.
 
 A vault is one KDBX 4 file, the database format KeePass writes, under
 one passphrase. Faraday writes it in one shape and reads the shapes a
-KeePass app saves within limits. The plaintext is one of four sizes,
-framed in blocks and wrapped in a header, so each size has one file
-length:
+KeePass app saves within limits.
 
-| Plaintext | File |
-|---|---|
-| 65 536 | 65 921 |
-| 262 144 | 262 529 |
-| 1 048 576 | 1 048 961 |
-| 4 194 304 | 4 194 797 |
+The file holds a plaintext of a whole number of 32 KiB steps, from one
+step to 128 MiB, framed in blocks and wrapped in a header. A vault is as
+small as its contents allow, and no size is chosen.
 
 - The file's name ends in `.kdbx`. There is one passphrase and no
   slots: a file does not hide how many passphrases exist, because there
@@ -1598,7 +1593,7 @@ only until it is sealed again in Faraday's shape.
 **What it promises**
 
 Without the passphrase, the file shows its header, which states the cost
-and the salt, and a length that is one of the sizes. Nothing in the body
+and the salt, and a length that is a whole number of 32 KiB steps. Nothing in the body
 can be read or changed without the passphrase: the header's and every
 block's HMAC fail first.
 

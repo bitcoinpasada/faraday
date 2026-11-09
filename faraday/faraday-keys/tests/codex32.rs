@@ -494,7 +494,6 @@ mod set {
                 passes: 1,
                 lanes: 1,
             },
-            faraday_vault::file::SIZES[0],
             "pass",
             &[7u8; vault::SEAL_RANDOM_LEN],
             None,

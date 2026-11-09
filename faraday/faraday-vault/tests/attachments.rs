@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 
 use faraday_crypto::work::Compute;
-use faraday_vault::file::{self, Change, Error, Opened, SIZES};
+use faraday_vault::file::{self, Change, Opened, STEP};
 use faraday_vault::kdbx::items::{Body, Place};
 use faraday_vault::kdbx::xml::Document;
 use faraday_vault::kdbx::{self, Binaries, Binary, RANDOM_LEN, items};
@@ -48,7 +48,7 @@ fn data(n: u8) -> Vec<u8> {
 fn binary(n: u8, protected: bool) -> Binary {
     Binary {
         protected,
-        data: zeroize::Zeroizing::new(data(n)),
+        data: faraday_vault::kdbx::Shared::new(zeroize::Zeroizing::new(data(n))),
     }
 }
 
@@ -131,7 +131,7 @@ fn an_entry_deleted_takes_its_attachment_out_of_the_file_and_the_others_still_re
         entry(C64, "third", &[&by_ref(2)], ""),
     ]
     .concat();
-    let file = vault(&entries, "", &three(), SIZES[0]);
+    let file = vault(&entries, "", &three(), STEP);
     // Deleting the last one cuts it off.
     let (_, held, _) = sealed(&file, &[Change::Remove(C)]);
     assert_eq!(held.len(), 2);
@@ -167,7 +167,7 @@ fn an_attachment_still_used_by_another_entry_or_a_history_or_the_bin_is_kept() {
         entry(B64, "second", &[&by_ref(0), &by_ref(1)], ""),
     ]
     .concat();
-    let file = vault(&shared, "", &three()[..2], SIZES[0]);
+    let file = vault(&shared, "", &three()[..2], STEP);
     let (_, held, _) = sealed(&file, &[Change::Remove(B)]);
     assert_eq!(
         held,
@@ -182,7 +182,7 @@ fn an_attachment_still_used_by_another_entry_or_a_history_or_the_bin_is_kept() {
         entry(B64, "second", &[&by_ref(0)], ""),
     ]
     .concat();
-    let file = vault(&hist, "", &three()[..2], SIZES[0]);
+    let file = vault(&hist, "", &three()[..2], STEP);
     let (_, held, _) = sealed(&file, &[Change::Remove(B)]);
     assert_eq!(held.len(), 2);
     assert_eq!(held[1], (true, data(1)));
@@ -194,7 +194,7 @@ fn an_attachment_still_used_by_another_entry_or_a_history_or_the_bin_is_kept() {
         &[kept, entry(B64, "second", &[&by_ref(2)], "")].concat(),
         &binned,
         &three(),
-        SIZES[0],
+        STEP,
     );
     let (_, held, _) = sealed(&file, &[Change::Remove(B)]);
     assert_eq!(held, vec![(false, data(0)), (true, data(1))]);
@@ -210,7 +210,7 @@ fn a_reference_that_is_not_understood_keeps_every_attachment() {
         "Ref=\"\"".to_string(),
     ] {
         let entries = [ok.clone(), entry(B64, "second", &[&odd], "")].concat();
-        let file = vault(&entries, "", &three(), SIZES[0]);
+        let file = vault(&entries, "", &three(), STEP);
         let (_, held, _) = sealed(&file, &[Change::Remove(C)]);
         assert_eq!(held.len(), 3, "{odd}");
         assert_eq!(held[2], (false, data(2)), "{odd}");
@@ -224,7 +224,7 @@ fn a_reference_that_is_not_understood_keeps_every_attachment() {
         "<Binary><Key>k</Key><Other/></Binary>",
     ] {
         let weird = format!("<Entry><UUID>{B64}</UUID>{odd}</Entry>");
-        let file = vault(&[ok.clone(), weird].concat(), "", &three(), SIZES[0]);
+        let file = vault(&[ok.clone(), weird].concat(), "", &three(), STEP);
         let (_, held, _) = sealed(&file, &[Change::Remove(C)]);
         assert_eq!(held.len(), 3, "{odd}");
     }
@@ -236,36 +236,31 @@ fn a_reference_in_another_spelling_or_to_nothing_is_read_right() {
     let spelled = format!(
         "<Entry><UUID>{A64}</UUID><Binary><Key>k</Key><Value  Ref = '&#49;' /></Binary></Entry>"
     );
-    let file = vault(&spelled, "", &three(), SIZES[0]);
+    let file = vault(&spelled, "", &three(), STEP);
     let (_, held, _) = sealed(&file, &[]);
     assert_eq!(held.len(), 2);
     assert_eq!(held[0], (false, Vec::new()));
     assert_eq!(held[1], (true, data(1)));
     // A reference past the end changes nothing for the others.
     let past = entry(A64, "past", &[&by_ref(77), &by_ref(0)], "");
-    let file = vault(&past, "", &three(), SIZES[0]);
+    let file = vault(&past, "", &three(), STEP);
     let (_, held, _) = sealed(&file, &[]);
     assert_eq!(held, vec![(false, data(0))]);
 }
 
 #[test]
 fn a_file_with_an_attachment_nothing_refers_to_loses_it_at_the_next_seal() {
-    let file = vault(
-        &entry(A64, "first", &[&by_ref(1)], ""),
-        "",
-        &three(),
-        SIZES[0],
-    );
+    let file = vault(&entry(A64, "first", &[&by_ref(1)], ""), "", &three(), STEP);
     let (_, held, _) = sealed(&file, &[]);
     assert_eq!(held, vec![(false, Vec::new()), (true, data(1))]);
 }
 
 #[test]
-fn deleting_the_entry_with_a_large_attachment_makes_room_in_a_full_vault() {
-    let size = SIZES[0];
+fn a_vault_grows_for_an_added_note_and_deleting_a_large_attachment_keeps_it_small() {
+    let size = STEP;
     let big = Binary {
         protected: false,
-        data: zeroize::Zeroizing::new(vec![0x5a; size - 12_000]),
+        data: faraday_vault::kdbx::Shared::new(zeroize::Zeroizing::new(vec![0x5a; size - 12_000])),
     };
     let file = vault(&entry(A64, "big", &[&by_ref(0)], ""), "", &[big], size);
     let o = open(&file);
@@ -280,16 +275,14 @@ fn deleting_the_entry_with_a_large_attachment_makes_room_in_a_full_vault() {
     };
     let add = Change::Put { place, body: &body };
     let c = compute();
-    assert!(matches!(
-        file::seal(&c, &o, std::slice::from_ref(&add), &random(5), None),
-        Err(Error::Full { .. })
-    ));
+    let grown = file::seal(&c, &o, std::slice::from_ref(&add), &random(5), None).expect("grows");
+    assert!(grown.len() > file.len());
     let full = o.used(&c, &[]).unwrap();
     let gone = o.used(&c, &[Change::Remove(A)]).unwrap();
     assert!(gone + size / 2 < full, "{gone} bytes against {full}");
     assert_eq!(o.next_size(&c, &[Change::Remove(A)], None).unwrap(), size);
     let changes = [Change::Remove(A), add];
-    let out = file::seal(&c, &o, &changes, &random(5), None).expect("fits once it is gone");
+    let out = file::seal(&c, &o, &changes, &random(5), None).expect("seals once it is gone");
     assert_eq!(out.len(), file.len());
     assert_eq!(open(&out).read().items.len(), 1);
 }
@@ -357,7 +350,7 @@ fn keepassxc_reads_a_file_with_an_attachment_emptied_in_the_middle() {
         entry(C64, "third", &[&by_ref(2)], ""),
     ]
     .concat();
-    let file = vault(&entries, "", &three(), SIZES[0]);
+    let file = vault(&entries, "", &three(), STEP);
     let (out, held, _) = sealed(&file, &[Change::Remove(B)]);
     assert_eq!(held[1], (true, Vec::new()));
     let dir = std::env::temp_dir().join(format!("faraday-attachments-xc-{}", std::process::id()));

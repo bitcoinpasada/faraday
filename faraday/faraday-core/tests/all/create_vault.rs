@@ -324,7 +324,7 @@ fn pcs_only_makes_a_512_mib_vault() {
 }
 
 #[test]
-fn customise_opens_the_three_cards_and_a_custom_memory_survives_continue() {
+fn customise_opens_the_two_cards_and_a_custom_memory_survives_continue() {
     use faraday_core::vault::{CUSTOM_MEMORY, vstep};
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
@@ -332,7 +332,7 @@ fn customise_opens_the_three_cards_and_a_custom_memory_survives_continue() {
     assert!(app.offers(Action::Vault(V::CCustomise)));
     app.press(Action::Vault(V::CCustomise));
     let _ = app.frame();
-    for step in [vstep::WHERE, vstep::COST, vstep::SIZE] {
+    for step in [vstep::WHERE, vstep::COST] {
         assert!(
             app.offers(Action::Vault(V::CStep(step))),
             "Customise shows step {step}"
@@ -346,22 +346,21 @@ fn customise_opens_the_three_cards_and_a_custom_memory_survives_continue() {
     let k = CUSTOM_MEMORY.iter().position(|m| *m == 128).unwrap();
     app.press(Action::Vault(V::CMemory(k)));
     app.press(Action::Vault(V::CNext(vstep::COST)));
-    app.press(Action::Vault(V::CNext(vstep::SIZE)));
     assert_eq!(create_and_read_cost(&mut app).0, 128);
 }
 
-/// The vault's memory is one figure: the size, the cost and the summary
-/// all say 64 MiB for PCs and a Raspberry Pi, never the app's share on
-/// top of it.
+/// The vault's memory is one figure: the machines choice, the cost and
+/// the summary all say 64 MiB for PCs and a Raspberry Pi, never the app's
+/// share on top of it.
 #[test]
-fn the_unlock_memory_reads_the_same_on_the_size_and_the_summary() {
+fn the_unlock_memory_reads_the_same_on_the_machines_and_the_summary() {
     use faraday_core::vault::vstep;
     let mut app = on_create_vault();
     app.press(Action::Vault(V::CStep(vstep::PRESET)));
     let text = app.drawn_texts();
     assert!(text.iter().any(|t| t == "Unlock memory"), "{text:?}");
-    assert!(text.iter().any(|t| t == "64\u{a0}MiB"), "{text:?}");
-    assert!(!text.iter().any(|t| t.contains("164\u{a0}MiB")), "{text:?}");
+    assert!(text.iter().any(|t| t == "64 MiB"), "{text:?}");
+    assert!(!text.iter().any(|t| t.contains("164 MiB")), "{text:?}");
 }
 
 /// Customise's This computer is ticked and can be unticked; its row reads

@@ -7,9 +7,10 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use base64ct::{Base64, Encoding};
 use faraday_crypto::work::{Compute, Work};
 use faraday_vault::Cost;
-use faraday_vault::kdbx::xml::{Document, Entry, Group, Refused};
+use faraday_vault::kdbx::xml::{Document, Entry, Group, MODEL_PER_BYTE, Refused};
 use faraday_vault::kdbx::{Contents, RANDOM_LEN, inner_key_of, open, seal};
 
 const PASSPHRASE: &str = "kdbx vector passphrase";
@@ -1108,6 +1109,13 @@ fn a_bin_with_a_damaged_structure_is_still_refused() {
     }
 }
 
+/// A UUID as Base64, from a number.
+fn numbered_id(i: usize) -> String {
+    let mut raw = [7u8; 16];
+    raw[..8].copy_from_slice(&(i as u64 + 1).to_le_bytes());
+    Base64::encode_string(&raw)
+}
+
 #[test]
 fn a_document_with_a_byte_order_mark_is_written_whole_and_read_again() {
     const KEY: &[u8] = &[7; 64];
@@ -1128,4 +1136,203 @@ fn a_document_with_a_byte_order_mark_is_written_whole_and_read_again() {
             .map(|p| p.value()),
         Some("Example")
     );
+}
+
+#[test]
+fn many_recycle_bin_ids_make_the_meta_ambiguous_and_each_names_its_group() {
+    // Every id is kept, so a Meta of many of them beside as many groups
+    // carries every group they name and none other.
+    const N: usize = 2_000;
+    let meta: String = (0..N)
+        .map(|i| format!("<RecycleBinUUID>{}</RecycleBinUUID>", numbered_id(i)))
+        .collect();
+    let entry = format!("<Entry><UUID>{OTHER}</UUID></Entry>");
+    let mut groups: String = (0..N)
+        .map(|i| {
+            format!(
+                "<Group><UUID>{}</UUID><Name>g</Name>{entry}</Group>",
+                numbered_id(N - 1 - i)
+            )
+        })
+        .collect();
+    groups.push_str(&format!(
+        "<Group><UUID>{}</UUID><Name>kept</Name></Group>",
+        numbered_id(N)
+    ));
+    let doc = Document::read(&skeleton(&meta, &groups), KEY).expect("reads");
+    assert_eq!(doc.ambiguous(), Some("RecycleBinUUID twice"));
+    assert_eq!(doc.recycle_bin_entries(), N);
+    let left: Vec<&str> = doc.root().groups().map(Group::name).collect();
+    assert_eq!(left, ["kept"]);
+}
+
+#[test]
+fn two_real_recycle_bin_ids_carry_both_groups_out_of_the_model() {
+    // Neither group's entries load as live items: both are the bin.
+    let (a, b) = (numbered_id(1), numbered_id(2));
+    let meta = format!("<RecycleBinUUID>{a}</RecycleBinUUID><RecycleBinUUID>{b}</RecycleBinUUID>");
+    let entry = format!("<Entry><UUID>{OTHER}</UUID></Entry>");
+    let groups = format!(
+        "<Group><UUID>{a}</UUID><Name>A</Name>{entry}</Group><Group><UUID>{b}</UUID><Name>B</Name>{entry}</Group><Group><UUID>{}</UUID><Name>C</Name></Group>",
+        numbered_id(3)
+    );
+    let doc = Document::read(&skeleton(&meta, &groups), KEY).expect("reads");
+    assert_eq!(doc.ambiguous(), Some("RecycleBinUUID twice"));
+    assert_eq!(doc.recycle_bin_entries(), 2);
+    let left: Vec<&str> = doc.root().groups().map(Group::name).collect();
+    assert_eq!(left, ["C"]);
+}
+
+/// A document of `n` entries shaped as a KeePass app writes them: every
+/// field a person keeps, one protected, each element on its own line.
+fn dense_real_document(n: usize) -> Vec<u8> {
+    let mut doc = Document::new([1; 16], "Vault");
+    for i in 0..n {
+        let mut e = Entry::new([(i % 250) as u8 + 1; 16]);
+        for (k, v, p) in [
+            ("Title", "A bank", false),
+            ("UserName", "someone", false),
+            ("Password", "correct horse battery", true),
+            ("URL", "https://example.org/login", false),
+            ("Notes", "", false),
+        ] {
+            e.set_field(k, v, p).unwrap();
+        }
+        e.set_modified(1_700_000_000).unwrap();
+        doc.root_mut().push_entry(e).unwrap();
+    }
+    let text = String::from_utf8(doc.write(KEY).to_vec()).unwrap();
+    text.replace("><", ">\n\t\t<").into_bytes()
+}
+
+#[test]
+fn a_document_of_empty_elements_is_refused_for_what_its_structures_would_take() {
+    // 100,000 empty entries are 800 KB and take about 75 MB to hold (92 a
+    // byte, measured in reader_memory.rs): past what the length allows (40
+    // a byte).
+    for tag in ["<Entry/>", "<Group/>"] {
+        let many = skeleton("", &tag.repeat(100_000));
+        assert_eq!(refusal(&many), Refused::TooLarge, "{tag}");
+        let few = skeleton("", &tag.repeat(1_000));
+        assert!(Document::read(&few, KEY).is_ok(), "{tag}");
+    }
+}
+
+#[test]
+fn a_dense_document_of_real_entries_stays_well_under_the_limit_at_any_size() {
+    // What is charged is proportional to the length, so a document of 200
+    // entries stands for one of a gibibyte: it is charged at most half of
+    // what the limit allows per byte.
+    let real = dense_real_document(200);
+    let doc = Document::read(&real, KEY).expect("reads");
+    assert!(
+        doc.charged() * 2 <= real.len() * MODEL_PER_BYTE,
+        "{}",
+        doc.charged()
+    );
+    // The same in the shape KeePassXC writes: every group and entry with
+    // its Times children, one element on a line.
+    let times = "<Times><CreationTime>2024-01-01T00:00:00Z</CreationTime><LastModificationTime>2024-01-01T00:00:00Z</LastModificationTime><LastAccessTime>2024-01-01T00:00:00Z</LastAccessTime><ExpiryTime>2024-01-01T00:00:00Z</ExpiryTime><Expires>False</Expires><UsageCount>0</UsageCount><LocationChanged>2024-01-01T00:00:00Z</LocationChanged></Times>";
+    let mut body = String::new();
+    for i in 0..200 {
+        body.push_str(&format!(
+            "<Group><UUID>{}</UUID><Name>g{i}</Name><Notes/><IconID>48</IconID>{times}<IsExpanded>True</IsExpanded><DefaultAutoTypeSequence/><EnableAutoType>null</EnableAutoType><EnableSearching>null</EnableSearching><LastTopVisibleEntry>AAAAAAAAAAAAAAAAAAAAAA==</LastTopVisibleEntry>\
+             <Entry><UUID>{}</UUID><IconID>0</IconID>{times}<String><Key>Title</Key><Value>t</Value></String><AutoType><Enabled>True</Enabled></AutoType></Entry></Group>\n",
+            numbered_id(2 * i + 10),
+            numbered_id(2 * i + 11)
+        ));
+    }
+    let xc = skeleton("", &body.replace('\n', "\n\t"));
+    let doc = Document::read(&xc, KEY).expect("reads");
+    assert!(
+        doc.charged() * 2 <= xc.len() * MODEL_PER_BYTE,
+        "{} of {}",
+        doc.charged(),
+        xc.len()
+    );
+}
+
+#[test]
+fn the_length_counted_is_the_length_written_for_new_and_read_documents() {
+    // A new document with every kind of field, one protected and one that
+    // needs escaping, and a document as read, with its carried bytes and
+    // self-closed elements.
+    let mut doc = Document::new([1; 16], "Vault & <more>");
+    assert_eq!(doc.written_len(), doc.write(KEY).len());
+    let mut e = Entry::new([3; 16]);
+    for (k, v, p) in [
+        ("Title", "A bank & more", false),
+        ("Password", "correct horse battery", true),
+        ("Notes", "line\r\nline <two>", false),
+        ("Empty", "", true),
+    ] {
+        e.set_field(k, v, p).unwrap();
+    }
+    e.set_modified(1_700_000_000).unwrap();
+    e.custom_mut().set("faraday.k", "v").unwrap();
+    doc.root_mut().push_entry(e).unwrap();
+    doc.root_mut()
+        .push_group(Group::new([4; 16], "Sub"))
+        .unwrap();
+    doc.custom_mut().set("faraday.seals", "7").unwrap();
+    assert_eq!(doc.written_len(), doc.write(KEY).len());
+    let dense = dense_real_document(20);
+    let read = Document::read(&dense, KEY).expect("reads");
+    assert_eq!(read.written_len(), read.write(KEY).len());
+    let again = Document::read(&skeleton("", "<Entry/><Group/>"), KEY).expect("reads");
+    assert_eq!(again.written_len(), again.write(KEY).len());
+    // History kept as carried bytes with a protected value in it, and a
+    // recycle bin with another.
+    let bin = [9u8; 16];
+    let mut src = Document::new([1; 16], "Vault");
+    for n in [5u8, 6, 7] {
+        let mut e = Entry::new([n; 16]);
+        e.set_field("Title", "t", false).unwrap();
+        e.set_field("Password", &format!("secret {n}"), true)
+            .unwrap();
+        if n == 7 {
+            let mut g = Group::new(bin, "Recycle Bin");
+            g.push_entry(e).unwrap();
+            src.root_mut().push_group(g).unwrap();
+        } else {
+            src.root_mut().push_entry(e).unwrap();
+        }
+    }
+    let mut text = String::from_utf8(src.write(KEY).to_vec()).unwrap();
+    let second = text
+        .find("<Entry><UUID>")
+        .and_then(|a| text[a + 1..].find("<Entry><UUID>").map(|b| a + 1 + b))
+        .expect("a second entry");
+    let end = second + text[second..].find("</Entry>").unwrap() + "</Entry>".len();
+    let moved = text[second..end].to_string();
+    text.replace_range(second..end, "");
+    let first_end = text.find("</Entry>").unwrap();
+    text.insert_str(first_end, &format!("<History>{moved}</History>"));
+    // The template's own RecycleBinUUID is the one this document keeps.
+    const NONE: &str = "<RecycleBinUUID>AAAAAAAAAAAAAAAAAAAAAA==</RecycleBinUUID>";
+    assert_eq!(text.matches("<RecycleBinUUID>").count(), 1);
+    text = text.replace(
+        NONE,
+        &format!(
+            "<RecycleBinUUID>{}</RecycleBinUUID>",
+            Base64::encode_string(&bin)
+        ),
+    );
+    assert_eq!(text.matches("<RecycleBinUUID>").count(), 1);
+    let kept = Document::read(text.as_bytes(), KEY).expect("reads");
+    assert_eq!((kept.history_entries(), kept.recycle_bin_entries()), (1, 1));
+    assert_eq!(kept.written_len(), kept.write(KEY).len());
+}
+
+#[test]
+fn a_small_budget_refuses_with_memory_and_a_big_one_reads_the_same_document() {
+    let real = dense_real_document(200);
+    let whole = Document::read(&real, KEY).expect("reads");
+    let charged = whole.charged();
+    match Document::read_within(&real, KEY, Some(charged / 2)) {
+        Err(Refused::Memory(at)) => assert!(at > charged / 2 && at < charged, "{at}"),
+        other => panic!("not refused for memory: {:?}", other.err()),
+    }
+    let big = Document::read_within(&real, KEY, Some(charged)).expect("reads");
+    assert_eq!(big.write(KEY).to_vec(), whole.write(KEY).to_vec());
 }

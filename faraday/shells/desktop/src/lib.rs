@@ -266,9 +266,6 @@ impl Demo {
                 unix_secs: t.as_secs(),
             });
         }
-        if let Some(available_mib) = faraday_storage::memory_available_mib() {
-            app.storage(StorageEvent::Memory { available_mib });
-        }
         self.serve(app);
         true
     }
@@ -421,6 +418,7 @@ fn watch_listing(downloads: PathBuf, opens: bool, out: Sender<Listing>, stop: Ar
 /// steps that take a seed carry a line instead (F81).
 pub fn desktop_app_in(mode: faraday_core::Mode) -> Faraday {
     let mut app = Faraday::new();
+    app.set_memory_reader(faraday_storage::memory_available_mib);
     app.online = true;
     app.seed_line = true;
     // The window answers `RequestClipboard` ([`Demo::command`]).

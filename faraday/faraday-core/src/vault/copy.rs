@@ -10,8 +10,9 @@
 
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{Staged, VaultId};
-use faraday_vault::file::SIZES;
+use faraday_vault::file::CEILING;
 use faraday_vault::records::{field, kind};
+use std::ops::Not;
 
 use crate::strings::{EN, fill};
 use crate::vault::{VaultAction, Work};
@@ -167,8 +168,8 @@ pub(crate) fn open(app: &mut Faraday, mv: bool) {
     rows.push(CopyRow {
         to: Dest::New,
         name: EN.vault_copy_new.to_string(),
-        why: smallest_size(app, &c, &staged)
-            .is_none()
+        why: fits(app, &c, &staged)
+            .not()
             .then(|| EN.vaults_slot_too_small.to_string()),
     });
     app.vaults.state.copy_to = Some(Box::new(CopyTo {
@@ -224,8 +225,8 @@ pub(crate) fn keep(app: &mut Faraday, k: usize) {
                             &staged,
                         )),
                         Dest::New => Some(
-                            smallest_size(app, &c, &staged)
-                                .is_none()
+                            fits(app, &c, &staged)
+                                .not()
                                 .then(|| EN.vaults_slot_too_small.to_string()),
                         ),
                         Dest::Locked(_) => None,
@@ -263,8 +264,8 @@ fn judge(
         app.vaults.key_identity(c, app.session.network(), r)
     }) {
         Some(EN.vault_copy_holds.to_string())
-    } else if !store.fits(c, to, &[], &[staged]) {
-        Some(app.vault_no_room_text(c, to).to_string())
+    } else if let Some(why) = app.vault_refuses(c, to, &[], &[staged]) {
+        Some(why)
     } else if mv && app.vaults.state.moved_ring(from, to) {
         Some(fill(EN.vault_move_ring, &[from_name]))
     } else {
@@ -272,19 +273,15 @@ fn judge(
     }
 }
 
-/// Costs a document write for each size tried. The smallest size a new
-/// vault can have that holds the item, `None` when none does. The vault's
-/// name is not typed yet, so each size is judged with a name of the longest
-/// the document takes ([`LABEL_MAX`](super::area::LABEL_MAX) bytes) made of
-/// the one-byte character the document writes longest (`&`, five bytes):
-/// a size offered holds the item whatever name is typed.
-fn smallest_size(app: &Faraday, c: &Compute, staged: &Staged) -> Option<usize> {
+/// Costs a document write. Whether a new vault holds the item. The vault's
+/// name is not typed yet, so it is judged with a name of the longest the
+/// document takes ([`LABEL_MAX`](super::area::LABEL_MAX) bytes) made of the
+/// one-byte character the document writes longest (`&`, five bytes): a
+/// vault holds the item whatever name is typed.
+fn fits(app: &Faraday, c: &Compute, staged: &Staged) -> bool {
     let store = app.vaults.store();
     let longest = "&".repeat(super::area::LABEL_MAX);
-    SIZES
-        .iter()
-        .copied()
-        .find(|&size| store.fits_new(c, &longest, size, &[staged]))
+    store.fits_new(c, &longest, CEILING, &[staged])
 }
 
 /// Row `n` pressed: the copy is made, or, where the entry carries data
@@ -430,8 +427,6 @@ pub struct CopyWait {
     to: Option<[u8; 32]>,
     /// The vault is made for it.
     new: bool,
-    /// The smallest size a new vault can have and hold it.
-    min_size: usize,
     /// The contents as they were: the kind shown, whether it was chosen,
     /// the item in each kind and whether the page was open.
     view: (usize, bool, [usize; 7], bool),
@@ -439,7 +434,7 @@ pub struct CopyWait {
 
 /// Takes the sheet's state into a wait for vault `to` (a new vault when
 /// `None`) and closes the sheet.
-fn hold(app: &mut Faraday, to: Option<[u8; 32]>, min_size: usize) -> bool {
+fn hold(app: &mut Faraday, to: Option<[u8; 32]>) -> bool {
     let Some(s) = app.vaults.state.copy_to.take() else {
         return false;
     };
@@ -457,7 +452,6 @@ fn hold(app: &mut Faraday, to: Option<[u8; 32]>, min_size: usize) -> bool {
         keeps: s.keeps,
         to,
         new: to.is_none(),
-        min_size,
         view: (st.category, st.category_chosen, st.item, st.item_open),
     }));
     true
@@ -476,7 +470,7 @@ fn unlock_for(app: &mut Faraday, id: [u8; 32]) {
     }) else {
         return;
     };
-    if hold(app, Some(id), 0) {
+    if hold(app, Some(id)) {
         app.vault_act(VaultAction::OpenFrom(at, Screen::VaultContents));
         if app.screen != Screen::Unlock {
             app.vaults.state.copy_wait = None;
@@ -484,9 +478,8 @@ fn unlock_for(app: &mut Faraday, id: [u8; 32]) {
     }
 }
 
-/// Costs a document write for each size tried. **New vault with this
-/// item** pressed: Create a vault, which offers only the sizes the item
-/// fits.
+/// Costs a document write. **New vault with this item** pressed: Create a
+/// vault, when the item fits one.
 fn new_for(app: &mut Faraday) {
     let Some((from, record, left)) = app
         .vaults
@@ -501,28 +494,13 @@ fn new_for(app: &mut Faraday) {
     let Some(staged) = app.vaults.store().stage(from, record, &left) else {
         return;
     };
-    let Some(min) = smallest_size(app, &c, &staged) else {
+    if !fits(app, &c, &staged) {
         return;
-    };
+    }
     // A fresh Create drops any wait, so the wait is taken after it: it is
     // then the wait of the form just made.
     app.vault_act(VaultAction::Create);
-    if hold(app, None, min)
-        && let Some(c) = app.vaults.state.create.as_mut()
-    {
-        c.size = min;
-    }
-}
-
-/// The smallest size Create a vault offers while an item waits to go in
-/// the vault it makes; `None` when none does.
-pub(crate) fn min_size(app: &Faraday) -> Option<usize> {
-    app.vaults
-        .state
-        .copy_wait
-        .as_ref()
-        .filter(|w| w.new && w.to.is_none())
-        .map(|w| w.min_size)
+    hold(app, None);
 }
 
 /// Costs what listing the files and starting an unlock cost. The vault was

@@ -836,6 +836,39 @@ impl<D: Disk> Volume<D> {
         self.read_entry(&e, max)
     }
 
+    /// A file's length and its `len` bytes from `from` (fewer where it
+    /// ends first), refused when the file is larger than `max` bytes.
+    /// Reads the clusters that hold the piece and not the rest.
+    pub fn read_part(
+        &mut self,
+        name: &str,
+        from: u64,
+        len: usize,
+        max: u32,
+    ) -> Result<(u32, Vec<u8>), Error> {
+        let e = self.find(name)?.filter(|e| !e.dir).ok_or(Error::NotFound)?;
+        if e.size > max {
+            return Err(Error::TooLarge);
+        }
+        let start = from.min(u64::from(e.size)) as usize;
+        let end = start.saturating_add(len).min(e.size as usize);
+        if start >= end {
+            return Ok((e.size, Vec::new()));
+        }
+        let cb = self.cluster_bytes as usize;
+        let chain = self.chain_start(e.cluster, end.div_ceil(cb))?;
+        let first = start / cb;
+        let mut whole = vec![0u8; end.div_ceil(cb) * cb - first * cb];
+        for (k, part) in whole.chunks_mut(cb).enumerate() {
+            let at = self.cluster_at(chain[first + k]);
+            self.disk.read_at(at, part)?;
+        }
+        let skip = start - first * cb;
+        let mut out = whole.split_off(skip);
+        out.truncate(end - start);
+        Ok((e.size, out))
+    }
+
     /// A file's first `n` bytes (fewer where it is shorter), refused when
     /// the file is larger than `max` bytes. Reads the first cluster of
     /// the file and not the rest.

@@ -120,6 +120,8 @@ fn serve(
     let mut rx = File::open(requests)?;
     let tx = OpenOptions::new().write(true).open(responses)?;
     *now.lock().unwrap_or_else(PoisonError::into_inner) = Some((talk, tx));
+    // Pieces an earlier shell left are not part of what this one writes.
+    disks.forget_held();
     let served = serve_on(c, disks, &mut rx, talk, now, pictures);
     // Whatever a picture still being read finds, this shell has gone.
     *now.lock().unwrap_or_else(PoisonError::into_inner) = None;

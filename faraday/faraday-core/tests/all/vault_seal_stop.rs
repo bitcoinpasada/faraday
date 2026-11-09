@@ -57,7 +57,7 @@ fn vault_files(app: &Faraday) -> usize {
 }
 
 /// Two vaults, both changed, that hold one plan each; the second is
-/// within a seals line of its size, so the seal of the first, which adds
+/// within a seals line of the most a vault may hold, so the seal of the first, which adds
 /// its line to the second's plan, leaves the second too big.
 fn two_changed_second_nearly_full() -> Faraday {
     let mut app = testkit::started();
@@ -84,22 +84,16 @@ fn two_changed_second_nearly_full() -> Faraday {
     testkit::vault_changed(&mut app, ida);
 
     let c = testkit::compute();
-    let slot = app.vaults().open[1].slot_limit();
-    let used = |app: &Faraday| app.vaults().records(idb).used(&c);
-    let add = |app: &mut Faraday, n: usize| {
-        testkit::vault_edit(app, idb, |s| s.insert(idb, entry(&vec![b'x'; n])));
-        testkit::vault_changed(app, idb);
-    };
-    // The first entry pays for its group; the next shows what one costs.
-    add(&mut app, 10);
-    let before = used(&app);
-    add(&mut app, 10);
-    let overhead = used(&app) - before - 10;
-    while slot - used(&app) >= 100 + overhead {
-        let room = slot - used(&app);
-        add(&mut app, (room - overhead - 60).min(3000));
-    }
-    assert!(slot - used(&app) < 100, "room left: {}", slot - used(&app));
+    // The second holds a good deal more than the first. The most a vault
+    // may hold is lowered to just above it, so that the first's seal,
+    // which adds its line to the second's plan, leaves the second too big.
+    testkit::vault_edit(&mut app, idb, |s| s.insert(idb, entry(&vec![b'x'; 3000])));
+    testkit::vault_changed(&mut app, idb);
+    // Past a limit of nothing the size is counted, not bounded.
+    testkit::vault_edit(&mut app, idb, |s| s.lower_limit(0));
+    let used = app.vaults().records(idb).used(&c);
+    testkit::vault_edit(&mut app, idb, |s| s.lower_limit(used + 10));
+    assert_eq!(app.vaults().slot_limit(idb), used + 10);
     assert!(!app.lock_would_lose(&c));
     app
 }
@@ -212,4 +206,57 @@ fn the_lost_changes_warning_shows_once_and_not_after_a_lock_that_lost_none() {
     );
     let mut third = after(kept(&mut second));
     assert!(!warned(&mut third), "the warning showed again");
+}
+
+/// Two vaults, both changed, with the memory free for their seals.
+fn two_changed() -> Faraday {
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.storage(StorageEvent::Clock {
+        unix_secs: 1_791_000_000,
+    });
+    testkit::vault_speed(&mut app, Some(100));
+    app.storage(StorageEvent::Restored {
+        inbox: vec![
+            ("a.kdbx".into(), with_plan("Plans A", A, 5)),
+            ("b.kdbx".into(), with_plan("Plans B", B, 6)),
+        ],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    crate::common::top_up(&mut app);
+    unlock(&mut app, 0, A);
+    unlock(&mut app, 1, B);
+    for k in 0..2 {
+        let id = app.vaults().open[k].id;
+        testkit::vault_edit(&mut app, id, |s| s.insert(id, entry(b"in it")));
+        testkit::vault_changed(&mut app, id);
+    }
+    app
+}
+
+#[test]
+fn the_second_vault_of_a_lock_is_checked_against_the_memory_free_when_its_seal_starts() {
+    let mut app = two_changed();
+    testkit::read_memory_as(&mut app, &[15_000, 15_000]);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert_eq!(vault_files(&app), 2);
+    assert!(app.restart_requested());
+}
+
+#[test]
+fn a_second_vault_that_the_memory_free_after_the_first_seal_cannot_hold_stays_open() {
+    let mut app = two_changed();
+    // The first seal starts with plenty free; by the second, little is.
+    testkit::read_memory_as(&mut app, &[15_000, 50]);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert_eq!(vault_files(&app), 1);
+    assert_eq!(app.vaults().open.len(), 1);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    assert!(app.toast_text().is_some_and(|t| t.starts_with("Needs ")));
+    assert!(!app.restart_requested());
 }

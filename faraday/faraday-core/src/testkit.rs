@@ -1538,7 +1538,6 @@ pub fn kdbx_vault_at(
         [id; 16],
         label,
         cost,
-        faraday_vault::file::SIZES[0],
         passphrase,
         &[id; faraday_vault::kdbx::RANDOM_LEN],
         None,
@@ -1600,7 +1599,7 @@ pub fn kdbx_edited(
         cost,
         &random,
         &contents,
-        faraday_vault::file::SIZES[0],
+        2 * faraday_vault::file::STEP,
     )
     .map_err(|e| format!("{e:?}"))
 }
@@ -2281,6 +2280,18 @@ pub fn vault_changed(app: &mut crate::Faraday, id: faraday_keys::vault::VaultId)
     app.vaults.changed(id);
 }
 
+/// An item moved from open vault `from` into open vault `to` waits for
+/// `to`'s seal, as the Move dialog leaves it.
+pub fn vault_moved(app: &mut crate::Faraday, from: usize, to: usize) {
+    let (Some(f), Some(t)) = (
+        app.vaults.open.get(from).map(|o| o.id),
+        app.vaults.open.get(to).map(|o| o.id),
+    ) else {
+        return;
+    };
+    app.vaults.moved_pair(f, t);
+}
+
 /// Locks open vault `o` alone, as the backup flow does: true when it is
 /// closed now.
 pub fn vault_lock_one(app: &mut crate::Faraday, o: usize) -> bool {
@@ -2351,6 +2362,28 @@ pub fn device_bytes(app: &crate::Faraday, bytes: &[u8; 32]) -> [u8; 32] {
 /// keyboard's code draws it.
 pub fn seed_draw(app: &crate::Faraday, what: &[u8], count: &[u8]) -> Option<[u8; 32]> {
     app.fresh.draw(what, count)
+}
+
+thread_local! {
+    /// What the next reads of free memory say, MiB; the last repeats.
+    static FREE_READS: std::cell::RefCell<std::collections::VecDeque<u32>> =
+        const { std::cell::RefCell::new(std::collections::VecDeque::new()) };
+}
+
+/// Makes `app` read free memory as a shell does, each read saying the next
+/// of `figures` in turn, MiB; the last says it again.
+pub fn read_memory_as(app: &mut crate::Faraday, figures: &[u32]) {
+    FREE_READS.with(|f| *f.borrow_mut() = figures.iter().copied().collect());
+    app.set_memory_reader(|| {
+        FREE_READS.with(|f| {
+            let mut f = f.borrow_mut();
+            if f.len() > 1 {
+                f.pop_front()
+            } else {
+                f.front().copied()
+            }
+        })
+    });
 }
 
 /// Waits for the job the worker runs and applies its answer, as the

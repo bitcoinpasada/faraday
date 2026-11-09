@@ -701,6 +701,9 @@ pub enum Problem {
     Unreadable,
     /// Cannot be written.
     ReadOnly,
+    /// A vault file on it that the plan needs is not read: this computer has
+    /// not the memory for it (the line says what it needs and what is free).
+    Memory(String),
     /// Too little room: needed and free, bytes.
     NoRoom(u64, u64),
     /// The plan gives an existing vault and the stick holds none.
@@ -765,6 +768,10 @@ pub struct Reading {
     pub files: Vec<(VaultRead, Vec<u8>)>,
     /// Why it cannot be used, or is refused.
     pub problem: Option<Problem>,
+    /// Why a vault file on the stick was not read: this computer has not the
+    /// memory for it. The stick is refused for it only where the plan gives
+    /// an existing vault and no other file on it is that vault's.
+    pub short: Option<String>,
     /// How each vault the stick keeps is kept on it, as chosen.
     pub picks: Vec<(usize, Pick)>,
     /// Bound: waits for the stick to be pulled.

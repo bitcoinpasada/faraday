@@ -1745,8 +1745,6 @@ strings! {
     /// Text in `tile_need`.
     catalog_unlock_a_vault: "Unlock a vault first",
     // ----- chart_edit (faraday-core/src/chart_edit.rs) -----
-    /// Toast in `chart_notes_change`.
-    chart_edit_that_does: "That does not fit in this vault's size",
     /// Text in `edit_title`.
     chart_edit_a_new_place: "a new place",
     /// Text in `edit_title`. `{}`: `p + 1`.
@@ -7171,6 +7169,8 @@ strings! {
     /// Text in `visit`.
     visit_file_too_large: "Larger than 18 MB: not read",
     /// Text in `visit`.
+    visit_file_memory_unknown: "Not read: this computer does not say how much memory it has free",
+    /// Text in `visit`.
     visit_settings: "Settings",
     /// Text in `visit`: a file asked for and not yet read. `{}`: its size.
     visit_being_read: "Being read · {}",
@@ -8682,6 +8682,8 @@ strings! {
     vault_choose_the_vault: "Choose the vault and type its passphrase. The time is the Argon2id cost the vault was made with, measured on this computer.",
     /// Text in `VSTEPS`.
     vault_where_will_you: "Where will you open it?",
+    /// Text in `VSTEPS`.
+    vault_opens_on_step: "Opens on",
     /// Text in `create`. `{}`: `app.back_name(s)`.
     vault_then: "Then: {}",
     /// Text in `create`.
@@ -8693,17 +8695,13 @@ strings! {
     /// Text in `create_guide`.
     vault_guide_guess_cost: "Each guess at a passphrase costs this much memory and time; a machine without the memory cannot open the vault at all. The passphrase counts for more than the cost. The cost cannot be changed later.",
     /// Text in `create_guide`.
-    vault_every_passphrase: "The space is fixed for the life of the vault. 256 KiB holds keys, wallets, notes and about a hundred entries.",
-    /// Text in `create_guide`.
-    vault_a_vault_opens: "512 MiB opens on PCs; 64 MiB on a Raspberry Pi as well. The cost cannot be changed later. Customise sets the machines, the cost and the space one by one.",
+    vault_a_vault_opens: "512 MiB opens on PCs; 64 MiB on a Raspberry Pi as well. The cost cannot be changed later. Customise sets the machines and the cost one by one.",
     /// Text in `create_guide`.
     vault_each_passphrase: "The passphrase is fixed now: a change later means a new vault. Six EFF words are out of reach at any cost.",
     /// Text in `create_summaries`.
     vault_none_chosen: "None chosen",
     /// Text. `{}`: `name`, `mib_text(mem)`, `passes`.
     vault_cost_row: "{} · {} · {} passes",
-    /// Text. `{}`: `size_text(c.slot)`, `file_text(file_len(c.slot))`.
-    vault_file_n: "{} · file {}",
     /// Text in `create_summaries`.
     vault_match: "match",
     /// Text in `create_summaries`.
@@ -8746,8 +8744,6 @@ strings! {
     vault_this_computer_has: "This computer has {} free",
     /// Button in `create_body`.
     vault_customise: "Customise",
-    /// Text in `create_body`. `{}`: `file_text(file_len(*s))`.
-    vault_file_n_inline: "file {}",
     /// Button in `create_body`.
     vault_continue: "Continue",
     /// Line in `create_body`.
@@ -8797,8 +8793,6 @@ strings! {
     vault_opens_on_label: "Opens on",
     /// Text in `create_panel`.
     vault_unlock_cost: "Unlock cost",
-    /// Text in `create_panel`.
-    vault_space_per_passphrase: "Space",
     /// Text in `create_panel`.
     vault_name_and_passphrases: "Name and passphrase",
     /// Text in `create_panel`.
@@ -9131,11 +9125,25 @@ strings! {
     /// given no randomness.
     vault_not_sealed: "Not sealed",
     /// Toast in `vault_lock_one` and the Lock sheet's line. `{}`: the
-    /// vault's name, the bytes its changes are over its slot.
-    vault_cannot_seal: "{} cannot be sealed: its changes are {} bytes over its size",
+    /// vault's name, the bytes its changes are over the most a vault holds.
+    vault_cannot_seal: "{} cannot be sealed: its changes are {} bytes over the most a vault holds",
+    /// The head, for a file Faraday sealed. `{}`: the size its length
+    /// shows, which the vault holds to within 32 KiB.
+    vault_holds_up_to: "Holds up to {}",
     /// Button in `lock_ask_sheet`, in place of Lock while the system has given
     /// no randomness or a vault cannot be sealed: the changes are lost.
     vault_lock_without_sealing: "Lock without sealing",
+    /// Line of `lock_ask_sheet` when memory is short for vaults with changes.
+    /// `{}`: their names, what memory needs (`vaults_needs_this_computer`).
+    vault_lock_short: "{}: memory is short. {}",
+    /// Line on the Lock sheet. `{}`: the vault's name.
+    vault_lock_unwritable: "{}: cannot be written as it is",
+    /// Line of `lock_ask_sheet` for a vault with an item moved to another
+    /// vault the sheet names. `{}`: its name, that vault's name.
+    vault_lock_moved: "{}: its item moved to {} is not saved",
+    /// Button in `lock_ask_sheet` when memory is short for vaults with
+    /// changes: the vaults named are closed and their changes are lost.
+    vault_lock_without_saving: "Lock without saving",
     /// Button in `lock_ask_sheet`, with a vault open.
     vault_back_to_the_vault: "Back to the vault",
     /// Button in `lock_ask_sheet` with no vault open: closes the sheet.
@@ -9222,9 +9230,7 @@ strings! {
     /// Text in `mib_text`. `{}`: `f64::from(mib) / 1024.0`.
     vaults_gib: "{} GiB",
     /// Text in `size_text`. `{}`: `slot / 1_048_576`.
-    vaults_mib: "{} MiB",
-    /// Text in `size_text`. `{}`: `slot / 1024`.
-    vaults_kib: "{} KiB",
+    vaults_mib: "{} MiB",
     /// Text in `cost_text`.
     vaults_pass: "pass",
     /// Text in `cost_text`.
@@ -9280,7 +9286,7 @@ strings! {
     /// Text in `vault_act`.
     vaults_wallets_inline: "wallets",
     /// Toast in `vault_import_entries`, text in `vault_scanned_entry`.
-    /// `{}`: the bytes the entries take, the bytes left in the slot.
+    /// `{}`: the bytes the entries take, the bytes left under the ceiling.
     vaults_those_entries: "Those entries take {} bytes; this vault has {} left",
     /// Text in `vault_scanned_entry`. `{}`: `n`, `if n == 1 { EN.vaults_entry_inline } else …`.
     vaults_added: "{} {} added",
@@ -9296,6 +9302,9 @@ strings! {
     vaults_remove_to_unlock: "Remove the {} to unlock",
     /// Text in `vault_unlock_check`.
     vaults_type_the_passphrase: "Type the passphrase",
+    /// Toast for an edit not made when memory is short and the vault is not
+    /// known, so no figure is.
+    vaults_memory_short: "Memory is short",
     /// Text in `vault_unlock_check`. `{}`: `mib_text(need)`, `mib_text(free)`.
     vaults_needs_this_computer: "Needs {}. This computer has {} free.",
     /// Text in `vault_unlock_check`, free memory not reported. `{}`:
@@ -9394,8 +9403,6 @@ strings! {
     vault_error_unwritable: "That change cannot be written to this vault",
     /// Under Lock: a vault opened to read only.
     vault_error_read_only: "This vault is open to read only",
-    /// Under Create: a size the list does not hold.
-    vault_error_size: "A size Faraday does not offer",
     // ----- Group names in a vault (faraday-core/src/vault/mod.rs) -----
     /// A KeePass group.
     vault_group_keys: "Bitcoin keys",
@@ -9498,9 +9505,6 @@ strings! {
     /// Toast when a move waiting for an unlock cannot be made. `{}`: the
     /// vault, then the reason.
     vault_move_refused: "Nothing was moved to {}. {}",
-    /// Line above Create a vault's sizes while an item waits to go into the
-    /// vault. `{}`: the smallest size it fits.
-    vault_create_item_needs: "The item needs a size of {} or more",
     /// Reason a vault on that sheet is dimmed: it holds the item already.
     vault_copy_holds: "Already holds this item",
     /// Tick on that sheet for a seed that has a codex32 set.

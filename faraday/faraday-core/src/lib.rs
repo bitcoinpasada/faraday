@@ -703,11 +703,11 @@ pub enum Sheet {
 
 pub(crate) use picture::{picture_names, picture_payloads};
 
-/// Whether an Outbox file can go as a QR transfer: what a wallet reads
-/// goes as itself, anything else in the file envelope, which carries up
-/// to 256 KiB. No vault is that small.
+/// Whether an Outbox file can go as a QR transfer: what a wallet reads goes as itself, anything
+/// else in the file envelope (up to 256 KiB). A vault goes by stick only, whatever its size.
 pub(crate) fn qr_fits(item: &Item) -> bool {
     match item.kind {
+        FileKind::Vault => false,
         FileKind::Psbt | FileKind::Wallet | FileKind::Key | FileKind::Message | FileKind::Share => {
             true
         }
@@ -1332,6 +1332,15 @@ impl Faraday {
         self.out.storage_out.pop_front()
     }
 
+    /// Installs how free memory is read: a function that says what this
+    /// computer has free now, MiB, or `None` when it cannot. The app reads
+    /// it at each check a vault's size is held to (before a file is read,
+    /// an unlock, a seal), and every half second on the screens that show
+    /// the figure.
+    pub fn set_memory_reader(&mut self, read: fn() -> Option<u32>) {
+        self.vaults.set_memory_reader(read);
+    }
+
     /// Delivers what the shell knows about storage.
     pub fn storage(&mut self, event: StorageEvent) {
         self.drain_jobs();
@@ -1485,8 +1494,13 @@ impl Faraday {
                 return;
             }
             StorageEvent::Memory { available_mib } => {
+                let shown = self.vaults.memory_shown();
                 self.vaults.set_memory_free(available_mib);
-                if !matches!(self.screen, Screen::CreateVault | Screen::Unlock) {
+                // Drawn again only when the figure changes what the screen
+                // shows, not at every reading.
+                if !matches!(self.screen, Screen::CreateVault | Screen::Unlock)
+                    || shown == self.vaults.memory_shown()
+                {
                     return;
                 }
             }
@@ -2165,11 +2179,14 @@ impl Faraday {
         ));
     }
 
-    /// What a visit ticks to come in (`docs/history/SIMPLIFY.md` §4.6): every file
+    /// Costs a read of the free memory (on macOS a process, `vm_stat`;
+    /// elsewhere one small file). What a visit ticks to come in (`docs/history/SIMPLIFY.md` §4.6): every file
     /// on the stick shown that Faraday reads, but a seed's by its name
     /// (which comes in through its own tick), one over 18 MiB, and one
     /// From the stick already by name and size.
-    pub(crate) fn visit_default_in(&self) -> std::collections::BTreeSet<String> {
+    pub(crate) fn visit_default_in(&mut self) -> std::collections::BTreeSet<String> {
+        // Which vault files fit is by what is free now.
+        self.vaults.read_free();
         let Some(stick) = self.stick.get(self.visit.stick) else {
             return Default::default();
         };
@@ -2178,7 +2195,7 @@ impl Faraday {
             .iter()
             .filter(|(n, size)| {
                 stick.kind_of(n).is_some()
-                    && *size <= READ_MAX
+                    && stick.unread_why(&self.vaults, n, *size).is_none()
                     && !seed_by_name(n)
                     && !self
                         .inbox
@@ -2246,6 +2263,7 @@ impl Faraday {
             || self.lock_would_lose(&c)
             || !self.vaults.open.is_empty() && (sealed || !keys.is_empty() || !wallets.is_empty())
         {
+            self.vaults.name_lock(&c);
             self.sheet = Some(Sheet::LockAsk);
         } else {
             self.lock();
@@ -2271,6 +2289,7 @@ impl Faraday {
             if self.seal_waits() {
                 self.out.commands.push_back(Command::RequestEntropy);
             }
+            self.vaults.name_lock(&c);
             self.sheet = Some(Sheet::LockAsk);
             return;
         }
@@ -4379,7 +4398,19 @@ impl Faraday {
         if let Some(stick) = self.stick.get(self.visit.stick) {
             let id = stick.id.clone();
             self.visit.log.clear();
+            self.vaults.read_free();
             for name in self.visit.inn.clone() {
+                // A vault file this computer has not the memory for now is
+                // not read; the row says what it needs.
+                let size = stick
+                    .files
+                    .iter()
+                    .find(|(n, _)| *n == name)
+                    .map_or(0, |(_, size)| *size);
+                if stick.unread_why(&self.vaults, &name, size).is_some() {
+                    self.visit.inn.remove(&name);
+                    continue;
+                }
                 // A picture's QR codes are read, not its bytes.
                 let stick = id.clone();
                 self.visit.reading.insert(name.clone());
@@ -4977,11 +5008,18 @@ impl Faraday {
 
     /// Costs one HMAC for each shown TOTP code not held for its period
     /// ([`Self::vault_code_refresh`], [`Self::vault_codes_refresh`]), and
-    /// what warming costs: what drawing looks up, in step (`docs/SPEED.md` §3.3).
+    /// for each vault changed since the last frame what [`Vaults::warm`]
+    /// costs: a read of the free memory and a copy of the document and a
+    /// count of it where it may be near the ceiling or past what is free:
+    /// what drawing looks up, in step (`docs/SPEED.md` §3.3).
     fn before_frame(&mut self) {
         let c = self.compute();
         for o in &self.vaults.open {
             self.vaults.warm(&c, o.id);
+        }
+        // The Lock sheet on show names what its Lock without saving lets go.
+        if self.sheet == Some(Sheet::LockAsk) {
+            self.vaults.name_lock_seen();
         }
         self.vault_code_refresh();
         self.vault_codes_refresh();

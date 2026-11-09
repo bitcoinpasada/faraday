@@ -120,6 +120,11 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday-vault's attachment tests, which cannot reach faraday-core's test kit",
     ),
     (
+        "faraday/faraday-vault/tests/reader_memory.rs",
+        "compute",
+        "faraday-vault's reader memory tests, which cannot reach faraday-core's test kit",
+    ),
+    (
         "faraday/faraday-vault/tests/file.rs",
         "compute",
         "faraday-vault's file vault tests, which cannot reach faraday-core's test kit",
@@ -208,6 +213,21 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday/faraday-files/tests/picture.rs",
         "compute",
         "faraday-files' tests, which cannot reach faraday-core's test kit",
+    ),
+    (
+        "faraday/faraday-keys/src/vault.rs",
+        "compute",
+        "faraday-keys' unit tests, which cannot reach faraday-core's test kit",
+    ),
+    (
+        "faraday/faraday-vault/examples/large.rs",
+        "phases",
+        "the measuring example, a tool outside the app",
+    ),
+    (
+        "faraday/faraday-vault/examples/large.rs",
+        "main",
+        "the measuring example, a tool outside the app",
     ),
     (
         "faraday/faraday-keys/tests/operations.rs",

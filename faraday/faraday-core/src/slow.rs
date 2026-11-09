@@ -74,6 +74,7 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::LResolve
             | Action::LoadKey(_)
             | Action::Lock
+            | Action::LockUnsealed
             | Action::NewWalletFrom(_)
             | Action::ScanSample
             | Action::SamplePsbt

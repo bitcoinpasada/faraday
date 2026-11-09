@@ -21,6 +21,7 @@ zeroize = { workspace = true, features = ["alloc"] }
 faraday-core = { path = "../faraday-core", features = ["testkit"] }
 faraday-qr = { path = "../faraday-qr" }
 faraday-codec = { path = "../../core/faraday-codec" }
+faraday-vault = { path = "../faraday-vault" }
 faraday-shell-api = { path = "../../core/faraday-shell-api" }
 
 [lints.rust]

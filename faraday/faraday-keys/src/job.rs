@@ -22,6 +22,18 @@ use zeroize::Zeroizing;
 
 use crate::vault::{Built, Names, Op, SEAL_RANDOM_LEN, with_changes};
 
+/// What a compressed file's plaintext may take: asked with the plaintext
+/// length the file states once its HMACs have verified; `Err(mib)` is the
+/// memory that was not found (`faraday_vault::file::open_within`).
+pub type Budget = Box<dyn Fn(usize) -> Result<(), u32> + Send>;
+
+/// What a file's body may take once it is whole: asked with the XML
+/// document's length and the attachments' together, before the document is
+/// parsed; `Err(mib)` is the memory that was not found, and `Ok(Some(bytes))`
+/// the most the open may take beyond what the caller holds, whatever is free
+/// (`faraday_vault::file::open_within`).
+pub type Parsed = Box<dyn Fn(usize, usize) -> Result<Option<usize>, u32> + Send>;
+
 /// The costly part of opening or making a vault, with what it needs.
 pub struct StretchJob {
     what: What,
@@ -30,13 +42,20 @@ pub struct StretchJob {
 enum What {
     Open {
         file: Vec<u8>,
+        /// The bytes the document's structures may take; none: the
+        /// format's limit alone.
+        room: Option<usize>,
+        /// What a compressed file's plaintext may take; none: any length
+        /// up to the ceiling.
+        budget: Option<Budget>,
+        /// What the whole body may take; none: no check.
+        parsed: Option<Parsed>,
         passphrase: SecretText,
     },
     Make {
         id: [u8; 16],
         label: Box<str>,
         cost: fv::Cost,
-        size: usize,
         passphrase: SecretText,
         random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
         now: Option<u64>,
@@ -53,10 +72,11 @@ enum Out {
     Made(Result<Vec<u8>, fv::file::Error>),
 }
 
-/// A vault opened: the file it came from, the opened file and the
+/// A vault opened: the digest of the file it came from, the opened file and the
 /// records built from it.
 pub(crate) struct OpenedSlot {
-    pub(crate) file: Vec<u8>,
+    pub(crate) digest: [u8; 32],
+    pub(crate) base: usize,
     pub(crate) opened: Arc<fv::file::Opened>,
     pub(crate) built: Built,
 }
@@ -64,20 +84,40 @@ pub(crate) struct OpenedSlot {
 impl StretchJob {
     /// A vault `file` to open with `passphrase`, which is moved in.
     pub fn open(file: Vec<u8>, passphrase: SecretText) -> StretchJob {
+        Self::open_within(file, passphrase, None, None, None)
+    }
+
+    /// [`StretchJob::open`] for a caller that says what memory the open may
+    /// take beyond what it holds already, in bytes (`room`, see
+    /// `faraday_vault::file::open_within`), and what a compressed
+    /// file's plaintext may take (`budget`): past either the open ends with
+    /// `Error::Memory`; `parsed` is what the body may take once it is whole.
+    pub fn open_within(
+        file: Vec<u8>,
+        passphrase: SecretText,
+        room: Option<usize>,
+        budget: Option<Budget>,
+        parsed: Option<Parsed>,
+    ) -> StretchJob {
         StretchJob {
-            what: What::Open { file, passphrase },
+            what: What::Open {
+                file,
+                passphrase,
+                room,
+                budget,
+                parsed,
+            },
         }
     }
 
     /// A vault to make (`faraday_vault::file::create`): the root group's
-    /// UUID `id`, named `label`, at `cost` and `size`, under one
+    /// UUID `id`, named `label`, at `cost`, under one
     /// `passphrase`, moved in, with `random` drawn for the seal and `now`
     /// the time of the first seal.
     pub fn make(
         id: [u8; 16],
         label: Box<str>,
         cost: fv::Cost,
-        size: usize,
         passphrase: SecretText,
         random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
         now: Option<u64>,
@@ -87,7 +127,6 @@ impl StretchJob {
                 id,
                 label,
                 cost,
-                size,
                 passphrase,
                 random,
                 now,
@@ -101,21 +140,38 @@ impl StretchJob {
     /// ends.
     pub fn run(self, c: &Compute) -> Stretched {
         let out = match self.what {
-            What::Open { file, passphrase } => {
-                Out::Opened(fv::file::open(c, &file, passphrase.as_str()).map(|opened| {
+            What::Open {
+                file,
+                passphrase,
+                room,
+                budget,
+                parsed,
+            } => Out::Opened(
+                fv::file::open_within(
+                    c,
+                    &file,
+                    passphrase.as_str(),
+                    &mut |plain| budget.as_ref().map_or(Ok(()), |b| b(plain)),
+                    &mut |doc, att| parsed.as_ref().map_or(Ok(None), |p| p(doc, att)),
+                    room,
+                )
+                .map(|mut opened| {
                     let built = crate::vault::build(&opened);
+                    let digest = faraday_crypto::sha256_whole(c, &file);
+                    // The file is not needed past its digest.
+                    drop(file);
                     Box::new(OpenedSlot {
-                        file,
+                        digest,
+                        base: crate::vault::base_of(&mut opened),
                         opened: Arc::new(opened),
                         built,
                     })
-                }))
-            }
+                }),
+            ),
             What::Make {
                 id,
                 label,
                 cost,
-                size,
                 passphrase,
                 random,
                 now,
@@ -124,7 +180,6 @@ impl StretchJob {
                 id,
                 &label,
                 cost,
-                size,
                 passphrase.as_str(),
                 &random,
                 now,

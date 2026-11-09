@@ -501,7 +501,7 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
     assert_eq!(
         app.vaults().unlock_error,
         Some(format!(
-            "Needs {need}\u{a0}MiB. This computer has {}\u{a0}MiB free.",
+            "Needs {need} MiB. This computer has {} MiB free.",
             need - 1
         ))
     );

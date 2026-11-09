@@ -43,6 +43,14 @@ pub struct Totp {
     period: u64,
 }
 
+impl Totp {
+    /// What the secret takes beyond the struct: its buffer, with an
+    /// allocation's overhead.
+    pub(crate) fn held(&self) -> usize {
+        self.secret.capacity() + 16
+    }
+}
+
 impl core::fmt::Debug for Totp {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Totp")

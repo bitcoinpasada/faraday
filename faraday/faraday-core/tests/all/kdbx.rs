@@ -152,7 +152,7 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
         "b8f9305623a00cb447e4ab9c"
     );
     assert_eq!(hex(&read.items[0].uuid), "6a40f706f73b5f0b290d485bed110795");
-    assert_eq!(opened.facts().size, Some(65_536));
+    assert_eq!(opened.facts().size, Some(32_768));
     let cost = opened.facts().header.cost;
     assert_eq!((cost.memory_kib, cost.passes, cost.lanes), (65_536, 3, 4));
 }

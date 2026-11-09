@@ -20,6 +20,7 @@ use faraday_keys::job::{SealJob, Sealed};
 use faraday_keys::vault::{SEAL_RANDOM_LEN, VaultId};
 use zeroize::Zeroizing;
 
+use super::Stuck;
 use super::errors;
 use crate::strings::{EN, fill};
 use crate::worker::Job;
@@ -37,6 +38,12 @@ pub(crate) struct SealRun {
     /// changes lost (an idle lock, Lock without sealing). A lock of every
     /// vault that may not stops instead and asks.
     may_lose: bool,
+    /// With `may_lose`, the vaults the Lock sheet named when the person
+    /// pressed Lock without saving: only these are let go. Any other vault
+    /// that cannot be sealed stops the run and the sheet shows again with
+    /// what it now names. None: every vault may be let go (an idle lock for
+    /// what is past the ceiling, a lock with no randomness to seal with).
+    named: Option<Vec<VaultId>>,
     /// What a lock of one goes on with when its vault is closed.
     after: After,
     /// The vault whose new memory step was dropped for a retried seal; the
@@ -103,11 +110,20 @@ pub(crate) fn vault_seal_all(app: &mut Faraday, may_lose: bool) {
     // An original after the target its item was moved to.
     let ids = app.vaults.open.iter().map(|o| o.id).collect();
     let queue = app.vaults.state.moved_order(ids);
+    // A person's Lock without saving lets go what the sheet named and no
+    // more; the memory free may have changed since it was drawn, so what the
+    // run finds short that it did not name is not lost but shown again.
+    let named = (may_lose
+        && app.sheet == Some(crate::Sheet::LockAsk)
+        && !app.seal_waits()
+        && app.idle_locked_after().is_none())
+    .then(|| app.vaults.state.lock_named.clone());
     app.vaults.state.sealing = Some(SealRun {
         queue,
         running: None,
         all: true,
         may_lose,
+        named,
         after: After::Nothing,
         step_dropped: None,
     });
@@ -148,8 +164,8 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
         return false;
     }
     let c = app.compute();
-    if let Some(why) = app.vaults.cannot_seal(&c, i) {
-        app.toast(&why);
+    if let Some(cannot) = app.vaults.cannot_seal(&c, i) {
+        app.toast(&cannot.why);
         return false;
     }
     app.vault_summaries_refresh();
@@ -159,6 +175,7 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
         running: None,
         all: false,
         may_lose: false,
+        named: None,
         after,
         step_dropped: None,
     });
@@ -176,13 +193,19 @@ fn seal_next(app: &mut Faraday) {
         let Some(run) = app.vaults.state.sealing.as_mut() else {
             return;
         };
-        let (all, may_lose) = (run.all, run.may_lose);
+        let all = run.all;
         let Some(id) = run.queue.pop_front() else {
             return seal_end(app);
         };
+        // Whether this vault may be let go with its changes lost.
+        let may_lose = run.may_lose && run.named.as_ref().is_none_or(|n| n.contains(&id));
         let Some(i) = app.vaults.open.iter().position(|o| o.id == id) else {
             continue;
         };
+        // What this computer has free now, not what it had at an earlier
+        // seal of a lock or at the unlock: each seal is checked against
+        // the memory free when it starts.
+        app.vaults.read_free();
         // A target of an item moved out of this vault is still open (a
         // sealed one is closed): it was let go unsealed. This vault goes
         // with it when the lock may lose changes, its last sealed file
@@ -199,7 +222,7 @@ fn seal_next(app: &mut Faraday) {
                 app.vaults.set_changes_lost();
                 continue;
             }
-            return seal_stopped(app);
+            return seal_stopped(app, None);
         }
         // Its plans take the counts of the vaults sealed before it
         // (`docs/VAULT-HARDENING.md` §5.6).
@@ -216,18 +239,39 @@ fn seal_next(app: &mut Faraday) {
             }
             continue;
         }
-        // A vault whose changes do not fit is let go unsealed only when
-        // the person chose Lock without sealing or an idle lock had no one
-        // to ask; else the lock stops and asks.
+        // A vault whose changes are past the ceiling is let go unsealed only
+        // when the person chose Lock without sealing or an idle lock had no
+        // one to ask; else the lock stops and asks. Memory short for the
+        // count is not past anything: it goes on to the seal's own check
+        // below, which keeps the vault open with its changes.
         if all {
             let c = app.compute();
-            if app.vaults.cannot_seal(&c, i).is_some() {
+            if app.vaults.cannot_seal(&c, i).is_some_and(|n| !n.short) {
                 if may_lose {
                     app.vaults.set_changes_lost();
                     continue;
                 }
-                return seal_stopped(app);
+                return seal_stopped(app, None);
             }
+        }
+        // This computer must have free what the seal takes, before it takes
+        // any (F206 point 4). Short of it the vault stays open with its
+        // changes and the reason shows, in an idle lock too, which would
+        // lose them if the seal ran out of memory half way. Only a person's
+        // Lock without sealing lets the changes go.
+        let c = app.compute();
+        if let Some(why) = app.vaults.seal_refusal(&c, id) {
+            if all && may_lose && app.idle_locked_after().is_none() {
+                app.vaults.set_changes_lost();
+                continue;
+            }
+            app.toast(&why);
+            if all {
+                return seal_stopped(app, None);
+            }
+            app.vaults.state.sealing = None;
+            app.out.command(Command::Draw);
+            return;
         }
         let work = match seal_work(app, id) {
             Ok(work) => work,
@@ -240,7 +284,11 @@ fn seal_next(app: &mut Faraday) {
                 } else if may_lose {
                     app.vaults.set_changes_lost();
                 } else {
-                    return seal_stopped(app);
+                    // The sheet names it, as it loses changes if let go.
+                    if matches!(why, NoJob::Unwritable) {
+                        app.vaults.state.set_stuck(id, Stuck::Unwritable);
+                    }
+                    return seal_stopped(app, None);
                 }
                 continue;
             }
@@ -350,14 +398,41 @@ fn seal_stop(app: &mut Faraday, why: NoJob) {
     });
 }
 
-/// A lock of every vault that may not lose changes met a vault it cannot
-/// seal: the run ends, that vault and the ones after it stay open with
-/// their changes, nothing is wiped, and the Lock sheet shows.
-fn seal_stopped(app: &mut Faraday) {
+/// Costs a read of the free memory (a process on macOS) and what
+/// `lock_blocks` costs: for each changed vault a walk of its records and,
+/// where the figures call for it, a document write (`cannot_seal`) or a copy
+/// and count of it (`seal_refusal`). A lock met a vault
+/// it may not let go, or cannot seal: the run ends, that vault and the ones
+/// after it stay open with their changes, nothing is wiped, and the Lock
+/// sheet shows, naming what it names now (a Lock without saving that named
+/// vaults before this one lets go only those).
+fn seal_stopped(app: &mut Faraday, short: Option<(VaultId, faraday_vault::file::Error, String)>) {
     app.vaults.state.sealing = None;
+    // What the sheet says is read again against the memory free now.
+    let free = app.vaults.read_free();
+    // A seal that ran out of memory says what this computer has free now.
+    // A person's press that finds it short again would bring back the same
+    // sheet: the sheet names it, as short of memory (an idle lock only
+    // tells, and corrects the text of an entry a person's Lock left).
+    if let Some((id, why, name)) = short {
+        let text = errors::stopped_text(&why, &name, free);
+        app.toast(&text);
+        if app.idle_locked_after().is_none() || app.vaults.state.has_short(id) {
+            app.vaults.state.set_stuck(id, Stuck::Short { why: text });
+        }
+    }
+    app.vaults.state.reread_seals();
+    // The lock did not happen: a later idle period warns and tries again,
+    // and a Lock the person presses is theirs, not the idle lock's.
+    if app.idle.locking().is_some() {
+        app.idle.set_locking(None);
+        app.idle.input(app.now_ms);
+    }
     if app.seal_waits() {
         app.out.command(faraday_shell_api::Command::RequestEntropy);
     }
+    let c = app.compute();
+    app.vaults.state.name_lock(&c);
     app.sheet = Some(crate::Sheet::LockAsk);
     app.out.command(Command::Draw);
 }
@@ -500,7 +575,15 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             // the one the rest uses.
             let name = seal_file_name(app, id, &name);
             app.vaults.state.file_named(id, &name);
-            app.put_outbox(&name, bytes.clone());
+            // The file is read where it is, then moved into the Outbox: it
+            // is not copied (F206 point 6).
+            if let Some(i) = app.vaults.open.iter().position(|o| o.id == id) {
+                let c = app.compute();
+                app.vaults.seals_sealed(&c, i, &bytes);
+                // The keys waiting for their copies that this sealing holds.
+                app.flow_sealed(i, &name, &bytes);
+            }
+            app.put_outbox(&name, bytes);
             if app
                 .vaults
                 .state
@@ -511,13 +594,8 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             {
                 app.vaults.set_step_dropped();
             }
-            if let Some(i) = app.vaults.open.iter().position(|o| o.id == id) {
-                let c = app.compute();
-                app.vaults.seals_sealed(&c, i, &bytes);
-                // The keys waiting for their copies that this sealing holds.
-                app.flow_sealed(i, &name, &bytes);
-            }
             app.vaults.state.store.seal_ended(id, true);
+            app.vaults.state.clear_stuck(id);
             // Sealed, so no longer open, in a lock of every vault too: a
             // later vault's failure leaves this one closed, its file in
             // the Outbox, not open and empty.
@@ -537,6 +615,22 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             }
             return seal_next(app);
         }
+        // A seal that ran out of memory half way loses nothing by itself: the
+        // vault stays open with its changes and the reason shows, in an idle
+        // lock too. Only a person's Lock without saving that named this
+        // vault lets it go; any other press shows the sheet again.
+        Err(why @ faraday_vault::file::Error::Memory(_)) if all => {
+            app.vaults.state.store.seal_ended(id, false);
+            let named =
+                app.vaults.state.sealing.as_ref().is_some_and(|r| {
+                    r.may_lose && r.named.as_ref().is_none_or(|n| n.contains(&id))
+                });
+            if named && app.idle_locked_after().is_none() {
+                app.vaults.set_changes_lost();
+                return seal_next(app);
+            }
+            return seal_stopped(app, Some((id, why, name)));
+        }
         // An idle lock has no one to ask: the changes are lost and the
         // lock goes on to the wipes.
         Err(_) if all && app.idle_locked_after().is_some() => {
@@ -551,7 +645,11 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             app.vaults.state.store.seal_ended(id, false);
             app.vaults.state.sealing = None;
             app.out.command(Command::Draw);
-            app.toast(&errors::error_text(&why));
+            app.toast(&errors::stopped_text(
+                &why,
+                &name,
+                app.vaults.memory_free_mib,
+            ));
             return;
         }
     }

@@ -28,6 +28,11 @@ use zeroize::Zeroizing;
 /// room for its name, or for a picture's codes beside its bytes.
 pub const MAX_FRAME: u32 = super::MAX_READ as u32 + 1024 * 1024;
 
+/// The most bytes one piece of a vault's file carries (F206 point 7): a
+/// frame's limit is unchanged, so a file longer than a frame travels in
+/// pieces of this length.
+pub const PIECE: usize = 16 * 1024 * 1024;
+
 /// The disk process's answer to a request on a stick it does not hand
 /// out to this process, one that is no longer clean: a token, not
 /// wording, which the app shows in its own words.
@@ -44,6 +49,37 @@ pub enum Request {
         stick: String,
         /// The file.
         name: String,
+    },
+    /// A piece of a file's bytes, for a vault too long for one frame:
+    /// the `len` bytes (at most [`PIECE`]) from `from`. Answered
+    /// [`Response::Part`].
+    ReadPart {
+        /// The stick.
+        stick: String,
+        /// The file.
+        name: String,
+        /// Where the piece starts.
+        from: u64,
+        /// How many bytes at most.
+        len: u32,
+    },
+    /// A piece of a file to be written, held by the disk process until the
+    /// [`Request::Write`] of the same stick and name comes; that write's
+    /// bytes are the last piece. `at` is the length held so far and `total`
+    /// the length of the whole file: another `at`, a `total` that differs
+    /// from the first piece's or is over the longest vault file drops what
+    /// is held and is refused. Answered [`Response::Held`].
+    Piece {
+        /// The stick.
+        stick: String,
+        /// The name the write will be asked under.
+        name: String,
+        /// The bytes held before this piece.
+        at: u64,
+        /// The length of the whole file, stated by every piece.
+        total: u64,
+        /// The piece (at most [`PIECE`]).
+        bytes: Vec<u8>,
     },
     /// A file written as `faraday_files::write_any` writes it.
     Write {
@@ -63,6 +99,10 @@ pub enum Request {
         /// A vault no copy of which is on the stick, a file having its
         /// name: what to do (`faraday_files::OnTaken`).
         on_taken: crate::OnTaken,
+        /// The length of the whole file: the pieces held for it and these
+        /// bytes must make exactly this, else they are dropped and the
+        /// write refused. These bytes alone when it is theirs.
+        total: u64,
         /// The contents.
         bytes: Vec<u8>,
     },
@@ -197,6 +237,15 @@ pub enum Response {
     Sticks(Vec<Stick>),
     /// A file's bytes.
     Bytes(Vec<u8>),
+    /// A piece of a file read in pieces, and the file's whole length.
+    Part {
+        /// The file's length.
+        total: u64,
+        /// The piece asked for (fewer where the file ends first).
+        bytes: Vec<u8>,
+    },
+    /// A piece of a file to write is held: the length held now.
+    Held(u64),
     /// The name a file was written under.
     Written(String),
     /// A picture: its bytes as they are, and its codes' payloads.
@@ -350,12 +399,13 @@ impl In<'_> {
 impl Request {
     /// Wipes the file it carries, if any.
     pub fn wipe(&mut self) {
-        if let Request::Write { bytes, .. } = self {
+        if let Request::Write { bytes, .. } | Request::Piece { bytes, .. } = self {
             zeroize::Zeroize::zeroize(bytes);
         }
     }
 
     /// The frame's bytes.
+    #[expect(clippy::too_many_lines, reason = "one arm for each variant")]
     pub fn encode(&self) -> Vec<u8> {
         let o = match self {
             Request::List => Out::tag(1),
@@ -372,10 +422,19 @@ impl Request {
                 replace,
                 renamed,
                 on_taken,
+                total,
                 bytes,
             } => {
-                let more =
-                    4 + stick.len() + name.len() + 2 + 32 * copies.len() + 2 + 33 + 4 + bytes.len();
+                let more = 4
+                    + stick.len()
+                    + name.len()
+                    + 2
+                    + 32 * copies.len()
+                    + 2
+                    + 33
+                    + 8
+                    + 4
+                    + bytes.len();
                 let mut o = Out::sized(3, more);
                 o.str(stick);
                 o.str(name);
@@ -390,6 +449,7 @@ impl Request {
                         o.0.extend_from_slice(sha);
                     }
                 }
+                o.0.extend_from_slice(&total.to_le_bytes());
                 o.bytes(bytes);
                 o
             }
@@ -443,6 +503,34 @@ impl Request {
                 o.str(label);
                 o
             }
+            Request::ReadPart {
+                stick,
+                name,
+                from,
+                len,
+            } => {
+                let mut o = Out::tag(11);
+                o.str(stick);
+                o.str(name);
+                o.0.extend_from_slice(&from.to_le_bytes());
+                o.0.extend_from_slice(&len.to_le_bytes());
+                o
+            }
+            Request::Piece {
+                stick,
+                name,
+                at,
+                total,
+                bytes,
+            } => {
+                let mut o = Out::sized(12, 4 + stick.len() + name.len() + 16 + 4 + bytes.len());
+                o.str(stick);
+                o.str(name);
+                o.0.extend_from_slice(&at.to_le_bytes());
+                o.0.extend_from_slice(&total.to_le_bytes());
+                o.bytes(bytes);
+                o
+            }
         };
         o.0
     }
@@ -476,6 +564,7 @@ impl Request {
                     2 => crate::OnTaken::Over(i.digest()?),
                     _ => return Err(Malformed),
                 },
+                total: i.u64()?,
                 bytes: i.bytes()?,
             },
             4 => Request::ReadQr {
@@ -509,6 +598,19 @@ impl Request {
                 stick: i.str()?,
                 label: i.str()?,
             },
+            11 => Request::ReadPart {
+                stick: i.str()?,
+                name: i.str()?,
+                from: i.u64()?,
+                len: u32::try_from(i.u32()?).map_err(|_| Malformed)?,
+            },
+            12 => Request::Piece {
+                stick: i.str()?,
+                name: i.str()?,
+                at: i.u64()?,
+                total: i.u64()?,
+                bytes: i.bytes()?,
+            },
             _ => return Err(Malformed),
         };
         // A file read in full is wiped when bytes follow it.
@@ -539,7 +641,7 @@ impl Response {
     /// Wipes the file or codes it carries, if any.
     pub fn wipe(&mut self) {
         match self {
-            Response::Bytes(b) => zeroize::Zeroize::zeroize(b),
+            Response::Bytes(b) | Response::Part { bytes: b, .. } => zeroize::Zeroize::zeroize(b),
             Response::Qr { bytes, codes } => {
                 zeroize::Zeroize::zeroize(bytes);
                 codes.iter_mut().for_each(zeroize::Zeroize::zeroize);
@@ -549,6 +651,7 @@ impl Response {
     }
 
     /// The frame's bytes.
+    #[expect(clippy::too_many_lines, reason = "one arm for each variant")]
     pub fn encode(&self) -> Vec<u8> {
         let o = match self {
             Response::Sticks(sticks) => {
@@ -597,6 +700,17 @@ impl Response {
             Response::Bytes(b) => {
                 let mut o = Out::sized(0x82, 4 + b.len());
                 o.bytes(b);
+                o
+            }
+            Response::Part { total, bytes } => {
+                let mut o = Out::sized(0x8B, 8 + 4 + bytes.len());
+                o.0.extend_from_slice(&total.to_le_bytes());
+                o.bytes(bytes);
+                o
+            }
+            Response::Held(n) => {
+                let mut o = Out::tag(0x8C);
+                o.0.extend_from_slice(&n.to_le_bytes());
                 o
             }
             Response::Written(n) => {
@@ -689,6 +803,11 @@ impl Response {
             }
             0x82 => Response::Bytes(i.bytes()?),
             0x83 => Response::Written(i.str()?),
+            0x8B => Response::Part {
+                total: i.u64()?,
+                bytes: i.bytes()?,
+            },
+            0x8C => Response::Held(i.u64()?),
             0x84 => {
                 // Wiped on every return: a count or code that does not
                 // read leaves nothing of the picture behind.
@@ -828,6 +947,7 @@ mod tests {
                 replace: false,
                 renamed: true,
                 on_taken: crate::OnTaken::Over([9; 32]),
+                total: 3,
                 bytes: vec![1, 2, 3],
             },
             Request::Write {
@@ -837,6 +957,7 @@ mod tests {
                 replace: true,
                 renamed: false,
                 on_taken: crate::OnTaken::Ask,
+                total: 2,
                 bytes: vec![4, 5],
             },
             Request::Write {
@@ -846,6 +967,7 @@ mod tests {
                 replace: true,
                 renamed: false,
                 on_taken: crate::OnTaken::Beside,
+                total: 6,
                 bytes: vec![6],
             },
             Request::ReadQr {

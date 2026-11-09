@@ -22,13 +22,8 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
         PRESETS[k].0
     };
     let mut warnings: Vec<(String, crate::ui::Paint)> = Vec::new();
-    let slot = app
-        .vaults
-        .create
-        .as_ref()
-        .map_or(faraday_vault::file::DEFAULT_SIZE, |c| c.size);
     if let Some(free) = app.vaults.memory_free_mib
-        && vault::vault_need_mib(mem, slot) > free
+        && vault::vault_need_mib(mem, vault::new_file_len()) > free
     {
         warnings.push((
             fill(EN.vault_this_computer_n, &[&mib_text(mem).to_string()]),
@@ -80,7 +75,7 @@ pub(super) fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -
             EN.vault_file,
             format!("{}.kdbx", vault::vault_stem(&c.name.text)),
         ),
-        (EN.vault_size, file_text(file_len(c.size))),
+        (EN.vault_size, file_text(vault::new_file_len())),
         (EN.vault_unlock_memory, mib_text(mem)),
         (EN.vault_unlock_here, app.vaults.time_text(mem, passes)),
         (

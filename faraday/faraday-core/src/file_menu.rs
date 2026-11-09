@@ -222,14 +222,14 @@ impl Faraday {
             }),
             Row::Stick(k) => {
                 let (name, size) = self.stick_file(k)?;
-                let kind = match self
-                    .stick
-                    .get(self.visit.stick)
+                let stick = self.stick.get(self.visit.stick);
+                let why = stick.and_then(|s| s.unread_why(&self.vaults, &name, size));
+                let kind = match stick
                     .and_then(|s| s.kind_of(&name))
-                    .filter(|_| size <= crate::READ_MAX)
+                    .filter(|_| why.is_none())
                 {
                     Some(kind) => format!("{kind} · {}", crate::screens::size_text(size)),
-                    None => EN.visit_file_too_large.to_string(),
+                    None => why.unwrap_or_else(|| EN.visit_file_too_large.to_string()),
                 };
                 Some((name, size, kind))
             }

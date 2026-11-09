@@ -357,19 +357,22 @@ fn of_len(len: usize) -> Vec<u8> {
 
 #[test]
 fn the_shortest_and_longest_vault_are_told_and_one_byte_either_side_is_not() {
-    // The header with its hash and HMAC and the stream's empty block; and
-    // the largest plaintext (4 MiB) stored as a program may have left it.
-    let (least, most) = (349, 4_719_193);
+    // The header with its hash and HMAC and the stream's empty block; the
+    // longest is the largest plaintext (128 MiB) stored as a program may
+    // have left it, too long to build here: its length is asked of the
+    // rule.
+    let least = 349;
     let mut place = Memory::default();
     place.files.insert("Passwords.kdbx".into(), of_len(least));
     place.files.insert("short.kdbx".into(), of_len(least - 1));
-    place.files.insert("Archive.kdbx".into(), of_len(most));
-    place.files.insert("long.kdbx".into(), of_len(most + 1));
     let files = place.files().unwrap();
     assert_eq!(
         vault_names(&compute(), &mut place, &files),
-        ["Archive.kdbx", "Passwords.kdbx"]
+        ["Passwords.kdbx"]
     );
+    let most = faraday_files::MAX_VAULT_READ;
+    assert!(faraday_codec::vault_file::is_vault_len(most));
+    assert!(!faraday_codec::vault_file::is_vault_len(most + 1));
 }
 
 /// A write of `new` as `vault.kdbx`, no copy of it proved, `on_taken` said.

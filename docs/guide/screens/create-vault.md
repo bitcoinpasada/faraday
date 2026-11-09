@@ -20,22 +20,22 @@ the head opens it again.
 
 ## The cards
 
-By default two cards: **Size**, then **Name and passphrase**.
-**Customise** on **Size** replaces it with three cards, walked in
-order: **Where will you open it?**, **Unlock cost** and **Space**.
+By default two cards: **Opens on**, then **Name and passphrase**.
+**Customise** on **Opens on** replaces it with two cards, walked in
+order: **Where will you open it?** and **Unlock cost**. A vault has no size to choose: it starts small and grows at each seal.
 
-### Size
+### Opens on
 
-![Create a vault on Size: PCs only and PCs and a Raspberry Pi, the second chosen, and Customise](../pictures/create-vault-size.png)
+![Create a vault on Opens on: PCs only and PCs and a Raspberry Pi, the second chosen, and Customise](../pictures/create-vault-size.png)
 
-*Create a vault opened from **Vaults**, on **Size**: **PCs only** "512 MiB · 3 passes", **PCs and a Raspberry Pi** "64 MiB · 3 passes" chosen, "Unlocks in about 4.3 s here" and "Unlocks in about 0.5 s here", and **Customise**; **Name and passphrase** below reads "Not chosen yet".*
+*Create a vault opened from **Vaults**, on **Opens on**: **PCs only** "512 MiB · 3 passes", **PCs and a Raspberry Pi** "64 MiB · 3 passes" chosen, "Unlocks in about 4.3 s here" and "Unlocks in about 0.5 s here", and **Customise**; **Name and passphrase** below reads "Not chosen yet".*
 
 | Control | What it does |
 |---|---|
 | **PCs only** | 512 MiB and 3 passes: opens on PCs. A press chooses it and moves on |
 | **PCs and a Raspberry Pi** | 64 MiB and 3 passes: opens on PCs and a Raspberry Pi 3 as well. Chosen at first |
 | each row's line | "Unlocks in about 2.4 s here", or **Unlock time not measured yet**; "This computer has 1.2 GiB free" in the warning tone where this computer is short of the memory |
-| **Customise** | opens the three cards below, on the size's values |
+| **Customise** | opens the two cards below, on the chosen row's values |
 
 ### Where will you open it?
 
@@ -70,17 +70,11 @@ memory ticked.
 | "Adds ≈… bits to the passphrase" | what the cost adds |
 | **Continue** | for **Custom**: closes the card and opens the next |
 
-### Space
-
-| Control | What it does |
-|---|---|
-| **64 KiB**, **256 KiB**, **1 MiB**, **4 MiB** | the space the vault's contents get, with the file's size under it ("file …"). 256 KiB is chosen at first. A press chooses it and moves on |
-
 ### Name and passphrase
 
 ![Name and passphrase with the name Passwords, the passphrase from dice typed twice and matching, and the panel's Will create](../pictures/create-vault-passphrases.png)
 
-*The vault named Passwords ("File Passwords.kdbx"), the passphrase from dice in both fields, **Matches**, and its strength; **Size** answered above with **Change**. **Create vault** is outlined.*
+*The vault named Passwords ("File Passwords.kdbx"), the passphrase from dice in both fields, **Matches**, and its strength; **Opens on** answered above with **Change**. **Create vault** is outlined.*
 
 | Control | What it does |
 |---|---|
@@ -105,7 +99,7 @@ memory ticked.
 
 ## Your choices
 
-The panel at the right lists **Opens on**, **Unlock cost**, **Space**
+The panel at the right lists **Opens on**, **Unlock cost**
 and **Name and passphrase**, each with its answer or
 **Not chosen yet**; a press on one opens its card. Under them:
 

@@ -291,7 +291,7 @@ fn an_unreadable_item_is_listed_and_a_seal_writes_it_back_as_read() {
     app.event(Event::Scroll {
         x: 240,
         y: 320,
-        dy: 800,
+        dy: 2000,
     });
     app.settle();
     let texts = page(&mut app);
@@ -470,13 +470,206 @@ fn an_idle_lock_that_cannot_allocate_a_new_memory_step_seals_at_the_old_one_and_
 }
 
 #[test]
-fn an_idle_lock_whose_retried_seal_fails_too_says_the_changes_were_lost_and_not_a_sealed_vault() {
-    let (mut app, _) = idle_locked_step(true, true);
-    assert!(app.restart_requested(), "the idle lock restarts");
-    let (outbox, texts) = locked_page(&mut app);
-    assert!(outbox.is_empty(), "something was sealed");
-    assert!(texts.contains(EN.locked_changes_lost), "{texts}");
-    assert!(!texts.contains(EN.locked_step_dropped), "{texts}");
+fn an_idle_lock_whose_retried_seal_runs_out_of_memory_too_keeps_the_vault_open_with_its_changes() {
+    let (app, _) = idle_locked_step(true, true);
+    assert!(!app.restart_requested(), "the idle lock went ahead");
+    assert_eq!(app.vaults().open.len(), 1, "the vault was closed");
+    assert!(app.vaults().open[0].changes > 0, "the changes were dropped");
+    assert_eq!(
+        app.toast_text(),
+        Some("Needs 1 MiB. This computer has 14.6\u{a0}GiB free.")
+    );
+}
+
+#[test]
+fn a_lock_whose_seal_runs_out_of_memory_half_way_names_the_vault_and_lets_it_go_on_request() {
+    // A person's Lock: the vault stays open with its changes, the sheet
+    // comes back naming it with the memory line, and Lock without saving
+    // (the seal running out of memory again) lets it go.
+    half_way(false);
+}
+
+#[test]
+fn a_seal_that_runs_out_of_memory_as_the_free_memory_falls_still_names_the_vault() {
+    // The computer reads less free each time it is asked, as a seal that
+    // took memory leaves it: the sheet still names the vault.
+    half_way(true);
+}
+
+fn half_way(falling: bool) {
+    let figures: Vec<u32> = (1..=200u32).map(|n| 20_000 - n * 50).collect();
+    let mut app = short_vault_sheet(falling.then_some(figures.as_slice()));
+    testkit::fail_next_step_seal();
+    app.press(Action::LockUnsealed);
+    testkit::settle(&mut app);
+    assert!(app.restart_requested(), "{:?}", app.toast_text());
+}
+
+/// A lock whose seal of the vault with a new memory step runs out of memory
+/// half way, the sheet that comes back drawn once; the computer reads
+/// `figures` as it is asked, if any.
+fn short_vault_sheet(figures: Option<&[u32]>) -> Faraday {
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let file = testkit::kdbx_vault("Step", PHRASE, 0x22, Vec::new()).unwrap();
+    let mut app = process(vec![("step.kdbx".into(), file)]);
+    try_unlock(&mut app, PHRASE);
+    let id = app.vaults().open[0].id;
+    let have = app.vaults().open[0].facts().header.cost.memory_kib;
+    let pick = if have == faraday_vault::file::STEPS_KIB[1] {
+        2
+    } else {
+        1
+    };
+    app.press(Action::Vault(V::MemoryAsk));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MemoryStep(pick)));
+    let rec = Record::new(kind::ENTRY).with(field::TITLE, b"kept");
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, rec));
+    testkit::vault_changed(&mut app, id);
+    crate::common::top_up(&mut app);
+    if let Some(figures) = figures {
+        testkit::read_memory_as(&mut app, figures);
+    }
+    testkit::fail_next_step_seal();
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert!(!app.restart_requested());
+    assert_eq!(app.vaults().open.len(), 1);
+    assert!(app.vaults().open[0].changes > 0);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    let _ = app.frame();
+    let text = app.drawn_texts().join(" ");
+    assert!(text.contains("memory is short"), "{text}");
+    app
+}
+
+#[test]
+fn the_sheet_keeps_naming_a_short_vault_as_the_free_memory_reads_higher() {
+    let mut app = short_vault_sheet(None);
+    let free = app.vaults().memory_free_mib.unwrap_or(20_000);
+    for mib in [free + 1, free + 400, free + 3_000] {
+        app.storage(StorageEvent::Memory { available_mib: mib });
+        let _ = app.frame();
+        let text = app.drawn_texts().join(" ");
+        assert!(text.contains("memory is short"), "{mib}: {text}");
+    }
+}
+
+#[test]
+fn the_line_for_a_short_vault_says_the_memory_free_after_the_seal_failed() {
+    let figures: Vec<u32> = (1..=200u32).map(|n| 60_000 - n * 250).collect();
+    let mut app = short_vault_sheet(Some(&figures));
+    let free = app.vaults().memory_free_mib.unwrap();
+    let said = format!("has {} free", faraday_core::vault::mib_text(free));
+    let text = app.drawn_texts().join(" ");
+    assert!(text.contains(&said), "{said}: {text}");
+    assert!(
+        app.toast_text().is_some_and(|t| t.contains(&said)),
+        "{said}: {:?}",
+        app.toast_text()
+    );
+}
+
+#[test]
+fn a_short_vault_that_seals_on_the_next_lock_is_locked() {
+    let mut app = short_vault_sheet(None);
+    let text = app.drawn_texts().join(" ");
+    assert!(text.contains("memory is short"), "{text}");
+    assert!(app.offers(Action::Lock), "the sheet offers no Lock: {text}");
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert!(app.restart_requested(), "{:?}", app.toast_text());
+    assert!(app.vaults().open.is_empty(), "the vault stayed open");
+}
+
+#[test]
+fn a_vault_sealed_on_the_second_try_is_no_longer_named_short_beside_one_still_open() {
+    // Two vaults; the first ran out of memory in a person's Lock and is
+    // named. Sealed on its own on the next try, it is closed with its
+    // file in the Outbox, and what is drawn names nothing short.
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let a = testkit::kdbx_vault("Step", PHRASE, 0x22, Vec::new()).unwrap();
+    let b = testkit::kdbx_vault("Other", PHRASE, 0x23, Vec::new()).unwrap();
+    let mut app = process(vec![("a.kdbx".into(), a), ("b.kdbx".into(), b)]);
+    for at in 0..2 {
+        app.press(Action::Nav(Screen::Vaults));
+        app.press(Action::Vault(V::Open(at)));
+        let _ = app.frame();
+        app.press(Action::Vault(V::FocusPassphrase));
+        type_text(&mut app, PHRASE);
+        app.press(Action::Vault(V::Unlock));
+        for t in 1..60u64 {
+            if app.vaults().open.len() > at {
+                break;
+            }
+            let _ = app.frame();
+            app.event(Event::Tick { now_ms: t * 1000 });
+        }
+    }
+    assert_eq!(app.vaults().open.len(), 2);
+    let id = app.vaults().open[0].id;
+    let name = app.vaults().open[0].name.clone();
+    let have = app.vaults().open[0].facts().header.cost.memory_kib;
+    let pick = if have == faraday_vault::file::STEPS_KIB[1] {
+        2
+    } else {
+        1
+    };
+    app.press(Action::Nav(Screen::VaultContents));
+    testkit::vault_current(&mut app, 0);
+    app.press(Action::Vault(V::MemoryAsk));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MemoryStep(pick)));
+    let rec = Record::new(kind::ENTRY).with(field::TITLE, b"kept");
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, rec));
+    testkit::vault_changed(&mut app, id);
+    crate::common::top_up(&mut app);
+    testkit::fail_next_step_seal();
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    let text = page(&mut app);
+    assert!(text.contains("memory is short"), "{text}");
+    // The second try seals it alone while the other stays open.
+    testkit::vault_lock_one(&mut app, 0);
+    testkit::settle(&mut app);
+    assert_eq!(app.vaults().open.len(), 1, "the sealed vault stayed open");
+    assert_ne!(app.vaults().open[0].name, name);
+    let out = saved_outbox(&mut app);
+    assert_eq!(out.len(), 1, "no file sealed");
+    // It comes back from the file it sealed: nothing says it is short.
+    let mut app = process_boxes(480, 640, Some(15_000), out, Vec::new(), Vec::new());
+    try_unlock(&mut app, PHRASE);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    let text = page(&mut app);
+    assert!(!text.contains("memory is short"), "{text}");
+}
+
+#[test]
+fn an_idle_lock_that_runs_out_of_memory_again_corrects_the_line_a_person_s_lock_left() {
+    // A person's Lock left the vault named short with one free reading; an
+    // idle lock of the same unchanged vault fails with another, and the
+    // sheet quotes that one, as the toast does.
+    let mut app = short_vault_sheet(None);
+    let before = app.vaults().memory_free_mib.unwrap();
+    let now = before / 2;
+    app.storage(StorageEvent::Memory { available_mib: now });
+    crate::common::top_up(&mut app);
+    testkit::fail_next_step_seal_and_retry();
+    app.event(Event::Tick { now_ms: 100_000 });
+    app.event(Event::Tick {
+        now_ms: 100_000 + 30 * MIN,
+    });
+    testkit::settle(&mut app);
+    let said = format!(
+        "has {} free",
+        faraday_core::vault::mib_text(app.vaults().memory_free_mib.unwrap())
+    );
+    let text = page(&mut app);
+    assert!(text.contains(&said), "{said}: {text}");
 }
 
 #[test]

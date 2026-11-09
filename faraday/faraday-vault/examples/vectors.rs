@@ -35,7 +35,7 @@
 use faraday_crypto::work::Compute;
 use faraday_vault::child::{self, ChildOf};
 use faraday_vault::codex32::{SetFacts, State, set_payload};
-use faraday_vault::file::{self, Change, Error, SIZES};
+use faraday_vault::file::{self, Change, Error, STEP};
 use faraday_vault::kdbx::items::{self, Body, GpgKey, Place};
 use faraday_vault::kdbx::xml::{Document, Refused};
 use faraday_vault::kdbx::{self, Contents, RANDOM_LEN, Unsupported};
@@ -74,6 +74,10 @@ pub const NFD_AS_NFC: &str = "caf\u{e9}";
 
 /// The 256 KiB vault with one item of every kind.
 pub const ALL: &str = "vault-all.kdbx";
+/// The plaintext of the small vectors: two steps.
+pub const SMALL_SIZE: usize = 2 * STEP;
+/// The plaintext of the vector that holds everything: eight steps.
+pub const BIG_SIZE: usize = 8 * STEP;
 /// The 64 KiB vault.
 pub const SMALL: &str = "vault-small.kdbx";
 /// The codex32 vault.
@@ -378,7 +382,6 @@ pub fn sealed_through_file() -> Vec<u8> {
         [0x5a; 16],
         "Sealed",
         COST,
-        SIZES[0],
         PASSPHRASE,
         &random(40),
         Some(NOW),
@@ -743,7 +746,7 @@ fn vault_for_damage() -> Vec<u8> {
     sealed(
         &document(0x77, "Damage", &[], false),
         PASSPHRASE,
-        SIZES[0],
+        SMALL_SIZE,
         50,
     )
 }
@@ -771,7 +774,7 @@ pub fn vectors() -> Vec<(&'static str, Vec<u8>)> {
             sealed(
                 &document(1, "Everything", &every_kind(), true),
                 PASSPHRASE,
-                SIZES[1],
+                BIG_SIZE,
                 1,
             ),
         ),
@@ -780,7 +783,7 @@ pub fn vectors() -> Vec<(&'static str, Vec<u8>)> {
             sealed(
                 &document(2, "Small", &small, false),
                 PASSPHRASE,
-                SIZES[0],
+                SMALL_SIZE,
                 2,
             ),
         ),
@@ -789,7 +792,7 @@ pub fn vectors() -> Vec<(&'static str, Vec<u8>)> {
             sealed(
                 &document(3, "Shares", &codex32_items(), false),
                 PASSPHRASE,
-                SIZES[0],
+                SMALL_SIZE,
                 3,
             ),
         ),
@@ -798,7 +801,7 @@ pub fn vectors() -> Vec<(&'static str, Vec<u8>)> {
             sealed(
                 &document(4, "Accents", &[], false),
                 NFD_PASSPHRASE,
-                SIZES[0],
+                SMALL_SIZE,
                 4,
             ),
         ),

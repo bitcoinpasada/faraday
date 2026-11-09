@@ -7,6 +7,7 @@
 //! group keeps its kind.
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use faraday_crypto::work::{Compute, Work};
 use faraday_vault::child::ChildOf;
@@ -275,7 +276,7 @@ fn a_vault_of_every_kind_reads_back_to_the_same_records() {
         let n = i as u8 + 1;
         assert_eq!(fields(record_of(&read, n)), fields(&r), "item {n}");
         let item = read.items.iter().find(|i| i.uuid == uuid(n)).unwrap();
-        let path: Vec<&str> = item.path.iter().map(String::as_str).collect();
+        let path: Vec<&str> = item.path.iter().map(|n| &**n).collect();
         let want: Vec<&str> = if group.is_empty() {
             vec![]
         } else {
@@ -791,7 +792,10 @@ fn an_item_moved_or_renamed_in_a_keepass_app_keeps_its_kind() {
     let doc = Document::read(moved.as_bytes(), KEY).expect("reads");
     let read = items::read(&c, &doc);
     assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
-    assert_eq!(read.items[0].path, ["Clés", "Cold"]);
+    assert_eq!(
+        &*read.items[0].path,
+        ["Clés", "Cold"].map(Into::<Arc<str>>::into)
+    );
     assert_eq!(fields(record_of(&read, 1)), fields(&seed_record()));
 }
 
@@ -1349,4 +1353,50 @@ fn a_plan_or_signed_amount_that_does_not_read_is_neither_replaced_nor_removed() 
     assert_eq!(items::put_plan(&mut doc, 3, &plan()), Ok(()));
     assert_eq!(items::remove_custom(&mut doc, "faraday.plan.1"), Ok(true));
     assert_eq!(read(&doc).unreadable.len(), 2);
+}
+
+#[test]
+fn entries_of_one_group_share_its_path_and_groups_below_share_its_names() {
+    // A group name is stored once however many entries are in the group
+    // (a large name beside many entries must not be copied per entry).
+    let c = compute();
+    let mut doc = Document::new([0xee; 16], "Vault");
+    let mut outer = Group::new([0x10; 16], "Outer");
+    let mut inner = Group::new([0x11; 16], "Inner");
+    for n in 0..3u8 {
+        outer.push_entry(Entry::new([0x20 + n; 16])).unwrap();
+        inner.push_entry(Entry::new([0x30 + n; 16])).unwrap();
+    }
+    outer.push_group(inner).unwrap();
+    doc.root_mut().push_group(outer).unwrap();
+    let read = items::read(&c, &doc);
+    assert_eq!(read.items.len(), 6, "{:?}", read.unreadable);
+    let (outer, inner): (Vec<_>, Vec<_>) = read.items.iter().partition(|i| i.path.len() == 1);
+    assert_eq!((outer.len(), inner.len()), (3, 3));
+    for group in [&outer, &inner] {
+        for it in group.iter() {
+            assert!(Arc::ptr_eq(&it.path, &group[0].path));
+        }
+    }
+    assert!(Arc::ptr_eq(&outer[0].path[0], &inner[0].path[0]));
+    assert_eq!(&*inner[0].path[1], "Inner");
+}
+
+#[test]
+fn a_faraday_key_twice_in_the_meta_makes_every_item_of_it_unreadable() {
+    let item = |k: &str| format!("<Item><Key>{k}</Key><Value>v</Value></Item>");
+    let meta: String = [item("faraday.seals"), item("faraday.seals")].concat();
+    let xml = format!(
+        "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\"?>\n<KeePassFile><Meta><CustomData>{meta}</CustomData></Meta><Root><Group><UUID>{}</UUID><Name>V</Name></Group></Root></KeePassFile>\n\n",
+        base64(&[0x44; 16])
+    );
+    let doc = Document::read(xml.as_bytes(), KEY).expect("reads");
+    let read = items::read(&compute(), &doc);
+    assert!(read.meta_ambiguous.is_some());
+    assert_eq!(read.unreadable.len(), 2, "{:?}", read.unreadable);
+    assert!(
+        read.unreadable
+            .iter()
+            .all(|u| u.what.fault == Fault::Ambiguous)
+    );
 }

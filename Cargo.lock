@@ -1253,6 +1253,7 @@ dependencies = [
  "faraday-qr",
  "faraday-shell-api",
  "faraday-strings",
+ "faraday-vault",
  "zeroize",
 ]
 
@@ -1303,6 +1304,7 @@ dependencies = [
  "base64ct",
  "cbc",
  "chacha20",
+ "faraday-alloc-count",
  "faraday-backup",
  "faraday-bip",
  "faraday-codec",

@@ -254,7 +254,7 @@ fn in_view(app: &mut Faraday, h: u16, action: Action) -> bool {
 fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
-    // The size, opened on its own; then Customise's three cards in its
+    // The size, opened on its own; then Customise's two cards in its
     // place.
     tap(&mut app, Action::Vault(V::CStep(vstep::PRESET)));
     // A size, a cost or a space pressed moves on (F103): the first row
@@ -262,7 +262,7 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     let next = Action::Vault(V::CSizeRow(0));
     assert!(in_view(&mut app, h, next), "Create a vault, the size");
     tap(&mut app, Action::Vault(V::CCustomise));
-    for next in [V::CNext(vstep::WHERE), V::CPreset(0), V::CSize(0)] {
+    for next in [V::CNext(vstep::WHERE), V::CPreset(0)] {
         let next = Action::Vault(next);
         assert!(in_view(&mut app, h, next), "Create a vault, {next:?}");
         tap(&mut app, next);

@@ -50,7 +50,7 @@ use crate::stick;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
-use faraday_keys::vault::{IntoRecord, RecordView, RelatedKind, Staged, VaultId};
+use faraday_keys::vault::{IntoRecord, RecordView, RelatedKind, Room, Staged, VaultId};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Record};
 use related::SaveHold;
@@ -636,10 +636,10 @@ impl Faraday {
             }
             V::CCustomise => {
                 if let Some(c) = self.vaults.state.create.as_mut() {
-                    // The three cards open on the size's values, to be
+                    // The two cards open on the preset's values, to be
                     // walked through in order.
                     c.customise = true;
-                    for k in [vstep::WHERE, vstep::COST, vstep::SIZE] {
+                    for k in [vstep::WHERE, vstep::COST] {
                         c.done[usize::from(k)] = false;
                     }
                     if matches!(
@@ -663,13 +663,6 @@ impl Faraday {
                 if let Some(c) = self.vaults.state.create.as_mut() {
                     c.passes = CUSTOM_PASSES[k.min(CUSTOM_PASSES.len() - 1)];
                     c.preset = Some(CUSTOM);
-                }
-            }
-            V::CSize(k) => {
-                let size = fv::file::SIZES[k.min(fv::file::SIZES.len() - 1)];
-                let fits = copy::min_size(self).is_none_or(|min| size >= min);
-                if let Some(c) = self.vaults.state.create.as_mut().filter(|_| fits) {
-                    c.size = size;
                 }
             }
             V::CFocus(i, second) => {
@@ -1187,6 +1180,7 @@ impl Faraday {
             self.signer_check_sync();
         }
         redraw
+            | self.memory_tick(now_ms)
             | dice::tick(self, now_ms)
             | self.vault_older_settle()
             | self.vault_save_also_settle()
@@ -1194,7 +1188,56 @@ impl Faraday {
             | trim::settle(self)
     }
 
+    /// Costs a read of the free memory (on macOS a process, `vm_stat`;
+    /// elsewhere one small file), at most twice a second. Reads what this
+    /// computer has free while a screen shows it (Unlock, Create, Visit's
+    /// rows and the file menu, the Family and backup-flow Unlock lines, the
+    /// memory step's rows); true when the figure changes what is shown.
+    /// Drawing only reads the figure kept.
+    fn memory_tick(&mut self, now_ms: u64) -> bool {
+        let shows = matches!(
+            self.screen,
+            Screen::CreateVault
+                | Screen::Unlock
+                | Screen::Visit
+                | Screen::Family
+                | Screen::BackupFlow
+        ) || matches!(self.sheet, Some(Sheet::FileMenu | Sheet::VaultMemory));
+        if !self.vaults.reads_free()
+            || !shows
+            || now_ms.saturating_sub(self.vaults.state.memory_read_at) < 500
+        {
+            return false;
+        }
+        self.vaults.state.memory_read_at = now_ms;
+        let shown = self.memory_key();
+        self.vaults.read_free();
+        shown != self.memory_key()
+    }
+
+    /// What the free memory changes on a screen: the figure as it is shown,
+    /// the Create form's warning, and which vault files a line says this
+    /// computer cannot unlock. A change of the figure that shows the same
+    /// text, and no line appearing, draws nothing. Lookups only.
+    fn memory_key(&self) -> (String, (u32, bool), Vec<bool>) {
+        let free = self
+            .vaults
+            .memory_free_mib
+            .map_or_else(String::new, mib_text);
+        let refused = self
+            .vault_files()
+            .iter()
+            .map(|f| {
+                self.vaults
+                    .unlock_refusal(f.facts.header.cost, f.len)
+                    .is_some()
+            })
+            .collect();
+        (free, self.vaults.memory_shown(), refused)
+    }
+
     fn vault_unlock_check(&mut self) {
+        self.vaults.read_free();
         let files = self.vault_files();
         let Some(f) = files.get(self.vaults.pick) else {
             return;
@@ -1205,7 +1248,7 @@ impl Faraday {
             Some(EN.vaults_type_the_passphrase.to_string())
         } else {
             self.vaults
-                .unlock_memory_refusal(f.facts.header.cost, f.facts.size.unwrap_or(f.facts.len))
+                .unlock_memory_refusal(f.facts.header.cost, f.facts.len)
         };
         self.vaults.state.unlock_error = error;
         if self.vaults.unlock_error.is_none() {
@@ -1763,14 +1806,30 @@ impl Faraday {
         stick::focus(self, Focus::Field(0));
     }
 
+    /// Costs a read of the free memory (a process on macOS) and a walk of
+    /// the records. What to say of vault `id` (when known) for an edit that
+    /// was not made: full, cannot be written, or memory is short with what
+    /// it needs.
+    pub(crate) fn not_set_text(
+        &self,
+        id: Option<VaultId>,
+        why: faraday_keys::vault::NotSet,
+    ) -> String {
+        use faraday_keys::vault::NotSet;
+        match (why, id) {
+            (NotSet::Full, _) => EN.vaults_slot_too_small.to_string(),
+            (NotSet::Short(_), None) => EN.vaults_memory_short.to_string(),
+            (NotSet::Unwritable, _) => EN.vaults_cannot_write.to_string(),
+            (NotSet::Short(len), Some(id)) => self.vaults.short_text(id, len),
+        }
+    }
+
     /// The form's record was not set: the form stays, and the toast says
-    /// whether the vault is full or cannot be written.
+    /// whether the vault is full, cannot be written or memory is short.
     fn vault_form_refused(&mut self, form: Form, why: faraday_keys::vault::NotSet) {
         self.vaults.state.form = Some(form);
-        self.toast(match why {
-            faraday_keys::vault::NotSet::Full => EN.vaults_slot_too_small,
-            faraday_keys::vault::NotSet::Unwritable => EN.vaults_cannot_write,
-        });
+        let text = self.not_set_text(self.vaults.current_id(), why);
+        self.toast(&text);
     }
 
     fn vault_form_save(&mut self) {
@@ -2041,15 +2100,34 @@ impl Faraday {
         self.vault_put_in(v, record, said)
     }
 
-    /// Costs a document write. Why vault `id`, which does not take what was
-    /// asked, does not: it cannot be written (read-only, or a record the
-    /// seal refuses), or it is full.
-    pub(crate) fn vault_no_room_text(&self, c: &Compute, id: VaultId) -> &'static str {
+    /// Costs what [`OpenVaults::fit`] costs, which reads the free memory.
+    /// Why vault `id` does not take
+    /// the records `add` once `remove` are out, or `None` when it does:
+    /// memory is short (what it needs, so nothing is said full for it), it
+    /// cannot be written (read-only, or a record the seal refuses), or it is
+    /// full by an exact count.
+    pub(crate) fn vault_refuses<R: faraday_keys::vault::Fit>(
+        &self,
+        c: &Compute,
+        id: VaultId,
+        remove: &[usize],
+        add: &[&R],
+    ) -> Option<String> {
         let store = self.vaults.store();
-        if store.read_only(id).is_some() || store.records(id).unwritable(c) {
-            EN.vaults_cannot_write
-        } else {
-            EN.vaults_slot_too_small
+        match store.fit(c, id, remove, add) {
+            Room::Fits => None,
+            Room::Short(len) => Some(self.vaults.short_text(id, len)),
+            Room::Full if store.read_only(id).is_some() => Some(EN.vaults_cannot_write.to_string()),
+            // One more count, which memory may now be short for: never
+            // said full for it.
+            Room::Full => match store.records(id).counted(c) {
+                Some(usize::MAX) => Some(EN.vaults_cannot_write.to_string()),
+                Some(_) => Some(EN.vaults_slot_too_small.to_string()),
+                None => Some(
+                    self.vaults
+                        .short_text(id, store.held(id).map_or(0, |h| h.0)),
+                ),
+            },
         }
     }
 
@@ -2061,9 +2139,8 @@ impl Faraday {
             return false;
         };
         let c = self.compute();
-        if !self.vaults.store().fits(&c, id, &[], &[&record]) {
-            let why = self.vault_no_room_text(&c, id);
-            self.toast(why);
+        if let Some(why) = self.vault_refuses(&c, id, &[], &[&record]) {
+            self.toast(&why);
             return false;
         }
         if self.vaults.edit(id, |s| s.insert(id, record)).is_none() {
@@ -2075,6 +2152,7 @@ impl Faraday {
     }
 
     fn vault_create_check(&mut self) {
+        self.vaults.read_free();
         let memory = self.vaults.create_memory_refusal();
         let medium = self.medium;
         let Some(c) = self.vaults.state.create.as_mut() else {
@@ -2141,17 +2219,18 @@ impl Faraday {
         need > 0 && !self.seal_answers_ready(need)
     }
 
-    /// Costs what [`Vaults::seal_blocked`] costs. Whether a lock would lose
+    /// Costs what [`Vaults::seal_loses`] costs. Whether a lock would lose
     /// a changed vault's changes: the seed has not arrived, or a vault's
-    /// records no longer fit its slot.
+    /// records are past the most a vault holds by an exact count. Memory
+    /// short loses nothing.
     pub fn lock_would_lose(&self, c: &Compute) -> bool {
-        self.seal_waits() || self.vaults.seal_blocked(c).is_some()
+        self.seal_waits() || self.vaults.seal_loses(c)
     }
 
     /// What [`Self::lock_would_lose`] says from what was read before the
     /// frame: lookups only, for drawing.
     pub fn lock_would_lose_seen(&self) -> bool {
-        self.seal_waits() || self.vaults.seal_blocked_seen().is_some()
+        self.seal_waits() || self.vaults.seal_loses_seen()
     }
 
     /// Whether a lock's seals are under way ([`seal`]).
@@ -2606,8 +2685,9 @@ impl Faraday {
         {
             Ok(true) => self.vaults.changed(id),
             Ok(false) => {}
-            Err(_) => {
-                self.toast(EN.vaults_slot_too_small);
+            Err(why) => {
+                let text = self.not_set_text(Some(id), why);
+                self.toast(&text);
                 return false;
             }
         }
@@ -2776,8 +2856,9 @@ impl Faraday {
             let marked = self.vaults.edit(id, |s| {
                 s.set_publics_in(&c, id, at, &[(f::REVOKED, &now.to_le_bytes()[..])])
             });
-            if marked.is_err() {
-                return self.toast(EN.vaults_slot_too_small);
+            if let Err(why) = marked {
+                let text = self.not_set_text(Some(id), why);
+                return self.toast(&text);
             }
             self.vaults.changed(id);
         }
@@ -2843,8 +2924,9 @@ impl Faraday {
                 ],
             )
         });
-        if renewed.is_err() {
-            return self.toast(EN.vaults_slot_too_small);
+        if let Err(why) = renewed {
+            let text = self.not_set_text(Some(id), why);
+            return self.toast(&text);
         }
         self.vaults.changed(id);
         self.vaults.state.renew_years = None;
@@ -4074,6 +4156,7 @@ impl Faraday {
             return;
         };
         // A step this computer could not unlock is not taken.
+        self.vaults.read_free();
         if let Some(why) = self.vaults.step_refusal(id, kib) {
             self.toast(&why);
             return;

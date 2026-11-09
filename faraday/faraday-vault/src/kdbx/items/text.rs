@@ -5,7 +5,9 @@
 //! in `mod.rs`, `write.rs` and `forms.rs` and allows in this file. The
 //! secret values of an item stay in the wiping buffers of those three.
 
+use alloc::collections::BTreeSet;
 use alloc::string::{String, ToString};
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 use zeroize::Zeroizing;
@@ -17,7 +19,10 @@ use crate::totp::{NotTotp, Totp};
 /// A key or a name, as text.
 pub(super) type Name = String;
 /// The names of the groups an entry is in.
-pub(super) type Path = Vec<String>;
+///
+/// Shared: every entry of a group holds the group's one list, and every
+/// name is stored once, however many groups below it and entries in them.
+pub(super) type Path = Arc<[Arc<str>]>;
 /// `faraday.sealed`, when it reads.
 pub(super) type Sealed = Option<String>;
 
@@ -156,7 +161,7 @@ pub struct Item {
     pub uuid: [u8; 16],
     /// The names of the groups it is in, from under the root; empty for the
     /// root group.
-    pub path: Vec<String>,
+    pub path: Arc<[Arc<str>]>,
     /// What it holds.
     pub body: Body,
     /// A person's entry's other fields; empty for Faraday's items.
@@ -203,6 +208,86 @@ pub struct Custom {
     pub key: String,
     /// The record.
     pub record: Record,
+}
+
+/// What a record holds, its fields at their capacity: a count, no copy.
+fn record_held(r: &Record) -> usize {
+    size_of::<Record>()
+        + r.fields.capacity() * size_of::<crate::records::Field>()
+        + r.fields
+            .iter()
+            .map(|f| f.bytes.capacity() + 16)
+            .sum::<usize>()
+}
+
+impl Read {
+    /// Costs a walk of the items, no copy. An upper bound on the bytes this
+    /// read holds, and the app's records built from it hold again: its
+    /// items' records and titles and its custom values, each with an
+    /// allocation's overhead.
+    pub fn held(&self) -> usize {
+        // A group's entries share one path, and every path shares the
+        // names: each path and each name once.
+        let mut paths: BTreeSet<*const ()> = BTreeSet::new();
+        let mut names: BTreeSet<*const u8> = BTreeSet::new();
+        let mut pathed = 0usize;
+        for it in &self.items {
+            if paths.insert(Arc::as_ptr(&it.path).cast()) {
+                pathed += size_of::<Arc<[Arc<str>]>>() + 16 + size_of_val(&*it.path);
+                for n in it.path.iter() {
+                    if names.insert(Arc::as_ptr(n).cast()) {
+                        pathed += size_of::<Arc<str>>() + n.len() + 32;
+                    }
+                }
+            }
+        }
+        let items: usize = pathed
+            + self
+                .items
+                .iter()
+                .map(|it| {
+                    let body = match &it.body {
+                        Body::Record(r) => record_held(r),
+                        Body::Gpg(g) => {
+                            size_of::<GpgKey>()
+                                + g.title.capacity()
+                                + g.key.capacity()
+                                + g.public.as_ref().map_or(0, String::capacity)
+                                + g.revocation.as_ref().map_or(0, |r| r.capacity())
+                                + g.revoked.as_ref().map_or(0, String::capacity)
+                                + 80
+                        }
+                    };
+                    let extra: usize = it
+                        .extra
+                        .iter()
+                        .map(|e| size_of::<Extra>() + e.name.capacity() + 16)
+                        .sum();
+                    let totp = match &it.totp {
+                        Some(Ok(t)) => t.held(),
+                        _ => 0,
+                    };
+                    32 + body + extra + totp
+                })
+                .sum::<usize>();
+        let custom: usize = self
+            .custom
+            .iter()
+            .map(|c| c.key.capacity() + record_held(&c.record))
+            .sum();
+        let unreadable: usize = self
+            .unreadable
+            .iter()
+            .map(|u| u.title.capacity() + 256)
+            .sum();
+        // The lists are held at their capacity, which a list that grew by
+        // doubling takes beyond its length.
+        let lists = self.items.capacity() * size_of::<Item>()
+            + self.custom.capacity() * size_of::<Custom>()
+            + self.unreadable.capacity() * size_of::<Unreadable>();
+        let own = self.label.capacity() + self.sealed.as_ref().map_or(0, String::capacity);
+        items + custom + unreadable + lists + own
+    }
 }
 
 /// What the document holds for the app.

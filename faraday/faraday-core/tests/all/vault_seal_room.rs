@@ -111,7 +111,9 @@ fn a_vault_that_cannot_be_written_keeps_its_amounts_and_says_so() {
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(
-        texts.iter().any(|t| t == EN.vaults_cannot_write),
+        texts
+            .iter()
+            .any(|t| t.contains("cannot be written as it is")),
         "the lock did not say the vault cannot be written: {texts:?}"
     );
     assert!(!app.offers(Action::Lock), "a lock that seals is offered");
@@ -154,4 +156,27 @@ fn saving_a_wallet_into_a_vault_that_cannot_be_written_says_so() {
     );
     assert!(!texts.iter().any(|t| t == EN.vaults_slot_too_small));
     assert_eq!(app.vaults().records(id).len(), before);
+}
+
+#[test]
+fn signed_amounts_are_not_trimmed_when_memory_is_short_to_count_the_vault() {
+    let amounts: Vec<Record> = (0..3u8)
+        .map(|n| faraday_core::memory::record_of(&([n; 32], vec![1u64])))
+        .collect();
+    let file = testkit::kdbx_vault("Test", testkit::VAULT_PASSPHRASE, 9, amounts).unwrap();
+    let mut app = open_file(file);
+    let id = app.vaults().open[0].id;
+    // A ceiling the bound is over, and no memory free for the exact count.
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(1_000));
+    app.storage(StorageEvent::Memory { available_mib: 0 });
+    testkit::vault_add_amounts(
+        &mut app,
+        0,
+        vec![faraday_core::memory::record_of(&([9; 32], vec![2u64]))],
+    );
+    assert_eq!(
+        count(&app, kind::AMOUNTS),
+        4,
+        "amounts records were trimmed for want of memory"
+    );
 }

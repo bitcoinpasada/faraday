@@ -20,6 +20,11 @@ use std::cell::Cell;
 
 thread_local! {
     static COUNT: Cell<u64> = const { Cell::new(0) };
+    static LIVE: Cell<isize> = const { Cell::new(0) };
+}
+
+fn live_add(n: isize) {
+    let _ = LIVE.try_with(|c| c.set(c.get().wrapping_add(n)));
 }
 
 /// The allocator: the system's, counting each allocation and
@@ -38,23 +43,27 @@ fn note() {
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         note();
+        live_add(layout.size() as isize);
         // SAFETY: the caller's contract for `alloc` is `System`'s.
         unsafe { System.alloc(layout) }
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         note();
+        live_add(layout.size() as isize);
         // SAFETY: as `alloc`.
         unsafe { System.alloc_zeroed(layout) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        live_add(-(layout.size() as isize));
         // SAFETY: `ptr` came from `System` through this allocator.
         unsafe { System.dealloc(ptr, layout) }
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         note();
+        live_add(new_size as isize - layout.size() as isize);
         // SAFETY: `ptr` came from `System` through this allocator.
         unsafe { System.realloc(ptr, layout, new_size) }
     }
@@ -63,4 +72,11 @@ unsafe impl GlobalAlloc for Counting {
 /// The allocations and reallocations this thread has made so far.
 pub fn allocations() -> u64 {
     COUNT.try_with(Cell::get).unwrap_or(0)
+}
+
+/// The bytes this thread has allocated and not freed, so far (memory freed
+/// on another thread than it was allocated on counts against that one): the
+/// difference across a call is what the call keeps.
+pub fn live_bytes() -> isize {
+    LIVE.try_with(Cell::get).unwrap_or(0)
 }

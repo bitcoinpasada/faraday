@@ -63,6 +63,8 @@ pub enum Staged {
     NotRead,
     /// The read failed, or the stick went before it was answered.
     Failed(String),
+    /// A vault file this computer has not the memory to read: what it needs.
+    Short(String),
 }
 
 /// One file of the boot stick.
@@ -600,7 +602,11 @@ impl Faraday {
                     c.asked += 1;
                     c.reading += 1;
                 }
-                Staged::Read | Staged::Vault | Staged::Codes(_) | Staged::Failed(_) => {
+                Staged::Read
+                | Staged::Vault
+                | Staged::Codes(_)
+                | Staged::Failed(_)
+                | Staged::Short(_) => {
                     c.asked += 1;
                 }
             }
@@ -674,7 +680,7 @@ impl Faraday {
                 ),
                 Staged::NotRead => fill(EN.boot_import_not_a_kind, &[&size]),
                 Staged::Reading => fill(EN.boot_import_being_read, &[&size]),
-                Staged::Failed(why) => fill(EN.boot_import_not_read, &[why]),
+                Staged::Failed(why) | Staged::Short(why) => fill(EN.boot_import_not_read, &[why]),
                 Staged::Vault => fill(EN.boot_import_vault_n, &[&size]),
                 Staged::Codes(said) => said.clone(),
                 Staged::Read => {
@@ -771,7 +777,8 @@ impl Faraday {
         }
     }
 
-    /// Import pressed (F130): the ticked files, and those alone, are asked
+    /// Costs a read of the free memory (on macOS a process, `vm_stat`;
+    /// elsewhere one small file). Import pressed (F130): the ticked files, and those alone, are asked
     /// of the stick; once every one is answered, what they held comes in
     /// ([`Faraday::import_if_read`]). Nothing ticked, or the stick out:
     /// Import is disabled, and the choice stays open.
@@ -779,12 +786,20 @@ impl Faraday {
         if !self.import_may_go() {
             return;
         }
+        // Which vault files fit is by what is free now.
+        self.vaults.read_free();
         let Some(imp) = self.import.state_mut() else {
             return;
         };
         imp.asked = true;
         for f in imp.files.iter_mut() {
             if f.state != Staged::Listed || imp.skip.contains(&f.name) {
+                continue;
+            }
+            // A vault file this computer has not the memory for is not
+            // read; the sheet says what it needs, as the Visit list does.
+            if let Some(why) = self.vaults.read_refusal(f.vault, f.size) {
+                f.state = Staged::Short(why);
                 continue;
             }
             f.state = Staged::Reading;
@@ -795,6 +810,9 @@ impl Faraday {
                 StorageCommand::Read { stick, name }
             });
         }
+        // Every ticked file may have been refused for memory: nothing is then
+        // read to end the sheet, so it ends here.
+        self.import_if_read();
     }
 
     /// Once every file Import asked for is answered, brings in what they
@@ -816,8 +834,14 @@ impl Faraday {
         let failed = imp
             .files
             .iter()
-            .filter(|f| matches!(f.state, Staged::Failed(_)))
+            .filter(|f| matches!(f.state, Staged::Failed(_) | Staged::Short(_)))
             .count();
+        // The end says what memory a vault file needs when any file was not
+        // read for memory, whatever the other files failed for.
+        let why = imp.files.iter().find_map(|f| match &f.state {
+            Staged::Short(why) => Some(why.clone()),
+            _ => None,
+        });
         let items = std::mem::take(&mut imp.items);
         let item_file = std::mem::take(&mut imp.item_file);
         let files: BTreeSet<usize> = item_file.iter().copied().collect();
@@ -877,7 +901,13 @@ impl Faraday {
         self.wallets.set_wallet(0);
         let keys = self.session.keys.len() - keys_before;
         let wallets = self.session.wallets.len() - wallets_before;
-        self.import_toast(wallets, keys, files.len(), failed, &renamed);
+        self.import_toast(
+            wallets,
+            keys,
+            files.len(),
+            (failed, why.as_deref()),
+            &renamed,
+        );
         if let Some(imp) = self.import.state_mut() {
             imp.unlocking = Some(vaults);
         }
@@ -892,13 +922,14 @@ impl Faraday {
 
     /// What Import brought in, said: "Imported 1 wallet · 2 keys · 6
     /// files", "· 1 not read" when a file it asked for was not, and the
-    /// names of the files kept beside others of their names.
+    /// names of the files kept beside others of their names. A file not read
+    /// for memory adds what it needs.
     fn import_toast(
         &mut self,
         wallets: usize,
         keys: usize,
         files: usize,
-        failed: usize,
+        (failed, why): (usize, Option<&str>),
         renamed: &[String],
     ) {
         let count =
@@ -920,6 +951,9 @@ impl Faraday {
                 "{said} · {}",
                 fill(EN.boot_import_n_not_read, &[&failed.to_string()])
             );
+            if let Some(why) = why {
+                said = format!("{said} · {why}");
+            }
         }
         if !renamed.is_empty() {
             said = fill(EN.boot_import_kept_as, &[&said, &renamed.join(", ")]);

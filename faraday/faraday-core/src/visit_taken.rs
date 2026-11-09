@@ -17,7 +17,7 @@ use faraday_draw::widgets::Icon;
 use crate::compact::{buttons, scroll_sheet};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use crate::{Action, Faraday, READ_MAX, Screen, Sheet, StorageCommand, sha256_of, stick};
+use crate::{Action, Faraday, Screen, Sheet, StorageCommand, sha256_of, stick};
 use faraday_draw::tokens::BODY_M;
 
 /// One row of the sheet: a file whose name is taken, and the name Keep
@@ -879,9 +879,10 @@ impl Faraday {
                 }
             }
             Action::VisitIn(i) => {
+                self.vaults.read_free();
                 if let Some(stick) = self.stick.get(self.visit.stick)
                     && let Some((n, size)) = stick.files.get(i)
-                    && *size <= READ_MAX
+                    && stick.unread_why(&self.vaults, n, *size).is_none()
                 {
                     let n = n.clone();
                     if !self.visit.inn.remove(&n) {

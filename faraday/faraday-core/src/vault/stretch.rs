@@ -8,13 +8,13 @@
 //! main thread, and the open vault joins the store there.
 
 use faraday_crypto::work::Compute;
-use faraday_keys::job::{KdbxJob, StretchJob, Stretched};
+use faraday_keys::job::{Budget, KdbxJob, Parsed, StretchJob, Stretched};
 use faraday_keys::vault::SEAL_RANDOM_LEN;
 use faraday_vault::file::STEPS_KIB;
 use faraday_vault::{Cost, records::field, records::kind};
 use zeroize::Zeroizing;
 
-use super::{VaultAction, Work, errors, vault_stem};
+use super::{APP_MIB, Need, VaultAction, Work, errors, need_mib, vault_stem};
 use crate::strings::{EN, fill};
 use crate::work::{self, VaultAct, VaultEnded};
 use crate::worker::Job;
@@ -115,6 +115,55 @@ pub(crate) fn ended(app: &mut Faraday) {
     }
 }
 
+/// The job that opens `file` under `passphrase`, with the memory it may take
+/// worked out from what the computer has free (`docs/VAULT.md` §2): the
+/// bytes the document's structures may take, and for a compressed file what
+/// its plaintext may take, each against the same function as Unlock's test
+/// ([`need_mib`]). A computer that gives no figure leaves the file's
+/// own length to decide: the reader's limit per byte of it.
+fn open_job(
+    app: &Faraday,
+    file: Vec<u8>,
+    passphrase: crate::secret_text::SecretText,
+) -> StretchJob {
+    let Some(free) = app.vaults.memory_free_mib else {
+        return StretchJob::open(file, passphrase);
+    };
+    const MIB: usize = 1024 * 1024;
+    // What is free beside the app. The copy of the file this job holds is
+    // already out of it (free is read after the copy was made) and is
+    // counted by the open once, with the body, the document and the text
+    // copies; the rest is what the document's structures, the items and
+    // the index may take.
+    let room = (free as usize)
+        .saturating_mul(MIB)
+        .saturating_sub(APP_MIB as usize * MIB);
+    let budget: Budget = Box::new(move |plain| {
+        let need = need_mib(Need::Inflate { plain });
+        if need > free { Err(need) } else { Ok(()) }
+    });
+    // Once the body is whole, the document's length and the attachments'
+    // are known before the document is parsed. What the parse check
+    // counted is also the most the open takes, however much is free: the
+    // Parse cap is the smaller room of the two (this and `room` above),
+    // and the file is inside it, so that a crafted document cannot take
+    // more than it counted.
+    let parsed: Parsed = Box::new(move |document, attachments| {
+        let need = need_mib(Need::Parse {
+            document,
+            attachments,
+        });
+        if need > free {
+            Err(need)
+        } else {
+            Ok(Some(
+                (need.saturating_sub(APP_MIB) as usize).saturating_mul(MIB),
+            ))
+        }
+    });
+    StretchJob::open_within(file, passphrase, Some(room), Some(budget), Some(parsed))
+}
+
 /// The front half of an unlock: the chosen vault's file and the
 /// typed passphrase, moved, go to the worker. False when nothing
 /// started.
@@ -131,9 +180,11 @@ fn unlock_start(app: &mut Faraday) -> bool {
     // Unlocked on the boot import's sheet: the unlock imports.
     let for_import = app.sheet == Some(crate::Sheet::Import) && app.import.state().is_some();
     let passphrase = std::mem::take(&mut app.vaults.state.passphrase.text);
+    // The unlock and its parse check are held to what is free now.
+    app.vaults.read_free();
     app.start(
         Job::Stretch(Box::new(StretchWork {
-            job: StretchJob::open(bytes, passphrase),
+            job: open_job(app, bytes, passphrase),
             act: VaultAct::Unlocked,
             cost,
             plan: Plan::Unlock {
@@ -216,7 +267,7 @@ fn create_start(app: &mut Faraday) -> bool {
             &typed[..end]
         }
     };
-    let job = StretchJob::make(id16, label.into(), cost, form.size, phrase, seal, now);
+    let job = StretchJob::make(id16, label.into(), cost, phrase, seal, now);
     let typed = form.name.text.to_string();
     app.start(
         Job::Stretch(Box::new(StretchWork {
@@ -314,7 +365,8 @@ fn unlocked(
             }
         }
         Err(e) => {
-            app.vaults.state.unlock_error = Some(errors::error_text(&e));
+            app.vaults.state.unlock_error =
+                Some(errors::stopped_text(&e, &name, app.vaults.memory_free_mib));
         }
     }
     if app.vaults.open.len() > before && app.vaults.older.is_none() {
@@ -545,7 +597,7 @@ impl MeasureWork {
                 public_custom_data: None,
             },
             len: 0,
-            size: Some(faraday_vault::file::SIZES[0]),
+            size: Some(faraday_vault::file::STEP),
         };
         let from = std::time::Instant::now();
         let ran = faraday_keys::vault::measure(c, &facts);

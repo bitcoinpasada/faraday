@@ -183,14 +183,11 @@ impl Faraday {
         let c = self.compute();
         let texts: Vec<String> = notes.iter().map(Note::to_text).collect();
         let values: Vec<&[u8]> = texts.iter().map(|t| t.as_bytes()).collect();
-        if self
-            .vaults
-            .edit(id, |s| {
-                s.set_public_all_in(&c, id, &ours, field::PLAN_NOTE, &values)
-            })
-            .is_err()
-        {
-            self.toast(EN.chart_edit_that_does);
+        if let Err(why) = self.vaults.edit(id, |s| {
+            s.set_public_all_in(&c, id, &ours, field::PLAN_NOTE, &values)
+        }) {
+            let text = self.not_set_text(Some(id), why);
+            self.toast(&text);
             return false;
         }
         self.vaults.changed(id);

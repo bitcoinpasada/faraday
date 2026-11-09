@@ -102,6 +102,31 @@ impl StickInfo {
         self.vaults.iter().any(|v| v == name)
     }
 
+    /// Why the file listed as `name`, of `size` bytes, is not read in: the
+    /// disk process reads no more than [`crate::READ_MAX`] of a file and the longest vault file of a vault, and a vault is
+    /// not read where this computer has not the memory for it
+    /// ([`crate::vault::Vaults::read_refusal`]). `None` when it is read. A
+    /// lookup.
+    #[must_use]
+    pub fn unread_why(
+        &self,
+        vaults: &crate::vault::Vaults,
+        name: &str,
+        size: u64,
+    ) -> Option<String> {
+        // A vault is read in pieces up to its own longest file; every
+        // other file stops at a frame's limit (F206 point 7).
+        let limit = if self.is_vault(name) {
+            faraday_codec::vault_file::MAX_FILE_LEN
+        } else {
+            crate::READ_MAX
+        };
+        if size > limit {
+            return Some(faraday_strings::EN.visit_file_too_large.to_string());
+        }
+        vaults.read_refusal(self.is_vault(name), size)
+    }
+
     /// What a visit calls the file listed as `name` ([`crate::stick_kind`]),
     /// a vault by its contents too. A lookup.
     #[must_use]

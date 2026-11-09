@@ -57,6 +57,8 @@ pem-rfc7468 = { version = "1.0", default-features = false }
 [dev-dependencies]
 # The vault sizes it must agree with (tests/sizes.rs).
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
+# The memory a read holds, against the reader's charge (tests/reader_memory.rs).
+faraday-alloc-count = { path = "../tools/alloc-count" }
 
 [features]
 # The entry the fuzz target kdbx_body feeds (`kdbx::fuzz_body`). Off by

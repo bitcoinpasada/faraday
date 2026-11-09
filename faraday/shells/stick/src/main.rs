@@ -2019,9 +2019,6 @@ impl Shell {
                     unix_secs: t.as_secs(),
                 });
             }
-            if let Some(available_mib) = faraday_storage::memory_available_mib() {
-                app.storage(StorageEvent::Memory { available_mib });
-            }
             // Which cameras there are, so a screen can offer the camera
             // or do without it.
             app.storage(StorageEvent::Cameras(camera::list()));
@@ -2199,6 +2196,7 @@ fn run(args: Args) -> Result<Exit, String> {
     let mut shell = Shell {
         app: Some({
             let mut app = Faraday::new();
+            app.set_memory_reader(faraday_storage::memory_available_mib);
             app.set_wake(work::wake(work_tx));
             app.medium = medium();
             app.session =

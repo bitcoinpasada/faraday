@@ -18,7 +18,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::{
     self, CATEGORIES, CUSTOM, CUSTOM_MEMORY, CUSTOM_PASSES, Focus, HOLD_MS, MACHINES, PRESETS,
-    SIZES, TextBox, VaultAction as V, cost_text, file_text, mib_text, size_text, vstep,
+    SIZES, TextBox, VaultAction as V, cost_text, file_text, mib_text, vstep,
 };
 use crate::wallet::{Session, Wallet, fp_text};
 use crate::{Action, Code, Faraday, Screen, flow};
@@ -27,7 +27,6 @@ use faraday_keys::vault::RecordView;
 use faraday_keys::{Part, Reveal};
 use faraday_ui::Status;
 pub(crate) use faraday_ui::hold::HoldTone;
-use faraday_vault::file::{SIZES as SIZES_FILE, file_len};
 use faraday_vault::records::{field, kind};
 
 mod codes;
@@ -800,9 +799,8 @@ pub(crate) fn vaults_back<'a>(app: &'a View) -> Option<(&'a str, Action)> {
 pub(crate) const VSTEPS: [&str; vstep::COUNT] = [
     EN.vault_where_will_you,
     EN.vault_unlock_cost,
-    EN.vault_space_per_passphrase,
     EN.vault_name_and_passphrases,
-    EN.vault_size,
+    EN.vault_opens_on_step,
 ];
 
 pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -878,7 +876,6 @@ fn create_guide(k: u8) -> String {
     match k {
         vstep::WHERE => EN.vault_a_vault_opens_only.to_string(),
         vstep::COST => EN.vault_guide_guess_cost.to_string(),
-        vstep::SIZE => EN.vault_every_passphrase.to_string(),
         vstep::PRESET => EN.vault_a_vault_opens.to_string(),
         _ => EN.vault_each_passphrase.to_string(),
     }
@@ -929,13 +926,6 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
         fill(
             EN.vault_cost_row,
             &[name, &mib_text(mem).to_string(), &passes.to_string()],
-        ),
-        fill(
-            EN.vault_file_n,
-            &[
-                &size_text(c.size).to_string(),
-                &file_text(file_len(c.size)).to_string(),
-            ],
         ),
         fill(
             EN.vault_kdbx,
@@ -1185,15 +1175,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
             }
         }
         vstep::PRESET => {
-            // Two sizes, each with its unlock time here and the memory it
-            // needs; Customise opens the three cards they stand for.
+            // Two presets, each with its unlock time here and the memory
+            // it needs; Customise opens the two cards they stand for.
             let chosen = app.vaults.size_row();
             let free = app.vaults.memory_free_mib;
-            let slot = app
-                .vaults
-                .create
-                .as_ref()
-                .map_or(faraday_vault::file::DEFAULT_SIZE, |c| c.size);
+            let len = vault::new_file_len();
             let row_h = if ui.compact { 70.0 } else { 56.0 };
             for (r, (label, preset, _)) in SIZES.iter().enumerate() {
                 let (_, mem, passes) = PRESETS[*preset];
@@ -1216,7 +1202,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 };
                 // Short of memory here: what this computer has free, in
                 // place of the time.
-                let short = free.filter(|f| vault::vault_need_mib(mem, slot) > *f);
+                let short = free.filter(|f| vault::vault_need_mib(mem, len) > *f);
                 if ui.compact {
                     // Three lines: the name, the cost and its time here,
                     // the memory it needs.
@@ -1268,43 +1254,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 va(V::CCustomise),
             );
             cy += 50.0;
-        }
-        vstep::SIZE => {
-            let bw = (w - 18.0) / 4.0;
-            // An item waits to go in the vault: the sizes it does not fit
-            // are not offered.
-            let min = crate::vault::copy::min_size(app);
-            if let Some(min) = min.filter(|m| *m > SIZES_FILE[0]) {
-                let line = fill(EN.vault_create_item_needs, &[&size_text(min)]);
-                cy += ui.wrap_as((x, cy, w), BODY_S, muted, &line) + tokens::VAULT_ITEM_GAP;
-            }
-            for (k, s) in SIZES_FILE.iter().enumerate() {
-                let on = *s == c.size;
-                let off = min.is_some_and(|m| *s < m);
-                let (ink, muted) = if off {
-                    let dim = Role::OnSurface.at(tokens::DISABLED_CONTENT);
-                    (dim, dim)
-                } else {
-                    (on_selected(on, ink), on_selected(on, muted))
-                };
-                let bx = x + k as f32 * (bw + 6.0);
-                ui.fill(bx, cy, bw, 62.0, 8.0, selected_or(on, inset));
-                let edge = selected_or(on, Role::OutlineVariant);
-                ui.stroke(bx, cy, bw, 62.0, 8.0, edge);
-                let t = size_text(*s);
-                let tw = ui.measure_as(TITLE_M, &t);
-                ui.text_as(bx + (bw - tw) / 2.0, cy + 12.0, TITLE_M, ink, &t);
-                let sub = fill(
-                    EN.vault_file_n_inline,
-                    &[&file_text(file_len(*s)).to_string()],
-                );
-                let sw = ui.measure_as(BODY_S, &sub);
-                ui.text_as(bx + (bw - sw) / 2.0, cy + 36.0, BODY_S, muted, &sub);
-                if !off {
-                    ui.press_box(bx, cy, bw, 62.0, va(V::CSize(k)));
-                }
-            }
-            cy += 80.0;
         }
         _ => {
             let half = (w - 12.0) / 2.0;
@@ -1528,13 +1477,12 @@ fn create_panel(
     for (k, label) in [
         EN.vault_opens_on_label,
         EN.vault_unlock_cost,
-        EN.vault_space_per_passphrase,
         EN.vault_name_and_passphrases,
     ]
     .iter()
     .enumerate()
     {
-        // Until Customise, the size stands for the first three: they
+        // Until Customise, the preset stands for the first two: they
         // carry its values, and open its card.
         let by_size = !c.customise && k as u8 != vstep::PHRASES;
         let live = by_size || c.done[k] || c.open == Some(k as u8);

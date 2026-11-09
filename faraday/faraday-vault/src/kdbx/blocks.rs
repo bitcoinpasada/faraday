@@ -4,6 +4,8 @@
 
 use alloc::vec::Vec;
 
+use chacha20::ChaCha20;
+use chacha20::cipher::StreamCipher;
 use faraday_crypto::Secret;
 use zeroize::Zeroizing;
 
@@ -86,21 +88,80 @@ fn block_len(stream: &[u8], at: usize) -> Result<usize, Error> {
     Ok(len)
 }
 
-/// The stream for `ciphertext`: blocks of [`BLOCK_LEN`], then the empty
-/// block.
-pub(super) fn write(ciphertext: &[u8], base: &Secret<[u8; 64]>, out: &mut Vec<u8>) {
-    let mut i = 0u64;
-    for data in ciphertext.chunks(BLOCK_LEN) {
-        put(i, data, base, out);
-        i += 1;
-    }
-    put(i, &[], base, out);
+/// Writes the plaintext of a file as the stream, encrypted and framed in
+/// place in the output (F206 point 6): each piece handed to [`Framer::put`]
+/// is appended, encrypted where it stands and sealed by its block's HMAC
+/// once the block is full, so no copy of the plaintext is ever made.
+pub(super) struct Framer<'a> {
+    out: &'a mut Vec<u8>,
+    cipher: ChaCha20,
+    base: &'a Secret<[u8; 64]>,
+    index: u64,
+    /// Where the open block's frame begins in `out`, if one is open.
+    frame_at: Option<usize>,
 }
 
-/// One block: its HMAC, its length, its ciphertext.
-fn put(i: u64, data: &[u8], base: &Secret<[u8; 64]>, out: &mut Vec<u8>) {
-    let len = (data.len() as u32).to_le_bytes();
-    out.extend_from_slice(&hmac(&block_key(base, i), &[&i.to_le_bytes(), &len, data]));
-    out.extend_from_slice(&len);
-    out.extend_from_slice(data);
+impl<'a> Framer<'a> {
+    /// A stream appended to `out`, encrypted by `cipher`.
+    pub(super) fn new(out: &'a mut Vec<u8>, cipher: ChaCha20, base: &'a Secret<[u8; 64]>) -> Self {
+        Self {
+            out,
+            cipher,
+            base,
+            index: 0,
+            frame_at: None,
+        }
+    }
+
+    /// Appends plaintext. `out` must have room for the whole file: the
+    /// caller reserves it, so nothing here allocates.
+    pub(super) fn put(&mut self, mut data: &[u8]) {
+        while !data.is_empty() {
+            let at = *self.frame_at.get_or_insert_with(|| {
+                let at = self.out.len();
+                self.out.resize(at + BLOCK_OVERHEAD, 0);
+                at
+            });
+            let filled = self.out.len() - at - BLOCK_OVERHEAD;
+            let n = data.len().min(BLOCK_LEN - filled);
+            let from = self.out.len();
+            self.out.extend_from_slice(&data[..n]);
+            self.cipher.apply_keystream(&mut self.out[from..]);
+            data = &data[n..];
+            if filled + n == BLOCK_LEN {
+                self.close();
+            }
+        }
+    }
+
+    /// Closes the open block, if any: its length and its HMAC.
+    fn close(&mut self) {
+        let Some(at) = self.frame_at.take() else {
+            return;
+        };
+        let len = ((self.out.len() - at - BLOCK_OVERHEAD) as u32).to_le_bytes();
+        let tag = hmac(
+            &block_key(self.base, self.index),
+            &[
+                &self.index.to_le_bytes(),
+                &len,
+                &self.out[at + BLOCK_OVERHEAD..],
+            ],
+        );
+        self.out[at..at + 32].copy_from_slice(&tag);
+        self.out[at + 32..at + BLOCK_OVERHEAD].copy_from_slice(&len);
+        self.index += 1;
+    }
+
+    /// Closes the last block and writes the empty block after it.
+    pub(super) fn finish(mut self) {
+        self.close();
+        let len = 0u32.to_le_bytes();
+        let tag = hmac(
+            &block_key(self.base, self.index),
+            &[&self.index.to_le_bytes(), &len, &[]],
+        );
+        self.out.extend_from_slice(&tag);
+        self.out.extend_from_slice(&len);
+    }
 }

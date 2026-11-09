@@ -62,7 +62,7 @@ fn dir(stick: &str) -> Dir {
 
 /// Reads one file from a stick directory.
 pub fn read(stick: &str, name: &str) -> Result<Vec<u8>, String> {
-    faraday_files::read(&mut dir(stick), name)
+    faraday_files::read_whole(&mut dir(stick), name)
 }
 
 /// Writes a file to a stick directory as a new file, reads it back,
@@ -127,6 +127,29 @@ pub trait Sticks {
         renamed: bool,
         on_taken: faraday_files::OnTaken,
     ) -> Result<String, faraday_files::WriteRefused>;
+    /// Starts a transfer that takes long, a vault in pieces, off the
+    /// shell's thread (F206 point 7); the answer comes from
+    /// [`Sticks::transferred`] on a later pass. Where this place does not
+    /// do that, or the transfer is short, it is handed back to be done now.
+    #[expect(clippy::result_large_err, reason = "the transfer, handed back whole")]
+    fn transfer_later(&mut self, transfer: Transfer) -> Result<(), Transfer> {
+        Err(transfer)
+    }
+    /// The transfers finished since the last call; and the next one asked
+    /// is started, one piece at a time.
+    fn transferred(&mut self) -> Vec<Transferred> {
+        Vec::new()
+    }
+    /// Starts the read of a vault for its SHA-256 off the shell's thread;
+    /// false where this place does not, and the file is read now.
+    fn hash_later(&mut self, _stick: &str, _name: &str) -> bool {
+        false
+    }
+    /// Whether the finished read of this file was asked by
+    /// [`Sticks::hash_later`] (and forgets it).
+    fn hash_taken(&mut self, _stick: &str, _name: &str) -> bool {
+        false
+    }
     /// Deletes a file, zeros over it first.
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String>;
     /// The free space and the whole data space, in bytes.
@@ -158,6 +181,93 @@ pub trait Sticks {
     /// The volume named `label`, or its name taken away where it is
     /// empty (`docs/STICK-IDENTITY.md` §6).
     fn name(&mut self, stick: &str, label: &str) -> Result<(), String>;
+}
+
+/// A file read or written, as the app asked it.
+pub enum Transfer {
+    /// A file read.
+    Read {
+        /// The stick.
+        stick: String,
+        /// The file's name.
+        name: String,
+    },
+    /// A file written, as [`Sticks::write`] says.
+    Write {
+        /// The stick.
+        stick: String,
+        /// The file's name.
+        name: String,
+        /// The file.
+        bytes: Vec<u8>,
+        /// The SHA-256 of the copies of a vault the session has seen.
+        copies: Vec<[u8; 32]>,
+        /// Over a file of its name.
+        replace: bool,
+        /// The person renamed it.
+        renamed: bool,
+        /// What a vault does where a file has its name.
+        on_taken: faraday_files::OnTaken,
+    },
+}
+
+/// A [`Transfer`] finished: its stick and name, and its result.
+pub enum Transferred {
+    /// A file read.
+    Read {
+        /// The stick.
+        stick: String,
+        /// The file's name.
+        name: String,
+        /// The bytes, or why not.
+        result: Result<Vec<u8>, String>,
+    },
+    /// A file written.
+    Write {
+        /// The stick.
+        stick: String,
+        /// The name asked.
+        name: String,
+        /// The name it went under, or why not.
+        result: Result<String, faraday_files::WriteRefused>,
+    },
+}
+
+/// Costs what `Sticks::write` costs for a write, a read of the file for a
+/// read. Does `t` now, on this thread.
+fn transfer_now(
+    c: &faraday_crypto::work::Compute,
+    sticks: &mut dyn Sticks,
+    t: Transfer,
+) -> Transferred {
+    match t {
+        Transfer::Read { stick, name } => {
+            let result = sticks.read(&stick, &name);
+            Transferred::Read {
+                stick,
+                name,
+                result,
+            }
+        }
+        Transfer::Write {
+            stick,
+            name,
+            bytes,
+            copies,
+            replace,
+            renamed,
+            on_taken,
+        } => {
+            let result = sticks.write(
+                c, &stick, &name, &bytes, &copies, replace, renamed, on_taken,
+            );
+            Transferred::Write {
+                stick,
+                name,
+                result,
+            }
+        }
+    }
 }
 
 /// A picture read for its codes: its stick, its name, and its bytes and
@@ -689,12 +799,84 @@ pub fn serve_with(
                 },
             });
         }
+        for done in sticks.transferred() {
+            delivered(app, sticks, &mut said, done);
+        }
         if !app.storage_pending() {
             break;
         }
         serve_queued(app, boxes, host, print, sticks, &mut said);
     }
     said
+}
+
+/// Hands the app a finished transfer.
+fn delivered(
+    app: &mut Faraday,
+    sticks: &mut dyn Sticks,
+    said: &mut Vec<String>,
+    done: Transferred,
+) {
+    let ev = match done {
+        // A vault read for its SHA-256: the bytes are wiped here, and only
+        // the hash goes to the app.
+        Transferred::Read {
+            stick,
+            name,
+            result,
+        } if sticks.hash_taken(&stick, &name) => {
+            let sha = result.map(|mut bytes| {
+                let sha = faraday_core::file_menu::sha256(&app.compute(), &bytes);
+                zeroize::Zeroize::zeroize(&mut bytes);
+                sha
+            });
+            StorageEvent::Hashed { stick, name, sha }
+        }
+        Transferred::Read {
+            stick,
+            name,
+            result,
+        } => match result {
+            Ok(bytes) => StorageEvent::Read { stick, name, bytes },
+            Err(reason) => StorageEvent::ReadFailed {
+                stick,
+                name,
+                reason,
+            },
+        },
+        Transferred::Write {
+            stick,
+            name,
+            result,
+        } => match result {
+            Err(faraday_files::WriteRefused::NameTaken { on_stick, sha }) => {
+                said.push(format!("{stick}/{on_stick} has the name of {name}"));
+                StorageEvent::NameTaken {
+                    stick,
+                    name,
+                    on_stick,
+                    sha,
+                }
+            }
+            Ok(wrote_as) => {
+                said.push(format!("wrote {stick}/{wrote_as}"));
+                StorageEvent::Written {
+                    stick,
+                    name,
+                    wrote_as,
+                }
+            }
+            Err(faraday_files::WriteRefused::Failed(reason)) => {
+                said.push(format!("cannot write {stick}/{name}: {reason}"));
+                StorageEvent::WriteFailed {
+                    stick,
+                    name,
+                    reason,
+                }
+            }
+        },
+    };
+    app.storage(ev);
 }
 
 /// Answers the storage requests the app has queued now.
@@ -710,15 +892,10 @@ fn serve_queued(
     while let Some(c) = app.poll_storage() {
         match c {
             StorageCommand::Read { stick, name } => {
-                let ev = match sticks.read(&stick, &name) {
-                    Ok(bytes) => StorageEvent::Read { stick, name, bytes },
-                    Err(reason) => StorageEvent::ReadFailed {
-                        stick,
-                        name,
-                        reason,
-                    },
-                };
-                app.storage(ev);
+                if let Err(t) = sticks.transfer_later(Transfer::Read { stick, name }) {
+                    let done = transfer_now(&app.compute(), sticks, t);
+                    delivered(app, sticks, said, done);
+                }
             }
             StorageCommand::Write {
                 stick,
@@ -729,43 +906,24 @@ fn serve_queued(
                 renamed,
                 on_taken,
             } => {
-                let c = app.compute();
                 let on_taken = match on_taken {
                     faraday_core::OnTaken::Ask => faraday_files::OnTaken::Ask,
                     faraday_core::OnTaken::Beside => faraday_files::OnTaken::Beside,
                     faraday_core::OnTaken::Over(sha) => faraday_files::OnTaken::Over(sha),
                 };
-                let written = sticks.write(
-                    &c, &stick, &name, &bytes, &copies, replace, renamed, on_taken,
-                );
-                let ev = match written {
-                    Err(faraday_files::WriteRefused::NameTaken { on_stick, sha }) => {
-                        said.push(format!("{stick}/{on_stick} has the name of {name}"));
-                        StorageEvent::NameTaken {
-                            stick,
-                            name,
-                            on_stick,
-                            sha,
-                        }
-                    }
-                    Ok(wrote_as) => {
-                        said.push(format!("wrote {stick}/{wrote_as}"));
-                        StorageEvent::Written {
-                            stick,
-                            name,
-                            wrote_as,
-                        }
-                    }
-                    Err(faraday_files::WriteRefused::Failed(reason)) => {
-                        said.push(format!("cannot write {stick}/{name}: {reason}"));
-                        StorageEvent::WriteFailed {
-                            stick,
-                            name,
-                            reason,
-                        }
-                    }
+                let t = Transfer::Write {
+                    stick,
+                    name,
+                    bytes,
+                    copies,
+                    replace,
+                    renamed,
+                    on_taken,
                 };
-                app.storage(ev);
+                if let Err(t) = sticks.transfer_later(t) {
+                    let done = transfer_now(&app.compute(), sticks, t);
+                    delivered(app, sticks, said, done);
+                }
             }
             StorageCommand::StickSpace { stick } => {
                 let ev = match sticks.space(&stick) {
@@ -870,6 +1028,9 @@ fn serve_queued(
             // A file read for its Details' SHA-256: the bytes are wiped
             // here, and only the hash goes to the app.
             StorageCommand::Hash { stick, name } => {
+                if sticks.hash_later(&stick, &name) {
+                    continue;
+                }
                 let sha = sticks.read(&stick, &name).map(|mut bytes| {
                     let sha = faraday_core::file_menu::sha256(&app.compute(), &bytes);
                     zeroize::Zeroize::zeroize(&mut bytes);
@@ -991,6 +1152,50 @@ pub struct DiskProcess {
     picture: Option<(u32, String, String, std::time::Instant)>,
     /// Pictures answered, not yet handed to the app.
     pictures_done: Vec<PictureRead>,
+    /// Vaults asked for or written, not yet started.
+    transfers: std::collections::VecDeque<Transfer>,
+    /// The vault in flight, a piece at a time.
+    transfer: Option<Flight>,
+    /// Transfers finished, not yet handed to the app.
+    transfers_done: Vec<Transferred>,
+    /// Vaults read for their SHA-256, not yet answered.
+    hashing: Vec<(String, String)>,
+}
+
+/// A transfer the disk process is at, with the piece asked now.
+struct Flight {
+    /// The request's number.
+    seq: u32,
+    /// When it was asked.
+    asked: std::time::Instant,
+    /// The answer, once it has come.
+    answer: Option<zeroize::Zeroizing<Vec<u8>>>,
+    /// What is being transferred and how far.
+    what: Going,
+}
+
+/// How far a transfer has got.
+enum Going {
+    /// A file read: what has come so far.
+    Read {
+        stick: String,
+        name: String,
+        out: Vec<u8>,
+        /// The length the first piece stated; every piece states it again.
+        total: u64,
+    },
+    /// A file written: the whole of it, and where the piece in flight
+    /// starts.
+    Write {
+        stick: String,
+        name: String,
+        bytes: Vec<u8>,
+        copies: Vec<[u8; 32]>,
+        replace: bool,
+        renamed: bool,
+        on_taken: faraday_files::OnTaken,
+        at: usize,
+    },
 }
 
 /// How long a list or a read may take.
@@ -1027,6 +1232,10 @@ impl DiskProcess {
             pictures: std::collections::VecDeque::new(),
             picture: None,
             pictures_done: Vec::new(),
+            transfers: std::collections::VecDeque::new(),
+            transfer: None,
+            transfers_done: Vec::new(),
+            hashing: Vec::new(),
         })
     }
 
@@ -1045,6 +1254,9 @@ impl DiskProcess {
                 Err(_) => Err(EN.storage_answer_malformed.to_string()),
             };
             self.pictures_done.push((stick, name, picture));
+        } else if let Some(f) = self.transfer.as_mut().filter(|f| f.seq == seq) {
+            f.answer = Some(frame);
+            return;
         }
         zeroize::Zeroize::zeroize(&mut frame);
     }
@@ -1062,6 +1274,312 @@ impl DiskProcess {
         &self.waiting
     }
 
+    /// Sends the request for the piece after `going`'s, or finishes it.
+    fn send_piece(&mut self, going: Going) {
+        use faraday_files::proto::{PIECE, Request, send};
+        let (req, going) = match going {
+            Going::Read {
+                stick,
+                name,
+                out,
+                total,
+            } => (
+                Request::ReadPart {
+                    stick: stick.clone(),
+                    name: name.clone(),
+                    from: out.len() as u64,
+                    len: PIECE as u32,
+                },
+                Going::Read {
+                    stick,
+                    name,
+                    out,
+                    total,
+                },
+            ),
+            Going::Write {
+                stick,
+                name,
+                bytes,
+                copies,
+                replace,
+                renamed,
+                on_taken,
+                at,
+            } => {
+                // Pieces go before the last, which is the write itself.
+                let last_at = (bytes.len() - 1) / PIECE * PIECE;
+                let req = if at < last_at {
+                    Request::Piece {
+                        stick: stick.clone(),
+                        name: name.clone(),
+                        at: at as u64,
+                        total: bytes.len() as u64,
+                        bytes: bytes[at..at + PIECE].to_vec(),
+                    }
+                } else {
+                    Request::Write {
+                        stick: stick.clone(),
+                        name: name.clone(),
+                        copies: copies.clone(),
+                        replace,
+                        renamed,
+                        on_taken,
+                        total: bytes.len() as u64,
+                        bytes: bytes[last_at..].to_vec(),
+                    }
+                };
+                (
+                    req,
+                    Going::Write {
+                        stick,
+                        name,
+                        bytes,
+                        copies,
+                        replace,
+                        renamed,
+                        on_taken,
+                        at,
+                    },
+                )
+            }
+        };
+        self.seq = self.seq.wrapping_add(1);
+        let mut req = req;
+        let mut encoded = req.encode();
+        let sent = send(&mut self.tx, self.seq, &encoded);
+        zeroize::Zeroize::zeroize(&mut encoded);
+        req.wipe();
+        match sent {
+            Ok(()) => {
+                self.transfer = Some(Flight {
+                    seq: self.seq,
+                    asked: std::time::Instant::now(),
+                    answer: None,
+                    what: going,
+                });
+            }
+            Err(e) => self.finish(going, e.to_string()),
+        }
+    }
+
+    /// A transfer over, wiping what it held.
+    fn finish(&mut self, going: Going, why: String) {
+        self.transfers_done.push(match going {
+            Going::Read {
+                stick,
+                name,
+                mut out,
+                ..
+            } => {
+                zeroize::Zeroize::zeroize(&mut out);
+                Transferred::Read {
+                    stick,
+                    name,
+                    result: Err(why),
+                }
+            }
+            Going::Write {
+                stick,
+                name,
+                mut bytes,
+                ..
+            } => {
+                zeroize::Zeroize::zeroize(&mut bytes);
+                Transferred::Write {
+                    stick,
+                    name,
+                    result: Err(faraday_files::WriteRefused::Failed(why)),
+                }
+            }
+        });
+    }
+
+    /// The piece of a file read that has come: kept, and the next asked,
+    /// or the file whole.
+    fn read_part(
+        &mut self,
+        stick: String,
+        name: String,
+        mut out: Vec<u8>,
+        known: u64,
+        total: u64,
+        bytes: Vec<u8>,
+    ) {
+        let mut part = bytes;
+        let first = out.is_empty();
+        let total_ok = if first {
+            total <= faraday_files::MAX_VAULT_READ
+        } else {
+            total == known
+        };
+        let want = total
+            .saturating_sub(out.len() as u64)
+            .min(faraday_files::proto::PIECE as u64);
+        let refused = !total_ok
+            || part.len() as u64 != want
+            || (first
+                && out
+                    .try_reserve_exact(usize::try_from(total).unwrap_or(usize::MAX))
+                    .is_err());
+        if refused {
+            zeroize::Zeroize::zeroize(&mut part);
+            let why = EN.storage_answer_file.to_string();
+            self.finish(
+                Going::Read {
+                    stick,
+                    name,
+                    out,
+                    total,
+                },
+                why,
+            );
+            return;
+        }
+        out.extend_from_slice(&part);
+        zeroize::Zeroize::zeroize(&mut part);
+        if out.len() as u64 >= total {
+            self.transfers_done.push(Transferred::Read {
+                stick,
+                name,
+                result: Ok(out),
+            });
+        } else {
+            self.send_piece(Going::Read {
+                stick,
+                name,
+                out,
+                total,
+            });
+        }
+    }
+
+    /// Takes the answer of the piece in flight and asks the next, or
+    /// starts the next transfer. Never waits.
+    fn step_transfer(&mut self) {
+        use faraday_files::proto::{PIECE, Response};
+        if let Some(f) = self.transfer.take() {
+            let Some(mut frame) = f.answer else {
+                if f.asked.elapsed() > ASK_WRITE {
+                    self.finish(f.what, EN.storage_disk_silent.to_string());
+                } else {
+                    self.transfer = Some(Flight { answer: None, ..f });
+                }
+                return;
+            };
+            let answer = Response::decode(&frame);
+            zeroize::Zeroize::zeroize(&mut frame);
+            let answer = answer.map_err(|_| EN.storage_answer_malformed.to_string());
+            match (f.what, answer) {
+                (what, Err(why)) => self.finish(what, why),
+                (
+                    Going::Read {
+                        stick,
+                        name,
+                        out,
+                        total: known,
+                    },
+                    Ok(Response::Part { total, bytes }),
+                ) => {
+                    self.read_part(stick, name, out, known, total, bytes);
+                }
+                (what @ Going::Read { .. }, Ok(Response::Failed(why))) => {
+                    self.finish(what, why);
+                }
+                (what @ Going::Read { .. }, Ok(_)) => {
+                    self.finish(what, EN.storage_answer_file.to_string());
+                }
+                (
+                    Going::Write {
+                        stick,
+                        name,
+                        mut bytes,
+                        copies,
+                        replace,
+                        renamed,
+                        on_taken,
+                        at,
+                    },
+                    Ok(answer),
+                ) => {
+                    let last_at = (bytes.len() - 1) / PIECE * PIECE;
+                    let result = if at < last_at {
+                        match answer {
+                            Response::Held(_) => {
+                                self.send_piece(Going::Write {
+                                    stick,
+                                    name,
+                                    bytes,
+                                    copies,
+                                    replace,
+                                    renamed,
+                                    on_taken,
+                                    at: at + PIECE,
+                                });
+                                return;
+                            }
+                            Response::Failed(why) => Err(faraday_files::WriteRefused::Failed(why)),
+                            _ => Err(faraday_files::WriteRefused::Failed(
+                                EN.storage_answer_write.to_string(),
+                            )),
+                        }
+                    } else {
+                        match answer {
+                            Response::Written(n) => Ok(n),
+                            Response::WriteNameTaken { on_stick, sha } => {
+                                Err(faraday_files::WriteRefused::NameTaken { on_stick, sha })
+                            }
+                            Response::Failed(why) => Err(faraday_files::WriteRefused::Failed(why)),
+                            _ => Err(faraday_files::WriteRefused::Failed(
+                                EN.storage_answer_write.to_string(),
+                            )),
+                        }
+                    };
+                    zeroize::Zeroize::zeroize(&mut bytes);
+                    self.transfers_done.push(Transferred::Write {
+                        stick,
+                        name,
+                        result,
+                    });
+                }
+            }
+            return;
+        }
+        self.start_next();
+    }
+
+    /// Starts the next transfer asked, if any.
+    fn start_next(&mut self) {
+        let going = match self.transfers.pop_front() {
+            None => return,
+            Some(Transfer::Read { stick, name }) => Going::Read {
+                stick,
+                name,
+                out: Vec::new(),
+                total: 0,
+            },
+            Some(Transfer::Write {
+                stick,
+                name,
+                bytes,
+                copies,
+                replace,
+                renamed,
+                on_taken,
+            }) => Going::Write {
+                stick,
+                name,
+                bytes,
+                copies,
+                replace,
+                renamed,
+                on_taken,
+                at: 0,
+            },
+        };
+        self.send_piece(going);
+    }
+
     fn ask(
         &mut self,
         req: &faraday_files::proto::Request,
@@ -1072,7 +1590,7 @@ impl DiskProcess {
         let sent = send(&mut self.tx, self.seq, &encoded);
         zeroize::Zeroize::zeroize(&mut encoded);
         sent.map_err(|e| e.to_string())?;
-        let wait = if matches!(req, Request::Write { .. }) {
+        let wait = if matches!(req, Request::Write { .. } | Request::Piece { .. }) {
             ASK_WRITE
         } else {
             ASK
@@ -1180,6 +1698,31 @@ impl DiskProcess {
     ) -> Result<String, faraday_files::WriteRefused> {
         use faraday_files::WriteRefused as W;
         use faraday_files::proto::{Request, Response};
+        // A file longer than a piece goes in pieces, held by the disk
+        // process until the write that carries the last one (F206
+        // point 7); a frame keeps its limit.
+        let piece = faraday_files::proto::PIECE;
+        let last_at = if bytes.len() > piece {
+            (bytes.len() - 1) / piece * piece
+        } else {
+            0
+        };
+        for (k, part) in bytes[..last_at].chunks(piece).enumerate() {
+            let mut req = Request::Piece {
+                stick: stick.into(),
+                name: name.into(),
+                at: (k * piece) as u64,
+                total: bytes.len() as u64,
+                bytes: part.to_vec(),
+            };
+            let answer = self.ask(&req);
+            req.wipe();
+            match answer.map_err(W::Failed)? {
+                Response::Held(_) => {}
+                Response::Failed(why) => return Err(W::Failed(why)),
+                _ => return Err(W::Failed(EN.storage_answer_write.to_string())),
+            }
+        }
         let mut req = Request::Write {
             stick: stick.into(),
             name: name.into(),
@@ -1187,7 +1730,8 @@ impl DiskProcess {
             replace,
             renamed,
             on_taken,
-            bytes: bytes.to_vec(),
+            total: bytes.len() as u64,
+            bytes: bytes[last_at..].to_vec(),
         };
         let answer = self.ask(&req);
         req.wipe();
@@ -1202,14 +1746,49 @@ impl DiskProcess {
 
 impl Sticks for DiskProcess {
     fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String> {
-        use faraday_files::proto::{Request, Response};
-        match self.ask(&Request::Read {
-            stick: stick.into(),
-            name: name.into(),
-        })? {
-            Response::Bytes(b) => Ok(b),
-            Response::Failed(why) => Err(why),
-            _ => Err(EN.storage_answer_file.to_string()),
+        use faraday_files::proto::{PIECE, Request, Response};
+        // A file is read in pieces, so that a vault longer than a frame
+        // comes whole (F206 point 7).
+        let mut out: Vec<u8> = Vec::new();
+        let mut known = 0;
+        loop {
+            let from = out.len() as u64;
+            let (total, mut part) = match self.ask(&Request::ReadPart {
+                stick: stick.into(),
+                name: name.into(),
+                from,
+                len: PIECE as u32,
+            })? {
+                Response::Part { total, bytes } => (total, bytes),
+                Response::Failed(why) => {
+                    zeroize::Zeroize::zeroize(&mut out);
+                    return Err(why);
+                }
+                _ => {
+                    zeroize::Zeroize::zeroize(&mut out);
+                    return Err(EN.storage_answer_file.to_string());
+                }
+            };
+            let want = total.saturating_sub(from).min(PIECE as u64);
+            let bad = if from == 0 {
+                total > faraday_files::MAX_VAULT_READ
+                    || out
+                        .try_reserve_exact(usize::try_from(total).unwrap_or(usize::MAX))
+                        .is_err()
+            } else {
+                total != known
+            } || part.len() as u64 != want;
+            if bad {
+                zeroize::Zeroize::zeroize(&mut part);
+                zeroize::Zeroize::zeroize(&mut out);
+                return Err(EN.storage_answer_file.to_string());
+            }
+            known = total;
+            out.extend_from_slice(&part);
+            zeroize::Zeroize::zeroize(&mut part);
+            if out.len() as u64 >= total {
+                return Ok(out);
+            }
         }
     }
 
@@ -1271,6 +1850,47 @@ impl Sticks for DiskProcess {
             Response::Failed(why) => Err(why),
             _ => Err(EN.storage_answer_zeroing.to_string()),
         }
+    }
+
+    fn transfer_later(&mut self, transfer: Transfer) -> Result<(), Transfer> {
+        // A vault's file, the only one that may be longer than a frame.
+        let vault = |name: &str| name.to_ascii_lowercase().ends_with(".kdbx");
+        match &transfer {
+            Transfer::Read { name, .. } if vault(name) => {}
+            Transfer::Write { name, bytes, .. }
+                if vault(name) && bytes.len() > faraday_files::proto::PIECE => {}
+            _ => return Err(transfer),
+        }
+        self.transfers.push_back(transfer);
+        Ok(())
+    }
+
+    fn transferred(&mut self) -> Vec<Transferred> {
+        while let Ok((seq, frame)) = self.answers.try_recv() {
+            self.aside(seq, frame);
+        }
+        self.step_transfer();
+        std::mem::take(&mut self.transfers_done)
+    }
+
+    fn hash_later(&mut self, stick: &str, name: &str) -> bool {
+        let read = Transfer::Read {
+            stick: stick.to_string(),
+            name: name.to_string(),
+        };
+        if self.transfer_later(read).is_err() {
+            return false;
+        }
+        self.hashing.push((stick.to_string(), name.to_string()));
+        true
+    }
+
+    fn hash_taken(&mut self, stick: &str, name: &str) -> bool {
+        let at = self
+            .hashing
+            .iter()
+            .position(|(s, n)| s == stick && n == name);
+        at.map(|i| self.hashing.remove(i)).is_some()
     }
 
     fn read_qr_later(&mut self, stick: &str, name: &str) {

@@ -20,6 +20,11 @@ fuzz_target!(|data: &[u8]| {
     let Ok(list) = v.list() else { return };
     for e in list.iter().take(64) {
         let _ = v.read(&e.name, 1 << 20);
+        // A piece of the file, where and how long the input says.
+        let at = |i: usize| data.get(i).copied().unwrap_or(0) as u64;
+        let from = at(0) | at(1) << 8 | at(2) << 16;
+        let len = (at(3) | at(4) << 8 | at(5) << 16) as usize;
+        let _ = v.read_part(&e.name, from, len, 1 << 20);
     }
     if v.create("fuzz.txt", b"faraday").is_ok() {
         let _ = v.rename("fuzz.txt", "fuzzed.txt");

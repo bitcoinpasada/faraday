@@ -10,8 +10,8 @@ use faraday_crypto::sha256;
 use faraday_crypto::work::{Compute, Work};
 use faraday_vault::Cost;
 use faraday_vault::kdbx::{
-    Binary, Cipher, Compression, Contents, Error, InnerStream, Kdf, MAX_PLAIN, RANDOM_LEN,
-    Unsupported, inspect, open, recognise, seal,
+    Binary, Cipher, Compression, Contents, Error, InnerStream, Kdf, MAX_PLAIN, MAX_STORED,
+    RANDOM_LEN, Unsupported, inspect, open, recognise, seal,
 };
 
 const PASSPHRASE: &str = "kdbx vector passphrase";
@@ -331,7 +331,7 @@ fn a_file_is_its_size_and_the_framing() {
     // The header's 249 bytes, its hash and HMAC, and 36 bytes for each block
     // and the empty one after (§2's table).
     let document = b"<KeePassFile/>";
-    for (plain_len, file_len) in [(65_536, 65_921), (262_144, 262_529), (4_194_304, 4_194_797)] {
+    for (plain_len, file_len) in [(32_768, 33_153), (65_536, 65_921), (4_194_304, 4_194_797)] {
         assert_eq!(sealed(document, plain_len).len(), file_len);
     }
 }
@@ -786,8 +786,9 @@ fn every_byte_of_a_small_file_changed_in_turn_is_not_opened() {
 #[test]
 fn a_file_too_long_for_the_largest_vault_is_refused_before_any_work() {
     let before = stretches();
-    let mut f = file(&head());
-    f.resize(f.len() + 6 * 1024 * 1024, 0);
+    let head = file(&head());
+    let mut f = vec![0u8; head.len() + MAX_STORED + 1];
+    f[..head.len()].copy_from_slice(&head);
     assert_eq!(inspect(&f).err(), Some(Error::TooLarge));
     assert_eq!(
         open(&compute(), &f, PASSPHRASE).err(),
@@ -895,20 +896,70 @@ fn every_bit_of_the_version_changed_is_refused_and_a_major_of_132_by_name() {
 }
 
 #[test]
-fn a_vault_of_the_largest_size_is_sealed_and_opened() {
-    // Four data blocks of a megabyte and the empty one after them.
+fn a_vault_of_several_blocks_is_sealed_and_opened() {
+    // Three data blocks of a megabyte, a partial one and the empty one after
+    // them; the ceiling itself is measured by `examples/large.rs`.
     let document = b"<KeePassFile>secrets</KeePassFile>";
-    let file = sealed(document, MAX_PLAIN);
+    let plain_len = 3 * 1024 * 1024 + 32_768;
+    let file = sealed(document, plain_len);
+    assert_eq!(file.len(), 313 + plain_len + 36 * 5);
     let opened = open(&compute(), &file, PASSPHRASE).expect("opened");
     // The inner header (stream id, key, end) comes off the front.
     let inner = (5 + 4) + (5 + 64) + 5;
-    assert_eq!(opened.document.len(), MAX_PLAIN - inner);
+    assert_eq!(opened.document.len(), plain_len - inner);
     assert!(opened.document.starts_with(document));
     assert!(
         opened.document[document.len()..]
             .iter()
             .all(|&b| b == b'\n')
     );
+}
+
+#[test]
+fn attachments_are_carried_without_a_copy_of_the_body_for_each() {
+    let binaries = [
+        Binary {
+            protected: false,
+            data: vec![7u8; 100_000].into(),
+        },
+        Binary {
+            protected: true,
+            data: vec![8u8; 50_000].into(),
+        },
+    ];
+    let file = seal(
+        &compute(),
+        PASSPHRASE,
+        CHEAP,
+        &random(),
+        &Contents {
+            document: b"<KeePassFile/>",
+            binaries: faraday_vault::kdbx::Binaries::all(&binaries),
+            public_custom_data: None,
+        },
+        262_144,
+    )
+    .expect("sealed");
+    let opened = open(&compute(), &file, PASSPHRASE).expect("opened");
+    assert!(opened.binaries[0].data.iter().all(|&b| b == 7));
+    assert!(opened.binaries[1].data.iter().all(|&b| b == 8));
+    // Sealing what was opened gives the same attachments back.
+    let again = seal(
+        &compute(),
+        PASSPHRASE,
+        CHEAP,
+        &random(),
+        &Contents {
+            document: &opened.document[..14],
+            binaries: faraday_vault::kdbx::Binaries::all(&opened.binaries),
+            public_custom_data: None,
+        },
+        262_144,
+    )
+    .expect("sealed again");
+    let back = open(&compute(), &again, PASSPHRASE).expect("opened again");
+    assert_eq!(&back.binaries[0].data[..], &binaries[0].data[..]);
+    assert_eq!(&back.binaries[1].data[..], &binaries[1].data[..]);
 }
 
 #[test]
@@ -926,4 +977,26 @@ fn a_file_pykeepass_wrote_with_a_megabyte_attachment_opens() {
         digest,
         "7e36854b87ab32660282cf3a40f7c4f2f555c5102facb9120d880dcc82d2bef5"
     );
+}
+
+#[test]
+fn a_sealed_file_is_built_in_exactly_the_room_reserved_for_it() {
+    // The room is reserved once and nothing grows it, whatever the length
+    // stands near a whole number of blocks. This stays as a test of an
+    // allocation: the memory check at the ceiling budgets one buffer for the
+    // sealed file, and a growing one would peak at twice that.
+    const MIB: usize = 1024 * 1024;
+    for plain_len in [
+        0,
+        32_768,
+        MIB - 32_768,
+        MIB,
+        MIB + 32_768,
+        2 * MIB - 1,
+        2 * MIB,
+        2 * MIB + 32_768,
+    ] {
+        let file = sealed(b"<x/>", plain_len.max(4096));
+        assert_eq!(file.capacity(), file.len(), "{plain_len}");
+    }
 }

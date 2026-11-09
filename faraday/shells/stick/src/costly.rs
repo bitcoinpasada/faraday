@@ -157,6 +157,25 @@ impl Sticks for Timed<'_> {
         wrote
     }
 
+    fn transfer_later(
+        &mut self,
+        transfer: faraday_storage::Transfer,
+    ) -> Result<(), faraday_storage::Transfer> {
+        self.sticks.transfer_later(transfer)
+    }
+
+    fn transferred(&mut self) -> Vec<faraday_storage::Transferred> {
+        self.sticks.transferred()
+    }
+
+    fn hash_later(&mut self, stick: &str, name: &str) -> bool {
+        self.sticks.hash_later(stick, name)
+    }
+
+    fn hash_taken(&mut self, stick: &str, name: &str) -> bool {
+        self.sticks.hash_taken(stick, name)
+    }
+
     fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {
         self.sticks.wipe(stick, name)
     }

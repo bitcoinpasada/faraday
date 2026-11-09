@@ -1576,7 +1576,6 @@ fn a_size_keeps_its_number_and_its_unit_together() {
         assert!(!text.contains(' '), "{text:?} can break between its parts");
     }
     assert!(!faraday_core::vault::mib_text(14_950).contains(' '));
-    assert!(!faraday_core::vault::size_text(262_144).contains(' '));
 }
 
 /// What a page drawn now, scrolled to each place, shows cut off or drawn

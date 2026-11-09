@@ -1,8 +1,8 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F190, amending F189; F208; F226); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size (one of four, until F206 is built) and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); a file vault that grows by itself up to 256 MiB, with the memory checks, the cheaper size read and the file read in pieces (F206; §2, §5, §8, §9 read as they will be; §3.1's table, §4's limits and `docs/SECURITY-MODEL.md`'s "Fixed size" still describe four sizes up to 4 MiB until then), and the QR vault in the app, a tool in Tools (§13, F226: Make, Open, and Save as a QR vault on a file vault's item)
+**Status:** Specified (F190, amending F189; F208; F226); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
+**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); the QR vault in the app, a tool in Tools (§13, F226: Make, Open, and Save as a QR vault on a file vault's item)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -134,7 +134,7 @@ binary form only; `.pgp` is the name it writes.
 A QR vault has one length (§2.1). A file vault has no size to choose
 (F206): it starts at 32 KiB of plaintext and grows by itself, each seal
 padding it to the smallest multiple of 32 KiB that holds its contents, up
-to 256 MiB. The plaintext is the inner header, the XML document (history and a recycle bin are in it, so they count), the
+to 128 MiB. The plaintext is the inner header, the XML document (history and a recycle bin are in it, so they count), the
 bytes of the attachments something refers to (§7.1) and the line feeds after the document. It shrinks in
 the same way when what it holds does: a seal remembers nothing of the
 size before.
@@ -144,16 +144,16 @@ size before.
 | QR (§2.1) | 226 B, one item or a note | 396 B, an OpenPGP message | one seed, one codex32 share, one passphrase or a short note, printed as a code |
 | New, or small | 32,768 B | 33,153 B | keys, wallets, a few entries |
 | Larger | a multiple of 32,768 B | the length below | whatever it holds |
-| The largest | 268,435,456 B (256 MiB) | 268,445,021 B | a KDBX file with its attachments |
+| The largest | 134,217,728 B (128 MiB) | 134,222,685 B | a KDBX file with its attachments |
 
 A file vault's length is the 313 bytes of §1.1's header, its hash and
 its HMAC, the plaintext, and 36 bytes for each 1 MiB block and the empty
 block after them. The plaintext is the inner header, the XML document
 and the line feeds after it (history and a recycle bin are in the document,
-so they count). A reader opens a file whose plaintext is up to 256 MiB of
+so they count). A reader opens a file whose plaintext is up to 128 MiB of
 any length, as a KeePass app's save is (§7.1), and refuses a longer one
 from the file's length, before any work, and a compressed one that states
-more than 256 MiB once it is decrypted. The next seal pads whatever it
+more than 128 MiB once it is decrypted. The next seal pads whatever it
 opened to the smallest step that holds it. A file made when a vault had
 one of four sizes (64 KiB to 4 MiB) is already on a step, and takes the
 same rule at its next seal, so one that holds little gets smaller.
@@ -170,13 +170,30 @@ checked, against one function, before the work and with no memory taken:
 - **Before an unlock:** Argon2id's memory, twice the file and 100 MiB
   (`APP_MIB`). Unlock says "Needs 1.6 GiB. This computer has 1 GiB free."
   before the passphrase is typed.
-- **Once it is decrypted, and before a seal:** Argon2id's memory, 16 times
-  the document, twice the attachments and 100 MiB. Measured on 256 MiB of
-  real entries, the peak is 15 times the document; on one 256 MiB
-  attachment, twice. A file that does not fit stays locked, with the same
-  message. A seal that does not fit stops a lock as §5 says.
+- **Once it is decrypted:** the XML document's length and the attachments'
+  are known before the document is parsed, and 16 times the document,
+  twice the attachments and 100 MiB are checked then. Measured, an open
+  peaks at 15.7 times the document of real entries and at twice one
+  attachment. A file that does not fit stays locked, with the same message.
+- **Before a seal:** the larger of Argon2id's memory (freed before the seal
+  builds) and 16 times the document plus 3 times the attachments, and
+  100 MiB, what is free being read with the vault still open. Measured, a
+  seal peaks at 28.7 times the document of real entries and 3.2 times one
+  attachment, and the opened vault already holds 13.7 and 1.0 times of
+  those, which the free figure leaves out. The document is counted as it
+  opened with what was added since it bounded; the exact count copies the
+  document as it is grown, so it is made only where what is free also holds
+  that copy (every count that copies, a check of room past the ceiling
+  included). Where it is not, memory is short: nothing is sealed, trimmed or
+  lost, the vault stays open with its changes (an idle lock too) and says
+  what memory it needs. Past the ceiling is decided only on an exact count;
+  the bound only says "certainly fits" when it is under the ceiling. The reader of a file is held to what the parse check counted as
+  well as to what is free. What is free is read at each check (before a
+  file is read, an unlock, the parse check and each seal, each vault of a
+  lock included), not taken from an earlier reading. A seal that does not
+  fit stops a lock as §5 says.
 - **A compressed file** states its plaintext only inside the encryption:
-  once decrypted, that stated length, at most 256 MiB, takes the file's place
+  once decrypted, that stated length, at most 128 MiB, takes the file's place
   in the same function before its one buffer is allocated. It cannot
   inflate past that buffer.
 
@@ -338,8 +355,8 @@ that fits in what it has free beside twice the vault file and 100 MiB
 | 512 MiB | 613 MiB (620 MiB) | a 1 GB Pi 3 with little else running; any PC |
 | 1 GiB | 1,125 MiB (1,132 MiB), about 1.1 GiB | a Pi 4 or 5 with 2 GB or more; a PC with 2 GB or more |
 
-The figures are for the default size's 256 KiB file, and in parentheses
-for the largest, 4 MiB (§2). A vault meant for a Pi Zero 2 W takes 64 or
+The figures are for a new vault's 32 KiB file, and in parentheses for one
+of 4 MiB; each further MiB of the file adds two (§2). A vault meant for a Pi Zero 2 W takes 64 or
 128 MiB.
 
 **Where the numbers come from.** RFC 9580 recommends Argon2id with 3
@@ -462,7 +479,7 @@ input is not covered, and reads as wrong credentials.
 1. Read the header as KDBX 4 says: the signatures, the version, the
    header fields. Check what §7.1 allows: the cipher, the compression,
    the KDF and its cost (§3). The file's length gives a plaintext of at
-   most 4 MiB (§2). Any fault refuses the file, naming it, before any
+   most 128 MiB (§2). Any fault refuses the file, naming it, before any
    memory is taken.
 2. Show the memory the vault needs, and stop if this machine has not
    got it (§3.1).
@@ -484,7 +501,7 @@ input is not covered, and reads as wrong credentials.
    file, one content verifies.
 6. Check every block's HMAC, then decrypt the stream into memory held by
    `faraday-keys`, wiped as it drops; inflate it if it is compressed,
-   stopping at 4 MiB. Any failure refuses the file, and nothing of the
+   stopping at 128 MiB. Any failure refuses the file, and nothing of the
    contents is read.
 7. Read the inner header and the XML (§7, §7.1). Any fault refuses the
    file, naming it.
@@ -492,6 +509,25 @@ input is not covered, and reads as wrong credentials.
 
 Neither the key file, its name, nor the secret is remembered once the
 vault is locked (§11).
+
+**What a crafted file may ask the reader to hold.** Two format limits keep
+a small file from asking for more memory than F206 point 4's check
+covers; neither refuses a real vault, and both are named here as format
+limits (§7, `keys.vault-contents-never-refuse`):
+
+- `MAX_BINARIES`, 1,048,576 attachments: each takes 32 bytes once read
+  and a field is only 6 bytes of a file, so the count is limited apart
+  from the length.
+- `MODEL_PER_BYTE`, 40 bytes of the document's structures (its groups,
+  entries and fields, each element a box and a list of parts) for each
+  byte of the XML, with 1 MiB besides: the reader keeps a running charge
+  that stands for what it holds (a test counts the allocations and holds
+  the charge to them) and refuses with a too-large document once it
+  passes. A bare `<Entry/>` holds 92 bytes a byte and is charged 120, a
+  bare `<Group/>` holds 66 and is charged 88; a real entry of a KeePass
+  app is charged about 8 a byte, a flat list of KeePassXC's empty groups
+  about 5. The items read, their index and the records the app builds
+  count against the same budget after.
 
 **A QR vault.**
 
@@ -580,18 +616,34 @@ S2K and every data packet.
   of other vaults across a power-off (§7, `plan`).
 - **The contents are padded to the smallest step that holds them** (§2).
   A vault's changes stop a lock in two cases only: the contents are past
-  the 256 MiB a vault holds, or this computer has not the memory to seal it
-  (§2). Entries read from the camera or from files, a form's edit and a
+  the 128 MiB a vault holds, or this computer has not the memory to seal it
+  (§2). A file travels between the stick and the app in pieces of 16 MiB,
+  off the screen's thread. Entries read from the camera or from files, a form's edit and a
   copy from another vault are refused the same way past the ceiling, and
   none is added. The time an edit takes does not depend on the file's size:
   the document's bytes are measured once when it opens, and each change adds
-  an upper bound of its own; only past the ceiling is the document written
-  to count exactly (F206 point 8). The transaction's signed amounts (§7)
-  lose their oldest only at the ceiling. In either case the lock does not
+  an upper bound of its own; only where that bound is not under the ceiling
+  is the document written to count exactly (F206 point 8). The transaction's signed amounts (§7)
+  lose their oldest only at the ceiling by an exact count, never for want of
+  memory. In either case the lock does not
   go ahead, nothing is wiped, the vault stays open with its
   changes and the Lock sheet names the vault and says what stops it: by how
   many bytes it is over what a vault holds, or the memory the seal needs and
-  what this computer has free. The check is made again as each
+  what this computer has free. Past the ceiling the sheet offers Lock without
+  sealing, which loses those changes. Where every vault named is short of
+  memory (not one named only for an item moved to a short one) it offers
+  Lock, which tries again, and Lock without saving, which closes the vaults it names and
+  loses their changes: the person chooses (owner, 2026-11-09), memory never
+  discards on its own and an idle lock never takes the choice. The sheet
+  names every vault that press would lose, each with its line (past the
+  ceiling, short of memory, cannot be written, or holding an item moved to a named vault), and
+  the press lets go those and no others: a vault found short at the press
+  that the sheet did not name stays open and the sheet shows again naming it,
+  a seal that fails part way for memory included. A vault named short of
+  memory stays named, whatever free memory reads after, until its records
+  change, a Lock seals it, or it is let go or closed.
+  A seal that runs out of memory half way is the same: it loses nothing by
+  itself. The check is made again as each
   vault is sealed, since the `seals` lines a plan takes from the vaults
   sealed before it can grow it, and a seed or answers that run out do
   the same: the lock stops there, the vaults sealed before it are closed
@@ -600,8 +652,10 @@ S2K and every data packet.
   only once every seal is done, so a lock that stops leaves them as
   they were. "Lock without sealing" is
   the person's own choice to lose those changes. That rule is for a lock
-  the person asks for: an idle lock has no one to ask, so it goes ahead
-  and wipes, those changes are lost, and the Locked sheet says that
+  the person asks for: an idle lock has no one to ask, so past the ceiling
+  or with a vault that cannot be written it goes ahead and wipes, those
+  changes are lost, but short of memory it keeps the vault open and says
+  what it needs. The Locked sheet that follows a lock which went ahead says
   changes were not saved, too big or not writable. Locking one vault alone
   (a backup's "Lock it and make a new vault") refuses the same way with
   a toast.
@@ -797,9 +851,10 @@ empty passphrase); a wrong passphrase, a failed HMAC or a damaged file;
 and an XML document that is not well formed, or has a DOCTYPE, or an
 entity other than XML's five and character references. The XML reader's
 other limits are format limits too (named in §7.1): nesting past 64
-elements, markup inside a text element the model reads, a protected value
-that is not canonical Base64 (damage), and a `Meta` or `Root` that is
-missing or repeated. A comment or a processing instruction, before the
+elements, more attachments than `MAX_BINARIES`, structures past
+`MODEL_PER_BYTE` (§4), markup inside a text element the model reads, a
+protected value that is not canonical Base64 (damage), and a `Meta` or
+`Root` that is missing or repeated. A comment or a processing instruction, before the
 root, after it or inside, is not refused: it is kept where it is and
 skipped where Faraday reads text.
 
@@ -1019,7 +1074,9 @@ target, and the original is sealed after every one of them (a chain, A to B
 to C, seals C, then B, then A). A lock of all that finds an original whose
 target is still open and unsealed stops and asks, as it does for a vault
 that cannot be sealed, and lets the original go only when the person chose
-Lock without sealing or an idle lock had no one to ask. A vault waiting for
+Lock without sealing or Lock without saving, whose sheet names it, or an
+idle lock had no one to ask (it let its target go past the ceiling or with
+no seed). A vault waiting for
 another's seal in this way, through any number of vaults between, is dimmed
 on the Move sheet of that other vault, "Lock {vault} first", since each
 would wait for the other and no order of sealing would keep the item. A

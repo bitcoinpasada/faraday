@@ -1,6 +1,6 @@
 //! The file vault (`faraday_vault::file`, `docs/VAULT.md` §2 to §5, §7.1,
 //! §8): made, opened, changed and sealed again, its count going up; the
-//! four sizes' file lengths; a file a KeePass app saved opened and sealed
+//! lengths of a file at its step and at the ceiling; a file a KeePass app saved opened and sealed
 //! as Faraday writes a vault; a read-only vault refused; a seal that does
 //! not fit named by the bytes over.
 
@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use faraday_crypto::work::{Compute, Work};
 use faraday_vault::file::{
-    self, Change, DEFAULT_SIZE, Error, Facts, Opened, ReadOnly, Rekey, SIZES, STEPS_KIB, file_len,
+    self, CEILING, Change, Error, Facts, Opened, ReadOnly, Rekey, STEP, STEPS_KIB, file_len,
 };
 use faraday_vault::kdbx::items::{Body, Format, Place, Unwritable};
 use faraday_vault::kdbx::xml::{Document, Entry};
@@ -27,6 +27,8 @@ const CHEAP: Cost = Cost {
 };
 /// 2023-11-14T22:13:20Z.
 const NOW: u64 = 1_700_000_000;
+/// A plaintext length for the tests that seal by hand: two steps.
+const SMALL: usize = 2 * STEP;
 
 thread_local! {
     static STRETCHES: Cell<usize> = const { Cell::new(0) };
@@ -57,13 +59,12 @@ fn vector(name: &str) -> Vec<u8> {
     std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
 
-fn made(size: usize) -> Vec<u8> {
+fn made() -> Vec<u8> {
     file::create(
         &compute(),
         ID,
         "Savings",
         CHEAP,
-        size,
         "correct horse",
         &random(1),
         Some(NOW),
@@ -97,7 +98,7 @@ fn place(uuid: [u8; 16]) -> Place<'static> {
 
 #[test]
 fn a_vault_is_made_opened_and_sealed_again_with_its_count_going_up() {
-    let first = made(DEFAULT_SIZE);
+    let first = made();
     let o = open(&first, "correct horse");
     assert_eq!(o.read().seals, 1);
     assert_eq!(o.read().sealed.as_deref(), Some("2023-11-14T22:13:20Z"));
@@ -118,7 +119,7 @@ fn a_vault_is_made_opened_and_sealed_again_with_its_count_going_up() {
 
 #[test]
 fn the_clock_is_written_as_utc_across_a_leap_day() {
-    let o = open(&made(SIZES[0]), "correct horse");
+    let o = open(&made(), "correct horse");
     for (unix, text) in [
         (951_782_400, "2000-02-29T00:00:00Z"),
         (951_868_799, "2000-02-29T23:59:59Z"),
@@ -132,30 +133,120 @@ fn the_clock_is_written_as_utc_across_a_leap_day() {
 }
 
 #[test]
-fn each_size_has_the_file_length_the_spec_gives() {
-    for (size, len) in SIZES
-        .into_iter()
-        .zip([65_921, 262_529, 1_048_961, 4_194_797])
-    {
-        let bytes = made(size);
-        assert_eq!(bytes.len(), len);
-        assert_eq!(file_len(size), len);
-        let facts = file::inspect(&bytes).expect("inspects");
-        assert_eq!(facts.size, Some(size));
-        assert_eq!(facts.len, len);
-        assert!(!facts.other_settings());
-    }
+fn a_new_vault_is_one_step_and_the_largest_has_the_length_the_spec_gives() {
+    let bytes = made();
+    assert_eq!(bytes.len(), 33_153);
+    assert_eq!(file_len(STEP), 33_153);
+    assert_eq!(file_len(CEILING), 134_222_685);
+    let facts = file::inspect(&bytes).expect("inspects");
+    assert_eq!(facts.size, Some(STEP));
+    assert_eq!(facts.len, 33_153);
+    assert!(!facts.other_settings());
+}
+
+/// A vault whose one attachment, zeros, leaves `room` bytes under the
+/// ceiling for the document and everything else.
+fn nearly_full(room: usize) -> Vec<u8> {
+    let mut doc = Document::new([9; 16], "Full");
+    items::stamp(&mut doc, 1, None).unwrap();
+    let random = random(3);
+    let text = String::from_utf8(doc.write(kdbx::inner_key_of(&random)).to_vec()).unwrap();
+    // An entry refers to the attachment: one nothing refers to is dropped
+    // at a seal.
+    let entry = "<Entry><UUID>AQEBAQEBAQEBAQEBAQEBAQ==</UUID><String><Key>Title</Key>\
+        <Value>Disk image</Value></String><Binary><Key>image</Key><Value Ref=\"0\"/></Binary></Entry>";
+    let text = text.replace("</Group></Root>", &format!("{entry}</Group></Root>"));
+    let xml = text.as_bytes();
+    let zeros = kdbx::Binary {
+        protected: false,
+        data: kdbx::Shared::new(zeroize::Zeroizing::new(vec![0u8; CEILING - room])),
+    };
+    let binaries = kdbx::Binaries::all(std::slice::from_ref(&zeros));
+    let size = kdbx::plain_needs(&binaries, xml.len()).div_ceil(STEP) * STEP;
+    let contents = kdbx::Contents {
+        document: xml,
+        binaries,
+        public_custom_data: None,
+    };
+    kdbx::seal(&compute(), PASSPHRASE, CHEAP, &random, &contents, size).unwrap()
 }
 
 #[test]
-fn a_size_that_is_not_one_is_refused() {
-    let r = file::create(&compute(), ID, "x", CHEAP, 100_000, "p", &random(1), None);
-    assert_eq!(r.err(), Some(Error::Size));
+fn contents_past_the_largest_vault_are_refused_by_the_bytes_over_and_the_vault_stays_open() {
+    // One attachment of about 128 MiB, and three notes that do not fit in
+    // the 64 KiB left.
+    let o = open(&nearly_full(64 * 1024), PASSPHRASE);
+    let held = notes(3);
+    let changes = puts(&held);
+    let rekey = file::Rekey {
+        passphrase: None,
+        memory_kib: None,
+    };
+    let before = o.used(&compute(), &[]).unwrap();
+    let err = file::seal_with(&compute(), &o, &changes, rekey, &random(7), Some(NOW)).err();
+    let Some(Error::Full { over }) = err else {
+        panic!("not refused as full: {err:?}");
+    };
+    // The bytes over are what the contents need past the largest vault.
+    let needs = o.used(&compute(), &changes).unwrap();
+    assert_eq!(over, needs - file::CEILING);
+    assert!(over > 120_000 - 65_536, "{over} bytes over");
+    // The vault is as it was.
+    assert_eq!(o.used(&compute(), &[]).unwrap(), before);
+    assert!(o.read_only().is_none());
+}
+
+/// A vault of `n` notes of 40,000 bytes each, as changes to put in it.
+fn notes(n: u8) -> Vec<(Body, [u8; 16])> {
+    (1..=n)
+        .map(|i| {
+            let (r, u) = note(i, &char::from(b'a' + i).to_string().repeat(30_000));
+            (Body::Record(r), u)
+        })
+        .collect()
+}
+
+fn puts(held: &[(Body, [u8; 16])]) -> Vec<Change<'_>> {
+    held.iter()
+        .map(|(body, u)| Change::Put {
+            place: place(*u),
+            body,
+        })
+        .collect()
+}
+
+#[test]
+fn a_seal_pads_to_the_smallest_step_that_holds_it_and_the_vault_shrinks_with_what_it_holds() {
+    let c = compute();
+    let o = open(&made(), "correct horse");
+    let held = notes(2);
+    let two = puts(&held);
+    // 60,000 bytes and the document: three steps.
+    let used = o.used(&c, &two).unwrap();
+    assert!(used > 2 * STEP && used <= 3 * STEP, "{used}");
+    assert_eq!(o.next_size(&c, &two, Some(NOW)), Ok(3 * STEP));
+    let big = file::seal(&c, &o, &two, &random(7), Some(NOW)).unwrap();
+    assert_eq!(big.len(), file_len(3 * STEP));
+    assert_eq!(file::inspect(&big).unwrap().size, Some(3 * STEP));
+    // Removing one of the two takes it to two steps, and nothing is
+    // remembered of the three.
+    let o = open(&big, "correct horse");
+    assert_eq!(o.read().items.len(), 2);
+    let gone = [Change::Remove(held[1].1)];
+    assert_eq!(o.next_size(&c, &gone, Some(NOW)), Ok(2 * STEP));
+    let smaller = file::seal(&c, &o, &gone, &random(8), Some(NOW)).unwrap();
+    assert_eq!(smaller.len(), file_len(2 * STEP));
+    let o = open(&smaller, "correct horse");
+    assert_eq!(o.read().items.len(), 1);
+    // And with nothing, it is one step again.
+    let gone = [Change::Remove(held[0].1)];
+    let empty = file::seal(&c, &o, &gone, &random(9), Some(NOW)).unwrap();
+    assert_eq!(empty.len(), file_len(STEP));
 }
 
 #[test]
 fn two_seals_with_different_random_bytes_are_different_files() {
-    let o = open(&made(SIZES[0]), "correct horse");
+    let o = open(&made(), "correct horse");
     let a = file::seal(&compute(), &o, &[], &random(10), Some(NOW)).unwrap();
     let b = file::seal(&compute(), &o, &[], &random(11), Some(NOW)).unwrap();
     assert_ne!(a, b);
@@ -164,17 +255,7 @@ fn two_seals_with_different_random_bytes_are_different_files() {
 
 #[test]
 fn a_wrong_passphrase_is_named_and_the_two_forms_of_a_passphrase_are_one() {
-    let bytes = file::create(
-        &compute(),
-        ID,
-        "x",
-        CHEAP,
-        SIZES[0],
-        "caf\u{e9}",
-        &random(1),
-        None,
-    )
-    .unwrap();
+    let bytes = file::create(&compute(), ID, "x", CHEAP, "caf\u{e9}", &random(1), None).unwrap();
     assert_eq!(
         file::open(&compute(), &bytes, "cafe").err(),
         Some(Error::Kdbx(kdbx::Error::Passphrase))
@@ -184,17 +265,7 @@ fn a_wrong_passphrase_is_named_and_the_two_forms_of_a_passphrase_are_one() {
 
 #[test]
 fn a_seal_after_opening_with_the_decomposed_form_opens_with_the_composed_one() {
-    let bytes = file::create(
-        &compute(),
-        ID,
-        "x",
-        CHEAP,
-        SIZES[0],
-        "caf\u{e9}",
-        &random(1),
-        None,
-    )
-    .unwrap();
+    let bytes = file::create(&compute(), ID, "x", CHEAP, "caf\u{e9}", &random(1), None).unwrap();
     let o = open(&bytes, "cafe\u{301}");
     let sealed = file::seal(&compute(), &o, &[], &random(2), None).unwrap();
     assert_eq!(open(&sealed, "caf\u{e9}").read().seals, 2);
@@ -205,7 +276,7 @@ fn a_compressed_file_the_length_of_a_size_does_not_state_that_size() {
     let mut bytes = vector("pykeepass-aes-argon2d-gzip.kdbx");
     let head = kdbx::head_len(&bytes).unwrap();
     // Two block frames follow a plaintext of the smallest size.
-    let want = head + SIZES[0] + 72;
+    let want = head + SMALL + 72;
     assert!(bytes.len() < want);
     bytes.resize(want, 0);
     assert_eq!(file::inspect(&bytes).unwrap().size, None);
@@ -221,12 +292,12 @@ fn a_file_a_keepass_app_saved_opens_and_is_sealed_as_faraday_writes_one() {
     assert_eq!(o.read().format, Format::Foreign);
     assert_eq!(o.read().seals, 0);
     assert_eq!(o.read().items.len(), 1);
-    assert_eq!(o.next_size(&compute(), &[], Some(NOW)), Ok(SIZES[0]));
+    assert_eq!(o.next_size(&compute(), &[], Some(NOW)), Ok(STEP));
     let sealed = file::seal(&compute(), &o, &[], &random(5), Some(NOW)).unwrap();
-    assert_eq!(sealed.len(), file_len(SIZES[0]));
+    assert_eq!(sealed.len(), file_len(STEP));
     let facts = file::inspect(&sealed).unwrap();
     assert!(!facts.other_settings());
-    assert_eq!(facts.size, Some(SIZES[0]));
+    assert_eq!(facts.size, Some(STEP));
     let o = open(&sealed, PASSPHRASE);
     assert_eq!(o.read().format, Format::Faraday);
     assert_eq!(o.read().seals, 1);
@@ -240,11 +311,11 @@ fn a_file_with_more_than_three_passes_keeps_them_and_a_small_memory_takes_the_fi
         passes: 5,
         lanes: 1,
     };
-    let bytes = file::create(&compute(), ID, "x", cost, SIZES[0], "p", &random(1), None).unwrap();
+    let bytes = file::create(&compute(), ID, "x", cost, "p", &random(1), None).unwrap();
     let o = open(&bytes, "p");
     let next = o.next_cost();
     assert_eq!((next.memory_kib, next.passes, next.lanes), (65_536, 5, 4));
-    let o = open(&made(SIZES[0]), "correct horse");
+    let o = open(&made(), "correct horse");
     assert_eq!(o.next_cost().passes, 3);
 }
 
@@ -268,11 +339,12 @@ fn history_and_the_recycle_bin_count_toward_the_size() {
         .len();
     let used = o.used(&compute(), &[]).unwrap();
     assert!(used >= held, "{used} bytes used of {held} in the document");
-    // Notes that fill what is left after the history and the bin fit, and
-    // more than fill it do not, at the largest size.
-    let largest = SIZES[SIZES.len() - 1];
+    // The vault is sealed at the smallest step that holds what it holds,
+    // history and bin included, and notes that fill what is left of that
+    // step do not grow it while one more grows it by a step.
+    let step_now = o.next_size(&compute(), &[], None).unwrap();
+    assert!(step_now >= held && step_now.is_multiple_of(STEP) && used <= step_now);
     let each = 4000;
-    let room = (largest - used) / each;
     let try_notes = |n: usize| {
         let bodies: Vec<Body> = (0..n)
             .map(|_| Body::Record(note(0, &"n".repeat(each)).0))
@@ -302,19 +374,17 @@ fn history_and_the_recycle_bin_count_toward_the_size() {
                 body,
             })
             .collect();
-        file::seal(&compute(), &o, &changes, &random(7), None)
+        o.next_size(&compute(), &changes, None)
     };
-    let half = try_notes(room / 2);
-    assert!(half.is_ok(), "{:?}", half.err());
-    assert!(matches!(
-        try_notes(room + 1),
-        Err(Error::Full { over, next: None }) if over > 0
-    ));
+    let room = (step_now - used) / each;
+    assert_eq!(try_notes(room / 2), Ok(step_now));
+    let over = try_notes(room + 2).unwrap();
+    assert!(over > step_now && over.is_multiple_of(STEP), "{over}");
 }
 
 #[test]
 fn a_note_in_the_recycle_bin_or_in_a_history_is_not_an_item() {
-    let o = open(&made(SIZES[0]), "correct horse");
+    let o = open(&made(), "correct horse");
     let (r, u) = note(1, "in the bin");
     let body = Body::Record(r);
     let change = [Change::Put {
@@ -334,7 +404,7 @@ fn a_note_in_the_recycle_bin_or_in_a_history_is_not_an_item() {
             binaries: faraday_vault::kdbx::Binaries::all(&[]),
             public_custom_data: None,
         };
-        kdbx::seal(&compute(), "p", CHEAP, &random, &contents, SIZES[0]).unwrap()
+        kdbx::seal(&compute(), "p", CHEAP, &random, &contents, SMALL).unwrap()
     };
     // The group the note is in becomes the recycle bin.
     let name = text.find("<Name>Notes</Name>").unwrap();
@@ -374,36 +444,40 @@ fn a_note_in_the_recycle_bin_or_in_a_history_is_not_an_item() {
     assert_eq!(o.read().history, 1);
 }
 
+/// The size of a file read as it is, counted in place, is the size the
+/// seal takes, and counting it leaves the custom data as it was read.
 #[test]
-fn what_does_not_fit_is_named_by_the_bytes_over_and_the_next_size_and_the_vault_stays_open() {
-    let o = open(&made(SIZES[0]), "correct horse");
-    let (a, ua) = note(1, &"a".repeat(40_000));
-    let (b, ub) = note(2, &"b".repeat(40_000));
-    let (body_a, body_b) = (Body::Record(a), Body::Record(b));
-    let changes = [
-        Change::Put {
-            place: place(ua),
-            body: &body_a,
-        },
-        Change::Put {
-            place: place(ub),
-            body: &body_b,
-        },
-    ];
-    let used = o.used(&compute(), &changes).unwrap();
-    assert!(used > SIZES[0]);
-    let err = file::seal(&compute(), &o, &changes, &random(7), Some(NOW)).err();
-    assert_eq!(
-        err,
-        Some(Error::Full {
-            over: used - SIZES[0],
-            next: Some(SIZES[1]),
-        })
-    );
-    // The vault is as it was, and seals once the change is smaller.
-    assert!(o.used(&compute(), &[]).unwrap() < SIZES[0]);
-    let sealed = file::seal(&compute(), &o, &changes[..1], &random(7), Some(NOW)).unwrap();
-    assert_eq!(open(&sealed, "correct horse").read().items.len(), 1);
+fn the_size_of_a_file_as_it_is_counted_in_place_is_what_a_seal_takes() {
+    let bytes = vector("pykeepass-chacha20-argon2id-plain-history.kdbx");
+    let mut o = open(&bytes, PASSPHRASE);
+    assert_eq!((o.read().history, o.read().recycle_bin), (1, 1));
+    let items = |o: &Opened| -> Vec<(String, String)> {
+        o.document()
+            .custom()
+            .items()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    };
+    let before = items(&o);
+    let used = o.used(&compute(), &[]).unwrap();
+    assert_eq!(o.base_used().unwrap(), used);
+    assert_eq!(items(&o), before);
+    assert_eq!(o.base_used().unwrap(), used, "again, the same");
+}
+
+#[test]
+fn history_and_bin_bytes_count_toward_the_step_and_survive_a_seal_that_grows() {
+    let c = compute();
+    let bytes = vector("pykeepass-chacha20-argon2id-plain-history.kdbx");
+    let o = open(&bytes, PASSPHRASE);
+    let before = o.read().items.len();
+    let held = notes(2);
+    let two = puts(&held);
+    let sealed = file::seal(&c, &o, &two, &random(7), Some(NOW)).unwrap();
+    assert_eq!(sealed.len(), file_len(3 * STEP));
+    let o = open(&sealed, PASSPHRASE);
+    assert_eq!((o.read().history, o.read().recycle_bin), (1, 1));
+    assert_eq!(o.read().items.len(), before + 2);
 }
 
 /// A vault file whose document is `doc`, sealed here.
@@ -415,7 +489,7 @@ fn sealed_document(doc: &Document) -> Vec<u8> {
         binaries: faraday_vault::kdbx::Binaries::all(&[]),
         public_custom_data: None,
     };
-    kdbx::seal(&compute(), "p", CHEAP, &random, &contents, SIZES[0]).unwrap()
+    kdbx::seal(&compute(), "p", CHEAP, &random, &contents, SMALL).unwrap()
 }
 
 #[test]
@@ -468,14 +542,37 @@ fn a_read_only_vault_refuses_every_change_for_either_reason() {
 }
 
 #[test]
+fn an_open_is_asked_what_the_document_and_attachments_take_before_it_reads_on() {
+    let bytes = made();
+    let asked = Cell::new(None);
+    let refused = file::open_within(
+        &compute(),
+        &bytes,
+        "correct horse",
+        &mut |_| Ok(()),
+        &mut |document, attachments| {
+            asked.set(Some((document, attachments)));
+            Err(7777)
+        },
+        None,
+    );
+    assert!(matches!(refused, Err(Error::Memory(7777))));
+    let (document, attachments) = asked.get().expect("asked");
+    assert_eq!(attachments, 0);
+    // The document is what the opened vault says it holds.
+    let opened = open(&bytes, "correct horse");
+    assert_eq!(document, opened.held().0);
+}
+
+#[test]
 fn a_new_plan_takes_the_next_number_in_an_opened_vault() {
-    let o = open(&made(SIZES[0]), "correct horse");
+    let o = open(&made(), "correct horse");
     assert_eq!(items::next_plan(o.document()), Ok(1));
 }
 
 #[test]
 fn measuring_runs_one_stretch_at_the_stated_cost() {
-    let bytes = made(SIZES[0]);
+    let bytes = made();
     let facts: Facts = file::inspect(&bytes).unwrap();
     let before = STRETCHES.get();
     file::measure(&compute(), &facts).unwrap();
@@ -510,7 +607,7 @@ fn pykeepass_reads(file: &[u8], passphrase: &str) -> Option<String> {
 
 #[test]
 fn a_seal_under_a_new_passphrase_and_step_opens_under_the_new_and_not_the_old() {
-    let old = made(SIZES[0]);
+    let old = made();
     let o = open(&old, "correct horse");
     let (record, uuid) = note(9, "kept");
     let body = Body::Record(record);
@@ -552,7 +649,7 @@ fn a_seal_under_a_new_passphrase_and_step_opens_under_the_new_and_not_the_old() 
 
 #[test]
 fn a_seal_refuses_an_empty_passphrase_and_a_step_that_is_none_and_can_be_retried() {
-    let o = open(&made(SIZES[0]), "correct horse");
+    let o = open(&made(), "correct horse");
     let empty = Rekey {
         passphrase: Some(""),
         memory_kib: None,

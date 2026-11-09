@@ -5,7 +5,7 @@
 #[path = "../examples/vectors.rs"]
 mod vectors;
 
-use faraday_vault::file::{self, Error, SIZES, STEPS_KIB, file_len};
+use faraday_vault::file::{self, Error, STEP, STEPS_KIB, file_len};
 use faraday_vault::kdbx::items::Format;
 use faraday_vault::kdbx::{self, Unsupported};
 use faraday_vault::{Cost, Record};
@@ -52,8 +52,8 @@ fn the_vault_of_every_kind_opens_to_what_it_was_made_from() {
     assert_eq!(read.history + read.recycle_bin, 0);
     // The size and cost the file states.
     let facts = o.facts();
-    assert_eq!(facts.size, Some(SIZES[1]));
-    assert_eq!(facts.len, file_len(SIZES[1]));
+    assert_eq!(facts.size, Some(vectors::BIG_SIZE));
+    assert_eq!(facts.len, file_len(vectors::BIG_SIZE));
     assert_eq!(facts.header.cost, vectors::COST);
     // A wrong passphrase is named, and so is none.
     assert_eq!(
@@ -69,7 +69,7 @@ fn the_vault_of_every_kind_opens_to_what_it_was_made_from() {
 #[test]
 fn the_small_and_the_codex32_vaults_open() {
     let small = open(vectors::SMALL, vectors::PASSPHRASE);
-    assert_eq!(small.facts().len, file_len(SIZES[0]));
+    assert_eq!(small.facts().len, file_len(vectors::SMALL_SIZE));
     assert_eq!(small.read().label, "Small");
     assert_eq!(small.read().items.len(), 2);
     let shares = open(vectors::CODEX32, vectors::PASSPHRASE);
@@ -103,7 +103,7 @@ fn the_vault_sealed_through_file_seal_is_at_the_cost_a_seal_writes() {
             lanes: 4
         }
     );
-    assert_eq!(o.facts().size, Some(SIZES[0]));
+    assert_eq!(o.facts().size, Some(STEP));
 }
 
 #[test]
@@ -159,7 +159,6 @@ fn an_empty_passphrase_is_refused_at_create() {
         [1; 16],
         "Empty",
         vectors::COST,
-        SIZES[0],
         "",
         &vectors::random(1),
         None,

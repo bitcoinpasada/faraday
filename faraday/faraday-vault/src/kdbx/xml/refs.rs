@@ -7,7 +7,7 @@ use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 
 /// Costs a read of `xml` with the tokenizer, linear in its size (at most
-/// the vault's largest, 4 MiB): for each of `count` attachments, whether
+/// the vault's largest, [`crate::kdbx::MAX_PLAIN`]): for each of `count` attachments, whether
 /// the document refers to it. Every element anywhere is looked at: an
 /// entry's, a history entry's, a recycle bin entry's. A reference to a
 /// position that does not exist marks nothing. None when something cannot

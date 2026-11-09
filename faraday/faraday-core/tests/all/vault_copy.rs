@@ -227,26 +227,15 @@ fn a_target_that_writes_but_cannot_take_the_item_says_no_room() {
     let mail = Record::new(kind::ENTRY)
         .with(field::TITLE, b"Mail")
         .with(field::PASSWORD, b"hunter2");
-    let mut x = 0x9e37_79b9_7f4a_7c15u64;
-    let fits = |app: &Faraday| app.vaults().store().fits(&c, id, &[], &[&mail]);
-    let mut fill_more = |app: &mut Faraday| {
-        let notes: String = (0..400)
-            .map(|_| {
-                x ^= x << 13;
-                x ^= x >> 7;
-                x ^= x << 17;
-                char::from(b'A' + u8::try_from(x % 58).unwrap())
-            })
-            .collect();
-        let big = Record::new(kind::ENTRY)
-            .with(field::TITLE, b"big")
-            .with(field::NOTES, notes.as_bytes());
-        testkit::vault_edit(app, id, |s| s.insert(id, big));
-        testkit::vault_changed(app, id);
-    };
-    while fits(&app) {
-        fill_more(&mut app);
-    }
+    // The most a vault may hold, lowered to just under what the copy needs.
+    // Past a limit of nothing the size is counted, not bounded.
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(0));
+    let used = app.vaults().records(id).used(&c);
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used + 20));
+    assert!(
+        !app.vaults().store().fits(&c, id, &[], &[&mail]),
+        "the item fits"
+    );
     assert!(
         !app.vaults().records(id).unwritable(&c),
         "the vault still writes"
@@ -1081,40 +1070,24 @@ fn noted(len: usize) -> Record {
 }
 
 #[test]
-fn a_new_vault_for_a_large_item_offers_the_size_that_holds_it_and_no_smaller() {
-    let sizes = faraday_vault::file::SIZES;
+fn a_new_vault_for_a_large_item_holds_it_whatever_its_size() {
     let record = noted(60_000);
-    let c = testkit::compute();
-    let store_fits = |app: &Faraday, size: usize| {
-        app.vaults()
-            .store()
-            .fits_new(&c, EN.vaults_vault, size, &[&record])
-    };
     let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
     let mut app = opened(vec![("a.kdbx", a)]);
     let id = app.vaults().open[0].id;
     testkit::vault_edit(&mut app, id, |s| s.insert(id, record.clone()));
     testkit::vault_changed(&mut app, id);
-    assert!(!store_fits(&app, sizes[0]), "the smallest size holds it");
-    assert!(store_fits(&app, sizes[1]), "the next size does not hold it");
 
     let want: Vec<Held> = held(&app, 0).into_iter().skip(1).collect();
     move_sheet(&mut app, 0, ENTRIES, 1);
     app.press(Action::Vault(V::CopyPick(0)));
     assert_eq!(app.screen, Screen::CreateVault);
-    assert_eq!(app.vaults().create.as_ref().map(|c| c.size), Some(sizes[1]));
-    app.press(Action::Vault(V::CSize(0)));
-    assert_eq!(
-        app.vaults().create.as_ref().map(|c| c.size),
-        Some(sizes[1]),
-        "a size too small was taken"
-    );
     make_new(&mut app, 1);
     // A move: the original could not be sealed with the item.
     app.press(Action::Vault(V::CopyGo));
     assert_eq!(held(&app, 1), want);
 
-    // The next seal writes it, into a file of the size offered.
+    // The next seal writes it, into a file that grew to hold it.
     let written = lock_all(&mut app);
     let read = read_back(written);
     let bytes = |h: &[Held]| -> usize {
@@ -1130,76 +1103,13 @@ fn a_new_vault_for_a_large_item_offers_the_size_that_holds_it_and_no_smaller() {
 }
 
 #[test]
-fn a_new_vault_offers_a_size_that_holds_the_item_whatever_name_is_typed() {
-    let sizes = faraday_vault::file::SIZES;
-    let c = testkit::compute();
-    let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
-    let mut app = opened(vec![("a.kdbx", a)]);
-    let longest = "x".repeat(64);
-    let fits = |app: &Faraday, label: &str, r: &Record| {
-        app.vaults().store().fits_new(&c, label, sizes[0], &[r])
-    };
-    // An item at the edge of the smallest size: it fits when the vault is
-    // called "Vault" and not when its name is as long as a name goes.
-    let (mut low, mut high) = (1_000usize, 40_000usize);
-    while high - low > 1 {
-        let mid = (low + high) / 2;
-        if fits(&app, EN.vaults_vault, &noted(mid)) {
-            low = mid;
-        } else {
-            high = mid;
-        }
-    }
-    let edge = (low.saturating_sub(80)..=low)
-        .rev()
-        .map(noted)
-        .find(|r| fits(&app, EN.vaults_vault, r) && !fits(&app, &longest, r))
-        .expect("an item the smallest size holds only for a short name");
-    let id = app.vaults().open[0].id;
-    testkit::vault_edit(&mut app, id, |s| s.insert(id, edge.clone()));
-    testkit::vault_changed(&mut app, id);
-    move_sheet(&mut app, 0, ENTRIES, 1);
-    app.press(Action::Vault(V::CopyPick(0)));
-    assert_eq!(app.screen, Screen::CreateVault);
-    assert_eq!(
-        app.vaults().create.as_ref().map(|c| c.size),
-        Some(sizes[1]),
-        "a size offered that a long name does not fit"
-    );
-}
-
-#[test]
-fn an_item_at_the_edge_of_a_size_arrives_in_a_new_vault_named_with_the_longest_escape() {
-    let sizes = faraday_vault::file::SIZES;
-    let c = testkit::compute();
+fn an_item_larger_than_a_new_vault_arrives_in_a_vault_named_with_the_longest_escape() {
     let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
     let mut app = opened(vec![("a.kdbx", a)]);
     // The document writes each `&` of a name as five bytes.
-    let (plain, escaped) = ("x".repeat(64), "&".repeat(64));
-    let fits = |app: &Faraday, label: &str, r: &Record| {
-        app.vaults().store().fits_new(&c, label, sizes[0], &[r])
-    };
-    let (mut low, mut high) = (1_000usize, 40_000usize);
-    while high - low > 1 {
-        let mid = (low + high) / 2;
-        if fits(&app, &plain, &noted(mid)) {
-            low = mid;
-        } else {
-            high = mid;
-        }
-    }
-    let edge = (low..low + 300)
-        .map(noted)
-        .find(|r| fits(&app, &plain, r) && !fits(&app, &escaped, r));
-    let edge = edge.or_else(|| {
-        (low.saturating_sub(300)..=low)
-            .rev()
-            .map(noted)
-            .find(|r| fits(&app, &plain, r) && !fits(&app, &escaped, r))
-    });
-    let edge = edge.expect("an item the smallest size holds only for a plain name");
+    let escaped = "&".repeat(64);
     let id = app.vaults().open[0].id;
-    testkit::vault_edit(&mut app, id, |s| s.insert(id, edge.clone()));
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, noted(20_000)));
     testkit::vault_changed(&mut app, id);
     let want: Vec<Held> = held(&app, 0).into_iter().skip(1).collect();
     move_sheet(&mut app, 0, ENTRIES, 1);

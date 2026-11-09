@@ -10,7 +10,10 @@ use faraday_intake::secret_buf::SecretText;
 use faraday_keys::Keys;
 use faraday_keys::vault::{self, Names, OpenVaults, SEAL_RANDOM_LEN, gpg_field, is_secret};
 use faraday_keys::{Part, Reveal};
-use faraday_vault::file::{SIZES, STEPS_KIB};
+use faraday_vault::file::STEPS_KIB;
+
+/// The plaintext the tests that seal by hand use.
+const SMALL: usize = 65_536;
 use faraday_vault::kdbx::items::{self, Body, Place, Related, RelatedKind};
 use faraday_vault::kdbx::xml::Document;
 use faraday_vault::kdbx::{self};
@@ -73,7 +76,6 @@ fn empty(c: &Compute, passphrase: &str) -> Vec<u8> {
         [7u8; 16],
         "Test",
         COST,
-        SIZES[0],
         passphrase,
         &[7u8; SEAL_RANDOM_LEN],
         None,
@@ -958,7 +960,7 @@ fn file_of(c: &Compute, doc: &Document) -> Vec<u8> {
         binaries: faraday_vault::kdbx::Binaries::all(&[]),
         public_custom_data: None,
     };
-    kdbx::seal(c, "pass", COST, &random, &contents, SIZES[0]).expect("sealed")
+    kdbx::seal(c, "pass", COST, &random, &contents, SMALL).expect("sealed")
 }
 
 /// Puts `body` in `doc` as the entry `[n; 16]`, in group `group`.
@@ -1043,50 +1045,90 @@ fn a_new_plans_number_goes_past_one_that_does_not_read() {
     assert_eq!(opened.read().unreadable.len(), 1, "kept as it was");
 }
 
-/// Whether `fits` says what a seal then does, at the most that fits and
-/// one byte more: `extra` records and a note of a length found by
-/// halving are put in an empty vault of the smallest size.
+/// Whether `fits` says what a seal then takes, to the byte: `extra` records
+/// and a note of `n` bytes are put in an empty vault. The plaintext a
+/// seal takes is `used`; the store's limit is lowered to it, and then the note fits and one byte more does not.
 fn fits_is_exact(c: &Compute, extra: &[Record]) {
+    const N: usize = 30_000;
     let note = |n: usize| Record::new(kind::NOTE).with(field::NOTE, &vec![b'x'; n]);
     let file = empty(c, "pass");
-    let fits = |n: usize| {
-        let mut store = store();
-        let (id, _) = store.unlock(c, file.clone(), "pass").expect("opens");
-        let filler = note(n);
-        let mut add: Vec<&Record> = extra.iter().collect();
-        add.push(&filler);
-        store.fits(c, id, &[], &add)
-    };
-    let sealed = |n: usize| {
+    let plain = |n: usize| {
         let mut store = store();
         let (id, _) = store.unlock(c, file.clone(), "pass").expect("opens");
         for r in extra {
             store.insert(id, r.clone()).expect("kept");
         }
         store.insert(id, note(n)).expect("kept");
-        let uuids = uuids_of(&store, id, 0x10);
-        store
-            .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, Some(1_780_000_000))
-            .expect("a job")
-            .run(c)
-            .into_file()
+        // Past a limit of nothing the size is counted, not bounded.
+        store.lower_limit(0);
+        store.records(id).used(c)
     };
-    let (mut lo, mut hi) = (0usize, SIZES[0]);
-    assert!(fits(lo) && !fits(hi));
-    while hi - lo > 1 {
-        let mid = usize::midpoint(lo, hi);
-        if fits(mid) {
-            lo = mid;
-        } else {
-            hi = mid;
+    let limit = plain(N);
+    // A note is written Base64 (4 bytes for 3), so three bytes more is at
+    // least four over.
+    assert!(plain(N + 3) > limit);
+    let fits = |n: usize| {
+        let mut store = store();
+        store.lower_limit(limit);
+        let (id, _) = store.unlock(c, file.clone(), "pass").expect("opens");
+        let filler = note(n);
+        let mut add: Vec<&Record> = extra.iter().collect();
+        add.push(&filler);
+        store.fits(c, id, &[], &add)
+    };
+    assert!(fits(N - 1) && fits(N), "{N} bytes of note take {limit}");
+    assert!(!fits(N + 3), "three bytes more are over");
+}
+
+/// A person's edit of a vault that is nowhere near its ceiling writes no
+/// document, and what was edited is sealed all the same.
+#[test]
+fn an_edit_under_the_ceiling_writes_no_document() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    fn note(text: &[u8]) -> [(u8, &[u8]); 1] {
+        [(field::NOTE, text)]
+    }
+    let before = faraday_vault::kdbx::xml::writes();
+    let first = store
+        .set_fields(&c, id, None, kind::NOTE, &note(b"first"))
+        .expect("added");
+    store
+        .set_fields(&c, id, Some(first), kind::NOTE, &note(b"first, edited"))
+        .expect("edited");
+    store
+        .set_fields(&c, id, None, kind::NOTE, &note(b"second"))
+        .expect("added");
+    let extra = Record::new(kind::NOTE).with(field::NOTE, b"more");
+    assert!(store.fits(&c, id, &[], &[&extra]));
+    assert_eq!(
+        faraday_vault::kdbx::xml::writes(),
+        before,
+        "the edits wrote a document"
+    );
+
+    let file = seal_with(&mut store, &c, id, 1);
+    let file_again = file.clone();
+    let (back, _) = store.unlock(&c, file, "pass").expect("opens again");
+    assert_eq!(store.records(back).of(kind::NOTE).count(), 2);
+    // The texts the file holds: the edited one and the second, and not
+    // the first as it was.
+    let opened = kdbx::open(&c, &file_again, "pass").expect("opens");
+    let doc = Document::read(&opened.document, &opened.inner_key).expect("reads");
+    fn values(g: &faraday_vault::kdbx::xml::Group, out: &mut Vec<String>) {
+        for e in g.entries() {
+            out.extend(e.fields().map(|p| p.value().to_string()));
+        }
+        for s in g.groups() {
+            values(s, out);
         }
     }
-    let got = sealed(lo).err();
-    assert!(got.is_none(), "{lo} bytes fit and seal: {got:?}");
-    assert!(
-        matches!(sealed(hi), Err(faraday_vault::file::Error::Full { .. })),
-        "{hi} bytes are one over and are refused"
-    );
+    let mut texts = Vec::new();
+    values(doc.root(), &mut texts);
+    texts.retain(|v| v.starts_with("first") || v == "second");
+    texts.sort();
+    assert_eq!(texts, ["first, edited", "second"]);
 }
 
 #[test]
@@ -1486,6 +1528,76 @@ fn a_new_plan_with_no_number_left_refuses_the_seal_but_other_changes_seal() {
     assert_eq!(custom_keys(&sealed), ["faraday.plan.4294967295"]);
 }
 
+/// Two new plans where the file has one number left: the second is
+/// refused when it is added, as the seal would refuse it.
+#[test]
+fn a_second_new_plan_with_one_number_left_is_refused_where_the_first_fits() {
+    let c = compute();
+    let plan = Record::new(kind::PLAN)
+        .with(field::PLAN_WALLET, b"Wallet")
+        .with(field::PLAN_PLACE, b"Home");
+    let mut doc = fresh_doc();
+    items::put_plan(&mut doc, u32::MAX - 1, &plan).expect("put");
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    assert!(store.fits(&c, id, &[], &[&plan]), "the last number");
+    store.insert(id, plan.clone()).expect("kept");
+    assert!(!store.fits(&c, id, &[], &[&plan]), "none left");
+}
+
+/// A record put with no check that the seal refuses is found by the next
+/// check, once, and refuses it.
+#[test]
+fn a_record_put_unchecked_that_the_seal_refuses_makes_the_next_edit_refused() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let note = Record::new(kind::NOTE).with(field::NOTE, b"n");
+    assert!(store.fits(&c, id, &[], &[&note]));
+    let junk = Record::new(kind::SHEET).with(field::SHEET, b"junk");
+    let at = store.insert(id, junk).expect("kept");
+    assert!(!store.fits(&c, id, &[], &[&note]));
+    assert!(matches!(
+        refused(&mut store, &c, id),
+        faraday_vault::file::Error::Unwritable(_)
+    ));
+    assert!(store.remove(id, at));
+    assert!(store.fits(&c, id, &[], &[&note]));
+}
+
+/// Asking whether a vault fits with a record taken out does not take it
+/// out: the record the seal refuses is still found afterwards.
+#[test]
+fn asking_to_fit_without_a_record_does_not_clear_it_of_the_seals_refusal() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let note = Record::new(kind::NOTE).with(field::NOTE, b"n");
+    let junk = Record::new(kind::SHEET).with(field::SHEET, b"junk");
+    let at = store.insert(id, junk).expect("kept");
+    assert!(store.fits(&c, id, &[at], &[&note]), "without it, it fits");
+    assert!(!store.fits(&c, id, &[], &[&note]), "but it is still there");
+    assert!(matches!(
+        refused(&mut store, &c, id),
+        faraday_vault::file::Error::Unwritable(_)
+    ));
+}
+
+/// A file whose entry has the UUID the checks count from does not make
+/// every new record refused.
+#[test]
+fn an_entry_with_a_counting_uuid_does_not_make_every_new_record_refused() {
+    let c = compute();
+    let entry = "<Entry><UUID>AQAAAAAAAAAAAAAAAAAAAA==</UUID>\
+        <String><Key>Title</Key><Value>a</Value></String>\
+        <String><Key>Title</Key><Value>b</Value></String></Entry>";
+    let doc = with_entries(entry);
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    let note = Record::new(kind::NOTE).with(field::NOTE, b"n");
+    assert!(store.fits(&c, id, &[], &[&note]));
+}
+
 #[test]
 fn a_note_and_an_entry_with_nothing_typed_stay_editable_and_seal() {
     let c = compute();
@@ -1737,4 +1849,119 @@ fn a_key_record_gets_no_keepass_export() {
         [5; 32],
     );
     assert!(job.is_none(), "a key stays in the vault");
+}
+
+fn note_of(text: &[u8]) -> [(u8, &[u8]); 1] {
+    [(field::NOTE, text)]
+}
+
+/// A note that would take the vault past what a seal may write is refused,
+/// whether it is added or an entry already there is made longer, and the
+/// vault keeps what it had.
+#[test]
+fn a_note_past_what_a_seal_may_take_is_refused_and_the_vault_keeps_its_notes() {
+    let c = compute();
+    let file = empty(&c, "pass");
+    let filler = vec![b'x'; 30_000];
+    let used = {
+        let mut store = store();
+        let (id, _) = store.unlock(&c, file.clone(), "pass").expect("opens");
+        store
+            .set_fields(&c, id, None, kind::NOTE, &note_of(&filler))
+            .expect("added");
+        // Past a limit of nothing the size is counted, not bounded.
+        store.lower_limit(0);
+        store.records(id).used(&c)
+    };
+    let mut store = store();
+    store.lower_limit(used);
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
+    let first = store
+        .set_fields(&c, id, None, kind::NOTE, &note_of(&filler))
+        .expect("the note that fits is added");
+    let longer = vec![b'x'; 30_100];
+    assert_eq!(
+        store.set_fields(&c, id, None, kind::NOTE, &note_of(&longer)),
+        Err(vault::NotSet::Full)
+    );
+    assert_eq!(
+        store.set_fields(&c, id, Some(first), kind::NOTE, &note_of(&longer)),
+        Err(vault::NotSet::Full)
+    );
+    assert_eq!(store.records(id).of(kind::NOTE).count(), 1);
+    let shorter = vec![b'y'; 100];
+    store
+        .set_fields(&c, id, Some(first), kind::NOTE, &note_of(&shorter))
+        .expect("a shorter note still fits");
+}
+
+/// However many edits came before, one more is checked as the one change it
+/// makes.
+#[test]
+fn an_edit_is_checked_as_one_change_however_many_came_before() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let mut last = 0;
+    for n in 0..40u32 {
+        let text = format!("note {n}");
+        last = store
+            .set_fields(&c, id, None, kind::NOTE, &note_of(text.as_bytes()))
+            .expect("added");
+    }
+    let before = faraday_vault::file::checked();
+    store
+        .set_fields(&c, id, Some(last), kind::NOTE, &note_of(b"changed"))
+        .expect("edited");
+    assert_eq!(faraday_vault::file::checked() - before, 1);
+}
+
+/// Entries added, moved and taken out are each the entry a person meant
+/// when it is edited after, and the file keeps exactly what is left.
+#[test]
+fn an_entry_edited_after_adds_moves_and_deletes_is_the_one_chosen() {
+    let c = compute();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let note = |t: &str| Record::new(kind::NOTE).with(field::NOTE, t.as_bytes());
+    let places: Vec<usize> = ["a", "b", "c", "d"]
+        .iter()
+        .map(|t| store.insert(id, note(t)).expect("kept"))
+        .collect();
+    // "b" is taken out, so the places after it move down; "e" goes in front
+    // of everything, so every place moves up.
+    assert!(store.remove(id, places[1]));
+    assert!(store.insert_at(id, 0, note("e")));
+    let at = |t: &str| {
+        let sought = Record::new(kind::NOTE).with(field::NOTE, t.as_bytes());
+        store
+            .records(id)
+            .of(kind::NOTE)
+            .find(|(_, r)| r.same_fields(&sought))
+            .map(|(i, _)| i)
+            .expect("there")
+    };
+    let (c_at, e_at) = (at("c"), at("e"));
+    store
+        .set_fields(&c, id, Some(c_at), kind::NOTE, &note_of(b"c, edited"))
+        .expect("edited");
+    store
+        .set_fields(&c, id, Some(e_at), kind::NOTE, &note_of(b"e, edited"))
+        .expect("edited");
+    let file = seal_with(&mut store, &c, id, 1);
+    let opened = kdbx::open(&c, &file, "pass").expect("opens");
+    let doc = Document::read(&opened.document, &opened.inner_key).expect("reads");
+    fn values(g: &faraday_vault::kdbx::xml::Group, out: &mut Vec<String>) {
+        for e in g.entries() {
+            out.extend(e.fields().map(|p| p.value().to_string()));
+        }
+        for s in g.groups() {
+            values(s, out);
+        }
+    }
+    let mut texts = Vec::new();
+    values(doc.root(), &mut texts);
+    texts.retain(|v| ["a", "c, edited", "d", "e, edited", "b", "c", "e"].contains(&v.as_str()));
+    texts.sort();
+    assert_eq!(texts, ["a", "c, edited", "d", "e, edited"]);
 }

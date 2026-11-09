@@ -2,6 +2,7 @@
 //! made into the model, every byte of what the model does not read kept.
 
 use alloc::boxed::Box;
+use alloc::collections::BTreeSet;
 use alloc::vec;
 use alloc::vec::Vec;
 
@@ -12,13 +13,56 @@ use zeroize::Zeroizing;
 
 use super::*;
 
+/// What a stretch of carried bytes costs besides its text: a piece in a
+/// list that grows by doubling, and the allocation's own overhead.
+const CARRIED: usize = 2 * size_of::<Piece>() + 16;
+
+/// An allocation's own overhead.
+const ALLOC: usize = 16;
+
+/// What an entry holds besides its text: the box, its parts and, when the
+/// document gave it no Times (`times` false), the frame `finish` adds.
+fn entry_cost(en: &Entry, times: bool) -> usize {
+    let mut held = size_of::<Entry>() + ALLOC + frame_cost(&en.frame);
+    if !times {
+        held += size_of::<Frame<TimesPart>>() + ALLOC + 4 * size_of::<TimesPart>() + 2 * ALLOC;
+    }
+    held
+}
+
+/// What a frame holds besides its parts' contents: the parts' list at its
+/// capacity and the bytes of its tags.
+fn frame_cost<P>(fr: &Frame<P>) -> usize {
+    fr.parts.capacity() * size_of::<P>()
+        + fr.open.capacity()
+        + fr.close.as_ref().map_or(0, Vec::capacity)
+        + 2 * ALLOC
+}
+
 impl Document {
+    /// How much memory the reader charged for the structures it built,
+    /// against the limit [`MODEL_PER_BYTE`] sets.
+    pub fn charged(&self) -> usize {
+        self.charged
+    }
+
     /// Costs a parse of the document and a decryption of its protected
-    /// values, linear in its size (at most the vault's largest, 4 MiB):
+    /// values, linear in its size (at most the vault's largest, 128 MiB):
     /// reads it, decrypting them under the inner stream's key. XML whitespace after the root (the line feeds a vault
     /// is padded with among it) is accepted and not kept; a comment or a
     /// processing instruction before or after the root is kept.
     pub fn read(src: &[u8], inner_key: &[u8]) -> R<Self> {
+        Self::read_within(src, inner_key, None)
+    }
+
+    /// Costs what [`Document::read`] costs, for a caller that says what
+    /// memory the structures may take: the running charge stops at `budget`
+    /// bytes with [`Refused::Memory`], taking no more, so a crafted file
+    /// cannot pass what the system has free however its factor compares to
+    /// [`MODEL_PER_BYTE`]. None: that limit alone. The text kept twice (a
+    /// pair's key and value as read and as written), the duplicate keys
+    /// and the lists that find duplicate UUIDs are charged as they grow.
+    pub fn read_within(src: &[u8], inner_key: &[u8], budget: Option<usize>) -> R<Self> {
         let text = core::str::from_utf8(src).map_err(|_| Refused::NotUtf8)?;
         if text.chars().any(forbidden) {
             return Err(Refused::NotWellFormed);
@@ -38,11 +82,19 @@ impl Document {
             pos: 0,
             depth: 0,
             stream: InnerStream::new(inner_key),
-            bins: Vec::new(),
+            bins: BTreeSet::new(),
             bin_enabled: true,
             skipped_entries: 0,
             history: 0,
             dropped: 0,
+            meter: Meter {
+                charged: 0,
+                limit: src
+                    .len()
+                    .saturating_mul(MODEL_PER_BYTE)
+                    .saturating_add(MODEL_BASE),
+                budget,
+            },
             meta_seen: false,
             root_seen: false,
         };
@@ -102,8 +154,10 @@ impl Document {
             file,
             history: rd.history,
             dropped: rd.dropped,
+            charged: rd.meter.charged,
         };
-        doc.mark_duplicates();
+        doc.mark_duplicates(&mut rd.meter)?;
+        doc.charged = rd.meter.charged;
         Ok(doc)
     }
 }
@@ -118,11 +172,13 @@ struct Rd<'a> {
     stream: InnerStream,
     /// The groups `Meta` names as the recycle bin (two `RecycleBinUUID`
     /// elements name two, and both are kept out of the model).
-    bins: Vec<[u8; 16]>,
+    bins: BTreeSet<[u8; 16]>,
     bin_enabled: bool,
     skipped_entries: usize,
     history: usize,
     dropped: usize,
+    /// What the model built so far is charged at, and the most it may be.
+    meter: Meter,
     meta_seen: bool,
     root_seen: bool,
 }
@@ -203,6 +259,12 @@ impl<'a> Rd<'a> {
                 _ => return Err(Refused::AfterRoot),
             }
         }
+    }
+
+    /// Charges `n` bytes of what the model is about to hold, and refuses
+    /// the document once the charge passes its limit.
+    fn spend(&mut self, n: usize) -> R<()> {
+        self.meter.spend(n)
     }
 
     /// The next event and the bytes it spans.
@@ -286,6 +348,8 @@ impl<'a> Rd<'a> {
     /// A protected element from its start tag (`a..b`) to its end tag, into
     /// `c`; the plaintext.
     fn protected_value(&mut self, a: usize, b: usize, c: &mut Carried) -> R<Zeroizing<Vec<u8>>> {
+        // The start tag is a piece of its own, with its bytes.
+        self.spend(CARRIED + (b - a))?;
         c.bytes(&self.src[a..b]);
         let t = self.read_text()?;
         self.opened(t, c)
@@ -293,8 +357,13 @@ impl<'a> Rd<'a> {
 
     /// The plaintext of a protected element's text, kept in `c`.
     fn opened(&mut self, t: Text, c: &mut Carried) -> R<Zeroizing<Vec<u8>>> {
+        // The secret is a piece, and the bytes after it another, each in a
+        // list that grows by doubling; the bytes between are kept too.
+        self.spend(2 * CARRIED + t.comments.len() + (self.pos - t.end_at))?;
         let plain = self.open_secret(&t.text)?;
         c.bytes(&t.comments);
+        // The plaintext is kept twice: carried, and as the value.
+        self.spend(plain.len())?;
         c.secret(plain.clone());
         c.bytes(&self.src[t.end_at..self.pos]);
         Ok(plain)
@@ -307,6 +376,7 @@ impl<'a> Rd<'a> {
         let saved = (self.r.clone(), self.pos, self.depth);
         match self.text_or_markup()? {
             Some(t) => {
+                self.spend(CARRIED + (b - a))?;
                 c.bytes(&self.src[a..b]);
                 self.opened(t, c)?;
                 Ok(true)
@@ -370,6 +440,7 @@ impl<'a> Rd<'a> {
             match &ev {
                 Event::Start(e) | Event::Empty(e) => {
                     let empty = matches!(ev, Event::Empty(_));
+                    self.spend(2 * size_of::<P>() + CARRIED)?;
                     if !f(self, fr, e, a, b, empty)? {
                         let mut c = Carried::default();
                         self.skip_element(e, a, b, empty, &mut c)?;
@@ -380,7 +451,10 @@ impl<'a> Rd<'a> {
                     fr.close = Some(self.src[a..b].to_vec());
                     return Ok(());
                 }
-                _ => fr.bytes(&self.src[a..b]),
+                _ => {
+                    self.spend(2 * size_of::<P>() + CARRIED)?;
+                    fr.bytes(&self.src[a..b]);
+                }
             }
         }
     }
@@ -388,6 +462,7 @@ impl<'a> Rd<'a> {
     /// An element with text the model reads, from its start tag `e`
     /// (`a..b`); a protected one is decrypted and kept protected.
     fn leaf(&mut self, e: &BytesStart<'a>, a: usize, b: usize, empty: bool) -> R<Leaf> {
+        self.spend(CARRIED)?;
         let mut orig = Carried::default();
         if empty {
             orig.bytes(&self.src[a..b]);
@@ -417,6 +492,7 @@ impl<'a> Rd<'a> {
     /// A key and a value: a field of an entry or an `Item` of custom
     /// data.
     fn pair(&mut self, a: usize, b: usize, empty: bool) -> R<Pair> {
+        self.spend(CARRIED)?;
         let mut c = Carried::default();
         c.bytes(&self.src[a..b]);
         let mut key: Option<Vec<u8>> = None;
@@ -479,6 +555,8 @@ impl<'a> Rd<'a> {
         }
         let key = key.unwrap_or_default();
         let (value, protected) = value.unwrap_or_else(|| (Zeroizing::new(Vec::new()), false));
+        // The key and the value are kept as read and as written.
+        self.spend(key.len() + value.len() + size_of::<Pair>() + ALLOC)?;
         Ok(Pair {
             key: key.clone(),
             value: value.clone(),
@@ -594,8 +672,9 @@ impl<'a> Rd<'a> {
                 custom = Some(s.custom(a, b, empty)?);
                 fr.parts.push(MetaPart::Custom);
             } else if is(name, T_BIN) {
-                // Every one is read, so that a Meta with two names both as
-                // the recycle bin; the Meta is marked ambiguous.
+                // Every one is read and every id kept, so that a Meta with
+                // two names both as the recycle bin hides both groups; the
+                // Meta is marked ambiguous. A set: a repeat adds nothing.
                 if bin_seen {
                     ambiguous = Some("RecycleBinUUID twice");
                 }
@@ -604,7 +683,7 @@ impl<'a> Rd<'a> {
                 match uuid_of(&l.text) {
                     Ok(uuid) => {
                         if uuid != [0; 16] {
-                            s.bins.push(uuid);
+                            s.bins.insert(uuid);
                         }
                     }
                     Err(_) => {
@@ -784,12 +863,12 @@ impl<'a> Rd<'a> {
                     }
                     None => {
                         let g = s.group(a, b, empty)?;
-                        fr.parts.push(GroupPart::Group(g));
+                        fr.parts.push(GroupPart::Group(Box::new(g)));
                     }
                 }
             } else if is(n, T_ENTRY) {
                 let en = s.entry(a, b, empty)?;
-                fr.parts.push(GroupPart::Entry(en));
+                fr.parts.push(GroupPart::Entry(Box::new(en)));
             } else {
                 return Ok(false);
             }
@@ -820,6 +899,7 @@ impl<'a> Rd<'a> {
             ambiguous,
         };
         g.finish();
+        self.spend(size_of::<Group>() + ALLOC + frame_cost(&g.frame))?;
         Ok(g)
     }
 
@@ -875,7 +955,7 @@ impl<'a> Rd<'a> {
                 }
             } else if is(n, T_FIELD) {
                 let pair = s.pair(a, b, empty)?;
-                fr.parts.push(EntryPart::Field(pair));
+                fr.parts.push(EntryPart::Field(Box::new(pair)));
             } else if is(n, T_TIMES) {
                 if times {
                     ambiguous = Some("an entry with two Times");
@@ -883,9 +963,10 @@ impl<'a> Rd<'a> {
                 }
                 times = true;
                 let (t, leaf, amb) = s.times(a, b, empty)?;
+                s.spend(size_of::<Frame<TimesPart>>() + ALLOC + frame_cost(&t))?;
                 ambiguous = ambiguous.or(amb);
                 mod_leaf = leaf;
-                fr.parts.push(EntryPart::Times(t));
+                fr.parts.push(EntryPart::Times(Box::new(t)));
             } else if is(n, T_CUSTOM) {
                 if custom.is_some() {
                     ambiguous = Some("an entry with two lists of custom data");
@@ -928,6 +1009,9 @@ impl<'a> Rd<'a> {
             ambiguous: None,
         };
         en.finish();
+        self.spend(entry_cost(&en, times))?;
+        // The list of keys, a pointer and a length each, doubling.
+        self.spend(2 * size_of::<&[u8]>() * en.fields().count())?;
         let mut keys: Vec<&[u8]> = en.fields().map(|f| &f.key[..]).collect();
         keys.sort_unstable();
         let mut repeated: Vec<&[u8]> = keys
@@ -936,6 +1020,11 @@ impl<'a> Rd<'a> {
             .map(|w| w[0])
             .collect();
         repeated.dedup();
+        let mut copies = 0;
+        for k in &repeated {
+            copies += k.len() + size_of::<Vec<u8>>() + 16;
+        }
+        self.spend(copies)?;
         let dups: Vec<Vec<u8>> = repeated.iter().map(|k| k.to_vec()).collect();
         if !dups.is_empty() {
             ambiguous = ambiguous.or(Some("an entry with two fields of one key"));

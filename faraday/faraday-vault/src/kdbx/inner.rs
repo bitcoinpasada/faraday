@@ -2,7 +2,9 @@
 //! stream that encrypts the protected values of the XML document
 //! (`docs/VAULT.md` §1.1, §7.1).
 
+use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::ops::Deref;
 
 use chacha20::ChaCha20;
 use chacha20::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
@@ -23,14 +25,75 @@ const STREAM_CHACHA20: u32 = 3;
 /// Salsa20, KeePass 2's older inner stream; named and refused.
 const STREAM_SALSA20: u32 = 2;
 
+/// A range of one wiping buffer that several holders share without copying
+/// it (F206 point 6): the decrypted body an opened file read, of which
+/// each attachment is a range. The XML document is in a buffer of its own,
+/// wiped and freed once it is parsed.
+#[derive(Clone)]
+pub struct Shared {
+    buf: Arc<Zeroizing<Vec<u8>>>,
+    start: usize,
+    end: usize,
+}
+
+impl Shared {
+    /// The whole of `buf`.
+    pub fn new(buf: Zeroizing<Vec<u8>>) -> Self {
+        let end = buf.len();
+        Self {
+            buf: Arc::new(buf),
+            start: 0,
+            end,
+        }
+    }
+
+    /// Bytes `start..end` of the same buffer, if they lie inside this one.
+    pub(super) fn range(&self, start: usize, end: usize) -> Option<Self> {
+        let (from, to) = (self.start.checked_add(start)?, self.start.checked_add(end)?);
+        (start <= end && to <= self.end).then(|| Self {
+            buf: Arc::clone(&self.buf),
+            start: from,
+            end: to,
+        })
+    }
+}
+
+#[cfg(test)]
+impl Shared {
+    /// The length of the whole buffer this is a range of: what keeps
+    /// being held while this is.
+    pub(super) fn backing_len(&self) -> usize {
+        self.buf.len()
+    }
+}
+
+impl Deref for Shared {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        &self.buf[self.start..self.end]
+    }
+}
+
+impl From<Vec<u8>> for Shared {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self::new(Zeroizing::new(bytes))
+    }
+}
+
+impl From<Zeroizing<Vec<u8>>> for Shared {
+    fn from(buf: Zeroizing<Vec<u8>>) -> Self {
+        Self::new(buf)
+    }
+}
+
 /// An attachment: a binary of the inner header, which entries refer to by
-/// its position.
+/// its position. Its bytes are a range of the body the file was read into.
 #[derive(Clone)]
 pub struct Binary {
     /// Whether the file marks it for memory protection.
     pub protected: bool,
     /// Its bytes.
-    pub data: Zeroizing<Vec<u8>>,
+    pub data: Shared,
 }
 
 /// The attachments a seal writes: those read, with the ones nothing refers
@@ -90,8 +153,49 @@ pub(super) struct Inner {
     pub document_at: usize,
 }
 
-/// Reads the inner header at the start of `body`.
-pub(super) fn read_inner(body: &[u8]) -> Result<Inner, Error> {
+/// Reads the inner header at the start of `body`; each attachment is a
+/// range of `body`, not a copy. The tests' way in; a file is read by
+/// [`scan`], which leaves the document out of the shared body.
+#[cfg(test)]
+pub(super) fn read_inner(body: &Shared) -> Result<Inner, Error> {
+    scan(body)?.into_inner(body)
+}
+
+/// What the inner header holds, with each attachment as the range of the
+/// body it is at.
+pub(super) struct Scanned {
+    pub key: Zeroizing<Vec<u8>>,
+    /// Whether the file marks it for memory protection, and where its bytes
+    /// are in the body.
+    pub binaries: Vec<(bool, core::ops::Range<usize>)>,
+    pub document_at: usize,
+}
+
+impl Scanned {
+    /// The same with each attachment a range of `body`, which is the body
+    /// scanned.
+    pub(super) fn into_inner(self, body: &Shared) -> Result<Inner, Error> {
+        let mut binaries = Vec::new();
+        binaries
+            .try_reserve_exact(self.binaries.len())
+            .map_err(|_| Error::TooLarge)?;
+        for (protected, r) in self.binaries {
+            binaries.push(Binary {
+                protected,
+                data: body.range(r.start, r.end).ok_or(Error::Damaged)?,
+            });
+        }
+        Ok(Inner {
+            key: self.key,
+            binaries,
+            document_at: self.document_at,
+        })
+    }
+}
+
+/// Reads the inner header at the start of `body`, as [`read_inner`] does,
+/// but gives where each attachment is instead of sharing the body.
+pub(super) fn scan(body: &[u8]) -> Result<Scanned, Error> {
     let mut at = 0usize;
     let mut stream = None;
     let mut key: Option<Zeroizing<Vec<u8>>> = None;
@@ -122,11 +226,12 @@ pub(super) fn read_inner(body: &[u8]) -> Result<Inner, Error> {
                 }
             }
             INNER_BINARY => {
-                let (flags, data) = value.split_first().ok_or(Error::Damaged)?;
-                binaries.push(Binary {
-                    protected: flags & 1 != 0,
-                    data: Zeroizing::new(data.to_vec()),
-                });
+                let flags = *value.first().ok_or(Error::Damaged)?;
+                if binaries.len() >= super::MAX_BINARIES {
+                    return Err(Error::TooLarge);
+                }
+                binaries.try_reserve(1).map_err(|_| Error::TooLarge)?;
+                binaries.push((flags & 1 != 0, end - len + 1..end));
             }
             INNER_END => return Err(Error::Damaged),
             other => return Err(Error::UnknownField(other)),
@@ -141,24 +246,32 @@ pub(super) fn read_inner(body: &[u8]) -> Result<Inner, Error> {
     if key.is_empty() {
         return Err(Error::Damaged);
     }
-    Ok(Inner {
+    Ok(Scanned {
         key,
         binaries,
         document_at: at,
     })
 }
 
-/// The inner header Faraday writes.
-pub(super) fn write(key: &[u8], binaries: &Binaries<'_>, out: &mut Vec<u8>) {
-    put_field(INNER_STREAM_ID, &STREAM_CHACHA20.to_le_bytes(), out);
-    put_field(INNER_STREAM_KEY, key, out);
+/// The inner header Faraday writes, handed to `put` in pieces: an
+/// attachment's bytes go to it as they are, never copied into a buffer.
+pub(super) fn write(key: &[u8], binaries: &Binaries<'_>, put: &mut impl FnMut(&[u8])) {
+    // The key is in it: a buffer that wipes.
+    let mut head = Zeroizing::new(Vec::new());
+    put_field(INNER_STREAM_ID, &STREAM_CHACHA20.to_le_bytes(), &mut head);
+    put_field(INNER_STREAM_KEY, key, &mut head);
+    put(&head);
     for (protected, data) in binaries.iter() {
-        out.push(INNER_BINARY);
-        out.extend_from_slice(&(data.len() as u32 + 1).to_le_bytes());
-        out.push(u8::from(protected));
-        out.extend_from_slice(data);
+        let mut lead = [0u8; 6];
+        lead[0] = INNER_BINARY;
+        lead[1..5].copy_from_slice(&(data.len() as u32 + 1).to_le_bytes());
+        lead[5] = u8::from(protected);
+        put(&lead);
+        put(data);
     }
-    put_field(INNER_END, &[], out);
+    head.clear();
+    put_field(INNER_END, &[], &mut head);
+    put(&head);
 }
 
 /// The length [`write`] gives, worked out without writing.

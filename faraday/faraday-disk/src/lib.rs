@@ -208,9 +208,41 @@ pub struct Disks {
     /// nothing else writes to a stick while it is in the machine, and a
     /// stick read once a second would show it with its light.
     seen: BTreeMap<String, Stick>,
+    /// The pieces of a vault's file held for the write that follows: the
+    /// stick, the name, the length the first piece said the file has and the
+    /// bytes so far (`faraday_files::proto::PIECE`). A file of another name
+    /// written meanwhile leaves them alone.
+    held: Vec<Held>,
+}
+
+/// The pieces of one file so far.
+struct Held {
+    stick: String,
+    name: String,
+    total: u64,
+    bytes: Vec<u8>,
 }
 
 impl Disks {
+    /// Costs a wipe of every piece held, up to the longest vault file
+    /// (about 151 MiB). Drops (wipes) every piece held: a new app process
+    /// is talking, and what an earlier one sent is not part of what it
+    /// writes.
+    pub fn forget_held(&mut self) {
+        for mut h in self.held.drain(..) {
+            zeroize::Zeroize::zeroize(&mut h.bytes);
+        }
+    }
+
+    /// Takes out the pieces held for this file, if any.
+    fn take_held(&mut self, stick: &str, name: &str) -> Option<Held> {
+        let at = self
+            .held
+            .iter()
+            .position(|h| h.stick == stick && h.name == name)?;
+        Some(self.held.remove(at))
+    }
+
     /// The disk process over these roots: `/sys` and `/dev` on the device.
     pub fn new(sys: &Path, dev: &Path) -> Disks {
         Disks {
@@ -220,6 +252,7 @@ impl Disks {
             image_serial: None,
             serials: Box::new(urandom),
             seen: BTreeMap::new(),
+            held: Vec::new(),
         }
     }
 
@@ -525,7 +558,56 @@ impl Disks {
         Ok(Fat(Self::volume(&f).map_err(|e| e.text())?))
     }
 
+    /// Costs a wipe of what was held, up to the longest vault file (about
+    /// 151 MiB) when a piece at 0 starts a file again, and a copy of the
+    /// piece. Holds a piece of a file to be written: a piece at 0 starts the
+    /// file again, wiping what was held for it; else the bytes so far must be `at`
+    /// long and `total` what the first piece said (at most the longest
+    /// vault file), else what is held for the file is dropped (wiped) and
+    /// the piece refused. The length held now.
+    fn hold(
+        &mut self,
+        stick: String,
+        name: String,
+        at: u64,
+        total: u64,
+        piece: &[u8],
+    ) -> Result<u64, String> {
+        // A first piece starts the file again: what an earlier, cut-off
+        // seal of the name left is wiped.
+        let earlier = self.take_held(&stick, &name);
+        let mut held = match earlier {
+            Some(h) if at != 0 => h,
+            earlier => {
+                if let Some(mut h) = earlier {
+                    zeroize::Zeroize::zeroize(&mut h.bytes);
+                }
+                Held {
+                    stick,
+                    name,
+                    total,
+                    bytes: Vec::new(),
+                }
+            }
+        };
+        let now = (held.bytes.len() as u64).saturating_add(piece.len() as u64);
+        if held.bytes.len() as u64 != at
+            || held.total != total
+            || total > faraday_files::MAX_VAULT_READ
+            || piece.len() > faraday_files::proto::PIECE
+            || now >= total
+            || held.bytes.try_reserve(piece.len()).is_err()
+        {
+            zeroize::Zeroize::zeroize(&mut held.bytes);
+            return Err(EN.fat_io.to_string());
+        }
+        held.bytes.extend_from_slice(piece);
+        self.held.push(held);
+        Ok(now)
+    }
+
     /// Costs what `read_qr_png` costs. Answers one request.
+    #[expect(clippy::too_many_lines, reason = "one arm for each request")]
     pub fn handle(&mut self, c: &Compute, req: Request) -> Response {
         let answer = match req {
             Request::List => return Response::Sticks(self.list(c)),
@@ -533,6 +615,26 @@ impl Disks {
                 .place(&stick)
                 .and_then(|mut p| faraday_files::read(&mut p, &name))
                 .map(Response::Bytes),
+            Request::ReadPart {
+                stick,
+                name,
+                from,
+                len,
+            } => self
+                .place(&stick)
+                .and_then(|mut p| faraday_files::read_part(&mut p, &name, from, len as usize))
+                .map(|(total, bytes)| Response::Part { total, bytes }),
+            Request::Piece {
+                stick,
+                name,
+                at,
+                total,
+                mut bytes,
+            } => {
+                let held = self.hold(stick, name, at, total, &bytes);
+                zeroize::Zeroize::zeroize(&mut bytes);
+                held.map(Response::Held)
+            }
             Request::Write {
                 stick,
                 name,
@@ -540,8 +642,39 @@ impl Disks {
                 replace,
                 renamed,
                 on_taken,
-                mut bytes,
+                total,
+                bytes: last,
             } => {
+                // The pieces held for this file, and the last piece, are
+                // the file, and exactly `total` long; a write that says
+                // it is all there is drops anything held.
+                let held = self.take_held(&stick, &name);
+                let mut last = last;
+                let mut bytes = match held {
+                    // A write that is the whole file leaves nothing before it.
+                    Some(mut h) if last.len() as u64 == total => {
+                        zeroize::Zeroize::zeroize(&mut h.bytes);
+                        last
+                    }
+                    Some(mut h) => {
+                        let fits = h.total == total
+                            && h.bytes.len() as u64 + last.len() as u64 == total
+                            && h.bytes.try_reserve_exact(last.len()).is_ok();
+                        if !fits {
+                            zeroize::Zeroize::zeroize(&mut h.bytes);
+                            zeroize::Zeroize::zeroize(&mut last);
+                            return Response::Failed(EN.fat_io.to_string());
+                        }
+                        h.bytes.extend_from_slice(&last);
+                        zeroize::Zeroize::zeroize(&mut last);
+                        h.bytes
+                    }
+                    None if last.len() as u64 == total => last,
+                    None => {
+                        zeroize::Zeroize::zeroize(&mut last);
+                        return Response::Failed(EN.fat_io.to_string());
+                    }
+                };
                 let written =
                     self.place(&stick).and_then(|mut p| {
                         match faraday_files::write_file(

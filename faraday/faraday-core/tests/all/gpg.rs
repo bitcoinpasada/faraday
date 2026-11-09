@@ -478,19 +478,11 @@ fn a_revocation_that_does_not_fit_the_vault_is_refused_where_it_is_asked_for() {
     testkit::vault_edit(&mut app, id, |s| {
         s.set_secret(id, at, 8, &zeroize::Zeroizing::new(Vec::new()))
     });
+    // Past a limit of nothing the size is counted, not bounded.
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(0));
     let used = app.vaults().records(id).used(&testkit::compute());
-    let slot = app.vaults().open[app.vaults().current]
-        .facts()
-        .size
-        .expect("a Faraday seal");
-    testkit::vault_edit(&mut app, id, |s| {
-        s.insert(
-            id,
-            faraday_vault::Record::new(kind::ENTRY)
-                .with(1, b"filler")
-                .with(5, "x".repeat(slot - used - 200).as_bytes()),
-        )
-    });
+    // The most a vault may hold, lowered to just over what it holds.
+    testkit::vault_edit(&mut app, id, |s| s.lower_limit(used + 200));
     app.press(Action::Vault(V::GpgRevocationPage));
     assert!(record(&app).field(8).is_none(), "nothing was kept");
     assert!(

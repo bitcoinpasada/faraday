@@ -263,6 +263,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         replace: false,
         renamed: false,
         on_taken: faraday_files::OnTaken::Beside,
+        total: bytes.len() as u64,
         bytes: bytes.to_vec(),
     };
     assert_eq!(
@@ -285,6 +286,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
                 replace: true,
                 renamed: false,
                 on_taken: faraday_files::OnTaken::Beside,
+                total: 8,
                 bytes: b"replaced".to_vec(),
             }
         ),
@@ -325,6 +327,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
         replace,
         renamed: false,
         on_taken: faraday_files::OnTaken::Beside,
+        total: vault.len() as u64,
         bytes: vault.clone(),
     };
     assert!(matches!(d.handle(&c, back(false)), Response::Failed(_)));
@@ -645,6 +648,7 @@ fn a_second_faraday_stick_is_not_the_boot_medium_and_its_data_partition_is_usabl
             replace: false,
             renamed: false,
             on_taken: faraday_files::OnTaken::Beside,
+            total: 7,
             bytes: b"a vault".to_vec(),
         },
     );
@@ -726,4 +730,209 @@ fn a_maker_or_model_that_is_not_plain_text_is_not_shown() {
     assert_eq!(list[0].make.maker, None);
     assert_eq!(list[0].make.model, None);
     assert_eq!(list[0].make.size, Some(31_260_672 * 512));
+}
+
+/// A file sent in pieces is written as the whole of them, and read back in
+/// pieces it is the same bytes.
+#[test]
+fn a_file_sent_in_pieces_is_written_whole_and_read_back_in_pieces() {
+    let c = compute();
+    let m = Machine::new("pieces");
+    m.disk("sdb", 1, &[("", fat16("BACKUP"), true)]);
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let list = sticks(d.handle(&c, Request::List));
+    let stick = list[0].id.clone();
+    let file: Vec<u8> = (0..3000).map(|i| (i % 253) as u8).collect();
+    let mut at = 0u64;
+    for piece in file[..2000].chunks(700) {
+        let held = d.handle(
+            &c,
+            Request::Piece {
+                stick: stick.clone(),
+                name: "big.bin".into(),
+                at,
+                total: file.len() as u64,
+                bytes: piece.to_vec(),
+            },
+        );
+        at += piece.len() as u64;
+        assert_eq!(held, Response::Held(at));
+    }
+    let wrote = d.handle(
+        &c,
+        Request::Write {
+            stick: stick.clone(),
+            name: "big.bin".into(),
+            copies: Vec::new(),
+            replace: false,
+            renamed: false,
+            on_taken: faraday_files::OnTaken::Beside,
+            total: file.len() as u64,
+            bytes: file[2000..].to_vec(),
+        },
+    );
+    assert!(matches!(wrote, Response::Written(_)), "{wrote:?}");
+    let mut got = Vec::new();
+    while got.len() < file.len() {
+        match d.handle(
+            &c,
+            Request::ReadPart {
+                stick: stick.clone(),
+                name: "big.bin".into(),
+                from: got.len() as u64,
+                len: 1000,
+            },
+        ) {
+            Response::Part { total, bytes } => {
+                assert_eq!(total, file.len() as u64);
+                assert!(!bytes.is_empty());
+                got.extend_from_slice(&bytes);
+            }
+            other => panic!("{other:?}"),
+        }
+    }
+    assert_eq!(got, file);
+    // A piece out of order drops what was held and is refused.
+    let skipped = d.handle(
+        &c,
+        Request::Piece {
+            stick,
+            name: "x.bin".into(),
+            at: 5,
+            total: 9,
+            bytes: vec![1],
+        },
+    );
+    assert!(matches!(skipped, Response::Failed(_)));
+}
+
+/// Request helpers for the pieced writes below.
+fn piece(stick: &str, name: &str, at: u64, total: u64, bytes: &[u8]) -> Request {
+    Request::Piece {
+        stick: stick.into(),
+        name: name.into(),
+        at,
+        total,
+        bytes: bytes.to_vec(),
+    }
+}
+
+fn last(stick: &str, name: &str, total: u64, bytes: &[u8]) -> Request {
+    Request::Write {
+        stick: stick.into(),
+        name: name.into(),
+        copies: Vec::new(),
+        replace: true,
+        renamed: false,
+        on_taken: faraday_files::OnTaken::Beside,
+        total,
+        bytes: bytes.to_vec(),
+    }
+}
+
+fn read_all(d: &mut Disks, c: &faraday_crypto::work::Compute, stick: &str, name: &str) -> Vec<u8> {
+    match d.handle(
+        c,
+        Request::ReadPart {
+            stick: stick.into(),
+            name: name.into(),
+            from: 0,
+            len: 1 << 20,
+        },
+    ) {
+        Response::Part { bytes, .. } => bytes,
+        other => panic!("{other:?}"),
+    }
+}
+
+/// A write cut off after its first piece, followed by a shorter write of
+/// the same name, leaves the stick holding the second file alone.
+#[test]
+fn a_write_cut_off_part_way_never_joins_the_next_one() {
+    let c = compute();
+    let m = Machine::new("cutoff");
+    m.disk("sdb", 1, &[("", fat16("BACKUP"), true)]);
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let stick = sticks(d.handle(&c, Request::List))[0].id.clone();
+    assert_eq!(
+        d.handle(&c, piece(&stick, "v.bin", 0, 3000, &[1; 2000])),
+        Response::Held(2000)
+    );
+    // The next write says it is the whole file.
+    let wrote = d.handle(&c, last(&stick, "v.bin", 500, &[2; 500]));
+    assert!(matches!(wrote, Response::Written(_)), "{wrote:?}");
+    assert_eq!(read_all(&mut d, &c, &stick, "v.bin"), vec![2; 500]);
+    // A last piece that does not make the stated total is refused.
+    d.handle(&c, piece(&stick, "w.bin", 0, 3000, &[1; 2000]));
+    let short = d.handle(&c, last(&stick, "w.bin", 3000, &[2; 500]));
+    assert!(matches!(short, Response::Failed(_)), "{short:?}");
+    // A new app process drops what was held.
+    d.handle(&c, piece(&stick, "x.bin", 0, 3000, &[1; 2000]));
+    d.forget_held();
+    let alone = d.handle(&c, last(&stick, "x.bin", 1000, &[3; 1000]));
+    assert!(matches!(alone, Response::Written(_)), "{alone:?}");
+    assert_eq!(read_all(&mut d, &c, &stick, "x.bin"), vec![3; 1000]);
+    // A total that changes between pieces, or is over the longest vault
+    // file, is refused.
+    d.handle(&c, piece(&stick, "y.bin", 0, 3000, &[1; 1000]));
+    let changed = d.handle(&c, piece(&stick, "y.bin", 1000, 4000, &[1; 1000]));
+    assert!(matches!(changed, Response::Failed(_)), "{changed:?}");
+    let huge = d.handle(
+        &c,
+        piece(&stick, "z.bin", 0, faraday_files::MAX_VAULT_READ + 1, &[1]),
+    );
+    assert!(matches!(huge, Response::Failed(_)), "{huge:?}");
+}
+
+/// Another file written while pieces are held lands, and the pieced file
+/// lands whole.
+#[test]
+fn another_file_written_between_pieces_leaves_them_alone() {
+    let c = compute();
+    let m = Machine::new("between");
+    m.disk("sdb", 1, &[("", fat16("BACKUP"), true)]);
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let stick = sticks(d.handle(&c, Request::List))[0].id.clone();
+    d.handle(&c, piece(&stick, "v.bin", 0, 3000, &[1; 2000]));
+    let other = d.handle(&c, last(&stick, "settings.json", 2, b"{}"));
+    assert!(matches!(other, Response::Written(_)), "{other:?}");
+    let wrote = d.handle(&c, last(&stick, "v.bin", 3000, &[4; 1000]));
+    assert!(matches!(wrote, Response::Written(_)), "{wrote:?}");
+    let mut want = vec![1; 2000];
+    want.extend_from_slice(&[4; 1000]);
+    assert_eq!(read_all(&mut d, &c, &stick, "v.bin"), want);
+    assert_eq!(read_all(&mut d, &c, &stick, "settings.json"), b"{}");
+}
+
+/// A pieced seal cut off after some pieces, then the same name sent again
+/// from its first piece, lands whole, with nothing of the first try in it.
+#[test]
+fn a_pieced_write_sent_again_after_a_cut_off_one_lands() {
+    let c = compute();
+    let m = Machine::new("retry");
+    m.disk("sdb", 1, &[("", fat16("BACKUP"), true)]);
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let stick = sticks(d.handle(&c, Request::List))[0].id.clone();
+    assert_eq!(
+        d.handle(&c, piece(&stick, "v.bin", 0, 3000, &[1; 1000])),
+        Response::Held(1000)
+    );
+    assert_eq!(
+        d.handle(&c, piece(&stick, "v.bin", 1000, 3000, &[1; 1000])),
+        Response::Held(2000)
+    );
+    // The app gave up; its next seal of the name starts at 0.
+    assert_eq!(
+        d.handle(&c, piece(&stick, "v.bin", 0, 3000, &[5; 1000])),
+        Response::Held(1000)
+    );
+    assert_eq!(
+        d.handle(&c, piece(&stick, "v.bin", 1000, 3000, &[5; 1000])),
+        Response::Held(2000)
+    );
+    let wrote = d.handle(&c, last(&stick, "v.bin", 3000, &[6; 1000]));
+    assert!(matches!(wrote, Response::Written(_)), "{wrote:?}");
+    let mut want = vec![5; 2000];
+    want.extend_from_slice(&[6; 1000]);
+    assert_eq!(read_all(&mut d, &c, &stick, "v.bin"), want);
 }

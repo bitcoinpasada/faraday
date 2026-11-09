@@ -7171,7 +7171,7 @@ source = "Microsoft documentation"
 [[action]]
 id = "vault-create"
 name = "Make a vault"
-action = "Makes a vault file: an empty KDBX 4 database with a root group of the given UUID and name, stamped as the first seal, written at one of four file sizes under one passphrase with Argon2id, ChaCha20 and an HMAC per block; the file's salt, IVs and inner key come from one 140-byte answer the caller draws."
+action = "Makes a vault file: an empty KDBX 4 database with a root group of the given UUID and name, stamped as the first seal, written at the smallest size, 32 KiB of contents, under one passphrase with Argon2id, ChaCha20 and an HMAC per block; the file's salt, IVs and inner key come from one 140-byte answer the caller draws."
 row = "vault"
 label = "own specification, not yet reviewed outside Faraday"
 standards = [
@@ -7225,8 +7225,7 @@ tests = [
   "faraday/faraday-vault/tests/vectors.rs::the_committed_vectors_are_what_this_build_writes",
   "faraday/faraday-vault/tests/vectors.rs::an_empty_passphrase_is_refused_at_create",
   "faraday/faraday-vault/tests/file.rs::a_vault_is_made_opened_and_sealed_again_with_its_count_going_up",
-  "faraday/faraday-vault/tests/file.rs::each_size_has_the_file_length_the_spec_gives",
-  "faraday/faraday-vault/tests/file.rs::a_size_that_is_not_one_is_refused",
+  "faraday/faraday-vault/tests/file.rs::a_new_vault_is_one_step_and_the_largest_has_the_length_the_spec_gives",
   "faraday/faraday-vault/tests/file.rs::two_seals_with_different_random_bytes_are_different_files",
   "faraday/faraday-vault/tests/file.rs::a_wrong_passphrase_is_named_and_the_two_forms_of_a_passphrase_are_one",
 ]
@@ -7251,9 +7250,9 @@ lines = [
 ]
 
 [[action.own]]
-text = "The file vault is one KDBX 4 file with one passphrase and a few fixed sizes, so a file's length says its size and nothing about what it holds (F190)."
+text = "The file vault is one KDBX 4 file with one passphrase, padded to a multiple of 32 KiB, so a file's length says how much it holds to within 32 KiB and, between two copies, that it grew or shrank (F206)."
 kind = "Conservative"
-decision = "F190"
+decision = "F206"
 
 [[action.own]]
 text = "Every passphrase is put in Unicode NFC before Argon2id, and nothing else is done to it: compatibility characters, case and spaces are kept as typed."
@@ -7678,11 +7677,11 @@ tests = [
   "faraday/faraday-vault/tests/kdbx.rs::a_cipher_kdf_or_compression_this_reader_does_not_take_is_named",
   "faraday/faraday-vault/tests/kdbx.rs::a_version_or_field_this_reader_does_not_know_is_refused",
   "faraday/faraday-vault/tests/kdbx.rs::a_file_with_one_byte_changed_or_cut_is_not_opened",
-  "faraday/faraday-vault/tests/kdbx.rs::a_file_too_long_for_the_largest_vault_is_refused_before_any_work",
+  "faraday/faraday-vault/tests/kdbx.rs::what_does_not_fit_is_not_sealed",
   "faraday/faraday-vault/src/kdbx/tests.rs::a_gzip_member_is_inflated_and_checked",
   "faraday/faraday-vault/src/kdbx/tests.rs::an_inner_header_that_is_not_chacha20_is_refused_by_name",
   "faraday/faraday-vault/src/kdbx/tests.rs::aes_padding_is_taken_off_only_when_it_is_whole",
-  "faraday/faraday-vault/tests/kdbx.rs::a_vault_of_the_largest_size_is_sealed_and_opened",
+  "faraday/faraday-vault/tests/kdbx.rs::a_vault_of_several_blocks_is_sealed_and_opened",
   "faraday/faraday-vault/tests/kdbx.rs::a_file_pykeepass_wrote_with_a_megabyte_attachment_opens",
   "faraday/faraday-vault/tests/kdbx_xml.rs::every_file_pykeepass_wrote_opens_to_its_entry",
   "faraday/faraday-vault/tests/kdbx_xml.rs::a_document_not_changed_is_written_as_it_was",
@@ -7693,9 +7692,9 @@ tests = [
   "faraday/faraday-vault/tests/kdbx_xml.rs::what_is_refused_is_named",
   "faraday/faraday-vault/tests/kdbx_xml.rs::a_value_a_uuid_or_a_key_that_is_wrong_is_refused",
   "faraday/faraday-vault/tests/file.rs::a_vault_is_made_opened_and_sealed_again_with_its_count_going_up",
-  "faraday/faraday-vault/tests/file.rs::each_size_has_the_file_length_the_spec_gives",
+  "faraday/faraday-vault/tests/file.rs::a_new_vault_is_one_step_and_the_largest_has_the_length_the_spec_gives",
   "faraday/faraday-vault/tests/file.rs::a_file_a_keepass_app_saved_opens_and_is_sealed_as_faraday_writes_one",
-  "faraday/faraday-vault/tests/file.rs::what_does_not_fit_is_named_by_the_bytes_over_and_the_next_size_and_the_vault_stays_open",
+  "faraday/faraday-vault/tests/file.rs::a_seal_pads_to_the_smallest_step_that_holds_it_and_the_vault_shrinks_with_what_it_holds",
   "faraday/faraday-keys/tests/vault.rs::a_vault_sealed_after_a_change_opens_with_it",
   "faraday/faraday-keys/tests/vault.rs::every_edit_moves_the_version_and_a_read_does_not",
   "faraday/faraday-core/tests/all/vault_seal.rs::a_seal_takes_the_answers_the_system_gave",
@@ -7764,7 +7763,7 @@ vectors = ["vault"]
 tests = [
   "faraday/faraday-vault/tests/file.rs::a_vault_is_made_opened_and_sealed_again_with_its_count_going_up",
   "faraday/faraday-vault/tests/file.rs::the_clock_is_written_as_utc_across_a_leap_day",
-  "faraday/faraday-vault/tests/file.rs::what_does_not_fit_is_named_by_the_bytes_over_and_the_next_size_and_the_vault_stays_open",
+  "faraday/faraday-vault/tests/file.rs::a_seal_pads_to_the_smallest_step_that_holds_it_and_the_vault_shrinks_with_what_it_holds",
   "faraday/faraday-vault/tests/file.rs::a_read_only_vault_refuses_every_change_for_either_reason",
   "faraday/faraday-vault/tests/vectors.rs::the_vault_sealed_through_file_seal_is_at_the_cost_a_seal_writes",
   "faraday/faraday-keys/tests/vault.rs::a_vault_sealed_after_a_change_opens_with_it",
@@ -9696,10 +9695,7 @@ heading = "The file"
 text = "A vault is one KDBX 4 file, the database format KeePass writes, under one passphrase. Faraday writes it in one shape and reads the shapes a KeePass app saves within limits."
 
 [[construction.section.para]]
-text = "The file holds a plaintext of one of {len:faraday/faraday-vault/src/file.rs::SIZES|words} sizes, framed in blocks and wrapped in a header, so each size has one file length:"
-
-[[construction.section.para]]
-table = "vault-sizes"
+text = "The file holds a plaintext of a whole number of {f:{c:faraday/faraday-vault/src/file.rs::STEP} / 1024} KiB steps, from one step to {f:{c:faraday/faraday-vault/src/kdbx/mod.rs::MAX_PLAIN} / 1048576} MiB, framed in blocks and wrapped in a header. A vault is as small as its contents allow, and no size is chosen."
 
 [[construction.section.para]]
 text = "The file's name ends in .kdbx. There is one passphrase and no slots: a file does not hide how many passphrases exist, because there is one."
@@ -9735,7 +9731,7 @@ text = "A file a KeePass app saved with another cipher or KDF the reader takes, 
 heading = "What it promises"
 
 [[construction.section.para]]
-text = "Without the passphrase, the file shows its header, which states the cost and the salt, and a length that is one of the sizes. Nothing in the body can be read or changed without the passphrase: the header's and every block's HMAC fail first."
+text = "Without the passphrase, the file shows its header, which states the cost and the salt, and a length that is a whole number of {f:{c:faraday/faraday-vault/src/file.rs::STEP} / 1024} KiB steps. Nothing in the body can be read or changed without the passphrase: the header's and every block's HMAC fail first."
 
 [[construction.section]]
 heading = "What it does not promise"

@@ -48,12 +48,12 @@ use chacha20::ChaCha20;
 use chacha20::cipher::StreamCipher;
 use faraday_crypto::work::Compute;
 use sha2::{Digest, Sha256};
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::Cost;
 
 pub use header::{Cipher, Compression, Header, Kdf, LANES, MEMORY_KIB, PASSES};
-pub use inner::{Binaries, Binary, InnerStream};
+pub use inner::{Binaries, Binary, InnerStream, Shared};
 #[cfg(feature = "fuzzing")]
 #[doc(hidden)]
 pub use items::fuzz_items;
@@ -66,13 +66,19 @@ pub use xml::fuzz_document as fuzz_xml;
 /// (64), in that order (§5).
 pub const RANDOM_LEN: usize = 140;
 
-/// The most a file's plaintext, the inner header and the XML document,
-/// may be: the largest vault size (§2).
-pub const MAX_PLAIN: usize = 4 * 1024 * 1024;
+/// The most a file's plaintext, the inner header, the XML document and the
+/// attachments, may be: 128 MiB, the ceiling of a vault (§2, F206).
+pub const MAX_PLAIN: usize = 128 * 1024 * 1024;
 
-/// The most the encrypted body may be before decryption: the plaintext
-/// and the padding or the framing a cipher or gzip adds to it.
-const MAX_STORED: usize = MAX_PLAIN + MAX_PLAIN / 8;
+/// The most the stored body may be, with its framing, before decryption:
+/// the plaintext as a compressing program may have left it, and an eighth
+/// of slack that covers the frames (36 bytes for each 1 MiB block).
+pub const MAX_STORED: usize = MAX_PLAIN + MAX_PLAIN / 8;
+
+/// The most attachments a file may hold. Each costs 32 bytes once read,
+/// and a field is only 6 bytes of a file, so the count is limited
+/// apart from the length: a million is far more than a vault holds.
+pub const MAX_BINARIES: usize = 1 << 20;
 
 /// Where the inner stream's key stands in the random bytes.
 const INNER_KEY_AT: usize = 76;
@@ -150,8 +156,9 @@ pub struct Opened {
     /// What the header stated.
     pub header: Header,
     /// The XML document and whatever followed it in the plaintext (the line
-    /// feeds a vault is padded with).
-    pub document: Zeroizing<Vec<u8>>,
+    /// feeds a vault is padded with), in a buffer of its own: the
+    /// attachments share the body, which does not hold it.
+    pub document: Shared,
     /// The inner random stream's key, for [`InnerStream::new`].
     pub inner_key: Zeroizing<Vec<u8>>,
     /// The attachments of the inner header, in order.
@@ -203,7 +210,7 @@ pub fn plain_needs(binaries: &Binaries<'_>, document_len: usize) -> usize {
     inner::written_len(&[0u8; RANDOM_LEN - INNER_KEY_AT], binaries).saturating_add(document_len)
 }
 
-/// Costs a read of `document`, linear in its size (at most 4 MiB), and
+/// Costs a read of `document`, linear in its size (at most the vault's largest, [`MAX_PLAIN`]), and
 /// nothing when there is no attachment: the attachments a seal of
 /// `document` writes (VAULT §7.1). An attachment no entry, history entry or
 /// recycle bin entry refers to is emptied in place and the trailing ones
@@ -245,11 +252,17 @@ fn checked_header(bytes: &[u8]) -> Result<header::Parsed, Error> {
     if Sha256::digest(&bytes[..parsed.len]).as_slice() != &bytes[parsed.len..parsed.len + 32] {
         return Err(Error::Damaged);
     }
-    // Blocks of a megabyte: a handful of frames at most above the body.
-    if bytes.len() - after > MAX_STORED + 8 * blocks::BLOCK_OVERHEAD {
+    stored_fits(bytes.len() - after)?;
+    Ok(parsed)
+}
+
+/// Whether a body of `stored` bytes after the header is no longer than the
+/// largest vault's ([`MAX_STORED`]): the check made before any work.
+fn stored_fits(stored: usize) -> Result<(), Error> {
+    if stored > MAX_STORED {
         return Err(Error::TooLarge);
     }
-    Ok(parsed)
+    Ok(())
 }
 
 /// A passphrase's NFC form as bytes, in a buffer that wipes.
@@ -270,6 +283,24 @@ pub fn passphrase_bytes(passphrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
 /// checked first, then the keys, the header's HMAC, every block's HMAC,
 /// the decryption, the inflation and the inner header.
 pub fn open(c: &Compute, bytes: &[u8], passphrase: &str) -> Result<Opened, Error> {
+    open_within(c, bytes, passphrase, &mut |_| Ok(()), &mut |_, _| Ok(()))
+}
+
+/// Costs what [`open`] costs. [`open`] for a caller that has a budget:
+/// `budget` is asked, for a gzip body, with the length the member states
+/// once the HMACs have verified, before the buffer of that length is
+/// allocated; `Err(mib)` is the memory that was not found
+/// ([`Error::Memory`]) and nothing is allocated (F206 point 5). `parsed` is
+/// asked once the inner header is read, with the XML document's length and
+/// the attachments' together, before the document is copied out of the
+/// body: a file it refuses takes no copy (F206 point 4).
+pub fn open_within(
+    c: &Compute,
+    bytes: &[u8],
+    passphrase: &str,
+    budget: &mut dyn FnMut(usize) -> Result<(), u32>,
+    parsed_fn: &mut dyn FnMut(usize, usize) -> Result<(), u32>,
+) -> Result<Opened, Error> {
     let nfc = passphrase_bytes(passphrase)?;
     let parsed = checked_header(bytes)?;
     let keys = keys::file_keys(
@@ -281,7 +312,7 @@ pub fn open(c: &Compute, bytes: &[u8], passphrase: &str) -> Result<Opened, Error
         &parsed.salt,
     )?;
     let body = decrypted(bytes, &parsed, &keys)?;
-    let (document, inner) = read_body(body, parsed.header.compression)?;
+    let (document, inner) = read_body(body, parsed.header.compression, budget, parsed_fn)?;
     Ok(Opened {
         header: parsed.header,
         document,
@@ -307,7 +338,12 @@ fn decrypted(
     ) {
         return Err(Error::Passphrase);
     }
-    let mut body = blocks::join(&bytes[header_end + 64..], &keys.hmac_base, MAX_STORED)?;
+    // A body that is not compressed is the plaintext and a cipher's padding.
+    let limit = match parsed.header.compression {
+        Compression::None => MAX_PLAIN + 16,
+        Compression::Gzip => MAX_STORED,
+    };
+    let mut body = blocks::join(&bytes[header_end + 64..], &keys.hmac_base, limit)?;
     match parsed.header.cipher {
         Cipher::ChaCha20 => {
             let mut cipher = ChaCha20::new_from_slices(keys.encryption.expose(), &parsed.iv)
@@ -329,21 +365,46 @@ fn decrypted(
 }
 
 /// A decrypted, unpadded body read: inflated when it is gzip, its inner
-/// header read, and the XML document (with whatever follows it) left.
+/// header read, and the XML document (with whatever follows it) left, in a
+/// buffer of its own; the attachments are ranges of the body.
 fn read_body(
     body: Zeroizing<Vec<u8>>,
     compression: Compression,
-) -> Result<(Zeroizing<Vec<u8>>, inner::Inner), Error> {
-    let mut plain = match compression {
+    budget: &mut dyn FnMut(usize) -> Result<(), u32>,
+    parsed: &mut dyn FnMut(usize, usize) -> Result<(), u32>,
+) -> Result<(Shared, inner::Inner), Error> {
+    let plain = match compression {
         Compression::None => body,
-        Compression::Gzip => gzip::inflate(&body, MAX_PLAIN)?,
+        Compression::Gzip => gzip::inflate(&body, MAX_PLAIN, budget)?,
     };
     if plain.len() > MAX_PLAIN {
         return Err(Error::TooLarge);
     }
-    let inner = inner::read_inner(&plain)?;
-    plain.drain(..inner.document_at);
-    Ok((plain, inner))
+    let mut plain = plain;
+    let scanned = inner::scan(&plain)?;
+    // What the document and the attachments take is checked before any copy
+    // is made of them.
+    let attachments = scanned
+        .binaries
+        .iter()
+        .fold(0usize, |n, (_, r)| n.saturating_add(r.len()));
+    parsed(plain.len() - scanned.document_at, attachments).map_err(Error::Memory)?;
+    // The XML text goes into a buffer of its own and is wiped from the
+    // body, so the attachments, which live as long as the vault is open, do
+    // not keep every unprotected field of the document in plaintext with
+    // them: the document's buffer is wiped and freed once it is parsed.
+    let at = scanned.document_at;
+    let mut text = Zeroizing::new(Vec::new());
+    text.try_reserve_exact(plain.len() - at)
+        .map_err(|_| Error::TooLarge)?;
+    text.extend_from_slice(&plain[at..]);
+    plain[at..].zeroize();
+    plain.truncate(at);
+    plain.shrink_to_fit();
+    let plain = Shared::new(plain);
+    let inner = scanned.into_inner(&plain)?;
+    debug_assert_eq!(inner.document_at, at);
+    Ok((Shared::new(text), inner))
 }
 
 /// Reads a body as a file whose HMACs verified would hold it, for the
@@ -363,7 +424,18 @@ pub fn fuzz_body(decrypted: &[u8], aes256: bool, gzip: bool) -> Result<usize, Er
     } else {
         Compression::None
     };
-    read_body(body, compression).map(|(document, _)| document.len())
+    // A run allocates at most this much for an inflation, so a mutated
+    // trailer cannot ask for the ceiling on every run.
+    const FUZZ_INFLATE: usize = 64 * 1024 * 1024;
+    let mut budget = |n: usize| {
+        if n > FUZZ_INFLATE {
+            Err((n >> 20) as u32)
+        } else {
+            Ok(())
+        }
+    };
+    read_body(body, compression, &mut budget, &mut |_, _| Ok(()))
+        .map(|(document, _)| document.len())
 }
 
 /// Decrypts `body` in place under AES-CBC and returns the length of the
@@ -392,12 +464,33 @@ fn strip_padding(body: &[u8]) -> Result<usize, Error> {
     Ok(start)
 }
 
+/// The keys of a seal, worked out before anything is built: Argon2id has
+/// run and its memory is freed (F206 point 6).
+pub struct SealKeys {
+    keys: keys::Keys,
+    cost: Cost,
+}
+
+/// Costs an Argon2id run at `cost`. The keys [`seal_keyed`] seals under:
+/// the passphrase (put in NFC here) and `cost` are checked, then the key is
+/// derived from the seed and salt `random` carries.
+pub fn derive(
+    c: &Compute,
+    passphrase: &str,
+    cost: Cost,
+    random: &[u8; RANDOM_LEN],
+) -> Result<SealKeys, Error> {
+    let nfc = passphrase_bytes(passphrase)?;
+    header::cost_in_limits(&cost)?;
+    let (master_seed, rest) = random.split_at(32);
+    let salt = &rest[12..44];
+    let keys = keys::file_keys(c, &nfc, master_seed, Kdf::Argon2id, &cost, salt)?;
+    Ok(SealKeys { keys, cost })
+}
+
 /// Costs an Argon2id run at `cost`, and a read of the file made without
-/// one (its HMACs, its decryption and its inner header). Writes a file as
-/// Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, the passphrase (put in NFC
-/// here) alone, 1 MiB blocks, and a plaintext of exactly `plain_len`
-/// bytes: the inner header, the document and line feeds after it. Every
-/// random value comes from `random`.
+/// one (its HMACs, its decryption and its inner header). [`derive`] and
+/// [`seal_keyed`] in one.
 pub fn seal(
     c: &Compute,
     passphrase: &str,
@@ -406,8 +499,23 @@ pub fn seal(
     contents: &Contents<'_>,
     plain_len: usize,
 ) -> Result<Vec<u8>, Error> {
-    let nfc = passphrase_bytes(passphrase)?;
-    header::cost_in_limits(&cost)?;
+    let keys = derive(c, passphrase, cost, random)?;
+    seal_keyed(keys, random, contents, plain_len)
+}
+
+/// Costs a read of the file made (its HMACs, its decryption and its inner
+/// header), no Argon2id. Writes a file as
+/// Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, the passphrase (put in NFC
+/// here) alone, 1 MiB blocks, and a plaintext of exactly `plain_len`
+/// bytes: the inner header, the document and line feeds after it. Every
+/// random value comes from `random`, the same as [`derive`] was given.
+pub fn seal_keyed(
+    sealing: SealKeys,
+    random: &[u8; RANDOM_LEN],
+    contents: &Contents<'_>,
+    plain_len: usize,
+) -> Result<Vec<u8>, Error> {
+    let SealKeys { keys, cost } = sealing;
     if plain_len > MAX_PLAIN {
         return Err(Error::TooLarge);
     }
@@ -418,26 +526,16 @@ pub fn seal(
     if needs > plain_len {
         return Err(Error::Full(needs));
     }
-    let mut plain = Zeroizing::new(Vec::new());
-    plain
-        .try_reserve_exact(plain_len)
-        .map_err(|_| no_memory(plain_len))?;
-    inner::write(inner_key_of(random), &contents.binaries, &mut plain);
-    plain.extend_from_slice(contents.document);
-    plain.resize(plain_len, b'\n');
-    let written = Sha256::digest(&plain);
 
     let (master_seed, rest) = random.split_at(32);
     let (iv, rest) = rest.split_at(12);
     let salt = &rest[..32];
-    let keys = keys::file_keys(c, &nfc, master_seed, Kdf::Argon2id, &cost, salt)?;
-    let mut cipher =
+    let cipher =
         ChaCha20::new_from_slices(keys.encryption.expose(), iv).map_err(|_| Error::Damaged)?;
-    cipher.apply_keystream(&mut plain);
 
     let head = header::write(master_seed, iv, salt, cost, contents.public_custom_data);
     let mut out = Vec::new();
-    let frames = plain_len / blocks::BLOCK_LEN + 1;
+    let frames = plain_len.div_ceil(blocks::BLOCK_LEN) + 1;
     let file_len = head.len() + 64 + plain_len + frames * blocks::BLOCK_OVERHEAD;
     out.try_reserve_exact(file_len)
         .map_err(|_| no_memory(file_len))?;
@@ -447,8 +545,25 @@ pub fn seal(
         &keys::block_key(&keys.hmac_base, keys::HEADER_BLOCK),
         &[&head],
     ));
-    blocks::write(&plain, &keys.hmac_base, &mut out);
-    read_back(&out, &keys, &written)?;
+    // The plaintext is encrypted and framed where it lands in the file: no
+    // other copy of it is made (F206 point 6).
+    let mut framer = blocks::Framer::new(&mut out, cipher, &keys.hmac_base);
+    let mut digest = Sha256::new();
+    let mut put = |piece: &[u8]| {
+        digest.update(piece);
+        framer.put(piece);
+    };
+    inner::write(inner_key_of(random), &contents.binaries, &mut put);
+    put(contents.document);
+    let mut pad = plain_len - needs;
+    let lines = [b'\n'; 4096];
+    while pad > 0 {
+        let n = pad.min(lines.len());
+        put(&lines[..n]);
+        pad -= n;
+    }
+    framer.finish();
+    read_back(&out, &keys, &digest.finalize())?;
     Ok(out)
 }
 
@@ -466,7 +581,13 @@ fn read_back(out: &[u8], keys: &keys::Keys, written: &[u8]) -> Result<(), Error>
         if Sha256::digest(&body).as_slice() != written {
             return Err(Error::Damaged);
         }
-        read_body(body, parsed.header.compression).map(|_| ())
+        read_body(
+            body,
+            parsed.header.compression,
+            &mut |_| Ok(()),
+            &mut |_, _| Ok(()),
+        )
+        .map(|_| ())
     };
     read().map_err(|e| match e {
         Error::Memory(mib) => Error::Memory(mib),

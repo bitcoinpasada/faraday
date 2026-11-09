@@ -42,9 +42,15 @@ fn io_text(e: std::io::Error) -> String {
     .to_string()
 }
 
-/// The largest file read from a stick. A PSBT or a wallet is kilobytes; a
-/// vault of 4 MiB is the largest thing Faraday writes.
+/// The largest file read from a stick other than a vault, which has its own
+/// limit ([`MAX_VAULT_READ`]). A PSBT or a wallet is kilobytes.
 pub const MAX_READ: u64 = 18 * 1024 * 1024;
+
+/// The largest file read from a stick that begins as KDBX 4: the longest
+/// file a vault has (`docs/VAULT.md` §2). It travels between the app and
+/// the disk process in pieces of [`proto::PIECE`], since a frame keeps its
+/// limit (F206 point 7).
+pub const MAX_VAULT_READ: u64 = vault_file::MAX_FILE_LEN;
 
 /// The largest picture read for QR codes, in pixels: 4096 × 4096, about
 /// 16.8 million. That takes in a phone's screenshot (1440 × 3200 is 4.6
@@ -62,6 +68,22 @@ pub trait Place {
     fn files(&mut self) -> Result<Vec<(String, u64)>, String>;
     /// A file's bytes; refused over `max`.
     fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String>;
+    /// A file's length and its `len` bytes from `from` (fewer where it
+    /// ends first); refused where the file is over `max`. Where a place
+    /// cannot read a part, it reads the whole.
+    fn read_part(
+        &mut self,
+        name: &str,
+        from: u64,
+        len: usize,
+        max: u64,
+    ) -> Result<(u64, Vec<u8>), String> {
+        let b = self.read(name, max)?;
+        let total = b.len() as u64;
+        let start = usize::try_from(from).unwrap_or(usize::MAX).min(b.len());
+        let end = start.saturating_add(len).min(b.len());
+        Ok((total, b[start..end].to_vec()))
+    }
     /// A file's first `n` bytes (fewer where it is shorter); refused
     /// over `max` in all. Where a place cannot read a part, it reads the
     /// whole.
@@ -138,6 +160,34 @@ impl Place for Dir {
             .read_to_end(&mut out)
             .map_err(io_text)?;
         Ok(out)
+    }
+
+    fn read_part(
+        &mut self,
+        name: &str,
+        from: u64,
+        len: usize,
+        max: u64,
+    ) -> Result<(u64, Vec<u8>), String> {
+        use std::io::{Read, Seek, SeekFrom};
+        let path = self.0.join(name);
+        let meta = fs::metadata(&path).map_err(io_text)?;
+        if meta.len() > max {
+            return Err(fill(
+                EN.files_larger_than,
+                &[&(max / 1024 / 1024).to_string()],
+            ));
+        }
+        let mut file = fs::File::open(&path).map_err(io_text)?;
+        file.seek(SeekFrom::Start(from.min(meta.len())))
+            .map_err(io_text)?;
+        let mut out = Vec::new();
+        out.try_reserve_exact(len.min(meta.len() as usize))
+            .map_err(|_| EN.fat_io.to_string())?;
+        file.take(len as u64)
+            .read_to_end(&mut out)
+            .map_err(io_text)?;
+        Ok((meta.len(), out))
     }
 
     fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
@@ -284,6 +334,20 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
         self.0.head(name, n, max).map_err(fat_text)
     }
 
+    fn read_part(
+        &mut self,
+        name: &str,
+        from: u64,
+        len: usize,
+        max: u64,
+    ) -> Result<(u64, Vec<u8>), String> {
+        let max = u32::try_from(max).unwrap_or(u32::MAX);
+        self.0
+            .read_part(name, from, len, max)
+            .map(|(total, b)| (u64::from(total), b))
+            .map_err(fat_text)
+    }
+
     fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
         self.0
             .create(name, bytes)
@@ -416,7 +480,7 @@ pub fn vault_names(c: &Compute, place: &mut dyn Place, files: &[(String, u64)]) 
         }
         c.count(Work::FileRead);
         if place
-            .head(n, vault_file::HEAD_LEN, MAX_READ)
+            .head(n, vault_file::HEAD_LEN, MAX_VAULT_READ)
             .is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4))
         {
             out.push(n.clone());
@@ -452,6 +516,46 @@ pub fn read(place: &mut dyn Place, name: &str) -> Result<Vec<u8>, String> {
         finish_vault_writes(place);
     }
     place.read(checked(name)?, MAX_READ)
+}
+
+/// Reads one file whole, whatever a frame holds: a file that begins as
+/// KDBX 4 up to [`MAX_VAULT_READ`], any other to [`MAX_READ`]. For a place
+/// that does not send the file through a frame.
+pub fn read_whole(place: &mut dyn Place, name: &str) -> Result<Vec<u8>, String> {
+    if name.to_ascii_lowercase().ends_with(".kdbx") {
+        finish_vault_writes(place);
+    }
+    let name = checked(name)?;
+    let max = read_limit(place, name);
+    place.read(name, max)
+}
+
+/// The most that may be read of `name`: [`MAX_VAULT_READ`] where it
+/// begins as KDBX 4, else [`MAX_READ`].
+fn read_limit(place: &mut dyn Place, name: &str) -> u64 {
+    if has_vault_head(place, name) {
+        MAX_VAULT_READ
+    } else {
+        MAX_READ
+    }
+}
+
+/// Reads up to `len` bytes of `name` from `from`, and the file's length,
+/// for a file sent in pieces: refused over [`MAX_READ`] unless it begins
+/// as KDBX 4, then over [`MAX_VAULT_READ`]; and a piece over
+/// [`proto::PIECE`] is cut to it.
+pub fn read_part(
+    place: &mut dyn Place,
+    name: &str,
+    from: u64,
+    len: usize,
+) -> Result<(u64, Vec<u8>), String> {
+    if name.to_ascii_lowercase().ends_with(".kdbx") && from == 0 {
+        finish_vault_writes(place);
+    }
+    let name = checked(name)?;
+    let max = read_limit(place, name);
+    place.read_part(name, from, len.min(proto::PIECE), max)
 }
 
 /// The first of `name`, `stem-2.ext`, `stem-3.ext`… not on the stick.
@@ -553,7 +657,7 @@ fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
     });
     sized
         && place
-            .head(name, vault_file::HEAD_LEN, MAX_READ)
+            .head(name, vault_file::HEAD_LEN, MAX_VAULT_READ)
             .is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4))
 }
 
@@ -561,7 +665,7 @@ fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
 /// reads its first twelve bytes only.
 fn has_vault_head(place: &mut dyn Place, name: &str) -> bool {
     place
-        .head(name, vault_file::HEAD_LEN, MAX_READ)
+        .head(name, vault_file::HEAD_LEN, MAX_VAULT_READ)
         .is_ok_and(|b| vault_file::kdbx_major(&b) == Some(4))
 }
 
@@ -578,7 +682,7 @@ fn copies_on(
         return Ok(found);
     }
     for (n, len) in place.files()? {
-        if n.starts_with('.') || !vault_file::is_vault_len(len) || len > MAX_READ {
+        if n.starts_with('.') || !vault_file::is_vault_len(len) || len > MAX_VAULT_READ {
             continue;
         }
         // Only a file that begins as a vault does is read whole.
@@ -714,8 +818,13 @@ fn write_vault_new(
         return Ok(write(place, name, bytes)?);
     };
     let sha_of = |place: &mut dyn Place| {
-        (len <= MAX_READ)
-            .then(|| place.read(&old, MAX_READ).ok())
+        let max = if len <= MAX_READ || has_vault_head(place, &old) {
+            MAX_VAULT_READ
+        } else {
+            MAX_READ
+        };
+        (len <= max)
+            .then(|| place.read(&old, max).ok())
             .flatten()
             .map(|b| faraday_crypto::sha256_whole(c, &b))
     };
@@ -796,12 +905,12 @@ pub fn rename(
     {
         let both = len == *olen
             && vault_file::is_vault_len(len)
-            && len <= MAX_READ
+            && len <= MAX_VAULT_READ
             && has_vault_head(place, from)
             && has_vault_head(place, other);
         let same = both && {
-            let a = place.read(from, MAX_READ).ok();
-            let b = place.read(other, MAX_READ).ok();
+            let a = place.read(from, MAX_VAULT_READ).ok();
+            let b = place.read(other, MAX_VAULT_READ).ok();
             match (a, b) {
                 (Some(a), Some(b)) => {
                     let (a, b) = (
@@ -878,12 +987,13 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         // A part file of a vault under another name is told by its
         // contents; a part file of any other file is not this function's.
         let named = name.to_ascii_lowercase().ends_with(".kdbx");
-        if !named && !(vault_file::is_vault_len(*len) && *len <= MAX_READ) {
+        if !named && !(vault_file::is_vault_len(*len) && *len <= MAX_VAULT_READ) {
             continue;
         }
         // A part file larger than any vault is a crafted one: it goes
         // without being read. The rest are read once.
-        let whole = *len <= MAX_READ && place.read(n, MAX_READ).is_ok_and(|b| whole_vault(&b));
+        let whole =
+            *len <= MAX_VAULT_READ && place.read(n, MAX_VAULT_READ).is_ok_and(|b| whole_vault(&b));
         if !named && !whole {
             continue;
         }
