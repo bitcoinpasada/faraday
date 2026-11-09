@@ -232,6 +232,7 @@ impl Faraday {
             Done::Seal(d) => crate::vault::seal::sealed(self, *d),
             Done::Sign(d) => crate::signing::signed_spend(self, *d),
             Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
+            Done::Collect(d) => crate::signing::collect::collected(self, *d),
             Done::Files(d) => crate::public_files::files_made(self, *d),
             Done::KefSeal(d) => {
                 self.worker.kef_mut().sealed_done(*d);

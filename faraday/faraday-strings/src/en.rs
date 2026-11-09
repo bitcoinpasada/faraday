@@ -7178,6 +7178,8 @@ strings! {
     working_aezeed: "Reading the aezeed",
     /// The line of the job that signs a transaction.
     working_signing: "Signing the transaction",
+    /// The line of the job that adds the signatures of a file to a PSBT.
+    working_collecting: "Adding the signatures",
     /// The line of the job that reads a PSBT and checks it.
     working_reading_psbt: "Reading the transaction",
     /// The line of the job that loads the ticked samples.

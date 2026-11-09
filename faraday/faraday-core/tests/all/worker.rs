@@ -4,7 +4,7 @@
 
 use faraday_core::samples::Pick;
 use faraday_core::testkit;
-use faraday_core::{Action, DESKTOP_MODES, Faraday};
+use faraday_core::{Action, DESKTOP_MODES, Faraday, strings};
 use faraday_shell_api::{App, Event};
 
 /// Practice with the first sample key ticked on the Load samples sheet.
@@ -555,7 +555,55 @@ mod signing {
         assert!(a.spend.finished.is_some());
         assert_eq!(a.spend.psbt.to_bytes(), b.spend.psbt.to_bytes());
         assert_eq!(a.spend.signed_here, b.spend.signed_here);
+        assert_eq!(a.spend.wrote, b.spend.wrote);
+        assert_eq!((&a.signers, &a.to_sign), (&b.signers, &b.to_sign));
+        assert_eq!(
+            (a.complete, a.open, &a.error),
+            (b.complete, b.open, &b.error)
+        );
         assert!(!app.outbox.is_empty());
+        let names = |x: &Faraday| x.outbox.iter().map(|o| o.name.clone()).collect::<Vec<_>>();
+        assert_eq!(names(&app), names(&inline));
+    }
+
+    #[test]
+    fn a_session_copy_for_the_worker_reads_a_spend_as_the_session_does() {
+        let mut app = unsigned_spend();
+        app.press(Action::SignHere);
+        let psbt = &app.spend().unwrap().spend.psbt;
+        let c = testkit::compute();
+        let copy = app.session.job_copy();
+        assert_eq!(copy.inspect_inputs(), app.session.inspect_inputs());
+        assert_eq!(copy.inspect(&c, psbt), app.session.inspect(&c, psbt));
+        assert_eq!(copy.wallet_for(&c, psbt), app.session.wallet_for(&c, psbt));
+        let (a, b) = (
+            copy.nonce_check(&c, psbt),
+            app.session.nonce_check(&c, psbt),
+        );
+        assert!(!a.rows.is_empty());
+        assert_eq!(a.rows.len(), b.rows.len());
+        assert_eq!(a.reused.len(), b.reused.len());
+        assert_eq!(a.unread, b.unread);
+        // The words stay on the main thread.
+        let reveal = faraday_keys::Reveal::Words;
+        assert!(copy.keys.reveal(0, reveal).is_empty());
+        assert!(!app.session.keys.reveal(0, reveal).is_empty());
+    }
+
+    #[test]
+    fn a_wallet_takes_home_the_scripts_its_copy_derived() {
+        use faraday_core::work::{Work, since, snapshot};
+        let app = unsigned_spend();
+        let c = testkit::compute();
+        let wallet = &app.session.wallets[0];
+        let copy = wallet.job_copy();
+        assert!(copy.script_at(&c, false, 9).is_some());
+        wallet.take_kept(copy);
+        let before = snapshot();
+        assert!(wallet.script_at(&c, false, 9).is_some());
+        assert_eq!(since(&before).of(Work::WalletMatch), 0, "derived again");
+        assert!(wallet.script_at(&c, false, 10).is_some());
+        assert_eq!(since(&before).of(Work::WalletMatch), 1);
     }
 
     #[test]
@@ -684,6 +732,11 @@ mod signing {
             assert_eq!(a.spend.psbt.to_bytes(), b.spend.psbt.to_bytes());
             assert_eq!(a.wallet, b.wallet);
             assert_eq!(a.signers, b.signers);
+            assert_eq!((&a.to_sign, &a.in_file), (&b.to_sign, &b.in_file));
+            assert_eq!(
+                (a.complete, &a.refused, &a.steps),
+                (b.complete, &b.refused, &b.steps)
+            );
             assert_eq!(a.needed, b.needed);
             assert_eq!(a.open, b.open);
             assert_eq!(a.done, b.done);
@@ -946,6 +999,57 @@ mod signing {
             assert_eq!(s.error, None);
             assert!(!s.spend.signed_here.is_empty(), "round 2 signed");
             assert!(s.musig.is_none(), "nothing left to sign with");
+        }
+
+        /// What a person reads of the spend after a pass, apart from the
+        /// bytes of nonces drawn at random.
+        fn read_of(app: &Faraday) -> impl PartialEq + std::fmt::Debug {
+            let s = app.spend().unwrap();
+            (
+                s.error.clone(),
+                s.signers.clone(),
+                s.to_sign.clone(),
+                s.complete,
+                s.open,
+                s.spend.signed_here.clone(),
+                s.spend.wrote.len(),
+                s.musig.as_ref().map(|m| m.len()),
+                app.outbox
+                    .iter()
+                    .map(|o| o.name.clone())
+                    .collect::<Vec<_>>(),
+            )
+        }
+
+        fn round(app: &mut Faraday, worker: bool) {
+            if worker {
+                testkit::press_on_worker(app, Action::SignHere);
+                testkit::settle(app);
+            } else {
+                app.press(Action::SignHere);
+            }
+        }
+
+        #[test]
+        fn a_musig_round_one_and_two_signed_on_the_worker_read_the_same_as_inline() {
+            let mut inline = device(true);
+            let mut app = device(true);
+            for a in [&mut inline, &mut app] {
+                a.press(Action::StartSpend(at(a, "musig-unsigned.psbt")));
+            }
+            round(&mut inline, false);
+            round(&mut app, true);
+            assert_eq!(read_of(&app), read_of(&inline), "round one");
+            assert!(our_nonce(&app).is_some());
+            for a in [&mut inline, &mut app] {
+                for i in nonce_copies(a) {
+                    a.press(Action::Collect(i));
+                }
+            }
+            round(&mut inline, false);
+            round(&mut app, true);
+            assert_eq!(read_of(&app), read_of(&inline), "round two");
+            assert!(!app.spend().unwrap().spend.wrote.is_empty());
         }
 
         #[test]
@@ -1570,5 +1674,342 @@ mod signing {
                 [testkit::musig_unsigned_at(1).unwrap().to_bytes()]
             );
         }
+    }
+}
+
+/// Collect on the open spend, as a job on the worker (`docs/WORKERS.md`
+/// §2.1): what it gives is what the press gives inline.
+mod collect {
+    use super::*;
+    use crate::common::add_key;
+    use faraday_core::StorageEvent;
+    use faraday_core::testkit::Kit;
+
+    fn kit(id: &str) -> Kit {
+        testkit::kits().into_iter().find(|k| k.id == id).unwrap()
+    }
+
+    fn at(app: &Faraday, name: &str) -> usize {
+        app.inbox().iter().position(|i| i.name == name).unwrap()
+    }
+
+    /// A device holding test key 1 with the kit's wallet loaded and its
+    /// transaction open, and the other signer's copy in the Inbox as
+    /// `from-a.psbt`, an unrelated transaction as `other.psbt` and
+    /// the open one again as `same.psbt`. `signed` has this device sign first.
+    fn device(id: &str, signed: bool) -> Faraday {
+        device_with(id, signed, |bytes| bytes)
+    }
+
+    /// `device`, the open transaction's file `spend.psbt` written as `layout`
+    /// writes the bytes of the plain file.
+    fn device_with(id: &str, signed: bool, layout: fn(Vec<u8>) -> Vec<u8>) -> Faraday {
+        let k = kit(id);
+        let (unsigned, cosigned) = testkit::spend_of(&k).unwrap();
+        let (_, theirs) = cosigned.expect("a kit with a cosigner");
+        let other = testkit::unsigned(&kit("spending")).unwrap();
+        let mut app = testkit::started();
+        app.storage(StorageEvent::Restored {
+            inbox: vec![
+                ("spend.psbt".to_string(), layout(unsigned.to_bytes())),
+                ("same.psbt".to_string(), unsigned.to_bytes()),
+                ("other.psbt".to_string(), other.to_bytes()),
+                ("from-a.psbt".to_string(), theirs.to_bytes()),
+                ("wallet.txt".to_string(), k.descriptor.into_bytes()),
+            ],
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
+        app.press(Action::LoadWallet(at(&app, "wallet.txt")));
+        add_key(&mut app, "bacon");
+        app.press(Action::StartSpend(at(&app, "spend.psbt")));
+        if signed {
+            app.press(Action::SignHere);
+        }
+        app
+    }
+
+    /// What a person reads of the spend and the Outbox.
+    fn seen(app: &Faraday) -> String {
+        let s = app.spend().expect("the spend is open");
+        let outbox: Vec<_> = app
+            .outbox
+            .iter()
+            .map(|i| format!("{} {:?}", i.name, i.bytes))
+            .collect();
+        format!(
+            "{:?}\n{:?} {:?} {:?} {} {:?} {:?} {:?} {:?}\n{:?}\n{:?}",
+            s.spend.psbt.to_bytes(),
+            s.signers,
+            s.to_sign,
+            s.in_file,
+            s.complete,
+            s.open,
+            s.error,
+            s.spend.collected,
+            s.spend.signed_here,
+            outbox,
+            app.toast_text(),
+        )
+    }
+
+    fn on_worker(app: &mut Faraday, name: &str) {
+        let i = at(app, name);
+        testkit::press_on_worker(app, Action::Collect(i));
+    }
+
+    fn same_as_inline(id: &str, signed: bool, file: &str) {
+        let mut inline = device(id, signed);
+        let i = at(&inline, file);
+        inline.press(Action::Collect(i));
+
+        let mut app = device(id, signed);
+        on_worker(&mut app, file);
+        assert!(app.busy().is_some(), "the screen is busy while it collects");
+        testkit::settle(&mut app);
+        assert!(app.busy().is_none());
+        assert_eq!(seen(&app), seen(&inline));
+    }
+
+    #[test]
+    fn a_two_of_three_collected_on_the_worker_reads_as_it_does_inline() {
+        same_as_inline("savings", false, "from-a.psbt");
+        same_as_inline("savings", true, "from-a.psbt");
+    }
+
+    #[test]
+    fn a_taproot_multisig_collected_on_the_worker_reads_as_it_does_inline() {
+        same_as_inline("taproot-multisig", false, "from-a.psbt");
+        same_as_inline("taproot-multisig", true, "from-a.psbt");
+    }
+
+    #[test]
+    fn a_collect_that_completes_the_spend_goes_to_finish_as_it_does_inline() {
+        let mut app = device("savings", true);
+        on_worker(&mut app, "from-a.psbt");
+        testkit::settle(&mut app);
+        let s = app.spend().unwrap();
+        assert!(s.complete);
+        assert_eq!(s.open, Some(faraday_core::wallet::step::FINISH));
+    }
+
+    #[test]
+    fn a_refused_file_says_on_the_worker_what_it_says_inline() {
+        same_as_inline("savings", false, "other.psbt");
+        let mut app = device("savings", false);
+        on_worker(&mut app, "other.psbt");
+        testkit::settle(&mut app);
+        assert!(app.spend().unwrap().error.is_some());
+    }
+
+    #[test]
+    fn a_file_with_nothing_new_says_so_as_it_does_inline() {
+        same_as_inline("savings", false, "same.psbt");
+        let mut app = device("savings", false);
+        on_worker(&mut app, "same.psbt");
+        testkit::settle(&mut app);
+        let said = app.spend().unwrap().error.clone().unwrap();
+        assert!(said.contains("same.psbt"), "{said}");
+    }
+
+    /// The file with an explicit `PSBT_GLOBAL_VERSION` of 0 after its
+    /// transaction, which the reader keeps as written.
+    fn with_explicit_version(mut bytes: Vec<u8>) -> Vec<u8> {
+        // After the magic: key length 1, key type 0, a compact-size length
+        // and the transaction.
+        let (len, at) = match bytes[7] {
+            0xfd => (u16::from_le_bytes([bytes[8], bytes[9]]) as usize, 10),
+            n => (n as usize, 8),
+        };
+        let end = at + len;
+        bytes.splice(end..end, [0x01, 0xfb, 0x04, 0, 0, 0, 0]);
+        bytes
+    }
+
+    #[test]
+    fn a_file_with_nothing_new_to_a_spend_read_in_another_layout_says_so_and_writes_no_part() {
+        let plain = device("savings", false)
+            .spend()
+            .unwrap()
+            .spend
+            .psbt
+            .to_bytes();
+        let mut inline = device_with("savings", false, with_explicit_version);
+        assert_ne!(
+            inline.spend().unwrap().spend.psbt.to_bytes(),
+            plain,
+            "the spend was read in another layout"
+        );
+        let i = at(&inline, "same.psbt");
+        inline.press(Action::Collect(i));
+        let said = inline.spend().unwrap().error.clone().unwrap();
+        let nothing = strings::fill(strings::EN.collect_has_nothing, &["same.psbt"]);
+        assert_eq!(said, nothing);
+        assert!(inline.outbox.is_empty());
+
+        let mut app = device_with("savings", false, with_explicit_version);
+        on_worker(&mut app, "same.psbt");
+        testkit::settle(&mut app);
+        let said = app.spend().unwrap().error.clone().unwrap();
+        assert_eq!(said, nothing);
+        assert!(app.outbox.is_empty());
+        assert_eq!(seen(&app), seen(&inline));
+    }
+
+    #[test]
+    fn back_during_a_collect_leaves_the_psbt_and_the_outbox_as_they_were() {
+        let mut app = device("savings", false);
+        let before = seen(&app);
+        testkit::hold_worker();
+        on_worker(&mut app, "from-a.psbt");
+        app.press(Action::Back);
+        assert!(app.busy().is_none());
+        // The same transaction opened again, so that a stale answer
+        // applied would have a spend to merge into.
+        app.press(Action::StartSpend(at(&app, "spend.psbt")));
+        testkit::release_worker();
+        testkit::settle_stale(&mut app);
+        assert_eq!(seen(&app), before);
+        assert!(app.outbox.is_empty());
+    }
+
+    #[test]
+    fn a_lock_during_a_collect_leaves_nothing_open_and_nothing_in_the_outbox() {
+        let mut app = device("savings", false);
+        testkit::hold_worker();
+        on_worker(&mut app, "from-a.psbt");
+        app.press(Action::LockUnsealed);
+        assert!(app.busy().is_none());
+        assert_eq!(app.session.keys.len(), 0, "the lock forgot the key");
+        testkit::release_worker();
+        testkit::settle_stale(&mut app);
+        assert_eq!(app.session.keys.len(), 0);
+        assert!(app.spend().is_none());
+        assert!(app.outbox.is_empty());
+    }
+
+    #[test]
+    fn a_second_collect_while_one_runs_asks_no_job() {
+        let mut app = device("savings", false);
+        testkit::hold_worker();
+        on_worker(&mut app, "from-a.psbt");
+        let asked = testkit::jobs_asked(&app);
+        on_worker(&mut app, "same.psbt");
+        assert_eq!(testkit::jobs_asked(&app), asked);
+        testkit::release_worker();
+        testkit::settle(&mut app);
+        assert!(app.spend().unwrap().error.is_none());
+    }
+
+    #[test]
+    fn the_presses_a_collect_leaves_alone_do_nothing_while_it_runs() {
+        let mut app = device("savings", false);
+        testkit::hold_worker();
+        on_worker(&mut app, "from-a.psbt");
+        let asked = testkit::jobs_asked(&app);
+        for a in [
+            Action::SignHere,
+            Action::Primary,
+            Action::ToggleTable,
+            Action::ReviewHold,
+            Action::SignedToOutbox,
+            Action::TxToOutbox,
+            Action::Step(faraday_core::wallet::step::SIGN),
+        ] {
+            testkit::press_on_worker(&mut app, a);
+        }
+        assert_eq!(testkit::jobs_asked(&app), asked);
+        assert!(app.spend().unwrap().spend.signed_here.is_empty());
+        testkit::release_worker();
+        testkit::settle(&mut app);
+        assert!(app.spend().unwrap().spend.signed_here.is_empty());
+        assert!(app.spend().unwrap().error.is_none());
+    }
+
+    #[test]
+    fn a_file_arriving_while_it_runs_does_not_stop_it_applying() {
+        let mut app = device("savings", false);
+        let mut inline = device("savings", false);
+        let i = at(&inline, "from-a.psbt");
+        inline.press(Action::Collect(i));
+        testkit::hold_worker();
+        on_worker(&mut app, "from-a.psbt");
+        let mut inbox: Vec<_> = app
+            .inbox()
+            .iter()
+            .map(|i| (i.name.clone(), i.bytes.clone()))
+            .collect();
+        inbox.push(("late.psbt".to_string(), vec![1, 2, 3]));
+        app.storage(StorageEvent::Restored {
+            inbox,
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
+        testkit::release_worker();
+        testkit::settle(&mut app);
+        assert_eq!(
+            app.spend().unwrap().spend.psbt.to_bytes(),
+            inline.spend().unwrap().spend.psbt.to_bytes()
+        );
+    }
+
+    #[test]
+    fn a_key_randomness_reached_while_it_collects_is_blinded_when_the_job_ends() {
+        let mut app = device("savings", false);
+        app.event(faraday_shell_api::Event::Entropy(
+            faraday_shell_api::EntropyBytes::new([0x11; 32]),
+        ));
+        let before = app.session.keys.master_for_tests(0).blindings();
+        testkit::hold_worker();
+        on_worker(&mut app, "from-a.psbt");
+        let mut rolls = faraday_entropy::DiceRolls::new();
+        for r in 1..=6 {
+            assert!(rolls.push(r));
+        }
+        assert!(app.own_add(faraday_core::fresh::OwnSource::Dice, &rolls.commitment(), 6));
+        assert_eq!(
+            app.session.keys.master_for_tests(0).blindings(),
+            before,
+            "the key the job holds is not changed under it"
+        );
+        testkit::release_worker();
+        testkit::settle(&mut app);
+        assert_eq!(
+            app.session.keys.master_for_tests(0).blindings(),
+            before + 1,
+            "blinded as the answer was applied"
+        );
+        assert!(!app.session.keys.owes_reblind());
+    }
+
+    #[test]
+    fn a_musig_round_held_here_is_intact_after_a_collect_on_the_worker_and_signs() {
+        use crate::rounds::{at, device, our_nonce};
+        let mut app = device(true);
+        app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+        app.press(Action::SignHere);
+        let nonce = our_nonce(&app).expect("round 1 shares a nonce");
+        let states = app.spend().unwrap().signers.clone();
+        let copies: Vec<usize> = app
+            .inbox()
+            .iter()
+            .enumerate()
+            .filter(|(_, i)| i.name.starts_with("musig-nonce-"))
+            .map(|(i, _)| i)
+            .collect();
+        assert!(!copies.is_empty());
+        for i in copies {
+            testkit::press_on_worker(&mut app, Action::Collect(i));
+            testkit::settle(&mut app);
+        }
+        let s = app.spend().unwrap();
+        assert!(s.musig.is_some(), "the round is kept");
+        assert_eq!(s.signers, states);
+        assert_eq!(our_nonce(&app), Some(nonce));
+        testkit::press_on_worker(&mut app, Action::SignHere);
+        testkit::settle(&mut app);
+        let s = app.spend().unwrap();
+        assert_eq!(s.error, None);
+        assert!(!s.spend.signed_here.is_empty(), "round 2 signed");
     }
 }

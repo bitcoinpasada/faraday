@@ -1750,11 +1750,11 @@ impl Faraday {
             return false;
         };
         if other.unsigned_tx().compute_txid() == txid {
-            self.collect(index);
-            self.family.state.open = Some(Open::Spend);
-            self.family_step_moved(false);
             // Scanned from Home, the spend is where it moves on.
             self.screen = Screen::Family;
+            crate::signing::collect::start_collect_on_family(self, index);
+            self.family.state.open = Some(Open::Spend);
+            self.family_step_moved(false);
             return true;
         }
         let under_way = self.wallets.spend().is_some_and(|s| {

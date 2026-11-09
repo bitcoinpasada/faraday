@@ -125,6 +125,21 @@ Moved to `docs/history/KEYS-LOG.md`.
   nonce is dropped too), and a round that had begun is lost, so the next
   press opens a new one from a new seed. A round is never put back from a
   stale answer.
+  After it signs, the job also works the spend out on a view of every
+  loaded key, as a Collect's does, and the view is dropped before the
+  answer is sent; the round's public view (`Signing::round_view`, no
+  nonce) is all of it the work reads.
+- **A Collect job** (`signing/collect.rs`, WORKERS §6) is given a view of
+  every loaded key, not a selection: `Keys::job_view` makes a store whose
+  entries hold an `Arc` clone of each master, as `SignJob` does, and the
+  key's public facts; its words, passphrase, seed, codex32 set and every
+  other record are empty. It reveals nothing and is not a reveal. The
+  nonce check's recompute and the signature count's extended public keys
+  at hardened paths use the masters; the MuSig2 round does not go, only
+  its public view. The view is dropped on the worker before the answer is
+  sent, the answer holds public values and verdicts, and a reblind owed
+  meanwhile is paid as the answer is applied or dropped, as for a signing
+  job.
 - **What wiping does not reach.** Faraday's types wipe what they hold;
   five things are outside them (`docs/ESTABLISHED.md` §4.9): a secret
   held in a plain type while it is live; a copy in freed heap until its

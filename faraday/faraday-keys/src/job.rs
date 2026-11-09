@@ -435,6 +435,16 @@ impl SignJob {
 }
 
 impl Signing {
+    /// The MuSig2 round's public facts, no nonce: `None` where the round is
+    /// empty (every nonce has signed, or none was drawn), which is the
+    /// round the spend does not keep.
+    pub fn round_view(&self) -> Option<faraday_psbt::MusigSessionView> {
+        self.musig
+            .as_ref()
+            .filter(|m| !m.is_empty())
+            .map(|m| m.view())
+    }
+
     /// The PSBT, the MuSig2 round as it stands and the result.
     #[allow(clippy::type_complexity)]
     pub fn into_parts(

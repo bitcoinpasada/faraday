@@ -1,25 +1,25 @@
 //! Opening a spend from an Inbox PSBT: the read and the inspection are a
 //! job on the worker (`docs/WORKERS.md` §2.1, §6).
 //!
-//! The job is given the file's bytes and the public inputs of the
-//! inspection (the network, the key references and the wallets' policies,
-//! as [`faraday_keys::job::SignJob`] owns them): no key and no secret goes
-//! with it. Its answer brings back the PSBT, the version 2 form where the
-//! file was one, and the inspection, and opens the spend as the press did.
+//! The job is given the file's bytes and a copy of the session
+//! ([`crate::wallet::Session::job_copy`]): the keys' masters shared the way
+//! a signing job shares them, the wallets with what they kept, and no
+//! words or seeds. It reads the file, follows its network on the copy and
+//! works the spend out as a refresh does; the copy is dropped on the worker
+//! before the answer is sent. Its answer brings back the spend, what was
+//! worked out of it and the wallets' kept scripts, and opens the spend as
+//! the press did.
 //! Back or a lock meanwhile drops the answer, and so does an Inbox that no
 //! longer holds the file the job was given, and so does a person who is no
 //! longer where they pressed (a stick plugged in, a sheet opened): nothing
 //! opens behind their back.
 
+use super::fresh::{Fresh, worked_out};
 use crate::strings::EN;
-use crate::wallet::{self, InspectInputs, Spend, SpendState};
+use crate::wallet::{self, Session, Spend, SpendState, Wallet};
 use crate::worker::Job;
 use crate::{Faraday, Screen, Sheet};
-use faraday_bip::keys::Network;
-use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
-use faraday_psbt::v2::PsbtV2;
-use faraday_psbt::{Inspection, KeyRef, Psbt};
 
 /// Where the press that opened the spend goes on from the answer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -30,15 +30,11 @@ pub(crate) enum Then {
     Family,
 }
 
-/// A file to read and inspect on the worker: its bytes and the public
-/// inputs of the inspection, owned.
+/// A file to read and work out on the worker: its bytes and a copy of the
+/// session, owned.
 pub(crate) struct ReadWork {
     bytes: Vec<u8>,
-    network: Network,
-    refs: Vec<KeyRef>,
-    policies: Vec<WalletPolicy>,
-    /// The session's inspection inputs when the press was made.
-    inputs: InspectInputs,
+    session: Session,
     from: Origin,
 }
 
@@ -53,14 +49,13 @@ pub(crate) struct Origin {
     sheet: Option<Sheet>,
 }
 
-/// What the job read.
+/// What the job read: the spend, worked out for the session as the copy
+/// was.
 struct Read {
-    psbt: Psbt,
-    v2: Option<PsbtV2>,
-    inspection: Inspection,
-    /// The inputs the inspection was made with, the network being the one
-    /// it was made on.
-    inputs: InspectInputs,
+    spend: Spend,
+    fresh: Fresh,
+    /// The wallets as the job left them, for what they kept.
+    wallets: Vec<Wallet>,
 }
 
 /// A read's answer.
@@ -73,44 +68,41 @@ pub(crate) struct ReadDone {
 }
 
 impl ReadWork {
-    /// Costs what `read_psbt_kept` and `faraday_psbt::inspect` cost. The
-    /// file read as a PSBT and inspected, as the press did on the main
-    /// thread. A PSBT of another kind of network than the session's is
-    /// inspected on its own, as `Session::follow_psbt` leaves a session
-    /// with no key and no wallet; the answer is applied only where the
-    /// session took that network.
+    /// Costs what `read_psbt_kept` and `worked_out` cost. The file read as a
+    /// PSBT and worked out as a refresh does, on the copy of the session
+    /// after it took the PSBT's network as `Session::follow_psbt` does; where
+    /// the session does not take it, or is not as the copy was at the apply,
+    /// the apply works the spend out again.
     pub(crate) fn run(self, c: &Compute) -> ReadDone {
         let Self {
             bytes,
-            network,
-            refs,
-            policies,
-            inputs,
+            mut session,
             from,
         } = self;
-        let read = wallet::read_psbt_kept(c, &bytes).map(|(psbt, v2)| {
-            let on = match wallet::psbt_network(&psbt, network) {
-                Some(n) if n.kind() != network.kind() => n,
-                _ => network,
-            };
-            let ctx = wallet::context(on, &refs, &policies);
-            let inspection = crate::review::name_scripts(faraday_psbt::inspect(c, &psbt, &ctx));
-            Read {
-                psbt,
-                v2,
-                inspection,
-                inputs: inputs.on(on),
+        let read = match wallet::read_psbt_kept(c, &bytes) {
+            Some((psbt, v2)) => {
+                // The refusal, if any, is the apply's to say.
+                let _ = session.follow_psbt(&psbt);
+                let mut spend = Spend::new_kept(psbt, v2, &from.name);
+                let fresh = worked_out(c, &session, &mut spend, None, false);
+                // No key's `Arc` rides in the answer: the keys go before it does.
+                let wallets = std::mem::take(&mut session.wallets);
+                drop(session);
+                Some(Read {
+                    spend,
+                    fresh,
+                    wallets,
+                })
             }
-        });
+            None => None,
+        };
         ReadDone { bytes, read, from }
     }
 }
 
-/// Costs a key derivation per key (`key_refs`). Starts the read of
-/// Files' PSBT `index` on the worker; `then` is where the answer goes
-/// on. The key references are the session's public ones.
+/// Starts the read of Files' PSBT `index` on the worker; `then` is where
+/// the answer goes on.
 pub(crate) fn start_spend(app: &mut Faraday, index: usize, then: Then) {
-    let c = app.compute();
     let Some((name, bytes)) = app
         .inbox
         .get(index)
@@ -120,10 +112,7 @@ pub(crate) fn start_spend(app: &mut Faraday, index: usize, then: Then) {
     };
     let work = ReadWork {
         bytes,
-        network: app.session.network(),
-        refs: app.session.key_refs(&c),
-        policies: app.session.policies(),
-        inputs: app.session.inspect_inputs(),
+        session: app.session.job_copy(),
         from: Origin {
             index,
             name,
@@ -148,7 +137,7 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
     if !held || (app.screen, app.sheet) != (from.screen, from.sheet) {
         return;
     }
-    let opened = spend_opened(app, read, &from.name);
+    let opened = spend_opened(app, read);
     match from.then {
         Then::Spend if opened => app.screen = Screen::Spend,
         Then::Spend => {}
@@ -156,40 +145,37 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
     }
 }
 
-/// Costs what `inspect` costs where the session's inputs are no longer the
-/// job's (the network it took, the keys, the wallets), and what
-/// `aggregate_musig` costs. Opens the spend the job read, a MuSig2 file
-/// holding every partial signature aggregated at once. Whether it opened.
-fn spend_opened(app: &mut Faraday, read: Option<Read>, name: &str) -> bool {
+/// Costs what `worked_out` costs where the session's inputs are no longer
+/// the job's (the network it took, the keys, the wallets). Opens the spend
+/// the job read, a MuSig2 file holding every partial signature aggregated at
+/// once. Whether it opened.
+fn spend_opened(app: &mut Faraday, read: Option<Read>) -> bool {
     let Some(Read {
-        psbt,
-        v2,
-        inspection,
-        inputs,
+        spend,
+        fresh,
+        wallets,
     }) = read
     else {
         app.toast(EN.start_spend_not_a_psbt);
         return false;
     };
-    if let Err(e) = app.session.follow_psbt(&psbt) {
+    if let Err(e) = app.session.follow_psbt(&spend.psbt) {
         app.toast(&e.text());
         return false;
     }
-    let spend = Spend::new_kept(psbt, v2, name);
-    let now = app.session.inspect_inputs();
-    let c = app.compute();
-    let inspection = if now == inputs {
-        inspection
-    } else {
-        app.session.inspect(&c, &spend.psbt)
-    };
-    let mut state = SpendState::new(spend, inspection, now);
+    for (kept, theirs) in app.session.wallets.iter().zip(wallets) {
+        kept.take_kept(theirs);
+    }
     // The opening is the spend's first read: a file with every partial in
     // it is aggregated, the signature kept only if it verifies.
-    if state.spend.aggregate_musig(&c, &state.inspection) {
-        state.inspection = app.session.inspect(&c, &state.spend.psbt);
-        state.inspected = Some((state.spend.psbt.clone(), app.session.inspect_inputs()));
-    }
+    let mut state = if app.session.inspect_inputs() == fresh.inputs {
+        SpendState::opened_with(spend, fresh)
+    } else {
+        let c = app.compute();
+        let mut spend = spend;
+        let fresh = worked_out(&c, &app.session, &mut spend, None, false);
+        SpendState::opened_with(spend, fresh)
+    };
     state.done[0] = true;
     app.wallets.set_spend(state);
     app.refresh_spend();

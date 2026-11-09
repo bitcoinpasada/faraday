@@ -35,6 +35,8 @@ pub enum Kind {
     Signing,
     /// A PSBT read and inspected.
     PsbtRead,
+    /// A file's signatures added to a PSBT and the result checked.
+    Collecting,
     /// A set of a wallet's public files made.
     PublicFiles,
     /// A Krux code sealed: its PBKDF2 runs, and stops on Cancel.
@@ -58,6 +60,7 @@ impl Kind {
             | Kind::VaultSeal
             | Kind::Signing
             | Kind::PsbtRead
+            | Kind::Collecting
             | Kind::PublicFiles
             | Kind::KefSeal
             | Kind::KefOpen
@@ -93,6 +96,7 @@ pub(crate) enum Job {
     Seal(Box<crate::vault::SealWork>),
     Sign(Box<crate::signing::SignWork>),
     SpendRead(Box<crate::signing::read::ReadWork>),
+    Collect(Box<crate::signing::collect::CollectWork>),
     Files(Box<crate::public_files::FilesWork>),
     KefSeal(Box<kef::SealWork>),
     KefOpen(Box<kef::OpenWork>),
@@ -109,6 +113,7 @@ pub(crate) enum Done {
     Seal(Box<crate::vault::SealDone>),
     Sign(Box<crate::signing::SignDone>),
     SpendRead(Box<crate::signing::read::ReadDone>),
+    Collect(Box<crate::signing::collect::CollectDone>),
     Files(Box<crate::public_files::FilesDone>),
     KefSeal(Box<kef::SealDone>),
     KefOpen(Box<kef::OpenDone>),
@@ -126,6 +131,7 @@ impl Job {
             Job::Seal(_) => Kind::VaultSeal,
             Job::Sign(_) => Kind::Signing,
             Job::SpendRead(_) => Kind::PsbtRead,
+            Job::Collect(_) => Kind::Collecting,
             Job::Files(_) => Kind::PublicFiles,
             Job::KefSeal(_) => Kind::KefSeal,
             Job::KefOpen(_) => Kind::KefOpen,
@@ -144,6 +150,7 @@ impl Job {
             Job::Seal(j) => Done::Seal(Box::new(j.run(c))),
             Job::Sign(j) => Done::Sign(Box::new(j.run(c))),
             Job::SpendRead(j) => Done::SpendRead(Box::new(j.run(c))),
+            Job::Collect(j) => Done::Collect(Box::new(j.run(c))),
             Job::Files(j) => Done::Files(Box::new(j.run(c))),
             Job::KefSeal(j) => Done::KefSeal(Box::new(j.run(c))),
             Job::KefOpen(j) => Done::KefOpen(Box::new(j.run(c))),

@@ -116,6 +116,8 @@ fn scan(app: &mut Faraday, bytes: Vec<u8>) {
     }
     assert_eq!(app.sheet, Some(Sheet::Scan), "the camera is not on");
     app.event(Event::Scanned { bytes });
+    // A Collect runs on the worker: its answer is applied here.
+    testkit::settle(app);
     let _ = app.frame();
 }
 
@@ -883,6 +885,8 @@ fn scan_signatures(app: &mut Faraday, bytes: Vec<u8>) {
     }
     assert_eq!(app.sheet, Some(Sheet::Scan), "the camera is not on");
     app.event(Event::Scanned { bytes });
+    // A Collect runs on the worker: its answer is applied here.
+    testkit::settle(app);
     let _ = app.frame();
 }
 
@@ -991,6 +995,8 @@ fn scan_from_home(app: &mut Faraday, bytes: Vec<u8>) {
     app.press(Action::Scan);
     assert_eq!(app.sheet, Some(Sheet::Scan), "the camera is not on");
     app.event(Event::Scanned { bytes });
+    // A Collect runs on the worker: its answer is applied here.
+    testkit::settle(app);
     let _ = app.frame();
 }
 

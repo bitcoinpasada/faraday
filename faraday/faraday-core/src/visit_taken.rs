@@ -110,6 +110,30 @@ pub(crate) fn outbox_free_name(outbox: &[crate::Item], name: &str) -> String {
     free_name(&taken, name)
 }
 
+/// Where a file that goes beside the Outbox's goes ([`beside_plan`]).
+pub(crate) enum Beside {
+    /// The Outbox holds this file already, under this name.
+    Same(String),
+    /// The file, made and classified under the name asked, to be put under
+    /// the first name that is free.
+    Put(Box<crate::Item>),
+}
+
+/// Costs a classification of the file (`Item::new`). What
+/// [`crate::Faraday::put_outbox_beside`] does before it touches the Outbox:
+/// `waiting` is the bytes of the file already there under `name`, if any.
+pub(crate) fn beside_plan(
+    c: &faraday_crypto::work::Compute,
+    name: &str,
+    bytes: Vec<u8>,
+    waiting: Option<&[u8]>,
+) -> Beside {
+    if waiting == Some(bytes.as_slice()) {
+        return Beside::Same(name.to_string());
+    }
+    Beside::Put(Box::new(crate::Item::new(c, name, bytes)))
+}
+
 /// The stick visit's area: its state, the pull waiting, the receipt of
 /// what was written, the vault files written from, Files' row menus and
 /// the For the stick list's scroll. The visit state is reached through
@@ -245,21 +269,46 @@ impl VisitArea {
 }
 
 impl Faraday {
-    /// Costs a comparison with a file of that name. A file to the Outbox
+    /// Costs a comparison with a file of that name and what [`beside_plan`]
+    /// costs. A file to the Outbox
     /// that goes beside a different file of its name
     /// and not over it: a file of that name holding the same bytes is left
     /// as it is. The name it ended up under.
     pub(crate) fn put_outbox_beside(&mut self, name: &str, bytes: Vec<u8>) -> String {
-        if self
+        let c = self.compute();
+        let waiting = self
             .outbox
             .iter()
-            .any(|i| i.name == name && i.bytes == bytes)
-        {
-            return name.to_string();
+            .find(|i| i.name == name && i.bytes == bytes)
+            .map(|i| i.bytes.as_slice());
+        let plan = beside_plan(&c, name, bytes, waiting);
+        self.beside_apply(plan)
+    }
+
+    /// Moves only. An item made by `Item::new` to the Outbox, over the file
+    /// of its name.
+    pub(crate) fn put_item(&mut self, item: crate::Item) {
+        if item.exposure() == crate::secrets::Exposure::Secret {
+            debug_assert!(false, "a secret reached put_outbox: {}", item.name);
+            return;
         }
-        let free = outbox_free_name(&self.outbox, name);
-        self.put_outbox(&free, bytes);
-        free
+        self.outbox.retain(|i| i.name != item.name);
+        self.outbox.push(item);
+        self.save_boxes();
+    }
+
+    /// Moves only. Puts the file a [`beside_plan`] made, under the first
+    /// name of its own that no file waiting in the Outbox has.
+    pub(crate) fn beside_apply(&mut self, plan: Beside) -> String {
+        match plan {
+            Beside::Same(name) => name,
+            Beside::Put(mut item) => {
+                let free = outbox_free_name(&self.outbox, &item.name);
+                item.name.clone_from(&free);
+                self.put_item(*item);
+                free
+            }
+        }
     }
 
     /// Costs a comparison with the files of those names. Like

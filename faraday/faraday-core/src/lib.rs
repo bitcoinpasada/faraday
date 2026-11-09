@@ -2077,14 +2077,7 @@ impl Faraday {
     /// way: it goes through [`Faraday::offer_secret`], which asks first.
     fn put_outbox(&mut self, name: &str, bytes: Vec<u8>) {
         let c = self.compute();
-        let item = Item::new(&c, name, bytes);
-        if item.exposure() == secrets::Exposure::Secret {
-            debug_assert!(false, "a secret reached put_outbox: {name}");
-            return;
-        }
-        self.outbox.retain(|i| i.name != name);
-        self.outbox.push(item);
-        self.save_boxes();
+        self.put_item(Item::new(&c, name, bytes));
     }
 
     /// Costs a hash of a whole file (through `sha256_of`). What a write's
@@ -4376,29 +4369,6 @@ impl Faraday {
                     });
             }
         }
-    }
-
-    fn collect(&mut self, index: usize) {
-        let c = self.compute();
-        let Some(item) = self.inbox.get(index) else {
-            return;
-        };
-        let bytes = item.bytes.clone();
-        let name = item.name.clone();
-        let Some(s) = self.wallets.spend_mut() else {
-            return;
-        };
-        let before = s.spend.psbt.to_bytes();
-        let mut nothing = false;
-        match s.spend.collect(&c, &self.session, &bytes, &name) {
-            Ok(added) if added.is_empty() && s.spend.psbt.to_bytes() == before => nothing = true,
-            Ok(_) => s.error = None,
-            Err(e) => s.error = Some(e),
-        }
-        // MuSig2: every partial in the file is aggregated, no key needed,
-        // as the refresh in the end reads the merged file anew. Collect
-        // never draws a nonce or signs; only Sign does.
-        crate::signing::collect_end(self, &before, nothing.then_some(&name));
     }
 
     fn primary(&mut self) {

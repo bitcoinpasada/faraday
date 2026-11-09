@@ -1,7 +1,7 @@
 # Costly work off the drawing thread
 
 **Kind:** Spec
-**Status:** The worker, the shells' wake, the busy screen, the vault stretches, the aezeed read, the KeePass export, signing a PSBT, a PSBT's read and inspection, and a wallet's public files, the backup's checklist and its Make the files as jobs are built; files written as storage requests and the list of §2.1 confirmed on a Pi are specified, not built; the owner's answers are in §10, the line between a job and work drawn first is F184
+**Status:** The worker, the shells' wake, the busy screen, the vault stretches, the aezeed read, the KeePass export, signing a PSBT, a PSBT's read and inspection, Collect on a PSBT, and a wallet's public files, the backup's checklist and its Make the files as jobs are built; files written as storage requests and the list of §2.1 confirmed on a Pi are specified, not built; the owner's answers are in §10, the line between a job and work drawn first is F184
 **Open:** the rest of the jobs (§9): files written as storage requests (§7.3), held until a Pi shows it is needed; the list of §2.1 confirmed on a Pi 3B+
 
 Touch and drawing run on each shell's own thread, the main thread. Work
@@ -107,8 +107,9 @@ table together and says in its message what was measured on what.
 | PBKDF2 for a Krux code | A Krux encrypted code sealed or opened (`Kind::KefSeal`, `Kind::KefOpen`; `Faraday::kef_seal`, `Faraday::kef_open`), and by the Krux code tool in Tools and a seed's Krux code item on the backup checklist: their Make the code and the Compare of Check my code; its count runs from 10,000 to 100,000,000 rounds, so it is a job whatever the count, and it stops on Cancel (§4) | Job |
 | The Krux code read card's timed run | The first Krux code read in a session sends a run of 50,000 PBKDF2 rounds (`Kind::KefTime`) that tells the card how long its count takes here; it has no busy screen, makes no job stale, is stopped by a seal or an open as it starts, and the card shows the count alone until its answer. The time is the run's own, on the worker, and is not kept if the run was stopped or took no time. Not measured on a Pi; about 100,000 compressions, so over the line on a Pi 3B+ if it ran drawn first | Job |
 | The vault cost measurement | One Argon2id pass over 64 MiB, thrown away, that tells the unlock times shown on Create a vault, Unlock, the family and the backup flow how long a pass takes here (`Kind::VaultMeasure`; `stretch::measure_start`). It is asked once, when one of those screens opens, and its figure is kept. It is a quiet job like the Krux code's timed run: no busy screen, no job made stale, so a lock, a Back or another job neither loses it nor starts it again; a job asked while it runs waits behind it on the one worker. The screens read "not measured" until its answer. The dev card's `vault cost measured` row is noted on the worker with the pass's time. Measured on a Pi 3B+ at 1400 MHz before the move: 840 ms (871 and 852 ms in the worst passes), over the line, on the main thread | Job |
-| Signing | A PSBT signed, on the Spend tab or from a review | Job |
-| A PSBT's inspection | A PSBT parsed and inspected, from a file or the last part of a scanned code (`Work::PsbtParse`, `PsbtInspect`); the key references it is given are worked out on the main thread, and a scanned card's one-line fact (`read_psbt_fact`) still parses there, both left for the measurement on a Pi | Job |
+| Signing | A PSBT signed, on the Spend tab or from a review. The job also works the spend out after it signs (the signature noted, the inspection, the nonce check, the signers, the finished transaction) and plans the part file, on a copy of the session as Collect's does; the apply is moves only, and the part file is worked out again on the main thread only where the Outbox no longer holds the file the job planned against | Job |
+| A PSBT's Collect | `Action::Collect`: a file's signatures added to the open spend, and the spend worked out anew (the inspection, the nonce check with every key, the signers, the finished transaction) and its part file planned (`Kind::Collecting`; `faraday-core/src/signing/collect.rs`). Measured at 50 inputs, release, on a desktop PC: 118 ms (2-of-3) and 178 ms (taproot), the stand-in's line at 10 ms. The answer's apply is moves only, and the part file is worked out again on the main thread only where the Outbox no longer holds the file the job planned against | Job |
+| A PSBT's inspection | A PSBT parsed, inspected and worked out (the signers, the finished transaction; the nonce check is left to the Finish card, which works it out when drawn, as before), from a file or the last part of a scanned code (`Work::PsbtParse`, `PsbtInspect`), on a copy of the session as Collect's; the apply is moves only. Measured on a desktop PC, release, at 50 inputs, the main-thread part of opening before this (its apply: the aggregation, the signers, the wallet and the finish): 20 and 17 ms (2-of-3, taproot) the first time, 11 and 9 ms read again, the stand-in's line at 10 ms. A scanned card's one-line fact (`read_psbt_fact`) still parses on the main thread, left for the measurement on a Pi | Job |
 | A set of files | A wallet's public files (`PublicOut` 2, 4 and 14: the multisig config checked, the split shares, Specter's numbered pictures), the backup's checklist (`BChecklist`) and its Make the files (`BFilesMake`): jobs; the backup stick's files made at Lock and write and the flow's writes (`Flow`), which write to a stick beside secret words | Job (the files made inside Lock and write stay with the write, §7.3) |
 | PBKDF2 alone | A BIP-39 seed with or without a passphrase: Add a key, Load a key and its probe of the words, `SeedRead`, a Krux code's Read as a seed, the read card's Add this key on a secret (`ReadGo`), `Potential`, New key, a chart's passphrase try; SLIP-39 shares split and recovered, Convert a seed's SLIP-39 set among them (a split and two read-backs: about the stand-in's line for 2 of 3 and for two groups, ten times it for the largest shape the card reaches, 13 of 16 groups of 2 of 16 each, which is no ordinary case) | Drawn first |
 | A key's fingerprint for each key record of each target | A copy or move of an item (`V::CopyTo`, `V::MoveTo`, and `V::CopyKeep`, the tick that judges every row again), a seed saved into a vault with its Keep sheet (`V::SaveKey`, `V::KeepSave`, `V::SaveKeyKept`). A copy tells a key the target already holds by its fingerprint and master id, worked out once for each key record and kept by the record's id (a hash of its words and passphrase, so a record changed is worked out again). The words of a key record are read once and kept for the record, dropped for the record changed alone, and a document measure reads no other entry again. Measured (2026-11-05) in a release build on a desktop PC, the stand-in of this section, with two other vaults of 15 seeds each (each carrying a stored passphrase, a codex32 set and a BIP-85 origin, and without): with every fingerprint kept, `V::CopyTo`, `V::CopyKeep` and `V::MoveTo` under 1 ms, `V::SaveKey` and `V::KeepSave` 2 ms with the frame after under 1 ms, the same at 40 seeds. Every key record of an open vault is worked out as the vault unlocks and after every vault press, so a copy or move finds them kept and pays for none of them; the work at unlock (about 1.7 ms for each key record on the stand-in) is on the main thread, outside these presses | Drawn first |
@@ -311,6 +312,17 @@ press drawn first keeps its secrets on the main thread, as today.
   reblind (`Keys::reblind`) skips a key a job holds and marks it owing;
   `Keys::reblind_owed` randomizes it as the main thread finishes the
   job's answer, applied or dropped, once the store's `Arc` is alone again.
+- **Collect, by the same shared reference, for every loaded key.** The
+  nonce check's recompute and the signature count's extended public keys
+  (hardened paths) need the private keys, so a Collect's job is given a
+  copy of the session (`Session::job_copy`): `Keys::job_view`, a store
+  of the same masters (each an `Arc` clone, as a `SignJob` holds) and the
+  keys' public facts, with no words, passphrase, seed, codex32 set or
+  other record in it; and the wallets with the scripts they kept. No key
+  of it comes back: the answer carries public values and verdicts, and
+  the view is dropped on the worker before the answer is sent, so a
+  reblind owed by the job is paid at the apply as for signing. The
+  MuSig2 round does not go: the job holds its public view, never a nonce.
 - **A picture or PDF of secret words** (a backup stick's words, a
   SeedQR picture; `Reveal::BackupStick`, `Reveal::PaperForm`): the
   reveal is a guard that borrows the store and cannot cross a thread.
@@ -323,9 +335,10 @@ press drawn first keeps its secrets on the main thread, as today.
   copy that lives as long as the job, as the owner answered (§10,
   question 4).
 
-**What never moves.** The store (`Keys`), the open vault's records, a
-`Revealed` guard, the codex32 work set, anything drawing reads. The
-worker sees only what one job was given.
+**What never moves.** The store (`Keys`) itself, which stays; its masters
+are shared by `Arc` with a signing job and, as a `job_view`, with a
+Collect. The open vault's records, a `Revealed` guard, the codex32 work
+set, anything drawing reads. The worker sees only what one job was given.
 
 **How it is wiped.** Every secret a job holds is a faraday-keys type or
 a `Zeroizing`, wiped as it drops: at the job's end on the worker, at a
@@ -462,12 +475,15 @@ What each piece is and changes:
 - **Signing and checking** (built): `SignJob` with the store's keys behind
   `Arc` (§10 question 1; `Keys::sign_job`, `faraday-core/src/signing.rs`);
   a PSBT's parse and inspection from a file or the last scanned part as a
-  job (`faraday-core/src/signing/read.rs`): the Inbox file's bytes and the
-  public key references, policies and network go by move, and the answer
-  brings back the PSBT, its version 2 form and the inspection. The key
-  references are still worked out on the main thread, as the signing's
-  are. The answer is dropped where the person is no longer on the screen
-  and sheet they pressed on, and the inspection is made again on the main
+  job (`faraday-core/src/signing/read.rs`): the Inbox file's bytes and a
+  copy of the session (`Session::job_copy`, as Collect's) go by move; the
+  job reads the file, takes its network on the copy and works the spend out
+  as a refresh does but for the nonce check, which the Finish card works
+  out when drawn (`signing/fresh.rs`), and the answer brings back the
+  spend, what was worked out of it and the wallets' kept scripts. The copy
+  and its keys are dropped on the worker before the answer is sent. The
+  answer is dropped where the person is no longer on the screen
+  and sheet they pressed on, and the spend is worked out again on the main
   thread only where the session's inputs changed meanwhile. The Spend
   tab's signatures counted is read from the inspection the job made, with
   no second inspection. The scanned card's one-line fact (`scan_key.rs`,
@@ -475,6 +491,15 @@ What each piece is and changes:
   arrives, left for the measurement on a Pi. `faraday/faraday-keys/src/session.rs`,
   faraday-keys' `job.rs`, `faraday-core/src/scan_key.rs`, the Spend and
   sign areas.
+- **Collect** (built): the file's bytes, a copy of the spend, the MuSig2
+  round's public view and a copy of the session by move; `Spend::collect`,
+  the nonce check and the rest of the spend's reading
+  (`signing/fresh.rs`, one function for this and for `refresh_spend`) and
+  the part file's plan run on the worker; the apply moves the answer in,
+  merges the scripts the wallets' copies kept, and does the part file by
+  moves. The answer is dropped, nothing merged, on Back, a lock, or a
+  spend that no longer holds the PSBT the job was given. `faraday-core/src/signing/collect.rs`,
+  `faraday-core/src/signing/fresh.rs`, `faraday/faraday-keys/src/session.rs`.
 - **Sets of files of public values** (built in part): a wallet's files,
   the checklist's, the backup stick's and the flow's public files. A single
   picture or PDF, and those of secret words, stay drawn first (§2.1, §6).

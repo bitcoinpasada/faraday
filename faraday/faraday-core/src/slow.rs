@@ -17,6 +17,7 @@ pub(crate) fn starts_job(a: Action) -> bool {
     matches!(
         a,
         Action::SamplesLoad
+            | Action::Collect(_)
             | Action::BChecklist
             | Action::BFilesMake
             | Action::PublicOut(_, 2 | 4 | 14)

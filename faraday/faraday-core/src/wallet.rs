@@ -161,6 +161,62 @@ impl Wallet {
         }
     }
 
+    /// A copy for work off the main thread: the policy, and the scripts, the
+    /// addresses and [`Wallet::same`] already kept, all public.
+    pub fn job_copy(&self) -> Wallet {
+        Wallet {
+            name: self.name.clone(),
+            policy: self.policy.clone(),
+            source: self.source.clone(),
+            origin: self.origin,
+            addresses: std::cell::RefCell::new(self.addresses.borrow().clone()),
+            scripts: std::cell::RefCell::new(self.scripts.borrow().clone()),
+            same: self.same.clone(),
+        }
+    }
+
+    /// Takes home what a [`Wallet::job_copy`] kept while it worked: the
+    /// scripts (and the keys derived beside them) and the addresses this
+    /// wallet does not hold yet, and its [`Wallet::same`]. Nothing from a
+    /// wallet of another checksum, and nothing already kept is replaced.
+    pub fn take_kept(&self, from: Wallet) {
+        if from.checksum() != self.checksum() {
+            return;
+        }
+        let mut kept = self.scripts.borrow_mut();
+        for (change, index, script, keys) in from.scripts.into_inner() {
+            match kept
+                .iter_mut()
+                .find(|(c, i, ..)| *c == change && *i == index)
+            {
+                Some((.., have)) => {
+                    if have.is_none() {
+                        *have = keys;
+                    }
+                }
+                None => {
+                    // A long walk through places keeps the latest only.
+                    if kept.len() >= WALLET_SCRIPTS_KEPT {
+                        kept.clear();
+                    }
+                    kept.push((change, index, script, keys));
+                }
+            }
+        }
+        let mut addresses = self.addresses.borrow_mut();
+        for a in from.addresses.into_inner() {
+            if !addresses
+                .iter()
+                .any(|(n, c, i, _)| (*n, *c, *i) == (a.0, a.1, a.2))
+            {
+                addresses.push(a);
+            }
+        }
+        if let Some(same) = from.same.into_inner() {
+            let _ = self.same.set(same);
+        }
+    }
+
     /// Costs a script derivation the first time: its script at
     /// `change`/`index`, `None` when it has none there, derived the first
     /// time it is asked and kept on the wallet, a lookup after, as
@@ -935,6 +991,21 @@ impl Session {
         }
     }
 
+    /// A copy for work off the main thread: every key's master and public
+    /// facts and nothing else ([`faraday_keys::Keys::job_view`]), the wallets
+    /// with what they kept ([`Wallet::job_copy`]), the modes and the extended public
+    /// keys worked out so far. No words, no seeds, no wallet waiting for a
+    /// key path.
+    pub fn job_copy(&self) -> Session {
+        Session {
+            keys: self.keys.job_view(),
+            wallets: self.wallets.iter().map(Wallet::job_copy).collect(),
+            modes: self.modes,
+            key_xpubs: std::cell::RefCell::new(self.key_xpubs.borrow().clone()),
+            ..Session::default()
+        }
+    }
+
     /// What an inspection is worked out from beside the PSBT
     /// ([`InspectInputs`]). Lookups: each key's id and each wallet's
     /// checksum are kept.
@@ -1158,14 +1229,6 @@ pub struct InspectInputs {
     network: Network,
     keys: Vec<[u8; 32]>,
     wallets: Vec<String>,
-}
-
-impl InspectInputs {
-    /// These inputs with the network `network`: the one a job inspected on.
-    pub(crate) fn on(mut self, network: Network) -> Self {
-        self.network = network;
-        self
-    }
 }
 
 /// What a PSBT says that the screens read, taken once when it is read
@@ -1539,6 +1602,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
 }
 
 /// One transaction being signed, from the moment it is loaded.
+#[derive(Clone)]
 pub struct Spend {
     /// The PSBT as it stands: every signature collected so far.
     pub psbt: Psbt,
@@ -1784,6 +1848,24 @@ impl Spend {
             (fp, state)
         })
         .collect()
+    }
+
+    /// What a signing leaves on the spend: `psbt` is its PSBT, and the
+    /// fingerprints that signed are noted, unless the pass only opened a
+    /// MuSig2 round (`nonce_only`: a nonce and no signature). Notes the
+    /// partial signatures first, which the signers' lists read.
+    pub fn take_signed(&mut self, psbt: Psbt, fps: Vec<Fingerprint>, nonce_only: bool) {
+        if nonce_only {
+            self.psbt = psbt;
+            return;
+        }
+        self.note_written(&psbt);
+        self.psbt = psbt;
+        for fp in fps {
+            if !self.signed_here.contains(&fp) {
+                self.signed_here.push(fp);
+            }
+        }
     }
 
     /// Notes the MuSig2 partial signatures `now` holds that this spend's
@@ -3268,39 +3350,22 @@ impl Faraday {
         let c = self.compute();
         if let Some(s) = self.wallets.spend_mut() {
             // Inspected once each time the PSBT or the session changes,
-            // not on every press that refreshes the spend.
+            // not on every press that refreshes the spend. The signers, the
+            // wallet and whether it is complete are read from that
+            // inspection, so they are worked out when it is made (a spend
+            // opens with them worked out, `SpendState::opened_with`).
             let inputs = self.session.inspect_inputs();
-            // The signers are read from that inspection, so they are worked
-            // out when it is made, and once for a spend opened with its own.
-            let fresh = !s.inspected_for(&inputs);
-            if fresh {
-                s.inspection = self.session.inspect(&c, &s.spend.psbt);
-                // Every participant's partial signature is in the file:
-                // aggregated whenever the spend is read anew, whichever
-                // way it came to be (a file opened before its wallet was
-                // registered, a Collect), and read again if it gained one.
-                if s.spend.aggregate_musig(&c, &s.inspection) {
-                    s.inspection = self.session.inspect(&c, &s.spend.psbt);
-                }
-                s.inspected = Some((s.spend.psbt.clone(), inputs));
-                s.refused = s.spend.refused();
-                // Worked out here, where the file changed, so the first
-                // frame after reads it.
-                let check = std::rc::Rc::new(self.session.nonce_check(&c, &s.spend.psbt));
-                *s.nonce_check.borrow_mut() = Some((s.spend.psbt.clone(), check));
+            let view = s.musig.as_ref().map(|m| m.view());
+            if !s.inspected_for(&inputs) {
+                let fresh = crate::signing::fresh::worked_out(
+                    &c,
+                    &self.session,
+                    &mut s.spend,
+                    view.as_ref(),
+                    true,
+                );
+                s.take(fresh);
             }
-            if fresh || !s.opened {
-                let view = s.musig.as_ref().map(|m| m.view());
-                let now = s
-                    .spend
-                    .signing(&c, &self.session, Some(&s.inspection), view.as_ref());
-                let raw = |v: &[Fingerprint]| v.iter().map(|f| f.0).collect::<Vec<_>>();
-                s.signers = raw(&now.signers);
-                s.to_sign = raw(&now.to_sign);
-                s.in_file = raw(&now.in_file);
-                s.failed = raw(&now.failed);
-            }
-            s.wallet = self.session.wallet_for(&c, &s.spend.psbt);
             let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
             let kind = wallet.map(|w| wallet::Kind::of(w.policy()));
             s.needed = wallet.map(wallet::needed).unwrap_or(1);
@@ -3312,7 +3377,6 @@ impl Faraday {
                 wallet::Kind::Single(faraday_bip::keys::ScriptType::NativeSegwit)
             });
             s.steps = kind.steps();
-            s.complete = s.spend.finished.is_some() || s.spend.finish().is_ok();
             // Check is done already, this power-on, when this wallet was
             // checked before (`docs/WALLETS.md` §4): the flow opens on
             // the next card without a default instead.
@@ -3481,7 +3545,7 @@ impl Faraday {
                 }
             }
             Action::SignHere => crate::signing::sign_here(self),
-            Action::Collect(i) => self.collect(i),
+            Action::Collect(i) => crate::signing::collect::start_collect(self, i),
             Action::SignedToOutbox => {
                 if let Some(s) = self.wallets.spend_mut() {
                     let name = format!("{}-signed.psbt", result_stem(&s.spend.source));

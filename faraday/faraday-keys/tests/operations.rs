@@ -1599,3 +1599,24 @@ mod kef_entropy {
         assert_eq!(&*keys.reveal(0, Reveal::KefCode), "");
     }
 }
+
+#[test]
+fn a_job_view_holds_the_masters_and_no_words() {
+    let c = compute();
+    let mut keys = Keys::on(Network::Testnet);
+    keys.add_words_with(&c, ABANDON, "TREZOR", "With a passphrase", None)
+        .expect("the words");
+    let view = keys.job_view();
+    assert_eq!(view.len(), 1);
+    assert_eq!(view.info(0), keys.info(0));
+    let path: DerivationPath = "m/84'/1'/0'".parse().unwrap();
+    assert_eq!(
+        view.xpub_at(&c, 0, &path).map(|x| x.to_string()),
+        keys.xpub_at(&c, 0, &path).map(|x| x.to_string())
+    );
+    assert!(view.xpub_at(&c, 0, &path).is_some());
+    for why in [Reveal::Words, Reveal::Passphrase, Reveal::PaperForm] {
+        assert!(view.reveal(0, why).is_empty());
+    }
+    assert!(!keys.reveal(0, Reveal::Words).is_empty());
+}

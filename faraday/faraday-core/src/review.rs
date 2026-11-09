@@ -526,6 +526,14 @@ impl Session {
     }
 }
 
+/// The fingerprints a signing's result says signed, in input order, each
+/// once in a row.
+pub(crate) fn signers_of(r: &faraday_psbt::SignResult) -> Vec<Fingerprint> {
+    let mut by: Vec<Fingerprint> = r.signed_inputs.iter().map(|s| s.fingerprint).collect();
+    by.dedup();
+    by
+}
+
 /// What a signing job's answer says: the PSBT as the job left it, with the
 /// round put back in `musig`, and the fingerprints that signed or the
 /// error text.
@@ -536,11 +544,7 @@ pub(crate) fn signed(
     let (psbt, round, result) = done.into_parts();
     *musig = round;
     let result = result
-        .map(|r| {
-            let mut by: Vec<Fingerprint> = r.signed_inputs.iter().map(|s| s.fingerprint).collect();
-            by.dedup();
-            Signed { by }
-        })
+        .map(|r| Signed { by: signers_of(&r) })
         .map_err(|e| crate::review::sign_error_text(&e));
     (psbt, result)
 }

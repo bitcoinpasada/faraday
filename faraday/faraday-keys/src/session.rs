@@ -1728,6 +1728,33 @@ impl Keys {
             .collect();
         crate::job::SignJob::new(psbt, masters, selection, context, (accepted, musig, seed))
     }
+
+    /// A store holding every key's master and public facts and nothing
+    /// else, for work off the main thread that derives from keys (an
+    /// inspection, a nonce check): the masters behind the same `Arc` a
+    /// signing job holds, never a copy. No words, passphrase, seed, codex32
+    /// string, text kept, blind, sweep or demo set comes with it.
+    pub fn job_view(&self) -> Keys {
+        let mut view = Keys::on(self.network);
+        view.entries = self
+            .entries
+            .iter()
+            .map(|e| Entry {
+                key: Key {
+                    master: std::sync::Arc::clone(&e.key.master),
+                    words: None,
+                    passphrase: None,
+                    seed: None,
+                    public: std::cell::RefCell::new(Vec::new()),
+                    words_id: std::cell::OnceCell::new(),
+                    codex32: Vec::new(),
+                },
+                info: e.info.clone(),
+                owes_blind: false,
+            })
+            .collect();
+        view
+    }
 }
 
 impl Entry {
