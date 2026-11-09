@@ -659,3 +659,35 @@ fn a_second_wallet_of_the_same_seed_keeps_the_first_wallets_code_in_files() {
     assert!(done(&app), "the first wallet's item still reads its status");
     assert_eq!(status(&mut app), "Checked");
 }
+
+#[test]
+fn a_code_goes_beside_files_holding_only_the_picture_of_an_earlier_one_under_one_stem() {
+    let mut app = at_the_checklist();
+    open_item(&mut app, bstep::KEF);
+    make_by_fingerprint(&mut app);
+    check_with(&mut app, "a passphrase");
+    let first_names = kef_files(&app);
+    testkit::outbox_to_files(&mut app, &first_names);
+    // Only the picture stays in Files.
+    testkit::inbox_retain(&mut app, |i| !i.name.ends_with(".kef"));
+    testkit::backup_drop(&mut app);
+    let fp = app.session.keys.last().unwrap().fingerprint;
+    app.press(Action::KeyWallet(fp.0, 1));
+    app.press(Action::Seeds(S::Shape));
+    app.press(Action::Seeds(S::Account(true)));
+    app.press(Action::Seeds(S::Make));
+    let second = app.session.wallets.len() - 1;
+    app.press(Action::Backup(second));
+    plan_the_code(&mut app, 1);
+    open_item(&mut app, bstep::KEF);
+    make_by_fingerprint(&mut app);
+    let mut names = kef_files(&app);
+    names.sort();
+    assert_eq!(names.len(), 2, "{names:?}");
+    let stems: Vec<&str> = names
+        .iter()
+        .map(|n| n.rsplit_once('.').map_or(n.as_str(), |(s, _)| s))
+        .collect();
+    assert_eq!(stems[0], stems[1], "one stem: {names:?}");
+    assert!(stems[0].ends_with("-2"), "{names:?}");
+}

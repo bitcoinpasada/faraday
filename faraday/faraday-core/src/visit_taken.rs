@@ -70,6 +70,18 @@ pub(crate) fn is_vault(bytes: &[u8]) -> bool {
     faraday_intake::is_vault(bytes)
 }
 
+/// `name` for suffix 1, else `stem-n.ext`.
+fn suffixed(name: &str, n: u32) -> String {
+    if n <= 1 {
+        return name.to_string();
+    }
+    let (stem, ext) = match name.rfind('.') {
+        Some(i) if i > 0 => (&name[..i], &name[i..]),
+        _ => (name, ""),
+    };
+    format!("{stem}-{n}{ext}")
+}
+
 /// The first of `name`, `stem-2.ext`, `stem-3.ext`… none of `taken`
 /// (lower case), as `faraday_files` names a file kept beside another.
 pub(crate) fn free_name(taken: &[String], name: &str) -> String {
@@ -250,31 +262,51 @@ impl Faraday {
         free
     }
 
-    /// Costs a comparison with a file of that name. Like
-    /// [`Faraday::put_outbox_beside`], and a name that Files holds for a
-    /// file with other bytes is taken too, so that the file goes beside it
-    /// and not over it when the flow's files move to Files. A file of that
-    /// name holding the same bytes, in the Outbox or in Files, is left as it
-    /// is. The name it ended up under.
-    pub(crate) fn put_outbox_beside_files(&mut self, name: &str, bytes: Vec<u8>) -> String {
-        let same = |i: &crate::Item| i.name == name && i.bytes == bytes;
-        if self.outbox.iter().any(same) {
-            return name.to_string();
-        }
-        let mut taken: Vec<String> = self
-            .outbox
+    /// Costs a comparison with the files of those names. Like
+    /// [`Faraday::put_outbox_beside`] for a pair of files that share a stem
+    /// (a code's picture and its `.kef` file): the first suffix (none, `-2`,
+    /// `-3`, …) at which each name is free in the Outbox and in Files, or
+    /// held by a file of the same bytes, is used for both, so that the pair
+    /// keeps one stem and goes beside any other and never over it when the
+    /// flow's files move to Files. A file of the same bytes is left as it
+    /// is. The names they ended up under.
+    pub(crate) fn put_outbox_pair_beside_files(
+        &mut self,
+        png: Option<(&str, Vec<u8>)>,
+        file: (&str, Vec<u8>),
+    ) -> (Option<String>, String) {
+        let files: Vec<(&str, &Vec<u8>)> = png
             .iter()
-            .map(|i| i.name.to_ascii_lowercase())
+            .map(|(n, b)| (*n, b))
+            .chain([(file.0, &file.1)])
             .collect();
-        taken.extend(
-            self.inbox
+        let free =
+            |n: u32| -> Vec<String> { files.iter().map(|(name, _)| suffixed(name, n)).collect() };
+        let fits = |names: &[String], this: &Faraday| {
+            names.iter().zip(&files).all(|(name, (_, bytes))| {
+                this.outbox
+                    .iter()
+                    .chain(this.inbox.iter())
+                    .all(|i| !i.name.eq_ignore_ascii_case(name) || i.bytes == **bytes)
+            })
+        };
+        let mut n = 1;
+        while !fits(&free(n), self) {
+            n += 1;
+        }
+        let names = free(n);
+        for (name, (_, bytes)) in names.iter().zip(&files) {
+            if !self
+                .outbox
                 .iter()
-                .filter(|i| !same(i))
-                .map(|i| i.name.to_ascii_lowercase()),
-        );
-        let free = free_name(&taken, name);
-        self.put_outbox(&free, bytes);
-        free
+                .any(|i| i.name == *name && i.bytes == **bytes)
+            {
+                self.put_outbox(name, (*bytes).clone());
+            }
+        }
+        let mut names = names.into_iter();
+        let png_name = png.is_some().then(|| names.next()).flatten();
+        (png_name, names.next().unwrap_or_default())
     }
 
     /// The stick visit's state.

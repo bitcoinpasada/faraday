@@ -649,19 +649,20 @@ impl Faraday {
         self.kef_save_files(made).toast_name().to_string()
     }
 
-    /// Costs a picture's PNG and a comparison with the Outbox's files of
-    /// those names. Puts the code's picture (when it fits one code) and its
+    /// Costs a picture's PNG and a comparison with the files of those
+    /// names in the Outbox and Files, the pair named with one stem. Puts the code's picture (when it fits one code) and its
     /// file in the Outbox as [`Faraday::kef_save_made`] does. Gives both names as
     /// the Outbox gave them.
     pub fn kef_save_files(&mut self, made: &kef_make::Made) -> kef_make::Saved {
         let c = self.compute();
         let png = match &made.view {
-            Ok(view) => view
-                .png(&c)
-                .map(|(name, png)| self.put_outbox_beside_files(&name, png)),
+            Ok(view) => view.png(&c),
             Err(_) => None,
         };
-        let file = self.put_outbox_beside_files(&made.file_name, made.bytes.clone());
+        let (png, file) = self.put_outbox_pair_beside_files(
+            png.as_ref().map(|(n, b)| (n.as_str(), b.clone())),
+            (&made.file_name, made.bytes.clone()),
+        );
         kef_make::Saved { png, file }
     }
 }
