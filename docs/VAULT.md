@@ -1,8 +1,8 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F190, amending F189; F208; F226); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: key files and a YubiKey's typed secret in the app (§3.2, F208: built: `faraday-vault` reads the key file forms and makes the composite key, key files checked against pykeepass and `keepassxc-cli`; not built: the unlock's two choices, what a seal holds in `faraday-keys`, Key file on the vault's ⋮, offering a key file, the vectors from KeePassXC's own test file, and an outside check of the YubiKey's response, which `tools/vectors/kdbx/keyed.py`, Faraday's own script, does not give); the QR vault in the app, a tool in Tools (§13, F226: Make, Open, and Save as a QR vault on a file vault's item)
+**Status:** Specified (F190, amending F189; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
+**Open:** not built: key files and a YubiKey's typed secret in the app (§3.2, F208: built: `faraday-vault` reads the key file forms and makes the composite key, key files checked against pykeepass and `keepassxc-cli`; not built: the unlock's two choices, what a seal holds in `faraday-keys`, Key file on the vault's ⋮, offering a key file, the vectors from KeePassXC's own test file, and an outside check of the YubiKey's response, which `tools/vectors/kdbx/keyed.py`, Faraday's own script, does not give); the QR vault in the app, a tool in Tools (§13, F226: Make, Open, and Save as a QR vault on a file vault's item), and nonce records (§7, F227)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -679,9 +679,10 @@ S2K and every data packet.
   none is added. The time an edit takes does not depend on the file's size:
   the document's bytes are measured once when it opens, and each change adds
   an upper bound of its own; only where that bound is not under the ceiling
-  is the document written to count exactly (F206 point 8). The transaction's signed amounts (§7)
-  lose their oldest only at the ceiling by an exact count, never for want of
-  memory. In either case the lock does not
+  is the document written to count exactly (F206 point 8). The nonce records
+  and the transactions' signed amounts (§7) lose their oldest only at the
+  ceiling by an exact count, never for want of memory, nonce records first.
+  In either case the lock does not
   go ahead, nothing is wiped, the vault stays open with its
   changes and the Lock sheet names the vault and says what stops it: by how
   many bytes it is over what a vault holds, or the memory the seal needs and
@@ -812,6 +813,7 @@ The vault's own values are the database's:
 | `faraday.seals` | how many times the vault has been sealed, a decimal integer, 1 or more. Written by `faraday-vault` alone: each seal writes one more than the vault was opened with (or than the last seal of the same opening). |
 | `faraday.sealed` | the time of the last seal, an RFC 3339 date-time in UTC (`2026-10-28T14:02:00Z`) by the clock of the computer that sealed it; absent when that clock was not set. |
 | `faraday.signed.{tx}` | one per transaction: `{tx}` the SHA-256 of an unsigned transaction in lower-case hex, the value the amount each input stated, in satoshis, comma-separated, in order. Written by `docs/WALLETS.md` §3.3 when that setting is on; the oldest are dropped first when the vault is full. |
+| `faraday.nonces.{tx}` | not built (F227). One per transaction, `{tx}` as `faraday.signed.{tx}` names it: the signatures of that transaction the nonce check found valid, each `{key}:{r}:{msg}` in lower-case hex (the x coordinate of its key, its nonce point, the message it verified against; 32 bytes each), comma-separated, with no version field. Written into every open vault at a seal when Nonce history is on (`docs/FLOWS.md`, Nonce check); a transaction checked again with new entries is written again as the newest; past 10,000 entries in a vault the oldest transaction is dropped first. Record type 17: field 1 the tx (32 bytes, required), field 2 an entry (96 bytes, required, repeated). |
 | `faraday.plan.{n}` | one per backup plan, `{n}` from 1: the plan as a TOML v1.0.0 document of F189's `plan` keys (`wallet`, `answers`, `places`, `holds`, `marks`), read by the TOML reader already written. `answers` carries `seals {id} {count} {digest}` for each other vault the plan places whose copy the session has seen: that vault's identifier, its seal count and the SHA-256 of the file at that count, never the plan's own vault. Never a secret. Written when the backup's checklist is made with a vault open and when the plan is changed; the next backup of that wallet starts from it. |
 
 **An entry** is a KeePass entry with no `faraday.kind`: the person's
@@ -842,7 +844,7 @@ standard fields it leaves empty, must be absent or empty:
 | `wallet_share`, Wallet shares | 13 | `Title`: its name. `Password` (protected): the share as its `.txt` file holds it (`docs/BACKUP-FLOW.md` §15.6). `index`, from 1; `of`, how many; `wallet`, as a plan's. | |
 | `passphrase`, Passphrases | 14 | `Title`: "Passphrase for {for}". `Password` (protected): the passphrase. `for`: the fingerprint (8 lower-case hex digits) of the key whose words it goes with. Both required. Several for one key are each kept and read: the app labels each ("1 of 2 passphrases for key {fingerprint}") and warns when saving one that the vault already holds one for the key, with Continue and Cancel; the warning is not built. | |
 | `share`, Codex32 shares | 15 | `Title`: "Codex32 share for {for}". `Password` (protected): a codex32 string (BIP 93) in lower case of a set whose threshold is 2 or more, never its secret. `for`: the fingerprint of the key its set makes. Both required. Several of one share index and key are each kept and read: the app labels each ("Share 3 · also saved: another share 3 of this set") and warns when saving one that the vault already holds, with Continue and Cancel; the warning is not built. | |
-| none: the database's custom data | 10, 11, 16, 1 | signed amounts, backup plans, the seal count, the label: above | |
+| none: the database's custom data | 10, 11, 16, 1, 17 | signed amounts, backup plans, the seal count, the label, nonce records (not built): above | |
 | not carried | 9, 12 | the pending signing round is compiled out of the app (F109), and 12 is no build's | |
 
 The group names are Faraday's strings, written in the language the app
@@ -929,8 +931,8 @@ two fields of one name; two entries or two groups with one UUID; an entry,
 or a group it is in, that cannot be told apart from what was read (two
 UUIDs, a UUID that is not 16 bytes, a field with two values, text between
 a field's key and value, and the like). The same holds
-for the database's custom data: a `faraday.plan.{n}` or
-`faraday.signed.{tx}` that does not read is kept as it was and named,
+for the database's custom data: a `faraday.plan.{n}`,
+`faraday.signed.{tx}` or `faraday.nonces.{tx}` that does not read is kept as it was and named,
 and not used.
 
 **A file that is not Faraday's.** With `faraday.format` missing it is a

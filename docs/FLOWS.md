@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned)
+**Open:** the nonce history kept in a vault (Nonce check, not built), files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -2232,6 +2232,84 @@ repairing every false input is the way out.
 
 The check is made once, when it opens, against the keys and wallets
 loaded then; Decode's way back makes it again when they have changed.
+
+### Nonce history
+
+Not built (F227). **The nonce check remembers, in an open vault, the
+signatures it has checked**, and refuses a signature whose key used the
+same nonce before on another message, in this session or any before it.
+A key that signs two messages with one nonce is given away to anyone who
+sees both, so the second is never finished here.
+
+**What is remembered.** One entry per signature that verifies: the x
+coordinate of its key, its nonce point (ECDSA's `r`, or BIP-340's `R.x`,
+on the key path, the script path, partial fields and final witnesses
+alike) and the sighash it verified against. This device's own signatures,
+a cosigner's brought in by Collect, and every signature of a file the
+Nonce check page opens are remembered alike. A row not checked (no output
+stated, a leaf not run, a preimage) has no message, and is neither
+remembered nor compared. The entries of one transaction are kept
+together, as `docs/VAULT.md` §7 writes them.
+
+**What reuse is.** The same key and the same `r` over a different
+message. The same signature again (another file, a copy of the
+transaction) is no fault. Each key is compared with itself only: anyone
+can make a valid ECDSA signature over any public `r` under a key worked
+out from it, so a file could otherwise claim a key was given away.
+
+**MuSig2.** On the spend, a cosigner's partial signature that verifies
+(F220) is remembered under the participant's key, its first public nonce
+point as `r`, and SHA-256 of the sighash and the aggregate nonce as the
+message: the same round collected twice is the same entry, and that
+nonce in any other round is reuse. A public nonce with no partial is not
+remembered. The Nonce check page remembers the final signature only.
+
+**When a nonce was used before.** The nonce check's headline is as for a
+nonce used twice, and under it one line per key, "{key}: nonce used
+before, on another transaction, on inputs {i}"; nothing finishes, and
+neither the spend nor the Nonce check page offers **Save to a stick** or
+**Show as QR** ("Not finished: a nonce was used before"). There is no way
+past it (F136, F227).
+
+**The line under the headline**, the same on Send it and on the Nonce
+check page:
+
+- "Not seen before in this vault", or "Not seen before in {n} open
+  vaults";
+- "Not checked against this vault: {n} nonce records do not read",
+  amber, not a refusal: a record that does not read is kept as written
+  (F194), and a read-only vault (a newer format) is compared against
+  nothing;
+- nothing with no vault open or the setting off. What the history is
+  and what it cannot show is Learn's (`docs/learn/13-nonces.md`).
+
+**Vaults.** The history is read when a vault is unlocked and written
+into every open vault when the vaults are sealed, as signed amounts are
+(`docs/WALLETS.md` §3.3); a record read from one vault is never copied
+into another. With two vaults open a signature is compared against both.
+A vault opened during a spend compares the spend's signatures, and the
+Nonce check page's, again, and they are written at the lock. A vault
+locked alone writes what is waiting and leaves; the others keep it.
+Nothing is kept across a lock outside a vault: **Lock without sealing**
+loses what was not yet written, as any change. A vault keeps up to
+10,000 entries, the oldest transaction dropped first, and at its ceiling
+nonce records are dropped before signed amounts (`docs/VAULT.md` §5).
+
+**The setting.** Settings carries a card after Signed amounts, **Nonce
+history**, with **Kept in an open vault** · **Off**, the status line
+"{n} signatures remembered" over the open vaults, and with Guided on an
+explainer under its title. Off, nothing is remembered, compared or
+drawn, and a vault's records stay as written: not read, not dropped.
+The default is **Kept in an open vault**.
+
+**What it does not show.** It sees only signatures brought in or made
+here, while the setting is on and a vault is open, per vault, up to its
+cap. A dishonest signer can leak a key without reusing a nonce, so a
+clean history does not show a signer is honest. Sibling keys of one xpub
+that share a nonce are caught only inside one transaction, by the rule
+above. Whoever opens a vault reads each checked input on chain by its
+`r`, transactions of wallets not held here included, and a file vault
+grows about 200 bytes a signature.
 
 ## Check a signer
 
