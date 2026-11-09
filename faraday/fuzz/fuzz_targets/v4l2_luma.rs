@@ -1,7 +1,7 @@
 //! The V4L2 shell's frame converters over what a driver hands back: a
 //! pixel format, a width, a height and a stride, all the driver's word,
 //! then a buffer of any length. `luma`, `chroma` and the two downscales
-//! turn it into the frame the scanner decodes; the decoder under them is
+//! (faraday-camera's, shared with the macOS and Windows shells) turn it into the frame the scanner decodes; the decoder under them is
 //! `decode_luma` in the root `fuzz/`. The macOS and Windows shells have
 //! converters of the same shape that this does not cover.
 
@@ -14,6 +14,7 @@ mod abi;
 #[allow(dead_code, missing_docs)]
 mod convert;
 
+use faraday_camera::scale;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -34,11 +35,11 @@ fuzz_target!(|data: &[u8]| {
     };
     let luma = convert::luma(buffer, width, height, stride, step);
     let chroma = convert::chroma(format, buffer, width, height, stride);
-    let factor = convert::scale_factor(width);
+    let factor = scale::scale_factor(width, convert::MAX_WIDTH);
     if let Some(luma) = luma {
-        let _ = convert::downscale(luma, width, height, factor);
+        let _ = scale::downscale(luma, width, height, factor);
     }
     if let Some(chroma) = chroma {
-        let _ = convert::downscale_chroma(chroma, width, height, factor);
+        let _ = scale::downscale_chroma(chroma, width, height, factor);
     }
 });

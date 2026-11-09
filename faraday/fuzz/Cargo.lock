@@ -754,6 +754,7 @@ name = "faraday-avfoundation"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "faraday-camera",
 ]
 
 [[package]]
@@ -783,6 +784,10 @@ dependencies = [
 [[package]]
 name = "faraday-boot"
 version = "0.1.10"
+
+[[package]]
+name = "faraday-camera"
+version = "0.1.0"
 
 [[package]]
 name = "faraday-codec"
@@ -893,6 +898,7 @@ dependencies = [
  "base64ct",
  "faraday-bip",
  "faraday-boot",
+ "faraday-camera",
  "faraday-core",
  "faraday-crypto",
  "faraday-fat",
@@ -979,7 +985,7 @@ name = "faraday-mediafoundation"
 version = "0.1.10"
 dependencies = [
  "cc",
- "faraday-avfoundation",
+ "faraday-camera",
 ]
 
 [[package]]
@@ -1155,6 +1161,7 @@ dependencies = [
 name = "faraday-v4l2"
 version = "0.1.0"
 dependencies = [
+ "faraday-camera",
  "libc",
 ]
 
@@ -1188,6 +1195,7 @@ name = "faraday-window"
 version = "0.1.10"
 dependencies = [
  "faraday-avfoundation",
+ "faraday-camera",
  "faraday-core",
  "faraday-mediafoundation",
  "faraday-scanner",
