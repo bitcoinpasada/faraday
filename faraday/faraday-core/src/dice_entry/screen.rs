@@ -233,40 +233,34 @@ fn dice_card(
     let words = dice_entry::dice_words(&rolls.text, list);
     // The words as the rolls make them, each a pill that opens it in its
     // list, as New key shows its words.
-    if words.is_empty() {
-        // Room for the first row of words below, so the first word moves
-        // nothing under it (Use these words stays clear of the foot).
-        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.vault_no_word_yet);
-        cy += ui.advance_as(BODY_S, 22.0) + 38.0;
+    // "No word yet" keeps the first row's room, so the first word moves
+    // nothing under it (Use these words stays clear of the foot).
+    let head = if words.is_empty() {
+        EN.vault_no_word_yet
     } else {
-        ui.text_as(
-            x,
-            cy,
-            BODY_S,
-            Role::OnSurfaceVariant,
-            crate::wordlist::PRESS_A_WORD,
-        );
-        cy += ui.advance_as(BODY_S, 22.0);
-        let place = crate::wordlist::WordList::Eff(list).place();
-        let mut bx = x;
-        for (word, i) in words
-            .iter()
-            .zip(dice_entry::dice_word_indices(&rolls.text, list))
-        {
-            let bw = ui.measure_as(BODY_M.mono(), word) + 24.0;
-            if bx > x && bx + bw > x + w {
-                bx = x;
-                cy += 32.0;
-            }
-            bx += ui.word_pill(
-                bx,
-                cy,
-                word,
-                Action::WordList(crate::wordlist::WordListAction::Open(place, Some(i))),
-            ) + 6.0;
+        crate::wordlist::PRESS_A_WORD
+    };
+    ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, head);
+    cy += ui.advance_as(BODY_S, 22.0);
+    let place = crate::wordlist::WordList::Eff(list).place();
+    let mut bx = x;
+    for (word, i) in words
+        .iter()
+        .zip(dice_entry::dice_word_indices(&rolls.text, list))
+    {
+        let bw = ui.measure_as(BODY_M.mono(), word) + 24.0;
+        if bx > x && bx + bw > x + w {
+            bx = x;
+            cy += 32.0;
         }
-        cy += 38.0;
+        bx += ui.word_pill(
+            bx,
+            cy,
+            word,
+            Action::WordList(crate::wordlist::WordListAction::Open(place, Some(i))),
+        ) + 6.0;
     }
+    cy += 38.0;
     if !at_foot {
         let (status, tone) = strength(ask.cost, &rolls.text, list);
         cy += ui.wrap_as((x, cy, w), BODY_S, tone, &status) + 8.0;
