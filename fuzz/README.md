@@ -191,6 +191,16 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `encodings` | `faraday_codec::encodings::read`, `from_hex` and `read_input` under each way of reading |
 | `aezeed` | `faraday_bip::aezeed::decode_at_cost` at a cost of 16 over 24 word indices and a passphrase taken from the input |
 | `silent` | `faraday_bip::silent::decode_address` and `decode_scan_key`, `silent_wallet::parse_descriptor` and `SilentWallet::parse`, each record read written back and read as itself |
+| `pgp_secret` | `faraday_pgp::read_secret_at`, the armoured secret key of a GPG entry in a vault file: a key that reads is written again by `armor_secret` and reads as the same key; a key made from the input's bytes reads back as it was made |
+| `address` | `faraday_bip::address::parses`, and `parse` on each of the four networks, over text |
+| `bsms` | `faraday_bip::bsms::SignerRecord::parse` and `DescriptorRecord::parse` over text |
+| `master_key` | `faraday_bip::keys::MasterKey::decode` over text |
+| `multisig_config` | `faraday_bip::multisig_config::parse` and `parse_named` over text |
+| `musig` | `faraday_bip::musig`: the public nonce, aggregate nonce, partial signature and secret nonce from bytes, each written back to the bytes it was read from; `parse_musig_expr` and `parse_tr_musig` over text |
+| `ur_single` | `faraday_codec::ur::decode_single` over text |
+| `psbt_v2` | `faraday_psbt::v2::PsbtV2::parse_bytes`, written back and read to the same PSBT, then `to_v0`; `parse_base64` over text |
+| `raw_hex` | `faraday_entropy::RawHex::parse` over text |
+| `hex_decode` | `faraday_crypto::hex` `decode_vec`, `decode_into` and `decode_exact` over text, which must agree, and what decodes encodes back to the text in lower case |
 
 One of them shapes the input before the call, because the code under
 test rejects anything else in its first few lines and a fuzzer would

@@ -111,7 +111,7 @@ misses = "what only the nightly or the sanitizer build shows, and whether a targ
 id = "lint-fuzz-parsers"
 run = "python3 -I -B tools/lint-fuzz-parsers.py"
 stage = "just lint"
-catches = "a pub fn of core/ named parse*, decode*, from_bytes, from_str or from_slice taking &[u8] or &str that tools/fuzz-parsers.toml does not list with a fuzz target or an excuse; an entry whose target or function is gone"
+catches = "a pub fn of core/ named parse*, decode*, from_bytes, from_str or from_slice taking &[u8] or &str that tools/fuzz-parsers.toml does not list with a fuzz target or an excuse; an entry whose target or function is gone; a [[bin]] target of fuzz/ or faraday/fuzz/ missing from its README's \"The targets\" table, or a row with no target"
 misses = "a parser under another name or taking another type, and whether the target reaches the parser's hard paths"
 
 [[check]]

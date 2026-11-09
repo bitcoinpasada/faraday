@@ -102,6 +102,15 @@ shipped binary does.
 | `gpt` | The Starter's `gpt::read` and `faraday_boot` over the input as a disk image, with the header's and the entries' checksums made right first; the Starter shell's `gpt.rs` is included by path. And `faraday_boot::find_release`, with which the Starter reads a stick's version, over the input as a boot partition's bytes. |
 | `v4l2_luma` | The V4L2 shell's frame converters (`luma`, `chroma`, the two downscales) over a format, a size, a stride and a buffer taken from the input; `abi.rs` and `convert.rs` are included by path. |
 | `plist` | The Starter's macOS property list reader; `plist.rs` is included by path. |
+| `contents` | The TOML inside a vault: `read_qr`, `read_plan`, `read_codex32_facts` and `read_child_facts`; a value read is written again and reads back as the same fields. |
+| `image_list` | `faraday_payload::ImageList::parse` over any bytes, the release's `IMAGES` list. |
+| `core_text` | Four readers of text in `faraday-core`: `explore::parse_path`, `vault::parse_tz_offset`, `parse_version_output` and `wallet::parse_words` in each language. |
+| `memory_kept` | What the app reads back from its kept list at the next start: `memory::decode` (written back to what it read), `backup_flow::decode`, and every kept entry holding the input, as `StorageEvent::Restored` carries it. |
+| `decode_tx` | `faraday_psbt::transaction::decode` on the input, then `decode::decode` of the transaction with no prevouts, under the test session's wallets. |
+| `qr_specter` | `faraday_qr::specter::parse`, the `pNofM text` header of a Specter animated QR part. |
+| `recovery_key` | `faraday_starter::api::RecoveryKey::parse`, the input split at its first newline into a drive and a BitLocker recovery key. |
+| `starter_udisks` | `linux::udisks::Objects::parse` over what UDisks2 answers the Starter, as `busctl`-style text. |
+| `starter_windows` | The Starter on Windows: `disks::Snapshot::parse`, `bitlocker::Recorded::parse`, `Answer::decode`, `Order::parse` and `pipe::Message::decode`, a message read written back to a line that reads as the same. |
 
 `classify_file`, `inbox_found`, `read_wallet` and `png_qr` take inputs up to
 a megabyte under `just fuzz-release` (`tools/fuzz-release.sh` sets the
