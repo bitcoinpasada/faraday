@@ -739,7 +739,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Convert` | Convert a seed: From a loaded key, an open vault's key, an LND aezeed or a typed SLIP-39 set, To a form that restores the same wallet (the words another way, SeedQR, hex entropy, master seed in hex, xprv, Seed XOR parts, codex32, SLIP-39) or, for a SLIP-39 set, Add a share, Replace a lost share and Rotate the set, with what is not offered dimmed and its line saying why; a Settings card for a split or a set action; Result with a masked value, its Facts, **Check my copy** and **Save as a file…** (`docs/SEED-CONVERSION.md` §6). | Step flow |
 | `KefTool` | The Krux code tool in Tools: Contents (typed, or a loaded wallet's descriptor), the passphrase and Options, Make the code, and the Code card with Check my code and Make another. | Step flow |
 | `Silent` | Silent payments: a loaded key's address, its labels and the payments checked. | Step flow |
-| `Vanity` | A vanity address for a loaded key: the script, the prefix, the dial, the grind and its find. | Step flow |
+| `Vanity` | A vanity address for a loaded key: the kind (a script type or a silent payment code), the prefix, the dial, the grind and its find. | Step flow |
 | `Lightning` | A Lightning node's key, from a loaded key or an LND aezeed; its node id with **Show as QR** and **PNG** on a row of their own (`docs/QR.md` §7). | Page |
 | `Catalog` | Tools: every flow on one page, by group, each with its line and the standard it follows; the sidebar's Tools. | Page |
 | `Tools` | The calculators: hashes, encodings, a descriptor's checksum, an xpub's spellings, units, the Miniscript compiler. | Page |

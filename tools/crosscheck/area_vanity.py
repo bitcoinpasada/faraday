@@ -6,7 +6,10 @@ candidate seed's child key at the whole path, derived by btclib on its
 own curve (`bip32_ref.py`, libsecp256k1 off) and written to Core as a bare
 key (`deriveaddresses` on regtest, one RPC batch a search): Core judges
 the script and the address text only, and Core's framework writes the
-script it pays for the search's network, as the `addr` area does. The counter, the prefix
+script it pays for the search's network, as the `addr` area does. A silent
+payment code (kind 4, after the four script types) is written by the
+BIP-352 reference's own bech32m from btclib's keys at BIP-352's paths;
+Core is not asked. The counter, the prefix
 rules, the expected work and the search loop are ours, written from the
 quotation.
 
@@ -45,13 +48,20 @@ from common import Area, use_reference
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
 
+use_reference("bip352")
+use_reference("bip352", "secp256k1lab", "src")
+import reference as R  # noqa: E402
+from secp256k1lab.secp256k1 import GE  # noqa: E402
+
+SILENT = 4  # the kind after the four script types: a BIP-352 silent payment code
+
 ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 BECH32 = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 NETWORKS = ["mainnet", "testnet", "signet", "regtest"]
 HRP = {"mainnet": "bc", "testnet": "tb", "signet": "tb", "regtest": "bcrt"}
 MAX_WIDTH = 8
-MAX_FREE = 68
+MAX_FREE = 117
 U64 = (1 << 64) - 1
 H = bip32_ref.HARDENED
 ENGLISH = Mnemonic("english")
@@ -78,10 +88,14 @@ def fixed_prefix(script, network):
         return "1" if main else ""
     if script == 1:
         return "3" if main else "2"
+    if script == SILENT:
+        return ("sp" if main else "tsp") + "1qq"
     return HRP[network] + "1" + ("q" if script == 2 else "p")
 
 
 def first_free(script, network):
+    if script == SILENT:
+        return "gf2tvdw0"
     return "mn" if script == 0 and network != "mainnet" else None
 
 
@@ -94,7 +108,7 @@ def can_begin(prefix, script, network):
     if not free:
         return True
     first = first_free(script, network)
-    if first and free[0] not in first:
+    if first and (free[0].lower() if script >= 2 else free[0]) not in first:
         return False
     if len(free) > MAX_FREE:
         return False
@@ -128,13 +142,35 @@ def child_key(seed, network, script, account):
     return pub[1:] if script == 3 else pub
 
 
+def silent_address(seed, network, account):
+    """Costs btclib's derivation of ten steps on its own curve: the silent
+    payment code with no label of (seed, account) on `network`, written by
+    the BIP-352 reference's own bech32m from the keys at BIP-352's paths
+    (`352'/coin'/account'/1'/0` scan, `/0'/0` spend), or None where btclib
+    finds an invalid child."""
+    coin = 1 if network != "mainnet" else 0
+    root = bip32_ref.master(seed, network != "mainnet")
+    base = [352 + H, coin + H, account + H]
+    try:
+        scan = root.derive(base + [1 + H, 0]).pub
+        spend = root.derive(base + [0 + H, 0]).pub
+    except bip32_ref.Invalid:
+        return None
+    return R.encode_silent_payment_address(
+        GE.from_bytes_compressed(scan), GE.from_bytes_compressed(spend),
+        "sp" if network == "mainnet" else "tsp")
+
+
 def addresses(candidates, network, script):
     """Costs one RPC request, and btclib's derivation of five steps for each
     candidate: the first receive address of each candidate (seed, account)
     on `network`. btclib derives the child key on its own curve; Bitcoin
     Core judges the script and the address text only (`deriveaddresses` of
     the key written bare, on regtest), then Core's framework writes the
-    address for `network`. None where btclib finds an invalid child."""
+    address for `network`. None where btclib finds an invalid child. A silent
+    payment code is written by the BIP-352 reference and Core is not asked."""
+    if script == SILENT:
+        return [silent_address(seed, network, account) for seed, account in candidates]
     keys = [child_key(seed, network, script, account) for seed, account in candidates]
     calls = [("deriveaddresses",
               descriptors.descsum_create(BODY[script].format(key.hex())))
@@ -195,14 +231,15 @@ class Vanity(Area):
     CORE = True
     faraday = (
         '`faraday_bip::vanity` (the counter, prefixes and their expected work, the '
-        'search on both dials)'
+        'search on both dials, for the four script types and a silent payment code)'
     )
     reference = (
         "EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written "
         "out in `area_vanity.py` over python-mnemonic, each candidate's child key "
         "derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for "
         "the script and address text only (`deriveaddresses` on regtest, from the bare "
-        "key) and Core's framework, as the `addr` area writes it"
+        "key) and Core's framework, as the `addr` area writes it; a silent payment code by "
+        "the BIP-352 reference's own bech32m from btclib's keys at BIP-352's paths"
     )
     reference_checked = (
         "the search is written in the area from the README's quotation of EntropyLab's "
@@ -253,6 +290,9 @@ class Vanity(Area):
         self.grind("account", seed, b"", 2, "bc1qq", "mainnet", 0, 100, ("ok", {
             "tested": 32, "find": {"counter": 31, "suffix": "", "account": 31,
                                    "address": "bc1qqpat9khft6dnm9qp0nnrvpyvmyg2ytshn7gglv"}}))
+        # A silent payment code, which the BIP-352 reference writes, on both dials.
+        self.grind("account", seed, b"", SILENT, "sp1qqgz", "mainnet", 0, 4000)
+        self.grind("passphrase", zero, b"", SILENT, "tsp1qqf", "testnet", 0, 100)
 
     def edges(self):
         n = 0
@@ -288,7 +328,7 @@ class Vanity(Area):
 
     def corpus_case(self):
         rng = self.rng
-        script = rng.randrange(4)
+        script = rng.randrange(5)
         network = rng.choice(NETWORKS)
         self.counter(rng.choice([rng.randrange(62 ** rng.randint(1, 8)), rng.randrange(1 << 50)]))
         for _ in range(3):

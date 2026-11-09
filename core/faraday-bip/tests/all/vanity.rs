@@ -8,7 +8,8 @@
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::{MasterKey, Network, ScriptType};
-use faraday_bip::vanity::{self, Key, Method};
+use faraday_bip::silent::Receiver;
+use faraday_bip::vanity::{self, Key, Kind, Method};
 use faraday_crypto::work::Compute;
 
 /// BIP-39's zero entropy: "abandon … about".
@@ -219,6 +220,126 @@ fn a_dial_the_key_cannot_turn_tests_nothing() {
     );
     assert_eq!(out.tested, 0);
     assert!(out.find.is_none());
+}
+
+const BIP352_VECTORS: &str =
+    include_str!("../../../../tools/vectors/bip352/send_and_receive_test_vectors.json");
+
+/// Every silent payment code BIP-352's vectors publish.
+fn bip352_codes() -> Vec<String> {
+    fn walk(v: &serde_json::Value, out: &mut Vec<String>) {
+        match v {
+            serde_json::Value::String(t) if t.starts_with("sp1q") => out.push(t.clone()),
+            serde_json::Value::Array(a) => a.iter().for_each(|x| walk(x, out)),
+            serde_json::Value::Object(o) => o.values().for_each(|x| walk(x, out)),
+            _ => {}
+        }
+    }
+    let v: serde_json::Value = serde_json::from_str(BIP352_VECTORS).expect("vectors");
+    let mut out = Vec::new();
+    walk(&v, &mut out);
+    out
+}
+
+#[test]
+fn every_silent_payment_code_in_bip_352s_vectors_begins_as_the_rule_says() {
+    let codes = bip352_codes();
+    assert!(codes.len() >= 10, "{}", codes.len());
+    let fixed = vanity::fixed_prefix(Kind::Silent, Network::Mainnet);
+    assert_eq!(fixed, "sp1qq");
+    let free = vanity::first_free(Kind::Silent, Network::Mainnet).expect("a first place");
+    for code in &codes {
+        assert!(code.starts_with(fixed), "{code}");
+        let second = code[fixed.len()..].chars().next().expect("a character");
+        assert!(free.contains(second), "{code}");
+        // Every length of its beginning is a prefix a person may ask for,
+        // upper case included.
+        for n in fixed.len()..=code.len() {
+            assert!(vanity::can_begin(
+                &code[..n],
+                Kind::Silent,
+                Network::Mainnet
+            ));
+            assert!(vanity::can_begin(
+                &code[..n].to_ascii_uppercase(),
+                Kind::Silent,
+                Network::Mainnet
+            ));
+        }
+    }
+    assert!(!vanity::can_begin("sp1qqa", Kind::Silent, Network::Mainnet));
+    assert!(!vanity::can_begin("sp1qp", Kind::Silent, Network::Mainnet));
+    assert!(!vanity::can_begin("bc1qq", Kind::Silent, Network::Mainnet));
+    assert_eq!(
+        vanity::fixed_prefix(Kind::Silent, Network::Testnet),
+        "tsp1qq"
+    );
+    assert!(vanity::can_begin("tsp1qqg", Kind::Silent, Network::Testnet));
+    // Eight characters stand second, thirty-two in each place after.
+    for (prefix, expected) in [
+        ("sp1qq", 1),
+        ("sp1qqg", 8),
+        ("sp1qqgz", 256),
+        ("sp1qqgzz9", 262_144),
+    ] {
+        assert_eq!(
+            vanity::expected_candidates(prefix, Kind::Silent, Network::Mainnet),
+            expected,
+            "{prefix}"
+        );
+    }
+}
+
+#[test]
+fn a_silent_payment_code_a_find_names_is_the_wallets_own_at_that_account() {
+    let c = Compute::unchecked();
+    let master = master(b"");
+    let out = vanity::grind(
+        &c,
+        &Key::Master(&master),
+        &Method::Account,
+        Kind::Silent,
+        "sp1qqgz",
+        Network::Mainnet,
+        0,
+        100_000,
+    );
+    let find = out.find.expect("a find");
+    assert_eq!(find.counter, u64::from(find.account));
+    assert_eq!(out.tested, u64::from(find.account) + 1);
+    let receiver = Receiver::derive(&c, &master, find.account);
+    let code = receiver.address(master.secp()).expect("a code");
+    assert_eq!(code.as_str(), find.address.as_str());
+    assert!(code.as_str().to_ascii_lowercase().starts_with("sp1qqgz"));
+    // No account before it began that way.
+    for account in 0..find.account {
+        let other = Receiver::derive(&c, &master, account);
+        let other = other.address(master.secp()).expect("a code");
+        assert!(!other.as_str().starts_with("sp1qqgz"), "{account}");
+    }
+}
+
+#[test]
+fn a_silent_payment_code_on_the_passphrase_dial_is_the_wallet_of_the_key_with_that_passphrase() {
+    let c = Compute::unchecked();
+    let words = words();
+    let find = vanity::grind(
+        &c,
+        &Key::Words(&words),
+        &Method::Passphrase { base: b"" },
+        Kind::Silent,
+        "sp1qqgz",
+        Network::Mainnet,
+        0,
+        100_000,
+    )
+    .find
+    .expect("a find");
+    let opened = master(find.suffix.as_bytes());
+    let receiver = Receiver::derive(&c, &opened, 0);
+    let code = receiver.address(opened.secp()).expect("a code");
+    assert_eq!(code.as_str(), find.address.as_str());
+    assert_eq!(find.account, 0);
 }
 
 /// An address as text. `Address` is public data and formats to a

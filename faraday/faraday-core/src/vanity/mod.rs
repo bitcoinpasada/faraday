@@ -13,7 +13,7 @@ use crate::grind::{Dial, Grind, Step};
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::keys::{Fingerprint, ScriptType};
-use faraday_bip::vanity as engine;
+use faraday_bip::vanity::{self as engine, Kind};
 
 use crate::create::NewKind;
 use crate::out::Out;
@@ -50,7 +50,7 @@ pub enum VanityAction {
     Key([u8; 4]),
     /// The dial, by its place in `Dial::ALL`.
     Dial(u8),
-    /// The kind of address, by its place in `ScriptType::ALL`.
+    /// The kind of address, by its place in `Kind::ALL`.
     Script(u8),
     /// Start searching.
     Start,
@@ -85,14 +85,15 @@ pub struct VanityState {
     pub error: Option<String>,
 }
 
-/// A script type's name, as the cards say it, with the characters its
-/// addresses begin with on `net`.
-pub fn script_name(s: ScriptType, net: faraday_bip::keys::Network) -> String {
+/// A kind of address's name, as the cards say it, with the characters
+/// its addresses begin with on `net`.
+pub fn script_name(s: Kind, net: faraday_bip::keys::Network) -> String {
     let name = match s {
-        ScriptType::Legacy => EN.vanity_legacy,
-        ScriptType::NestedSegwit => EN.vanity_nested_segwit,
-        ScriptType::NativeSegwit => EN.vanity_native_segwit,
-        ScriptType::Taproot => EN.vanity_taproot,
+        Kind::Script(ScriptType::Legacy) => EN.vanity_legacy,
+        Kind::Script(ScriptType::NestedSegwit) => EN.vanity_nested_segwit,
+        Kind::Script(ScriptType::NativeSegwit) => EN.vanity_native_segwit,
+        Kind::Script(ScriptType::Taproot) => EN.vanity_taproot,
+        Kind::Silent => EN.vanity_silent_payment_code,
     };
     match engine::fixed_prefix(s, net) {
         "" => fill(EN.vanity_m_or_n, &[name]),
@@ -169,7 +170,7 @@ impl VanityArea {
             done: [key.is_some(), false, false, false, false],
             scroll: flow::Scroll::default(),
             key,
-            grind: Grind::new(Dial::Account, ScriptType::NativeSegwit, net),
+            grind: Grind::new(Dial::Account, Kind::Script(ScriptType::NativeSegwit), net),
             running: false,
             shown: false,
             back,
@@ -240,7 +241,7 @@ impl VanityArea {
                 }
             }
             V::Script(i) => {
-                if let Some(&s) = ScriptType::ALL.get(usize::from(i)) {
+                if let Some(&s) = Kind::ALL.get(usize::from(i)) {
                     v.grind.set_script(s, net);
                     v.grind.find = None;
                     v.running = false;
@@ -421,7 +422,7 @@ impl Faraday {
         let Some(find) = v.grind.find.as_ref() else {
             return;
         };
-        let script = v.grind.script;
+        let kind = v.grind.script;
         let label = self.session.keys[key].label.clone();
         let (master_fp, account) = match v.grind.dial {
             Dial::Account => (self.session.keys[key].fingerprint, find.account),
@@ -445,6 +446,23 @@ impl Faraday {
         };
         let Some(place) = self.session.keys.position(master_fp) else {
             return;
+        };
+        let script = match kind {
+            Kind::Script(script) => script,
+            // A silent payment code opens in the Silent payments tool, on
+            // the key with the passphrase found; the tool takes account 0
+            // only, which is what the passphrase dial finds. The account
+            // dial offers no wallet.
+            Kind::Silent => {
+                if v.grind.dial == Dial::Account {
+                    return;
+                }
+                self.vanity.clear();
+                self.silent
+                    .open_for(&self.session, self.screen, master_fp.0);
+                self.screen = Screen::Silent;
+                return;
+            }
         };
         let Some(text) =
             self.session

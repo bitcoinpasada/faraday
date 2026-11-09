@@ -2,8 +2,8 @@
 //! the person chose, by one of two dials.
 
 use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_bip::keys::{MasterKey, Network, ScriptType};
-use faraday_bip::vanity::{self as engine, Key, Method};
+use faraday_bip::keys::{MasterKey, Network};
+use faraday_bip::vanity::{self as engine, Key, Kind, Method};
 use faraday_crypto::work::Compute;
 
 pub use faraday_bip::vanity::Outcome;
@@ -24,17 +24,17 @@ pub enum Dial<'a> {
     },
 }
 
-/// Costs `budget` candidates, each a key derivation or a PBKDF2 and an
-/// address. Tests a budget of candidates from `cursor` for `prefix`;
+/// Costs `budget` candidates, each a key derivation (two for a silent
+/// payment code) or a PBKDF2 and an address. Tests a budget of candidates from `cursor` for `prefix`;
 /// `None` for the passphrase dial when the key has no words that read.
 #[allow(
     clippy::too_many_arguments,
-    reason = "a vanity search's dial, script, prefix, network and the cursor and budget of one slice"
+    reason = "a vanity search's dial, kind, prefix, network and the cursor and budget of one slice"
 )]
 pub fn grind(
     c: &Compute,
     dial: Dial<'_>,
-    script: ScriptType,
+    kind: Kind,
     prefix: &str,
     network: Network,
     cursor: u64,
@@ -45,7 +45,7 @@ pub fn grind(
             c,
             &Key::Master(master),
             &Method::Account,
-            script,
+            kind,
             prefix,
             network,
             cursor,
@@ -61,7 +61,7 @@ pub fn grind(
                 c,
                 &Key::Words(&m),
                 &Method::Passphrase { base },
-                script,
+                kind,
                 prefix,
                 network,
                 cursor,

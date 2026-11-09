@@ -6,7 +6,7 @@
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
 use faraday_bip::codex32::{self, Codex32};
-use faraday_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
+use faraday_bip::keys::{Fingerprint, MasterKey, Network};
 use faraday_bip::slip39::{self, Share};
 use faraday_codec::qr::QrMatrix;
 use faraday_codec::seedqr;
@@ -155,14 +155,14 @@ impl Keys {
     /// `None` where the passphrase dial has no words to turn.
     #[allow(
         clippy::too_many_arguments,
-        reason = "a vanity search's key index, dial, script, prefix and the cursor and budget of one slice"
+        reason = "a vanity search's key index, dial, kind, prefix and the cursor and budget of one slice"
     )]
     pub fn vanity_grind(
         &self,
         c: &Compute,
         i: usize,
         dial: Dial,
-        script: ScriptType,
+        kind: faraday_bip::vanity::Kind,
         prefix: &str,
         cursor: u64,
         budget: u64,
@@ -176,7 +176,7 @@ impl Keys {
                 base: s.passphrase.map_or(&[], |p| p.as_bytes()),
             },
         };
-        vanity::grind(c, dial, script, prefix, self.network(), cursor, budget)
+        vanity::grind(c, dial, kind, prefix, self.network(), cursor, budget)
     }
 
     /// Costs what `bip85::child` costs. The BIP-85 child of `app` at

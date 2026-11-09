@@ -124,3 +124,57 @@ fn the_address_found_opens_its_code() {
     crate::common::opens_its_code(&mut app, faraday_core::Code::VanityAddress, &found);
     assert_eq!(opened_address(&mut app), found);
 }
+
+/// Picks the dial at `dial` and the silent payment code, the last kind on
+/// the card, and searches for a code beginning `g` after its fixed part.
+fn silent_search(app: &mut Faraday, dial: faraday_core::grind::Dial) -> String {
+    app.press(Action::Vanity(V::Dial(
+        faraday_core::grind::Dial::ALL
+            .iter()
+            .position(|d| *d == dial)
+            .unwrap() as u8,
+    )));
+    app.press(Action::Vanity(V::Next(vstep::DIAL)));
+    app.press(Action::Vanity(V::Script(4)));
+    let found = search_from_prefix(app, "g");
+    assert!(found.starts_with("tsp1qqg"), "{found}");
+    found
+}
+
+/// The prefix typed after the kind is chosen, then a search to a find.
+fn search_from_prefix(app: &mut Faraday, chars: &str) -> String {
+    app.press(Action::Vanity(V::Next(vstep::SCRIPT)));
+    for c in chars.chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::Vanity(V::Next(vstep::PREFIX)));
+    app.press(Action::Vanity(V::Start));
+    for t in 1..5000u64 {
+        app.event(Event::Tick { now_ms: t * 100 });
+        let v = app.vanity().unwrap();
+        if let Some(f) = &v.grind.find {
+            return f.address.as_str().to_string();
+        }
+        assert!(v.running, "the search stopped with no find: {:?}", v.error);
+    }
+    panic!("no find");
+}
+
+#[test]
+fn a_silent_payment_code_found_on_the_passphrase_dial_opens_in_the_silent_payments_tool() {
+    let mut app = with_key();
+    let found = silent_search(&mut app, faraday_core::grind::Dial::Passphrase);
+    app.press(Action::Vanity(V::Use));
+    assert_eq!(app.screen, Screen::Silent);
+    assert_eq!(app.session.keys.len(), 2);
+    let c = faraday_core::testkit::compute();
+    assert_eq!(app.silent_address(&c).as_deref(), Some(found.as_str()));
+}
+
+#[test]
+fn a_silent_payment_code_found_on_the_account_dial_names_its_account_and_opens_no_wallet() {
+    let mut app = with_key();
+    silent_search(&mut app, faraday_core::grind::Dial::Account);
+    app.press(Action::Vanity(V::Use));
+    assert_eq!(app.screen, Screen::Vanity);
+}

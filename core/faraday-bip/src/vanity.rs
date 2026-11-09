@@ -1,7 +1,11 @@
 //! Vanity address grinding: the counter that turns a key's own dials
 //! until its first address begins with the characters a person chose.
 //!
-//! Two dials, and nothing else:
+//! Five kinds of address, two dials, and nothing else. The kinds are the
+//! four script types' first address and a BIP-352 silent payment code,
+//! the wallet's address with no label at BIP-352's own paths.
+//!
+//! The dials:
 //!
 //! - **The passphrase.** The candidate is the key's own BIP-39
 //!   passphrase with a base-62 counter appended, and the address is
@@ -11,6 +15,16 @@
 //! - **The account index.** The passphrase is the key's own, and the
 //!   counter is the account: `m/purpose'/coin'/counter'/0/0`. One
 //!   candidate costs one hardened derivation.
+//!
+//! For a silent payment code a candidate is the two keys BIP-352 derives
+//! at the account (`m/352'/coin'/account'/1'/0` scan, `/0'/0` spend) and
+//! the address they make, `silent::Receiver`'s own, so a candidate costs
+//! two hardened derivations (and, on the passphrase dial, the PBKDF2).
+//! The code's first characters are fixed by its encoding: after `sp1`
+//! comes the version `q`, and then the scan key's first byte, `02` or
+//! `03`, whose top five bits are `q` again and whose last three bits
+//! with the next byte's first two make the second character, one of
+//! `gf2tvdw0`. Everything after that is the key's own bytes.
 //!
 //! Nothing here is random. The same key and the same counter give the
 //! same address on any device, so a find is a fact about the key rather
@@ -40,6 +54,7 @@ use faraday_crypto::work::Compute;
 use crate::bip39::Mnemonic;
 use crate::codex32::CHARSET;
 use crate::keys::{MasterKey, Network, ScriptType};
+use crate::silent;
 
 /// The counter's digits, in EntropyLab's order: `a` is zero, `9` is 61.
 pub const ALPHABET: &[u8; 62] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -57,9 +72,39 @@ pub const BASE58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuv
 /// candidates, past any prefix a person will wait for.
 pub const MAX_COUNTER_CHARS: usize = 8;
 
-/// The longest address any script type writes: a Taproot address is 62
-/// characters on mainnet and 64 on regtest.
-pub const MAX_ADDRESS_CHARS: usize = 68;
+/// The longest address any kind writes: a silent payment code, 117
+/// characters ([`silent::ADDRESS_CHARS`]); the longest script type's is
+/// a Taproot address, 64 characters on regtest.
+pub const MAX_ADDRESS_CHARS: usize = silent::ADDRESS_CHARS;
+
+/// What the first address of a candidate is of: one of the four script
+/// types, or a BIP-352 silent payment code (which is not a script type:
+/// it is an address for keys at its own paths).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    /// The first receive address of a script type's account.
+    Script(ScriptType),
+    /// The silent payment code of the account, with no label.
+    Silent,
+}
+
+impl Kind {
+    /// Every kind, in the order the screen lists them: the four script
+    /// types, then the silent payment code.
+    pub const ALL: [Kind; 5] = [
+        Kind::Script(ScriptType::Legacy),
+        Kind::Script(ScriptType::NestedSegwit),
+        Kind::Script(ScriptType::NativeSegwit),
+        Kind::Script(ScriptType::Taproot),
+        Kind::Silent,
+    ];
+}
+
+impl From<ScriptType> for Kind {
+    fn from(script: ScriptType) -> Self {
+        Kind::Script(script)
+    }
+}
 
 /// A counter written in [`ALPHABET`], in a fixed buffer that zeroizes on
 /// drop. It is part of a passphrase, so it is as secret as the key.
@@ -191,8 +236,13 @@ impl Outcome {
 /// A legacy address on a test network begins with `m` or `n`, so it has
 /// no fixed prefix at all; [`first_free`] says which characters can
 /// stand there.
-pub fn fixed_prefix(script: ScriptType, network: Network) -> &'static str {
+pub fn fixed_prefix(kind: impl Into<Kind>, network: Network) -> &'static str {
     let mainnet = network.is_mainnet();
+    let script = match kind.into() {
+        Kind::Script(script) => script,
+        Kind::Silent if mainnet => return "sp1qq",
+        Kind::Silent => return "tsp1qq",
+    };
     match (script, network) {
         (ScriptType::Legacy, Network::Mainnet) => "1",
         (ScriptType::Legacy, _) => "",
@@ -209,20 +259,30 @@ pub fn fixed_prefix(script: ScriptType, network: Network) -> &'static str {
 
 /// The characters that can stand in the first place a person chooses,
 /// where that place is not the whole alphabet's. A legacy address on a
-/// test network is the one case: its version byte leaves `m` and `n`.
-pub fn first_free(script: ScriptType, network: Network) -> Option<&'static str> {
-    (script == ScriptType::Legacy && !network.is_mainnet()).then_some("mn")
+/// test network is one case: its version byte leaves `m` and `n`. A
+/// silent payment code's is its second character after the version,
+/// where the scan key's first byte (`02` or `03`) leaves eight of the
+/// thirty-two.
+pub fn first_free(kind: impl Into<Kind>, network: Network) -> Option<&'static str> {
+    match kind.into() {
+        Kind::Silent => Some("gf2tvdw0"),
+        Kind::Script(ScriptType::Legacy) if !network.is_mainnet() => Some("mn"),
+        Kind::Script(_) => None,
+    }
 }
 
-/// Whether `script` writes bech32 addresses.
-pub fn is_bech32(script: ScriptType) -> bool {
-    matches!(script, ScriptType::NativeSegwit | ScriptType::Taproot)
+/// Whether `kind` writes bech32 addresses.
+pub fn is_bech32(kind: impl Into<Kind>) -> bool {
+    matches!(
+        kind.into(),
+        Kind::Script(ScriptType::NativeSegwit | ScriptType::Taproot) | Kind::Silent
+    )
 }
 
 /// The characters an address of this kind is written in after its fixed
 /// prefix.
-pub fn charset(script: ScriptType) -> &'static str {
-    if is_bech32(script) { BECH32 } else { BASE58 }
+pub fn charset(kind: impl Into<Kind>) -> &'static str {
+    if is_bech32(kind) { BECH32 } else { BASE58 }
 }
 
 /// Whether `prefix` — the whole prefix, fixed part and all — can begin
@@ -231,7 +291,8 @@ pub fn charset(script: ScriptType) -> &'static str {
 /// This is what refuses a character at entry: bech32 has no `1`, `b`,
 /// `i` or `o` after the separator, and base58 has no `0`, `O`, `I` or
 /// `l` anywhere.
-pub fn can_begin(prefix: &str, script: ScriptType, network: Network) -> bool {
+pub fn can_begin(prefix: &str, kind: impl Into<Kind>, network: Network) -> bool {
+    let script = kind.into();
     let fixed = fixed_prefix(script, network);
     let common = fixed.len().min(prefix.len());
     if !prefix.as_bytes()[..common].eq_ignore_ascii_case(&fixed.as_bytes()[..common]) {
@@ -244,6 +305,11 @@ pub fn can_begin(prefix: &str, script: ScriptType, network: Network) -> bool {
     let mut chars = free.chars();
     if let Some(set) = first_free(script, network) {
         let first = chars.next().expect("the free part is not empty");
+        let first = if is_bech32(script) {
+            first.to_ascii_lowercase()
+        } else {
+            first
+        };
         if !set.contains(first) {
             return false;
         }
@@ -266,10 +332,12 @@ pub fn can_begin(prefix: &str, script: ScriptType, network: Network) -> bool {
 /// chance that a random address of this kind begins with it.
 ///
 /// Each free character is one of the character set's 32 or 58, except a
-/// first place that carries fewer (a legacy address on a test network).
+/// first place that carries fewer (a legacy address on a test network,
+/// a silent payment code's second character).
 /// The count saturates rather than overflowing: a prefix long enough to
 /// pass 2⁶⁴ is a prefix no one waits for.
-pub fn expected_candidates(prefix: &str, script: ScriptType, network: Network) -> u64 {
+pub fn expected_candidates(prefix: &str, kind: impl Into<Kind>, network: Network) -> u64 {
+    let script = kind.into();
     let fixed = fixed_prefix(script, network).chars().count();
     let free = prefix.chars().count().saturating_sub(fixed);
     if free == 0 {
@@ -327,7 +395,8 @@ pub fn counter_text(counter: u64) -> Option<Counter> {
 }
 
 /// Costs what `grind_passphrase` or `grind_account` costs per
-/// candidate, at most `budget` of them. Grinds at most `budget`
+/// candidate, at most `budget` of them: for a silent payment code, two
+/// hardened derivations (the scan and the spend key) and the code. Grinds at most `budget`
 /// candidates from `from`, and stops on the first address that begins
 /// with `prefix`.
 ///
@@ -351,21 +420,22 @@ pub fn grind(
     c: &Compute,
     key: &Key<'_>,
     method: &Method<'_>,
-    script: ScriptType,
+    kind: impl Into<Kind>,
     prefix: &str,
     network: Network,
     from: u64,
     budget: u64,
 ) -> Outcome {
-    if !can_begin(prefix, script, network) {
+    let kind = kind.into();
+    if !can_begin(prefix, kind, network) {
         return Outcome::none();
     }
     match (key, method) {
         (Key::Words(words), Method::Passphrase { base }) => {
-            grind_passphrase(c, words, base, script, prefix, network, from, budget)
+            grind_passphrase(c, words, base, kind, prefix, network, from, budget)
         }
         (Key::Master(master), Method::Account) => {
-            grind_account(c, master, script, prefix, network, from, budget)
+            grind_account(c, master, kind, prefix, network, from, budget)
         }
         _ => Outcome::none(),
     }
@@ -381,13 +451,16 @@ fn grind_passphrase(
     c: &Compute,
     words: &Mnemonic,
     base: &[u8],
-    script: ScriptType,
+    kind: Kind,
     prefix: &str,
     network: Network,
     from: u64,
     budget: u64,
 ) -> Outcome {
-    let path = account_path(script, network, 0);
+    let path = match kind {
+        Kind::Script(script) => Some(account_path(script, network, 0)),
+        Kind::Silent => None,
+    };
     let mut tested = 0;
     while tested < budget {
         let Some(suffix) = counter_text(from + tested) else {
@@ -407,14 +480,20 @@ fn grind_passphrase(
         }
         let Ok(seed) = seed else { break };
         tested += 1;
-        let Ok(mut master) = Xpriv::new_master(network.kind(), seed.expose()) else {
-            continue;
+        let address = match (kind, &path) {
+            (Kind::Script(script), Some(path)) => {
+                let Ok(mut master) = Xpriv::new_master(network.kind(), seed.expose()) else {
+                    continue;
+                };
+                let secp = crate::keys::blinded_context(master.chain_code.as_bytes());
+                let address = address_at(&secp, &master, path, script, network);
+                erase_xpriv(&mut master);
+                address
+            }
+            _ => silent_address(c, &MasterKey::from_seed(c, &seed, network), 0),
         };
-        let secp = crate::keys::blinded_context(master.chain_code.as_bytes());
-        let address = address_at(&secp, &master, &path, script, network);
-        erase_xpriv(&mut master);
         let Some(address) = address else { continue };
-        if matches(address.as_str(), prefix, script) {
+        if matches(address.as_str(), prefix, kind) {
             return Outcome {
                 tested,
                 find: Some(Find {
@@ -435,12 +514,16 @@ fn grind_passphrase(
 fn grind_account(
     c: &Compute,
     master: &MasterKey,
-    script: ScriptType,
+    kind: Kind,
     prefix: &str,
     network: Network,
     from: u64,
     budget: u64,
 ) -> Outcome {
+    let script = match kind {
+        Kind::Script(script) => script,
+        Kind::Silent => return grind_account_silent(c, master, prefix, from, budget),
+    };
     let secp = master.secp();
     let hardened = |i: u32| ChildNumber::from_hardened_idx(i).expect("below 2^31");
     let head = DerivationPath::from(
@@ -475,7 +558,7 @@ fn grind_account(
         let Some(address) = address_at(secp, &parent, &path, script, network) else {
             continue;
         };
-        if matches(address.as_str(), prefix, script) {
+        if matches(address.as_str(), prefix, kind) {
             outcome = Outcome {
                 tested,
                 find: Some(Find {
@@ -493,6 +576,54 @@ fn grind_account(
         outcome.tested = tested;
     }
     outcome
+}
+
+/// Costs two key derivations and a code per candidate (through
+/// `silent_address`). The account dial for a silent payment code: the
+/// receiver BIP-352 derives at each account, from the master.
+fn grind_account_silent(
+    c: &Compute,
+    master: &MasterKey,
+    prefix: &str,
+    from: u64,
+    budget: u64,
+) -> Outcome {
+    let mut tested = 0;
+    while tested < budget {
+        let account = from + tested;
+        if account >= u64::from(1u32 << 31) {
+            break;
+        }
+        let account = account as u32;
+        tested += 1;
+        let Some(address) = silent_address(c, master, account) else {
+            continue;
+        };
+        if matches(address.as_str(), prefix, Kind::Silent) {
+            return Outcome {
+                tested,
+                find: Some(Find {
+                    counter: u64::from(account),
+                    suffix: Counter::empty(),
+                    account,
+                    address,
+                }),
+            };
+        }
+    }
+    Outcome { tested, find: None }
+}
+
+/// Costs two key derivations. The silent payment code with no label of
+/// `master`'s wallet at `account`, in text: `silent::Receiver`'s own
+/// derivation and encoding. The receiver's scan key is erased when it
+/// drops.
+fn silent_address(c: &Compute, master: &MasterKey, account: u32) -> Option<AddressText> {
+    let receiver = silent::Receiver::derive(c, master, account);
+    let code = receiver.address(master.secp()).ok()?;
+    let mut out = AddressText::new();
+    core::fmt::write(&mut out, format_args!("{}", code.as_str())).ok()?;
+    Some(out)
 }
 
 /// The account path `purpose'/coin'/account'` of `script` on `network`,
@@ -549,12 +680,12 @@ fn address_of(
 
 /// Whether `address` begins with `prefix`: case-insensitively for
 /// bech32, which has one case, and exactly for base58, which has two.
-fn matches(address: &str, prefix: &str, script: ScriptType) -> bool {
+fn matches(address: &str, prefix: &str, kind: Kind) -> bool {
     if address.len() < prefix.len() {
         return false;
     }
     let head = &address.as_bytes()[..prefix.len()];
-    if is_bech32(script) {
+    if is_bech32(kind) {
         head.eq_ignore_ascii_case(prefix.as_bytes())
     } else {
         head == prefix.as_bytes()

@@ -28,7 +28,7 @@ A rolled passphrase is text like any other. Create a vault uses it as the vault'
 
 ## Vanity addresses
 
-Tools → Vanity address tries one candidate after another until the first address of the account begins with the characters you asked for. Each free character costs 32 tries on a bech32 address and 58 on a base58 one, and the device states the rate it manages and how long that takes.
+Tools → Vanity address tries one candidate after another until the first address of the account begins with the characters you asked for. Each free character costs 32 tries on a bech32 address and 58 on a base58 one, and the device states the rate it manages and how long that takes. The kinds are the four address types and a silent payment code, whose first characters after sp1qq come from its scan key; a code found on the passphrase dial opens in Silent payments, and one found on the account dial shows its account.
 
 There are two dials. The passphrase counter appends characters to the key's BIP-39 passphrase, so every candidate is a different key and costs a full derivation; taking the find loads that key beside the one you started from. The account index steps through the accounts of the key you already have, which is far cheaper and adds a wallet rather than a key.
 

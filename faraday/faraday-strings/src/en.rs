@@ -8515,6 +8515,8 @@ strings! {
     vanity_native_segwit: "Native SegWit",
     /// Text in `script_name`.
     vanity_taproot: "Taproot",
+    /// Text in `script_name`.
+    vanity_silent_payment_code: "Silent payment code",
     /// Text in `script_name`. `{}`: `name`.
     vanity_m_or_n: "{} · m… or n…",
     /// Text in `dial_name`.
@@ -8588,6 +8590,8 @@ strings! {
     vanity_these_characters: "These characters are part of the passphrase: write them down with it. The words with any other passphrase open another wallet.",
     /// Button in `card`.
     vanity_open_this_wallet: "Open this wallet",
+    /// Button in `card`.
+    vanity_open_in_silent_payments: "Open in Silent payments",
     /// Button in `card`.
     vanity_search_again: "Search again",
     /// Text in `card`. `{}`: `thousands(r as u64)`.

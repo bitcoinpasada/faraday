@@ -100,6 +100,7 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Vanity(Va::Key(first)));
     t.shot("vanity-dial")?;
     t.press(Action::Vanity(Va::Next(vstep::DIAL)));
+    t.shot("vanity-kind")?;
     t.press(Action::Vanity(Va::Next(vstep::SCRIPT)));
     type_text(t, "qq");
     t.shot("vanity-prefix")?;

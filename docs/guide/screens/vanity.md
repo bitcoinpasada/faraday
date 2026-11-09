@@ -53,7 +53,7 @@ Closed, the kind and what every address of it begins with.
 
 | Control | What it does |
 |---|---|
-| "Legacy · 1…", "Nested SegWit · 3…", "Native SegWit · bc1q…", "Taproot · bc1p…" | the kind of address searched; on a test network legacy reads "Legacy · m… or n…". A press chooses one and moves on |
+| "Legacy · 1…", "Nested SegWit · 3…", "Native SegWit · bc1q…", "Taproot · bc1p…", "Silent payment code · sp1qq…" | the kind of address searched; on a test network legacy reads "Legacy · m… or n…" and a silent payment code begins tsp1qq. A press chooses one and moves on |
 
 ### Characters
 
@@ -79,6 +79,7 @@ Closed, the address found, or "12,345 tried" while it runs.
 | "Account 1017 of this key, after 1,018 tries" | for **Account number** |
 | **Added to the passphrase:** | for **Passphrase**: the characters, hidden until **Show** (**Hide**), and in the warning tone **These characters are part of the passphrase: write them down with it. …** |
 | **Open this wallet** | adds a single-key wallet at the account found, or, for **Passphrase**, loads the key with the characters added ("… · vanity passphrase") and its wallet, and opens it |
+| **Open in Silent payments** | for a silent payment code found on **Passphrase**: loads the key with the characters added and opens Silent payments on it; a code found on **Account number** has no button |
 | **Search again** | starts the search again from its first try |
 
 ## On a narrow window

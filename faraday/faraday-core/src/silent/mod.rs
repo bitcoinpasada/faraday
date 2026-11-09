@@ -180,6 +180,16 @@ impl SilentArea {
     /// Opens the flow over the session's keys, to return to `back`.
     pub(crate) fn open(&mut self, session: &Session, back: Screen) {
         let key = (session.keys.len() == 1).then(|| session.keys[0].fingerprint.0);
+        self.open_with(session, back, key);
+    }
+
+    /// Opens the flow over the loaded key with fingerprint `fp`, to return
+    /// to `back`: its address at account 0.
+    pub(crate) fn open_for(&mut self, session: &Session, back: Screen, fp: [u8; 4]) {
+        self.open_with(session, back, Some(fp));
+    }
+
+    fn open_with(&mut self, session: &Session, back: Screen, key: Option<[u8; 4]>) {
         let wallet = key.and_then(|fp| Self::wallet_of(session, fp));
         let labels = wallet
             .and_then(|i| session.wallets[i].policy().silent())

@@ -4,8 +4,8 @@
 //! either dial, from a starting counter with a budget.
 
 use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_bip::keys::{MasterKey, Network, ScriptType};
-use faraday_bip::vanity::{self, Key, Method};
+use faraday_bip::keys::{MasterKey, Network};
+use faraday_bip::vanity::{self, Key, Kind, Method};
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes};
 use serde_json::{Value, json};
@@ -21,8 +21,10 @@ fn network(req: &Value) -> Network {
     Network::from_name(text(req, "network")).expect("a network name")
 }
 
-fn script(req: &Value) -> ScriptType {
-    ScriptType::ALL[num(req, "script") as usize]
+/// The kind of address, by its place in `Kind::ALL`: the four script
+/// types, then a silent payment code.
+fn script(req: &Value) -> Kind {
+    Kind::ALL[num(req, "script") as usize]
 }
 
 /// Handles `vanity.<name>`.

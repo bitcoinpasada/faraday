@@ -3,7 +3,7 @@
 use crate::grind::Dial;
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_bip::keys::ScriptType;
+use faraday_bip::vanity::Kind;
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L};
 
 use crate::drawing::{Scrolled, View};
@@ -162,7 +162,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
             // A dial pressed moves on (F103).
         }
         vstep::SCRIPT => {
-            for (i, sc) in ScriptType::ALL.iter().enumerate() {
+            for (i, sc) in Kind::ALL.iter().enumerate() {
                 let on = v.grind.script == *sc;
                 ui.checkbox(x, cy + 11.0, on, true);
                 ui.text_mid_as(
@@ -303,17 +303,26 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     }
                 }
                 // Side by side where they fit, else one under the other.
-                cy += crate::screens::wrap_buttons(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    BUTTON_H,
-                    &[
-                        (EN.vanity_open_this_wallet, Style::Primary, va(V::Use)),
-                        (EN.vanity_search_again, Style::Secondary, va(V::Start)),
-                    ],
-                ) + 4.0;
+                // The Silent payments tool opens a key's wallet at account
+                // 0 only, so a code found on the account dial has no
+                // wallet to open: its address and account stand above.
+                let open = match (v.grind.script, v.grind.dial) {
+                    (Kind::Silent, Dial::Account) => None,
+                    (Kind::Silent, Dial::Passphrase) => Some(EN.vanity_open_in_silent_payments),
+                    _ => Some(EN.vanity_open_this_wallet),
+                };
+                let again = (EN.vanity_search_again, Style::Secondary, va(V::Start));
+                cy += match open {
+                    Some(open) => crate::screens::wrap_buttons(
+                        ui,
+                        x,
+                        cy,
+                        w,
+                        BUTTON_H,
+                        &[(open, Style::Primary, va(V::Use)), again],
+                    ),
+                    None => crate::screens::wrap_buttons(ui, x, cy, w, BUTTON_H, &[again]),
+                } + 4.0;
             }
             (None, true) => {
                 let rate = v

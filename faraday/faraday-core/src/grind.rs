@@ -13,7 +13,8 @@
 //! frame. The find is the same whatever the budget, because the order
 //! is the counter's.
 
-use faraday_bip::keys::{Network, ScriptType};
+use faraday_bip::keys::Network;
+use faraday_bip::vanity::Kind;
 use faraday_bip::vanity::{self, Find};
 
 /// The longest prefix a person types, which is a whole Taproot address
@@ -73,7 +74,7 @@ pub struct Prefix {
 impl Prefix {
     /// The fixed prefix every address of `script` on `network` begins
     /// with, which is what the field starts at.
-    pub fn fixed(script: ScriptType, network: Network) -> Self {
+    pub fn fixed(script: Kind, network: Network) -> Self {
         let mut out = Prefix {
             buf: [0; MAX_PREFIX],
             len: 0,
@@ -91,7 +92,7 @@ impl Prefix {
 
     /// How many characters the fixed part is, which is where deleting
     /// stops.
-    pub(crate) fn fixed_len(&self, script: ScriptType, network: Network) -> usize {
+    pub(crate) fn fixed_len(&self, script: Kind, network: Network) -> usize {
         vanity::fixed_prefix(script, network).len()
     }
 
@@ -105,7 +106,7 @@ impl Prefix {
 
     /// Adds `c` where it can continue an address of this kind, and
     /// answers whether it did.
-    pub fn push(&mut self, c: char, script: ScriptType, network: Network) -> bool {
+    pub fn push(&mut self, c: char, script: Kind, network: Network) -> bool {
         if !c.is_ascii() || usize::from(self.len) >= MAX_PREFIX {
             return false;
         }
@@ -122,7 +123,7 @@ impl Prefix {
     }
 
     /// Deletes the last character, down to the fixed part.
-    pub fn pop(&mut self, script: ScriptType, network: Network) {
+    pub fn pop(&mut self, script: Kind, network: Network) {
         if usize::from(self.len) > self.fixed_len(script, network) {
             self.len -= 1;
         }
@@ -131,7 +132,7 @@ impl Prefix {
     /// Whether anything has been asked for beyond the fixed part, which
     /// is what ✓ needs: the fixed prefix alone matches every address of
     /// its kind.
-    pub(crate) fn has_free(&self, script: ScriptType, network: Network) -> bool {
+    pub(crate) fn has_free(&self, script: Kind, network: Network) -> bool {
         usize::from(self.len) > self.fixed_len(script, network)
     }
 }
@@ -141,7 +142,7 @@ pub struct Grind {
     /// Which dial the counter turns.
     pub dial: Dial,
     /// Which script type's first address is compared.
-    pub script: ScriptType,
+    pub script: Kind,
     /// Where the flow is.
     pub step: Step,
     /// The prefix being asked for.
@@ -166,7 +167,7 @@ pub struct Grind {
 impl Grind {
     /// A grind of `dial` over a key, at the script type the device
     /// suggests first.
-    pub fn new(dial: Dial, script: ScriptType, network: Network) -> Self {
+    pub fn new(dial: Dial, script: Kind, network: Network) -> Self {
         Grind {
             dial,
             script,
@@ -184,7 +185,7 @@ impl Grind {
 
     /// Takes the script type, which resets the prefix to that type's
     /// own fixed characters.
-    pub(crate) fn set_script(&mut self, script: ScriptType, network: Network) {
+    pub(crate) fn set_script(&mut self, script: Kind, network: Network) {
         self.script = script;
         self.prefix = Prefix::fixed(script, network);
     }
