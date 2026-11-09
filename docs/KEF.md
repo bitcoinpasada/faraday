@@ -1,8 +1,7 @@
 # KEF: Krux's encrypted code, read and written in full
 
-**Kind:** Spec
-**Status:** Decided by F219; the crate, the codec module, the PBKDF2 loop, Krux's vectors, the cross-check area against Krux's code, the fuzz target, the classifier's arm, the `Reveal` variant, the stoppable worker jobs and scanning one (the card, the passphrase sheet, the road after opening) are built; the making backend (`faraday-core/src/worker/kef_make.rs`: options, refusals in words, the code and its Outbox files) is built; the screens for making one are built in Tools and on the backup checklist (stick road); the stick listing and the backup record are built; and the code on Paper is built: the Code card's size, sheet and grid, Scan my copy, the foot's count and Not on Paper.
-**Open:** Built: `faraday/faraday-kef` (all twelve versions sealed and opened), the codec module `core/faraday-codec/src/kef.rs`, the stoppable PBKDF2 loop in `faraday-crypto` and Krux's vectors in `tools/vectors/kef/`, the `kef` cross-check area (all twelve versions, both ways, against Krux's `kef.py`) the fuzz target `faraday/fuzz/fuzz_targets/kef.rs` and the classifier's last arm (`PayloadKind::Kef`, which names the kind only). Also built: `Reveal::KefCode` and `Keys::kef_entropy` (a seed of 12 or 24 English words, nothing else), and the worker jobs `Kind::KefSeal` and `Kind::KefOpen` (`faraday-keys/src/kef.rs`, `faraday-core/src/worker/kef.rs`, `Faraday::kef_seal`, `Faraday::kef_open`), which draw the IV and the id from the session's fresh bytes and really stop on Cancel. Also built: scanning a code in every scanner, Paste and a picture's codes (`Kind::Kef` in `scan_read.rs`, `seeds/kef.rs`): the card with version, id, count and the time here, **Open**, **Not encrypted**, the question above 550,000, the passphrase sheet with **Enter as hex**, the bar with Cancel, and §6's road (a seed to the seed sheet with the id line, text through the intake, a note with **Use as a passphrase**, bytes as hex, a code inside a code offered with **Not encrypted** to a depth of 8); **Open as an encrypted code** on the seed sheet of a raw 16 or 32 byte code. Also built: `faraday-core/src/worker/kef_make.rs`, which the seed's form and the Tools tool both call: `Options` at §10's defaults, `Faraday::kef_make_seed` and `kef_make_text`, a refusal that names a version that works, the base43 code as a public labelled picture (`QrView::kef`) and the picture and file to the Outbox. Also built: the Starter's blank template for it (§15.5). Also built: the form on a seed in the plan and the board (`What::KefCode` and `What::KefCodePaper`, plan text `kef` and `kefp`, the chip, **Krux code…** in a seed's menu), which no check counts and a plan read back holds only as its text; a plan holding one lists the checklist item. Also built: `faraday-core/src/kef_form/` (`KefForm` and its first step of §15.3: Generate with dice, the one passphrase field with its eye, Options with its sheet, the side on Paper, the Randomness row, a refusal line, Make the code, the progress and Cancel, with `Faraday::kef_make_cancel`), and its Code card: the code's picture, the toast naming its file, **Check my code** (one masked field, **Compare**, the bar and Cancel, the plaintext compared inside `faraday-keys` by `Keys::kef_matches`, or against the typed text the form holds) reading **Checked**, and **Make another**. Also built: the tool in Tools (§15.2, `faraday-core/src/kef_tool/`, `Screen::KefTool`, the **Krux code** tile): Contents typed or from a loaded wallet's descriptor, the form, the Code card, the text wiped on leaving, and the on-screen keyboard for its fields. Also built: the checklist item of a seed's code (`Item::KefCode`, `faraday-core/src/wallet_backup/kef.rs`), which owns the seed's form on its card: **Not made**, **Not checked**, **Checked**, the form put away (passphrase wiped, the code and its check kept) when the item closes or the page is left. Also built: a stick listing the code's two files at Lock and write (`Faraday::kef_save_files` gives the names the Outbox gave them, `stick_names` in `wallet_backup/kef.rs` and `kef_readback` in `backup_flow/wallet.rs`: the picture read back against the SHA-256 of its base43 text), the backup record keeping them with the status, the SHA-256 of the `.kef` bytes and the picture's public options (`KefMark`, the `kef` line of the record, `backups/mod.rs`; a line without the hash reads Not made), and a closed item reopened from its `.kef` file, in the Outbox or written to the sticks (Files), with no passphrase and the picture as it was drawn, reading Not made where either file is gone, the bytes are not the ones hashed, or the file does not read. Also built: Learn's text (the Krux codes section of the page on other backups, and the Krux code tile's paragraph in Tools' page) and Practice's sample (a fixed code of the first words sample under the public passphrase, `faraday-samples/data/krux-code.kef`, which the seed scanner's Sample tile hands over on the press after one that gave a seed). Also built: the code on Paper (`What::KefCodePaper` at a place): the Code card shows **Size** and **By hand** with the Starter's sheet named (a code above 37 × 37 reads **No** and **Largest**), the grid to copy from with Blocks and Rows (`copy_grid`, its mark kept in `KefForm` when the item closes), **Drawn copy: Not scanned**, **Not on Paper** (the code comes off every place, and the item goes where no stick holds it), **Check my code** alone ending the item only with no camera, the Templates item counting one Krux code sheet per place and seed at the code's side (§10's default before it is made), and the record's `kef` line keeping whether a drawn copy was scanned and the side (an older line reads as before). Also built: **Scan my copy** on a code on Paper of 25 to 37 sides with a camera (`ScanPurpose::CheckKef`: the code's base43 text byte for byte closes the camera and opens the field and **Compare**, anything else reads "Not this code", a camera closed without a match counts a miss, nothing scanned is loaded or filed, the check marks the code scanned and **Checked** for every place), the foot's count of scans without a match with **Not on Paper**, and Practice's Sample tile handing over the code made. A code too large for one is refused with the file saved, and stays so (§15.4). Questions a source could not settle are in §13.
+**Kind:** Reference
+**Status:** Built (F219). Reading and writing KEF in full: all twelve versions, scanning a code, making one from a seed or in Tools, the backup checklist item, the stick files and the code on Paper, checked against Krux's own code and not on a Krux device.
 
 KEF (Krux Encryption Format) is an envelope for encrypted bytes: a label,
 a version, a PBKDF2 count and an AES payload. It is one project's
@@ -38,7 +37,7 @@ can be checked against code Faraday did not write, but it is neither a BIP, SLIP
 convention other wallets use, since one project uses it. It enters by the decision naming that (F219).
 
 The specification asks that a claim of support be clear and precise.
-Faraday's, once built:
+Faraday's:
 
 > Reads and writes KEF versions 0, 1, 5, 6, 7, 10, 11, 12, 15, 16, 20 and
 > 21, as in Krux v26.09.0; 0 and 1 are labelled legacy. Reads an envelope as
@@ -392,24 +391,24 @@ of input no match can reach further, which is why §4.1 stops there.
 
 ## 11. Implementation
 
-**Established first (F178):**
+**Established code used (F178):**
 
 | Need | Source | State |
 |---|---|---|
 | AES-256 block | `aes` 0.9 | in the tree, trusted |
 | ECB | a loop over `aes`'s block calls | a few lines; the `ecb` crate adds nothing |
-| CBC | `cbc` 0.2 | in the tree; read only today, encrypt comes with it. Its page changes (`docs/deps/cbc.md` says nothing here encrypts) |
-| CTR | `ctr` 0.10 (`Ctr32BE`) | **new**, RustCrypto/block-modes |
-| GCM | `aes-gcm` 0.11, `AesGcm<Aes256, U12, U4>` | **new**, RustCrypto/AEADs, brings `ghash` 0.6 and `polyval` 0.7, also new |
+| CBC | `cbc` 0.2 | in the tree, reading and encrypting |
+| CTR | `ctr` 0.10 (`Ctr32BE`) | RustCrypto/block-modes |
+| GCM | `aes-gcm` 0.11, `AesGcm<Aes256, U12, U4>` | RustCrypto/AEADs, with `ghash` 0.6 and `polyval` 0.7 |
 | PBKDF2 | §11.1 | |
 | SHA-256 | `sha2` through `faraday-crypto` | in the tree |
-| Deflate | `miniz_oxide` | in the tree; compressing is new to it here (BBQr and KDBX only inflate) |
+| Deflate | `miniz_oxide` | in the tree; KEF is the one place Faraday compresses with it (BBQr and KDBX only inflate) |
 
 **A 4-byte GCM tag does not need a piece of our own.** `aes-gcm` 0.11.1's
 `TagSize` is implemented for U12 to U16 always and for **U4 and U8 under its
-`hazmat` feature** (source, `src/lib.rs`). That feature is the one Faraday would
-enable; the dependency page says why. `aead`, `ctutils` and `universal-hash` are
-already in the tree or trusted. `aes-gcm`, `ctr`, `ghash` and `polyval` need pages
+`hazmat` feature** (source, `src/lib.rs`). That feature is the one Faraday
+enables; the dependency page says why. `aead`, `ctutils` and `universal-hash` are
+already in the tree or trusted. `aes-gcm`, `ctr`, `ghash` and `polyval` have pages
 in `docs/deps/` and `cargo vet` trust entries by publisher (F71).
 
 ### 11.1 The piece written here
@@ -434,17 +433,15 @@ Reason: `only-part-used` (ESTABLISHED §1.1), over `aes`, `cbc`, `ctr`, `aes-gcm
   derives a key takes `c: &Compute`, says "Costs a PBKDF2 of `count` rounds" and
   takes bytes, holding no key of its own (F70).
 - **Sealing a seed:** the entropy comes through `Keys` by a named reveal
-  (`docs/KEYS.md`). `Reveal` is a closed list: the implementation uses an existing
-  variant if its meaning covers this, otherwise adds a
-  variant in `faraday-keys` with its doc, in the same commit.
+  (`docs/KEYS.md`). `Reveal` is a closed list: the reveal for this is `Reveal::KefCode`
+  in `faraday-keys`, with its doc.
 - **Opening a seed:** decrypted entropy goes in as a scanned CompactSeedQR's does,
   wiped on its way, and is key material from there. What is in `faraday-kef`'s
   buffers is wiped as `faraday-pgp`'s are (`zeroize`).
 - **Costs:** `Work::Kdf`, and the job in WORKERS's list. No drawing path reaches it.
 
-The manifest gains an action (`docs/crypto/actions.toml`), and with it the STANDARDS
-row, the crypto Learn block and the `written_here` entry, in the commit that adds
-the code, whose `independence` is others' code (Krux's).
+The manifest has the action (`docs/crypto/actions.toml`), with the STANDARDS row, the crypto
+Learn block and the `written_here` entry; its `independence` is others' code (Krux's).
 
 ## 12. Trade-offs
 
@@ -525,7 +522,7 @@ not change, and tags were always 4 bytes. It concerns the device's memory, not a
 and Faraday does not share that code. The firmware's comment adds that only the first 4
 of the engine's 16 tag bytes "have ever been exercised in the field".
 
-## 13. Open questions
+## 13. What the sources did not settle
 
 - **A code from a real Krux device.** All vectors here come from Krux's tests, which run
   over PyCryptodome and not the K210's engine. That the engine's first 4 tag bytes equal
@@ -702,11 +699,6 @@ item done. A plan read back with its seed loaded and no such record has the item
 defaults, and makes a new code beside the old one. A plan naming a seed §6 refuses reads without
 that form, as a codex32 split that cannot be made does (§17.23).
 
-**What must come first:** the scanning card of this section, since every form the board keeps is
-read back by Restore (`docs/BACKUP-FLOW.md` §17.12 item 5), and a code is restored from one
-place's contents with its passphrase typed. For the code on Paper, also the Starter's blank template
-(§15.5), since the Templates item names it.
-
 ### 15.2 The tool in Tools
 
 A tile on the Tools page (`Screen::Catalog`, `catalog.rs`), **Krux code**, under Keys and seeds,
@@ -720,16 +712,16 @@ what was typed is wiped, as New key's is (`docs/FLOWS.md`).
 
 It is a step flow of three cards: **Contents**, the first step (§15.3), **Code** (the bar, the
 code, **Check my code**, **Make another**). The picture and file go to the Outbox as it is made,
-and a toast names the file. Built.
+and a toast names the file.
 
-| §6's contents | Where the text comes from | Reachable |
+| §6's contents | Where the text comes from | Offered |
 |---|---|---|
-| A passphrase, a codex32 share, a note | **Type it**: one field, masked behind its eye (DESIGN §4.10), UTF-8 up to the codec's limit | In the first build, no kind asked: the bytes are the text |
-| A wallet's descriptor | **A loaded wallet**: its row; the checksummed descriptor, public, needing no reveal; Krux's wallet loader reads it | In the first build |
-| A held key's BIP-39 passphrase | A key's row, under a new reason `Reveal::KefText(Part)`, seen in review and listed in `docs/KEYS.md`, since `Reveal::KefCode` lends no stored text | Not in the first build |
-| A vault's note or password | The item's action in Vault contents, under `Reveal::VaultEntry` | Not in the first build |
+| A passphrase, a codex32 share, a note | **Type it**: one field, masked behind its eye (DESIGN §4.10), UTF-8 up to the codec's limit | Yes; no kind is asked, the bytes are the text |
+| A wallet's descriptor | **A loaded wallet**: its row; the checksummed descriptor, public, needing no reveal; Krux's wallet loader reads it | Yes |
+| A held key's BIP-39 passphrase | A key's row; it would need a reveal of its own, since `Reveal::KefCode` lends no stored text | No |
+| A vault's note or password | The item's action in Vault contents, under `Reveal::VaultEntry` | No |
 
-The held sources wait because each opens a new way out of `faraday-keys`, and typing reaches the
+The held sources are not offered because each would open a new way out of `faraday-keys`, and typing reaches the
 same code without one. **Check my code** compares against the text the flow still holds. The
 fingerprint as an id is offered only for **A loaded wallet**: typed text has none. Its Code card
 has no grid: copying by hand is the seed's item (§15.1), and the tool's picture can be printed from

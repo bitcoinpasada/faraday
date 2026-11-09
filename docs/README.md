@@ -87,6 +87,7 @@ need. Each document's header says what kind it is:
 - `docs/ESTABLISHED.md`: Established implementations first: what Faraday writes itself and why, the timing fixes, what wiping reaches under the security model, the switches to outside code, the order of work, and what the cross-check compares each action with after the switches. Built (F178, F180, F181, F190, F191, F192, F193, F213); how it was built is in `docs/history/ESTABLISHED-LOG.md`; §6 is the work kept for later.
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey, and move a key to a vault on another machine by camera. Built (F169, F215).
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built; the ESP32-P4 board considered, not supported.
+- `docs/KEF.md`: KEF, Krux's encrypted code, read and written in full. Built (F219).
 - `docs/KERNEL-PATCHES.md`: The kernel patches the images carry. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
 - `docs/LAYOUT.md`: Layout at every window size. Built (F92): Material 3's size classes, navigation and top app bar, panes; the screens' sizes written in place are held by the `lint-tokens` ratchet.
@@ -118,7 +119,6 @@ need. Each document's header says what kind it is:
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145), not built.
 - `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Built (F149).
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
-- `docs/KEF.md`: KEF, Krux's encrypted code, read and written in full. Specified (F219); the crate, the codec module and the vectors are built, the backend that makes a code (options, jobs, the code and its Outbox files) is built, the screens are not.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/MAC.md`: Faraday on Macs. Partly built; paused until a Mac is available to test on.
 - `docs/M3-CHECKS.md`: Material 3 checks: touch targets tested over the snapshot tours, and state layers by construction. Built (F152).

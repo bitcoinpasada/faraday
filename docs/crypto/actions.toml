@@ -393,7 +393,7 @@ standard_note = "Built: KDBX 4 under Argon2id 1.3 (RFC 9106) and ChaCha20 (RFC 8
 id = "kef"
 section = 3
 what = "KEF, Krux's encrypted code (`faraday/faraday-kef`, `core/faraday-codec/src/kef.rs`, `docs/KEF.md`)"
-completeness = "Built: all twelve versions read and written over AES-256, PBKDF2 with a count that can be stopped, and the text forms, all twelve versions checked against Krux's own code in the `kef` cross-check area, and a fuzz target, and scanning one in the app. Not built: sealing one in the app"
+completeness = "Built: all twelve versions read and written over AES-256, PBKDF2 with a count that can be stopped, and the text forms, all twelve versions checked against Krux's own code in the `kef` cross-check area, and a fuzz target; in the app, scanning one and making one from a seed or a text (the seed's backup item, its stick files and the code on Paper, and the Krux code tool in Tools)"
 
 [[row]]
 id = "diceware"
