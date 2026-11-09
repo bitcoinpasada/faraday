@@ -63,7 +63,9 @@ pub struct ChecksumFacts {
     pub repeated: Vec<(usize, usize)>,
 }
 
-/// Costs a checksum and a parse of the descriptor: the checksum of
+/// Costs a checksum, a parse of the descriptor and the public derivations
+/// [`crate::policy::repeated_keys_in`] makes (its read of the text is a
+/// second one, counted with the first): the checksum of
 /// `text`, or `None` when it is empty or holds a character no descriptor
 /// may.
 pub fn checksum_facts(c: &Compute, text: &str) -> Option<ChecksumFacts> {
@@ -84,7 +86,7 @@ pub fn checksum_facts(c: &Compute, text: &str) -> Option<ChecksumFacts> {
             (g, holds)
         }),
         wallet: WalletPolicy::parse_any(c, body).ok(),
-        repeated: crate::policy::repeated_keys_in(c, body),
+        repeated: crate::policy::repeated_keys_after_parse(c, body),
         checksum: sum,
         with_checksum,
     })

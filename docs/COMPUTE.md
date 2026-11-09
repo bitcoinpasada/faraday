@@ -79,7 +79,7 @@ finds them.
 | `MasterKey` | `MasterKey::from_seed`, `from_seed_bytes`, `from_xpriv`, `decode`, `from_chain_code_and_key` (each works out the fingerprint, §5.1) |
 | `KeyDerive` | `MasterKey::xpub`, `derive`, `account_xpub`, `multisig_account_xpub`, `with_multisig_account_secret`; `DerivedKey::to_xpub`; through these BIP-85 and silent payments derivations (a vanity search's silent payment code costs two of them a candidate) |
 | `DescriptorParse` | `WalletPolicy::parse`, `from_parts`, `from_descriptor`, `parse_any`, `faraday_bip::policy::repeated_keys_in`; through these the BSMS, Coldcard, multisig config and Core import readers, and `faraday_intake::wallet::read_wallet` |
-| `Address` | `WalletPolicy::script_at`, `script_at_with`, `address_at`, `find_address` |
+| `Address` | `WalletPolicy::script_at`, `script_at_with`, `address_at`, `find_address`; `faraday_bip::policy::repeated_keys_in` (one public derivation for each unhardened fixed step a key expression's path starts with) |
 | `PsbtParse`, `PsbtInspect`, `Sign` | `faraday_psbt::Psbt::parse_bytes`, `parse_base64`; `inspect`; `sign::sign`, `message::sign` |
 | `QrEncode` | `faraday_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
 | `QrDecode` | `faraday_codec::decode::decode_luma` |

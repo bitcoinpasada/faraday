@@ -313,7 +313,7 @@ impl WalletPolicy {
             // A template none of the named shapes matches is a
             // miniscript, which is read from the descriptor the keys
             // make of it.
-            Err(Error::Template) => return Self::read_descriptor(&fill(template, keys)?),
+            Err(Error::Template) => return Self::read_descriptor(&fill(template, keys, false)?),
             Err(error) => return Err(error),
         };
         if placeholders != keys.len() {
@@ -1298,8 +1298,9 @@ fn wallet_key(key: &DescriptorPublicKey) -> Result<PolicyKey, Error> {
 /// must carry the multipath suffix a wallet policy writes. A miniscript
 /// may name one key more than once — a recovery key that is also in a
 /// threshold is the usual reason — so a placeholder already seen may
-/// appear again.
-fn fill(template: &str, keys: &[&str]) -> Result<String, Error> {
+/// appear again. With `lenient`, a placeholder may also carry any BIP 389
+/// multipath suffix (`/<2;3>/*`), which the wallet's own read refuses.
+fn fill(template: &str, keys: &[&str], lenient: bool) -> Result<String, Error> {
     let template = template.trim();
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
@@ -1323,12 +1324,17 @@ fn fill(template: &str, keys: &[&str]) -> Result<String, Error> {
             next += 1;
         }
         let after = &tail[digits..];
-        let after = after
-            .strip_prefix(TEMPLATE_SUFFIX)
-            .or_else(|| after.strip_prefix(DESCRIPTOR_SUFFIX))
-            .ok_or(Error::Derivation)?;
+        let (suffix, after) = if let Some(after) = after.strip_prefix(TEMPLATE_SUFFIX) {
+            (DESCRIPTOR_SUFFIX, after)
+        } else if let Some(after) = after.strip_prefix(DESCRIPTOR_SUFFIX) {
+            (DESCRIPTOR_SUFFIX, after)
+        } else if let Some(split) = lenient.then(|| multipath_suffix(after)).flatten() {
+            split
+        } else {
+            return Err(Error::Derivation);
+        };
         out.push_str(key);
-        out.push_str(DESCRIPTOR_SUFFIX);
+        out.push_str(suffix);
         rest = after;
     }
     if next != keys.len() {
@@ -1336,6 +1342,21 @@ fn fill(template: &str, keys: &[&str]) -> Result<String, Error> {
     }
     out.push_str(rest);
     Ok(out)
+}
+
+/// The `/<M;N>/*` a text starts with, and what follows it: the
+/// alternatives are numbers (hardened or not) separated by `;`.
+fn multipath_suffix(text: &str) -> Option<(&str, &str)> {
+    let inner = text.strip_prefix("/<")?;
+    let close = inner.find('>')?;
+    let (list, tail) = inner.split_at(close);
+    let tail = tail.strip_prefix(">/*")?;
+    let ok = list.split(';').count() >= 2
+        && list.split(';').all(|n| {
+            let n = n.strip_suffix(['h', '\'']).unwrap_or(n);
+            !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())
+        });
+    ok.then(|| (&text[..text.len() - tail.len()], tail))
 }
 
 /// Whether two extended keys hold the same key material.
@@ -1375,75 +1396,251 @@ pub fn repeated_key_texts<S: AsRef<str>>(texts: &[S]) -> Vec<(usize, usize)> {
         .collect()
 }
 
-/// One extended-key expression of a descriptor as written: its identity
-/// (origin and extended key), where it derives and how it ends.
+/// One key expression of a descriptor as written: its identity (origin
+/// and extended key, or a plain key's text), where it derives and how it
+/// ends.
 struct Placed {
-    identity: (Option<(bitcoin::bip32::Fingerprint, DerivationPath)>, Xpub),
-    paths: Vec<DerivationPath>,
+    id: Id,
+    /// For a two-part policy, the place in its list of keys the key was
+    /// written in; `None` for a key written in the template.
+    tag: Option<usize>,
+    key: PlainOrXpub,
+    paths: Vec<Vec<ChildNumber>>,
     wildcard: Wildcard,
 }
 
-/// Costs a parse of the text: the keys of a descriptor, a two-part
-/// policy or a plain descriptor that are the same key as an earlier one,
-/// as `(first, later)` numbers (from 0, in order of first appearance) of
-/// its distinct key expressions, whether or not the wallet loads. Two
-/// expressions are one key when their extended keys hold the same public
-/// key and chain code, whatever origin and depth they are written with,
-/// and they are reported when their derivations overlap: the same
-/// derivation, or a path both reach. BIP-388 reads one key placed at
-/// disjoint derivations (`@0/<0;1>/*` and `@0/<2;3>/*`) as one key with
-/// two uses, which is allowed, so that is not reported. One key
-/// expression used twice at one derivation is reported as `(n, n)`.
-/// Empty when the text is not a descriptor.
+/// What makes two key expressions one in the numbering: an extended key
+/// with its origin, or a plain key's text.
+#[derive(PartialEq)]
+enum Id {
+    Xpub(Option<(bitcoin::bip32::Fingerprint, DerivationPath)>, Xpub),
+    Plain(String),
+}
+
+fn id_of(key: &DescriptorPublicKey) -> Id {
+    match key {
+        DescriptorPublicKey::XPub(x) => Id::Xpub(x.origin.clone(), x.xkey),
+        DescriptorPublicKey::MultiXPub(x) => Id::Xpub(x.origin.clone(), x.xkey),
+        DescriptorPublicKey::Single(_) => Id::Plain(alloc::format!("{key}")),
+    }
+}
+
+/// The key material an expression starts from.
+#[derive(Clone)]
+enum PlainOrXpub {
+    Xpub(Xpub),
+    /// A plain key; `true` when only its x coordinate is known.
+    Plain(bitcoin::secp256k1::PublicKey, bool),
+}
+
+/// A key an expression reaches by deriving along an unhardened fixed
+/// prefix of its path, and what is left of its path from there.
+struct Node {
+    key: bitcoin::secp256k1::PublicKey,
+    x_only: bool,
+    chain_code: Option<bitcoin::bip32::ChainCode>,
+    rest: Vec<Vec<ChildNumber>>,
+    wildcard: Wildcard,
+}
+
+/// Whether two paths, each ending as its wildcard says, reach one key.
+fn paths_meet(a: &[ChildNumber], aw: Wildcard, b: &[ChildNumber], bw: Wildcard) -> bool {
+    let end = |w: Wildcard| usize::from(w != Wildcard::None);
+    if a.len() + end(aw) != b.len() + end(bw) {
+        return false;
+    }
+    // One step of a path: a number, or a wildcard (`Some(hardened)`).
+    let step = |p: &[ChildNumber], w: Wildcard, i: usize| match p.get(i) {
+        Some(n) => (Some(*n), false),
+        None => (None, w == Wildcard::Hardened),
+    };
+    (0..a.len() + end(aw)).all(|i| match (step(a, aw, i), step(b, bw, i)) {
+        ((Some(x), _), (Some(y), _)) => x == y,
+        ((Some(n), _), (None, hardened)) | ((None, hardened), (Some(n), _)) => {
+            n.is_hardened() == hardened
+        }
+        ((None, x), (None, y)) => x == y,
+    })
+}
+
+/// Whether two nodes are one key and some path is reached from both.
+fn nodes_meet(a: &Node, b: &Node) -> bool {
+    let same = if a.x_only || b.x_only {
+        a.key.x_only_public_key().0 == b.key.x_only_public_key().0
+    } else {
+        a.key == b.key
+    };
+    same && match (&a.chain_code, &b.chain_code) {
+        (Some(x), Some(y)) => x == y,
+        _ => true,
+    } && a.rest.iter().any(|p| {
+        b.rest
+            .iter()
+            .any(|q| paths_meet(p, a.wildcard, q, b.wildcard))
+    })
+}
+
+/// Costs one public derivation for each unhardened step each of its
+/// alternatives starts with: the nodes of an expression, its key derived
+/// along each such prefix of each alternative.
+fn nodes_of(
+    c: &Compute,
+    secp: &Secp256k1<bitcoin::secp256k1::VerifyOnly>,
+    e: &Placed,
+) -> Vec<Node> {
+    match &e.key {
+        PlainOrXpub::Plain(key, x_only) => alloc::vec![Node {
+            key: *key,
+            x_only: *x_only,
+            chain_code: None,
+            rest: e.paths.clone(),
+            wildcard: e.wildcard,
+        }],
+        PlainOrXpub::Xpub(x) => {
+            let mut nodes = Vec::new();
+            for path in &e.paths {
+                let fixed = path.iter().take_while(|n| !n.is_hardened()).count();
+                let mut at = *x;
+                for k in 0..=fixed {
+                    nodes.push(Node {
+                        key: at.public_key,
+                        x_only: false,
+                        chain_code: Some(at.chain_code),
+                        rest: alloc::vec![path[k..].to_vec()],
+                        wildcard: e.wildcard,
+                    });
+                    if k < fixed {
+                        c.count(Work::Address);
+                        match at.ckd_pub(secp, path[k]) {
+                            Ok(next) => at = next,
+                            Err(_) => break,
+                        }
+                    }
+                }
+            }
+            nodes
+        }
+    }
+}
+
+/// Costs a parse of the text and, for each key expression, one public
+/// derivation for every unhardened step each alternative of its path
+/// starts with: the
+/// keys of a descriptor, a two-part policy or a plain descriptor that are
+/// the same key as an earlier one, as `(first, later)` numbers (from 0,
+/// in the order the keys are read, plain and extended alike)
+/// of its distinct key expressions, whether or not the wallet loads. Two
+/// expressions are reported when some key is reached by both: they are
+/// compared step by step, a wildcard standing for any index of its kind
+/// and a multipath step for any of its alternatives, so `xpub/0/*` and
+/// `xpub/0/5` repeat, and an expression is also derived down its fixed
+/// steps, so a parent's `xpubP/0/*` and the child `xpubC/*` with C = P/0,
+/// or `xpubP/0/5` and the plain key at P/0/5, repeat too (each
+/// alternative of a multipath step is followed on its own). A plain key
+/// is not matched against an expression that ends in a wildcard: that
+/// would need a search over every index. The same
+/// public key and chain code count whatever origin and depth they are
+/// written with. BIP-388 reads one key placed at disjoint derivations
+/// (`@0/<0;1>/*` and `@0/<2;3>/*`) as one key with two uses, which is
+/// allowed, so that is not reported. One key expression used twice at
+/// one derivation is reported as `(n, n)`. A two-part policy numbers its
+/// list of keys, each entry its own number; a key written in its
+/// template has no number and a repeat involving it is not reported, and
+/// the text is read again here, under the count of the parse before it. A two-part policy's
+/// placeholders may carry any `/<M;N>/*` here. Empty when the text is
+/// not a descriptor.
 pub fn repeated_keys_in(c: &Compute, text: &str) -> Vec<(usize, usize)> {
     c.count(Work::DescriptorParse);
-    let Some(script) = lenient_script(text) else {
+    repeated_keys_after_parse(c, text)
+}
+
+/// Costs the public derivations [`repeated_keys_in`] makes and the read
+/// of the text, which the caller counts as the parse it already counted
+/// for the same text.
+pub(crate) fn repeated_keys_after_parse(c: &Compute, text: &str) -> Vec<(usize, usize)> {
+    let Some((script, listed)) = lenient_script(text) else {
         return Vec::new();
     };
     let mut placed: Vec<Placed> = Vec::new();
+    let paths_of = |p: &DerivationPath| -> Vec<ChildNumber> { p.into_iter().copied().collect() };
     script.for_each_key(|key| {
         match key {
             DescriptorPublicKey::XPub(x) => placed.push(Placed {
-                identity: (x.origin.clone(), x.xkey),
-                paths: alloc::vec![x.derivation_path.clone()],
+                id: id_of(key),
+                tag: tag_of(key),
+                key: PlainOrXpub::Xpub(x.xkey),
+                paths: alloc::vec![paths_of(&x.derivation_path)],
                 wildcard: x.wildcard,
             }),
             DescriptorPublicKey::MultiXPub(x) => placed.push(Placed {
-                identity: (x.origin.clone(), x.xkey),
-                paths: x.derivation_paths.paths().clone(),
+                id: id_of(key),
+                tag: tag_of(key),
+                key: PlainOrXpub::Xpub(x.xkey),
+                paths: x.derivation_paths.paths().iter().map(paths_of).collect(),
                 wildcard: x.wildcard,
             }),
-            DescriptorPublicKey::Single(_) => {}
+            DescriptorPublicKey::Single(s) => {
+                let (k, x_only) = match &s.key {
+                    miniscript::descriptor::SinglePubKey::FullKey(k) => (k.inner, false),
+                    miniscript::descriptor::SinglePubKey::XOnly(k) => (
+                        bitcoin::secp256k1::PublicKey::from_x_only_public_key(
+                            *k,
+                            bitcoin::secp256k1::Parity::Even,
+                        ),
+                        true,
+                    ),
+                };
+                placed.push(Placed {
+                    id: id_of(key),
+                    tag: tag_of(key),
+                    key: PlainOrXpub::Plain(k, x_only),
+                    paths: alloc::vec![Vec::new()],
+                    wildcard: Wildcard::None,
+                });
+            }
         }
         true
     });
-    // Numbered in the order a person reads them, as the wallet's keys are.
-    let mut order: Vec<(Option<(bitcoin::bip32::Fingerprint, DerivationPath)>, Xpub)> = Vec::new();
-    for key in descriptor_keys(&script) {
-        let identity = match key {
-            DescriptorPublicKey::XPub(x) => (x.origin, x.xkey),
-            DescriptorPublicKey::MultiXPub(x) => (x.origin, x.xkey),
-            DescriptorPublicKey::Single(_) => continue,
-        };
-        if !order.contains(&identity) {
-            order.push(identity);
+    // A one-part descriptor numbers its distinct key expressions in the
+    // order the script visits them, plain and extended alike; a two-part
+    // policy numbers its list of keys, a key written in the template
+    // having no number.
+    // A `tr()` writes its internal key first, which the script visits last.
+    let internal = match &script {
+        Descriptor::Tr(tr) => Some(id_of(&tr.internal_key().clone())),
+        _ => None,
+    };
+    let mut order: Vec<&Id> = internal.iter().collect();
+    for e in &placed {
+        if !order.contains(&&e.id) {
+            order.push(&e.id);
         }
     }
-    let ids: Vec<usize> = placed
+    let ids: Vec<Option<usize>> = placed
         .iter()
-        .map(|e| order.iter().position(|o| *o == e.identity).unwrap_or(0))
+        .map(|e| {
+            if let Some(len) = listed {
+                e.tag.filter(|n| *n < len)
+            } else {
+                order.iter().position(|o| **o == e.id)
+            }
+        })
         .collect();
+    let secp = Secp256k1::verification_only();
+    let nodes: Vec<Vec<Node>> = placed.iter().map(|e| nodes_of(c, &secp, e)).collect();
     let mut out: Vec<(usize, usize)> = Vec::new();
     for j in 0..placed.len() {
         for i in 0..j {
-            let (a, b) = (&placed[i], &placed[j]);
-            if !same_material(&a.identity.1, &b.identity.1)
-                || a.wildcard != b.wildcard
-                || !a.paths.iter().any(|p| b.paths.contains(p))
-            {
+            let meet = nodes[i]
+                .iter()
+                .any(|a| nodes[j].iter().any(|b| nodes_meet(a, b)));
+            let (Some(x), Some(y)) = (ids[i], ids[j]) else {
+                continue;
+            };
+            if !meet {
                 continue;
             }
-            let (first, later) = (ids[i].min(ids[j]), ids[i].max(ids[j]));
+            let (first, later) = (x.min(y), x.max(y));
             if !out.iter().any(|&(_, l)| l == later) {
                 out.push((first, later));
             }
@@ -1455,19 +1652,44 @@ pub fn repeated_keys_in(c: &Compute, text: &str) -> Vec<(usize, usize)> {
 
 /// The descriptor of any readable text, with `miniscript` reading the
 /// keys alone: none of the rules [`check`] states is applied.
-fn lenient_script(text: &str) -> Option<Descriptor<DescriptorPublicKey>> {
+fn lenient_script(text: &str) -> Option<(Descriptor<DescriptorPublicKey>, Option<usize>)> {
+    let mut listed = None;
     let body = if text.contains('@') {
         let mut lines = text
             .lines()
             .map(str::trim)
             .filter(|l| !l.is_empty() && !l.starts_with('#'));
-        let template = lines.next()?;
+        // An origin written on a key in the template is dropped: such a
+        // key has no number, so its origin does not matter, and none may
+        // look like the marker a listed key is given.
+        let mut template = String::new();
+        let mut inside = false;
+        for ch in lines.next()?.chars() {
+            match ch {
+                '[' => inside = true,
+                ']' if inside => inside = false,
+                _ if !inside => template.push(ch),
+                _ => {}
+            }
+        }
         let keys: Vec<&str> = lines
             .flat_map(|l| l.split(','))
             .map(|k| k.trim().trim_matches('"').trim())
             .filter(|k| !k.is_empty())
             .collect();
-        fill(template, &keys).ok()?
+        // Each key of the list gets an origin that holds its place in the
+        // list, so that the script says which key each use came from.
+        let tagged: Vec<String> = keys
+            .iter()
+            .enumerate()
+            .map(|(n, k)| {
+                let bare = k.rsplit_once(']').map_or(*k, |(_, rest)| rest);
+                alloc::format!("[{:08x}]{bare}", TAG_BASE | n as u32)
+            })
+            .collect();
+        let tagged: Vec<&str> = tagged.iter().map(String::as_str).collect();
+        listed = Some(tagged.len());
+        fill(&template, &tagged, true).ok()?
     } else {
         let text = text.trim();
         String::from(text.split_once('#').map_or(text, |(body, _)| body))
@@ -1476,7 +1698,23 @@ fn lenient_script(text: &str) -> Option<Descriptor<DescriptorPublicKey>> {
         return None;
     }
     let body = crate::tapmulti::unsorted_text(&body).unwrap_or(body);
-    Descriptor::<DescriptorPublicKey>::from_str(&body).ok()
+    let script = Descriptor::<DescriptorPublicKey>::from_str(&body).ok()?;
+    Some((script, listed))
+}
+
+/// The fingerprint a two-part policy's keys are given by their place in
+/// its list, added to that place.
+const TAG_BASE: u32 = 0xfa00_0000;
+
+/// The place in a two-part policy's list of keys a key was written in.
+fn tag_of(key: &DescriptorPublicKey) -> Option<usize> {
+    let fp = match key {
+        DescriptorPublicKey::XPub(x) => x.origin.as_ref()?.0,
+        DescriptorPublicKey::MultiXPub(x) => x.origin.as_ref()?.0,
+        DescriptorPublicKey::Single(s) => s.origin.as_ref()?.0,
+    };
+    let n = u32::from_be_bytes(*fp.as_bytes());
+    (n & 0xff00_0000 == TAG_BASE).then_some((n & 0x00ff_ffff) as usize)
 }
 
 /// The rules BIP-388 states about the whole policy: at least one key,

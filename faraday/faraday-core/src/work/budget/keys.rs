@@ -31,6 +31,12 @@ const KEY_BUDGETS: &[(&str, Work, u64, &str)] = &[
         "the checksum calculator reads what is typed as a descriptor each time it changes, then keeps the reading by the text (Faraday::tools_reading)",
     ),
     (
+        "Tools, a descriptor's checksum",
+        Work::Address,
+        6,
+        "the same reading looks for repeated keys, deriving each key along the fixed unhardened steps of its path (faraday_bip::policy::repeated_keys_in); six for the descriptor typed here, kept by the text with the reading",
+    ),
+    (
         "Tools, Miniscript",
         Work::DescriptorParse,
         1,
