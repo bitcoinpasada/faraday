@@ -1088,3 +1088,88 @@ fn a_bip_87_multisig_exports_carry_its_origin_and_read_back() {
     .to_text();
     assert_eq!(bsms.matches("/87h/0h/0h]").count(), 3, "{bsms}");
 }
+
+/// A 2-of-3 multisig over the test seeds at `path`, bacon and zebra
+/// held here and summer a cosigner's; the wallet's index and summer's
+/// slot.
+fn shared_at(app: &mut Faraday, path: &str) -> (usize, usize) {
+    let c = faraday_core::testkit::compute();
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    add_key(app, "bacon");
+    add_key(app, "zebra");
+    let keys: Vec<String> = (0..3).map(|n| testkit::key(n, path)).collect();
+    let i = app
+        .session
+        .add_wallet(
+            &c,
+            "Shared",
+            &NewKind::Multi.descriptor(2, &keys),
+            "Test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    let summer = fp_of("summer");
+    let pos = app.session.wallets[i]
+        .policy()
+        .keys()
+        .iter()
+        .position(|k| k.fingerprint().map(|f| f.0) == Some(summer))
+        .unwrap();
+    (i, pos)
+}
+
+#[test]
+fn a_wallet_made_from_a_bip_87_wallet_opens_with_bip_87_and_gets_the_cosigners_keys_back() {
+    use faraday_core::create::Source;
+    let mut app = testkit::started();
+    let (i, pos) = shared_at(&mut app, "m/87'/1'/0'");
+    let xpub = app.session.wallets[i].policy().keys()[pos].key_text();
+    app.press(Action::NewWalletFrom(i));
+    assert!(app.create().unwrap().bip87, "BIP-87 is chosen");
+    app.press(Action::CAccount(-1));
+    assert_eq!(app.create().unwrap().slots[pos], Source::Cosigner(xpub));
+    // Back to the kind's own path: that key is not at it.
+    app.press(Action::CMultiPath(false));
+    assert_eq!(app.create().unwrap().slots[pos], Source::Later);
+}
+
+#[test]
+fn from_a_bip_48_wallet_choosing_bip_87_leaves_the_cosigners_slots_to_the_cosigners() {
+    use faraday_core::create::Source;
+    let mut app = testkit::started();
+    let (i, pos) = shared_at(&mut app, "m/48'/1'/0'/2'");
+    let xpub = app.session.wallets[i].policy().keys()[pos].key_text();
+    app.press(Action::NewWalletFrom(i));
+    app.press(Action::CAccount(-1));
+    assert_eq!(
+        app.create().unwrap().slots[pos],
+        Source::Cosigner(xpub.clone())
+    );
+    app.press(Action::CMultiPath(true));
+    assert_eq!(app.create().unwrap().slots[pos], Source::Later);
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    let line = format!("Needs Key {}'s xpub at BIP-87, account 0", pos + 1);
+    let texts = app.drawn_texts();
+    assert!(texts.contains(&line), "{line}: {texts:?}");
+    app.press(Action::CMultiPath(false));
+    assert_eq!(app.create().unwrap().slots[pos], Source::Cosigner(xpub));
+}
+
+#[test]
+fn a_cosigner_key_at_m_87_is_taken_only_when_bip_87_is_chosen_and_the_kinds_path_only_when_not() {
+    use faraday_core::create::key_for_slot;
+    let _ = testkit::started();
+    let at_87 = testkit::key(0, "m/87'/1'/0'");
+    let at_48 = testkit::key(0, "m/48'/1'/0'/2'");
+    assert!(key_for_slot(NewKind::Multi, false, &at_87).is_err());
+    assert_eq!(
+        key_for_slot(NewKind::Multi, true, &at_87),
+        Ok(at_87.clone())
+    );
+    assert_eq!(
+        key_for_slot(NewKind::Multi, false, &at_48),
+        Ok(at_48.clone())
+    );
+    assert!(key_for_slot(NewKind::Multi, true, &at_48).is_err());
+}

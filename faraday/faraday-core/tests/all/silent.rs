@@ -131,6 +131,26 @@ fn a_name_and_a_domain_show_the_addresss_dns_record_and_a_bad_domain_shows_none(
 }
 
 #[test]
+fn the_dns_record_of_a_labelled_address_names_its_label() {
+    use faraday_core::edit::Here;
+    let mut app = with_key();
+    app.press(Action::Silent);
+    type_into(&mut app, Here::SilentName, "matt");
+    type_into(&mut app, Here::SilentDomain, "example.com");
+    let c = faraday_core::testkit::compute();
+    let plain = app.code_view(&c, faraday_core::Code::SilentDns).unwrap();
+    assert!(!plain.png_name.contains("label"), "{}", plain.png_name);
+    app.press(Action::SLabel(1));
+    let view = app.code_view(&c, faraday_core::Code::SilentDns).unwrap();
+    assert!(view.png_name.contains("label-1"), "{}", view.png_name);
+    assert!(
+        view.label.iter().any(|l| l == "Label 1"),
+        "{:?}",
+        view.label
+    );
+}
+
+#[test]
 fn the_scan_key_leaves_only_through_the_secret_sheet() {
     let mut app = with_key();
     app.press(Action::Silent);

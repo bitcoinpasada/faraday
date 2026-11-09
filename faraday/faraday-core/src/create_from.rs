@@ -209,6 +209,7 @@ impl Faraday {
         };
         let name = w.name.clone();
         let account = create::account_of(w.policy());
+        let bip87 = kind.has_bip87() && create::bip87_of(w.policy());
         let (m, _) = Session::quorum(w);
         let keys: Vec<(Option<[u8; 4]>, String)> = w
             .policy()
@@ -256,6 +257,7 @@ impl Faraday {
             name,
             kind,
             account,
+            bip87,
             xpubs,
         };
         self.create.set(CreateState {
@@ -266,6 +268,7 @@ impl Faraday {
             n,
             slots,
             account: next,
+            bip87,
             from: Some(from),
             more_kinds: !matches!(kind, NewKind::NativeSegwit | NewKind::Multi),
             ..CreateState::default()
@@ -290,8 +293,9 @@ impl Faraday {
         let Some(f) = c.from.as_ref() else {
             return;
         };
+        let (kind, account, bip87) = (c.kind, c.account, c.at_bip87());
         for (i, s) in c.slots.iter_mut().enumerate() {
-            let Some(want) = f.xpub_slot(i, c.kind, c.account) else {
+            let Some(want) = f.xpub_slot(i, kind, account, bip87) else {
                 continue;
             };
             let auto = match &*s {
@@ -323,8 +327,10 @@ impl Faraday {
 
     /// The path choice beside the Account row: BIP-87's path (`bip87`) or
     /// the kind's own. A kind that is not a multisig of a descriptor has no
-    /// choice. The keys already in slots stay: a file's key at the other
-    /// path no longer fits, and its slot is filled again.
+    /// choice. Of the keys already in slots, a cosigner's or a file's at
+    /// the other path no longer fits and its slot is emptied (a slot of a
+    /// wallet this was started from gets its xpub back where it fits); the
+    /// keys held here stay.
     pub(crate) fn create_multi_path(&mut self, bip87: bool) {
         if let Some(c) = self.create.state_mut()
             && c.built.is_none()
@@ -332,6 +338,12 @@ impl Faraday {
             && c.bip87 != bip87
         {
             c.bip87 = bip87;
+            let (kind, at) = (c.kind, c.at_bip87());
+            for s in &mut c.slots {
+                if matches!(s, Source::Cosigner(t) if !create::at_kind(kind, t, at)) {
+                    *s = Source::Empty;
+                }
+            }
         }
         self.create_from_refresh();
     }
@@ -346,8 +358,13 @@ impl Faraday {
             return None;
         }
         f.xpubs.get(slot)?.as_ref()?;
+        let line = if c.at_bip87() {
+            EN.create_needs_xpub_bip87_account
+        } else {
+            EN.create_needs_xpub_account
+        };
         Some(fill(
-            EN.create_needs_xpub_account,
+            line,
             &[&(slot + 1).to_string(), &c.account.to_string()],
         ))
     }

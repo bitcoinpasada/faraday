@@ -525,15 +525,17 @@ impl SilentArea {
             crate::Code::SilentDns => {
                 let a = self.address(c, session).ok_or(EN.silent_no_address)?;
                 let (_, text) = s.dns(&a).record.ok_or(EN.silent_no_dns_record)?;
+                let mut name = format!("silent-{fp}");
+                if s.label > 0 {
+                    lines.push(fill(EN.silent_label, &[&s.label.to_string()]));
+                    name.push_str(&format!("-label-{}", s.label));
+                }
+                name.push_str("-dns");
                 lines.push(EN.silent_public_receives.to_string());
                 if check == Some(RecordCheck::Unchecked) {
                     lines.push(fill(EN.silent_not_checked, &[&fp.to_string()]));
                 }
-                (
-                    EN.silent_silent_payments_dns_record,
-                    text,
-                    format!("silent-{fp}-dns"),
-                )
+                (EN.silent_silent_payments_dns_record, text, name)
             }
             _ => {
                 let text = self.record(c, session).ok_or(EN.silent_no_record)?;

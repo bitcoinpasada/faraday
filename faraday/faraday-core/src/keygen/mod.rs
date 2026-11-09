@@ -1100,6 +1100,27 @@ impl KeyGen {
 }
 
 impl crate::Faraday {
+    /// Costs what `account_text` costs. The account key of the key just
+    /// made, for the Key row: as the Create slot it was made for takes it
+    /// (at BIP-87's path when that is chosen), else native SegWit's
+    /// account 0 (`docs/history/NEW-WALLET.md` §16.2).
+    fn made_key_text(
+        &self,
+        c: &Compute,
+        fp: faraday_bip::keys::Fingerprint,
+        for_slot: bool,
+    ) -> Option<String> {
+        let key = self.session.keys.position(fp)?;
+        match self.create.state().filter(|_| for_slot) {
+            Some(cs) => self.create_slot_key_text(c, key, cs).ok(),
+            None => self
+                .session
+                .keys
+                .account_text(c, key, crate::create::NewKind::NativeSegwit, 0)
+                .ok(),
+        }
+    }
+
     /// How open the codex32 dice sheet shows now, 0 to 1. A lookup.
     pub(crate) fn keygen_dice_shown(&self) -> f32 {
         self.keygen.dice_shown(self.now_ms, self.reduce_motion())
@@ -1657,19 +1678,7 @@ impl crate::Faraday {
         self.mark_made_here(fp);
         self.keygen.new_keys += 1;
         // A Create slot's key at the account Create uses (NEW-WALLET §16.2).
-        let (kind, account) = match slot {
-            Some(_) => self
-                .create
-                .state()
-                .map(|c| (c.kind, c.account))
-                .unwrap_or_default(),
-            None => (crate::create::NewKind::NativeSegwit, 0),
-        };
-        let key_text = self
-            .session
-            .keys
-            .position(fp)
-            .and_then(|key| self.session.keys.account_text(&c, key, kind, account).ok());
+        let key_text = self.made_key_text(&c, fp, slot.is_some());
         if let Some(k) = self.keygen.state.as_mut() {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
@@ -1782,19 +1791,7 @@ impl crate::Faraday {
             }
         };
         // A Create slot's key at the account Create uses (NEW-WALLET §16.2).
-        let (kind, account) = match slot {
-            Some(_) => self
-                .create
-                .state()
-                .map(|c| (c.kind, c.account))
-                .unwrap_or_default(),
-            None => (crate::create::NewKind::NativeSegwit, 0),
-        };
-        let key_text = self
-            .session
-            .keys
-            .position(fp)
-            .and_then(|key| self.session.keys.account_text(&c, key, kind, account).ok());
+        let key_text = self.made_key_text(&c, fp, slot.is_some());
         // What was typed goes; the Key card keeps the words to show.
         self.entry.reset();
         if let Some(k) = self.keygen.state.as_mut() {
@@ -2329,19 +2326,7 @@ impl crate::Faraday {
             self.session.key_marks.note(fp.0, mark);
         }
         self.keygen.new_keys += 1;
-        let (kind, account) = match slot {
-            Some(_) => self
-                .create
-                .state()
-                .map(|c| (c.kind, c.account))
-                .unwrap_or_default(),
-            None => (crate::create::NewKind::NativeSegwit, 0),
-        };
-        let key_text = self
-            .session
-            .keys
-            .position(fp)
-            .and_then(|key| self.session.keys.account_text(&c, key, kind, account).ok());
+        let key_text = self.made_key_text(&c, fp, slot.is_some());
         if let Some(k) = self.keygen.state.as_mut() {
             k.locked = true;
             k.fingerprint = Some(fp.0);

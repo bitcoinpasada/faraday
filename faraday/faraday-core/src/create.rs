@@ -470,6 +470,9 @@ pub struct FromWallet {
     pub kind: NewKind,
     /// The account its keys are at.
     pub account: u32,
+    /// Whether its keys are at BIP-87's path (purpose 87), not the
+    /// kind's own.
+    pub bip87: bool,
     /// A cosigner's `[fingerprint/path]xpub` for each slot held only as
     /// an xpub; `None` for a key held here or in a vault.
     pub xpubs: Vec<Option<String>>,
@@ -478,16 +481,24 @@ pub struct FromWallet {
 impl FromWallet {
     /// What slot `slot` holds while the creation is a `kind` wallet at
     /// `account`, when the wallet's key there is a cosigner's xpub: that
-    /// xpub at the wallet's own account and kind, which it gives and no
-    /// other; left for the cosigner otherwise. `None` for a slot whose
-    /// key is held.
-    pub(crate) fn xpub_slot(&self, slot: usize, kind: NewKind, account: u32) -> Option<Source> {
+    /// xpub at the wallet's own account, kind and path choice (`bip87`,
+    /// BIP-87's or the kind's own), which it gives and no other; left for
+    /// the cosigner otherwise. `None` for a slot whose key is held.
+    pub(crate) fn xpub_slot(
+        &self,
+        slot: usize,
+        kind: NewKind,
+        account: u32,
+        bip87: bool,
+    ) -> Option<Source> {
         let text = self.xpubs.get(slot)?.as_ref()?;
-        Some(if kind == self.kind && account == self.account {
-            Source::Cosigner(text.clone())
-        } else {
-            Source::Later
-        })
+        Some(
+            if kind == self.kind && account == self.account && bip87 == self.bip87 {
+                Source::Cosigner(text.clone())
+            } else {
+                Source::Later
+            },
+        )
     }
 
     /// The name proposed for the new wallet: the wallet's, or the kind's
@@ -554,7 +565,7 @@ pub fn read_keys(text: &str) -> Vec<String> {
 /// The key in a file for a slot of a `kind` wallet ([`key_for_slot`]),
 /// when there is one.
 pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
-    key_for_slot(kind, text).ok()
+    key_for_slot(kind, false, text).ok()
 }
 
 /// One key or wallet file of the Inbox as Make a new wallet's Keys card
@@ -575,7 +586,7 @@ impl Faraday {
     /// ([`crate::drawing::View::create_key_files`]); none for a kind whose
     /// keys are not files.
     pub(crate) fn create_key_files_now(&self, _c: &Compute) -> std::rc::Rc<Vec<KeyFile>> {
-        let Some(kind) = self.create.state().map(|c| c.kind) else {
+        let Some((kind, bip87)) = self.create.state().map(|c| (c.kind, c.at_bip87())) else {
             return std::rc::Rc::default();
         };
         if kind.shares() {
@@ -591,7 +602,7 @@ impl Faraday {
                 .map(|(at, it)| KeyFile {
                     at,
                     name: it.name.clone(),
-                    key: key_for_slot(kind, &String::from_utf8_lossy(&it.bytes)),
+                    key: key_for_slot(kind, bip87, &String::from_utf8_lossy(&it.bytes)),
                 })
                 .collect(),
         )
@@ -600,19 +611,22 @@ impl Faraday {
 
 /// Costs a read of the file's keys (a base58 decode each). The key in a
 /// file for a slot of a `kind` wallet, or why there is none: of the keys the file offers, the first with its origin at the
-/// kind's derivation (any account), its path's coin type that of its
+/// kind's derivation (any account; with `bip87`, BIP-87's instead), its path's coin type that of its
 /// xpub's network, and in a file of one key a SLIP-132 version, where it
 /// has one, naming the kind's script type. A key with no origin, or at another path, is never taken
 /// for the slot: its path would be a guess. None for Single key, backup
 /// in shares, whose key is made here as codex32 shares, and for the kinds
 /// whose keys are dealt here.
-pub(crate) fn key_for_slot(kind: NewKind, text: &str) -> Result<String, String> {
+pub(crate) fn key_for_slot(kind: NewKind, bip87: bool, text: &str) -> Result<String, String> {
     let none = || fill(EN.create_scan_no_key, &[kind.name()]);
     if kind.shares() || path_shape(&kind.path(Network::Mainnet)).is_none() {
         return Err(none());
     }
     let keys = read_keys(text);
-    if let Some(k) = keys.iter().find(|k| at_kind(kind, k) && coin_agrees(k)) {
+    if let Some(k) = keys
+        .iter()
+        .find(|k| at_kind(kind, k, bip87) && coin_agrees(k))
+    {
         if keys.len() == 1 && !named_agrees(kind, text) {
             let path = origin_path(k).unwrap_or_default();
             return Err(fill(EN.create_scan_not_for, &[path, kind.name()]));
@@ -622,7 +636,9 @@ pub(crate) fn key_for_slot(kind: NewKind, text: &str) -> Result<String, String> 
     match keys.as_slice() {
         [k] => Err(match origin_path(k) {
             None => EN.create_scan_no_origin.to_string(),
-            Some(path) if !at_kind(kind, k) => fill(EN.create_scan_not_for, &[path, kind.name()]),
+            Some(path) if !at_kind(kind, k, bip87) => {
+                fill(EN.create_scan_not_for, &[path, kind.name()])
+            }
             Some(_) => EN.create_scan_coin.to_string(),
         }),
         _ => Err(none()),
@@ -671,6 +687,17 @@ fn path_shape(path: &str) -> Option<String> {
     }
 }
 
+/// Whether a wallet's own keys are at BIP-87's path (purpose 87).
+pub fn bip87_of(policy: &WalletPolicy) -> bool {
+    use faraday_bip::bitcoin::bip32::ChildNumber;
+    policy
+        .keys()
+        .first()
+        .and_then(|k| k.path())
+        .and_then(|p| p.into_iter().next().copied())
+        == Some(ChildNumber::Hardened { index: 87 })
+}
+
 /// The path of an account key `[fingerprint/path]xpub`, as its origin
 /// writes it; `None` for a key with no origin.
 fn origin_path(key: &str) -> Option<&str> {
@@ -678,13 +705,20 @@ fn origin_path(key: &str) -> Option<&str> {
 }
 
 /// Whether an account key `[fingerprint/path]xpub` is at a `kind`
-/// wallet's derivation, any account and any network, or for a multisig
-/// kind that [`NewKind::has_bip87`] at BIP-87's, whose path leaves the
-/// script to the descriptor. A key with no origin is at none.
-fn at_kind(kind: NewKind, key: &str) -> bool {
+/// wallet's derivation, any account and any network, or, when the
+/// creation takes BIP-87's path (`bip87`, [`CreateState::at_bip87`]),
+/// at BIP-87's and no other: its path leaves the script to the
+/// descriptor, and every key of the wallet is at it. A key with no origin
+/// is at none.
+pub(crate) fn at_kind(kind: NewKind, key: &str, bip87: bool) -> bool {
     let want = path_shape(&kind.path(Network::Mainnet));
     let shape = origin_path(key).and_then(path_shape);
-    want.is_some() && (shape == want || (kind.has_bip87() && shape.as_deref() == Some("87")))
+    want.is_some()
+        && if bip87 && kind.has_bip87() {
+            shape.as_deref() == Some("87")
+        } else {
+            shape == want
+        }
 }
 
 /// The script type a `kind` wallet's keys are written under; `None` for
@@ -709,6 +743,7 @@ fn kind_script(kind: NewKind) -> Option<ScriptType> {
 /// its file came in.
 pub(crate) fn key_of_wallet(
     kind: NewKind,
+    bip87: bool,
     policy: &WalletPolicy,
     current: Network,
 ) -> Result<(String, Network), String> {
@@ -722,7 +757,7 @@ pub(crate) fn key_of_wallet(
     let (Some(_), Some(path)) = (key.fingerprint(), origin_path(&text)) else {
         return Err(EN.create_scan_no_origin.into());
     };
-    if kind_script(kind) != Some(policy.script_type()) || !at_kind(kind, &text) {
+    if kind_script(kind) != Some(policy.script_type()) || !at_kind(kind, &text, bip87) {
         return Err(fill(EN.create_scan_not_for, &[path, kind.name()]));
     }
     let net = wallet::network_of_key(key, current);
@@ -1541,7 +1576,7 @@ impl Faraday {
     /// Costs what `account_text` costs. Session key `key` as the creation
     /// `cs` takes it: at the kind's path, or at BIP-87's when that is
     /// chosen ([`CreateState::at_bip87`]).
-    fn create_slot_key_text(
+    pub(crate) fn create_slot_key_text(
         &self,
         c: &Compute,
         key: usize,
@@ -1665,13 +1700,13 @@ impl Faraday {
     /// then made on the key's network; why not, when the file has no key
     /// for the slot or its network is refused.
     fn create_slot_file_key(&mut self, k: u8, text: &str) -> Result<(), String> {
-        let kind = self
+        let (kind, bip87) = self
             .create
             .state
             .as_ref()
-            .map(|s| s.kind)
+            .map(|s| (s.kind, s.at_bip87()))
             .unwrap_or_default();
-        let key = key_for_slot(kind, text)?;
+        let key = key_for_slot(kind, bip87, text)?;
         // A cosigner's key sets the network the wallet is made on.
         let net = PolicyKey::parse(&key)
             .ok()
@@ -1695,11 +1730,11 @@ impl Faraday {
         let Some(item) = self.inbox.get(at) else {
             return false;
         };
-        let kind = self
+        let (kind, bip87) = self
             .create
             .state
             .as_ref()
-            .map(|s| s.kind)
+            .map(|s| (s.kind, s.at_bip87()))
             .unwrap_or_default();
         let current = self.session.network();
         let taken = match (item.kind, item.wallet()) {
@@ -1711,10 +1746,10 @@ impl Faraday {
             // file) as Keys offers it, else a descriptor of one key.
             (wallet::FileKind::Wallet, Some(policy)) => {
                 let text = String::from_utf8_lossy(&item.bytes).into_owned();
-                if key_for_slot(kind, &text).is_ok() {
+                if key_for_slot(kind, bip87, &text).is_ok() {
                     self.create_slot_file_key(slot, &text)
                 } else {
-                    key_of_wallet(kind, policy, current).and_then(|(key, net)| {
+                    key_of_wallet(kind, bip87, policy, current).and_then(|(key, net)| {
                         self.create_slot_cosigner(slot, Some(key), Some(net))
                     })
                 }

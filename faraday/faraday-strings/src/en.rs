@@ -6628,6 +6628,9 @@ strings! {
     /// Text in `create_body`: a slot left for a cosigner's xpub at
     /// another account. `{}`: the slot's number, the account.
     create_needs_xpub_account: "Needs Key {}'s xpub at account {}",
+    /// Text in `create_body`: the same, when the keys are at BIP-87's
+    /// path. `{}`: the slot's number, the account.
+    create_needs_xpub_bip87_account: "Needs Key {}'s xpub at BIP-87, account {}",
     /// Label in `account_row`: the Account row and its stepper, at the
     /// foot of Quorum or the head of Keys (F98).
     create_account: "Account",
