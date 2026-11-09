@@ -1041,6 +1041,37 @@ fn nothing_is_cut_off_on_save_without_encryption() {
     assert_none(&found);
 }
 
+/// The plain save's hold reads whole on the stick's panel, onto as many
+/// lines as it needs, and the sheet's other lines and buttons stay clear of
+/// it.
+#[test]
+fn on_the_small_panel_the_plain_save_hold_reads_whole_clear_of_the_sheets_other_buttons() {
+    let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
+    add_key(&mut rig, testkit::TEST_SEEDS[0].0);
+    rig.press(Action::Bip85);
+    for a in [Action::PApp(4), Action::PNext, Action::PNext, Action::POut] {
+        rig.press(a);
+    }
+    let page = rig.drawn_past_sides_and_text().1;
+    rig.press(Action::SecretUnprotected);
+    rig.settle();
+    assert!(testkit::plain_asked(&rig).is_some(), "the hold is asked");
+    let texts = rig.drawn_texts();
+    assert!(
+        texts.iter().all(|t| !t.contains('\u{2026}')),
+        "a label is cut: {texts:?}"
+    );
+    let label = faraday_core::strings::EN.plain_hold;
+    let drawn = texts.join(" ");
+    for word in label.split(' ') {
+        assert!(
+            drawn.contains(word),
+            "{word:?} of the hold is not drawn: {texts:?}"
+        );
+    }
+    sheet_clear(&mut rig, "the plain save sheet", &page);
+}
+
 /// The round after a lock stopped on a codex32 string this power-on does
 /// not hold (`docs/CODEX32.md` §9.5): its Make card names the string and
 /// offers typing it, and Add a key opens on the codex32 form for it, on

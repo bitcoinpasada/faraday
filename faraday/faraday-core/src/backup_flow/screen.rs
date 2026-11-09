@@ -799,6 +799,7 @@ fn hold_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, other:
         fa(F::Hold),
         faraday_ui::hold::HoldTone::Primary,
     );
+    let hh = ui.hold_button_height(w, label);
     let ow = ui.measure_as(LABEL_L, other) + 32.0;
     if bw + 10.0 + ow <= w {
         ui.button(
@@ -810,18 +811,18 @@ fn hold_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, other:
             Style::Ghost,
             fa(F::UseAnother),
         );
-        48.0
+        48.0_f32.max(hh)
     } else {
         ui.button(
             x,
-            y + 44.0,
+            y + hh + 4.0,
             None,
             BUTTON_H,
             other,
             Style::Ghost,
             fa(F::UseAnother),
         );
-        92.0
+        hh + 52.0
     }
 }
 

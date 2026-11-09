@@ -258,7 +258,10 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 Action::RegisterHold,
                 faraday_ui::hold::HoldTone::Primary,
             );
-            cy += T::CHIP_LINE + T::GAP_SMALL;
+            cy += ui
+                .hold_button_height(iw, EN.register_hold)
+                .max(T::CHIP_LINE)
+                + T::GAP_SMALL;
             cy - y
         },
         &[(EN.register_cancel, Style::Secondary, Action::RegisterCancel)],

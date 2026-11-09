@@ -1253,7 +1253,9 @@ fn hold(
 ) -> f32 {
     let held = starter.held_part(action);
     ui.hold_button((x, y, w), (label, HoldTone::Error), held, action.host());
-    ui.button_height(BUTTON_H) + GAP
+    ui.hold_button_height(w, label)
+        .max(ui.button_height(BUTTON_H))
+        + GAP
 }
 
 fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {

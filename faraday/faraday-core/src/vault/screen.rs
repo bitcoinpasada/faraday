@@ -3234,7 +3234,9 @@ fn detail(
         bx += bw + 8.0;
     }
     dy += 48.0;
+    let top = dy;
     let dw_hold = hold_delete(app, ui, dx, dy);
+    let mut below = 48.0_f32.max(ui.hold_button_height(f32::MAX, EN.vault_hold_to_delete));
     if r.kind() == kind::GPG {
         let label = EN.vault_hold_to_mark_revoked;
         // Beside Delete where it fits, else under it.
@@ -3244,8 +3246,11 @@ fn detail(
         }
         let hold = va(V::GpgHoldRevoke);
         hold_button_in(app, ui, hx, dy, room - hx, label, hold, HoldTone::Warning);
+        below = below
+            .max(dy + 48.0 - top)
+            .max(dy - top + ui.hold_button_height(room - hx, label));
     }
-    dy + 48.0
+    top + below
 }
 
 /// The Backup row of a key made in the backup flow (`docs/BACKUP-FLOW.md`

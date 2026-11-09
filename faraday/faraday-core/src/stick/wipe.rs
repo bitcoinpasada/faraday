@@ -528,7 +528,8 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy += 46.0;
         }
         // The danger, in its own band.
-        let bh = 40.0;
+        let danger = ui.wrapped_as(LABEL_L, EN.stick_wipe_danger_zone, iw - 48.0);
+        let bh = 40.0_f32.max(danger.h + 16.0);
         ui.fill(x, cy, iw, bh, 8.0, Role::ErrorContainer);
         ui.icon(
             x + 10.0,
@@ -538,8 +539,11 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             13.0,
             Role::OnErrorContainer,
         );
-        let band = ui.fit_as(LABEL_L, EN.stick_wipe_danger_zone, iw - 48.0);
-        ui.text_mid_as((x + 38.0, cy, bh), LABEL_L, Role::OnErrorContainer, &band);
+        ui.draw_wrapped(
+            (x + 38.0, cy + (bh - danger.h) / 2.0),
+            Role::OnErrorContainer,
+            &danger,
+        );
         cy += bh + 14.0;
         // What: three choices.
         let choices = [
@@ -560,8 +564,10 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             let action = Action::DeleteWhat(k as u8);
             use crate::ui::pal::{on_selected, selected_or};
             let fill_ = selected_or(on, Role::SurfaceContainerHighest);
-            ui.fill(x, cy, iw, 52.0, 8.0, fill_);
-            ui.stroke(x, cy, iw, 52.0, 8.0, selected_or(on, Role::OutlineVariant));
+            let sub = ui.wrapped_as(BODY_S, line, iw - 56.0);
+            let rh = 52.0_f32.max(29.0 + sub.h + 8.0);
+            ui.fill(x, cy, iw, rh, 8.0, fill_);
+            ui.stroke(x, cy, iw, rh, 8.0, selected_or(on, Role::OutlineVariant));
             // The radio button, on what it is drawn on.
             let mark = on_selected(on, Role::OutlineVariant);
             ui.stroke(
@@ -577,11 +583,10 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
             let ink = on_selected(on, Role::OnSurface);
             ui.text_as(x + 44.0, cy + 8.0, LABEL_L, ink, label);
-            let line = ui.fit_as(BODY_S, line, iw - 56.0);
             let muted = on_selected(on, Role::OnSurfaceVariant);
-            ui.text_as(x + 44.0, cy + 29.0, BODY_S, muted, &line);
-            ui.press_box(x, cy, iw, 52.0, action);
-            cy += 58.0;
+            ui.draw_wrapped((x + 44.0, cy + 29.0), muted, &sub);
+            ui.press_box(x, cy, iw, rh, action);
+            cy += rh + 6.0;
         }
         cy += 6.0;
         match d.what {
@@ -596,11 +601,12 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     ui.checkbox(x + 2.0, cy + 10.0, on, true);
                     let sz = crate::screens::size_text(*size);
                     let sw = ui.measure_as(BODY_S, &sz);
-                    let n = ui.fit_as(BODY_M.mono(), name, iw - 44.0 - sw);
-                    ui.text_mid_as((x + 32.0, cy, 38.0), BODY_M.mono(), Role::OnSurface, &n);
-                    ui.text_right_as((x + iw, cy, 38.0), BODY_S, Role::OnSurfaceVariant, &sz);
-                    ui.press_box(x - 4.0, cy, iw + 8.0, 38.0, Action::DeletePick(k));
-                    cy += 40.0;
+                    let n = ui.wrapped_as(BODY_M.mono(), name, iw - 44.0 - sw);
+                    let rh = 38.0_f32.max(n.h + 8.0);
+                    ui.draw_wrapped((x + 32.0, cy + (rh - n.h) / 2.0), Role::OnSurface, &n);
+                    ui.text_right_as((x + iw, cy, rh), BODY_S, Role::OnSurfaceVariant, &sz);
+                    ui.press_box(x - 4.0, cy, iw + 8.0, rh, Action::DeletePick(k));
+                    cy += rh + 2.0;
                 }
                 cy += 8.0;
             }
@@ -655,7 +661,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 Action::Vault(crate::vault::VaultAction::HoldWipe),
                 faraday_ui::hold::HoldTone::Error,
             );
-            cy += 36.0 + 8.0;
+            cy += ui.hold_button_height(iw, &held_go).max(36.0) + 8.0;
             cy += buttons(
                 ui,
                 x,

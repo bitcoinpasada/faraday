@@ -600,7 +600,10 @@ pub(crate) fn name_taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     Action::NameTakenOverwrite,
                     faraday_ui::hold::HoldTone::Warning,
                 );
-                cy += ui.button_height(faraday_draw::tokens::BUTTON_H) + faraday_draw::tokens::GAP;
+                cy += ui
+                    .hold_button_height(iw, &overwrite)
+                    .max(ui.button_height(faraday_draw::tokens::BUTTON_H))
+                    + faraday_draw::tokens::GAP;
             }
             cy - y
         },

@@ -85,6 +85,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ui.rule(x, cy, iw, Role::OutlineVariant);
             cy += 14.0;
             // The hold signs; Cancel is the dialog's action.
+            let hold_h = ui.hold_button_height(iw, &label).max(36.0);
             if ready {
                 hold_button_in(
                     app,
@@ -107,7 +108,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     va(V::GpgHoldSign),
                 );
             }
-            cy += 36.0;
+            cy += hold_h;
             cy - y
         },
         &cancel,

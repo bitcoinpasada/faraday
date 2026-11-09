@@ -397,7 +397,7 @@ fn review_body(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), r: &Review) 
             Action::Sweep(SweepAction::Hold),
             faraday_ui::hold::HoldTone::Primary,
         );
-        cy += T::CHIP_LINE + T::GAP_SMALL;
+        cy += ui.hold_button_height(w, EN.sweep_hold).max(T::CHIP_LINE) + T::GAP_SMALL;
     }
     cy - y
 }

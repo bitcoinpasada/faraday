@@ -329,7 +329,10 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     Action::DevicesHold,
                     faraday_ui::hold::HoldTone::Warning,
                 );
-                cy += T::CHIP_LINE + T::GAP;
+                cy += ui
+                    .hold_button_height(iw, s.devices_continue_hold)
+                    .max(T::CHIP_LINE)
+                    + T::GAP;
             }
             cy - y
         },
@@ -510,8 +513,10 @@ fn kept_sheet(
                 cy += 4.0;
             }
             let mut hx = x;
+            let mut hold_h = T::CHIP_LINE;
             for &(label, _, action) in actions.iter().filter(|a| crate::vault::is_hold(a.2)) {
                 let room = x + iw - hx;
+                hold_h = hold_h.max(ui.hold_button_height(room, label));
                 hx += crate::vault::screen::hold_button_in(
                     app,
                     ui,
@@ -524,7 +529,7 @@ fn kept_sheet(
                 ) + T::GAP;
             }
             if hx > x {
-                cy += T::CHIP_LINE + T::GAP + T::GAP_SMALL;
+                cy += hold_h + T::GAP + T::GAP_SMALL;
             }
             // The Lock sheet, where the lock will seal a changed vault: the
             // seal's nonce is drawn (`docs/OWN-RANDOMNESS.md` §8.1 row 15).
@@ -2346,7 +2351,7 @@ fn plain_sheet(app: &View, ui: &mut Ui, (w, h): (f32, f32), plain: &crate::secre
                 Action::SecretHold,
                 faraday_ui::hold::HoldTone::Error,
             );
-            cy += T::CHIP_LINE + T::GAP;
+            cy += ui.hold_button_height(iw, EN.plain_hold).max(T::CHIP_LINE) + T::GAP;
             cy - y
         },
         &[other],
@@ -2389,7 +2394,10 @@ pub(super) fn key_path_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 Action::KeyPathHold,
                 faraday_ui::hold::HoldTone::Error,
             );
-            cy += T::CHIP_LINE + T::GAP_SMALL;
+            cy += ui
+                .hold_button_height(iw, EN.wallet_key_path_hold)
+                .max(T::CHIP_LINE)
+                + T::GAP_SMALL;
             cy - y
         },
         &[(

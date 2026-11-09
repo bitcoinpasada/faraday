@@ -1984,7 +1984,7 @@ fn review_stop_block(
         Action::ReviewHold,
         faraday_ui::hold::HoldTone::Error,
     );
-    cy += CHIP_LINE + GAP;
+    cy += ui.hold_button_height(w, EN.step_fee_hold).max(CHIP_LINE) + GAP;
     cy - y
 }
 
