@@ -24,12 +24,6 @@ pub(crate) const PHRASE: &str = "first vault phrase";
 pub(crate) const PHRASE_2: &str = "second vault phrase";
 pub(crate) const PHRASE_3: &str = "third vault phrase";
 
-/// A row of the flow's Software card.
-#[allow(dead_code)]
-fn answer(shell: &mut Shell, app: &mut Faraday, list: u8, row: usize) {
-    shell.flow(app, F::Answer(list, row as u8));
-}
-
 /// A press on the flow's own plan cards, Back up's cards in the flow.
 fn flow_plan(shell: &mut Shell, app: &mut Faraday, press: PlanPress) {
     shell.flow(app, F::Plan(press));

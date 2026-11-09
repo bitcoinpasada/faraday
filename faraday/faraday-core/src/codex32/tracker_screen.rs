@@ -16,7 +16,6 @@ use faraday_draw::widgets::Icon;
 use super::screen::{MASK, a};
 use super::walk_screen::step_text;
 use super::{C32, Codex32Make, Way};
-use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::Ui;
 use crate::ui::pal::*;
@@ -70,17 +69,6 @@ pub(crate) fn working_area_h(w: f32, k: f32) -> f32 {
     } else {
         t::TOUCH + text
     }
-}
-
-/// The Working area at (`x`, `y`), `w` wide, for the codex32 entry open
-/// in New key: the input panel's one call for it. Returns the height
-/// used: [`working_area_h`], none where the entry is not open.
-#[allow(dead_code)]
-pub(crate) fn working_area(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let Some(m) = app.keygen.state().and_then(|k| k.codex32.as_ref()) else {
-        return 0.0;
-    };
-    draw(m, ui, (x, y, w))
 }
 
 /// Where the step shown stands, and what it reads: its working, with

@@ -205,16 +205,6 @@ impl Files {
         Ok(path)
     }
 
-    /// The settings kept on the exchange partition, if it is mounted and
-    /// the file is there. The reason for an empty answer is for
-    /// `--verbose`; it never carries contents.
-    #[allow(dead_code)] // Faraday keeps no settings file yet.
-    pub fn read_settings(&self) -> Result<Vec<u8>, String> {
-        self.mounted()?;
-        let path = self.dir.join(SETTINGS);
-        fs::read(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))
-    }
-
     /// Keeps `bytes` as the settings, replacing what was there. The
     /// temporary file is written and flushed first and then renamed over
     /// the settings, so a card pulled mid-write keeps the old ones.
