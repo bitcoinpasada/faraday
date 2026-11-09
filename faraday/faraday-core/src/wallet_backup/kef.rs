@@ -302,7 +302,8 @@ fn with_open<R>(app: &mut Faraday, f: impl FnOnce(&mut KefForm, &mut Faraday) ->
     with_form(app, i, f)
 }
 
-/// A form for seed `i`: its bytes, its wallet's fingerprint.
+/// Costs a map of the plan. A form for seed `i`: its bytes, its wallet's
+/// fingerprint.
 fn new_form(app: &Faraday, c: &Compute, i: usize) -> Option<KefForm> {
     let w = app.backup.state()?.wallet;
     let key = app.backup_seed_list_now(w).get(i)?.1?;
