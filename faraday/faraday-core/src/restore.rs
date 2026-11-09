@@ -287,7 +287,7 @@ pub(crate) fn repeats_a_seed(policy: &faraday_bip::policy::WalletPolicy) -> bool
 
 /// Costs [`rebuilds`]. `wallet`'s whole Coldcard config, where it has one
 /// and it rebuilds the wallet.
-pub(crate) fn checked_config(c: &Compute, network: Network, wallet: &Wallet) -> Option<String> {
+pub fn checked_config(c: &Compute, network: Network, wallet: &Wallet) -> Option<String> {
     let text = crate::wallet_backup::multisig_config(wallet, None)?;
     rebuilds(c, network, wallet, core::slice::from_ref(&text)).then_some(text)
 }

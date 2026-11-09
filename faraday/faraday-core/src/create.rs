@@ -626,7 +626,7 @@ impl Faraday {
 /// for the slot: its path would be a guess. None for Single key, backup
 /// in shares, whose key is made here as codex32 shares, and for the kinds
 /// whose keys are dealt here.
-pub(crate) fn key_for_slot(kind: NewKind, bip87: bool, text: &str) -> Result<String, String> {
+pub fn key_for_slot(kind: NewKind, bip87: bool, text: &str) -> Result<String, String> {
     let none = || fill(EN.create_scan_no_key, &[kind.name()]);
     if kind.shares() || path_shape(&kind.path(Network::Mainnet)).is_none() {
         return Err(none());
