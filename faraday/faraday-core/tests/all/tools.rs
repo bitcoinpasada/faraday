@@ -162,3 +162,33 @@ fn a_calculator_opened_from_tools_names_tools_as_its_way_back() {
     assert!(!bar.iter().any(|t| t == "Wallets"), "{bar:?}");
     assert!(app.back_link() == Some(Action::Nav(Screen::Catalog)));
 }
+
+const KEY_A: &str = "tpubDFZk17LmJpm9L6gT3oK6r3TWNni6fVLrkZLCsH2psqckyuuZ5239eePW97oLgikCUJ5zQX4MVVKDp9Yj9DC9wtYyGXkPwLuGeGN78U3ykR2";
+const KEY_B: &str = "tpubDFcsPThm5auRE692Mr7j53V9NY9Lt3XKuUP6fgJjCbDmECdXthX6jv7Yfy5qZAAxFKndTSS22t6RrxaDTvKTV9beG354SxmaXrvEQVJeBsB";
+
+#[test]
+fn the_descriptor_tool_says_which_key_is_used_twice() {
+    let mut app = wide();
+    app.press(Action::Tools);
+    tool(&mut app, Tool::Descriptor);
+    typed(
+        &mut app,
+        &format!(
+            "wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/3h]{KEY_A}/<0;1>/*,[5d388376/48h/1h/0h/3h]{KEY_B}/<0;1>/*,[00000000/84h/1h/0h]{KEY_A}/<0;1>/*))"
+        ),
+    );
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Keys"), "{texts:?}");
+    assert!(
+        texts.iter().any(|t| t == "Key 3 is the same as key 1"),
+        "{texts:?}"
+    );
+    app.press(Action::TClear);
+    typed(
+        &mut app,
+        &format!(
+            "wsh(sortedmulti(1,[9a6a2580/48h/1h/0h/3h]{KEY_A}/<0;1>/*,[5d388376/48h/1h/0h/3h]{KEY_B}/<0;1>/*))"
+        ),
+    );
+    assert!(!app.drawn_texts().iter().any(|t| t == "Keys"));
+}

@@ -202,6 +202,13 @@ impl PolicyKey {
         parse_key(text)
     }
 
+    /// Whether `other` is the same key: the same public key and chain
+    /// code, whatever origin, depth, parent or network the two extended
+    /// keys are written with.
+    pub fn same_key(&self, other: &PolicyKey) -> bool {
+        same_material(&self.xpub, &other.xpub)
+    }
+
     /// The key as a descriptor key expression, without the multipath
     /// suffix: `[fingerprint/path]xpub`, or the bare xpub when there is
     /// no origin, which BIP-380 allows.
@@ -438,6 +445,15 @@ impl WalletPolicy {
     /// The keys, in placeholder order.
     pub fn keys(&self) -> &[PolicyKey] {
         &self.keys
+    }
+
+    /// The keys that repeat an earlier one, as `(first, later)` indices
+    /// into [`keys`](Self::keys): one pair per later key, naming the
+    /// first key it is the same as ([`PolicyKey::same_key`]). Empty when
+    /// no key repeats. A policy's keys all derive `<0;1>/*`, so two
+    /// placeholders holding one key always share their addresses.
+    pub fn repeated_keys(&self) -> Vec<(usize, usize)> {
+        repeats_among(&self.keys)
     }
 
     /// The internal key of a `tr()` wallet whose internal key is a plain
@@ -1320,6 +1336,147 @@ fn fill(template: &str, keys: &[&str]) -> Result<String, Error> {
     }
     out.push_str(rest);
     Ok(out)
+}
+
+/// Whether two extended keys hold the same key material.
+fn same_material(a: &Xpub, b: &Xpub) -> bool {
+    a.public_key == b.public_key && a.chain_code == b.chain_code
+}
+
+/// `(first, later)` for every key that is the same as an earlier one,
+/// by [`same_material`].
+fn repeats_among(keys: &[PolicyKey]) -> Vec<(usize, usize)> {
+    keys.iter()
+        .enumerate()
+        .filter_map(|(later, key)| {
+            keys[..later]
+                .iter()
+                .position(|k| k.same_key(key))
+                .map(|first| (first, later))
+        })
+        .collect()
+}
+
+/// `(first, later)` for the keys of `texts`, each `[fingerprint/path]xpub`
+/// or a bare xpub, that are the same key as an earlier text's
+/// ([`PolicyKey::same_key`]). A text that is not a key counts as none.
+pub fn repeated_key_texts<S: AsRef<str>>(texts: &[S]) -> Vec<(usize, usize)> {
+    let keys: Vec<Option<PolicyKey>> = texts
+        .iter()
+        .map(|t| parse_key(t.as_ref().trim()).ok())
+        .collect();
+    (0..keys.len())
+        .filter_map(|later| {
+            let key = keys[later].as_ref()?;
+            (0..later)
+                .find(|&i| keys[i].as_ref().is_some_and(|k| k.same_key(key)))
+                .map(|first| (first, later))
+        })
+        .collect()
+}
+
+/// One extended-key expression of a descriptor as written: its identity
+/// (origin and extended key), where it derives and how it ends.
+struct Placed {
+    identity: (Option<(bitcoin::bip32::Fingerprint, DerivationPath)>, Xpub),
+    paths: Vec<DerivationPath>,
+    wildcard: Wildcard,
+}
+
+/// Costs a parse of the text: the keys of a descriptor, a two-part
+/// policy or a plain descriptor that are the same key as an earlier one,
+/// as `(first, later)` numbers (from 0, in order of first appearance) of
+/// its distinct key expressions, whether or not the wallet loads. Two
+/// expressions are one key when their extended keys hold the same public
+/// key and chain code, whatever origin and depth they are written with,
+/// and they are reported when their derivations overlap: the same
+/// derivation, or a path both reach. BIP-388 reads one key placed at
+/// disjoint derivations (`@0/<0;1>/*` and `@0/<2;3>/*`) as one key with
+/// two uses, which is allowed, so that is not reported. One key
+/// expression used twice at one derivation is reported as `(n, n)`.
+/// Empty when the text is not a descriptor.
+pub fn repeated_keys_in(c: &Compute, text: &str) -> Vec<(usize, usize)> {
+    c.count(Work::DescriptorParse);
+    let Some(script) = lenient_script(text) else {
+        return Vec::new();
+    };
+    let mut placed: Vec<Placed> = Vec::new();
+    script.for_each_key(|key| {
+        match key {
+            DescriptorPublicKey::XPub(x) => placed.push(Placed {
+                identity: (x.origin.clone(), x.xkey),
+                paths: alloc::vec![x.derivation_path.clone()],
+                wildcard: x.wildcard,
+            }),
+            DescriptorPublicKey::MultiXPub(x) => placed.push(Placed {
+                identity: (x.origin.clone(), x.xkey),
+                paths: x.derivation_paths.paths().clone(),
+                wildcard: x.wildcard,
+            }),
+            DescriptorPublicKey::Single(_) => {}
+        }
+        true
+    });
+    // Numbered in the order a person reads them, as the wallet's keys are.
+    let mut order: Vec<(Option<(bitcoin::bip32::Fingerprint, DerivationPath)>, Xpub)> = Vec::new();
+    for key in descriptor_keys(&script) {
+        let identity = match key {
+            DescriptorPublicKey::XPub(x) => (x.origin, x.xkey),
+            DescriptorPublicKey::MultiXPub(x) => (x.origin, x.xkey),
+            DescriptorPublicKey::Single(_) => continue,
+        };
+        if !order.contains(&identity) {
+            order.push(identity);
+        }
+    }
+    let ids: Vec<usize> = placed
+        .iter()
+        .map(|e| order.iter().position(|o| *o == e.identity).unwrap_or(0))
+        .collect();
+    let mut out: Vec<(usize, usize)> = Vec::new();
+    for j in 0..placed.len() {
+        for i in 0..j {
+            let (a, b) = (&placed[i], &placed[j]);
+            if !same_material(&a.identity.1, &b.identity.1)
+                || a.wildcard != b.wildcard
+                || !a.paths.iter().any(|p| b.paths.contains(p))
+            {
+                continue;
+            }
+            let (first, later) = (ids[i].min(ids[j]), ids[i].max(ids[j]));
+            if !out.iter().any(|&(_, l)| l == later) {
+                out.push((first, later));
+            }
+        }
+    }
+    out.sort_by_key(|&(_, later)| later);
+    out
+}
+
+/// The descriptor of any readable text, with `miniscript` reading the
+/// keys alone: none of the rules [`check`] states is applied.
+fn lenient_script(text: &str) -> Option<Descriptor<DescriptorPublicKey>> {
+    let body = if text.contains('@') {
+        let mut lines = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'));
+        let template = lines.next()?;
+        let keys: Vec<&str> = lines
+            .flat_map(|l| l.split(','))
+            .map(|k| k.trim().trim_matches('"').trim())
+            .filter(|k| !k.is_empty())
+            .collect();
+        fill(template, &keys).ok()?
+    } else {
+        let text = text.trim();
+        String::from(text.split_once('#').map_or(text, |(body, _)| body))
+    };
+    if !crate::descriptor::tokens_fit(&body) {
+        return None;
+    }
+    let body = crate::tapmulti::unsorted_text(&body).unwrap_or(body);
+    Descriptor::<DescriptorPublicKey>::from_str(&body).ok()
 }
 
 /// The rules BIP-388 states about the whole policy: at least one key,

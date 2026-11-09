@@ -58,6 +58,9 @@ pub struct ChecksumFacts {
     /// The wallet the descriptor is, where it is one
     /// [`WalletPolicy::parse_any`] reads.
     pub wallet: Option<WalletPolicy>,
+    /// The keys the descriptor uses twice, `(first, later)` as
+    /// [`crate::policy::repeated_keys_in`] gives them, loadable or not.
+    pub repeated: Vec<(usize, usize)>,
 }
 
 /// Costs a checksum and a parse of the descriptor: the checksum of
@@ -81,6 +84,7 @@ pub fn checksum_facts(c: &Compute, text: &str) -> Option<ChecksumFacts> {
             (g, holds)
         }),
         wallet: WalletPolicy::parse_any(c, body).ok(),
+        repeated: crate::policy::repeated_keys_in(c, body),
         checksum: sum,
         with_checksum,
     })

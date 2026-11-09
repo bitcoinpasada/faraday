@@ -8403,6 +8403,14 @@ strings! {
     tools_spend_paths: "Spend paths",
     /// Text in `body`.
     tools_wallet: "Wallet",
+    /// Label in `body`: the keys a descriptor uses twice.
+    tools_keys: "Keys",
+    /// Text in `repeated_key_line`, and the line Restore shows for a
+    /// wallet that repeats a key. `{}`: the later key's number, the
+    /// earlier key's number.
+    tools_key_same_as: "Key {} is the same as key {}",
+    /// Text in `repeated_key_line`. `{}`: the key's number.
+    tools_key_used_twice: "Key {} is used twice",
     /// Text in `body`.
     tools_one_this_device: "one this device loads",
     /// Text in `body`.

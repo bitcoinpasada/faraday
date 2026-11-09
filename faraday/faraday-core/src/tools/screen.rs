@@ -183,6 +183,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     };
     let mut rows: Vec<(String, String)> = Vec::new();
     let mut note: Option<String> = None;
+    let mut warn_row: Option<usize> = None;
     match &*reading {
         Reading::Hashes(None) => note = Some(EN.tools_not_hex.into()),
         Reading::Hashes(Some(h)) => {
@@ -240,6 +241,15 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
                         EN.tools_not_loadable.into()
                     },
                 ));
+                if !f.repeated.is_empty() {
+                    warn_row = Some(rows.len());
+                    let lines: Vec<String> = f
+                        .repeated
+                        .iter()
+                        .map(|&(first, later)| repeated_key_line(first, later))
+                        .collect();
+                    rows.push((EN.tools_keys.into(), lines.join("\n")));
+                }
             }
             None => note = Some(EN.tools_not_a_descriptor.into()),
         },
@@ -300,18 +310,31 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
     } else {
         (140.0, 0.0)
     };
-    for (label, value) in rows {
+    for (n, (label, value)) in rows.into_iter().enumerate() {
+        let role = if warn_row == Some(n) {
+            Role::Warning
+        } else {
+            Role::OnSurface
+        };
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &label);
         y += below;
         y += ui
-            .wrap_as(
-                (x + vx, y, width - vx),
-                BODY_M.mono(),
-                Role::OnSurface,
-                &value,
-            )
+            .wrap_as((x + vx, y, width - vx), BODY_M.mono(), role, &value)
             .max(20.0)
             + 10.0;
     }
     y
+}
+
+/// The line that says key `later` is the same key as key `first`
+/// (counted from 0), or that one key is used twice.
+pub(crate) fn repeated_key_line(first: usize, later: usize) -> String {
+    if first == later {
+        fill(EN.tools_key_used_twice, &[&(later + 1).to_string()])
+    } else {
+        fill(
+            EN.tools_key_same_as,
+            &[&(later + 1).to_string(), &(first + 1).to_string()],
+        )
+    }
 }

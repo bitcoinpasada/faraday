@@ -1554,7 +1554,7 @@ impl Faraday {
         let mut seen = out.clone();
         seen.sort();
         seen.dedup();
-        if seen.len() != out.len() {
+        if seen.len() != out.len() || !faraday_bip::policy::repeated_key_texts(&out).is_empty() {
             return Err(EN.create_keys_the_same.into());
         }
         Ok(out)

@@ -25,6 +25,7 @@ mod musig;
 mod policy_key_path;
 mod readings;
 mod recovery;
+mod repeated_keys;
 mod silent;
 mod slip132;
 mod slip39;

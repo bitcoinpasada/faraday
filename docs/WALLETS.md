@@ -98,7 +98,7 @@ SeedSigner and a Coldcard. The Wallets tab's central object is therefore a
 | **A wallet description arriving** (scan, file, Files; any form in §3.2) | The Wallets tab derives each vault key's account key at the descriptor's paths and compares, attaches every match, and marks the rest watch-only. "This wallet uses 73c5da0a from Main" says which matched. **Save the wallet to a vault** is offered. |
 | **Pieces of a description** (split sheets, key lines, a partial config, SeedSigner exports one at a time) | The card exists from the first piece, with the quorum unknown or stated, and lists fingerprints in hand and still missing. It completes when the last piece arrives. Overlapping pieces deduplicate; pieces that give one fingerprint two xpubs or two derivations, or that carry two names, are refused, and a vault's piece is taken only where the wallet it names holds every key of the pieces in hand and of its own. |
 | **Seed words alone** (one list or several, perhaps a line like "2 of 3", no description) | Restore (`docs/history/NEW-WALLET.md` §12): **Kind** (one key: native SegWit ticked; several: Multisig · native SegWit; More kinds for the rest), **Quorum** for a multisig (M of N on two sliders, 2 of 3 to start; tap, drag or the arrow keys), **Description** › **I do not have it** (**I have the seed** for a single key), then **Keys**: a slot per key. The first empty slot takes its seed through **Type the words** (Add a key, which returns here, with its BIP-39 passphrase), **Scan a SeedQR**, a seed from an open vault or a key already loaded, each of the last three asking on a sheet whether it has a passphrase (typed twice; `docs/FLOWS.md` decision 52); on a multisig a slot can take **Its xpub** instead (Scan, a key file in Files, or typed: `xpub`, `zpub`, `Zpub`, `tpub`, with or without origin). **Make the wallet** builds the descriptor Create a wallet writes (`create.rs`) over the seeds' keys at the kind's standard path, loads it with the seeds in their slots, and opens Check: the descriptor and the first addresses. Done offers **Back up this wallet**, **Spend from this wallet** and **Wallets**. The Spend tab's words route keeps the older piece (`seeds.rs`), with the kind and path chosen after the seeds. |
-| **A description first, then its seeds** | Restore's Kind offers **I have the wallet description: Scan it** and **From Files**. A description read there, or on Description, fills Kind, Quorum and the cosigners' keys and opens Seeds, a slot per key of the description. Each seed entered (with the slot's passphrase, if any) is matched to its keys: a match reads "Key 2 of the wallet"; any other seed, or the right words with the wrong passphrase, reads "Not a key of this wallet: check the words or the passphrase" and is not loaded. A key whose seed is elsewhere is marked **Not here**. |
+| **A description first, then its seeds** | Restore's Kind offers **I have the wallet description: Scan it** and **From Files**. A description read there, or on Description, fills Kind, Quorum and the cosigners' keys and opens Seeds, a slot per key of the description. Each seed entered (with the slot's passphrase, if any) is matched to its keys: a match reads "Key 2 of the wallet"; any other seed, or the right words with the wrong passphrase, reads "Not a key of this wallet: check the words or the passphrase" and is not loaded. A key whose seed is elsewhere is marked **Not here**. A description whose keys include one used twice (the same public key and chain code under another origin or depth) still loads; Kind carries a warning line for each, "Key 2 is the same as key 1". |
 | **A transaction arriving first** | The Wallets tab reads its key origins and finds the wallet it belongs to among loaded wallets, then among vault keys. "This transaction spends from Savings; you can sign with 73c5da0a." With no wallet known, it can still sign from the PSBT's own key origins, but change cannot be verified, and the review says so and offers **Load the wallet**. |
 
 **Adding a key to a slot.** A wallet short of keys has one **Scan a key**
@@ -691,6 +691,19 @@ first"). The groups and their tiles:
 | Calculators | Hashes · Encodings · Descriptor checksum · Convert an xpub · Units · Miniscript compiler |
 | Word lists | BIP-39 words · EFF large list · EFF short list 1 · EFF short list 2 |
 | QR | Scan a QR code |
+
+The Descriptor checksum tool reads what is typed and shows its checksum,
+the checksum given with it and whether it holds, the text with its
+checksum, and whether this device loads it as a wallet. When the
+descriptor uses one key twice it adds a **Keys** row in the warning tone,
+one line per repeat: "Key 2 is the same as key 1", or "Key 1 is used
+twice" for one key written twice at one derivation. Two keys are the same
+when their extended keys hold the same public key and chain code,
+whatever origin or depth they are written with. One key at disjoint
+derivations (BIP-388's `@0/<0;1>/*` and `@0/<2;3>/*`) is one key used
+twice on purpose, and is not reported. A descriptor that repeats no key
+adds no row. Create a wallet refuses two slots holding the same key by
+the same rule.
 
 ## 8. Tests
 
