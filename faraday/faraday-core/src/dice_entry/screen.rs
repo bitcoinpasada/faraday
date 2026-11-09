@@ -234,8 +234,10 @@ fn dice_card(
     // The words as the rolls make them, each a pill that opens it in its
     // list, as New key shows its words.
     if words.is_empty() {
+        // Room for the first row of words below, so the first word moves
+        // nothing under it (Use these words stays clear of the foot).
         ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.vault_no_word_yet);
-        cy += ui.advance_as(BODY_S, 26.0);
+        cy += ui.advance_as(BODY_S, 22.0) + 38.0;
     } else {
         ui.text_as(
             x,

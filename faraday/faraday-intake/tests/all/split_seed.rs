@@ -112,7 +112,8 @@ fn a_file_is_a_vault_or_an_older_keepass_database_by_how_it_begins() {
         assert!(!is_kdbx(&vault), "{len}");
     }
     // A vault's head alone, or past the largest, is no vault but is KeePass's.
-    for len in [12, 300, 5_000_000] {
+    let past = faraday_codec::vault_file::MAX_FILE_LEN as usize + 1;
+    for len in [12, 300, past] {
         let mut file = head(4);
         file.resize(len, 0);
         assert!(!is_vault(&file), "{len}");
@@ -157,7 +158,7 @@ fn only_a_keepass_file_of_version_3_or_older_is_named_older() {
     // and none is an older one.
     for file in [
         sized(5, 70_000),
-        sized(4, 5_000_000),
+        sized(4, faraday_codec::vault_file::MAX_FILE_LEN as usize + 1),
         sized(4, 300),
         head(4),
         head(4)[..10].to_vec(),
@@ -189,5 +190,5 @@ fn every_keepass_file_of_the_vectors_is_told_as_it_is() {
             vaults += 1;
         }
     }
-    assert_eq!((vaults, older), (10, 1));
+    assert_eq!((vaults, older), (11, 1));
 }
