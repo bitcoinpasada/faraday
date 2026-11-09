@@ -1,8 +1,8 @@
 # Vault contents
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/screen/save.rs`, `faraday/faraday-core/src/vault/area.rs`, `faraday/faraday-core/src/vault/mod.rs`)
-**Screen:** `VaultContents`, `VaultSave`, `GpgSign`, `VaultPassphrase`, `VaultMemory`
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/screen/save.rs`, `faraday/faraday-core/src/vault/area.rs`, `faraday/faraday-core/src/vault/mod.rs`, `faraday/faraday-core/src/vault/copy.rs`, `faraday/faraday-core/src/vault/copy_screen.rs`, `faraday/faraday-core/src/vault/keep.rs`, `faraday/faraday-core/src/vault/trim.rs`)
+**Screen:** `VaultContents`, `VaultSave`, `GpgSign`, `VaultPassphrase`, `VaultMemory`, `CopyTo`, `SaveKeeps`, `Trim`
 **Group:** Vaults
 
 **Opened from:** **View contents** on an open vault (Vaults, Files'
@@ -98,8 +98,15 @@ The title is its fingerprint; its line "12 words", its label, and
 | **Load into session** | loads the key. Shown while it is not loaded |
 | **Load with a passphrase** | opens **Load with a BIP-39 passphrase** in the detail: **Passphrase**, **Load**, **Cancel**. Shown for a key with no passphrase stored |
 | **Load at unlock**, **Don't load at unlock** | turns the setting on or off. Not shown for a seed that loads with its wallet |
+| **Remove codex32 set** | opens [Remove codex32 set](#remove-codex32-set-and-remove-bip-85-origin). Shown for a seed that has a codex32 set, in a vault that is not read-only |
+| **Remove BIP-85 origin** | the same for the BIP-85 origin. Shown for a seed that has one |
+| **Copy to another vault…** | opens [Copy to another vault](#copy-to-another-vault-and-move-to-another-vault) |
+| **Move to another vault…** | opens [Move to another vault](#copy-to-another-vault-and-move-to-another-vault). Not shown in a read-only vault |
 | **Save to a stick** | opens [Save to a stick](#save-to-a-stick) |
 | **Hold to delete from vault** | held until it fills: deletes the item ("Deleted from the vault") |
+
+Every kind of item has **Copy to another vault…** and, in a vault that is
+not read-only, **Move to another vault…**, after its other buttons.
 
 ## A wallet
 
@@ -220,6 +227,87 @@ sums" or why it is refused, in the error tone, **Hold to sign** and
 ![Sign faraday-0.9.0-BOOTX64.EFI: its SHA-256, the release line, Hold to sign and Back](../pictures/secure-boot-keys-sign.png)
 
 *Signing the boot program of a test release, 0.9.0, checked against its signed sums; for a real release the steps are the same. **Hold to sign** is outlined.*
+
+## Remove codex32 set and Remove BIP-85 origin
+
+**Opened from:** **Remove codex32 set** or **Remove BIP-85 origin** on a
+seed's page.
+
+![Remove codex32 set: the line naming the vault, Cancel and Remove](../pictures/vault-trim.png)
+
+*The dialog for a seed in the vault Alpha: **Remove codex32 set**, the line, **Cancel** and **Remove**.*
+
+| Control | What it does |
+|---|---|
+| the title | **Remove codex32 set** or **Remove BIP-85 origin** |
+| the line | "The codex32 set is removed from this seed in Alpha at the next seal. Its words and its other data stay. Copies of Alpha sealed before still hold the set." The same for the origin |
+| **Remove** | removes that field from the seed in the vault at the next seal, and closes the dialog |
+| **Cancel** | closes the dialog and changes nothing |
+
+A change to the vault, or its lock, while the dialog is open closes it
+as **Cancel**.
+
+## Copy to another vault and Move to another vault
+
+**Opened from:** **Copy to another vault…** or **Move to another vault…**
+on the page of an item in an open vault.
+
+![Copy to another vault: both ticks on, the rows Beta, Newer (dimmed), Saved, Unlock Gamma and New vault with this item, Cancel](../pictures/vault-copy-to.png)
+
+*Copy to another vault for the seed Savings in Alpha: both ticks on; the rows Beta, Newer (dimmed: **This vault is open to read only**), Saved, **Unlock Gamma** and **New vault with this item**; **Cancel**.*
+
+| Control | What it does |
+|---|---|
+| **Keep its codex32 set** | ticked or not. Shown for a seed that has a codex32 set. Off: the copy has no set |
+| **Keep its BIP-85 origin** | the same for a seed that has an origin |
+| a vault's row | each other open vault by name: a press copies the item into it, and "Copied to Beta" shows. Dimmed, with its reason under the name, when it cannot take the item: **This vault is open to read only**, **Already holds this item**, **More than a vault can hold** (the item would take the vault past the 128 MiB a vault holds), "Needs 256 MiB. This computer has 180 MiB free." (the memory its next seal needs, and what this computer has), **This vault cannot be written as it is** |
+| **Unlock** and the vault's name | a row for each vault known and locked: a press goes to Unlock, and the item is copied once it is open. Dimmed with **Its file is not in Files** when its file is not in Files |
+| **New vault with this item** | opens Create a vault with the item waiting for it; a new vault starts small and grows by itself. Dimmed with **More than a vault can hold** when the item is more than a vault holds |
+| **Cancel** | closes the sheet |
+
+The ticks change the rows at once: a vault that takes the item without
+its set takes it with the tick off.
+
+**Move to another vault** is the same sheet with the same rows, and
+"Moved to Beta" after a move. Its rows are dimmed with "Lock Alpha first"
+for a vault that holds an item moved from this one. A press on a row
+opens the dialog **Move this item?**:
+
+![Move this item?: the item goes to Beta and will be gone from Alpha, its BIP-85 origin left out, Cancel and Move](../pictures/vault-move-dialog.png)
+
+*Moving the seed in Alpha to Beta with **Keep its BIP-85 origin** off: "The item goes to Beta and will be gone from Alpha. Copies of Alpha sealed before still hold it. Its BIP-85 origin does not go with it and is gone from Alpha too."*
+
+| Control | What it does |
+|---|---|
+| the line | "The item goes to Beta and will be gone from Alpha. Copies of Alpha sealed before still hold it.", then a line for each tick left off ("Its codex32 set does not go with it and is gone from Alpha too."; the same for the BIP-85 origin), and, for an entry with attachments or other data saved by a KeePass app, "Its attachments and other data saved by a KeePass app do not go with it and are gone from Alpha too." |
+| **Move** | copies the item to the vault and removes it from this one |
+| **Cancel** | closes the dialog and the sheet; nothing moves |
+
+**Copy** asks only for an entry with data of that kind: the dialog **Copy
+this entry?** with "Its attachments and other data saved by a KeePass app
+stay in Alpha." (the vault copied from), **Cancel** and **Copy**. A copy of anything else is
+made at the press on the row.
+
+## Save into a vault
+
+**Opened from:** **Save** on a seed in **Save a key** that has a codex32
+set or a BIP-85 origin; the backup and a new wallet's vaults ask the same
+before their own saves. A seed with neither is saved with no sheet.
+
+![Save into Alpha: Keep its codex32 set and Keep its BIP-85 origin ticked, Cancel and Save](../pictures/vault-save-keeps.png)
+
+*Save into Alpha for a key with a codex32 set and a BIP-85 origin: both ticked, **Cancel** and **Save**.*
+
+| Control | What it does |
+|---|---|
+| the title | "Save into Alpha", the vaults the seeds go into; **Save** when it names none |
+| a seed's name | above its ticks, when the sheet lists more than one seed |
+| **Keep its codex32 set** | ticked or not; ticked at first. Off: the saved seed has no set |
+| **Keep its BIP-85 origin** | the same for the origin |
+| **Save** | goes on with the save with the ticks as set |
+| **Cancel** | saves nothing |
+
+The seed in the session keeps its set and origin whatever is ticked.
 
 ## Save to a stick
 

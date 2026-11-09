@@ -186,7 +186,7 @@ fn ask(ui: &mut Ui, (w, h): (f32, f32), s: &super::copy::CopyTo, name: &str) {
         }
         line
     } else {
-        fill(EN.vault_copy_unread, &[name])
+        fill(EN.vault_copy_unread, &[&s.from_name])
     };
     let go = if s.mv {
         EN.vault_move_go

@@ -406,6 +406,9 @@ fn an_entry_saved_by_keepass_with_unread_data_asks_and_cancel_copies_nothing() {
     app.press(Action::Vault(V::CopyPick(0)));
     let texts = page(&mut app);
     assert!(texts.contains(EN.vault_copy_unread_head), "{texts}");
+    // The data stays in the vault copied from, and the line says so.
+    assert!(texts.contains("stay in Saved."), "{texts}");
+    assert!(!texts.contains("stay in Beta"), "{texts}");
     app.press(Action::Vault(V::CopyCancel));
     assert_eq!(app.sheet, None);
     assert!(held(&app, 1).is_empty());

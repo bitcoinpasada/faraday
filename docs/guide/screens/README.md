@@ -21,7 +21,7 @@ say what to do; these pages say what each control on a screen does.
 | Home | [Mode and Load samples](mode.md) | Mode, Load samples |
 | Vaults | [Vaults and Unlock](vaults.md) | Vaults, Unlock, Load from, Seeds with no passphrase stored |
 | Vaults | [Create a vault](create-vault.md) | Create a vault, Generate with dice |
-| Vaults | [Vault contents](vault.md) | Vault contents: keys, wallets, entries, notes, GPG keys, Secure Boot keys; Save to a stick, Sign with |
+| Vaults | [Vault contents](vault.md) | Vault contents: keys, wallets, entries, notes, GPG keys, Secure Boot keys; Remove a set or origin, Copy and Move to another vault, Save into a vault; Save to a stick, Sign with |
 | Vaults | [TOTP codes](codes.md) | TOTP codes |
 | Files | [Files](files.md) | Files, a file's ⋮ menu, Rename, Details, Make it a wallet, This is a secret, Save without encryption? |
 | Files | [Stick visit](stick-visit.md) | Stick visit, Already on the stick, Write to a stick, Delete files, Zeroing |
@@ -65,5 +65,5 @@ by two pages, and when one listed here has a page: a page written takes
 its variants off this list.
 
 - `Screen`: `KefTool`
-- `Sheet`: `CopyTo`, `KefOptions`, `KefRead`, `SaveKeeps`, `Trim`
+- `Sheet`: `KefOptions`, `KefRead`
 

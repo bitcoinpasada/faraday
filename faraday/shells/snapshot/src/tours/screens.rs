@@ -13,13 +13,16 @@ use faraday_core::{Action, Faraday, Medium, Screen, StickInfo, StorageEvent, cst
 use faraday_crypto::work::Compute;
 use faraday_shell_api::App;
 
-/// Costs what the screens it opens cost. A fresh stick session: Home and
+/// Costs what the screens it opens cost and what the vault sheets' tour
+/// costs. The sheets of copying a vault item, from a session of their own
+/// first (`vault_sheets::guide`); then a fresh stick session: Home and
 /// Wallets with nothing loaded, the Pull sheet, New key's Start, Add a
 /// key with the guide's words typed; then, with that key, each tool
 /// screen and Settings; the wallet made from it, its card, Backups and
 /// the Spend tab from Home; the Lock and power sheets; last, Faraday Demo's Mode
 /// and Load samples sheets.
 pub(crate) fn screens_tour(_c: &Compute, t: &mut Tour) -> Result<(), String> {
+    super::vault_sheets::guide(t)?;
     stick_session(t);
     t.press(Action::Nav(Screen::Home));
     t.shot("home-new-stick")?;

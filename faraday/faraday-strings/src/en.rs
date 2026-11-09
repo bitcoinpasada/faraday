@@ -9395,8 +9395,8 @@ strings! {
     vault_error_too_large: "The file is larger than Faraday opens",
     /// Under Unlock: the XML document holds what cannot be carried.
     vault_error_contents: "The contents cannot be read here",
-    /// Under Unlock and Lock: the contents do not fit the size.
-    vault_error_full: "The contents do not fit in this vault's size",
+    /// Under Unlock and Lock: the contents are more than the largest vault holds.
+    vault_error_full: "The contents are more than a vault can hold",
     /// A toast at Lock, Create a vault and the KeePass export: the file made did not read back, so it was not given.
     vault_error_read_back: "The vault file was not made, because it did not read back. Nothing was lost.",
     /// Under Lock: a change that cannot be written.
@@ -9515,7 +9515,7 @@ strings! {
     vault_copy_cancel: "Cancel",
     /// Title of the dialog before a copy of an entry with data Faraday does not read.
     vault_copy_unread_head: "Copy this entry?",
-    /// Line of that dialog. `{}`: the vault the copy goes to.
+    /// Line of that dialog. `{}`: the vault the entry is copied from, where that data stays.
     vault_copy_unread: "Its attachments and other data saved by a KeePass app stay in {}.",
     /// Button of that dialog.
     vault_copy_go: "Copy",
@@ -9712,7 +9712,7 @@ strings! {
     /// Text in `vault_save_wallet`. `{}`: `name`.
     vaults_is_in_the_vault: "{} is in the vault",
     /// Toast in `vault_push_in`.
-    vaults_slot_too_small: "That does not fit in this vault's size",
+    vaults_slot_too_small: "More than a vault can hold",
     /// Toast in `seal_stop` and `vault_form_save`: the store refuses to write the vault.
     vaults_cannot_write: "This vault cannot be written as it is",
     /// Text in `vault_create_check`. `{}`: `medium.noun()`.
