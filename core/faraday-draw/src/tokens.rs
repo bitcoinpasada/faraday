@@ -1322,6 +1322,15 @@ pub const GRID_TILE_TEXT_X: f32 = 54.0;
 /// A Home tile's height on the small panel's menu.
 pub const TILE_H_COMPACT: f32 = 76.0;
 
+/// Where a grid tile's summary starts, under its name.
+pub const GRID_TILE_SUB_Y: f32 = 30.0;
+/// Where a menu tile's name starts, under its icon.
+pub const MENU_TILE_LABEL_Y: f32 = 48.0;
+/// The width a menu tile's summary has beside its icon before it wraps.
+pub const MENU_TILE_SUB_W: f32 = 54.0;
+/// A Home tile's inset at its sides and below a wrapped summary.
+pub const TILE_PAD: f32 = 12.0;
+
 /// The widest a Starter page's content grows, centred in the space beside
 /// the rail (`docs/STARTER.md` §3.1d).
 pub const CONTENT_MAX: f32 = 1040.0;

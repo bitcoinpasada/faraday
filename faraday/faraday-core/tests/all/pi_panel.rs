@@ -2126,3 +2126,40 @@ fn on_the_pi_unlock_on_a_wallet_is_lined_up_with_the_buttons_around_it() {
         "Unlock centred at {unlock}, Spend at {spend}"
     );
 }
+
+#[test]
+fn on_the_small_panel_a_vaults_header_in_files_and_homes_backups_summary_read_whole() {
+    let mut rig = rig(
+        On::Stick,
+        Mode::Mainnet,
+        vec![(
+            "a-long-vault-name-for-the-family.kdbx".into(),
+            testkit::test_vault().unwrap(),
+        )],
+    );
+    rig.press(Action::Nav(Screen::Vaults));
+    rig.press(Action::Vault(V::Open(0)));
+    rig.press(Action::Vault(V::FocusPassphrase));
+    crate::common::type_text(&mut rig, testkit::VAULT_PASSPHRASE);
+    rig.press(Action::Vault(V::Unlock));
+    crate::common::settle(&mut rig, 100);
+    if rig.sheet == Some(Sheet::UnlockLoad) {
+        rig.press(Action::Vault(V::LoadTicked));
+    }
+    rig.press(Action::Nav(Screen::Files));
+    rig.settle();
+    let texts = rig.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.ends_with("vault · open")) && !texts.iter().any(|t| t.contains('…')),
+        "the vault card's header is cut: {texts:?}"
+    );
+    rig.press(Action::Nav(Screen::Home));
+    rig.settle();
+    let texts = rig.drawn_texts();
+    assert!(
+        !texts
+            .iter()
+            .any(|t| t.contains("not bac") && !t.ends_with("backed up")),
+        "Home's Backups summary is cut: {texts:?}"
+    );
+}

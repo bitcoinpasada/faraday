@@ -1487,14 +1487,9 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 &open.label(app.vaults.store()).to_string(),
             ],
         );
-        let title = ui.fit_as(TITLE_M, &title, iw - 28.0);
-        ui.text_mid_as(
-            (ix + 28.0, ty - 4.0, 28.0),
-            TITLE_M,
-            Role::OnSurface,
-            &title,
-        );
-        ty += 36.0;
+        let lines = ui.wrapped_as(TITLE_M, &title, iw - 28.0);
+        ui.draw_wrapped((ix + 28.0, ty), Role::OnSurface, &lines);
+        ty += (lines.h + 8.0).max(36.0);
         if !together.is_empty() {
             ui.text_as(
                 ix,

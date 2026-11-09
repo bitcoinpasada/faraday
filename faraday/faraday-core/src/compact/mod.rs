@@ -10,7 +10,8 @@ use crate::strings::fill;
 use crate::ui::Region;
 use crate::ui::{Shape, Unpressed};
 use faraday_draw::tokens::{
-    GRID_TILE_INSET, GRID_TILE_TEXT_X, LEAD_MAX, TILE_H_COMPACT, TILE_H_GRID,
+    GRID_TILE_INSET, GRID_TILE_SUB_Y, GRID_TILE_TEXT_X, LEAD_MAX, MENU_TILE_LABEL_Y,
+    MENU_TILE_SUB_W, TILE_H_COMPACT, TILE_H_GRID, TILE_PAD,
 };
 use faraday_draw::widgets::Icon;
 
@@ -792,10 +793,50 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let grid = app.nav() != crate::nav::Nav::Menu;
     let th = if grid { TILE_H_GRID } else { TILE_H_COMPACT };
+    // A summary that does not fit its line wraps under the name and its
+    // row grows to hold it; the tiles of a row stay one height.
+    let wraps = |ui: &Ui, sub: &str| -> (f32, f32) {
+        if sub.is_empty() {
+            return (0.0, th);
+        }
+        if grid {
+            let room = tw - GRID_TILE_TEXT_X - GRID_TILE_INSET;
+            if ui.measure_as(BODY_S, sub) <= room {
+                return (0.0, th);
+            }
+            let n = ui.wrap_height_as(BODY_S, sub, room);
+            (n, th.max(GRID_TILE_SUB_Y + n + TILE_PAD))
+        } else {
+            if ui.measure_as(BODY_S, sub) <= tw - MENU_TILE_SUB_W {
+                return (0.0, th);
+            }
+            let n = ui.wrap_height_as(BODY_S, sub, tw - 2.0 * TILE_PAD);
+            (
+                n,
+                th.max(MENU_TILE_LABEL_Y + ui.line_as(LABEL_L) + 2.0 + n + TILE_PAD),
+            )
+        }
+    };
     let tiles = tiles(app);
+    let heights: Vec<f32> = tiles.iter().map(|t| wraps(ui, &t.2).1).collect();
+    let row_h = |r: usize| {
+        heights
+            .iter()
+            .skip(r * cols)
+            .take(cols)
+            .fold(th, |m, h| m.max(*h))
+    };
+    let mut row_y = Vec::new();
+    let mut acc = y;
+    for r in 0..tiles.len().div_ceil(cols) {
+        row_y.push(acc);
+        acc += row_h(r) + gap;
+    }
     for (i, (icon, label, sub, action, enabled)) in tiles.iter().enumerate() {
         let tx = M + (i % cols) as f32 * (tw + gap);
-        let ty = y + (i / cols) as f32 * (th + gap);
+        let ty = row_y[i / cols];
+        let th = row_h(i / cols);
+        let (wrapped, _) = wraps(ui, sub);
         ui.fill(tx, ty, tw, th, SHAPE_M, Role::SurfaceContainerLow);
         ui.stroke(tx, ty, tw, th, SHAPE_M, Role::OutlineVariant);
         if *enabled {
@@ -833,18 +874,25 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 ui.text_mid_as((tx, ty, th), LABEL_L, fg, &label);
             } else {
                 ui.text_as(tx, ty + 10.0, LABEL_L, fg, &label);
-                let sub = ui.fit_as(BODY_S, sub, room);
                 let c = if *enabled {
                     Role::OnSurfaceVariant
                 } else {
                     Role::Warning
                 };
-                ui.text_as(tx, ty + 30.0, BODY_S, c, &sub);
+                ui.wrap_as((tx, ty + GRID_TILE_SUB_Y, room), BODY_S, c, sub);
             }
         } else {
             let label = ui.fit_as(LABEL_L, label, tw - 24.0);
             ui.text_as(tx + 12.0, ty + 48.0, LABEL_L, fg, &label);
-            if !sub.is_empty() {
+            let c = if *enabled {
+                Role::OnSurfaceVariant
+            } else {
+                Role::Warning
+            };
+            if wrapped > 0.0 {
+                let sy = ty + MENU_TILE_LABEL_Y + ui.line_as(LABEL_L) + 2.0;
+                ui.wrap_as((tx + TILE_PAD, sy, tw - 2.0 * TILE_PAD), BODY_S, c, sub);
+            } else if !sub.is_empty() {
                 let sub = ui.fit_as(BODY_S, sub, tw - 54.0);
                 ui.text_right_as(
                     (tx + tw - 10.0, ty + 12.0, 30.0),
@@ -859,7 +907,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
         }
     }
-    y += tiles.len().div_ceil(cols) as f32 * (th + gap) + 4.0;
+    y = acc + 4.0;
 
     // Lock and power, here on the small panel; the rail and the top app
     // bar carry them on wider windows.
