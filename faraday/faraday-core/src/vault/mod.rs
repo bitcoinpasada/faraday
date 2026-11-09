@@ -60,7 +60,7 @@ use zeroize::Zeroizing;
 use crate::Sheet;
 use crate::backup_flow::steps::Built;
 use crate::wallet::fp_text;
-use crate::{Action, Faraday, FileKind, Item, Screen, gpg};
+use crate::{Action, Faraday, FileKind, Item, Screen, gpg, share_record_is};
 use faraday_bip::keys::Fingerprint;
 use faraday_keys::vault::{GpgFacts as Facts, gpg_facts, gpg_field as f};
 use faraday_pgp::{Armor, Reason, armor};
@@ -4198,5 +4198,54 @@ pub(crate) fn moved_key_id(r: faraday_keys::vault::RecordView<'_>) -> Option<[u8
         faraday_vault::records::kind::KEY => faraday_keys::vault::key_record_id(r),
         faraday_vault::records::kind::CODEX32_SHARE => faraday_keys::vault::share_record_id(r),
         _ => None,
+    }
+}
+
+impl Faraday {
+    /// Whether open vault `o` holds session key `k`'s passphrase as a
+    /// passphrase record: its fingerprint and its passphrase.
+    pub(crate) fn vault_holds_passphrase(&self, o: usize, k: usize) -> bool {
+        use faraday_vault::records::{field, kind};
+        let (Some(open), Some(key)) = (self.vaults.open.get(o), self.session.keys.info(k)) else {
+            return false;
+        };
+        let fp = key.fingerprint.0;
+        self.vaults
+            .records(open.id)
+            .of(kind::PASSPHRASE)
+            .any(|(_, r)| {
+                r.public(field::PASSPHRASE_KEY) == Some(&fp[..])
+                    && self
+                        .vaults
+                        .store()
+                        .passphrase_record_is(r, &self.session.keys, k)
+            })
+    }
+
+    /// Costs what `share_record_is` costs. Whether open vault `o` holds
+    /// share `j` of the wallet with checksum `cs` (type 13, told by its
+    /// field 5 and field 3), with this text.
+    pub(crate) fn vault_holds_share(
+        &self,
+        c: &Compute,
+        o: usize,
+        cs: &str,
+        j: usize,
+        text: &str,
+    ) -> bool {
+        use faraday_vault::records::field;
+        self.vaults.open.get(o).is_some_and(|x| {
+            self.vaults.records(x.id).iter().any(|(_, r)| {
+                share_record_is(c, r, cs, Some(j)) && r.public_text(field::SHARE) == Some(text)
+            })
+        })
+    }
+
+    /// The text a vault keeps a wallet under, as Vaults saves it.
+    pub(crate) fn wallet_text(w: &crate::wallet::Wallet) -> String {
+        match w.policy().silent() {
+            Some(s) => s.to_text(),
+            None => w.policy().to_descriptor_checksummed(),
+        }
     }
 }

@@ -3334,53 +3334,6 @@ impl Faraday {
         (!self.backup_vaults_set_up_but(v).contains(&cur)).then_some(cur)
     }
 
-    /// Whether open vault `o` holds session key `k`'s passphrase as a
-    /// passphrase record: its fingerprint and its passphrase.
-    pub(crate) fn vault_holds_passphrase(&self, o: usize, k: usize) -> bool {
-        use faraday_vault::records::{field, kind};
-        let (Some(open), Some(key)) = (self.vaults.open.get(o), self.session.keys.info(k)) else {
-            return false;
-        };
-        let fp = key.fingerprint.0;
-        self.vaults
-            .records(open.id)
-            .of(kind::PASSPHRASE)
-            .any(|(_, r)| {
-                r.public(field::PASSPHRASE_KEY) == Some(&fp[..])
-                    && self
-                        .vaults
-                        .store()
-                        .passphrase_record_is(r, &self.session.keys, k)
-            })
-    }
-
-    /// Costs what `share_record_is` costs. Whether open vault `o` holds
-    /// share `j` of the wallet with checksum `cs` (type 13, told by its
-    /// field 5 and field 3), with this text.
-    pub(crate) fn vault_holds_share(
-        &self,
-        c: &Compute,
-        o: usize,
-        cs: &str,
-        j: usize,
-        text: &str,
-    ) -> bool {
-        use faraday_vault::records::field;
-        self.vaults.open.get(o).is_some_and(|x| {
-            self.vaults.records(x.id).iter().any(|(_, r)| {
-                share_record_is(c, r, cs, Some(j)) && r.public_text(field::SHARE) == Some(text)
-            })
-        })
-    }
-
-    /// The text a vault keeps a wallet under, as Vaults saves it.
-    pub(crate) fn wallet_text(w: &wallet::Wallet) -> String {
-        match w.policy().silent() {
-            Some(s) => s.to_text(),
-            None => w.policy().to_descriptor_checksummed(),
-        }
-    }
-
     /// Costs what `plan_load_of` costs. The plan an open vault keeps for
     /// wallet `w` (record type 11): its answers and the places' names. None
     /// when no open vault has one, or it is not for a wallet of this shape.
