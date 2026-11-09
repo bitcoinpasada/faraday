@@ -195,7 +195,6 @@ fn hex4(b: [u8; 4]) -> String {
     faraday_crypto::hex::encode_string(&b)
 }
 
-/// A flag as the record writes it: `0` or `1`.
 /// A `kef` line's fields into the last record `out` holds; a field that
 /// does not read drops the line.
 fn read_kef(out: &mut [Record], f: [&str; 9]) {
@@ -226,6 +225,7 @@ fn read_kef(out: &mut [Record], f: [&str; 9]) {
     }
 }
 
+/// A flag as the record writes it: `0` or `1`.
 fn read_flag(s: &str) -> Option<bool> {
     match s {
         "0" => Some(false),

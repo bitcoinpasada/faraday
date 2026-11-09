@@ -191,10 +191,10 @@ fn code_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, a
         let line = format!("{}: {}", EN.kef_drawn_copy, EN.kef_not_scanned);
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + GAP;
     }
-    if f.checked && (!f.paper || f.scanned || no_camera) {
+    if f.checked {
         ui.text_as(x, cy, LABEL_L, Role::Ok, EN.kef_checked);
         cy += ui.advance_as(LABEL_L, faraday_draw::tokens::KEF_HEAD_ADVANCE);
-    } else if !f.checked {
+    } else if !(f.paper && !no_camera) {
         ui.button(
             x,
             cy,

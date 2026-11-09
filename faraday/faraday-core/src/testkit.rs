@@ -2185,6 +2185,23 @@ pub fn backup_set_q(app: &mut crate::Faraday, q: Option<u8>) {
     }
 }
 
+/// The backups record as a stick keeps it.
+pub fn backups_record(app: &crate::Faraday) -> Vec<u8> {
+    crate::backups::encode(app.backups_area.records())
+}
+
+/// Takes up the backups record `bytes` as a restart reads it from the
+/// stick, leaving everything else as it is.
+pub fn restore_backups(app: &mut crate::Faraday, bytes: &[u8]) {
+    app.backups_area.set_records(crate::backups::decode(bytes));
+}
+
+/// Whether anything secret is being typed, a Krux code form's passphrase
+/// included.
+pub fn secret_typed(app: &crate::Faraday) -> bool {
+    app.secret_typed()
+}
+
 /// The picture's PNG the Code card of seed `i`'s Krux code shows in the
 /// backup under way; `None` while the code is not made or fits no picture.
 pub fn kef_card_png(app: &crate::Faraday, i: usize) -> Option<Vec<u8>> {

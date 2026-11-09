@@ -768,11 +768,17 @@ fn the_code_on_paper_shows_its_size_the_sheet_and_a_grid_whose_mark_is_kept() {
     assert!(seen(&mut app, "Blocks"), "{texts:?}");
     assert!(seen(&mut app, "Rows"));
     assert!(seen(&mut app, "Block 0 · 0"));
-    app.press(Action::KefTool(K::Backup(KefAct::Pin(7))));
-    let marked = crate::common::texts(&mut app)
-        .into_iter()
-        .find(|t| t.starts_with("Block ") && t != "Block 0 · 0")
-        .expect("the mark moved");
+    let mark = |app: &mut Faraday, n: usize| {
+        app.press(Action::KefTool(K::Backup(KefAct::Pin(n))));
+        crate::common::texts(app)
+            .into_iter()
+            .find(|t| t.starts_with("Block ") && t != "Block 0 · 0")
+            .expect("the mark moved")
+    };
+    let before = mark(&mut app, 36);
+    // A 33 x 33 code has blocks past the 36th, and the last can be marked.
+    let marked = mark(&mut app, 48);
+    assert_ne!(marked, before);
     // Closed and opened again, the mark stands.
     app.press(Action::BStep(bstep::KEF));
     open_item(&mut app, bstep::KEF);
@@ -780,16 +786,41 @@ fn the_code_on_paper_shows_its_size_the_sheet_and_a_grid_whose_mark_is_kept() {
 }
 
 #[test]
-fn check_my_code_alone_on_paper_waits_for_the_drawn_copy_with_a_camera() {
+fn on_paper_with_a_camera_the_card_offers_scan_my_copy_and_not_check_my_code() {
     let mut app = on_paper(true);
     open_item(&mut app, bstep::KEF);
     make(&mut app);
-    check_with(&mut app, "a passphrase");
+    assert!(seen(&mut app, "Scan my copy"));
+    assert!(!seen(&mut app, "Check my code"));
     assert!(!done(&app), "not checked until the drawn copy is scanned");
     assert!(seen(&mut app, "Drawn copy: Not scanned"));
+    // The code made stays Not checked, never Not made, when the item closes.
+    assert_eq!(status(&mut app), "Not checked");
     let mut shell = Shell::new();
     to_lock(&mut app, &mut shell);
     assert!(app.flow().is_none(), "the lock is held");
+}
+
+#[test]
+fn a_code_checked_with_no_camera_stays_checked_when_a_camera_is_plugged_in() {
+    let mut app = on_paper(false);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    assert!(seen(&mut app, "Check my code"));
+    check_with(&mut app, "a passphrase");
+    assert!(done(&app));
+    app.storage(StorageEvent::Cameras(vec![(
+        "cam".to_string(),
+        "Camera".to_string(),
+    )]));
+    assert!(done(&app));
+    assert_eq!(status(&mut app), "Checked");
+    let w = app.backup().unwrap().wallet;
+    testkit::backup_drop(&mut app);
+    app.press(Action::Backup(w));
+    app.press(Action::BChecklist);
+    app.settle();
+    assert!(done(&app));
 }
 
 #[test]
@@ -814,6 +845,8 @@ fn not_on_paper_takes_the_code_off_every_place_and_the_item_goes_with_no_stick_c
             .contains(&bstep::KEF),
         "no copy left anywhere"
     );
+    // The form is put away: the checklist moved on and typing goes nowhere.
+    assert_ne!(app.backup().and_then(|b| b.open), Some(bstep::KEF));
     // With a stick copy too, the item stays.
     let mut app = at_the_checklist();
     reopen_on_paper(&mut app, false);
@@ -827,11 +860,26 @@ fn not_on_paper_takes_the_code_off_every_place_and_the_item_goes_with_no_stick_c
     assert!(!seen(&mut app, "Not on Paper"));
 }
 
+/// The code made with a label of `n` characters, a side of its own.
+fn make_labelled(app: &mut Faraday, n: usize) {
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Id(
+        faraday_core::kef_form::IdKind::Label,
+    ))));
+    app.press(Action::KefTool(K::Backup(KefAct::Label)));
+    type_in(app, &"x".repeat(n));
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    testkit::settle(app);
+}
+
 #[test]
 fn the_templates_item_names_the_krux_code_sheet_at_the_codes_side() {
     let mut app = on_paper(true);
     open_item(&mut app, bstep::KEF);
-    make(&mut app);
+    make_labelled(&mut app, 30);
     let side = crate::common::texts(&mut app)
         .into_iter()
         .find_map(|t| {
@@ -845,6 +893,7 @@ fn the_templates_item_names_the_krux_code_sheet_at_the_codes_side() {
             })
         })
         .expect("the sheet's name");
+    assert!(!side.starts_with("33 "), "a side of its own: {side}");
     app.press(Action::BStep(bstep::KEF));
     open_item(&mut app, bstep::BLANK);
     let want = format!("Krux code, {side}");
@@ -883,40 +932,35 @@ fn a_code_larger_than_the_largest_sheet_reads_by_hand_no() {
 
 #[test]
 fn a_record_with_the_old_eight_field_code_line_still_reads() {
-    let mut shell = Shell::new();
     let mut app = at_the_checklist();
     open_item(&mut app, bstep::KEF);
     make(&mut app);
     check_with(&mut app, "a passphrase");
-    to_lock(&mut app, &mut shell);
-    shell.pump(&mut app);
-    let _ = shell.restart();
-    let (inbox, outbox, mut kept) = shell.boxes.clone();
-    for (n, bytes) in kept.iter_mut() {
-        if n == "backups" {
-            let text = String::from_utf8_lossy(bytes).to_string();
-            let old: Vec<String> = text
-                .lines()
-                .map(|l| {
-                    if l.starts_with("kef\t") {
-                        let f: Vec<&str> = l.split('\t').collect();
-                        assert_eq!(f.len(), 10, "{l}");
-                        f[..8].join("\t")
-                    } else {
-                        l.to_string()
-                    }
-                })
-                .collect();
-            *bytes = format!("{}\n", old.join("\n")).into_bytes();
-        }
-    }
-    let mut app = crate::common::process(inbox, outbox, kept);
-    app.press(Action::Nav(Screen::Backups));
-    let texts = crate::common::texts(&mut app);
+    let w = app.backup().unwrap().wallet;
+    let text = String::from_utf8_lossy(&testkit::backups_record(&app)).to_string();
     assert!(
-        texts.iter().any(|t| t.starts_with("Backup of")),
-        "{texts:?}"
+        text.contains("\nkef\t") || text.starts_with("kef\t"),
+        "{text}"
     );
+    let old: Vec<String> = text
+        .lines()
+        .map(|l| {
+            if l.starts_with("kef\t") {
+                let f: Vec<&str> = l.split('\t').collect();
+                assert_eq!(f.len(), 10, "{l}");
+                f[..8].join("\t")
+            } else {
+                l.to_string()
+            }
+        })
+        .collect();
+    testkit::restore_backups(&mut app, format!("{}\n", old.join("\n")).as_bytes());
+    // The backup opened again reads the item Checked.
+    testkit::backup_drop(&mut app);
+    app.press(Action::Backup(w));
+    plan_the_code(&mut app, 1);
+    assert!(done(&app), "the older line still names the code");
+    assert_eq!(status(&mut app), "Checked");
 }
 
 /// The made code's base43 text, as its picture holds it.
@@ -968,17 +1012,24 @@ fn scanning_the_made_code_then_its_passphrase_checks_it_and_the_record_keeps_it(
 }
 
 #[test]
-fn another_code_reads_not_this_code_and_three_reads_offer_not_on_paper() {
+fn another_code_reads_not_this_code_and_three_closings_offer_not_on_paper() {
     let mut app = on_paper(true);
     open_item(&mut app, bstep::KEF);
     make(&mut app);
+    // Many wrong frames in one opening of the camera count one miss.
     open_scan_my_copy(&mut app);
-    for n in 1..=3 {
+    for n in 1..=5 {
         scan_copy(&mut app, b"HTTPS://EXAMPLE.ORG/OTHER".to_vec());
         assert_eq!(scan_note(&app), "Not this code");
         assert!(app.scan().is_some(), "the camera stays open after {n}");
     }
     app.press(Action::Cancel);
+    assert!(!seen(&mut app, "5 scans without a match"));
+    assert!(!seen(&mut app, "3 scans without a match"));
+    for _ in 0..2 {
+        open_scan_my_copy(&mut app);
+        app.press(Action::Cancel);
+    }
     assert!(seen(&mut app, "3 scans without a match"));
     assert!(seen(&mut app, "Not on Paper"));
     app.press(Action::KefTool(K::Backup(KefAct::NotOnPaper)));
@@ -1015,10 +1066,11 @@ fn nothing_scanned_for_the_drawn_code_is_loaded_or_filed() {
     let mut app = on_paper(true);
     open_item(&mut app, bstep::KEF);
     make(&mut app);
-    let (keys, wallets, inbox) = (
+    let (keys, wallets, inbox, outbox) = (
         app.session.keys.len(),
         app.session.wallets.len(),
         app.inbox().len(),
+        app.outbox.len(),
     );
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
     open_scan_my_copy(&mut app);
@@ -1027,6 +1079,7 @@ fn nothing_scanned_for_the_drawn_code_is_loaded_or_filed() {
     assert_eq!(app.session.keys.len(), keys);
     assert_eq!(app.session.wallets.len(), wallets);
     assert_eq!(app.inbox().len(), inbox);
+    assert_eq!(app.outbox.len(), outbox);
 }
 
 #[test]
@@ -1065,4 +1118,43 @@ fn a_code_larger_than_the_largest_sheet_has_no_scan_my_copy() {
     open_item(&mut small, bstep::KEF);
     make(&mut small);
     assert!(seen(&mut small, "Scan my copy"));
+}
+
+#[test]
+fn not_on_paper_puts_the_form_away_with_what_was_typed_in_its_field() {
+    let mut app = on_paper(false);
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    app.press(Action::KefTool(K::Backup(KefAct::Check)));
+    type_in(&mut app, "half a passphr");
+    assert!(testkit::secret_typed(&app));
+    app.press(Action::KefTool(K::Backup(KefAct::NotOnPaper)));
+    assert!(!testkit::secret_typed(&app), "the field is empty");
+    type_in(&mut app, "more");
+    assert!(!testkit::secret_typed(&app), "typing does not reach it");
+}
+
+#[test]
+fn a_code_larger_than_the_largest_sheet_counts_no_sheet_in_the_templates_item() {
+    let mut app = on_paper(true);
+    open_item(&mut app, bstep::KEF);
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Id(
+        faraday_core::kef_form::IdKind::Label,
+    ))));
+    app.press(Action::KefTool(K::Backup(KefAct::Label)));
+    type_in(&mut app, &"x".repeat(60));
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    testkit::settle(&mut app);
+    app.press(Action::BStep(bstep::KEF));
+    open_item(&mut app, bstep::BLANK);
+    let texts = crate::common::texts(&mut app);
+    assert!(
+        texts.iter().any(|t| t.contains("Krux code, 33"))
+            && !texts.iter().any(|t| t.contains("Krux code, 4")),
+        "{texts:?}"
+    );
 }

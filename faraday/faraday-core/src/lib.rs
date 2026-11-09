@@ -2473,9 +2473,7 @@ impl Faraday {
                 if let Some(scan) = self.camera.take() {
                     self.out.commands.push_back(Command::CameraOff);
                     // A copy's scan closed by the person: no match.
-                    if let ScanPurpose::CheckCopy(fp) = scan.purpose {
-                        self.backup.copy_missed(fp.0);
-                    }
+                    self.backup.scan_closed(&scan.purpose);
                 }
                 self.learn_cancel();
                 self.qr.close();

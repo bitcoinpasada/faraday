@@ -1946,10 +1946,6 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-/// The Templates item's clause for `n` codex32 templates of `len`
-/// characters copied as `copy`, named as the Starter's Blank templates
-/// name them (`docs/CODEX32.md` §9.3, §11): "3 from Blank templates,
-/// codex32, 48 characters, Codex32QR". `first` says it opens the line.
 /// The Krux code sheets the plan prints, by side and number: one per
 /// place and seed holding its code on Paper, at the side of the code if
 /// one is made (`docs/KEF.md` §15.5). Sides in order.
@@ -1974,6 +1970,10 @@ fn kef_templates(
     out
 }
 
+/// The Templates item's clause for `n` codex32 templates of `len`
+/// characters copied as `copy`, named as the Starter's Blank templates
+/// name them (`docs/CODEX32.md` §9.3, §11): "3 from Blank templates,
+/// codex32, 48 characters, Codex32QR". `first` says it opens the line.
 fn c32_templates_clause(
     first: bool,
     len: u8,

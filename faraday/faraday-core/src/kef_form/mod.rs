@@ -380,6 +380,8 @@ impl KefForm {
     /// A press.
     pub fn act(&mut self, app: &mut Faraday, a: KefAct) {
         match (self.stage, a) {
+            // On Paper with a camera the drawn copy is scanned instead.
+            (Stage::Made, KefAct::Check) if self.paper && !app.cameras().is_empty() => {}
             (Stage::Made, KefAct::Check) => {
                 self.from_scan = false;
                 self.stage = Stage::Check;
@@ -387,9 +389,7 @@ impl KefForm {
                 self.focus = Some(Focus::Check);
             }
             (Stage::Made, KefAct::Another) => self.again(),
-            (Stage::Made, KefAct::Pin(n)) => {
-                self.pin = n.min(faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE - 1)
-            }
+            (Stage::Made, KefAct::Pin(n)) => self.pin = n,
             (Stage::Made, KefAct::Rows(r)) => {
                 self.rows = r;
                 self.pin = 0;
@@ -702,8 +702,11 @@ impl KefForm {
                     Source::Text(t) => opened.plaintext.as_slice() == t.as_bytes(),
                 };
                 if same {
-                    self.checked = true;
+                    // The status is fixed here: on Paper with a camera the
+                    // code counts once its drawn copy was scanned, else
+                    // once it opened.
                     self.scanned |= self.from_scan;
+                    self.checked = !self.paper || self.from_scan || app.cameras().is_empty();
                     self.from_scan = false;
                     self.check.clear();
                     self.error = None;

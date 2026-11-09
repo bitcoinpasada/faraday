@@ -155,24 +155,20 @@ pub(crate) fn pending(app: &Faraday, i: usize) -> bool {
 /// was opened back and held the seed, with both its files there and the
 /// `.kef` file's bytes the ones made.
 ///
-/// On Paper the code also counts once the drawn copy was scanned back, or
-/// with no camera to scan it with (`docs/KEF.md` §15.1).
+/// On Paper the form sets `checked` only once the drawn copy was scanned
+/// back, or with no camera to scan it with, when the check is made
+/// (`docs/KEF.md` §15.1): a camera plugged in later does not undo it.
 pub(crate) fn checked(app: &Faraday, c: &Compute, i: usize) -> bool {
-    kept(app, i).is_some_and(|m| {
-        m.checked
-            && named(app, &m)
-            && kef_bytes(app, c, &m).is_some()
-            && (m.scanned || app.cameras().is_empty() || !on_paper(app, c, i))
-    })
+    kept(app, i).is_some_and(|m| m.checked && named(app, &m) && kef_bytes(app, c, &m).is_some())
 }
 
 /// The side in modules of seed `i`'s Krux code
-/// on a blank template: the code's if one is made, else §10's default
+/// on a blank template: the code's if one is made and a sheet has its side, else §10's default
 /// (`docs/KEF.md` §15.5).
 pub(crate) fn template_side(app: &Faraday, i: usize) -> usize {
     kept(app, i)
         .map(|m| usize::from(m.side))
-        .filter(|&s| s > 0)
+        .filter(|&s| s > 0 && s <= faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE)
         .unwrap_or(faraday_draw::tokens::KEF_DEFAULT_SIDE)
 }
 
@@ -360,7 +356,7 @@ fn sync_paper(app: &mut Faraday, i: usize) {
 
 /// Not on Paper: the open item's code comes off every place
 /// (`docs/KEF.md` §15.1). The item goes with it where no stick holds the
-/// code either; the drawn copy no longer counts.
+/// code either. The drawn copy's scan stays marked: one scan per seed.
 fn not_on_paper(app: &mut Faraday) {
     let Some(i) = app.backup.kef_open() else {
         return;
@@ -375,6 +371,18 @@ fn not_on_paper(app: &mut Faraday) {
     app.plan_save();
     app.backups_sync();
     sync_paper(app, i);
+    // The item gone with the code: the form is put away as closing does,
+    // and the checklist moves on to the next item.
+    let Some(n) = app.backup.state().and_then(|b| b.open) else {
+        return;
+    };
+    let c = app.compute();
+    let items = app.backup_items_now(&c);
+    if !items.contains(&n) {
+        with_form(app, i, |f, app| f.close(app));
+        let next = items.iter().copied().find(|&j| j > n);
+        app.backup_item_open(next);
+    }
 }
 
 /// **Scan my copy**: the camera on the drawn code of the open item. A
@@ -397,7 +405,8 @@ fn scan_open(app: &mut Faraday) {
 
 /// What the camera read for seed `i`'s drawn Krux code: the code's base43
 /// text, byte for byte, closes the camera and opens the field and Compare;
-/// anything else is named on the scanner and counts one miss. Nothing read
+/// anything else is named on the scanner. A camera closed with no match
+/// counts one miss, as a SeedQR's does. Nothing read
 /// is loaded or filed.
 pub(crate) fn scanned(app: &mut Faraday, i: usize, bytes: &[u8]) {
     let text = app.backup.kef_form(i).and_then(KefForm::code_text);
@@ -418,7 +427,6 @@ pub(crate) fn scanned(app: &mut Faraday, i: usize, bytes: &[u8]) {
             .push_back(faraday_shell_api::Command::CameraOff);
         sync_record(app, i);
     } else {
-        app.backup.kef_missed(i);
         if let Some(scan) = app.camera.scan_mut() {
             scan.note = Some(EN.kef_not_this_code.to_string());
         }

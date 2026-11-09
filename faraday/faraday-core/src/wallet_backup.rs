@@ -1247,6 +1247,16 @@ impl WalletBackupArea {
         }
     }
 
+    /// A scan closed by the person: a copy's or a drawn Krux code's is a
+    /// miss.
+    pub(crate) fn scan_closed(&mut self, purpose: &crate::ScanPurpose) {
+        match purpose {
+            crate::ScanPurpose::CheckCopy(fp) => self.copy_missed(fp.0),
+            crate::ScanPurpose::CheckKef(i) => self.kef_missed(*i),
+            _ => {}
+        }
+    }
+
     /// A scan of seed `fp`'s copy closed without a match: counted once
     /// for the backup under way.
     pub(crate) fn copy_missed(&mut self, fp: [u8; 4]) {
