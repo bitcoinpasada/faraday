@@ -125,6 +125,11 @@ fn a_bsms_descriptor_record_reads_back_from_its_code_and_its_picture() {
 
 /// An app making a wsh multisig with test seed 0 in its first slot.
 fn making() -> (Faraday, String) {
+    making_at(false)
+}
+
+/// [`making`], with BIP-87's path chosen on Quorum when `bip87`.
+fn making_at(bip87: bool) -> (Faraday, String) {
     let mut app = testkit::started();
     app.press(Action::Entry(None));
     for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
@@ -134,10 +139,105 @@ fn making() -> (Faraday, String) {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(4));
     app.press(Action::CNext(0));
+    if bip87 {
+        let _ = app.frame();
+        app.press(Action::CMultiPath(true));
+    }
     app.press(Action::CNext(1));
     let fp = app.session.keys[0].fingerprint;
     app.press(Action::CSlotHere(0, fp.0));
     (app, faraday_core::wallet::fp_text(fp))
+}
+
+#[test]
+fn a_bip_87_cosigners_key_code_and_signed_record_name_bip_87() {
+    let (mut app, fp) = making_at(true);
+    app.press(Action::CKeyOut(0));
+    let want = plain(&text(&outbox(&app, &format!("xpub-{fp}.txt"))));
+    assert!(want.contains("/87h/0h/0h]"), "{want}");
+    // The code is ur:crypto-account and reads back as the key at m/87'.
+    app.press(Action::CKeyQr(0));
+    let q = app.qr().unwrap();
+    let sheet = faraday_codec::png::qr_png(&q.frames[0], 4);
+    assert_eq!(key_scanned("sheet.png", &sheet), want);
+    assert!(label(&app).contains("m/87h/"), "{}", label(&app));
+    app.press(Action::Cancel);
+    // The record is signed by the key and names BIP-87's origin.
+    app.press(Action::CKeyBsms(0));
+    let record = text(&outbox(&app, &format!("xpub-{fp}-bsms.txt")));
+    let r = faraday_bip::bsms::SignerRecord::parse(&record).expect("a BIP 129 record");
+    r.verify().expect("signed by its key");
+    assert_eq!(r.key.key_text().replace('\'', "h"), want);
+}
+
+/// An app holding test seeds 0 and 1, with an imported 2-of-3 multisig
+/// wallet over test seeds 0, 1 and 2 whose seed-0 key is at `p0` and
+/// seed-1 key at `p1` (seed 2's is at BIP-48).
+fn holding_mixed(p0: &str, p1: &str) -> (Faraday, usize) {
+    let c = faraday_core::testkit::compute();
+    let mut app = testkit::started();
+    for n in [0, 1] {
+        app.press(Action::Entry(None));
+        for ch in testkit::test_words(testkit::TEST_SEEDS[n].0).chars() {
+            app.event(Event::Key(Key::Char(ch)));
+        }
+        app.press(Action::EntryAdd);
+    }
+    testkit::move_to(&mut app.session, testkit::net()).expect("the test network");
+    let d = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,{}/<0;1>/*))",
+        testkit::key(0, p0),
+        testkit::key(1, p1),
+        testkit::key(2, "m/48'/1'/0'/2'")
+    );
+    let w = app
+        .session
+        .add_wallet(&c, "Mixed", &d, "test", faraday_core::wallet::Origin::Named)
+        .expect("a wallet");
+    (app, w)
+}
+
+/// Each key of a wallet whose keys are at BIP-48 and BIP-87 gets the
+/// account code and the signed BIP 129 record of its own path.
+fn each_key_names_its_own_path(p0: &str, p1: &str) {
+    let (mut app, w) = holding_mixed(p0, p1);
+    for (slot, path) in [(0u8, p0), (1u8, p1)] {
+        let purpose = path.split('/').nth(1).unwrap().replace('\'', "h");
+        let key = app.session.wallets[w].policy().keys()[usize::from(slot)].clone();
+        let fp = faraday_core::wallet::fp_text(key.fingerprint().unwrap());
+        app.press(Action::ShowCode(Code::WalletKey(w, slot)));
+        assert!(
+            shown(&app).to_lowercase().starts_with("ur:crypto-account"),
+            "slot {slot} has a crypto-account code"
+        );
+        let sheet = faraday_codec::png::qr_png(&app.qr().unwrap().frames[0], 4);
+        assert_eq!(
+            key_scanned("sheet.png", &sheet),
+            key.key_text().replace('\'', "h"),
+            "slot {slot}"
+        );
+        assert!(
+            label(&app).contains(&format!("m/{purpose}/")),
+            "{}",
+            label(&app)
+        );
+        app.press(Action::Cancel);
+        app.press(Action::WalletKeyBsms(w, slot));
+        let record = text(&outbox(&app, &format!("xpub-{fp}-bsms.txt")));
+        let r = faraday_bip::bsms::SignerRecord::parse(&record).expect("a BIP 129 record");
+        r.verify().expect("signed by its key");
+        assert_eq!(r.key.key_text(), key.key_text(), "slot {slot}");
+    }
+}
+
+#[test]
+fn a_wallet_with_a_bip_48_key_and_a_bip_87_key_gives_each_its_own_code_and_record() {
+    each_key_names_its_own_path("m/48'/1'/0'/2'", "m/87'/1'/0'");
+}
+
+#[test]
+fn a_wallet_with_a_bip_87_key_and_a_bip_48_key_gives_each_its_own_code_and_record() {
+    each_key_names_its_own_path("m/87'/1'/0'", "m/48'/1'/0'/2'");
 }
 
 /// A picture read on a stick visit, as the cosigner's Faraday reads it:

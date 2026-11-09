@@ -1592,19 +1592,21 @@ impl Keys {
     }
 
     /// Costs a key derivation. The multisig account key of key `i` for
-    /// `script` at `account`: public.
+    /// `script` at `account`, on BIP-87's path when `bip87`: public.
     pub fn multisig_account(
         &self,
         c: &Compute,
         i: usize,
         script: faraday_bip::keys::MultisigScriptType,
         account: u32,
+        bip87: bool,
     ) -> Option<Result<crate::texts::AccountKey, String>> {
         Some(crate::texts::multisig_account(
             c,
             &self.entries.get(i)?.key.master,
             script,
             account,
+            bip87,
         ))
     }
 
@@ -1617,6 +1619,7 @@ impl Keys {
         i: usize,
         script: faraday_bip::keys::MultisigScriptType,
         account: u32,
+        bip87: bool,
         description: &str,
     ) -> Option<String> {
         crate::texts::bsms_record(
@@ -1624,6 +1627,7 @@ impl Keys {
             &self.entries.get(i)?.key.master,
             script,
             account,
+            bip87,
             description,
         )
     }

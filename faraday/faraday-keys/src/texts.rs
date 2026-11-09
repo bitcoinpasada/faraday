@@ -33,7 +33,7 @@ pub enum Spec {
 pub fn key_text(c: &Compute, master: &MasterKey, spec: &Spec) -> Result<String, String> {
     let key = match spec {
         Spec::Single(t, a) => single_account(c, master, *t, *a)?,
-        Spec::Multisig(t, a) => multisig_account(c, master, *t, *a)?,
+        Spec::Multisig(t, a) => multisig_account(c, master, *t, *a, false)?,
         Spec::Path(p) => account_at(c, master, p),
     };
     if key.path.as_ref().is_empty() {
@@ -64,15 +64,17 @@ pub fn single_account(
 }
 
 /// Costs a key derivation. The account key of `master` for a multisig
-/// cosigner of `script`, at `account`.
+/// cosigner of `script`, at `account`, on BIP-48's path or, with `bip87`,
+/// BIP-87's.
 pub fn multisig_account(
     c: &Compute,
     master: &MasterKey,
     script: MultisigScriptType,
     account: u32,
+    bip87: bool,
 ) -> Result<AccountKey, String> {
     let a = master
-        .multisig_account_xpub(c, script, account)
+        .multisig_account_xpub_at(c, script, account, bip87)
         .map_err(|e| faraday_strings::bip::keys_error(&e))?;
     Ok(AccountKey {
         xpub: *a.xpub(),
@@ -93,16 +95,18 @@ pub fn account_at(c: &Compute, master: &MasterKey, path: &DerivationPath) -> Acc
 
 /// Costs a key derivation and a signature. A key's BIP 129 key record,
 /// signed by the account key itself, for the multisig script `script` at
-/// `account`: the record's text.
+/// `account`, on BIP-48's path or, with `bip87`, BIP-87's: the record's
+/// text.
 pub(crate) fn bsms_record(
     c: &Compute,
     master: &MasterKey,
     script: MultisigScriptType,
     account: u32,
+    bip87: bool,
     description: &str,
 ) -> Option<String> {
     let record = master
-        .with_multisig_account_secret(c, script, account, |secret, view| {
+        .with_multisig_account_secret_at(c, script, account, bip87, |secret, view| {
             faraday_bip::bsms::signer_record(master.secp(), view, secret, "00", description)
         })
         .ok()?

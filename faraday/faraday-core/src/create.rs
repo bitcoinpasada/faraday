@@ -333,24 +333,26 @@ impl NewKind {
         c: &Compute,
         keys: &faraday_keys::Keys,
         i: usize,
+        bip87: bool,
     ) -> Option<String> {
-        self.account_ur_at(c, keys, i, 0)
+        self.account_ur_at(c, keys, i, 0, bip87)
     }
 
     /// Costs a key derivation. [`NewKind::account_ur`] at account
-    /// `account`.
+    /// `account`, on BIP-87's path when `bip87`.
     pub(crate) fn account_ur_at(
         self,
         c: &Compute,
         keys: &faraday_keys::Keys,
         i: usize,
         account: u32,
+        bip87: bool,
     ) -> Option<String> {
         if self != NewKind::Multi {
             return None;
         }
         let a = keys
-            .multisig_account(c, i, MultisigScriptType::NativeSegwit, account)?
+            .multisig_account(c, i, MultisigScriptType::NativeSegwit, account, bip87)?
             .ok()?;
         let path: Vec<_> = a.path.into_iter().copied().collect();
         let cbor = faraday_qr::registry::account_cbor(a.fingerprint.0, &path, &a.xpub, false);
@@ -361,13 +363,15 @@ impl NewKind {
     /// key record, signed by the account key itself: what Coldcard,
     /// Sparrow, Nunchuk and Keystone take from a signer. For the multisig
     /// kinds BIP 129 covers (`wsh` and `sh(wsh)`), at account `account` of
-    /// the kind's path, described by the key's fingerprint text `fp`.
+    /// the kind's path (BIP-87's with `bip87`), described by the key's
+    /// fingerprint text `fp`.
     pub fn bsms_record(
         self,
         c: &Compute,
         keys: &faraday_keys::Keys,
         i: usize,
         account: u32,
+        bip87: bool,
         fp: &str,
     ) -> Option<String> {
         let script = match self {
@@ -375,7 +379,7 @@ impl NewKind {
             NewKind::MultiNested => MultisigScriptType::NestedSegwit,
             _ => return None,
         };
-        keys.bsms_record(c, i, script, account, &format!("Faraday key {fp}"))
+        keys.bsms_record(c, i, script, account, bip87, &format!("Faraday key {fp}"))
     }
 
     /// The descriptor over these keys.
@@ -694,12 +698,13 @@ fn path_shape(path: &str) -> Option<String> {
 
 /// Whether a wallet's own keys are at BIP-87's path (purpose 87).
 pub fn bip87_of(policy: &WalletPolicy) -> bool {
+    policy.keys().first().is_some_and(bip87_key)
+}
+
+/// Whether one key's own origin path is at BIP-87's purpose (87').
+pub fn bip87_key(key: &faraday_bip::policy::PolicyKey) -> bool {
     use faraday_bip::bitcoin::bip32::ChildNumber;
-    policy
-        .keys()
-        .first()
-        .and_then(|k| k.path())
-        .and_then(|p| p.into_iter().next().copied())
+    key.path().and_then(|p| p.into_iter().next().copied())
         == Some(ChildNumber::Hardened { index: 87 })
 }
 
@@ -1614,13 +1619,9 @@ impl Faraday {
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
             return None;
         };
-        if cs.at_bip87() {
-            // The code names BIP-48's path and no other.
-            return None;
-        }
         let key = self.session.keys.position_of(*fp)?;
         cs.kind
-            .account_ur_at(c, &self.session.keys, key, cs.account)
+            .account_ur_at(c, &self.session.keys, key, cs.account, cs.at_bip87())
     }
 
     /// Costs a key derivation (through `bsms_record`). A slot's key as a
@@ -1631,14 +1632,10 @@ impl Faraday {
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
             return None;
         };
-        if cs.at_bip87() {
-            // The record is signed by BIP-48's account key and names it.
-            return None;
-        }
         let key = self.session.keys.position_of(*fp)?;
         let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
         cs.kind
-            .bsms_record(c, &self.session.keys, key, cs.account, &fpt)
+            .bsms_record(c, &self.session.keys, key, cs.account, cs.at_bip87(), &fpt)
             .map(|r| (fpt, r))
     }
 

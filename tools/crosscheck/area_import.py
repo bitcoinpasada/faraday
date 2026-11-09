@@ -20,7 +20,7 @@ read, verified and written as the Create screen and `faraday-keys` do
 - BIP 129's key records. A record signed by btclib's `bms` (the account
   node's key, BIP-137's compact form, RFC 6979) must verify in Faraday,
   and one damaged must not, as btclib's verifier says; the record Faraday
-  writes for a seed's BIP-48 account must be btclib's record for the same
+  writes for a seed's BIP-48 or BIP-87 account must be btclib's record for the same
   account byte for byte (btclib derives the account and signs).
 
 Every real file the wallets' test suites publish is read too
@@ -700,7 +700,7 @@ class Import(Area):
         "Cobo's, Keystone's and Wasabi's files, Specter DIY's `addwallet`, "
         "`faraday_bip::bsms::DescriptorRecord`), and "
         "`faraday_bip::bsms::SignerRecord` read and verified and `faraday_bip::bsms::signer_record` "
-        "over the BIP-48 account node's key"
+        "over the BIP-48 or BIP-87 account node's key"
     )
     reference = (
         "Bitcoin Core v31.1's `bitcoind` on regtest, offline (`deriveaddresses`), and its "
@@ -1183,6 +1183,7 @@ class Import(Area):
         net = net or rng.choice(["mainnet", "testnet"])
         seed = self.randbytes(rng.choice([16, 32, 64]))
         script, account = script or rng.choice([1, 2]), rng.randrange(0, 5)
+        bip87 = rng.random() < 0.3  # BIP 87's m/87'/coin'/account', the script left out
         token = rng.choice(["00", "00", self.randbytes(8).hex()])
         if desc is None:
             desc = "".join(rng.choice(DESCRIPTION_CHARS)
@@ -1192,9 +1193,10 @@ class Import(Area):
         def ref():
             if len(desc) > 80:
                 raise Ours("a description over BIP 129's eighty characters")
-            a = Account(self, net, f"48h/{coin}h/{account}h/{script}h", seed)
+            path = f"87h/{coin}h/{account}h" if bip87 else f"48h/{coin}h/{account}h/{script}h"
+            a = Account(self, net, path, seed)
             return {"text": signed_record(a, token, desc)}
         return self.compare("import.write", {"seed": seed.hex(), "network": net, "script": script,
-                                      "account": account, "token": token,
+                                      "account": account, "token": token, "bip87": bip87,
                                       "description": desc}, ref)
 

@@ -726,6 +726,10 @@ pub struct WalletKey {
     pub kind: String,
     /// The kind, when the key is at Create's own account for it.
     pub standard: Option<create::NewKind>,
+    /// Whether this key's own origin path is at BIP-87's purpose (87'),
+    /// as against BIP-48's: what its account code and key record are
+    /// made at.
+    pub bip87: bool,
     /// The seed's place among the session's keys.
     pub key: usize,
 }
@@ -3730,13 +3734,19 @@ impl Faraday {
             .position(fp)
             .ok_or(EN.wallet_key_that_key)?;
         let kind = create::NewKind::of(w.policy());
-        // Create's own account for its kind: what its BIP 129 record and
-        // its account code are made at. A key elsewhere has neither.
+        // Create's own account for its kind, at BIP-48's path or BIP-87's
+        // as this key's own path is: what its BIP 129 record and its
+        // account code are made at. A key elsewhere has neither.
+        let bip87 = create::bip87_key(pk);
         let standard = kind.filter(|k| {
-            self.session
-                .keys
-                .account_text(c, key, *k, 0)
-                .ok()
+            let at_bip87 = k.has_bip87() && bip87;
+            let text = if at_bip87 {
+                let path = k.path_with(self.session.keys.network(), 0, true);
+                self.session.keys.text_at(c, key, &path)
+            } else {
+                self.session.keys.account_text(c, key, *k, 0)
+            };
+            text.ok()
                 .and_then(|t| faraday_bip::policy::PolicyKey::parse(&t).ok())
                 .is_some_and(|t| t.xpub() == pk.xpub() && t.path() == pk.path())
         });
@@ -3745,6 +3755,7 @@ impl Faraday {
             text: pk.key_text(),
             kind: kind.map_or_else(|| Session::shape(w), |k| k.name().to_string()),
             standard,
+            bip87,
             key,
         })
     }
@@ -3800,7 +3811,10 @@ impl Faraday {
     ) -> Result<(String, String), String> {
         let k = self.wallet_key(c, i, slot)?;
         k.standard
-            .and_then(|kind| kind.bsms_record(c, &self.session.keys, k.key, 0, &k.fp))
+            .and_then(|kind| {
+                let bip87 = kind.has_bip87() && k.bip87;
+                kind.bsms_record(c, &self.session.keys, k.key, 0, bip87, &k.fp)
+            })
             .map(|r| (k.fp.clone(), r))
             .ok_or_else(|| EN.wallet_key_record_bip.to_string())
     }

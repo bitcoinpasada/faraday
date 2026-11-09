@@ -744,8 +744,29 @@ impl MasterKey {
         script_type: MultisigScriptType,
         account: u32,
     ) -> Result<DerivationPath, Error> {
+        self.multisig_account_path_at(script_type, account, false)
+    }
+
+    /// [`MasterKey::multisig_account_path`], or with `bip87` BIP-87's
+    /// `m/87'/coin'/account'`, which leaves the script to the descriptor.
+    pub fn multisig_account_path_at(
+        &self,
+        script_type: MultisigScriptType,
+        account: u32,
+        bip87: bool,
+    ) -> Result<DerivationPath, Error> {
         let hardened =
             |i: u32| ChildNumber::from_hardened_idx(i).map_err(|_| Error::IndexOutOfRange);
+        if bip87 {
+            return Ok(DerivationPath::from(
+                [
+                    hardened(87)?,
+                    hardened(self.network.coin_type())?,
+                    hardened(account)?,
+                ]
+                .as_slice(),
+            ));
+        }
         Ok(DerivationPath::from(
             [
                 hardened(48)?,
@@ -767,8 +788,20 @@ impl MasterKey {
         script_type: MultisigScriptType,
         account: u32,
     ) -> Result<MultisigAccountXpub, Error> {
+        self.multisig_account_xpub_at(c, script_type, account, false)
+    }
+
+    /// Costs what [`MasterKey::multisig_account_xpub`] costs: the same,
+    /// at BIP-87's path when `bip87`.
+    pub fn multisig_account_xpub_at(
+        &self,
+        c: &Compute,
+        script_type: MultisigScriptType,
+        account: u32,
+        bip87: bool,
+    ) -> Result<MultisigAccountXpub, Error> {
         c.count(Work::KeyDerive);
-        let path = self.multisig_account_path(script_type, account)?;
+        let path = self.multisig_account_path_at(script_type, account, bip87)?;
         let derived = self.derived(&path);
         Ok(MultisigAccountXpub::new(
             derived.xpub_of(),
@@ -781,8 +814,8 @@ impl MasterKey {
 
     /// Costs a four-step derivation, an elliptic-curve multiplication for
     /// the xpub and what `f` costs: hands `f` the private key of the
-    /// BIP-48 account node itself, with the non-secret view of the same
-    /// node, for the length of one call.
+    /// account node itself (BIP-48's or BIP-87's), with the non-secret
+    /// view of the same node, for the length of one call.
     ///
     /// The account node's own key is what BIP 129's key record is
     /// signed with ([`crate::bsms::signer_record`]), and it is the only
@@ -796,8 +829,21 @@ impl MasterKey {
         account: u32,
         f: impl FnOnce(&SecretKey, &MultisigAccountXpub) -> T,
     ) -> Result<T, Error> {
+        self.with_multisig_account_secret_at(c, script_type, account, false, f)
+    }
+
+    /// Costs what [`MasterKey::with_multisig_account_secret`] costs: the
+    /// same door, at BIP-87's path when `bip87`.
+    pub fn with_multisig_account_secret_at<T>(
+        &self,
+        c: &Compute,
+        script_type: MultisigScriptType,
+        account: u32,
+        bip87: bool,
+        f: impl FnOnce(&SecretKey, &MultisigAccountXpub) -> T,
+    ) -> Result<T, Error> {
         c.count(Work::KeyDerive);
-        let path = self.multisig_account_path(script_type, account)?;
+        let path = self.multisig_account_path_at(script_type, account, bip87)?;
         let derived = self.derived(&path);
         let view = MultisigAccountXpub::new(
             derived.xpub_of(),

@@ -214,7 +214,7 @@ what = "Multisig key at BIP 87's path, `wsh`, `sh(wsh)`, `sh` and `tr(H, sortedm
 completeness = "Full for the path: `m/87'/coin'/account'`, the script left to the descriptor, offered for each multisig kind Create makes beside its own path; the key is derived as any path's is"
 uses = ["derive", "descriptor"]
 standard = "BIP 87 (Complete, vendored); BIP 32 (Deployed)"
-own = "The path is not the default: BIP-48's, or `m/45'`, is ticked at entry. Neutral; no decision. A wallet at BIP 87 has no `ur:crypto-account` code and no signed BIP 129 record for its own keys, which name BIP-48's path. Neutral; no decision."
+own = "The path is not the default: BIP-48's, or `m/45'`, is ticked at entry. Neutral; no decision. A wallet at BIP 87 gives its own keys' `ur:crypto-account` code and signed BIP 129 key record at `m/87'/coin'/account'`; neither format limits the origin path. Neutral; no decision."
 
 [[row]]
 id = "taproot-multisig"
@@ -1262,6 +1262,7 @@ functions = [
   "faraday/faraday-core/src/explore/mod.rs::Faraday::explore_path",
   "faraday/faraday-core/src/explore/addresses.rs::account_of",
   "faraday/faraday-core/src/create.rs::account_of",
+  "faraday/faraday-core/src/create.rs::bip87_key",
   "faraday/faraday-core/src/create.rs::bip87_of",
   "faraday/faraday-core/src/create.rs::path_spec",
   "faraday/faraday-core/src/restore.rs::Faraday::restore_refusal_typed",
@@ -1355,7 +1356,11 @@ screens = [
 ]
 functions = [
   "core/faraday-bip/src/keys.rs::MasterKey::multisig_account_xpub",
+  "core/faraday-bip/src/keys.rs::MasterKey::multisig_account_xpub_at",
+  "core/faraday-bip/src/keys.rs::MasterKey::multisig_account_path",
+  "core/faraday-bip/src/keys.rs::MasterKey::multisig_account_path_at",
   "core/faraday-bip/src/keys.rs::MasterKey::with_multisig_account_secret",
+  "core/faraday-bip/src/keys.rs::MasterKey::with_multisig_account_secret_at",
   "core/faraday-bip/src/account.rs::MultisigAccountXpub::xpub",
   "core/faraday-bip/src/account.rs::MultisigAccountXpub::key_at",
   "faraday/faraday-keys/src/texts.rs::multisig_account",

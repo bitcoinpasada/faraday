@@ -1137,9 +1137,9 @@ impl Faraday {
             }
             Code::WalletKey(i, slot) => {
                 let k = self.wallet_key(c, i, slot)?;
-                let account = k
-                    .standard
-                    .and_then(|kind| kind.account_ur(c, &self.session.keys, k.key));
+                let account = k.standard.and_then(|kind| {
+                    kind.account_ur(c, &self.session.keys, k.key, kind.has_bip87() && k.bip87)
+                });
                 let lines = vec![
                     key_label(&k.fp, &k.kind, &k.text),
                     EN.code_view_public_spends.to_string(),

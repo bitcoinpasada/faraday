@@ -44,7 +44,8 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             let record = SignerRecord::parse(text(req, "text")).map_err(|e| format!("{e:?}"))?;
             Ok(json!({"valid": record.verify().is_ok()}))
         }
-        // This device's own key record for a BIP-48 account, as
+        // This device's own key record for a BIP-48 account, or with
+        // `bip87` a BIP-87 one, as
         // `faraday-keys` writes it: signed by the account node's key.
         "write" => {
             let network = Network::from_name(text(req, "network")).ok_or("a network name")?;
@@ -56,8 +57,9 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 _ => return Err("a BIP-48 script type is 1 or 2".into()),
             };
             let account = u32::try_from(num(req, "account")).map_err(|_| "account is a u32")?;
+            let bip87 = req.get("bip87").and_then(Value::as_bool).unwrap_or(false);
             let record = master
-                .with_multisig_account_secret(&c, script, account, |secret, view| {
+                .with_multisig_account_secret_at(&c, script, account, bip87, |secret, view| {
                     bsms::signer_record(
                         master.secp(),
                         view,
