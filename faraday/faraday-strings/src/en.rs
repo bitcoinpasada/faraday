@@ -12208,9 +12208,7 @@ strings! {
     bip_policy_threshold: "threshold must be between 1 and the number of keys",
     /// A descriptor whose checksum is wrong.
     bip_policy_checksum: "descriptor checksum does not match",
-A DNS record name or domain that is not letters, digits and hyphens in labels of 1 to 63 characters.
-    bip_silent_name: "not a valid DNS name",
-    ///     /// An extended private key that is not a master key.
+    /// An extended private key that is not a master key.
     bip_keys_not_master: "extended private key is not a master key",
     /// A codex32 string with a non-ASCII character.
     bip_codex32_not_printable: "string holds a character outside printable ASCII",
