@@ -13,10 +13,10 @@ const FARADAY_HEADER: usize = 249 + 32 + 32;
 /// A block's HMAC and length.
 const BLOCK_OVERHEAD: usize = 32 + 4;
 /// The most a vault's plaintext holds: 128 MiB (`docs/VAULT.md` §2).
-const MAX_PLAIN: usize = 128 * 1024 * 1024;
+pub const MAX_PLAIN: usize = 128 * 1024 * 1024;
 /// The most a stored stream takes: the plaintext as a compressing program
 /// may have left it, and an eighth of slack that covers the frames.
-const MAX_STORED: usize = MAX_PLAIN + MAX_PLAIN / 8;
+pub const MAX_STORED: usize = MAX_PLAIN + MAX_PLAIN / 8;
 
 /// The KDBX major version of the first twelve bytes, if they begin with
 /// KDBX's signatures.

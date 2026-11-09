@@ -54,9 +54,10 @@ base64ct.workspace = true
 # written into wiping buffers (docs/deps/pem-rfc7468.md).
 pem-rfc7468 = { version = "1.0", default-features = false }
 
-[dev-dependencies]
-# The vault sizes it must agree with (tests/sizes.rs).
+# The vault file's sizes, which the codec holds once (docs/VAULT.md §2).
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
+
+[dev-dependencies]
 # The memory a read holds, against the reader's charge (tests/reader_memory.rs).
 faraday-alloc-count = { path = "../tools/alloc-count" }
 

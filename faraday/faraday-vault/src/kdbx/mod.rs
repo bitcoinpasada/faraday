@@ -68,12 +68,12 @@ pub const RANDOM_LEN: usize = 140;
 
 /// The most a file's plaintext, the inner header, the XML document and the
 /// attachments, may be: 128 MiB, the ceiling of a vault (§2, F206).
-pub const MAX_PLAIN: usize = 128 * 1024 * 1024;
+pub const MAX_PLAIN: usize = faraday_codec::vault_file::MAX_PLAIN;
 
 /// The most the stored body may be, with its framing, before decryption:
 /// the plaintext as a compressing program may have left it, and an eighth
 /// of slack that covers the frames (36 bytes for each 1 MiB block).
-pub const MAX_STORED: usize = MAX_PLAIN + MAX_PLAIN / 8;
+pub const MAX_STORED: usize = faraday_codec::vault_file::MAX_STORED;
 
 /// The most attachments a file may hold. Each costs 32 bytes once read,
 /// and a field is only 6 bytes of a file, so the count is limited
