@@ -203,7 +203,7 @@ Read this table, then only the decision you need.
 | [F186](decisions/F186.md) | One Pi image for every screen, found at boot | 2026-11-02 | Amended by F187, F198 | release |
 | [F187](decisions/F187.md) | The Pi's screens for now: an HDMI screen and the 2.8-inch | 2026-11-02 | Active | release |
 | [F188](decisions/F188.md) | Touch targets on the 2.8-inch are 44 dp, Apple's minimum | 2026-11-02 | Active | design |
-| [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190 | security |
+| [F189](decisions/F189.md) | The vault is an age file: one passphrase, scrypt, TOML inside, five sizes, the smallest a QR code | 2026-11-02 | Amended by F190, F226 | security |
 | [F190](decisions/F190.md) | The vault is a KDBX 4 file under Argon2id, and the QR vault an RFC 9580 OpenPGP message under Argon2id | 2026-11-02 | Amended by F193, F194, F206, F207, F208 and F211 | security |
 | [F191](decisions/F191.md) | The switches C1 to C14 before the timing fixes, and a switch lands with its cross-check change | 2026-10-31 | Active | crypto |
 | [F192](decisions/F192.md) | The cross-check's outside sources: another lineage, Faraday's second version kept only where none covers it, every judge required in `just crosscheck` | 2026-10-31 | Amended by F193 and F211 | crypto |
@@ -240,3 +240,4 @@ Read this table, then only the decision you need.
 | [F223](decisions/F223.md) | On the small panel off mainnet, the mode pill stands on the top bar's second line | 2026-11-08 | Active | design |
 | [F224](decisions/F224.md) | A kernel patch of Faraday's own on the Pi: the bootloader's seed is not credited unless the command line says to | 2026-11-08 | Active | security |
 | [F225](decisions/F225.md) | The open checklist card's header at 1024 × 600 is held at eight under the touch-target floor | 2026-11-08 | Active | design |
+| [F226](decisions/F226.md) | A QR vault is made and opened in a tool in Tools, never kept open, and a file vault's item can be saved as one | 2026-11-08 | Active, not built | security |

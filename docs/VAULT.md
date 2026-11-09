@@ -1,8 +1,8 @@
 # The Faraday vault
 
 **Kind:** Spec
-**Status:** Specified (F190, amending F189; F208); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size (one of four, until F206 is built) and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); a file vault that grows by itself up to 256 MiB, with the memory checks, the cheaper size read and the file read in pieces (F206; §2, §5, §8, §9 read as they will be; §3.1's table, §4's limits and `docs/SECURITY-MODEL.md`'s "Fixed size" still describe four sizes up to 4 MiB until then), and the QR vault in the app (§1.2, §2.1: its create and unlock and its code)
+**Status:** Specified (F190, amending F189; F208; F226); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, at its own size (one of four, until F206 is built) and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
+**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); a file vault that grows by itself up to 256 MiB, with the memory checks, the cheaper size read and the file read in pieces (F206; §2, §5, §8, §9 read as they will be; §3.1's table, §4's limits and `docs/SECURITY-MODEL.md`'s "Fixed size" still describe four sizes up to 4 MiB until then), and the QR vault tool (§13, F226: Make, Open, and Save as a QR vault on a file vault's item)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -210,7 +210,7 @@ share is `codex32 = "…"` and `for = "…"` (the fingerprint of its key);
 a passphrase is `passphrase = "…"` and `for = "…"`; a note is
 `note = "…"`. At most one of `words`, `codex32`, `passphrase` and
 `note` is present: a QR vault with none of them is empty. A QR vault has
-no seal count and no identifier, and every seal is a new code (§8). The text is padded with line feeds to the
+no seal count and no identifier, and every seal is a new code (§13). The text is padded with line feeds to the
 one length every QR vault has, 226 bytes, so a code does not show what
 it holds, or whether it holds anything. That length is the line of a
 24-word seed of the list's longest words: the start `words = "` is 9
@@ -226,13 +226,12 @@ than its plaintext, 396 bytes (§1.2); the code is version 15 (77 × 77
 modules) at medium error correction, which holds 412 bytes in byte
 mode.
 
-A QR vault is a vault like the others: it unlocks with its passphrase,
-is listed on Vaults while open, marked as a QR vault, and shows what it
-holds. What it holds can be changed at any time, however it was made
-(§8): a key put in, the text typed or edited, one replaced by the
-other, or emptied. Each change is sealed as a new code; a code printed
-before still opens, to what it held when it was sealed, so the screen
-says to print the new code and destroy the old. It is not a secret
+A QR vault is not kept open (§13, F226): the tool in Tools makes one
+from a note or a loaded key, or from a file vault's item, and opens one
+to hand what it holds where that item goes; it is never listed on Vaults.
+Every code is made whole; a code printed before still opens, to what it
+held when it was sealed, so a person who makes a new one prints it and
+destroys the old. It is not a secret
 under `docs/QR.md` §7.1: it is drawn as any code is, and offered as a
 labelled PNG (`docs/QR.md` §4 items 3 and 4) whose label lines are "QR
 vault", the vault's name and the date it was sealed, never what it holds.
@@ -240,12 +239,11 @@ A code of 77 × 77 modules is not copied by hand: its paper is that PNG,
 carried on a stick to a computer with a printer, which may be online. The
 code holds no name and no date; only the label does.
 
-Scanned wherever a SeedQR is taken, it asks for its passphrase and a
-name, opens, and its words go to the seed sheet (**Use without a passphrase** /
-**Add a passphrase**, `docs/FLOWS.md`), then load as a scanned SeedQR's
-do; a share goes to Add a key's codex32 form, and a passphrase to the
-seed it belongs to, found by its fingerprint. Faraday Starter does not
-scan or print a QR vault.
+Scanned wherever a SeedQR is taken, it opens the tool's Open card (§13),
+which asks for its passphrase and hands its words to the seed sheet, a
+share to Add a key's codex32 form, a passphrase to the seed it belongs
+to, found by its fingerprint, and a note to an open file vault. Faraday
+Starter does not scan or print a QR vault.
 
 ## 3. Keys
 
@@ -611,9 +609,8 @@ S2K and every data packet.
 Sealing happens on every lock (`docs/history/PLAN.md` §5.3), and for one
 vault alone when a backup's vault item locks it to make the next vault
 ("Lock it and make a new vault"); that vault closes and the rest stay
-open. A QR vault is sealed only by **Save** on its page or in the
-backup flow (§8), when what it holds changes, never at a lock, so its
-printed code stays current until it is changed. The sealed file goes For the stick
+open. A QR vault is never open, so never sealed at a lock: the tool seals
+each code once, when it is made (§13). The sealed file goes For the stick
 (Files' half that a stick visit writes). With more than one vault file
 For the stick, a visit ticks one, the first the last write did not
 write, so each vault goes to its own stick.
@@ -1108,25 +1105,8 @@ vault's file." Copies sealed before keep the key file they had. Faraday
 never sets a YubiKey up: a secret is taken at unlock only, and a vault
 opened without one cannot be given one. A QR vault has neither.
 
-**File** or **QR code**, the first choice in Create a vault, says which it
-makes: **QR code** makes a QR vault (§2.1), empty, with
-the same name, memory step and passphrase; there is no separate flow
-for it. Its page then offers **Add a key** (a seed's words, a codex32
-share, or a BIP-39 passphrase with its key's fingerprint, chosen from
-the keys on the device) and a text field for a note, which shows the
-room left as it is typed and takes no more than §2.1's maximum; both
-can be used again at any time to replace what it holds. **Save** seals
-it as a new code with a new salt and session key; the memory step and
-passphrase can be changed as a file vault's can. The passphrase
-is not measured: a warning line says the code is only as strong as it,
-with no minimum beyond not being empty.
-
-A QR vault's page offers
-**Show as QR**, **PNG to the Outbox** (the labelled picture, §2.1) and
-**To the Outbox** (the `.pgp` file, which `sq decrypt` opens); a stick visit
-writes the Outbox as it writes any file. After each save the new code
-is shown, with the note that an earlier printed code still opens to
-what it held before.
+Create a vault makes a file vault only; a QR vault is made in Tools
+(§13, F226).
 
 **The KeePass export is a vault** (F190 point 10). **Export for KeePass**
 on a person's entry makes a new vault holding that one entry, a
@@ -1376,3 +1356,81 @@ What each bar finds is kept on the open vault beside what is read of its
 items (`vault/search.rs`, `Found`), dropped by every change to the items
 and to a bar's text, and found again before the next frame, so drawing
 only looks it up. A lock empties both bars.
+
+## 13. The QR vault tool
+
+A QR vault is made and opened in one place, a tool in Tools (F226), and
+never kept open: it is not listed on Vaults, has no page, and is never
+sealed at a lock. What the tool typed, opened or made is wiped when it is
+left, at the idle warning and at a lock, as New key's is
+(`docs/FLOWS.md`). To change what a code holds, a new one is made; a code
+printed before still opens, to what it held. Faraday Starter has no such
+tool.
+
+**The tile.** **QR vault** on the Tools page (`catalog.rs`), in the Vaults
+group, tags OpenPGP and Argon2id, opens the tool at its first card, which
+offers **Make** and **Open**. Create a vault makes file vaults only: it
+has no File or QR code choice.
+
+**Make.** A step flow:
+
+1. **Contents**: **Type a note** (one field, masked behind its eye,
+   DESIGN §4.10, showing the room left as it is typed and taking no
+   more than §2.1's `QR_NOTE_MAX`), or **A loaded key** (its row, for a
+   key of 12 or 24 English words; any other key's row is dimmed, its line
+   "Not 12 or 24 English words"). The words are sealed inside
+   `faraday-keys` and never lent to the tool.
+2. **Passphrase**: typed twice, not empty, not measured; a warning line
+   says the code is only as strong as its passphrase. The memory step
+   (§3.1), one of `SEAL_EXPONENTS`, the first by default; **Add
+   randomness** (`docs/OWN-RANDOMNESS.md` §2.2); a name, as a vault's
+   (§6: empty is `qr-vault.pgp`).
+3. **Code**: sealed under Progress (one Argon2id run, §5), then the
+   code, **Show as QR**, **PNG to the Outbox** (the labelled picture,
+   §2.1) and **To the Outbox** (the `.pgp` file), and **Make another**.
+   The seal is read back under the same passphrase before the code is
+   shown, as a file vault's seal is.
+
+**Save as a QR vault on a vault's item.** The page of an item in an open
+file vault offers **Save as a QR vault** for a seed, a codex32 share, a
+BIP-39 passphrase and a note, and for nothing else: a person's entry, a
+wallet, a recovery sheet, a GPG key, Secure Boot keys and a wallet share
+have no place in a QR vault's contents (§2.1). The button opens the
+Make flow at its second step, with the item as its contents; the item
+stays in the file vault, unchanged. An item too long has the button
+too, and pressing it opens a dialog instead:
+
+| The item | Fits when | Its dialog when it does not |
+|---|---|---|
+| A seed | 12 or 24 words of the English list, held as words | "This key does not fit in a QR vault. A QR vault holds 12 or 24 English words." |
+| A codex32 share | always: BIP 93's longest string fits | none |
+| A passphrase | its TOML text is at most `QR_PASSPHRASE_MAX` | "This passphrase is too long for a QR vault." |
+| A note | its TOML text is at most `QR_NOTE_MAX` | "This note is {n} characters too long for a QR vault. Take {n} characters off its end to make it fit." |
+
+A note's count is the fewest characters, each one Backspace takes (a
+Unicode scalar value), whose removal from the end leaves a note that
+fits, with its escapes and its UTF-8 lengths counted as §2.1 counts
+them. A passphrase or a key gets no count, since a shorter one is
+another secret. A seed's passphrase kept with it (§7) is not in the code,
+and the Contents line says so: "Its passphrase is not in this code."
+
+**Open.** A code scanned (the tool's camera, Home's **Scan**, or any
+scanner that takes a SeedQR) or a `.pgp` file chosen in Files that parses
+as §1.2's packets opens the tool's Open card with it. The passphrase is
+typed once; the S2K's cost is checked before Progress starts (§4). A
+wrong passphrase reads so and may be tried again; a message Faraday does
+not open is named (§1.2). Opened, the card says what the code holds and
+offers what that item takes, as the same item scanned in its own form
+would:
+
+| It holds | Offered |
+|---|---|
+| A seed's words | the seed sheet (**Use without a passphrase** / **Add a passphrase**, `docs/FLOWS.md`), then the flow of a scanned SeedQR |
+| A codex32 share | Add a key's codex32 form, with the share typed in |
+| A passphrase | **Add to key {fingerprint}** when that key is loaded; otherwise "Key {fingerprint} is not loaded", and the passphrase behind its eye |
+| A note | the note behind its eye, and **Save as a note** in an open file vault (dimmed, "Open a vault first", when none is) |
+| Nothing | "This QR vault is empty." |
+
+What it opened to is held in `faraday-keys` (`Reveal::QrVault`,
+`docs/KEYS.md`) and leaves only through these offers and the eye.
+Nothing scanned is filed in Files; a `.pgp` chosen there stays there.
