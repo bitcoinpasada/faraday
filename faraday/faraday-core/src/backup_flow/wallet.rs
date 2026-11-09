@@ -1631,7 +1631,7 @@ impl Faraday {
             };
             let id = self.vaults.open[o].id;
             // Each record keeps the seal counts of other vaults it holds
-            // (`docs/VAULT-HARDENING.md` §5.6).
+            // (`docs/VAULT.md` §7).
             let stale: Vec<(usize, String)> = self
                 .vaults
                 .records(id)

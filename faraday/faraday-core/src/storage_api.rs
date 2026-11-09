@@ -18,7 +18,7 @@ pub struct StickInfo {
     /// The files at its top level, with their sizes.
     pub files: Vec<(String, u64)>,
     /// The files among them that are vaults by their contents, whatever
-    /// the name (`docs/VAULT-HARDENING.md` §2.1): found once when the
+    /// the name (`docs/VAULT.md` §1.1): found once when the
     /// shell made the listing.
     pub vaults: Vec<String>,
     /// What the device reports of itself, where the shell can tell

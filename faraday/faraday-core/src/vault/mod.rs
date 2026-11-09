@@ -1271,7 +1271,7 @@ impl Faraday {
 
     /// Costs what `vault_gather_codex32` and the Load sheet cost. The rest
     /// of an unlock once its copy is taken: at once, or from the
-    /// older-copy dialog's **Open** (`docs/VAULT-HARDENING.md` §5.3).
+    /// older-copy dialog's **Open** (`docs/VAULT.md` §11).
     pub(crate) fn vault_unlock_go_on(&mut self, for_import: bool) {
         // Unlocked for a vault category from Tools: that category.
         // Otherwise the first kind it holds.

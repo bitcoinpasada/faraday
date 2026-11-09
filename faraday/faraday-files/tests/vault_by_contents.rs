@@ -1,5 +1,5 @@
 //! A vault on a stick is told by its contents, whatever its name: the
-//! KDBX 4 signature and a vault's length (`docs/VAULT-HARDENING.md` §2.1).
+//! KDBX 4 signature and a vault's length (`docs/VAULT.md` §1.1).
 //! A copy made by a tool that writes short names only is still a vault,
 //! and no write goes over it as over any other file.
 

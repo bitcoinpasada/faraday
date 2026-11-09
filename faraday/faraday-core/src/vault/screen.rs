@@ -1787,7 +1787,7 @@ fn words_text(m: &faraday_bip::bip39::Mnemonic) -> zeroize::Zeroizing<String> {
 }
 
 /// The open vault's seal count and, when its copy is not the newest seen,
-/// what that says (`docs/VAULT-HARDENING.md` §5.2): two lines under its
+/// what that says (`docs/VAULT.md` §11): two lines under its
 /// name. Gives their height.
 fn seals_head(
     app: &View,

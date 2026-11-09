@@ -1,8 +1,9 @@
 # Vault hardening: the file's name, the passphrase, key commitment and the seal count
 
-**Kind:** Spec
-**Status:** Specified (F159), amended by F189 and F190; the passphrase in NFC (§3) and the seal count (§5) built in the first format and carried into the KDBX vault (`docs/VAULT.md` §3, §7, §11), which the app reads and seals; the file's name (§2), the commitment block (§4), the edit list (§6) and the outside review (§10) replaced by F189 and moved to `docs/history/VAULT-HARDENING-LOG.md`
-**Open:** §3 and §5 are still written in the first format's terms (slots, a record, `.fvlt`); rewritten for the KDBX vault, or moved to history, when the KDBX vault is settled
+**Kind:** History
+**Status:** Kept as written
+
+Moved out of the documents on 2026-11-09: what §3 (the passphrase in NFC) and §5 (the seal count) hold for the KDBX vault is in `docs/VAULT.md` §3 and §11. The sections moved earlier (§2, §4, §6, §10) are in `docs/history/VAULT-HARDENING-LOG.md`.
 
 The vault's format is `docs/VAULT.md`. This spec changes it in four
 places and renames its file. Every change was settled by the owner on

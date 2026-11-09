@@ -2824,7 +2824,7 @@ pub struct VaultSummary {
     /// When it was last seen open, Unix seconds, when the clock is known.
     pub seen: Option<u64>,
     /// The highest seal count seen of it since power-on
-    /// (`docs/VAULT-HARDENING.md` §5.3).
+    /// (`docs/VAULT.md` §11).
     pub seal: Option<SealSeen>,
 }
 
@@ -3453,7 +3453,7 @@ pub enum VaultAction {
     SaveKeyKept(usize, bool, super::keep::Scope),
     /// The sheet's or the dialog's Cancel: nothing is copied.
     CopyCancel,
-    /// The older-copy dialog's **Open**: the unlock goes on (§5.3).
+    /// The older-copy dialog's **Open**: the unlock goes on (`docs/VAULT.md` §11).
     OlderOpen,
     /// Its **Keep locked**: the copy closes, nothing of it read.
     OlderBack,

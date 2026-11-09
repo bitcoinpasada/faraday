@@ -31,7 +31,7 @@ pub enum Work {
     /// A whole file's or transaction's bytes hashed.
     FileHash,
     /// The first bytes of a file on a stick read, for a listing to tell
-    /// a vault by its contents (`docs/VAULT-HARDENING.md` §2.1).
+    /// a vault by its contents (`docs/VAULT.md` §1.1).
     FileRead,
     /// A PNG's pixels decoded.
     PngDecode,

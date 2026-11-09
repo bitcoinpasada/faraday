@@ -1,5 +1,5 @@
 //! A file is a vault by its contents, whatever its name: the magic and
-//! one of the vault lengths (`docs/VAULT-HARDENING.md` §2.1). A vault
+//! one of the vault lengths (`docs/VAULT.md` §1.1). A vault
 //! under a short name or no extension opens from Files; a file named
 //! `.kdbx` that holds other bytes is not a vault.
 

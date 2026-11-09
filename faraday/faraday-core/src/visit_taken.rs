@@ -65,7 +65,7 @@ pub(crate) struct NameTaken {
 }
 
 /// Whether these bytes are a vault, whatever the file is named: the
-/// magic and a vault length (`docs/VAULT-HARDENING.md` §2.1).
+/// magic and a vault length (`docs/VAULT.md` §1.1).
 pub(crate) fn is_vault(bytes: &[u8]) -> bool {
     faraday_intake::is_vault(bytes)
 }

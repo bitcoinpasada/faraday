@@ -225,7 +225,7 @@ fn seal_next(app: &mut Faraday) {
             return seal_stopped(app, None);
         }
         // Its plans take the counts of the vaults sealed before it
-        // (`docs/VAULT-HARDENING.md` §5.6).
+        // (`docs/VAULT.md` §11).
         // A read-only vault is closed as it is: nothing written to it.
         let read_only = app.vaults.store().read_only(id).is_some();
         if !read_only {

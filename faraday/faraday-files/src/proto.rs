@@ -174,7 +174,7 @@ pub struct Stick {
     /// Its top-level files and their sizes.
     pub files: Vec<(String, u64)>,
     /// The files among them that are vaults by their contents and are
-    /// not named `.kdbx` (`docs/VAULT-HARDENING.md` §2.1), read once
+    /// not named `.kdbx` (`docs/VAULT.md` §1.1), read once
     /// when the listing was made.
     pub vaults: Vec<String>,
     /// Why it cannot be used for a backup, when it cannot: found by the disk

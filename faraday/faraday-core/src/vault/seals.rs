@@ -1,4 +1,4 @@
-//! The seal count in the app (`docs/VAULT-HARDENING.md` §5.2 to §5.6):
+//! The seal count in the app (`docs/VAULT.md` §11):
 //! the count shown at unlock and on the open vault's head, the highest
 //! count seen of each vault since power-on (kept with the vault's summary,
 //! `docs/VAULT.md` §11), the comparison of a copy against it, and the
@@ -203,8 +203,8 @@ impl Vaults {
     /// Open vault `v`, just unlocked: its
     /// count raises the highest seen, a count lower than the highest
     /// seen, or the same with other bytes, is kept for Unlock and the
-    /// vault's head to say (§5.3 item 1), and the backup plans of the
-    /// open vaults are read for the counts they record (§5.6). Other
+    /// vault's head to say (`docs/VAULT.md` §11), and the backup plans of the
+    /// open vaults are read for the counts they record (`docs/VAULT.md` §11). Other
     /// copies in Files are not read: a copy's count costs its own unlock.
     pub(crate) fn seals_unlocked(&mut self, v: usize) {
         let Some(o) = self.open.get(v) else {
@@ -244,7 +244,7 @@ impl Vaults {
     /// each open vault of the same identifier and treated as a copy seen:
     /// a higher count makes that vault an older copy, the same count with
     /// another digest says so, otherwise nothing is said. Never refuses:
-    /// the vault stays open (§5.6 reading).
+    /// the vault stays open (`docs/VAULT.md` §11).
     pub(crate) fn plan_seals_check(&mut self) {
         let mut lines: Vec<(String, SealLine)> = Vec::new();
         for o in &self.open {
@@ -303,7 +303,7 @@ impl Vaults {
     /// line replaced only by a higher count or the same count seen now.
     /// Lines for vaults not seen this session are kept as they were. A
     /// vault whose lines change counts the change, so a lock seals it
-    /// with the rest (§5.6 writing).
+    /// with the rest (`docs/VAULT.md` §11).
     pub(crate) fn seals_write(&mut self, c: &Compute, i: usize) {
         let Some(o) = self.open.get(i) else {
             return;
@@ -402,7 +402,7 @@ impl Vaults {
 }
 
 /// An unlock stopped at the **Open this copy?** dialog
-/// (`docs/VAULT-HARDENING.md` §5.3, owner 2026-10-29): the vault opened is
+/// (`docs/VAULT.md` §11, owner 2026-10-29): the vault opened is
 /// held, its key in the store, and nothing of it loads or shows until
 /// **Open** is pressed; **Keep locked** closes it. Faraday cannot tell an
 /// older copy from one put back by someone else, so the person decides;
@@ -431,7 +431,7 @@ impl VaultArea {
 
     /// Holds open vault `v` at the **Open this copy?** dialog when its
     /// unlock found a seal count warning
-    /// (§5.3 item 2, §5.6); true when it holds.
+    /// (`docs/VAULT.md` §11; `docs/history/VAULT-HARDENING.md` §5.3 item 2); true when it holds.
     pub(crate) fn older_hold(
         &mut self,
         v: usize,

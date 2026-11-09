@@ -192,7 +192,7 @@ pub fn part_of(text: &str) -> Option<Part> {
 
 /// Whether a whole file is a vault, whatever its name: it begins with
 /// KDBX's signatures and major version 4, and its length is one a vault
-/// can have (`docs/VAULT.md` §1.1, `docs/VAULT-HARDENING.md` §2.1). Says
+/// can have (`docs/VAULT.md` §1.1). Says
 /// nothing of whether the rest is sound.
 pub fn is_vault(bytes: &[u8]) -> bool {
     faraday_codec::vault_file::is_vault_file(bytes)

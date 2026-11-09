@@ -274,6 +274,21 @@ typed. KeePass apps and `sq` do not put a passphrase in NFC: a vault
 whose passphrase has a character with two forms opens there only when
 typed in NFC, which the vectors show (§10).
 
+It is NFC and not NFKC, so compatibility characters stay distinct from
+their plain forms; RFC 8265's OpaqueString for passwords uses NFC for
+that reason, though NIST SP 800-63B names NFKC or NFKD for verifiers.
+Nothing in the file records the normalisation, and an ASCII passphrase is
+its own NFC form. Faraday does not do what OpaqueString adds: spaces other
+than U+0020 are not mapped and control characters, default-ignorable
+characters (the variation selector most emoji carry, the zero-width
+space) and code points unassigned in the normaliser's Unicode version are
+not refused. A passphrase holding a code point unassigned in that version
+could therefore have another NFC form after the normaliser moves to a
+later version, and its vault would not open until the earlier version is
+used. An open file vault keeps the NFC bytes, in memory wiped as it drops, for
+every seal, and wipes them when the vault closes; the normaliser's own
+small buffer of combining marks is not wiped.
+
 Argon2id is version 1.3 (0x13) with 3 passes and 4 lanes in both
 formats (F190 point 6), no secret key and no associated data. Faraday
 writes five memory steps:
@@ -1368,7 +1383,7 @@ sealed 12 times too, with other changes". Faraday cannot tell an older
 copy from one put back by someone else, so such an unlock stops at a
 dialog, **Open this copy?**, naming the vault and that line: **Keep
 locked** closes the vault unread, and only **Open** opens it (owner,
-2026-10-29; `docs/VAULT-HARDENING.md` §5.3). It is never refused. The
+2026-10-29). It is never refused. The
 Backups screen lists a locked vault's wallets from it
 (`docs/history/SIMPLIFY.md` §5), and its vault line says a seed is kept
 in a locked vault only when the seed's master id, the session key's or
@@ -1388,6 +1403,47 @@ entries · seen 14:02" (one or two wallets and keys by name, more by
 count). Home's Unlock lead is "Unlock Savings" with the same line. A
 locked vault with no summary keeps its row as before and reads "Unlock
 to see what it holds".
+
+**What the count does and does not show.** **Keep locked** (and Escape,
+and a press beside the dialog) closes the vault with its key wiped and
+puts back what was remembered of it. The counts read stay seen only for
+a vault that had a summary before the unlock; a vault first seen since
+power-on loses its new summary and the raised count. Until
+**Open**, nothing of the vault is loaded or shown. A vault already open
+when another open vault's backup plan names it older stays open, and its
+head says so. The time shown is the sealing computer's clock, which can
+be wrong or unset (a Raspberry Pi keeps no time when off); it is shown
+and never compared. No one raises a count without the passphrase: it is
+inside the encryption, under the file's HMACs.
+
+The count does not show: a copy put back while the computer is off, when
+no copy of a higher count was seen since power-on and no open vault's
+plan records one; every copy rolled back at once, at every place; a
+vault no open vault's plan names; a plan rolled back with its own vault,
+which holds older lines for the others; anything while the vault is
+locked, so at a stick visit, which never has the key; and whether an
+older copy is an attack or a place not yet visited, which is why the
+unlock asks and does not refuse.
+
+**The plan's `seals` lines.** A line is written for each other
+vault, locked ones included, that has a summary and a count seen
+since power-on and whose summary's plan wallets hold this plan's wallet
+checksum (the other vault keeps a plan record for the wallet), with the
+highest count and digest seen, counting a seal at this lock. None names the
+plan's own vault: it would roll back with it. A line for a copy not seen
+this session is carried as it was, and is replaced only by a higher count
+or the same count from this session. Lines are written whenever a plan is
+written and at every lock before sealing; at a lock the vaults are sealed
+in the order they were opened, a moved item's target before its
+original (§7.2), each taking the new count and digest of
+those sealed before it. At every unlock, whether the vault that opens holds a plan or another
+holds one, each open vault's plans are read and each line is compared
+with the open vault of that identifier:
+a higher count is an older copy ("… {vault}'s backup plan records a copy
+sealed 12 times"), the same count with another digest is "Another copy
+was sealed 12 times too, with other changes.", otherwise nothing is said. Whoever opens the
+plan's vault learns from the lines the other vaults' identifiers and how
+many times each was sealed.
 
 **The trade-off.** Wallet names, shapes and descriptor checksums, key
 fingerprints and master ids, the backup map's places and the vault's

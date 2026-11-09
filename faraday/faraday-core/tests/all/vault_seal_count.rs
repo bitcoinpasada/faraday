@@ -1,5 +1,5 @@
 //! A vault counts how many times its slot was sealed, inside the
-//! encryption (`docs/VAULT-HARDENING.md` §5). The count is shown at
+//! encryption (`docs/VAULT.md` §11). The count is shown at
 //! unlock and on the open vault's head; an unlock of a copy with a lower
 //! count than one seen since power-on stops at a dialog that says it is
 //! older, and opens only on **Open**; and a backup plan in one vault
@@ -286,7 +286,7 @@ fn an_older_copy_opened_after_a_newer_one_in_one_power_on_says_so() {
     assert_eq!(app.vaults().open.len(), 1);
 
     // Power off: nothing is kept, and the older copy opens with no
-    // warning, which is what a count can detect (VAULT-HARDENING §5.4).
+    // warning, which is what a count can detect (VAULT.md §11).
     let original = made("Main", B, 1);
     let mut app = process(vec![("main.kdbx".into(), original)], Vec::new(), Vec::new());
     unlock(&mut app, 0, B);
@@ -455,7 +455,7 @@ fn a_plan_that_records_the_copy_opened_says_nothing_and_one_with_other_bytes_say
     assert!(said(&texts, "sealed 2 times too"), "{texts:?}");
 
     // An older copy of the plan's vault carries an older line: no warning
-    // on B, the limit §5.6 states.
+    // on B, the limit `docs/VAULT.md` §11 states.
     let old_line = plans_vault_and_b(1, &b_old);
     let mut inbox = old_line;
     inbox.push(("b.kdbx".into(), b_new));

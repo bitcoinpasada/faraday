@@ -2670,10 +2670,10 @@ impl Faraday {
     /// Open vault `v`, just unlocked: what the app remembers of the vaults
     /// refreshed, and the slot's seal count against what was seen, with
     /// the other copies in Files read with the key just opened
-    /// (`docs/VAULT-HARDENING.md` §5.2, §5.3). An older copy, or one
+    /// (`docs/VAULT.md` §11). An older copy, or one
     /// sealed as many times with other bytes, is held at the older-copy
     /// dialog, nothing of it loaded, and this says true: the unlock goes
-    /// on only from the dialog's **Open** (§5.3, owner 2026-10-29).
+    /// on only from the dialog's **Open** (`docs/VAULT.md` §11, owner 2026-10-29).
     pub(crate) fn vault_unlock_held(
         &mut self,
         v: usize,

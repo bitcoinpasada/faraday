@@ -84,7 +84,7 @@ finds them.
 | `QrEncode` | `faraday_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
 | `QrDecode` | `faraday_codec::decode::decode_luma` |
 | `FileHash` | new `faraday_crypto::hash::sha256_whole(c, bytes)`; Faraday's whole-file hashes move to it (`transfer.rs`, `lib.rs`, `gpg.rs`, `Item::sha`) |
-| `FileRead` | `faraday_files::vault_names`: twelve bytes of each file on a stick that has a vault's length and no `.kdbx` name, read once when a listing is made (`docs/VAULT-HARDENING.md` §2.1) |
+| `FileRead` | `faraday_files::vault_names`: twelve bytes of each file on a stick that has a vault's length and no `.kdbx` name, read once when a listing is made (`docs/VAULT.md` §1.1) |
 | Faraday's own | `plan::map`, `plan::check` (`PlanMap`); picture/pdf makers (`Picture`); `Wallet::script_at` (`WalletMatch`) and `Wallet::derives` (`Address`, a wallet's keys at a place, the first time); `faraday_files::qr_in_png` (`PngDecode`); `Faraday::entry_code_made` and `Faraday::listed_code_made` (`TotpCode`, one HMAC each, made before the frame, outside drawing, once for each period an entry's page is open or the Codes screen is on, and held for drawing to read); `Key` and `Wallet` kept accessors (`KeyDerive`, `Address`) |
 
 Not gated: `Canvas::frost`, `snapshot`, `snapshot_into`, `restore`,

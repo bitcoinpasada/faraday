@@ -469,7 +469,7 @@ pub fn checked_for_write(name: &str) -> Result<&str, String> {
 
 /// Costs a read of the first twelve bytes of each file that could be a
 /// vault: the names in `files` that are a vault by its contents
-/// (`docs/VAULT-HARDENING.md` §2.1), whatever the name, a `.kdbx` too.
+/// (`docs/VAULT.md` §1.1), whatever the name, a `.kdbx` too.
 /// A file is read only where its length is a length a vault can have. Made once when the listing is, and kept with it.
 pub fn vault_names(c: &Compute, place: &mut dyn Place, files: &[(String, u64)]) -> Vec<String> {
     let mut out = Vec::new();

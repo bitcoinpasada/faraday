@@ -347,7 +347,7 @@ characters advised on writing and several normalisations allowed on reading.
 key field offers exactly those 95 characters on its four keypads and takes at most
 200 (`load_key`, `ENCRYPTION_KEY_MAX_LEN`), ASCII is the same in every normal form,
 and the rule can be stated in a line. Other text, or a longer one, is refused at the field. This is stricter than the vault's
-NFC (`docs/VAULT-HARDENING.md`), because a vault opens in Faraday and a KEF
+NFC (`docs/VAULT.md` §3), because a vault opens in Faraday and a KEF
 code must open on a device with a small keypad. The dice passphrase comes
 first.
 

@@ -363,7 +363,7 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
     });
 }
 
-/// **Open this copy?** (`docs/VAULT-HARDENING.md` §5.3): an unlock held
+/// **Open this copy?** (`docs/VAULT.md` §11): an unlock held
 /// at an older copy, or one sealed as many times with other bytes. A
 /// Material basic dialog: the vault's name and what its seal count found,
 /// **Keep locked** and **Open**. Reads the state.

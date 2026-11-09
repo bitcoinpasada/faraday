@@ -340,7 +340,7 @@ impl Answers {
                 // caller (`docs/history/NEW-WALLET.md` §14.3), not an answer.
                 "held" => continue,
                 // The seal counts of the other vaults this plan places
-                // (`docs/VAULT-HARDENING.md` §5.6): read by the plan
+                // (`docs/VAULT.md` §7): read by the plan
                 // area ([`SealLine`]), not an answer.
                 "seals" => continue,
                 // The access layers' count and routes, written only by test

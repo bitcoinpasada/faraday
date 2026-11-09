@@ -75,8 +75,8 @@ pub struct StagedFile {
     /// Its size on the stick.
     pub size: u64,
     /// Whether the listing found it a vault: named `.kdbx`, or told by
-    /// its contents when the listing was made (`docs/VAULT-HARDENING.md`
-    /// §2.1).
+    /// its contents when the listing was made (`docs/VAULT.md`
+    /// §1.1).
     pub vault: bool,
     /// Where it stands.
     pub state: Staged,

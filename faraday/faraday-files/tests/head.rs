@@ -1,6 +1,6 @@
 //! Telling a vault by its first twelve bytes reads twelve bytes of a FAT
 //! stick, not the file: a vault is up to 16.8 MB, and a listing asks of
-//! every file of a vault's length (`docs/VAULT-HARDENING.md` §2.1).
+//! every file of a vault's length (`docs/VAULT.md` §1.1).
 //!
 //! The volume is made by `mkfs.fat`, found as `foreign.rs` finds it; a
 //! machine without it says so and skips.

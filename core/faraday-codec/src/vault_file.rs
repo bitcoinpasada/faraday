@@ -1,5 +1,5 @@
 //! What makes a file a vault by its contents (`docs/VAULT.md` §1.1 and §2,
-//! `docs/VAULT-HARDENING.md` §2.1): KDBX's signature, major version 4 and
+//! `docs/VAULT.md` §1.1): KDBX's signature, major version 4 and
 //! a length a vault can have, whatever its name.
 
 /// KDBX's two signatures, little-endian, as KDBX 2 to 4 begin.
