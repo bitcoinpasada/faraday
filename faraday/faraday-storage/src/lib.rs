@@ -1407,21 +1407,7 @@ impl DiskProcess {
         bytes: Vec<u8>,
     ) {
         let mut part = bytes;
-        let first = out.is_empty();
-        let total_ok = if first {
-            total <= faraday_files::MAX_VAULT_READ
-        } else {
-            total == known
-        };
-        let want = total
-            .saturating_sub(out.len() as u64)
-            .min(faraday_files::proto::PIECE as u64);
-        let refused = !total_ok
-            || part.len() as u64 != want
-            || (first
-                && out
-                    .try_reserve_exact(usize::try_from(total).unwrap_or(usize::MAX))
-                    .is_err());
+        let refused = !accept_part(&mut out, known, total, &part);
         if refused {
             zeroize::Zeroize::zeroize(&mut part);
             let why = EN.storage_answer_file.to_string();
@@ -1436,7 +1422,6 @@ impl DiskProcess {
             );
             return;
         }
-        out.extend_from_slice(&part);
         zeroize::Zeroize::zeroize(&mut part);
         if out.len() as u64 >= total {
             self.transfers_done.push(Transferred::Read {
@@ -1744,52 +1729,83 @@ impl DiskProcess {
     }
 }
 
-impl Sticks for DiskProcess {
-    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String> {
-        use faraday_files::proto::{PIECE, Request, Response};
-        // A file is read in pieces, so that a vault longer than a frame
-        // comes whole (F206 point 7).
-        let mut out: Vec<u8> = Vec::new();
-        let mut known = 0;
-        loop {
-            let from = out.len() as u64;
-            let (total, mut part) = match self.ask(&Request::ReadPart {
-                stick: stick.into(),
-                name: name.into(),
-                from,
-                len: PIECE as u32,
-            })? {
-                Response::Part { total, bytes } => (total, bytes),
-                Response::Failed(why) => {
-                    zeroize::Zeroize::zeroize(&mut out);
-                    return Err(why);
-                }
-                _ => {
-                    zeroize::Zeroize::zeroize(&mut out);
-                    return Err(EN.storage_answer_file.to_string());
-                }
-            };
-            let want = total.saturating_sub(from).min(PIECE as u64);
-            let bad = if from == 0 {
-                total > faraday_files::MAX_VAULT_READ
-                    || out
-                        .try_reserve_exact(usize::try_from(total).unwrap_or(usize::MAX))
-                        .is_err()
-            } else {
-                total != known
-            } || part.len() as u64 != want;
-            if bad {
-                zeroize::Zeroize::zeroize(&mut part);
+/// Takes one piece of a file read: `part` is added to `out` when it is the
+/// piece the read is at, and false says it is not (nothing is added). The
+/// first piece's total must be within `MAX_VAULT_READ` and is reserved
+/// whole; every later piece states the total `known` again; a piece is
+/// `PIECE` long, or what is left.
+fn accept_part(out: &mut Vec<u8>, known: u64, total: u64, part: &[u8]) -> bool {
+    let first = out.is_empty();
+    let total_ok = if first {
+        total <= faraday_files::MAX_VAULT_READ
+    } else {
+        total == known
+    };
+    let want = total
+        .saturating_sub(out.len() as u64)
+        .min(faraday_files::proto::PIECE as u64);
+    if !total_ok
+        || part.len() as u64 != want
+        || (first
+            && out
+                .try_reserve_exact(usize::try_from(total).unwrap_or(usize::MAX))
+                .is_err())
+    {
+        return false;
+    }
+    out.extend_from_slice(part);
+    true
+}
+
+/// Costs one disk-process answer per piece and the file's length in
+/// memory: a file read a piece at a time, `ask(from, len)` being the disk
+/// process's answer to one `ReadPart`. What has come is wiped when the
+/// read fails.
+pub fn read_pieces(
+    mut ask: impl FnMut(u64, u32) -> Result<faraday_files::proto::Response, String>,
+) -> Result<Vec<u8>, String> {
+    use faraday_files::proto::{PIECE, Response};
+    let mut out: Vec<u8> = Vec::new();
+    let mut known = 0;
+    loop {
+        let from = out.len() as u64;
+        let (total, mut part) = match ask(from, PIECE as u32)? {
+            Response::Part { total, bytes } => (total, bytes),
+            Response::Failed(why) => {
+                zeroize::Zeroize::zeroize(&mut out);
+                return Err(why);
+            }
+            _ => {
                 zeroize::Zeroize::zeroize(&mut out);
                 return Err(EN.storage_answer_file.to_string());
             }
-            known = total;
-            out.extend_from_slice(&part);
-            zeroize::Zeroize::zeroize(&mut part);
-            if out.len() as u64 >= total {
-                return Ok(out);
-            }
+        };
+        let taken = accept_part(&mut out, known, total, &part);
+        zeroize::Zeroize::zeroize(&mut part);
+        if !taken {
+            zeroize::Zeroize::zeroize(&mut out);
+            return Err(EN.storage_answer_file.to_string());
         }
+        known = total;
+        if out.len() as u64 >= total {
+            return Ok(out);
+        }
+    }
+}
+
+impl Sticks for DiskProcess {
+    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String> {
+        use faraday_files::proto::Request;
+        // A file is read in pieces, so that a vault longer than a frame
+        // comes whole (F206 point 7).
+        read_pieces(|from, len| {
+            self.ask(&Request::ReadPart {
+                stick: stick.into(),
+                name: name.into(),
+                from,
+                len,
+            })
+        })
     }
 
     fn write(

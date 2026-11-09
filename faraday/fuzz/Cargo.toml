@@ -25,6 +25,7 @@ faraday-shell-api = { path = "../../core/faraday-shell-api" }
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-qr = { path = "../faraday-qr" }
 faraday-files = { path = "../faraday-files" }
+faraday-storage = { path = "../faraday-storage" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-kef = { path = "../faraday-kef" }
 faraday-boot = { path = "../faraday-boot" }
@@ -263,6 +264,13 @@ bench = false
 [[bin]]
 name = "vault_parts"
 path = "fuzz_targets/vault_parts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "storage_read_parts"
+path = "fuzz_targets/storage_read_parts.rs"
 test = false
 doc = false
 bench = false

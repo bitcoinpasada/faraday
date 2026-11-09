@@ -96,6 +96,7 @@ shipped binary does.
 | `vault_entries` | `entries::parse` and `totp::parse`: a vault entries file and a TOTP setup code. |
 | `files_proto` | The disk process pipe: `Response::decode` and `Request::decode`, each decoded value encoded and decoded again to the same value, and the framing read as a stream. |
 | `vault_parts` | `faraday_files::finish_vault_writes` over a part file of the input's bytes, under a `.kdbx` name and another: the whole-vault check reads it, and what stays is the same bytes. |
+| `storage_read_parts` | `faraday_storage::read_pieces` (the app's read of a file in pieces from the disk process) over answers of the input's making: `Part` with any total and length, empty pieces, `Failed`, other answers. A read that succeeds holds exactly the pieces' bytes, as long as the first total said, within the read limit. |
 | `release_sums` | `faraday_sb::release::check` on sums and a signature from the input, each also beside the fixture's other half, against the GnuPG-made test release key (F134): what it takes, `verify_detached` takes too. |
 | `pe_image` | `pe::image_hash`, `check` against a fixed key's certificate and against a certificate from the input, `sign` and `x509::read` on the input as a certificate. |
 | `pe_transplant` | `pe::transplant` against a fixed release PE (`faraday-sb`'s `tests/vectors/tiny.efi`) and `pe::signer`, on the input as a signed boot file: whenever it is taken, what is built has the release's image hash and is the release's bytes but for the checksum, the certificate-table entry and the table. |

@@ -913,6 +913,7 @@ dependencies = [
  "faraday-shell-api",
  "faraday-starter",
  "faraday-starter-shell",
+ "faraday-storage",
  "faraday-vault",
  "libfuzzer-sys",
 ]
@@ -1176,6 +1177,7 @@ dependencies = [
  "chacha20",
  "faraday-backup",
  "faraday-bip",
+ "faraday-codec",
  "faraday-crypto",
  "faraday-intake",
  "faraday-pgp",
