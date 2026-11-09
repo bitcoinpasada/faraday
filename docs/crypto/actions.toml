@@ -9695,7 +9695,7 @@ heading = "The file"
 text = "A vault is one KDBX 4 file, the database format KeePass writes, under one passphrase. Faraday writes it in one shape and reads the shapes a KeePass app saves within limits."
 
 [[construction.section.para]]
-text = "The file holds a plaintext of a whole number of {f:{c:faraday/faraday-vault/src/file.rs::STEP} / 1024} KiB steps, from one step to {f:{c:faraday/faraday-vault/src/kdbx/mod.rs::MAX_PLAIN} / 1048576} MiB, framed in blocks and wrapped in a header. A vault is as small as its contents allow, and no size is chosen."
+text = "The file holds a plaintext of a whole number of {f:{c:faraday/faraday-vault/src/file.rs::STEP} / 1024} KiB steps, from one step to {f:{c:core/faraday-codec/src/vault_file.rs::MAX_PLAIN} / 1048576} MiB, framed in blocks and wrapped in a header. A vault is as small as its contents allow, and no size is chosen."
 
 [[construction.section.para]]
 text = "The file's name ends in .kdbx. There is one passphrase and no slots: a file does not hide how many passphrases exist, because there is one."
