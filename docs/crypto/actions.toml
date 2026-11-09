@@ -7610,6 +7610,7 @@ functions = [
   "faraday/faraday-keys/src/vault.rs::OpenVaults::adopt",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::fits",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::fits_new",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::held_exact",
   "faraday/faraday-keys/src/vault.rs::Records::unwritable",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::remove",
   "faraday/faraday-keys/src/vault.rs::OpenVaults::remove_where",
