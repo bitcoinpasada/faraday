@@ -1263,6 +1263,7 @@ functions = [
   "faraday/faraday-core/src/explore/addresses.rs::account_of",
   "faraday/faraday-core/src/create.rs::account_of",
   "faraday/faraday-core/src/create.rs::bip87_key",
+  "faraday/faraday-core/src/create.rs::at_own_account",
   "faraday/faraday-core/src/create.rs::bip87_of",
   "faraday/faraday-core/src/create.rs::path_spec",
   "faraday/faraday-core/src/restore.rs::Faraday::restore_refusal_typed",

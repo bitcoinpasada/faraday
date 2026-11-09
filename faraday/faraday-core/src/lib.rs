@@ -275,7 +275,7 @@ use faraday_crypto::work::Compute;
 use faraday_draw::Canvas;
 use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Key as KeyIn, TouchPhase};
 
-use wallet::{FileKind, KeyTexts, Session, fp_text};
+use wallet::{FileKind, Session, fp_text};
 
 /// Minutes without input before the session locks, at first (F58).
 pub const IDLE_LOCK_MIN: u16 = 30;
@@ -3734,22 +3734,8 @@ impl Faraday {
             .position(fp)
             .ok_or(EN.wallet_key_that_key)?;
         let kind = create::NewKind::of(w.policy());
-        // Create's own account for its kind, at BIP-48's path or BIP-87's
-        // as this key's own path is: what its BIP 129 record and its
-        // account code are made at. A key elsewhere has neither.
         let bip87 = create::bip87_key(pk);
-        let standard = kind.filter(|k| {
-            let at_bip87 = k.has_bip87() && bip87;
-            let text = if at_bip87 {
-                let path = k.path_with(self.session.keys.network(), 0, true);
-                self.session.keys.text_at(c, key, &path)
-            } else {
-                self.session.keys.account_text(c, key, *k, 0)
-            };
-            text.ok()
-                .and_then(|t| faraday_bip::policy::PolicyKey::parse(&t).ok())
-                .is_some_and(|t| t.xpub() == pk.xpub() && t.path() == pk.path())
-        });
+        let standard = kind.filter(|&k| create::at_own_account(c, &self.session.keys, key, k, pk));
         Ok(WalletKey {
             fp: fp_text(fp),
             text: pk.key_text(),

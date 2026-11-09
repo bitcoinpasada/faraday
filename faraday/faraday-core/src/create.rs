@@ -708,6 +708,27 @@ pub fn bip87_key(key: &faraday_bip::policy::PolicyKey) -> bool {
         == Some(ChildNumber::Hardened { index: 87 })
 }
 
+/// Costs a key derivation the first time. Whether wallet key `pk` is
+/// session key `key` at Create's own account for `kind`, on BIP-48's path
+/// or BIP-87's as `pk`'s own path is: what its BIP 129 record and its
+/// account code are made at. A key elsewhere has neither.
+pub fn at_own_account(
+    c: &Compute,
+    keys: &faraday_keys::Keys,
+    key: usize,
+    kind: NewKind,
+    pk: &PolicyKey,
+) -> bool {
+    let text = if kind.has_bip87() && bip87_key(pk) {
+        keys.text_at(c, key, &kind.path_with(keys.network(), 0, true))
+    } else {
+        keys.account_text(c, key, kind, 0)
+    };
+    text.ok()
+        .and_then(|t| PolicyKey::parse(&t).ok())
+        .is_some_and(|t| t.xpub() == pk.xpub() && t.path() == pk.path())
+}
+
 /// The path of an account key `[fingerprint/path]xpub`, as its origin
 /// writes it; `None` for a key with no origin.
 fn origin_path(key: &str) -> Option<&str> {
