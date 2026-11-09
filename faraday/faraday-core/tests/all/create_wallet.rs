@@ -939,3 +939,152 @@ fn checks_receive_rows_open_their_codes() {
         crate::common::opens_its_code(&mut app, faraday_core::Code::Receive(w, i), &want);
     }
 }
+
+/// The account key a test seed gives at `path`, derived by rust-bitcoin
+/// alone, as `[fingerprint/path]xpub`.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the test's own derivation, apart from the app's (docs/COMPUTE.md §7)"
+)]
+fn rust_bitcoin_key_at(word: &str, path: &str) -> String {
+    use faraday_bip::bitcoin::bip32::{DerivationPath, Xpriv, Xpub};
+    use faraday_bip::bitcoin::secp256k1::Secp256k1;
+    let c = testkit::compute();
+    use faraday_bip::bip39::{Language, Mnemonic};
+    let m = Mnemonic::parse(&c, Language::English, &testkit::test_words(word)).unwrap();
+    let seed = m.to_seed(&c, b"").unwrap();
+    let secp = Secp256k1::new();
+    let master = Xpriv::new_master(faraday_bip::bitcoin::Network::Bitcoin, seed.expose()).unwrap();
+    let path: DerivationPath = path.parse().unwrap();
+    let key = master.derive_priv(&secp, &path).unwrap();
+    let xpub = Xpub::from_priv(&secp, &key);
+    let shown = path.to_string().replace('\'', "h");
+    format!("[{}/{shown}]{xpub}", master.fingerprint(&secp))
+}
+
+/// A three-key `kind` wallet made here from the three test seeds, with
+/// BIP-87's path chosen on Quorum when `bip87`; its index.
+fn made_multisig_at(kind: NewKind, bip87: bool) -> (Faraday, usize) {
+    let mut app = testkit::started();
+    for seed in ["bacon", "zebra", "summer"] {
+        add_key(&mut app, seed);
+    }
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(kind_index(kind)));
+    app.press(Action::CNext(cstep::KIND));
+    let _ = app.frame();
+    if bip87 {
+        assert!(app.offers(Action::CMultiPath(true)), "Quorum offers BIP-87");
+        app.press(Action::CMultiPath(true));
+    }
+    app.press(Action::CNext(cstep::QUORUM));
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    for k in 0..3u8 {
+        let fp = app.session.keys[usize::from(k)].fingerprint.0;
+        app.press(Action::CSlotHere(k, fp));
+    }
+    app.press(Action::CNext(cstep::KEYS));
+    let made = app.create().and_then(|c| c.built).expect("made");
+    (app, made)
+}
+
+#[test]
+fn a_multisig_made_with_bip_87_has_every_key_at_m_87_and_its_descriptor_says_so() {
+    for kind in [
+        NewKind::Multi,
+        NewKind::MultiNested,
+        NewKind::MultiLegacy,
+        NewKind::TapMulti,
+    ] {
+        let (app, made) = made_multisig_at(kind, true);
+        let descriptor = app.session.wallets[made].policy().to_string();
+        for (k, seed) in ["bacon", "zebra", "summer"].into_iter().enumerate() {
+            let want = rust_bitcoin_key_at(seed, "m/87'/0'/0'");
+            let have = app.session.wallets[made].policy().keys()[k].key_text();
+            assert_eq!(
+                have.replace('\'', "h"),
+                want,
+                "{kind:?}: key {k} is rust-bitcoin's at m/87'/0'/0'"
+            );
+            assert!(descriptor.contains("87"), "{kind:?}: {descriptor}");
+        }
+    }
+}
+
+#[test]
+fn a_multisig_made_without_the_choice_stays_at_bip_48() {
+    let (app, made) = made_multisig_at(NewKind::Multi, false);
+    for (k, seed) in ["bacon", "zebra", "summer"].into_iter().enumerate() {
+        let want = rust_bitcoin_key_at(seed, "m/48'/0'/0'/2'");
+        let have = app.session.wallets[made].policy().keys()[k].key_text();
+        assert_eq!(have.replace('\'', "h"), want);
+    }
+}
+
+#[test]
+fn the_bip_87_choice_is_offered_on_quorum_for_every_multisig_and_the_account_follows_it() {
+    for kind in [
+        NewKind::Multi,
+        NewKind::MultiNested,
+        NewKind::MultiLegacy,
+        NewKind::TapMulti,
+    ] {
+        let mut app = testkit::started();
+        app.press(Action::CreateWallet);
+        app.press(Action::CKind(kind_index(kind)));
+        app.press(Action::CNext(cstep::KIND));
+        let _ = app.frame();
+        assert!(
+            app.offers(Action::CMultiPath(false)) && app.offers(Action::CMultiPath(true)),
+            "{kind:?}: both paths are offered"
+        );
+        assert!(!app.create().expect("create").bip87, "the first is chosen");
+        app.press(Action::CMultiPath(true));
+        let _ = app.frame();
+        assert!(
+            app.offers(Action::CAccount(0)),
+            "{kind:?}: an account to choose at m/87'"
+        );
+    }
+}
+
+#[test]
+fn a_single_key_kind_offers_no_path_choice() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(kind_index(NewKind::NativeSegwit)));
+    let _ = app.frame();
+    assert!(!app.offers(Action::CMultiPath(true)));
+}
+
+#[test]
+fn a_bip_87_multisig_exports_carry_its_origin_and_read_back() {
+    let (app, made) = made_multisig_at(NewKind::Multi, true);
+    let c = testkit::compute();
+    let w = &app.session.wallets[made];
+    let net = app.session.network();
+    let config = faraday_core::restore::checked_config(&c, net, w).expect("a multisig config");
+    assert_eq!(
+        config.matches("Derivation: m/87'/0'/0'").count(),
+        3,
+        "{config}"
+    );
+    let read = faraday_bip::multisig_config::parse(&c, &config).expect("the config reads");
+    for (a, b) in read.keys().iter().zip(w.policy().keys()) {
+        assert_eq!(
+            a.key_text(),
+            b.key_text(),
+            "Restore's reader takes the origin"
+        );
+    }
+    let first = w.policy().address_at(&c, net, false, 0).expect("address");
+    let bsms = faraday_bip::bsms::DescriptorRecord {
+        policy: w.policy().clone(),
+        paths: vec!["/0/*".to_string(), "/1/*".to_string()],
+        first_address: first.to_string(),
+        network: net,
+    }
+    .to_text();
+    assert_eq!(bsms.matches("/87h/0h/0h]").count(), 3, "{bsms}");
+}

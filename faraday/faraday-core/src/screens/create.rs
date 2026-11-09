@@ -159,7 +159,7 @@ fn card_summary(app: &View, k: u8, filled: usize) -> String {
     };
     // A wallet made from another, or at an account other than 0, says
     // its account (`docs/history/NEW-WALLET.md` §16.2, §17).
-    if c.kind.account_card() == Some(k) && (c.from.is_some() || c.account != 0) {
+    if c.account_card() == Some(k) && (c.from.is_some() || c.account != 0) {
         return fill(EN.create_at_account, &[&line, &c.account.to_string()]);
     }
     line
@@ -355,8 +355,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 )
             };
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &sentence) + 14.0;
-            // The account, below the quorum (F98).
-            if c.kind.account_card() == Some(n) {
+            // The path choice and the account, below the quorum (F98).
+            if c.kind.has_bip87() {
+                cy += path_choice(ui, x, cy, w, c);
+            }
+            if c.account_card() == Some(n) {
                 cy += account_row(ui, x, cy, w, c);
             }
             if next_button(ui, x, cy, w, EN.create_continue, Action::CNext(n)) {
@@ -366,7 +369,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         cstep::KEYS => {
             // The account, at the head of Keys for a kind with no Quorum
             // card (F98).
-            if c.kind.account_card() == Some(n) {
+            if c.account_card() == Some(n) {
                 cy += account_row(ui, x, cy, w, c);
             }
             // The Inbox's key and wallet files, from the drawing memo:
@@ -760,7 +763,7 @@ fn shares_quorum(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::CreateState) ->
         &[&c.share_k.to_string(), &c.share_n.to_string()],
     );
     cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + tokens::PAD;
-    if c.kind.account_card() == Some(crate::cstep::QUORUM) {
+    if c.account_card() == Some(crate::cstep::QUORUM) {
         cy += account_row(ui, x, cy, w, c);
     }
     if next_button(
@@ -786,6 +789,44 @@ fn path_row(ui: &mut Ui, x: f32, y: f32, w: f32, path: &str, change: bool) -> f3
     }
     let change = change.then_some((EN.create_path_change, Action::CPathChange));
     change_row(ui, x, y, w, EN.create_path, path, change)
+}
+
+/// The path choice of a multisig kind: its own path (BIP-48's, or
+/// `m/45'`) or BIP-87's, a segmented button, the first chosen at entry.
+/// Fixed once the wallet is made. Returns its height.
+fn path_choice(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::CreateState) -> f32 {
+    let own = if c.kind == crate::create::NewKind::MultiLegacy {
+        EN.create_path_bip45
+    } else {
+        EN.create_path_bip48
+    };
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.create_path);
+    let options = [
+        (own, Action::CMultiPath(false)),
+        (EN.create_path_bip87, Action::CMultiPath(true)),
+    ];
+    let chosen = Some(usize::from(c.at_bip87()));
+    let h = if c.built.is_some() {
+        // The made wallet's choice is shown, not offered.
+        let text = options[usize::from(c.at_bip87())].0;
+        return tokens::CREATE_FIELD_LABEL
+            + ui.wrap_as(
+                (x, y + tokens::CREATE_FIELD_LABEL, w),
+                BODY_M,
+                Role::OnSurface,
+                text,
+            )
+            .max(tokens::CREATE_VALUE_MIN)
+            + tokens::GAP;
+    } else {
+        ui.choices(
+            (x, y + tokens::CREATE_FIELD_LABEL + 2.0, w, tokens::TOUCH),
+            LABEL_L.size,
+            &options,
+            chosen,
+        )
+    };
+    tokens::CREATE_FIELD_LABEL + 2.0 + h + tokens::GAP
 }
 
 /// The Account row (F98), for a kind whose path has an account: its

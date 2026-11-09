@@ -6633,6 +6633,14 @@ strings! {
     create_account: "Account",
     /// Button in `account_row`: opens the Account row's stepper (F98).
     create_account_change: "Change",
+    /// Segment in `path_choice`: a multisig's own path, BIP-48's, the
+    /// default.
+    create_path_bip48: "BIP-48",
+    /// Segment in `path_choice`: legacy multisig's own path.
+    create_path_bip45: "m/45'",
+    /// Segment in `path_choice`: BIP-87's multisig path, which leaves the
+    /// script to the descriptor.
+    create_path_bip87: "BIP-87",
     /// The closed line of the card that carries the Account row, and the
     /// proposed name of a wallet made from another. `{}`: the card's
     /// line, the kind's or the wallet's name; the account.

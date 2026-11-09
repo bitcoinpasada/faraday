@@ -578,6 +578,11 @@ pub const BOARD_HEAD: f32 = 36.0;
 pub const BOARD_PAD: f32 = GAP;
 /// Height in dp of a zone's label row ("Stick 1", "Paper").
 pub const BOARD_ZONE_LABEL: f32 = 20.0;
+/// Height in dp of the label line above a Create card's value or choice
+/// row (Path, Account).
+pub const CREATE_FIELD_LABEL: f32 = 20.0;
+/// Least height in dp of a Create card's wrapped value line.
+pub const CREATE_VALUE_MIN: f32 = 18.0;
 /// Height in dp of a chip, on the cards and in the list.
 pub const BOARD_CHIP: f32 = 28.0;
 /// The gap in dp between two chips, beside or under each other.

@@ -251,6 +251,30 @@ impl NewKind {
     /// account is BIP-44's third step, BIP-48's too. `m/45'` has none
     /// and stays as it is.
     pub fn path_at(self, network: faraday_bip::keys::Network, account: u32) -> String {
+        self.path_with(network, account, false)
+    }
+
+    /// Whether the kind can take BIP-87's path, `m/87'/coin'/account'`,
+    /// in place of its own: the four multisig kinds Create makes with a
+    /// descriptor, whose script the descriptor says (`docs/WALLETS.md`).
+    pub fn has_bip87(self) -> bool {
+        matches!(
+            self,
+            NewKind::Multi | NewKind::MultiNested | NewKind::MultiLegacy | NewKind::TapMulti
+        )
+    }
+
+    /// [`NewKind::path_at`], or with `bip87` and a kind that
+    /// [`NewKind::has_bip87`], BIP-87's `m/87'/coin'/account'`.
+    pub fn path_with(
+        self,
+        network: faraday_bip::keys::Network,
+        account: u32,
+        bip87: bool,
+    ) -> String {
+        if bip87 && self.has_bip87() {
+            return format!("m/87'/{}'/{account}'", network.coin_type());
+        }
         let path = self.path(network);
         let mut steps: Vec<String> = path.split('/').map(str::to_string).collect();
         if steps.len() >= 4 {
@@ -654,11 +678,13 @@ fn origin_path(key: &str) -> Option<&str> {
 }
 
 /// Whether an account key `[fingerprint/path]xpub` is at a `kind`
-/// wallet's derivation, any account and any network. A key with no
-/// origin is at none.
+/// wallet's derivation, any account and any network, or for a multisig
+/// kind that [`NewKind::has_bip87`] at BIP-87's, whose path leaves the
+/// script to the descriptor. A key with no origin is at none.
 fn at_kind(kind: NewKind, key: &str) -> bool {
     let want = path_shape(&kind.path(Network::Mainnet));
-    want.is_some() && origin_path(key).and_then(path_shape) == want
+    let shape = origin_path(key).and_then(path_shape);
+    want.is_some() && (shape == want || (kind.has_bip87() && shape.as_deref() == Some("87")))
 }
 
 /// The script type a `kind` wallet's keys are written under; `None` for
@@ -876,6 +902,11 @@ pub struct CreateState {
     /// The Account row's − n + stepper is open, by its **Change** or by
     /// Check's Path **Change** (F98); closed, the row shows the account.
     pub account_open: bool,
+    /// A multisig kind's keys are taken at BIP-87's `m/87'/coin'/account'`,
+    /// not at the kind's own path (BIP-48's, or `m/45'`): the choice on the
+    /// card that carries the Account row. False at entry and whenever the
+    /// kind changes; only a kind that [`NewKind::has_bip87`] reads it.
+    pub bip87: bool,
     /// The wallet the creation was started from, by **New wallet from
     /// this one**.
     pub from: Option<FromWallet>,
@@ -895,6 +926,26 @@ pub struct CreateState {
 }
 
 impl CreateState {
+    /// Whether the keys are at BIP-87's path ([`CreateState::bip87`]).
+    pub fn at_bip87(&self) -> bool {
+        self.bip87 && self.kind.has_bip87()
+    }
+
+    /// Whether the path has an account to choose: the kind's, or any
+    /// BIP-87 path.
+    pub fn has_account(&self) -> bool {
+        self.kind.has_account() || self.at_bip87()
+    }
+
+    /// The card that carries the Account row ([`NewKind::account_card`]),
+    /// `m/45'` included once BIP-87 is chosen.
+    pub fn account_card(&self) -> Option<u8> {
+        if self.at_bip87() && !self.kind.has_account() {
+            return Some(cstep::QUORUM);
+        }
+        self.kind.account_card()
+    }
+
     /// The person answered yes to using vaults.
     pub fn into_vaults(&self) -> bool {
         self.vaults.answer == Some(true)
@@ -971,6 +1022,7 @@ impl CreateArea {
                     // (a single choice moves on by itself).
                     c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
                     c.kind_unchosen = false;
+                    c.bip87 = false;
                     if c.kind.multi() {
                         c.n = c.n.clamp(2, c.kind.max_keys());
                         c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
@@ -1259,6 +1311,7 @@ impl Faraday {
             // wallet from one held.
             Action::CSlotVault(k, v, r) => self.create_slot_vault(k, v, r),
             Action::CAccount(d) => self.create_account_step(d),
+            Action::CMultiPath(bip87) => self.create_multi_path(bip87),
             Action::CPathChange => self.create_take_back(),
             Action::NewWalletFrom(i) => self.create_from_wallet(i),
             Action::CSlotFile(k, i) => {
@@ -1481,10 +1534,26 @@ impl Faraday {
             .ok_or(EN.create_key_text_a_chosen)?;
         Ok((
             fp_text(faraday_bip::keys::Fingerprint(*fp)),
-            self.session
-                .keys
-                .account_text(c, key, cs.kind, cs.account)?,
+            self.create_slot_key_text(c, key, cs)?,
         ))
+    }
+
+    /// Costs what `account_text` costs. Session key `key` as the creation
+    /// `cs` takes it: at the kind's path, or at BIP-87's when that is
+    /// chosen ([`CreateState::at_bip87`]).
+    fn create_slot_key_text(
+        &self,
+        c: &Compute,
+        key: usize,
+        cs: &CreateState,
+    ) -> Result<String, String> {
+        if cs.at_bip87() {
+            let path = cs
+                .kind
+                .path_with(self.session.keys.network(), cs.account, true);
+            return self.session.keys.text_at(c, key, &path);
+        }
+        self.session.keys.account_text(c, key, cs.kind, cs.account)
     }
 
     /// Costs a key derivation (through `account_ur_at`). A slot's key as
@@ -1495,6 +1564,10 @@ impl Faraday {
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
             return None;
         };
+        if cs.at_bip87() {
+            // The code names BIP-48's path and no other.
+            return None;
+        }
         let key = self.session.keys.position_of(*fp)?;
         cs.kind
             .account_ur_at(c, &self.session.keys, key, cs.account)
@@ -1508,6 +1581,10 @@ impl Faraday {
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
             return None;
         };
+        if cs.at_bip87() {
+            // The record is signed by BIP-48's account key and names it.
+            return None;
+        }
         let key = self.session.keys.position_of(*fp)?;
         let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
         cs.kind
@@ -1537,11 +1614,7 @@ impl Faraday {
                         .keys
                         .position_of(*fp)
                         .ok_or(EN.create_keys_a_chosen)?;
-                    out.push(
-                        self.session
-                            .keys
-                            .account_text(c, key, cs.kind, cs.account)?,
-                    );
+                    out.push(self.create_slot_key_text(c, key, cs)?);
                 }
                 create::Source::Cosigner(text) => out.push(text.clone()),
             }

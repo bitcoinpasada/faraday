@@ -312,11 +312,26 @@ impl Faraday {
     pub(crate) fn create_account_step(&mut self, d: i8) {
         if let Some(c) = self.create.state_mut()
             && c.built.is_none()
-            && c.kind.has_account()
+            && c.has_account()
         {
             c.account_open = true;
             c.account =
                 (i64::from(c.account) + i64::from(d)).clamp(0, i64::from(u32::MAX >> 1)) as u32;
+        }
+        self.create_from_refresh();
+    }
+
+    /// The path choice beside the Account row: BIP-87's path (`bip87`) or
+    /// the kind's own. A kind that is not a multisig of a descriptor has no
+    /// choice. The keys already in slots stay: a file's key at the other
+    /// path no longer fits, and its slot is filled again.
+    pub(crate) fn create_multi_path(&mut self, bip87: bool) {
+        if let Some(c) = self.create.state_mut()
+            && c.built.is_none()
+            && c.kind.has_bip87()
+            && c.bip87 != bip87
+        {
+            c.bip87 = bip87;
         }
         self.create_from_refresh();
     }
@@ -348,7 +363,7 @@ impl Faraday {
         let Some(w) = c.built else {
             return false;
         };
-        if !c.kind.has_account() {
+        if !c.has_account() {
             return false;
         }
         if self.backup.state().is_some_and(|b| b.wallet == w) {
@@ -384,7 +399,7 @@ impl Faraday {
         };
         c.done[crate::cstep::KEYS as usize] = false;
         c.done[crate::cstep::CHECK as usize] = false;
-        c.open = Some(c.kind.account_card().unwrap_or(crate::cstep::KIND));
+        c.open = Some(c.account_card().unwrap_or(crate::cstep::KIND));
         c.account_open = true;
         c.scroll.follow = true;
         c.path.clear();

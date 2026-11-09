@@ -508,6 +508,9 @@ pub enum Action {
     /// The Account row (F98): 0 its **Change**, opening the stepper;
     /// −1 and +1 the stepper (`docs/history/NEW-WALLET.md` §16.2, §17).
     CAccount(i8),
+    /// The path choice beside the Account row of a multisig kind: true
+    /// BIP-87's `m/87'/coin'/account'`, false the kind's own path.
+    CMultiPath(bool),
     /// Check's Path row **Change**: the made wallet taken back, the
     /// Account row's card open on its stepper (F98).
     CPathChange,
