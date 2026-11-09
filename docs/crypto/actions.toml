@@ -60,6 +60,12 @@ status = "Complete"
 checked = "2026-10-23"
 source = "bips master"
 
+[standard."BIP 87"]
+name = "Hierarchy for Deterministic Multisig Wallets"
+status = "Complete"
+checked = "2026-11-09"
+source = "vendored: tools/vectors/bip87"
+
 [standard."BIP 85"]
 name = "Deterministic Entropy From BIP32 Keychains"
 status = "Deployed"
@@ -200,6 +206,15 @@ completeness = "A convention, not BIP 45's scheme; the account key is derived as
 uses = ["derive", "descriptor", "address"]
 standard = "BIP 45 (Complete) defines `m/45'/cosigner/change/index`; Faraday uses `m/45'` as an account with `/<0;1>/*`, the Coldcard and Unchained export (a convention)"
 own = "`m/45'` is an account path with no account number to choose. Neutral; no decision."
+
+[[row]]
+id = "bip87-multisig"
+section = 2
+what = "Multisig key at BIP 87's path, `wsh`, `sh(wsh)`, `sh` and `tr(H, sortedmulti_a)` (`faraday/faraday-core/src/create.rs`, `NewKind::path_with`)"
+completeness = "Full for the path: `m/87'/coin'/account'`, the script left to the descriptor, offered for each multisig kind Create makes beside its own path; the key is derived as any path's is"
+uses = ["derive", "descriptor"]
+standard = "BIP 87 (Complete, vendored); BIP 32 (Deployed)"
+own = "The path is not the default: BIP-48's, or `m/45'`, is ticked at entry. Neutral; no decision. A wallet at BIP 87 has no `ur:crypto-account` code and no signed BIP 129 record for its own keys, which name BIP-48's path. Neutral; no decision."
 
 [[row]]
 id = "taproot-multisig"
@@ -536,7 +551,7 @@ completeness = "Full"
 id = "vanity"
 section = 5
 what = "Vanity address (`core/faraday-bip/src/vanity.rs`)"
-completeness = "Passphrase dial or account dial"
+completeness = "Passphrase dial or account dial, for a script type's address or a BIP-352 silent payment code"
 
 [[row]]
 id = "decode-tx"
@@ -1247,6 +1262,7 @@ functions = [
   "faraday/faraday-core/src/explore/mod.rs::Faraday::explore_path",
   "faraday/faraday-core/src/explore/addresses.rs::account_of",
   "faraday/faraday-core/src/create.rs::account_of",
+  "faraday/faraday-core/src/create.rs::bip87_of",
   "faraday/faraday-core/src/create.rs::path_spec",
   "faraday/faraday-core/src/restore.rs::Faraday::restore_refusal_typed",
   "faraday/faraday-core/src/restore.rs::Faraday::restore_took",
@@ -2213,6 +2229,9 @@ functions = [
   "core/faraday-bip/src/policy.rs::WalletPolicy::from_parts",
   "core/faraday-bip/src/policy.rs::WalletPolicy::from_descriptor",
   "core/faraday-bip/src/policy.rs::WalletPolicy::parse_any",
+  "core/faraday-bip/src/policy.rs::WalletPolicy::repeated_keys",
+  "core/faraday-bip/src/policy.rs::PolicyKey::same_key",
+  "core/faraday-bip/src/policy.rs::repeated_key_texts",
   "core/faraday-bip/src/policy.rs::WalletPolicy::from_xpub",
   "core/faraday-bip/src/policy.rs::WalletPolicy::of_silent",
   "core/faraday-bip/src/policy.rs::WalletPolicy::internal_key",
@@ -9244,6 +9263,10 @@ reason = "A unit on the amount calculator; it names no standard."
 [[tag_no_standard]]
 tag = "sat"
 reason = "A unit on the amount calculator; it names no standard."
+
+[[vector_no_action]]
+folder = "bip87"
+reason = "BIP 87's text, vendored as the path's source; it has no test vectors of its own, and the key at its path is derived and checked as any BIP 32 path's is."
 
 [[vector_no_action]]
 folder = "wallet"

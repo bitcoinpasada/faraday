@@ -259,8 +259,8 @@ static AREA_BIP85: Area = Area {
 #[rustfmt::skip]
 static AREA_VANITY: Area = Area {
     area: "vanity",
-    code: &[p("faraday_bip::vanity (the counter, prefixes and their expected work, the search on both dials)")],
-    second: &[p("EntropyLab's counter as tools/reference/vanity/README.md quotes it, written out in area_vanity.py over python-mnemonic, each candidate's child key derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for the script and address text only (deriveaddresses on regtest, from the bare key) and Core's framework, as the addr area writes it."), p("Checked first: The search is written in the area from the README's quotation of EntropyLab's counter, and EntropyLab's two finds are required of it as well as of Faraday.")],
+    code: &[p("faraday_bip::vanity (the counter, prefixes and their expected work, the search on both dials, for the four script types and a silent payment code)")],
+    second: &[p("EntropyLab's counter as tools/reference/vanity/README.md quotes it, written out in area_vanity.py over python-mnemonic, each candidate's child key derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for the script and address text only (deriveaddresses on regtest, from the bare key) and Core's framework, as the addr area writes it; a silent payment code by the BIP-352 reference's own bech32m from btclib's keys at BIP-352's paths."), p("Checked first: The search is written in the area from the README's quotation of EntropyLab's counter, and EntropyLab's two finds are required of it as well as of Faraday.")],
     vectors: &[p("EntropyLab's two finds.")],
     random: &[p("Counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after.")],
     differences: &[p("Each candidate's child key is derived by btclib on its own curve, not by Bitcoin Core, which shares libsecp256k1's curve maths with Faraday; Core is given the bare key and judges the script and the address text only.")],
