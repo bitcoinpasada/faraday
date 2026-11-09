@@ -195,7 +195,8 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             );
             cy += 52.0;
             let a = app.silent_shown().address.unwrap_or_default();
-            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &a) + 14.0;
+            cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &a)
+                + faraday_draw::tokens::SILENT_LINE_GAP;
             let row = vec![
                 (
                     EN.silent_show_as_qr.to_string(),
@@ -316,7 +317,8 @@ fn dns_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) ->
     }
     if let Some((human, record)) = dns.record {
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &human) + GAP;
-        cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &record) + 14.0;
+        cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &record)
+            + faraday_draw::tokens::SILENT_LINE_GAP;
         let row = vec![(
             EN.silent_dns_record_as_qr.to_string(),
             Style::Secondary,

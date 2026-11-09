@@ -578,6 +578,9 @@ pub const BOARD_HEAD: f32 = 36.0;
 pub const BOARD_PAD: f32 = GAP;
 /// Height in dp of a zone's label row ("Stick 1", "Paper").
 pub const BOARD_ZONE_LABEL: f32 = 20.0;
+/// The gap in dp under a silent payments address or DNS record line,
+/// before the next row.
+pub const SILENT_LINE_GAP: f32 = 14.0;
 /// Height in dp of the label line above a Create card's value or choice
 /// row (Path, Account).
 pub const CREATE_FIELD_LABEL: f32 = 20.0;
