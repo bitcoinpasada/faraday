@@ -542,14 +542,13 @@ impl Answers {
         let fits = seen >= 8
             && a.places >= 1
             && a.sticks.iter().all(|r| r.len() == a.places)
-            && a.vaults.iter().all(|r| {
-                r.len() == shape.seeds.len()
-                    && r.iter().zip(&shape.seeds).all(|(&t, s)| !t || s.here)
-            })
-            && a.pass
-                .iter()
-                .zip(&shape.seeds)
-                .all(|(r, s)| r.is_empty() || (s.here && s.passphrase && r.len() == a.places + 1));
+            // A seed not loaded here keeps its ticks and its passphrase's
+            // row as saved: it reads as in the plan and absent, and a save
+            // writes them back.
+            && a.vaults.iter().all(|r| r.len() == shape.seeds.len())
+            && a.pass.iter().zip(&shape.seeds).all(|(r, s)| {
+                r.is_empty() || ((!s.here || s.passphrase) && r.len() == a.places + 1)
+            });
         if !fits {
             return None;
         }

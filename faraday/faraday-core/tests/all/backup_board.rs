@@ -2796,10 +2796,6 @@ fn a_krux_code_stays_in_a_plan_read_while_its_key_is_not_loaded() {
     tap(&mut app, BP::MenuVerb(faraday_core::board::Verb::Kef));
     tap(&mut app, BP::MenuTo(Zone::Paper(0)));
     app.press(Action::BQNext(qstep::BOARD));
-    // The seeds are not in a vault, whose rows a key not loaded refuses.
-    for row in testkit::backup_answers_mut(&mut app).vaults.iter_mut() {
-        row.fill(false);
-    }
     app.press(Action::BChecklist);
     app.settle();
     assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
@@ -2810,8 +2806,19 @@ fn a_krux_code_stays_in_a_plan_read_while_its_key_is_not_loaded() {
         a.to_text().contains("kefp0")
     };
     assert!(holds(&app), "key loaded");
+    let rows = |app: &Faraday| {
+        let (a, _) = faraday_core::glance::plan_of_now(&c, app, w).expect("a plan is read");
+        a.to_text()
+            .lines()
+            .filter(|l| l.starts_with("vault ") || l.starts_with("pass "))
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+    };
+    let loaded = rows(&app);
+    assert!(!loaded.is_empty());
     app.session.keys.remove(0);
     assert!(holds(&app), "key not loaded");
+    assert_eq!(rows(&app), loaded, "its vault ticks stay for a save");
 }
 
 /// A seed kept only as a Krux code is kept nowhere: the code is an extra
