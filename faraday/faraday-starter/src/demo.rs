@@ -14,10 +14,10 @@
 //! (`docs/TEXT-SIZE.md` §6).
 
 use faraday_core::{Action, Host};
-use faraday_shell_api::{App, Command, DisplayInfo, Event, TouchPhase};
+use faraday_shell_api::{App, Command, DisplayInfo, Event};
 
 use crate::api::{Os, StarterCommand};
-use crate::{Starter, StarterAction};
+use crate::{Routed, Starter, StarterAction, route_to_frame};
 
 /// Faraday Demo as the Starter holds it.
 pub(crate) struct Held {
@@ -195,59 +195,19 @@ impl Starter {
             return Some(event);
         };
         let held = self.demo.as_mut()?;
-        let inside = |x: u16, y: u16| {
-            let (x, y) = (i32::from(x), i32::from(y));
-            x >= ax && y >= ay && x < ax + i32::from(aw) && y < ay + i32::from(ah)
-        };
-        let moved = |x: u16, y: u16| {
-            (
-                (i32::from(x) - ax).clamp(0, i32::from(u16::MAX)) as u16,
-                (i32::from(y) - ay).clamp(0, i32::from(u16::MAX)) as u16,
-            )
-        };
-        let to_demo = match event {
-            Event::Display(_) => return Some(event),
-            Event::Tick { .. } => {
-                held.host.event(event.clone());
-                self.demo_theme();
-                return Some(event);
-            }
-            Event::Touch { x, y, phase } => {
-                if phase == TouchPhase::Down {
-                    held.touch = inside(x, y);
-                }
-                if !held.touch {
-                    return Some(event);
-                }
-                if phase == TouchPhase::Up {
-                    held.touch = false;
-                }
-                let (x, y) = moved(x, y);
-                Event::Touch { x, y, phase }
-            }
-            Event::Hover { x, y } if inside(x, y) => {
-                let (x, y) = moved(x, y);
-                Event::Hover { x, y }
-            }
-            Event::Hover { .. } => {
+        if let Event::Tick { .. } = event {
+            held.host.event(event.clone());
+            self.demo_theme();
+            return Some(event);
+        }
+        let to_demo = match route_to_frame(event, (ax, ay, aw, ah), &mut held.touch) {
+            Routed::Own(event) => return Some(event),
+            Routed::OwnAfterHoverEnd(event) => {
                 held.host.event(Event::HoverEnd);
                 return Some(event);
             }
-            Event::Wheel { x, y, dy } if inside(x, y) => {
-                let (x, y) = moved(x, y);
-                Event::Wheel { x, y, dy }
-            }
-            Event::Scroll { x, y, dy } if inside(x, y) => {
-                let (x, y) = moved(x, y);
-                Event::Scroll { x, y, dy }
-            }
-            Event::ScrollEnd { x, y } => {
-                let (x, y) = moved(x, y);
-                Event::ScrollEnd { x, y }
-            }
-            // A turn of the wheel over the Starter's own bar moves nothing.
-            Event::Wheel { .. } | Event::Scroll { .. } => return None,
-            other => other,
+            Routed::Dropped => return None,
+            Routed::Frame(event) => event,
         };
         held.host.event(to_demo);
         self.demo_theme();

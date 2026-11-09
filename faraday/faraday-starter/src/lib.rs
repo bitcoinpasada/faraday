@@ -51,6 +51,76 @@ use api::{
 use decide::{Facts, Item, Target};
 use macs::StickFor;
 
+/// Where an event goes while an app is held in a frame of the Starter's
+/// window.
+enum Routed {
+    /// The Starter's own.
+    Own(Event),
+    /// The Starter's own, and the held app's pointer has left its frame.
+    OwnAfterHoverEnd(Event),
+    /// The held app's, moved to its frame's corner.
+    Frame(Event),
+    /// Nobody's.
+    Dropped,
+}
+
+/// Sorts an event for the frame `(x, y, w, h)` of a held app: what falls on
+/// the frame moves to its corner, a touch that began inside it stays its
+/// own until it lifts (`touch` remembers it), and what falls on the
+/// Starter's own bar stays the Starter's.
+fn route_to_frame(
+    event: Event,
+    (ax, ay, aw, ah): (i32, i32, u16, u16),
+    touch: &mut bool,
+) -> Routed {
+    let inside = |x: u16, y: u16| {
+        let (x, y) = (i32::from(x), i32::from(y));
+        x >= ax && y >= ay && x < ax + i32::from(aw) && y < ay + i32::from(ah)
+    };
+    let moved = |x: u16, y: u16| {
+        (
+            (i32::from(x) - ax).clamp(0, i32::from(u16::MAX)) as u16,
+            (i32::from(y) - ay).clamp(0, i32::from(u16::MAX)) as u16,
+        )
+    };
+    Routed::Frame(match event {
+        Event::Display(_) | Event::Tick { .. } => return Routed::Own(event),
+        Event::Touch { x, y, phase } => {
+            if phase == TouchPhase::Down {
+                *touch = inside(x, y);
+            }
+            if !*touch {
+                return Routed::Own(event);
+            }
+            if phase == TouchPhase::Up {
+                *touch = false;
+            }
+            let (x, y) = moved(x, y);
+            Event::Touch { x, y, phase }
+        }
+        Event::Hover { x, y } if inside(x, y) => {
+            let (x, y) = moved(x, y);
+            Event::Hover { x, y }
+        }
+        Event::Hover { .. } => return Routed::OwnAfterHoverEnd(event),
+        Event::Wheel { x, y, dy } if inside(x, y) => {
+            let (x, y) = moved(x, y);
+            Event::Wheel { x, y, dy }
+        }
+        Event::Scroll { x, y, dy } if inside(x, y) => {
+            let (x, y) = moved(x, y);
+            Event::Scroll { x, y, dy }
+        }
+        Event::ScrollEnd { x, y } => {
+            let (x, y) = moved(x, y);
+            Event::ScrollEnd { x, y }
+        }
+        // A turn of the wheel over the Starter's own bar moves nothing.
+        Event::Wheel { .. } | Event::Scroll { .. } => return Routed::Dropped,
+        other => other,
+    })
+}
+
 /// The website's guides (§7.4), shared with the stick.
 pub use faraday_learn::GUIDES;
 
@@ -1633,54 +1703,14 @@ impl Starter {
         let Some((ax, ay, aw, ah)) = self.held_area() else {
             return Some(event);
         };
-        let inside = |x: u16, y: u16| {
-            let (x, y) = (i32::from(x), i32::from(y));
-            x >= ax && y >= ay && x < ax + i32::from(aw) && y < ay + i32::from(ah)
-        };
-        let moved = |x: u16, y: u16| {
-            (
-                (i32::from(x) - ax).clamp(0, i32::from(u16::MAX)) as u16,
-                (i32::from(y) - ay).clamp(0, i32::from(u16::MAX)) as u16,
-            )
-        };
-        let to_held = match event {
-            Event::Display(_) | Event::Tick { .. } => return Some(event),
-            Event::Touch { x, y, phase } => {
-                if phase == TouchPhase::Down {
-                    self.held_touch = inside(x, y);
-                }
-                if !self.held_touch {
-                    return Some(event);
-                }
-                if phase == TouchPhase::Up {
-                    self.held_touch = false;
-                }
-                let (x, y) = moved(x, y);
-                Event::Touch { x, y, phase }
-            }
-            Event::Hover { x, y } if inside(x, y) => {
-                let (x, y) = moved(x, y);
-                Event::Hover { x, y }
-            }
-            Event::Hover { .. } => {
+        let to_held = match route_to_frame(event, (ax, ay, aw, ah), &mut self.held_touch) {
+            Routed::Own(event) => return Some(event),
+            Routed::OwnAfterHoverEnd(event) => {
                 self.held.event(Event::HoverEnd);
                 return Some(event);
             }
-            Event::Wheel { x, y, dy } if inside(x, y) => {
-                let (x, y) = moved(x, y);
-                Event::Wheel { x, y, dy }
-            }
-            Event::Scroll { x, y, dy } if inside(x, y) => {
-                let (x, y) = moved(x, y);
-                Event::Scroll { x, y, dy }
-            }
-            Event::ScrollEnd { x, y } => {
-                let (x, y) = moved(x, y);
-                Event::ScrollEnd { x, y }
-            }
-            // A turn of the wheel over the Starter's own bar moves nothing.
-            Event::Wheel { .. } | Event::Scroll { .. } => return None,
-            other => other,
+            Routed::Dropped => return None,
+            Routed::Frame(event) => event,
         };
         self.held.event(to_held);
         self.held_after();
