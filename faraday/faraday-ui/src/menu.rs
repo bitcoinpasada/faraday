@@ -81,7 +81,7 @@ const TICK: f32 = ICON_GLYPH_BUTTON + ICON_GAP;
 
 /// Costs measuring every line. The width the popup takes for `m`'s
 /// lines: the widest with its room, between Material's least and most.
-pub fn menu_width<A: Copy + PartialEq>(ui: &Ui<A>, m: &Menu<A>) -> f32 {
+pub(crate) fn menu_width<A: Copy + PartialEq>(ui: &Ui<A>, m: &Menu<A>) -> f32 {
     let mut widest = m.title.map_or(0.0, |t| ui.measure_as(LABEL_M, t));
     let mut under = 0.0;
     for line in m.lines {

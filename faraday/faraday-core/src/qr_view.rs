@@ -152,14 +152,14 @@ impl Ask {
     /// Whether the scanner takes every kind as Home's Scan does, titled
     /// for what it asks (Tools' Sign, Decode, Check an address), rather
     /// than handing over what its flow does not take.
-    pub fn takes_all(self) -> bool {
+    pub(crate) fn takes_all(self) -> bool {
         matches!(self, Ask::Any | Ask::Sign | Ask::Decode | Ask::Address)
     }
 }
 
 impl ScanState {
     /// Whether a transfer in parts is part-way through.
-    pub fn in_parts(&self) -> bool {
+    pub(crate) fn in_parts(&self) -> bool {
         self.assembler.busy() || self.decoder.progress().is_some()
     }
 
@@ -560,7 +560,7 @@ impl QrView {
     /// Costs what `secret` costs. A secret as one static code with no
     /// choice of format, speed or size, the sheet marked Secret (a GPG
     /// key's paperkey, `docs/GPG-PAPERKEY.md` §12).
-    pub fn secret_one_code(c: &Compute, title: &str, text: &str) -> Result<QrView, String> {
+    pub(crate) fn secret_one_code(c: &Compute, title: &str, text: &str) -> Result<QrView, String> {
         QrView::secret(c, title, text).map(|mut v| {
             v.one_code = true;
             v

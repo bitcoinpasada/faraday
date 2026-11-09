@@ -477,7 +477,7 @@ const WHOLE_ROWS: usize = 3;
 /// one, edged in the error tone with their number under them. For a
 /// string shown beside another it differs from (`docs/CODEX32.md`
 /// §8.5). Returns the height taken.
-pub fn string_boxes<A: Copy + PartialEq>(
+pub(crate) fn string_boxes<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,
     y: f32,

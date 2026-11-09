@@ -265,7 +265,7 @@ impl VaultEnded {
     /// [`VaultEnded::of`] for a run that gives its error apart from its
     /// answer. A file refused for what it is, before any run, counts as
     /// refused. Cheap.
-    pub fn of_error(error: Option<&faraday_vault::file::Error>) -> VaultEnded {
+    pub(crate) fn of_error(error: Option<&faraday_vault::file::Error>) -> VaultEnded {
         use faraday_vault::file::Error as E;
         use faraday_vault::kdbx::Error as K;
         match error {

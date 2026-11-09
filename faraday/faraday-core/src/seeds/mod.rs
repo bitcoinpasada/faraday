@@ -176,7 +176,7 @@ impl SeedsState {
 
     /// The first slot with neither a seed nor anything typed for a
     /// cosigner, by its place among the cosigners' boxes.
-    pub fn first_empty(&self) -> Option<usize> {
+    pub(crate) fn first_empty(&self) -> Option<usize> {
         self.cosigners.iter().position(|c| c.trim().is_empty())
     }
 
@@ -192,7 +192,7 @@ impl SeedsState {
 
     /// Opens the shape at its defaults: as many keys as seeds, a
     /// majority of them to sign, the usual kind for that many.
-    pub fn start_shape(&mut self) {
+    pub(crate) fn start_shape(&mut self) {
         self.shaping = true;
         self.n = self.keys.len().max(1);
         self.m = default_m(self.n);
@@ -204,7 +204,7 @@ impl SeedsState {
     /// Sets the number of keys: at least the seeds here, at most
     /// [`MAX_KEYS`]. The kind changes with it between one key and
     /// several, and the signatures needed stay within it.
-    pub fn set_n(&mut self, n: usize) {
+    pub(crate) fn set_n(&mut self, n: usize) {
         let n = n.clamp(self.least(), self.kind.max_keys().min(MAX_KEYS));
         let was_multi = self.n > 1;
         if n != self.n {
@@ -225,7 +225,7 @@ impl SeedsState {
     }
 
     /// Sets the signatures needed, 1 to N; every key for MuSig2.
-    pub fn set_m(&mut self, m: usize) {
+    pub(crate) fn set_m(&mut self, m: usize) {
         self.m = if self.fixed && self.kind.all_sign() {
             self.n
         } else {
@@ -267,14 +267,14 @@ impl SeedsState {
     }
 
     /// The first cosigner without a key that reads.
-    pub fn open_cosigner(&self) -> Option<usize> {
+    pub(crate) fn open_cosigner(&self) -> Option<usize> {
         self.cosigners
             .iter()
             .position(|c| cosigner_key(c).is_none())
     }
 
     /// The slider's ends and value.
-    pub fn slider_at(&self, id: u8) -> Option<(usize, usize, usize)> {
+    pub(crate) fn slider_at(&self, id: u8) -> Option<(usize, usize, usize)> {
         if !self.shaping {
             return None;
         }
@@ -289,7 +289,7 @@ impl SeedsState {
 }
 
 /// A majority of `n`: 1 of 1, 2 of 2, 2 of 3, 3 of 5.
-pub fn default_m(n: usize) -> usize {
+pub(crate) fn default_m(n: usize) -> usize {
     if n <= 1 { 1 } else { n / 2 + 1 }
 }
 
@@ -313,7 +313,7 @@ pub fn cosigner_key(text: &str) -> Option<String> {
 
 /// The fingerprint a cosigner's key names, or its own identifier's when
 /// it has no origin, for showing.
-pub fn cosigner_label(key: &str) -> String {
+pub(crate) fn cosigner_label(key: &str) -> String {
     let short = |x: &str| {
         let n = x.chars().count();
         if n > 20 {
@@ -586,7 +586,7 @@ impl Faraday {
     /// the first time it is asked for this description, by whoever asks, a
     /// frame included, and kept on the state by the description and network
     /// it comes from, a lookup after (public).
-    pub fn seeds_address(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
+    pub(crate) fn seeds_address(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
         let d = self.seeds_descriptor(c, s)?;
         let net = self.session.network();
         self.kept.seeds_address(c, &d, net)

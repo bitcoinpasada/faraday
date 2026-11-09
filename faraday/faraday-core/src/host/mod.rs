@@ -328,7 +328,7 @@ impl Host {
 
     /// Where the strip stands in the window, in pixels: its left and top
     /// edges, its width and height. A lookup.
-    pub fn strip_area(&self) -> Option<(i32, i32, i32, i32)> {
+    pub(crate) fn strip_area(&self) -> Option<(i32, i32, i32, i32)> {
         let d = self.window.filter(|_| !self.bare)?;
         let h = self.strip_px();
         Some((0, i32::from(d.height) - h, i32::from(d.width), h))

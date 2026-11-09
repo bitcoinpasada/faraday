@@ -20,7 +20,7 @@ use faraday_crypto::{Zeroize, ZeroizeOnDrop};
 use crate::word_entry::EntryList;
 
 /// Candidates per question.
-pub const CHOICES: usize = 4;
+pub(crate) const CHOICES: usize = 4;
 
 /// Where the quiz is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -147,7 +147,7 @@ impl Quiz {
     }
 
     /// The slot picked wrongly, while in [`QuizState::Wrong`].
-    pub fn wrong_slot(&self) -> Option<usize> {
+    pub(crate) fn wrong_slot(&self) -> Option<usize> {
         (self.state == QuizState::Wrong).then_some(usize::from(self.wrong))
     }
 

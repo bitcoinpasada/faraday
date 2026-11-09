@@ -26,7 +26,7 @@ pub(super) fn up(v: Option<u8>) -> String {
 
 /// What step `step` of `ch` reads: its working in plain arithmetic.
 /// Values are read from the character's faces and the worksheet.
-pub fn step_text(work: &WorkSet, ch: &WalkChar, step: Step) -> String {
+pub(crate) fn step_text(work: &WorkSet, ch: &WalkChar, step: Step) -> String {
     match step {
         Step::First { k, die, .. } => {
             let v = ch.face(k).to_string();

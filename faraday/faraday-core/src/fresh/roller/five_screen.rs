@@ -216,7 +216,12 @@ pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&Five
 /// as equal, unless `struck` is false (it then stands elsewhere,
 /// [`struck_across`]). Always [`pairs_across_h`] tall, or
 /// [`pairs_row_h`] without the struck pair.
-pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, struck: bool) -> f32 {
+pub(crate) fn pairs_across(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    p: &Pairs,
+    struck: bool,
+) -> f32 {
     let k = ui.text_factor();
     let (col, d, line) = (INPUT_ROLLS_COL, ROLLER_PAIR_DIE, rolls_line(k));
     let mut cy = y;
@@ -271,7 +276,7 @@ pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, struck: 
 /// The latest pair struck as equal, struck through, in a row (x, y) `w`
 /// wide and `h` tall, its text cut to the width: "Die 2 · 5 then 5 ·
 /// equal · roll both again".
-pub fn struck_across(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), p: &Pairs) {
+pub(crate) fn struck_across(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), p: &Pairs) {
     let equal: Vec<&DieRow> = p.struck.iter().filter(|r| r.bit().is_none()).collect();
     if let Some(row) = equal.last() {
         let (f, sc) = if p.masked {
@@ -290,14 +295,14 @@ pub fn struck_across(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), p: &Pairs)
 
 /// A line of [`pairs_across`] at the text factor `k`
 /// (`docs/TEXT-SIZE.md` §5). Arithmetic.
-pub fn rolls_line(k: f32) -> f32 {
+pub(crate) fn rolls_line(k: f32) -> f32 {
     INPUT_ROLLS_LINE * k
 }
 
 /// The height of [`pairs_across`] without its struck pair, at the text
 /// factor `k`: the names, the row of rolls and what the pairs give.
 /// Arithmetic.
-pub fn pairs_row_h(k: f32) -> f32 {
+pub(crate) fn pairs_row_h(k: f32) -> f32 {
     let line = rolls_line(k) + GAP_SMALL;
     line + ROLLER_PAIR_DIE + GAP_SMALL + rolls_line(k)
 }
@@ -305,14 +310,14 @@ pub fn pairs_row_h(k: f32) -> f32 {
 /// The height of [`pairs_across`] at the text factor `k`: the names, the
 /// row of rolls, what the pairs give, and the room for the struck pair.
 /// Arithmetic.
-pub fn pairs_across_h(k: f32) -> f32 {
+pub(crate) fn pairs_across_h(k: f32) -> f32 {
     let line = rolls_line(k) + GAP_SMALL;
     line + ROLLER_PAIR_DIE + GAP_SMALL + line + INPUT_ROLLS_STRUCK as f32 * line - GAP_SMALL
 }
 
 /// The width of [`pairs_across`]: the last column ends at its die.
 /// Arithmetic.
-pub fn pairs_across_w() -> f32 {
+pub(crate) fn pairs_across_w() -> f32 {
     (BOOKLET_DICE - 1) as f32 * INPUT_ROLLS_COL + 2.0 * ROLLER_PAIR_DIE + GAP_SMALL
 }
 
@@ -356,7 +361,7 @@ fn struck(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
 
 /// The Result's entropy row for faces the roller made, in part or all:
 /// `None` where it made none.
-pub fn entropy_label(sim: super::Sim) -> Option<&'static str> {
+pub(crate) fn entropy_label(sim: super::Sim) -> Option<&'static str> {
     match sim {
         super::Sim::No => None,
         super::Sim::Some => Some(EN.roller_entropy_both),

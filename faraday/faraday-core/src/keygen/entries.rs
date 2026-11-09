@@ -7,7 +7,7 @@ use crate::strings::EN;
 
 impl KeyGen {
     /// Forgets every entry, the mix and the words.
-    pub fn clear_entries(&mut self) {
+    pub(crate) fn clear_entries(&mut self) {
         self.clear_entered();
         self.roller.reset();
         self.dice.clear();
@@ -39,7 +39,7 @@ impl KeyGen {
     }
 
     /// Forgets the active source's entries only.
-    pub fn clear_active(&mut self) {
+    pub(crate) fn clear_active(&mut self) {
         self.clear_entered();
         self.roller.reset();
         match self.active() {
@@ -258,7 +258,7 @@ impl KeyGen {
     }
 
     /// Forgets the record of entries.
-    pub fn clear_entered(&mut self) {
+    pub(crate) fn clear_entered(&mut self) {
         self.entered.clear();
     }
 }

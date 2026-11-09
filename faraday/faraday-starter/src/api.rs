@@ -92,9 +92,9 @@ pub struct RecoveryKey {
 }
 
 /// The groups in a recovery key.
-pub const KEY_GROUPS: usize = 8;
+pub(crate) const KEY_GROUPS: usize = 8;
 /// The digits in a group.
-pub const KEY_DIGITS: usize = 6;
+pub(crate) const KEY_DIGITS: usize = 6;
 
 /// Whether `s` is a drive, `C:`.
 pub fn drive_ok(s: &str) -> bool {

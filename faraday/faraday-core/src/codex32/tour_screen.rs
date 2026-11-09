@@ -29,7 +29,7 @@ fn input_name(i: u8) -> String {
 
 /// What tour step `step` reads: its working in plain arithmetic, read
 /// from the kept translation worksheet and the share's check.
-pub fn tour_text(m: &Codex32Make, work: &WorkSet, step: TourStep) -> String {
+pub(crate) fn tour_text(m: &Codex32Make, work: &WorkSet, step: TourStep) -> String {
     let n = step.sheet();
     let Some(ts) = work.live_translation(n, Reveal::PaperForm) else {
         return String::new();

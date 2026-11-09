@@ -191,7 +191,7 @@ pub enum Failure {
 impl Failure {
     /// The reason an `errno` gives, or `None` for any other error.
     #[must_use]
-    pub fn of_errno(errno: i32) -> Option<Failure> {
+    pub(crate) fn of_errno(errno: i32) -> Option<Failure> {
         match errno {
             libc::ENOENT | libc::ENODEV | libc::ENXIO => Some(Failure::NotFound),
             libc::EBUSY => Some(Failure::InUse),
@@ -368,7 +368,7 @@ impl Camera {
     }
 
     /// The most frames a second [`spawn`] will send on for this camera.
-    pub fn max_fps(&self) -> u8 {
+    pub(crate) fn max_fps(&self) -> u8 {
         self.max_fps
     }
 

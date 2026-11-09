@@ -105,7 +105,7 @@ const SUFFIX_GAP: f32 = 364.0;
 /// The name's width with its capitals `cap` units tall, as
 /// [`Ui::wordmark_named`] draws it with `suffix`. Arithmetic on outlines
 /// read once.
-pub fn wordmark_width(cap: f32, suffix: NameSuffix) -> f32 {
+pub(crate) fn wordmark_width(cap: f32, suffix: NameSuffix) -> f32 {
     let mark = wordmark_outlines();
     let right = match suffix_word(suffix) {
         Some(word) => mark.right + SUFFIX_GAP + word.right,
@@ -592,10 +592,10 @@ pub struct Ui<'a, A> {
 
 /// The fill behind selected text: secondary-container, the selected
 /// colour (`docs/THEMES.md` §7).
-pub const SELECTION_FILL: Role = Role::SecondaryContainer;
+pub(crate) const SELECTION_FILL: Role = Role::SecondaryContainer;
 /// Text on [`SELECTION_FILL`] where it is not drawn in on-surface:
 /// on-secondary-container.
-pub const SELECTION_INK: Role = Role::OnSecondaryContainer;
+pub(crate) const SELECTION_INK: Role = Role::OnSecondaryContainer;
 
 /// The smallest rectangle holding both.
 fn union(a: Rect, b: Rect) -> Rect {
@@ -926,7 +926,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// paint wherever text is selected, [`SELECTION_FILL`], the text on
     /// it in [`SELECTION_INK`], which reads on it at 4.5:1 or more in
     /// every scheme and 7:1 at High contrast.
-    pub fn selection_band(&mut self, x: f32, y: f32, w: f32, h: f32) {
+    pub(crate) fn selection_band(&mut self, x: f32, y: f32, w: f32, h: f32) {
         use faraday_draw::tokens::SHAPE_XS;
         self.fill(x, y, w, h, SHAPE_XS, SELECTION_FILL);
     }
@@ -1049,7 +1049,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// The clip as the screen sees it: the whole view of a region drawn
     /// as a moved frame, whose canvas clip is only the strip it paints.
     /// What a row skips, the presses and the tips read this clip.
-    pub fn seen_clip(&self) -> Rect {
+    pub(crate) fn seen_clip(&self) -> Rect {
         self.seen.unwrap_or_else(|| self.c.clip())
     }
 
@@ -1258,7 +1258,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// `WORDMARK_STACK_WORD` of that, `WORDMARK_STACK_GAP` of it under
     /// FARADAY, both starting at the same left edge. Returns its width and
     /// height.
-    pub fn wordmark_stacked(
+    pub(crate) fn wordmark_stacked(
         &mut self,
         x: f32,
         y: f32,
@@ -1356,7 +1356,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// Part of the field typing goes to, drawn at (x, y), `w` by `h`
     /// units: its box, its line or its caret, joined into
     /// [`Ui::focus_box`] with the label drawn just above it.
-    pub fn note_focus(&mut self, x: f32, y: f32, w: f32, h: f32) {
+    pub(crate) fn note_focus(&mut self, x: f32, y: f32, w: f32, h: f32) {
         let top = match self.label_at {
             Some((label, foot)) if (foot - (y + self.oy)).abs() < 0.5 => label - self.oy,
             _ => y,
@@ -1756,7 +1756,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// Whether `action` is drawn dimmed and takes no press this frame.
-    pub fn is_dimmed(&self, action: &A) -> bool {
+    pub(crate) fn is_dimmed(&self, action: &A) -> bool {
         self.dimmed.contains(action) || self.keep_live.is_some_and(|live| !live(action))
     }
 

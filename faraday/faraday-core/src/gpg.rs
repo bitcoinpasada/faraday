@@ -30,7 +30,7 @@ pub const YEAR: u32 = 31_536_000;
 
 /// A new key's term in years, as `gpg --quick-generate-key` makes it with
 /// no expiry given (GnuPG 2.4: `3y`).
-pub const DEFAULT_YEARS: u32 = 3;
+pub(crate) const DEFAULT_YEARS: u32 = 3;
 
 /// How far the clock may be before the key's last self-signature for a
 /// renewal to go on, in seconds: GnuPG makes the new signature one second

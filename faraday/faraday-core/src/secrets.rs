@@ -49,7 +49,7 @@ impl FileKind {
     /// A file of this kind may hold a secret: the secret kinds, and text
     /// or a file Faraday does not read, which it cannot tell. A lock drops
     /// these from the Inbox (`docs/history/PLAN.md` §5.3).
-    pub fn may_be_secret(self) -> bool {
+    pub(crate) fn may_be_secret(self) -> bool {
         matches!(
             self,
             FileKind::Words

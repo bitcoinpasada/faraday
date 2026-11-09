@@ -132,7 +132,7 @@ const MAX_CANDIDATES_HANZI: usize =
 
 /// A SLIP-39 share's two word counts, in the order a screen lists
 /// them: 20 words carry a 128-bit master secret, 33 a 256-bit one.
-pub const SLIP39_COUNTS: [u8; 2] = [slip39::MIN_WORDS as u8, slip39::MAX_WORDS as u8];
+pub(crate) const SLIP39_COUNTS: [u8; 2] = [slip39::MIN_WORDS as u8, slip39::MAX_WORDS as u8];
 
 /// Words the entry holds at once: a SLIP-39 share's 33, which is more
 /// than BIP-39's 24.
@@ -283,13 +283,13 @@ impl WordEntry {
 
     /// The words taken after a word opened again for an edit, held
     /// aside: drawn after it in their cells.
-    pub fn held_indices(&self) -> impl Iterator<Item = u16> + '_ {
+    pub(crate) fn held_indices(&self) -> impl Iterator<Item = u16> + '_ {
         self.held[..usize::from(self.held_n)].iter().copied()
     }
 
     /// The keys typed of the word after the held ones, while a word is
     /// open for an edit.
-    pub fn held_prefix(&self) -> &[char] {
+    pub(crate) fn held_prefix(&self) -> &[char] {
         self.held_prefix.as_chars()
     }
 
@@ -594,7 +594,7 @@ impl WordEntry {
     /// characters to choose between, so the strip stays empty until the
     /// reading is complete — and an incomplete reading is not an error,
     /// so the screen says nothing either.
-    pub fn awaiting_tone(&self) -> bool {
+    pub(crate) fn awaiting_tone(&self) -> bool {
         let kind = self.keyboard();
         reads(kind) && Reading::of(kind, self.prefix.as_chars()).tone.is_none()
     }
@@ -676,7 +676,7 @@ impl WordEntry {
     /// is what makes it small, and the two voicing marks light ゛ and ゜.
     /// 小 itself is live when swapping the last kana for its other form
     /// leads somewhere.
-    pub fn enabled_keys(&self) -> KeyMask {
+    pub(crate) fn enabled_keys(&self) -> KeyMask {
         let kind = self.keyboard();
         if reads(kind) {
             // A tone ends the syllable: nothing follows it but a
@@ -784,7 +784,7 @@ impl WordEntry {
     }
 
     /// Takes the `n`-th candidate.
-    pub fn commit_candidate(&mut self, n: usize) -> bool {
+    pub(crate) fn commit_candidate(&mut self, n: usize) -> bool {
         let Some(picked) = self.candidates().nth(n) else {
             return false;
         };

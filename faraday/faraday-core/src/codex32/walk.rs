@@ -289,7 +289,7 @@ impl Codex32Make {
     }
 
     /// Whether the step-through takes a press: the entry open on dice.
-    pub fn walk_open(&self) -> bool {
+    pub(crate) fn walk_open(&self) -> bool {
         self.open == Some(Card::Enter) && self.way == Way::Dice && self.work.is_some()
     }
 
@@ -301,13 +301,13 @@ impl Codex32Make {
 
     /// Whether Next has a step to show, or a character to roll, or the
     /// tour of the shares made to open or step through.
-    pub fn walk_can_next(&self) -> bool {
+    pub(crate) fn walk_can_next(&self) -> bool {
         let tour = self.tour_shown().is_some() || self.tour_ready();
         self.walk_open() && (self.walk_has_more() || self.front().is_some() || tour)
     }
 
     /// Whether the walk has a step of its own after the one shown.
-    pub fn walk_has_more(&self) -> bool {
+    pub(crate) fn walk_has_more(&self) -> bool {
         let (slot, s) = self.walk.at;
         self.walk
             .chars
@@ -800,7 +800,7 @@ impl Codex32Make {
     /// The step shown, the one model's: the Practice walk's while it shows
     /// one, else the person's own entry's ([`Self::tracker`]), with its
     /// character and its number from 1. A lookup.
-    pub fn shown_step(&self) -> Option<(&WalkChar, usize, Step)> {
+    pub(crate) fn shown_step(&self) -> Option<(&WalkChar, usize, Step)> {
         // While the tour shows a step, it is the one shown (`tour.rs`).
         if self.tour_shown().is_some() {
             return None;
@@ -824,12 +824,12 @@ impl Codex32Make {
     /// The dice sheet drawn while the step shown is of a character whole
     /// (its own step, or a face of one in its box): that character, with
     /// its path through the tree; else the character in progress.
-    pub fn shown_dice(&self) -> &BookletChar {
+    pub(crate) fn shown_dice(&self) -> &BookletChar {
         self.shown_whole().map_or(&self.dice, |ch| &ch.dice)
     }
 
     /// The pairs drawn with [`Self::shown_dice`].
-    pub fn shown_rows(&self) -> &[DieRow] {
+    pub(crate) fn shown_rows(&self) -> &[DieRow] {
         self.shown_whole().map_or(&self.rows, |ch| &ch.rows)
     }
 
@@ -837,7 +837,7 @@ impl Codex32Make {
     /// shows, and the box being filled: the share being entered and its
     /// front; while the walk shows a step of a character in its box, that
     /// character's share, with no front (its own cells are marked).
-    pub fn entry_share(&self) -> Option<(usize, Option<usize>)> {
+    pub(crate) fn entry_share(&self) -> Option<(usize, Option<usize>)> {
         if let Some((ch, _, step)) = self.shown_step()
             && !matches!(step, Step::First { .. } | Step::Second { .. })
         {
@@ -850,7 +850,7 @@ impl Codex32Make {
     }
 
     /// The die and the pad the step shown touches on the dice sheet.
-    pub fn walk_die_mark(&self) -> Option<(usize, u8)> {
+    pub(crate) fn walk_die_mark(&self) -> Option<(usize, u8)> {
         match self.shown_step()? {
             (ch, _, Step::First { k, die, .. } | Step::Second { k, die, .. }) => {
                 Some((usize::from(die), ch.face(k)))

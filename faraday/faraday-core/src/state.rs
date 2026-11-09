@@ -85,7 +85,7 @@ impl EntryState {
 
     /// How many word boxes the choice asks for: 12 until another count
     /// is chosen.
-    pub fn words_chosen(&self) -> usize {
+    pub(crate) fn words_chosen(&self) -> usize {
         if Self::COUNTS.contains(&self.word_count) {
             usize::from(self.word_count)
         } else {
@@ -95,7 +95,7 @@ impl EntryState {
 
     /// How many word boxes to show with `filled` words in: the count
     /// chosen, or all 24 once the words run past it.
-    pub fn word_boxes(&self, filled: usize) -> usize {
+    pub(crate) fn word_boxes(&self, filled: usize) -> usize {
         let chosen = self.words_chosen();
         if filled > chosen { 24 } else { chosen }
     }
@@ -801,7 +801,7 @@ impl VisitState {
 
 /// Why a message cannot be signed or its signature does not verify, as
 /// the screen says it.
-pub fn message_error_text(e: faraday_psbt::message::Error) -> &'static str {
+pub(crate) fn message_error_text(e: faraday_psbt::message::Error) -> &'static str {
     use faraday_psbt::message::Error as E;
     match e {
         E::Invalid => EN.message_error_invalid,

@@ -118,7 +118,7 @@ pub fn key_name(k: &faraday_keys::KeyInfo) -> std::borrow::Cow<'_, str> {
 /// A key recorded as a BIP-85 child seed, as a line: "BIP-85 Words ·
 /// 73c5da0a · index 0", the key it comes from and its index (F166). A
 /// fill.
-pub fn child_mark(of: &faraday_vault::child::ChildOf) -> String {
+pub(crate) fn child_mark(of: &faraday_vault::child::ChildOf) -> String {
     fill(
         EN.bip85_bip_85_index,
         &[
@@ -132,7 +132,7 @@ pub fn child_mark(of: &faraday_vault::child::ChildOf) -> String {
 /// The mark of a vault key record recorded as a BIP-85 child seed
 /// ([`child_mark`]); `None` for one not recorded as one. A lookup and a
 /// fill.
-pub fn record_child_mark(r: faraday_keys::vault::RecordView<'_>) -> Option<String> {
+pub(crate) fn record_child_mark(r: faraday_keys::vault::RecordView<'_>) -> Option<String> {
     use faraday_vault::records::field;
     faraday_vault::child::child_of(r.public(field::KEY_CHILD)?).map(|of| child_mark(&of))
 }

@@ -53,19 +53,19 @@ pub const CODE_TRIES: usize = 3;
 
 /// How many keyboards may be kept out for the wrong code in a session
 /// before new keyboards are ignored without a code.
-pub const KEPT_OUT_LIMIT: usize = 3;
+pub(crate) const KEPT_OUT_LIMIT: usize = 3;
 
 /// How many taps beside the target a touchscreen may make before it is
 /// kept out: a person whose finger slips has room to tap again.
-pub const TAP_TRIES: usize = 3;
+pub(crate) const TAP_TRIES: usize = 3;
 
 /// How many presses beside any target, from any device, close the door for
 /// the session: each of [`KEPT_OUT_LIMIT`] devices' [`TAP_TRIES`].
-pub const BESIDE_LIMIT: usize = KEPT_OUT_LIMIT * TAP_TRIES;
+pub(crate) const BESIDE_LIMIT: usize = KEPT_OUT_LIMIT * TAP_TRIES;
 
 /// The most targets in a row a sheet draws; a screen needing more shows
 /// none.
-pub const TARGETS_MAX: usize = 16;
+pub(crate) const TARGETS_MAX: usize = 16;
 
 /// How long a pointer's targets must have been drawn, with no key pressed
 /// on the trusted keyboard, before Enter lets the pointer in, in ms: an
@@ -115,7 +115,7 @@ pub struct NewInput {
 /// [`BESIDE_LIMIT`] runs and a keyboard's code is guessed in its windows
 /// of the letters' arrangements. `None` when no count up to
 /// [`TARGETS_MAX`] does (F202). Arithmetic.
-pub fn target_count(room_w: f32, room_h: f32) -> Option<usize> {
+pub(crate) fn target_count(room_w: f32, room_h: f32) -> Option<usize> {
     let side = |room: f32| {
         if room <= 0.0 {
             1.0
@@ -511,13 +511,13 @@ impl Faraday {
     }
 
     /// Whether the device is let in by pressing targets (F202).
-    pub fn input_by_target(&self, d: &NewInput) -> bool {
+    pub(crate) fn input_by_target(&self, d: &NewInput) -> bool {
         self.inputs.by_target(d)
     }
 
     /// Whether Enter on a trusted keyboard lets in the pointer whose
     /// targets show: there is one, and such a keyboard exists.
-    pub fn input_enter_lets_in(&self) -> bool {
+    pub(crate) fn input_enter_lets_in(&self) -> bool {
         self.inputs.typist()
             && self.sheet == Some(Sheet::NewInput)
             && self
@@ -617,7 +617,7 @@ impl Faraday {
     }
 
     /// The list of what was plugged in at start, while it shows.
-    pub fn boot_notice_text(&self) -> Option<&str> {
+    pub(crate) fn boot_notice_text(&self) -> Option<&str> {
         self.inputs.boot_notice()
     }
 

@@ -36,14 +36,14 @@ pub const DEPTHS: [u32; 3] = [100, 1_000, 10_000];
 
 /// The most addresses kept of each chain from index 0: the deepest
 /// search's.
-pub const RUN_KEPT: usize = 10_000;
+pub(crate) const RUN_KEPT: usize = 10_000;
 
 /// The most matches a search keeps to show; past it, only how many.
-pub const MATCHES_KEPT: usize = 50;
+pub(crate) const MATCHES_KEPT: usize = 50;
 
 /// The longest text the search field takes: a Taproot address on
 /// regtest is 64 characters, and a pasted one may carry no more.
-pub const QUERY_MAX: usize = 90;
+pub(crate) const QUERY_MAX: usize = 90;
 
 /// How long one tick of a search aims to take, ms.
 const TICK_MS: u64 = 50;
@@ -192,7 +192,7 @@ impl Kept {
 const INDEX_END: u32 = 1 << 31;
 
 /// The first index of the list's last page.
-pub const LAST_FROM: u32 = INDEX_END - PAGE;
+pub(crate) const LAST_FROM: u32 = INDEX_END - PAGE;
 
 /// Costs an address derivation. The address of `policy` at
 /// `change`/`index` on `net`, or empty where there is none (an index

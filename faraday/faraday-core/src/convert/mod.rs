@@ -23,7 +23,7 @@ use faraday_keys::{Held, KeyInfo, Reveal, operations::Convert};
 use zeroize::Zeroizing;
 
 /// The most SLIP-39 groups, and shares in a group: SLIP-39's own limit.
-pub const MAX_SLIP: usize = faraday_bip::slip39::MAX_COUNT;
+pub(crate) const MAX_SLIP: usize = faraday_bip::slip39::MAX_COUNT;
 
 /// The cards, in order. A target with settings has its card between
 /// [`cstep::TO`] and [`cstep::RESULT`]; a target without goes from To to
@@ -995,7 +995,7 @@ pub fn found(app: &Faraday) -> Option<bool> {
 /// Each group's share count of the SLIP-39 set made, in order; empty for
 /// any other result. A read of the settings, which stay as made until the
 /// card is opened.
-pub fn groups_made(s: &ConvertState) -> Vec<u8> {
+pub(crate) fn groups_made(s: &ConvertState) -> Vec<u8> {
     let rotated = s
         .set
         .as_ref()
@@ -1071,7 +1071,7 @@ pub fn source(key: &KeyInfo) -> String {
 /// The Standard fact of a result: the target's, with what the settings and
 /// the key made it, as made (the settings stay as they were until the card
 /// is opened, which drops the result).
-pub fn standard_text(s: &ConvertState, key: &KeyInfo, target: Target) -> String {
+pub(crate) fn standard_text(s: &ConvertState, key: &KeyInfo, target: Target) -> String {
     match target {
         Target::SeedXor => fill(EN.convert_xor_standard, &[&s.parts.to_string()]),
         Target::Codex32 if s.settings && s.k > 0 => fill(

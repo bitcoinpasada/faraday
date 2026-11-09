@@ -104,7 +104,7 @@ impl Theme {
     }
 
     /// Dark text on a light page: shadows are lighter.
-    pub fn is_light(self) -> bool {
+    pub(crate) fn is_light(self) -> bool {
         self.mode == Mode::Light
     }
 

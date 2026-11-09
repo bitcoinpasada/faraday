@@ -237,7 +237,7 @@ impl Icon {
     ];
 
     /// The code point in the baked icon face.
-    pub const fn code_point(self) -> char {
+    pub(crate) const fn code_point(self) -> char {
         match self {
             Icon::Scan => '\u{e900}',
             Icon::Keys => '\u{e901}',

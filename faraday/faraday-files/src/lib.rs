@@ -91,7 +91,7 @@ pub use faraday_fat::Zeroed;
 
 /// About how much one step of zeroing writes: a step is a pause of a
 /// second or so on a slow stick, between which the app draws.
-pub const ZERO_STEP: u64 = 8 << 20;
+pub(crate) const ZERO_STEP: u64 = 8 << 20;
 
 /// A folder standing for a stick.
 pub struct Dir(pub PathBuf);
@@ -357,7 +357,7 @@ pub fn foreign(name: &str) -> bool {
 
 /// Whether Windows takes `name` for a device (`CON`, `NUL`, `COM1`,
 /// `LPT3`...), whatever follows its first dot.
-pub fn device_name(name: &str) -> bool {
+pub(crate) fn device_name(name: &str) -> bool {
     let stem = name.split('.').next().unwrap_or("").trim_end();
     let numbered = |prefix: &str| {
         stem.len() == 4

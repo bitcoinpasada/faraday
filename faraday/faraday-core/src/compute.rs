@@ -653,7 +653,7 @@ impl Faraday {
     /// names in the Outbox and Files, the pair named with one stem. Puts the code's picture (when it fits one code) and its
     /// file in the Outbox as [`Faraday::kef_save_made`] does. Gives both names as
     /// the Outbox gave them.
-    pub fn kef_save_files(&mut self, made: &kef_make::Made) -> kef_make::Saved {
+    pub(crate) fn kef_save_files(&mut self, made: &kef_make::Made) -> kef_make::Saved {
         let c = self.compute();
         let png = match &made.view {
             Ok(view) => view.png(&c),

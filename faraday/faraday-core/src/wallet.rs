@@ -19,7 +19,7 @@ use faraday_strings::bip::policy_error;
 
 /// The network a session starts on, before a wallet or a PSBT says
 /// otherwise.
-pub const START_NETWORK: Network = Network::Mainnet;
+pub(crate) const START_NETWORK: Network = Network::Mainnet;
 
 // The description reader (`faraday-intake`),
 // at the paths this crate has always had them.
@@ -228,7 +228,7 @@ impl Wallet {
     /// when no key of this wallet names `fp`; else whether one of its keys
     /// for that master derives, over the rest of `path` past its origin,
     /// to the key `stated`.
-    pub fn master_proof(
+    pub(crate) fn master_proof(
         &self,
         c: &Compute,
         fp: Fingerprint,
@@ -286,7 +286,7 @@ impl Wallet {
 
     /// Replaces the policy, dropping the addresses and scripts kept from
     /// the one before.
-    pub fn set_policy(&mut self, policy: WalletPolicy) {
+    pub(crate) fn set_policy(&mut self, policy: WalletPolicy) {
         self.policy = policy;
         self.same = std::cell::OnceCell::new();
         self.addresses.borrow_mut().clear();
@@ -375,7 +375,7 @@ pub fn key_line(fp: Fingerprint, label: &str) -> String {
 /// wallet was read. Its signatures are then counted against the script
 /// path's own quorum, and its readiness never reads as a plain "Can
 /// spend".
-pub fn another_key_spends(wallet: &Wallet) -> bool {
+pub(crate) fn another_key_spends(wallet: &Wallet) -> bool {
     matches!(wallet.policy.key_path(), Some(KeyPath::Other(_)))
 }
 
@@ -573,7 +573,7 @@ impl Session {
     }
 
     /// Takes the network of a PSBT that is about to be signed.
-    pub fn follow_psbt(&mut self, psbt: &Psbt) -> Result<(), Refusal> {
+    pub(crate) fn follow_psbt(&mut self, psbt: &Psbt) -> Result<(), Refusal> {
         self.follow(psbt_network(psbt, self.network()))
     }
 
@@ -659,7 +659,7 @@ impl Session {
 
     /// The press `action` asked for the waiting wallet, if one waits and
     /// no press is noted for it yet.
-    pub fn key_path_replay(&mut self, action: Action, inbox: u64) {
+    pub(crate) fn key_path_replay(&mut self, action: Action, inbox: u64) {
         if let Some(ask) = self.key_path_asked.as_mut() {
             ask.replay.get_or_insert((action, inbox));
         }
@@ -670,21 +670,21 @@ impl Session {
     /// in this session, and the waiting wallet is handed back for its
     /// press to run again or, with none, to be added. `None` when none
     /// waits.
-    pub fn key_path_confirm(&mut self) -> Option<KeyPathAsk> {
+    pub(crate) fn key_path_confirm(&mut self) -> Option<KeyPathAsk> {
         let ask = self.key_path_asked.take()?;
         self.key_path_confirmed.push(same_wallet(&ask.policy));
         Some(*ask)
     }
 
     /// The waiting wallet is not added.
-    pub fn key_path_drop(&mut self) {
+    pub(crate) fn key_path_drop(&mut self) {
         self.key_path_asked = None;
     }
 
     /// Who can spend `policy` by its key path, as a line (F132): `None`
     /// for a wallet with no script tree. A lookup: the key path was
     /// worked out when the policy was read.
-    pub fn key_path_line(&self, policy: &WalletPolicy) -> Option<KeyPathLine> {
+    pub(crate) fn key_path_line(&self, policy: &WalletPolicy) -> Option<KeyPathLine> {
         Some(match policy.key_path()? {
             KeyPath::Unspendable => KeyPathLine {
                 text: EN.wallet_key_path_none.to_string(),
@@ -732,7 +732,7 @@ impl Session {
 
     /// The keys loaded that no wallet loaded uses, in the order they
     /// were added.
-    pub fn loose_keys(&self) -> Vec<Fingerprint> {
+    pub(crate) fn loose_keys(&self) -> Vec<Fingerprint> {
         self.keys
             .all()
             .map(|k| k.fingerprint)
@@ -854,7 +854,7 @@ impl Session {
     /// Costs what `deterministic_all` costs. The nonce lines of the signer
     /// check: `view` (`faraday_psbt::signer::nonce_view`) recomputed with
     /// every key held here, for `faraday_psbt::signer::with_nonces`.
-    pub fn recompute_all(
+    pub(crate) fn recompute_all(
         &self,
         c: &Compute,
         view: &Psbt,
@@ -938,7 +938,7 @@ impl Session {
     /// What an inspection is worked out from beside the PSBT
     /// ([`InspectInputs`]). Lookups: each key's id and each wallet's
     /// checksum are kept.
-    pub fn inspect_inputs(&self) -> InspectInputs {
+    pub(crate) fn inspect_inputs(&self) -> InspectInputs {
         InspectInputs {
             network: self.network(),
             keys: self.keys.all().map(|k| k.id.0).collect(),
@@ -1050,7 +1050,7 @@ pub mod step {
     /// Which way a wallet with several paths is spent.
     pub const PATH: u8 = 8;
     /// MuSig2's first round: everyone's nonces.
-    pub const NONCES: u8 = 9;
+    pub(crate) const NONCES: u8 = 9;
 }
 
 impl Kind {
@@ -1073,7 +1073,7 @@ impl Kind {
     }
 
     /// Whether more than one key can take part.
-    pub fn has_cosigners(self) -> bool {
+    pub(crate) fn has_cosigners(self) -> bool {
         !matches!(self, Kind::Single(_) | Kind::Silent | Kind::Other)
     }
 
@@ -1109,14 +1109,14 @@ impl Session {
     /// a place, a script derivation ([`Wallet::script_at`]). The loaded wallet whose script
     /// the transaction's first input spends, found by re-deriving each
     /// wallet's script at the paths the input's own key origins state.
-    pub fn wallet_for(&self, c: &Compute, psbt: &Psbt) -> Option<usize> {
+    pub(crate) fn wallet_for(&self, c: &Compute, psbt: &Psbt) -> Option<usize> {
         self.spends_from(c, &PsbtSeen::of(psbt))
     }
 
     /// Costs what `script_at` costs. [`Session::wallet_for`] of a PSBT read
     /// before ([`PsbtSeen`]): lookups once each wallet keeps its scripts at
     /// the input's places, so a frame may ask it of every file in Files.
-    pub fn spends_from(&self, c: &Compute, seen: &PsbtSeen) -> Option<usize> {
+    pub(crate) fn spends_from(&self, c: &Compute, seen: &PsbtSeen) -> Option<usize> {
         let (spk, places) = seen.first.as_ref()?;
         self.wallet_at(c, spk, places)
     }
@@ -1124,7 +1124,7 @@ impl Session {
     /// Costs what `script_at` costs. The loaded wallet whose script input
     /// `i` of `inner` spends, by the places that input's own key origins
     /// state: each input has its own wallet.
-    pub fn wallet_of_input(
+    pub(crate) fn wallet_of_input(
         &self,
         c: &Compute,
         inner: &faraday_bip::bitcoin::Psbt,
@@ -1295,7 +1295,7 @@ fn signing_state(inner: &faraday_bip::bitcoin::Psbt) -> (bool, Vec<Fingerprint>)
 /// transaction's id is fixed before it is signed: every
 /// input spends a native SegWit or Taproot output, so no signature lands
 /// in the part of the transaction its id is taken over.
-pub fn txid_known(psbt: &Psbt) -> bool {
+pub(crate) fn txid_known(psbt: &Psbt) -> bool {
     let inner = psbt.inner();
     faraday_psbt::verify::spent_outputs(inner)
         .iter()
@@ -1406,7 +1406,7 @@ pub fn collect_line(missing: usize, collected: usize) -> String {
 }
 
 /// The most a plain text file may hold to be kept as a note.
-pub const TEXT_MAX: usize = 64 * 1024;
+pub(crate) const TEXT_MAX: usize = 64 * 1024;
 
 /// Plain text a person wrote or saved: printable, lines, and short
 /// enough for a note.
@@ -1789,7 +1789,7 @@ impl Spend {
     /// Notes the MuSig2 partial signatures `now` holds that this spend's
     /// PSBT does not hold as they are: what a signing here is about to
     /// write. Call before `now` replaces the PSBT.
-    pub fn note_written(&mut self, now: &Psbt) {
+    pub(crate) fn note_written(&mut self, now: &Psbt) {
         for (i, input) in now.inner().inputs.iter().enumerate() {
             let old = self
                 .psbt
@@ -2794,7 +2794,7 @@ pub fn paths(session: &Session, wallet: &Wallet, psbt: &Psbt) -> Vec<PathView> {
 /// MuSig2's first round on a spend: each participant's slot number,
 /// fingerprint, whether its key is here, and whether its nonce is on the
 /// PSBT.
-pub fn musig_nonces(
+pub(crate) fn musig_nonces(
     session: &Session,
     wallet: &Wallet,
     psbt: &Psbt,
@@ -2911,7 +2911,7 @@ pub struct SpendState {
 impl SpendState {
     /// The keys this device has signed with that are not still to sign: the
     /// ones the Sign card names as signed.
-    pub fn signed_keys(&self) -> Vec<Fingerprint> {
+    pub(crate) fn signed_keys(&self) -> Vec<Fingerprint> {
         self.spend
             .signed_here
             .iter()

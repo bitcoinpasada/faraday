@@ -42,25 +42,25 @@ impl View<'_> {
 
     /// The BIP-85 child shown, held since the eye opened it (F195): a
     /// borrow, nothing costs.
-    pub fn bip85_held(&self) -> Option<&faraday_keys::Held<Zeroizing<String>>> {
+    pub(crate) fn bip85_held(&self) -> Option<&faraday_keys::Held<Zeroizing<String>>> {
         self.app.bip85.held()
     }
 
     /// Convert a seed's value, held since its press: a borrow, nothing
     /// costs.
-    pub fn convert_held(&self) -> Option<&crate::convert::Value> {
+    pub(crate) fn convert_held(&self) -> Option<&crate::convert::Value> {
         self.app.tools.convert().held()
     }
 
     /// The text Convert's open eye shows, held since the press that
     /// opened it: a borrow, nothing costs.
-    pub fn convert_shown_text(&self) -> Option<&str> {
+    pub(crate) fn convert_shown_text(&self) -> Option<&str> {
         self.app.tools.convert().shown_text()
     }
 
     /// The selected key record's words, held since its eye opened them
     /// (F195): a borrow, nothing costs.
-    pub fn record_words_held(&self) -> Option<&Mnemonic> {
+    pub(crate) fn record_words_held(&self) -> Option<&Mnemonic> {
         self.app
             .vaults
             .words_shown(self.app.vault_secrets_on_page())
@@ -68,7 +68,7 @@ impl View<'_> {
 
     /// The selected GPG key's paperkey, held since its eye opened it
     /// (F195): a borrow, nothing costs.
-    pub fn paperkey_held(&self) -> Option<&str> {
+    pub(crate) fn paperkey_held(&self) -> Option<&str> {
         self.app
             .vaults
             .paperkey_shown(self.app.vault_secrets_on_page())
@@ -86,7 +86,7 @@ impl View<'_> {
     /// [`Allowed::SecretShown`]): an entry's password, TOTP secret or
     /// notes, a note's text. Costs nothing: a key's words, which the store
     /// would parse, are held while shown and not asked for here.
-    pub fn reveal_record(
+    pub(crate) fn reveal_record(
         &self,
         r: RecordView<'_>,
         number: u8,

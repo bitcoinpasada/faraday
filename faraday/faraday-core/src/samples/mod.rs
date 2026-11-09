@@ -544,7 +544,7 @@ impl Faraday {
     /// Whether the Load samples pill and sheet are on: Practice, with the
     /// samples set by the shell (the desktop). The stick, the Pi and every
     /// other mode have none.
-    pub fn samples_on(&self) -> bool {
+    pub(crate) fn samples_on(&self) -> bool {
         self.samples.is_some() && self.mode() == Mode::Demo
     }
 

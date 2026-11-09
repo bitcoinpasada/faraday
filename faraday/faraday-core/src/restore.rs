@@ -241,7 +241,12 @@ pub fn rebuilds(c: &Compute, network: Network, wallet: &Wallet, texts: &[String]
 /// Costs [`rebuilds`] for each set of sheets tried. Whether the split
 /// sheets of `plan` rebuild `wallet`: every set of `m` of them where
 /// there are at most ten such sets, else the first `m` and the last `m`.
-pub fn sheets_rebuild(c: &Compute, network: Network, wallet: &Wallet, plan: &[Vec<usize>]) -> bool {
+pub(crate) fn sheets_rebuild(
+    c: &Compute,
+    network: Network,
+    wallet: &Wallet,
+    plan: &[Vec<usize>],
+) -> bool {
     let Some(sheets) = plan
         .iter()
         .map(|row| split_share(wallet, row))
@@ -271,7 +276,7 @@ pub fn sheets_rebuild(c: &Compute, network: Network, wallet: &Wallet, plan: &[Ve
 /// Whether two of a policy's keys name one fingerprint: one seed at two
 /// of its keys, which [`merge`] cannot tell apart from sheets of two
 /// wallets and refuses. A lookup.
-pub fn repeats_a_seed(policy: &faraday_bip::policy::WalletPolicy) -> bool {
+pub(crate) fn repeats_a_seed(policy: &faraday_bip::policy::WalletPolicy) -> bool {
     let fps: Vec<_> = policy
         .keys()
         .iter()
@@ -282,7 +287,7 @@ pub fn repeats_a_seed(policy: &faraday_bip::policy::WalletPolicy) -> bool {
 
 /// Costs [`rebuilds`]. `wallet`'s whole Coldcard config, where it has one
 /// and it rebuilds the wallet.
-pub fn checked_config(c: &Compute, network: Network, wallet: &Wallet) -> Option<String> {
+pub(crate) fn checked_config(c: &Compute, network: Network, wallet: &Wallet) -> Option<String> {
     let text = crate::wallet_backup::multisig_config(wallet, None)?;
     rebuilds(c, network, wallet, core::slice::from_ref(&text)).then_some(text)
 }

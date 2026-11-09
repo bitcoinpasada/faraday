@@ -76,11 +76,11 @@ impl CodexCopy {
 }
 
 /// The lengths of a codex32 template, in characters.
-pub const CODEX_LENGTHS: [usize; 3] = [48, 74, 127];
+pub(crate) const CODEX_LENGTHS: [usize; 3] = [48, 74, 127];
 
 /// The sizes of a Krux code's template, in squares a side: QR versions 2
 /// to 5.
-pub const KRUX_SIZES: [usize; 4] = [25, 29, 33, 37];
+pub(crate) const KRUX_SIZES: [usize; 4] = [25, 29, 33, 37];
 
 /// The choices and what became of the last save or print.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -200,14 +200,14 @@ impl Template {
 
     /// Chooses a Krux code's size; a side that is not one of the four is
     /// ignored.
-    pub fn set_size(&mut self, size: usize) {
+    pub(crate) fn set_size(&mut self, size: usize) {
         if KRUX_SIZES.contains(&size) {
             self.size = size;
         }
     }
 
     /// Chooses what a codex32 card is copied onto; the grid only at 48.
-    pub fn set_codex_copy(&mut self, copy: CodexCopy) {
+    pub(crate) fn set_codex_copy(&mut self, copy: CodexCopy) {
         if copy == CodexCopy::String || self.chars == 48 {
             self.codex_copy = copy;
         }

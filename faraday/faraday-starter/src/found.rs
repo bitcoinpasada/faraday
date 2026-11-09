@@ -163,7 +163,7 @@ impl Starter {
     /// Findings for `target` that were named and not offered: the file's
     /// name and, for another release's, the version this Starter needs.
     /// A lookup.
-    pub fn images_refused(&self, target: Target) -> Vec<(&str, Option<&str>)> {
+    pub(crate) fn images_refused(&self, target: Target) -> Vec<(&str, Option<&str>)> {
         self.found
             .findings
             .iter()

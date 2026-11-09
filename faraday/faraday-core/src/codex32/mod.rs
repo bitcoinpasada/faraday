@@ -79,7 +79,7 @@ use crate::strings::{EN, fill};
 pub use faraday_bip::codex32::CHARSET;
 
 /// A character's symbol value, either case; `None` outside the alphabet.
-pub fn symbol_of(c: char) -> Option<u8> {
+pub(crate) fn symbol_of(c: char) -> Option<u8> {
     if !c.is_ascii() {
         return None;
     }
@@ -87,7 +87,7 @@ pub fn symbol_of(c: char) -> Option<u8> {
 }
 
 /// A symbol's character, lowercase.
-pub fn char_of(v: u8) -> char {
+pub(crate) fn char_of(v: u8) -> char {
     char::from(CHARSET[usize::from(v & 31)])
 }
 
@@ -171,7 +171,7 @@ pub const DIE_SIZES: [u8; 6] = [4, 6, 8, 10, 12, 20];
 
 /// The columns of keys of the pad of a die of `n` faces: five where
 /// they divide it (d10, d20), six (d12), else four (d4, d8).
-pub fn pad_columns(n: usize) -> usize {
+pub(crate) fn pad_columns(n: usize) -> usize {
     if n.is_multiple_of(5) {
         5
     } else if n.is_multiple_of(6) {
@@ -205,7 +205,7 @@ pub enum DieColour {
 }
 
 /// The colours, in the order a press steps through them.
-pub const DIE_COLOURS: [DieColour; 8] = [
+pub(crate) const DIE_COLOURS: [DieColour; 8] = [
     DieColour::Red,
     DieColour::Orange,
     DieColour::Yellow,
@@ -748,7 +748,7 @@ impl Codex32Make {
 
     /// The flow for a wallet whose Quorum chose `k` of `n` (§6.9): the
     /// Scheme card closed on it, the identifier open.
-    pub fn with_scheme(k: u8, n: u8, taken: Vec<([u8; 4], String)>) -> Codex32Make {
+    pub(crate) fn with_scheme(k: u8, n: u8, taken: Vec<([u8; 4], String)>) -> Codex32Make {
         let mut m = Codex32Make::new(taken);
         m.split = Split::Other;
         m.other_k = k.clamp(2, faraday_bip::codex32::MAX_THRESHOLD);
@@ -784,7 +784,7 @@ impl Codex32Make {
 
     /// The share indices of the strings typed in, lowercase; none for a
     /// fresh set. Cheap.
-    pub fn input_indices(&self) -> Vec<u8> {
+    pub(crate) fn input_indices(&self) -> Vec<u8> {
         match self.work.as_ref() {
             Some(w) if w.is_given() => w.inputs().to_vec(),
             _ => self.inputs.iter().map(|s| s.share_index()).collect(),
@@ -800,7 +800,7 @@ impl Codex32Make {
     /// Make the rest's strings in all set to `n`, as the Scheme card of a
     /// set to be made by hand chose (§8.1 step 2): one more than the
     /// threshold at least.
-    pub fn rest_of(mut self, n: u8) -> Codex32Make {
+    pub(crate) fn rest_of(mut self, n: u8) -> Codex32Make {
         self.other_n = n.clamp(
             (self.other_k + 1).min(faraday_bip::codex32::MAX_SHARES),
             faraday_bip::codex32::MAX_SHARES,
@@ -836,7 +836,7 @@ impl Codex32Make {
 
     /// The app bar offers the eye: sheets exist (F117: Faraday Demo as
     /// the device).
-    pub fn eye_offered(&self) -> bool {
+    pub(crate) fn eye_offered(&self) -> bool {
         self.work.is_some()
     }
 
@@ -874,7 +874,7 @@ impl Codex32Make {
     }
 
     /// Why the identifier typed is refused: where it is used already.
-    pub fn id_refused(&self) -> Option<&str> {
+    pub(crate) fn id_refused(&self) -> Option<&str> {
         if self.id_len < 4 {
             return None;
         }
@@ -887,7 +887,7 @@ impl Codex32Make {
 
     /// Whether the identifier is whole and no set on this device has it:
     /// the Identifier card's Continue takes its press. A lookup.
-    pub fn id_ready(&self) -> bool {
+    pub(crate) fn id_ready(&self) -> bool {
         self.id_len == 4 && self.id_refused().is_none()
     }
 
@@ -938,7 +938,7 @@ impl Codex32Make {
     }
 
     /// Whether the dice can be changed now: no character in progress.
-    pub fn dice_open(&self) -> bool {
+    pub(crate) fn dice_open(&self) -> bool {
         self.seq.is_empty() && self.pending.is_none()
     }
 
@@ -951,7 +951,7 @@ impl Codex32Make {
     /// is, in dp: its rows past two, and the "0 is 10" line of ten-faced
     /// dice. A small panel's entry scrolls by it more, so the whole pad
     /// stays in view (§6.4.7). A lookup.
-    pub fn pad_extra(&self) -> f32 {
+    pub(crate) fn pad_extra(&self) -> f32 {
         let n = usize::from(self.dice_choice.faces);
         if n == 6 || self.way != Way::Dice {
             return 0.0;
@@ -978,7 +978,7 @@ impl Codex32Make {
 
     /// Whether die `die` (from 0) of the character in progress shows a
     /// value the roller made.
-    pub fn die_rolled(&self, die: usize) -> bool {
+    pub(crate) fn die_rolled(&self, die: usize) -> bool {
         self.rolled_dice.get(die).copied().unwrap_or(false)
     }
 
@@ -987,12 +987,6 @@ impl Codex32Make {
     pub fn char_rolled(&self, share: usize, n: usize) -> bool {
         let data = self.length.data_len();
         self.roller.char_rolled(share * data + n)
-    }
-
-    /// Whether the roller has a press to take: the entry open on dice
-    /// with a character left to enter.
-    pub fn roller_can_roll(&self) -> bool {
-        self.open == Some(Card::Enter) && self.way == Way::Dice && self.front().is_some()
     }
 
     /// The review's tab shown, and which have been shown.
@@ -1279,7 +1273,7 @@ impl Codex32Make {
     }
 
     /// Whether the dice sheet is open under its head row. A lookup.
-    pub fn dice_sheet_open(&self) -> bool {
+    pub(crate) fn dice_sheet_open(&self) -> bool {
         self.dice_open
     }
 
@@ -1512,7 +1506,7 @@ impl Codex32Make {
     }
 
     /// Check on another device is open.
-    pub fn check_open(&self) -> bool {
+    pub(crate) fn check_open(&self) -> bool {
         self.check_open
     }
 
@@ -1528,7 +1522,7 @@ impl Codex32Make {
 
     /// Whether anything of the key is entered: a roll or a character of
     /// a share, or a string typed in. Only lookups.
-    pub fn entered_any(&self) -> bool {
+    pub(crate) fn entered_any(&self) -> bool {
         !self.seq.is_empty() || self.entered_all() > 0 || !self.inputs.is_empty()
     }
 
@@ -2434,7 +2428,7 @@ impl Codex32Make {
     /// of `k` share indices in which every string is at least once and
     /// the initial shares are not in every subset; `ceil(n / k)` of
     /// them. Cheap.
-    pub fn sets_to_try(&self) -> Vec<String> {
+    pub(crate) fn sets_to_try(&self) -> Vec<String> {
         let (k, n) = self.k_n();
         if k == 0 {
             return Vec::new();

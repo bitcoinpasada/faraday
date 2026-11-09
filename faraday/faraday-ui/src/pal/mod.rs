@@ -74,7 +74,7 @@ impl Paint {
     /// Whether it is one of the theme's colours (a role or a stick's
     /// tone), which the High contrast rules apply to, rather than a
     /// colour drawn as it is in every theme.
-    pub const fn is_role(self) -> bool {
+    pub(crate) const fn is_role(self) -> bool {
         matches!(self, Paint::Role(..) | Paint::Stick(..))
     }
 
@@ -160,7 +160,7 @@ pub const CODEX32_ON_CHECKSUM: Paint = Paint::role(Role::OnChecksumContainer);
 pub const CODEX32_LOOKUP_FILL: Paint = Paint::role(Role::SurfaceContainerHighest);
 
 /// The boot stick's pill and render: Bitcoin's orange, on a dark page.
-pub const STICK_BOOT: Color = Color::rgb(0xf7, 0x93, 0x1a);
+pub(crate) const STICK_BOOT: Color = Color::rgb(0xf7, 0x93, 0x1a);
 /// The backup sticks' pills and renders on a dark page, Stick 1, 2,
 /// 3 and on in turn, then again from the first: red, yellow, green,
 /// cyan, blue, violet, magenta. Orange is the boot stick's alone.

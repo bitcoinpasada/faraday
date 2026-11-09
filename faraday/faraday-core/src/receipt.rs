@@ -61,7 +61,7 @@ impl Receipt {
     }
 
     /// Whether a file with these bytes was written and matched.
-    pub fn holds_hash(&self, hash: &[u8; 32]) -> bool {
+    pub(crate) fn holds_hash(&self, hash: &[u8; 32]) -> bool {
         self.files.iter().any(|f| f.verified && f.hash == *hash)
     }
 

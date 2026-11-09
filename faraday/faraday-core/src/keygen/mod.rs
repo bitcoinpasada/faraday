@@ -449,7 +449,7 @@ impl KeyGen {
     /// digits, frames, a mix's sources), the words made, a passphrase, or
     /// words, shares or strings typed into `entry`, the form the flow
     /// types into. Only lookups.
-    pub fn entered_any(&self, entry: &crate::EntryState) -> bool {
+    pub(crate) fn entered_any(&self, entry: &crate::EntryState) -> bool {
         let randomness = !self.dice.is_empty()
             || !self.coins.is_empty()
             || !self.cards.is_empty()
@@ -477,7 +477,7 @@ impl KeyGen {
     /// typed or scanned (none for codex32, which has no passphrase), and
     /// for one made for a Create slot; a key made on its own has none
     /// (decision 4).
-    pub fn asks_passphrase(&self) -> bool {
+    pub(crate) fn asks_passphrase(&self) -> bool {
         if self.typed() {
             self.start != Start::Codex32
         } else {
@@ -527,7 +527,7 @@ impl KeyGen {
 
     /// Whether the entries have counts the randomness check reads: not
     /// this device's generator, the camera or a mix as a whole.
-    pub fn has_check(&self) -> bool {
+    pub(crate) fn has_check(&self) -> bool {
         !matches!(
             self.active(),
             None | Some(Source::Device | Source::Camera | Source::Mix | Source::SeedXor)
@@ -545,7 +545,7 @@ impl KeyGen {
     }
 
     /// Switches between words and shares, forgetting what was entered.
-    pub fn set_slip39(&mut self, on: bool) {
+    pub(crate) fn set_slip39(&mut self, on: bool) {
         if self.slip39 == on {
             return;
         }
@@ -576,7 +576,7 @@ impl KeyGen {
 
     /// The share whose words are on screen or quizzed, as SLIP-39 word
     /// indices.
-    pub fn share_indices(&self, at: usize) -> Option<&[u16]> {
+    pub(crate) fn share_indices(&self, at: usize) -> Option<&[u16]> {
         self.shares.get(at).map(|s| s.indices())
     }
 
@@ -704,7 +704,7 @@ impl KeyGen {
     /// selection: what the checksum leaves, 11 less a bit for every three
     /// words (7 at 12 words, 3 at 24). The checksum replaces the rest
     /// (`faraday_entropy::DiceRolls::entropy_under`).
-    pub fn last_bits(&self) -> usize {
+    pub(crate) fn last_bits(&self) -> usize {
         11 - self.words / 3
     }
 
@@ -719,7 +719,7 @@ impl KeyGen {
 
     /// Rolls procedure `p` takes at this length (see
     /// [`KeyGen::dice_needed`]).
-    pub fn rolls_for(&self, p: DiceProcedure) -> usize {
+    pub(crate) fn rolls_for(&self, p: DiceProcedure) -> usize {
         if p.direct() {
             faraday_entropy::DICE_WORD_ROLLS * (self.words - 1) + self.last_bits().div_ceil(2)
         } else {
@@ -749,7 +749,7 @@ impl KeyGen {
     }
 
     /// The sources a mix takes, in order.
-    pub fn mix_list(&self) -> Vec<Source> {
+    pub(crate) fn mix_list(&self) -> Vec<Source> {
         MIX_SOURCES
             .iter()
             .zip(self.mix)
@@ -925,7 +925,7 @@ impl KeyGen {
     }
 
     /// A hex digit.
-    pub fn hex_digit(&mut self, c: char) {
+    pub(crate) fn hex_digit(&mut self, c: char) {
         let (have, need) = self.progress();
         if self.active() == Some(Source::Hex) && have < need {
             self.hex.push(c.to_ascii_lowercase());
@@ -1032,7 +1032,7 @@ impl KeyGen {
     }
 
     /// Whether the words made are `phrase`, word for word. A lookup.
-    pub fn words_are(&self, phrase: &str) -> bool {
+    pub(crate) fn words_are(&self, phrase: &str) -> bool {
         let Some(m) = self.mnemonic.as_ref() else {
             return false;
         };
@@ -1090,7 +1090,7 @@ impl KeyGen {
     /// strength of a published dice procedure or of the system's
     /// generator, and the others only add to it; cards, coins and the
     /// camera alone are Faraday's own procedures or no procedure at all.
-    pub fn mix_enough(&self) -> bool {
+    pub(crate) fn mix_enough(&self) -> bool {
         self.mix_count() >= MIN_MIX
             && self
                 .mix_list()

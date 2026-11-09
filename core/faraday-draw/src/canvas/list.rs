@@ -165,12 +165,6 @@ impl Canvas {
         }
     }
 
-    /// Whether the painting calls are being recorded
-    /// ([`Canvas::record_calls`]).
-    pub fn is_recording_calls(&self) -> bool {
-        self.mode == Mode::Record
-    }
-
     /// How many calls wait to be painted, and how many of them are
     /// barriers. A lookup.
     pub fn waiting(&self) -> (usize, usize) {

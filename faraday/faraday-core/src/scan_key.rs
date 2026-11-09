@@ -612,7 +612,7 @@ impl Faraday {
     /// Whether the page hands Faraday Demo's strip Paste words: wherever
     /// the words form takes words pasted, in every mode Faraday Demo has
     /// (Practice and the test networks; owner, 2026-10-26). A lookup.
-    pub fn entry_paste_offered(&self) -> bool {
+    pub(crate) fn entry_paste_offered(&self) -> bool {
         self.entry_pastes()
     }
 

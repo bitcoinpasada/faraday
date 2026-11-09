@@ -82,7 +82,7 @@ impl Check {
     }
 
     /// Records an answer.
-    pub fn set_result(&mut self, result: Checked) {
+    pub(crate) fn set_result(&mut self, result: Checked) {
         self.result = Some(result);
     }
 

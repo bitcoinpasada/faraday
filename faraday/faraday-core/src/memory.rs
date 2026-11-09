@@ -108,7 +108,7 @@ pub fn record_of(entry: &Signed) -> Record {
 }
 
 /// A signed transaction from a type-10 record.
-pub fn from_record(r: faraday_keys::vault::RecordView<'_>) -> Option<Signed> {
+pub(crate) fn from_record(r: faraday_keys::vault::RecordView<'_>) -> Option<Signed> {
     let hash: [u8; 32] = r.public(1)?.try_into().ok()?;
     let amounts = r
         .public_all(2)
@@ -246,7 +246,7 @@ impl MemoryArea {
 impl Faraday {
     /// Whether the same transaction was signed stating other amounts:
     /// here, or as an open vault remembers it.
-    pub fn amounts_refused(&self, psbt: &Psbt) -> bool {
+    pub(crate) fn amounts_refused(&self, psbt: &Psbt) -> bool {
         let open: Vec<faraday_keys::vault::VaultId> =
             self.vaults.open.iter().map(|o| o.id).collect();
         self.memory.refused(psbt, &open)
@@ -271,13 +271,13 @@ impl Faraday {
 
     /// Whether a wallet of this descriptor checksum has been checked
     /// this power-on (`docs/WALLETS.md` §4).
-    pub fn is_checked(&self, checksum: &str) -> bool {
+    pub(crate) fn is_checked(&self, checksum: &str) -> bool {
         self.memory.is_checked(checksum)
     }
 
     /// Remembers that a wallet of this descriptor checksum has been
     /// checked.
-    pub fn mark_checked(&mut self, checksum: &str) {
+    pub(crate) fn mark_checked(&mut self, checksum: &str) {
         self.memory.mark_checked(checksum);
     }
 

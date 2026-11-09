@@ -402,7 +402,7 @@ impl Faraday {
     /// Whoever holds the app draws over a ring `px` wide round its canvas
     /// every frame (Faraday Demo's focus edge): a fade leaves it out of
     /// what it blends and of what it says changed.
-    pub fn set_edge_drawn_over(&mut self, px: i32) {
+    pub(crate) fn set_edge_drawn_over(&mut self, px: i32) {
         self.fade.edge_drawn_over = px.max(0);
     }
 
@@ -410,7 +410,7 @@ impl Faraday {
     /// after, as rectangles of its pixels, or `None` where that is not
     /// known (a frame drawn in full): a fade's steps give their bands, so
     /// a shell copies and presents those alone. Counted from now on.
-    pub fn take_changed(&mut self) -> Option<Vec<Rect>> {
+    pub(crate) fn take_changed(&mut self) -> Option<Vec<Rect>> {
         self.fade.changed.replace(Vec::new())
     }
 

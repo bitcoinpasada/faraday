@@ -150,7 +150,7 @@ impl Outlines {
 
     /// Looks up a code point in this file alone. Binary search over the
     /// sorted table.
-    pub fn glyph_in_file(&self, c: char) -> Option<Outline> {
+    pub(crate) fn glyph_in_file(&self, c: char) -> Option<Outline> {
         let target = c as u32;
         // The table is sorted and the first code points run on without a
         // gap (the ASCII block), so a code point there is at its offset
@@ -220,7 +220,7 @@ impl Outlines {
     /// The outline for `c`, or the fallback `?` when neither this face
     /// nor the CJK face has it. Only `None` if even `?` is missing,
     /// which the baker forbids.
-    pub fn glyph_or_fallback(&self, c: char) -> Option<Resolved> {
+    pub(crate) fn glyph_or_fallback(&self, c: char) -> Option<Resolved> {
         self.glyph(c).or_else(|| self.glyph('?'))
     }
 }
@@ -399,7 +399,7 @@ struct Entry {
 
 /// Glyph bitmaps filled from the outlines, kept for the next frame.
 #[derive(Debug, Default)]
-pub struct GlyphCache {
+pub(crate) struct GlyphCache {
     entries: BTreeMap<Key, Entry>,
     bytes: usize,
     /// Whether the cache keeps every glyph it is given, past its budget:

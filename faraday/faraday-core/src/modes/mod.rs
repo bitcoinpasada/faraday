@@ -146,7 +146,7 @@ impl Faraday {
 
     /// Whether the lock now asked for is a mode change: it keeps nothing
     /// but the mode. A lookup.
-    pub fn mode_changing(&self) -> bool {
+    pub(crate) fn mode_changing(&self) -> bool {
         self.next_mode.changing()
     }
 

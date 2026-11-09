@@ -39,7 +39,7 @@ use faraday_strings::EN;
 /// Where a serial of a stick's own comes from: four bytes of the
 /// system's randomness, or `None` when it cannot be read. It is not a
 /// secret; it tells two sticks apart.
-pub type Serials = Box<dyn FnMut() -> Option<u32> + Send>;
+pub(crate) type Serials = Box<dyn FnMut() -> Option<u32> + Send>;
 
 /// Four bytes from `/dev/urandom`. Costs a file read.
 fn urandom() -> Option<u32> {

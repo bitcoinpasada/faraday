@@ -98,7 +98,7 @@ pub struct Mac {
 
 impl Mac {
     /// It has an Apple chip, not an Intel processor.
-    pub fn apple_silicon(&self) -> bool {
+    pub(crate) fn apple_silicon(&self) -> bool {
         self.chip.is_some()
     }
 
@@ -179,7 +179,7 @@ pub fn mac(model: &str) -> Option<&'static Mac> {
 
 /// Whether a computer's maker is Apple (§3.1: "the maker begins
 /// Apple"), on any system.
-pub fn is_apple(maker: &str) -> bool {
+pub(crate) fn is_apple(maker: &str) -> bool {
     let m = maker.trim();
     m.len() >= 5 && m.is_char_boundary(5) && m[..5].eq_ignore_ascii_case("apple")
 }

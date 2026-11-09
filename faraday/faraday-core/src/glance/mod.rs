@@ -415,21 +415,13 @@ pub struct BackupNode {
     pub checked: Vec<Option<String>>,
 }
 
-/// The plan the chart draws for loaded wallet `w`, with the places'
-/// names: the backup under way once its checklist is made, else this
-/// power-on's record of it, else an open vault's. Drawing's form, through
-/// the memo and the kept values.
-pub fn plan_of(v: &View, w: usize) -> Option<(plan::Answers, Vec<String>)> {
-    plan_on(v, w)
-}
-
 /// Costs what an open vault's plan records cost to read the first time:
-/// [`plan_of`] for a decision, worked out from the state as it is.
+/// the plan a chart draws for a decision, worked out from the state as it is.
 pub fn plan_of_now(c: &Compute, app: &Faraday, w: usize) -> Option<(plan::Answers, Vec<String>)> {
     plan_on(&Now { app, c }, w)
 }
 
-/// [`plan_of`] through `r`.
+/// The plan for wallet `w` through `r`.
 fn plan_on(r: &impl Reads, w: usize) -> Option<(plan::Answers, Vec<String>)> {
     let app = r.app();
     let wallet = app.session.wallets.get(w)?;

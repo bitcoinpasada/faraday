@@ -138,7 +138,7 @@ impl Reach {
 
     /// Whether `self` is nearer a spend than `was`: fewer places, or as
     /// many without the vault's passphrase.
-    pub fn nearer_than(self, was: Option<Reach>) -> bool {
+    pub(crate) fn nearer_than(self, was: Option<Reach>) -> bool {
         !self.cut && was.is_none_or(|w| w.cut || (self.more, self.vault) < (w.more, w.vault))
     }
 }

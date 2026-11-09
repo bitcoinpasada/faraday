@@ -23,7 +23,7 @@ pub fn off() -> Paint {
 /// tint). Ok, warning, error, primary, secondary and tertiary each in
 /// their own container; any other paint in surface-container-highest
 /// under on-surface-variant.
-pub fn container_of(tone: Paint) -> (Role, Role) {
+pub(crate) fn container_of(tone: Paint) -> (Role, Role) {
     match tone {
         Paint::Role(Role::Ok, _) => (Role::OkContainer, Role::OnOkContainer),
         Paint::Role(Role::Warning, _) => (Role::WarningContainer, Role::OnWarningContainer),
@@ -38,7 +38,7 @@ pub fn container_of(tone: Paint) -> (Role, Role) {
 /// An icon's tile at `(x, y)`, `side` square with corners of `r`: in
 /// `tone`'s container, the icon `glyph` units tall in the colour on it
 /// ([`container_of`]).
-pub fn icon_tile(
+pub(crate) fn icon_tile(
     ui: &mut Ui,
     (x, y, side, r): (f32, f32, f32, f32),
     icon: impl Into<Glyph>,
@@ -52,7 +52,7 @@ pub fn icon_tile(
 
 /// A card, tile or row at `(x, y, w, h, r)` filled in `fill`, with
 /// the pressed state layer over it while `pressed` (`docs/THEMES.md` §8).
-pub fn fill_pressed(ui: &mut Ui, at: (f32, f32, f32, f32, f32), fill: Role, pressed: bool) {
+pub(crate) fn fill_pressed(ui: &mut Ui, at: (f32, f32, f32, f32, f32), fill: Role, pressed: bool) {
     let (x, y, w, h, r) = at;
     ui.fill(x, y, w, h, r, fill);
     if pressed {

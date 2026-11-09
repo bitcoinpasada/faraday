@@ -74,7 +74,7 @@ impl Options {
     }
 
     /// Low error correction is for version 5 only.
-    pub fn low_offered(&self) -> bool {
+    pub(crate) fn low_offered(&self) -> bool {
         self.version == 5
     }
 
@@ -135,7 +135,7 @@ pub fn versions_in(mode: Mode) -> Vec<u8> {
 }
 
 /// The legacy versions (0 and 1), listed one level further down.
-pub fn legacy_versions() -> Vec<u8> {
+pub(crate) fn legacy_versions() -> Vec<u8> {
     VERSIONS
         .iter()
         .copied()
@@ -171,17 +171,17 @@ pub fn refusal_text(e: SealError) -> String {
 }
 
 /// The line for a seed that is not offered.
-pub fn not_offered_line() -> &'static str {
+pub(crate) fn not_offered_line() -> &'static str {
     EN.kef_not_offered
 }
 
 /// The line under the ECB versions in Options.
-pub fn ecb_line() -> &'static str {
+pub(crate) fn ecb_line() -> &'static str {
     EN.kef_ecb_line
 }
 
 /// The line about an id that is printed on the code.
-pub fn public_id_line() -> &'static str {
+pub(crate) fn public_id_line() -> &'static str {
     EN.kef_public_id_line
 }
 
@@ -226,7 +226,7 @@ pub struct Saved {
 
 impl Saved {
     /// The name a toast reads: the picture's, else the file's.
-    pub fn toast_name(&self) -> &str {
+    pub(crate) fn toast_name(&self) -> &str {
         self.png.as_deref().unwrap_or(&self.file)
     }
 }

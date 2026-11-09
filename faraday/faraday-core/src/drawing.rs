@@ -388,7 +388,7 @@ impl Faraday {
     /// not drawn for it (`docs/LAYOUT.md` §3, as F51's Cancel rule): a
     /// stick being written by a backup flow, or a backup flow's key being
     /// made. A lookup.
-    pub fn nav_hidden(&self) -> bool {
+    pub(crate) fn nav_hidden(&self) -> bool {
         self.screen == Screen::BackupFlow
             && self
                 .flows

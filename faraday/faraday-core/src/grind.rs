@@ -18,7 +18,7 @@ use faraday_bip::vanity::{self, Find};
 
 /// The longest prefix a person types, which is a whole Taproot address
 /// on a test network.
-pub const MAX_PREFIX: usize = vanity::MAX_ADDRESS_CHARS;
+pub(crate) const MAX_PREFIX: usize = vanity::MAX_ADDRESS_CHARS;
 
 /// How long one tick aims to spend grinding, in milliseconds. Short
 /// enough that Stop lands promptly and the count moves.
@@ -91,7 +91,7 @@ impl Prefix {
 
     /// How many characters the fixed part is, which is where deleting
     /// stops.
-    pub fn fixed_len(&self, script: ScriptType, network: Network) -> usize {
+    pub(crate) fn fixed_len(&self, script: ScriptType, network: Network) -> usize {
         vanity::fixed_prefix(script, network).len()
     }
 
@@ -131,7 +131,7 @@ impl Prefix {
     /// Whether anything has been asked for beyond the fixed part, which
     /// is what ✓ needs: the fixed prefix alone matches every address of
     /// its kind.
-    pub fn has_free(&self, script: ScriptType, network: Network) -> bool {
+    pub(crate) fn has_free(&self, script: ScriptType, network: Network) -> bool {
         usize::from(self.len) > self.fixed_len(script, network)
     }
 }
@@ -184,7 +184,7 @@ impl Grind {
 
     /// Takes the script type, which resets the prefix to that type's
     /// own fixed characters.
-    pub fn set_script(&mut self, script: ScriptType, network: Network) {
+    pub(crate) fn set_script(&mut self, script: ScriptType, network: Network) {
         self.script = script;
         self.prefix = Prefix::fixed(script, network);
     }

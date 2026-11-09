@@ -381,7 +381,7 @@ impl DeviceCheck {
     }
 
     /// The reminders not yet gone on from this session.
-    pub fn reminders_due(&self) -> Vec<&'static str> {
+    pub(crate) fn reminders_due(&self) -> Vec<&'static str> {
         let mut out = self.reminders();
         out.retain(|r| !self.understood.contains(r));
         out

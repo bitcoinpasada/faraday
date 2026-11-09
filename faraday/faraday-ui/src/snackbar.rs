@@ -15,9 +15,9 @@ use faraday_draw::tokens::{
 };
 
 /// The snackbar's container: inverse-surface.
-pub const SNACKBAR_FILL: Role = Role::InverseSurface;
+pub(crate) const SNACKBAR_FILL: Role = Role::InverseSurface;
 /// The snackbar's supporting text: inverse-on-surface.
-pub const SNACKBAR_INK: Role = Role::InverseOnSurface;
+pub(crate) const SNACKBAR_INK: Role = Role::InverseOnSurface;
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
     /// Costs measuring and breaking `text`. `text` as Material's

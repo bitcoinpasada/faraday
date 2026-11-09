@@ -52,7 +52,7 @@ pub fn is_passphrase(n: u8) -> bool {
 }
 
 /// Whether `n` is a seed's Krux code.
-pub fn is_kef(n: u8) -> bool {
+pub(crate) fn is_kef(n: u8) -> bool {
     (KEF..VAULT).contains(&n)
 }
 

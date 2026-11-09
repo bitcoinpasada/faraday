@@ -45,55 +45,55 @@ pub(crate) const FIRST_STEP_MS: u64 = 16;
 pub const WHEEL_NOTCH: f32 = 56.0;
 /// What the shells send for one notch (`docs/MOTION.md` §3.1): 48
 /// pixels. Here it is read as a count of notches, not as a distance.
-pub const SHELL_NOTCH_PX: f32 = 48.0;
+pub(crate) const SHELL_NOTCH_PX: f32 = 48.0;
 /// How long a change of screen or sheet takes to cross-fade in: linear,
 /// since an eased fade of this length is over in a few frames and reads
 /// as a flash, where a straight one reads as a fade. Desktops sit
 /// between 200 and 250 ms; Material's short 4.
-pub const FADE_MS: u64 = tokens::MOTION_SHORT4;
+pub(crate) const FADE_MS: u64 = tokens::MOTION_SHORT4;
 /// How long a change of theme takes to cross-fade, eased: every pixel
 /// changes colour, so it is slower than a change of screen (the owner
 /// sets it by eye); Material's medium 3.
-pub const THEME_FADE_MS: u64 = tokens::MOTION_MEDIUM3;
+pub(crate) const THEME_FADE_MS: u64 = tokens::MOTION_MEDIUM3;
 /// How long the codex32 worksheet's view takes to follow the entry's
 /// front to its new place (`docs/CODEX32.md` §7.5), eased as a change of
 /// theme is: Material's medium 2, as a step card opening moves the page.
-pub const SHEET_FOLLOW_MS: u64 = tokens::MOTION_MEDIUM2;
+pub(crate) const SHEET_FOLLOW_MS: u64 = tokens::MOTION_MEDIUM2;
 /// The widest the median gap between a fade's steps may be for it still
 /// to read as one: the steps a fade can carry, four in [`FADE_MS`], a
 /// step every third refresh at 60 Hz (50 ms), with room for whole
 /// milliseconds' ticks, which read three refreshes as 50 or 51 ms
 /// (owner, 2026-10-29). Steps further apart are steps of brightness, and
 /// the change is drawn at once instead.
-pub const FADE_GAP_MS: f32 = 55.0;
+pub(crate) const FADE_GAP_MS: f32 = 55.0;
 /// While fades are off, the widest a frame's gap from the one before may
 /// be for it to count towards turning them back on ([`FADE_ON_RUN`]):
 /// 30 Hz or better, as before the limit above was widened, so they come
 /// back as they did (owner, 2026-10-29).
-pub const FADE_ON_GAP_MS: u64 = 35;
+pub(crate) const FADE_ON_GAP_MS: u64 = 35;
 /// How many recent frame gaps the median is taken over.
-pub const FADE_GAPS_KEPT: usize = 9;
+pub(crate) const FADE_GAPS_KEPT: usize = 9;
 /// How many gaps must be known before a machine is judged too slow to
 /// fade.
-pub const FADE_GAPS_KNOWN: usize = 5;
+pub(crate) const FADE_GAPS_KNOWN: usize = 5;
 /// How long a gap between a fade's steps is remembered while fades are
 /// on: a slow step this far past no longer counts towards turning them
 /// off.
-pub const FADE_GAPS_FRESH_MS: u64 = 30_000;
+pub(crate) const FADE_GAPS_FRESH_MS: u64 = 30_000;
 /// Fades turned off stay off at least this long, however fast the frames
 /// after, so the gate cannot flap from one change of screen to the next.
-pub const FADE_HOLD_MS: u64 = 10_000;
+pub(crate) const FADE_HOLD_MS: u64 = 10_000;
 /// Fades turned off come back on only after this many frames in a row,
 /// each drawn within [`FADE_ON_GAP_MS`] of the one before: a sustained run
 /// of frames the machine shows fast, not one fast frame. A frame further
 /// apart breaks the run; a pause longer than [`FADE_PAUSE_MS`] neither
 /// counts nor breaks it.
-pub const FADE_ON_RUN: u16 = 24;
+pub(crate) const FADE_ON_RUN: u16 = 24;
 /// A gap between two frames longer than this is a pause, not a slow
 /// frame: nothing was moving.
-pub const FADE_PAUSE_MS: u64 = 100;
+pub(crate) const FADE_PAUSE_MS: u64 = 100;
 /// The step the fade's first frame after the change is taken to be.
-pub const FADE_FIRST_STEP_MS: u64 = 16;
+pub(crate) const FADE_FIRST_STEP_MS: u64 = 16;
 
 /// What the content itself is doing.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -167,33 +167,33 @@ impl Region<'_> {
 
 /// How long two-finger scrolling may pause before it is taken to have
 /// ended, for a shell that does not say when the fingers lift.
-pub const SCROLL_QUIET_MS: u64 = 300;
+pub(crate) const SCROLL_QUIET_MS: u64 = 300;
 /// How long a switch's pill takes to slide to the other side:
 /// Material's short 3.
-pub const SWITCH_MS: u64 = tokens::MOTION_SHORT3;
+pub(crate) const SWITCH_MS: u64 = tokens::MOTION_SHORT3;
 /// How long a step card takes to open or close: Material's medium 2,
 /// since it moves much of the page.
-pub const DISCLOSE_MS: u64 = tokens::MOTION_MEDIUM2;
+pub(crate) const DISCLOSE_MS: u64 = tokens::MOTION_MEDIUM2;
 /// How long a host menu takes to fade in, on Material's standard
 /// decelerate: Material's medium 1.
-pub const MENU_IN_MS: u64 = tokens::MOTION_MEDIUM1;
+pub(crate) const MENU_IN_MS: u64 = tokens::MOTION_MEDIUM1;
 /// How long it takes to fade out, on Material's standard accelerate:
 /// Material's short 3, quicker out than in.
-pub const MENU_OUT_MS: u64 = tokens::MOTION_SHORT3;
+pub(crate) const MENU_OUT_MS: u64 = tokens::MOTION_SHORT3;
 /// How long a side sheet takes to slide in from the window's edge, on
 /// Material's emphasized decelerate: Material's medium 4, for what
 /// enters the screen (`docs/MOTION.md`).
-pub const SIDE_SHEET_IN_MS: u64 = tokens::MOTION_MEDIUM4;
+pub(crate) const SIDE_SHEET_IN_MS: u64 = tokens::MOTION_MEDIUM4;
 /// How long it takes to slide out, on Material's emphasized accelerate:
 /// Material's short 4, for what leaves it.
-pub const SIDE_SHEET_OUT_MS: u64 = tokens::MOTION_SHORT4;
+pub(crate) const SIDE_SHEET_OUT_MS: u64 = tokens::MOTION_SHORT4;
 /// How long a toast takes to rise in, and to fade out at its end:
 /// Material's short 4.
-pub const TOAST_MS: u64 = tokens::MOTION_SHORT4;
+pub(crate) const TOAST_MS: u64 = tokens::MOTION_SHORT4;
 /// How long typing a passphrase may pause before the key it makes is
 /// worked out and shown (a PBKDF2 each time), so that typing does that
 /// work once rather than at every character (`docs/SPEED.md` §3.5).
-pub const TYPED_PAUSE_MS: u64 = 400;
+pub(crate) const TYPED_PAUSE_MS: u64 = 400;
 
 /// How far along `curve` an animation `t` of the way through its time
 /// is, 0 to 1 ([`faraday_draw::easing::ease`]).
@@ -203,13 +203,13 @@ pub fn ease(curve: Easing, t: f32) -> f32 {
 
 /// A step card opening: Material's emphasized decelerate, `t` from 0 to
 /// 1.
-pub fn ease_open(t: f32) -> f32 {
+pub(crate) fn ease_open(t: f32) -> f32 {
     ease(tokens::EASE_EMPHASIZED_DECELERATE, t)
 }
 
 /// Something moving on screen and staying there (a switch's pill, a
 /// change of theme): Material's standard easing, `t` from 0 to 1.
-pub fn ease_move(t: f32) -> f32 {
+pub(crate) fn ease_move(t: f32) -> f32 {
     ease(tokens::EASE_STANDARD, t)
 }
 
@@ -228,7 +228,7 @@ const BUSY_PASS_MS: u64 = 1800;
 
 /// How far across its track the indeterminate bar of a job that began at
 /// `began_ms` is at `now_ms`, 0 to 1; it starts again at the left.
-pub fn busy_phase(began_ms: u64, now_ms: u64) -> f32 {
+pub(crate) fn busy_phase(began_ms: u64, now_ms: u64) -> f32 {
     (now_ms.saturating_sub(began_ms) % BUSY_PASS_MS) as f32 / BUSY_PASS_MS as f32
 }
 
@@ -238,11 +238,11 @@ const BAR_STAY_MS: u64 = 800;
 const BAR_FADE_MS: u64 = 300;
 
 /// Half the text caret's blink: on this long, then off this long.
-pub const CARET_HALF_MS: u64 = 530;
+pub(crate) const CARET_HALF_MS: u64 = 530;
 
 /// The overlay scrollbar's opacity, 0–255, at `now_ms` for content that
 /// last moved at `moved_at` (0: not since the region opened).
-pub fn bar_alpha(moved_at: u64, now_ms: u64) -> u8 {
+pub(crate) fn bar_alpha(moved_at: u64, now_ms: u64) -> u8 {
     if moved_at == 0 {
         return 0;
     }
@@ -383,7 +383,7 @@ impl Motion {
 
     /// The content glides `dy` from where it is, whatever it was doing:
     /// the page bringing something into view.
-    pub fn glide_to(&mut self, dy: f32) {
+    pub(crate) fn glide_to(&mut self, dy: f32) {
         self.panning = false;
         self.last_ms = None;
         self.content = Content::Glide { left: dy };

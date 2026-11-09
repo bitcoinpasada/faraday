@@ -4,10 +4,7 @@
 //! each function here maps one kind to the sentence a person reads,
 //! filled from that data. Every function is a lookup and a small fill.
 
-use faraday_bip::{
-    aezeed, base64, bip39, bip85, bsms, codex32, dleq, keys, musig, policy, recovery, silent,
-    slip39, xkey,
-};
+use faraday_bip::{bip39, bsms, codex32, keys, musig, policy, slip39};
 
 use crate::{EN, fill};
 
@@ -30,37 +27,6 @@ pub fn bip39_error(e: &bip39::Error) -> String {
     }
 }
 
-/// An aezeed refusal.
-pub fn aezeed_error(e: &aezeed::Error) -> String {
-    use aezeed::Error as E;
-    match e {
-        E::Version(_) => EN.bip_aezeed_version,
-        E::Checksum => EN.bip_aezeed_checksum,
-        E::Passphrase => EN.bip_aezeed_passphrase,
-        E::Kdf => EN.bip_aezeed_kdf,
-    }
-    .into()
-}
-
-/// A base64 refusal.
-pub fn base64_error(_: &base64::DecodeError) -> String {
-    EN.bip_invalid_base64.into()
-}
-
-/// A BIP-85 refusal.
-pub fn bip85_error(e: &bip85::Error) -> String {
-    use bip85::Error as E;
-    match e {
-        E::WordCount => EN.bip_word_count,
-        E::IndexOutOfRange => EN.bip_index_out_of_range,
-        E::Wordlist => EN.bip_bip85_wordlist,
-        E::ByteCount => EN.bip_bip85_byte_count,
-        E::PasswordLength => EN.bip_bip85_password_length,
-        E::InvalidKey => EN.bip_bip85_invalid_key,
-    }
-    .into()
-}
-
 /// A BIP-129 (BSMS) refusal.
 pub fn bsms_error(e: &bsms::Error) -> String {
     use bsms::Error as E;
@@ -76,17 +42,6 @@ pub fn bsms_error(e: &bsms::Error) -> String {
         E::Address => EN.bip_bsms_address,
         E::FirstAddress => EN.bip_bsms_first_address,
         E::Policy(p) => return policy_error(p),
-    }
-    .into()
-}
-
-/// A DLEQ proof refusal.
-pub fn dleq_error(e: &dleq::Error) -> String {
-    use dleq::Error as E;
-    match e {
-        E::Nonce => EN.bip_dleq_nonce,
-        E::Infinity => EN.bip_dleq_infinity,
-        E::SelfCheck => EN.bip_dleq_self_check,
     }
     .into()
 }
@@ -127,52 +82,6 @@ pub fn policy_error(e: &policy::Error) -> String {
     .into()
 }
 
-/// A recovery wallet refusal.
-pub fn recovery_error(e: &recovery::Error) -> String {
-    use recovery::Error as E;
-    match e {
-        E::NoRecovery => EN.bip_recovery_none,
-        E::Delay => EN.bip_recovery_delay,
-        E::Path => EN.bip_recovery_path,
-        E::Key => EN.bip_recovery_key,
-        E::Script => EN.bip_recovery_script,
-    }
-    .into()
-}
-
-/// A silent payments refusal.
-pub fn silent_error(e: &silent::Error) -> String {
-    use silent::Error as E;
-    match e {
-        E::Address => EN.bip_silent_address,
-        E::Version => EN.bip_silent_version,
-        E::Key => EN.bip_silent_key,
-        E::Scalar => EN.bip_silent_scalar,
-        E::NoInputs => EN.bip_silent_no_inputs,
-        E::TooLong => EN.bip_silent_too_long,
-    }
-    .into()
-}
-
-/// An extended key refusal.
-pub fn xkey_error(e: &xkey::Error) -> String {
-    use xkey::Error as E;
-    match e {
-        E::Base58 => EN.bip_xkey_base58.into(),
-        E::Length(n) => fill(EN.bip_xkey_length, &[&n.to_string()]),
-        E::UnknownVersion(v) => fill(
-            EN.bip_xkey_version,
-            &[&faraday_crypto::hex::encode_string(v)],
-        ),
-        E::ZeroDepth => EN.bip_xkey_zero_depth.into(),
-        E::Pad(b) => fill(
-            EN.bip_xkey_pad,
-            &[&faraday_crypto::hex::encode_string(&[*b])],
-        ),
-        E::Key(_) => EN.bip_xkey_invalid.into(),
-    }
-}
-
 /// A key-derivation refusal.
 pub fn keys_error(e: &keys::Error) -> String {
     match e {
@@ -180,14 +89,6 @@ pub fn keys_error(e: &keys::Error) -> String {
         keys::Error::NotMaster => EN.bip_keys_not_master,
     }
     .into()
-}
-
-/// Importing an extended private key as a master key.
-pub fn import_error(e: &keys::ImportError) -> String {
-    match e {
-        keys::ImportError::Decode(x) => xkey_error(x),
-        keys::ImportError::NotMaster => EN.bip_keys_not_master.into(),
-    }
 }
 
 /// A codex32 refusal.
@@ -306,10 +207,6 @@ mod tests {
         assert_eq!(
             codex32_error(&codex32::Error::BadCharacter { position: 2 }),
             "character 3 is not a bech32 character"
-        );
-        assert_eq!(
-            xkey_error(&xkey::Error::UnknownVersion([4, 136, 178, 30])),
-            "unknown version 0488b21e"
         );
     }
 }

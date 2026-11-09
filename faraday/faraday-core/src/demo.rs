@@ -214,7 +214,7 @@ impl Faraday {
     /// Whether this is Practice, where every passphrase field offers
     /// [`PASSPHRASE`] in a chip (`docs/MODES.md` §6.2). The one test every
     /// passphrase field asks.
-    pub fn demo_passphrase(&self) -> bool {
+    pub(crate) fn demo_passphrase(&self) -> bool {
         self.session.keys.demo()
     }
 

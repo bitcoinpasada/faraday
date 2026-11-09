@@ -161,7 +161,7 @@ impl SheetPan {
     }
 
     /// Where the view is going: the move's end, or where it is.
-    pub fn going_to(&self) -> (f32, f32) {
+    pub(crate) fn going_to(&self) -> (f32, f32) {
         self.moving.map_or((self.x, self.y), |m| m.to)
     }
 
@@ -169,7 +169,7 @@ impl SheetPan {
     /// tall, in the sheet's units) into a view `view` (wide, tall) with
     /// `margin` round it where there is room: the least move from where
     /// it is going, never past `max` (across, down). Arithmetic.
-    pub fn target_for(
+    pub(crate) fn target_for(
         &self,
         spot: (f32, f32, f32, f32),
         view: (f32, f32),
@@ -207,7 +207,7 @@ impl SheetPan {
     /// The view goes to `to`: at once under `reduce`, else over
     /// [`SHEET_FOLLOW_MS`] from where it is, at the speed it has. The
     /// same place again changes nothing.
-    pub fn go_to(&mut self, to: (f32, f32), reduce: bool) {
+    pub(crate) fn go_to(&mut self, to: (f32, f32), reduce: bool) {
         if reduce {
             (self.x, self.y) = to;
             self.moving = None;

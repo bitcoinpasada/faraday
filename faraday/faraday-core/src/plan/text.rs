@@ -228,7 +228,7 @@ impl SealLine {
 
     /// One line read back; None for a line that is not a `seals` line or
     /// does not read.
-    pub fn from_line(line: &str) -> Option<SealLine> {
+    pub(crate) fn from_line(line: &str) -> Option<SealLine> {
         let mut f = line.strip_prefix("seals ")?.split(' ');
         let id = f.next()?;
         let line = SealLine {
@@ -248,12 +248,12 @@ impl SealLine {
 }
 
 /// The `seals` lines a plan's text holds, those that read.
-pub fn seals_in(text: &str) -> Vec<SealLine> {
+pub(crate) fn seals_in(text: &str) -> Vec<SealLine> {
     text.lines().filter_map(SealLine::from_line).collect()
 }
 
 /// `text` with its `seals` lines replaced by `lines`, at the end.
-pub fn with_seals(text: &str, lines: &[SealLine]) -> String {
+pub(crate) fn with_seals(text: &str, lines: &[SealLine]) -> String {
     let mut out: String = text
         .lines()
         .filter(|l| !l.starts_with("seals "))
@@ -595,7 +595,7 @@ pub(super) fn note_read(s: &str) -> Option<Note> {
 
 impl What {
     /// The seed it is of, when it is of one.
-    pub fn seed_index(self) -> Option<usize> {
+    pub(crate) fn seed_index(self) -> Option<usize> {
         match self {
             What::Words(i)
             | What::SeedQr(i)

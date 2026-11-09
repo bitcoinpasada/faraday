@@ -1168,7 +1168,7 @@ impl DiskProcess {
         clippy::too_many_arguments,
         reason = "one write, as the protocol carries it"
     )]
-    pub fn write_asking(
+    pub(crate) fn write_asking(
         &mut self,
         stick: &str,
         name: &str,

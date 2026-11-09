@@ -281,7 +281,7 @@ use wallet::{FileKind, KeyTexts, Session, fp_text};
 pub const IDLE_LOCK_MIN: u16 = 30;
 /// Minutes without input before the machine powers off, at first,
 /// counted from the last input across the lock (F58).
-pub const IDLE_OFF_MIN: u16 = 60;
+pub(crate) const IDLE_OFF_MIN: u16 = 60;
 /// How long before an idle lock its warning comes up, at most: half the
 /// lock time when that is shorter.
 pub const IDLE_WARN_MS: u64 = 5 * 60_000;
@@ -399,7 +399,7 @@ struct Disclosed {
 
 /// The largest file read from a stick, as the disk process reads them
 /// (`faraday-files` `MAX_READ`): a larger one is listed and not read.
-pub const READ_MAX: u64 = 18 * 1024 * 1024;
+pub(crate) const READ_MAX: u64 = 18 * 1024 * 1024;
 
 /// A file named as Faraday names a seed it writes out: its words, its SeedQR, a BIP-85 child.
 fn seed_by_name(name: &str) -> bool {
@@ -537,7 +537,7 @@ impl Item {
 
     /// A lock drops it from the Inbox: it may hold a secret, which the
     /// next process must not inherit (`docs/history/PLAN.md` §5.3).
-    pub fn dropped_at_lock(&self) -> bool {
+    pub(crate) fn dropped_at_lock(&self) -> bool {
         self.holds().may_be_secret() || self.secret
     }
 
@@ -554,7 +554,7 @@ impl Item {
     /// What a stick visit asks the person to say before it writes this
     /// Inbox file, on the secret sheet: `None` for a public or sealed file,
     /// written as it is.
-    pub fn copy_ack(&self) -> Option<secrets::Ack> {
+    pub(crate) fn copy_ack(&self) -> Option<secrets::Ack> {
         if self.secret {
             return Some(secrets::Ack::Any);
         }
@@ -768,7 +768,7 @@ const MAX_VAULTS: usize = 1024;
 
 /// What [`Action::About`] names for a page's walk-through rather than a
 /// step's.
-pub const ABOUT_PAGE: u8 = u8::MAX;
+pub(crate) const ABOUT_PAGE: u8 = u8::MAX;
 
 /// The create cards, in order.
 pub mod cstep {
@@ -844,7 +844,7 @@ pub mod qstep {
     /// backup can keep (`docs/BACKUP-FLOW.md` §17).
     pub const BOARD: u8 = 8;
     /// The most places a plan has.
-    pub const MAX_PLACES: usize = 240;
+    pub(crate) const MAX_PLACES: usize = 240;
 }
 
 /// A press on a plan's cards (`docs/BACKUP-FLOW.md` §15.1), the same on
@@ -927,7 +927,7 @@ pub mod qrow {
     /// How many places: the row is the count.
     pub const PLACES: u8 = 1;
     /// The whole sheet (row 0) or a share each (row 1).
-    pub const SPLIT: u8 = 2;
+    pub(crate) const SPLIT: u8 = 2;
     /// Where the wallet description goes.
     pub const WALLET: u8 = 4;
     /// The software.
@@ -1305,7 +1305,7 @@ impl Faraday {
 
     /// Whether the power sheet offers Restart: the PC stick and the Pi,
     /// not Faraday Demo, an app on someone's own system.
-    pub fn offers_restart(&self) -> bool {
+    pub(crate) fn offers_restart(&self) -> bool {
         !self.shell_sticks
     }
 
@@ -2028,12 +2028,12 @@ impl Faraday {
     }
 
     /// The self-test has run and every check passed.
-    pub fn selftest_passed(&self) -> bool {
+    pub(crate) fn selftest_passed(&self) -> bool {
         matches!(self.selftest, Some(Ok(_)))
     }
 
     /// The self-test has run and a check failed: the app is blocked.
-    pub fn selftest_failed(&self) -> bool {
+    pub(crate) fn selftest_failed(&self) -> bool {
         matches!(self.selftest, Some(Err(_)))
     }
 
@@ -3751,7 +3751,7 @@ impl Faraday {
 
     /// The slots of wallet `i` whose seeds are held here, one a key, as
     /// its public files list them: none for a wallet of one key.
-    pub fn wallet_keys_here(&self, i: usize) -> Vec<u8> {
+    pub(crate) fn wallet_keys_here(&self, i: usize) -> Vec<u8> {
         let Some(w) = self.session.wallets.get(i) else {
             return Vec::new();
         };
@@ -4288,7 +4288,7 @@ impl Faraday {
     /// The Inbox files a stick visit's left column shows, by index, each
     /// with whether the stick on show holds it already (by name and size):
     /// those rows are drawn greyed and cannot be ticked.
-    pub fn visit_inbox_shown(&self) -> Vec<(usize, bool)> {
+    pub(crate) fn visit_inbox_shown(&self) -> Vec<(usize, bool)> {
         self.inbox
             .iter()
             .enumerate()
@@ -5416,7 +5416,7 @@ impl Faraday {
 
     /// The keys loaded that no wallet uses, and the one of them the
     /// Wallets card offers a wallet from: the one picked, else the first.
-    pub fn loose_keys(&self) -> (Vec<faraday_bip::keys::Fingerprint>, Option<[u8; 4]>) {
+    pub(crate) fn loose_keys(&self) -> (Vec<faraday_bip::keys::Fingerprint>, Option<[u8; 4]>) {
         let loose = self.session.loose_keys();
         let picked = self
             .wallets
@@ -5440,7 +5440,7 @@ pub fn file_stem(name: &str) -> String {
 
 /// The name a result file takes from the PSBT it came from: the stem,
 /// without an `-unsigned` the coordinator put on it.
-pub fn result_stem(source: &str) -> String {
+pub(crate) fn result_stem(source: &str) -> String {
     let s = stem(source);
     ["-unsigned", "-partly-signed"]
         .iter()

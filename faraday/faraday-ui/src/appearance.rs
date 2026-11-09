@@ -20,7 +20,7 @@ use faraday_strings::EN;
 impl<A: Copy + PartialEq> Ui<'_, A> {
     /// How wide [`Ui::theme_chip`] draws `name`'s chip: its leading slot, its
     /// name and, on the theme a first start is in, the Default mark.
-    pub fn theme_chip_width(&self, name: ThemeName) -> f32 {
+    pub(crate) fn theme_chip_width(&self, name: ThemeName) -> f32 {
         let mut w = FILTER_CHIP_LEAD
             + FILTER_CHIP_ICON
             + GAP
@@ -41,7 +41,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// own on-primary-container; under it (hovered, focused or held)
     /// what it writes goes to white or black, whichever that colour
     /// leans to, so the label keeps its contrast. Returns its width.
-    pub fn theme_chip(&mut self, x: f32, y: f32, name: ThemeName, chosen: bool, action: A) -> f32 {
+    pub(crate) fn theme_chip(
+        &mut self,
+        x: f32,
+        y: f32,
+        name: ThemeName,
+        chosen: bool,
+        action: A,
+    ) -> f32 {
         let w = self.theme_chip_width(name);
         let h = FILTER_CHIP_H;
         let own = Theme::new(name, self.theme.mode, self.theme.contrast);
@@ -90,7 +97,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// chosen one is `current`'s. `action` names what a press on a chip
     /// does, given the scheme it would choose: that theme in `current`'s
     /// mode and contrast. Returns the height used.
-    pub fn theme_chips(
+    pub(crate) fn theme_chips(
         &mut self,
         (x, y, w): (f32, f32, f32),
         current: Theme,

@@ -204,7 +204,7 @@ pub(crate) struct WordsUse<'a> {
 
 /// The scans without a match after which **Keep the words only** moves
 /// to the item's foot (`docs/history/NEW-WALLET.md` §14.7 item 3).
-pub const MISSES: u8 = 3;
+pub(crate) const MISSES: u8 = 3;
 
 impl BackupState {
     /// How many scans of seed `fp`'s SeedQR copy closed without a match
@@ -220,7 +220,7 @@ impl BackupState {
 impl BackupState {
     /// How many reads of seed `i`'s drawn Krux code were not the code in
     /// this backup.
-    pub fn kef_misses_of(&self, i: usize) -> u8 {
+    pub(crate) fn kef_misses_of(&self, i: usize) -> u8 {
         self.kef_misses
             .iter()
             .find(|(j, _)| *j == i)
@@ -236,11 +236,11 @@ impl BackupState {
 /// The last mark on a SeedQR grid copied by hand: block 35 of the
 /// largest, 29 × 29 (six blocks a side); a smaller grid's last is less,
 /// and [`pin_on`] keeps the mark on it.
-pub const PIN_MAX: usize = 35;
+pub(crate) const PIN_MAX: usize = 35;
 
 /// The side of the SeedQR of a seed of `words` words, standard or
 /// compact: 25 or 29 squares standard, 21 or 25 compact.
-pub fn seedqr_side(words: u8, compact: bool) -> usize {
+pub(crate) fn seedqr_side(words: u8, compact: bool) -> usize {
     match (words > 12, compact) {
         (false, false) | (true, true) => 25,
         (true, false) => 29,

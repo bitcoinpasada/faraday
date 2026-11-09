@@ -73,7 +73,7 @@ pub enum Target {
 }
 
 /// [`Target::PassCheck`] opened from the key, on no line.
-pub const NO_LINE: u8 = u8::MAX;
+pub(crate) const NO_LINE: u8 = u8::MAX;
 
 /// What an action of a sheet does with the wallet, loaded first in a
 /// vault's view.

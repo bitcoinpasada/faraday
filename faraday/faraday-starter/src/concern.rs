@@ -45,7 +45,7 @@ pub struct Usb {
 /// The Linux Foundation's vendor ID, which Linux's USB gadget drivers
 /// present by default: what PiKVM, TinyPilot and their like show the
 /// computer as their keyboard and disk.
-pub const GADGET_VENDOR: u16 = 0x1d6b;
+pub(crate) const GADGET_VENDOR: u16 = 0x1d6b;
 
 /// Wireless receivers by ID, from Linux's `drivers/hid/hid-ids.h` (the
 /// `USB_DEVICE_ID_LOGITECH_*` receivers `hid-logitech-dj.c` drives):

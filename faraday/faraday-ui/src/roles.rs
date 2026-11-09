@@ -65,10 +65,10 @@ pub struct WrapBasis(faraday_draw::text::Font, faraday_draw::Scale, i32);
 
 /// A text field's label kept outside it, above (`docs/LAYOUT.md` §8):
 /// Material's body small.
-pub const FIELD_LABEL: TypeRole = BODY_S;
+pub(crate) const FIELD_LABEL: TypeRole = BODY_S;
 
 /// What is typed in a text field: Material's body large.
-pub const FIELD_TEXT: TypeRole = BODY_L;
+pub(crate) const FIELD_TEXT: TypeRole = BODY_L;
 
 /// A list item (Material 3 Lists): its headline, its supporting text
 /// (none for a one-line item), what stands at its end and in what
@@ -150,13 +150,13 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// wide (`docs/TEXT-SIZE.md` §3): the text size's own, or the largest
     /// step of [`TEXT_FIT_STEP_PCT`] under it that fits, never under
     /// Standard. Measures `s` once.
-    pub fn fit_factor(&self, role: TypeRole, s: &str, max: f32) -> f32 {
+    pub(crate) fn fit_factor(&self, role: TypeRole, s: &str, max: f32) -> f32 {
         self.fit_factor_of(self.measure_as(role, s), max)
     }
 
     /// [`Ui::fit_factor`] for a line `wide` at the text size now: the
     /// factor it is drawn at in a slot `max` wide. Arithmetic.
-    pub fn fit_factor_of(&self, wide: f32, max: f32) -> f32 {
+    pub(crate) fn fit_factor_of(&self, wide: f32, max: f32) -> f32 {
         let t = self.text_factor();
         let step = faraday_draw::tokens::percent(TEXT_FIT_STEP_PCT);
         // A line's width goes with its size, so one measure says where
@@ -554,7 +554,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     }
 
     /// The height [`Ui::field_box`] takes `w` wide with `error`.
-    pub fn field_height(&self, w: f32, error: Option<&str>) -> f32 {
+    pub(crate) fn field_height(&self, w: f32, error: Option<&str>) -> f32 {
         let fh = self.field_h();
         match error {
             Some(e) => fh + FIELD_GAP + self.wrap_height_as(BODY_S, e, w - 2.0 * FIELD_PAD),
@@ -600,7 +600,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// The height [`Ui::list_item`] takes for `it`, `w` wide:
     /// [`LIST_1`], [`LIST_2`] or [`LIST_3`], or its lines and Material's
     /// padding where larger text needs more.
-    pub fn list_item_height(&self, w: f32, it: &ListItem<'_, A>) -> f32 {
+    pub(crate) fn list_item_height(&self, w: f32, it: &ListItem<'_, A>) -> f32 {
         let (head, sup) = (self.line_as(BODY_L), self.line_as(BODY_M));
         // A headline larger text breaks onto a second line adds it.
         let head = head * self.list_head_lines(w, it) as f32;

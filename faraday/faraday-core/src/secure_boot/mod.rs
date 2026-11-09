@@ -61,12 +61,12 @@ pub fn shown(r: RecordView<'_>) -> Option<Shown> {
 }
 
 /// Whether an Inbox file is an EFI image, by its name.
-pub fn is_image(name: &str) -> bool {
+pub(crate) fn is_image(name: &str) -> bool {
     name.to_ascii_lowercase().ends_with(".efi")
 }
 
 /// An image's SHA-256 `h`, in groups of four for comparing by eye.
-pub fn image_sha256(h: &[u8; 32]) -> String {
+pub(crate) fn image_sha256(h: &[u8; 32]) -> String {
     h.chunks(2)
         .map(faraday_crypto::hex::encode_string)
         .collect::<Vec<_>>()

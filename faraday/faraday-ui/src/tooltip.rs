@@ -27,15 +27,15 @@ use crate::Ui;
 use crate::pal::{Paint, Role};
 
 /// A plain tooltip's container: Material's inverse surface.
-pub const TIP_PLAIN_FILL: Paint = Paint::role(Role::InverseSurface);
+pub(crate) const TIP_PLAIN_FILL: Paint = Paint::role(Role::InverseSurface);
 /// A plain tooltip's text: Material's inverse on-surface.
-pub const TIP_PLAIN_INK: Paint = Paint::role(Role::InverseOnSurface);
+pub(crate) const TIP_PLAIN_INK: Paint = Paint::role(Role::InverseOnSurface);
 /// A rich tooltip's container: Material's surface container.
-pub const TIP_RICH_FILL: Paint = Paint::role(Role::SurfaceContainer);
+pub(crate) const TIP_RICH_FILL: Paint = Paint::role(Role::SurfaceContainer);
 /// A rich tooltip's supporting text: Material's on-surface variant.
-pub const TIP_RICH_INK: Paint = Paint::role(Role::OnSurfaceVariant);
+pub(crate) const TIP_RICH_INK: Paint = Paint::role(Role::OnSurfaceVariant);
 /// A rich tooltip's edge where High contrast draws no shadow.
-pub const TIP_RICH_EDGE: Paint = Paint::role(Role::Outline);
+pub(crate) const TIP_RICH_EDGE: Paint = Paint::role(Role::Outline);
 
 /// Which of Material's two tooltips.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

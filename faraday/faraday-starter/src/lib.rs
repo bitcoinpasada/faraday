@@ -1003,7 +1003,7 @@ impl Starter {
     /// not let through, and a virtual machine always (the stick must
     /// start on the real computer). Home's card and the Start page name
     /// them. A wireless receiver holds nothing ([`Starter::receiver_line`]).
-    pub fn restart_holds(&self) -> Vec<&Concern> {
+    pub(crate) fn restart_holds(&self) -> Vec<&Concern> {
         self.concerns
             .iter()
             .filter(|c| match c.kind {
@@ -1037,7 +1037,7 @@ impl Starter {
     /// sheet (§6, F49): on Windows, with BitLocker on or suspended on the
     /// system drive as last read. Not encrypted, or not read, offers
     /// nothing.
-    pub fn bitlocker_offered(&self) -> bool {
+    pub(crate) fn bitlocker_offered(&self) -> bool {
         self.computer.os == Os::Windows
             && self.facts().mac().is_none()
             && self
@@ -1086,7 +1086,7 @@ impl Starter {
     /// on Linux, while the entry exists and no Faraday stick is attached.
     /// With a stick attached the person is about to start from it, which
     /// uses the entry again, so it is not offered then.
-    pub fn entry_offered(&self) -> bool {
+    pub(crate) fn entry_offered(&self) -> bool {
         self.computer.os == Os::Linux && self.boot_entry && self.facts().stick().is_none()
     }
 
@@ -1104,11 +1104,6 @@ impl Starter {
     /// bar: the compact class. A lookup.
     pub(crate) fn compact(&self) -> bool {
         self.class == Class::Compact
-    }
-
-    /// How many primary (filled) buttons the last frame drew. A lookup.
-    pub fn primary_buttons(&self) -> usize {
-        self.primaries
     }
 
     /// The held desktop app, for its storage channel
@@ -1154,7 +1149,7 @@ impl Starter {
     /// (§3.2 step 0): only when the images found offer both a PC stick
     /// and an Apple Silicon stick, and no developer's image stands in
     /// for them. A lookup.
-    pub fn asks_which(&self) -> bool {
+    pub(crate) fn asks_which(&self) -> bool {
         self.dev.is_none()
             && self.found_kind_offered(PayloadKind::Stick)
             && self.found_kind_offered(PayloadKind::AppleStick)
@@ -1178,7 +1173,7 @@ impl Starter {
     }
 
     /// The disk tapped, as attached now.
-    pub fn chosen_disk(&self) -> Option<&Disk> {
+    pub(crate) fn chosen_disk(&self) -> Option<&Disk> {
         let id = self.making.as_ref()?.disk.as_deref()?;
         self.disks.iter().find(|d| d.id == id)
     }
@@ -1201,7 +1196,7 @@ impl Starter {
 
     /// Keep data is ticked on a stick whose version is not read yet
     /// (Windows): Continue waits for it.
-    pub fn keep_unread(&self) -> bool {
+    pub(crate) fn keep_unread(&self) -> bool {
         self.making.as_ref().and_then(|m| m.mode) == Some(Mode::KeepData)
             && self
                 .chosen_disk()
@@ -1225,7 +1220,7 @@ impl Starter {
     }
 
     /// Whether `mode` can be chosen for the disk tapped, and why not.
-    pub fn mode_refusal(&self, mode: Mode) -> Option<ModeRefusal> {
+    pub(crate) fn mode_refusal(&self, mode: Mode) -> Option<ModeRefusal> {
         let m = self.making.as_ref()?;
         let image = self.image(m.target);
         let disk = self.chosen_disk();
@@ -1249,7 +1244,7 @@ impl Starter {
 
     /// Whether the disk Confirm shows is still the one confirmed: the
     /// same id, serial and size.
-    pub fn confirmed_matches(&self) -> bool {
+    pub(crate) fn confirmed_matches(&self) -> bool {
         let Some((id, _, serial, size)) = self.making.as_ref().and_then(|m| m.confirmed.as_ref())
         else {
             return false;
@@ -2365,7 +2360,7 @@ impl Starter {
 
 /// Why an option of What to write cannot be chosen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ModeRefusal {
+pub(crate) enum ModeRefusal {
     /// Keep data: the disk is not a Faraday stick.
     NotFaraday,
     /// Keep data: the stick already holds this build.
@@ -2380,7 +2375,7 @@ impl Facts<'_> {
     /// Windows with another encryption product not yet confirmed: the
     /// firmware steps' buttons are not offered (§3.4, §6.4), until the
     /// person says they have its rescue disk or password.
-    pub fn protected_open(&self) -> bool {
+    pub(crate) fn protected_open(&self) -> bool {
         self.computer.os == Os::Windows && self.other_open
     }
 }

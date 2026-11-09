@@ -56,7 +56,7 @@ pub mod software {
     /// Coldcard, Keystone, Passport.
     pub const HARDWARE: usize = 1;
     /// Nunchuk.
-    pub const NUNCHUK: usize = 2;
+    pub(crate) const NUNCHUK: usize = 2;
     /// Bitcoin Core.
     pub const CORE: usize = 3;
     /// Not sure: the descriptor, which most read.
@@ -566,14 +566,14 @@ impl Answers {
     /// in a vault, or as a file (its words, its SeedQR picture, or its
     /// passphrase's file) on the stick of files or a stick at a place. Such
     /// a seed is held until that stick is written (F6, F31).
-    pub fn seed_on_stick(&self, c: &Compute, shape: &Shape, i: usize) -> bool {
+    pub(crate) fn seed_on_stick(&self, c: &Compute, shape: &Shape, i: usize) -> bool {
         Mapped::of(c, shape, self).seed_on_stick(i)
     }
 }
 
 impl Mapped {
     /// [`Answers::seed_on_stick`] on this map.
-    pub fn seed_on_stick(&self, i: usize) -> bool {
+    pub(crate) fn seed_on_stick(&self, i: usize) -> bool {
         self.map.iter().any(|s| match s.at {
             At::Vault(_) => s
                 .holds
@@ -779,7 +779,7 @@ impl Answers {
     /// place" (`docs/BACKUP-FLOW.md` §17.16 item 3). On a map edited on
     /// the board it is out of the plan; a vault the board made has no
     /// warning at no place.
-    pub fn stickless(&self, shape: &Shape) -> Option<usize> {
+    pub(crate) fn stickless(&self, shape: &Shape) -> Option<usize> {
         if let Some(m) = &self.map {
             let kept = kept_vaults(m);
             return m.iter().find_map(|s| match s.at {
@@ -1896,7 +1896,7 @@ impl Alone {
 
     /// The balance alone, as a place's header tag reads it beside its
     /// spend tag ([`Reach::tag`], `docs/BACKUP-FLOW.md` §17.22).
-    pub fn balance_tag(self) -> (&'static str, AloneKind) {
+    pub(crate) fn balance_tag(self) -> (&'static str, AloneKind) {
         match self.balance {
             Found::Yes => (EN.plan_sees_balance, AloneKind::SeesBalance),
             Found::OnlyWithVault => (EN.plan_sees_the_balance, AloneKind::NeedsVault),
@@ -1922,7 +1922,7 @@ pub fn alone(c: &Compute, shape: &Shape, a: &Answers, at: At) -> Alone {
 }
 
 /// [`alone`] on the map `m`.
-pub fn alone_on(shape: &Shape, a: &Answers, m: &Mapped, at: At) -> Alone {
+pub(crate) fn alone_on(shape: &Shape, a: &Answers, m: &Mapped, at: At) -> Alone {
     match at {
         At::Stick(..) => alone_in(shape, a, &m.map, at),
         _ => alone_in(shape, a, &with_parts(&m.places, a), at),
@@ -1932,7 +1932,7 @@ pub fn alone_on(shape: &Shape, a: &Answers, m: &Mapped, at: At) -> Alone {
 /// The map `boxes` with each SeedQR drawn in part ([`Answers::part`]) at
 /// its place, a secret there: what whoever finds the place finds. Not a
 /// copy that rebuilds, so "Any one place lost" never reads this.
-pub fn with_parts<'a>(boxes: &'a [Spot], a: &Answers) -> std::borrow::Cow<'a, [Spot]> {
+pub(crate) fn with_parts<'a>(boxes: &'a [Spot], a: &Answers) -> std::borrow::Cow<'a, [Spot]> {
     if a.part.is_empty() {
         return std::borrow::Cow::Borrowed(boxes);
     }
@@ -1948,7 +1948,7 @@ pub fn with_parts<'a>(boxes: &'a [Spot], a: &Answers) -> std::borrow::Cow<'a, [S
 }
 
 /// The SeedQR copies drawn in part at spot `at` ([`Answers::part`]).
-pub fn parts_at(a: &Answers, at: At) -> Vec<What> {
+pub(crate) fn parts_at(a: &Answers, at: At) -> Vec<What> {
     a.part
         .iter()
         .filter(|&&(p, _)| at == At::Place(p))
@@ -1990,7 +1990,7 @@ pub fn reach(c: &Compute, shape: &Shape, a: &Answers, p: usize) -> Option<Reach>
 
 /// [`reach`] on the map `mapped`. Costs a search over the places, at most
 /// the quorum deep and [`REACH_STEPS`] long.
-pub fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
+pub(crate) fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
     let boxes: &[Spot] = &mapped.places;
     let m = shape.m.max(1);
     let n = shape.seeds.len().min(64);
@@ -2199,7 +2199,7 @@ pub fn all_at_one_place(c: &Compute, shape: &Shape, a: &Answers) -> Option<usize
 }
 
 /// [`all_at_one_place`] on the map `m`.
-pub fn all_at_one_place_on(shape: &Shape, m: &Mapped) -> Option<usize> {
+pub(crate) fn all_at_one_place_on(shape: &Shape, m: &Mapped) -> Option<usize> {
     one_place_in(shape, &m.places, &m.needs)
 }
 
@@ -2373,7 +2373,7 @@ pub fn lost_why(
 }
 
 /// [`lost_why`] on the map `m`.
-pub fn lost_why_on(
+pub(crate) fn lost_why_on(
     shape: &Shape,
     a: &Answers,
     m: &Mapped,
@@ -2495,7 +2495,7 @@ pub fn kept_nowhere(c: &Compute, shape: &Shape, a: &Answers, seeds: &[usize]) ->
 }
 
 /// [`kept_nowhere`] on the map `m`, a seed past the checklist's numbers first.
-pub fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<String> {
+pub(crate) fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<String> {
     if let Some(past) = text::past_checklist(shape) {
         return Some(past);
     }
@@ -2527,7 +2527,7 @@ pub fn public_stick(c: &Compute, shape: &Shape, a: &Answers) -> bool {
 }
 
 /// [`public_stick`] on the map `m`.
-pub fn public_stick_on(a: &Answers, m: &Mapped) -> bool {
+pub(crate) fn public_stick_on(a: &Answers, m: &Mapped) -> bool {
     let boxes: &[Spot] = &m.map;
     let software = boxes.iter().any(|s| s.at == At::Software);
     boxes.iter().any(|s| {
@@ -2600,7 +2600,7 @@ pub fn checklist(c: &Compute, shape: &Shape, a: &Answers) -> Vec<Item> {
 }
 
 /// [`checklist`] on the map `m`.
-pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
+pub(crate) fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
     let boxes: &[Spot] = &m.map;
     let at_places = |f: &dyn Fn(What) -> bool| {
         boxes
@@ -2730,7 +2730,7 @@ pub fn copy_forms(c: &Compute, shape: &Shape, a: &Answers, i: usize) -> CopyForm
 }
 
 /// [`copy_forms`] on the map `m`.
-pub fn copy_forms_on(m: &Mapped, i: usize) -> CopyForms {
+pub(crate) fn copy_forms_on(m: &Mapped, i: usize) -> CopyForms {
     let boxes: &[Spot] = &m.map;
     let at = |w: What| {
         boxes
@@ -2751,7 +2751,7 @@ pub fn templates(c: &Compute, shape: &Shape, a: &Answers) -> usize {
 }
 
 /// [`templates`] on the map `m`.
-pub fn templates_on(shape: &Shape, m: &Mapped) -> usize {
+pub(crate) fn templates_on(shape: &Shape, m: &Mapped) -> usize {
     m.map
         .iter()
         .filter(|s| matches!(s.at, At::Place(_)))
@@ -2769,13 +2769,13 @@ pub fn templates_on(shape: &Shape, m: &Mapped) -> usize {
 
 /// Whether seed `i`'s Krux code is on Paper at some place of the map
 /// (`docs/KEF.md` §15.1).
-pub fn kef_paper_on(m: &Mapped, i: usize) -> bool {
+pub(crate) fn kef_paper_on(m: &Mapped, i: usize) -> bool {
     kef_paper_places(m, i) > 0
 }
 
 /// How many places of the map hold seed `i`'s Krux code on Paper: one
 /// blank template each (`docs/KEF.md` §15.5).
-pub fn kef_paper_places(m: &Mapped, i: usize) -> usize {
+pub(crate) fn kef_paper_places(m: &Mapped, i: usize) -> usize {
     m.map
         .iter()
         .filter(|s| matches!(s.at, At::Place(_)))
@@ -2918,7 +2918,7 @@ pub fn stick_vault(boxes: &[Spot], p: usize, s: usize) -> Option<usize> {
 /// The map `boxes` with each place's sticks folded into the place: what
 /// a place keeps, on paper or on any stick there, each thing once. The
 /// checks read a place this way: whoever finds a place finds its sticks.
-pub fn by_place(boxes: &[Spot]) -> Vec<Spot> {
+pub(crate) fn by_place(boxes: &[Spot]) -> Vec<Spot> {
     let mut out: Vec<Spot> = boxes
         .iter()
         .filter(|s| !matches!(s.at, At::Stick(..)))
@@ -3163,7 +3163,7 @@ pub fn without(boxes: &[Spot], at: At, what: What) -> Vec<Spot> {
 /// it held goes to the place `dest` names for it (by the place's number
 /// before the removal), or off the map; the places after it move down
 /// one.
-pub fn without_place(boxes: &[Spot], p: usize, dest: &[(What, Option<usize>)]) -> Vec<Spot> {
+pub(crate) fn without_place(boxes: &[Spot], p: usize, dest: &[(What, Option<usize>)]) -> Vec<Spot> {
     let mut out = boxes.to_vec();
     for &(what, to) in dest {
         if let Some(to) = to.filter(|&to| to != p) {
@@ -3468,7 +3468,7 @@ impl Answers {
 
     /// Costs what `software_on` costs. Into watch-only software, ticked or
     /// unticked.
-    pub fn toggle_software(&mut self, c: &Compute, shape: &Shape) {
+    pub(crate) fn toggle_software(&mut self, c: &Compute, shape: &Shape) {
         let on = !self.software_on(c, shape);
         self.edit_map(shape, |m| {
             if on {
@@ -3628,7 +3628,7 @@ impl Note {
 /// its notes, a thing moved takes them with it, and a place removed
 /// takes its things' notes to where they went, the places after it
 /// numbered down one.
-pub fn notes_after(notes: &[Note], edit: Edit, dest: &[(What, Option<usize>)]) -> Vec<Note> {
+pub(crate) fn notes_after(notes: &[Note], edit: Edit, dest: &[(What, Option<usize>)]) -> Vec<Note> {
     let moved = |at: At, w: What| -> Option<At> {
         match edit {
             Edit::Drop(a, x) if a == at && x == w => None,
@@ -3702,7 +3702,7 @@ pub fn follows(c: &Compute, shape: &Shape, a: &Answers, marks: &[(At, What, Mark
 }
 
 /// [`follows`] on the map `m`.
-pub fn follows_on(
+pub(crate) fn follows_on(
     shape: &Shape,
     a: &Answers,
     mapped: &Mapped,
@@ -3856,7 +3856,7 @@ fn seed_keys(boxes: &[Spot], p: usize) -> u64 {
 /// the groups rebuild. Every group of places is tried for each way: a
 /// search, bounded by a step budget, once, on the press (above 16 places
 /// the groups are checked within a budget, `groups.rs`).
-pub fn hand_out(c: &Compute, shape: &Shape, a: &Answers) -> HandOut {
+pub(crate) fn hand_out(c: &Compute, shape: &Shape, a: &Answers) -> HandOut {
     let boxes = place_map(c, shape, a);
     let places = places_of(&boxes).max(1);
     let n = shape.keys.clamp(1, 63);
@@ -3946,15 +3946,8 @@ fn search(
     false
 }
 
-/// Costs what `of` costs. Whether everything the plan keeps, anywhere,
-/// puts the description back together (`docs/BACKUP-FLOW.md` §17.19
-/// item 5): the whole of it, or shares and seeds that hold every key.
-pub fn description_kept(c: &Compute, shape: &Shape, a: &Answers) -> bool {
-    description_kept_on(shape, a, &Mapped::of(c, shape, a))
-}
-
-/// [`description_kept`] on the map `m`.
-pub fn description_kept_on(shape: &Shape, a: &Answers, m: &Mapped) -> bool {
+/// Whether everything the plan keeps, anywhere, puts the description back together, on the map `m`.
+pub(crate) fn description_kept_on(shape: &Shape, a: &Answers, m: &Mapped) -> bool {
     let mut have = Have::none(shape, &m.needs);
     for s in &m.places {
         s.holds.iter().for_each(|(w, _)| have.add(*w));
@@ -3969,7 +3962,7 @@ pub fn shares_kept(c: &Compute, shape: &Shape, a: &Answers) -> Vec<(usize, usize
 }
 
 /// [`shares_kept`] on the map `m`.
-pub fn shares_kept_on(shape: &Shape, m: &Mapped) -> Vec<(usize, usize)> {
+pub(crate) fn shares_kept_on(shape: &Shape, m: &Mapped) -> Vec<(usize, usize)> {
     let boxes = &m.places;
     (0..shape.keys)
         .map(|j| {

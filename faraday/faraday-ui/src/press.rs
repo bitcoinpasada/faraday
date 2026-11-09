@@ -127,7 +127,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
 
     /// As [`Ui::press`], the ring one segment's. The layer is the
     /// segment's, square where it meets another.
-    pub fn press_segment(&mut self, shape: Shape, ring: Ring, ink: Paint, action: A) {
+    pub(crate) fn press_segment(&mut self, shape: Shape, ring: Ring, ink: Paint, action: A) {
         let Ring::Segment { first, last } = ring else {
             return self.press(shape, ink, action);
         };

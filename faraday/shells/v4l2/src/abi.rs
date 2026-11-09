@@ -19,22 +19,22 @@ use std::ffi::c_int;
 // --- Buffer types, memory models, capabilities ---------------------------
 
 /// `V4L2_BUF_TYPE_VIDEO_CAPTURE`: a single-planar capture queue.
-pub const BUF_TYPE_VIDEO_CAPTURE: u32 = 1;
+pub(crate) const BUF_TYPE_VIDEO_CAPTURE: u32 = 1;
 /// `V4L2_FIELD_ANY`: the driver picks the field order.
-pub const FIELD_ANY: u32 = 0;
+pub(crate) const FIELD_ANY: u32 = 0;
 /// `V4L2_MEMORY_MMAP`: buffers owned by the driver, mapped by us.
-pub const MEMORY_MMAP: u32 = 1;
+pub(crate) const MEMORY_MMAP: u32 = 1;
 /// `V4L2_BUF_FLAG_ERROR`: the driver hands the buffer back with a damaged
 /// or incomplete frame in it.
-pub const BUF_FLAG_ERROR: u32 = 0x0000_0040;
+pub(crate) const BUF_FLAG_ERROR: u32 = 0x0000_0040;
 
 /// `V4L2_CAP_VIDEO_CAPTURE`: the node produces video frames.
-pub const CAP_VIDEO_CAPTURE: u32 = 0x0000_0001;
+pub(crate) const CAP_VIDEO_CAPTURE: u32 = 0x0000_0001;
 /// `V4L2_CAP_STREAMING`: the node supports the buffer queue.
-pub const CAP_STREAMING: u32 = 0x0400_0000;
+pub(crate) const CAP_STREAMING: u32 = 0x0400_0000;
 /// `V4L2_CAP_DEVICE_CAPS`: `device_caps` is filled in and is the field
 /// to test; without it only the driver-wide `capabilities` is set.
-pub const CAP_DEVICE_CAPS: u32 = 0x8000_0000;
+pub(crate) const CAP_DEVICE_CAPS: u32 = 0x8000_0000;
 
 // --- Pixel formats -------------------------------------------------------
 
@@ -44,14 +44,14 @@ const fn fourcc(a: u8, b: u8, c: u8, d: u8) -> u32 {
 }
 
 /// `V4L2_PIX_FMT_GREY`: 8-bit luma, exactly what the core wants.
-pub const PIX_FMT_GREY: u32 = fourcc(b'G', b'R', b'E', b'Y');
+pub(crate) const PIX_FMT_GREY: u32 = fourcc(b'G', b'R', b'E', b'Y');
 /// `V4L2_PIX_FMT_YUYV`: packed 4:2:2, luma in every second byte.
-pub const PIX_FMT_YUYV: u32 = fourcc(b'Y', b'U', b'Y', b'V');
+pub(crate) const PIX_FMT_YUYV: u32 = fourcc(b'Y', b'U', b'Y', b'V');
 /// `V4L2_PIX_FMT_NV12`: planar 4:2:0, luma plane first.
-pub const PIX_FMT_NV12: u32 = fourcc(b'N', b'V', b'1', b'2');
+pub(crate) const PIX_FMT_NV12: u32 = fourcc(b'N', b'V', b'1', b'2');
 /// `V4L2_PIX_FMT_YUV420`, whose FourCC is `YU12`: planar 4:2:0, luma
 /// plane first.
-pub const PIX_FMT_YU12: u32 = fourcc(b'Y', b'U', b'1', b'2');
+pub(crate) const PIX_FMT_YU12: u32 = fourcc(b'Y', b'U', b'1', b'2');
 
 /// The formats we ask for, in order of preference: colour first, since
 /// the core draws the viewfinder in colour where a frame carries it,
@@ -61,14 +61,14 @@ pub const FORMATS: [u32; 4] = [PIX_FMT_YUYV, PIX_FMT_NV12, PIX_FMT_YU12, PIX_FMT
 /// The order above 1280 x 720: the planar formats first, whose frame is
 /// three quarters of a `YUYV` one, and which a Pi's camera streams at
 /// 1920 x 1080 where `YUYV` gives no frame.
-pub const FORMATS_LARGE: [u32; 4] = [PIX_FMT_YU12, PIX_FMT_NV12, PIX_FMT_YUYV, PIX_FMT_GREY];
+pub(crate) const FORMATS_LARGE: [u32; 4] = [PIX_FMT_YU12, PIX_FMT_NV12, PIX_FMT_YUYV, PIX_FMT_GREY];
 
 // --- Structs -------------------------------------------------------------
 
 /// `struct v4l2_capability`: 104 bytes on every target.
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct Capability {
+pub(crate) struct Capability {
     /// The driver's name, NUL-padded (`vivid`, `bcm2835-v4l2`, `uvcvideo`).
     pub driver: [u8; 16],
     /// The device's name.
@@ -91,7 +91,7 @@ impl Capability {
     /// fills it in, the driver-wide set otherwise. The Pi's ISP and
     /// codec nodes and a metadata node are told apart from a camera by
     /// this field, which is why it is read rather than `capabilities`.
-    pub fn node_caps(&self) -> u32 {
+    pub(crate) fn node_caps(&self) -> u32 {
         if self.capabilities & CAP_DEVICE_CAPS != 0 {
             self.device_caps
         } else {
@@ -103,7 +103,7 @@ impl Capability {
 /// `struct v4l2_pix_format`: twelve `u32`s, 48 bytes.
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct PixFormat {
+pub(crate) struct PixFormat {
     /// Frame width in pixels; the driver may adjust it.
     pub width: u32,
     /// Frame height in pixels; the driver may adjust it.
@@ -182,7 +182,7 @@ impl Default for Format {
 /// `struct v4l2_requestbuffers`: 20 bytes on every target.
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct RequestBuffers {
+pub(crate) struct RequestBuffers {
     /// Buffers asked for on the way in, granted on the way out.
     pub count: u32,
     /// One of the `V4L2_BUF_TYPE_*` values.
@@ -200,7 +200,7 @@ pub struct RequestBuffers {
 /// `struct v4l2_timecode`: 16 bytes on every target.
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
-pub struct Timecode {
+pub(crate) struct Timecode {
     /// Timecode type.
     pub type_: u32,
     /// Timecode flags.
@@ -294,31 +294,31 @@ const fn ioc(dir: u32, nr: u32, size: usize) -> u32 {
 
 /// `FBIO_WAITFORVSYNC`: `_IOW('F', 0x20, __u32)`, the framebuffer's wait
 /// for the next vertical blank.
-pub const FBIO_WAITFORVSYNC: u32 = (IOC_WRITE << DIR_SHIFT)
+pub(crate) const FBIO_WAITFORVSYNC: u32 = (IOC_WRITE << DIR_SHIFT)
     | ((size_of::<u32>() as u32) << SIZE_SHIFT)
     | ((b'F' as u32) << TYPE_SHIFT)
     | 0x20;
 
 /// `VIDIOC_QUERYCAP`.
-pub const VIDIOC_QUERYCAP: u32 = ioc(IOC_READ, 0, size_of::<Capability>());
+pub(crate) const VIDIOC_QUERYCAP: u32 = ioc(IOC_READ, 0, size_of::<Capability>());
 /// `VIDIOC_S_FMT`.
-pub const VIDIOC_S_FMT: u32 = ioc(IOC_READ | IOC_WRITE, 5, size_of::<Format>());
+pub(crate) const VIDIOC_S_FMT: u32 = ioc(IOC_READ | IOC_WRITE, 5, size_of::<Format>());
 /// `VIDIOC_REQBUFS`.
-pub const VIDIOC_REQBUFS: u32 = ioc(IOC_READ | IOC_WRITE, 8, size_of::<RequestBuffers>());
+pub(crate) const VIDIOC_REQBUFS: u32 = ioc(IOC_READ | IOC_WRITE, 8, size_of::<RequestBuffers>());
 /// `VIDIOC_QUERYBUF`.
-pub const VIDIOC_QUERYBUF: u32 = ioc(IOC_READ | IOC_WRITE, 9, size_of::<Buffer>());
+pub(crate) const VIDIOC_QUERYBUF: u32 = ioc(IOC_READ | IOC_WRITE, 9, size_of::<Buffer>());
 /// `VIDIOC_QBUF`.
-pub const VIDIOC_QBUF: u32 = ioc(IOC_READ | IOC_WRITE, 15, size_of::<Buffer>());
+pub(crate) const VIDIOC_QBUF: u32 = ioc(IOC_READ | IOC_WRITE, 15, size_of::<Buffer>());
 /// `VIDIOC_DQBUF`.
-pub const VIDIOC_DQBUF: u32 = ioc(IOC_READ | IOC_WRITE, 17, size_of::<Buffer>());
+pub(crate) const VIDIOC_DQBUF: u32 = ioc(IOC_READ | IOC_WRITE, 17, size_of::<Buffer>());
 /// `VIDIOC_STREAMON`.
-pub const VIDIOC_STREAMON: u32 = ioc(IOC_WRITE, 18, size_of::<c_int>());
+pub(crate) const VIDIOC_STREAMON: u32 = ioc(IOC_WRITE, 18, size_of::<c_int>());
 /// `VIDIOC_STREAMOFF`.
-pub const VIDIOC_STREAMOFF: u32 = ioc(IOC_WRITE, 19, size_of::<c_int>());
+pub(crate) const VIDIOC_STREAMOFF: u32 = ioc(IOC_WRITE, 19, size_of::<c_int>());
 /// `VIDIOC_TRY_FMT`: the same argument as `S_FMT` without setting
 /// anything, which is what the device search uses so that probing a node
 /// leaves it as it was found.
-pub const VIDIOC_TRY_FMT: u32 = ioc(IOC_READ | IOC_WRITE, 64, size_of::<Format>());
+pub(crate) const VIDIOC_TRY_FMT: u32 = ioc(IOC_READ | IOC_WRITE, 64, size_of::<Format>());
 
 // The same sizes as the tests below, checked at compile time, because
 // the 32-bit tests cannot run on a 64-bit build box: `just faraday-pi-bin`

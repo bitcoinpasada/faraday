@@ -318,7 +318,11 @@ impl FiveRoller {
     /// the host marks each face as it enters it ([`FiveRoller::mark`]).
     /// `None` while `draw` has no answer; the faces drawn so far are then
     /// dropped. Costs a fresh answer (a hash) for every 31 faces at most.
-    pub fn roll_character(&mut self, seq: &[u8], draw: &mut Draw) -> Option<Zeroizing<Vec<u8>>> {
+    pub(crate) fn roll_character(
+        &mut self,
+        seq: &[u8],
+        draw: &mut Draw,
+    ) -> Option<Zeroizing<Vec<u8>>> {
         let mut sim = Zeroizing::new(seq.to_vec());
         let mut out = Zeroizing::new(Vec::new());
         loop {

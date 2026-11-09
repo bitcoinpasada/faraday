@@ -318,7 +318,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// different functions: the region is kept until [`Ui::region_end`]
     /// (or [`Ui::region_abandon`], for a page that returns without
     /// closing it).
-    pub fn region_begin(&mut self, region: Region) {
+    pub(crate) fn region_begin(&mut self, region: Region) {
         self.region_abandon();
         self.begun = Some(self.region_open(region));
     }

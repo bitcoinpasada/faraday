@@ -44,7 +44,7 @@ pub enum Typed {
 }
 
 /// One row of keys, design units.
-pub const KEY_ROW: f32 = 32.0;
+pub(crate) const KEY_ROW: f32 = 32.0;
 
 /// The widest the keys grow in the wide layout, design units: past it
 /// they sit centred in the strip.

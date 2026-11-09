@@ -97,13 +97,13 @@ impl Session {
     }
 
     /// The export waiting for its account to be chosen, if one is.
-    pub fn account_asked(&self) -> Option<&AccountAsk> {
+    pub(crate) fn account_asked(&self) -> Option<&AccountAsk> {
         self.accounts.asked.as_deref()
     }
 
     /// The press `action` asked for the waiting export, if one waits and
     /// no press is noted for it yet.
-    pub fn account_replay(&mut self, action: Action, inbox: u64) {
+    pub(crate) fn account_replay(&mut self, action: Action, inbox: u64) {
         if let Some(ask) = self.accounts.asked.as_mut() {
             ask.replay.get_or_insert((action, inbox));
         }
@@ -111,7 +111,7 @@ impl Session {
 
     /// The person chose `account` for the waiting export: kept for the
     /// session, and the export handed back. `None` when none waits.
-    pub fn account_choose(&mut self, account: Account) -> Option<AccountAsk> {
+    pub(crate) fn account_choose(&mut self, account: Account) -> Option<AccountAsk> {
         let ask = self.accounts.asked.take()?;
         self.accounts
             .chosen
@@ -120,7 +120,7 @@ impl Session {
     }
 
     /// The waiting export is not added.
-    pub fn account_drop(&mut self) {
+    pub(crate) fn account_drop(&mut self) {
         self.accounts.asked = None;
     }
 }

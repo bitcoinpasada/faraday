@@ -300,7 +300,7 @@ impl Correction {
     /// Whether a box may be typed as unreadable, `?`: with the tick on,
     /// and not while changed boxes are typed again from the paper. With
     /// the tick off `?` is not on the keyboard.
-    pub fn takes_unreadable(&self) -> bool {
+    pub(crate) fn takes_unreadable(&self) -> bool {
         self.on && self.step() != Some(Step::Retype)
     }
 
@@ -559,7 +559,7 @@ impl Correction {
 
     /// The re-entry's caret put on box `n` of the string (from 1), where
     /// that box is one typed again; a box locked leaves it where it is.
-    pub fn caret_to_box(&mut self, n: usize) {
+    pub(crate) fn caret_to_box(&mut self, n: usize) {
         if let Some(s) = self.shown_mut()
             && s.step == Step::Retype
             && let Some(i) = s.proposal.edits().iter().position(|e| e.position() == n)
@@ -570,7 +570,7 @@ impl Correction {
 
     /// Where box `n` of the string (from 1) is typed again, from 0, when
     /// it is one of the re-entry's boxes. A lookup.
-    pub fn open_box(&self, n: usize) -> Option<usize> {
+    pub(crate) fn open_box(&self, n: usize) -> Option<usize> {
         let s = self.shown()?;
         s.proposal.edits().iter().position(|e| e.position() == n)
     }

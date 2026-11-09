@@ -47,10 +47,6 @@ pub const INFLATE_LIMIT: usize = 102_400;
 /// (`docs/KEF.md` §4.1, §10).
 pub const COMPRESS_MAX: usize = 1_024;
 
-/// Krux's own choice of a compressed version starts at this length
-/// (`suggest_versions`); here it is offered, not taken.
-pub const COMPRESS_FROM: usize = 120;
-
 /// The default version: AES-GCM (`docs/KEF.md` §10).
 pub const DEFAULT_VERSION: u8 = 20;
 /// The default id: 8 random bytes.
@@ -67,9 +63,6 @@ pub const COUNT_SETTING_MAX: u32 = 500_000;
 pub const COUNT_KRUX_MAX: u32 = 550_000;
 /// The most characters of a passphrase Faraday writes under.
 pub const PASSPHRASE_MAX: usize = 200;
-/// The most KEF envelopes inside one another that are followed.
-pub const NEST_MAX: usize = 8;
-
 /// A count as Krux adds its change to a setting: the setting and a random
 /// number under a tenth of it (`KEFEnvelope.__init__`), so a reused id or
 /// label does not mean a reused key. At most `COUNT_KRUX_MAX - 1` for a

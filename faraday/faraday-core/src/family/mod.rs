@@ -82,7 +82,7 @@ pub mod page {
     /// Bring the transaction here.
     pub const BRING: u8 = 6;
     /// Put everything away.
-    pub const AWAY: u8 = 7;
+    pub(crate) const AWAY: u8 = 7;
     /// How many.
     pub const COUNT: u8 = 8;
 }
@@ -194,7 +194,7 @@ pub struct Guess {
 
 /// The multisig kinds a guessed wallet of several keys walks through,
 /// the most common first.
-pub const MULTI_ORDER: [NewKind; 4] = [
+pub(crate) const MULTI_ORDER: [NewKind; 4] = [
     NewKind::Multi,
     NewKind::TapMulti,
     NewKind::MultiNested,
@@ -353,7 +353,7 @@ pub const SINGLE: [NewKind; 4] = [
 pub const WORDS_SOURCE: &str = EN.family_typed_words;
 
 /// The bit of `FamilyState::more` a card's More about this uses.
-pub fn more_bit(id: CardId) -> u8 {
+pub(crate) fn more_bit(id: CardId) -> u8 {
     match id {
         CardId::Page(p) => p,
         CardId::Step(n) | CardId::Later(n) => page::COUNT + n,
@@ -392,7 +392,7 @@ impl Faraday {
 
     /// The spend under way, resumed where it was: on the Spend tab when it
     /// went through it, else on Wallets' Sign.
-    pub fn carry_on(&self) -> Action {
+    pub(crate) fn carry_on(&self) -> Action {
         let on_tab = self
             .wallets
             .spend()
@@ -513,12 +513,12 @@ impl Faraday {
     /// The tab's pages before the spend's steps. From a wallet's card
     /// the wallet is open already: Load the wallet in Sparrow, then Write
     /// the payment, which brings the PSBT too.
-    pub fn family_pages(&self) -> Vec<u8> {
+    pub(crate) fn family_pages(&self) -> Vec<u8> {
         self.family.pages()
     }
 
     /// The page that brings the transaction here.
-    pub fn family_bring_page(&self) -> u8 {
+    pub(crate) fn family_bring_page(&self) -> u8 {
         self.family.bring_page()
     }
 
@@ -967,7 +967,7 @@ impl Faraday {
 
     /// The wallet chosen, when it came from a description (a file, the
     /// split sheets, a vault) rather than from seeds alone.
-    pub fn family_described(&self) -> Option<usize> {
+    pub(crate) fn family_described(&self) -> Option<usize> {
         let w = self.family_wallet()?;
         let origin = self.session.wallets[w].origin;
         (!matches!(
@@ -979,7 +979,7 @@ impl Faraday {
 
     /// The seeds that came in that are none of the described wallet's
     /// keys.
-    pub fn family_strays(&self) -> Vec<Fingerprint> {
+    pub(crate) fn family_strays(&self) -> Vec<Fingerprint> {
         let Some(w) = self.family_described() else {
             return Vec::new();
         };
@@ -1015,7 +1015,7 @@ impl Faraday {
     }
 
     /// The hint the intake scanner's sheet gives for the question asked.
-    pub fn family_hint(&self) -> Option<&'static str> {
+    pub(crate) fn family_hint(&self) -> Option<&'static str> {
         match self.family_question() {
             Question::Anything => Some(crate::family::text::ANYTHING_HINT),
             Question::Description => Some(crate::family::text::DESCRIPTION_HINT),
@@ -1267,7 +1267,7 @@ impl Faraday {
 
     /// The way `at` of a guess, as listed: its kind, and for one key
     /// whether a passphrase goes with it.
-    pub fn guess_way(g: &Guess, at: usize) -> (NewKind, bool) {
+    pub(crate) fn guess_way(g: &Guess, at: usize) -> (NewKind, bool) {
         if g.multi {
             (MULTI_ORDER[at.min(MULTI_ORDER.len() - 1)], false)
         } else {

@@ -609,7 +609,7 @@ impl Faraday {
     }
 
     /// Whether Import was pressed and its reads are not all answered.
-    pub fn import_reading(&self) -> bool {
+    pub(crate) fn import_reading(&self) -> bool {
         self.import
             .state()
             .is_some_and(|i| i.asked && i.unlocking.is_none())
@@ -617,7 +617,7 @@ impl Faraday {
 
     /// Whether Import can be pressed: the list still picks, something is
     /// ticked, and the stick is in to be read.
-    pub fn import_may_go(&self) -> bool {
+    pub(crate) fn import_may_go(&self) -> bool {
         self.import_stick_in()
             && self.import.state().is_some_and(|i| {
                 !i.asked

@@ -271,7 +271,7 @@ pub struct Codex32Form {
 
 impl Codex32Form {
     /// Forgets what Check it found, its worksheet with it.
-    pub fn forget_check(&mut self) {
+    pub(crate) fn forget_check(&mut self) {
         self.checked = None;
         self.sheet = None;
         self.sheet_open = false;
@@ -301,12 +301,12 @@ pub fn set_facts(typed: &[Codex32]) -> Option<faraday_vault::codex32::SetFacts> 
 /// Whether Make the rest and Add a share are offered: a string of a split
 /// set is in (§8.1, §8.2). Pressed before the last of the `k` strings, the
 /// strings then make the rest or a share in place of loading the key.
-pub fn offers_more(parts: &Parts) -> bool {
+pub(crate) fn offers_more(parts: &Parts) -> bool {
     parts.codex32.first().is_some_and(|c| c.threshold() >= 2)
 }
 
 /// Whether `k` strings of a split set are in, the secret counting as one.
-pub fn makes_more(parts: &Parts) -> bool {
+pub(crate) fn makes_more(parts: &Parts) -> bool {
     parts
         .codex32
         .first()
@@ -316,7 +316,7 @@ pub fn makes_more(parts: &Parts) -> bool {
 /// The line a string that does not parse is refused with: a share or
 /// the secret whose checksum fails is named by its index ("Share C ·
 /// checksum fails", §8.1), anything else by what is wrong.
-pub fn codex32_refusal(given: &str, e: &faraday_bip::codex32::Error) -> String {
+pub(crate) fn codex32_refusal(given: &str, e: &faraday_bip::codex32::Error) -> String {
     if *e == faraday_bip::codex32::Error::BadChecksum
         && let Some(&i) = given.as_bytes().get(8)
     {
@@ -337,7 +337,7 @@ pub fn codex32_refusal(given: &str, e: &faraday_bip::codex32::Error) -> String {
 
 /// What a codex32 string is, by its header: "Share C · id w0za · 2
 /// needed", or "The secret · id w0za".
-pub fn codex32_what(c: &Codex32) -> String {
+pub(crate) fn codex32_what(c: &Codex32) -> String {
     let id = String::from_utf8_lossy(&c.identifier()).into_owned();
     if c.is_secret() {
         fill(EN.codex32_form_checked_secret, &[&id])
@@ -355,14 +355,14 @@ pub fn codex32_what(c: &Codex32) -> String {
 
 /// Whether something stands in place of the codex32 form's field: a
 /// clash, or the correction's screen.
-pub fn codex32_replaced(e: &crate::EntryState) -> bool {
+pub(crate) fn codex32_replaced(e: &crate::EntryState) -> bool {
     e.codex32.clash.is_some() || e.correction.is_open()
 }
 
 /// Whether the codex32 form takes presses only: a clash, or the
 /// correction's screen at any step but the boxes typed again from the
 /// paper, stands in place of the field, so no keyboard is up for it.
-pub fn codex32_pressed_only(e: &crate::EntryState) -> bool {
+pub(crate) fn codex32_pressed_only(e: &crate::EntryState) -> bool {
     e.form == Form::Codex32
         && (e.codex32.clash.is_some()
             || (e.correction.is_open()
@@ -407,7 +407,7 @@ pub fn on_screen(lang: Language) -> bool {
 
 /// A word entry for `lang`. Up to 24 words; the count is however many
 /// are taken when the key is added.
-pub fn word_typer(lang: Language) -> Box<crate::word_entry::WordEntry> {
+pub(crate) fn word_typer(lang: Language) -> Box<crate::word_entry::WordEntry> {
     Box::new(crate::word_entry::WordEntry::new(lang, 24))
 }
 
@@ -439,7 +439,7 @@ pub fn language_name(lang: Language) -> &'static str {
 }
 
 /// The list's word a typed word is, matched on its ASCII fold.
-pub fn typed_index(lang: Language, typed: &str) -> Option<u16> {
+pub(crate) fn typed_index(lang: Language, typed: &str) -> Option<u16> {
     let chars: Vec<char> = typed.chars().collect();
     lang.candidates_typed(&chars).find(|&i| {
         lang.typed(i)
@@ -448,13 +448,13 @@ pub fn typed_index(lang: Language, typed: &str) -> Option<u16> {
 }
 
 /// The words a typed prefix can still become.
-pub fn typed_candidates(lang: Language, prefix: &str) -> Vec<u16> {
+pub(crate) fn typed_candidates(lang: Language, prefix: &str) -> Vec<u16> {
     let chars: Vec<char> = prefix.chars().collect();
     lang.candidates_typed(&chars).collect()
 }
 
 /// The typed form of the one word a prefix can still become, for Tab.
-pub fn completion(lang: Language, typed: &str) -> Option<String> {
+pub(crate) fn completion(lang: Language, typed: &str) -> Option<String> {
     let prefix = typed.rsplit(' ').next().unwrap_or("");
     if prefix.is_empty() {
         return None;
@@ -469,7 +469,7 @@ pub fn completion(lang: Language, typed: &str) -> Option<String> {
 /// The one SLIP-39 word a prefix can still become, for Tab: the same
 /// rule as [`completion`], over the 1024-word SLIP-39 list instead of a
 /// BIP-39 one.
-pub fn slip39_completion(typed: &str) -> Option<String> {
+pub(crate) fn slip39_completion(typed: &str) -> Option<String> {
     let prefix = typed.rsplit(' ').next().unwrap_or("");
     if prefix.is_empty() {
         return None;
@@ -505,7 +505,7 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
 /// one word whole, with no other word on the list starting the same
 /// way: the point at which typing takes it as Tab would. A read list's
 /// word is whole once its tone leaves one character.
-pub fn word_whole(w: &crate::word_entry::WordEntry, lang: Language) -> bool {
+pub(crate) fn word_whole(w: &crate::word_entry::WordEntry, lang: Language) -> bool {
     let prefix = w.prefix();
     if prefix.is_empty() || !w.accepting() {
         return false;
@@ -522,7 +522,7 @@ pub fn word_whole(w: &crate::word_entry::WordEntry, lang: Language) -> bool {
 /// Takes the word typed whole on `w`: the one its letters spell, or the
 /// only one they can be. Space, Tab, Enter and Add key end a word so on
 /// a physical keyboard, as a press on its pill does on the screen.
-pub fn take_typed(w: &mut crate::word_entry::WordEntry, lang: Language) {
+pub(crate) fn take_typed(w: &mut crate::word_entry::WordEntry, lang: Language) {
     let prefix: String = w.prefix().iter().collect();
     if prefix.is_empty() {
         return;

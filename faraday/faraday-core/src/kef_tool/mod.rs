@@ -17,9 +17,9 @@ pub(crate) mod screen;
 /// The cards, in order.
 pub mod kstep {
     /// What the code holds.
-    pub const CONTENTS: u8 = 0;
+    pub(crate) const CONTENTS: u8 = 0;
     /// The form's first step.
-    pub const MAKE: u8 = 1;
+    pub(crate) const MAKE: u8 = 1;
     /// The code.
     pub const CODE: u8 = 2;
     /// How many.

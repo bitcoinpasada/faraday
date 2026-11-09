@@ -46,7 +46,7 @@ pub struct PillAt {
 /// What a pill of tone `n` ([`stick`]) in `state` draws in, in `theme`:
 /// its text, its edge (none where it has no edge of its own), its body
 /// and its dot.
-pub fn stick_paints(
+pub(crate) fn stick_paints(
     n: usize,
     state: StickState,
     theme: crate::Theme,

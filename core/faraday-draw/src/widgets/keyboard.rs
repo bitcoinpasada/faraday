@@ -136,7 +136,7 @@ const CODEX32_ROWS: [&str; 4] = ["023456789", "qwertyup", "asdfghjkl", "zxcvnm"]
 
 /// The key [`KeyboardKind::Codex32Unreadable`] adds: a box that cannot
 /// be read.
-pub const UNREADABLE_KEY: char = '?';
+pub(crate) const UNREADABLE_KEY: char = '?';
 
 /// The mask bit of [`UNREADABLE_KEY`]: the first after the digits, which
 /// the codex32 keyboards (no upper case) leave free.
@@ -154,7 +154,7 @@ const BASE58_UPPER_ROWS: [&str; 4] = ["123456789", "QWERTYUP", "ASDFGHJKL", "ZXC
 const CARD_RANK_ROWS: [&str; 2] = ["A234567", "89TJQK"];
 
 /// The suit keys: ♠ ♥ ♦ ♣.
-pub const CARD_SUITS: [char; 4] = ['\u{2660}', '\u{2665}', '\u{2666}', '\u{2663}'];
+pub(crate) const CARD_SUITS: [char; 4] = ['\u{2660}', '\u{2665}', '\u{2666}', '\u{2663}'];
 
 /// The standalone voiced sound mark ゛, which the dakuten key shows.
 pub const DAKUTEN_KEY: char = '\u{309B}';
@@ -261,15 +261,15 @@ const PINYIN_TONES: &str = "12345";
 
 /// ˉ, the first tone. The 大千 layout leaves the first tone to the space
 /// bar, which this keyboard has no room for, so it is a key of its own.
-pub const TONE_HIGH: char = '\u{02C9}';
+pub(crate) const TONE_HIGH: char = '\u{02C9}';
 /// ˊ, the second tone.
-pub const TONE_RISING: char = '\u{02CA}';
+pub(crate) const TONE_RISING: char = '\u{02CA}';
 /// ˇ, the third tone.
-pub const TONE_LOW: char = '\u{02C7}';
+pub(crate) const TONE_LOW: char = '\u{02C7}';
 /// ˋ, the fourth tone.
-pub const TONE_FALLING: char = '\u{02CB}';
+pub(crate) const TONE_FALLING: char = '\u{02CB}';
 /// ˙, the neutral tone.
-pub const TONE_NEUTRAL: char = '\u{02D9}';
+pub(crate) const TONE_NEUTRAL: char = '\u{02D9}';
 
 /// The 注音 tone marks, in tone order from the first. Every tone has a
 /// key, so every reading ends the same way.
@@ -304,14 +304,14 @@ pub const ALL_KEYS: KeyMask = !(DONE_DISABLED | DONE_ABSENT);
 /// path pads, where ✓ means "continue" and is live only once what has
 /// been entered is usable. The other kinds ignore it, and the five that
 /// type a wordlist have no ✓ at all.
-pub const DONE_DISABLED: KeyMask = 1 << 63;
+pub(crate) const DONE_DISABLED: KeyMask = 1 << 63;
 
 /// Mask bit that leaves the digit pad's ✓ cell empty: no key drawn and
 /// no target, the digits and the backspace where the PIN pad has them.
 /// Word numbers' pad carries it, because a word is taken by a tap on its
 /// candidate and the pad has nothing to confirm. The other kinds ignore it; no kind numbers a key at
 /// this bit.
-pub const DONE_ABSENT: KeyMask = 1 << 62;
+pub(crate) const DONE_ABSENT: KeyMask = 1 << 62;
 
 /// The mask bit of a key on `kind`'s keyboard, or 0 for a character
 /// that has no key there. The BIP-39 keyboard numbers its letters `a` to
@@ -441,7 +441,7 @@ pub fn keycaps(kind: KeyboardKind) -> impl Iterator<Item = char> {
 /// under the last: the codex32 keyboards and the codex32 entry's dice
 /// pad, which a page draws inside its own column rather than at the
 /// screen's edge.
-pub fn equal_rows(kind: KeyboardKind) -> bool {
+pub(crate) fn equal_rows(kind: KeyboardKind) -> bool {
     matches!(
         kind,
         KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable | KeyboardKind::Dice
@@ -484,7 +484,7 @@ pub fn rows(kind: KeyboardKind) -> usize {
 /// Gap between key cells in dp. Zero: keys tile the keyboard area with no
 /// dead zones, and each one paints a face inset by [`KEY_FACE_INSET`], so
 /// the visible gaps between keys are still tappable.
-pub const KEY_GAP: f32 = tokens::KEY_GAP;
+pub(crate) const KEY_GAP: f32 = tokens::KEY_GAP;
 
 /// Inset in dp from a key's cell to its visible face, left and right.
 pub const KEY_FACE_INSET: f32 = tokens::KEY_FACE_INSET;
@@ -501,7 +501,7 @@ pub const KEY_BOTTOM_INSET: f32 = tokens::KEY_BOTTOM_INSET;
 
 /// Deterministic permutation of the digits 0–9 for `seed` (xorshift32 +
 /// Fisher–Yates). The same seed always gives the same order.
-pub fn scrambled_digits(seed: u32) -> [char; 10] {
+pub(crate) fn scrambled_digits(seed: u32) -> [char; 10] {
     let mut digits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     let mut x = seed | 1;
     for i in (1..10).rev() {

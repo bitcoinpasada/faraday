@@ -350,7 +350,7 @@ impl Faraday {
 
     /// The Inbox files a lock drops ([`crate::Item::dropped_at_lock`]),
     /// by name.
-    pub fn lock_drops(&self) -> Vec<String> {
+    pub(crate) fn lock_drops(&self) -> Vec<String> {
         self.inbox
             .iter()
             .filter(|i| i.dropped_at_lock())

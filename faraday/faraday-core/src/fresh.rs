@@ -41,13 +41,13 @@ pub const POOL: usize = 26;
 /// The most bytes one [`Fresh::take_bytes`] gives: [`POOL`] answers of 32.
 /// A press that needs more is never given them, so a screen offers no
 /// shape that does.
-pub const TAKE_MAX: usize = POOL * 32;
+pub(crate) const TAKE_MAX: usize = POOL * 32;
 
 /// How long after the first display a missing seed is said on screen.
 /// The shell answers the first `RequestEntropy` within the first frame;
 /// two seconds is many frames on the slowest panel, so a seed still
 /// missing then is a system that gives no randomness, not a slow one.
-pub const SEED_GRACE_MS: u64 = 2_000;
+pub(crate) const SEED_GRACE_MS: u64 = 2_000;
 
 /// The session's seed: the shell's first 32 bytes, hashed with what the
 /// person added of their own when they have, and again at each addition
@@ -546,7 +546,7 @@ impl Faraday {
     }
 
     /// Whether Add randomness offers Pointer and keys.
-    pub fn pointer_keys_offered(&self) -> bool {
+    pub(crate) fn pointer_keys_offered(&self) -> bool {
         self.fresh.pointer_keys
     }
 

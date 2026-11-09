@@ -85,7 +85,7 @@ impl WordList {
     }
 
     /// The search field's placeholder: what a search matches here.
-    pub fn search_hint(self) -> &'static str {
+    pub(crate) fn search_hint(self) -> &'static str {
         match self {
             WordList::Bip39 => EN.wordlist_search_bits,
             WordList::Eff(_) => EN.wordlist_search_dice,
@@ -101,7 +101,7 @@ impl WordList {
     /// the sheet shows for it begins with what is typed, its word, its
     /// number from 1, or its code (bits or dice). A comparison, the
     /// number and the code spelled out for it.
-    pub fn found_by(self, index: usize, find: &str) -> bool {
+    pub(crate) fn found_by(self, index: usize, find: &str) -> bool {
         if find.is_empty() {
             return true;
         }

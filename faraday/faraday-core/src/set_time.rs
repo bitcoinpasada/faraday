@@ -260,7 +260,7 @@ impl Faraday {
     /// What the time starts from, when it is not this computer's clock: no
     /// clock reading at all, or a time set by hand counted on from Set by
     /// the app's own ticks. `None` while the shell gives a clock reading.
-    pub fn clock_source(&self) -> Option<&'static str> {
+    pub(crate) fn clock_source(&self) -> Option<&'static str> {
         if self.vaults.unix_secs.is_some() {
             return None;
         }

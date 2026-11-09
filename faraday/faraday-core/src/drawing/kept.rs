@@ -498,7 +498,7 @@ impl View<'_> {
     /// ([`crate::wallet::Session::spends_from`]), from each wallet's kept
     /// scripts. Costs a script derivation per wallet and place the first
     /// time.
-    pub fn spends_from(&self, seen: &crate::wallet::PsbtSeen) -> Option<usize> {
+    pub(crate) fn spends_from(&self, seen: &crate::wallet::PsbtSeen) -> Option<usize> {
         self.kept(|c| self.session.spends_from(c, seen))
     }
 
@@ -539,7 +539,7 @@ impl View<'_> {
     /// while typing goes on, before it is worked out
     /// ([`crate::Faraday::typing_now`]). Costs a PBKDF2 and an
     /// elliptic-curve multiplication the first time after typing pauses.
-    pub fn entry_probed(&self, m: &Mnemonic) -> Option<Result<Fingerprint, String>> {
+    pub(crate) fn entry_probed(&self, m: &Mnemonic) -> Option<Result<Fingerprint, String>> {
         if self.typing_now() {
             return self.entry.state().probe_kept();
         }
@@ -563,7 +563,7 @@ impl View<'_> {
 
     /// The QR code of public text `text` ([`Kept::public_qr`]),
     /// kept by its text. Costs a QR encoding the first time.
-    pub fn public_qr(&self, text: &str) -> Option<Rc<QrMatrix>> {
+    pub(crate) fn public_qr(&self, text: &str) -> Option<Rc<QrMatrix>> {
         self.kept(|c| self.app.kept.public_qr(c, text))
     }
 
@@ -575,7 +575,7 @@ impl View<'_> {
 
     /// A plan's map and its check ([`Kept::plan_mapped`]), kept
     /// by the shape and answers. Costs a map and a check the first time.
-    pub fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> Rc<plan::Mapped> {
+    pub(crate) fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> Rc<plan::Mapped> {
         self.kept(|c| self.app.kept.plan_mapped(c, shape, a))
     }
 
@@ -723,7 +723,7 @@ impl View<'_> {
     /// The Seeds tool's address ([`crate::Faraday::seeds_address`]), kept
     /// by what it is derived from. Costs an address derivation the first
     /// time.
-    pub fn seeds_address(&self, s: &SeedsState) -> Result<String, String> {
+    pub(crate) fn seeds_address(&self, s: &SeedsState) -> Result<String, String> {
         self.kept(|c| self.app.seeds_address(c, s))
     }
 

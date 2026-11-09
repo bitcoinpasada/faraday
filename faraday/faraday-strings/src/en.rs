@@ -12117,24 +12117,6 @@ strings! {
     bip_passphrase_too_long: "passphrase exceeds {} bytes",
     /// BIP-39 entropy of another length.
     bip_entropy_length: "entropy must be 16, 20, 24, 28 or 32 bytes",
-    /// Text that is not base64.
-    bip_invalid_base64: "invalid base64",
-    /// An aezeed of another version.
-    bip_aezeed_version: "this is not a version 0 cipher seed",
-    /// An aezeed whose words fail their checksum.
-    bip_aezeed_checksum: "the words do not check out",
-    /// An aezeed opened with a wrong passphrase.
-    bip_aezeed_passphrase: "wrong passphrase",
-    /// An aezeed whose key derivation failed.
-    bip_aezeed_kdf: "the key could not be stretched",
-    /// BIP-85 child words in a wordlist this build lacks.
-    bip_bip85_wordlist: "this build does not carry that wordlist",
-    /// BIP-85 hex bytes outside the range.
-    bip_bip85_byte_count: "byte count must be 16 to 64",
-    /// BIP-85 password length outside the range.
-    bip_bip85_password_length: "password length is outside the range",
-    /// BIP-85 derived key not usable.
-    bip_bip85_invalid_key: "the derived key is not valid; use the next index",
     /// A BSMS record without its version line.
     bip_bsms_version: "the first line is not BSMS 1.0",
     /// A BSMS record with missing lines.
@@ -12155,12 +12137,6 @@ strings! {
     bip_bsms_address: "the fourth line is not an address",
     /// A BSMS first address that does not match the wallet.
     bip_bsms_first_address: "this is not the wallet's first address",
-    /// A DLEQ proof with a zero nonce.
-    bip_dleq_nonce: "the proof's nonce is zero",
-    /// A DLEQ product at infinity.
-    bip_dleq_infinity: "a product is the point at infinity",
-    /// A DLEQ proof that fails its own check.
-    bip_dleq_self_check: "the proof made does not verify",
     /// MuSig2 aggregation with no keys.
     bip_musig_no_keys: "key aggregation needs at least one key",
     /// MuSig2 aggregate key at infinity.
@@ -12195,40 +12171,6 @@ strings! {
     bip_policy_threshold: "threshold must be between 1 and the number of keys",
     /// A descriptor whose checksum is wrong.
     bip_policy_checksum: "descriptor checksum does not match",
-    /// A recovery wallet with no recovery path.
-    bip_recovery_none: "a recovery wallet needs at least one recovery path",
-    /// A recovery wallet delay out of range or repeated.
-    bip_recovery_delay: "a delay must be 1 to 65535 blocks, and no two the same",
-    /// A recovery path with a wrong key count or threshold.
-    bip_recovery_path: "a path needs 1 to 20 keys and a threshold within them",
-    /// A recovery wallet key that is malformed or repeated.
-    bip_recovery_key: "key is not [fingerprint/path]xpub, or is named twice",
-    /// A recovery wallet that makes no script.
-    bip_recovery_script: "these keys and delays make no script of this form",
-    /// Text that is not a silent payment address.
-    bip_silent_address: "not a silent payment address",
-    /// A silent payment address of another version.
-    bip_silent_version: "silent payment address version is not one this build reads",
-    /// A silent payment key off the curve.
-    bip_silent_key: "not a public key on the curve",
-    /// A silent payment derived value that is not a scalar.
-    bip_silent_scalar: "the derived value is not a usable scalar",
-    /// A transaction with no input for a shared secret.
-    bip_silent_no_inputs: "the transaction has no input a shared secret comes from",
-    /// A silent payment text that does not fit its buffer.
-    bip_silent_too_long: "the text is longer than the buffer it is written into",
-    /// An extended key that is not base58check.
-    bip_xkey_base58: "not valid base58check",
-    /// An extended key of another length; its length.
-    bip_xkey_length: "extended key is {} bytes, expected 78",
-    /// An extended key of an unknown version; its four bytes in hex.
-    bip_xkey_version: "unknown version {}",
-    /// An extended key at depth 0 with a parent.
-    bip_xkey_zero_depth: "depth 0 with a parent fingerprint or child number",
-    /// An extended private key with a wrong pad byte; the byte in hex.
-    bip_xkey_pad: "byte before the private key is {}, expected 00",
-    /// An extended key the key library refused.
-    bip_xkey_invalid: "invalid extended key",
     /// An extended private key that is not a master key.
     bip_keys_not_master: "extended private key is not a master key",
     /// A codex32 string with a non-ASCII character.

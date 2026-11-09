@@ -48,7 +48,7 @@ impl Tool {
 }
 
 /// Every satoshi there will ever be.
-pub const MAX_SATS: u64 = 2_100_000_000_000_000;
+pub(crate) const MAX_SATS: u64 = 2_100_000_000_000_000;
 
 /// What the Tools screen holds.
 pub struct ToolsState {
@@ -101,7 +101,7 @@ struct KeptReading {
 }
 
 /// A calculator's name.
-pub fn tool_name(t: Tool) -> &'static str {
+pub(crate) fn tool_name(t: Tool) -> &'static str {
     match t {
         Tool::Hashes => EN.tools_hashes,
         Tool::Encodings => EN.tools_encodings,
@@ -113,7 +113,7 @@ pub fn tool_name(t: Tool) -> &'static str {
 }
 
 /// Satoshi in one of each unit, in the order the unit row lists them.
-pub const UNITS: [(&str, u64); 4] = [
+pub(crate) const UNITS: [(&str, u64); 4] = [
     ("sat", 1),
     ("BTC", 100_000_000),
     ("mBTC", 100_000),
@@ -123,7 +123,7 @@ pub const UNITS: [(&str, u64); 4] = [
 /// The places after the point an amount in unit `unit` (an index into
 /// [`UNITS`]) is typed to: none for sat, 8 for BTC, 5 for mBTC, 2 for
 /// bits, so that the last place is one satoshi.
-pub fn unit_places(unit: u8) -> usize {
+pub(crate) fn unit_places(unit: u8) -> usize {
     UNITS
         .get(usize::from(unit))
         .map_or(0, |(_, f)| f.ilog10() as usize)
@@ -132,7 +132,7 @@ pub fn unit_places(unit: u8) -> usize {
 /// The satoshi an amount typed in unit `unit` is, up to every satoshi
 /// there will be: the whole part and up to [`unit_places`] after the
 /// point; nothing typed, or only a point, is 0.
-pub fn units_sats(typed: &str, unit: u8) -> u64 {
+pub(crate) fn units_sats(typed: &str, unit: u8) -> u64 {
     let factor = UNITS.get(usize::from(unit)).map_or(1, |(_, f)| *f);
     let (whole, frac) = typed.split_once('.').unwrap_or((typed, ""));
     let whole: u64 = whole.parse().unwrap_or(0);

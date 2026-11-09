@@ -30,10 +30,10 @@ pub const HEADER: &str = "faraday-settings 1";
 pub const MAX: usize = 4096;
 
 /// The idle lock times Settings offers, in minutes; 0 is never.
-pub const IDLE_LOCK_CHOICES: [u16; 5] = [2, 5, 10, 30, 0];
+pub(crate) const IDLE_LOCK_CHOICES: [u16; 5] = [2, 5, 10, 30, 0];
 
 /// The idle power-off times Settings offers, in minutes; 0 is never.
-pub const IDLE_OFF_CHOICES: [u16; 5] = [10, 20, 30, 60, 0];
+pub(crate) const IDLE_OFF_CHOICES: [u16; 5] = [10, 20, 30, 60, 0];
 
 /// Whether a name is the settings file, as FAT compares names.
 pub fn is_file(name: &str) -> bool {

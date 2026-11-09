@@ -382,7 +382,7 @@ impl Faraday {
 }
 
 /// Deepest path Explore derives.
-pub const MAX_PATH_LEVELS: usize = 10;
+pub(crate) const MAX_PATH_LEVELS: usize = 10;
 
 /// Why the path text does not parse. The last valid path stays applied.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

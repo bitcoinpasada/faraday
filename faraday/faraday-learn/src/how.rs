@@ -2334,12 +2334,6 @@ pub fn block(id: &str) -> Option<&'static Block> {
 }
 
 /// The blocks a Learn page carries after its sections: those whose
-/// `learn` is `page`. A lookup.
-pub fn for_page(page: &str) -> Vec<&'static Block> {
-    blocks().iter().filter(|b| b.learn == page).collect()
-}
-
-/// The blocks a Learn page carries after its sections: those whose
 /// `learn` names this page (`learn_page`). A lookup.
 pub fn for_learn_page(page: &'static crate::Page) -> Vec<&'static Block> {
     blocks()
@@ -2357,7 +2351,7 @@ pub fn constructions_for_page(page: &str) -> impl Iterator<Item = &'static Const
 /// The constructions drawn after `page`'s own sections, before its
 /// blocks (`docs/CRYPTO-LEARN.md` §18.5): those whose `learn` names this
 /// page (`learn_page`). A lookup.
-pub fn constructions_for_learn_page(
+pub(crate) fn constructions_for_learn_page(
     page: &'static crate::Page,
 ) -> impl Iterator<Item = &'static Construction> {
     CONSTRUCTIONS
@@ -2385,7 +2379,7 @@ fn blocks() -> &'static [Block] {
 /// A block for tests and the snapshot tour, offered on the Catalog screen. Not generated; compiled only
 /// under test or with the `sample-how` feature.
 #[cfg(any(test, feature = "sample-how"))]
-pub const SAMPLE: Block = {
+pub(crate) const SAMPLE: Block = {
     const fn plain(text: &'static str) -> Line {
         Line {
             text,

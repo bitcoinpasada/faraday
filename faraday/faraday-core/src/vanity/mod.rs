@@ -375,7 +375,7 @@ impl Faraday {
 
     /// Whether the chosen key can turn the passphrase dial: only a key
     /// loaded from BIP-39 words can.
-    pub fn vanity_has_words(&self) -> bool {
+    pub(crate) fn vanity_has_words(&self) -> bool {
         self.vanity_key()
             .is_some_and(|k| self.session.keys[k].has_words())
     }

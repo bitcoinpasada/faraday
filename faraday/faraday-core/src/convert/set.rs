@@ -69,7 +69,7 @@ pub fn offered(f: &SetFacts, act: SetAct) -> Result<(), u8> {
 }
 
 /// The groups with a met quorum, 0-based.
-pub fn quorum_groups(f: &SetFacts) -> Vec<u8> {
+pub(crate) fn quorum_groups(f: &SetFacts) -> Vec<u8> {
     f.groups
         .iter()
         .filter(|g| g.quorum)
@@ -78,7 +78,7 @@ pub fn quorum_groups(f: &SetFacts) -> Vec<u8> {
 }
 
 /// The groups as the count of lost or exposed shares sees them.
-pub fn rotate_groups(f: &SetFacts, lost: &[u8]) -> Vec<RotateGroup> {
+pub(crate) fn rotate_groups(f: &SetFacts, lost: &[u8]) -> Vec<RotateGroup> {
     (0..f.group_count)
         .map(|g| RotateGroup {
             threshold: f.groups.iter().find(|x| x.index == g).map(|x| x.threshold),
@@ -88,7 +88,7 @@ pub fn rotate_groups(f: &SetFacts, lost: &[u8]) -> Vec<RotateGroup> {
 }
 
 /// Whether every typed share and every other share is pressed destroyed.
-pub fn all_destroyed(f: &SetFacts, s: &SetState) -> bool {
+pub(crate) fn all_destroyed(f: &SetFacts, s: &SetState) -> bool {
     s.others
         && f.groups.iter().all(|g| {
             g.members
@@ -115,7 +115,7 @@ fn free_member(f: &SetFacts, group: u8, from: u8, step: i8) -> u8 {
 }
 
 /// What a refusal says.
-pub fn refused_text(r: &SetRefused, medium: crate::Medium) -> String {
+pub(crate) fn refused_text(r: &SetRefused, medium: crate::Medium) -> String {
     match r {
         SetRefused::Stick(_) => crate::stick::keys_load(medium),
         SetRefused::Practice => EN.convert_set_practice.to_string(),

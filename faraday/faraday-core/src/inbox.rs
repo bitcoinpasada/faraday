@@ -109,7 +109,7 @@ pub struct FoundWallet {
 /// How many times the Inbox pairs a words file with a passphrase file
 /// beside it: each pair is a seed worked out (a PBKDF2), so past this many
 /// the rest are not tried.
-pub const PAIRS_TRIED: usize = 64;
+pub(crate) const PAIRS_TRIED: usize = 64;
 
 /// A backup still short of parts.
 #[derive(Debug, Clone)]
@@ -336,7 +336,7 @@ impl InboxArea {
 impl Faraday {
     /// Whether the Inbox holds a file of this name and size: the stick
     /// row says "In Faraday".
-    pub fn inbox_holds(&self, name: &str, size: u64) -> bool {
+    pub(crate) fn inbox_holds(&self, name: &str, size: u64) -> bool {
         self.inbox
             .iter()
             .any(|i| i.name == name && i.bytes.len() as u64 == size)
@@ -345,7 +345,7 @@ impl Faraday {
     /// The Inbox PSBT to offer first: the one with the fewest signatures,
     /// so a cosigner's signed copy never stands in for the transaction.
     /// Reads what each file said when it came in ([`Item::psbt`]).
-    pub fn lead_psbt(&self) -> Option<usize> {
+    pub(crate) fn lead_psbt(&self) -> Option<usize> {
         self.inbox
             .iter()
             .enumerate()
@@ -1395,7 +1395,7 @@ impl Faraday {
     /// Costs what `inbox_found_now` costs. The wallet here, in the Inbox or
     /// loaded, whose key the potential wallet's seed with its passphrase
     /// is.
-    pub fn potential_match(&self, c: &Compute) -> Option<String> {
+    pub(crate) fn potential_match(&self, c: &Compute) -> Option<String> {
         let with = self.inbox.potential()?.with?;
         self.inbox_found_now(c)
             .wallets

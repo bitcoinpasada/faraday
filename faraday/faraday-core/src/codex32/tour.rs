@@ -94,7 +94,7 @@ impl TourStep {
     }
 
     /// Whether it is of a share's checksum check.
-    pub fn on_check(self) -> bool {
+    pub(crate) fn on_check(self) -> bool {
         matches!(self, TourStep::Check { .. } | TourStep::Holds { .. })
     }
 
@@ -245,7 +245,7 @@ impl Codex32Make {
     /// Whether Next would open the tour: the choice on, every character
     /// in, the tour not shown. The caller knows the step shown before it
     /// is the last. A lookup.
-    pub fn tour_ready(&self) -> bool {
+    pub(crate) fn tour_ready(&self) -> bool {
         self.tour.on
             && self.tour.at.is_none()
             && !self.tour.steps.is_empty()
@@ -304,7 +304,7 @@ impl Codex32Make {
 
     /// Whether the tour has a step `d` (−1 or 1) from the one shown, or
     /// Next opens it. A lookup.
-    pub fn tour_can(&self, d: i8) -> bool {
+    pub(crate) fn tour_can(&self, d: i8) -> bool {
         match self.tour_shown() {
             Some(_) => true,
             None => d > 0 && self.tour_ready(),
@@ -340,12 +340,12 @@ impl Codex32Make {
     }
 
     /// Share made `t`'s checksum check, once the set is made. A lookup.
-    pub fn tour_check(&self, t: usize) -> Option<&StringCheck> {
+    pub(crate) fn tour_check(&self, t: usize) -> Option<&StringCheck> {
         self.tour.checks.get(t)?.as_ref()
     }
 
     /// The share made whose checksum check the tour's step shown is on.
-    pub fn tour_on_check(&self) -> Option<usize> {
+    pub(crate) fn tour_on_check(&self) -> Option<usize> {
         let (_, step) = self.tour_shown()?;
         step.on_check().then(|| step.sheet())
     }
@@ -360,7 +360,7 @@ impl Codex32Make {
     /// touches, each with whether it is the one worked out: a symbol; an
     /// initial share's character, its symbol and the product; the
     /// products added and the sum. Arithmetic on the step.
-    pub fn tour_cells(&self, t: usize) -> Vec<(Cell, bool)> {
+    pub(crate) fn tour_cells(&self, t: usize) -> Vec<(Cell, bool)> {
         let Some((_, step)) = self.tour_shown().filter(|(_, s)| s.sheet() == t) else {
             return Vec::new();
         };
@@ -391,7 +391,7 @@ impl Codex32Make {
     /// The cells of share made `t`'s checksum check the tour's step shown
     /// touches, each with whether it is the one worked out; at the check's
     /// end, its final row. Arithmetic on the worksheet's shape.
-    pub fn tour_check_cells(&self, t: usize) -> Vec<(Cell, bool)> {
+    pub(crate) fn tour_check_cells(&self, t: usize) -> Vec<(Cell, bool)> {
         let Some((_, step)) = self.tour_shown().filter(|(_, s)| s.sheet() == t) else {
             return Vec::new();
         };

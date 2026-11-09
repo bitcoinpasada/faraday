@@ -143,7 +143,7 @@ impl Faraday {
 
     /// Whether Add a key's field, or New key's typed one, draws Use a
     /// sample now. A lookup.
-    pub fn entry_sample_shown(&self) -> bool {
+    pub(crate) fn entry_sample_shown(&self) -> bool {
         self.put_on().is_some()
             && self.may_load_keys()
             && self.entry.state().sample.shown()
@@ -292,7 +292,7 @@ impl Faraday {
     // The scanner.
 
     /// Whether the scanner on screen draws the Sample tile: a lookup.
-    pub fn scan_sample_offered(&self) -> bool {
+    pub(crate) fn scan_sample_offered(&self) -> bool {
         let Some(set) = self.put_on() else {
             return false;
         };
@@ -358,7 +358,7 @@ impl Faraday {
 
     /// Whether a step that asks for the transaction draws Load sample
     /// PSBT: Practice, with samples set. A lookup.
-    pub fn sample_psbt_offered(&self) -> bool {
+    pub(crate) fn sample_psbt_offered(&self) -> bool {
         self.put_on().is_some()
     }
 
@@ -542,7 +542,7 @@ impl Faraday {
 
     /// Whether cosigner box `k` of the seeds piece draws Use a sample:
     /// empty, not typed in, not pressed in. A lookup.
-    pub fn seeds_sample_shown(&self, s: &crate::seeds::SeedsState, k: usize) -> bool {
+    pub(crate) fn seeds_sample_shown(&self, s: &crate::seeds::SeedsState, k: usize) -> bool {
         self.put_on().is_some()
             && s.sample_off & (1 << k.min(15)) == 0
             && s.cosigners.get(k).is_some_and(|t| t.trim().is_empty())
@@ -643,7 +643,7 @@ impl Faraday {
 
     /// Whether the aezeed's words field draws Use a sample: Practice, the
     /// cipher seed chosen, nothing typed or pressed. A lookup.
-    pub fn lightning_sample_shown(&self) -> bool {
+    pub(crate) fn lightning_sample_shown(&self) -> bool {
         self.put_on().is_some() && self.lightning.sample_shown()
     }
 
@@ -666,7 +666,7 @@ impl Faraday {
 
     /// Whether Find an address's field draws Use a sample: Practice, nothing
     /// typed or pressed. A lookup.
-    pub fn explore_sample_shown(&self) -> bool {
+    pub(crate) fn explore_sample_shown(&self) -> bool {
         self.put_on().is_some() && self.explore.sample_shown()
     }
 
@@ -701,7 +701,7 @@ impl Faraday {
     /// Whether Check my copy's empty grid draws **Fill words**: Practice with
     /// samples set, the key checked a sample, nothing typed or pressed.
     /// A lookup.
-    pub fn copy_check_sample_shown(&self) -> bool {
+    pub(crate) fn copy_check_sample_shown(&self) -> bool {
         self.backup
             .state()
             .and_then(|b| b.check.as_ref())

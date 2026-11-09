@@ -81,7 +81,7 @@ impl NonceCheck {
 
     /// Whether every input of `mismatched` is one the interpreter refuses
     /// with its shape matching (`fields_refused`). A lookup per input.
-    pub fn only_fields_refused(&self) -> bool {
+    pub(crate) fn only_fields_refused(&self) -> bool {
         self.mismatched
             .iter()
             .all(|i| self.fields_refused.contains(i))
@@ -94,7 +94,7 @@ impl NonceCheck {
     /// by its witness, and does not stop this; a wrong signature on
     /// any other row does, a signature over the stated amount on the
     /// disagreeing input itself included. A lookup per row.
-    pub fn disagree_first(&self) -> bool {
+    pub(crate) fn disagree_first(&self) -> bool {
         self.disagree > 0
             && self.reused.is_empty()
             && !self

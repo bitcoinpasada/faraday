@@ -24,9 +24,9 @@ use faraday_draw::tokens::{
 };
 
 /// How far in from a step's left edge its body is drawn, under its title.
-pub const BODY_INDENT: f32 = 58.0;
+pub(crate) const BODY_INDENT: f32 = 58.0;
 /// How far in from a step's right edge its body stops.
-pub const BODY_RIGHT: f32 = 18.0;
+pub(crate) const BODY_RIGHT: f32 = 18.0;
 
 /// One card of a flow.
 pub struct Card {
@@ -133,7 +133,7 @@ pub fn column_foot(
 /// card run to `wide_end`; its head and summary stay in the column.
 /// `None` draws every rule at the column's width.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub fn column_wide(
+pub(crate) fn column_wide(
     ui: &mut Ui,
     col: &Column,
     wide_end: Option<f32>,

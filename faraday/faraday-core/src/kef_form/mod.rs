@@ -210,7 +210,7 @@ impl KefForm {
     }
 
     /// Offers a fingerprint as the id on a text: a loaded wallet's.
-    pub fn offer_fingerprint(&mut self, fingerprint: Option<[u8; 4]>) {
+    pub(crate) fn offer_fingerprint(&mut self, fingerprint: Option<[u8; 4]>) {
         self.offered = fingerprint;
     }
 
@@ -271,7 +271,7 @@ impl KefForm {
 
     /// Whether the code is on Paper at a side the drawn copy is scanned
     /// back for (25 to 37), and not scanned yet: **Scan my copy** shows.
-    pub fn scan_offered(&self) -> bool {
+    pub(crate) fn scan_offered(&self) -> bool {
         self.paper && !self.scanned && self.stage == Stage::Made && self.by_hand_side().is_some()
     }
 
@@ -301,11 +301,6 @@ impl KefForm {
         self.stage = Stage::Check;
     }
 
-    /// The grid's mark on Paper: the block or row, and whether by rows.
-    pub fn grid_mark(&self) -> (usize, bool) {
-        (self.pin, self.rows)
-    }
-
     /// Where the code is copied by hand now: the plan's map has it on
     /// Paper at a place.
     pub(crate) fn set_paper(&mut self, paper: bool) {
@@ -323,7 +318,7 @@ impl KefForm {
     }
 
     /// Whether Options is open.
-    pub fn options_open(&self) -> bool {
+    pub(crate) fn options_open(&self) -> bool {
         self.sheet
     }
 

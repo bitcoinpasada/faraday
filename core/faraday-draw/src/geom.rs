@@ -64,7 +64,7 @@ impl Scale {
     }
 
     /// The same scale at `class`'s type ramp.
-    pub fn with_class(self, class: SizeClass) -> Self {
+    pub(crate) fn with_class(self, class: SizeClass) -> Self {
         Scale::for_class(self.dpi, class)
     }
 
@@ -75,7 +75,7 @@ impl Scale {
     }
 
     /// A type size in dp as fractional pixels.
-    pub fn type_px_f(self, dp: Dp) -> f32 {
+    pub(crate) fn type_px_f(self, dp: Dp) -> f32 {
         dp.0 * self.type_factor()
     }
 
@@ -90,7 +90,7 @@ impl Scale {
     }
 
     /// Converts a dp length to fractional pixels.
-    pub fn px_f(self, dp: Dp) -> f32 {
+    pub(crate) fn px_f(self, dp: Dp) -> f32 {
         dp.0 * self.factor()
     }
 }
@@ -371,11 +371,4 @@ pub struct PxEdges {
     pub right: i32,
     /// Bottom.
     pub bottom: i32,
-}
-
-impl PxEdges {
-    /// Top plus bottom.
-    pub fn vertical(&self) -> i32 {
-        self.top + self.bottom
-    }
 }

@@ -236,14 +236,14 @@ impl Facts<'_> {
     /// The step back to Secure Boot on applies: Secure Boot is off now
     /// (§3.4 step 4). The Starter keeps no record, so it applies
     /// whenever Secure Boot is off.
-    pub fn secure_boot_back(&self) -> bool {
+    pub(crate) fn secure_boot_back(&self) -> bool {
         self.computer.secure_boot == Some(false)
     }
 
     /// Windows' Use a device (Restart to choose a device, Restart from
     /// the stick) is offered only while Windows reports Secure Boot off
     /// at this moment (F33); hidden when it reads on or cannot be read.
-    pub fn use_a_device(&self) -> bool {
+    pub(crate) fn use_a_device(&self) -> bool {
         self.computer.os == Os::Windows
             && self.computer.uefi
             && self.computer.secure_boot == Some(false)
@@ -257,7 +257,7 @@ impl Facts<'_> {
 
     /// This computer can start the x86_64 stick at all: not an ARM
     /// computer, and not a Mac with 32-bit firmware or Apple silicon.
-    pub fn can_start(&self) -> bool {
+    pub(crate) fn can_start(&self) -> bool {
         !self.computer.arm
             && !matches!(
                 self.mac(),
@@ -274,7 +274,7 @@ impl Facts<'_> {
 
     /// The Faraday version of the first Faraday stick attached, when one
     /// is.
-    pub fn stick_version(&self) -> Option<String> {
+    pub(crate) fn stick_version(&self) -> Option<String> {
         self.stick()
             .and_then(|d| d.faraday.as_ref())
             .map(version_of)

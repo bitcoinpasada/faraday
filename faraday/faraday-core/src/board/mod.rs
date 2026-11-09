@@ -359,7 +359,7 @@ fn forms_in(k: Kind, t: Thing) -> Vec<What> {
 }
 
 /// The forms a placed chip has in its zone.
-pub fn forms_of(z: Zone, t: Thing) -> Vec<What> {
+pub(crate) fn forms_of(z: Zone, t: Thing) -> Vec<What> {
     kind(z).map_or_else(Vec::new, |k| forms_in(k, t))
 }
 

@@ -56,7 +56,7 @@ impl View<'_> {
 
     /// The sticks the wallet being backed up is written to
     /// ([`crate::Faraday::wallet_stick_rows_now`]), once a frame.
-    pub fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
+    pub(crate) fn wallet_stick_rows(&self) -> Vec<super::StickRow> {
         self.drawing
             .stick_rows
             .get_or_init(|| self.filled(|c| self.app.wallet_stick_rows_now(c)))
@@ -92,7 +92,7 @@ impl View<'_> {
 
     /// The keys here that are held ([`crate::Faraday::held_keys_now`]), once a
     /// frame.
-    pub fn held_keys(&self) -> Vec<Fingerprint> {
+    pub(crate) fn held_keys(&self) -> Vec<Fingerprint> {
         self.drawing
             .held
             .get_or_init(|| self.filled(|c| self.app.held_keys_now(c)))
@@ -191,7 +191,7 @@ impl View<'_> {
     /// wallet's seed with its passphrase is
     /// ([`crate::Faraday::potential_match`]), from the memo's
     /// [`View::inbox_found`].
-    pub fn potential_match(&self) -> Option<String> {
+    pub(crate) fn potential_match(&self) -> Option<String> {
         let with = self.inbox.potential()?.with?;
         self.inbox_found()
             .wallets
@@ -202,7 +202,7 @@ impl View<'_> {
 
     /// The flows in progress ([`crate::Faraday::flows_in_progress_now`]), once
     /// a frame.
-    pub fn flows_in_progress(&self) -> Rc<Vec<Row>> {
+    pub(crate) fn flows_in_progress(&self) -> Rc<Vec<Row>> {
         self.drawing
             .flows
             .get_or_init(|| self.filled(|c| self.app.flows_in_progress_now(c)))
@@ -228,7 +228,7 @@ impl View<'_> {
 
     /// What wallet `w`'s plan is for ([`crate::Faraday::plan_shape_now`]),
     /// once a frame each.
-    pub fn plan_shape(&self, w: usize) -> plan::Shape {
+    pub(crate) fn plan_shape(&self, w: usize) -> plan::Shape {
         if let Some((_, shape)) = self.drawing.shapes.borrow().iter().find(|(k, _)| *k == w) {
             return shape.clone();
         }

@@ -186,7 +186,7 @@ pub fn sheet_box<A: Copy + PartialEq>(
 
 /// [`sheet_box`] centred in a frame `w` by `h` whose left edge is at
 /// `x0`: a sheet over a page that starts right of a sidebar.
-pub fn sheet_box_in<A: Copy + PartialEq>(
+pub(crate) fn sheet_box_in<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (x0, w, h): (f32, f32, f32),
     sw: f32,

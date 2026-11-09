@@ -203,7 +203,7 @@ impl Codex32Make {
     }
 
     /// Whether the tracker has a step `d` (−1 or 1) from the one shown.
-    pub fn track_can(&self, d: i8) -> bool {
+    pub(crate) fn track_can(&self, d: i8) -> bool {
         let (slot, s) = self.track.at;
         let Some(ch) = self.track.chars.get(slot) else {
             return false;
@@ -241,7 +241,7 @@ impl Codex32Make {
     /// roll (`second`) of the character in progress, by dice; none while
     /// no character is left, or characters are typed. A lookup over the
     /// sheet's ten places.
-    pub fn next_roll(&self) -> Option<(u8, bool)> {
+    pub(crate) fn next_roll(&self) -> Option<(u8, bool)> {
         use faraday_entropy::booklet::BOOKLET_DICE;
         if self.way != Way::Dice || self.front().is_none() {
             return None;

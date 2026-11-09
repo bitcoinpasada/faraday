@@ -30,7 +30,7 @@ pub struct BootPick {
 impl Starter {
     /// Whether the stick being made can be written with a boot file the
     /// person signed: a stick, whose boot file is `BOOTX64.EFI`. A lookup.
-    pub fn boot_file_offered(&self) -> bool {
+    pub(crate) fn boot_file_offered(&self) -> bool {
         self.making
             .as_ref()
             .is_some_and(|m| m.target == Target::Stick)
@@ -39,7 +39,7 @@ impl Starter {
 
     /// What to write's boot file: the release's own, or one the person
     /// signed and the shell took. A lookup.
-    pub fn boot_pick(&self) -> Option<&BootPick> {
+    pub(crate) fn boot_pick(&self) -> Option<&BootPick> {
         self.making.as_ref().map(|m| &m.boot)
     }
 

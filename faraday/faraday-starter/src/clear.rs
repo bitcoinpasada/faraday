@@ -21,7 +21,7 @@ pub fn minutes(bytes: u64) -> u64 {
 impl Starter {
     /// Whether What to write offers Clear the whole stick first: a new
     /// stick, not keep data, not a card. A lookup.
-    pub fn clear_first_offered(&self) -> bool {
+    pub(crate) fn clear_first_offered(&self) -> bool {
         self.making
             .as_ref()
             .is_some_and(|m| m.target == Target::Stick && m.mode == Some(Mode::Whole))
@@ -29,7 +29,7 @@ impl Starter {
 
     /// Whether the write clears the stick first: offered and ticked. A
     /// lookup.
-    pub fn clear_first_order(&self) -> bool {
+    pub(crate) fn clear_first_order(&self) -> bool {
         self.clear_first_offered() && self.making.as_ref().is_some_and(|m| m.clear_first)
     }
 

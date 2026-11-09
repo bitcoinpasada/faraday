@@ -203,7 +203,7 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
 pub const SPEND_TXID: &str = "e65b496fcae9385082643e05b11fac9bd90461bf3c940a805052fb78a673561f";
 /// Where every spend pays 0.015 tBTC: the testnet address of BIP-84's
 /// first test key.
-pub const RECIPIENT: &str = "tb1qcr8te4kr609gcawutmrza0j4xv80jy8zmfp6l0";
+pub(crate) const RECIPIENT: &str = "tb1qcr8te4kr609gcawutmrza0j4xv80jy8zmfp6l0";
 /// BIP-341's unspendable internal key, for a wallet that spends only by
 /// script.
 const NUMS: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
@@ -858,7 +858,7 @@ pub fn musig_unsigned_at(index: u32) -> Result<Psbt, String> {
 
 /// [`musig_unsigned`] for `policy`, whose keys are the Taproot accounts
 /// `(seed, account)` of the test seeds, in order.
-pub fn musig_spend(
+pub(crate) fn musig_spend(
     policy: &WalletPolicy,
     accounts: &[(usize, u32)],
     index: u32,
@@ -1687,7 +1687,7 @@ url: http://192.168.1.1\n";
 /// which Faraday's tests and the snapshot tool's sessions take as a
 /// release key beside the ones built in (F134). The `testkit` feature is
 /// never on in a shipped binary (`tools/lint-keys-tests.sh`).
-pub const TEST_RELEASE_KEY: faraday_sb::release::ReleaseKey<'static> =
+pub(crate) const TEST_RELEASE_KEY: faraday_sb::release::ReleaseKey<'static> =
     faraday_sb::release::ReleaseKey {
         certificate: include_bytes!("../../../tools/vectors/release-sums/release-key.asc"),
         fingerprint: [
@@ -1698,11 +1698,11 @@ pub const TEST_RELEASE_KEY: faraday_sb::release::ReleaseKey<'static> =
 
 /// Test release 0.9.0's `SHA256SUMS`, which lists [`test_efi`] as its
 /// boot program, signed by [`TEST_RELEASE_KEY`] in `SHA256SUMS.asc`.
-pub const TEST_RELEASE_SUMS: &[u8] =
+pub(crate) const TEST_RELEASE_SUMS: &[u8] =
     include_bytes!("../../../tools/vectors/release-sums/SHA256SUMS");
 
 /// The detached signature over [`TEST_RELEASE_SUMS`].
-pub const TEST_RELEASE_SIGNATURE: &[u8] =
+pub(crate) const TEST_RELEASE_SIGNATURE: &[u8] =
     include_bytes!("../../../tools/vectors/release-sums/SHA256SUMS.asc");
 
 /// A minimal PE32+ EFI application, for Secure Boot signing: headers and
@@ -2125,13 +2125,6 @@ pub fn secret_out(app: &crate::Faraday) -> Option<&crate::secrets::SecretOut> {
 /// file's name and where it goes, if it is up.
 pub fn plain_asked(app: &crate::Faraday) -> Option<(String, String)> {
     app.secrets.plain().map(|p| (p.name.clone(), p.on.clone()))
-}
-
-/// Opens Create's card `step`, as a press on it does.
-pub fn create_open_card(app: &mut crate::Faraday, step: u8) {
-    if let Some(c) = app.create.state_mut() {
-        c.open = Some(step);
-    }
 }
 
 /// Puts `source` in Create's key slot `slot`.

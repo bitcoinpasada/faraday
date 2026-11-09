@@ -33,7 +33,7 @@ impl Program {
     /// The words the program's `--version` line started with under
     /// earlier names (F16). A file that answers with them is still ours,
     /// so an install made with the old names is found and replaced.
-    pub const fn old_names(self) -> [&'static str; 2] {
+    pub(crate) const fn old_names(self) -> [&'static str; 2] {
         match self {
             Program::StarterApp => [
                 EN.name_faraday_starter_app_old,

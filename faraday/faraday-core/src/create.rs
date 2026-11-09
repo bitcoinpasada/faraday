@@ -109,10 +109,10 @@ impl NewKind {
     /// order shown: Single key backup in shares, the default, then Single
     /// key and Multisig (`docs/CODEX32.md` §6.9, owner 2026-10-24), then
     /// the others behind **More kinds**.
-    pub const CREATE_ROWS: [usize; 10] = [9, 0, 4, 1, 2, 3, 5, 6, 7, 8];
+    pub(crate) const CREATE_ROWS: [usize; 10] = [9, 0, 4, 1, 2, 3, 5, 6, 7, 8];
 
     /// How many of [`NewKind::CREATE_ROWS`] show before **More kinds**.
-    pub const CREATE_FIRST: usize = 3;
+    pub(crate) const CREATE_FIRST: usize = 3;
 
     /// Make a new wallet's Kind rows as shown, by place in
     /// [`NewKind::ALL`]: the first three, or with `more` every one, and
@@ -220,13 +220,13 @@ impl NewKind {
     }
 
     /// Whether every key must sign: MuSig2, n of n.
-    pub fn all_sign(self) -> bool {
+    pub(crate) fn all_sign(self) -> bool {
         self == NewKind::MuSig
     }
 
     /// The most keys a wallet of this kind has: fifteen keys for a
     /// multisig.
-    pub fn max_keys(self) -> usize {
+    pub(crate) fn max_keys(self) -> usize {
         15
     }
 
@@ -261,14 +261,14 @@ impl NewKind {
 
     /// Whether the kind's path has an account to choose: every kind but
     /// `m/45'`.
-    pub fn has_account(self) -> bool {
+    pub(crate) fn has_account(self) -> bool {
         self != NewKind::MultiLegacy
     }
 
     /// The card that carries the kind's Account row (F98): Quorum, at its
     /// foot, for a kind that has one; else Keys, at its head. `None` for
     /// a kind with no account.
-    pub fn account_card(self) -> Option<u8> {
+    pub(crate) fn account_card(self) -> Option<u8> {
         if !self.has_account() {
             return None;
         }
@@ -304,13 +304,18 @@ impl NewKind {
     /// Costs a key derivation. A `wsh` multisig key of session key `i` as
     /// the `ur:crypto-account` SeedSigner shows for one; `None` for any
     /// other kind.
-    pub fn account_ur(self, c: &Compute, keys: &faraday_keys::Keys, i: usize) -> Option<String> {
+    pub(crate) fn account_ur(
+        self,
+        c: &Compute,
+        keys: &faraday_keys::Keys,
+        i: usize,
+    ) -> Option<String> {
         self.account_ur_at(c, keys, i, 0)
     }
 
     /// Costs a key derivation. [`NewKind::account_ur`] at account
     /// `account`.
-    pub fn account_ur_at(
+    pub(crate) fn account_ur_at(
         self,
         c: &Compute,
         keys: &faraday_keys::Keys,
@@ -398,7 +403,7 @@ pub fn path_spec(path: &str) -> Result<faraday_keys::Spec, String> {
 
 /// A derivation path as typed, `m/48'/0'/0'/2'`, `48h/0h/0h/2h` or with
 /// spaces, as `m/48'/0'/0'/2'`; `None` when a step is not a number.
-pub fn normal_path(text: &str) -> Option<String> {
+pub(crate) fn normal_path(text: &str) -> Option<String> {
     let t: String = text.chars().filter(|c| !c.is_whitespace()).collect();
     let t = t.trim_start_matches(['m', 'M']).trim_start_matches('/');
     let mut out = String::from("m");
@@ -452,7 +457,7 @@ impl FromWallet {
     /// xpub at the wallet's own account and kind, which it gives and no
     /// other; left for the cosigner otherwise. `None` for a slot whose
     /// key is held.
-    pub fn xpub_slot(&self, slot: usize, kind: NewKind, account: u32) -> Option<Source> {
+    pub(crate) fn xpub_slot(&self, slot: usize, kind: NewKind, account: u32) -> Option<Source> {
         let text = self.xpubs.get(slot)?.as_ref()?;
         Some(if kind == self.kind && account == self.account {
             Source::Cosigner(text.clone())
@@ -577,7 +582,7 @@ impl Faraday {
 /// for the slot: its path would be a guess. None for Single key, backup
 /// in shares, whose key is made here as codex32 shares, and for the kinds
 /// whose keys are dealt here.
-pub fn key_for_slot(kind: NewKind, text: &str) -> Result<String, String> {
+pub(crate) fn key_for_slot(kind: NewKind, text: &str) -> Result<String, String> {
     let none = || fill(EN.create_scan_no_key, &[kind.name()]);
     if kind.shares() || path_shape(&kind.path(Network::Mainnet)).is_none() {
         return Err(none());
@@ -676,7 +681,7 @@ fn kind_script(kind: NewKind) -> Option<ScriptType> {
 /// account), its path's coin type that of its network. A description of
 /// several keys does not choose one. A lookup over the policy read when
 /// its file came in.
-pub fn key_of_wallet(
+pub(crate) fn key_of_wallet(
     kind: NewKind,
     policy: &WalletPolicy,
     current: Network,
@@ -743,7 +748,7 @@ pub fn build(
 /// (`docs/history/NEW-WALLET.md` §17): the one path when every key has it, else
 /// each key's fingerprint and path. A key that came with no origin
 /// reads as such.
-pub fn paths_text(policy: &WalletPolicy) -> String {
+pub(crate) fn paths_text(policy: &WalletPolicy) -> String {
     let shown = |k: &PolicyKey| match k.path() {
         Some(p) => format!("m/{p}"),
         None => EN.create_path_not_given.to_string(),
@@ -896,7 +901,7 @@ impl CreateState {
     }
 
     /// Closes a slot's passphrase fields, forgetting what was typed.
-    pub fn close_pass(&mut self) {
+    pub(crate) fn close_pass(&mut self) {
         self.pass_slot = None;
         self.pass.clear();
         self.pass2.clear();
@@ -1366,7 +1371,7 @@ impl Faraday {
 
     /// A creation that has keys chosen and is not made yet: Create comes
     /// back to it.
-    pub fn create_unfinished(&self) -> bool {
+    pub(crate) fn create_unfinished(&self) -> bool {
         self.create.state.as_ref().is_some_and(|c| {
             c.built.is_none() && c.slots.iter().any(|s| *s != create::Source::Empty)
         })
@@ -1671,7 +1676,7 @@ impl Faraday {
     /// Whether the key in a Create slot can take a passphrase there: one
     /// loaded here from BIP-39 words without one
     /// (`docs/history/NEW-WALLET.md` §3.6).
-    pub fn create_pass_offered(&self, slot: usize) -> bool {
+    pub(crate) fn create_pass_offered(&self, slot: usize) -> bool {
         let Some(c) = self.create.state.as_ref() else {
             return false;
         };
@@ -1803,7 +1808,7 @@ impl Faraday {
     /// Single key, backup in shares: the scheme its Quorum chose, `(k,
     /// n)`, while the wallet is not made; what its slot opens Make codex32
     /// shares with (`docs/CODEX32.md` §6.9). `None` for any other kind.
-    pub fn create_codex32_scheme(&self) -> Option<(u8, u8)> {
+    pub(crate) fn create_codex32_scheme(&self) -> Option<(u8, u8)> {
         self.create
             .state()
             .filter(|c| c.kind.shares() && c.built.is_none())
@@ -1813,7 +1818,7 @@ impl Faraday {
     /// Make codex32 shares' Lock in for a slot of a backup-in-shares
     /// wallet: the set's facts are kept with the creation, for Check and
     /// for Back up. Called before the slot is filled.
-    pub fn create_codex32_made(&mut self, set: SharesSet) {
+    pub(crate) fn create_codex32_made(&mut self, set: SharesSet) {
         if let Some(c) = self
             .create
             .state

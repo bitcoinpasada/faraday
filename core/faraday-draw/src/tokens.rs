@@ -146,7 +146,7 @@ pub const WORDMARK_STACK_GAP: f32 = 0.3;
 /// same dp size. Only type scales: touch targets, padding and the 8 dp
 /// grid are the same everywhere. [`crate::geom::Scale::for_class`]
 /// applies it.
-pub const fn type_scale_pct(class: SizeClass) -> u16 {
+pub(crate) const fn type_scale_pct(class: SizeClass) -> u16 {
     match class {
         SizeClass::Small => 100,
         SizeClass::Mobile => 110,
@@ -160,7 +160,7 @@ pub const fn type_scale_pct(class: SizeClass) -> u16 {
 /// shares" is wider than that in the ordinary width; the narrow cut is
 /// the same design with the same vertical metrics, so only widths
 /// change.
-pub const fn narrow_text(class: SizeClass) -> bool {
+pub(crate) const fn narrow_text(class: SizeClass) -> bool {
     matches!(class, SizeClass::Small)
 }
 
@@ -195,7 +195,7 @@ pub const RADIUS_SMALL: f32 = SHAPE_S;
 pub const TOUCH: f32 = 48.0;
 /// Minimum touch target on the 2.8-inch's size class, the compact and
 /// short layout (268 × 358 dp): Apple's 44 pt minimum (F188).
-pub const TOUCH_COMPACT_SHORT: f32 = 44.0;
+pub(crate) const TOUCH_COMPACT_SHORT: f32 = 44.0;
 
 /// The touch target's side for `window`: [`TOUCH_COMPACT_SHORT`] on the
 /// compact and short layout, [`TOUCH`] on every other. A lookup.
@@ -239,10 +239,10 @@ pub const SETUP_STEPPER_PAIR_W: f32 = 560.0;
 /// What the card's Continue adds to its label's width.
 pub const SETUP_CONTINUE_PAD: f32 = 36.0;
 /// Primary menu row height: an icon, a label and a chevron.
-pub const MENU_ROW: f32 = 72.0;
+pub(crate) const MENU_ROW: f32 = 72.0;
 /// Menu row height on a `small` panel, where five rows and the app bar
 /// have to share 358 dp.
-pub const MENU_ROW_SMALL: f32 = 52.0;
+pub(crate) const MENU_ROW_SMALL: f32 = 52.0;
 
 /// Menu row height in dp for the size class: 52 on `small`, 72
 /// elsewhere.
@@ -257,7 +257,7 @@ pub const fn menu_row(class: SizeClass) -> f32 {
 ///
 /// One height for every such row, so a list of mixed kinds reads as one
 /// list.
-pub const fn stacked_row(class: SizeClass) -> f32 {
+pub(crate) const fn stacked_row(class: SizeClass) -> f32 {
     match class {
         SizeClass::Small => ROW,
         _ => MENU_ROW,
@@ -301,7 +301,7 @@ pub const FIELD: f32 = 52.0;
 
 /// Letter-key height in dp for the size class: 40 on `small`, 56
 /// elsewhere.
-pub const fn key_height(class: SizeClass) -> f32 {
+pub(crate) const fn key_height(class: SizeClass) -> f32 {
     match class {
         SizeClass::Small => 40.0,
         _ => 56.0,
@@ -310,7 +310,7 @@ pub const fn key_height(class: SizeClass) -> f32 {
 
 /// Gap between key cells in dp. Zero: keys tile the keyboard area with
 /// no dead zones and each paints a face inset from its cell.
-pub const KEY_GAP: f32 = 0.0;
+pub(crate) const KEY_GAP: f32 = 0.0;
 /// Inset in dp from a key's cell to its visible face, left and right.
 pub const KEY_FACE_INSET: f32 = 3.0;
 /// Inset in dp from a key's cell to its visible face, top and bottom.
@@ -323,13 +323,13 @@ pub const KEY_BOTTOM_INSET: f32 = 16.0;
 /// strip the shell reported at the bottom edge, so the keys people see
 /// stand clear of a gesture bar while their hit rectangles still reach
 /// the edge.
-pub fn key_bottom_inset(inset_bottom: f32) -> f32 {
+pub(crate) fn key_bottom_inset(inset_bottom: f32) -> f32 {
     KEY_BOTTOM_INSET + inset_bottom
 }
 
 /// The keyboard region's reserve ([`KEY_BOTTOM_RESERVE`] plus the
 /// shell's bottom inset).
-pub fn key_bottom_reserve(inset_bottom: f32) -> f32 {
+pub(crate) fn key_bottom_reserve(inset_bottom: f32) -> f32 {
     key_bottom_inset(inset_bottom) - KEY_FACE_INSET_Y
 }
 
@@ -342,24 +342,24 @@ pub const CODEX32_KEY_ROW: f32 = TOUCH;
 /// key's hit area, which the keyboard's own insets and the shell's scale
 /// take from the row, still meets [`TOUCH`] on the stick's panel (three
 /// rows of six keys, the digits 0 to F and two controls).
-pub const HEX_KEY_ROW: f32 = TOUCH + GAP;
+pub(crate) const HEX_KEY_ROW: f32 = TOUCH + GAP;
 
 /// Columns every other pad divides its width into: the dice pad's three
 /// faces and the backspace beside them.
-pub const PAD_COLUMNS: f32 = 4.0;
+pub(crate) const PAD_COLUMNS: f32 = 4.0;
 
 /// Width in key units of an edge key that takes a key and a half:
 /// shift, backspace and ✓ at the ends of a letter row.
-pub const KEY_UNITS_EDGE: f32 = 1.5;
+pub(crate) const KEY_UNITS_EDGE: f32 = 1.5;
 /// Width in key units of ✓ where it closes a row of its own: the card
 /// pad's row of suits.
-pub const KEY_UNITS_DONE: f32 = 3.0;
+pub(crate) const KEY_UNITS_DONE: f32 = 3.0;
 /// Width in key units of the passphrase keyboard's space bar.
-pub const KEY_UNITS_SPACE: f32 = 6.0;
+pub(crate) const KEY_UNITS_SPACE: f32 = 6.0;
 
 /// Columns of the kana grid: the ten consonant groups of the 五十音
 /// (`docs/DESIGN.md` §4.3).
-pub const KANA_COLUMNS: usize = 10;
+pub(crate) const KANA_COLUMNS: usize = 10;
 
 /// Cells in one row of candidates on a list whose words are one
 /// character — the two Chinese lists, looked up by a Mandarin reading.
@@ -382,7 +382,7 @@ pub const CANDIDATE_ROWS_HANZI: usize = 2;
 ///
 /// `one_char` is that list: a Chinese one, whose words are single
 /// characters and whose strip is [`CANDIDATE_CELLS_HANZI`] wide.
-pub const fn candidate_rows(class: SizeClass, one_char: bool) -> usize {
+pub(crate) const fn candidate_rows(class: SizeClass, one_char: bool) -> usize {
     if one_char {
         return CANDIDATE_ROWS_HANZI;
     }
@@ -393,7 +393,7 @@ pub const fn candidate_rows(class: SizeClass, one_char: bool) -> usize {
 }
 
 /// Candidates in one row.
-pub const fn candidates_per_row(class: SizeClass, one_char: bool) -> usize {
+pub(crate) const fn candidates_per_row(class: SizeClass, one_char: bool) -> usize {
     if one_char {
         return CANDIDATE_CELLS_HANZI;
     }
@@ -840,19 +840,19 @@ pub const GUIDE_BAR: f32 = 3.0;
 pub const WINDOW_MEDIUM: f32 = 600.0;
 
 /// A window this wide or wider is expanded.
-pub const WINDOW_EXPANDED: f32 = 840.0;
+pub(crate) const WINDOW_EXPANDED: f32 = 840.0;
 
 /// A window this wide or wider is large.
-pub const WINDOW_LARGE: f32 = 1200.0;
+pub(crate) const WINDOW_LARGE: f32 = 1200.0;
 
 /// A window this wide or wider is extra-large.
-pub const WINDOW_EXTRA_LARGE: f32 = 1600.0;
+pub(crate) const WINDOW_EXTRA_LARGE: f32 = 1600.0;
 
 /// A window less tall than this is short (the Pi panel).
-pub const WINDOW_SHORT: f32 = 480.0;
+pub(crate) const WINDOW_SHORT: f32 = 480.0;
 
 /// A window less tall than this is low (a 7-inch panel).
-pub const WINDOW_LOW: f32 = 600.0;
+pub(crate) const WINDOW_LOW: f32 = 600.0;
 
 /// The window assumed before a shell has said what its display is: the
 /// desktop window's default, 1280 × 800 dp.
@@ -1696,7 +1696,7 @@ pub const SHEET_FOLLOW_ENTRY_MAX: f32 = 0.9;
 /// One layer of a Material 3 elevation shadow, in dp: how far it falls
 /// below what floats, its blur radius and how far it grows past it.
 #[derive(Clone, Copy)]
-pub struct ElevationLayer {
+pub(crate) struct ElevationLayer {
     /// Dp below what floats.
     pub y: f32,
     /// Blur radius in dp.
@@ -1711,7 +1711,7 @@ const fn layer(y: f32, blur: f32, spread: f32) -> ElevationLayer {
 
 /// The key layer of elevation levels 1 to 5 (Material Web's
 /// `elevation/internal/_elevation.scss`).
-pub const ELEVATION_KEY: [ElevationLayer; 5] = [
+pub(crate) const ELEVATION_KEY: [ElevationLayer; 5] = [
     layer(1.0, 2.0, 0.0),
     layer(1.0, 2.0, 0.0),
     layer(1.0, 3.0, 0.0),
@@ -1719,7 +1719,7 @@ pub const ELEVATION_KEY: [ElevationLayer; 5] = [
     layer(4.0, 4.0, 0.0),
 ];
 /// The ambient layer of elevation levels 1 to 5.
-pub const ELEVATION_AMBIENT: [ElevationLayer; 5] = [
+pub(crate) const ELEVATION_AMBIENT: [ElevationLayer; 5] = [
     layer(1.0, 3.0, 1.0),
     layer(2.0, 6.0, 2.0),
     layer(4.0, 8.0, 3.0),
@@ -1730,9 +1730,9 @@ pub const ELEVATION_AMBIENT: [ElevationLayer; 5] = [
 /// ambient layer of the highest level, blurred and moved down.
 pub const SHADOW_REACH: f32 = 24.0;
 /// Opacity (of 255) of the key layer: 30% black.
-pub const ELEVATION_KEY_OPACITY: u8 = 77;
+pub(crate) const ELEVATION_KEY_OPACITY: u8 = 77;
 /// Opacity (of 255) of the ambient layer: 15% black.
-pub const ELEVATION_AMBIENT_OPACITY: u8 = 38;
+pub(crate) const ELEVATION_AMBIENT_OPACITY: u8 = 38;
 /// Elevation level of a sheet, a raised card and a board chip.
 pub const ELEVATION_SHEET: u8 = 1;
 /// Elevation level of a menu.
@@ -1847,7 +1847,7 @@ pub const STATE_FOCUS: f32 = 0.10;
 /// A state layer's opacity while a control is pressed.
 pub const STATE_PRESS: f32 = 0.10;
 /// A state layer's opacity while a thing is dragged.
-pub const STATE_DRAG: f32 = 0.16;
+pub(crate) const STATE_DRAG: f32 = 0.16;
 /// The codex32 pad's key of the roll shown (owner, 2026-10-25): over its
 /// pressed state layer, a layer this much stronger as the roll is shown,
 /// easing away over `PRESS_EMPHASIS_MS`; its outline `CODEX32_FRONT_STROKE`
@@ -2034,7 +2034,7 @@ pub const MOTION_EXTRA_LONG2: u64 = 800;
 /// Extra-long 3.
 pub const MOTION_EXTRA_LONG3: u64 = 900;
 /// Extra-long 4.
-pub const MOTION_EXTRA_LONG4: u64 = 1000;
+pub(crate) const MOTION_EXTRA_LONG4: u64 = 1000;
 
 /// An easing curve: a cubic Bézier's two control points, x1, y1, x2,
 /// y2, from (0, 0) to (1, 1), as CSS writes one.

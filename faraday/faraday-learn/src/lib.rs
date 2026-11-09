@@ -369,8 +369,3 @@ pub fn vaults_page() -> &'static LearnPage {
 pub fn secure_boot_keys_page() -> &'static LearnPage {
     known("secure-boot-keys")
 }
-
-/// "Checking what is written".
-pub fn checking_written_page() -> &'static LearnPage {
-    known("checking-written")
-}

@@ -19,7 +19,7 @@ use crate::macs;
 const S: &Strings = &EN;
 
 /// The sheet's file name, in the system's temporary folder.
-pub const FILE_NAME: &str = "faraday-start-from-the-stick.pdf";
+pub(crate) const FILE_NAME: &str = "faraday-start-from-the-stick.pdf";
 
 /// One thing to write down: its label, and its value, `None` when this
 /// computer's maker has no page (a line to write on).
@@ -93,7 +93,7 @@ fn rank(key: &str) -> u32 {
 /// The keys to circle: `own`'s first (this maker's phrase, when its maker
 /// has a page), then every key of `all` (the table's phrases) not yet
 /// named, in the fixed order.
-pub fn circle_keys(own: Option<&'static str>, all: &[&'static str]) -> Vec<&'static str> {
+pub(crate) fn circle_keys(own: Option<&'static str>, all: &[&'static str]) -> Vec<&'static str> {
     let mut out: Vec<&'static str> = own.map(keys_of).unwrap_or_default();
     let mut rest: Vec<&'static str> = Vec::new();
     for phrase in all {
@@ -124,7 +124,7 @@ pub struct Notes {
 
 /// The line for a Secure Boot setting that cannot be found, for the
 /// system this computer runs.
-pub fn not_found(os: Os) -> &'static str {
+pub(crate) fn not_found(os: Os) -> &'static str {
     if os == Os::Windows {
         S.starter_not_found_windows
     } else {
