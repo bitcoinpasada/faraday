@@ -18,6 +18,7 @@ passphrase`, at a low cost, Argon2 with 8 MiB of memory, 2 passes and 2 lanes.
 | `pykeepass-twofish-argon2d-gzip.kdbx` | Twofish | Argon2d | gzip | 4.0 (refused) |
 | `pykeepass-chacha20-argon2id-plain-large.kdbx` | ChaCha20 | Argon2id | none | 4.0, one 1.2 MiB attachment (`attachment.bin`, SHAKE-256 of `kdbx vector attachment`): the stream has more than one block |
 | `pykeepass-chacha20-argon2id-plain-history.kdbx` | ChaCha20 | Argon2id | none | 4.0, the entry's earlier password in its history and a second entry in the recycle bin |
+| `pykeepass-chacha20-argon2id-gzip-nearly-full.kdbx` | ChaCha20 | Argon2id | gzip | 4.0, one attachment (`disk.img`) of 128 MiB less 64 KiB of zeros, so the contents sit 64 KiB under the vault's largest (`faraday_vault::file::CEILING`) in about 130 KiB on disk: the test that a seal past the ceiling is refused opens it |
 | `keepassxc-2.7-aes-argon2d-gzip-edited.kdbx` | AES-256 | Argon2d | gzip | 4.0, as KeePassXC 2.7.12 saved it after an edit: the `Example` entry's password changed twice (`hunter4`, with three earlier versions in its history), its `note.txt` attachment (`public attachment`), a group `Second` holding an entry `Other` (user `bob`, password `secret5`), and the database's custom data (`KPXC_DECRYPTION_TIME_PREFERENCE`, `KPXC_RANDOM_SLUG`, `_LAST_MODIFIED`); on `Example`, a tag (`sample`), icon number 5 and an item of custom data (`my.note`), set with pykeepass before `keepassxc-cli` saved the file, which kept all three |
 | `keepassxc-3.1-aeskdf.kdbx` | AES-256 | AES-KDF | gzip | 3.1 (refused) |
 

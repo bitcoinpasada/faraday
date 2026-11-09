@@ -144,38 +144,15 @@ fn a_new_vault_is_one_step_and_the_largest_has_the_length_the_spec_gives() {
     assert!(!facts.other_settings());
 }
 
-/// A vault whose one attachment, zeros, leaves `room` bytes under the
-/// ceiling for the document and everything else.
-fn nearly_full(room: usize) -> Vec<u8> {
-    let mut doc = Document::new([9; 16], "Full");
-    items::stamp(&mut doc, 1, None).unwrap();
-    let random = random(3);
-    let text = String::from_utf8(doc.write(kdbx::inner_key_of(&random)).to_vec()).unwrap();
-    // An entry refers to the attachment: one nothing refers to is dropped
-    // at a seal.
-    let entry = "<Entry><UUID>AQEBAQEBAQEBAQEBAQEBAQ==</UUID><String><Key>Title</Key>\
-        <Value>Disk image</Value></String><Binary><Key>image</Key><Value Ref=\"0\"/></Binary></Entry>";
-    let text = text.replace("</Group></Root>", &format!("{entry}</Group></Root>"));
-    let xml = text.as_bytes();
-    let zeros = kdbx::Binary {
-        protected: false,
-        data: kdbx::Shared::new(zeroize::Zeroizing::new(vec![0u8; CEILING - room])),
-    };
-    let binaries = kdbx::Binaries::all(std::slice::from_ref(&zeros));
-    let size = kdbx::plain_needs(&binaries, xml.len()).div_ceil(STEP) * STEP;
-    let contents = kdbx::Contents {
-        document: xml,
-        binaries,
-        public_custom_data: None,
-    };
-    kdbx::seal(&compute(), PASSPHRASE, CHEAP, &random, &contents, size).unwrap()
-}
-
 #[test]
 fn contents_past_the_largest_vault_are_refused_by_the_bytes_over_and_the_vault_stays_open() {
-    // One attachment of about 128 MiB, and three notes that do not fit in
-    // the 64 KiB left.
-    let o = open(&nearly_full(64 * 1024), PASSPHRASE);
+    // One attachment of zeros, 64 KiB under the ceiling (a gzip-compressed
+    // file pykeepass wrote), and three notes that do not fit in the room
+    // left.
+    let o = open(
+        &vector("pykeepass-chacha20-argon2id-gzip-nearly-full.kdbx"),
+        PASSPHRASE,
+    );
     let held = notes(3);
     let changes = puts(&held);
     let rekey = file::Rekey {

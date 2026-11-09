@@ -33,7 +33,12 @@ def attachment():
     return hashlib.shake_256(b"kdbx vector attachment").digest(ATTACHMENT_LEN)
 
 
-def make(path, cipher="aes256", argon2id=False, gzip=True, minor=0, attach=False, trash=False):
+# The nearly full file's attachment: zeros, the vault's largest plaintext
+# (128 MiB) less 64 KiB for the document and everything else.
+NEARLY_FULL_LEN = 128 * 1024 * 1024 - 64 * 1024
+
+
+def make(path, cipher="aes256", argon2id=False, gzip=True, minor=0, attach=False, trash=False, zeros=False):
     kp = create_database(path, password=PASSPHRASE)
     if trash:
         # An entry with a history (its earlier password is protected too)
@@ -47,6 +52,8 @@ def make(path, cipher="aes256", argon2id=False, gzip=True, minor=0, attach=False
         entry = kp.add_entry(kp.root_group, "Example", "alice", "hunter2", url="https://example.org/")
     if attach:
         entry.add_attachment(kp.add_binary(attachment()), "attachment.bin")
+    if zeros:
+        entry.add_attachment(kp.add_binary(bytes(NEARLY_FULL_LEN)), "disk.img")
     header = kp.kdbx.header.value
     dyn = header.dynamic_header
     dyn.cipher_id.data = cipher
@@ -155,6 +162,7 @@ def main():
             "chacha20-argon2id-plain-history",
             {"cipher": "chacha20", "argon2id": True, "gzip": False, "trash": True},
         ),
+        ("chacha20-argon2id-gzip-nearly-full", {"cipher": "chacha20", "argon2id": True, "zeros": True}),
     ]:
         if only and name not in only:
             continue
