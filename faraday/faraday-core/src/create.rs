@@ -482,8 +482,9 @@ impl FromWallet {
     /// What slot `slot` holds while the creation is a `kind` wallet at
     /// `account`, when the wallet's key there is a cosigner's xpub: that
     /// xpub at the wallet's own account, kind and path choice (`bip87`,
-    /// BIP-87's or the kind's own), which it gives and no other; left for
-    /// the cosigner otherwise. `None` for a slot whose key is held.
+    /// BIP-87's or the kind's own), which it gives and no other, and only
+    /// when the xpub's own origin is at that path; left for the cosigner
+    /// otherwise. `None` for a slot whose key is held.
     pub(crate) fn xpub_slot(
         &self,
         slot: usize,
@@ -493,7 +494,11 @@ impl FromWallet {
     ) -> Option<Source> {
         let text = self.xpubs.get(slot)?.as_ref()?;
         Some(
-            if kind == self.kind && account == self.account && bip87 == self.bip87 {
+            if kind == self.kind
+                && account == self.account
+                && bip87 == self.bip87
+                && at_kind(kind, text, bip87)
+            {
                 Source::Cosigner(text.clone())
             } else {
                 Source::Later
@@ -1068,6 +1073,16 @@ impl CreateArea {
                     let n = if c.kind.multi() { c.n } else { 1 };
                     c.slots.resize(n, create::Source::Empty);
                     c.slots.truncate(n);
+                    // A cosigner's key at the old kind's path no longer
+                    // fits the new one: its slot is emptied, as when the
+                    // path choice flips.
+                    let kind = c.kind;
+                    for s in &mut c.slots {
+                        if matches!(s, create::Source::Cosigner(t) if !create::at_kind(kind, t, false))
+                        {
+                            *s = create::Source::Empty;
+                        }
+                    }
                 }
             }
             Action::CMoreKinds => {

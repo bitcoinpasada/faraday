@@ -1173,3 +1173,25 @@ fn a_cosigner_key_at_m_87_is_taken_only_when_bip_87_is_chosen_and_the_kinds_path
     );
     assert!(key_for_slot(NewKind::Multi, true, &at_48).is_err());
 }
+
+#[test]
+fn changing_the_kind_empties_a_cosigners_slot_whose_key_is_not_at_the_new_kinds_path() {
+    use faraday_core::create::Source;
+    let mut app = testkit::started();
+    let (i, pos) = shared_at(&mut app, "m/87'/1'/0'");
+    let xpub = app.session.wallets[i].policy().keys()[pos].key_text();
+    app.press(Action::NewWalletFrom(i));
+    app.press(Action::CAccount(-1));
+    assert_eq!(
+        app.create().unwrap().slots[pos],
+        Source::Cosigner(xpub.clone())
+    );
+    let nested = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::MultiNested)
+        .unwrap();
+    app.press(Action::CKind(nested as u8));
+    let c = app.create().unwrap();
+    assert!(!c.bip87, "the new kind starts at its own path");
+    assert_ne!(c.slots[pos], Source::Cosigner(xpub));
+}
