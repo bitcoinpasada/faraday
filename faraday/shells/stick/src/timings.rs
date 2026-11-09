@@ -178,6 +178,9 @@ pub struct Timings {
     /// The costly work since the last block, a row for each kind of it
     /// that came, in the order they first came (`costly.rs`).
     work: Vec<(String, Tally)>,
+    /// The files written in pieces and not yet finished: stick, name and
+    /// when the write was taken on (`costly.rs`). Kept in memory only.
+    pieced: Vec<(String, String, Instant)>,
     passes: u64,
     touches: u64,
     /// Passes that drew, by the frame grid's step after them: one frame
@@ -254,6 +257,7 @@ impl Timings {
         Timings {
             tallies: [Tally::default(); NAMES.len()],
             work: Vec::new(),
+            pieced: Vec::new(),
             passes: 0,
             touches: 0,
             steps: [0; STEPS],
@@ -461,6 +465,21 @@ impl Timings {
             );
             self.slowest = Some((total, total.saturating_sub(self.explained), what));
         }
+    }
+
+    /// A file written in pieces is taken on at `at`.
+    pub fn pieced_started(&mut self, stick: &str, name: &str, at: Instant) {
+        self.pieced.push((stick.to_owned(), name.to_owned(), at));
+    }
+
+    /// The time since the oldest write in pieces of this file was taken
+    /// on, and it is forgotten; `None` when none was.
+    pub fn pieced_ended(&mut self, stick: &str, name: &str) -> Option<Duration> {
+        let i = self
+            .pieced
+            .iter()
+            .position(|(s, n, _)| s == stick && n == name)?;
+        Some(self.pieced.remove(i).2.elapsed())
     }
 
     /// Records one piece of costly work on the row called `row`.

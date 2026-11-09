@@ -161,11 +161,35 @@ impl Sticks for Timed<'_> {
         &mut self,
         transfer: faraday_storage::Transfer,
     ) -> Result<(), faraday_storage::Transfer> {
-        self.sticks.transfer_later(transfer)
+        let written = match &transfer {
+            faraday_storage::Transfer::Write { stick, name, .. } => {
+                Some((stick.clone(), name.clone()))
+            }
+            faraday_storage::Transfer::Read { .. } => None,
+        };
+        let taken = self.sticks.transfer_later(transfer);
+        // A file written in pieces is timed from here to its last piece,
+        // as one file written (`transferred`).
+        if let (Ok(()), Some((stick, name)), Some(t)) =
+            (&taken, written, self.timings.as_deref_mut())
+        {
+            t.pieced_started(&stick, &name, Instant::now());
+        }
+        taken
     }
 
     fn transferred(&mut self) -> Vec<faraday_storage::Transferred> {
-        self.sticks.transferred()
+        let done = self.sticks.transferred();
+        if let Some(t) = self.timings.as_deref_mut() {
+            for d in &done {
+                if let faraday_storage::Transferred::Write { stick, name, .. } = d
+                    && let Some(took) = t.pieced_ended(stick, name)
+                {
+                    t.work(FILE_WRITTEN, took);
+                }
+            }
+        }
+        done
     }
 
     fn hash_later(&mut self, stick: &str, name: &str) -> bool {
