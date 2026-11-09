@@ -1,0 +1,14 @@
+[package]
+name = "faraday-camera"
+version = "0.1.0"
+description = "What the camera shells share: the captured frame, the NV12 plane copy and the shrink, and the sysfs list of Linux cameras. No unsafe code"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+
+[lints]
+workspace = true

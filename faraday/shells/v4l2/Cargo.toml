@@ -11,6 +11,7 @@ publish = false
 # One dependency, for the libc declarations the ioctls need. Everything
 # V4L2 is declared in src/abi.rs.
 [dependencies]
+faraday-camera = { path = "../camera" }
 libc.workspace = true
 
 # The workspace lints are deliberately NOT inherited: this crate is the

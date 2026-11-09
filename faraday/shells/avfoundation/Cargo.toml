@@ -11,9 +11,10 @@ publish = false
 # No dependencies at all: the capture is `src/camera.m`, and the three
 # functions it exports are declared in src/lib.rs.
 [dependencies]
+faraday-camera = { path = "../camera" }
 
 # `cc` compiles src/camera.m, and only on macOS; on every other target
-# this crate is its documentation and the frame conversion, with no build
+# this crate is its documentation and the frame call, with no build
 # step at all (docs/deps/cc.md).
 [target.'cfg(target_os = "macos")'.build-dependencies]
 cc = { workspace = true }

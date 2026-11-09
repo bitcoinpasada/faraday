@@ -20,6 +20,7 @@ faraday-core = { path = "../../faraday-core" }
 # from (docs/STICK-IDENTITY.md §5.2); std alone.
 faraday-boot = { path = "../../faraday-boot" }
 faraday-storage = { path = "../../faraday-storage" }
+faraday-camera = { path = "../camera" }
 faraday-v4l2 = { path = "../../../faraday/shells/v4l2" }
 faraday-scanner = { path = "../../faraday-scanner" }
 zeroize = { workspace = true, features = ["alloc"] }

@@ -52,57 +52,35 @@
 //! [`Message::Unavailable`] if there is no camera or no permission, and
 //! a [`Message::Frame`] otherwise.
 
-pub mod convert;
+pub use faraday_camera::{Failure, Frame};
 
-/// One captured frame: 8-bit luma, row-major, `width × height` bytes,
-/// and the NV12 chroma plane for it, which is exactly the payload of
-/// `faraday_shell_api::Event::CameraFrame`.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Frame {
-    /// Frame width in pixels.
-    pub width: u16,
-    /// Frame height in pixels.
-    pub height: u16,
-    /// The pixels, black 0 to white 255.
-    pub luma: Vec<u8>,
-    /// `⌈width / 2⌉ × ⌈height / 2⌉` pairs of interleaved Cb and Cr, or
-    /// `None` when the device gave no second plane.
-    pub chroma: Option<Vec<u8>>,
-}
+/// The widest frame we hand the core. Above this a frame is shrunk by an
+/// integer factor: `rqrr` needs no more than about 640 pixels across to
+/// find a code in a reduced copy, but a dense one needs the camera's own
+/// pixels, and the desktop shells ask for 1280 × 720, which passes
+/// whole. Faraday raised this from 800 to 1280.
+pub const MAX_WIDTH: usize = 1280;
 
-impl Frame {
-    /// Copies a buffer's two planes into a frame: the `stride` the
-    /// device lays each one's rows out at is honoured, and a frame wider
-    /// than 1280 pixels is shrunk by an integer factor.
-    ///
-    /// `chroma` is plane 1 and its own bytes per row; the bi-planar
-    /// video-range format the session asks for lays it out as the
-    /// interleaved pairs the core takes. `None`, or a plane shorter than
-    /// the rows it claims, leaves the preview grey.
-    ///
-    /// `None` when the luma plane is shorter than the rows it claims, or
-    /// when the result would not fit a `u16`.
-    #[must_use]
-    pub fn from_plane(
-        plane: &[u8],
-        width: usize,
-        height: usize,
-        stride: usize,
-        chroma: Option<(&[u8], usize)>,
-    ) -> Option<Frame> {
-        let luma = convert::luma(plane, width, height, stride)?;
-        let factor = convert::scale_factor(width);
-        let uv = chroma
-            .and_then(|(plane, stride)| convert::chroma(plane, width, height, stride))
-            .map(|uv| convert::downscale_chroma(uv, width, height, factor));
-        let (width, height, luma) = convert::downscale(luma, width, height, factor);
-        Some(Frame {
-            width: u16::try_from(width).ok()?,
-            height: u16::try_from(height).ok()?,
-            luma,
-            chroma: uv,
-        })
-    }
+/// Copies a buffer's two planes into a frame: the `stride` the device
+/// lays each one's rows out at is honoured, and a frame wider than
+/// [`MAX_WIDTH`] pixels is shrunk by an integer factor.
+///
+/// `chroma` is plane 1 and its own bytes per row; the bi-planar
+/// video-range format the session asks for lays it out as the
+/// interleaved pairs the core takes. `None`, or a plane shorter than
+/// the rows it claims, leaves the preview grey.
+///
+/// `None` when the luma plane is shorter than the rows it claims, or
+/// when the result would not fit a `u16`.
+#[must_use]
+pub fn from_plane(
+    plane: &[u8],
+    width: usize,
+    height: usize,
+    stride: usize,
+    chroma: Option<(&[u8], usize)>,
+) -> Option<Frame> {
+    Frame::from_nv12(plane, width, height, stride, chroma, MAX_WIDTH)
 }
 
 /// A video capture device, as the scan sheet offers it.
@@ -124,30 +102,16 @@ pub enum Message {
     Unavailable(Option<Failure>),
 }
 
-/// Why a camera gave no frames, when it is clearly one of three things.
-/// The Windows crate uses the same type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Failure {
-    /// Camera access is denied or restricted, or the person said no.
-    Refused,
-    /// Another app holds the camera.
-    InUse,
-    /// There is no camera, or the one asked for is gone.
-    NotFound,
-}
-
-impl Failure {
-    /// The reason in the state code `src/camera.m` reports: 2 is
-    /// refused, 3 no device, 4 in use by another app. Any other code
-    /// (0, "could not start") has no reason.
-    #[must_use]
-    pub fn of_state(code: i32) -> Option<Failure> {
-        match code {
-            2 => Some(Failure::Refused),
-            3 => Some(Failure::NotFound),
-            4 => Some(Failure::InUse),
-            _ => None,
-        }
+/// The reason in the state code `src/camera.m` reports: 2 is refused, 3
+/// no device, 4 in use by another app. Any other code (0, "could not
+/// start") has no reason.
+#[must_use]
+pub fn failure_of_state(code: i32) -> Option<Failure> {
+    match code {
+        2 => Some(Failure::Refused),
+        3 => Some(Failure::NotFound),
+        4 => Some(Failure::InUse),
+        _ => None,
     }
 }
 
@@ -169,7 +133,7 @@ mod macos {
     use std::sync::mpsc::SyncSender;
     use std::time::{Duration, Instant};
 
-    use crate::{Device, Failure, Frame, MAX_FPS, Message};
+    use crate::{Device, MAX_FPS, Message, failure_of_state, from_plane};
 
     /// The C ABI of `src/camera.m`, which declares the same two
     /// signatures in its header comment.
@@ -324,7 +288,7 @@ mod macos {
         // `y` are readable and no Rust reference aliases them.
         let plane = unsafe { std::slice::from_raw_parts(y, len) };
         let uv_stride = uv_stride as usize;
-        let (cw, ch) = crate::convert::chroma_size(width, height);
+        let (cw, ch) = faraday_camera::scale::chroma_size(width, height);
         let chroma = (!uv.is_null() && uv_stride >= cw * 2).then(|| {
             let len = uv_stride * (ch - 1) + cw * 2;
             // SAFETY: plane 1 of the same locked buffer holds `ch` rows
@@ -332,7 +296,7 @@ mod macos {
             // readable for this call and nothing aliases them.
             (unsafe { std::slice::from_raw_parts(uv, len) }, uv_stride)
         });
-        let Some(frame) = Frame::from_plane(plane, width, height, stride, chroma) else {
+        let Some(frame) = from_plane(plane, width, height, stride, chroma) else {
             return;
         };
         // A full channel means the shell is still on the last frame;
@@ -361,7 +325,7 @@ mod macos {
         if state != 1 && !shared.stopped.load(Ordering::Relaxed) {
             let _ = shared
                 .tx
-                .try_send(Message::Unavailable(Failure::of_state(state)));
+                .try_send(Message::Unavailable(failure_of_state(state)));
         }
     }
 
@@ -439,8 +403,7 @@ mod tests {
         // Plane 1 is 2 x 2 pairs at a stride of 6: two bytes of padding
         // a row there too.
         let uv: Vec<u8> = vec![10, 20, 11, 21, 0, 0, 12, 22, 13, 23, 0, 0];
-        let frame =
-            Frame::from_plane(&plane, 4, 3, 6, Some((&uv, 6))).expect("the plane is long enough");
+        let frame = from_plane(&plane, 4, 3, 6, Some((&uv, 6))).expect("the plane is long enough");
         assert_eq!(frame.width, 4);
         assert_eq!(frame.height, 3);
         assert_eq!(frame.luma, vec![0, 1, 2, 3, 6, 7, 8, 9, 12, 13, 14, 15]);
@@ -452,8 +415,8 @@ mod tests {
         // A plane one byte short of its last row is refused rather than
         // guessed at; a short chroma plane leaves the preview grey
         // rather than refusing the frame.
-        assert_eq!(Frame::from_plane(&plane[..15], 4, 3, 6, None), None);
-        let frame = Frame::from_plane(&plane, 4, 3, 6, Some((&uv[..6], 6))).expect("long enough");
+        assert_eq!(from_plane(&plane[..15], 4, 3, 6, None), None);
+        let frame = from_plane(&plane, 4, 3, 6, Some((&uv[..6], 6))).expect("long enough");
         assert_eq!(frame.chroma, None);
     }
 
@@ -461,11 +424,11 @@ mod tests {
     /// person is told; a plain failure has none.
     #[test]
     fn state_codes_give_the_reason() {
-        assert_eq!(Failure::of_state(2), Some(Failure::Refused));
-        assert_eq!(Failure::of_state(3), Some(Failure::NotFound));
-        assert_eq!(Failure::of_state(4), Some(Failure::InUse));
-        assert_eq!(Failure::of_state(0), None);
-        assert_eq!(Failure::of_state(1), None);
+        assert_eq!(failure_of_state(2), Some(Failure::Refused));
+        assert_eq!(failure_of_state(3), Some(Failure::NotFound));
+        assert_eq!(failure_of_state(4), Some(Failure::InUse));
+        assert_eq!(failure_of_state(0), None);
+        assert_eq!(failure_of_state(1), None);
     }
 
     /// A 2560 × 1440 plane comes back halved: 2560 needs a factor of two
@@ -480,7 +443,7 @@ mod tests {
             let value = (y % 256) as u8;
             plane[y * stride..y * stride + width].fill(value);
         }
-        let frame = Frame::from_plane(&plane, width, height, stride, None).expect("long enough");
+        let frame = from_plane(&plane, width, height, stride, None).expect("long enough");
         assert_eq!(frame.width, 1280);
         assert_eq!(frame.height, 720);
         assert_eq!(frame.luma.len(), 1280 * 720);
@@ -499,7 +462,7 @@ mod tests {
             }
         }
         let frame =
-            Frame::from_plane(&plane, width, height, stride, Some((&uv, uv_stride))).expect("long");
+            from_plane(&plane, width, height, stride, Some((&uv, uv_stride))).expect("long");
         let chroma = frame.chroma.expect("the plane was given");
         assert_eq!(chroma.len(), 640 * 360 * 2);
         // Output pair 0 averages rows 0 and 1 and columns 0 and 1.
@@ -507,7 +470,7 @@ mod tests {
         assert_eq!((chroma[2], chroma[3]), (0, 2));
         // A 640 × 480 frame is untouched.
         let small = vec![7u8; 640 * 480];
-        let frame = Frame::from_plane(&small, 640, 480, 640, None).expect("long enough");
+        let frame = from_plane(&small, 640, 480, 640, None).expect("long enough");
         assert_eq!((frame.width, frame.height), (640, 480));
     }
 }

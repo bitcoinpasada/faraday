@@ -9,11 +9,10 @@ repository.workspace = true
 publish = false
 
 # The capture is `src/camera.c`, and the two functions it exports are
-# declared in src/lib.rs. The NV12 conversion is faraday-avfoundation's
-# `convert` module, which builds on every platform (on Windows that crate
-# is the conversion alone).
+# declared in src/lib.rs. The frame, the NV12 conversion and the shrink are
+# `faraday-camera`'s, safe code shared with the macOS and Linux shells.
 [dependencies]
-faraday-avfoundation = { path = "../../../faraday/shells/avfoundation" }
+faraday-camera = { path = "../camera" }
 
 # `cc` compiles src/camera.c, and only when the target is Windows. It is
 # a build dependency on every target because the build script runs on

@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 faraday-core = { path = "../../faraday-core" }
+faraday-camera = { path = "../camera" }
 faraday-scanner = { path = "../../faraday-scanner" }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 winit.workspace = true

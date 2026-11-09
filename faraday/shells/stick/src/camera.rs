@@ -520,34 +520,7 @@ fn prepare(frame: Frame) -> Queued {
 /// the capture node without opening any of them. The name is the one the
 /// device gives.
 pub fn list() -> Vec<(String, String)> {
-    let mut out: Vec<(u32, String, String)> = Vec::new();
-    let Ok(dir) = std::fs::read_dir("/sys/class/video4linux") else {
-        return Vec::new();
-    };
-    for e in dir.flatten() {
-        let node = e.file_name().to_string_lossy().into_owned();
-        let Some(n) = node
-            .strip_prefix("video")
-            .and_then(|n| n.parse::<u32>().ok())
-        else {
-            continue;
-        };
-        let read = |f: &str| {
-            std::fs::read_to_string(e.path().join(f))
-                .map(|s| s.trim().to_string())
-                .unwrap_or_default()
-        };
-        if read("index").parse::<u32>().unwrap_or(0) != 0 {
-            continue;
-        }
-        let name = match read("name") {
-            n if n.is_empty() => node.clone(),
-            n => n,
-        };
-        out.push((n, format!("/dev/{node}"), name));
-    }
-    out.sort();
-    out.into_iter().map(|(_, p, n)| (p, n)).collect()
+    faraday_camera::list()
 }
 
 #[cfg(test)]

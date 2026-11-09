@@ -10,6 +10,7 @@ members = [
     "core/faraday-backup",
     "core/faraday-selftest",
     "core/faraday-draw",
+    "faraday/shells/camera",
     "faraday/shells/v4l2",
     "faraday/shells/avfoundation",
     "tools/fontbake",

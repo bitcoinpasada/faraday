@@ -125,21 +125,7 @@ impl Size {
     };
 }
 
-/// One captured frame: 8-bit luma, row-major, `width × height` bytes,
-/// and the NV12 chroma plane for it where the device gave colour, which
-/// is exactly the payload of `faraday_shell_api::Event::CameraFrame`.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Frame {
-    /// Frame width in pixels.
-    pub width: u16,
-    /// Frame height in pixels.
-    pub height: u16,
-    /// The pixels, black 0 to white 255.
-    pub luma: Vec<u8>,
-    /// `⌈width / 2⌉ × ⌈height / 2⌉` pairs of interleaved U and V, or
-    /// `None` from a `GREY` device.
-    pub chroma: Option<Vec<u8>>,
-}
+pub use faraday_camera::Frame;
 
 /// The first `/dev/videoN` that is a video capture node, can stream, and
 /// accepts one of the four pixel formats we read, preferring one that
@@ -355,7 +341,7 @@ impl Camera {
             width,
             height,
             stride,
-            factor: convert::scale_factor(width),
+            factor: faraday_camera::scale::scale_factor(width, convert::MAX_WIDTH),
             max_fps: MAX_FPS,
             buffers: Vec::new(),
             streaming: false,
@@ -449,9 +435,12 @@ impl Camera {
     /// buffer, both shrunk to at most 1280 pixels across.
     fn convert(&self, bytes: &[u8]) -> Option<Frame> {
         let luma = convert::luma(bytes, self.width, self.height, self.stride, self.step)?;
-        let chroma = convert::chroma(self.format, bytes, self.width, self.height, self.stride)
-            .map(|uv| convert::downscale_chroma(uv, self.width, self.height, self.factor));
-        let (w, h, luma) = convert::downscale(luma, self.width, self.height, self.factor);
+        let chroma =
+            convert::chroma(self.format, bytes, self.width, self.height, self.stride).map(|uv| {
+                faraday_camera::scale::downscale_chroma(uv, self.width, self.height, self.factor)
+            });
+        let (w, h, luma) =
+            faraday_camera::scale::downscale(luma, self.width, self.height, self.factor);
         Some(Frame {
             width: u16::try_from(w).ok()?,
             height: u16::try_from(h).ok()?,
