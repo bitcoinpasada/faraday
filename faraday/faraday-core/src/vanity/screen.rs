@@ -109,24 +109,20 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
     let mut cy = y;
     match s {
         vstep::KEY => {
+            let rh = ui.touch.max(40.0);
             for k in &app.session.keys {
                 let id = k.fingerprint.0;
                 let on = v.key == Some(id);
-                ui.checkbox(x, cy + 11.0, on, true);
+                ui.checkbox(x, cy + (rh - 18.0) / 2.0, on, true);
+                ui.text_mid_as((x + 30.0, cy, rh), BODY_M.mono(), Role::OnSurface, &fp(id));
                 ui.text_mid_as(
-                    (x + 30.0, cy, 40.0),
-                    BODY_M.mono(),
-                    Role::OnSurface,
-                    &fp(id),
-                );
-                ui.text_mid_as(
-                    (x + 130.0, cy, 40.0),
+                    (x + 130.0, cy, rh),
                     BODY_S,
                     Role::OnSurfaceVariant,
                     &k.label,
                 );
-                ui.press_box(x, cy, w, 40.0, va(V::Key(id)));
-                cy += 42.0;
+                ui.press_box(x, cy, w, rh, va(V::Key(id)));
+                cy += rh + 2.0;
             }
         }
         vstep::DIAL => {
@@ -162,17 +158,19 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
             // A dial pressed moves on (F103).
         }
         vstep::SCRIPT => {
+            // A row keeps its touch target's height; the page scrolls.
+            let rh = ui.touch.max(40.0);
             for (i, sc) in Kind::ALL.iter().enumerate() {
                 let on = v.grind.script == *sc;
-                ui.checkbox(x, cy + 11.0, on, true);
+                ui.checkbox(x, cy + (rh - 18.0) / 2.0, on, true);
                 ui.text_mid_as(
-                    (x + 30.0, cy, 40.0),
+                    (x + 30.0, cy, rh),
                     LABEL_L,
                     Role::OnSurface,
                     &script_name(*sc, net),
                 );
-                ui.press_box(x, cy, w, 40.0, va(V::Script(i as u8)));
-                cy += 42.0;
+                ui.press_box(x, cy, w, rh, va(V::Script(i as u8)));
+                cy += rh + 2.0;
             }
             // A kind of address pressed moves on (F103).
             cy += 8.0;

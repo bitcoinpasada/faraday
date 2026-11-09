@@ -439,7 +439,7 @@ fn paged(
                 let line = format!("{} · {}", c.title, c.summary);
                 let role = if c.mono { BODY_S.mono() } else { BODY_S };
                 let room = inner - cw - 16.0;
-                let row = 34.0;
+                let row = 34.0_f32.max(small_touch(ui));
                 // A line that does not fit in one is wrapped where the flow
                 // asks; it is cut otherwise, below.
                 let (h, after) = if col.wrap_closed && ui.measure_as(role, &line) > room {
@@ -491,9 +491,13 @@ fn paged(
             } else {
                 th
             };
-            ui.press_box(M, y, inner, hh, card.toggle);
+            // Its press is a touch target tall, reaching down over the gap
+            // under it; drawn after the body, so a control there keeps its
+            // own press and the page is no taller for it.
+            let head_y = y;
             y += hh + 10.0;
             y += body(ui, i, M, y, inner);
+            ui.press_box(M, head_y, inner, th.max(ui.touch), card.toggle);
             // The walk-through comes after the controls, behind a tap:
             // on a small panel it would otherwise take the room the
             // controls need. The tap is the choice there, so it is offered
@@ -586,6 +590,16 @@ fn paged(
     (next, again || scroll.follow)
 }
 
+/// The touch target's side on the small panel's own, shorter one, 0 where
+/// the target is the usual size: what a row grows to there. A lookup.
+fn small_touch(ui: &Ui) -> f32 {
+    if ui.touch < tokens::TOUCH {
+        ui.touch
+    } else {
+        0.0
+    }
+}
+
 /// A walk-through behind a tap, after a small panel's controls: a row
 /// that opens it and closes it, and the text while open. `k` is the
 /// step's place, or [`crate::ABOUT_PAGE`]. Returns its height.
@@ -603,11 +617,20 @@ pub(crate) fn about(
     let mut cy = y + 8.0;
     ui.rule(x, cy, w, Role::OutlineVariant);
     cy += 6.0;
-    ui.icon(x, cy + 8.0, 20.0, Icon::Info, 11.0, Role::OnSurfaceVariant);
-    ui.text_mid_as((x + 26.0, cy, 36.0), LABEL_M, Role::OnSurfaceVariant, label);
+    // On the small panel the row keeps a full touch target.
+    let rh = 36.0_f32.max(small_touch(ui));
+    ui.icon(
+        x,
+        cy + (rh - 20.0) / 2.0,
+        20.0,
+        Icon::Info,
+        11.0,
+        Role::OnSurfaceVariant,
+    );
+    ui.text_mid_as((x + 26.0, cy, rh), LABEL_M, Role::OnSurfaceVariant, label);
     ui.icon(
         x + w - 22.0,
-        cy + 8.0,
+        cy + (rh - 20.0) / 2.0,
         20.0,
         if open {
             Icon::ChevronUp
@@ -617,8 +640,8 @@ pub(crate) fn about(
         9.0,
         Role::OnSurfaceVariant,
     );
-    ui.press_box(x, cy, w, 36.0, action);
-    cy += 42.0;
+    ui.press_box(x, cy, w, rh, action);
+    cy += rh + 6.0;
     if open {
         let gh = ui.wrap_as(
             (x + 12.0, cy, w - 12.0),

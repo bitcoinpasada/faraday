@@ -493,15 +493,17 @@ fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h
     use faraday_ui::tooltip::TipKind;
     use tokens::{ICON_BUTTON, ICON_SMALL, shape_full};
     let a = Action::CKindAbout;
-    let (bx, by) = (end, mid - ICON_BUTTON / 2.0);
+    // The button is a full touch target around the icon button.
+    let side = ui.touch.max(ICON_BUTTON);
+    let (bx, by) = (end - (side - ICON_BUTTON) / 2.0, mid - side / 2.0);
     ui.press(
-        Shape::new(bx, by, ICON_BUTTON, ICON_BUTTON, shape_full(ICON_BUTTON)),
+        Shape::new(bx, by, side, side, shape_full(side)),
         Role::OnSurface.paint(),
         a,
     );
     ui.icon(
-        bx,
-        by,
+        bx + (side - ICON_BUTTON) / 2.0,
+        by + (side - ICON_BUTTON) / 2.0,
         ICON_BUTTON,
         Icon::Info,
         ICON_SMALL,
@@ -509,7 +511,7 @@ fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h
     );
     // The button first: the tooltip stands over it.
     let tip = EN.create_shares_tip;
-    ui.tip_anchor((bx, by, ICON_BUTTON, ICON_BUTTON), a, tip, TipKind::Rich);
+    ui.tip_anchor((bx, by, side, side), a, tip, TipKind::Rich);
     ui.tip_anchor((word, y, word_w, h), a, tip, TipKind::Rich);
 }
 
