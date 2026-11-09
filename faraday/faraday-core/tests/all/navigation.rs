@@ -9,7 +9,7 @@
 use faraday_core::in_progress::Going;
 use faraday_core::nav::{MenuPress, Nav};
 use faraday_core::testkit;
-use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, cstep};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
 /// The app on a window `width` × `height` pixels at `dpi`, drawn once.
