@@ -1182,6 +1182,10 @@ fn a_code_checked_off_paper_reads_not_checked_once_put_on_paper_with_a_camera() 
     board(&mut app, BP::MenuTo(Zone::Paper(0)));
     app.press(Action::BChecklist);
     app.settle();
-    assert!(app.backup_items_now(&testkit::compute()).contains(&bstep::KEF), "no item");
+    assert!(
+        app.backup_items_now(&testkit::compute())
+            .contains(&bstep::KEF),
+        "no item"
+    );
     assert!(!done(&app));
 }

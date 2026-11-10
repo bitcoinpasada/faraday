@@ -364,7 +364,9 @@ pub(crate) fn plan_made(app: &mut Faraday) {
 fn sync_paper(app: &mut Faraday, i: usize) {
     let c = app.compute();
     let paper = on_paper(app, &c, i);
-    with_form(app, i, |f, app| f.set_paper(paper, !app.cameras().is_empty()));
+    with_form(app, i, |f, app| {
+        f.set_paper(paper, !app.cameras().is_empty())
+    });
 }
 
 /// Not on Paper: the open item's code comes off every place

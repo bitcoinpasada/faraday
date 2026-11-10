@@ -283,9 +283,7 @@ fn chip_size(ui: &Ui, cv: &ChipView, avail: f32) -> Fit {
     let two = if cv.forms.is_empty() {
         chip_h(ui) + ui.line_as(BODY_S)
     } else {
-        chip_h(ui)
-            + tokens::BOARD_TAG
-            + (rows - 1.0) * (tokens::BOARD_TAG + tokens::BOARD_CHIP_GAP)
+        chip_h(ui) + tokens::BOARD_TAG + (rows - 1.0) * (tokens::BOARD_TAG + tokens::BOARD_CHIP_GAP)
     };
     let has_marks = !cv.marks.is_empty() || !cv.forms.is_empty();
     for role in [pick(LABEL_L), pick(LABEL_M)] {
@@ -1971,8 +1969,8 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             read_only_buttons(&v)
         };
-        cy += faraday_ui::parts::wrap_buttons(ui, x, cy, w, chip_h(ui), &buttons)
-            + tokens::BOARD_PAD;
+        cy +=
+            faraday_ui::parts::wrap_buttons(ui, x, cy, w, chip_h(ui), &buttons) + tokens::BOARD_PAD;
     }
     cy += cells(ui, &mut fr, &v, (x, cy, ww), cols);
     let mut bottom = cy - gap;
@@ -2095,14 +2093,7 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
         if v.custom {
             cy += list(ui, fr, &v, x, cy, w);
         } else {
-            cy += faraday_ui::parts::wrap_buttons(
-                ui,
-                x,
-                cy,
-                w,
-                chip_h(ui),
-                &read_only_buttons(&v),
-            );
+            cy += faraday_ui::parts::wrap_buttons(ui, x, cy, w, chip_h(ui), &read_only_buttons(&v));
         }
         cy + pad - y
     };
