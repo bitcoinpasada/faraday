@@ -312,3 +312,52 @@ fn no_result_for_one_transaction_or_unrelated_ones() {
     });
     assert!(judge(&original(), &other, true).is_none());
 }
+
+#[test]
+fn bitcoin_cores_replacement_only_raises_the_fee() {
+    let original = core_psbt("bump-core-original.psbt");
+    let replacement = core_psbt("bump-core-replacement.psbt");
+    // The change output carries its key origin, which is how it is known as
+    // the key's own.
+    assert!(!original.inner().outputs[1].bip32_derivation.is_empty());
+    let b = judge(&original, &replacement, true).expect("applies");
+    assert_eq!(b.result, Outcome::OnlyFee, "{:?}", b.lines);
+    assert!(b.lines.is_empty());
+    assert_eq!(b.added_inputs, 0);
+    assert!(b.signalled);
+    assert!(b.replacement_fee.unwrap().sat > b.original_fee.unwrap().sat);
+
+    // The finished payment, read as Decode reads it, gets its amounts from
+    // the replacement and gives the same result.
+    let mut finished = core_finished();
+    bump::fill_amounts(&mut finished, &replacement);
+    let f = judge(&finished, &replacement, true).expect("applies");
+    assert_eq!(f.result, Outcome::OnlyFee, "{:?}", f.lines);
+    assert_eq!(f.original_fee, b.original_fee);
+    assert_eq!(f.replacement_fee, b.replacement_fee);
+}
+
+#[test]
+fn bitcoin_cores_replacement_with_an_added_input() {
+    let original = core_psbt("bump-core-original.psbt");
+    let added = core_psbt("bump-core-added.psbt");
+    let b = judge(&original, &added, true).expect("applies");
+    assert_eq!(b.result, Outcome::OnlyFee, "{:?}", b.lines);
+    assert_eq!(b.added_inputs, 1);
+
+    let mut finished = core_finished();
+    bump::fill_amounts(&mut finished, &added);
+    let f = judge(&finished, &added, true).expect("applies");
+    assert_eq!(f.result, Outcome::OnlyFee, "{:?}", f.lines);
+    assert_eq!(f.added_inputs, 1);
+}
+
+#[test]
+fn bitcoin_cores_pair_cannot_be_told_without_the_key() {
+    let original = core_psbt("bump-core-original.psbt");
+    for name in ["bump-core-replacement.psbt", "bump-core-added.psbt"] {
+        let b = judge(&original, &core_psbt(name), false).expect("applies");
+        assert_eq!(b.result, Outcome::CannotTell, "{name}");
+        assert!(ids(&b).contains(&"U2"), "{name}: {:?}", ids(&b));
+    }
+}

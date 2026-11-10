@@ -128,3 +128,33 @@ pub fn sides<R>(
         },
     )
 }
+
+/// A Bitcoin Core fixture of `tools/vectors/psbt/` (`bump-core-*`).
+pub fn core_file(name: &str) -> String {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tools/vectors/psbt")
+        .join(name);
+    std::fs::read_to_string(path).expect("a committed fixture")
+}
+
+pub fn core_psbt(name: &str) -> Psbt {
+    let c = Compute::unchecked();
+    Psbt::parse_base64(&c, core_file(name).trim()).expect("Core's PSBT")
+}
+
+/// Core's signed payment, read as Decode reads a finished transaction: a
+/// PSBT whose inputs are final, stating no amounts.
+pub fn core_finished() -> Psbt {
+    let c = Compute::unchecked();
+    let hex = core_file("bump-core-original.tx");
+    let raw = faraday_crypto::hex::decode_vec(hex.trim()).expect("hex");
+    let tx = faraday_psbt::transaction::read_raw(&raw).expect("a transaction");
+    let (wrapped, _) = faraday_psbt::transaction::wrap_raw(&raw).expect("wrapped");
+    let mut psbt = Psbt::parse_bytes(&c, &wrapped).expect("wrapped PSBT");
+    for (input, txin) in psbt.inner_mut().inputs.iter_mut().zip(&tx.input) {
+        if !txin.witness.is_empty() {
+            input.final_script_witness = Some(txin.witness.clone());
+        }
+    }
+    psbt
+}

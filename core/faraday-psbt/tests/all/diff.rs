@@ -260,3 +260,89 @@ fn yours_on_one_side_only() {
         }]
     ));
 }
+
+/// The PSBT's bytes with the pairs of each map written in reverse order.
+fn maps_reversed(p: &Psbt) -> Psbt {
+    fn compact(b: &[u8], at: &mut usize) -> usize {
+        let size = match b[*at] {
+            0xfd => 2,
+            0xfe => 4,
+            n => {
+                *at += 1;
+                return usize::from(n);
+            }
+        };
+        *at += 1;
+        let mut v = [0u8; 8];
+        v[..size].copy_from_slice(&b[*at..*at + size]);
+        *at += size;
+        usize::try_from(u64::from_le_bytes(v)).unwrap()
+    }
+    let bytes = p.to_bytes();
+    let mut at = 5;
+    let mut out = b"psbt\xff".to_vec();
+    while at < bytes.len() {
+        let mut pairs: Vec<&[u8]> = Vec::new();
+        loop {
+            let start = at;
+            let k = compact(&bytes, &mut at);
+            if k == 0 {
+                break;
+            }
+            at += k;
+            let v = compact(&bytes, &mut at);
+            at += v;
+            pairs.push(&bytes[start..at]);
+        }
+        for pair in pairs.iter().rev() {
+            out.extend_from_slice(pair);
+        }
+        out.push(0);
+    }
+    Psbt::parse_bytes(&faraday_crypto::work::Compute::unchecked(), &out).expect("reordered maps")
+}
+
+#[test]
+fn bitcoin_cores_pair_lists_the_change_amount_and_nothing_for_the_payment() {
+    let o = core_psbt("bump-core-original.psbt");
+    let r = core_psbt("bump-core-replacement.psbt");
+    let d = run(&o, &r);
+    let changes: Vec<_> = d
+        .list
+        .iter()
+        .filter_map(|x| match x {
+            D::OutputAmount {
+                output,
+                first,
+                second,
+            } => Some((output.script.clone(), *first, *second)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(changes.len(), 1, "{:?}", d.list);
+    let (script, first, second) = &changes[0];
+    assert!(second < first);
+    // The payment is the other output, and the change the one this key owns.
+    let own = &look(&o, true).outputs;
+    let change = own.iter().find(|x| x.script_pubkey == *script).unwrap();
+    assert!(
+        own.iter()
+            .filter(|x| x.script_pubkey != change.script_pubkey)
+            .count()
+            == 1
+    );
+    assert!(!d.list.iter().any(|x| matches!(x, D::OutputOnly { .. })));
+}
+
+#[test]
+fn maps_written_in_another_order_or_outputs_reordered_list_nothing() {
+    let o = core_psbt("bump-core-original.psbt");
+    assert_eq!(run(&o, &maps_reversed(&o)).list, vec![]);
+    let reordered = edit(&o, |x| {
+        x.unsigned_tx.output.swap(0, 1);
+        x.outputs.swap(0, 1);
+    });
+    assert_eq!(run(&o, &reordered).list, vec![]);
+    let r = core_psbt("bump-core-replacement.psbt");
+    assert_eq!(run(&o, &r).list, run(&maps_reversed(&o), &r).list);
+}
