@@ -103,6 +103,43 @@ pub fn read(bytes: &[u8]) -> Result<Zeroizing<[u8; 32]>, KeyFileError> {
     Ok(Zeroizing::new(Sha256::digest(bytes).into()))
 }
 
+/// The key file `key` is kept in: KeePass's XML key file version 2.0, byte
+/// for byte as KeePassXC 2.7.10 writes it (a `.keyx`), so that the
+/// KeePass family opens a vault with it. The caller draws `key` and wipes
+/// the result.
+pub fn write(key: &[u8; 32]) -> Zeroizing<Vec<u8>> {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let hash = Sha256::digest(key);
+    let mut out = Zeroizing::new(Vec::with_capacity(320));
+    out.extend_from_slice(
+        b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<KeyFile>\n    <Meta>\n        \
+          <Version>2.0</Version>\n    </Meta>\n    <Key>\n        <Data Hash=\"",
+    );
+    for b in hash.iter().take(4) {
+        out.push(HEX[usize::from(b >> 4)]);
+        out.push(HEX[usize::from(b & 15)]);
+    }
+    out.extend_from_slice(b"\">");
+    for (i, b) in key.iter().enumerate() {
+        match i {
+            0 => {}
+            _ if i % 16 == 0 => out.push(b'\n'),
+            _ if i % 4 == 0 => out.push(b' '),
+            _ => {}
+        }
+        if i % 16 == 0 {
+            if i == 0 {
+                out.push(b'\n');
+            }
+            out.extend_from_slice(b"            ");
+        }
+        out.push(HEX[usize::from(b >> 4)]);
+        out.push(HEX[usize::from(b & 15)]);
+    }
+    out.extend_from_slice(b"\n        </Data>\n    </Key>\n</KeyFile>\n");
+    out
+}
+
 /// The 20-byte secret `text` spells: 40 hexadecimal digits in either case,
 /// with spaces and colons between them ignored.
 pub fn secret(text: &str) -> Result<Zeroizing<[u8; 20]>, SecretError> {

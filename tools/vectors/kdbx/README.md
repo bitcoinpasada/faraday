@@ -45,3 +45,13 @@ again byte for byte by the same tests.
 `keyed.py` makes and reads, with pykeepass, a file that needs a key file or a
 YubiKey's secret (`docs/VAULT.md` §3.2); `faraday/faraday-vault/tests/keyed.rs`
 runs it in both directions. It writes nothing into this folder.
+
+`keyfile_write.py OUT_DIR` makes `faraday-key-file.keyx` (a KeePass XML key
+file version 2.0 of fixed bytes, laid out as KeePassXC 2.7.10 writes it) and
+`pykeepass-key-file.kdbx` (pykeepass 4.1.1: a KDBX 4 file under the
+passphrase `key file writer passphrase` and that key file, one entry
+`entry-a`); `keepassxc-cli` 2.7.10 opens it with that key file. Faraday's own
+key file writer is held to the first byte for byte by
+`faraday/faraday-vault/tests/keyfile_write.rs`. `keepassxc-key-file.keyx` is
+a key file `keepassxc-cli db-create --set-key-file` wrote, which the writer
+gives back unchanged. Same licence as the other made vectors.

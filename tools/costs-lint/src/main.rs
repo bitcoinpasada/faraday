@@ -120,6 +120,11 @@ const MINTS: &[(&str, &str, &str)] = &[
         "faraday-vault's key file and YubiKey secret tests, which cannot reach faraday-core's test kit",
     ),
     (
+        "faraday/faraday-vault/tests/keyfile_write.rs",
+        "compute",
+        "faraday-vault's key file writer tests, which cannot reach faraday-core's test kit",
+    ),
+    (
         "faraday/faraday-vault/tests/attachments.rs",
         "compute",
         "faraday-vault's attachment tests, which cannot reach faraday-core's test kit",
