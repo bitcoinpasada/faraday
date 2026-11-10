@@ -159,11 +159,11 @@ in a vault** with a vault open.
 Each file row has its button and a **⋮**. The menu opens under the
 file's name. In Files it holds, where
 the file has them: **Add to vault**, **Show as QR**, **Make PDF**,
-**Check a signer** (a PSBT), **Rename** (For the stick only), **Details** and **Remove**. On the
+**Check a signer** and **Compare** (a PSBT), **Rename** (For the stick only), **Details** and **Remove**. On the
 stick visit, a file on the stick has **Rename**, **Delete from the
 stick** and **Details**.
 
-![The ⋮ menu of payment-signed.psbt, For the stick, in Files: Show as QR, Check a signer, Rename, Details and Remove](../pictures/files-and-sticks-menu.png)
+![The ⋮ menu of payment-signed.psbt, For the stick, in Files: Show as QR, Check a signer, Compare, Rename, Details and Remove](../pictures/files-and-sticks-menu.png)
 
 **Rename** opens "Rename" and the file's name: a field for the name,
 its extension fixed after it, **Rename** and **Cancel**. The name is

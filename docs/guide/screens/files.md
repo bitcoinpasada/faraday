@@ -114,7 +114,7 @@ files from the stick give something to load. Its parts are
 **Opened from:** a file row's **⋮**: a menu under it, a sheet on a
 small window.
 
-![The ⋮ menu of payment-signed.psbt on For the stick: Show as QR, Check a signer, Rename, Details, Remove](../pictures/files-menu.png)
+![The ⋮ menu of payment-signed.psbt on For the stick: Show as QR, Check a signer, Compare, Rename, Details, Remove](../pictures/files-menu.png)
 
 *A file's **⋮** on **For the stick**: the file's name over **Show as
 QR**, **Check a signer**, **Rename**, **Details** and **Remove**.*

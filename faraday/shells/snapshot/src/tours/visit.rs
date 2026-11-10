@@ -46,6 +46,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             wallet: None,
             psbt: None,
             outpoints: Vec::new(),
+            unsigned_txid: None,
         });
     }
     t.app.outbox.push(faraday_core::Item {
@@ -59,6 +60,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         wallet: None,
         psbt: None,
         outpoints: Vec::new(),
+        unsigned_txid: None,
     });
     t.sticks(true);
     t.press(Action::Nav(Screen::Visit));
@@ -124,6 +126,7 @@ fn not_clean(t: &mut Tour) -> Result<(), String> {
             wallet: None,
             psbt: None,
             outpoints: Vec::new(),
+            unsigned_txid: None,
         },
     );
     t.sticks(false);

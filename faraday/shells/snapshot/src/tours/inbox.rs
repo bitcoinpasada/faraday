@@ -19,6 +19,7 @@ pub(crate) fn inbox_tour(t: &mut Tour) -> Result<(), String> {
         wallet: None,
         psbt: None,
         outpoints: Vec::new(),
+        unsigned_txid: None,
     };
     t.app
         .outbox

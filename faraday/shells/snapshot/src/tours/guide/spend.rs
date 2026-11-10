@@ -112,11 +112,17 @@ pub(super) fn spend_warnings(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     let other = std::fs::read(t.kit.join("savings-unsigned.psbt")).map_err(|e| e.to_string())?;
     // Sign a transaction on a PSBT with nothing to warn of.
     let plain = faraday_core::testkit::unsigned(&kit_of(t, w, 2_000))?.to_bytes();
+    // What the spend by QR left for the stick spends the same coin too:
+    // set aside while these are shot, back for the stick's pictures.
+    let kept = std::mem::take(&mut t.app.outbox);
     for (bytes, name) in [
         (plain, "sign-transaction"),
         (fee, "6-8-fee"),
         (other, "6-8-other-wallet"),
     ] {
+        // The PSBTs scanned before, deleted from Files: they spend the
+        // same coin, and the review would show them as a fee bump.
+        faraday_core::testkit::inbox_retain(&mut t.app, |i| !i.name.starts_with("scanned-"));
         t.press(Action::Nav(Screen::Home));
         t.press(Action::Scan);
         show_psbt(t, &bytes, None)?;
@@ -131,6 +137,7 @@ pub(super) fn spend_warnings(_c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.press(Action::StartSpend(at));
         t.shot(name)?;
     }
+    t.app.outbox = kept;
     Ok(())
 }
 
