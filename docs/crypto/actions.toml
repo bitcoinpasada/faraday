@@ -2888,6 +2888,10 @@ text = "Script-path spends of a musig() wallet are refused; only the key path is
 kind = "Conservative"
 decision = "F155"
 
+[[action.own]]
+text = "A musig() wallet two of whose keys have one master fingerprint is refused at registration: the MuSig2 check matches one participant to each master fingerprint, so a second account of one seed never signs."
+kind = "Conservative"
+
 [action.review]
 fingerprint = "bdccbfec9903b4cab770ad46de12ba610475e06d61eb60665cc16dc2ccbb8577"
 reviewed = "2026-11-05"

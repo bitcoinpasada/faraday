@@ -75,6 +75,10 @@ pub enum Refusal {
     /// A Coldcard export holding a single-sig account and a silent
     /// payments account, and the person has not chosen which loads yet.
     AccountUnchosen,
+    /// A MuSig2 wallet two of whose keys come from one seed (one master
+    /// fingerprint): the MuSig2 check matches one participant to each
+    /// master fingerprint, so a second account of one seed never signs.
+    MuSigOneSeed,
 }
 
 impl Refusal {
@@ -105,6 +109,7 @@ impl Refusal {
             Refusal::SilentDiffers(fp) => fill(EN.wallet_silent_differs, &[&fp.to_string()]),
             Refusal::KeyPathUnconfirmed => EN.wallet_key_path_unconfirmed.to_string(),
             Refusal::AccountUnchosen => EN.wallet_account_unchosen.to_string(),
+            Refusal::MuSigOneSeed => EN.wallet_musig_one_seed.to_string(),
         }
     }
 }

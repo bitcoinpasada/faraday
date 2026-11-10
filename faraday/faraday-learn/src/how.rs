@@ -886,7 +886,7 @@ pub static BLOCKS: &[Block] = &[
         code: &[c("core/faraday-bip/src/musig.rs", "key_agg"), c("core/faraday-bip/src/musig.rs", "aggregate_xpub"), c("core/faraday-bip/src/musig.rs", "parse_tr_musig")],
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public keys are used; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("A nested musig() or one with fewer than two participants is refused."), p("Key path only: script-path spends are refused; no WIF participant, no tap tree.")],
-        own_calls: &[p("Script-path spends of a musig() wallet are refused; only the key path is built. Conservative, F155.")],
+        own_calls: &[p("Script-path spends of a musig() wallet are refused; only the key path is built. Conservative, F155."), p("A musig() wallet two of whose keys have one master fingerprint is refused at registration: the MuSig2 check matches one participant to each master fingerprint, so a second account of one seed never signs. Conservative."), w("no decision")],
         screens: &["Create", "Wallets"],
         learn: "multisig",
     },

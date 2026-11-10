@@ -365,3 +365,59 @@ fn where_the_spend_cannot_tell_sorted_from_listed_the_person_chooses() {
         );
     }
 }
+
+const ONE_SEED: &str =
+    "Two keys of this wallet come from one seed. This device cannot sign for both.";
+
+/// A MuSig2 descriptor over the Taproot accounts `keys` name, each a test
+/// seed and an account number.
+fn musig(keys: &[(usize, u32)]) -> String {
+    let list: Vec<String> = keys
+        .iter()
+        .map(|(n, a)| testkit::key(*n, &format!("m/86'/1'/{a}'")))
+        .collect();
+    format!("tr(musig({})/<0;1>/*)", list.join(","))
+}
+
+/// Adds `text` as a wallet to an app whose keys are the test seeds named
+/// in `loaded`.
+fn add(loaded: &[&str], text: &str) -> (Faraday, Result<usize, faraday_core::wallet::Refusal>) {
+    let c = testkit::compute();
+    let mut app = testkit::started();
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    for w in loaded {
+        crate::common::add_key(&mut app, w);
+    }
+    let added = app.session.add_wallet(
+        &c,
+        "Musig",
+        text,
+        "test",
+        faraday_core::wallet::Origin::Named,
+    );
+    (app, added)
+}
+
+/// A MuSig2 wallet two of whose keys come from one seed cannot be signed
+/// for, loaded or not, wherever its repeated seed sits in the list: it is
+/// refused with the reason, and two seeds register.
+#[test]
+fn a_musig2_wallet_with_two_keys_of_one_seed_is_refused_and_two_seeds_register() {
+    let (app, added) = add(&["bacon", "zebra"], &musig(&[(0, 0), (0, 1)]));
+    assert_eq!(added.unwrap_err().text(), ONE_SEED);
+    assert!(app.session.wallets.is_empty());
+
+    // The repeated seed is not loaded here.
+    let (app, added) = add(&["zebra"], &musig(&[(0, 0), (0, 1)]));
+    assert_eq!(added.unwrap_err().text(), ONE_SEED);
+    assert!(app.session.wallets.is_empty());
+
+    // Three participants, the repeated seed not first.
+    let (app, added) = add(&["bacon", "zebra"], &musig(&[(2, 0), (0, 0), (0, 1)]));
+    assert_eq!(added.unwrap_err().text(), ONE_SEED);
+    assert!(app.session.wallets.is_empty());
+
+    let (app, added) = add(&["bacon", "zebra"], &musig(&[(0, 0), (1, 0)]));
+    added.unwrap();
+    assert_eq!(app.session.wallets.len(), 1);
+}

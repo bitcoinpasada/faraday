@@ -1129,6 +1129,8 @@ impl Faraday {
         if self.wallet_flow_wallet(i).is_none() && self.may_load_keys() {
             let o = self.vaults.current;
             let _ = self.vault_load(o, true);
+            // A wallet of the vault that was left out says why.
+            self.vault_loaded_toast(None);
         }
         let Some(w) = self.wallet_flow_wallet(i) else {
             return;

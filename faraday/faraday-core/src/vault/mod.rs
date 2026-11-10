@@ -476,7 +476,7 @@ impl Faraday {
                     self.family_vault_loaded();
                     self.family_opened();
                 }
-                self.toast(&fill(
+                let counts = fill(
                     EN.vaults_and_loaded,
                     &[
                         &wallets.to_string(),
@@ -492,7 +492,8 @@ impl Faraday {
                             EN.vaults_seeds
                         }),
                     ],
-                ));
+                );
+                self.vault_loaded_toast(Some(counts));
             }
             V::OpenWalletOf(v, r) => {
                 if let Some(w) = self.vault_load_wallet(v, r) {
@@ -563,7 +564,7 @@ impl Faraday {
                     self.family_vault_loaded();
                     self.family_opened();
                 }
-                self.toast(&fill(
+                let counts = fill(
                     EN.vaults_and_loaded,
                     &[
                         &keys.to_string(),
@@ -579,7 +580,8 @@ impl Faraday {
                             EN.vaults_wallets_inline
                         }),
                     ],
-                ));
+                );
+                self.vault_loaded_toast(Some(counts));
             }
             V::CStep(k) => {
                 if let Some(c) = self.vaults.state.create.as_mut() {
@@ -1423,7 +1425,13 @@ impl Faraday {
             1 => self.session.wallets[first].name.clone(),
             n => fill(EN.vaults_wallets_n, &[&n.to_string()]),
         };
-        self.toast(&fill(EN.vaults_loaded_note, &[&what.to_string(), from]));
+        let note = fill(EN.vaults_loaded_note, &[&what.to_string(), from]);
+        // A kept wallet this device cannot load follows the line, with
+        // its reason.
+        match self.vaults.state.refused.take() {
+            Some((w, why)) => self.toast(&fill(EN.vaults_loaded_refused, &[&note, &w, &why])),
+            None => self.toast(&note),
+        }
     }
 
     /// Costs what `described` and `key_fingerprint` cost. The keys and
@@ -1528,7 +1536,9 @@ impl Faraday {
                 .filter(|(_, f)| fps.contains(f))
                 .map(|(k, _)| *k)
                 .collect();
-            if keys.is_empty() {
+            // A MuSig2 wallet two of whose keys are one seed's can never
+            // load: not offered.
+            if keys.is_empty() || crate::wallet::musig_one_seed(wallet.policy()) {
                 continue;
             }
             out.push(VaultWallet {
@@ -1589,8 +1599,8 @@ impl Faraday {
             );
         }
         let (keys, _) = self.vault_load_set(v, &set);
-        if keys > 0 {
-            self.toast(&fill(
+        let counts = (keys > 0).then(|| {
+            fill(
                 EN.vaults_loaded,
                 &[
                     &keys.to_string(),
@@ -1600,9 +1610,44 @@ impl Faraday {
                         EN.vaults_seeds
                     }),
                 ],
-            ));
-        }
+            )
+        });
+        self.vault_loaded_toast(counts);
         self.session.wallets.iter().position(|w| w.same() == want)
+    }
+
+    /// Shows `counts` (what a load brought in) and, after it, the wallet
+    /// that load left out and why, if there was one.
+    pub(crate) fn vault_loaded_toast(&mut self, counts: Option<String>) {
+        let text = match (counts, self.vaults.state.refused.take()) {
+            (Some(n), Some((w, why))) => fill(EN.vaults_loaded_refused, &[&n, &w, &why]),
+            (None, Some((w, why))) => fill(EN.vaults_refused, &[&w, &why]),
+            (Some(n), None) => n,
+            (None, None) => return,
+        };
+        self.toast(&text);
+    }
+
+    /// Costs what `described` costs. The wallet records of open vault
+    /// `v` that are MuSig2 with two keys from one seed.
+    fn vault_musig_one_seed(&mut self, v: usize) -> Vec<usize> {
+        let c = self.compute();
+        let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
+            return Vec::new();
+        };
+        let at: Vec<usize> = self
+            .vaults
+            .records(id)
+            .of(kind::WALLET)
+            .map(|(i, _)| i)
+            .collect();
+        at.into_iter()
+            .filter(|&i| {
+                self.vaults
+                    .described(&c, id, i)
+                    .is_some_and(|d| crate::wallet::musig_one_seed(&d.policy))
+            })
+            .collect()
     }
 
     /// Loads the records `set` names of open vault `v`: its keys and
@@ -1610,6 +1655,7 @@ impl Faraday {
     pub(crate) fn vault_load_set(&mut self, v: usize, set: &BTreeSet<usize>) -> (usize, usize) {
         let c = self.compute();
         let mut wallets = 0;
+        self.vaults.state.refused = None;
         let Some(open) = self.vaults.open.get(v) else {
             return (0, 0);
         };
@@ -1648,7 +1694,14 @@ impl Faraday {
             let added = self
                 .session
                 .add_policy(&c, &name, policy, EN.vaults_vault, to);
-            self.silent_refused(added);
+            // A kept MuSig2 wallet two of whose keys are one seed's is
+            // left out; the load's toast says why.
+            match added {
+                Err(e @ crate::wallet::Refusal::MuSigOneSeed) => {
+                    self.vaults.state.refused = Some((name.clone(), e.text()));
+                }
+                other => self.silent_refused(other),
+            }
         }
         wallets += self.session.wallets.len() - before;
         self.refresh_spend();
@@ -3474,10 +3527,13 @@ impl Faraday {
                 if !view.any_ticked() || !self.may_load_keys() {
                     return;
                 }
-                let set = view.to_load();
+                let mut set = view.to_load();
+                // A wallet this device cannot load has no card; it is
+                // tried so the toast gives its reason.
+                set.extend(self.vault_musig_one_seed(v));
                 let (keys, wallets) = self.vault_load_set(v, &set);
-                if wallets == 0 && keys > 0 {
-                    self.toast(&fill(
+                let counts = (wallets == 0 && keys > 0).then(|| {
+                    fill(
                         EN.vaults_loaded,
                         &[
                             &keys.to_string(),
@@ -3487,7 +3543,12 @@ impl Faraday {
                                 EN.vaults_seeds
                             }),
                         ],
-                    ));
+                    )
+                });
+                // Wallets that loaded end in the landing's toast, which
+                // carries the reason.
+                if wallets == 0 {
+                    self.vault_loaded_toast(counts);
                 }
                 self.load_sheet_close(v);
             }

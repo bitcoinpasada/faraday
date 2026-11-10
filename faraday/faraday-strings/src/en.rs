@@ -9320,6 +9320,12 @@ strings! {
     vaults_loaded_note: "{} loaded from {}",
     /// Text in `vault_rows`.
     vaults_seed: "Seed",
+    /// Toast after a vault load that left a wallet out. `{}`: the counts
+    /// toast, the wallet's name, the reason.
+    vaults_loaded_refused: "{}. Not loaded, {}: {}",
+    /// Toast after a vault load that left a wallet out and brought in
+    /// nothing else. `{}`: the wallet's name, the reason.
+    vaults_refused: "Not loaded, {}: {}",
     /// Text in `vault_load_wallet`. `{}`: `keys`, `if keys == 1 { EN.vaults_seed_inline } else …`.
     vaults_loaded: "{} {} loaded",
     /// Text in `vault_load_wallet`.
@@ -10035,6 +10041,8 @@ strings! {
     /// Text in `text`: a Coldcard export holding a single-sig account and
     /// a silent payments account, not added until one is chosen.
     wallet_account_unchosen: "Not added yet: its account is to be chosen",
+    /// A MuSig2 wallet two of whose keys come from one seed, refused.
+    wallet_musig_one_seed: "Two keys of this wallet come from one seed. This device cannot sign for both.",
     /// The account dialog's title.
     wallet_account_head: "Which account to load?",
     /// The account dialog's line. `{}`: the wallet's name.

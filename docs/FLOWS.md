@@ -1594,6 +1594,20 @@ whose wallet is not registered stops nothing (F141): the warnings say
 "Input 1 is left unsigned: no registered wallet covers this taproot
 tree. Register its wallet to sign it.", and signing signs the rest.
 
+**A MuSig2 wallet two of whose keys come from one seed** (the same master
+fingerprint, two accounts) is refused wherever a wallet is added (a
+descriptor or file, a code, a vault's kept wallet): "Two keys of this
+wallet come from one seed. This device cannot sign for both." The MuSig2
+check matches one participant to each master fingerprint, so a second
+account of one seed would never sign. The line shows where one wallet is
+added and in the toast that ends a vault load: the Unlock Load sheet's
+Load ticked (after "Summer loaded from cellar.kdbx"), Files' Load chosen,
+opening the wallet from Vault contents or its chart, and the wallet's own
+backup flow landing on its vault. The Inbox's batch load and Load with
+keys leave such a wallet out without it. A vault holding such a wallet
+still opens, with that wallet left out: it has no card on the Load sheet
+and no row in the Files vault panel, though Vault contents still lists it.
+
 **The signed count of a MuSig2 wallet's spend** (F220) counts a participant
 only on proof. A partial signature in the file is the file's word: the
 online side writes every nonce, so one that passes BIP-327's

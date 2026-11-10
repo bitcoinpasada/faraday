@@ -697,3 +697,131 @@ fn two_seeds_with_no_passphrase_are_listed_and_the_other_one_loads_nothing() {
     try_passphrase(&mut app, "kept apart");
     assert_eq!(held(&app), 3);
 }
+
+/// A vault keeping a MuSig2 wallet two of whose keys are one seed's (test
+/// key 1's Taproot account twice over, with test key 2 between) and a
+/// plain wallet.
+fn one_seed_vault() -> Vec<u8> {
+    one_seed_vault_with(false)
+}
+
+/// The same vault, with a plain wallet "Winter" over test key 1 too when
+/// `winter`.
+fn one_seed_vault_with(winter: bool) -> Vec<u8> {
+    let c = testkit::compute();
+    let keys = [
+        testkit::key(0, "m/86'/1'/0'"),
+        testkit::key(1, "m/86'/1'/0'"),
+        testkit::key(0, "m/86'/1'/1'"),
+    ];
+    let musig = faraday_bip::policy::WalletPolicy::from_parts(
+        &c,
+        "tr(musig(@0,@1,@2)/**)",
+        &keys.each_ref().map(String::as_str),
+    )
+    .unwrap()
+    .to_descriptor_checksummed();
+    let mut records = vec![
+        test_key(0),
+        test_key(1),
+        wallet("Pair", &musig),
+        wallet(
+            "Summer",
+            &format!("wpkh({}/<0;1>/*)", testkit::key(2, "m/84'/1'/0'")),
+        ),
+    ];
+    if winter {
+        records.push(wallet(
+            "Winter",
+            &format!("wpkh({}/<0;1>/*)", testkit::key(0, "m/84'/1'/0'")),
+        ));
+    }
+    crate::common::vault_of("Cellar", PHRASE, 0x5d, records)
+}
+
+const ONE_SEED: &str =
+    "Two keys of this wallet come from one seed. This device cannot sign for both.";
+
+/// The vault opens and loads the rest; the wallet left out is named with
+/// the reason, after the count (pressed as Load all, which the tests use).
+#[test]
+fn a_musig2_wallet_of_one_seed_is_left_out_of_a_vault_load_and_the_reason_shows() {
+    let mut app = device(vec![("cellar.kdbx".into(), one_seed_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    app.press(Action::Vault(V::LoadNotNow));
+    app.press(Action::Vault(V::LoadAll(0)));
+    assert_eq!(wallet_names(&app), ["Summer"]);
+    assert_eq!(key_labels(&app), ["Test key 1", "Test key 2"]);
+    assert_eq!(
+        app.toast_text(),
+        Some(format!("2 seeds and 1 wallet loaded. Not loaded, Pair: {ONE_SEED}").as_str())
+    );
+}
+
+/// Opening that wallet from the chart sheet on Vault contents loads its
+/// seeds and says why the wallet did not load.
+#[test]
+fn opening_a_musig2_wallet_of_one_seed_from_a_vault_says_why_it_did_not_load() {
+    let mut app = device(vec![("cellar.kdbx".into(), one_seed_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    app.press(Action::Vault(V::LoadNotNow));
+    // Record 3 is the Pair wallet (0 is the vault's name, 1 and 2 the keys).
+    app.press(Action::Vault(V::OpenWalletOf(0, 3)));
+    assert!(app.session.wallets.is_empty());
+    assert_eq!(
+        app.toast_text(),
+        Some(format!("2 seeds loaded. Not loaded, Pair: {ONE_SEED}").as_str())
+    );
+}
+
+/// The Load sheet and the vault's list give the wallet no card and no row,
+/// so it is not offered again each time; Load ticked loads the
+/// rest.
+#[test]
+fn a_musig2_wallet_of_one_seed_is_not_listed_and_the_load_sheet_loads_the_rest() {
+    let mut app = device(vec![("cellar.kdbx".into(), one_seed_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    let v = view(&app);
+    let cards: Vec<&str> = v.cards.iter().map(|c| c.name.as_str()).collect();
+    assert_eq!(cards, ["Summer"]);
+    let c = testkit::compute();
+    let rows: Vec<String> = app
+        .vault_rows_now(&c, 0)
+        .into_iter()
+        .map(|r| r.name)
+        .collect();
+    assert!(!rows.contains(&"Pair".to_string()), "{rows:?}");
+    app.press(Action::Vault(V::LoadTicked));
+    assert_eq!(wallet_names(&app), ["Summer"]);
+    assert_eq!(key_labels(&app), ["Test key 1", "Test key 2"]);
+    assert_eq!(
+        app.toast_text(),
+        Some(format!("Summer loaded from cellar.kdbx. Not loaded, Pair: {ONE_SEED}").as_str())
+    );
+}
+
+/// Files' Load chosen loads the rest and gives the reason for the wallet
+/// that has no row.
+#[test]
+fn load_chosen_from_files_says_why_a_musig2_wallet_of_one_seed_did_not_load() {
+    let mut app = device(vec![("cellar.kdbx".into(), one_seed_vault())]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    app.press(Action::Vault(V::LoadNotNow));
+    app.press(Action::Vault(V::LoadChosen(0)));
+    assert_eq!(wallet_names(&app), ["Summer"]);
+    let t = app.toast_text().expect("a toast");
+    assert!(t.ends_with(&format!("Not loaded, Pair: {ONE_SEED}")), "{t}");
+}
+
+/// Load with keys loads the wallets that can load and does not name the
+/// one that cannot.
+#[test]
+fn load_with_keys_skips_a_musig2_wallet_of_one_seed() {
+    let mut app = device(vec![("cellar.kdbx".into(), one_seed_vault_with(true))]);
+    unlock_on_vaults(&mut app, "cellar.kdbx", PHRASE);
+    app.press(Action::Vault(V::LoadNotNow));
+    app.press(Action::Vault(V::LoadWithKeys(0)));
+    assert_eq!(wallet_names(&app), ["Winter"]);
+    let t = app.toast_text().expect("a toast");
+    assert!(!t.contains("Pair"), "{t}");
+}

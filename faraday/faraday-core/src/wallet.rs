@@ -583,6 +583,20 @@ pub fn psbt_network(psbt: &Psbt, current: Network) -> Option<Network> {
     None
 }
 
+/// Whether `policy` is a MuSig2 wallet two of whose keys share a master
+/// fingerprint: refused wherever a wallet is added.
+pub(crate) fn musig_one_seed(policy: &WalletPolicy) -> bool {
+    if policy.template() != Template::MuSig {
+        return false;
+    }
+    let fps: Vec<_> = policy
+        .keys()
+        .iter()
+        .filter_map(|k| k.fingerprint())
+        .collect();
+    fps.iter().enumerate().any(|(i, f)| fps[..i].contains(f))
+}
+
 impl Session {
     /// A session on `network`.
     pub fn on(network: Network) -> Session {
@@ -658,7 +672,10 @@ impl Session {
     /// [`Session::add_wallet`] of a description read before (a vault's
     /// kept records): no parse. A silent payments wallet whose scan key or
     /// spend key is not what a loaded key with its fingerprint gives at
-    /// its account is refused.
+    /// its account is refused, and so is a MuSig2 wallet two of whose keys
+    /// have one master fingerprint, loaded or not: the MuSig2 check
+    /// matches one participant to each master fingerprint, so a second
+    /// account of one seed never signs.
     pub fn add_policy(
         &mut self,
         c: &Compute,
@@ -672,6 +689,9 @@ impl Session {
                 == crate::silent::RecordCheck::Differs
         {
             return Err(Refusal::SilentDiffers(fp_text(w.fingerprint).to_string()));
+        }
+        if musig_one_seed(&policy) {
+            return Err(Refusal::MuSigOneSeed);
         }
         let descriptor = same_wallet(&policy);
         if let Some(i) = self

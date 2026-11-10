@@ -284,6 +284,13 @@ impl super::Vaults {
         let wallets: Vec<W> = self
             .records(open.id)
             .of(kind::WALLET)
+            // A MuSig2 wallet two of whose keys are one seed's can never
+            // load: no card.
+            .filter(|(i, _)| {
+                !self
+                    .described(c, open.id, *i)
+                    .is_some_and(|d| crate::wallet::musig_one_seed(&d.policy))
+            })
             .map(|(i, r)| {
                 let name =
                     super::wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned();

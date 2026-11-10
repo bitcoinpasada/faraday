@@ -1951,6 +1951,9 @@ pub struct Vaults {
     /// The vault just made, by file name, until it is unlocked or the
     /// person leaves the list.
     pub just_made: Option<String>,
+    /// The wallet a vault load left out and why (name, reason), until the
+    /// load's toast has told the person.
+    pub(crate) refused: Option<(String, String)>,
     /// Where an unlock or a creation started from another flow returns.
     pub back_to: Option<Screen>,
     /// Create a vault was opened from Home: Back goes to Home, not the
@@ -3536,6 +3539,11 @@ impl Vaults {
         let mut rows = Vec::new();
         for (i, r) in self.records(open.id).of(kind::WALLET) {
             let described = self.described(c, open.id, i);
+            // A MuSig2 wallet two of whose keys are one seed's can never
+            // load: not listed.
+            if described.is_some_and(|d| crate::wallet::musig_one_seed(&d.policy)) {
+                continue;
+            }
             let loaded =
                 described.is_some_and(|d| session.wallets.iter().any(|w| w.same() == d.same));
             rows.push(VaultRow {
