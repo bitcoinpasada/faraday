@@ -136,6 +136,7 @@ mod pictures;
 mod proprietary_records;
 mod psbt_v2;
 mod public_files_worker;
+mod qr_save_item;
 mod qr_tool;
 mod qr_vault_entry;
 mod quit;

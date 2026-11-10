@@ -51,9 +51,12 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
     if app.screen != Screen::QrTool {
         return;
     }
+    // The vault locked, closed or changed while it ran: nothing is made.
+    let gone = super::item::gone(app);
     let date = app.clock_now().map(crate::gpg::date);
     let Some(s) = st(app) else { return };
     match sealed {
+        Ok(_) if gone => s.error = Some(refusal_line(&QrError::NoItem)),
         Ok(bytes) => {
             s.wipe_typed();
             s.made = Some(Made { bytes, stem, date });

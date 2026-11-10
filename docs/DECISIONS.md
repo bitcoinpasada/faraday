@@ -240,5 +240,5 @@ Read this table, then only the decision you need.
 | [F223](decisions/F223.md) | On the small panel off mainnet, the mode pill stands on the top bar's second line | 2026-11-08 | Active | design |
 | [F224](decisions/F224.md) | A kernel patch of Faraday's own on the Pi: the bootloader's seed is not credited unless the command line says to | 2026-11-08 | Active | security |
 | [F225](history/decisions/F225.md) | The open checklist card's header at 1024 × 600 is held at eight under the touch-target floor | 2026-11-08 | Withdrawn | design |
-| [F226](decisions/F226.md) | A QR vault is made and opened in a tool in Tools, never kept open, and a file vault's item can be saved as one | 2026-11-08 | Active, not built | security |
+| [F226](decisions/F226.md) | A QR vault is made and opened in a tool in Tools, never kept open, and a file vault's item can be saved as one | 2026-11-08 | Active | security |
 | [F227](decisions/F227.md) | The nonce check remembers the signatures it checked in an open vault, and refuses a nonce one key used before on another message | 2026-11-09 | Active, not built | security |

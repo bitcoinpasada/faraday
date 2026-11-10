@@ -208,7 +208,9 @@ fn a_vault_items_seed_share_passphrase_and_note_are_sealed_as_that_item() {
     for (n, &i) in at.iter().enumerate() {
         assert_eq!(store.qr_fit(&c, id, i), QrFit::Fits);
         let code = store
-            .qr_seal_item(&c, id, i, PASS, EXPONENT, &RANDOM)
+            .qr_seal_item_job(&c, id, i, PASS, EXPONENT, Zeroizing::new(RANDOM))
+            .unwrap()
+            .run(&c)
             .unwrap();
         let held = open_code(&mut keys, &c, PASS, &code).unwrap();
         match n {
@@ -271,12 +273,16 @@ fn a_password_entry_a_wallet_and_a_gpg_key_get_no_button() {
     for &i in &at {
         assert_eq!(store.qr_fit(&c, id, i), QrFit::NotOffered);
         assert_eq!(
-            store.qr_seal_item(&c, id, i, PASS, EXPONENT, &RANDOM),
+            store
+                .qr_seal_item_job(&c, id, i, PASS, EXPONENT, Zeroizing::new(RANDOM))
+                .map(|_| ()),
             Err(QrError::NotFit(QrFit::NotOffered))
         );
     }
     assert_eq!(
-        store.qr_seal_item(&c, id, 9, PASS, EXPONENT, &RANDOM),
+        store
+            .qr_seal_item_job(&c, id, 9, PASS, EXPONENT, Zeroizing::new(RANDOM))
+            .map(|_| ()),
         Err(QrError::NoItem)
     );
 }
@@ -303,7 +309,9 @@ fn what_does_not_fit_says_why() {
     assert_eq!(store.qr_fit(&c, id, at[2]), QrFit::PassphraseTooLong);
     assert_eq!(store.qr_fit(&c, id, at[3]), QrFit::NoteTooLong(2));
     assert_eq!(
-        store.qr_seal_item(&c, id, at[3], PASS, EXPONENT, &RANDOM),
+        store
+            .qr_seal_item_job(&c, id, at[3], PASS, EXPONENT, Zeroizing::new(RANDOM))
+            .map(|_| ()),
         Err(QrError::NotFit(QrFit::NoteTooLong(2)))
     );
 }
@@ -455,7 +463,9 @@ fn a_passphrase_naming_a_plain_loaded_key_is_not_already_here() {
         ],
     );
     let code = store
-        .qr_seal_item(&c, id, at[0], PASS, EXPONENT, &RANDOM)
+        .qr_seal_item_job(&c, id, at[0], PASS, EXPONENT, Zeroizing::new(RANDOM))
+        .unwrap()
+        .run(&c)
         .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
     keys.add_words(&c, ABANDON, "", None).unwrap();

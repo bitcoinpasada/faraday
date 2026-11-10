@@ -830,14 +830,16 @@ fn sealed_record(record: faraday_vault::Record) -> Vec<u8> {
     let (id, _) = store.unlock(&c, file, "pass").expect("opens");
     let at = store.insert(id, record).expect("kept");
     store
-        .qr_seal_item(
+        .qr_seal_item_job(
             &c,
             id,
             at,
             VECTOR_PASS,
             *faraday_keys::QR_SEAL_EXPONENTS.start(),
-            &[7u8; faraday_keys::QR_RANDOM_LEN],
+            zeroize::Zeroizing::new([7u8; faraday_keys::QR_RANDOM_LEN]),
         )
+        .expect("job")
+        .run(&c)
         .expect("sealed")
 }
 

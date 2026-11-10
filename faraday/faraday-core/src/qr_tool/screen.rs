@@ -89,6 +89,7 @@ fn summary(app: &View, s: &QrToolState, step: u8) -> String {
     }
     match step {
         qstep::CONTENTS if s.done[usize::from(step)] => match (s.pick(), s.key()) {
+            (Some(Pick::Item), _) => s.item().map(|i| i.line()).unwrap_or_default(),
             (Some(Pick::Key), Some(i)) => app
                 .session
                 .keys
@@ -123,6 +124,9 @@ fn card(app: &View, s: &QrToolState, ui: &mut Ui, step: u8, (x, y, w): (f32, f32
 
 fn contents(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
+    if let Some(item) = s.item() {
+        return item_card(ui, item, (x, y, w));
+    }
     if s.pick().is_none()
         && app
             .put_on()
@@ -210,7 +214,24 @@ fn contents(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
             }
             cy -= GAP;
         }
-        None => cy -= GAP,
+        Some(Pick::Item) | None => cy -= GAP,
+    }
+    cy - y
+}
+
+/// The Contents card of a tool opened on a vault item: what it is and
+/// where from, and that a seed's kept passphrase is left out.
+fn item_card(ui: &mut Ui, item: &super::item::Source, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &item.line());
+    if item.pass_kept() {
+        cy += GAP;
+        cy += ui.wrap_as(
+            (x, cy, w),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            EN.qr_tool_item_pass_kept,
+        );
     }
     cy - y
 }
@@ -359,34 +380,7 @@ fn open_card(
             cy += line(ui, cy, &fill(EN.qr_tool_open_key, &[&key.to_string()])) + GAP;
             let text = || Zeroizing::new(keys.qr_passphrase(Reveal::QrVault).to_string());
             cy += secret_with(ui, (x, cy, w), text, true, eye) + GAP;
-            let fp = key.to_string();
-            match s.pass_offer() {
-                Some(QrPassOffer::Add(_)) => {
-                    let label = fill(EN.qr_tool_add_to_key, &[&fp]);
-                    cy += offer(ui, (x, cy, w), &label, true, Q::AddToKey);
-                }
-                Some(QrPassOffer::Loaded) => {
-                    cy += line(ui, cy, &fill(EN.scan_key_key_already, &[&fp]));
-                }
-                Some(QrPassOffer::NotLoaded) if keys.find(key).is_some() => {
-                    cy += ui.wrap_as(
-                        (x, cy, w),
-                        BODY_S,
-                        Role::OnSurfaceVariant,
-                        &fill(EN.qr_tool_pass_makes_no_loaded_key, &[&fp]),
-                    );
-                }
-                Some(QrPassOffer::NotLoaded) => {
-                    cy += line(ui, cy, &fill(EN.qr_tool_key_not_loaded, &[&fp])) + GAP;
-                    cy += ui.wrap_as(
-                        (x, cy, w),
-                        BODY_S,
-                        Role::OnSurfaceVariant,
-                        EN.qr_tool_load_words_first,
-                    );
-                }
-                None => {}
-            }
+            cy += pass_offer(app, s, ui, key, (x, cy, w));
         }
         QrHolds::Note => {
             cy += line(ui, cy, EN.qr_tool_open_note) + GAP;
@@ -415,6 +409,50 @@ fn open_card(
     if let Some(e) = &s.error {
         cy += GAP;
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e);
+    }
+    cy - y
+}
+
+/// What an opened passphrase offers for the keys loaded: Add to key, already
+/// here, or why not. Its height.
+fn pass_offer(
+    app: &View,
+    s: &QrToolState,
+    ui: &mut Ui,
+    key: faraday_bip::keys::Fingerprint,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    let fp = key.to_string();
+    let mut cy = y;
+    let keys = &app.session.keys;
+    let line =
+        |ui: &mut Ui, cy: f32, text: &str| ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, text);
+    match s.pass_offer() {
+        Some(QrPassOffer::Add(_)) => {
+            let label = fill(EN.qr_tool_add_to_key, &[&fp]);
+            cy += offer(ui, (x, cy, w), &label, true, Q::AddToKey);
+        }
+        Some(QrPassOffer::Loaded) => {
+            cy += line(ui, cy, &fill(EN.scan_key_key_already, &[&fp]));
+        }
+        Some(QrPassOffer::NotLoaded) if keys.find(key).is_some() => {
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                &fill(EN.qr_tool_pass_makes_no_loaded_key, &[&fp]),
+            );
+        }
+        Some(QrPassOffer::NotLoaded) => {
+            cy += line(ui, cy, &fill(EN.qr_tool_key_not_loaded, &[&fp])) + GAP;
+            cy += ui.wrap_as(
+                (x, cy, w),
+                BODY_S,
+                Role::OnSurfaceVariant,
+                EN.qr_tool_load_words_first,
+            );
+        }
+        None => {}
     }
     cy - y
 }

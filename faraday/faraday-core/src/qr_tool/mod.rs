@@ -17,6 +17,7 @@ use faraday_keys::{
 use faraday_shell_api::Key;
 use zeroize::{Zeroize, Zeroizing};
 
+mod item;
 pub(crate) mod offers;
 mod open;
 pub(crate) mod screen;
@@ -52,6 +53,8 @@ pub enum Pick {
     Note,
     /// A loaded key.
     Key,
+    /// An item of an open vault (`item.rs`).
+    Item,
 }
 
 /// A field that takes typing.
@@ -134,6 +137,8 @@ pub struct QrToolState {
     back: Screen,
     pick: Option<Pick>,
     key: Option<usize>,
+    /// The vault item the tool was opened on, for [`Pick::Item`].
+    item: Option<item::Source>,
     note: TextBox,
     /// The room left in the note, in plain characters.
     left: usize,
@@ -166,6 +171,7 @@ impl QrToolState {
             back,
             pick: None,
             key: None,
+            item: None,
             note: TextBox::default(),
             left: room(""),
             pass: TextBox::default(),
@@ -211,6 +217,11 @@ impl QrToolState {
     /// What the code holds, once chosen.
     pub fn pick(&self) -> Option<Pick> {
         self.pick
+    }
+
+    /// The vault item the tool was opened on.
+    pub(crate) fn item(&self) -> Option<&item::Source> {
+        self.item.as_ref()
     }
 
     /// The loaded key chosen.
@@ -353,6 +364,12 @@ pub(crate) fn open(app: &mut Faraday) {
     app.screen = Screen::QrTool;
 }
 
+/// Opens the tool at its Passphrase step on a vault item that fits
+/// (`vault/qr_save.rs`).
+pub(crate) fn open_item(app: &mut Faraday, id: faraday_keys::vault::VaultId, at: usize) {
+    item::open(app, id, at);
+}
+
 /// Opens the tool, from the page on show, holding a QR vault code a
 /// scanner read or a file in Files held, for the Open card.
 pub(crate) fn open_code(app: &mut Faraday, bytes: Vec<u8>) {
@@ -478,6 +495,7 @@ fn step(app: &mut Faraday, k: u8) {
 fn refusal_line(e: &QrError) -> String {
     match e {
         QrError::Memory(mib) => fill(EN.qr_tool_no_memory, &[&mib.to_string()]),
+        QrError::NoItem => EN.qr_tool_item_gone.to_string(),
         _ => EN.qr_tool_not_made.to_string(),
     }
 }
@@ -520,6 +538,7 @@ fn make(app: &mut Faraday) {
             .keys
             .qr_seal_key_job(&c, i, &pass, exponent, random),
         (Pick::Key, None) => Err(QrError::NoItem),
+        (Pick::Item, _) => item::job(app, &c, &pass, exponent, random),
     };
     match job {
         Ok(job) => seal::start(app, job, stem),

@@ -20,6 +20,7 @@ pub mod load;
 pub(crate) mod load_screen;
 pub mod out;
 pub(crate) mod panes_screen;
+pub(crate) mod qr_save;
 pub(crate) mod rekey_screen;
 mod related;
 pub(crate) mod screen;
@@ -765,6 +766,8 @@ impl Faraday {
             V::TrimAsk(n) => trim::ask(self, n),
             V::TrimGo => trim::go(self),
             V::TrimCancel => trim::close(self),
+            V::QrSave => qr_save::press(self),
+            V::QrNoClose => qr_save::close(self),
             V::PassphraseKey(w) => self.pass_seeds_open(w),
             V::PassphrasePick(v, r) => self.pass_seed_pick(v, r),
             V::PassphraseList => self.pass_seed_list(),
@@ -1191,6 +1194,7 @@ impl Faraday {
             | self.vault_save_also_settle()
             | copy::settle(self)
             | trim::settle(self)
+            | qr_save::settle(self)
     }
 
     /// Costs a read of the free memory (on macOS a process, `vm_stat`;

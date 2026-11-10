@@ -84,5 +84,51 @@ pub(crate) fn qr_tool_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::QrTool(Q::OpenCode));
     testkit::settle(&mut t.app);
     t.tick();
-    t.shot("qr-tool-opened-pass-add")
+    t.shot("qr-tool-opened-pass-add")?;
+    save_item(t)
+}
+
+/// Save as a QR vault on a note in an open vault: the item's page, the
+/// tool at its Passphrase step, and the dialog for a note too long.
+fn save_item(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::vault::VaultAction as V;
+    use faraday_vault::Record;
+    use faraday_vault::records::{field, kind};
+    let note = |text: &str| Record::new(kind::NOTE).with(field::NOTE, text.as_bytes());
+    let pass = testkit::VAULT_PASSPHRASE;
+    let file = testkit::kdbx_vault(
+        "Alpha",
+        pass,
+        1,
+        vec![note("the safe is behind the books"), note(&"a".repeat(220))],
+    )?;
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![("a.kdbx".into(), file)],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    type_text(t, pass);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..40 {
+        t.tick();
+        if !t.app.vaults().open.is_empty() {
+            break;
+        }
+    }
+    crate::tour::not_now_load(t);
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::Category(3)));
+    t.press(Action::Vault(V::Item(0)));
+    t.shot("qr-save-item-page")?;
+    t.press(Action::Vault(V::QrSave));
+    t.shot("qr-save-item-make")?;
+    t.press(Action::Back);
+    t.press(Action::Back);
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::Category(3)));
+    t.press(Action::Vault(V::Item(1)));
+    t.press(Action::Vault(V::QrSave));
+    t.shot("qr-save-item-too-long")
 }

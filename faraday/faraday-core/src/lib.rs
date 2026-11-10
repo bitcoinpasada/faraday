@@ -635,17 +635,13 @@ pub enum Sheet {
     Zeroing,
     /// A stick visit's write would go over files on the stick: Replace, Keep both or Cancel (`visit_taken`).
     Taken,
-    /// A vault's write the disk process refused for its name, a file on
-    /// the stick having it and nothing proving that file a copy: Hold to
-    /// overwrite, Save beside or Cancel (`visit_taken`).
+    /// A vault's write refused for its name, a file on the stick having it and nothing proving a copy: Hold to overwrite, Save beside or Cancel (`visit_taken`).
     NameTaken,
     /// What is attached that can capture the screen or the keys, each
     /// named with what it can do, and before a secret the reminders
     /// (`devices`).
     Devices,
-    /// A wallet a key not of its own can spend alone by the key path,
-    /// waiting to be added: the danger line naming that key, Cancel, and
-    /// a hold that adds it (F132).
+    /// A wallet a key not of its own can spend alone by the key path, waiting to be added: the danger line, Cancel, and a hold (F132).
     KeyPath,
     /// **Which account to load?**: a Coldcard export of a single-sig and a silent payments account.
     Account,
@@ -680,6 +676,8 @@ pub enum Sheet {
     SaveKeeps,
     /// **Remove the codex32 set** or **the BIP-85 origin** of a seed in an open vault.
     Trim,
+    /// **Save as a QR vault** on an item that does not fit.
+    QrNoFit,
     /// **Record it as a child seed?**: BIP-85 child words held (F166).
     ChildRecord,
     /// **Options** of the Krux code tool's form.

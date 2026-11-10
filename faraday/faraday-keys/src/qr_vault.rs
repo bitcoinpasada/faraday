@@ -440,7 +440,7 @@ impl OpenVaults {
     /// Costs what `word_count` costs for a seed. Whether item `i` of open
     /// vault `id` fits a QR vault, or why not (`docs/VAULT.md` §13's
     /// table): pure, nothing is sealed. [`QrFit::NotOffered`] for a kind
-    /// with no button ([`qr_item_offered`]) or no such item.
+    /// with no button ([`qr_item_offered`]), an empty note or no such item.
     pub fn qr_fit(&self, c: &Compute, id: VaultId, i: usize) -> QrFit {
         let Some(held) = self.copy_out(id, i, &[]) else {
             return QrFit::NotOffered;
@@ -460,6 +460,8 @@ impl OpenVaults {
             }
             kind::CODEX32_SHARE => QrFit::Fits,
             kind::NOTE => match item.text(field::NOTE) {
+                // Make seals no empty note either.
+                Some("") => QrFit::NotOffered,
                 Some(note) => match contents::qr_note_over(note) {
                     0 => QrFit::Fits,
                     n => QrFit::NoteTooLong(n),
@@ -474,21 +476,21 @@ impl OpenVaults {
         }
     }
 
-    /// Costs what `qr_fit` costs, an Argon2id run at `exponent` and one to
-    /// read the seal back. Item `i` of open vault `id` (a seed, a codex32
-    /// share, a BIP-39 passphrase or a note) sealed as that item of a QR
-    /// vault under `passphrase`: the code's bytes after the read-back. The
-    /// item stays in the vault. [`QrError::NotFit`] with the reason
-    /// `qr_fit` gives when it does not fit.
-    pub fn qr_seal_item(
+    /// Costs what `qr_fit` costs. Item `i` of open vault `id` (a seed, a
+    /// codex32 share, a BIP-39 passphrase or a note) as that item of a QR
+    /// vault under `passphrase`, the job to run with [`QrSealJob::run`]:
+    /// the item is read once, here, and copied into the job; it stays in
+    /// the vault. [`QrError::NotFit`] with the reason `qr_fit` gives when
+    /// it does not fit, [`QrError::NoItem`] for no such item.
+    pub fn qr_seal_item_job(
         &self,
         c: &Compute,
         id: VaultId,
         i: usize,
         passphrase: &str,
         exponent: u8,
-        random: &[u8; QR_RANDOM_LEN],
-    ) -> Result<Vec<u8>, QrError> {
+        random: Zeroizing<[u8; QR_RANDOM_LEN]>,
+    ) -> Result<QrSealJob, QrError> {
         match self.qr_fit(c, id, i) {
             QrFit::Fits => {}
             QrFit::NotOffered if self.copy_out(id, i, &[]).is_none() => {
@@ -497,8 +499,13 @@ impl OpenVaults {
             other => return Err(QrError::NotFit(other)),
         }
         let held = self.copy_out(id, i, &[]).ok_or(QrError::NoItem)?;
-        let item = item_record(&held).ok_or(QrError::NoItem)?;
-        seal_record(c, &item, passphrase, exponent, random)
+        let record = item_record(&held).ok_or(QrError::NoItem)?;
+        Ok(QrSealJob {
+            record,
+            passphrase: SecretText::of(passphrase),
+            exponent,
+            random,
+        })
     }
 
     /// Costs what `fits` costs. Saves the note `keys` holds from a code

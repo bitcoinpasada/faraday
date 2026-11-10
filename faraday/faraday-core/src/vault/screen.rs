@@ -3170,6 +3170,9 @@ fn detail(
             actions.push((EN.vault_trim_child, va(V::TrimAsk(field::KEY_CHILD))));
         }
     }
+    if faraday_keys::qr_item_offered(r.kind()) {
+        actions.push((EN.vault_qr_save, va(V::QrSave)));
+    }
     actions.push((EN.vault_copy_to, va(V::CopyTo)));
     if v.read_only().is_none() {
         actions.push((EN.vault_move_to, va(V::MoveTo)));

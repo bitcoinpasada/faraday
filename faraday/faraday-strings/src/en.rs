@@ -9560,6 +9560,18 @@ strings! {
     vault_trim_child_line: "The BIP-85 origin is removed from this seed in {} at the next seal. Its words and its other data stay. Copies of {} sealed before still hold the origin.",
     /// Button of those dialogs that removes.
     vault_trim_go: "Remove",
+    /// Button on the page of a seed, codex32 share, BIP-39 passphrase or note, and title of its dialog.
+    vault_qr_save: "Save as a QR vault",
+    /// Dialog of that button, a seed that is not 12 or 24 words of the English list.
+    vault_qr_seed_no: "This key does not fit in a QR vault. A QR vault holds 12 or 24 English words.",
+    /// The same, a passphrase over the limit.
+    vault_qr_pass_no: "This passphrase is too long for a QR vault.",
+    /// The same, a note too long. `{}`, `{}`: the characters over, twice.
+    vault_qr_note_no: "This note is {} characters too long for a QR vault. Take {} characters off its end to make it fit.",
+    /// The same, a note one character too long.
+    vault_qr_note_no_one: "This note is 1 character too long for a QR vault. Take 1 character off its end to make it fit.",
+    /// The same, an item whose text cannot be written.
+    vault_qr_unwritable: "This item cannot be written in a QR vault.",
     /// Title of the dialog before a move.
     vault_move_head: "Move this item?",
     /// Line of that dialog. `{}`: the vault it goes to, the vault it is in,
@@ -12951,4 +12963,16 @@ strings! {
     qr_tool_note_is_saved: "Saved as a note",
     /// The Open card, a passphrase added to a key. `{}`: the key's fingerprint.
     qr_tool_pass_added: "Key {} added",
+    /// Contents card opened from a vault item, a seed. `{}`: the vault.
+    qr_tool_item_seed: "A seed in {}",
+    /// The same, a codex32 share.
+    qr_tool_item_share: "A codex32 share in {}",
+    /// The same, a BIP-39 passphrase.
+    qr_tool_item_passphrase: "A BIP-39 passphrase in {}",
+    /// The same, a note.
+    qr_tool_item_note: "A note in {}",
+    /// The same, a seed that keeps a passphrase.
+    qr_tool_item_pass_kept: "Its passphrase is not in this code.",
+    /// Make, the item's vault locked, closed or changed since the press.
+    qr_tool_item_gone: "The vault was locked or changed. Nothing was sealed.",
 }

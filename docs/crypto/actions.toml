@@ -7679,7 +7679,7 @@ reviewed = "2026-11-05"
 [[action]]
 id = "qr-vault-seal"
 name = "Seal a QR vault"
-action = "Seals a typed note, or a loaded key's words, as a QR vault under a typed passphrase and a memory step, and reads the seal back before the code is given."
+action = "Seals a typed note, a loaded key's words, or a seed, codex32 share, BIP-39 passphrase or note of an open file vault, as a QR vault under a typed passphrase and a memory step, and reads the seal back before the code is given."
 row = "vault"
 standards = [
   "RFC 9580",
@@ -7692,6 +7692,8 @@ screens = ["QrTool"]
 functions = [
   "faraday/faraday-keys/src/qr_vault.rs::qr_seal_note_job",
   "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_seal_key_job",
+  "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_seal_item_job",
+  "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_fit",
   "faraday/faraday-keys/src/qr_vault.rs::QrSealJob::run",
 ]
 code = ["faraday/faraday-keys/src/qr_vault.rs::QrSealJob::run"]
@@ -7700,12 +7702,14 @@ code = ["faraday/faraday-keys/src/qr_vault.rs::QrSealJob::run"]
 crate = "faraday/faraday-keys"
 libraries = []
 through = []
-adds = "Writes the contents (`faraday-vault::contents`) and seals them as the message of the action above with 95 random bytes the device drew; a key's words are lent for the seal and not kept."
+adds = "Writes the contents (`faraday-vault::contents`) and seals them as the message of the action above with 95 random bytes the device drew; a key's words are lent for the seal and not kept; a vault item is read once, when the job is made, checked to fit and left in the vault."
 
 [action.checked]
 tests = [
   "faraday/faraday-core/tests/all/qr_tool.rs::a_note_typed_and_sealed_opens_back_with_the_same_text",
   "faraday/faraday-core/tests/all/qr_tool.rs::a_loaded_key_is_sealed_and_opens_back_as_a_seed",
+  "faraday/faraday-core/tests/all/qr_save_item.rs::a_note_is_saved_as_a_qr_vault_that_opens_back_to_it_and_stays_in_the_vault",
+  "faraday/faraday-core/tests/all/qr_save_item.rs::a_seed_is_saved_and_its_kept_passphrase_is_said_to_be_left_out",
 ]
 crosscheck = "qrvault"
 independence = { class = "outside-and-own", author = "Sequoia's sq and rPGP, as for the OpenPGP message the code is", ours = "none beyond the message's own" }
@@ -7714,11 +7718,11 @@ fuzz = ["pgp_qr_vault"]
 [action.secrets]
 reveal = ["Reveal::QrVault"]
 constant_time = "Not stated; the seal is the message's."
-wiped = "The typed note and passphrases are wiped when the code is made; the random bytes and a key's lent words are wiped on drop."
+wiped = "The typed note and passphrases are wiped when the code is made; the random bytes and the key's or vault item's words copied into the job are wiped on drop, not lent."
 
 [action.limits]
 lines = [
-  "A note holds the room the contents leave; a key of other than 12 or 24 English words is not offered.",
+  "A note holds the room the contents leave; a key of other than 12 or 24 English words is not offered; a vault item over the same room is refused with the reason, and a note with the characters to take off.",
   "The memory step is one of the steps the message allows; a computer without the room for it refuses.",
 ]
 
@@ -9988,21 +9992,18 @@ piece = "OpenPGP code for the QR vault"
 does = "Writes and reads the three packets a QR vault is made of"
 instead = "rPGP (pgp) or Sequoia"
 why = "Each brings every algorithm OpenPGP has had, with all the libraries those need, for a message that uses AES and OCB alone. rPGP has been audited by outside reviewers, but none of those audits is one Faraday's dependency checks trust, so each library it brings would be Faraday's own to vet."
-planned = "qr-vault"
 
 [[construction.section.para]]
 piece = "HKDF (RFC 5869)"
 does = "Turns one key into others; in the vault only the QR vault uses it"
 instead = "the hkdf crate"
 why = "It leaves the intermediate key and each output block in freed memory unwiped; Faraday's own wipes them."
-planned = "qr-vault"
 
 [[construction.section.para]]
 piece = "QR vault contents"
 does = "The short TOML inside the code, padded to one length, holding one seed, share, passphrase or note"
 instead = "nothing, since no standard exists for an encrypted seed QR that other tools read"
 why = "Unavoidable. The cross-check reads the contents with an outside TOML parser."
-planned = "qr-vault"
 
 [[construction.section]]
 heading = "Security"
@@ -10014,8 +10015,7 @@ text = "What protects secrets is all published. Someone with the file faces Argo
 text = "The main risk is parsing. The device reads files from outside, and a bug in a reader could crash it, hang it, or make it accept or refuse a file wrongly. The guards: a file's memory, passes and lanes are checked against limits before any memory is asked for; every block's HMAC is checked before its bytes are used; anything unexpected is refused, never guessed at; the XML reader refuses a DOCTYPE and an entity it does not know; each reader has a fuzz target; and pykeepass, keepassxc-cli and keepass-rs read what Faraday writes, and Faraday reads what they write."
 
 [[construction.section.para]]
-text = "the QR vault's reader checks the Argon2 cost against the same limits right after the key packet, before the data packet is read, and refuses every packet it does not use."
-planned = "qr-vault"
+text = "The QR vault's reader checks the Argon2 cost against the same limits right after the key packet, before the data packet is read, and refuses every packet it does not use."
 
 [[construction.section.para]]
 text = "The one subtle risk is in writing. If Faraday's code reused a value it should draw fresh, a nonce for example, the file would still open everywhere, so the cross-check would not notice, but the encryption would be weaker. A library carries the same risk in its own code. The guard: every seal draws its bytes from one call for the session's randomness, and the specification counts every byte that call returns."
@@ -10028,7 +10028,6 @@ text = "Key commitment. Every HMAC in a file vault is keyed from the key its pas
 
 [[construction.section.para]]
 text = "OCB does not commit to its key. A QR vault someone else made could be built to open to two contents under two passphrases. Faraday makes every QR vault under one passphrase."
-planned = "qr-vault"
 
 [[construction.section.para]]
 text = "Later work. Faraday does not yet wipe every copy of a key left in freed memory, and Argon2id's later passes read memory at places the passphrase decides, which a program on the same computer could time. The device is offline and powered off after use, so both wait."
@@ -10040,15 +10039,10 @@ heading = "Opening it elsewhere"
 text = "This shows the file is standard, and is not the way to use a vault. The cross-check opens a file vault with pykeepass, keepassxc-cli and keepass-rs, and Faraday opens what they write."
 
 [[construction.section.para]]
-text = "a QR vault is read by Sequoia's sq and by rPGP in the cross-check. GnuPG cannot read a QR vault: it follows LibrePGP, not RFC 9580."
-planned = "qr-vault"
+text = "A QR vault is read by Sequoia's sq and by rPGP in the cross-check. GnuPG cannot read a QR vault: it follows LibrePGP, not RFC 9580."
 
 [[construction.section.para]]
 text = "Unlocking a vault on a computer that is online shows its seed on that computer. It is a last resort, for when Faraday is gone and the seed is needed back. Move the funds to a new seed afterwards and treat the old seed as exposed. The way to open a vault is Faraday on the offline device."
-
-[open_item.qr-vault]
-spec = "docs/VAULT.md"
-names = "the QR vault in the app"
 
 [construction.review]
 fingerprint = "865f423360ac4c9998c0bd6aa3b7dca9af0ff79e560eef3a229e4792b8e36d83"
