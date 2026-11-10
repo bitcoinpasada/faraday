@@ -584,18 +584,13 @@ impl Faraday {
             Go::Scan => self.act(Action::Scan),
             Go::Sweep => self.act(Action::Sweep(crate::seeds::sweep::SweepAction::Open)),
             Go::SignMessage => self.act(Action::SignMessage),
-            Go::CheckMessage => {
-                if let Some(k) = self.inbox.iter().position(|i| i.kind == FileKind::Message) {
-                    self.act(Action::CheckMessage(k));
-                } else {
-                    // Practice: the sample message stands in for the one to copy in.
-                    self.check_use_sample();
-                }
-            }
+            Go::CheckMessage => match self.inbox.iter().position(|i| i.kind == FileKind::Message) {
+                Some(k) => self.act(Action::CheckMessage(k)),
+                // Practice: the sample message stands in for the one to copy in.
+                None => self.check_use_sample(),
+            },
             Go::Vaults => self.act(Action::Nav(Screen::Vaults)),
             Go::CreateVault => self.act(Action::Vault(VaultAction::Create)),
-            // No vault open: Create a vault or Unlock, which come back to
-            // this category of the vault made or unlocked.
             // The keys the backup flow makes: the flow, when none is open
             // or one is waiting to be resumed.
             Go::VaultCategory(c)
@@ -607,6 +602,7 @@ impl Faraday {
                     self.flow_begin(k);
                 }
             }
+            // No vault open: Create a vault or Unlock, back to this category.
             Go::VaultCategory(c) if self.vaults.open.is_empty() => {
                 self.vaults.set_category(c);
                 if let Some((_, a)) = self.vault_way(Screen::VaultContents) {

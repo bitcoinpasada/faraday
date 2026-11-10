@@ -1327,16 +1327,7 @@ impl Faraday {
             return;
         }
         // A count above what Krux writes asks once more (`docs/KEF.md` §7.2).
-        if way == Way::Open
-            && let Some(h) = self
-                .camera
-                .scan_mut()
-                .and_then(|s| s.card.as_mut())
-                .and_then(|k| k.kef.as_mut())
-            && h.high
-            && !h.sure
-        {
-            h.sure = true;
+        if way == Way::Open && self.read_kef_ask_again() {
             return;
         }
         let Some(card) = self.camera.scan_mut().and_then(|s| s.card.take()) else {
@@ -1421,6 +1412,23 @@ impl Faraday {
                 None => self.read_go_file(way, named, ext, code),
             },
         }
+    }
+
+    /// Whether the read card's Krux code has a count above what Krux
+    /// writes and has not been asked about yet; the first press marks it
+    /// asked (`docs/KEF.md` §7.2).
+    fn read_kef_ask_again(&mut self) -> bool {
+        let Some(h) = self
+            .camera
+            .scan_mut()
+            .and_then(|s| s.card.as_mut())
+            .and_then(|k| k.kef.as_mut())
+        else {
+            return false;
+        };
+        let ask = h.high && !h.sure;
+        h.sure |= ask;
+        ask
     }
 
     /// Costs what [`Faraday::read_card`] costs. A Krux encrypted code's
