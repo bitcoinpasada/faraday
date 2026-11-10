@@ -95,12 +95,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     EN.spend_backup_wallets,
                     Action::Nav(crate::Screen::WalletsStart),
                 )),
-                _ => app.trail_name().map(|_| {
-                    (
-                        EN.spend_backup_wallets,
-                        Action::Nav(crate::Screen::WalletsStart),
-                    )
-                }),
+                _ => Some((
+                    EN.spend_backup_wallets,
+                    Action::Nav(crate::Screen::WalletsStart),
+                )),
             })
             .map(|b| app.named_back(b)),
         heading: from.as_deref().unwrap_or(EN.spend_backup_spend),
@@ -132,10 +130,11 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     let scrolled = app.spend_backup.state.scroll.y;
     // Named by the top app bar, with the way back where it was opened
     // from another screen (F77); Walk through leads the page under it.
-    let back = app
-        .trail_name()
-        .map(|name| app.named_back((name, Action::Back)));
-    let mut y = crate::screens::bar_head(ui, back, EN.spend_backup_spend) - scrolled;
+    let back = app.named_back((
+        EN.spend_backup_wallets,
+        Action::Nav(crate::Screen::WalletsStart),
+    ));
+    let mut y = crate::screens::bar_head(ui, Some(back), EN.spend_backup_spend) - scrolled;
     let lw = ui.measure_as(LABEL_L, EN.spend_backup_walk_through) + 32.0;
     ui.button(
         x + w - lw,

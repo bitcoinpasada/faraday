@@ -517,6 +517,16 @@ impl Faraday {
         false
     }
 
+    /// A vault opened, made or picked on the way to a flow is done: its
+    /// screens are not left behind, so Back from the flow lands on the
+    /// screen before the detour.
+    pub(crate) fn end_vault_detour(&mut self) {
+        for s in [Screen::Unlock, Screen::Vaults, Screen::CreateVault] {
+            self.trail.drop_screen(s);
+        }
+        self.trail.set_backing();
+    }
+
     /// A flow that goes on to `to` on its Done: `to` as it was seen when
     /// it is the screen before, else `to` (Set the time opened on the way
     /// into the codes goes on to them).

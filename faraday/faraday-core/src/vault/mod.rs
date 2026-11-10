@@ -1406,6 +1406,9 @@ impl Faraday {
         self.import_settle();
         // Unlocked from the Spend tab, or for it: everything loads.
         let back = self.vaults.state.back_to.take();
+        if back.is_some() {
+            self.end_vault_detour();
+        }
         if self.screen == Screen::SpendBackup || back == Some(Screen::SpendBackup) {
             self.screen = Screen::SpendBackup;
             self.spend_backup_unlocked(v);

@@ -99,7 +99,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         BUTTON_H,
         EN.set_time_back,
         Style::Ghost,
-        Action::SetTimeBack,
+        Action::Back,
     );
 }
 
@@ -160,7 +160,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Action::SetTimeKeep,
         ));
     }
-    items.push((EN.set_time_back, Style::Ghost, Action::SetTimeBack));
+    items.push((EN.set_time_back, Style::Ghost, Action::Back));
     y += wrap_buttons(ui, x, y, w, BUTTON_H, &items);
     app.scroll.content_h().set(y - top + PAD);
     ui.region_close(open, app.scroll.content_h().get() - h);

@@ -143,7 +143,7 @@ stick_1024x600 Message Osk 38
 stick_1024x600 QrTool Osk 38
 stick_1024x600 Restore RStep 3
 stick_1024x600 Restore Slide 2
-stick_1024x600 SetTime SetTimeBack 1
+stick_1024x600 SetTime Back 1
 stick_1024x600 Settings Theme 30
 stick_1024x600 SignerCheck SignerCheck 2
 stick_1024x600 Silent Osk 38

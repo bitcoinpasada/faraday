@@ -355,7 +355,7 @@ impl Faraday {
             Typed::Ignored => return false,
             Typed::Taken => {}
             Typed::Set => self.set_time_set(),
-            Typed::Back => self.set_time_back(),
+            Typed::Back => self.back(),
         }
         true
     }

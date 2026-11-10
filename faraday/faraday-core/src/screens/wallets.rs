@@ -386,7 +386,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + MARGIN_WIDE;
     let width = cw - 2.0 * MARGIN_WIDE;
-    let mut y = super::bar_head(ui, None, EN.wallets_wallets);
+    let mut y = super::bar_head_back(app, ui, EN.wallets_wallets);
 
     // An Inbox PSBT leads.
     let lead = match app.wallets.spend() {

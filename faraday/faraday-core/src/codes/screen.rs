@@ -187,7 +187,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let x = x0 + 48.0;
     let w = cw - 96.0;
-    let mut y = crate::screens::bar_head(ui, None, EN.codes_totp_codes);
+    let mut y = crate::screens::bar_head_back(app, ui, EN.codes_totp_codes);
     y += now_row(app, ui, x, y, w) + 12.0;
     let rows = codes_rows_held(app);
     y += search(app, ui, x, y, w, rows.is_empty());

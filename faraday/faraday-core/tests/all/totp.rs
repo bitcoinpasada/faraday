@@ -11,7 +11,7 @@ use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
 use faraday_shell_api::{
-    App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware,
+    App, BootState, Command, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
 };
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
@@ -107,8 +107,9 @@ fn with_the_clock_not_known_the_codes_say_set_the_time_first() {
     let mut app = fresh_app(Some(1000), false);
     open_codes_from_tools(&mut app);
     assert_eq!(app.screen, Screen::SetTime);
-    app.press(Action::SetTimeBack);
-    assert_eq!(app.screen, Screen::Codes, "Back goes to the codes");
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Catalog, "Back goes to Tools");
+    app.press(Action::Nav(Screen::Codes));
     assert!(app.clock_now().is_none());
     let epoch = faraday_vault::totp::parse("otpauth://totp/Example:you?secret=JBSWY3DPEHPK3PXP")
         .unwrap()
@@ -547,4 +548,67 @@ fn an_hotp_secret_has_no_show_as_qr() {
     assert_eq!(crate::common::codes_offered(&mut app), Vec::new());
     app.press(Action::Vault(V::TotpQr));
     assert!(app.qr().is_none());
+}
+
+/// A tap on the way back the screen draws.
+fn tap_back(app: &mut Faraday) {
+    let _ = app.frame();
+    let (x, y) = app.back_offered().expect("the screen draws a way back");
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+}
+
+fn button(app: &mut Faraday, e: Event) {
+    let _ = app.frame();
+    app.event(e);
+    let _ = app.frame();
+}
+
+/// Tools, TOTP with no vault open, Unlock, the codes: Back lands on
+/// Tools, not on the Unlock of a vault that is open now.
+#[test]
+fn back_from_the_codes_after_an_unlock_lands_on_tools() {
+    let mut app = fresh_app(Some(2_000_000_000), true);
+    open_codes_from_tools(&mut app);
+    assert_eq!(app.screen, Screen::Codes);
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Back to Tools"));
+    tap_back(&mut app);
+    assert_eq!(app.screen, Screen::Catalog);
+}
+
+#[test]
+fn the_mouse_back_button_from_the_codes_lands_on_tools_and_forward_opens_them_again() {
+    let mut app = fresh_app(Some(2_000_000_000), true);
+    open_codes_from_tools(&mut app);
+    button(&mut app, Event::Back);
+    assert_eq!(app.screen, Screen::Catalog);
+    button(&mut app, Event::Forward);
+    assert_eq!(app.screen, Screen::Codes);
+}
+
+/// Set the time on the way into the codes: the arrow, the foot button,
+/// Escape and the mouse button all land on Tools, and Forward from there
+/// opens no blank page.
+#[test]
+fn every_way_back_from_set_the_time_on_the_way_into_the_codes_lands_on_tools() {
+    for way in 0..4 {
+        let mut app = fresh_app(Some(1000), false);
+        open_codes_from_tools(&mut app);
+        assert_eq!(app.screen, Screen::SetTime);
+        match way {
+            0 => tap_back(&mut app),
+            1 => app.press(Action::Back),
+            2 => {
+                app.event(Event::Key(Key::Escape));
+                let _ = app.frame();
+            }
+            _ => button(&mut app, Event::Back),
+        }
+        assert_eq!(app.screen, Screen::Catalog, "way {way}");
+        button(&mut app, Event::Forward);
+        assert_ne!(app.screen, Screen::SetTime, "way {way}");
+    }
 }

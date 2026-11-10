@@ -52,7 +52,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let p = split(x0, cw);
     let at = app.backups_area.at().min(entries.len().saturating_sub(1));
     if !ui.compact {
-        crate::screens::bar_head(ui, None, EN.backups_backups);
+        crate::screens::bar_head_back(app, ui, EN.backups_backups);
     }
     let mut pane = ListPane::begin_moving(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
     for (k, e) in entries.iter().enumerate() {

@@ -1128,6 +1128,12 @@ impl Faraday {
             Screen::Visit => !self.stick.is_empty(),
             Screen::Transfer => self.online,
             Screen::Randomness => self.own_page().is_some(),
+            // Opened by its own action, which sets what it returns to.
+            Screen::SetTime => false,
+            Screen::Unlock => self
+                .vault_files()
+                .get(self.vaults.pick)
+                .is_some_and(|f| f.open.is_none()),
             _ => true,
         }
     }

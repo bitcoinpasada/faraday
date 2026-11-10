@@ -224,6 +224,14 @@ pub(crate) fn bar_head(ui: &mut Ui, back: Option<(&str, Action)>, name: &str) ->
     faraday_draw::tokens::PAGE_TOP_BAR
 }
 
+/// [`bar_head`] with the way back the compact layout draws for the page
+/// on show, named by where it lands: a page's way back stated once for
+/// both layouts. A lookup.
+pub(crate) fn bar_head_back(app: &View, ui: &mut Ui, name: &str) -> f32 {
+    let back = app.named_back(crate::compact::page_head(app).0);
+    bar_head(ui, Some(back), name)
+}
+
 /// The room a supporting pane takes from the page at its right: the pane,
 /// the spacer before it and the margin after it.
 pub(crate) fn support_pane_room() -> f32 {
