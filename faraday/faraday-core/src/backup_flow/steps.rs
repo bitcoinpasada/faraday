@@ -233,6 +233,10 @@ impl Faraday {
             F::BackUpFirst(_) | F::Resume => return self.flow_resume_selected(),
             F::Show(i) => return self.flow_show(i),
             F::Restore(p) => return self.gpg_restore_press(p),
+            F::MakeGpg => {
+                self.sheet = None;
+                return self.flow_begin(Kind::Gpg);
+            }
             // The checklist's last item starts the flow itself.
             F::WalletLock => return self.wallet_lock_write(),
             _ => {}
@@ -362,7 +366,12 @@ impl Faraday {
             F::TypeString => self.c32_round_type(i),
             F::LockWrite => self.flow_lock_write(i),
             F::UnlockDone(v) => self.flow_unlock_done(i, v),
-            F::BackUpFirst(_) | F::Resume | F::Show(_) | F::WalletLock | F::Restore(_) => {}
+            F::BackUpFirst(_)
+            | F::Resume
+            | F::Show(_)
+            | F::WalletLock
+            | F::Restore(_)
+            | F::MakeGpg => {}
         }
         self.out.redraw();
     }

@@ -528,6 +528,21 @@ impl Faraday {
         matches!(go, Go::VaultCategory(_) | Go::Codes) || self.tile_need(go).is_none()
     }
 
+    /// The tile of a key the backup flow makes: its flow, or for a GPG key
+    /// with none to resume, the choice between making one and restoring one
+    /// (`docs/GPG-PAPERKEY.md` §4.1).
+    fn key_tile(&mut self, category: usize) {
+        use crate::backup_flow::Kind;
+        let Some(k) = Kind::of_category(category) else {
+            return;
+        };
+        if k == Kind::Gpg && self.flows.resumable(k).is_none() {
+            self.sheet = Some(crate::Sheet::GpgTile);
+        } else {
+            self.flow_begin(k);
+        }
+    }
+
     /// Opens tile `i`'s flow.
     pub(crate) fn catalog_go(&mut self, i: usize) {
         let Some(tile) = TILES.get(i).filter(|t| self.tile_opens(t.go)) else {
@@ -608,9 +623,7 @@ impl Faraday {
                     self.vaults.open.is_empty() || self.flows.resumable(k).is_some()
                 }) =>
             {
-                if let Some(k) = crate::backup_flow::Kind::of_category(c) {
-                    self.flow_begin(k);
-                }
+                self.key_tile(c);
             }
             // No vault open: Create a vault or Unlock, back to this category.
             Go::VaultCategory(c) if self.vaults.open.is_empty() => {

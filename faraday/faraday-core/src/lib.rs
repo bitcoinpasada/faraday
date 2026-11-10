@@ -508,9 +508,8 @@ pub enum Sheet {
     Taken,
     /// A vault's write refused for its name, a file on the stick having it and nothing proving a copy: Hold to overwrite, Save beside or Cancel (`visit_taken`).
     NameTaken,
-    /// What is attached that can capture the screen or the keys, each
-    /// named with what it can do, and before a secret the reminders
-    /// (`devices`).
+    /// What is attached that can capture the screen or the keys, each named
+    /// with what it can do, and before a secret the reminders (`devices`).
     Devices,
     /// A wallet a key not of its own can spend alone by the key path, waiting to be added: the danger line, Cancel, and a hold (F132).
     KeyPath,
@@ -553,13 +552,14 @@ pub enum Sheet {
     KeyFile,
     /// **Record it as a child seed?**: BIP-85 child words held (F166).
     ChildRecord,
+    /// Tools' **GPG key** with no vault open: **Make a key** or **Restore from a paperkey**.
+    GpgTile,
     /// **Options** of the Krux code tool's form.
     KefOptions,
     /// **A BIP-85 child seed**: a wallet made over one recorded (F166).
     ChildNotice,
-    /// **Seeds with no passphrase stored**, from a wallet short of a key:
-    /// one to load with a passphrase typed now, checked against the
-    /// wallet (`vault_load`, F62).
+    /// **Seeds with no passphrase stored**, from a wallet short of a key: one to
+    /// load with a passphrase typed now, checked against it (`vault_load`, F62).
     PassphraseSeeds,
     /// **Sign with {key}**: the files, the time the signatures carry, the hold that signs (F63).
     GpgSign,

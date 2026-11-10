@@ -32,6 +32,11 @@ pub(crate) fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
     find(t);
     t.shot("tools-no-vault")?;
     t.press(Action::Catalog(gpg));
+    if t.app.sheet == Some(faraday_core::Sheet::GpgTile) {
+        t.press(Action::Flow(
+            faraday_core::backup_flow::steps::FlowAction::MakeGpg,
+        ));
+    }
     t.shot("create-then-gpg")?;
     t.press(Action::Vault(V::Back));
     let vault = testkit::files()?
@@ -46,6 +51,11 @@ pub(crate) fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
     find(t);
     t.shot("tools-vault-locked")?;
     t.press(Action::Catalog(gpg));
+    if t.app.sheet == Some(faraday_core::Sheet::GpgTile) {
+        t.press(Action::Flow(
+            faraday_core::backup_flow::steps::FlowAction::MakeGpg,
+        ));
+    }
     t.shot("unlock-for-gpg")?;
     type_text(t, testkit::VAULT_PASSPHRASE);
     t.press(Action::Vault(V::Unlock));

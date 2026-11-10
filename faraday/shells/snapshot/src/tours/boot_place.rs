@@ -30,6 +30,9 @@ pub(crate) fn boot_place_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("no GPG tile")? as u8;
     t.press(Action::Nav(Screen::Catalog));
     t.press(Action::Catalog(tile));
+    if t.app.sheet == Some(faraday_core::Sheet::GpgTile) {
+        t.press(Action::Flow(F::MakeGpg));
+    }
     t.press(Action::Flow(F::Continue));
     t.shot("bootplace-1-insert")?;
     let k = t

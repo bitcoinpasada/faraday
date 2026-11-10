@@ -37,7 +37,7 @@ Where a screen asks for a vault, a signed message or an address, Use a sample pu
 
 ## What Practice does not make
 
-Practice makes no secret a person could take away and use. These actions are dimmed and do nothing: SLIP-39 shares, Seed XOR parts and codex32 shares of two or more; a GPG key and Secure Boot keys; every BIP-85 output; the vanity passphrase dial; a Lightning node's private key shown, saved into a vault or sent out unprotected; and a silent payments scan key saved into a vault or sent out unprotected. A Lightning cipher seed other than the sample is refused. Their screens open, and everything else on them works. A Faraday stick, booted on a computer with no network, makes all of them.
+Practice makes no secret a person could take away and use. These actions are dimmed and do nothing: SLIP-39 shares, Seed XOR parts and codex32 shares of two or more; a GPG key, made or restored from its paperkey, and Secure Boot keys; every BIP-85 output; the vanity passphrase dial; a Lightning node's private key shown, saved into a vault or sent out unprotected; and a silent payments scan key saved into a vault or sent out unprotected. A Lightning cipher seed other than the sample is refused. Their screens open, and everything else on them works. A Faraday stick, booted on a computer with no network, makes all of them.
 
 ## Test networks
 

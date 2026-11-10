@@ -938,6 +938,12 @@ pub fn create_single_key(app: &mut Faraday) {
 /// Starts the flow as Tools' tile does.
 pub fn start(app: &mut Faraday, kind: Kind) {
     app.press(Action::Catalog(tile_of(kind)));
+    // The GPG key tile asks first when no flow waits and no vault is open.
+    if app.sheet == Some(faraday_core::Sheet::GpgTile) {
+        app.press(Action::Flow(
+            faraday_core::backup_flow::steps::FlowAction::MakeGpg,
+        ));
+    }
 }
 
 pub fn texts(app: &mut Faraday) -> Vec<String> {

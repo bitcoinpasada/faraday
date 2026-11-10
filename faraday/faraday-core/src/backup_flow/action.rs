@@ -109,6 +109,8 @@ pub enum FlowAction {
     WalletMake,
     /// A press of a GPG key's restore from its paperkey.
     Restore(RestorePress),
+    /// Tools' GPG key tile: **Make a key**, which starts the GPG key's flow.
+    MakeGpg,
 }
 
 /// Whether an action acts when held.

@@ -35,6 +35,18 @@ pub(crate) fn gpg_restore_tour(t: &mut Tour) -> Result<(), String> {
         kept: Vec::new(),
     });
     t.pump();
+    // Tools' GPG key tile with no vault open: make or restore.
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|x| {
+            x.go == faraday_core::catalog::Go::VaultCategory(
+                faraday_core::backup_flow::Kind::Gpg.category(),
+            )
+        })
+        .ok_or("no GPG tile")? as u8;
+    t.press(Action::Nav(faraday_core::Screen::Catalog));
+    t.press(Action::Catalog(tile));
+    t.shot("gpg-restore-0-tile")?;
     t.press(Action::Flow(F::Restore(R::Sheet)));
     t.shot("gpg-restore-1-sheet")?;
     // Scan the public key: the scanner, a frame up, a code not a key.

@@ -370,3 +370,39 @@ fn sheet_body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     );
     cy - y
 }
+
+/// Tools' **GPG key** with no vault open (`docs/GPG-PAPERKEY.md` §4.1): a
+/// dialog with a row for **Make a key**, one for **Restore from a
+/// paperkey** (dimmed in Practice) and **Cancel**.
+pub(crate) fn tile_dialog(ui: &mut Ui, w: f32, h: f32) {
+    use faraday_draw::tokens::{DIALOG_MAX, GAP_SMALL, LIST_1, RADIUS_SMALL};
+    let head = (Icon::Keys.into(), Role::Primary.paint(), EN.catalog_gpg_key);
+    let actions = [(EN.vault_cancel, Style::Secondary, Action::Cancel)];
+    let rows = [
+        (EN.vault_make_a_key, Action::Flow(F::MakeGpg)),
+        (EN.gpg_restore_action, super::gpg_restore::SHEET),
+    ];
+    crate::compact::dialog(
+        ui,
+        (w, h, DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            for (label, act) in rows {
+                ui.fill(
+                    x,
+                    cy,
+                    iw,
+                    LIST_1,
+                    RADIUS_SMALL,
+                    Role::SurfaceContainerHighest,
+                );
+                ui.text_mid_as((x + PAD, cy, LIST_1), BODY_M, Role::OnSurface, label);
+                ui.press_box(x, cy, iw, LIST_1, act);
+                cy += LIST_1 + GAP_SMALL;
+            }
+            cy - GAP_SMALL - y
+        },
+        &actions,
+    );
+}

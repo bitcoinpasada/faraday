@@ -109,6 +109,11 @@ pub(super) fn start(t: &mut Tour, kind: Kind) -> Result<(), String> {
         .ok_or("no tile for the key")? as u8;
     t.press(Action::Nav(Screen::Catalog));
     t.press(Action::Catalog(tile));
+    if t.app.sheet == Some(faraday_core::Sheet::GpgTile) {
+        t.press(Action::Flow(
+            faraday_core::backup_flow::steps::FlowAction::MakeGpg,
+        ));
+    }
     if t.app.screen != Screen::BackupFlow {
         return Err(format!("the tile opened {:?}", t.app.screen));
     }

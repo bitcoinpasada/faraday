@@ -2,7 +2,7 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/backup_flow/screen.rs`, `faraday/faraday-core/src/backup_flow/wallet_screen.rs`, `faraday/faraday-core/src/backup_flow/steps.rs`, `faraday/faraday-core/src/backup_flow/figures.rs`, `faraday/faraday-core/src/backup_flow/stick_sheet.rs`, `faraday/faraday-core/src/backup_flow/mod.rs`, `faraday/faraday-core/src/backup_flow/gpg_restore_screen.rs`, `faraday/faraday-core/src/stick/pills.rs`)
-**Screen:** `BackupFlow`, `GpgRestore`, `FigMenu`, `LaterAsk`, `StickSheet`
+**Screen:** `BackupFlow`, `GpgRestore`, `GpgTile`, `FigMenu`, `LaterAsk`, `StickSheet`
 **Group:** Wallets
 
 The flow that makes a key where its backup is planned first: where it

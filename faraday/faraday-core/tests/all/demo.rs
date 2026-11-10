@@ -7,7 +7,7 @@
 
 use faraday_bip::keys::Network;
 use faraday_core::backup_flow::Kind;
-use faraday_core::backup_flow::steps::FlowAction as F;
+use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};
 use faraday_core::grind::Dial;
 use faraday_core::keygen::{MIX_SOURCES, Source, Way, kstep};
 use faraday_core::plan::{Item, Preset};
@@ -942,4 +942,34 @@ fn in_the_demo_public_seeds_sign_keep_entries_and_go_into_a_vault() {
         keys + 1,
         "the seed is in the vault"
     );
+}
+
+#[test]
+fn the_gpg_tile_with_no_vault_open_offers_make_and_restore() {
+    let tile = crate::common::tile_of(Kind::Gpg);
+
+    // Practice: both are drawn, Restore dimmed, Make starts the flow.
+    let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
+    app.online = true;
+    testkit::move_to(&mut app.session, Network::Testnet).unwrap();
+    app.session.set_demo(faraday_core::testkit::demo_samples());
+    tall(&mut app);
+    app.press(Action::Catalog(tile));
+    assert_eq!(app.sheet, Some(Sheet::GpgTile));
+    assert!(shown(&mut app, "Make a key"));
+    assert!(shown(&mut app, "Restore from a paperkey"));
+    assert!(offered(&mut app, Action::Flow(F::MakeGpg)));
+    assert!(!offered(&mut app, Action::Flow(F::Restore(R::Sheet))));
+    app.press(Action::Flow(F::MakeGpg));
+    assert_eq!(app.screen, Screen::BackupFlow);
+    assert_eq!(app.sheet, None);
+
+    // Off Practice: Restore opens the sheet of public keys.
+    let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
+    tall(&mut app);
+    app.press(Action::Catalog(tile));
+    assert_eq!(app.sheet, Some(Sheet::GpgTile));
+    assert!(offered(&mut app, Action::Flow(F::Restore(R::Sheet))));
+    app.press(Action::Flow(F::Restore(R::Sheet)));
+    assert_eq!(app.sheet, Some(Sheet::GpgRestore));
 }
