@@ -4316,10 +4316,12 @@ row = "ots"
 standards = [
   "OpenTimestamps",
 ]
-learn = "none"
-screens = []
+learn = "timestamps"
+screens = ["OtsCheck"]
 functions = [
   "faraday/faraday-ots/src/lib.rs::HashOp::digest",
+  "faraday/faraday-ots/src/lib.rs::HashOp::digest_whole",
+  "faraday/faraday-core/src/ots_check/mod.rs::take_file",
   "faraday/faraday-ots/src/lib.rs::Op::apply",
   "faraday/faraday-ots/src/lib.rs::Proof::parse",
   "faraday/faraday-ots/src/lib.rs::Proof::verify",
@@ -4328,6 +4330,7 @@ functions = [
 ]
 code = [
   "faraday/faraday-ots/src/lib.rs::HashOp::digest",
+  "faraday/faraday-ots/src/lib.rs::HashOp::digest_whole",
   "faraday/faraday-ots/src/lib.rs::Op::apply",
   "faraday/faraday-ots/src/lib.rs::Proof::parse",
   "faraday/faraday-ots/src/lib.rs::Proof::verify",
