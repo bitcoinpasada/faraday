@@ -293,7 +293,8 @@ fn passphrase(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f3
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e) + GAP;
     }
     let style = Style::Primary.when(s.passphrase_ready());
-    ui.button(x, cy, None, BUTTON_H, EN.qr_tool_make, style, act(Q::Make));
+    let label = app.wait_label(act(Q::Make), EN.qr_tool_make);
+    ui.button(x, cy, None, BUTTON_H, label, style, act(Q::Make));
     cy += BUTTON_H;
     cy - y
 }

@@ -1053,7 +1053,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-The manifest's 103 actions, each from its entry in `docs/crypto/actions.toml`
+The manifest's 104 actions, each from its entry in `docs/crypto/actions.toml`
 as the review of the generated text left them (2026-10-28): what it does, its roots (the functions
 the entry names, by module), the `Screen` variants that offer it, and
 its Learn page. The inventory finds 861 cryptographic functions under

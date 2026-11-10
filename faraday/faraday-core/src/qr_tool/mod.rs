@@ -500,6 +500,19 @@ fn refusal_line(e: &QrError) -> String {
     }
 }
 
+/// The pool's answers a code's random bytes take.
+pub(crate) const MAKE_ANSWERS: usize = QR_RANDOM_LEN.div_ceil(32);
+
+/// Whether Make would seal now, so draws the system's randomness: a
+/// press that would do nothing does not wait for it.
+pub(crate) fn make_draws(app: &Faraday) -> bool {
+    app.tools.qr_tool().state.as_ref().is_some_and(|s| {
+        s.pick.is_some()
+            && s.passphrase_ready()
+            && !(s.pick == Some(Pick::Note) && s.note.text.is_empty())
+    })
+}
+
 /// Seals the code. The job is made here, its randomness drawn as ever, and
 /// the seal runs on the worker under the busy screen (`seal.rs`); the
 /// code is read back before it is given.
@@ -516,15 +529,14 @@ fn make(app: &mut Faraday) {
     let (key, exponent) = (s.key, s.exponent);
     let stem = s.stem();
     s.error = None;
-    // Every random byte of a code is the system's own: none is made
-    // before it has arrived.
-    if app.fresh.pool_is_empty() {
-        app.out.command(faraday_shell_api::Command::RequestEntropy);
-        say(app, EN.vaults_no_randomness.to_string());
-        return;
-    }
+    // Every random byte of a code is the system's own: before it has
+    // arrived the press waits for it and goes on by itself.
     let Some(drawn) = app.fresh_bytes(b"qr vault", QR_RANDOM_LEN) else {
-        say(app, EN.vaults_no_randomness.to_string());
+        if app.randomness_gives_none() {
+            app.toast(EN.no_randomness);
+        } else {
+            app.wait_for_randomness(Action::QrTool(QrToolAction::Make), MAKE_ANSWERS);
+        }
         return;
     };
     let mut random = Zeroizing::new([0u8; QR_RANDOM_LEN]);

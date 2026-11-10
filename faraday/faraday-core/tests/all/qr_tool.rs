@@ -874,3 +874,70 @@ fn a_passphrase_naming_a_plain_loaded_key_says_no_loaded_key_makes_it() {
     assert!(!has_part(&mut app, "is not loaded"));
     assert!(!offered(&mut app, Action::QrTool(Q::AddToKey)));
 }
+
+// ----- Make before the system's answers have arrived (F102) -----
+
+/// Make is the press that waits: its button reads "Waiting for
+/// randomness".
+fn waiting_shown(app: &mut Faraday) -> bool {
+    app.waits_for_randomness(Action::QrTool(Q::Make))
+}
+
+/// A note typed and Make pressed in a session whose seed has arrived
+/// but none of the answers a code's random bytes are drawn from.
+fn make_before_the_answers(app: &mut Faraday) {
+    app.event(Event::Entropy(EntropyBytes::new([0x3f; 32])));
+    open(app);
+    app.press(Action::QrTool(Q::Pick(Pick::Note)));
+    type_in(app, "meet at the old oak");
+    app.press(Action::QrTool(Q::Next));
+    passphrase(app, "correct horse", "");
+    app.press(Action::QrTool(Q::Make));
+    testkit::settle(app);
+}
+
+#[test]
+fn make_waits_for_the_systems_answers_and_seals_by_itself() {
+    let mut app = testkit::started();
+    make_before_the_answers(&mut app);
+    assert!(waiting_shown(&mut app));
+    assert!(!qr_tool::state(&app).unwrap().is_made());
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
+    }
+    testkit::settle(&mut app);
+    assert!(qr_tool::state(&app).unwrap().is_made(), "no second press");
+    assert!(!waiting_shown(&mut app));
+}
+
+#[test]
+fn make_with_nothing_to_seal_does_not_wait() {
+    let mut app = testkit::started();
+    app.event(Event::Entropy(EntropyBytes::new([0x3f; 32])));
+    open(&mut app);
+    app.press(Action::QrTool(Q::Pick(Pick::Note)));
+    app.press(Action::QrTool(Q::Next));
+    passphrase(&mut app, "correct horse", "");
+    app.press(Action::QrTool(Q::Make));
+    assert!(!waiting_shown(&mut app));
+}
+
+#[test]
+fn make_waiting_a_minute_gives_up_and_makes_nothing() {
+    let mut app = testkit::started();
+    app.event(Event::Tick { now_ms: 1_000 });
+    make_before_the_answers(&mut app);
+    assert!(waiting_shown(&mut app));
+    app.event(Event::Tick { now_ms: 62_000 });
+    assert!(!waiting_shown(&mut app));
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_strings::EN.no_randomness)
+    );
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
+    }
+    testkit::settle(&mut app);
+    assert!(!qr_tool::state(&app).unwrap().is_made());
+}

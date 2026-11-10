@@ -900,6 +900,7 @@ impl Faraday {
             Action::BC32(crate::codex32_backup::Press::Set(
                 crate::codex32_backup::SetPress::MakeNew,
             )) => true,
+            Action::QrTool(crate::qr_tool::QrToolAction::Make) => crate::qr_tool::make_draws(self),
             _ => false,
         }
     }
@@ -929,6 +930,7 @@ impl Faraday {
             Action::Flow(_) => 2,
             Action::BXor(n) => faraday_keys::seed_xor_random_len(n).div_ceil(32),
             Action::Vault(_) => 8,
+            Action::QrTool(_) => crate::qr_tool::MAKE_ANSWERS,
             _ => crate::fresh::POOL,
         }
     }
