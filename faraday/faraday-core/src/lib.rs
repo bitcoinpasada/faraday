@@ -2252,7 +2252,7 @@ impl Faraday {
         let account_asked = self.session.account_asked().is_some();
         // A choice in a file's ⋮ menu closes the menu first.
         self.file_menu_chosen(action);
-        self.act_moving_on(action);
+        self.act_leaving_flow(action);
         // A wallet's flow follows the plan and the keys the press left.
         self.wallet_flow_sync();
         // A board left takes its empty sticks with it.

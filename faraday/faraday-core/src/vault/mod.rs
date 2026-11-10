@@ -1952,6 +1952,15 @@ impl Faraday {
             return;
         };
         self.vaults.state.focus = None;
+        // A key made new is the flow's to make, from any screen: a plain
+        // entry cannot hold it.
+        let make = |k| form.kind == k && form.record.is_none();
+        if (make(kind::GPG) && form.fields.first().is_none_or(|f| f.0 != 3))
+            || make(kind::SECURE_BOOT)
+        {
+            self.vaults.state.form = Some(form);
+            return;
+        }
         if form.kind == kind::GPG && self.time_asked() {
             self.vaults.state.form = Some(form);
             return;

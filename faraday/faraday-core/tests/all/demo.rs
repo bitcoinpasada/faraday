@@ -193,6 +193,41 @@ fn on_the_stick_and_on_a_test_network_make_a_gpg_key_makes_one() {
     assert_eq!(keys, 1, "a test network makes the key");
 }
 
+/// Stands on Make of `kind`'s flow, leaves it, and looks at Vault
+/// contents: whether it still offers to save a form, and the toast a Save
+/// pressed there gives.
+fn left_the_flow_at_make(app: &mut Faraday, kind_: Kind, leave: Action) -> (bool, Option<String>) {
+    crate::common::start(app, kind_);
+    unlock(app);
+    crate::common::at_make(app, kind_);
+    app.press(leave);
+    app.press(Action::Nav(Screen::VaultContents));
+    let form = offered(app, Action::Vault(V::FormSave));
+    app.press(Action::Vault(V::FormSave));
+    (form, app.toast_text().map(str::to_string))
+}
+
+#[test]
+fn leaving_a_key_flow_at_make_leaves_no_make_form_in_vault_contents() {
+    for demo in [false, true] {
+        for k in [Kind::Gpg, Kind::SecureBoot] {
+            for leave in [Action::Flow(F::Back), Action::Nav(Screen::Vaults)] {
+                let mut app = app_on(demo);
+                let (form, toast) = left_the_flow_at_make(&mut app, k, leave);
+                assert!(
+                    !form,
+                    "{k:?}, demo {demo}, {leave:?}: a form to save is offered"
+                );
+                assert_ne!(
+                    toast.as_deref(),
+                    Some(faraday_core::strings::EN.vaults_cannot_write),
+                    "{k:?}, demo {demo}, {leave:?}: Save toasted"
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn in_the_demo_the_gpg_key_screen_names_the_demo_page_first() {
     let mut app = app_on(true);

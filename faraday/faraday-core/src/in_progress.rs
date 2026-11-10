@@ -270,6 +270,17 @@ impl Faraday {
         self.in_progress.note(now, self.screen, on_screen);
     }
 
+    /// Does what the press does. The form on a flow's screen is the flow's
+    /// Make form: leaving the screen closes it, and the flow builds it
+    /// again at Make.
+    pub(crate) fn act_leaving_flow(&mut self, action: crate::Action) {
+        let in_flow = self.screen == Screen::BackupFlow;
+        self.act_moving_on(action);
+        if in_flow && self.screen != Screen::BackupFlow {
+            self.vaults.close_form();
+        }
+    }
+
     /// The screen of its own flow `g` was last on.
     fn flow_left_on(&self, g: Going) -> Option<Screen> {
         self.in_progress.left_on(g)
