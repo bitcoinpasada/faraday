@@ -200,7 +200,7 @@ pub(super) fn stick_in(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     }
     t.app.storage(StorageEvent::Sticks(vec![stick]));
     t.pump();
-    t.shot_marking("6-3-visit", Action::VisitCopy)?;
+    t.shot_marking("6-3-files-stick", Action::VisitCopy)?;
     t.press(Action::VisitCopy);
     t.shot("spend-stick-copied")?;
     t.press(Action::Nav(Screen::Files));

@@ -81,7 +81,7 @@ it is pulled. The Faraday stick's first look in a power-on is
 [Read from the boot stick](../screens/prompts.md#read-from-the-boot-stick)
 instead.
 
-![Stick visit: Then: Home, nothing for the stick, two files ticked on the stick and one too large, Import 2 files outlined](../pictures/files-and-sticks-visit.png)
+![Stick visit: Then: Home, nothing for the stick, two files ticked on the stick and one too large, Import 2 files outlined](../pictures/files-stick-copied.png)
 
 | Part | What it shows |
 |---|---|

@@ -4,7 +4,7 @@ use crate::tour::{Tour, scroll};
 use faraday_core::{Action, Screen};
 use faraday_shell_api::App;
 
-/// Stick visit with files copied in from another stick offered under
+/// The stick's pane of Files with files copied in from another stick offered under
 /// "From the Inbox".
 pub(crate) fn inbox_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::wallet::FileKind as K;

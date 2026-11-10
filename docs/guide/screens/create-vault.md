@@ -74,7 +74,7 @@ memory ticked.
 
 ![Name and passphrase with the name Passwords, the passphrase from dice typed twice and matching, and the panel's Will create](../pictures/create-vault-passphrases.png)
 
-*The vault named Passwords ("File Passwords.kdbx"), the passphrase from dice in both fields, **Matches**, and its strength; **Opens on** answered above with **Change**. **Create vault** is outlined.*
+*The vault named Passwords ("File Passwords.kdbx"), the passphrase from dice in both fields, and its strength; **Opens on** answered above with **Change**. **Create vault** is outlined.*
 
 | Control | What it does |
 |---|---|
@@ -83,7 +83,7 @@ memory ticked.
 | **Passphrase** | the vault's one passphrase: two fields, typed, then typed again |
 | **Add a key file** | under the fields: **Make a key file** or **Choose a file**; the closed passphrase line then ends "key file". The key file is needed to open the vault, so it is kept apart from the vault's file |
 | **Generate with dice** | opens the dice panel under the fields; "or type your own below" beside it |
-| the line under the fields | **Matches**, **Does not match yet** in the warning tone, or **Type it, then type it again** |
+| the line under the fields | **The two passphrases differ** once the second is begun and while the two differ; **Create vault** waits until they match |
 | the strength line | "77.5 bits from dice + ≈17.6 from the unlock cost ≈ 95.1 bits" for words from dice; "Typed: its own bits are not measured · the unlock cost adds ≈…" for a typed one |
 | "Remove the stick, then type the passphrase" | in place of the fields while a stick is attached |
 

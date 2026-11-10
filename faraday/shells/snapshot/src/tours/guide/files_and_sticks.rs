@@ -1,7 +1,6 @@
 //! The pictures of `docs/guide/walk/files-and-sticks.md`, and those of
-//! the screen reference's Files and Stick visit
-//! (`docs/guide/screens/files.md`, `docs/guide/screens/stick-visit.md`)
-//! that show the same states.
+//! the screen reference's Files with a stick open
+//! (`docs/guide/screens/files.md`) that show the same states.
 
 use super::{DICE_FP, DICE_WORDS, files_in, folder_stick, fresh_session, key_session, single_kit};
 use crate::tour::{Tour, not_now_load, type_text};
@@ -13,7 +12,7 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
 /// Costs what the guide's wallet's PSBT and a vault's unlock cost. A
-/// stick brought in with nothing loaded, and the visit's writes, ⋮
+/// stick brought in with nothing loaded, and the stick pane's writes, ⋮
 /// menu, deletes and zeroing; a key's words made into a wallet from
 /// Files; a write asked for while a key is loaded; a child seed's file
 /// on its way out with a vault open.
@@ -30,7 +29,7 @@ pub(super) fn run(c: &Compute, t: &mut Tour) -> Result<(), String> {
 
 /// A fresh session: a stick with the wallet's description, a PSBT and a
 /// photo too large to read, its two files ticked and imported; the signed PSBT For the
-/// stick and its ⋮; a stick holding a vault and that PSBT, the visit,
+/// stick and its ⋮; a stick holding a vault and that PSBT, its pane of Files,
 /// Already on the stick, the receipt; Delete files and the free space
 /// zeroed.
 fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<(), String> {
@@ -55,7 +54,7 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
     t.app.storage(StorageEvent::Sticks(vec![transfer]));
     t.pump();
     t.press(Action::Nav(Screen::Files));
-    t.shot_marking("files-and-sticks-visit", Action::VisitCopy)?;
+    t.shot_marking("files-stick-copied", Action::VisitCopy)?;
     t.press(Action::VisitCopy);
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
@@ -78,7 +77,7 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
     t.app.storage(StorageEvent::Sticks(vec![keystick.clone()]));
     t.pump();
     t.press(Action::Nav(Screen::Files));
-    t.shot("stick-visit")?;
+    t.shot("files-on-the-stick")?;
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
     files_in(t, &[], &[signed[0].clone(), ("vault.kdbx", vault.to_vec())]);
@@ -86,12 +85,12 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
     t.pump();
     t.press(Action::Nav(Screen::Files));
     t.press(Action::VisitWrite);
-    t.shot_marking("stick-visit-already", Action::VisitReplace)?;
+    t.shot_marking("files-stick-already", Action::VisitReplace)?;
     t.press(Action::VisitReplace);
     // The stick's vault.kdbx is a file nothing proves a copy: its name is
     // asked, and the vault goes beside it.
     t.pump();
-    t.shot_marking("stick-visit-name-taken", Action::NameTakenBeside)?;
+    t.shot_marking("files-stick-name-taken", Action::NameTakenBeside)?;
     t.press(Action::NameTakenBeside);
     t.pump();
     t.press(Action::Nav(Screen::Files));
@@ -101,7 +100,7 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
     t.press(Action::DeleteFiles);
     t.press(Action::DeletePick(0));
     t.shot("files-and-sticks-delete")?;
-    t.shot("stick-visit-delete")?;
+    t.shot("files-stick-delete")?;
     t.press(Action::DeleteWhat(1));
     t.press(Action::Vault(V::HoldWipe));
     if t.app.sheet != Some(faraday_core::Sheet::Zeroing) {
@@ -119,7 +118,7 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
         t.app.event(Event::Tick { now_ms: t.now });
         t.pump();
     }
-    t.shot("stick-visit-zeroing")?;
+    t.shot("files-stick-zeroing")?;
     t.app.storage(StorageEvent::Zeroing {
         stick: keystick.id,
         next: 1_002,
@@ -168,7 +167,7 @@ fn write_asks_to_lock(t: &mut Tour, psbt: &[u8]) -> Result<(), String> {
     }
     t.press(Action::Nav(Screen::Files));
     t.press(Action::VisitWrite);
-    t.shot("stick-visit-write-to-a-stick")?;
+    t.shot("files-stick-write-to-a-stick")?;
     t.press(Action::Cancel);
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();

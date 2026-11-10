@@ -222,7 +222,7 @@ A stick visit, a stick open to Faraday, writes what waits for the stick and
 copies in what is needed from it. Each file written is read back and
 compared before it counts. Keys load only once the stick is out.
 
-![Files with KEYSTICK open: In Faraday with a signed PSBT ticked, On the stick with a PSBT and a vault ticked](../pictures/stick-visit.png)
+![Files with KEYSTICK open: In Faraday with a signed PSBT ticked, On the stick with a PSBT and a vault ticked](../pictures/files-on-the-stick.png)
 
 *Files with KEYSTICK open, **Then: Home**: **In Faraday** lists
 **Settings**, a signed PSBT ticked and, under **From the stick**, two
@@ -286,7 +286,7 @@ scroll to see them" under it.
 **Opened from:** "Write 2 files" when a file's name is on the stick
 already, ignoring case. Its title is **Already on the stick**.
 
-![Already on the stick: a PSBT kept both as payment-signed-2.psbt](../pictures/stick-visit-already.png)
+![Already on the stick: a PSBT kept both as payment-signed-2.psbt](../pictures/files-stick-already.png)
 
 *The sheet **Already on the stick**: "payment-signed.psbt · Keep both:
 payment-signed-2.psbt". **Replace** is outlined. It lists files that are
@@ -301,7 +301,7 @@ not vaults; a vault's name taken is asked on its own sheet, below.*
 
 ## A vault's name is taken
 
-![vault.kdbx is already on the stick: Faraday cannot tell which vault the file is, Hold: overwrite vault.kdbx outlined, Cancel, Save as vault-2.kdbx filled](../pictures/stick-visit-name-taken.png)
+![vault.kdbx is already on the stick: Faraday cannot tell which vault the file is, Hold: overwrite vault.kdbx outlined, Cancel, Save as vault-2.kdbx filled](../pictures/files-stick-name-taken.png)
 
 **Opened from:** "Write" on a visit, or the backup flow's write to an
 existing vault's stick, when a file on the stick has the vault's name,
@@ -330,7 +330,7 @@ none. With several vaults in one write, the sheet asks them in turn.
 stick, while Faraday has held a secret since it started: a stick is
 written only from a fresh start. Its title is "Write to a stick".
 
-![Write to a stick: Kept 1 file for the stick, Wiped from memory Seed 3dca6805, Then Lock, and the visit writes them](../pictures/stick-visit-write-to-a-stick.png)
+![Write to a stick: Kept 1 file for the stick, Wiped from memory Seed 3dca6805, Then Lock, and the visit writes them](../pictures/files-stick-write-to-a-stick.png)
 
 *"Write to a stick": **Kept** 1 file for the stick, **Wiped from
 memory** Seed 3dca6805 · nowhere else, **Then** **Lock, and the visit
@@ -365,7 +365,7 @@ none until one is given (`docs/STICK-IDENTITY.md` §6).
 **Opened from:** **Delete files** on a stick visit, and "Delete from the
 stick" in a file's **⋮**. Its title is "Delete files from Boot stick".
 
-![Delete files from KEYSTICK on Chosen files, payment-signed.psbt ticked, Delete 1 file with zeros](../pictures/stick-visit-delete.png)
+![Delete files from KEYSTICK on Chosen files, payment-signed.psbt ticked, Delete 1 file with zeros](../pictures/files-stick-delete.png)
 
 *"Delete files from KEYSTICK" on **Chosen files**: payment-signed.psbt
 ticked, vault.kdbx not, and "Delete 1 file with zeros" beside
@@ -393,7 +393,7 @@ files. Its title is "Zeroing the free space on Boot stick" or "Zeroing
 the whole partition on Boot stick". No press beside the sheet closes
 it.
 
-![Zeroing the free space on KEYSTICK at 40%, about 7 minutes left, with Stop](../pictures/stick-visit-zeroing.png)
+![Zeroing the free space on KEYSTICK at 40%, about 7 minutes left, with Stop](../pictures/files-stick-zeroing.png)
 
 *"Zeroing the free space on KEYSTICK": "40% · about 7 minutes left",
 "Keep the stick in until it is done", and **Stop**.*

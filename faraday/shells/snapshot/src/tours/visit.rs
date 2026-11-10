@@ -1,11 +1,11 @@
-//! The visit tour.
+//! The tour of the stick's pane of Files.
 
 use crate::tour::{Tour, scroll};
 use faraday_core::{Action, Screen};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
 
-/// Costs what `classify` costs. Stick visit with a wallet backup's 20
+/// Costs what `classify` costs. The stick's pane of Files with a wallet backup's 20
 /// files in the Outbox and an unprotected secret: the Outbox list at
 /// its top and scrolled to its end by the wheel over it, then the
 /// stick's files at their end beside it. On a small panel the page
@@ -109,9 +109,9 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     not_clean(t)
 }
 
-/// The visit once the process is no longer clean: a words file in the
+/// The stick's pane of Files once the process is no longer clean: a words file in the
 /// Inbox, a key loaded with the stick out, the stick back in with its Lock
-/// sheet put off, and Write on the visit asking to lock.
+/// sheet put off, and Write on the stick's pane asking to lock.
 fn not_clean(t: &mut Tour) -> Result<(), String> {
     faraday_core::testkit::inbox_push(
         &mut t.app,

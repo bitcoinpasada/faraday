@@ -61,7 +61,8 @@ Under **Name and passphrase**:
 1. **Name**: type `Passwords`. Beside it, `Passwords.kdbx`. The name is what anyone who sees the stick reads;
    leave it empty for `vault.kdbx`.
 2. **Passphrase**: type it in the first field, then again in the
-   second, until the line under them reads **Matches**. The eye at the
+   second; while the two differ, the line under them reads **The two
+   passphrases differ** and **Create vault** waits. The eye at the
    end of a field, or **Show passphrase**, shows what is typed. Or
    press **Generate with dice** (step 2).
 
