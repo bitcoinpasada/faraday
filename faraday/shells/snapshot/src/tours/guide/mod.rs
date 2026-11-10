@@ -15,6 +15,7 @@ mod messages;
 mod more_from_a_key;
 mod multisig_with_others;
 mod new_key;
+mod qr_vault;
 mod receive;
 mod restore;
 mod screen_states;
@@ -55,7 +56,7 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     make_a_wallet::multisig_board(t)?;
     multisig_with_others::scan_key(c, t)?;
     // Each part from here is tried, and every one that fails is named.
-    let parts: [(&str, Part); 19] = [
+    let parts: [(&str, Part); 20] = [
         ("receive", receive::receive),
         ("spend by QR", spend::spend_by_qr),
         ("warnings", spend::spend_warnings),
@@ -75,6 +76,7 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         ("multisig with others", multisig_with_others::with_others),
         ("files and sticks", files_and_sticks::run),
         ("screen states", screen_states::run),
+        ("qr vault", |_, t| qr_vault::run(t)),
     ];
     let failed: Vec<String> = parts
         .into_iter()

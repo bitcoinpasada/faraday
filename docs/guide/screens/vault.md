@@ -102,11 +102,17 @@ The title is its fingerprint; its line "12 words", its label, and
 | **Remove BIP-85 origin** | the same for the BIP-85 origin. Shown for a seed that has one |
 | **Copy to another vault…** | opens [Copy to another vault](#copy-to-another-vault-and-move-to-another-vault) |
 | **Move to another vault…** | opens [Move to another vault](#copy-to-another-vault-and-move-to-another-vault). Not shown in a read-only vault |
+| **Save as a QR vault** | opens [QR vault](qr-vault.md#save-as-a-qr-vault) on its Passphrase step with the key as its contents, or says why the key does not fit. Shown for a seed |
 | **Save to a stick** | opens [Save to a stick](#save-to-a-stick) |
 | **Hold to delete from vault** | held until it fills: deletes the item ("Deleted from the vault") |
 
 Every kind of item has **Copy to another vault…** and, in a vault that is
 not read-only, **Move to another vault…**, after its other buttons.
+
+A seed, a codex32 share, a BIP-39 passphrase and a note also have **Save
+as a QR vault**, before those two: it opens
+[QR vault](qr-vault.md#save-as-a-qr-vault). A person's entry, a wallet and
+the other items have no such button.
 
 ## A wallet
 
@@ -149,7 +155,8 @@ The title is its title; its line **Password**, **TOTP**, both
 
 The title is its first line; its line "Note · 120 characters".
 **Text** is hidden behind its eye; **Edit** opens **Edit the note**
-(**Text**, **Save**, **Cancel**). A recovery sheet kept in the vault
+(**Text**, **Save**, **Cancel**); **Save as a QR vault** opens
+[QR vault](qr-vault.md#save-as-a-qr-vault) with the note as its contents. A recovery sheet kept in the vault
 shows its **Descriptor** and **Note**.
 
 ## A GPG key

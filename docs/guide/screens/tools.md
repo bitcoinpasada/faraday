@@ -57,6 +57,7 @@ name, its line and its standards; the groups below scroll into view.*
 | **Messages** | **Sign a message**, **Check a signed message** | each tool's page |
 | **Vaults and other keys** | **Vaults** | [Vaults](vaults.md) |
 | | **TOTP codes** | [TOTP codes](codes.md) |
+| | **QR vault** | [QR vault](qr-vault.md), on its Contents card |
 | | **Diceware passphrase** | [Create a vault](create-vault.md) |
 | | **GPG key**, **Secure Boot keys** | the key's making, or that kind in the open vault |
 | | **KeePass export** | that kind in the open vault |

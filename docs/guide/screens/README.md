@@ -52,6 +52,7 @@ say what to do; these pages say what each control on a screen does.
 | Tools | [Convert a seed](convert.md) | From, To, Result |
 | Tools | [Silent payments](silent-payments.md) | Key, Address and its labels, Scan key, Check a payment |
 | Tools | [Vanity address](vanity.md) | Key, What turns, Kind of address, Characters, Search |
+| Tools | [QR vault](qr-vault.md) | Make: Contents, Passphrase, Code; Open: the passphrase and what the code holds, its offers |
 | Tools | [Sweep a private key](sweep.md) | The key typed or scanned, its addresses, the PSBT's review and the hold that signs |
 | Tools | [Lightning node key](lightning.md) | ldk-node from a loaded key, LND from an aezeed, the node id and its key |
 | Learn | [Learn](learn.md) | Learn's tabs and pages, beside the page on a wide window, the pages each screen gives |
