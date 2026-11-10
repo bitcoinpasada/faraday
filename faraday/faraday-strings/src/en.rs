@@ -259,7 +259,7 @@ strings! {
     /// Home's card for the firmware's Faraday stick entry.
     starter_card_entry: "Boot entry",
     /// Tools' Transfer card's line.
-    starter_card_transfer_line: "Send and Receive",
+    starter_card_transfer_line: "Send files and text, Receive",
     /// Tools' Transfer card's button.
     starter_open_transfer: "Open Transfer",
     /// Tools' Blank templates card's line.
@@ -8758,6 +8758,32 @@ strings! {
     /// A Downloads row's size when the file is over what Transfer sends.
     /// `{}`: the most it sends, as `size_text` writes it.
     transfer_over: "Over {}",
+    /// Section label of the text card in `send_text`.
+    transfer_send_text: "Send text",
+    /// Label of the text field in `send_text`.
+    transfer_text_label: "Text",
+    /// The empty text field's hint in `send_text`.
+    transfer_text_hint: "Paste or type the text",
+    /// Supporting text under the field in `send_text`. `{}`: the
+    /// characters in the text, then its size as `size_text` writes it.
+    transfer_text_count: "{} characters · {}",
+    /// Button in `send_text`.
+    transfer_text_paste: "Paste",
+    /// Button in `send_text`.
+    transfer_text_clear: "Clear",
+    /// Button in `send_text`.
+    transfer_text_show: "Show as QR",
+    /// Title of the QR sheet of a text sent.
+    transfer_text_sheet_title: "Text",
+    /// Refusal under the field when the whole text is a secret. `{}`: the
+    /// kind's name, as `Kind::label` writes it, in lower case.
+    transfer_text_secret: "Not shown: this is {}",
+    /// Refusal under the field when a secret is found in the text. `{}`:
+    /// the kind's name, as `Kind::label` writes it, in lower case.
+    transfer_text_maybe_secret: "Not shown: it holds {}",
+    /// Refusal under the field when the text is too long. `{}`: the most
+    /// text sent, as `size_text` writes it.
+    transfer_text_too_long: "Over {}: send it as a file",
     /// Section label in `receive`.
     transfer_receive: "Receive",
     /// Button in `receive`.

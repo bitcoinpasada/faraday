@@ -678,6 +678,13 @@ with = ["docs/learn/**"]
 # ---------------------------------------------------------------- crypto
 
 [[rule]]
+id = "standards.text-tool-refuses-secrets"
+title = "the online apps' Send text refuses a secret through the device's own classifier; a secret kind added to scan_read is refused by it too, and bare hex stays the one case let through"
+source = ["docs/decisions/F236.md", "docs/decisions/F136.md"]
+when = ["faraday/faraday-core/src/scan_read.rs", "faraday/faraday-core/src/transfer/**"]
+kind = "review"
+
+[[rule]]
 id = "crypto.crosscheck-stamp"
 title = "before a release, the crypto sources match the last passing cross-check and each action's fingerprint its code"
 source = ["docs/decisions/F79.md", "docs/decisions/F148.md", "docs/decisions/F197.md", "CLAUDE.md"]

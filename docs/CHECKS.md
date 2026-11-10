@@ -115,6 +115,7 @@ does what is `tools/README.md`'s.
 | `standards.disagreements-held`: each disagreement STANDARDS §8 lists is held by a [[disagreement]] that fails when it changes | `docs/STANDARDS.md`<br>`tools/lint-standards.toml` | held | - | `lint-standards` | - | `docs/STANDARDS.md` §8 |
 | `standards.scope`: a new kind of key or signature is a decision | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `docs/decisions/F116.md` |
 | `standards.learn-in-step`: STANDARDS.md and the Learn pages are kept in step until F148 generates both | `docs/STANDARDS.md` | pair | `docs/learn/**` | - | - | `docs/STANDARDS.md` |
+| `standards.text-tool-refuses-secrets`: the online apps' Send text refuses a secret through the device's own classifier; a secret kind added to scan_read is refused by it too, and bare hex stays the one case let through | `faraday/faraday-core/src/scan_read.rs`<br>`faraday/faraday-core/src/transfer/**` | review | - | - | - | `docs/decisions/F236.md`<br>`docs/decisions/F136.md` |
 
 ### 2.6 crypto
 
@@ -283,6 +284,7 @@ No script holds these; a reviewer reads this list for the change.
 | `standards.no-way-past`: a check that keeps keys or money safe has no way past it unless a decision names the case; a hold names it | `CLAUDE.md`<br>`docs/decisions/F136.md` |
 | `standards.out-of-app`: unpublished or unreviewed work stays in the repository, compiled out of the app | `docs/STANDARDS.md` §0<br>`docs/decisions/F234.md` |
 | `standards.scope`: a new kind of key or signature is a decision | `docs/decisions/F116.md` |
+| `standards.text-tool-refuses-secrets`: the online apps' Send text refuses a secret through the device's own classifier; a secret kind added to scan_read is refused by it too, and bare hex stays the one case let through | `docs/decisions/F236.md`<br>`docs/decisions/F136.md` |
 | `crypto.independence-said`: no text calls a check outside where the implementation it compares with is Faraday's own, or calls such a check not independent: it is not checked against an outside source | `docs/decisions/F160.md`<br>`docs/decisions/F177.md`<br>`docs/decisions/F179.md` |
 | `crypto.crosscheck-sources`: a cross-check judge is others' code of another lineage than what it judges (a port, or another version of the same library for the maths they share, is not); Faraday's second version of a part is retired where such a judge covers the same inputs; every judge just crosscheck names is required there and is a DEVELOPING prerequisite; a switch lands with its cross-check change | `docs/decisions/F191.md`<br>`docs/decisions/F192.md`<br>`docs/ESTABLISHED.md` §9 |
 | `crypto.tested`: a cryptographic change is tested against published vectors or another implementation | `CLAUDE.md`<br>`docs/decisions/F148.md` |

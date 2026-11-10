@@ -42,7 +42,7 @@ Read this table, then only the decision you need.
 | [F25](history/decisions/F25.md) | The Companion's APK signing key is made, kept and used in Faraday | 2026-10-14 | Replaced by F99 | signing |
 | [F26](decisions/F26.md) | Files of any size on a stick visit, imported whole or only for signing | 2026-10-14 | Amended by F30 | stick |
 | [F27](decisions/F27.md) | Nostr keys from the seed, by BIP-85 application 128002' | 2026-10-14 | Amended by F34 | keys |
-| [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33, F123, F215 | QR |
+| [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33, F123, F215, F236 | QR |
 | [F29](decisions/F29.md) | A copy by hand is checked by its form: typed words, or a scan of a SeedQR | 2026-10-14 | Active | backup |
 | [F30](decisions/F30.md) | No released Faraday Desktop; the demo makes no secrets | 2026-10-14 | Amended by F61, F81, F83 | release |
 | [F31](decisions/F31.md) | Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes | 2026-10-14 | Amended by F58, F99 | backup |
@@ -250,3 +250,4 @@ Read this table, then only the decision you need.
 | [F233](decisions/F233.md) | Compare two PSBTs lists their differences without judging them; a fee bump is said only on Faraday's own rule, failing closed | 2026-11-10 | Active, built | signing |
 | [F234](decisions/F234.md) | Work kept out of the app is held by reachability, not by a cargo feature | 2026-11-10 | Active | wallets |
 | [F235](decisions/F235.md) | The stick is shown in Files, and the stick visit is no destination | 2026-11-10 | Active | stick |
+| [F236](decisions/F236.md) | The online apps' Send text tool shows any text as a QR code except a secret, by a rule of Faraday's own that fails closed; bare hex is let through | 2026-11-10 | Active | QR |
