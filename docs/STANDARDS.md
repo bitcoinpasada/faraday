@@ -101,7 +101,13 @@ decision F109):
 cryptography the cross-check's stamp does not cover and
 `tools/lint-standards.toml` does not list with its reason, on app code
 that reaches work kept out of the app (§0.1), and on a hold that names no
-decision; `docs/crypto/verified.py` fails on a row of §2 to §5 that names
+decision, and on a warning kind made at Caution or Info in faraday-psbt's inspect and signer code that names none (the forms of making one that the lint lists stop it; a
+warning pushed or changed from outside faraday-psbt, under a `#[cfg(test)]`
+item, or by a route the lint does not list, is not seen), or a
+named way past (the dev image, the Starter's rescue-disk answer, a skip, the
+memory's seal setting) whose code has gone; a new way past of that kind (a
+flag, an answer, a setting) cannot be found by a pattern, and review rule
+`standards.no-way-past` covers it; `docs/crypto/verified.py` fails on a row of §2 to §5 that names
 no check, and on a cross-check area or vectors folder no row names.
 
 ### 0.1 Left out, and why

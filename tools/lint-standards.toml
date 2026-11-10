@@ -348,3 +348,185 @@ case = "Hold to overwrite: a file nothing proves is this vault, under the name a
 # One entry per bullet of STANDARDS §8: the text, in each file named,
 # that makes the disagreement. When a fix removes it, the bullet and the
 # entry go together.
+
+# ------------------------------------------------- cautions, notes, ways past
+# F136's table also lists ways past that are not holds. A `[[caution]]` is a
+# warning kind the code makes at Level::Caution (core/faraday-psbt/src/
+# inspect.rs, and signer.rs's Kind::level): it still signs. A `[[note]]` is a
+# kind whose levels include Info and not Caution. Each names the decision and
+# the case of F136's table; the lint fails on one the code makes that is not
+# listed, and on one the code no longer makes at that level.
+
+[[caution]]
+kind = "WarningKind::UnknownDerivation"
+decision = "F136"
+case = "Signs with a caution: a path under no loaded account, or the key in a script other than its account's; keys used at other paths, signing derives and checks the key itself"
+
+[[caution]]
+kind = "WarningKind::UnsupportedInput"
+decision = "F136"
+case = "Signs with a caution: another party's input, or one this signer cannot sign; it is not signed"
+
+[[caution]]
+kind = "WarningKind::NoWalletForScript"
+decision = "F141"
+case = "Signs with a caution: an input of the person's key in a miniscript or taproot tree whose wallet is not registered here; it is not signed, the rest is"
+
+[[caution]]
+kind = "WarningKind::MusigNonceReplaced"
+decision = "F136"
+case = "Signs with a caution: a nonce no open session holds is drawn again, and the old partial signatures dropped"
+
+[[caution]]
+kind = "WarningKind::HighFee"
+decision = "F136"
+case = "Signs with a caution from 5 to 20 % of what is sent: an ordinary fee on a small payment (20 % or more is a hold)"
+
+[[caution]]
+kind = "WarningKind::SignatureUnchecked"
+decision = "F136"
+case = "Signs with a caution: a signature with nothing to check it against; it signs nothing of the person's"
+
+[[caution]]
+kind = "WarningKind::UnusualSighash"
+decision = "F136"
+case = "Signs with a caution: ALL|ANYONECANPAY; adding inputs to a payment"
+
+[[caution]]
+kind = "WarningKind::SighashMismatch"
+decision = "F136"
+case = "Signs with a caution: a signature stricter than its input asks; a signer that committed to more"
+
+[[caution]]
+kind = "Kind::SignatureUnchecked"
+decision = "F84"
+case = "Check a signer's finding (F84): a removal or an unchecked signature is a Caution and fails the verdict; nothing is signed past it"
+
+[[caution]]
+kind = "Kind::SighashStricter"
+decision = "F84"
+case = "Check a signer's verdict (F84 is the decision for the verdict; its sentence names removed and unchecked, and SIGNER-CHECK §6.2's S4m makes this a Caution): a signature under a sighash that commits to more than the input asked for fails the verdict; nothing is signed past it"
+
+[[caution]]
+kind = "Kind::SignatureRemoved"
+decision = "F84"
+case = "Check a signer's finding (F84): a removal or an unchecked signature is a Caution and fails the verdict; nothing is signed past it"
+
+[[caution]]
+kind = "Kind::NoSignatureAdded"
+decision = "F84"
+case = "Check a signer's verdict (F84 is the decision for the verdict; its sentence names removed and unchecked, and SIGNER-CHECK §6.2's S9 makes this a Caution): a returned file with no signature or nonce added and no input finalized fails the verdict; nothing is signed past it"
+
+[[caution]]
+kind = "Kind::FinalRemoved"
+decision = "F84"
+case = "Check a signer's finding (F84): a removal or an unchecked signature is a Caution and fails the verdict; nothing is signed past it"
+
+[[caution]]
+kind = "Kind::FieldRemoved"
+decision = "F84"
+case = "Check a signer's finding (F84): a removal or an unchecked signature is a Caution and fails the verdict; nothing is signed past it"
+
+[[caution]]
+kind = "Kind::UnknownRemoved"
+decision = "F84"
+case = "Check a signer's finding (F84): a removal or an unchecked signature is a Caution and fails the verdict; nothing is signed past it"
+
+[[caution]]
+kind = "Kind::ProprietaryRemoved"
+decision = "F84"
+case = "Check a signer's finding (F84): a removal or an unchecked signature is a Caution and fails the verdict; nothing is signed past it"
+
+[[caution]]
+kind = "WarningKind::UnverifiedChange"
+decision = "F136"
+case = "Rule 5: an output that claims to be change and cannot be verified is drawn under Sends with its address and amount, never as Change"
+
+[[caution]]
+kind = "WarningKind::DustOutput"
+decision = "F136"
+case = "Listed in F136's table under Notes, though the code makes it at Caution: nothing is at risk that a check would keep"
+
+[[caution]]
+kind = "WarningKind::AddressReuse"
+decision = "F136"
+case = "Listed in F136's table under Notes, though the code makes it at Caution: nothing is at risk that a check would keep"
+
+[[caution]]
+kind = "WarningKind::NonStandardScript"
+decision = "F136"
+case = "Listed in F136's table under Notes, though the code makes it at Caution (Info for a data output): nothing is at risk that a check would keep"
+
+[[note]]
+kind = "WarningKind::UnknownFields"
+decision = "F84"
+case = "Unknown fields are Info in a review: a note that keeps nothing safe"
+
+[[note]]
+kind = "WarningKind::LocktimeInFuture"
+decision = "F136"
+case = "A locktime is set and the signer has no clock: a note that keeps nothing safe (F136's rule 1)"
+
+[[note]]
+kind = "WarningKind::MixedScriptTypes"
+decision = "F136"
+case = "Inputs of more than one script type, or multisig inputs of different m-of-n: a note that keeps nothing safe (F136's rule 1)"
+
+[[note]]
+kind = "WarningKind::Inscription"
+decision = "F136"
+case = "An input carrying an inscription: a note that keeps nothing safe (F136's rule 1)"
+
+# A way past that is neither a hold nor a level. Each names a file and a
+# pattern that must still match; a new one of this kind cannot be found by a
+# pattern and is covered by review rule standards.no-way-past.
+
+[[way_past]]
+what = "The dev image"
+decision = "F136"
+case = "A developer's own build, with a serial console: the dev variant's inittab starts a getty beside the app"
+file = "faraday/image/variants/dev/inittab.in"
+pattern = 'respawn:/sbin/getty'
+
+[[way_past]]
+what = "The dev image's build script"
+decision = "F136"
+case = "A developer's own build: the image build's dev variant is the build that carries the serial console"
+file = "faraday/image/build.sh"
+pattern = 'parts\+=\("\$dev_dir"\)'
+
+[[way_past]]
+what = "I have its rescue disk or password"
+decision = "F136"
+case = "The Starter, beside another encryption product: the person holds the way back into that disk"
+file = "faraday/faraday-starter/src/lib.rs"
+pattern = 'StarterAction::Rescue => \{\n\s*if self\.page == Page::Start \{\n\s*self\.other_confirmed = true'
+
+[[way_past]]
+what = "Skip the quiz"
+decision = "F136"
+case = "The person's own backup: the quiz is skipped by a second press"
+file = "faraday/faraday-core/src/keygen/area.rs"
+pattern = 'A::KSkip => \{\n\s*if k\.skip_ask \{\n\s*k\.skipped = true'
+
+[[way_past]]
+what = "Skip the codex32 check"
+decision = "F136"
+case = "The person's own backup: the codex32 check is skipped by a second press"
+file = "faraday/faraday-core/src/codex32_backup/screen.rs"
+pattern = 'EN\.codex32_skip, Style::Ghost, a\(Press::Skip\)'
+
+[[way_past]]
+what = "Skip the person's own randomness"
+decision = "F136"
+case = "The person's own choice of randomness: the Generator card's Skip goes on to the words with nothing added"
+file = "faraday/faraday-core/src/fresh.rs"
+pattern = 'a == page::Act::Skip'
+
+[[way_past]]
+what = "The signed-amount memory's seal setting"
+decision = "F136"
+case = "Where the person keeps it: sealed into an open vault on lock, or not"
+file = "faraday/faraday-core/src/lib.rs"
+pattern = 'Action::SealAmounts\(on\) => \{\n\s*self\.memory\.set_seals\(on\)'
+
