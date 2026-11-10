@@ -1646,6 +1646,10 @@ strings! {
     /// Text in `TILES`.
     catalog_what_it_spends: "What it spends and pays, field by field",
     /// Text in `TILES`.
+    catalog_decode_a_lightning_invoice: "Decode a Lightning invoice",
+    /// Text in `TILES`.
+    catalog_what_it_asks: "What it asks to be paid, and by whom",
+    /// Text in `TILES`.
     catalog_transactions: "Transactions",
     /// Text in `TILES`.
     catalog_check_an_address: "Check an address",
@@ -1837,6 +1841,8 @@ strings! {
     compact_vanity_address: "Vanity address",
     /// Text in `screen_name`.
     compact_transaction: "Transaction",
+    /// Title in `compact_screen_name`.
+    compact_invoice: "Invoice",
     /// Text in `screen_name`: the nonce check of a transaction brought in.
     compact_nonce_check: "Nonces",
     /// Text in `page`.
@@ -4243,6 +4249,8 @@ strings! {
     scan_title_psbt: "Scan the PSBT",
     /// A scanner's title: Tools' Decode a transaction.
     scan_title_transaction: "Scan a transaction",
+    /// Title in `scan_screen`.
+    scan_title_invoice: "Scan an invoice",
     /// A scanner's title: Tools' Check an address.
     scan_title_address: "Scan an address",
     /// A scanner's title: an Add a key form's Scan.
@@ -5540,6 +5548,101 @@ strings! {
     decode_back_back: "Back",
     /// Text in `decode_back`.
     decode_back_nonce_check: "Nonce check",
+    // ----- invoice (faraday-core/src/invoice/) -----
+    /// Title in `invoice_screen`.
+    invoice_title: "Decode a Lightning invoice",
+    /// The empty field's hint.
+    invoice_field: "Invoice",
+    /// Button: reads the text in the field.
+    invoice_decode: "Decode",
+    /// Button: opens the scanner for an invoice.
+    invoice_scan: "Scan",
+    /// Button: empties the field.
+    invoice_clear: "Clear",
+    /// The About page's text and the guide line above the field.
+    invoice_about: "Reads an invoice and shows what it asks. Nothing is paid, signed or kept.",
+    /// Row name.
+    invoice_network: "Network",
+    /// Row name.
+    invoice_amount: "Amount",
+    /// Row value: an invoice that names no amount.
+    invoice_any_amount: "Any amount",
+    /// An amount in whole satoshis. `{}`: the number.
+    invoice_sat: "{} sat",
+    /// An amount that is not whole satoshis. `{}`: millisatoshis.
+    invoice_msat: "{} msat",
+    /// Row name.
+    invoice_description: "Description",
+    /// Row name.
+    invoice_description_hash: "Description hash",
+    /// Row name.
+    invoice_payee: "Payee key",
+    /// Row name.
+    invoice_payee_from: "Payee key from",
+    /// Row value: the invoice's n field.
+    invoice_payee_named: "Named in the invoice",
+    /// Row value: no n field.
+    invoice_payee_recovered: "Recovered from the signature",
+    /// Row name.
+    invoice_payment_hash: "Payment hash",
+    /// Row name.
+    invoice_payment_secret: "Payment secret",
+    /// Row name.
+    invoice_created: "Created",
+    /// Row name.
+    invoice_expires: "Expires",
+    /// A time. `{}`: the date, then the time of day.
+    invoice_utc: "{} {} UTC",
+    /// Row name.
+    invoice_final_cltv: "Final CLTV delta",
+    /// Row value. `{}`: the number.
+    invoice_blocks: "{} blocks",
+    /// Row name.
+    invoice_fallback_p2pkh: "Fallback address, P2PKH",
+    /// Row name.
+    invoice_fallback_p2sh: "Fallback address, P2SH",
+    /// Row name.
+    invoice_fallback_witness: "Fallback address, witness",
+    /// Row name. `{}`: the hint's number, then the hop's.
+    invoice_route_hop: "Route hint {}, hop {}",
+    /// Row value. `{}`: node key, channel id, base fee msat, ppm, CLTV delta.
+    invoice_hop: "{} · channel {} · base {} msat · {} ppm · delta {}",
+    /// Row name.
+    invoice_features: "Feature bits",
+    /// Row name.
+    invoice_metadata: "Payment metadata",
+    /// Row name. `{}`: the field's tag character.
+    invoice_unknown: "Unknown field {}",
+    /// Refusal.
+    invoice_err_too_long: "Refused: the text is over 1023 characters",
+    /// Refusal.
+    invoice_err_mixed_case: "Refused: the text mixes upper and lower case",
+    /// Refusal.
+    invoice_err_bech32: "Refused: the text is not Bech32",
+    /// Refusal.
+    invoice_err_checksum: "Refused: the checksum does not hold",
+    /// Refusal.
+    invoice_err_prefix: "Refused: the text does not start with a Lightning network prefix",
+    /// Refusal.
+    invoice_err_amount: "Refused: the amount is malformed",
+    /// Refusal.
+    invoice_err_too_short: "Refused: the text is shorter than a timestamp and a signature",
+    /// Refusal.
+    invoice_err_truncated: "Refused: a field runs past the end of the text",
+    /// Refusal. `{}`: the field's tag.
+    invoice_err_field: "Refused: field {} is malformed",
+    /// Refusal. `{}`: the field's tag.
+    invoice_err_duplicate: "Refused: field {} appears twice",
+    /// Refusal.
+    invoice_err_no_payment_hash: "Refused: no payment hash",
+    /// Refusal.
+    invoice_err_no_payment_secret: "Refused: no payment secret",
+    /// Refusal.
+    invoice_err_description: "Refused: it needs one description or description hash, not both or neither",
+    /// Refusal. `{}`: the feature bit.
+    invoice_err_feature: "Refused: it requires feature bit {}, which is not known here",
+    /// Refusal.
+    invoice_err_signature: "Refused: the signature does not verify",
     // ----- decode (faraday-core/src/decode/screen.rs) -----
     /// Title in `decode_screen`.
     decode_decode_a_transaction: "Decode a transaction",

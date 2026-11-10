@@ -1397,6 +1397,17 @@ impl WalletBackupArea {
 }
 
 impl Faraday {
+    /// The open vaults set up for plan vaults other than `v`.
+    pub(crate) fn backup_vaults_set_up_but(&self, v: usize) -> Vec<usize> {
+        let Some(i) = self.wallet_flow_of_backup() else {
+            return Vec::new();
+        };
+        (0..self.flows[i].plan.vaults.len())
+            .filter(|&w| w != v)
+            .filter_map(|w| self.flow_open_index(i, w))
+            .collect()
+    }
+
     /// Costs what `hold` costs, when a seed has just been shown. After
     /// every press, a screen left drops what it held: Explore's, and the
     /// seed shown on the copy page, which is worked out once when shown

@@ -111,6 +111,7 @@
 //! | `Family` | `family/screen.rs` |
 //! | `Vanity` | `vanity/screen.rs` |
 //! | `Decode` | `decode/screen.rs` |
+//! | `Invoice` | `invoice/screen.rs` |
 //! | `NonceCheck` | `screens/nonce_check.rs` |
 //! | `SignerCheck` | `decode/check_screen.rs` |
 //! | `Catalog` | `screens/catalog.rs` |
@@ -183,6 +184,7 @@ pub mod fresh;
 pub mod gpg;
 pub mod grind;
 pub mod inbox;
+pub mod invoice;
 pub mod kef_form;
 pub mod kef_tool;
 pub mod keygen;
@@ -364,6 +366,8 @@ pub enum Screen {
     Vanity,
     /// A transaction taken apart.
     Decode,
+    /// A Lightning invoice taken apart.
+    Invoice,
     /// A signed transaction brought in, checked rather than signed.
     NonceCheck,
     /// Check a signer: the PSBT sent and the one returned, compared.
@@ -2923,6 +2927,7 @@ impl Faraday {
             | Action::DecodeHex
             | Action::SpendHex) => self.decode_act(a, &c),
             a @ (Action::NonceCheck(..) | Action::SignerCheck(..)) => self.decode_act(a, &c),
+            Action::Invoice(p) => invoice::act(self, p),
             a @ (Action::SignMessage
             | Action::MStep(..)
             | Action::MNext(..)
@@ -3304,17 +3309,6 @@ impl Faraday {
     pub(crate) fn backup_vault_set_up(&self, v: usize) -> Option<usize> {
         let i = self.wallet_flow_of_backup()?;
         self.flow_open_index(i, v)
-    }
-
-    /// The open vaults set up for plan vaults other than `v`.
-    fn backup_vaults_set_up_but(&self, v: usize) -> Vec<usize> {
-        let Some(i) = self.wallet_flow_of_backup() else {
-            return Vec::new();
-        };
-        (0..self.flows[i].plan.vaults.len())
-            .filter(|&w| w != v)
-            .filter_map(|w| self.flow_open_index(i, w))
-            .collect()
     }
 
     /// The open vault the checklist puts plan vault `v` in: the vault set
@@ -5309,9 +5303,7 @@ impl Faraday {
         }
         self.shown_tidy();
         self.tool_tidy();
-        if self.screen != Screen::Tools {
-            self.tools.close();
-        }
+        self.tools.tidy(self.screen);
         if self.sheet != Some(Sheet::WordList) {
             self.wordlist.clear();
         }

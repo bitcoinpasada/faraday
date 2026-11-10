@@ -28,7 +28,7 @@ function for what it reads (`Faraday::scanned` in
 
 | Purpose | Opened from (button) | Title | Ways in under the picture |
 |---|---|---|---|
-| `Files` | Home's **Scan** (floating, every panel); Files' **Scan a QR code**; Tools' **Scan a QR code**, **Check an address**, and **Sign a transaction** and **Decode a transaction** with nothing to sign or decode in Files; Restore's **Scan it** and **Scan descriptor**; Create's **Scan its xpub** on a key slot; Restore's seeds card's **Scan** (a cosigner's box); Spend's **Scan a copy** at Finish; the Spend tab's **Scan it** and **Scan the PSBT** | "Scan a QR code", from every one of them | Paste (desktop only), Cancel |
+| `Files` | Home's **Scan** (floating, every panel); Files' **Scan a QR code**; Tools' **Scan a QR code**, **Check an address**, Decode a Lightning invoice's **Scan**, and **Sign a transaction** and **Decode a transaction** with nothing to sign or decode in Files; Restore's **Scan it** and **Scan descriptor**; Create's **Scan its xpub** on a key slot; Restore's seeds card's **Scan** (a cosigner's box); Spend's **Scan a copy** at Finish; the Spend tab's **Scan it** and **Scan the PSBT** | "Scan a QR code", from every one of them | Paste (desktop only), Cancel |
 | `Seed` | Add a key's **Scan a SeedQR**; New key's Start, **Scan a SeedQR**; a Restore slot's **Scan a SeedQR**; Tools' **Scan a SeedQR** | "Scan a SeedQR" | Paste (desktop), Cancel |
 | `KeyPart` | Add a key's **Scan a QR code** on the codex32, SLIP-39 and Seed XOR forms | "Scan a QR code" | Paste (desktop), Cancel |
 | `WalletKey(w)` | a wallet's **Scan a key for {wallet}** and **Scan a key**; Spend's Signers **Scan a key**; the Spend tab's signers **Scan a key**; Add a key opened for a wallet | "Scan a key for {wallet}", over a line per missing key ("Key 2 · 1A2B3C4D · Place 2") | Type the words instead, Paste (desktop), Cancel |
@@ -86,7 +86,7 @@ apart, and whether it is a secret (DESIGN §4.10, Mask policy).
 | GPG public key | ASCII armour | no |
 | Faraday file envelope | `faraday-file-v1`, any of the above as a file | as its contents |
 | Labels | BIP-329 JSON lines | no |
-| Lightning invoice, web address | `ln…`, `https://…` | no |
+| Lightning invoice, web address | `ln…` (also with a `lightning:` prefix), `https://…` | no |
 | QR vault | the three packets of `docs/VAULT.md` §1.2 (binary; no text form), checked before a GPG key or text; **Open in QR vault** opens the QR vault tool holding the code, from Home's Scan and from Add a key's Scan a SeedQR, and it is never filed; a `.pgp` already in Files opens it from there | no (it is encrypted) |
 | Krux encrypted code | the last arm: text in Krux's forms or raw bytes that parse as a KEF envelope (`docs/KEF.md` §8); raw 16 or 32 bytes stay a CompactSeedQR | no (it is opened by a passphrase) |
 | Text | anything else printable | may be (recovery codes) |
@@ -154,7 +154,8 @@ destination's action.
 | Signed message | filed, then Check a message. **Check the signature** |
 | GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). **Keep in Files** |
 | Text | the card shows it masked (§4.10), with **Save as a note** in the open vault and **Keep in Files** |
-| Labels, Lightning invoice, web address | named |
+| Lightning invoice | not filed. **Decode it** opens Decode a Lightning invoice on the text, read at once |
+| Labels, web address | named |
 | Not readable | named |
 
 ### 4.3 Each scanner
@@ -362,6 +363,7 @@ no explanation.
 | `scan_title_psbt` | Scan the PSBT | Spend's Scan a copy, the Spend tab's Scan it, Scan the PSBT, Tools' Sign a transaction |
 | `scan_title_transaction` | Scan a transaction | Tools' Decode a transaction |
 | `scan_title_address` | Scan an address | Tools' Check an address |
+| `scan_title_invoice` | Scan an invoice | Decode a Lightning invoice's Scan |
 | `scan_title_part` | Scan a share | a form's Scan |
 | `scan_title_totp` | Scan a setup code | the TOTP scanner |
 

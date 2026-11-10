@@ -406,6 +406,9 @@ pub enum Way {
     Restore,
     /// A signed message filed, and checked.
     Check,
+    /// A Lightning invoice into Decode a Lightning invoice; the tool files
+    /// nothing.
+    Invoice,
     /// Text into the open vault as a note.
     Note,
     /// A public kind filed.
@@ -432,7 +435,7 @@ impl Way {
             Way::MakeVault => EN.read_go_make_vault.to_string(),
             Way::Sign => EN.read_go_sign.to_string(),
             Way::Collect => EN.read_go_collect.to_string(),
-            Way::Decode => EN.read_go_decode.to_string(),
+            Way::Decode | Way::Invoice => EN.read_go_decode.to_string(),
             Way::Wallet => EN.read_go_wallet.to_string(),
             Way::Restore => EN.read_go_restore.to_string(),
             Way::Check => EN.read_go_check.to_string(),
@@ -532,6 +535,6 @@ pub fn asked(ask: crate::Ask, kind: Kind) -> bool {
         Ask::Xpub(_) => matches!(kind, Kind::AccountKey | Kind::Wallet),
         Ask::Cosigner => kind == Kind::AccountKey,
         Ask::SpendPsbt => kind == Kind::Psbt,
-        Ask::Any | Ask::Sign | Ask::Decode | Ask::Address => true,
+        Ask::Any | Ask::Sign | Ask::Decode | Ask::Address | Ask::Invoice => true,
     }
 }

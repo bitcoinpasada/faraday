@@ -177,6 +177,8 @@ pub struct ToolsArea {
     kef_tool: crate::kef_tool::KefToolArea,
     /// The QR vault tool.
     qr_tool: crate::qr_tool::QrToolArea,
+    /// Decode a Lightning invoice.
+    invoice: crate::invoice::InvoiceArea,
 }
 
 impl ToolsArea {
@@ -233,9 +235,25 @@ impl ToolsArea {
         });
     }
 
-    /// Closes Tools and keeps nothing.
-    pub(crate) fn close(&mut self) {
-        self.tools = None;
+    /// Drops what a screen left behind: Tools' calculator unless Tools is
+    /// on screen, an invoice's text unless its screen is.
+    pub(crate) fn tidy(&mut self, screen: Screen) {
+        if screen != Screen::Tools {
+            self.tools = None;
+        }
+        if screen != Screen::Invoice {
+            self.invoice.clear();
+        }
+    }
+
+    /// Decode a Lightning invoice's area.
+    pub(crate) fn invoice(&self) -> &crate::invoice::InvoiceArea {
+        &self.invoice
+    }
+
+    /// Decode a Lightning invoice's area, to change.
+    pub(crate) fn invoice_mut(&mut self) -> &mut crate::invoice::InvoiceArea {
+        &mut self.invoice
     }
 
     /// Costs what `account_text` costs. The loaded keys a policy may name
@@ -466,6 +484,9 @@ impl Faraday {
 
     /// Typing into the field. Returns whether the key was taken.
     pub(crate) fn tools_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if self.screen == Screen::Invoice {
+            return crate::invoice::key(self, key);
+        }
         if self.screen != Screen::Tools {
             return false;
         }

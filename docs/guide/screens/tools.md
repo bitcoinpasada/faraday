@@ -53,6 +53,7 @@ name, its line and its standards; the groups below scroll into view.*
 | | **Nonce check** | the signed spend's last card; or the nonce check of a signed PSBT or a finished transaction in Files; or the camera |
 | | **Check a signer** | Check a signer, with nothing chosen: [Check a signer](signer-check.md) |
 | | **Decode a transaction** | Decode, on a transaction in Files, or the camera |
+| | **Decode a Lightning invoice** | Decode a Lightning invoice, its field open; Scan reads one by camera |
 | | **Check an address** | the camera |
 | **Messages** | **Sign a message**, **Check a signed message** | each tool's page |
 | **Vaults and other keys** | **Vaults** | [Vaults](vaults.md) |

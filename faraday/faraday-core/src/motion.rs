@@ -1215,6 +1215,7 @@ impl Faraday {
             | Screen::Wallets
             | Screen::WalletsStart
             | Screen::Decode
+            | Screen::Invoice
             | Screen::NonceCheck
             | Screen::Catalog
             | Screen::Transfer

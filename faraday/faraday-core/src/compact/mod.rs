@@ -91,6 +91,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Tools | Screen::Catalog => EN.compact_tools,
         Screen::Vanity => EN.compact_vanity_address,
         Screen::Decode => EN.compact_transaction,
+        Screen::Invoice => EN.compact_invoice,
         Screen::NonceCheck => EN.compact_nonce_check,
         Screen::SignerCheck => EN.catalog_check_a_signer,
         Screen::Transfer => EN.compact_transfer,
@@ -548,6 +549,8 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
             ),
             None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
         },
+        // Decode a Lightning invoice goes back where it was opened from.
+        Screen::Invoice => crate::invoice::screen::back_of(app),
         // The nonce check goes back where it was opened from.
         Screen::NonceCheck => match app.outside_check() {
             Some(o) => (crate::screens::decode_back(o.back), Action::Nav(o.back)),

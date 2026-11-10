@@ -2082,6 +2082,45 @@ pub const FILES_BESIDE_FOOT: f32 = 16.0;
 /// Decode a transaction's table (`docs/LAYOUT.md` §17): the number's
 /// column before an outpoint, an address or the line under one.
 pub const DECODE_INDEX_W: f32 = 26.0;
+/// Decode a Lightning invoice: the text field's height, four lines of
+/// its text and the inset above and below.
+pub const INVOICE_FIELD_H: f32 = 104.0;
+/// Decode a Lightning invoice: the width of the names column on a wide window.
+pub const INVOICE_LABEL_W: f32 = 180.0;
+/// Decode a Lightning invoice: the widest the page grows on a wide window.
+pub const INVOICE_PAGE_W: f32 = 960.0;
+/// Decode a Lightning invoice: the space above the text field on a small panel.
+pub const INVOICE_TOP: f32 = 14.0;
+/// Decode a Lightning invoice: the text's inset from the field's side edges.
+pub const INVOICE_FIELD_PAD_X: f32 = 14.0;
+/// Decode a Lightning invoice: the text's inset from the field's top edge,
+/// and the bottom edge its text stops above.
+pub const INVOICE_FIELD_PAD_Y: f32 = 12.0;
+/// Decode a Lightning invoice: the gap between the field and its buttons,
+/// and the line space under a refusal.
+pub const INVOICE_GAP: f32 = 12.0;
+/// Decode a Lightning invoice: the gap between its blocks (buttons, rows,
+/// About on a small panel).
+pub const INVOICE_BLOCK_GAP: f32 = 16.0;
+/// Decode a Lightning invoice: the gap under a refusal line.
+pub const INVOICE_REFUSAL_GAP: f32 = 8.0;
+/// Decode a Lightning invoice: the room under the last row.
+pub const INVOICE_TAIL: f32 = 40.0;
+/// Decode a Lightning invoice, small panel: the name's line, above its value.
+pub const INVOICE_NAME_H: f32 = 18.0;
+/// Decode a Lightning invoice, small panel: the rule's distance under a value.
+pub const INVOICE_RULE_DROP: f32 = 26.0;
+/// Decode a Lightning invoice, small panel: a row's step past its value.
+pub const INVOICE_ROW_STEP: f32 = 34.0;
+/// Decode a Lightning invoice, wide window: a row's least height.
+pub const INVOICE_WIDE_ROW_H: f32 = 26.0;
+/// Decode a Lightning invoice, wide window: the rule's distance under a row.
+pub const INVOICE_WIDE_RULE_GAP: f32 = 6.0;
+/// Decode a Lightning invoice, wide window: the step past a row's rule.
+pub const INVOICE_WIDE_STEP: f32 = 12.0;
+/// Decode a Lightning invoice, wide window: a name's drop to sit on its
+/// value's first line.
+pub const INVOICE_NAME_DROP: f32 = 4.0;
 /// Decode a transaction's table: the room a row's value leaves for its
 /// number before it and its amount after it.
 pub const DECODE_VALUE_ROOM: f32 = 220.0;

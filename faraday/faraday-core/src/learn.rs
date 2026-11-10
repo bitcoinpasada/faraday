@@ -70,6 +70,8 @@ pub enum Topic {
     Coordinators,
     /// Silent payments.
     SilentPayments,
+    /// Lightning invoices.
+    LightningInvoices,
     /// Shares of a wallet description.
     Shares,
     /// A backup plan's check.
@@ -100,6 +102,7 @@ impl Topic {
         Topic::WalletKinds,
         Topic::Coordinators,
         Topic::SilentPayments,
+        Topic::LightningInvoices,
         Topic::Shares,
         Topic::BackupPlanCheck,
         Topic::Vaults,
@@ -146,6 +149,7 @@ impl Topic {
             Topic::WalletKinds => &EN.wallet_kinds,
             Topic::Coordinators => &EN.coordinators,
             Topic::SilentPayments => &EN.silent_payments,
+            Topic::LightningInvoices => &EN.lightning_invoices,
             Topic::Shares => shares_page(),
             Topic::BackupPlanCheck => backup_plan_check_page(),
             Topic::Vaults => vaults_page(),
@@ -346,6 +350,7 @@ impl Faraday {
             Screen::Settings => vec![keys_kept_page(), &EN.glossary],
             Screen::SetTime | Screen::Codes => vec![time_page()],
             Screen::Decode => vec![&EN.verifying, &EN.tools],
+            Screen::Invoice => vec![&EN.lightning_invoices, &EN.tools],
             Screen::NonceCheck => vec![&EN.nonces, &EN.verifying],
             Screen::SignerCheck => vec![&EN.verifying, &EN.tools],
             Screen::Catalog => vec![&EN.tools, &EN.glossary],

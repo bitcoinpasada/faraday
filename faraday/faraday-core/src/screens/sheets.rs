@@ -806,6 +806,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             crate::Ask::SpendPsbt | crate::Ask::Sign => EN.scan_title_psbt.to_string(),
             crate::Ask::Decode => EN.scan_title_transaction.to_string(),
             crate::Ask::Address => EN.scan_title_address.to_string(),
+            crate::Ask::Invoice => EN.scan_title_invoice.to_string(),
             crate::Ask::Any => EN.scan_scan_a_qr_code.to_string(),
         },
     };

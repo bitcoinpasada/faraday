@@ -142,6 +142,7 @@ fn offer_rotation(app: &mut Faraday, size: (u16, u16), dpi: u16) {
 pub(crate) const TOURS: &[&str] = &[
     "spend",
     "convert",
+    "invoice",
     "devices",
     "toasts",
     "themes",
@@ -290,6 +291,7 @@ fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String
     Some(match name {
         "spend" => tours::spend::spend_tour(t),
         "convert" => tours::convert::convert_tour(t),
+        "invoice" => tours::invoice::invoice_tour(t),
         "devices" => tours::devices::devices_tour(t),
         "toasts" => tours::devices::toasts_tour(t),
         "themes" => tours::themes::themes_tour(t),

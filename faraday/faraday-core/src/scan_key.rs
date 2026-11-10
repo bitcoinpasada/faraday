@@ -1224,6 +1224,7 @@ impl Faraday {
                 }
                 None => Vec::new(),
             },
+            Kind::Invoice => vec![Way::Invoice],
             Kind::Message => vec![Way::Check],
             Kind::QrVault => vec![Way::OpenQrVault],
             Kind::Gpg | Kind::File => vec![Way::Keep],
@@ -1390,6 +1391,11 @@ impl Faraday {
                 drop(code);
                 self.scan_close();
                 self.lightning_with_aezeed(&text);
+            }
+            Way::Invoice => {
+                drop(code);
+                self.scan_close();
+                crate::invoice::scanned(self, filed, &text);
             }
             Way::AddTo(_) => {
                 self.scan_close();

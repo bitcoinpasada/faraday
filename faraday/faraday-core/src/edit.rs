@@ -260,6 +260,8 @@ pub enum Here {
     /// The aezeed's words; a press on them while its passphrase takes
     /// typing moves typing here.
     Aezeed,
+    /// Decode a Lightning invoice's text.
+    Invoice,
 }
 
 impl Faraday {
@@ -330,6 +332,7 @@ impl Faraday {
                 }
                 Here::Aezeed
             }
+            Screen::Invoice if self.invoice().is_some() => Here::Invoice,
             Screen::Tools if self.tools.state().is_some() => Here::Tools,
             Screen::Convert if self.tools.convert().check().is_some() => Here::Convert,
             Screen::Convert if self.tools.convert().entering_share() => Here::Share,
@@ -500,6 +503,7 @@ impl Faraday {
                 self.tools.convert().check().is_some() || self.tools.convert().entering_share()
             }
             Screen::Message => self.message.state().is_some_and(|m| m.typing),
+            Screen::Invoice => self.invoice().is_some(),
             Screen::KeyGen => self.keygen.state().is_some_and(|k| {
                 !k.locked
                     && ((k.focus.is_some() && k.open == Some(keygen::kstep::KEY))
@@ -688,6 +692,7 @@ impl Faraday {
                 Here::Words => &self.entry.state().typed,
                 Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,
                 Here::Aezeed => &self.lightning.state()?.typed,
+                Here::Invoice => self.invoice()?.text(),
                 Here::Chart => {
                     let w = self.glance.work();
                     match self.glance.chart()?.1 {
@@ -762,7 +767,7 @@ impl Faraday {
     /// Up and Down move the caret a line (`docs/TEXT-CURSOR.md` §3).
     fn several_lines(&self, target: Action) -> bool {
         match target {
-            Action::TypeHere(Here::Message) | GPG_LINE => true,
+            Action::TypeHere(Here::Message | Here::Invoice) | GPG_LINE => true,
             // Wrapped on a small panel, one line on a wider window.
             Action::TypeHere(Here::Entry) => self.compact,
             Action::Vault(V::FocusField(k)) => self.vaults.form.as_ref().is_some_and(|f| {
@@ -1107,6 +1112,7 @@ impl Faraday {
             Screen::Silent => self.silent.state().is_some(),
             Screen::Explore => self.explore.state().is_some(),
             Screen::Lightning => self.lightning.state().is_some(),
+            Screen::Invoice => self.invoice().is_some(),
             Screen::Tools => self.tools.state().is_some(),
             Screen::KefTool => self.tools.kef_tool().state().is_some(),
             Screen::QrTool => self.tools.qr_tool().state().is_some(),

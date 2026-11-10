@@ -124,6 +124,7 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Lightning
         | Screen::Vanity
         | Screen::Decode
+        | Screen::Invoice
         | Screen::NonceCheck
         | Screen::SignerCheck
         | Screen::Family => Area::Reading(READING_PAGE_W),
@@ -615,6 +616,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Family => crate::family::screen::draw(app, ui, x, cw, h),
         Screen::Vanity => crate::vanity::screen::draw(app, ui, x, cw, h),
         Screen::Decode => crate::decode::screen::draw(app, ui, x, cw, h),
+        Screen::Invoice => crate::invoice::screen::draw(app, ui, x, cw, h),
         Screen::NonceCheck => nonce_check::draw(app, ui, x, cw, h),
         Screen::SignerCheck => crate::decode::check_screen::draw(app, ui, x, cw, h),
         Screen::Catalog => catalog::draw(app, ui, x, cw, h),

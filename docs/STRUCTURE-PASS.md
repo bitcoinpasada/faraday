@@ -236,7 +236,7 @@ this pass came from, is on the board.
   the backup flow's `board_mut`, `scroll_y_mut` and
   `board_list_offset_mut`, Message's `scroll_y_mut`, New key's
   `sheet_pan_mut` (the codex32 worksheet's pan, as the other offsets)
-  Tools' `convert_mut` and `qr_tool_mut`, Convert a seed's and the QR
+  Tools' `convert_mut` and `invoice_mut` (Decode a Lightning invoice's area), `qr_tool_mut`, Convert a seed's and the QR
   vault tool's `scroll_mut`, Check a signer's
   `check_scroll_mut` (the decode area's, its column's scroll, as the other
   offsets), the backup flow's `keeps_mut` (a flow's Keep ticks of a seed),

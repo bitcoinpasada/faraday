@@ -146,6 +146,8 @@ pub enum Ask {
     Decode,
     /// An address to check: Tools' Check an address.
     Address,
+    /// A Lightning invoice to decode: Decode a Lightning invoice's Scan.
+    Invoice,
 }
 
 impl Ask {
@@ -153,7 +155,10 @@ impl Ask {
     /// for what it asks (Tools' Sign, Decode, Check an address), rather
     /// than handing over what its flow does not take.
     pub(crate) fn takes_all(self) -> bool {
-        matches!(self, Ask::Any | Ask::Sign | Ask::Decode | Ask::Address)
+        matches!(
+            self,
+            Ask::Any | Ask::Sign | Ask::Decode | Ask::Address | Ask::Invoice
+        )
     }
 }
 

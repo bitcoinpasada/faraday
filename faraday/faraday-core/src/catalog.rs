@@ -51,6 +51,8 @@ pub enum Go {
     SignerCheck,
     /// Decode a transaction.
     Decode,
+    /// Decode a Lightning invoice.
+    Invoice,
     /// Scan an address to check against the loaded wallets.
     CheckAddress,
     /// Sign a message.
@@ -282,6 +284,13 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: EN.catalog_transactions,
+        name: EN.catalog_decode_a_lightning_invoice,
+        line: EN.catalog_what_it_asks,
+        tags: &["BOLT #11", "BIP-173"],
+        go: Go::Invoice,
+    },
+    Tile {
+        group: EN.catalog_transactions,
         name: EN.catalog_check_an_address,
         line: EN.catalog_check_address_line,
         tags: &["BIP-173", "BIP-350"],
@@ -453,6 +462,11 @@ pub fn matches(tile: &Tile, find: &str) -> bool {
 }
 
 impl Faraday {
+    /// Decode a Lightning invoice's state, while its screen is open.
+    pub fn invoice(&self) -> Option<&crate::invoice::InvoiceState> {
+        self.tools.invoice().state()
+    }
+
     /// What a tile needs first, when it cannot open now.
     pub fn tile_need(&self, go: Go) -> Option<&'static str> {
         let keys = !self.session.keys.is_empty();
@@ -565,6 +579,7 @@ impl Faraday {
                 Some(k) => self.act(Action::DecodeInbox(k)),
                 None => self.act(Action::ScanFor(crate::Ask::Decode)),
             },
+            Go::Invoice => crate::invoice::open(self),
             Go::CheckAddress => self.act(Action::ScanFor(crate::Ask::Address)),
             Go::Scan => self.act(Action::Scan),
             Go::Sweep => self.act(Action::Sweep(crate::seeds::sweep::SweepAction::Open)),

@@ -96,6 +96,7 @@ mod inbox_load_ticked;
 mod inputs;
 mod interop;
 mod interop_outcomes;
+mod invoice;
 mod kdbx;
 mod kef;
 mod kef_form;
