@@ -246,3 +246,4 @@ Read this table, then only the decision you need.
 | [F229](decisions/F229.md) | A Bitcoin Core descriptor wallet's wallet.dat is read, never written, and its records checked again, through a SQLite reader of Faraday's own | 2026-11-09 | Active, nothing built | wallets |
 | [F230](decisions/F230.md) | An OpenTimestamps proof is checked on the device against a block header the person gives, checked against python-opentimestamps | 2026-11-09 | Active, nothing built | signing |
 | [F231](decisions/F231.md) | A passphrase record belongs to exactly the key it names: saving another passphrase of one seed asks nothing, and only codex32 shares of one set are grouped | 2026-11-09 | Active | security |
+| [F232](decisions/F232.md) | A BOLT 12 offer is read in Decode a Lightning invoice, read only, through a reader of Faraday's own, checked against Core Lightning's code | 2026-11-10 | Active, nothing built | formats |

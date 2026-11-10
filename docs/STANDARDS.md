@@ -209,6 +209,7 @@ Links follow the pattern
 | BCR-2020-012 | Bytewords | Convention | vendored: tools/vectors/ur | 2026-10-28 |
 | BCR-2020-015 | UR Type Definition for BIP44 Accounts | Convention | faraday/faraday-qr/src/registry.rs | 2026-10-28 |
 | BOLT 11 | BOLT #11: Invoice Protocol for Lightning Payments | Deployed | lightning/bolts master | 2026-11-09 |
+| BOLT 12 | BOLT #12: Negotiation Protocol for Lightning Payments | Deployed | lightning/bolts master | 2026-11-10 |
 | Booklet dice de-biasing | codex32 booklet SSS32.ps of 2023-03-07, Dice De-biasing Worksheet | Convention | tools/reference/booklet-dice/README.md | 2026-10-28 |
 | Codex32QR/v1-48 | Codex32QR/v1-48, one 48-character codex32 string in a QR code | Convention | vendored: tools/vectors/codex32qr | 2026-10-28 |
 | Core Lightning hsm_secret | Core Lightning's hsm_secret, plain or encrypted, and its node key | Convention | tools/reference/cln/README.md | 2026-11-09 |

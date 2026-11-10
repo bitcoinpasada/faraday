@@ -892,6 +892,12 @@ status = "Deployed"
 checked = "2026-11-09"
 source = "lightning/bolts master"
 
+[standard."BOLT 12"]
+name = "BOLT #12: Negotiation Protocol for Lightning Payments"
+status = "Deployed"
+checked = "2026-11-10"
+source = "lightning/bolts master"
+
 [[action]]
 id = "words-read"
 name = "Read the words"
