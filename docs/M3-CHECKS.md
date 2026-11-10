@@ -170,7 +170,7 @@ allowed these three (§8, Q2; F152).
 |---|---|---|---|---|
 | The on-screen keyboard and word entry's keys: ten keys across a 240 to 268 dp panel | `Osk`, `EntryKey`, `EntryKeyBack`, `EntryShift` | small: the 240 × 320 and 480 × 640 panels | 22 to 25 × 26 px against a 43 px floor at 240 × 320; 45 to 52 × 52 px against 86 at 480 × 640 | F152 |
 | The codex32 worksheet's cells, a grid that must be read whole | `Codex32` (worksheet cells) | every class | 28 to 30 × 30 px against 48 at 1280 × 800 | F152 |
-| The backup board's chips, 28 and 20 dp, sharing the gap with their neighbours | `Board` (chips) | every class | 38 × 32 to 40 px against 48 at 1280 × 800 | F108 (its touch targets line) |
+| The backup board's form toggles on a chip, 20 dp | `Board` (toggles) | every class | 20 dp against 48 | F108 (its touch targets line) |
 
 Everything else under the floor is a defect, on every layout, the
 desktop's included (§8, Q3): it is counted in the ratchet and

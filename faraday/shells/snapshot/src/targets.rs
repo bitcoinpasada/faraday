@@ -31,9 +31,8 @@ pub(crate) fn excepted(action: &str, small: bool) -> bool {
         return true;
     }
     // The codex32 worksheet's cells, a grid that must be read whole
-    // (F152), and the backup board's chips, sharing the gap with their
-    // neighbours (F108).
-    action.starts_with("Codex32(Cell(") || action.starts_with("Board(Chip(")
+    // (F152).
+    action.starts_with("Codex32(Cell(")
 }
 
 /// The line `targets.txt` and the test's report carry for `s`, found in

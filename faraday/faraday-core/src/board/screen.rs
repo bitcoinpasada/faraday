@@ -139,6 +139,12 @@ fn glyph(t: Thing) -> Option<Icon> {
     }
 }
 
+/// The height in dp of a chip: a row at the touch-target floor of the
+/// layout (`docs/LAYOUT.md` §2, F188), so its ⋮ and × take a full press.
+fn chip_h(ui: &Ui) -> f32 {
+    ui.touch
+}
+
 /// A chip's name is read character by character: a fingerprint.
 fn mono(t: Thing) -> bool {
     matches!(t, Thing::Seed(_) | Thing::Pass(_) | Thing::Kef(_))
@@ -271,13 +277,13 @@ fn chip_size(ui: &Ui, cv: &ChipView, avail: f32) -> Fit {
     } else {
         tokens::BOARD_CHIP_GAP + ui.measure_as(BODY_S, &format!("· {}", cv.marks))
     };
-    let one = tokens::BOARD_CHIP;
+    let one = chip_h(ui);
     // The forms under the name wrap at the chip's width, a row each.
     let rows = toggle_rows(ui, cv, avail - 2.0 * tokens::BOARD_PAD) as f32;
     let two = if cv.forms.is_empty() {
-        tokens::BOARD_CHIP + ui.line_as(BODY_S)
+        chip_h(ui) + ui.line_as(BODY_S)
     } else {
-        tokens::BOARD_CHIP
+        chip_h(ui)
             + tokens::BOARD_TAG
             + (rows - 1.0) * (tokens::BOARD_TAG + tokens::BOARD_CHIP_GAP)
     };
@@ -415,7 +421,7 @@ fn toggles(ui: &mut Ui, cv: &ChipView, (x, y, room): (f32, f32, f32), line_h: f3
 fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hits: bool) {
     let (w, h) = (fit.w, fit.h);
     let t = cv.chip.thing();
-    let r = tokens::BOARD_CHIP / 2.0;
+    let r = chip_h(ui) / 2.0;
     let held = fr.held == Some(cv.chip);
     let lifted = held && fr.drag.is_some() && hits;
     let action = Action::Board(BoardPress::Chip(cv.chip));
@@ -434,7 +440,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     } else {
         Role::OnSurface
     };
-    let line_h = tokens::BOARD_CHIP;
+    let line_h = chip_h(ui);
     let step = tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     let g = glyph(t);
     let cx = x + tokens::BOARD_PAD + if g.is_some() { step } else { 0.0 };
@@ -697,7 +703,7 @@ fn band(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, color: crate::ui::Paint) {
 fn paper_h(ui: &Ui, chips: &[ChipView], w: f32) -> f32 {
     let pad = tokens::BOARD_PAD;
     let (_, ch) = flow(ui, chips, 0.0, 0.0, w - 2.0 * pad);
-    tokens::BOARD_ZONE_LABEL + ch.max(tokens::BOARD_CHIP) + pad
+    tokens::BOARD_ZONE_LABEL + ch.max(chip_h(ui)) + pad
 }
 
 /// A zone box's colours: its fill, its edge, and its label's.
@@ -1297,7 +1303,7 @@ fn stick_parts(ui: &Ui, st: &crate::board::StickView, w: f32) -> (f32, Vec<f32>)
         .iter()
         .map(|vv| {
             let (_, inner_h) = flow(ui, &vv.inside.chips, 0.0, 0.0, iw - 2.0 * vp);
-            tokens::BOARD_VAULT_HEAD + vp + inner_h.max(tokens::BOARD_CHIP) + vp
+            tokens::BOARD_VAULT_HEAD + vp + inner_h.max(chip_h(ui)) + vp
         })
         .collect();
     (paper_h(ui, &st.files.chips, iw), vault_hs)
@@ -1544,7 +1550,7 @@ fn entry(
         cross(
             ui,
             x + w - off_w / 2.0,
-            y + tokens::BOARD_CHIP / 2.0,
+            y + chip_h(ui) / 2.0,
             Role::OnSurfaceVariant.paint(),
         );
     }
@@ -1558,7 +1564,7 @@ fn entry(
                 x,
                 cy,
                 w,
-                tokens::BOARD_CHIP,
+                chip_h(ui),
                 &[(
                     EN.board_take_off,
                     Style::Secondary,
@@ -1619,7 +1625,7 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
             x,
             cy,
             w,
-            tokens::BOARD_CHIP,
+            chip_h(ui),
             &[(label, Style::Secondary, Action::Board(BoardPress::Partials))],
         ) + gap;
         // The Learn page on shares, as the description card had it.
@@ -1629,12 +1635,12 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
             x,
             cy,
             Some(bw),
-            tokens::BOARD_CHIP,
+            chip_h(ui),
             label,
             Style::Ghost,
             Action::LearnShares,
         );
-        cy += tokens::BOARD_CHIP + gap;
+        cy += chip_h(ui) + gap;
     } else if let Some(Some(line)) = v.splits {
         // A multisig whose description does not split, and why.
         cy += gap;
@@ -1654,7 +1660,7 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
         x,
         cy,
         w,
-        tokens::BOARD_CHIP,
+        chip_h(ui),
         &[(
             EN.board_add_vault,
             Style::Secondary,
@@ -1965,7 +1971,7 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             read_only_buttons(&v)
         };
-        cy += faraday_ui::parts::wrap_buttons(ui, x, cy, w, tokens::BOARD_CHIP, &buttons)
+        cy += faraday_ui::parts::wrap_buttons(ui, x, cy, w, chip_h(ui), &buttons)
             + tokens::BOARD_PAD;
     }
     cy += cells(ui, &mut fr, &v, (x, cy, ww), cols);
@@ -2094,7 +2100,7 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
                 x,
                 cy,
                 w,
-                tokens::BOARD_CHIP,
+                chip_h(ui),
                 &read_only_buttons(&v),
             );
         }
@@ -2147,7 +2153,7 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
             gy,
             fit.w,
             fit.h,
-            tokens::BOARD_CHIP / 2.0,
+            chip_h(ui) / 2.0,
             tokens::ELEVATION_RAISED,
         );
         let mut ghost = Frame { held: None, ..fr };
@@ -2155,7 +2161,7 @@ fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
         edge(
             ui,
             (gx, gy, fit.w, fit.h),
-            tokens::BOARD_CHIP / 2.0,
+            chip_h(ui) / 2.0,
             Role::Primary.paint(),
         );
     }

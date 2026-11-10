@@ -2172,6 +2172,9 @@ the visible way to place, move, copy and take off without dragging.
    a thin vertical rule, then ⋮ at its right end (`[ ◉ 9a6a2580 │ ⋮ ]`);
    a placed chip keeps its form toggles before the rule. The ⋮ is its
    own press target; the rest of the chip drags or selects as today.
+   A chip is a row as tall as the touch-target floor (48 dp; 44 dp on
+   the 2.8-inch's compact and short layout, F188), so its ⋮ and × take a
+   full press with the chips stacked.
    Not shown on the read-only board (before Customize backup).
 2. **A list chip's ⋮: Add to…**, one menu listing every box that can
    take the item, grouped under each place's name (as the place is

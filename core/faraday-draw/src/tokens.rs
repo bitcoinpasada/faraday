@@ -586,7 +586,9 @@ pub const SILENT_LINE_GAP: f32 = 14.0;
 pub const CREATE_FIELD_LABEL: f32 = 20.0;
 /// Least height in dp of a Create card's wrapped value line.
 pub const CREATE_VALUE_MIN: f32 = 18.0;
-/// Height in dp of a chip, on the cards and in the list.
+/// Height in dp of a row of the Layout screen's vault chips and the least
+/// height of a board's row of boxes; the board's chips are one touch
+/// target high (`tokens::touch`).
 pub const BOARD_CHIP: f32 = 28.0;
 /// The gap in dp between two chips, beside or under each other.
 pub const BOARD_CHIP_GAP: f32 = GAP_SMALL;

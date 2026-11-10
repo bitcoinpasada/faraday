@@ -320,6 +320,30 @@ fn figures(app: &View, f: &BackupFlow) -> Vec<Figure> {
         .collect()
 }
 
+/// The inner padding of a figure: the stick head's own inset, so the
+/// lines stand under its glyph.
+const PAD: f32 = BOARD_STICK_PAD + GAP_SMALL;
+
+/// The room a figure's ⋮ button takes at its right end, on the lines
+/// that stand beside it.
+const DOTS_ROOM: f32 = TOUCH + GAP_SMALL;
+
+/// Whether an item is a button, a full-width press that stands under
+/// the ⋮ and never beside it.
+fn is_button(it: &Item) -> bool {
+    matches!(it, Item::Boot(_) | Item::Later(_))
+}
+
+/// The width of an item whose top is `top` below the figure's top, in
+/// `inner` of room: narrower where the ⋮ stands beside it.
+fn item_w(fg: &Figure, it: &Item, top: f32, inner: f32) -> f32 {
+    if fg.dots && !is_button(it) && top < BOARD_STICK_PAD + TOUCH {
+        inner - DOTS_ROOM
+    } else {
+        inner
+    }
+}
+
 fn item_h(ui: &Ui, it: &Item, w: f32) -> f32 {
     match it {
         Item::Text(t, _) => ui.wrap_height_as(BODY_S, t, w),
@@ -329,19 +353,31 @@ fn item_h(ui: &Ui, it: &Item, w: f32) -> f32 {
     }
 }
 
+/// Where each item of `fg` starts below the figure's top, its width and
+/// its height, and the figure's height. The lines start under the head
+/// in every state, the ⋮ beside them; a button starts under the ⋮.
+fn place(ui: &Ui, fg: &Figure, w: f32) -> (Vec<(f32, f32, f32)>, f32) {
+    let inner = w - 2.0 * PAD;
+    let mut top = BOARD_STICK_HEAD;
+    let mut out = Vec::with_capacity(fg.items.len());
+    for it in &fg.items {
+        if fg.dots && is_button(it) {
+            top = top.max(BOARD_STICK_PAD + TOUCH + GAP_SMALL);
+        }
+        let iw = item_w(fg, it, top, inner);
+        let ih = item_h(ui, it, iw);
+        out.push((top, iw, ih));
+        top += ih + GAP_SMALL;
+    }
+    let mut h = top + PAD - GAP_SMALL;
+    if fg.dots {
+        h = h.max(BOARD_STICK_PAD + TOUCH + BOARD_STICK_PAD);
+    }
+    (out, h)
+}
+
 fn figure_h(ui: &Ui, fg: &Figure, w: f32) -> f32 {
-    let top = if fg.dots {
-        TOUCH + BOARD_STICK_PAD
-    } else {
-        BOARD_STICK_HEAD
-    };
-    let inner = w - 2.0 * BOARD_STICK_PAD;
-    let body: f32 = fg
-        .items
-        .iter()
-        .map(|it| item_h(ui, it, inner) + GAP_SMALL)
-        .sum();
-    (top + body + BOARD_STICK_PAD).max(TOUCH)
+    place(ui, fg, w).1
 }
 
 /// The figures from (x, y) in `w`. Returns their height.
@@ -369,30 +405,29 @@ pub(crate) fn draw(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f
 }
 
 fn draw_one(ui: &mut Ui, fr: &board_screen::CardFrame, fg: &Figure, r: (f32, f32, f32, f32)) {
-    let (x, y, w, h) = r;
-    let head = board_screen::card_stick(ui, fr, &fg.name, r, fa(F::Want(fg.k)), false);
+    let (x, y, w, _) = r;
+    board_screen::card_stick(ui, fr, &fg.name, r, fa(F::Want(fg.k)), false);
     match fg.state {
         State::Reading => menu::outline(ui, r, GAP, BOARD_EDGE, Role::Primary.paint()),
         State::Checked => menu::outline(ui, r, GAP, BOARD_EDGE, Role::Ok.paint()),
         State::Problem(_) => menu::outline(ui, r, GAP, BOARD_EDGE, Role::Error.paint()),
         State::Waiting | State::Later => {}
     }
-    let sp = BOARD_STICK_PAD;
-    let inner = w - 2.0 * sp;
-    let mut cy = y + if fg.dots { TOUCH + sp } else { head };
+    let sp = PAD;
+    let (spots, _) = place(ui, fg, w);
     if fg.dots {
         // Inside the card's edge, as its content is.
         menu::button(
             ui,
-            x + w - sp - TOUCH,
-            y + sp,
+            x + w - BOARD_STICK_PAD - TOUCH,
+            y + BOARD_STICK_PAD,
             TOUCH,
             fa(F::FigMenu(fg.k)),
             false,
         );
     }
-    for it in &fg.items {
-        let ih = item_h(ui, it, inner);
+    for (it, (top, inner, ih)) in fg.items.iter().zip(spots) {
+        let cy = y + top;
         match it {
             Item::Text(t, role) => {
                 ui.wrap_as((x + sp, cy, inner), BODY_S, *role, t);
@@ -441,9 +476,7 @@ fn draw_one(ui: &mut Ui, fr: &board_screen::CardFrame, fg: &Figure, r: (f32, f32
                 );
             }
         }
-        cy += ih + GAP_SMALL;
     }
-    debug_assert!(cy <= y + h + 1.0);
 }
 
 /// A figure's ⋮ menu (`docs/STICK-SETUP.md` §3.3, §4), as every ⋮ menu is
