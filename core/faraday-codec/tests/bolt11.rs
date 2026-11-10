@@ -3,7 +3,7 @@
 //! an invoice would see it.
 
 use faraday_bip::keys::Network;
-use faraday_codec::bolt11::{Error, decode};
+use faraday_codec::bolt11::{Error, Fallback, decode};
 
 const VECTORS: &str = include_str!("../../../tools/vectors/lightning-bolt11/invoice-test.json");
 const NODE: &str = "03e7156ae33b0a208d0744199163177e909e80176e55d97a2f221ede0f934dd9ad";
@@ -125,6 +125,27 @@ fn hashed_description_and_fallbacks() {
     assert_eq!(
         r.route_hints[0][1].short_channel_id,
         (197_637 << 40) | (395_016 << 16) | 2314
+    );
+}
+
+#[test]
+fn a_fallback_of_an_unknown_version_is_skipped_and_the_next_one_read() {
+    // The first f field is of version 19, the second a version 0 program of 20 bytes.
+    let i = decode(
+        "lnbc3621900210p1qqq64fxfpwnh6yh6ccwwmf986xwzhs0evxzl6cd09d0rqnjgakuz3smspp5w76z7n66zm68829y0epah7f7y4rj9kljg2x75f5qjm4pw8kv8leqcqpphp583xaalxyrs5tdva20cyvvs8spd2zacuehj592mvxc0s4sfv4kjcqfppq5kmktheu9hk748uwnr5qfja39qgl5d86sp5hhfqgdz64phkudw2n0t9mqnnxh7769uaw2hj36rjap8ahktfx3pquyrmr3k2cfh9teqxrvuf2xuxeg4utqaqn3j0nat86gzweu466lex8hp78ec3l7semd65s2dvh7nme6752nkcrzu4njdq65fnxt7737cqcyvaw6",
+    )
+    .unwrap();
+    assert_eq!(i.fallbacks.len(), 1);
+    assert_eq!(i.unknown.len(), 1);
+    assert_eq!(
+        i.fallbacks[0],
+        Fallback::Witness {
+            version: 0,
+            program: vec![
+                0xa5, 0xb7, 0x65, 0xdf, 0x3c, 0x2d, 0xed, 0xea, 0x9f, 0x8e, 0x98, 0xe8, 0x04, 0xcb,
+                0xb1, 0x28, 0x11, 0xfa, 0x34, 0xfa
+            ],
+        }
     );
 }
 

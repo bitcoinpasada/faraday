@@ -264,6 +264,12 @@ def bolt11_ref(text):
     Faraday's answer (the fields it reads: not the fallback address, which
     it writes in bech32 for every witness version, nor unknown fields)."""
     inv = bolt11.decode(text)
+    # The package keeps only the first f field it meets, and holds none of its
+    # data when it cannot read it (a version it does not know). BOLT #11 has a
+    # reader skip such a field and take the next one, which Faraday does and
+    # the package does not see, so the comparison leaves the fallback out then
+    # (`first_f_unread`); Faraday's whole list is held to the writer's for the
+    # invoices the writer made.
     first_f = inv.tags.get(bolt11.models.tags.TagChar.fallback)
     fallback = None
     if first_f is not None and first_f.data is not None:
@@ -295,6 +301,7 @@ def bolt11_ref(text):
         "features": sorted(features),
         "payment_secret": inv.payment_secret,
         "metadata": inv.metadata,
+        "first_f_unread": first_f is not None and first_f.data is None,
     }
 
 
@@ -764,7 +771,8 @@ class Lightning(Area):
             raise Mismatch(self.name, "lightning.bolt11", inputs, rust, ref,
                            "Faraday accepts what the package refuses")
         got, want = bolt11_view(rust[1]), ref[1]
-        if want["fallback"] is not None and want["fallback"]["version"] > 18:
+        if want.pop("first_f_unread") or (
+                want["fallback"] is not None and want["fallback"]["version"] > 18):
             got["fallback"] = want["fallback"] = None
         if got != want:
             raise Mismatch(self.name, "lightning.bolt11", inputs, got, want)
