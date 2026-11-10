@@ -9757,6 +9757,38 @@ strings! {
     vault_qr_note_no_one: "This note is 1 character too long for a QR vault. Take 1 character off its end to make it fit.",
     /// The same, an item whose text cannot be written.
     vault_qr_unwritable: "This item cannot be written in a QR vault.",
+    /// Item of the open vault's ⋮ and head of its dialog.
+    vault_key_file: "Key file",
+    /// Row of that dialog where the vault has a key file or one waits.
+    vault_remove_key_file: "Remove key file",
+    /// Line of that dialog. `{}`: `vault_next_seal_none` or `vault_next_seal_a_key_file`.
+    vault_next_seal_key_file: "Next seal: {}",
+    /// What the next seal writes when it writes no key file.
+    vault_next_seal_none: "none",
+    /// What the next seal writes when it writes a key file.
+    vault_next_seal_a_key_file: "a key file",
+    /// Item of the open vault's ⋮ and head of its dialog.
+    vault_remove_yubikey: "Remove YubiKey secret",
+    /// Head of that dialog where a removal waits, and its button.
+    vault_keep_yubikey: "Keep YubiKey secret",
+    /// Button of that dialog where a removal waits.
+    vault_keep: "Keep",
+    /// Line of the dialog before the YubiKey secret is removed. `{}`: the vault.
+    vault_yubikey_remove_line: "The YubiKey secret is removed from {} at the next seal. Copies of {} sealed before still need it.",
+    /// Line of the same dialog where a removal waits. `{}`: the vault.
+    vault_yubikey_keep_line: "The YubiKey secret stays in {} at the next seal.",
+    /// Toast after Remove YubiKey secret.
+    vault_yubikey_removed: "Takes effect at the next seal. Copies sealed before still need the YubiKey secret.",
+    /// Toast after Keep YubiKey secret.
+    vault_yubikey_kept: "The next seal keeps the YubiKey secret.",
+    /// Toast after a key file is made, chosen or removed on the open vault.
+    vault_key_file_next_seal: "Takes effect at the next seal. Copies sealed before keep the key file they had.",
+    /// The open vault's key file could not be put in the Outbox, so none was made.
+    vault_key_file_not_kept_open: "The key file could not be put in the Outbox. The vault keeps the key file it had.",
+    /// Line under the open vault's name: the next seal needs a key file.
+    vault_needs_key_file: "Needs a key file",
+    /// Line under the open vault's name: the next seal needs a YubiKey's secret.
+    vault_opens_with_yubikey: "Opens with a YubiKey",
     /// Title of the dialog before a move.
     vault_move_head: "Move this item?",
     /// Line of that dialog. `{}`: the vault it goes to, the vault it is in,

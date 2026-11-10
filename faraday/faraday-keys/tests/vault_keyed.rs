@@ -152,7 +152,136 @@ fn removing_the_yubikey_secret_is_written_at_the_next_seal() {
     assert!(open(&mut store, &c, &sealed, with).is_some());
 }
 
+#[test]
+fn a_removal_of_the_secret_taken_back_keeps_it() {
+    let c = compute();
+    let mut store = store();
+    let id = open(&mut store, &c, &made(&c, both()), both()).expect("opens");
+    assert!(!store.keep_yubikey(id), "nothing to take back");
+    assert!(store.remove_yubikey(id));
+    assert!(store.yubikey_removal_pending(id));
+    assert!(store.keep_yubikey(id));
+    assert!(!store.yubikey_removal_pending(id));
+    assert_eq!(store.needs(id), Some((true, true)));
+    let sealed = seal(&mut store, &c, id);
+    assert!(open(&mut store, &c, &sealed, Components::with_key_file(key(1))).is_none());
+    assert!(open(&mut store, &c, &sealed, both()).is_some());
+}
+
+#[test]
+fn keeping_the_secret_is_refused_where_removing_it_is() {
+    let c = compute();
+    let mut store = store();
+    let none = open(
+        &mut store,
+        &c,
+        &made(&c, Components::none()),
+        Components::none(),
+    )
+    .expect("opens");
+    assert!(!store.keep_yubikey(none), "no secret held");
+    let id = open(&mut store, &c, &made(&c, both()), both()).expect("opens");
+    assert!(store.remove_yubikey(id));
+    // A job in flight: sealing refuses it.
+    let n = store.uuid_bytes(id).expect("held");
+    let uuids = vec![3u8; n];
+    let _job = store
+        .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, None)
+        .expect("a job");
+    assert!(!store.keep_yubikey(id));
+    assert!(store.yubikey_removal_pending(id));
+}
+
 const OUTBOX: Reveal = Reveal::OutboxFile(Part::KeyFile);
+
+#[test]
+fn a_made_key_file_document_is_handed_out_once() {
+    let c = compute();
+    let mut store = store();
+    let id = open(
+        &mut store,
+        &c,
+        &made(&c, Components::none()),
+        Components::none(),
+    )
+    .expect("opens");
+    assert!(store.make_key_file(id, &key(9)));
+    assert!(store.key_file_document(id, OUTBOX).is_some());
+    assert!(store.key_file_document(id, OUTBOX).is_none(), "taken");
+    // Another key made is another document.
+    assert!(store.make_key_file(id, &key(8)));
+    assert!(store.key_file_document(id, OUTBOX).is_some());
+}
+
+#[test]
+fn a_made_key_file_gives_no_document_while_the_vault_seals() {
+    let c = compute();
+    let mut store = store();
+    let id = open(
+        &mut store,
+        &c,
+        &made(&c, Components::none()),
+        Components::none(),
+    )
+    .expect("opens");
+    assert!(store.make_key_file(id, &key(9)));
+    let n = store.uuid_bytes(id).expect("held");
+    let uuids = vec![3u8; n];
+    let _job = store
+        .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, None)
+        .expect("a job");
+    assert!(store.key_file_document(id, OUTBOX).is_none());
+}
+
+#[test]
+fn a_made_key_file_that_could_not_be_kept_is_taken_back() {
+    let c = compute();
+    let mut store = store();
+    let id = open(&mut store, &c, &made(&c, both()), both()).expect("opens");
+    assert!(store.set_key_file(id, Some(key(2))));
+    assert!(!store.unmake_key_file(id), "a chosen key is not a made one");
+    assert!(store.make_key_file(id, &key(9)));
+    assert!(store.key_file_document(id, OUTBOX).is_some());
+    assert!(store.unmake_key_file(id));
+    assert!(store.key_file_document(id, OUTBOX).is_none());
+    // The vault keeps the key file it has.
+    assert_eq!(store.needs(id), Some((true, true)));
+    assert!(!store.rekeyed(id));
+    // A seal writes the key file it had, and not the one made.
+    let sealed = seal(&mut store, &c, id);
+    assert!(open(&mut store, &c, &sealed, both()).is_some());
+    let made_key = Components::new(Some(key(9)), Some(secret()));
+    assert!(open(&mut store, &c, &sealed, made_key).is_none());
+}
+
+#[test]
+fn a_made_key_file_through_a_failed_seal_is_not_handed_out_twice_and_a_later_seal_writes_it() {
+    use faraday_vault::Record;
+    use faraday_vault::records::kind;
+    let c = compute();
+    let mut store = store();
+    let id = open(&mut store, &c, &made(&c, both()), both()).expect("opens");
+    assert!(store.make_key_file(id, &key(9)));
+    let document = store.key_file_document(id, OUTBOX).expect("the document");
+    let read = keyfile::read(&document).expect("reads back");
+    let at = store.insert(id, Record::new(kind::ROUND)).expect("kept");
+    let n = store.uuid_bytes(id).expect("held");
+    let uuids = vec![3u8; n];
+    let err = store
+        .seal_job(id, &[9u8; SEAL_RANDOM_LEN], &uuids, None)
+        .expect("a job")
+        .run(&c)
+        .error();
+    assert!(err.is_some(), "the seal failed");
+    store.seal_ended(id, false);
+    assert!(store.key_file_document(id, OUTBOX).is_none());
+    assert!(store.rekeyed(id));
+    assert!(store.remove(id, at));
+    let sealed = seal(&mut store, &c, id);
+    let new = Components::new(Some(read), Some(secret()));
+    assert!(open(&mut store, &c, &sealed, new).is_some());
+    assert!(open(&mut store, &c, &sealed, both()).is_none());
+}
 
 #[test]
 fn a_key_file_made_is_written_as_a_document_and_opens_the_vault() {

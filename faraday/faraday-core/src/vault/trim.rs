@@ -31,6 +31,39 @@ pub struct Trim {
     pub name: String,
 }
 
+/// The dialog's `field` for **Remove YubiKey secret** of the open vault
+/// (or **Keep** where a removal waits): no record, no field.
+pub(crate) const YUBIKEY: u8 = u8::MAX;
+
+/// The open vault's **Remove YubiKey secret**, or **Keep YubiKey secret**
+/// where a removal waits: the dialog.
+pub(crate) fn ask_yubikey(app: &mut Faraday) {
+    let Some(id) = app.vaults.current_id() else {
+        return;
+    };
+    let store = app.vaults.store();
+    let (pending, held) = (store.yubikey_removal_pending(id), store.needs(id));
+    if store.read_only(id).is_some() || !(pending || held.is_some_and(|n| n.1)) {
+        return;
+    }
+    let name = app
+        .vaults
+        .open
+        .iter()
+        .find(|o| o.id == id)
+        .map_or_else(String::new, |o| o.label(store));
+    let version = store.version(id);
+    app.vaults.state.more = None;
+    app.vaults.state.trim = Some(Trim {
+        id,
+        record: 0,
+        field: YUBIKEY,
+        version,
+        name,
+    });
+    app.sheet = Some(Sheet::Trim);
+}
+
 /// Puts up the dialog for the selected seed's field `number`.
 pub(crate) fn ask(app: &mut Faraday, number: u8) {
     if number != field::KEY_CODEX32 && number != field::KEY_CHILD {
@@ -70,11 +103,41 @@ pub(crate) fn go(app: &mut Faraday) {
     if app.sheet == Some(Sheet::Trim) {
         app.sheet = None;
     }
+    if t.field == YUBIKEY {
+        return yubikey_go(app, &t);
+    }
     if app
         .vaults
         .edit(t.id, |s| s.drop_custom(t.id, t.record, t.field, t.version))
     {
         app.vaults.changed(t.id);
+    }
+}
+
+/// **Remove** or **Keep** on the YubiKey secret: the next seal leaves it
+/// out, or the removal is taken back; the same as a new passphrase
+/// for the lock and the seal.
+fn yubikey_go(app: &mut Faraday, t: &Trim) {
+    let pending = app.vaults.store().yubikey_removal_pending(t.id);
+    let done = app.vaults.edit(t.id, |s| {
+        if pending {
+            s.keep_yubikey(t.id)
+        } else {
+            s.remove_yubikey(t.id)
+        }
+    });
+    if done {
+        if pending {
+            // A removal taken back is no change at all.
+            app.vaults.unchanged(t.id);
+        } else {
+            app.vaults.changed(t.id);
+        }
+        app.toast(if pending {
+            EN.vault_yubikey_kept
+        } else {
+            EN.vault_yubikey_removed
+        });
     }
 }
 
@@ -105,19 +168,29 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(t) = app.vaults.state.trim.as_ref() else {
         return;
     };
-    let (title, line) = if t.field == field::KEY_CODEX32 {
+    let keep = t.field == YUBIKEY && app.vaults.store().yubikey_removal_pending(t.id);
+    let (title, line) = if t.field == YUBIKEY && keep {
+        (EN.vault_keep_yubikey, EN.vault_yubikey_keep_line)
+    } else if t.field == YUBIKEY {
+        (EN.vault_remove_yubikey, EN.vault_yubikey_remove_line)
+    } else if t.field == field::KEY_CODEX32 {
         (EN.vault_trim_codex32, EN.vault_trim_codex32_line)
     } else {
         (EN.vault_trim_child, EN.vault_trim_child_line)
     };
     let line = fill(line, &[&t.name, &t.name]);
+    let go = if keep {
+        EN.vault_keep
+    } else {
+        EN.vault_trim_go
+    };
     let actions = [
         (
             EN.vault_copy_cancel,
             Style::Secondary,
             Action::Vault(V::TrimCancel),
         ),
-        (EN.vault_trim_go, Style::Primary, Action::Vault(V::TrimGo)),
+        (go, Style::Primary, Action::Vault(V::TrimGo)),
     ];
     crate::compact::dialog(
         ui,

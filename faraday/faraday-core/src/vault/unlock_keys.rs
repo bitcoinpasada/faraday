@@ -106,6 +106,7 @@ pub(crate) fn ask(app: &mut Faraday) {
         .as_ref()
         .and_then(|n| files.iter().position(|f| &f.0 == n));
     app.vaults.state.key_pick = chosen.unwrap_or(0);
+    app.vaults.state.more = None;
     app.vaults.state.key_for_create = false;
     app.vaults.state.key_menu = false;
     app.sheet = Some(Sheet::KeyFile);
@@ -120,6 +121,9 @@ pub(crate) fn pick(app: &mut Faraday, n: usize) {
 
 /// **Choose**: the marked file is the key file. Nothing is read.
 pub(crate) fn choose(app: &mut Faraday) {
+    if app.vaults.more.is_some() {
+        return super::more::chosen(app);
+    }
     let files = candidates(app);
     if let Some((name, _)) = files.get(app.vaults.key_pick) {
         if app.vaults.key_for_create {
@@ -137,6 +141,7 @@ pub(crate) fn choose(app: &mut Faraday) {
 
 /// **Cancel**.
 pub(crate) fn cancel(app: &mut Faraday) {
+    app.vaults.state.more = None;
     if app.sheet == Some(Sheet::KeyFile) {
         app.sheet = None;
     }

@@ -1652,3 +1652,495 @@ fn a_chosen_file_that_is_damaged_is_named_and_nothing_is_made() {
     assert!(app.outbox.is_empty());
     assert!(in_files(&app, "bad.keyx"));
 }
+
+// ---------------------------------------------------------------------
+// The open vault's ⋮: Key file and Remove YubiKey secret
+// ---------------------------------------------------------------------
+
+/// The keyed vault open, unlocked with its key file and secret; one more
+/// key file, `other.keyx`, is left in Files.
+fn open_keyed() -> Faraday {
+    let mut app = keyed_app();
+    open_unlock(&mut app);
+    choose_key_file(&mut app);
+    type_secret(&mut app, SECRET_HEX);
+    attempt(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "{}", page(&mut app));
+    app.press(Action::Nav(Screen::VaultContents));
+    let _ = app.frame();
+    app
+}
+
+/// Locks, waits for the seal and returns every file in the Outbox.
+fn lock_to_outbox(app: &mut Faraday) -> Files {
+    crate::common::top_up(app);
+    app.press(Action::Lock);
+    testkit::settle(app);
+    app.outbox
+        .iter()
+        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .collect()
+}
+
+fn file_named(files: &Files, suffix: &str) -> Vec<u8> {
+    files
+        .iter()
+        .find(|f| f.0.ends_with(suffix))
+        .unwrap_or_else(|| {
+            panic!(
+                "no {suffix} in {:?}",
+                files.iter().map(|f| &f.0).collect::<Vec<_>>()
+            )
+        })
+        .1
+        .clone()
+}
+
+/// Opens the vault `sealed` from Unlock with the files in `keys` and the
+/// secret if `secret`; whether it opened.
+fn opens(sealed: &[u8], keys: &[(&str, Vec<u8>)], secret: bool) -> bool {
+    let mut files: Files = vec![("keyed.kdbx".into(), sealed.to_vec())];
+    files.extend(keys.iter().map(|(n, b)| ((*n).to_string(), b.clone())));
+    let mut app = process_at(800, 1200, files);
+    open_unlock(&mut app);
+    if !keys.is_empty() {
+        app.press(Action::Vault(V::KeyFileAsk));
+        app.press(Action::Vault(V::KeyFilePick(0)));
+        app.press(Action::Vault(V::KeyFileChoose));
+    }
+    if secret {
+        type_secret(&mut app, SECRET_HEX);
+    }
+    attempt(&mut app, PHRASE);
+    !app.vaults().open.is_empty()
+}
+
+/// Presses the ⋮ and then `item`.
+fn more_then(app: &mut Faraday, item: V) {
+    let _ = app.frame();
+    app.press(Action::Vault(V::MoreAsk));
+    app.press(Action::Vault(item));
+}
+
+#[test]
+fn make_a_key_file_puts_the_keyx_in_the_outbox_at_once_and_the_sealed_vault_needs_it() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    assert!(outbox_names(&app).contains(&"keyed.keyx".to_string()));
+    assert!(app.vaults().open[0].changes > 0);
+    let out = lock_to_outbox(&mut app);
+    let keyx = file_named(&out, ".keyx");
+    let sealed = file_named(&out, ".kdbx");
+    assert!(opens(&sealed, &[("keyed.keyx", keyx)], true));
+    assert!(!opens(&sealed, &[], true));
+    // The key file the vault had before is not the one it needs now.
+    assert!(!opens(&sealed, &[("vault.keyx", KEY_BYTES.to_vec())], true));
+}
+
+#[test]
+fn a_made_key_file_never_takes_the_name_of_a_file_already_there() {
+    let file = testkit::kdbx_vault_keyed("Keyed", PHRASE, 3, (Some(KEY_BYTES), None)).unwrap();
+    let mut app = process_at(
+        800,
+        1200,
+        vec![
+            ("keyed.kdbx".into(), file),
+            ("keyed.keyx".into(), vec![1, 2, 3]),
+            ("vault.keyx".into(), KEY_BYTES.to_vec()),
+        ],
+    );
+    open_unlock(&mut app);
+    app.press(Action::Vault(V::KeyFileAsk));
+    app.press(Action::Vault(V::KeyFilePick(1)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    attempt(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "{}", page(&mut app));
+    app.press(Action::Nav(Screen::VaultContents));
+    more_then(&mut app, V::VKeyMake);
+    let names = outbox_names(&app);
+    assert_eq!(names, vec!["keyed-2.keyx".to_string()]);
+    assert!(in_files(&app, "keyed.keyx"));
+}
+
+#[test]
+fn a_made_key_file_taken_back_or_replaced_before_a_seal_leaves_no_keyx_in_the_outbox() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(outbox_names(&app).len(), 1);
+    // Another Make: the first one's file goes, the second stays.
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(outbox_names(&app).len(), 1);
+    // A chosen file replaces it.
+    more_then(&mut app, V::VKeyChoose);
+    app.press(Action::Vault(V::KeyFilePick(0)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    assert!(outbox_names(&app).is_empty(), "{:?}", outbox_names(&app));
+    // And Remove key file takes a made one back.
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(outbox_names(&app).len(), 1);
+    more_then(&mut app, V::VKeyRemove);
+    assert!(outbox_names(&app).is_empty());
+}
+
+#[test]
+fn a_copy_of_a_file_with_the_made_keyx_name_written_to_a_stick_keeps_the_key_to_take_back() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(outbox_names(&app), vec!["keyed.keyx".to_string()]);
+    // A file of the same name comes in from one stick and goes to another.
+    app.storage(StorageEvent::Read {
+        stick: "a".into(),
+        name: "keyed.keyx".into(),
+        bytes: vec![1, 2, 3],
+    });
+    // Its write to another stick was started and is answered now.
+    testkit::inbox_write_started(&mut app, "keyed.keyx");
+    app.storage(StorageEvent::Written {
+        stick: "b".into(),
+        wrote_as: "keyed.keyx".into(),
+        name: "keyed.keyx".into(),
+    });
+    // The Outbox's own key file is still pending: taking it out takes the
+    // key back.
+    let at = app
+        .outbox
+        .iter()
+        .position(|i| i.name == "keyed.keyx")
+        .expect("still in the Outbox");
+    app.press(Action::OutboxRemove(at));
+    assert_eq!(
+        app.vaults().open[0].changes,
+        0,
+        "the key was not taken back"
+    );
+    let out = lock_to_outbox(&mut app);
+    assert!(!out.iter().any(|f| f.0.ends_with(".kdbx")), "sealed");
+}
+
+#[test]
+fn a_made_key_file_stays_in_the_outbox_once_a_seal_wrote_it() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    let out = lock_to_outbox(&mut app);
+    assert!(out.iter().any(|f| f.0.ends_with(".keyx")));
+}
+
+#[test]
+fn a_made_key_file_stays_in_the_outbox_when_one_vault_is_locked_and_the_app_goes_on() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    crate::common::top_up(&mut app);
+    testkit::vault_lock_one(&mut app, 0);
+    testkit::settle(&mut app);
+    for t in 1..5u64 {
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert!(app.vaults().open.is_empty(), "the vault is still open");
+    let names = outbox_names(&app);
+    assert!(names.iter().any(|n| n.ends_with(".kdbx")), "{names:?}");
+    assert!(names.iter().any(|n| n.ends_with(".keyx")), "{names:?}");
+}
+
+#[test]
+fn a_made_key_file_of_a_vault_let_go_unsaved_leaves_the_outbox() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(outbox_names(&app).len(), 1);
+    testkit::vault_let_go(&mut app, 0);
+    for t in 1..5u64 {
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert!(outbox_names(&app).is_empty(), "{:?}", outbox_names(&app));
+}
+
+#[test]
+fn a_made_key_file_of_a_vault_a_lock_without_saving_loses_does_not_reach_the_saved_outbox() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(outbox_names(&app).len(), 1);
+    // This computer is short of the memory the seal needs.
+    crate::common::top_up(&mut app);
+    app.storage(StorageEvent::Memory { available_mib: 20 });
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert!(!app.vaults().open.is_empty(), "the vault was let go");
+    assert_eq!(outbox_names(&app).len(), 1);
+    app.press(Action::LockUnsealed);
+    testkit::settle(&mut app);
+    assert!(app.restart_requested());
+    assert!(app.vaults().open.is_empty());
+    let saved = saved_outbox(&mut app);
+    assert!(
+        saved.is_empty(),
+        "{:?}",
+        saved.iter().map(|f| &f.0).collect::<Vec<_>>()
+    );
+    assert!(outbox_names(&app).is_empty(), "{:?}", outbox_names(&app));
+}
+
+#[test]
+fn a_chosen_key_file_opens_the_sealed_vault_and_leaves_files_only_after_the_seal() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyChoose);
+    app.press(Action::Vault(V::KeyFilePick(0)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    assert!(in_files(&app, "other.keyx"), "left Files before the seal");
+    assert!(app.vaults().open[0].changes > 0);
+    let out = lock_to_outbox(&mut app);
+    assert!(!in_files(&app, "other.keyx"));
+    let sealed = file_named(&out, ".kdbx");
+    assert!(opens(&sealed, &[("other.keyx", vec![9; 32])], true));
+    assert!(!opens(&sealed, &[("vault.keyx", KEY_BYTES.to_vec())], true));
+    assert!(!opens(&sealed, &[], true));
+}
+
+#[test]
+fn a_chosen_file_that_is_damaged_is_named_and_changes_nothing() {
+    let bad = br#"<?xml version="1.0"?><KeyFile><Meta><Version>1.0</Version></Meta><Key><Data>AA<x/>AA</Data></Key></KeyFile>"#;
+    let file = testkit::kdbx_vault_keyed("Keyed", PHRASE, 3, (Some(KEY_BYTES), None)).unwrap();
+    let mut app = process_at(
+        800,
+        1200,
+        vec![
+            ("keyed.kdbx".into(), file),
+            ("bad.keyx".into(), bad.to_vec()),
+            ("vault.keyx".into(), KEY_BYTES.to_vec()),
+        ],
+    );
+    open_unlock(&mut app);
+    app.press(Action::Vault(V::KeyFileAsk));
+    app.press(Action::Vault(V::KeyFilePick(1)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    attempt(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "{}", page(&mut app));
+    app.press(Action::Nav(Screen::VaultContents));
+    more_then(&mut app, V::VKeyChoose);
+    app.press(Action::Vault(V::KeyFilePick(0)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    assert!(
+        app.toast_text()
+            .is_some_and(|t| t.contains("bad.keyx is damaged")),
+        "{:?}",
+        app.toast_text()
+    );
+    assert_eq!(app.vaults().open[0].changes, 0);
+    assert!(in_files(&app, "bad.keyx"));
+}
+
+#[test]
+fn a_failed_seal_keeps_a_chosen_file_in_files() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyChoose);
+    app.press(Action::Vault(V::KeyFilePick(0)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    // A new memory step whose seal fails, and so does the retry at the old one.
+    let have = app.vaults().open[0].facts().header.cost.memory_kib;
+    let pick = if have == faraday_vault::file::STEPS_KIB[1] {
+        2
+    } else {
+        1
+    };
+    app.press(Action::Vault(V::MemoryAsk));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MemoryStep(pick)));
+    crate::common::top_up(&mut app);
+    testkit::fail_next_step_seal_and_retry();
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert!(!app.vaults().open.is_empty(), "the vault was let go");
+    assert!(in_files(&app, "other.keyx"));
+}
+
+#[test]
+fn remove_key_file_seals_a_vault_that_opens_without_one() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyRemove);
+    assert!(app.vaults().open[0].changes > 0);
+    let out = lock_to_outbox(&mut app);
+    let sealed = file_named(&out, ".kdbx");
+    assert!(opens(&sealed, &[], true));
+}
+
+#[test]
+fn remove_yubikey_secret_seals_a_vault_that_opens_without_it() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::YubiKeyRemoveAsk);
+    assert_eq!(app.sheet, Some(Sheet::Trim));
+    app.press(Action::Vault(V::TrimGo));
+    assert!(app.vaults().open[0].changes > 0);
+    let out = lock_to_outbox(&mut app);
+    let sealed = file_named(&out, ".kdbx");
+    let key = ("vault.keyx", KEY_BYTES.to_vec());
+    assert!(opens(&sealed, std::slice::from_ref(&key), false));
+    assert!(!opens(&sealed, &[], false));
+}
+
+#[test]
+fn a_removal_taken_back_still_needs_the_secret() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::YubiKeyRemoveAsk);
+    app.press(Action::Vault(V::TrimGo));
+    // A real change in between.
+    let id = app.vaults().open[0].id;
+    let rec = faraday_vault::Record::new(faraday_vault::records::kind::ENTRY)
+        .with(faraday_vault::records::field::TITLE, b"edit");
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, rec));
+    testkit::vault_changed(&mut app, id);
+    // The menu now offers Keep.
+    let _ = app.frame();
+    app.press(Action::Vault(V::MoreAsk));
+    let texts = page(&mut app);
+    assert!(texts.contains(EN.vault_keep_yubikey), "{texts}");
+    assert!(!texts.contains(EN.vault_remove_yubikey), "{texts}");
+    app.press(Action::Vault(V::YubiKeyRemoveAsk));
+    app.press(Action::Vault(V::TrimGo));
+    let out = lock_to_outbox(&mut app);
+    // The edit seals, and the vault still needs both.
+    let sealed = file_named(&out, ".kdbx");
+    let key = ("vault.keyx", KEY_BYTES.to_vec());
+    assert!(!opens(&sealed, std::slice::from_ref(&key), false));
+    assert!(opens(&sealed, &[key], true));
+}
+
+#[test]
+fn the_menu_offers_key_file_always_and_remove_yubikey_only_with_a_secret() {
+    let mut app = open_keyed();
+    let _ = app.frame();
+    app.press(Action::Vault(V::MoreAsk));
+    let texts = page(&mut app);
+    assert!(texts.contains(EN.vault_key_file), "{texts}");
+    assert!(texts.contains(EN.vault_remove_yubikey), "{texts}");
+
+    let mut app = open_vault();
+    let _ = app.frame();
+    app.press(Action::Vault(V::MoreAsk));
+    let texts = page(&mut app);
+    assert!(texts.contains(EN.vault_key_file), "{texts}");
+    assert!(!texts.contains(EN.vault_remove_yubikey), "{texts}");
+}
+
+#[test]
+fn a_read_only_vault_has_no_menu() {
+    let [(_, file, _), _] = read_only_files();
+    let mut app = process(vec![("ro.kdbx".into(), file)]);
+    try_unlock(&mut app, PHRASE);
+    app.press(Action::Nav(Screen::VaultContents));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MoreAsk));
+    assert_eq!(app.sheet, None);
+    app.press(Action::Vault(V::VKeyAsk));
+    assert_eq!(app.sheet, None);
+}
+
+#[test]
+fn the_head_line_names_what_the_next_seal_writes() {
+    let mut app = open_keyed();
+    let texts = page(&mut app);
+    assert!(texts.contains(EN.vault_needs_key_file), "{texts}");
+    assert!(texts.contains(EN.vault_opens_with_yubikey), "{texts}");
+    more_then(&mut app, V::VKeyRemove);
+    let texts = head(&mut app);
+    assert!(!texts.contains(EN.vault_needs_key_file), "{texts}");
+    assert!(texts.contains(EN.vault_opens_with_yubikey), "{texts}");
+    more_then(&mut app, V::YubiKeyRemoveAsk);
+    app.press(Action::Vault(V::TrimGo));
+    let texts = head(&mut app);
+    assert!(!texts.contains(EN.vault_opens_with_yubikey), "{texts}");
+}
+
+#[test]
+fn a_lock_seals_a_vault_whose_only_change_is_a_key_file_or_a_removed_secret() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::YubiKeyRemoveAsk);
+    app.press(Action::Vault(V::TrimGo));
+    let out = lock_to_outbox(&mut app);
+    assert!(out.iter().any(|f| f.0.ends_with(".kdbx")));
+}
+
+fn keyx_bytes(app: &Faraday, name: &str) -> Option<Vec<u8>> {
+    app.outbox
+        .iter()
+        .find(|i| i.name == name)
+        .map(|i| i.bytes.clone())
+}
+
+#[test]
+fn each_open_vault_keeps_its_own_pending_keyx() {
+    let a = testkit::kdbx_vault("A", PHRASE, 0x31, Vec::new()).unwrap();
+    let b = testkit::kdbx_vault("B", PHRASE, 0x32, Vec::new()).unwrap();
+    let mut app = process(vec![("a.kdbx".into(), a), ("b.kdbx".into(), b)]);
+    try_unlock(&mut app, PHRASE);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(1)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if app.vaults().open.len() == 2 {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), 2);
+    let on = |app: &mut Faraday, at: usize| {
+        testkit::vault_current(app, at);
+        app.press(Action::Nav(Screen::VaultContents));
+    };
+    on(&mut app, 0);
+    more_then(&mut app, V::VKeyMake);
+    let first = outbox_names(&app);
+    assert_eq!(first.len(), 1);
+    let old = keyx_bytes(&app, &first[0]).unwrap();
+    on(&mut app, 1);
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(outbox_names(&app).len(), 2);
+    on(&mut app, 0);
+    more_then(&mut app, V::VKeyMake);
+    let names = outbox_names(&app);
+    assert_eq!(names.len(), 2, "{names:?}");
+    assert_ne!(keyx_bytes(&app, &first[0]).unwrap(), old);
+}
+
+#[test]
+fn taking_a_pending_keyx_out_of_the_outbox_takes_its_key_back() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(app.vaults().open[0].changes, 1);
+    app.press(Action::OutboxRemove(0));
+    assert!(outbox_names(&app).is_empty());
+    // Nothing is left to seal.
+    assert_eq!(app.vaults().open[0].changes, 0);
+    let out = lock_to_outbox(&mut app);
+    assert!(!out.iter().any(|f| f.0.ends_with(".kdbx")), "sealed");
+}
+
+#[test]
+fn taking_a_pending_keyx_out_of_the_outbox_leaves_a_real_change_to_seal_with_the_vaults_own_key() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    let id = app.vaults().open[0].id;
+    let rec = faraday_vault::Record::new(faraday_vault::records::kind::ENTRY)
+        .with(faraday_vault::records::field::TITLE, b"edit");
+    testkit::vault_edit(&mut app, id, |s| s.insert(id, rec));
+    testkit::vault_changed(&mut app, id);
+    app.press(Action::OutboxRemove(0));
+    let out = lock_to_outbox(&mut app);
+    let sealed = file_named(&out, ".kdbx");
+    let key = ("vault.keyx", KEY_BYTES.to_vec());
+    assert!(opens(&sealed, &[key], true));
+}
+
+#[test]
+fn keeping_the_secret_after_removing_it_leaves_nothing_to_seal() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::YubiKeyRemoveAsk);
+    app.press(Action::Vault(V::TrimGo));
+    assert_eq!(app.vaults().open[0].changes, 1);
+    more_then(&mut app, V::YubiKeyRemoveAsk);
+    app.press(Action::Vault(V::TrimGo));
+    assert_eq!(app.vaults().open[0].changes, 0);
+    let out = lock_to_outbox(&mut app);
+    assert!(!out.iter().any(|f| f.0.ends_with(".kdbx")), "sealed");
+}

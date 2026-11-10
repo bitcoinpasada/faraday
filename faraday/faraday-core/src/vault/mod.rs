@@ -19,6 +19,7 @@ pub(crate) mod errors;
 pub(crate) mod keep;
 pub mod load;
 pub(crate) mod load_screen;
+pub(crate) mod more;
 pub mod out;
 pub(crate) mod panes_screen;
 pub(crate) mod qr_save;
@@ -772,6 +773,12 @@ impl Faraday {
             V::TrimCancel => trim::close(self),
             V::QrSave => qr_save::press(self),
             V::QrNoClose => qr_save::close(self),
+            V::MoreAsk => more::ask(self),
+            V::VKeyAsk => more::key_ask(self),
+            V::VKeyMake => more::make(self),
+            V::VKeyChoose => more::choose(self),
+            V::VKeyRemove => more::remove(self),
+            V::YubiKeyRemoveAsk => trim::ask_yubikey(self),
             V::KeyFileAsk => unlock_keys::ask(self),
             V::KeyFilePick(n) => unlock_keys::pick(self, n),
             V::KeyFileChoose => unlock_keys::choose(self),
@@ -1214,6 +1221,7 @@ impl Faraday {
             | copy::settle(self)
             | trim::settle(self)
             | qr_save::settle(self)
+            | more::settle(self)
     }
 
     /// Costs a read of the free memory (on macOS a process, `vm_stat`;

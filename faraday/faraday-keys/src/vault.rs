@@ -1056,7 +1056,8 @@ struct Slot {
     /// ([`OpenVaults::make_key_file`]) and not one given.
     key_made: bool,
     /// Whether the document of a made `new_key_file` was given
-    /// ([`OpenVaults::key_file_document`]): until then no seal writes it.
+    /// ([`OpenVaults::key_file_document`]), which it is once only: until
+    /// then no seal writes it.
     key_taken: bool,
     /// Whether the next seal leaves the YubiKey's secret out.
     drop_yubikey: bool,
@@ -2057,6 +2058,25 @@ impl OpenVaults {
         true
     }
 
+    /// Takes back a key file made for open vault `id` ([`OpenVaults::make_key_file`])
+    /// that its document could not be kept for: the key is wiped and no key
+    /// file is pending. `false` where the pending key file is not a made
+    /// one (a chosen key or a removal stays), an unknown vault and a
+    /// read-only or sealing one.
+    pub fn unmake_key_file(&mut self, id: VaultId) -> bool {
+        let Some(s) = self.slots.iter_mut().find(|s| s.id == id) else {
+            return false;
+        };
+        if s.locked() || !s.key_made {
+            return false;
+        }
+        s.key_made = false;
+        s.key_taken = false;
+        s.new_key_file = None;
+        s.changed();
+        true
+    }
+
     /// Leaves the YubiKey's secret out of the next seal of open vault `id`:
     /// the file after it opens with the passphrase and any key file alone.
     /// It counts as a change. Refused for an unknown vault, a read-only or
@@ -2072,6 +2092,27 @@ impl OpenVaults {
         s.drop_yubikey = true;
         s.changed();
         true
+    }
+
+    /// Takes back [`OpenVaults::remove_yubikey`]: the next seal of open
+    /// vault `id` keeps the YubiKey's secret. It counts as a change. Same
+    /// refusals, and `false` where no removal is pending.
+    pub fn keep_yubikey(&mut self, id: VaultId) -> bool {
+        let Some(s) = self.slots.iter_mut().find(|s| s.id == id) else {
+            return false;
+        };
+        if s.locked() || !s.opened.components_held().1 || !s.drop_yubikey {
+            return false;
+        }
+        s.drop_yubikey = false;
+        s.changed();
+        true
+    }
+
+    /// A lookup. Whether open vault `id` has a Remove YubiKey secret
+    /// waiting for its seal ([`OpenVaults::remove_yubikey`]).
+    pub fn yubikey_removal_pending(&self, id: VaultId) -> bool {
+        self.slot(id).is_some_and(|s| s.drop_yubikey)
     }
 
     /// A lookup. Whether the next seal of open vault `id` writes a file
@@ -2094,9 +2135,11 @@ impl OpenVaults {
     /// of the key file made for open vault `id` ([`OpenVaults::make_key_file`])
     /// that its next seal writes, for `why` (`Reveal::OutboxFile` of
     /// `Part::KeyFile`), to be written to a stick (`docs/KEYS.md` §2).
-    /// `None` for a key file chosen, one the vault was opened with, none
-    /// pending, a vault being sealed, or a reason that names another part.
-    /// Giving it lets the next seal write the key.
+    /// Handed out once: the key is marked taken, and a second call gives
+    /// `None` until another key is made. `None` for a key file chosen, one
+    /// the vault was opened with, none pending, a vault being sealed, or a
+    /// reason that names another part. Giving it lets the next seal write
+    /// the key.
     pub fn key_file_document(
         &mut self,
         id: VaultId,
@@ -2106,7 +2149,7 @@ impl OpenVaults {
             return None;
         }
         let s = self.slots.iter_mut().find(|s| s.id == id)?;
-        if s.sealing || !s.key_made {
+        if s.sealing || !s.key_made || s.key_taken {
             return None;
         }
         let document = fv::kdbx::keyfile::write(s.new_key_file.as_ref()?.as_ref()?);

@@ -231,7 +231,70 @@ pub(crate) fn vault_sheets_tour(c: &Compute, t: &mut Tour) -> Result<(), String>
     t.shot("vault-copy-unread-dialog")?;
     t.press(Action::Vault(V::CopyCancel));
     keep_sheet(t)?;
-    secret_sheet(c, t)
+    secret_sheet(c, t)?;
+    more_menu(t)
+}
+
+/// The open vault's ⋮ (`docs/VAULT.md` §3.2): the menu, Key file, Remove
+/// YubiKey secret and Keep where a removal waits, with the head line, for
+/// a vault opened with a key file and a YubiKey's secret.
+fn more_menu(t: &mut Tour) -> Result<(), String> {
+    let keyed = testkit::kdbx_vault_keyed(
+        "Keyed",
+        testkit::VAULT_PASSPHRASE,
+        3,
+        (Some([7; 32]), Some([0xab; 20])),
+    )?;
+    t.restart();
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![
+            ("keyed.kdbx".into(), keyed),
+            ("backup.keyx".into(), vec![7; 32]),
+            ("spare.keyx".into(), vec![9; 32]),
+        ],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    testkit::vault_speed(&mut t.app, Some(100));
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    t.press(Action::Vault(V::KeyFileAsk));
+    t.press(Action::Vault(V::KeyFileChoose));
+    t.press(Action::Vault(V::YubiKeyAdd));
+    type_text(t, "abababababababababababababababababababab");
+    t.press(Action::Vault(V::FocusPassphrase));
+    type_text(t, testkit::VAULT_PASSPHRASE);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..40 {
+        t.tick();
+        if !t.app.vaults().open.is_empty() {
+            break;
+        }
+    }
+    not_now_load(t);
+    if t.app.vaults().open.is_empty() {
+        return Err("the keyed vault did not open".into());
+    }
+    t.press(Action::Nav(Screen::VaultContents));
+    t.shot("vault-more-head")?;
+    t.press(Action::Vault(V::MoreAsk));
+    t.shot("vault-more-menu")?;
+    t.press(Action::Vault(V::VKeyAsk));
+    t.shot("vault-more-key-file")?;
+    t.press(Action::Vault(V::KeyFileCancel));
+    t.press(Action::Vault(V::MoreAsk));
+    t.press(Action::Vault(V::YubiKeyRemoveAsk));
+    t.shot("vault-more-remove-yubikey")?;
+    t.press(Action::Vault(V::TrimGo));
+    t.shot("vault-more-removal-pending")?;
+    t.press(Action::Vault(V::MoreAsk));
+    t.press(Action::Vault(V::YubiKeyRemoveAsk));
+    t.shot("vault-more-keep-yubikey")?;
+    t.press(Action::Vault(V::TrimCancel));
+    Ok(())
 }
 
 /// A key typed on Add a key, a child of a BIP-85 key with a codex32 set,

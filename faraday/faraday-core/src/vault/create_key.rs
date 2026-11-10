@@ -25,6 +25,7 @@ fn va(a: V) -> Action {
 /// **Add a key file**, or the chip: the dialog.
 pub(crate) fn ask(app: &mut Faraday) {
     if app.vaults.create.is_some() {
+        app.vaults.state.more = None;
         app.vaults.state.key_menu = true;
         app.vaults.state.key_for_create = true;
         app.sheet = Some(Sheet::KeyFile);

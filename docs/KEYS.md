@@ -126,7 +126,10 @@ Moved to `docs/history/KEYS-LOG.md`.
   drawn key is written only after its document is taken: until then a seal,
   a lock's included, writes the file under the key file it had, and
   `needs` says so. A document comes only from the draw that made the
-  vault's key, and a failed make gives none. A
+  vault's key, and a failed make gives none; `OpenVaults::key_file_document`
+  hands it out once (a second call gives none until another key is made)
+  and not while the vault seals, and `OpenVaults::unmake_key_file` takes a
+  made key back where its document could not be kept. A
   key file chosen (`set_key_file`) or opened with has no way out. A make
   never takes a YubiKey's secret (F208): `StretchJob::keyed` refuses it.
 - **A signing job** (`job::SignJob`, WORKERS §6) shares the keys, it does

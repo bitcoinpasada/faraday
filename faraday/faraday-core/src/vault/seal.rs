@@ -233,7 +233,7 @@ fn seal_next(app: &mut Faraday) {
             app.vaults.seals_write(&c, i);
             seal_memory(app, i);
         }
-        if read_only || app.vaults.open[i].changes == 0 {
+        if read_only || (app.vaults.open[i].changes == 0 && !app.vaults.store().rekeyed(id)) {
             if !all {
                 seal_close(app, id);
             }
@@ -595,6 +595,7 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
                 app.vaults.set_step_dropped();
             }
             app.vaults.state.store.seal_ended(id, true);
+            super::more::sealed(app, id);
             app.vaults.state.clear_stuck(id);
             // Sealed, so no longer open, in a lock of every vault too: a
             // later vault's failure leaves this one closed, its file in
@@ -690,6 +691,8 @@ fn lock_finish(app: &mut Faraday) {
     app.explore.clear();
     app.secrets.clear();
     app.entry.reset();
+    // A made key file of a vault let go unsealed does not go with the boxes.
+    super::more::drop_gone(app);
     app.save_boxes_for_lock();
     app.restart = true;
     app.out.commands.push_back(Command::Exit);

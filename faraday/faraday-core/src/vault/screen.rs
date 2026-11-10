@@ -1838,6 +1838,18 @@ fn seals_head(
             v.settings_text(),
         );
     }
+    // What the next seal writes: a key file or a YubiKey's secret needed
+    // to open it (a lookup).
+    if let Some((key, yubikey)) = app.vaults.store().needs(v.id) {
+        for (on, line) in [
+            (key, EN.vault_needs_key_file),
+            (yubikey, EN.vault_opens_with_yubikey),
+        ] {
+            if on {
+                used += ui.wrap_as((x, y + used, w), BODY_S, Role::OnSurfaceVariant, line);
+            }
+        }
+    }
     if used > 0.0 {
         used += faraday_draw::tokens::GAP_SMALL;
     }
@@ -1915,10 +1927,17 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             va(V::Rename),
         );
     }
+    // The ⋮ stands left of Rename.
+    let dots = if super::more::shown(app) {
+        let left = end - lockw - tokens::GAP - if rw > 0.0 { rw + tokens::GAP } else { 0.0 };
+        crate::menu::button(ui, left - BUTTON_H, y, BUTTON_H, va(V::MoreAsk), false) + tokens::GAP
+    } else {
+        0.0
+    };
     // The count goes beside the state when it fits there, else under.
     let count = v.seals_line(app.vaults.store(), app.tz_min());
     let from = x + ui.measure_as(LABEL_L, &state) + tokens::GAP;
-    let room = end - lockw - rw - tokens::GAP - tokens::GAP - from;
+    let room = end - lockw - rw - dots - tokens::GAP - tokens::GAP - from;
     let beside = ui.measure_as(BODY_S, &count) <= room;
     if beside {
         ui.text_mid_as((from, y, BUTTON_H), BODY_S, muted, &count);
@@ -2282,9 +2301,22 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         finish(app, ui, h, y - top + 16.0);
         return;
     }
-    let label = ui.fit_as(TITLE_M, &v.label(app.vaults.store()), w);
+    let dots = super::more::shown(app);
+    let room = if dots {
+        w - BUTTON_H - tokens::GAP_SMALL
+    } else {
+        w
+    };
+    let label = ui.fit_as(TITLE_M, &v.label(app.vaults.store()), room);
     ui.text_as(x, y, TITLE_M, ink, &label);
-    y += ui.line_as(TITLE_M) + faraday_draw::tokens::GAP_SMALL;
+    if dots {
+        let (bx, by) = (x + w - BUTTON_H, y - (BUTTON_H - ui.line_as(TITLE_M)) / 2.0);
+        crate::menu::button(ui, bx, by, BUTTON_H, va(V::MoreAsk), false);
+    }
+    y += ui
+        .line_as(TITLE_M)
+        .max(if dots { BUTTON_H / 2.0 } else { 0.0 })
+        + faraday_draw::tokens::GAP_SMALL;
     y += seals_head(app, ui, v, (x, y, w), false);
     let state = if v.changes == 0 {
         EN.vault_open_button.to_string()

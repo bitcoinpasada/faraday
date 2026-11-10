@@ -2365,6 +2365,19 @@ pub fn keep_sheet_seeds(app: &crate::Faraday) -> Vec<[u8; 4]> {
         .map_or_else(Vec::new, |s| s.asks.iter().map(|a| a.fp).collect())
 }
 
+/// A test-only stand-in for a visit's write of Inbox file `name` having
+/// started: a write can start only while no secret was held, so a test
+/// with a vault open cannot press Write.
+pub fn inbox_write_started(app: &mut crate::Faraday, name: &str) {
+    app.visit.writing_inbox.insert(name.to_string());
+}
+
+/// A test-only way to let open vault `o` go unsealed while the app runs
+/// on (a lock closes every vault and restarts), to test `settle`'s sweep.
+pub fn vault_let_go(app: &mut crate::Faraday, o: usize) {
+    app.vaults.close_at(o);
+}
+
 /// Shows open vault `o` in the contents.
 pub fn vault_current(app: &mut crate::Faraday, o: usize) {
     app.vaults.set_current(o);

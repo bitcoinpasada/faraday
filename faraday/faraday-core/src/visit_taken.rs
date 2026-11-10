@@ -781,6 +781,11 @@ impl Faraday {
     pub(crate) fn visit_written(&mut self, name: &str, wrote_as: &str) {
         self.name_taken_wrote(wrote_as);
         self.receipt_add(name, None);
+        // A made key file written to the stick from the Outbox is no longer
+        // a pending item; a copy from the Inbox of the same name is not it.
+        if !self.visit.writing_inbox.contains(name) {
+            crate::vault::more::written(self, name);
+        }
     }
 
     /// A new write starts with no names written.

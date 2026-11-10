@@ -455,6 +455,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::SaveKeeps => crate::vault::copy_screen::draw_keep(app, ui, w, h),
             Sheet::Trim => crate::vault::trim::draw(app, ui, w, h),
             Sheet::QrNoFit => crate::vault::qr_save::draw(app, ui, w, h),
+            Sheet::KeyFile if app.vaults.more.is_some() => crate::vault::more::draw(app, ui, w, h),
             Sheet::KeyFile if app.vaults.key_menu => {
                 crate::vault::create_key::dialog(app, ui, w, h)
             }

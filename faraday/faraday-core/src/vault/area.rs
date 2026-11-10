@@ -226,6 +226,12 @@ impl VaultArea {
         self.state.add_amounts(c, o, new);
     }
 
+    /// A change of open vault `id` counted by [`Vaults::changed`] was taken
+    /// back ([`Vaults::unchanged`]).
+    pub(crate) fn unchanged(&mut self, id: VaultId) {
+        self.state.unchanged(id);
+    }
+
     /// Open vault `o` has one more change not saved.
     pub(crate) fn bump(&mut self, o: usize) {
         self.state.open[o].changes += 1;
@@ -1467,6 +1473,15 @@ impl Vaults {
         }
     }
 
+    /// Takes back one change counted by [`Vaults::changed`] for a change
+    /// that was itself taken back.
+    pub fn unchanged(&mut self, id: VaultId) {
+        if let Some(o) = self.open.iter_mut().find(|o| o.id == id) {
+            o.changes = o.changes.saturating_sub(1);
+            o.read.read = std::cell::OnceCell::new();
+        }
+    }
+
     /// The open vault on the contents screen.
     pub fn current_id(&self) -> Option<VaultId> {
         self.open.get(self.current).map(|o| o.id)
@@ -1954,6 +1969,15 @@ pub struct Vaults {
     pub key_for_create: bool,
     /// The sheet shows Create's two ways to have a key file, not the list.
     pub key_menu: bool,
+    /// The open vault's ⋮ menu or Key file dialog, while it is up (the
+    /// key file sheet, `vault::more`).
+    pub more: Option<super::more::More>,
+    /// The file of Files the open vault's pending key file was read from,
+    /// by vault: it leaves Files once the seal that writes it succeeds.
+    pub key_chosen: Option<(VaultId, String)>,
+    /// The Outbox name of the `.keyx` made for a vault's pending key file,
+    /// until a seal writes that key or the key is replaced or taken back.
+    pub key_outbox: Vec<(VaultId, String)>,
     /// The key file of a vault just made, held for its unlock at once
     /// (a copy or a backup flow waiting for it), taken by that unlock.
     pub made_parts: Option<faraday_vault::kdbx::Components>,
@@ -3513,6 +3537,18 @@ pub enum VaultAction {
     QrSave,
     /// That dialog's **Close**.
     QrNoClose,
+    /// The open vault's ⋮.
+    MoreAsk,
+    /// The ⋮'s **Key file**: its dialog.
+    VKeyAsk,
+    /// That dialog's **Make a key file**.
+    VKeyMake,
+    /// That dialog's **Choose a file**: the list of files.
+    VKeyChoose,
+    /// That dialog's **Remove key file**.
+    VKeyRemove,
+    /// The ⋮'s **Remove YubiKey secret** (or **Keep** where a removal waits): the dialog.
+    YubiKeyRemoveAsk,
     /// Unlock's **Add a key file**, and the chip: the dialog of files.
     KeyFileAsk,
     /// That dialog's file n marked.
