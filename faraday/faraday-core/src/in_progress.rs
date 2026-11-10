@@ -271,13 +271,24 @@ impl Faraday {
     }
 
     /// Does what the press does. The form on a flow's screen is the flow's
-    /// Make form: leaving the screen closes it, and the flow builds it
-    /// again at Make.
+    /// Make form: leaving the flow for good closes it, a detour that comes
+    /// back (Set the time) keeps it, and the flow builds it again at Make
+    /// when it is shown without one.
     pub(crate) fn act_leaving_flow(&mut self, action: crate::Action) {
         let in_flow = self.screen == Screen::BackupFlow;
         self.act_moving_on(action);
-        if in_flow && self.screen != Screen::BackupFlow {
+        let detour =
+            self.screen == Screen::SetTime && self.set_time.back_to() == Screen::BackupFlow;
+        if in_flow && self.screen != Screen::BackupFlow && !detour {
             self.vaults.close_form();
+        }
+        if self.screen == Screen::BackupFlow
+            && let Some(i) = self.fi()
+        {
+            let f = &self.flows[i];
+            if f.step == Step::Make && !f.made && f.restore.is_none() && !f.kind.is_wallet() {
+                self.flow_make_form(f.kind);
+            }
         }
     }
 

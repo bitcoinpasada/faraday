@@ -2077,7 +2077,7 @@ impl Faraday {
     // ---- step 4: the key ----
 
     /// The kind's own form, in the flow's card.
-    fn flow_make_form(&mut self, kind_: Kind) {
+    pub(crate) fn flow_make_form(&mut self, kind_: Kind) {
         let want = kind_.record_kind();
         if self.vaults.form.as_ref().is_some_and(|f| f.kind == want) {
             return;
