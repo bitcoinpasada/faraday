@@ -11,7 +11,11 @@ use crate::strings::{EN, fill};
 use crate::{Action, Faraday, Screen, flow};
 use faraday_crypto::work::Compute;
 use faraday_ots::{Error, HashOp, Header, Network, Outcome, Proof};
+use std::sync::Arc;
+
+mod hash;
 use faraday_shell_api::Key;
+pub(crate) use hash::{HashDone, HashWork, hashed};
 
 pub(crate) mod screen;
 
@@ -69,29 +73,28 @@ pub(crate) struct Given<T> {
     pub value: T,
 }
 
-/// The file a proof stamps, as hashes: the SHA-256 always, the other
-/// hashes a proof may name when the whole file was given.
+/// The file a proof stamps, as hashes: the one the proof names, or the
+/// SHA-256 until a proof is in; the others when a proof names them and the
+/// whole file was given.
 pub(crate) struct FileGiven {
     /// The file's name, or Typed.
     pub name: String,
-    /// Its SHA-256.
-    pub sha256: Vec<u8>,
+    /// The digests worked out or given so far.
+    pub digests: Vec<(HashOp, Vec<u8>)>,
+    /// The whole file, kept to hash it under another operation when a proof
+    /// names one; none where only a digest was given.
+    pub bytes: Option<Arc<Vec<u8>>>,
     /// Whether only the digest was given (typed, scanned or read from a
     /// text), never the file.
     pub digest_only: bool,
     /// Whether the digest was read from a text file.
     pub from_text: bool,
-    /// Its SHA-1, RIPEMD-160 and Keccak-256, for a file given whole.
-    pub others: Vec<(HashOp, Vec<u8>)>,
 }
 
 impl FileGiven {
     /// The digest under `op`, when this file gives one.
     fn digest(&self, op: HashOp) -> Option<&[u8]> {
-        if op == HashOp::Sha256 {
-            return Some(&self.sha256);
-        }
-        self.others
+        self.digests
             .iter()
             .find(|(o, _)| *o == op)
             .map(|(_, d)| d.as_slice())
@@ -436,7 +439,7 @@ pub(crate) fn act(app: &mut Faraday, action: OtsAction) {
             let c = app.compute();
             let Some(item) = app.inbox.get(i) else { return };
             let (name, bytes) = (item.name.clone(), item.bytes.clone());
-            take_file(app, &c, name, &bytes);
+            take_file(app, &c, name, bytes);
         }
         OtsAction::Header(i) => {
             let Some(item) = app.inbox.get(i) else { return };
@@ -498,49 +501,14 @@ fn take_proof(app: &mut Faraday, c: &Compute, name: String, bytes: &[u8]) {
     }
 }
 
-/// Costs a SHA-256, SHA-1 and RIPEMD-160 pass over the file.
-fn take_file(app: &mut Faraday, c: &Compute, name: String, bytes: &[u8]) {
-    let sha256 = faraday_crypto::sha256_whole(c, bytes).to_vec();
-    let others = [HashOp::Sha1, HashOp::Ripemd160]
-        .into_iter()
-        .map(|op| (op, op.digest_whole(c, bytes)))
-        .collect();
-    let Some(s) = st(app) else { return };
-    let mut given = FileGiven {
-        name,
-        sha256,
-        digest_only: false,
-        from_text: false,
-        others,
-    };
-    // A file that is the proof's SHA-256 written as text (from a scan or a
-    // text file) is that digest, shown in the hash field with the file's
-    // name as its source; a file whose own hash matches is the file.
-    if let Some(p) = &s.proof {
-        let digest = p.value.file_digest();
-        if p.value.file_op() == HashOp::Sha256
-            && given.sha256 != digest
-            && hex_text_digest(bytes).as_deref() == Some(digest)
-        {
-            given.sha256 = digest.to_vec();
-            given.others = Vec::new();
-            given.digest_only = true;
-            given.from_text = true;
-            given.name = fill(EN.ots_digest_from, &[&given.name]);
-            s.hash_text = hex(digest);
-        }
-    }
-    // The hash field shows only the value that is checked: a whole file
-    // leaves no older typed text in it.
-    if !given.digest_only {
-        s.hash_text.clear();
-    }
-    s.file = Some(given);
-    s.refused[1] = None;
-    judge(app, c);
-    if let Some(s) = st(app) {
-        advance(s, ostep::FILE);
-    }
+/// Costs a pass over the file under the hash the proof names, or the
+/// SHA-256 until a proof is in (`hash::start`): a file over
+/// [`JOB_BYTES`] is hashed on the worker.
+fn take_file(app: &mut Faraday, c: &Compute, name: String, bytes: Vec<u8>) {
+    let op = st(app)
+        .and_then(|s| s.proof.as_ref().map(|p| p.value.file_op()))
+        .unwrap_or(HashOp::Sha256);
+    hash::start(app, c, name, Arc::new(bytes), op);
 }
 
 /// The SHA-256 a file's text writes: exactly 64 hex characters, with
@@ -601,10 +569,10 @@ fn take_typed(app: &mut Faraday, f: Field) {
                 Some(d) => {
                     s.file = Some(FileGiven {
                         name: EN.ots_typed.to_string(),
-                        sha256: d,
+                        digests: vec![(HashOp::Sha256, d)],
+                        bytes: None,
                         digest_only: true,
                         from_text: false,
-                        others: Vec::new(),
                     });
                     s.refused[1] = None;
                     judge(app, &c);
@@ -630,6 +598,17 @@ fn take_typed(app: &mut Faraday, f: Field) {
 /// and drops it while one is not.
 fn judge(app: &mut Faraday, c: &Compute) {
     let Some(s) = st(app) else { return };
+    // A proof naming a hash the whole file was not given under: the file is
+    // hashed under it first.
+    if let (Some(p), Some(f)) = (&s.proof, &s.file)
+        && let Some(bytes) = &f.bytes
+        && f.digest(p.value.file_op()).is_none()
+    {
+        let (name, bytes, op) = (f.name.clone(), bytes.clone(), p.value.file_op());
+        s.shown = None;
+        hash::start(app, c, name, bytes, op);
+        return;
+    }
     s.shown = match (&s.proof, &s.file, &s.header) {
         (Some(p), Some(f), Some(h)) => Some(shown(c, &p.value, f, &h.value)),
         _ => None,
@@ -693,10 +672,10 @@ fn hash_scanned(app: &mut Faraday, bytes: &[u8]) {
     s.hash_text = text.to_string();
     s.file = Some(FileGiven {
         name: EN.ots_scanned.to_string(),
-        sha256: d,
+        digests: vec![(HashOp::Sha256, d)],
+        bytes: None,
         digest_only: true,
         from_text: false,
-        others: Vec::new(),
     });
     s.refused[1] = None;
     judge(app, &c);

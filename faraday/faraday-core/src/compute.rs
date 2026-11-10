@@ -238,6 +238,7 @@ impl Faraday {
             Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
             Done::Collect(d) => crate::signing::collect::collected(self, *d),
             Done::Files(d) => crate::public_files::files_made(self, *d),
+            Done::OtsHash(d) => crate::ots_check::hashed(self, *d),
             Done::QrSeal(d) => crate::qr_tool::sealed(self, *d),
             Done::QrOpen(d) => crate::qr_tool::opened(self, *d),
             Done::KefSeal(d) => {

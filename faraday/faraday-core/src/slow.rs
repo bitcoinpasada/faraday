@@ -12,7 +12,8 @@ use crate::{boot_import, seeds, vanity};
 /// loaded, the backup's checklist and its Make the files, a wallet's multisig config, split
 /// shares and Specter DIY pictures, and Make the code and Compare of a
 /// Krux code, in Tools and on the checklist, and Make the code and Open of a QR
-/// vault in Tools; the other presses move
+/// vault in Tools, and Check a timestamp's file over
+/// 3 MiB (`ots_check::hash::JOB_BYTES`); the other presses move
 /// here from [`drawn_first`] as they are shown to need it.
 pub(crate) fn starts_job(a: Action) -> bool {
     matches!(
@@ -22,6 +23,7 @@ pub(crate) fn starts_job(a: Action) -> bool {
             | Action::BChecklist
             | Action::BFilesMake
             | Action::PublicOut(_, 2 | 4 | 14)
+            | Action::OtsCheck(crate::ots_check::OtsAction::File(_))
             | Action::QrTool(
                 crate::qr_tool::QrToolAction::Make | crate::qr_tool::QrToolAction::OpenCode,
             )

@@ -4322,6 +4322,7 @@ functions = [
   "faraday/faraday-ots/src/lib.rs::HashOp::digest",
   "faraday/faraday-ots/src/lib.rs::HashOp::digest_whole",
   "faraday/faraday-core/src/ots_check/mod.rs::take_file",
+  "faraday/faraday-core/src/ots_check/hash.rs::HashWork::run",
   "faraday/faraday-ots/src/lib.rs::Op::apply",
   "faraday/faraday-ots/src/lib.rs::Proof::parse",
   "faraday/faraday-ots/src/lib.rs::Proof::verify",

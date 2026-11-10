@@ -7463,6 +7463,8 @@ strings! {
     working_signing: "Signing the transaction",
     /// The line of the job that adds the signatures of a file to a PSBT.
     working_collecting: "Adding the signatures",
+    /// The line of the job that hashes a large file in Check a timestamp.
+    working_hashing: "Hashing the file",
     /// The line of the job that reads a PSBT and checks it.
     working_reading_psbt: "Reading the transaction",
     /// The line of the job that loads the ticked samples.

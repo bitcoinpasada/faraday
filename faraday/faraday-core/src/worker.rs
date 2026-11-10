@@ -49,6 +49,8 @@ pub enum Kind {
     KefOpen,
     /// The short timed run for a Krux code's time; it has no busy screen.
     KefTime,
+    /// A large file hashed in Check a timestamp.
+    OtsHash,
 }
 
 impl Kind {
@@ -70,7 +72,8 @@ impl Kind {
             | Kind::QrOpen
             | Kind::KefSeal
             | Kind::KefOpen
-            | Kind::KefTime => false,
+            | Kind::KefTime
+            | Kind::OtsHash => false,
         }
     }
 }
@@ -109,6 +112,7 @@ pub(crate) enum Job {
     KefSeal(Box<kef::SealWork>),
     KefOpen(Box<kef::OpenWork>),
     KefTime(Box<kef::TimeWork>),
+    OtsHash(Box<crate::ots_check::HashWork>),
 }
 
 /// What a job gives back.
@@ -128,6 +132,7 @@ pub(crate) enum Done {
     KefSeal(Box<kef::SealDone>),
     KefOpen(Box<kef::OpenDone>),
     KefTime(Box<kef::TimeDone>),
+    OtsHash(Box<crate::ots_check::HashDone>),
 }
 
 impl Job {
@@ -148,6 +153,7 @@ impl Job {
             Job::KefSeal(_) => Kind::KefSeal,
             Job::KefOpen(_) => Kind::KefOpen,
             Job::KefTime(_) => Kind::KefTime,
+            Job::OtsHash(_) => Kind::OtsHash,
         }
     }
 
@@ -169,6 +175,7 @@ impl Job {
             Job::KefSeal(j) => Done::KefSeal(Box::new(j.run(c))),
             Job::KefOpen(j) => Done::KefOpen(Box::new(j.run(c))),
             Job::KefTime(j) => Done::KefTime(Box::new(j.run(c))),
+            Job::OtsHash(j) => Done::OtsHash(Box::new(j.run(c))),
         }
     }
 }
