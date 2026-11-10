@@ -28,7 +28,7 @@ use crate::{Action, Faraday, Sheet};
 pub enum Exposure {
     /// Anyone: public keys, PSBTs, signed messages, certificates.
     Public,
-    /// Only who has the passphrase: a vault or a KDBX database.
+    /// Only who has the passphrase: a vault, a QR vault or a KDBX database.
     Sealed,
     /// Anyone who has the file can use the secret in it.
     Secret,
@@ -38,7 +38,9 @@ impl FileKind {
     /// Who may read a file of this kind.
     pub fn exposure(self) -> Exposure {
         match self {
-            FileKind::Vault | FileKind::Kdbx | FileKind::KdbxOther => Exposure::Sealed,
+            FileKind::Vault | FileKind::Kdbx | FileKind::KdbxOther | FileKind::QrVault => {
+                Exposure::Sealed
+            }
             FileKind::Entries | FileKind::Words | FileKind::SeedPart | FileKind::SecretWallet => {
                 Exposure::Secret
             }

@@ -92,3 +92,51 @@ fn a_refused_code_is_no_qr_vault() {
     read(&mut app, REFUSED);
     assert_ne!(card_kind(&app), Some(Kind::QrVault));
 }
+
+const GNUPG: &[u8] = include_bytes!("../../../fuzz/corpus/pgp_message/refused-skesk4-seipd1.pgp");
+
+#[test]
+fn a_qr_vault_file_in_the_outbox_reads_as_sealed() {
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: vec![("note.pgp".to_string(), NOTE.to_vec())],
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Written sealed"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "Public"), "{texts:?}");
+}
+
+#[test]
+fn a_refused_pgp_file_in_files_does_not_offer_the_qr_vault() {
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("gnupg.pgp".to_string(), GNUPG.to_vec())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    assert!(!app.offers(Action::OpenQrVault(0)));
+    app.press(Action::OpenQrVault(0));
+    assert_ne!(app.screen, Screen::QrTool);
+}
+
+#[test]
+fn the_codex32_and_slip39_scanner_names_a_qr_vault() {
+    for code in [NOTE, SEED] {
+        let mut app = testkit::started();
+        app.press(Action::Entry(None));
+        app.press(Action::EntryForm(2));
+        app.press(Action::ScanPart);
+        assert_eq!(
+            app.scan().map(|s| s.purpose),
+            Some(faraday_core::ScanPurpose::KeyPart)
+        );
+        read(&mut app, code);
+        assert_eq!(card_kind(&app), Some(Kind::QrVault));
+    }
+}

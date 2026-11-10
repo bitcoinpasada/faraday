@@ -2916,7 +2916,7 @@ impl Faraday {
             | Action::BOut(..)
             | Action::BC32(..)) => self.backup_act(a, &c),
             Action::OpenQrVault(k) => {
-                if let Some(item) = self.inbox.get(k) {
+                if let Some(item) = self.inbox.get(k).filter(|i| i.kind == FileKind::QrVault) {
                     let code = item.bytes.clone();
                     qr_tool::open_code(self, code);
                 }

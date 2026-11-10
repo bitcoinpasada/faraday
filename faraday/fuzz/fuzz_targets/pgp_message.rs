@@ -10,6 +10,10 @@ use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     if let Ok(message) = faraday_pgp::message::parse(data) {
-        let _ = message.cost().memory_kib();
+        let cost = message.cost();
+        let _ = cost.memory_kib();
+        assert!(faraday_pgp::message::EXPONENTS.contains(&cost.exponent));
+        assert!((1..=faraday_pgp::message::MAX_PASSES).contains(&cost.passes));
+        assert!((1..=faraday_pgp::message::MAX_LANES).contains(&cost.lanes));
     }
 });
