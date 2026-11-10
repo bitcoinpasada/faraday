@@ -57,6 +57,7 @@ fn screen(name: &str) -> Screen {
         "KefTool" => S::KefTool,
         "QrTool" => S::QrTool,
         "Invoice" => S::Invoice,
+        "Compare" => S::Compare,
         other => panic!("{other} is not a Screen"),
     }
 }
