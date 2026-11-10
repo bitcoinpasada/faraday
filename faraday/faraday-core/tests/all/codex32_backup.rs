@@ -37,7 +37,8 @@ fn ix(c: char) -> usize {
     plan::codex32::index_of(c as u8).unwrap()
 }
 
-fn on() -> Faraday {
+/// A desktop with its display told and no seed from the system yet.
+pub(crate) fn on_unseeded() -> Faraday {
     let mut app = testkit::started();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -51,6 +52,11 @@ fn on() -> Faraday {
         boot: BootState::Unknown,
         memory_mib: None,
     }));
+    app
+}
+
+fn on() -> Faraday {
+    let mut app = on_unseeded();
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x60 + i; 32])));
     }
@@ -88,8 +94,12 @@ fn wallet_and_backup(app: &mut Faraday) {
 /// who typed them in would tell it (2 of 3, `name`, A, C and D), and Back
 /// up opened on a single-key wallet over it.
 fn with_set() -> Faraday {
+    with_set_on(on())
+}
+
+/// [`with_set`] on `app`, which may not have its seed yet.
+pub(crate) fn with_set_on(mut app: Faraday) -> Faraday {
     assert!(BIP93.contains("MS12NAMEDLL4F8JLH4E5VDVULDLFXU2JHDNLSM97XVENRXEG"));
-    let mut app = on();
     app.press(Action::Entry(None));
     app.press(Action::EntryForm(2));
     for s in [A, C] {
@@ -122,7 +132,7 @@ fn with_set() -> Faraday {
     app
 }
 
-fn c32(app: &mut Faraday, p: Press) {
+pub(crate) fn c32(app: &mut Faraday, p: Press) {
     app.press(Action::BC32(p));
 }
 
@@ -133,7 +143,7 @@ fn type_in(app: &mut Faraday, s: &str) {
 }
 
 /// The checklist made and its codex32 item open.
-fn checklist_at_codex32(app: &mut Faraday) {
+pub(crate) fn checklist_at_codex32(app: &mut Faraday) {
     app.press(Action::BChecklist);
     let n = bstep::of(plan::Item::Codex32(0));
     let c = testkit::compute();

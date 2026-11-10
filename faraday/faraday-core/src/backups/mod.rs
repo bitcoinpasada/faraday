@@ -1908,19 +1908,7 @@ impl Faraday {
                 Ok(())
             }
             SetStep::Scheme(k, n) => {
-                let id = <[u8; 4]>::try_from(typed.as_bytes())
-                    .map_err(|_| Some(EN.c32_set_identifier.to_string()))?;
-                let was = self
-                    .backup
-                    .state()
-                    .is_some_and(|b| b.answers.rotated_id(i, id));
-                if id == form.identifier || was {
-                    return Err(Some(EN.c32_set_identifier_old.to_string()));
-                }
-                // A new set is a fresh secret: none in the demo.
-                if !self.makes_secrets() {
-                    return Err(None);
-                }
+                let id = self.c32_rotation_refusal(i, form, typed)?;
                 let Some(draw) =
                     self.fresh_bytes(b"codex32 rotation", faraday_keys::codex32_random_len(*k))
                 else {
@@ -1955,6 +1943,58 @@ impl Faraday {
             }
             _ => Err(None),
         }
+    }
+
+    /// The new set's identifier for seed `i`, or what refuses the rotation
+    /// before it draws: `Err` says what to tell (`None`: nothing, as in
+    /// the demo). Used by the press and by the wait for the seed, so a
+    /// refused press never waits.
+    fn c32_rotation_refusal(
+        &self,
+        i: usize,
+        form: &crate::plan::codex32::C32,
+        typed: &str,
+    ) -> Result<[u8; 4], Option<String>> {
+        let id = <[u8; 4]>::try_from(typed.as_bytes())
+            .map_err(|_| Some(EN.c32_set_identifier.to_string()))?;
+        let was = self
+            .backup
+            .state()
+            .is_some_and(|b| b.answers.rotated_id(i, id));
+        if id == form.identifier || was {
+            return Err(Some(EN.c32_set_identifier_old.to_string()));
+        }
+        // A new set is a fresh secret: none in the demo.
+        if !self.makes_secrets() {
+            return Err(None);
+        }
+        Ok(id)
+    }
+
+    /// Whether Make the new set, pressed now, goes on to draw the system's
+    /// randomness: the codex32 item is open on its Scheme step and the
+    /// rotation is not refused.
+    pub(crate) fn c32_make_new_draws(&self) -> bool {
+        let Some(b) = self.backup.state() else {
+            return false;
+        };
+        let Some(st) = b.c32.as_ref() else {
+            return false;
+        };
+        let i = st.seed;
+        if self
+            .backup_seed_list_now(b.wallet)
+            .get(i)
+            .and_then(|x| x.1)
+            .is_none()
+        {
+            return false;
+        }
+        let Some(form) = b.answers.c32(i) else {
+            return false;
+        };
+        matches!(st.set, crate::codex32_backup::SetStep::Scheme(..))
+            && self.c32_rotation_refusal(i, form, &st.typed).is_ok()
     }
 
     /// String `s` at index `j`, derived for seed

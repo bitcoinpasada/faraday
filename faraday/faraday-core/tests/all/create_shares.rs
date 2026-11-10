@@ -46,7 +46,7 @@ fn on_quorum() -> Faraday {
 }
 
 /// [`on_quorum`] on `app`.
-fn on_quorum_of(mut app: Faraday) -> Faraday {
+pub(crate) fn on_quorum_of(mut app: Faraday) -> Faraday {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::CreateWallet);
     app.press(Action::CKind(shares_index()));
@@ -374,7 +374,7 @@ fn its_quorum_is_the_codex32_scheme() {
 
 /// Quorum at 3 of 5, Continue, No to vaults: Keys, whose one way on is
 /// Make codex32 shares, opens it in its place.
-fn on_keys(app: &mut Faraday) {
+pub(crate) fn on_keys(app: &mut Faraday) {
     app.press(Action::CM(1));
     app.press(Action::CN(1));
     app.press(Action::CN(1));
@@ -434,7 +434,7 @@ fn its_slot_opens_make_codex32_shares_with_the_scheme_fixed() {
     assert_eq!(m.open(), Some(Card::Identifier), "Scheme is skipped");
 }
 
-fn key(app: &mut Faraday, ch: char) {
+pub(crate) fn key(app: &mut Faraday, ch: char) {
     app.press(Action::Codex32(C32::Key(OskPress::Char(ch))));
 }
 

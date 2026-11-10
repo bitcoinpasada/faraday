@@ -875,14 +875,19 @@ impl Faraday {
                 .keygen
                 .state()
                 .is_some_and(|k| k.slip39 && k.open == Some(kstep::ENTER) && k.ready()),
-            Action::Codex32(crate::codex32::C32::Suggest) => true,
+            Action::Codex32(crate::codex32::C32::Suggest) => self
+                .keygen
+                .state()
+                .and_then(|k| k.codex32.as_ref())
+                .is_some_and(crate::codex32::Codex32Make::suggest_draws),
             Action::BXor(_) => self.makes_secrets() && self.paper_key(),
             Action::SignHere => self
                 .wallets
                 .spend()
                 .is_some_and(|s| crate::spend_opens_round(&s.inspection)),
             Action::Vault(V::CGo) => self.create_refusal().is_none(),
-            Action::Vault(V::SbEnrol | V::SbHoldSign) => true,
+            Action::Vault(V::SbEnrol) => self.sb_enrol_draws(),
+            Action::Vault(V::SbHoldSign) => self.sb_sign_draws(),
             // A passphrase under the minimum is refused, not waited on.
             Action::Vault(V::PromptGo) => self.vaults.prompt.as_ref().is_some_and(|p| {
                 matches!(p.purpose, crate::vault::Purpose::Kdbx)
@@ -899,7 +904,7 @@ impl Faraday {
             }
             Action::BC32(crate::codex32_backup::Press::Set(
                 crate::codex32_backup::SetPress::MakeNew,
-            )) => true,
+            )) => self.c32_make_new_draws(),
             Action::QrTool(crate::qr_tool::QrToolAction::Make) => crate::qr_tool::make_draws(self),
             _ => false,
         }

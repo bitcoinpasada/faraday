@@ -180,16 +180,56 @@ impl Faraday {
         })
     }
 
+    /// What Enrol needs before it draws: the selected Secure Boot keys and
+    /// the time. `Err` says what to tell (`None`: nothing). Used by the
+    /// press and by the wait for the seed.
+    fn sb_enrol_refusal(&self) -> Result<(VaultId, usize, u64), Option<&'static str>> {
+        if self.selected_waits().is_some() {
+            return Err(None);
+        }
+        let (id, at) = self.sb_selected().ok_or(None)?;
+        let now = self.clock_now().ok_or(Some(EN.secureboot_this_computer))?;
+        Ok((id, at, now))
+    }
+
+    /// Whether Enrol files, pressed now, goes on to draw the system's
+    /// randomness: the clock is checked and nothing refuses it.
+    pub(crate) fn sb_enrol_draws(&self) -> bool {
+        self.clock_checked() && self.sb_enrol_refusal().is_ok()
+    }
+
+    /// Costs what [`Faraday::sb_release_now`] costs. What Hold to sign
+    /// needs before it draws: the selected key and Inbox image `k` as a
+    /// release's boot program. `Err` says what to
+    /// tell (`None`: nothing).
+    fn sb_sign_refusal(&self, k: usize) -> Result<(VaultId, usize, Release), Option<String>> {
+        if self.selected_waits().is_some() {
+            return Err(None);
+        }
+        let (id, at) = self.sb_selected().ok_or(None)?;
+        match self.sb_release_now(k) {
+            None => Err(None),
+            Some(Err(r)) => Err(Some(refusal_text(&r))),
+            Some(Ok(release)) => Ok((id, at, release)),
+        }
+    }
+
+    /// Costs what [`Faraday::sb_release_now`] costs. Whether Hold to sign,
+    /// pressed now, goes on to draw the system's randomness: an image is
+    /// picked and nothing refuses it.
+    pub(crate) fn sb_sign_draws(&self) -> bool {
+        self.vaults
+            .sb_sign
+            .as_ref()
+            .is_some_and(|(k, _)| self.sb_sign_refusal(*k).is_ok())
+    }
+
     /// The enrolment files for the selected keys to the Outbox.
     pub(crate) fn sb_enrol(&mut self) {
-        if self.selected_waits().is_some() {
-            return;
-        }
-        let Some((id, at)) = self.sb_selected() else {
-            return;
-        };
-        let Some(now) = self.clock_now() else {
-            return self.toast(EN.secureboot_this_computer);
+        let (id, at, now) = match self.sb_enrol_refusal() {
+            Ok(x) => x,
+            Err(None) => return,
+            Err(Some(why)) => return self.toast(why),
         };
         let policy = if self.vaults.sb_own_only {
             Policy::OwnKeysOnly
@@ -218,16 +258,10 @@ impl Faraday {
     /// image goes to the Outbox under the same name. A refusal is said
     /// and nothing is signed.
     pub(crate) fn sb_sign(&mut self, k: usize) {
-        if self.selected_waits().is_some() {
-            return;
-        }
-        let Some((id, at)) = self.sb_selected() else {
-            return;
-        };
-        let release = match self.sb_release_now(k) {
-            None => return,
-            Some(Err(r)) => return self.toast(&refusal_text(&r)),
-            Some(Ok(release)) => release,
+        let (id, at, release) = match self.sb_sign_refusal(k) {
+            Ok(x) => x,
+            Err(None) => return,
+            Err(Some(why)) => return self.toast(&why),
         };
         // The signing is blinded with fresh bytes of the system's.
         let Some(seed) = self.fresh(b"secure boot signing") else {

@@ -370,6 +370,13 @@ real PC, is still to read.
   set, a signing round's nonces: while the seed has not arrived, the
   button reads "Waiting for randomness" and the action goes on by itself
   when the seed arrives (`faraday-core/src/fresh/wait.rs`).
+- **A press that would be refused does not wait** (built). The wait is for
+  a press that goes on to draw: one its handler refuses first says that
+  refusal before the seed as after it. These are Create vault, Export for
+  KeePass with too short a passphrase, the backup flow's Make, Seed XOR,
+  Suggest once the strings are entered, Secure Boot enrolment files with no key or no
+  clock, Hold to sign with no image or one that is not a release, and
+  Make the new set with no identifier or the old one.
 - **No randomness at all** (built). A seed still missing 60 seconds after
   the first display is a system that gives none: a press that needs it
   then says so and does nothing.

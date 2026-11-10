@@ -1558,3 +1558,153 @@ fn before_the_seed_a_too_short_keepass_passphrase_is_refused_not_waited_on() {
         Some("A passphrase of 8 characters or more")
     );
 }
+
+/// A desktop with its display told and no seed from the system yet.
+fn unseeded_desktop() -> Faraday {
+    crate::codex32_backup::on_unseeded()
+}
+
+#[test]
+fn before_the_seed_suggest_waits_and_gives_an_identifier_when_it_arrives() {
+    use faraday_core::codex32::C32;
+    let mut app = crate::create_shares::on_quorum_of(unseeded_desktop());
+    crate::create_shares::on_keys(&mut app);
+    let suggest = Action::Codex32(C32::Suggest);
+    app.press(suggest);
+    assert!(app.waits_for_randomness(suggest), "it draws, so it waits");
+    answer(&mut app, SEED);
+    answer(&mut app, POOLED);
+    testkit::settle(&mut app);
+    assert!(!app.waits_for_randomness(suggest));
+    let id = app.keygen().unwrap().codex32.as_ref().unwrap().identifier();
+    assert_eq!(id.chars().count(), 4, "{id:?}");
+}
+
+#[test]
+fn before_the_seed_suggest_with_the_strings_entered_is_not_waited_on() {
+    use crate::create_shares::{key, on_quorum_of};
+    use faraday_core::codex32::{C32, WAYS, Way};
+    let all = [
+        "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
+        "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
+        "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg",
+    ];
+    let mut app = on_quorum_of(unseeded_desktop());
+    app.press(Action::CNext(faraday_core::cstep::QUORUM));
+    app.press(Action::CVaults(false));
+    app.press(Action::KeyGen(Some(0)));
+    for ch in "name".chars() {
+        key(&mut app, ch);
+    }
+    app.press(Action::Codex32(C32::Next));
+    let w = WAYS.iter().position(|w| *w == Way::Typed).unwrap();
+    app.press(Action::Codex32(C32::Way(w as u8)));
+    app.press(Action::Codex32(C32::Next));
+    for s in &all[..2] {
+        for ch in s[9..35].chars() {
+            key(&mut app, ch);
+        }
+    }
+    app.press(Action::Codex32(C32::Next));
+    let _ = app.frame();
+    app.press(Action::Codex32(C32::Next));
+    for s in &all {
+        for ch in s[3..].chars() {
+            key(&mut app, ch);
+        }
+        let _ = app.frame();
+        app.press(Action::Codex32(C32::Next));
+    }
+    let _ = app.frame();
+    // The strings are entered: a new identifier is not drawn over them.
+    app.press(Action::Codex32(C32::Suggest));
+    assert!(!app.waits_for_randomness(Action::Codex32(C32::Suggest)));
+    assert!(!waiting_shown(&mut app));
+    // And with the key loaded and the flow ended.
+    app.press(Action::Codex32(C32::Lock));
+    app.press(Action::Codex32(C32::Suggest));
+    assert!(!app.waits_for_randomness(Action::Codex32(C32::Suggest)));
+    assert!(!waiting_shown(&mut app));
+}
+
+#[test]
+fn before_the_seed_enrolment_files_with_no_key_picked_are_not_waited_on() {
+    use faraday_core::vault::VaultAction as V;
+    let mut app = unseeded_desktop();
+    app.press(Action::Vault(V::SbEnrol));
+    assert!(!app.waits_for_randomness(Action::Vault(V::SbEnrol)));
+    assert!(!waiting_shown(&mut app));
+}
+
+#[test]
+fn before_the_seed_hold_to_sign_with_no_image_picked_is_not_waited_on() {
+    use faraday_core::vault::VaultAction as V;
+    let mut app = unseeded_desktop();
+    app.press(Action::Vault(V::SbHoldSign));
+    assert!(!app.waits_for_randomness(Action::Vault(V::SbHoldSign)));
+    assert!(!waiting_shown(&mut app));
+}
+
+/// Backup's codex32 item on Rotate's Scheme step, no seed yet.
+fn rotation_at_scheme() -> Faraday {
+    use crate::codex32_backup::{c32, checklist_at_codex32, with_set_on};
+    use faraday_core::codex32_backup::{Press, SetPress, SetStep};
+    let ix = |c: char| faraday_core::plan::codex32::index_of(c as u8).unwrap() as u8;
+    let mut app = with_set_on(unseeded_desktop());
+    checklist_at_codex32(&mut app);
+    c32(&mut app, Press::Set(SetPress::Rotate));
+    c32(&mut app, Press::Set(SetPress::Mark(ix('a'), 0)));
+    c32(&mut app, Press::Set(SetPress::Mark(ix('c'), 1)));
+    c32(&mut app, Press::Set(SetPress::Counted));
+    c32(&mut app, Press::Set(SetPress::Destroyed(ix('a'))));
+    c32(&mut app, Press::Set(SetPress::Destroyed(ix('d'))));
+    assert!(matches!(
+        app.backup().unwrap().c32.as_ref().unwrap().set,
+        SetStep::Scheme(..)
+    ));
+    app
+}
+
+#[test]
+fn before_the_seed_a_new_set_with_the_old_identifier_is_refused_not_waited_on() {
+    use crate::codex32_backup::c32;
+    use faraday_core::codex32_backup::{Press, SetPress};
+    use faraday_ui::keyboard::OskPress;
+    let mut app = rotation_at_scheme();
+    let make = Action::BC32(Press::Set(SetPress::MakeNew));
+    // No identifier typed, then the set's own.
+    app.press(make);
+    assert!(!app.waits_for_randomness(make), "no identifier typed");
+    for ch in "name".chars() {
+        c32(&mut app, Press::Key(OskPress::Char(ch)));
+    }
+    app.press(make);
+    assert!(
+        !app.waits_for_randomness(make),
+        "a refused press does not wait"
+    );
+    assert!(app.backup().unwrap().c32.as_ref().unwrap().note.is_some());
+}
+
+#[test]
+fn before_the_seed_a_new_set_with_a_new_identifier_waits_and_is_made_when_it_arrives() {
+    use crate::codex32_backup::c32;
+    use faraday_core::codex32_backup::{Press, SetPress};
+    use faraday_ui::keyboard::OskPress;
+    let mut app = rotation_at_scheme();
+    for ch in "w0za".chars() {
+        c32(&mut app, Press::Key(OskPress::Char(ch)));
+    }
+    let make = Action::BC32(Press::Set(SetPress::MakeNew));
+    app.press(make);
+    assert!(app.waits_for_randomness(make));
+    answer(&mut app, SEED);
+    for _ in 0..faraday_core::fresh::POOL {
+        answer(&mut app, POOLED);
+    }
+    testkit::settle(&mut app);
+    assert_eq!(
+        &app.session.keys[0].codex32.clone().unwrap().identifier,
+        b"w0za"
+    );
+}

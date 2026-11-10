@@ -1644,7 +1644,7 @@ impl Codex32Make {
                 );
             }
             C32::Key(k) => self.key(c, k),
-            C32::Suggest if self.work.is_none() => {
+            C32::Suggest if self.suggest_draws() => {
                 if let Some(r) = fresh {
                     for (slot, b) in self.id.iter_mut().zip(r) {
                         *slot = b & 31;
@@ -1682,6 +1682,14 @@ impl Codex32Make {
             C32::Sample if self.open == Some(Card::Enter) => self.use_sample(c),
             _ => self.view_press(press),
         }
+    }
+
+    /// Whether Suggest, pressed now, draws an identifier: the key is not
+    /// loaded and no work is under way. Used by the press and by the wait
+    /// for the system's randomness, so a press that does nothing never
+    /// waits.
+    pub(crate) fn suggest_draws(&self) -> bool {
+        !self.locked && self.work.is_none()
     }
 
     /// Whether the Scheme card's length and split take a press: before
