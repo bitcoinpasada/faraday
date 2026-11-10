@@ -433,6 +433,32 @@ impl DeviceCheck {
     }
 }
 
+/// Whether `action` turns a device scanner's camera on: what a stick
+/// attached or a held device makes wait ([`Faraday::pull_what`]).
+pub(crate) fn camera_press(action: Action) -> bool {
+    use crate::backup_flow::steps::{FlowAction as F, RestorePress as R};
+    use crate::{codex32_backup, compare, decode, kef_form, kef_tool, seeds, spend_backup, vault};
+    matches!(
+        action,
+        Action::Scan
+            | Action::ScanFor(_)
+            | Action::BScan
+            | Action::MScan
+            | Action::ReadAgain
+            | Action::Compare(compare::ComparePress::Scan(_))
+            | Action::SignerCheck(decode::check::SignerPress::Scan(_))
+            | Action::Sweep(seeds::sweep::SweepAction::Scan)
+            | Action::BC32(codex32_backup::Press::ScanCopy)
+            | Action::KefTool(kef_tool::KefToolAction::Backup(kef_form::KefAct::ScanCopy))
+            | Action::Vault(vault::VaultAction::ScanEntry)
+            | Action::Flow(F::Restore(R::Scan | R::ScanPaperkey))
+            | Action::SpendBackup(
+                spend_backup::SpendBackupAction::Scan
+                    | spend_backup::SpendBackupAction::Again(true)
+            )
+    )
+}
+
 impl Faraday {
     /// The USB devices attached now, as the shell read them: at start and
     /// whenever they change. A new item of concern brings the sheet up.

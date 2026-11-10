@@ -1675,6 +1675,16 @@ impl Faraday {
         }
     }
 
+    /// Cancel while the read card's Scan again waits under the Pull or
+    /// device sheet goes back to nothing: the code it showed is wiped.
+    pub(crate) fn read_again_cancel(&mut self) {
+        if matches!(self.visit.pull_mut(), Some(Action::ReadAgain))
+            || matches!(self.devices.after, Some(Action::ReadAgain))
+        {
+            self.camera.close();
+        }
+    }
+
     /// A passphrase carried from a Krux code lives only while the seed
     /// scanner, its card or the Krux sheet it leads to is up: anywhere
     /// else, it is wiped. Run after every press, every code read and the
