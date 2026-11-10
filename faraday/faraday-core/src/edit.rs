@@ -695,45 +695,7 @@ impl Faraday {
             Action::KTyping(_) => &self.keygen.state()?.entered,
             Action::CPassField(0) => &self.create.state()?.pass,
             Action::CPassField(_) => &self.create.state()?.pass2,
-            Action::TypeHere(h) => match h {
-                Here::Find => self.tools.find(),
-                Here::WordFind => &self.wordlist.state()?.find,
-                Here::Path => &self.explore.state()?.path,
-                Here::Query => &self.explore.state()?.query,
-                Here::Index => &self.bip85.state()?.index,
-                Here::SilentName => &self.silent.state()?.dns_name,
-                Here::SilentDomain => &self.silent.state()?.dns_domain,
-                Here::Message => &self.message.state()?.text,
-                Here::Entry => &self.entry.state().typed,
-                Here::Tools => &self.tools.state()?.typed,
-                Here::Convert => &self.tools.convert().check()?.typed,
-                Here::Share => self.tools.convert().set_typed(),
-                Here::Codex32Back => self.keygen.state()?.codex32.as_ref()?.typed_back().0,
-                Here::Words => &self.entry.state().typed,
-                Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,
-                Here::Aezeed => &self.lightning.state()?.typed,
-                Here::Invoice => self.invoice()?.text(),
-                Here::TransferText => self.transfer.text().text(),
-                Here::Chart => {
-                    let w = self.glance.work();
-                    match self.glance.chart()?.1 {
-                        crate::glance::sheet::Target::PassCheck(..) => &w.secret,
-                        _ => &w.text,
-                    }
-                }
-                Here::Prefix => {
-                    let v = self.vanity.state()?;
-                    let net = self.session.network();
-                    let text = v.grind.prefix.as_str();
-                    &text[v
-                        .grind
-                        .prefix
-                        .fixed_len(v.grind.script, net)
-                        .min(text.len())..]
-                }
-                // Read above, as their keys.
-                Here::Keyed | Here::CheckKeyed => return None,
-            },
+            Action::TypeHere(h) => self.here_text(h)?,
             Action::PotentialType => &self.inbox.potential()?.passphrase,
             Action::PotentialTypeAgain => &self.inbox.potential()?.again,
             GPG_LINE => self.gpg_restore_live()?.typed(),
@@ -743,6 +705,50 @@ impl Faraday {
             _ => return None,
         };
         Some(SecretText::of(text))
+    }
+
+    /// What a typing place of [`Here`] holds, or `None` for one read as
+    /// its keys.
+    fn here_text(&self, h: Here) -> Option<&str> {
+        Some(match h {
+            Here::Find => self.tools.find(),
+            Here::WordFind => &self.wordlist.state()?.find,
+            Here::Path => &self.explore.state()?.path,
+            Here::Query => &self.explore.state()?.query,
+            Here::Index => &self.bip85.state()?.index,
+            Here::SilentName => &self.silent.state()?.dns_name,
+            Here::SilentDomain => &self.silent.state()?.dns_domain,
+            Here::Message => &self.message.state()?.text,
+            Here::Entry => &self.entry.state().typed,
+            Here::Tools => &self.tools.state()?.typed,
+            Here::Convert => &self.tools.convert().check()?.typed,
+            Here::Share => self.tools.convert().set_typed(),
+            Here::Codex32Back => self.keygen.state()?.codex32.as_ref()?.typed_back().0,
+            Here::Words => &self.entry.state().typed,
+            Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,
+            Here::Aezeed => &self.lightning.state()?.typed,
+            Here::Invoice => self.invoice()?.text(),
+            Here::TransferText => self.transfer.text().text(),
+            Here::Chart => {
+                let w = self.glance.work();
+                match self.glance.chart()?.1 {
+                    crate::glance::sheet::Target::PassCheck(..) => &w.secret,
+                    _ => &w.text,
+                }
+            }
+            Here::Prefix => {
+                let v = self.vanity.state()?;
+                let net = self.session.network();
+                let text = v.grind.prefix.as_str();
+                &text[v
+                    .grind
+                    .prefix
+                    .fixed_len(v.grind.script, net)
+                    .min(text.len())..]
+            }
+            // Read as their keys.
+            Here::Keyed | Here::CheckKeyed => return None,
+        })
     }
 
     /// Whether anything secret is being typed: seed words, a BIP-39 or
