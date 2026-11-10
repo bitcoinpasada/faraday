@@ -664,6 +664,9 @@ difference"), and says why.
     than `<0;1>`; the area asks it for the four account descriptors with
     both chains only.
 - `tx`
+  - Decode refuses a transaction whose outputs total over 21,000,000
+    BTC, as Core does not in `decoderawtransaction`; the corpus asks
+    Decode only of transactions within that total.
   - Legacy sighash: `bitcoin` hashes the script code as given, Core and
     btclib remove every OP_CODESEPARATOR first. Faraday's legacy spends
     (P2PKH, P2SH multisig) have none.
