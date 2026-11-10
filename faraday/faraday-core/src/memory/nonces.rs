@@ -121,6 +121,8 @@ impl Default for NonceHistory {
 }
 
 impl NonceHistory {
+    // `set_on`, `take_held` and `drop_vault` are reached only through
+    // testkit until the vault's nonce records and the setting call them.
     /// Whether a vault is open and the setting is on: what is checked is
     /// compared and remembered.
     pub(crate) fn active(&self) -> bool {
@@ -128,6 +130,7 @@ impl NonceHistory {
     }
 
     /// Sets whether the history is kept.
+    #[cfg(feature = "testkit")]
     pub(crate) fn set_on(&mut self, on: bool) {
         if self.on != on {
             self.on = on;
@@ -137,6 +140,7 @@ impl NonceHistory {
 
     /// What open vault `id` holds, in place of what it was read to hold
     /// before, and how many of its records do not read.
+    #[cfg(feature = "testkit")]
     pub(crate) fn take_held(&mut self, id: VaultId, entries: &[NonceEntry], unreadable: usize) {
         let mut index = Index::new();
         for e in entries {
@@ -152,6 +156,7 @@ impl NonceHistory {
     }
 
     /// A vault closed: what it held leaves.
+    #[cfg(feature = "testkit")]
     pub(crate) fn drop_vault(&mut self, id: VaultId) {
         let before = self.held.len();
         self.held.retain(|(v, _)| *v != id);
