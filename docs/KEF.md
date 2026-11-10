@@ -657,8 +657,8 @@ checked against the SHA-256 of its base43 text, and the file's bytes.
 **On Paper.** The road of a SeedQR on its copy item (F29, `docs/BACKUP-FLOW.md` §17.24), with the
 passphrase added to the check. Where the map holds `KefCodePaper(i)`, the Templates item names the
 sheet (§15.5) and the Code card shows, in place of the picture, these labels and `copy_grid`
-(`screens/parts.rs`), **Blocks** ticked · **Rows**, its blocks named by the index of their first
-row and column as on a SeedQR's sheet:
+(`screens/parts.rs`), **Blocks** ticked · **Rows**, its blocks lettered as on the Krux sheet, rows A to E
+and columns 1 to 5 at 25 × 25:
 
 | Code | **Size** reads | **By hand** reads | Under them |
 |---|---|---|---|
@@ -724,8 +724,12 @@ and a toast names the file.
 The held sources are not offered because each would open a new way out of `faraday-keys`, and typing reaches the
 same code without one. **Check my code** compares against the text the flow still holds. The
 fingerprint as an id is offered only for **A loaded wallet**: typed text has none. Its Code card
-has no grid: copying by hand is the seed's item (§15.1), and the tool's picture can be printed from
-a stick as any.
+shows the picture, and for a code that fits a blank template (side up to 37) **Size**, **By hand**
+and a secondary **Copy by hand**: pressed, the picture is replaced by the same `copy_grid` as the
+seed's item (§15.1), blocks lettered as on the Starter's Krux sheet, the mark at block A1 for each
+new code, and the button reads **Show the code**. A code over 37 reads **By hand: No** and
+**Largest: 37 × 37**, with no button. The view is `KefForm`'s (reset by **Make another**). The
+tool has no **Scan my copy**, and its picture can be printed from a stick as any.
 
 ### 15.3 The first step
 

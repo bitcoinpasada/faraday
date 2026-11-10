@@ -124,7 +124,9 @@ pub(crate) fn draw(
 /// The Code card: the code's picture, Checked once it is, **Check my
 /// code** and **Make another**. On Paper, in place of the picture of a
 /// code that fits a blank template, **Size**, **By hand** and the grid to
-/// copy it from (`docs/KEF.md` §15.1). Returns its height.
+/// copy it from (`docs/KEF.md` §15.1). In the tool, **Size**, **By hand**
+/// and **Copy by hand**, which swaps the picture for that grid (§15.2).
+/// Returns its height.
 fn code_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f32 {
     use faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE as MAX;
     let mut cy = y;
@@ -133,33 +135,18 @@ fn code_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, a
             Ok(v) => {
                 let code = v.frames.get(v.frame);
                 let side = code.map(|q| q.size());
-                let grid = code.filter(|q| f.paper && q.size() <= MAX);
-                if let Some(s) = side.filter(|_| f.paper) {
-                    let s2 = [s.to_string(), s.to_string()];
-                    let by_hand = if s <= MAX {
-                        fill(EN.kef_by_hand_sheet, &[&s2[0], &s2[1]])
-                    } else {
-                        EN.kef_opt_by_hand_no.to_string()
-                    };
-                    let size = fill(EN.kef_opt_side, &[&s2[0], &s2[1]]);
-                    for line in [
-                        format!("{}: {size}", EN.kef_opt_size),
-                        format!("{}: {by_hand}", EN.kef_opt_by_hand),
-                    ] {
-                        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line);
-                    }
-                    if s > MAX {
-                        let big = fill(EN.kef_opt_side, &[&MAX.to_string(), &MAX.to_string()]);
-                        let line = format!("{}: {big}", EN.kef_largest);
-                        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line);
-                    }
-                    cy += GAP;
+                let offer = f.by_hand_offer && !f.paper;
+                let grid = code
+                    .filter(|q| q.size() <= MAX)
+                    .filter(|_| f.paper || (offer && f.by_hand));
+                if let Some(s) = side.filter(|_| f.paper || offer) {
+                    cy += by_hand_part(ui, (x, cy, w), s, f, ask);
                 }
                 if let Some(q) = grid {
                     let g = crate::screens::CopyGrid {
                         m: q,
                         printed: crate::wallet_backup::structural_fixed,
-                        lettered: false,
+                        lettered: true,
                         rows: f.rows,
                         pin: f.pin,
                         pick: ask.pin,
@@ -228,6 +215,43 @@ fn code_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, a
         (ask.wrap)(KefAct::Another),
     );
     cy + BUTTON_H - y
+}
+
+/// The Code card's **Size** and **By hand** lines for a code of side `s`,
+/// and in the tool **Copy by hand** or **Show the code**. Returns its height.
+fn by_hand_part(ui: &mut Ui, (x, y, w): (f32, f32, f32), s: usize, f: &KefForm, ask: Ask) -> f32 {
+    use faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE as MAX;
+    let mut cy = y;
+    let s2 = [s.to_string(), s.to_string()];
+    let by_hand = if s <= MAX {
+        fill(EN.kef_by_hand_sheet, &[&s2[0], &s2[1]])
+    } else {
+        EN.kef_opt_by_hand_no.to_string()
+    };
+    let size = fill(EN.kef_opt_side, &[&s2[0], &s2[1]]);
+    for line in [
+        format!("{}: {size}", EN.kef_opt_size),
+        format!("{}: {by_hand}", EN.kef_opt_by_hand),
+    ] {
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line);
+    }
+    if s > MAX {
+        let big = fill(EN.kef_opt_side, &[&MAX.to_string(), &MAX.to_string()]);
+        let line = format!("{}: {big}", EN.kef_largest);
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line);
+    }
+    cy += GAP;
+    if f.by_hand_offer && !f.paper && s <= MAX {
+        let label = if f.by_hand {
+            EN.kef_show_code
+        } else {
+            EN.kef_copy_by_hand
+        };
+        let act = (ask.wrap)(KefAct::ByHand);
+        ui.button(x, cy, None, BUTTON_H, label, Style::Secondary, act);
+        cy += BUTTON_H + GAP;
+    }
+    cy - y
 }
 
 /// Check my code: one masked field and **Compare**. Returns its height.

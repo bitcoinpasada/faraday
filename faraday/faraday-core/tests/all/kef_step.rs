@@ -767,12 +767,12 @@ fn the_code_on_paper_shows_its_size_the_sheet_and_a_grid_whose_mark_is_kept() {
     );
     assert!(seen(&mut app, "Blocks"), "{texts:?}");
     assert!(seen(&mut app, "Rows"));
-    assert!(seen(&mut app, "Block 0 · 0"));
+    assert!(seen(&mut app, "Block A1"));
     let mark = |app: &mut Faraday, n: usize| {
         app.press(Action::KefTool(K::Backup(KefAct::Pin(n))));
         crate::common::texts(app)
             .into_iter()
-            .find(|t| t.starts_with("Block ") && t != "Block 0 · 0")
+            .find(|t| t.starts_with("Block ") && t != "Block A1")
             .expect("the mark moved")
     };
     let before = mark(&mut app, 36);

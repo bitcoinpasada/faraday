@@ -219,6 +219,7 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
 fn begin(app: &mut Faraday, text: String, fp: Option<[u8; 4]>, wallet: Option<usize>) {
     let mut form = KefForm::new(Source::Text(Zeroizing::new(text)), false);
     form.offer_fingerprint(fp);
+    form.offer_by_hand();
     if let Some(s) = st(app) {
         s.form = Some(form);
         s.wallet = wallet;

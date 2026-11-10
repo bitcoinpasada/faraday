@@ -124,6 +124,9 @@ pub enum KefAct {
     Pin(usize),
     /// On Paper: marks the grid row by row (`true`) or block by block.
     Rows(bool),
+    /// In the Krux code tool: shows the grid to copy the code by hand from
+    /// in place of its picture, or the picture again.
+    ByHand,
     /// On Paper: takes the code off every place (`Faraday::kef_not_on_paper`).
     NotOnPaper,
     /// On Paper: the camera on the drawn copy (`ScanPurpose::CheckKef`).
@@ -142,6 +145,10 @@ pub struct KefForm {
     paper: bool,
     pin: usize,
     rows: bool,
+    /// The tool's Code card: offers **Copy by hand**.
+    by_hand_offer: bool,
+    /// The tool's Code card shows the grid in place of the picture.
+    by_hand: bool,
     scanned: bool,
     from_scan: bool,
     focus: Option<Focus>,
@@ -193,6 +200,8 @@ impl KefForm {
             paper,
             pin: 0,
             rows: false,
+            by_hand_offer: false,
+            by_hand: false,
             scanned: false,
             from_scan: false,
             focus: Some(Focus::Pass),
@@ -273,6 +282,11 @@ impl KefForm {
     /// back for (25 to 37), and not scanned yet: **Scan my copy** shows.
     pub(crate) fn scan_offered(&self) -> bool {
         self.paper && !self.scanned && self.stage == Stage::Made && self.by_hand_side().is_some()
+    }
+
+    /// Offers **Copy by hand** on the Code card (the Krux code tool).
+    pub fn offer_by_hand(&mut self) {
+        self.by_hand_offer = true;
     }
 
     fn by_hand_side(&self) -> Option<usize> {
@@ -399,6 +413,11 @@ impl KefForm {
                 self.focus = Some(Focus::Check);
             }
             (Stage::Made, KefAct::Another) => self.again(),
+            (Stage::Made, KefAct::ByHand) if self.by_hand_offer => {
+                self.by_hand = !self.by_hand && self.by_hand_side().is_some();
+                self.pin = 0;
+                self.rows = false;
+            }
             (Stage::Made, KefAct::Pin(n)) => self.pin = n,
             (Stage::Made, KefAct::Rows(r)) => {
                 self.rows = r;
@@ -481,6 +500,7 @@ impl KefForm {
             | KefAct::Another
             | KefAct::Pin(_)
             | KefAct::Rows(_)
+            | KefAct::ByHand
             | KefAct::NotOnPaper
             | KefAct::ScanCopy => {}
         }
@@ -626,6 +646,7 @@ impl KefForm {
             self.scanned = false;
             self.from_scan = false;
             self.pin = 0;
+            self.by_hand = false;
             self.pass.clear();
             self.check.clear();
             self.checked = false;

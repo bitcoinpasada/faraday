@@ -13102,6 +13102,10 @@ strings! {
     kef_check_my_code: "Check my code",
     /// The Code card: goes back to the first step.
     kef_make_another: "Make another",
+    /// The tool's Code card: shows the grid to copy the code from.
+    kef_copy_by_hand: "Copy by hand",
+    /// The tool's Code card: shows the code's picture again.
+    kef_show_code: "Show the code",
     /// Check my code: the button that opens the code and compares.
     kef_compare: "Compare",
     /// Check my code: the field's label.

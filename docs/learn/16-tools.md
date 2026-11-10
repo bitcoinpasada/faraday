@@ -54,7 +54,7 @@ A QR vault is not a file vault. Nothing is kept on a stick, it is not listed und
 
 ## Krux code
 
-Makes an encrypted QR code in Krux's format from text you type or from a loaded wallet's descriptor, under a passphrase. Options sets the version, the rounds and the id; the defaults are version 20, 100,000 rounds and a random id. The code comes with Check my code, which opens it again with the passphrase to show it holds what you gave. The text and the passphrase are wiped when you leave the tool. What a Krux code is, and what its passphrase has to carry, is on the page about other backups.
+Makes an encrypted QR code in Krux's format from text you type or from a loaded wallet's descriptor, under a passphrase. Options sets the version, the rounds and the id; the defaults are version 20, 100,000 rounds and a random id. The code comes with Check my code, which opens it again with the passphrase to show it holds what you gave. A code that fits the Starter's blank Krux sheet can also be copied onto it by hand, block by block, with Copy by hand. The text and the passphrase are wiped when you leave the tool. What a Krux code is, and what its passphrase has to carry, is on the page about other backups.
 
 ## Lightning node key
 

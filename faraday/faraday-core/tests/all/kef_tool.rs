@@ -214,3 +214,64 @@ fn forward_after_leaving_the_tool_does_not_open_an_empty_page() {
     let _ = app.frame();
     assert_ne!(app.screen, Screen::KefTool);
 }
+
+/// Whether `text` is drawn, on a panel tall enough to hold the card.
+fn seen(app: &mut Faraday, text: &str) -> bool {
+    app.event(Event::Display(DisplayInfo {
+        width: 800,
+        height: 3000,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    crate::common::texts(app).iter().any(|t| t == text)
+}
+
+#[test]
+fn a_code_that_fits_a_blank_template_is_copied_by_hand_block_by_block() {
+    let mut app = started();
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Type)));
+    type_in(&mut app, "a note for later");
+    app.press(Action::KefTool(K::Next));
+    make(&mut app);
+    assert!(seen(&mut app, "Size: 33 × 33"));
+    assert!(seen(&mut app, "Copy by hand"));
+    assert!(!seen(&mut app, "Block A1"));
+    app.press(Action::KefTool(K::Form(KefAct::ByHand)));
+    assert!(seen(&mut app, "Block A1"));
+    assert!(seen(&mut app, "Show the code"));
+    // B2, of seven blocks to a row.
+    app.press(Action::KefTool(K::Form(KefAct::Pin(8))));
+    assert!(seen(&mut app, "Block B2"));
+    app.press(Action::KefTool(K::Form(KefAct::ByHand)));
+    assert!(seen(&mut app, "Copy by hand"));
+    assert!(!seen(&mut app, "Block B2"));
+    app.press(Action::KefTool(K::Form(KefAct::ByHand)));
+    app.press(Action::KefTool(K::Form(KefAct::Another)));
+    assert_eq!(form_stage(&app), Stage::Entry);
+    app.press(Action::KefTool(K::Pick(Pick::Type)));
+    type_in(&mut app, "a note for later");
+    app.press(Action::KefTool(K::Next));
+    make(&mut app);
+    assert!(seen(&mut app, "Copy by hand"));
+    assert!(!seen(&mut app, "Block A1"));
+}
+
+#[test]
+fn a_code_over_the_largest_template_is_not_copied_by_hand() {
+    let mut app = started();
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Type)));
+    type_in(&mut app, &"a note for later ".repeat(6));
+    app.press(Action::KefTool(K::Next));
+    make(&mut app);
+    assert!(seen(&mut app, "By hand: No"));
+    assert!(seen(&mut app, "Largest: 37 × 37"));
+    assert!(!seen(&mut app, "Copy by hand"));
+}
