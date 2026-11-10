@@ -3105,6 +3105,15 @@ pub struct SpendState {
     /// [`Spend::refused`] of the PSBT as it is, worked out with the
     /// inspection (`refresh_spend`), read when drawing.
     pub refused: Option<String>,
+    /// The other transactions spending what this one spends, with their
+    /// fee bump results in words (`docs/COMPARE.md` §4.3), made with the
+    /// inspection and read when drawing.
+    pub(crate) others: Vec<crate::compare::others::Other>,
+    /// What [`SpendState::others`] were made from: each other file's name
+    /// and unsigned transaction id. `None` until made.
+    pub(crate) others_from: Option<Vec<(String, faraday_bip::bitcoin::Txid)>>,
+    /// The inspection was made again since [`SpendState::others`] were.
+    pub(crate) others_stale: bool,
 }
 
 impl SpendState {
@@ -3159,6 +3168,9 @@ impl SpendState {
             musig: None,
             opened: false,
             register: None,
+            others: Vec::new(),
+            others_from: None,
+            others_stale: true,
         }
     }
 
@@ -3482,6 +3494,7 @@ impl Faraday {
                     true,
                 );
                 s.take(fresh);
+                s.others_stale = true;
             }
             let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
             let kind = wallet.map(|w| wallet::Kind::of(w.policy()));
@@ -3509,8 +3522,55 @@ impl Faraday {
                 s.opened = true;
             }
         }
+        self.refresh_others(&c);
         self.nonce_spend_sync();
         self.spend_files_out();
+    }
+
+    /// Costs what `compare::others::make` costs (an inspection of each
+    /// other transaction's file), only when the spend was inspected again
+    /// or the files that count are not the ones the results were made
+    /// from (`docs/COMPARE.md` §4.3); a lookup over Files otherwise.
+    pub(crate) fn refresh_others(&mut self, c: &Compute) {
+        let Some(s) = self.wallets.spend() else {
+            return;
+        };
+        let mut spent: Vec<_> = s
+            .spend
+            .psbt
+            .unsigned_tx()
+            .input
+            .iter()
+            .map(|i| i.previous_output)
+            .collect();
+        spent.sort();
+        let now: Vec<_> = crate::compare::others::counting(
+            self.inbox().iter().chain(self.outbox.iter()),
+            s.spend.txid,
+            &spent,
+        )
+        .into_iter()
+        .map(|(i, t)| (i.name.clone(), t))
+        .collect();
+        if !s.others_stale && s.others_from.as_ref() == Some(&now) {
+            return;
+        }
+        let made = if now.is_empty() {
+            Vec::new()
+        } else {
+            crate::compare::others::make(
+                c,
+                self,
+                &s.spend.psbt,
+                s.spend.v2.is_some(),
+                &s.inspection,
+            )
+        };
+        if let Some(s) = self.wallets.spend_mut() {
+            s.others = made;
+            s.others_from = Some(now);
+            s.others_stale = false;
+        }
     }
 
     /// Costs a map lookup per signature when only the nonce history

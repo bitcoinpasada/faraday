@@ -866,6 +866,43 @@ pub(crate) fn step_body(
                 }
             }
             cy += box_h + 12.0;
+            // The other transactions spending the same inputs, each with
+            // its fee bump result, as kept with the inspection
+            // (`docs/COMPARE.md` §4.2).
+            if !s.others.is_empty() {
+                ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.compare_fee_bump_label);
+                cy += ui.line_as(LABEL_L) + GAP_SMALL;
+                for o in &s.others {
+                    let tone = match o.outcome {
+                        faraday_psbt::bump::Outcome::OnlyFee => Role::Ok,
+                        faraday_psbt::bump::Outcome::MoreChanged => Role::Error,
+                        faraday_psbt::bump::Outcome::CannotTell => Role::Warning,
+                    };
+                    cy += ui.wrap_as((x, cy, w), TITLE_S, tone, &o.result) + GAP_SMALL;
+                    for line in &o.lines {
+                        let used = ui.wrap_as((x + 22.0, cy, w - 22.0), BODY_M, tone, line);
+                        ui.icon(x, cy, 16.0, Icon::Warning, 10.0, tone);
+                        cy += used.max(18.0) + 6.0;
+                    }
+                    for fact in &o.facts {
+                        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, fact.label);
+                        cy += ui.line_as(BODY_S) + 2.0;
+                        for v in &fact.values {
+                            let text = match v.label {
+                                Some(l) => format!("{l}: {}", v.text),
+                                None => v.text.clone(),
+                            };
+                            cy += ui.wrap_as(
+                                (x + 14.0, cy, w - 14.0),
+                                BODY_M,
+                                Role::OnSurface,
+                                &text,
+                            ) + 2.0;
+                        }
+                    }
+                    cy += GAP_SMALL;
+                }
+            }
             // Warnings, every one as the inspector words it, but an
             // input left unsigned for want of its wallet (F141).
             let mut warned = false;

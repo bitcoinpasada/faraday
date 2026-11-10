@@ -74,6 +74,7 @@ mod edid_size;
 mod explore;
 mod explore_addresses;
 mod family;
+mod fee_bump_review;
 mod file_menu;
 mod files_scroll;
 mod fills_read;

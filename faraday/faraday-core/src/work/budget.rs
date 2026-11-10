@@ -14,6 +14,7 @@ mod caches;
 mod codex32;
 mod compare;
 mod fades;
+mod fee_bump;
 mod idle;
 mod keys;
 mod moments;
