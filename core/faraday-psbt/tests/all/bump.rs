@@ -94,7 +94,14 @@ fn inputs_added_dropped_foreign() {
     let theirs = add_input(&build(&b_with(108_000)), &zoo);
     let b = judge(&o, &theirs, true).unwrap();
     assert_eq!(b.result, Outcome::CannotTell);
-    assert!(matches!(b.lines.as_slice(), [Line::InputNotLoaded { .. }]));
+    assert_eq!(
+        b.lines,
+        vec![Line::InputNotLoaded {
+            outpoint: outpoint(&zoo, 0),
+            key: super::common::master(super::common::ZOO, faraday_bip::keys::Network::Regtest)
+                .fingerprint(),
+        }]
+    );
 }
 
 fn b_with(change: u64) -> Build {
@@ -216,9 +223,10 @@ fn finished_original_gets_its_fee_from_the_replacement() {
     let r = bumped(1_000);
     bump::fill_amounts(&mut orig, &r);
     assert_eq!(
-        orig.inner().inputs[0].witness_utxo,
-        r.inner().inputs[0].witness_utxo
+        orig.inner().inputs[0].non_witness_utxo,
+        r.inner().inputs[0].non_witness_utxo
     );
+    assert!(orig.inner().inputs[0].non_witness_utxo.is_some());
     // The replacement keeps the change on the same script: the fee alone.
     let b = judge(&orig, &r, true).unwrap();
     assert_eq!(b.result, Outcome::OnlyFee);
@@ -285,11 +293,11 @@ fn outpoint_spent_twice() {
     let b = judge(&original(), &r, true).unwrap();
     assert_eq!(b.result, Outcome::MoreChanged);
     assert_eq!(
-        b.lines[0],
-        Line::SpentTwice {
+        b.lines,
+        vec![Line::SpentTwice {
             outpoint: outpoint(&r, 0),
             side: Which::Second
-        }
+        }]
     );
 }
 
@@ -360,4 +368,55 @@ fn bitcoin_cores_pair_cannot_be_told_without_the_key() {
         assert_eq!(b.result, Outcome::CannotTell, "{name}");
         assert!(ids(&b).contains(&"U2"), "{name}: {:?}", ids(&b));
     }
+}
+
+#[test]
+fn change_split_on_one_script_is_still_only_the_fee() {
+    // The second output on the change script carries no origin: it is the
+    // person's by the other output's script.
+    let r = edit(&bumped(1_000), |x| {
+        x.unsigned_tx.output[1].value = Amount::from_sat(24_000);
+        let mut second = x.unsigned_tx.output[1].clone();
+        second.value = Amount::from_sat(24_000);
+        x.unsigned_tx.output.push(second);
+        x.outputs.push(Default::default());
+    });
+    let b = judge(&original(), &r, true).unwrap();
+    assert_eq!(b.result, Outcome::OnlyFee, "{:?}", b.lines);
+    assert_eq!(b.replacement_fee.unwrap().sat, 2_000);
+}
+
+#[test]
+fn a_fee_out_of_range_is_not_only_the_fee() {
+    const HALF: u64 = 1 << 63;
+    let big = |change: Option<u64>| {
+        build(&{
+            let mut b = base();
+            b.input_value = HALF + (1 << 60);
+            b.recipients = vec![(payee(), HALF)];
+            b.change = change;
+            b
+        })
+    };
+    let o = big(None);
+    let r = big(Some(1 << 59));
+    let b = judge(&o, &r, true).unwrap();
+    assert_ne!(b.result, Outcome::OnlyFee);
+    assert_eq!(b.result, Outcome::CannotTell);
+    assert_eq!(ids(&b), ["U1"]);
+    assert_eq!(b.original_fee, None);
+}
+
+#[test]
+fn an_amount_of_another_transaction_is_not_stated() {
+    let replacement = core_psbt("bump-core-replacement.psbt");
+    let r = edit(&replacement, |x| {
+        x.inputs[0].witness_utxo = None;
+        x.inputs[0].non_witness_utxo = Some(super::common::builder::funding_tx(payee(), 1_000));
+    });
+    let mut finished = core_finished();
+    bump::fill_amounts(&mut finished, &r);
+    let b = judge(&finished, &r, true).unwrap();
+    assert_eq!(b.result, Outcome::CannotTell, "{:?}", b.lines);
+    assert_eq!(ids(&b), ["U1"]);
 }

@@ -254,18 +254,21 @@ fn classes(own: &[OutputInfo], other: &[OutputInfo], loaded: &[Fingerprint]) -> 
 
 fn fee_of(side: &Side<'_>, amounts: &BTreeMap<OutPoint, Option<Amount>>) -> Option<Fee> {
     let i = side.inspection;
-    let mut total: i64 = 0;
+    // Summed in i128 from each output: `total_out` saturates.
+    let mut total: i128 = 0;
     for input in &i.inputs {
         let a = amounts
             .get(&OutPoint::new(input.txid, input.vout))?
             .as_ref()?;
-        total = total.checked_add(i64::try_from(a.to_sat()).ok()?)?;
+        total += i128::from(a.to_sat());
     }
-    let sat = total.checked_sub(i64::try_from(i.total_out.to_sat()).ok()?)?;
-    let size = i64::try_from(i.vsize_estimate).ok()?.max(1);
+    for out in &i.outputs {
+        total -= i128::from(out.amount.to_sat());
+    }
+    let size = (i.vsize_estimate as i128).max(1);
     Some(Fee {
-        sat,
-        sat_per_kvb: sat.checked_mul(1000)? / size,
+        sat: i64::try_from(total).ok()?,
+        sat_per_kvb: i64::try_from(total * 1000 / size).ok()?,
     })
 }
 
@@ -446,6 +449,12 @@ pub fn judge(original: Side<'_>, replacement: Side<'_>, loaded: &[Fingerprint]) 
     let replacement_fee = fee_of(&replacement, &amounts_r);
     if let (Some(a), Some(b)) = (original_fee, replacement_fee) {
         fee_lines(&mut lines, a, b);
+    } else if !lines.iter().any(|l| matches!(l, Line::AmountNotStated(_)))
+        && let Some(p) = d.inputs.first()
+    {
+        // Every amount is stated but a fee is out of range: U1 is the
+        // line for an amount that cannot be used.
+        lines.push(Line::AmountNotStated(p.outpoint));
     }
 
     lines.sort_by_key(Line::rank);
@@ -466,43 +475,37 @@ pub fn judge(original: Side<'_>, replacement: Side<'_>, loaded: &[Fingerprint]) 
     })
 }
 
-/// The output an input spends as the PSBT states it, without checking
-/// the previous transaction's id: the `witness_utxo`, else the output the
-/// `non_witness_utxo` holds at the outpoint.
-fn stated(psbt: &bitcoin::Psbt, index: usize) -> Option<TxOut> {
-    let input = psbt.inputs.get(index)?;
-    if let Some(out) = &input.witness_utxo {
-        return Some(out.clone());
-    }
-    let vout = psbt.unsigned_tx.input.get(index)?.previous_output.vout;
-    input
-        .non_witness_utxo
-        .as_ref()?
-        .output
-        .get(vout as usize)
-        .cloned()
-}
-
 /// Sets the `witness_utxo` of each input of `original` that states no
 /// amount from the input of `from` spending the same outpoint, where
 /// `from` states one (`docs/COMPARE.md` §3.2, rule I4). A finished
 /// transaction states no amounts: this is how it gets its fee. The caller
 /// runs it before inspecting the original.
 pub fn fill_amounts(original: &mut Psbt, from: &Psbt) {
-    let have: BTreeMap<OutPoint, TxOut> = (0..from.inner().inputs.len())
-        .filter_map(|j| {
-            let op = from.inner().unsigned_tx.input[j].previous_output;
-            stated(from.inner(), j).map(|out| (op, out))
-        })
-        .collect();
+    use crate::classify::spent_output;
+    let have: BTreeMap<OutPoint, (Option<bitcoin::Transaction>, TxOut)> =
+        (0..from.inner().inputs.len())
+            .filter_map(|j| {
+                let f = from.inner();
+                let out = spent_output(f, j)?.clone();
+                let tx = f.inputs[j].non_witness_utxo.clone();
+                Some((f.unsigned_tx.input[j].previous_output, (tx, out)))
+            })
+            .collect();
     let psbt = original.inner_mut();
     for i in 0..psbt.inputs.len() {
-        if stated(psbt, i).is_some() {
+        if crate::classify::spent_output(psbt, i).is_some() {
             continue;
         }
         let op = psbt.unsigned_tx.input[i].previous_output;
-        if let Some(out) = have.get(&op) {
-            psbt.inputs[i].witness_utxo = Some(out.clone());
+        if let Some((tx, out)) = have.get(&op) {
+            let input = &mut psbt.inputs[i];
+            match tx {
+                Some(_) => input.non_witness_utxo = tx.clone(),
+                None => {
+                    input.non_witness_utxo = None;
+                    input.witness_utxo = Some(out.clone());
+                }
+            }
         }
     }
 }
