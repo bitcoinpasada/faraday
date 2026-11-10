@@ -303,10 +303,12 @@ random generator was ready, the temperature, the first CPU's clock, the
 undervoltage alarm where the kernel has the `rpi_volt` sensor (the Pi's
 dev kernel builds both it and the temperature sensor:
 `boards/pi3/dev/linux.fragment`), the
-memory free and the app's peak, each now and at its worst) and a radios
+memory free and the app's peak, each now and at its worst), a radios
 block (`/sys/class/bluetooth` and `/sys/class/net`, the device tree's
 Bluetooth and Wi-Fi nodes with their status and their parent's, the
-serial ports and what is bound to them).
+serial ports and what is bound to them) and a device nodes block (each
+entry of `/dev/dri` with its mode, owner, group and major:minor, which
+show that the screen's nodes are root's alone).
 
 To collect a run: boot the card, scroll the Settings list for ten seconds,
 open the scanner and point the camera at anything that is not a QR code for ten seconds (a code is decoded at once and the scanner stops),
@@ -697,7 +699,7 @@ was written. Each write goes to a new file that is read back and renamed
 over the old one, so a stick pulled mid-write holds the last whole report.
 Pull the stick, plug it into any computer and read that file. It is what to
 send with a report of a machine that does not work. The file holds the
-kernel log, that inventory and the system and radios blocks (above, "The
+kernel log, that inventory and the system, radios and device nodes blocks (above, "The
 dev variant") and nothing else: the core prints nothing, the shell prints
 sizes, names, counts and reasons, and the blocks read only the kernel's
 files (`tools/lint-secrets.sh`, rules 1 and 5). The release image writes nothing: its app is started without

@@ -111,6 +111,7 @@ mod camera;
 mod clock;
 mod costly;
 mod cursor;
+mod devnodes;
 mod diskwork;
 #[cfg(test)]
 mod edid_screens;
@@ -1412,6 +1413,7 @@ impl Shell {
         let kernel = bootreport::kernel_log(Path::new(bootreport::DMESG));
         let mut blocks = report.system.block(kernel.as_deref().ok());
         blocks.push_str(&radios::block(Path::new("/")));
+        blocks.push_str(&devnodes::block(Path::new("/")));
         let text = bootreport::compose(&kernel, &report.inventory, &blocks, elapsed);
         let name = report.name.clone();
         let wrote = costly::timed(&mut self.timings, costly::DEV_FILE_WRITTEN, || {

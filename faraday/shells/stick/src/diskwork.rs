@@ -28,7 +28,7 @@ use faraday_storage::DiskProcess;
 
 use crate::panel::lock;
 use crate::system::System;
-use crate::{bootreport, radios};
+use crate::{bootreport, devnodes, radios};
 
 /// The disk process's handle, shared by the loop and this thread.
 pub type Disk = Arc<Mutex<DiskProcess>>;
@@ -254,6 +254,7 @@ fn run(disk: &Disk, job: Job) -> Reply {
             let kernel = bootreport::kernel_log(Path::new(bootreport::DMESG));
             let mut blocks = r.system.block(kernel.as_deref().ok());
             blocks.push_str(&radios::block(Path::new("/")));
+            blocks.push_str(&devnodes::block(Path::new("/")));
             let text = bootreport::compose(&kernel, &r.inventory, &blocks, r.elapsed);
             let start = Instant::now();
             let wrote = lock(disk)

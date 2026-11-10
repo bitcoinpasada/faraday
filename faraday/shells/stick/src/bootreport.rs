@@ -11,7 +11,7 @@
 //! error output (the dev inittab sends it to `/dev/kmsg`); the
 //! inventory: the panel, every input device with what it was taken for,
 //! every capture device; the system block, the board's own figures
-//! (`system.rs`); and the radios block (`radios.rs`). The app prints no
+//! (`system.rs`); the radios block (`radios.rs`); and the device nodes block (`devnodes.rs`). The app prints no
 //! key material: the core crates may not print at all
 //! (`tools/lint-secrets.sh`, rule 1), the shell prints sizes, names,
 //! counts and reasons, and the two blocks read nothing but the kernel's
@@ -134,7 +134,7 @@ pub fn kernel_log(program: &Path) -> Result<String, String> {
 }
 
 /// The file: the kernel log (or why there is none), then the inventory
-/// and the `blocks` after it (the system and the radios). `elapsed` is
+/// and the `blocks` after it (the system, the radios and the device nodes). `elapsed` is
 /// the shell's clock, so a reader can tell how recent the write is
 /// against the log's own stamps.
 pub fn compose(

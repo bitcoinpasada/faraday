@@ -259,7 +259,7 @@ Never use it for keys that matter.
   soon as the stick is listed at boot, again whole every 30 seconds
   while it runs, and once more when it ends. It holds the kernel log
   (the app's own errors included), then the panel and devices found,
-  headed with the seconds since the app started, then two blocks
+  headed with the seconds since the app started, then three blocks
   refreshed at each write. **System**: the seconds from the kernel's
   start to the app's first frame, when the kernel's random generator was
   ready (its `crng init done` line), the temperature of each
@@ -278,7 +278,11 @@ Never use it for keys that matter.
   node whose `compatible` names a Bluetooth or a Wi-Fi chip, with its
   path, its status and its parent's (the serial port or SDIO controller
   it sits on), and every serial port with its driver, the devices bound
-  on one, and whether it is a console or has a getty. Each write goes to a
+  on one, and whether it is a console or has a getty. **Device nodes**:
+  every entry of `/dev/dri` with its kind, its mode as `ls -l` prints
+  it, its owner and group as numbers and its major:minor, or "absent" or
+  "empty", so a card shows with no serial console that the screen's nodes
+  are root's alone (`crw-------`, uid 0, gid 0). Each write goes to a
   new file that is read back and renamed over the old one, so a stick
   pulled mid-write keeps the last whole report. Wait half a minute
   after the thing you want recorded, pull the stick, and read the file
