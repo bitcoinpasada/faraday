@@ -129,6 +129,13 @@ catches = "a costly function without the compute token or its Costs doc line, a 
 misses = "work that is costly and not marked so"
 
 [[check]]
+id = "lint-op-cost"
+run = "python3 -I -B tools/op-cost.py"
+stage = "just lint"
+catches = "a named costly operation (a mnemonic parsed, a seed worked out, Seed XOR, a PSBT read and signed) more than 25% over its instruction count under valgrind in tools/op-cost.counts, an operation with no count, a count with no operation (F238)"
+misses = "an operation not yet named in tools/op-cost, and a cost that depends on the input's size beyond the fixed vector"
+
+[[check]]
 id = "lint-unchecked"
 run = "tools/lint-unchecked.sh"
 stage = "just lint"
@@ -913,6 +920,30 @@ with = ["docs/COMPUTE.md"]
 held_by = ["costs-lint"]
 
 # ----------------------------------------------------------------- speed
+
+[[rule]]
+id = "speed.op-count"
+title = "a named costly operation takes no more than 25% over its instruction count under valgrind (F238)"
+source = ["CLAUDE.md", "docs/decisions/F238.md"]
+when = ["core/*/src/**", "faraday/faraday-keys/src/**", "tools/op-cost/**"]
+kind = "held"
+held_by = ["lint-op-cost"]
+
+[[rule]]
+id = "speed.op-count-raised"
+title = "an instruction count of a named costly operation is raised only in a commit that says why (F238)"
+source = ["CLAUDE.md", "docs/decisions/F238.md"]
+when = ["tools/op-cost.counts"]
+rises = true
+kind = "review"
+
+[[rule]]
+id = "speed.cost-stated"
+title = "a cost stated in SPEED.md or COMPUTE.md says how it was measured, or says it was not measured (F238)"
+source = ["CLAUDE.md", "docs/decisions/F238.md"]
+when = ["docs/SPEED.md", "docs/COMPUTE.md"]
+kind = "review"
+misses = "a cost stated in another document"
 
 [[rule]]
 id = "speed.kept-in-step"

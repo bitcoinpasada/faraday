@@ -27,13 +27,14 @@ test-doc:
 # (a Kind and Status header on every document, every cited path real,
 # tools/lint-docs.sh), and the layout lint (the code map, file sizes and
 # long functions, counts that only fall, tools/lint-layout.sh), the touch-target
-# ratchet (lint-touch-targets), the tree
+# ratchet (lint-touch-targets), the instruction counts of named costly
+# operations (lint-op-cost, F238), the tree
 # lint (the top level's entries, no leftovers, no file over 2 MiB,
 # tools/lint-tree.sh), and cargo
 # vet: every dependency trusted, audited or exempted (F71), and the guide
 # lint (bold names are the app's strings, links resolve, tools/lint-guide.py).
 [group('lint')]
-lint: lint-clippy lint-deps lint-repo lint-macos lint-touch-targets
+lint: lint-clippy lint-deps lint-repo lint-macos lint-touch-targets lint-op-cost
 
 # Clippy over the workspace, every target (the costliest part of the lint).
 [group('lint')]
@@ -140,6 +141,14 @@ lint-macos:
 [group('lint')]
 lint-touch-targets:
     cargo nextest run --locked -p faraday-snapshot -p faraday-starter --run-ignored only -E 'test(/^targets::/)'
+
+# The named costly operations (tools/op-cost): each run once under
+# valgrind's callgrind, its instruction count held to tools/op-cost.counts
+# (F238). Needs valgrind. `python3 -I -B tools/op-cost.py --write` writes the
+# counts again.
+[group('lint')]
+lint-op-cost:
+    python3 -I -B tools/op-cost.py
 
 # Fetch the audit sets supply-chain/config.toml imports, write them to
 # imports.lock, and drop exemptions they now cover (F71), keeping those

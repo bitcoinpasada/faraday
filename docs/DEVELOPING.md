@@ -101,6 +101,10 @@ by hand, the fuzz run before a release (§8), and nothing else.
   and damaged `.xz` streams with both beside Faraday's decoder. They skip
   with a note without them under `just`, and fail without them under `just
   crosscheck`. On Debian or Ubuntu: `sudo apt install xz-utils 7zip`.
+- **valgrind** (3.22 or later), for `just lint-op-cost`: it runs each named
+  costly operation under callgrind and holds its instruction count
+  (F238). It fails without it. On Debian or Ubuntu: `sudo apt install
+  valgrind`.
 - **QEMU and OVMF** (`qemu-system-x86_64`, OVMF's Secure Boot firmware
   (`OVMF_CODE.secboot.4m.fd`, or `OVMF_CODE_4M.secboot.fd` on Debian and
   Ubuntu), and `systemd-boot-efi`), to boot the stick
@@ -116,12 +120,13 @@ by hand, the fuzz run before a release (§8), and nothing else.
 just                      the tests, then every lint run to the end (lint-all)
 just test                 the tests alone (nextest, then the doc tests)
 just test-doc             the doc tests alone
-just lint                 clippy with warnings as errors, fmt, and the repository's lints, in five parts:
+just lint                 clippy with warnings as errors, fmt, and the repository's lints, in six parts:
 just lint-clippy          clippy over every target
 just lint-deps            cargo deny, cargo vet, the fuzz crates built
 just lint-repo            fmt, the scripts in tools/, the registry
 just lint-macos           the Starter's macOS code for both Mac targets
 just lint-touch-targets   the touch-target ratchet: every snapshot tour at four sizes
+just lint-op-cost         the instruction count of each named costly operation under valgrind (F238)
 just lint-all             every command of `lint`, run to the end; lists all that failed
 cargo nextest run -p faraday-core -E 'test(/^keygen::/)'     one test module
 ```
@@ -134,10 +139,10 @@ rules a change follows. Builds and checks pass `--locked`.
 
 GitHub Actions runs `just` on every push to main and every pull
 request (`.github/workflows/check.yml`, F183), on Ubuntu 26.04 with
-the tools above at the versions it names, spread over twenty-one jobs:
+the tools above at the versions it names, spread over twenty-two jobs:
 one compiles the tests once and archives them (`cargo nextest
 archive`), fourteen each run a fourteenth of them (`--partition
-hash:k/14`), and the doc tests and the five parts of `just lint` run
+hash:k/14`), and the doc tests and the six parts of `just lint` run
 beside them. Its result is shown on the commit and the
 pull request.
 

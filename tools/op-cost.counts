@@ -1,0 +1,10 @@
+# Held by tools/op-cost.py (F238). Instructions one run of each named costly
+# operation takes under valgrind's callgrind, from `tools/op-cost`. An
+# operation more than 25% over its count fails the check; a count is raised
+# only in a commit that says why. A fall is lowered with
+# `python3 -I -B tools/op-cost.py --write`.
+mnemonic-parse-24 8341344
+mnemonic-to-seed 36178948
+seed-xor-combine 31739573
+psbt-read 988287
+psbt-sign 59944909

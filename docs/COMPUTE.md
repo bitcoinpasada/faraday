@@ -305,3 +305,17 @@ Moved to `docs/history/COMPUTE-LOG.md`.
 ## 14. Estimate
 
 Moved to `docs/history/COMPUTE-LOG.md`.
+
+## 15. Named costs, measured (F238)
+
+A cost named in this document or in `docs/SPEED.md` says how it was
+measured (what ran, on what input, with what counted) or says it was not
+measured. The costly operations that matter to a person waiting are held
+by an instruction count in the check: `tools/op-cost` runs each once on a
+fixed public test vector (a 24-word mnemonic parsed, its seed worked out,
+a Seed XOR combine, a PSBT of three inputs read and signed), `just
+lint-op-cost` counts the instructions under valgrind's callgrind and
+fails an operation more than 25% over its count in
+`tools/op-cost.counts`. Counts, not seconds: a count does not change with
+the machine it runs on beyond that margin, and the count is raised only in
+a commit that says why.

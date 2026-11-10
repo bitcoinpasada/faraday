@@ -1,0 +1,25 @@
+[package]
+name = "op-cost"
+version = "0.1.0"
+description = "Runs one named costly operation once on a fixed public test vector, for an instruction count under valgrind (tools/op-cost.py); never runs on a device"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "op-cost"
+path = "src/main.rs"
+
+[dependencies]
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-entropy = { path = "../../core/faraday-entropy" }
+faraday-psbt = { path = "../../core/faraday-psbt" }
+# The token that counts nothing (docs/COMPUTE.md §3): this command is a
+# measurement, and `tools/lint-unchecked.sh` keeps the feature out of
+# every shipped binary.
+faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] }
+
+[lints]
+workspace = true

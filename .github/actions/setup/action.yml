@@ -13,6 +13,9 @@ inputs:
   mac-targets:
     description: Add the two Mac targets
     default: "false"
+  valgrind:
+    description: Install valgrind, which the instruction counts of lint-op-cost need
+    default: "false"
   deps:
     description: The name this job's compiled dependencies are cached under, if any
     default: ""
@@ -43,6 +46,19 @@ runs:
             && timeout 300 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 \
               install --yes --no-install-recommends \
               gnupg sq paperkey openssl sbsigntool mtools dosfstools \
+            && exit 0
+          echo "apt: try $try did not finish"
+        done
+        exit 1
+
+    - name: Valgrind
+      if: inputs.valgrind == 'true'
+      shell: bash
+      run: |
+        for try in 1 2 3; do
+          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 update \
+            && timeout 300 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 \
+              install --yes --no-install-recommends valgrind \
             && exit 0
           echo "apt: try $try did not finish"
         done
