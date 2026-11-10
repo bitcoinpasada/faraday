@@ -120,7 +120,7 @@ fn the_file_coming_in_counts_the_one_inspection() {
 }
 
 #[test]
-fn a_touch_or_key_with_a_finished_transaction_in_files_reads_no_file() {
+fn a_touch_or_key_with_a_finished_transaction_in_files_does_no_costly_work() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: vec![

@@ -148,9 +148,9 @@ fn swap_makes_the_comparison_again() {
         at(&after, "replacement.psbt").expect("First"),
     );
     assert!(second < first, "{after:?}");
-    assert!(after.iter().any(|l| l == EN.compare_result), "{after:?}");
-    // Swapped, the original is the replacement: the fee is not judged as raised.
-    assert!(!after.iter().any(|l| l == EN.bump_cannot_tell), "{after:?}");
+    // The swapped pair is compared again: the fee falls, so more than the
+    // fee changed (the pair as it came was Cannot tell).
+    assert!(after.iter().any(|l| l == EN.bump_more_changed), "{after:?}");
     assert_ne!(before, after);
 }
 
@@ -167,11 +167,18 @@ fn change_opens_a_card_and_choosing_a_file_compares_again() {
     app.press(Action::Compare(ComparePress::Pick(Slot::First, 0)));
     assert!(shows(&mut app, "original.psbt"));
     assert!(shows(&mut app, EN.bump_cannot_tell));
-    app.press(Action::Compare(ComparePress::Card(1)));
-    let t = texts(&mut app);
-    assert!(t.iter().any(|l| l == "original.psbt"), "{t:?}");
+    // Change on First opens its card, which lists the third file.
+    assert!(!shows(&mut app, "added.psbt"));
+    app.press(Action::Compare(ComparePress::Card(0)));
+    assert!(shows(&mut app, "added.psbt"), "{:?}", texts(&mut app));
     // The third file against the replacement: a comparison of its own.
-    app.press(Action::Compare(ComparePress::Pick(Slot::First, 2)));
+    let _ = app.frame();
+    let pick = app
+        .drawn_actions()
+        .into_iter()
+        .find(|a| matches!(a, Action::Compare(ComparePress::Pick(Slot::First, 2))))
+        .expect("the First card draws the third file");
+    app.press(pick);
     assert_eq!(app.screen, Screen::Compare);
     let t = texts(&mut app);
     assert!(t.iter().any(|l| l == "added.psbt"), "{t:?}");
