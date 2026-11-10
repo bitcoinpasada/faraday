@@ -204,6 +204,10 @@ internal error rather than carrying on.
   afterwards.
 - Nothing is written to the computer. There is no driver for its disk
   and no access to its firmware variables.
+- **The nonce history in a vault.** An opened vault's entries name each
+  checked input on chain by its `r`, transactions of wallets not held
+  here included, and a file vault's length grows about 200 bytes a
+  signature (F227). Settings' Nonce history can turn it off.
 - **What locking wipes, and how.** Locking seals every open vault into
   For the stick and then clears memory in two steps:
   1. The application drops every key, seed, passphrase and decrypted

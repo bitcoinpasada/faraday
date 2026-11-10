@@ -101,6 +101,7 @@ fn same_settings(a: &Faraday, b: &Faraday) -> bool {
         && a.idle_lock_min() == b.idle_lock_min()
         && a.idle_off_min() == b.idle_off_min()
         && a.seal_amounts() == b.seal_amounts()
+        && a.nonce_history_kept() == b.nonce_history_kept()
 }
 
 #[test]

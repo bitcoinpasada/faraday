@@ -1565,3 +1565,66 @@ fn unreadable_values_under_other_keys_do_not_stop_a_transaction_being_written() 
     let again = open_vaults(&sealed, &[]);
     assert_eq!(held_in(&again, 0), vec![(tx_a, 1)]);
 }
+
+#[test]
+fn with_the_setting_off_nothing_is_drawn_and_a_vaults_records_are_unchanged_after_a_lock() {
+    let (d, k) = (key(3), key(9));
+    let (a, b) = (signed(0, &d, &k), signed(1, &d, &k));
+    let mut app = open_vaults(&[vault_of(7, Vec::new())], &[&a, &b]);
+    let _ = check_file(&mut app, 1);
+    let sealed = lock_all(&mut app);
+    let before = held_in(&open_vaults(&sealed, &[]), 0);
+    assert_eq!(before.len(), 1);
+
+    let mut app = open_vaults(&sealed, &[&a, &b]);
+    app.press(Action::NonceHistory(false));
+    assert!(!app.nonce_history_kept());
+    let check = check_file(&mut app, 2);
+    assert_eq!(check.history, History::Off);
+    assert!(check.used_before.is_empty() && !check.wrong());
+    let text = shown(&mut app);
+    assert!(!text.contains(EN.nonce_screen_refused_used), "{text}");
+    // Nothing changed, so the vault may not be written at all.
+    let sealed = lock_all(&mut app);
+    if !sealed.is_empty() {
+        assert_eq!(held_in(&open_vaults(&sealed, &[]), 0), before);
+    }
+}
+
+#[test]
+fn turning_the_setting_on_reads_the_open_vault_and_refuses_a_nonce_it_holds() {
+    let (d, k) = (key(3), key(9));
+    let (a, b) = (signed(0, &d, &k), signed(1, &d, &k));
+    let mut app = open_vaults(&[vault_of(7, Vec::new())], &[&a, &b]);
+    let _ = check_file(&mut app, 1);
+    let sealed = lock_all(&mut app);
+
+    let mut app = open_vaults(&sealed, &[&a, &b]);
+    app.press(Action::NonceHistory(false));
+    let check = check_file(&mut app, 2);
+    assert_eq!(check.history, History::Off);
+    app.press(Action::NonceHistory(true));
+    let text = shown(&mut app);
+    assert!(text.contains(EN.nonce_screen_refused_used), "{text}");
+}
+
+#[test]
+fn the_nonce_history_setting_is_kept_across_a_restart() {
+    use faraday_core::StorageCommand;
+    let mut app = testkit::started();
+    assert!(app.nonce_history_kept(), "kept in an open vault by default");
+    app.press(Action::NonceHistory(false));
+    let mut kept = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::SaveBoxes { kept: k, .. } = c {
+            kept = k;
+        }
+    }
+    let mut next = Faraday::new();
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: Vec::new(),
+        kept,
+    });
+    assert!(!next.nonce_history_kept());
+}

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** the nonce history kept in a vault (Nonce check, not built), files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -2258,7 +2258,7 @@ loaded then; Decode's way back makes it again when they have changed.
 
 ### Nonce history
 
-Not built (F227). **The nonce check remembers, in an open vault, the
+**The nonce check remembers, in an open vault, the
 signatures it has checked**, and refuses a signature whose key used the
 same nonce before on another message, in this session or any before it.
 A key that signs two messages with one nonce is given away to anyone who

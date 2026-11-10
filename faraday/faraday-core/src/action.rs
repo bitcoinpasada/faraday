@@ -171,6 +171,8 @@ pub enum Action {
     EntryField,
     /// Seal the signed-amount memory into an open vault on lock, or not.
     SealAmounts(bool),
+    /// Keep the nonce history in an open vault, or turn it off.
+    NonceHistory(bool),
     /// Lock: wipe the session and start a fresh process.
     Lock,
     /// Lock with the open vaults' changes not sealed, asked for when the

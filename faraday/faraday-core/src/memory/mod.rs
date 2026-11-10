@@ -307,6 +307,33 @@ impl Faraday {
         self.memory.nonces.take_held(id, &entries, unreadable);
     }
 
+    /// Sets whether the nonce history is kept. Turned on, the records of
+    /// every open vault are read and what is open is compared again; turned
+    /// off, nothing is recorded, compared or drawn, a refusal already found
+    /// stays, and a vault's records stay as written.
+    pub(crate) fn set_nonce_history(&mut self, on: bool) {
+        self.memory.nonces.set_on(on);
+        if on {
+            let ids: Vec<faraday_keys::vault::VaultId> =
+                self.vaults.open.iter().map(|o| o.id).collect();
+            for id in ids {
+                self.nonces_from_vault(id);
+            }
+            self.nonce_outside_sync();
+            self.nonce_spend_sync();
+        }
+    }
+
+    /// How many signatures the nonce history remembers.
+    pub fn nonces_remembered(&self) -> usize {
+        self.memory.nonces.remembered()
+    }
+
+    /// Whether the nonce history is kept (the setting).
+    pub fn nonce_history_kept(&self) -> bool {
+        self.memory.nonces.kept()
+    }
+
     /// Lets go what the history holds of vaults no longer open.
     pub(crate) fn nonces_sync_open(&mut self) {
         let open: Vec<faraday_keys::vault::VaultId> =
@@ -368,9 +395,10 @@ impl Faraday {
     /// What is kept across a lock: the settings and the memory.
     pub(crate) fn kept(&self) -> Vec<(String, Vec<u8>)> {
         let settings = format!(
-            "{}seal-amounts={}\n",
+            "{}seal-amounts={}\nnonce-history={}\n",
             self.settings_body(),
-            u8::from(self.memory.seals())
+            u8::from(self.memory.seals()),
+            u8::from(self.memory.nonces.kept())
         );
         let mut out = vec![
             ("settings".to_string(), settings.into_bytes()),
@@ -505,6 +533,7 @@ impl Faraday {
                     for line in String::from_utf8_lossy(bytes).lines() {
                         match line.split_once('=') {
                             Some(("seal-amounts", v)) => self.memory.set_seals(v == "1"),
+                            Some(("nonce-history", v)) => self.memory.nonces.set_on(v != "0"),
                             Some((k, v)) => self.apply_setting(k, v, false),
                             None => {}
                         }

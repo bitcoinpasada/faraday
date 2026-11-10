@@ -163,7 +163,6 @@ impl Default for NonceHistory {
 }
 
 impl NonceHistory {
-    // `set_on` is reached only through testkit until the setting calls it.
     /// Whether a vault is open and the setting is on: what is checked is
     /// compared and remembered.
     pub(crate) fn active(&self) -> bool {
@@ -171,7 +170,6 @@ impl NonceHistory {
     }
 
     /// Sets whether the history is kept.
-    #[cfg(feature = "testkit")]
     pub(crate) fn set_on(&mut self, on: bool) {
         if self.on != on {
             self.on = on;
@@ -268,6 +266,13 @@ impl NonceHistory {
     /// Whether the history is kept at all (the setting).
     pub(crate) fn kept(&self) -> bool {
         self.on
+    }
+
+    /// How many signatures are remembered: what the open vaults held when
+    /// they were read, and what waits for a vault.
+    pub(crate) fn remembered(&self) -> usize {
+        let count = |i: &Index| i.values().map(Vec::len).sum::<usize>();
+        self.held.iter().map(|(_, h)| count(h)).sum::<usize>() + count(&self.pending_index)
     }
 
     /// The vaults whose records were read.

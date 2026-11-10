@@ -477,6 +477,12 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
+                heading: "Nonce history",
+                paragraphs: &[
+                    "With a vault open, Faraday remembers each signature it checks: the key, the nonce and the message it signed, one entry of 96 bytes, written into the open vault when it is sealed and read again when the vault is unlocked. A signature whose key used the same nonce before on another message is refused, and nothing finishes, saves or shows as a code, because once both signatures are public the key is given away. Settings' Nonce history card turns it off; a vault's records then stay as written. A clean history does not show a signer is honest: it sees only signatures brought in or made here while it was on, per vault, and a dishonest signer can leak a key without reusing a nonce. Whoever opens the vault can read each checked input on chain by its nonce, transactions of wallets not held here included.",
+                ],
+            },
+            Section {
                 heading: "How Faraday picks a nonce",
                 paragraphs: &[
                     "For a single key, Faraday adds no randomness of its own. The nonce is calculated from the key and the transaction alone, using RFC 6979 for ECDSA signatures and BIP-340 with no auxiliary randomness for Schnorr signatures. The same transaction signed with the same key always produces exactly the same signature bytes. As a check on itself, Faraday signs every input twice and refuses to continue if the two results differ.",

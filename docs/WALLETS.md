@@ -239,7 +239,9 @@ non-cryptographic and live in `faraday-core`:
   this taproot tree. Register its wallet to sign it." Where no input is
   left to sign, nothing here takes part (`NoParticipatingKey`).
 - Fee, dust, network, unknown paths and the deterministic nonce check
-  are shown.
+  are shown. With Nonce history on and a vault open (`docs/FLOWS.md`,
+  Nonce history), an opened vault's entries name each checked input on
+  chain by its `r`, transactions of wallets not held here included.
 
 ### 3.4 The key path of a `tr()` wallet
 

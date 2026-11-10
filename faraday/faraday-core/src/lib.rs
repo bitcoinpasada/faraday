@@ -2744,6 +2744,10 @@ impl Faraday {
                 self.memory.set_seals(on);
                 self.save_boxes();
             }
+            Action::NonceHistory(on) => {
+                self.set_nonce_history(on);
+                self.save_boxes();
+            }
             a @ (Action::TzStep(..)
             | Action::OpenSetTime
             | Action::SetTimeFocus(..)

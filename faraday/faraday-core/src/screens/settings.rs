@@ -52,6 +52,7 @@ enum Part {
     Appearance,
     Display,
     Signed,
+    Nonces,
     About,
 }
 
@@ -60,7 +61,7 @@ enum Part {
 fn parts() -> Vec<Part> {
     use Part::*;
     vec![
-        Mode, Session, Time, Randomness, Appearance, Display, Signed, About,
+        Mode, Session, Time, Randomness, Appearance, Display, Signed, Nonces, About,
     ]
 }
 
@@ -74,6 +75,7 @@ fn part_title(p: Part) -> &'static str {
         Part::Appearance => EN.settings_appearance,
         Part::Display => EN.settings_display,
         Part::Signed => EN.settings_signed_amounts,
+        Part::Nonces => EN.settings_nonce_history,
         Part::About => EN.settings_about,
     }
 }
@@ -92,6 +94,7 @@ fn part_guide(app: &View, p: Part) -> Option<Cow<'static, str>> {
         Part::Appearance => EN.settings_guide_appearance.into(),
         Part::Display => EN.settings_guide_scale.into(),
         Part::Signed => EN.settings_guide_signed.into(),
+        Part::Nonces => EN.settings_guide_nonces.into(),
         Part::About => EN.settings_guide_about.into(),
     })
 }
@@ -128,6 +131,7 @@ fn part_body(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
             display_body(app, ui, at, label)
         }
         Part::Signed => signed_body(app, ui, at),
+        Part::Nonces => nonces_body(app, ui, at),
         Part::About => about_body(app, ui, at),
     }
 }
@@ -353,6 +357,33 @@ fn signed_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         (EN.settings_kept_until, Action::SealAmounts(false)),
     ];
     let on = Some(usize::from(!app.seal_amounts()));
+    y += ui.choices((x, y, w, SEGMENTED_H), LABEL_L.size, &items, on);
+    y - y0
+}
+
+/// Nonce history: how many signatures are remembered, and whether the
+/// history is kept in an open vault or off. Returns its height.
+fn nonces_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
+    let mut y = y0;
+    let n = app.nonces_remembered();
+    let line = fill(
+        EN.settings_signatures_remembered,
+        &[
+            &n.to_string(),
+            (if n == 1 {
+                EN.settings_signature
+            } else {
+                EN.settings_signatures
+            }),
+        ],
+    );
+    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, &line);
+    y += ui.line_as(BODY_S) + faraday_draw::tokens::GRID;
+    let items = [
+        (EN.settings_nonces_kept, Action::NonceHistory(true)),
+        (EN.settings_nonces_off, Action::NonceHistory(false)),
+    ];
+    let on = Some(usize::from(!app.nonce_history_kept()));
     y += ui.choices((x, y, w, SEGMENTED_H), LABEL_L.size, &items, on);
     y - y0
 }

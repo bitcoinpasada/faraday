@@ -7632,6 +7632,8 @@ strings! {
     settings_guide_rotation: "Landscape suits the backup board and lists beside their detail. Portrait suits typing words in.",
     /// Signed amounts' explainer on Settings, shown with Guided on.
     settings_guide_signed: "The amounts each signed input stated are remembered, and the same transaction stated with other amounts is refused. Sealed into an open vault, they last past power-off.",
+    /// Nonce history's explainer on Settings, shown with Guided on.
+    settings_guide_nonces: "Each signature checked here is remembered in an open vault by its key, its nonce and its message. A nonce one key used on another message is refused.",
     /// About's explainer on Settings, shown with Guided on.
     settings_guide_about: "The self-test runs at every start, before any key is accepted. Run again repeats it.",
     /// Line in `settings`.
@@ -7742,6 +7744,18 @@ strings! {
     settings_sealed_into: "Sealed into an open vault",
     /// Text in `settings`.
     settings_kept_until: "Kept until power-off only",
+    /// Line in `settings`.
+    settings_nonce_history: "Nonce history",
+    /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_signature }…`.
+    settings_signatures_remembered: "{} {} remembered",
+    /// Text in `settings`.
+    settings_signature: "signature",
+    /// Text in `settings`.
+    settings_signatures: "signatures",
+    /// Text in `settings`.
+    settings_nonces_kept: "Kept in an open vault",
+    /// Text in `settings`.
+    settings_nonces_off: "Off",
     /// Line in `settings`.
     settings_about: "About",
     /// Text in `settings`. `{}`: `crate::version_label()`.
