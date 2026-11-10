@@ -44,7 +44,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .iter()
         .map(|&k| flow::Card {
             title: if k == cstep::STICKS {
-                fill(EN.backup_flow_card_sticks, &[app.medium.nouns()])
+                app.medium.bring_in().to_string()
             } else if k == cstep::HOW_MANY {
                 app.medium.and_vaults().to_string()
             } else {

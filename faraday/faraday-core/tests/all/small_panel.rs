@@ -439,6 +439,9 @@ fn the_small_homes_first_tile_opens_the_flow_in_progress() {
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::CKind(0));
+    // The way back opens Kind first (F104), then leaves for Home.
+    tap(&mut app, Action::Nav(Screen::Home));
+    assert_eq!(app.screen, Screen::Create);
     let open = app.create().unwrap().open;
     tap(&mut app, Action::Nav(Screen::Home));
     assert_eq!(app.screen, Screen::Home);
@@ -463,6 +466,7 @@ fn the_small_home_offers_a_flow_in_progress_once_its_tile() {
     let mut app = panel();
     tap(&mut app, Action::CreateWallet);
     app.press(Action::CKind(0));
+    tap(&mut app, Action::Nav(Screen::Home));
     tap(&mut app, Action::Nav(Screen::Home));
     let _ = app.frame();
     let texts = app.drawn_texts();

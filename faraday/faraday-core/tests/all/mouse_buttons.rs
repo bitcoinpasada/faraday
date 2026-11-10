@@ -24,18 +24,42 @@ fn button(app: &mut Faraday, e: Event) {
 }
 
 #[test]
-fn back_goes_where_the_back_link_goes_and_forward_comes_back_as_it_was() {
+fn back_opens_the_step_before_in_make_a_new_wallet_and_forward_opens_it_again() {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::CKind(1));
     let kind = app.create().unwrap().kind;
+    let open = app.create().unwrap().open;
+    assert_ne!(open, Some(faraday_core::cstep::KIND));
     let _ = app.frame();
+    // From a later step Back opens Kind, its choice as it was.
+    button(&mut app, Event::Back);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create().unwrap().open, Some(faraday_core::cstep::KIND));
+    assert_eq!(app.create().unwrap().kind, kind);
+    button(&mut app, Event::Forward);
+    assert_eq!(app.create().unwrap().open, open, "Forward opens it again");
+    button(&mut app, Event::Back);
+    // From the first step it leaves, and Forward comes back as it was.
     button(&mut app, Event::Back);
     assert_ne!(app.screen, Screen::Create);
     button(&mut app, Event::Forward);
     assert_eq!(app.screen, Screen::Create);
     assert_eq!(app.create().unwrap().kind, kind, "kept as it was left");
+}
+
+#[test]
+fn the_back_arrow_opens_the_step_before_in_make_a_new_wallet() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(1));
+    let _ = app.frame();
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create().unwrap().open, Some(faraday_core::cstep::KIND));
+    app.press(Action::Back);
+    assert_ne!(app.screen, Screen::Create);
 }
 
 #[test]

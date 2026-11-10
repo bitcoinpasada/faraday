@@ -14,8 +14,12 @@ pub enum FlowAction {
     /// A press on a wallet's plan cards, as Back up's
     /// (`docs/BACKUP-FLOW.md` §15).
     Plan(crate::PlanPress),
-    /// Leave the flow, keeping its state.
+    /// The way back on the top app bar: the card before the open one
+    /// opens (`trail.rs`), and from the first it leaves the flow, keeping
+    /// its state.
     Back,
+    /// Leave the flow from a card's own button, keeping its state.
+    Leave,
     /// Open the first card to change the plan.
     ChangePlan,
     /// Another place.

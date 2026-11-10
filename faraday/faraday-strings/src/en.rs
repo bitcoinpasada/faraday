@@ -4901,6 +4901,30 @@ strings! {
     medium_sticks_and_vaults: "Sticks and vaults",
     /// Text in `and_vaults`.
     medium_cards_or_sticks_and_vaults: "Cards, sticks and vaults",
+    /// The way back's name for the checklist item of blank templates.
+    backup_step_templates: "Blank templates",
+    /// The way back's name for the checklist item of a seed copied by hand.
+    backup_step_copy: "Copy by hand",
+    /// The way back's name for the checklist item of codex32 strings.
+    backup_step_codex32: "Codex32 strings",
+    /// The way back's name for the checklist item of a passphrase on paper.
+    backup_step_passphrase: "Passphrase on paper",
+    /// The way back's name for the checklist item of a Krux code.
+    backup_step_kef: "Krux code",
+    /// The way back's name for the checklist item of a vault.
+    backup_step_vault: "Vault",
+    /// Text in `bring_in`: step 2's card of the backup flow and of the setup of a wallet's vaults.
+    medium_bring_in_sticks: "Bring in the sticks",
+    /// Text in `bring_in`.
+    medium_bring_in_cards_or_sticks: "Bring in the cards or sticks",
+    /// Text in `write_the`: step 6's card of the backup flow.
+    medium_write_the_sticks: "Write the sticks",
+    /// Text in `write_the`.
+    medium_write_the_cards_or_sticks: "Write the cards or sticks",
+    /// Text in `write_to`: the checklist item that writes to the sticks, by place.
+    medium_write_to_sticks: "Write to sticks",
+    /// Text in `write_to`.
+    medium_write_to_cards_or_sticks: "Write to cards or sticks",
     /// Text in `boot`.
     medium_boot_stick: "Boot stick",
     /// Text in `boot`.
@@ -10721,8 +10745,6 @@ strings! {
     backup_flow_place_n: "Place {}",
     /// Step 1's card.
     backup_flow_card_where: "Where it will be kept",
-    /// Step 2's card; the plural of the medium.
-    backup_flow_card_sticks: "Bring in the {}",
     /// Guided: Bring in the sticks in the setup of a wallet's vaults
     /// (`docs/BACKUP-FLOW.md` §10). `{}`: the medium, its plural, the
     /// medium.
@@ -10733,8 +10755,6 @@ strings! {
     backup_flow_card_make: "Make the key",
     /// Step 5's card.
     backup_flow_card_lock: "Lock",
-    /// Step 6's card; the plural of the medium.
-    backup_flow_card_write: "Write the {}",
     /// Step 7's card.
     backup_flow_card_done: "Done",
     /// Button on Where: another place.
@@ -11083,8 +11103,6 @@ strings! {
     item_templates_both: "Both",
     /// Foot of the Templates item, a press.
     item_action_done: "Done",
-    /// Checklist item: write to the sticks, by place. The medium, plural.
-    backup_flow_item_sticks: "Write to {}",
     /// Heading of a Bitcoin wallet's flow.
     backup_flow_kind_wallet: "Bitcoin wallet",
     /// A key of a wallet to be made, before it has a fingerprint.

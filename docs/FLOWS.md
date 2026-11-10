@@ -132,11 +132,13 @@ under a card of several values (steppers, ticks, typing) and where the
 press is the act.
 
 **Back within a flow** (F104). In Restore, Sign a transaction, the Spend
-tab, Sign a message, Create a vault, BIP-85, Convert a seed, Silent payments and Vanity,
+tab, Sign a message, Create a vault, BIP-85, Convert a seed, Silent payments, Vanity,
+Make a new wallet, Back up a wallet, the backup flow, Compare two PSBTs and Check a signer,
 Back opens the step before the open one with its choices as they were,
 and the way back is named after it; Back from the first step leaves the
 flow as F77 says. A running step (a vault being made, a search under
-way) takes no Back. Once a wallet is made from its seeds, or a key here
+way, a stick being written) takes no Back. Once a wallet is made from its seeds or
+from Make a new wallet's keys, or a key here
 has signed, or a MuSig2 round is open here, Back goes back no further
 than the step after it. Escape is Back on BIP-85, Convert a seed and Vanity.
 

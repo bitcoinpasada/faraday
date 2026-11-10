@@ -176,6 +176,30 @@ impl Medium {
         }
     }
 
+    /// The card that brings the media in: "Bring in the sticks".
+    pub const fn bring_in(self) -> &'static str {
+        match self {
+            Medium::Stick => EN.medium_bring_in_sticks,
+            Medium::SdCard => EN.medium_bring_in_cards_or_sticks,
+        }
+    }
+
+    /// The card that writes the media: "Write the sticks".
+    pub const fn write_the(self) -> &'static str {
+        match self {
+            Medium::Stick => EN.medium_write_the_sticks,
+            Medium::SdCard => EN.medium_write_the_cards_or_sticks,
+        }
+    }
+
+    /// The checklist item that writes to the media: "Write to sticks".
+    pub const fn write_to(self) -> &'static str {
+        match self {
+            Medium::Stick => EN.medium_write_to_sticks,
+            Medium::SdCard => EN.medium_write_to_cards_or_sticks,
+        }
+    }
+
     /// What the medium the device started from is called.
     pub const fn boot(self) -> &'static str {
         match self {

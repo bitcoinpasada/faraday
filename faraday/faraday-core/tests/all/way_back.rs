@@ -100,9 +100,17 @@ fn back_from_a_flow_opened_in_tools_lands_on_tools_scrolled_as_it_was() {
     app.press(tile(Go::Create(NewKind::NativeSegwit)));
     assert_eq!(app.screen, Screen::Create);
     let _ = app.frame();
+    // The tile ticked a kind, so the flow opens past Kind: Back opens
+    // Kind first (F104), then leaves for Tools.
+    assert!(
+        app.drawn_texts().iter().any(|t| t == "Back to Kind"),
+        "the way back reads Back to Kind"
+    );
+    tap_back(&mut app);
+    assert_eq!(app.screen, Screen::Create);
     assert!(
         app.drawn_texts().iter().any(|t| t == "Back to Tools"),
-        "the way back reads Back to Tools"
+        "from the first step the way back reads Back to Tools"
     );
     tap_back(&mut app);
     assert_eq!(app.screen, Screen::Catalog);

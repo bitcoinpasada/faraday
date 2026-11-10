@@ -1242,12 +1242,16 @@ fn back_does_not_leave_while_a_write_is_under_way() {
 }
 
 /// After the lock that writes its sticks, a GPG key's flow is still
-/// Tools': its way back reads Back to Tools, as it did before the lock, and
-/// leads there.
+/// Tools': on a later card its way back reads the card before (F104), and
+/// on the first card Back to Tools, as it did before the lock, and leads
+/// there.
 #[test]
 fn after_the_lock_a_tools_flows_way_back_reads_tools() {
     let mut shell = Shell::new();
     let mut app = gpg_locked(&mut shell);
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Back to Lock"));
+    app.press(Action::Flow(F::Open(Step::Where.n())));
     let _ = app.frame();
     let texts = app.drawn_texts();
     // The way back names Tools.
@@ -3050,4 +3054,45 @@ fn a_file_changed_since_it_was_shown_is_not_overwritten_and_the_card_says_so() {
     assert_eq!(count(&shell, "note.pdf"), 0);
     assert_eq!(step(&app), Step::Write, "the stick does not count");
     expect(&mut app, "The copy did not check on OTHER. Nothing counted");
+}
+
+/// Back opens the card before the open one, as the arrow or the mouse's
+/// back button takes it, and from the first card leaves (F104).
+#[test]
+fn back_in_the_backup_flow_opens_the_card_before_and_from_the_first_leaves() {
+    use faraday_shell_api::Event;
+    for mouse in [false, true] {
+        let mut shell = Shell::new();
+        let mut app = gpg_locked(&mut shell);
+        let back = |app: &mut Faraday| {
+            if mouse {
+                app.event(Event::Back);
+            } else {
+                app.press(Action::Back);
+            }
+            let _ = app.frame();
+        };
+        let _ = app.frame();
+        assert!(app.drawn_texts().iter().any(|t| t == "Back to Lock"));
+        back(&mut app);
+        assert_eq!(app.screen, Screen::BackupFlow, "a card before, not Tools");
+        assert!(
+            app.drawn_texts()
+                .iter()
+                .any(|t| t == "Back to Make the key")
+        );
+        if mouse {
+            app.event(Event::Forward);
+            let _ = app.frame();
+            assert!(app.drawn_texts().iter().any(|t| t == "Back to Lock"));
+            back(&mut app);
+        }
+        for _ in 0..8 {
+            if app.screen != Screen::BackupFlow {
+                break;
+            }
+            back(&mut app);
+        }
+        assert_eq!(app.screen, Screen::Catalog, "from the first card it leaves");
+    }
 }

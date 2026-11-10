@@ -201,7 +201,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                     app.flows[i].written_of()
                 });
             (
-                fill(EN.backup_flow_item_sticks, &[app.medium.nouns()]),
+                app.medium.write_to().to_string(),
                 if n == 0 {
                     EN.backup_flow_row_none.to_string()
                 } else {

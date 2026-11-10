@@ -123,7 +123,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// The cards the flow draws: a card a plan skips is not drawn and not
 /// counted (§5). A plan with no stick has no stick card, no lock and no
 /// write.
-fn steps_of(f: &BackupFlow) -> Vec<Step> {
+pub(crate) fn steps_of(f: &BackupFlow) -> Vec<Step> {
     // The setup of a wallet's vaults, before its keys, is two cards: the
     // sticks and the vaults.
     if f.is_setup() {
@@ -138,18 +138,22 @@ fn steps_of(f: &BackupFlow) -> Vec<Step> {
 }
 
 pub(crate) fn card_title(app: &Faraday, f: &BackupFlow, s: Step) -> String {
-    let m = app.medium.nouns();
+    card_name(app, f, s).to_string()
+}
+
+/// What card `s` is called: the way back names the card before.
+pub(crate) fn card_name(app: &Faraday, f: &BackupFlow, s: Step) -> &'static str {
     match s {
-        Step::Where if f.kind.is_wallet() => FEN.backup_flow_card_plan.to_string(),
-        Step::Where => FEN.backup_flow_card_where.to_string(),
-        Step::Sticks => fill(FEN.backup_flow_card_sticks, &[m]),
-        Step::Vaults => FEN.backup_flow_card_vaults.to_string(),
-        Step::Make if f.kind.is_wallet() => FEN.backup_flow_card_make_wallet.to_string(),
-        Step::Make if f.restore.is_some() => FEN.gpg_restore_card.to_string(),
-        Step::Make => FEN.backup_flow_card_make.to_string(),
-        Step::Lock => FEN.backup_flow_card_lock.to_string(),
-        Step::Write => fill(FEN.backup_flow_card_write, &[m]),
-        Step::Done => FEN.backup_flow_card_done.to_string(),
+        Step::Where if f.kind.is_wallet() => FEN.backup_flow_card_plan,
+        Step::Where => FEN.backup_flow_card_where,
+        Step::Sticks => app.medium.bring_in(),
+        Step::Vaults => FEN.backup_flow_card_vaults,
+        Step::Make if f.kind.is_wallet() => FEN.backup_flow_card_make_wallet,
+        Step::Make if f.restore.is_some() => FEN.gpg_restore_card,
+        Step::Make => FEN.backup_flow_card_make,
+        Step::Lock => FEN.backup_flow_card_lock,
+        Step::Write => app.medium.write_the(),
+        Step::Done => FEN.backup_flow_card_done,
     }
 }
 
@@ -1540,7 +1544,7 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         items.push((
             FEN.backup_flow_leave.to_string(),
             Style::Primary,
-            fa(F::Back),
+            fa(F::Leave),
         ));
     }
     let refs: Vec<(&str, Style, Action)> =

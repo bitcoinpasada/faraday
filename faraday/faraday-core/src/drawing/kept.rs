@@ -392,6 +392,21 @@ impl Kept {
         m
     }
 
+    /// The map of the plan of `shape` under answers `a` as
+    /// [`Kept::plan_mapped`] keeps it, when it has been worked out; none
+    /// otherwise. Only a lookup.
+    pub(crate) fn plan_mapped_kept(
+        &self,
+        shape: &plan::Shape,
+        a: &plan::Answers,
+    ) -> Option<Rc<plan::Mapped>> {
+        self.plans_mapped
+            .borrow()
+            .iter()
+            .find(|(s, x, _)| s == shape && x == a)
+            .map(|(_, _, m)| m.clone())
+    }
+
     /// Costs a parse of the description and an address the first time.
     /// The first receive address of the wallet description `d` makes on
     /// `net`: worked out the first time it is asked for this description,

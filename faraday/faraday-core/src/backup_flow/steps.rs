@@ -275,17 +275,18 @@ impl Faraday {
                 };
                 f.live.scroll.follow = true;
             }
-            // Back leaves on any card but while writing, where pulling the
+            // Leaving is no way out while writing, where pulling the
             // stick is the way to stop (§5).
-            F::Back if self.flows[i].live.writing.is_some() => {}
+            F::Back | F::Leave if self.flows[i].live.writing.is_some() => {}
             // A wallet's flow left before its keys exist goes back to the
             // Make a new wallet or Restore it came from.
-            F::Back if self.wallet_flow_back(i) => {}
-            F::Back => {
+            F::Back | F::Leave if self.wallet_flow_back(i) => {}
+            F::Back | F::Leave => {
                 self.flows.all[i].on_screen = false;
                 self.flows.on = None;
                 self.vaults.leave_create();
-                self.screen = self.flows.all[i].kind.left_for();
+                // As it was seen when it is the screen before.
+                self.return_back(self.flows.all[i].kind.left_for());
             }
             F::ChangePlan => {
                 let f = &mut self.flows.all[i];
@@ -3509,5 +3510,42 @@ impl Faraday {
             ),
             None => s.name.clone(),
         })
+    }
+}
+
+/// The backup flow's cards, plugged into Back and Forward (F104): Back
+/// opens the card before the open one, and from the first leaves.
+pub(crate) struct FlowSteps;
+
+/// The one [`FlowSteps`].
+pub(crate) static FLOW_STEPS: FlowSteps = FlowSteps;
+
+impl crate::trail::StepFlow for FlowSteps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        let f = app.flow()?;
+        // A vault made in the flow shows Create a vault's own form, which
+        // has its own way back.
+        if f.live.creating.is_some() && app.vaults.create.is_some() {
+            return None;
+        }
+        let order = super::screen::steps_of(f)
+            .into_iter()
+            .map(Step::n)
+            .collect();
+        let mut s = crate::trail::Steps::new(order, f.live.open);
+        // The stick being written takes no Back.
+        s.running = f.live.writing.is_some();
+        Some(s)
+    }
+
+    fn open(&self, _: &Faraday, k: u8) -> Action {
+        Action::Flow(FlowAction::Open(k))
+    }
+
+    fn name(&self, app: &Faraday, k: u8) -> &'static str {
+        match (app.flow(), Step::ALL.get(usize::from(k))) {
+            (Some(f), Some(&s)) => super::screen::card_name(app, f, s),
+            _ => "",
+        }
     }
 }

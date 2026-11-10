@@ -847,11 +847,11 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | Name | Text |
 |---|---|
 | `backup_flow_card_where` | Where it will be kept |
-| `backup_flow_card_sticks` | Bring in the {m}s |
+| `medium_bring_in_sticks` | Bring in the sticks |
 | `backup_flow_card_vaults` | Vaults |
 | `backup_flow_card_make` | Make the key |
 | `backup_flow_card_lock` | Lock |
-| `backup_flow_card_write` | Write the {m}s |
+| `medium_write_the_sticks` | Write the sticks |
 | `backup_flow_card_done` | Done |
 | `backup_flow_add_place` | Add a place |
 | `backup_flow_place_keeps` | A {m} with |
@@ -921,7 +921,7 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | `backup_flow_home_lead` | Continue the backup of {} |
 | `backup_flow_power` | Backup of {}: written to {} of {} places |
 | `backup_flow_in_the_backup` | In the backup |
-| `backup_flow_item_sticks` | Write to {m}s |
+| `medium_write_to_sticks` | Write to sticks |
 
 The plan's lines of §10.3 are the plan's own strings: `plan_all_at_one_place`
 "Every secret of this wallet is at {}. Separate places are strongly

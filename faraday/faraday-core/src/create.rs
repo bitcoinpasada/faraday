@@ -2206,3 +2206,33 @@ impl Faraday {
         }
     }
 }
+
+/// Make a new wallet's cards, plugged into Back and Forward (F104).
+pub(crate) struct CreateSteps;
+
+/// The one [`CreateSteps`].
+pub(crate) static CREATE_STEPS: CreateSteps = CreateSteps;
+
+impl crate::trail::StepFlow for CreateSteps {
+    fn steps(&self, app: &crate::Faraday) -> Option<crate::trail::Steps> {
+        let c = app.create.state()?;
+        let mut s = crate::trail::Steps::new(app.create_cards(), c.open);
+        // The wallet made stays made: Back goes no further than Check.
+        if c.built.is_some() {
+            s.first = Some(cstep::CHECK);
+        }
+        Some(s)
+    }
+
+    fn open(&self, _: &crate::Faraday, k: u8) -> crate::Action {
+        crate::Action::CStep(k)
+    }
+
+    fn name(&self, app: &crate::Faraday, k: u8) -> &'static str {
+        match k {
+            cstep::STICKS => app.medium.bring_in(),
+            cstep::HOW_MANY => app.medium.and_vaults(),
+            k => crate::screens::CSTEPS[usize::from(k)],
+        }
+    }
+}

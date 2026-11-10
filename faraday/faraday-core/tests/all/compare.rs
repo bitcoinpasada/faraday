@@ -286,3 +286,71 @@ fn done_returns_where_the_flow_was_opened() {
     app.press(Action::Compare(ComparePress::Back));
     assert_eq!(app.screen, Screen::Catalog);
 }
+
+/// Back, as the arrow or the mouse's back button takes it.
+fn back(app: &mut Faraday, mouse: bool) {
+    if mouse {
+        app.event(Event::Back);
+    } else {
+        app.press(Action::Back);
+    }
+    let _ = app.frame();
+}
+
+fn back_to(name: &str) -> String {
+    faraday_core::strings::fill(EN.bar_back_to, &[name])
+}
+
+#[test]
+fn back_in_compare_opens_the_card_before_and_from_the_first_leaves() {
+    for mouse in [false, true] {
+        let mut app = testkit::started();
+        open(&mut app);
+        assert_eq!(app.screen, Screen::Compare);
+        app.press(Action::Compare(ComparePress::Card(1)));
+        assert!(shows(&mut app, &back_to(EN.compare_fact_first)));
+        back(&mut app, mouse);
+        assert_eq!(app.screen, Screen::Compare, "the first card, not Tools");
+        assert!(shows(&mut app, &back_to(EN.catalog_tools)));
+        app.event(Event::Forward);
+        let _ = app.frame();
+        assert_eq!(app.screen, Screen::Compare);
+        assert!(
+            shows(&mut app, &back_to(EN.compare_fact_first)),
+            "Forward opens the card Back left"
+        );
+        back(&mut app, mouse);
+        back(&mut app, mouse);
+        assert_ne!(app.screen, Screen::Compare, "from the first card it leaves");
+    }
+}
+
+#[test]
+fn back_in_check_a_signer_opens_the_card_before_and_from_the_first_leaves() {
+    for mouse in [false, true] {
+        let mut app = with_files(vec![
+            ("sent.psbt", vector("signer-core-sent.psbt")),
+            ("signed.psbt", vector("signer-core-signed.psbt")),
+        ]);
+        app.press(Action::Nav(Screen::Files));
+        choose_compare(&mut app, Row::In(1));
+        app.press(Action::Compare(ComparePress::Pick(Slot::First, 0)));
+        app.press(Action::Compare(ComparePress::Pick(Slot::Second, 1)));
+        app.press(Action::Compare(ComparePress::CheckSigner));
+        assert_eq!(app.screen, Screen::SignerCheck);
+        // The Result is open: Back opens Returned, named after Sent.
+        assert!(shows(&mut app, &back_to(EN.signer_returned)));
+        back(&mut app, mouse);
+        assert_eq!(app.screen, Screen::SignerCheck);
+        assert!(shows(&mut app, &back_to(EN.signer_sent)));
+        app.event(Event::Forward);
+        let _ = app.frame();
+        assert!(shows(&mut app, &back_to(EN.signer_returned)));
+        // Result, Returned, Sent: from Sent it leaves.
+        back(&mut app, mouse);
+        back(&mut app, mouse);
+        assert_eq!(app.screen, Screen::SignerCheck);
+        back(&mut app, mouse);
+        assert_ne!(app.screen, Screen::SignerCheck, "from the first it leaves");
+    }
+}

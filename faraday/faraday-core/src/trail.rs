@@ -307,12 +307,6 @@ pub(crate) trait StepFlow: Sync {
     }
 }
 
-/// Whether `a` is only ever a way out of its screen, wherever it is
-/// pressed: the backup flow's Leave, which lands where Back does.
-fn leaves(a: Action) -> bool {
-    matches!(a, Action::Flow(crate::backup_flow::steps::FlowAction::Back))
-}
-
 /// A screen as it was seen: what a way back to it puts back.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Spot {
@@ -459,11 +453,7 @@ impl Faraday {
             .hit()
             .and_then(|i| self.pointer.hits().get(i))
             .is_some_and(|(r, _)| Some(*r) == at);
-        if on_link || leaves(a) {
-            self.as_back(a)
-        } else {
-            a
-        }
+        if on_link { self.as_back(a) } else { a }
     }
 
     /// A person's press of `a`: [`Action::Back`] when `a` is the way out
@@ -683,6 +673,11 @@ impl Faraday {
             Screen::Silent => &crate::silent::SILENT_STEPS,
             Screen::Vanity => &crate::vanity::VANITY_STEPS,
             Screen::KeyGen => &crate::keygen::steps::KEYGEN_STEPS,
+            Screen::Create => &crate::create::CREATE_STEPS,
+            Screen::Backup => &crate::wallet_backup::BACKUP_STEPS,
+            Screen::BackupFlow => &crate::backup_flow::steps::FLOW_STEPS,
+            Screen::Compare => &crate::compare::COMPARE_STEPS,
+            Screen::SignerCheck => &crate::decode::check::SIGNER_STEPS,
             _ => return None,
         })
     }

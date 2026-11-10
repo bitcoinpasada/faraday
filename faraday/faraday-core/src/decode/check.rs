@@ -490,3 +490,31 @@ pub(crate) fn shown(
             .map_or_else(Vec::new, |r| r.not_loaded.clone()),
     }
 }
+
+/// Check a signer's cards, plugged into Back and Forward (F104).
+pub(crate) struct SignerSteps;
+
+/// The one [`SignerSteps`].
+pub(crate) static SIGNER_STEPS: SignerSteps = SignerSteps;
+
+impl crate::trail::StepFlow for SignerSteps {
+    fn steps(&self, app: &crate::Faraday) -> Option<crate::trail::Steps> {
+        let s = app.signer_check()?;
+        Some(crate::trail::Steps::new(
+            (0..=RESULT).collect(),
+            Some(s.open),
+        ))
+    }
+
+    fn open(&self, _: &crate::Faraday, k: u8) -> crate::Action {
+        crate::Action::SignerCheck(SignerPress::Card(k))
+    }
+
+    fn name(&self, _: &crate::Faraday, k: u8) -> &'static str {
+        match k {
+            0 => EN.signer_sent,
+            1 => EN.signer_returned,
+            _ => EN.signer_result,
+        }
+    }
+}

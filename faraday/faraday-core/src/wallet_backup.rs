@@ -2605,6 +2605,70 @@ impl Faraday {
     }
 }
 
+/// Back up a wallet's cards, plugged into Back and Forward (F104): the
+/// plan's questions, then the checklist, each in order.
+pub(crate) struct BackupSteps;
+
+/// The one [`BackupSteps`].
+pub(crate) static BACKUP_STEPS: BackupSteps = BackupSteps;
+
+impl crate::trail::StepFlow for BackupSteps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        let b = app.backup()?;
+        let shape = app.plan_shape_now(b.wallet);
+        // Only what a frame has worked out: until then there are no steps,
+        // and Back leaves.
+        let mapped = app.kept.plan_mapped_kept(&shape, &b.answers)?;
+        Some(if b.stage == BStage::Checklist {
+            let order = plan::checklist_on(&shape, &b.answers, &mapped)
+                .into_iter()
+                .map(bstep::of)
+                .collect();
+            crate::trail::Steps::new(order, b.open)
+        } else {
+            crate::trail::Steps::new(plan_cards_on(&mapped), b.q)
+        })
+    }
+
+    fn open(&self, app: &Faraday, k: u8) -> Action {
+        if app.backup().is_some_and(|b| b.stage == BStage::Checklist) {
+            Action::BStep(k)
+        } else {
+            Action::BQ(k)
+        }
+    }
+
+    fn name(&self, app: &Faraday, k: u8) -> &'static str {
+        let Some(b) = app.backup() else {
+            return "";
+        };
+        if b.stage != BStage::Checklist {
+            return match k {
+                qstep::BOARD => EN.board_title,
+                qstep::SOFTWARE => EN.question_title_software,
+                _ => EN.backup_flow_the_plan,
+            };
+        }
+        match bstep::item(k).unwrap_or(plan::Item::Envelopes) {
+            plan::Item::Templates => EN.backup_step_templates,
+            plan::Item::Copy(_) => EN.backup_step_copy,
+            plan::Item::Codex32(_) => EN.backup_step_codex32,
+            plan::Item::Passphrase(_) => EN.backup_step_passphrase,
+            plan::Item::KefCode(_) => EN.backup_step_kef,
+            plan::Item::Vault(_) => EN.backup_step_vault,
+            plan::Item::SeedFiles => EN.item_title_the_seeds,
+            plan::Item::Sheets if b.answers.split && app.plan_shape_now(b.wallet).splits => {
+                EN.item_title_the_shares
+            }
+            plan::Item::Sheets => EN.item_title_the_wallet,
+            plan::Item::PublicFiles => EN.item_title_the_public,
+            plan::Item::ShowDescriptor => EN.item_title_show_descriptor,
+            plan::Item::Envelopes => EN.item_title_one_envelope,
+            plan::Item::Sticks => app.medium.write_to(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

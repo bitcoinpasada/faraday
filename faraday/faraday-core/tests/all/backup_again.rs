@@ -459,3 +459,40 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
     let sent = &app.backup().unwrap().sent;
     assert!(sent.iter().any(|n| n.ends_with("-bsms.txt")), "{sent:?}");
 }
+
+#[test]
+fn back_in_back_up_a_wallet_opens_the_card_before_and_from_the_first_leaves() {
+    for mouse in [false, true] {
+        let mut app = device(vec![kit_file("savings-wallet.txt")]);
+        let w = load(&mut app, "savings-wallet.txt");
+        app.press(Action::Backup(w));
+        assert_eq!(app.screen, Screen::Backup);
+        assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
+        app.press(Action::BQ(qstep::PLAN));
+        assert_eq!(app.backup().unwrap().q, Some(qstep::PLAN));
+        let _ = app.frame();
+        let back = |app: &mut Faraday| {
+            if mouse {
+                app.event(Event::Back);
+            } else {
+                app.press(Action::Back);
+            }
+            let _ = app.frame();
+        };
+        back(&mut app);
+        assert_eq!(app.screen, Screen::Backup);
+        assert_eq!(
+            app.backup().unwrap().q,
+            Some(qstep::BOARD),
+            "the card before"
+        );
+        if mouse {
+            app.event(Event::Forward);
+            let _ = app.frame();
+            assert_eq!(app.backup().unwrap().q, Some(qstep::PLAN));
+            back(&mut app);
+        }
+        back(&mut app);
+        assert_ne!(app.screen, Screen::Backup, "from the first card it leaves");
+    }
+}

@@ -15,7 +15,6 @@
 
 use std::rc::Rc;
 
-use crate::strings::fill;
 use faraday_crypto::work::Compute;
 
 use crate::backup_flow::{Kind, Step};
@@ -766,7 +765,7 @@ impl Faraday {
             .or_else(|| cards.iter().copied().find(|&k| !self.create_card_done(k)))
             .or_else(|| cards.last().copied())?;
         Some(if k == crate::cstep::STICKS {
-            fill(EN.backup_flow_card_sticks, &[self.medium.nouns()])
+            self.medium.bring_in().to_string()
         } else if k == crate::cstep::HOW_MANY {
             self.medium.and_vaults().to_string()
         } else {
