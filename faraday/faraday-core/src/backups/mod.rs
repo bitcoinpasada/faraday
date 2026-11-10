@@ -1920,7 +1920,7 @@ impl Faraday {
                 let Some(draw) =
                     self.fresh_bytes(b"codex32 rotation", faraday_keys::codex32_random_len(*k))
                 else {
-                    return Err(Some(EN.paper_no_randomness.to_string()));
+                    return Err(Some(EN.no_randomness.to_string()));
                 };
                 let made = self
                     .session

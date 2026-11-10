@@ -2206,8 +2206,13 @@ impl Faraday {
     /// changed vaults draw (the seal's random bytes in 32-byte answers for each,
     /// and one more for each vault with new entries' identifiers).
     pub fn seal_waits(&self) -> bool {
-        let need: usize = self
-            .vaults
+        let need = self.seal_answers_needed();
+        need > 0 && !self.seal_answers_ready(need)
+    }
+
+    /// The answers the seals of the changed vaults take.
+    pub(crate) fn seal_answers_needed(&self) -> usize {
+        self.vaults
             .open
             .iter()
             .filter(|v| v.changes > 0)
@@ -2215,8 +2220,7 @@ impl Faraday {
                 let entries = self.vaults.store().uuid_bytes(v.id).unwrap_or(0);
                 faraday_keys::vault::SEAL_RANDOM_LEN.div_ceil(32) + usize::from(entries > 0)
             })
-            .sum();
-        need > 0 && !self.seal_answers_ready(need)
+            .sum()
     }
 
     /// Costs what [`Vaults::seal_loses`] costs. Whether a lock would lose
@@ -2627,7 +2631,7 @@ impl Faraday {
         };
         let (Some(primary), Some(subkey)) = (self.fresh(b"gpg primary"), self.fresh(b"gpg subkey"))
         else {
-            return Err(EN.gpg_no_randomness.to_string());
+            return Err(EN.no_randomness.to_string());
         };
         let primary = Zeroizing::new(primary);
         let subkey = Zeroizing::new(subkey);

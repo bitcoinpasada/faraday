@@ -31,6 +31,7 @@ use crate::{Faraday, out::Out};
 
 pub mod page;
 pub(crate) mod roller;
+mod wait;
 
 /// Answers kept waiting for the next key: as many as the most one press
 /// takes ([`Fresh::take_bytes`]), a codex32 set any nine of which recover
@@ -43,11 +44,11 @@ pub const POOL: usize = 26;
 /// shape that does.
 pub(crate) const TAKE_MAX: usize = POOL * 32;
 
-/// How long after the first display a missing seed is said on screen.
-/// The shell answers the first `RequestEntropy` within the first frame;
-/// two seconds is many frames on the slowest panel, so a seed still
-/// missing then is a system that gives no randomness, not a slow one.
-pub(crate) const SEED_GRACE_MS: u64 = 2_000;
+/// How long after the first display a missing seed means the system
+/// gives no randomness (F102). A kernel that credits no chip's generator
+/// can take many seconds on a slow board, so nothing is said sooner; a
+/// press that needs the seed waits until then, and after it says so.
+pub(crate) const NO_SEED_MS: u64 = 60_000;
 
 /// The session's seed: the shell's first 32 bytes, hashed with what the
 /// person added of their own when they have, and again at each addition
@@ -252,8 +253,10 @@ pub(crate) struct Fresh {
     /// When the wait for the seed started: the first tick after the
     /// display.
     seed_wait_from: Option<u64>,
-    /// Whether the last frame said the seed is missing.
-    seed_missing_drawn: bool,
+    /// A press that needs the system's randomness and found the seed
+    /// not yet in: it goes on by itself once the answers are (F102), with
+    /// the time it was pressed.
+    waiting: Option<(crate::Action, u64, usize)>,
     /// Signing passes that drew a seed of their own.
     sign_draws: u64,
     /// Fresh answers waiting for the next key.
@@ -443,23 +446,55 @@ impl Fresh {
         self.pool.is_empty()
     }
 
-    /// The seed is still missing well after the first display.
-    pub(crate) fn missing(&self, now_ms: u64) -> bool {
+    /// The seed is still missing a minute after the first display: the
+    /// system gives no randomness.
+    pub(crate) fn gives_none(&self, now_ms: u64) -> bool {
         self.seed.is_none()
             && self
                 .seed_wait_from
-                .is_some_and(|from| now_ms.saturating_sub(from) >= SEED_GRACE_MS)
+                .is_some_and(|from| now_ms.saturating_sub(from) >= NO_SEED_MS)
+    }
+
+    /// A press that needs the system's randomness waits for it.
+    pub(crate) fn wait_on(&mut self, action: crate::Action, now_ms: u64, answers: usize) {
+        self.waiting = Some((action, now_ms, answers));
+    }
+
+    /// The press that waits, if one does.
+    pub(crate) fn waiting(&self) -> Option<crate::Action> {
+        self.waiting.map(|(a, ..)| a)
+    }
+
+    /// The press that waits, once the seed and a full pool are in: taken,
+    /// to go on.
+    pub(crate) fn take_ready(&mut self) -> Option<crate::Action> {
+        let (_, _, answers) = self.waiting?;
+        if self.answers_ready(answers) {
+            self.waiting.take().map(|(a, ..)| a)
+        } else {
+            None
+        }
+    }
+
+    /// Whatever waits is let go (a new press, or a Back, replaces it).
+    pub(crate) fn wait_cancel(&mut self) {
+        self.waiting = None;
     }
 
     /// The tick: the wait for the seed starts at the first one after
-    /// the display (`displayed`); returns whether the missing seed's
-    /// line changed.
+    /// the display (`displayed`). Returns whether a waiting press gave up
+    /// (a minute with no seed, or no answers): it did nothing.
     pub(crate) fn tick(&mut self, displayed: bool, now_ms: u64) -> bool {
         if self.seed.is_none() && displayed && self.seed_wait_from.is_none() {
             self.seed_wait_from = Some(now_ms);
         }
-        let missing = self.missing(now_ms);
-        missing != std::mem::replace(&mut self.seed_missing_drawn, missing)
+        let gave_up = self.waiting.is_some_and(|(_, at, _)| {
+            self.gives_none(now_ms) || now_ms.saturating_sub(at) >= NO_SEED_MS
+        });
+        if gave_up {
+            self.waiting = None;
+        }
+        gave_up
     }
 
     /// The first display asks for the seed and fills the pool.
@@ -808,17 +843,20 @@ impl Faraday {
         self.fresh.answers_ready(n)
     }
 
-    /// The seed is still missing well after the first display: the
-    /// system gives no randomness, and the screen says Faraday has to
-    /// restart.
-    pub fn seed_missing(&self) -> bool {
-        self.fresh.missing(self.now_ms)
+    /// The seed is still missing a minute after the first display: a
+    /// press that needs the system's randomness says so and does nothing.
+    pub fn randomness_gives_none(&self) -> bool {
+        self.fresh.gives_none(self.now_ms)
     }
 
-    /// The tick: see [`Fresh::tick`].
+    /// The tick: see [`Fresh::tick`]. A press that gave up says so.
     pub(crate) fn seed_tick(&mut self) -> bool {
         let now = self.now_ms;
-        self.fresh.tick(self.canvas.is_some(), now)
+        let gave_up = self.fresh.tick(self.canvas.is_some(), now);
+        if gave_up {
+            self.toast(crate::strings::EN.no_randomness);
+        }
+        gave_up
     }
 
     /// The first display asks for the seed and fills the pool.

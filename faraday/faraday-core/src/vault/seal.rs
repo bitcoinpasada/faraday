@@ -148,7 +148,7 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
     let (id, changed) = (v.id, v.changes > 0);
     if changed && !app.seeded() {
         app.out.command(faraday_shell_api::Command::RequestEntropy);
-        app.toast(EN.seed_missing);
+        app.toast(EN.no_randomness);
         return false;
     }
     // The item moved out of it is in no sealed file until its target's.
@@ -393,7 +393,7 @@ fn seal_work(app: &mut Faraday, id: VaultId) -> Result<SealWork, NoJob> {
 fn seal_stop(app: &mut Faraday, why: NoJob) {
     app.vaults.state.sealing = None;
     app.toast(match why {
-        NoJob::Seed => EN.seed_missing,
+        NoJob::Seed => EN.no_randomness,
         NoJob::Unwritable => EN.vaults_cannot_write,
     });
 }

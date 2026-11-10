@@ -574,7 +574,7 @@ fn identifier(app: &View, m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             cy += t::TOUCH + t::GAP;
             (x, cy - t::TOUCH - t::GAP)
         };
-        let s = EN.codex32_suggest;
+        let s = app.wait_label(Action::Codex32(C32::Suggest), EN.codex32_suggest);
         ui.button(
             sx,
             sy,

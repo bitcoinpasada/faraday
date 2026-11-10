@@ -588,7 +588,14 @@ pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let (head, line, lock) = if app.seal_waits() {
         (
             (Icon::Error.into(), Role::Error.paint(), EN.vault_lock),
-            (EN.seed_missing, Role::Error.paint()),
+            (
+                if app.randomness_gives_none() {
+                    EN.no_randomness
+                } else {
+                    EN.waiting_for_randomness
+                },
+                Role::Error.paint(),
+            ),
             (EN.vault_lock_without_sealing, Action::LockUnsealed),
         )
     } else if blocks.loses {
@@ -1517,7 +1524,7 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 Role::OnSurfaceVariant,
                 EN.new_input_the_name,
             ) + 12.0;
-            if d.keyboard && d.code.is_none() && app.seed_missing() {
+            if d.keyboard && d.code.is_none() && app.randomness_gives_none() {
                 cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::Error, EN.new_input_no_code) + 12.0;
             }
             if d.keyboard
@@ -1620,7 +1627,7 @@ fn new_input_target(app: &View, ui: &mut Ui, (w, h): (f32, f32), d: &crate::inpu
     let room_h =
         (room_h - enter.map_or(0.0, |t| ui.wrap_height_as(LABEL_L, t, iw) + GAP_SMALL)).max(0.0);
     let of = crate::inputs::target_count(room_w, room_h);
-    let (lead, ink) = if of.is_none() || (d.spots.is_none() && app.seed_missing()) {
+    let (lead, ink) = if of.is_none() || (d.spots.is_none() && app.randomness_gives_none()) {
         (none, Role::Error)
     } else {
         (ask, Role::OnSurfaceVariant)

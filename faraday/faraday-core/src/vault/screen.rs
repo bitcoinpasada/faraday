@@ -2593,7 +2593,7 @@ fn detail(
                 dy += own_row(app, ui, (dx, dy, dw));
             }
             let label = match p.purpose {
-                vault::Purpose::Kdbx => EN.vault_seal_and_export,
+                vault::Purpose::Kdbx => app.wait_label(va(V::PromptGo), EN.vault_seal_and_export),
                 vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => EN.vault_load,
             };
             let sw = if crate::screens::pin_button(
@@ -3152,7 +3152,10 @@ fn detail(
             } else {
                 // The enrolment files' blinding is drawn (row 9).
                 dy += own_row(app, ui, (dx, dy, dw));
-                actions.push((EN.vault_enrolment_files, va(V::SbEnrol)));
+                actions.push((
+                    app.wait_label(va(V::SbEnrol), EN.vault_enrolment_files),
+                    va(V::SbEnrol),
+                ));
             }
             actions.push((EN.vault_sign_or_check, va(V::SbImages)));
         }

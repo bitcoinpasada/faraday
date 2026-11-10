@@ -616,11 +616,6 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         y += 38.0;
     }
 
-    // The system gave no randomness: nothing seals until a restart.
-    if app.seed_missing() {
-        y += ui.wrap_as((M, y, inner), LABEL_L, Role::Error, EN.seed_missing) + 10.0;
-    }
-
     // What this session holds.
     let keys = app.session.keys.len();
     let wallets = app.session.wallets.len();

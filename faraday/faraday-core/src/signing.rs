@@ -93,7 +93,7 @@ pub(crate) fn sign_here(app: &mut Faraday) {
         Some(seed) => seed,
         None if opens_round => {
             if let Some(s) = app.wallets.spend_mut() {
-                s.error = Some(EN.sign_here_no_randomness.to_string());
+                s.error = Some(EN.no_randomness.to_string());
             }
             return;
         }

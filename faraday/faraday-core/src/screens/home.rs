@@ -7,7 +7,7 @@ use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Ui};
 use crate::{Action, Screen};
-use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, SHAPE_M, TITLE_M};
+use faraday_draw::tokens::{BODY_M, BODY_S, SHAPE_M, TITLE_M};
 use faraday_draw::tokens::{
     HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, MARGIN_WIDE, TILE_H, TILE_MIN,
 };
@@ -375,13 +375,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
     let x = x0 + 56.0;
     let width = cw - (x - x0) - MARGIN_WIDE;
     let mut y = super::bar_head(ui, None, EN.home_home);
-    // The system gave no randomness: nothing seals until a restart.
-    if app.seed_missing() {
-        ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Error, 14.0, Role::Error);
-        let line = ui.fit_as(LABEL_L, EN.seed_missing, width - 28.0);
-        ui.text_as(x + 26.0, y, LABEL_L, Role::Error, &line);
-        y += ui.line_as(LABEL_L) + faraday_draw::tokens::PAD;
-    }
     section_label(ui, x, y, EN.home_start);
     y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
 

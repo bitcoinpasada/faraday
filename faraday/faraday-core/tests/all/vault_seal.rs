@@ -90,6 +90,7 @@ fn lock(app: &mut Faraday) {
 fn with_no_randomness_a_lock_seals_nothing_until_it_arrives() {
     let mut app = device(cheap_vault());
     let held = open_and_change(&mut app);
+    app.event(Event::Tick { now_ms: 1_000 });
     app.event(Event::Tick { now_ms: 120_000 });
 
     app.press(Action::Lock);
@@ -101,7 +102,7 @@ fn with_no_randomness_a_lock_seals_nothing_until_it_arrives() {
     assert!(app.vaults().open[0].changes > 0);
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == EN.seed_missing), "{texts:?}");
+    assert!(texts.iter().any(|t| t == EN.no_randomness), "{texts:?}");
     // The vault's changes are listed as wiped from memory.
     let wiped = texts.iter().position(|t| t == "Wiped from memory");
     let lost = texts
@@ -112,15 +113,14 @@ fn with_no_randomness_a_lock_seals_nothing_until_it_arrives() {
         texts.iter().any(|t| t == EN.vault_lock_without_sealing),
         "{texts:?}"
     );
-    // Home says it too.
+    // Home says nothing of it.
     app.press(Action::Cancel);
     app.press(Action::Nav(Screen::Home));
-    assert!(app.drawn_texts().iter().any(|t| t == EN.seed_missing));
+    assert!(!app.drawn_texts().iter().any(|t| t == EN.no_randomness));
 
     // The randomness arrives: the same lock seals, and the file opens with
     // the passphrase, holding the key saved into it.
     randomness(&mut app, 0x21);
-    assert!(!app.drawn_texts().iter().any(|t| t == EN.seed_missing));
     // A seal waits for five answers: the seed and four more are short.
     for b in 0..4 {
         randomness(&mut app, 0x30 + b);

@@ -153,7 +153,7 @@ impl Faraday {
             return Err(EN.secureboot_this_computer.to_string());
         };
         let Some(seed) = self.fresh(b"secure boot") else {
-            return Err(EN.secureboot_no_randomness.to_string());
+            return Err(EN.no_randomness.to_string());
         };
         let owner = owner.trim();
         // The enrolment files are made with the keys, as the policy chosen
@@ -165,7 +165,7 @@ impl Faraday {
         };
         let blind_seed = self
             .fresh(b"secure boot enrolment")
-            .ok_or_else(|| EN.secureboot_no_randomness.to_string())?;
+            .ok_or_else(|| EN.no_randomness.to_string())?;
         let made = faraday_keys::secure_boot::create(&seed, &blind_seed, owner, policy, now)
             .map_err(|e| error_text(e).to_string())?;
         Ok(Built {
@@ -198,7 +198,7 @@ impl Faraday {
         };
         // The signing is blinded with fresh bytes of the system's.
         let Some(seed) = self.fresh(b"secure boot enrolment") else {
-            return self.toast(EN.secureboot_no_randomness);
+            return self.toast(EN.no_randomness);
         };
         match self.vaults.store().sb_enrolment(id, at, &seed, policy, now) {
             Some(Ok(files)) => {
@@ -231,7 +231,7 @@ impl Faraday {
         };
         // The signing is blinded with fresh bytes of the system's.
         let Some(seed) = self.fresh(b"secure boot signing") else {
-            return self.toast(EN.secureboot_no_randomness);
+            return self.toast(EN.no_randomness);
         };
         let Some(item) = self.inbox.get(k) else {
             return;

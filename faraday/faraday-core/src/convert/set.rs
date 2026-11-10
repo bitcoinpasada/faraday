@@ -121,7 +121,7 @@ pub(crate) fn refused_text(r: &SetRefused, medium: crate::Medium) -> String {
         SetRefused::Practice => EN.convert_set_practice.to_string(),
         SetRefused::Share(e) => faraday_strings::bip::slip39_error(e),
         SetRefused::NotGiven => EN.convert_not_given.to_string(),
-        SetRefused::NoRandomness => EN.convert_no_randomness.to_string(),
+        SetRefused::NoRandomness => EN.no_randomness.to_string(),
         SetRefused::SameIdentifier | SetRefused::NotSameSet => EN.convert_not_same_set.to_string(),
     }
 }
@@ -417,7 +417,7 @@ pub(crate) fn make(app: &mut Faraday) {
             let mut out = Err(SetRefused::SameIdentifier);
             for _ in 0..8 {
                 let Some(random) = app.fresh_bytes(b"convert split", need) else {
-                    return app.toast(EN.convert_no_randomness);
+                    return app.toast(EN.no_randomness);
                 };
                 out = app
                     .session
@@ -432,7 +432,7 @@ pub(crate) fn make(app: &mut Faraday) {
         }
     };
     if let Err(SetRefused::NoRandomness) = given {
-        return app.toast(EN.convert_no_randomness);
+        return app.toast(EN.no_randomness);
     }
     app.tools
         .convert_mut()

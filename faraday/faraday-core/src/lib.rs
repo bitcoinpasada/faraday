@@ -2288,6 +2288,10 @@ impl Faraday {
         if self.lock_would_lose(&c) {
             if self.seal_waits() {
                 self.out.commands.push_back(Command::RequestEntropy);
+                // The seal goes on by itself once the answers are in.
+                if !self.randomness_gives_none() {
+                    self.wait_for_randomness(Action::Lock, self.seal_answers_needed());
+                }
             }
             self.vaults.name_lock(&c);
             self.sheet = Some(Sheet::LockAsk);
@@ -2379,6 +2383,11 @@ impl Faraday {
 
     fn act(&mut self, action: Action) {
         if !self.taken_while_busy(action) {
+            return;
+        }
+        // A press that needs the system's randomness before the seed
+        // arrived waits for it (F102).
+        if self.seed_gate(action) {
             return;
         }
         let asked = self.session.key_path_asked().is_some();

@@ -148,9 +148,10 @@ strings! {
     devices_understood: "I understand",
     /// The button that goes back from them.
     devices_cancel: "Cancel",
-    /// Home, while the system has given no randomness well after the
-    /// start: nothing is sealed and no keyboard gets a code.
-    seed_missing: "No randomness from the system. Faraday has to restart",
+    /// A press that needs the system's randomness, a minute after the first display with none (F102): it does nothing.
+    no_randomness: "The system gives no randomness",
+    /// A button whose press waits for the system's randomness, and the Lock sheet's line (F102).
+    waiting_for_randomness: "Waiting for randomness",
     // ----- The Starter (docs/STARTER.md), faraday-starter -----
     /// Title of the Starter's Home, where the way back goes.
     starter_home: "Home",
@@ -1294,8 +1295,6 @@ strings! {
     convert_fresh_value: "Faraday's",
     /// What follows a part's number, before a space and the part, in a result of several.
     convert_part_sep: ":",
-    /// Toast when a target that draws randomness finds none yet.
-    convert_no_randomness: "No randomness from the system yet. Try again",
     /// From's button for the set source.
     convert_set_source: "A SLIP-39 set",
     /// From's summary with a set held. `{}`: its identifier.
@@ -3076,8 +3075,6 @@ strings! {
     gpg_this_computer_s: "This computer's clock is not known",
     /// Error in `gpg_make`.
     gpg_a_key_needs_a_name: "A key needs a name or an email",
-    /// Error in `gpg_make`.
-    gpg_no_randomness: "No randomness from the system yet. Try again",
     /// Text in `gpg_code`. `{}`: `faraday_pgp::fingerprint_text(&key.fi…`.
     gpg_fingerprint: "Fingerprint {}",
     /// Error in `gpg_code`.
@@ -3528,8 +3525,6 @@ strings! {
     keygen_mix_needs_dice_or_device: "A mix takes dice or this device among its sources",
     /// Text in `keygen_act`.
     keygen_choose_a_source: "Choose a source",
-    /// Note in `keygen_act`.
-    keygen_no_randomness: "No randomness from the system yet. Try again",
     /// Note in `keygen_lock`.
     keygen_the_two_passphrases: "The two passphrases differ",
     /// Text in `keygen_lock`. `{}`: `self.new_keys + 1`.
@@ -3600,9 +3595,6 @@ strings! {
     /// This device's randomness once the person has added their own,
     /// which it mixes in (OWN-RANDOMNESS §2.4). `{}`: the line above.
     keygen_device_with_own: "{} · with your own",
-    /// This device's foot button while the shell's answer is not in
-    /// (F102).
-    keygen_waiting_for_randomness: "Waiting for randomness",
     /// Text in `summary`. `{}`: `k.slip_m`, `k.slip_n`, `k.words`.
     keygen_slip_39_of_shares: "SLIP-39 · {} of {} shares · {} words each",
     /// Text in `summary`. `{}`: `source_name(Source::Coins)`.
@@ -4708,8 +4700,6 @@ strings! {
     // ----- sign_here (faraday-core/src/lib.rs) -----
     /// Text in `sign_here`. `{}`: `waiting.join(", ")`.
     sign_here_backup_first: "{} waits for its backup: finish the backup first",
-    /// Error in `sign_here`.
-    sign_here_no_randomness: "No randomness from the system yet. Try again",
     /// Text in `sign_here`.
     sign_here_this_transaction: "This transaction was signed here before with other amounts for its inputs. It is refused.",
     /// Toast in `sign_here`.
@@ -4860,8 +4850,6 @@ strings! {
     // ----- paper (faraday-core/src/paper.rs) -----
     /// Toast in `paper_xor`.
     paper_no_words_to_split: "This key has no words to split",
-    /// Toast in `paper_codex32`.
-    paper_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `paper_codex32`. `{}`: `e`.
     paper_codex32: "codex32: {}",
     // ----- pdf (faraday-core/src/pdf.rs) -----
@@ -7949,8 +7937,6 @@ strings! {
     /// Text in `vault_stick_save_write`: more than one file, one of them a seed. `{}`: how many, `self.medium.for_the()`.
     secrets_wait_unprotected: "{} files wait {}, unprotected",
     // ----- secureboot (faraday-core/src/secure_boot/mod.rs) -----
-    /// Toast in `sb_make`.
-    secureboot_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `sb_enrol`.
     secureboot_this_computer: "This computer's clock is not known",
     /// A Secure Boot key could not be made, read or used.
@@ -9728,8 +9714,6 @@ strings! {
     /// Text in `vault_create_check`, free memory not reported. `{}`:
     /// Light's memory.
     vaults_memory_unknown_create: "This computer does not say how much memory it has free. Choose Light, {}, which opens anywhere.",
-    /// Error in `vault_create`.
-    vaults_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `vault_create`.
     vaults_vault_created: "Vault created",
     /// Text in `line`.

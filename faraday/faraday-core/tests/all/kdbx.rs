@@ -286,7 +286,7 @@ fn exporting_for_keepass_before_the_randomness_arrives_says_why() {
     assert!(
         app.drawn_texts()
             .iter()
-            .any(|t| t == faraday_strings::EN.vaults_no_randomness),
+            .any(|t| t == faraday_strings::EN.no_randomness),
         "the prompt says why"
     );
     assert!(

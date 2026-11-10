@@ -1921,7 +1921,7 @@ impl Faraday {
         }
         let Some(draw) = self.fresh_bytes(b"seed xor", faraday_keys::seed_xor_random_len(parts))
         else {
-            return self.toast(EN.paper_no_randomness);
+            return self.toast(EN.no_randomness);
         };
         let Some(b) = self.backup.state() else {
             return;

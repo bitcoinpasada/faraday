@@ -479,7 +479,7 @@ fn creating_a_vault_with_too_few_answers_says_the_randomness_has_not_come() {
     assert!(
         app.drawn_texts()
             .iter()
-            .any(|t| t == faraday_strings::EN.vaults_no_randomness),
+            .any(|t| t == faraday_strings::EN.no_randomness),
         "the form says why"
     );
 }

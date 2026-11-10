@@ -179,9 +179,9 @@ fn a_keyboard_before_the_systems_randomness_gets_no_code_until_it_arrives() {
     type_on(&mut app, 8, &"acdefh".repeat(4));
     assert_eq!(app.poll_input_decision(), None);
     assert_eq!(app.new_inputs().len(), 1);
-    // Past the first moments with no randomness, the sheet says so.
+    // A minute with no randomness, the sheet says so.
     app.event(Event::Tick { now_ms: 1 });
-    app.event(Event::Tick { now_ms: 5_000 });
+    app.event(Event::Tick { now_ms: 61_000 });
     assert!(app.drawn_texts().iter().any(|t| t == EN.new_input_no_code));
     // The randomness arrives: the keyboard gets its code, and typing it
     // lets it in.
@@ -429,7 +429,7 @@ fn a_touchscreen_before_the_systems_randomness_has_no_target_until_it_arrives() 
     }
     assert_eq!(app.poll_input_decision(), None);
     app.event(Event::Tick { now_ms: 1 });
-    app.event(Event::Tick { now_ms: 5_000 });
+    app.event(Event::Tick { now_ms: 61_000 });
     assert!(
         app.drawn_texts()
             .iter()

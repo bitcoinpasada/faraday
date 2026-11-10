@@ -604,7 +604,7 @@ impl KeyGen {
             return Err(EN.keygen_no_secret_yet.to_string());
         };
         let Some(random) = random.get(..self.deal_random_len(secret.len())) else {
-            return Err(EN.keygen_no_randomness.to_string());
+            return Err(EN.no_randomness.to_string());
         };
         let (id, mut rest) = random.split_at(2);
         let identifier = u16::from_le_bytes([id[0], id[1]]) & 0x7fff;
@@ -636,7 +636,7 @@ impl KeyGen {
             )
         })?;
         if short || !rest.is_empty() {
-            return Err(EN.keygen_no_randomness.to_string());
+            return Err(EN.no_randomness.to_string());
         }
         out.truncate(n);
         self.shares = out;
@@ -1893,6 +1893,8 @@ impl crate::Faraday {
             self.fresh_arrived(bytes);
             zeroize::Zeroize::zeroize(&mut bytes);
         }
+        // A press that waited for the randomness goes on (F102).
+        self.seed_replay();
     }
 
     /// Takes the shell's answer when the flow asked for it. Returns

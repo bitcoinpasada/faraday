@@ -358,7 +358,7 @@ fn set_step(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), form: &C32, st:
     let mut cy = y;
     let id = form.id_text();
     let mut next: Option<(&str, Action)> = None;
-    let made_label;
+    let mut made_label;
     match &st.set {
         SetStep::None => {}
         SetStep::Typing { index } => {
@@ -381,6 +381,9 @@ fn set_step(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), form: &C32, st:
                 cy += keyboard(ui, x, cy, w);
             } else if let Some(j) = index {
                 made_label = fill(EN.c32_make_share, &[&name(usize::from(*j))]);
+                if app.waits_for_randomness(set(SetPress::MakeNew)) {
+                    made_label = EN.waiting_for_randomness.to_string();
+                }
                 next = Some((made_label.as_str(), set(SetPress::MakeNew)));
             }
         }
@@ -409,7 +412,10 @@ fn set_step(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), form: &C32, st:
             // The new set's shares draw the system's randomness
             // (`docs/OWN-RANDOMNESS.md` §8.1 row 12).
             cy += crate::screens::randomness::row(app, ui, (x, cy, w));
-            next = Some((EN.c32_make_new_set, set(SetPress::MakeNew)));
+            next = Some((
+                app.wait_label(set(SetPress::MakeNew), EN.c32_make_new_set),
+                set(SetPress::MakeNew),
+            ));
         }
     }
     cy += note(ui, x, cy, w, st);

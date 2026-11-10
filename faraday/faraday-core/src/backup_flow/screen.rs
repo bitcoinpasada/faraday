@@ -1336,7 +1336,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         cy,
         None,
         BUTTON_H,
-        FEN.backup_flow_make_the_key,
+        app.wait_label(fa(F::Make), FEN.backup_flow_make_the_key),
         Style::Primary,
         fa(F::Make),
         52.0,

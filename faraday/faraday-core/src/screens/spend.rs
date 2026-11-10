@@ -365,7 +365,16 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel
             &[&can_sign_here.len().to_string()],
         )
     });
-    let label = ActionLabel { long: label, short };
+    // A press that waits for the system's randomness says so.
+    let waits = app.waits_for_randomness(Action::SignHere);
+    let label = if waits {
+        ActionLabel {
+            long: EN.waiting_for_randomness.to_string(),
+            short: None,
+        }
+    } else {
+        ActionLabel { long: label, short }
+    };
     let style = if stopped {
         Style::PrimaryOff
     } else {
@@ -1224,7 +1233,8 @@ pub(crate) fn step_body(
                 if crate::spend_opens_round(i) {
                     cy += super::randomness::row(app, ui, (x, cy, w));
                 }
-                cy += sign_row(ui, (x, cy, w), &inputs, &label, Style::Primary);
+                let label = app.wait_label(Action::SignHere, &label);
+                cy += sign_row(ui, (x, cy, w), &inputs, label, Style::Primary);
             }
         }
         6 => {

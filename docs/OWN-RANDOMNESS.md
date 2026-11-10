@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (`faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (`faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (`core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
-**Open:** §8.5 test 3's known answer for a MuSig2 public nonce (the GPG key, Seed XOR and This device's words have theirs); §3.5's late seed and the Pi's generator (F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Open:** §8.5 test 3's known answer for a MuSig2 public nonce (the GPG key, Seed XOR and This device's words have theirs); the Pi's generator (§3.5, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and
@@ -40,9 +40,8 @@ configuration, and a plan for the boot measurement (QEMU, then one real PC in pa
   (what ‖ seed ‖ count): a vault's seal nonces, a new keyboard's code.
   `sign_seed` draws a MuSig2 round's nonces from the seed with a
   count. Nothing is made before the first answer: `seeded()` is false,
-  `fresh` and `sign_seed` return `None`, and after two seconds Home says
-  the system gave no randomness (changed by F102, §3.5: nothing is said
-  at start; a press that needs the seed waits for it).
+  `fresh` and `sign_seed` return `None`. Nothing is said at start; a press
+  that needs the seed waits for it (§3.5).
 - **New key** (`faraday/faraday-core/src/keygen/mod.rs`, `core/faraday-entropy`)
   already offers dice, coins, cards, hex, this device (`DeviceRandom`,
   one answer of its own, not the pool) and a mix of two to five of dice,
@@ -139,8 +138,8 @@ on) are the page's, not the source's.
   that holds the press carries the Randomness row (§8.2): the status
   line and **Add randomness**, which opens this page and comes back to
   the press.
-- Not on Home: Home is a working screen. Its missing-seed line goes
-  (F102, §3.5).
+- Not on Home: Home is a working screen and says nothing of a seed that
+  has not arrived (§3.5).
 - Not at boot: the stick's and the Pi's shells do not offer it before
   the passphrase; it is reached from Settings, New key and the presses
   of §8.1.
@@ -366,16 +365,14 @@ real PC, is still to read.
 
 ### 3.5 A late seed, and the Pi's generator (F102)
 
-- **Nothing at start.** Home's missing-seed line and `SEED_GRACE_MS`'s
-  two seconds go. Nothing a person does in the first seconds needs
-  randomness.
-- **A press that needs it waits.** Making a key, a vault, a share set,
-  a signing round's nonces: while the seed has not arrived, the button
-  reads "Waiting for randomness" and the action goes on by itself when
-  the seed arrives.
-- **No randomness at all.** A seed still missing 60 seconds after the
-  first display is a system that gives none: a press that needs it then
-  says so and does nothing.
+- **Nothing at start** (built). Home says nothing of a missing seed.
+- **A press that needs it waits** (built). Making a key, a vault, a share
+  set, a signing round's nonces: while the seed has not arrived, the
+  button reads "Waiting for randomness" and the action goes on by itself
+  when the seed arrives (`faraday-core/src/fresh/wait.rs`).
+- **No randomness at all** (built). A seed still missing 60 seconds after
+  the first display is a system that gives none: a press that needs it
+  then says so and does nothing.
 - **The Pi mixes bcm2835-rng and does not credit it.** `rng_core.`'s
   quality is set to 0 on the command line. Where the Pi's kernel
   then stops feeding the generator into the pool (its hwrng thread

@@ -1205,7 +1205,7 @@ fn make(app: &mut Faraday, target: Target) {
     } else if let Some(draw) = app.fresh_bytes(b"convert split", need) {
         draw
     } else {
-        return app.toast(EN.convert_no_randomness);
+        return app.toast(EN.no_randomness);
     };
     let c = app.compute();
     let keys = &app.session.keys;

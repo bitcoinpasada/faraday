@@ -201,7 +201,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
 /// The create form says the system has not given enough randomness yet.
 fn say_no_randomness(app: &mut Faraday) {
     if let Some(c) = app.vaults.state.create.as_mut() {
-        c.error = Some(EN.vaults_no_randomness.to_string());
+        c.error = Some(EN.no_randomness.to_string());
     }
 }
 
@@ -503,7 +503,7 @@ fn kdbx_start(app: &mut Faraday) -> bool {
         app.fresh_bytes(b"vault entries", 32),
     ) else {
         if let Some(p) = app.vaults.state.prompt.as_mut() {
-            p.error = Some(EN.vaults_no_randomness.to_string());
+            p.error = Some(EN.no_randomness.to_string());
         }
         return false;
     };

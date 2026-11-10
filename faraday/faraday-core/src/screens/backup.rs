@@ -1908,12 +1908,14 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += crate::screens::randomness::row(app, ui, (x, cy, w));
             let row: Vec<(String, Style, Action)> = vec![
                 (
-                    EN.paper_section_seed_xor.into(),
+                    app.wait_label(Action::BXor(2), EN.paper_section_seed_xor)
+                        .into(),
                     Style::Secondary,
                     Action::BXor(2),
                 ),
                 (
-                    EN.paper_section_seed.into(),
+                    app.wait_label(Action::BXor(3), EN.paper_section_seed)
+                        .into(),
                     Style::Secondary,
                     Action::BXor(3),
                 ),

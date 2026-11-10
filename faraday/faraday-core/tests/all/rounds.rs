@@ -82,19 +82,22 @@ fn a_round_waits_for_the_systems_randomness() {
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
     app.press(Action::SignHere);
     let s = app.spend().unwrap();
-    assert_eq!(
-        s.error.as_deref(),
-        Some("No randomness from the system yet. Try again")
-    );
+    assert_eq!(s.error, None, "the press waits and says nothing");
     assert!(s.musig.is_none());
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Waiting for randomness"),
+        "the button says what it waits for"
+    );
     assert!(
         our_nonce(&app).is_none(),
         "no nonce on bytes the system did not give"
     );
 
-    // The shell answers, and the pass goes through.
+    // The shell answers, and the same press goes through by itself.
     app.event(Event::Entropy(EntropyBytes::new([5u8; 32])));
-    app.press(Action::SignHere);
+    testkit::settle(&mut app);
     assert!(our_nonce(&app).is_some());
     assert_eq!(app.spend().unwrap().error, None);
 }

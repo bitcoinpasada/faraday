@@ -300,9 +300,8 @@ fn a_vault_does_not_seal_on_what_was_added_alone() {
     assert_eq!(sealed(&app), None);
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     answers_for_a_seal(&mut app);
-    app.press(Action::Lock);
     testkit::settle(&mut app);
-    assert!(sealed(&app).is_some());
+    assert!(sealed(&app).is_some(), "the lock went on by itself");
 }
 
 #[test]
@@ -315,8 +314,8 @@ fn a_signing_round_does_not_open_on_what_was_added_alone() {
     assert!(app.spend().unwrap().musig.is_none());
     assert!(our_nonce(&app).is_none());
     answer(&mut app, SEED);
-    app.press(Action::SignHere);
-    assert!(our_nonce(&app).is_some());
+    testkit::settle(&mut app);
+    assert!(our_nonce(&app).is_some(), "the press goes on by itself");
 }
 
 #[test]
@@ -1422,4 +1421,87 @@ fn a_seed_xor_split_is_the_parts_the_python_cross_check_computes() {
         ];
         assert_eq!(parts, want, "{case}");
     }
+}
+
+// ----- The late seed (§3.5, F102) -----
+
+fn waiting_shown(app: &mut Faraday) -> bool {
+    app.drawn_texts()
+        .iter()
+        .any(|t| t == faraday_strings::EN.waiting_for_randomness)
+}
+
+#[test]
+fn home_says_nothing_at_start_however_long_the_seed_takes() {
+    let mut app = testkit::started();
+    app.event(Event::Tick { now_ms: 1_000 });
+    app.event(Event::Tick { now_ms: 30_000 });
+    app.event(Event::Tick { now_ms: 120_000 });
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t == faraday_strings::EN.no_randomness));
+    assert!(
+        !texts
+            .iter()
+            .any(|t| t == faraday_strings::EN.waiting_for_randomness)
+    );
+}
+
+#[test]
+fn a_signing_round_waits_for_the_seed_and_opens_by_itself() {
+    let mut app = musig_device(false);
+    app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    app.press(Action::SignHere);
+    assert!(waiting_shown(&mut app));
+    assert!(our_nonce(&app).is_none());
+    answer(&mut app, SEED);
+    testkit::settle(&mut app);
+    assert!(our_nonce(&app).is_some());
+    assert!(!waiting_shown(&mut app));
+}
+
+#[test]
+fn a_waiting_press_gives_up_after_a_minute_and_does_nothing() {
+    let mut app = musig_device(false);
+    app.event(Event::Tick { now_ms: 1_000 });
+    app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    app.press(Action::SignHere);
+    assert!(waiting_shown(&mut app));
+    app.event(Event::Tick { now_ms: 62_000 });
+    assert!(!waiting_shown(&mut app));
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_strings::EN.no_randomness)
+    );
+    // A press after the minute is refused at once.
+    app.press(Action::SignHere);
+    assert!(!waiting_shown(&mut app));
+    assert!(our_nonce(&app).is_none());
+    // A seed that comes late starts nothing by itself.
+    answer(&mut app, SEED);
+    testkit::settle(&mut app);
+    assert!(our_nonce(&app).is_none());
+}
+
+#[test]
+fn with_the_seed_in_a_press_does_not_wait() {
+    let mut app = musig_device(false);
+    answer(&mut app, SEED);
+    app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    app.press(Action::SignHere);
+    assert!(!waiting_shown(&mut app));
+    assert!(our_nonce(&app).is_some());
+}
+
+#[test]
+fn a_vault_lock_waits_for_the_answers_and_seals_by_itself() {
+    let mut app = vault_device(testkit::test_vault().unwrap());
+    open_and_change(&mut app);
+    app.press(Action::Lock);
+    testkit::settle(&mut app);
+    assert_eq!(sealed(&app), None);
+    assert!(waiting_shown(&mut app));
+    answers_for_a_seal(&mut app);
+    testkit::settle(&mut app);
+    assert!(sealed(&app).is_some(), "no second press");
 }
