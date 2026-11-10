@@ -7728,6 +7728,57 @@ kind = "Neutral"
 decision = "F190"
 
 [[action]]
+id = "qr-vault-open"
+name = "Open a QR vault"
+action = "Opens a scanned QR vault code, or a chosen .pgp file, under a typed passphrase, and holds the one item it holds for the QR vault tool to say what it is and, behind an eye, to show a note or a passphrase."
+row = "vault"
+standards = [
+  "RFC 9580",
+  "RFC 7253",
+  "RFC 9106",
+  "RFC 5869",
+]
+learn = "faraday:vaults"
+screens = ["QrTool"]
+functions = [
+  "faraday/faraday-keys/src/qr_vault.rs::QrOpenJob::run",
+  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_hold",
+  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_note",
+  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_passphrase",
+]
+code = ["faraday/faraday-keys/src/qr_vault.rs::QrOpenJob::run"]
+
+[action.implementation]
+crate = "faraday/faraday-keys"
+libraries = []
+through = []
+adds = "Reads the message of the action above with the typed passphrase after its stated Argon2 cost is checked against the limits (the app also checks the cost against the memory this computer has free before it starts the job, and names a code it cannot open at once), and reads the contents (`faraday-vault::contents`) into one held item that leaves `faraday-keys` only through the `Reveal::QrVault` reveals."
+
+[action.checked]
+vectors = ["vault"]
+tests = [
+  "faraday/faraday-keys/tests/qr_vault.rs::a_committed_code_opens_and_its_cost_reads_without_a_passphrase",
+  "faraday/faraday-core/tests/all/qr_tool.rs::an_empty_qr_vault_reads_empty",
+  "faraday/faraday-core/tests/all/qr_tool.rs::a_seed_and_a_passphrase_are_named_and_a_passphrase_is_behind_its_eye",
+  "faraday/faraday-core/tests/all/qr_tool.rs::the_right_passphrase_shows_a_note_behind_its_eye",
+  "faraday/faraday-core/tests/all/qr_tool.rs::a_wrong_passphrase_says_so_and_a_second_try_opens",
+]
+crosscheck = "qrvault"
+independence = { class = "outside-and-own", author = "Sequoia's sq and rPGP, as for the OpenPGP message the code is", ours = "none beyond the message's own" }
+fuzz = ["pgp_message"]
+
+[action.secrets]
+reveal = ["Reveal::QrVault"]
+constant_time = "Not stated; the open is the message's."
+wiped = "The typed passphrase is wiped when the open ends, stops or fails; the item held is wiped on the next open, on leaving the tool, at the idle warning and at a lock."
+
+[action.limits]
+lines = [
+  "A message Faraday does not open, or a stated cost outside the limits, is named before any memory is taken.",
+  "A wrong passphrase is told from a changed message and may be tried again.",
+]
+
+[[action]]
 id = "vault-kdbx"
 name = "Seal and open KDBX"
 action = "Writes and reads the KDBX 4 container a file vault is: Argon2id (or, read only, Argon2d) over the SHA-256 of the passphrase's SHA-256, SHA-256 and SHA-512 key steps, ChaCha20 (or, read only, AES-256-CBC) over the body, HMAC-SHA-256 over the header and over every block of the stream, gzip read, and the inner stream's ChaCha20 over protected values. The store's functions listed here make the seal's job: the writes a seal makes from the records changed (a change the seal cannot write refuses it, never dropped), the UUIDs new entries and groups take from the bytes the seal draws (one fresh answer expanded by SHA-256 over a domain string, the answer and a counter: the UUIDs need to differ, not to be secret), and the check that the changes fit the file's size."

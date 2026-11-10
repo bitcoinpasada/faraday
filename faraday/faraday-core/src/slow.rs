@@ -11,8 +11,8 @@ use crate::{boot_import, seeds, vanity};
 /// and shows the busy line while the worker runs it. Practice's samples
 /// loaded, the backup's checklist and its Make the files, a wallet's multisig config, split
 /// shares and Specter DIY pictures, and Make the code and Compare of a
-/// Krux code, in Tools and on the checklist, and Make the code of a QR vault
-/// in Tools; the other presses move
+/// Krux code, in Tools and on the checklist, and Make the code and Open of a QR
+/// vault in Tools; the other presses move
 /// here from [`drawn_first`] as they are shown to need it.
 pub(crate) fn starts_job(a: Action) -> bool {
     matches!(
@@ -22,7 +22,9 @@ pub(crate) fn starts_job(a: Action) -> bool {
             | Action::BChecklist
             | Action::BFilesMake
             | Action::PublicOut(_, 2 | 4 | 14)
-            | Action::QrTool(crate::qr_tool::QrToolAction::Make)
+            | Action::QrTool(
+                crate::qr_tool::QrToolAction::Make | crate::qr_tool::QrToolAction::OpenCode,
+            )
             | Action::KefTool(crate::kef_tool::KefToolAction::Backup(
                 crate::kef_form::KefAct::Make | crate::kef_form::KefAct::Compare,
             ))

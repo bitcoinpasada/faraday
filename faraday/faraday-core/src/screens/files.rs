@@ -512,16 +512,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 .is_some_and(|p| p.txid == s.spend.txid && item.name != s.spend.source)
         });
         match item.kind {
-            FileKind::Psbt if same_spend => {
-                bx += ui.button(
-                    bx,
-                    iy + 64.0,
-                    None,
-                    BUTTON_H,
-                    EN.files_add_to_signatures,
-                    Style::Primary,
-                    Action::Collect(k),
-                ) + 8.0;
+            kind @ (FileKind::Psbt | FileKind::QrVault)
+                if same_spend || kind == FileKind::QrVault =>
+            {
+                let (label, action) = if kind == FileKind::QrVault {
+                    (
+                        EN.files_open_qr_vault,
+                        Action::QrTool(crate::qr_tool::QrToolAction::OpenFile(k)),
+                    )
+                } else {
+                    (EN.files_add_to_signatures, Action::Collect(k))
+                };
+                bx += ui.button(bx, iy + 64.0, None, BUTTON_H, label, Style::Primary, action) + 8.0;
             }
             FileKind::Entries => {
                 let action = crate::vault::VaultAction::ImportEntries(k);
@@ -537,17 +539,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         Action::Vault(action),
                     ) + 8.0;
                 }
-            }
-            FileKind::QrVault => {
-                bx += ui.button(
-                    bx,
-                    iy + 64.0,
-                    None,
-                    BUTTON_H,
-                    EN.files_open_qr_vault,
-                    Style::Primary,
-                    Action::OpenQrVault(k),
-                ) + 8.0;
             }
             FileKind::Vault => {
                 let files = app.vault_files();
@@ -1756,7 +1747,7 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
         FileKind::QrVault => out.push((
             EN.inbox_actions_open_qr_vault.into(),
             Style::Primary,
-            Action::OpenQrVault(k),
+            Action::QrTool(crate::qr_tool::QrToolAction::OpenFile(k)),
         )),
         FileKind::Vault => {
             let files = app.vault_files();

@@ -102,6 +102,7 @@ table together and says in its message what was measured on what.
 |---|---|---|
 | Argon2id for a vault | A vault opened, an older one opened, made; each changed vault at a lock, one at a time (`Kind::VaultSeal`); the boot import's unlock; the Spend tab's unlock | Job |
 | Argon2id for a QR vault | The QR vault tool's Make in Tools (`Kind::QrSeal`): the seal and the read-back under the same passphrase, two Argon2id runs at the memory step chosen. Back, Cancel or a move away drops the answer and wipes what was typed; the run itself goes on to its end (§4) | Job |
+| Argon2id for opening a QR vault | The QR vault tool's Open (`Kind::QrOpen`): one Argon2id run at the code's stated cost, started after the app checks that cost against the memory free now. Back, Cancel or a move away drops the answer and wipes what was typed; the run itself goes on to its end (§4) | Job |
 | Argon2id for a KeePass file | The KDBX export written as a vault of one entry (`V::ExportKdbx`, then `V::PromptGo`) | Job |
 | Argon2id for each key | Practice's samples loaded (`SamplesLoad`) | Job |
 | scrypt | An aezeed read (Lightning) | Job |

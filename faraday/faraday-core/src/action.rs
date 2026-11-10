@@ -864,8 +864,6 @@ pub enum Action {
     PotentialMake,
     /// Decode the transaction in this Inbox file.
     DecodeInbox(usize),
-    /// Open the QR vault tool on the QR vault in this Inbox file.
-    OpenQrVault(usize),
     /// A press on the nonce check of a transaction brought in
     /// (`Screen::NonceCheck`).
     NonceCheck(crate::decode::CheckPress),

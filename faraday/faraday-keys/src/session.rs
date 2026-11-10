@@ -146,7 +146,7 @@ pub enum Reveal {
     /// It lends no stored text.
     KefCode,
     /// The item a QR vault was opened to, held in the store
-    /// ([`Keys::qr_open`], `docs/VAULT.md` §13): a seed's words, a codex32
+    /// ([`Keys::qr_hold`], `docs/VAULT.md` §13): a seed's words, a codex32
     /// share, a passphrase or a note, lent by the named offers
     /// ([`Keys::qr_words`], [`Keys::qr_share`], [`Keys::qr_passphrase`],
     /// [`Keys::qr_note`]) to the form or the eye that takes it. It lends
@@ -393,7 +393,7 @@ pub struct Keys {
     /// ([`Keys::slip39_set_hold`]): never one of the keys.
     pub(crate) slip39_set: Option<crate::slip39_set::HeldSet>,
     /// The item a QR vault was opened to, while the tool holds it
-    /// ([`Keys::qr_open`]): never one of the keys, wiped at a clear.
+    /// ([`Keys::qr_hold`]): never one of the keys, wiped at a clear.
     pub(crate) qr_item: Option<crate::qr_vault::HeldItem>,
 }
 

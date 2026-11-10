@@ -1,9 +1,9 @@
 //! The QR vault tool in Tools (`docs/VAULT.md` §13): its three cards,
-//! Contents, Passphrase and Code.
+//! Contents, Passphrase and Code, and the Open card of the code made.
 
 use crate::tour::{Tour, scroll_to, type_text};
 use faraday_core::qr_tool::{Field, Pick, QrToolAction as Q};
-use faraday_core::{Action, Screen, testkit};
+use faraday_core::{Action, Screen, StorageEvent, testkit};
 use faraday_shell_api::{App, EntropyBytes, Event};
 
 pub(crate) fn qr_tool_tour(t: &mut Tour) -> Result<(), String> {
@@ -32,5 +32,28 @@ pub(crate) fn qr_tool_tour(t: &mut Tour) -> Result<(), String> {
     testkit::settle(&mut t.app);
     t.tick();
     scroll_to(t, Action::QrTool(Q::Another));
-    t.shot("qr-tool-code")
+    t.shot("qr-tool-code")?;
+    t.press(Action::QrTool(Q::File));
+    let code = t
+        .app
+        .outbox
+        .first()
+        .map(|i| i.bytes.clone())
+        .ok_or("no code in the Outbox")?;
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![("qr-vault.pgp".to_string(), code)],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.press(Action::Nav(Screen::Files));
+    t.press(Action::QrTool(Q::OpenFile(0)));
+    t.shot("qr-tool-open")?;
+    type_text(t, "a passphrase");
+    t.shot("qr-tool-open-typed")?;
+    t.press(Action::QrTool(Q::OpenCode));
+    testkit::settle(&mut t.app);
+    t.tick();
+    t.shot("qr-tool-opened")?;
+    t.press(Action::QrTool(Q::Eye));
+    t.shot("qr-tool-opened-shown")
 }

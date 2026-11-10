@@ -9,9 +9,11 @@ use crate::screens::randomness::row as own_row;
 use crate::strings::{EN, fill};
 use crate::ui::pal::Role;
 use crate::ui::{Style, Ui};
+use crate::vault::screen::secret::secret_with;
 use crate::vault::screen::{secret_box, text_box};
-use faraday_draw::tokens::{self, BODY_S, BUTTON_H, FIELD_H, GAP};
-use faraday_keys::QR_SEAL_EXPONENTS;
+use faraday_draw::tokens::{self, BODY_M, BODY_S, BUTTON_H, FIELD_GAP, FIELD_H, GAP};
+use faraday_keys::{QR_SEAL_EXPONENTS, QrHolds, Reveal};
+use zeroize::Zeroizing;
 
 pub(crate) const TITLES: [&str; qstep::COUNT] =
     [EN.qr_tool_contents, EN.qr_tool_passphrase, EN.qr_tool_code];
@@ -22,12 +24,22 @@ fn act(a: Q) -> Action {
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let Some(s) = state(app) else { return };
-    let cards: Vec<flow::Card> = (0..qstep::COUNT as u8)
+    let opening = s.code_to_open().is_some();
+    let steps = if opening { 1 } else { qstep::COUNT as u8 };
+    let cards: Vec<flow::Card> = (0..steps)
         .map(|step| flow::Card {
-            title: TITLES[usize::from(step)].to_string(),
+            title: if opening {
+                EN.qr_tool_open.to_string()
+            } else {
+                TITLES[usize::from(step)].to_string()
+            },
             summary: summary(app, s, step),
             mono: false,
-            done: s.done[usize::from(step)],
+            done: if opening {
+                s.holds().is_some()
+            } else {
+                s.done[usize::from(step)]
+            },
             open: s.open == Some(step),
             default: false,
             toggle: act(Q::Step(step)),
@@ -71,6 +83,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 fn summary(app: &View, s: &QrToolState, step: u8) -> String {
+    if s.code_to_open().is_some() {
+        return String::new();
+    }
     match step {
         qstep::CONTENTS if s.done[usize::from(step)] => match (s.pick(), s.key()) {
             (Some(Pick::Key), Some(i)) => app
@@ -95,6 +110,9 @@ fn mib(exponent: u8) -> u32 {
 }
 
 fn card(app: &View, s: &QrToolState, ui: &mut Ui, step: u8, (x, y, w): (f32, f32, f32)) -> f32 {
+    if let Some(code) = s.code_to_open() {
+        return open_card(app, s, ui, code.len(), (x, y, w));
+    }
     match step {
         qstep::CONTENTS => contents(app, s, ui, (x, y, w)),
         qstep::PASSPHRASE => passphrase(app, s, ui, (x, y, w)),
@@ -134,7 +152,7 @@ fn contents(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
                 act(Q::Focus(Field::Note)),
                 act(Q::Eye),
             );
-            cy += FIELD_H + 4.0;
+            cy += FIELD_H + FIELD_GAP;
             cy += ui.wrap_as(
                 (x, cy, w),
                 BODY_S,
@@ -173,7 +191,7 @@ fn contents(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
                 if offered {
                     cy += GAP;
                 } else {
-                    cy += 4.0;
+                    cy += FIELD_GAP;
                     cy += ui.wrap_as(
                         (x, cy, w),
                         BODY_S,
@@ -264,4 +282,80 @@ fn code(s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         cy += BUTTON_H + GAP;
     }
     cy - GAP - y
+}
+
+/// The Open card: the code brought, then the passphrase and Open, or what
+/// the code holds once it is opened. A held note or passphrase is read
+/// from `faraday-keys` only while its eye shows it.
+fn open_card(
+    app: &View,
+    s: &QrToolState,
+    ui: &mut Ui,
+    len: usize,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    let mut cy = y;
+    cy += ui.wrap_as(
+        (x, cy, w),
+        BODY_M,
+        Role::OnSurface,
+        &fill(EN.qr_tool_open_code, &[&len.to_string()]),
+    ) + GAP;
+    let Some(holds) = s.holds() else {
+        cy += ui.field_label(x, cy, EN.qr_tool_pass);
+        let show = app.pass_shows(s.shown, s.pass.text.as_str());
+        secret_box(
+            ui,
+            x,
+            cy,
+            w,
+            &s.pass,
+            show,
+            s.focus() == Some(Field::Pass),
+            act(Q::Focus(Field::Pass)),
+            act(Q::Eye),
+        );
+        cy += FIELD_H + GAP;
+        if let Some(e) = &s.error {
+            cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e) + GAP;
+        }
+        let style = Style::Primary.when(!s.pass.text.is_empty());
+        ui.button(
+            x,
+            cy,
+            None,
+            BUTTON_H,
+            EN.qr_tool_open,
+            style,
+            act(Q::OpenCode),
+        );
+        cy += BUTTON_H;
+        return cy - y;
+    };
+    let keys = &app.session.keys;
+    let line =
+        |ui: &mut Ui, cy: f32, text: &str| ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, text);
+    let eye = (act(Q::Eye), s.shown);
+    match holds {
+        QrHolds::Empty => cy += line(ui, cy, EN.qr_tool_open_empty),
+        QrHolds::Seed { words } => {
+            cy += line(ui, cy, &fill(EN.qr_tool_open_seed, &[&words.to_string()]));
+        }
+        QrHolds::Share { key } => {
+            cy += line(ui, cy, EN.qr_tool_open_share) + GAP;
+            cy += line(ui, cy, &fill(EN.qr_tool_open_key, &[&key.to_string()]));
+        }
+        QrHolds::Passphrase { key } => {
+            cy += line(ui, cy, EN.qr_tool_open_passphrase) + GAP;
+            cy += line(ui, cy, &fill(EN.qr_tool_open_key, &[&key.to_string()])) + GAP;
+            let text = || Zeroizing::new(keys.qr_passphrase(Reveal::QrVault).to_string());
+            cy += secret_with(ui, (x, cy, w), text, true, eye);
+        }
+        QrHolds::Note => {
+            cy += line(ui, cy, EN.qr_tool_open_note) + GAP;
+            let text = || Zeroizing::new(keys.qr_note(Reveal::QrVault).to_string());
+            cy += secret_with(ui, (x, cy, w), text, false, eye);
+        }
+    }
+    cy - y
 }

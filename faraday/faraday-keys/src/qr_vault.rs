@@ -130,7 +130,7 @@ fn from_qr(e: qr::Error) -> QrError {
 
 /// What the QR vault `bytes` state their S2K costs, read with no
 /// passphrase and no Argon2id run: for the caller's memory check (`docs/VAULT.md` §4) before it opens. Refused as
-/// [`Keys::qr_open`] refuses what is not a QR vault Faraday opens
+/// [`QrOpenJob::run`] refuses what is not a QR vault Faraday opens
 /// ([`QrError::NotQrVault`], [`QrError::NotAMessage`], [`QrError::Cost`]).
 pub fn qr_cost(bytes: &[u8]) -> Result<QrCost, QrError> {
     faraday_pgp::message::parse(bytes)
@@ -185,6 +185,43 @@ impl QrSealJob {
             self.exponent,
             &self.random,
         )
+    }
+}
+
+/// An open of a QR vault to run on another thread (`docs/WORKERS.md`
+/// §3): the code's bytes and the passphrase, owned, so the job is `Send`.
+/// The passphrase is wiped as the job ends or is dropped.
+pub struct QrOpenJob {
+    bytes: Vec<u8>,
+    passphrase: SecretText,
+}
+
+/// What an open gave: the one item, wiped when dropped, with no way out
+/// but [`Keys::qr_hold`], which keeps it for the `qr_*` reveals.
+pub struct QrOpened {
+    item: HeldItem,
+}
+
+impl QrOpenJob {
+    /// The open of the QR vault `bytes` under `passphrase`. A pure copy:
+    /// nothing is worked out until the job runs.
+    pub fn new(bytes: &[u8], passphrase: &str) -> QrOpenJob {
+        QrOpenJob {
+            bytes: bytes.to_vec(),
+            passphrase: SecretText::of(passphrase),
+        }
+    }
+
+    /// Costs one Argon2id run at the code's stated cost (the caller checked
+    /// [`qr_cost`] against the memory it has) and a parse of the words.
+    /// The item the code holds. Errors are kept apart:
+    /// [`QrError::WrongPassphrase`] (try again), [`QrError::NotQrVault`]
+    /// (a message Faraday does not open), [`QrError::Contents`],
+    /// [`QrError::Memory`], [`QrError::EmptyPassphrase`].
+    pub fn run(self, c: &Compute) -> Result<QrOpened, QrError> {
+        let record = qr::open(c, self.passphrase.as_str(), &self.bytes).map_err(from_qr)?;
+        let item = HeldItem::of(&record).ok_or(QrError::Unreadable)?;
+        Ok(QrOpened { item })
     }
 }
 
@@ -277,27 +314,12 @@ impl Keys {
 
     // ---- an opened code, held ----
 
-    /// Costs the Argon2id run the message states (the caller checked
-    /// [`qr_cost`] against the memory it has) and a parse of the words.
-    /// Opens the QR vault `bytes` under `passphrase` and holds what it
-    /// holds, in place of any item held before (wiped first, so a refusal
-    /// leaves none). Says what it holds, with no secret in it. Errors are
-    /// kept apart: [`QrError::WrongPassphrase`] (try again),
-    /// [`QrError::NotQrVault`] (a message Faraday does not open),
-    /// [`QrError::Contents`], [`QrError::Memory`],
-    /// [`QrError::EmptyPassphrase`].
-    pub fn qr_open(
-        &mut self,
-        c: &Compute,
-        passphrase: &str,
-        bytes: &[u8],
-    ) -> Result<QrHolds, QrError> {
-        self.qr_item = None;
-        let record = qr::open(c, passphrase, bytes).map_err(from_qr)?;
-        let item = HeldItem::of(&record).ok_or(QrError::Unreadable)?;
-        let holds = item.holds();
-        self.qr_item = Some(item);
-        Ok(holds)
+    /// Holds what an opened code gave, in place of any item held before
+    /// (wiped first). Says what it holds, with no secret in it. A move.
+    pub fn qr_hold(&mut self, opened: QrOpened) -> QrHolds {
+        let holds = opened.item.holds();
+        self.qr_item = Some(opened.item);
+        holds
     }
 
     /// What is held, with no secret in it (a lookup); `None` when no code

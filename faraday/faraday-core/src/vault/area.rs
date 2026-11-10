@@ -2443,7 +2443,12 @@ impl Vaults {
     /// [`Vaults::unlock_memory_refusal`] without the note: a lookup, for
     /// drawing and for what a step is allowed.
     pub(crate) fn unlock_refusal(&self, cost: Cost, len: usize) -> Option<String> {
-        let memory_mib = cost.memory_kib / 1024;
+        self.open_refusal(cost.memory_kib / 1024, len)
+    }
+
+    /// The same test for any file of `len` bytes whose key takes
+    /// `memory_mib` MiB to work out, a QR vault code's included. A lookup.
+    pub(crate) fn open_refusal(&self, memory_mib: u32, len: usize) -> Option<String> {
         let need = vault_need_mib(memory_mib, len);
         match self.memory_free_mib {
             Some(free) if need > free => Some(fill(

@@ -2915,12 +2915,6 @@ impl Faraday {
             | Action::BOmit(..)
             | Action::BOut(..)
             | Action::BC32(..)) => self.backup_act(a, &c),
-            Action::OpenQrVault(k) => {
-                if let Some(item) = self.inbox.get(k).filter(|i| i.kind == FileKind::QrVault) {
-                    let code = item.bytes.clone();
-                    qr_tool::open_code(self, code);
-                }
-            }
             Action::Board(p) => self.board_press(p),
             Action::Catalog(i) => self.catalog_go(usize::from(i)),
             a @ (Action::DecodeFinished

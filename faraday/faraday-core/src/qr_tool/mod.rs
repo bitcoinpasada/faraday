@@ -8,15 +8,20 @@
 //! idle warning or at a lock. The drawing is `screen.rs`.
 
 use crate::vault::{TextBox, vault_stem};
+use crate::wallet::FileKind;
 use crate::{Action, Faraday, QrFormat, QrSource, QrView, Screen, flow};
 use faraday_crypto::work::Compute;
-use faraday_keys::{QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrError, qr_note_over, qr_seal_note_job};
+use faraday_keys::{
+    QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrError, QrHolds, qr_note_over, qr_seal_note_job,
+};
 use faraday_shell_api::Key;
 use zeroize::{Zeroize, Zeroizing};
 
+mod open;
 pub(crate) mod screen;
 mod seal;
 
+pub(crate) use open::{OpenDone, OpenWork, open_stopped, opened};
 pub(crate) use seal::{SealDone, SealWork, seal_stopped, sealed};
 
 use crate::strings::{EN, fill};
@@ -66,6 +71,9 @@ pub enum Field {
 pub enum QrToolAction {
     /// Opens the tool, from the page on show.
     Open,
+    /// Opens the tool on the QR vault in this Inbox file (Files' Open in
+    /// QR vault); an item of another kind is not taken.
+    OpenFile(usize),
     /// Opens or closes a card.
     Step(u8),
     /// Chooses what the code holds.
@@ -82,6 +90,8 @@ pub enum QrToolAction {
     Memory(u8),
     /// Seals the code.
     Make,
+    /// Opens the code brought, under the passphrase typed.
+    OpenCode,
     /// Shows the code.
     Show,
     /// The code's picture to the Outbox.
@@ -126,6 +136,8 @@ pub struct QrToolState {
     made: Option<Made>,
     /// A QR vault's bytes brought to the Open card (public: encrypted).
     code: Option<Vec<u8>>,
+    /// What the code opened to; the item itself is held in `faraday-keys`.
+    holds: Option<QrHolds>,
 }
 
 impl QrToolState {
@@ -148,12 +160,18 @@ impl QrToolState {
             error: None,
             made: None,
             code: None,
+            holds: None,
         }
     }
 
     /// The QR vault code a scan or a file brought, for the Open card.
     pub fn code_to_open(&self) -> Option<&[u8]> {
         self.code.as_deref()
+    }
+
+    /// What the code brought opened to, once opened.
+    pub fn holds(&self) -> Option<QrHolds> {
+        self.holds
     }
 
     /// Whether the tool holds something typed that is secret.
@@ -306,6 +324,7 @@ fn st(app: &mut Faraday) -> Option<&mut QrToolState> {
 /// Opens the tool on its first card, from the page on show.
 pub(crate) fn open(app: &mut Faraday) {
     let back = app.screen;
+    app.session.keys.qr_forget();
     app.tools.qr_tool_mut().state = Some(QrToolState::new(back));
     app.screen = Screen::QrTool;
 }
@@ -316,6 +335,8 @@ pub(crate) fn open_code(app: &mut Faraday, bytes: Vec<u8>) {
     open(app);
     if let Some(s) = st(app) {
         s.code = Some(bytes);
+        s.open = Some(qstep::CONTENTS);
+        s.focus = Some(Field::Pass);
     }
 }
 
@@ -323,6 +344,12 @@ pub(crate) fn open_code(app: &mut Faraday, bytes: Vec<u8>) {
 pub(crate) fn act(app: &mut Faraday, action: QrToolAction) {
     match action {
         QrToolAction::Open => open(app),
+        QrToolAction::OpenFile(k) => {
+            let kept = app.inbox.get(k).filter(|i| i.kind == FileKind::QrVault);
+            if let Some(code) = kept.map(|i| i.bytes.clone()) {
+                open_code(app, code);
+            }
+        }
         QrToolAction::Step(k) => step(app, k),
         QrToolAction::Pick(p) => {
             if let Some(s) = st(app) {
@@ -361,6 +388,7 @@ pub(crate) fn act(app: &mut Faraday, action: QrToolAction) {
             }
         }
         QrToolAction::Make => make(app),
+        QrToolAction::OpenCode => open::press(app),
         QrToolAction::Show => show(app),
         QrToolAction::Png => png(app),
         QrToolAction::File => file(app),
@@ -399,6 +427,9 @@ fn choose_key(app: &mut Faraday, i: usize) {
 
 fn step(app: &mut Faraday, k: u8) {
     let Some(s) = st(app) else { return };
+    if s.code.is_some() {
+        return;
+    }
     if s.open == Some(k) {
         s.open = None;
         return;
@@ -541,6 +572,7 @@ pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
     }
     let s = state(app)?;
     let f = s.focus.filter(|f| match f {
+        Field::Pass if s.code.is_some() => s.holds.is_none(),
         Field::Note => s.open == Some(qstep::CONTENTS) && s.pick == Some(Pick::Note),
         _ => s.open == Some(qstep::PASSPHRASE),
     })?;
@@ -559,6 +591,11 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
     });
     if let Some(f) = focus {
         match key {
+            Key::Enter if state(app).is_some_and(|s| s.code.is_some()) => {
+                app.press_in(Action::QrTool(QrToolAction::OpenCode));
+                return true;
+            }
+            Key::Tab if state(app).is_some_and(|s| s.code.is_some()) => return true,
             Key::Enter => {
                 match f {
                     Field::Note => act(app, QrToolAction::Next),
@@ -629,7 +666,13 @@ fn type_in(app: &mut Faraday, f: Field, key: Key) -> bool {
 pub(crate) fn hide(app: &mut Faraday) {
     if let Some(s) = st(app) {
         s.shown = false;
+        if s.holds.take().is_some() {
+            // What was opened goes with the warning: the passphrase is
+            // typed again.
+            s.focus = Some(Field::Pass);
+        }
     }
+    app.session.keys.qr_forget();
 }
 
 /// After a press: the tool ends, with what was typed and the code,
@@ -639,6 +682,7 @@ pub(crate) fn tidy(app: &mut Faraday) {
     let kept = matches!(app.screen, Screen::QrTool | Screen::Randomness);
     if !kept {
         app.tools.qr_tool_mut().clear();
+        app.session.keys.qr_forget();
     }
 }
 
@@ -652,6 +696,9 @@ pub(crate) static QR_TOOL_STEPS: QrToolSteps = QrToolSteps;
 impl crate::trail::StepFlow for QrToolSteps {
     fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
         let s = state(app)?;
+        if s.code.is_some() {
+            return Some(crate::trail::Steps::new(vec![qstep::CONTENTS], s.open));
+        }
         let upto = if s.done[usize::from(qstep::PASSPHRASE)] {
             qstep::COUNT
         } else if s.done[usize::from(qstep::CONTENTS)] {
@@ -666,7 +713,10 @@ impl crate::trail::StepFlow for QrToolSteps {
         Action::QrTool(QrToolAction::Step(k))
     }
 
-    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+    fn name(&self, app: &Faraday, k: u8) -> &'static str {
+        if state(app).is_some_and(|s| s.code.is_some()) {
+            return EN.qr_tool_open;
+        }
         screen::TITLES[usize::from(k)]
     }
 }

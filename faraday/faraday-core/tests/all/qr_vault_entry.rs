@@ -3,8 +3,9 @@
 //! for the Open card; a refused one is none of that.
 
 use faraday_core::keygen::Start;
+use faraday_core::qr_tool::QrToolAction;
 use faraday_core::scan_read::Kind;
-use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, qr_tool, testkit};
+use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent, qr_tool, testkit};
 use faraday_shell_api::{App, Event};
 
 const NOTE: &[u8] = include_bytes!("../../../../tools/vectors/vault/qr/qr-note.pgp");
@@ -67,6 +68,31 @@ fn scan_a_seedqr_names_a_qr_vault_and_opens_the_tool_with_it() {
 }
 
 #[test]
+fn scan_a_seedqr_with_a_stick_plugged_in_still_opens_the_tool() {
+    for code in [NOTE, SEED] {
+        let mut app = testkit::started();
+        app.press(Action::KeyGen(None));
+        let _ = app.frame();
+        app.press(Action::KStart(Start::Scan.index()));
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        // Plugged in while the camera is on.
+        app.storage(StorageEvent::Sticks(vec![StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: "stick".into(),
+            label: "STICK".into(),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        }]));
+        read(&mut app, code);
+        assert_eq!(card_kind(&app), Some(Kind::QrVault), "keys do not load");
+        press_way(&mut app);
+        holds(&app, code);
+    }
+}
+
+#[test]
 fn a_qr_vault_file_in_files_opens_the_tool_and_stays_listed() {
     for (name, code) in [("note.pgp", NOTE), ("seed.pgp", SEED)] {
         let mut app = testkit::started();
@@ -77,8 +103,8 @@ fn a_qr_vault_file_in_files_opens_the_tool_and_stays_listed() {
         });
         app.press(Action::Nav(Screen::Files));
         let _ = app.frame();
-        assert!(app.offers(Action::OpenQrVault(0)));
-        app.press(Action::OpenQrVault(0));
+        assert!(app.offers(Action::QrTool(QrToolAction::OpenFile(0))));
+        app.press(Action::QrTool(QrToolAction::OpenFile(0)));
         holds(&app, code);
         assert_eq!(app.inbox().iter().filter(|i| i.name == name).count(), 1);
     }
@@ -120,8 +146,8 @@ fn a_refused_pgp_file_in_files_does_not_offer_the_qr_vault() {
     });
     app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
-    assert!(!app.offers(Action::OpenQrVault(0)));
-    app.press(Action::OpenQrVault(0));
+    assert!(!app.offers(Action::QrTool(QrToolAction::OpenFile(0))));
+    app.press(Action::QrTool(QrToolAction::OpenFile(0)));
     assert_ne!(app.screen, Screen::QrTool);
 }
 

@@ -280,8 +280,9 @@ impl Keys {
     `qr_seal_note_job`; the tool's seal runs as a `QrSealJob` on the
     worker), the words never leaving the crate, each read back
     under the same passphrase before the code's bytes are given; and a
-    code opened into one held item (`Keys::qr_open`), in place of any
-    held before, wiped by `Keys::qr_forget` and by `Keys::clear` (a lock).
+    code opened into one held item (`QrOpenJob::run` on the worker, its
+    opaque `QrOpened` kept by `Keys::qr_hold`), in place of any held
+    before, wiped by `Keys::qr_forget` and by `Keys::clear` (a lock).
     The held item leaves only for `Reveal::QrVault`: `Keys::qr_words`,
     `qr_share`, `qr_passphrase` and `qr_note` lend it, `qr_load_words`
     and `qr_add_passphrase` load it as a key, and

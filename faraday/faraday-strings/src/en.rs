@@ -12896,4 +12896,34 @@ strings! {
     qr_tool_view_subtitle: "OpenPGP message, one code",
     /// The Code card, closed.
     qr_tool_code_sum: "Made",
+    /// The Open card: the code brought, `{}` its length in bytes.
+    qr_tool_open_code: "QR vault code, {} bytes",
+    /// The Open card's title and its button.
+    qr_tool_open: "Open",
+    /// The busy line while a code is opened.
+    qr_tool_opening: "Opening the code",
+    /// The Open card: the passphrase was wrong.
+    qr_tool_wrong_pass: "The passphrase is wrong",
+    /// The Open card: the code is an OpenPGP message that is not a QR vault.
+    qr_tool_not_vault: "An OpenPGP message Faraday does not open",
+    /// The Open card: the code is not an OpenPGP message.
+    qr_tool_not_message: "Not an OpenPGP message",
+    /// The Open card: the code states an Argon2 cost Faraday refuses.
+    qr_tool_cost: "The code states a cost Faraday does not accept",
+    /// The Open card: the code is damaged.
+    qr_tool_damaged: "The code is damaged",
+    /// The Open card: what the code holds is refused.
+    qr_tool_not_opened: "The code could not be opened",
+    /// The Open card: the code holds nothing.
+    qr_tool_open_empty: "This QR vault is empty.",
+    /// The Open card: the code holds a seed, `{}` its word count.
+    qr_tool_open_seed: "A seed of {} words",
+    /// The Open card: the code holds a codex32 share.
+    qr_tool_open_share: "A codex32 share",
+    /// The Open card: the code holds a passphrase.
+    qr_tool_open_passphrase: "A passphrase",
+    /// The Open card: the key a passphrase is of, `{}` its fingerprint.
+    qr_tool_open_key: "Key {}",
+    /// The Open card: the code holds a note.
+    qr_tool_open_note: "A note",
 }

@@ -8,7 +8,7 @@ use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{self, Names, OpenVaults, SEAL_RANDOM_LEN, VaultId};
 use faraday_keys::{
-    Keys, QR_SEAL_EXPONENTS, QrError, QrFit, QrHolds, QrUnsupported, Reveal, qr_cost,
+    Keys, QR_SEAL_EXPONENTS, QrError, QrFit, QrHolds, QrOpenJob, QrUnsupported, Reveal, qr_cost,
     qr_item_offered, qr_note_over, qr_seal_note_job,
 };
 use faraday_vault::Record;
@@ -100,6 +100,13 @@ fn note(text: &str) -> Record {
     Record::new(kind::NOTE).with(field::NOTE, text.as_bytes())
 }
 
+/// A code opened under `pass` and held. Forgetting what was held before a
+/// new open is the tool's job, not this store's.
+fn open_code(keys: &mut Keys, c: &Compute, pass: &str, code: &[u8]) -> Result<QrHolds, QrError> {
+    let opened = QrOpenJob::new(code, pass).run(c)?;
+    Ok(keys.qr_hold(opened))
+}
+
 #[test]
 fn a_note_is_sealed_and_opens_to_the_same_note() {
     let c = compute();
@@ -113,7 +120,7 @@ fn a_note_is_sealed_and_opens_to_the_same_note() {
     .unwrap();
     assert_eq!(code.len(), 396);
     let mut keys = Keys::on(Network::Mainnet);
-    assert_eq!(keys.qr_open(&c, PASS, &code), Ok(QrHolds::Note));
+    assert_eq!(open_code(&mut keys, &c, PASS, &code), Ok(QrHolds::Note));
     assert_eq!(
         &*keys.qr_note(Reveal::QrVault),
         "The safe is in the drawer."
@@ -132,7 +139,7 @@ fn an_empty_note_seals_the_empty_vault() {
         .run(&c)
         .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
-    assert_eq!(keys.qr_open(&c, PASS, &code), Ok(QrHolds::Empty));
+    assert_eq!(open_code(&mut keys, &c, PASS, &code), Ok(QrHolds::Empty));
 }
 
 #[test]
@@ -147,7 +154,7 @@ fn a_loaded_key_of_12_or_24_words_is_sealed_and_loads_back() {
             .unwrap();
         let mut other = Keys::on(Network::Mainnet);
         assert_eq!(
-            other.qr_open(&c, PASS, &code),
+            open_code(&mut other, &c, PASS, &code),
             Ok(QrHolds::Seed { words: count })
         );
         assert_eq!(&*other.qr_words(Reveal::QrVault), phrase);
@@ -206,7 +213,7 @@ fn a_vault_items_seed_share_passphrase_and_note_are_sealed_as_that_item() {
         let code = store
             .qr_seal_item(&c, id, i, PASS, EXPONENT, &RANDOM)
             .unwrap();
-        let held = keys.qr_open(&c, PASS, &code).unwrap();
+        let held = open_code(&mut keys, &c, PASS, &code).unwrap();
         match n {
             0 => {
                 assert_eq!(held, QrHolds::Seed { words: 24 });
@@ -366,13 +373,15 @@ fn a_wrong_passphrase_reads_as_wrong_and_nothing_is_held() {
         .run(&c)
         .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
-    keys.qr_open(&c, PASS, &code).unwrap();
     assert_eq!(
-        keys.qr_open(&c, "not it", &code),
+        open_code(&mut keys, &c, "not it", &code),
         Err(QrError::WrongPassphrase)
     );
-    assert_eq!(keys.qr_holds(), None, "the earlier item is wiped too");
-    assert_eq!(keys.qr_open(&c, "", &code), Err(QrError::EmptyPassphrase));
+    assert_eq!(keys.qr_holds(), None);
+    assert_eq!(
+        open_code(&mut keys, &c, "", &code),
+        Err(QrError::EmptyPassphrase)
+    );
     assert_eq!(&*keys.qr_note(Reveal::QrVault), "");
 }
 
@@ -386,15 +395,15 @@ fn a_new_open_keeps_only_the_second_and_a_lock_wipes_it() {
         .run(&c)
         .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
-    keys.qr_open(&c, PASS, &first).unwrap();
+    open_code(&mut keys, &c, PASS, &first).unwrap();
     assert!(keys.holds_secret());
-    keys.qr_open(&c, "other", &second).unwrap();
+    open_code(&mut keys, &c, "other", &second).unwrap();
     assert_eq!(&*keys.qr_note(Reveal::QrVault), "second");
     keys.clear();
     assert_eq!(keys.qr_holds(), None);
     assert_eq!(&*keys.qr_note(Reveal::QrVault), "");
     assert!(!keys.holds_secret());
-    keys.qr_open(&c, PASS, &first).unwrap();
+    open_code(&mut keys, &c, PASS, &first).unwrap();
     keys.qr_forget();
     assert_eq!(keys.qr_holds(), None);
 }
@@ -407,7 +416,7 @@ fn offers_refuse_the_wrong_item() {
         .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
     assert_eq!(keys.qr_load_words(&c, "", ""), Err(QrError::NotHeld));
-    keys.qr_open(&c, PASS, &code).unwrap();
+    open_code(&mut keys, &c, PASS, &code).unwrap();
     assert_eq!(keys.qr_load_words(&c, "", ""), Err(QrError::NotHeld));
     assert_eq!(keys.qr_add_passphrase(&c, ""), Err(QrError::NotHeld));
     assert_eq!(&*keys.qr_share(Reveal::QrVault), "");
@@ -417,8 +426,7 @@ fn offers_refuse_the_wrong_item() {
 fn a_held_passphrase_is_added_to_the_key_its_words_make_with_it() {
     let c = compute();
     let mut keys = Keys::on(Network::Mainnet);
-    keys.qr_open(&c, PASS, &committed("qr-passphrase.pgp"))
-        .unwrap();
+    open_code(&mut keys, &c, PASS, &committed("qr-passphrase.pgp")).unwrap();
     assert_eq!(keys.qr_add_passphrase(&c, ""), Err(QrError::NotLoaded));
     keys.add_words(&c, ABANDON, "", None).unwrap();
     assert_eq!(keys.info(0).unwrap().fingerprint, Fingerprint(ABANDON_KEY));
@@ -437,12 +445,12 @@ fn a_held_passphrase_is_added_to_the_key_its_words_make_with_it() {
 fn a_garbage_or_damaged_code_is_refused_and_nothing_is_held() {
     let c = compute();
     let mut keys = Keys::on(Network::Mainnet);
-    assert!(keys.qr_open(&c, PASS, &[0x5a; 396]).is_err());
+    assert!(open_code(&mut keys, &c, PASS, &[0x5a; 396]).is_err());
     assert_eq!(&*keys.qr_note(Reveal::QrVault), "");
     let mut bytes = committed("qr-note.pgp");
     let mid = bytes.len() / 2;
     bytes[mid] ^= 1;
-    assert!(keys.qr_open(&c, PASS, &bytes).is_err());
+    assert!(open_code(&mut keys, &c, PASS, &bytes).is_err());
     assert_eq!(&*keys.qr_note(Reveal::QrVault), "");
     assert_eq!(keys.qr_add_passphrase(&c, ""), Err(QrError::NotHeld));
     assert!(!keys.holds_secret());
@@ -457,7 +465,7 @@ fn a_held_note_is_saved_as_a_new_note_in_an_open_vault() {
     let (mut store, id, _) = vault_with(&c, vec![]);
     let mut keys = Keys::on(Network::Mainnet);
     assert_eq!(store.qr_save_note(&c, &keys, id), Err(QrError::NotHeld));
-    keys.qr_open(&c, PASS, &code).unwrap();
+    open_code(&mut keys, &c, PASS, &code).unwrap();
     let at = store.qr_save_note(&c, &keys, id).unwrap();
     assert_eq!(
         &*store.reveal(
@@ -479,14 +487,14 @@ fn a_committed_code_opens_and_its_cost_reads_without_a_passphrase() {
     assert_eq!((cost.exponent, cost.passes, cost.lanes), (16, 3, 4));
     assert!(QR_SEAL_EXPONENTS.contains(&cost.exponent));
     let mut keys = Keys::on(Network::Mainnet);
-    assert_eq!(keys.qr_open(&c, PASS, &bytes), Ok(QrHolds::Note));
+    assert_eq!(open_code(&mut keys, &c, PASS, &bytes), Ok(QrHolds::Note));
     assert_eq!(
         &*keys.qr_note(Reveal::QrVault),
         "The safe's code is in the drawer."
     );
     let share = committed("qr-codex32.pgp");
     assert_eq!(
-        keys.qr_open(&c, PASS, &share),
+        open_code(&mut keys, &c, PASS, &share),
         Ok(QrHolds::Share {
             key: Fingerprint(SHARE_KEY)
         })
@@ -504,7 +512,7 @@ fn what_is_not_a_qr_vault_is_named() {
         Err(QrError::NotQrVault(QrUnsupported::Compressed))
     );
     assert_eq!(
-        keys.qr_open(&c, PASS, &refused),
+        open_code(&mut keys, &c, PASS, &refused),
         Err(QrError::NotQrVault(QrUnsupported::Compressed))
     );
     assert_eq!(qr_cost(b"not a message at all"), Err(QrError::NotAMessage));

@@ -3,8 +3,11 @@
 //! `.pgp` file, and leaving the tool or a lock wipes what was typed.
 
 use faraday_core::qr_tool::{self, Pick, QrToolAction as Q};
-use faraday_core::{Action, Faraday, Screen, testkit};
-use faraday_keys::{Keys, QrHolds, Reveal};
+use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
+
+use crate::common::{has, has_part, offered, texts};
+use faraday_crypto::work::Compute;
+use faraday_keys::{Keys, QrError, QrHolds, QrOpenJob, Reveal};
 use faraday_shell_api::{App, EntropyBytes, Event, Key};
 
 const WORDS12: &str =
@@ -54,6 +57,14 @@ fn make_note(app: &mut Faraday, note: &str, pass: &str, name: &str) {
     testkit::settle(app);
 }
 
+/// A code opened under `pass` and held, as the tool does it: what was held
+/// goes first, so a refusal leaves none.
+fn open_code(keys: &mut Keys, c: &Compute, pass: &str, code: &[u8]) -> Result<QrHolds, QrError> {
+    keys.qr_forget();
+    let opened = QrOpenJob::new(code, pass).run(c)?;
+    Ok(keys.qr_hold(opened))
+}
+
 #[test]
 fn the_tile_opens_the_tool() {
     let mut app = started();
@@ -75,7 +86,7 @@ fn a_note_typed_and_sealed_opens_back_with_the_same_text() {
         .expect("the code is in the Outbox");
     let c = testkit::compute();
     let mut keys = Keys::default();
-    let holds = keys.qr_open(&c, "correct horse", &item.bytes).unwrap();
+    let holds = open_code(&mut keys, &c, "correct horse", &item.bytes).unwrap();
     assert_eq!(holds, QrHolds::Note);
     assert_eq!(&*keys.qr_note(Reveal::QrVault), "meet at the old oak");
 }
@@ -164,7 +175,7 @@ fn a_loaded_key_is_sealed_and_opens_back_as_a_seed() {
         .find(|i| i.name == "qr-vault.pgp")
         .unwrap();
     let mut keys = Keys::default();
-    let holds = keys.qr_open(&c, "a phrase", &item.bytes).unwrap();
+    let holds = open_code(&mut keys, &c, "a phrase", &item.bytes).unwrap();
     assert_eq!(holds, QrHolds::Seed { words: 12 });
 }
 
@@ -271,7 +282,7 @@ fn a_note_sealed_on_the_worker_shows_progress_then_opens_back() {
     let c = testkit::compute();
     let mut keys = Keys::default();
     assert_eq!(
-        keys.qr_open(&c, "correct horse", &item.bytes),
+        open_code(&mut keys, &c, "correct horse", &item.bytes),
         Ok(QrHolds::Note)
     );
     assert_eq!(&*keys.qr_note(Reveal::QrVault), "meet at the old oak");
@@ -290,7 +301,7 @@ fn type_and_seal_again(app: &mut Faraday) {
     let c = testkit::compute();
     let mut keys = Keys::default();
     assert_eq!(
-        keys.qr_open(&c, "correct horse", &item.bytes),
+        open_code(&mut keys, &c, "correct horse", &item.bytes),
         Ok(QrHolds::Note)
     );
     assert_eq!(&*keys.qr_note(Reveal::QrVault), "meet at the old oak");
@@ -357,4 +368,213 @@ fn a_lock_while_the_code_is_sealed_makes_nothing_and_keeps_nothing_typed() {
     testkit::settle_stale(&mut app);
     assert!(qr_tool::state(&app).is_none());
     assert!(app.outbox.is_empty());
+}
+
+const EMPTY: &[u8] = include_bytes!("../../../../tools/vectors/vault/qr/qr-empty.pgp");
+const VECTOR_PASS: &str = "correct horse battery staple";
+
+/// A note sealed under `pass`, its bytes as the Outbox has them.
+fn sealed_note(note: &str, pass: &str) -> Vec<u8> {
+    let mut app = started();
+    make_note(&mut app, note, pass, "");
+    app.press(Action::QrTool(Q::File));
+    app.outbox
+        .iter()
+        .find(|i| i.name == "qr-vault.pgp")
+        .expect("the code is in the Outbox")
+        .bytes
+        .clone()
+}
+
+/// The code chosen in Files, where the tool opens on its Open card.
+fn open_from_files(app: &mut Faraday, code: &[u8]) {
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("code.pgp".to_string(), code.to_vec())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    app.press(Action::QrTool(Q::OpenFile(0)));
+    assert_eq!(app.screen, Screen::QrTool);
+}
+
+/// The passphrase typed and Open pressed, the answer waited for.
+fn unseal(app: &mut Faraday, pass: &str) {
+    type_in(app, pass);
+    app.press(Action::QrTool(Q::OpenCode));
+    testkit::settle(app);
+}
+
+#[test]
+fn a_code_from_files_opens_on_the_open_card() {
+    let mut app = started();
+    open_from_files(&mut app, EMPTY);
+    assert!(has(&mut app, "QR vault code, 396 bytes"));
+    assert!(has(&mut app, "Open"));
+    assert!(!has(&mut app, "Contents"), "the Make cards are not shown");
+    assert!(qr_tool::state(&app).unwrap().holds().is_none());
+}
+
+#[test]
+fn the_right_passphrase_shows_a_note_behind_its_eye() {
+    let code = sealed_note("meet at oak", "pass phrase");
+    let mut app = started();
+    open_from_files(&mut app, &code);
+    unseal(&mut app, "pass phrase");
+    assert_eq!(qr_tool::state(&app).unwrap().holds(), Some(QrHolds::Note));
+    assert!(has(&mut app, "A note"));
+    assert!(!has_part(&mut app, "meet at oak"), "the note is masked");
+    app.press(Action::QrTool(Q::Eye));
+    assert!(has_part(&mut app, "meet at oak"));
+    app.press(Action::QrTool(Q::Eye));
+    assert!(!has_part(&mut app, "meet at oak"));
+}
+
+#[test]
+fn an_empty_qr_vault_reads_empty() {
+    let mut app = started();
+    open_from_files(&mut app, EMPTY);
+    unseal(&mut app, VECTOR_PASS);
+    assert_eq!(qr_tool::state(&app).unwrap().holds(), Some(QrHolds::Empty));
+    assert!(has(&mut app, "This QR vault is empty."));
+}
+
+#[test]
+fn a_seed_and_a_passphrase_are_named_and_a_passphrase_is_behind_its_eye() {
+    let seed = include_bytes!("../../../../tools/vectors/vault/qr/qr-seed-12.pgp");
+    let pass = include_bytes!("../../../../tools/vectors/vault/qr/qr-passphrase.pgp");
+    let mut app = started();
+    open_from_files(&mut app, seed);
+    unseal(&mut app, VECTOR_PASS);
+    assert!(has(&mut app, "A seed of 12 words"));
+    assert!(!has_part(&mut app, "abandon"), "the words are not shown");
+    let mut app = started();
+    open_from_files(&mut app, pass);
+    unseal(&mut app, VECTOR_PASS);
+    assert!(has(&mut app, "A passphrase"));
+    assert!(has_part(&mut app, "Key "));
+    assert!(offered(&mut app, Action::QrTool(Q::Eye)));
+}
+
+#[test]
+fn a_wrong_passphrase_says_so_and_a_second_try_opens() {
+    let code = sealed_note("meet at oak", "pass phrase");
+    let mut app = started();
+    open_from_files(&mut app, &code);
+    unseal(&mut app, "not it");
+    assert!(has(&mut app, "The passphrase is wrong"));
+    assert!(qr_tool::state(&app).unwrap().holds().is_none());
+    assert_eq!(
+        qr_tool::state(&app).unwrap().focus(),
+        Some(qr_tool::Field::Pass)
+    );
+    unseal(&mut app, "pass phrase");
+    assert_eq!(qr_tool::state(&app).unwrap().holds(), Some(QrHolds::Note));
+}
+
+#[test]
+fn a_code_that_needs_more_memory_than_is_free_is_named_with_no_progress() {
+    let mut app = started();
+    app.storage(StorageEvent::Memory { available_mib: 100 });
+    open_from_files(&mut app, EMPTY);
+    type_in(&mut app, VECTOR_PASS);
+    app.press(Action::QrTool(Q::OpenCode));
+    assert!(app.busy().is_none());
+    assert!(has_part(&mut app, "This computer has"));
+    assert!(qr_tool::state(&app).unwrap().holds().is_none());
+}
+
+#[test]
+fn cancel_while_the_code_opens_shows_nothing_and_it_can_be_opened_again() {
+    let code = sealed_note("meet at oak", "pass phrase");
+    let mut app = started();
+    open_from_files(&mut app, &code);
+    type_in(&mut app, "pass phrase");
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::QrTool(Q::OpenCode));
+    assert!(app.busy().is_some(), "the screen shows Progress");
+    app.press(Action::Cancel);
+    assert!(app.busy().is_none());
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    let s = qr_tool::state(&app).expect("the tool stays open");
+    assert!(s.holds().is_none(), "nothing was opened");
+    assert!(!has_part(&mut app, "meet at oak"));
+    unseal(&mut app, "pass phrase");
+    assert_eq!(qr_tool::state(&app).unwrap().holds(), Some(QrHolds::Note));
+}
+
+#[test]
+fn back_and_a_lock_while_the_code_opens_leave_nothing_open() {
+    let code = sealed_note("meet at oak", "pass phrase");
+    for leave in [Action::Back, Action::Lock] {
+        let mut app = started();
+        open_from_files(&mut app, &code);
+        type_in(&mut app, "pass phrase");
+        testkit::hold_worker();
+        testkit::press_on_worker(&mut app, Action::QrTool(Q::OpenCode));
+        app.press(leave);
+        assert!(app.busy().is_none());
+        testkit::release_worker();
+        testkit::settle_stale(&mut app);
+        assert!(qr_tool::state(&app).is_none(), "{leave:?}");
+        assert!(!has_part(&mut app, "meet at oak"));
+        open_from_files(&mut app, &code);
+        assert!(qr_tool::state(&app).unwrap().holds().is_none());
+    }
+}
+
+#[test]
+fn leaving_the_tool_forgets_what_was_opened() {
+    let code = sealed_note("meet at oak", "pass phrase");
+    let mut app = started();
+    open_from_files(&mut app, &code);
+    unseal(&mut app, "pass phrase");
+    app.press(Action::QrTool(Q::Eye));
+    assert!(has_part(&mut app, "meet at oak"));
+    assert_eq!(app.session.keys.qr_holds(), Some(QrHolds::Note));
+    app.press(Action::Back);
+    assert!(qr_tool::state(&app).is_none());
+    assert_eq!(app.session.keys.qr_holds(), None, "the store is empty");
+    open_from_files(&mut app, &code);
+    assert!(!has_part(&mut app, "meet at oak"));
+    assert!(!texts(&mut app).iter().any(|t| t.contains("A note")));
+    unseal(&mut app, "pass phrase");
+    assert!(
+        !has_part(&mut app, "meet at oak"),
+        "the eye is closed again"
+    );
+}
+
+#[test]
+fn a_lock_forgets_what_was_opened() {
+    let code = sealed_note("meet at oak", "pass phrase");
+    let mut app = started();
+    open_from_files(&mut app, &code);
+    unseal(&mut app, "pass phrase");
+    assert_eq!(app.session.keys.qr_holds(), Some(QrHolds::Note));
+    app.press(Action::Lock);
+    assert_eq!(app.session.keys.qr_holds(), None);
+}
+
+#[test]
+fn the_idle_warning_closes_the_eye_and_asks_for_the_passphrase_again() {
+    let code = sealed_note("meet at oak", "pass phrase");
+    let mut app = started();
+    open_from_files(&mut app, &code);
+    unseal(&mut app, "pass phrase");
+    app.press(Action::QrTool(Q::Eye));
+    assert!(has_part(&mut app, "meet at oak"));
+    let last = app.now_ms();
+    app.event(Event::Tick {
+        now_ms: last + 26 * 60_000,
+    });
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::IdleWarn));
+    let _ = app.frame();
+    assert_eq!(app.session.keys.qr_holds(), None);
+    assert!(!has_part(&mut app, "meet at oak"));
+    let s = qr_tool::state(&app).expect("the tool stays open");
+    assert!(s.holds().is_none());
+    assert_eq!(s.focus(), Some(qr_tool::Field::Pass));
 }

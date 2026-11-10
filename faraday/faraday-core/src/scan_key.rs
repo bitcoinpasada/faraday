@@ -950,6 +950,14 @@ impl Faraday {
         if purpose == ScanPurpose::Transfer {
             return self.transfer_scanned(bytes);
         }
+        // A scanner that takes a SeedQR names a QR vault and offers the QR
+        // vault tool, rather than refusing it: a QR vault
+        // loads no key, so a stick plugged in does not matter.
+        if matches!(purpose, ScanPurpose::Seed | ScanPurpose::KeyPart)
+            && scan_read::is_qr_vault(&bytes)
+        {
+            return self.scan_not_taken(bytes);
+        }
         // A stick plugged in while the camera is on is held back, and no
         // key loads while it is attached: what loads one is not read.
         if camera
@@ -960,13 +968,6 @@ impl Faraday {
             )
         {
             return self.scan_say(crate::stick::keys_load(self.medium));
-        }
-        // A scanner that takes a SeedQR names a QR vault and offers the QR
-        // vault tool, rather than refusing it.
-        if matches!(purpose, ScanPurpose::Seed | ScanPurpose::KeyPart)
-            && scan_read::is_qr_vault(&bytes)
-        {
-            return self.scan_not_taken(bytes);
         }
         match purpose {
             ScanPurpose::VaultEntry => self.entry_code_scanned(bytes),

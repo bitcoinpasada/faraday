@@ -41,6 +41,8 @@ pub enum Kind {
     PublicFiles,
     /// A QR vault sealed in Tools: its two Argon2id runs.
     QrSeal,
+    /// A QR vault opened in Tools: its Argon2id run.
+    QrOpen,
     /// A Krux code sealed: its PBKDF2 runs, and stops on Cancel.
     KefSeal,
     /// A Krux code opened: its PBKDF2 runs, and stops on Cancel.
@@ -65,6 +67,7 @@ impl Kind {
             | Kind::Collecting
             | Kind::PublicFiles
             | Kind::QrSeal
+            | Kind::QrOpen
             | Kind::KefSeal
             | Kind::KefOpen
             | Kind::KefTime => false,
@@ -102,6 +105,7 @@ pub(crate) enum Job {
     Collect(Box<crate::signing::collect::CollectWork>),
     Files(Box<crate::public_files::FilesWork>),
     QrSeal(Box<crate::qr_tool::SealWork>),
+    QrOpen(Box<crate::qr_tool::OpenWork>),
     KefSeal(Box<kef::SealWork>),
     KefOpen(Box<kef::OpenWork>),
     KefTime(Box<kef::TimeWork>),
@@ -120,6 +124,7 @@ pub(crate) enum Done {
     Collect(Box<crate::signing::collect::CollectDone>),
     Files(Box<crate::public_files::FilesDone>),
     QrSeal(Box<crate::qr_tool::SealDone>),
+    QrOpen(Box<crate::qr_tool::OpenDone>),
     KefSeal(Box<kef::SealDone>),
     KefOpen(Box<kef::OpenDone>),
     KefTime(Box<kef::TimeDone>),
@@ -139,6 +144,7 @@ impl Job {
             Job::Collect(_) => Kind::Collecting,
             Job::Files(_) => Kind::PublicFiles,
             Job::QrSeal(_) => Kind::QrSeal,
+            Job::QrOpen(_) => Kind::QrOpen,
             Job::KefSeal(_) => Kind::KefSeal,
             Job::KefOpen(_) => Kind::KefOpen,
             Job::KefTime(_) => Kind::KefTime,
@@ -159,6 +165,7 @@ impl Job {
             Job::Collect(j) => Done::Collect(Box::new(j.run(c))),
             Job::Files(j) => Done::Files(Box::new(j.run(c))),
             Job::QrSeal(j) => Done::QrSeal(Box::new(j.run(c))),
+            Job::QrOpen(j) => Done::QrOpen(Box::new(j.run(c))),
             Job::KefSeal(j) => Done::KefSeal(Box::new(j.run(c))),
             Job::KefOpen(j) => Done::KefOpen(Box::new(j.run(c))),
             Job::KefTime(j) => Done::KefTime(Box::new(j.run(c))),

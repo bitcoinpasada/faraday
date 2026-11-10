@@ -55,6 +55,7 @@ fn screen(name: &str) -> Screen {
         "Transfer" => S::Transfer,
         "BackupFlow" => S::BackupFlow,
         "KefTool" => S::KefTool,
+        "QrTool" => S::QrTool,
         other => panic!("{other} is not a Screen"),
     }
 }
