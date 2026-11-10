@@ -533,7 +533,8 @@ other scanner (Files', Restore's, Create's, the Spend tab's). Transactions, wall
 files, account keys, signed messages and GPG keys go to Files and the
 flow waiting for them, as before; where the next step is a press away
 (a PSBT to sign, a transaction to decode, a wallet to load, split
-sheets to restore, a message to check, text to save as a note), the
+sheets to restore, a message to check, text to save as a note or, with a
+single-key wallet loaded, to sign as a message), the
 read card shows that press with **Done**, in place of the toast
 (`docs/SCANNING.md` §5.4). A private key (an xprv, a WIF or a Nostr
 secret key) and words that fail a BIP-39 checksum are named and never
@@ -1363,6 +1364,14 @@ guarantees for this file's rule:
   one code, labelled with the share's number and quorum, the keys it
   holds and leaves off, and "Not a wallet on its own". A scan of a share
   picture comes back as the share, and Restore takes any quorum of them.
+- **Sign a message's Message step takes the text from a scan.** **Scan**
+  sits beside **Type**: a plain text read, or Paste on a shell with a
+  clipboard, becomes the message as read, in place of what was typed.
+  Every other kind of code, a seed, a private key or any other secret
+  among them, is named on the scanner ("{kind} · not used here") and
+  refused, and no text is kept. Home's Scan of a text offers **Sign this
+  message** while a single-key wallet is loaded, and it opens this flow
+  with the text in (`docs/SCANNING.md` §4.3).
 - **Every public file a flow makes as a code and a picture**
   (2026-10-09; `docs/QR.md` §4 item 4). Beside a file's row, For the
   stick with **Remove** (decision 24), sit **Show as QR** and **PNG** where a wallet or a person

@@ -84,6 +84,9 @@ pub enum ScanPurpose {
     CompareFirst,
     /// Compare's **Scan** on the Second card.
     CompareSecond,
+    /// Sign a message's **Scan**: plain text for the message, never
+    /// filed; any other kind is named and refused.
+    MessageText,
 }
 
 /// What the camera sheet holds.

@@ -867,6 +867,17 @@ impl Faraday {
                 self.message_format_fit();
                 self.screen = Screen::Message;
             }
+            Action::MScan => {
+                if self.message.state.is_some() {
+                    let mut scan = crate::qr_view::ScanState::default();
+                    scan.purpose = crate::ScanPurpose::MessageText;
+                    self.camera.open(scan);
+                    self.sheet = Some(crate::Sheet::Scan);
+                    self.out
+                        .commands
+                        .push_back(faraday_shell_api::Command::CameraOn);
+                }
+            }
             Action::MSign => {
                 if let Some(m) = self.message.state.as_mut()
                     && let Some(w) = m.wallet
@@ -926,6 +937,73 @@ impl Faraday {
             }
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
+        }
+    }
+
+    /// Costs what a code read as a file costs and, for a secret, what
+    /// [`scan_read::secret_kind`] costs. A code read on Sign a message's
+    /// scanner: only plain text becomes the message, and nothing is
+    /// filed. A secret of any kind and every other kind of code is named
+    /// on the scanner and refused (`docs/SCANNING.md` §4.3). Returns
+    /// whether the scanner on screen is that one.
+    pub(crate) fn message_scanned(&mut self, bytes: &zeroize::Zeroizing<Vec<u8>>) -> bool {
+        use crate::scan_read::{self, Kind};
+        if self.camera.scan().map(|s| s.purpose) != Some(crate::ScanPurpose::MessageText) {
+            return false;
+        }
+        let c = self.compute();
+        if let Some(kind) = scan_read::secret_kind(&c, bytes) {
+            self.scan_say(kind.not_here());
+            return true;
+        }
+        // Parts are put together first; what comes out is looked at again,
+        // since a secret may be what the parts make.
+        let Some((named, _, data)) = self.read_code(bytes.clone()) else {
+            return true;
+        };
+        let data = zeroize::Zeroizing::new(data);
+        if let Some(kind) = scan_read::secret_kind(&c, &data) {
+            self.scan_say(kind.not_here());
+            return true;
+        }
+        let kind = scan_read::public_kind(
+            crate::wallet::classify(&c, "", &data),
+            named.is_some(),
+            &data,
+        );
+        if kind != Kind::Text {
+            self.scan_say(kind.not_here());
+            return true;
+        }
+        let Ok(text) = String::from_utf8(data.to_vec()) else {
+            self.scan_say(Kind::Unreadable.not_here());
+            return true;
+        };
+        if let Some(m) = self.message.state.as_mut() {
+            m.text = text;
+            m.typing = false;
+            m.signed = None;
+            m.error = None;
+            self.scan_close();
+        } else {
+            self.scan_say(Kind::Unreadable.not_here());
+        }
+        true
+    }
+
+    /// Opens Sign a message with `text` as the message: the read card's
+    /// **Sign this message**. Nothing opens for a code that is no UTF-8 or
+    /// when no single-key wallet is loaded.
+    pub(crate) fn message_open_with(&mut self, text: &[u8]) {
+        let Ok(text) = std::str::from_utf8(text) else {
+            return;
+        };
+        if self.session.message_wallets().is_empty() {
+            return;
+        }
+        self.act(Action::SignMessage);
+        if let Some(m) = self.message.state.as_mut() {
+            m.text = text.to_string();
         }
     }
 

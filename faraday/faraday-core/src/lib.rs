@@ -2789,6 +2789,7 @@ impl Faraday {
             | Action::MWallet(..)
             | Action::MIndex(..)
             | Action::MType
+            | Action::MScan
             | Action::MFormat(..)
             | Action::MSign
             | Action::MOut

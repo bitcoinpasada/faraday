@@ -463,6 +463,8 @@ pub enum Action {
     MIndex(i32),
     /// Start or stop typing the message.
     MType,
+    /// Scan the message.
+    MScan,
     /// BIP-322 (true) or BIP-137.
     MFormat(bool),
     /// Sign the message.

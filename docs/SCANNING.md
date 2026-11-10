@@ -153,7 +153,7 @@ destination's action.
 | Address, BIP-21, silent payment address | **Is this address mine?**: the card's fact is the line `address_note` gives |
 | Signed message | filed, then Check a message. **Check the signature** |
 | GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). **Keep in Files** |
-| Text | the card shows it masked (§4.10), with **Save as a note** in the open vault and **Keep in Files** |
+| Text | the card shows it masked (§4.10), with **Save as a note** in the open vault, **Sign this message** while a single-key wallet is loaded (Sign a message opens with the text as the message) and **Keep in Files** |
 | Lightning invoice or offer | not filed. **Decode it** opens Decode a Lightning invoice on the text, read at once |
 | Labels, web address | named |
 | Not readable | named |
@@ -174,6 +174,7 @@ destination's action.
 | A wallet's Scan a key | a seed or a codex32 secret, matched to the wallet's missing keys; a codex32 or SLIP-39 share, to its form opened for the wallet (`EntryWallet`), back to the wallet once the key is whole | every other kind | as §4.2 |
 | What do you have? | a seed, shares, a description, split sheets, an account key, a PSBT | none: the camera stays on and the intake is not left (§10 item 6) | every other kind on its line, as in §5.5; a secret is not filed |
 | TOTP | a TOTP setup code, vault entries | a seed, a share, a PSBT, a wallet description, a signed message | as §4.2 |
+| Sign a message's Scan, on the Message step | plain text, as the message, never filed | none | every secret kind and every other kind of code on the line, "{kind} · not used here"; nothing is kept; a code in parts is put together first and what it makes is judged the same way |
 | Copy checks | the copy, compared, never loaded | none | every other kind on the line; a SeedQR of another seed: "This is another seed's SeedQR" |
 | Transfer's Receive | every kind, into Downloads (F129 for a secret) | none | — |
 | Restore a GPG key's Scan the public key | a GPG public key, filed as `{name}-{fp8}.asc` and its restore opened (one not restored here filed, the sheet back saying why); a code in parts gathered first, as Home's | none | a seed, a private key, a paperkey or another secret, by the line Home's Scan names it with, nothing filed; every other kind: "Not a public key Faraday reads", nothing filed |

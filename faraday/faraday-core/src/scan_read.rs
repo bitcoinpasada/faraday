@@ -414,6 +414,9 @@ pub enum Way {
     /// A Lightning invoice into Decode a Lightning invoice; the tool files
     /// nothing.
     Invoice,
+    /// Text into Sign a message as the message, a single-key wallet
+    /// loaded.
+    SignMessage,
     /// Text into the open vault as a note.
     Note,
     /// A public kind filed.
@@ -444,6 +447,7 @@ impl Way {
             Way::Wallet => EN.read_go_wallet.to_string(),
             Way::Restore => EN.read_go_restore.to_string(),
             Way::Check => EN.read_go_check.to_string(),
+            Way::SignMessage => EN.read_go_message.to_string(),
             Way::Note => EN.read_go_note.to_string(),
             Way::Keep => EN.read_keep.to_string(),
             Way::OpenQrVault => EN.read_go_qr_vault.to_string(),

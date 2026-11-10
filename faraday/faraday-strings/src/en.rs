@@ -4165,6 +4165,8 @@ strings! {
     read_go_check: "Check the signature",
     /// The read card's way over for text: a note in the open vault.
     read_go_note: "Save as a note",
+    /// The read card's way over for text: Sign a message with it.
+    read_go_message: "Sign this message",
     /// The read card's way over for a public kind: filed in Files.
     read_keep: "Keep in Files",
     /// The read card's kind for a Krux encrypted code.
@@ -6791,6 +6793,10 @@ strings! {
     message_stop_typing: "Stop typing",
     /// Text in `message_body`.
     message_type: "Type",
+    /// Button in `message_body`: a QR code of the message.
+    message_scan: "Scan",
+    /// Sign a message's scanner.
+    message_scan_title: "Scan the message",
     /// Text in `message_body`. `{}`: `m.text.chars().count()`.
     message_characters: "{} characters",
     /// Button in `message_body`.

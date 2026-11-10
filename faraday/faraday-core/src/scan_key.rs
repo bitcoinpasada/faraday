@@ -692,6 +692,7 @@ impl Faraday {
                 | ScanPurpose::CheckReturned
                 | ScanPurpose::CompareFirst
                 | ScanPurpose::CompareSecond
+                | ScanPurpose::MessageText
                 | ScanPurpose::Sweep => true,
                 ScanPurpose::VaultEntry
                 | ScanPurpose::CheckCopy(_)
@@ -954,7 +955,8 @@ impl Faraday {
     /// on screen.
     fn scanned_here(&mut self, bytes: Vec<u8>) {
         let bytes = zeroize::Zeroizing::new(bytes);
-        if self.seed_scan_codex32(&bytes)
+        if self.message_scanned(&bytes)
+            || self.seed_scan_codex32(&bytes)
             || self.gpg_restore_scanned(&bytes)
             || self.sweep_scanned(&bytes)
             || self.signer_check_scanned(&bytes)
@@ -1243,8 +1245,19 @@ impl Faraday {
             Kind::Message => vec![Way::Check],
             Kind::QrVault => vec![Way::OpenQrVault],
             Kind::Gpg | Kind::File => vec![Way::Keep],
-            Kind::Text if self.vaults.current_id().is_some() => vec![Way::Keep, Way::Note],
-            Kind::Text => vec![Way::Keep],
+            Kind::Text => {
+                let mut ways = vec![Way::Keep];
+                if self.vaults.current_id().is_some() {
+                    ways.push(Way::Note);
+                }
+                // A single-key wallet signs it as a message; text that is
+                // not valid UTF-8 is not one.
+                if !self.session.message_wallets().is_empty() && std::str::from_utf8(&code).is_ok()
+                {
+                    ways.push(Way::SignMessage);
+                }
+                ways
+            }
             _ => Vec::new(),
         };
         // Unrecognised text is shown masked behind its eye, kept here as
@@ -1418,6 +1431,16 @@ impl Faraday {
                 drop(code);
                 self.scan_close();
                 self.act(Action::Vault(crate::vault::VaultAction::Create));
+            }
+            Way::SignMessage => {
+                // Read on Home's Scan the text is in Files and the card
+                // holds no copy.
+                let text = match filed.and_then(|at| self.inbox.get(at)) {
+                    Some(item) => zeroize::Zeroizing::new(item.bytes.clone()),
+                    None => code,
+                };
+                self.scan_close();
+                self.message_open_with(&text);
             }
             way => match filed {
                 Some(at) => {
