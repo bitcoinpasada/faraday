@@ -519,6 +519,13 @@ pattern = 'a == page::Act::Skip'
 what = "The signed-amount memory's seal setting"
 decision = "F136"
 case = "Where the person keeps it: sealed into an open vault on lock, or not"
-file = "faraday/faraday-core/src/lib.rs"
-pattern = 'Action::SealAmounts\(on\) => \{\n\s*self\.memory\.set_seals\(on\)'
+file = "faraday/faraday-core/src/memory/mod.rs"
+pattern = 'crate::Action::SealAmounts\(on\) => self\.memory\.set_seals\(on\)'
+
+[[way_past]]
+what = "The nonce history's setting"
+decision = "F227"
+case = "Where the person keeps it: kept in an open vault, or Off, so nothing is recorded or compared across a lock (a refusal already found stays)"
+file = "faraday/faraday-core/src/memory/mod.rs"
+pattern = 'crate::Action::NonceHistory\(on\) => self\.set_nonce_history\(on\)'
 
