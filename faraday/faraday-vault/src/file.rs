@@ -26,7 +26,7 @@ use zeroize::Zeroizing;
 use crate::Cost;
 use crate::kdbx::items::{self, Body, Place, Read, Unwritable};
 use crate::kdbx::xml::{self, Document};
-use crate::kdbx::{self, Binary, Cipher, Compression, Contents, Header, Kdf};
+use crate::kdbx::{self, Binary, Cipher, Components, Compression, Contents, Header, Kdf};
 use crate::records::Record;
 
 /// How many times the document the reader's uncharged text copies are
@@ -226,6 +226,9 @@ pub struct Opened {
     /// opened.
     document_len: usize,
     passphrase: Zeroizing<Vec<u8>>,
+    /// The key file's key and the YubiKey's secret the file was opened
+    /// with, which a seal puts back in the composite key (§3.2).
+    components: Components,
 }
 
 /// How many changes [`Opened::check`] has looked at in this process.
@@ -277,14 +280,44 @@ pub fn open_within(
     parsed: &mut dyn FnMut(usize, usize) -> Result<Option<usize>, u32>,
     room: Option<usize>,
 ) -> Result<Opened, Error> {
+    open_with(
+        c,
+        file,
+        passphrase,
+        &Components::none(),
+        budget,
+        parsed,
+        room,
+    )
+}
+
+/// Costs what [`open`] costs. [`open_within`] for a file that also needs a
+/// key file or a YubiKey's secret (§3.2, F208): `components`, which the
+/// opened vault keeps for its seals.
+pub fn open_with(
+    c: &Compute,
+    file: &[u8],
+    passphrase: &str,
+    components: &Components,
+    budget: &mut dyn FnMut(usize) -> Result<(), u32>,
+    parsed: &mut dyn FnMut(usize, usize) -> Result<Option<usize>, u32>,
+    room: Option<usize>,
+) -> Result<Opened, Error> {
     let facts = inspect(file)?;
     // `parsed` may also give the most the open may take, which holds
     // whatever is free, so a crafted file takes no more than it counted.
     let cap = core::cell::Cell::new(None);
-    let opened = kdbx::open_within(c, file, passphrase, budget, &mut |document, attachments| {
-        cap.set(parsed(document, attachments)?);
-        Ok(())
-    })?;
+    let opened = kdbx::open_with(
+        c,
+        file,
+        passphrase,
+        components,
+        budget,
+        &mut |document, attachments| {
+            cap.set(parsed(document, attachments)?);
+            Ok(())
+        },
+    )?;
     let room = match (room, cap.get()) {
         (Some(a), Some(b)) => Some(a.min(b)),
         (a, b) => a.or(b),
@@ -339,6 +372,7 @@ pub fn open_within(
         binaries: opened.binaries,
         document_len: opened.document.len(),
         passphrase,
+        components: components.clone(),
     })
 }
 
@@ -617,7 +651,13 @@ pub fn seal_with(
         Some(p) => p,
         None => core::str::from_utf8(&opened.passphrase).map_err(|_| kdbx::Error::Damaged)?,
     };
-    let sealing = kdbx::derive(c, passphrase, opened.next_cost_at(rekey.memory_kib), random)?;
+    let sealing = kdbx::derive_with(
+        c,
+        passphrase,
+        &opened.components,
+        opened.next_cost_at(rekey.memory_kib),
+        random,
+    )?;
     let doc = applied(c, &opened.doc, &opened.read, changes, now)?;
     let xml = doc.write(kdbx::inner_key_of(random));
     // The copy with the changes is not held while the text is read back
@@ -663,13 +703,23 @@ pub fn create(
     random: &[u8; kdbx::RANDOM_LEN],
     now: Option<u64>,
 ) -> Result<Vec<u8>, Error> {
-    create_holding(c, id, label, cost, passphrase, random, now, &[])
+    create_holding(
+        c,
+        id,
+        label,
+        cost,
+        passphrase,
+        &Components::none(),
+        random,
+        now,
+        &[],
+    )
 }
 
 /// Costs an Argon2id run at `cost` and a document write for each item put.
 /// A new vault as [`create`] makes it (first seal, count 1), with `changes`
 /// put in it, each a [`Change::Put`], sealed at the smallest multiple of [`STEP`]
-/// that holds it.
+/// that holds it. The file needs `components` after the passphrase (§3.2).
 #[expect(
     clippy::too_many_arguments,
     reason = "each is a value the new file states; the caller draws them all"
@@ -680,6 +730,7 @@ pub fn create_holding(
     label: &str,
     cost: Cost,
     passphrase: &str,
+    components: &Components,
     random: &[u8; kdbx::RANDOM_LEN],
     now: Option<u64>,
     changes: &[Change<'_>],
@@ -700,7 +751,9 @@ pub fn create_holding(
         binaries: kdbx::Binaries::all(&[]),
         public_custom_data: None,
     };
-    Ok(kdbx::seal(c, passphrase, cost, random, &contents, size)?)
+    Ok(kdbx::seal_with(
+        c, passphrase, components, cost, random, &contents, size,
+    )?)
 }
 
 #[cfg(test)]

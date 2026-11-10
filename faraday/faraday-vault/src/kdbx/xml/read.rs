@@ -195,7 +195,7 @@ type Handler<'a, 'h, P> =
     dyn FnMut(&mut Rd<'a>, &mut Frame<P>, &BytesStart<'a>, usize, usize, bool) -> R<bool> + 'h;
 
 /// The character a reference names, if XML allows it.
-fn decode_ref(name: &[u8]) -> R<char> {
+pub(super) fn decode_ref(name: &[u8]) -> R<char> {
     let bad = || Refused::Entity(name.to_vec());
     match name {
         b"amp" => Ok('&'),

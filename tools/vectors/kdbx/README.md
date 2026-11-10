@@ -41,3 +41,7 @@ The KeePass export's vector (`tools/vectors/backup/`) is read and written
 again byte for byte by the same tests.
 
 `reread.py FILE PASSPHRASE` opens a file with pykeepass and prints its entries, for the test that reads back what `faraday-vault` wrote.
+
+`keyed.py` makes and reads, with pykeepass, a file that needs a key file or a
+YubiKey's secret (`docs/VAULT.md` §3.2); `faraday/faraday-vault/tests/keyed.rs`
+runs it in both directions. It writes nothing into this folder.

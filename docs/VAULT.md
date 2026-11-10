@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189; F208; F226); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call and the app does not yet make or open; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: key files and a YubiKey's typed secret (§3.2, F208: the reader, the composite key, the unlock's two choices, what a seal holds, Key file on the vault's ⋮, their vectors and their checks against `keepassxc-cli` and pykeepass); the QR vault in the app, a tool in Tools (§13, F226: Make, Open, and Save as a QR vault on a file vault's item)
+**Open:** not built: key files and a YubiKey's typed secret in the app (§3.2, F208: built: `faraday-vault` reads the key file forms and makes the composite key, key files checked against pykeepass and `keepassxc-cli`; not built: the unlock's two choices, what a seal holds in `faraday-keys`, Key file on the vault's ⋮, offering a key file, the vectors from KeePassXC's own test file, and an outside check of the YubiKey's response, which `tools/vectors/kdbx/keyed.py`, Faraday's own script, does not give); the QR vault in the app, a tool in Tools (§13, F226: Make, Open, and Save as a QR vault on a file vault's item)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -466,18 +466,56 @@ key does not change between seals. The response does, since the salt does.
 
 **A key file** is read in this order, as KeePass does:
 
-1. **XML:** a file the vault's XML reader reads whole, whose root is
-   `KeyFile`. `Meta/Version` of `1.0` or `1.00` gives `Key/Data` as Base64;
-   `2.0` or `2.00` gives it as hexadecimal, white space ignored, with the
-   `Hash` attribute required and equal to the first four bytes of the key's
-   SHA-256. A `KeyFile` document with another version, no key, a key that
-   is not 32 bytes, a value that does not decode or a hash that fails is
-   refused, naming the file: "This key file is damaged."
+1. **XML:** a file that is a well formed `KeyFile` document, read with
+   the vault's XML reader's rules for names, attributes and references and
+   its nesting limit, whose root is `KeyFile`. `Meta/Version` of exactly
+   `1.0` or `1.00` gives `Key/Data` as Base64; exactly `2.0` gives it as
+   hexadecimal, white space ignored, with the `Hash` attribute required and
+   equal to the first four bytes of the key's SHA-256. A `KeyFile` document
+   with another version (` 2.0 ` and `2.00` included, which KeePassXC
+   opens with neither key), no key, a key that is not 32 bytes, a value that
+   does not decode or a hash that fails is refused, naming the file: "This
+   key file is damaged." So is one the readers read differently: a DOCTYPE,
+   anything after the root's end tag but white space and a well formed
+   comment or processing instruction (a comment with `--` in it, a
+   declaration, an element, text, a reference, an end tag, markup not
+   closed, a last character cut short and a character XML does not allow
+   are refused there; other invalid UTF-8 is hashed), a declared version of `1.` and digits other
+   than `1.0`, a declared encoding other than UTF-8 with a byte at or above
+   0x80 in a `KeyFile` document (the encodings below are taken for ASCII
+   content only; a file with another root is hashed, and so is one found
+   not to be a key file before its root; once the `KeyFile` root is read the file is
+   refused rather than hashed), a processing
+   instruction target with such a byte in a document with that encoding
+   (unless its ASCII characters already make both readers refuse it, which
+   hashes the file before a `KeyFile` root), a
+   processing instruction standing alone whose target one reader takes and
+   the other refuses (a target that is not an XML name, has no ASCII
+   punctuation but `_`, `-` and `.` and does not start with a digit, `-` or
+   `.`: a control character or DEL, U+00B7, U+00D7, U+00F7, `a` then U+00F7,
+   U+0300, U+2000; refused in every position), an element inside the `Version` or `Data`, nesting deeper
+   than the vault's reader allows, and a file in UTF-16.
 2. **32 bytes:** a file of exactly 32 bytes is the key.
 3. **Hexadecimal:** a file of exactly 64 characters, each `0-9`, `a-f` or
    `A-F`, is the key they spell.
 4. **Any other file:** its SHA-256 is the key. A document that is not well
-   formed, or has another root, or a DOCTYPE, is such a file.
+   formed (an unquoted or repeated attribute on any element, a malformed
+   XML declaration, `--` inside a comment or a comment ending in `-`, a
+   declaration anywhere but first, a processing instruction whose target is
+   not an XML name (refused after the root) or is `xml` in any case, a
+   byte that is not valid UTF-8 wherever it is, a second byte order mark,
+   or a character XML does not allow (a control character but tab, line
+   feed and carriage return, U+FFFE, U+FFFF) before or inside the root, a
+   reference that is not one of XML's five or a character) or has another
+   root is such a file. So is one whose declaration gives a version that is
+   neither `1.0` nor `1.` and digits (those are refused, above), a
+   standalone other than `yes` or `no`, or an encoding other than UTF-8,
+   `utf8`, US-ASCII, ASCII, ISO-8859-1, ISO-8859-15, Latin1, windows-1252 or
+   Shift_JIS (the encodings both readers were seen to take, for ASCII
+   content only; UTF-16, UTF-32 and a name neither knows are hashed by
+   both). The rules were checked against
+   `keepassxc-cli` 2.7.10 and pykeepass 4.1.1 by opening a vault keyed with
+   a key file holding each defect.
 
 An empty file and a file beginning with KDBX's signatures are refused as
 key files. The file is read within the memory check of a file's read, and

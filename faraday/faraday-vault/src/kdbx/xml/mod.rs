@@ -157,6 +157,12 @@ const T_TIMES: &[u8] = b"<Times>";
 const T_MODIFIED: &[u8] = b"<LastModificationTime>";
 const T_HISTORY: &[u8] = b"<History>";
 
+/// Whether `name` (between `&` and `;`) is one of XML's five references or
+/// a character reference to a character XML allows.
+pub(crate) fn valid_ref(name: &[u8]) -> bool {
+    read::decode_ref(name).is_ok()
+}
+
 /// What a reader refuses, naming what it found.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Refused {

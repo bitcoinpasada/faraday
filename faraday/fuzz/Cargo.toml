@@ -143,6 +143,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "keyfile"
+path = "fuzz_targets/keyfile.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "vault_header"
 path = "fuzz_targets/vault_header.rs"
 test = false

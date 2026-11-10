@@ -344,6 +344,7 @@ impl KdbxJob {
                 label,
                 self.cost,
                 self.passphrase.as_str(),
+                &fv::kdbx::Components::none(),
                 &self.random,
                 *now,
                 changes,

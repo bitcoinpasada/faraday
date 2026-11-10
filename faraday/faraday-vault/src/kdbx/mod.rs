@@ -37,6 +37,7 @@ mod gzip;
 mod header;
 mod inner;
 pub mod items;
+pub mod keyfile;
 mod keys;
 pub mod xml;
 
@@ -57,6 +58,7 @@ pub use inner::{Binaries, Binary, InnerStream, Shared};
 #[cfg(feature = "fuzzing")]
 #[doc(hidden)]
 pub use items::fuzz_items;
+pub use keys::Components;
 #[cfg(feature = "fuzzing")]
 #[doc(hidden)]
 pub use xml::fuzz_document as fuzz_xml;
@@ -234,6 +236,7 @@ pub fn measure(c: &Compute, header: &Header) -> Result<(), Error> {
     keys::file_keys(
         c,
         b"measure",
+        &Components::none(),
         &[0u8; 32],
         header.kdf,
         &header.cost,
@@ -301,11 +304,28 @@ pub fn open_within(
     budget: &mut dyn FnMut(usize) -> Result<(), u32>,
     parsed_fn: &mut dyn FnMut(usize, usize) -> Result<(), u32>,
 ) -> Result<Opened, Error> {
+    open_with(c, bytes, passphrase, &Components::none(), budget, parsed_fn)
+}
+
+/// Costs what [`open_within`] costs. [`open_within`] for a file that also
+/// needs a key file or a YubiKey's secret: `components` go into the
+/// composite key after the passphrase (`docs/VAULT.md` §3.2). A file that
+/// needs what is not given, or is given what it does not need, is
+/// [`Error::Passphrase`].
+pub fn open_with(
+    c: &Compute,
+    bytes: &[u8],
+    passphrase: &str,
+    components: &Components,
+    budget: &mut dyn FnMut(usize) -> Result<(), u32>,
+    parsed_fn: &mut dyn FnMut(usize, usize) -> Result<(), u32>,
+) -> Result<Opened, Error> {
     let nfc = passphrase_bytes(passphrase)?;
     let parsed = checked_header(bytes)?;
     let keys = keys::file_keys(
         c,
         &nfc,
+        components,
         &parsed.master_seed,
         parsed.header.kdf,
         &parsed.header.cost,
@@ -469,6 +489,8 @@ fn strip_padding(body: &[u8]) -> Result<usize, Error> {
 pub struct SealKeys {
     keys: keys::Keys,
     cost: Cost,
+    /// The salt the file carries: `random`'s, as the composite key fits it.
+    salt: [u8; 32],
 }
 
 /// Costs an Argon2id run at `cost`. The keys [`seal_keyed`] seals under:
@@ -480,12 +502,35 @@ pub fn derive(
     cost: Cost,
     random: &[u8; RANDOM_LEN],
 ) -> Result<SealKeys, Error> {
+    derive_with(c, passphrase, &Components::none(), cost, random)
+}
+
+/// Costs what [`derive`] costs. [`derive`] for a file that also needs a key
+/// file or a YubiKey's secret (`docs/VAULT.md` §3.2): `components` go into
+/// the composite key after the passphrase.
+pub fn derive_with(
+    c: &Compute,
+    passphrase: &str,
+    components: &Components,
+    cost: Cost,
+    random: &[u8; RANDOM_LEN],
+) -> Result<SealKeys, Error> {
     let nfc = passphrase_bytes(passphrase)?;
     header::cost_in_limits(&cost)?;
     let (master_seed, rest) = random.split_at(32);
-    let salt = &rest[12..44];
-    let keys = keys::file_keys(c, &nfc, master_seed, Kdf::Argon2id, &cost, salt)?;
-    Ok(SealKeys { keys, cost })
+    let mut salt = [0u8; 32];
+    salt.copy_from_slice(&rest[12..44]);
+    components.fit_salt(&mut salt);
+    let keys = keys::file_keys(
+        c,
+        &nfc,
+        components,
+        master_seed,
+        Kdf::Argon2id,
+        &cost,
+        &salt,
+    )?;
+    Ok(SealKeys { keys, cost, salt })
 }
 
 /// Costs an Argon2id run at `cost`, and a read of the file made without
@@ -499,23 +544,48 @@ pub fn seal(
     contents: &Contents<'_>,
     plain_len: usize,
 ) -> Result<Vec<u8>, Error> {
-    let keys = derive(c, passphrase, cost, random)?;
+    seal_with(
+        c,
+        passphrase,
+        &Components::none(),
+        cost,
+        random,
+        contents,
+        plain_len,
+    )
+}
+
+/// Costs what [`seal`] costs. [`seal`] for a file that also needs a key
+/// file or a YubiKey's secret (`docs/VAULT.md` §3.2): `components` go into
+/// the composite key after the passphrase. With a secret, a salt that
+/// `random` gives ending `0x20` ends `0x21` in the file, so that no seal
+/// rests on the key's padding rule.
+pub fn seal_with(
+    c: &Compute,
+    passphrase: &str,
+    components: &Components,
+    cost: Cost,
+    random: &[u8; RANDOM_LEN],
+    contents: &Contents<'_>,
+    plain_len: usize,
+) -> Result<Vec<u8>, Error> {
+    let keys = derive_with(c, passphrase, components, cost, random)?;
     seal_keyed(keys, random, contents, plain_len)
 }
 
 /// Costs a read of the file made (its HMACs, its decryption and its inner
 /// header), no Argon2id. Writes a file as
 /// Faraday writes one: 4.0, ChaCha20, Argon2id, no compression, the passphrase (put in NFC
-/// here) alone, 1 MiB blocks, and a plaintext of exactly `plain_len`
+/// here) and any key file or secret [`derive_with`] was given, 1 MiB blocks, and a plaintext of exactly `plain_len`
 /// bytes: the inner header, the document and line feeds after it. Every
-/// random value comes from `random`, the same as [`derive`] was given.
+/// random value comes from `random`, the same as [`derive_with`] was given.
 pub fn seal_keyed(
     sealing: SealKeys,
     random: &[u8; RANDOM_LEN],
     contents: &Contents<'_>,
     plain_len: usize,
 ) -> Result<Vec<u8>, Error> {
-    let SealKeys { keys, cost } = sealing;
+    let SealKeys { keys, cost, salt } = sealing;
     if plain_len > MAX_PLAIN {
         return Err(Error::TooLarge);
     }
@@ -528,8 +598,8 @@ pub fn seal_keyed(
     }
 
     let (master_seed, rest) = random.split_at(32);
-    let (iv, rest) = rest.split_at(12);
-    let salt = &rest[..32];
+    let (iv, _) = rest.split_at(12);
+    let salt = &salt;
     let cipher =
         ChaCha20::new_from_slices(keys.encryption.expose(), iv).map_err(|_| Error::Damaged)?;
 

@@ -93,6 +93,7 @@ shipped binary does.
 | `bip39_words` | `Mnemonic::parse`, `forms::typed_mnemonic` and `faraday_intake::file_words` over text, in the language the first byte picks. |
 | `kef` | Krux's encrypted code: `recognize` and `unwrap` over any bytes, and `open_with_key` under a fixed key on what unwraps, never past the inflate limit. |
 | `vault_header` | `faraday_vault::file::inspect` over any file. |
+| `keyfile` | `faraday_vault::kdbx::keyfile::read` over any file a person chooses as a vault's key file. |
 | `vault_entries` | `entries::parse` and `totp::parse`: a vault entries file and a TOTP setup code. |
 | `files_proto` | The disk process pipe: `Response::decode` and `Request::decode`, each decoded value encoded and decoded again to the same value, and the framing read as a stream. |
 | `vault_parts` | `faraday_files::finish_vault_writes` over a part file of the input's bytes, under a `.kdbx` name and another: the whole-vault check reads it, and what stays is the same bytes. |
