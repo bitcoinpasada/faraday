@@ -15,6 +15,7 @@ use alloc::vec::Vec;
 use base64ct::{Base64, Encoding};
 use zeroize::Zeroizing;
 
+use crate::length::{NewFormat, new_format_whole};
 use crate::{Armor, Certificate, Key, armor, crc24, public_body, tag};
 
 const BEGIN: &[u8] = b"-----BEGIN PGP PRIVATE KEY BLOCK-----";
@@ -114,17 +115,8 @@ fn packet_at(data: &[u8], at: usize) -> Option<(u8, &[u8], usize)> {
     if first & 0xC0 != 0xC0 {
         return None;
     }
-    let byte = |n: usize| data.get(at + n).copied().map(usize::from);
-    let (head, len) = match byte(1)? {
-        n @ 0..=191 => (2, n),
-        n @ 192..=223 => (3, ((n - 192) << 8) + byte(2)? + 192),
-        255 => (
-            6,
-            byte(2)? << 24 | byte(3)? << 16 | byte(4)? << 8 | byte(5)?,
-        ),
-        _ => return None,
-    };
-    let from = at.checked_add(head)?;
+    let (len, octets) = new_format_whole(data, at.checked_add(1)?, NewFormat::Whole)?;
+    let from = at.checked_add(1 + octets)?;
     let to = from.checked_add(len)?;
     Some((first & 0x3f, data.get(from..to)?, to))
 }

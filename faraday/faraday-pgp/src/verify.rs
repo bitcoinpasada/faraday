@@ -24,6 +24,7 @@ use ed25519_dalek::{Signature, VerifyingKey};
 use sha2::{Digest, Sha256, Sha512};
 
 use crate::certificate::sig_fields;
+use crate::length::{Subpacket, Subpackets};
 use crate::{Armor, Certificate, ED25519_OID, EDDSA, Hash, read_block_packets, sig, tag};
 
 /// Why a detached signature is not taken.
@@ -120,29 +121,16 @@ fn embedded(binding: &[u8]) -> Option<&[u8]> {
     let unhashed = binding.get(at + 2..at + 2 + unhashed_len)?;
     let mut found = None;
     for area in [hashed, unhashed] {
-        let mut r = 0usize;
-        while r < area.len() {
-            let first = usize::from(area[r]);
-            let (n, head) = match first {
-                0..=191 => (first, 1),
-                192..=254 => (
-                    ((first - 192) << 8) + usize::from(*area.get(r + 1)?) + 192,
-                    2,
-                ),
-                _ => {
-                    let s = area.get(r + 1..r + 5)?;
-                    (u32::from_be_bytes([s[0], s[1], s[2], s[3]]) as usize, 5)
-                }
-            };
-            let sp = area.get(r + head..r + head + n)?;
-            let (&kind, data) = sp.split_first()?;
-            if kind & 0x7f == crate::sub::EMBEDDED_SIGNATURE {
+        for sp in Subpackets::new(area) {
+            let Subpacket {
+                kind, body: data, ..
+            } = sp.ok()?;
+            if kind == crate::sub::EMBEDDED_SIGNATURE {
                 if found.is_some() {
                     return None;
                 }
                 found = Some(data);
             }
-            r += head + n;
         }
     }
     found

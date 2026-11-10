@@ -21,6 +21,8 @@ use alloc::vec::Vec;
 
 use zeroize::Zeroizing;
 
+use crate::length::{Subpacket, Subpackets};
+
 use crate::{
     ED25519_OID, EDDSA, Key, Reason, fingerprint_of, next_packet, paperkey, public_body,
     read_block_packets, sig, sub, tag,
@@ -146,33 +148,20 @@ pub(crate) fn sig_fields(body: &[u8]) -> Option<SigFields> {
     let unhashed_len = usize::from(u16::from_be_bytes([*body.get(at)?, *body.get(at + 1)?]));
     let unhashed = body.get(at + 2..at + 2 + unhashed_len)?;
     for (area, is_hashed) in [(hashed, true), (unhashed, false)] {
-        let mut r = 0usize;
-        while r < area.len() {
-            let first = usize::from(area[r]);
-            let (n, head) = match first {
-                0..=191 => (first, 1),
-                192..=254 => (
-                    ((first - 192) << 8) + usize::from(*area.get(r + 1)?) + 192,
-                    2,
-                ),
-                _ => {
-                    let s = area.get(r + 1..r + 5)?;
-                    (u32::from_be_bytes([s[0], s[1], s[2], s[3]]) as usize, 5)
-                }
-            };
-            let sp = area.get(r + head..r + head + n)?;
-            let (&kind, data) = sp.split_first()?;
+        for sp in Subpackets::new(area) {
+            let Subpacket {
+                kind,
+                critical,
+                body: data,
+            } = sp.ok()?;
             if is_hashed
-                && (kind & 0x7f == SIG_EXPIRES
-                    || (kind & 0x80 != 0
-                        && !matches!(
-                            kind & 0x7f,
-                            sub::CREATED | sub::ISSUER | sub::ISSUER_FINGERPRINT
-                        )))
+                && (kind == SIG_EXPIRES
+                    || (critical
+                        && !matches!(kind, sub::CREATED | sub::ISSUER | sub::ISSUER_FINGERPRINT)))
             {
                 f.unhonoured = true;
             }
-            match (kind & 0x7f, is_hashed) {
+            match (kind, is_hashed) {
                 (sub::CREATED, true) => f.created = Some(u32::from_be_bytes(data.try_into().ok()?)),
                 (sub::KEY_EXPIRES, true) => {
                     f.expires = Some(u32::from_be_bytes(data.try_into().ok()?));
@@ -188,7 +177,6 @@ pub(crate) fn sig_fields(body: &[u8]) -> Option<SigFields> {
                 (sub::ISSUER, _) => f.issuer_id = Some(data.try_into().ok()?),
                 _ => {}
             }
-            r += head + n;
         }
     }
     Some(f)

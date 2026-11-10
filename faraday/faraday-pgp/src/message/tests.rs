@@ -580,3 +580,59 @@ fn faradays_own_vault_at_exponent_13_is_a_known_answer() {
     let got = opened(&bytes).expect("opened");
     assert_eq!(&**got, toml().as_slice());
 }
+
+// Where a packet's length ends and its body begins, at the edges of each
+// form: a padding packet and then one more octet.
+
+/// What reading `header`, a body of `n` octets and one more octet gives:
+/// the body's length and what is left, or the error.
+fn read_header(header: &[u8], n: usize) -> Result<(usize, usize), Error> {
+    let bytes = join(&[header, &vec![0u8; n], &[9]]);
+    let (packet, rest) = read_packet(&bytes)?;
+    Ok((packet.body.as_slice().len(), rest.len()))
+}
+
+#[test]
+fn a_packet_length_is_read_at_the_edge_of_each_form() {
+    let pad = 0xC0 | TAG_PADDING;
+    assert_eq!(read_header(&[pad, 0], 0), Ok((0, 1)));
+    assert_eq!(read_header(&[pad, 191], 191), Ok((191, 1)));
+    assert_eq!(read_header(&[pad, 192, 0], 192), Ok((192, 1)));
+    assert_eq!(read_header(&[pad, 223, 255], 8383), Ok((8383, 1)));
+    assert_eq!(read_header(&[pad, 255, 0, 0, 0, 0], 0), Ok((0, 1)));
+    assert_eq!(read_header(&[pad, 255, 0, 0, 0, 192], 192), Ok((192, 1)));
+    // The old format: one, two and four octets.
+    let old = 0x80 | (TAG_SKESK << 2);
+    assert_eq!(read_header(&[old, 255], 255), Ok((255, 1)));
+    assert_eq!(read_header(&[old | 1, 1, 0], 256), Ok((256, 1)));
+    assert_eq!(read_header(&[old | 2, 0, 0, 0, 3], 3), Ok((3, 1)));
+}
+
+#[test]
+fn a_packet_length_that_is_cut_short_or_past_the_data_is_malformed() {
+    let pad = 0xC0 | TAG_PADDING;
+    let old = 0x80 | (TAG_SKESK << 2);
+    for header in [
+        vec![pad],
+        vec![pad, 192],
+        vec![pad, 255],
+        vec![pad, 255, 0, 0, 0],
+        vec![pad, 255, 0xFF, 0xFF, 0xFF, 0xFF],
+        vec![pad, 255, 0x80, 0, 0, 0],
+        vec![old],
+        vec![old | 1, 0],
+        vec![old | 2, 0, 0, 0],
+        vec![old | 2, 0xFF, 0xFF, 0xFF, 0xFF],
+        // Partial and indeterminate lengths on a packet that is not data.
+        vec![pad, 224],
+        vec![pad, 233],
+        vec![pad, 254],
+        vec![old | 3],
+        // No top bit.
+        vec![0x40 | TAG_PADDING, 0],
+    ] {
+        assert_eq!(read_header(&header, 0), Err(Error::Malformed), "{header:?}");
+    }
+    assert_eq!(read_header(&[pad, 193, 0], 193), Err(Error::Malformed));
+    assert_eq!(read_header(&[pad, 191], 192), Ok((191, 2)));
+}

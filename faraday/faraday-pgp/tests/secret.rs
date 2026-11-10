@@ -156,3 +156,27 @@ fn armour_that_is_off_is_not_read() {
     // Not a private key block.
     assert!(read_secret(text.replace("PRIVATE", "PUBLIC").as_bytes()).is_none());
 }
+
+#[test]
+fn a_packet_header_in_another_length_form_or_cut_short_is_not_read() {
+    let packets = key().secret_key(MADE).to_vec();
+    let n = usize::from(packets[1]);
+    assert!(packets[1] < 192);
+    let read = |p: &[u8]| read_secret(private_block(p).as_bytes());
+    assert!(read(&packets).is_some());
+    let rest = &packets[2..];
+    let with = |head: &[u8]| [head, rest].concat();
+    // The same length in the five-octet form, a partial length, an
+    // old-format header, a header without its top bits.
+    assert!(read(&with(&[0xC5, 255, 0, 0, 0, n as u8])).is_none());
+    assert!(read(&with(&[0xC5, 224])).is_none());
+    assert!(read(&with(&[0xC5, 254])).is_none());
+    assert!(read(&with(&[0x94, n as u8])).is_none());
+    assert!(read(&with(&[0x45, n as u8])).is_none());
+    // A length past the data, and a header with no length.
+    assert!(read(&with(&[0xC5, n as u8 + 1])).is_none());
+    assert!(read(&with(&[0xC5, 255, 0xff, 0xff, 0xff, 0xff])).is_none());
+    assert!(read(&with(&[0xC5, 192, 0])).is_none());
+    assert!(read(&[0xC5]).is_none());
+    assert!(read(&[0xC5, 255, 0, 0]).is_none());
+}

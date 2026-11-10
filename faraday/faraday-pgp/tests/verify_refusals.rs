@@ -41,6 +41,9 @@ fn packet(tag: u8, body: &[u8]) -> Vec<u8> {
     let n = body.len();
     if n < 192 {
         out.push(n as u8);
+    } else if n >= 8384 {
+        out.push(0xff);
+        out.extend((n as u32).to_be_bytes());
     } else {
         let m = n - 192;
         out.extend([((m >> 8) + 192) as u8, (m & 0xff) as u8]);
@@ -459,4 +462,137 @@ fn base64_decode(text: &str) -> Vec<u8> {
         }
     }
     out
+}
+
+// Subpacket lengths (RFC 9580 §5.2.3.7) in the areas of a signature and of
+// a binding's embedded back signature.
+
+/// A subpacket of `kind` and `data` with its length in `length`.
+fn sub_as(length: &[u8], kind: u8, data: &[u8]) -> Vec<u8> {
+    let mut out = length.to_vec();
+    out.push(kind);
+    out.extend_from_slice(data);
+    out
+}
+
+/// The length of a subpacket body of `n` octets, type included, in the
+/// two-octet form.
+fn two(n: usize) -> Vec<u8> {
+    let m = n - 192;
+    vec![((m >> 8) + 192) as u8, (m & 0xff) as u8]
+}
+
+fn five(n: usize) -> Vec<u8> {
+    let mut out = vec![0xff];
+    out.extend((n as u32).to_be_bytes());
+    out
+}
+
+#[test]
+fn a_signature_is_read_whatever_form_its_subpacket_lengths_are_in() {
+    let fp = key(0x31, 0x32).subkey_fingerprint();
+    let mut d = vec![4];
+    d.extend_from_slice(&fp);
+    // Every subpacket in the five-octet form.
+    let mut hashed = sub_as(&five(5), 2, &MADE.to_be_bytes());
+    hashed.extend(sub_as(&five(22), 33, &d));
+    let unhashed = sub_as(&five(9), 16, &fp[12..]);
+    assert_eq!(verdict(&made(4, 0x00, &hashed, &unhashed)), Ok(MADE));
+    // An unknown subpacket before them, of each length at the form's edges.
+    for (length, n) in [
+        (vec![191], 191),
+        (two(192), 192),
+        (two(8128), 8128),
+        (two(8384), 8384),
+        (two(16100), 16100),
+        (five(300), 300),
+    ] {
+        let (mut hashed, mut unhashed) = areas();
+        hashed.splice(0..0, sub_as(&length, 101, &vec![0; n - 1]));
+        assert_eq!(verdict(&made(4, 0x00, &hashed, &unhashed)), Ok(MADE), "{n}");
+        unhashed.splice(0..0, sub_as(&length, 101, &vec![0; n - 1]));
+        assert_eq!(verdict(&made(4, 0x00, &hashed, &unhashed)), Ok(MADE), "{n}");
+    }
+}
+
+#[test]
+fn a_subpacket_length_that_does_not_fit_its_area_is_refused() {
+    let (hashed, unhashed) = areas();
+    let tails: [&[u8]; 9] = [
+        &[0],
+        &[10, 101, 0],
+        &[192],
+        &[192, 0, 101],
+        &[254],
+        &[255],
+        &[255, 0, 0, 0],
+        &[255, 0xff, 0xff, 0xff, 0xff, 101],
+        &[255, 0x80, 0, 0, 1, 101],
+    ];
+    for tail in tails {
+        let mut h = hashed.clone();
+        h.extend_from_slice(tail);
+        assert_eq!(
+            verdict(&made(4, 0x00, &h, &unhashed)),
+            Err(Unverified::NotSignature),
+            "hashed {tail:?}"
+        );
+        let mut u = unhashed.clone();
+        u.extend_from_slice(tail);
+        assert_eq!(
+            verdict(&made(4, 0x00, &hashed, &u)),
+            Err(Unverified::NotSignature),
+            "unhashed {tail:?}"
+        );
+    }
+}
+
+#[test]
+fn a_back_signature_is_found_in_either_area_in_any_length_form() {
+    for form in 0..4 {
+        let cert = cross(|p, s, fp| {
+            let back = back(p, s);
+            let mut hashed = sub(2, &MADE.to_be_bytes());
+            hashed.extend(sub(27, &[0x02]));
+            hashed.extend(issuer_fp(fp));
+            let n = back.len() + 1;
+            let embedded = match form {
+                0 | 1 => sub_as(&five(n), 32, &back),
+                _ => sub_as(&[n as u8], 32, &back),
+            };
+            let pad = sub_as(&two(300), 101, &[0; 299]);
+            let (hashed, unhashed) = match form {
+                0 => ([hashed, embedded].concat(), pad),
+                1 => (hashed, [pad, embedded].concat()),
+                2 => (hashed, [embedded, pad].concat()),
+                _ => ([hashed, pad].concat(), embedded),
+            };
+            signature(0x31, 4, 0x18, &keys_hashed(p, s), &hashed, &unhashed)
+        });
+        assert_eq!(
+            verify_detached(&cert, DATA, by_b_subkey().as_bytes()),
+            Ok(MADE),
+            "form {form}"
+        );
+    }
+}
+
+#[test]
+fn a_binding_with_two_back_signatures_verifies_nothing() {
+    let embed = |p: &[u8], s: &[u8]| {
+        let back = back(p, s);
+        sub_as(&five(back.len() + 1), 32, &back)
+    };
+    let cert = cross(|p, s, fp| {
+        let mut hashed = sub(2, &MADE.to_be_bytes());
+        hashed.extend(sub(27, &[0x02]));
+        hashed.extend(issuer_fp(fp));
+        hashed.extend(embed(p, s));
+        let unhashed = embed(p, s);
+        signature(0x31, 4, 0x18, &keys_hashed(p, s), &hashed, &unhashed)
+    });
+    assert_eq!(
+        verify_detached(&cert, DATA, by_b_subkey().as_bytes()),
+        Err(Unverified::Bad)
+    );
 }

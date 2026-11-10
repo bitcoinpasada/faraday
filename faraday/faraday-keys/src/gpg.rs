@@ -4,6 +4,7 @@
 //! The packets are faraday-pgp's.
 
 use faraday_crypto::work::{Compute, Work};
+use faraday_pgp::length::{NewFormat, new_format_whole};
 pub use faraday_pgp::paperkey::LineError;
 use faraday_pgp::paperkey::{self, LINE_BYTES, Progress};
 use faraday_pgp::{Armor, Certificate, Hash, Reason, Refusal, armor};
@@ -153,15 +154,8 @@ pub fn gpg_key_of(r: &Record, at: u32) -> Option<GpgKey> {
 /// The time, reason and text a revocation certificate states: one
 /// signature packet, its creation time first, then the reason subpacket.
 fn revocation_parts(packets: &[u8]) -> Option<(u32, Reason, String)> {
-    let first = usize::from(*packets.get(1)?);
-    let (len, head) = match first {
-        0..=191 => (first, 2),
-        192..=223 => (
-            ((first - 192) << 8) + usize::from(*packets.get(2)?) + 192,
-            3,
-        ),
-        _ => return None,
-    };
+    let (len, octets) = new_format_whole(packets, 1, NewFormat::OneOrTwoOctets)?;
+    let head = 1 + octets;
     if packets.first()? & 0x3f != 2 || packets.len() != head + len {
         return None;
     }

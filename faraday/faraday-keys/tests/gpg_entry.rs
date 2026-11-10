@@ -146,6 +146,42 @@ fn a_revocation_is_the_keys_own_and_nothing_else() {
 }
 
 #[test]
+fn a_revocation_is_read_with_its_length_in_the_form_it_is_written_in() {
+    let k = key(0x11);
+    let with = |packets: &[u8]| {
+        let mut g = entry(&k);
+        g.revocation = Some(Zeroizing::new(armor(Armor::PublicKey, packets)));
+        record_of(&g).is_some()
+    };
+    // The packet's length is one octet below 192 and two above; the
+    // reason's own length is one octet only.
+    for (n, ok) in [(0, true), (40, true), (60, true), (100, true), (189, true)] {
+        let text = "r".repeat(n);
+        assert_eq!(with(&k.revocation(MADE, Reason::Retired, &text)), ok, "{n}");
+    }
+    for n in [190, 191, 300] {
+        let text = "r".repeat(n);
+        assert!(!with(&k.revocation(MADE, Reason::Retired, &text)), "{n}");
+    }
+    // The same signature under a header of another form, or cut short.
+    let own = k.revocation(MADE, Reason::Retired, "no longer used");
+    let (head, body) = if own[1] < 192 {
+        (2, &own[2..])
+    } else {
+        (3, &own[3..])
+    };
+    assert!(with(&own));
+    let five = [&[own[0], 255][..], &(body.len() as u32).to_be_bytes(), body].concat();
+    assert!(!with(&five));
+    let partial = [&[own[0], 0xE9][..], body].concat();
+    assert!(!with(&partial));
+    assert!(!with(&own[..own.len() - 1]));
+    assert!(!with(&[own.as_slice(), &[0]].concat()));
+    assert!(!with(&own[..head - 1]));
+    assert!(!with(&own[..head]));
+}
+
+#[test]
 fn a_certificate_is_the_keys_own_at_its_expiry_and_nothing_else() {
     let k = key(0x11);
     let with = |packets: Vec<u8>| {

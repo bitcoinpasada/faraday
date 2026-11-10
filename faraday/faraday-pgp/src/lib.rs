@@ -28,10 +28,13 @@
 extern crate alloc;
 
 pub mod certificate;
+pub mod length;
 pub mod message;
 pub mod paperkey;
 pub mod secret;
 pub mod verify;
+
+use length::{NewFormat, OldLength, Subpacket, Subpackets, new_format_whole, old_format};
 
 pub use certificate::{Certificate, Refusal, Restored, restore};
 pub use secret::{armor_secret, dearmor, read_secret, read_secret_at};
@@ -588,15 +591,9 @@ fn push_packet(out: &mut Vec<u8>, tag: u8, body: &[u8]) {
 /// Reads only the new-format headers this crate writes.
 pub(crate) fn next_packet(bytes: &[u8], at: usize) -> (u8, usize, usize) {
     let t = bytes[at] & 0x3f;
-    let first = bytes[at + 1] as usize;
-    let (len, head) = if first < 192 {
-        (first, 2)
-    } else if first < 224 {
-        (((first - 192) << 8) + bytes[at + 2] as usize + 192, 3)
-    } else {
-        let n = u32::from_be_bytes([bytes[at + 2], bytes[at + 3], bytes[at + 4], bytes[at + 5]]);
-        (n as usize, 6)
-    };
+    let (len, octets) = new_format_whole(bytes, at + 1, NewFormat::Whole)
+        .expect("a packet header this crate wrote");
+    let head = 1 + octets;
     (t, at + head, at + head + len)
 }
 
@@ -716,14 +713,8 @@ pub fn signature_time(packets: &[u8]) -> Option<u32> {
     let mut at = 0;
     while at + 2 < packets.len() {
         let packet = packets[at] & 0x3f;
-        let first = packets[at + 1] as usize;
-        let (len, head) = if first < 192 {
-            (first, 2)
-        } else if first < 224 {
-            (((first - 192) << 8) + packets[at + 2] as usize + 192, 3)
-        } else {
-            return None;
-        };
+        let (len, octets) = new_format_whole(packets, at + 1, NewFormat::OneOrTwoOctets)?;
+        let head = 1 + octets;
         let body = packets.get(at + head..at + head + len)?;
         if packet == tag::SIGNATURE {
             // version, type, algorithm, hash, hashed length (2), then a
@@ -877,32 +868,17 @@ pub(crate) fn read_block_packets(bytes: &[u8]) -> Option<Block> {
         if first & 0x80 == 0 {
             return None;
         }
-        let byte = |n: usize| data.get(at + n).copied().map(usize::from);
         let (packet_tag, head, len) = if first & 0x40 != 0 {
-            let len0 = byte(1)?;
-            let (head, len) = match len0 {
-                0..=191 => (2, len0),
-                192..=223 => (3, ((len0 - 192) << 8) + byte(2)? + 192),
-                255 => (
-                    6,
-                    byte(2)? << 24 | byte(3)? << 16 | byte(4)? << 8 | byte(5)?,
-                ),
-                // A partial body length.
-                _ => return None,
-            };
-            (first & 0x3f, head, len)
+            // A partial body length is refused.
+            let (len, octets) = new_format_whole(&data, at + 1, NewFormat::Whole)?;
+            (first & 0x3f, 1 + octets, len)
         } else {
-            let (head, len) = match first & 3 {
-                0 => (2, byte(1)?),
-                1 => (3, byte(1)? << 8 | byte(2)?),
-                2 => (
-                    5,
-                    byte(1)? << 24 | byte(2)? << 16 | byte(3)? << 8 | byte(4)?,
-                ),
+            let (len, octets) = match old_format(&data, at)? {
+                (OldLength::Fixed(len), octets) => (len, octets),
                 // An indeterminate length.
-                _ => return None,
+                (OldLength::Indeterminate, _) => return None,
             };
-            ((first >> 2) & 0x0f, head, len)
+            ((first >> 2) & 0x0f, 1 + octets, len)
         };
         let from = at.checked_add(head)?;
         let to = from.checked_add(len)?;
@@ -1090,19 +1066,11 @@ fn signature_body(body: &[u8], texts: &mut Vec<String>, depth: u8) -> bool {
 
 /// A signature's subpackets, each with the length its type needs.
 fn subpackets(area: &[u8], texts: &mut Vec<String>, depth: u8) -> Option<()> {
-    let mut r = Rd::new(area);
-    while !r.done() {
-        let n = match r.u8()? {
-            n @ 0..=191 => usize::from(n),
-            n @ 192..=254 => ((usize::from(n) - 192) << 8) + usize::from(r.u8()?) + 192,
-            _ => {
-                let s = r.take(4)?;
-                u32::from_be_bytes([s[0], s[1], s[2], s[3]]) as usize
-            }
-        };
-        let sub = r.take(n)?;
-        let (&kind, data) = sub.split_first()?;
-        let ok = match kind & 0x7f {
+    for sub in Subpackets::new(area) {
+        let Subpacket {
+            kind, body: data, ..
+        } = sub.ok()?;
+        let ok = match kind {
             2 | 3 | 9 => data.len() == 4,
             4 | 25 => data.len() == 1,
             5 => data.len() == 2,

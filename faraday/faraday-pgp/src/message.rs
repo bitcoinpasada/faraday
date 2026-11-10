@@ -42,6 +42,8 @@ use ocb3::consts::{U15, U16};
 use ocb3::{Array, KeyInit, Ocb3};
 use zeroize::Zeroizing;
 
+use crate::length::{Length as Len, NewFormat, OldLength, new_format, old_format};
+
 #[cfg(test)]
 mod tests;
 
@@ -774,30 +776,12 @@ struct Packet<'a> {
     body: Body<'a>,
 }
 
-/// A length as RFC 9580 §4.2.1 writes it in the new format.
-enum Len {
-    Fixed(usize),
-    Partial(usize),
-}
-
+/// A length as RFC 9580 §4.2.1 writes it in the new format, partial
+/// lengths too, and where it ends.
 fn new_len(input: &[u8], pos: usize) -> Result<(Len, usize), Error> {
-    let at = |i: usize| {
-        input
-            .get(pos + i)
-            .copied()
-            .map(usize::from)
-            .ok_or(Error::Malformed)
-    };
-    let o1 = at(0)?;
-    Ok(match o1 {
-        0..=191 => (Len::Fixed(o1), pos + 1),
-        192..=223 => (Len::Fixed(((o1 - 192) << 8) + at(1)? + 192), pos + 2),
-        224..=254 => (Len::Partial(1 << (o1 & 0x1f)), pos + 1),
-        _ => {
-            let n = (at(1)? << 24) | (at(2)? << 16) | (at(3)? << 8) | at(4)?;
-            (Len::Fixed(n), pos + 5)
-        }
-    })
+    let (len, octets) =
+        new_format(input, pos, NewFormat::WholeOrPartial).ok_or(Error::Malformed)?;
+    Ok((len, pos + octets))
 }
 
 /// Whether a packet of `tag` may have a partial or an indeterminate length.
@@ -881,17 +865,9 @@ fn read_packet(input: &[u8]) -> Result<(Packet<'_>, &[u8]), Error> {
         }
     } else {
         let tag = (b0 >> 2) & 0x0f;
-        let (n, pos) = match b0 & 3 {
-            0 => (usize::from(*input.get(1).ok_or(Error::Malformed)?), 2),
-            1 => {
-                let b = take(1, 2)?;
-                (usize::from(u16::from_be_bytes([b[0], b[1]])), 3)
-            }
-            2 => {
-                let b = take(1, 4)?;
-                (u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as usize, 5)
-            }
-            _ => {
+        let (n, pos) = match old_format(input, 0).ok_or(Error::Malformed)? {
+            (OldLength::Fixed(n), octets) => (n, 1 + octets),
+            (OldLength::Indeterminate, _) => {
                 // Indeterminate: to the end of the input.
                 if !is_data_packet(tag) {
                     return Err(Error::Malformed);
