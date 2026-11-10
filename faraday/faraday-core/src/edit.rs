@@ -260,6 +260,8 @@ pub enum Here {
     /// The aezeed's words; a press on them while its passphrase takes
     /// typing moves typing here.
     Aezeed,
+    /// Transfer's Send text card's text.
+    TransferText,
     /// Decode a Lightning invoice's text.
     Invoice,
 }
@@ -335,6 +337,7 @@ impl Faraday {
                 Here::Aezeed
             }
             Screen::Invoice if self.invoice().is_some() => Here::Invoice,
+            Screen::Transfer if self.transfer_text_here() => Here::TransferText,
             Screen::Tools if self.tools.state().is_some() => Here::Tools,
             Screen::Convert if self.tools.convert().check().is_some() => Here::Convert,
             Screen::Convert if self.tools.convert().entering_share() => Here::Share,
@@ -511,6 +514,7 @@ impl Faraday {
             }
             Screen::Message => self.message.state().is_some_and(|m| m.typing),
             Screen::Invoice => self.invoice().is_some(),
+            Screen::Transfer => self.transfer_text_here(),
             Screen::KeyGen => self.keygen.state().is_some_and(|k| {
                 !k.locked
                     && ((k.focus.is_some() && k.open == Some(keygen::kstep::KEY))
@@ -709,6 +713,7 @@ impl Faraday {
                 Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,
                 Here::Aezeed => &self.lightning.state()?.typed,
                 Here::Invoice => self.invoice()?.text(),
+                Here::TransferText => self.transfer.text().text(),
                 Here::Chart => {
                     let w = self.glance.work();
                     match self.glance.chart()?.1 {
@@ -785,7 +790,7 @@ impl Faraday {
     /// Up and Down move the caret a line (`docs/TEXT-CURSOR.md` §3).
     fn several_lines(&self, target: Action) -> bool {
         match target {
-            Action::TypeHere(Here::Message | Here::Invoice) | GPG_LINE => true,
+            Action::TypeHere(Here::Message | Here::Invoice | Here::TransferText) | GPG_LINE => true,
             // Wrapped on a small panel, one line on a wider window.
             Action::TypeHere(Here::Entry) => self.compact,
             Action::Vault(V::FocusField(k)) => self.vaults.form.as_ref().is_some_and(|f| {

@@ -572,7 +572,7 @@ under it:
 |---|---|---|
 | **Home** | `Icon::House`, as Faraday's own rail | §3.1 |
 | **Make** | `Glyph::Stick` | two cards: **Faraday stick** (the attached stick's version, or "No Faraday stick attached"; **Make a Faraday stick**, §3.2) and **Pi card** (the Pi image's version, or "Not in this Starter"; **Make a Pi card**, §3.3, disabled without the image) |
-| **Tools** | `Icon::Qr` | two cards: **Transfer** (Send and Receive, §3.6) and **Blank templates** (§3.8) |
+| **Tools** | `Icon::Qr` | two cards: **Transfer** (Send files and text, Receive, §3.6) and **Blank templates** (§3.8) |
 | **Learn** | `Icon::Learn` | the Starter's Learn pages (§3.6, §7) |
 
 On each destination its first card's button is the primary; on Make,
@@ -995,8 +995,8 @@ files and Faraday Demo's sticks stay."). §5 says what each does.
 
 ### 3.6 Transfer and Learn
 
-The desktop app's screens (§2). On Windows, Transfer offers Send and
-Receive; Receive reads the camera through Media Foundation (§8).
+The desktop app's screens (§2). On Windows, Transfer offers Send,
+Send text and Receive; Receive reads the camera through Media Foundation (§8).
 
 ### 3.7 About
 
@@ -1961,7 +1961,8 @@ BIOS version, so the pages draw none.
 ## 8. Transfer
 
 Transfer is the desktop app's (`faraday-core/src/transfer/mod.rs`): Send
-shows a file as animated codes for the device's Scan; Receive reads the
+shows a file as animated codes for the device's Scan; Send text shows
+text typed or pasted as codes, except a secret (F236); Receive reads the
 device's codes with the camera and saves each whole file into the
 Downloads folder. On Linux the camera is `faraday-v4l2`, as the
 desktop app's. On Windows it is `faraday-mediafoundation`
@@ -2132,7 +2133,7 @@ what moved.
 - **D2 HDMI on the Pi:** not in the first round; it needs USB keyboard
   and mouse on the Pi, with the stick's new-keyboard approval code.
 - **D3 Boards:** Pi 3B, 3B+ and Zero 2 W first, Pi 4 next, Pi 5 later.
-- **D4 Windows Transfer:** Send and Receive; Receive reads the camera
+- **D4 Windows Transfer:** Send, Send text and Receive; Receive reads the camera
   through Media Foundation (§8).
 - **D5 Panel profiles (§9.3) and layout checks at other sizes (§9.1):**
   deferred until a second screen is tried.

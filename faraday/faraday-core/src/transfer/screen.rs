@@ -6,15 +6,21 @@ use crate::drawing::View;
 use crate::screens::{section_label, size_text};
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::transfer::{MAX_TEXT, TextCheck, TextPress};
 use crate::ui::Region;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L};
-use faraday_draw::tokens::{BUTTON_H, GAP};
+use faraday_draw::tokens::{
+    BUTTON_H, FIELD_EDGE_ACTIVE, FIELD_GAP, FIELD_PAD, FIELD_PAD_V, FIELD_RADIUS, GAP,
+};
 use faraday_ui::parts::wrap_buttons;
 
 /// A row of the Downloads list.
 const ROW: f32 = 44.0;
+
+/// Between Transfer's sections.
+const SECTION_GAP: f32 = 20.0;
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
@@ -40,11 +46,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let end = if side {
         let colw = (w - 32.0) / 2.0;
         let left = send(app, ui, x, y, colw);
-        let right = receive(app, ui, x + colw + 32.0, y, colw);
+        let rx = x + colw + 32.0;
+        let t = send_text(app, ui, rx, y, colw);
+        let right = t + SECTION_GAP + receive(app, ui, rx, y + t + SECTION_GAP, colw);
         y + left.max(right)
     } else {
         let r = receive(app, ui, x, y, w);
-        y += r + 20.0;
+        y += r + SECTION_GAP;
+        let t = send_text(app, ui, x, y, w);
+        y += t + SECTION_GAP;
         y + send(app, ui, x, y, w)
     };
     app.scroll.content_h().set(end - top + 24.0);
@@ -117,6 +127,120 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ui.rule(x, y, w, Role::OutlineVariant);
     }
     y + 8.0 - y0
+}
+
+/// The fewest and the most lines the text field shows; past the most it
+/// shows the end of the text.
+const TEXT_LINES: (usize, usize) = (3, 8);
+
+/// Send text: an outlined field that grows with its text, the count or
+/// what was refused under it, and its buttons. Returns its height.
+fn send_text(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let card = app.transfer_text();
+    let mut y = y0;
+    section_label(ui, x, y, EN.transfer_send_text);
+    y += ui.line_as(faraday_draw::tokens::TITLE_S) + faraday_draw::tokens::GRID;
+    let here = Action::TypeHere(crate::edit::Here::TransferText);
+    let room = w - 2.0 * FIELD_PAD;
+    let laid = ui.wrapped_as(BODY_M, card.text(), room);
+    let line = ui.line_as(BODY_M);
+    let label = ui.line_as(BODY_S);
+    let lines = ((laid.h / line).round() as usize).clamp(TEXT_LINES.0, TEXT_LINES.1);
+    let field_h = FIELD_PAD_V + label + lines as f32 * line + FIELD_PAD_V;
+    crate::menu::outline(
+        ui,
+        (x, y, w, field_h),
+        FIELD_RADIUS,
+        FIELD_EDGE_ACTIVE,
+        Role::Primary.paint(),
+    );
+    ui.press_box(x, y, w, field_h, here);
+    ui.text_as(
+        x + FIELD_PAD,
+        y + FIELD_PAD_V / 2.0,
+        BODY_S,
+        Role::Primary,
+        EN.transfer_text_label,
+    );
+    let top = y + FIELD_PAD_V / 2.0 + label;
+    ui.c.push_clip(ui.rect(x, top, w, field_h - (top - y) - FIELD_PAD_V / 2.0));
+    if card.is_empty() {
+        ui.wrap_as(
+            (x + FIELD_PAD, top, room),
+            BODY_M,
+            Role::OnSurfaceVariant,
+            EN.transfer_text_hint,
+        );
+        let ch = BODY_M.size * ui.text_factor();
+        ui.caret(x + FIELD_PAD, top + (line - ch) / 2.0, ch);
+    } else {
+        // Past the most lines the field shows the end of the text.
+        let hidden = (laid.h / line).round() as usize;
+        let up = hidden.saturating_sub(TEXT_LINES.1) as f32 * line;
+        ui.draw_typed(
+            (x + FIELD_PAD, top - up),
+            Role::OnSurface,
+            &laid,
+            (true, here),
+        );
+    }
+    ui.c.pop_clip();
+    y += field_h + FIELD_GAP;
+    // Under the field: what was refused, else what the text is.
+    let said = match card.check() {
+        TextCheck::Fine if card.is_empty() => None,
+        TextCheck::Fine => {
+            let n = card.text().trim().chars().count().to_string();
+            let size = size_text(card.text().trim().len() as u64);
+            Some((
+                fill(EN.transfer_text_count, &[&n, &size]),
+                Role::OnSurfaceVariant,
+            ))
+        }
+        TextCheck::TooLong => Some((
+            fill(EN.transfer_text_too_long, &[&size_text(MAX_TEXT as u64)]),
+            Role::Error,
+        )),
+        TextCheck::Secret(k) => Some((
+            fill(EN.transfer_text_secret, &[&lower_first(k.label())]),
+            Role::Error,
+        )),
+        TextCheck::Inside(k) => Some((
+            fill(EN.transfer_text_maybe_secret, &[&lower_first(k.label())]),
+            Role::Error,
+        )),
+    };
+    if let Some((line, tone)) = said {
+        y += ui.wrap_as((x + FIELD_PAD, y, room), BODY_S, tone, &line) + FIELD_GAP;
+    }
+    y += GAP / 2.0;
+    let mut buttons = vec![(
+        EN.transfer_text_paste,
+        Style::Secondary.when(app.clipboard),
+        Action::TransferText(TextPress::Paste),
+    )];
+    if !card.is_empty() {
+        buttons.push((
+            EN.transfer_text_clear,
+            Style::Ghost,
+            Action::TransferText(TextPress::Clear),
+        ));
+    }
+    buttons.push((
+        EN.transfer_text_show,
+        Style::Primary.when(card.sendable().is_some()),
+        Action::TransferText(TextPress::Show),
+    ));
+    y += wrap_buttons(ui, x, y, w, BUTTON_H, &buttons);
+    y - y0
+}
+
+/// `s` with its first letter in lower case, to follow other words.
+fn lower_first(s: &str) -> String {
+    let mut it = s.chars();
+    it.next()
+        .map(|c| c.to_lowercase().chain(it).collect())
+        .unwrap_or_default()
 }
 
 /// Receive: the camera, the folder, and what was saved this session,

@@ -377,8 +377,7 @@ pub enum Screen {
     Compare,
     /// Tools: every flow on one page, with its standards.
     Catalog,
-    /// The online app as the device's QR link: files out as codes, in by
-    /// camera ([`transfer`]). Only when [`Faraday::online`].
+    /// The online app's QR link ([`transfer`]): files and text out, camera in. Online only.
     Transfer,
     /// The shared backup flow: where a key will be kept, its sticks, its
     /// vaults, the key, the lock and the writes (`docs/BACKUP-FLOW.md`).
@@ -2548,7 +2547,8 @@ impl Faraday {
             Action::CancelFlowNow => self.flow_cancel_now(),
             a @ (Action::TransferSend(..)
             | Action::TransferReceive
-            | Action::TransferOpenFolder) => self.transfer_act(a),
+            | Action::TransferOpenFolder
+            | Action::TransferText(..)) => self.transfer_act(a),
             Action::SeedRead(c) => self.seed_read_act(c),
             Action::KefRead(a) => crate::seeds::kef::kef_act(self, a),
             Action::Sweep(a) => self.sweep_act(a),

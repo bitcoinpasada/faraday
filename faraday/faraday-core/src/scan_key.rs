@@ -725,6 +725,8 @@ impl Faraday {
     pub(crate) fn paste(&mut self) {
         if self.scan_pastes() {
             self.scan_paste();
+        } else if self.transfer_text_here() {
+            self.transfer_paste();
         } else if !self.entry.state().on_passphrase {
             self.entry_paste();
         }
@@ -748,7 +750,11 @@ impl Faraday {
     /// its words, SeedQR digits and shares as typed or scanned (F75); the
     /// words go on as one space between each, in lower case.
     pub(crate) fn pasted(&mut self, text: zeroize::Zeroizing<String>) {
-        if self.entry_pasted(&text) || self.explore_pasted(&text) || !self.scan_pastes() {
+        if self.entry_pasted(&text)
+            || self.explore_pasted(&text)
+            || (!self.scan_pastes() && self.transfer_pasted(&text))
+            || !self.scan_pastes()
+        {
             return;
         }
         let c = self.compute();

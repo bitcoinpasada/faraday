@@ -346,6 +346,8 @@ pub enum Action {
     TransferReceive,
     /// Transfer: open Downloads in the file manager.
     TransferOpenFolder,
+    /// Transfer: a press on the Send text card.
+    TransferText(crate::transfer::TextPress),
     /// About: open nakamotoinstitute.org in this computer's browser; the
     /// online app only.
     OpenInstitute,

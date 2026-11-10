@@ -1847,6 +1847,17 @@ chooses it (a PSBT as itself; a wallet, key, message or share as text;
 anything else in the file envelope) → format, frame rate and part size →
 **Done**. Over 262.1 KB: "Larger than 262.1 KB: carry it on a stick".
 
+**Send text** → text typed into the field or put there by **Paste**
+(Ctrl+V) → the line under it gives the characters and size, or says why
+it is not shown ("Not shown: this is a seed's words", "Not shown: it
+holds a private key", "Over 16.4 KB: send it as a file") → **Show as QR**
+(on while the text may be sent) → one code, or animated when it does not
+fit one, with format, frame rate and part size as Send has them →
+**Done**; **Clear** empties the field. A secret is refused by the
+device's own reading of it, whole or in any part of the text (F236); bare
+hex (a hash, a transaction id) is shown. Leaving Transfer wipes the
+text; nothing is saved.
+
 **Receive** → the webcam reads anything, routes nothing → each whole
 file saved into `~/Downloads` under its own name (envelope) or
 `received-N.psbt` / `.txt`, never over a file ("name (2).ext") → "Saved

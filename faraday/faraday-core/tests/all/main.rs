@@ -189,6 +189,7 @@ mod top_actions_surface;
 mod top_app_bar;
 mod totp;
 mod transfer;
+mod transfer_text;
 mod transitions;
 mod vanity;
 mod vault_by_contents;

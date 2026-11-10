@@ -1403,6 +1403,9 @@ impl Faraday {
                             && (self.entry.state().form != crate::forms::Form::Words
                                 || self.entry.state().keys.is_none())))
             }),
+            // Send text's field takes typing at once, with the keyboard
+            // brought up by hand: the page's buttons stay in reach.
+            Screen::Transfer => false,
             _ => self.typing_field(),
         }
     }
@@ -1418,6 +1421,7 @@ impl Faraday {
                     | Screen::Catalog
                     | Screen::Tools
                     | Screen::Lightning
+                    | Screen::Transfer
             )
     }
 

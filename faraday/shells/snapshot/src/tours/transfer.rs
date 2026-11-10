@@ -47,6 +47,7 @@ pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
         return Err("Transfer did not open in the online app".into());
     }
     t.shot("transfer")?;
+    send_text(t)?;
     let at = |t: &Tour, name: &str| {
         t.app
             .transfer()
@@ -101,4 +102,37 @@ pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("transfer-home")?;
     t.press(Action::Nav(Screen::WalletsStart));
     t.shot("transfer-wallets")
+}
+
+/// Send text: a block header pasted and shown, then a seed's words refused.
+fn send_text(t: &mut Tour) -> Result<(), String> {
+    // Send text: a block header pasted, then a seed's words refused.
+    let paste = |t: &mut Tour, text: &str| {
+        t.app.event(Event::Clipboard {
+            kind: faraday_shell_api::FileKind::Text,
+            text: text.to_string(),
+        });
+    };
+    paste(
+        t,
+        "0000000000000000000320283a032748d0f8be1b7bcf3a2c5a41eb4bce29b7b4",
+    );
+    t.shot("transfer-text")?;
+    t.press(Action::TransferText(
+        faraday_core::transfer::TextPress::Show,
+    ));
+    if t.app.qr().is_none() {
+        return Err("the text was not shown as a code".into());
+    }
+    t.shot("transfer-text-code")?;
+    t.press(Action::Cancel);
+    paste(
+        t,
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    );
+    t.shot("transfer-text-refused")?;
+    t.press(Action::TransferText(
+        faraday_core::transfer::TextPress::Clear,
+    ));
+    Ok(())
 }

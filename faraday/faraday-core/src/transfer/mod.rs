@@ -11,6 +11,9 @@
 //! exists only when [`Faraday::online`] is set, never on the device.
 
 pub(crate) mod screen;
+mod text;
+
+pub use text::{MAX_TEXT, SendText, TextCheck, TextPress};
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -65,6 +68,8 @@ pub struct TransferArea {
     /// A file is dragged over the window: the page is edged as the
     /// place it drops (`docs/DESIGN.md` §4.17, Edged drop target).
     hovered: bool,
+    /// The Send text card's field.
+    text: SendText,
 }
 
 /// The last part of a path.
@@ -187,6 +192,18 @@ impl TransferArea {
     /// What Transfer holds.
     pub fn state(&self) -> &TransferState {
         &self.state
+    }
+
+    /// The Send text card's field and what its check said.
+    pub fn text(&self) -> &SendText {
+        &self.text
+    }
+
+    /// Empties the Send text card's field, wiping what it held.
+    pub(crate) fn clear_text(&mut self) {
+        if !self.text.is_empty() {
+            self.text.clear();
+        }
     }
 
     /// Whether a file is dragged over the window, where a drop is taken.
@@ -393,6 +410,49 @@ impl Faraday {
         self.list_offset = 0.0;
     }
 
+    /// The Send text card's field.
+    pub fn transfer_text(&self) -> &SendText {
+        self.transfer.text()
+    }
+
+    /// Whether the Send text card is on screen and takes typing.
+    pub(crate) fn transfer_text_here(&self) -> bool {
+        self.online && self.screen == Screen::Transfer && self.sheet.is_none()
+    }
+
+    /// Costs what [`text::check`] costs. A key typed into the Send text
+    /// card's field: whether it was taken.
+    pub(crate) fn transfer_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if !self.transfer_text_here() {
+            return false;
+        }
+        let c = self.compute();
+        self.transfer.text.key(&c, key)
+    }
+
+    /// Ctrl+V on Transfer: the shell is asked for the clipboard's text.
+    pub(crate) fn transfer_paste(&mut self) {
+        if self.transfer_text_here() && self.clipboard {
+            self.out.commands.push_back(Command::RequestClipboard {
+                kind: faraday_shell_api::FileKind::Text,
+            });
+        }
+    }
+
+    /// Costs what [`text::check`] costs. The clipboard's text, asked for by
+    /// Paste, into the Send text card's field. Returns whether it was
+    /// taken here.
+    pub(crate) fn transfer_pasted(&mut self, text: &str) -> bool {
+        if !self.transfer_text_here() {
+            return false;
+        }
+        if !text.is_empty() {
+            let c = self.compute();
+            self.transfer.text.put(&c, text);
+        }
+        true
+    }
+
     /// Sends file `i` of the Downloads list.
     pub(crate) fn transfer_pick(&mut self, i: usize) {
         if !self.online || self.screen != Screen::Transfer {
@@ -523,12 +583,35 @@ impl Faraday {
         self.transfer.open_folder(self.online, &mut self.out);
     }
 
+    /// Costs what [`text::check`] costs. A press on the Send text card:
+    /// Paste asks for the clipboard, Clear wipes the field, Show as QR
+    /// checks the text once more and opens the sheet.
+    pub(crate) fn transfer_text_press(&mut self, press: TextPress) {
+        if !self.transfer_text_here() {
+            return;
+        }
+        match press {
+            TextPress::Paste => self.transfer_paste(),
+            TextPress::Clear => self.transfer.text.clear(),
+            TextPress::Show => {
+                let c = self.compute();
+                self.transfer.text.recheck(&c);
+                let Some(text) = self.transfer.text.sendable().map(str::to_owned) else {
+                    return;
+                };
+                let view = QrView::text(&c, EN.transfer_text_sheet_title, &text);
+                self.open_qr(view);
+            }
+        }
+    }
+
     /// Handles the Transfer screen's actions (`Transfer*`).
     pub(crate) fn transfer_act(&mut self, action: Action) {
         match action {
             Action::TransferSend(i) => self.transfer_pick(i),
             Action::TransferReceive => self.transfer_receive(),
             Action::TransferOpenFolder => self.transfer_open_folder(),
+            Action::TransferText(press) => self.transfer_text_press(press),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
