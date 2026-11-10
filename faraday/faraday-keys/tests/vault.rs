@@ -1491,7 +1491,10 @@ fn a_nonce_record_inserted_is_written_and_one_replaced_leaves_no_old_key() {
     let nonces = |tx: u8, msg: u8| {
         Record::new(kind::NONCES)
             .with(field::NONCES_TX, &[tx; 32])
-            .with(field::NONCES_ENTRY, &[[1u8; 32], [2u8; 32], [msg; 32]].concat())
+            .with(
+                field::NONCES_ENTRY,
+                &[[1u8; 32], [2u8; 32], [msg; 32]].concat(),
+            )
     };
     let mut store = store();
     let (id, _) = store

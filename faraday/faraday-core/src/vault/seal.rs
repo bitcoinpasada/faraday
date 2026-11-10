@@ -347,7 +347,11 @@ fn seal_nonces(app: &mut Faraday, i: usize) {
     use std::collections::{BTreeSet, HashMap, HashSet};
     // One walk of the vault's records and of its unreadable values.
     let mut held: HashMap<[u8; 32], (Vec<NonceEntry>, BTreeSet<NonceEntry>)> = HashMap::new();
-    for (_, r) in app.vaults.records(id).of(faraday_vault::records::kind::NONCES) {
+    for (_, r) in app
+        .vaults
+        .records(id)
+        .of(faraday_vault::records::kind::NONCES)
+    {
         let Some(tx) = r
             .public(faraday_vault::records::field::NONCES_TX)
             .and_then(|t| <[u8; 32]>::try_from(t).ok())

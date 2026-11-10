@@ -1407,11 +1407,11 @@ impl Vaults {
     /// write for each pass. The memory's records `new` (signed amounts and
     /// nonce records) go into open vault `i`, after the nonce records of
     /// the transactions `replace` are taken out, and the oldest records
-    /// leave while the vault holds over [`CAP`] nonce entries (never one
-    /// put in this call: one transaction over the cap is kept whole and
-    /// the others go) and, only
-    /// while it is past the ceiling, for room: a nonce record before any
-    /// signed amounts (`docs/VAULT.md` §7, types 10 and 17).
+    /// leave while the vault holds over [`CAP`] nonce entries, oldest
+    /// first, and, only while it is past the ceiling, for room: a nonce
+    /// record before any signed amounts (`docs/VAULT.md` §7, types 10 and
+    /// 17). Every nonce record put in this call is kept, so a seal that
+    /// puts more than the cap leaves the vault over it until a later seal.
     pub(crate) fn add_memory(
         &mut self,
         c: &Compute,
@@ -1437,7 +1437,8 @@ impl Vaults {
         self.edit(id, |s| {
             for tx in replace {
                 let at = s.records(id).of(kind::NONCES).find_map(|(k, r)| {
-                    (r.public(faraday_vault::records::field::NONCES_TX) == Some(&tx[..])).then_some(k)
+                    (r.public(faraday_vault::records::field::NONCES_TX) == Some(&tx[..]))
+                        .then_some(k)
                 });
                 if let Some(k) = at {
                     s.remove(id, k);
@@ -1450,12 +1451,16 @@ impl Vaults {
                 let entries = |s: &OpenVaults| {
                     s.records(id)
                         .of(kind::NONCES)
-                        .map(|(_, r)| r.public_all(faraday_vault::records::field::NONCES_ENTRY).count())
+                        .map(|(_, r)| {
+                            r.public_all(faraday_vault::records::field::NONCES_ENTRY)
+                                .count()
+                        })
                         .sum::<usize>()
                 };
                 while entries(s) > crate::memory::nonces::CAP {
-                    // Records put in this call stay: one transaction over
-                    // the cap is kept whole, the others gone.
+                    // Only older records go, oldest first; those put in
+                    // this call stay, so the vault may remain over the cap
+                    // until a later seal.
                     let oldest = s
                         .records(id)
                         .of(kind::NONCES)
@@ -1484,7 +1489,11 @@ impl Vaults {
                     .records(id)
                     .iter()
                     .find(|(_, r)| r.kind() == kind::NONCES)
-                    .or_else(|| s.records(id).iter().find(|(_, r)| r.kind() == kind::AMOUNTS));
+                    .or_else(|| {
+                        s.records(id)
+                            .iter()
+                            .find(|(_, r)| r.kind() == kind::AMOUNTS)
+                    });
                 match oldest.map(|(k, _)| k) {
                     Some(k) if s.remove(id, k) => {}
                     _ => break,

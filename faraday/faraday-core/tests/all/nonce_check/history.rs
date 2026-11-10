@@ -730,7 +730,11 @@ fn a_key_filed_under_a_held_fingerprint_but_not_derived_from_it_is_not_recorded(
     // Only the real key's file, checked first, is waiting for a vault.
     let waiting = nonce_history_pending(&app);
     assert_eq!(waiting.len(), 1, "nothing else was noted");
-    assert_eq!(waiting[0].0, entries_of(&real.0).0, "the real file's transaction");
+    assert_eq!(
+        waiting[0].0,
+        entries_of(&real.0).0,
+        "the real file's transaction"
+    );
     let again = check_file(&mut app, 2);
     assert_eq!(again.used_before.len(), 1, "the real key is still caught");
 }
@@ -1372,7 +1376,10 @@ fn a_nonce_checked_with_a_vault_open_is_refused_after_a_lock_and_an_unlock() {
     let (d, k) = (key(3), key(9));
     let (a, b) = (signed(0, &d, &k), signed(1, &d, &k));
     let mut app = open_vaults(&[vault_of(7, Vec::new())], &[&a, &b]);
-    assert_eq!(check_file(&mut app, 1).history, History::Clean { vaults: 1 });
+    assert_eq!(
+        check_file(&mut app, 1).history,
+        History::Clean { vaults: 1 }
+    );
     let sealed = lock_all(&mut app);
     assert_eq!(sealed.len(), 1);
 
@@ -1537,7 +1544,12 @@ fn unreadable_values_under_other_keys_do_not_stop_a_transaction_being_written() 
         testkit::VAULT_PASSPHRASE,
         7,
         |doc| {
-            for k in ["faraday.zzz", "faraday.nonces.ab", "faraday.nonces", "faraday."] {
+            for k in [
+                "faraday.zzz",
+                "faraday.nonces.ab",
+                "faraday.nonces",
+                "faraday.",
+            ] {
                 doc.custom_mut().set(k, "from another build").unwrap();
             }
         },
@@ -1545,7 +1557,10 @@ fn unreadable_values_under_other_keys_do_not_stop_a_transaction_being_written() 
     )
     .unwrap();
     let mut app = open_vaults(&[file], &[&a]);
-    let _ = check_file(&mut app, 1);
+    let id = app.vaults().open[0].id;
+    assert_eq!(app.vaults().store().unreadable(id).len(), 4);
+    let check = check_file(&mut app, 1);
+    assert_eq!(check.history, History::Clean { vaults: 1 });
     let sealed = lock_all(&mut app);
     let again = open_vaults(&sealed, &[]);
     assert_eq!(held_in(&again, 0), vec![(tx_a, 1)]);
