@@ -98,6 +98,7 @@ need. Each document's header says what kind it is:
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SCANNING.md`: What each scanner takes, and the way over for a code read in the wrong one. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
+- `docs/SEED-CONVERSION.md`: Convert a seed. Built (F88, F204): the conversions, the tool's flow with every target and way in, the SLIP-39 set actions, an aezeed as a source, Check my copy typed or scanned back, a codex32 set never taking an identifier another set on this device carries, Practice, Learn's section and the guide's picture.
 - `docs/SIGNER-CHECK.md`: Check a signer: the PSBT sent against the one returned. Built, Practice's sample pair included.
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
 - `docs/STANDARDS.md`: Standards: what Faraday follows, how fully, and where it decides. Built.
@@ -133,7 +134,6 @@ need. Each document's header says what kind it is:
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built; the late seed (§3.5) built; the Pi's generator (§3.5) not built.
-- `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88); built: SLIP-39's set functions in `faraday-bip` and the held set and its actions in `faraday-keys`, the conversions, the tool's flow with every target and way in, an aezeed as a source, Practice, Learn's section and the guide's picture; not built: the SLIP-39 set actions on a screen (§8, in Convert a seed, F204).
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Built.
