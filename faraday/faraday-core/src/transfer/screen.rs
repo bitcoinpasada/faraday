@@ -206,6 +206,7 @@ fn send_text(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             Role::Error,
         )),
         TextCheck::Partial => Some((EN.transfer_text_partial.to_string(), Role::Error)),
+        TextCheck::SeedHex => Some((EN.transfer_text_seed_hex.to_string(), Role::Error)),
         TextCheck::Inside(k) => Some((
             fill(EN.transfer_text_maybe_secret, &[&lower_first(k.label())]),
             Role::Error,

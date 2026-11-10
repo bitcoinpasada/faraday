@@ -8790,6 +8790,9 @@ strings! {
     /// Refusal under the field when the text holds part of a code that can
     /// hold a secret.
     transfer_text_partial: "Not shown: it holds part of a code that may hold a secret",
+    /// Refusal under the field when the text holds bare hex of a seed's
+    /// length.
+    transfer_text_seed_hex: "Not shown: it holds hex of a seed's length",
     /// Refusal under the field when the text is too long. `{}`: the most
     /// text sent, as `size_text` writes it.
     transfer_text_too_long: "Over {}: send it as a file",

@@ -49,6 +49,8 @@ pub enum TextCheck {
     Inside(Kind),
     /// Part of a code that can hold a secret, and the rest is missing.
     Partial,
+    /// Bare hex of the length of BIP-39 entropy or a BIP-32 seed.
+    SeedHex,
 }
 
 /// The Send text card's field, and what its check said.
@@ -308,6 +310,9 @@ fn tokens(c: &Compute, t: &str) -> Option<TextCheck> {
             if part.len() < 26 && !part.contains("://") && !is_ur(part) {
                 continue;
             }
+            if seed_hex(part) {
+                return Some(TextCheck::SeedHex);
+            }
             if let Some(kind) = scan_read::secret_text_kind(c, part).or_else(|| shape(part)) {
                 return Some(TextCheck::Inside(kind));
             }
@@ -324,19 +329,20 @@ fn tokens(c: &Compute, t: &str) -> Option<TextCheck> {
         .then_some(TextCheck::Partial)
 }
 
-/// A string of the shape of a secret, whether or not its checksum holds
-/// (a typo does not make a key safe to show): a WIF's length and first
-/// character in base58, a codex32 string's characters and length, and bare
-/// hex of 32, 40, 48, 56 or 128 digits (BIP-39 entropy, a BIP-32 seed).
-fn shape(part: &str) -> Option<Kind> {
+/// Whether `part` is bare hex of 32, 40, 48, 56 or 128 digits (BIP-39
+/// entropy, a BIP-32 seed), with or without `0x`. 64 digits (a hash) is not.
+fn seed_hex(part: &str) -> bool {
     let bare = part
         .strip_prefix("0x")
         .or_else(|| part.strip_prefix("0X"))
         .unwrap_or(part);
-    if matches!(bare.len(), 32 | 40 | 48 | 56 | 128) && bare.bytes().all(|b| b.is_ascii_hexdigit())
-    {
-        return Some(Kind::CompactSeedQr);
-    }
+    matches!(bare.len(), 32 | 40 | 48 | 56 | 128) && bare.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// A string of the shape of a secret, whether or not its checksum holds
+/// (a typo does not make a key safe to show): a WIF's length and first
+/// character in base58, and a codex32 string's characters and length.
+fn shape(part: &str) -> Option<Kind> {
     const BASE58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     let first = part.chars().next()?;
     if ((part.len() == 51 && matches!(first, '5' | '9'))
@@ -388,7 +394,7 @@ fn ur_part(c: &Compute, dec: &mut faraday_codec::ur::Decoder, tok: &str) -> Opti
         },
         Message::Bytes(b) => match check(c, &String::from_utf8_lossy(&b)) {
             TextCheck::Secret(k) | TextCheck::Inside(k) => Some(TextCheck::Inside(k)),
-            TextCheck::Partial => Some(TextCheck::Partial),
+            r @ (TextCheck::Partial | TextCheck::SeedHex) => Some(r),
             TextCheck::Fine | TextCheck::TooLong => None,
         },
         Message::Psbt(_) => None,
