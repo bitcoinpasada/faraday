@@ -40,24 +40,6 @@ const kdf = db.header.kdfParameters;
 kdf.set("M", kdbxweb.VarDictionary.ValueType.UInt64, new kdbxweb.Int64(8 * 1024 * 1024));
 kdf.set("I", kdbxweb.VarDictionary.ValueType.UInt64, new kdbxweb.Int64(2));
 kdf.set("P", kdbxweb.VarDictionary.ValueType.UInt32, 2);
-// kdbxweb ends the inner header with a 4-byte field as it does the outer one;
-// KeePass writes the inner header's end with length 0, which Faraday requires,
-// so that one field is written empty. Nothing else is changed.
-{
-  const header = db.header;
-  const writeEnd = header.writeEndOfHeader.bind(header);
-  const writeInner = header.writeInnerHeader.bind(header);
-  let inner = false;
-  header.writeEndOfHeader = (stm) => (inner ? stm.setUint32(0, true) : writeEnd(stm));
-  header.writeInnerHeader = (stm, ctx) => {
-    inner = true;
-    try {
-      writeInner(stm, ctx);
-    } finally {
-      inner = false;
-    }
-  };
-}
 for (const [title, user, password] of [["Example", "alice", "hunter2"], ["Other", "bob", "secret5"]]) {
   const entry = db.createEntry(db.getDefaultGroup());
   entry.fields.set("Title", title);

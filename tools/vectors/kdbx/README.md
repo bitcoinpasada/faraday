@@ -67,5 +67,5 @@ edited file they are not reproducible byte for byte. `make-yubikey.sh OUT_DIR`
 (with `make-yubikey.mjs`) makes the kdbxweb file, with `npm install` of kdbxweb
 2.1.1 and hash-wasm 4.13.0 (MIT, Argon2) into a scratch directory; kdbxweb takes
 the YubiKey as a function from the challenge to the 20-byte response, so no
-hardware is involved. kdbxweb ends the inner header with a 4-byte field (as the outer one), where KeePass writes it empty and Faraday requires that; the script writes that one field empty and changes nothing else. Faraday's reader computing the same composite key from the
+hardware is involved. kdbxweb ends the inner header with a 4-byte end field, where KeePass writes it empty; the file is as kdbxweb wrote it, and Faraday's reader ignores the end field's bytes, as KeePass and KeePassXC do. Faraday's reader computing the same composite key from the
 secret is the outside check of its YubiKey response.

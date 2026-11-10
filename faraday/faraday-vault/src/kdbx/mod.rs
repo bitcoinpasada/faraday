@@ -418,8 +418,10 @@ fn read_body(
     text.try_reserve_exact(plain.len() - at)
         .map_err(|_| Error::TooLarge)?;
     text.extend_from_slice(&plain[at..]);
-    plain[at..].zeroize();
-    plain.truncate(at);
+    // The end field's value is not kept either, whatever its length.
+    let kept = scanned.kept;
+    plain[kept..].zeroize();
+    plain.truncate(kept);
     plain.shrink_to_fit();
     let plain = Shared::new(plain);
     let inner = scanned.into_inner(&plain)?;

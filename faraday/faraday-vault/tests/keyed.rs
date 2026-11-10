@@ -1025,7 +1025,8 @@ fn a_vault_keepassxc_locked_with_a_key_file_alone_is_refused_for_having_no_passp
 }
 
 /// kdbxweb (KeeWeb's library) made it with a function standing in for the
-/// YubiKey: HMAC-SHA1 under `SECRET_HEX`.
+/// YubiKey: HMAC-SHA1 under `SECRET_HEX`. The file is as kdbxweb wrote it,
+/// its inner header ending in a field that holds four bytes.
 #[test]
 fn a_vault_kdbxweb_locked_with_a_passphrase_and_a_yubikey_opens_with_its_secret() {
     let bytes = vector("kdbxweb-yubikey-password.kdbx");

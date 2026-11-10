@@ -305,3 +305,43 @@ fn an_opened_file_keeps_no_copy_of_the_document_with_its_attachments() {
         "the attachment keeps {kept} bytes alive"
     );
 }
+
+/// An inner header as a file writes it, with `end` as the end field's value.
+fn body_with_end_field(end: &[u8], document: &[u8]) -> Vec<u8> {
+    let field = |id: u8, value: &[u8], out: &mut Vec<u8>| {
+        out.push(id);
+        out.extend_from_slice(&(value.len() as u32).to_le_bytes());
+        out.extend_from_slice(value);
+    };
+    let mut body = Vec::new();
+    field(1, &3u32.to_le_bytes(), &mut body);
+    field(2, &[9u8; 64], &mut body);
+    field(3, &[0, 5, 6, 7], &mut body);
+    field(0, end, &mut body);
+    body.extend_from_slice(document);
+    body
+}
+
+#[test]
+fn an_end_field_with_bytes_opens_the_same_and_costs_no_more_to_hold() {
+    let document = b"<KeePassFile/>";
+    let read = |end: &[u8]| {
+        let body = body_with_end_field(end, document);
+        super::read_body(
+            zeroize::Zeroizing::new(body),
+            super::Compression::None,
+            &mut |_| Ok(()),
+            &mut |_, _| Ok(()),
+        )
+        .ok()
+        .unwrap()
+    };
+    let (empty_doc, empty) = read(&[]);
+    let (big_doc, big) = read(&vec![0xAB; 1 << 20]);
+    assert_eq!(&empty_doc[..], &big_doc[..]);
+    assert_eq!(&empty.binaries[0].data[..], &big.binaries[0].data[..]);
+    assert_eq!(
+        empty.binaries[0].data.backing_len(),
+        big.binaries[0].data.backing_len()
+    );
+}

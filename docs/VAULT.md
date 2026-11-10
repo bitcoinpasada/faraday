@@ -972,6 +972,8 @@ limits, beyond what it writes itself:
 | inner random stream | ChaCha20 | ChaCha20 |
 | key | the passphrase, and a key file if the person adds one | the passphrase, with a key file or a YubiKey's secret or both (§3.2) |
 
+The inner header's end field may hold bytes, as KeeWeb writes it (four); they are ignored, as KeePass and KeePassXC ignore them.
+
 The head's "Saved in" line names the settings of a file that differs
 from what Faraday writes, in the order version, cipher, key derivation,
 compression; the version is named only when it is 4.1 ("Saved in KDBX 4.1

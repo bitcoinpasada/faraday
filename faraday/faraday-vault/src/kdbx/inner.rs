@@ -169,6 +169,9 @@ pub(super) struct Scanned {
     /// are in the body.
     pub binaries: Vec<(bool, core::ops::Range<usize>)>,
     pub document_at: usize,
+    /// How much of the body is kept: up to where the end field's value
+    /// starts, so that value costs nothing once read.
+    pub kept: usize,
 }
 
 impl Scanned {
@@ -200,6 +203,7 @@ pub(super) fn scan(body: &[u8]) -> Result<Scanned, Error> {
     let mut stream = None;
     let mut key: Option<Zeroizing<Vec<u8>>> = None;
     let mut binaries = Vec::new();
+    let kept;
     loop {
         let id = *body.get(at).ok_or(Error::Damaged)?;
         let len = u32::from_le_bytes(
@@ -211,9 +215,14 @@ pub(super) fn scan(body: &[u8]) -> Result<Scanned, Error> {
         at += 5;
         let end = at.checked_add(len).ok_or(Error::Damaged)?;
         let value = body.get(at..end).ok_or(Error::Damaged)?;
+        let value_at = at;
         at = end;
         match id {
-            INNER_END if value.is_empty() => break,
+            // KeePass and KeePassXC ignore the end field's bytes; KeeWeb writes four.
+            INNER_END => {
+                kept = value_at;
+                break;
+            }
             INNER_STREAM_ID => {
                 let id = u32::from_le_bytes(value.try_into().map_err(|_| Error::Damaged)?);
                 if stream.replace(id).is_some() {
@@ -233,7 +242,6 @@ pub(super) fn scan(body: &[u8]) -> Result<Scanned, Error> {
                 binaries.try_reserve(1).map_err(|_| Error::TooLarge)?;
                 binaries.push((flags & 1 != 0, end - len + 1..end));
             }
-            INNER_END => return Err(Error::Damaged),
             other => return Err(Error::UnknownField(other)),
         }
     }
@@ -250,6 +258,7 @@ pub(super) fn scan(body: &[u8]) -> Result<Scanned, Error> {
         key,
         binaries,
         document_at: at,
+        kept,
     })
 }
 
