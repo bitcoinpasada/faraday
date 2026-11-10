@@ -276,7 +276,9 @@ menu.
    ⋮ holds, in this order and only where the row has them: **Add to
    vault** (where it is not the visible one), **Show as QR**, **Make
    PDF** (For the stick), **Check a signer** (a PSBT's row, after
-   **Show as QR** where it has one), **Rename** (For the stick only),
+   **Show as QR** where it has one), **Compare** (a PSBT's row and a
+   finished transaction's row, after **Check a signer** where the row
+   has it; `docs/COMPARE.md` §2.1), **Rename** (For the stick only),
    **Details**, **Remove**. There is no visible **Remove** button. A row with no main
    action shows only the ⋮. A vault action (Add to vault, Import, Sign
    with key) is not shown, as a button or in the ⋮, while no vault is
@@ -1180,6 +1182,11 @@ guarantees for this file's rule:
   19): the Transaction card comes before Check, carries the txid as one
   of its rows, and Check stays closed once a wallet has been checked this
   power-on.
+- **Sign a transaction's review shows a fee bump** (F233): on the
+  Transaction card, after the fee and before the warnings, the section
+  "Fee bump" appears when Files holds another transaction spending the
+  same inputs. It gives the result line, its lines, its facts and
+  **Compare**, and does not stop signing (`docs/COMPARE.md` §4.2).
 - **The wallet card's first button** (decisions 43 and 45), primary, is
   **Spend from this wallet**; **Sign the PSBT from the stick** with a
   PSBT for this wallet in Files, which opens its review at once; **Carry

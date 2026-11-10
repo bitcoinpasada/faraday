@@ -257,6 +257,15 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
+                heading: "Comparing two PSBTs and the fee bump",
+                paragraphs: &[
+                    "Tools → Compare two PSBTs lists how two PSBTs differ, without judging them: the fee and fee rate of each, the inputs and outputs they share or have alone, and what differs in the version, the locktime, the inputs' sequences and the outputs' amounts. It reads only what moves money and what signs it. Where the two are one unsigned transaction, it offers Check a signer, which compares every field.",
+                    "When the two are an original and its replacement, Compare also gives the fee bump result. \"Only the fee is raised\" says that the replacement spends the same inputs, pays the same amounts to the same addresses, and takes the extra fee from the person's own money: from change, or from an input added from a loaded wallet. It says nothing about a payment added or removed: \"More than the fee changed\" lists what moved. \"Cannot tell whether only the fee is raised\" is the answer where an amount is not stated, or where change belongs to a key that is not loaded; load the key and the result is worked out again. Faraday's rules are stricter than the network's: the fee and the fee rate must both be higher.",
+                    "The original must be your own copy: the file you made or signed, kept in Files. A coordinator that shows you a replacement can show you a different original too, and \"only the fee is raised\" then compares the replacement to what the coordinator wants you to believe you sent.",
+                    "The result does not stop signing. A person may mean to add a payment to a stuck transaction, or to cancel one by sending it back to themselves. The review of the replacement, its warnings and its holds, stands as it is for any transaction; the fee bump result states what it changes from the original.",
+                ],
+            },
+            Section {
                 heading: "Warning cards",
                 paragraphs: &[
                     "When Faraday cannot confirm something, the review shows a warning under the transaction. A danger is in red: an input whose value cannot be checked, a signature type that does not cover the outputs, a fee out of all proportion to the amount. Change it cannot rebuild from a loaded wallet is shown as a payment, under Sends. A danger stops the review: Faraday does not sign it. Only a fee this high has a way past, a hold, for a child paying for its parent, a large batch or a consolidation.",

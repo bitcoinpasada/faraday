@@ -470,6 +470,14 @@ standard = "BIP 174 names the fields compared; the comparison itself is Faraday'
 own = "Fails closed by design (F84). Conservative."
 
 [[row]]
+id = "fee-bump"
+section = 4
+what = "Compare two PSBTs and the fee bump (`docs/COMPARE.md`)"
+completeness = "Faraday's own rules for whether a replacement only raises the fee of an original, checked against what Bitcoin Core's `psbtbumpfee` makes (`tools/vectors/psbt/bump-core-*`); BIP-125's relay rules are stated or left to the node, not checked (`docs/COMPARE.md` §3.5)"
+standard_note = "Faraday's review rules"
+own = "Fails closed: a case it does not know is Cannot tell. Neutral; F233."
+
+[[row]]
 id = "anti-exfil"
 section = 4
 what = "Anti-exfil"

@@ -685,7 +685,7 @@ first"). The groups and their tiles:
 |---|---|
 | Keys and seeds | Add a key · Scan a SeedQR · SLIP-39 shares · Restore from SLIP-39 · codex32 · Seed XOR · Explore a key · Child seeds and passwords (BIP-85) · Vanity address · Silent payments · Lightning node key |
 | Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · Miniscript and inheritance · Restore an existing wallet · Back up a wallet |
-| Transactions | Sign a transaction · Nonce check · Decode a transaction · Check an address |
+| Transactions | Sign a transaction · Nonce check · Decode a transaction · Check an address · Compare two PSBTs |
 | Messages | Sign a message · Check a signed message |
 | Vaults and other keys | Vaults · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · KeePass export |
 | Calculators | Hashes · Encodings · Descriptor checksum · Convert an xpub · Units · Miniscript compiler |
