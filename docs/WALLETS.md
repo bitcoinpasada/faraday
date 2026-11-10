@@ -289,7 +289,7 @@ Locking restarts the app, so a nonce held in memory dies with any stick
 visit. The app runs both rounds within one session: round 1's nonce
 leaves as a code, the others' arrive by camera, and round 2 follows
 before any lock, so no MuSig2 secret nonce outlives the session it was
-drawn in (F109).
+drawn in (F234).
 
 Every pass that may open a round draws its nonces from a seed of its own
 (`Faraday::sign_seed`, the session's seed with a count of the passes), a session whose nonces have all

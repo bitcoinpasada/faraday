@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""docs/STANDARDS.md §0, held (F79, F109, F136): seven checks over the tree
+"""docs/STANDARDS.md §0, held (F79, F234, F136): seven checks over the tree
 and the crypto inventory, against the lists in `tools/lint-standards.toml`.
 
     lint-standards.py [--inventory FILE]     the self-test, then the seven checks

@@ -189,7 +189,7 @@ that computes nothing of its own (the backup plan); such a row gives its
 Standard, Verified by and Faraday's own call as text, which a row with
 its own actions never does. An action with no screen (`screens = []`) is
 built but offered nowhere in the app (silent payments sending, the
-recovery-wallet builder, F109): it has a row, a fingerprint and every
+recovery-wallet builder, F234): it has a row, a fingerprint and every
 check, and no Learn block (`learn = "none"`).
 
 ## 3. The touchpoints

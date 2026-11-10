@@ -186,7 +186,7 @@ reason = "Glue over rust-bitcoin's types: parses addresses, paths and sighash ty
 
 [[out_of_app]]
 what = "Sending to silent payments (STANDARDS §0.1: BIP 374 and BIP 375 are drafts)"
-decision = "F109"
+decision = "F234"
 action = "silent-send"
 
 # The app's crates never name the secret nonce's type, so none of them can
@@ -197,7 +197,7 @@ action = "silent-send"
 # stand for it.)
 [[out_of_app]]
 what = "MuSig2 signing across places (STANDARDS §0.1): a secret nonce is never kept or read back"
-decision = "F109"
+decision = "F234"
 functions = ["core/faraday-bip/src/musig.rs::SecNonce::from_bytes"]
 unnamed = '(?<![:\w])SecNonce\b|musig::SecNonce\b'
 

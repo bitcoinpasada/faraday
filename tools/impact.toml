@@ -628,7 +628,7 @@ misses = "whether the case a hold, a caution or a way past names is legitimate; 
 [[rule]]
 id = "standards.out-of-app"
 title = "unpublished or unreviewed work stays in the repository, compiled out of the app"
-source = ["docs/STANDARDS.md §0", "docs/decisions/F109.md"]
+source = ["docs/STANDARDS.md §0", "docs/decisions/F234.md"]
 when = ["core/*/src/**", "!core/faraday-draw/**"]
 kind = "review"
 held_by = ["lint-standards"]

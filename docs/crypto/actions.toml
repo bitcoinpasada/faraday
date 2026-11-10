@@ -3782,7 +3782,7 @@ decision = "F86"
 [[action.own]]
 text = "MuSig2's rand' is taken from the session seed chain; rounds across a lock are not offered."
 kind = "Neutral"
-decision = "F109"
+decision = "F234"
 
 [action.review]
 fingerprint = "4e395803c464740a96341612aeedd3353cf968e7a7a1cca17f5a27d8af828daf"
@@ -5563,7 +5563,7 @@ wiped = "A SecNonce is wiped on drop and consumed by the signature it makes; the
 lines = [
   "Key path only; a nonce or partial signature keyed by a tapleaf hash is a script-path spend and is refused.",
   "The wallet must be registered; a participant set no registered wallet has is blocked.",
-  "Rounds across a lock, with the secret nonce kept in a vault, are not offered (F109).",
+  "Rounds across a lock, with the secret nonce kept in a vault, are not offered (F234).",
 ]
 
 [[action.own]]
@@ -5574,7 +5574,7 @@ decision = "no decision"
 [[action.own]]
 text = "The secret nonce is held in memory for its one session and never serialised."
 kind = "Conservative"
-decision = "F109"
+decision = "F234"
 
 [action.review]
 fingerprint = "0fdf6e39cf9b421d3c3aa1981d786ff8a2344671c7ab3a4f78dc812a9dfd177d"

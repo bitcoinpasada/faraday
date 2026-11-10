@@ -392,7 +392,7 @@ From an inventory of `CLAUDE.md`, `CONTRIBUTING.md`, `tools/README.md`,
 `docs/COMPUTE.md` §8, `docs/KEYS.md` §2, `docs/CRYPTO-LEARN.md` §14,
 `faraday/builds.toml`'s header and the decisions that bind later
 changes (F216, F14, F18, F66, F68 to F74, F79, F90, F91, F92, F108,
-F109, F111, F112, F116, F117, F127, F136, F145, F148). Kinds:
+F111, F112, F116, F117, F127, F136, F145, F148, F234). Kinds:
 H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 §9.3 builds.
 
@@ -434,7 +434,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `standards.what-goes-in` | `core/*/src/**`, the readers of `faraday/faraday-core/src/**` | R | a published standard checked against another implementation, or a fail-closed rule with a decision | `docs/STANDARDS.md` §0 |
 | `standards.refusals-stay` | `core/*/src/**` | R | what is refused stays refused; accepting more is a decision | `CLAUDE.md`, F90 |
 | `standards.no-way-past` | `core/faraday-psbt/src/**`, a hold added (`lines`) | R | a hold names its decision (planned check: holds listed) | F136 |
-| `standards.out-of-app` | `core/*/src/**` | R | unpublished or unreviewed work compiled out of the app | F109, `docs/STANDARDS.md` §0 |
+| `standards.out-of-app` | `core/*/src/**` | R | unpublished or unreviewed work compiled out of the app | F234, `docs/STANDARDS.md` §0 |
 | `standards.scope` | a new kind of key or signature | R | a decision | F116 |
 | `standards.learn-in-step` | `docs/STANDARDS.md` | P | `docs/learn/**` (until F148 generates both) | `docs/STANDARDS.md` |
 | `crypto.crosscheck-stamp` | the stamp's files, before a release | H | `lint-crosscheck`, `crypto-fingerprints` | F79, F197 |

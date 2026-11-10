@@ -849,7 +849,7 @@ standard fields it leaves empty, must be absent or empty:
 | `passphrase`, Passphrases | 14 | `Title`: "Passphrase for {for}". `Password` (protected): the passphrase. `for`: the fingerprint (8 lower-case hex digits) of the key whose words it goes with. Both required. A passphrase belongs to exactly the key its `for` names (F231): saving another passphrase of one seed asks nothing, and where the Load sheet offers several for a seed each is labelled by the key it makes ("Passphrase for key {fingerprint}"). Two records that name one key are each kept and listed plainly. | |
 | `share`, Codex32 shares | 15 | `Title`: "Codex32 share for {for}". `Password` (protected): a codex32 string (BIP 93) in lower case of a set whose threshold is 2 or more, never its secret. `for`: the fingerprint of the key its set makes. Both required. Several of one threshold, set identifier (the string's 4-character identifier field), share index and key are each kept and read: the app labels each ("Share 3 · also saved: another share 3 of this set") and warns when saving one that the vault already holds, with Continue and Cancel; the warning is built (F231). | |
 | none: the database's custom data | 10, 11, 16, 1, 17 | signed amounts, backup plans, the seal count, the label, nonce records (not built): above | |
-| not carried | 9, 12 | the pending signing round is compiled out of the app (F109), and 12 is no build's | |
+| not carried | 9, 12 | the pending signing round is compiled out of the app (F234), and 12 is no build's | |
 
 The group names are Faraday's strings, written in the language the app
 is in; a kind is known by its custom data, never by its group's name, so

@@ -123,7 +123,7 @@ Read this table, then only the decision you need.
 | [F106](decisions/F106.md) | Faraday reads PSBTs, mnemonics and vaults as their standards say, and writes back what it read | 2026-10-23 | Active | formats |
 | [F107](decisions/F107.md) | Single key, backup in shares | 2026-10-22 | Active | wallets |
 | [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Amended by F113, F152, F188 | design |
-| [F109](decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Amended by F127 | wallets |
+| [F109](history/decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Superseded by F234 | wallets |
 | [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Amended by F118 | design |
 | [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |
 | [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Active | design |
@@ -248,3 +248,4 @@ Read this table, then only the decision you need.
 | [F231](decisions/F231.md) | A passphrase record belongs to exactly the key it names: saving another passphrase of one seed asks nothing, and only codex32 shares of one set are grouped | 2026-11-09 | Active | security |
 | [F232](decisions/F232.md) | A BOLT 12 offer is read in Decode a Lightning invoice, read only, through a reader of Faraday's own, checked against Core Lightning's code | 2026-11-10 | Active | formats |
 | [F233](decisions/F233.md) | Compare two PSBTs lists their differences without judging them; a fee bump is said only on Faraday's own rule, failing closed | 2026-11-10 | Active, built | signing |
+| [F234](decisions/F234.md) | Work kept out of the app is held by reachability, not by a cargo feature | 2026-11-10 | Active | wallets |
