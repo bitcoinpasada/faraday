@@ -16,6 +16,10 @@ fn typed(app: &mut Faraday, text: &str) {
 /// Test key 1 and the Spending wallet over it, with the system's
 /// randomness answered.
 pub(crate) fn backing_up() -> Faraday {
+    backing_up_with(|app| typed(app, &testkit::test_words(testkit::TEST_SEEDS[0].0)))
+}
+
+fn backing_up_with(enter: impl FnOnce(&mut Faraday)) -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
@@ -43,7 +47,7 @@ pub(crate) fn backing_up() -> Faraday {
     });
     app.press(Action::LoadWallet(0));
     app.press(Action::Entry(None));
-    typed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
+    enter(&mut app);
     app.press(Action::EntryAdd);
     app.press(Action::Backup(0));
     app
@@ -65,6 +69,39 @@ fn added_from(form: u8, parts: &[&str]) -> [u8; 4] {
         testkit::entry(&app).error
     );
     app.session.keys[0].fingerprint.0
+}
+
+/// A key on a word list other than English is given no Seed XOR parts:
+/// Add a key restores them on the English list only.
+#[test]
+fn a_spanish_key_is_given_no_seed_xor_paper() {
+    use faraday_bip::bip39::{Language, Mnemonic};
+    let entropy: Vec<u8> = (0u8..16)
+        .map(|i| i.wrapping_mul(37).wrapping_add(11))
+        .collect();
+    let es = Mnemonic::from_entropy(Language::Spanish, &entropy).unwrap();
+    let mut app = backing_up_with(|app| {
+        let at = faraday_core::forms::LANGUAGES
+            .iter()
+            .position(|l| *l == Language::Spanish)
+            .unwrap();
+        app.press(Action::EntryLanguage(at as u8));
+        for (k, &i) in es.indices().iter().enumerate() {
+            if k > 0 {
+                app.event(Event::Key(Key::Char(' ')));
+            }
+            for c in Language::Spanish.typed(i).unwrap().as_chars() {
+                app.event(Event::Key(Key::Char(*c)));
+            }
+        }
+    });
+    assert_eq!(app.session.keys[0].language, Language::Spanish);
+    app.press(Action::BXor(3));
+    assert!(app.backup().unwrap().paper.is_none());
+    assert_eq!(
+        app.toast_text(),
+        Some(faraday_strings::EN.convert_not_given)
+    );
 }
 
 #[test]

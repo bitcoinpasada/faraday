@@ -1905,6 +1905,21 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         None => {
             // Seed XOR's parts draw the system's randomness
             // (`docs/OWN-RANDOMNESS.md` §8.1 row 11).
+            if app
+                .session
+                .keys
+                .info(b.key)
+                .is_some_and(|k| k.language != faraday_bip::bip39::Language::English)
+            {
+                // Seed XOR's parts are restored on the English list only.
+                cy += ui.wrap_as(
+                    (x, cy, w),
+                    BODY_S,
+                    Role::OnSurfaceVariant,
+                    EN.convert_not_given,
+                ) + 12.0;
+                return cy - y;
+            }
             cy += crate::screens::randomness::row(app, ui, (x, cy, w));
             let row: Vec<(String, Style, Action)> = vec![
                 (

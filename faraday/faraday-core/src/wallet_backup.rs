@@ -1949,6 +1949,16 @@ impl Faraday {
         let wallet = self.session.wallets.get(b.wallet)?;
         let open = 0..self.vaults.open.len();
         // A locked vault cannot be looked into.
+    /// Whether the key the backup shows is on a word list other than
+    /// English: Seed XOR's parts are restored on the English list only, as
+    /// Convert a seed refuses it.
+    fn paper_other_list(&self) -> bool {
+        self.backup
+            .state()
+            .and_then(|b| self.session.keys.info(b.key))
+            .is_some_and(|k| k.language != Language::English)
+    }
+
         let unknown = self.vaults.open.is_empty() && !self.vault_files().is_empty();
         let not_known = || (EN.backup_kept_not_checked.to_string(), Tone::Dim);
         let wallet_line = match open.clone().find(|&v| vault_has_wallet(c, self, v, wallet)) {
@@ -1959,6 +1969,9 @@ impl Faraday {
                 ),
                 Tone::Ok,
             ),
+        if self.paper_other_list() {
+            return self.toast(EN.convert_not_given);
+        }
             None if unknown => not_known(),
             None => (EN.backup_kept_wallet.to_string(), Tone::Warn),
         };
