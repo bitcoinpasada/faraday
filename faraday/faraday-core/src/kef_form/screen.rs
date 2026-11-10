@@ -377,6 +377,7 @@ fn options_body(
 ) -> f32 {
     let mut cy = y;
     let o = &f.options;
+    cy += size_part(ui, (x, cy, w), f, ask);
     cy += heading(ui, (x, cy), EN.kef_opt_version);
     for mode in kef_make::MODES {
         let name = match mode {
@@ -515,36 +516,61 @@ fn id_part(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f3
     cy - y
 }
 
-/// Options, on Paper: the size and whether it is copied by hand.
+/// Options: the Size group, one item for each sheet size the contents
+/// can take, the one the options give selected; where the contents take
+/// none, the one line that says so (`docs/KEF.md` §15.3).
+fn size_part(ui: &mut Ui, (x, y, w): (f32, f32, f32), f: &KefForm, ask: Ask) -> f32 {
+    use faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE as MAX;
+    let mut cy = y;
+    cy += heading(ui, (x, cy), EN.kef_opt_size);
+    let sizes = f.sizes();
+    if sizes.is_empty() {
+        let big = fill(EN.kef_opt_side, &[&MAX.to_string(), &MAX.to_string()]);
+        let line = format!(
+            "{}: {}, {}: {big}",
+            EN.kef_opt_by_hand, EN.kef_opt_by_hand_no, EN.kef_largest
+        );
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &line) + GAP;
+        return cy - y;
+    }
+    let now = f.side();
+    for &(side, _) in sizes {
+        let n = [side.to_string(), side.to_string()];
+        let head = fill(EN.kef_opt_side, &[&n[0], &n[1]]);
+        let sheet = fill(EN.kef_by_hand_sheet, &[&n[0], &n[1]]);
+        let it = faraday_ui::roles::ListItem {
+            headline: &head,
+            supporting: &sheet,
+            trailing: None,
+            action: (ask.wrap)(KefAct::Size(side)),
+        };
+        cy += ui.list_item((x, cy, w), &it, now == Some(side));
+    }
+    cy + GAP - y
+}
+
+/// Options: the size and whether it is copied by hand.
 fn paper_part(ui: &mut Ui, (x, y): (f32, f32), f: &KefForm) -> f32 {
     let mut cy = y;
-    if f.paper {
-        let (size, by_hand) = match f.side() {
-            Some(s) => (
-                fill(EN.kef_opt_side, &[&s.to_string(), &s.to_string()]),
-                if s <= faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE {
-                    EN.kef_opt_by_hand_yes
-                } else {
-                    EN.kef_opt_by_hand_no
-                },
-            ),
-            None => (EN.kef_opt_size_after.to_string(), EN.kef_opt_size_after),
-        };
-        ui.text_as(
-            x,
-            cy,
-            BODY_S,
-            Role::OnSurfaceVariant,
-            &format!("{}: {size}", EN.kef_opt_size),
-        );
-        cy += ui.advance_as(BODY_S, faraday_draw::tokens::KEF_CAPTION_ADVANCE);
-        ui.text_as(
-            x,
-            cy,
-            BODY_S,
-            Role::OnSurfaceVariant,
-            &format!("{}: {by_hand}", EN.kef_opt_by_hand),
-        );
+    let (size, by_hand) = match f.side() {
+        Some(s) => (
+            fill(EN.kef_opt_side, &[&s.to_string(), &s.to_string()]),
+            if s <= faraday_draw::tokens::KEF_BY_HAND_MAX_SIDE {
+                EN.kef_opt_by_hand_yes
+            } else {
+                EN.kef_opt_by_hand_no
+            },
+        ),
+        None if spec_of(f.options.version).is_some_and(|s| s.compressed) => {
+            (EN.kef_opt_size_after.to_string(), EN.kef_opt_size_after)
+        }
+        None => (EN.kef_opt_size_after.to_string(), EN.kef_opt_by_hand_no),
+    };
+    for line in [
+        format!("{}: {size}", EN.kef_opt_size),
+        format!("{}: {by_hand}", EN.kef_opt_by_hand),
+    ] {
+        ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, &line);
         cy += ui.advance_as(BODY_S, faraday_draw::tokens::KEF_CAPTION_ADVANCE);
     }
     cy - y

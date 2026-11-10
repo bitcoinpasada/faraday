@@ -125,6 +125,67 @@ pub fn side(options: &Options, plaintext_len: usize) -> Option<usize> {
         .map(|v| 17 + 4 * usize::from(v))
 }
 
+/// The sides of the Krux code sheets the Starter prints (`docs/KEF.md`
+/// §15.5), in modules.
+pub const SHEET_SIDES: [usize; 4] = [25, 29, 33, 37];
+
+/// For each sheet side the contents of `plaintext_len` bytes can take, the
+/// preferred options giving exactly that side (`docs/KEF.md` §15.3). The
+/// version, low error correction (version 5) and a random id's length
+/// (8, then 16) vary; the count and a typed or fingerprint id of `base`
+/// stay. `base` itself where it already gives the side, else the first
+/// candidate that does: version 20 first, the other versions as Options
+/// lists them, the legacy 0 and 1 last. Cheap: a lookup through [`side`],
+/// no seal.
+pub fn sizes(base: &Options, plaintext_len: usize) -> Vec<(usize, Options)> {
+    let mut versions = vec![DEFAULT_VERSION];
+    for mode in MODES {
+        versions.extend(
+            versions_in(mode)
+                .into_iter()
+                .filter(|&v| v != DEFAULT_VERSION && spec_of(v).is_some_and(|s| !s.compressed)),
+        );
+    }
+    versions.extend(legacy_versions());
+    let ids: Vec<IdChoice> = match &base.id {
+        IdChoice::Random(_) => vec![
+            IdChoice::Random(DEFAULT_ID_LEN),
+            IdChoice::Random(LONG_ID_LEN),
+        ],
+        other => vec![other.clone()],
+    };
+    let mut candidates = Vec::new();
+    for &version in &versions {
+        for low in [false, true] {
+            if low && version != 5 {
+                continue;
+            }
+            for id in &ids {
+                candidates.push(Options {
+                    version,
+                    low,
+                    count: base.count,
+                    id: id.clone(),
+                });
+            }
+        }
+    }
+    SHEET_SIDES
+        .iter()
+        .filter_map(|&want| {
+            let pick = if side(base, plaintext_len) == Some(want) {
+                Some(base.clone())
+            } else {
+                candidates
+                    .iter()
+                    .find(|o| side(o, plaintext_len) == Some(want))
+                    .cloned()
+            };
+            pick.map(|o| (want, o))
+        })
+        .collect()
+}
+
 /// The versions Options lists in one mode, not the legacy ones.
 pub fn versions_in(mode: Mode) -> Vec<u8> {
     VERSIONS

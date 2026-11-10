@@ -94,6 +94,8 @@ pub enum KefAct {
     Options,
     /// Closes Options.
     Back,
+    /// Chooses a code of this side, in modules (`kef_make::sizes`).
+    Size(usize),
     /// Chooses a version.
     Version(u8),
     /// Shows or hides the legacy versions.
@@ -162,6 +164,9 @@ pub struct KefForm {
     check_shown: bool,
     checked: bool,
     offered: Option<[u8; 4]>,
+    /// The sheet sizes the contents can take, worked out when the options
+    /// or the label change, so that drawing only reads them.
+    sizes: Vec<(usize, Options)>,
 }
 
 impl KefForm {
@@ -189,7 +194,7 @@ impl KefForm {
         let options = Options::default();
         let mut rounds = TextBox::default();
         rounds.set(&options.count.to_string());
-        KefForm {
+        let mut form = KefForm {
             source,
             pass: TextBox::default(),
             shown: false,
@@ -215,7 +220,16 @@ impl KefForm {
             check_shown: false,
             checked: false,
             offered: None,
-        }
+            sizes: Vec::new(),
+        };
+        form.refresh_sizes();
+        form
+    }
+
+    /// Works out the sheet sizes again after a press or a key, which may
+    /// have changed the options or the label (`kef_make::sizes`).
+    fn refresh_sizes(&mut self) {
+        self.sizes = kef_make::sizes(&self.options, self.contents_len());
     }
 
     /// Offers a fingerprint as the id on a text: a loaded wallet's.
@@ -359,11 +373,20 @@ impl KefForm {
     /// The side of the code in modules, worked out from the options with
     /// no seal; `None` for a compressed version.
     pub fn side(&self) -> Option<usize> {
-        let len = match &self.source {
+        kef_make::side(&self.options, self.contents_len())
+    }
+
+    fn contents_len(&self) -> usize {
+        match &self.source {
             Source::Seed { bytes, .. } => *bytes,
             Source::Text(t) => t.len(),
-        };
-        kef_make::side(&self.options, len)
+        }
+    }
+
+    /// The sheet sizes the contents can take, each with the options that
+    /// give it (`kef_make::sizes`), as last worked out.
+    pub fn sizes(&self) -> &[(usize, Options)] {
+        &self.sizes
     }
 
     /// The fingerprint offered as the id, on a seed.
@@ -392,8 +415,8 @@ impl KefForm {
             EN.kef_form_summary,
             &[&o.version.to_string(), &group(o.count), id],
         );
-        match (self.paper, self.side()) {
-            (true, Some(s)) => fill(
+        match self.side() {
+            Some(s) => fill(
                 EN.kef_form_summary_side,
                 &[&line, &s.to_string(), &s.to_string()],
             ),
@@ -403,6 +426,11 @@ impl KefForm {
 
     /// A press.
     pub fn act(&mut self, app: &mut Faraday, a: KefAct) {
+        self.press(app, a);
+        self.refresh_sizes();
+    }
+
+    fn press(&mut self, app: &mut Faraday, a: KefAct) {
         match (self.stage, a) {
             // On Paper with a camera the drawn copy is scanned instead.
             (Stage::Made, KefAct::Check) if self.paper && !app.cameras().is_empty() => {}
@@ -434,9 +462,12 @@ impl KefForm {
             }
             _ => {}
         }
-        if self.stage != Stage::Entry {
-            return;
+        if self.stage == Stage::Entry {
+            self.entry_press(app, a);
         }
+    }
+
+    fn entry_press(&mut self, app: &mut Faraday, a: KefAct) {
         match a {
             KefAct::Field => self.focus = Some(Focus::Pass),
             KefAct::Eye => self.shown = !self.shown,
@@ -458,6 +489,12 @@ impl KefForm {
             KefAct::Back => {
                 self.sheet = false;
                 self.focus = Some(Focus::Pass);
+            }
+            KefAct::Size(side) => {
+                if let Some((_, o)) = self.sizes.iter().find(|(s, _)| *s == side) {
+                    self.options = o.clone();
+                    self.error = None;
+                }
             }
             KefAct::Version(v) => {
                 if faraday_codec::kef::spec_of(v).is_some() {
@@ -523,6 +560,14 @@ impl KefForm {
 
     /// Typing. Returns whether the key was taken.
     pub fn key(&mut self, app: &mut Faraday, key: Key) -> bool {
+        let taken = self.typed(app, key);
+        if taken {
+            self.refresh_sizes();
+        }
+        taken
+    }
+
+    fn typed(&mut self, app: &mut Faraday, key: Key) -> bool {
         if self.stage == Stage::Check {
             return self.check_key(app, key);
         }

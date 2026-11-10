@@ -191,6 +191,7 @@ tables, with an 8-byte id:
 | 12 words | 5, at low | 32 | 47 | 25 × 25 (version 2's whole capacity) |
 | 24 words | 5, at low | 48 | 70 | 29 × 29 |
 | 24 words | 10 | 65 | 95 | 37 × 37 |
+| 12 words, 16-byte id | 11 | 69 | 102 | 37 × 37 |
 | 12 words | 0, legacy | 45 | 66 | 33 × 33 |
 | 24 words | 0, legacy | 61 | 90 | 33 × 33 |
 | 12 words | 1, legacy | 61 | 90 | 33 × 33 |
@@ -741,16 +742,24 @@ Shared by both. It reads, top to bottom:
   in Create a vault (`docs/DEMO.md` §5.2).
 - **Passphrase**, one masked field with its eye, under §9's rule, refused at the field. One field
   only, since **Check my code** is the second typing.
-- **Options**, a secondary button with the line "Version 20 · 100,000 rounds · random id", opening
-  a sheet: **Version**, option buttons under each mode's name, the ECB group with `kef_ecb_line`
-  under it, **Legacy** one level further for 0 and 1; **Low error correction**, a switch, with
-  version 5 only; **Rounds**, a number field from 10,000 to 500,000; **Id**, option buttons
-  (Random 8 bytes, Random 16 bytes, A label with its field, The fingerprint), the last two with
-  `kef_public_id_line`. Nothing else. On a seed whose code is also on Paper, the line ends in the
-  code's side ("· 33 × 33") and the sheet has **Size** and **By hand** labels as in §15.1, so a
-  person can pick a smaller code before making it. They are worked out when an option is pressed,
-  by a lookup from the length §5's table comes from (`kef_make::side`), with no seal; a compressed
-  version's length is known only once sealed, and its **Size** reads so.
+- **Options**, a secondary button with the line "Version 20 · 100,000 rounds · random id · 33 × 33",
+  opening a sheet: **Size**, first, a Material 3 list with one item for each sheet side of §15.5
+  (25, 29, 33, 37) the contents can take and only those, its headline the size ("33 × 33") and its
+  supporting line the Starter sheet ("Sheet: Faraday Starter, Blank templates, Krux code, 33 × 33");
+  the one the options give is selected, and pressing another sets the options to the preferred ones
+  that give that side (`kef_make::sizes`: the current options where they already do, else the
+  first of version 20, the other non-compressed versions as listed, then 0 and 1, with low error
+  correction for version 5 and a random id of 8, then 16 bytes; the rounds and a typed or
+  fingerprint id stay). A compressed version selects none; contents no sheet takes (a long text)
+  read one line, **By hand**: No, **Largest** 37 × 37. Then **Version**, option buttons under each
+  mode's name, the ECB group with `kef_ecb_line` under it, **Legacy** one level further for 0 and
+  1; **Low error correction**, a switch, with version 5 only; **Rounds**, a number field from
+  10,000 to 500,000; **Id**, option buttons (Random 8 bytes, Random 16 bytes, A label with its
+  field, The fingerprint), the last two with `kef_public_id_line`; and the **Size** and **By hand**
+  lines as in §15.1. Nothing else. The line ends in the code's side and the Size and By hand lines
+  show always, on a seed or in the tool, whether or not a copy is on Paper. They are worked out
+  when an option is pressed, by a lookup from the length §5's table comes from (`kef_make::side`),
+  with no seal; a compressed version's length is known only once sealed, and its **Size** reads so.
 - The Randomness row, since the press draws the IV and the id (DESIGN §4.1, F157), then **Make the
   code**. A refusal of §4.1 stands as a line above it and names the version that works.
 - While it works, Material 3's determinate progress indicator from the rounds done, with **Cancel**.
@@ -801,7 +810,7 @@ and may go to any printer. **Blank templates** (`docs/STARTER.md` §3.8) gets a 
 | 25 × 25 | 2 | 12 words, version 5 at low | `faraday-blank-template-krux-code-25x25.pdf` |
 | 29 × 29 | 3 | 24 words, version 5 at low; 12 words, version 5 | `faraday-blank-template-krux-code-29x29.pdf` |
 | 33 × 33, chosen | 4 | 12 or 24 words at the default, version 20; 24 words, version 5; 12 or 24 words, version 0; 12 words, version 1 | `faraday-blank-template-krux-code-33x33.pdf` |
-| 37 × 37 | 5 | 24 words, version 20 with a 16-byte id; 24 words, version 10 or version 1 | `faraday-blank-template-krux-code-37x37.pdf` |
+| 37 × 37 | 5 | 24 words, version 20 with a 16-byte id; 24 words, version 10 or version 1; 12 words, version 11 with a 16-byte id | `faraday-blank-template-krux-code-37x37.pdf` |
 
 Each option says on its line what the table says. The sizes stop at 37 × 37, which holds every row
 of §5; a seed's code passes it only through the Options §15.4 names.

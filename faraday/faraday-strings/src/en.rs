@@ -908,7 +908,7 @@ strings! {
     /// What a 33 × 33 Krux code holds.
     starter_tpl_size_33: "12 or 24 words at the default, version 20; 24 words, version 5; 12 or 24 words, version 0; 12 words, version 1",
     /// What a 37 × 37 Krux code holds.
-    starter_tpl_size_37: "24 words, version 20 with a 16-byte id; 24 words, version 10 or version 1",
+    starter_tpl_size_37: "24 words, version 20 with a 16-byte id; 24 words, version 10 or version 1; 12 words, version 11 with a 16-byte id",
     /// Codex32 length row.
     starter_tpl_length: "Length",
     /// A codex32 length. `{}`: 48, 74 or 127.

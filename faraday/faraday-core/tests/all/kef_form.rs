@@ -59,7 +59,7 @@ fn make(form: &mut KefForm, app: &mut Faraday) -> Envelope {
     assert_eq!(form.stage(), Stage::Making, "{:?}", form.error());
     testkit::settle(app);
     assert!(form.poll(app));
-    assert_eq!(form.stage(), Stage::Made);
+    assert_eq!(form.stage(), Stage::Made, "{:?}", form.error());
     let code = form.made().unwrap();
     let view = code.view.as_ref().expect("one code");
     let bytes = base43_decode(view.whole.as_deref().unwrap()).unwrap();
@@ -265,4 +265,75 @@ fn cancel_during_compare_stops_it() {
     assert!(!form.poll(&mut app));
     assert_eq!(form.stage(), Stage::Check);
     assert!(!form.checked());
+}
+
+fn seed_form_of(bytes: usize) -> KefForm {
+    KefForm::new(
+        Source::Seed {
+            index: 0,
+            bytes,
+            fingerprint: None,
+        },
+        false,
+    )
+}
+
+fn sides(form: &KefForm) -> Vec<usize> {
+    form.sizes().iter().map(|(s, _)| *s).collect()
+}
+
+#[test]
+fn options_offers_the_sizes_the_contents_can_take() {
+    // `docs/KEF.md` §5's table: 12 words fill 25, 29 and 33 (a 16-byte id
+    // under version 11 also reaches 37); 24 words 29, 33 and 37.
+    assert_eq!(sides(&seed_form_of(16)), [25, 29, 33, 37]);
+    assert_eq!(sides(&seed_form_of(32)), [29, 33, 37]);
+    let long = KefForm::new(Source::Text(Zeroizing::new("x".repeat(300))), false);
+    assert!(sides(&long).is_empty());
+}
+
+#[test]
+fn the_options_line_and_size_follow_the_choice_off_paper_too() {
+    let mut app = app_with_seed();
+    let mut form = seed_form_of(16);
+    assert!(form.summary().ends_with("· 33 × 33"));
+    form.act(&mut app, KefAct::Size(25));
+    assert_eq!(form.side(), Some(25));
+    assert!(form.summary().ends_with("· 25 × 25"));
+    form.act(&mut app, KefAct::Version(21));
+    assert_eq!(form.side(), None);
+}
+
+#[test]
+fn picking_a_size_makes_a_code_of_that_size() {
+    let mut app = app_with_seed();
+    // A text of 16 distinct bytes, as long as a 12-word seed's entropy.
+    let mut form = KefForm::new(
+        Source::Text(Zeroizing::new("0123456789abcdef".into())),
+        false,
+    );
+    form.act(&mut app, KefAct::Field);
+    type_in(&mut form, &mut app, "a passphrase");
+    rounds(&mut form, &mut app, "10000");
+    form.act(&mut app, KefAct::Size(25));
+    assert_eq!(form.error(), None);
+    make(&mut form, &mut app);
+    let v = form.made().unwrap().view.as_ref().unwrap();
+    assert_eq!(v.frames[0].size(), 25);
+}
+
+#[test]
+fn the_sizes_offered_follow_a_typed_label() {
+    let mut app = app_with_seed();
+    let mut form = seed_form_of(32);
+    let before = sides(&form);
+    form.act(&mut app, KefAct::Options);
+    form.act(&mut app, KefAct::Id(IdKind::Label));
+    type_in(&mut form, &mut app, &"x".repeat(30));
+    let after = sides(&form);
+    assert_ne!(after, before);
+    for side in after {
+        form.act(&mut app, KefAct::Size(side));
+        assert_eq!(form.side(), Some(side));
+    }
 }
