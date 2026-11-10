@@ -4111,7 +4111,7 @@ standards = [
   "BOLT 11",
 ]
 learn = "none"
-screens = []
+screens = ["Invoice"]
 functions = [
   "core/faraday-codec/src/bolt11.rs::decode",
   "core/faraday-codec/src/bolt11.rs::Fallback::address",

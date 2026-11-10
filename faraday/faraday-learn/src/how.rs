@@ -1175,7 +1175,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), w("Not stated; an invoice holds no secret."), p("Nothing secret is held.")],
         limits: &[p("Reading only: no invoice is written, paid or stored."), p("A text over 1023 characters, mixed case or a checksum that fails is refused."), p("Fields of a tag BOLT #11 does not define, and a fallback address of an unknown version, are listed and not used.")],
         own_calls: &[p("BOLT #11 makes mixed case, an amount finer than a millisatoshi and a `c`, `x` or `9` field that begins with a zero value (the minimal form of zero is an empty field) a refusal, and Faraday refuses them. Where BOLT #11 leaves a case open, Faraday refuses the invoice: an amount with a leading zero, a repeated `x`, `c`, `m`, `9`, `d`, `h` or `n`, a malformed fallback of a version it defines, an empty route hint or a hop key that is not a curve point, an `n` key that is not on the curve, a non-zero padding bit, and a text over 1023 characters (what the Bech32 checksum guarantees). Conservative."), w("no decision")],
-        screens: &[],
+        screens: &["Invoice"],
         learn: "",
     },
     Block {

@@ -1089,6 +1089,7 @@ TILE_SCREENS = {
     "SeedQr": ("Entry",), "Explore": ("Explore",), "Bip85": ("Bip85",),
     "Convert": ("Convert",), "SignerCheck": ("SignerCheck",),
     "Vanity": ("Vanity",), "Silent": ("Silent",), "Lightning": ("Lightning",),
+    "Invoice": ("Invoice",),
     "Create": ("Create",), "Restore": ("Restore",), "Backup": ("BackupFlow", "Backup"),
     "Sign": ("Spend",), "NonceCheck": ("Spend",), "Decode": ("Decode",),
     "CheckAddress": ("Files",), "Scan": ("Files",), "SignMessage": ("Message",),
