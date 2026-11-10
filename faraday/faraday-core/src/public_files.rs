@@ -497,6 +497,25 @@ pub(crate) fn start(app: &mut Faraday, wallet: usize, parts: Vec<Part>, then: Th
     app.start(Job::Files(Box::new(work)), EN.working_files);
 }
 
+/// Costs what `wallet_key` costs. Keeps, for the backup's rows, the name
+/// each account key file of wallet `wallet` among `made` goes out under.
+fn keep_xpub_names(app: &mut Faraday, wallet: usize, made: &Made) {
+    let c = app.compute();
+    for slot in app.wallet_keys_here(wallet) {
+        let Ok(k) = app.wallet_key(&c, wallet, slot) else {
+            continue;
+        };
+        for (bsms, name) in [
+            (false, format!("xpub-{}.txt", k.fp)),
+            (true, format!("xpub-{}-bsms.txt", k.fp)),
+        ] {
+            if made.files.iter().any(|(n, _)| *n == name) {
+                app.backup_xpub_sent(wallet, slot, bsms, &name);
+            }
+        }
+    }
+}
+
 /// Costs what `put_outbox` costs. A set of files' answer: the files go
 /// For the stick and the toast is said. Dropped where the person is no
 /// longer on the screen and sheet they pressed on, or the backup is no
@@ -515,6 +534,7 @@ pub(crate) fn files_made(app: &mut Faraday, done: FilesDone) {
     if then != Then::Out && app.backup.state().is_none_or(|b| b.wallet != wallet) {
         return;
     }
+    keep_xpub_names(app, wallet, &made);
     app.put_public(wallet, made);
     match then {
         Then::Out => {}

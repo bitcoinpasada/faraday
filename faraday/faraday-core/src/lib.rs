@@ -3784,7 +3784,7 @@ impl Faraday {
                 let name = format!("xpub-{}.txt", k.fp);
                 let bytes = format!("# Account xpub {}, {}\n{}\n", k.fp, k.kind, k.text);
                 let name = self.put_outbox_beside(&name, bytes.into_bytes());
-                self.backup_sent(i, std::slice::from_ref(&name));
+                self.backup_xpub_sent(i, slot, false, &name);
                 self.toast_out(&name);
             }
             Err(e) => self.toast(&e),
@@ -3797,7 +3797,7 @@ impl Faraday {
             Ok((fp, text)) => {
                 let name = format!("xpub-{fp}-bsms.txt");
                 let name = self.put_outbox_beside(&name, text.into_bytes());
-                self.backup_sent(i, std::slice::from_ref(&name));
+                self.backup_xpub_sent(i, slot, true, &name);
                 self.toast_out(&name);
             }
             Err(e) => self.toast(&e),

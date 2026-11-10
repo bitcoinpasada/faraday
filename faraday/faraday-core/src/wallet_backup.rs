@@ -634,6 +634,10 @@ pub struct BackupState {
     pub(crate) kef: Vec<(usize, crate::kef_form::KefForm)>,
 }
 
+/// A wallet, a slot and whether it is the BIP 129 record: which account
+/// key file a kept name is of.
+type XpubKey = (usize, u8, bool);
+
 /// The wallet backup checklist (`Screen::Backup`): the backup under way,
 /// while it is open. Its state is read through [`Faraday::backup`] and
 /// changed only through the methods below.
@@ -643,9 +647,45 @@ pub(crate) struct WalletBackupArea {
     /// What the shown seed is drawn from, worked out when it was shown;
     /// boxed, as its SeedQR grid is a few kilobytes.
     shown: Option<Box<shown::SeedShown>>,
+    /// The name each account key file went out under, with what it held,
+    /// by wallet, slot and kind (`true` for its BIP 129 record): kept
+    /// beyond the backup so the next one finds the file it made and no
+    /// other of the name. Public text, a few hundred bytes each.
+    xpub_names: Vec<(XpubKey, (String, Vec<u8>))>,
 }
 
 impl WalletBackupArea {
+    /// The name, and what it held, of the account key file of `slot` in
+    /// `wallet`, when it went out and the name is still one of key `fp`'s.
+    pub(crate) fn xpub_name(
+        &self,
+        wallet: usize,
+        slot: u8,
+        bsms: bool,
+        fp: &str,
+    ) -> Option<(&str, &[u8])> {
+        let prefix = format!("xpub-{fp}");
+        self.xpub_names
+            .iter()
+            .find(|(k, (n, _))| *k == (wallet, slot, bsms) && n.starts_with(&prefix))
+            .map(|(_, (n, b))| (n.as_str(), b.as_slice()))
+    }
+
+    /// Keeps the name, and what it held, of the account key file of `slot`
+    /// in `wallet` that went out.
+    pub(crate) fn set_xpub_name(
+        &mut self,
+        wallet: usize,
+        slot: u8,
+        bsms: bool,
+        name: &str,
+        bytes: Vec<u8>,
+    ) {
+        let key = (wallet, slot, bsms);
+        self.xpub_names.retain(|(k, _)| *k != key);
+        self.xpub_names.push((key, (name.to_string(), bytes)));
+    }
+
     /// What the person unticked in the backup under way.
     pub(crate) fn keeps(&self) -> Option<&crate::vault::keep::Left> {
         self.state.as_ref().map(|s| &s.keeps)
@@ -1909,6 +1949,16 @@ impl Faraday {
             .is_some_and(|k| k.has_words())
     }
 
+    /// Whether the key the backup shows is on a word list other than
+    /// English: Seed XOR's parts are restored on the English list only, as
+    /// Convert a seed refuses it.
+    fn paper_other_list(&self) -> bool {
+        self.backup
+            .state()
+            .and_then(|b| self.session.keys.info(b.key))
+            .is_some_and(|k| k.language != Language::English)
+    }
+
     /// Splits the key's words into `parts` Seed XOR parts.
     pub(crate) fn paper_xor(&mut self, parts: u8) {
         let c = self.compute();
@@ -1918,6 +1968,9 @@ impl Faraday {
         }
         if !self.paper_key() {
             return self.toast(EN.paper_no_words_to_split);
+        }
+        if self.paper_other_list() {
+            return self.toast(EN.convert_not_given);
         }
         let Some(draw) = self.fresh_bytes(b"seed xor", faraday_keys::seed_xor_random_len(parts))
         else {
@@ -1949,16 +2002,6 @@ impl Faraday {
         let wallet = self.session.wallets.get(b.wallet)?;
         let open = 0..self.vaults.open.len();
         // A locked vault cannot be looked into.
-    /// Whether the key the backup shows is on a word list other than
-    /// English: Seed XOR's parts are restored on the English list only, as
-    /// Convert a seed refuses it.
-    fn paper_other_list(&self) -> bool {
-        self.backup
-            .state()
-            .and_then(|b| self.session.keys.info(b.key))
-            .is_some_and(|k| k.language != Language::English)
-    }
-
         let unknown = self.vaults.open.is_empty() && !self.vault_files().is_empty();
         let not_known = || (EN.backup_kept_not_checked.to_string(), Tone::Dim);
         let wallet_line = match open.clone().find(|&v| vault_has_wallet(c, self, v, wallet)) {
@@ -1969,9 +2012,6 @@ impl Faraday {
                 ),
                 Tone::Ok,
             ),
-        if self.paper_other_list() {
-            return self.toast(EN.convert_not_given);
-        }
             None if unknown => not_known(),
             None => (EN.backup_kept_wallet.to_string(), Tone::Warn),
         };
@@ -2487,6 +2527,34 @@ impl Faraday {
     /// of its backup when one is under way.
     pub(crate) fn backup_sent(&mut self, wallet: usize, names: &[String]) {
         self.backup.sent(wallet, names);
+    }
+
+    /// Notes an account key file of `slot` in `wallet` just put in the
+    /// Outbox, and keeps the name it went out under and what it holds for
+    /// its row in the backup.
+    pub(crate) fn backup_xpub_sent(&mut self, wallet: usize, slot: u8, bsms: bool, name: &str) {
+        self.backup
+            .sent(wallet, std::slice::from_ref(&name.to_string()));
+        if let Some(i) = self.outbox.iter().find(|i| i.name == name) {
+            let bytes = i.bytes.clone();
+            self.backup.set_xpub_name(wallet, slot, bsms, name, bytes);
+        }
+    }
+
+    /// The name an account key file of `slot` in `wallet` went out under,
+    /// if it did and no different file has its name in the Outbox now.
+    pub(crate) fn backup_xpub_name(
+        &self,
+        wallet: usize,
+        slot: u8,
+        bsms: bool,
+        fp: &str,
+    ) -> Option<&str> {
+        let (name, bytes) = self.backup.xpub_name(wallet, slot, bsms, fp)?;
+        self.outbox
+            .iter()
+            .all(|i| i.name != name || i.bytes == bytes)
+            .then_some(name)
     }
 }
 

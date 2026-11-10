@@ -116,6 +116,23 @@ fn press_offered(app: &mut Faraday, action: Action) {
     panic!("{action:?} is not offered");
 }
 
+/// Whether the screen on show offers `action` somewhere down its column.
+fn offered_down(app: &mut Faraday, action: Action) -> bool {
+    for _ in 0..20 {
+        app.settle();
+        let _ = app.frame();
+        if app.offers(action) {
+            return true;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    false
+}
+
 /// The plan with the description to every software, as text and QR
 /// pictures, and nothing into a vault or on paper by hand, so the
 /// public files item is open to reach; then the checklist made from it.
@@ -317,6 +334,71 @@ fn one_wallet_has_no_chip() {
     app.press(Action::Backup(w));
     let _ = app.frame();
     assert!(!app.offers(Action::BWallets));
+}
+
+/// A file of the name an account key file would have, which Faraday did
+/// not write for this backup, is not the key's row: the row offers to make
+/// the file, and its Remove takes off only the file the row made.
+#[test]
+fn a_key_row_is_not_given_another_file_of_the_name() {
+    let mut app = device(vec![kit_file("savings-wallet.txt")]);
+    let w = load(&mut app, "savings-wallet.txt");
+    let fp = add_key(&mut app, 0);
+    let slot = app.session.wallets[w]
+        .policy()
+        .keys()
+        .iter()
+        .position(|k| k.fingerprint() == Some(fp))
+        .expect("a slot") as u8;
+    let name = format!("xpub-{}.txt", faraday_core::wallet::fp_text(fp));
+    app.press(Action::Backup(w));
+    every_software(&mut app);
+    app.press(Action::BStep(bstep::PUBLIC));
+    let _ = app.frame();
+    // The file the checklist made is taken off, and a file of its name
+    // that came from elsewhere is in its place.
+    let at = app
+        .outbox
+        .iter()
+        .position(|i| i.name == name)
+        .expect("made");
+    app.press(Action::OutboxRemove(at));
+    app.outbox.push(faraday_core::Item {
+        name: name.clone(),
+        bytes: b"from elsewhere".to_vec(),
+        kind: faraday_core::wallet::FileKind::Text,
+        secret: false,
+        picture: None,
+        sha: None,
+        facts: None,
+        wallet: None,
+        psbt: None,
+    });
+    let _ = app.frame();
+    assert!(
+        offered_down(&mut app, Action::WalletKeyOut(w, slot)),
+        "the other file is the row's"
+    );
+    // Made by the row, it goes beside the other, and the row's Remove
+    // takes off its own.
+    press_offered(&mut app, Action::WalletKeyOut(w, slot));
+    let own = app
+        .outbox
+        .iter()
+        .position(|i| i.name == format!("xpub-{}-2.txt", faraday_core::wallet::fp_text(fp)))
+        .expect("the row's own file");
+    let _ = app.frame();
+    assert!(
+        !app.offers(Action::WalletKeyOut(w, slot)),
+        "the row has its file"
+    );
+    app.press(Action::OutboxRemove(own));
+    assert!(
+        app.outbox
+            .iter()
+            .any(|i| i.name == name && i.bytes == b"from elsewhere"),
+        "the other file stays"
+    );
 }
 
 #[test]

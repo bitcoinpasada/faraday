@@ -2176,7 +2176,9 @@ fn public_files(
         rows.push((
             fill(EN.public_files_key, &[&fp.to_string()]),
             EN.public_files_cosigners,
-            format!("xpub-{fp}.txt"),
+            app.backup_xpub_name(i, slot, false, &fp.to_string())
+                .unwrap_or_default()
+                .to_string(),
             Action::WalletKeyOut(i, slot),
             codes(
                 Action::ShowCode(Code::WalletKey(i, slot)),
@@ -2187,7 +2189,9 @@ fn public_files(
             rows.push((
                 fill(EN.public_files_key_bsms, &[&fp.to_string()]),
                 EN.public_files_signed,
-                format!("xpub-{fp}-bsms.txt"),
+                app.backup_xpub_name(i, slot, true, &fp.to_string())
+                    .unwrap_or_default()
+                    .to_string(),
                 Action::WalletKeyBsms(i, slot),
                 codes(
                     Action::ShowCode(Code::WalletKeyBsms(i, slot)),
