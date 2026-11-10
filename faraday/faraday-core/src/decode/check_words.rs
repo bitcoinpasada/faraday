@@ -44,7 +44,7 @@ fn script(s: &Script, network: Network) -> String {
 }
 
 /// An outpoint: its transaction's short form and the output's number.
-fn outpoint(o: &OutPoint) -> String {
+pub(crate) fn outpoint(o: &OutPoint) -> String {
     format!("{}:{}", faraday_ui::short(&o.txid.to_string()), o.vout)
 }
 

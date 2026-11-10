@@ -13291,4 +13291,127 @@ strings! {
     qr_tool_item_pass_kept: "Its passphrase is not in this code.",
     /// Make, the item's vault locked, closed or changed since the press.
     qr_tool_item_gone: "The vault was locked or changed. Nothing was sealed.",
+    // ----- Compare two PSBTs and the fee bump (docs/COMPARE.md), faraday-core/src/compare -----
+    /// Text in `words::difference`. `{}`: the two versions.
+    compare_version: "Version: {} first, {} second",
+    /// Text in `words::difference`. `{}`: the two locktimes.
+    compare_locktime: "Locktime: {} first, {} second",
+    /// Text in `words::difference`. `{}`: the two PSBT versions.
+    compare_psbt_version: "PSBT version: {} first, {} second",
+    /// Text in `words::difference`. `{}`: the input's outpoint.
+    compare_input_first_only: "Input {}: first only",
+    /// Text in `words::difference`. `{}`: the input's outpoint.
+    compare_input_second_only: "Input {}: second only",
+    /// Text in `words::difference`. `{}`: the outpoint, the two sequences.
+    compare_sequence: "Input {}: sequence {} first, {} second",
+    /// Text in `words::difference`. `{}`: the outpoint, the two amounts.
+    compare_spends: "Input {}: spends {} first, {} second",
+    /// Text in `words::difference`. `{}`: the outpoint.
+    compare_amount_first_only: "Input {}: amount stated first only",
+    /// Text in `words::difference`. `{}`: the outpoint.
+    compare_amount_second_only: "Input {}: amount stated second only",
+    /// Text in `words::difference`. `{}`: the outpoint, the two counts.
+    compare_signatures: "Input {}: {} signatures first, {} second",
+    /// Text in `words::difference`. `{}`: the outpoint.
+    compare_final_first_only: "Input {}: final first only",
+    /// Text in `words::difference`. `{}`: the outpoint.
+    compare_final_second_only: "Input {}: final second only",
+    /// Text in `words::difference`. `{}`: the output, its amount.
+    compare_output_first_only: "Output to {}: {}, first only",
+    /// Text in `words::difference`. `{}`: the output, its amount.
+    compare_output_second_only: "Output to {}: {}, second only",
+    /// Text in `words::difference`. `{}`: the output, the two amounts.
+    compare_output_amount: "Output to {}: {} first, {} second",
+    /// Text in `words::difference`. `{}`: the outpoint.
+    compare_spent_twice_first: "Input {}: spent twice in the first",
+    /// Text in `words::difference`. `{}`: the outpoint.
+    compare_spent_twice_second: "Input {}: spent twice in the second",
+    /// Text in `words::difference`. `{}`: the output.
+    compare_yours_first_only: "Output to {}: yours in the first only",
+    /// Text in `words::difference`. `{}`: the output.
+    compare_yours_second_only: "Output to {}: yours in the second only",
+    /// Text in `words::output`, an output with no address. `{}`: the script's length.
+    compare_script_bytes: "script {} bytes",
+    /// Text in `words::differences`, where there are none.
+    compare_no_differences: "No differences",
+    /// Text in `words::result`.
+    bump_only_fee: "Only the fee is raised",
+    /// Text in `words::result`.
+    bump_more_changed: "More than the fee changed",
+    /// Text in `words::result`.
+    bump_cannot_tell: "Cannot tell whether only the fee is raised",
+    /// Text in `words::result_from`. `{}`: the original's file name.
+    bump_only_fee_from: "Only the fee is raised from {}",
+    /// Text in `words::result_from`. `{}`: the original's file name.
+    bump_more_changed_from: "More than the fee changed from {}",
+    /// Text in `words::result_from`. `{}`: the original's file name.
+    bump_cannot_tell_from: "Cannot tell whether only the fee is raised from {}",
+    /// Text in `words::line`. `{}`: the outpoint.
+    bump_input_dropped: "Input {}: in the original, not in the replacement",
+    /// Text in `words::line`. `{}`: the outpoint.
+    bump_input_added: "Input {}: added, and not yours",
+    /// Text in `words::line`. `{}`: the outpoint, the two sequences.
+    bump_sequence: "Input {}: sequence {} in the original, {} in the replacement",
+    /// Text in `words::line`. `{}`: the outpoint, the two amounts.
+    bump_spends: "Input {}: spends {} in the original, {} in the replacement",
+    /// Text in `words::line`. `{}`: the outpoint.
+    bump_spent_twice_original: "Input {}: spent twice in the original",
+    /// Text in `words::line`. `{}`: the outpoint.
+    bump_spent_twice_replacement: "Input {}: spent twice in the replacement",
+    /// Text in `words::line`. `{}`: the two versions.
+    bump_version: "Version: {} in the original, {} in the replacement",
+    /// Text in `words::line`. `{}`: the two locktimes.
+    bump_locktime: "Locktime: {} in the original, {} in the replacement",
+    /// Text in `words::line`. `{}`: the replacement's amount, the payee, the original's amount.
+    bump_pays_other: "Pays {} to {}, not {}",
+    /// Text in `words::line`. `{}`: the original's amount, the payee.
+    bump_no_longer_pays: "No longer pays {} to {}",
+    /// Text in `words::line`. `{}`: the replacement's amount, the payee.
+    bump_pays_new: "Pays {} to {}, which the original does not",
+    /// Text in `words::line`. `{}`: the two fees in sat.
+    bump_fee: "Fee: {} sat in the original, {} sat in the replacement",
+    /// Text in `words::line`. `{}`: the two fee rates in sat/vB.
+    bump_fee_rate: "Fee rate: {} sat/vB in the original, {} sat/vB in the replacement",
+    /// Text in `words::line`. `{}`: the outpoint.
+    bump_amount_not_stated: "Input {}: amount not stated",
+    /// Text in `words::line`. `{}`: the output, the key's fingerprint.
+    bump_change_not_loaded: "Output to {}: change of {}, which is not loaded",
+    /// Text in `words::line`. `{}`: the outpoint, the key's fingerprint.
+    bump_input_not_loaded: "Input {}: added, of {}, which is not loaded",
+    /// Text in `words::line`. `{}`: the output.
+    bump_not_stated_yours: "Output to {}: in the original only, and not stated to be yours",
+    /// Text in `words::compare_facts`, a fact's label.
+    compare_fact_transaction: "Transaction",
+    /// Text in `words::compare_facts`, a value's label.
+    compare_fact_first: "First",
+    /// Text in `words::compare_facts`, a value's label.
+    compare_fact_second: "Second",
+    /// Text in `words::compare_facts` and `words::bump_facts`, a fact's label.
+    compare_fact_fee: "Fee",
+    /// Text in `words::compare_facts`, a fact's label.
+    compare_fact_inputs: "Inputs",
+    /// Text in `words::compare_facts`, a fact's label.
+    compare_fact_outputs: "Outputs",
+    /// Text in `words::compare_facts`. `{}`: how many.
+    compare_fact_in_both: "{} in both",
+    /// Text in `words::compare_facts`. `{}`: how many.
+    compare_fact_first_only: "{} first only",
+    /// Text in `words::compare_facts`. `{}`: how many.
+    compare_fact_second_only: "{} second only",
+    /// Text in `words::fee_value`, a fee that cannot be worked out.
+    compare_fee_not_known: "Not known",
+    /// Text in `words::fee_value`. `{}`: the fee in sat, its rate in sat/vB.
+    compare_fee_value: "{} sat · {} sat/vB",
+    /// Text in `words::bump_facts`, a value's label.
+    bump_fact_original: "Original",
+    /// Text in `words::bump_facts`, a value's label.
+    bump_fact_replacement: "Replacement",
+    /// Text in `words::bump_facts`, a fact's label.
+    bump_fact_inputs_added: "Inputs added",
+    /// Text in `words::bump_facts`, a fact's label.
+    bump_fact_rbf: "Replace-by-fee",
+    /// Text in `words::bump_facts`.
+    bump_signalled: "Signalled by the original",
+    /// Text in `words::bump_facts`.
+    bump_not_signalled: "Not signalled by the original",
 }

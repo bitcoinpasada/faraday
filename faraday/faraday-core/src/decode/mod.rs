@@ -137,7 +137,7 @@ fn script_kind(s: &Script) -> &'static str {
 }
 
 /// What a sequence number says.
-fn sequence_text(n: u32) -> String {
+pub(crate) fn sequence_text(n: u32) -> String {
     let what = if n == 0xffff_ffff {
         EN.decode_final
     } else if n == 0xffff_fffe {
@@ -153,7 +153,7 @@ fn sequence_text(n: u32) -> String {
 }
 
 /// What a locktime says.
-fn locktime_text(n: u32) -> String {
+pub(crate) fn locktime_text(n: u32) -> String {
     match n {
         0 => EN.decode_0_none.to_string(),
         n if n < 500_000_000 => fill(EN.decode_block_height, &[&n.to_string()]),
