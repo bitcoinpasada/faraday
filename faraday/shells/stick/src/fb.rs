@@ -252,35 +252,118 @@ pub fn rgba8888(r: u8, g: u8, b: u8) -> [u8; 4] {
 
 /// Costs a pass over every pixel: converts `rgba` (a whole number of
 /// pixels) into `out`, which must be exactly `pixels × bytes_per_pixel`
-/// long.
+/// long. Each depth is one loop over whole pixels with fixed-size
+/// arrays, which the compiler turns into a byte shuffle over many pixels
+/// at a time.
 pub fn convert_into(rgba: &[u8], depth: Depth, out: &mut [u8]) {
     match depth {
         Depth::Rgb565 => {
-            for (src, dst) in rgba.chunks_exact(4).zip(out.chunks_exact_mut(2)) {
-                dst.copy_from_slice(&rgb565(src[0], src[1], src[2]));
+            for (s, d) in rgba
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .zip(out.as_chunks_mut::<2>().0)
+            {
+                *d = rgb565(s[0], s[1], s[2]);
             }
         }
         Depth::Bgr888 => {
-            for (src, dst) in rgba.chunks_exact(4).zip(out.chunks_exact_mut(3)) {
-                dst.copy_from_slice(&bgr888(src[0], src[1], src[2]));
+            for (s, d) in rgba
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .zip(out.as_chunks_mut::<3>().0)
+            {
+                *d = [s[2], s[1], s[0]];
             }
         }
         Depth::Rgb888 => {
-            for (src, dst) in rgba.chunks_exact(4).zip(out.chunks_exact_mut(3)) {
-                dst.copy_from_slice(&rgb888(src[0], src[1], src[2]));
+            for (s, d) in rgba
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .zip(out.as_chunks_mut::<3>().0)
+            {
+                *d = [s[0], s[1], s[2]];
             }
         }
         Depth::Bgra8888 => {
-            for (src, dst) in rgba.chunks_exact(4).zip(out.chunks_exact_mut(4)) {
-                dst.copy_from_slice(&bgra8888(src[0], src[1], src[2]));
+            for (s, d) in rgba
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .zip(out.as_chunks_mut::<4>().0)
+            {
+                *d = [s[2], s[1], s[0], 0xff];
             }
         }
         Depth::Rgba8888 => {
-            for (src, dst) in rgba.chunks_exact(4).zip(out.chunks_exact_mut(4)) {
-                dst.copy_from_slice(&rgba8888(src[0], src[1], src[2]));
+            for (s, d) in rgba
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .zip(out.as_chunks_mut::<4>().0)
+            {
+                *d = [s[0], s[1], s[2], 0xff];
             }
         }
     }
+}
+
+/// The most threads a frame's rows are converted on.
+const MOST_THREADS: usize = 8;
+
+/// The fewest rows worth a thread of their own.
+const ROWS_PER_THREAD: usize = 64;
+
+/// Costs a pass over every pixel of rows `a..=b` of an unturned frame:
+/// converts them into `out` (the whole panel's rows, `convert_turned`'s)
+/// and copies them into `last`, the kept frame, in one pass per row. The
+/// rows are independent, so they go in bands over threads, the first
+/// band on the calling thread.
+pub fn convert_keep(
+    rgba: &[u8],
+    (a, b): (usize, usize),
+    depth: Depth,
+    fw: usize,
+    last: &mut [u8],
+    out: &mut [u8],
+) {
+    let (src_row, out_row) = (fw * 4, fw * depth.bytes_per_pixel());
+    let rows = b + 1 - a;
+    let n = std::thread::available_parallelism()
+        .map_or(1, usize::from)
+        .min(MOST_THREADS)
+        .min(rows.div_ceil(ROWS_PER_THREAD))
+        .max(1);
+    let per = rows.div_ceil(n);
+    let src = rgba[a * src_row..(b + 1) * src_row].chunks(per * src_row);
+    let kept = last[a * src_row..(b + 1) * src_row].chunks_mut(per * src_row);
+    let dst = out[a * out_row..(b + 1) * out_row].chunks_mut(per * out_row);
+    let mut bands: Vec<_> = src.zip(kept).zip(dst).collect();
+    let work = |((s, k), d): ((&[u8], &mut [u8]), &mut [u8])| {
+        for ((s, k), d) in s
+            .chunks_exact(src_row)
+            .zip(k.chunks_exact_mut(src_row))
+            .zip(d.chunks_exact_mut(out_row))
+        {
+            k.copy_from_slice(s);
+            convert_into(s, depth, d);
+        }
+    };
+    let Some(mine) = (!bands.is_empty()).then(|| bands.remove(0)) else {
+        return;
+    };
+    if bands.is_empty() {
+        work(mine);
+        return;
+    }
+    std::thread::scope(|scope| {
+        for band in bands {
+            scope.spawn(move || work(band));
+        }
+        work(mine);
+    });
 }
 
 /// The side of the square tiles a turned frame is converted in: a

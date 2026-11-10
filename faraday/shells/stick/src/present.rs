@@ -181,9 +181,20 @@ impl Presenter {
             fb::changed_rows(&self.last, rgba, src_row)
         };
         for &(a, b) in &changed {
-            fb::convert_turned(rgba, (a, b), g.depth, turn, panel_size, &mut self.converted);
-            let src = a * src_row..(b + 1) * src_row;
-            self.last[src.clone()].copy_from_slice(&rgba[src]);
+            if turn == Turn::R0 {
+                fb::convert_keep(
+                    rgba,
+                    (a, b),
+                    g.depth,
+                    usize::from(fw),
+                    &mut self.last,
+                    &mut self.converted,
+                );
+            } else {
+                fb::convert_turned(rgba, (a, b), g.depth, turn, panel_size, &mut self.converted);
+                let src = a * src_row..(b + 1) * src_row;
+                self.last[src.clone()].copy_from_slice(&rgba[src]);
+            }
             self.rows_converted += (b + 1 - a) as u64;
         }
         if let (Some(start), Some(t)) = (start, timings.as_deref_mut()) {
@@ -1169,5 +1180,59 @@ mod tests {
             assert_eq!(*lock(&panel).sink(), want, "dy {dy}");
         }
         assert!(moves > 0, "Settings scrolled as moved frames");
+    }
+
+    /// A sink that takes every write and keeps nothing, so a timing of
+    /// `present` is the shell's compare, convert and keep.
+    struct Discard;
+
+    impl Sink for Discard {
+        fn write_at(&mut self, _: &[u8], _: u64) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Measures what `present` costs at 3200 x 1800 with every row
+    /// changed, as a fade step does, for the four- and three-byte depths
+    /// of a PC. Run on its own, in release:
+    /// `cargo nextest run -p faraday-stick --release --run-ignored only
+    /// -E 'test(/convert_step_cost/)' --no-capture`.
+    #[test]
+    #[ignore = "a measurement, printed"]
+    fn convert_step_cost_at_3200_by_1800_with_every_row_changed() {
+        let (w, h) = (3200u16, 1800u16);
+        let frames: Vec<Vec<u8>> = (0..2u8)
+            .map(|k| {
+                (0..usize::from(w) * usize::from(h) * 4)
+                    .map(|i| (i as u8).wrapping_mul(7).wrapping_add(k * 90))
+                    .collect()
+            })
+            .collect();
+        for depth in [Depth::Bgra8888, Depth::Bgr888] {
+            let g = Geometry {
+                width: w,
+                height: h,
+                depth,
+                stride: usize::from(w) * depth.bytes_per_pixel(),
+            };
+            let panel = Mutex::new(Panel::new(Discard, g));
+            let mut p = Presenter::default();
+            let mut took = Vec::new();
+            for step in 0..21 {
+                let start = Instant::now();
+                p.present_moved(&frames[step % 2], None, g, Turn::R0, &panel, None)
+                    .expect("presented");
+                if step > 0 {
+                    took.push(start.elapsed());
+                }
+            }
+            took.sort();
+            let mean = took.iter().sum::<std::time::Duration>() / took.len() as u32;
+            eprintln!(
+                "{depth:?}: present {mean:?} mean, {:?} median, {:?} best",
+                took[took.len() / 2],
+                took[0]
+            );
+        }
     }
 }

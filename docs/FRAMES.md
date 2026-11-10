@@ -29,6 +29,16 @@ the image has now is 16 bits (the boot report's `panel` line) until the
 patch of §5 makes it 32: the panel is written as the core's frame is,
 with no conversion (§5).
 
+At no turn the shell converts the changed rows and copies them into the
+kept frame in one pass per row (`fb::convert_keep`), the rows in bands
+over up to eight threads, the first on the calling thread, each depth a
+loop over whole pixels the compiler vectorises. At 3200 × 1800 with
+every row changed, as a fade step changes them, `present` took 12.4 ms
+(BGRA) and 11.5 ms (24-bit BGR) before and 5.7 ms and 4.6 ms after, on
+the build machine in release (the ignored test
+`convert_step_cost_at_3200_by_1800_with_every_row_changed`). A frame
+turned a half or a quarter is converted tile by tile on the calling thread.
+
 **Measured** (the build machine, release, the heaviest session of
 `docs/SPEED.md` §7, the median of 41 frames each drawn in full; a probe
 kept outside the repository). Each frame was drawn whole, then with the
