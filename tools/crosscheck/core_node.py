@@ -35,6 +35,7 @@ import struct
 import subprocess
 import tarfile
 import tempfile
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PIN = ROOT / "tools" / "reference" / "core" / "release.pin"
@@ -172,6 +173,9 @@ def _free_port():
         return s.getsockname()[1]
 
 
+PORT_TRIES = 5  # starts of bitcoind when its RPC port was taken meanwhile
+
+
 class Node:
     """One bitcoind for the run, on regtest, offline. Use as a context
     manager: it is stopped and its folders deleted on every way out."""
@@ -206,23 +210,29 @@ class Node:
         bins = unpack(tarball, p["version"], self.scratch)
         datadir = self.scratch / "data"
         datadir.mkdir()
-        port = _free_port()
-        common_args = [f"-datadir={datadir}", "-regtest", f"-rpcport={port}"]
-        self.proc = subprocess.Popen(
-            [str(bins["bitcoind"]), *common_args, "-networkactive=0", "-listen=0",
-             "-connect=0", "-dnsseed=0", "-fixedseeds=0", "-discover=0",
-             *([] if self.wallet else ["-disablewallet"]),
-             # No -rpcbind or -rpcallowip: Core then binds RPC to loopback only.
-             "-server", f"-rpcthreads={self.rpc_threads}", "-rpcworkqueue=256",
-             "-printtoconsole=0", *self.args],
-            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-            stderr=open(self.scratch / "stderr", "wb"), preexec_fn=_die_with_parent,
-        )
-        cli = subprocess.run(
-            [str(bins["bitcoin-cli"]), *common_args, "-rpcwait", "-rpcwaittimeout=60",
-             "getnetworkinfo"], capture_output=True, text=True, timeout=90)
-        if cli.returncode != 0:
+        for attempt in range(PORT_TRIES):
+            port = _free_port()
+            common_args = [f"-datadir={datadir}", "-regtest", f"-rpcport={port}"]
+            self.proc = subprocess.Popen(
+                [str(bins["bitcoind"]), *common_args, "-networkactive=0", "-listen=0",
+                 "-connect=0", "-dnsseed=0", "-fixedseeds=0", "-discover=0",
+                 *([] if self.wallet else ["-disablewallet"]),
+                 # No -rpcbind or -rpcallowip: Core then binds RPC to loopback only.
+                 "-server", f"-rpcthreads={self.rpc_threads}", "-rpcworkqueue=256",
+                 "-printtoconsole=0", *self.args],
+                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                stderr=open(self.scratch / "stderr", "wb"), preexec_fn=_die_with_parent,
+            )
+            cli = self._wait_answer(bins["bitcoin-cli"], common_args)
+            if cli.returncode == 0:
+                break
             said = (self.scratch / "stderr").read_text(errors="replace").strip()
+            # The port was free when picked and another node took it before
+            # bitcoind bound it: bitcoind exits, and the start is tried again
+            # on a new port. Any other failure is the real error.
+            taken = "Unable to bind" in said or "Unable to start HTTP server" in said
+            if taken and self.proc.poll() is not None and attempt + 1 < PORT_TRIES:
+                continue
             raise CoreError(f"Bitcoin Core: bitcoind did not answer: {cli.stderr.strip()} "
                             f"{said}".strip())
         net = json.loads(cli.stdout)
@@ -237,6 +247,21 @@ class Node:
         self.info = {"url": f"http://{user}:{password}@localhost:{port}",
                      "version": net["subversion"].strip("/").split(":")[1],
                      "tarball": name, "sha256": digest}
+
+    def _wait_answer(self, cli_bin, common_args):
+        """Costs up to 60 s: runs bitcoin-cli's getnetworkinfo, waiting for
+        the node, and gives up at once if bitcoind has exited."""
+        cli = subprocess.Popen(
+            [str(cli_bin), *common_args, "-rpcwait", "-rpcwaittimeout=60", "getnetworkinfo"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        deadline = time.monotonic() + 90
+        while cli.poll() is None:
+            if self.proc.poll() is not None or time.monotonic() > deadline:
+                cli.kill()
+                break
+            time.sleep(0.05)
+        out, err = cli.communicate()
+        return subprocess.CompletedProcess(cli.args, cli.returncode, out, err)
 
     def stop(self):
         """Asks the node to stop, waits, kills it if it does not, and
