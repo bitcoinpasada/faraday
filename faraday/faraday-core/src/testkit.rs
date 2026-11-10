@@ -2542,7 +2542,14 @@ pub fn nonce_history_pending(
 
 /// Closes vault `id` for the nonce history.
 pub fn nonce_history_drop(app: &mut crate::Faraday, id: faraday_keys::vault::VaultId) {
-    app.memory.nonces.drop_vault(id);
+    let open: Vec<faraday_keys::vault::VaultId> = app
+        .vaults
+        .open
+        .iter()
+        .map(|o| o.id)
+        .filter(|v| *v != id)
+        .collect();
+    app.memory.nonces.sync_open(&open);
 }
 
 /// Notes `entries` of transaction `tx` in the nonce history.

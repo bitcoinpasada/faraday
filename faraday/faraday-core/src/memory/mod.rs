@@ -334,15 +334,12 @@ impl Faraday {
         self.memory.nonces.kept()
     }
 
-    /// Lets go what the history holds of vaults no longer open.
+    /// Lets go what the history holds of vaults no longer open, and what
+    /// waits for a vault when none is open.
     pub(crate) fn nonces_sync_open(&mut self) {
         let open: Vec<faraday_keys::vault::VaultId> =
             self.vaults.open.iter().map(|o| o.id).collect();
-        for id in self.memory.nonces.held_ids() {
-            if !open.contains(&id) {
-                self.memory.nonces.drop_vault(id);
-            }
-        }
+        self.memory.nonces.sync_open(&open);
     }
 
     /// Takes in the signed amounts open vault `id` holds, held by the

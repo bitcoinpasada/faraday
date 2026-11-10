@@ -1641,3 +1641,58 @@ fn the_nonce_history_setting_is_kept_across_a_restart() {
     });
     assert!(!next.nonce_history_kept());
 }
+
+#[test]
+fn what_was_checked_stays_waiting_when_its_vault_closes_while_another_stays_open() {
+    let (d, k) = (key(3), key(9));
+    let a = signed(0, &d, &k);
+    let (tx_a, _) = entries_of(&a);
+    let mut app = closed_vaults(&[vault_of(7, Vec::new()), vault_of(8, Vec::new())], &[&a]);
+    unlock_nth(&mut app, 0, 1);
+    let first = app.vaults().open[0].id;
+    let _ = check_file(&mut app, 2);
+    assert_eq!(nonce_history_pending(&app).len(), 1);
+
+    // The second vault opens while the history is off, so it is not read.
+    app.press(Action::NonceHistory(false));
+    unlock_nth(&mut app, 1, 2);
+    faraday_core::testkit::nonce_history_drop(&mut app, first);
+    assert_eq!(nonce_history_pending(&app).len(), 1, "a vault is open");
+
+    app.press(Action::NonceHistory(true));
+    let sealed = lock_all(&mut app);
+    assert_eq!(sealed.len(), 2);
+    let again = open_vaults(&sealed, &[]);
+    assert_eq!(held_in(&again, 1), vec![(tx_a, 1)]);
+}
+
+#[test]
+fn two_vaults_holding_the_same_signature_show_it_once_on_the_settings_card() {
+    let (d, k) = (key(3), key(9));
+    let a = signed(0, &d, &k);
+    let (tx_a, ea) = entries_of(&a);
+    let both = [
+        vault_of(7, vec![nonce_record(tx_a, &ea)]),
+        vault_of(8, vec![nonce_record(tx_a, &ea)]),
+    ];
+    let mut app = open_vaults(&both, &[]);
+    assert_eq!(app.vaults().open.len(), 2);
+    app.press(Action::Nav(Screen::Settings));
+    let line = faraday_strings::fill(
+        EN.settings_signatures_remembered,
+        &["1", EN.settings_signature],
+    );
+    let mut text = shown(&mut app);
+    for _ in 0..40 {
+        if text.contains(&line) {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 400,
+            dy: 120,
+        });
+        text = shown(&mut app);
+    }
+    assert!(text.contains(&line), "{text}");
+}

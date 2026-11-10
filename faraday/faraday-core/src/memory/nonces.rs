@@ -198,17 +198,21 @@ impl NonceHistory {
         self.recount();
     }
 
-    /// A vault closed: what it held leaves.
-    pub(crate) fn drop_vault(&mut self, id: VaultId) {
-        let before = self.held.len();
-        self.held.retain(|(v, _)| *v != id);
-        self.unreadable.retain(|(v, _)| *v != id);
-        if self.held.len() != before {
-            // Nothing is kept across a lock outside a vault.
-            if self.held.is_empty() {
-                self.pending.clear();
-                self.pending_index = Arc::default();
-            }
+    /// `open` are the vaults open now: what the history holds of any other
+    /// leaves, and with no vault open at all what waits to be written
+    /// into one goes too (nothing is kept across a lock outside a vault,
+    /// whether or not the setting let an open vault be read).
+    pub(crate) fn sync_open(&mut self, open: &[VaultId]) {
+        let before = self.held.len() + self.unreadable.len();
+        self.held.retain(|(v, _)| open.contains(v));
+        self.unreadable.retain(|(v, _)| open.contains(v));
+        let mut changed = self.held.len() + self.unreadable.len() != before;
+        if open.is_empty() && !self.pending.is_empty() {
+            self.pending.clear();
+            self.pending_index = Arc::default();
+            changed = true;
+        }
+        if changed {
             self.generation += 1;
             self.recount();
         }
@@ -299,11 +303,6 @@ impl NonceHistory {
             }
         }
         self.remembered = seen.len();
-    }
-
-    /// The vaults whose records were read.
-    pub(crate) fn held_ids(&self) -> Vec<VaultId> {
-        self.held.iter().map(|(v, _)| *v).collect()
     }
 
     /// The transactions checked here and not yet in a vault.
