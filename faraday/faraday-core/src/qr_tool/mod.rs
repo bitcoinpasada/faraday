@@ -246,7 +246,7 @@ impl QrToolState {
 
     /// Whether the two passphrases are typed, the same and not empty.
     pub fn passphrase_ready(&self) -> bool {
-        !self.pass.text.is_empty() && self.pass.text.as_str() == self.again.text.as_str()
+        crate::screens::pass_pair::ready(self.pass.text.as_str(), self.again.text.as_str())
     }
 
     /// Whether the code is made.

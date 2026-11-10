@@ -12,9 +12,11 @@ use crate::drawing::{Scrolled, View};
 use crate::keygen::{
     Group, KeyGen, MIX_SOURCES, Source, Start, WAYS, Way, kstep, procedure_name, source_name,
 };
+use crate::screens::pass_pair::{self, pass_pair};
 use crate::screens::{
-    buttons_and_next, camera_row, card_pad, coin_pad, descriptor_row, dice_pad, locked_tag,
-    never_below, never_real_seed, next_button, pass_field, section_label, stepper,
+    buttons_and_next, buttons_and_next_when, camera_row, card_pad, coin_pad, descriptor_row,
+    dice_pad, locked_tag, never_below, never_real_seed, next_button, pass_field, section_label,
+    stepper,
 };
 use crate::ui::Paint;
 use crate::ui::pal::*;
@@ -679,31 +681,30 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
     if !k.locked {
         if k.asks_passphrase() {
             cy += 4.0;
-            cy += pass_field(
+            cy += pass_pair(
                 ui,
-                x,
-                cy,
-                w,
-                EN.keygen_passphrase,
-                &k.passphrase,
-                (
-                    k.focus == Some(0),
-                    app.pass_chip(crate::demo::PassField::KeyGen(0)),
-                ),
-                Action::KPassField(0),
-            );
-            cy += pass_field(
-                ui,
-                x,
-                cy,
-                w,
-                EN.keygen_passphrase_again,
-                &k.passphrase2,
-                (
-                    k.focus == Some(1),
-                    app.pass_chip(crate::demo::PassField::KeyGen(1)),
-                ),
-                Action::KPassField(1),
+                (x, cy, w),
+                (k.passphrase.as_str(), k.passphrase2.as_str()),
+                |ui, n, fy| {
+                    let (label, text) = if n == 0 {
+                        (EN.keygen_passphrase, &k.passphrase)
+                    } else {
+                        (EN.keygen_passphrase_again, &k.passphrase2)
+                    };
+                    pass_field(
+                        ui,
+                        x,
+                        fy,
+                        w,
+                        label,
+                        text,
+                        (
+                            k.focus == Some(n),
+                            app.pass_chip(crate::demo::PassField::KeyGen(n)),
+                        ),
+                        Action::KPassField(n),
+                    )
+                },
             );
             cy += never_real_seed(app, ui, x, cy, w);
         }
@@ -713,13 +714,15 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, n) + 6.0;
         }
         cy += 4.0;
-        cy += buttons_and_next(
+        let agree = !k.asks_passphrase()
+            || !pass_pair::differ(k.passphrase.as_str(), k.passphrase2.as_str());
+        cy += buttons_and_next_when(
             ui,
             x,
             cy,
             w,
             shows,
-            Some((EN.keygen_lock_button, Action::KLock)),
+            (Some((EN.keygen_lock_button, Action::KLock)), agree),
         );
         if !ui.compact {
             ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.keygen_enter_locks);

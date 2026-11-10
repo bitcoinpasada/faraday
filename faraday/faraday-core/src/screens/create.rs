@@ -4,6 +4,7 @@ use super::parts::{
     buttons_and_next, descriptor_row, first_addresses, kind_list, locked_tag, never_real_seed,
     next_button, pass_field, stepper, vaults_answer_line,
 };
+use super::pass_pair::{self, pass_pair};
 use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -564,31 +565,30 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     // The passphrase fields, under the slot they are for.
                     if c.pass_slot == Some(slot as u8) && pass_offered {
                         let (px, pw) = (x + indent, w - indent);
-                        cy += pass_field(
+                        cy += pass_pair(
                             ui,
-                            px,
-                            cy,
-                            pw,
-                            EN.create_passphrase,
-                            &c.pass,
-                            (
-                                c.pass_focus == Some(0),
-                                app.pass_chip(crate::demo::PassField::Slot(0)),
-                            ),
-                            Action::CPassField(0),
-                        );
-                        cy += pass_field(
-                            ui,
-                            px,
-                            cy,
-                            pw,
-                            EN.create_passphrase_again,
-                            &c.pass2,
-                            (
-                                c.pass_focus == Some(1),
-                                app.pass_chip(crate::demo::PassField::Slot(1)),
-                            ),
-                            Action::CPassField(1),
+                            (px, cy, pw),
+                            (c.pass.as_str(), c.pass2.as_str()),
+                            |ui, n, fy| {
+                                let (label, text) = if n == 0 {
+                                    (EN.create_passphrase, &c.pass)
+                                } else {
+                                    (EN.create_passphrase_again, &c.pass2)
+                                };
+                                pass_field(
+                                    ui,
+                                    px,
+                                    fy,
+                                    pw,
+                                    label,
+                                    text,
+                                    (
+                                        c.pass_focus == Some(n),
+                                        app.pass_chip(crate::demo::PassField::Slot(n)),
+                                    ),
+                                    Action::CPassField(n),
+                                )
+                            },
                         );
                         cy += never_real_seed(app, ui, px, cy, pw);
                         if let Some(n) = &c.pass_note {
@@ -601,7 +601,8 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             Some(bw),
                             BUTTON_H,
                             EN.create_lock_button,
-                            Style::Primary,
+                            Style::Primary
+                                .when(!pass_pair::differ(c.pass.as_str(), c.pass2.as_str())),
                             Action::CPassLock,
                         );
                         cy += 52.0;

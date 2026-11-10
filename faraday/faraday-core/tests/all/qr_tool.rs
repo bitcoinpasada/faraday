@@ -203,6 +203,33 @@ fn the_passphrase_must_match_and_not_be_empty() {
 }
 
 #[test]
+fn a_passphrase_typed_twice_differently_shows_it_and_make_waits() {
+    let mut app = started();
+    open(&mut app);
+    app.press(Action::QrTool(Q::Pick(Pick::Note)));
+    type_in(&mut app, "note");
+    app.press(Action::QrTool(Q::Next));
+    app.press(Action::QrTool(Q::Focus(qr_tool::Field::Pass)));
+    type_in(&mut app, "one");
+    app.press(Action::QrTool(Q::Focus(qr_tool::Field::Again)));
+    type_in(&mut app, "two");
+    assert!(has(&mut app, "The two passphrases differ"));
+    app.press(Action::QrTool(Q::Make));
+    testkit::settle(&mut app);
+    assert!(!qr_tool::state(&app).unwrap().is_made());
+    for _ in 0..3 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    type_in(&mut app, "one");
+    assert!(!has(&mut app, "The two passphrases differ"));
+    app.press(Action::QrTool(Q::Focus(qr_tool::Field::Name)));
+    type_in(&mut app, "n");
+    app.press(Action::QrTool(Q::Make));
+    testkit::settle(&mut app);
+    assert!(qr_tool::state(&app).unwrap().is_made());
+}
+
+#[test]
 fn the_files_put_in_the_outbox_are_public() {
     let mut app = started();
     make_note(&mut app, "a note", "pass", "");

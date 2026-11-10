@@ -422,6 +422,30 @@ fn unequal_passphrases_in_a_slot_lock_nothing_in() {
     );
 }
 
+#[test]
+fn a_slots_lock_waits_until_the_two_passphrases_match() {
+    let mut app = testkit::started();
+    add_key(&mut app, "bacon");
+    let plain = app.session.keys[0].fingerprint.0;
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(0));
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CSlotHere(0, plain));
+    app.press(Action::CPassOpen(0));
+    type_text(&mut app, "one");
+    app.press(Action::CPassField(1));
+    type_text(&mut app, "two");
+    assert!(crate::common::has(&mut app, "The two passphrases differ"));
+    assert!(!crate::common::offered(&mut app, Action::CPassLock));
+    for _ in 0..3 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    type_text(&mut app, "one");
+    assert!(!crate::common::has(&mut app, "The two passphrases differ"));
+    assert!(crate::common::offered(&mut app, Action::CPassLock));
+}
+
 // ---- New wallet from this one (NEW-WALLET §16.2) ----
 
 /// Presses the open card's Continue, answering No to vaults, until the

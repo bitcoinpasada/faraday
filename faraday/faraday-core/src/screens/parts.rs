@@ -246,10 +246,23 @@ pub(crate) fn buttons_and_next(
     left: &[(&str, Style, Action)],
     next: Option<(&str, Action)>,
 ) -> f32 {
+    buttons_and_next_when(ui, x, y, w, left, (next, true))
+}
+
+/// [`buttons_and_next`] with the next in Material's disabled state and
+/// taking no press while `on` is false.
+pub(crate) fn buttons_and_next_when(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    left: &[(&str, Style, Action)],
+    (next, on): (Option<(&str, Action)>, bool),
+) -> f32 {
     // Pinned at the foot: only the other buttons are here.
     let next = match next {
         Some((label, action)) if ui.pinning => {
-            ui.pin = Some((label.to_string(), Style::Primary, action));
+            ui.pin = Some((label.to_string(), Style::Primary.when(on), action));
             None
         }
         n => n,
@@ -275,7 +288,7 @@ pub(crate) fn buttons_and_next(
             by += 48.0;
         }
         if let Some((label, action)) = next {
-            let _ = next_button(ui, x, by, w, label, action);
+            let _ = next_button_when(ui, (x, by, w), label, action, on);
         }
         return by - y + 48.0;
     }
@@ -290,7 +303,7 @@ pub(crate) fn buttons_and_next(
     let below = !left.is_empty() && lw + nw + 8.0 > w;
     let ny = if below { y + 48.0 } else { y };
     if let Some((label, action)) = next {
-        let _ = next_button(ui, x, ny, w, label, action);
+        let _ = next_button_when(ui, (x, ny, w), label, action, on);
     }
     ny - y + 48.0
 }

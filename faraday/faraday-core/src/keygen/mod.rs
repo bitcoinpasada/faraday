@@ -1647,7 +1647,6 @@ impl crate::Faraday {
             .filter(|_| kept.is_none())
             .map(|(w, _)| (w, k.handout_words()));
         if k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
-            k.note = Some(EN.keygen_the_two_passphrases.to_string());
             return;
         }
         // New key on its own makes the key alone: no passphrase
@@ -1769,7 +1768,6 @@ impl crate::Faraday {
         }
         let asks = k.asks_passphrase();
         if asks && k.passphrase.as_str() != k.passphrase2.as_str() {
-            k.note = Some(EN.keygen_the_two_passphrases.to_string());
             return;
         }
         let mut pass = crate::secret_text::room();

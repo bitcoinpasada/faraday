@@ -20,6 +20,7 @@
 //! the sheet closes, which wipes them.
 
 use crate::drawing::View;
+use crate::screens::pass_pair::{self, pass_pair};
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::keys::Fingerprint;
@@ -174,7 +175,7 @@ pub struct SeedRead {
 impl SeedRead {
     /// The two fields hold the same passphrase, and it is not empty.
     fn pass_ready(&self) -> bool {
-        !self.pass.is_empty() && self.pass.as_str() == self.pass2.as_str()
+        pass_pair::ready(self.pass.as_str(), self.pass2.as_str())
     }
 
     /// The key the passphrase typed makes, once it is typed twice alike:
@@ -361,7 +362,7 @@ impl Faraday {
             Choice::Xor => self.seed_read_xor(),
             Choice::WithPass => {
                 if s.pass.as_str() != s.pass2.as_str() {
-                    s.error = Some(EN.seed_read_the_two_passphrases.to_string());
+                    s.error = Some(EN.pass_pair_differ.to_string());
                 } else if s.pass.is_empty() {
                     s.error = Some(EN.seed_read_type_passphrase.to_string());
                 } else {
@@ -993,7 +994,6 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         return;
     };
     let with = s.with_key();
-    let differ = !s.pass.is_empty() && !s.pass2.is_empty() && s.pass.as_str() != s.pass2.as_str();
     let use_with = Style::Primary.when(s.pass_ready());
     let skip = s.spend_backup == Some(ForSpendBackup::Intake) && s.wallet.is_some();
     let cancel = if skip {
@@ -1069,42 +1069,34 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }
         if s.adding {
             cy += 6.0;
-            cy += pass_field(
+            cy += pass_pair(
                 ui,
-                x,
-                cy,
-                iw,
-                EN.seed_read_passphrase_label,
-                &s.pass,
-                (
-                    s.focus == Some(0),
-                    app.pass_chip(crate::demo::PassField::SeedRead(0)),
-                ),
-                Action::SeedRead(Choice::Field(0)),
-            );
-            cy += pass_field(
-                ui,
-                x,
-                cy,
-                iw,
-                EN.seed_read_passphrase,
-                &s.pass2,
-                (
-                    s.focus == Some(1),
-                    app.pass_chip(crate::demo::PassField::SeedRead(1)),
-                ),
-                Action::SeedRead(Choice::Field(1)),
+                (x, cy, iw),
+                (s.pass.as_str(), s.pass2.as_str()),
+                |ui, n, fy| {
+                    let (label, text) = if n == 0 {
+                        (EN.seed_read_passphrase_label, &s.pass)
+                    } else {
+                        (EN.seed_read_passphrase, &s.pass2)
+                    };
+                    pass_field(
+                        ui,
+                        x,
+                        fy,
+                        iw,
+                        label,
+                        text,
+                        (
+                            s.focus == Some(n),
+                            app.pass_chip(crate::demo::PassField::SeedRead(n)),
+                        ),
+                        Action::SeedRead(Choice::Field(n)),
+                    )
+                },
             );
             cy += crate::screens::never_real_seed(app, ui, x, cy, iw);
             if let Some(fp) = with {
                 cy += key_line(ui, x, cy, iw, EN.seed_read_with_passphrase, fp);
-            } else if differ {
-                cy += ui.wrap_as(
-                    (x, cy, iw),
-                    BODY_S,
-                    Role::Warning,
-                    EN.seed_read_the_two_passphrases,
-                ) + 10.0;
             }
         }
         if let Some(e) = &s.error {

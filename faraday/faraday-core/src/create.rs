@@ -1846,7 +1846,6 @@ impl Faraday {
             return;
         };
         if cs.pass.as_str() != cs.pass2.as_str() {
-            cs.pass_note = Some(EN.create_pass_lock_mismatch.to_string());
             return;
         }
         // Empty means none: the key stays as it is.

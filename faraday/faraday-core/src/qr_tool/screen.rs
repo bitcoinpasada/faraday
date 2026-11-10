@@ -6,6 +6,7 @@ use crate::Action;
 use crate::demo::{PassField, pass_box};
 use crate::drawing::{Scrolled, View};
 use crate::flow;
+use crate::screens::pass_pair::pass_pair;
 use crate::screens::randomness::row as own_row;
 use crate::strings::{EN, fill};
 use crate::ui::pal::Role;
@@ -238,30 +239,30 @@ fn item_card(ui: &mut Ui, item: &super::item::Source, (x, y, w): (f32, f32, f32)
 
 fn passphrase(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
-    for (label, field, b, chip) in [
-        (EN.qr_tool_pass, Field::Pass, &s.pass, PassField::QrMake(0)),
-        (
-            EN.qr_tool_pass_again,
-            Field::Again,
-            &s.again,
-            PassField::QrMake(1),
-        ),
-    ] {
-        cy += ui.field_label(x, cy, label);
-        pass_box(
-            app,
-            ui,
-            (x, cy, w),
-            b,
-            (s.shown, s.focus() == Some(field)),
-            (act(Q::Focus(field)), act(Q::Eye)),
-            chip,
-        );
-        cy += FIELD_H + GAP;
-    }
-    if !s.again.text.is_empty() && !s.pass.text.is_empty() && !s.passphrase_ready() {
-        cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, EN.qr_tool_pass_differ) + GAP;
-    }
+    cy += pass_pair(
+        ui,
+        (x, cy, w),
+        (s.pass.text.as_str(), s.again.text.as_str()),
+        |ui, n, fy| {
+            let (label, field, b) = if n == 0 {
+                (EN.qr_tool_pass, Field::Pass, &s.pass)
+            } else {
+                (EN.qr_tool_pass_again, Field::Again, &s.again)
+            };
+            let mut cy = fy;
+            cy += ui.field_label(x, cy, label);
+            pass_box(
+                app,
+                ui,
+                (x, cy, w),
+                b,
+                (s.shown, s.focus() == Some(field)),
+                (act(Q::Focus(field)), act(Q::Eye)),
+                PassField::QrMake(n),
+            );
+            cy + FIELD_H + GAP - fy
+        },
+    );
     cy += ui.wrap_as((x, cy, w), BODY_S, Role::Warning, EN.qr_tool_pass_warning) + GAP;
     cy += ui.field_label(x, cy, EN.qr_tool_memory);
     for e in QR_SEAL_EXPONENTS {

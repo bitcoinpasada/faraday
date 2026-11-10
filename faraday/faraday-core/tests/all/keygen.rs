@@ -801,6 +801,25 @@ fn roll_again_on_a_caution_clears_the_entries_and_adds_no_key() {
 }
 
 #[test]
+fn lock_in_waits_until_the_two_passphrases_match() {
+    let mut app = slot_flow(true);
+    flip_all(&mut app);
+    app.press(Action::KNext);
+    app.press(Action::KPassField(0));
+    type_text(&mut app, "Ride the 7 bus");
+    app.press(Action::KPassField(1));
+    type_text(&mut app, "Ride the 7 bu");
+    assert!(texts(&mut app).contains("The two passphrases differ"));
+    assert!(!app.offers(Action::KLock));
+    app.press(Action::KLock);
+    assert!(app.keygen().is_some(), "the key did not lock in");
+    type_text(&mut app, "s");
+    let shown = texts(&mut app);
+    assert!(!shown.contains("The two passphrases differ"));
+    assert!(app.offers(Action::KLock));
+}
+
+#[test]
 fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
     let c = faraday_core::testkit::compute();
     let mut app = slot_flow(true);

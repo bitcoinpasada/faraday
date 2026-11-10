@@ -48,6 +48,8 @@ fn make(app: &mut Faraday) {
     app.press(Action::KefTool(K::Form(KefAct::Back)));
     app.press(Action::KefTool(K::Form(KefAct::Field)));
     type_in(app, "a passphrase");
+    app.press(Action::KefTool(K::Form(KefAct::FieldAgain)));
+    type_in(app, "a passphrase");
     app.press(Action::KefTool(K::Form(KefAct::Make)));
     testkit::settle(app);
     assert_eq!(form_stage(app), Stage::Made);
@@ -274,4 +276,31 @@ fn a_code_over_the_largest_template_is_not_copied_by_hand() {
     assert!(seen(&mut app, "By hand: No"));
     assert!(seen(&mut app, "Largest: 37 × 37"));
     assert!(!seen(&mut app, "Copy by hand"));
+}
+
+#[test]
+fn the_form_shows_when_the_two_passphrases_differ_and_make_waits() {
+    let mut app = started();
+    open(&mut app);
+    app.press(Action::KefTool(K::Pick(Pick::Type)));
+    type_in(&mut app, "a note");
+    app.press(Action::KefTool(K::Next));
+    app.press(Action::KefTool(K::Form(KefAct::Field)));
+    type_in(&mut app, "one");
+    app.press(Action::KefTool(K::Form(KefAct::FieldAgain)));
+    type_in(&mut app, "two");
+    assert!(crate::common::has(&mut app, "The two passphrases differ"));
+    assert!(!crate::common::offered(
+        &mut app,
+        Action::KefTool(K::Form(KefAct::Make))
+    ));
+    for _ in 0..3 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    type_in(&mut app, "one");
+    assert!(!crate::common::has(&mut app, "The two passphrases differ"));
+    assert!(crate::common::offered(
+        &mut app,
+        Action::KefTool(K::Form(KefAct::Make))
+    ));
 }

@@ -6,6 +6,7 @@ use crate::Action;
 use crate::dice_entry::Press;
 use crate::dice_entry::screen::{Ask as DiceAsk, dice_panel};
 use crate::drawing::View;
+use crate::screens::pass_pair::pass_pair;
 use crate::screens::{dice_pad, randomness};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -79,20 +80,38 @@ pub(crate) fn draw(
         (ask.wrap)(KefAct::Dice),
     );
     cy += BUTTON_H + GAP;
-    cy += ui.field_label(x, cy, EN.kef_passphrase);
-    let show = app.pass_shows(f.shown, f.pass.text.as_str());
-    secret_box(
+    cy += pass_pair(
         ui,
-        x,
-        cy,
-        w,
-        &f.pass,
-        show,
-        f.focus == Some(Focus::Pass),
-        (ask.wrap)(KefAct::Field),
-        (ask.wrap)(KefAct::Eye),
+        (x, cy, w),
+        (f.pass.text.as_str(), f.pass2.text.as_str()),
+        |ui, n, fy| {
+            let (label, text, focus, press) = if n == 0 {
+                (EN.kef_passphrase, &f.pass, Focus::Pass, KefAct::Field)
+            } else {
+                (
+                    EN.kef_passphrase_again,
+                    &f.pass2,
+                    Focus::PassAgain,
+                    KefAct::FieldAgain,
+                )
+            };
+            let show = app.pass_shows(f.shown, text.text.as_str());
+            let mut cy = fy;
+            cy += ui.field_label(x, cy, label);
+            secret_box(
+                ui,
+                x,
+                cy,
+                w,
+                text,
+                show,
+                f.focus == Some(focus),
+                (ask.wrap)(press),
+                (ask.wrap)(KefAct::Eye),
+            );
+            cy + FIELD_H + GAP - fy
+        },
     );
-    cy += FIELD_H + GAP;
     let options = (ask.wrap)(KefAct::Options);
     ui.button(
         x,
@@ -115,7 +134,7 @@ pub(crate) fn draw(
         None,
         BUTTON_H,
         EN.kef_form_make,
-        Style::Primary,
+        Style::Primary.when(f.passphrases_agree()),
         (ask.wrap)(KefAct::Make),
     );
     cy + BUTTON_H - y

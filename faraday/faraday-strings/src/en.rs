@@ -3543,8 +3543,8 @@ strings! {
     keygen_mix_needs_dice_or_device: "A mix takes dice or this device among its sources",
     /// Text in `keygen_act`.
     keygen_choose_a_source: "Choose a source",
-    /// Note in `keygen_lock`.
-    keygen_the_two_passphrases: "The two passphrases differ",
+    /// Line under the second of two passphrases entered, and the note when the action is pressed with them differing.
+    pass_pair_differ: "The two passphrases differ",
     /// Text in `keygen_lock`. `{}`: `self.new_keys + 1`.
     keygen_new_key_n: "New key {}",
     /// Text in `keygen_done`. `{}`: `crate::wallet::fp_text(faraday_bip::keys:…`, `if k.slip39 { FEN.keygen_shares_inline } els…`.
@@ -4205,6 +4205,8 @@ strings! {
     kef_sheet_title: "Encrypted code",
     /// The passphrase field's label.
     kef_passphrase: "Passphrase",
+    /// The label of the passphrase typed a second time.
+    kef_passphrase_again: "Passphrase again",
     /// The hex field's label.
     kef_hex: "Passphrase bytes in hex",
     /// The action that switches to the hex field.
@@ -4525,8 +4527,6 @@ strings! {
     /// Text in `restore_from_vault`.
     restore_from_vault_keys: "keys",
     // ----- create_pass_lock (faraday-core/src/lib.rs) -----
-    /// Note in `create_pass_lock`.
-    create_pass_lock_mismatch: "The two passphrases differ",
     /// Text in `create_pass_lock`. `{}`: `key.label`.
     create_pass_lock_passphrase: "{} · passphrase",
     // ----- create_make (faraday-core/src/lib.rs) -----
@@ -8275,8 +8275,6 @@ strings! {
     seed_read_passphrase: "Passphrase again",
     /// Label in `sheet`.
     seed_read_with_passphrase: "With this passphrase",
-    /// Line in `sheet`.
-    seed_read_the_two_passphrases: "The two passphrases differ",
     /// Text in `sheet`.
     seed_read_seedqr_read: "SeedQR read",
     /// The seed sheet's title for a seed's words read (`docs/SCANNING.md` §6).
@@ -13208,8 +13206,6 @@ strings! {
     qr_tool_pass: "Passphrase",
     /// Passphrase: the second field's label.
     qr_tool_pass_again: "Passphrase again",
-    /// Passphrase: the two fields differ.
-    qr_tool_pass_differ: "The two passphrases differ",
     /// Passphrase: what the code's strength rests on.
     qr_tool_pass_warning: "The code is only as strong as its passphrase",
     /// Passphrase: the memory choice's label.

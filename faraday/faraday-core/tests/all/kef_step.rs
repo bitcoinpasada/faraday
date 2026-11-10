@@ -102,6 +102,8 @@ fn make(app: &mut Faraday) {
     app.press(Action::KefTool(K::Backup(KefAct::Back)));
     app.press(Action::KefTool(K::Backup(KefAct::Field)));
     type_in(app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
+    type_in(app, "a passphrase");
     app.press(Action::KefTool(K::Backup(KefAct::Make)));
     testkit::settle(app);
 }
@@ -174,6 +176,8 @@ fn leaving_the_item_or_the_checklist_wipes_the_passphrase() {
         let mut app = at_the_checklist();
         open_item(&mut app, bstep::KEF);
         app.press(Action::KefTool(K::Backup(KefAct::Field)));
+        type_in(&mut app, "typed and left");
+        app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
         type_in(&mut app, "typed and left");
         app.press(leave);
         app.press(Action::BChecklist);
@@ -589,6 +593,8 @@ fn a_code_made_with_other_options_reopens_to_the_same_picture() {
     app.press(Action::KefTool(K::Backup(KefAct::Back)));
     app.press(Action::KefTool(K::Backup(KefAct::Field)));
     type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
+    type_in(&mut app, "a passphrase");
     app.press(Action::KefTool(K::Backup(KefAct::Make)));
     testkit::settle(&mut app);
     let made = testkit::kef_card_png(&app, 0).expect("the picture");
@@ -611,6 +617,8 @@ fn make_by_fingerprint(app: &mut Faraday) {
     type_in(app, "10000");
     app.press(Action::KefTool(K::Backup(KefAct::Back)));
     app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
     type_in(app, "a passphrase");
     app.press(Action::KefTool(K::Backup(KefAct::Make)));
     testkit::settle(app);
@@ -871,6 +879,8 @@ fn make_labelled(app: &mut Faraday, n: usize) {
     app.press(Action::KefTool(K::Backup(KefAct::Back)));
     app.press(Action::KefTool(K::Backup(KefAct::Field)));
     type_in(app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
+    type_in(app, "a passphrase");
     app.press(Action::KefTool(K::Backup(KefAct::Make)));
     testkit::settle(app);
 }
@@ -918,6 +928,8 @@ fn a_code_larger_than_the_largest_sheet_reads_by_hand_no() {
     type_in(&mut app, &"x".repeat(60));
     app.press(Action::KefTool(K::Backup(KefAct::Back)));
     app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
     type_in(&mut app, "a passphrase");
     app.press(Action::KefTool(K::Backup(KefAct::Make)));
     testkit::settle(&mut app);
@@ -1111,6 +1123,8 @@ fn a_code_larger_than_the_largest_sheet_has_no_scan_my_copy() {
     app.press(Action::KefTool(K::Backup(KefAct::Back)));
     app.press(Action::KefTool(K::Backup(KefAct::Field)));
     type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
+    type_in(&mut app, "a passphrase");
     app.press(Action::KefTool(K::Backup(KefAct::Make)));
     testkit::settle(&mut app);
     assert!(!seen(&mut app, "Scan my copy"));
@@ -1146,6 +1160,8 @@ fn a_code_larger_than_the_largest_sheet_counts_no_sheet_in_the_templates_item() 
     type_in(&mut app, &"x".repeat(60));
     app.press(Action::KefTool(K::Backup(KefAct::Back)));
     app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
     type_in(&mut app, "a passphrase");
     app.press(Action::KefTool(K::Backup(KefAct::Make)));
     testkit::settle(&mut app);

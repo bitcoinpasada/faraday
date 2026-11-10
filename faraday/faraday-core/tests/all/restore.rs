@@ -264,6 +264,22 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
 }
 
 #[test]
+fn the_sheets_button_waits_and_the_line_shows_while_the_passphrases_differ() {
+    use crate::common::{has, offered};
+    let mut app = two_of_three_from_seeds();
+    scan_seed(&mut app, &testkit::test_words("summer"));
+    sheet_passphrase(&mut app, "TREZOR", "TREZRO");
+    assert!(has(&mut app, "The two passphrases differ"));
+    assert!(!offered(&mut app, Action::SeedRead(Choice::WithPass)));
+    app.press(Action::SeedRead(Choice::Field(1)));
+    app.event(Event::Key(Key::Backspace));
+    app.event(Event::Key(Key::Backspace));
+    type_text(&mut app, "OR");
+    assert!(!has(&mut app, "The two passphrases differ"));
+    assert!(offered(&mut app, Action::SeedRead(Choice::WithPass)));
+}
+
+#[test]
 fn passphrases_that_differ_on_the_sheet_load_no_seed() {
     let mut app = two_of_three_from_seeds();
     let keys = app.session.keys.len();

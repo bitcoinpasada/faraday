@@ -18,6 +18,7 @@ mod learn_pane;
 mod message;
 mod nonce_check;
 pub(crate) mod parts;
+pub(crate) mod pass_pair;
 pub(crate) mod randomness;
 mod restore;
 mod set_time;
@@ -57,9 +58,9 @@ pub(crate) use files::{stick_chip as files_stick_chip, vault_panel};
 pub(crate) use home::{home_lead_beside_tiles, tile_grid};
 pub(crate) use message::{MESSAGE_STEPS, MSTEPS};
 pub(crate) use parts::{
-    CopyGrid, address_press, busy_bar, busy_line, buttons_and_next, code_field, copy_blocks,
-    copy_grid, descriptor_row, first_addresses, grid_never, guide_text, guide_text_learn,
-    keyed_pills, kind_line, kind_name, locked_tag, never_below, never_real_seed,
+    CopyGrid, address_press, busy_bar, busy_line, buttons_and_next, buttons_and_next_when,
+    code_field, copy_blocks, copy_grid, descriptor_row, first_addresses, grid_never, guide_text,
+    guide_text_learn, keyed_pills, kind_line, kind_name, locked_tag, never_below, never_real_seed,
     never_real_seed_if, never_under, next_button, next_button_when, pass_field, pin_button,
     row_press, side_panel_w, sign_readiness, size_text, stepper, ticked, word_keys, working_bar,
     working_line,

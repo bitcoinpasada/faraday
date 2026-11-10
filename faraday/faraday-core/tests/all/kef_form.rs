@@ -68,11 +68,33 @@ fn make(form: &mut KefForm, app: &mut Faraday) -> Envelope {
 }
 
 #[test]
+fn make_waits_until_the_passphrase_is_typed_twice_alike() {
+    let mut app = app_with_seed();
+    let mut form = seed_form();
+    form.act(&mut app, KefAct::Field);
+    type_in(&mut form, &mut app, "a passphrase");
+    form.act(&mut app, KefAct::FieldAgain);
+    type_in(&mut form, &mut app, "a passphrasf");
+    form.act(&mut app, KefAct::Make);
+    assert_eq!(
+        form.stage(),
+        Stage::Entry,
+        "differing passphrases make nothing"
+    );
+    form.key(&mut app, Key::Backspace);
+    type_in(&mut form, &mut app, "e");
+    form.act(&mut app, KefAct::Make);
+    assert_eq!(form.stage(), Stage::Making, "{:?}", form.error());
+}
+
+#[test]
 fn each_option_changes_the_code_as_it_says() {
     let mut app = app_with_seed();
     let go = |app: &mut Faraday, set: &dyn Fn(&mut KefForm, &mut Faraday)| {
         let mut form = seed_form();
         form.act(app, KefAct::Field);
+        type_in(&mut form, app, "a passphrase");
+        form.act(app, KefAct::FieldAgain);
         type_in(&mut form, app, "a passphrase");
         rounds(&mut form, app, "10000");
         set(&mut form, app);
@@ -119,6 +141,8 @@ fn a_refused_version_names_one_that_works() {
     let mut app = app_with_seed();
     // Two equal blocks, which ECB would show.
     let mut form = KefForm::new(Source::Text(Zeroizing::new("a".repeat(32))), false);
+    type_in(&mut form, &mut app, "a passphrase");
+    form.act(&mut app, KefAct::FieldAgain);
     type_in(&mut form, &mut app, "a passphrase");
     rounds(&mut form, &mut app, "10000");
     form.act(&mut app, KefAct::Version(5));
@@ -169,6 +193,8 @@ fn cancel_stops_the_work() {
     let mut app = app_with_seed();
     let mut form = seed_form();
     type_in(&mut form, &mut app, "a passphrase");
+    form.act(&mut app, KefAct::FieldAgain);
+    type_in(&mut form, &mut app, "a passphrase");
     rounds(&mut form, &mut app, "500000");
     form.act(&mut app, KefAct::Make);
     assert_eq!(form.stage(), Stage::Making);
@@ -186,6 +212,8 @@ fn cancel_stops_the_work() {
 fn made_form(app: &mut Faraday, pass: &str) -> KefForm {
     let mut form = seed_form();
     form.act(app, KefAct::Field);
+    type_in(&mut form, app, pass);
+    form.act(app, KefAct::FieldAgain);
     type_in(&mut form, app, pass);
     rounds(&mut form, app, "10000");
     make(&mut form, app);
@@ -235,6 +263,8 @@ fn a_typed_text_is_checked_against_the_text_the_form_holds() {
     let mut app = app_with_seed();
     let mut form = KefForm::new(Source::Text(Zeroizing::new("a note".to_string())), false);
     form.act(&mut app, KefAct::Field);
+    type_in(&mut form, &mut app, "a passphrase");
+    form.act(&mut app, KefAct::FieldAgain);
     type_in(&mut form, &mut app, "a passphrase");
     rounds(&mut form, &mut app, "10000");
     make(&mut form, &mut app);
