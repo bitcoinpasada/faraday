@@ -1661,15 +1661,23 @@ fn keep_required(r: &mut Record, emptied: &[u8]) {
 /// The random bytes one seal draws (`faraday_vault::kdbx::RANDOM_LEN`).
 pub const SEAL_RANDOM_LEN: usize = fv::kdbx::RANDOM_LEN;
 
-/// The set a codex32 share belongs to (its index and key): the grouping
-/// `faraday_vault`'s `read` gives `related` by.
+/// The set a codex32 share belongs to (its threshold, its set's identifier,
+/// its index and its key): the grouping `faraday_vault`'s `read` gives `related` by. A
+/// lookup: the string's header is read in place, either case.
 fn share_set_of(r: &Record) -> Option<Vec<u8>> {
     if r.kind != kind::CODEX32_SHARE {
         return None;
     }
-    let index = *r.field(field::CODEX32_STRING)?.get(8)?;
-    r.field(field::CODEX32_KEY)
-        .map(|k| [&[index][..], k].concat())
+    let (k, id, index) = codex32_header(r)?;
+    let key = r.field(field::CODEX32_KEY)?;
+    Some(
+        [
+            &[k, index.to_ascii_lowercase()][..],
+            &id.to_ascii_lowercase(),
+            key,
+        ]
+        .concat(),
+    )
 }
 
 /// Unix seconds of an RFC 3339 time in UTC as `faraday.sealed` is written
@@ -2139,8 +2147,8 @@ impl OpenVaults {
     }
 
     /// A lookup. Record `i`'s place among the records of open vault `id`
-    /// that hold a codex32 share of one index and key, in record order;
-    /// `None` for one that is alone or holds none.
+    /// that hold a codex32 share of one threshold, identifier, index and
+    /// key, in record order; `None` for one that is alone or holds none.
     pub fn related(&self, id: VaultId, i: usize) -> Option<Related> {
         let s = self.slot(id)?;
         let key = share_set_of(s.records.get(i)?)?;
@@ -3605,9 +3613,9 @@ impl OpenVaults {
     }
 
     /// A lookup. What open vault `id` already holds that `r` would be
-    /// related to (a codex32 share of the same index and key): false where
-    /// `r` is no share, no other share of its set is held, or the same share
-    /// is.
+    /// related to (a codex32 share of the same threshold, identifier, index
+    /// and key): false where `r` is no share, no other share of its set is
+    /// held, or the same share is.
     pub fn relates(&self, id: VaultId, r: &impl Fit) -> bool {
         let Some(s) = self.slot(id) else {
             return false;

@@ -172,14 +172,14 @@ pub struct Item {
     /// unreadable), not a damage of the entry. Always `None` for Faraday's
     /// items.
     pub totp: Option<Result<Totp, NotTotp>>,
-    /// Set when other items hold a codex32 share of the same index and key:
-    /// its place among them. `None` for every other item, and for one that
-    /// is alone.
+    /// Set when other items hold a codex32 share of the same threshold,
+    /// identifier, index and key: its place among them. `None` for every
+    /// other item, and for one that is alone.
     pub related: Option<Related>,
 }
 
-/// A codex32 share's place among the shares of one index and key, in the
-/// order read (a group's entries, then its groups).
+/// A codex32 share's place among the shares of one threshold, identifier,
+/// index and key, in the order read (a group's entries, then its groups).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Related {
     /// This item's place in the group, from 1.

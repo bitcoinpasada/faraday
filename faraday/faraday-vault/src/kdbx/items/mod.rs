@@ -620,20 +620,29 @@ pub fn read(c: &Compute, doc: &Document) -> Read {
     }
 }
 
-/// What a codex32 share is one of: its index and key, the same for shares
-/// of one set.
+/// What a codex32 share is one of: its threshold, its set's identifier, its
+/// index and its key, the same for shares of one set, either case.
 fn share_set_of(r: &Record) -> Option<Vec<u8>> {
     if r.kind != kind::CODEX32_SHARE {
         return None;
     }
-    let s = r.field(field::CODEX32_STRING)?;
-    let index = *s.get(8)?;
-    r.field(field::CODEX32_KEY)
-        .map(|k| [&[index][..], k].concat())
+    // A share record's string was checked as codex32 when it was saved:
+    // its header ("ms1", threshold, identifier, index) is read in place.
+    let head = r.field(field::CODEX32_STRING)?.get(..9)?;
+    let k = head[3].checked_sub(b'0').filter(|k| *k <= 9)?;
+    let key = r.field(field::CODEX32_KEY)?;
+    Some(
+        [
+            &[k, head[8].to_ascii_lowercase()][..],
+            &head[4..8].to_ascii_lowercase(),
+            key,
+        ]
+        .concat(),
+    )
 }
 
-/// Related shares across items: several codex32 shares of one index and
-/// key. Each reads; each is given its place among them, in the order read
+/// Related shares across items: several codex32 shares of one threshold,
+/// identifier, index and key. Each reads; each is given its place among them, in the order read
 /// (a group's entries, then its groups).
 fn relate(items: &mut [Item]) {
     let key_of = |it: &Item| -> Option<Vec<u8>> {

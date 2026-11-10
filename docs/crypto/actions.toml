@@ -7601,7 +7601,7 @@ libraries = [
   "pem-rfc7468",
 ]
 through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
-adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules, the key and size limits of docs/VAULT.md sections 2.1 and 7 and the values' meaning are Faraday's own (`contents.rs`, `contents/tree.rs`). Whatever is outside those rules is refused by name. The KDBX mapping (`kdbx/items/`) is Faraday's own over the document model, faraday-bip's BIP-39, wallet policy, descriptor and codex32 readers, the TOTP reader and pem-rfc7468: the field names, the kinds, the labels of related secrets (several shares of one index and key) and the Unreadable items of docs/VAULT.md section 7."
+adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules, the key and size limits of docs/VAULT.md sections 2.1 and 7 and the values' meaning are Faraday's own (`contents.rs`, `contents/tree.rs`). Whatever is outside those rules is refused by name. The KDBX mapping (`kdbx/items/`) is Faraday's own over the document model, faraday-bip's BIP-39, wallet policy, descriptor and codex32 readers, the TOTP reader and pem-rfc7468: the field names, the kinds, the labels of related secrets (several shares of one threshold, identifier, index and key) and the Unreadable items of docs/VAULT.md section 7."
 
 [[action.implementation.written_here]]
 what = "The TOML tree inside a vault: duplicates, limits and the names of `docs/VAULT.md` (`faraday-vault::contents`)"

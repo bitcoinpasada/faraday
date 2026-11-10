@@ -9643,7 +9643,7 @@ strings! {
     vault_related_passphrase: "Passphrase for key {}",
     /// A passphrase choice on the Load sheet when several vaults are open. `{}`: the label, the vault.
     vault_related_in: "{} · {}",
-    /// Line of a codex32 share record that another share of its index and key is held with. `{}`: the share's index.
+    /// Line of a codex32 share record that another share of its threshold, identifier, index and key is held with. `{}`: the share's index.
     vault_related_share: "Also saved: another share {} of this set",
     /// Title of the dialog before a second share of a set is saved.
     vault_save_also_head: "Save another?",

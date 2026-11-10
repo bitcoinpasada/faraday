@@ -303,11 +303,25 @@ fn passphrase(text: &str) -> Record {
         .with(field::PASSPHRASE, text.as_bytes())
 }
 
-/// A codex32 share of the set whose key is [1, 2, 3, 4].
-fn share(text: &str) -> Record {
+/// Two splits of one secret (a 16-byte seed whose key's fingerprint is
+/// 55dff3e3), threshold 2, both under the identifier `tvwx`, and one
+/// split of it under `pqrs`: share `a` of each. Made with python-codex32
+/// v0.6.1 (BIP 93's reference implementation in Python, tag v0.6.1, as
+/// `tools/reference/codex32` vendors it), not with Faraday's own code.
+/// `THRESHOLD_THREE_A` is share `a` of a 3-of-n split under `tvwx`, made the
+/// same way from shares `a`, `c` and `d` (interpolation gives the secret
+/// and gives `a` back). With threshold 3 the secret and one share leave
+/// the next share free, so a 3-of-n split of the secret above holds it.
+const SPLIT_ONE_A: &str = "ms12tvwxa9xy4pdf343n7s9h3mezrtkthnp532hrk2t9eefw";
+const SPLIT_TWO_A: &str = "ms12tvwxaf2ndne0t0xzmfxl8efu0rfvfydnqz2n97tz2qv4";
+const THRESHOLD_THREE_A: &str = "ms13tvwxaqqqsyqcyq5rqwzqfpg9scrgwp73mgg0xnv7kqa6";
+const OTHER_IDENTIFIER_A: &str = "ms12pqrsakychm5dqq6p87dsfrxtfx03nlqptz9vja9u49g5";
+
+/// The record of a share of that secret: its key is the secret's fingerprint.
+fn real_share(text: &str) -> Record {
     Record::new(kind::CODEX32_SHARE)
         .with(field::CODEX32_STRING, text.as_bytes())
-        .with(field::CODEX32_KEY, &[1, 2, 3, 4])
+        .with(field::CODEX32_KEY, &[0x55, 0xdf, 0xf3, 0xe3])
 }
 
 #[test]
@@ -324,8 +338,8 @@ fn a_second_passphrase_for_a_key_is_copied_with_no_question() {
 #[test]
 fn a_second_share_for_a_key_goes_through_continue_and_cancel() {
     let build = || {
-        let a = vault("Alpha", 1, vec![share("ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm")]);
-        let b = vault("Beta", 2, vec![share("ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t")]);
+        let a = vault("Alpha", 1, vec![real_share(SPLIT_ONE_A)]);
+        let b = vault("Beta", 2, vec![real_share(SPLIT_TWO_A)]);
         opened(vec![("a.kdbx", a), ("b.kdbx", b)])
     };
     let mut app = build();
@@ -342,6 +356,63 @@ fn a_second_share_for_a_key_goes_through_continue_and_cancel() {
     app.press(Action::Vault(V::SaveAlsoContinue));
     assert_eq!(app.sheet, None);
     assert_eq!(held(&app, 1).len(), 2);
+}
+
+#[test]
+fn a_share_under_another_identifier_is_saved_with_no_warning_and_no_label() {
+    let a = vault("Alpha", 1, vec![real_share(OTHER_IDENTIFIER_A)]);
+    let b = vault("Beta", 2, vec![real_share(SPLIT_ONE_A)]);
+    let mut app = opened(vec![("a.kdbx", a), ("b.kdbx", b)]);
+    sheet_for(&mut app, 0, KEYS, 0);
+    app.press(Action::Vault(V::CopyPick(0)));
+    assert_ne!(app.sheet, Some(Sheet::SaveAlso));
+    assert_eq!(held(&app, 1).len(), 2, "both shares are kept");
+    let label = EN.vault_related_share.replace("{}", "A");
+    for item in 0..2 {
+        testkit::vault_current(&mut app, 1);
+        app.press(Action::Nav(Screen::VaultContents));
+        app.press(Action::Vault(V::Category(KEYS)));
+        app.press(Action::Vault(V::Item(item)));
+        let texts = page(&mut app);
+        assert!(!texts.contains(&label), "{texts}");
+    }
+}
+
+#[test]
+fn a_share_of_another_threshold_is_saved_with_no_warning_and_no_label() {
+    let a = vault("Alpha", 1, vec![real_share(THRESHOLD_THREE_A)]);
+    let b = vault("Beta", 2, vec![real_share(SPLIT_ONE_A)]);
+    let mut app = opened(vec![("a.kdbx", a), ("b.kdbx", b)]);
+    sheet_for(&mut app, 0, KEYS, 0);
+    app.press(Action::Vault(V::CopyPick(0)));
+    assert_ne!(app.sheet, Some(Sheet::SaveAlso));
+    assert_eq!(held(&app, 1).len(), 2, "both shares are kept");
+    let label = EN.vault_related_share.replace("{}", "A");
+    for item in 0..2 {
+        testkit::vault_current(&mut app, 1);
+        app.press(Action::Nav(Screen::VaultContents));
+        app.press(Action::Vault(V::Category(KEYS)));
+        app.press(Action::Vault(V::Item(item)));
+        let texts = page(&mut app);
+        assert!(!texts.contains(&label), "{texts}");
+    }
+}
+
+#[test]
+fn a_second_share_of_one_set_is_labelled_as_another_of_this_set() {
+    let a = vault("Alpha", 1, vec![real_share(SPLIT_ONE_A)]);
+    let b = vault("Beta", 2, vec![real_share(SPLIT_TWO_A)]);
+    let mut app = opened(vec![("a.kdbx", a), ("b.kdbx", b)]);
+    sheet_for(&mut app, 0, KEYS, 0);
+    app.press(Action::Vault(V::CopyPick(0)));
+    app.press(Action::Vault(V::SaveAlsoContinue));
+    let label = EN.vault_related_share.replace("{}", "A");
+    testkit::vault_current(&mut app, 1);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(KEYS)));
+    app.press(Action::Vault(V::Item(0)));
+    let texts = page(&mut app);
+    assert!(texts.contains(&label), "{texts}");
 }
 
 #[test]
@@ -555,8 +626,8 @@ fn a_moved_second_passphrase_leaves_the_original_with_no_question() {
 #[test]
 fn a_moved_second_share_leaves_the_original_only_on_continue() {
     let build = || {
-        let a = vault("Alpha", 1, vec![share("ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm")]);
-        let b = vault("Beta", 2, vec![share("ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t")]);
+        let a = vault("Alpha", 1, vec![real_share(SPLIT_ONE_A)]);
+        let b = vault("Beta", 2, vec![real_share(SPLIT_TWO_A)]);
         opened(vec![("a.kdbx", a), ("b.kdbx", b)])
     };
     let mut app = build();
@@ -1063,16 +1134,8 @@ fn an_item_waiting_for_a_new_vault_does_not_go_into_a_backup_flows_vault() {
 
 #[test]
 fn a_moved_item_stays_when_the_original_changed_under_the_dialog() {
-    let a = vault(
-        "Alpha",
-        1,
-        vec![share("ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm")],
-    );
-    let b = vault(
-        "Beta",
-        2,
-        vec![share("ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t")],
-    );
+    let a = vault("Alpha", 1, vec![real_share(SPLIT_ONE_A)]);
+    let b = vault("Beta", 2, vec![real_share(SPLIT_TWO_A)]);
     let mut app = opened(vec![("a.kdbx", a), ("b.kdbx", b)]);
     move_sheet(&mut app, 0, KEYS, 0);
     app.press(Action::Vault(V::CopyPick(0)));
