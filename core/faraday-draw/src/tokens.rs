@@ -344,6 +344,11 @@ pub const CODEX32_KEY_ROW: f32 = TOUCH;
 /// rows of six keys, the digits 0 to F and two controls).
 pub(crate) const HEX_KEY_ROW: f32 = TOUCH + GAP;
 
+/// The shared on-screen keyboard's row in dp: the touch target and a
+/// [`GAP`], so each key's hit area, which the key's own gap takes from the
+/// row, still meets [`TOUCH`].
+pub const OSK_KEY_ROW: f32 = TOUCH + GAP;
+
 /// Columns every other pad divides its width into: the dice pad's three
 /// faces and the backspace beside them.
 pub(crate) const PAD_COLUMNS: f32 = 4.0;

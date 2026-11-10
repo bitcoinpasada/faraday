@@ -155,7 +155,7 @@ fn keyboard(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     faraday_ui::keyboard::keyboard(ui, x, w, y, kind, OskKeys::default(), ui.compact, |p| {
         a(Press::Key(p))
     });
-    faraday_ui::keyboard::height(kind) + t::GAP
+    faraday_ui::keyboard::height(kind, ui.compact) + t::GAP
 }
 
 /// The item's note, in `warning`. Returns the height.

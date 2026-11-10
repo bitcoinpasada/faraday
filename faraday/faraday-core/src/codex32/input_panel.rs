@@ -218,7 +218,7 @@ fn pad_h(m: &Codex32Make, w: f32) -> f32 {
 
 /// The codex32 keyboard's height in the panel.
 fn keyboard_h() -> f32 {
-    faraday_ui::keyboard::height(KeyboardKind::Codex32)
+    faraday_ui::keyboard::height(KeyboardKind::Codex32, false)
 }
 
 /// The inner width of the panel beside the sheets.

@@ -43,8 +43,9 @@ pub enum Typed {
     Enter,
 }
 
-/// One row of keys, design units.
-pub(crate) const KEY_ROW: f32 = 32.0;
+/// One row of keys on a compact (small) panel, design units, where ten keys
+/// across leave no room for more (F152).
+const KEY_ROW_COMPACT: f32 = 32.0;
 
 /// The widest the keys grow in the wide layout, design units: past it
 /// they sit centred in the strip.
@@ -105,15 +106,24 @@ impl Keys {
     }
 }
 
-/// The keyboard's height, design units.
-pub fn height(kind: KeyboardKind) -> f32 {
-    keyboard::rows(kind) as f32 * row(kind) + 8.0
+/// The keyboard's height, design units, on a `compact` panel or not.
+pub fn height(kind: KeyboardKind, compact: bool) -> f32 {
+    keyboard::rows(kind) as f32 * row(kind, compact) + 8.0
 }
 
-/// One row of `kind`'s keys, design units: [`KEY_ROW`], or the least
-/// the keyboard asks for ([`keyboard::min_row`]).
-fn row(kind: KeyboardKind) -> f32 {
-    KEY_ROW.max(keyboard::min_row(kind))
+/// One row of `kind`'s keys, design units: a touch target and a gap
+/// ([`faraday_draw::tokens::OSK_KEY_ROW`]), or on a compact panel
+/// [`KEY_ROW_COMPACT`]; the least the keyboard asks for
+/// ([`keyboard::min_row`]) where it sets one.
+fn row(kind: KeyboardKind, compact: bool) -> f32 {
+    let least = keyboard::min_row(kind);
+    if least > 0.0 {
+        least
+    } else if compact {
+        KEY_ROW_COMPACT
+    } else {
+        faraday_draw::tokens::OSK_KEY_ROW
+    }
 }
 
 /// The keyboard of `kind`, across the panel from `x`, `w` wide, from
@@ -149,7 +159,14 @@ fn keys_drawn<A: Copy + PartialEq>(
     act: impl Fn(OskPress) -> A,
 ) {
     let rows = keyboard::rows(kind) as f32;
-    ui.fill(x, y, w, rows * row(kind) + 8.0, 0.0, Role::SurfaceContainer);
+    ui.fill(
+        x,
+        y,
+        w,
+        rows * row(kind, compact) + 8.0,
+        0.0,
+        Role::SurfaceContainer,
+    );
     ui.fill(x, y, w, 1.0, 0.0, Role::OutlineVariant);
     let kw = if compact { w } else { w.min(KEYS_MAX_W) };
     let kx = x + (w - kw) / 2.0;
@@ -157,7 +174,7 @@ fn keys_drawn<A: Copy + PartialEq>(
         (kx + 4.0) as i32,
         (y + 6.0) as i32,
         (kw - 4.0) as i32,
-        (rows * row(kind)) as i32,
+        (rows * row(kind, compact)) as i32,
     );
     let ctx = faraday_draw::layout::LayoutCtx::new(
         faraday_draw::geom::Scale::new(160),

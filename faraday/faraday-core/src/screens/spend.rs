@@ -1873,12 +1873,14 @@ fn spend_panel(
         ),
     ];
     for (k, v, wt, step) in facts.iter() {
-        ui.text_mid_as((x, y, 38.0), BODY_S, Role::OnSurfaceVariant, k);
+        // A row is a full touch target, which opens its step.
+        let row = faraday_draw::tokens::TOUCH;
+        ui.text_mid_as((x, y, row), BODY_S, Role::OnSurfaceVariant, k);
         let v = ui.fit_as(*wt, v, w - 70.0);
-        ui.text_right_as((x + w, y, 38.0), *wt, Role::OnSurface, &v);
-        ui.rule(x, y + 38.0, w, Role::OutlineVariant);
-        ui.press_box(x, y, w, 38.0, Action::Step(*step));
-        y += 40.0;
+        ui.text_right_as((x + w, y, row), *wt, Role::OnSurface, &v);
+        ui.rule(x, y + row, w, Role::OutlineVariant);
+        ui.press_box(x, y, w, row, Action::Step(*step));
+        y += row + 2.0;
     }
     let (count, missing, need_line, action_label, style) = spend_status(app, needed);
     let fy = h - 26.0 - 46.0 - 14.0 - 82.0;

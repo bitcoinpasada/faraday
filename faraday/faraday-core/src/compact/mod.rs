@@ -1489,7 +1489,7 @@ impl Faraday {
     /// The keyboard's height when it is up, else nothing.
     pub(crate) fn osk_height(&self) -> f32 {
         if self.osk_shown() {
-            faraday_ui::keyboard::height(self.osk_kind())
+            faraday_ui::keyboard::height(self.osk_kind(), self.compact)
         } else {
             0.0
         }

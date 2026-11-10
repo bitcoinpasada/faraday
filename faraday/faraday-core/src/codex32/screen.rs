@@ -522,7 +522,7 @@ fn keyboard_with(
     keys: OskKeys,
 ) -> f32 {
     faraday_ui::keyboard::keyboard(ui, x, w, y, kind, keys, ui.compact, |p| a(C32::Key(p)));
-    faraday_ui::keyboard::height(kind) + t::GAP
+    faraday_ui::keyboard::height(kind, ui.compact) + t::GAP
 }
 
 /// §6.2: four boxes typed on the codex32 keyboard, and Suggest.
