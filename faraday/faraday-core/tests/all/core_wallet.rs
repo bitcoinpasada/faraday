@@ -469,3 +469,33 @@ fn a_journal_or_log_beside_the_file_is_refused_by_its_name() {
         assert!(got.expect("refused").message().contains(&name));
     }
 }
+
+#[test]
+fn a_database_version_other_than_cores_is_refused() {
+    let mut bytes = dat("plain");
+    assert!(whole_file(&bytes, &[], None).is_ok());
+    bytes[63] = 1;
+    let got = whole_file(&bytes, &[], None).err();
+    assert_eq!(got, Some(Refusal::SchemaVersion(1)));
+    assert!(got.expect("refused").message().contains("version 1"));
+}
+
+#[test]
+fn a_journal_beside_the_file_is_refused_whatever_its_case() {
+    let bytes = dat("plain");
+    let got = whole_file(&bytes, &["Wallet.dat-JOURNAL".to_string()], None).err();
+    assert_eq!(got, Some(Refusal::Beside("wallet.dat-journal".to_string())));
+    // A name that only starts with it is another file.
+    let other = whole_file(&bytes, &["wallet.dat-journal.bak".to_string()], None);
+    assert!(other.is_ok());
+}
+
+#[test]
+fn a_record_that_only_starts_with_flags_does_not_change_the_flags() {
+    let real = read_with("plain", None, |_| {});
+    let w = read_with("plain", None, |records| {
+        records.push((b"\x05flags\x00".to_vec(), vec![0; 7]));
+    });
+    assert_eq!(w.flags, real.flags);
+    assert!(!w.is_whole());
+}

@@ -206,8 +206,9 @@ fn a_size_or_freelist_the_file_does_not_bear_out_is_refused() {
     let mut b = base.clone();
     b.extend([0u8; 512]);
     b[28..32].copy_from_slice(&0u32.to_be_bytes());
-    // An extra page nobody reaches reads (SQLite takes the file's size).
-    assert!(rows(&b).is_ok());
+    // An extra page nobody reaches is refused, as SQLite's integrity check
+    // finds it never used.
+    assert_eq!(rows(&b), Err(Error::PageUnreached(pages as u32 + 1)));
     // A freelist of a count and no trunk, or a trunk past the file.
     let mut b = base.clone();
     b[36..40].copy_from_slice(&1u32.to_be_bytes());
@@ -537,5 +538,29 @@ fn no_change_of_a_single_byte_panics() {
             b[i] = v;
             let _ = rows(&b);
         }
+    }
+}
+
+#[test]
+fn a_table_of_more_rows_than_allowed_is_refused() {
+    let bytes = fixture("ps4096.db");
+    let db = Database::open(&bytes).unwrap();
+    assert_eq!(db.rows_up_to("main", 300).unwrap().len(), 300);
+    assert_eq!(db.rows_up_to("main", 299), Err(Error::TooManyRows));
+}
+
+#[test]
+fn a_page_that_nothing_reaches_is_refused() {
+    // A page added to the end and counted in the header, which no tree,
+    // overflow chain or the freelist reaches.
+    let base = fixture("ps4096.db");
+    let mut b = base.clone();
+    b.extend(vec![0u8; 4096]);
+    let pages = (b.len() / 4096) as u32;
+    b[28..32].copy_from_slice(&pages.to_be_bytes());
+    assert_eq!(rows(&b), Err(Error::PageUnreached(pages)));
+    // The databases SQLite made, indexes included, have every page reached.
+    for name in ["ps512.db", "freelist.db", "overflow.db", "deleted.db"] {
+        assert!(rows(&fixture(name)).is_ok(), "{name}");
     }
 }

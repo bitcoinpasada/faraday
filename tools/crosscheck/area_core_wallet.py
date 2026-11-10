@@ -24,7 +24,8 @@ itself: the pinned `bitcoind` on regtest, offline (`core_node.py`).
   calls the file whole, Core must load it and list the same descriptors; where
   Core refuses it, Faraday must not call it whole; where Core loads it and
   Faraday does not call it whole, the record and the fault must be one of the
-  listed differences.
+  listed differences. The header's database version changed, and a page no
+  tree reaches, are each refused by both.
 
 Known differences, each checked to still hold and counted: see
 `KNOWN` below; each is asked of Core directly in the prelude.
@@ -401,6 +402,7 @@ class CoreWallet(Area):
     def directed(self):
         """Each listed difference, made and asked of Core, still holds."""
         self.directed_index()
+        self.directed_outside_records()
         for record, why in LENIENT.items():
             for shape in ("plain", "watchonly"):
                 facts = self.make(shape, f"k-{record}-{shape}", mine=False)
@@ -451,6 +453,27 @@ class CoreWallet(Area):
             return
         raise Mismatch(self.name, "core_wallet.read", {}, None, None,
                        "no changed key was read whole by Faraday to ask Core of")
+
+    def directed_outside_records(self):
+        """A file changed outside a record: the header's database version,
+        and a page no tree reaches. Core refuses each (`Verify`'s schema
+        version, `integrity_check`'s "never used"), and so must Faraday."""
+        facts = self.make("plain", "k-outside", mine=False)
+        data = facts["file"]
+        page = int.from_bytes(data[16:18], "big") or 65536
+        page = 65536 if page == 1 else page
+        version = bytearray(data)
+        version[60:64] = (1).to_bytes(4, "big")
+        orphan = bytearray(data) + bytes(page)
+        orphan[28:32] = (len(orphan) // page).to_bytes(4, "big")
+        for what, changed in (("user_version", bytes(version)), ("orphan page", bytes(orphan))):
+            got = self.rust.call("core_wallet.read", db=changed.hex())
+            core = self.loads(changed, f"k-outside-{what.split()[0]}")
+            self.compared += 1
+            if not (got[0] == "err" and core[0] == "err"):
+                raise Mismatch(self.name, "core_wallet.read", {"changed": what},
+                               got[0], core[0],
+                               "Faraday and Core must both refuse a file changed outside its records")
 
     def case_fresh(self):
         rng = self.rng

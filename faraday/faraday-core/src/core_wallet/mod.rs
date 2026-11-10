@@ -41,6 +41,9 @@ use crate::wallet::network_name;
 /// The wallet flag bits Bitcoin Core knows (`walletutil.h`).
 const KNOWN_FLAGS: u64 = 0b111 | (0b1111 << 32);
 /// `WALLET_FLAG_DESCRIPTORS`.
+/// The database version (`PRAGMA user_version`) Bitcoin Core writes
+/// (`WALLET_SCHEMA_VERSION`).
+const WALLET_SCHEMA_VERSION: i32 = 0;
 const FLAG_DESCRIPTORS: u64 = 1 << 34;
 
 /// Record types only a legacy (Berkeley DB era) wallet writes.
@@ -104,6 +107,9 @@ pub enum Refusal {
     File(faraday_sqlite::Error),
     /// A lock, a journal or a write-ahead log beside the file: its name.
     Beside(String),
+    /// A database version (`PRAGMA user_version`) other than the 0
+    /// Bitcoin Core writes: the version.
+    SchemaVersion(i32),
 }
 
 impl Refusal {
@@ -131,8 +137,13 @@ impl Refusal {
             Refusal::File(faraday_sqlite::Error::NoTable(name)) => {
                 fill(EN.core_wallet_no_table, &[name])
             }
+            Refusal::File(faraday_sqlite::Error::TooManyRows) => fill(
+                EN.core_wallet_too_many_rows,
+                &[&faraday_sqlite::MAX_ROWS.to_string()],
+            ),
             Refusal::File(_) => EN.core_wallet_file_damaged.to_string(),
             Refusal::Beside(name) => fill(EN.core_wallet_beside, &[name]),
+            Refusal::SchemaVersion(v) => fill(EN.core_wallet_schema_version, &[&v.to_string()]),
         }
     }
 }
@@ -500,10 +511,15 @@ impl Reader<'_> {
 /// in `file`, the bytes of a `wallet.dat` named `file_name`, with
 /// `beside` the names of the other files in its folder: the file is
 /// refused when a journal, write-ahead log or shared memory file of its
-/// name is there (it is in use or holds data not yet in it), when it is not
-/// a SQLite database of the kind Bitcoin Core writes, or when a table
-/// other than `main` holds a record; then the rows of `main` are read with
-/// the header's application id. Each refusal is named
+/// name is there (it is in use or holds data not yet in it; the names are
+/// compared without regard to ASCII case, as a FAT or NTFS volume does),
+/// when it is not a SQLite database of the kind Bitcoin Core writes (every
+/// page of it reached by a table, an index, an overflow chain or the
+/// freelist), when its database version is not 0, when a table other than
+/// `main` holds a record, or when `main` has more than
+/// [`faraday_sqlite::MAX_ROWS`] rows (so memory is the file's twice and
+/// some 200 MB at most); then the rows of `main` are read with the
+/// header's application id. Each refusal is named
 /// ([`Refusal::File`], [`Refusal::Beside`]).
 pub fn read_file(
     c: &Compute,
@@ -515,11 +531,15 @@ pub fn read_file(
 ) -> Result<Wallet, Refusal> {
     if let Some(name) = faraday_sqlite::refusing_siblings(file_name)
         .into_iter()
-        .find(|n| beside.contains(n))
+        .find(|n| beside.iter().any(|b| b.eq_ignore_ascii_case(n)))
     {
         return Err(Refusal::Beside(name));
     }
     let db = faraday_sqlite::Database::open(file).map_err(Refusal::File)?;
+    // Bitcoin Core's `SQLiteDatabase::Verify` refuses any other version.
+    if db.header().user_version != WALLET_SCHEMA_VERSION {
+        return Err(Refusal::SchemaVersion(db.header().user_version));
+    }
     db.only_table_with_rows("main").map_err(Refusal::File)?;
     let rows = db.rows("main").map_err(Refusal::File)?;
     read(c, db.header().application_id, &rows, mode, passphrase)
@@ -571,7 +591,7 @@ pub fn read(
     for (key, value) in fresh.iter().copied() {
         match split_key(key) {
             Some((name, _)) if LEGACY.contains(&name) => legacy.bump(name),
-            Some(("flags", _)) => {
+            Some(("flags", [])) => {
                 flags = value.as_slice().try_into().ok().map(u64::from_le_bytes);
             }
             _ => {}

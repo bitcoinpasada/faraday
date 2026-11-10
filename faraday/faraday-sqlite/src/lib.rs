@@ -20,8 +20,19 @@
 //! twice, a cell or overflow chain past its page or the file, a record
 //! whose header disagrees with its body, a column that is not a blob, a
 //! table other than the wanted one holding records, a tree deeper than
-//! [`MAX_DEPTH`]. Index trees are not read, and the pages of an index are
-//! not checked against the others.
+//! [`MAX_DEPTH`], a table of more than [`MAX_ROWS`] rows, a page that no
+//! table tree, index tree, overflow chain or the freelist reaches (what
+//! `PRAGMA integrity_check` calls a page never used). Index trees are
+//! walked for their pages only: each page is counted once, but no index
+//! cell's content is read, so a changed byte inside an index entry is not
+//! seen. "Whole" means every page of the file is accounted for and every
+//! table's records are read; it does not mean SQLite's integrity check
+//! would pass.
+//!
+//! Memory: [`Database::rows`] holds the file's records twice at most (the
+//! pages and the copies it returns) and about 200 bytes for each row, and
+//! refuses a table past [`MAX_ROWS`], so the peak is bounded by twice the
+//! file and a fixed 200 MB or so, never by a count of tiny rows.
 //!
 //! A lock or hot journal beside the file is for the caller to check where
 //! it can see the folder (Files): [`refusing_siblings`] names the files.
@@ -39,6 +50,11 @@ pub const MAX_DEPTH: usize = 20;
 
 /// The largest file read: the lock-byte page lies at 1 GiB.
 pub const MAX_FILE: usize = 1 << 30;
+
+/// The most rows [`Database::rows`] returns: 2^20. A Bitcoin Core wallet
+/// holds some thousands of records; this is far above any real one, and
+/// bounds what the rows cost in memory whatever the file's size.
+pub const MAX_ROWS: usize = 1 << 20;
 
 const MAGIC: &[u8; 16] = b"SQLite format 3\0";
 
@@ -107,6 +123,11 @@ pub enum Error {
     TableRepeated(String),
     /// A table holding two rows with the same key.
     KeyRepeated,
+    /// A table of more than [`MAX_ROWS`] rows.
+    TooManyRows,
+    /// A page that no table tree, index tree, overflow chain or the
+    /// freelist reaches.
+    PageUnreached(u32),
     /// A `sqlite_schema` row that is not as SQLite writes it.
     SchemaRow,
     /// No table of that name.
@@ -480,6 +501,80 @@ impl Pages<'_> {
     }
 }
 
+impl Pages<'_> {
+    /// Walks an index b-tree for its pages only (section 1.6): each page,
+    /// cell payload's overflow chain included, is marked once. No entry's
+    /// content is read.
+    fn walk_index(&self, page: u32, depth: usize, seen: &mut Seen) -> Result<(), Error> {
+        if depth >= MAX_DEPTH {
+            return Err(Error::TooDeep);
+        }
+        seen.mark(page)?;
+        let p = self.page(page)?;
+        let leaf = match p[0] {
+            0x0a => true,
+            0x02 => false,
+            _ => return Err(Error::BadPage(page)),
+        };
+        let head = if leaf { 8 } else { 12 };
+        let cells = be16(p, 3);
+        let content = match be16(p, 5) {
+            0 => 65_536,
+            c => c,
+        };
+        let ptr_end = head + 2 * cells;
+        if ptr_end > self.usable || content < ptr_end || content > self.usable {
+            return Err(Error::BadPage(page));
+        }
+        let outside = Error::CellOutside(page);
+        let u = self.usable as u64;
+        let max_local = (u - 12) * 64 / 255 - 23;
+        let min_local = (u - 12) * 32 / 255 - 23;
+        let mut children = Vec::new();
+        for i in 0..cells {
+            let off = be16(p, head + 2 * i);
+            if off < content || off >= self.usable {
+                return Err(outside);
+            }
+            let mut at = off;
+            if !leaf {
+                if at + 4 > self.usable {
+                    return Err(outside);
+                }
+                children.push(be32(p, at));
+                at += 4;
+            }
+            let (size, n) = varint(p, at).ok_or(outside.clone())?;
+            at += n;
+            if size > self.data.len() as u64 {
+                return Err(outside);
+            }
+            let local = if size <= max_local {
+                size
+            } else {
+                let k = min_local + (size - min_local) % (u - 4);
+                if k <= max_local { k } else { min_local }
+            };
+            let end = at + local as usize + if size > local { 4 } else { 0 };
+            if end > self.usable {
+                return Err(outside);
+            }
+            if size > local {
+                // The chain is walked as a table cell's is, for its pages.
+                let first = be32(p, at + local as usize);
+                self.payload(&p[at..at + local as usize], size, first, seen)?;
+            }
+        }
+        for child in children {
+            self.walk_index(child, depth + 1, seen)?;
+        }
+        if !leaf {
+            self.walk_index(be32(p, 8), depth + 1, seen)?;
+        }
+        Ok(())
+    }
+}
+
 /// The columns of a record: each serial type with its body's range
 /// (section 2.3). The header must agree with the body to the byte.
 fn columns(p: &[u8]) -> Result<Vec<(u64, Range<usize>)>, Error> {
@@ -553,6 +648,8 @@ impl<'a> Database<'a> {
         let (header, pages) = parse_header(bytes)?;
         let mut seen = Seen(vec![false; header.page_count as usize + 1]);
         let mut tables = Vec::new();
+        let mut names: HashSet<String> = HashSet::new();
+        let mut indexes: Vec<u32> = Vec::new();
         pages.walk(1, 0, (i128::MIN, i128::MAX), &mut seen, &mut |_, p| {
             let cols = columns(&p)?;
             if cols.len() != 5 {
@@ -566,17 +663,18 @@ impl<'a> Database<'a> {
                 0 => None,
                 _ => Some(text(&p, &cols[4]).ok_or(Error::SchemaRow)?),
             };
-            if kind == "table" {
-                if tables
-                    .iter()
-                    .any(|t: &Table| t.name.eq_ignore_ascii_case(&name))
-                {
-                    return Err(Error::TableRepeated(name));
-                }
+            if kind == "table" || kind == "index" {
                 let root = u32::try_from(root)
                     .ok()
                     .filter(|r| (2..=header.page_count).contains(r))
                     .ok_or(Error::SchemaRow)?;
+                if kind == "index" {
+                    indexes.push(root);
+                    return Ok(());
+                }
+                if !names.insert(name.to_ascii_lowercase()) {
+                    return Err(Error::TableRepeated(name));
+                }
                 tables.push(Table {
                     name,
                     root_page: root,
@@ -597,6 +695,12 @@ impl<'a> Database<'a> {
                 &mut seen,
                 &mut |_, _| Ok(()),
             )?;
+        }
+        for root in indexes {
+            pages.walk_index(root, 0, &mut seen)?;
+        }
+        if let Some(missing) = seen.0.iter().skip(1).position(|reached| !reached) {
+            return Err(Error::PageUnreached(missing as u32 + 1));
         }
         Ok(Database {
             pages,
@@ -633,9 +737,14 @@ impl<'a> Database<'a> {
     /// BLOB NOT NULL)` makes it. A key seen twice is refused: the index
     /// that makes keys unique in SQLite is not read.
     pub fn rows(&self, table: &str) -> Result<Vec<Row>, Error> {
+        self.rows_up_to(table, MAX_ROWS)
+    }
+
+    /// [`rows`](Self::rows) refusing a table of more than `most` rows
+    /// ([`Error::TooManyRows`]).
+    pub fn rows_up_to(&self, table: &str, most: usize) -> Result<Vec<Row>, Error> {
         let t = self.table(table)?;
-        let mut out = Vec::new();
-        let mut keys = HashSet::new();
+        let mut out: Vec<Row> = Vec::new();
         self.walk_table(t, &mut |_, p| {
             let cols = columns(&p)?;
             if cols.len() != 2 {
@@ -644,13 +753,19 @@ impl<'a> Database<'a> {
             if !cols.iter().all(|c| is_blob(c.0)) {
                 return Err(Error::NotBlob);
             }
-            let key = p[cols[0].1.clone()].to_vec();
-            if !keys.insert(key.clone()) {
-                return Err(Error::KeyRepeated);
+            if out.len() >= most {
+                return Err(Error::TooManyRows);
             }
-            out.push((key, p[cols[1].1.clone()].to_vec()));
+            out.push((p[cols[0].1.clone()].to_vec(), p[cols[1].1.clone()].to_vec()));
             Ok(())
         })?;
+        // Repeats are found by sorting references, not by a second copy of
+        // every key.
+        let mut keys: Vec<&[u8]> = out.iter().map(|(k, _)| k.as_slice()).collect();
+        keys.sort_unstable();
+        if keys.windows(2).any(|w| w[0] == w[1]) {
+            return Err(Error::KeyRepeated);
+        }
         Ok(out)
     }
 
@@ -659,15 +774,17 @@ impl<'a> Database<'a> {
     /// the table `name`.
     pub fn only_table_with_rows(&self, name: &str) -> Result<(), Error> {
         self.table(name)?;
+        // The trees are disjoint (`open` proved it), so one record of any
+        // other table ends the walk, and one `Seen` serves every table.
+        let mut seen = Seen(vec![false; self.pages.count as usize + 1]);
         for t in self.tables.iter().filter(|t| t.name != name) {
-            let mut any = false;
-            self.walk_table(t, &mut |_, _| {
-                any = true;
-                Ok(())
-            })?;
-            if any {
-                return Err(Error::OtherTable(t.name.clone()));
-            }
+            self.pages.walk(
+                t.root_page,
+                0,
+                (i128::MIN, i128::MAX),
+                &mut seen,
+                &mut |_, _| Err(Error::OtherTable(t.name.clone())),
+            )?;
         }
         Ok(())
     }

@@ -10425,6 +10425,10 @@ strings! {
     core_wallet_file_damaged: "This wallet file is damaged or not as Bitcoin Core writes it",
     /// Refusal in `core_wallet::Refusal::message`. `{}`: the other file's name.
     core_wallet_beside: "The file {} is beside this wallet, so it is in use or holds data not yet in it",
+    /// Refusal in `core_wallet::Refusal::message`. `{}`: the version.
+    core_wallet_schema_version: "This wallet file has database version {}, not 0 as Bitcoin Core writes it",
+    /// Refusal in `core_wallet::Refusal::message`. `{}`: the most rows.
+    core_wallet_too_many_rows: "This wallet file holds more than {} records, more than a Bitcoin Core wallet has",
     /// Text in `text`. `{}`: `fp`.
     wallet_is_not_a_key: "{} is not a sample: Practice takes only samples",
     /// Text in `text`. `{}`: `network_name(*n)`.
