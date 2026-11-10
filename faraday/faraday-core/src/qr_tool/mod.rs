@@ -428,7 +428,7 @@ fn refusal_line(e: &QrError) -> String {
 fn make(app: &mut Faraday) {
     let Some(s) = st(app) else { return };
     let Some(pick) = s.pick else { return };
-    if !s.passphrase_ready() {
+    if !s.passphrase_ready() || (pick == Pick::Note && s.note.text.is_empty()) {
         return;
     }
     let (note, pass) = (

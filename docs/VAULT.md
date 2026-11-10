@@ -1543,7 +1543,9 @@ has no File or QR code choice.
    (§6: empty is `qr-vault.pgp`).
 3. **Code**: sealed under Progress, as a job on the worker (an Argon2id
    run for the seal and one for its read-back, §5; Back or Cancel drops
-   it and what was typed), then the
+   it and what was typed; Back leaves the tool, Cancel leaves it at the
+   Contents step with the note empty, or a loaded key's at its
+   passphrase, and Make seals no empty note), then the
    code, **Show as QR**, **PNG to the Outbox** (the labelled picture,
    §2.1) and **To the Outbox** (the `.pgp` file), and **Make another**.
    The seal is read back under the same passphrase before the code is

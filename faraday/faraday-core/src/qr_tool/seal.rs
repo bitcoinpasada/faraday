@@ -68,7 +68,8 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
 }
 
 /// Back, Cancel or a move away while the seal runs: what was typed is
-/// wiped, and the tool is at the passphrase card with no code. The
+/// wiped, and the tool is at the Contents card with no note for a note,
+/// at the passphrase card for a loaded key, with no code. The
 /// answer is dropped where it arrives.
 pub(crate) fn seal_stopped(app: &mut Faraday) {
     if app
@@ -80,7 +81,16 @@ pub(crate) fn seal_stopped(app: &mut Faraday) {
     if let Some(s) = st(app) {
         s.wipe_typed();
         s.made = None;
-        s.open = Some(qstep::PASSPHRASE);
-        s.focus = Some(super::Field::Pass);
+        if s.pick == Some(super::Pick::Note) {
+            // The note is gone with the rest: it is typed again.
+            s.done = [false; qstep::COUNT];
+            s.open = Some(qstep::CONTENTS);
+            s.focus = Some(super::Field::Note);
+        } else {
+            s.done[usize::from(qstep::PASSPHRASE)] = false;
+            s.done[usize::from(qstep::CODE)] = false;
+            s.open = Some(qstep::PASSPHRASE);
+            s.focus = Some(super::Field::Pass);
+        }
     }
 }

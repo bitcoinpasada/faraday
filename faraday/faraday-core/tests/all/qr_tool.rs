@@ -277,8 +277,56 @@ fn a_note_sealed_on_the_worker_shows_progress_then_opens_back() {
     assert_eq!(&*keys.qr_note(Reveal::QrVault), "meet at the old oak");
 }
 
+/// The note typed again and its passphrase seal a code that opens to it.
+fn type_and_seal_again(app: &mut Faraday) {
+    type_in(app, "meet at the old oak");
+    app.press(Action::QrTool(Q::Next));
+    passphrase(app, "correct horse", "");
+    app.press(Action::QrTool(Q::Make));
+    testkit::settle(app);
+    assert!(qr_tool::state(app).unwrap().is_made());
+    app.press(Action::QrTool(Q::File));
+    let item = app.outbox.first().expect("the code is in the Outbox");
+    let c = testkit::compute();
+    let mut keys = Keys::default();
+    assert_eq!(
+        keys.qr_open(&c, "correct horse", &item.bytes),
+        Ok(QrHolds::Note)
+    );
+    assert_eq!(&*keys.qr_note(Reveal::QrVault), "meet at the old oak");
+}
+
+/// Make pressed with no note typed seals nothing.
+fn make_seals_no_empty_note(app: &mut Faraday) {
+    app.press(Action::QrTool(Q::Make));
+    testkit::settle(app);
+    assert!(app.busy().is_none());
+    assert!(!qr_tool::state(app).unwrap().is_made());
+    assert!(app.outbox.is_empty());
+}
+
 #[test]
-fn back_while_the_code_is_sealed_makes_no_code_and_keeps_nothing_typed() {
+fn cancel_while_the_code_is_sealed_asks_for_the_note_again() {
+    let mut app = started();
+    ready_to_make(&mut app);
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::QrTool(Q::Make));
+    app.press(Action::Cancel);
+    assert!(app.busy().is_none());
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    let s = qr_tool::state(&app).expect("the tool stays open");
+    assert!(!s.is_made(), "no code was made");
+    assert!(!s.passphrase_ready());
+    assert_eq!(s.note_chars(), 0);
+    assert_eq!(s.focus(), Some(qr_tool::Field::Note), "Contents is open");
+    assert!(app.outbox.is_empty());
+    make_seals_no_empty_note(&mut app);
+    type_and_seal_again(&mut app);
+}
+
+#[test]
+fn back_while_the_code_is_sealed_leaves_the_tool_and_a_new_one_starts_empty() {
     let mut app = started();
     ready_to_make(&mut app);
     testkit::hold_worker();
@@ -287,12 +335,13 @@ fn back_while_the_code_is_sealed_makes_no_code_and_keeps_nothing_typed() {
     assert!(app.busy().is_none());
     testkit::release_worker();
     testkit::settle_stale(&mut app);
-    if let Some(s) = qr_tool::state(&app) {
-        assert!(!s.is_made(), "no code was made");
-        assert!(!s.passphrase_ready());
-        assert_eq!(s.note_chars(), 0);
-    }
+    assert!(qr_tool::state(&app).is_none(), "nothing typed is kept");
     assert!(app.outbox.is_empty());
+    open(&mut app);
+    app.press(Action::QrTool(Q::Pick(Pick::Note)));
+    assert_eq!(qr_tool::state(&app).unwrap().note_chars(), 0);
+    make_seals_no_empty_note(&mut app);
+    type_and_seal_again(&mut app);
 }
 
 #[test]

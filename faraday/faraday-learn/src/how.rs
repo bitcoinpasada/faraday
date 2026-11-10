@@ -1827,7 +1827,7 @@ pub static BLOCKS: &[Block] = &[
         checked: &[w("not checked against vectors"), m("faraday/faraday-core/tests/all/qr_tool.rs::a_note_typed_and_sealed_opens_back_with_the_same_text"), m("faraday/faraday-core/tests/all/qr_tool.rs::a_loaded_key_is_sealed_and_opens_back_as_a_seed"), m("fuzz pgp_qr_vault")],
         cross_check: CrossCheck::Area(&AREA_QRVAULT),
         independence: &[p("Compared with others' code: Sequoia's sq and rPGP, as for the OpenPGP message the code is."), w("Compared, for one part, with Faraday's second version, written by Faraday's authors in Python; that part is not checked against an outside source: none beyond the message's own.")],
-        code: &[c("faraday/faraday-keys/src/qr_vault.rs", "qr_seal_note_job")],
+        code: &[c("faraday/faraday-keys/src/qr_vault.rs", "QrSealJob::run")],
         secret: &[m("Reveal::QrVault"), w("Not stated; the seal is the message's."), p("The typed note and passphrases are wiped when the code is made; the random bytes and a key's lent words are wiped on drop.")],
         limits: &[p("A note holds the room the contents leave; a key of other than 12 or 24 English words is not offered."), p("The memory step is one of the steps the message allows; a computer without the room for it refuses.")],
         own_calls: &[p("A passphrase is typed twice and is not measured; the code is only as strong as it. Neutral, F190.")],
