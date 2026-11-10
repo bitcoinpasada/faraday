@@ -3,7 +3,7 @@
 //! (`listdescriptors`, `getwalletinfo`).
 
 use faraday_bip::keys::Network;
-use faraday_core::core_wallet::{Fault, Passphrase, Refusal, Wallet, read};
+use faraday_core::core_wallet::{Fault, Passphrase, Refusal, Wallet, read, read_file};
 use faraday_intake::secret_buf::SecretText;
 
 type Records = Vec<(Vec<u8>, Vec<u8>)>;
@@ -360,4 +360,112 @@ fn a_wallet_with_an_uncompressed_key_is_read_as_core_wrote_it() {
             .iter()
             .any(|f| f.record.starts_with("walletdescriptorkey"))
     );
+}
+
+fn dat(name: &str) -> Vec<u8> {
+    std::fs::read(format!(
+        "{}/../../tools/vectors/core-wallet/{name}.dat",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("wallet.dat")
+}
+
+fn whole_file(
+    bytes: &[u8],
+    beside: &[String],
+    passphrase: Option<&str>,
+) -> Result<Wallet, Refusal> {
+    let c = faraday_core::testkit::compute();
+    let p = passphrase.map(SecretText::of);
+    read_file(
+        &c,
+        "wallet.dat",
+        bytes,
+        beside,
+        Network::Regtest,
+        p.as_ref(),
+    )
+}
+
+#[test]
+fn a_wallet_dat_read_whole_gives_what_core_lists() {
+    for name in ["plain", "encrypted"] {
+        let wallet = whole_file(&dat(name), &[], Some("faraday")).expect(name);
+        let (_, _, core) = dump(name);
+        assert!(wallet.is_whole(), "{name}: {:?}", wallet.failures);
+        let listed = core["listdescriptors"]["descriptors"]
+            .as_array()
+            .expect("list");
+        assert_eq!(wallet.descriptors.len(), listed.len(), "{name}");
+        for d in listed {
+            assert!(
+                wallet.descriptors.iter().any(|w| {
+                    d["timestamp"].as_i64() == Some(w.creation_time)
+                        && d["next_index"].as_i64().unwrap_or(0) == i64::from(w.next_index)
+                        && d["range"][1].as_i64().unwrap_or(-1) == i64::from(w.range_end) - 1
+                }),
+                "{name}: {}",
+                d["desc"]
+            );
+        }
+        // The same wallet as the dump of its table reads.
+        let mut from_dump = load(name, Some("faraday"));
+        let mut from_file = wallet;
+        for w in [&mut from_dump, &mut from_file] {
+            w.descriptors.sort_by_key(|d| d.id);
+        }
+        assert_eq!(from_file.descriptors, from_dump.descriptors, "{name}");
+        assert_eq!(from_file.keys_passed, from_dump.keys_passed, "{name}");
+        assert_eq!(from_file.flags, from_dump.flags, "{name}");
+        assert_eq!(from_file.is_encrypted(), name == "encrypted");
+    }
+}
+
+#[test]
+fn a_truncated_file_is_refused_and_named() {
+    let bytes = dat("plain");
+    for cut in [10, 99, 4096, bytes.len() - 4096, bytes.len() - 1] {
+        let got = whole_file(&bytes[..cut], &[], None);
+        let Err(Refusal::File(e)) = &got else {
+            panic!("{cut}: {got:?}");
+        };
+        assert!(!got.as_ref().expect_err("refused").message().is_empty());
+        if cut < 100 {
+            assert_eq!(*e, faraday_sqlite::Error::NotSqlite);
+        }
+    }
+}
+
+#[test]
+fn a_second_table_holding_rows_is_refused() {
+    let bytes = std::fs::read(format!(
+        "{}/../faraday-sqlite/tests/fixtures/other_table.db",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .expect("database");
+    assert_eq!(
+        whole_file(&bytes, &[], None).err(),
+        Some(Refusal::File(faraday_sqlite::Error::OtherTable(
+            "extra".to_string()
+        )))
+    );
+}
+
+#[test]
+fn a_file_that_is_not_sqlite_is_refused() {
+    let text = b"Not a wallet at all, only text that is longer than a SQLite header is.".repeat(4);
+    let got = whole_file(&text, &[], None).err();
+    assert_eq!(got, Some(Refusal::File(faraday_sqlite::Error::NotSqlite)));
+    assert!(got.expect("refused").message().contains("not a SQLite"));
+}
+
+#[test]
+fn a_journal_or_log_beside_the_file_is_refused_by_its_name() {
+    let bytes = dat("plain");
+    for suffix in ["-journal", "-wal", "-shm"] {
+        let name = format!("wallet.dat{suffix}");
+        let got = whole_file(&bytes, &["other.txt".to_string(), name.clone()], None).err();
+        assert_eq!(got, Some(Refusal::Beside(name.clone())));
+        assert!(got.expect("refused").message().contains(&name));
+    }
 }

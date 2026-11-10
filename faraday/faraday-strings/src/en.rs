@@ -10411,6 +10411,18 @@ strings! {
     core_wallet_not_descriptors: "This wallet is not a descriptor wallet",
     /// Refusal in `core_wallet::Refusal::message`. `{}`: the record.
     core_wallet_no_origin: "A descriptor of this wallet has a key with no origin ({})",
+    /// Refusal in `core_wallet::Refusal::message`.
+    core_wallet_not_sqlite: "This file is not a SQLite database, so not a descriptor wallet's wallet.dat",
+    /// Refusal in `core_wallet::Refusal::message`.
+    core_wallet_wal: "This wallet file is in the write-ahead-log form, which Faraday does not read",
+    /// Refusal in `core_wallet::Refusal::message`. `{}`: the table's name.
+    core_wallet_other_table: "This database holds records in a table other than main ({})",
+    /// Refusal in `core_wallet::Refusal::message`. `{}`: the table's name.
+    core_wallet_no_table: "This database has no table {}",
+    /// Refusal in `core_wallet::Refusal::message`.
+    core_wallet_file_damaged: "This wallet file is damaged or not as Bitcoin Core writes it",
+    /// Refusal in `core_wallet::Refusal::message`. `{}`: the other file's name.
+    core_wallet_beside: "The file {} is beside this wallet, so it is in use or holds data not yet in it",
     /// Text in `text`. `{}`: `fp`.
     wallet_is_not_a_key: "{} is not a sample: Practice takes only samples",
     /// Text in `text`. `{}`: `network_name(*n)`.

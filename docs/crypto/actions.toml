@@ -4702,6 +4702,8 @@ decision = "F229"
 
 [action.checked]
 vectors = ["core-wallet"]
+crosscheck = "core_wallet"
+independence = { class = "outside", author = "Bitcoin Core (the pinned release's bitcoind on regtest), which makes each wallet and says what it holds (listdescriptors, getwalletinfo, walletpassphrase) and loads or refuses each changed file (loadwallet)" }
 tests = [
   "faraday/faraday-core/tests/all/core_wallet.rs::keys_pass_and_an_encrypted_wallet_needs_its_passphrase",
   "faraday/faraday-core/tests/all/core_wallet.rs::a_changed_byte_is_refused_with_its_record_named",
@@ -4715,8 +4717,7 @@ tests = [
   "faraday/faraday-core/tests/all/core_wallet.rs::an_encrypted_wallet_holds_one_master_key_and_no_plain_key",
   "faraday/faraday-core/tests/all/core_wallet.rs::a_wallet_with_an_uncompressed_key_is_read_as_core_wrote_it",
 ]
-not_crosschecked = "The cross-check of a wallet file against Bitcoin Core's loadwallet is not built yet (F229); the wallets here are made by Bitcoin Core."
-against = "Bitcoin Core's own wallets (`tools/vectors/core-wallet/gen.py`), read as Core's listdescriptors and getwalletinfo say"
+against = "Bitcoin Core's own wallets (`tools/vectors/core-wallet/gen.py` and the `core-wallet` cross-check area), read as Core's listdescriptors, getwalletinfo, walletpassphrase and loadwallet say"
 fuzz_none = "The records are fuzzed through core_wallet_records, which reaches these functions."
 other = []
 

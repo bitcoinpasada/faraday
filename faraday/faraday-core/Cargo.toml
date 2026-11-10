@@ -28,6 +28,7 @@ faraday-pgp = { path = "../faraday-pgp" }
 faraday-ots = { path = "../faraday-ots" }
 faraday-sb = { path = "../faraday-sb" }
 faraday-keys = { path = "../faraday-keys" }
+faraday-sqlite = { path = "../faraday-sqlite" }
 # The boot partitions' names and labels, which a backup refuses
 # (docs/STICK-IDENTITY.md §5.2); std alone.
 faraday-boot = { path = "../faraday-boot" }

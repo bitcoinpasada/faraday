@@ -20,6 +20,7 @@ mod bip32;
 mod bip85;
 mod codex32;
 mod compile;
+mod core_wallet;
 mod entropy;
 mod hash;
 mod import;
@@ -96,6 +97,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "qrvault" => qrvault::handle(name, req),
         "kef" => kef::handle(name, req),
         "sqlite" => sqlite::handle(name, req),
+        "core_wallet" => core_wallet::handle(name, req),
         "lightning" => lightning::handle(name, req),
         "ots" => ots::handle(name, req),
         _ => Err(format!("unknown area {area}")),

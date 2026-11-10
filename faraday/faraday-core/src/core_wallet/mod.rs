@@ -1,8 +1,8 @@
 //! A Bitcoin Core descriptor wallet's records, read and checked
 //! (`docs/decisions/F229.md`): the `(key, value)` pairs of the table
 //! `main` of a `wallet.dat` and the application id its header carries,
-//! read into what the wallet holds. No SQLite is read here and nothing is
-//! written.
+//! read into what the wallet holds. [`read_file`] takes the file's bytes
+//! (read by `faraday-sqlite`) and does the whole; nothing is written.
 //!
 //! [`read`] gives the network (the application id is its message start),
 //! the version, the flags, each descriptor with its id, range and next
@@ -99,6 +99,11 @@ pub enum Refusal {
     NotDescriptors,
     /// A descriptor with a key that carries no origin: the record.
     NoOrigin(String),
+    /// The file is not a database Bitcoin Core wrote: the SQLite reader's
+    /// refusal, named.
+    File(faraday_sqlite::Error),
+    /// A lock, a journal or a write-ahead log beside the file: its name.
+    Beside(String),
 }
 
 impl Refusal {
@@ -116,6 +121,18 @@ impl Refusal {
             }
             Refusal::NotDescriptors => EN.core_wallet_not_descriptors.to_string(),
             Refusal::NoOrigin(record) => fill(EN.core_wallet_no_origin, &[record]),
+            Refusal::File(faraday_sqlite::Error::NotSqlite) => {
+                EN.core_wallet_not_sqlite.to_string()
+            }
+            Refusal::File(faraday_sqlite::Error::Wal) => EN.core_wallet_wal.to_string(),
+            Refusal::File(faraday_sqlite::Error::OtherTable(name)) => {
+                fill(EN.core_wallet_other_table, &[name])
+            }
+            Refusal::File(faraday_sqlite::Error::NoTable(name)) => {
+                fill(EN.core_wallet_no_table, &[name])
+            }
+            Refusal::File(_) => EN.core_wallet_file_damaged.to_string(),
+            Refusal::Beside(name) => fill(EN.core_wallet_beside, &[name]),
         }
     }
 }
@@ -477,6 +494,35 @@ impl Reader<'_> {
             fault,
         });
     }
+}
+
+/// Costs what [`read`] costs, after reading the file's pages. The wallet
+/// in `file`, the bytes of a `wallet.dat` named `file_name`, with
+/// `beside` the names of the other files in its folder: the file is
+/// refused when a journal, write-ahead log or shared memory file of its
+/// name is there (it is in use or holds data not yet in it), when it is not
+/// a SQLite database of the kind Bitcoin Core writes, or when a table
+/// other than `main` holds a record; then the rows of `main` are read with
+/// the header's application id. Each refusal is named
+/// ([`Refusal::File`], [`Refusal::Beside`]).
+pub fn read_file(
+    c: &Compute,
+    file_name: &str,
+    file: &[u8],
+    beside: &[String],
+    mode: Network,
+    passphrase: Option<&SecretText>,
+) -> Result<Wallet, Refusal> {
+    if let Some(name) = faraday_sqlite::refusing_siblings(file_name)
+        .into_iter()
+        .find(|n| beside.contains(n))
+    {
+        return Err(Refusal::Beside(name));
+    }
+    let db = faraday_sqlite::Database::open(file).map_err(Refusal::File)?;
+    db.only_table_with_rows("main").map_err(Refusal::File)?;
+    let rows = db.rows("main").map_err(Refusal::File)?;
+    read(c, db.header().application_id, &rows, mode, passphrase)
 }
 
 /// Costs a descriptor parse for each descriptor, an elliptic-curve

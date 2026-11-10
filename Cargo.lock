@@ -854,6 +854,7 @@ dependencies = [
  "faraday-scanner",
  "faraday-selftest",
  "faraday-shell-api",
+ "faraday-sqlite",
  "faraday-strings",
  "faraday-ui",
  "faraday-vault",

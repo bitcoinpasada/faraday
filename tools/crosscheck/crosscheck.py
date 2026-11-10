@@ -103,6 +103,7 @@ AREAS = {
     "qrvault": ("area_qrvault", "QrVault", ("qrvault.seal", "qrvault.open"), 60),
     "kef": ("area_kef", "Kef", ("kef.seal", "kef.open"), 60),
     "sqlite": ("area_sqlite", "Sqlite", "sqlite.read", 60),
+    "core_wallet": ("area_core_wallet", "CoreWallet", "core_wallet.read", 120),
     "lightning": ("area_lightning", "Lightning",
                   ("lightning.ldk", "lightning.aezeed", "lightning.lnd", "lightning.aezeed-soft",
                    "lightning.bolt11", "lightning.hsm_file", "lightning.hsm_words"), 360),
