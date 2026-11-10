@@ -408,6 +408,22 @@ fn a_fee_out_of_range_is_not_only_the_fee() {
 }
 
 #[test]
+fn an_amount_past_the_money_range_is_not_only_the_fee() {
+    let past = |change: u64| {
+        build(&{
+            let mut b = base();
+            b.input_value = 3_000_000_000_000_000;
+            b.recipients = vec![(payee(), 2_999_999_999_000_000)];
+            b.change = Some(change);
+            b
+        })
+    };
+    let b = judge(&past(990_000), &past(980_000), true).unwrap();
+    assert_eq!(b.result, Outcome::CannotTell, "{:?}", b.lines);
+    assert_eq!(ids(&b), ["U1"]);
+}
+
+#[test]
 fn an_amount_of_another_transaction_is_not_stated() {
     let replacement = core_psbt("bump-core-replacement.psbt");
     let r = edit(&replacement, |x| {

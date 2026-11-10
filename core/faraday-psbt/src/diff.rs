@@ -349,8 +349,9 @@ fn facts(side: &Side<'_>) -> Facts {
     let i = side.inspection;
     let known = i.inputs.iter().all(|x| x.amount.is_some());
     Facts {
-        // `Inspection::fee` stays 0 where outputs exceed inputs.
-        fee: (known && i.total_in >= i.total_out).then_some(i.fee),
+        // The inspection sets a rate only where it knows the fee: not where
+        // outputs exceed inputs or an amount is past the money range.
+        fee: (known && i.fee_rate_sat_vb.is_some()).then_some(i.fee),
         fee_rate_sat_vb: if known { i.fee_rate_sat_vb } else { None },
         total_in: i.total_in,
         total_out: i.total_out,

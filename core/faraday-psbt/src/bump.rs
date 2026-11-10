@@ -253,18 +253,17 @@ fn classes(own: &[OutputInfo], other: &[OutputInfo], loaded: &[Fingerprint]) -> 
 }
 
 fn fee_of(side: &Side<'_>, amounts: &BTreeMap<OutPoint, Option<Amount>>) -> Option<Fee> {
+    use crate::transaction::money_total;
     let i = side.inspection;
-    // Summed in i128 from each output: `total_out` saturates.
-    let mut total: i128 = 0;
-    for input in &i.inputs {
-        let a = amounts
-            .get(&OutPoint::new(input.txid, input.vout))?
-            .as_ref()?;
-        total += i128::from(a.to_sat());
-    }
-    for out in &i.outputs {
-        total -= i128::from(out.amount.to_sat());
-    }
+    let spent = i
+        .inputs
+        .iter()
+        .map(|input| *amounts.get(&OutPoint::new(input.txid, input.vout))?)
+        .collect::<Option<Vec<Amount>>>()?;
+    // Both totals within the money range, as a node requires, or no fee.
+    let total_in = money_total(spent).ok()?;
+    let total_out = money_total(i.outputs.iter().map(|o| o.amount)).ok()?;
+    let total = i128::from(total_in.to_sat()) - i128::from(total_out.to_sat());
     let size = (i.vsize_estimate as i128).max(1);
     Some(Fee {
         sat: i64::try_from(total).ok()?,
@@ -475,11 +474,12 @@ pub fn judge(original: Side<'_>, replacement: Side<'_>, loaded: &[Fingerprint]) 
     })
 }
 
-/// Sets the `witness_utxo` of each input of `original` that states no
-/// amount from the input of `from` spending the same outpoint, where
-/// `from` states one (`docs/COMPARE.md` §3.2, rule I4). A finished
-/// transaction states no amounts: this is how it gets its fee. The caller
-/// runs it before inspecting the original.
+/// Sets the `witness_utxo` (or, for a legacy input, the `non_witness_utxo`)
+/// of each input of `original` that carries neither, from the input of
+/// `from` spending the same outpoint, where `from` states one
+/// (`docs/COMPARE.md` §3.2, rule I4). A finished transaction states no
+/// amounts: this is how it gets its fee. The caller runs it before
+/// inspecting the original.
 pub fn fill_amounts(original: &mut Psbt, from: &Psbt) {
     use crate::classify::spent_output;
     let have: BTreeMap<OutPoint, (Option<bitcoin::Transaction>, TxOut)> =
@@ -493,7 +493,10 @@ pub fn fill_amounts(original: &mut Psbt, from: &Psbt) {
             .collect();
     let psbt = original.inner_mut();
     for i in 0..psbt.inputs.len() {
-        if crate::classify::spent_output(psbt, i).is_some() {
+        let input = &psbt.inputs[i];
+        // Only an input that carries neither: one the original states, or
+        // states wrongly, is left as it is.
+        if input.witness_utxo.is_some() || input.non_witness_utxo.is_some() {
             continue;
         }
         let op = psbt.unsigned_tx.input[i].previous_output;
@@ -501,10 +504,7 @@ pub fn fill_amounts(original: &mut Psbt, from: &Psbt) {
             let input = &mut psbt.inputs[i];
             match tx {
                 Some(_) => input.non_witness_utxo = tx.clone(),
-                None => {
-                    input.non_witness_utxo = None;
-                    input.witness_utxo = Some(out.clone());
-                }
+                None => input.witness_utxo = Some(out.clone()),
             }
         }
     }

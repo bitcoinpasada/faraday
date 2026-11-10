@@ -334,8 +334,8 @@ A rule fails in one of two ways.
   two files state. The result is in `ERR`.
 - **Cannot tell.** No rule fails on what the files state, but one
   cannot be worked out:
-  - an input whose amount neither side states, or a fee that is out of
-    range (F1; U1);
+  - an input whose amount neither side states, or an amount or a fee past
+    21,000,000 BTC (F1; U1);
   - an output, on either side, whose key origin names a key not loaded,
     so whether it is yours is not known (P1, P2): loading that key
     tells;
@@ -622,7 +622,11 @@ difference in Compare); a shared input's amounts stated differently
 (B4); one outpoint spent twice (B5); a spoofed change output in the
 replacement under the loaded key (More: B10); the same unsigned
 transaction on both sides (no result); no outpoint in common (no
-result); the pair swapped (B11, B12).
+result); the pair swapped (B11, B12); a fee or an amount past
+21,000,000 BTC (Cannot tell: U1, and in Compare no fee); a replacement
+input stating another transaction's output (Cannot tell: U1); change
+split into two outputs on one script, one without origins (Only the
+fee).
 
 ### 6.2 The tests
 

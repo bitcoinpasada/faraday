@@ -352,3 +352,16 @@ fn no_fee_is_stated_where_outputs_exceed_inputs() {
     let d = run(&over, &over);
     assert_eq!(d.first.fee, None);
 }
+
+#[test]
+fn no_fee_is_stated_for_an_amount_past_the_money_range() {
+    let past = build(&{
+        let mut b = base();
+        b.input_value = 2_200_000_000_000_000;
+        b.recipients = vec![(payee(), 1_000)];
+        b.change = None;
+        b
+    });
+    let d = run(&past, &past);
+    assert_eq!(d.first.fee, None);
+}
