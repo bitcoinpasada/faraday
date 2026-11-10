@@ -317,3 +317,56 @@ fn the_rollers_roll_and_use_faraday_are_in_the_strip_at_1280() {
     host.where_offered(HostPress::App(faraday))
         .expect("Use faraday");
 }
+
+/// Practice with the sample vault chosen on Unlock, at `w` × `h`.
+fn at_unlock(w: u16, h: u16) -> Faraday {
+    let mut app = at(w, h);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::UseSample);
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+    assert_eq!(app.screen, Screen::Unlock);
+    app
+}
+
+#[test]
+fn the_unlock_says_the_sample_passphrase_from_the_start() {
+    let line = "In Practice, the sample passphrase is faraday";
+    for (w, h) in [(1280, 800), (480, 640)] {
+        let mut app = at_unlock(w, h);
+        assert!(
+            strip(&mut app).iter().any(|t| t == line),
+            "the strip says the passphrase on opening, {w} x {h}"
+        );
+    }
+    let mut app = at(1280, 800);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    let _ = app.frame();
+    assert!(
+        !strip(&mut app).iter().any(|t| t == line),
+        "a passphrase the person chooses is not told"
+    );
+}
+
+#[test]
+fn the_unlocks_caution_stands_under_its_field() {
+    for (w, h) in [(1280, 800), (480, 640), (800, 480)] {
+        let mut app = at_unlock(w, h);
+        let field = app
+            .drawn_targets()
+            .into_iter()
+            .find(|t| t.0 == Action::Vault(V::FocusPassphrase))
+            .expect("the passphrase field")
+            .2;
+        let boxes = app.drawn_text_boxes();
+        let (_, (_, y, _, _)) = boxes
+            .iter()
+            .find(|(t, _)| t == "Never type a seed that holds real bitcoin here.")
+            .expect("the caution is drawn");
+        assert!(
+            *y >= field.y + field.h,
+            "the caution starts under the field at {w} x {h}"
+        );
+    }
+}

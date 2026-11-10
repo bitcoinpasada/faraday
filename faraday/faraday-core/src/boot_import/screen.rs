@@ -228,7 +228,8 @@ fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f
     } else {
         stick_field(app.medium, ui, x, cy, w);
     }
-    cy += FIELD_H + 10.0 + crate::screens::never_under(app, ui, x, cy, w);
+    cy +=
+        FIELD_H + 10.0 + crate::screens::never_real_seed_if(app.may_load_keys(), app, ui, x, cy, w);
     if app.vaults.working == Some(Work::Unlock) {
         let lh = ui.wrap_as((x, cy, w), LABEL_L, Role::Primary, &unlocking(app, file)) + 10.0;
         crate::screens::working_bar(ui, x, cy, w, lh);
@@ -268,7 +269,7 @@ fn typing(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: us
         ),
         crate::demo::PassField::Unlock,
     );
-    cy += 44.0 + crate::screens::never_under(app, ui, x, cy, w);
+    cy += FIELD_H + crate::screens::never_under(app, ui, x, cy, w);
     cy - y
 }
 

@@ -461,7 +461,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         stick_field(app.medium, ui, x, y, w);
     }
-    y += FIELD_H + 16.0 + never_under(app, ui, x, y, w);
+    y += FIELD_H + 16.0 + never_real_seed_if(app.may_load_keys(), app, ui, x, y, w);
     let working = app.vaults.working == Some(vault::Work::Unlock);
     if working {
         let f = files.get(app.vaults.pick);
@@ -743,7 +743,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         stick_field(app.medium, ui, x, y, w);
     }
-    y += FIELD_H + 12.0 + never_under(app, ui, x, y, w);
+    y += FIELD_H + 12.0 + never_real_seed_if(app.may_load_keys(), app, ui, x, y, w);
     if let Some(e) = &app.vaults.unlock_error {
         y += ui.wrap_as((x, y, w), BODY_M, bad, e) + 12.0;
     }

@@ -274,6 +274,16 @@ impl Faraday {
     /// `empty` and offers one (the KeePass export's prompt does not:
     /// `faraday` is under its minimum).
     pub(crate) fn pass_chip_draw(&self, ui: &mut crate::ui::Ui, empty: bool, field: PassField) {
+        // A field that asks for a passphrase already chosen says what
+        // Practice's is, from the screen's opening.
+        if self.demo_passphrase()
+            && (field == PassField::Unlock || (field == PassField::Prompt && self.prompt_chip()))
+        {
+            ui.demo_line(format!(
+                "{} {PASSPHRASE}",
+                crate::strings::EN.samples_password
+            ));
+        }
         if !self.pass_chip_shown(field, empty) {
             return;
         }

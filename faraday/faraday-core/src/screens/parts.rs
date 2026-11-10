@@ -90,10 +90,10 @@ pub(crate) fn never_real_seed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -
     never_below(app, ui, x, y, w)
 }
 
-/// The line one gap under a one-line text field whose top is `top`, on
+/// The line one gap under a secret or text field `FIELD_H` tall whose top is `top`, on
 /// an online shell. Returns the gap and the line's height; 0 elsewhere.
 pub(crate) fn never_under(app: &View, ui: &mut Ui, x: f32, top: f32, w: f32) -> f32 {
-    never_below(app, ui, x, top + tokens::TEXT_FIELD, w)
+    never_below(app, ui, x, top + tokens::FIELD_H, w)
 }
 
 /// The line one gap under a field whose bottom edge is at `bottom`, on an
@@ -106,7 +106,7 @@ pub(crate) fn never_below(app: &View, ui: &mut Ui, x: f32, bottom: f32, w: f32) 
     }
 }
 
-/// [`never_under`] a one-line field whose top is `y`, only where `typed`
+/// [`never_under`] a field whose top is `y`, only where `typed`
 /// says the field can be typed into (not while a stick is attached).
 pub(crate) fn never_real_seed_if(
     typed: bool,

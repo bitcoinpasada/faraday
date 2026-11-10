@@ -1308,7 +1308,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     } else {
         crate::vault::screen::stick_field(app.medium, ui, x, cy, w);
     }
-    cy += FIELD_H + 12.0 + crate::screens::never_under(app, ui, x, cy, w);
+    cy += FIELD_H + 12.0 + crate::screens::never_real_seed_if(app.may_load_keys(), app, ui, x, cy, w);
     if app.vaults.working == Some(crate::vault::Work::Unlock) {
         ui.text_mid_as((x, cy, 42.0), LABEL_L, Role::Primary, EN.family_unlocking);
         crate::screens::working_bar(ui, x, cy, w, 42.0);
