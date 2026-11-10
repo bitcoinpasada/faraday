@@ -947,7 +947,7 @@ fn a_record_with_the_old_eight_field_code_line_still_reads() {
         .map(|l| {
             if l.starts_with("kef\t") {
                 let f: Vec<&str> = l.split('\t').collect();
-                assert_eq!(f.len(), 10, "{l}");
+                assert_eq!(f.len(), 11, "{l}");
                 f[..8].join("\t")
             } else {
                 l.to_string()
@@ -1188,4 +1188,70 @@ fn a_code_checked_off_paper_reads_not_checked_once_put_on_paper_with_a_camera() 
         "no item"
     );
     assert!(!done(&app));
+}
+
+/// A code checked by passphrase while kept only on a stick, the backup
+/// dropped and opened again, the code put on Paper at the first place, and
+/// its item opened.
+fn checked_reopened_then_put_on_paper(camera: bool) -> Faraday {
+    let mut app = at_the_checklist();
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    check_with(&mut app, "a passphrase");
+    assert!(done(&app));
+    reopen(&mut app);
+    if camera {
+        app.storage(StorageEvent::Cameras(vec![(
+            "cam".to_string(),
+            "Camera".to_string(),
+        )]));
+    }
+    app.press(Action::BPlan);
+    board(&mut app, BP::Menu(Chip::List(Thing::Seed(0))));
+    board(&mut app, BP::MenuVerb(Verb::Kef));
+    board(&mut app, BP::MenuTo(Zone::Paper(0)));
+    app.press(Action::BQ(qstep::PLAN));
+    app.press(Action::BChecklist);
+    app.settle();
+    // The blank template to print comes first on Paper.
+    app.press(Action::BNext(bstep::BLANK));
+    open_item(&mut app, bstep::KEF);
+    app
+}
+
+#[test]
+fn a_reopened_code_checked_off_paper_reads_not_checked_once_put_on_paper_with_a_camera() {
+    let app = checked_reopened_then_put_on_paper(true);
+    assert!(!done(&app));
+}
+
+#[test]
+fn a_reopened_code_checked_off_paper_stays_checked_on_paper_with_no_camera() {
+    let app = checked_reopened_then_put_on_paper(false);
+    assert!(done(&app));
+}
+
+#[test]
+fn a_record_kept_before_paper_was_kept_reads_as_before() {
+    let mut app = at_the_checklist();
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    check_with(&mut app, "a passphrase");
+    let w = app.backup().unwrap().wallet;
+    let text = String::from_utf8_lossy(&testkit::backups_record(&app)).to_string();
+    let old: Vec<String> = text
+        .lines()
+        .map(|l| {
+            if l.starts_with("kef\t") {
+                l.split('\t').take(10).collect::<Vec<_>>().join("\t")
+            } else {
+                l.to_string()
+            }
+        })
+        .collect();
+    testkit::restore_backups(&mut app, format!("{}\n", old.join("\n")).as_bytes());
+    testkit::backup_drop(&mut app);
+    app.press(Action::Backup(w));
+    plan_the_code(&mut app, 1);
+    assert!(done(&app), "Checked after the older record was read");
 }

@@ -84,6 +84,7 @@ fn kept(app: &Faraday, i: usize) -> Option<KefMark> {
                 label: m.label,
                 scanned: f.scanned(),
                 side: side_of_made(m),
+                paper: f.on_paper(),
             })
         }
         None => app.kef_mark(i),
@@ -263,6 +264,7 @@ fn restore(app: &mut Faraday, i: usize, form: &mut KefForm) {
         },
         m.checked,
         m.scanned,
+        m.paper,
     );
 }
 

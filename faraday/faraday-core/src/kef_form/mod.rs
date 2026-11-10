@@ -314,8 +314,17 @@ impl KefForm {
     }
 
     /// Takes up a code made before, read back from its file: the form
-    /// stands at the code, `checked` and `scanned` as they were.
-    pub(crate) fn restore(&mut self, made: Made, saved: Saved, checked: bool, scanned: bool) {
+    /// stands at the code, `checked`, `scanned` and `paper` as they were, so a
+    /// code put on Paper since reads Not checked when the map is followed.
+    pub(crate) fn restore(
+        &mut self,
+        made: Made,
+        saved: Saved,
+        checked: bool,
+        scanned: bool,
+        paper: bool,
+    ) {
+        self.paper = paper;
         self.made = Some(made);
         self.saved = Some(saved);
         self.checked = checked;
