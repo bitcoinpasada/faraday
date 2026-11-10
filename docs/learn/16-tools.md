@@ -42,6 +42,16 @@ Decode shows the review that Sign a transaction shows, for a transaction that is
 
 Use it to read what a coordinator produced before you sign it anywhere, or to see what a raw transaction from a block explorer actually pays.
 
+## QR vault
+
+Tools → QR vault seals one small thing under a passphrase into a single QR code. Make takes a note typed in, or the words of a loaded key of 12 or 24 English words, then a passphrase typed twice. It shows the code, and offers it as a labelled picture and as a .pgp file, both to the Outbox. Open takes a scanned code or a .pgp file and the passphrase, and says what the code holds.
+
+The code is a standard OpenPGP message under that passphrase, not a format of Faraday's own. Sequoia opens it without Faraday: save the code's bytes with zbarimg --raw -Sbinary code.png > vault.pgp, then run sq decrypt vault.pgp and type the passphrase. GnuPG does not open it.
+
+The passphrase is the only thing protecting the code. Anyone who has the code and guesses the passphrase reads what it holds, and a lost passphrase loses the contents: nothing else opens it. The tool warns that the code is only as strong as its passphrase.
+
+A QR vault is not a file vault. Nothing is kept on a stick, it is not listed under Vaults, and it is never open: what was typed, opened or made is cleared when the tool is left. To change what a code holds, make a new one; the old code still opens to what it held, so destroy it. The code can be printed. The picture carries the words QR vault, a name and the date it was sealed, and never what it holds. It is too large to copy by hand, so carry the picture on a stick to a computer with a printer.
+
 ## Krux code
 
 Makes an encrypted QR code in Krux's format from text you type or from a loaded wallet's descriptor, under a passphrase. Options sets the version, the rounds and the id; the defaults are version 20, 100,000 rounds and a random id. The code comes with Check my code, which opens it again with the passphrase to show it holds what you gave. The text and the passphrase are wiped when you leave the tool. What a Krux code is, and what its passphrase has to carry, is on the page about other backups.
