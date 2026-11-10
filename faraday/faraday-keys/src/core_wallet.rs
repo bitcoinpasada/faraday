@@ -218,20 +218,21 @@ pub fn check_private_key(c: &Compute, pubkey: &[u8], value: Zeroizing<Vec<u8>>) 
 /// passphrase opens the `mkey` record's master key (`mkey`, the record's
 /// value), and each `(pubkey, value)` of `keys`, a
 /// `walletdescriptorckey` record's public key and its value (the 48
-/// encrypted bytes as a vector), is opened with it and checked against
+/// encrypted bytes as a vector), both borrowed from the caller, which
+/// holds the only copy; each is opened with it and checked against
 /// its public key. A verdict for each key, in order; the wrong
 /// passphrase is the [`OpenError`], not a verdict. Everything held is
 /// wiped when this returns.
-pub fn check_encrypted_keys(
+pub fn check_encrypted_keys<'a>(
     c: &Compute,
     mkey: &[u8],
     passphrase: &SecretText,
-    keys: Vec<(Vec<u8>, Zeroizing<Vec<u8>>)>,
+    keys: impl IntoIterator<Item = (&'a [u8], &'a [u8])>,
 ) -> Result<Vec<KeyVerdict>, OpenError> {
     c.count(faraday_crypto::work::Work::Kdf);
     let master = open_master_key(mkey, passphrase.as_str().as_bytes())?;
     Ok(keys
-        .iter()
+        .into_iter()
         .map(|(pubkey, value)| check_encrypted_key(c, master.expose(), pubkey, value))
         .collect())
 }

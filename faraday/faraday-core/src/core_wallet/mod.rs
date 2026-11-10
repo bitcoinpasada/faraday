@@ -51,7 +51,8 @@ const WALLET_SCHEMA_VERSION: i32 = 0;
 /// [`Wallet::unknown_more`]).
 pub const MAX_LISTED: usize = 256;
 /// The most bytes of a record's key after its type kept in a failure, in
-/// hex: Bitcoin Core's longest is 97.
+/// hex: Bitcoin Core's longest is 98 (a 32-byte id, a length byte and a 65-byte
+/// uncompressed public key).
 const MAX_TAIL: usize = 128;
 /// The longest unknown record type kept by name.
 const MAX_NAMED: usize = 64;
@@ -555,7 +556,9 @@ impl Reader<'_> {
 /// ([`Refusal::File`], [`Refusal::Beside`]). Memory is at most three
 /// times the file (the file, its records copied once, and what the
 /// descriptors, labels and keys keep of them) and some 750 MB for the
-/// at most 2^20 rows, about 4 GiB at the 1 GiB limit; failed records and
+/// at most 2^20 rows, about 4 GiB at the 1 GiB limit, and on top of that
+/// what parsing one descriptor's text costs, bounded by that record's
+/// size (a record is at most the file); failed records and
 /// unknown record types past [`MAX_LISTED`] are counted, not kept.
 pub fn read_file(
     c: &Compute,
@@ -986,8 +989,7 @@ impl Reader<'_> {
         };
         let list = keys
             .iter()
-            .map(|(_, pubkey, value, _)| (pubkey.clone(), value.clone()))
-            .collect();
+            .map(|(_, pubkey, value, _)| (pubkey.as_slice(), value.as_slice()));
         match check_encrypted_keys(self.c, mkey, passphrase, list) {
             Ok(verdicts) => {
                 self.wallet.passphrase = Passphrase::Opened;

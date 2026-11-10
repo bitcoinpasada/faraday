@@ -60,6 +60,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 "failures": w.failures.iter()
                     .map(|f| json!([f.record, format!("{:?}", f.fault)]))
                     .collect::<Vec<_>>(),
+                "failures_more": w.failures_more,
                 "descriptors": listing,
                 "with_private_keys": w.descriptors.iter()
                     .filter(|d| d.private_keys + d.encrypted_keys > 0)

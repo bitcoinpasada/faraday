@@ -86,6 +86,10 @@ fn core_wallet_a_changed_byte_fails_a_plain_wallets_key() {
     );
 }
 
+fn borrowed(keys: &[(Vec<u8>, Zeroizing<Vec<u8>>)]) -> impl Iterator<Item = (&[u8], &[u8])> {
+    keys.iter().map(|(p, v)| (p.as_slice(), v.as_slice()))
+}
+
 #[test]
 fn core_wallet_an_encrypted_wallets_keys_open_under_its_passphrase() {
     let c = compute();
@@ -97,12 +101,12 @@ fn core_wallet_an_encrypted_wallets_keys_open_under_its_passphrase() {
     let count = keys.len();
     assert!(count > 0);
     let right = SecretText::of("faraday");
-    let verdicts = check_encrypted_keys(&c, &mkey, &right, keys.clone()).expect("opens");
+    let verdicts = check_encrypted_keys(&c, &mkey, &right, borrowed(&keys)).expect("opens");
     assert_eq!(verdicts, vec![KeyVerdict::Pass; count]);
 
     let wrong = SecretText::of("faraday ");
     assert_eq!(
-        check_encrypted_keys(&c, &mkey, &wrong, keys),
+        check_encrypted_keys(&c, &mkey, &wrong, borrowed(&keys)),
         Err(OpenError::WrongPassphrase)
     );
 }
@@ -117,7 +121,7 @@ fn core_wallet_a_changed_byte_in_an_encrypted_key_fails_that_key() {
         .collect();
     keys[0].1[5] ^= 1;
     let right = SecretText::of("faraday");
-    let verdicts = check_encrypted_keys(&c, &mkey, &right, keys).expect("opens");
+    let verdicts = check_encrypted_keys(&c, &mkey, &right, borrowed(&keys)).expect("opens");
     assert_ne!(verdicts[0], KeyVerdict::Pass);
     assert!(verdicts[1..].iter().all(|v| *v == KeyVerdict::Pass));
 }

@@ -565,6 +565,9 @@ class CoreWallet(Area):
                 said = sorted({(f[0].split(" ")[0], f[1]) for f in got[1]["failures"]})
                 if (got[1]["passphrase"] == "wrong"):
                     said = [("mkey", "Passphrase")]
+                if got[1].get("failures_more", 0) > 0:
+                    # Failures past the list are a difference of their own.
+                    said.append(("more", "failures past the list"))
             else:
                 said = [("file", got[1].split("(")[0])]
             for one in said:

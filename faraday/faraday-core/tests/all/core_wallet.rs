@@ -524,3 +524,18 @@ fn failed_records_and_unknown_types_past_a_few_hundred_are_counted_not_kept() {
     assert!(wallet.failures.iter().all(|f| f.record.len() < 400));
     assert_eq!(wallet.unknown_more, 2000);
 }
+
+#[test]
+fn unknown_types_with_short_names_past_the_cap_are_counted_not_kept() {
+    let wallet = read_with("plain", None, |records| {
+        for i in 0u32..300 {
+            let name = format!("t{i}").into_bytes();
+            let mut key = vec![name.len() as u8];
+            key.extend(name);
+            records.push((key, vec![]));
+        }
+    });
+    assert!(wallet.is_whole());
+    assert_eq!(wallet.unknown.len(), 256);
+    assert_eq!(wallet.unknown_more, 300 - 256);
+}

@@ -652,6 +652,22 @@ fn a_schema_name_of_thousands_of_bytes_is_refused() {
 }
 
 #[test]
+fn a_record_whose_header_names_many_columns_is_refused() {
+    // A schema row that is all header: a size byte, then 100 NULL types.
+    let mut b = schema_db(&[("table", "main".to_string(), 2)], 3);
+    let mut cell = vec![];
+    put(&mut cell, 101);
+    put(&mut cell, 1);
+    cell.push(101);
+    cell.extend([0u8; 100]);
+    let end = 32_768 - cell.len();
+    b[end..32_768].copy_from_slice(&cell);
+    b[105..107].copy_from_slice(&(end as u16).to_be_bytes());
+    b[108..110].copy_from_slice(&(end as u16).to_be_bytes());
+    assert_eq!(Database::open(&b).err(), Some(Error::SchemaRow));
+}
+
+#[test]
 fn an_index_page_of_the_wrong_kind_or_reached_twice_is_refused() {
     // The index of every fixture has its root on page 3.
     let base = fixture("small.db");

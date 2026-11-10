@@ -33,13 +33,18 @@
 //! would pass.
 //!
 //! Memory: [`Database::open`] holds the schema's at most
-//! [`MAX_SCHEMA_ROWS`] rows and a bit for each page. [`Database::rows`]
+//! [`MAX_SCHEMA_ROWS`] rows and a byte for each page, in each of two maps. [`Database::rows`]
 //! returns each record once (a payload that spills over pages becomes the
 //! value in place; one that does not is copied from its page), so the
 //! rows are at most the file's bytes and, for each of the at most
 //! [`MAX_ROWS`] rows, 48 bytes and two allocations (some 120 bytes, some
 //! 125 MB in all) on top of the file itself, never more by a count of
-//! tiny rows.
+//! tiny rows. A record's columns are counted as its header is read and
+//! refused past the five of the schema or the two of `main`, so a header
+//! of nothing but NULL types holds no more than that. With the reader
+//! above it (`faraday-core`'s `core_wallet`) the bound is three times the
+//! file and some 750 MB at 2^20 rows, plus what parsing one descriptor's
+//! text costs, bounded by that record's size.
 //!
 //! A lock or hot journal beside the file is for the caller to check where
 //! it can see the folder (Files): [`refusing_siblings`] names the files.
@@ -623,8 +628,11 @@ impl Pages<'_> {
 }
 
 /// The columns of a record: each serial type with its body's range
-/// (section 2.3). The header must agree with the body to the byte.
-fn columns(p: &[u8]) -> Result<Vec<(u64, Range<usize>)>, Error> {
+/// (section 2.3). The header must agree with the body to the byte, and
+/// names no more than `want` columns: a header that names one more is
+/// refused ([`Error::Columns`]) before that column is kept, so what is
+/// held is at most `want` entries, whatever the record's size.
+fn columns(p: &[u8], want: usize) -> Result<Vec<(u64, Range<usize>)>, Error> {
     let (hsize, n) = varint(p, 0).ok_or(Error::Record)?;
     if hsize < n as u64 || hsize > p.len() as u64 {
         return Err(Error::Record);
@@ -648,6 +656,9 @@ fn columns(p: &[u8]) -> Result<Vec<(u64, Range<usize>)>, Error> {
         let end = body.checked_add(size).ok_or(Error::Record)?;
         if end > p.len() as u64 {
             return Err(Error::Record);
+        }
+        if out.len() == want {
+            return Err(Error::Columns);
         }
         out.push((t, body as usize..end as usize));
         body = end;
@@ -709,7 +720,10 @@ impl<'a> Database<'a> {
             if rows > MAX_SCHEMA_ROWS {
                 return Err(Error::TooManySchemaRows);
             }
-            let cols = columns(&p)?;
+            let cols = columns(&p, 5).map_err(|e| match e {
+                Error::Columns => Error::SchemaRow,
+                e => e,
+            })?;
             if cols.len() != 5 {
                 return Err(Error::SchemaRow);
             }
@@ -808,7 +822,7 @@ impl<'a> Database<'a> {
         let t = self.table(table)?;
         let mut out: Vec<Row> = Vec::new();
         self.walk_table(t, &mut |_, p| {
-            let cols = columns(&p)?;
+            let cols = columns(&p, 2)?;
             if cols.len() != 2 {
                 return Err(Error::Columns);
             }
