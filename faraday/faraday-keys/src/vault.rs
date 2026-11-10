@@ -1159,9 +1159,17 @@ impl Slot {
         }
         match self.used_with(c, names, ov)? {
             n if n <= self.limit() => Ok(()),
-            n => Err(NoRoom::File(fv::file::Error::Full {
-                over: n - self.limit(),
-            })),
+            n => {
+                // The count of the vault as it is is the one `counted`
+                // gives: kept, so that asking for it after this does not
+                // make the copy of the document again.
+                if ov.remove.is_empty() && ov.add.is_empty() && ov.edit.is_empty() {
+                    let _ = self.used.set(n);
+                }
+                Err(NoRoom::File(fv::file::Error::Full {
+                    over: n - self.limit(),
+                }))
+            }
         }
     }
 

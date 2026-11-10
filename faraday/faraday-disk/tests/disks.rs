@@ -936,3 +936,43 @@ fn a_pieced_write_sent_again_after_a_cut_off_one_lands() {
     want.extend_from_slice(&[6; 1000]);
     assert_eq!(read_all(&mut d, &c, &stick, "v.bin"), want);
 }
+
+/// A pieced seal abandoned leaves nothing for a later write to join: after
+/// the app's side has gone (`forget_held`) or its stick has been pulled, a
+/// last piece for that name is refused and writes no file made of the old
+/// pieces.
+#[test]
+fn an_abandoned_pieced_write_leaves_nothing_to_join() {
+    let c = compute();
+    let m = Machine::new("abandoned");
+    m.disk("sdb", 1, &[("", fat16("BACKUP"), true)]);
+    let mut d = Disks::new(&m.sys(), &m.dev());
+    let stick = sticks(d.handle(&c, Request::List))[0].id.clone();
+    // The app's side gone: the shell closes.
+    assert_eq!(
+        d.handle(&c, piece(&stick, "v.bin", 0, 3000, &[1; 2000])),
+        Response::Held(2000)
+    );
+    d.forget_held();
+    let late = d.handle(&c, last(&stick, "v.bin", 3000, &[2; 1000]));
+    assert!(matches!(late, Response::Failed(_)), "{late:?}");
+    let read = d.handle(
+        &c,
+        Request::Read {
+            stick: stick.clone(),
+            name: "v.bin".into(),
+        },
+    );
+    assert!(
+        matches!(read, Response::Failed(_)),
+        "a file of old pieces: {read:?}"
+    );
+    // The stick pulled with pieces held: the next listing lets them go.
+    d.handle(&c, piece(&stick, "x.bin", 0, 3000, &[1; 2000]));
+    for node in ["sdb", "sdb1"] {
+        let _ = std::fs::remove_file(m.sys().join("class/block").join(node));
+    }
+    let _ = d.handle(&c, Request::List);
+    let late = d.handle(&c, last(&stick, "x.bin", 3000, &[2; 1000]));
+    assert!(matches!(late, Response::Failed(_)), "{late:?}");
+}

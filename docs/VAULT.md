@@ -438,7 +438,10 @@ allocate as "failed: no memory". Faraday runs the lanes on one core
 **When a vault does not fit.** Opening a vault whose memory this machine
 cannot allocate (its memory free to open, above) says so before the
 passphrase is typed: "Needs 1.1 GiB. This computer has 900 MiB free."
-It does not start Argon2id.
+It does not start Argon2id. The free memory in that line is read twice a second
+on the Unlock screen, and the line is drawn again when it changes. What an
+open vault's seal read as short of memory is dropped whenever the figure
+changes, up or down, and read again at the next seal.
 
 ### 3.2 A key file and a YubiKey's secret
 

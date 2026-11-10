@@ -226,8 +226,8 @@ struct Held {
 impl Disks {
     /// Costs a wipe of every piece held, up to the longest vault file
     /// (about 151 MiB). Drops (wipes) every piece held: a new app process
-    /// is talking, and what an earlier one sent is not part of what it
-    /// writes.
+    /// is talking, or the one that was has gone, and what it sent is not
+    /// part of what is written.
     pub fn forget_held(&mut self) {
         for mut h in self.held.drain(..) {
             zeroize::Zeroize::zeroize(&mut h.bytes);
@@ -543,6 +543,14 @@ impl Disks {
         let found = self.found();
         self.seen
             .retain(|id, _| found.iter().any(|f| &f.id == id && f.open));
+        // Pieces for a stick that has gone (pulled) are not sent on.
+        self.held.retain_mut(|h| {
+            let there = found.iter().any(|f| f.id == h.stick);
+            if !there {
+                zeroize::Zeroize::zeroize(&mut h.bytes);
+            }
+            there
+        });
         found.iter().filter_map(|f| self.stick(c, f)).collect()
     }
 

@@ -1080,6 +1080,29 @@ fn fits_is_exact(c: &Compute, extra: &[Record]) {
     assert!(!fits(N + 3), "three bytes more are over");
 }
 
+/// A vault past its ceiling that is asked whether it has room, and then how
+/// full it is, counts its plaintext once: the second asking makes no
+/// document.
+#[test]
+fn a_vault_past_its_ceiling_is_counted_once() {
+    let c = compute();
+    let mut store = store();
+    store.lower_limit(0);
+    let (id, _) = store.unlock(&c, empty(&c, "pass"), "pass").expect("opens");
+    let none: [&Record; 0] = [];
+    let before = faraday_vault::kdbx::xml::writes();
+    assert!(!store.fits(&c, id, &[], &none), "past a limit of nothing");
+    let counted = faraday_vault::kdbx::xml::writes();
+    assert!(counted > before, "the room was counted from a document");
+    let used = store.records(id).counted(&c).expect("counted");
+    assert!(used > 0);
+    assert_eq!(
+        faraday_vault::kdbx::xml::writes(),
+        counted,
+        "the count was made again"
+    );
+}
+
 /// A person's edit of a vault that is nowhere near its ceiling writes no
 /// document, and what was edited is sealed all the same.
 #[test]

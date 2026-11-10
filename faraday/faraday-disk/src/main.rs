@@ -123,6 +123,9 @@ fn serve(
     // Pieces an earlier shell left are not part of what this one writes.
     disks.forget_held();
     let served = serve_on(c, disks, &mut rx, talk, now, pictures);
+    // A shell that has gone (an app stopped, a stick pulled) leaves no
+    // pieces held for a write that will not come.
+    disks.forget_held();
     // Whatever a picture still being read finds, this shell has gone.
     *now.lock().unwrap_or_else(PoisonError::into_inner) = None;
     served
