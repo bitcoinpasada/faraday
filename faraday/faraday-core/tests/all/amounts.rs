@@ -72,7 +72,10 @@ fn the_same_transaction_with_other_amounts_is_refused_across_a_lock() {
     offer(&mut app, &changed, kept.clone());
     let s = app.spend().unwrap();
     assert!(s.spend.signed_here.is_empty());
-    assert_eq!(s.error.as_deref(), Some(faraday_strings::EN.sign_here_this_transaction));
+    assert_eq!(
+        s.error.as_deref(),
+        Some(faraday_strings::EN.sign_here_this_transaction)
+    );
 
     // The same amounts again sign.
     let mut app = faraday_core::testkit::started();
