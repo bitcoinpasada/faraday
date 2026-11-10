@@ -978,30 +978,31 @@ impl Session {
                     (None, Some(_)) if sig.ours && sig.finalized => Some(Unmatched::Finalized),
                     (None, Some(_)) => None,
                 };
-                // Only a key proved here is kept and compared: derived at
-                // its stated place by a registered wallet's key or by a
-                // loaded master. A file could otherwise fill the history
-                // with keys of its own.
-                let named = sig.fingerprint.is_some_and(|fp| {
-                    let Some(inner) = psbt.inner().inputs.get(input.index) else {
-                        return false;
-                    };
-                    let Some((path, stated)) = faraday_psbt::verify::stated_place(inner, &sig)
-                    else {
-                        return false;
-                    };
-                    self.wallets
-                        .iter()
-                        .any(|w| w.derives(c, fp, &path, &stated))
-                        || self.keys.position(fp).is_some_and(|pos| {
-                            self.keys
-                                .xpub_at(c, pos, &path)
-                                .is_some_and(|x| stated.is(&x.public_key))
-                        })
+                // Only a signature that is valid is looked at, and only a
+                // key proved here is kept and compared: derived at its
+                // stated place by a registered wallet's key or by a loaded
+                // master. A file could otherwise fill the history with keys
+                // of its own, or cost a derivation with a signature that
+                // is false.
+                let entry = crate::memory::nonces::NonceEntry::of_signature(&sig).filter(|_| {
+                    sig.fingerprint.is_some_and(|fp| {
+                        let Some(inner) = psbt.inner().inputs.get(input.index) else {
+                            return false;
+                        };
+                        let Some((path, stated)) = faraday_psbt::verify::stated_place(inner, &sig)
+                        else {
+                            return false;
+                        };
+                        self.wallets
+                            .iter()
+                            .any(|w| w.derives(c, fp, &path, &stated))
+                            || self.keys.position(fp).is_some_and(|pos| {
+                                self.keys
+                                    .xpub_at(c, pos, &path)
+                                    .is_some_and(|x| stated.is(&x.public_key))
+                            })
+                    })
                 });
-                let entry = named
-                    .then(|| crate::memory::nonces::NonceEntry::of_signature(&sig))
-                    .flatten();
                 rows.push(NonceRow {
                     input: input.index,
                     name: sig.name(),
@@ -1040,6 +1041,36 @@ impl Session {
             history: crate::memory::nonces::History::Off,
             history_gen: 0,
         }
+    }
+
+    /// Costs a signature verification and an aggregate nonce per MuSig2
+    /// input that carries partial signatures. The partial signatures of
+    /// `psbt` that verify, as entries by input and the first eight hex
+    /// characters of the participant's key, for [`NonceCheck::partials`];
+    /// `inspection` is the spend's.
+    pub fn nonce_partials(
+        &self,
+        c: &Compute,
+        psbt: &Psbt,
+        inspection: &faraday_psbt::Inspection,
+    ) -> Vec<(usize, String, crate::memory::nonces::NonceEntry)> {
+        let mut out = Vec::new();
+        for (i, input) in inspection.inputs.iter().enumerate() {
+            let Some(round) = input.musig.as_ref() else {
+                continue;
+            };
+            for p in faraday_psbt::musig::verified_rounds(c, psbt, i, round) {
+                let name: String = p.participant.serialize()[1..33]
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<String>()
+                    .chars()
+                    .take(8)
+                    .collect();
+                out.push((i, name, crate::memory::nonces::NonceEntry::of_partial(&p)));
+            }
+        }
+        out
     }
 
     /// A copy for work off the main thread: every key's master and public
@@ -1671,6 +1702,10 @@ pub struct Spend {
     pub collected: Vec<(Fingerprint, String)>,
     /// The finished transaction, once there are enough signatures.
     pub finished: Option<Transaction>,
+    /// The nonce check refuses the transaction: a nonce used twice in it, or
+    /// before on another message in an open vault. Nothing is finished,
+    /// saved or shown as a code while it holds ([`Faraday::nonce_spend_sync`]).
+    pub nonce_hold: bool,
     /// The PSBT as read when it came as version 2 (BIP-370), `psbt` its
     /// version 0 form (`wallet/v2.rs`). Set as the spend starts, never
     /// changed: `collect` keeps `psbt` of its transaction.
@@ -1779,6 +1814,7 @@ impl Spend {
             wrote: Vec::new(),
             collected: Vec::new(),
             finished: None,
+            nonce_hold: false,
             v2: None,
         }
     }
@@ -2346,6 +2382,9 @@ impl Spend {
     /// Costs what [`Spend::refused`] costs, and a finalize of a copy.
     /// Finishes the transaction when it has enough signatures.
     pub fn finish(&mut self) -> Result<(), String> {
+        if self.nonce_hold {
+            return Err(EN.spend_nonce_held.to_string());
+        }
         if let Some(why) = self.refused() {
             return Err(why);
         }
@@ -2365,6 +2404,9 @@ impl Spend {
     /// the spend changes (`SpendState::refused`): a lookup, and costly
     /// work of the finalize of a copy.
     pub fn finish_reason(&self, refused: Option<&str>) -> Option<String> {
+        if self.nonce_hold {
+            return Some(EN.spend_nonce_held.to_string());
+        }
         if let Some(why) = refused {
             return Some(why.to_string());
         }
@@ -3443,7 +3485,95 @@ impl Faraday {
                 s.opened = true;
             }
         }
+        self.nonce_spend_sync();
         self.spend_files_out();
+    }
+
+    /// Costs a map lookup per signature when only the nonce history
+    /// changed (noted again only then), and the nonce check (a derivation per signature, a
+    /// verification per partial signature) when a transaction that can be
+    /// finished, or is held back, has none kept yet. The open spend's nonce check compared
+    /// with the history, and what it found noted for a vault. While a nonce
+    /// is used twice in the transaction or was used before in an open vault
+    /// nothing is finished (`Spend::nonce_hold`), so nothing is saved or
+    /// shown as a code; when the history stops saying so, the transaction
+    /// is finished again.
+    pub(crate) fn nonce_spend_sync(&mut self) {
+        let history = self.nonce_snapshot();
+        let c = self.compute();
+        let session = &self.session;
+        let Some(s) = self.wallets.spend_mut() else {
+            return;
+        };
+        let kept = s
+            .nonce_check
+            .borrow()
+            .as_ref()
+            .filter(|(p, _)| *p == s.spend.psbt)
+            .map(|(_, check)| check.clone());
+        let (mut check, mut stored) = match kept {
+            Some(check) => (check, false),
+            // A spend that cannot be finished yet, was not held and carries
+            // no partial signature leaves the check to the card that shows
+            // it.
+            None if !(s.complete
+                || s.spend.nonce_hold
+                || s.spend.psbt.inner().inputs.iter().any(|i| {
+                    !i.partial_sigs.is_empty()
+                        || i.tap_key_sig.is_some()
+                        || !i.tap_script_sigs.is_empty()
+                        || i.final_script_sig.is_some()
+                        || i.final_script_witness.is_some()
+                        || faraday_psbt::musig::partial_sigs(i).is_ok_and(|p| !p.is_empty())
+                })) =>
+            {
+                return;
+            }
+            None => {
+                let mut fresh = session.nonce_check(&c, &s.spend.psbt);
+                fresh.partials = session.nonce_partials(&c, &s.spend.psbt, &s.inspection);
+                (std::rc::Rc::new(fresh), true)
+            }
+        };
+        if stored || check.history_gen != history.generation() {
+            std::rc::Rc::make_mut(&mut check).against(&history);
+            stored = true;
+        }
+        if stored {
+            *s.nonce_check.borrow_mut() = Some((s.spend.psbt.clone(), check.clone()));
+        }
+        let held = check.held_back();
+        let mut taken_back = Vec::new();
+        let mut lifted = false;
+        if held != s.spend.nonce_hold {
+            s.spend.nonce_hold = held;
+            if held {
+                s.spend.finished = None;
+                s.complete = false;
+                // What this spend already put in the Outbox goes back.
+                s.out_signed = false;
+                s.out_tx = false;
+                taken_back.extend(s.out_names.signed.take());
+                taken_back.extend(s.out_names.tx.take());
+                taken_back.extend(s.out_names.part.take());
+            } else {
+                s.complete = s.spend.finish().is_ok();
+                lifted = s.complete;
+            }
+        }
+        if !taken_back.is_empty() && self.outbox.iter().any(|i| taken_back.contains(&i.name)) {
+            self.outbox.retain(|i| !taken_back.contains(&i.name));
+            self.save_boxes();
+        }
+        // Noted only when the check was stored or compared again: a note
+        // checks each entry against the transaction's.
+        if stored {
+            self.note_nonces(&check);
+        }
+        // The transaction finished again: its files are made at once.
+        if lifted {
+            self.spend_files_out();
+        }
     }
 
     /// Whether the register sheet's name field has focus. A lookup.
@@ -3598,7 +3728,7 @@ impl Faraday {
             Action::SignHere => crate::signing::sign_here(self),
             Action::Collect(i) => crate::signing::collect::start_collect(self, i),
             Action::SignedToOutbox => {
-                if let Some(s) = self.wallets.spend_mut() {
+                if let Some(s) = self.wallets.spend_mut().filter(|s| !s.spend.nonce_hold) {
                     let name = format!("{}-signed.psbt", result_stem(&s.spend.source));
                     let Ok(bytes) = s.spend.out_bytes() else {
                         return self.toast(EN.spend_v2_not_written);

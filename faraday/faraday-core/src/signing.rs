@@ -450,6 +450,13 @@ pub(crate) fn part_plan(
 /// Moves only. Does what [`part_plan`] made: the Outbox's file put, replaced
 /// or taken back, and the name the spend sent it under recorded.
 pub(crate) fn part_apply(app: &mut Faraday, plan: PartPlan) {
+    // A spend held back by the nonce history gives out no file for the
+    // next signer, as it saves and shows nothing else.
+    if app.wallets.spend().is_some_and(|s| s.spend.nonce_hold)
+        && matches!(plan, PartPlan::Replace(..) | PartPlan::Beside(_))
+    {
+        return;
+    }
     let name = match plan {
         PartPlan::Take(name) => {
             if app.outbox.iter().any(|i| i.name == name) {

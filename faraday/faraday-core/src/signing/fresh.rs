@@ -25,7 +25,7 @@ pub(crate) struct Fresh {
 }
 
 /// Costs an inspection, the aggregation of a MuSig2 round, a second
-/// inspection when it gained a signature, the nonce check, `Spend::signing`,
+/// inspection when it gained a signature, the nonce check and `Session::nonce_partials`, `Spend::signing`,
 /// `wallet_for` and a finalize of a copy; the nonce check only where `nonce`
 /// says (a spend opened leaves it to the card that shows it). Reads `spend` and `session` as they
 /// are, and finishes the transaction in `spend` when it has the signatures.
@@ -48,7 +48,11 @@ pub(crate) fn worked_out(
     let refused = spend.refused();
     // Worked out here, where the file changed, so the first frame after
     // reads it.
-    let check = nonce.then(|| session.nonce_check(c, &spend.psbt));
+    let check = nonce.then(|| {
+        let mut check = session.nonce_check(c, &spend.psbt);
+        check.partials = session.nonce_partials(c, &spend.psbt, &inspection);
+        check
+    });
     let signing = spend.signing(c, session, Some(&inspection), view);
     let wallet = session.wallet_for(c, &spend.psbt);
     let complete = spend.finished.is_some() || spend.finish().is_ok();
@@ -120,7 +124,11 @@ impl SpendState {
     ) {
         self.refused = refused;
         // `Rc` is not `Send`: it is made here, on the thread that draws.
-        *self.nonce_check.borrow_mut() = check.map(|check| (psbt.clone(), std::rc::Rc::new(check)));
+        // Never compared yet: `Faraday::nonce_spend_sync` compares it.
+        *self.nonce_check.borrow_mut() = check.map(|mut check| {
+            check.history_gen = u64::MAX;
+            (psbt.clone(), std::rc::Rc::new(check))
+        });
         self.inspected = Some((psbt, inputs));
         self.keep_signing(signing);
         self.wallet = wallet;

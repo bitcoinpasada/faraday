@@ -37,8 +37,9 @@ pub struct NonceCheck {
     pub fields_refused: Vec<usize>,
     /// The unsigned transaction's SHA-256: what its entries are kept under.
     pub tx: [u8; 32],
-    /// MuSig2 partial signatures that verified, as entries by input:
-    /// empty until the spend's partial signatures are added; the Nonce
+    /// MuSig2 partial signatures that verified, as entries by input and
+    /// the participant's name: those of a spend's file
+    /// ([`Session::nonce_partials`]), brought in or made here; the Nonce
     /// check page has none.
     pub partials: Vec<(usize, String, NonceEntry)>,
     /// Keys whose nonce an open vault holds over another message
@@ -88,6 +89,13 @@ impl NonceCheck {
             u.inputs.sort_unstable();
         }
         self.used_before = found;
+    }
+
+    /// Whether a nonce is used twice in the transaction or was used before
+    /// over another message in an open vault: nothing is finished, saved or
+    /// shown as a code, with no way past (F227). A lookup.
+    pub fn held_back(&self) -> bool {
+        !self.used_before.is_empty() || !self.reused.is_empty()
     }
 
     /// Every signature that verified, as an entry. A lookup per row.

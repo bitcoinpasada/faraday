@@ -5390,6 +5390,8 @@ strings! {
     nonce_screen_refused: "Not finished: a signature is wrong",
     /// Line in `Screen::NonceCheck` when a key's nonce was used before on another transaction.
     nonce_screen_refused_used: "Not finished: a nonce was used before",
+    /// Why Spend has no finished transaction, nothing to save or show as a code: a signature reuses a nonce, in this transaction or held in an open vault.
+    spend_nonce_held: "Not finished: a signature reuses a nonce",
     /// Line in `Screen::NonceCheck` when a PSBT has an input, final or not, whose output cannot be read or is stated falsely.
     nonce_screen_refused_unread: "Not finished: an input's output cannot be read",
     /// Line in `Screen::NonceCheck` when a PSBT has an input, final or not, whose `witness_utxo` and previous transaction state different outputs.

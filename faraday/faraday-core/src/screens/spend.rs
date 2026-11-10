@@ -1378,21 +1378,16 @@ pub(crate) fn step_body(
                 if let Some(part) = s.out_names.part.as_deref() {
                     cy += made_line(app, ui, x, cy, w, part);
                 }
-                cy += wrap_buttons(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    BUTTON_H,
-                    &[
-                        (EN.step_show_as_qr, Style::Secondary, Action::QrPart),
-                        (
-                            EN.step_scan_a_copy,
-                            Style::Secondary,
-                            Action::ScanFor(crate::Ask::SpendPsbt),
-                        ),
-                    ],
-                );
+                let mut buttons = vec![(
+                    EN.step_scan_a_copy,
+                    Style::Secondary,
+                    Action::ScanFor(crate::Ask::SpendPsbt),
+                )];
+                // Held back, the part file gives out no code.
+                if !s.spend.nonce_hold {
+                    buttons.insert(0, (EN.step_show_as_qr, Style::Secondary, Action::QrPart));
+                }
+                cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &buttons);
             } else {
                 next(ui, cy, EN.step_continue);
                 cy += 44.0;
@@ -1402,7 +1397,13 @@ pub(crate) fn step_body(
             if s.spend.finished.is_none() {
                 let missing = needed.saturating_sub(s.signers.len()).max(1);
                 let line = match s.spend.finish_reason(s.refused.as_deref()) {
-                    Some(r) if s.refused.is_some() || s.signers.len() >= needed => r,
+                    Some(r)
+                        if s.spend.nonce_hold
+                            || s.refused.is_some()
+                            || s.signers.len() >= needed =>
+                    {
+                        r
+                    }
                     _ => fill(
                         EN.step_needs,
                         &[
@@ -1420,8 +1421,17 @@ pub(crate) fn step_body(
                         ],
                     ),
                 };
-                ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line);
+                let tone = if s.spend.nonce_hold {
+                    Role::Error
+                } else {
+                    Role::Warning
+                };
+                ui.wrap_as((x, cy, w), BODY_M, tone, &line);
                 cy += 44.0;
+                // The key and its inputs, as the nonce check names them.
+                if s.spend.nonce_hold {
+                    cy += nonce_check(app, ui, &s.spend.psbt, x, cy, w);
+                }
             } else {
                 // Side by side where each card's head, its place and its
                 // buttons fit its half; on a small panel, or where the
@@ -1664,14 +1674,16 @@ pub(crate) fn step_body(
                 }
                 let others_in = rows.iter().filter(|r| !r.2).all(|r| r.3);
                 let mine_in = rows.iter().filter(|r| r.2).all(|r| r.3);
-                cy += wrap_buttons(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    BUTTON_H,
-                    &[(EN.step_show_as_qr, Style::Secondary, Action::QrPart)],
-                ) + 2.0;
+                if !s.spend.nonce_hold {
+                    cy += wrap_buttons(
+                        ui,
+                        x,
+                        cy,
+                        w,
+                        BUTTON_H,
+                        &[(EN.step_show_as_qr, Style::Secondary, Action::QrPart)],
+                    ) + 2.0;
+                }
                 if !others_in && !mine_in {
                     ui.button(
                         x,

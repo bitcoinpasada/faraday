@@ -543,6 +543,16 @@ impl Faraday {
         self.decode.outside()
     }
 
+    /// Whether the Decode screen shows a transaction opened from the open
+    /// spend while the nonce history or a nonce used twice holds the spend
+    /// back. A lookup.
+    pub fn decode_from_spend_held(&self) -> bool {
+        self.decode
+            .state()
+            .is_some_and(|d| matches!(d.back, Screen::Spend | Screen::Family))
+            && self.wallets.spend().is_some_and(|s| s.spend.nonce_hold)
+    }
+
     /// Costs what [`Faraday::nonce_check_open`] costs for a signed
     /// transaction. Where a file the camera read lands: a signed PSBT no
     /// key here is left to sign, or a finished transaction, opens its
@@ -837,6 +847,10 @@ impl Faraday {
                     {
                         return;
                     }
+                }
+                // Opened from the spend: held back, it gives out no code.
+                if self.decode_from_spend_held() {
+                    return;
                 }
                 if let Some(hex) = self.decode.hex() {
                     let hex = hex.to_string();

@@ -77,6 +77,9 @@ impl Faraday {
                 let was = self.worker.set_inline(inline || self.worker.inline());
                 crate::vault::stretch::work(self, w);
                 self.worker.set_inline(was);
+                if self.wallets.spend().is_some() {
+                    self.nonce_spend_sync();
+                }
             }
             Later::Press(a) => self.act(a),
             Later::Key(k) => self.key(k),
@@ -258,6 +261,14 @@ impl Faraday {
             let c = self.compute();
             self.session.keys.reblind_owed(&c);
         }
+    }
+
+    /// Costs what `nonce_spend_sync` costs. The open spend's nonce hold
+    /// is brought up to date before a press acts, so what the history
+    /// now says holds for this press; then [`Self::taken_while_busy`].
+    pub(crate) fn taken_synced(&mut self, action: crate::Action) -> bool {
+        self.nonce_spend_sync();
+        self.taken_while_busy(action)
     }
 
     /// Whether `action` is taken while a job runs: only Back, Cancel and

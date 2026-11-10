@@ -2371,7 +2371,7 @@ impl Faraday {
     }
 
     fn act(&mut self, action: Action) {
-        if !self.taken_while_busy(action) || self.seed_gate(action) {
+        if !self.taken_synced(action) || self.seed_gate(action) {
             return;
         }
         let asked = self.session.key_path_asked().is_some();

@@ -946,7 +946,11 @@ impl View<'_> {
             }
             return Some(check.clone());
         }
-        let mut check = self.kept(|c| self.session.nonce_check(c, psbt));
+        let mut check = self.kept(|c| {
+            let mut check = self.session.nonce_check(c, psbt);
+            check.partials = self.session.nonce_partials(c, psbt, &s.inspection);
+            check
+        });
         check.against(&history);
         let check = Rc::new(check);
         *cache = Some((psbt.clone(), check.clone()));

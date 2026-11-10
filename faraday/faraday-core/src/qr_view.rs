@@ -832,7 +832,7 @@ impl Faraday {
                 }
             }
             Action::QrSigned | Action::QrPart => {
-                if let Some(s) = self.wallets.spend() {
+                if let Some(s) = self.wallets.spend().filter(|s| !s.spend.nonce_hold) {
                     let title = if action == Action::QrSigned {
                         EN.act_signed_psbt
                     } else {

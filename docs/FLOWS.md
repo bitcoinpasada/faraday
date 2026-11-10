@@ -2125,8 +2125,10 @@ between:
 | Files | the row's one button, **Nonce check**, in place of **Sign** or **Decode** |
 | Tools | **Nonce check**: the finished spend's Send it card, as before; else the first such file in Files; else the camera |
 
-A PSBT that a key here is still to sign goes to signing as before, and
-the spend's own nonce check on its Send it card is unchanged.
+A PSBT that a key here is still to sign goes to signing as before. The
+spend's own nonce check on its Send it card is compared with the history
+and remembered the same way, and the spend cannot be finished while it
+refuses.
 
 The screen is a page (Material 3's top app bar with its way back, the
 page under it): the file's name; the nonce check as Send it draws it
@@ -2285,8 +2287,10 @@ remembered. The Nonce check page remembers the final signature only.
 nonce used twice, and under it one line per key, "{key}: nonce used
 before, on another transaction, on inputs {i}"; nothing finishes, and
 neither the spend nor the Nonce check page offers **Save to a stick** or
-**Show as QR** ("Not finished: a nonce was used before"). There is no way
-past it (F136, F227).
+**Show as QR** ("Not finished: a nonce was used before"). A nonce used
+twice inside the transaction is refused the same way on the spend, and a
+spend refused gives no part file for the next signer either. There is no
+way past it (F136, F227).
 
 **The line under the headline**, the same on Send it and on the Nonce
 check page:

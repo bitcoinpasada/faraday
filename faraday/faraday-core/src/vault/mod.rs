@@ -33,9 +33,10 @@ pub(crate) mod trim;
 
 /// What every press settles of the area: a copy waiting, the Keep
 /// choices, and the Nonce check page's comparison with the nonce history
-/// the open vaults give. True when it dropped something.
+/// the open vaults give, and the open spend's. True when it dropped something.
 pub(crate) fn settle(app: &mut crate::Faraday) -> bool {
     app.nonce_outside_sync();
+    app.nonce_spend_sync();
     copy::settle(app) | keep::settle(app)
 }
 

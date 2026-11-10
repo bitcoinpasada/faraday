@@ -219,26 +219,35 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += 18.0;
 
-    y += wrap_buttons(
-        ui,
-        x,
-        y,
-        w,
-        BUTTON_H,
-        &[
-            (
-                if d.show_hex {
-                    EN.decode_hide_the_hex
-                } else {
-                    EN.decode_show_the_hex
-                },
-                Style::Secondary,
-                Action::DecodeHex,
-            ),
-            (EN.decode_show_as_qr, Style::Secondary, Action::QrDecoded),
-        ],
-    ) + 4.0;
-    if d.show_hex {
+    // Opened from the Nonce check page: when the check now refuses the
+    // transaction, the hex and its code are not offered.
+    let refused = (d.back == Screen::NonceCheck
+        && app
+            .outside_check()
+            .is_some_and(|o| o.check.refused(o.hex.is_some())))
+        || app.decode_from_spend_held();
+    if !refused {
+        y += wrap_buttons(
+            ui,
+            x,
+            y,
+            w,
+            BUTTON_H,
+            &[
+                (
+                    if d.show_hex {
+                        EN.decode_hide_the_hex
+                    } else {
+                        EN.decode_show_the_hex
+                    },
+                    Style::Secondary,
+                    Action::DecodeHex,
+                ),
+                (EN.decode_show_as_qr, Style::Secondary, Action::QrDecoded),
+            ],
+        ) + 4.0;
+    }
+    if d.show_hex && !refused {
         let th = ui.wrap_as(
             (x + 12.0, y + 10.0, w - 24.0),
             BODY_S.mono(),
