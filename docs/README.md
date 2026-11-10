@@ -98,6 +98,7 @@ need. Each document's header says what kind it is:
 - `docs/LAYOUT.md`: Layout at every window size. Built (F92): Material 3's size classes, navigation and top app bar, panes; the screens' sizes written in place are held by the `lint-tokens` ratchet.
 - `docs/ORIENTATION.md`: Panel orientation. Built (F100): a 7-inch or 10-inch panel starts in landscape, Rotation in Settings › Display turns it and its touch.
 - `docs/PREVIEW-SIZE.md`: Preview size: Faraday Demo at another screen's size. Built (F110, F118).
+- `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Built (F86, F157): Add randomness at every press that draws the system's randomness, the late seed and the Pi's generator, and the boot measurement on QEMU, a PC and the Pi.
 - `docs/QR.md`: QR transfer and scanning. Built (§7, F28: codes of public values and the TOTP secret).
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SCANNING.md`: What each scanner takes, and the way over for a code read in the wrong one. Built.
@@ -137,7 +138,6 @@ need. Each document's header says what kind it is:
 - `docs/FRAMES.md`: Frames at the panel's rate: a scroll step that moves the rows already drawn, the frame painted in bands across the cores, the Pi's panel without a conversion, the framebuffer write. Partly built: the moved frame on the compact Settings page, the stick shell taking it, the Pi's frame without a conversion and most of the framebuffer write; its Status and Open lines say the rest.
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
-- `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified, partly built (F86, F157); Add randomness at every press that draws the system's randomness (§8) built; the late seed (§3.5) built; the Pi's generator (§3.5) not built.
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Built.
