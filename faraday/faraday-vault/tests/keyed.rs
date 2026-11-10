@@ -961,3 +961,95 @@ fn pykeepass_opens_a_vault_faraday_sealed_under_a_secret_and_the_other_way() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+fn vector(name: &str) -> Vec<u8> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tools/vectors/kdbx")
+        .join(name);
+    std::fs::read(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+}
+
+/// The passphrase of the keepassxc-cli vectors (`tools/vectors/kdbx/README.md`).
+const KEEPASSXC_PASSPHRASE: &str = "kdbx vector passphrase";
+
+fn opens_to_example_and_other(bytes: &[u8], passphrase: &str, components: &Components) {
+    let o = open_as(bytes, passphrase, components).expect("opens");
+    let mut titles: Vec<&str> = o
+        .document()
+        .root()
+        .entries()
+        .filter_map(|e| e.field("Title").map(|f| f.value()))
+        .collect();
+    titles.sort_unstable();
+    assert_eq!(titles, ["Example", "Other"]);
+}
+
+fn keepassxc_key() -> Components {
+    let key = keyfile::read(&vector("keepassxc.keyx")).expect("a key file");
+    Components::with_key_file(key)
+}
+
+#[test]
+fn a_vault_keepassxc_locked_with_a_passphrase_and_a_key_file_opens_with_both() {
+    let bytes = vector("keepassxc-keyfile-password.kdbx");
+    opens_to_example_and_other(&bytes, KEEPASSXC_PASSPHRASE, &keepassxc_key());
+    assert!(is_wrong_credentials(open_as(
+        &bytes,
+        KEEPASSXC_PASSPHRASE,
+        &Components::none()
+    )));
+    assert!(is_wrong_credentials(open_as(&bytes, "b", &keepassxc_key())));
+    assert!(is_wrong_credentials(open_as(
+        &bytes,
+        KEEPASSXC_PASSPHRASE,
+        &with_key()
+    )));
+}
+
+/// A vault has a passphrase (`docs/VAULT.md` section 3.2): one keepassxc-cli
+/// locked with its key file alone is refused for having none, and a
+/// passphrase typed with that key file does not open it.
+#[test]
+fn a_vault_keepassxc_locked_with_a_key_file_alone_is_refused_for_having_no_passphrase() {
+    let bytes = vector("keepassxc-keyfile-only.kdbx");
+    let refused = open_as(&bytes, "", &keepassxc_key());
+    assert!(matches!(
+        refused,
+        Err(Error::Kdbx(kdbx::Error::EmptyPassphrase))
+    ));
+    assert!(is_wrong_credentials(open_as(
+        &bytes,
+        PASSPHRASE,
+        &keepassxc_key()
+    )));
+}
+
+/// kdbxweb (KeeWeb's library) made it with a function standing in for the
+/// YubiKey: HMAC-SHA1 under `SECRET_HEX`.
+#[test]
+fn a_vault_kdbxweb_locked_with_a_passphrase_and_a_yubikey_opens_with_its_secret() {
+    let bytes = vector("kdbxweb-yubikey-password.kdbx");
+    opens_to_example_and_other(&bytes, PASSPHRASE, &with_secret());
+    assert!(is_wrong_credentials(open_as(
+        &bytes,
+        PASSPHRASE,
+        &Components::none()
+    )));
+    assert!(is_wrong_credentials(open_as(
+        &bytes,
+        PASSPHRASE,
+        &with_key()
+    )));
+}
+
+fn open_as(bytes: &[u8], passphrase: &str, components: &Components) -> Result<Opened, Error> {
+    file::open_with(
+        &compute(),
+        bytes,
+        passphrase,
+        components,
+        &mut |_| Ok(()),
+        &mut |_, _| Ok(None),
+        None,
+    )
+}
