@@ -15,12 +15,14 @@ use faraday_psbt::diff::Side;
 use faraday_psbt::{Inspection, Psbt};
 
 /// One other transaction's result on the review, in words.
-// used by the review
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Other {
     /// The original's file name.
     pub name: String,
+    /// Where the file is in Files when the result was made: whether in
+    /// the Outbox, and its place there (the press on **Compare** names
+    /// it; a change of Files makes the results again).
+    pub place: (bool, usize),
     /// The original's unsigned transaction id.
     pub txid: Txid,
     /// What the result came to.
@@ -112,8 +114,6 @@ pub(crate) fn unsigned_txid(item: &Item) -> Option<Txid> {
 /// came as version 2) as the replacement. A file that does not read, or
 /// to which §3.1 gives no result, has none. Each other file is inspected
 /// once.
-// used by the review
-#[allow(dead_code)]
 pub(crate) fn make(
     c: &Compute,
     app: &Faraday,
@@ -153,8 +153,12 @@ pub(crate) fn make(
         let Some(b) = bump::judge(original, replacement, &loaded) else {
             continue;
         };
+        let Some(place) = place_of(app, item) else {
+            continue;
+        };
         out.push(Other {
             name: item.name.clone(),
+            place,
             txid: id,
             outcome: b.result,
             result: words::result_from(b.result, &item.name),
@@ -163,6 +167,17 @@ pub(crate) fn make(
         });
     }
     out
+}
+
+/// Where `item` is in Files: whether in the Outbox, and its place in the
+/// Inbox or the Outbox.
+pub(crate) fn place_of(app: &Faraday, item: &Item) -> Option<(bool, usize)> {
+    let same = |i: &Item| std::ptr::eq(i, item);
+    app.inbox()
+        .iter()
+        .position(same)
+        .map(|k| (false, k))
+        .or_else(|| app.outbox.iter().position(same).map(|k| (true, k)))
 }
 
 /// Costs a PSBT read; for a finished transaction also what `amounts_in`

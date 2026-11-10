@@ -399,7 +399,10 @@ fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
     let _ = app.frame();
     assert!(app.offers(Action::StartSpend(0)), "Sign");
     assert!(app.drawn_texts().iter().any(|t| t == "Sign"));
-    assert_eq!(menu_of(&mut app, Row::In(0)), ["Details", "Remove"]);
+    assert_eq!(
+        menu_of(&mut app, Row::In(0)),
+        ["Compare", "Details", "Remove"]
+    );
     choose(&mut app, "Remove");
     assert_eq!(app.sheet, None, "a choice closes the menu");
     assert!(app.inbox().is_empty(), "Remove, through the ⋮");

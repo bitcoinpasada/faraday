@@ -280,9 +280,6 @@ impl Faraday {
     /// more, here and in every open vault.
     pub(crate) fn backup_settle(&mut self) {
         let c = self.compute();
-        // A file brought into Files or removed from it while the review
-        // is open (`docs/COMPARE.md` §4.3).
-        self.refresh_others(&c);
         self.backup_move_on(&c);
         let Some(b) = self.backup.state() else {
             return;

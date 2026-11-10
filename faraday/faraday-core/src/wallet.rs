@@ -3032,6 +3032,10 @@ pub struct OutNames {
     pub part: Option<String>,
 }
 
+/// One other file's name, unsigned transaction id and place in Files, as the
+/// review's other transactions were made from them.
+pub(crate) type OtherFrom = (String, faraday_bip::bitcoin::Txid, (bool, usize));
+
 /// A transaction being signed, with its screen's state.
 pub struct SpendState {
     /// The spend.
@@ -3109,9 +3113,9 @@ pub struct SpendState {
     /// fee bump results in words (`docs/COMPARE.md` §4.3), made with the
     /// inspection and read when drawing.
     pub(crate) others: Vec<crate::compare::others::Other>,
-    /// What [`SpendState::others`] were made from: each other file's name
-    /// and unsigned transaction id. `None` until made.
-    pub(crate) others_from: Option<Vec<(String, faraday_bip::bitcoin::Txid)>>,
+    /// What [`SpendState::others`] were made from: each other file's name,
+    /// unsigned transaction id and place in Files. `None` until made.
+    pub(crate) others_from: Option<Vec<OtherFrom>>,
     /// The inspection was made again since [`SpendState::others`] were.
     pub(crate) others_stale: bool,
 }
@@ -3550,7 +3554,13 @@ impl Faraday {
             &spent,
         )
         .into_iter()
-        .map(|(i, t)| (i.name.clone(), t))
+        .filter_map(|(i, t)| {
+            Some((
+                i.name.clone(),
+                t,
+                crate::compare::others::place_of(self, i)?,
+            ))
+        })
         .collect();
         if !s.others_stale && s.others_from.as_ref() == Some(&now) {
             return;

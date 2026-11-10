@@ -1276,11 +1276,16 @@ impl Faraday {
 
 /// What an input leaves to settle.
 impl Faraday {
-    /// Costs what [`Faraday::signer_check_sync`] costs. An input that may
-    /// have loaded or dropped a key or changed Files: the backup's
-    /// checklist, then Check a signer's kept report.
+    /// Costs what [`Faraday::signer_check_sync`] and
+    /// [`Faraday::refresh_others`] cost. An input that may have loaded or
+    /// dropped a key or changed Files: the backup's checklist, the
+    /// review's other transactions (a file brought into Files or removed
+    /// from it while the review is open, `docs/COMPARE.md` §4.3), then
+    /// Check a signer's kept report.
     pub(crate) fn event_settled(&mut self) {
         self.backup_settle();
+        let c = self.compute();
+        self.refresh_others(&c);
         self.signer_check_sync();
         self.compare_sync();
     }

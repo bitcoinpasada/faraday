@@ -13432,6 +13432,9 @@ strings! {
     compare_row_finished: "Finished · {}",
     /// Compare's Result: the section label of the fee bump result.
     compare_fee_bump_label: "Fee bump",
+    /// The review's fee bump: the button that compares the PSBT under
+    /// review with the other transaction.
+    compare_from_review: "Compare",
     /// Compare's Result: the section label of the differences.
     compare_differences_label: "Differences",
     /// A file's ⋮ menu: compare this PSBT or transaction with another.

@@ -8,10 +8,11 @@
 //! `bump-core-*` files).
 
 use crate::common::texts;
+use faraday_core::compare::ComparePress;
 use faraday_core::strings::{EN, fill};
 use faraday_core::testkit;
 use faraday_core::wallet::step;
-use faraday_core::{Action, Faraday, StorageEvent};
+use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_psbt::Psbt;
 
 const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
@@ -103,9 +104,39 @@ fn pair() -> [(&'static str, Vec<u8>); 2] {
 fn the_core_replacement_says_only_the_fee_is_raised_from_the_original() {
     let mut app = reviewing(&pair(), "bump-core-replacement.psbt");
     let result = fill(EN.bump_only_fee_from, &["bump-core-original.psbt"]);
-    assert!(shows(&mut app, EN.compare_fee_bump_label), "{:?}", texts(&mut app));
+    assert!(
+        shows(&mut app, EN.compare_fee_bump_label),
+        "{:?}",
+        texts(&mut app)
+    );
     assert!(shows(&mut app, &result), "{:?}", texts(&mut app));
     assert!(!has_part(&mut app, "More than the fee changed"));
+}
+
+#[test]
+fn compare_on_the_review_opens_the_comparison_with_the_original_first_and_done_returns() {
+    let mut app = reviewing(&pair(), "bump-core-replacement.psbt");
+    // The original is the second file in Files.
+    app.press(Action::Compare(ComparePress::FromReview(false, 1)));
+    assert_eq!(app.screen, Screen::Compare);
+    assert!(shows(&mut app, EN.compare_result), "{:?}", texts(&mut app));
+    // The original is the one the replacement is judged against.
+    assert!(shows(&mut app, EN.bump_only_fee), "{:?}", texts(&mut app));
+    assert!(has_part(&mut app, "bump-core-original.psbt"));
+    assert!(has_part(&mut app, "bump-core-replacement.psbt"));
+    app.press(Action::Compare(ComparePress::Back));
+    assert_eq!(app.screen, Screen::Spend);
+    assert!(shows(&mut app, EN.compare_fee_bump_label));
+}
+
+#[test]
+fn the_review_offers_compare_on_each_other_transaction() {
+    let mut app = reviewing(&pair(), "bump-core-replacement.psbt");
+    let n = texts(&mut app)
+        .iter()
+        .filter(|t| *t == EN.compare_from_review)
+        .count();
+    assert_eq!(n, 1);
 }
 
 #[test]
@@ -129,7 +160,11 @@ fn with_no_other_transaction_there_is_no_fee_bump() {
         vector("bump-core-replacement.psbt"),
     )];
     let mut app = reviewing(&list, "bump-core-replacement.psbt");
-    assert!(!shows(&mut app, EN.compare_fee_bump_label), "{:?}", texts(&mut app));
+    assert!(
+        !shows(&mut app, EN.compare_fee_bump_label),
+        "{:?}",
+        texts(&mut app)
+    );
 }
 
 #[test]
@@ -142,7 +177,11 @@ fn a_file_of_the_same_unsigned_transaction_does_not_count() {
         ("copy.psbt", vector("bump-core-replacement.psbt")),
     ];
     let mut app = reviewing(&list, "bump-core-replacement.psbt");
-    assert!(!shows(&mut app, EN.compare_fee_bump_label), "{:?}", texts(&mut app));
+    assert!(
+        !shows(&mut app, EN.compare_fee_bump_label),
+        "{:?}",
+        texts(&mut app)
+    );
 }
 
 #[test]
@@ -155,7 +194,11 @@ fn a_file_that_spends_none_of_the_inputs_does_not_count() {
         ("demo.psbt", vector("demo-regtest.psbt")),
     ];
     let mut app = reviewing(&list, "bump-core-replacement.psbt");
-    assert!(!shows(&mut app, EN.compare_fee_bump_label), "{:?}", texts(&mut app));
+    assert!(
+        !shows(&mut app, EN.compare_fee_bump_label),
+        "{:?}",
+        texts(&mut app)
+    );
 }
 
 #[test]
@@ -171,7 +214,11 @@ fn the_original_brought_in_while_the_review_is_open_adds_the_result() {
     assert!(shows(&mut app, &result), "{:?}", texts(&mut app));
     // And taken out again, it goes.
     restore(&mut app, &only);
-    assert!(!shows(&mut app, EN.compare_fee_bump_label), "{:?}", texts(&mut app));
+    assert!(
+        !shows(&mut app, EN.compare_fee_bump_label),
+        "{:?}",
+        texts(&mut app)
+    );
 }
 
 #[test]

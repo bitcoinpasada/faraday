@@ -1,6 +1,7 @@
 //! `Screen::Spend`: signing a transaction.
 
 use super::parts::{made_place, side_panel_w, spaced};
+use crate::compare::ComparePress;
 use crate::drawing::{Scrolled, View};
 use crate::memory::nonces::History;
 use crate::review::unchecked_text;
@@ -870,7 +871,13 @@ pub(crate) fn step_body(
             // its fee bump result, as kept with the inspection
             // (`docs/COMPARE.md` §4.2).
             if !s.others.is_empty() {
-                ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.compare_fee_bump_label);
+                ui.text_as(
+                    x,
+                    cy,
+                    LABEL_L,
+                    Role::OnSurfaceVariant,
+                    EN.compare_fee_bump_label,
+                );
                 cy += ui.line_as(LABEL_L) + GAP_SMALL;
                 for o in &s.others {
                     let tone = match o.outcome {
@@ -900,7 +907,17 @@ pub(crate) fn step_body(
                             ) + 2.0;
                         }
                     }
-                    cy += GAP_SMALL;
+                    let bw = ui.measure_as(LABEL_L, EN.compare_from_review) + 2.0 * PAD;
+                    ui.button(
+                        x,
+                        cy,
+                        Some(bw.min(w)),
+                        BUTTON_H,
+                        EN.compare_from_review,
+                        Style::Secondary,
+                        Action::Compare(ComparePress::FromReview(o.place.0, o.place.1)),
+                    );
+                    cy += BUTTON_H + GAP_SMALL;
                 }
             }
             // Warnings, every one as the inspector words it, but an
