@@ -30,7 +30,7 @@
 //! recovered from it. Like message verification it takes no
 //! `Compute` token: it runs on an event, never while drawing.
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 use bitcoin::Address;
