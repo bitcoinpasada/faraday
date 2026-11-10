@@ -8853,6 +8853,18 @@ strings! {
     vault_secret_digits: "A YubiKey secret is 40 hexadecimal digits. This has {}.",
     /// Under Unlock's YubiKey secret field: something but a digit, a space or a colon was typed.
     vault_secret_stray: "A YubiKey secret is 40 hexadecimal digits, with spaces or colons between them.",
+    /// Row of that dialog: Faraday makes the key file at Create.
+    vault_make_key_file: "Make a key file",
+    /// Row of that dialog: a file in Files is the key file.
+    vault_choose_a_file: "Choose a file",
+    /// Body of that dialog.
+    vault_key_file_warning: "If this file is lost or changed, the vault cannot be opened. Keep it apart from the vault's file.",
+    /// Create a vault's closed passphrase line, after the match.
+    vault_with_key_file: "key file",
+    /// Chip on Create a vault for a key file Faraday makes. `{}`: the vault's file name without `.kdbx`.
+    vault_keyx_made_at_create: "{}.keyx · made at Create",
+    /// Create a vault: the key file could not be put in the Outbox, so no vault was made.
+    vault_key_file_not_kept: "The key file could not be put in the Outbox. No vault was made.",
     /// Under Unlock: the key file read as damaged. `{}`: its name.
     vault_key_file_damaged: "{} is damaged as a key file.",
     /// Under Unlock: the key file is empty. `{}`: its name.

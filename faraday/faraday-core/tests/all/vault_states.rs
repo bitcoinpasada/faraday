@@ -4,6 +4,7 @@
 
 use crate::common::type_text;
 use faraday_core::strings::EN;
+use faraday_core::vault::KeyChoice;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{
     Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
@@ -1509,4 +1510,145 @@ fn the_wrong_credentials_message_follows_what_was_tried_and_files_keep_the_key_f
     attempt(&mut app, PHRASE);
     said(&mut app, EN.vault_error_wrong_both);
     assert!(in_files(&app, "other.keyx") && in_files(&app, "vault.keyx"));
+}
+
+// ---- Create a vault with a key file ----
+
+/// Create vault opened and both passphrases typed, in a device whose Files
+/// hold `inbox`.
+fn create_form(inbox: Files) -> Faraday {
+    let mut app = process_at(800, 1200, inbox);
+    app.press(Action::Vault(V::Create));
+    for second in [false, true] {
+        app.press(Action::Vault(V::CFocus(0, second)));
+        type_text(&mut app, PHRASE);
+    }
+    app
+}
+
+/// Presses Create vault and waits for the run.
+fn press_create(app: &mut Faraday) {
+    app.press(Action::Vault(V::CGo));
+    for t in 1..60u64 {
+        if app.screen == Screen::Unlock
+            || app
+                .vaults()
+                .create
+                .as_ref()
+                .is_some_and(|c| c.error.is_some())
+        {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+}
+
+fn outbox_names(app: &Faraday) -> Vec<String> {
+    app.outbox.iter().map(|i| i.name.clone()).collect()
+}
+
+#[test]
+fn a_vault_made_with_a_key_file_made_at_create_opens_with_the_keyx_from_the_outbox() {
+    let mut app = create_form(Vec::new());
+    app.press(Action::Vault(V::CKeyAsk));
+    app.press(Action::Vault(V::CKeyMake));
+    assert!(
+        app.vaults()
+            .create
+            .as_ref()
+            .is_some_and(|c| c.key == KeyChoice::Make)
+    );
+    press_create(&mut app);
+    let names = outbox_names(&app);
+    assert!(names.contains(&"vault.kdbx".to_string()), "{names:?}");
+    assert!(names.contains(&"vault.keyx".to_string()), "{names:?}");
+    // The person carries the key file to Files; the vault is picked at Unlock.
+    faraday_core::testkit::outbox_to_files(
+        &mut app,
+        &["vault.keyx".to_string(), "vault.kdbx".to_string()],
+    );
+    app.press(Action::Vault(V::KeyFileAsk));
+    app.press(Action::Vault(V::KeyFileChoose));
+    attempt(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "{}", page(&mut app));
+}
+
+#[test]
+fn a_vault_made_with_a_chosen_file_opens_with_it_and_the_file_leaves_files_at_create() {
+    let mut app = create_form(vec![("mine.keyx".into(), KEY_BYTES.to_vec())]);
+    app.press(Action::Vault(V::CKeyAsk));
+    app.press(Action::Vault(V::CKeyChoose));
+    app.press(Action::Vault(V::KeyFilePick(0)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    assert!(
+        app.vaults()
+            .create
+            .as_ref()
+            .is_some_and(|c| c.key == KeyChoice::File("mine.keyx".into()))
+    );
+    press_create(&mut app);
+    assert!(!in_files(&app, "mine.keyx"));
+    assert!(!outbox_names(&app).iter().any(|n| n.ends_with(".keyx")));
+    let vault = app
+        .outbox
+        .iter()
+        .find(|i| i.name == "vault.kdbx")
+        .expect("the vault was not made")
+        .bytes
+        .clone();
+    // The same bytes brought back as a file open the vault.
+    let mut again = process_at(
+        800,
+        1200,
+        vec![
+            ("vault.kdbx".into(), vault),
+            ("mine.keyx".into(), KEY_BYTES.to_vec()),
+        ],
+    );
+    open_unlock(&mut again);
+    choose_key_file_at(&mut again, 0);
+    attempt(&mut again, PHRASE);
+    assert_eq!(again.vaults().open.len(), 1, "{}", page(&mut again));
+}
+
+fn choose_key_file_at(app: &mut Faraday, n: usize) {
+    app.press(Action::Vault(V::KeyFileAsk));
+    app.press(Action::Vault(V::KeyFilePick(n)));
+    app.press(Action::Vault(V::KeyFileChoose));
+}
+
+#[test]
+fn cancelling_the_key_file_dialog_makes_no_key_file() {
+    let mut app = create_form(Vec::new());
+    app.press(Action::Vault(V::CKeyAsk));
+    app.press(Action::Vault(V::CKeyCancel));
+    assert!(app.sheet.is_none());
+    press_create(&mut app);
+    assert!(!outbox_names(&app).iter().any(|n| n.ends_with(".keyx")));
+    assert!(outbox_names(&app).contains(&"vault.kdbx".to_string()));
+}
+
+#[test]
+fn taking_the_chip_back_before_create_makes_no_key_file() {
+    let mut app = create_form(Vec::new());
+    app.press(Action::Vault(V::CKeyAsk));
+    app.press(Action::Vault(V::CKeyMake));
+    app.press(Action::Vault(V::CKeyDrop));
+    press_create(&mut app);
+    assert!(!outbox_names(&app).iter().any(|n| n.ends_with(".keyx")));
+}
+
+#[test]
+fn a_chosen_file_that_is_damaged_is_named_and_nothing_is_made() {
+    let bad = br#"<?xml version="1.0"?><KeyFile><Meta><Version>1.0</Version></Meta><Key><Data>AA<x/>AA</Data></Key></KeyFile>"#;
+    let mut app = create_form(vec![("bad.keyx".into(), bad.to_vec())]);
+    app.press(Action::Vault(V::CKeyAsk));
+    app.press(Action::Vault(V::CKeyChoose));
+    app.press(Action::Vault(V::KeyFileChoose));
+    press_create(&mut app);
+    let said = app.vaults().create.as_ref().and_then(|c| c.error.clone());
+    assert_eq!(said.as_deref(), Some("bad.keyx is damaged as a key file."));
+    assert!(app.outbox.is_empty());
+    assert!(in_files(&app, "bad.keyx"));
 }

@@ -204,6 +204,36 @@ fn keyed_unlock(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Create a vault with a key file: the button, the dialog, the chip for a
+/// file made at Create and for a file chosen, and the closed line.
+fn create_key_file(t: &mut Tour) -> Result<(), String> {
+    only(t, vec![("backup.keyx".into(), vec![7; 32])], Vec::new());
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Create));
+    t.press(Action::Vault(V::CName));
+    type_text(t, "Family");
+    for second in [false, true] {
+        t.press(Action::Vault(V::CFocus(0, second)));
+        type_text(t, testkit::VAULT_PASSPHRASE);
+    }
+    hide_keyboard(t);
+    scroll(t, 250);
+    t.shot("create-key-file-button")?;
+    t.press(Action::Vault(V::CKeyAsk));
+    t.shot("create-key-file-dialog")?;
+    t.press(Action::Vault(V::CKeyMake));
+    hide_keyboard(t);
+    t.shot("create-key-file-chip-made")?;
+    t.press(Action::Vault(V::CKeyDrop));
+    t.press(Action::Vault(V::CKeyAsk));
+    t.press(Action::Vault(V::CKeyChoose));
+    t.shot("create-key-file-choose")?;
+    t.press(Action::Vault(V::KeyFileChoose));
+    hide_keyboard(t);
+    t.shot("create-key-file-chip-chosen")?;
+    Ok(())
+}
+
 /// A wrong passphrase stays on Unlock and says so.
 fn wrong_passphrase(t: &mut Tour, own: &[u8]) -> Result<(), String> {
     only(t, vec![("vault.kdbx".into(), own.to_vec())], Vec::new());
@@ -223,6 +253,7 @@ pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
     wrong_passphrase(t, &own)?;
 
     keyed_unlock(t)?;
+    create_key_file(t)?;
 
     // A file another program saved: no padding, other settings.
     only(

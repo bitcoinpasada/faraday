@@ -74,6 +74,8 @@ pub(crate) enum OutReason {
     StickBackup,
     /// A vault key's words or SeedQR picture saved to a stick.
     VaultStick,
+    /// A vault's key file Faraday made at Create.
+    KeyFile,
 }
 
 /// A secret on its way out, waiting for the person to say where.

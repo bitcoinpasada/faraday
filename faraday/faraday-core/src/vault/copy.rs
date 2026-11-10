@@ -507,7 +507,12 @@ fn new_for(app: &mut Faraday) {
 /// made: the item goes to it, so it is unlocked at once with
 /// the passphrase just typed twice, and the item put in when it is open.
 /// False when nothing waits for a new vault.
-pub(crate) fn made(app: &mut Faraday, name: &str, id: [u8; 16], passphrase: &str) -> bool {
+pub(crate) fn made(
+    app: &mut Faraday,
+    name: &str,
+    id: [u8; 16],
+    (passphrase, parts): (&str, Option<faraday_vault::kdbx::Components>),
+) -> bool {
     let Some(w) = app
         .vaults
         .state
@@ -531,6 +536,7 @@ pub(crate) fn made(app: &mut Faraday, name: &str, id: [u8; 16], passphrase: &str
     app.vaults.drop_create();
     app.vaults
         .unlock_with(at, passphrase, Screen::VaultContents);
+    app.vaults.set_made_parts(parts);
     app.screen = Screen::Unlock;
     crate::vault::stretch::defer(app, Work::Unlock);
     true

@@ -399,6 +399,12 @@ impl VaultArea {
         self.state.yubikey = None;
         self.state.secret_error = None;
         self.state.key_pick = 0;
+        self.state.made_parts = None;
+    }
+
+    /// The key file of a vault just made, held for the unlock at once.
+    pub(crate) fn set_made_parts(&mut self, parts: Option<faraday_vault::kdbx::Components>) {
+        self.state.made_parts = parts;
     }
 
     /// The unlock passphrase wiped, shown hidden, with no error.
@@ -1761,6 +1767,21 @@ pub struct CreateForm {
     pub shown: bool,
     /// What stops the vault being made.
     pub error: Option<String>,
+    /// The key file the vault will need, if one was added.
+    pub key: KeyChoice,
+}
+
+/// The key file Create a vault is asked to make the vault need. Nothing
+/// is made or read until **Create vault**.
+#[derive(Clone, PartialEq, Eq, Default)]
+pub enum KeyChoice {
+    /// No key file.
+    #[default]
+    None,
+    /// A key file drawn at Create.
+    Make,
+    /// This file in Files, read at Create.
+    File(String),
 }
 
 impl Default for CreateForm {
@@ -1785,6 +1806,7 @@ impl Default for CreateForm {
             from_dice: vec![None],
             shown: false,
             error: None,
+            key: KeyChoice::None,
         }
     }
 }
@@ -1927,6 +1949,14 @@ pub struct Vaults {
     pub secret_error: Option<String>,
     /// The file the key file dialog has marked, by its place in the list.
     pub key_pick: usize,
+    /// The key file dialog is Create a vault's: its Choose sets the form's
+    /// key file, not Unlock's.
+    pub key_for_create: bool,
+    /// The sheet shows Create's two ways to have a key file, not the list.
+    pub key_menu: bool,
+    /// The key file of a vault just made, held for its unlock at once
+    /// (a copy or a backup flow waiting for it), taken by that unlock.
+    pub made_parts: Option<faraday_vault::kdbx::Components>,
     /// Whether the unlock last tried used a key file and a YubiKey secret.
     pub unlock_tried: (bool, bool),
     /// The open vault on the contents screen.
@@ -3499,6 +3529,16 @@ pub enum VaultAction {
     YubiKeyDrop,
     /// The YubiKey secret field pressed.
     FocusYubiKey,
+    /// Create a vault's **Add a key file**, and its chip: the dialog.
+    CKeyAsk,
+    /// That dialog's **Make a key file**.
+    CKeyMake,
+    /// That dialog's **Choose a file**: the list of files.
+    CKeyChoose,
+    /// That dialog's **Cancel**.
+    CKeyCancel,
+    /// The chip's ×: the key file taken back.
+    CKeyDrop,
     /// A vault on that sheet pressed, by its place in the list.
     CopyPick(usize),
     /// On that sheet: what a seed carries, its choice n, kept or left out.

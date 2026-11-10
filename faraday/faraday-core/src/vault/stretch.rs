@@ -11,9 +11,11 @@ use faraday_crypto::work::Compute;
 use faraday_keys::job::{Budget, KdbxJob, Parsed, StretchJob, Stretched};
 use faraday_keys::vault::SEAL_RANDOM_LEN;
 use faraday_vault::file::STEPS_KIB;
+use faraday_vault::kdbx::{Components, keyfile};
 use faraday_vault::{Cost, records::field, records::kind};
 use zeroize::Zeroizing;
 
+use super::unlock_keys;
 use super::{APP_MIB, Need, VaultAction, Work, errors, need_mib, vault_stem};
 use crate::strings::{EN, fill};
 use crate::work::{self, VaultAct, VaultEnded};
@@ -40,7 +42,20 @@ pub(crate) enum Plan {
         first: Zeroizing<String>,
         /// The vault's root group UUID, which names it (`docs/VAULT.md` §7).
         id: [u8; 16],
+        /// The key file the vault needs: a file chosen from Files, read
+        /// at the press, or one drawn then.
+        key: Made,
     },
+}
+
+/// The key file a vault being made needs.
+pub(crate) enum Made {
+    /// None.
+    No,
+    /// A key file drawn at the press: its `.keyx` comes out of the job.
+    Drawn,
+    /// This file of Files, which leaves Files with the vault made.
+    Chosen(String),
 }
 
 /// A vault stretch to run on the worker.
@@ -181,7 +196,9 @@ fn unlock_start(app: &mut Faraday) -> bool {
     let for_import = app.sheet == Some(crate::Sheet::Import) && app.import.state().is_some();
     // The key file and the secret are read for this try and wiped as the
     // job ends; the chip and the field stay for another.
-    let Ok(components) = super::unlock_keys::parts(app) else {
+    // A vault just made unlocks at once with the key file it was made with.
+    let made = app.vaults.state.made_parts.take();
+    let Ok(components) = made.map_or_else(|| super::unlock_keys::parts(app), Ok) else {
         return false;
     };
     app.vaults.state.unlock_tried = (components.has_key_file(), components.has_yubikey());
@@ -242,6 +259,29 @@ fn create_start(app: &mut Faraday) -> bool {
     let mut seal = Zeroizing::new([0u8; SEAL_RANDOM_LEN]);
     seal.copy_from_slice(&random);
     let now = app.clock_now();
+    // A key file Create makes is drawn now, at the press; a chosen one is
+    // read now. A refused one was said by the press before this.
+    let drawn = match app.vaults.create.as_ref().map(|c| c.key.clone()) {
+        Some(super::KeyChoice::Make) => {
+            let Some(bytes) = app.fresh_bytes(b"vault key file", 32) else {
+                say_no_randomness(app);
+                return false;
+            };
+            let mut key = Zeroizing::new([0u8; 32]);
+            key.copy_from_slice(&bytes);
+            Some(key)
+        }
+        _ => None,
+    };
+    let chosen = match super::create_key::chosen(app) {
+        Ok(chosen) => chosen,
+        Err(e) => {
+            if let Some(c) = app.vaults.state.create.as_mut() {
+                c.error = Some(e);
+            }
+            return false;
+        }
+    };
     let Some(form) = app.vaults.create.as_ref() else {
         return false;
     };
@@ -278,6 +318,15 @@ fn create_start(app: &mut Faraday) -> bool {
         }
     };
     let job = StretchJob::make(id16, label.into(), cost, phrase, seal, now);
+    let (job, key) = match (drawn, chosen) {
+        (Some(random), _) => (job.making_key_file(&random), Made::Drawn),
+        (None, Some((name, parts))) => match job.keyed(parts) {
+            Ok(job) => (job, Made::Chosen(name)),
+            // Only a YubiKey's secret is refused, and Create offers none.
+            Err(_) => return false,
+        },
+        (None, None) => (job, Made::No),
+    };
     let typed = form.name.text.to_string();
     app.start(
         Job::Stretch(Box::new(StretchWork {
@@ -288,6 +337,7 @@ fn create_start(app: &mut Faraday) -> bool {
                 typed,
                 first,
                 id: id16,
+                key,
             },
         })),
         EN.working_vault_make,
@@ -307,7 +357,12 @@ pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
             sha,
             for_import,
         } => unlocked(app, stretched, (name, sha), for_import),
-        Plan::Create { typed, first, id } => created(app, stretched, &typed, &first, id),
+        Plan::Create {
+            typed,
+            first,
+            id,
+            key,
+        } => created(app, stretched, (&typed, &first), id, key),
     }
 }
 
@@ -400,7 +455,13 @@ fn unlocked(
     }
 }
 
-fn created(app: &mut Faraday, stretched: Stretched, typed: &str, first: &str, id: [u8; 16]) {
+fn created(
+    app: &mut Faraday,
+    stretched: Stretched,
+    (typed, first): (&str, &str),
+    id: [u8; 16],
+    key: Made,
+) {
     // A stick put in while the vault was made: the press's own refusal.
     if !app.stick.is_empty() {
         drop(stretched);
@@ -410,9 +471,50 @@ fn created(app: &mut Faraday, stretched: Stretched, typed: &str, first: &str, id
         }
         return;
     }
+    // A key file Create made is kept with the vault or not at all: its
+    // KeePass document must reach the Outbox, else no vault is kept.
+    let document = match key {
+        Made::Drawn => {
+            let held = stretched.key_file_document(faraday_keys::Reveal::OutboxFile(
+                faraday_keys::Part::KeyFile,
+            ));
+            match held.map(|h| h.clone()) {
+                Some(d) => Some(d),
+                None if stretched.error().is_some() => None,
+                None => {
+                    if let Some(c) = app.vaults.state.create.as_mut() {
+                        c.error = Some(EN.vault_key_file_not_kept.to_string());
+                    }
+                    return;
+                }
+            }
+        }
+        _ => None,
+    };
     match stretched.into_made() {
         Ok(file) => {
             let name = app.free_vault_name(&vault_stem(typed));
+            // The components the vault is unlocked with at once, if a
+            // waiting copy or backup flow does that.
+            let parts = match (&key, &document) {
+                (Made::Chosen(f), _) => unlock_keys::read_named(app, f)
+                    .ok()
+                    .map(Components::with_key_file),
+                (Made::Drawn, Some(d)) => keyfile::read(d).ok().map(Components::with_key_file),
+                _ => None,
+            };
+            if matches!(key, Made::Drawn) {
+                let Some(d) = document else {
+                    return;
+                };
+                let keyx = format!("{}.keyx", name.strip_suffix(".kdbx").unwrap_or(&name));
+                let item = crate::Item::new(&app.compute(), &keyx, d.to_vec());
+                app.outbox_secret(crate::secrets::OutReason::KeyFile, item);
+            }
+            if let Made::Chosen(f) = &key {
+                // The file is the vault's now: gone from Files, wiped as it drops.
+                app.inbox.retain(|i| i.name != *f);
+            }
             app.put_outbox(&name, file);
             // The file is a copy of the vault it makes: nothing in the
             // file says which, so the session's summary does.
@@ -437,13 +539,13 @@ fn created(app: &mut Faraday, stretched: Stretched, typed: &str, first: &str, id
             }
             // Made for an item that waits to go in it: unlocked at once, the
             // item put in when it is open.
-            if super::copy::made(app, &name, id, first) {
+            if super::copy::made(app, &name, id, (first, parts.clone())) {
                 app.toast(EN.vaults_vault_created);
                 return;
             }
             // Made inside a backup flow: unlocked at once with the
             // passphrase just typed twice, never leaving the flow.
-            if app.flow_vault_made(&name, first) {
+            if app.flow_vault_made(&name, (first, parts)) {
                 app.toast(EN.vaults_vault_created);
                 return;
             }

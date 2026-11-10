@@ -13,6 +13,7 @@
 mod area;
 pub(crate) mod copy;
 pub(crate) mod copy_screen;
+pub(crate) mod create_key;
 pub(crate) mod dice;
 pub(crate) mod errors;
 pub(crate) mod keep;
@@ -776,6 +777,11 @@ impl Faraday {
             V::KeyFileChoose => unlock_keys::choose(self),
             V::KeyFileCancel => unlock_keys::cancel(self),
             V::KeyFileDrop => unlock_keys::drop_key(self),
+            V::CKeyAsk => create_key::ask(self),
+            V::CKeyMake => create_key::make(self),
+            V::CKeyChoose => create_key::choose(self),
+            V::CKeyCancel => create_key::cancel(self),
+            V::CKeyDrop => create_key::drop_key(self),
             V::YubiKeyAdd => unlock_keys::add_secret(self),
             V::YubiKeyDrop => unlock_keys::drop_secret(self),
             V::FocusYubiKey => {
@@ -2282,17 +2288,25 @@ impl Faraday {
         if (0..c.phrases.len()).any(|i| !Vaults::phrase_ok(c, i)) {
             return Some((Some(vstep::PHRASES), EN.vaults_each_passphrase.to_string()));
         }
+        // A chosen key file is read here, on the press, never in drawing.
+        if let Err(e) = create_key::chosen(self) {
+            return Some((None, e));
+        }
         self.vaults.create_memory_refusal().map(|t| (None, t))
     }
 
     /// `stem.kdbx`, or the first `stem-n.kdbx` no box holds.
     pub(crate) fn free_vault_name(&self, stem: &str) -> String {
-        let taken = |n: &str| {
+        // A name is taken by a file of it or by its key file's name, so a
+        // made key file never stands in for another one.
+        let held = |n: &str| {
             self.outbox
                 .iter()
                 .chain(self.inbox.iter())
                 .any(|i| i.name.eq_ignore_ascii_case(n))
         };
+        let taken =
+            |n: &str| held(n) || held(&format!("{}.keyx", n.strip_suffix(".kdbx").unwrap_or(n)));
         let first = format!("{stem}.kdbx");
         if !taken(&first) {
             return first;

@@ -21,6 +21,7 @@ use faraday_draw::tokens::{
 use faraday_draw::widgets::Icon;
 use faraday_vault::kdbx::Components;
 use faraday_vault::kdbx::keyfile::{self, KeyFileError};
+use zeroize::Zeroizing;
 
 /// The mark that takes a chip's or a field's content away.
 const TAKE_AWAY: &str = "\u{d7}";
@@ -47,28 +48,29 @@ pub(crate) fn candidates(app: &Faraday) -> Vec<(String, usize)> {
         .collect()
 }
 
+/// The key in the file `name` of Files, read now: why it is refused
+/// otherwise, naming the file.
+pub(crate) fn read_named(app: &Faraday, name: &str) -> Result<Zeroizing<[u8; 32]>, Bad> {
+    let Some(item) = app.inbox.iter().find(|i| i.name == name) else {
+        return Err(Bad::KeyFile(fill(EN.vault_key_file_gone, &[name])));
+    };
+    keyfile::read(&item.bytes).map_err(|e| {
+        let line = match e {
+            KeyFileError::Empty => EN.vault_key_file_empty,
+            KeyFileError::Database => EN.vault_key_file_vault,
+            KeyFileError::Damaged => EN.vault_key_file_damaged,
+        };
+        Bad::KeyFile(fill(line, &[name]))
+    })
+}
+
 /// The key file and the secret
 /// Unlock has been given, as the open takes them; why one is refused
 /// otherwise, naming the file.
 pub(crate) fn parts(app: &Faraday) -> Result<Components, Bad> {
     let key = match app.vaults.unlock_key.as_deref() {
         None => None,
-        Some(name) => {
-            let Some(item) = app.inbox.iter().find(|i| i.name == name) else {
-                return Err(Bad::KeyFile(fill(EN.vault_key_file_gone, &[name])));
-            };
-            match keyfile::read(&item.bytes) {
-                Ok(k) => Some(k),
-                Err(e) => {
-                    let line = match e {
-                        KeyFileError::Empty => EN.vault_key_file_empty,
-                        KeyFileError::Database => EN.vault_key_file_vault,
-                        KeyFileError::Damaged => EN.vault_key_file_damaged,
-                    };
-                    return Err(Bad::KeyFile(fill(line, &[name])));
-                }
-            }
-        }
+        Some(name) => Some(read_named(app, name)?),
     };
     let secret = match app.vaults.yubikey.as_ref() {
         None => None,
@@ -104,6 +106,8 @@ pub(crate) fn ask(app: &mut Faraday) {
         .as_ref()
         .and_then(|n| files.iter().position(|f| &f.0 == n));
     app.vaults.state.key_pick = chosen.unwrap_or(0);
+    app.vaults.state.key_for_create = false;
+    app.vaults.state.key_menu = false;
     app.sheet = Some(Sheet::KeyFile);
 }
 
@@ -118,8 +122,15 @@ pub(crate) fn pick(app: &mut Faraday, n: usize) {
 pub(crate) fn choose(app: &mut Faraday) {
     let files = candidates(app);
     if let Some((name, _)) = files.get(app.vaults.key_pick) {
-        app.vaults.state.unlock_key = Some(name.clone());
-        app.vaults.state.unlock_error = None;
+        if app.vaults.key_for_create {
+            if let Some(c) = app.vaults.state.create.as_mut() {
+                c.key = super::KeyChoice::File(name.clone());
+                c.error = None;
+            }
+        } else {
+            app.vaults.state.unlock_key = Some(name.clone());
+            app.vaults.state.unlock_error = None;
+        }
     }
     cancel(app);
 }
@@ -129,6 +140,8 @@ pub(crate) fn cancel(app: &mut Faraday) {
     if app.sheet == Some(Sheet::KeyFile) {
         app.sheet = None;
     }
+    app.vaults.state.key_for_create = false;
+    app.vaults.state.key_menu = false;
 }
 
 /// The chip's ×.
@@ -153,23 +166,19 @@ pub(crate) fn drop_secret(app: &mut Faraday) {
     }
 }
 
-/// The two text buttons or their chip and field, under the passphrase at
-/// (x, y), `w` wide. Returns the height they take.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
-    let mut cx = x;
-    let mut cy = y;
-    let mut place = |width: f32| -> (f32, f32) {
-        if cx > x && cx + width > x + w {
-            cx = x;
-            cy += BUTTON_H + GAP_SMALL;
-        }
-        let at = (cx, cy);
-        cx += width + GAP_SMALL;
-        at
-    };
-    match app.vaults.unlock_key.as_deref() {
+/// **Add a key file**, or the input chip for the file chosen (its name and
+/// its ×), placed by `place`, which gives the corner a control `width` wide
+/// takes. `ask` is the button's and the name's action, `drop` the ×'s.
+pub(crate) fn key_slot(
+    ui: &mut Ui,
+    chosen: Option<&str>,
+    w: f32,
+    place: &mut dyn FnMut(f32) -> (f32, f32),
+    (ask, drop): (V, V),
+) {
+    let ink = Role::OnSurface;
+    let muted = Role::OnSurfaceVariant;
+    match chosen {
         None => {
             let width = ui.button_width(EN.vault_add_key_file, Style::Ghost);
             let (bx, by) = place(width);
@@ -180,7 +189,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
                 BUTTON_H,
                 EN.vault_add_key_file,
                 Style::Ghost,
-                va(V::KeyFileAsk),
+                va(ask),
             );
         }
         Some(name) => {
@@ -196,7 +205,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
             ui.text_mid_as((bx + GAP, top, FILTER_CHIP_H), LABEL_L, ink, &name);
             let touch = ui.touch.max(BUTTON_H);
             let ty = by + (BUTTON_H - touch) / 2.0;
-            ui.press_box(bx, ty, width - mark, touch, va(V::KeyFileAsk));
+            ui.press_box(bx, ty, width - mark, touch, va(ask));
             let mx = bx + width - mark;
             let glyph = ui.measure_as(LABEL_L, TAKE_AWAY);
             ui.text_mid_as(
@@ -207,15 +216,33 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
             );
             // The × is pressed over its full target, reaching into the name's.
             let reach = touch.max(mark);
-            ui.press_box(
-                mx + (mark - reach) / 2.0,
-                ty,
-                reach,
-                touch,
-                va(V::KeyFileDrop),
-            );
+            ui.press_box(mx + (mark - reach) / 2.0, ty, reach, touch, va(drop));
         }
     }
+}
+
+/// The two text buttons or their chip and field, under the passphrase at
+/// (x, y), `w` wide. Returns the height they take.
+pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let muted = Role::OnSurfaceVariant;
+    let mut cx = x;
+    let mut cy = y;
+    let mut place = |width: f32| -> (f32, f32) {
+        if cx > x && cx + width > x + w {
+            cx = x;
+            cy += BUTTON_H + GAP_SMALL;
+        }
+        let at = (cx, cy);
+        cx += width + GAP_SMALL;
+        at
+    };
+    key_slot(
+        ui,
+        app.vaults.unlock_key.as_deref(),
+        w,
+        &mut place,
+        (V::KeyFileAsk, V::KeyFileDrop),
+    );
     if app.vaults.yubikey.is_none() {
         let width = ui.button_width(EN.vault_add_yubikey, Style::Ghost);
         let (bx, by) = place(width);

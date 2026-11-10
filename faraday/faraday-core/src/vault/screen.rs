@@ -946,17 +946,24 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
             EN.vault_cost_row,
             &[name, &mib_text(mem).to_string(), &passes.to_string()],
         ),
-        fill(
-            EN.vault_kdbx,
-            &[
-                &vault::vault_stem(&c.name.text).to_string(),
-                (if ok {
-                    EN.vault_match
-                } else {
-                    EN.vault_not_finished
-                }),
-            ],
-        ),
+        {
+            let line = fill(
+                EN.vault_kdbx,
+                &[
+                    &vault::vault_stem(&c.name.text).to_string(),
+                    (if ok {
+                        EN.vault_match
+                    } else {
+                        EN.vault_not_finished
+                    }),
+                ],
+            );
+            if c.key == crate::vault::KeyChoice::None {
+                line
+            } else {
+                format!("{line} · {}", EN.vault_with_key_file)
+            }
+        },
         size,
     ]
 }
@@ -1441,6 +1448,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                     super::dice::foot(app, ui).is_some(),
                 );
             }
+            cy += super::create_key::draw(app, ui, (x, cy, w)) + tokens::GAP;
             // A small panel has no side panel: what will be made, and
             // Create vault, come after the last step's controls.
             if in_page {
