@@ -12,7 +12,7 @@ use crate::wallet::{Session, fp_text, network_name, step, txid_known};
 use crate::{Action, Screen, flow, guide};
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
 use faraday_draw::tokens::{
-    BUTTON_H, CHIP_LINE, GAP, GAP_SMALL, PAD, TABLE_AMOUNT_W, TABLE_LABEL_W, TypeRole,
+    BUTTON_H, CHIP_LINE, FACT_INDENT, GAP, GAP_SMALL, PAD, TABLE_AMOUNT_W, TABLE_LABEL_W, TypeRole,
 };
 use faraday_draw::widgets::Icon;
 use faraday_psbt::{Level, OutputKind};
@@ -887,9 +887,7 @@ pub(crate) fn step_body(
                     };
                     cy += ui.wrap_as((x, cy, w), TITLE_S, tone, &o.result) + GAP_SMALL;
                     for line in &o.lines {
-                        let used = ui.wrap_as((x + 22.0, cy, w - 22.0), BODY_M, tone, line);
-                        ui.icon(x, cy, 16.0, Icon::Warning, 10.0, tone);
-                        cy += used.max(18.0) + 6.0;
+                        cy += warning_row(ui, (x, cy, w), tone, line);
                     }
                     for fact in &o.facts {
                         ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, fact.label);
@@ -900,7 +898,7 @@ pub(crate) fn step_body(
                                 None => v.text.clone(),
                             };
                             cy += ui.wrap_as(
-                                (x + 14.0, cy, w - 14.0),
+                                (x + FACT_INDENT, cy, w - FACT_INDENT),
                                 BODY_M,
                                 Role::OnSurface,
                                 &text,
@@ -942,9 +940,7 @@ pub(crate) fn step_body(
                     (c, crate::review::warning_text(i, wn))
                 }));
             for (c, text) in lines {
-                let used = ui.wrap_as((x + 22.0, cy, w - 22.0), BODY_M, c, &text);
-                ui.icon(x, cy, 16.0, Icon::Warning, 10.0, c);
-                cy += used.max(18.0) + 6.0;
+                cy += warning_row(ui, (x, cy, w), c, &text);
                 warned = true;
             }
             // Held for want of a registered wallet: register the one the
@@ -2099,6 +2095,14 @@ fn review_stop_block(
 /// not fit side by side the button goes under the line, and where its
 /// label is wider than the column the label is a line of its own above a
 /// button reading Sign. Returns its height.
+/// One warning line of the review, its icon before it; gives the height
+/// it took with the space after it.
+fn warning_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), tone: Role, text: &str) -> f32 {
+    let used = ui.wrap_as((x + 22.0, y, w - 22.0), BODY_M, tone, text);
+    ui.icon(x, y, 16.0, Icon::Warning, 10.0, tone);
+    used.max(18.0) + 6.0
+}
+
 fn sign_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), lead: &str, label: &str, style: Style) -> f32 {
     let row = BUTTON_H + GAP_SMALL;
     let bw = ui.measure_as(TITLE_S, label) + 2.0 * PAD;

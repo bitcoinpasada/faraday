@@ -1152,6 +1152,10 @@ pub const TAG_DOT_R: f32 = 3.0;
 /// Where a status chip's label starts, past its dot.
 pub const TAG_DOT_TEXT_X: f32 = 22.0;
 
+/// A fee bump fact's values in the review: their indent under the
+/// fact's label.
+pub const FACT_INDENT: f32 = 14.0;
+
 /// A threshold pip: its width.
 pub const PIP_W: f32 = 28.0;
 

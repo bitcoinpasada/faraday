@@ -203,7 +203,7 @@ pub(crate) fn result_from(o: Outcome, name: &str) -> String {
 
 /// A whole number of sat per 1,000 vB as sat/vB.
 fn per_vb(sat_per_kvb: i64) -> f64 {
-    sat_per_kvb as f64 / 1000.0
+    sat_per_kvb as f64 / 1e3
 }
 
 /// One line of a fee bump's result.
