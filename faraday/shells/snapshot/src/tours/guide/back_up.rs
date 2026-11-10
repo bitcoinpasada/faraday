@@ -62,13 +62,17 @@ fn touch(t: &mut Tour, (x, y): (u16, u16), phase: TouchPhase) {
 }
 
 /// `chip` dragged by a finger onto `zone`: a shot on the way, over the
-/// zone, and once dropped.
+/// zone, and once dropped. On a small panel the list is Add's sheet and a
+/// chip is not dragged: it is chosen there, and the zone pressed.
 fn drag(t: &mut Tour, chip: Chip, zone: Zone, over: &str, dropped: &str) -> Result<(), String> {
     let _ = t.app.frame();
-    let from = t
-        .app
-        .where_offered(Action::Board(BP::Chip(chip)))
-        .ok_or("the chip is not on screen")?;
+    let Some(from) = t.app.where_offered(Action::Board(BP::Chip(chip))) else {
+        t.press(Action::Board(BP::OpenList));
+        t.shot_marking(over, Action::Board(BP::Chip(chip)))?;
+        t.press(Action::Board(BP::Chip(chip)));
+        t.press(Action::Board(BP::Zone(zone)));
+        return t.shot(dropped);
+    };
     let to = t
         .app
         .where_offered(Action::Board(BP::Zone(zone)))

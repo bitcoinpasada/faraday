@@ -289,6 +289,8 @@ pub(super) fn lock_and_write(
 /// page.
 pub(super) fn unlock_done(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Flow(F::UnlockDone(0)));
+    // The passphrase field is pressed to take typing.
+    t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, PHRASE);
     t.press(Action::Vault(V::Unlock));
     for _ in 0..10 {

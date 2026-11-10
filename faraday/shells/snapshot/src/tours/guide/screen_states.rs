@@ -277,6 +277,10 @@ fn sweep(t: &mut Tour) -> Result<(), String> {
     use faraday_core::catalog::{Go, TILES};
     use faraday_core::seeds::sweep::SweepAction as S;
     crate::tours::screens::stick_session(t);
+    // The WIF is a Mainnet key: the session is on Mainnet, as the guide's
+    // pictures are, whichever network the tour was asked to run on.
+    faraday_core::testkit::move_to(&mut t.app.session, faraday_bip::keys::Network::Mainnet)
+        .map_err(|e| format!("{e:?}"))?;
     // The session's clock starts now, so the idle lock does not take the
     // key the moment the shot's time passes.
     t.app.event(Event::Tick { now_ms: t.now });

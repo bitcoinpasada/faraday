@@ -198,6 +198,8 @@ fn load_from(t: &mut Tour, vault: (String, Vec<u8>)) -> Result<(), String> {
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
     t.shot_marking("vaults-unlock", Action::Vault(V::Unlock))?;
+    // On a small panel the field is pressed to take typing.
+    t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, PHRASE);
     t.press(Action::Vault(V::Unlock));
     for _ in 0..10 {
