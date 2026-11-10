@@ -46,6 +46,7 @@ say what to do; these pages say what each control on a screen does.
 | Tools | [Decode a transaction](decode.md) | The facts, inputs and outputs, the hex and its QR code |
 | Tools | [Nonce check](nonce-check.md) | A signed transaction brought in: its nonce check, Save to a stick, Decode it, the hex and its QR code |
 | Tools | [Check a signer](signer-check.md) | Sent, Returned, Result; Scan, Change, Swap, Choose again; the verdict, its facts, findings and Stated |
+| Tools | [Compare two PSBTs](compare.md) | First, Second, Result; Scan, Change, Swap, Choose again; the facts, the fee bump and the differences |
 | Tools | [Sign a message and Check a signed message](messages.md) | Address, Message, Format, Signature; the verdict, File, Address, Wallet, Message |
 | Tools | [Explore](explore.md) | A key at a path, its secrets behind their eyes; Addresses, Find an address |
 | Tools | [Derive with BIP-85](child-seeds.md) | Key, Application, Index, Value |

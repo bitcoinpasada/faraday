@@ -52,6 +52,7 @@ name, its line and its standards; the groups below scroll into view.*
 | **Transactions** | **Sign a transaction** | the spend of the PSBT in Files, or the camera |
 | | **Nonce check** | the signed spend's last card; or the nonce check of a signed PSBT or a finished transaction in Files; or the camera |
 | | **Check a signer** | Check a signer, with nothing chosen: [Check a signer](signer-check.md) |
+| | **Compare two PSBTs** | Compare two PSBTs, with nothing chosen: [Compare two PSBTs](compare.md) |
 | | **Decode a transaction** | Decode, on a transaction in Files, or the camera |
 | | **Decode a Lightning invoice** | Decode a Lightning invoice, its field open, for an invoice or an offer; Scan reads one by camera |
 | | **Check an address** | the camera |

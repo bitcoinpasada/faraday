@@ -87,8 +87,8 @@ Where Files holds another transaction that spends the same inputs, a
 "Fee bump" section after the fee says whether this one only raises the
 fee of that one ("Only the fee is raised from payment.psbt", "More than
 the fee changed from payment.psbt" or "Cannot tell whether only the fee
-is raised from payment.psbt"), with its lines and a Compare button that
-opens the two side by side. It states what changed and does not stop
+is raised from payment.psbt"), with its lines and a **Compare** button that
+opens the two side by side in [Compare two PSBTs](compare.md). It states what changed and does not stop
 signing.
 
 Where a check stops the spend, the card says why under the rows, and
