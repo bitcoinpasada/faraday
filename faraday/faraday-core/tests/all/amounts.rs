@@ -60,20 +60,47 @@ fn the_same_transaction_with_other_amounts_is_refused_across_a_lock() {
     let kept = kept(&mut app);
 
     // A fresh process, as after a lock, offered the same transaction with
-    // its input stating one satoshi more.
+    // its input stating one satoshi more. The previous transaction is left
+    // out, as it would state the amount the input no longer does, so the
+    // refusal is the memory's and not that warning's.
     let mut changed = psbt.inner().clone();
     changed.inputs[0].witness_utxo.as_mut().unwrap().value +=
         faraday_bip::bitcoin::Amount::from_sat(1);
+    changed.inputs[0].non_witness_utxo = None;
     let changed = faraday_psbt::Psbt::from(changed);
     let mut app = faraday_core::testkit::started();
     offer(&mut app, &changed, kept.clone());
     let s = app.spend().unwrap();
     assert!(s.spend.signed_here.is_empty());
-    assert!(s.error.as_deref().is_some_and(|e| e.contains("refused")));
+    assert_eq!(s.error.as_deref(), Some(faraday_strings::EN.sign_here_this_transaction));
 
     // The same amounts again sign.
     let mut app = faraday_core::testkit::started();
     offer(&mut app, &psbt, kept);
+    assert!(!app.spend().unwrap().spend.signed_here.is_empty());
+}
+
+#[test]
+fn a_changed_transaction_is_not_taken_for_the_one_signed_before() {
+    let psbt = spending();
+    let mut app = faraday_core::testkit::started();
+    offer(&mut app, &psbt, Vec::new());
+    let kept = kept(&mut app);
+
+    // One output paying a satoshi less and the input stating one satoshi
+    // more: another transaction, so the memory holds nothing of it and it
+    // signs. Both are changed so that a memory keyed on the inputs alone
+    // would refuse it for the amount, and one keyed on the amounts alone
+    // would not tell it from the first. The previous transaction is left
+    // out, as it would state the amount the input no longer does.
+    let mut changed = psbt.inner().clone();
+    changed.inputs[0].witness_utxo.as_mut().unwrap().value +=
+        faraday_bip::bitcoin::Amount::from_sat(1);
+    changed.inputs[0].non_witness_utxo = None;
+    changed.unsigned_tx.output[0].value -= faraday_bip::bitcoin::Amount::from_sat(1);
+    let changed = faraday_psbt::Psbt::from(changed);
+    let mut app = faraday_core::testkit::started();
+    offer(&mut app, &changed, kept);
     assert!(!app.spend().unwrap().spend.signed_here.is_empty());
 }
 

@@ -107,10 +107,12 @@ def btclib_reads(raw):
             "weight": tx.weight}
 
 
-def core_reads(raw):
+def core_reads(raw, answer=None):
     """Core's `decoderawtransaction`, which reads the bytes whole or not at
-    all. Its answer holds no bytes: they are `raw`."""
-    answer = core_node.answers([("decoderawtransaction", raw.hex())])[0]
+    all. Its answer holds no bytes: they are `raw`. `answer` is one already
+    asked for."""
+    if answer is None:
+        answer = core_node.answers([("decoderawtransaction", raw.hex())])[0]
     if answer[0] == "err":
         return answer
     tx = answer[1]
@@ -197,8 +199,8 @@ class Tx(Area):
     name = "tx"
     CORE = True
     faraday = (
-        "`faraday_psbt::transaction::read_raw`, `bitcoin`'s `SighashCache` as "
-        '`faraday_psbt::sign` calls it'
+        "`faraday_psbt::transaction::read_raw`, `faraday_core::decode::decode`'s txid, wtxid and "
+        "output addresses, `bitcoin`'s `SighashCache` as `faraday_psbt::sign` calls it"
     )
     reference = (
         "btclib's `Tx.parse` and `sig_hash` (`btclib/`); Bitcoin Core v31.1's "
@@ -218,11 +220,18 @@ class Tx(Area):
     )
     corpus = (
         'random transactions with and without witnesses (txid, wtxid, weight, bytes) read by '
-        "btclib and Core's `decoderawtransaction`, cut or lengthened; every input hashed as "
+        "btclib and Core's `decoderawtransaction`, cut or lengthened, and shown by Faraday's "
+        "Decode view (txid, wtxid, each output's address, none where Core gives none) against "
+        "Core's; every input hashed as "
         'legacy, BIP-143 P2WPKH and P2WSH, BIP-341 key and script path under every hash '
         'type, by btclib and the framework'
     )
     differences = [
+        (
+            'Decode refuses a transaction whose outputs total over 21,000,000 BTC, as Core '
+            "does not in `decoderawtransaction`; the corpus asks Decode only of transactions "
+            'within that total.'
+        ),
         (
             'Legacy sighash: `bitcoin` hashes the script code as given, Core and btclib '
             "remove every OP_CODESEPARATOR first. Faraday's legacy spends (P2PKH, P2SH "
@@ -252,6 +261,20 @@ class Tx(Area):
                 return ours[1]
             return agreed([("btclib", ours), ("core", core)])
         return self.compare("tx.read", {"raw": raw.hex()}, ref)
+
+    def decode_tx(self, raw):
+        """Faraday's Decode view of `raw` against Core's `decoderawtransaction`: the
+        txid, the wtxid (Core's `hash`) and each output's address, none where Core
+        gives none (Decode then shows the script's hex)."""
+        def ref():
+            answer = core_node.answers([("decoderawtransaction", raw.hex())])[0]
+            core = core_reads(raw, answer)
+            if core[0] == "err":
+                raise Refused(core[1])
+            answer = answer[1]
+            return {"txid": answer["txid"], "wtxid": answer["hash"],
+                    "addresses": [o["scriptPubKey"].get("address") for o in answer["vout"]]}
+        return self.compare("tx.decode", {"raw": raw.hex()}, ref)
 
     def sighash(self, mode, tx, index, ht, expected=None, **kw):
         raw = tx.serialize()
@@ -320,7 +343,7 @@ class Tx(Area):
 
     def random_script(self):
         rng = self.rng
-        kind = rng.randrange(6)
+        kind = rng.randrange(11)
         if kind == 0:
             return b"\x76\xa9\x14" + self.randbytes(20) + b"\x88\xac"
         if kind == 1:
@@ -333,6 +356,18 @@ class Tx(Area):
             return b"\x51\x20" + self.randbytes(32)
         if kind == 4:
             return b"\x20" + self.randbytes(32) + b"\xac"
+        if kind == 5:
+            return b"\xa9\x14" + self.randbytes(20) + b"\x87"
+        if kind == 6:
+            return b"\x00\x20" + self.randbytes(32)
+        if kind == 7:
+            size = rng.choice([n for n in range(2, 41) if n != 32])
+            return b"\x51" + bytes([size]) + self.randbytes(size)
+        if kind == 8:
+            size = rng.randint(2, 40)
+            return bytes([0x50 + rng.randint(2, 16), size]) + self.randbytes(size)
+        if kind == 9:
+            return b"\x51\x02\x4e\x73"
         return self.randbytes(rng.randint(0, 60))
 
     def random_tx(self):
@@ -361,6 +396,10 @@ class Tx(Area):
         tx = self.random_tx()
         raw = tx.serialize()
         self.read_tx(raw)
+        # Decode refuses outputs totalling over 21,000,000 BTC (a rule of
+        # Faraday's, which Core's `decoderawtransaction` does not have).
+        if sum(o.nValue for o in tx.vout) <= 21 * 10**14:
+            self.decode_tx(raw)
         if rng.random() < 0.3:
             bad = rng.choice([raw[:-rng.randint(1, min(10, len(raw)))], raw + b"\x00",
                               raw[:4] + b"\x00\x01" + raw[4:]])

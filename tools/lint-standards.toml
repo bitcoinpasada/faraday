@@ -91,10 +91,6 @@ file = "faraday/faraday-core/src/signing.rs"
 reason = "Reads a part-signed PSBT's unsigned transaction with faraday-psbt, which the stamp covers, only to tell whether a file waiting in the Outbox is another pass of the same transaction. No secret; no signature is made or checked here."
 
 [[uncovered]]
-file = "faraday/faraday-core/src/decode/mod.rs"
-reason = "Decode's view of a transaction: each output's address with rust-bitcoin's `Address::from_script`, and the txid and wtxid with rust-bitcoin's `compute_txid` and `compute_wtxid`. No secret; no F79 area runs it."
-
-[[uncovered]]
 file = "faraday/faraday-core/src/decode/check.rs"
 reason = "Check a signer's report in words and its view of the two PSBTs: the txids come from rust-bitcoin's `compute_txid`, and the comparison and the nonce recomputation are faraday-psbt's `signer::check` and faraday-keys' `recompute_signatures_all`, which the stamp covers. No secret; no F79 area runs it."
 
@@ -143,16 +139,12 @@ file = "faraday/faraday-core/src/inbox.rs"
 reason = "Reads a derivation path's steps to tell a wallet's kind; computes nothing."
 
 [[uncovered]]
-file = "faraday/faraday-core/src/keygen/mod.rs"
-reason = "`device_own`: SHA-256 of the device's draw and the person's own randomness (docs/OWN-RANDOMNESS.md §2.3). Area own-randomness states the formula and its reference computes it, but stamp.py's FILES do not name this file."
-
-[[uncovered]]
 file = "faraday/faraday-core/src/lib.rs"
 reason = "`Faraday::address_note` parses a typed address with rust-bitcoin to name its network; computes nothing on a secret."
 
 [[uncovered]]
 file = "faraday/faraday-core/src/memory/mod.rs"
-reason = "SHA-256 of an unsigned transaction (rust-bitcoin), the key of the signed-amount memory (F136); no F79 area runs it."
+reason = "`tx_hash` and `stated`: SHA-256 of the unsigned transaction's serialization (rust-bitcoin), the key of the signed-amount memory (F136), which the device compares only with keys it made itself. No outside implementation computes it, so no area judges it; faraday-core's tests/all/amounts.rs pins that a spend signed once is recognised again and a changed one is not."
 
 [[uncovered]]
 file = "faraday/faraday-core/src/receipt.rs"

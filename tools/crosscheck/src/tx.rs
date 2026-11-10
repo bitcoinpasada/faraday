@@ -2,7 +2,9 @@
 //! `faraday_psbt::transaction::read_raw` with its txid, wtxid and
 //! serialisation, and the four signature hashes `faraday_psbt::sign`
 //! asks `bitcoin`'s `SighashCache` for (legacy, BIP-143 for P2WPKH and
-//! P2WSH, BIP-341's key path and script path).
+//! P2WSH, BIP-341's key path and script path), and the txid, wtxid and
+//! each output's address of Faraday's Decode view
+//! (`faraday_core::decode::decode`, on a regtest session).
 
 use bitcoin::hashes::Hash;
 use bitcoin::sighash::{Prevouts, SighashCache};
@@ -34,9 +36,40 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 "weight": tx.weight().to_wu(),
             }))
         }
+        "decode" => decode(req),
         "sighash" => sighash(req),
         _ => Err(format!("unknown tx op {name}")),
     }
+}
+
+/// The Decode view of a raw transaction: its txid, its wtxid and each
+/// output's address, null where Decode shows the script's hex because the
+/// script has no address.
+fn decode(req: &Value) -> Answer {
+    use faraday_bip::keys::Network;
+    let tx = faraday_psbt::transaction::read_raw(text(req, "raw").as_bytes())
+        .ok_or("not a transaction")?;
+    let session = faraday_core::wallet::Session::on(Network::Regtest);
+    let shown = faraday_core::decode::decode(
+        &faraday_core::testkit::compute(),
+        &tx,
+        &[],
+        &session,
+        "crosscheck",
+    )?;
+    let addresses: Vec<Value> = shown
+        .outputs
+        .iter()
+        .zip(&tx.output)
+        .map(|(shown, out)| {
+            if shown.address == hex(out.script_pubkey.as_bytes()) {
+                Value::Null
+            } else {
+                json!(shown.address)
+            }
+        })
+        .collect();
+    Ok(json!({"txid": shown.txid, "wtxid": shown.wtxid, "addresses": addresses}))
 }
 
 /// A signature hash of the kind `mode` names.
