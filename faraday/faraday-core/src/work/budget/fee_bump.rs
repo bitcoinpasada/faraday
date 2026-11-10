@@ -118,3 +118,50 @@ fn the_file_coming_in_counts_the_one_inspection() {
     restore(&mut app);
     assert_eq!(since(&before).of(Work::PsbtInspect), 0);
 }
+
+#[test]
+fn a_touch_or_key_with_a_finished_transaction_in_files_reads_no_file() {
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![
+            files().remove(0),
+            (
+                "bump-core-original.tx".into(),
+                vector("bump-core-original.tx"),
+            ),
+        ],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, ABANDON, "", None).unwrap();
+    app.press(Action::StartSpend(0));
+    if app.spend().unwrap().open != Some(step::TRANSACTION) {
+        app.press(Action::Step(step::TRANSACTION));
+    }
+    assert!(!app.spend().unwrap().others.is_empty());
+    let _ = app.frame();
+    let before = snapshot();
+    app.event(Event::Hover { x: 40, y: 200 });
+    app.event(Event::Wheel {
+        x: 40,
+        y: 200,
+        dy: 48,
+    });
+    let _ = app.frame();
+    app.press(Action::Step(step::TRANSACTION));
+    app.press(Action::Step(step::TRANSACTION));
+    let _ = app.frame();
+    let touched = since(&before);
+    for k in crate::work::KINDS {
+        if crate::work::PIXELS.contains(&k) {
+            continue;
+        }
+        assert_eq!(
+            touched.of(k),
+            0,
+            "{k:?} with a finished transaction in Files"
+        );
+    }
+}

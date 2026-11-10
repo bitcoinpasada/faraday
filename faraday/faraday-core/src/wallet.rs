@@ -1593,6 +1593,10 @@ pub struct Classified {
     /// The outpoints a PSBT or a finished transaction spends, sorted;
     /// empty for any other file.
     pub outpoints: Vec<OutPoint>,
+    /// The id of the unsigned transaction a PSBT or a finished
+    /// transaction holds (a finished one with its signatures taken off,
+    /// as a PSBT holds it); `None` for any other file.
+    pub unsigned_txid: Option<Txid>,
 }
 
 impl From<FileKind> for Classified {
@@ -1602,8 +1606,18 @@ impl From<FileKind> for Classified {
             psbt: None,
             wallet: None,
             outpoints: Vec::new(),
+            unsigned_txid: None,
         }
     }
+}
+
+/// The id of `tx` with its signatures taken off, as a PSBT holds it.
+fn unsigned_id(mut tx: Transaction) -> Txid {
+    for i in &mut tx.input {
+        i.script_sig = faraday_bip::bitcoin::ScriptBuf::new();
+        i.witness = faraday_bip::bitcoin::Witness::new();
+    }
+    tx.compute_txid()
 }
 
 /// The outpoints `tx` spends, sorted.
@@ -1638,6 +1652,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
             psbt: Some(PsbtSeen::of(&p)),
             wallet: None,
             outpoints: sorted_outpoints(p.unsigned_tx()),
+            unsigned_txid: Some(p.unsigned_tx().compute_txid()),
         };
     }
     if crate::scan_read::is_qr_vault(bytes) {
@@ -1671,6 +1686,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
                 psbt: None,
                 wallet: Some(w),
                 outpoints: Vec::new(),
+                unsigned_txid: None,
             };
         }
         if crate::create::read_key(text).is_some() {
@@ -1695,6 +1711,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         {
             return Classified {
                 outpoints: sorted_outpoints(&tx),
+                unsigned_txid: Some(unsigned_id(tx)),
                 ..FileKind::Transaction.into()
             };
         }

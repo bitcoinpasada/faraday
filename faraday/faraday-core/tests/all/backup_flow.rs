@@ -2942,6 +2942,7 @@ fn with_a_plain_file(app: &mut Faraday) {
         wallet: None,
         psbt: None,
         outpoints: Vec::new(),
+        unsigned_txid: None,
     };
     app.outbox.push(note);
     for f in faraday_core::testkit::flows_mut(app) {

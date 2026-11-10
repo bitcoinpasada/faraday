@@ -7,7 +7,7 @@ use crate::Faraday;
 use crate::decode::raw_as_psbt;
 use crate::item::Item;
 use crate::wallet::{self, FileKind};
-use faraday_bip::bitcoin::{OutPoint, Transaction, Txid};
+use faraday_bip::bitcoin::{OutPoint, Txid};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_psbt::bump::{self, Outcome};
@@ -41,7 +41,7 @@ pub(crate) struct Other {
 /// `outpoints`, with the files of one transaction taken once (the first
 /// PSBT among them, else the first finished transaction), each with its
 /// unsigned transaction's id, in Files' order. Reads no file again: the
-/// outpoints and the PSBT's id are the ones kept when the file came in.
+/// outpoints and the unsigned transaction's id are the ones kept when the file came in.
 pub(crate) fn counting<'a>(
     files: impl IntoIterator<Item = &'a Item>,
     txid: Txid,
@@ -54,7 +54,7 @@ pub(crate) fn counting<'a>(
         {
             continue;
         }
-        let Some(id) = unsigned_txid(item) else {
+        let Some(id) = item.unsigned_txid else {
             continue;
         };
         if id == txid {
@@ -85,24 +85,6 @@ pub(crate) fn shares(a: &[OutPoint], b: &[OutPoint]) -> bool {
         }
     }
     false
-}
-
-/// A PSBT's unsigned
-/// transaction's id, kept when the file came in; a finished transaction's
-/// with its signatures taken off, as a PSBT holds it.
-pub(crate) fn unsigned_txid(item: &Item) -> Option<Txid> {
-    match item.kind {
-        FileKind::Psbt => item.psbt().map(|p| p.txid),
-        FileKind::Transaction => {
-            let mut tx: Transaction = faraday_psbt::transaction::read_raw(&item.bytes)?;
-            for i in &mut tx.input {
-                i.script_sig = faraday_bip::bitcoin::ScriptBuf::new();
-                i.witness = faraday_bip::bitcoin::Witness::new();
-            }
-            Some(tx.compute_txid())
-        }
-        _ => None,
-    }
 }
 
 /// Costs a PSBT read and an `inspect` of each

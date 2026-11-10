@@ -14,6 +14,7 @@ use faraday_core::testkit;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_psbt::Psbt;
+use faraday_shell_api::App;
 
 const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon abandon abandon \
                        abandon abandon about";
@@ -116,8 +117,14 @@ fn the_core_replacement_says_only_the_fee_is_raised_from_the_original() {
 #[test]
 fn compare_on_the_review_opens_the_comparison_with_the_original_first_and_done_returns() {
     let mut app = reviewing(&pair(), "bump-core-replacement.psbt");
-    // The original is the second file in Files.
-    app.press(Action::Compare(ComparePress::FromReview(false, 1)));
+    // The button the review draws on the original.
+    let _ = app.frame();
+    let press = app
+        .drawn_actions()
+        .into_iter()
+        .find(|a| matches!(a, Action::Compare(ComparePress::FromReview(..))))
+        .expect("the review draws a Compare button");
+    app.press(press);
     assert_eq!(app.screen, Screen::Compare);
     assert!(shows(&mut app, EN.compare_result), "{:?}", texts(&mut app));
     // The original is the one the replacement is judged against.

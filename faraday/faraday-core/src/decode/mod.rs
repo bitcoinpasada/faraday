@@ -1445,7 +1445,7 @@ impl Faraday {
             } else {
                 &self.inbox[k]
             };
-            compare::others::unsigned_txid(item).and_then(|txid| {
+            item.unsigned_txid.and_then(|txid| {
                 let files = self.inbox.iter().chain(self.outbox.iter());
                 match compare::others::counting(files, txid, &item.outpoints).as_slice() {
                     [(one, _)] => {
@@ -1473,6 +1473,23 @@ impl Faraday {
         let Some(first) = self.compare_item(outbox, k) else {
             return;
         };
+        // The file at this place is the one the result was made from.
+        let item = if outbox {
+            self.outbox.get(k)
+        } else {
+            self.inbox.get(k)
+        };
+        let held = self.wallets.spend().is_some_and(|s| {
+            s.others_from.as_ref().is_some_and(|from| {
+                from.iter().any(|(name, txid, place)| {
+                    *place == (outbox, k)
+                        && item.is_some_and(|i| i.name == *name && i.unsigned_txid == Some(*txid))
+                })
+            })
+        });
+        if !held {
+            return;
+        }
         let second = self.wallets.spend().map(|s| {
             let bytes = s
                 .spend

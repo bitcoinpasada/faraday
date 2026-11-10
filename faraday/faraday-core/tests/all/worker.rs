@@ -1198,6 +1198,7 @@ mod signing {
                         wallet: None,
                         psbt: None,
                         outpoints: Vec::new(),
+                        unsigned_txid: None,
                     },
                 );
                 let at_whole = other.inbox().len() - 1;
@@ -1299,6 +1300,7 @@ mod signing {
                     wallet: None,
                     psbt: None,
                     outpoints: Vec::new(),
+                    unsigned_txid: None,
                 },
             );
             let at_copy = app.inbox().len() - 1;
@@ -1379,6 +1381,7 @@ mod signing {
                     wallet: None,
                     psbt: None,
                     outpoints: Vec::new(),
+                    unsigned_txid: None,
                 },
             );
             let last = app.inbox().len() - 1;

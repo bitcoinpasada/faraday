@@ -374,6 +374,7 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
         wallet: None,
         psbt: None,
         outpoints: Vec::new(),
+        unsigned_txid: None,
     });
     let _ = app.frame();
     assert!(

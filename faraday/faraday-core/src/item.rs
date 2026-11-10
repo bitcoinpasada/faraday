@@ -45,6 +45,10 @@ pub struct Item {
     /// read once when the file came in, as [`Item::psbt`] is; empty for
     /// any other file.
     pub outpoints: Vec<faraday_bip::bitcoin::OutPoint>,
+    /// The id of the unsigned transaction a PSBT or a finished
+    /// transaction holds, read once when the file came in; `None` for any
+    /// other file.
+    pub unsigned_txid: Option<faraday_bip::bitcoin::Txid>,
 }
 
 /// Prints the name, the byte count and the `secret` flag, never the bytes:
@@ -77,6 +81,7 @@ impl Item {
             psbt,
             wallet,
             outpoints,
+            unsigned_txid,
         } = wallet::classify_read(c, name, &bytes);
         let sha =
             matches!(kind, FileKind::Vault | FileKind::EfiImage).then(|| sha256_of(c, &bytes));
@@ -94,6 +99,7 @@ impl Item {
             wallet,
             psbt,
             outpoints,
+            unsigned_txid,
         }
     }
 

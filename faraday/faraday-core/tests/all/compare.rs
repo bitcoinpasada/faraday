@@ -133,23 +133,52 @@ fn compare_on_the_replacement_opens_with_the_original_first_and_the_result_shown
 #[test]
 fn swap_makes_the_comparison_again() {
     let mut app = pair();
+    let before = texts(&mut app);
+    let at = |t: &[String], name: &str| t.iter().position(|l| l == name);
+    let (first, second) = (
+        at(&before, "original.psbt").expect("First"),
+        at(&before, "replacement.psbt").expect("Second"),
+    );
+    assert!(first < second, "{before:?}");
     app.press(Action::Compare(ComparePress::Swap));
     assert_eq!(app.screen, Screen::Compare);
-    let t = texts(&mut app);
-    assert!(t.iter().any(|l| l == EN.compare_result), "{t:?}");
+    let after = texts(&mut app);
+    let (first, second) = (
+        at(&after, "original.psbt").expect("Second"),
+        at(&after, "replacement.psbt").expect("First"),
+    );
+    assert!(second < first, "{after:?}");
+    assert!(after.iter().any(|l| l == EN.compare_result), "{after:?}");
+    // Swapped, the original is the replacement: the fee is not judged as raised.
+    assert!(!after.iter().any(|l| l == EN.bump_cannot_tell), "{after:?}");
+    assert_ne!(before, after);
 }
 
 #[test]
 fn change_opens_a_card_and_choosing_a_file_compares_again() {
-    let mut app = pair();
+    let mut app = with_files(vec![
+        ("original.psbt", original()),
+        ("replacement.psbt", replacement()),
+        ("added.psbt", vector("bump-core-added.psbt")),
+    ]);
+    app.press(Action::Nav(Screen::Files));
+    choose_compare(&mut app, Row::In(1));
+    // Two files spend the same inputs: nothing is chosen for First.
+    app.press(Action::Compare(ComparePress::Pick(Slot::First, 0)));
+    assert!(shows(&mut app, "original.psbt"));
+    assert!(shows(&mut app, EN.bump_cannot_tell));
     app.press(Action::Compare(ComparePress::Card(1)));
     let t = texts(&mut app);
     assert!(t.iter().any(|l| l == "original.psbt"), "{t:?}");
-    app.press(Action::Compare(ComparePress::Pick(Slot::Second, 0)));
+    // The third file against the replacement: a comparison of its own.
+    app.press(Action::Compare(ComparePress::Pick(Slot::First, 2)));
     assert_eq!(app.screen, Screen::Compare);
-    // The same file against itself: nothing differs.
-    app.press(Action::Compare(ComparePress::Card(2)));
-    assert!(shows(&mut app, EN.compare_result));
+    let t = texts(&mut app);
+    assert!(t.iter().any(|l| l == "added.psbt"), "{t:?}");
+    assert!(t.iter().any(|l| l == "replacement.psbt"), "{t:?}");
+    assert!(!t.iter().any(|l| l == "original.psbt"), "{t:?}");
+    assert!(t.iter().any(|l| l == EN.compare_result), "{t:?}");
+    assert!(t.iter().any(|l| l == EN.bump_more_changed), "{t:?}");
 }
 
 #[test]
@@ -167,7 +196,12 @@ fn a_scanned_psbt_reaches_its_card_and_not_files() {
     read(&mut app, &replacement());
     assert_eq!(app.screen, Screen::Compare);
     assert!(app.inbox().is_empty());
-    assert!(shows(&mut app, EN.compare_result));
+    // Both scans were compared: the replacement is judged against the original.
+    assert!(
+        shows(&mut app, EN.bump_cannot_tell),
+        "{:?}",
+        texts(&mut app)
+    );
 }
 
 #[test]
