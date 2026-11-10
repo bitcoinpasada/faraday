@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F190, amending F189; F208; F226; F227); the app reads and seals KDBX 4 file vaults, each seal under the vault's own passphrase, growing by itself from 32 KiB to 128 MiB and at the memory step at or above its own; `faraday-pgp` holds the QR vault's OpenPGP message (§1.2), which `faraday-vault`'s `qr` seals and opens as one call; the app makes a QR vault code, opens one with its offers, and saves a file vault's item as one; the first format's account is in `docs/history/VAULT-LOG.md`
-**Open:** not built: key files and a YubiKey's typed secret in the app (§3.2, F208: built: `faraday-vault` reads the key file forms and makes the composite key, key files checked against pykeepass and `keepassxc-cli`, and the YubiKey's response against kdbxweb, KeeWeb's library; not built: the unlock's two choices, what a seal holds in `faraday-keys`, Key file on the vault's ⋮, offering a key file, and the YubiKey checks F208 names: KeePassXC's own test file and `keepassxc-cli` through a stand-in for the key, which judge KeePassXC's padding of the challenge) and nonce records (§7, F227)
+**Open:** not built: key files and a YubiKey's typed secret in the app (§3.2, F208: built: `faraday-vault` reads the key file forms and makes the composite key, key files checked against pykeepass and `keepassxc-cli`, and the YubiKey's response against kdbxweb, KeeWeb's library; `faraday-keys` holds a vault's key file and secret for its seals, with add, replace and remove of a key file, Remove YubiKey secret and a made key file's document, as calls; not built: the unlock's two choices, Key file on the vault's ⋮, offering a key file, and the YubiKey checks F208 names: KeePassXC's own test file and `keepassxc-cli` through a stand-in for the key, which judge KeePassXC's padding of the challenge) and nonce records (§7, F227)
 
 A vault is one file encrypted under one passphrase with Argon2id, in
 one of two published formats (F190):
@@ -564,7 +564,10 @@ input is not covered, and reads as wrong credentials.
 8. Compare the seal count with what the session has seen (§11).
 
 Neither the key file, its name, nor the secret is remembered once the
-vault is locked (§11).
+vault is locked (§11). Built: an open vault keeps them in `faraday-keys`
+(`OpenVaults::unlock_with`, `StretchJob::keyed`), and every seal writes the
+file under them, unless `set_key_file` or `remove_yubikey` changed them
+for that seal; a failed seal keeps what the file had.
 
 **What a crafted file may ask the reader to hold.** Two format limits keep
 a small file from asking for more memory than F206 point 4's check

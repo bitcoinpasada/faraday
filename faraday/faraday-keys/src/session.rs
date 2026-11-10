@@ -180,6 +180,8 @@ pub enum Part {
     /// A codex32 string of the key's set, a share (`docs/CODEX32.md`
     /// §9.5): a file of it on a stick, or a share record in a vault.
     Codex32,
+    /// A key file Faraday made for a vault, as a KeePass key file.
+    KeyFile,
 }
 
 impl Reveal {

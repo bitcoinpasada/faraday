@@ -458,6 +458,15 @@ impl Opened {
         self.doc.vault_id()
     }
 
+    /// A lookup. Whether the file was opened with a key file and with a
+    /// YubiKey's secret, which its seals write again.
+    pub fn components_held(&self) -> (bool, bool) {
+        (
+            self.components.has_key_file(),
+            self.components.has_yubikey(),
+        )
+    }
+
     /// Why the vault is not changed or sealed, if it is not.
     pub fn read_only(&self) -> Option<ReadOnly> {
         self.read.why_read_only()
@@ -600,6 +609,11 @@ pub struct Rekey<'a> {
     pub passphrase: Option<&'a str>,
     /// The memory the Argon2id run takes, in KiB: one of [`STEPS_KIB`].
     pub memory_kib: Option<u32>,
+    /// The key file's key the seal writes: `Some(None)` takes the key file
+    /// out, `Some(Some(key))` adds or replaces it; none keeps the file's own.
+    pub key_file: Option<Option<&'a [u8; 32]>>,
+    /// Takes the YubiKey's secret out of the seal.
+    pub drop_yubikey: bool,
 }
 
 /// Costs what [`seal_with`] costs. [`seal_with`] with no new passphrase and
@@ -651,10 +665,13 @@ pub fn seal_with(
         Some(p) => p,
         None => core::str::from_utf8(&opened.passphrase).map_err(|_| kdbx::Error::Damaged)?,
     };
+    let components = opened
+        .components
+        .changed(rekey.key_file, rekey.drop_yubikey);
     let sealing = kdbx::derive_with(
         c,
         passphrase,
-        &opened.components,
+        &components,
         opened.next_cost_at(rekey.memory_kib),
         random,
     )?;

@@ -71,6 +71,24 @@ impl Components {
         self.yubikey.is_some()
     }
 
+    /// What these become at a seal that changes them: `key_file` is
+    /// `Some(None)` to take the key file out, `Some(Some(key))` to add or
+    /// replace it and `None` to keep it; `drop_yubikey` takes the secret
+    /// out. A secret is never added (F208 point 5).
+    pub fn changed(&self, key_file: Option<Option<&[u8; 32]>>, drop_yubikey: bool) -> Components {
+        Components {
+            key_file: match key_file {
+                None => self.key_file.clone(),
+                Some(k) => k.map(|k| Zeroizing::new(*k)),
+            },
+            yubikey: if drop_yubikey {
+                None
+            } else {
+                self.yubikey.clone()
+            },
+        }
+    }
+
     /// What `salt` is changed to at a seal: a salt ending `0x20` becomes
     /// one ending `0x21` when a YubiKey secret is held, so no seal rests on
     /// the key's padding rule (F208 point 6). The bytes are the file's own

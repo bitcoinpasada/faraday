@@ -111,6 +111,24 @@ Moved to `docs/history/KEYS-LOG.md`.
   `SecretText`, never read back, and replaced or wiped with the slot; a
   `SealJob` gets one copy that wipes with the job, so a seal that fails
   keeps the pending passphrase for a retry.
+  A vault's key file (32 bytes) and YubiKey secret (20 bytes) are held
+  in the same way (`faraday_vault::kdbx::Components`, moved
+  into `StretchJob::keyed`, lent to `OpenVaults::unlock_with` and cloned
+  into the opened file, wiped as it drops, never shown): every seal writes them back
+  unless `set_key_file` (add, replace or remove) or `remove_yubikey` is
+  pending, and a `SealJob` gets one copy of a pending key file that wipes
+  with the job. `OpenVaults::needs` says which the next seal writes. A
+  key file leaves only if Faraday made it (`OpenVaults::make_key_file`, or
+  `StretchJob::making_key_file` at a make; "made" means the caller drew
+  fresh randomness for it, which the store cannot check), as its KeePass document through
+  `OpenVaults::key_file_document` or `Stretched::key_file_document`, held
+  for `Reveal::OutboxFile(Part::KeyFile)` like `gpg_revocation_file`. A
+  drawn key is written only after its document is taken: until then a seal,
+  a lock's included, writes the file under the key file it had, and
+  `needs` says so. A document comes only from the draw that made the
+  vault's key, and a failed make gives none. A
+  key file chosen (`set_key_file`) or opened with has no way out. A make
+  never takes a YubiKey's secret (F208): `StretchJob::keyed` refuses it.
 - **A signing job** (`job::SignJob`, WORKERS §6) shares the keys, it does
   not copy them. The store holds each master key behind an `Arc` that is
   never opened for change: a change of network makes a new key

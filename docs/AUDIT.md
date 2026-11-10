@@ -78,7 +78,7 @@ auditor can state from it:
   private key (F125), a seed's entropy sealed as a Krux encrypted code, and the item a QR vault was opened to (F226). The vault entry, the file and the stick name the
   part they carry (`Part`: words, passphrase, SeedQR picture, password,
   TOTP secret, note, entry notes, revocation certificate, scan key, node
-  key). A secret that leaves is lent (`Revealed`) or held (`Held`): not
+  key, a key file Faraday made for a vault). A secret that leaves is lent (`Revealed`) or held (`Held`): not
   `Clone`, not `Debug`, wiped on drop.
 - **Types that hold a secret are opaque outside the crate:** the silent
   payments `Receiver`, a Lightning `Node`, a key made from fresh entropy

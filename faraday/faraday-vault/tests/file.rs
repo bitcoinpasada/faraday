@@ -158,6 +158,7 @@ fn contents_past_the_largest_vault_are_refused_by_the_bytes_over_and_the_vault_s
     let rekey = file::Rekey {
         passphrase: None,
         memory_kib: None,
+        ..Default::default()
     };
     let before = o.used(&compute(), &[]).unwrap();
     let err = file::seal_with(&compute(), &o, &changes, rekey, &random(7), Some(NOW)).err();
@@ -597,6 +598,7 @@ fn a_seal_under_a_new_passphrase_and_step_opens_under_the_new_and_not_the_old() 
     let rekey = Rekey {
         passphrase: Some("battery staple"),
         memory_kib: Some(STEPS_KIB[1]),
+        ..Default::default()
     };
     let sealed = file::seal_with(&compute(), &o, &[], rekey, &random(3), Some(NOW + 5)).unwrap();
     // The header states the new cost; the count is one higher.
@@ -630,6 +632,7 @@ fn a_seal_refuses_an_empty_passphrase_and_a_step_that_is_none_and_can_be_retried
     let empty = Rekey {
         passphrase: Some(""),
         memory_kib: None,
+        ..Default::default()
     };
     assert!(matches!(
         file::seal_with(&compute(), &o, &[], empty, &random(2), None),
@@ -638,11 +641,13 @@ fn a_seal_refuses_an_empty_passphrase_and_a_step_that_is_none_and_can_be_retried
     let odd = Rekey {
         passphrase: None,
         memory_kib: Some(100_000),
+        ..Default::default()
     };
     assert!(file::seal_with(&compute(), &o, &[], odd, &random(2), None).is_err());
     let retry = Rekey {
         passphrase: Some("new one"),
         memory_kib: None,
+        ..Default::default()
     };
     let sealed = file::seal_with(&compute(), &o, &[], retry, &random(2), None).unwrap();
     assert_eq!(open(&sealed, "new one").read().seals, 2);

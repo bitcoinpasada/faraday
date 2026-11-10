@@ -20,6 +20,7 @@ use faraday_intake::secret_buf::SecretText;
 use faraday_vault as fv;
 use zeroize::Zeroizing;
 
+use crate::session::{Held, Part, Reveal};
 use crate::vault::{Built, Names, Op, SEAL_RANDOM_LEN, with_changes};
 
 /// What a compressed file's plaintext may take: asked with the plaintext
@@ -51,12 +52,17 @@ enum What {
         /// What the whole body may take; none: no check.
         parsed: Option<Parsed>,
         passphrase: SecretText,
+        /// The key file's key and the YubiKey's secret the file needs.
+        components: fv::kdbx::Components,
     },
     Make {
         id: [u8; 16],
         label: Box<str>,
         cost: fv::Cost,
         passphrase: SecretText,
+        components: fv::kdbx::Components,
+        /// The KeePass document of a key file drawn for this make.
+        document: Option<Zeroizing<Vec<u8>>>,
         random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
         now: Option<u64>,
     },
@@ -65,7 +71,13 @@ enum What {
 /// What a [`StretchJob`] gives back.
 pub struct Stretched {
     out: Out,
+    /// The KeePass document of the key file a make drew.
+    document: Option<Zeroizing<Vec<u8>>>,
 }
+
+/// A make was given a YubiKey's secret: Faraday never sets one up (F208).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyedRefused;
 
 enum Out {
     Opened(Result<Box<OpenedSlot>, fv::file::Error>),
@@ -103,11 +115,55 @@ impl StretchJob {
             what: What::Open {
                 file,
                 passphrase,
+                components: fv::kdbx::Components::none(),
                 room,
                 budget,
                 parsed,
             },
         }
+    }
+
+    /// This job for a vault that also needs a key file's key or a
+    /// YubiKey's secret (`docs/VAULT.md` §3.2, F208): an open gives them to
+    /// the file, a make writes the file under the key file. They are moved
+    /// in and wipe as the job ends; the opened vault keeps them for its
+    /// seals. Faraday never sets a YubiKey up (F208): a make given a secret
+    /// is refused and gives nothing back; the job and its components wipe
+    /// as they drop.
+    pub fn keyed(mut self, with: fv::kdbx::Components) -> Result<StretchJob, KeyedRefused> {
+        match &mut self.what {
+            What::Open { components, .. } => *components = with,
+            What::Make {
+                components,
+                document,
+                ..
+            } => {
+                if with.has_yubikey() {
+                    return Err(KeyedRefused);
+                }
+                *components = with;
+                // A document only comes from the draw that made the key.
+                *document = None;
+            }
+        }
+        Ok(self)
+    }
+
+    /// A make that also draws a new key file from `random` (drawn by the
+    /// caller for this and nothing else): the file needs it, and
+    /// [`Stretched::key_file_document`] gives its KeePass document. Not for
+    /// an open: the job is returned as it was.
+    pub fn making_key_file(mut self, random: &[u8; 32]) -> StretchJob {
+        if let What::Make {
+            components,
+            document,
+            ..
+        } = &mut self.what
+        {
+            *components = fv::kdbx::Components::with_key_file(Zeroizing::new(*random));
+            *document = Some(fv::kdbx::keyfile::write(random));
+        }
+        self
     }
 
     /// A vault to make (`faraday_vault::file::create`): the root group's
@@ -128,6 +184,8 @@ impl StretchJob {
                 label,
                 cost,
                 passphrase,
+                components: fv::kdbx::Components::none(),
+                document: None,
                 random,
                 now,
             },
@@ -139,18 +197,21 @@ impl StretchJob {
     /// GPG key of an opened file. Everything the job held is wiped as it
     /// ends.
     pub fn run(self, c: &Compute) -> Stretched {
+        let mut document = None;
         let out = match self.what {
             What::Open {
                 file,
                 passphrase,
+                components,
                 room,
                 budget,
                 parsed,
             } => Out::Opened(
-                fv::file::open_within(
+                fv::file::open_with(
                     c,
                     &file,
                     passphrase.as_str(),
+                    &components,
                     &mut |plain| budget.as_ref().map_or(Ok(()), |b| b(plain)),
                     &mut |doc, att| parsed.as_ref().map_or(Ok(None), |p| p(doc, att)),
                     room,
@@ -173,23 +234,45 @@ impl StretchJob {
                 label,
                 cost,
                 passphrase,
+                components,
+                document: made,
                 random,
                 now,
-            } => Out::Made(fv::file::create(
-                c,
-                id,
-                &label,
-                cost,
-                passphrase.as_str(),
-                &random,
-                now,
-            )),
+            } => {
+                document = made;
+                Out::Made(fv::file::create_holding(
+                    c,
+                    id,
+                    &label,
+                    cost,
+                    passphrase.as_str(),
+                    &components,
+                    &random,
+                    now,
+                    &[],
+                ))
+            }
         };
-        Stretched { out }
+        Stretched { out, document }
     }
 }
 
 impl Stretched {
+    /// Reveal: the KeePass key file of the key a make drew
+    /// ([`StretchJob::making_key_file`]), for `why` (`Reveal::OutboxFile`
+    /// of `Part::KeyFile`), to be written to a stick (`docs/KEYS.md` §2).
+    /// `None` for a make that drew none or failed, an open, or another reason.
+    pub fn key_file_document(&self, why: Reveal) -> Option<Held<Zeroizing<Vec<u8>>>> {
+        if !matches!(why, Reveal::OutboxFile(Part::KeyFile)) {
+            return None;
+        }
+        if !matches!(self.out, Out::Made(Ok(_))) {
+            return None;
+        }
+        let d = self.document.as_ref()?;
+        Some(Held::of(d.clone()))
+    }
+
     /// Why the run failed, if it did. A lookup.
     pub fn error(&self) -> Option<fv::file::Error> {
         match &self.out {
@@ -229,6 +312,9 @@ pub struct SealJob {
     /// A new passphrase (a copy that wipes with the job) and a new memory
     /// step, when the seal takes them.
     rekey: (Option<SecretText>, Option<u32>),
+    /// The key file's key the seal writes (`Some(None)`: none) and whether
+    /// it leaves out the YubiKey's secret; wiped with the job.
+    parts: (Option<Option<Zeroizing<[u8; 32]>>>, bool),
     random: Zeroizing<[u8; SEAL_RANDOM_LEN]>,
     now: Option<u64>,
 }
@@ -245,6 +331,7 @@ impl SealJob {
         ops: Result<Vec<Op>, fv::file::Error>,
         names: Names,
         rekey: (Option<SecretText>, Option<u32>),
+        parts: (Option<Option<Zeroizing<[u8; 32]>>>, bool),
         random: &[u8; SEAL_RANDOM_LEN],
         now: Option<u64>,
     ) -> SealJob {
@@ -253,6 +340,7 @@ impl SealJob {
             ops,
             names,
             rekey,
+            parts,
             random: Zeroizing::new(*random),
             now,
         }
@@ -268,6 +356,8 @@ impl SealJob {
                 let rekey = fv::file::Rekey {
                     passphrase: self.rekey.0.as_ref().map(SecretText::as_str),
                     memory_kib: self.rekey.1,
+                    key_file: self.parts.0.as_ref().map(|k| k.as_deref()),
+                    drop_yubikey: self.parts.1,
                 };
                 fv::file::seal_with(c, &self.opened, changes, rekey, &self.random, self.now)
             }),
