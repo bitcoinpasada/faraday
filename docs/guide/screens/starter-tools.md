@@ -11,14 +11,14 @@
 
 ![Tools: the Transfer card with Open Transfer, and the Blank templates card with Open blank templates](../pictures/starter-tools.png)
 
-*Tools: **Transfer** (**Send and Receive**) with **Open Transfer**, and **Blank templates** (**Words, SeedQR, codex32 and Krux code**) with **Open blank templates**.*
+*Tools: **Transfer** (**Send files and text, Receive**) with **Open Transfer**, and **Blank templates** (**Words, SeedQR, codex32 and Krux code**) with **Open blank templates**.*
 
 | Card | Line | Button |
 |---|---|---|
-| **Transfer** | **Send and Receive** | **Open Transfer**, the primary button: opens Faraday's own [Transfer](qr-and-scan.md#transfer) under the Starter's top app bar, which reads **Transfer** with the way back to **Tools** |
+| **Transfer** | **Send files and text, Receive** | **Open Transfer**, the primary button: opens Faraday's own [Transfer](qr-and-scan.md#transfer) under the Starter's top app bar, which reads **Transfer** with the way back to **Tools** |
 | **Blank templates** | **Words, SeedQR, codex32 and Krux code** | **Open blank templates**: opens [Blank templates](#blank-templates) |
 
-![Transfer opened from the Starter's Tools: payment.psbt in Downloads under Send, Scan with the camera and Open folder under Receive](../pictures/starter-tools-send.png)
+![Transfer opened from the Starter's Tools: payment.psbt in Downloads under Send, the Send text card with Paste and Show as QR, Scan with the camera and Open folder under Receive](../pictures/starter-tools-send.png)
 
 *Transfer opened from Tools, under the top app bar that reads **Transfer** over **Tools**: **Send** lists Downloads (`payment.psbt`, and a photo dimmed as **Over 262.1 KB**), **Receive** holds **Scan with the camera** and **Open folder**. After a file is received, "Saved …" and its path are under the buttons ([Transfer](qr-and-scan.md#transfer)).*
 

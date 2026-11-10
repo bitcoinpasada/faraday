@@ -38,12 +38,12 @@ Press **Tools** on the rail. It holds two cards
 
 | Card | Line | Button |
 |---|---|---|
-| **Transfer** | **Send and Receive** | **Open Transfer** (steps 2 and 3) |
+| **Transfer** | **Send files and text, Receive** | **Open Transfer** (steps 2 and 3) |
 | **Blank templates** | **Words, SeedQR, codex32 and Krux code** | **Open blank templates** (step 4) |
 
 ## 2. Send a file to Faraday
 
-![Transfer: Send lists payment.psbt, 2.3 KB, and IMG_0412.jpg greyed, Over 262.1 KB; Receive beside it](../pictures/starter-tools-send.png)
+![Transfer: Send lists payment.psbt, 2.3 KB, and IMG_0412.jpg greyed, Over 262.1 KB; Send text and Receive beside it](../pictures/starter-tools-send.png)
 
 Press **Open Transfer**. **Transfer** opens as a page of its own; the
 way back at the top left returns to **Tools**. It has two parts side by
