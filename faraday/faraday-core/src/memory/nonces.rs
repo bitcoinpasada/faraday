@@ -147,6 +147,9 @@ pub(crate) struct NonceHistory {
     on: bool,
     /// Goes up when the history changes.
     generation: u64,
+    /// How many distinct entries `held` and `pending` hold together,
+    /// counted when they change, so drawing only reads it.
+    remembered: usize,
 }
 
 impl Default for NonceHistory {
@@ -158,6 +161,7 @@ impl Default for NonceHistory {
             unreadable: Vec::new(),
             on: true,
             generation: 0,
+            remembered: 0,
         }
     }
 }
@@ -191,6 +195,7 @@ impl NonceHistory {
             self.unreadable.push((id, unreadable));
         }
         self.generation += 1;
+        self.recount();
     }
 
     /// A vault closed: what it held leaves.
@@ -205,6 +210,7 @@ impl NonceHistory {
                 self.pending_index = Arc::default();
             }
             self.generation += 1;
+            self.recount();
         }
     }
 
@@ -232,6 +238,7 @@ impl NonceHistory {
         if added {
             self.trim(at);
             self.generation += 1;
+            self.recount();
         }
     }
 
@@ -269,10 +276,29 @@ impl NonceHistory {
     }
 
     /// How many signatures are remembered: what the open vaults held when
-    /// they were read, and what waits for a vault.
+    /// they were read, and what waits for a vault, each signature once
+    /// however many of them hold it.
     pub(crate) fn remembered(&self) -> usize {
-        let count = |i: &Index| i.values().map(Vec::len).sum::<usize>();
-        self.held.iter().map(|(_, h)| count(h)).sum::<usize>() + count(&self.pending_index)
+        self.remembered
+    }
+
+    /// Costs a walk of every held map and of pending's. Counts the distinct
+    /// entries again, when they change, never while drawing.
+    fn recount(&mut self) {
+        let mut seen = std::collections::BTreeSet::new();
+        for index in self
+            .held
+            .iter()
+            .map(|(_, h)| h)
+            .chain([&self.pending_index])
+        {
+            for ((key, r), msgs) in index.iter() {
+                for msg in msgs {
+                    seen.insert((*key, *r, *msg));
+                }
+            }
+        }
+        self.remembered = seen.len();
     }
 
     /// The vaults whose records were read.

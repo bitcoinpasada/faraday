@@ -211,6 +211,19 @@ fn the_same_signature_again_is_not_refused_and_the_vault_says_so() {
 }
 
 #[test]
+fn a_signature_the_vault_holds_and_checked_again_here_counts_once() {
+    let (d, k) = (key(3), key(9));
+    let (a, b) = (signed(0, &d, &k), signed(1, &d, &key(10)));
+    let mut app = with_named_vault(&[&a, &a, &b]);
+    remembered(&mut app);
+    assert_eq!(app.nonces_remembered(), 1);
+    let _ = check_file(&mut app, 2);
+    assert_eq!(app.nonces_remembered(), 1);
+    let _ = check_file(&mut app, 3);
+    assert_eq!(app.nonces_remembered(), 2);
+}
+
+#[test]
 fn another_key_with_the_same_r_is_not_refused() {
     let k = key(9);
     let (a, b) = (signed(0, &key(3), &k), signed(1, &key(4), &k));
