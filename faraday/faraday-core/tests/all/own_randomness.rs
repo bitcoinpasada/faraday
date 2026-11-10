@@ -1453,6 +1453,7 @@ fn home_says_nothing_at_start_however_long_the_seed_takes() {
 fn a_signing_round_waits_for_the_seed_and_opens_by_itself() {
     let mut app = musig_device(false);
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(waiting_shown(&mut app));
     assert!(our_nonce(&app).is_none());
@@ -1467,6 +1468,7 @@ fn a_waiting_press_gives_up_after_a_minute_and_does_nothing() {
     let mut app = musig_device(false);
     app.event(Event::Tick { now_ms: 1_000 });
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(waiting_shown(&mut app));
     app.event(Event::Tick { now_ms: 62_000 });
@@ -1491,6 +1493,7 @@ fn with_the_seed_in_a_press_does_not_wait() {
     let mut app = musig_device(false);
     answer(&mut app, SEED);
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(!waiting_shown(&mut app));
     assert!(our_nonce(&app).is_some());
