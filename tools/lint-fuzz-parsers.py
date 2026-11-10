@@ -8,10 +8,10 @@ an entry of tools/fuzz-parsers.toml, when an entry names a function that is
 no longer there, or when its fuzz target is not a file or does not mention
 the function's name. Entries for faraday/ are checked the same way against
 faraday/, but a new parser there is not required to be listed. Code after
-the first `#[cfg(test)]` of a file is not read. Run from anywhere; `just
-lint` does. It also fails when the "The targets" table of fuzz/README.md or
-faraday/fuzz/README.md lacks a `[[bin]]` target of its Cargo.toml, or lists
-one that is not there. The standard library only.
+a file's first inline `#[cfg(test)]` module (`mod tests {`) is not read.
+Run from anywhere; `just lint` does. It also fails when the "The targets"
+table of fuzz/README.md or faraday/fuzz/README.md lacks a `[[bin]]` target
+of its Cargo.toml, or lists one that is not there. The standard library only.
 """
 import pathlib
 import re
@@ -25,6 +25,7 @@ FN = re.compile(
     r"^\s*pub(?:\([a-z]+\))?\s+(?:const\s+)?fn\s+"
     r"((?:parse|decode)\w*|from_bytes|from_str|from_slice)\b\s*(?:<[^>]*>)?\(([^)]*)\)",
     re.S | re.M)
+TEST_MOD = re.compile(r"^#\[cfg\(test\)\]\s*\n\s*(?:pub(?:\(\w+\))?\s+)?mod\s+\w+\s*\{", re.M)
 TAKES = re.compile(r"&\s*(?:'\w+\s+)?(?:\[u8\]|str)|AsRef<\[u8\]>|impl AsRef<str>|Vec<u8>")
 
 
@@ -41,9 +42,9 @@ def parsers(prefix):
         if not (ROOT / f).exists():
             continue
         text = (ROOT / f).read_text(encoding="utf-8")
-        cut = text.find("#[cfg(test)]")
-        if cut >= 0:
-            text = text[:cut]
+        cut = TEST_MOD.search(text)
+        if cut:
+            text = text[:cut.start()]
         for m in FN.finditer(text):
             if TAKES.search(m.group(2)):
                 found.add((f, m.group(1)))

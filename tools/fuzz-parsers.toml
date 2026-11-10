@@ -277,6 +277,11 @@ fn = "parse"
 target = "faraday/fuzz/fuzz_targets/image_list.rs"
 
 [[parser]]
+file = "faraday/faraday-pgp/src/message.rs"
+fn = "parse"
+target = "faraday/fuzz/fuzz_targets/pgp_message.rs"
+
+[[parser]]
 file = "core/faraday-codec/src/cbor.rs"
 fn = "decode"
 target = "faraday/fuzz/fuzz_targets/ur_registry.rs"
