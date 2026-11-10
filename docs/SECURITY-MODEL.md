@@ -154,7 +154,10 @@ internal error rather than carrying on.
   keyboards, new ones are ignored until Faraday starts again. A held device asks only once it is used, and one that never acts is
   never believed. What is plugged in while Faraday starts is trusted, as
   the person chose it, and one notice lists the external USB devices for
-  10 s, which only its × or Escape from a trusted keyboard dismisses, never a held device (F202). A new
+  10 s, which only its × or Escape from a trusted keyboard dismisses, never a held device (F202). A held device used while the lock notice
+  after an idle lock shows takes the screen with its sheet, the notice
+  waits under it and returns once the device is let in or kept out; the
+  device's input does not put the lock or the power-off off, which may come while its sheet is up. A new
   pointer is ignored until a person approves it with a trusted pointer, or,
   while nothing trusted can point (a trusted keyboard does not), until it
   presses targets as a touchscreen does, or Enter on a trusted keyboard lets

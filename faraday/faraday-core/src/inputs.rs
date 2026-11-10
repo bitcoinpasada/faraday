@@ -194,6 +194,9 @@ pub(crate) struct InputsArea {
     decisions: VecDeque<(u32, bool)>,
     /// What was plugged in at start, and when the first frame drew it.
     boot_notice: Option<(String, Option<u64>)>,
+    /// The lock notice waits under a held device's sheet, and comes back
+    /// when the device is decided.
+    locked_under: bool,
 }
 
 /// How long the list of what was plugged in at start shows, from the
@@ -205,6 +208,17 @@ impl InputsArea {
     /// The list of what was plugged in at start, while it shows.
     pub(crate) fn boot_notice(&self) -> Option<&str> {
         self.boot_notice.as_ref().map(|(t, _)| t.as_str())
+    }
+
+    /// The lock notice is set aside for a held device's sheet, or back.
+    pub(crate) fn set_locked_under(&mut self, on: bool) {
+        self.locked_under = on;
+    }
+
+    /// Whether the lock notice waits under a held device's sheet; clears
+    /// it.
+    pub(crate) fn take_locked_under(&mut self) -> bool {
+        std::mem::take(&mut self.locked_under)
     }
 
     /// The devices held back.
@@ -731,6 +745,11 @@ impl Faraday {
         } else if self.sheet == Some(Sheet::Devices) {
             self.devices.over_inputs = true;
             self.sheet = None;
+        } else if self.sheet == Some(Sheet::Locked) {
+            // The lock notice has no way to be answered by a held device:
+            // the device's sheet takes the screen and the notice returns.
+            self.inputs.set_locked_under(true);
+            self.sheet = None;
         }
         if self.sheet.is_none() {
             self.sheet = Some(Sheet::NewInput);
@@ -867,6 +886,9 @@ impl Faraday {
                 } else {
                     let import = self.import.take_under_input();
                     self.sheet = (import && self.import.state().is_some()).then_some(Sheet::Import);
+                }
+                if self.inputs.take_locked_under() && self.sheet.is_none() {
+                    self.sheet = Some(Sheet::Locked);
                 }
                 // A device that came due while the sheet was up.
                 self.device_sheet();

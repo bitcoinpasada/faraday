@@ -1422,3 +1422,115 @@ fn over_a_form_the_keyboard_can_tab_to_ignore_and_press_it() {
     assert_eq!(app.poll_input_decision(), Some((2, false)));
     assert_eq!(&*testkit::entry(&app).typed, "a");
 }
+
+const MIN: u64 = 60_000;
+
+fn tick_to(app: &mut Faraday, ms: u64) {
+    app.event(Event::Tick { now_ms: ms });
+}
+
+/// An app with a wallet loaded and its randomness given, on a screen.
+fn session_with_wallet(seed: u8) -> Faraday {
+    let kit = testkit::kits()
+        .into_iter()
+        .find(|k| k.id == "spending")
+        .unwrap();
+    let mut app = on_screen(seed);
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("spending-wallet.txt".into(), kit.descriptor.into_bytes())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::LoadWallet(0));
+    app
+}
+
+/// The app that follows an idle lock, with the lock notice up and no
+/// trusted keyboard or pointer.
+fn after_lock() -> Faraday {
+    let mut app = session_with_wallet(7);
+    tick_to(&mut app, 0);
+    tick_to(&mut app, 30 * MIN);
+    assert!(app.restart_requested());
+    let mut kept = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let faraday_core::StorageCommand::SaveBoxes { kept: k, .. } = c {
+            kept = k;
+        }
+    }
+    let mut next = on_screen(7);
+    next.storage(StorageEvent::Restored {
+        inbox: Vec::new(),
+        outbox: Vec::new(),
+        kept,
+    });
+    next.storage(StorageEvent::InputTrust {
+        pointer: false,
+        keyboard: false,
+    });
+    let _ = next.frame();
+    assert_eq!(next.sheet, Some(Sheet::Locked));
+    next
+}
+
+fn used_pointer(app: &mut Faraday, id: u32) {
+    announce(app, id, "USB Mouse", (false, true, false));
+    app.storage(StorageEvent::InputUsed { id });
+    let _ = app.frame();
+}
+
+#[test]
+fn a_pointer_used_under_the_lock_notice_gets_its_sheet_and_presses_beside_do_nothing() {
+    let mut app = after_lock();
+    let continue_at = app.where_offered(Action::Cancel);
+    used_pointer(&mut app, 3);
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    let aside = beside(&app, 3);
+    tap_held(&mut app, 3, aside);
+    if let Some(at) = continue_at {
+        tap_held(&mut app, 3, at);
+    }
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert_eq!(app.poll_input_decision(), None);
+    assert!(!app.holds_secret());
+}
+
+#[test]
+fn a_pointer_let_in_under_the_lock_notice_brings_the_notice_back() {
+    let mut app = after_lock();
+    used_pointer(&mut app, 3);
+    get_in(&mut app, 3);
+    assert_eq!(app.poll_input_decision(), Some((3, true)));
+    assert_eq!(app.sheet, Some(Sheet::Locked));
+}
+
+#[test]
+fn a_keyboard_used_under_the_lock_notice_shows_its_code_and_its_enter_does_nothing() {
+    let mut app = after_lock();
+    announce(&mut app, 4, "USB Keyboard", (true, false, false));
+    app.storage(StorageEvent::InputTyped { id: 4, ch: 'q' });
+    let _ = app.frame();
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert!(app.new_inputs()[0].code.is_some());
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert_eq!(app.sheet, Some(Sheet::NewInput));
+    assert_eq!(app.poll_input_decision(), None);
+    let code = code_of(&app);
+    type_on(&mut app, 4, &code);
+    assert_eq!(app.poll_input_decision(), Some((4, true)));
+    assert_eq!(app.sheet, Some(Sheet::Locked));
+}
+
+#[test]
+fn a_device_used_during_the_idle_warning_leaves_it_up_and_the_lock_comes_on_time() {
+    let mut app = session_with_wallet(7);
+    tick_to(&mut app, 0);
+    tick_to(&mut app, 26 * MIN);
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    used_pointer(&mut app, 3);
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    tick_to(&mut app, 29 * MIN);
+    assert!(!app.restart_requested());
+    tick_to(&mut app, 30 * MIN);
+    assert!(app.restart_requested());
+}
