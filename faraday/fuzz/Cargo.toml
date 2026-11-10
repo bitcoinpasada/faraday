@@ -29,6 +29,7 @@ faraday-storage = { path = "../faraday-storage" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-kef = { path = "../faraday-kef" }
 faraday-ots = { path = "../faraday-ots" }
+faraday-sqlite = { path = "../faraday-sqlite" }
 faraday-boot = { path = "../faraday-boot" }
 # `pe_image` signs any image (`sign-any`); `release_sums` checks a
 # release's sums with faraday-pgp (F134).
@@ -146,6 +147,13 @@ bench = false
 [[bin]]
 name = "kef"
 path = "fuzz_targets/kef.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "sqlite"
+path = "fuzz_targets/sqlite.rs"
 test = false
 doc = false
 bench = false

@@ -29,6 +29,8 @@ faraday-keys = { path = "../../faraday/faraday-keys" }
 faraday-vault = { path = "../../faraday/faraday-vault" }
 # Krux's encrypted code (KEF), sealed and opened.
 faraday-kef = { path = "../../faraday/faraday-kef" }
+# The SQLite reader, read against Python's `sqlite3`.
+faraday-sqlite = { path = "../../faraday/faraday-sqlite" }
 # The OpenPGP message's size (`RANDOM_LEN`) the QR vault seals with.
 faraday-pgp = { path = "../../faraday/faraday-pgp" }
 # The session's fresh randomness and what a person adds of their own

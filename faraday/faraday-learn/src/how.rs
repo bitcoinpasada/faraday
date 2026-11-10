@@ -426,6 +426,19 @@ static AREA_KEF: Area = Area {
 };
 
 #[rustfmt::skip]
+static AREA_SQLITE: Area = Area {
+    area: "sqlite",
+    code: &[p("faraday_sqlite::Database (open, tables, rows)")],
+    second: &[p("SQLite itself, through CPython's sqlite3 module (the version is printed at the start of the area), by the SQLite developers."), p("Checked first: The rows SQLite returns for the bytes are the answer, with the table names of sqlite_schema; the databases are made by SQLite, and the cases that SQLite reads and Faraday refuses are asked of Faraday alone."), w("none; index pages are not read by Faraday and the rows are SQLite's answer.")],
+    vectors: &[p("none; the reader's tests read databases SQLite made (faraday/faraday-sqlite/tests/).")],
+    random: &[p("Random one-table databases at each page size from 512 to 65,536, with blobs from empty to several pages (overflow chains of every length), several transactions with rows deleted between them, and a second table in some; the same with one byte changed.")],
+    differences: &[p("SQLite reads the write-ahead-log form, auto-vacuum databases and UTF-16 databases, and a database with a table of any shape; Faraday reads the rollback-journal form with UTF-8 text and a table of two blob columns only, and refuses the rest. Each is asked of Faraday and counted."), p("SQLite parses the CREATE statements of the schema and refuses a database whose text is not valid SQL; Faraday reads a table's name and root page from its schema row and does not parse the statement. A changed byte in the schema page that SQLite refuses as a malformed schema, and Faraday reads, is not a mismatch.")],
+    when: &[p("Before every release, with a new seed and about ten times the cases.")],
+    seed: "f5323df3236fe849ac651d1ece2ab4c3",
+    cases: 0,
+};
+
+#[rustfmt::skip]
 static AREA_CODEX32_CORRECT: Area = Area {
     area: "codex32-correct",
     code: &[p("faraday_bip::codex32::correct")],
@@ -1592,6 +1605,22 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A written passphrase is printable ASCII of at most 200 characters; a read one is tried as typed, in NFC and in NFD."), p("A code that inflates past 100 KiB does not open."), p("A count over 550,000 is not written; PBKDF2 runs in steps of 5,000 rounds and stops when told.")],
         own_calls: &[p("What Krux refuses to write is refused here, and a refusal names a version that works. Conservative, F219.")],
         screens: &["KefTool"],
+        learn: "other_backups",
+    },
+    Block {
+        id: "sqlite",
+        name: "Read a SQLite database",
+        action: "Reads a SQLite database file and never writes one: the header, the schema, the one table of two blob columns (key and value) of a Bitcoin Core wallet and its pages, with every file that is not whole refused. It is not cryptography.",
+        standards: &[p("SQLite file format, The SQLite database file format, Convention")],
+        implementation: &[p("Faraday's code: faraday/faraday-sqlite: Only the part Bitcoin Core writes is read: the 100-byte header, table b-tree interior and leaf pages, overflow pages, varints and the record format, in the rollback-journal form. The write-ahead-log form, a header field SQLite does not allow, a page reached twice, a cell or overflow past its page or the file, a record whose header disagrees with its body, a column that is not a blob, a table other than the wanted one holding records and a tree deeper than 20 are refused.")],
+        checked: &[w("not checked against vectors"), m("faraday/faraday-sqlite/tests/sqlite.rs::every_page_size_reads_the_rows_sqlite_wrote"), m("faraday/faraday-sqlite/tests/sqlite.rs::values_that_spill_onto_overflow_pages_read_whole"), m("faraday/faraday-sqlite/tests/sqlite.rs::deleted_rows_are_not_returned"), m("faraday/faraday-sqlite/tests/sqlite.rs::the_wal_form_is_refused"), m("faraday/faraday-sqlite/tests/sqlite.rs::a_header_field_sqlite_does_not_allow_is_refused"), m("faraday/faraday-sqlite/tests/sqlite.rs::a_page_reached_twice_is_refused"), m("faraday/faraday-sqlite/tests/sqlite.rs::an_overflow_chain_that_ends_early_or_late_or_loops_is_refused"), m("fuzz sqlite")],
+        cross_check: CrossCheck::Area(&AREA_SQLITE),
+        independence: &[p("Compared with others' code: SQLite itself, by the SQLite developers, through CPython's sqlite3, which makes each database and returns its rows."), w("Compared, for one part, with Faraday's second version, written by Faraday's authors in Python; that part is not checked against an outside source: Faraday's refusals asked of Faraday alone in area_sqlite.py (the write-ahead-log form, auto-vacuum and UTF-16 databases, which SQLite reads).")],
+        code: &[c("faraday/faraday-sqlite/src/lib.rs", "Database::open"), c("faraday/faraday-sqlite/src/lib.rs", "Database::rows")],
+        secret: &[p("none: no secret leaves faraday-keys"), w("Not stated; no secret is computed here."), p("The reader holds no secrets: it reads the bytes it is given and keeps none.")],
+        limits: &[p("A file over 1 GiB, a page size outside 512 to 65,536, a tree deeper than 20 and a database in the write-ahead-log, auto-vacuum or UTF-16 form are refused."), p("Only the table b-tree is read: an index's pages are not, and not checked against the others.")],
+        own_calls: &[p("Whatever the reader does not follow is refused, and a page reached twice is refused. Conservative, F229.")],
+        screens: &[],
         learn: "other_backups",
     },
     Block {

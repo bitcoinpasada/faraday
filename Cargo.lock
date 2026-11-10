@@ -878,6 +878,7 @@ dependencies = [
  "faraday-psbt",
  "faraday-qr",
  "faraday-shell-api",
+ "faraday-sqlite",
  "faraday-vault",
  "serde_json",
 ]
@@ -1195,6 +1196,10 @@ dependencies = [
  "faraday-vault",
  "png",
 ]
+
+[[package]]
+name = "faraday-sqlite"
+version = "0.1.10"
 
 [[package]]
 name = "faraday-starter"

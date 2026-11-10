@@ -41,6 +41,7 @@ mod sign_check;
 mod silent;
 mod silent_send;
 mod slip39;
+mod sqlite;
 mod taproot;
 mod totp;
 mod tx;
@@ -93,6 +94,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "vanity" => vanity::handle(name, req),
         "qrvault" => qrvault::handle(name, req),
         "kef" => kef::handle(name, req),
+        "sqlite" => sqlite::handle(name, req),
         "lightning" => lightning::handle(name, req),
         _ => Err(format!("unknown area {area}")),
     }

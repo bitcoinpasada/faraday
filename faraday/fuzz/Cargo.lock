@@ -912,6 +912,7 @@ dependencies = [
  "faraday-qr",
  "faraday-sb",
  "faraday-shell-api",
+ "faraday-sqlite",
  "faraday-starter",
  "faraday-starter-shell",
  "faraday-storage",
@@ -1096,6 +1097,10 @@ version = "0.1.0"
 dependencies = [
  "zeroize",
 ]
+
+[[package]]
+name = "faraday-sqlite"
+version = "0.1.10"
 
 [[package]]
 name = "faraday-starter"

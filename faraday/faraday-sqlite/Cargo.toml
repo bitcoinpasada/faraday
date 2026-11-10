@@ -1,0 +1,12 @@
+[package]
+name = "faraday-sqlite"
+version = "0.1.10"
+description = "A read-only reader of SQLite database files, of the part Bitcoin Core writes (F229)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true

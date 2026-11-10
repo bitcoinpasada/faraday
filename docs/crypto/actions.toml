@@ -417,6 +417,12 @@ what = "KEF, Krux's encrypted code (`faraday/faraday-kef`, `core/faraday-codec/s
 completeness = "Built: all twelve versions read and written over AES-256, PBKDF2 with a count that can be stopped, and the text forms, all twelve versions checked against Krux's own code in the `kef` cross-check area, and a fuzz target; in the app, scanning one and making one from a seed or a text (the seed's backup item, its stick files and the code on Paper, and the Krux code tool in Tools)"
 
 [[row]]
+id = "sqlite"
+section = 3
+what = "SQLite database files, read only (`faraday/faraday-sqlite`, F229)"
+completeness = "Built: a reader of the part Bitcoin Core writes (the header, the table b-tree with interior, leaf and overflow pages, varints and records, in the rollback-journal form), checked against SQLite itself in the `sqlite` cross-check area, and a fuzz target. Not built: the wallet records, the tile and the screen"
+
+[[row]]
 id = "diceware"
 section = 3
 what = "Diceware passphrases"
@@ -4921,6 +4927,12 @@ status = "Convention"
 checked = "2026-11-05"
 source = "github.com/selfcustody/krux"
 
+[standard."SQLite file format"]
+name = "The SQLite database file format"
+status = "Convention"
+checked = "2026-11-10"
+source = "sqlite.org/fileformat2.html"
+
 [standard."Specter pNofM"]
 name = "Numbered text parts, pNofM"
 status = "Convention"
@@ -6516,6 +6528,62 @@ lines = [
 text = "What Krux refuses to write is refused here, and a refusal names a version that works."
 kind = "Conservative"
 decision = "F219"
+
+[[action]]
+id = "sqlite"
+name = "Read a SQLite database"
+action = "Reads a SQLite database file and never writes one: the header, the schema, the one table of two blob columns (key and value) of a Bitcoin Core wallet and its pages, with every file that is not whole refused. It is not cryptography."
+row = "sqlite"
+standards = ["SQLite file format"]
+learn = "other_backups"
+screens = []
+functions = [
+  "faraday/faraday-sqlite/src/lib.rs::Database::open",
+  "faraday/faraday-sqlite/src/lib.rs::Database::rows",
+]
+code = [
+  "faraday/faraday-sqlite/src/lib.rs::Database::open",
+  "faraday/faraday-sqlite/src/lib.rs::Database::rows",
+]
+
+[action.implementation]
+crate = "faraday/faraday-sqlite"
+libraries = []
+through = []
+adds = "Only the part Bitcoin Core writes is read: the 100-byte header, table b-tree interior and leaf pages, overflow pages, varints and the record format, in the rollback-journal form. The write-ahead-log form, a header field SQLite does not allow, a page reached twice, a cell or overflow past its page or the file, a record whose header disagrees with its body, a column that is not a blob, a table other than the wanted one holding records and a tree deeper than 20 are refused."
+
+[action.checked]
+tests = [
+  "faraday/faraday-sqlite/tests/sqlite.rs::every_page_size_reads_the_rows_sqlite_wrote",
+  "faraday/faraday-sqlite/tests/sqlite.rs::values_that_spill_onto_overflow_pages_read_whole",
+  "faraday/faraday-sqlite/tests/sqlite.rs::deleted_rows_are_not_returned",
+  "faraday/faraday-sqlite/tests/sqlite.rs::the_wal_form_is_refused",
+  "faraday/faraday-sqlite/tests/sqlite.rs::a_header_field_sqlite_does_not_allow_is_refused",
+  "faraday/faraday-sqlite/tests/sqlite.rs::a_page_reached_twice_is_refused",
+  "faraday/faraday-sqlite/tests/sqlite.rs::an_overflow_chain_that_ends_early_or_late_or_loops_is_refused",
+]
+crosscheck = "sqlite"
+independence = { class = "outside-and-own", author = "SQLite itself, by the SQLite developers, through CPython's `sqlite3`, which makes each database and returns its rows", ours = "Faraday's refusals asked of Faraday alone in `area_sqlite.py` (the write-ahead-log form, auto-vacuum and UTF-16 databases, which SQLite reads)" }
+fuzz = ["sqlite"]
+other = [
+  "The databases in the reader's tests are made by SQLite (`faraday/faraday-sqlite/tests/make_fixtures.py`); a changed byte of each is refused or read, never a panic",
+]
+
+[action.secrets]
+reveal = "none"
+constant_time = "Not stated; no secret is computed here."
+wiped = "The reader holds no secrets: it reads the bytes it is given and keeps none."
+
+[action.limits]
+lines = [
+  "A file over 1 GiB, a page size outside 512 to 65,536, a tree deeper than 20 and a database in the write-ahead-log, auto-vacuum or UTF-16 form are refused.",
+  "Only the table b-tree is read: an index's pages are not, and not checked against the others.",
+]
+
+[[action.own]]
+text = "Whatever the reader does not follow is refused, and a page reached twice is refused."
+kind = "Conservative"
+decision = "F229"
 
 [[action]]
 id = "envelope"

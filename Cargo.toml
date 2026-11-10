@@ -33,6 +33,7 @@ members = [
     "faraday/faraday-pgp",
     "faraday/faraday-kef",
     "faraday/faraday-ots",
+    "faraday/faraday-sqlite",
     "faraday/faraday-sb",
     "faraday/faraday-payload",
     "faraday/faraday-strings",
