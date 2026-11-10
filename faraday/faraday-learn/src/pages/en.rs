@@ -626,9 +626,7 @@ pub static EN: Learn = Learn {
             },
             Section {
                 heading: "Locktime",
-                paragraphs: &[
-                    "The earliest block or time at which a transaction may confirm.",
-                ],
+                paragraphs: &["The earliest block or time at which a transaction may confirm."],
             },
             Section {
                 heading: "Multisig",
@@ -674,9 +672,7 @@ pub static EN: Learn = Learn {
             },
             Section {
                 heading: "Sat",
-                paragraphs: &[
-                    "The smallest unit of bitcoin. One bitcoin is 100,000,000 sats.",
-                ],
+                paragraphs: &["The smallest unit of bitcoin. One bitcoin is 100,000,000 sats."],
             },
             Section {
                 heading: "Script type",
