@@ -37,6 +37,7 @@ pub(crate) mod kept;
 pub(crate) mod key_path;
 pub(crate) mod keygen;
 pub(crate) mod keys;
+pub(crate) mod lightning_cln;
 pub(crate) mod m3;
 pub(crate) mod menu;
 pub(crate) mod nonce;

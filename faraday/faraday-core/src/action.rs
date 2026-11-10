@@ -548,6 +548,11 @@ pub enum Action {
     LKey([u8; 4]),
     /// The node key from an aezeed typed here.
     LAezeed,
+    /// Core Lightning's node key: from this loaded key's words, or with
+    /// none, from an hsm_secret in Files or words typed.
+    LCln(Option<[u8; 4]>),
+    /// Core Lightning's hsm_secret file in the Inbox, by its place.
+    LFile(usize),
     /// Type into the aezeed's passphrase, or back into its words.
     LPassphrase,
     /// Read the aezeed.

@@ -195,6 +195,8 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                 signer_returned_proprietary: &[],
                 krux_code: &[],
                 qr_vault: &[],
+                hsm: &[],
+                hsm_words_nodes: &[],
             },
         }
     })
@@ -2156,6 +2158,19 @@ pub fn select_wallet(app: &mut crate::Faraday, i: usize) {
 /// remembered).
 pub fn sign_text_kept(app: &crate::Faraday) -> usize {
     app.vaults.sign_text_kept()
+}
+
+/// Costs what `Item::new` costs. Puts a file called `name` holding
+/// `bytes` at the end of the Inbox.
+pub fn inbox_file(app: &mut crate::Faraday, name: &str, bytes: Vec<u8>) {
+    let item = crate::Item::new(&compute(), name, bytes);
+    app.inbox.push(item);
+}
+
+/// Puts a file `name` of `bytes` at place `at` in the Inbox.
+pub fn inbox_file_at(app: &mut crate::Faraday, at: usize, name: &str, bytes: Vec<u8>) {
+    let item = crate::Item::new(&compute(), name, bytes);
+    app.inbox.insert(at, item);
 }
 
 /// Puts `item` at the end of the Inbox.

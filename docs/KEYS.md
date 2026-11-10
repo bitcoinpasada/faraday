@@ -102,9 +102,10 @@ Moved to `docs/history/KEYS-LOG.md`.
   bytes and the passphrase are copied in once and wipe with the job, the
   node key comes back through `Keys::hsm_node` with the same demo
   refusal. The mnemonic form (a passphrase hash, then English words) is read by the same job, which says whether it asks for a passphrase (`hsm_secret::needs_passphrase`). English BIP-39 words give the node key without a job through
-  `Keys::hsm_words_node`, with the same demo refusal; words in another
-  language are refused (`WordsRefusal::NotEnglish`), as Core Lightning
-  refuses them.
+  `Keys::hsm_words_node`, with the same demo refusal, and a loaded key's
+  words through `Keys::hsm_key_node`; words in another language, typed
+  (told as Add a key tells them) or of a loaded key, are refused
+  (`WordsRefusal::NotEnglish`), as Core Lightning refuses them.
   A new passphrase for an open vault's next seal
   (`OpenVaults::set_passphrase`) is moved into the vault's slot as a
   `SecretText`, never read back, and replaced or wiped with the slot; a

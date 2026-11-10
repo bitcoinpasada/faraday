@@ -58,6 +58,8 @@ Makes an encrypted QR code in Krux's format from text you type or from a loaded 
 
 ## Lightning node key
 
-A Lightning node has an identity key, and a backup of that node is either an LND cipher seed — twenty-four words that are not a BIP-39 phrase — or the BIP-39 words an ldk-node wallet was built from. The tool reads either one and says which node it is: the public key the network knows the node by, and for a cipher seed the version and the birthday it carries.
+A Lightning node has an identity key, and a backup of that node is an LND cipher seed — twenty-four words that are not a BIP-39 phrase —, the BIP-39 words an ldk-node wallet was built from, or Core Lightning's hsm_secret file. The tool reads any of them and says which node it is: the public key the network knows the node by, and for a cipher seed the version and the birthday it carries.
+
+Core Lightning keeps its node's root secret in one file, hsm_secret. It is 32 bytes, or 73 bytes when a passphrase seals it, or, in a node made since Core Lightning began to write words, a hash followed by the 12 to 24 English words of the node. Pick the file from Files: a file sealed by a passphrase asks for it, and the empty passphrase is accepted when that is the one that was set. Core Lightning's node is also given from English BIP-39 words typed here, with their passphrase. A file of 32 bytes cannot say it is an hsm_secret, so compare the node id with the one your node reports in lightning-cli getinfo. The file is opened here and never decrypted anywhere else.
 
 Use it to confirm that a backup in your hand belongs to the node you think it does, before you restore it anywhere. A node key is hot by nature, on a machine that is online and in use all the time, so Faraday signs nothing with it. The node's private key is a secret: it goes into the open vault, or out unprotected only after a warning.

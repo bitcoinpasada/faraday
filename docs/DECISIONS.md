@@ -242,6 +242,6 @@ Read this table, then only the decision you need.
 | [F225](history/decisions/F225.md) | The open checklist card's header at 1024 × 600 is held at eight under the touch-target floor | 2026-11-08 | Withdrawn | design |
 | [F226](decisions/F226.md) | A QR vault is made and opened in a tool in Tools, never kept open, and a file vault's item can be saved as one | 2026-11-08 | Active | security |
 | [F227](decisions/F227.md) | The nonce check remembers the signatures it checked in an open vault, and refuses a nonce one key used before on another message | 2026-11-09 | Active, not built | security |
-| [F228](decisions/F228.md) | Core Lightning's hsm_secret enters Faraday as a source of Lightning node key, plain or encrypted, checked against Core Lightning's code and not on the device | 2026-11-09 | Active, the key side built and the screen not | keys |
+| [F228](decisions/F228.md) | Core Lightning's hsm_secret enters Faraday as a source of Lightning node key, plain or encrypted, checked against Core Lightning's code and not on the device | 2026-11-09 | Active, built | keys |
 | [F229](decisions/F229.md) | A Bitcoin Core descriptor wallet's wallet.dat is read, never written, and its records checked again, through a SQLite reader of Faraday's own | 2026-11-09 | Active, nothing built | wallets |
 | [F230](decisions/F230.md) | An OpenTimestamps proof is checked on the device against a block header the person gives, checked against python-opentimestamps | 2026-11-09 | Active, nothing built | signing |

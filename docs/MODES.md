@@ -205,6 +205,9 @@ sample. "Public set" means its fingerprint (or node id) is in
 | codex32, 2 shares | codex32 set; the tick loads both shares | sets, vector 2 | the same |
 | Seed XOR, 2 parts | Seed XOR set; the tick loads the combined key | `tools/vectors/xor/12-words-2-parts.txt` (constructed, not Coldcard's; its README says so) | the file's seed words |
 | LND cipher seed | aezeed, for Lightning node key only; public node id | LND's published vector, `PRODUCTION_1` in `core/faraday-bip/src/aezeed.rs` (no passphrase) | the node id `aezeed.rs`'s test names |
+| Core Lightning hsm_secret, plain | a 32-byte `hsm_secret` put in Files; Lightning node key only; public node id | made for Faraday (F228) | the node id `faraday-samples` gives, which `faraday-keys` derives |
+| Core Lightning hsm_secret, encrypted | the same secret sealed by libsodium under `faraday` | the plain sample's node id | the same node id |
+| Core Lightning hsm_secret, words form | a zero passphrase hash then the guide key's English words; the same words typed, with none and with `faraday` | the Core Lightning node of the guide key and of every other English words sample (the sample words and the abandon vector), with none and with `faraday` | those node ids |
 
 **With a passphrase.** Every key form that takes a passphrase (BIP-39,
 SLIP-39) is public twice: with none, and with `faraday` (§6.2). Both
@@ -534,6 +537,7 @@ the file has them.
 | `sample_codex32_secret` / `sample_codex32_shares` | codex32 secret / codex32, 2 shares |
 | `sample_xor` | Seed XOR, 2 parts |
 | `sample_aezeed` | LND cipher seed |
+| `sample_hsm_plain` / `sample_hsm_encrypted` / `sample_hsm_words` | hsm_secret / hsm_secret-encrypted / hsm_secret-words (files put in Files) |
 | `sample_savings` … `sample_tree` | Savings, Spending, Taproot, Nested SegWit, Legacy, Nested multisig, Legacy multisig, Taproot multisig, Inheritance, Taproot tree |
 | `sample_musig` / `sample_three_of_five` | MuSig2 / 3 of 5 |
 | `keygen_lock_in_adds` (changed) | Lock in adds sample {} ({}) in place of these words |

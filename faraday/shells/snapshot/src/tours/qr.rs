@@ -29,7 +29,7 @@ pub(crate) fn qr_tour(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Lightning);
     t.press(Action::LKey(test_key_1(t)?));
     t.tick();
-    scroll_to(t, Action::CodePng(Code::NodeId));
+    scroll_to(t, Action::LOut);
     t.shot("qr-lightning")?;
     t.press(Action::ShowCode(Code::NodeId));
     t.shot("qr-lightning-code")?;

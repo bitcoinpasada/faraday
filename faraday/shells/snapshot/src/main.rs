@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|vaultstates|kept|again|plan|board|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|components|guide|screens|tour|codex32]
+//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|lightning-cln|vaultway|vaultstates|kept|again|plan|board|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|components|guide|screens|tour|codex32]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -154,6 +154,7 @@ pub(crate) const TOURS: &[&str] = &[
     "scan",
     "public",
     "qr",
+    "lightning-cln",
     "seedfile",
     "vaultway",
     "vaultstates",
@@ -301,6 +302,7 @@ fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String
         "scan" => tours::devices::scan_tour(t),
         "public" => tours::public::public_tour(c, t),
         "qr" => tours::qr::qr_tour(c, t),
+        "lightning-cln" => tours::lightning_cln::lightning_cln_tour(t),
         "seedfile" => tours::seedfile::seedfile_tour(c, t),
         "vaultway" => tours::vaultway::vaultway_tour(t),
         "vaultstates" => tours::vault_states::vault_states_tour(t),
@@ -393,7 +395,7 @@ fn main() -> ExitCode {
     }
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|vaultstates|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|how|guide|screens|tour|codex32]"
+            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|lightning-cln|vaultway|vaultstates|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|how|guide|screens|tour|codex32]"
         );
         return ExitCode::from(2);
     }

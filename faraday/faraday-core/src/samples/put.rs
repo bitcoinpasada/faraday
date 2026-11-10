@@ -654,11 +654,27 @@ impl Faraday {
         if !self.lightning_sample_shown() {
             return;
         }
-        let words = set
-            .keys
-            .iter()
-            .find(|k| k.form == SampleForm::Aezeed)
-            .and_then(|k| k.parts.first().copied());
+        // Core Lightning's source takes the first English words sample, and
+        // its three `hsm_secret` files go into Files beside it.
+        let words = if self.lightning.on_core_lightning() {
+            let c = self.compute();
+            for (h, name) in set.inputs.hsm.iter().zip([
+                EN.sample_hsm_plain,
+                EN.sample_hsm_encrypted,
+                EN.sample_hsm_words,
+            ]) {
+                if !self.inbox.iter().any(|i| i.name == name) {
+                    self.inbox
+                        .push(crate::Item::new(&c, name, h.bytes.to_vec()));
+                }
+            }
+            english_keys(set).find_map(|(_, k)| k.parts.first().copied())
+        } else {
+            set.keys
+                .iter()
+                .find(|k| k.form == SampleForm::Aezeed)
+                .and_then(|k| k.parts.first().copied())
+        };
         if let Some(words) = words {
             self.lightning.use_sample(words);
         }

@@ -315,7 +315,14 @@ impl Faraday {
             Screen::Vanity if self.vanity.typing_prefix() => Here::Prefix,
             Screen::Lightning => {
                 let l = self.lightning.state()?;
-                if l.source != Some(crate::lightning::NodeSource::Aezeed) {
+                if !matches!(
+                    l.source,
+                    Some(
+                        crate::lightning::NodeSource::Aezeed
+                            | crate::lightning::NodeSource::CoreLightning
+                    )
+                ) || l.file.is_some() && !l.on_passphrase
+                {
                     return None;
                 }
                 if l.on_passphrase {

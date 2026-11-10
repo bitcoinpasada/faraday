@@ -197,6 +197,23 @@ pub struct SampleInputs {
     /// memory step, sealed with fixed public random bytes so that
     /// `regenerate` makes the same file again. Empty where a set has none.
     pub qr_vault: &'static [u8],
+    /// Core Lightning's `hsm_secret` samples (`docs/MODES.md` §6), in the
+    /// order plain, encrypted under the passphrase `faraday`, and the
+    /// words form of the first English words sample. Empty where a set has
+    /// none.
+    pub hsm: &'static [SampleHsm],
+    /// The Core Lightning node of every English words sample, with no
+    /// passphrase and under `faraday`. Empty where a set has none.
+    pub hsm_words_nodes: &'static [[u8; 33]],
+}
+
+/// One `hsm_secret` sample file and the Lightning node id it gives.
+#[derive(Debug, Clone, Copy)]
+pub struct SampleHsm {
+    /// The file's bytes.
+    pub bytes: &'static [u8],
+    /// The node id it gives.
+    pub node: [u8; 33],
 }
 
 /// Every sample, as the samples crate holds them.
@@ -246,7 +263,12 @@ impl Samples {
 
     /// The Lightning node ids Practice takes. Allocates a short list.
     pub fn nodes(&self) -> Vec<[u8; 33]> {
-        self.keys.iter().filter_map(|k| k.node).collect()
+        self.keys
+            .iter()
+            .filter_map(|k| k.node)
+            .chain(self.inputs.hsm.iter().map(|h| h.node))
+            .chain(self.inputs.hsm_words_nodes.iter().copied())
+            .collect()
     }
 }
 

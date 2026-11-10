@@ -587,7 +587,9 @@ Nothing a person waits on blocks a frame. What holds:
    once. In a debug build a press not on the list that stretches a key
    or makes more than one picture panics, naming itself
    (`tests/all/slow_press.rs`). Enter on Add a key's, New key's and a
-   chart's fields does what their buttons do at once. **Typing waits for
+   chart's fields does what their buttons do at once; Enter on Lightning
+   node key's words and files stretch a key and are drawn first.
+   **Typing waits for
    a pause:** a field that works out a key from what is typed (the
    passphrase on `Sheet::Potential` and `Sheet::SeedRead`, Load a key's
    probe of the words) works it out once typing has paused for

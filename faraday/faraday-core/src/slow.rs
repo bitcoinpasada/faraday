@@ -76,7 +76,9 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::KNext
             | Action::Own(crate::fresh::page::Act::Skip)
             | Action::LKey(_)
+            | Action::LCln(Some(_))
             | Action::LResolve
+            | Action::LFile(_)
             | Action::LoadKey(_)
             | Action::Lock
             | Action::LockUnsealed

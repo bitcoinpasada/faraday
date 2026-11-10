@@ -2626,6 +2626,8 @@ impl Faraday {
             Action::Lightning
             | Action::LKey(_)
             | Action::LAezeed
+            | Action::LCln(_)
+            | Action::LFile(_)
             | Action::LPassphrase
             | Action::LResolve
             | Action::LShow
@@ -5410,13 +5412,7 @@ enum Later {
 use pointer::field_action;
 use slow::{drawn_first, working_text};
 
-/// A file name without its extension.
-pub(crate) fn stem(name: &str) -> String {
-    match name.rfind('.') {
-        Some(i) if i > 0 => name[..i].to_string(),
-        _ => name.to_string(),
-    }
-}
+pub(crate) use inbox::stem;
 
 impl App for Faraday {
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]

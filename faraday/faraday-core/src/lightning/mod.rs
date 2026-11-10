@@ -17,37 +17,72 @@ use zeroize::Zeroizing;
 use crate::{Faraday, Screen};
 use faraday_crypto::work::Compute;
 use faraday_keys::Keys;
+use faraday_keys::hsm_node::NodeRefusal;
 
 /// Where the node key comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NodeSource {
     /// A loaded key, by fingerprint, read as ldk-node reads its seed.
     Key([u8; 4]),
+    /// A loaded key, by fingerprint, read as Core Lightning's
+    /// `lightning-hsmtool generatehsm` reads its words.
+    KeyCln([u8; 4]),
     /// An LND cipher seed typed here.
     Aezeed,
+    /// Core Lightning's node: an `hsm_secret` file from Files, or English
+    /// BIP-39 words typed here.
+    CoreLightning,
 }
 
 /// The node key, once found.
 pub use faraday_keys::lightning::Node;
 
-/// An aezeed read to run on the worker: faraday-keys' job, holding the
-/// words and the passphrase.
-pub(crate) struct ReadWork {
-    job: faraday_keys::lightning::AezeedJob,
+/// A read to run on the worker: faraday-keys' job, holding the aezeed's
+/// words and passphrase, or an `hsm_secret` file's bytes and passphrase.
+pub(crate) enum ReadWork {
+    /// An aezeed.
+    Aezeed(faraday_keys::lightning::AezeedJob),
+    /// Core Lightning's `hsm_secret`.
+    Hsm(faraday_keys::hsm_secret::HsmJob),
 }
 
-/// An aezeed read's answer: the node key or why there is none, inside
+/// A read's answer: the node key or why there is none, inside
 /// faraday-keys' type.
-pub(crate) struct ReadDone {
-    read: faraday_keys::lightning::AezeedRead,
+pub(crate) enum ReadDone {
+    /// An aezeed's.
+    Aezeed(faraday_keys::lightning::AezeedRead),
+    /// An `hsm_secret`'s.
+    Hsm(faraday_keys::hsm_secret::HsmRead),
 }
 
 impl ReadWork {
-    /// Costs an aezeed's scrypt and a key derivation.
+    /// Costs an aezeed's scrypt or an `hsm_secret`'s Argon2id, and a key
+    /// derivation.
     pub(crate) fn run(self, c: &Compute) -> ReadDone {
-        ReadDone {
-            read: self.job.run(c),
+        match self {
+            ReadWork::Aezeed(job) => ReadDone::Aezeed(job.run(c)),
+            ReadWork::Hsm(job) => ReadDone::Hsm(job.run(c)),
         }
+    }
+}
+
+/// The line for a refusal of Core Lightning's file or words.
+fn refusal_line(r: NodeRefusal) -> String {
+    use NodeRefusal as N;
+    use faraday_keys::hsm_node::WordsRefusal as W;
+    use faraday_keys::hsm_secret::Refusal as R;
+    match r {
+        N::File(R::Words) => EN.lightning_hsm_words.to_string(),
+        N::File(R::Passphrase) => EN.lightning_hsm_passphrase.to_string(),
+        N::File(R::PassphraseNotAscii) => crate::state::ascii_refused(),
+        N::File(R::PassphraseTooLong) => EN.lightning_hsm_passphrase_long.to_string(),
+        // A file changed since it was listed reads as a changed file.
+        N::File(R::Length | R::PassphraseNotNeeded | R::Opening) => {
+            EN.lightning_hsm_opening.to_string()
+        }
+        N::File(R::Memory) => EN.lightning_hsm_memory.to_string(),
+        N::Words(W::NotEnglish) => EN.lightning_hsm_not_english.to_string(),
+        N::Words(W::Words(line)) | N::Demo(line) => line,
     }
 }
 
@@ -71,6 +106,12 @@ pub struct LightningState {
     pub back: Screen,
     /// Use a sample on the aezeed's words (`docs/MODES.md` §6).
     pub(crate) sample: crate::samples::put::Use,
+    /// Core Lightning's `hsm_secret` chosen in Files: its name there.
+    /// Only the name is kept here; the bytes stay in Files until a read
+    /// looks the file up by name and moves a copy into its job.
+    pub(crate) file: Option<String>,
+    /// The chosen file asks for a passphrase.
+    pub(crate) file_asks: bool,
     /// Opened from Convert: only the entry shows, and what it reads is
     /// held there as a seed, not shown as a node key.
     pub for_convert: bool,
@@ -80,6 +121,13 @@ pub struct LightningState {
 #[derive(Default)]
 pub(crate) struct LightningArea {
     state: Option<LightningState>,
+}
+
+impl LightningState {
+    /// The file chosen in Files asks for a passphrase.
+    pub fn file_asks_passphrase(&self) -> bool {
+        self.file_asks
+    }
 }
 
 impl LightningArea {
@@ -100,6 +148,8 @@ impl LightningArea {
             shown: false,
             back,
             sample: Default::default(),
+            file: None,
+            file_asks: false,
             for_convert: false,
         });
     }
@@ -135,8 +185,15 @@ impl LightningArea {
                     Some(node) => node,
                 }
             }
-            // A cipher seed is read on the worker ([`LightningArea::read_job`]).
-            Some(NodeSource::Aezeed) | None => return,
+            Some(NodeSource::KeyCln(fp)) => {
+                match keys.position_of(fp).and_then(|k| keys.hsm_key_node(c, k)) {
+                    None => Err(EN.lightning_this_key.to_string()),
+                    Some(node) => node.map_err(|e| refusal_line(NodeRefusal::Words(e))),
+                }
+            }
+            // A cipher seed and an hsm_secret are read on the worker
+            // ([`LightningArea::read_job`]).
+            Some(NodeSource::Aezeed | NodeSource::CoreLightning) | None => return,
         };
         if let Some(l) = self.state.as_mut() {
             match found {
@@ -183,14 +240,62 @@ impl LightningArea {
             keys.aezeed_job(&idx, pass)
         };
         faraday_keys::lightning::wipe_words(&mut idx);
-        Some(ReadWork { job })
+        Some(ReadWork::Aezeed(job))
+    }
+
+    /// Core Lightning's file chosen in Files by `name`, `asks` for whether
+    /// it wants a passphrase. The typed words, the passphrase and the node
+    /// are dropped; typing goes to the passphrase where the file asks.
+    pub(crate) fn choose_file(&mut self, name: String, asks: bool) {
+        if let Some(l) = self.state.as_mut() {
+            l.source = Some(NodeSource::CoreLightning);
+            l.file = Some(name);
+            l.file_asks = asks;
+            l.on_passphrase = asks;
+            l.typed.set("");
+            l.passphrase.set("");
+            l.node = None;
+            l.error = None;
+        }
+    }
+
+    /// The read of the chosen file, its `bytes` moved in: the passphrase
+    /// is the field's when the file asks, else empty. An empty one is
+    /// taken when the file asks.
+    pub(crate) fn hsm_job(&self, keys: &Keys, bytes: Zeroizing<Vec<u8>>) -> Option<ReadWork> {
+        let l = self.state.as_ref()?;
+        let pass = if faraday_keys::hsm_secret::needs_passphrase(&bytes) {
+            crate::secret_text::SecretText::of(&l.passphrase)
+        } else {
+            crate::secret_text::SecretText::new()
+        };
+        Some(ReadWork::Hsm(keys.hsm_job(bytes, pass)))
+    }
+
+    /// Costs a PBKDF2 and a key derivation. Core Lightning's node from the
+    /// typed English BIP-39 words and the passphrase.
+    pub(crate) fn read_words(&mut self, c: &Compute, keys: &Keys) {
+        let Some(l) = self.state.as_mut() else {
+            return;
+        };
+        let words = Zeroizing::new(l.typed.split_whitespace().collect::<Vec<_>>().join(" "));
+        match keys.hsm_words_node(c, &words, &l.passphrase) {
+            Ok(n) => {
+                l.node = Some(n);
+                l.error = None;
+            }
+            Err(e) => l.error = Some(refusal_line(e)),
+        }
     }
 
     /// An aezeed read's answer, applied on the main thread.
     pub(crate) fn read_done(&mut self, keys: &Keys, done: ReadDone) {
-        let found = keys
-            .aezeed_node(done.read)
-            .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&e]));
+        let found = match done {
+            ReadDone::Aezeed(read) => keys
+                .aezeed_node(read)
+                .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&e])),
+            ReadDone::Hsm(read) => keys.hsm_node(read).map_err(refusal_line),
+        };
         if let Some(l) = self.state.as_mut() {
             match found {
                 Ok(n) => {
@@ -210,7 +315,10 @@ impl LightningArea {
         keys: &mut Keys,
         done: ReadDone,
     ) -> Option<faraday_bip::keys::Fingerprint> {
-        match keys.aezeed_hold(done.read) {
+        let ReadDone::Aezeed(read) = done else {
+            return None;
+        };
+        match keys.aezeed_hold(read) {
             Ok(fp) => {
                 self.state = None;
                 Some(fp)
@@ -245,29 +353,93 @@ impl LightningArea {
         match action {
             A::LKey(fp) => {
                 l.source = Some(NodeSource::Key(fp));
+                l.file = None;
+                l.file_asks = false;
+                l.on_passphrase = false;
+                l.node = None;
+                l.error = None;
+                self.resolve(c, keys);
+            }
+            A::LCln(Some(fp)) => {
+                l.source = Some(NodeSource::KeyCln(fp));
+                l.file = None;
+                l.file_asks = false;
+                l.on_passphrase = false;
                 l.node = None;
                 l.error = None;
                 self.resolve(c, keys);
             }
             A::LAezeed => {
                 l.source = Some(NodeSource::Aezeed);
+                l.file = None;
+                l.file_asks = false;
+                l.on_passphrase = false;
                 l.node = None;
                 l.error = None;
             }
-            A::LPassphrase => l.on_passphrase = !l.on_passphrase,
+            A::LCln(None) => {
+                l.source = Some(NodeSource::CoreLightning);
+                l.file = None;
+                l.file_asks = false;
+                l.on_passphrase = false;
+                l.node = None;
+                l.error = None;
+            }
+            // A file's passphrase is the only field there is to press.
+            A::LPassphrase => l.on_passphrase = l.file.is_some() || !l.on_passphrase,
             A::LShow => l.shown = !l.shown,
             _ => {}
         }
     }
 
-    /// Whether the screen reads a typed aezeed, whose Enter stretches it
-    /// with scrypt.
+    /// Whether the screen reads a typed aezeed or a chosen `hsm_secret`
+    /// file, whose Enter stretches it with scrypt or Argon2id.
     pub(crate) fn reads_aezeed(&self, no_sheet: bool) -> bool {
         no_sheet
-            && self
-                .state
-                .as_ref()
-                .is_some_and(|l| l.source == Some(NodeSource::Aezeed))
+            && self.state.as_ref().is_some_and(|l| {
+                l.source == Some(NodeSource::Aezeed)
+                    || (l.source == Some(NodeSource::CoreLightning) && l.file.is_some())
+            })
+    }
+
+    /// Whether the screen is on Core Lightning's source.
+    pub(crate) fn on_core_lightning(&self) -> bool {
+        self.state
+            .as_ref()
+            .is_some_and(|l| l.source == Some(NodeSource::CoreLightning))
+    }
+
+    /// The name of the file chosen in Files.
+    pub(crate) fn chosen_file(&self) -> Option<String> {
+        self.state.as_ref()?.file.clone()
+    }
+
+    /// Whether the file chosen asks for a passphrase, as last looked at.
+    pub(crate) fn file_asks(&self) -> bool {
+        self.state.as_ref().is_some_and(|l| l.file_asks)
+    }
+
+    /// The file chosen is no longer in Files: the choice is dropped and
+    /// the screen says so.
+    pub(crate) fn file_gone(&mut self) {
+        if let Some(l) = self.state.as_mut() {
+            let name = l.file.take().unwrap_or_default();
+            l.file_asks = false;
+            l.on_passphrase = false;
+            l.node = None;
+            l.error = Some(fill(EN.lightning_hsm_file_gone, &[&name]));
+        }
+    }
+
+    /// The file chosen changed in Files and now asks, or does not ask, for
+    /// a passphrase: the screen follows it and nothing is read.
+    pub(crate) fn file_changed(&mut self, asks: bool) {
+        if let Some(l) = self.state.as_mut() {
+            l.file_asks = asks;
+            l.on_passphrase = asks;
+            l.node = None;
+            l.error = Some(EN.lightning_hsm_opening.to_string());
+        }
     }
 
     /// Typing the aezeed and its passphrase, on `screen`. Returns whether
@@ -285,7 +457,21 @@ impl LightningArea {
             self.state = None;
             return true;
         }
-        if l.source != Some(NodeSource::Aezeed) {
+        if !matches!(
+            l.source,
+            Some(NodeSource::Aezeed | NodeSource::CoreLightning)
+        ) {
+            return false;
+        }
+        // Nothing is typed into a file's words: only its passphrase, where
+        // the file asks for one.
+        if l.source == Some(NodeSource::CoreLightning)
+            && l.file.is_some()
+            && !(l.file_asks && l.on_passphrase)
+        {
+            if key == K::Enter {
+                return true;
+            }
             return false;
         }
         l.sample.dismiss();
@@ -310,10 +496,12 @@ impl LightningArea {
             K::Backspace => {
                 field.pop();
             }
-            K::Tab => l.on_passphrase = !l.on_passphrase,
+            K::Tab if l.file.is_none() => l.on_passphrase = !l.on_passphrase,
             // The read itself is started by `Faraday::lightning_key`.
             K::Enter => {
-                l.on_passphrase = false;
+                if l.file.is_none() {
+                    l.on_passphrase = false;
+                }
                 return true;
             }
             _ => return false,
@@ -337,7 +525,12 @@ impl LightningArea {
     /// seed chosen, nothing typed or pressed.
     pub(crate) fn sample_shown(&self) -> bool {
         self.state.as_ref().is_some_and(|l| {
-            l.source == Some(NodeSource::Aezeed) && l.typed.is_empty() && l.sample.shown()
+            matches!(
+                l.source,
+                Some(NodeSource::Aezeed | NodeSource::CoreLightning)
+            ) && l.typed.is_empty()
+                && l.file.is_none()
+                && l.sample.shown()
         })
     }
 
@@ -399,7 +592,12 @@ impl Faraday {
                 self.lightning.open(self.screen);
                 self.screen = Screen::Lightning;
             }
+            A::LFile(at) => self.lightning_file(at),
             A::LResolve if self.lightning_reads_aezeed() => self.lightning_read(),
+            A::LResolve if self.lightning.on_core_lightning() => {
+                let c = self.compute();
+                self.lightning.read_words(&c, &self.session.keys);
+            }
             A::LResolve => {
                 let c = self.compute();
                 self.lightning.resolve(&c, &self.session.keys);
@@ -456,13 +654,15 @@ impl Faraday {
     }
 
     /// Whether `key` is left for the tick after a frame: Enter where it
-    /// reads an aezeed, which scrypt stretches for seconds on a Pi. Not
+    /// reads an aezeed or Core Lightning's file or words, which scrypt,
+    /// Argon2id or a PBKDF2 stretch. Not
     /// while a job runs: then the key is refused as every key is.
     pub(crate) fn key_slow(&self, key: faraday_shell_api::Key) -> bool {
         key == faraday_shell_api::Key::Enter
             && self.worker.busy().is_none()
             && self.screen == Screen::Lightning
-            && self.lightning_reads_aezeed()
+            && (self.lightning_reads_aezeed()
+                || (self.sheet.is_none() && self.lightning.on_core_lightning()))
     }
 
     /// [`Faraday::key_slow`] once a key waiting from before is taken, so a
@@ -481,9 +681,49 @@ impl Faraday {
         }
     }
 
-    /// Starts the aezeed read on the worker.
+    /// An `hsm_secret` chosen in Files: the read starts at once where the
+    /// file asks for no passphrase, else when Read it is pressed.
+    fn lightning_file(&mut self, at: usize) {
+        let Some((name, asks)) = self
+            .inbox
+            .get(at)
+            .filter(|i| could_be_hsm(i.kind, i.bytes.len()))
+            .map(|i| {
+                (
+                    i.name.clone(),
+                    faraday_keys::hsm_secret::needs_passphrase(&i.bytes),
+                )
+            })
+        else {
+            return;
+        };
+        self.lightning.choose_file(name, asks);
+        if !asks {
+            self.lightning_read();
+        }
+    }
+
+    /// Starts the aezeed or `hsm_secret` read on the worker.
     fn lightning_read(&mut self) {
-        let Some(job) = self.lightning.read_job(&self.session.keys) else {
+        let job = if self.lightning.on_core_lightning() {
+            let Some(name) = self.lightning.chosen_file() else {
+                return;
+            };
+            // Looked up by name now: the file may have gone or changed
+            // since it was chosen.
+            let Some(item) = self.inbox.iter().find(|i| i.name == name) else {
+                return self.lightning.file_gone();
+            };
+            let asks = faraday_keys::hsm_secret::needs_passphrase(&item.bytes);
+            if asks != self.lightning.file_asks() {
+                return self.lightning.file_changed(asks);
+            }
+            self.lightning
+                .hsm_job(&self.session.keys, Zeroizing::new(item.bytes.clone()))
+        } else {
+            self.lightning.read_job(&self.session.keys)
+        };
+        let Some(job) = job else {
             return;
         };
         let busy = self.lightning_working();
@@ -517,10 +757,24 @@ impl Faraday {
             self.taken_while_busy(crate::Action::Back);
         }
         let reads = key == K::Enter && self.lightning_reads_aezeed();
+        let words = key == K::Enter && !reads && self.lightning.on_core_lightning();
         let taken = self.lightning.key(key, &mut self.screen);
         if taken && reads {
             self.lightning_read();
+        } else if taken && words {
+            let c = self.compute();
+            self.lightning.read_words(&c, &self.session.keys);
         }
         taken
     }
+}
+
+/// Whether a file of this kind and length is listed as a possible
+/// `hsm_secret` under the Core Lightning source.
+pub(crate) fn could_be_hsm(kind: crate::wallet::FileKind, len: usize) -> bool {
+    matches!(
+        kind,
+        crate::wallet::FileKind::Other | crate::wallet::FileKind::Text
+    ) && (faraday_keys::hsm_secret::PLAIN_LEN..=faraday_keys::hsm_secret::MNEMONIC_MAX_LEN)
+        .contains(&len)
 }

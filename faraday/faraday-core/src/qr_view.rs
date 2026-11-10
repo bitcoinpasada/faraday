@@ -1305,6 +1305,12 @@ impl Faraday {
                     Some(crate::lightning::NodeSource::Key(fp)) => {
                         fill(EN.lightning_ldk_node, &[&fp_text(Fingerprint(fp))])
                     }
+                    Some(crate::lightning::NodeSource::KeyCln(fp)) => {
+                        fill(EN.lightning_cln_node, &[&fp_text(Fingerprint(fp))])
+                    }
+                    Some(crate::lightning::NodeSource::CoreLightning) => {
+                        EN.code_view_node_cln.to_string()
+                    }
                     _ => EN.code_view_node_lnd.to_string(),
                 };
                 let lines = vec![kind, EN.code_view_public_node.to_string()];

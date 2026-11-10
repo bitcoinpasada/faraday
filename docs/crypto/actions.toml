@@ -4354,7 +4354,9 @@ standards = [
   "BIP 39",
 ]
 learn = "tools"
-screens = []
+screens = [
+  "Lightning",
+]
 functions = [
   "faraday/faraday-keys/src/hsm_secret.rs::node_from_secret",
   "faraday/faraday-keys/src/hsm_node.rs::node_from_words",
@@ -4368,6 +4370,7 @@ functions = [
   "faraday/faraday-keys/src/hsm_secret.rs::Keys::hsm_job",
   "faraday/faraday-keys/src/hsm_node.rs::Keys::hsm_node",
   "faraday/faraday-keys/src/hsm_node.rs::Keys::hsm_words_node",
+  "faraday/faraday-keys/src/hsm_node.rs::Keys::hsm_key_node",
 ]
 code = [
   "faraday/faraday-keys/src/hsm_secret.rs::node_from_file",

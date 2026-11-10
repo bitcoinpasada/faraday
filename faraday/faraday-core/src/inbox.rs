@@ -29,7 +29,7 @@ use zeroize::Zeroizing;
 
 use crate::create::NewKind;
 use crate::wallet::{FileKind, Refusal, Session, Wallet, fp_text};
-use crate::{Action, Faraday, Item, Sheet, forms, inbox, stem};
+use crate::{Action, Faraday, Item, Sheet, forms, inbox};
 
 /// Where a seed found in the Inbox comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1598,5 +1598,13 @@ impl Faraday {
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
+    }
+}
+
+/// A file name without its extension.
+pub(crate) fn stem(name: &str) -> String {
+    match name.rfind('.') {
+        Some(i) if i > 0 => name[..i].to_string(),
+        _ => name.to_string(),
     }
 }

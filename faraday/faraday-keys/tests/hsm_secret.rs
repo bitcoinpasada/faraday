@@ -226,3 +226,37 @@ fn lightning_words_in_another_language_are_refused() {
     let got = node_from_words(&c, Language::Japanese, japanese, "");
     assert_eq!(got.err(), Some(WordsRefusal::NotEnglish));
 }
+
+/// Typed words are told by their list as Add a key tells it: English
+/// gives the node, another list is the not-English refusal, and words of
+/// no list give English's refusal. A loaded key gives the node of its own
+/// words, and refuses a list other than English.
+#[test]
+fn lightning_typed_words_and_loaded_keys_give_core_lightnings_node() {
+    use faraday_bip::keys::Network;
+    use faraday_keys::Keys;
+    use faraday_keys::hsm_node::NodeRefusal;
+    let c = compute();
+    let abandon = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let mut keys = Keys::on(Network::Testnet);
+    let node = keys.hsm_words_node(&c, abandon, "").expect("English words");
+    assert_eq!(
+        id_of(&node),
+        "03653e90c1ce4660fd8505dd6d643356e93cfe202af109d382787639dd5890e87d"
+    );
+    let spanish = "ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco ábaco abierto";
+    assert_eq!(
+        keys.hsm_words_node(&c, spanish, "").err(),
+        Some(NodeRefusal::Words(WordsRefusal::NotEnglish))
+    );
+    assert!(matches!(
+        keys.hsm_words_node(&c, "abandon abandon", "").err(),
+        Some(NodeRefusal::Words(WordsRefusal::Words(_)))
+    ));
+    keys.add_words(&c, abandon, "", None).expect("loads");
+    let node = keys.hsm_key_node(&c, 0).expect("has words").expect("node");
+    assert_eq!(
+        id_of(&node),
+        "03653e90c1ce4660fd8505dd6d643356e93cfe202af109d382787639dd5890e87d"
+    );
+}

@@ -1223,7 +1223,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[m("Reveal::LightningKey"), p("Poly1305's tag is compared in constant time (subtle); the rest is not stated."), p("The passphrase, the Argon2id key, the secret and the node key are held in zeroizing buffers; the node key leaves only as hex for a reason that names it.")],
         limits: &[p("Reading only: an hsm_secret is never made and never loaded as a key."), p("A file shorter than 32 bytes, or longer than the mnemonic form can be, is refused. In the mnemonic form the words are English only, in single-space form with no NUL, newline or other whitespace; Core Lightning's text reading is stricter in no case and looser in some, which Faraday refuses.")],
         own_calls: &[p("none")],
-        screens: &[],
+        screens: &["Lightning"],
         learn: "tools",
     },
     Block {

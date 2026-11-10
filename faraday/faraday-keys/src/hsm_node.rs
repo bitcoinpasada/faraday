@@ -56,17 +56,40 @@ impl crate::Keys {
         self.refuse_unless_public(node)
     }
 
-    /// Costs what [`node_from_words`] costs. The node key for English
-    /// BIP-39 words, with the same demo refusal as [`Self::hsm_node`].
+    /// Costs what [`node_from_words`] costs, and a parse of the words for
+    /// each list tried (English once more in [`node_from_words`]). The node key for the BIP-39
+    /// `words` typed, with the same demo refusal as [`Self::hsm_node`].
+    /// The list is told as Add a key tells it, English first; words of
+    /// another list are refused as [`WordsRefusal::NotEnglish`], and words
+    /// of none give English's refusal.
     pub fn hsm_words_node(
         &self,
         c: &Compute,
-        language: Language,
         words: &str,
         passphrase: &str,
     ) -> Result<Node, NodeRefusal> {
+        let language = Language::ALL
+            .into_iter()
+            .find(|l| Mnemonic::parse(c, *l, words).is_ok())
+            .unwrap_or(Language::English);
         let node = node_from_words(c, language, words, passphrase).map_err(NodeRefusal::Words)?;
         self.refuse_unless_public(node)
+    }
+
+    /// Costs what [`node_from_words`] costs. Core Lightning's node from
+    /// the words and passphrase of loaded key `i`, beside ldk-node's
+    /// ([`Self::lightning_node`]). `None` for a key with no words. A
+    /// loaded key is not refused in the demo, as its ldk-node is not;
+    /// words of another list than English are refused.
+    pub fn hsm_key_node(&self, c: &Compute, i: usize) -> Option<Result<Node, WordsRefusal>> {
+        let s = self.secrets(i)?;
+        let words = s.words?;
+        Some(node_from_words(
+            c,
+            s.language,
+            words,
+            s.passphrase.unwrap_or(""),
+        ))
     }
 
     fn refuse_unless_public(&self, node: Node) -> Result<Node, NodeRefusal> {
