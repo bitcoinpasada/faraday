@@ -2059,8 +2059,9 @@ impl OpenVaults {
     }
 
     /// Takes back a key file made for open vault `id` ([`OpenVaults::make_key_file`])
-    /// that its document could not be kept for: the key is wiped and no key
-    /// file is pending. `false` where the pending key file is not a made
+    /// whose document was not kept (it could not be, or its `.keyx` was
+    /// taken out of the Outbox): the key is wiped and no key file is
+    /// pending. `false` where the pending key file is not a made
     /// one (a chosen key or a removal stays), an unknown vault and a
     /// read-only or sealing one.
     pub fn unmake_key_file(&mut self, id: VaultId) -> bool {

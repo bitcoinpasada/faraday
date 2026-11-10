@@ -86,6 +86,8 @@ asked for the vault.
 | **Type the passphrase once more to open it** | over the field, for the vault just made by Create a vault |
 | the vault | the vault chosen in the list beside it, by its name and state (**Locked vault**, **Locked**; a vault just made, **New vault**, **Locked · not written yet**), with **Create a vault** under the list. On a narrower window, each locked vault is a row: its file, where it is and its size, its unlock cost, and "about 2.4 s here", the time it takes on this computer; a press chooses it |
 | **Passphrase** | the field; its eye shows or hides what is typed |
+| **Add a key file** | under the field: opens **Choose a key file**, a list of the files in Files that are not vaults, with **Choose**; "Files holds no file that is not a vault" when there is none. A vault sealed with a key file opens only with that file |
+| **Add a YubiKey secret** | under the field: shows the **YubiKey secret** field, 40 hexadecimal digits with spaces or colons between them; the line under it says how many digits were typed, or that something else was typed. A vault sealed with a YubiKey secret opens only with it |
 | "Remove the stick, then type the passphrase" | in place of the field while a stick is attached |
 | **Unlock** | tries the passphrase. Grey while a stick is attached |
 | "This computer: 3.1 GiB free" | the memory free here, or **This computer: memory not reported** |

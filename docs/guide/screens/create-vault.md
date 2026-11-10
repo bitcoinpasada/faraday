@@ -81,6 +81,7 @@ memory ticked.
 | **Name** | what the vault holds, for anyone who sees the stick; the file's name follows it ("File Passwords.kdbx"). Left empty, the file is `vault.kdbx` and the vault's title is "Vault" |
 | **Show passphrase**, **Hide passphrase** | shows or hides the passphrase typed |
 | **Passphrase** | the vault's one passphrase: two fields, typed, then typed again |
+| **Add a key file** | under the fields: **Make a key file** or **Choose a file**; the closed passphrase line then ends "key file". The key file is needed to open the vault, so it is kept apart from the vault's file |
 | **Generate with dice** | opens the dice panel under the fields; "or type your own below" beside it |
 | the line under the fields | **Matches**, **Does not match yet** in the warning tone, or **Type it, then type it again** |
 | the strength line | "77.5 bits from dice + ≈17.6 from the unlock cost ≈ 95.1 bits" for words from dice; "Typed: its own bits are not measured · the unlock cost adds ≈…" for a typed one |

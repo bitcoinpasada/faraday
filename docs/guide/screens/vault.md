@@ -25,6 +25,10 @@ writes the vault back over its own file.
 | the title | the vault's name ("Vault 1"), or "Vault" for a vault with no name |
 | the state | under the title: **Open**, or "Open · 2 unsaved changes" in the warning tone |
 | **Rename** | opens **Rename the vault** in the detail: **Name**, **Save**, **Cancel** |
+| ⋮ | beside **Rename**: **Key file** and **Remove YubiKey secret** |
+| **Key file** | in the ⋮: a dialog with **Make a key file**, **Choose a file** and **Remove key file**, each acting at once, and "Next seal: none" or "Next seal: a key file". A made key file goes to the Outbox; it takes effect at the next seal, and copies sealed before keep the key file they had |
+| **Remove YubiKey secret** | in the ⋮: the next seal leaves the YubiKey secret out, and copies sealed before still need it; **Keep YubiKey secret** in its place while a removal waits |
+| the line after the state | "Needs a key file" or "Opens with a YubiKey", for what the next seal needs |
 | **Change passphrase** | opens [Change passphrase](#change-passphrase-and-memory); a read-only vault does not offer it |
 | **Memory** | opens [Memory](#change-passphrase-and-memory); a read-only vault does not offer it |
 | **Lock** | locks, sealing every open vault; [Lock](lock-and-power.md#lock) asks first when the lock would end something |

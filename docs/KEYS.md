@@ -129,7 +129,7 @@ Moved to `docs/history/KEYS-LOG.md`.
   vault's key, and a failed make gives none; `OpenVaults::key_file_document`
   hands it out once (a second call gives none until another key is made)
   and not while the vault seals, and `OpenVaults::unmake_key_file` takes a
-  made key back where its document could not be kept. A
+  made key back where its document was not kept. A
   key file chosen (`set_key_file`) or opened with has no way out. A make
   never takes a YubiKey's secret (F208): `StretchJob::keyed` refuses it.
 - **A signing job** (`job::SignJob`, WORKERS §6) shares the keys, it does
