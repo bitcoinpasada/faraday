@@ -378,10 +378,11 @@ fn krux_cell(side: usize) -> f32 {
 
 /// The Krux code sheet: lines for what the picture's label says above a
 /// grid at true size, the squares every code of the side shares printed
-/// black ([`structural_fixed`], the SeedQR sheet's rule) and the format
-/// areas left blank.
+/// as a QR code has them ([`structural_dark`]: dark finder rings and
+/// centres, light separators, alternating timing, the alignment square),
+/// and the other squares, the format areas included, left blank.
 ///
-/// [`structural_fixed`]: faraday_core::wallet_backup::structural_fixed
+/// [`structural_dark`]: faraday_core::wallet_backup::structural_dark
 fn krux_page(side: usize) -> Canvas {
     let mut p = Canvas::portrait();
     let blocks = side.div_ceil(5);
@@ -439,7 +440,7 @@ fn krux_page(side: usize) -> Canvas {
     let gy = top + tokens::KRUX_GRID_GAP;
     let gx = MARGIN + (PAGE_W - 2.0 * MARGIN - side as f32 * cell) / 2.0;
     qr_grid(&mut p, gx, gy, cell, side, |x, y| {
-        faraday_core::wallet_backup::structural_fixed(x, y, side)
+        faraday_core::wallet_backup::structural_dark(x, y, side)
     });
     p.sans(
         gx,

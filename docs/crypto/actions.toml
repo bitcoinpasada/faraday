@@ -6465,7 +6465,6 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::seedqr_matrix",
   "faraday/faraday-core/src/backup_flow/mod.rs::seedqr_picture",
   "faraday/faraday-core/src/picture.rs::labelled_png",
-  "faraday/faraday-core/src/pdf.rs::probe_matrix",
 ]
 code = ["core/faraday-codec/src/seedqr.rs::encode_seedqr", "core/faraday-codec/src/seedqr.rs::encode_compact"]
 

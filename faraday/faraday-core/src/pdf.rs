@@ -10,7 +10,7 @@ use crate::strings::fill;
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode};
 use faraday_crypto::work::Compute;
 
-use crate::wallet_backup::structural_fixed;
+use crate::wallet_backup::structural_dark;
 
 /// A4, in points.
 const PAGE_W: f32 = 595.0;
@@ -520,8 +520,7 @@ fn share_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     document(c, vec![p])
 }
 
-/// Costs a QR encoding and a picture drawn (through `probe_matrix` and
-/// `document`).
+/// Costs a picture drawn (through `document`).
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let words: usize = get(f, "words").and_then(|w| w.parse().ok()).unwrap_or(24);
@@ -588,7 +587,6 @@ fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     // The SeedQR grid: its fixed squares printed black, the rest ruled
     // for filling in by hand.
     let n = if words == 24 { 29 } else { 25 };
-    let probe = probe_matrix(c, words)?;
     let side = (PAGE_H - MARGIN - 40.0 - y)
         .min(PAGE_W - 2.0 * MARGIN - 40.0)
         .min(380.0);
@@ -598,7 +596,7 @@ fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let drawn = if show_grid { n } else { 0 };
     for row in 0..drawn {
         for col in 0..drawn {
-            if structural_fixed(col, row, n) && probe.module(col, row) {
+            if structural_dark(col, row, n) {
                 p.rect(
                     gx + col as f32 * cell,
                     gy + row as f32 * cell,
@@ -659,17 +657,4 @@ fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
         y += 56.0;
     }
     Ok(document(c, vec![p, q]))
-}
-
-/// Costs a QR encoding (through `encode_seedqr`). A SeedQR of `words`
-/// words from a fixed dummy seed: its fixed squares are the same as
-/// every other seed of that length.
-fn probe_matrix(c: &Compute, words: usize) -> Result<QrMatrix, String> {
-    // All-zero entropy: "abandon" ×11 "about", or ×23 "art".
-    let entropy = [0u8; 32];
-    let len = if words == 24 { 32 } else { 16 };
-    let m =
-        faraday_keys::words::from_entropy(faraday_bip::bip39::Language::English, &entropy[..len])
-            .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
-    faraday_codec::seedqr::encode_seedqr(c, &m).map_err(|e| e.to_string())
 }

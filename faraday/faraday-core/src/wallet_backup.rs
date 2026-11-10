@@ -432,13 +432,48 @@ pub fn structural(x: usize, y: usize, n: usize) -> bool {
 /// out: they depend on the mask the seed's code was given.
 pub fn structural_fixed(x: usize, y: usize, n: usize) -> bool {
     let finder = (x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8);
-    let format = (y == 8 && (x < 9 || x >= n - 8)) || (x == 8 && (y < 9 || y >= n - 8));
+    // The format bits go round the sixth row and column, which stay timing.
+    let format = ((y == 8 && (x < 9 || x >= n - 8)) || (x == 8 && (y < 9 || y >= n - 8)))
+        && x != 6
+        && y != 6;
     let version = (n - 17) / 4;
     let align = version >= 2 && {
         let c = n - 7;
         x.abs_diff(c) <= 2 && y.abs_diff(c) <= 2
     };
     (finder && !format) || ((x == 6 || y == 6) && !format) || align
+}
+
+/// Whether a fixed square of a code of side `n` ([`structural_fixed`]) is
+/// dark, as ISO/IEC 18004 draws it: a finder is a dark ring of 7 by 7, a
+/// light ring, a dark 3 by 3 centre, with a light separator beside it;
+/// timing alternates from dark at the sixth square; the alignment square
+/// is a dark ring of 5 by 5 round a dark centre with a light ring between.
+/// It depends on the side alone. A square that is not fixed is `false`.
+pub fn structural_dark(x: usize, y: usize, n: usize) -> bool {
+    if !structural_fixed(x, y, n) {
+        return false;
+    }
+    // Distance from the code's nearest edges, which is the place in a finder.
+    let (fx, fy) = (x.min(n - 1 - x), y.min(n - 1 - y));
+    let in_finder = (x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8);
+    if in_finder {
+        // Its separator is the eighth row and column from the corner.
+        if fx > 6 || fy > 6 {
+            return false;
+        }
+        return fx.abs_diff(3).max(fy.abs_diff(3)) != 2;
+    }
+    let c = n - 7;
+    if (n - 17) / 4 >= 2 && x.abs_diff(c) <= 2 && y.abs_diff(c) <= 2 {
+        return x.abs_diff(c).max(y.abs_diff(c)) != 1;
+    }
+    // Timing: the row or column 6.
+    if y == 6 {
+        x.is_multiple_of(2)
+    } else {
+        y.is_multiple_of(2)
+    }
 }
 
 /// What comparing a copy of a seed with the seed says
