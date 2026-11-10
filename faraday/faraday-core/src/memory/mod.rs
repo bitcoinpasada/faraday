@@ -307,6 +307,17 @@ impl Faraday {
         self.memory.nonces.take_held(id, &entries, unreadable);
     }
 
+    /// A press of the area's settings, Signed amounts or Nonce history:
+    /// the setting changes and the kept settings are saved.
+    pub(crate) fn memory_press(&mut self, a: crate::Action) {
+        match a {
+            crate::Action::SealAmounts(on) => self.memory.set_seals(on),
+            crate::Action::NonceHistory(on) => self.set_nonce_history(on),
+            _ => return,
+        }
+        self.save_boxes();
+    }
+
     /// Sets whether the nonce history is kept. Turned on, the records of
     /// every open vault are read and what is open is compared again; turned
     /// off, nothing is recorded, compared or drawn, a refusal already found
