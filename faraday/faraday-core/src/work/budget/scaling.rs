@@ -77,7 +77,7 @@ const SCREENS: [(&str, Action); 6] = [
     ("Wallets", Action::Nav(Screen::Wallets)),
     ("Savings' card", Action::OpenWallet(0)),
     ("Files", Action::Nav(Screen::Files)),
-    ("Spend tab", Action::Nav(Screen::Family)),
+    ("Spend tab", Action::Nav(Screen::SpendBackup)),
     ("Spend", Action::Nav(Screen::Spend)),
 ];
 

@@ -275,9 +275,9 @@ fn new_key_typed_and_the_spend_tab_s_words_offer_the_chip_too() {
 
     // The Spend tab's Type the words.
     let mut app = demo_app();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(
-        faraday_core::family::FamilyAction::TypeWords,
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(
+        faraday_core::spend_backup::SpendBackupAction::TypeWords,
     ));
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Entry);
@@ -360,7 +360,7 @@ fn restore_by_file_loads_the_next_sample_wallet() {
 
 #[test]
 fn the_envelope_takes_the_spend_of_the_wallet_loaded() {
-    use faraday_core::family::{FamilyAction as F, page};
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
     let mut app = demo_app();
     // Savings and its keys loaded, as the Load samples sheet loads them.
     app.press(Action::Samples);
@@ -368,10 +368,10 @@ fn the_envelope_takes_the_spend_of_the_wallet_loaded() {
     app.press(Action::SamplesLoad);
     let _ = app.frame();
     assert_eq!(app.session.wallets.len(), 1);
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Next(page::MAP)));
-    app.press(Action::Family(F::Next(page::SAFE)));
-    app.press(Action::Family(F::Scan));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
+    app.press(Action::SpendBackup(F::Next(page::SAFE)));
+    app.press(Action::SpendBackup(F::Scan));
     let _ = app.frame();
     assert!(strip_offers(&mut app, Action::ScanSample));
     app.press(Action::ScanSample);
@@ -379,17 +379,21 @@ fn the_envelope_takes_the_spend_of_the_wallet_loaded() {
     // The transaction is kept for Bring, which starts the spend on the
     // wallet it is from: the review.
     app.press(Action::Cancel);
-    app.press(Action::Family(F::Next(page::CHECK)));
-    app.press(Action::Family(F::Next(page::WRITE)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::WRITE)));
     let _ = app.frame();
     let k = app
         .inbox()
         .iter()
         .position(|i| i.kind == faraday_core::wallet::FileKind::Psbt)
         .expect("the spend is in the Inbox");
-    app.press(Action::Family(F::UsePsbt(k)));
+    app.press(Action::SpendBackup(F::UsePsbt(k)));
     let spend = app.spend().expect("the spend started");
-    assert_eq!(spend.wallet, app.family_wallet(), "Savings' own spend");
+    assert_eq!(
+        spend.wallet,
+        app.spend_backup_wallet(),
+        "Savings' own spend"
+    );
 }
 
 #[test]

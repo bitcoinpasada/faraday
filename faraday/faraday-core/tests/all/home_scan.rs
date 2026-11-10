@@ -327,11 +327,11 @@ fn files_own_scanner_routes_a_share_and_a_totp_code_as_homes_does() {
 
 #[test]
 fn the_spend_tabs_intake_names_a_totp_code_and_files_no_secret() {
-    use faraday_core::family::{FamilyAction as F, page};
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
     let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Next(page::MAP)));
-    app.press(Action::Family(F::Scan));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
+    app.press(Action::SpendBackup(F::Scan));
     assert_eq!(app.sheet, Some(Sheet::Scan), "the intake scanner is not on");
     for (secret, said) in [
         (TOTP, "not used here"),

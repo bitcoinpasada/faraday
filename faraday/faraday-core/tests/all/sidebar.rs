@@ -87,7 +87,7 @@ fn the_sidebar_offers_learn_and_opens_the_learn_sheet() {
 #[test]
 fn the_sidebar_has_no_spend_row() {
     let app = with(0, 0);
-    assert!(!app.offers(Action::Nav(Screen::Family)));
+    assert!(!app.offers(Action::Nav(Screen::SpendBackup)));
 }
 
 /// Each of the four stages of the session strip in turn: Bring in with
@@ -834,15 +834,15 @@ fn back_ups_cancel_ends_it_on_the_wallet_and_removes_its_row() {
 
 #[test]
 fn a_spends_cancel_ends_it_and_removes_its_row() {
-    use faraday_core::family::FamilyAction;
+    use faraday_core::spend_backup::SpendBackupAction;
     let mut app = with(1, 1);
-    app.press(Action::Family(FamilyAction::SpendFrom(0)));
-    assert_eq!(app.screen, Screen::Family);
+    app.press(Action::SpendBackup(SpendBackupAction::SpendFrom(0)));
+    assert_eq!(app.screen, Screen::SpendBackup);
     assert!(row_on_settings(&mut app, Going::Spend));
     app.press(Action::Resume(Going::Spend));
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, None, "no transaction yet: no sheet");
-    assert_ne!(app.screen, Screen::Family);
+    assert_ne!(app.screen, Screen::SpendBackup);
     assert!(!row_on_settings(&mut app, Going::Spend));
 }
 

@@ -117,7 +117,7 @@ fn home_offers_every_place_without_a_sidebar() {
 #[test]
 fn homes_grid_has_no_spend_tile() {
     let mut app = panel();
-    assert!(on_panel(&mut app, Action::Nav(Screen::Family)).is_none());
+    assert!(on_panel(&mut app, Action::Nav(Screen::SpendBackup)).is_none());
 }
 
 #[test]

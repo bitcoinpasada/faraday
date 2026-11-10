@@ -28,7 +28,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let clip = ui.rect(x0, 0.0, cw, h);
     let open = ui.region_open(Region::page(clip).from_zero(app.list_offset));
     let back = Action::Nav(app.entry_leave());
-    let back_name = if app.entry_leave() == Screen::Family {
+    let back_name = if app.entry_leave() == Screen::SpendBackup {
         EN.entry_spend
     } else {
         EN.entry_wallets

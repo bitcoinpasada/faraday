@@ -119,7 +119,7 @@ impl Nav {
 pub(crate) fn destination_of(s: Screen) -> Screen {
     match s {
         Screen::Wallets
-        | Screen::Family
+        | Screen::SpendBackup
         | Screen::Vanity
         | Screen::Spend
         | Screen::Entry

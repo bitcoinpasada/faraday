@@ -473,7 +473,7 @@ impl Faraday {
         match self.screen {
             Screen::KefTool => crate::kef_tool::field(self).is_some(),
             Screen::QrTool => crate::qr_tool::field(self).is_some(),
-            Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
+            Screen::SpendBackup => self.vaults.focus.is_some() || self.seeds_typing(),
             Screen::Restore => self.seeds_typing(),
             Screen::Unlock
             | Screen::CreateVault
@@ -565,7 +565,7 @@ impl Faraday {
             Screen::Backup if crate::wallet_backup::kef::field(self).is_some() => {
                 crate::wallet_backup::kef::field(self).map(|(a, _)| a)
             }
-            Screen::Family | Screen::Restore if self.seeds_typing() => self
+            Screen::SpendBackup | Screen::Restore if self.seeds_typing() => self
                 .seeds()?
                 .focus
                 .map(|f| Action::Seeds(crate::seeds::SeedsAction::Focus(f))),
@@ -573,7 +573,7 @@ impl Faraday {
             | Screen::CreateVault
             | Screen::VaultContents
             | Screen::BackupFlow
-            | Screen::Family
+            | Screen::SpendBackup
             | Screen::Codes => Some(Action::Vault(match self.vaults.focus? {
                 F::Passphrase => V::FocusPassphrase,
                 F::YubiKey => V::FocusYubiKey,

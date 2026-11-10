@@ -1,8 +1,8 @@
 # Spend
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/family/screen.rs`, `faraday/faraday-core/src/family/mod.rs`, `faraday/faraday-core/src/family/text.rs`)
-**Screen:** `Family`
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/spend_backup/screen.rs`, `faraday/faraday-core/src/spend_backup/mod.rs`, `faraday/faraday-core/src/spend_backup/text.rs`)
+**Screen:** `SpendBackup`
 **Group:** Wallets
 
 **Opened from:** **Spend from a backup, step by step** on Home and on

@@ -266,7 +266,7 @@ impl Faraday {
         };
         match self.screen {
             Screen::Home => vec![&EN.start_here, &EN.air_gap],
-            Screen::Family => vec![&EN.inheritance, &EN.verifying, &EN.air_gap, &EN.scams],
+            Screen::SpendBackup => vec![&EN.inheritance, &EN.verifying, &EN.air_gap, &EN.scams],
             Screen::WalletsStart => vec![&EN.wallet_kinds, &EN.start_here],
             Screen::Wallets => wallet().map_or_else(|| vec![&EN.wallet_kinds], for_kind),
             Screen::Spend => {
@@ -447,7 +447,7 @@ impl Faraday {
     fn learn_spend(&mut self) {
         self.sheet = None;
         self.learn_close();
-        self.screen = Screen::Family;
+        self.screen = Screen::SpendBackup;
     }
 
     /// Whether the window holds Learn as a supporting pane beside the

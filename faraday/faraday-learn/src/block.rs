@@ -107,7 +107,7 @@ pub struct Block {
     /// Faraday's own calls.
     pub own_calls: &'static [Line],
     /// The screens that offer the action, by their `Screen` variant's name
-    /// (`Spend`, `Family`), or the Starter's pages by `starter:<page>`
+    /// (`Spend`, `SpendBackup`), or the Starter's pages by `starter:<page>`
     /// (`starter:write`, `starter:confirm`, `starter:writing`,
     /// `starter:done`, `starter:start`).
     pub screens: &'static [&'static str],

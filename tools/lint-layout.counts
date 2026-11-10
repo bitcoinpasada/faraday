@@ -30,7 +30,7 @@ impl-faraday faraday/faraday-core/src/edit.rs
 impl-faraday faraday/faraday-core/src/explore/addresses.rs
 impl-faraday faraday/faraday-core/src/explore/mod.rs
 impl-faraday faraday/faraday-core/src/fade.rs
-impl-faraday faraday/faraday-core/src/family/mod.rs
+impl-faraday faraday/faraday-core/src/spend_backup/mod.rs
 impl-faraday faraday/faraday-core/src/file_menu.rs
 impl-faraday faraday/faraday-core/src/fresh.rs
 impl-faraday faraday/faraday-core/src/glance/sheet.rs

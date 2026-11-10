@@ -20,10 +20,10 @@ use faraday_core::backup_flow::steps::FlowAction;
 use faraday_core::backup_flow::{BackupFlow, Kind as FlowKind, Plan, Step as FlowStep};
 use faraday_core::catalog::TILES;
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way as C32Way};
-use faraday_core::family::FamilyAction as F;
 use faraday_core::in_progress::Going;
 use faraday_core::keygen::{Start, Way, kstep};
 use faraday_core::nav::{BarTool, MenuPress, Overflow};
+use faraday_core::spend_backup::SpendBackupAction as F;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Host, ScanPurpose, Screen, Sheet, StorageEvent, testkit};
@@ -170,7 +170,7 @@ fn screens() -> Vec<Screen> {
     every!(Screen: Home, WalletsStart, Wallets, Spend, Files, Visit, Entry, Backup,
         Message, CheckMessage, Create, Restore, Settings, SetTime, Randomness, Vaults,
         Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, QrTool, Silent, Explore, Lightning, Tools, Unlock,
-        VaultContents, Codes, Family, Vanity, Decode, Invoice, NonceCheck, SignerCheck, Compare, Catalog, Transfer, BackupFlow)
+        VaultContents, Codes, SpendBackup, Vanity, Decode, Invoice, NonceCheck, SignerCheck, Compare, Catalog, Transfer, BackupFlow)
 }
 
 fn sheets() -> Vec<Sheet> {
@@ -255,7 +255,7 @@ fn opens_a_part(a: &Action) -> bool {
             | Action::BackupsPage(_)
             | Action::Codex32(C32::Card(_) | C32::Tab(_) | C32::Panel(_) | C32::View(_))
             | Action::Vault(V::CStep(_) | V::Category(_) | V::Item(_))
-            | Action::Family(F::Card(_))
+            | Action::SpendBackup(F::Card(_))
             | Action::Flow(FlowAction::Open(_))
     )
 }
@@ -491,13 +491,13 @@ fn every_spend_step(rig: &mut Rig) -> Vec<String> {
 
 /// The Spend tab's pages, from the map to the transaction, by its own
 /// Next on each.
-fn every_family_page(rig: &mut Rig) -> Vec<String> {
-    use faraday_core::family::page;
-    rig.press(Action::Nav(Screen::Family));
+fn every_spend_backup_page(rig: &mut Rig) -> Vec<String> {
+    use faraday_core::spend_backup::page;
+    rig.press(Action::Nav(Screen::SpendBackup));
     let mut found = Vec::new();
     for p in [page::MAP, page::CHECK, page::WRITE] {
         found.extend(walk(rig, &format!("Spend tab page {p}")));
-        rig.press(Action::Family(F::Next(p)));
+        rig.press(Action::SpendBackup(F::Next(p)));
         rig.settle();
     }
     found.extend(walk(rig, "Spend tab page after Write"));
@@ -518,7 +518,7 @@ fn loaded(on: On, mode: Mode) -> Vec<String> {
     found.extend(walk(&mut rig, "savings, Savings' backup checklist"));
     found.extend(every_spend_step(&mut rig));
     let mut rig = savings_loaded(on, mode);
-    found.extend(every_family_page(&mut rig));
+    found.extend(every_spend_backup_page(&mut rig));
     found
 }
 

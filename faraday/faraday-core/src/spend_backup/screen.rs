@@ -10,9 +10,9 @@ use faraday_draw::tokens::{FIELD_H, GAP, GAP_SMALL, PROGRESS_H, ROW_CHEVRON_ROOM
 use faraday_draw::widgets::Icon;
 
 use crate::drawing::{Scrolled, View};
-use crate::family::text;
-use crate::family::{Came, CardId, FamilyAction as F, Question, more_bit, page};
 use crate::screens::{next_button, step_body, step_summary};
+use crate::spend_backup::text;
+use crate::spend_backup::{Came, CardId, Question, SpendBackupAction as F, more_bit, page};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::{VaultAction, cost_text, file_text, mib_text};
@@ -21,33 +21,33 @@ use crate::{Action, Faraday, flow};
 use faraday_ui::Status;
 
 fn fa(a: F) -> Action {
-    Action::Family(a)
+    Action::SpendBackup(a)
 }
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    if app.family_overview() && ui.compact {
+    if app.spend_backup_overview() && ui.compact {
         loaded_compact(app, ui, cw, h);
         return;
     }
-    if app.family_overview() {
+    if app.spend_backup_overview() {
         let content = loaded(app, ui, x0, cw);
         // Scrolled no further than its end, in whole pixels: the frame
         // rounds an offset to whole pixels, and an end between two would
         // be passed again on every frame at a scale that is not whole.
         let max = ((content - h).max(0.0) * ui.f).floor() / ui.f;
-        if crate::flow::past_end(app.family.state.scroll.y, max) {
+        if crate::flow::past_end(app.spend_backup.state.scroll.y, max) {
             let to = flow::Scroll {
                 y: max,
-                ..app.family.state.scroll
+                ..app.spend_backup.state.scroll
             };
-            app.scroll(Scrolled::Family, to, true);
+            app.scroll(Scrolled::SpendBackup, to, true);
         }
         return;
     }
     let col_x = x0 + 40.0;
     let col_w = (cw - 80.0).min(900.0);
-    let ids = app.family_cards();
-    let open = app.family_open_card();
+    let ids = app.spend_backup_cards();
+    let open = app.spend_backup_open_card();
     let cards: Vec<flow::Card> = ids
         .iter()
         .map(|&id| flow::Card {
@@ -57,7 +57,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             done: done(app, id),
             open: open == Some(id),
             default: false,
-            toggle: crate::family::toggle(app, id),
+            toggle: crate::spend_backup::toggle(app, id),
             guide: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
             // Why the summary is read before signing is Learn's.
             learn: (id == CardId::Step(step::TRANSACTION))
@@ -67,11 +67,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // From a wallet's card: the wallet's name, and no word on the
     // walk-through.
     let from = app
-        .family_wallet()
-        .filter(|_| app.family.state.from_card)
+        .spend_backup_wallet()
+        .filter(|_| app.spend_backup.state.from_card)
         .map(|i| {
             fill(
-                EN.family_spend_from_n,
+                EN.spend_backup_spend_from_n,
                 &[&app.session.wallets[i].name.to_string()],
             )
         });
@@ -84,31 +84,35 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // Opened from anywhere else, the way back is where it was opened
         // from, by the trail (F77).
         back: app
-            .family_wallet()
-            .filter(|_| app.family.state.from_card)
-            .map(|i| (EN.family_wallets, Action::OpenWallet(i)))
-            .or(match app.family.state.from {
+            .spend_backup_wallet()
+            .filter(|_| app.spend_backup.state.from_card)
+            .map(|i| (EN.spend_backup_wallets, Action::OpenWallet(i)))
+            .or(match app.spend_backup.state.from {
                 Some(crate::Screen::Home) => {
-                    Some((EN.family_home, Action::Nav(crate::Screen::Home)))
+                    Some((EN.spend_backup_home, Action::Nav(crate::Screen::Home)))
                 }
-                Some(crate::Screen::WalletsStart) => {
-                    Some((EN.family_wallets, Action::Nav(crate::Screen::WalletsStart)))
-                }
-                _ => app
-                    .trail_name()
-                    .map(|_| (EN.family_wallets, Action::Nav(crate::Screen::WalletsStart))),
+                Some(crate::Screen::WalletsStart) => Some((
+                    EN.spend_backup_wallets,
+                    Action::Nav(crate::Screen::WalletsStart),
+                )),
+                _ => app.trail_name().map(|_| {
+                    (
+                        EN.spend_backup_wallets,
+                        Action::Nav(crate::Screen::WalletsStart),
+                    )
+                }),
             })
             .map(|b| app.named_back(b)),
-        heading: from.as_deref().unwrap_or(EN.family_spend),
+        heading: from.as_deref().unwrap_or(EN.spend_backup_spend),
         guided: true,
         switch: false,
         wrap_closed: false,
-        note: from.is_none().then_some(EN.family_this_page_takes),
+        note: from.is_none().then_some(EN.spend_backup_this_page_takes),
         chip: None,
         chip_tap: None,
         moves: crate::ui::Moves::No,
     };
-    let scroll = app.family.state.scroll;
+    let scroll = app.spend_backup.state.scroll;
     let (next, again) = {
         let app_ref: &View = app;
         let mut draw_body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
@@ -116,7 +120,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         flow::column(ui, &col, &cards, scroll, &mut draw_body)
     };
-    app.scroll(Scrolled::Family, next, again);
+    app.scroll(Scrolled::SpendBackup, next, again);
 }
 
 /// The tab with something loaded already: each wallet and what it needs
@@ -125,20 +129,20 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     let x = x0 + 48.0;
     let w = (cw - 96.0).min(980.0);
-    let scrolled = app.family.state.scroll.y;
+    let scrolled = app.spend_backup.state.scroll.y;
     // Named by the top app bar, with the way back where it was opened
     // from another screen (F77); Walk through leads the page under it.
     let back = app
         .trail_name()
         .map(|name| app.named_back((name, Action::Back)));
-    let mut y = crate::screens::bar_head(ui, back, EN.family_spend) - scrolled;
-    let lw = ui.measure_as(LABEL_L, EN.family_walk_through) + 32.0;
+    let mut y = crate::screens::bar_head(ui, back, EN.spend_backup_spend) - scrolled;
+    let lw = ui.measure_as(LABEL_L, EN.spend_backup_walk_through) + 32.0;
     ui.button(
         x + w - lw,
         y,
         Some(lw),
         BUTTON_H,
-        EN.family_walk_through,
+        EN.spend_backup_walk_through,
         Style::Ghost,
         fa(F::Walkthrough),
     );
@@ -149,7 +153,9 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         let name = s
             .wallet
             .and_then(|i| app.session.wallets.get(i))
-            .map_or(EN.family_no_wallet_loaded.to_string(), |w| w.name.clone());
+            .map_or(EN.spend_backup_no_wallet_loaded.to_string(), |w| {
+                w.name.clone()
+            });
         y += next_row(
             ui,
             x,
@@ -157,25 +163,25 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             w,
             Icon::Sign,
             &fill(
-                EN.family_signing_wallet,
+                EN.spend_backup_signing_wallet,
                 &[&s.spend.source.to_string(), &name.to_string()],
             ),
             Some((
-                EN.family_continue_signing,
+                EN.spend_backup_continue_signing,
                 s.wallet
                     .map_or(Action::Nav(crate::Screen::Spend), |i| fa(F::SpendFrom(i))),
             )),
         );
     }
 
-    crate::screens::section_label(ui, x, y, EN.family_wallets_loaded);
+    crate::screens::section_label(ui, x, y, EN.spend_backup_wallets_loaded);
     y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
     if app.session.wallets.is_empty() {
         ui.text_mid_as(
             (x, y, 30.0),
             BODY_S,
             Role::OnSurfaceVariant,
-            EN.family_none_loaded,
+            EN.spend_backup_none_loaded,
         );
         y += 42.0;
     }
@@ -212,7 +218,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         let (marker, tone) = if ready {
             (
                 fill(
-                    EN.family_can_spend_count,
+                    EN.spend_backup_can_spend_count,
                     &[&here.min(need).to_string(), &need.to_string()],
                 ),
                 Role::Ok,
@@ -220,13 +226,13 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         } else if here > 0 {
             (
                 fill(
-                    EN.family_here_needed,
+                    EN.spend_backup_here_needed,
                     &[
                         &here.to_string(),
                         (if here == 1 {
-                            EN.family_key
+                            EN.spend_backup_key
                         } else {
-                            EN.family_keys
+                            EN.spend_backup_keys
                         }),
                         &need.to_string(),
                     ],
@@ -234,7 +240,10 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
                 Role::Warning,
             )
         } else {
-            (EN.family_no_key_here.to_string(), Role::OnSurfaceVariant)
+            (
+                EN.spend_backup_no_key_here.to_string(),
+                Role::OnSurfaceVariant,
+            )
         };
         ui.text_mid_as(
             (x + 46.0, y + 30.0 + grow, 28.0 + mark_grow),
@@ -243,9 +252,9 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             &marker,
         );
         let label = if ready {
-            EN.family_spend_from_button
+            EN.spend_backup_spend_from_button
         } else {
-            EN.family_open_button
+            EN.spend_backup_open_button
         };
         let bw = ui.measure_as(LABEL_L, label) + 36.0;
         ui.button(
@@ -271,7 +280,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
                 app,
                 ui,
                 &slots,
-                crate::Screen::Family,
+                crate::Screen::SpendBackup,
                 x + 46.0,
                 y + 60.0 + grow + mark_grow,
                 w - 62.0,
@@ -281,7 +290,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
                     (x + 46.0, y + 62.0 + grow + mark_grow, 40.0),
                     BODY_S,
                     Role::OnSurfaceVariant,
-                    EN.family_an_open_vault,
+                    EN.spend_backup_an_open_vault,
                 );
             }
         }
@@ -305,7 +314,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         .collect();
     if !lonely.is_empty() {
         y += 8.0;
-        crate::screens::section_label(ui, x, y, EN.family_keys_without_wallet);
+        crate::screens::section_label(ui, x, y, EN.spend_backup_keys_without_wallet);
         y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
         for k in &lonely {
             ui.text_mid_as(
@@ -330,7 +339,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
                 y + 4.0,
                 None,
                 BUTTON_H,
-                &fill(EN.family_open, &[&app.inbox[k].name.to_string()]),
+                &fill(EN.spend_backup_open, &[&app.inbox[k].name.to_string()]),
                 Style::Primary,
                 fa(F::UseWallet(k)),
             ) + 8.0;
@@ -340,7 +349,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             y + 4.0,
             None,
             BUTTON_H,
-            EN.family_restore_wallet,
+            EN.spend_backup_restore_wallet,
             Style::Secondary,
             Action::RestoreWallet,
         ) + 8.0;
@@ -349,7 +358,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             y + 4.0,
             None,
             BUTTON_H,
-            EN.family_spend_as_a_single,
+            EN.spend_backup_spend_as_a_single,
             Style::Secondary,
             fa(F::SeedWallet),
         );
@@ -367,7 +376,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     use crate::screens::{section_label, wrap_buttons};
     let (x, w) = (M, cw - 2.0 * M);
     let clip = ui.rect(0.0, BAR_H, cw, h - BAR_H);
-    let open = ui.region_open(Region::page(clip).from_zero(app.family.state.scroll.y));
+    let open = ui.region_open(Region::page(clip).from_zero(app.spend_backup.state.scroll.y));
     let top = BAR_H + 12.0;
     let mut y = top;
     y += wrap_buttons(
@@ -376,7 +385,11 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         y,
         w,
         36.0,
-        &[(EN.family_walk_through, Style::Ghost, fa(F::Walkthrough))],
+        &[(
+            EN.spend_backup_walk_through,
+            Style::Ghost,
+            fa(F::Walkthrough),
+        )],
     ) + 4.0;
 
     // A transaction being signed comes first.
@@ -384,9 +397,11 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         let name = s
             .wallet
             .and_then(|i| app.session.wallets.get(i))
-            .map_or(EN.family_no_wallet_loaded.to_string(), |w| w.name.clone());
+            .map_or(EN.spend_backup_no_wallet_loaded.to_string(), |w| {
+                w.name.clone()
+            });
         let line = fill(
-            EN.family_signing_wallet,
+            EN.spend_backup_signing_wallet,
             &[&s.spend.source.to_string(), &name.to_string()],
         );
         let lh = measured(ui, |ui| {
@@ -411,7 +426,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
             y + lh + 26.0,
             Some(w - 28.0),
             BUTTON_H,
-            EN.family_continue_signing,
+            EN.spend_backup_continue_signing,
             Style::Primary,
             s.wallet
                 .map_or(Action::Nav(crate::Screen::Spend), |i| fa(F::SpendFrom(i))),
@@ -419,14 +434,14 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         y += ch + 16.0;
     }
 
-    section_label(ui, x, y, EN.family_wallets_loaded);
+    section_label(ui, x, y, EN.spend_backup_wallets_loaded);
     y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
     if app.session.wallets.is_empty() {
         ui.text_mid_as(
             (x, y, 30.0),
             BODY_S,
             Role::OnSurfaceVariant,
-            EN.family_none_loaded,
+            EN.spend_backup_none_loaded,
         );
         y += 42.0;
     }
@@ -451,7 +466,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         .collect();
     if !lonely.is_empty() {
         y += 8.0;
-        section_label(ui, x, y, EN.family_keys_without_wallet);
+        section_label(ui, x, y, EN.spend_backup_keys_without_wallet);
         y += ui.advance_as(faraday_draw::tokens::TITLE_S, 30.0);
         for k in &lonely {
             ui.text_mid_as(
@@ -465,18 +480,19 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
             y += 32.0;
         }
         let file = app.inbox.iter().position(|i| i.kind == FileKind::Wallet);
-        let open_label = file.map(|k| fill(EN.family_open, &[&app.inbox[k].name.to_string()]));
+        let open_label =
+            file.map(|k| fill(EN.spend_backup_open, &[&app.inbox[k].name.to_string()]));
         let mut items: Vec<(&str, Style, Action)> = Vec::new();
         if let (Some(k), Some(l)) = (file, open_label.as_deref()) {
             items.push((l, Style::Primary, fa(F::UseWallet(k))));
         }
         items.push((
-            EN.family_restore_wallet,
+            EN.spend_backup_restore_wallet,
             Style::Secondary,
             Action::RestoreWallet,
         ));
         items.push((
-            EN.family_spend_as_a_single,
+            EN.spend_backup_spend_as_a_single,
             Style::Secondary,
             fa(F::SeedWallet),
         ));
@@ -485,19 +501,19 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     let content = y - top + 24.0;
     let max = (content - (h - BAR_H)).max(0.0);
     ui.region_close(open, max);
-    if crate::flow::past_end(app.family.state.scroll.y, max) {
+    if crate::flow::past_end(app.spend_backup.state.scroll.y, max) {
         let to = flow::Scroll {
             y: max,
-            ..app.family.state.scroll
+            ..app.spend_backup.state.scroll
         };
-        app.scroll(Scrolled::Family, to, true);
+        app.scroll(Scrolled::SpendBackup, to, true);
     }
     crate::compact::bar(
         app,
         ui,
         cw,
-        (EN.family_home, Action::Nav(crate::Screen::Home)),
-        EN.family_spend,
+        (EN.spend_backup_home, Action::Nav(crate::Screen::Home)),
+        EN.spend_backup_spend,
     );
 }
 
@@ -507,26 +523,29 @@ fn keys_marker(here: usize, need: usize) -> (String, Role) {
     if here >= need {
         (
             fill(
-                EN.family_can_spend_count,
+                EN.spend_backup_can_spend_count,
                 &[&here.min(need).to_string(), &need.to_string()],
             ),
             Role::Ok,
         )
     } else if here > 0 {
         let keys = if here == 1 {
-            EN.family_key
+            EN.spend_backup_key
         } else {
-            EN.family_keys
+            EN.spend_backup_keys
         };
         (
             fill(
-                EN.family_here_needed,
+                EN.spend_backup_here_needed,
                 &[&here.to_string(), keys, &need.to_string()],
             ),
             Role::Warning,
         )
     } else {
-        (EN.family_no_key_here.to_string(), Role::OnSurfaceVariant)
+        (
+            EN.spend_backup_no_key_here.to_string(),
+            Role::OnSurfaceVariant,
+        )
     }
 }
 
@@ -559,7 +578,7 @@ fn wallet_card_compact(
             app,
             ui,
             &slots,
-            crate::Screen::Family,
+            crate::Screen::SpendBackup,
             x + 18.0,
             y,
             w - 32.0,
@@ -571,7 +590,7 @@ fn wallet_card_compact(
                 (x + 14.0, y, w - 28.0),
                 BODY_S,
                 Role::OnSurfaceVariant,
-                EN.family_an_open_vault,
+                EN.spend_backup_an_open_vault,
             ) + 8.0
         }
     };
@@ -608,9 +627,9 @@ fn wallet_card_compact(
     ui.text_mid_as(band, LABEL_M, tone, &marker);
     missing(ui, y + head);
     let label = if ready {
-        EN.family_spend_from_button
+        EN.spend_backup_spend_from_button
     } else {
-        EN.family_open_button
+        EN.spend_backup_open_button
     };
     // The button's top where its grown height starts.
     let by = y + head + mh + (bh - BUTTON_H) / 2.0;
@@ -658,7 +677,7 @@ fn next_row(
 
 fn done(app: &View, id: CardId) -> bool {
     match id {
-        CardId::Page(p) => app.family_page_done(p),
+        CardId::Page(p) => app.spend_backup_page_done(p),
         CardId::Step(n) => app.wallets.spend().is_some_and(|s| s.done[n as usize]),
         CardId::Later(_) => false,
     }
@@ -666,46 +685,56 @@ fn done(app: &View, id: CardId) -> bool {
 
 fn summary(app: &View, id: CardId) -> String {
     let s = match id {
-        CardId::Page(page::MAP) => EN.family_six_stops,
-        CardId::Page(page::SAFE) if app.online => EN.family_desktop_copy,
+        CardId::Page(page::MAP) => EN.spend_backup_six_stops,
+        CardId::Page(page::SAFE) if app.online => EN.spend_backup_desktop_copy,
         CardId::Page(page::SAFE) => {
-            return fill(EN.family_running_from_medium, &[app.medium.started_from()]);
+            return fill(
+                EN.spend_backup_running_from_medium,
+                &[app.medium.started_from()],
+            );
         }
         CardId::Page(page::HOLDING | page::OPEN) => {
-            return match app.family_wallet().map(|i| &app.session.wallets[i]) {
+            return match app.spend_backup_wallet().map(|i| &app.session.wallets[i]) {
                 Some(w) => wallet_once(w),
                 None => match came_rows(app).len() {
-                    0 => EN.family_nothing_in_yet.to_string(),
-                    1 => EN.family_things_one.to_string(),
-                    n => fill(EN.family_things_count, &[&n.to_string()]),
+                    0 => EN.spend_backup_nothing_in_yet.to_string(),
+                    1 => EN.spend_backup_things_one.to_string(),
+                    n => fill(EN.spend_backup_things_count, &[&n.to_string()]),
                 },
             };
         }
         CardId::Page(page::CHECK)
-            if app.family.state.from_card && app.family_page_done(page::CHECK) =>
+            if app.spend_backup.state.from_card && app.spend_backup_page_done(page::CHECK) =>
         {
-            EN.family_loaded_in_sparrow
+            EN.spend_backup_loaded_in_sparrow
         }
-        CardId::Page(page::CHECK) if app.family_page_done(page::CHECK) => EN.family_money_shows,
+        CardId::Page(page::CHECK) if app.spend_backup_page_done(page::CHECK) => {
+            EN.spend_backup_money_shows
+        }
         // From the wallet's card Write the payment brings the PSBT too.
-        CardId::Page(page::WRITE) if app.family.state.from_card => {
+        CardId::Page(page::WRITE) if app.spend_backup.state.from_card => {
             return match app.wallets.spend() {
-                Some(s) => fill(EN.family_signing, &[&s.spend.source.to_string()]),
+                Some(s) => fill(EN.spend_backup_signing, &[&s.spend.source.to_string()]),
                 None => String::new(),
             };
         }
-        CardId::Page(page::WRITE) if app.family_page_done(page::WRITE) => EN.family_done_in_sparrow,
+        CardId::Page(page::WRITE) if app.spend_backup_page_done(page::WRITE) => {
+            EN.spend_backup_done_in_sparrow
+        }
         CardId::Page(page::BRING) => {
             return match app.wallets.spend() {
-                Some(s) => fill(EN.family_signing, &[&s.spend.source.to_string()]),
-                None => EN.family_not_here_yet.to_string(),
+                Some(s) => fill(EN.spend_backup_signing, &[&s.spend.source.to_string()]),
+                None => EN.spend_backup_not_here_yet.to_string(),
             };
         }
         CardId::Page(page::AWAY) => {
             return match app.outbox.len() {
-                0 => fill(EN.family_nothing_waits, &[app.medium.for_the()]),
-                1 => fill(EN.family_1_file, &[app.medium.for_the()]),
-                n => fill(EN.family_files, &[&n.to_string(), app.medium.for_the()]),
+                0 => fill(EN.spend_backup_nothing_waits, &[app.medium.for_the()]),
+                1 => fill(EN.spend_backup_1_file, &[app.medium.for_the()]),
+                n => fill(
+                    EN.spend_backup_files,
+                    &[&n.to_string(), app.medium.for_the()],
+                ),
             };
         }
         CardId::Page(_) => "",
@@ -715,7 +744,7 @@ fn summary(app: &View, id: CardId) -> String {
                 None => String::new(),
             };
         }
-        CardId::Later(_) => EN.family_after_the_transaction,
+        CardId::Later(_) => EN.spend_backup_after_the_transaction,
     };
     s.to_string()
 }
@@ -726,18 +755,18 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
         CardId::Page(page::MAP) => map(app, ui, x, cy, w),
         // Starting from the stick heads What do you have? (F103).
         CardId::Page(page::SAFE | page::HOLDING | page::OPEN) => holding(app, ui, x, cy, w),
-        CardId::Page(page::CHECK) if app.family.state.from_card => {
+        CardId::Page(page::CHECK) if app.spend_backup.state.from_card => {
             loaded_in_sparrow(app, ui, x, cy, w)
         }
         CardId::Page(page::CHECK) => check(app, ui, x, cy, w),
-        CardId::Page(page::WRITE) if app.family.state.from_card => bring(app, ui, x, cy, w),
+        CardId::Page(page::WRITE) if app.spend_backup.state.from_card => bring(app, ui, x, cy, w),
         CardId::Page(page::WRITE) => {
             if next_button(
                 ui,
                 x,
                 cy,
                 w,
-                EN.family_have_psbt_button,
+                EN.spend_backup_have_psbt_button,
                 fa(F::Next(page::WRITE)),
             ) {
                 52.0
@@ -760,7 +789,11 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
                     cy + used,
                     w,
                     38.0,
-                    &[(EN.family_show_the_finished, Style::Secondary, fa(F::QrTx))],
+                    &[(
+                        EN.spend_backup_show_the_finished,
+                        Style::Secondary,
+                        fa(F::QrTx),
+                    )],
                 ) + 4.0;
             }
             used
@@ -777,7 +810,7 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
 /// More about this: a quiet button, and the paragraphs while it is open.
 fn more(app: &View, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w: f32) -> f32 {
     let bit = more_bit(id);
-    let shown = app.family.state.more & (1 << u32::from(bit)) != 0;
+    let shown = app.spend_backup.state.more & (1 << u32::from(bit)) != 0;
     let mut cy = y + 4.0;
     ui.button(
         x - 12.0,
@@ -785,9 +818,9 @@ fn more(app: &View, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w
         None,
         BUTTON_H,
         if shown {
-            EN.family_less_about
+            EN.spend_backup_less_about
         } else {
-            EN.family_more_about
+            EN.spend_backup_more_about
         },
         Style::Ghost,
         fa(F::More(bit)),
@@ -805,9 +838,9 @@ fn map(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let stops = text::map(app.medium);
     for (k, (place, head, line)) in stops.iter().enumerate() {
-        let c = if *place == EN.family_offline {
+        let c = if *place == EN.spend_backup_offline {
             Role::Ok
-        } else if *place == EN.family_online {
+        } else if *place == EN.spend_backup_online {
             Role::Warning
         } else {
             Role::OnSurfaceVariant
@@ -843,7 +876,7 @@ fn map(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Role::Warning,
         text::WORDS_ARE_MONEY,
     ) + 16.0;
-    let drawn = next_button(ui, x, cy, w, EN.family_start, fa(F::Next(page::MAP)));
+    let drawn = next_button(ui, x, cy, w, EN.spend_backup_start, fa(F::Next(page::MAP)));
     // The count's line holds its band whether Continue stands beside
     // it or at the foot.
     cy + (if drawn { 52.0 } else { 48.0 }) - y
@@ -864,7 +897,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .filter(|f| f.open.is_none())
             .or(locked.first().copied())
         {
-            let head = fill(EN.family_unlock_n, &[&f.name.to_string()]);
+            let head = fill(EN.spend_backup_unlock_n, &[&f.name.to_string()]);
             cy += ui.wrap_as((x, cy, w), TITLE_M, Role::OnSurface, &head) + 12.0;
         }
         cy += vault(app, ui, x, cy, w);
@@ -874,15 +907,15 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             LABEL_L,
             Role::OnSurfaceVariant,
-            EN.family_bring_in_paper,
+            EN.spend_backup_bring_in_paper,
         );
         cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
     }
-    let ready = app.family_ready();
+    let ready = app.spend_backup_ready();
     let may = app.may_load_keys();
     let ways = vec![
         (
-            EN.family_scan_the_qr,
+            EN.spend_backup_scan_the_qr,
             if ready {
                 Style::Secondary
             } else {
@@ -891,7 +924,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             fa(F::Scan),
         ),
         (
-            EN.family_type_the_words,
+            EN.spend_backup_type_the_words,
             if may {
                 Style::Secondary
             } else {
@@ -911,7 +944,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .inbox
             .iter()
             .filter(|i| i.kind == FileKind::Wallet)
-            .map(|i| fill(EN.family_open, &[&i.name.to_string()]))
+            .map(|i| fill(EN.spend_backup_open, &[&i.name.to_string()]))
             .collect();
         let items: Vec<(&str, Style, Action)> = app
             .inbox
@@ -924,7 +957,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if !items.is_empty() {
             cy += crate::screens::wrap_buttons(ui, x, cy, w, 36.0, &items);
         }
-        let label = fill(EN.family_copy_files_button, &[app.medium.a()]);
+        let label = fill(EN.spend_backup_copy_files_button, &[app.medium.a()]);
         cy += stick_row(app, ui, x, cy, w, &label);
     }
     ui.button(
@@ -937,7 +970,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         fa(F::Unsure),
     );
     cy += 40.0;
-    if app.family.state.help {
+    if app.spend_backup.state.help {
         for (look, what) in text::looks(app.medium) {
             cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, &look) + 4.0;
             cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, &what) + 14.0;
@@ -952,7 +985,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             LABEL_L,
             Role::OnSurfaceVariant,
-            EN.family_came_in_heading,
+            EN.spend_backup_came_in_heading,
         );
         cy += ui.advance_as(LABEL_L, 26.0);
         for row in &rows {
@@ -978,16 +1011,20 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 cy,
                 w,
                 38.0,
-                &[(EN.family_rebuild_wallet, Style::Primary, fa(F::Rebuild))],
+                &[(
+                    EN.spend_backup_rebuild_wallet,
+                    Style::Primary,
+                    fa(F::Rebuild),
+                )],
             );
         }
     }
     // A seed that is none of the described wallet's keys.
-    if let Some(wi) = app.family_described() {
+    if let Some(wi) = app.spend_backup_described() {
         let name = &app.session.wallets[wi].name;
-        for fp in app.family_strays() {
+        for fp in app.spend_backup_strays() {
             let line = fill(
-                EN.family_seed_not_wallets,
+                EN.spend_backup_seed_not_wallets,
                 &[&fp_text(fp).to_string(), &name.to_string()],
             );
             cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 8.0;
@@ -998,7 +1035,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 w,
                 38.0,
                 &[(
-                    EN.family_add_its_passphrase,
+                    EN.spend_backup_add_its_passphrase,
                     if may {
                         Style::Secondary
                     } else {
@@ -1010,18 +1047,18 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
     }
     cy += question(app, ui, x, cy, w);
-    if let Some(e) = &app.family.state.error {
+    if let Some(e) = &app.spend_backup.state.error {
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e) + 10.0;
     }
     cy += opened(app, ui, x, cy, w);
-    if !rows.is_empty() || app.family.state.route.is_some() {
+    if !rows.is_empty() || app.spend_backup.state.route.is_some() {
         cy += crate::screens::wrap_buttons(
             ui,
             x - 12.0,
             cy,
             w,
             36.0,
-            &[(EN.family_start_over, Style::Ghost, fa(F::StartOver))],
+            &[(EN.spend_backup_start_over, Style::Ghost, fa(F::StartOver))],
         );
     }
     cy - y
@@ -1047,7 +1084,7 @@ fn came_rows(app: &View) -> Vec<String> {
     let mut rows = Vec::new();
     // Split sheets already in Files, copied in from a stick say, are
     // listed after what came in on the card.
-    let mut came = app.family.state.came.clone();
+    let mut came = app.spend_backup.state.came.clone();
     for it in app.inbox.iter().filter(|i| i.kind == FileKind::Share) {
         let c = Came::File(it.name.clone());
         if !came.contains(&c) {
@@ -1064,9 +1101,9 @@ fn came_rows(app: &View) -> Vec<String> {
                 let t = fp_text(f);
                 let label = label.trim();
                 rows.push(if label.is_empty() || label.eq_ignore_ascii_case(&t) {
-                    fill(EN.family_seed_row, &[&t.to_string()])
+                    fill(EN.spend_backup_seed_row, &[&t.to_string()])
                 } else {
-                    fill(EN.family_seed, &[&t.to_string(), label])
+                    fill(EN.spend_backup_seed, &[&t.to_string(), label])
                 });
             }
             Came::File(name) => {
@@ -1077,10 +1114,10 @@ fn came_rows(app: &View) -> Vec<String> {
                     FileKind::Wallet => {
                         match app.session.wallets.iter().find(|wl| wl.source == *name) {
                             Some(wl) => fill(
-                                EN.family_description_row_shape,
+                                EN.spend_backup_description_row_shape,
                                 &[&wl.name.to_string(), &Session::shape(wl).to_string()],
                             ),
-                            None => fill(EN.family_description_row, &[&name.to_string()]),
+                            None => fill(EN.spend_backup_description_row, &[&name.to_string()]),
                         }
                     }
                     FileKind::Share => {
@@ -1088,14 +1125,14 @@ fn came_rows(app: &View) -> Vec<String> {
                         texts.push(String::from_utf8_lossy(&item.bytes).into_owned());
                         match crate::restore::merge(&texts) {
                             Ok(m) => fill(
-                                EN.family_part_of_keys,
+                                EN.spend_backup_part_of_keys,
                                 &[
                                     &sheets.to_string(),
                                     &m.have.len().to_string(),
                                     &m.n.to_string(),
                                 ],
                             ),
-                            Err(_) => fill(EN.family_part, &[&sheets.to_string()]),
+                            Err(_) => fill(EN.spend_backup_part, &[&sheets.to_string()]),
                         }
                     }
                     FileKind::Key => {
@@ -1106,11 +1143,11 @@ fn came_rows(app: &View) -> Vec<String> {
                             .and_then(|r| r.split(['/', ']']).next())
                             .map(str::to_uppercase);
                         match fp {
-                            Some(fp) => fill(EN.family_key_xpub_n, &[&fp.to_string()]),
-                            None => EN.family_key_xpub.to_string(),
+                            Some(fp) => fill(EN.spend_backup_key_xpub_n, &[&fp.to_string()]),
+                            None => EN.spend_backup_key_xpub.to_string(),
                         }
                     }
-                    FileKind::Psbt => EN.family_transaction.to_string(),
+                    FileKind::Psbt => EN.spend_backup_transaction.to_string(),
                     _ => name.clone(),
                 });
             }
@@ -1128,14 +1165,14 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     } else {
         Style::Disabled
     };
-    match app.family_question() {
+    match app.spend_backup_question() {
         Question::None => return 0.0,
         Question::Anything => {
             cy += ui.wrap_as(
                 (x, cy, w),
                 TITLE_M,
                 Role::OnSurface,
-                EN.family_anything_else,
+                EN.spend_backup_anything_else,
             ) + 6.0;
             cy += ui.wrap_as(
                 (x, cy, w),
@@ -1150,10 +1187,10 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 w,
                 40.0,
                 &[
-                    (EN.family_scan_more, Style::Secondary, fa(F::Scan)),
-                    (EN.family_type_more_words, typing, fa(F::TypeWords)),
+                    (EN.spend_backup_scan_more, Style::Secondary, fa(F::Scan)),
+                    (EN.spend_backup_type_more_words, typing, fa(F::TypeWords)),
                     (
-                        EN.family_that_s_everything,
+                        EN.spend_backup_that_s_everything,
                         Style::Primary,
                         fa(F::Everything),
                     ),
@@ -1161,7 +1198,12 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
         }
         Question::Description => {
-            cy += ui.wrap_as((x, cy, w), TITLE_M, Role::OnSurface, EN.family_these_seeds) + 6.0;
+            cy += ui.wrap_as(
+                (x, cy, w),
+                TITLE_M,
+                Role::OnSurface,
+                EN.spend_backup_these_seeds,
+            ) + 6.0;
             cy += ui.wrap_as(
                 (x, cy, w),
                 BODY_S,
@@ -1176,12 +1218,12 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 40.0,
                 &[
                     (
-                        EN.family_scan_the_description,
+                        EN.spend_backup_scan_the_description,
                         Style::Primary,
                         Action::ScanFor(crate::Ask::Description),
                     ),
                     (
-                        EN.family_i_can_t_find,
+                        EN.spend_backup_i_can_t_find,
                         Style::Secondary,
                         fa(F::NoDescription),
                     ),
@@ -1189,10 +1231,10 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
         }
         Question::Shape => {
-            let s = &app.family.state.seeds;
+            let s = &app.spend_backup.state.seeds;
             let here = app.seeds_here(s).len();
             if s.n > here {
-                let line = fill(EN.family_without_description, &[&s.n.to_string()]);
+                let line = fill(EN.spend_backup_without_description, &[&s.n.to_string()]);
                 cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 12.0;
             }
             cy += crate::seeds::screen::shape(app, ui, s, false, x, cy, w);
@@ -1225,7 +1267,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             w,
-            &fill(EN.family_remove_the_then, &[app.medium.noun()]),
+            &fill(EN.spend_backup_remove_the_then, &[app.medium.noun()]),
         );
     }
     let compact = ui.compact;
@@ -1253,14 +1295,14 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         );
         ui.icon(x + 14.0, cy + 14.0, 36.0, Icon::Lock, 15.0, muted);
         let where_ = if f.in_outbox {
-            fill(EN.family_sealed_here, &[app.medium.for_the()])
+            fill(EN.spend_backup_sealed_here, &[app.medium.for_the()])
         } else {
-            fill(EN.family_copied_from_medium, &[app.medium.a()])
+            fill(EN.spend_backup_copied_from_medium, &[app.medium.a()])
         };
         let where_ = format!("{where_} · {}", file_text(f.len));
         let mem = f.facts.header.cost.memory_kib / 1024;
         let time = fill(
-            EN.family_unlock_time,
+            EN.spend_backup_unlock_time,
             &[&app
                 .vaults()
                 .time_text(mem, f.facts.header.cost.passes)
@@ -1289,7 +1331,13 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += ch + 8.0;
     }
     cy += 8.0;
-    ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.family_passphrase);
+    ui.text_as(
+        x,
+        cy,
+        LABEL_L,
+        Role::OnSurfaceVariant,
+        EN.spend_backup_passphrase,
+    );
     cy += ui.advance_as(LABEL_L, 22.0);
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(crate::vault::Focus::Passphrase);
@@ -1311,12 +1359,17 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy +=
         FIELD_H + 12.0 + crate::screens::never_real_seed_if(app.may_load_keys(), app, ui, x, cy, w);
     if app.vaults.working == Some(crate::vault::Work::Unlock) {
-        ui.text_mid_as((x, cy, 42.0), LABEL_L, Role::Primary, EN.family_unlocking);
+        ui.text_mid_as(
+            (x, cy, 42.0),
+            LABEL_L,
+            Role::Primary,
+            EN.spend_backup_unlocking,
+        );
         crate::screens::working_bar(ui, x, cy, w, 42.0);
     } else {
         let style = Style::Primary.when(app.may_load_keys());
         let free = match app.vaults.memory_free_mib {
-            Some(m) => fill(EN.family_this_computer, &[&mib_text(m).to_string()]),
+            Some(m) => fill(EN.spend_backup_this_computer, &[&mib_text(m).to_string()]),
             None => String::new(),
         };
         if compact {
@@ -1327,7 +1380,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 cy,
                 Some(w),
                 42.0,
-                EN.family_unlock,
+                EN.spend_backup_unlock,
                 style,
                 fa(F::Unlock),
             ) {
@@ -1343,7 +1396,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 cy,
                 Some(140.0),
                 BUTTON_H,
-                EN.family_unlock,
+                EN.spend_backup_unlock,
                 style,
                 fa(F::Unlock),
             );
@@ -1368,11 +1421,11 @@ fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f3
     let (style, note) = match (app.stick.is_empty(), open) {
         (true, _) => (
             Style::Disabled,
-            fill(EN.family_plug_medium, &[app.medium.noun()]),
+            fill(EN.spend_backup_plug_medium, &[app.medium.noun()]),
         ),
         (false, true) => (
             Style::Disabled,
-            fill(EN.family_faraday_asks, &[app.medium.a()]),
+            fill(EN.spend_backup_faraday_asks, &[app.medium.a()]),
         ),
         (false, false) => (Style::Secondary, String::new()),
     };
@@ -1383,7 +1436,7 @@ fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f3
         BUTTON_H,
         label,
         style,
-        Action::VisitFrom(crate::Screen::Family),
+        Action::VisitFrom(crate::Screen::SpendBackup),
     );
     if ui.compact && !note.is_empty() {
         // Under the button, wrapped.
@@ -1405,7 +1458,7 @@ fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f3
 /// pressing the one chosen moves on too (F103).
 fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let chosen = app.family_wallet();
+    let chosen = app.spend_backup_wallet();
     if app.session.wallets.is_empty() {
         return 0.0;
     }
@@ -1414,7 +1467,7 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         LABEL_L,
         Role::OnSurfaceVariant,
-        EN.family_spend_from_label,
+        EN.spend_backup_spend_from_label,
     );
     cy += ui.advance_as(LABEL_L, 26.0);
     for (i, wl) in app.session.wallets.iter().enumerate() {
@@ -1426,7 +1479,7 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let slots = app.session.slots(wl);
         let here = slots.iter().filter(|s| s.held_by.is_some()).count();
         let line = fill(
-            EN.family_of_keys_here,
+            EN.spend_backup_of_keys_here,
             &[
                 &Session::shape(wl).to_string(),
                 &here.to_string(),
@@ -1472,7 +1525,7 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             (x, y, w),
             LABEL_L,
             Role::OnSurface,
-            EN.family_have_psbt_line,
+            EN.spend_backup_have_psbt_line,
         ) + 8.0;
         return lh
             + crate::screens::wrap_buttons(
@@ -1481,7 +1534,7 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 y + lh,
                 w,
                 40.0,
-                &with_sample(EN.family_scan_button),
+                &with_sample(EN.spend_backup_scan_button),
             )
             + 8.0;
     }
@@ -1489,13 +1542,13 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// The shortcut's label.
-pub const SHORTCUT: &str = EN.family_i_have_the_psbt;
+pub const SHORTCUT: &str = EN.spend_backup_i_have_the_psbt;
 
 /// Load the wallet in Sparrow, from the wallet's card: the shortcut, the
 /// wallet QR, its first address, It is loaded.
 fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let Some(i) = app.family_wallet() else {
+    let Some(i) = app.spend_backup_wallet() else {
         return 0.0;
     };
     cy += shortcut(app, ui, x, cy, w);
@@ -1507,7 +1560,7 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         w,
         40.0,
         &[(
-            EN.family_show_the_wallet_qr,
+            EN.spend_backup_show_the_wallet_qr,
             Style::Primary,
             Action::QrWallet(i),
         )],
@@ -1517,7 +1570,7 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         LABEL_L,
         Role::OnSurfaceVariant,
-        EN.family_receive_address,
+        EN.spend_backup_receive_address,
     );
     cy += ui.advance_as(LABEL_L, 22.0);
     let (addr, held) = app.receive_line(wl, false, 0);
@@ -1529,7 +1582,7 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         x,
         cy,
         w,
-        EN.family_it_is_loaded,
+        EN.spend_backup_it_is_loaded,
         fa(F::Next(page::CHECK)),
     );
     // The count's line holds its band whether Continue stands beside
@@ -1543,10 +1596,10 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let Some(i) = app.family_wallet() else {
+    let Some(i) = app.spend_backup_wallet() else {
         return 0.0;
     };
-    let guess = app.family_guess();
+    let guess = app.spend_backup_guess();
     if let Some(g) = guess {
         // The ways tried, struck.
         for t in &g.tried {
@@ -1563,13 +1616,13 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (x, cy, w),
                 TITLE_M,
                 Role::OnSurface,
-                EN.family_none_of_these,
+                EN.spend_backup_none_of_these,
             ) + 6.0;
             cy += ui.wrap_as(
                 (x, cy, w),
                 BODY_S,
                 Role::OnSurfaceVariant,
-                EN.family_the_words_may,
+                EN.spend_backup_the_words_may,
             ) + 12.0;
             cy += crate::screens::wrap_buttons(
                 ui,
@@ -1578,9 +1631,13 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 w,
                 40.0,
                 &[
-                    (EN.family_scan_more, Style::Primary, fa(F::Again(true))),
                     (
-                        EN.family_type_a_passphrase,
+                        EN.spend_backup_scan_more,
+                        Style::Primary,
+                        fa(F::Again(true)),
+                    ),
+                    (
+                        EN.spend_backup_type_a_passphrase,
                         Style::Secondary,
                         fa(F::Again(false)),
                     ),
@@ -1593,7 +1650,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (x, cy, w),
                 TITLE_M,
                 Role::OnSurface,
-                EN.family_is_there_a_word,
+                EN.spend_backup_is_there_a_word,
             ) + 12.0;
             cy += crate::screens::wrap_buttons(
                 ui,
@@ -1603,12 +1660,12 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 40.0,
                 &[
                     (
-                        EN.family_yes_type_button,
+                        EN.spend_backup_yes_type_button,
                         Style::Primary,
                         fa(F::Passphrase(true)),
                     ),
                     (
-                        EN.family_no_button,
+                        EN.spend_backup_no_button,
                         Style::Secondary,
                         fa(F::Passphrase(false)),
                     ),
@@ -1619,13 +1676,13 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let (kind, pass) = Faraday::guess_way(g, g.at);
         let total = Faraday::guess_total(g);
         let line = fill(
-            EN.family_trying_progress,
+            EN.spend_backup_trying_progress,
             &[
-                crate::family::kind_label(kind),
+                crate::spend_backup::kind_label(kind),
                 (if pass {
-                    EN.family_with_a_passphrase
+                    EN.spend_backup_with_a_passphrase
                 } else {
-                    EN.family_no_passphrase
+                    EN.spend_backup_no_passphrase
                 }),
                 &(g.at + 1).to_string(),
                 &total.to_string(),
@@ -1645,21 +1702,24 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         w,
         40.0,
         &[(
-            EN.family_show_the_wallet,
+            EN.spend_backup_show_the_wallet,
             Style::Primary,
             Action::QrWallet(i),
         )],
     ) + 6.0;
     if let Some(g) = guess {
         let open = if g.tried.is_empty() {
-            EN.family_open_online_wallet
+            EN.spend_backup_open_online_wallet
         } else {
-            EN.family_open_this_one
+            EN.spend_backup_open_this_one
         };
         cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, open) + 14.0;
     }
-    let n = 3 + app.family.state.addresses;
-    for (head, change) in [(EN.family_receive, false), (EN.family_change, true)] {
+    let n = 3 + app.spend_backup.state.addresses;
+    for (head, change) in [
+        (EN.spend_backup_receive, false),
+        (EN.spend_backup_change, true),
+    ] {
         ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, head);
         cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
         for k in 0..n {
@@ -1714,13 +1774,17 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut left: Vec<(&str, Style, Action)> = Vec::new();
     if n < 50 {
         left.push((
-            EN.family_show_more_addresses,
+            EN.spend_backup_show_more_addresses,
             Style::Secondary,
             fa(F::MoreAddresses),
         ));
     }
     if guess.is_some() {
-        left.push((EN.family_no_money_shows, Style::Secondary, fa(F::NoMoney)));
+        left.push((
+            EN.spend_backup_no_money_shows,
+            Style::Secondary,
+            fa(F::NoMoney),
+        ));
     }
     cy += crate::screens::buttons_and_next(
         ui,
@@ -1728,7 +1792,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         w,
         &left,
-        Some((EN.family_yes_my_money, fa(F::Next(page::CHECK)))),
+        Some((EN.spend_backup_yes_my_money, fa(F::Next(page::CHECK)))),
     );
     cy + 4.0 - y
 }
@@ -1739,18 +1803,19 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // From the wallet's card this is Write the payment's own: Scan the
     // PSBT is the shortcut here.
-    let card = app.family.state.from_card;
+    let card = app.spend_backup.state.from_card;
     // The money moving to a new wallet (`docs/history/NEW-WALLET.md` §9.6): every
     // coin, to its first address.
-    if card && let Some((name, address)) = app.family_wallet().and_then(|i| app.moving_to(i)) {
-        let head = fill(EN.family_every_coin_to_wallet, &[&name.to_string()]);
+    if card && let Some((name, address)) = app.spend_backup_wallet().and_then(|i| app.moving_to(i))
+    {
+        let head = fill(EN.spend_backup_every_coin_to_wallet, &[&name.to_string()]);
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &head) + 4.0;
         cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &address) + 4.0;
         cy += ui.wrap_as(
             (x, cy, w),
             BODY_S,
             Role::OnSurfaceVariant,
-            EN.family_amount_max_hint,
+            EN.spend_backup_amount_max_hint,
         ) + 12.0;
     }
     ui.button(
@@ -1759,9 +1824,9 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         None,
         BUTTON_H,
         if card {
-            EN.family_scan_the_psbt
+            EN.spend_backup_scan_the_psbt
         } else {
-            EN.family_scan
+            EN.spend_backup_scan
         },
         if app.wallets.spend().is_some() {
             Style::Secondary
@@ -1776,13 +1841,13 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ui.demo_offer(EN.scan_sample_psbt, Action::SamplePsbt);
     }
     let label = if card {
-        fill(EN.family_on_medium, &[app.medium.a()])
+        fill(EN.spend_backup_on_medium, &[app.medium.a()])
     } else {
-        fill(EN.family_copy_psbt_button, &[app.medium.a()])
+        fill(EN.spend_backup_copy_psbt_button, &[app.medium.a()])
     };
     cy += stick_row(app, ui, x, cy, w, &label);
     // From the wallet's card, only this wallet's.
-    let wallet = app.family_wallet();
+    let wallet = app.spend_backup_wallet();
     let psbts: Vec<(usize, &str)> = app
         .inbox
         .iter()
@@ -1797,7 +1862,13 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .map(|(k, i)| (k, i.name.as_str()))
         .collect();
     if !psbts.is_empty() {
-        ui.text_as(x, cy, LABEL_L, Role::OnSurfaceVariant, EN.family_in_files);
+        ui.text_as(
+            x,
+            cy,
+            LABEL_L,
+            Role::OnSurfaceVariant,
+            EN.spend_backup_in_files,
+        );
         cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
     }
     for (k, name) in &psbts {
@@ -1815,10 +1886,10 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (x + w, cy, 38.0),
                 LABEL_L,
                 Role::Ok,
-                EN.family_signing_this_one,
+                EN.spend_backup_signing_this_one,
             );
         } else {
-            let label = EN.family_use_this_one;
+            let label = EN.spend_backup_use_this_one;
             let bw = ui.measure_as(LABEL_L, label) + 32.0;
             ui.button(
                 x + w - bw,
@@ -1837,14 +1908,18 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         match s.wallet.and_then(|w| app.session.wallets.get(w)) {
             Some(wl) => {
                 let line = fill(
-                    EN.family_spends_from_wallet,
+                    EN.spend_backup_spends_from_wallet,
                     &[&wl.name.to_string(), &Session::shape(wl).to_string()],
                 );
                 cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, &line) + 12.0;
             }
             None => {
-                cy +=
-                    ui.wrap_as((x, cy, w), BODY_S, Role::Warning, EN.family_no_wallet_open) + 12.0;
+                cy += ui.wrap_as(
+                    (x, cy, w),
+                    BODY_S,
+                    Role::Warning,
+                    EN.spend_backup_no_wallet_open,
+                ) + 12.0;
             }
         }
         if next_button(
@@ -1852,7 +1927,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             w,
-            EN.family_read_button,
+            EN.spend_backup_read_button,
             Action::Step(first_step(app)),
         ) {
             cy += 52.0;
@@ -1926,7 +2001,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     .filter(|_| slot.held_by.is_none() && app.vault_key_for(slot).is_some());
                 if waits {
                     let t = crate::glance::WAITING;
-                    let label = EN.family_finish_backup_button;
+                    let label = EN.spend_backup_finish_backup_button;
                     let bw = ui.measure_as(LABEL_L, label) + 32.0;
                     let cw2 = ui.measure_as(BODY_S, t) + 34.0;
                     if compact {
@@ -1963,7 +2038,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     );
                 } else if let Some(f) = in_vault {
                     // A key an open vault holds loads from it.
-                    let label = EN.family_load_from_vault;
+                    let label = EN.spend_backup_load_from_vault;
                     let bw = ui.measure_as(LABEL_L, label) + 32.0;
                     ui.button(
                         x + w - bw,
@@ -1983,9 +2058,9 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     );
                 } else {
                     let (t, status) = if slot.held_by.is_some() {
-                        (EN.family_signs_here, Status::Ok)
+                        (EN.spend_backup_signs_here, Status::Ok)
                     } else {
-                        (EN.family_not_here, Status::Neutral)
+                        (EN.spend_backup_not_here, Status::Neutral)
                     };
                     let cw2 = ui.measure_as(BODY_S, t) + 34.0;
                     let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
@@ -2038,27 +2113,27 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .filter(|(_, f)| f.open.is_none())
             .map(|(k, f)| {
                 (
-                    fill(EN.family_unlock_n, &[&f.name.to_string()]),
-                    Action::Vault(VaultAction::OpenFrom(k, crate::Screen::Family)),
+                    fill(EN.spend_backup_unlock_n, &[&f.name.to_string()]),
+                    Action::Vault(VaultAction::OpenFrom(k, crate::Screen::SpendBackup)),
                 )
             })
             .collect();
         let mut items: Vec<(&str, Style, Action)> = Vec::new();
         if let Some((wi, _)) = wallet {
             let scan = Style::Primary.when(may);
-            items.push((EN.family_scan_a_key, scan, Action::ScanKey(wi)));
+            items.push((EN.spend_backup_scan_a_key, scan, Action::ScanKey(wi)));
         }
         items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));
         if s.steps.contains(&step::COLLECT) {
             items.push((
-                EN.family_collect_a_signature,
+                EN.spend_backup_collect_a_signature,
                 Style::Secondary,
                 Action::Step(step::COLLECT),
             ));
         }
         cy += crate::screens::wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
         if !may {
-            let pull = fill(EN.family_remove_the_first, &[app.medium.noun()]);
+            let pull = fill(EN.spend_backup_remove_the_first, &[app.medium.noun()]);
             ui.text_as(x, cy, LABEL_L, Role::Warning, &pull);
             cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
         }
@@ -2070,7 +2145,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         x,
         cy,
         w,
-        EN.family_continue,
+        EN.spend_backup_continue,
         Action::StepNext(step::SIGNERS),
     );
     // The count's line holds its band whether Continue stands beside
@@ -2098,9 +2173,13 @@ fn away(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             w,
             40.0,
             &[
-                (EN.family_lock, Style::Primary, Action::LockAsk),
-                (EN.family_power_off, Style::Secondary, Action::PowerAsk),
-                (EN.family_start_over, Style::Ghost, fa(F::StartOver)),
+                (EN.spend_backup_lock, Style::Primary, Action::LockAsk),
+                (
+                    EN.spend_backup_power_off,
+                    Style::Secondary,
+                    Action::PowerAsk,
+                ),
+                (EN.spend_backup_start_over, Style::Ghost, fa(F::StartOver)),
             ],
         );
         return cy + 4.0 - y;
@@ -2110,7 +2189,7 @@ fn away(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         None,
         BUTTON_H,
-        EN.family_lock,
+        EN.spend_backup_lock,
         Style::Primary,
         Action::LockAsk,
     );
@@ -2119,11 +2198,11 @@ fn away(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         None,
         BUTTON_H,
-        EN.family_power_off,
+        EN.spend_backup_power_off,
         Style::Secondary,
         Action::PowerAsk,
     );
-    let label = EN.family_start_over;
+    let label = EN.spend_backup_start_over;
     let sw = ui.measure_as(LABEL_L, label) + 32.0;
     ui.button(
         x + w - sw,

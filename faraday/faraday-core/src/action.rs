@@ -1,8 +1,8 @@
 //! Everything a press can do.
 
 use crate::{
-    Code, Column, Screen, backup_flow, board, boot_import, compact, explore, family, file_menu,
-    glance, in_progress, nav, seeds, set_time, ui, vanity, vault, wordlist,
+    Code, Column, Screen, backup_flow, board, boot_import, compact, explore, file_menu, glance,
+    in_progress, nav, seeds, set_time, spend_backup, ui, vanity, vault, wordlist,
 };
 
 /// Everything a press can do.
@@ -747,7 +747,7 @@ pub enum Action {
     /// Open New key making SLIP-39 shares, for the session.
     KeyGenSlip39,
     /// A Spend tab action.
-    Family(family::FamilyAction),
+    SpendBackup(spend_backup::SpendBackupAction),
     /// A vanity screen action.
     Vanity(vanity::VanityAction),
     /// A Convert a seed action.

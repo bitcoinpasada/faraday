@@ -663,7 +663,7 @@ impl Faraday {
         Some(match self.screen {
             Screen::Restore => &crate::restore::RESTORE_STEPS,
             Screen::Spend => &crate::wallet::SPEND_STEPS,
-            Screen::Family => &crate::family::FAMILY_STEPS,
+            Screen::SpendBackup => &crate::spend_backup::SPEND_BACKUP_STEPS,
             Screen::Message => &crate::screens::MESSAGE_STEPS,
             Screen::CreateVault => &crate::vault::CREATE_VAULT_STEPS,
             Screen::Bip85 => &crate::bip85::BIP85_STEPS,

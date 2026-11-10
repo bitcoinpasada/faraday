@@ -1322,7 +1322,7 @@ impl Faraday {
                 &fp.map(fp_text)
                     .unwrap_or_else(|| EN.inbox_xpub.to_string())
                     .to_string(),
-                crate::family::kind_name(kind),
+                crate::spend_backup::kind_name(kind),
             ],
         );
         match self.session.add_wallet(
@@ -1503,7 +1503,7 @@ impl Faraday {
             }
         };
         let descriptor = kind.descriptor(1, &[text]);
-        let name = format!("{} · {}", fp_text(fp), crate::family::kind_name(kind));
+        let name = format!("{} · {}", fp_text(fp), crate::spend_backup::kind_name(kind));
         match self.session.add_wallet(
             &c,
             &name,

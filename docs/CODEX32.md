@@ -522,7 +522,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   takes a codex32 string and opens the codex32 form with it in
   (`Faraday::seed_scan_codex32`, `faraday/faraday-core/src/scan_key.rs`);
   Home's Scan and the intake scanner send a string to that form
-  (`intake_key_part`, `faraday/faraday-core/src/family/mod.rs`); a file
+  (`intake_key_part`, `faraday/faraday-core/src/spend_backup/mod.rs`); a file
   of one string is a seed part in Files (`part_of`,
   `faraday/faraday-intake/src/lib.rs`; `core/faraday-codec/src/classify.rs`).
   Every picture of the Codex32QR profile's vectors is read to its stated

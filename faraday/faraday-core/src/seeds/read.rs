@@ -60,7 +60,7 @@ pub enum Choice {
 
 /// What the Spend tab opened the sheet for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ForFamily {
+pub enum ForSpendBackup {
     /// A seed the intake scanner read: the camera comes back after.
     Intake,
     /// The seed's passphrase, asked by Check the money: the guess goes
@@ -153,7 +153,7 @@ pub struct SeedRead {
     /// wallet.
     reason: Option<String>,
     /// Open by the Spend tab, and what for.
-    pub family: Option<ForFamily>,
+    pub spend_backup: Option<ForSpendBackup>,
     /// The key the passphrase typed twice makes ([`SeedRead::with_key`]):
     /// worked out once typing that changes the fields has paused
     /// (`Faraday::seed_read_typed`), never while drawing, and none while
@@ -304,18 +304,18 @@ impl Faraday {
 
     /// Key `fp`, loaded with its words, asked for its passphrase for the
     /// Spend tab.
-    pub(crate) fn seed_read_family(&mut self, fp: Fingerprint, why: ForFamily) {
+    pub(crate) fn seed_read_spend_backup(&mut self, fp: Fingerprint, why: ForSpendBackup) {
         if !self.session.keys.find(fp).is_some_and(|k| k.has_words()) {
             return;
         }
-        let start_adding = why != ForFamily::Intake;
+        let start_adding = why != ForSpendBackup::Intake;
         self.seed_read.state = Some(SeedRead {
             source: Source::Loaded(fp),
             loaded: Some(fp),
             plain: Some(fp),
             adding: start_adding,
             focus: start_adding.then_some(0),
-            family: Some(why),
+            spend_backup: Some(why),
             ..SeedRead::default()
         });
         self.sheet = Some(Sheet::SeedRead);
@@ -324,7 +324,7 @@ impl Faraday {
     /// Key `fp`, loaded, is none of described wallet `w`'s keys: its
     /// passphrase is asked, and only a key of the wallet loads.
     pub(crate) fn seed_read_stray(&mut self, fp: Fingerprint, w: usize, reason: String) {
-        self.seed_read_family(fp, ForFamily::Stray);
+        self.seed_read_spend_backup(fp, ForSpendBackup::Stray);
         if let Some(s) = self.seed_read.state.as_mut() {
             s.wallet = Some(w);
             s.reason = Some(reason);
@@ -349,7 +349,7 @@ impl Faraday {
             Choice::Skip => {
                 self.seed_read.state = None;
                 self.sheet = None;
-                self.family_intake_again(None);
+                self.spend_backup_intake_again(None);
             }
             Choice::AddPass => {
                 s.adding = true;
@@ -392,7 +392,7 @@ impl Faraday {
                 Found::None => None,
             })
         });
-        let plain_sheet = s.wallet.is_none() && s.family.is_none();
+        let plain_sheet = s.wallet.is_none() && s.spend_backup.is_none();
         if let Some(s) = self.seed_read.state.as_mut() {
             s.read = Some(kind);
             s.key_of = key_of;
@@ -446,19 +446,19 @@ impl Faraday {
         }
         // Check the money's passphrase, or one typed after every kind:
         // the seed in place becomes its key with it.
-        if let (Some(why @ (ForFamily::Guess | ForFamily::Replace)), Some(plain)) =
-            (s.family, s.loaded)
+        if let (Some(why @ (ForSpendBackup::Guess | ForSpendBackup::Replace)), Some(plain)) =
+            (s.spend_backup, s.loaded)
         {
             let Some(s) = self.seed_read.state.take() else {
                 return;
             };
             self.sheet = None;
-            if why == ForFamily::Guess {
-                self.family_guess_pass(plain, &s.source, &pass);
+            if why == ForSpendBackup::Guess {
+                self.spend_backup_guess_pass(plain, &s.source, &pass);
             } else if !pass.is_empty() {
-                self.family_seed_with(plain, &s.source, &pass);
+                self.spend_backup_seed_with(plain, &s.source, &pass);
             }
-            self.family_settle();
+            self.spend_backup_settle();
             return;
         }
         let restoring = self.entry.state().back == Some(Screen::Restore)
@@ -479,8 +479,8 @@ impl Faraday {
             (Some(plain), source) => self.seed_read_take(plain, source, &pass),
         }
         // Read by the intake scanner and loaded: the camera again.
-        if s.family == Some(ForFamily::Intake) && self.screen == Screen::Family {
-            self.family_intake_again(Some(fp));
+        if s.spend_backup == Some(ForSpendBackup::Intake) && self.screen == Screen::SpendBackup {
+            self.spend_backup_intake_again(Some(fp));
         }
     }
 
@@ -500,13 +500,13 @@ impl Faraday {
                     Ok(_) => {
                         // A seed that came in on What do you have? is
                         // this key from now on.
-                        if let Some(plain) = s.plain.filter(|_| s.family.is_some()) {
-                            self.family.seed_became(plain.0, fp.0);
-                            self.family_came(crate::family::Came::Seed(fp.0));
+                        if let Some(plain) = s.plain.filter(|_| s.spend_backup.is_some()) {
+                            self.spend_backup.seed_became(plain.0, fp.0);
+                            self.spend_backup_came(crate::spend_backup::Came::Seed(fp.0));
                         }
                         self.wallet_key_added(w, n);
-                        if s.family == Some(ForFamily::Intake) {
-                            self.family_intake_again(Some(fp));
+                        if s.spend_backup == Some(ForSpendBackup::Intake) {
+                            self.spend_backup_intake_again(Some(fp));
                         }
                     }
                     Err(e) => self.toast(&e.text()),
@@ -550,8 +550,8 @@ impl Faraday {
         };
         let back = Some(self.screen);
         self.seeds_took(fp, back);
-        if self.screen == Screen::Family {
-            self.family_key_added();
+        if self.screen == Screen::SpendBackup {
+            self.spend_backup_key_added();
         }
     }
 
@@ -995,7 +995,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let with = s.with_key();
     let differ = !s.pass.is_empty() && !s.pass2.is_empty() && s.pass.as_str() != s.pass2.as_str();
     let use_with = Style::Primary.when(s.pass_ready());
-    let skip = s.family == Some(ForFamily::Intake) && s.wallet.is_some();
+    let skip = s.spend_backup == Some(ForSpendBackup::Intake) && s.wallet.is_some();
     let cancel = if skip {
         (
             EN.seed_read_not_this_one,

@@ -46,7 +46,7 @@ fn screen(name: &str) -> Screen {
         "Unlock" => S::Unlock,
         "VaultContents" => S::VaultContents,
         "Codes" => S::Codes,
-        "Family" => S::Family,
+        "SpendBackup" => S::SpendBackup,
         "Vanity" => S::Vanity,
         "Decode" => S::Decode,
         "NonceCheck" => S::NonceCheck,

@@ -720,7 +720,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `WalletsStart` | The Wallets tab's first page: the wallets loaded, the keys without a wallet, and every way in by what the person has. | Page |
 | `Wallets` | The wallets as a list and the chosen wallet's card: its name and shape, a `tr()` tree's key path line under the shape (the danger line, in the error colour, for a key not of the wallet; F132), the backup line, the signatures possible here, **At a glance** (§4.16), the first receive address and the card's actions (`docs/WALLETS.md`). | Page |
 | `Spend` | Signing a transaction: the review (what it sends, to whom, the fee, change, the txid, warnings), the signers, **Sign with** (§4.4), and the signed PSBT and finished transaction. | Step flow |
-| `Family` | The Spend tab: spending from a backup, step by step (`docs/SPEND-FROM-BACKUP.md`). | Step flow |
+| `SpendBackup` | The Spend tab: spending from a backup, step by step (`docs/SPEND-FROM-BACKUP.md`). | Step flow |
 | `Files` | The Inbox and the Outbox: a row per file with its kind, size and ⋮, and what each file can do (Sign, Decode, Nonce check, Load the wallet, Unlock, Import into the vault). | Page |
 | `Visit` | A stick visit: what is on the stick, ticked to bring in, and what goes out to it. | Page |
 | `Entry` | Add a key: a seed typed or scanned (§4.3). | Page |

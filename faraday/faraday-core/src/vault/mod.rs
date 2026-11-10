@@ -306,7 +306,7 @@ impl Faraday {
         match s {
             Screen::Create => EN.vaults_make_a_new_wallet,
             Screen::Restore => EN.vaults_restore_an_existing,
-            Screen::Family => EN.vaults_spend,
+            Screen::SpendBackup => EN.vaults_spend,
             Screen::Backup => EN.vaults_back_up_a_wallet,
             Screen::BackupFlow => self
                 .flow()
@@ -476,10 +476,10 @@ impl Faraday {
                     }
                 }
                 let (keys, wallets) = self.vault_load_set(v, &set);
-                if self.screen == Screen::Family {
-                    self.family_settle();
-                    self.family_vault_loaded();
-                    self.family_opened();
+                if self.screen == Screen::SpendBackup {
+                    self.spend_backup_settle();
+                    self.spend_backup_vault_loaded();
+                    self.spend_backup_opened();
                 }
                 let counts = fill(
                     EN.vaults_and_loaded,
@@ -565,10 +565,10 @@ impl Faraday {
                 self.wallets.set_wallet(0);
                 // The list stays on screen with what loaded marked; the
                 // Spend tab goes on to what it needs next.
-                if self.screen == Screen::Family {
-                    self.family_settle();
-                    self.family_vault_loaded();
-                    self.family_opened();
+                if self.screen == Screen::SpendBackup {
+                    self.spend_backup_settle();
+                    self.spend_backup_vault_loaded();
+                    self.spend_backup_opened();
                 }
                 let counts = fill(
                     EN.vaults_and_loaded,
@@ -1228,7 +1228,7 @@ impl Faraday {
     /// Costs a read of the free memory (on macOS a process, `vm_stat`;
     /// elsewhere one small file), at most twice a second. Reads what this
     /// computer has free while a screen shows it (Unlock, Create, Visit's
-    /// rows and the file menu, the Family and backup-flow Unlock lines, the
+    /// rows and the file menu, the Spend from a backup and backup-flow Unlock lines, the
     /// memory step's rows); true when the figure changes what is shown.
     /// Drawing only reads the figure kept.
     fn memory_tick(&mut self, now_ms: u64) -> bool {
@@ -1237,7 +1237,7 @@ impl Faraday {
             Screen::CreateVault
                 | Screen::Unlock
                 | Screen::Visit
-                | Screen::Family
+                | Screen::SpendBackup
                 | Screen::BackupFlow
         ) || matches!(self.sheet, Some(Sheet::FileMenu | Sheet::VaultMemory));
         if !self.vaults.reads_free()
@@ -1402,9 +1402,9 @@ impl Faraday {
         self.import_settle();
         // Unlocked from the Spend tab, or for it: everything loads.
         let back = self.vaults.state.back_to.take();
-        if self.screen == Screen::Family || back == Some(Screen::Family) {
-            self.screen = Screen::Family;
-            self.family_unlocked(v);
+        if self.screen == Screen::SpendBackup || back == Some(Screen::SpendBackup) {
+            self.screen = Screen::SpendBackup;
+            self.spend_backup_unlocked(v);
         } else if back.is_none() && !made {
             // The Vaults list's Unlock (`docs/history/NEW-WALLET.md` §11.1a,
             // F62): Files, where it landed before F62 when it loaded no
@@ -2394,7 +2394,7 @@ impl Faraday {
                 Screen::Unlock
                     | Screen::CreateVault
                     | Screen::VaultContents
-                    | Screen::Family
+                    | Screen::SpendBackup
                     | Screen::Codes
                     | Screen::BackupFlow
             )

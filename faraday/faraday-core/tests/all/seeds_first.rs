@@ -6,9 +6,9 @@
 //! kit's wallets.
 
 use crate::common::type_text;
-use faraday_core::family::{FamilyAction as F, Open, Question, page};
 use faraday_core::rstep::{CHECK, KIND, QUORUM};
 use faraday_core::seeds::{Focus, SLIDE_M, SLIDE_N, SeedsAction as S};
+use faraday_core::spend_backup::{Open, Question, SpendBackupAction as F, page};
 use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
@@ -96,10 +96,12 @@ fn one_seed_on_restore_makes_the_words_routes_wallet() {
     // The Spend tab opens the same wallet from the same words, once
     // That's everything says there is nothing else.
     let mut tab = shown();
-    tab.press(Action::Nav(Screen::Family));
+    tab.press(Action::Nav(Screen::SpendBackup));
     add_seed(&mut tab, "bacon");
-    tab.press(Action::Family(F::Everything));
-    let w = tab.family_wallet().expect("the words opened no wallet");
+    tab.press(Action::SpendBackup(F::Everything));
+    let w = tab
+        .spend_backup_wallet()
+        .expect("the words opened no wallet");
     let words = &tab.session.wallets[w];
     let r = app.restore().unwrap().wallet.unwrap();
     assert_eq!(
@@ -111,29 +113,29 @@ fn one_seed_on_restore_makes_the_words_routes_wallet() {
 #[test]
 fn the_spend_tab_takes_two_seeds_and_an_xpub_to_check() {
     let mut app = shown();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Next(page::MAP)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
     add_seed(&mut app, "bacon");
     // One seed opens nothing yet: anything else in the envelope?
-    assert!(app.family_wallet().is_none());
-    assert_eq!(app.family_question(), Question::Anything);
-    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
+    assert!(app.spend_backup_wallet().is_none());
+    assert_eq!(app.spend_backup_question(), Question::Anything);
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
     add_seed(&mut app, "zebra");
     // Two: the description is asked for; without one, how many sign
     // comes up.
-    assert!(app.family_wallet().is_none());
-    assert_eq!(app.family_question(), Question::Description);
-    app.press(Action::Family(F::NoDescription));
-    assert!(app.family().seeds.shaping);
+    assert!(app.spend_backup_wallet().is_none());
+    assert_eq!(app.spend_backup_question(), Question::Description);
+    app.press(Action::SpendBackup(F::NoDescription));
+    assert!(app.spend_backup().seeds.shaping);
     app.press(Action::Slide(SLIDE_N, 3));
     app.press(Action::Slide(SLIDE_M, 2));
     app.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
     type_text(&mut app, &testkit::key(2, MULTI_PATH));
     app.press(Action::Seeds(S::Make));
-    let w = app.family_wallet().expect("no wallet made");
+    let w = app.spend_backup_wallet().expect("no wallet made");
     assert_eq!(
         desc(&app.session.wallets[w].policy().to_descriptor()),
         desc(&testkit::savings())
     );
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }

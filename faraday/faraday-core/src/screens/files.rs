@@ -1102,7 +1102,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             Style::Ghost,
             Action::Vault(V::EachShown(v)),
         );
-        if folded && rows.iter().any(|r| r.loaded) && app.screen != Screen::Family {
+        if folded && rows.iter().any(|r| r.loaded) && app.screen != Screen::SpendBackup {
             ui.button(
                 x + 20.0 + lw + ew + 24.0,
                 ty + 4.0,
@@ -1199,7 +1199,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
         Action::Vault(V::LoadChosen(v)),
     );
     // Once something has loaded, the way on: Files stays put.
-    if rows.iter().any(|r| r.loaded) && app.screen != Screen::Family {
+    if rows.iter().any(|r| r.loaded) && app.screen != Screen::SpendBackup {
         ui.button(
             x + 20.0 + bw + 12.0,
             by,
@@ -1478,7 +1478,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
     let more = together.len().saturating_sub(ROWS);
     let folded = !together.is_empty() && !open.each_shown;
     let (ix, iw) = (x + 12.0, w - 24.0);
-    let go = rows.iter().any(|r| r.loaded) && app.screen != Screen::Family;
+    let go = rows.iter().any(|r| r.loaded) && app.screen != Screen::SpendBackup;
     let draw = |ui: &mut Ui| -> f32 {
         let mut ty = y + 14.0;
         ui.icon(ix, ty, 20.0, Icon::Lock, 13.0, Role::Primary);

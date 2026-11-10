@@ -43,7 +43,7 @@ fn potential_body(
             .enumerate()
             .map(|(k, kind)| {
                 (
-                    crate::family::kind_name(*kind).to_string(),
+                    crate::spend_backup::kind_name(*kind).to_string(),
                     Style::chosen(*kind == p.kind),
                     Action::PotentialKind(k as u8),
                 )
@@ -136,7 +136,7 @@ fn potential_body(
         if *fixed {
             let line = fill(
                 EN.potential_as_its_path,
-                &[crate::family::kind_name(p.kind)],
+                &[crate::spend_backup::kind_name(p.kind)],
             );
             cy += ui.wrap_as((x, cy, iw), TITLE_S, Role::OnSurface, &line) + 10.0;
         } else {
@@ -742,7 +742,11 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // the words instead while keys may load (`docs/history/SCAN-TO-SIGN.md`
     // §4.2).
     let intake = sc.purpose == crate::ScanPurpose::Intake;
-    let hint = if intake { app.family_hint() } else { None };
+    let hint = if intake {
+        app.spend_backup_hint()
+    } else {
+        None
+    };
     let hint_h = hint.map_or(0.0, |t| ui.wrap_height_as(BODY_S, t, side_w) + 8.0);
     // A scanner that loads a seed can be given one by Type or Paste.
     let seed_scan = app.seed_line
@@ -933,7 +937,9 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     let type_instead = match for_wallet {
         Some((wi, _)) => Some(Action::EntryWallet(wi)),
-        None if typing => Some(Action::Family(crate::family::FamilyAction::TypeWords)),
+        None if typing => Some(Action::SpendBackup(
+            crate::spend_backup::SpendBackupAction::TypeWords,
+        )),
         None => None,
     };
     let mut left = x + sw - 32.0 - 120.0 - 12.0;
@@ -1967,7 +1973,7 @@ fn learn_tab_items(app: &View) -> Vec<faraday_ui::tabs::Tab<'static, Action>> {
 /// `docs/SPEND-FROM-BACKUP.md` §2), never in a held app
 /// (`Faraday::held`), which has none (owner, 2026-10-29).
 fn learn_offers_spend(app: &View) -> bool {
-    app.screen == Screen::Family && !app.held
+    app.screen == Screen::SpendBackup && !app.held
 }
 
 /// Learn's tabs and the page on show in the box (x, y, w, h), laid out

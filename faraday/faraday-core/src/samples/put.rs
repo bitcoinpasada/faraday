@@ -383,9 +383,11 @@ impl Faraday {
         };
         let had = self.camera.scan().is_some();
         if !had {
-            let holding = self.screen == Screen::Family
-                && self.family.state().open
-                    == Some(crate::family::Open::Page(crate::family::page::HOLDING));
+            let holding = self.screen == Screen::SpendBackup
+                && self.spend_backup.state().open
+                    == Some(crate::spend_backup::Open::Page(
+                        crate::spend_backup::page::HOLDING,
+                    ));
             let mut scan = crate::ScanState::default();
             scan.purpose = if holding {
                 ScanPurpose::Intake

@@ -300,7 +300,7 @@ pub(crate) enum Scrolled {
     /// Restore a wallet.
     Restore,
     /// The Spend tab.
-    Family,
+    SpendBackup,
 }
 
 /// What a drawing pass writes, applied by `render` after the pass
@@ -501,7 +501,7 @@ impl Faraday {
                         r.scroll = to;
                     }
                 }
-                Scrolled::Family => self.family.set_scroll(to),
+                Scrolled::SpendBackup => self.spend_backup.set_scroll(to),
             }
         }
         if let Some((max, scroll)) = a.learn {

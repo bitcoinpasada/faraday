@@ -8,14 +8,14 @@ use faraday_shell_api::{App, Event};
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::family::{FamilyAction as F, page};
-    let fam = |a: F| Action::Family(a);
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
+    let fam = |a: F| Action::SpendBackup(a);
     t.press(Action::Lock);
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
-    t.press(Action::Nav(Screen::Family));
+    t.press(Action::Nav(Screen::SpendBackup));
     t.shot("spend-map")?;
     t.press(fam(F::More(page::MAP)));
     t.shot("spend-map-more")?;
@@ -27,7 +27,7 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("spend-holding-unsure")?;
     t.press(fam(F::Unsure));
     // The vault and the transaction from a stick: the visit, and back.
-    t.press(Action::Nav(Screen::Family));
+    t.press(Action::Nav(Screen::SpendBackup));
     t.sticks(true);
     t.press(Action::VisitInAll);
     for name in ["vault.kdbx", "savings-unsigned.psbt"] {
@@ -38,7 +38,7 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::VisitCopy);
     t.shot("spend-visit")?;
     t.sticks(false);
-    if t.app.screen != Screen::Family {
+    if t.app.screen != Screen::SpendBackup {
         return Err("pulling the stick did not return to the Spend tab".into());
     }
     t.press(fam(F::Pick(0)));
@@ -58,7 +58,7 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
         .position(|w| w.name == "Savings")
         .ok_or("the vault did not load Savings")?;
     // The PSBT in Files chose Savings: What do you have? is done.
-    if t.app.family_wallet() != Some(savings) {
+    if t.app.spend_backup_wallet() != Some(savings) {
         return Err("the PSBT in Files did not choose Savings".into());
     }
     t.shot("spend-check")?;

@@ -174,7 +174,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
 
 #[test]
 fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
-    use faraday_core::family::FamilyAction as F;
+    use faraday_core::spend_backup::SpendBackupAction as F;
     let mut app = Faraday::new();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     display(&mut app);
@@ -184,17 +184,17 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
         kept: Vec::new(),
     });
     // What do you have? offers the stick's vault.
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     let v = app
         .vault_files()
         .iter()
         .position(|f| f.name == "vault.kdbx")
         .unwrap();
-    app.press(Action::Family(F::Pick(v)));
+    app.press(Action::SpendBackup(F::Pick(v)));
     for c in testkit::BACKUP_VAULT_PASSPHRASE.chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    app.press(Action::Family(F::Unlock));
+    app.press(Action::SpendBackup(F::Unlock));
     for t in 1..10u64 {
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
@@ -203,7 +203,9 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
     assert_eq!(app.session.keys.len(), 3);
     // The vault holds the seeds; the wallet opens by itself from its
     // description in Files, which the stick has in four forms.
-    let w = app.family_wallet().expect("the description did not open");
+    let w = app
+        .spend_backup_wallet()
+        .expect("the description did not open");
     assert_eq!(app.session.wallets.len(), 1);
     assert!(
         app.session
@@ -216,7 +218,7 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
         .iter()
         .position(|i| i.name == "taproot-multisig-unsigned.psbt")
         .unwrap();
-    app.press(Action::Family(F::UsePsbt(p)));
+    app.press(Action::SpendBackup(F::UsePsbt(p)));
     assert!(app.spend().unwrap().wallet.is_some());
     testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);

@@ -38,8 +38,8 @@ pub(crate) struct CollectWork {
     /// bytes waiting in the Outbox under it.
     part: (String, bool),
     waiting: Option<Vec<u8>>,
-    /// Came while the Family tab's spend is under way.
-    family: bool,
+    /// Came while the Spend tab's spend is under way.
+    spend_backup: bool,
 }
 
 /// The part file's plan and what it was made against.
@@ -61,7 +61,7 @@ pub(crate) struct CollectDone {
     error: Option<String>,
     fresh: Option<Fresh>,
     part: Option<Planned>,
-    family: bool,
+    spend_backup: bool,
     /// The wallets as the job left them, for what they kept.
     wallets: Vec<Wallet>,
 }
@@ -81,7 +81,7 @@ impl CollectWork {
             mut session,
             part: (part_name, recorded),
             waiting,
-            family,
+            spend_backup,
         } = self;
         let input = spend.psbt.clone();
         let (added, error) = match spend.collect(c, &session, &bytes, &name) {
@@ -116,7 +116,7 @@ impl CollectWork {
             error,
             fresh,
             part,
-            family,
+            spend_backup,
             wallets,
         }
     }
@@ -128,13 +128,13 @@ pub(crate) fn start_collect(app: &mut Faraday, index: usize) {
     start(app, index, false);
 }
 
-/// Starts the Collect of a PSBT that came while the Family tab's spend is
+/// Starts the Collect of a PSBT that came while the Spend tab's spend is
 /// under way: the tab's open card follows the spend's when it ends.
-pub(crate) fn start_collect_on_family(app: &mut Faraday, index: usize) {
+pub(crate) fn start_collect_on_spend_backup(app: &mut Faraday, index: usize) {
     start(app, index, true);
 }
 
-fn start(app: &mut Faraday, index: usize, family: bool) {
+fn start(app: &mut Faraday, index: usize, spend_backup: bool) {
     let Some(item) = app.inbox.get(index) else {
         return;
     };
@@ -158,7 +158,7 @@ fn start(app: &mut Faraday, index: usize, family: bool) {
         session: app.session.job_copy(),
         part: (part, recorded),
         waiting,
-        family,
+        spend_backup,
     };
     app.start(Job::Collect(Box::new(work)), EN.working_collecting);
 }
@@ -175,7 +175,7 @@ pub(crate) fn collected(app: &mut Faraday, done: CollectDone) {
         error,
         fresh,
         part,
-        family,
+        spend_backup,
         wallets,
     } = done;
     let Some(s) = app.wallets.spend_mut() else {
@@ -198,7 +198,7 @@ pub(crate) fn collected(app: &mut Faraday, done: CollectDone) {
         s.take(f);
     }
     super::collect_end(app, nothing.as_ref(), part);
-    if family {
-        app.family_step_moved(false);
+    if spend_backup {
+        app.spend_backup_step_moved(false);
     }
 }

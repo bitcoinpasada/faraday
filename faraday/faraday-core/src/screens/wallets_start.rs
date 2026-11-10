@@ -87,7 +87,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 EN.start_spend_backup,
                 EN.start_a_stick_words,
                 Role::OnSurfaceVariant.paint(),
-                Some(Action::Nav(Screen::Family)),
+                Some(Action::Nav(Screen::SpendBackup)),
             );
             y += crate::compact::screen::row(
                 ui,
@@ -111,7 +111,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     (
                         EN.start_spend_backup,
                         Style::Secondary,
-                        Action::Nav(Screen::Family),
+                        Action::Nav(Screen::SpendBackup),
                     ),
                     (EN.start_add_a_key, Style::Secondary, Action::KeyGen(None)),
                 ],
@@ -157,7 +157,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.start_spend_backup,
             EN.start_a_stick_words,
             Role::OnSurfaceVariant.paint(),
-            Some(Action::Nav(Screen::Family)),
+            Some(Action::Nav(Screen::SpendBackup)),
         );
         y += crate::compact::screen::row(
             ui,
@@ -211,7 +211,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Icon::Sign,
                 EN.start_spend_backup,
                 EN.start_a_stick_words,
-                Action::Nav(Screen::Family),
+                Action::Nav(Screen::SpendBackup),
             ),
             (
                 Icon::Keys,

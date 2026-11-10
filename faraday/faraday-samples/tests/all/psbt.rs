@@ -4,8 +4,8 @@
 //! there to a signed transaction.
 
 use crate::common::demo_app;
-use faraday_core::family::{FamilyAction as F, page};
 use faraday_core::samples::Pick;
+use faraday_core::spend_backup::{SpendBackupAction as F, page};
 use faraday_core::{Action, Faraday, Screen, Sheet};
 use faraday_samples::SAMPLES;
 use faraday_shell_api::App;
@@ -64,8 +64,8 @@ fn home_scanner_offers_the_sample_psbt_and_one_press_closes_it() {
 #[test]
 fn the_spend_tab_loads_the_sample_psbt_reviews_and_signs_it() {
     let mut app = with_savings();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::SpendFrom(0)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::SpendFrom(0)));
     let _ = app.frame();
     assert!(
         crate::common::strip_offers(&mut app, Action::SamplePsbt),
@@ -95,7 +95,7 @@ fn signed_through(scan_button: impl Fn(&mut Faraday)) {
     app.press(Action::Nav(Screen::Wallets));
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
-    app.press(Action::Family(F::SpendFrom(0)));
+    app.press(Action::SpendBackup(F::SpendFrom(0)));
     let _ = app.frame();
     scan_button(&mut app);
     let _ = app.frame();
@@ -112,7 +112,7 @@ fn signed_through(scan_button: impl Fn(&mut Faraday)) {
     app.press(Action::ScanSample);
     let _ = app.frame();
     assert_eq!(app.sheet, None, "the scanner closed");
-    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.screen, Screen::SpendBackup);
     let s = app.spend().expect("the spend opened");
     assert_eq!(s.wallet, Some(0));
     assert_eq!(s.open, Some(faraday_core::wallet::step::TRANSACTION));
@@ -141,7 +141,7 @@ fn from_the_first_steps_scan_it_the_sample_signs_on_the_wallets_path() {
 #[test]
 fn from_the_write_steps_scan_the_psbt_the_sample_signs_on_the_wallets_path() {
     signed_through(|app| {
-        app.press(Action::Family(F::Next(page::CHECK)));
+        app.press(Action::SpendBackup(F::Next(page::CHECK)));
         let _ = app.frame();
         assert!(app.drawn_texts().iter().any(|t| t == "Scan the PSBT"));
         app.press(Action::Scan);
@@ -151,9 +151,9 @@ fn from_the_write_steps_scan_the_psbt_the_sample_signs_on_the_wallets_path() {
 #[test]
 fn with_no_wallet_loaded_the_sample_psbt_still_comes_in_and_says_what_is_missing() {
     let mut app = demo_app();
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     let _ = app.frame();
-    app.press(Action::Family(F::Card(page::HOLDING)));
+    app.press(Action::SpendBackup(F::Card(page::HOLDING)));
     let _ = app.frame();
     assert!(
         crate::common::strip_offers(&mut app, Action::SamplePsbt),

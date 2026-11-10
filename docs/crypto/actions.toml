@@ -930,7 +930,7 @@ screens = [
   "Entry",
   "Restore",
   "Files",
-  "Family",
+  "SpendBackup",
 ]
 functions = [
   "core/faraday-bip/src/bip39.rs::Mnemonic::parse",
@@ -1087,7 +1087,7 @@ screens = [
   "KeyGen",
   "Restore",
   "VaultContents",
-  "Family",
+  "SpendBackup",
   "Bip85",
   "Vanity",
 ]
@@ -2170,7 +2170,7 @@ screens = [
   "Wallets",
   "Explore",
   "Spend",
-  "Family",
+  "SpendBackup",
   "Tools",
 ]
 functions = [
@@ -2568,7 +2568,7 @@ screens = [
   "Files",
   "Restore",
   "WalletsStart",
-  "Family",
+  "SpendBackup",
 ]
 functions = [
   "core/faraday-bip/src/coldcard.rs::looks_like_export",
@@ -4850,7 +4850,7 @@ screens = [
   "Files",
   "Decode",
   "Compare",
-  "Family",
+  "SpendBackup",
 ]
 functions = [
   "core/faraday-psbt/src/psbt.rs::Psbt::parse_bytes",
@@ -4932,7 +4932,7 @@ screens = [
   "Spend",
   "Files",
   "Decode",
-  "Family",
+  "SpendBackup",
 ]
 functions = [
   "core/faraday-psbt/src/v2.rs::PsbtV2::parse_bytes",
@@ -5011,7 +5011,7 @@ standards = [
   "BIP 350",
 ]
 learn = "verifying"
-screens = ["Spend", "Family"]
+screens = ["Spend", "SpendBackup"]
 functions = [
   "core/faraday-psbt/src/inspect.rs::inspect",
   "core/faraday-psbt/src/inspect.rs::Inspection::dangers",
@@ -5126,7 +5126,7 @@ standards = [
   "BIP 342",
 ]
 learn = "verifying"
-screens = ["Spend", "Family"]
+screens = ["Spend", "SpendBackup"]
 functions = [
   "core/faraday-psbt/src/inspect.rs::sighash_kind",
   "core/faraday-psbt/src/inspect.rs::SighashKind::is_default",
@@ -5326,7 +5326,7 @@ standards = [
   "RFC 6979",
 ]
 learn = "nonces"
-screens = ["Spend", "Family"]
+screens = ["Spend", "SpendBackup"]
 functions = [
   "core/faraday-psbt/src/sign.rs::sign",
   "core/faraday-psbt/src/sign.rs::sign_ecdsa",
@@ -5411,7 +5411,7 @@ standards = [
   "BIP 342",
 ]
 learn = "nonces"
-screens = ["Spend", "Family"]
+screens = ["Spend", "SpendBackup"]
 functions = ["core/faraday-psbt/src/sign.rs::sign_taproot", "core/faraday-psbt/src/sign.rs::sign_tap_leaf"]
 code = ["core/faraday-psbt/src/sign.rs::sign_taproot", "core/faraday-psbt/src/sign.rs::sign_tap_leaf"]
 
@@ -5771,7 +5771,7 @@ action = "Builds the final scriptSig and witness from the partial signatures and
 row = "psbt-v0"
 standards = ["BIP 174"]
 learn = "verifying"
-screens = ["Spend", "Family"]
+screens = ["Spend", "SpendBackup"]
 functions = [
   "core/faraday-psbt/src/finalize.rs::finalize",
   "faraday/faraday-core/src/wallet.rs::Spend::finished_hex",
@@ -6045,7 +6045,7 @@ learn = "air_gap"
 screens = [
   "Transfer",
   "Spend",
-  "Family",
+  "SpendBackup",
   "Decode",
   "Create",
   "Silent",
@@ -6134,7 +6134,7 @@ learn = "air_gap"
 screens = [
   "Transfer",
   "Spend",
-  "Family",
+  "SpendBackup",
   "Decode",
   "Create",
   "Tools",
@@ -6255,7 +6255,7 @@ learn = "air_gap"
 screens = [
   "Transfer",
   "Spend",
-  "Family",
+  "SpendBackup",
   "Decode",
   "Create",
   "Tools",
@@ -6668,7 +6668,7 @@ screens = [
   "Backups",
   "Backup",
   "VaultContents",
-  "Family",
+  "SpendBackup",
   "KeyGen",
 ]
 functions = [
@@ -6939,7 +6939,7 @@ screens = [
   "Convert",
   "Entry",
   "KeyGen",
-  "Family",
+  "SpendBackup",
 ]
 functions = [
   "core/faraday-bip/src/slip39.rs::split",

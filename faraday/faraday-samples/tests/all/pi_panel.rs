@@ -4,7 +4,7 @@
 //! sides, at every place the page scrolls to.
 
 use crate::psbt::with_savings;
-use faraday_core::family::FamilyAction as F;
+use faraday_core::spend_backup::SpendBackupAction as F;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, Event};
@@ -56,9 +56,9 @@ fn nothing_of_the_sample_spend_is_cut_off_on_the_pi_panel() {
     found.extend(cut_off(&mut app, "Wallets"));
     app.press(Action::OpenWallet(0));
     found.extend(cut_off(&mut app, "Savings"));
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     found.extend(cut_off(&mut app, "Spend tab"));
-    app.press(Action::Family(F::SpendFrom(0)));
+    app.press(Action::SpendBackup(F::SpendFrom(0)));
     found.extend(cut_off(&mut app, "Spend from Savings"));
     app.press(Action::SamplePsbt);
     for s in [

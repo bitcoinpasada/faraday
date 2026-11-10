@@ -162,7 +162,7 @@ impl View<'_> {
     /// The wallet card's first button ([`crate::Faraday::spend_button`]),
     /// from the memo's held keys.
     pub fn spend_button(&self, w: usize) -> (String, crate::Action) {
-        crate::family::spend_button_on(self, w)
+        crate::spend_backup::spend_button_on(self, w)
     }
 
     /// Where the money moving from loaded wallet `w` goes

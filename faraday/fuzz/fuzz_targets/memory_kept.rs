@@ -18,7 +18,7 @@ const NAMES: [&str; 16] = [
     "stick-settings",
     "signed-amounts",
     "checked-wallets",
-    "family",
+    "spend-backup",
     "clock",
     "receipt",
     "renamed",

@@ -26,8 +26,8 @@ use faraday_crypto::work::Compute;
 pub(crate) enum Then {
     /// The Spend tab.
     Spend,
-    /// The Family tab, which uses the spend without leaving.
-    Family,
+    /// The Spend tab, which uses the spend without leaving.
+    SpendBackup,
 }
 
 /// A file to read and work out on the worker: its bytes and a copy of the
@@ -141,7 +141,7 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
     match from.then {
         Then::Spend if opened => app.screen = Screen::Spend,
         Then::Spend => {}
-        Then::Family => app.family_used_psbt(opened),
+        Then::SpendBackup => app.spend_backup_used_psbt(opened),
     }
 }
 

@@ -3,7 +3,7 @@
 //! which stays one press away and is what someone with nothing loaded
 //! still sees first.
 
-use faraday_core::family::{FamilyAction as F, Open, page};
+use faraday_core::spend_backup::{Open, SpendBackupAction as F, page};
 use faraday_core::testkit;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
@@ -59,8 +59,8 @@ fn savings_psbt() -> (String, Vec<u8>) {
 #[test]
 fn with_nothing_loaded_the_tab_is_the_walk_through() {
     let mut app = with_files(Vec::new());
-    app.press(Action::Nav(Screen::Family));
-    assert!(!app.family_overview());
+    app.press(Action::Nav(Screen::SpendBackup));
+    assert!(!app.spend_backup_overview());
 }
 
 #[test]
@@ -69,15 +69,18 @@ fn a_ready_wallet_goes_straight_to_its_next_page() {
     add_key(&mut app, 0);
     add_key(&mut app, 1);
     app.press(Action::LoadWallet(0));
-    app.press(Action::Nav(Screen::Family));
-    assert!(app.family_overview(), "the tab opens on what is loaded");
+    app.press(Action::Nav(Screen::SpendBackup));
+    assert!(
+        app.spend_backup_overview(),
+        "the tab opens on what is loaded"
+    );
     let _ = app.frame();
-    assert!(app.offers(Action::Family(F::SpendFrom(0))));
-    app.press(Action::Family(F::SpendFrom(0)));
-    assert!(!app.family_overview());
-    assert_eq!(app.family_wallet(), Some(0));
+    assert!(app.offers(Action::SpendBackup(F::SpendFrom(0))));
+    app.press(Action::SpendBackup(F::SpendFrom(0)));
+    assert!(!app.spend_backup_overview());
+    assert_eq!(app.spend_backup_wallet(), Some(0));
     assert_eq!(
-        app.family().open,
+        app.spend_backup().open,
         Some(Open::Page(page::CHECK)),
         "the map, the stick and the wallet are behind it"
     );
@@ -89,14 +92,14 @@ fn a_ready_wallet_with_its_transaction_in_files_goes_to_signing() {
     add_key(&mut app, 0);
     add_key(&mut app, 1);
     app.press(Action::LoadWallet(0));
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::SpendFrom(0)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::SpendFrom(0)));
     assert!(
         app.spend().is_some(),
         "the PSBT in Files is the one to sign"
     );
-    assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family().open, Some(Open::Spend));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
     assert!(app.spend().unwrap().steps.contains(&step::SIGN));
 }
 
@@ -118,13 +121,16 @@ fn a_wallet_made_here_with_its_keys_loaded_asks_for_no_seeds() {
             faraday_core::wallet::Origin::Statement,
         )
         .unwrap();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::SpendFrom(0)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::SpendFrom(0)));
     let _ = app.frame();
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == EN.family_who_signs), "{texts:?}");
     assert!(
-        !texts.iter().any(|t| t == EN.family_add_the_seeds),
+        texts.iter().any(|t| t == EN.spend_backup_who_signs),
+        "{texts:?}"
+    );
+    assert!(
+        !texts.iter().any(|t| t == EN.spend_backup_add_the_seeds),
         "{texts:?}"
     );
 }
@@ -134,9 +140,9 @@ fn a_wallet_short_of_keys_is_opened_rather_than_spent() {
     let mut app = with_files(vec![savings()]);
     add_key(&mut app, 0);
     app.press(Action::LoadWallet(0));
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     let _ = app.frame();
-    assert!(!app.offers(Action::Family(F::SpendFrom(0))));
+    assert!(!app.offers(Action::SpendBackup(F::SpendFrom(0))));
     assert!(app.offers(Action::OpenWallet(0)));
 }
 
@@ -144,13 +150,13 @@ fn a_wallet_short_of_keys_is_opened_rather_than_spent() {
 fn a_seed_with_no_wallet_spends_as_a_single_key_wallet() {
     let mut app = with_files(Vec::new());
     add_key(&mut app, 0);
-    app.press(Action::Nav(Screen::Family));
-    assert!(app.family_overview());
+    app.press(Action::Nav(Screen::SpendBackup));
+    assert!(app.spend_backup_overview());
     let _ = app.frame();
-    assert!(app.offers(Action::Family(F::SeedWallet)));
-    app.press(Action::Family(F::SeedWallet));
+    assert!(app.offers(Action::SpendBackup(F::SeedWallet)));
+    app.press(Action::SpendBackup(F::SeedWallet));
     assert_eq!(app.session.wallets.len(), 1);
-    assert_eq!(app.family_wallet(), Some(0));
+    assert_eq!(app.spend_backup_wallet(), Some(0));
 }
 
 /// The Spending wallet's spend in the signing review, with its first
@@ -220,10 +226,10 @@ fn the_panel_counts_only_verified_change() {
 fn the_walk_through_is_one_press_away() {
     let mut app = with_files(Vec::new());
     add_key(&mut app, 0);
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Walkthrough));
-    assert!(!app.family_overview());
-    assert_eq!(app.family().open, Some(Open::Page(page::MAP)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Walkthrough));
+    assert!(!app.spend_backup_overview());
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::MAP)));
 }
 
 /// The ink boxes of a loaded wallet's name, shape and keys' line on the
@@ -245,7 +251,7 @@ fn card_lines_at(size: faraday_core::ui::TextSize) -> Vec<(String, (i32, i32, i3
     add_key(&mut app, 0);
     app.press(Action::LoadWallet(0));
     app.press(Action::TextSize(size));
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     let lines: Vec<_> = app
         .drawn_text_boxes()
         .into_iter()

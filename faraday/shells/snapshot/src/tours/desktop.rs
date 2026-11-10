@@ -144,19 +144,19 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
 /// Wallets path's spend steps and their scanners, each with Load sample
 /// PSBT, and the review it leads to.
 fn demo_psbt(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::family::{FamilyAction as F, page};
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
     t.press(Action::Nav(Screen::Home));
     t.press(Action::Scan);
     t.shot("modes-demo-scan-psbt")?;
     t.press(Action::Cancel);
     t.press(Action::Nav(Screen::Wallets));
     t.press(Action::OpenWallet(0));
-    t.press(Action::Family(F::SpendFrom(0)));
+    t.press(Action::SpendBackup(F::SpendFrom(0)));
     t.shot("modes-demo-spend-first")?;
     t.press(Action::Scan);
     t.shot("modes-demo-spend-scan-psbt")?;
     t.press(Action::Cancel);
-    t.press(Action::Family(F::Next(page::CHECK)));
+    t.press(Action::SpendBackup(F::Next(page::CHECK)));
     t.shot("modes-demo-spend-write")?;
     t.press(Action::SamplePsbt);
     t.shot("modes-demo-spend-read")

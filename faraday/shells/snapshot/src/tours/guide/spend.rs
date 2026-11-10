@@ -52,16 +52,16 @@ pub(super) fn show_psbt(t: &mut Tour, bytes: &[u8], mid: Option<&str>) -> Result
 /// it; Send it, with the signed PSBT and the finished transaction as
 /// codes.
 pub(super) fn spend_by_qr(_c: &Compute, t: &mut Tour) -> Result<(), String> {
-    use faraday_core::family::{FamilyAction as F, page};
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
     use faraday_core::wallet::step;
     let w = last_wallet(t)?;
     let (psbt, _) = faraday_core::testkit::spend_of(&kit_of(t, w, 2_140))?;
     t.press(Action::Nav(Screen::Wallets));
     t.press(Action::OpenWallet(w));
-    t.shot_marking("6-2-card", Action::Family(F::SpendFrom(w)))?;
-    t.press(Action::Family(F::SpendFrom(w)));
-    t.shot_marking("6-2-sparrow", Action::Family(F::Next(page::CHECK)))?;
-    t.press(Action::Family(F::Next(page::CHECK)));
+    t.shot_marking("6-2-card", Action::SpendBackup(F::SpendFrom(w)))?;
+    t.press(Action::SpendBackup(F::SpendFrom(w)));
+    t.shot_marking("6-2-sparrow", Action::SpendBackup(F::Next(page::CHECK)))?;
+    t.press(Action::SpendBackup(F::Next(page::CHECK)));
     t.shot_marking("6-3-write", Action::ScanFor(faraday_core::Ask::SpendPsbt))?;
     t.press(Action::ScanFor(faraday_core::Ask::SpendPsbt));
     show_psbt(t, &psbt.to_bytes(), Some("6-3-scanning"))?;
@@ -92,7 +92,7 @@ pub(super) fn spend_by_qr(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("qr-and-scan-qr")?;
     t.shot("files-and-sticks-qr")?;
     t.press(Action::Cancel);
-    t.press(Action::Family(F::QrTx));
+    t.press(Action::SpendBackup(F::QrTx));
     t.shot_marking("6-7-qr-tx", Action::Cancel)?;
     t.press(Action::Cancel);
     crate::tour::scroll_to(t, Action::DecodeFinished);
@@ -216,13 +216,13 @@ pub(super) fn stick_in(_c: &Compute, t: &mut Tour) -> Result<(), String> {
 /// signs, short a key; its Scan a key, test key 2's SeedQR; Sign it;
 /// Send it, the finished transaction decoded, and writing to a stick.
 pub(super) fn spend_from_stick(c: &Compute, t: &mut Tour) -> Result<(), String> {
-    use faraday_core::family::FamilyAction as F;
+    use faraday_core::spend_backup::SpendBackupAction as F;
     use faraday_core::wallet::step;
     let w = last_wallet(t)?;
     t.press(Action::Nav(Screen::Wallets));
     t.press(Action::OpenWallet(w));
-    t.shot_marking("6-3-card-stick", Action::Family(F::SpendFrom(w)))?;
-    t.press(Action::Family(F::SpendFrom(w)));
+    t.shot_marking("6-3-card-stick", Action::SpendBackup(F::SpendFrom(w)))?;
+    t.press(Action::SpendBackup(F::SpendFrom(w)));
     t.shot_marking(
         "spend-stick-transaction",
         Action::StepNext(step::TRANSACTION),

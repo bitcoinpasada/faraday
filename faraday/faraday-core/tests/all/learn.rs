@@ -290,7 +290,7 @@ fn on_a_wide_window_the_pane_opens_only_when_learn_or_cryptography_is_pressed() 
             Screen::Vaults,
             Screen::Files,
             Screen::Catalog,
-            Screen::Family,
+            Screen::SpendBackup,
             Screen::Settings,
         ];
         for s in round {
@@ -365,7 +365,7 @@ fn the_pane_offers_spending_step_by_step_only_on_the_spend_tab() {
     assert!(app.offers(Action::LearnClose));
     assert!(!app.offers(Action::LearnSpend), "not on Settings");
     app.press(Action::LearnPin);
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     frame(&mut app);
     assert!(app.offers(Action::LearnSpend), "on the Spend tab");
     app.press(Action::LearnSpend);
@@ -374,7 +374,7 @@ fn the_pane_offers_spending_step_by_step_only_on_the_spend_tab() {
         !app.offers(Action::LearnClose),
         "Learn closed over the steps"
     );
-    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.screen, Screen::SpendBackup);
 }
 
 /// Unpinned, the pane goes when the person moves to another screen;

@@ -8,10 +8,10 @@ use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::backup_flow::steps::FlowAction;
 use faraday_core::create::{NewKind, Source};
-use faraday_core::family::FamilyAction as F;
 use faraday_core::rstep::{CHECK, DESCRIPTION, DONE, HOW_MANY, KIND, QUORUM, SEEDS, WHERE};
 use faraday_core::seeds::read::Choice;
 use faraday_core::seeds::{Focus, SLIDE_N, SeedsAction as S};
+use faraday_core::spend_backup::SpendBackupAction as F;
 use faraday_core::{Action, Faraday, NOT_A_KEY, Screen, Sheet, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
@@ -526,13 +526,13 @@ fn done_offers_a_spend_the_backup_another_wallet_and_wallets() {
     ] {
         assert!(text.contains(said), "no {said}: {text}");
     }
-    assert!(app.offers(Action::Family(F::SpendFrom(w))));
+    assert!(app.offers(Action::SpendBackup(F::SpendFrom(w))));
     assert!(app.offers(Action::Backup(w)));
     assert!(app.offers(Action::NewWalletFrom(w)));
     assert!(app.offers(Action::OpenWallet(w)));
     // Restored seeds are backed up already: the spend opens at once.
-    app.press(Action::Family(F::SpendFrom(w)));
-    assert_eq!(app.screen, Screen::Family);
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
+    assert_eq!(app.screen, Screen::SpendBackup);
 }
 
 /// Done, after It matches on a single key restored with no vaults.
@@ -613,7 +613,7 @@ fn with_vaults_spend_from_this_wallet_opens_at_once() {
     let (label, action) = app.spend_button(&c, w);
     assert_eq!(label, "Spend from this wallet");
     app.press(action);
-    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.screen, Screen::SpendBackup);
 }
 
 /// Left for Wallets, the wallet's card and Backups offer the backup left
@@ -747,8 +747,8 @@ fn restored_from_vault_named(file: &str) -> Faraday {
         .iter()
         .position(|w| w.name == "Spending")
         .expect("the wallet was not restored");
-    app.press(Action::Family(F::SpendFrom(w)));
-    assert_eq!(app.screen, Screen::Family);
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
+    assert_eq!(app.screen, Screen::SpendBackup);
     app
 }
 
@@ -756,16 +756,16 @@ fn restored_from_vault_named(file: &str) -> Faraday {
 /// vault is called.
 #[test]
 fn a_wallet_restored_from_a_vault_with_any_name_goes_the_vault_route() {
-    use faraday_core::family::Route;
+    use faraday_core::spend_backup::Route;
     let app = restored_from_vault_named("Savings vault.kdbx");
-    assert_eq!(app.family().route, Some(Route::Vault));
+    assert_eq!(app.spend_backup().route, Some(Route::Vault));
 }
 
 #[test]
 fn a_wallet_restored_from_a_vault_named_vault_goes_the_vault_route() {
-    use faraday_core::family::Route;
+    use faraday_core::spend_backup::Route;
     let app = restored_from_vault_named("Vault");
-    assert_eq!(app.family().route, Some(Route::Vault));
+    assert_eq!(app.spend_backup().route, Some(Route::Vault));
 }
 
 /// A seed whose fingerprint a description names, but whose key at that

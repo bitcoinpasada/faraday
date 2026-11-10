@@ -23,6 +23,6 @@ pub(crate) fn how_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Learn);
     t.shot("how-7-settings")?;
     t.press(Action::LearnPin);
-    t.press(Action::Nav(Screen::Family));
+    t.press(Action::Nav(Screen::SpendBackup));
     t.shot("how-8-spend-tab")
 }

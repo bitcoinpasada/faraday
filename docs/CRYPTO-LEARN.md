@@ -114,7 +114,7 @@ standards = ["BIP 143", "RFC 6979"]
 name = "Sign with ECDSA"     # the block's heading: 2 to 6 words, plain
 learn = "nonces"             # a page of faraday_learn::pages::EN, or "faraday:<id>" for one of OWN
 screens_not = [{ screen = "Vaults", reason = "…" }]   # a screen whose code calls a root and does not offer it (§9.2)
-screens = ["Spend", "Family"]   # Screen variants, or "starter:<page>" (write, confirm, writing, done, start)
+screens = ["Spend", "SpendBackup"]   # Screen variants, or "starter:<page>" (write, confirm, writing, done, start)
 functions = [                # the roots this entry covers (§4.4)
   "core/faraday-psbt/src/sign.rs::sign_ecdsa",
   "faraday/faraday-keys/src/psbt.rs::sign",
@@ -778,7 +778,7 @@ drawn again (`just guide-pictures`) and each page's "On this screen"
 table says so, after the ?:
 
 - Faraday's screens: `docs/guide/screens/add-a-key.md` (Entry),
-  `restore.md`, `files.md`, `spend-tab.md` (Family), `new-key.md`
+  `restore.md`, `files.md`, `spend-tab.md` (SpendBackup), `new-key.md`
   (KeyGen), `vault.md` (VaultContents), `make-a-wallet.md` (Create),
   `explore.md`, `wallets.md` (Wallets, WalletsStart), `calculators.md`
   (Tools), `settings.md` (Settings, Randomness), `back-up-wallet.md`

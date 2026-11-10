@@ -353,8 +353,8 @@ impl Faraday {
                 None => crate::Screen::Wallets,
             };
         }
-        if self.screen == crate::Screen::Family {
-            self.family_key_added();
+        if self.screen == crate::Screen::SpendBackup {
+            self.spend_backup_key_added();
         }
         self.wallet_key_said(w, n);
     }
@@ -445,8 +445,10 @@ impl Faraday {
             // (`docs/SCANNING.md` §7.1); it takes what the intake takes.
             // The Spend tab's Scan it and Scan the PSBT ask for a PSBT and
             // open the scanner below.
-            Action::ScanFor(crate::Ask::Description) if self.screen == crate::Screen::Family => {
-                self.family_scan(None);
+            Action::ScanFor(crate::Ask::Description)
+                if self.screen == crate::Screen::SpendBackup =>
+            {
+                self.spend_backup_scan(None);
                 if let Some(scan) = self.camera.scan_mut() {
                     scan.ask = crate::Ask::Description;
                 }
@@ -1842,7 +1844,7 @@ impl Faraday {
                 if sticks {
                     return self.scan_say(crate::stick::keys_load(self.medium));
                 }
-                return self.family_intake_seed(&words);
+                return self.spend_backup_intake_seed(&words);
             }
             if self.intake_key_part(&bytes) {
                 return;
@@ -1956,7 +1958,7 @@ impl Faraday {
         let at = self.inbox_file_in(item);
         let name = self.inbox[at].name.clone();
         if intake {
-            return self.family_intake_file(at);
+            return self.spend_backup_intake_file(at);
         }
         let home = self.screen == crate::Screen::Home
             && self.sheet == Some(Sheet::Scan)
@@ -1974,7 +1976,7 @@ impl Faraday {
         // A cosigner's key, or a descriptor of one, scanned while a wallet
         // is being made goes to the slot waiting for one.
         if self.create_scan_arrived(c, at, &name)
-            || self.family_arrived(at)
+            || self.spend_backup_arrived(at)
             || (self.screen == crate::Screen::Restore && self.restore_arrived(at))
         {
             return;

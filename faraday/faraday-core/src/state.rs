@@ -1145,8 +1145,8 @@ impl Faraday {
                 self.entry.reset();
                 self.refresh_spend();
                 self.screen = back.unwrap_or(crate::Screen::Wallets);
-                if back == Some(crate::Screen::Family) {
-                    self.family_key_added();
+                if back == Some(crate::Screen::SpendBackup) {
+                    self.spend_backup_key_added();
                 }
             }
             Err(e) => self.entry.state_mut().error = Some(e),

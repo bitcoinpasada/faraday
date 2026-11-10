@@ -909,7 +909,7 @@ impl Faraday {
                 if self.may_load_keys() {
                     let back = matches!(
                         self.screen,
-                        Screen::Restore | Screen::Family | Screen::Spend
+                        Screen::Restore | Screen::SpendBackup | Screen::Spend
                     )
                     .then_some(self.screen);
                     self.entry.reset();

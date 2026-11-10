@@ -579,7 +579,7 @@ impl Faraday {
     pub fn decode_from_spend_held(&self) -> bool {
         self.decode
             .state()
-            .is_some_and(|d| matches!(d.back, Screen::Spend | Screen::Family))
+            .is_some_and(|d| matches!(d.back, Screen::Spend | Screen::SpendBackup))
             && self.wallets.spend().is_some_and(|s| s.spend.nonce_hold)
     }
 
@@ -602,7 +602,7 @@ impl Faraday {
         self.toast(&fill(EN.scanned_is_in_files, &[name]));
         if !matches!(
             self.screen,
-            Screen::Spend | Screen::Visit | Screen::Restore | Screen::Home | Screen::Family
+            Screen::Spend | Screen::Visit | Screen::Restore | Screen::Home | Screen::SpendBackup
         ) {
             self.screen = Screen::Files;
         }

@@ -19,11 +19,11 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::wallet::FileKind;
 use crate::wallet::KeyTexts;
-use crate::{Faraday, Screen, family};
+use crate::{Faraday, Screen, spend_backup};
 use faraday_crypto::work::Compute;
 
 /// The kinds a wallet of one key can be.
-pub const SINGLE: [NewKind; 4] = family::SINGLE;
+pub const SINGLE: [NewKind; 4] = spend_backup::SINGLE;
 
 /// The kinds a wallet of several keys can be.
 pub const MULTI: [NewKind; 4] = [
@@ -436,7 +436,7 @@ impl Faraday {
     pub fn seeds(&self) -> Option<&SeedsState> {
         match self.screen {
             Screen::Restore => self.restore.state()?.seeds.as_ref(),
-            Screen::Family => Some(&self.family.state().seeds),
+            Screen::SpendBackup => Some(&self.spend_backup.state().seeds),
             _ => None,
         }
     }
@@ -444,7 +444,7 @@ impl Faraday {
     pub(crate) fn seeds_mut(&mut self) -> Option<&mut SeedsState> {
         match self.screen {
             Screen::Restore => self.restore.state_mut()?.seeds.as_mut(),
-            Screen::Family => Some(self.family.seeds_mut()),
+            Screen::SpendBackup => Some(self.spend_backup.seeds_mut()),
             _ => None,
         }
     }
@@ -477,8 +477,10 @@ impl Faraday {
             // On What do you have? with no wallet open yet: the seeds
             // the wallet is worked out from (`docs/history/SCAN-TO-SIGN.md` §4).
             // With a wallet open, a key fills its slot and no more.
-            Some(Screen::Family) if !self.family_ready() => self.family_seed_took(fp),
-            Some(Screen::Family) => self.family_came(family::Came::Seed(fp.0)),
+            Some(Screen::SpendBackup) if !self.spend_backup_ready() => {
+                self.spend_backup_seed_took(fp)
+            }
+            Some(Screen::SpendBackup) => self.spend_backup_came(spend_backup::Came::Seed(fp.0)),
             _ => {}
         }
     }
@@ -624,8 +626,8 @@ impl Faraday {
                 return;
             }
             self.seeds_took(faraday_bip::keys::Fingerprint(fp), Some(self.screen));
-            if self.screen == Screen::Family {
-                self.family_key_added();
+            if self.screen == Screen::SpendBackup {
+                self.spend_backup_key_added();
             }
             return;
         }
@@ -726,8 +728,8 @@ impl Faraday {
             return;
         }
         self.seeds_took(fp, Some(self.screen));
-        if self.screen == Screen::Family {
-            self.family_key_added();
+        if self.screen == Screen::SpendBackup {
+            self.spend_backup_key_added();
         }
     }
 
@@ -776,7 +778,7 @@ impl Faraday {
                 }
                 self.refresh_spend();
             }
-            Screen::Family => {
+            Screen::SpendBackup => {
                 match self.session.add_wallet(
                     &c,
                     name,
@@ -785,16 +787,17 @@ impl Faraday {
                     crate::wallet::Origin::TypedSeeds,
                 ) {
                     Ok(i) => {
-                        self.family.choose(self.session.wallets[i].name.clone());
+                        self.spend_backup
+                            .choose(self.session.wallets[i].name.clone());
                         self.wallets.set_wallet(i);
                         // Made without its description: a guess, which Check
                         // the money walks through (`docs/history/SCAN-TO-SIGN.md` §5).
-                        self.family_guess_start(n > 1);
+                        self.spend_backup_guess_start(n > 1);
                         self.refresh_spend();
-                        self.family_opened();
-                        self.family_settle();
+                        self.spend_backup_opened();
+                        self.spend_backup_settle();
                     }
-                    Err(e) => self.family.seeds_mut().error = Some(e.text()),
+                    Err(e) => self.spend_backup.seeds_mut().error = Some(e.text()),
                 }
             }
             _ => {}

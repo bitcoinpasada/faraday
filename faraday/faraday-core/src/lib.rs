@@ -50,7 +50,7 @@
 //!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`, `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`, `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`), `kef_form` (the form that makes a Krux code, `kef_form/screen.rs`), `dice_entry` (the dice entry Create a vault uses, `dice_entry/screen.rs`), `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
-//! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`, `register`, `review`, `signing`.
+//! - Wallets and PSBTs: `plan`, `decode`, `spend_backup`, `explore`, `catalog`, `register`, `review`, `signing`.
 //! - Backups and the backup flow: `backup_flow`, `backups`, `board`,
 //!   `held` (the backup before spending, and signing), `restore`, `wallet_backup`, `public_files`,
 //!   `bstep` (the checklist's items, numbered), `codex32_backup` (its
@@ -108,7 +108,7 @@
 //! | `Unlock` | `vault/screen.rs` |
 //! | `VaultContents` | `vault/screen.rs` |
 //! | `Codes` | `codes/screen.rs` |
-//! | `Family` | `family/screen.rs` |
+//! | `SpendBackup` | `spend_backup/screen.rs` |
 //! | `Vanity` | `vanity/screen.rs` |
 //! | `Decode` | `decode/screen.rs` |
 //! | `Invoice` | `invoice/screen.rs` |
@@ -210,10 +210,10 @@ pub mod word_entry;
 pub mod catalog;
 pub mod decode;
 pub mod explore;
-pub mod family;
 pub mod plan;
 mod register;
 mod slow;
+pub mod spend_backup;
 
 // Backups and the backup flow.
 pub mod backup_flow;
@@ -365,7 +365,7 @@ pub enum Screen {
     /// TOTP codes for the entries in open vaults (`docs/TOTP.md` §5).
     Codes,
     /// The Spend tab (`docs/SPEND-FROM-BACKUP.md`).
-    Family,
+    SpendBackup,
     /// A vanity address for a loaded key.
     Vanity,
     /// A transaction taken apart.
@@ -957,7 +957,7 @@ pub struct Faraday {
     /// The QR sheet's contents.
     qr: qr_view::QrArea,
     /// The Spend tab.
-    family: family::FamilyArea,
+    spend_backup: spend_backup::SpendBackupArea,
     /// A vanity address being searched for.
     vanity: vanity::VanityArea,
     /// The wallet backup checklist (`Screen::Backup`), while it is open.
@@ -1119,7 +1119,7 @@ impl Faraday {
             glance: glance::GlanceArea::default(),
             scroll: motion::Scroll::default(),
             qr: qr_view::QrArea::default(),
-            family: family::FamilyArea::default(),
+            spend_backup: spend_backup::SpendBackupArea::default(),
             vanity: vanity::VanityArea::default(),
             backup: wallet_backup::WalletBackupArea::default(),
             message: state::MessageArea::default(),
@@ -1698,8 +1698,8 @@ impl Faraday {
                     .then(|| self.visit_unlocks())
                     .flatten();
                 self.screen = self.visit.after_visit_mut().take().unwrap_or(Screen::Home);
-                if self.screen == Screen::Family {
-                    self.family_settle();
+                if self.screen == Screen::SpendBackup {
+                    self.spend_backup_settle();
                 }
                 if let Some(i) = unlock {
                     self.vault_act(vault::VaultAction::Open(i));
@@ -1796,7 +1796,7 @@ impl Faraday {
                 // brings the person back there when it is pulled.
                 if matches!(
                     self.screen,
-                    Screen::Create | Screen::Restore | Screen::Family
+                    Screen::Create | Screen::Restore | Screen::SpendBackup
                 ) {
                     *self.visit.after_visit_mut() = Some(self.screen);
                 }
@@ -1865,9 +1865,10 @@ impl Faraday {
             | Action::ScanFor(_)
             | Action::BScan
             | Action::Vault(vault::VaultAction::ScanEntry)
-            | Action::Family(family::FamilyAction::Scan | family::FamilyAction::Again(true)) => {
-                EN.pull_what_scan
-            }
+            | Action::SpendBackup(
+                spend_backup::SpendBackupAction::Scan
+                | spend_backup::SpendBackupAction::Again(true),
+            ) => EN.pull_what_scan,
             Action::Convert(C::Check) if convert::checks_by_scan(self) => EN.pull_what_scan,
             Action::Entry(_)
             | Action::EntryWallet(_)
@@ -2445,7 +2446,7 @@ impl Faraday {
             }
             Action::Import(a) => self.import_act(a),
             Action::Host(_) => {}
-            Action::Family(f) => self.family_act(f),
+            Action::SpendBackup(f) => self.spend_backup_act(f),
             Action::Vanity(v) => self.vanity_act(v),
             Action::Convert(_) | Action::KefTool(_) | Action::QrTool(_) => self.tool_act(action),
             Action::Learn | Action::LearnClose | Action::How => self.learn_press(action),
@@ -2586,8 +2587,8 @@ impl Faraday {
                 self.glance.set_focus(None);
                 self.panes_nav(s);
                 // Spend's way back is to where it was opened from.
-                if s == Screen::Family && self.screen != Screen::Family {
-                    self.family.opened_from(self.screen);
+                if s == Screen::SpendBackup && self.screen != Screen::SpendBackup {
+                    self.spend_backup.opened_from(self.screen);
                 }
                 self.screen = s;
                 self.osk_leave();
@@ -3789,7 +3790,9 @@ impl Faraday {
     /// there, else Wallets.
     pub(crate) fn entry_leave(&self) -> Screen {
         match self.entry.state().back {
-            Some(s @ (Screen::Family | Screen::Spend | Screen::BackupFlow | Screen::Create)) => s,
+            Some(
+                s @ (Screen::SpendBackup | Screen::Spend | Screen::BackupFlow | Screen::Create),
+            ) => s,
             Some(Screen::Restore) if self.restore.state().is_some_and(|r| r.seeds.is_some()) => {
                 Screen::Restore
             }
@@ -3850,11 +3853,8 @@ impl Faraday {
             }
         };
         // A SeedQR scanned over the Spend tab or Restore returns to it too.
-        let back =
-            self.entry
-                .state()
-                .back
-                .or(matches!(self.screen, Screen::Family | Screen::Restore).then_some(self.screen));
+        let on_tab = matches!(self.screen, Screen::SpendBackup | Screen::Restore);
+        let back = self.entry.state().back.or(on_tab.then_some(self.screen));
         // Add a key for a wallet takes only a key the wallet is missing
         // (`docs/history/SCAN-TO-SIGN.md` §2.1).
         let mut label = label;
@@ -3920,13 +3920,13 @@ impl Faraday {
                     None if self.wallets.spend().is_some() => Screen::Spend,
                     None => Screen::Wallets,
                 };
-                if back == Some(Screen::Family) {
-                    self.family_key_added();
+                if back == Some(Screen::SpendBackup) {
+                    self.spend_backup_key_added();
                 }
             }
             // A seed already loaded comes in on the Spend tab's What do
             // you have? as it is (`docs/history/SCAN-TO-SIGN.md` §4).
-            Err(wallet::Refusal::Duplicate(_)) if back == Some(Screen::Family) => {
+            Err(wallet::Refusal::Duplicate(_)) if back == Some(Screen::SpendBackup) => {
                 if let Ok(fp) = faraday_keys::identity::fingerprint_of_mnemonic(
                     &c,
                     &m,
@@ -3935,8 +3935,8 @@ impl Faraday {
                     self.seeds_took(fp, back);
                     self.entry.reset();
                     self.refresh_spend();
-                    self.screen = Screen::Family;
-                    self.family_key_added();
+                    self.screen = Screen::SpendBackup;
+                    self.spend_backup_key_added();
                 }
             }
             // A SeedQR scanned on Restore: the refusal shows there.
@@ -5158,7 +5158,7 @@ impl Faraday {
         // until it is done.
         let typing = matches!(
             self.screen,
-            Screen::Unlock | Screen::BackupFlow | Screen::Family
+            Screen::Unlock | Screen::BackupFlow | Screen::SpendBackup
         ) || self.sheet == Some(Sheet::Import);
         if !typing && self.vaults.working != Some(vault::Work::Unlock) {
             self.vaults.clear_unlock();

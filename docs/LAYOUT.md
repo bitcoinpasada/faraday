@@ -326,7 +326,7 @@ each at the text size the person's system asks for.
   `BUTTON_H` tall, the Kind rows' names `TITLE_S` and their second lines
   `BODY_S`; a monospaced value is its role `.mono()`.
 
-  Built (L5, part 2): Family, the seeds, Backups, Wipe, Vanity, Codes,
+  Built (L5, part 2): Spend from a backup, the seeds, Backups, Wipe, Vanity, Codes,
   Boot import, Lightning, the plan's cards, BIP 85, Silent payments and
   the roller's five-dice screen draw by role and `BUTTON_H`.
 

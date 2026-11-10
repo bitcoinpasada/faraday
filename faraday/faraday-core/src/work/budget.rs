@@ -574,7 +574,7 @@ pub(super) const MAIN: [(&str, Screen); 9] = [
     ("Vaults", Screen::Vaults),
     ("Vault contents", Screen::VaultContents),
     ("Backups", Screen::Backups),
-    ("Spend tab", Screen::Family),
+    ("Spend tab", Screen::SpendBackup),
     ("Settings", Screen::Settings),
     ("Tools", Screen::Tools),
 ];

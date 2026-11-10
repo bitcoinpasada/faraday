@@ -430,8 +430,8 @@ impl Faraday {
                 .collect();
             out.push(("vault-from".to_string(), lines.join("\n").into_bytes()));
         }
-        if let Some(f) = self.family_kept() {
-            out.push(("family".to_string(), f));
+        if let Some(f) = self.spend_backup_kept() {
+            out.push(("spend-backup".to_string(), f));
         }
         // A time set by hand (`docs/TOTP.md` §1.2 and §1.3): the offset
         // against the shell's own clock, and whether it has been checked
@@ -484,7 +484,7 @@ impl Faraday {
                             .collect(),
                     );
                 }
-                "family" => self.family_restore(bytes),
+                "spend-backup" => self.spend_backup_restore(bytes),
                 "clock" => {
                     for line in String::from_utf8_lossy(bytes).lines() {
                         match line.split_once('=') {

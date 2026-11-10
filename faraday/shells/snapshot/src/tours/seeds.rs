@@ -13,8 +13,8 @@ use faraday_shell_api::{App, Event, Key};
 /// description, the shape made by hand, and Check the money guessed,
 /// after No money shows (§5).
 pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::family::{FamilyAction as F, page};
     use faraday_core::seeds::{Focus, SLIDE_N, SeedsAction as S};
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
     t.press(Action::Lock);
     t.sticks(false);
     t.tick();
@@ -49,20 +49,20 @@ pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     // The process after the lock has its clock from the next tick.
     t.tick();
     testkit::move_to(&mut t.app.session, testkit::net()).map_err(|e| e.text())?;
-    t.press(Action::Nav(Screen::Family));
-    t.press(Action::Family(F::StartOver));
-    t.press(Action::Family(F::Next(page::MAP)));
+    t.press(Action::Nav(Screen::SpendBackup));
+    t.press(Action::SpendBackup(F::StartOver));
+    t.press(Action::SpendBackup(F::Next(page::MAP)));
     t.shot("spend-intake")?;
-    t.press(Action::Family(F::TypeWords));
+    t.press(Action::SpendBackup(F::TypeWords));
     t.type_key(0);
     t.shot("spend-words-one-seed")?;
-    t.press(Action::Family(F::TypeWords));
+    t.press(Action::SpendBackup(F::TypeWords));
     t.type_key(1);
     t.shot("spend-words-two-seeds")?;
-    t.press(Action::Family(F::Scan));
+    t.press(Action::SpendBackup(F::Scan));
     t.shot("spend-intake-scanner")?;
     t.press(Action::Cancel);
-    t.press(Action::Family(F::NoDescription));
+    t.press(Action::SpendBackup(F::NoDescription));
     t.press(Action::Slide(SLIDE_N, 3));
     t.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
     type_text(t, &testkit::key(2, "m/48'/1'/0'/2'"));
@@ -75,23 +75,23 @@ pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::Seeds(S::Make));
     t.shot("spend-words-made")?;
-    if t.app.family_wallet().is_none() {
+    if t.app.spend_backup_wallet().is_none() {
         return Err("the Spend tab's seeds made no wallet".into());
     }
     // Made without its description: No money shows tries the next kind.
-    t.press(Action::Family(F::NoMoney));
+    t.press(Action::SpendBackup(F::NoMoney));
     t.shot("spend-guess-multi")?;
     // One seed and That's everything: native SegWit, guessed.
-    t.press(Action::Family(F::StartOver));
-    t.press(Action::Family(F::TypeWords));
+    t.press(Action::SpendBackup(F::StartOver));
+    t.press(Action::SpendBackup(F::TypeWords));
     t.type_key(0);
-    t.press(Action::Family(F::Everything));
+    t.press(Action::SpendBackup(F::Everything));
     t.shot("spend-guess-check")?;
-    t.press(Action::Family(F::NoMoney));
+    t.press(Action::SpendBackup(F::NoMoney));
     t.shot("spend-guess-passphrase")?;
-    t.press(Action::Family(F::Passphrase(false)));
+    t.press(Action::SpendBackup(F::Passphrase(false)));
     t.shot("spend-guess-taproot")?;
-    if t.app.family_guess().is_none_or(|g| g.at != 2) {
+    if t.app.spend_backup_guess().is_none_or(|g| g.at != 2) {
         return Err("No money shows did not go on to Taproot".into());
     }
     t.press(Action::Lock);

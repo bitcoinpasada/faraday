@@ -204,9 +204,9 @@ fn the_unlocks_faraday_is_in_the_strip() {
 fn the_spend_tabs_load_sample_psbt_is_in_the_strip() {
     let mut app = crate::psbt::with_savings();
     show(&mut app, 1280, 800, 160);
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(
-        faraday_core::family::FamilyAction::SpendFrom(0),
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(
+        faraday_core::spend_backup::SpendBackupAction::SpendFrom(0),
     ));
     let _ = app.frame();
     assert!(in_strip_only(&mut app, Action::SamplePsbt));

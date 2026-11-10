@@ -115,8 +115,8 @@ fn another_wallets_psbt_in_files_leaves_the_card_on_spend_from_this_wallet() {
         texts.iter().any(|t| t == "Spend from this wallet"),
         "{texts:?}"
     );
-    assert!(app.offers(Action::Family(
-        faraday_core::family::FamilyAction::SpendFrom(0)
+    assert!(app.offers(Action::SpendBackup(
+        faraday_core::spend_backup::SpendBackupAction::SpendFrom(0)
     )));
 }
 

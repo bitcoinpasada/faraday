@@ -20,9 +20,9 @@ use faraday_crypto::work::Compute;
 
 use crate::backup_flow::{Kind, Step};
 use crate::drawing::View;
-use crate::family::{CardId, Open};
 use crate::glance::{Now, Reads};
 use crate::plan::At;
+use crate::spend_backup::{CardId, Open};
 use crate::strings::EN;
 use crate::{BStage, Faraday, Screen, bstep};
 use faraday_draw::tokens::BODY_M;
@@ -161,7 +161,7 @@ impl Faraday {
         if self.backup_going() == Some(Going::Backup) && self.backup_begun() {
             v.push(Going::Backup);
         }
-        if self.wallets.spend().is_some() || self.family.state().route.is_some() {
+        if self.wallets.spend().is_some() || self.spend_backup.state().route.is_some() {
             v.push(Going::Spend);
         }
         if self
@@ -244,7 +244,7 @@ impl Faraday {
             Screen::Create if self.create.state().is_some() => Some(Going::Create),
             Screen::Restore if self.restore.state().is_some() => Some(Going::Restore),
             Screen::Backup => self.backup_going(),
-            Screen::Spend | Screen::Family => Some(Going::Spend),
+            Screen::Spend | Screen::SpendBackup => Some(Going::Spend),
             Screen::Message if self.message.state().is_some() => Some(Going::Message),
             Screen::CreateVault if self.vaults.create.is_some() => match self.vaults.back_to {
                 None => Some(Going::Vault),
@@ -313,7 +313,7 @@ impl Faraday {
             Going::Backup if self.backup.state().is_some() => self.go(Screen::Backup),
             Going::Spend => match left {
                 Some(Screen::Spend) if self.wallets.spend().is_some() => self.go(Screen::Spend),
-                _ => self.go(Screen::Family),
+                _ => self.go(Screen::SpendBackup),
             },
             Going::Message if self.message.state().is_some() => self.go(Screen::Message),
             Going::Vault if self.vaults.create.is_some() => self.go(Screen::CreateVault),
@@ -559,17 +559,17 @@ impl Faraday {
             }
             Going::Spend => {
                 let to = match self
-                    .family_wallet()
-                    .filter(|_| self.family.state().from_card)
+                    .spend_backup_wallet()
+                    .filter(|_| self.spend_backup.state().from_card)
                 {
                     Some(w) => Action::OpenWallet(w),
-                    None if self.family.state().from == Some(Screen::Home) => {
+                    None if self.spend_backup.state().from == Some(Screen::Home) => {
                         Action::Nav(Screen::Home)
                     }
                     None => Action::Nav(Screen::WalletsStart),
                 };
                 self.wallets.clear_spend();
-                self.family_act(crate::family::FamilyAction::StartOver);
+                self.spend_backup_act(crate::spend_backup::SpendBackupAction::StartOver);
                 to
             }
             Going::Message => {
@@ -776,7 +776,7 @@ impl Faraday {
     /// The spend's open card: a page of the Spend tab or a step of the
     /// transaction.
     fn spend_step(&self) -> String {
-        let step_of = |n: u8| crate::family::text::title(self, CardId::Step(n));
+        let step_of = |n: u8| crate::spend_backup::text::title(self, CardId::Step(n));
         let spend_open = || {
             let s = self.wallets.spend()?;
             s.open
@@ -787,11 +787,14 @@ impl Faraday {
         {
             return spend_open().unwrap_or_else(|| EN.sidebar_flow_spend.to_string());
         }
-        match self.family.state().open {
-            Some(Open::Page(p)) => crate::family::text::title(self, CardId::Page(p)),
+        match self.spend_backup.state().open {
+            Some(Open::Page(p)) => crate::spend_backup::text::title(self, CardId::Page(p)),
             Some(Open::Spend) => spend_open().unwrap_or_else(|| EN.sidebar_flow_spend.to_string()),
             None => spend_open().unwrap_or_else(|| {
-                crate::family::text::title(self, CardId::Page(crate::family::page::HOLDING))
+                crate::spend_backup::text::title(
+                    self,
+                    CardId::Page(crate::spend_backup::page::HOLDING),
+                )
             }),
         }
     }

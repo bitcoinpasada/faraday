@@ -340,7 +340,7 @@ Read as Specter DIY's own `Wallet.parse` reads it (its
 the two chains, keys that carry one keep it. Faraday checks a checksum
 where there is one, which Specter DIY drops unread, and refuses a command
 with no descriptor after its `&` and every key or wallet any descriptor
-is refused for. The wallet's name, in Files, the Inbox and Family, is the
+is refused for. The wallet's name, in Files, the Inbox and Spend from a backup, is the
 command's (`wallet::carried_name`, beside a wallet `.json`'s label).
 Written for every wallet but MuSig2 and silent payments: a single-key or
 multisig wallet as Sparrow writes it, its keys without their derivation

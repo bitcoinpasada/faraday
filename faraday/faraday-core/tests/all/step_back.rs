@@ -12,10 +12,10 @@ use crate::common::{add_key, type_text};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::bip85::{Bip85App, pstep};
 use faraday_core::create::NewKind;
-use faraday_core::family::{CardId, FamilyAction as F, page};
 use faraday_core::rstep::{CHECK, DESCRIPTION, KIND, QUORUM, SEEDS, WHERE};
 use faraday_core::seeds::SeedsAction as S;
 use faraday_core::silent::sstep;
+use faraday_core::spend_backup::{CardId, SpendBackupAction as F, page};
 use faraday_core::testkit::{self, KindText};
 use faraday_core::vanity::{VanityAction as VA, vstep as vastep};
 use faraday_core::vault::{VaultAction as V, vstep};
@@ -375,9 +375,12 @@ fn a_vanity_search_under_way_takes_no_back() {
 #[test]
 fn the_spend_tabs_start_opens_what_do_you_have_and_back_the_map() {
     let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Next(page::MAP)));
-    assert_eq!(app.family_open_card(), Some(CardId::Page(page::HOLDING)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
+    assert_eq!(
+        app.spend_backup_open_card(),
+        Some(CardId::Page(page::HOLDING))
+    );
     let _ = app.frame();
     assert!(
         !app.drawn_texts()
@@ -386,7 +389,10 @@ fn the_spend_tabs_start_opens_what_do_you_have_and_back_the_map() {
         "Starting from the stick is no card of its own"
     );
     back(&mut app);
-    assert_eq!(app.family_open_card(), Some(CardId::Page(page::MAP)));
+    assert_eq!(app.spend_backup_open_card(), Some(CardId::Page(page::MAP)));
     forward(&mut app);
-    assert_eq!(app.family_open_card(), Some(CardId::Page(page::HOLDING)));
+    assert_eq!(
+        app.spend_backup_open_card(),
+        Some(CardId::Page(page::HOLDING))
+    );
 }

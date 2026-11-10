@@ -7,7 +7,7 @@
 //! where it was.
 
 use faraday_core::boot_import::ImportAction as I;
-use faraday_core::family::{CardId, FamilyAction as F, Open, page};
+use faraday_core::spend_backup::{CardId, Open, SpendBackupAction as F, page};
 use faraday_core::testkit;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
@@ -141,12 +141,12 @@ fn spend_from_this_wallet_opens_on_load_the_wallet_in_sparrow() {
     let (mut app, w) = on_card("Spending");
     let text = drawn(&mut app);
     assert!(text.contains("Spend from this wallet"), "{text}");
-    assert!(app.offers(Action::Family(F::SpendFrom(w))));
-    app.press(Action::Family(F::SpendFrom(w)));
-    assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert!(app.offers(Action::SpendBackup(F::SpendFrom(w))));
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
     // Past What do you have?.
-    let cards = app.family_cards();
+    let cards = app.spend_backup_cards();
     assert_eq!(cards.first(), Some(&CardId::Page(page::CHECK)));
     assert!(!cards.contains(&CardId::Page(page::HOLDING)));
     assert!(!cards.contains(&CardId::Page(page::OPEN)));
@@ -154,8 +154,8 @@ fn spend_from_this_wallet_opens_on_load_the_wallet_in_sparrow() {
     assert!(text.contains("Load the wallet in Sparrow"), "{text}");
     assert!(app.offers(Action::QrWallet(w)), "the wallet QR");
     // It is loaded: Write the payment in Sparrow, with the PSBT's ways in.
-    app.press(Action::Family(F::Next(page::CHECK)));
-    assert_eq!(app.family().open, Some(Open::Page(page::WRITE)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::WRITE)));
     let text = drawn(&mut app);
     assert!(text.contains("Write the payment in Sparrow"), "{text}");
     assert!(text.contains("Scan the PSBT"), "{text}");
@@ -165,7 +165,7 @@ fn spend_from_this_wallet_opens_on_load_the_wallet_in_sparrow() {
 #[test]
 fn the_shortcut_scans_the_psbt_from_sparrow_and_opens_its_review() {
     let (mut app, w) = on_card("Spending");
-    app.press(Action::Family(F::SpendFrom(w)));
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
     let text = drawn(&mut app);
     assert!(
         text.contains("I have the PSBT from Sparrow ready: Scan it"),
@@ -174,8 +174,8 @@ fn the_shortcut_scans_the_psbt_from_sparrow_and_opens_its_review() {
     assert!(app.offers(Action::ScanFor(faraday_core::Ask::SpendPsbt)));
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
     scan_psbt(&mut app, &psbt);
-    assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family().open, Some(Open::Spend));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
     let s = app.spend().expect("no spend");
     assert_eq!(s.wallet, Some(w));
     assert_eq!(s.open, Some(step::TRANSACTION), "the review is not next");
@@ -193,9 +193,9 @@ fn with_its_psbt_in_files_the_button_signs_it_and_opens_its_review() {
     app.press(Action::OpenWallet(w));
     let text = drawn(&mut app);
     assert!(text.contains("Sign the PSBT from the stick"), "{text}");
-    app.press(Action::Family(F::SpendFrom(w)));
-    assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family().open, Some(Open::Spend));
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
     let s = app.spend().expect("no spend");
     assert_eq!(s.wallet, Some(w));
     assert_eq!(s.open, Some(step::TRANSACTION));
@@ -205,7 +205,7 @@ fn with_its_psbt_in_files_the_button_signs_it_and_opens_its_review() {
 fn a_two_of_three_with_one_key_here_offers_scanning_a_key_and_collecting_a_signature() {
     let (mut app, w) = on_card("Savings");
     assert_eq!(keys_here(&app, w), 1);
-    app.press(Action::Family(F::SpendFrom(w)));
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
     let (psbt, _) = testkit::spend_of(&kit("savings")).unwrap();
     scan_psbt(&mut app, &psbt.to_bytes());
     assert_eq!(app.spend().and_then(|s| s.wallet), Some(w));
@@ -225,14 +225,14 @@ fn a_two_of_three_with_one_key_here_offers_scanning_a_key_and_collecting_a_signa
         "Collect a signature"
     );
     app.press(Action::Step(step::COLLECT));
-    assert_eq!(app.family().open, Some(Open::Spend));
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
     assert_eq!(app.spend().unwrap().open, Some(step::COLLECT));
 }
 
 /// On Savings' Who signs, with Test key 1 here.
 fn who_signs() -> (Faraday, usize) {
     let (mut app, w) = on_card("Savings");
-    app.press(Action::Family(F::SpendFrom(w)));
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
     let (psbt, _) = testkit::spend_of(&kit("savings")).unwrap();
     scan_psbt(&mut app, &psbt.to_bytes());
     app.press(Action::Step(step::SIGNERS));
@@ -260,7 +260,7 @@ fn scan_a_key_on_who_signs_reaches_can_spend_and_the_buttons_go() {
     app.press(Action::ScanKey(w));
     scan_seedqr(&mut app, &testkit::test_words("zebra"));
     assert_eq!(app.sheet, None, "the camera stayed open");
-    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.screen, Screen::SpendBackup);
     let text = drawn(&mut app);
     assert!(text.contains("2 of 2 signatures here"), "{text}");
     assert!(!text.contains("more needed"), "{text}");
@@ -294,13 +294,13 @@ fn a_key_scanned_with_no_name_shows_its_fingerprint_once() {
 #[test]
 fn leaving_the_spend_and_coming_back_resumes_it() {
     let (mut app, w) = on_card("Spending");
-    app.press(Action::Family(F::SpendFrom(w)));
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
     // Before the PSBT: back on the page it was on.
-    app.press(Action::Family(F::Next(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
-    app.press(Action::Family(F::SpendFrom(w)));
-    assert_eq!(app.family().open, Some(Open::Page(page::WRITE)));
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::WRITE)));
 
     // With the PSBT: the card and Home say how far it is, and resume it.
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
@@ -317,10 +317,10 @@ fn leaving_the_spend_and_coming_back_resumes_it() {
     app.press(Action::Nav(Screen::Home));
     let text = drawn(&mut app);
     assert!(text.contains("Carry on the spend"), "{text}");
-    assert!(app.offers(Action::Family(F::SpendFrom(w))));
-    app.press(Action::Family(F::SpendFrom(w)));
-    assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family().open, Some(Open::Spend));
+    assert!(app.offers(Action::SpendBackup(F::SpendFrom(w))));
+    app.press(Action::SpendBackup(F::SpendFrom(w)));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
     assert_eq!(app.spend().unwrap().open, open);
 }
 

@@ -705,7 +705,7 @@ fn check_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, checked: bool) ->
         (
             label,
             Style::Secondary,
-            Action::Family(crate::family::FamilyAction::SpendFrom(old)),
+            Action::SpendBackup(crate::spend_backup::SpendBackupAction::SpendFrom(old)),
         )
     });
     let left: Vec<(&str, Style, Action)> = moving

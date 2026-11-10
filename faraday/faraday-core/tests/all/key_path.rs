@@ -5,7 +5,7 @@
 //! repeats it as a caution. A wallet whose key path nobody can spend
 //! reads as "2 of 3" with no warning.
 
-use faraday_core::family::FamilyAction as F;
+use faraday_core::spend_backup::SpendBackupAction as F;
 use faraday_core::testkit::{self, Kit};
 use faraday_core::wallet::step;
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent};
@@ -175,8 +175,8 @@ fn a_spend_from_it_repeats_the_line_as_a_caution() {
     add_key(&mut app, 1);
     app.press(Action::LoadWallet(0));
     app.press(Action::KeyPathHold);
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::SpendFrom(0)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::SpendFrom(0)));
     assert!(app.spend().is_some());
     app.press(Action::Step(step::TRANSACTION));
     let shown = screen(&mut app);
@@ -266,21 +266,21 @@ fn restore_after_the_hold_stands_where_a_restore_with_no_question_does() {
 #[test]
 fn spend_from_a_backup_after_the_hold_has_the_wallet_as_with_no_question() {
     let mut plain = with_files(&kit(NUMS));
-    plain.press(Action::Nav(Screen::Family));
-    plain.press(Action::Family(F::UseWallet(0)));
+    plain.press(Action::Nav(Screen::SpendBackup));
+    plain.press(Action::SpendBackup(F::UseWallet(0)));
     let mut app = with_files(&kit(OTHER));
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::UseWallet(0)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::UseWallet(0)));
     assert_eq!(app.sheet, Some(Sheet::KeyPath));
-    assert_eq!(app.family().wallet, None);
+    assert_eq!(app.spend_backup().wallet, None);
     app.press(Action::KeyPathHold);
-    assert_eq!(app.family().wallet, plain.family().wallet);
+    assert_eq!(app.spend_backup().wallet, plain.spend_backup().wallet);
     assert_eq!(
-        app.family().came,
-        plain.family().came,
+        app.spend_backup().came,
+        plain.spend_backup().came,
         "each file noted once"
     );
-    assert_eq!(app.family().error, None);
+    assert_eq!(app.spend_backup().error, None);
     assert_eq!(app.session.wallets.len(), 1);
 }
 

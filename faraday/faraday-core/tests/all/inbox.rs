@@ -250,7 +250,7 @@ const SCREENS: [S; 28] = [
     S::Tools,
     S::Unlock,
     S::VaultContents,
-    S::Family,
+    S::SpendBackup,
     S::Vanity,
     S::Decode,
     S::Catalog,

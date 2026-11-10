@@ -10,8 +10,8 @@
 
 use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_core::family::{CardId, FamilyAction as F, Open, Question, Route, page};
 use faraday_core::seeds::read::Choice;
+use faraday_core::spend_backup::{CardId, Open, Question, Route, SpendBackupAction as F, page};
 use faraday_core::testkit;
 use faraday_core::wallet::{FileKind, step};
 use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
@@ -104,15 +104,15 @@ fn drawn(app: &mut Faraday) -> String {
 /// which Starting from the stick heads (F103).
 fn on_intake(app: &mut Faraday) {
     testkit::move_to(&mut app.session, testkit::NET).unwrap();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Next(page::MAP)));
-    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
 }
 
 /// The camera, opened by Scan the QR codes you have, reads this code.
 fn scan(app: &mut Faraday, bytes: Vec<u8>) {
     if app.scan().is_none() {
-        app.press(Action::Family(F::Scan));
+        app.press(Action::SpendBackup(F::Scan));
     }
     assert_eq!(app.sheet, Some(Sheet::Scan), "the camera is not on");
     app.event(Event::Scanned { bytes });
@@ -164,7 +164,7 @@ fn kit_address(id: &str) -> String {
 /// The first receive address of the wallet the tab chose.
 fn chosen_address(app: &Faraday) -> String {
     let c = faraday_core::testkit::compute();
-    let w = app.family_wallet().expect("no wallet chosen");
+    let w = app.spend_backup_wallet().expect("no wallet chosen");
     app.session.address(&c, &app.session.wallets[w], false, 0)
 }
 
@@ -198,13 +198,13 @@ fn after_lock(mut app: Faraday) -> Faraday {
 /// the passphrase, Unlock, Load.
 fn unlock_on_tab(app: &mut Faraday) {
     let c = testkit::compute();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Next(page::MAP)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
     let text = drawn(app);
     assert!(text.contains("Unlock vault.kdbx"), "{text}");
-    app.press(Action::Family(F::Pick(0)));
+    app.press(Action::SpendBackup(F::Pick(0)));
     type_text(app, testkit::VAULT_PASSPHRASE);
-    app.press(Action::Family(F::Unlock));
+    app.press(Action::SpendBackup(F::Unlock));
     settle(app);
     // Unlocked: everything is ticked, nothing loaded until Load.
     assert!(app.session.keys.is_empty(), "the unlock loaded before Load");
@@ -219,14 +219,14 @@ fn unlock_on_tab(app: &mut Faraday) {
 #[test]
 fn an_unlock_the_spend_asks_for_shows_no_load_sheet() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Next(page::MAP)));
-    app.press(Action::Family(F::Pick(0)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
+    app.press(Action::SpendBackup(F::Pick(0)));
     type_text(&mut app, testkit::VAULT_PASSPHRASE);
-    app.press(Action::Family(F::Unlock));
+    app.press(Action::SpendBackup(F::Unlock));
     settle(&mut app);
     assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
-    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.screen, Screen::SpendBackup);
     assert_ne!(app.sheet, Some(Sheet::UnlockLoad));
 }
 
@@ -234,23 +234,23 @@ fn an_unlock_the_spend_asks_for_shows_no_load_sheet() {
 fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     unlock_on_tab(&mut app);
-    assert_eq!(app.screen, Screen::Family, "unlocking left the tab");
+    assert_eq!(app.screen, Screen::SpendBackup, "unlocking left the tab");
     assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
     assert!(!app.session.keys.is_empty(), "the vault's key did not load");
     // The test vault holds every test wallet; the PSBT waiting in Files
     // says which one it spends from.
     assert!(app.session.wallets.len() > 1);
     let savings = wallet_at(&app, "Savings");
-    assert_eq!(app.family_wallet(), Some(savings));
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
-    app.press(Action::Family(F::Next(page::CHECK)));
-    app.press(Action::Family(F::Next(page::WRITE)));
-    assert_eq!(app.family().open, Some(Open::Page(page::BRING)));
+    assert_eq!(app.spend_backup_wallet(), Some(savings));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::WRITE)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::BRING)));
 
     let at = inbox_at(&app, "savings-unsigned.psbt");
-    app.press(Action::Family(F::UsePsbt(at)));
-    assert_eq!(app.screen, Screen::Family, "the spend left the tab");
-    assert_eq!(app.family().open, Some(Open::Spend));
+    app.press(Action::SpendBackup(F::UsePsbt(at)));
+    assert_eq!(app.screen, Screen::SpendBackup, "the spend left the tab");
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
     let s = app.spend().unwrap();
     assert_eq!(s.wallet, Some(savings), "the spend's wallet is not Savings");
     assert_eq!(s.open, Some(step::TRANSACTION), "the review is not first");
@@ -282,9 +282,9 @@ fn read_the_transaction_leads_to_verifying_in_learn() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     unlock_on_tab(&mut app);
     let savings = wallet_at(&app, "Savings");
-    app.press(Action::Family(F::Choose(savings)));
+    app.press(Action::SpendBackup(F::Choose(savings)));
     let at = inbox_at(&app, "savings-unsigned.psbt");
-    app.press(Action::Family(F::UsePsbt(at)));
+    app.press(Action::SpendBackup(F::UsePsbt(at)));
     assert_eq!(app.spend().unwrap().open, Some(step::TRANSACTION));
     let text = drawn(&mut app);
     assert!(
@@ -314,10 +314,10 @@ fn a_spend_is_checked_only_when_the_person_checked_the_money() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     unlock_on_tab(&mut app);
     let savings = wallet_at(&app, "Savings");
-    app.press(Action::Family(F::Choose(savings)));
-    assert!(!app.family_page_done(page::CHECK));
+    app.press(Action::SpendBackup(F::Choose(savings)));
+    assert!(!app.spend_backup_page_done(page::CHECK));
     let at = inbox_at(&app, "savings-unsigned.psbt");
-    app.press(Action::Family(F::UsePsbt(at)));
+    app.press(Action::SpendBackup(F::UsePsbt(at)));
     let s = app.spend().unwrap();
     assert!(s.done[step::WALLET as usize]);
     assert!(
@@ -326,11 +326,11 @@ fn a_spend_is_checked_only_when_the_person_checked_the_money() {
     );
     assert_eq!(s.open, Some(step::TRANSACTION));
     app.press(Action::StepNext(step::TRANSACTION));
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
-    app.press(Action::Family(F::Next(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
     let s = app.spend().unwrap();
     assert!(s.done[step::CHECK as usize]);
-    assert_ne!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_ne!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
     assert_ne!(s.open, Some(step::CHECK));
 }
 
@@ -339,9 +339,9 @@ fn a_vault_with_the_wallet_and_one_key_takes_the_second_key_from_its_words() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     unlock_on_tab(&mut app);
     let savings = wallet_at(&app, "Savings");
-    app.press(Action::Family(F::Choose(savings)));
+    app.press(Action::SpendBackup(F::Choose(savings)));
     let at = inbox_at(&app, "savings-unsigned.psbt");
-    app.press(Action::Family(F::UsePsbt(at)));
+    app.press(Action::SpendBackup(F::UsePsbt(at)));
     app.press(Action::Step(step::SIGNERS));
     // Who signs' Scan a key, then Type the words instead.
     let _ = app.frame();
@@ -354,7 +354,11 @@ fn a_vault_with_the_wallet_and_one_key_takes_the_second_key_from_its_words() {
     assert_eq!(app.screen, Screen::Entry);
     type_text(&mut app, &testkit::test_words("zebra"));
     app.press(Action::EntryAdd);
-    assert_eq!(app.screen, Screen::Family, "adding the key left the tab");
+    assert_eq!(
+        app.screen,
+        Screen::SpendBackup,
+        "adding the key left the tab"
+    );
     assert_eq!(app.session.keys.len(), 2);
     testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
@@ -368,9 +372,9 @@ fn a_key_from_another_wallet_is_refused_on_the_signing_card() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     unlock_on_tab(&mut app);
     let savings = wallet_at(&app, "Savings");
-    app.press(Action::Family(F::Choose(savings)));
+    app.press(Action::SpendBackup(F::Choose(savings)));
     let at = inbox_at(&app, "savings-unsigned.psbt");
-    app.press(Action::Family(F::UsePsbt(at)));
+    app.press(Action::SpendBackup(F::UsePsbt(at)));
     app.press(Action::Step(step::SIGNERS));
     app.press(Action::ScanKey(savings));
     app.press(Action::EntryWallet(savings));
@@ -389,20 +393,20 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
     unlock_on_tab(&mut app);
     let savings = wallet_at(&app, "Savings");
     // Choosing the wallet is the card done.
-    app.press(Action::Family(F::Choose(savings)));
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
-    app.press(Action::Family(F::Next(page::CHECK)));
-    app.press(Action::Family(F::Next(page::WRITE)));
+    app.press(Action::SpendBackup(F::Choose(savings)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::WRITE)));
 
     // The next process: the tab, waiting for the vault again.
     let mut app = after_lock(app);
     assert_eq!(
         app.screen,
-        Screen::Family,
+        Screen::SpendBackup,
         "the lock did not return to the tab"
     );
-    assert_eq!(app.family().route, Some(Route::Vault));
-    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.spend_backup().route, Some(Route::Vault));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
     // The PSBT copied in during the visit.
     let (name, bytes) = savings_psbt();
     app.storage(StorageEvent::Restored {
@@ -422,16 +426,16 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
             .collect(),
         kept: Vec::new(),
     });
-    app.press(Action::Family(F::Pick(0)));
+    app.press(Action::SpendBackup(F::Pick(0)));
     type_text(&mut app, testkit::VAULT_PASSPHRASE);
-    app.press(Action::Family(F::Unlock));
+    app.press(Action::SpendBackup(F::Unlock));
     settle(&mut app);
     app.press(Action::Vault(faraday_core::vault::VaultAction::LoadChosen(
         0,
     )));
-    assert_eq!(app.family_wallet(), Some(wallet_at(&app, "Savings")));
+    assert_eq!(app.spend_backup_wallet(), Some(wallet_at(&app, "Savings")));
     assert_eq!(
-        app.family().open,
+        app.spend_backup().open,
         Some(Open::Page(page::BRING)),
         "the pages done before the lock were asked for again"
     );
@@ -447,18 +451,18 @@ fn typed_words_open_the_kind_of_wallet_the_transaction_spends_from() {
         Vec::new(),
     );
     on_intake(&mut app);
-    app.press(Action::Family(F::TypeWords));
+    app.press(Action::SpendBackup(F::TypeWords));
     assert_eq!(app.screen, Screen::Entry);
     type_text(&mut app, &testkit::test_words("bacon"));
     app.press(Action::EntryAdd);
-    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.screen, Screen::SpendBackup);
     // That's everything: native SegWit first, the Spending test wallet.
-    app.press(Action::Family(F::Everything));
-    let w = app.family_wallet().expect("no wallet opened");
+    app.press(Action::SpendBackup(F::Everything));
+    let w = app.spend_backup_wallet().expect("no wallet opened");
     let spending = faraday_core::wallet::read_wallet(&c, &kit("spending").descriptor).unwrap();
     assert_eq!(desc(app.session.wallets[w].policy()), desc(&spending));
     // A Taproot spend opens the Taproot kind of the same words.
-    app.press(Action::Family(F::UsePsbt(0)));
+    app.press(Action::SpendBackup(F::UsePsbt(0)));
     let s = app.spend().unwrap();
     let w = s.wallet.expect("no wallet matched the Taproot spend");
     let tr = faraday_core::wallet::read_wallet(&c, &taproot.descriptor).unwrap();
@@ -483,16 +487,16 @@ fn split_sheets_scanned_in_any_order_rebuild_the_wallet() {
     let mut app = shown();
     on_intake(&mut app);
     scan(&mut app, sheet(3));
-    assert!(app.family_wallet().is_none());
+    assert!(app.spend_backup_wallet().is_none());
     assert!(note(&app).contains("2 of 3 keys in hand"), "{}", note(&app));
     scan(&mut app, sheet(1));
     assert!(
-        app.family_wallet().is_some(),
+        app.spend_backup_wallet().is_some(),
         "two sheets did not rebuild it"
     );
     assert_eq!(chosen_address(&app), kit_address("savings"));
     app.press(Action::Cancel);
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -501,7 +505,7 @@ fn one_sheet_says_what_is_still_missing() {
     on_intake(&mut app);
     scan(&mut app, sheet(2));
     app.press(Action::Cancel);
-    assert!(app.family_wallet().is_none());
+    assert!(app.spend_backup_wallet().is_none());
     let text = drawn(&mut app);
     assert!(text.contains("Part 1 · 2 of 3 keys in hand"), "{text}");
 }
@@ -519,33 +523,33 @@ fn a_description_in_files_is_offered_on_the_card_and_opens_the_wallet() {
     assert!(text.contains("Open savings-wallet.txt"), "{text}");
     assert!(text.contains("Copy files in from a stick"), "{text}");
     let k = inbox_at(&app, "savings-wallet.txt");
-    assert!(app.offers(Action::Family(F::UseWallet(k))));
-    app.press(Action::Family(F::UseWallet(k)));
+    assert!(app.offers(Action::SpendBackup(F::UseWallet(k))));
+    app.press(Action::SpendBackup(F::UseWallet(k)));
     assert_eq!(chosen_address(&app), kit_address("savings"));
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
 fn with_several_wallets_and_no_transaction_the_person_chooses() {
     let mut app = with_files(vec![vault_file()], Vec::new());
     unlock_on_tab(&mut app);
-    assert!(app.family_wallet().is_none());
-    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
+    assert!(app.spend_backup_wallet().is_none());
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
     let savings = wallet_at(&app, "Savings");
-    app.press(Action::Family(F::Choose(savings)));
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    app.press(Action::SpendBackup(F::Choose(savings)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
 fn no_page_past_the_wallet_opens_without_one() {
     let mut app = shown();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Card(page::BRING)));
-    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
-    app.press(Action::Family(F::Card(page::CHECK)));
-    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Card(page::BRING)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
+    app.press(Action::SpendBackup(F::Card(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
     // Open the wallet is one card with What do you have?.
-    assert!(!app.family_cards().contains(&CardId::Page(page::OPEN)));
+    assert!(!app.spend_backup_cards().contains(&CardId::Page(page::OPEN)));
 }
 
 #[test]
@@ -566,13 +570,13 @@ fn one_seed_asks_for_anything_else_and_thats_everything_opens_native_segwit() {
     scan_seed(&mut app, "bacon");
     app.press(Action::Cancel);
     // No wallet yet: the next question.
-    assert!(app.family_wallet().is_none());
+    assert!(app.spend_backup_wallet().is_none());
     let text = drawn(&mut app);
     assert!(text.contains("Anything else in the envelope?"), "{text}");
     assert!(text.contains("That's everything"), "{text}");
-    app.press(Action::Family(F::Everything));
+    app.press(Action::SpendBackup(F::Everything));
     assert_eq!(chosen_address(&app), kit_address("spending"));
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -602,7 +606,9 @@ fn two_seeds_then_the_description_open_the_wallet_with_both_keys_here() {
     assert!(!text.contains("Scan what you have"), "{text}");
     scan(&mut app, testkit::savings().into_bytes());
     assert_eq!(note(&app), "Wallet description read");
-    let w = app.family_wallet().expect("the description did not open");
+    let w = app
+        .spend_backup_wallet()
+        .expect("the description did not open");
     let wl = &app.session.wallets[w];
     let here = app
         .session
@@ -612,7 +618,7 @@ fn two_seeds_then_the_description_open_the_wallet_with_both_keys_here() {
         .count();
     assert_eq!(here, 2, "both seeds are not keys of the wallet here");
     app.press(Action::Cancel);
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -620,7 +626,9 @@ fn a_seed_of_another_wallet_after_the_description_is_not_one_of_its_keys() {
     let mut app = shown();
     on_intake(&mut app);
     scan(&mut app, testkit::savings().into_bytes());
-    let w = app.family_wallet().expect("the description did not open");
+    let w = app
+        .spend_backup_wallet()
+        .expect("the description did not open");
     let name = app.session.wallets[w].name.clone();
     // A seed of no key of the wallet, on the same camera.
     let other = ["abandon"; 11].join(" ") + " about";
@@ -651,19 +659,19 @@ fn two_seeds_and_no_description_make_the_two_of_three_from_all_three_seeds() {
     scan_seed(&mut app, "bacon");
     scan_seed(&mut app, "zebra");
     app.press(Action::Cancel);
-    app.press(Action::Family(F::NoDescription));
+    app.press(Action::SpendBackup(F::NoDescription));
     // The wallet's shape: M of N, the cosigners, the kind and the path.
     let text = drawn(&mut app);
     assert!(text.contains("2 of 2"), "{text}");
     assert!(!text.contains("I can't find one"), "{text}");
     // The third seed, typed.
-    app.press(Action::Family(F::TypeWords));
+    app.press(Action::SpendBackup(F::TypeWords));
     type_text(&mut app, &testkit::test_words("summer"));
     app.press(Action::EntryAdd);
-    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.screen, Screen::SpendBackup);
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     assert_eq!(chosen_address(&app), kit_address("savings"));
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -676,20 +684,20 @@ fn a_transaction_scanned_on_the_card_is_kept_for_bring() {
     assert!(app.spend().is_none(), "the spend started before the wallet");
     scan(&mut app, testkit::savings().into_bytes());
     app.press(Action::Cancel);
-    assert!(app.family_ready());
+    assert!(app.spend_backup_ready());
     assert!(app.spend().is_none(), "the spend started before Bring");
-    app.press(Action::Family(F::Next(page::CHECK)));
-    app.press(Action::Family(F::Next(page::WRITE)));
-    assert_eq!(app.family().open, Some(Open::Page(page::BRING)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    app.press(Action::SpendBackup(F::Next(page::WRITE)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::BRING)));
     let _ = drawn(&mut app);
     let k = app
         .inbox()
         .iter()
         .position(|i| i.kind == FileKind::Psbt)
         .expect("the transaction is not in Files");
-    assert!(app.offers(Action::Family(F::UsePsbt(k))));
-    app.press(Action::Family(F::UsePsbt(k)));
-    assert_eq!(app.spend().unwrap().wallet, app.family_wallet());
+    assert!(app.offers(Action::SpendBackup(F::UsePsbt(k))));
+    app.press(Action::SpendBackup(F::UsePsbt(k)));
+    assert_eq!(app.spend().unwrap().wallet, app.spend_backup_wallet());
 }
 
 #[test]
@@ -704,8 +712,8 @@ fn a_lock_on_the_card_comes_back_with_what_came_in() {
     assert!(text.contains("Transaction · kept for later"), "{text}");
     assert!(text.contains("Seed · "), "{text}");
     let mut app = after_lock(app);
-    assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
     let text = drawn(&mut app);
     assert!(text.contains("Transaction · kept for later"), "{text}");
     // Keys come back by a vault or not at all.
@@ -718,12 +726,12 @@ fn a_seed_already_loaded_comes_in_again_after_start_over() {
     on_intake(&mut app);
     scan_seed(&mut app, "bacon");
     app.press(Action::Cancel);
-    app.press(Action::Family(F::StartOver));
-    assert_eq!(app.family_question(), Question::None);
+    app.press(Action::SpendBackup(F::StartOver));
+    assert_eq!(app.spend_backup_question(), Question::None);
     scan_seed(&mut app, "bacon");
     app.press(Action::Cancel);
-    assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family_question(), Question::Anything);
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.spend_backup_question(), Question::Anything);
 }
 
 /// One seed and That's everything: Check the money, guessed.
@@ -732,8 +740,8 @@ fn guessed_single() -> Faraday {
     on_intake(&mut app);
     scan_seed(&mut app, "bacon");
     app.press(Action::Cancel);
-    app.press(Action::Family(F::Everything));
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    app.press(Action::SpendBackup(F::Everything));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
     app
 }
 
@@ -751,14 +759,14 @@ fn no_money_shows_walks_through_the_passphrase_taproot_nested_and_legacy() {
     );
     assert!(text.contains("Open this in the wallet on the online computer"));
     assert_eq!(chosen_address(&app), kit_address("spending"));
-    app.press(Action::Family(F::NoMoney));
+    app.press(Action::SpendBackup(F::NoMoney));
     let text = drawn(&mut app);
     assert!(
         text.contains("Is there a word or sentence kept apart from the list?"),
         "{text}"
     );
     assert!(text.contains("native SegWit · no money"), "{text}");
-    app.press(Action::Family(F::Passphrase(false)));
+    app.press(Action::SpendBackup(F::Passphrase(false)));
     assert_eq!(chosen_address(&app), kit_address("taproot"));
     let text = drawn(&mut app);
     assert!(
@@ -769,23 +777,23 @@ fn no_money_shows_walks_through_the_passphrase_taproot_nested_and_legacy() {
         text.contains("Open this one on the online computer too"),
         "{text}"
     );
-    app.press(Action::Family(F::NoMoney));
+    app.press(Action::SpendBackup(F::NoMoney));
     assert_eq!(chosen_address(&app), kit_address("nested"));
-    app.press(Action::Family(F::NoMoney));
+    app.press(Action::SpendBackup(F::NoMoney));
     assert_eq!(chosen_address(&app), kit_address("legacy"));
     // No money shows is never the way on.
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
-    app.press(Action::Family(F::NoMoney));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
+    app.press(Action::SpendBackup(F::NoMoney));
     let text = drawn(&mut app);
     assert!(text.contains("None of these show money."), "{text}");
     assert!(text.contains("legacy · no money"), "{text}");
     assert!(!text.contains("Yes, my money shows"), "{text}");
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
     // Scan more: back to What do you have?, the camera on.
-    app.press(Action::Family(F::Again(true)));
-    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
+    app.press(Action::SpendBackup(F::Again(true)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::HOLDING)));
     assert_eq!(app.sheet, Some(Sheet::Scan));
-    assert!(app.family_wallet().is_none());
+    assert!(app.spend_backup_wallet().is_none());
 }
 
 #[test]
@@ -793,8 +801,8 @@ fn the_ways_tried_fill_a_progress_indicator_as_they_are_counted() {
     let mut app = guessed_single();
     // "1 of 5": a fifth of the track.
     assert_eq!(crate::common::progress_shown(&mut app), vec![Some(0.2)]);
-    app.press(Action::Family(F::NoMoney));
-    app.press(Action::Family(F::Passphrase(false)));
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::SpendBackup(F::Passphrase(false)));
     // "3 of 5".
     assert_eq!(crate::common::progress_shown(&mut app), vec![Some(0.6)]);
 }
@@ -802,12 +810,12 @@ fn the_ways_tried_fill_a_progress_indicator_as_they_are_counted() {
 #[test]
 fn yes_my_money_shows_is_the_way_on() {
     let mut app = guessed_single();
-    app.press(Action::Family(F::NoMoney));
-    app.press(Action::Family(F::Passphrase(false)));
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::SpendBackup(F::Passphrase(false)));
     let text = drawn(&mut app);
     assert!(text.contains("Yes, my money shows"), "{text}");
-    app.press(Action::Family(F::Next(page::CHECK)));
-    assert_eq!(app.family().open, Some(Open::Page(page::WRITE)));
+    app.press(Action::SpendBackup(F::Next(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::WRITE)));
     // The Taproot wallet is the one spent from.
     assert_eq!(chosen_address(&app), kit_address("taproot"));
 }
@@ -815,8 +823,8 @@ fn yes_my_money_shows_is_the_way_on() {
 #[test]
 fn the_passphrase_question_tries_native_segwit_with_the_passphrase() {
     let mut app = guessed_single();
-    app.press(Action::Family(F::NoMoney));
-    app.press(Action::Family(F::Passphrase(true)));
+    app.press(Action::SpendBackup(F::NoMoney));
+    app.press(Action::SpendBackup(F::Passphrase(true)));
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     for f in [0u8, 1] {
         app.press(Action::SeedRead(Choice::Field(f)));
@@ -838,7 +846,7 @@ fn a_described_wallets_check_has_no_no_money_shows() {
     on_intake(&mut app);
     scan(&mut app, testkit::savings().into_bytes());
     app.press(Action::Cancel);
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
     let text = drawn(&mut app);
     assert!(text.contains("Yes, my money shows"), "{text}");
     assert!(!text.contains("No money shows"), "{text}");
@@ -853,9 +861,9 @@ fn the_spend_tab_opens_from_the_wallets_empty_state() {
     let mut app = shown();
     app.press(Action::Nav(Screen::WalletsStart));
     let _ = app.frame();
-    assert!(app.offers(Action::Nav(Screen::Family)));
-    app.press(Action::Nav(Screen::Family));
-    assert_eq!(app.screen, Screen::Family);
+    assert!(app.offers(Action::Nav(Screen::SpendBackup)));
+    app.press(Action::Nav(Screen::SpendBackup));
+    assert_eq!(app.screen, Screen::SpendBackup);
 }
 
 /// Learn offers **Spending, step by step** only on the Spend tab: from
@@ -868,13 +876,13 @@ fn learn_offers_spending_step_by_step_only_on_the_spend_tab() {
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
     assert!(!app.offers(Action::LearnSpend), "not outside the Spend tab");
     app.press(Action::Cancel);
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::Learn);
     let _ = app.frame();
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
     assert!(app.offers(Action::LearnSpend), "on the Spend tab");
     app.press(Action::LearnSpend);
-    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.screen, Screen::SpendBackup);
     assert_eq!(app.sheet, None);
 }
 
@@ -900,9 +908,9 @@ fn savings_spend_signed_here() -> Faraday {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     unlock_on_tab(&mut app);
     let savings = wallet_at(&app, "Savings");
-    app.press(Action::Family(F::Choose(savings)));
+    app.press(Action::SpendBackup(F::Choose(savings)));
     let at = inbox_at(&app, "savings-unsigned.psbt");
-    app.press(Action::Family(F::UsePsbt(at)));
+    app.press(Action::SpendBackup(F::UsePsbt(at)));
     testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(!app.spend().unwrap().spend.signed_here.is_empty());
@@ -927,8 +935,8 @@ fn a_second_signature_scanned_during_the_other_signatures_completes_the_spend() 
         "the signature made here was lost"
     );
     assert_eq!(s.spend.collected.len(), 1);
-    assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family().open, Some(Open::Spend));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
 }
 
 #[test]
@@ -938,13 +946,13 @@ fn the_same_psbt_scanned_twice_changes_nothing() {
     let bytes = cosigned.unwrap().1.to_bytes();
     scan_signatures(&mut app, bytes.clone());
     let once = app.spend().unwrap().spend.psbt.to_bytes();
-    let open = app.family().open;
+    let open = app.spend_backup().open;
     scan_signatures(&mut app, bytes);
     let s = app.spend().unwrap();
     assert_eq!(s.spend.psbt.to_bytes(), once);
     assert_eq!(s.spend.collected.len(), 1);
     assert!(s.complete);
-    assert_eq!(app.family().open, open);
+    assert_eq!(app.spend_backup().open, open);
 }
 
 #[test]
@@ -963,7 +971,7 @@ fn a_different_transaction_scanned_during_a_spend_does_not_replace_it() {
         !s.spend.signed_here.is_empty(),
         "the signature made here was lost"
     );
-    assert_eq!(app.family().open, Some(Open::Spend));
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
 }
 
 #[test]
@@ -981,13 +989,13 @@ fn cancelling_the_spend_lets_the_other_transaction_be_scanned_and_signed() {
     app.press(Action::CancelFlowNow);
     assert!(app.spend().is_none(), "Cancel the flow kept the spend");
     // The same transaction, from Files, starts a spend for it.
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     let at = app
         .inbox()
         .iter()
         .position(|i| i.kind == FileKind::Psbt && i.name.starts_with("scanned-"))
         .expect("the scanned transaction is not in Files");
-    app.press(Action::Family(F::UsePsbt(at)));
+    app.press(Action::SpendBackup(F::UsePsbt(at)));
     let s = app
         .spend()
         .expect("no spend started for the other transaction");
@@ -1016,8 +1024,8 @@ fn home_scan_of_the_spends_own_transaction_collects_it() {
     assert!(s.complete, "the signature did not complete the spend");
     assert_eq!(s.spend.signed_here, here);
     assert_eq!(s.spend.collected.len(), 1);
-    assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family().open, Some(Open::Spend));
+    assert_eq!(app.screen, Screen::SpendBackup);
+    assert_eq!(app.spend_backup().open, Some(Open::Spend));
 }
 
 #[test]
@@ -1078,7 +1086,7 @@ fn check_the_moneys_receive_rows_open_their_codes() {
         kept: Vec::new(),
     });
     unlock_on_tab(&mut app);
-    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.spend_backup().open, Some(Open::Page(page::CHECK)));
     let w = wallet_at(&app, "Savings");
     for i in 0..2 {
         let want = app

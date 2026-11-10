@@ -18,7 +18,7 @@ use faraday_ui::parts::{section_label, wrap_buttons};
 pub(crate) fn decode_back(back: Screen) -> &'static str {
     match back {
         Screen::Spend => EN.decode_back_sign_transaction,
-        Screen::Family => EN.decode_back_spend,
+        Screen::SpendBackup => EN.decode_back_spend,
         Screen::Files => EN.decode_back_files,
         Screen::WalletsStart => EN.decode_back_wallets,
         Screen::Catalog => EN.decode_back_tools,

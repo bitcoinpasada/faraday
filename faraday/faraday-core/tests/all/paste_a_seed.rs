@@ -194,12 +194,12 @@ fn a_wallets_missing_key_pasted_loads_at_once() {
 #[test]
 fn a_seed_pasted_into_what_do_you_have_asks_how_it_loads() {
     use faraday_core::Screen;
-    use faraday_core::family::{FamilyAction as F, page};
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
     let mut app = desktop();
     testkit::move_to(&mut app.session, testkit::NET).unwrap();
-    app.press(Action::Nav(Screen::Family));
-    app.press(Action::Family(F::Next(page::MAP)));
-    app.press(Action::Family(F::Scan));
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::Next(page::MAP)));
+    app.press(Action::SpendBackup(F::Scan));
     assert_eq!(app.sheet, Some(Sheet::Scan), "the intake scanner is not on");
     paste(&mut app, &testkit::test_words("bacon"), false);
     assert_eq!(app.sheet, Some(Sheet::SeedRead), "{}", note(&app));

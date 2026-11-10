@@ -389,7 +389,7 @@ and what a press puts in, stands.
 | The scanner: a TOTP code | `ScanPurpose::VaultEntry` | §5.3's setup code |
 | Scan a key (a wallet's missing key) | `faraday/faraday-core/src/scan_key.rs` | as WalletKey above |
 | Restore, seeds first: a cosigner's account key | `faraday/faraday-core/src/seeds/mod.rs` `Focus::Cosigner` | the account key, at the path chosen, of the next sample seed not among the wallet's |
-| The Spend tab's words | `faraday/faraday-core/src/family/mod.rs` | as Add a key |
+| The Spend tab's words | `faraday/faraday-core/src/spend_backup/mod.rs` | as Add a key |
 | New key, a typed key | `faraday/faraday-core/src/keygen/mod.rs` `kstep::TYPED` | as Add a key |
 | The Vaults screen with no vault | `Screen::Vaults` | the sample vault, into the Inbox as an item of the session, not written to disk |
 | Lightning node key, An LND cipher seed | `faraday/faraday-core/src/lightning/mod.rs`, `lightning/screen.rs` | the sample cipher seed's 24 words |
@@ -450,7 +450,7 @@ no typing is swallowed.
 | `Phrase(i, again)`: Create a vault's passphrases (every slot) and their repeats | `faraday/faraday-core/src/vault/mod.rs` (`CreateForm::phrases`), `vault/screen.rs` |
 | `Unlock`: unlock, the boot import's passphrase | `vault/mod.rs` `Focus::Passphrase` (`Sheet::Import`) |
 | `Prompt`: a passphrase prompt | `vault/mod.rs` `Focus::Prompt` (`Sheet::PassphraseSeeds`); not the KeePass export's |
-| `Unlock`: the Spend tab's vault passphrase | `faraday/faraday-core/src/family/mod.rs` |
+| `Unlock`: the Spend tab's vault passphrase | `faraday/faraday-core/src/spend_backup/mod.rs` |
 | `Check`: Check my copy's passphrase | `faraday/faraday-core/src/screens/backup.rs` (`check.passphrase`) |
 | `Password(k)`: a vault entry's password field | Vault contents' entry form (`vault/screen.rs`) |
 | `Aezeed`: an aezeed's passphrase | `faraday/faraday-core/src/lightning/mod.rs` |

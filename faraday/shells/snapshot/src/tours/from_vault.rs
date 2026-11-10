@@ -18,7 +18,7 @@ use faraday_shell_api::{App, Event};
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::boot_import::ImportAction as I;
-    use faraday_core::family::{FamilyAction as F, page};
+    use faraday_core::spend_backup::{SpendBackupAction as F, page};
     t.press(Action::Lock);
     // The vault and the one PSBT Sparrow wrote, for Savings; no seed
     // beside them, so Savings has only the vault's key here.
@@ -59,9 +59,9 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let spending = at(t, "Spending")?;
     t.press(Action::OpenWallet(spending));
     t.shot("vault-card-spend")?;
-    t.press(Action::Family(F::SpendFrom(spending)));
+    t.press(Action::SpendBackup(F::SpendFrom(spending)));
     t.shot("vault-spend-first")?;
-    t.press(Action::Family(F::Next(page::CHECK)));
+    t.press(Action::SpendBackup(F::Next(page::CHECK)));
     t.shot("vault-spend-write")?;
     // A wallet of several keys with fewer here than sign, and its PSBT.
     let short = (0..t.app.session.wallets.len()).find(|&w| {
@@ -80,7 +80,7 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     };
     t.press(Action::OpenWallet(short));
     t.shot("vault-card-sign")?;
-    t.press(Action::Family(F::SpendFrom(short)));
+    t.press(Action::SpendBackup(F::SpendFrom(short)));
     t.press(Action::Step(faraday_core::wallet::step::SIGNERS));
     t.shot("vault-spend-signers")?;
     // The card's Scan a key: the key scanner, then a missing key's

@@ -128,7 +128,7 @@ fn area_of(screen: Screen) -> Area {
         | Screen::NonceCheck
         | Screen::SignerCheck
         | Screen::Compare
-        | Screen::Family => Area::Reading(READING_PAGE_W),
+        | Screen::SpendBackup => Area::Reading(READING_PAGE_W),
         // Tools, Transfer and a stick visit are reading content
         // (fields, rows, two lists side by side), each in its own area;
         // the tools' catalogue is a grid of tiles, wide content
@@ -620,7 +620,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::CreateVault => crate::vault::screen::create(app, ui, x, cw, h),
         Screen::Unlock => crate::vault::screen::unlock(app, ui, x, cw, h),
         Screen::VaultContents => crate::vault::screen::contents(app, ui, x, cw, h),
-        Screen::Family => crate::family::screen::draw(app, ui, x, cw, h),
+        Screen::SpendBackup => crate::spend_backup::screen::draw(app, ui, x, cw, h),
         Screen::Vanity => crate::vanity::screen::draw(app, ui, x, cw, h),
         Screen::Decode => crate::decode::screen::draw(app, ui, x, cw, h),
         Screen::Invoice => crate::invoice::screen::draw(app, ui, x, cw, h),

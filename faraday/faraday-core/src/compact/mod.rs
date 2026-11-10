@@ -54,7 +54,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
             | Screen::Vanity
             | Screen::CreateVault
             | Screen::BackupFlow
-            | Screen::Family
+            | Screen::SpendBackup
             | Screen::SignerCheck
             | Screen::Compare
     )
@@ -65,7 +65,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
     match s {
         Screen::Home => EN.compact_home,
         Screen::WalletsStart | Screen::Wallets => EN.compact_wallets,
-        Screen::Spend | Screen::Family => EN.compact_spend,
+        Screen::Spend | Screen::SpendBackup => EN.compact_spend,
         Screen::Files => EN.compact_files,
         Screen::Visit => medium.visit_title(),
         Screen::Entry => EN.compact_add_a_key,

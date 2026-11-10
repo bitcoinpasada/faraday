@@ -245,7 +245,7 @@ pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)
             Glyph::Icon(Icon::Sign),
             EN.home_ways_spend_backup,
             EN.home_ways_a_stick_words.to_string(),
-            Action::Nav(Screen::Family),
+            Action::Nav(Screen::SpendBackup),
         ),
         if open == 0 && vault_files == 0 {
             (

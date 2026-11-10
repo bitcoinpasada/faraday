@@ -5,7 +5,7 @@
 use super::{key_session, kind_at, last_wallet};
 use crate::tour::{Files, Tour, type_text};
 use faraday_core::create::NewKind;
-use faraday_core::family::{FamilyAction as F, page};
+use faraday_core::spend_backup::{SpendBackupAction as F, page};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::step;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent, cstep};
@@ -22,17 +22,17 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
     let vault = envelope(t)?;
     crate::tours::screens::stick_session(t);
     super::gpg::machine(t);
-    t.press(Action::Nav(Screen::Family));
+    t.press(Action::Nav(Screen::SpendBackup));
     t.shot("spend-from-a-backup-map")?;
-    t.press(Action::Family(F::Next(page::MAP)));
+    t.press(Action::SpendBackup(F::Next(page::MAP)));
     t.shot("spend-from-a-backup-what-do-you-have")?;
     copy_in(t, &vault)?;
-    t.press(Action::Nav(Screen::Family));
-    t.press(Action::Family(F::Pick(0)));
+    t.press(Action::Nav(Screen::SpendBackup));
+    t.press(Action::SpendBackup(F::Pick(0)));
     t.press(Action::Vault(V::FocusPassphrase));
     type_text(t, PHRASE);
-    t.shot_marking("spend-from-a-backup-unlock", Action::Family(F::Unlock))?;
-    t.press(Action::Family(F::Unlock));
+    t.shot_marking("spend-from-a-backup-unlock", Action::SpendBackup(F::Unlock))?;
+    t.press(Action::SpendBackup(F::Unlock));
     for _ in 0..10 {
         if !t.app.vaults().open.is_empty() {
             break;
@@ -143,11 +143,11 @@ fn spend(t: &mut Tour) -> Result<(), String> {
     let w = last_wallet(t)?;
     t.shot_marking(
         "spend-from-a-backup-check",
-        Action::Family(F::Next(page::CHECK)),
+        Action::SpendBackup(F::Next(page::CHECK)),
     )?;
-    t.press(Action::Family(F::Next(page::CHECK)));
+    t.press(Action::SpendBackup(F::Next(page::CHECK)));
     // Sparrow's payment written: I have the PSBT.
-    t.press(Action::Family(F::Next(page::WRITE)));
+    t.press(Action::SpendBackup(F::Next(page::WRITE)));
     t.shot_marking(
         "spend-from-a-backup-bring",
         Action::ScanFor(faraday_core::Ask::SpendPsbt),
@@ -166,7 +166,7 @@ fn spend(t: &mut Tour) -> Result<(), String> {
     if t.app.spend().is_none() {
         return Err("the PSBT opened no spend".into());
     }
-    t.press(Action::Family(F::Next(page::BRING)));
+    t.press(Action::SpendBackup(F::Next(page::BRING)));
     t.press(Action::StepNext(step::TRANSACTION));
     for at in [step::CHECK, step::SIGNERS] {
         if t.app.spend().and_then(|s| s.open) == Some(at) {

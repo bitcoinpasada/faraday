@@ -419,7 +419,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("decode-outputs")?;
     // The Spend tab with wallets and seeds loaded: what is loaded and the
     // next step for each.
-    t.press(Action::Nav(Screen::Family));
+    t.press(Action::Nav(Screen::SpendBackup));
     t.shot("spend-loaded")?;
     t.press(Action::Nav(Screen::Spend));
     t.press(Action::QrSigned);

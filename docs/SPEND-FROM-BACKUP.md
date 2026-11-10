@@ -3,10 +3,10 @@
 **Kind:** Reference
 **Status:** Built
 
-Built in `faraday-core/src/family/mod.rs` (state and logic),
-`family/screen.rs` and `family/text.rs`, tested in `tests/all/family.rs`;
+Built in `faraday-core/src/spend_backup/mod.rs` (state and logic),
+`spend_backup/screen.rs` and `spend_backup/text.rs`, tested in `tests/all/spend_backup.rs`;
 to look at it, `just faraday-snap 480x640 spend`. The code names it
-`family`; the tab is labelled **Spend**.
+`spend_backup`; the tab is labelled **Spend**.
 
 **The owner's answers (2026-10-06):** the tab is called **Spend**; page 6
 keeps the short Sparrow lines; the desktop app is for testing and keeps
@@ -52,7 +52,7 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
 
 ## 2. Where it sits
 
-- `Screen::Family`. Not in the sidebar or the small Home grid
+- `Screen::SpendBackup`. Not in the sidebar or the small Home grid
   (`docs/history/SIMPLIFY.md` §6.2, 2026-10-10): reached from the Wallets empty
   state's fourth way in, **Spend from a backup, step by step** ("A
   stick, words, or paper"); Home's lead when a spend started in it is

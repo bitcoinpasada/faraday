@@ -183,10 +183,10 @@ fn wallet(t: &mut Tour) -> Result<(), String> {
     // is loaded, then Walk through from the start on How to spend
     // bitcoin.
     t.press(Action::Nav(Screen::Home));
-    t.press(Action::Nav(Screen::Family));
+    t.press(Action::Nav(Screen::SpendBackup));
     t.shot("spend-tab-loaded")?;
-    t.press(Action::Family(
-        faraday_core::family::FamilyAction::Walkthrough,
+    t.press(Action::SpendBackup(
+        faraday_core::spend_backup::SpendBackupAction::Walkthrough,
     ));
     t.shot("spend-tab-map")?;
     t.press(Action::PowerAsk);

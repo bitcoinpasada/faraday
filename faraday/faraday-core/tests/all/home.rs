@@ -507,7 +507,7 @@ fn homes_four_ways_in_open_their_flows_and_lead_back_home() {
     for (action, screen) in [
         (Action::CreateWallet, Screen::Create),
         (Action::RestoreWallet, Screen::Restore),
-        (Action::Nav(Screen::Family), Screen::Family),
+        (Action::Nav(Screen::SpendBackup), Screen::SpendBackup),
         (Action::Vault(V::Create), Screen::CreateVault),
     ] {
         let mut app = shown();
@@ -534,7 +534,7 @@ fn the_flows_opened_from_wallets_lead_back_to_wallets() {
     for (action, screen) in [
         (Action::CreateWallet, Screen::Create),
         (Action::RestoreWallet, Screen::Restore),
-        (Action::Nav(Screen::Family), Screen::Family),
+        (Action::Nav(Screen::SpendBackup), Screen::SpendBackup),
     ] {
         let mut app = shown();
         app.press(Action::Nav(Screen::WalletsStart));

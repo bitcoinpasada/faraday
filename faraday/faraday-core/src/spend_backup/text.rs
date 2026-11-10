@@ -1,0 +1,309 @@
+//! The Spend tab's words (`docs/SPEND-FROM-BACKUP.md` §4): the offline system is
+//! Faraday itself, the wallet usually comes from a vault, and a stick is
+//! read only after a lock. Each card has a lead, always shown, and a
+//! longer More about this.
+//!
+//! The rule for this text is Faraday's: plain statements of fact. The
+//! review's warnings are not here; they are the inspector's own words, as
+//! Wallets shows them.
+
+use crate::drawing::View;
+use crate::spend_backup::{CardId, Route, page};
+use crate::strings::EN;
+use crate::strings::fill;
+use crate::wallet::{Kind, step};
+use crate::{Faraday, Medium, guide};
+
+/// The map: where each stop happens, its name, and what is done there.
+pub fn map(m: Medium) -> [(&'static str, &'static str, String); 6] {
+    [
+        (
+            EN.spend_backup_paper,
+            EN.spend_backup_what_you_have,
+            fill(EN.spend_backup_the_faraday, &[m.noun()]),
+        ),
+        (
+            EN.spend_backup_offline,
+            EN.spend_backup_open_the_wallet_here,
+            fill(EN.spend_backup_start_a_computer, &[m.started_from()]),
+        ),
+        (
+            EN.spend_backup_online,
+            EN.spend_backup_check_the_balance,
+            EN.spend_backup_put_the_wallet.to_string(),
+        ),
+        (
+            EN.spend_backup_online,
+            EN.spend_backup_write_the_payment,
+            EN.spend_backup_make_the_transaction.to_string(),
+        ),
+        (
+            EN.spend_backup_offline,
+            EN.spend_backup_sign_it_here,
+            EN.spend_backup_bring_the_psbt.to_string(),
+        ),
+        (
+            EN.spend_backup_online,
+            EN.spend_backup_title_send,
+            EN.spend_backup_take_the_signed.to_string(),
+        ),
+    ]
+}
+
+/// The line under the map that is never folded away.
+pub const WORDS_ARE_MONEY: &str = EN.spend_backup_the_words_are;
+
+/// What do you have?'s link to the list of what each thing looks like.
+pub const UNSURE: &str = EN.spend_backup_not_sure_what;
+
+/// The hint with one seed in: what else may be in the envelope.
+pub const ANYTHING_HINT: &str = EN.spend_backup_another_list;
+
+/// The hint with several seeds in and no description: what one looks
+/// like.
+pub const DESCRIPTION_HINT: &str = EN.spend_backup_its_description;
+
+/// What each thing in the envelope looks like: its look, then what it is.
+pub fn looks(m: Medium) -> [(String, String); 8] {
+    let looks: [(&str, &str); 7] = [
+        (
+            EN.spend_backup_a_square_black,
+            EN.spend_backup_looks_qr_code,
+        ),
+        (
+            EN.spend_backup_words_numbered,
+            EN.spend_backup_the_seed_phrase,
+        ),
+        (EN.spend_backup_one_long_line, EN.spend_backup_a_descriptor),
+        (
+            EN.spend_backup_several_sheets,
+            EN.spend_backup_one_description,
+        ),
+        (
+            EN.spend_backup_a_word_or_sentence,
+            EN.spend_backup_if_one_exists,
+        ),
+        (EN.spend_backup_a_short_line, EN.spend_backup_one_address),
+        (
+            EN.spend_backup_a_small_device,
+            EN.spend_backup_a_hardware_wallet,
+        ),
+    ];
+    let [a, b, c, d, e, f, g] = looks.map(|(look, what)| (look.to_string(), what.to_string()));
+    let medium = (
+        fill(EN.spend_backup_labelled_faraday, &[m.a_full_cap()]),
+        fill(EN.spend_backup_looks_medium, &[m.started_from()]),
+    );
+    [medium, a, b, c, d, e, f, g]
+}
+
+/// A card's title.
+pub fn title(app: &Faraday, id: CardId) -> String {
+    match id {
+        CardId::Page(page::SAFE) => fill(EN.spend_backup_title_start, &[app.medium.started_from()]),
+        _ => name(app, id).to_string(),
+    }
+}
+
+/// A card's title where it names no medium: what the way back is called
+/// when it lands on the card (F104). Starting from the stick, no card of
+/// its own since F103, heads What do you have?.
+pub fn name(app: &Faraday, id: CardId) -> &'static str {
+    match id {
+        CardId::Page(p) => match p {
+            page::MAP => EN.spend_backup_how_to_spend,
+            page::SAFE | page::HOLDING => EN.spend_backup_what_do_you,
+            page::OPEN => EN.spend_backup_open_the_wallet,
+            page::CHECK if app.spend_backup.state.from_card => EN.spend_backup_load_the_wallet,
+            page::CHECK if app.spend_backup_guess().is_some() => EN.spend_backup_title_check_money,
+            page::WRITE if app.spend_backup.state.from_card => EN.spend_backup_title_write_payment,
+            page::CHECK => EN.spend_backup_check_the_money,
+            page::WRITE => EN.spend_backup_write_the_payment,
+            page::BRING => EN.spend_backup_bring_the_transaction,
+            _ => EN.spend_backup_put_everything,
+        },
+        CardId::Step(n) | CardId::Later(n) => match n {
+            step::TRANSACTION => EN.spend_backup_read_the_transaction,
+            step::TXID => EN.spend_backup_the_transaction,
+            step::PATH => EN.spend_backup_title_which_way,
+            step::NONCES => EN.spend_backup_nonces,
+            step::SIGNERS if app.spend_backup.state.route == Some(Route::Paper) => {
+                EN.spend_backup_add_the_seeds
+            }
+            step::SIGNERS => EN.spend_backup_who_signs,
+            step::SIGN => EN.spend_backup_title_sign,
+            step::COLLECT => EN.spend_backup_the_other_signatures,
+            step::FINISH => EN.spend_backup_title_send,
+            _ => "",
+        },
+    }
+}
+
+/// A card's lead: what to do on it, always shown while it is open.
+pub fn lead(app: &View, id: CardId) -> String {
+    let s: &str = match id {
+        CardId::Page(page::MAP) => EN.spend_backup_six_stops_three,
+        CardId::Page(page::SAFE) if app.online => {
+            return fill(
+                EN.spend_backup_lead_desktop_copy,
+                &[app.medium.started_from()],
+            );
+        }
+        CardId::Page(page::SAFE) => {
+            return fill(
+                EN.spend_backup_lead_running_offline,
+                &[app.medium.started_from()],
+            );
+        }
+        // Starting from the stick heads What do you have? until something
+        // comes in (F103): its own card took a press that chose nothing.
+        CardId::Page(page::HOLDING | page::OPEN) if starting(app) => {
+            return format!(
+                "{} {}",
+                lead(app, CardId::Page(page::SAFE)),
+                EN.spend_backup_scan_or_type
+            );
+        }
+        CardId::Page(page::HOLDING | page::OPEN) => EN.spend_backup_scan_or_type,
+        // From the wallet's card: what to press, no more.
+        CardId::Page(page::CHECK) if app.spend_backup.state.from_card => {
+            EN.spend_backup_in_sparrow_file_new
+        }
+        CardId::Page(page::WRITE) if app.spend_backup.state.from_card => {
+            EN.spend_backup_in_sparrow_s
+        }
+        CardId::Page(page::CHECK) if app.spend_backup_guess().is_some() => {
+            EN.spend_backup_words_alone
+        }
+        CardId::Page(page::CHECK) => EN.spend_backup_load_this_same,
+        CardId::Page(page::WRITE) => EN.spend_backup_this_part_happens,
+        CardId::Page(page::BRING) => {
+            return fill(
+                EN.spend_backup_two_ways_scanning,
+                &[app.medium.a(), app.medium.a(), app.medium.noun()],
+            );
+        }
+        CardId::Page(_) => {
+            return fill(
+                EN.spend_backup_lock_faraday,
+                &[
+                    app.medium.noun(),
+                    app.medium.a(),
+                    app.medium.noun(),
+                    app.medium.noun(),
+                ],
+            );
+        }
+        CardId::Later(_) => EN.spend_backup_this_opens_once,
+        CardId::Step(step::TRANSACTION) => EN.spend_backup_read_the_summary,
+        CardId::Step(step::TXID) => EN.spend_backup_lead_write_down_id,
+        CardId::Step(step::SIGNERS) if signers_missing(app) => EN.spend_backup_lead_every_key,
+        CardId::Step(step::SIGNERS) if app.spend_backup.state.route == Some(Route::Paper) => {
+            EN.spend_backup_lead_one_seed
+        }
+        CardId::Step(step::SIGN) => EN.spend_backup_signing_adds,
+        CardId::Step(step::FINISH) => {
+            return fill(EN.spend_backup_the_finished, &[app.medium.a()]);
+        }
+        CardId::Step(n) => {
+            let s = app.wallets.spend();
+            let kind = s
+                .and_then(|s| s.wallet)
+                .and_then(|w| app.session.wallets.get(w))
+                .map(|w| Kind::of(w.policy()));
+            return match s {
+                Some(s) => guide::spend(n, kind, app.spend_needed(), s, app.medium),
+                None => String::new(),
+            };
+        }
+    };
+    s.to_string()
+}
+
+/// The spend's wallet needs more keys than are here.
+fn signers_missing(app: &View) -> bool {
+    let Some(s) = app.wallets.spend() else {
+        return false;
+    };
+    let here = s
+        .inspection
+        .participating_keys
+        .iter()
+        .filter(|fp| app.session.keys.key_label(**fp).is_some())
+        .count();
+    app.spend_backup.state.route != Some(Route::Paper) && here < app.spend_needed()
+}
+
+/// A card's More about this, as separate paragraphs.
+pub fn more(app: &View, id: CardId) -> Vec<String> {
+    let m = app.medium;
+    let fixed: &[&str] = match id {
+        CardId::Page(page::MAP) => {
+            let mut paras = strings(&[
+                EN.spend_backup_anyone_who_reads,
+                EN.spend_backup_nothing_done,
+                EN.spend_backup_more_no_deadline,
+            ]);
+            paras.push(fill(EN.spend_backup_more_stop_if_unsure, &[m.noun()]));
+            return paras;
+        }
+        CardId::Page(page::SAFE) => {
+            return vec![
+                EN.spend_backup_shut_the_computer.to_string(),
+                fill(EN.spend_backup_plug_the_faraday, &[m.started_from()]),
+                fill(
+                    EN.spend_backup_more_pick_boot_device,
+                    &[m.started_from_full()],
+                ),
+                fill(EN.spend_backup_if_the_is_missing, &[m.noun(), m.a()]),
+            ];
+        }
+        CardId::Page(page::HOLDING | page::OPEN) => {
+            let mut paras = if starting(app) {
+                more(app, CardId::Page(page::SAFE))
+            } else {
+                Vec::new()
+            };
+            paras.extend(strings(&[
+                EN.spend_backup_a_vault_unlocks,
+                EN.spend_backup_more_words_order,
+                EN.spend_backup_a_wallet_description,
+                EN.spend_backup_split_sheets,
+            ]));
+            return paras;
+        }
+        CardId::Page(page::CHECK) => &[
+            EN.spend_backup_in_sparrow_file,
+            EN.spend_backup_more_trusted_software,
+            EN.spend_backup_faraday_can,
+            EN.spend_backup_on_a_phone_you,
+        ],
+        CardId::Page(page::WRITE) => &[EN.spend_backup_paying_into, EN.spend_backup_faraday_locks],
+        CardId::Step(step::SIGN) => &[
+            EN.spend_backup_if_the_envelope,
+            EN.spend_backup_more_faraday_enough,
+        ],
+        CardId::Step(step::FINISH) => &[
+            EN.spend_backup_any_of_these,
+            EN.spend_backup_more_check_id,
+            EN.spend_backup_the_first_confirmation,
+        ],
+        CardId::Page(page::AWAY) => {
+            return vec![fill(EN.spend_backup_when_faraday, &[m.noun()])];
+        }
+        _ => &[],
+    };
+    strings(fixed)
+}
+
+/// The walk-through has only just started: nothing has come in on What
+/// do you have?, and no wallet is open. Only lookups.
+fn starting(app: &View) -> bool {
+    app.spend_backup.state.came.is_empty()
+        && app.spend_backup.state.route.is_none()
+        && !app.spend_backup_ready()
+}
+
+fn strings(paras: &[&str]) -> Vec<String> {
+    paras.iter().map(|p| p.to_string()).collect()
+}

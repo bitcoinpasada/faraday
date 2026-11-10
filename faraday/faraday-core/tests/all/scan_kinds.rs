@@ -6,9 +6,9 @@
 //! to that form and keeps its own parser's line for a part of its own.
 
 use crate::common::type_text;
-use faraday_core::family::{FamilyAction as F, page};
 use faraday_core::forms::Form;
 use faraday_core::seeds::read::Choice;
+use faraday_core::spend_backup::{SpendBackupAction as F, page};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Ask, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_shell_api::{App, Command, EntropyBytes, Event, FileKind};
@@ -110,9 +110,9 @@ fn open(app: &mut Faraday, at: Opened) {
             app.press(Action::ScanPart);
         }
         Opened::Intake => {
-            app.press(Action::Nav(Screen::Family));
-            app.press(Action::Family(F::Next(page::MAP)));
-            app.press(Action::Family(F::Scan));
+            app.press(Action::Nav(Screen::SpendBackup));
+            app.press(Action::SpendBackup(F::Next(page::MAP)));
+            app.press(Action::SpendBackup(F::Scan));
         }
     }
     assert_eq!(
@@ -405,7 +405,7 @@ fn a_totp_code_read_at_add_a_keys_scanner_goes_into_the_open_vaults_new_entry() 
 #[test]
 fn a_totp_code_or_a_seedqr_read_at_scan_the_psbt_shows_the_card_and_no_secret() {
     let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::ScanFor(Ask::SpendPsbt));
     assert_eq!(app.sheet, Some(Sheet::Scan));
     read(&mut app, TOTP.as_bytes());
@@ -428,14 +428,14 @@ fn a_totp_code_or_a_seedqr_read_at_scan_the_psbt_shows_the_card_and_no_secret() 
     assert!(app.session.keys.is_empty());
     app.press(Action::Cancel);
     assert!(app.scan().is_none());
-    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.screen, Screen::SpendBackup);
     assert!(app.inbox().is_empty());
 }
 
 #[test]
 fn with_no_vault_make_a_vault_opens_create_a_vault_and_the_code_is_gone() {
     let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::ScanFor(Ask::SpendPsbt));
     read(&mut app, TOTP.as_bytes());
     let c = app.scan().and_then(|s| s.card.as_ref()).unwrap();
@@ -450,7 +450,7 @@ fn with_no_vault_make_a_vault_opens_create_a_vault_and_the_code_is_gone() {
 fn with_a_vault_locked_unlock_opens_its_new_entry_filled() {
     let mut app = testkit::started();
     vault_in_files(&mut app);
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::ScanFor(Ask::SpendPsbt));
     read(&mut app, TOTP.as_bytes());
     assert_eq!(card(&app).unwrap().2, vec!["Unlock vault".to_string()]);
@@ -464,7 +464,7 @@ fn with_a_vault_locked_unlock_opens_its_new_entry_filled() {
 fn a_code_carried_to_unlock_is_wiped_when_unlock_is_left() {
     let mut app = testkit::started();
     vault_in_files(&mut app);
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::ScanFor(Ask::SpendPsbt));
     read(&mut app, TOTP.as_bytes());
     app.press(Action::ReadGo(0));
@@ -481,7 +481,7 @@ fn a_code_carried_to_unlock_is_wiped_when_unlock_is_left() {
 #[test]
 fn with_a_stick_in_the_cards_add_this_key_waits_for_it_to_be_out() {
     let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::ScanFor(Ask::SpendPsbt));
     app.storage(StorageEvent::Sticks(vec![
         crate::common::Disk::empty("s1", "STICK").info(),

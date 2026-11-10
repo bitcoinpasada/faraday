@@ -162,11 +162,11 @@ fn back_from_the_spend_tab_after_learns_spending_row_lands_where_it_was_opened_f
     // Learn offers no way to the Spend tab outside it.
     assert!(!app.offers(Action::LearnSpend));
     app.press(Action::Cancel);
-    app.press(Action::Nav(Screen::Family));
+    app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::Learn);
     let _ = app.frame();
     app.press(Action::LearnSpend);
-    assert_eq!((app.screen, app.sheet), (Screen::Family, None));
+    assert_eq!((app.screen, app.sheet), (Screen::SpendBackup, None));
     tap_back(&mut app);
     assert_eq!((app.screen, app.wallet_index()), (Screen::Wallets, 0));
     assert_eq!(app.sheet, None, "Learn stays closed");

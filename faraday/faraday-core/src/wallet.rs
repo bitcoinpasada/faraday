@@ -5,7 +5,7 @@
 
 use crate::modes::Mode;
 use crate::strings::{EN, fill};
-use crate::{Action, Faraday, Screen, Sheet, family, result_stem, wallet};
+use crate::{Action, Faraday, Screen, Sheet, result_stem, spend_backup, wallet};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{OutPoint, Transaction, Txid};
@@ -124,8 +124,8 @@ pub struct Wallet {
     /// What [`Wallet::source`] is: every caller that adds a wallet
     /// ([`Session::add_wallet`]) already knows this, so it is given
     /// explicitly there rather than read back out of the text, which a
-    /// second language would not carry. [`source_tag`] and Family's
-    /// routing (`family.rs`) read this, not the words.
+    /// second language would not carry. [`source_tag`] and Spend from a backup's
+    /// routing (`spend_backup/mod.rs`) read this, not the words.
     pub origin: Origin,
     /// The addresses asked of it, each derived once, by network, chain
     /// and index ([`Wallet::address_on`]): public, and dropped with the
@@ -350,16 +350,16 @@ impl Wallet {
     }
 }
 
-/// What a wallet's [`Wallet::source`] is: Family's own "Typed words"
+/// What a wallet's [`Wallet::source`] is: Spend from a backup's own "Typed words"
 /// step, Seeds' own "Typed seeds" step, a vault's own wallet, text that
 /// reads as a statement on its own ("Made here", "Dealt here"), or
 /// anything else (a file's name, a search, "Test wallet"). Given by the
 /// caller that adds the wallet, where it already knows which this is;
-/// every other reader (`source_tag`, Family's routing) reads this
+/// every other reader (`source_tag`, Spend from a backup's routing) reads this
 /// instead of the text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Origin {
-    /// Family's own "Typed words" step ([`crate::family::WORDS_SOURCE`]).
+    /// Spend from a backup's own "Typed words" step ([`crate::spend_backup::WORDS_SOURCE`]).
     TypedWords,
     /// Seeds' own "Typed seeds" step ([`crate::seeds::SOURCE`]).
     TypedSeeds,
@@ -443,14 +443,14 @@ pub(crate) fn another_key_spends(wallet: &Wallet) -> bool {
 /// typed seeds, a backup flow's step, a boot import) has its wallet added
 /// by the hold alone, with a toast.
 pub fn replays(action: Action) -> bool {
-    use crate::family::FamilyAction as F;
+    use crate::spend_backup::SpendBackupAction as F;
     matches!(
         action,
         Action::LoadWallet(_)
             | Action::RUse(_)
             | Action::RRebuild
             | Action::RestoreShares
-            | Action::Family(F::UseWallet(_) | F::Rebuild)
+            | Action::SpendBackup(F::UseWallet(_) | F::Rebuild)
     )
 }
 
@@ -3798,8 +3798,8 @@ impl Faraday {
                 if let Some(s) = self.wallets.spend_mut() {
                     // On the Spend tab a step opened from another card
                     // stays open.
-                    let from_page = self.screen == Screen::Family
-                        && self.family.state().open != Some(family::Open::Spend);
+                    let from_page = self.screen == Screen::SpendBackup
+                        && self.spend_backup.state().open != Some(spend_backup::Open::Spend);
                     s.open = if s.open == Some(n) && !from_page {
                         None
                     } else {
@@ -3808,8 +3808,8 @@ impl Faraday {
                     s.error = None;
                     s.follow = true;
                 }
-                if self.screen == Screen::Family {
-                    self.family_step_moved(false);
+                if self.screen == Screen::SpendBackup {
+                    self.spend_backup_step_moved(false);
                 }
             }
             Action::ReviewHold => {
@@ -3837,8 +3837,8 @@ impl Faraday {
                     let checksum = wallet.checksum().to_string();
                     self.mark_checked(&checksum);
                 }
-                if self.screen == Screen::Family {
-                    self.family_step_moved(true);
+                if self.screen == Screen::SpendBackup {
+                    self.spend_backup_step_moved(true);
                 }
             }
             Action::ToggleTable => {
