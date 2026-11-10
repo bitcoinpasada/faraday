@@ -124,15 +124,37 @@ impl SpendState {
     ) {
         self.refused = refused;
         // `Rc` is not `Send`: it is made here, on the thread that draws.
-        // Never compared yet: `Faraday::nonce_spend_sync` compares it.
-        *self.nonce_check.borrow_mut() = check.map(|mut check| {
-            check.history_gen = u64::MAX;
-            (psbt.clone(), std::rc::Rc::new(check))
-        });
+        // Never compared yet: `Faraday::nonce_spend_sync` compares it. The
+        // keys found to have used a nonce before stay (F227).
+        let found = self
+            .nonce_check
+            .borrow()
+            .as_ref()
+            .map(|(_, c)| c.used_before.clone())
+            .unwrap_or_default();
+        if check.is_some() || found.is_empty() {
+            *self.nonce_check.borrow_mut() = check.map(|mut check| {
+                check.history_gen = u64::MAX;
+                check.used_before = found;
+                (psbt.clone(), std::rc::Rc::new(check))
+            });
+        }
         self.inspected = Some((psbt, inputs));
         self.keep_signing(signing);
         self.wallet = wallet;
-        self.complete = complete;
+        self.complete = complete && !self.spend.nonce_hold;
+    }
+
+    /// Moves only. A spend a job worked on in its place: a hold the nonce
+    /// check put on it meanwhile stays, with nothing finished (F227).
+    pub(crate) fn take_spend(&mut self, spend: Spend) {
+        let hold = self.spend.nonce_hold;
+        self.spend = spend;
+        if hold {
+            self.spend.nonce_hold = true;
+            self.spend.finished = None;
+            self.complete = false;
+        }
     }
 
     /// Moves only. The signers' lists of a [`Signing`].

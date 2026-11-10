@@ -700,7 +700,10 @@ impl Faraday {
         let mut noted = None;
         if let Some(o) = self.decode.outside.as_mut() {
             if o.made_with != now {
+                let found = std::mem::take(&mut o.check.used_before);
                 o.check = self.session.nonce_check(c, &o.psbt);
+                // A refusal found stays while the page holds the file (F227).
+                o.check.used_before = found;
                 o.made_with = now;
                 o.check.history_gen = u64::MAX;
             }

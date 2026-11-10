@@ -56,17 +56,20 @@ impl NonceCheck {
     /// verified with the history `h`: a key whose nonce was used before
     /// over another message is named in `used_before`, and nothing is
     /// offered. With the history off or no vault open, nothing changes.
+    /// A key found stays in `used_before`, with its inputs, whatever the
+    /// history says later (F227): only a new check starts with none.
     pub fn against(&mut self, h: &HistorySnapshot) {
-        self.used_before.clear();
+        let kept = std::mem::take(&mut self.used_before);
         self.history = h.history();
         self.history_gen = h.generation();
         if self.history == History::Off {
+            self.used_before = kept;
             return;
         }
         let rows = self.rows.iter().map(|r| (r.input, &r.name, r.entry));
         let partials = self.partials.iter().map(|(i, n, e)| (*i, n, Some(*e)));
         let own = self.entries();
-        let mut found: Vec<UsedBefore> = Vec::new();
+        let mut found: Vec<UsedBefore> = kept;
         for (input, name, entry) in rows.chain(partials) {
             let Some(e) = entry else { continue };
             if !h.used_before(&e, &own) {

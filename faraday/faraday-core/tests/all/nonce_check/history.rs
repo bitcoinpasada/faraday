@@ -458,12 +458,30 @@ fn a_page_check_made_with_nothing_held_is_refused_once_a_vault_holds_the_nonce()
     let text = shown(&mut app);
     assert!(!text.contains(EN.vault_save_to_a_stick), "{text}");
     assert!(text.contains(EN.nonce_screen_refused_used), "{text}");
-    // And back once the history is off again.
+    // A refusal found stays while the page holds the file, history off or not.
     nonce_history_on(&mut app, false);
     app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Hex));
     let text = shown(&mut app);
-    assert!(text.contains(EN.vault_save_to_a_stick), "{text}");
-    assert!(!text.contains(EN.nonce_screen_refused_used), "{text}");
+    assert!(!text.contains(EN.vault_save_to_a_stick), "{text}");
+    assert!(text.contains(EN.nonce_screen_refused_used), "{text}");
+}
+
+#[test]
+fn the_nonce_check_page_keeps_its_refusal_after_the_vault_is_dropped() {
+    let (d, k) = (key(3), key(9));
+    let (a, b) = (signed(0, &d, &k), signed(1, &d, &k));
+    let mut app = with_named_vault(&[&a, &b]);
+    remembered(&mut app);
+    let _ = check_file(&mut app, 2);
+    assert!(shown(&mut app).contains(EN.nonce_screen_refused_used));
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::nonce_history_drop(&mut app, id);
+    app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Hex));
+    app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Qr));
+    assert_ne!(app.sheet, Some(faraday_core::Sheet::Qr));
+    let text = shown(&mut app);
+    assert!(!text.contains(EN.vault_save_to_a_stick), "{text}");
+    assert!(text.contains(EN.nonce_screen_refused_used), "{text}");
 }
 
 /// A page whose history was off when it opened, and then turns on and
@@ -811,7 +829,10 @@ fn start(app: &mut Faraday, k: usize) {
 
 /// Opens the Finish step of the spend.
 fn read_all_steps(app: &mut Faraday) {
-    app.press(Action::Step(faraday_core::wallet::step::FINISH));
+    let finish = faraday_core::wallet::step::FINISH;
+    if app.spend().is_some_and(|s| s.open != Some(finish)) {
+        app.press(Action::Step(finish));
+    }
 }
 
 /// Whether Finish, Save to a stick and the QR code give anything.
@@ -862,24 +883,140 @@ fn a_spend_whose_signature_reuses_a_nonce_held_in_the_vault_cannot_finish_save_o
     assert!(text.contains("nonce used before"), "{text}");
 }
 
-#[test]
-fn a_spend_held_back_by_the_history_is_finished_when_the_history_lets_it_go() {
+/// A spend held by a nonce the vault holds, open on Savings.
+fn held_spend() -> (Faraday, faraday_keys::vault::VaultId) {
     let k = key(9);
     let (a, b) = (key_path(0, &k), key_path(1, &k));
     let mut app = with_named_vault(&[&a, &b]);
     load_zebra(&mut app);
     remembered(&mut app);
+    let id = app.vaults().open[0].id;
     start(&mut app, 2);
     assert!(!app.spend().unwrap().complete);
+    (app, id)
+}
+
+/// The spend is still held, names its key and gives nothing out.
+fn assert_still_held(app: &mut Faraday) {
+    let s = app.spend().unwrap();
+    assert!(!s.complete && s.spend.finished.is_none() && s.spend.nonce_hold);
+    assert!(!gives_out(app));
+    assert!(!app.outbox.iter().any(|i| i.name.ends_with("-part.psbt")));
+    read_all_steps(app);
+    let text = shown(app);
+    assert!(text.contains(EN.spend_nonce_held), "{text}");
+    assert!(text.contains("nonce used before"), "{text}");
+}
+
+#[test]
+fn a_spend_held_by_a_nonce_used_before_stays_held_after_its_vault_is_dropped() {
+    let (mut app, id) = held_spend();
+    faraday_core::testkit::nonce_history_drop(&mut app, id);
+    app.press(Action::ToggleTable);
+    assert_still_held(&mut app);
+}
+
+#[test]
+fn a_spend_held_by_a_nonce_used_before_stays_held_after_the_history_is_set_off() {
+    let (mut app, _) = held_spend();
     nonce_history_on(&mut app, false);
     app.press(Action::ToggleTable);
-    let s = app.spend().unwrap();
-    assert!(s.complete && s.spend.finished.is_some());
+    assert_still_held(&mut app);
     nonce_history_on(&mut app, true);
+    assert_still_held(&mut app);
+}
+
+#[test]
+fn a_spend_stays_held_when_keys_or_wallets_change_collect_or_sign_here_runs() {
+    for drop_vault in [false, true] {
+        let (mut app, id) = held_spend();
+        if drop_vault {
+            faraday_core::testkit::nonce_history_drop(&mut app, id);
+        } else {
+            nonce_history_on(&mut app, false);
+        }
+        assert_still_held(&mut app);
+        add_key(&mut app, "bacon");
+        let _ = app.frame();
+        assert_still_held(&mut app);
+        app.session
+            .add_wallet(
+                &testkit::compute(),
+                "Taproot",
+                &kit("taproot").descriptor,
+                "Test wallet",
+                faraday_core::wallet::Origin::Named,
+            )
+            .unwrap();
+        let _ = app.frame();
+        assert_still_held(&mut app);
+        app.press(Action::Collect(1));
+        faraday_core::testkit::settle(&mut app);
+        let _ = app.frame();
+        assert_still_held(&mut app);
+        app.press(Action::SignHere);
+        faraday_core::testkit::settle(&mut app);
+        let _ = app.frame();
+        assert_still_held(&mut app);
+    }
+}
+
+#[test]
+fn a_collect_answering_after_the_hold_came_on_leaves_the_spend_held() {
+    let k = key(9);
+    let (a, b) = (key_path(0, &k), key_path(1, &k));
+    let mut more = b.clone();
+    more.inner_mut().inputs[0].unknown.insert(
+        faraday_bip::bitcoin::psbt::raw::Key {
+            type_value: 0xfc,
+            key: vec![1],
+        },
+        vec![1],
+    );
+    let mut app = with_named_vault(&[&a, &b, &more]);
+    load_zebra(&mut app);
+    let first = check_file(&mut app, 1);
+    let id = app.vaults().open[0].id;
+    start(&mut app, 2);
+    assert!(app.spend().unwrap().complete, "not held yet");
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Collect(3));
+    nonce_history_held(&mut app, id, &first.entries(), 0);
     app.press(Action::ToggleTable);
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    let _ = app.frame();
+    assert_still_held(&mut app);
+}
+
+#[test]
+fn the_nonce_check_page_stays_refused_when_keys_or_wallets_change_with_the_vault_dropped() {
+    let (d, k) = (key(3), key(9));
+    let (a, b) = (signed(0, &d, &k), signed(1, &d, &k));
+    let mut app = with_named_vault(&[&a, &b]);
+    remembered(&mut app);
+    let _ = check_file(&mut app, 2);
+    let id = app.vaults().open[0].id;
+    faraday_core::testkit::nonce_history_drop(&mut app, id);
+    load_zebra(&mut app);
+    app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Decode));
+    app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Back));
+    let text = shown(&mut app);
+    assert!(!text.contains(EN.vault_save_to_a_stick), "{text}");
+    assert!(text.contains(EN.nonce_screen_refused_used), "{text}");
+}
+
+#[test]
+fn a_spend_closed_and_opened_again_with_no_vault_open_is_not_held() {
+    let (mut app, id) = held_spend();
+    faraday_core::testkit::nonce_history_drop(&mut app, id);
+    app.press(Action::RemoveKeys);
+    assert!(app.spend().is_none(), "the spend is closed");
+    load_zebra(&mut app);
+    start(&mut app, 2);
     let s = app.spend().unwrap();
-    assert!(!s.complete && s.spend.finished.is_none());
-    assert!(!gives_out(&mut app));
+    assert!(!s.spend.nonce_hold);
+    assert!(s.complete && s.spend.finished.is_some());
 }
 
 /// A taproot key-path spend of two inputs, both signed under nonce `k`.
@@ -1037,18 +1174,15 @@ fn outbox_has_results(app: &Faraday) -> bool {
 }
 
 #[test]
-fn files_a_spend_made_before_the_history_held_it_are_taken_back_and_made_again_when_it_lets_go() {
+fn files_a_spend_made_before_the_history_held_it_are_taken_back_and_stay_so_when_it_lets_go() {
     let mut app = finished_then_history_holds();
     app.press(Action::ToggleTable);
     assert!(!outbox_has_results(&app), "{:?}", app.outbox.len());
     assert!(!app.spend().unwrap().complete);
     nonce_history_on(&mut app, false);
     app.press(Action::ToggleTable);
-    assert!(app.spend().unwrap().complete);
-    assert!(
-        outbox_has_results(&app),
-        "made at once, as an unheld finish"
-    );
+    assert!(!app.spend().unwrap().complete);
+    assert!(!outbox_has_results(&app), "the refusal stays");
 }
 
 #[test]

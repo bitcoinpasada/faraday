@@ -187,7 +187,7 @@ pub(crate) fn collected(app: &mut Faraday, done: CollectDone) {
     for (kept, theirs) in app.session.wallets.iter().zip(wallets) {
         kept.take_kept(theirs);
     }
-    s.spend = spend;
+    s.take_spend(spend);
     // `nothing` leaves the error as it was; the end says it.
     if error.is_some() {
         s.error = error;

@@ -2289,8 +2289,10 @@ before, on another transaction, on inputs {i}"; nothing finishes, and
 neither the spend nor the Nonce check page offers **Save to a stick** or
 **Show as QR** ("Not finished: a nonce was used before"). A nonce used
 twice inside the transaction is refused the same way on the spend, and a
-spend refused gives no part file for the next signer either. There is no
-way past it (F136, F227).
+spend refused gives no part file for the next signer either. A refusal,
+once found, stays until that spend is closed (or the Nonce check page
+leaves that file), even if the vault is closed or the history turned Off.
+There is no way past it (F136, F227).
 
 **The line under the headline**, the same on Send it and on the Nonce
 check page:

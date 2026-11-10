@@ -951,6 +951,10 @@ impl View<'_> {
             check.partials = self.session.nonce_partials(c, psbt, &s.inspection);
             check
         });
+        // A key found stays for as long as the spend is open (F227).
+        if let Some((_, old)) = cache.as_ref() {
+            check.used_before = old.used_before.clone();
+        }
         check.against(&history);
         let check = Rc::new(check);
         *cache = Some((psbt.clone(), check.clone()));

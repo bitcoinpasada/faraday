@@ -3056,6 +3056,8 @@ pub struct SpendState {
     /// again to compare, so it runs once per set of signatures, not once
     /// per frame. [`Faraday::refresh_spend`] makes it where the file
     /// changes; a frame that finds the PSBT other than this one makes it.
+    /// The keys found used before are carried into every check of the spend
+    /// until it closes (F227): a new check never starts without them.
     pub(crate) nonce_check: std::cell::RefCell<Option<(Psbt, std::rc::Rc<NonceCheck>)>>,
     /// The step column's scroll, in design units.
     pub scroll: f32,
@@ -3496,8 +3498,9 @@ impl Faraday {
     /// with the history, and what it found noted for a vault. While a nonce
     /// is used twice in the transaction or was used before in an open vault
     /// nothing is finished (`Spend::nonce_hold`), so nothing is saved or
-    /// shown as a code; when the history stops saying so, the transaction
-    /// is finished again.
+    /// shown as a code; a key found to have used a nonce before stays in
+    /// the check for as long as the spend is open, so a closed vault or the
+    /// history turned off does not lift it (F227).
     pub(crate) fn nonce_spend_sync(&mut self) {
         let history = self.nonce_snapshot();
         let c = self.compute();
@@ -3511,6 +3514,14 @@ impl Faraday {
             .as_ref()
             .filter(|(p, _)| *p == s.spend.psbt)
             .map(|(_, check)| check.clone());
+        // A key found stays for as long as the spend is open, also in the
+        // check of another PSBT of it (F227).
+        let found_before = s
+            .nonce_check
+            .borrow()
+            .as_ref()
+            .map(|(_, check)| check.used_before.clone())
+            .unwrap_or_default();
         let (mut check, mut stored) = match kept {
             Some(check) => (check, false),
             // A spend that cannot be finished yet, was not held and carries
@@ -3532,6 +3543,7 @@ impl Faraday {
             None => {
                 let mut fresh = session.nonce_check(&c, &s.spend.psbt);
                 fresh.partials = session.nonce_partials(&c, &s.spend.psbt, &s.inspection);
+                fresh.used_before = found_before;
                 (std::rc::Rc::new(fresh), true)
             }
         };

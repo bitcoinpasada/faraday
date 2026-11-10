@@ -284,7 +284,7 @@ fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, String>) {
     match worked {
         Ok(w) => {
             nonce_only = w.nonce_only;
-            s.spend = w.spend;
+            s.take_spend(w.spend);
             s.take(w.fresh);
             s.error = None;
             if !nonce_only {
