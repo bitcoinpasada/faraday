@@ -51,6 +51,31 @@ fn read(app: &mut Faraday, text: &str) {
     let _ = app.frame();
 }
 
+fn read_bytes(app: &mut Faraday, bytes: &[u8]) {
+    app.event(Event::Scanned {
+        bytes: bytes.to_vec(),
+    });
+    let _ = app.frame();
+}
+
+fn stick_in(app: &mut Faraday, on: bool) {
+    let sticks = if on {
+        vec![faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: "a".into(),
+            label: "STICK".into(),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        }]
+    } else {
+        Vec::new()
+    };
+    app.storage(faraday_core::StorageEvent::Sticks(sticks));
+    let _ = app.frame();
+}
+
 fn note(app: &Faraday) -> String {
     app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
 }
@@ -131,4 +156,147 @@ fn homes_scan_of_a_text_offers_sign_this_message_only_with_a_wallet() {
     with.press(Action::ReadGo(at as u8));
     assert_eq!(with.screen, Screen::Message);
     assert_eq!(testkit::message(&with).unwrap().text, "A note to sign");
+}
+
+#[test]
+fn a_binary_code_is_refused_and_no_text_is_kept() {
+    let mut app = app(true);
+    app.press(Action::SignMessage);
+    app.press(Action::MScan);
+    read_bytes(&mut app, &[0x41, 0xFF, 0x42]);
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+    assert!(
+        note(&app).contains("Nothing Faraday reads"),
+        "{}",
+        note(&app)
+    );
+    assert_eq!(testkit::message(&app).unwrap().text, "");
+}
+
+#[test]
+fn a_binary_code_read_on_home_does_not_offer_sign_this_message() {
+    let mut app = app(true);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    read_bytes(&mut app, &[0x41, 0xFF, 0x42]);
+    let ways = app
+        .scan()
+        .and_then(|s| s.card.as_ref())
+        .map(|c| c.ways.clone())
+        .unwrap_or_default();
+    assert!(!ways.contains(&Way::SignMessage));
+}
+
+#[test]
+fn a_psbt_and_a_url_are_named_and_refused() {
+    let mut app = app(true);
+    app.press(Action::SignMessage);
+    app.press(Action::MScan);
+    read(&mut app, "https://example.com/a/page");
+    assert!(note(&app).contains("not used here"), "{}", note(&app));
+    let (psbt, _) = testkit::spend().unwrap();
+    read_bytes(&mut app, &psbt.to_bytes());
+    assert!(note(&app).contains("not used here"), "{}", note(&app));
+    assert_eq!(testkit::message(&app).unwrap().text, "");
+    assert_eq!(app.sheet, Some(Sheet::Scan));
+}
+
+#[test]
+fn a_text_in_parts_becomes_the_message() {
+    let mut app = app(true);
+    app.press(Action::SignMessage);
+    app.press(Action::MScan);
+    let text = "A message long enough to come in several parts, one code after another.";
+    let parts = faraday_qr::bbqr::encode('U', text.as_bytes(), 20).expect("parts");
+    assert!(parts.len() > 1);
+    for p in &parts {
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        read(&mut app, p);
+    }
+    assert_eq!(app.sheet, None);
+    assert_eq!(testkit::message(&app).unwrap().text, text);
+}
+
+#[test]
+fn a_new_scanned_text_clears_an_earlier_signature() {
+    let mut app = app(true);
+    app.press(Action::SignMessage);
+    app.press(Action::MScan);
+    read(&mut app, "First");
+    app.press(Action::MSign);
+    assert!(testkit::message(&app).unwrap().signed.is_some());
+    app.press(Action::MScan);
+    read(&mut app, "Second");
+    let m = testkit::message(&app).unwrap();
+    assert_eq!(m.text, "Second");
+    assert!(m.signed.is_none());
+}
+
+#[test]
+fn a_text_is_signed_exactly_as_scanned() {
+    let mut app = app(true);
+    app.press(Action::SignMessage);
+    app.press(Action::MScan);
+    read(&mut app, "Line\n");
+    assert_eq!(testkit::message(&app).unwrap().text, "Line\n");
+    app.press(Action::MSign);
+    let scanned = testkit::message(&app).unwrap().signed.clone().unwrap();
+    testkit::message_text(&mut app, "Line\n");
+    app.press(Action::MSign);
+    let typed = testkit::message(&app).unwrap().signed.clone().unwrap();
+    assert_eq!(scanned.signature, typed.signature);
+    testkit::message_text(&mut app, "Line");
+    app.press(Action::MSign);
+    let trimmed = testkit::message(&app).unwrap().signed.clone().unwrap();
+    assert_ne!(scanned.signature, trimmed.signature);
+}
+
+#[test]
+fn the_read_cards_sign_this_message_keeps_the_text_as_scanned() {
+    let mut app = app(true);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    read(&mut app, "A note\n");
+    let ways = app
+        .scan()
+        .and_then(|s| s.card.as_ref())
+        .map(|c| c.ways.clone())
+        .unwrap_or_default();
+    let at = ways.iter().position(|w| *w == Way::SignMessage).unwrap();
+    app.press(Action::ReadGo(at as u8));
+    assert_eq!(testkit::message(&app).unwrap().text, "A note\n");
+}
+
+#[test]
+fn keys_do_not_reach_the_message_while_the_scanner_is_open() {
+    let mut app = app(true);
+    app.press(Action::SignMessage);
+    app.press(Action::MType);
+    app.press(Action::MScan);
+    app.event(Event::Key(faraday_shell_api::Key::Char('x')));
+    assert_eq!(testkit::message(&app).unwrap().text, "");
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    assert_eq!(app.sheet, None, "Escape is the scanner's Cancel");
+}
+
+#[test]
+fn every_scan_that_opens_the_camera_waits_for_the_stick() {
+    use faraday_core::compare::{ComparePress, Slot};
+    use faraday_core::decode::check::{self, SignerPress};
+    let presses = [
+        Action::MScan,
+        Action::Compare(ComparePress::Scan(Slot::First)),
+        Action::SignerCheck(SignerPress::Scan(check::Slot::Sent)),
+        Action::Sweep(faraday_core::seeds::sweep::SweepAction::Scan),
+        Action::BC32(faraday_core::codex32_backup::Press::ScanCopy),
+    ];
+    for press in presses {
+        let mut app = app(true);
+        app.press(Action::SignMessage);
+        stick_in(&mut app, true);
+        app.press(press);
+        assert_eq!(app.sheet, Some(Sheet::Pull), "{press:?}");
+        assert!(app.scan().is_none(), "{press:?} opened the camera");
+        stick_in(&mut app, false);
+    }
 }

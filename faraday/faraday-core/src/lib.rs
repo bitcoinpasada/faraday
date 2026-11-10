@@ -1846,6 +1846,11 @@ impl Faraday {
             Action::Scan
             | Action::ScanFor(_)
             | Action::BScan
+            | Action::MScan
+            | Action::Compare(compare::ComparePress::Scan(_))
+            | Action::SignerCheck(decode::check::SignerPress::Scan(_))
+            | Action::Sweep(seeds::sweep::SweepAction::Scan)
+            | Action::BC32(codex32_backup::Press::ScanCopy)
             | Action::Vault(vault::VaultAction::ScanEntry)
             | Action::SpendBackup(
                 spend_backup::SpendBackupAction::Scan

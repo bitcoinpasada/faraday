@@ -49,8 +49,9 @@ Closed, the text's first line in quotes, or **Not written yet**.
 
 | Control | What it does |
 |---|---|
-| the box | the text; **Press Type to write the message** while it is empty, **Type the message** while typing goes to it |
+| the box | the text; **Press Type or Scan to give the message** while it is empty, **Type the message** while typing goes to it |
 | **Type**, **Stop typing** | typing goes to the box, or stops; <kbd>Enter</kbd> starts a new line, <kbd>Escape</kbd> stops typing |
+| **Scan** | the camera reads a code; a plain text becomes the message exactly as scanned, and a seed, a key or any other kind of code is named and refused |
 | "38 characters" | the count of every character, spaces and line breaks among them |
 | **Continue** | closes the card and opens **Format** |
 

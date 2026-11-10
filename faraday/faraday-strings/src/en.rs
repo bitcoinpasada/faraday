@@ -6788,7 +6788,7 @@ strings! {
     /// Text in `message_body`.
     message_type_the_message: "Type the message",
     /// Text in `message_body`.
-    message_press_type: "Press Type to write the message",
+    message_press_type: "Press Type or Scan to give the message",
     /// Text in `message_body`.
     message_stop_typing: "Stop typing",
     /// Text in `message_body`.

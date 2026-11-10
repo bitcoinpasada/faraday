@@ -1149,6 +1149,28 @@ impl Faraday {
         self.read_card_put(card);
     }
 
+    /// The read card's **Sign this message**: the text as scanned.
+    fn read_go_message(&mut self, filed: Option<usize>, code: zeroize::Zeroizing<Vec<u8>>) {
+        // Read on Home's Scan the text is in Files and the card holds no
+        // copy.
+        let text = match filed.and_then(|at| self.inbox.get(at)) {
+            Some(item) => zeroize::Zeroizing::new(item.bytes.clone()),
+            None => code,
+        };
+        let text = zeroize::Zeroizing::new(self.scanned_own(&text));
+        self.scan_close();
+        self.message_open_with(&text);
+    }
+
+    /// The text as scanned: the last single code's own bytes when `read`
+    /// is what they make, otherwise `read` itself.
+    pub(crate) fn scanned_own(&self, read: &[u8]) -> Vec<u8> {
+        match self.camera.scan().and_then(|s| s.single.as_ref()) {
+            Some(own) if String::from_utf8_lossy(own).trim().as_bytes() == read => own.to_vec(),
+            _ => read.to_vec(),
+        }
+    }
+
     /// The card shows; the camera goes off, its picture wiped.
     fn read_card_put(&mut self, card: scan_read::ReadCard) {
         if let Some(scan) = self.camera.scan_mut() {
@@ -1252,7 +1274,8 @@ impl Faraday {
                 }
                 // A single-key wallet signs it as a message; text that is
                 // not valid UTF-8 is not one.
-                if !self.session.message_wallets().is_empty() && std::str::from_utf8(&code).is_ok()
+                if !self.session.message_wallets().is_empty()
+                    && std::str::from_utf8(&self.scanned_own(&code)).is_ok()
                 {
                     ways.push(Way::SignMessage);
                 }
@@ -1432,16 +1455,7 @@ impl Faraday {
                 self.scan_close();
                 self.act(Action::Vault(crate::vault::VaultAction::Create));
             }
-            Way::SignMessage => {
-                // Read on Home's Scan the text is in Files and the card
-                // holds no copy.
-                let text = match filed.and_then(|at| self.inbox.get(at)) {
-                    Some(item) => zeroize::Zeroizing::new(item.bytes.clone()),
-                    None => code,
-                };
-                self.scan_close();
-                self.message_open_with(&text);
-            }
+            Way::SignMessage => self.read_go_message(filed, code),
             way => match filed {
                 Some(at) => {
                     self.scan_close();
@@ -1614,7 +1628,12 @@ impl Faraday {
     /// of the toast. A transaction to check rather than sign goes straight
     /// to its check, as before. The scanner, closed as the code was
     /// filed, opens again on the card. Returns whether the card shows.
-    fn read_card_after_home(&mut self, c: &Compute, at: usize) -> bool {
+    fn read_card_after_home(
+        &mut self,
+        c: &Compute,
+        at: usize,
+        single: Option<zeroize::Zeroizing<Vec<u8>>>,
+    ) -> bool {
         use scan_read::Way;
         if self.checked_not_signed(at) {
             return false;
@@ -1626,12 +1645,21 @@ impl Faraday {
         let bytes = zeroize::Zeroizing::new(item.bytes.clone());
         let mut card = self.read_card(c, kind, (None, "txt", bytes));
         card.ways.retain(|w| *w != Way::Keep);
+        // A text whose own bytes are not UTF-8 is not offered as a message.
+        if single
+            .as_ref()
+            .is_some_and(|own| std::str::from_utf8(own).is_err())
+        {
+            card.ways.retain(|w| *w != Way::SignMessage);
+        }
         if card.ways.is_empty() {
             return false;
         }
         card.code = zeroize::Zeroizing::new(Vec::new());
         card.filed = Some(at);
-        self.camera.open(ScanState::default());
+        let mut scan = ScanState::default();
+        scan.single = single;
+        self.camera.open(scan);
         self.sheet = Some(Sheet::Scan);
         self.read_card_put(card);
         true
@@ -1995,6 +2023,12 @@ impl Faraday {
                 .camera
                 .scan()
                 .is_some_and(|s| s.purpose == ScanPurpose::Files && s.ask == crate::Ask::Any);
+        // Home's card keeps the code's own bytes for Sign this message.
+        let single = if home {
+            self.camera.scan_mut().and_then(|s| s.single.take())
+        } else {
+            None
+        };
         self.scan_close();
         // A cosigner's account key scanned while a wallet is made from
         // seeds fills the box waiting for one.
@@ -2013,7 +2047,7 @@ impl Faraday {
         // Home's Scan: a kind whose page is a press away shows the card
         // with that press, the code in Files already (`docs/SCANNING.md`
         // §5.4).
-        if home && self.read_card_after_home(c, at) {
+        if home && self.read_card_after_home(c, at, single) {
             return;
         }
         self.scan_landed(c, at, &name);
@@ -2151,6 +2185,7 @@ impl Faraday {
         let c = self.compute();
         let scan = self.camera.scan_mut()?;
         scan.reads += 1;
+        scan.single = None;
         let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
         // A wrong arrival is named, not refused generically (`docs/QR.md`
         // §1): a seed in any form, a private key or a paperkey never goes
@@ -2248,6 +2283,9 @@ impl Faraday {
                     // A QR vault is binary too, and keeps its bytes.
                     (None, "pgp", bytes.to_vec())
                 } else {
+                    if let Some(scan) = self.camera.scan_mut() {
+                        scan.single = Some(bytes.clone());
+                    }
                     faraday_intake::arrival(faraday_qr::classify_text(&text))
                 }
             }

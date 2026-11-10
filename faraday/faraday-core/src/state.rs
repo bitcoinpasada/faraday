@@ -868,7 +868,9 @@ impl Faraday {
                 self.screen = Screen::Message;
             }
             Action::MScan => {
-                if self.message.state.is_some() {
+                if let Some(m) = self.message.state.as_mut() {
+                    // Keys go to the scanner's sheet, not the message behind it.
+                    m.typing = false;
                     let mut scan = crate::qr_view::ScanState::default();
                     scan.purpose = crate::ScanPurpose::MessageText;
                     self.camera.open(scan);
@@ -975,7 +977,9 @@ impl Faraday {
             self.scan_say(kind.not_here());
             return true;
         }
-        let Ok(text) = String::from_utf8(data.to_vec()) else {
+        // The text as scanned: a single code's own bytes, not the trimmed
+        // text filed for it, and refused when they are not UTF-8.
+        let Ok(text) = String::from_utf8(self.scanned_own(&data)) else {
             self.scan_say(Kind::Unreadable.not_here());
             return true;
         };
