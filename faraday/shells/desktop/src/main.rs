@@ -492,6 +492,11 @@ impl ApplicationHandler for Shell {
                 ))
                 .with_min_inner_size(LogicalSize::new(640.0, 400.0)),
         };
+        let attributes = view::identify(
+            attributes,
+            faraday_core::names::MENU_DESKTOP_ID,
+            include_bytes!("../../starter/assets/icon.png"),
+        );
         let view = match View::open(event_loop, attributes) {
             Ok(v) => v,
             Err(e) => {

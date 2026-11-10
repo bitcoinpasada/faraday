@@ -296,7 +296,7 @@ pub fn install(dirs: &Dirs, running: &Path) -> Result<String, Reason> {
     place(dirs, &app, 0o755, |to| fs::copy(running, to).map(|_| ()))?;
     place(dirs, &dirs.icon(), 0o644, |to| fs::write(to, ICON))?;
     let entry = format!(
-        "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={MENU}\nTerminal=false\nCategories=Utility;\n",
+        "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={MENU}\nStartupWMClass={MENU}\nTerminal=false\nCategories=Utility;\n",
         EN.starter_menu_name,
         exec_quote(&app)
     );

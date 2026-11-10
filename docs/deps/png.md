@@ -4,7 +4,7 @@
 decoding a QR picture found on a stick (`read_qr_png` and `qr_in_png` in
 `faraday/faraday-files`, which normalises greyscale, palette and 16-bit
 pictures to 8-bit before the QR decoder sees them), writing the
-snapshot tour's screenshots (`faraday/shells/snapshot`), and reading back
+snapshot tour's screenshots (`faraday/shells/snapshot`), the X11 window icon from the app's own icon (`faraday/shells/window`), and reading back
 what `faraday_codec::png` writes in tests (`core/faraday-codec`,
 `faraday/faraday-starter`, dev-dependencies only).
 

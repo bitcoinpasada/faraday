@@ -16,6 +16,8 @@ faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 winit.workspace = true
 softbuffer.workspace = true
 getrandom.workspace = true
+# The window icon on X11, from the app's PNG (view.rs, docs/deps/png.md).
+png.workspace = true
 
 # The webcam.
 [target.'cfg(target_os = "linux")'.dependencies]

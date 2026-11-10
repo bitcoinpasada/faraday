@@ -1355,6 +1355,15 @@ Per user, never needing administrator rights.
 | Uninstall entry | — | `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Faraday Starter`: name "Faraday Starter", version, publisher "Faraday", icon, size, `UninstallString` = `"…\Faraday Starter.exe" --uninstall` |
 | Settings, once a text size is kept | `~/.local/share/faraday-starter/settings.txt` | `%LOCALAPPDATA%\Programs\Faraday Starter\settings.txt` |
 
+The menu entry names `StartupWMClass` as its own file name, and the window
+takes that name as its Wayland app_id and X11 window class
+(`faraday_window::view::identify`), so a taskbar finds the entry's icon;
+on X11 the window also carries the icon itself, and on Windows the
+window and taskbar take the `.exe`'s icon. A Starter run without being
+installed has no menu entry, so a Wayland taskbar shows a generic icon
+for it until it is installed. Faraday Demo's own window is named
+`app.faradayoffline.FaradayDemo` and carries the same icon.
+
 The settings file holds one line, `text=standard`, `text=large` or
 `text=larger` (`faraday/shells/starter/src/settings.rs`). It is written
 only while a Starter is installed: when a size is chosen on About, and

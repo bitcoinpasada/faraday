@@ -28,6 +28,50 @@ pub struct View {
     shown: Shown,
 }
 
+/// Gives a window its app's identity and icon, so a taskbar finds the
+/// icon: on Wayland the app_id and on X11 the window class, both `id`
+/// (the name of the app's `.desktop` file and its `StartupWMClass`), the
+/// icon `icon_png` (an 8-bit RGBA PNG) as the X11 window icon, and on
+/// Windows the icon resource the `.exe` carries (`faraday/build/windows`).
+/// A PNG that does not decode leaves the icon out.
+pub fn identify(attributes: WindowAttributes, id: &str, icon_png: &[u8]) -> WindowAttributes {
+    #[cfg(target_os = "linux")]
+    let attributes = {
+        use winit::platform::wayland::WindowAttributesExtWayland;
+        use winit::platform::x11::WindowAttributesExtX11;
+        let attributes = WindowAttributesExtWayland::with_name(attributes, id, id);
+        WindowAttributesExtX11::with_name(attributes, id, id)
+            .with_window_icon(icon_from_png(icon_png))
+    };
+    #[cfg(target_os = "windows")]
+    let attributes = {
+        use winit::platform::windows::{IconExtWindows as _, WindowAttributesExtWindows as _};
+        let _ = (id, icon_png);
+        let icon = winit::window::Icon::from_resource(1, None).ok();
+        attributes
+            .with_window_icon(icon.clone())
+            .with_taskbar_icon(icon)
+    };
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    let _ = (id, icon_png);
+    attributes
+}
+
+/// The window icon from an 8-bit RGBA PNG.
+#[cfg(target_os = "linux")]
+fn icon_from_png(png_bytes: &[u8]) -> Option<winit::window::Icon> {
+    let mut reader = png::Decoder::new(std::io::Cursor::new(png_bytes))
+        .read_info()
+        .ok()?;
+    let mut pixels = vec![0; reader.output_buffer_size()?];
+    let info = reader.next_frame(&mut pixels).ok()?;
+    if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight {
+        return None;
+    }
+    pixels.truncate(info.buffer_size());
+    winit::window::Icon::from_rgba(pixels, info.width, info.height).ok()
+}
+
 impl View {
     /// Opens a window with `attributes`, or says why not.
     pub fn open(
