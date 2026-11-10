@@ -9,11 +9,12 @@ use faraday_crypto::work::Compute;
 use faraday_keys::vault::{self, Names, OpenVaults, SEAL_RANDOM_LEN, VaultId};
 use faraday_keys::{
     Keys, QR_SEAL_EXPONENTS, QrError, QrFit, QrHolds, QrUnsupported, Reveal, qr_cost,
-    qr_item_offered, qr_note_over, qr_seal_note,
+    qr_item_offered, qr_note_over, qr_seal_note_job,
 };
 use faraday_vault::Record;
 use faraday_vault::contents::write_qr;
 use faraday_vault::records::{field, kind, words_payload};
+use zeroize::Zeroizing;
 
 const ABANDON: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -102,7 +103,14 @@ fn note(text: &str) -> Record {
 #[test]
 fn a_note_is_sealed_and_opens_to_the_same_note() {
     let c = compute();
-    let code = qr_seal_note(&c, "The safe is in the drawer.", PASS, EXPONENT, &RANDOM).unwrap();
+    let code = qr_seal_note_job(
+        "The safe is in the drawer.",
+        PASS,
+        EXPONENT,
+        Zeroizing::new(RANDOM),
+    )
+    .run(&c)
+    .unwrap();
     assert_eq!(code.len(), 396);
     let mut keys = Keys::on(Network::Mainnet);
     assert_eq!(keys.qr_open(&c, PASS, &code), Ok(QrHolds::Note));
@@ -120,7 +128,9 @@ fn a_note_is_sealed_and_opens_to_the_same_note() {
 #[test]
 fn an_empty_note_seals_the_empty_vault() {
     let c = compute();
-    let code = qr_seal_note(&c, "", PASS, EXPONENT, &RANDOM).unwrap();
+    let code = qr_seal_note_job("", PASS, EXPONENT, Zeroizing::new(RANDOM))
+        .run(&c)
+        .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
     assert_eq!(keys.qr_open(&c, PASS, &code), Ok(QrHolds::Empty));
 }
@@ -131,7 +141,10 @@ fn a_loaded_key_of_12_or_24_words_is_sealed_and_loads_back() {
     for (phrase, count) in [(ABANDON, 12u8), (ZOO, 24)] {
         let mut keys = Keys::on(Network::Mainnet);
         keys.add_words(&c, phrase, "", None).unwrap();
-        let code = keys.qr_seal_key(&c, 0, PASS, EXPONENT, &RANDOM).unwrap();
+        let code = keys
+            .qr_seal_key_job(&c, 0, PASS, EXPONENT, Zeroizing::new(RANDOM))
+            .and_then(|j| j.run(&c))
+            .unwrap();
         let mut other = Keys::on(Network::Mainnet);
         assert_eq!(
             other.qr_open(&c, PASS, &code),
@@ -159,12 +172,14 @@ fn a_key_of_18_words_or_another_list_is_refused() {
     for i in 0..2 {
         assert!(!keys.qr_key_offered(i));
         assert_eq!(
-            keys.qr_seal_key(&c, i, PASS, EXPONENT, &RANDOM),
+            keys.qr_seal_key_job(&c, i, PASS, EXPONENT, Zeroizing::new(RANDOM))
+                .and_then(|j| j.run(&c)),
             Err(QrError::NotFit(QrFit::SeedNotQr))
         );
     }
     assert_eq!(
-        keys.qr_seal_key(&c, 5, PASS, EXPONENT, &RANDOM),
+        keys.qr_seal_key_job(&c, 5, PASS, EXPONENT, Zeroizing::new(RANDOM))
+            .and_then(|j| j.run(&c)),
         Err(QrError::NoItem)
     );
 }
@@ -347,7 +362,9 @@ fn the_note_count_is_in_characters_with_escapes_and_utf8_counted() {
 #[test]
 fn a_wrong_passphrase_reads_as_wrong_and_nothing_is_held() {
     let c = compute();
-    let code = qr_seal_note(&c, "hello", PASS, EXPONENT, &RANDOM).unwrap();
+    let code = qr_seal_note_job("hello", PASS, EXPONENT, Zeroizing::new(RANDOM))
+        .run(&c)
+        .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
     keys.qr_open(&c, PASS, &code).unwrap();
     assert_eq!(
@@ -362,8 +379,12 @@ fn a_wrong_passphrase_reads_as_wrong_and_nothing_is_held() {
 #[test]
 fn a_new_open_keeps_only_the_second_and_a_lock_wipes_it() {
     let c = compute();
-    let first = qr_seal_note(&c, "first", PASS, EXPONENT, &RANDOM).unwrap();
-    let second = qr_seal_note(&c, "second", "other", EXPONENT, &RANDOM).unwrap();
+    let first = qr_seal_note_job("first", PASS, EXPONENT, Zeroizing::new(RANDOM))
+        .run(&c)
+        .unwrap();
+    let second = qr_seal_note_job("second", "other", EXPONENT, Zeroizing::new(RANDOM))
+        .run(&c)
+        .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
     keys.qr_open(&c, PASS, &first).unwrap();
     assert!(keys.holds_secret());
@@ -381,7 +402,9 @@ fn a_new_open_keeps_only_the_second_and_a_lock_wipes_it() {
 #[test]
 fn offers_refuse_the_wrong_item() {
     let c = compute();
-    let code = qr_seal_note(&c, "text", PASS, EXPONENT, &RANDOM).unwrap();
+    let code = qr_seal_note_job("text", PASS, EXPONENT, Zeroizing::new(RANDOM))
+        .run(&c)
+        .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
     assert_eq!(keys.qr_load_words(&c, "", ""), Err(QrError::NotHeld));
     keys.qr_open(&c, PASS, &code).unwrap();
@@ -428,7 +451,9 @@ fn a_garbage_or_damaged_code_is_refused_and_nothing_is_held() {
 #[test]
 fn a_held_note_is_saved_as_a_new_note_in_an_open_vault() {
     let c = compute();
-    let code = qr_seal_note(&c, "Kept", PASS, EXPONENT, &RANDOM).unwrap();
+    let code = qr_seal_note_job("Kept", PASS, EXPONENT, Zeroizing::new(RANDOM))
+        .run(&c)
+        .unwrap();
     let (mut store, id, _) = vault_with(&c, vec![]);
     let mut keys = Keys::on(Network::Mainnet);
     assert_eq!(store.qr_save_note(&c, &keys, id), Err(QrError::NotHeld));
@@ -488,5 +513,8 @@ fn what_is_not_a_qr_vault_is_named() {
 #[test]
 fn a_memory_step_outside_the_seal_steps_is_refused() {
     let c = compute();
-    assert_eq!(qr_seal_note(&c, "x", PASS, 12, &RANDOM), Err(QrError::Cost));
+    assert_eq!(
+        qr_seal_note_job("x", PASS, 12, Zeroizing::new(RANDOM)).run(&c),
+        Err(QrError::Cost)
+    );
 }

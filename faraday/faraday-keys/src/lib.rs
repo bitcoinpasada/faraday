@@ -52,8 +52,8 @@ pub use operations::{
     slip39_seed,
 };
 pub use qr_vault::{
-    QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrCost, QrError, QrFit, QrHolds, QrUnsupported, qr_cost,
-    qr_item_offered, qr_note_over, qr_seal_note,
+    QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrCost, QrError, QrFit, QrHolds, QrSealJob, QrUnsupported,
+    qr_cost, qr_item_offered, qr_note_over, qr_seal_note_job,
 };
 pub use session::{
     CopyCheck, Handout, Held, Infos, KEY_TEXTS_KEPT, KeyId, KeyInfo, Keys, Part, Reveal, Revealed,

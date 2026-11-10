@@ -11,7 +11,8 @@ use crate::{boot_import, seeds, vanity};
 /// and shows the busy line while the worker runs it. Practice's samples
 /// loaded, the backup's checklist and its Make the files, a wallet's multisig config, split
 /// shares and Specter DIY pictures, and Make the code and Compare of a
-/// Krux code, in Tools and on the checklist; the other presses move
+/// Krux code, in Tools and on the checklist, and Make the code of a QR vault
+/// in Tools; the other presses move
 /// here from [`drawn_first`] as they are shown to need it.
 pub(crate) fn starts_job(a: Action) -> bool {
     matches!(
@@ -21,6 +22,7 @@ pub(crate) fn starts_job(a: Action) -> bool {
             | Action::BChecklist
             | Action::BFilesMake
             | Action::PublicOut(_, 2 | 4 | 14)
+            | Action::QrTool(crate::qr_tool::QrToolAction::Make)
             | Action::KefTool(crate::kef_tool::KefToolAction::Backup(
                 crate::kef_form::KefAct::Make | crate::kef_form::KefAct::Compare,
             ))
@@ -69,7 +71,6 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::InboxLoad
             | Action::KefRead(crate::seeds::kef::KefAct::ReadAsSeed)
             | Action::KLock
-            | Action::QrTool(crate::qr_tool::QrToolAction::Make)
             | Action::KNext
             | Action::Own(crate::fresh::page::Act::Skip)
             | Action::LKey(_)
@@ -126,9 +127,6 @@ pub(crate) fn drawn_first(a: Action) -> bool {
 /// is long enough to be seen: pictures and PDFs made.
 pub(crate) fn working_text(a: Action) -> Option<&'static str> {
     use crate::backup_flow::steps::FlowAction as F;
-    if a == Action::QrTool(crate::qr_tool::QrToolAction::Make) {
-        return Some(EN.qr_tool_sealing);
-    }
     matches!(
         a,
         Action::SecretHold

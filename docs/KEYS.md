@@ -276,8 +276,9 @@ impl Keys {
     `faraday-keys` (`docs/KEF.md` §15.1). Costs a parse of the words.
   - the QR vault tool (`faraday-keys/src/qr_vault.rs`, `docs/VAULT.md`
     §13): a key's words, a file vault's item or a typed note sealed as a
-    QR vault (`Keys::qr_seal_key`, `OpenVaults::qr_seal_item`,
-    `qr_seal_note`), the words never leaving the crate, each read back
+    QR vault (`Keys::qr_seal_key_job`, `OpenVaults::qr_seal_item`,
+    `qr_seal_note_job`; the tool's seal runs as a `QrSealJob` on the
+    worker), the words never leaving the crate, each read back
     under the same passphrase before the code's bytes are given; and a
     code opened into one held item (`Keys::qr_open`), in place of any
     held before, wiped by `Keys::qr_forget` and by `Keys::clear` (a lock).

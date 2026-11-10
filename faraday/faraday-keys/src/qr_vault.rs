@@ -17,6 +17,7 @@ use faraday_intake::secret_buf::SecretText;
 use faraday_vault::contents::{self, Why, write_qr};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{Record, qr};
+use zeroize::Zeroizing;
 
 use crate::session::{Keys, Reveal, Revealed};
 use crate::vault::{OpenVaults, Room, VaultId};
@@ -157,22 +158,52 @@ fn seal_record(
     Ok(bytes)
 }
 
-/// Costs an Argon2id run at `exponent` and one to read the seal back.
-/// A typed note sealed as a QR vault under `passphrase`
-/// (`docs/VAULT.md` §13 Make): the code's bytes, 396 of them, after
-/// reading the seal back under the same passphrase. `exponent` is one of
-/// `QR_SEAL_EXPONENTS`, `random` the caller's 95 bytes. An empty note
-/// seals the empty vault; a note over `QR_NOTE_MAX` is
-/// [`QrError::Contents`].
-pub fn qr_seal_note(
-    c: &Compute,
+/// A seal of a QR vault to run on another thread (`docs/WORKERS.md` §3):
+/// the item as its one record, the passphrase and the memory step, and the
+/// 95 random bytes, all owned, so the job is `Send`. The record's fields,
+/// the passphrase and the random bytes are wiped as the job ends or is
+/// dropped; a key's words are copied in by [`Keys::qr_seal_key_job`] and
+/// leave only in the code sealed.
+pub struct QrSealJob {
+    record: Record,
+    passphrase: SecretText,
+    exponent: u8,
+    random: Zeroizing<[u8; QR_RANDOM_LEN]>,
+}
+
+impl QrSealJob {
+    /// Costs two Argon2id runs at `exponent`, the seal and the read-back
+    /// under the same passphrase. The code's bytes, 396 of them, only
+    /// when the seal opens to the same contents; the job's secrets wipe as
+    /// it ends. `exponent` is one of `QR_SEAL_EXPONENTS`; a note over
+    /// `QR_NOTE_MAX` is [`QrError::Contents`].
+    pub fn run(self, c: &Compute) -> Result<Vec<u8>, QrError> {
+        seal_record(
+            c,
+            &self.record,
+            self.passphrase.as_str(),
+            self.exponent,
+            &self.random,
+        )
+    }
+}
+
+/// The seal of a typed note as a QR vault under `passphrase`
+/// (`docs/VAULT.md` §13 Make), to run with [`QrSealJob::run`]. `random` is
+/// the caller's 95 bytes, moved in. An empty note seals the empty vault.
+/// A pure copy: nothing is worked out until the job runs.
+pub fn qr_seal_note_job(
     note: &str,
     passphrase: &str,
     exponent: u8,
-    random: &[u8; QR_RANDOM_LEN],
-) -> Result<Vec<u8>, QrError> {
-    let record = Record::new(kind::NOTE).with(field::NOTE, note.as_bytes());
-    seal_record(c, &record, passphrase, exponent, random)
+    random: Zeroizing<[u8; QR_RANDOM_LEN]>,
+) -> QrSealJob {
+    QrSealJob {
+        record: Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
+        passphrase: SecretText::of(passphrase),
+        exponent,
+        random,
+    }
 }
 
 /// How many characters to take off the end of `note` for it to fit a QR
@@ -215,20 +246,19 @@ impl Keys {
         self.info(i).is_some_and(|k| k.kef_offered())
     }
 
-    /// Costs a parse of the words, an Argon2id run at `exponent` and one
-    /// to read the seal back. Key `i`'s words sealed as a QR vault's seed
-    /// under `passphrase` (`Reveal::QrVault`): the words never leave this
-    /// crate. The code's bytes after the read-back; [`QrError::NotFit`]
-    /// with [`QrFit::SeedNotQr`] for a key of other words, and
-    /// [`QrError::NoItem`] for no such key.
-    pub fn qr_seal_key(
+    /// Costs a parse of the words. Key `i`'s words as a QR vault's seed
+    /// under `passphrase` (`Reveal::QrVault`), the job to run with
+    /// [`QrSealJob::run`]: the words are copied into the job and never leave
+    /// this crate otherwise. [`QrError::NotFit`] with [`QrFit::SeedNotQr`]
+    /// for a key of other words, and [`QrError::NoItem`] for no such key.
+    pub fn qr_seal_key_job(
         &self,
         c: &Compute,
         i: usize,
         passphrase: &str,
         exponent: u8,
-        random: &[u8; QR_RANDOM_LEN],
-    ) -> Result<Vec<u8>, QrError> {
+        random: Zeroizing<[u8; QR_RANDOM_LEN]>,
+    ) -> Result<QrSealJob, QrError> {
         self.info(i).ok_or(QrError::NoItem)?;
         if !self.qr_key_offered(i) {
             return Err(QrError::NotFit(QrFit::SeedNotQr));
@@ -237,8 +267,12 @@ impl Keys {
         let words = s.words.ok_or(QrError::NotFit(QrFit::SeedNotQr))?;
         let m =
             Mnemonic::parse(c, s.language, words).map_err(|_| QrError::NotFit(QrFit::SeedNotQr))?;
-        let record = Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m));
-        seal_record(c, &record, passphrase, exponent, random)
+        Ok(QrSealJob {
+            record: Record::new(kind::KEY).with(field::KEY, &records::words_payload(&m)),
+            passphrase: SecretText::of(passphrase),
+            exponent,
+            random,
+        })
     }
 
     // ---- an opened code, held ----

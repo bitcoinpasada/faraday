@@ -1,7 +1,8 @@
 //! The QR vault tool in Tools (`docs/VAULT.md` §13): a step flow of three
 //! cards, Contents, Passphrase and Code. A typed note or a loaded key's
 //! words are sealed as a QR vault under a typed passphrase
-//! ([`faraday_keys::qr_seal_note`], `Keys::qr_seal_key`), and the code is
+//! ([`faraday_keys::qr_seal_note_job`], `Keys::qr_seal_key_job`, a job on the
+//! worker), and the code is
 //! shown, or put in the Outbox as a labelled picture and as the `.pgp`
 //! file. Nothing typed or sealed is kept when the tool is left, at the
 //! idle warning or at a lock. The drawing is `screen.rs`.
@@ -9,11 +10,14 @@
 use crate::vault::{TextBox, vault_stem};
 use crate::{Action, Faraday, QrFormat, QrSource, QrView, Screen, flow};
 use faraday_crypto::work::Compute;
-use faraday_keys::{Keys, QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrError, qr_note_over, qr_seal_note};
+use faraday_keys::{QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrError, qr_note_over, qr_seal_note_job};
 use faraday_shell_api::Key;
 use zeroize::{Zeroize, Zeroizing};
 
 pub(crate) mod screen;
+mod seal;
+
+pub(crate) use seal::{SealDone, SealWork, seal_stopped, sealed};
 
 use crate::strings::{EN, fill};
 
@@ -393,25 +397,6 @@ fn step(app: &mut Faraday, k: u8) {
     }
 }
 
-/// Costs an Argon2id run at the memory step chosen, and one to read the
-/// seal back. Seals what the tool holds under its passphrase with the
-/// 95 random bytes `random`: the code's bytes or why there are none.
-fn seal_now(
-    c: &Compute,
-    keys: &Keys,
-    (pick, key): (Pick, Option<usize>),
-    note: &str,
-    pass: &str,
-    exponent: u8,
-    random: &[u8; QR_RANDOM_LEN],
-) -> Result<Vec<u8>, QrError> {
-    match (pick, key) {
-        (Pick::Note, _) => qr_seal_note(c, note, pass, exponent, random),
-        (Pick::Key, Some(i)) => keys.qr_seal_key(c, i, pass, exponent, random),
-        (Pick::Key, None) => Err(QrError::NoItem),
-    }
-}
-
 /// The line a refusal is told in.
 fn refusal_line(e: &QrError) -> String {
     match e {
@@ -420,9 +405,9 @@ fn refusal_line(e: &QrError) -> String {
     }
 }
 
-/// Seals the code. The seal runs here, on the tick after the frame that
-/// says so was drawn (`slow::drawn_first`); it is read back before the
-/// code is given.
+/// Seals the code. The job is made here, its randomness drawn as ever, and
+/// the seal runs on the worker under the busy screen (`seal.rs`); the
+/// code is read back before it is given.
 fn make(app: &mut Faraday) {
     let Some(s) = st(app) else { return };
     let Some(pick) = s.pick else { return };
@@ -451,28 +436,17 @@ fn make(app: &mut Faraday) {
     random.copy_from_slice(&drawn);
     drop(drawn);
     let c = app.compute();
-    let sealed = seal_now(
-        &c,
-        &app.session.keys,
-        (pick, key),
-        &note,
-        &pass,
-        exponent,
-        &random,
-    );
-    let date = app.clock_now().map(crate::gpg::date);
-    let Some(s) = st(app) else { return };
-    match sealed {
-        Ok(bytes) => {
-            s.wipe_typed();
-            s.made = Some(Made { bytes, stem, date });
-            s.done[usize::from(qstep::PASSPHRASE)] = true;
-            s.done[usize::from(qstep::CODE)] = true;
-            s.open = Some(qstep::CODE);
-            s.focus = None;
-            s.scroll.follow = true;
-        }
-        Err(e) => s.error = Some(refusal_line(&e)),
+    let job = match (pick, key) {
+        (Pick::Note, _) => Ok(qr_seal_note_job(&note, &pass, exponent, random)),
+        (Pick::Key, Some(i)) => app
+            .session
+            .keys
+            .qr_seal_key_job(&c, i, &pass, exponent, random),
+        (Pick::Key, None) => Err(QrError::NoItem),
+    };
+    match job {
+        Ok(job) => seal::start(app, job, stem),
+        Err(e) => say(app, refusal_line(&e)),
     }
 }
 

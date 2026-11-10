@@ -7690,10 +7690,11 @@ standards = [
 learn = "faraday:vaults"
 screens = ["QrTool"]
 functions = [
-  "faraday/faraday-keys/src/qr_vault.rs::qr_seal_note",
-  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_seal_key",
+  "faraday/faraday-keys/src/qr_vault.rs::qr_seal_note_job",
+  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_seal_key_job",
+  "faraday/faraday-keys/src/qr_vault.rs::QrSealJob::run",
 ]
-code = ["faraday/faraday-keys/src/qr_vault.rs::qr_seal_note"]
+code = ["faraday/faraday-keys/src/qr_vault.rs::QrSealJob::run"]
 
 [action.implementation]
 crate = "faraday/faraday-keys"

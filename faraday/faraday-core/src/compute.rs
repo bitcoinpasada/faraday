@@ -237,6 +237,7 @@ impl Faraday {
             Done::SpendRead(d) => crate::signing::read::spend_read(self, *d),
             Done::Collect(d) => crate::signing::collect::collected(self, *d),
             Done::Files(d) => crate::public_files::files_made(self, *d),
+            Done::QrSeal(d) => crate::qr_tool::sealed(self, *d),
             Done::KefSeal(d) => {
                 self.worker.kef_mut().sealed_done(*d);
                 crate::kef_tool::poll(self);
@@ -294,6 +295,7 @@ impl Faraday {
             // sealing, and its file is made whatever the person presses.
             A::Back | A::Cancel if self.sealing() => false,
             A::Back | A::Cancel => {
+                crate::qr_tool::seal_stopped(self);
                 self.worker.stale();
                 self.worker.kef_mut().stop();
                 self.worker.set_busy(None);
@@ -326,6 +328,7 @@ impl Faraday {
                 .origin()
                 .is_some_and(|o| o != (self.screen, self.sheet));
         if moved {
+            crate::qr_tool::seal_stopped(self);
             self.worker.stale();
             self.worker.kef_mut().stop();
             self.worker.set_busy(None);

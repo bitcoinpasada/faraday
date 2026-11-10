@@ -240,3 +240,72 @@ fn a_lock_wipes_what_was_typed() {
     app.press(Action::Lock);
     assert!(qr_tool::state(&app).is_none());
 }
+
+/// A note typed and its passphrase typed, the seal not yet pressed.
+fn ready_to_make(app: &mut Faraday) {
+    open(app);
+    app.press(Action::QrTool(Q::Pick(Pick::Note)));
+    type_in(app, "meet at the old oak");
+    app.press(Action::QrTool(Q::Next));
+    passphrase(app, "correct horse", "");
+}
+
+#[test]
+fn a_note_sealed_on_the_worker_shows_progress_then_opens_back() {
+    let mut app = started();
+    ready_to_make(&mut app);
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::QrTool(Q::Make));
+    assert!(app.busy().is_some(), "the screen shows Progress");
+    assert!(!qr_tool::state(&app).unwrap().is_made());
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(app.busy().is_none());
+    assert!(qr_tool::state(&app).unwrap().is_made());
+    app.press(Action::QrTool(Q::File));
+    let item = app
+        .outbox
+        .iter()
+        .find(|i| i.name == "qr-vault.pgp")
+        .expect("the code is in the Outbox");
+    let c = testkit::compute();
+    let mut keys = Keys::default();
+    assert_eq!(
+        keys.qr_open(&c, "correct horse", &item.bytes),
+        Ok(QrHolds::Note)
+    );
+    assert_eq!(&*keys.qr_note(Reveal::QrVault), "meet at the old oak");
+}
+
+#[test]
+fn back_while_the_code_is_sealed_makes_no_code_and_keeps_nothing_typed() {
+    let mut app = started();
+    ready_to_make(&mut app);
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::QrTool(Q::Make));
+    app.press(Action::Back);
+    assert!(app.busy().is_none());
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    if let Some(s) = qr_tool::state(&app) {
+        assert!(!s.is_made(), "no code was made");
+        assert!(!s.passphrase_ready());
+        assert_eq!(s.note_chars(), 0);
+    }
+    assert!(app.outbox.is_empty());
+}
+
+#[test]
+fn a_lock_while_the_code_is_sealed_makes_nothing_and_keeps_nothing_typed() {
+    let mut app = started();
+    ready_to_make(&mut app);
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::QrTool(Q::Make));
+    app.press(Action::Lock);
+    assert!(app.busy().is_none());
+    assert!(qr_tool::state(&app).is_none(), "nothing typed is kept");
+    testkit::release_worker();
+    testkit::settle_stale(&mut app);
+    assert!(qr_tool::state(&app).is_none());
+    assert!(app.outbox.is_empty());
+}
