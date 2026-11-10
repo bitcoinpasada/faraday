@@ -1091,7 +1091,7 @@ impl Session {
     /// What an inspection is worked out from beside the PSBT
     /// ([`InspectInputs`]). Lookups: each key's id and each wallet's
     /// checksum are kept.
-    pub(crate) fn inspect_inputs(&self) -> InspectInputs {
+    pub fn inspect_inputs(&self) -> InspectInputs {
         InspectInputs {
             network: self.network(),
             keys: self.keys.all().map(|k| k.id.0).collect(),
@@ -1203,7 +1203,7 @@ pub mod step {
     /// Which way a wallet with several paths is spent.
     pub const PATH: u8 = 8;
     /// MuSig2's first round: everyone's nonces.
-    pub(crate) const NONCES: u8 = 9;
+    pub const NONCES: u8 = 9;
 }
 
 impl Kind {
@@ -1262,7 +1262,7 @@ impl Session {
     /// a place, a script derivation ([`Wallet::script_at`]). The loaded wallet whose script
     /// the transaction's first input spends, found by re-deriving each
     /// wallet's script at the paths the input's own key origins state.
-    pub(crate) fn wallet_for(&self, c: &Compute, psbt: &Psbt) -> Option<usize> {
+    pub fn wallet_for(&self, c: &Compute, psbt: &Psbt) -> Option<usize> {
         self.spends_from(c, &PsbtSeen::of(psbt))
     }
 
