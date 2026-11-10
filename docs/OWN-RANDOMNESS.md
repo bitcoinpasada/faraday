@@ -734,10 +734,11 @@ In `faraday/faraday-core/tests/all/own_randomness.rs`, user-facing:
    `fresh_bytes`: the Seed XOR parts; `sign_seed`: the MuSig2 public
    nonce; This device's words) is compared with the Python cross-check's
    bytes for a fixed system answer and a fixed dice batch (F79). The
-   public nonce's is BIP-327's NonceGen over its vendored reference,
+   public nonce's known answer is BIP-327's NonceGen over its vendored reference,
    with the key, the aggregate and the sighash worked out from BIP-32,
    BIP-39, BIP-327, BIP-328 and BIP-341 by a standard-library reference
-   checked against their published vectors
+   checked against BIP-32, BIP-39, BIP-327, BIP-328 and BIP-341's
+   published vectors, and against the UTXO's script in the spend
    (`tools/vectors/own-randomness/bitcoin.py`).
 4. **Never blocks.** With nothing added, each press works as before and
    gives the bytes it gives today (§4 test 4, extended to the presses).

@@ -95,6 +95,9 @@ def musig_pubnonce(entropy, acc):
 
 
 def main():
+    # The reference's checks first: a changed reference, spend or vector
+    # file fails here instead of printing a new answer.
+    btc.check_all()
     v = json.loads(FILE.read_text())
     a, b = bytes([0x61]) * 32, bytes([0x62]) * 32
     # The key the Seed XOR presses split: test key 1, "bacon" 24 times.

@@ -12,7 +12,7 @@ curve arithmetic, MuSig2's key aggregation and NonceGen.
   and BIP-373's MuSig2 participants field.
 - BIP-341's key-path signature message and sighash, every hash type.
 - The MuSig2 output key of a wallet's address: BIP-327's key aggregation
-  of the sorted participants, BIP-328's synthetic xpub over it, the
+  of the sorted participants, BIP-328's synthetic xpub over it (checked against its published vectors), the
   BIP-32 steps to the address as plain tweaks and BIP-341's tweak with
   no script tree as the x-only one.
 
@@ -488,7 +488,6 @@ def check_tweaks():
         assert ref.partial_sig_verify_internal(
             psig, pubnonces[case["signer_index"]], keys[case["key_indices"][case["signer_index"]]], sess
         ), ("BIP-327 tweak vector", case)
-        assert ref.xbytes(ctx.Q) == ref.get_xonly_pk(ctx)
         n += 1
     return n
 
@@ -522,11 +521,34 @@ def check_musig_psbt():
     assert account.pub in keys, "test key 1 is not a participant"
     leaves, fp, path = psbt.inputs[0]["origins"][account.pub[1:]]
     assert (leaves, fp, path) == (0, root.fingerprint(), parse_path("m/86h/1h/0h"))
+    # BIP-373: the internal key's origin names the BIP-328 xpub's fingerprint.
+    synthetic = Node(None, ref.cbytes(musig_aggregate(sorted(keys))), BIP328_CHAIN_CODE)
+    _, ifp, ipath = psbt.inputs[0]["origins"][internal]
+    assert ifp == synthetic.fingerprint(), "the internal key origin's fingerprint"
+    assert ipath == steps, "the internal key origin's steps"
     assert ref.cbytes(musig_aggregate(sorted(keys))) == aggregate, "the field's aggregate"
     out, got_internal = musig_address(keys, steps)
     assert got_internal == internal, "the internal key the file names"
     assert psbt.inputs[0]["utxo"][1] == b"\x51\x20" + out, "the UTXO's script"
     return 1
+
+
+def check_bip328():
+    """BIP-328's published cases (`tools/vectors/bip328/vectors.txt`):
+    the aggregate of the keys as listed and the synthetic xpub over it."""
+    n = 0
+    for line in (VECTORS / "bip328/vectors.txt").read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        keys, aggregate, xpub = line.split()
+        q = musig_aggregate([bytes.fromhex(k) for k in keys.split(",")])
+        assert ref.cbytes(q).hex() == aggregate.lower(), ("BIP-328 aggregate", line)
+        node = Node(None, ref.cbytes(q), BIP328_CHAIN_CODE)
+        assert node.serialize(False) == xpub, ("BIP-328 xpub", line)
+        n += 1
+    assert n == 3, "BIP-328's three cases"
+    return n
 
 
 def check_all():
@@ -539,6 +561,7 @@ def check_all():
     r["BIP-86 first address"] = check_bip86()
     r["BIP-327 key aggregation and sort vectors"] = check_bip327()
     r["BIP-327 tweak vectors"] = check_tweaks()
+    r["BIP-328 aggregate keys and synthetic xpubs"] = check_bip328()
     r["MuSig2 spend of the test stick: keys, aggregate, address, script"] = check_musig_psbt()
     return r
 

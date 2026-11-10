@@ -1309,7 +1309,24 @@ fn a_musig2_round_offers_add_randomness_at_sign_here_and_other_dice_share_anothe
 
 #[test]
 fn a_musig2_public_nonce_is_the_one_the_python_reference_computes() {
+    // The spend the Python reference read is the file the test kit makes
+    // now, and its system answer is the one `rounds::device` sends.
+    let kit = testkit::files().expect("the test kit's files");
+    let (_, made) = kit
+        .iter()
+        .find(|(name, _)| name == "musig-unsigned.psbt")
+        .expect("the kit's MuSig2 spend");
+    assert!(
+        made.as_slice()
+            == include_bytes!("../../../../tools/vectors/own-randomness/musig-unsigned.psbt"),
+        "the test kit's musig-unsigned.psbt changed: update the copy in tools/vectors/own-randomness/ and run presses.py again"
+    );
     for case in ["nothing added", "dice"] {
+        assert_eq!(
+            answers_of(case, &["musig_entropy"]),
+            vec![[5u8; 32]],
+            "{case}: the system answer the reference used"
+        );
         let mut app = musig_device(true);
         app.event(Event::Display(tall()));
         if case == "dice" {

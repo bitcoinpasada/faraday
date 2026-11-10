@@ -144,7 +144,10 @@ published vectors in this repository, and fails on the first difference:
 | BIP-341 output key, signature message and sighash, every hash type | `tools/vectors/sighash/bip341-wallet-test-vectors.json` (keyPathSpending, scriptPubKey without a tree) | 7 sighashes, 1 output key |
 | BIP-86 first address | BIP-86's text (the abandon mnemonic's first address: internal and output key) | 1 |
 | BIP-327 key aggregation, key sort, tweaks | `tools/vectors/bip327/` | 5 and 5 |
-| BIP-174 reading, BIP-373 participants, BIP-328 and the address | the test stick's spend: the key of test key 1 is a participant, and the output key worked out is the script of the UTXO | 1 |
+| BIP-328 aggregate key and synthetic xpub | `tools/vectors/bip328/vectors.txt` | 3 |
+| BIP-174 reading, BIP-373 participants, the address | the test stick's spend: the key of test key 1 is a participant, and the output key worked out is the script of the UTXO | 1 |
 
-A BIP-328 xpub has no vector of its own here: the last row checks that
-whole chain, from the participants to the UTXO's script.
+The last row checks the chain from the participants to the UTXO's script,
+and that the internal key's origin names the BIP-328 xpub's fingerprint.
+It leans on the rows above it for BIP-328, BIP-327 and BIP-32. The
+`presses.py` runs all of these checks before it prints.
