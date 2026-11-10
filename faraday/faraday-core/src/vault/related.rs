@@ -1,6 +1,6 @@
-//! A second passphrase for a key, or a share of a set the vault already
-//! holds, is saved only after **Continue** (never refused): the pending
-//! records wait here while the dialog is up.
+//! A share of a set the vault already holds is saved only after
+//! **Continue** (never refused): the pending records wait here while the
+//! dialog is up.
 
 use faraday_keys::vault::Staged;
 use faraday_keys::vault::VaultId;

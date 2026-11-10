@@ -172,29 +172,16 @@ pub struct Item {
     /// unreadable), not a damage of the entry. Always `None` for Faraday's
     /// items.
     pub totp: Option<Result<Totp, NotTotp>>,
-    /// Set when other items hold a passphrase for the same key, or a codex32
-    /// share of the same index and key: its place among them. `None` for
-    /// every other item, and for one that is alone.
+    /// Set when other items hold a codex32 share of the same index and key:
+    /// its place among them. `None` for every other item, and for one that
+    /// is alone.
     pub related: Option<Related>,
 }
 
-/// What a group of related secrets is.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RelatedKind {
-    /// Passphrases for one key.
-    Passphrases,
-    /// Codex32 shares of one index and key.
-    Shares,
-}
-
-/// An item's place among the items that hold a related secret (several
-/// passphrases for one key, several shares of one index and key), in
-/// the order read (a group's entries, then its groups): the app labels each, such as "1 of 2 passphrases for key
-/// {fingerprint}".
+/// A codex32 share's place among the shares of one index and key, in the
+/// order read (a group's entries, then its groups).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Related {
-    /// What the group is.
-    pub kind: RelatedKind,
     /// This item's place in the group, from 1.
     pub place: usize,
     /// How many items the group holds, at least 2.

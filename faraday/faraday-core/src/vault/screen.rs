@@ -1514,37 +1514,23 @@ fn create_panel(
 // Vault contents
 // ---------------------------------------------------------------------
 
-/// An item's title, its line, and whether the title is data. A passphrase
-/// or share kept with others for one key is labelled with its place
-/// among them.
+/// An item's title, its line, and whether the title is data. A codex32
+/// share kept with others of its set is labelled as another share.
 fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
     let (title, mut line, mono) = item_heading_of(app, r);
     let rel = r
         .home()
         .and_then(|(id, at)| app.vaults.store().related(id, at));
-    match rel.map(|rel| (rel.kind, rel)) {
-        Some((faraday_keys::vault::RelatedKind::Passphrases, rel)) => {
-            line = fill(
-                EN.vault_related_passphrase,
-                &[
-                    &rel.place.to_string(),
-                    &rel.of.to_string(),
-                    &crate::codex32_backup::screen::record_fp(r, field::PASSPHRASE_KEY),
-                ],
-            );
-        }
-        Some((faraday_keys::vault::RelatedKind::Shares, _)) => {
-            let index = faraday_keys::vault::codex32_share_header(r)
-                .map(|(_, _, i)| char::from(i).to_ascii_uppercase().to_string())
-                .unwrap_or_default();
-            let said = fill(EN.vault_related_share, &[&index]);
-            line = if line.is_empty() {
-                said
-            } else {
-                format!("{line} · {said}")
-            };
-        }
-        None => {}
+    if rel.is_some() {
+        let index = faraday_keys::vault::codex32_share_header(r)
+            .map(|(_, _, i)| char::from(i).to_ascii_uppercase().to_string())
+            .unwrap_or_default();
+        let said = fill(EN.vault_related_share, &[&index]);
+        line = if line.is_empty() {
+            said
+        } else {
+            format!("{line} · {said}")
+        };
     }
     (title, line, mono)
 }

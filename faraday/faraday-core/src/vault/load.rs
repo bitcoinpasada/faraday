@@ -58,7 +58,7 @@ pub struct LoadSeed {
     /// On the Keys card: ticked to load.
     pub ticked: bool,
     /// Where several passphrases are kept for this key: how each reads
-    /// ("1 of 2 passphrases for key {fp}"). Empty with none or one.
+    /// ("Passphrase for key {fp}"). Empty with none or one.
     pub passphrases: Vec<String>,
     /// Which of `passphrases` loads.
     pub passphrase: usize,
@@ -348,14 +348,9 @@ impl super::Vaults {
                 kept.iter()
                     .map(|&(vid, at)| {
                         let fp = fp.clone().unwrap_or_default();
-                        let rel = self.store().related(vid, at);
                         let said = fill(
                             EN.vault_related_passphrase,
-                            &[
-                                &rel.map_or(1, |r| r.place).to_string(),
-                                &rel.map_or(1, |r| r.of).to_string(),
-                                &passphrase_key_text(self, vid, at).unwrap_or(fp),
-                            ],
+                            &[&passphrase_key_text(self, vid, at).unwrap_or(fp)],
                         );
                         match self.open.iter().find(|o| o.id == vid) {
                             Some(o) if many => {

@@ -404,7 +404,7 @@ pub(crate) fn older_copy(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-/// **A passphrase or share is already in the vault**: Continue saves the
+/// **A codex32 share is already in the vault**: Continue saves the
 /// record too, Cancel saves none. The lines name the vault.
 pub(crate) fn save_also(app: &View, ui: &mut Ui, w: f32, h: f32) {
     use faraday_draw::tokens::{DIALOG_MAX, GAP, GAP_SMALL};

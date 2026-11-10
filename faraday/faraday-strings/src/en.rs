@@ -9639,16 +9639,14 @@ strings! {
     vault_not_read_toast_one: "1 item in {} could not be read",
     /// Toast at unlock. `{}`: how many, the vault.
     vault_not_read_toast: "{} items in {} could not be read",
-    /// Label of a passphrase record. `{}`: its place, how many, the key's fingerprint.
-    vault_related_passphrase: "{} of {} passphrases for key {}",
+    /// Label of a passphrase choice on the Load sheet. `{}`: the fingerprint of the key it makes.
+    vault_related_passphrase: "Passphrase for key {}",
     /// A passphrase choice on the Load sheet when several vaults are open. `{}`: the label, the vault.
     vault_related_in: "{} · {}",
     /// Line of a codex32 share record that another share of its index and key is held with. `{}`: the share's index.
     vault_related_share: "Also saved: another share {} of this set",
-    /// Title of the dialog before a second passphrase or share is saved.
+    /// Title of the dialog before a second share of a set is saved.
     vault_save_also_head: "Save another?",
-    /// Line of that dialog. `{}`: the vault.
-    vault_holds_passphrase: "{} already holds a passphrase for this key",
     /// Line of that dialog. `{}`: the vault.
     vault_holds_share: "A share of this set is already in {}",
     /// Button of that dialog.

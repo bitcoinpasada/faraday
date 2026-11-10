@@ -54,7 +54,7 @@ use crate::stick;
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
-use faraday_keys::vault::{IntoRecord, RecordView, RelatedKind, Room, Staged, VaultId};
+use faraday_keys::vault::{IntoRecord, RecordView, Room, Staged, VaultId};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Record};
 use related::SaveHold;
@@ -2151,10 +2151,9 @@ impl Faraday {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
         };
-        // A second passphrase for a key, or a share of a set held: the
-        // person decides.
-        if let Some(kind) = self.vaults.store().relates(id, &record) {
-            self.vault_hold_save(id, record.staged(), said, kind);
+        // A share of a set held: the person decides.
+        if self.vaults.store().relates(id, &record) {
+            self.vault_hold_save(id, record.staged(), said);
             return true;
         }
         self.vault_put_in(v, record, said)
@@ -3983,24 +3982,12 @@ impl Faraday {
 
 impl Faraday {
     /// Holds `record` for **Continue**, the dialog up: open vault `id`
-    /// already holds a related secret (`kind`).
-    pub(crate) fn vault_hold_save(
-        &mut self,
-        id: VaultId,
-        record: Staged,
-        said: &str,
-        kind: RelatedKind,
-    ) {
+    /// already holds a share of the same set.
+    pub(crate) fn vault_hold_save(&mut self, id: VaultId, record: Staged, said: &str) {
         let Some(open) = self.vaults.open.iter().find(|o| o.id == id) else {
             return;
         };
-        let line = fill(
-            match kind {
-                RelatedKind::Passphrases => EN.vault_holds_passphrase,
-                RelatedKind::Shares => EN.vault_holds_share,
-            },
-            &[&open.label(self.vaults.store())],
-        );
+        let line = fill(EN.vault_holds_share, &[&open.label(self.vaults.store())]);
         let hold = self.vaults.state.save_hold.get_or_insert_with(|| {
             Box::new(SaveHold {
                 id,

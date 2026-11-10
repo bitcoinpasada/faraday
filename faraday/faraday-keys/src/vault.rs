@@ -39,7 +39,7 @@ use faraday_vault::kdbx::items::{self, Body, Damage, Fault, Place, Unreadable, U
 use faraday_vault::layouts;
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Record};
-pub use items::{Related, RelatedKind};
+pub use items::Related;
 use zeroize::Zeroizing;
 
 use crate::identity::{Material, fingerprint};
@@ -1661,20 +1661,15 @@ fn keep_required(r: &mut Record, emptied: &[u8]) {
 /// The random bytes one seal draws (`faraday_vault::kdbx::RANDOM_LEN`).
 pub const SEAL_RANDOM_LEN: usize = fv::kdbx::RANDOM_LEN;
 
-/// Items of a person's entries and the plans that group by one key: the
-/// grouping `faraday_vault`'s `read` gives `related` by.
-fn pair_of(r: &Record) -> Option<(RelatedKind, Vec<u8>)> {
-    match r.kind {
-        kind::PASSPHRASE => r
-            .field(field::PASSPHRASE_KEY)
-            .map(|k| (RelatedKind::Passphrases, k.to_vec())),
-        kind::CODEX32_SHARE => {
-            let index = *r.field(field::CODEX32_STRING)?.get(8)?;
-            r.field(field::CODEX32_KEY)
-                .map(|k| (RelatedKind::Shares, [&[index][..], k].concat()))
-        }
-        _ => None,
+/// The set a codex32 share belongs to (its index and key): the grouping
+/// `faraday_vault`'s `read` gives `related` by.
+fn share_set_of(r: &Record) -> Option<Vec<u8>> {
+    if r.kind != kind::CODEX32_SHARE {
+        return None;
     }
+    let index = *r.field(field::CODEX32_STRING)?.get(8)?;
+    r.field(field::CODEX32_KEY)
+        .map(|k| [&[index][..], k].concat())
 }
 
 /// Unix seconds of an RFC 3339 time in UTC as `faraday.sealed` is written
@@ -2144,22 +2139,21 @@ impl OpenVaults {
     }
 
     /// A lookup. Record `i`'s place among the records of open vault `id`
-    /// that hold a related secret (passphrases for one key, codex32 shares
-    /// of one index and key), in record order; `None` for one that is
-    /// alone or holds none.
+    /// that hold a codex32 share of one index and key, in record order;
+    /// `None` for one that is alone or holds none.
     pub fn related(&self, id: VaultId, i: usize) -> Option<Related> {
         let s = self.slot(id)?;
-        let (kind, key) = pair_of(s.records.get(i)?)?;
+        let key = share_set_of(s.records.get(i)?)?;
         let (mut of, mut place) = (0, 0);
         for (j, r) in s.records.iter().enumerate() {
-            if pair_of(r).is_some_and(|(k, v)| k == kind && v == key) {
+            if share_set_of(r).is_some_and(|v| v == key) {
                 of += 1;
                 if j <= i {
                     place += 1;
                 }
             }
         }
-        (of > 1).then_some(Related { kind, place, of })
+        (of > 1).then_some(Related { place, of })
     }
 
     /// Costs what [`Slot::room`] costs: a check of each record put, and
@@ -3611,29 +3605,28 @@ impl OpenVaults {
     }
 
     /// A lookup. What open vault `id` already holds that `r` would be
-    /// related to (a passphrase for the same key, a share of the same
-    /// index and key): `None` where `r` is no such record, nothing like it
-    /// is held, or the same record is.
-    pub fn relates(&self, id: VaultId, r: &impl Fit) -> Option<RelatedKind> {
-        let s = self.slot(id)?;
+    /// related to (a codex32 share of the same index and key): false where
+    /// `r` is no share, no other share of its set is held, or the same share
+    /// is.
+    pub fn relates(&self, id: VaultId, r: &impl Fit) -> bool {
+        let Some(s) = self.slot(id) else {
+            return false;
+        };
         let r = r.record_of(Inside(()));
-        let (kind, key) = pair_of(r)?;
+        let Some(key) = share_set_of(r) else {
+            return false;
+        };
         let mut held = false;
         for o in &s.records {
-            if pair_of(o).is_some_and(|(k, v)| k == kind && v == key) {
-                // The same secret again is no second one.
-                let secret = if kind == RelatedKind::Passphrases {
-                    field::PASSPHRASE
-                } else {
-                    field::CODEX32_STRING
-                };
-                if o.field(secret) == r.field(secret) {
-                    return None;
+            if share_set_of(o).is_some_and(|v| v == key) {
+                // The same share again is no second one.
+                if o.field(field::CODEX32_STRING) == r.field(field::CODEX32_STRING) {
+                    return false;
                 }
                 held = true;
             }
         }
-        held.then_some(kind)
+        held
     }
 
     /// Costs `identity` for the source key record and for each key record

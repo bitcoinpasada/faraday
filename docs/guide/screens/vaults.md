@@ -160,10 +160,9 @@ stays.
 
 ## Save another?
 
-**Opened from:** saving a BIP-39 passphrase, or a share of a set, into
-an open vault that already holds one for that key or set. A dialog: the
-vault's name, then "<vault> already holds a passphrase for this key" or
-"A share of this set is already in <vault>", in the warning tone.
+**Opened from:** saving a share of a set into an open vault that already
+holds a share of that set. A dialog: "A share of this set is already in
+<vault>", in the warning tone.
 
 | Control | What it does |
 |---|---|

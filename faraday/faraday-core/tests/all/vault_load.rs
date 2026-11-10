@@ -825,3 +825,74 @@ fn load_with_keys_skips_a_musig2_wallet_of_one_seed() {
     let t = app.toast_text().expect("a toast");
     assert!(!t.contains("Pair"), "{t}");
 }
+
+/// One seed kept with two BIP-39 passphrases, each saved as the key it
+/// makes: the Load sheet offers both, each named by that key, and the
+/// one chosen loads exactly that key.
+#[test]
+fn a_seed_with_two_passphrases_offers_each_by_its_key_and_loads_the_one_chosen() {
+    use faraday_bip::keys::MasterKey;
+    let c = testkit::compute();
+    let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let m = words(phrase);
+    let fp_of = |pass: &str| {
+        MasterKey::from_seed(&c, &m.to_seed(&c, pass.as_bytes()).unwrap(), testkit::NET)
+            .fingerprint()
+            .0
+    };
+    let passphrases = ["first", "second"];
+    let fps: Vec<[u8; 4]> = passphrases.iter().map(|p| fp_of(p)).collect();
+    assert_ne!(fps[0], fps[1]);
+    let make = || {
+        let mut records = vec![loose_key(phrase, "Seed")];
+        for (p, fp) in passphrases.iter().zip(&fps) {
+            records.push(
+                Record::new(kind::PASSPHRASE)
+                    .with(field::PASSPHRASE_KEY, fp)
+                    .with(field::PASSPHRASE, p.as_bytes()),
+            );
+        }
+        // A hand-made record naming the first key with a passphrase that
+        // does not make it: not offered.
+        assert_ne!(fp_of("neither"), fps[0]);
+        records.push(
+            Record::new(kind::PASSPHRASE)
+                .with(field::PASSPHRASE_KEY, &fps[0])
+                .with(field::PASSPHRASE, b"neither"),
+        );
+        crate::common::vault_of("Seeds", PHRASE, 0x61, records)
+    };
+    for want in &fps {
+        let mut app = device(vec![("seeds.kdbx".into(), make())]);
+        unlock_on_vaults(&mut app, "seeds.kdbx", PHRASE);
+        let v = view(&app);
+        let seed = loose(&v, "Seed");
+        let named = |fp: &[u8; 4]| {
+            format!(
+                "Passphrase for key {}",
+                faraday_crypto::hex::encode_string(fp)
+            )
+        };
+        assert_eq!(seed.passphrases.len(), 2, "{:?}", seed.passphrases);
+        for fp in &fps {
+            assert!(
+                seed.passphrases.contains(&named(fp)),
+                "{:?}",
+                seed.passphrases
+            );
+        }
+        let n = seed
+            .passphrases
+            .iter()
+            .position(|p| *p == named(want))
+            .unwrap();
+        let record = seed.record;
+        if !seed.ticked {
+            app.press(Action::Vault(V::LoadTick(record)));
+        }
+        app.press(Action::Vault(V::LoadPassphrase(record, n)));
+        app.press(Action::Vault(V::LoadTicked));
+        let loaded: Vec<[u8; 4]> = app.session.keys.all().map(|k| k.fingerprint.0).collect();
+        assert_eq!(loaded, [*want]);
+    }
+}

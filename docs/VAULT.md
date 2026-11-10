@@ -842,8 +842,8 @@ standard fields it leaves empty, must be absent or empty:
 | `gpg`, GPG keys | 7 | `Title`: the key's primary user ID. `key` (protected): the armored OpenPGP secret key as `gpg --export-secret-keys --armor` writes it, unprotected; required. `public`: the public certificate as last exported, armored. `revocation` (protected): the revocation certificate made with the key (F32), armored. `revoked`: when the key was marked revoked, an RFC 3339 date-time. | |
 | `secure_boot`, Secure Boot | 8 | `Title`: "Secure Boot keys". `owner`: the owner GUID in its text form. `pk_key`, `kek_key`, `db_key` (protected): each a PEM `PRIVATE KEY` (PKCS#8, RFC 7468). `pk_cert`, `kek_cert`, `db_cert`: each a PEM `CERTIFICATE`. | |
 | `wallet_share`, Wallet shares | 13 | `Title`: its name. `Password` (protected): the share as its `.txt` file holds it (`docs/BACKUP-FLOW.md` §15.6). `index`, from 1; `of`, how many; `wallet`, as a plan's. | |
-| `passphrase`, Passphrases | 14 | `Title`: "Passphrase for {for}". `Password` (protected): the passphrase. `for`: the fingerprint (8 lower-case hex digits) of the key the words make with this passphrase. Both required. Several for one key are each kept and read: the app labels each ("1 of 2 passphrases for key {fingerprint}") and warns when saving one that the vault already holds one for the key, with Continue and Cancel; the warning is not built. | |
-| `share`, Codex32 shares | 15 | `Title`: "Codex32 share for {for}". `Password` (protected): a codex32 string (BIP 93) in lower case of a set whose threshold is 2 or more, never its secret. `for`: the fingerprint of the key its set makes. Both required. Several of one share index and key are each kept and read: the app labels each ("Share 3 · also saved: another share 3 of this set") and warns when saving one that the vault already holds, with Continue and Cancel; the warning is not built. | |
+| `passphrase`, Passphrases | 14 | `Title`: "Passphrase for {for}". `Password` (protected): the passphrase. `for`: the fingerprint (8 lower-case hex digits) of the key whose words it goes with. Both required. A passphrase belongs to exactly the key its `for` names (F231): saving another passphrase of one seed asks nothing, and where the Load sheet offers several for a seed each is labelled by the key it makes ("Passphrase for key {fingerprint}"). Two records that name one key are each kept and listed plainly. | |
+| `share`, Codex32 shares | 15 | `Title`: "Codex32 share for {for}". `Password` (protected): a codex32 string (BIP 93) in lower case of a set whose threshold is 2 or more, never its secret. `for`: the fingerprint of the key its set makes. Both required. Several of one share index and key are each kept and read: the app labels each ("Share 3 · also saved: another share 3 of this set") and warns when saving one that the vault already holds, with Continue and Cancel; the warning is built (F231). | |
 | none: the database's custom data | 10, 11, 16, 1, 17 | signed amounts, backup plans, the seal count, the label, nonce records (not built): above | |
 | not carried | 9, 12 | the pending signing round is compiled out of the app (F109), and 12 is no build's | |
 
@@ -1101,10 +1101,11 @@ tick is off that the data is gone from the original too.
 A vault that cannot take the item is listed, dimmed, with the reason:
 it is read-only, it has no room at its size, or it already holds this
 item. An item is the same when every field is the same, and a key also
-when its fingerprint is. A second passphrase for a key, or a share of a
-set the vault holds, is not the same item: it goes in after the dialog
-every save of one has ("{vault} already holds a passphrase for this
-key", **Continue** and **Cancel**), and is never refused.
+when its fingerprint is. A share of a set the vault holds is not the
+same item: it goes in after the dialog every save of one has ("A share
+of this set is already in {vault}", **Continue** and **Cancel**), and is
+never refused. A passphrase is saved with no question, whatever other
+passphrases of the seed the vault holds.
 
 A seed with codex32 facts or a BIP-85 origin shows §7's Keep ticks first.
 

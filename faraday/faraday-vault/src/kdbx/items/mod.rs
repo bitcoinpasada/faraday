@@ -70,8 +70,8 @@ use crate::totp::{self, NotTotp, Totp};
 use crate::{child, codex32, contents};
 
 pub use text::{
-    Custom, Damage, Extra, Fault, Format, GpgKey, Item, Read, ReadOnly, Related, RelatedKind,
-    Unreadable, utc_time,
+    Custom, Damage, Extra, Fault, Format, GpgKey, Item, Read, ReadOnly, Related, Unreadable,
+    utc_time,
 };
 use text::{Name, Path, Sealed, damage, title_of};
 pub use write::{
@@ -620,52 +620,42 @@ pub fn read(c: &Compute, doc: &Document) -> Read {
     }
 }
 
-/// What a passphrase or a codex32 share is one of: the same for items that
-/// are related.
-fn pair_of_record(r: &Record) -> Option<(RelatedKind, Vec<u8>)> {
-    match r.kind {
-        kind::PASSPHRASE => r
-            .field(field::PASSPHRASE_KEY)
-            .map(|k| (RelatedKind::Passphrases, k.to_vec())),
-        kind::CODEX32_SHARE => {
-            let s = r.field(field::CODEX32_STRING)?;
-            let index = *s.get(8)?;
-            r.field(field::CODEX32_KEY)
-                .map(|k| (RelatedKind::Shares, [&[index][..], k].concat()))
-        }
-        _ => None,
+/// What a codex32 share is one of: its index and key, the same for shares
+/// of one set.
+fn share_set_of(r: &Record) -> Option<Vec<u8>> {
+    if r.kind != kind::CODEX32_SHARE {
+        return None;
     }
+    let s = r.field(field::CODEX32_STRING)?;
+    let index = *s.get(8)?;
+    r.field(field::CODEX32_KEY)
+        .map(|k| [&[index][..], k].concat())
 }
 
-/// Related secrets across items: several passphrases for one key, several
-/// codex32 shares of one index and key. Each reads; each is given its place
-/// among them, in the order read (a group's entries, then its groups).
+/// Related shares across items: several codex32 shares of one index and
+/// key. Each reads; each is given its place among them, in the order read
+/// (a group's entries, then its groups).
 fn relate(items: &mut [Item]) {
-    let key_of = |it: &Item| -> Option<(u8, RelatedKind, Vec<u8>)> {
+    let key_of = |it: &Item| -> Option<Vec<u8>> {
         match &it.body {
-            Body::Record(r) => pair_of_record(r).map(|(k, v)| (k as u8, k, v)),
+            Body::Record(r) => share_set_of(r),
             Body::Gpg(_) => None,
         }
     };
-    let mut count: BTreeMap<(u8, Vec<u8>), usize> = BTreeMap::new();
-    let mut seen: BTreeMap<(u8, Vec<u8>), usize> = BTreeMap::new();
+    let mut count: BTreeMap<Vec<u8>, usize> = BTreeMap::new();
+    let mut seen: BTreeMap<Vec<u8>, usize> = BTreeMap::new();
     for it in items.iter() {
-        if let Some((n, _, v)) = key_of(it) {
-            *count.entry((n, v)).or_default() += 1;
+        if let Some(v) = key_of(it) {
+            *count.entry(v).or_default() += 1;
         }
     }
     for it in items.iter_mut() {
-        if let Some((n, kind, v)) = key_of(it) {
-            let key = (n, v);
+        if let Some(key) = key_of(it) {
             let of = count[&key];
             let place = seen.entry(key).or_default();
             *place += 1;
             if of > 1 {
-                it.related = Some(Related {
-                    kind,
-                    place: *place,
-                    of,
-                });
+                it.related = Some(Related { place: *place, of });
             }
         }
     }

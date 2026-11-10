@@ -303,11 +303,29 @@ fn passphrase(text: &str) -> Record {
         .with(field::PASSPHRASE, text.as_bytes())
 }
 
+/// A codex32 share of the set whose key is [1, 2, 3, 4].
+fn share(text: &str) -> Record {
+    Record::new(kind::CODEX32_SHARE)
+        .with(field::CODEX32_STRING, text.as_bytes())
+        .with(field::CODEX32_KEY, &[1, 2, 3, 4])
+}
+
 #[test]
-fn a_second_passphrase_for_a_key_goes_through_continue_and_cancel() {
+fn a_second_passphrase_for_a_key_is_copied_with_no_question() {
+    let a = vault("Alpha", 1, vec![passphrase("two")]);
+    let b = vault("Beta", 2, vec![passphrase("one")]);
+    let mut app = opened(vec![("a.kdbx", a), ("b.kdbx", b)]);
+    sheet_for(&mut app, 0, KEYS, 0);
+    app.press(Action::Vault(V::CopyPick(0)));
+    assert_ne!(app.sheet, Some(Sheet::SaveAlso));
+    assert_eq!(held(&app, 1).len(), 2, "both passphrases are kept");
+}
+
+#[test]
+fn a_second_share_for_a_key_goes_through_continue_and_cancel() {
     let build = || {
-        let a = vault("Alpha", 1, vec![passphrase("two")]);
-        let b = vault("Beta", 2, vec![passphrase("one")]);
+        let a = vault("Alpha", 1, vec![share("ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm")]);
+        let b = vault("Beta", 2, vec![share("ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t")]);
         opened(vec![("a.kdbx", a), ("b.kdbx", b)])
     };
     let mut app = build();
@@ -523,10 +541,22 @@ fn a_move_is_not_offered_from_a_read_only_vault() {
 }
 
 #[test]
-fn a_moved_second_passphrase_leaves_the_original_only_on_continue() {
+fn a_moved_second_passphrase_leaves_the_original_with_no_question() {
+    let a = vault("Alpha", 1, vec![passphrase("two")]);
+    let b = vault("Beta", 2, vec![passphrase("one")]);
+    let mut app = opened(vec![("a.kdbx", a), ("b.kdbx", b)]);
+    move_sheet(&mut app, 0, KEYS, 0);
+    app.press(Action::Vault(V::CopyPick(0)));
+    app.press(Action::Vault(V::CopyGo));
+    assert_ne!(app.sheet, Some(Sheet::SaveAlso));
+    assert_eq!((held(&app, 0).len(), held(&app, 1).len()), (0, 2));
+}
+
+#[test]
+fn a_moved_second_share_leaves_the_original_only_on_continue() {
     let build = || {
-        let a = vault("Alpha", 1, vec![passphrase("two")]);
-        let b = vault("Beta", 2, vec![passphrase("one")]);
+        let a = vault("Alpha", 1, vec![share("ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm")]);
+        let b = vault("Beta", 2, vec![share("ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t")]);
         opened(vec![("a.kdbx", a), ("b.kdbx", b)])
     };
     let mut app = build();
@@ -1033,8 +1063,16 @@ fn an_item_waiting_for_a_new_vault_does_not_go_into_a_backup_flows_vault() {
 
 #[test]
 fn a_moved_item_stays_when_the_original_changed_under_the_dialog() {
-    let a = vault("Alpha", 1, vec![passphrase("two")]);
-    let b = vault("Beta", 2, vec![passphrase("one")]);
+    let a = vault(
+        "Alpha",
+        1,
+        vec![share("ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm")],
+    );
+    let b = vault(
+        "Beta",
+        2,
+        vec![share("ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t")],
+    );
     let mut app = opened(vec![("a.kdbx", a), ("b.kdbx", b)]);
     move_sheet(&mut app, 0, KEYS, 0);
     app.press(Action::Vault(V::CopyPick(0)));

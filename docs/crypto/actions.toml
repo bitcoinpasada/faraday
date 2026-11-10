@@ -7601,7 +7601,7 @@ libraries = [
   "pem-rfc7468",
 ]
 through = [{ library = "base16ct", crate = "core/faraday-crypto" }]
-adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules, the key and size limits of docs/VAULT.md sections 2.1 and 7 and the values' meaning are Faraday's own (`contents.rs`, `contents/tree.rs`). Whatever is outside those rules is refused by name. The KDBX mapping (`kdbx/items/`) is Faraday's own over the document model, faraday-bip's BIP-39, wallet policy, descriptor and codex32 readers, the TOTP reader and pem-rfc7468: the field names, the kinds, the labels of related secrets (several passphrases for one key, several shares of one index and key) and the Unreadable items of docs/VAULT.md section 7."
+adds = "The parser alone reads TOML v1.0.0 tokens; the tree, the duplicate rules, the key and size limits of docs/VAULT.md sections 2.1 and 7 and the values' meaning are Faraday's own (`contents.rs`, `contents/tree.rs`). Whatever is outside those rules is refused by name. The KDBX mapping (`kdbx/items/`) is Faraday's own over the document model, faraday-bip's BIP-39, wallet policy, descriptor and codex32 readers, the TOTP reader and pem-rfc7468: the field names, the kinds, the labels of related secrets (several shares of one index and key) and the Unreadable items of docs/VAULT.md section 7."
 
 [[action.implementation.written_here]]
 what = "The TOML tree inside a vault: duplicates, limits and the names of `docs/VAULT.md` (`faraday-vault::contents`)"
@@ -7636,8 +7636,8 @@ tests = [
   "faraday/faraday-vault/tests/kdbx_items.rs::a_persons_entry_keeps_its_other_fields_across_a_change",
   "faraday/faraday-vault/tests/kdbx_items.rs::an_item_moved_or_renamed_in_a_keepass_app_keeps_its_kind",
   "faraday/faraday-vault/tests/kdbx_items.rs::an_entry_with_two_fields_of_one_key_or_in_a_group_sharing_a_uuid_is_unreadable",
-  "faraday/faraday-vault/tests/kdbx_items.rs::a_second_passphrase_or_share_for_one_key_is_written_and_labelled",
-  "faraday/faraday-vault/tests/kdbx_items.rs::entries_of_one_key_or_one_share_index_read_and_are_labelled",
+  "faraday/faraday-vault/tests/kdbx_items.rs::another_passphrase_of_a_key_is_kept_unlabelled_and_a_second_share_is_labelled",
+  "faraday/faraday-vault/tests/kdbx_items.rs::entries_of_one_key_read_unlabelled_and_of_one_share_index_are_labelled",
   "faraday/faraday-vault/tests/kdbx_items.rs::a_persons_entry_with_a_field_of_any_length_reads_and_keeps_it",
   "faraday/faraday-vault/tests/kdbx_items.rs::a_plan_or_signed_amount_that_does_not_read_is_neither_replaced_nor_removed",
 ]

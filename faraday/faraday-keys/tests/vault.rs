@@ -14,7 +14,7 @@ use faraday_vault::file::STEPS_KIB;
 
 /// The plaintext the tests that seal by hand use.
 const SMALL: usize = 65_536;
-use faraday_vault::kdbx::items::{self, Body, Place, Related, RelatedKind};
+use faraday_vault::kdbx::items::{self, Body, Place};
 use faraday_vault::kdbx::xml::Document;
 use faraday_vault::kdbx::{self};
 use faraday_vault::records::{field, kind};
@@ -1375,7 +1375,7 @@ fn a_gpg_key_that_is_not_faradays_own_is_unreadable_and_written_back_as_read() {
 }
 
 #[test]
-fn a_key_with_two_passphrases_gives_both_each_with_its_place() {
+fn two_passphrases_for_one_key_are_both_kept_and_neither_labelled() {
     let c = compute();
     let passphrase = |key: [u8; 4], text: &[u8]| {
         Body::Record(
@@ -1418,25 +1418,14 @@ fn a_key_with_two_passphrases_gives_both_each_with_its_place() {
     };
     let (two, one) = (of_key(1), of_key(2));
     assert_eq!(two.len(), 2);
-    for (n, &i) in two.iter().enumerate() {
-        assert_eq!(
-            store.related(id, i),
-            Some(Related {
-                kind: RelatedKind::Passphrases,
-                place: n + 1,
-                of: 2
-            })
-        );
+    for &i in two.iter().chain(&one) {
+        assert_eq!(store.related(id, i), None, "no passphrase is labelled");
     }
-    assert_eq!(store.related(id, one[0]), None, "a passphrase alone");
     let read = sealed_open(&file_of(&c, &doc));
-    let labelled = read
-        .read()
-        .items
-        .iter()
-        .filter(|i| i.related.is_some())
-        .count();
-    assert_eq!(labelled, 2, "the file's own reading says it too");
+    assert!(
+        read.read().items.iter().all(|i| i.related.is_none()),
+        "the file's own reading says the same"
+    );
 }
 
 #[test]

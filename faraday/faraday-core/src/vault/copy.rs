@@ -1,8 +1,8 @@
 //! **Copy to another vault** (`docs/VAULT.md` §7.2): an item of the open
 //! vault, copied into another open vault. The sheet lists the other open
 //! vaults, each with whether it can take the item, worked out once when
-//! the sheet opens; the copy is `vault_push_in`'s, so a second passphrase
-//! or a share of a held set is asked at its own dialog. A move is a copy
+//! the sheet opens; the copy is `vault_push_in`'s, so a share of a held
+//! set is asked at its own dialog. A move is a copy
 //! and then the removal from the original, which waits for that dialog's
 //! Continue. A vault that is locked, or one not yet made, is reached
 //! through its unlock or its creation, with the item held from the press
