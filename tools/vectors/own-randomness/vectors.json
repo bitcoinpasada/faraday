@@ -65,10 +65,12 @@
      "6161616161616161616161616161616161616161616161616161616161616161",
      "6262626262626262626262626262626262626262626262626262626262626262"
     ],
-    "seed_xor": "7575757575757575757575757575757575757575757575757575757575757575"
+    "seed_xor": "7575757575757575757575757575757575757575757575757575757575757575",
+    "musig_entropy": "0505050505050505050505050505050505050505050505050505050505050505"
    },
    "gpg_primary_seed": "3db90b477193e64e3a36b6c2b47f51c8e865310a39f243529c7c84dd6482a1fa",
    "gpg_subkey_seed": "9538068a9ca9a52e8ece2d3046620f14342974eef1394edf713592923fdcc662",
+   "musig_pubnonce": "035eaf116f2ee914b6b2d31ed688bc902649f138111c9a761482e7a106d68da6ab02cffc6291d47d5815812bbeff4fd44d664b5cd7eecdd098c9773cc1045d177367",
    "seed_xor_2": [
     "curve net sight stone slam velvet science sun engine dose eternal ripple pencil amused flip judge come electric pluck swim what bid chunk forget",
     "check magnet sunny shove surge today spider siege forest express fresh prison recycle bonus embark hazard dismiss file retire skirt trigger also delay frozen"
@@ -81,10 +83,12 @@
      "6161616161616161616161616161616161616161616161616161616161616161",
      "6262626262626262626262626262626262626262626262626262626262626262"
     ],
-    "seed_xor": "7575757575757575757575757575757575757575757575757575757575757575"
+    "seed_xor": "7575757575757575757575757575757575757575757575757575757575757575",
+    "musig_entropy": "0505050505050505050505050505050505050505050505050505050505050505"
    },
    "gpg_primary_seed": "64941ec781396a9113b1dda2e8c14dbbd9476872c5e9c7d63a56626ddfb88f21",
    "gpg_subkey_seed": "39b93c5034b32fdcbeb70b7c0d25c0ef087f35880eff41f75f61474dccbd8147",
+   "musig_pubnonce": "02eef127a7035777014959f1f88eaf868c7f8bf150530ea95c35105d85d126bef3024f273947c41f638f592f2153f3cae61aeeb7d9741b4898aac73ab8dce0be25fc",
    "seed_xor_2": [
     "neutral actual hold episode mass excite stumble water phrase duty reward grunt grape retreat involve punch utility mushroom idle weather spray supreme unfold erupt",
     "mad beauty lava follow oil garbage shoulder track raw fiction prepare island innocent power guess route three letter giggle try senior silly wise float"

@@ -98,11 +98,53 @@ random cases; it is not checked against an outside source.
 
 ## Whole presses
 
-`presses` holds what three presses make, for no batch and for the dice,
+`presses` holds what four presses make, for no batch and for the dice,
 with the system's answers they are given (`answers`): a GPG key's two
 seeds (`gpg_primary_seed` from the answer sent last, `gpg_subkey_seed`
 from the one before), the two parts of Seed XOR with 2 parts over test
 key 1 ("bacon" 24 times) from the answer in `seed_xor`, and This device's
-12 words as BIP-39 indices (`device_words`). `presses.py` computes them
-from the definitions above and BIP-39's, with Python's standard library
-and the vendored BIP-39 word list; run it to print the key again.
+12 words as BIP-39 indices (`device_words`), and a MuSig2 round's public
+nonce at Sign here (`musig_pubnonce`, 66 bytes: the two nonce points,
+compressed; the device is seeded with the 32 bytes in `musig_entropy`).
+`presses.py` computes them from the definitions above and BIP-39's, with
+Python's standard library and the vendored BIP-39 word list; run it to
+print the key again.
+
+## The MuSig2 public nonce
+
+The case is the test stick's spend (`musig-unsigned.psbt`, a file of
+Faraday's test kit, an input and not an answer; `just faraday-testkit`
+writes it) signed by test key 1 ("bacon" 24 times) at its Sign here, the
+first signing pass of the session. The answer is BIP-327's NonceGen
+(`nonce_gen_internal` of the vendored `tools/reference/bip327/reference.py`)
+with `rand'` by Faraday's own rule, which is in `presses.py`'s docstring.
+The other inputs of NonceGen are worked out by `bitcoin.py`:
+
+- the secret and public key: BIP-39's seed of the words, BIP-32 to
+  m/86'/1'/0';
+- the aggregate key: the file's participants (BIP-373, BIP-174), sorted
+  and aggregated by BIP-327, BIP-328's synthetic xpub over the aggregate,
+  the two address steps (the file's key origin of the internal key) as
+  BIP-32 public derivation, and BIP-341's tweak with no script tree; its
+  x-only key is the one the UTXO's script holds, which `--check` asserts;
+- the message: BIP-341's key-path sighash (SIGHASH_DEFAULT) of the
+  transaction and the witness UTXO of its input.
+
+`bitcoin.py` is written from the BIPs' texts and is independent of
+Faraday's code and of every Bitcoin library; its one import is BIP-327's
+own reference implementation, vendored unchanged, for the curve
+arithmetic, key aggregation and NonceGen. `python3 -I -B
+tools/vectors/own-randomness/bitcoin.py --check` checks it against the
+published vectors in this repository, and fails on the first difference:
+
+| Part | Vectors | Count |
+|---|---|---|
+| BIP-32 derivation, xprv and xpub text | `tools/vectors/bip32/vectors.json` | 17 chain keys, 2 public derivations |
+| BIP-39 seed | `tools/vectors/bip39/vectors.json` (English, passphrase TREZOR), `test_JP_BIP39.json` (Japanese, with a passphrase) | 24 and 24 |
+| BIP-341 output key, signature message and sighash, every hash type | `tools/vectors/sighash/bip341-wallet-test-vectors.json` (keyPathSpending, scriptPubKey without a tree) | 7 sighashes, 1 output key |
+| BIP-86 first address | BIP-86's text (the abandon mnemonic's first address: internal and output key) | 1 |
+| BIP-327 key aggregation, key sort, tweaks | `tools/vectors/bip327/` | 5 and 5 |
+| BIP-174 reading, BIP-373 participants, BIP-328 and the address | the test stick's spend: the key of test key 1 is a participant, and the output key worked out is the script of the UTXO | 1 |
+
+A BIP-328 xpub has no vector of its own here: the last row checks that
+whole chain, from the participants to the UTXO's script.

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (`faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (`faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (`core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
-**Open:** §8.5 test 3's known answer for a MuSig2 public nonce (the GPG key, Seed XOR and This device's words have theirs); the Pi's generator (§3.5, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Open:** the Pi's generator (§3.5, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and
@@ -726,7 +726,12 @@ In `faraday/faraday-core/tests/all/own_randomness.rs`, user-facing:
 3. **Known answers.** One press per draw kind (`fresh`: the GPG key;
    `fresh_bytes`: the Seed XOR parts; `sign_seed`: the MuSig2 public
    nonce; This device's words) is compared with the Python cross-check's
-   bytes for a fixed system answer and a fixed dice batch (F79).
+   bytes for a fixed system answer and a fixed dice batch (F79). The
+   public nonce's is BIP-327's NonceGen over its vendored reference,
+   with the key, the aggregate and the sighash worked out from BIP-32,
+   BIP-39, BIP-327, BIP-328 and BIP-341 by a standard-library reference
+   checked against their published vectors
+   (`tools/vectors/own-randomness/bitcoin.py`).
 4. **Never blocks.** With nothing added, each press works as before and
    gives the bytes it gives today (§4 test 4, extended to the presses).
 5. **Only where it draws.** A spend with no MuSig2 input has no

@@ -1308,6 +1308,26 @@ fn a_musig2_round_offers_add_randomness_at_sign_here_and_other_dice_share_anothe
 }
 
 #[test]
+fn a_musig2_public_nonce_is_the_one_the_python_reference_computes() {
+    for case in ["nothing added", "dice"] {
+        let mut app = musig_device(true);
+        app.event(Event::Display(tall()));
+        if case == "dice" {
+            add_dice(&mut app);
+        }
+        app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+        testkit::steps_before_sign_done(&mut app);
+        app.press(Action::SignHere);
+        let nonce: String = our_nonce(&app)
+            .expect("a nonce shared")
+            .iter()
+            .map(|x| format!("{x:02x}"))
+            .collect();
+        assert_eq!(nonce, known(&["presses", case, "musig_pubnonce"]), "{case}");
+    }
+}
+
+#[test]
 fn a_spend_shows_no_randomness_row_before_its_signing_step() {
     use faraday_core::wallet::step;
     let mut app = musig_device(true);
