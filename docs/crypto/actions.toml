@@ -4371,7 +4371,8 @@ tests = [
   "faraday/faraday-ots/tests/ots.rs::a_tree_of_over_16384_entries_is_refused",
   "faraday/faraday-ots/tests/ots.rs::keccak256_of_nothing_is_the_published_value",
 ]
-not_crosschecked = "Vectors only for now: the example proofs of the OpenTimestamps client and the blocks they name are tested here; the area that reads random proofs with python-opentimestamps is not built yet."
+crosscheck = "ots"
+independence = { class = "outside", author = "python-opentimestamps, by the OpenTimestamps developers (the reference client's own reader and verifier of proofs)" }
 fuzz = [
   "ots",
 ]

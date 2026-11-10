@@ -29,6 +29,7 @@ mod lightning;
 mod miniscript;
 mod msg;
 mod musig;
+mod ots;
 mod own;
 mod parts;
 mod psbt;
@@ -96,6 +97,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "kef" => kef::handle(name, req),
         "sqlite" => sqlite::handle(name, req),
         "lightning" => lightning::handle(name, req),
+        "ots" => ots::handle(name, req),
         _ => Err(format!("unknown area {area}")),
     }
 }

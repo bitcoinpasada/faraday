@@ -106,6 +106,7 @@ AREAS = {
     "lightning": ("area_lightning", "Lightning",
                   ("lightning.ldk", "lightning.aezeed", "lightning.lnd", "lightning.aezeed-soft",
                    "lightning.bolt11", "lightning.hsm_file", "lightning.hsm_words"), 360),
+    "ots": ("area_ots", "Ots", ("ots.read", "ots.verify", "ots.header"), 60),
 }
 
 
