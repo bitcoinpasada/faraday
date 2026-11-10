@@ -95,7 +95,8 @@ already parsed); `faraday_crypto::hash::sha256` on small fixed inputs;
 `PolicyKey::parse` (inside gated parses); signature verification
 (`message::verify`, BSMS `KeyRecord::verify`, and the one recovery or verify of
 `faraday_codec::bolt11::decode`, which Decode a Lightning invoice runs when
-Decode is pressed; events only today; a
+Decode is pressed, and `faraday_codec::bolt12::decode`, which reads an offer
+and checks no signature; events only today; a
 `Verify` kind if a frame ever needs it).
 
 ## 3. Who mints

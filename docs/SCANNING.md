@@ -86,7 +86,7 @@ apart, and whether it is a secret (DESIGN §4.10, Mask policy).
 | GPG public key | ASCII armour | no |
 | Faraday file envelope | `faraday-file-v1`, any of the above as a file | as its contents |
 | Labels | BIP-329 JSON lines | no |
-| Lightning invoice, web address | `ln…` (also with a `lightning:` prefix), `https://…` | no |
+| Lightning invoice or offer, web address | `ln…` (also with a `lightning:` prefix; an offer is `lno1…`, an invoice request `lnr1…`), `https://…` | no |
 | QR vault | the three packets of `docs/VAULT.md` §1.2 (binary; no text form), checked before a GPG key or text; **Open in QR vault** opens the QR vault tool holding the code, from Home's Scan and from Add a key's Scan a SeedQR, and it is never filed; a `.pgp` already in Files opens it from there | no (it is encrypted) |
 | Krux encrypted code | the last arm: text in Krux's forms or raw bytes that parse as a KEF envelope (`docs/KEF.md` §8); raw 16 or 32 bytes stay a CompactSeedQR | no (it is opened by a passphrase) |
 | Text | anything else printable | may be (recovery codes) |
@@ -154,7 +154,7 @@ destination's action.
 | Signed message | filed, then Check a message. **Check the signature** |
 | GPG public key, Faraday file envelope | filed (an envelope under its own name, then as its contents). **Keep in Files** |
 | Text | the card shows it masked (§4.10), with **Save as a note** in the open vault and **Keep in Files** |
-| Lightning invoice | not filed. **Decode it** opens Decode a Lightning invoice on the text, read at once |
+| Lightning invoice or offer | not filed. **Decode it** opens Decode a Lightning invoice on the text, read at once |
 | Labels, web address | named |
 | Not readable | named |
 
@@ -399,7 +399,7 @@ no explanation.
 | `read_gpg` | A GPG public key |
 | `read_file` | A file: {} |
 | `read_labels` | Labels (BIP-329) |
-| `read_invoice` | A Lightning invoice |
+| `read_invoice` | A Lightning invoice or offer |
 | `read_web` | A web address |
 | `read_kef` | An encrypted code |
 | `read_text` | Text |

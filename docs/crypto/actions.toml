@@ -4195,7 +4195,7 @@ standards = [
   "BOLT 12",
 ]
 learn = "none"
-screens = []
+screens = ["Invoice"]
 functions = [
   "core/faraday-codec/src/bolt12.rs::decode",
   "core/faraday-codec/src/bolt12.rs::Chain::from_hash",

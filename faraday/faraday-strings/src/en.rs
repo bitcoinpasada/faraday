@@ -4115,7 +4115,7 @@ strings! {
     /// A code read: BIP-329 labels.
     read_labels: "Labels (BIP-329)",
     /// A code read: a Lightning invoice.
-    read_invoice: "A Lightning invoice",
+    read_invoice: "A Lightning invoice or offer",
     /// A code read: a web address.
     read_web: "A web address",
     /// A code read: text that is none of the kinds above.
@@ -5558,7 +5558,7 @@ strings! {
     /// Title in `invoice_screen`.
     invoice_title: "Decode a Lightning invoice",
     /// The empty field's hint.
-    invoice_field: "Invoice",
+    invoice_field: "Invoice or offer",
     /// Button: reads the text in the field.
     invoice_decode: "Decode",
     /// Button: opens the scanner for an invoice.
@@ -5566,7 +5566,7 @@ strings! {
     /// Button: empties the field.
     invoice_clear: "Clear",
     /// The About page's text and the guide line above the field.
-    invoice_about: "Reads an invoice and shows what it asks. Nothing is paid, signed or kept.",
+    invoice_about: "Reads an invoice or an offer and shows what it asks. Nothing is paid, signed or kept.",
     /// Row name.
     invoice_network: "Network",
     /// Row name.
@@ -5619,6 +5619,14 @@ strings! {
     invoice_metadata: "Payment metadata",
     /// Row name. `{}`: the field's tag character.
     invoice_unknown: "Unknown field {}",
+    /// Row name: an offer's metadata.
+    invoice_offer_metadata: "Metadata",
+    /// Row value: an offer's metadata. `{}`: its length in bytes.
+    invoice_offer_metadata_len: "{} bytes",
+    /// Row name: an odd field of an offer that BOLT #12 does not define. `{}`: its type.
+    invoice_offer_unknown: "Unknown field, type {}",
+    /// Row value: that field. `{}`: its length in bytes.
+    invoice_offer_unknown_len: "{} bytes",
     /// Refusal.
     invoice_err_too_long: "Refused: the text is over 1023 characters",
     /// Refusal.
@@ -5649,6 +5657,88 @@ strings! {
     invoice_err_feature: "Refused: it requires feature bit {}, which is not known here",
     /// Refusal.
     invoice_err_signature: "Refused: the signature does not verify",
+    /// Row name: what the text is.
+    invoice_kind: "Kind",
+    /// Row value: a BOLT #12 offer.
+    invoice_kind_offer: "Offer",
+    /// Row name: the networks an offer is for.
+    invoice_chains: "Networks",
+    /// Row value: a network.
+    invoice_chain_mainnet: "mainnet",
+    /// Row value: a network.
+    invoice_chain_testnet3: "testnet3",
+    /// Row value: a network.
+    invoice_chain_testnet4: "testnet4",
+    /// Row value: a network.
+    invoice_chain_signet: "signet",
+    /// Row value: a network.
+    invoice_chain_regtest: "regtest",
+    /// Row value: a chain Faraday does not know. `{}`: its hash.
+    invoice_chain_other: "Chain {}",
+    /// Row value: an amount in a currency. `{}`: the amount, the ISO 4217 code.
+    invoice_currency_amount: "{} {}",
+    /// Row name: what the issuer wrote about itself.
+    invoice_issuer: "Issuer, in its own words",
+    /// Row name: the node an invoice is asked from.
+    invoice_issuer_id: "Issuer key",
+    /// Row name. `{}`: the path's number.
+    invoice_path: "Blinded path {}",
+    /// Row value: a path starting at a node. `{}`: the node key, the hops.
+    invoice_path_node: "Starts at node {} · hops {}",
+    /// Row value: a path starting at a channel. `{}`: the short channel id, the direction, the hops.
+    invoice_path_channel: "Starts at channel {} · direction {} · hops {}",
+    /// Row name: how many items one invoice may be for.
+    invoice_quantity: "Quantity",
+    /// Row value: an offer that allows any number.
+    invoice_quantity_any: "Any number",
+    /// Row value. `{}`: the most.
+    invoice_quantity_up_to: "Up to {}",
+    /// Refusal: an invoice request.
+    invoice_err_request: "Refused: this is an invoice request; only offers are read",
+    /// Refusal.
+    invoice_err_offer_too_long: "Refused: the text is over 4296 characters",
+    /// Refusal.
+    invoice_err_join: "Refused: a + joins something other than two parts of the text",
+    /// Refusal.
+    invoice_err_offer_prefix: "Refused: the text does not start with lno1",
+    /// Refusal.
+    invoice_err_padding: "Refused: the text ends in more than four bits of padding, or padding that is not zero",
+    /// Refusal.
+    invoice_err_not_minimal: "Refused: a number in the offer is not in its shortest form",
+    /// Refusal.
+    invoice_err_order: "Refused: the offer's fields are not in increasing order",
+    /// Refusal. `{}`: the field type.
+    invoice_err_out_of_range: "Refused: field {} is not one an offer may carry",
+    /// Refusal. `{}`: the field type.
+    invoice_err_unknown_even: "Refused: field {} is required and not known here",
+    /// Refusal. `{}`: the field type.
+    invoice_err_text: "Refused: field {} is not valid text",
+    /// Refusal.
+    invoice_err_chains_empty: "Refused: it names networks and lists none",
+    /// Refusal.
+    invoice_err_chain_repeated: "Refused: a network is named twice",
+    /// Refusal.
+    invoice_err_chain_unknown: "Refused: none of its networks is one Bitcoin network known here",
+    /// Refusal.
+    invoice_err_currency: "Refused: the currency is not an ISO 4217 code known here",
+    /// Refusal.
+    invoice_err_amount_zero: "Refused: the amount is zero",
+    /// Refusal.
+    invoice_err_amount_too_large: "Refused: the amount is over 21 million bitcoin",
+    /// Refusal.
+    invoice_err_amount_no_description: "Refused: it has an amount and no description",
+    /// Refusal.
+    invoice_err_currency_no_amount: "Refused: it names a currency and no amount",
+    /// Refusal.
+    invoice_err_expiry_late: "Refused: the expiry is past the year 9999",
+    /// Refusal.
+    invoice_err_features_minimal: "Refused: the feature bits are not in their shortest form",
+    /// Refusal.
+    invoice_err_no_issuer: "Refused: it names neither an issuer key nor a path",
+    /// Refusal.
+    invoice_err_path: "Refused: a blinded path is empty or malformed",
+    /// Refusal. `{}`: the field type.
+    invoice_err_point: "Refused: field {} holds a key that is not a valid point",
     // ----- decode (faraday-core/src/decode/screen.rs) -----
     /// Title in `decode_screen`.
     decode_decode_a_transaction: "Decode a transaction",

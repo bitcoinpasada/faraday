@@ -1118,6 +1118,15 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
+                heading: "Offers",
+                paragraphs: &[
+                    "An offer is one line that starts `lno1`, which a payee gives out to be paid more than once. The format is BOLT #12, written in Bech32 without a checksum. A line may be broken with a `+` and a line break, and Decode a Lightning invoice reads it joined.",
+                    "An offer is not an invoice. It names no payment hash; the payer's wallet asks the payee's node for an invoice over the Lightning network, which this device cannot do. Decode a Lightning invoice reads an offer and shows what it carries: the networks, the amount in bitcoin or in a currency by its ISO 4217 code, or any amount, the description, the issuer's own words, the issuer's node key, blinded paths by their first node and number of hops, the expiry, the quantity, the feature bits, and the fields it does not know.",
+                    "An offer has no signature, so it does not say who made it. Compare the issuer key and the paths with what the payee gave you from another source. The expiry is shown as written and not judged: this computer's clock is not trusted to say whether it has passed.",
+                    "An invoice request, which starts `lnr1`, and an invoice that starts `lni1`, are messages between two nodes and are refused. A refused offer shows the reason in one line.",
+                ],
+            },
+            Section {
                 heading: "What is refused",
                 paragraphs: &[
                     "A text with a bad checksum, upper and lower case mixed, an amount finer than a thousandth of a satoshi, a field of the wrong length, a payment hash or secret missing or given twice, both a description and its hash or neither, a feature the invoice requires that this reader does not know, and a signature that does not verify. Where BOLT #11 leaves a case open, Faraday refuses it. A refused invoice shows the reason in one line.",

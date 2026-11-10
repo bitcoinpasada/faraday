@@ -1191,7 +1191,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), w("Not stated; an offer holds no secret."), p("Nothing secret is held.")],
         limits: &[p("Reading only: no offer is written, requested, paid or stored."), p("A text over 4,296 characters, mixed case, an invoice request or a field outside the offer's ranges is refused."), p("An expiry is shown and not judged against the clock; odd fields BOLT #12 does not define are listed and not used.")],
         own_calls: &[p("BOLT #12 and BOLT #1 make mixed case, a misplaced `+`, a malformed TLV stream, a type outside the offer's ranges, an unknown even type, an unknown required feature, text that is not BOLT #1's UTF-8, an amount of zero or without a description, a currency without an amount, an offer naming neither an issuer id nor a path, a path of no hops, a point that is not a curve point, empty chains and more than four bits of padding a refusal, and Faraday refuses them. Where BOLT #12 leaves a case open, Faraday refuses the offer: a text over 4,296 characters (what a QR code holds in capital letters), a non-zero padding bit, whitespace after a `+` other than spaces, tabs and line breaks, a chain named twice, chains naming no Bitcoin network Faraday knows, a currency that is not in its ISO 4217 list, an amount over 21 million bitcoin, an expiry past the year 9999, an offer_paths that holds no path, and a character of Unicode's Cn category. Conservative, F232.")],
-        screens: &[],
+        screens: &["Invoice"],
         learn: "",
     },
     Block {

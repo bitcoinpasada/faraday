@@ -356,7 +356,12 @@ fn text_kind(text: &str, printable: bool) -> Kind {
     if address {
         return Kind::Address;
     }
-    if lower.starts_with("lightning:") || lower.starts_with("lnbc") || lower.starts_with("lntb") {
+    if lower.starts_with("lightning:")
+        || lower.starts_with("lnbc")
+        || lower.starts_with("lntb")
+        || lower.starts_with("lno1")
+        || lower.starts_with("lnr1")
+    {
         return Kind::Invoice;
     }
     if lower.starts_with("https://") || lower.starts_with("http://") {
