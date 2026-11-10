@@ -727,7 +727,8 @@ fn a_key_filed_under_a_held_fingerprint_but_not_derived_from_it_is_not_recorded(
         let check = check_file(&mut app, 3 + n);
         assert!(check.entries().is_empty(), "file {n} is not recorded");
     }
-    assert!(nonce_history_pending(&app).is_empty(), "nothing was noted");
+    // Only the real key's file, checked first, is waiting for a vault.
+    assert_eq!(nonce_history_pending(&app).len(), 1, "nothing else was noted");
     let again = check_file(&mut app, 2);
     assert_eq!(again.used_before.len(), 1, "the real key is still caught");
 }
@@ -975,13 +976,13 @@ fn a_collect_answering_after_the_hold_came_on_leaves_the_spend_held() {
     );
     let mut app = with_named_vault(&[&a, &b, &more]);
     load_zebra(&mut app);
-    let first = check_file(&mut app, 1);
+    let (_, first) = entries_of(&a);
     let id = app.vaults().open[0].id;
     start(&mut app, 2);
     assert!(app.spend().unwrap().complete, "not held yet");
     testkit::hold_worker();
     testkit::press_on_worker(&mut app, Action::Collect(3));
-    nonce_history_held(&mut app, id, &first.entries(), 0);
+    nonce_history_held(&mut app, id, &first, 0);
     app.press(Action::ToggleTable);
     testkit::release_worker();
     testkit::settle(&mut app);
@@ -1250,4 +1251,276 @@ fn a_spend_only_opened_that_carries_one_nonce_twice_is_held_and_gives_no_part_co
     assert!(s.spend.nonce_hold, "held at once");
     app.press(Action::QrPart);
     assert_ne!(app.sheet, Some(Sheet::Qr));
+}
+
+// The history in a real vault: read when it is unlocked, written when it
+// is sealed.
+
+/// The nonce record a vault holds for `tx`.
+fn nonce_record(tx: [u8; 32], entries: &[NonceEntry]) -> faraday_vault::Record {
+    use faraday_vault::records::{field, kind};
+    let mut r = faraday_vault::Record::new(kind::NONCES).with(field::NONCES_TX, &tx);
+    for e in entries {
+        r.push(field::NONCES_ENTRY, &[e.key, e.r, e.msg].concat());
+    }
+    r
+}
+
+/// The transaction and the entries a check of `psbt` finds.
+fn entries_of(psbt: &faraday_psbt::Psbt) -> ([u8; 32], Vec<NonceEntry>) {
+    let mut app = with_inbox(vec![("f.psbt", psbt.to_bytes())]);
+    register_savings(&mut app);
+    load_zebra(&mut app);
+    let check = check_file(&mut app, 0);
+    assert_eq!(check.entries().len(), 1);
+    (check.tx, check.entries())
+}
+
+/// Unlocks the vault listed `n`th, the `open`th to be open.
+fn unlock_nth(app: &mut Faraday, n: usize, open: usize) {
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(n)));
+    crate::common::type_text(app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if app.vaults().open.len() == open {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert_eq!(app.vaults().open.len(), open, "the vault did not open");
+}
+
+/// An app holding `vaults` and the PSBTs `files`, the vaults first in its
+/// Inbox, none open yet, the Savings wallet registered.
+fn closed_vaults(vaults: &[Vec<u8>], files: &[&faraday_psbt::Psbt]) -> Faraday {
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    testkit::vault_speed(&mut app, Some(100));
+    let mut inbox: Vec<(String, Vec<u8>)> = vaults
+        .iter()
+        .enumerate()
+        .map(|(n, v)| (format!("v{n}.kdbx"), v.clone()))
+        .collect();
+    for (n, f) in files.iter().enumerate() {
+        inbox.push((format!("f{n}.psbt"), f.to_bytes()));
+    }
+    app.storage(StorageEvent::Restored {
+        inbox,
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.event(Event::Entropy(EntropyBytes::new([7; 32])));
+    register_savings(&mut app);
+    app
+}
+
+/// [`closed_vaults`] with every vault unlocked.
+fn open_vaults(vaults: &[Vec<u8>], files: &[&faraday_psbt::Psbt]) -> Faraday {
+    let mut app = closed_vaults(vaults, files);
+    for n in 0..vaults.len() {
+        unlock_nth(&mut app, n, n + 1);
+    }
+    app
+}
+
+/// Locks every vault, sealing them, and gives the files written.
+fn lock_all(app: &mut Faraday) -> Vec<Vec<u8>> {
+    crate::common::top_up(app);
+    app.press(Action::Lock);
+    testkit::settle(app);
+    if !app.restart_requested() {
+        let sheet = app.sheet;
+        panic!("the lock did not seal: {sheet:?} {:?}", app.drawn_texts());
+    }
+    app.outbox
+        .iter()
+        .filter(|i| i.kind == faraday_core::wallet::FileKind::Vault)
+        .map(|i| i.bytes.clone())
+        .collect()
+}
+
+/// A vault whose records are `records`.
+fn vault_of(id: u8, records: Vec<faraday_vault::Record>) -> Vec<u8> {
+    testkit::kdbx_vault("Test", testkit::VAULT_PASSPHRASE, id, records).unwrap()
+}
+
+/// What open vault `o` holds of nonces: each transaction and its number
+/// of entries, in the vault's order.
+fn held_in(app: &Faraday, o: usize) -> Vec<([u8; 32], usize)> {
+    use faraday_vault::records::{field, kind};
+    let id = app.vaults().open[o].id;
+    app.vaults()
+        .records(id)
+        .of(kind::NONCES)
+        .map(|(_, r)| {
+            (
+                r.public(field::NONCES_TX).unwrap().try_into().unwrap(),
+                r.public_all(field::NONCES_ENTRY).count(),
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn a_nonce_checked_with_a_vault_open_is_refused_after_a_lock_and_an_unlock() {
+    let (d, k) = (key(3), key(9));
+    let (a, b) = (signed(0, &d, &k), signed(1, &d, &k));
+    let mut app = open_vaults(&[vault_of(7, Vec::new())], &[&a, &b]);
+    assert_eq!(check_file(&mut app, 1).history, History::Clean { vaults: 1 });
+    let sealed = lock_all(&mut app);
+    assert_eq!(sealed.len(), 1);
+
+    let mut again = open_vaults(&sealed, &[&a, &b]);
+    let check = check_file(&mut again, 2);
+    assert_eq!(check.used_before.len(), 1);
+    assert!(check.wrong());
+    let text = shown(&mut again);
+    assert!(text.contains(EN.nonce_screen_refused_used), "{text}");
+    assert!(text.contains(&check.used_before[0].name), "{text}");
+}
+
+#[test]
+fn the_same_file_after_a_lock_and_an_unlock_is_not_seen_before_in_the_vault() {
+    let (d, k) = (key(3), key(9));
+    let a = signed(0, &d, &k);
+    let mut app = open_vaults(&[vault_of(7, Vec::new())], &[&a]);
+    let _ = check_file(&mut app, 1);
+    let sealed = lock_all(&mut app);
+
+    let mut again = open_vaults(&sealed, &[&a]);
+    let check = check_file(&mut again, 1);
+    assert!(check.used_before.is_empty() && !check.wrong());
+    assert_eq!(check.history, History::Clean { vaults: 1 });
+    assert!(shown(&mut again).contains(EN.nonce_history_clean));
+}
+
+#[test]
+fn a_vault_opened_after_a_file_was_checked_compares_it_and_is_written_at_the_lock() {
+    let (d, k) = (key(3), key(9));
+    let (a, b) = (signed(0, &d, &k), signed(1, &d, &k));
+    let (tx_a, _) = entries_of(&a);
+    let mut app = closed_vaults(&[vault_of(7, Vec::new())], &[&a, &b]);
+    assert_eq!(check_file(&mut app, 1).history, History::Off);
+    unlock_nth(&mut app, 0, 1);
+    app.press(Action::Nav(Screen::NonceCheck));
+    assert_eq!(
+        app.outside_check().unwrap().check.history,
+        History::Clean { vaults: 1 }
+    );
+    assert!(shown(&mut app).contains(EN.nonce_history_clean));
+    let sealed = lock_all(&mut app);
+
+    let again = open_vaults(&sealed, &[&a, &b]);
+    assert_eq!(held_in(&again, 0), vec![(tx_a, 1)]);
+}
+
+#[test]
+fn with_two_vaults_either_one_refuses_and_a_lock_writes_only_what_was_checked_here() {
+    let (d, k) = (key(3), key(9));
+    let (a, b, c) = (signed(0, &d, &k), signed(1, &d, &k), signed(2, &d, &k));
+    let fresh = signed(3, &d, &key(11));
+    let (tx_a, ea) = entries_of(&a);
+    let (tx_b, eb) = entries_of(&b);
+    let (tx_f, _) = entries_of(&fresh);
+    let holds_a = vault_of(7, vec![nonce_record(tx_a, &ea)]);
+    let holds_b = vault_of(8, vec![nonce_record(tx_b, &eb)]);
+
+    // A record from either vault refuses.
+    for vaults in [
+        [holds_a.clone(), vault_of(8, Vec::new())],
+        [vault_of(7, Vec::new()), holds_b.clone()],
+    ] {
+        let mut app = open_vaults(&vaults, &[&c]);
+        let check = check_file(&mut app, 2);
+        assert_eq!(check.used_before.len(), 1);
+        assert!(check.wrong());
+    }
+
+    let mut app = open_vaults(&[holds_a, holds_b], &[&fresh]);
+    let check = check_file(&mut app, 2);
+    assert!(!check.wrong());
+    assert_eq!(check.history, History::Clean { vaults: 2 });
+    let sealed = lock_all(&mut app);
+    assert_eq!(sealed.len(), 2);
+
+    let again = open_vaults(&sealed, &[]);
+    assert_eq!(held_in(&again, 0), vec![(tx_a, 1), (tx_f, 1)]);
+    assert_eq!(held_in(&again, 1), vec![(tx_b, 1), (tx_f, 1)]);
+}
+
+#[test]
+fn past_ten_thousand_entries_the_oldest_transaction_is_gone_after_a_seal() {
+    let (d, k) = (key(3), key(9));
+    let a = signed(0, &d, &k);
+    let (tx_a, _) = entries_of(&a);
+    let entry = |t: u8, n: u8| NonceEntry {
+        key: [1; 32],
+        r: [t; 32],
+        msg: [n; 32],
+    };
+    let records = (1..=100u8)
+        .map(|t| {
+            let entries: Vec<NonceEntry> = (0..100u8).map(|n| entry(t, n)).collect();
+            nonce_record([t; 32], &entries)
+        })
+        .collect();
+    let mut app = open_vaults(&[vault_of(7, records)], &[&a]);
+    let before = held_in(&app, 0);
+    assert_eq!(before.len(), 100);
+    let oldest = before[0].0;
+    let _ = check_file(&mut app, 1);
+    let sealed = lock_all(&mut app);
+
+    let again = open_vaults(&sealed, &[]);
+    let held = held_in(&again, 0);
+    let total: usize = held.iter().map(|(_, n)| n).sum();
+    assert!(total <= faraday_core::memory::nonces::CAP, "{total}");
+    assert!(held.iter().all(|(t, _)| *t != oldest), "the oldest stayed");
+    assert!(held.iter().any(|(t, _)| *t == tx_a), "the new one is lost");
+}
+
+#[test]
+fn a_nonce_value_that_does_not_read_is_said_and_kept_as_written_after_a_seal() {
+    let d = key(3);
+    let (a, b) = (signed(0, &d, &key(9)), signed(1, &d, &key(10)));
+    let (tx_a, _) = entries_of(&a);
+    let (tx_b, _) = entries_of(&b);
+    let hex = |t: [u8; 32]| t.iter().map(|b| format!("{b:02x}")).collect::<String>();
+    let file = testkit::kdbx_edited(
+        "Test",
+        testkit::VAULT_PASSPHRASE,
+        7,
+        |doc| {
+            doc.custom_mut()
+                .set(&format!("faraday.nonces.{}", hex(tx_a)), "not a nonce")
+                .unwrap();
+        },
+        |xml| xml,
+    )
+    .unwrap();
+    let mut app = open_vaults(&[file], &[&a, &b]);
+    let check = check_file(&mut app, 1);
+    assert_eq!(
+        check.history,
+        History::Unread {
+            vaults: 1,
+            records: 1
+        }
+    );
+    assert!(!check.wrong());
+    assert!(shown(&mut app).contains(&EN.nonce_history_unread.replace("{}", "1")));
+    // A transaction whose own record does not read is not written; another is.
+    let _ = check_file(&mut app, 2);
+    let sealed = lock_all(&mut app);
+
+    let again = open_vaults(&sealed, &[]);
+    let id = again.vaults().open[0].id;
+    let unread = again.vaults().store().unreadable(id);
+    assert_eq!(unread.len(), 1);
+    assert!(format!("faraday.nonces.{}", hex(tx_a)).starts_with(&unread[0].title));
+    assert_eq!(held_in(&again, 0), vec![(tx_b, 1)]);
 }

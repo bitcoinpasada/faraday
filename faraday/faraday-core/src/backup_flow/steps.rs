@@ -638,12 +638,13 @@ impl Faraday {
     }
 
     /// Whether open vault `o` holds nothing but this flow's key: its label
-    /// and the signed-amount memory are not entries.
+    /// the signed-amount memory and the nonce records are not entries.
     fn flow_vault_holds_only(&self, o: usize, kind_: Kind, id: &str) -> bool {
         self.vaults.open.get(o).is_some_and(|open| {
             self.vaults.records(open.id).iter().all(|(_, r)| {
                 r.kind() == kind::SLOT_LABEL
                     || r.kind() == kind::AMOUNTS
+                    || r.kind() == kind::NONCES
                     || (r.kind() == kind_.record_kind()
                         && subject_of(kind_, r).as_deref() == Some(id))
             })

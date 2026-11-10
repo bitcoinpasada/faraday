@@ -446,6 +446,8 @@ pub(crate) enum Op {
     Plan { n: u32, record: Record },
     /// Signed amounts written.
     Signed(Record),
+    /// A transaction's nonce record written.
+    Nonces(Record),
     /// The vault renamed.
     Label(String),
 }
@@ -525,6 +527,7 @@ pub(crate) fn with_changes<T>(
             Op::RemoveCustom(key) => Change::RemoveCustom(key),
             Op::Plan { n, record } => Change::Plan { n: *n, record },
             Op::Signed(record) => Change::Signed(record),
+            Op::Nonces(record) => Change::Nonces(record),
             Op::Label(label) => Change::Label(label),
         });
     }
@@ -882,6 +885,7 @@ fn fresh_op(rec: &Record, plan: &mut Option<u32>, ops: &mut Vec<Op>) -> Result<(
             *plan = n.checked_add(1);
         }
         kind::AMOUNTS => ops.push(Op::Signed(rec.clone())),
+        kind::NONCES => ops.push(Op::Nonces(rec.clone())),
         kind::SLOT_LABEL => ops.push(Op::Label(rec.text(field::LABEL).unwrap_or("").to_string())),
         k if is_entry_kind(k) => ops.push(Op::Put {
             uuid: [0; 16],
@@ -925,6 +929,18 @@ fn put_op(
                     drop_op(o, ops);
                 }
                 ops.push(Op::Signed(rec.clone()));
+            }
+        }
+        Origin::Custom { key }
+            if rec.kind == kind::NONCES && key.starts_with("faraday.nonces.") =>
+        {
+            if dirty {
+                let tx = rec.field(field::NONCES_TX).unwrap_or(&[]);
+                let now: String = tx.iter().map(|b| format!("{b:02x}")).collect();
+                if key.strip_prefix("faraday.nonces.") != Some(now.as_str()) {
+                    drop_op(o, ops);
+                }
+                ops.push(Op::Nonces(rec.clone()));
             }
         }
         Origin::Custom { key } if rec.kind == kind::PLAN => {

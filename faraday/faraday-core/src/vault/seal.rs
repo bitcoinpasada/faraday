@@ -232,6 +232,7 @@ fn seal_next(app: &mut Faraday) {
             let c = app.compute();
             app.vaults.seals_write(&c, i);
             seal_memory(app, i);
+            seal_nonces(app, i);
         }
         if read_only || (app.vaults.open[i].changes == 0 && !app.vaults.store().rekeyed(id)) {
             if !all {
@@ -321,7 +322,65 @@ fn seal_memory(app: &mut Faraday, i: usize) {
         .collect();
     let new = app.memory.records_lacking(&have);
     let c = app.compute();
-    app.vaults.state.add_amounts(&c, i, new);
+    app.vaults.state.add_memory(&c, i, &[], new);
+}
+
+/// Costs what `Vaults::add_memory` costs and a walk of the vault's nonce
+/// records. The transactions waiting in the nonce history go into open
+/// vault `i`: for each whose entries the vault lacks, its record becomes
+/// the union of the vault's own and the waiting entries, the newest. Only
+/// what was checked here is written, never a record read from a vault.
+/// Records that do not read, and a read-only vault, are left as written
+/// (`docs/FLOWS.md` "Nonce history").
+fn seal_nonces(app: &mut Faraday, i: usize) {
+    if !app.memory.nonces.kept() {
+        return;
+    }
+    let Some(id) = app.vaults.open.get(i).map(|o| o.id) else {
+        return;
+    };
+    if app.vaults.store().read_only(id).is_some() {
+        return;
+    }
+    let mut replace = Vec::new();
+    let mut new = Vec::new();
+    for (tx, waiting) in app.memory.nonces.pending() {
+        // A value that does not read under this key is left as written,
+        // and the transaction is not written to this vault (the vault
+        // names a key by its first 64 characters).
+        let key: String = tx.iter().map(|b| format!("{b:02x}")).collect();
+        let key = format!("faraday.nonces.{key}");
+        if app
+            .vaults
+            .store()
+            .unreadable(id)
+            .iter()
+            .any(|u| u.uuid.is_none() && key.starts_with(&u.title))
+        {
+            continue;
+        }
+        let mut have: Vec<crate::memory::nonces::NonceEntry> = Vec::new();
+        for (_, r) in app.vaults.records(id).of(faraday_vault::records::kind::NONCES) {
+            if r.public(faraday_vault::records::field::NONCES_TX) == Some(&tx[..]) {
+                have.extend(
+                    r.public_all(faraday_vault::records::field::NONCES_ENTRY)
+                        .filter_map(crate::memory::nonces::NonceEntry::from_bytes),
+                );
+            }
+        }
+        if waiting.iter().all(|e| have.contains(e)) {
+            continue;
+        }
+        for e in waiting {
+            if !have.contains(e) {
+                have.push(*e);
+            }
+        }
+        replace.push(*tx);
+        new.push(crate::memory::nonces::NonceEntry::record_of(tx, &have));
+    }
+    let c = app.compute();
+    app.vaults.state.add_memory(&c, i, &replace, new);
 }
 
 /// Why a seal could not be made into a job.
@@ -454,6 +513,7 @@ fn seal_close(app: &mut Faraday, id: VaultId) {
     if let Some(i) = app.vaults.open.iter().position(|o| o.id == id) {
         app.vaults.state.close(i);
     }
+    app.nonces_sync_open();
     app.vaults.state.current = 0;
     app.vaults.state.item_open = false;
     app.vaults.state.form = None;
@@ -479,6 +539,7 @@ fn seal_end(app: &mut Faraday) {
         // Flows end while the vaults are still open, as the lock began.
         lock_flows(app);
         app.vaults.state.close_all();
+        app.nonces_sync_open();
         app.vaults.state.form = None;
         drop_vault_dialog(app);
         app.vaults.state.load = None;

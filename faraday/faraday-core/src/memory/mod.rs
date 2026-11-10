@@ -279,6 +279,43 @@ impl Faraday {
         self.memory.remember(psbt);
     }
 
+    /// Takes in the nonce records open vault `id` holds, as what it was
+    /// read to hold: the records that do not read are counted, and a
+    /// vault of a newer format, whose values are all named unreadable,
+    /// is compared against nothing. Nothing is read with the setting off.
+    pub(crate) fn nonces_from_vault(&mut self, id: faraday_keys::vault::VaultId) {
+        if !self.memory.nonces.kept() {
+            return;
+        }
+        let mut entries = Vec::new();
+        for (_, r) in self.vaults.records(id).of(kind::NONCES) {
+            for e in r.public_all(faraday_vault::records::field::NONCES_ENTRY) {
+                if let Some(e) = nonces::NonceEntry::from_bytes(e) {
+                    entries.push(e);
+                }
+            }
+        }
+        let unreadable = self
+            .vaults
+            .store()
+            .unreadable(id)
+            .iter()
+            .filter(|u| u.uuid.is_none() && u.title.starts_with("faraday.nonces."))
+            .count();
+        self.memory.nonces.take_held(id, &entries, unreadable);
+    }
+
+    /// Lets go what the history holds of vaults no longer open.
+    pub(crate) fn nonces_sync_open(&mut self) {
+        let open: Vec<faraday_keys::vault::VaultId> =
+            self.vaults.open.iter().map(|o| o.id).collect();
+        for id in self.memory.nonces.held_ids() {
+            if !open.contains(&id) {
+                self.memory.nonces.drop_vault(id);
+            }
+        }
+    }
+
     /// Takes in the signed amounts open vault `id` holds, held by the
     /// vault.
     pub(crate) fn amounts_from_vault(&mut self, id: faraday_keys::vault::VaultId) {

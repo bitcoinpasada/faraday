@@ -1485,6 +1485,57 @@ fn amounts_removed_and_added_again_are_still_there_after_a_seal() {
     );
 }
 
+#[test]
+fn a_nonce_record_inserted_is_written_and_one_replaced_leaves_no_old_key() {
+    let c = compute();
+    let nonces = |tx: u8, msg: u8| {
+        Record::new(kind::NONCES)
+            .with(field::NONCES_TX, &[tx; 32])
+            .with(field::NONCES_ENTRY, &[[1u8; 32], [2u8; 32], [msg; 32]].concat())
+    };
+    let mut store = store();
+    let (id, _) = store
+        .unlock(&c, file_of(&c, &fresh_doc()), "pass")
+        .expect("opens");
+    store.insert(id, nonces(3, 4)).expect("added");
+    let sealed = seal(&mut store, &c, id);
+    assert_eq!(
+        custom_keys(&sealed),
+        [format!("faraday.nonces.{}", "03".repeat(32))]
+    );
+    let (id, _) = store.unlock(&c, sealed, "pass").expect("opens again");
+    let at = first(&store, id, kind::NONCES);
+    assert!(store.replace(id, at, nonces(5, 6)));
+    let sealed = seal(&mut store, &c, id);
+    assert_eq!(
+        custom_keys(&sealed),
+        [format!("faraday.nonces.{}", "05".repeat(32))]
+    );
+}
+
+#[test]
+fn a_nonce_value_that_does_not_read_stays_as_written_when_another_transaction_is_sealed() {
+    let c = compute();
+    let mut doc = fresh_doc();
+    let bad = format!("faraday.nonces.{}", "01".repeat(32));
+    doc.custom_mut().set(&bad, "not a nonce").unwrap();
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    assert_eq!(store.unreadable(id).len(), 1);
+    store
+        .insert(
+            id,
+            Record::new(kind::NONCES)
+                .with(field::NONCES_TX, &[2; 32])
+                .with(field::NONCES_ENTRY, &[7u8; 96]),
+        )
+        .expect("added");
+    let sealed = seal(&mut store, &c, id);
+    let (id, _) = store.unlock(&c, sealed, "pass").expect("opens again");
+    assert_eq!(store.unreadable(id).len(), 1);
+    assert_eq!(store.records(id).of(kind::NONCES).count(), 1);
+}
+
 /// Seals open vault `id` and says why it gave no file; the vault stays
 /// open with its changes.
 fn refused(store: &mut OpenVaults, c: &Compute, id: vault::VaultId) -> faraday_vault::file::Error {

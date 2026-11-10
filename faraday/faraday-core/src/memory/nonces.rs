@@ -27,6 +27,31 @@ pub struct NonceEntry {
 }
 
 impl NonceEntry {
+    /// An entry of a vault's nonce record: key, nonce and message, 32
+    /// bytes each.
+    pub(crate) fn from_bytes(b: &[u8]) -> Option<NonceEntry> {
+        let b: &[u8; 96] = b.try_into().ok()?;
+        Some(NonceEntry {
+            key: b[..32].try_into().ok()?,
+            r: b[32..64].try_into().ok()?,
+            msg: b[64..].try_into().ok()?,
+        })
+    }
+
+    /// The vault's nonce record of transaction `tx` holding `entries`.
+    pub(crate) fn record_of(tx: &[u8; 32], entries: &[NonceEntry]) -> faraday_vault::Record {
+        use faraday_vault::records::{field, kind};
+        let mut r = faraday_vault::Record::new(kind::NONCES).with(field::NONCES_TX, tx);
+        for e in entries {
+            let mut b = [0u8; 96];
+            b[..32].copy_from_slice(&e.key);
+            b[32..64].copy_from_slice(&e.r);
+            b[64..].copy_from_slice(&e.msg);
+            r.push(field::NONCES_ENTRY, &b);
+        }
+        r
+    }
+
     /// The entry of a signature that verified; `None` for any other row,
     /// or one whose key or nonce does not read.
     pub fn of_signature(sig: &SignaturePresent) -> Option<NonceEntry> {
@@ -121,8 +146,7 @@ impl Default for NonceHistory {
 }
 
 impl NonceHistory {
-    // `set_on`, `take_held` and `drop_vault` are reached only through
-    // testkit until the vault's nonce records and the setting call them.
+    // `set_on` is reached only through testkit until the setting calls it.
     /// Whether a vault is open and the setting is on: what is checked is
     /// compared and remembered.
     pub(crate) fn active(&self) -> bool {
@@ -140,7 +164,6 @@ impl NonceHistory {
 
     /// What open vault `id` holds, in place of what it was read to hold
     /// before, and how many of its records do not read.
-    #[cfg(feature = "testkit")]
     pub(crate) fn take_held(&mut self, id: VaultId, entries: &[NonceEntry], unreadable: usize) {
         let mut index = Index::new();
         for e in entries {
@@ -156,7 +179,6 @@ impl NonceHistory {
     }
 
     /// A vault closed: what it held leaves.
-    #[cfg(feature = "testkit")]
     pub(crate) fn drop_vault(&mut self, id: VaultId) {
         let before = self.held.len();
         self.held.retain(|(v, _)| *v != id);
@@ -226,8 +248,17 @@ impl NonceHistory {
         self.pending_index = Arc::new(index);
     }
 
+    /// Whether the history is kept at all (the setting).
+    pub(crate) fn kept(&self) -> bool {
+        self.on
+    }
+
+    /// The vaults whose records were read.
+    pub(crate) fn held_ids(&self) -> Vec<VaultId> {
+        self.held.iter().map(|(v, _)| *v).collect()
+    }
+
     /// The transactions checked here and not yet in a vault.
-    #[cfg(any(test, feature = "testkit"))]
     pub(crate) fn pending(&self) -> &[([u8; 32], Vec<NonceEntry>)] {
         &self.pending
     }

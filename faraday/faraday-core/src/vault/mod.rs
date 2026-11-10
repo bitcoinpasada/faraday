@@ -39,6 +39,7 @@ pub(crate) mod unlock_keys;
 /// choices, and the Nonce check page's comparison with the nonce history
 /// the open vaults give, and the open spend's. True when it dropped something.
 pub(crate) fn settle(app: &mut crate::Faraday) -> bool {
+    app.nonces_sync_open();
     app.nonce_outside_sync();
     app.nonce_spend_sync();
     copy::settle(app) | keep::settle(app)
@@ -1364,6 +1365,9 @@ impl Faraday {
             .collect();
         self.vaults.state.open[v].skip = skip;
         self.amounts_from_vault(self.vaults.open[v].id);
+        self.nonces_from_vault(self.vaults.open[v].id);
+        self.nonce_outside_sync();
+        self.nonce_spend_sync();
         // The vault just made opens on its contents, empty, with what to do next.
         let made = self.vaults.state.just_made.take() == Some(self.vaults.open[v].name.clone());
         self.toast(&fill(

@@ -219,11 +219,11 @@ impl VaultArea {
         self.state.changed(id);
     }
 
-    /// Costs what [`Vaults::add_amounts`] costs. The signed-amount memory's
+    /// Costs what [`Vaults::add_memory`] costs. The signed-amount memory's
     /// records `new` go into open vault `o`.
     #[cfg(feature = "testkit")]
     pub(crate) fn add_amounts_now(&mut self, c: &Compute, o: usize, new: Vec<Record>) {
-        self.state.add_amounts(c, o, new);
+        self.state.add_memory(c, o, &[], new);
     }
 
     /// A change of open vault `id` counted by [`Vaults::changed`] was taken
@@ -1404,18 +1404,54 @@ impl Vaults {
 
     /// Costs a read of the free memory, a read of each record changed, each
     /// time it checks the fit, and, past the ceiling by the bound, a document
-    /// write for each pass. The signed-amount
-    /// memory's records `new` into open vault `i`, the oldest of them
-    /// leaving first only while the vault is past the ceiling
-    /// (`docs/VAULT.md` §7, type 10).
-    pub(crate) fn add_amounts(&mut self, c: &Compute, i: usize, new: Vec<Record>) {
-        let Some(v) = self.open.get(i).filter(|_| !new.is_empty()) else {
+    /// write for each pass. The memory's records `new` (signed amounts and
+    /// nonce records) go into open vault `i`, after the nonce records of
+    /// the transactions `replace` are taken out, and the oldest records
+    /// leave while the vault holds over [`CAP`] nonce entries and, only
+    /// while it is past the ceiling, for room: a nonce record before any
+    /// signed amounts (`docs/VAULT.md` §7, types 10 and 17).
+    pub(crate) fn add_memory(
+        &mut self,
+        c: &Compute,
+        i: usize,
+        replace: &[[u8; 32]],
+        new: Vec<Record>,
+    ) {
+        let Some(v) = self
+            .open
+            .get(i)
+            .filter(|_| !new.is_empty() || !replace.is_empty())
+        else {
             return;
         };
         let id = v.id;
+        let puts_nonces = new.iter().any(|r| r.kind == kind::NONCES);
         self.edit(id, |s| {
+            for tx in replace {
+                let at = s.records(id).of(kind::NONCES).find_map(|(k, r)| {
+                    (r.public(faraday_vault::records::field::NONCES_TX) == Some(&tx[..])).then_some(k)
+                });
+                if let Some(k) = at {
+                    s.remove(id, k);
+                }
+            }
             for r in new {
                 s.insert(id, r);
+            }
+            if puts_nonces {
+                let entries = |s: &OpenVaults| {
+                    s.records(id)
+                        .of(kind::NONCES)
+                        .map(|(_, r)| r.public_all(faraday_vault::records::field::NONCES_ENTRY).count())
+                        .sum::<usize>()
+                };
+                while entries(s) > crate::memory::nonces::CAP {
+                    let oldest = s.records(id).of(kind::NONCES).map(|(k, _)| k).next();
+                    match oldest {
+                        Some(k) if s.remove(id, k) => {}
+                        _ => break,
+                    }
+                }
             }
             // Trimmed only on an exact count past the ceiling, one count
             // for each pass: a vault the seal refuses for another reason
@@ -1430,7 +1466,8 @@ impl Vaults {
                 let oldest = s
                     .records(id)
                     .iter()
-                    .find(|(_, r)| r.kind() == kind::AMOUNTS);
+                    .find(|(_, r)| r.kind() == kind::NONCES)
+                    .or_else(|| s.records(id).iter().find(|(_, r)| r.kind() == kind::AMOUNTS));
                 match oldest.map(|(k, _)| k) {
                     Some(k) if s.remove(id, k) => {}
                     _ => break,
