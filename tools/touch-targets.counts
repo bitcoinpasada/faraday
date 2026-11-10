@@ -146,6 +146,7 @@ stick_1024x600 KeyGen KStep 3
 stick_1024x600 KeyGen Osk 38
 stick_1024x600 KeyGen WordList 29
 stick_1024x600 Message Osk 38
+stick_1024x600 QrTool Osk 38
 stick_1024x600 Restore RStep 3
 stick_1024x600 Restore Slide 2
 stick_1024x600 SetTime SetTimeBack 1

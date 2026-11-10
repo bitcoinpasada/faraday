@@ -100,6 +100,7 @@
 //! | `Bip85` | `bip85/screen.rs` |
 //! | `Convert` | `convert/screen.rs` |
 //! | `KefTool` | `kef_tool/screen.rs` |
+//! | `QrTool` | `qr_tool/screen.rs` |
 //! | `Silent` | `silent/screen.rs` |
 //! | `Explore` | `explore/screen.rs` |
 //! | `Lightning` | `lightning/screen.rs` |
@@ -187,6 +188,7 @@ pub mod kef_tool;
 pub mod keygen;
 pub mod lightning;
 pub mod paper;
+pub mod qr_tool;
 pub mod quiz;
 mod review;
 pub mod secrets;
@@ -340,6 +342,8 @@ pub enum Screen {
     Convert,
     /// Tools' Krux code: a text or a wallet's descriptor as an encrypted code.
     KefTool,
+    /// Tools' QR vault: a note or a key sealed as one QR code.
+    QrTool,
     /// Silent payments: a loaded key's address and scan key.
     Silent,
     /// A loaded key's public side at any path.
@@ -1720,9 +1724,7 @@ impl Faraday {
             if changed && self.sheet.is_none() {
                 self.sheet = Some(Sheet::IdleWarn);
                 self.idle.set_warn_min(idle / min);
-                self.explore_hide();
-                convert::hide(self);
-                kef_tool::hide(self);
+                self.tool_hide();
             }
             let left = (lock - idle).div_ceil(1000);
             if self.sheet == Some(Sheet::IdleWarn) && self.idle.shown() != Some(left) {
@@ -2574,8 +2576,7 @@ impl Faraday {
             Action::Host(_) => {}
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
-            Action::Convert(c) => convert::act(self, c),
-            Action::KefTool(k) => kef_tool::act(self, k),
+            Action::Convert(_) | Action::KefTool(_) | Action::QrTool(_) => self.tool_act(action),
             Action::Learn | Action::LearnClose | Action::How => self.learn_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
@@ -4478,7 +4479,7 @@ impl Faraday {
         if self.tools_key(key) {
             return;
         }
-        if self.lightning_key(key) || convert::key(self, key) || kef_tool::key(self, key) {
+        if self.lightning_key(key) || self.tool_key(key) {
             return;
         }
         if self.explore_key(key) || self.silent_key(key) {
@@ -5307,8 +5308,7 @@ impl Faraday {
             self.bip85.clear();
         }
         self.shown_tidy();
-        convert::tidy(self);
-        kef_tool::tidy(self);
+        self.tool_tidy();
         if self.screen != Screen::Tools {
             self.tools.close();
         }

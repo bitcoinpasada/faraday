@@ -175,6 +175,8 @@ pub struct ToolsArea {
     convert: crate::convert::ConvertArea,
     /// The Krux code tool.
     kef_tool: crate::kef_tool::KefToolArea,
+    /// The QR vault tool.
+    qr_tool: crate::qr_tool::QrToolArea,
 }
 
 impl ToolsArea {
@@ -201,6 +203,16 @@ impl ToolsArea {
     /// The Krux code tool, to change.
     pub(crate) fn kef_tool_mut(&mut self) -> &mut crate::kef_tool::KefToolArea {
         &mut self.kef_tool
+    }
+
+    /// The QR vault tool.
+    pub(crate) fn qr_tool(&self) -> &crate::qr_tool::QrToolArea {
+        &self.qr_tool
+    }
+
+    /// The QR vault tool, to change.
+    pub(crate) fn qr_tool_mut(&mut self) -> &mut crate::qr_tool::QrToolArea {
+        &mut self.qr_tool
     }
 
     /// What is typed in Find a tool.
@@ -410,6 +422,38 @@ impl Faraday {
     /// after ([`ToolsArea::reading`]).
     pub(crate) fn tools_reading(&self, c: &Compute) -> Option<std::rc::Rc<Reading>> {
         self.tools.reading(c, &self.session)
+    }
+
+    /// A press in the Convert, Krux code or QR vault tool.
+    pub(crate) fn tool_act(&mut self, action: crate::Action) {
+        match action {
+            crate::Action::Convert(c) => crate::convert::act(self, c),
+            crate::Action::KefTool(k) => crate::kef_tool::act(self, k),
+            crate::Action::QrTool(k) => crate::qr_tool::act(self, k),
+            _ => {}
+        }
+    }
+
+    /// Typing into one of those tools. Returns whether the key was taken.
+    pub(crate) fn tool_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        crate::convert::key(self, key)
+            || crate::kef_tool::key(self, key)
+            || crate::qr_tool::key(self, key)
+    }
+
+    /// The idle warning: the Explore page and those tools close their eyes.
+    pub(crate) fn tool_hide(&mut self) {
+        self.explore_hide();
+        crate::convert::hide(self);
+        crate::kef_tool::hide(self);
+        crate::qr_tool::hide(self);
+    }
+
+    /// After a press: those tools end unless they are on show.
+    pub(crate) fn tool_tidy(&mut self) {
+        crate::convert::tidy(self);
+        crate::kef_tool::tidy(self);
+        crate::qr_tool::tidy(self);
     }
 
     /// One press on the screen.

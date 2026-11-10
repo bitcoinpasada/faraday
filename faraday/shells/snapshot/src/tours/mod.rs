@@ -46,6 +46,7 @@ pub(crate) mod pass_seeds;
 pub(crate) mod plan;
 pub(crate) mod public;
 pub(crate) mod qr;
+pub(crate) mod qr_tool;
 pub(crate) mod randomness;
 pub(crate) mod register;
 pub(crate) mod restore;

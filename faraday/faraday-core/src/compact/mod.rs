@@ -49,6 +49,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
             | Screen::Bip85
             | Screen::Convert
             | Screen::KefTool
+            | Screen::QrTool
             | Screen::Silent
             | Screen::Vanity
             | Screen::CreateVault
@@ -83,6 +84,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Bip85 => EN.compact_bip_85,
         Screen::Convert => EN.convert_title,
         Screen::KefTool => EN.kef_tool_title,
+        Screen::QrTool => EN.qr_tool_title,
         Screen::Silent => EN.compact_silent_payments,
         Screen::Explore => EN.compact_explore_a_key,
         Screen::Lightning => EN.compact_lightning,

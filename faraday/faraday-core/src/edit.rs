@@ -462,6 +462,7 @@ impl Faraday {
         }
         match self.screen {
             Screen::KefTool => crate::kef_tool::field(self).is_some(),
+            Screen::QrTool => crate::qr_tool::field(self).is_some(),
             Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
             Screen::Restore => self.seeds_typing(),
             Screen::Unlock
@@ -549,6 +550,7 @@ impl Faraday {
         }
         match self.screen {
             Screen::KefTool => crate::kef_tool::field(self).map(|(a, _)| a),
+            Screen::QrTool => crate::qr_tool::field(self).map(|(a, _)| a),
             Screen::Backup if crate::wallet_backup::kef::field(self).is_some() => {
                 crate::wallet_backup::kef::field(self).map(|(a, _)| a)
             }
@@ -652,6 +654,7 @@ impl Faraday {
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
             Action::KefRead(_) => crate::seeds::kef::kef_field(self)?,
             Action::KefTool(_) => crate::kef_tool::field(self)?.1,
+            Action::QrTool(_) => crate::qr_tool::field(self)?.1,
             Action::Rename => self.wallets.renaming().map(String::as_str)?,
             crate::file_menu::FIELD => &self.visit.files_menu().renaming.as_ref()?.stem,
             Action::RegisterField => &self.wallets.spend()?.register.as_ref()?.name,
@@ -736,6 +739,11 @@ impl Faraday {
                 .kef_tool()
                 .state()
                 .is_some_and(crate::kef_tool::KefToolState::holds_secret)
+            || self
+                .tools
+                .qr_tool()
+                .state()
+                .is_some_and(crate::qr_tool::QrToolState::holds_secret)
             || self.vaults.create.as_ref().is_some_and(|c| {
                 c.phrases
                     .iter()
@@ -1094,6 +1102,7 @@ impl Faraday {
             Screen::Lightning => self.lightning.state().is_some(),
             Screen::Tools => self.tools.state().is_some(),
             Screen::KefTool => self.tools.kef_tool().state().is_some(),
+            Screen::QrTool => self.tools.qr_tool().state().is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
             Screen::Decode => self.decode().is_some(),

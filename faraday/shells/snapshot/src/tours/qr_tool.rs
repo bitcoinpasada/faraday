@@ -1,0 +1,36 @@
+//! The QR vault tool in Tools (`docs/VAULT.md` §13): its three cards,
+//! Contents, Passphrase and Code.
+
+use crate::tour::{Tour, scroll_to, type_text};
+use faraday_core::qr_tool::{Field, Pick, QrToolAction as Q};
+use faraday_core::{Action, Screen, testkit};
+use faraday_shell_api::{App, EntropyBytes, Event};
+
+pub(crate) fn qr_tool_tour(t: &mut Tour) -> Result<(), String> {
+    for i in 0..8u8 {
+        t.app
+            .event(Event::Entropy(EntropyBytes::new([0x40 + i; 32])));
+    }
+    t.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|tile| tile.name == "QR vault")
+        .ok_or("no QR vault tile")?;
+    t.press(Action::Catalog(tile as u8));
+    t.shot("qr-tool-contents")?;
+    t.press(Action::QrTool(Q::Pick(Pick::Note)));
+    type_text(t, "the safe is behind the books");
+    t.shot("qr-tool-contents-typed")?;
+    t.press(Action::QrTool(Q::Next));
+    type_text(t, "a passphrase");
+    t.press(Action::QrTool(Q::Focus(Field::Again)));
+    type_text(t, "a passphrase");
+    t.press(Action::QrTool(Q::Focus(Field::Name)));
+    type_text(t, "Spare");
+    t.shot("qr-tool-passphrase")?;
+    t.press(Action::QrTool(Q::Make));
+    testkit::settle(&mut t.app);
+    t.tick();
+    scroll_to(t, Action::QrTool(Q::Another));
+    t.shot("qr-tool-code")
+}

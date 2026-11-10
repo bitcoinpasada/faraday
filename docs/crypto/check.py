@@ -1101,6 +1101,8 @@ TILE_SCREENS = {
     "Sweep": ("Tools",),
     # Krux code, the tool that makes one.
     "KefCode": ("KefTool",),
+    # QR vault, the tool that makes one.
+    "QrVault": ("QrTool",),
 }
 
 

@@ -749,6 +749,8 @@ pub enum Action {
     Convert(crate::convert::ConvertAction),
     /// A Krux code tool action.
     KefTool(crate::kef_tool::KefToolAction),
+    /// A press in the QR vault tool.
+    QrTool(crate::qr_tool::QrToolAction),
     /// Fill a slot with the account key in an Inbox file.
     CSlotFile(u8, usize),
     /// Empty a slot.

@@ -279,6 +279,8 @@ pub(crate) enum Scrolled {
     Convert,
     /// The Krux code tool.
     KefTool,
+    /// The QR vault tool.
+    QrTool,
     /// New key.
     KeyGen,
     /// Vanity.
@@ -459,6 +461,9 @@ impl Faraday {
                 }
                 Scrolled::KefTool => {
                     self.tools.kef_tool_mut().set_scroll(to);
+                }
+                Scrolled::QrTool => {
+                    self.tools.qr_tool_mut().set_scroll(to);
                 }
                 Scrolled::KeyGen => {
                     self.keygen.set_scroll(to);

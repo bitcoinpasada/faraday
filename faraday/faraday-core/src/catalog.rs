@@ -29,6 +29,8 @@ pub enum Go {
     Convert,
     /// Make a Krux encrypted code.
     KefCode,
+    /// Make a QR vault.
+    QrVault,
     /// A vanity address.
     Vanity,
     /// Silent payments.
@@ -308,6 +310,13 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: EN.catalog_vaults_group,
+        name: EN.catalog_qr_vault,
+        line: EN.catalog_qr_vault_line,
+        tags: &["OpenPGP", "Argon2id"],
+        go: Go::QrVault,
+    },
+    Tile {
+        group: EN.catalog_vaults_group,
         name: EN.catalog_totp_codes,
         line: EN.catalog_totp_codes_line,
         tags: &["RFC 6238"],
@@ -515,6 +524,7 @@ impl Faraday {
             Go::Bip85 => self.act(Action::Bip85),
             Go::Convert => self.act(Action::Convert(crate::convert::ConvertAction::Open)),
             Go::KefCode => self.act(Action::KefTool(crate::kef_tool::KefToolAction::Open)),
+            Go::QrVault => self.act(Action::QrTool(crate::qr_tool::QrToolAction::Open)),
             Go::Vanity => self.act(Action::Vanity(crate::vanity::VanityAction::Open)),
             Go::Silent => self.act(Action::Silent),
             Go::Lightning => self.act(Action::Lightning),

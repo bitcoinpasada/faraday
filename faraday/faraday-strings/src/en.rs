@@ -12816,4 +12816,74 @@ strings! {
     kef_tool_code_sum: "Made",
     /// The Code card, closed: the code is made and checked.
     kef_tool_code_checked_sum: "Checked",
+    /// Tools: the tile that makes and opens a QR vault.
+    catalog_qr_vault: "QR vault",
+    /// Tools: the line under the QR vault tile.
+    catalog_qr_vault_line: "A note or a key sealed in one QR code",
+    /// The QR vault tool's heading.
+    qr_tool_title: "QR vault",
+    /// The QR vault tool: the Back button's name when opened from Tools.
+    qr_tool_tools: "Tools",
+    /// The QR vault tool's first card: what the code holds.
+    qr_tool_contents: "Contents",
+    /// The QR vault tool's second card: the passphrase and the cost.
+    qr_tool_passphrase: "Passphrase",
+    /// The QR vault tool's third card: the code made.
+    qr_tool_code: "Code",
+    /// Contents: the choice of typing a note.
+    qr_tool_type_note: "Type a note",
+    /// Contents: the choice of a loaded key.
+    qr_tool_loaded_key: "A loaded key",
+    /// Contents: the note's field label.
+    qr_tool_note: "Note",
+    /// Contents: the room left in the note. `{}`: the characters.
+    qr_tool_room_left: "{} characters left",
+    /// Contents: goes on to the passphrase.
+    qr_tool_continue: "Continue",
+    /// Contents: no key is loaded.
+    qr_tool_no_key: "No key is loaded.",
+    /// Contents: under a key that cannot be sealed.
+    qr_tool_key_not_offered: "Not 12 or 24 English words",
+    /// Contents, closed: a key. `{}`: its name.
+    qr_tool_key_sum: "Key {}",
+    /// Passphrase: the first field's label.
+    qr_tool_pass: "Passphrase",
+    /// Passphrase: the second field's label.
+    qr_tool_pass_again: "Passphrase again",
+    /// Passphrase: the two fields differ.
+    qr_tool_pass_differ: "The two passphrases differ",
+    /// Passphrase: what the code's strength rests on.
+    qr_tool_pass_warning: "The code is only as strong as its passphrase",
+    /// Passphrase: the memory choice's label.
+    qr_tool_memory: "Memory",
+    /// Passphrase: one memory step. `{}`: the MiB.
+    qr_tool_memory_mib: "{} MiB",
+    /// Passphrase: the file's name field label.
+    qr_tool_name: "Name",
+    /// Passphrase: makes the code.
+    qr_tool_make: "Make the code",
+    /// Passphrase, closed. `{}`: the memory step in MiB.
+    qr_tool_pass_sum: "{} MiB",
+    /// The line shown while the code is sealed.
+    qr_tool_sealing: "Sealing the code",
+    /// Passphrase: the seal was refused. `{}`: the MiB it needs.
+    qr_tool_no_memory: "This computer has no room for {} MiB. Choose a smaller step",
+    /// Passphrase: the code was not made.
+    qr_tool_not_made: "The code could not be made",
+    /// Code: shows the code.
+    qr_tool_show: "Show as QR",
+    /// Code: the picture to the Outbox.
+    qr_tool_png: "PNG to the Outbox",
+    /// Code: the `.pgp` file to the Outbox.
+    qr_tool_file: "To the Outbox",
+    /// Code: starts again.
+    qr_tool_another: "Make another",
+    /// A toast. `{}`: the file's name.
+    qr_tool_saved: "{} is in the Outbox",
+    /// The code's sheet title and the picture's first line.
+    qr_tool_view_title: "QR vault",
+    /// The code's sheet: under the title.
+    qr_tool_view_subtitle: "OpenPGP message, one code",
+    /// The Code card, closed.
+    qr_tool_code_sum: "Made",
 }

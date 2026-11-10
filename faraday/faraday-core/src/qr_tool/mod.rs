@@ -1,0 +1,681 @@
+//! The QR vault tool in Tools (`docs/VAULT.md` §13): a step flow of three
+//! cards, Contents, Passphrase and Code. A typed note or a loaded key's
+//! words are sealed as a QR vault under a typed passphrase
+//! ([`faraday_keys::qr_seal_note`], `Keys::qr_seal_key`), and the code is
+//! shown, or put in the Outbox as a labelled picture and as the `.pgp`
+//! file. Nothing typed or sealed is kept when the tool is left, at the
+//! idle warning or at a lock. The drawing is `screen.rs`.
+
+use crate::vault::{TextBox, vault_stem};
+use crate::{Action, Faraday, QrFormat, QrSource, QrView, Screen, flow};
+use faraday_crypto::work::Compute;
+use faraday_keys::{Keys, QR_RANDOM_LEN, QR_SEAL_EXPONENTS, QrError, qr_note_over, qr_seal_note};
+use faraday_shell_api::Key;
+use zeroize::{Zeroize, Zeroizing};
+
+pub(crate) mod screen;
+
+use crate::strings::{EN, fill};
+
+/// The cards, in order.
+pub mod qstep {
+    /// What the code holds.
+    pub(crate) const CONTENTS: u8 = 0;
+    /// The passphrase, the memory step and the name.
+    pub(crate) const PASSPHRASE: u8 = 1;
+    /// The code.
+    pub const CODE: u8 = 2;
+    /// How many.
+    pub const COUNT: usize = 3;
+}
+
+/// The file name of a code with no name typed.
+const DEFAULT_STEM: &str = "qr-vault";
+
+/// The most characters a name takes.
+const NAME_CHARS: usize = 40;
+
+/// What the code holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pick {
+    /// A typed note.
+    Note,
+    /// A loaded key.
+    Key,
+}
+
+/// A field that takes typing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Field {
+    /// The note.
+    Note,
+    /// The passphrase.
+    Pass,
+    /// The passphrase again.
+    Again,
+    /// The name.
+    Name,
+}
+
+/// A press in the tool.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QrToolAction {
+    /// Opens the tool, from the page on show.
+    Open,
+    /// Opens or closes a card.
+    Step(u8),
+    /// Chooses what the code holds.
+    Pick(Pick),
+    /// Typing goes to this field.
+    Focus(Field),
+    /// The eye on the note and the passphrases.
+    Eye,
+    /// Chooses a loaded key, by its place.
+    Key(usize),
+    /// Goes on from Contents with the typed note.
+    Next,
+    /// Chooses a memory step: the exponent.
+    Memory(u8),
+    /// Seals the code.
+    Make,
+    /// Shows the code.
+    Show,
+    /// The code's picture to the Outbox.
+    Png,
+    /// The code's file to the Outbox.
+    File,
+    /// Back to the first card, with nothing kept.
+    Another,
+}
+
+/// A code made. Public (`docs/QR.md` §7.1); wiped with the tool.
+struct Made {
+    bytes: Vec<u8>,
+    stem: String,
+    date: Option<String>,
+}
+
+impl Drop for Made {
+    fn drop(&mut self) {
+        self.bytes.zeroize();
+    }
+}
+
+/// The tool, while it is open.
+pub struct QrToolState {
+    open: Option<u8>,
+    done: [bool; qstep::COUNT],
+    scroll: flow::Scroll,
+    back: Screen,
+    pick: Option<Pick>,
+    key: Option<usize>,
+    note: TextBox,
+    /// The room left in the note, in plain characters.
+    left: usize,
+    pass: TextBox,
+    again: TextBox,
+    name: TextBox,
+    focus: Option<Field>,
+    shown: bool,
+    exponent: u8,
+    error: Option<String>,
+    made: Option<Made>,
+}
+
+impl QrToolState {
+    fn new(back: Screen) -> QrToolState {
+        QrToolState {
+            open: Some(qstep::CONTENTS),
+            done: [false; qstep::COUNT],
+            scroll: flow::Scroll::default(),
+            back,
+            pick: None,
+            key: None,
+            note: TextBox::default(),
+            left: room(""),
+            pass: TextBox::default(),
+            again: TextBox::default(),
+            name: TextBox::default(),
+            focus: None,
+            shown: false,
+            exponent: *QR_SEAL_EXPONENTS.start(),
+            error: None,
+            made: None,
+        }
+    }
+
+    /// Whether the tool holds something typed that is secret.
+    pub(crate) fn holds_secret(&self) -> bool {
+        !self.note.text.is_empty() || !self.pass.text.is_empty() || !self.again.text.is_empty()
+    }
+
+    /// The field typing goes to.
+    pub fn focus(&self) -> Option<Field> {
+        self.focus
+    }
+
+    /// What the code holds, once chosen.
+    pub fn pick(&self) -> Option<Pick> {
+        self.pick
+    }
+
+    /// The loaded key chosen.
+    pub fn key(&self) -> Option<usize> {
+        self.key
+    }
+
+    /// The note's length in characters.
+    pub fn note_chars(&self) -> usize {
+        self.note.text.as_str().chars().count()
+    }
+
+    /// The room left in the note, in plain characters.
+    pub fn room_left(&self) -> usize {
+        self.left
+    }
+
+    /// The memory step chosen: the Argon2id exponent.
+    pub fn exponent(&self) -> u8 {
+        self.exponent
+    }
+
+    /// Whether the two passphrases are typed, the same and not empty.
+    pub fn passphrase_ready(&self) -> bool {
+        !self.pass.text.is_empty() && self.pass.text.as_str() == self.again.text.as_str()
+    }
+
+    /// Whether the code is made.
+    pub fn is_made(&self) -> bool {
+        self.made.is_some()
+    }
+
+    /// The name of the file the code goes to, without its suffix.
+    pub fn stem(&self) -> String {
+        stem_of(self.name.text.as_str())
+    }
+
+    fn text_of(&self, f: Field) -> &str {
+        match f {
+            Field::Note => self.note.text.as_str(),
+            Field::Pass => self.pass.text.as_str(),
+            Field::Again => self.again.text.as_str(),
+            Field::Name => self.name.text.as_str(),
+        }
+    }
+
+    /// Something changed that the code was made from: it goes.
+    fn edited(&mut self) {
+        self.made = None;
+        self.error = None;
+        self.done[usize::from(qstep::CODE)] = false;
+    }
+
+    fn wipe_typed(&mut self) {
+        self.note.clear();
+        self.pass.clear();
+        self.again.clear();
+        self.left = room("");
+    }
+}
+
+/// The name a typed one makes: its file stem.
+fn stem_of(typed: &str) -> String {
+    if typed.trim().is_empty() {
+        DEFAULT_STEM.to_string()
+    } else {
+        vault_stem(typed)
+    }
+}
+
+/// The plain characters that still fit after `note`: the most `a`s whose
+/// addition keeps the note inside the limit.
+fn room(note: &str) -> usize {
+    let mut text = Zeroizing::new(String::from(note));
+    let base = text.len();
+    let fits = |text: &mut Zeroizing<String>, n: usize| {
+        text.truncate(base);
+        text.extend(std::iter::repeat_n('a', n));
+        qr_note_over(text) == 0
+    };
+    if !fits(&mut text, 0) {
+        return 0;
+    }
+    let (mut lo, mut hi) = (0usize, 512usize);
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        if fits(&mut text, mid) {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    lo
+}
+
+/// The tool's state, kept in Tools.
+#[derive(Default)]
+pub struct QrToolArea {
+    state: Option<QrToolState>,
+}
+
+impl QrToolArea {
+    /// The tool's state, while it is open.
+    pub fn state(&self) -> Option<&QrToolState> {
+        self.state.as_ref()
+    }
+
+    /// Takes the column's scroll as the pass left it.
+    pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
+        if let Some(s) = self.state.as_mut() {
+            s.scroll = to;
+        }
+    }
+
+    /// The column's scroll, while the tool is open.
+    pub(crate) fn scroll_mut(&mut self) -> Option<&mut flow::Scroll> {
+        self.state.as_mut().map(|s| &mut s.scroll)
+    }
+
+    /// Forgets the tool and what was typed.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+    }
+}
+
+/// The tool's state.
+pub fn state(app: &Faraday) -> Option<&QrToolState> {
+    app.tools.qr_tool().state()
+}
+
+fn st(app: &mut Faraday) -> Option<&mut QrToolState> {
+    app.tools.qr_tool_mut().state.as_mut()
+}
+
+/// Opens the tool on its first card, from the page on show.
+pub(crate) fn open(app: &mut Faraday) {
+    let back = app.screen;
+    app.tools.qr_tool_mut().state = Some(QrToolState::new(back));
+    app.screen = Screen::QrTool;
+}
+
+/// A press in the tool.
+pub(crate) fn act(app: &mut Faraday, action: QrToolAction) {
+    match action {
+        QrToolAction::Open => open(app),
+        QrToolAction::Step(k) => step(app, k),
+        QrToolAction::Pick(p) => {
+            if let Some(s) = st(app) {
+                s.pick = Some(p);
+                s.key = None;
+                s.focus = (p == Pick::Note).then_some(Field::Note);
+                s.done = [false; qstep::COUNT];
+                s.edited();
+            }
+        }
+        QrToolAction::Focus(f) => {
+            if let Some(s) = st(app) {
+                s.focus = Some(f);
+            }
+        }
+        QrToolAction::Eye => {
+            if let Some(s) = st(app) {
+                s.shown = !s.shown;
+            }
+        }
+        QrToolAction::Key(i) => choose_key(app, i),
+        QrToolAction::Next => {
+            if let Some(s) = st(app)
+                && s.pick == Some(Pick::Note)
+                && !s.note.text.is_empty()
+            {
+                go_to_passphrase(s);
+            }
+        }
+        QrToolAction::Memory(e) => {
+            if let Some(s) = st(app)
+                && QR_SEAL_EXPONENTS.contains(&e)
+            {
+                s.exponent = e;
+                s.edited();
+            }
+        }
+        QrToolAction::Make => make(app),
+        QrToolAction::Show => show(app),
+        QrToolAction::Png => png(app),
+        QrToolAction::File => file(app),
+        QrToolAction::Another => {
+            if let Some(s) = st(app) {
+                let back = s.back;
+                let scroll = s.scroll;
+                *s = QrToolState::new(back);
+                s.scroll = scroll;
+                s.scroll.follow = true;
+            }
+        }
+    }
+}
+
+fn go_to_passphrase(s: &mut QrToolState) {
+    s.done[usize::from(qstep::CONTENTS)] = true;
+    s.done[usize::from(qstep::PASSPHRASE)] = false;
+    s.done[usize::from(qstep::CODE)] = false;
+    s.made = None;
+    s.open = Some(qstep::PASSPHRASE);
+    s.focus = Some(Field::Pass);
+    s.scroll.follow = true;
+}
+
+fn choose_key(app: &mut Faraday, i: usize) {
+    if !app.session.keys.qr_key_offered(i) {
+        return;
+    }
+    if let Some(s) = st(app) {
+        s.pick = Some(Pick::Key);
+        s.key = Some(i);
+        go_to_passphrase(s);
+    }
+}
+
+fn step(app: &mut Faraday, k: u8) {
+    let Some(s) = st(app) else { return };
+    if s.open == Some(k) {
+        s.open = None;
+        return;
+    }
+    let reachable = match k {
+        qstep::CONTENTS => true,
+        qstep::PASSPHRASE => s.done[usize::from(qstep::CONTENTS)],
+        _ => s.done[usize::from(qstep::PASSPHRASE)],
+    };
+    if reachable {
+        s.open = Some(k);
+        s.scroll.follow = true;
+    }
+}
+
+/// Costs an Argon2id run at the memory step chosen, and one to read the
+/// seal back. Seals what the tool holds under its passphrase with the
+/// 95 random bytes `random`: the code's bytes or why there are none.
+fn seal_now(
+    c: &Compute,
+    keys: &Keys,
+    (pick, key): (Pick, Option<usize>),
+    note: &str,
+    pass: &str,
+    exponent: u8,
+    random: &[u8; QR_RANDOM_LEN],
+) -> Result<Vec<u8>, QrError> {
+    match (pick, key) {
+        (Pick::Note, _) => qr_seal_note(c, note, pass, exponent, random),
+        (Pick::Key, Some(i)) => keys.qr_seal_key(c, i, pass, exponent, random),
+        (Pick::Key, None) => Err(QrError::NoItem),
+    }
+}
+
+/// The line a refusal is told in.
+fn refusal_line(e: &QrError) -> String {
+    match e {
+        QrError::Memory(mib) => fill(EN.qr_tool_no_memory, &[&mib.to_string()]),
+        _ => EN.qr_tool_not_made.to_string(),
+    }
+}
+
+/// Seals the code. The seal runs here, on the tick after the frame that
+/// says so was drawn (`slow::drawn_first`); it is read back before the
+/// code is given.
+fn make(app: &mut Faraday) {
+    let Some(s) = st(app) else { return };
+    let Some(pick) = s.pick else { return };
+    if !s.passphrase_ready() {
+        return;
+    }
+    let (note, pass) = (
+        Zeroizing::new(s.note.text.as_str().to_string()),
+        Zeroizing::new(s.pass.text.as_str().to_string()),
+    );
+    let (key, exponent) = (s.key, s.exponent);
+    let stem = s.stem();
+    s.error = None;
+    // Every random byte of a code is the system's own: none is made
+    // before it has arrived.
+    if app.fresh.pool_is_empty() {
+        app.out.command(faraday_shell_api::Command::RequestEntropy);
+        say(app, EN.vaults_no_randomness.to_string());
+        return;
+    }
+    let Some(drawn) = app.fresh_bytes(b"qr vault", QR_RANDOM_LEN) else {
+        say(app, EN.vaults_no_randomness.to_string());
+        return;
+    };
+    let mut random = Zeroizing::new([0u8; QR_RANDOM_LEN]);
+    random.copy_from_slice(&drawn);
+    drop(drawn);
+    let c = app.compute();
+    let sealed = seal_now(
+        &c,
+        &app.session.keys,
+        (pick, key),
+        &note,
+        &pass,
+        exponent,
+        &random,
+    );
+    let date = app.clock_now().map(crate::gpg::date);
+    let Some(s) = st(app) else { return };
+    match sealed {
+        Ok(bytes) => {
+            s.wipe_typed();
+            s.made = Some(Made { bytes, stem, date });
+            s.done[usize::from(qstep::PASSPHRASE)] = true;
+            s.done[usize::from(qstep::CODE)] = true;
+            s.open = Some(qstep::CODE);
+            s.focus = None;
+            s.scroll.follow = true;
+        }
+        Err(e) => s.error = Some(refusal_line(&e)),
+    }
+}
+
+fn say(app: &mut Faraday, line: String) {
+    if let Some(s) = st(app) {
+        s.error = Some(line);
+    }
+}
+
+/// Costs a QR encoding. The code on a sheet: the 396 bytes of the
+/// message as one static code at medium error correction, version 15,
+/// public (`docs/QR.md` §7.1), its picture labelled with the name and
+/// the date sealed and never with what it holds.
+fn view(c: &Compute, made: &Made) -> Result<QrView, String> {
+    use faraday_codec::qr::{Ecc, Payload, encode_bounded};
+    /// The version a QR vault is drawn at.
+    const VERSION: u8 = 15;
+    let code = encode_bounded(c, Payload::Bytes(&made.bytes), Ecc::Medium, VERSION)
+        .map_err(|_| EN.kef_code_too_big.to_string())?;
+    let mut label = vec![made.stem.clone()];
+    label.extend(made.date.clone());
+    Ok(QrView {
+        title: EN.qr_tool_view_title.to_string(),
+        subtitle: EN.qr_tool_view_subtitle.to_string(),
+        frames: vec![code],
+        frame: 0,
+        next_ms: 0,
+        source: QrSource::File(format!("{}.pgp", made.stem), made.bytes.clone()),
+        format: QrFormat::Ur,
+        part: crate::QR_PARTS[1],
+        secret: false,
+        public: true,
+        label,
+        png_name: format!("{}.png", made.stem),
+        whole: None,
+        one_code: true,
+    })
+}
+
+fn show(app: &mut Faraday) {
+    let c = app.compute();
+    let Some(made) = state(app).and_then(|s| s.made.as_ref()) else {
+        return;
+    };
+    let v = view(&c, made);
+    app.open_qr(v);
+}
+
+fn png(app: &mut Faraday) {
+    let c = app.compute();
+    let Some(made) = state(app).and_then(|s| s.made.as_ref()) else {
+        return;
+    };
+    let Ok(v) = view(&c, made) else { return };
+    if let Some((name, bytes)) = v.png(&c) {
+        let put = app.put_outbox_beside(&name, bytes);
+        app.toast(&fill(EN.qr_tool_saved, &[&put]));
+    }
+}
+
+fn file(app: &mut Faraday) {
+    let Some(made) = state(app).and_then(|s| s.made.as_ref()) else {
+        return;
+    };
+    let (name, bytes) = (format!("{}.pgp", made.stem), made.bytes.clone());
+    let put = app.put_outbox_beside(&name, bytes);
+    app.toast(&fill(EN.qr_tool_saved, &[&put]));
+}
+
+/// The field typing goes to on the tool, with the press that focuses it
+/// and its text.
+pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
+    if app.screen != Screen::QrTool {
+        return None;
+    }
+    let s = state(app)?;
+    let f = s.focus.filter(|f| match f {
+        Field::Note => s.open == Some(qstep::CONTENTS) && s.pick == Some(Pick::Note),
+        _ => s.open == Some(qstep::PASSPHRASE),
+    })?;
+    Some((Action::QrTool(QrToolAction::Focus(f)), s.text_of(f)))
+}
+
+/// A key on the tool: typing in the focused field; Enter goes on;
+/// Escape is Back. Returns whether it was taken.
+pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
+    if app.screen != Screen::QrTool || state(app).is_none() || app.sheet.is_some() {
+        return false;
+    }
+    let focus = field(app).and_then(|(a, _)| match a {
+        Action::QrTool(QrToolAction::Focus(f)) => Some(f),
+        _ => None,
+    });
+    if let Some(f) = focus {
+        match key {
+            Key::Enter => {
+                match f {
+                    Field::Note => act(app, QrToolAction::Next),
+                    Field::Pass => act(app, QrToolAction::Focus(Field::Again)),
+                    Field::Again => act(app, QrToolAction::Focus(Field::Name)),
+                    Field::Name => {
+                        if state(app).is_some_and(QrToolState::passphrase_ready) {
+                            app.press_in(Action::QrTool(QrToolAction::Make));
+                        }
+                    }
+                }
+                return true;
+            }
+            Key::Tab => {
+                let next = match f {
+                    Field::Note | Field::Name => f,
+                    Field::Pass => Field::Again,
+                    Field::Again => Field::Name,
+                };
+                act(app, QrToolAction::Focus(next));
+                return true;
+            }
+            _ => {
+                if type_in(app, f, key) {
+                    return true;
+                }
+            }
+        }
+    }
+    if key == Key::Escape {
+        app.back();
+        return true;
+    }
+    false
+}
+
+fn type_in(app: &mut Faraday, f: Field, key: Key) -> bool {
+    let Some(s) = st(app) else { return false };
+    let box_ = match f {
+        Field::Note => &mut s.note,
+        Field::Pass => &mut s.pass,
+        Field::Again => &mut s.again,
+        Field::Name => &mut s.name,
+    };
+    match key {
+        Key::Char(c) if !c.is_control() => {
+            if f == Field::Name && box_.text.as_str().chars().count() >= NAME_CHARS {
+                return true;
+            }
+            box_.text.push(c);
+            if f == Field::Note && qr_note_over(box_.text.as_str()) > 0 {
+                box_.text.pop();
+            }
+        }
+        Key::Backspace => {
+            box_.text.pop();
+        }
+        _ => return false,
+    }
+    if f == Field::Note {
+        s.left = room(s.note.text.as_str());
+    }
+    s.edited();
+    true
+}
+
+/// Closes the eye: the idle warning.
+pub(crate) fn hide(app: &mut Faraday) {
+    if let Some(s) = st(app) {
+        s.shown = false;
+    }
+}
+
+/// After a press: the tool ends, with what was typed and the code,
+/// unless it is on show or Add randomness, opened from it, will come
+/// back.
+pub(crate) fn tidy(app: &mut Faraday) {
+    let kept = matches!(app.screen, Screen::QrTool | Screen::Randomness);
+    if !kept {
+        app.tools.qr_tool_mut().clear();
+    }
+}
+
+/// The tool's steps, plugged into Back, Forward and the choices that
+/// move on (F103, F104).
+pub(crate) struct QrToolSteps;
+
+/// The one [`QrToolSteps`].
+pub(crate) static QR_TOOL_STEPS: QrToolSteps = QrToolSteps;
+
+impl crate::trail::StepFlow for QrToolSteps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        let s = state(app)?;
+        let upto = if s.done[usize::from(qstep::PASSPHRASE)] {
+            qstep::COUNT
+        } else if s.done[usize::from(qstep::CONTENTS)] {
+            2
+        } else {
+            1
+        };
+        Some(crate::trail::Steps::new((0..upto as u8).collect(), s.open))
+    }
+
+    fn open(&self, _: &Faraday, k: u8) -> Action {
+        Action::QrTool(QrToolAction::Step(k))
+    }
+
+    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+        screen::TITLES[usize::from(k)]
+    }
+}
