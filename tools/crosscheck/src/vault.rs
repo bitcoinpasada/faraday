@@ -373,6 +373,7 @@ fn export(c: &Compute, req: &Value) -> Answer {
         s(req, "label"),
         cost(req)?,
         s(req, "passphrase"),
+        &kdbx::Components::none(),
         &random_of(req),
         now,
         &changes,
