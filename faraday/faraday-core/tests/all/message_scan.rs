@@ -289,6 +289,9 @@ fn every_scan_that_opens_the_camera_waits_for_the_stick() {
         Action::SignerCheck(SignerPress::Scan(check::Slot::Sent)),
         Action::Sweep(faraday_core::seeds::sweep::SweepAction::Scan),
         Action::BC32(faraday_core::codex32_backup::Press::ScanCopy),
+        Action::KefTool(faraday_core::kef_tool::KefToolAction::Backup(
+            faraday_core::kef_form::KefAct::ScanCopy,
+        )),
     ];
     for press in presses {
         let mut app = app(true);

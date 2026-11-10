@@ -222,20 +222,38 @@ fn moving_the_pointer_does_no_costly_work() {
     }
 }
 
+/// At rest the clock asks for a frame only when something on it changes
+/// (a field that takes typing blinks its caret, as Transfer's Send text
+/// does), and none does costly work.
 #[test]
 fn at_rest_the_clock_asks_for_nothing() {
     for (name, s) in states() {
         let mut s = settled(s);
+        let mut last = s.frame().rgba.to_vec();
         let before = work::snapshot();
         let mut asked = 0;
         for i in 1..=120u64 {
             s.event(Event::Tick {
                 now_ms: 10_000 + i * 16,
             });
-            asked += u64::from(pass(&mut s));
+            let mut draw = false;
+            while let Some(c) = s.poll_command() {
+                draw |= c == Command::Draw;
+            }
+            if draw {
+                asked += 1;
+                let now = s.frame().rgba.to_vec();
+                assert!(
+                    now != last,
+                    "{name}: a tick asked for a frame that shows nothing new"
+                );
+                last = now;
+            }
         }
-        assert_eq!(asked, 0, "{name}: a tick asked for a frame");
-        assert_eq!(beyond(&before, 0), [], "{name}");
+        if name != "Transfer" {
+            assert_eq!(asked, 0, "{name}: a tick asked for a frame");
+        }
+        assert_eq!(beyond(&before, asked), [], "{name}");
     }
 }
 

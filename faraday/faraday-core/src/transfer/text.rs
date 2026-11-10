@@ -447,7 +447,7 @@ fn words(c: &Compute, t: &str) -> Option<Kind> {
         .split_whitespace()
         .flat_map(|tok| tok.split(|ch: char| !(ch.is_alphabetic() || is_mark(ch))))
         .filter(|w| !w.is_empty())
-        .map(faraday_bip::bip39::nfkd_lower)
+        .map(|w| faraday_bip::bip39::nfkd_lower(w).collect())
         .collect();
     if longest_run(&ws, |w| slip39.contains(w)) >= faraday_bip::slip39::MIN_WORDS - 1 {
         return Some(Kind::Slip39Share);

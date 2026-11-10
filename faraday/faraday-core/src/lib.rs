@@ -1851,6 +1851,7 @@ impl Faraday {
             | Action::SignerCheck(decode::check::SignerPress::Scan(_))
             | Action::Sweep(seeds::sweep::SweepAction::Scan)
             | Action::BC32(codex32_backup::Press::ScanCopy)
+            | Action::KefTool(kef_tool::KefToolAction::Backup(kef_form::KefAct::ScanCopy))
             | Action::Vault(vault::VaultAction::ScanEntry)
             | Action::SpendBackup(
                 spend_backup::SpendBackupAction::Scan

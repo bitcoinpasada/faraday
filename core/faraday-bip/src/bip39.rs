@@ -636,12 +636,12 @@ pub fn fold(word: &str) -> Option<Typed> {
     Some(out)
 }
 
-/// The word as the lists store it: decomposed (NFKD) and in lower case.
-/// Costs a copy of the word; it is for free-form text that is not secret
-/// until it matches a list ([`Language::find`] does not copy).
-pub fn nfkd_lower(word: &str) -> alloc::string::String {
+/// The word as the lists store it: decomposed (NFKD) and in lower case,
+/// one character at a time, kept nowhere; the caller collects it if it
+/// needs to ([`Language::find`] does not).
+pub fn nfkd_lower(word: &str) -> impl Iterator<Item = char> + '_ {
     use unicode_normalization::UnicodeNormalization;
-    word.nfkd().flat_map(char::to_lowercase).collect()
+    word.nfkd().flat_map(char::to_lowercase)
 }
 
 /// [`fold`]'s result as ASCII bytes and their count.
