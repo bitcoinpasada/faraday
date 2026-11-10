@@ -208,6 +208,16 @@ pub struct SampleInputs {
     /// words form of the first English words sample. Empty where a set has
     /// none.
     pub hsm: &'static [SampleHsm],
+    /// Check a timestamp: the proof (`.ots`) the US Commerce Department's
+    /// timestamp of a press-release file made, which reaches its block
+    /// through SHA-256 only. Empty where a set has none.
+    pub timestamp_proof: &'static [u8],
+    /// The SHA-256 of the file that proof stamps, in hex: the file is not
+    /// kept, the tile takes its hash.
+    pub timestamp_hash: &'static str,
+    /// The 80-byte header of the block the proof's Bitcoin attestation
+    /// names, in hex.
+    pub timestamp_header: &'static str,
     /// The Core Lightning node of every English words sample, with no
     /// passphrase and under `faraday`. Empty where a set has none.
     pub hsm_words_nodes: &'static [[u8; 33]],

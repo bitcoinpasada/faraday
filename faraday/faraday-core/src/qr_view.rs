@@ -56,6 +56,9 @@ pub enum ScanPurpose {
     /// checklist: compared with the code made there, never loaded
     /// (`docs/KEF.md` §15.1).
     CheckKef(usize),
+    /// Check a timestamp's block header: its 80 bytes or their hex, taken
+    /// by the tool.
+    OtsHeader,
     /// Transfer's Receive: anything, saved by the shell into Downloads,
     /// never into the Inbox.
     Transfer,

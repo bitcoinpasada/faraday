@@ -283,6 +283,7 @@ pub(crate) enum Scrolled {
     KefTool,
     /// The QR vault tool.
     QrTool,
+    OtsCheck,
     /// New key.
     KeyGen,
     /// Vanity.
@@ -469,6 +470,9 @@ impl Faraday {
                 }
                 Scrolled::QrTool => {
                     self.tools.qr_tool_mut().set_scroll(to);
+                }
+                Scrolled::OtsCheck => {
+                    self.tools.ots_mut().set_scroll(to);
                 }
                 Scrolled::KeyGen => {
                     self.keygen.set_scroll(to);

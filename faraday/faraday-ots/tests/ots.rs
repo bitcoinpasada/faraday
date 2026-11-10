@@ -86,7 +86,7 @@ fn a_gdp_proof_through_sha256_only_is_committed_by_its_block() {
 fn a_path_through_ripemd160_reaches_its_block_and_is_not_counted() {
     // The reference's older proofs go through the calendar's RIPEMD-160.
     for (proof, file, height) in [
-        ("hello-world.txt.ots", example("hello-world.txt"), 358391),
+        ("hello-world.txt.ots", example("bad-stamp.txt"), 358391),
         ("empty.ots", Vec::new(), 129405),
     ] {
         let r = report_for(proof, &file, height);
@@ -687,5 +687,18 @@ fn a_header_target_above_its_networks_limit_is_refused() {
             Error::HeaderTargetTooEasy,
             "{n:?}"
         );
+    }
+}
+
+#[test]
+fn a_whole_file_hash_through_compute_is_the_same_as_the_plain_one() {
+    let data = example("bad-stamp.txt");
+    for op in [
+        faraday_ots::HashOp::Sha1,
+        faraday_ots::HashOp::Ripemd160,
+        faraday_ots::HashOp::Sha256,
+        faraday_ots::HashOp::Keccak256,
+    ] {
+        assert_eq!(op.digest_whole(&compute(), &data), op.digest(&data));
     }
 }

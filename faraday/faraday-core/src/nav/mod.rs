@@ -128,6 +128,7 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
         | Screen::Convert
         | Screen::KefTool
         | Screen::QrTool
+        | Screen::OtsCheck
         | Screen::Silent
         | Screen::Explore
         | Screen::Lightning

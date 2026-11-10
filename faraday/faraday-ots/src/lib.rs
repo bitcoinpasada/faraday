@@ -162,6 +162,13 @@ impl HashOp {
         }
     }
 
+    /// Costs a pass over every byte: the hash of a whole file, `data`,
+    /// counted as [`Work::FileHash`]. The same value as [`HashOp::digest`].
+    pub fn digest_whole(self, c: &Compute, data: &[u8]) -> Vec<u8> {
+        c.count(Work::FileHash);
+        self.digest(data)
+    }
+
     /// The length of its output in bytes.
     pub fn digest_len(self) -> usize {
         match self {

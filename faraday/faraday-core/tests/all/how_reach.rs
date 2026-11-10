@@ -55,6 +55,7 @@ fn screen(name: &str) -> Screen {
         "BackupFlow" => S::BackupFlow,
         "KefTool" => S::KefTool,
         "QrTool" => S::QrTool,
+        "OtsCheck" => S::OtsCheck,
         "Invoice" => S::Invoice,
         "Compare" => S::Compare,
         other => panic!("{other} is not a Screen"),

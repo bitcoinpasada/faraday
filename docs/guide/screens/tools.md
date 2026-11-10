@@ -56,7 +56,7 @@ name, its line and its standards; the groups below scroll into view.*
 | | **Decode a transaction** | Decode, on a transaction in Files, or the camera |
 | | **Decode a Lightning invoice** | Decode a Lightning invoice, its field open, for an invoice or an offer; Scan reads one by camera |
 | | **Check an address** | the camera |
-| **Messages** | **Sign a message**, **Check a signed message** | each tool's page |
+| **Messages** | **Sign a message**, **Check a signed message**, **Check a timestamp** | each tool's page |
 | **Vaults and other keys** | **Vaults** | [Vaults](vaults.md) |
 | | **TOTP codes** | [TOTP codes](codes.md) |
 | | **QR vault** | [QR vault](qr-vault.md), on its Contents card |

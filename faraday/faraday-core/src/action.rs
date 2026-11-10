@@ -766,6 +766,8 @@ pub enum Action {
     KefTool(crate::kef_tool::KefToolAction),
     /// A press in the QR vault tool.
     QrTool(crate::qr_tool::QrToolAction),
+    /// A press in the Check a timestamp tool.
+    OtsCheck(crate::ots_check::OtsAction),
     /// Fill a slot with the account key in an Inbox file.
     CSlotFile(u8, usize),
     /// Empty a slot.

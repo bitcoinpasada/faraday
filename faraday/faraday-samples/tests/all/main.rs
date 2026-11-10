@@ -12,6 +12,7 @@ mod hsm;
 mod kef_sample;
 mod keys;
 mod load;
+mod ots_sample;
 mod passphrase;
 mod pi_panel;
 mod psbt;

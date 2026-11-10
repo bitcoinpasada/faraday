@@ -21,6 +21,7 @@ faraday-bip = { path = "../../core/faraday-bip" }
 faraday-psbt = { path = "../../core/faraday-psbt" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-intake = { path = "../faraday-intake" }
+faraday-ots = { path = "../faraday-ots" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-shell-api = { path = "../../core/faraday-shell-api" }
 # Another implementation of BIP-39 and BIP-32, for the fingerprints.

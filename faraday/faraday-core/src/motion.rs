@@ -738,6 +738,19 @@ impl Scroll {
 
 /// Which offset each screen and sheet scrolls.
 impl Faraday {
+    /// Where the Guided switch's pill shows: 0 on Steps only, 1 on
+    /// Guided, between while it slides.
+    pub(crate) fn guided_shown(&self) -> f32 {
+        let to = if self.guided() { 1.0 } else { 0.0 };
+        match self.guided_moving {
+            Some((from, at)) => {
+                let t = ease_move(progress(at, self.now_ms, SWITCH_MS));
+                from + (to - from) * t
+            }
+            None => to,
+        }
+    }
+
     /// Runs `go` on the motion and the region that scrolls now, with how
     /// far it goes as the last frame drew it. A motion left over from
     /// another screen or sheet is stopped first.
@@ -1247,6 +1260,7 @@ impl Faraday {
             Screen::Convert => &mut self.tools.convert_mut().scroll_mut()?.y,
             Screen::KefTool => &mut self.tools.kef_tool_mut().scroll_mut()?.y,
             Screen::QrTool => &mut self.tools.qr_tool_mut().scroll_mut()?.y,
+            Screen::OtsCheck => &mut self.tools.ots_mut().scroll_mut()?.y,
             Screen::Silent => &mut self.silent.scroll_mut()?.y,
             Screen::CreateVault => self.vaults.create_scroll_y_mut()?,
             Screen::BackupFlow => match self.vaults.create_scroll_y_mut() {

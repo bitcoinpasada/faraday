@@ -121,6 +121,7 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Convert
         | Screen::KefTool
         | Screen::QrTool
+        | Screen::OtsCheck
         | Screen::Silent
         | Screen::Lightning
         | Screen::Vanity
@@ -612,6 +613,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Convert => crate::convert::screen::draw(app, ui, x, cw, h),
         Screen::KefTool => crate::kef_tool::screen::draw(app, ui, x, cw, h),
         Screen::QrTool => crate::qr_tool::screen::draw(app, ui, x, cw, h),
+        Screen::OtsCheck => crate::ots_check::screen::draw(app, ui, x, cw, h),
         Screen::Silent => crate::silent::screen::draw(app, ui, x, cw, h),
         Screen::Explore => crate::explore::screen::draw(app, ui, x, cw, h),
         Screen::Lightning => crate::lightning::screen::draw(app, ui, x, cw, h),

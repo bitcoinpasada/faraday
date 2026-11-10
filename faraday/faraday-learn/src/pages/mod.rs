@@ -28,7 +28,7 @@ pub struct Section {
 }
 
 /// How many pages there are.
-pub const PAGES: usize = 21;
+pub const PAGES: usize = 22;
 
 /// Every page, in one language.
 pub struct Learn {
@@ -102,6 +102,9 @@ pub struct Learn {
     /// "Lightning invoices": what a BOLT #11 invoice says, who is
     /// named in it and how, and what reading one does not tell you.
     pub lightning_invoices: Page,
+    /// "Timestamps": what an OpenTimestamps proof is, what the device
+    /// checks against a block header, and what is shown and not counted.
+    pub timestamps: Page,
 }
 
 impl Learn {
@@ -129,6 +132,7 @@ impl Learn {
             &self.coordinators,
             &self.silent_payments,
             &self.lightning_invoices,
+            &self.timestamps,
         ]
     }
 }

@@ -685,7 +685,8 @@ impl Faraday {
                 | ScanPurpose::CompareFirst
                 | ScanPurpose::CompareSecond
                 | ScanPurpose::MessageText
-                | ScanPurpose::Sweep => true,
+                | ScanPurpose::Sweep
+                | ScanPurpose::OtsHeader => true,
                 ScanPurpose::VaultEntry
                 | ScanPurpose::CheckCopy(_)
                 | ScanPurpose::CheckConvert(..)
@@ -953,6 +954,7 @@ impl Faraday {
             || self.sweep_scanned(&bytes)
             || self.signer_check_scanned(&bytes)
             || self.compare_scanned(&bytes)
+            || crate::ots_check::scanned(self, &bytes)
         {
             return;
         }

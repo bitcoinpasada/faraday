@@ -13230,6 +13230,136 @@ strings! {
     catalog_qr_vault_line: "A note or a key sealed in one QR code",
     /// The QR vault tool's heading.
     qr_tool_title: "QR vault",
+    /// Tools: the Check a timestamp tile.
+    catalog_check_timestamp: "Check a timestamp",
+    /// Tools: the line under the Check a timestamp tile.
+    catalog_check_timestamp_line: "A proof against a block header",
+    /// Text in `tile_need`.
+    catalog_copy_a_proof: "Copy a proof in first",
+    /// Check a timestamp: the sample proof's name.
+    sample_ots_proof_file: "sample-timestamp.ots",
+    /// Check a timestamp: the sample header's name.
+    sample_ots_header_file: "sample-block-header",
+    /// The scanner's tile that hands over a sample block header.
+    scan_sample_header: "Load sample block header",
+    /// Check a timestamp's heading.
+    ots_title: "Check a timestamp",
+    /// Check a timestamp: the Back button's name when opened from Tools.
+    ots_tools: "Tools",
+    /// Check a timestamp: the scanner's title.
+    ots_scan_title: "Scan a block header",
+    /// Check a timestamp's first card.
+    ots_card_proof: "Proof",
+    /// Check a timestamp's second card.
+    ots_card_file: "File",
+    /// Check a timestamp's third card.
+    ots_card_header: "Block header",
+    /// Check a timestamp's fourth card.
+    ots_card_result: "Result",
+    /// Check a timestamp: a card with no file of Files that fits.
+    ots_none_in_files: "No file in Files",
+    /// Check a timestamp: the typed hash field's label.
+    ots_hash_label: "SHA-256 of the file",
+    /// Check a timestamp: the typed header field's label.
+    ots_header_label: "Header in hex",
+    /// Check a timestamp: takes the typed text.
+    ots_use: "Use",
+    /// Check a timestamp: opens the scanner.
+    ots_scan: "Scan",
+    /// Check a timestamp: a value that was typed, as a card's summary.
+    ots_typed: "Typed",
+    /// Check a timestamp: a value that was scanned, as a card's summary.
+    ots_scanned: "Scanned",
+    /// Check a timestamp: the Result card before the three are in.
+    ots_result_waits: "Not checked yet",
+    /// Check a timestamp: the verdict of a counted path.
+    ots_committed: "The header commits to this file",
+    /// Check a timestamp: the verdict with no counted path.
+    ots_not_committed: "The header does not commit to this file",
+    /// Check a timestamp: the file is not the one the proof states.
+    ots_file_differs: "This is not the file the proof states",
+    /// Check a timestamp: the verdict when the file's hash is not enough.
+    ots_needs_file_short: "The whole file is needed",
+    /// Check a timestamp: the proof starts from a hash a typed SHA-256 cannot give; {} is its name.
+    ots_needs_file: "The proof starts from the file's {}: choose the file",
+    /// Check a timestamp: a counted path's block hash.
+    ots_block_hash: "Block hash",
+    /// Check a timestamp: a counted path's block height.
+    ots_height: "Block height",
+    /// Check a timestamp: a counted path's block time.
+    ots_time: "Block time",
+    /// Check a timestamp: a Bitcoin attestation the header does not match; {} is its height.
+    ots_mismatch: "Bitcoin block {}: not this header",
+    /// Check a timestamp: a path through a hash that is not counted; {} is the height, {} the hash.
+    ots_not_sha256: "Bitcoin block {}: passes through {}, not counted",
+    /// Check a timestamp: a path through a hash that is not counted and reaches the header; {} is the height, {} the hash.
+    ots_not_sha256_reaches: "Bitcoin block {}: passes through {} and reaches the header, not counted",
+    /// Check a timestamp: a pending attestation; {} is the calendar.
+    ots_pending: "Pending at {}",
+    /// Check a timestamp: a Litecoin attestation; {} is the height.
+    ots_litecoin: "Litecoin block {}: not checked",
+    /// Check a timestamp: an Ethereum attestation; {} is the height.
+    ots_ethereum: "Ethereum block {}: not checked",
+    /// Check a timestamp: an attestation of a kind Faraday does not know; {} is its tag in hex.
+    ots_unknown: "Unknown attestation {}",
+    /// Check a timestamp: what was given is not a block header.
+    ots_not_a_header: "Not an 80-byte block header or its hex",
+    /// Check a timestamp: what was typed is not a SHA-256.
+    ots_not_a_hash: "Not a SHA-256: 64 hex digits",
+    /// The name of SHA-1 in a timestamp result.
+    ots_op_sha1: "SHA-1",
+    /// The name of RIPEMD-160 in a timestamp result.
+    ots_op_ripemd160: "RIPEMD-160",
+    /// The name of SHA-256 in a timestamp result.
+    ots_op_sha256: "SHA-256",
+    /// The name of Keccak-256 in a timestamp result.
+    ots_op_keccak256: "Keccak-256",
+    /// Check a timestamp: refusal.
+    ots_err_proof_too_large: "The proof is over 64 KiB",
+    /// Check a timestamp: refusal.
+    ots_err_too_many_entries: "The proof has too many entries",
+    /// Check a timestamp: refusal.
+    ots_err_too_much_work: "The proof asks for too much work",
+    /// Check a timestamp: refusal.
+    ots_err_bad_magic: "Not an OpenTimestamps proof",
+    /// Check a timestamp: refusal.
+    ots_err_version: "The proof is not version 1",
+    /// Check a timestamp: refusal.
+    ots_err_truncated: "The proof ends too soon",
+    /// Check a timestamp: refusal.
+    ots_err_trailing: "Bytes follow the proof",
+    /// Check a timestamp: refusal.
+    ots_err_file_hash_op: "The proof names a hash of the file Faraday does not know",
+    /// Check a timestamp: refusal.
+    ots_err_unknown_op: "The proof has an operation Faraday does not know",
+    /// Check a timestamp: refusal.
+    ots_err_empty_argument: "The proof has an operation with no bytes",
+    /// Check a timestamp: refusal.
+    ots_err_argument_long: "The proof has an operation with over 4,096 bytes",
+    /// Check a timestamp: refusal.
+    ots_err_result_long: "The proof makes a value over 4,096 bytes",
+    /// Check a timestamp: refusal.
+    ots_err_too_deep: "The proof is nested too deep",
+    /// Check a timestamp: refusal.
+    ots_err_number: "The proof has a number over 64 bits",
+    /// Check a timestamp: refusal.
+    ots_err_height: "The proof has a block height over 32 bits",
+    /// Check a timestamp: refusal.
+    ots_err_payload_long: "The proof has an attestation over 8,192 bytes",
+    /// Check a timestamp: refusal.
+    ots_err_payload_trailing: "The proof has an attestation with bytes after its fields",
+    /// Check a timestamp: refusal.
+    ots_err_uri_long: "The proof has a calendar address over 1,000 bytes",
+    /// Check a timestamp: refusal.
+    ots_err_uri_invalid: "The proof has a calendar address with a character it may not",
+    /// Check a timestamp: refusal.
+    ots_err_header_length: "A block header is 80 bytes",
+    /// Check a timestamp: refusal.
+    ots_err_header_target: "The header's target is not valid",
+    /// Check a timestamp: refusal.
+    ots_err_header_easy: "The header's target is easier than the network allows",
+    /// Check a timestamp: refusal.
+    ots_err_header_work: "The header's hash is above its own target",
     /// The QR vault tool: the Back button's name when opened from Tools.
     qr_tool_tools: "Tools",
     /// The QR vault tool's first card: what the code holds.

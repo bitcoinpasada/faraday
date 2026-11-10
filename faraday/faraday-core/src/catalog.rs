@@ -31,6 +31,8 @@ pub enum Go {
     KefCode,
     /// Make a QR vault.
     QrVault,
+    /// Check a timestamp.
+    CheckTimestamp,
     /// A vanity address.
     Vanity,
     /// Silent payments.
@@ -320,6 +322,13 @@ pub const TILES: &[Tile] = &[
         go: Go::CheckMessage,
     },
     Tile {
+        group: EN.catalog_messages,
+        name: EN.catalog_check_timestamp,
+        line: EN.catalog_check_timestamp_line,
+        tags: &["OpenTimestamps"],
+        go: Go::CheckTimestamp,
+    },
+    Tile {
         group: EN.catalog_vaults_group,
         name: EN.catalog_vaults,
         line: EN.catalog_keys_wallets,
@@ -497,6 +506,15 @@ impl Faraday {
             {
                 EN.catalog_copy_a_signed
             }
+            Go::CheckTimestamp
+                if !self
+                    .inbox
+                    .iter()
+                    .any(|i| crate::ots_check::is_proof(&i.bytes))
+                    && self.put_on().is_none() =>
+            {
+                EN.catalog_copy_a_proof
+            }
             // The keys the backup flow makes: the tile starts it, or resumes
             // it, and asks for no vault first (`docs/BACKUP-FLOW.md` §3).
             Go::VaultCategory(c)
@@ -614,6 +632,7 @@ impl Faraday {
                 // Practice: the sample message stands in for the one to copy in.
                 None => self.check_use_sample(),
             },
+            Go::CheckTimestamp => crate::ots_check::open_tile(self),
             Go::Vaults => self.act(Action::Nav(Screen::Vaults)),
             Go::CreateVault => self.act(Action::Vault(VaultAction::Create)),
             // The keys the backup flow makes: the flow, when none is open

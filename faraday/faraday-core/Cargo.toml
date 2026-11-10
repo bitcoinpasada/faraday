@@ -25,6 +25,7 @@ faraday-ui = { path = "../faraday-ui" }
 faraday-learn = { path = "../faraday-learn" }
 faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }
+faraday-ots = { path = "../faraday-ots" }
 faraday-sb = { path = "../faraday-sb" }
 faraday-keys = { path = "../faraday-keys" }
 # The boot partitions' names and labels, which a backup refuses

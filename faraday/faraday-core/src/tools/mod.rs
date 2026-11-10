@@ -177,6 +177,8 @@ pub struct ToolsArea {
     kef_tool: crate::kef_tool::KefToolArea,
     /// The QR vault tool.
     qr_tool: crate::qr_tool::QrToolArea,
+    /// Check a timestamp.
+    ots: crate::ots_check::OtsArea,
     /// Decode a Lightning invoice.
     invoice: crate::invoice::InvoiceArea,
 }
@@ -215,6 +217,16 @@ impl ToolsArea {
     /// The QR vault tool, to change.
     pub(crate) fn qr_tool_mut(&mut self) -> &mut crate::qr_tool::QrToolArea {
         &mut self.qr_tool
+    }
+
+    /// The Check a timestamp tool.
+    pub(crate) fn ots(&self) -> &crate::ots_check::OtsArea {
+        &self.ots
+    }
+
+    /// The Check a timestamp tool, to change.
+    pub(crate) fn ots_mut(&mut self) -> &mut crate::ots_check::OtsArea {
+        &mut self.ots
     }
 
     /// What is typed in Find a tool.
@@ -448,6 +460,7 @@ impl Faraday {
             crate::Action::Convert(c) => crate::convert::act(self, c),
             crate::Action::KefTool(k) => crate::kef_tool::act(self, k),
             crate::Action::QrTool(k) => crate::qr_tool::act(self, k),
+            crate::Action::OtsCheck(k) => crate::ots_check::act(self, k),
             _ => {}
         }
     }
@@ -457,6 +470,7 @@ impl Faraday {
         crate::convert::key(self, key)
             || crate::kef_tool::key(self, key)
             || crate::qr_tool::key(self, key)
+            || crate::ots_check::key(self, key)
     }
 
     /// The idle warning: the Explore page and those tools close their eyes.
@@ -472,6 +486,7 @@ impl Faraday {
         crate::convert::tidy(self);
         crate::kef_tool::tidy(self);
         crate::qr_tool::tidy(self);
+        crate::ots_check::tidy(self);
         // Leaving Transfer wipes the text typed or pasted for Send text.
         if self.screen != Screen::Transfer {
             self.transfer.clear_text();

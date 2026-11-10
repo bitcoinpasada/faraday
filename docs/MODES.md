@@ -279,6 +279,16 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
   hands over the Sent; the Returned scanner hands over the clean one, and
   the proprietary one while the Returned card holds the clean one, so two
   presses show both results.
+- **Check a timestamp**: the OpenTimestamps proof of the US Commerce
+  Department's gdp2q25-2nd.pdf (`gdp2q25-2nd.pdf.ots` of the reference
+  client's examples, `tools/vectors/opentimestamps/`), which reaches its
+  Bitcoin block through SHA-256 only; the SHA-256 of that file, in hex,
+  which the tile's hash field takes in place of the file; and the real
+  80-byte header of block 912095, the block the proof names, in hex. The
+  tile opens with the three taken and the proof counted. The block header's
+  scanner offers the header as Load sample block header. A test checks that
+  the header's double SHA-256 is the block's hash and that the proof's path
+  from the file's hash ends at the header's merkle root.
 
 ### 5.4 Where they live
 
@@ -387,6 +397,8 @@ and what a press puts in, stands.
 | The scanner: a copy to check | `ScanPurpose::CheckCopy(fp)` | the SeedQR of key `fp` when it is a sample; no tile otherwise |
 | The scanner: Check a signer's Sent and Returned | `ScanPurpose::CheckSent`, `CheckReturned` | §5.3's pair: the Sent; the clean Returned, then the one with a proprietary pair while the card holds the clean one |
 | The scanner: a TOTP code | `ScanPurpose::VaultEntry` | §5.3's setup code |
+| The scanner: Check a timestamp's block header | `ScanPurpose::OtsHeader` | §5.3's header, as hex |
+| Tools: Check a timestamp, in Practice with no proof in Files | `faraday/faraday-core/src/ots_check/mod.rs` `open_sample` | §5.3's proof, file hash and header, taken |
 | Scan a key (a wallet's missing key) | `faraday/faraday-core/src/scan_key.rs` | as WalletKey above |
 | Restore, seeds first: a cosigner's account key | `faraday/faraday-core/src/seeds/mod.rs` `Focus::Cosigner` | the account key, at the path chosen, of the next sample seed not among the wallet's |
 | The Spend tab's words | `faraday/faraday-core/src/spend_backup/mod.rs` | as Add a key |

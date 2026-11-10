@@ -692,7 +692,7 @@ surface or its components.
 
 ## 5. The screens
 
-A screen is one of the thirty-six variants of `Screen` in
+A screen is one of the thirty-seven variants of `Screen` in
 `faraday/faraday-core/src/lib.rs`, drawn in the file that file's code
 map names: an area's `screen.rs`, or `screens/<name>.rs` for a screen
 with no area. Each is drawn in one of three ways:
@@ -732,6 +732,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Message` | Signing a message with a single-key wallet's key. | Step flow |
 | `CheckMessage` | Checking a signed message against its address. | Page |
 | `Decode` | A transaction taken apart, field by field. | Page |
+| `OtsCheck` | A timestamp checked: four cards, **Proof**, **File**, **Block header** and **Result**, each closed to its name and what was taken; the proof and the file are chosen from Files (the file also as a typed SHA-256), the header typed or pasted as hex, scanned or chosen from Files, and **Result** lists each path with the block it reaches, or the one line saying why a take was refused. Checked against Material 3's cards page and its lists page. | Step flow |
 | `Invoice` | A Lightning invoice taken apart: an outlined text field (Material's text field page, outlined) that always takes typing, **Decode**, **Scan** and **Clear**, then a row for each field the invoice or offer carries, name and value, or the one line saying why it was refused. Checked against Material 3's text fields page (outlined text field) and its lists page. | Page |
 | `NonceCheck` | A signed PSBT no key here is left to sign, or a finished transaction, brought in by the camera, Files or Tools: the file's name, Send it's nonce check of it, whether it is finished, and **Save to a stick**, **Decode it**, **Show the raw hex** and **Show as QR** (`docs/FLOWS.md`, Nonce check). | Page |
 | `SignerCheck` | Check a signer, from Tools: the PSBT sent and the one returned, chosen from Files or scanned, and the verdict of what the signer changed: the Sent, Returned and Result cards, each PSBT's name and its line "{n} signatures · {txid short form}", **Scan** and **Change** (`docs/SIGNER-CHECK.md` §3, §4). | Step flow |

@@ -169,7 +169,7 @@ macro_rules! every {
 fn screens() -> Vec<Screen> {
     every!(Screen: Home, WalletsStart, Wallets, Spend, Files, Entry, Backup,
         Message, CheckMessage, Create, Restore, Settings, SetTime, Randomness, Vaults,
-        Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, QrTool, Silent, Explore, Lightning, Tools, Unlock,
+        Backups, CreateVault, KeyGen, Bip85, Convert, KefTool, QrTool, OtsCheck, Silent, Explore, Lightning, Tools, Unlock,
         VaultContents, Codes, SpendBackup, Vanity, Decode, Invoice, NonceCheck, SignerCheck, Compare, Catalog, Transfer, BackupFlow)
 }
 

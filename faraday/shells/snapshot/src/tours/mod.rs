@@ -42,6 +42,7 @@ pub(crate) mod lightning_cln;
 pub(crate) mod m3;
 pub(crate) mod menu;
 pub(crate) mod nonce;
+pub(crate) mod ots_check;
 pub(crate) mod panes;
 pub(crate) mod partials;
 pub(crate) mod pass_seeds;

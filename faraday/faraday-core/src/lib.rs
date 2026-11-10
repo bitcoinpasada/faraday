@@ -100,6 +100,7 @@
 //! | `Convert` | `convert/screen.rs` |
 //! | `KefTool` | `kef_tool/screen.rs` |
 //! | `QrTool` | `qr_tool/screen.rs` |
+//! | `OtsCheck` | `ots_check/screen.rs` |
 //! | `Silent` | `silent/screen.rs` |
 //! | `Explore` | `explore/screen.rs` |
 //! | `Lightning` | `lightning/screen.rs` |
@@ -192,6 +193,7 @@ pub mod kef_form;
 pub mod kef_tool;
 pub mod keygen;
 pub mod lightning;
+pub mod ots_check;
 pub mod paper;
 pub mod qr_tool;
 pub mod quiz;
@@ -348,6 +350,8 @@ pub enum Screen {
     KefTool,
     /// Tools' QR vault: a note or a key sealed as one QR code.
     QrTool,
+    /// Tools' Check a timestamp: an OpenTimestamps proof against a block header.
+    OtsCheck,
     /// Silent payments: a loaded key's address and scan key.
     Silent,
     /// A loaded key's public side at any path.
@@ -2426,6 +2430,7 @@ impl Faraday {
             Action::SpendBackup(f) => self.spend_backup_act(f),
             Action::Vanity(v) => self.vanity_act(v),
             Action::Convert(_) | Action::KefTool(_) | Action::QrTool(_) => self.tool_act(action),
+            Action::OtsCheck(k) => crate::ots_check::act(self, k),
             Action::Learn | Action::LearnClose | Action::How => self.learn_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
@@ -4944,19 +4949,6 @@ impl Faraday {
     /// reduce motion.
     fn caret_on(&self) -> bool {
         self.typing.caret_on(self.now_ms, self.reduce_motion())
-    }
-
-    /// Where the Guided switch's pill shows: 0 on Steps only, 1 on
-    /// Guided, between while it slides.
-    fn guided_shown(&self) -> f32 {
-        let to = if self.guided() { 1.0 } else { 0.0 };
-        match self.guided_moving {
-            Some((from, at)) => {
-                let t = motion::ease_move(motion::progress(at, self.now_ms, motion::SWITCH_MS));
-                from + (to - from) * t
-            }
-            None => to,
-        }
     }
 
     /// Takes what the step column drew: which card is open, and its
