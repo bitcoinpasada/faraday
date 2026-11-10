@@ -59,6 +59,28 @@ pub const QR_PASSPHRASE_MAX: usize = QR_LEN - 33;
 /// feed, 2: 8 + 2 = 10 beside the text.
 pub const QR_NOTE_MAX: usize = QR_LEN - 10;
 
+/// How many characters, each one a Unicode scalar value (what Backspace
+/// takes), must come off the end of `note` for its TOML text to fit
+/// [`QR_NOTE_MAX`]: 0 for a note that fits. The text is counted as
+/// [`write_qr`] writes it, with the same escapes: a quote, a backslash or
+/// a line break takes two bytes, a character outside ASCII its UTF-8
+/// length.
+pub fn qr_note_over(note: &str) -> usize {
+    let mut o = Out {
+        bytes: Zeroizing::new(Vec::with_capacity(note.len().saturating_mul(6))),
+        limit: usize::MAX,
+        full: false,
+    };
+    // The text's length after each character, from the start.
+    let mut ends: Vec<usize> = Vec::with_capacity(note.len());
+    for ch in note.chars() {
+        o.escaped(ch);
+        ends.push(o.bytes.len());
+    }
+    // The characters that stay are the most whose text fits.
+    ends.len() - ends.partition_point(|&n| n <= QR_NOTE_MAX)
+}
+
 /// Why a value was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Why {
@@ -186,25 +208,30 @@ impl Out {
     fn text(&mut self, s: &str) {
         self.raw(b"\"");
         for ch in s.chars() {
-            match ch {
-                '"' => self.s("\\\""),
-                '\\' => self.s("\\\\"),
-                '\n' => self.s("\\n"),
-                '\t' => self.s("\\t"),
-                '\r' => self.s("\\r"),
-                '\u{8}' => self.s("\\b"),
-                '\u{c}' => self.s("\\f"),
-                c if (c as u32) < 0x20 || c as u32 == 0x7f => {
-                    self.s("\\u00");
-                    self.hex(&[c as u8]);
-                }
-                c => {
-                    let mut b = [0u8; 4];
-                    self.s(c.encode_utf8(&mut b));
-                }
-            }
+            self.escaped(ch);
         }
         self.raw(b"\"");
+    }
+
+    /// One character of a basic string, as [`Out::text`] writes it.
+    fn escaped(&mut self, ch: char) {
+        match ch {
+            '"' => self.s("\\\""),
+            '\\' => self.s("\\\\"),
+            '\n' => self.s("\\n"),
+            '\t' => self.s("\\t"),
+            '\r' => self.s("\\r"),
+            '\u{8}' => self.s("\\b"),
+            '\u{c}' => self.s("\\f"),
+            c if (c as u32) < 0x20 || c as u32 == 0x7f => {
+                self.s("\\u00");
+                self.hex(&[c as u8]);
+            }
+            c => {
+                let mut b = [0u8; 4];
+                self.s(c.encode_utf8(&mut b));
+            }
+        }
     }
 
     /// The bytes written, or [`Why::TooLong`] at `key` where they did not

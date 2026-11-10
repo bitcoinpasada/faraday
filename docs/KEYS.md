@@ -54,9 +54,9 @@ Moved to `docs/history/KEYS-LOG.md`.
   shell reports change; `docs/SECURITY-MODEL.md`).
 - **Leaving.** Key material leaves only through `reveal(id, Reveal::…)`.
   It returns a guard that borrows the store and wipes its copy on drop.
-  The list of reasons is closed, fifteen `Reveal` variants
+  The list of reasons is closed, sixteen `Reveal` variants
   (`faraday/faraday-keys/src/session.rs`; owner, 2026-10-21, Q2 of §9;
-  the three before the last owner, 2026-10-26, F125; the last, F219):
+  the three before the last two, owner, 2026-10-26, F125; the last two, F219 and F226):
   the words shown; the typed passphrase shown; SeedQR; a copy-by-hand
   check; paper forms (Seed XOR, codex32, SLIP-39 shares, a master seed as hex,
   an xprv, and the work
@@ -67,7 +67,8 @@ Moved to `docs/history/KEYS-LOG.md`.
   Explore, each behind its eye, a key's master seed (`SeedShown`), an
   extended private key (`ExtendedPrivateKey`) and an address's private
   key (`AddressKey`); and a seed's entropy sealed as a Krux encrypted code
-  (`KefCode`). A new reason is a new variant, seen in review.
+  (`KefCode`); and the item a QR vault was opened to, lent to the form or
+  the eye that takes it (`QrVault`). A new reason is a new variant, seen in review.
   A reason gives only its own text: `Reveal::part` names the stored
   text a reason lends, and Explore's three lend none, so `reveal` and
   a vault record's reveal give them nothing.
@@ -273,6 +274,19 @@ impl Keys {
     `Keys::kef_matches(c, i, Reveal::KefCode, plaintext)`, a yes or a no; the
     entropy is held for the comparison and wiped, and never leaves
     `faraday-keys` (`docs/KEF.md` §15.1). Costs a parse of the words.
+  - the QR vault tool (`faraday-keys/src/qr_vault.rs`, `docs/VAULT.md`
+    §13): a key's words, a file vault's item or a typed note sealed as a
+    QR vault (`Keys::qr_seal_key`, `OpenVaults::qr_seal_item`,
+    `qr_seal_note`), the words never leaving the crate, each read back
+    under the same passphrase before the code's bytes are given; and a
+    code opened into one held item (`Keys::qr_open`), in place of any
+    held before, wiped by `Keys::qr_forget` and by `Keys::clear` (a lock).
+    The held item leaves only for `Reveal::QrVault`: `Keys::qr_words`,
+    `qr_share`, `qr_passphrase` and `qr_note` lend it, `qr_load_words`
+    and `qr_add_passphrase` load it as a key, and
+    `OpenVaults::qr_save_note` puts a note into an open vault. Every
+    seal and open of a QR vault in the app goes through this module
+    (`tools/lint-secrets.sh`).
 
   Each comes back as `Held` (an `XprivAscii`, a `WifAscii`, or
   `Zeroizing` strings, every one wiped on drop) and is made once, at the
@@ -536,7 +550,7 @@ Moved to `docs/history/KEYS-LOG.md`.
 An auditor reads faraday/faraday-keys and the primitive crates, plus
 the reveal list, and can state:
 - every byte of key material lives in one crate;
-- it leaves through these fifteen named reasons;
+- it leaves through these sixteen named reasons;
 - `just` fails if any other code touches a secret type.
 
 Before F70 that took reading 36 files of faraday-core. As built, the

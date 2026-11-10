@@ -79,9 +79,10 @@ pub const SHARE: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
 /// The fingerprint of the key BIP 93 vector 2's shares make (the master
 /// key of its secret `d1808e096b35b209ca12132b264662a5`).
 pub const SHARE_FINGERPRINT: [u8; 4] = [0xfa, 0xb6, 0x86, 0x8a];
-/// The fingerprint of the key the passphrase vector goes with: the key of
-/// the 12-word test phrase.
-pub const FINGERPRINT: [u8; 4] = [0x73, 0xc5, 0xda, 0x0a];
+/// The fingerprint of the key the passphrase vector names: the key the
+/// 12-word test phrase makes with the passphrase `TREZOR` (its master
+/// key; BIP-39's TREZOR vector seed `c55257c3...`).
+pub const FINGERPRINT: [u8; 4] = [0xb4, 0xe3, 0xf5, 0xed];
 /// The note vector's text.
 pub const NOTE_TEXT: &str = "The safe's code is in the drawer.";
 /// The passphrase vector's passphrase.

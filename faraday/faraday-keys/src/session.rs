@@ -145,6 +145,13 @@ pub enum Reveal {
     /// wiped-on-drop buffer and go straight into the code's encryption.
     /// It lends no stored text.
     KefCode,
+    /// The item a QR vault was opened to, held in the store
+    /// ([`Keys::qr_open`], `docs/VAULT.md` §13): a seed's words, a codex32
+    /// share, a passphrase or a note, lent by the named offers
+    /// ([`Keys::qr_words`], [`Keys::qr_share`], [`Keys::qr_passphrase`],
+    /// [`Keys::qr_note`]) to the form or the eye that takes it. It lends
+    /// no text of a key or a record.
+    QrVault,
 }
 
 /// Which of a key's two texts a file carries.
@@ -189,7 +196,8 @@ impl Reveal {
             Reveal::SeedShown
             | Reveal::ExtendedPrivateKey
             | Reveal::AddressKey
-            | Reveal::KefCode => return None,
+            | Reveal::KefCode
+            | Reveal::QrVault => return None,
             Reveal::Words
             | Reveal::SeedQr
             | Reveal::CopyByHand
@@ -384,6 +392,9 @@ pub struct Keys {
     /// A SLIP-39 set typed for Convert, while the tool holds it
     /// ([`Keys::slip39_set_hold`]): never one of the keys.
     pub(crate) slip39_set: Option<crate::slip39_set::HeldSet>,
+    /// The item a QR vault was opened to, while the tool holds it
+    /// ([`Keys::qr_open`]): never one of the keys, wiped at a clear.
+    pub(crate) qr_item: Option<crate::qr_vault::HeldItem>,
 }
 
 impl Default for Keys {
@@ -405,6 +416,7 @@ impl Keys {
             sweep: None,
             aezeed: None,
             slip39_set: None,
+            qr_item: None,
         }
     }
 
@@ -535,6 +547,7 @@ impl Keys {
             || self.sweep.is_some()
             || self.aezeed.is_some()
             || self.slip39_set.is_some()
+            || self.qr_item.is_some()
     }
 
     // ---- a private key swept (F171, `crate::sweep`) ----
@@ -939,6 +952,7 @@ impl Keys {
         self.sweep = None;
         self.aezeed = None;
         self.slip39_set = None;
+        self.qr_item = None;
     }
 
     /// Sets key `i`'s label.

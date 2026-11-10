@@ -87,7 +87,7 @@ PUBLISHED = [
     ("qr-seed-12.pgp", PHRASE, {"kind": "words", "text": TWELVE}),
     ("qr-seed-24.pgp", PHRASE, {"kind": "words", "text": TWENTY_FOUR}),
     ("qr-codex32.pgp", PHRASE, {"kind": "codex32", "text": SHARE, "for": "fab6868a"}),
-    ("qr-passphrase.pgp", PHRASE, {"kind": "passphrase", "text": "TREZOR", "for": "73c5da0a"}),
+    ("qr-passphrase.pgp", PHRASE, {"kind": "passphrase", "text": "TREZOR", "for": "b4e3f5ed"}),
     ("qr-note.pgp", PHRASE, {"kind": "note", "text": "The safe's code is in the drawer."}),
     ("qr-empty.pgp", PHRASE, {"kind": "note", "text": ""}),
     ("qr-nfd.pgp", "café", {"kind": "note", "text": "café"}),
