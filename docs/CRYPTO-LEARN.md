@@ -1053,7 +1053,7 @@ The page reads only what §11 lists; the hash rule above holds it.
 
 ## 12. The actions found in the code
 
-The manifest's 106 actions, each from its entry in `docs/crypto/actions.toml`
+The manifest's 107 actions, each from its entry in `docs/crypto/actions.toml`
 as the review of the generated text left them (2026-10-28): what it does, its roots (the functions
 the entry names, by module), the `Screen` variants that offer it, and
 its Learn page. The inventory finds 861 cryptographic functions under
@@ -1165,6 +1165,7 @@ page lists.
 | sign-schnorr | Signs a taproot input with BIP 340, by the key path or under a tap leaf's hash. | `faraday_psbt::sign`: `sign_taproot`, `sign_tap_leaf` | Spend, Family | nonces |
 | sign-musig | Signs as one MuSig2 participant: draws a nonce, signs with it or signs last, and aggregates the partial signatures. | `faraday_psbt::sign`: `sign_musig`; `faraday_bip::musig`: `nonce_gen`, `sign`, `partial_sig_verify`, `partial_sig_agg`, `deterministic_sign`, `nonce_agg`, `PubNonce::from_bytes`, `AggNonce::from_bytes`; `faraday_psbt::musig`: `MusigSession::new`, `write_input_participants` | Spend | nonces |
 | sign-check | Checks every signature a PSBT carries, finds a nonce used twice, recomputes this device's signatures and compares two PSBTs. | `faraday_psbt::verify`: `compare`, `deterministic`, `ecdsa_mode`, `schnorr_mode`, `verify_signatures`, `repeated_nonces`; `faraday_keys::psbt`: `recompute_signatures`, `key_refs`; `faraday_keys::session`: `Keys::key_refs`, `Keys::recompute_signatures` | Spend | nonces |
+| fee-bump | Compares two PSBTs side by side and says whether a replacement only raises the fee of an original: the same inputs, the same payments, a higher fee. | `faraday_psbt::bump`: `fee_of`, `fill_amounts`, `judge`, `locks`, `shared_input_lines`; `faraday_core::compare`: `CompareState::id_of`, `counting`, `make`, `shares`, `compare_facts`; `faraday_core::decode`: `Faraday::compare_sync` | Compare, Spend, Files, Decode | tools |
 | finalize | Builds the final scriptSig and witness from the partial signatures and extracts the transaction. | `faraday_psbt::finalize`: `finalize`; `faraday_core::wallet`: `Spend::finished_hex` | Spend, Family | verifying |
 | message-sign | Signs a message with the key at a path, in BIP 137's compact form or as BIP 322 simple. | `faraday_psbt::message`: `sign`, `signed_text`, `virtual_txids`; `faraday_keys::message`: `sign`; `faraday_keys::session`: `Keys::sign_message`; `faraday_core::wallet`: `Session::sign_message` | Message | message |
 | message-verify | Checks a signed message against an address, as BIP 137 or BIP 322 simple. | `faraday_psbt::message`: `verify`; `faraday_core::wallet`: `Session::check_message` | CheckMessage | message |

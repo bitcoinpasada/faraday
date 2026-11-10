@@ -114,6 +114,12 @@ status = "Deployed"
 checked = "2026-10-23"
 source = "bips master"
 
+[standard."BIP 125"]
+name = "Opt-in Full Replace-by-Fee Signaling"
+status = "Deployed"
+checked = "2026-11-10"
+source = "bips master"
+
 [standard."BIP 174"]
 name = "Partially Signed Bitcoin Transaction Format"
 status = "Deployed"
@@ -475,7 +481,6 @@ section = 4
 what = "Compare two PSBTs and the fee bump (`docs/COMPARE.md`)"
 completeness = "Faraday's own rules for whether a replacement only raises the fee of an original, checked against what Bitcoin Core's `psbtbumpfee` makes (`tools/vectors/psbt/bump-core-*`); BIP-125's relay rules are stated or left to the node, not checked (`docs/COMPARE.md` §3.5)"
 standard_note = "Faraday's review rules"
-own = "Fails closed: a case it does not know is Cannot tell. Neutral; F233."
 
 [[row]]
 id = "anti-exfil"
@@ -4844,6 +4849,7 @@ screens = [
   "Spend",
   "Files",
   "Decode",
+  "Compare",
   "Family",
 ]
 functions = [
@@ -5588,7 +5594,7 @@ standards = [
   "BIP 373",
 ]
 learn = "nonces"
-screens = ["Spend", "NonceCheck", "SignerCheck", "Decode"]
+screens = ["Spend", "NonceCheck", "SignerCheck", "Decode", "Compare"]
 functions = [
   "core/faraday-psbt/src/verify.rs::compare",
   "core/faraday-psbt/src/verify.rs::count_signatures",
@@ -5697,6 +5703,66 @@ decision = "no decision"
 fingerprint = "d23e2d01998c19a832b81d1bac3fe1d10396686ee9f49757f22bf7631740e8ab"
 reviewed = "2026-11-05"
 places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
+
+[[action]]
+id = "fee-bump"
+name = "Compare PSBTs and the fee bump"
+action = "Compares two PSBTs side by side and says whether a replacement only raises the fee of an original: the same inputs, the same payments, a higher fee."
+row = "fee-bump"
+standards = ["BIP 174", "BIP 125"]
+learn = "tools"
+screens = ["Compare", "Spend", "Files", "Decode"]
+functions = [
+  "core/faraday-psbt/src/bump.rs::fee_of",
+  "core/faraday-psbt/src/bump.rs::fill_amounts",
+  "core/faraday-psbt/src/bump.rs::judge",
+  "core/faraday-psbt/src/bump.rs::locks",
+  "core/faraday-psbt/src/bump.rs::shared_input_lines",
+  "faraday/faraday-core/src/compare/mod.rs::CompareState::id_of",
+  "faraday/faraday-core/src/compare/others.rs::counting",
+  "faraday/faraday-core/src/compare/others.rs::make",
+  "faraday/faraday-core/src/compare/others.rs::shares",
+  "faraday/faraday-core/src/compare/words.rs::compare_facts",
+  "faraday/faraday-core/src/decode/mod.rs::Faraday::compare_sync",
+]
+code = ["core/faraday-psbt/src/bump.rs::judge", "core/faraday-psbt/src/bump.rs::fee_of"]
+
+[action.implementation]
+crate = "core/faraday-psbt"
+libraries = ["bitcoin"]
+adds = "Two PSBTs are read and set side by side; the fee of each is worked out from the amounts of its inputs and outputs, and a replacement is judged to only raise the fee when it spends the same inputs, pays the same outputs and its lock times and sequences allow it; any other case is Cannot tell."
+
+[action.checked]
+vectors = ["psbt"]
+tests = [
+  "core/faraday-psbt/tests/all/bump.rs::only_the_fee_is_raised",
+  "core/faraday-psbt/tests/all/bump.rs::pay_less_and_pay_more",
+  "core/faraday-psbt/tests/all/bump.rs::other_script_and_payment_added",
+  "core/faraday-psbt/tests/all/bump.rs::inputs_added_dropped_foreign",
+  "core/faraday-psbt/tests/all/diff.rs::the_same_transaction_has_no_differences",
+  "core/faraday-psbt/tests/all/diff.rs::inputs_by_outpoint",
+  "faraday/faraday-core/tests/all/compare.rs::the_tile_opens_the_flow",
+  "faraday/faraday-core/tests/all/compare.rs::swap_makes_the_comparison_again",
+  "faraday/faraday-core/tests/all/fee_bump_review.rs::the_core_replacement_says_only_the_fee_is_raised_from_the_original",
+]
+not_crosschecked = "No cross-check area runs it: the expected results are Bitcoin Core's psbtbumpfee pair (tools/vectors/psbt, bump-core-*), in the tests."
+fuzz_none = "No target runs the comparison; psbt_parse fuzzes the PSBTs it reads."
+
+[action.secrets]
+reveal = "none"
+constant_time = "Public transaction data only; no secret is used."
+wiped = "No secret is held."
+
+[action.limits]
+lines = [
+  "BIP 125's relay rules are stated or left to the node, not checked.",
+  "A case the rules do not know is Cannot tell, not a yes.",
+]
+
+[[action.own]]
+text = "Whether a replacement only raises the fee is Faraday's own rule; fails closed, a case it does not know is Cannot tell."
+kind = "Neutral"
+decision = "F233"
 
 [[action]]
 id = "finalize"
@@ -5899,6 +5965,7 @@ standards = ["BIP 141", "BIP 144"]
 learn = "verifying"
 screens = [
   "Decode",
+  "Compare",
   "Silent",
 ]
 functions = [
@@ -6413,7 +6480,7 @@ functions = [
   "faraday/faraday-core/src/file_menu.rs::sha256",
   "faraday/faraday-core/src/gpg.rs::sha256",
   "faraday/faraday-core/src/gpg.rs::sha256_hex",
-  "faraday/faraday-core/src/lib.rs::Item::hash",
+  "faraday/faraday-core/src/item.rs::Item::hash",
   "faraday/faraday-core/src/vault/mod.rs::Faraday::vault_copies",
   "faraday/faraday-core/src/vault/seals.rs::Vaults::seals_sealed",
   "faraday/faraday-files/src/lib.rs::copies_on",
