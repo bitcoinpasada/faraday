@@ -137,7 +137,7 @@ fn a_stick_visit_copies_in_files_of_no_kind_faraday_knows() {
 
 /// The app with the test vault unlocked on its GPG keys, after the stick
 /// visit.
-fn unlocked() -> Faraday {
+pub(crate) fn unlocked() -> Faraday {
     let mut app = copied_in();
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
@@ -158,7 +158,7 @@ fn unlocked() -> Faraday {
 
 /// Settings' Set the time, then Keep this time: the clock checked, as a
 /// person on the stick does before making or signing.
-fn keep_the_time(app: &mut Faraday) {
+pub(crate) fn keep_the_time(app: &mut Faraday) {
     app.press(Action::OpenSetTime);
     app.press(Action::SetTimeKeep);
 }
@@ -166,7 +166,7 @@ fn keep_the_time(app: &mut Faraday) {
 /// A GPG key made in the open vault by the flow's Make (the flow itself is
 /// tested in `backup_flow.rs`), and released as a key unlocked from a
 /// stick is: it signs at once.
-fn make_key(app: &mut Faraday, name: &str) {
+pub(crate) fn make_key(app: &mut Faraday, name: &str) {
     crate::common::make_released(app, Kind::Gpg, &[name, ""]);
 }
 
@@ -190,7 +190,7 @@ fn record(app: &Faraday) -> faraday_vault::Record {
         .clone()
 }
 
-fn key_of(app: &Faraday) -> faraday_pgp::Key {
+pub(crate) fn key_of(app: &Faraday) -> faraday_pgp::Key {
     crate::common::gpg_key_of(&record(app)).expect("a readable key")
 }
 

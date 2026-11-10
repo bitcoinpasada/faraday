@@ -340,11 +340,13 @@ fn new_keys_this_device_makes_no_words_on_what_was_added_alone() {
     assert!(app.keygen().unwrap().mnemonic.is_some());
 }
 
-/// New key's This device with the dice added: SHA-256("faraday device
-/// own" ‖ SEED ‖ acc1), the bytes the shell answered with the person's
-/// accumulator hashed in (§2.3).
-fn device_dice() -> String {
-    known(&["cases", "dice", "device_own"])
+/// The 12 words This device makes in a case of the known answers
+/// (`presses.py`, from BIP-39's definition): the indices the file gives.
+fn known_words(case: &str) -> Vec<u16> {
+    known(&["presses", case, "device_words"])
+        .split(' ')
+        .map(|n| n.parse().expect("an index"))
+        .collect()
 }
 
 /// New key on This device at 12 words, answered with SEED: its words.
@@ -365,7 +367,7 @@ fn device_words(app: &mut Faraday) -> Vec<u16> {
 }
 
 /// The 12 words This device makes of `bytes`: SHA-256 of them, its first
-/// 16 bytes.
+/// 16 bytes (used only to tell two sets of words apart).
 fn words_of(bytes: [u8; 32]) -> Vec<u16> {
     use faraday_bip::bip39::{Language, Mnemonic};
     use faraday_bip::bitcoin::hashes::{Hash, sha256};
@@ -376,18 +378,14 @@ fn words_of(bytes: [u8; 32]) -> Vec<u16> {
         .to_vec()
 }
 
-fn unhex(s: &str) -> [u8; 32] {
-    let mut out = [0u8; 32];
-    for (i, b) in out.iter_mut().enumerate() {
-        *b = u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap();
-    }
-    out
-}
-
 #[test]
 fn new_keys_this_device_mixes_in_what_was_added_and_says_so() {
     let mut plain = crate::keygen::opened();
-    assert_eq!(device_words(&mut plain), words_of(SEED), "nothing added");
+    assert_eq!(
+        device_words(&mut plain),
+        known_words("nothing added"),
+        "nothing added"
+    );
     assert!(
         !plain
             .drawn_texts()
@@ -400,7 +398,7 @@ fn new_keys_this_device_mixes_in_what_was_added_and_says_so() {
     add_dice(&mut mixed);
     assert_eq!(
         device_words(&mut mixed),
-        words_of(unhex(&device_dice())),
+        known_words("dice"),
         "the dice mixed in as §2.3 defines"
     );
     mixed.press(Action::KStep(faraday_core::keygen::kstep::ENTER));
@@ -759,7 +757,7 @@ fn new_keys_generator_offers_the_sources_on_its_card_and_takes_its_bytes_again_m
         .unwrap()
         .indices()
         .to_vec();
-    assert_eq!(words, words_of(unhex(&device_dice())));
+    assert_eq!(words, known_words("dice"));
 }
 
 #[test]
@@ -804,7 +802,11 @@ fn new_keys_generator_skip_moves_on_with_nothing_added() {
     assert_eq!(k.open, Some(faraday_core::keygen::kstep::KEY), "on to Key");
     assert!(!k.with_own && !app.own_counts().any(), "nothing added");
     let words = k.mnemonic.as_ref().unwrap().indices().to_vec();
-    assert_eq!(words, words_of(SEED), "the system's bytes alone");
+    assert_eq!(
+        words,
+        known_words("nothing added"),
+        "the system's bytes alone"
+    );
 }
 
 // ----- Pointer and keys (§2.1; test 6) -----
@@ -1326,4 +1328,98 @@ fn a_key_from_coins_alone_has_no_randomness_row() {
     let _ = app.frame();
     assert_eq!(app.screen, Screen::KeyGen);
     assert!(!app.offers(own(Act::Open)));
+}
+
+#[test]
+fn a_split_wallets_files_list_adds_signatures_and_offers_no_randomness_row() {
+    let mut app = musig_device(true);
+    app.event(Event::Display(tall()));
+    app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let copies: Vec<usize> = app
+        .inbox()
+        .iter()
+        .enumerate()
+        .filter(|(_, i)| i.name.starts_with("musig-nonce-"))
+        .map(|(i, _)| i)
+        .collect();
+    assert!(!copies.is_empty());
+    assert!(
+        copies.iter().any(|k| app.offers(Action::Collect(*k))),
+        "Add to signatures is offered on a file of the spend"
+    );
+    assert!(!app.offers(own(Act::Open)));
+}
+
+/// The press `known` names, made with the system's answers it gives and,
+/// for "dice", the rolls 1 to 6 added first.
+fn press_case(case: &str, app: &mut Faraday) {
+    if case == "dice" {
+        add_dice(app);
+    }
+}
+
+fn answers_of(case: &str, key: &[&str]) -> Vec<[u8; 32]> {
+    let mut path = vec!["presses", case, "answers"];
+    path.extend_from_slice(key);
+    let v: serde_json::Value = serde_json::from_str(VECTORS).expect("the vectors are JSON");
+    let at = path.iter().fold(&v, |at, k| &at[*k]);
+    let hex = |s: &str| {
+        let mut out = [0u8; 32];
+        for (i, b) in out.iter_mut().enumerate() {
+            *b = u8::from_str_radix(&s[2 * i..2 * i + 2], 16).expect("hex");
+        }
+        out
+    };
+    match at.as_array() {
+        Some(list) => list.iter().map(|s| hex(s.as_str().unwrap())).collect(),
+        None => vec![hex(at.as_str().expect("an answer"))],
+    }
+}
+
+#[test]
+fn a_gpg_key_made_takes_the_seeds_the_python_cross_check_computes() {
+    for case in ["nothing added", "dice"] {
+        let mut app = crate::gpg::unlocked();
+        crate::gpg::keep_the_time(&mut app);
+        press_case(case, &mut app);
+        for a in answers_of(case, &["gpg"]) {
+            answer(&mut app, a);
+        }
+        crate::gpg::make_key(&mut app, "Release");
+        let key = crate::gpg::key_of(&app);
+        assert_eq!(
+            hex(key.primary_seed),
+            known(&["presses", case, "gpg_primary_seed"]),
+            "{case}"
+        );
+        assert_eq!(
+            hex(key.subkey_seed),
+            known(&["presses", case, "gpg_subkey_seed"]),
+            "{case}"
+        );
+    }
+}
+
+#[test]
+fn a_seed_xor_split_is_the_parts_the_python_cross_check_computes() {
+    use faraday_core::paper::PaperForm;
+    for case in ["nothing added", "dice"] {
+        let mut app = crate::paper::backing_up();
+        press_case(case, &mut app);
+        for a in answers_of(case, &["seed_xor"]) {
+            answer(&mut app, a);
+        }
+        app.press(Action::BXor(2));
+        let Some(PaperForm::Xor(parts)) = &app.backup().unwrap().paper else {
+            panic!("no split");
+        };
+        let parts: Vec<String> = parts.iter().map(|p| p.to_string()).collect();
+        let want = [
+            known(&["presses", case, "seed_xor_2", "0"]),
+            known(&["presses", case, "seed_xor_2", "1"]),
+        ];
+        assert_eq!(parts, want, "{case}");
+    }
 }

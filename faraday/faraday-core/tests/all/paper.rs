@@ -15,7 +15,7 @@ fn typed(app: &mut Faraday, text: &str) {
 
 /// Test key 1 and the Spending wallet over it, with the system's
 /// randomness answered.
-fn backing_up() -> Faraday {
+pub(crate) fn backing_up() -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.event(Event::Display(DisplayInfo {
         width: 1366,

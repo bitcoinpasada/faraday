@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (`faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (`faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (`core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
-**Open:** a split wallet's Files list, whose per-file Add signatures has no Randomness row yet (§8.1 row 14, planned); §3.5's late seed and the Pi's generator (F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Open:** §8.5 test 3's known answer for a MuSig2 public nonce (the GPG key, Seed XOR and This device's words have theirs); §3.5's late seed and the Pi's generator (F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and
@@ -646,7 +646,8 @@ before the press:
   added up to then is in its bytes, and the status line on the step says
   so as it changes.
 - **Only where it draws.** Row 13's row shows only while the spend opens
-  a MuSig2 round, and row 14's only while one is being aggregated. Row
+  a MuSig2 round. A split wallet's Files list, whose per-file Add
+  signatures is row 14, draws nothing and has no row. Row
   3's row sits on the codex32 identifier's step. Row 15's sits on the Lock
   sheet only when the lock will seal a changed vault, and on the open
   vault's screen while it holds changes not yet sealed. Row 4 has none.
@@ -687,7 +688,7 @@ before the press:
   `faraday/faraday-core/src/backup_flow/screen.rs` (rows 7, 8),
   `faraday/faraday-core/src/screens/backup.rs` (row 11),
   `faraday/faraday-core/src/codex32_backup/screen.rs` (row 12),
-  `faraday/faraday-core/src/screens/spend.rs` (rows 13, 14).
+  `faraday/faraday-core/src/screens/spend.rs` (row 13).
 - `faraday/faraday-core/src/fresh.rs`: `own_act(Open)` from any of them
   puts the step on the trail as Settings' row does. `own_on_show` is
   unchanged: the page alone takes input.
@@ -713,7 +714,7 @@ before the press:
 
 In `faraday/faraday-core/tests/all/own_randomness.rs`, user-facing:
 
-1. **Reachable from each press.** For each of rows 1 to 14, on its step
+1. **Reachable from each press.** For each of rows 1 to 13, on its step
    the drawn targets (`Faraday::drawn_targets`) include Add randomness's
    open, and on the Pi's panel its ⋮ row does. Pressing it shows Add
    randomness with no source chosen and no `CameraOn` sent. Back shows
@@ -733,6 +734,8 @@ In `faraday/faraday-core/tests/all/own_randomness.rs`, user-facing:
    gives the bytes it gives today (§4 test 4, extended to the presses).
 5. **Only where it draws.** A spend with no MuSig2 input has no
    Randomness row on its Sign step. A Dice, Coins or Cards key has none.
+   A split wallet's Files list, with Add signatures on a file of the open
+   spend, has none (row 14).
 
 ### 8.6 Questions for the owner
 

@@ -95,3 +95,14 @@ tests pinned them. The cross-check's `own` area
 (`tools/crosscheck/area_own.py`) compares Faraday's Rust with a second
 implementation of the same text written by Faraday's own authors over
 random cases; it is not checked against an outside source.
+
+## Whole presses
+
+`presses` holds what three presses make, for no batch and for the dice,
+with the system's answers they are given (`answers`): a GPG key's two
+seeds (`gpg_primary_seed` from the answer sent last, `gpg_subkey_seed`
+from the one before), the two parts of Seed XOR with 2 parts over test
+key 1 ("bacon" 24 times) from the answer in `seed_xor`, and This device's
+12 words as BIP-39 indices (`device_words`). `presses.py` computes them
+from the definitions above and BIP-39's, with Python's standard library
+and the vendored BIP-39 word list; run it to print the key again.
