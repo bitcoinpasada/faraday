@@ -799,6 +799,21 @@ fn a_cache_record_that_is_not_the_shape_core_writes_fails_its_record() {
 }
 
 #[test]
+fn a_private_key_record_of_a_descriptor_the_file_does_not_hold_fails_its_record() {
+    let stray = read_with("plain", None, |records| {
+        let mut again = records
+            .iter()
+            .find(|(k, _)| k.get(1..20) == Some(b"walletdescriptorkey".as_slice()))
+            .expect("a key record")
+            .clone();
+        again.0[21] ^= 1;
+        records.push(again);
+    });
+    assert!(failed(&stray, "walletdescriptorkey", Fault::NotHeld));
+    assert!(!stray.is_whole());
+}
+
+#[test]
 fn a_descriptor_that_is_not_ranged_has_no_range() {
     let wallet = load("uncompressed", None);
     let single = wallet

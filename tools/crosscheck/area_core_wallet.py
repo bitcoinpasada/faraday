@@ -75,6 +75,15 @@ KNOWN = {
                                                    "descriptor lacks its master key's record; "
                                                    "Faraday has no key to check the cached "
                                                    "account key with and does not call it whole",
+    ("walletdescriptorkey", "NotHeld"): "Core loads a file with a private key record whose "
+                                        "descriptor id no descriptor record has (a descriptor "
+                                        "record gone) and leaves the key unused; Faraday does "
+                                        "not call whole a file holding a key it cannot tie to "
+                                        "a descriptor to check it against",
+    ("walletdescriptorlhcache", "NotHeld"): "Core loads a file with a cached account key whose "
+                                            "descriptor id no descriptor record has and leaves "
+                                            "it unused; Faraday refuses a record naming a "
+                                            "descriptor the file does not hold",
     ("walletdescriptorlhcache", "Layout"): "Core loads a cache record whose public key does not "
                                            "start with 02 or 03, taking the key as invalid; "
                                            "Faraday refuses a record that is not the 74-byte "
@@ -493,6 +502,12 @@ class CoreWallet(Area):
             raw[at] ^= 1
             return bytes(raw)
 
+        def stray(key):
+            # The id follows the record's name: one length byte, then the name.
+            at = 1 + key[0]
+            con.execute("INSERT INTO main (key, value) VALUES (?, ?)",
+                        (flipped(key, at), value(key)))
+
         original = con.serialize()
         flags = keys("flags")[0]
         cache = keys("walletdescriptorlhcache")[0]
@@ -512,6 +527,11 @@ class CoreWallet(Area):
             (("walletdescriptorlhcache", "CacheUnchecked"), lambda: [
                 con.execute("DELETE FROM main WHERE key = ?", (k,))
                 for k in keys("walletdescriptorkey")]),
+            # A copy of the key's and the cache's records under an id no
+            # descriptor has (the descriptor's own record gone, as with a
+            # descriptor that is not active).
+            (("walletdescriptorkey", "NotHeld"), lambda: stray(keys("walletdescriptorkey")[0])),
+            (("walletdescriptorlhcache", "NotHeld"), lambda: stray(cache)),
         ]
         blank = self.make("blank", "k-known-blank", mine=False)["file"]
         cases.append((("file", "NotDescriptors"), lambda: (
