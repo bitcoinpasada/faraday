@@ -115,7 +115,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
             .collect(),
         vaults: Vec::new(),
     }]));
-    assert_eq!(app.screen, Screen::Visit);
+    assert_eq!(app.screen, Screen::Files);
     // Every file comes in ticked.
     app.press(Action::VisitCopy);
     // The shell answers each read.
@@ -130,10 +130,12 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
         "{:?}",
         app.visit().log
     );
-    // F4: the stick out, Home. The unsigned PSBT also copied in leads
-    // Home (`docs/history/SIMPLIFY.md` §1.2 rule 2); the vault opens from Vaults.
+    // F4: the stick out leaves Files where it is; on Home the unsigned PSBT
+    // also copied in leads (`docs/history/SIMPLIFY.md` §1.2 rule 2); the
+    // vault opens from Vaults.
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert_eq!(app.screen, Screen::Home);
+    assert_eq!(app.screen, Screen::Files);
+    app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
     assert!(
         app.offers(Action::Nav(Screen::Vaults)),
@@ -380,7 +382,7 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
             .collect()
     };
     app.storage(StorageEvent::Sticks(vec![stick("FIRST")]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     assert_eq!(ticked(&app), vec!["vault.kdbx".to_string()]);
     app.press(Action::VisitWrite);
     while let Some(c) = app.poll_storage() {
@@ -397,7 +399,7 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
     assert!(r.wrote("vault.kdbx") && !r.wrote("vault-2.kdbx"));
     app.storage(StorageEvent::Sticks(Vec::new()));
     app.storage(StorageEvent::Sticks(vec![stick("SECOND")]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     assert_eq!(ticked(&app), vec!["vault-2.kdbx".to_string()]);
 }
 

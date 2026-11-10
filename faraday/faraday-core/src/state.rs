@@ -786,6 +786,9 @@ impl MessageArea {
 pub struct VisitState {
     /// The stick shown, by index.
     pub stick: usize,
+    /// On a small window, whether Files' tab On the stick is the one
+    /// shown (else In Faraday).
+    pub tab_stick: bool,
     /// Outbox files chosen to write, by name.
     pub out: BTreeSet<String>,
     /// Stick files chosen to copy, by name.

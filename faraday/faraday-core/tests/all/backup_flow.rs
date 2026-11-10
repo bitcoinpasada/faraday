@@ -511,7 +511,7 @@ fn the_stick_visit_never_shows_and_no_lock_or_write_out_sheet_comes_up() {
     // A stick comes and goes at every step: the screen stays the flow's.
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     assert!(
-        shell.screens.iter().all(|s| *s != Screen::Visit),
+        shell.screens.iter().all(|s| *s != Screen::Files),
         "{:?}",
         shell.screens
     );
@@ -934,7 +934,7 @@ fn a_flow_left_hands_a_stick_to_the_visit_with_its_files_in_the_backup() {
     let mut app = gpg_locked(&mut shell);
     app.press(Action::Flow(F::Back));
     shell.plug(&mut app, "S1");
-    assert_eq!(app.screen, Screen::Visit);
+    assert_eq!(app.screen, Screen::Files);
     let sealed = app.backup_flows()[0].sealing[0].name.clone();
     assert!(app.in_the_backup(&sealed));
     expect(&mut app, "In the backup");
@@ -998,7 +998,7 @@ fn adding_a_new_vault_on_an_empty_stick_after_the_key_is_made_asks_for_no_lock()
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S3");
     assert_eq!(step(&app), Step::Done);
-    assert!(shell.screens.iter().all(|s| *s != Screen::Visit));
+    assert!(shell.screens.iter().all(|s| *s != Screen::Files));
 }
 
 #[test]
@@ -1063,7 +1063,7 @@ fn adding_a_stick_with_an_existing_vault_runs_the_extra_round_inside_the_flow() 
         &[("S1", false), ("S2", true), ("S3", false)],
     );
     assert_eq!(step(&app), Step::Done);
-    assert!(shell.screens.iter().all(|s| *s != Screen::Visit));
+    assert!(shell.screens.iter().all(|s| *s != Screen::Files));
 }
 
 #[test]
@@ -2445,7 +2445,7 @@ fn an_ordinary_visit_after_done_does_not_write_the_flows_vault_over_another_copy
     }
     shell.plug(&mut app, "T");
     shell.writes.clear();
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let k = app
         .inbox()
         .iter()
@@ -2509,7 +2509,7 @@ fn stopping_a_whole_wipe_after_the_partition_was_emptied_reopens_the_copies() {
     write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
     app.press(Action::Flow(F::Back));
     shell.plug(&mut app, "S1");
-    shell.press(&mut app, Action::Nav(Screen::Visit));
+    shell.press(&mut app, Action::Nav(Screen::Files));
     shell.press(&mut app, Action::DeleteFiles);
     app.press(Action::DeleteWhat(2));
     app.press(Action::DeletePasses(1));
@@ -2565,7 +2565,7 @@ fn the_enrolment_files_of_a_waiting_secure_boot_key_are_in_the_backup_not_tickab
     // The flow is left before the last write; an ordinary visit follows.
     app.press(Action::Flow(F::Back));
     shell.plug(&mut app, "S2");
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     for n in &names {
         assert!(app.in_the_backup(n), "{n}");
         assert!(!app.visit().out.contains(n), "{n} is not ticked");
@@ -2634,7 +2634,7 @@ fn a_whole_wipe_that_fails_or_is_cut_off_before_its_first_answer_reopens_the_cop
         write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
         app.press(Action::Flow(F::Back));
         shell.plug(&mut app, "S1");
-        shell.press(&mut app, Action::Nav(Screen::Visit));
+        shell.press(&mut app, Action::Nav(Screen::Files));
         shell.press(&mut app, Action::DeleteFiles);
         app.press(Action::DeleteWhat(2));
         app.press(Action::DeletePasses(1));

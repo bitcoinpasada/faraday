@@ -54,7 +54,7 @@ The wallet's description, where it is:
 | "From new-wallet-1-descriptor.txt" | a description in Files: reads it |
 | **Scan descriptor** | the camera |
 | **Shares of a split backup** | shares of a description in Files, each a row to press; "2 of 3 keys in hand · …", then **Rebuild the wallet** once they are enough |
-| the stick | **Copy files in** opens the [stick visit](stick-visit.md), and the card comes back. Grey with "Insert the stick", or **Not while a key is loaded** |
+| the stick | **Copy files in** opens [Files on the stick](files.md#the-stick-in-files), and the card comes back. Grey with "Insert the stick", or **Not while a key is loaded** |
 | **Vault** | "Unlock vault.kdbx" for a vault locked in Files; each wallet an open vault holds, "New wallet 1 · Vault 1", which loads it; "Copy the vault in from its stick" while there is neither |
 | **I have the seed** | for a single key: no description; the wallet is made from the seed alone |
 | **I do not have it** | for several keys: the wallet is made from every key, seed or xpub |

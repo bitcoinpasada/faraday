@@ -322,7 +322,7 @@ impl Faraday {
                     CATEGORIES[self.vaults.category.min(CATEGORIES.len() - 1)].0,
                     |t| t.name,
                 ),
-            _ => crate::compact::screen_name(s, self.medium),
+            _ => crate::compact::screen_name(s),
         }
     }
 
@@ -1247,7 +1247,7 @@ impl Faraday {
             self.screen,
             Screen::CreateVault
                 | Screen::Unlock
-                | Screen::Visit
+                | Screen::Files
                 | Screen::SpendBackup
                 | Screen::BackupFlow
         ) || matches!(self.sheet, Some(Sheet::FileMenu | Sheet::VaultMemory));

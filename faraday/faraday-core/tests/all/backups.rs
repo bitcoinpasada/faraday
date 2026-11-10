@@ -228,7 +228,7 @@ fn after_the_vault_is_written_the_vault_line_names_the_stick() {
         files: Vec::new(),
         vaults: Vec::new(),
     }]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     answer_writes(&mut app);
     app.storage(StorageEvent::Sticks(Vec::new()));

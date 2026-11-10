@@ -710,7 +710,7 @@ impl Faraday {
                 }
                 true
             }
-            None if matches!(self.screen, Screen::Files | Screen::Visit) => {
+            None if matches!(self.screen, Screen::Files) => {
                 let mut dots: Vec<Row> = Vec::new();
                 for (_, a) in self.pointer.hits() {
                     if let Action::File(FilePress::Menu(r)) = a

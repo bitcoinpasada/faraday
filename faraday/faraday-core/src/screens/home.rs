@@ -217,6 +217,22 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             ),
         ));
     }
+    // A stick waiting unvisited: Files on it (F235).
+    if app.stick.waits()
+        && !app.holds_secret()
+        && let Some(st) = app.stick.get(app.visit.stick)
+    {
+        v.push((
+            None,
+            (
+                app.medium.icon(),
+                fill(EN.home_job_files_on, &[&st.label]),
+                EN.home_ways_a_stick_attached.to_string(),
+                Action::Nav(Screen::Files),
+                true,
+            ),
+        ));
+    }
     v
 }
 
@@ -267,14 +283,6 @@ pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)
             )
         },
     ];
-    if !app.stick.is_empty() && !app.holds_secret() {
-        t.push((
-            app.medium.icon(),
-            app.medium.visit(),
-            EN.home_ways_a_stick_attached.to_string(),
-            Action::Nav(Screen::Visit),
-        ));
-    }
     let (known, without) = app.backup_counts();
     if known > 0 {
         t.push((

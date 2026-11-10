@@ -32,7 +32,7 @@ fn detach(app: &mut Faraday) {
 fn a_words_file_copied_in_offers_to_load_the_key_it_spells() {
     let mut app = faraday_core::testkit::started();
     attach(&mut app);
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitIn(0));
     app.press(Action::VisitCopy);
     app.storage(StorageEvent::Read {
@@ -59,7 +59,7 @@ fn a_words_file_copied_in_offers_to_load_the_key_it_spells() {
 fn import_and_load_loads_the_key_once_the_stick_is_pulled() {
     let mut app = faraday_core::testkit::started();
     attach(&mut app);
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitIn(0));
     app.press(Action::VisitCopyAndLoad);
     assert!(app.visit().load_after.contains(FILE));
@@ -103,7 +103,7 @@ fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
         files: vec![(name.clone(), bytes.len() as u64)],
         vaults: Vec::new(),
     }]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitIn(0));
     app.press(Action::VisitCopyAndLoad);
     app.storage(StorageEvent::Read {
@@ -159,7 +159,7 @@ fn seedqr_digits() -> Vec<u8> {
 fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
     let mut app = faraday_core::testkit::started();
     attach(&mut app);
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.storage(StorageEvent::QrRead {
         name: "key-1-seedqr.png".to_string(),
         bytes: b"a picture".to_vec(),
@@ -204,7 +204,7 @@ fn import_and_load_under_a_held_name_loads_only_the_copy_from_the_stick() {
         kept: Vec::new(),
     });
     attach(&mut app);
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitIn(0));
     app.press(Action::VisitCopyAndLoad);
     app.storage(StorageEvent::Read {

@@ -914,10 +914,10 @@ mod signing {
             testkit::hold_worker();
             go(&mut app);
             app.storage(a_stick());
-            assert_eq!(app.screen, Screen::Visit);
+            assert_eq!(app.screen, Screen::Files);
             testkit::release_worker();
             testkit::settle(&mut app);
-            assert_eq!(app.screen, Screen::Visit, "the answer left the visit");
+            assert_eq!(app.screen, Screen::Files, "the answer left the visit");
             assert!(app.spend().is_none(), "a spend opened behind the person");
         }
 

@@ -254,7 +254,7 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
         files: Vec::new(),
         vaults: Vec::new(),
     }]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.storage(StorageEvent::QrRead {
         name: name.to_string(),
         bytes: png.to_vec(),

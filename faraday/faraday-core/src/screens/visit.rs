@@ -1,4 +1,6 @@
-//! `Screen::Visit`: a stick visit.
+//! The stick pane of `Screen::Files` (F235): the stick's files beside Files'
+//! own lists from expanded windows up, and below that Material's primary
+//! tabs In Faraday and On the stick.
 
 use super::parts::{guide_text_learn, kind_line, pull_line, size_text};
 use crate::drawing::View;
@@ -8,8 +10,11 @@ use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::FileKind;
-use crate::{Action, Faraday, Screen};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
+use crate::{Action, Faraday};
+use faraday_draw::tokens::{
+    BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, GAP_SMALL, GRID, LABEL_L, LABEL_M, ROW, TITLE_M, TITLE_S,
+    VISIT_NAME_MIN, VISIT_ROW_BUTTON_H,
+};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::wrap_buttons;
 
@@ -19,7 +24,7 @@ use faraday_ui::parts::wrap_buttons;
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
-    use crate::compact::screen::{about_learn, finish};
+    use crate::compact::screen::finish;
     let (x, w) = (x0 + M, cw - 2.0 * M);
     ui.page_begin((x0, cw, h), app.list_offset);
     let top = 12.0;
@@ -36,6 +41,27 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         return;
     };
+    // Material's primary tabs: In Faraday, On the stick.
+    let on_stick = app.visit.tab_stick;
+    let on_label = fill(EN.backups_on_stick, &[&stick.label]);
+    y += ui.tabs(
+        (x, y, w, faraday_draw::tokens::TAB_H),
+        faraday_ui::tabs::TabKind::Primary,
+        &[
+            faraday_ui::tabs::Tab {
+                label: EN.visit_in_faraday,
+                on: !on_stick,
+                done: false,
+                action: Action::VisitTab(crate::Column::Outbox),
+            },
+            faraday_ui::tabs::Tab {
+                label: &on_label,
+                on: on_stick,
+                done: false,
+                action: Action::VisitTab(crate::Column::Stick),
+            },
+        ],
+    ) + 12.0;
     // Where pulling the stick goes.
     let then = ui.fit_as(BODY_S, &app.visit_then(), w - 34.0);
     ui.chip(
@@ -57,33 +83,29 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 (st.label.as_str(), style, Action::VisitStick(k))
             })
             .collect();
-        y += wrap_buttons(ui, x, y, w, BUTTON_H, &items) + 4.0;
+        y += wrap_buttons(ui, x, y, w, BUTTON_H, &items) + GAP_SMALL;
     } else {
         ui.text_as(x, y, LABEL_L, Role::OnSurfaceVariant, &stick.label);
         y += ui.advance_as(LABEL_L, 26.0);
     }
+    if let Some(line) = super::files::boot_medium_line(app) {
+        y += ui.wrap_as((x, y, w), BODY_M, Role::Error, line) + GRID;
+    }
     // What is left to do: pull the stick, and where the copied files went.
     y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
-    ui.button(
-        x,
-        y,
-        Some(w),
-        BUTTON_H,
-        EN.visit_open_files,
-        Style::Secondary,
-        Action::Nav(Screen::Files),
-    );
-    y += 50.0;
     for (line, ok) in app.visit.log.iter().rev().take(2) {
         let c = if *ok { Role::Ok } else { Role::Error };
         y += ui.wrap_as((x, y, w), BODY_M, c, line) + 6.0;
     }
-    y += 8.0;
+    y += GRID;
+    if !on_stick {
+        return visit_compact_in(app, ui, (x, y, w), (top, h));
+    }
 
     // Import into the Inbox.
     ui.icon(x, y, 20.0, Icon::Download, 13.0, Role::Primary);
     ui.text_mid_as(
-        (x + 28.0, y - 4.0, 28.0),
+        (x + 28.0, y - GAP_SMALL, 28.0),
         TITLE_M,
         Role::OnSurface,
         app.medium.on_box(),
@@ -111,16 +133,16 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         // Its ⋮ at the right end (decision 61 item 4).
         let menu = Faraday::stick_row_menu(name);
-        let dw = if menu { 32.0 + 8.0 } else { 0.0 };
+        let dw = if menu { 32.0 + GRID } else { 0.0 };
         let held = app.inbox_holds(name, *size);
         let tag = EN.visit_in_faraday;
         let tw = if held {
-            ui.measure_as(LABEL_M, tag) + 8.0
+            ui.measure_as(LABEL_M, tag) + GRID
         } else {
             0.0
         };
         let n = ui.fit_as(BODY_M.mono(), name, w - 32.0 - tw - dw);
-        ui.text_as(x + 32.0, y + 4.0, BODY_M.mono(), fg, &n);
+        ui.text_as(x + 32.0, y + GAP_SMALL, BODY_M.mono(), fg, &n);
         if held {
             ui.text_right_as(
                 (x + w - dw, y + 2.0, 20.0),
@@ -152,14 +174,14 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &sub,
         );
         if kind.is_some() {
-            ui.press_box(x - 4.0, y, w + 8.0 - dw, 48.0, Action::VisitIn(k));
+            ui.press_box(x - GAP_SMALL, y, w + GRID - dw, 48.0, Action::VisitIn(k));
         }
         if menu {
             crate::file_menu::dots(
                 app,
                 ui,
                 x + w - 32.0,
-                y + 8.0,
+                y + GRID,
                 32.0,
                 crate::file_menu::Row::Stick(k),
             );
@@ -224,11 +246,22 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
         ],
     ) + 12.0;
+    finish(app, ui, h, y - top + 16.0);
+}
 
+/// [`visit_compact`]'s In Faraday tab: what is written to the stick, the
+/// Outbox and copies from the Inbox, from (x, y) `w` wide.
+#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h): (f32, f32)) {
+    use crate::compact::screen::{about_learn, finish};
+    let mut y = y;
+    if let Some(r) = app.visit.receipt().as_ref() {
+        y += super::files::receipt_rows(ui, r, app.tz_min(), x, y, w) + GRID;
+    }
     // Write to the stick: the Outbox, and copies from the Inbox.
     ui.icon(x, y, 20.0, Icon::Export, 13.0, Role::Primary);
     ui.text_mid_as(
-        (x + 28.0, y - 4.0, 28.0),
+        (x + 28.0, y - GAP_SMALL, 28.0),
         TITLE_M,
         Role::OnSurface,
         EN.visit_in_faraday,
@@ -237,7 +270,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The settings, which are not an Outbox file.
     let settings_on = app.visit_settings_on();
     let all = visit_all_out(app);
-    ui.checkbox(x + 2.0, y + 4.0, all, true);
+    ui.checkbox(x + 2.0, y + GAP_SMALL, all, true);
     ui.text_as(
         x + 32.0,
         y + 2.0,
@@ -245,7 +278,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::OnSurfaceVariant,
         EN.visit_select_all,
     );
-    ui.press_box(x - 4.0, y - 6.0, w + 8.0, 34.0, Action::VisitOutAll);
+    ui.press_box(x - GAP_SMALL, y - 6.0, w + GRID, 34.0, Action::VisitOutAll);
     y += 34.0;
     let row = |ui: &mut Ui,
                y: f32,
@@ -253,15 +286,37 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                name: &str,
                line: &str,
                tag: (&str, crate::ui::Paint),
-               action: Option<Action>| {
+               (action, menu, main): RowParts| {
         // No action: the stick holds the file already, drawn greyed.
         let held = action.is_none();
         ui.checkbox(x + 2.0, y + 10.0, on && !held, !held);
-        let tw = ui.measure_as(LABEL_M, tag.0) + 8.0;
+        // Its ⋮ at the right end (F54), its main action before it where
+        // the name keeps its room (the Pi's column drops it).
+        let dw = if menu.is_some() { 40.0 } else { 0.0 };
+        let main = main.filter(|(l, ..)| {
+            let bw = ui.measure_as(TITLE_S, l) + 2.0 * BUTTON_PAD;
+            w - 32.0 - dw - bw - ui.measure_as(LABEL_M, tag.0) - 16.0 >= VISIT_NAME_MIN
+        });
+        let bw = main.as_ref().map_or(0.0, |(l, ..)| {
+            ui.measure_as(TITLE_S, l) + 2.0 * BUTTON_PAD + GRID
+        });
+        if let Some((l, st, a)) = main {
+            ui.button(
+                x + w - dw - bw + GRID,
+                y + GRID,
+                Some(bw - GRID),
+                VISIT_ROW_BUTTON_H,
+                &l,
+                st,
+                a,
+            );
+        }
+        let dw = dw + bw;
+        let tw = ui.measure_as(LABEL_M, tag.0) + GRID + dw;
         let n = ui.fit_as(BODY_M.mono(), name, w - 32.0 - tw);
         ui.text_as(
             x + 32.0,
-            y + 4.0,
+            y + GAP_SMALL,
             BODY_M.mono(),
             if held {
                 crate::ui::off()
@@ -270,8 +325,8 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             },
             &n,
         );
-        ui.text_right_as((x + w, y + 2.0, 20.0), LABEL_M, tag.1, tag.0);
-        let l = ui.fit_as(BODY_S, line, w - 32.0);
+        ui.text_right_as((x + w - dw, y + 2.0, 20.0), LABEL_M, tag.1, tag.0);
+        let l = ui.fit_as(BODY_S, line, w - 32.0 - dw);
         ui.text_as(
             x + 32.0,
             y + 26.0,
@@ -284,7 +339,10 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &l,
         );
         if let Some(action) = action {
-            ui.press_box(x - 4.0, y, w + 8.0, 48.0, action);
+            ui.press_box(x - GAP_SMALL, y, w + GRID - dw, 48.0, action);
+        }
+        if let Some(menu) = menu {
+            crate::file_menu::dots(app, ui, x + w - 32.0, y + GRID, 32.0, menu);
         }
         ui.rule(x, y + 50.0, w, Role::OutlineVariant);
         56.0
@@ -296,7 +354,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::stick::settings::FILE,
         EN.visit_settings,
         (EN.visit_public, Role::OnSurfaceVariant.paint()),
-        Some(Action::VisitSettings),
+        (Some(Action::VisitSettings), None, None),
     );
     for (k, item) in app.outbox.iter().enumerate() {
         let on = app.visit.out.contains(&item.name);
@@ -317,7 +375,11 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &item.name,
             &kind_line(item.kind, item.bytes.len()),
             tag,
-            (!held).then_some(Action::VisitOut(k)),
+            (
+                (!held).then_some(Action::VisitOut(k)),
+                Some(crate::file_menu::Row::Out(k)),
+                None,
+            ),
         );
     }
     if app.outbox.is_empty() {
@@ -352,7 +414,11 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 } else {
                     visit_inbox_tag(item)
                 },
-                (!held).then_some(Action::VisitInbox(k)),
+                (
+                    (!held).then_some(Action::VisitInbox(k)),
+                    Some(crate::file_menu::Row::In(k)),
+                    main_action(app, k, item),
+                ),
             );
         }
     }
@@ -398,15 +464,19 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ui.compact {
         return visit_compact(app, ui, x0, cw, h);
     }
-    use faraday_draw::tokens::{PAGE_INSET, VISIT_GAP};
+    use faraday_draw::tokens::{PAGE_INSET, READING_VISIT_W, VISIT_GAP};
+    // The two columns keep the width they read at, centred in Files' room.
+    let cw_all = cw;
+    let cw = cw.min(READING_VISIT_W);
+    let x0 = x0 + (cw_all - cw) / 2.0;
     let x = x0 + PAGE_INSET;
     let width = cw - 2.0 * PAGE_INSET;
     // The top app bar names the page; where pulling the stick goes leads
     // it.
-    let mut y = super::bar_head(ui, None, app.medium.visit_title());
+    let mut y = super::bar_head(ui, None, EN.files_files);
     ui.chip(
         x,
-        y + 4.0,
+        y + GAP_SMALL,
         &app.visit_then(),
         Role::OnSecondaryContainer,
         Role::SecondaryContainer,
@@ -433,12 +503,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let ink = on_selected(current, Role::OnSurface);
         ui.text_mid_as((chx + 14.0, chy, 32.0), LABEL_L, ink, &label);
         ui.press_box(chx, chy, wdt, 32.0, Action::VisitStick(k));
-        chx -= 8.0;
+        chx -= GRID;
     }
     // The chosen stick's own name, left of the sticks' chips
     // (`docs/STICK-IDENTITY.md` §6).
     if !app.stick.is_empty() {
-        use faraday_draw::tokens::{BUTTON_PAD, GAP_SMALL};
         let rename = fill(EN.stick_name_button, &[app.medium.noun()]);
         let bw = ui.measure_as(LABEL_L, &rename) + BUTTON_PAD + BUTTON_PAD;
         let at = chx - bw;
@@ -465,6 +534,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
         crate::learn::Topic::AirGap,
     );
+    if let Some(line) = super::files::boot_medium_line(app) {
+        y += ui.wrap_as((x, y, width), BODY_M, Role::Error, line) + GRID;
+    }
     let Some(stick) = app.stick.get(app.visit.stick) else {
         ui.text_as(
             x,
@@ -477,7 +549,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let colw = (width - VISIT_GAP) / 2.0;
     let colh = h - y - 32.0 - 108.0;
-    const ROW: f32 = 56.0;
     // Rows between the heading and the buttons at the card's foot, and
     // over the stick's buttons a row for zeroing it.
     let list_top = y + 62.0;
@@ -498,7 +569,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The settings, which are not an Outbox file, then the Outbox, then
     // the Inbox under its heading.
     const HEAD: f32 = 36.0;
+    let receipt_h = app
+        .visit
+        .receipt()
+        .as_ref()
+        .map_or(0.0, |r| super::files::receipt_height(ui, r));
     let all_h = (1 + app.outbox.len()) as f32 * ROW
+        + receipt_h
         + if app.outbox.is_empty() { HEAD } else { 0.0 }
         + if shown.is_empty() {
             0.0
@@ -544,7 +621,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     name: &str,
                     line: &str,
                     tag: (&str, crate::ui::Paint),
-                    action: Option<Action>| {
+                    (action, menu, main): RowPartsWide| {
         // A row scrolled out of the list's sight is passed over.
         if !ui.shows(ry, ROW) {
             return;
@@ -552,7 +629,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // No action: the stick holds the file already, drawn greyed.
         let held = action.is_none();
         ui.checkbox(x + 22.0, ry + 15.0, on && !held, !held);
-        let tw = ui.measure_as(LABEL_M, tag.0) + 12.0;
+        // Its ⋮ at the right end (F54), its main action before it.
+        let mut dw = 40.0;
+        if let Some((l, st, a)) = main {
+            let bw = ui.measure_as(TITLE_S, &l) + 2.0 * BUTTON_PAD;
+            ui.button(
+                x + colw - 12.0 - 32.0 - GRID - bw,
+                ry + GRID,
+                Some(bw),
+                VISIT_ROW_BUTTON_H,
+                &l,
+                st,
+                a,
+            );
+            dw += bw + GRID;
+        }
+        let tw = ui.measure_as(LABEL_M, tag.0) + 12.0 + dw;
         let name = ui.fit_as(BODY_M.mono(), name, colw - 74.0 - tw);
         ui.text_as(
             x + 54.0,
@@ -565,7 +657,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             },
             &name,
         );
-        let line = ui.fit_as(BODY_S, line, colw - 90.0);
+        let line = ui.fit_as(BODY_S, line, colw - 90.0 - dw);
         ui.text_as(
             x + 54.0,
             ry + 28.0,
@@ -577,10 +669,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             },
             &line,
         );
-        ui.text_right_as((x + colw - 20.0, ry + 6.0, 20.0), LABEL_M, tag.1, tag.0);
+        ui.text_right_as(
+            (x + colw - 20.0 - dw, ry + 6.0, 20.0),
+            LABEL_M,
+            tag.1,
+            tag.0,
+        );
         if let Some(action) = action {
-            ui.press_box(x + 12.0, ry, colw - 24.0, 50.0, action);
+            ui.press_box(x + 12.0, ry, colw - 24.0 - dw, 50.0, action);
         }
+        crate::file_menu::dots(app, ui, x + colw - 12.0 - 32.0, ry + GRID, 32.0, menu);
         ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     };
     for (k, item) in app.outbox.iter().enumerate() {
@@ -602,7 +700,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &item.name,
             &kind_line(item.kind, item.bytes.len()),
             tag,
-            (!held).then_some(Action::VisitOut(k)),
+            (
+                (!held).then_some(Action::VisitOut(k)),
+                crate::file_menu::Row::Out(k),
+                None,
+            ),
         );
         ry += ROW;
     }
@@ -617,7 +719,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if !shown.is_empty() {
         ui.text_mid_as(
-            (x + 22.0, ry + 4.0, HEAD - 4.0),
+            (x + 22.0, ry + GAP_SMALL, HEAD - GAP_SMALL),
             LABEL_L,
             Role::OnSurfaceVariant,
             app.medium.from_box(),
@@ -637,10 +739,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 } else {
                     visit_inbox_tag(item)
                 },
-                (!held).then_some(Action::VisitInbox(k)),
+                (
+                    (!held).then_some(Action::VisitInbox(k)),
+                    crate::file_menu::Row::In(k),
+                    main_action(app, k, item),
+                ),
             );
             ry += ROW;
         }
+    }
+    // What the last write wrote, under the lists (F235).
+    if let Some(r) = app.visit.receipt().as_ref() {
+        super::files::receipt_rows(ui, r, app.tz_min(), x + 22.0, ry + GAP_SMALL, colw - 44.0);
     }
     ui.region_close(open, max_shift);
     visit_list_bar(
@@ -722,7 +832,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // Its ⋮ at the right end: every file but the settings file
         // (decision 61 item 4).
         let menu = Faraday::stick_row_menu(name);
-        let dw = if menu { 32.0 + 8.0 } else { 0.0 };
+        let dw = if menu { 32.0 + GRID } else { 0.0 };
         let room = 90.0 + dw;
         // A file Faraday holds already says so, as the left column's tags.
         let held = app.inbox_holds(name, *size);
@@ -863,17 +973,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::OnWarningContainer,
         &pull_line(app),
     );
-    let open_label = EN.visit_open_files;
-    let obw = ui.measure_as(TITLE_S, open_label) + 32.0;
-    ui.button(
-        x + width - 12.0 - obw,
-        ay + 2.0,
-        Some(obw),
-        BUTTON_H,
-        open_label,
-        Style::Secondary,
-        Action::Nav(Screen::Files),
-    );
 
     // The log.
     let fy = h - 32.0 - 44.0;
@@ -889,6 +988,28 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Whether everything Select all chooses on a visit's write list is
 /// chosen: the settings, every Outbox file but an unprotected secret, and
 /// every public or sealed Inbox file listed.
+/// A pane row's press, its ⋮ menu and its main action.
+type RowParts = (
+    Option<Action>,
+    Option<crate::file_menu::Row>,
+    Option<(String, Style, Action)>,
+);
+/// [`RowParts`] where every row has its menu.
+type RowPartsWide = (
+    Option<Action>,
+    crate::file_menu::Row,
+    Option<(String, Style, Action)>,
+);
+
+/// An Inbox file's main action in its row, as Files offers it, except
+/// unlocking a vault: that waits until the stick is pulled.
+fn main_action(app: &View, k: usize, item: &crate::Item) -> Option<(String, Style, Action)> {
+    super::files::inbox_actions(app, k, item)
+        .0
+        .into_iter()
+        .find(|(.., a)| !matches!(a, Action::Vault(crate::vault::VaultAction::Open(_))))
+}
+
 fn visit_all_out(app: &View) -> bool {
     app.visit_settings_on()
         && app
@@ -964,7 +1085,7 @@ fn visit_select_all(ui: &mut Ui, right: f32, y: f32, all: bool, action: Action) 
         Role::OnSurfaceVariant,
         label,
     );
-    ui.press_box(sx - 8.0, y + 12.0, lw + 44.0, 38.0, action);
+    ui.press_box(sx - GRID, y + 12.0, lw + 44.0, 38.0, action);
 }
 
 /// The stick visit's "Unselect all", at the right of the From the stick
@@ -974,7 +1095,7 @@ fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
     let lw = ui.measure_as(LABEL_L, label);
     let sx = right - 24.0 - lw;
     ui.text_mid_as((sx, y + 16.0, 30.0), LABEL_L, Role::Primary, label);
-    ui.press_box(sx - 8.0, y + 12.0, lw + 16.0, 38.0, Action::VisitInAll);
+    ui.press_box(sx - GRID, y + 12.0, lw + 16.0, 38.0, Action::VisitInAll);
 }
 
 /// A stick visit column's list's scrollbar, which a finger or the mouse
@@ -995,7 +1116,6 @@ fn visit_list_bar(
     all_h: f32,
     shift: f32,
 ) {
-    const ROW: f32 = 56.0;
     let right = card.0 + card.1;
     let max_shift = (all_h - track_h).max(0.0);
     let bar = app.visit.bar(column);
@@ -1006,7 +1126,7 @@ fn visit_list_bar(
         ui.fill(tx, top, 6.0, track_h, 3.0, Role::SurfaceContainerHighest);
         // One press: its layer and ring round the thumb, over the track
         // and under the thumb; the press on the whole track.
-        let (gx, gw) = (tx - 8.0, 22.0);
+        let (gx, gw) = (tx - GRID, 22.0);
         ui.press_to(
             Shape::new(gx, ty, gw, thumb, faraday_draw::tokens::shape_full(gw)),
             (gx, top, gw, track_h),

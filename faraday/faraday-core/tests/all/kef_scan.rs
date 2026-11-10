@@ -494,7 +494,7 @@ fn a_stick_plugged_in_while_the_passphrase_is_asked_closes_the_sheet() {
     asking(&mut app);
     app.storage(stick());
     closed(&mut app);
-    assert_eq!(app.screen, Screen::Visit);
+    assert_eq!(app.screen, Screen::Files);
 }
 
 #[test]

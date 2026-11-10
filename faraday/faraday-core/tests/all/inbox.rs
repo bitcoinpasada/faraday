@@ -226,13 +226,12 @@ fn files_restores_a_wallet_from_its_shares() {
 
 use faraday_core::{Screen as S, Sheet, StickInfo};
 
-const SCREENS: [S; 28] = [
+const SCREENS: [S; 27] = [
     S::Home,
     S::WalletsStart,
     S::Wallets,
     S::Spend,
     S::Files,
-    S::Visit,
     S::Entry,
     S::Backup,
     S::Message,
@@ -343,8 +342,6 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
         vaults: Vec::new(),
     }]));
     app.sheet = None;
-    app.press(Action::Nav(S::Visit));
-    texts_at(&mut app, "visit", &mut all);
     app.press(Action::Nav(S::Files));
     texts_at(&mut app, "Files with a stick", &mut all);
     app.storage(StorageEvent::Sticks(Vec::new()));

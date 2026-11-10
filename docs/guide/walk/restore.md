@@ -132,7 +132,7 @@ stick:
    vault's passphrase and press **Unlock**.
 
    Or, with Faraday started and no key loaded, plug the vault's stick
-   in: [**Stick visit**](../screens/stick-visit.md) opens, with `vault.kdbx` ticked under **On the
+   in: [**Files**](../screens/files.md#the-stick-in-files) opens on the stick, with `vault.kdbx` ticked under **On the
    stick**. Press **Import 1 file** and pull the stick
    ([Files, sticks and QR codes, step 2](files-and-sticks.md#2-a-stick-visit-bring-files-in)).
    In **Files**, press **Unlock** on `vault.kdbx`'s row, type the

@@ -270,7 +270,7 @@ fn dots(app: &mut Faraday) -> Vec<(i32, i32, i32, i32)> {
 }
 
 #[test]
-fn the_stick_visit_carries_a_dot_until_the_stick_is_visited() {
+fn files_carries_a_dot_until_the_stick_is_visited() {
     let mut app = on(760, 1000, 160);
     // The boot stick, at its first look, leaves Home on screen: it waits.
     app.storage(StorageEvent::Sticks(vec![StickInfo {
@@ -284,9 +284,9 @@ fn the_stick_visit_carries_a_dot_until_the_stick_is_visited() {
     }]));
     assert_eq!(app.screen, Screen::Home);
     let drawn = dots(&mut app);
-    let visit = app.hit_box(Action::Nav(Screen::Visit)).expect("the visit");
+    let visit = app.hit_box(Action::Nav(Screen::Files)).expect("Files");
     assert!(drawn.iter().any(|d| within(*d, visit)), "{drawn:?}");
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::Nav(Screen::Home));
     assert!(dots(&mut app).is_empty());
 }

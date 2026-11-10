@@ -46,7 +46,7 @@ fn a_vault_file_too_large_for_the_free_memory_says_so_and_is_not_read() {
     let mut app = testkit::started();
     memory(&mut app, 20);
     stick_with(&mut app, "big.kdbx", 17 * MIB);
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(
@@ -526,7 +526,7 @@ fn copy_of_a_vault_file_the_memory_no_longer_holds_is_not_read_and_says_what_it_
     let mut app = testkit::started();
     memory(&mut app, 200);
     stick_with(&mut app, "big.kdbx", 17 * MIB);
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     assert!(app.offers(Action::VisitIn(0)));
     // The memory falls after the file was ticked, before Copy.
@@ -627,7 +627,7 @@ fn visit_shows_what_this_computer_has_free_as_it_is_read() {
     let mut app = testkit::started();
     testkit::read_memory_as(&mut app, &[200]);
     stick_with(&mut app, "big.kdbx", 17 * MIB);
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     assert!(app.offers(Action::VisitIn(0)));
     // The memory falls; the list follows at its next reading.

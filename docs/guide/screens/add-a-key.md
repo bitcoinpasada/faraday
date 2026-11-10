@@ -42,7 +42,7 @@ card is this page's form.
 | **Other languages** | beside **Other forms**: opens the word lists as buttons: **English**, **Spanish**, **French**, **Italian**, **Czech**, **Portuguese**, **Japanese**, **Korean**, **Chinese (Simplified)**, **Chinese (Traditional)** |
 | the status | "12 words", then "12 words · checksum correct · 3dca6805" once they make a key; why not, in the error tone ("Word 3 is not on the English list") |
 | **BIP-39 passphrase** | the field, with **No passphrase** in it while it is empty: the passphrase typed with the words. Another passphrase is another key |
-| "From a stick · plug it in" | while no stick is attached; with one, **Copy files in** in its place, which opens the [stick visit](stick-visit.md): a key file copied in loads once the stick is pulled |
+| "From a stick · plug it in" | while no stick is attached; with one, **Copy files in** in its place, which opens [Files on the stick](files.md#the-stick-in-files): a key file copied in loads once the stick is pulled |
 | **Add key** | loads the key and goes back: to Wallets, the Spend tab, Restore or the backup that opened the page. The toast says "Key 3dca6805 added" |
 | **Clear** | empties the boxes |
 | **Make a new key** | opens [New key](new-key.md) |

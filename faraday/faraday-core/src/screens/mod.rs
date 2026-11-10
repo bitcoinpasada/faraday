@@ -136,7 +136,6 @@ fn area_of(screen: Screen) -> Area {
         // (`docs/LAYOUT.md` §14, §17).
         Screen::Tools => Area::Reading(faraday_draw::tokens::READING_TOOLS_W),
         Screen::Transfer => Area::Reading(faraday_draw::tokens::READING_TRANSFER_W),
-        Screen::Visit => Area::Reading(faraday_draw::tokens::READING_VISIT_W),
         Screen::Catalog => Area::Work,
         // New key, which holds Make codex32 shares and its supporting
         // pane; Home, whose tiles are a feed across the work width; and
@@ -607,7 +606,6 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Wallets => wallets::draw(app, ui, x, cw, h),
         Screen::Spend => spend::draw(app, ui, x, cw, h),
         Screen::Files => files::draw(app, ui, x, cw, h),
-        Screen::Visit => visit::draw(app, ui, x, cw, h),
         Screen::Entry => entry::draw(app, ui, x, cw, h),
         Screen::KeyGen => crate::keygen::screen::draw(app, ui, x, cw, h),
         Screen::Bip85 => crate::bip85::screen::draw(app, ui, x, cw, h),

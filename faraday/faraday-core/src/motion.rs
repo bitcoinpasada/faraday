@@ -709,7 +709,7 @@ impl Scroll {
     ) -> ui::Slot {
         let reach = !compact && sheet_none;
         match self.region {
-            ui::Slot::VisitOut if screen == Screen::Visit && reach => ui::Slot::VisitOut,
+            ui::Slot::VisitOut if screen == Screen::Files && reach => ui::Slot::VisitOut,
             ui::Slot::Card if screen == Screen::Wallets && reach => ui::Slot::Card,
             ui::Slot::VaultItem if screen == Screen::VaultContents && reach => ui::Slot::VaultItem,
             // Files' two lists stand side by side on the rail's windows
@@ -1210,8 +1210,7 @@ impl Faraday {
     /// The screen's region's offset, whatever sheet is over it.
     pub(crate) fn screen_slot(&mut self) -> Option<&mut f32> {
         Some(match self.screen {
-            Screen::Visit
-            | Screen::Files
+            Screen::Files
             | Screen::Wallets
             | Screen::WalletsStart
             | Screen::Decode

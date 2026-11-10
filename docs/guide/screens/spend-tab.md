@@ -70,7 +70,7 @@ Faraday from the stick. It has no network, …".
 | **Scan the QR codes you have** | the camera, titled **Scan what you have**: one code after another until **Done** |
 | **Type the words you have** | opens the [typing page](add-a-key.md), which comes back here |
 | "Open new-wallet-1-descriptor.txt" | a description in Files |
-| "Copy files in from a stick" | the [stick visit](stick-visit.md); grey with "Plug the stick in" while no stick is attached |
+| "Copy files in from a stick" | [Files on the stick](files.md#the-stick-in-files); grey with "Plug the stick in" while no stick is attached |
 | **Not sure what you have?** | what each thing in an envelope looks like, and what it is |
 | **What came in** | each thing read: "Seed · 3dca6805", "Wallet description · New wallet 1", "Part 1 · 2 of 3 keys in hand", "Key · xpub", **Transaction · kept for later**; **Rebuild the wallet** where shares add up |
 | **Anything else in the envelope?** | once a seed is in: **Scan more**, **Type more words** or **That's everything** |

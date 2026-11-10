@@ -321,7 +321,7 @@ impl Faraday {
             Screen::Backups => vec![&EN.backups, backup_plan_check_page(), vaults_page()],
             Screen::Restore => vec![&EN.backups, backup_plan_check_page(), &EN.inheritance],
             Screen::Message | Screen::CheckMessage => vec![&EN.message],
-            Screen::Files | Screen::Visit => vec![&EN.air_gap, &EN.coordinators],
+            Screen::Files => vec![&EN.air_gap, &EN.coordinators],
             Screen::VaultContents if self.vaults.category == 4 => {
                 vec![gpg_page(), vaults_page(), &EN.passphrases]
             }

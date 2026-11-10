@@ -651,7 +651,7 @@ fn later_with_the_stick_in_leaves_the_files_to_the_stick_visit() {
     let mut app = booted();
     app.press(Action::Import(I::Later));
     assert!(app.inbox().is_empty());
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     assert!(
         app.visit().inn.contains("notes.txt"),
         "{:?}",
@@ -871,7 +871,7 @@ fn a_lock_drops_the_import_and_the_next_process_visits_the_stick() {
     next.storage(StorageEvent::Sticks(vec![boot_stick(&stick_files())]));
     pump(&mut next, &stick_files());
     assert!(next.import().is_none());
-    assert_eq!((next.screen, next.sheet), (Screen::Visit, None));
+    assert_eq!((next.screen, next.sheet), (Screen::Files, None));
 }
 
 #[test]
@@ -887,7 +887,7 @@ fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() 
         files: vec![("wallet-qr.png".into(), 9000)],
         vaults: Vec::new(),
     }]));
-    assert_eq!(app.screen, Screen::Visit);
+    assert_eq!(app.screen, Screen::Files);
     let _ = app.frame();
     assert!(
         app.offers(Action::VisitIn(0)),

@@ -83,7 +83,6 @@
 //! | `Wallets` | `screens/wallets.rs` |
 //! | `Spend` | `screens/spend.rs` |
 //! | `Files` | `screens/files.rs` |
-//! | `Visit` | `screens/visit.rs` |
 //! | `Entry` | `screens/entry.rs` |
 //! | `Backup` | `screens/backup.rs` |
 //! | `Message` | `screens/message.rs` |
@@ -312,10 +311,8 @@ pub enum Screen {
     Wallets,
     /// Signing a transaction.
     Spend,
-    /// Inbox and Outbox.
+    /// Inbox and Outbox, and the stick pane.
     Files,
-    /// A stick visit.
-    Visit,
     /// Typing a seed.
     Entry,
     /// Backing up a wallet.
@@ -1223,7 +1220,7 @@ impl Faraday {
         self.note_here();
         self.storage_event(event.in_own_words());
         self.event_settled();
-        self.stick.note_visit(self.screen == Screen::Visit);
+        self.stick.note_visit(self.stick_pane());
         self.storage_left(screen);
     }
 
@@ -1689,22 +1686,7 @@ impl Faraday {
             {
                 self.vaults.set_focus(Some(vault::Focus::Passphrase));
             }
-            if self.screen == Screen::Visit {
-                // Where the visit's chip said it goes (§4.7).
-                let unlock = self
-                    .visit
-                    .after_visit()
-                    .is_none()
-                    .then(|| self.visit_unlocks())
-                    .flatten();
-                self.screen = self.visit.after_visit_mut().take().unwrap_or(Screen::Home);
-                if self.screen == Screen::SpendBackup {
-                    self.spend_backup_settle();
-                }
-                if let Some(i) = unlock {
-                    self.vault_act(vault::VaultAction::Open(i));
-                }
-            }
+            self.visit_pulled();
             if had {
                 let loaded = self.load_after_pull() + self.import_load_after_pull();
                 let said = if loaded == 0 {
@@ -1800,7 +1782,8 @@ impl Faraday {
                 ) {
                     *self.visit.after_visit_mut() = Some(self.screen);
                 }
-                self.screen = Screen::Visit;
+                self.screen = Screen::Files;
+                self.visit.tab_stick = true;
             }
             if first_look
                 && self.import.state().is_none()
@@ -2597,7 +2580,7 @@ impl Faraday {
                 *self.visit.files_out_offset_mut() = 0.0;
                 self.glance.set_open(false);
                 self.wallets.set_renaming(None);
-                if s == Screen::Visit {
+                if s == Screen::Files {
                     self.visit.out = self.visit_default_out(&c);
                     self.visit.inn = self.visit_default_in();
                     self.visit.from_inbox.clear();
@@ -2667,6 +2650,7 @@ impl Faraday {
             | Action::VisitOutAll
             | Action::VisitInbox(..)
             | Action::VisitBar(..)
+            | Action::VisitTab(..)
             | Action::VisitWrite
             | Action::VisitReplace
             | Action::VisitKeepBoth
@@ -5126,7 +5110,7 @@ impl Faraday {
     /// from its vault, and a sheet waiting comes up. Lookups, unless
     /// something is dropped.
     fn after_input(&mut self) {
-        self.stick.note_visit(self.screen == Screen::Visit);
+        self.stick.note_visit(self.stick_pane());
         vault::settle(self);
         self.trail_note();
         // A vault being made or unlocked for another flow: the way back

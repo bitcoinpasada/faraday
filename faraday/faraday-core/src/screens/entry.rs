@@ -594,7 +594,7 @@ pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
             BUTTON_H,
             EN.entry_stick_copy_files,
             Style::Secondary,
-            Action::Nav(Screen::Visit),
+            Action::Nav(Screen::Files),
         );
     }
 }

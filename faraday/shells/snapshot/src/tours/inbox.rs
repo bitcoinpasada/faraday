@@ -34,7 +34,7 @@ pub(crate) fn inbox_tour(t: &mut Tour) -> Result<(), String> {
         faraday_core::testkit::inbox_push(&mut t.app, i);
     }
     t.sticks(true);
-    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::Nav(Screen::Files));
     if t.app.is_compact() {
         // Down past the stick's files to the write list.
         for _ in 0..400 {

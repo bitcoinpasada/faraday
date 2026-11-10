@@ -23,7 +23,6 @@ fn screen(name: &str) -> Screen {
         "Wallets" => S::Wallets,
         "Spend" => S::Spend,
         "Files" => S::Files,
-        "Visit" => S::Visit,
         "Entry" => S::Entry,
         "Backup" => S::Backup,
         "Message" => S::Message,

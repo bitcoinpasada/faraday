@@ -205,7 +205,7 @@ fn a_stick_plugged_in_while_scanning_is_held_until_the_camera_is_off() {
     app.press(Action::Cancel);
     let _ = app.frame();
     assert!(app.clean());
-    assert_eq!(app.screen, Screen::Visit);
+    assert_eq!(app.screen, Screen::Files);
 }
 
 #[test]
@@ -559,14 +559,26 @@ fn homes_vaults_opens_the_list_once_there_is_a_vault() {
 /// Stick visit joins Home's tiles while a stick is attached and nothing
 /// is held.
 #[test]
-fn home_offers_stick_visit_with_one_attached() {
-    let mut app = home_with_stick();
+fn home_offers_files_on_the_stick_with_one_attached() {
+    // The boot stick at its first look leaves Home on screen: it waits.
+    let mut app = shown();
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: "a".into(),
+        label: "FARADAY".into(),
+        boot: true,
+        files: Vec::new(),
+        vaults: Vec::new(),
+    }]));
+    assert_eq!(app.screen, Screen::Home);
+    let texts = app.drawn_texts();
     assert!(
-        app.offers(Action::Nav(Screen::Visit)),
-        "a stick in and nothing held: Stick visit"
+        texts.iter().any(|t| t == "Files on Boot stick"),
+        "a stick waiting: the lead reads Files on the stick: {texts:?}"
     );
-    tap(&mut app, Action::Nav(Screen::Visit));
-    assert_eq!(app.screen, Screen::Visit);
+    tap(&mut app, Action::Nav(Screen::Files));
+    assert_eq!(app.screen, Screen::Files);
 }
 
 /// Rule 5 with what the vault held when last seen open (§3.4): after a
@@ -658,7 +670,7 @@ fn home_lead_rule_4_a_receipt_with_nothing_loaded_shows_what_was_written() {
         kept: Vec::new(),
     });
     stick(&mut app, true);
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     answer_writes(&mut app);
     stick(&mut app, false);
@@ -763,10 +775,6 @@ fn home_offers_backups_once_a_wallet_is_known() {
     stick(&mut app, true);
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
-    assert!(
-        app.offers(Action::Nav(Screen::Visit)),
-        "a stick in: Stick visit"
-    );
     assert!(app.offers(Action::Nav(Screen::Backups)));
 }
 

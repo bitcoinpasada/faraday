@@ -133,6 +133,8 @@ pub enum Action {
     VisitOutAll,
     /// A stick visit column's scrollbar: held and dragged.
     VisitBar(Column),
+    /// Files' tab on a small window: In Faraday (`Outbox`) or On the stick.
+    VisitTab(Column),
     /// Write the chosen Outbox files: first the Already on the stick
     /// sheet, when a name is taken there.
     VisitWrite,

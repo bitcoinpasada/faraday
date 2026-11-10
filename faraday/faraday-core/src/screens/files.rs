@@ -376,6 +376,11 @@ fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use faraday_draw::tokens::{LIST_PANE, MARGIN_WIDE, SPACER};
+    // A stick open: Files' lists with their ticks and the stick's own
+    // files, in two columns or under tabs (F235).
+    if app.stick_pane() {
+        return super::visit::draw(app, ui, x0, cw, h);
+    }
     if ui.compact {
         return files_compact(app, ui, x0, cw, h);
     }
@@ -840,7 +845,7 @@ fn out_line(
 /// Files' line when the medium the PC started from is not the device's
 /// own (`docs/STICK-IDENTITY.md` §5.2): two sticks of this build were in,
 /// or the one it started from was not found. None otherwise.
-fn boot_medium_line(app: &View) -> Option<&'static str> {
+pub(super) fn boot_medium_line(app: &View) -> Option<&'static str> {
     match app.stick.boot_medium() {
         crate::BootMedium::Known => None,
         crate::BootMedium::Two => Some(EN.files_boot_two),
@@ -860,13 +865,10 @@ fn stick_status(app: &View) -> (String, Option<Action>) {
         )
     } else {
         (
-            fill(
-                EN.files_visit,
-                &[&app.stick[app.visit.stick.min(app.stick.len() - 1)]
-                    .label
-                    .to_string()],
-            ),
-            Some(Action::Nav(Screen::Visit)),
+            app.stick[app.visit.stick.min(app.stick.len() - 1)]
+                .label
+                .clone(),
+            None,
         )
     }
 }
@@ -898,10 +900,22 @@ pub(crate) fn stick_chip(app: &View, ui: &mut Ui, right: f32) -> f32 {
     bx
 }
 
+/// [`receipt_rows`]' height, with the gap under it. A lookup.
+pub(super) fn receipt_height(ui: &Ui, r: &crate::Receipt) -> f32 {
+    30.0 + r.files.len() as f32 * (ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GRID) + 8.0
+}
+
 /// The last visit's receipt under For the stick: "Written to STICK at
 /// 14:02", then a row per file, "verified" or why it was not. Nothing on
 /// it is written again. Returns its height.
-fn receipt_rows(ui: &mut Ui, r: &crate::Receipt, tz_min: i16, x: f32, y: f32, w: f32) -> f32 {
+pub(super) fn receipt_rows(
+    ui: &mut Ui,
+    r: &crate::Receipt,
+    tz_min: i16,
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
     let head = ui.fit_as(LABEL_M, &r.heading(tz_min), w);
     ui.text_as(x, y, LABEL_M, Role::Ok, &head);
     let mut ry = y + 30.0;
@@ -1700,7 +1714,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
 }
 
 /// Buttons by label, style and action.
-type Buttons = Vec<(String, Style, Action)>;
+pub(super) type Buttons = Vec<(String, Style, Action)>;
 
 /// A line and its colour.
 type Note = Option<(String, crate::ui::Paint)>;
@@ -1709,7 +1723,7 @@ type Note = Option<(String, crate::ui::Paint)>;
 /// is behind its ⋮ (decision 61). A split sheet that does not add up yet says how
 /// many keys are in hand instead of offering a button.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
+pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
     let mut out: Vec<(String, Style, Action)> = Vec::new();
     let mut note = None;
     // What goes into a vault shows only while one is open (F60); the

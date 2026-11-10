@@ -61,13 +61,12 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
 }
 
 /// What a page's bar calls it.
-pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
+pub(crate) fn screen_name(s: Screen) -> &'static str {
     match s {
         Screen::Home => EN.compact_home,
         Screen::WalletsStart | Screen::Wallets => EN.compact_wallets,
         Screen::Spend | Screen::SpendBackup => EN.compact_spend,
         Screen::Files => EN.compact_files,
-        Screen::Visit => medium.visit_title(),
         Screen::Entry => EN.compact_add_a_key,
         Screen::Backup => EN.compact_back_up,
         Screen::Message => EN.compact_sign_a_message,
@@ -496,7 +495,7 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         _ if app.screen == Screen::Lightning && app.lightning.for_convert() => {
             EN.convert_lnd_aezeed
         }
-        _ => screen_name(app.screen, app.medium),
+        _ => screen_name(app.screen),
     };
     let back = match app.screen {
         // The chart's page goes back to the wallet's card.
@@ -1057,15 +1056,6 @@ fn tiles(app: &View) -> Vec<Tile> {
                 true,
             ),
         );
-    }
-    if !app.stick.is_empty() && !app.holds_secret() {
-        t.push((
-            app.medium.icon(),
-            app.medium.visit(),
-            String::new(),
-            Action::Nav(Screen::Visit),
-            true,
-        ));
     }
     t.push((
         Icon::Tools.into(),

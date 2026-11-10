@@ -3902,7 +3902,7 @@ impl Faraday {
                 } else if self.stick.is_empty() {
                     self.toast(&fill(EN.act_plug_in_the_visit, &[self.medium.a()]));
                 } else {
-                    self.act(Action::Nav(Screen::Visit));
+                    self.act(Action::Nav(Screen::Files));
                 }
             }
             Action::Rename => {

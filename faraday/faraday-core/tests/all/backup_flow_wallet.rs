@@ -253,7 +253,7 @@ pub(crate) fn restart(shell: &mut Shell, app: &mut Faraday) -> Faraday {
 
 fn no_visit(shell: &Shell) {
     assert!(
-        shell.screens.iter().all(|s| *s != Screen::Visit),
+        shell.screens.iter().all(|s| *s != Screen::Files),
         "the stick visit page is never shown"
     );
     assert!(shell.sheets.iter().all(|s| *s != Sheet::WriteOut));

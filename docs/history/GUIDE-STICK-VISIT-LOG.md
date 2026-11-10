@@ -1,26 +1,24 @@
-# Stick visit
+# Stick visit: the guide's page before it merged into Files
 
-**Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/visit.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/stick/wipe.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/lib.rs`)
-**Screen:** `Visit`, `Taken`, `NameTaken`, `WriteOut`, `Delete`, `Zeroing`
-**Group:** Files
+**Kind:** History
+**Status:** Kept as written; the page merged into `docs/guide/screens/files.md` (F235), which holds what is true now.
 
 **Opened from:** a stick plugged in while Faraday holds no secret; the
 sidebar's **Stick visit** and Home's **Stick visit** tile while a stick
 is attached and no key is loaded; Files' "Visit KEYSTICK" chip, named
 after the stick; **Lock
-and use stick** on [A stick is attached](lock-and-power.md#a-stick-is-attached);
+and use stick** on [A stick is attached](../guide/screens/lock-and-power.md#a-stick-is-attached);
 and **Copy files in from a stick** in Restore and the Spend tab. The
 boot stick alone, at its first look in a power-on, leaves Home on
 screen instead, with
-[Read from the boot stick](prompts.md#read-from-the-boot-stick) over
+[Read from the boot stick](../guide/screens/prompts.md#read-from-the-boot-stick) over
 it when it holds files; any other stick opens the visit.
 
 A visit writes what waits for the stick and copies in what is needed
 from it. Each file written is read back and compared before it counts.
 Keys load only once the stick is out.
 
-![Stick visit on KEYSTICK: In Faraday with a signed PSBT ticked, On the stick with a PSBT and a vault ticked](../pictures/stick-visit.png)
+![Stick visit on KEYSTICK: In Faraday with a signed PSBT ticked, On the stick with a PSBT and a vault ticked](../guide/pictures/stick-visit.png)
 
 *Stick visit on KEYSTICK, **Then: Home**: **In Faraday** lists
 **Settings**, a signed PSBT ticked and, under **From the stick**, two
@@ -41,7 +39,7 @@ load**; the band reads **Remove the stick when you are done**, beside
 | **In Faraday** | the left card: what can be written to the stick, each row ticked or not |
 | **On the stick** | the right card: the stick's files, each row ticked to copy in or not |
 | the warning band | under the cards: "Remove the stick when you are done", "Remove the stick to unlock vault.kdbx", "1 key copied in · remove the stick to load it" |
-| **Open Files** | at the band's right end: opens [Files](files.md) |
+| **Open Files** | at the band's right end: opens [Files](../guide/screens/files.md) |
 | the last two lines | what the visit did, in the ok or error tone. After a write, a line per file: "Wrote payment-signed.psbt, read back and matched", or "Wrote payment-signed.psbt as payment-signed-2.psbt, read back and matched" where **Keep both** gave it another name; otherwise "… not written: …", "… renamed …", "… deleted, zeros over it first" |
 
 ### In Faraday
@@ -51,7 +49,7 @@ load**; the band reads **Remove the stick when you are done**, beside
 | **Select all** | ticks every row, or none; an unprotected secret is ticked one at a time |
 | **Settings** | Faraday's settings file (faraday-settings.txt), tagged **Public**; a press ticks it |
 | a file for the stick | its name and what it is, tagged **Public**, **Sealed** or **Unprotected secret**; **In the backup** for a file a backup flow writes, which cannot be unticked here |
-| **From the stick** | under the files for the stick: the files copied in, which can be written to this stick too. Tagged **Public**, **Sealed**, **May be a secret** or **Secret**; **On this stick** for one it holds already. Ticking a secret opens [This is a secret](files.md#this-is-a-secret) first |
+| **From the stick** | under the files for the stick: the files copied in, which can be written to this stick too. Tagged **Public**, **Sealed**, **May be a secret** or **Secret**; **On this stick** for one it holds already. Ticking a secret opens [This is a secret](../guide/screens/files.md#this-is-a-secret) first |
 | "Nothing waits for the stick" | while nothing does |
 | "Write 2 files" | writes what is ticked. Before it, [Already on the stick](#already-on-the-stick) where a name is taken, or [Write to a stick](#write-to-a-stick) while a secret has been held |
 
@@ -61,7 +59,7 @@ load**; the band reads **Remove the stick when you are done**, beside
 |---|---|
 | **Unselect all** | unticks every file; everything is ticked at first |
 | a file's row | its name and what it is, or "Being read · 2 MB", **Larger than 18 MB: not read**; **In Faraday** for one Files holds already; a press ticks it |
-| **⋮** | **Rename**, "Delete from the stick", **Details** ([the ⋮ menu](files.md#the--menu)); not on the settings file |
+| **⋮** | **Rename**, "Delete from the stick", **Details** ([the ⋮ menu](../guide/screens/files.md#the--menu)); not on the settings file |
 | "No files on this stick" | while it holds none |
 | **Delete files** | opens [Delete files](#delete-files) |
 | "Import 3 files" | copies the ticked files into Files |
@@ -79,7 +77,7 @@ scroll to see them" under it.
 **Opened from:** "Write 2 files" when a file's name is on the stick
 already, ignoring case. Its title is **Already on the stick**.
 
-![Already on the stick: a PSBT kept both as payment-signed-2.psbt](../pictures/stick-visit-already.png)
+![Already on the stick: a PSBT kept both as payment-signed-2.psbt](../guide/pictures/stick-visit-already.png)
 
 *The sheet **Already on the stick**: "payment-signed.psbt · Keep both:
 payment-signed-2.psbt". **Replace** is outlined. It lists files that are
@@ -94,7 +92,7 @@ not vaults; a vault's name taken is asked on its own sheet, below.*
 
 ## A vault's name is taken
 
-![vault.kdbx is already on the stick: Faraday cannot tell which vault the file is, Hold: overwrite vault.kdbx outlined, Cancel, Save as vault-2.kdbx filled](../pictures/stick-visit-name-taken.png)
+![vault.kdbx is already on the stick: Faraday cannot tell which vault the file is, Hold: overwrite vault.kdbx outlined, Cancel, Save as vault-2.kdbx filled](../guide/pictures/stick-visit-name-taken.png)
 
 **Opened from:** "Write" on a visit, or the backup flow's write to an
 existing vault's stick, when a file on the stick has the vault's name,
@@ -123,7 +121,7 @@ none. With several vaults in one write, the sheet asks them in turn.
 stick, while Faraday has held a secret since it started: a stick is
 written only from a fresh start. Its title is "Write to a stick".
 
-![Write to a stick: Kept 1 file for the stick, Wiped from memory Seed 3dca6805, Then Lock, and the visit writes them](../pictures/stick-visit-write-to-a-stick.png)
+![Write to a stick: Kept 1 file for the stick, Wiped from memory Seed 3dca6805, Then Lock, and the visit writes them](../guide/pictures/stick-visit-write-to-a-stick.png)
 
 *"Write to a stick": **Kept** 1 file for the stick, **Wiped from
 memory** Seed 3dca6805 · nowhere else, **Then** **Lock, and the visit
@@ -131,7 +129,7 @@ writes them**, over **Not now** and **Lock**.*
 
 | Control | What it does |
 |---|---|
-| **Kept**, **Wiped from memory**, **Then** | as on [Lock](lock-and-power.md); **Then** reads **Lock, and the visit writes them**, or "Lock, plug in a stick, and the visit writes them" |
+| **Kept**, **Wiped from memory**, **Then** | as on [Lock](../guide/screens/lock-and-power.md); **Then** reads **Lock, and the visit writes them**, or "Lock, plug in a stick, and the visit writes them" |
 | **Dropped from Files** | the files from the stick the lock drops: each that may be a secret |
 | **Not now** | closes the sheet |
 | **Lock** | locks; the visit after it writes the files |
@@ -158,7 +156,7 @@ none until one is given (`docs/STICK-IDENTITY.md` §6).
 **Opened from:** **Delete files** on a stick visit, and "Delete from the
 stick" in a file's **⋮**. Its title is "Delete files from Boot stick".
 
-![Delete files from KEYSTICK on Chosen files, payment-signed.psbt ticked, Delete 1 file with zeros](../pictures/stick-visit-delete.png)
+![Delete files from KEYSTICK on Chosen files, payment-signed.psbt ticked, Delete 1 file with zeros](../guide/pictures/stick-visit-delete.png)
 
 *"Delete files from KEYSTICK" on **Chosen files**: payment-signed.psbt
 ticked, vault.kdbx not, and "Delete 1 file with zeros" beside
@@ -186,7 +184,7 @@ files. Its title is "Zeroing the free space on Boot stick" or "Zeroing
 the whole partition on Boot stick". No press beside the sheet closes
 it.
 
-![Zeroing the free space on KEYSTICK at 40%, about 7 minutes left, with Stop](../pictures/stick-visit-zeroing.png)
+![Zeroing the free space on KEYSTICK at 40%, about 7 minutes left, with Stop](../guide/pictures/stick-visit-zeroing.png)
 
 *"Zeroing the free space on KEYSTICK": "40% · about 7 minutes left",
 "Keep the stick in until it is done", and **Stop**.*
@@ -207,5 +205,5 @@ to write and what to copy in, each a list with its buttons under it.
 
 ## Why
 
-- [The air gap](../../learn/07-air-gap.md)
-- [Coordinator files](../../learn/19-coordinators.md)
+- [The air gap](../learn/07-air-gap.md)
+- [Coordinator files](../learn/19-coordinators.md)

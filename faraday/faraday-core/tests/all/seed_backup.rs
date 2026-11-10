@@ -315,7 +315,7 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
         files: vec![(name.clone(), bytes.len() as u64)],
         vaults: Vec::new(),
     }]));
-    next.press(Action::Nav(Screen::Visit));
+    next.press(Action::Nav(Screen::Files));
     next.press(Action::VisitIn(0));
     next.press(Action::VisitCopy);
     next.storage(StorageEvent::Read {
@@ -410,7 +410,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
             files: Vec::new(),
             vaults: Vec::new(),
         }]));
-        app.press(Action::Nav(Screen::Visit));
+        app.press(Action::Nav(Screen::Files));
         let _ = app.frame();
         assert!(app.visit().out.contains("wallet-descriptor.txt"));
         assert!(

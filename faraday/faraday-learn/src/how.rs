@@ -919,7 +919,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("Only public text is read; nothing here holds a secret."), p("Nothing secret is held.")],
         limits: &[p("An address of another network is refused."), p("A scanned address is looked for among 100 addresses on each chain of each loaded wallet.")],
         own_calls: &[p("none")],
-        screens: &["Visit", "Spend", "Tools"],
+        screens: &["Files", "Spend", "Tools"],
         learn: "verifying",
     },
     Block {
@@ -1607,7 +1607,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), p("No secret is handled."), p("Nothing secret is held.")],
         limits: &[p("The digest shows integrity, not origin.")],
         own_calls: &[p("The digest is shown as the file's integrity, not as proof of who made it. Neutral."), w("no decision")],
-        screens: &["Files", "Visit"],
+        screens: &["Files"],
         learn: "air_gap",
     },
     Block {
@@ -1783,7 +1783,7 @@ pub static BLOCKS: &[Block] = &[
         secret: &[p("none: no secret leaves faraday-keys"), w("Not stated; the seed and master key functions it calls state their own."), p("The text of a file read as a secret and the words made from it are zeroizing; a file that may hold a secret is dropped from the Inbox at a lock.")],
         limits: &[p("Text of a seed's words is read only if the words are in a BIP 39 list and their checksum holds."), p("A scanner that loads a seed takes the seed's own forms and refuses a private key.")],
         own_calls: &[p("A secret pasted or scanned where a secret may not go is refused, whatever its form. Conservative."), w("no decision")],
-        screens: &["Files", "Visit", "Explore"],
+        screens: &["Files", "Explore"],
         learn: "air_gap",
     },
     Block {

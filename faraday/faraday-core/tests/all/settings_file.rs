@@ -186,7 +186,7 @@ fn a_changed_setting_is_written_to_the_boot_stick_and_reads_back_the_same() {
     )));
     app.press(Action::Scale(150));
     app.press(Action::TextSize(TextSize::Large));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     let wrote = pump(&mut app, None);
     let (_, _, bytes) = wrote
@@ -223,7 +223,7 @@ fn every_scheme_round_trips_through_the_settings_file() {
     for theme in Theme::all() {
         let mut app = booted(None);
         app.press(Action::Theme(theme));
-        app.press(Action::Nav(Screen::Visit));
+        app.press(Action::Nav(Screen::Files));
         // A changed theme ticks the settings row by default; the
         // default theme itself does not, so it is ticked here.
         if !app.visit_settings_on() {
@@ -243,7 +243,7 @@ fn every_scheme_round_trips_through_the_settings_file() {
 #[test]
 fn unchanged_settings_are_not_written_unless_ticked() {
     let mut app = booted(Some(b"faraday-settings 1\ntheme=nord\n"));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     assert!(pump(&mut app, None).iter().all(|(_, n, _)| n != FILE));
     app.press(Action::VisitSettings);
@@ -261,7 +261,7 @@ fn another_stick_gets_the_settings_only_when_ticked() {
         Mode::Dark,
         Contrast::Standard,
     )));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     assert!(pump(&mut app, None).iter().all(|(_, n, _)| n != FILE));
     app.press(Action::VisitSettings);
@@ -276,7 +276,7 @@ fn another_stick_gets_the_settings_only_when_ticked() {
 #[test]
 fn the_settings_file_is_not_copied_into_the_inbox() {
     let mut app = booted(Some(b"faraday-settings 1\ntheme=nord\n"));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     // Every file comes in ticked but the settings, which are not offered.
     assert!(!app.visit().inn.contains(FILE));
     app.press(Action::VisitCopy);
@@ -308,7 +308,7 @@ fn after_a_lock_the_boot_stick_is_not_read_again() {
     pump(&mut next, Some(file));
     assert_eq!(next.theme(), chosen);
     // And the settings changed since boot are still offered to the stick.
-    next.press(Action::Nav(Screen::Visit));
+    next.press(Action::Nav(Screen::Files));
     next.press(Action::VisitWrite);
     assert!(pump(&mut next, None).iter().any(|(_, n, _)| n == FILE));
 }

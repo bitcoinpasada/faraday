@@ -1044,6 +1044,12 @@ pub const TRANSFER_W: f32 = 1100.0;
 pub const READING_TRANSFER_W: f32 = TRANSFER_W + 2.0 * PAGE_INSET;
 /// The gap between a stick visit's two lists.
 pub const VISIT_GAP: f32 = 20.0;
+/// The room a file's name keeps in a stick pane's row before the row's
+/// main action is drawn: narrower columns (the Pi's) drop the action.
+pub const VISIT_NAME_MIN: f32 = 120.0;
+/// A row's main action in the stick pane: shorter than a button, so it
+/// sits inside the row's height.
+pub const VISIT_ROW_BUTTON_H: f32 = 32.0;
 /// A stick visit's reading area: its two lists, each at most
 /// `COLUMN_MAX`, the gap between them, between two `PAGE_INSET`s.
 pub const READING_VISIT_W: f32 = 2.0 * COLUMN_MAX + VISIT_GAP + 2.0 * PAGE_INSET;

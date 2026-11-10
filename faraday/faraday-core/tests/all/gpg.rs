@@ -1446,7 +1446,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
     faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.storage(StorageEvent::Sticks(vec![second]));
-    assert_eq!(app.screen, Screen::Visit);
+    assert_eq!(app.screen, Screen::Files);
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {

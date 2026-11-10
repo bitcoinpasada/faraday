@@ -786,7 +786,7 @@ table says so, after the ?:
   `vaults.md` (Unlock), `codes.md`, `sign.md` (Spend), `child-seeds.md`
   (Bip85), `vanity.md`, `lightning.md`, `silent-payments.md`,
   `messages.md` (Message, CheckMessage), `decode.md`, `qr-and-scan.md`
-  (the QR sheet, Transfer) and `stick-visit.md` (Visit), all in
+  (the QR sheet, Transfer) and `files.md` (the stick in Files), all in
   `docs/guide/screens/`.
 - `docs/guide/screens/learn.md`: the How tab, first among the tabs.
 - `docs/guide/screens/home.md` and `docs/guide/screens/prompts.md`:

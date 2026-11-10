@@ -111,7 +111,7 @@ fn a_visit_lists_and_copies_the_psbt_alone() {
         "KINGSTON",
         false,
     )]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     assert_eq!(
         app.sticks()[0].files,
         [(PSBT.to_string(), psbt().len() as u64)],

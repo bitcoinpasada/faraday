@@ -45,9 +45,8 @@ scaled to fill a window.
 
 Faraday's places: **Home, Wallets, Files, Vaults, Tools** (the
 destinations a person moves between), **Learn** and **Settings** (opened,
-then closed), **Lock**, and two that appear while they apply: **Stick
-visit** (a stick attached and nothing held) and **Transfer** (the
-desktop app).
+then closed), **Lock**, and **Transfer**, which appears in the desktop
+app. A stick is no destination: it is a pane of Files (F235).
 
 | Class | Navigation | Learn, Settings, Lock |
 |---|---|---|
@@ -57,9 +56,15 @@ desktop app).
 | Expanded and low (the 7-inch panel) | the rail, as above | on the rail |
 | Large; Extra-large | the expanded rail at the left, 240 dp: today's sidebar, its tabs drawn as Material's destinations (icon and label in a row, the current one on an accent pill), its sections under caption headings | on the expanded rail |
 
-**Stick visit and Transfer** join the destinations while they apply:
-on the rail and the expanded rail after Tools, on the bar in place of
-Tools (Tools stays on Home's grid).
+**Transfer** joins the destinations in the desktop app: on the rail and
+the expanded rail after Tools, on the bar in place of Tools (Tools stays
+on Home's grid). The bar never gives Tools up for a stick.
+
+**The stick in Files** (F235): from expanded windows up the stick pane
+stands beside Files' lists; on compact and medium windows Files has
+primary tabs **In Faraday · On {stick}** while a stick is open, and a
+stick's arrival opens the On tab; on the Pi each tab draws its column as
+the Pi's compact pages do.
 
 **What the sidebar lists** besides its tabs (flows in progress with
 their open step, the loaded keys, the wallets, the session strip, the
@@ -87,7 +92,7 @@ the same way back its back link took; a page with none, a destination,
 shows its name alone. The mode pill, the keyboard button and the ? stand
 at the bar's right end, Files' stick chip left of them; what stood beside
 a page's title (Files' Scan and its in-memory pill, Vaults' Create a
-vault, a vault's state, Rename and Lock, the stick visit's chips, Tools'
+vault, a vault's state, Rename and Lock, the stick pane's chips, Tools'
 Find) leads the page under the bar. List and detail panes start under
 it (`PANE_TOP_BAR`), every other page `PAGE_TOP_BAR` under it. Over a
 step flow the bar carries the flow's name and way back, Cancel and the
@@ -768,7 +773,7 @@ is measured to place them.
 | Back on a compact window | closes what is open on the page before it leaves it: the search view of a vault's items or of the codes (the bar's back arrow, naming the list, and the system Back close it as Done and Escape do, the query kept and the list filtered), then a Settings section to the list |
 | Tools | reading content in its own area (`READING_TOOLS_W`), centred: its `TOOLS_COLUMN_W` column after its inset |
 | The tools' catalogue | a grid of tiles, wide content: as many columns as `CATALOG_TILE_MIN` leaves room for in the work width, never fewer than `CATALOG_COLUMNS_MIN`, each at the row's share |
-| Transfer, a stick visit | reading content, each in its own area centred in the room: Transfer's Send and Receive side by side, `TRANSFER_W` at most (`READING_TRANSFER_W`); a stick visit's two lists, each at most `COLUMN_MAX`, `VISIT_GAP` apart (`READING_VISIT_W`); each between two `PAGE_INSET`s |
+| Transfer, Files with a stick open | reading content, each in its own area centred in the room: Transfer's Send and Receive side by side, `TRANSFER_W` at most (`READING_TRANSFER_W`); Files with a stick open, its lists and the stick pane, each at most `COLUMN_MAX`, `VISIT_GAP` apart (`READING_VISIT_W`); each between two `PAGE_INSET`s |
 | The backup board | wide content: the places laid out in as many columns as the work width holds at the board's place width, so three places stand side by side at 2560 and two at 1920; the board's lists (seeds, vaults, watch-only software) a supporting pane at the right edge (§15); the page it is on (Back up, a wallet's backup flow) starts at the navigation on every card, so its cards stand still when the board's card opens, and the open card's rules run the work width (§14) |
 | Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
 | Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large the step's Guided text and Learn in the supporting pane (§6, L6) |

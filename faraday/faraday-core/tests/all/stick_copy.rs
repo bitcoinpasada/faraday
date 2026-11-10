@@ -73,7 +73,7 @@ fn attach(app: &mut Faraday, in_now: &[&Stick]) {
     app.storage(StorageEvent::Sticks(
         in_now.iter().map(|s| s.info()).collect(),
     ));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
 }
 
@@ -351,7 +351,7 @@ fn a_file_larger_than_18_mib_is_not_read() {
         ],
         vaults: Vec::new(),
     }]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     assert!(
         !app.offers(Action::VisitIn(0)),

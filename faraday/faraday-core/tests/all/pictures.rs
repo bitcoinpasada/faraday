@@ -25,7 +25,7 @@ fn visiting() -> Faraday {
         files: Vec::new(),
         vaults: Vec::new(),
     }]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app
 }
 

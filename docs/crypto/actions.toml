@@ -3029,7 +3029,7 @@ standards = [
 ]
 learn = "verifying"
 screens = [
-  "Visit",
+  "Files",
   "Spend",
   "Tools",
 ]
@@ -6474,7 +6474,7 @@ action = "Computes the SHA-256 of a whole file to show and keep."
 row = "file-hash"
 standards = ["FIPS 180-4"]
 learn = "air_gap"
-screens = ["Files", "Visit"]
+screens = ["Files"]
 functions = [
   "faraday/faraday-core/src/receipt.rs::sha256_of",
   "faraday/faraday-core/src/file_menu.rs::sha256",
@@ -7250,7 +7250,6 @@ standards = [
 learn = "air_gap"
 screens = [
   "Files",
-  "Visit",
   "Explore",
 ]
 functions = [

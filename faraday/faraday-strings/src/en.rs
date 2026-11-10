@@ -4893,10 +4893,6 @@ strings! {
     medium_for_the_stick_inline: "for the stick",
     /// Text in `for_the`.
     medium_for_the_card_or_stick_inline: "for the card or stick",
-    /// Text in `visit`.
-    medium_stick_visit: "Stick visit",
-    /// Text in `visit_title`.
-    medium_visit: "Visit",
     /// Text in `and_vaults`.
     medium_sticks_and_vaults: "Sticks and vaults",
     /// Text in `and_vaults`.
@@ -5319,6 +5315,8 @@ strings! {
     home_job_written_target: "Written to {}",
     /// Text in `home_job`. `{}`: `f.name`.
     home_job_in_files: "{} · in Files",
+    /// Text in `home_job`. `{}`: `st.label`.
+    home_job_files_on: "Files on {}",
     /// Text in `home_job`. `{}`: `name`.
     home_job_unlock: "Unlock {}",
     /// Text in `home_job`. `{}`: `app.medium.noun()`.
@@ -7213,8 +7211,6 @@ strings! {
     files_waiting_medium: "Waiting for {}",
     /// Text in `files_compact`. `{}`: `app.medium.cap()`.
     files_attached_lock: "{} attached · lock to use it",
-    /// Text in `files_compact`. `{}`: `app.sticks[app.visit.stick.min(app.st…`.
-    files_visit: "Visit {}",
     /// Button in `files_compact`.
     files_scan_a_qr_code: "Scan a QR code",
     /// Line in `files_compact`.
@@ -7481,8 +7477,6 @@ strings! {
     visit_file: "file",
     /// Text in `visit`.
     visit_files: "files",
-    /// Text in `visit`.
-    visit_open_files: "Open Files",
     // ----- visit_inbox_line (faraday-core/src/screens/visit.rs) -----
     /// Text in `visit_inbox_line`. `{}`: `kind_line(FileKind::Other, item.bytes…`.
     visit_inbox_line_png_no_qr: "PNG, no QR code read · {}",

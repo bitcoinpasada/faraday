@@ -83,7 +83,7 @@ fn visiting_as(known: bool, outbox: Files, on_stick: Files) -> (Shell, Faraday) 
     } else {
         shell.plug(&mut app, "S1");
     }
-    shell.press(&mut app, Action::Nav(Screen::Visit));
+    shell.press(&mut app, Action::Nav(Screen::Files));
     let names: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
     for (i, n) in names.iter().enumerate() {
         if !app.visit().out.contains(n) {
@@ -119,7 +119,7 @@ fn a_file_for_the_stick_renamed_is_written_under_its_new_name() {
     let mut shell = Shell::new();
     shell.add(Disk::empty("S1", "TESTSTICK"));
     shell.plug(&mut app, "S1");
-    shell.press(&mut app, Action::Nav(Screen::Visit));
+    shell.press(&mut app, Action::Nav(Screen::Files));
     if !app.visit().out.contains("march-rent.psbt") {
         shell.press(&mut app, Action::VisitOut(0));
     }
@@ -150,7 +150,7 @@ fn a_vault_renamed_goes_over_the_same_vault_on_the_stick_under_its_new_name() {
     type_name(&mut app, "savings");
     app.press(Action::File(FilePress::RenameGo));
     assert_eq!(app.outbox[0].name, "savings.kdbx");
-    shell.press(&mut app, Action::Nav(Screen::Visit));
+    shell.press(&mut app, Action::Nav(Screen::Files));
     shell.press(&mut app, Action::VisitWrite);
     let vaults: Vec<&str> = shell
         .disk("S1")

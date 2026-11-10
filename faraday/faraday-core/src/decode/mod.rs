@@ -602,7 +602,7 @@ impl Faraday {
         self.toast(&fill(EN.scanned_is_in_files, &[name]));
         if !matches!(
             self.screen,
-            Screen::Spend | Screen::Visit | Screen::Restore | Screen::Home | Screen::SpendBackup
+            Screen::Spend | Screen::Restore | Screen::Home | Screen::SpendBackup
         ) {
             self.screen = Screen::Files;
         }

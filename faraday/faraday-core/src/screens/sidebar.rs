@@ -75,9 +75,6 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         (Glyph::Icon(Icon::Tools), EN.sidebar_tools, Screen::Catalog),
     ];
     let mut tail = Vec::new();
-    if !app.stick.is_empty() && !app.holds_secret() {
-        tail.push((app.medium.icon(), app.medium.visit(), Screen::Visit));
-    }
     // The online app is the device's QR link.
     if app.online {
         tail.push((Glyph::Icon(Icon::Qr), EN.sidebar_transfer, Screen::Transfer));

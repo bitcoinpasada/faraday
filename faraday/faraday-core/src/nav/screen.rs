@@ -45,18 +45,18 @@ fn dest<'s>(
 }
 
 /// What waits at a destination, as its badge (`docs/DESIGN.md` §4.1):
-/// on Files, how many files the Inbox holds; on the stick visit, a dot
-/// while a stick attached has not been visited. Each reads the state.
+/// on Files, how many files the Inbox holds, or a dot while a stick
+/// attached has not been visited (F235). Each reads the state.
 pub(crate) fn badge_of(app: &View, s: Screen) -> Badge {
     match s {
-        Screen::Files => Badge::Count(app.inbox.len()),
-        Screen::Visit if app.stick.waits() => Badge::Dot,
+        Screen::Files if !app.inbox.is_empty() => Badge::Count(app.inbox.len()),
+        Screen::Files if app.stick.waits() => Badge::Dot,
+        Screen::Files => Badge::Count(0),
         _ => Badge::None,
     }
 }
 
-/// The five destinations, in order, then Stick visit and Transfer
-/// while they apply.
+/// The five destinations, in order, then Transfer while it applies.
 fn destinations<'s>(app: &'s View) -> (Vec<Dest<'s, Action>>, Vec<Dest<'s, Action>>) {
     let five = vec![
         dest(app, Icon::House, EN.sidebar_home, Action::Nav(Screen::Home)),
@@ -86,14 +86,6 @@ fn destinations<'s>(app: &'s View) -> (Vec<Dest<'s, Action>>, Vec<Dest<'s, Actio
         ),
     ];
     let mut more = Vec::new();
-    if !app.stick.is_empty() && !app.holds_secret() {
-        more.push(dest(
-            app,
-            app.medium.icon(),
-            app.medium.visit(),
-            Action::Nav(Screen::Visit),
-        ));
-    }
     if app.online {
         more.push(dest(
             app,
@@ -137,13 +129,9 @@ pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
 }
 
 /// The navigation bar across the window's foot at `y`, `w` wide: the
-/// five destinations, Stick visit or Transfer in place of Tools while it
-/// applies (Tools stays on Home).
+/// five destinations, always the same: Tools is never displaced (F235).
 pub(crate) fn bar(app: &View, ui: &mut Ui, y: f32, w: f32) {
-    let (mut five, more) = destinations(app);
-    if let Some(d) = more.into_iter().next() {
-        five[4] = d;
-    }
+    let (five, _more) = destinations(app);
     faraday_ui::nav::bar(ui, y, w, &five);
 }
 
@@ -235,7 +223,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
         let head = ui.head.take();
         let (title, back) = match &head {
             Some((name, back)) => (name.as_str(), back.as_ref().map(|(l, a)| (l.as_str(), *a))),
-            None => (crate::compact::screen_name(app.screen, app.medium), None),
+            None => (crate::compact::screen_name(app.screen), None),
         };
         let bar = AppBar {
             back,
@@ -442,7 +430,7 @@ pub(crate) fn status_strip(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         let open = if waiting {
             Some(crate::boot_import::OPEN)
         } else {
-            (!app.holds_secret()).then_some(Action::Nav(Screen::Visit))
+            (!app.holds_secret()).then_some(Action::Nav(Screen::Files))
         };
         f.chip(
             ui,

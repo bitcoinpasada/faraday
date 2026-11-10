@@ -78,7 +78,7 @@ wallet from it.
 For this walkthrough, bring the vault in:
 
 1. Plug in Vault 1's stick and press **Copy files in from a stick**.
-   The [stick visit](../screens/stick-visit.md) lists `vault.kdbx`, ticked. Press **Import 1 file**,
+   [Files](../screens/files.md#the-stick-in-files) lists `vault.kdbx` on the stick, ticked. Press **Import 1 file**,
    then pull the stick.
 2. Back on the card, **Unlock vault.kdbx** heads the vault's row: its
    name, **Copied in from a stick** and its size, and how long it
@@ -196,8 +196,8 @@ off** and **Start over**.
    and no key is left in memory.
 2. Signing with a vault open records the amounts signed inside it, so
    the lock leaves a changed copy of the vault for the stick. Plug Vault
-   1's stick in: the [stick visit](../screens/stick-visit.md) writes what waits. The stick
-   already holds `vault.kdbx`, so the visit asks: **Replace** writes the
+   1's stick in: [Files](../screens/files.md#the-stick-in-files) writes what waits. The stick
+   already holds `vault.kdbx`, so it asks: **Replace** writes the
    changed vault over it and keeps that record; **Keep both** writes it
    beside it as `vault-2.kdbx`; leaving it out changes nothing else.
 3. Press **Power off**, take the stick out, and put it back in the

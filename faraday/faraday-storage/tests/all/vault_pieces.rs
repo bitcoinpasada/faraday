@@ -203,7 +203,7 @@ fn a_vault_over_one_frame_is_opened_changed_and_written_back_through_the_app() {
     app.storage(StorageEvent::Sticks(vec![stick_with(file.len() as u64)]));
 
     // The vault comes into the Inbox from the stick, whole.
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     app.press(Action::VisitInAll);
     app.press(Action::VisitIn(0));
@@ -230,7 +230,7 @@ fn a_vault_over_one_frame_is_opened_changed_and_written_back_through_the_app() {
         kept: Vec::new(),
     });
     app.storage(StorageEvent::Sticks(vec![stick_with(file.len() as u64)]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     app.press(Action::VisitWrite);
     // The write ends, in pieces, and the seal leaves the Outbox.

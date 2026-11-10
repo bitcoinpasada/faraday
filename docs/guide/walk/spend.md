@@ -76,7 +76,7 @@ After the lock the stick visit opens:
 
 ![Stick visit with payment.psbt and the wallet description ticked on the stick, Import 2 files outlined](../pictures/6-3-visit.png)
 
-[**Stick visit**](../screens/stick-visit.md): **On the stick** lists the
+[**Files**](../screens/files.md#the-stick-in-files), the stick pane: **On the stick** lists the
 PSBT (`payment.psbt`) and the wallet's description
 (`new-wallet-1-descriptor.txt`), both ticked; **In Faraday** lists what
 waits to be written (in the picture, the files of an earlier spend).

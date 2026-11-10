@@ -39,7 +39,7 @@ xpub file", **Scan its xpub** (decision 58).
 
 **From the stick, For the stick** (decision 1). Files' two halves are
 named by direction, **From the stick** and **For the stick** ("From the
-card or stick", "For the card or stick" on the Pi), on Files, the stick visit, the
+card or stick", "For the card or stick" on the Pi), on Files, the stick pane, the
 sheets and every button; no screen says "Inbox" or "Outbox", which
 remain the code's names only.
 
@@ -212,7 +212,7 @@ for the time first where TOTP codes does (`docs/TOTP.md` §1.3).
 
 **Learn** follows Tools (decision 13); the small panel's Home grid
 carries it. The sidebar's status block carries the session, Files and
-the sticks; its **Files** entry opens Files. **The session strip**
+the sticks, which open Files on the stick; its **Files** entry opens Files. **The session strip**
 (decision 15) is one line, **Bring in · Open · Work · Write out**, the
 current stage in the accent, computed from what is attached, loaded and
 waiting; it stands under Files and its count in the one Files row, which
@@ -228,8 +228,8 @@ mainnet.
 
 ## Files
 
-**One Files screen holds what came from the stick and what goes to it**
-(decision 1). Every file copied in carries the action that uses it: a
+**One Files screen holds what came from the stick, what goes to it and
+the stick itself** (decision 1, F235). Every file copied in carries the action that uses it: a
 PSBT **Sign in Wallets** (a signed PSBT no key here is left to sign,
 and a finished transaction, **Nonce check**: see Nonce check below), an
 entries file **Import into a vault**, a vault file **Unlock**, a received
@@ -251,7 +251,7 @@ row reads "For the stick" with **Remove** in its ⋮, and after a Remove
 the flow's button makes it again. The secret sheet stays the one way a
 secret goes For the stick.
 
-**A write leaves a receipt** (decision 25). When a stick visit's write is
+**A write leaves a receipt** (decision 25). When a write to the stick is
 answered, what it sent leaves For the stick and becomes the receipt,
 shown under For the stick as "Written to {label} at {time}" with a row
 per file, "verified" or why not. It is kept across a lock until
@@ -263,7 +263,7 @@ done.
 
 ### A ⋮ on every file; Rename (decision 61, F54)
 
-Every file row, in Files and on the stick visit, keeps the one action it
+Every file row, in Files, with the stick pane, keeps the one action it
 is for as a visible button and puts the rest behind a ⋮ at its right
 end, as the backup board's chips do (`docs/BACKUP-FLOW.md` §17.20: a
 popup under the ⋮, the sheet on the small panel, keyboard reachable, a
@@ -294,7 +294,7 @@ menu.
    its extension, and a name another file For the stick has, ignoring
    case. Spaces at the ends are dropped; the name unchanged leaves Rename
    disabled with no line. The new name is the one the next visit writes
-   it under; the visit's **Already on the stick** sheet then works as
+   it under; the stick's **Already on the stick** sheet then works as
    usual. A vault For the stick whose same vault (by identity,
    `docs/VAULT.md` §6) is on the stick under another name is written over
    that file and the file takes the new name (or `name-2.kdbx` where
@@ -305,12 +305,12 @@ menu.
    **Rename**), nor the reverse.
 3. **From the stick has no Rename**: its files are Faraday's copies of
    files on a stick, renamed on the stick itself (item 4).
-4. **On the stick (the visit page).** Every file row Faraday lists has a
+4. **On the stick (the stick pane).** Every file row Faraday lists has a
    ⋮ with **Rename**, **Delete from the stick** and **Details**; the
    computer's own files (decision 54) and the settings file have none.
    **Rename** is the same popup, renaming the file on the stick in place:
    the disk process renames its directory entry, lists the stick again,
-   and the visit shows "{old} renamed {new}", or why not. Refused, nothing
+   and Files shows "{old} renamed {new}", or why not. Refused, nothing
    written, where the name is on the stick already, ignoring case:
    "{name} is already on this {stick}"; where that file is the same vault
    by identity, "{name} on this {stick} is this same vault" (one copy is
@@ -326,7 +326,7 @@ menu.
    hashes it and only the hash reaches the app ("Reading…" until then,
    "Not read: …" over 18 MiB).
 6. **Names elsewhere.** Backups and the backup flow name a copy by the
-   file it was written as; a copy renamed on the visit is named anew from
+   file it was written as; a copy renamed on the stick is named anew from
    the next read of that stick, which the rename itself is.
 
 ## Public and secret
@@ -343,7 +343,7 @@ without encryption?**, and only its **Hold to save without encryption**,
 held to the end, lets the file out (F129). For the
 stick lists the three apart, Public, Sealed and Unprotected secrets, a
 stick visit tags each row, and an unprotected secret is not ticked for
-writing until the person ticks it on the visit. A secret let out this
+writing until the person ticks it in Files. A secret let out this
 way is marked as one whatever its text reads as (a node key, a child
 seed's words), and the mark is kept across a lock. A seed's words file
 is a secret by its kind. The code refuses a secret on the plain path For
@@ -506,8 +506,9 @@ was written ("Write {name} to a stick"). Then half-width tiles, two to a
 row: **Make a new wallet** (Create), **Restore an existing wallet**
 (Restore), **Spend from a backup, step by step** (the Spend tab) and
 **Vaults**, which with no vault in Files or open reads **Create a
-vault** and opens it; then **Stick visit** while a stick is attached
-and nothing is held, and **Backups** once a wallet is known. Create,
+vault** and opens it; then **Backups** once a wallet is known. A stick
+attached and not yet visited leads Home as "Files on {stick}", opening
+Files; Home has no Stick visit tile. Create,
 Restore, the Spend tab and Create a vault opened from Home have **Home**
 as their way back, and from Wallets, **Wallets**.
 
@@ -517,7 +518,7 @@ asked for by name and a seed scanned from Home: **Scan a SeedQR** first, full wi
 typed, when **Add key** is), a form (BIP-39 words, with the count
 **12 · 15 · 18 · 21 · 24** above as many boxes, 12 first; SLIP-39
 shares, codex32, Seed XOR parts), **Make a new key**, and "From a stick ·
-plug it in" (with a stick attached, **Copy files in** → Stick visit; a key
+plug it in" (with a stick attached, **Copy files in** → Files on the stick; a key
 file copied in loads when the stick is pulled). **Scan** floats in the
 bottom-right corner of Home on every panel → the scanner (with a stick
 in, the sheet asks for it to be pulled first). Home's Scan takes
@@ -593,7 +594,7 @@ all** above them →
 - **Later**, or a tap beside the sheet → Home, nothing read, nothing
   brought in; Home leads with **Import from {label}** (after Import,
   **Unlock {name}**), which opens the sheet again; with the stick still
-  in, the stick visit brings in what it ticks;
+  in, Files on the stick brings in what it ticks;
 - the stick pulled before a choice → the sheet stays as it is, Import
   waiting for the stick; put back, the sheet comes up again over Home,
   ticks kept;
@@ -658,25 +659,33 @@ no press of its own: Power off is the press. Not on the Pi, not on
 Faraday Demo; a Mac as `docs/MAC.md` §3.2. The sheet also offers
 **Restart** (below, Restart; F42).
 
-## Sticks and cards
+## The stick in Files
 
 On the Pi every screen says "card or stick" for "stick" (it reads its SD
-card and USB sticks alike): **Card or stick**, and **Visit** in the top bar, for **Stick visit**,
-**Lock and use card or stick**, "Remove the card or stick"
-(`docs/DECISIONS.md` F216). The card the Pi started from stays "SD card". The flows
+card and USB sticks alike): **Card or stick**, and **Lock and use card or stick**, "Remove the card or stick"
+(`docs/DECISIONS.md` F216; its "Visit" in the top bar and Home's button are gone with the stick visit's own screen, F235). The card the Pi started from stays "SD card". The flows
 below use the PC's words.
 
 **A stick or card inserted while unlocked** → **Lock to use this stick**
 (what is kept, then what is wiped from memory and where else it is,
 then what happens; decision 28) →
-- **Lock and use stick** → lock → **Stick visit**;
+- **Lock and use stick** → lock → Files on the stick;
 - **Not now** → nothing is handed out; a banner says "Remove the stick to
   keep working" until it goes.
 
-**A stick or card inserted while locked, or with no vault open** → **Stick
-visit** directly.
+**A stick or card inserted while locked, or with no vault open** → Files
+on the stick directly.
 
-**Stick visit** (one screen, both directions):
+**The stick in Files** (F235). A stick open to Faraday, attached with
+nothing held, is a pane of Files: the stick's files beside Files' own
+lists from expanded windows up, and primary tabs **In Faraday · On
+{stick}** below that, the arrival opening the On tab. Files' rows take a
+checkbox for writing while it is open, and the buttons below stand under
+the lists. Rail, bar and status strip keep their five destinations; the
+stick has no page of its own, and "a stick visit" is the act of having a
+stick open. With something held the stick is not open: Files shows "Lock
+to use {stick}" and no pane.
+- **In Faraday** (the lists):
 - **In Faraday** (left): chosen files written, read back, compared:
   those For the stick, then those from it under **From the stick** (below).
   What is written and matched leaves For the stick for the receipt
@@ -686,7 +695,7 @@ visit** directly.
   under a hidden name, read back, then the old file removed and the new
   one renamed to its name), **Keep both** (written beside it as
   `name-2.ext`; the row says "{name} · Keep both: {name-2}") and
-  **Cancel** (nothing written, the visit stays). The sheet decides nothing for a vault, which brings none, nor does the
+  **Cancel** (nothing written, Files stays as it was). The sheet decides nothing for a vault, which brings none, nor does the
   settings file. A sealed vault replaces a file proved a copy of it, or is
   written under its own name where no file has it; a file nothing proves
   under that name is the question **Overwrite** (a hold) or **Save beside**
@@ -702,7 +711,7 @@ visit** directly.
   and opens the write-out sheet, as Write it to a stick does from Files:
   **Lock** or **Not now**. The disk process refuses a stick to such a
   process; that refusal reads "not open to Faraday until it locks" on
-  the visit.
+  Files.
 - **From the stick**: every file copied in, unticked, written from Files,
   where it stays for the next stick: a copy from one stick to another,
   one after the other or both in at once. A file the stick shown holds
@@ -778,7 +787,7 @@ visit** directly.
   ends. The whole partition is first made an empty volume with its
   layout and label, then zeroed the same way, once per pass. A sheet
   shows the share done and the time left, with **Stop**; Stop, a failure
-  or a pull ends it with a line on the visit. A whole-device wipe is not
+  or a pull ends it with a line in Files. A whole-device wipe is not
   offered: it would need the whole device, outside the stick process's
   boundary. A computer's own files (dot-files and Windows' own,
   `docs/STARTER.md` §4.4) are never offered or deleted one by one, and
@@ -788,11 +797,11 @@ visit** directly.
   last write's receipt), "Then: {flow}" when the stick came in during
   one, else "Then: Home" →
   **Remove the stick** → once gone → **Unlock**, with the vault sealed for
-  the visit, or the flow it came in during, or Home, which leads with the
-  receipt.
+  the stick, or the flow it came in during; with neither, the person stays
+  on Files, and the chip and the pane go.
 
 **A stick pulled during a write** → the write is reported failed, the file
-stays For the stick, and the visit screen says to put the stick back.
+stays For the stick, and Files says to put the stick back.
 
 ## Vaults
 
@@ -992,7 +1001,7 @@ stick holds; only places with a stick are asked for. Two places or more
 for GPG and Secure Boot keys, whose signing waits until every place
 is written; one or more for a wallet, with a warning when every secret
 sits at one place; any for Nostr; no upper bound anywhere. The blank
-template is printed from Faraday Starter. The stick visit page is never
+template is printed from Faraday Starter. The stick pane is never
 shown, and after Back up's checklist nothing waits For the stick.
 
 Tools' **GPG key** and **Secure Boot keys**, Vault

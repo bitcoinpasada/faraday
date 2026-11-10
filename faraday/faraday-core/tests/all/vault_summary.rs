@@ -201,7 +201,7 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
         files: Vec::new(),
         vaults: Vec::new(),
     }]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     answer_writes(&mut app);
     app.storage(StorageEvent::Sticks(Vec::new()));
@@ -258,7 +258,7 @@ fn a_vault_copied_in_reads_current_on_its_stick_or_unchanged() {
         files: vec![("vault.kdbx".into(), vault.len() as u64)],
         vaults: Vec::new(),
     }]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { stick, name } = c {

@@ -23,8 +23,7 @@ say what to do; these pages say what each control on a screen does.
 | Vaults | [Create a vault](create-vault.md) | Create a vault, Generate with dice |
 | Vaults | [Vault contents](vault.md) | Vault contents: keys, wallets, entries, notes, GPG keys, Secure Boot keys; Remove a set or origin, Copy and Move to another vault, Save into a vault; Save to a stick, Sign with |
 | Vaults | [TOTP codes](codes.md) | TOTP codes |
-| Files | [Files](files.md) | Files, a file's ⋮ menu, Rename, Details, Make it a wallet, This is a secret, Save without encryption? |
-| Files | [Stick visit](stick-visit.md) | Stick visit, Already on the stick, Write to a stick, Delete files, Zeroing |
+| Files | [Files](files.md) | Files, the stick in Files, Already on the stick, Write to a stick, Delete files, Zeroing, a file's ⋮ menu, Rename, Details, Make it a wallet, This is a secret, Save without encryption? |
 | Files | [QR codes and the camera](qr-and-scan.md) | A QR code, Scan, SeedQR read, Transfer |
 | Wallets | [Wallets](wallets.md) | Wallets' first page, the list and the wallet card, Another key spends this wallet alone, Register this wallet, Which account to load? |
 | Wallets | [Add a key](new-key.md) | Add a key and New key: Start, Length (and its Other menu), Randomness, the entries, Key, Words, Quiz; Make codex32 shares |

@@ -21,6 +21,10 @@ desktop_1280x800 Entry EntryKey 55
 desktop_1280x800 Entry EntryKeyBack 1
 desktop_1280x800 Entry Resume 4
 desktop_1280x800 Explore Resume 1
+desktop_1280x800 Files DeletePick 7
+desktop_1280x800 Files File 13
+desktop_1280x800 Files Resume 2
+desktop_1280x800 Files StartSpend 1
 desktop_1280x800 Home Import 1
 desktop_1280x800 Home Resume 5
 desktop_1280x800 KeyGen Resume 2
@@ -50,9 +54,6 @@ desktop_1280x800 VaultContents Resume 4
 desktop_1280x800 VaultContents ShowCode 2
 desktop_1280x800 VaultContents Vault 18
 desktop_1280x800 Vaults Resume 2
-desktop_1280x800 Visit DeletePick 7
-desktop_1280x800 Visit File 12
-desktop_1280x800 Visit Resume 2
 desktop_1280x800 Wallets BackupsOf 3
 desktop_1280x800 Wallets Chart 12
 desktop_1280x800 Wallets PickKey 2
@@ -65,12 +66,12 @@ small_240x320 BackupFlow Flow 7
 small_240x320 Catalog WordList 1
 small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
+small_240x320 Files File 3
+small_240x320 Files VisitInAll 1
 small_240x320 Home Import 1
 small_240x320 KeyGen WordList 4
 small_240x320 Settings Theme 42
 small_240x320 Silent SQr 1
-small_240x320 Visit File 1
-small_240x320 Visit VisitInAll 1
 small_240x320 Wallets PickKey 1
 small_480x640 Backup BC32 1
 small_480x640 Backup BWallets 1
@@ -79,6 +80,8 @@ small_480x640 BackupFlow Flow 9
 small_480x640 Catalog WordList 1
 small_480x640 CreateVault WordList 3
 small_480x640 Entry EntryCandidate 17
+small_480x640 Files File 3
+small_480x640 Files VisitInAll 1
 small_480x640 Home Import 1
 small_480x640 Home Nav 1
 small_480x640 KeyGen Codex32 9
@@ -89,9 +92,6 @@ small_480x640 SpendBackup Slide 14
 small_480x640 VaultContents CodePng 2
 small_480x640 VaultContents ShowCode 2
 small_480x640 VaultContents Vault 1
-small_480x640 Visit File 2
-small_480x640 Visit VisitInAll 1
-small_480x640 Visit VisitOutAll 1
 small_480x640 Wallets PickKey 2
 starter_1024x600 Appearance Host 40
 starter_1024x600 Home Host 2
@@ -126,6 +126,8 @@ stick_1024x600 Entry EntryKeyBack 1
 stick_1024x600 Entry EntryShift 1
 stick_1024x600 Entry Osk 38
 stick_1024x600 Explore Osk 27
+stick_1024x600 Files DeletePick 4
+stick_1024x600 Files File 11
 stick_1024x600 Files LoadWallet 1
 stick_1024x600 Files Osk 38
 stick_1024x600 Files StartSpend 1
@@ -160,8 +162,5 @@ stick_1024x600 VaultContents CodePng 4
 stick_1024x600 VaultContents Osk 38
 stick_1024x600 VaultContents ShowCode 4
 stick_1024x600 VaultContents Vault 11
-stick_1024x600 Visit DeletePick 4
-stick_1024x600 Visit File 10
-stick_1024x600 Visit VisitOutAll 1
 stick_1024x600 Wallets PickKey 2
 stick_1024x600 Wallets RemoveWallet 1

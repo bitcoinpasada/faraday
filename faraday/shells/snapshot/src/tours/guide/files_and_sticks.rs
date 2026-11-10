@@ -54,7 +54,7 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
     }
     t.app.storage(StorageEvent::Sticks(vec![transfer]));
     t.pump();
-    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::Nav(Screen::Files));
     t.shot_marking("files-and-sticks-visit", Action::VisitCopy)?;
     t.press(Action::VisitCopy);
     t.app.storage(StorageEvent::Sticks(Vec::new()));
@@ -77,14 +77,14 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
     )?;
     t.app.storage(StorageEvent::Sticks(vec![keystick.clone()]));
     t.pump();
-    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::Nav(Screen::Files));
     t.shot("stick-visit")?;
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
     files_in(t, &[], &[signed[0].clone(), ("vault.kdbx", vault.to_vec())]);
     t.app.storage(StorageEvent::Sticks(vec![keystick.clone()]));
     t.pump();
-    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::Nav(Screen::Files));
     t.press(Action::VisitWrite);
     t.shot_marking("stick-visit-already", Action::VisitReplace)?;
     t.press(Action::VisitReplace);
@@ -97,7 +97,7 @@ fn visit(t: &mut Tour, descriptor: &str, psbt: &[u8], vault: &[u8]) -> Result<()
     t.press(Action::Nav(Screen::Files));
     t.shot("files-and-sticks-receipt")?;
 
-    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::Nav(Screen::Files));
     t.press(Action::DeleteFiles);
     t.press(Action::DeletePick(0));
     t.shot("files-and-sticks-delete")?;
@@ -142,7 +142,7 @@ fn make_it_a_wallet(t: &mut Tour) -> Result<(), String> {
     )?;
     t.app.storage(StorageEvent::Sticks(vec![paper]));
     t.pump();
-    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::Nav(Screen::Files));
     t.press(Action::VisitIn(0));
     t.press(Action::VisitCopy);
     t.app.storage(StorageEvent::Sticks(Vec::new()));
@@ -166,7 +166,7 @@ fn write_asks_to_lock(t: &mut Tour, psbt: &[u8]) -> Result<(), String> {
     if t.app.sheet.is_some() {
         t.press(Action::Cancel);
     }
-    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::Nav(Screen::Files));
     t.press(Action::VisitWrite);
     t.shot("stick-visit-write-to-a-stick")?;
     t.press(Action::Cancel);

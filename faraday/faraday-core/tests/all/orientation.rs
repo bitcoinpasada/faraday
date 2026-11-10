@@ -132,7 +132,7 @@ fn the_rotation_survives_a_restart() {
     );
     assert_eq!(app.orientation(), Orientation::Portrait);
     // The next stick visit offers the changed settings, and writes them.
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     let file = pump(&mut app, None).expect("the settings file is written");
     let text = String::from_utf8(file.clone()).expect("text");

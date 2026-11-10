@@ -63,7 +63,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         unsigned_txid: None,
     });
     t.sticks(true);
-    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::Nav(Screen::Files));
     t.shot("visit-outbox")?;
     if t.app.is_compact() {
         // Down past the stick's files to the Outbox, then through it.
@@ -136,7 +136,7 @@ fn not_clean(t: &mut Tour) -> Result<(), String> {
     if t.app.sheet.is_some() {
         t.press(Action::Cancel);
     }
-    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::Nav(Screen::Files));
     t.press(Action::VisitWrite);
     t.shot("visit-write-lock")
 }

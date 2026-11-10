@@ -340,7 +340,7 @@ fn written_to_stick_shows_the_local_time() {
         kept: Vec::new(),
     });
     app.storage(StorageEvent::Sticks(vec![stick("FIRST", false, None)]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Write { stick, name, .. } = c {

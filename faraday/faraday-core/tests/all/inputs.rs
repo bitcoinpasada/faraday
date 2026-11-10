@@ -1335,7 +1335,6 @@ fn a_press_on_the_x_does_not_reach_what_is_under_it() {
         Screen::Files,
         Screen::Vaults,
         Screen::Catalog,
-        Screen::Visit,
     ]
     .into_iter()
     .any(|s| {

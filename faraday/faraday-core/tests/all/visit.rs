@@ -45,7 +45,7 @@ fn with_stick_at(n: usize, (width, height, dpi): (u16, u16, u16)) -> Faraday {
         files,
         vaults: Vec::new(),
     }]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     app
 }
@@ -103,7 +103,7 @@ fn a_fresh_visit_has_the_psbts_and_descriptors_ticked_and_the_words_file_not() {
         ],
         vaults: Vec::new(),
     }]));
-    assert_eq!(app.screen, Screen::Visit);
+    assert_eq!(app.screen, Screen::Files);
     let ticked: Vec<&str> = app.visit().inn.iter().map(String::as_str).collect();
     assert_eq!(ticked, ["savings-descriptor.txt", "savings-unsigned.psbt"]);
 }
@@ -183,7 +183,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             unsigned_txid: None,
         });
     }
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     app
 }
@@ -281,6 +281,8 @@ fn dragging_the_outbox_scrollbar_to_the_bottom_shows_its_last_file() {
 fn select_all_on_the_outbox_leaves_an_unprotected_secret_alone() {
     for display in [(1366, 768, 160), (480, 640, 286)] {
         let mut app = with_outbox(with_stick_at(3, display), 20, true);
+        // A small window's In Faraday tab holds the Outbox.
+        app.press(Action::VisitTab(Column::Outbox));
         // The Pi's page scrolls as one: down to the Outbox.
         for _ in 0..20 {
             if app.offers(Action::VisitOutAll) {
@@ -417,7 +419,7 @@ fn a_write_leaves_a_receipt_that_a_lock_keeps_and_power_off_does_not() {
         .find(|(n, _)| n == "spending-wallet.txt")
         .unwrap();
     let mut app = process((Vec::new(), vec![wallet], Vec::new()), Some("TESTSTICK"));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     app.press(Action::VisitWrite);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Write { stick, name, .. } = c {
@@ -473,13 +475,13 @@ fn a_write_leaves_a_receipt_that_a_lock_keeps_and_power_off_does_not() {
 /// A stick attached to a process restored with `outbox` For the stick.
 fn visiting(outbox: Files) -> Faraday {
     let mut app = process((Vec::new(), outbox, Vec::new()), Some("TESTSTICK"));
-    assert_eq!(app.screen, Screen::Visit);
+    assert_eq!(app.screen, Screen::Files);
     let _ = app.frame();
     app
 }
 
 #[test]
-fn the_visit_says_then_home_and_goes_there() {
+fn the_stick_pane_says_then_home_and_pulling_stays_on_files() {
     let wallet = faraday_core::testkit::files()
         .unwrap()
         .into_iter()
@@ -489,7 +491,12 @@ fn the_visit_says_then_home_and_goes_there() {
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Then: Home"), "{texts:?}");
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert_eq!(app.screen, Screen::Home);
+    assert_eq!(app.screen, Screen::Files, "nothing sends on: Files stays");
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t.starts_with("Then:")),
+        "the pane closes with the stick: {texts:?}"
+    );
 }
 
 #[test]
@@ -842,7 +849,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
         files: on_stick.iter().map(|(n, s)| (n.to_string(), *s)).collect(),
         vaults: Vec::new(),
     }]));
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let names: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
     for (i, n) in names.iter().enumerate() {
         if !app.visit().out.contains(n) {
@@ -923,7 +930,7 @@ fn keep_both_writes_beside_and_cancel_writes_nothing() {
     app.press(Action::VisitWrite);
     app.press(Action::Cancel);
     assert!(writes(&mut app).is_empty(), "Cancel writes nothing");
-    assert_eq!(app.screen, Screen::Visit, "the visit stays open");
+    assert_eq!(app.screen, Screen::Files, "the visit stays open");
     // Nothing taken: no sheet, written at once.
     let mut app = writing_over(&[], outbox());
     asked(&mut app);
@@ -1397,7 +1404,7 @@ fn made_unclean(app: &mut Faraday) {
     if app.sheet.is_some() {
         app.press(Action::Cancel);
     }
-    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
 }
 
@@ -1414,7 +1421,7 @@ fn write_on_a_clean_visit_writes_at_once() {
 fn write_on_a_visit_that_is_no_longer_clean_asks_to_lock_and_names_what_a_lock_drops() {
     let mut app = writing_over(&[], vec![("backup-00.pdf", b"new".to_vec())]);
     made_unclean(&mut app);
-    assert_eq!(app.screen, Screen::Visit);
+    assert_eq!(app.screen, Screen::Files);
     asked(&mut app);
     app.press(Action::VisitWrite);
     assert_eq!(app.sheet, Some(faraday_core::Sheet::WriteOut));
@@ -1445,4 +1452,109 @@ fn the_disk_refusal_to_a_process_that_is_not_clean_is_said_in_the_apps_words() {
         "{texts}"
     );
     assert!(!texts.contains(faraday_files::proto::NOT_OPEN), "{texts}");
+}
+
+/// A stick arriving with nothing held opens Files on the stick pane: the
+/// chip's line and the pane's Import and Write.
+#[test]
+fn a_stick_arriving_opens_files_with_the_stick_pane() {
+    let mut app = with_stick(2);
+    app.press(Action::Nav(Screen::Home));
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: "S".into(),
+        label: "TESTSTICK".into(),
+        boot: false,
+        files: vec![("spend-00.psbt".into(), 300)],
+        vaults: Vec::new(),
+    }]));
+    assert_eq!(app.screen, Screen::Files);
+    let _ = app.frame();
+    assert!(app.offers(Action::VisitCopy), "Import is on Files");
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Then: Home"), "{texts:?}");
+}
+
+/// The bar and the rail keep the same destinations as a stick comes and
+/// goes: Tools is never displaced (F235).
+#[test]
+fn the_navigation_does_not_change_as_a_stick_comes_and_goes() {
+    for display in [(480, 800, 160), (1366, 768, 160)] {
+        let mut app = with_stick_at(1, display);
+        app.press(Action::Nav(Screen::Home));
+        let with = [
+            Screen::Home,
+            Screen::WalletsStart,
+            Screen::Files,
+            Screen::Vaults,
+            Screen::Catalog,
+        ]
+        .map(|s| app.offers(Action::Nav(s)));
+        app.storage(StorageEvent::Sticks(Vec::new()));
+        app.press(Action::Nav(Screen::Home));
+        let without = [
+            Screen::Home,
+            Screen::WalletsStart,
+            Screen::Files,
+            Screen::Vaults,
+            Screen::Catalog,
+        ]
+        .map(|s| app.offers(Action::Nav(s)));
+        assert_eq!(with, without, "{display:?}");
+        assert!(with.iter().all(|o| *o), "{display:?}: five destinations");
+    }
+}
+
+/// Only the rows left ticked on Files are written to the stick.
+#[test]
+fn writing_the_ticked_rows_writes_those_files_to_the_stick() {
+    let files = (0..3)
+        .map(|i| (format!("spend-{i}.psbt"), vec![i as u8; 20]))
+        .collect();
+    let mut app = visiting(files);
+    app.press(Action::VisitOut(1));
+    app.press(Action::VisitWrite);
+    let mut names = Vec::new();
+    while let Some(c) = app.poll_storage() {
+        if let StorageCommand::Write { name, .. } = c {
+            names.push(name);
+        }
+    }
+    assert!(names.iter().any(|n| n == "spend-0.psbt"), "{names:?}");
+    assert!(!names.iter().any(|n| n == "spend-1.psbt"), "{names:?}");
+    assert!(names.iter().any(|n| n == "spend-2.psbt"), "{names:?}");
+}
+
+/// With something held, Files says Lock to use the stick and shows no
+/// stick pane.
+#[test]
+fn with_something_held_files_says_lock_to_use_the_stick_and_has_no_pane() {
+    let mut app = process((Vec::new(), Vec::new(), Vec::new()), None);
+    app.press(Action::Entry(None));
+    for c in faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert!(app.holds_secret(), "the key did not load");
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: "S".into(),
+        label: "TESTSTICK".into(),
+        boot: false,
+        files: vec![("a.psbt".into(), 300)],
+        vaults: Vec::new(),
+    }]));
+    app.press(Action::NotNow);
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.contains("lock to use it")),
+        "{texts:?}"
+    );
+    assert!(!app.offers(Action::VisitCopy));
+    assert!(!app.offers(Action::VisitWrite));
 }

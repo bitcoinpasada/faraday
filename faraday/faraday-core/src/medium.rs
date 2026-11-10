@@ -149,24 +149,6 @@ impl Medium {
         }
     }
 
-    /// The screen that writes what waits for it and copies files in:
-    /// "Stick visit", "Card or stick".
-    pub const fn visit(self) -> &'static str {
-        match self {
-            Medium::Stick => EN.medium_stick_visit,
-            Medium::SdCard => EN.medium_card_or_stick,
-        }
-    }
-
-    /// The visit's name in the top app bar, which has little room: "Stick
-    /// visit", "Visit".
-    pub const fn visit_title(self) -> &'static str {
-        match self {
-            Medium::Stick => EN.medium_stick_visit,
-            Medium::SdCard => EN.medium_visit,
-        }
-    }
-
     /// The card that lays the vaults on the media: "Sticks and vaults",
     /// "Cards, sticks and vaults".
     pub const fn and_vaults(self) -> &'static str {

@@ -909,6 +909,35 @@ impl Faraday {
 }
 
 impl Faraday {
+    /// Whether Files shows the stick pane: a stick attached and nothing
+    /// held (F235). A lookup.
+    pub fn stick_pane(&self) -> bool {
+        self.screen == Screen::Files && !self.stick.is_empty() && !self.holds_secret()
+    }
+
+    /// The last stick pulled: Files goes where the pane's chip said (F235).
+    pub(crate) fn visit_pulled(&mut self) {
+        if self.screen == Screen::Files {
+            // Where the pane's chip said it goes (F235).
+            let unlock = self
+                .visit
+                .after_visit()
+                .is_none()
+                .then(|| self.visit_unlocks())
+                .flatten();
+            if let Some(back) = self.visit.after_visit_mut().take() {
+                self.screen = back;
+                if back == Screen::SpendBackup {
+                    self.spend_backup_settle();
+                }
+            }
+            if let Some(i) = unlock {
+                self.screen = Screen::Home;
+                self.vault_act(crate::vault::VaultAction::Open(i));
+            }
+        }
+    }
+
     /// Handles the stick visit's actions (`Action::Visit*`).
     pub(crate) fn visit_act(&mut self, action: Action) {
         match action {
@@ -968,6 +997,7 @@ impl Faraday {
             }
             Action::VisitInbox(i) => self.visit_inbox(i),
             Action::VisitBar(_) => {}
+            Action::VisitTab(c) => self.visit.tab_stick = c == crate::Column::Stick,
             Action::VisitWrite => self.visit_write_ask(),
             Action::VisitReplace => self.visit_write(true),
             Action::VisitKeepBoth => self.visit_write(false),
@@ -985,7 +1015,7 @@ impl Faraday {
             Action::VisitFrom(back) => {
                 if !self.stick.is_empty() && !self.holds_secret() {
                     *self.visit.after_visit_mut() = Some(back);
-                    self.act(Action::Nav(Screen::Visit));
+                    self.act(Action::Nav(Screen::Files));
                 }
             }
             // `act_inner` passes only the actions matched above.

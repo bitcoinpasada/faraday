@@ -1,14 +1,21 @@
 # Files
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/files.rs`, `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/secrets.rs`)
-**Screen:** `Files`, `FileMenu`, `Rename`, `Details`, `Potential`, `SecretOut`
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/files.rs`, `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/secrets.rs`, `faraday/faraday-core/src/screens/visit.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/stick/wipe.rs`)
+**Screen:** `Files`, `Taken`, `NameTaken`, `WriteOut`, `Delete`, `Zeroing`, `FileMenu`, `Rename`, `Details`, `Potential`, `SecretOut`
 **Group:** Files
 
 **Opened from:** the sidebar's **Files**, and its **Files** row at the
-foot; **Open Files** on a stick visit; Home's **Written to …** lead; an
-empty vault's "Write it to a stick". **Import and load** on a stick
-visit opens it with the files just copied in.
+foot; a stick plugged in while Faraday holds no secret, which opens it on
+the stick; the sidebar's stick rows and Home's **Files on {stick}** lead;
+Home's **Written to …** lead; an empty vault's "Write it to a stick";
+**Lock and use stick** on
+[A stick is attached](lock-and-power.md#a-stick-is-attached); and **Copy
+files in from a stick** in Restore, Add a key and the Spend tab. The boot
+stick alone, at its first look in a power-on, leaves Home on screen
+instead, with [Read from the boot stick](prompts.md#read-from-the-boot-stick)
+over it when it holds files. **Import and load** leaves the files just
+copied in in the list.
 
 Files is what Faraday holds in memory: **From the stick**, the files
 copied in, and **For the stick**, the files waiting to be written.
@@ -24,7 +31,7 @@ and a finished transaction, each **Ready**.*
 
 | Control | What it does |
 |---|---|
-| the stick chip | at the top right: "Waiting for a stick"; "Stick attached · lock to use it" while a secret is held, which locks; "Visit" and the stick's name ("Visit TRANSFER"), which opens the [stick visit](stick-visit.md) |
+| the stick chip | at the top right: "Waiting for a stick"; "Lock to use {stick}" while a secret is held, which locks; "Visit" and the stick's name ("Visit TRANSFER"), which shows the [stick pane](#the-stick-in-files) |
 | **Scan a QR code** | opens the camera ([Scan](qr-and-scan.md#scan)); what it reads lands in **From the stick** |
 | **In memory · emptied at power-off** | a label beside it |
 | "Two sticks of this build are in", "The stick Faraday started from was not found" | in the error tone, on a PC, when the stick it started from is not known: two sticks of the running build were in at start, or none was found. No data partition is then the device's own, and no settings are kept ([Why](#why)) |
@@ -126,7 +133,7 @@ QR**, **Check a signer**, **Rename**, **Details** and **Remove**.*
 | a file on a stick visited | **Rename**, "Delete from the stick", **Details** |
 
 **Remove** takes the file out of Files. "Delete from the stick" opens
-[Delete files](stick-visit.md#delete-files) with that file alone
+[Delete files](#delete-files) with that file alone
 chosen.
 
 ### Rename
@@ -137,7 +144,7 @@ Its title is **Rename …** and the file's name.
 |---|---|
 | the field | the name before its extension; the extension stays as it is |
 | the line under it | why a name cannot be used: **Type a name**, **A name cannot start with a dot**, the characters a stick's names cannot hold, **A name is at most 255 characters with its extension**, "Another file for the stick is named …" |
-| **Rename** | renames the file; on a stick, the stick visit's line says "… renamed …", or why not |
+| **Rename** | renames the file; on a stick, a line says "… renamed …", or why not |
 | **Cancel** | closes the sheet |
 
 ### Details
@@ -211,11 +218,203 @@ The same sheet comes before a key's words or SeedQR are saved to a
 stick from a vault, before a backup's plan keeps a seed as a plain file
 at a place, and before Transfer saves a secret.
 
+A stick visit, a stick open to Faraday, writes what waits for the stick and
+copies in what is needed from it. Each file written is read back and
+compared before it counts. Keys load only once the stick is out.
+
+![Files with KEYSTICK open: In Faraday with a signed PSBT ticked, On the stick with a PSBT and a vault ticked](../pictures/stick-visit.png)
+
+*Files with KEYSTICK open, **Then: Home**: **In Faraday** lists
+**Settings**, a signed PSBT ticked and, under **From the stick**, two
+files, with "Write 1 file"; **On the stick** lists a PSBT and a vault,
+both ticked, with **Delete files**, "Import 2 files" and **Import and
+load**; the band reads **Remove the stick when you are done**.*
+
+## The stick in Files
+
+While a stick is open, Files carries a pane for it, beside the two lists on
+a wide window and as the tab **On {stick}** (the lists are the tab **In
+Faraday**) below that; the stick's arrival opens it. Each row of the lists
+takes a checkbox for writing. With a secret held the pane is not drawn and
+the chip reads "Lock to use {stick}".
+
+### On the stick pane
+
+| Control | What it does |
+|---|---|
+| **Then: Home** | the chip under the title, at the left: where pulling the stick goes, **Then: Home**, **Then: Unlock**, or "Then: …" naming the flow that opened it |
+| **Rename stick** | left of the sticks' chips (beside **Delete files** on a small panel): opens [Rename stick](#rename-stick) for the stick shown |
+| a stick's chip | one per stick attached, by its name, at the right of the same row, the one shown selected: a press shows that stick |
+| "Write what waits for the stick …" | in Guided mode |
+| **In Faraday** | the lists: what can be written to the stick, each row ticked or not |
+| **On the stick** | the stick pane: the stick's files, each row ticked to copy in or not |
+| the warning band | under the cards: "Remove the stick when you are done", "Remove the stick to unlock vault.kdbx", "1 key copied in · remove the stick to load it" |
+| the last two lines | what the stick did, in the ok or error tone. After a write, a line per file: "Wrote payment-signed.psbt, read back and matched", or "Wrote payment-signed.psbt as payment-signed-2.psbt, read back and matched" where **Keep both** gave it another name; otherwise "… not written: …", "… renamed …", "… deleted, zeros over it first" |
+
+#### In Faraday
+
+| Control | What it does |
+|---|---|
+| **Select all** | ticks every row, or none; an unprotected secret is ticked one at a time |
+| **Settings** | Faraday's settings file (faraday-settings.txt), tagged **Public**; a press ticks it |
+| a file for the stick | its name and what it is, tagged **Public**, **Sealed** or **Unprotected secret**; **In the backup** for a file a backup flow writes, which cannot be unticked here |
+| **From the stick** | under the files for the stick: the files copied in, which can be written to this stick too. Tagged **Public**, **Sealed**, **May be a secret** or **Secret**; **On this stick** for one it holds already. Ticking a secret opens [This is a secret](files.md#this-is-a-secret) first |
+| "Nothing waits for the stick" | while nothing does |
+| "Write 2 files" | writes what is ticked. Before it, [Already on the stick](#already-on-the-stick) where a name is taken, or [Write to a stick](#write-to-a-stick) while a secret has been held |
+
+#### On the stick
+
+| Control | What it does |
+|---|---|
+| **Unselect all** | unticks every file; everything is ticked at first |
+| a file's row | its name and what it is, or "Being read · 2 MB", **Larger than 18 MB: not read**; **In Faraday** for one Files holds already; a press ticks it |
+| **⋮** | **Rename**, "Delete from the stick", **Details** ([the ⋮ menu](files.md#the--menu)); not on the settings file |
+| "No files on this stick" | while it holds none |
+| **Delete files** | opens [Delete files](#delete-files) |
+| "Import 3 files" | copies the ticked files into Files |
+| **Import and load** | copies them in, opens Files, and loads them once the stick is out |
+
+With more rows than fit, a scrollbar runs beside each list and "3 more ·
+scroll to see them" under it.
+
+| State | What the visit shows |
+|---|---|
+| no stick | "No stick attached" |
+
+## Already on the stick
+
+**Opened from:** "Write 2 files" when a file's name is on the stick
+already, ignoring case. Its title is **Already on the stick**.
+
+![Already on the stick: a PSBT kept both as payment-signed-2.psbt](../pictures/stick-visit-already.png)
+
+*The sheet **Already on the stick**: "payment-signed.psbt · Keep both:
+payment-signed-2.psbt". **Replace** is outlined. It lists files that are
+not vaults; a vault's name taken is asked on its own sheet, below.*
+
+| Control | What it does |
+|---|---|
+| each row | "wallet.txt · Keep both: wallet-2.txt" |
+| **Replace** | writes over the files of the same name |
+| **Keep both** | writes each under the name its row gives |
+| **Cancel** | closes the sheet; nothing is written |
+
+## A vault's name is taken
+
+![vault.kdbx is already on the stick: Faraday cannot tell which vault the file is, Hold: overwrite vault.kdbx outlined, Cancel, Save as vault-2.kdbx filled](../pictures/stick-visit-name-taken.png)
+
+**Opened from:** "Write" on a visit, or the backup flow's write to an
+existing vault's stick, when a file on the stick has the vault's name,
+ignoring case, and nothing proves that file a copy of this vault. Its
+title is "vault.kdbx is already on the stick". Nothing is written until
+it is answered.
+
+The sheet says that Faraday cannot tell which vault the file is and that
+overwriting destroys it, even if it is another vault; a file that is a copy
+of another vault Faraday knows is named so, and one that cannot be read
+says so.
+
+| Control | What it does |
+|---|---|
+| "Hold: overwrite vault.kdbx" | the new vault is written under a hidden name and read back, then the old file is removed and the new one takes its name; refused if the file changed since the sheet showed it. Absent for a file that cannot be read |
+| "Save as vault-2.kdbx" | writes the vault beside the file under that free name |
+| **Cancel** | writes nothing; the vault stays For the stick, and the log says "its name is taken"; with nothing else written, the receipt of an earlier write stays as it was |
+
+A vault Faraday proves is a copy of this one (the same file it wrote or
+opened) is replaced with no sheet, and a name no file has is written with
+none. With several vaults in one write, the sheet asks them in turn.
+
+## Write to a stick
+
+**Opened from:** "Write 2 files" on a visit, or a wallet's chart's
+stick, while Faraday has held a secret since it started: a stick is
+written only from a fresh start. Its title is "Write to a stick".
+
+![Write to a stick: Kept 1 file for the stick, Wiped from memory Seed 3dca6805, Then Lock, and the visit writes them](../pictures/stick-visit-write-to-a-stick.png)
+
+*"Write to a stick": **Kept** 1 file for the stick, **Wiped from
+memory** Seed 3dca6805 · nowhere else, **Then** **Lock, and the visit
+writes them**, over **Not now** and **Lock**.*
+
+| Control | What it does |
+|---|---|
+| **Kept**, **Wiped from memory**, **Then** | as on [Lock](lock-and-power.md); **Then** reads **Lock, and the visit writes them**, or "Lock, plug in a stick, and the visit writes them" |
+| **Dropped from Files** | the files from the stick the lock drops: each that may be a secret |
+| **Not now** | closes the sheet |
+| **Lock** | locks; the visit after it writes the files |
+
+## Rename stick
+
+**Opened from:** **Rename stick**. Its title is
+**Rename stick** ("Rename SD card" on the Pi).
+
+| Control | What it does |
+|---|---|
+| the field | the stick's name, at most 11 characters: letters, digits, spaces, the backtick and `! # $ % & ' ( ) - @ ^ _ { } ~`. Empty takes the name away |
+| "Written as COFFEE 1" | under the field when what is typed is written otherwise: a name is written in capitals, as FAT keeps it |
+| "No name" | under the field when it is empty |
+| "At most 11 characters", "Letters, digits, spaces and … only", "EFI, bootfs and FARADAYBOOT are boot partitions' names" | why the name cannot be used; **Rename** is dimmed |
+| **Rename** | writes the name; the visit's line says "This stick is named COFFEE 1" or "This stick has no name" |
+| **Cancel** | closes it, nothing written |
+
+The name is the one a computer shows the stick by. A Faraday stick has
+none until one is given (`docs/STICK-IDENTITY.md` §6).
+
+## Delete files
+
+**Opened from:** **Delete files** on a stick visit, and "Delete from the
+stick" in a file's **⋮**. Its title is "Delete files from Boot stick".
+
+![Delete files from KEYSTICK on Chosen files, payment-signed.psbt ticked, Delete 1 file with zeros](../pictures/stick-visit-delete.png)
+
+*"Delete files from KEYSTICK" on **Chosen files**: payment-signed.psbt
+ticked, vault.kdbx not, and "Delete 1 file with zeros" beside
+**Cancel**.*
+
+| Control | What it does |
+|---|---|
+| **Danger zone: what is deleted here cannot be undone** | the band at the top |
+| **Chosen files** | **Zeros over each, then it is removed with its name**: the stick's files, under the three choices, each ticked or not, with its size |
+| **The free space** | **The files stay; what earlier deletes left is zeroed**: with the amount to write and the time ("1.8 GB to write · about 6 minutes on a typical stick") |
+| **The whole partition** | **Every file is deleted, then all of it is zeroed**: with **One pass** and **Two passes** |
+| the lines under them | that only the stick's files partition is written, why, and what zeros do not reach |
+| "Delete 2 files with zeros", **Zero the free space**, **Zero the whole partition** | does it |
+| "Hold to delete 1 file with zeros", **Hold to zero the free space**, **Hold to zero the whole partition** | in place of the button when a vault is chosen, and for the free space and the partition: held until it fills |
+| **Cancel** | closes the sheet |
+
+**Reading the stick's space** shows until the stick has said how large
+it is. Each file deleted is listed on the visit: "… deleted, zeros over
+it first", or "… not deleted: …".
+
+## Zeroing
+
+**Opened from:** the free space or the partition, started on Delete
+files. Its title is "Zeroing the free space on Boot stick" or "Zeroing
+the whole partition on Boot stick". No press beside the sheet closes
+it.
+
+![Zeroing the free space on KEYSTICK at 40%, about 7 minutes left, with Stop](../pictures/stick-visit-zeroing.png)
+
+*"Zeroing the free space on KEYSTICK": "40% · about 7 minutes left",
+"Keep the stick in until it is done", and **Stop**.*
+
+| Control | What it does |
+|---|---|
+| the bar | how far: "40% · about 7 minutes left", and "Pass 1 of 2" for two passes |
+| "Keep the stick in until it is done" | a line |
+| **Stop** | stops after the step under way (**Stopping**); the visit says "Stopped at 40%" |
+
+When it ends, the visit says "Free space on Boot stick zeroed" or "Boot
+stick's partition zeroed".
+
 ## On a narrow window
 
 One column: the stick's status and **Scan a QR code**, the vault panels
 and what the files give, then **From the stick**, then **For the
-stick**, each row's button under its name.
+stick**, each row's button under its name. With a stick open, the tabs
+**In Faraday** and **On {stick}** are at the top: the first holds the
+lists above, the second the stick, its warning band, then what to copy in,
+each a list with its buttons under it.
 
 ## Why
 

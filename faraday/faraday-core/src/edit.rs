@@ -1141,7 +1141,6 @@ impl Faraday {
             Screen::SignerCheck => self.signer_check().is_some(),
             Screen::Compare => self.decode.compare().is_some(),
             Screen::CheckMessage => self.message.checking().is_some(),
-            Screen::Visit => !self.stick.is_empty(),
             Screen::Transfer => self.online,
             Screen::Randomness => self.own_page().is_some(),
             // Opened by its own action, which sets what it returns to.
