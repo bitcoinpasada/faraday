@@ -271,3 +271,10 @@ path = "fuzz_targets/bolt11.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "bolt12"
+path = "fuzz_targets/bolt12.rs"
+test = false
+doc = false
+bench = false

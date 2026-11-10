@@ -1,6 +1,7 @@
 //! QR payloads:
 //!
 //! - [`bolt11`]: a BOLT #11 Lightning invoice read, its signature checked.
+//! - [`bolt12`]: a BOLT #12 offer read.
 //! - [`png`]: a QR code as a PNG file, for a public code saved as a
 //!   picture.
 //! - [`qr`]: an in-house QR encoder (no published one is `no_std`) whose
@@ -36,6 +37,8 @@
 extern crate alloc;
 
 pub mod bolt11;
+pub mod bolt12;
+mod bolt12_chars;
 pub mod cbor;
 pub mod classify;
 #[cfg(feature = "decode")]

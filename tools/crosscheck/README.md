@@ -228,7 +228,7 @@ run `python3 -I -B tools/crosscheck/facts.py write`. `just lint` runs its
 | `vanity` | `faraday_bip::vanity` (the counter, prefixes and their expected work, the search on both dials, for the four script types and a silent payment code) | EntropyLab's counter as `tools/reference/vanity/README.md` quotes it, written out in `area_vanity.py` over python-mnemonic, each candidate's child key derived by btclib on its own curve, and its address by Bitcoin Core v31.1 for the script and address text only (`deriveaddresses` on regtest, from the bare key) and Core's framework, as the `addr` area writes it; a silent payment code by the BIP-352 reference's own bech32m from btclib's keys at BIP-352's paths | EntropyLab's two finds | counters at every width's edges; prefixes of every kind on every network, valid and not; searches of random keys on both dials from random starting counters, with budgets ending before a match and after |
 | `qrvault` | `faraday_vault::qr` (the QR vault sealed and opened, with `faraday_pgp::message`) | Sequoia's `sq`, the distribution's package, over Nettle (judges the primitives except Argon2, which it shares with the app's lineage); rPGP (`tools/crosscheck/rpgp/`, a program outside the workspace, on RustCrypto like the app: judges the format only); PyCA cryptography's Argon2id, HKDF-SHA-256 and AES-256-OCB (OpenSSL's), which judge the primitives, under the OpenPGP framing written in the area from RFC 9580 and `docs/VAULT.md` §1.2 (Faraday's second version, not another program's); the QR TOML `qr_toml` written in the area from §2.1, each opened item also read by CPython's `tomllib` | the seven vaults of `tools/vectors/vault/qr/` opened by `sq`, rPGP and the PyCA judge to the item each holds and by Faraday; the four refused messages refused by Faraday and by the PyCA judge; the PyCA judge refuses a vector with a byte changed in each field | an item of every kind of §2.1 (12 and 24 words, a codex32 share, a passphrase, a note with markup, control characters and several scripts, the empty vault) sealed by Faraday and opened by `sq`, rPGP, the PyCA judge and Faraday, and sealed by rPGP and by the PyCA judge (memory 2^13 to 2^16 KiB) and opened by Faraday, each opened item read by `tomllib`; each memory step of §3 (2^16 to 2^20 KiB) sealed by Faraday at scale 1, each message equal byte for byte to the PyCA judge's seal of the same random bytes; items at the size limits (a note of 216 and 217 bytes, a passphrase of 193 and 194, a 24-word seed of the longest words); a passphrase in NFD or NFC either way; a wrong passphrase; a 15-word seed and a document of two keys sealed by rPGP, refused by Faraday; the messages `sq` writes, refused by Faraday and the PyCA judge; two items sealed by rPGP in chunks of 64 bytes (chunk size octet 0), opened by Faraday |
 | `kef` | `faraday_kef` (`seal`, `seal_with_key`, `open`, `open_with_key`, `suggest_versions`), `faraday_codec::kef::unwrap` | krux's `kef.py` (`krux/`, unchanged), by the krux developers, on three small shims for the firmware's AES, SHA-256 and PBKDF2, and deflate modules (PyCA cryptography's AES, `hashlib`, zlib at `wbits` -10) | krux's test data for versions 5, 15 and 20 (`tools/vectors/kef/`): a CTR code under `key`, a GCM code under `test key` at 100,000 rounds, and the version 5 code opened by `abc` and by a wrong passphrase that passes its 3-byte check | each of the twelve versions sealed by Faraday and by krux, byte for byte for the ten that do not compress and opened by the other for all twelve, over entropy of 16 and 32 bytes, short and long text, text up to 1,024 bytes, text ending in NUL, text whose hidden check ends in 0x00, repeated blocks, ids of 0, 8, 252 and random lengths, every edge of the count, and wrong IV lengths; codes under a passphrase at 10,000 to 30,000 rounds, one of 200 characters with an id of 252 bytes, and keys of raw bytes (to 200 bytes) krux seals and Faraday opens; codes from a writer that skipped the NUL rules, with 1 to 8 NULs at the end; envelopes cut or changed; the suggested versions for each mode at every length to 1,024 |
-| `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read), `faraday_codec::bolt11::decode` (a BOLT #11 invoice read), `faraday_keys::hsm_secret` (Core Lightning's node key from its hsm_secret, plain encrypted or the mnemonic form, and from BIP-39 words) | LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as `tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` over btclib's BIP-32 (`btclib/`, on btclib's own curve); for invoices, the `bolt11` package by lnbits (2.2.0, `tools/reference/bolt11/`: its wheels over the bech32, base58 and bitstring packages, with a stand-in for its libsecp256k1 binding `coincurve` written over btclib's curve), and invoices written in `bolt11_enc.py` from BOLT #11 and signed with btclib; Core Lightning's code (`tools/reference/cln/`: ccan's HKDF-SHA256 compiled as it is, and its `common/hsm_secret.c` functions written out over the system libsodium, the BIP-39 words and seed of the mnemonic form from python-mnemonic), one process answering the run's requests | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`); BOLT #11's 31 examples, valid and invalid (`tools/vectors/lightning-bolt11/`) | random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code; 150 invoices written with every kind of field (amounts in every multiplier, description or its hash, payee key, expiry, final cltv, fallbacks of every version, route hints, features, metadata, fields BOLT #11 does not define) and signed, read by Faraday and by the package field by field, then each with one Bech32 character changed, with one letter in upper case, and with two of these spoiled: a repeated p or x, a wrong-length p, s, h or n, no p, no s, both or neither of d and h, an unknown required feature, a leading zero value in a longer x, c or 9, a leading zero or a fraction of a millisatoshi in the amount, a bad multiplier, an unknown network, a high-S signature, a field cut short, a text over 1023 characters, a description that is not UTF-8; for Core Lightning, random plain and encrypted hsm_secrets under random passphrases (opened by Faraday and by libsodium, node ids compared), a secret sealed by libsodium and opened by Faraday and by Core Lightning's functions, a changed byte, a wrong passphrase and a wrong length each refused by both, random mnemonic-form files with and without a passphrase (node ids compared; a wrong passphrase, a passphrase the file does not have and broken words each refused by both), and random BIP-39 words with a passphrase |
+| `lightning` | `faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read), `faraday_codec::bolt11::decode` (a BOLT #11 invoice read), `faraday_codec::bolt12::decode` (a BOLT #12 offer read), `faraday_keys::hsm_secret` (Core Lightning's node key from its hsm_secret, plain encrypted or the mnemonic form, and from BIP-39 words) | LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package over Yawning Angel's `aez`, and the node key over btcd's `hdkeychain`), one process answering the run's requests (the aezeed also asked of a second build of each side, Faraday's with the aes crate's software round and LND's without assembly); ldk-node's derivation as `tools/reference/aezeed/README.md` quotes it, written out in `area_lightning.py` over btclib's BIP-32 (`btclib/`, on btclib's own curve); for invoices, the `bolt11` package by lnbits (2.2.0, `tools/reference/bolt11/`: its wheels over the bech32, base58 and bitstring packages, with a stand-in for its libsecp256k1 binding `coincurve` written over btclib's curve), and invoices written in `bolt11_enc.py` from BOLT #11 and signed with btclib; for offers, Core Lightning's own offer decoder, `devtools/bolt12-cli` built from its source release by its own configure and make (`tools/reference/bolt12/`), and offers written in `bolt12_enc.py` from BOLT #12; Core Lightning's code (`tools/reference/cln/`: ccan's HKDF-SHA256 compiled as it is, and its `common/hsm_secret.c` functions written out over the system libsodium, the BIP-39 words and seed of the mnemonic form from python-mnemonic), one process answering the run's requests | LND's five cipher seeds, LND's two node keys, ldk's five node ids (`tools/vectors/aezeed/`); BOLT #11's 31 examples, valid and invalid (`tools/vectors/lightning-bolt11/`); BOLT #12's 53 offer vectors and 12 format strings, valid and invalid (`tools/vectors/lightning-bolt12/`) | random BIP-39 seeds and entropies on every network; every aezeed case again with the aes crate's software round against LND's AEZ without assembly; random words, a wrong version with a right checksum, published seeds under a changed passphrase, a changed enciphered byte or salt with the checksum put right, a changed word, each refused by LND's code; 150 invoices written with every kind of field (amounts in every multiplier, description or its hash, payee key, expiry, final cltv, fallbacks of every version, route hints, features, metadata, fields BOLT #11 does not define) and signed, read by Faraday and by the package field by field, then each with one Bech32 character changed, with one letter in upper case, and with two of these spoiled: a repeated p or x, a wrong-length p, s, h or n, no p, no s, both or neither of d and h, an unknown required feature, a leading zero value in a longer x, c or 9, a leading zero or a fraction of a millisatoshi in the amount, a bad multiplier, an unknown network, a high-S signature, a field cut short, a text over 1023 characters, a description that is not UTF-8; for Core Lightning, random plain and encrypted hsm_secrets under random passphrases (opened by Faraday and by libsodium, node ids compared), a secret sealed by libsodium and opened by Faraday and by Core Lightning's functions, a changed byte, a wrong passphrase and a wrong length each refused by both, random mnemonic-form files with and without a passphrase (node ids compared; a wrong passphrase, a passphrase the file does not have and broken words each refused by both), and random BIP-39 words with a passphrase; 250 rounds of BOLT #12 offers, each an offer written with every kind of field (chains, metadata, a currency or an amount in millisatoshis, description, features, expiry, blinded paths, issuer, quantity, issuer id, unknown odd fields; `+` joins, upper case and a `lightning:` prefix) read by Faraday and by Core Lightning's decoder field by field and by the writer's own record, then one with a Bech32 character changed, one in mixed case, and three of thirty-eight spoils: types out of order or repeated, a field cut short or longer than the stream, a BigSize, truncated integer or feature field not minimal, a type outside the offer's ranges or an unknown even one, a text that is not BOLT #1's, an amount without a description, of zero, or a currency without an amount, no issuer id and no path, a path of no hops or a bad point, chains empty or of a wrong length, padding of more than four bits, a bad `+`, a wrong prefix, characters outside Bech32, and F232's stricter cases (a text over 4,296 characters, a non-zero padding bit, a chain twice or none known, a currency not in ISO 4217, an amount above 21 million bitcoin, an expiry past the year 9999, a first node byte that is no key, an unassigned character) |
 
 ### How each reference is checked
 
@@ -495,27 +495,37 @@ leaves uncompared.
   libsodium itself seals and opens the file, and Core Lightning's two
   published node ids for words are required of it as well as of Faraday;
   the area stops when the program is missing and the stamp records
-  libsodium's version. Not compared: ldk-node's node key is compared
-  with a derivation written here, not with ldk's code (Rust, not
-  vendored): only ldk's five published answers are outside it; LND's key
-  path numbers are written in the Go program from
-  `keychain/derivation.go`, as LND derives through btcwallet, which is
-  not vendored; the `bolt11` package is not asked the fields it does not
-  read (fields BOLT #11 does not define, a fallback of a witness version
-  above 16, a second or later fallback), which are compared with the
-  writer's own list; its signature check runs on btclib's curve, not
-  libsecp256k1's, and refuses a high-S signature as libsecp256k1 does;
-  `hsm_secret.c` itself is not compiled (it needs tal and libwally): its
-  functions are written out in `main.c`, and for the mnemonic form
-  libwally's two answers, whether the words validate and their BIP-39
-  seed, are python-mnemonic's, which takes 12 to 24 words and normalises
-  the words and passphrase (NFKD) where libwally takes 27 and 30 words
-  too and normalises nothing, so the area judges only English 12 to
-  24-word ASCII cases and Faraday refuses 27 and 30 words (F228); a NUL
-  in the mnemonic form's words is not compared (Core Lightning reads the
-  text up to it, Faraday refuses the file); the words' derivation
-  (`lightning-hsmtool generatehsm`) is BIP-39's seed, whose first 32
-  bytes are taken by both sides here.
+  libsodium's version; Core Lightning's release archive is hashed
+  against `tools/reference/bolt12/release.pin` by the fetch and again by
+  every build, the area stops when `bolt12-cli` is missing, and each of
+  the BOLT #12 vectors is required to be read by Faraday as the vector
+  says (a valid one read, an invalid one refused) and read by Core
+  Lightning's decoder to the same fields where Faraday reads it. Not
+  compared: ldk-node's node key is compared with a derivation written
+  here, not with ldk's code (Rust, not vendored): only ldk's five
+  published answers are outside it; LND's key path numbers are written
+  in the Go program from `keychain/derivation.go`, as LND derives
+  through btcwallet, which is not vendored; the `bolt11` package is not
+  asked the fields it does not read (fields BOLT #11 does not define, a
+  fallback of a witness version above 16, a second or later fallback),
+  which are compared with the writer's own list; its signature check
+  runs on btclib's curve, not libsecp256k1's, and refuses a high-S
+  signature as libsecp256k1 does; `hsm_secret.c` itself is not compiled
+  (it needs tal and libwally): its functions are written out in
+  `main.c`, and for the mnemonic form libwally's two answers, whether
+  the words validate and their BIP-39 seed, are python-mnemonic's, which
+  takes 12 to 24 words and normalises the words and passphrase (NFKD)
+  where libwally takes 27 and 30 words too and normalises nothing, so
+  the area judges only English 12 to 24-word ASCII cases and Faraday
+  refuses 27 and 30 words (F228); a NUL in the mnemonic form's words is
+  not compared (Core Lightning reads the text up to it, Faraday refuses
+  the file); the words' derivation (`lightning-hsmtool generatehsm`) is
+  BIP-39's seed, whose first 32 bytes are taken by both sides here; Core
+  Lightning's `bolt12-cli` reads one Bech32 string, so the area takes
+  out a `+` between two Bech32 characters and the white space after it,
+  and a `lightning:` prefix, before asking it, and a text with a NUL
+  byte cannot be given to it (Faraday refuses it); its output is read as
+  text (a short channel id as `BxTxO/direction`, chain hashes reversed).
 <!-- facts:end what-runs -->
 
 <!-- facts:begin known-differences -->
@@ -1045,6 +1055,25 @@ difference"), and says why.
   - BOLT #11 features: the package keeps one state per feature, so a
     feature with both its required and its supported bit set reads as
     supported only; the writer sets one bit of each pair
+  - BOLT #12 offers: Core Lightning's `bolt12-cli` passes the decoder no
+    feature set, so it reads an offer with an even feature bit that
+    Faraday refuses (BOLT #9 defines no offer feature); it also reads
+    feature bytes with a leading zero byte, which BOLT #9 makes not
+    minimal, and a description, issuer or currency holding a character
+    of Unicode's Cc, Cf, Co, Zl or Zp categories, which BOLT #1 refuses
+    and Faraday refuses; and it refuses what Faraday reads when the
+    currency is missing from its ISO 4217 table (the list of 2018) or an
+    amount in bitcoin has a first chain Faraday does not know (it names
+    the unit by the first chain alone), which Faraday reads as BOLT #12
+    says; the area counts each as known, naming the reason, and every
+    other difference fails the run
+  - BOLT #12 offers, F232's stricter cases: Faraday refuses what Core
+    Lightning reads (a text over 4,296 characters, a non-zero padding
+    bit, whitespace after a `+` that is not a space, tab or line break,
+    a chain twice, no known chain, a currency not in the ISO 4217 list
+    Faraday holds, an amount over 21 million bitcoin, an expiry past the
+    year 9999, a first node that is no key, an unassigned character);
+    the area requires Faraday's refusal and counts it as known
 <!-- facts:end known-differences -->
 
 ## Where each reference comes from
@@ -1087,6 +1116,7 @@ Path naming the outside tool that generated it where one did.
 | `ur/` | <https://github.com/Foundation-Devices/foundation-ur-py> | `ur/` | none | `2c104058d2f6421aaf41f5e919392d3e5a5d2268` |
 | `lnd/` | <https://github.com/lightningnetwork/lnd> | `aezeed/` | none | `88959aec3d7a9d11a509714d9bee97c29ee02269` |
 | `cln/` | <https://github.com/ElementsProject/lightning> | `common/hsm_secret.c`, `hsmd/libhsmd.c`, `ccan/` | `v26.06.10` | `e8b1609e67575036bd80aec32605e830f8f651cc` |
+| `bolt12/` | <https://github.com/ElementsProject/lightning> | the source release archive (not vendored: its SHA-256 is in `release.pin`), built into `devtools/bolt12-cli` | `v26.06.10` | `e8b1609e67575036bd80aec32605e830f8f651cc` |
 | `aezeed/` | <https://github.com/Yawning/aez> | `testdata/` | none | `e49e68abd344eba4a888cee91bc7370df2d14e27` |
 | `bip39-slip39/` | <https://github.com/btclib-org/bip39-slip39> | `bip39_slip39-2026.10.24-py3-none-any.whl` | `v2026.10.24` | `f75580077b2046d491abec1ef2a372080031d920` |
 | `booklet-dice/` | none (Faraday's own) | none | none | none |
@@ -1154,6 +1184,7 @@ with an area and no class (`docs/crypto/check.py`).
 | `bip85` | others' code | btclib-wallet's `bip85`, by the btclib developers, on btclib's own curve and run as written over bip39_slip39, by the btclib developers; ethankosakovsky/bip85, by Ethan Kosakovsky, over python-mnemonic, by Trezor (SatoshiLabs), and btclib through a pycoin shim | none | bip85 |
 | `vanity` | others' code and, for a part, Faraday's second version | python-mnemonic, by Trezor (SatoshiLabs), Bitcoin Core v31.1 (`deriveaddresses`), by the Bitcoin Core developers, and btclib, by the btclib developers, which derives each candidate's child keys on its own curve (Core judges the script and the address text only, and shares libsecp256k1's curve maths with Faraday's) | EntropyLab's counter, the prefix rules, the expected work and the search loop, written out in `area_vanity.py` from a quotation | vanity |
 | `lightning` | others' code | the `bolt11` package (lnbits), over the bech32 and bitstring packages, with a stand-in for its libsecp256k1 binding over btclib; Faraday's stricter refusals are stated differences of the area | none | bolt11 |
+| `lightning` | others' code and, for a part, Faraday's second version | Core Lightning's `bolt12-cli`, by the Core Lightning developers (Blockstream), built from its v26.06.10 source release | the offers the area reads, written in `bolt12_enc.py` from BOLT #12, and the stricter refusals of F232 and what Core Lightning's command does not check (a feature set, minimal feature bytes, BOLT #1's refused characters, its 2018 currency table), which are stated differences of the area | bolt12 |
 | `lightning` | others' code | Lightning Labs (LND), Yawning Angel (AEZ): compared with the processor's AES round on both sides and again with the aes crate's software round against Yawning Angel's AEZ built without assembly | none | aezeed |
 | `lightning` | others' code and, for a part, Faraday's second version | LND's node key by btcd's `hdkeychain` in LND's vendored tree, by Lightning Labs and the btcd developers, for LND; btclib-wallet's `bip32`, by the btclib developers, and python-mnemonic, by Trezor (SatoshiLabs), for each step of ldk-node's key | ldk-node's node key, composed in `area_lightning.py` from the sources `tools/reference/aezeed/README.md` quotes (each step btclib's), and LND's key-path numbers (1017', coin, 6', 0, 0), written in `tools/reference/lnd/main.go` from `keychain/derivation.go` | lightning-node |
 | `lightning` | others' code | Blockstream and the Core Lightning developers (ccan's HKDF-SHA256, the salt, limits and calls of common/hsm_secret.c written out in tools/reference/cln/main.c), the libsodium developers (Argon2id and the secretstream), python-mnemonic, by Trezor (SatoshiLabs) (the mnemonic form's BIP-39 words and seed) | none | hsm-secret |
@@ -1208,7 +1239,16 @@ vendored modules, with `GOTOOLCHAIN=local`) and stops the run when `go`
 is missing or older, and a C compiler, `pkg-config` and libsodium's headers
 (Debian and Ubuntu: `build-essential`, `pkg-config`, `libsodium-dev`) for
 Core Lightning's program (`tools/reference/cln/`, compiled by `run.sh`); it
-stops when they are missing. A passing run writes these versions into the stamp. Bitcoin
+stops when they are missing. The area also builds Core Lightning's offer
+decoder, `devtools/bolt12-cli`, from the release archive
+`tools/reference/bolt12/release.pin` pins, fetched once with the network by
+`python3 -I -B tools/crosscheck/fetch_cln.py` into
+`~/.cache/faraday/core-lightning` (`FARADAY_CLN_SOURCE` for another folder)
+and built by `tools/crosscheck/build_bolt12_cli.sh` with Core Lightning's own
+`./configure` and `make`, which need `autoconf`, `automake`, `libtool`,
+`gettext`, `python3-mako`, `lowdown`, `jq`, `unzip`, `libsqlite3-dev` and
+`zlib1g-dev` (Debian and Ubuntu) besides the compiler, `make` and libsodium; the
+run stops when the archive or a package is missing. A passing run writes these versions into the stamp. Bitcoin
 Core v31.1's release tarball, fetched once with `fetch_core.py`, which
 needs `gpg` and `git` (above).
 
@@ -1225,6 +1265,8 @@ needs `gpg` and `git` (above).
 | `common.py` | the Rust process, the comparison, the reference check |
 | `core_node.py` | Bitcoin Core: the pinned tarball checked and unpacked, the regtest node started and stopped, its RPC client |
 | `fetch_core.py` | fetches the pinned Core release once and checks it against `guix.sigs`' signatures and the pin |
+| `fetch_cln.py` | fetches Core Lightning's pinned source release once and checks it against the pin |
+| `build_bolt12_cli.sh` | builds Core Lightning's `bolt12-cli` from that release, for the `lightning` area |
 | `area_*.py` | one area each, with the facts it states about itself |
 | `facts.py` | reads those facts, writes this README's tables between marker lines, and checks them (`just lint`) |
 | `btc.py` | Base58Check and BIP-32 written from the BIPs, which `bip32`, `addr`, `psbt`, `msg`, `sign` and `miniscript` share |

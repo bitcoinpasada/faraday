@@ -182,6 +182,11 @@ fn = "decode"
 target = "fuzz/fuzz_targets/bolt11.rs"
 
 [[parser]]
+file = "core/faraday-codec/src/bolt12.rs"
+fn = "decode"
+target = "fuzz/fuzz_targets/bolt12.rs"
+
+[[parser]]
 file = "core/faraday-draw/src/fonts/mod.rs"
 fn = "parse"
 excuse = "reads the font files compiled into the app, not input from outside"

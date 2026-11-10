@@ -492,6 +492,12 @@ what = "Lightning invoices, BOLT #11 (`core/faraday-codec/src/bolt11.rs`)"
 completeness = "Read only: the fields of an invoice and its signature, nothing paid or made. BOLT #11 makes a bad checksum, a `p`, `h`, `s` or `n` field of another length, a repeated `p` or `s`, no payment hash or payment secret, both or neither of a description and its hash, mixed case, an amount finer than a millisatoshi, a `c`, `x` or `9` field that begins with a zero value and an unknown required feature (anything outside bits 0, 8, 12, 14, 16, 24, 44 and 48) a refusal, and so does Faraday. Faraday is stricter where BOLT #11 leaves a case open: an invoice over 1023 characters, an amount with a leading zero, a repeated `x`, `c`, `m`, `9`, `d`, `h` or `n`, a malformed fallback of a version it defines, an empty route hint or a hop key that is not a curve point, an `n` key that is not on the curve, and a non-zero padding bit in a `p`, `s`, `h`, `n`, `d`, `m`, `r` or `f` field"
 
 [[row]]
+id = "bolt12"
+section = 5
+what = "Lightning offers, BOLT #12 (`core/faraday-codec/src/bolt12.rs`)"
+completeness = "Read only: the fields of an offer (`lno1`), nothing requested, paid or made; an invoice request (`lnr1`) is refused with a line of its own and any other prefix, `lni1` included, as unknown. BOLT #12 and BOLT #1 make mixed case, a `+` that does not stand between two Bech32 characters, types that do not strictly increase, a length past the end, a BigSize or truncated integer that is not minimal, a type outside 1 to 79 and 1,000,000,000 to 1,999,999,999, an unknown even type, features not minimally encoded or with an even bit set, a description, issuer or currency that is not BOLT #1's UTF-8, an amount without a description, an amount of zero, a currency without an amount, neither an issuer id nor a path, a path of no hops, a point that is not a compressed secp256k1 key, chains present but empty or of a length that is not a multiple of 32, and more than four bits of padding a refusal, and so does Faraday. Faraday is stricter where BOLT #12 leaves a case open: a text over 4,296 characters, a non-zero padding bit, whitespace after a `+` other than spaces, tabs and line breaks, a chain named twice, chains naming no Bitcoin network Faraday knows, a currency that is not three capital letters of its ISO 4217 list, an amount over 21 million bitcoin, an expiry past the year 9999, an offer_paths that holds no path, and a character of Unicode's Cn category"
+
+[[row]]
 id = "qr-code"
 section = 4
 what = "QR codes (`core/faraday-codec/src/qr.rs`)"
@@ -4178,6 +4184,81 @@ reviewed = "2026-11-09"
 places = [
   "tools/vectors/lightning-bolt11/README.md",
   "tools/reference/bolt11/README.md",
+]
+
+[[action]]
+id = "bolt12"
+name = "Read a Lightning offer"
+action = "Reads a BOLT #12 offer: Bech32 without a checksum, its `+` joins, and the TLV fields (chains, amount and currency, description, issuer, expiry, quantity, features, blinded paths, issuer id and the odd fields it does not know)."
+row = "bolt12"
+standards = [
+  "BOLT 12",
+]
+learn = "none"
+screens = []
+functions = [
+  "core/faraday-codec/src/bolt12.rs::decode",
+  "core/faraday-codec/src/bolt12.rs::Chain::from_hash",
+  "core/faraday-codec/src/bolt12.rs::Chain::hash",
+]
+code = [
+  "core/faraday-codec/src/bolt12.rs::decode",
+  "core/faraday-codec/src/bolt12.rs::Chain::from_hash",
+  "core/faraday-codec/src/bolt12.rs::Chain::hash",
+]
+
+[action.implementation]
+crate = "core/faraday-codec"
+libraries = [
+  "bitcoin",
+]
+adds = "The offer's fields are read here, over the bitcoin crate's secp256k1 for the points; reading only, an offer carries no signature and nothing is hashed, requested, paid or stored, and every refusal is a named reason."
+
+[action.checked]
+vectors = [
+  "lightning-bolt12",
+]
+tests = [
+  "core/faraday-codec/tests/bolt12.rs::every_offer_of_the_specification_is_read_or_refused",
+  "core/faraday-codec/tests/bolt12.rs::the_text_form_follows_the_format_vectors",
+  "core/faraday-codec/tests/bolt12.rs::the_fields_read_as_the_vectors_describe_them",
+  "core/faraday-codec/tests/bolt12.rs::paths_show_their_first_node_and_hops",
+  "core/faraday-codec/tests/bolt12.rs::unknown_odd_fields_are_listed",
+  "core/faraday-codec/tests/bolt12.rs::an_invoice_request_and_other_prefixes_are_refused_with_their_reason",
+  "core/faraday-codec/tests/bolt12.rs::what_bolt12_leaves_open_is_refused",
+  "core/faraday-codec/tests/bolt12.rs::text_fields_hold_no_control_or_unassigned_characters",
+  "core/faraday-codec/tests/bolt12.rs::the_text_is_bounded_and_its_padding_is_zero",
+  "core/faraday-codec/tests/bolt12.rs::a_chain_hash_is_the_genesis_block_of_its_network",
+  "core/faraday-codec/tests/bolt12.rs::the_currency_table_is_the_published_iso_4217_list",
+]
+crosscheck = "lightning"
+against = "Core Lightning's own offer decoder, `devtools/bolt12-cli`, built from its v26.06.10 source release; the points are its libsecp256k1's and, in the area, btclib's"
+independence = { class = "outside-and-own", author = "Core Lightning's `bolt12-cli`, by the Core Lightning developers (Blockstream), built from its v26.06.10 source release", ours = "the offers the area reads, written in `bolt12_enc.py` from BOLT #12, and the stricter refusals of F232 and what Core Lightning's command does not check (a feature set, minimal feature bytes, BOLT #1's refused characters, its 2018 currency table), which are stated differences of the area" }
+fuzz = [
+  "bolt12",
+]
+
+[action.secrets]
+reveal = "none"
+constant_time = "Not stated; an offer holds no secret."
+wiped = "Nothing secret is held."
+
+[action.limits]
+lines = [
+  "Reading only: no offer is written, requested, paid or stored.",
+  "A text over 4,296 characters, mixed case, an invoice request or a field outside the offer's ranges is refused.",
+  "An expiry is shown and not judged against the clock; odd fields BOLT #12 does not define are listed and not used.",
+]
+
+[[action.own]]
+text = "BOLT #12 and BOLT #1 make mixed case, a misplaced `+`, a malformed TLV stream, a type outside the offer's ranges, an unknown even type, an unknown required feature, text that is not BOLT #1's UTF-8, an amount of zero or without a description, a currency without an amount, an offer naming neither an issuer id nor a path, a path of no hops, a point that is not a curve point, empty chains and more than four bits of padding a refusal, and Faraday refuses them. Where BOLT #12 leaves a case open, Faraday refuses the offer: a text over 4,296 characters (what a QR code holds in capital letters), a non-zero padding bit, whitespace after a `+` other than spaces, tabs and line breaks, a chain named twice, chains naming no Bitcoin network Faraday knows, a currency that is not in its ISO 4217 list, an amount over 21 million bitcoin, an expiry past the year 9999, an offer_paths that holds no path, and a character of Unicode's Cn category."
+kind = "Conservative"
+decision = "F232"
+
+[action.review]
+reviewed = "2026-11-10"
+places = [
+  "tools/vectors/lightning-bolt12/README.md",
 ]
 
 [[action]]
@@ -9738,6 +9819,10 @@ by = "LND's aezeed test package, by Lightning Labs; the node keys computed with 
 [vector.lightning-bolt11]
 source = "published"
 by = "BOLT #11's authors (lightning/bolts): the examples of `bolt11/invoice-test.json`, valid and invalid"
+
+[vector.lightning-bolt12]
+source = "published"
+by = "BOLT #12's authors (lightning/bolts): the offers of `bolt12/offers-test.json` and the strings of `bolt12/format-string-test.json`, valid and invalid, at the commit `tools/vectors/lightning-bolt12/README.md` names"
 
 [vector.backup]
 source = "own"

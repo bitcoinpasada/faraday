@@ -6,6 +6,7 @@ use bitcoin::secp256k1::{PublicKey, Secp256k1};
 use faraday_bip::aezeed::{self, ENTROPY_SIZE, NUM_WORDS};
 use faraday_bip::keys::{DerivedKey, Network};
 use faraday_codec::bolt11::{self, Fallback};
+use faraday_codec::bolt12;
 use faraday_crypto::Secret;
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
@@ -90,6 +91,49 @@ fn invoice(i: &bolt11::Invoice) -> Value {
     })
 }
 
+/// A BOLT #12 offer as the cross-check compares it: chains by genesis hash
+/// in the order BOLT #12 writes it, the amount as millisatoshis or as a
+/// currency code, exponent and minor units, paths by first node and hops.
+fn offer(o: &bolt12::Offer) -> Value {
+    let amount = o.amount.as_ref().map(|a| match a {
+        bolt12::Amount::Bitcoin { msat } => json!({"msat": msat}),
+        bolt12::Amount::Currency {
+            code,
+            exponent,
+            units,
+        } => json!({"currency": code, "exponent": exponent, "units": units}),
+    });
+    let paths: Vec<Value> = o
+        .paths
+        .iter()
+        .map(|p| match p.first {
+            bolt12::FirstNode::Node(n) => json!({"node": hex(&n), "hops": p.hops}),
+            bolt12::FirstNode::Channel {
+                short_channel_id,
+                direction,
+            } => json!({"scid": short_channel_id, "direction": direction, "hops": p.hops}),
+        })
+        .collect();
+    let unknown: Vec<Value> = o
+        .unknown
+        .iter()
+        .map(|u| json!({"type": u.kind, "data": hex(&u.data)}))
+        .collect();
+    json!({
+        "chains": o.chains.iter().map(|c| hex(&c.hash())).collect::<Vec<_>>(),
+        "metadata": o.metadata.as_ref().map(|m| hex(m)),
+        "amount": amount,
+        "description": o.description,
+        "features": o.features,
+        "expiry": o.expiry,
+        "paths": paths,
+        "issuer": o.issuer,
+        "quantity_max": o.quantity_max,
+        "issuer_id": o.issuer_id.map(|k| hex(&k)),
+        "unknown": unknown,
+    })
+}
+
 /// A node as the answer shows it, from `faraday_keys`.
 fn keys_node(node: &faraday_keys::lightning::Node) -> Value {
     let secret = node
@@ -144,6 +188,10 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         // A BOLT #11 invoice read, or the name of the refusal.
         "bolt11" => bolt11::decode(text(req, "invoice"))
             .map(|i| invoice(&i))
+            .map_err(|e| format!("{e:?}")),
+        // A BOLT #12 offer read, or the name of the refusal.
+        "bolt12" => bolt12::decode(text(req, "offer"))
+            .map(|o| offer(&o))
             .map_err(|e| format!("{e:?}")),
         // Core Lightning's hsm_secret file (32 bytes plain, 73 encrypted
         // under a passphrase, longer the mnemonic form) read as `faraday_keys` reads it.

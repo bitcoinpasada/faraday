@@ -202,6 +202,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `raw_hex` | `faraday_entropy::RawHex::parse` over text |
 | `hex_decode` | `faraday_crypto::hex` `decode_vec`, `decode_into` and `decode_exact` over text, which must agree, and what decodes encodes back to the text in lower case |
 | `bolt11` | `faraday_codec::bolt11::decode` over text: a payee key read is in compressed form and every fallback address comes out as text |
+| `bolt12` | `faraday_codec::bolt12::decode` over text: an offer read names an issuer id or a path, has a description when it has an amount, sets only odd feature bits and names a chain it knows |
 
 One of them shapes the input before the call, because the code under
 test rejects anything else in its first few lines and a fuzzer would

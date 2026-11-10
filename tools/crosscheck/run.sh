@@ -84,6 +84,17 @@ if ! cc -O2 -Wall -Werror -I "$cln" -I "$cln/ccan" \
     exit 2
 fi
 say "build: Core Lightning's answer program done"
+# Core Lightning's offer decoder (area lightning, tools/reference/bolt12): its
+# own devtools/bolt12-cli, built from the pinned release archive by its own
+# configure and make (the packages it needs are in docs/DEVELOPING.md §1; the
+# archive is fetched once by fetch_cln.py).
+say "build: Core Lightning's offer decoder (tools/crosscheck/build_bolt12_cli.sh)"
+if ! tools/crosscheck/build_bolt12_cli.sh "$progress" 2>"$progress/bolt12-build.log"; then
+    cat "$progress/bolt12-build.log" >&2
+    say "build: FAILED: Core Lightning's offer decoder did not build (docs/DEVELOPING.md §1)"
+    exit 2
+fi
+say "build: Core Lightning's offer decoder done"
 say "build: btcd's BIP-322 program (go build -mod=vendor, tools/reference/btcd-bip322)"
 if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABLED=0 \
         go build -C tools/reference/btcd-bip322 -trimpath -o "$PWD/$progress/btcd-bip322-ref" . \

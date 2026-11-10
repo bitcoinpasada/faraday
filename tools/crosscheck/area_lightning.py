@@ -74,6 +74,7 @@ import subprocess
 
 import bip32_ref
 import bolt11_enc
+import bolt12_enc
 from common import ROOT, Area, HarnessError, Mismatch, Rust, reference, use_reference, use_wheels
 
 use_reference("bip39")
@@ -307,6 +308,134 @@ def bolt11_view(got):
     return out
 
 
+def bolt12_exe():
+    """Core Lightning's offer decoder, `devtools/bolt12-cli`: built by
+    `tools/crosscheck/run.sh` from the pinned release
+    (`tools/reference/bolt12/`; `FARADAY_BOLT12_CLI` names another place)."""
+    path = os.environ.get("FARADAY_BOLT12_CLI") or str(ROOT / "out/crosscheck/bolt12-cli")
+    if not os.access(path, os.X_OK):
+        raise HarnessError(
+            f"the lightning area needs Core Lightning's bolt12-cli, {path}, which "
+            "tools/crosscheck/run.sh builds from the release tools/reference/bolt12/release.pin "
+            "pins (fetched once with tools/crosscheck/fetch_cln.py; docs/DEVELOPING.md)")
+    return path
+
+
+def cln_offer(text):
+    """Core Lightning's reading of an offer, `bolt12-cli decode`, in the shape
+    of Faraday's answer: ("ok", fields) when it exits 0, else ("err", why).
+    Faraday reads a `lightning:` prefix; the decoder does not, so the area
+    takes it off first."""
+    if text[:10].lower() == "lightning:":
+        text = text[10:]
+    # The decoder reads one Bech32 string: BOLT #12's `+` between two Bech32
+    # characters, and the white space after it (any, as Python's \s), are taken
+    # out first; a `+` anywhere else stays and the decoder refuses it.
+    text = re.sub(r"(?<=[ac-hj-np-z0-9])\+\s*(?=[ac-hj-np-z0-9])", "", text, flags=re.I)
+    if "\0" in text:
+        # An argument cannot hold a NUL byte: no string to give the command.
+        return ("err", "NUL")
+    run = subprocess.run([bolt12_exe(), "decode", text], capture_output=True, timeout=60)
+    out = run.stdout.decode("utf-8", "replace")
+    if run.returncode == 0:
+        return ("ok", cln_view(out))
+    # Exit 1 is a decoder's refusal, 3 a text that is not Bech32 (a `+` join
+    # is for the callers of the decoder: `joined` below).
+    if run.returncode in (1, 3):
+        return ("err", (run.stderr.decode("utf-8", "replace").strip().splitlines() or [""])[-1])
+    raise HarnessError(f"bolt12-cli decode {text[:60]}... ended with {run.returncode}: "
+                       f"{run.stderr.decode('utf-8', 'replace')[-200:]}")
+
+
+def scid_dir(text):
+    """Core Lightning's `103x1x0/1` as a short channel id and a direction."""
+    scid, _, direction = text.partition("/")
+    block, tx, out = (int(x) for x in scid.split("x"))
+    return block << 40 | tx << 16 | out, int(direction)
+
+
+def cln_view(out):
+    """What `bolt12-cli decode` prints of an offer, as the area's comparison
+    shape (hashes are printed as block hashes, reversed)."""
+    v = {"chains": [], "metadata": None, "amount": None, "description": None, "features": [],
+         "expiry": None, "paths": [], "issuer": None, "quantity_max": None, "issuer_id": None,
+         "unknown": []}
+    for line in out.split("\n"):
+        name, _, rest = line.partition(": ")
+        if name == "offer_chains":
+            v["chains"] = [bytes.fromhex(h)[::-1].hex() for h in rest.split()]
+        elif name == "offer_metadata":
+            v["metadata"] = rest
+        elif name == "offer_amount":
+            m = re.fullmatch(r"(\d+)(?:\.(\d+))?(.*)", rest)
+            whole, frac, unit = m.group(1), m.group(2) or "", m.group(3)
+            if unit and unit.islower():
+                v["amount"] = {"msat": int(whole + frac)}
+            else:
+                v["amount"] = {"currency": unit, "exponent": len(frac), "units": int(whole + frac)}
+        elif name == "offer_description":
+            v["description"] = rest
+        elif name == "offer_features":
+            v["features"] = [int(b) for b in rest.split()]
+        elif name == "offer_absolute_expiry":
+            v["expiry"] = int(rest.split()[0])
+        elif name.startswith("offer_paths "):
+            m = re.fullmatch(r"first_path_key \w+ first_node_id (\S+) path (.*)", rest)
+            first, hops = m.group(1), m.group(2).split()
+            if "x" in first:
+                scid, direction = scid_dir(first)
+                v["paths"].append({"scid": scid, "direction": direction, "hops": len(hops)})
+            else:
+                v["paths"].append({"node": first, "hops": len(hops)})
+        elif name == "offer_issuer":
+            v["issuer"] = rest
+        elif name == "offer_quantity_max":
+            v["quantity_max"] = int(rest)
+        elif name == "offer_issuer_id":
+            v["issuer_id"] = rest
+        elif name.startswith("Unknown field "):
+            v["unknown"].append({"type": int(name.split()[2]), "data": rest})
+    return v
+
+
+# Faraday's refusals of what Core Lightning's decoder accepts (F232's list of
+# what BOLT #12 leaves open), by the reason Faraday names, and the writer's
+# kind that makes each. A refusal Core Lightning shares is no difference.
+OFFER_STRICTER = {
+    "too_long": {"TooLong"},
+    "padding_nonzero": {"Padding"},
+    "plus_whitespace": {"Join"},
+    "plus_not_bech32": {"Join"},
+    "chain_twice": {"ChainRepeated"},
+    "chains_unknown": {"ChainUnknown"},
+    "currency": {"Currency", "Field"},
+    "amount_over_21m": {"AmountTooLarge"},
+    "expiry_late": {"ExpiryTooLate"},
+    "first_node_byte": {"Path"},
+    "unassigned_char": {"Text"},
+}
+
+# Where Faraday refuses what Core Lightning's command reads, and the refusal is
+# BOLT #12's or BOLT #1's own (not F232's stricter list), by the reason Faraday
+# names: findings about Core Lightning, kept as known differences.
+#   UnknownRequiredFeature: `bolt12-cli` hands the decoder no feature set, so an
+#     offer that sets an even feature bit is read.
+#   FeaturesNotMinimal: the decoder does not check that the feature bytes have
+#     no leading zero byte.
+#   Text: the decoder checks that a description, issuer or currency is UTF-8,
+#     not that it holds none of BOLT #1's refused characters.
+OFFER_CLN_READS = {"UnknownRequiredFeature", "FeaturesNotMinimal", "Text"}
+
+
+def cln_iso4217():
+    """The currency codes of Core Lightning's own table (`common/iso4217.c` of
+    the unpacked release, ISO 4217 as of 2018)."""
+    for path in sorted((ROOT / "out/crosscheck").glob("cln-*/common/iso4217.c")):
+        return set(re.findall(r'\{ "([A-Z]{3})", \d+ \}', path.read_text()))
+    raise HarnessError("no unpacked Core Lightning release in out/crosscheck "
+                       "(tools/crosscheck/build_bolt12_cli.sh)")
+
+
 class Lnd:
     """The Go program answering with LND's code, a request a line."""
 
@@ -341,6 +470,7 @@ class Lightning(Area):
     faraday = (
         "`faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read), "
         "`faraday_codec::bolt11::decode` (a BOLT #11 invoice read), "
+        "`faraday_codec::bolt12::decode` (a BOLT #12 offer read), "
         "`faraday_keys::hsm_secret` (Core Lightning's node key from its hsm_secret, plain "
         "encrypted or the mnemonic form, and from BIP-39 words)"
     )
@@ -355,7 +485,10 @@ class Lightning(Area):
         "`bolt11` package by lnbits (2.2.0, `tools/reference/bolt11/`: its wheels over "
         "the bech32, base58 and bitstring packages, with a stand-in for its libsecp256k1 "
         "binding `coincurve` written over btclib's curve), and invoices written in "
-        "`bolt11_enc.py` from BOLT #11 and signed with btclib; "
+        "`bolt11_enc.py` from BOLT #11 and signed with btclib; for offers, Core "
+        "Lightning's own offer decoder, `devtools/bolt12-cli` built from its source "
+        "release by its own configure and make (`tools/reference/bolt12/`), and offers "
+        "written in `bolt12_enc.py` from BOLT #12; "
         "Core Lightning's "
         "code (`tools/reference/cln/`: ccan's HKDF-SHA256 compiled as it is, and its "
         "`common/hsm_secret.c` functions written out over the system libsodium, the BIP-39 words and seed of "
@@ -380,12 +513,18 @@ class Lightning(Area):
         "of `hsm_secret.c`, libsodium itself seals and opens the file, and Core "
         "Lightning's two published node ids for words are required of it as well as of "
         "Faraday; the area stops when the program is missing and the stamp records "
-        "libsodium's version"
+        "libsodium's version; Core Lightning's release archive is hashed against "
+        "`tools/reference/bolt12/release.pin` by the fetch and again by every build, the "
+        "area stops when `bolt12-cli` is missing, and each of the BOLT #12 vectors is "
+        "required to be read by Faraday as the vector says (a valid one read, an invalid "
+        "one refused) and read by Core Lightning's decoder to the same fields where "
+        "Faraday reads it"
     )
     vectors = (
         "LND's five cipher seeds, LND's two node keys, ldk's five node ids "
         '(`tools/vectors/aezeed/`); BOLT #11\'s 31 examples, valid and invalid '
-        '(`tools/vectors/lightning-bolt11/`)'
+        '(`tools/vectors/lightning-bolt11/`); BOLT #12\'s 53 offer vectors and 12 format '
+        'strings, valid and invalid (`tools/vectors/lightning-bolt12/`)'
     )
     corpus = (
         'random BIP-39 seeds and entropies on every network; every aezeed case again with '
@@ -408,7 +547,23 @@ class Lightning(Area):
         "passphrase and a wrong length each refused by both, random mnemonic-form files "
         "with and without a passphrase (node ids compared; a wrong passphrase, a "
         "passphrase the file does not have and broken words each refused by both), and "
-        "random BIP-39 words with a passphrase"
+        "random BIP-39 words with a passphrase; 250 rounds of BOLT #12 offers, each an "
+        "offer written with every kind of field (chains, metadata, a currency or an "
+        "amount in millisatoshis, description, features, expiry, blinded paths, issuer, "
+        "quantity, issuer id, unknown odd fields; `+` joins, upper case and a "
+        "`lightning:` prefix) read by Faraday and by Core Lightning's decoder field by "
+        "field and by the writer's own record, then one with a Bech32 character "
+        "changed, one in mixed case, and three of thirty-eight spoils: types out of "
+        "order or repeated, a field cut short or longer than the stream, a BigSize, "
+        "truncated integer or feature field not minimal, a type outside the offer's "
+        "ranges or an unknown even one, a text that is not BOLT #1's, an amount without "
+        "a description, of zero, or a currency without an amount, no issuer id and no "
+        "path, a path of no hops or a bad point, chains empty or of a wrong length, "
+        "padding of more than four bits, a bad `+`, a wrong prefix, characters outside "
+        "Bech32, and F232's stricter cases (a text over 4,296 characters, a non-zero "
+        "padding bit, a chain twice or none known, a currency not in ISO 4217, an amount "
+        "above 21 million bitcoin, an expiry past the year 9999, a first node byte that "
+        "is no key, an unassigned character)"
     )
     differences = [
         (
@@ -440,6 +595,27 @@ class Lightning(Area):
             "with both its required and its supported bit set reads as supported only; "
             "the writer sets one bit of each pair"
         ),
+        (
+            "BOLT #12 offers: Core Lightning's `bolt12-cli` passes the decoder no feature "
+            "set, so it reads an offer with an even feature bit that Faraday refuses (BOLT "
+            "#9 defines no offer feature); it also reads feature bytes with a leading zero "
+            "byte, which BOLT #9 makes not minimal, and a description, issuer or currency "
+            "holding a character of Unicode's Cc, Cf, Co, Zl or Zp categories, which BOLT "
+            "#1 refuses and Faraday refuses; and it refuses what Faraday reads when the "
+            "currency is missing from its ISO 4217 table (the list of 2018) or an amount in "
+            "bitcoin has a first chain Faraday does not know (it names the unit by the "
+            "first chain alone), which Faraday reads as BOLT #12 says; the area counts "
+            "each as known, naming the reason, and every other difference fails the run"
+        ),
+        (
+            "BOLT #12 offers, F232's stricter cases: Faraday refuses what Core Lightning "
+            "reads (a text over 4,296 characters, a non-zero padding bit, whitespace "
+            "after a `+` that is not a space, tab or line break, a chain twice, no known "
+            "chain, a currency not in the ISO 4217 list Faraday holds, an amount over 21 "
+            "million bitcoin, an expiry past the year 9999, a first node that is no key, "
+            "an unassigned character); the area requires Faraday's refusal and counts it "
+            "as known"
+        ),
     ]
     not_compared = (
         "ldk-node's node key is compared with a derivation written here, not with "
@@ -460,7 +636,12 @@ class Lightning(Area):
         "(F228); a NUL in the mnemonic form's words is not compared (Core Lightning reads "
         "the text up to it, Faraday refuses the file); the words' derivation "
         "(`lightning-hsmtool generatehsm`) is BIP-39's seed, whose first 32 bytes are "
-        "taken by both sides here"
+        "taken by both sides here; Core Lightning's `bolt12-cli` reads one Bech32 "
+        "string, so the area takes out a `+` between two Bech32 characters and the "
+        "white space after it, and a `lightning:` prefix, before asking it, and a "
+        "text with a NUL byte cannot be given to it (Faraday refuses it); its output "
+        "is read as text (a short channel id as `BxTxO/direction`, chain hashes "
+        "reversed)"
     )
 
     lnd_proc = None
@@ -615,6 +796,84 @@ class Lightning(Area):
             bad_text = bolt11_enc.text_of(bad)
             self.invoice(bad_text, "ok" if high_s_ok and len(bad_text) <= 1023 else "err")
 
+    def cln_refuses(self, fields):
+        """Whether Core Lightning's command is known to refuse an offer Faraday
+        reads, by what the command does with the amount: a currency code
+        missing from its 2018 table, or a bitcoin amount whose first chain is
+        none of the five Faraday knows (the command names the amount's unit by
+        the first chain alone and exits 1 for one it does not know)."""
+        amount = fields["amount"]
+        if amount is None:
+            return False
+        if "currency" in amount:
+            return amount["currency"] not in cln_iso4217()
+        known = {c.hex() for c in bolt12_enc.KNOWN_CHAINS}
+        return bool(fields["chains"]) and fields["chains"][0] not in known
+
+    def offer(self, text, expect, kind=None, written=None):
+        """A BOLT #12 offer: Faraday's reading against Core Lightning's
+        `bolt12-cli decode`, field by field where both read it. `expect` is
+        what Faraday must do ("ok", "err", or "any" for a text damaged by a
+        change that may leave a valid offer). A kind of `OFFER_STRICTER` is a
+        case of F232's stricter list: Faraday refuses it with one of the
+        listed reasons and Core Lightning may read it (a known difference),
+        or refuses it too. Any other refusal of Faraday must be Core
+        Lightning's too, and a read of Faraday's must be Core Lightning's.
+        `written` is the writer's own record of the offer, which both are
+        required to read as it says."""
+        inputs = {"offer": text}
+        rust = self.rust.call("lightning.bolt12", **inputs)
+        ref = cln_offer(text)
+        self.compared += 1
+        if expect != "any" and rust[0] != expect:
+            raise Mismatch(self.name, "lightning.bolt12", inputs, rust, ref,
+                           f"Faraday must answer {expect} (kind {kind})")
+        if rust[0] == "err":
+            if ref[0] == "ok":
+                reason = re.match(r"\w+", rust[1]).group(0)
+                if reason not in OFFER_STRICTER.get(kind, set()) | OFFER_CLN_READS:
+                    raise Mismatch(self.name, "lightning.bolt12", inputs, rust, ref,
+                                   "Faraday refuses what Core Lightning reads, not by a "
+                                   "stricter rule of F232's list")
+                self.known += 1
+            return
+        if ref[0] != "ok":
+            if self.cln_refuses(rust[1]):
+                self.known += 1
+                return
+            raise Mismatch(self.name, "lightning.bolt12", inputs, rust, ref,
+                           "Faraday reads what Core Lightning refuses")
+        if rust[1] != ref[1]:
+            raise Mismatch(self.name, "lightning.bolt12", inputs, rust[1], ref[1],
+                           "the offer's fields, Faraday and Core Lightning")
+        if written is not None and rust[1] != bolt12_enc.expected_view(written):
+            raise Mismatch(self.name, "lightning.bolt12", inputs, rust[1],
+                           bolt12_enc.expected_view(written), "the fields, as the writer put them")
+
+    def offers_corpus(self):
+        rng = self.rng
+        o = bolt12_enc.random_offer(rng)
+        text = bolt12_enc.text_of(bolt12_enc.stream(bolt12_enc.tlvs_of(o)), rng)
+        if rng.random() < 0.2:
+            text = rng.choice(["lightning:", "LIGHTNING:", "Lightning:"]) + text
+        # Faraday refuses a text over 4,296 characters, which the reader of
+        # BOLT #12 reads.
+        self.offer(text, "ok" if len(text) <= 4296 else "err",
+                   "too_long" if len(text) > 4296 else None, o)
+        plain = bolt12_enc.text_of(bolt12_enc.stream(bolt12_enc.tlvs_of(o)))
+        self.offer(bolt12_enc.damaged(plain, rng), "any")
+        self.offer(bolt12_enc.mixed_case(plain, rng), "err")
+        for kind in rng.sample(sorted(bolt12_enc.KINDS), 3):
+            fn, who = bolt12_enc.KINDS[kind]
+            self.offer(fn(rng), "err", kind)
+
+    def published_offers(self):
+        base = ROOT / "tools/vectors/lightning-bolt12"
+        for v in json.loads((base / "offers-test.json").read_text()):
+            self.offer(v["bolt12"], "ok" if v["valid"] else "err")
+        for v in json.loads((base / "format-string-test.json").read_text()):
+            self.offer(v["string"], "ok" if v["valid"] else "err")
+
     def published(self):
         for v in json.loads((ROOT / "tools/vectors/lightning-bolt11/invoice-test.json").read_text()):
             self.invoice(v["invoice"], "ok" if v["valid"] else "err")
@@ -759,11 +1018,12 @@ class Lightning(Area):
 
     # The sealed files stretch 256 MiB three times each (libsodium's seal,
     # Core Lightning's open and Faraday's), so there are few of them.
-    LOOPS = (("corpus", 400), ("invoices", 150), ("hsm", 400), ("mnemonic", 200), ("sealed", 6))
+    LOOPS = (("corpus", 400), ("invoices", 150), ("hsm", 400), ("mnemonic", 200), ("sealed", 6), ("offers", 250))
 
     def prelude(self):
         self.published()
         self.published_cln()
+        self.published_offers()
 
     def case_corpus(self):
         self.corpus_case()
@@ -776,6 +1036,9 @@ class Lightning(Area):
 
     def case_mnemonic(self):
         self.mnemonic_case()
+
+    def case_offers(self):
+        self.offers_corpus()
 
     def case_sealed(self):
         self.sealed_case()

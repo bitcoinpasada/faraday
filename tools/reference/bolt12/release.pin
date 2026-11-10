@@ -1,0 +1,10 @@
+# Core Lightning's official source release, from which the cross-check builds
+# `devtools/bolt12-cli`, the offer decoder (docs/CROSSCHECK.md §10.4, the
+# `lightning` area). Not vendored: `tools/crosscheck/fetch_cln.py` fetches
+# the archive once and keeps it outside the repository, and
+# `tools/crosscheck/build_bolt12_cli.sh` unpacks and builds it. Every build
+# checks the archive against its line here first.
+version v26.06.10
+commit e8b1609e67575036bd80aec32605e830f8f651cc
+url https://github.com/ElementsProject/lightning/releases/download/v26.06.10/
+sha256 clightning-v26.06.10.zip 4914561e6d108dacca0183d7e6b3b1c224c580597ddcbb397299ef5b0fcc3230

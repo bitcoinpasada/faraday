@@ -57,6 +57,15 @@ by hand, the fuzz run before a release (§8), and nothing else.
   (`tools/reference/cln/`) with `cc` and libsodium: Debian and Ubuntu's
   `build-essential`, `pkg-config` and `libsodium-dev`; `just crosscheck`
   stops when they are missing.
+  It builds Core Lightning's offer decoder, `devtools/bolt12-cli`, from its
+  pinned source release (`tools/reference/bolt12/`), fetched once with the
+  network by `python3 -I -B tools/crosscheck/fetch_cln.py` (into
+  `~/.cache/faraday/core-lightning`, or `FARADAY_CLN_SOURCE`), with Core
+  Lightning's own `./configure` and `make`: Debian and Ubuntu's `autoconf`,
+  `automake`, `libtool`, `gettext`, `python3-mako`, `lowdown`, `jq`, `unzip`,
+  `libsqlite3-dev` and `zlib1g-dev` besides `build-essential` and
+  `libsodium-dev`; `just crosscheck` stops when the archive or one of them is
+  missing.
   The `lightning` area's software-round pass reads the commands it builds
   with binutils' `objdump` (x86-64 only), which comes with the C toolchain
   Rust links with.
