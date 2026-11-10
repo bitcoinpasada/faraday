@@ -89,3 +89,50 @@ fn every_charset_character_is_accepted() {
     let empty = checksum("");
     assert!(verify_checksum(&format!("#{empty}")));
 }
+
+/// What `key_facts` says of a descriptor's keys: Bitcoin Core writes a
+/// master key's descriptor with no brackets, and that key is its own origin.
+#[test]
+fn key_facts_say_which_keys_have_an_origin_and_of_which_network() {
+    use faraday_bip::descriptor::key_facts;
+    use faraday_crypto::work::Compute;
+    let c = Compute::unchecked();
+    let tpub = "tpubDDdxeK56gpJTxGcCbxZFWUrM9YMqGsW9xJCNxozZBATiW2ConR2Cf7EzxHA2SyN5Eb9wZxqcphbaYWyQLsa1nogJu3zeYehQJcivKjWevAP";
+    let master = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+
+    let with = key_facts(&c, &format!("wpkh([17746d02/84h/1h/0h]{tpub}/0/*)")).unwrap();
+    assert_eq!(
+        (with.keys, with.without_origin, with.main, with.test),
+        (1, 0, 0, 1)
+    );
+    let without = key_facts(&c, &format!("wpkh({tpub}/0/*)")).unwrap();
+    assert_eq!((without.keys, without.without_origin), (1, 1));
+    let top = key_facts(&c, &format!("wpkh({master}/0/*)")).unwrap();
+    assert_eq!(
+        (top.keys, top.without_origin, top.main, top.test),
+        (1, 0, 1, 0)
+    );
+    assert!(key_facts(&c, "wpkh(nothing)").is_none());
+}
+
+/// BIP 32 test vector 5 says a depth-0 key with a parent fingerprint or a
+/// child number is invalid: such a key is not a master key and carries no
+/// origin of its own.
+#[test]
+fn a_depth_zero_key_with_a_parent_or_an_index_has_no_origin() {
+    use faraday_bip::descriptor::key_facts;
+    use faraday_crypto::work::Compute;
+    let c = Compute::unchecked();
+    let invalid = include_str!("../../../../tools/vectors/bip32/invalid-keys.txt");
+    let mut seen = 0;
+    for line in invalid.lines().filter(|l| l.starts_with("xpub")) {
+        let (key, why) = line.split_once(' ').expect("key then reason");
+        if !why.starts_with("zero depth") {
+            continue;
+        }
+        let facts = key_facts(&c, &format!("wpkh({key}/0/*)")).expect("reads");
+        assert_eq!(facts.without_origin, 1, "{why}");
+        seen += 1;
+    }
+    assert_eq!(seen, 2);
+}

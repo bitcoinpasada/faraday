@@ -25,6 +25,7 @@
 
 pub mod bip85;
 pub mod codex32;
+pub mod core_wallet;
 pub mod gpg;
 pub mod hsm_node;
 pub mod hsm_secret;

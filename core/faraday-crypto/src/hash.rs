@@ -10,6 +10,12 @@ pub fn sha256(data: &[u8]) -> [u8; 32] {
     Sha256::digest(data).into()
 }
 
+/// SHA-512 of `data`: for small inputs (a hash chain's step). The
+/// result may be a secret's stretch; the caller wipes it.
+pub fn sha512(data: &[u8]) -> [u8; 64] {
+    Sha512::digest(data).into()
+}
+
 /// Costs a SHA-256 pass over every byte: the SHA-256 of a whole file or
 /// transaction, `bytes`, counted as [`Work::FileHash`].
 pub fn sha256_whole(c: &Compute, bytes: &[u8]) -> [u8; 32] {

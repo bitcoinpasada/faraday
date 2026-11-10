@@ -1021,7 +1021,9 @@ dependencies = [
 name = "faraday-keys"
 version = "0.1.10"
 dependencies = [
+ "aes",
  "argon2",
+ "cbc",
  "chacha20",
  "faraday-bip",
  "faraday-codec",

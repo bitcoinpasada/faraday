@@ -603,6 +603,12 @@ what = "Core Lightning's hsm_secret (`faraday/faraday-keys/src/hsm_secret.rs`)"
 completeness = "Plain 32 bytes, encrypted 73 bytes, the mnemonic form (English words, passphrase hash), BIP-39 words; no shorter file"
 
 [[row]]
+id = "core-wallet-keys"
+section = 5
+what = "Bitcoin Core's wallet.dat keys (`faraday/faraday-keys/src/core_wallet.rs`)"
+completeness = "Descriptor wallets' walletdescriptorkey and walletdescriptorckey records, checked and wiped, never loaded; legacy records refused"
+
+[[row]]
 id = "lightning-node"
 section = 5
 what = "Lightning node key (`faraday/faraday-keys/src/lightning.rs`)"
@@ -910,6 +916,12 @@ name = "Core Lightning's hsm_secret, plain or encrypted, and its node key"
 status = "Convention"
 checked = "2026-11-09"
 source = "tools/reference/cln/README.md"
+
+[standard."Bitcoin Core wallet.dat"]
+name = "Bitcoin Core's descriptor wallet records and their encrypted keys"
+status = "Convention"
+checked = "2026-11-10"
+source = "tools/reference/core/README.md"
 
 [standard."ldk-node node key"]
 name = "ldk-node and rust-lightning node key from a BIP-39 seed"
@@ -4644,6 +4656,83 @@ lines = [
 [action.review]
 fingerprint = "0000000000000000000000000000000000000000000000000000000000000000"
 reviewed = "2026-11-09"
+
+[[action]]
+id = "core-wallet-keys"
+name = "Check Core wallet keys"
+action = "Checks each private key of a Bitcoin Core descriptor wallet against the public key its record names, and in an encrypted wallet opens the master key from the passphrase and each key with it; says pass or fail for each and gives nothing back."
+row = "core-wallet-keys"
+standards = [
+  "Bitcoin Core wallet.dat",
+]
+learn = "tools"
+screens = []
+functions = [
+  "faraday/faraday-keys/src/core_wallet.rs::check_private_key",
+  "faraday/faraday-keys/src/core_wallet.rs::check_encrypted_keys",
+  "faraday/faraday-keys/src/core_wallet.rs::open_master_key",
+  "faraday/faraday-keys/src/core_wallet.rs::check_encrypted_key",
+  "faraday/faraday-keys/src/core_wallet.rs::decrypt",
+  "faraday/faraday-keys/src/core_wallet.rs::gives",
+  "faraday/faraday-keys/src/core_wallet.rs::hash256",
+  "faraday/faraday-core/src/core_wallet/mod.rs::descriptor_id",
+  "core/faraday-bip/src/descriptor.rs::key_facts",
+  "core/faraday-crypto/src/hash.rs::sha512",
+]
+code = [
+  "faraday/faraday-keys/src/core_wallet.rs::open_master_key",
+  "faraday/faraday-keys/src/core_wallet.rs::decrypt",
+]
+
+[action.implementation]
+crate = "faraday/faraday-keys"
+libraries = [
+  "aes",
+  "cbc",
+]
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
+adds = "The master key is SHA-512 of the passphrase and the record's 8-byte salt, hashed again for the rounds less one (at most 10,000,000); its first 32 bytes are the AES-256 key and the next 16 the IV that open the 48-byte mkey under CBC with PKCS#7 padding. Each walletdescriptorckey is opened under AES-256-CBC with the double SHA-256 of its public key as the IV. A key must give the public key its record names (33 bytes, or 65 for an uncompressed key with its 279-byte DER), and in the clear match the stored hash of the public key and the DER. One mkey record is tried; a wallet with more is not whole."
+
+[[action.implementation.written_here]]
+what = "Bitcoin Core's key from a passphrase and the opening of its encrypted keys (`faraday-keys::core_wallet`)"
+why = "none-established"
+note = "No maintained Rust crate offers Bitcoin Core's BytesToKeySHA512AES and DecryptSecret; Faraday's is SHA-512 rounds over faraday-crypto and RustCrypto's aes and cbc, tested against wallets Bitcoin Core made."
+decision = "F229"
+
+[action.checked]
+vectors = ["core-wallet"]
+tests = [
+  "faraday/faraday-core/tests/all/core_wallet.rs::keys_pass_and_an_encrypted_wallet_needs_its_passphrase",
+  "faraday/faraday-core/tests/all/core_wallet.rs::a_changed_byte_is_refused_with_its_record_named",
+  "faraday/faraday-keys/tests/core_wallet.rs::core_wallet_the_keys_of_a_plain_wallet_pass",
+  "faraday/faraday-keys/tests/core_wallet.rs::core_wallet_a_changed_byte_fails_a_plain_wallets_key",
+  "faraday/faraday-keys/tests/core_wallet.rs::core_wallet_an_encrypted_wallets_keys_open_under_its_passphrase",
+  "faraday/faraday-keys/tests/core_wallet.rs::core_wallet_a_changed_byte_in_an_encrypted_key_fails_that_key",
+  "faraday/faraday-keys/tests/core_wallet.rs::core_wallet_an_uncompressed_key_passes_and_a_changed_byte_fails_it",
+  "faraday/faraday-keys/tests/core_wallet.rs::core_wallet_a_private_key_with_a_right_hash_and_another_public_key_fails",
+  "faraday/faraday-core/tests/all/core_wallet.rs::a_master_key_that_cannot_open_is_refused_with_or_without_a_passphrase",
+  "faraday/faraday-core/tests/all/core_wallet.rs::an_encrypted_wallet_holds_one_master_key_and_no_plain_key",
+  "faraday/faraday-core/tests/all/core_wallet.rs::a_wallet_with_an_uncompressed_key_is_read_as_core_wrote_it",
+]
+not_crosschecked = "The cross-check of a wallet file against Bitcoin Core's loadwallet is not built yet (F229); the wallets here are made by Bitcoin Core."
+against = "Bitcoin Core's own wallets (`tools/vectors/core-wallet/gen.py`), read as Core's listdescriptors and getwalletinfo say"
+fuzz_none = "The records are fuzzed through core_wallet_records, which reaches these functions."
+other = []
+
+[action.secrets]
+reveal = "none"
+constant_time = "Not stated; the stored hash and the public key are compared in constant time (subtle), the padding check is not."
+wiped = "The passphrase, the master key, each opened key and the DER are held in zeroizing buffers and wiped as each is checked."
+
+[action.limits]
+lines = [
+  "Checking only: a wallet's private key is never shown, loaded as a key of the session or written.",
+  "A master key with another method than SHA-512 rounds, or more than 10,000,000 rounds, is refused.",
+]
+
+[action.review]
+fingerprint = "0000000000000000000000000000000000000000000000000000000000000000"
+reviewed = "2026-11-10"
 
 [[action]]
 id = "silent-receive"
@@ -10053,6 +10142,10 @@ author = "the RustCrypto developers"
 [vector.addresses]
 source = "published"
 by = "the authors of BIP 173, BIP 350, BIP 380, BIP 49, BIP 84 and BIP 86 (bitcoin/bips)"
+
+[vector.core-wallet]
+source = "outside"
+by = "Bitcoin Core (the pinned bitcoind on regtest), run by `tools/vectors/core-wallet/gen.py`: plain, encrypted (passphrase `faraday`), watch-only, blank, labelled, imported descriptor and imported uncompressed key wallets, with Core's listdescriptors and getwalletinfo"
 
 [vector.openpgp]
 source = "published"

@@ -30,3 +30,5 @@ after `cpufeatures` finds the instructions.
 dropped.
 
 **Review.** Trusted by publisher (github:RustCrypto/block-ciphers) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.
+
+`faraday-keys` also runs AES-256 under CBC (`cbc`, `docs/deps/cbc.md`) to open a Bitcoin Core descriptor wallet's master key and private keys (`faraday/faraday-keys/src/core_wallet.rs`, `docs/decisions/F229.md`); it only decrypts.

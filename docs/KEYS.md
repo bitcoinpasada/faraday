@@ -325,6 +325,16 @@ impl Keys {
     seal and open of a QR vault in the app goes through this module
     (`tools/lint-secrets.sh`).
 
+  - the private keys of a Bitcoin Core descriptor wallet (`faraday-keys/src/core_wallet.rs`,
+    F229): `core_wallet::check_private_key(c, pubkey, value)` for a
+    `walletdescriptorkey` record and `check_encrypted_keys(c, mkey,
+    passphrase, keys)` for an encrypted wallet's `walletdescriptorckey`
+    records, opened with the master key the passphrase gives. Each key is
+    wiped as it is checked and only a pass or a fail (`KeyVerdict`)
+    leaves, never the key; a wrong passphrase is `OpenError`. Costs the
+    master key's rounds (at most 10,000,000), so both take the token.
+    `faraday-core`'s `core_wallet::read` calls them.
+
   Each comes back as `Held` (an `XprivAscii`, a `WifAscii`, or
   `Zeroizing` strings, every one wiped on drop) and is made once, at the
   eye's press, and kept on Explore's state (`Shown`) with the key and

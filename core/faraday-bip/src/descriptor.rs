@@ -175,3 +175,77 @@ pub fn origin_fingerprints(text: &str) -> Vec<String> {
     }
     out
 }
+
+/// What the keys of a descriptor carry, for a reader that wants each key
+/// to say where it comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyFacts {
+    /// Every key expression the descriptor holds.
+    pub keys: usize,
+    /// The keys with no origin: an extended key that is not a master key
+    /// (depth 0) and states no `[fingerprint/path]`, or a single public
+    /// key with none. A master key's own fingerprint is its origin.
+    pub without_origin: usize,
+    /// The extended keys of a main network (`xpub`).
+    pub main: usize,
+    /// The extended keys of a test network (`tpub`).
+    pub test: usize,
+}
+
+/// Costs a parse of the descriptor: the facts of its keys, or `None`
+/// when `text` does not read as an output descriptor of public keys (its
+/// `#checksum`, if present, included).
+pub fn key_facts(c: &Compute, text: &str) -> Option<KeyFacts> {
+    use core::str::FromStr;
+    use miniscript::descriptor::DescriptorPublicKey as Key;
+    use miniscript::{Descriptor, ForEachKey};
+    if !reads_as_descriptor(c, text) {
+        return None;
+    }
+    let body = text.split_once('#').map_or(text, |(body, _)| body);
+    let mut facts = KeyFacts {
+        keys: 0,
+        without_origin: 0,
+        main: 0,
+        test: 0,
+    };
+    let mut count = |key: &Key| {
+        facts.keys += 1;
+        let (origin, xkey) = match key {
+            Key::Single(single) => (single.origin.is_some(), None),
+            Key::XPub(x) => (x.origin.is_some(), Some(&x.xkey)),
+            Key::MultiXPub(x) => (x.origin.is_some(), Some(&x.xkey)),
+        };
+        // BIP 32 gives a master key a zero parent fingerprint and child
+        // number; a depth-0 key with others is invalid and has no origin.
+        let master = xkey.is_some_and(|x| {
+            x.depth == 0
+                && x.parent_fingerprint == miniscript::bitcoin::bip32::Fingerprint::default()
+                && x.child_number == miniscript::bitcoin::bip32::ChildNumber::Normal { index: 0 }
+        });
+        if !origin && !master {
+            facts.without_origin += 1;
+        }
+        if let Some(x) = xkey {
+            if x.network.is_mainnet() {
+                facts.main += 1;
+            } else {
+                facts.test += 1;
+            }
+        }
+        true
+    };
+    match Descriptor::<Key>::from_str(body) {
+        Ok(d) => {
+            d.for_each_key(&mut count);
+        }
+        // A `tr()` of one `sortedmulti_a` leaf, read as its twin.
+        Err(_) => {
+            let twin = crate::tapmulti::unsorted_text(body)?;
+            Descriptor::<Key>::from_str(&twin)
+                .ok()?
+                .for_each_key(&mut count);
+        }
+    }
+    Some(facts)
+}

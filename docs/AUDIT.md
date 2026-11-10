@@ -125,13 +125,14 @@ used is written:
 - PSBT inspection, signing orchestration and verification logic (`faraday-psbt`)
 - The choice among a script's satisfactions by real signature size (`faraday-psbt::finalize`)
 
-**No established implementation exists** (21)
+**No established implementation exists** (22)
 
 - WipeOnFree, the allocator that wipes what it frees (`faraday-crypto::wipe`)
 - BIP-327 MuSig2, with BIP-328 and BIP-390 (`faraday-bip::musig`)
 - OpenTimestamps proof reader and walk (`faraday-ots`)
 - AEZ v5 and aezeed, with aezeed's CRC-32C (`faraday-bip::aez`, `faraday-bip::aezeed`)
 - libsodium's crypto_secretstream_xchacha20poly1305 pull of one message (`faraday-keys::hsm_secret`)
+- Bitcoin Core's key from a passphrase and the opening of its encrypted keys (`faraday-keys::core_wallet`)
 - BIP-352 silent payments (`faraday-bip::silent`)
 - The PSBT version 2 reader (`faraday-psbt::v2`)
 - BIP-322 "simple" message signatures (`faraday-psbt::message`)

@@ -243,6 +243,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "core_wallet_records"
+path = "fuzz_targets/core_wallet_records.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "core_text"
 path = "fuzz_targets/core_text.rs"
 test = false

@@ -110,6 +110,7 @@ shipped binary does.
 | `contents` | The TOML inside a vault: `read_qr`, `read_plan`, `read_codex32_facts` and `read_child_facts`; a value read is written again and reads back as the same fields. |
 | `image_list` | `faraday_payload::ImageList::parse` over any bytes, the release's `IMAGES` list. |
 | `core_text` | Four readers of text in `faraday-core`: `explore::parse_path`, `vault::parse_tz_offset`, `parse_version_output` and `wallet::parse_words` in each language. |
+| `core_wallet_records` | `core_wallet::read` over the records of a Bitcoin Core descriptor wallet: a flags byte (the passphrase `faraday`, the mode's network, the application id as written), four bytes of application id, then records of a one-byte key length, a two-byte value length, the key and the value. |
 | `memory_kept` | What the app reads back from its kept list at the next start: `memory::decode` (written back to what it read), `backup_flow::decode`, and every kept entry holding the input, as `StorageEvent::Restored` carries it. |
 | `decode_tx` | `faraday_psbt::transaction::decode` on the input, then `decode::decode` of the transaction with no prevouts, under the test session's wallets. |
 | `qr_specter` | `faraday_qr::specter::parse`, the `pNofM text` header of a Specter animated QR part. |

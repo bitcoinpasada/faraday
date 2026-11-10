@@ -10403,6 +10403,14 @@ strings! {
     wallet_not_a_wallet: "Not a wallet: {}",
     /// Text in `text`. `{}`: `network_name(*offered)`, `network_name(*loaded)`.
     wallet_is_not_the_network: "{} is not {}, the network of the loaded wallets",
+    /// Refusal in `core_wallet::Refusal::message`. `{}`: the application id in hex.
+    core_wallet_application: "This wallet file is of no network Faraday has (application id {})",
+    /// Refusal in `core_wallet::Refusal::message`. `{}`: the record types and counts.
+    core_wallet_legacy: "This is a legacy wallet (records {}); Bitcoin Core's migratewallet makes a descriptor wallet of it",
+    /// Refusal in `core_wallet::Refusal::message`.
+    core_wallet_not_descriptors: "This wallet is not a descriptor wallet",
+    /// Refusal in `core_wallet::Refusal::message`. `{}`: the record.
+    core_wallet_no_origin: "A descriptor of this wallet has a key with no origin ({})",
     /// Text in `text`. `{}`: `fp`.
     wallet_is_not_a_key: "{} is not a sample: Practice takes only samples",
     /// Text in `text`. `{}`: `network_name(*n)`.

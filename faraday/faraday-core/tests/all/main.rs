@@ -60,6 +60,7 @@ mod collect_leaf_not_run;
 mod common;
 mod compare;
 mod convert;
+mod core_wallet;
 mod create_musig;
 mod create_shares;
 mod create_vault;
