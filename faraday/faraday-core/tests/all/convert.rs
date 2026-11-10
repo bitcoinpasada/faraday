@@ -462,6 +462,29 @@ fn scanning_the_right_code_back_says_the_copy_matches() {
     }
 }
 
+/// A scan that arrives after the result changed to the other kind of code
+/// closes the camera and says nothing: no "copy matches", no note.
+#[test]
+fn a_scan_after_the_result_changed_gives_no_answer() {
+    for right in [true, false] {
+        let mut app = opened(mainnet(), LEGAL);
+        let standard = scanned(&mut app, "SeedQR");
+        app.press(Action::Convert(C::Step(cstep::TO)));
+        let compact = scanned(&mut app, "CompactSeedQR");
+        // The camera is opened for the CompactSeedQR; the result then
+        // becomes the SeedQR before the scan arrives.
+        app.press(Action::Convert(C::Check));
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        app.press(Action::Convert(C::To(place("SeedQR"))));
+        let _ = app.frame();
+        let bytes = if right { standard } else { compact };
+        app.event(Event::Scanned { bytes });
+        assert_eq!(app.sheet, None, "the camera is closed");
+        assert!(app.scan().is_none_or(|s| s.note.is_none()), "no note");
+        assert_ne!(convert::found(&app), Some(true), "no answer");
+    }
+}
+
 #[test]
 fn a_code_with_one_word_changed_names_the_word() {
     let mut app = opened(mainnet(), LEGAL);
@@ -1187,6 +1210,49 @@ fn each_codex32_set_of_a_key_has_an_identifier_of_its_own() {
     }
     let parse = |i: usize, j: usize| faraday_bip::codex32::Codex32::parse(&texts[i][j]).unwrap();
     assert!(faraday_keys::codex32_seed(&[parse(0, 0), parse(1, 1)]).is_err());
+}
+
+/// The identifier of the codex32 set Convert makes for the one key, after
+/// the secret alone, drawing from the randomness fed.
+fn codex32_set_id(app: &mut Faraday) -> [u8; 4] {
+    feed_many(app, 1);
+    make_set(app, "codex32").unwrap();
+    app.press(Action::Convert(C::Step(cstep::SETTINGS)));
+    app.press(Action::Convert(C::K(1)));
+    app.press(Action::Convert(C::N(1)));
+    feed_many(app, 10);
+    app.press(Action::Convert(C::Make));
+    settle(app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let first = convert::shown_parts(app).expect("a set is made")[0].to_string();
+    faraday_bip::codex32::Codex32::parse(&first)
+        .unwrap()
+        .identifier()
+}
+
+/// A codex32 string typed into Add a key's form carries an identifier that
+/// Convert's set for a key then does not use, though the same randomness
+/// drew it before.
+#[test]
+fn a_codex32_set_made_avoids_an_identifier_typed_into_add_a_key() {
+    let seed = unhex(SEED_1);
+    let drawn_id = codex32_set_id(&mut seed_opened(&seed));
+    // One share of another key's set, which loads no key by itself.
+    let secret = faraday_bip::codex32::Codex32::from_seed(0, drawn_id, &[7u8; 16]).unwrap();
+    let typed = secret.split(2, 2, &[3u8; 32]).unwrap()[1]
+        .encode()
+        .as_str()
+        .to_string();
+    let mut app = mainnet();
+    app.press(Action::Entry(None));
+    app.press(Action::EntryForm(2));
+    type_copy(&mut app, &typed);
+    app.event(Event::Key(Key::Enter));
+    let c = testkit::compute();
+    app.session.keys.add_seed(&c, &seed, "Test").unwrap();
+    open(&mut app);
+    assert_ne!(codex32_set_id(&mut app), drawn_id);
 }
 
 /// The parts of Seed XOR typed into Add a key give the same key.
