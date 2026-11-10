@@ -14,7 +14,6 @@ faraday-psbt = { path = "../../core/faraday-psbt" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-pgp = { path = "../faraday-pgp" }
-subtle.workspace = true
 faraday-sb = { path = "../faraday-sb" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
@@ -23,6 +22,12 @@ faraday-intake = { path = "../faraday-intake" }
 faraday-kef = { path = "../faraday-kef" }
 faraday-strings = { path = "../faraday-strings" }
 zeroize = { workspace = true, features = ["alloc"] }
+# Core Lightning's encrypted hsm_secret (docs/deps/poly1305.md): Argon2id,
+# then libsodium's secretstream over ChaCha20 (with HChaCha20) and Poly1305.
+argon2 = { workspace = true }
+chacha20 = { workspace = true, features = ["xchacha"] }
+poly1305 = { workspace = true }
+subtle.workspace = true
 
 [features]
 # `Keys::master_for_tests`: a key's master key, for the tests that check a

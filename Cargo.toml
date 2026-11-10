@@ -86,6 +86,9 @@ base64ct = { version = "1.8", default-features = false, features = ["alloc"] }
 # The KDBX 4 stream cipher (docs/deps/chacha20.md): KDBX encrypts its
 # body and its inner random stream with plain ChaCha20 (RFC 8439).
 chacha20 = { version = "0.10", default-features = false, features = ["cipher", "zeroize"] }
+# Poly1305 (RFC 8439) for the one message of Core Lightning's encrypted
+# hsm_secret, libsodium's secretstream (docs/deps/poly1305.md).
+poly1305 = { version = "0.9", default-features = false, features = ["zeroize"] }
 # AES's round function alone, for AEZ, which aezeed enciphers with
 # (docs/deps/aes.md). `hazmat` is the feature that exposes the round; it
 # builds on `cipher` 0.5, `cpufeatures` and `cpubits`, already in the

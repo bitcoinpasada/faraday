@@ -566,6 +566,12 @@ what = "Decode a transaction"
 completeness = "Full (rust-bitcoin)"
 
 [[row]]
+id = "hsm-secret"
+section = 5
+what = "Core Lightning's hsm_secret (`faraday/faraday-keys/src/hsm_secret.rs`)"
+completeness = "Plain 32 bytes, encrypted 73 bytes, the mnemonic form (English words, passphrase hash), BIP-39 words; no shorter file"
+
+[[row]]
 id = "lightning-node"
 section = 5
 what = "Lightning node key (`faraday/faraday-keys/src/lightning.rs`)"
@@ -867,6 +873,12 @@ name = "LND cipher seed (aezeed) with AEZ v5"
 status = "Convention"
 checked = "2026-10-28"
 source = "tools/reference/aezeed/README.md"
+
+[standard."Core Lightning hsm_secret"]
+name = "Core Lightning's hsm_secret, plain or encrypted, and its node key"
+status = "Convention"
+checked = "2026-11-09"
+source = "tools/reference/cln/README.md"
 
 [standard."ldk-node node key"]
 name = "ldk-node and rust-lightning node key from a BIP-39 seed"
@@ -4331,6 +4343,89 @@ places = [
   "core/faraday-bip/README.md",
   "tools/reference/aezeed/README.md",
 ]
+
+[[action]]
+id = "hsm-secret"
+name = "Read a Core Lightning hsm_secret"
+action = "Reads Core Lightning's hsm_secret, the plain 32 bytes, the 73 bytes encrypted under a passphrase, or the mnemonic form (a passphrase hash, then English BIP-39 words), or BIP-39 words as lightning-hsmtool generatehsm makes it, and gives the node key hsmd derives."
+row = "hsm-secret"
+standards = [
+  "Core Lightning hsm_secret",
+  "BIP 39",
+]
+learn = "tools"
+screens = []
+functions = [
+  "faraday/faraday-keys/src/hsm_secret.rs::node_from_secret",
+  "faraday/faraday-keys/src/hsm_node.rs::node_from_words",
+  "faraday/faraday-keys/src/hsm_secret.rs::node_from_file",
+  "faraday/faraday-keys/src/hsm_secret.rs::needs_passphrase",
+  "faraday/faraday-keys/src/hsm_secret.rs::mnemonic_secret",
+  "faraday/faraday-keys/src/hsm_secret.rs::open",
+  "faraday/faraday-keys/src/hsm_secret.rs::pull",
+  "faraday/faraday-keys/src/hsm_secret.rs::HsmJob::run",
+  "faraday/faraday-keys/src/hsm_secret.rs::HsmJob::needs_passphrase",
+  "faraday/faraday-keys/src/hsm_secret.rs::Keys::hsm_job",
+  "faraday/faraday-keys/src/hsm_node.rs::Keys::hsm_node",
+  "faraday/faraday-keys/src/hsm_node.rs::Keys::hsm_words_node",
+]
+code = [
+  "faraday/faraday-keys/src/hsm_secret.rs::node_from_file",
+  "faraday/faraday-keys/src/hsm_secret.rs::pull",
+]
+
+[action.implementation]
+crate = "faraday/faraday-keys"
+libraries = [
+  "argon2",
+  "chacha20",
+  "poly1305",
+]
+through = [{ library = "hmac", crate = "core/faraday-crypto" }]
+adds = "A 73-byte file is a 24-byte header and 49 bytes of ciphertext; the key is Argon2id of the passphrase with Core Lightning's salt and libsodium's moderate limits, and libsodium's secretstream pulls one message of it; the node key is HKDF-SHA256 of the 32 bytes with info nodeid and a 4-byte salt counting from 0, retried while it is not a valid key. The mnemonic form is a 32-byte hash (zero without a passphrase, else the SHA-256 of the 64-byte BIP-39 seed) and English words in single-space form, the node key from the first 32 bytes of the seed; the words come from faraday-bip's BIP-39. Reading only; a file shorter than 32 bytes or longer than the mnemonic form can be is refused."
+
+[[action.implementation.written_here]]
+what = "libsodium's crypto_secretstream_xchacha20poly1305 pull of one message (`faraday-keys::hsm_secret`)"
+why = "none-established"
+note = "No maintained Rust crate offers libsodium's secretstream; Faraday's is HChaCha20, ChaCha20 and Poly1305 of RustCrypto's crates, and is tested against a file libsodium sealed and against libsodium itself."
+decision = "F228"
+
+[action.checked]
+vectors = []
+tests = [
+  "faraday/faraday-keys/tests/hsm_secret.rs::lightning_a_plain_hsm_secret_gives_its_node_id",
+  "faraday/faraday-keys/tests/hsm_secret.rs::lightning_an_encrypted_hsm_secret_opens_under_its_passphrase",
+  "faraday/faraday-keys/tests/hsm_secret.rs::lightning_a_wrong_passphrase_or_a_changed_byte_is_one_refusal",
+  "faraday/faraday-keys/tests/hsm_secret.rs::lightning_a_file_shorter_than_32_bytes_or_too_long_is_refused",
+  "faraday/faraday-keys/tests/hsm_secret.rs::lightning_a_mnemonic_hsm_secret_gives_the_node_id_core_lightning_has",
+  "faraday/faraday-keys/tests/hsm_secret.rs::lightning_a_mnemonic_hsm_secret_with_the_wrong_passphrase_is_refused",
+  "faraday/faraday-keys/tests/hsm_secret.rs::lightning_a_mnemonic_hsm_secret_with_broken_words_is_refused",
+  "faraday/faraday-keys/tests/hsm_secret.rs::lightning_words_give_the_node_id_core_lightning_has_for_them",
+  "faraday/faraday-keys/tests/hsm_secret.rs::lightning_words_in_another_language_are_refused",
+]
+crosscheck = "lightning"
+fuzz_none = "The mnemonic form's text is read by the BIP-39 words parser, which has its own fuzz target (bip39_words); the rest is a length check and bytes of a fixed length."
+independence = { class = "outside", author = "Blockstream and the Core Lightning developers (ccan's HKDF-SHA256, the salt, limits and calls of common/hsm_secret.c written out in tools/reference/cln/main.c), the libsodium developers (Argon2id and the secretstream), python-mnemonic, by Trezor (SatoshiLabs) (the mnemonic form's BIP-39 words and seed)" }
+other = [
+  "Core Lightning's two published node ids for BIP-39 words (its tests/test_wallet.py)",
+]
+
+[action.secrets]
+reveal = [
+  "Reveal::LightningKey",
+]
+constant_time = "Poly1305's tag is compared in constant time (subtle); the rest is not stated."
+wiped = "The passphrase, the Argon2id key, the secret and the node key are held in zeroizing buffers; the node key leaves only as hex for a reason that names it."
+
+[action.limits]
+lines = [
+  "Reading only: an hsm_secret is never made and never loaded as a key.",
+  "A file shorter than 32 bytes, or longer than the mnemonic form can be, is refused. In the mnemonic form the words are English only, in single-space form with no NUL, newline or other whitespace; Core Lightning's text reading is stricter in no case and looser in some, which Faraday refuses.",
+]
+
+[action.review]
+fingerprint = "0000000000000000000000000000000000000000000000000000000000000000"
+reviewed = "2026-11-09"
 
 [[action]]
 id = "silent-receive"
@@ -9554,6 +9649,9 @@ author = "the rust-bitcoin developers (rust-miniscript)"
 author = "the miniz_oxide developers, a port of Rich Geldreich's miniz"
 
 [library.ocb3]
+author = "the RustCrypto developers"
+
+[library.poly1305]
 author = "the RustCrypto developers"
 
 [library.pbkdf2]

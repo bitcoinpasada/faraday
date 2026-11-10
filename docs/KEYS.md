@@ -97,7 +97,14 @@ Moved to `docs/history/KEYS-LOG.md`.
   and wipe with the job. The node key comes back inside faraday-keys'
   `Node`, through `Keys::aezeed_node`, which applies the demo's refusal
   on the main thread; the KeePass file is encrypted, so public. The
-  scrypt and Argon2id calls are unchanged.
+  scrypt and Argon2id calls are unchanged. A Core Lightning hsm_secret
+  (`hsm_secret::HsmJob`, F228; `hsm_node::Keys::hsm_node`) is a job of the same kind: the file's
+  bytes and the passphrase are copied in once and wipe with the job, the
+  node key comes back through `Keys::hsm_node` with the same demo
+  refusal. The mnemonic form (a passphrase hash, then English words) is read by the same job, which says whether it asks for a passphrase (`hsm_secret::needs_passphrase`). English BIP-39 words give the node key without a job through
+  `Keys::hsm_words_node`, with the same demo refusal; words in another
+  language are refused (`WordsRefusal::NotEnglish`), as Core Lightning
+  refuses them.
   A new passphrase for an open vault's next seal
   (`OpenVaults::set_passphrase`) is moved into the vault's slot as a
   `SecretText`, never read back, and replaced or wiped with the slot; a
@@ -438,7 +445,7 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
 - **Lightning.** `lightning::Node` gives `public` and `birthday`; the
   private key leaves as hex through `private_hex(why)`, for
   `LightningKey` (on screen), or `VaultEntry` or `OutboxFile` of
-  `Part::NodeKey`. `Keys::lightning_node` returns the node itself.
+  `Part::NodeKey`. `Keys::lightning_node` returns the node itself. A Core Lightning hsm_secret gives the same `Node` (`hsm_secret::node_from_file`, `hsm_node::node_from_words`, `hsm_secret::node_from_secret`).
 - **Keys made from fresh entropy.** `gpg::create` and
   `secure_boot::create` make the key and the record every vault of the
   plan takes, as a `vault::MadeKey`: its public fields through `view()`,

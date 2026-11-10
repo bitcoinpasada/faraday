@@ -63,6 +63,27 @@ if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABL
     exit 2
 fi
 say "build: LND's answer program done"
+# Core Lightning's answer program (tools/reference/cln): ccan's HKDF-SHA256 from
+# its files and its hsm_secret functions over the system libsodium.
+say "build: Core Lightning's answer program (cc, tools/reference/cln, libsodium)"
+if ! command -v cc >/dev/null || ! command -v pkg-config >/dev/null \
+        || ! pkg-config --exists libsodium; then
+    say "build: FAILED: no C compiler, pkg-config or libsodium's headers (docs/DEVELOPING.md §1)"
+    exit 2
+fi
+cln=tools/reference/cln
+# shellcheck disable=SC2046
+if ! cc -O2 -Wall -Werror -I "$cln" -I "$cln/ccan" \
+        -o "$progress/cln-ref" "$cln/main.c" \
+        "$cln"/ccan/ccan/crypto/sha256/sha256.c \
+        "$cln"/ccan/ccan/crypto/hmac_sha256/hmac_sha256.c \
+        "$cln"/ccan/ccan/crypto/hkdf_sha256/hkdf_sha256.c \
+        $(pkg-config --cflags --libs libsodium) 2>"$progress/cc-cln.log"; then
+    cat "$progress/cc-cln.log" >&2
+    say "build: FAILED: Core Lightning's answer program did not build"
+    exit 2
+fi
+say "build: Core Lightning's answer program done"
 say "build: btcd's BIP-322 program (go build -mod=vendor, tools/reference/btcd-bip322)"
 if ! GOFLAGS=-mod=vendor GOTOOLCHAIN=local GOPROXY=off GOTELEMETRY=off CGO_ENABLED=0 \
         go build -C tools/reference/btcd-bip322 -trimpath -o "$PWD/$progress/btcd-bip322-ref" . \

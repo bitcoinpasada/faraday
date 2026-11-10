@@ -67,6 +67,7 @@ const PRIMITIVE_CRATES: &[&str] = &[
     "ctr",
     "aes-gcm",
     "ghash",
+    "poly1305",
     "polyval",
     "ed25519-dalek",
     "rsa",

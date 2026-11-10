@@ -15,7 +15,7 @@ F71 trusts, with the `cipher` 0.5 interface the tree's other primitives
 use. Writing ChaCha20 by hand instead would be ~100 lines of
 constant-time review to avoid a maintained crate.
 
-**Cost.** Version 0.10 with `default-features = false` and the `cipher`
+**Cost.** Faraday-keys also takes the `xchacha` feature (HChaCha20, for Core Lightning's encrypted hsm_secret, F228; `docs/deps/poly1305.md`), which adds no crate. Version 0.10 with `default-features = false` and the `cipher`
 and `zeroize` features: no `alloc`. `faraday-backup` takes no RNG feature: its nonce and key come
 from the file's header and the session key; `faraday-sb` takes `rng`
 (over `rand_core` 0.10.1, already in the tree). No `unsafe` outside the

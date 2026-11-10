@@ -53,6 +53,10 @@ by hand, the fuzz run before a release (§8), and nothing else.
   <https://go.dev/dl/> (the tarball's SHA-256 is on that page) or the
   distribution's `golang` package; `go version` must say 1.27 or later,
   or `just crosscheck` stops.
+  The `lightning` area also compiles Core Lightning's reference program
+  (`tools/reference/cln/`) with `cc` and libsodium: Debian and Ubuntu's
+  `build-essential`, `pkg-config` and `libsodium-dev`; `just crosscheck`
+  stops when they are missing.
   The `lightning` area's software-round pass reads the commands it builds
   with binutils' `objdump` (x86-64 only), which comes with the C toolchain
   Rust links with.

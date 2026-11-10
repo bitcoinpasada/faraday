@@ -8,6 +8,10 @@ use faraday_bip::keys::{DerivedKey, Network};
 use faraday_codec::bolt11::{self, Fallback};
 use faraday_crypto::Secret;
 use faraday_crypto::work::Compute;
+use faraday_intake::secret_buf::SecretText;
+use faraday_keys::Reveal;
+use faraday_keys::hsm_node;
+use faraday_keys::hsm_secret::{self, Refusal};
 use serde_json::{Value, json};
 
 use crate::Answer;
@@ -86,6 +90,14 @@ fn invoice(i: &bolt11::Invoice) -> Value {
     })
 }
 
+/// A node as the answer shows it, from `faraday_keys`.
+fn keys_node(node: &faraday_keys::lightning::Node) -> Value {
+    let secret = node
+        .private_hex(Reveal::LightningKey)
+        .expect("the key is shown");
+    json!({"secret": secret.as_str(), "node_id": hex(node.public())})
+}
+
 /// Handles `lightning.<name>`.
 pub fn handle(name: &str, req: &Value) -> Answer {
     let c = Compute::unchecked();
@@ -133,6 +145,33 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         "bolt11" => bolt11::decode(text(req, "invoice"))
             .map(|i| invoice(&i))
             .map_err(|e| format!("{e:?}")),
+        // Core Lightning's hsm_secret file (32 bytes plain, 73 encrypted
+        // under a passphrase, longer the mnemonic form) read as `faraday_keys` reads it.
+        "hsm_file" => {
+            let pass = SecretText::of(text(req, "passphrase"));
+            match hsm_secret::node_from_file(&c, &bytes(req, "file"), &pass) {
+                Ok(node) => Ok(keys_node(&node)),
+                Err(Refusal::Length) => Err("length".to_string()),
+                Err(Refusal::Opening) => Err("opening".to_string()),
+                Err(Refusal::Memory) => Err("memory".to_string()),
+                Err(Refusal::Words) => Err("words".to_string()),
+                Err(Refusal::Passphrase) => Err("passphrase".to_string()),
+                Err(Refusal::PassphraseNotNeeded) => Err("passphrase not needed".to_string()),
+                Err(Refusal::PassphraseNotAscii) => Err("passphrase not ascii".to_string()),
+                Err(Refusal::PassphraseTooLong) => Err("passphrase too long".to_string()),
+            }
+        }
+        // Core Lightning's node from BIP-39 words and a passphrase.
+        "hsm_words" => {
+            let node = hsm_node::node_from_words(
+                &c,
+                faraday_bip::bip39::Language::English,
+                text(req, "words"),
+                text(req, "passphrase"),
+            )
+            .map_err(|e| format!("{e:?}"))?;
+            Ok(keys_node(&node))
+        }
         // Which AES round this command runs: `soft` when the cross-check
         // built it with the aes crate's software backend (`run.sh`).
         "backend" => {

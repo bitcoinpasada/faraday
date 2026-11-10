@@ -25,6 +25,7 @@ faraday-psbt = { path = "../../core/faraday-psbt" }
 # Another wallet's file read as a wallet, as every screen that takes one
 # reads it (`wallet::read_wallet`).
 faraday-intake = { path = "../../faraday/faraday-intake" }
+faraday-keys = { path = "../../faraday/faraday-keys" }
 faraday-vault = { path = "../../faraday/faraday-vault" }
 # Krux's encrypted code (KEF), sealed and opened.
 faraday-kef = { path = "../../faraday/faraday-kef" }

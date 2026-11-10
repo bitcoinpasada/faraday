@@ -18,9 +18,40 @@ sources `tools/reference/aezeed/README.md` quotes, over btclib's BIP-32
   changes nothing. Each master key, the derivation and the public key are
   btclib's.
 
-- Every vector of `tools/vectors/aezeed/`.
+- Core Lightning (`tools/reference/cln/`, F228), answered by its code: its
+  `hsm_secret` (32 bytes plain, or 73 bytes encrypted under a passphrase,
+  which `get_encryption_key` and `decrypt_hsm_secret` of `common/hsm_secret.c`
+  open over libsodium) and the node key `hsmd` derives from it (ccan's
+  HKDF-SHA256, the info `nodeid`, a 4-byte salt from 0 until the 32 bytes are
+  a private key; the public key is btclib's). The encrypted files are made by
+  libsodium through Core Lightning's `encrypt_legacy_hsm_secret`. Core
+  Lightning's node from BIP-39 words is the first 32 bytes of their seed
+  (python-mnemonic's) through the same derivation.
+  Its mnemonic form (a file over 32 bytes and not 73: a 32-byte hash, zero
+  without a passphrase and else the SHA-256 of the 64-byte seed, then the
+  words as text) is read by `detect_hsm_secret_type` and
+  `extract_mnemonic_secret` as `main.c` writes them out, with the hash
+  compared by ccan's SHA-256; the one part not Core Lightning's code, which
+  uses libwally for it, is BIP-39 itself (the words' validity and the
+  seed), which python-mnemonic (`bip39/`) gives, an implementation Faraday
+  did not write.
+
+- Every vector of `tools/vectors/aezeed/`, and Core Lightning's published node
+  ids for BIP-39 words, and a file libsodium sealed under Core Lightning's
+  test passphrase, made for this check (its node id is the one Core
+  Lightning's test of a plain 0x01 secret gives).
 - Random BIP-39 seeds on every network (ldk) and random entropies on
   every network (LND).
+- Random 32-byte secrets plain, random secrets sealed by libsodium under
+  random passphrases (the sealed file opened by both), random BIP-39 words
+  under random passphrases, mnemonic-form files of random words with and
+  without a passphrase (the same node id from both), and files shorter than
+  32 bytes; a sealed file under another passphrase, or with one byte
+  changed, a mnemonic-form file under a wrong passphrase, under a passphrase
+  when it has none, or with its words broken (the checksum failing): each
+  refused by both. A NUL in the words is not compared: Core Lightning reads
+  the text up to it and Faraday refuses the file, as it refuses any text
+  Core Lightning might read differently.
 - Random word lists (the checksum fails), lists with the checksum put
   right and a version other than 0, and the published seeds under a
   changed passphrase, with an enciphered byte or the salt changed and the
@@ -35,6 +66,7 @@ sources `tools/reference/aezeed/README.md` quotes, over btclib's BIP-32
   round is compared only here.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -94,6 +126,98 @@ def ldk(seed):
     inner = bip32_ref.master(outer.k.to_bytes(32, "big"), True)
     child = inner.derive([H])
     return {"secret": child.k.to_bytes(32, "big").hex(), "node_id": child.pub.hex()}
+
+
+def cln_exe():
+    """Core Lightning's answers as a program: built by `tools/crosscheck/run.sh`
+    from `tools/reference/cln/` (`FARADAY_CLN_REF` names another place)."""
+    path = os.environ.get("FARADAY_CLN_REF") or str(ROOT / "out/crosscheck/cln-ref")
+    if not os.access(path, os.X_OK):
+        raise HarnessError(
+            f"the lightning area needs Core Lightning's answer program, {path}, which "
+            "tools/crosscheck/run.sh builds from tools/reference/cln/ with a C compiler and "
+            "libsodium (docs/DEVELOPING.md)")
+    return path
+
+
+# secp256k1's group order: a 32-byte HKDF output is a private key below it and above 0.
+CURVE_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+
+
+class Cln:
+    """The C program answering with Core Lightning's functions, a request a
+    line: `ok HEX` or `err`."""
+
+    def __init__(self):
+        self.proc = subprocess.Popen([cln_exe()], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     text=True, bufsize=1)
+
+    def call(self, *words):
+        self.proc.stdin.write(" ".join(words) + "\n")
+        self.proc.stdin.flush()
+        line = self.proc.stdout.readline()
+        if not line:
+            raise HarnessError(f"{words[0]}: Core Lightning's answer program exited")
+        kind, _, rest = line.strip().partition(" ")
+        if kind == "ok":
+            return rest
+        raise ValueError(f"{words[0]}: refused")
+
+    def node(self, secret):
+        """Costs an elliptic-curve multiplication in btclib. The node key
+        `hsmd` derives from `secret` (`node_key` in `hsmd/libhsmd.c`):
+        ccan's HKDF-SHA256 with the info `nodeid` and the salt 0, 1, ... until
+        the output is a private key."""
+        salt = 0
+        while True:
+            okm = bytes.fromhex(self.call("hkdf", secret.hex(), str(salt)))
+            k = int.from_bytes(okm, "big")
+            if 0 < k < CURVE_ORDER:
+                return {"secret": okm.hex(), "node_id": bip32_ref.point(k).hex()}
+            salt += 1
+
+    def file(self, data, passphrase):
+        """Core Lightning's reading of an `hsm_secret` file, told apart by
+        length as `detect_hsm_secret_type` does: 32 bytes plain, 73
+        encrypted, every other length over 32 the mnemonic form, a shorter
+        file invalid."""
+        if len(data) == 32:
+            return self.node(data)
+        if len(data) == 73:
+            return self.node(bytes.fromhex(
+                self.call("open", data.hex(), passphrase.encode().hex() or "-")))
+        if len(data) < 32:
+            raise ValueError("invalid hsm_secret format")
+        return self.mnemonic(data, passphrase)
+
+    def mnemonic(self, data, passphrase):
+        """A mnemonic-form file. libwally's two answers, whether the words
+        validate (English list) and their seed, are python-mnemonic's (12 to
+        24 words, NFKD where libwally has none: only ASCII cases are asked); the
+        text is read up to a NUL, as `tal_strndup` does. An empty passphrase
+        is none (NULL) when the hash is zero, and given as "" otherwise."""
+        text = data[32:].split(b"\0")[0]
+        zero = not any(data[:32])
+        given = None if zero and passphrase == "" else passphrase
+        try:
+            words = text.decode()
+        except UnicodeDecodeError:
+            words = None
+        valid = words is not None and ENGLISH.check(words)
+        seed = ENGLISH.to_seed(words, given or "") if words is not None else bytes(64)
+        pass_arg = "none" if given is None else (given.encode().hex() or "-")
+        return self.node(bytes.fromhex(self.call(
+            "mnemonic", data.hex(), pass_arg, "1" if valid else "0", seed.hex())))
+
+    def seal(self, secret, passphrase):
+        return bytes.fromhex(self.call("seal", secret.hex(), passphrase.encode().hex() or "-"))
+
+    def version(self):
+        return self.call("version")
+
+    def close(self):
+        self.proc.stdin.close()
+        self.proc.wait()
 
 
 def lnd_exe():
@@ -216,7 +340,9 @@ class Lightning(Area):
     name = "lightning"
     faraday = (
         "`faraday_bip::aezeed` (ldk-node's and LND's node keys, the aezeed read), "
-        "`faraday_codec::bolt11::decode` (a BOLT #11 invoice read)"
+        "`faraday_codec::bolt11::decode` (a BOLT #11 invoice read), "
+        "`faraday_keys::hsm_secret` (Core Lightning's node key from its hsm_secret, plain "
+        "encrypted or the mnemonic form, and from BIP-39 words)"
     )
     reference = (
         "LND's own code, vendored in Go (`tools/reference/lnd/`: its `aezeed` package "
@@ -229,7 +355,11 @@ class Lightning(Area):
         "`bolt11` package by lnbits (2.2.0, `tools/reference/bolt11/`: its wheels over "
         "the bech32, base58 and bitstring packages, with a stand-in for its libsecp256k1 "
         "binding `coincurve` written over btclib's curve), and invoices written in "
-        "`bolt11_enc.py` from BOLT #11 and signed with btclib"
+        "`bolt11_enc.py` from BOLT #11 and signed with btclib; "
+        "Core Lightning's "
+        "code (`tools/reference/cln/`: ccan's HKDF-SHA256 compiled as it is, and its "
+        "`common/hsm_secret.c` functions written out over the system libsodium, the BIP-39 words and seed of "
+        "the mnemonic form from python-mnemonic), one process answering the run's requests"
     )
     reference_checked = (
         "LND's code reads the aezeed (wordlist, version, CRC-32C, scrypt, AEZ) and "
@@ -245,7 +375,12 @@ class Lightning(Area):
         "the `bolt11` package's wheels and its stand-in are hashed against "
         "`references.sha256` before any run, and each of BOLT #11's 31 published "
         "examples is required to be read by Faraday as the BOLT says (a valid one read, "
-        "an invalid one refused), the package reading the valid ones to the same fields"
+        "an invalid one refused), the package reading the valid ones to the same fields; "
+        "Core Lightning's HKDF is its compiled code, its salt, limits and calls are those "
+        "of `hsm_secret.c`, libsodium itself seals and opens the file, and Core "
+        "Lightning's two published node ids for words are required of it as well as of "
+        "Faraday; the area stops when the program is missing and the stamp records "
+        "libsodium's version"
     )
     vectors = (
         "LND's five cipher seeds, LND's two node keys, ldk's five node ids "
@@ -266,7 +401,14 @@ class Lightning(Area):
         "wrong-length p, s, h or n, no p, no s, both or neither of d and h, an "
         "unknown required feature, a leading zero value in a longer x, c or 9, a leading zero or a fraction of a millisatoshi in "
         "the amount, a bad multiplier, an unknown network, a high-S signature, a "
-        "field cut short, a text over 1023 characters, a description that is not UTF-8"
+        "field cut short, a text over 1023 characters, a description that is not UTF-8; "
+        "for Core Lightning, random plain and encrypted hsm_secrets under random "
+        "passphrases (opened by Faraday and by libsodium, node ids compared), a secret "
+        "sealed by libsodium and opened by Faraday and by Core Lightning's functions, a changed byte, a wrong "
+        "passphrase and a wrong length each refused by both, random mnemonic-form files "
+        "with and without a passphrase (node ids compared; a wrong passphrase, a "
+        "passphrase the file does not have and broken words each refused by both), and "
+        "random BIP-39 words with a passphrase"
     )
     differences = [
         (
@@ -308,10 +450,21 @@ class Lightning(Area):
         "does not define, a fallback of a witness version above 16, a second or later "
         "fallback), which are compared with the writer's own list; its signature check runs on "
         "btclib's curve, not libsecp256k1's, and refuses a high-S signature as "
-        "libsecp256k1 does"
+        "libsecp256k1 does; "
+        "`hsm_secret.c` itself is not compiled (it needs tal and libwally): its functions "
+        "are written out in `main.c`, and for the mnemonic form libwally's two answers, "
+        "whether the words validate and their BIP-39 seed, are python-mnemonic's, which "
+        "takes 12 to 24 words and normalises the words and passphrase (NFKD) where "
+        "libwally takes 27 and 30 words too and normalises nothing, so the area judges "
+        "only English 12 to 24-word ASCII cases and Faraday refuses 27 and 30 words "
+        "(F228); a NUL in the mnemonic form's words is not compared (Core Lightning reads "
+        "the text up to it, Faraday refuses the file); the words' derivation "
+        "(`lightning-hsmtool generatehsm`) is BIP-39's seed, whose first 32 bytes are "
+        "taken by both sides here"
     )
 
     lnd_proc = None
+    cln_proc = None
     soft_rust = None
     soft_lnd = None
 
@@ -336,9 +489,16 @@ class Lightning(Area):
             self.lnd_proc = Lnd()
         return self.lnd_proc
 
+    def cln_ref(self):
+        if self.cln_proc is None:
+            self.cln_proc = Cln()
+        return self.cln_proc
+
     def close(self):
         if self.lnd_proc is not None:
             self.lnd_proc.close()
+        if self.cln_proc is not None:
+            self.cln_proc.close()
         if self.soft_lnd is not None:
             self.soft_lnd.close()
         if self.soft_rust is not None:
@@ -353,6 +513,17 @@ class Lightning(Area):
         return self.compare("lightning.lnd", {"entropy": entropy.hex(), "network": network},
                             lambda: self.lnd_ref().call("node", entropy=entropy.hex(),
                                                         network=network), expected)
+
+    def hsm_file(self, data, passphrase, expected=None):
+        """Faraday's reading of an `hsm_secret` file against Core Lightning's."""
+        return self.compare("lightning.hsm_file", {"file": data.hex(), "passphrase": passphrase},
+                            lambda: self.cln_ref().file(data, passphrase), expected)
+
+    def hsm_words(self, words, passphrase, expected=None):
+        def ref():
+            return self.cln_ref().node(ENGLISH.to_seed(words, passphrase)[:32])
+        return self.compare("lightning.hsm_words", {"words": words, "passphrase": passphrase},
+                            ref, expected)
 
     def aezeed(self, words, passphrase, cost, expected):
         """Faraday's reading against LND's, and the expected answer: a
@@ -464,6 +635,95 @@ class Lightning(Area):
             for network in NETWORKS:
                 self.ldk(seed, network, ("ok", {"secret": n["secret"], "node_id": n["node_id"]}))
 
+    # Core Lightning's own test suite (tests/test_wallet.py) names these two
+    # node ids; the file is `\x01` thirty-two times, as its encrypt test
+    # writes it, sealed by libsodium under `test_password`.
+    CLN_WORDS = (
+        ("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon "
+         "abandon about", "",
+         "03653e90c1ce4660fd8505dd6d643356e93cfe202af109d382787639dd5890e87d"),
+        ("ritual idle hat sunny universe pluck key alpha wing cake have wedding",
+         "test_passphrase",
+         "039020371fb803cd4ce1e9a909b502d7b0a9e0f10cccc35c3e9be959c52d3ba6bd"),
+    )
+    CLN_SEALED = bytes.fromhex(
+        "2c9ac8c7092b7c78712ceb9178be048d98c4a5871ae4eea739d8aa473e0fd750242028ee9acd86ecc6131"
+        "d72cbc725c6efda4fb84ff06ba6c9b8eba2bfad6001a618eab8d79b30b911")
+    CLN_ONES_ID = "026f61d7ee82f937f9697f4f3e44bfaaa25849cc4f526b3a57326130eba6346002"
+
+    def published_cln(self):
+        for words, passphrase, node_id in self.CLN_WORDS:
+            self.hsm_words(words, passphrase, ("ok", {
+                "secret": self.cln_ref().node(ENGLISH.to_seed(words, passphrase)[:32])["secret"],
+                "node_id": node_id}))
+        want = ("ok", {"secret": self.cln_ref().node(b"\x01" * 32)["secret"],
+                       "node_id": self.CLN_ONES_ID})
+        self.hsm_file(b"\x01" * 32, "", want)
+        self.hsm_file(self.CLN_SEALED, "test_password", want)
+        self.hsm_file(self.CLN_SEALED, "test_passwore", ("err", None))
+        # The same words as a mnemonic-form file, as Core Lightning writes it.
+        for words, passphrase, node_id in self.CLN_WORDS:
+            seed = ENGLISH.to_seed(words, passphrase)
+            hashed = hashlib.sha256(seed).digest() if passphrase else bytes(32)
+            self.hsm_file(hashed + words.encode(), passphrase, ("ok", {
+                "secret": self.cln_ref().node(seed[:32])["secret"], "node_id": node_id}))
+
+    def passphrase(self):
+        rng = self.rng
+        return "".join(rng.choice("abcXYZ019 !~#_-") for _ in range(rng.choice([0, 1, 7, 20])))
+
+    def hsm_case(self):
+        """A plain secret, BIP-39 words, and a file with no hsm_secret in it."""
+        rng = self.rng
+        self.hsm_file(self.randbytes(32), "")
+        words = ENGLISH.to_mnemonic(self.randbytes(rng.choice([16, 24, 32])))
+        self.hsm_words(words, self.passphrase())
+        # A file shorter than 32 bytes, or longer with no words in it.
+        length = rng.choice([n for n in range(0, 140) if n not in (32, 73)])
+        self.hsm_file(self.randbytes(length), self.passphrase(), ("err", None))
+
+    def mnemonic_case(self):
+        """A mnemonic-form file of random words: read under its passphrase,
+        then under a wrong one, with none given, with a passphrase it does
+        not have, and with a word changed so the checksum fails."""
+        rng = self.rng
+        words = ENGLISH.to_mnemonic(self.randbytes(rng.choice([16, 20, 24, 28, 32])))
+        passphrase = self.passphrase()
+        hashed = hashlib.sha256(ENGLISH.to_seed(words, passphrase)).digest() if passphrase \
+            else bytes(32)
+        file = hashed + words.encode()
+        self.hsm_file(file, passphrase)
+        r = rng.random()
+        if r < 0.3:
+            # A passphrase the file does not have, or another one.
+            self.hsm_file(file, passphrase + rng.choice("x! "), ("err", None))
+        elif r < 0.45 and passphrase:
+            self.hsm_file(file, "", ("err", None))
+        elif r < 0.9:
+            for _ in range(100):
+                broken = words.split()
+                broken[rng.randrange(len(broken))] = rng.choice(ENGLISH.wordlist)
+                broken = " ".join(broken)
+                if not ENGLISH.check(broken):
+                    self.hsm_file(hashed + broken.encode(), passphrase, ("err", None))
+                    break
+
+    def sealed_case(self):
+        """A secret sealed by libsodium: opened under its passphrase, under
+        another, and with one byte changed."""
+        rng = self.rng
+        secret, passphrase = self.randbytes(32), self.passphrase()
+        sealed = self.cln_ref().seal(secret, passphrase)
+        want = ("ok", self.cln_ref().node(secret))
+        self.hsm_file(sealed, passphrase, want)
+        r = rng.random()
+        if r < 0.5:
+            self.hsm_file(sealed, passphrase + rng.choice("x! "), ("err", None))
+        else:
+            changed = bytearray(sealed)
+            changed[rng.randrange(73)] ^= 1 << rng.randrange(8)
+            self.hsm_file(bytes(changed), passphrase, ("err", None))
+
     def corpus_case(self):
         rng = self.rng
         network = rng.choice(NETWORKS)
@@ -496,13 +756,25 @@ class Lightning(Area):
             bad[i] = (bad[i] + rng.randint(1, 2047)) % 2048
             self.aezeed(bad, a["passphrase"].encode(), 16, ("err", None))
 
-    LOOPS = (("corpus", 400), ("invoices", 150))
+    # The sealed files stretch 256 MiB three times each (libsodium's seal,
+    # Core Lightning's open and Faraday's), so there are few of them.
+    LOOPS = (("corpus", 400), ("invoices", 150), ("hsm", 400), ("mnemonic", 200), ("sealed", 6))
 
     def prelude(self):
         self.published()
+        self.published_cln()
 
     def case_corpus(self):
         self.corpus_case()
 
     def case_invoices(self):
         self.invoices_corpus()
+
+    def case_hsm(self):
+        self.hsm_case()
+
+    def case_mnemonic(self):
+        self.mnemonic_case()
+
+    def case_sealed(self):
+        self.sealed_case()

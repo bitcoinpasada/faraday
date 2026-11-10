@@ -235,6 +235,11 @@ const MINTS: &[(&str, &str, &str)] = &[
         "the measuring example, a tool outside the app",
     ),
     (
+        "faraday/faraday-keys/tests/hsm_secret.rs",
+        "compute",
+        "faraday-keys' tests, which cannot reach faraday-core's test kit",
+    ),
+    (
         "faraday/faraday-keys/tests/operations.rs",
         "compute",
         "faraday-keys' tests, which cannot reach faraday-core's test kit",

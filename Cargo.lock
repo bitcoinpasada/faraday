@@ -873,6 +873,7 @@ dependencies = [
  "faraday-entropy",
  "faraday-intake",
  "faraday-kef",
+ "faraday-keys",
  "faraday-pgp",
  "faraday-psbt",
  "faraday-qr",
@@ -1019,6 +1020,8 @@ dependencies = [
 name = "faraday-keys"
 version = "0.1.10"
 dependencies = [
+ "argon2",
+ "chacha20",
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",
@@ -1030,6 +1033,7 @@ dependencies = [
  "faraday-sb",
  "faraday-strings",
  "faraday-vault",
+ "poly1305",
  "serde_json",
  "subtle",
  "zeroize",
@@ -2249,6 +2253,17 @@ dependencies = [
  "pin-project-lite",
  "rustix 1.1.4",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "poly1305"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e2d0073b297041425c7c3df6eb4792d598a15323fe63346852b092eca02904c"
+dependencies = [
+ "cpufeatures",
+ "universal-hash",
+ "zeroize",
 ]
 
 [[package]]

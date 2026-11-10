@@ -3,7 +3,8 @@
 
 use faraday_bip::aezeed;
 use faraday_bip::bip39::{Language, Mnemonic};
-use faraday_bip::keys::{DerivedKey, MasterKey, Network};
+use faraday_bip::bitcoin::secp256k1::{PublicKey, Secp256k1};
+use faraday_bip::keys::{DerivedKey, MasterKey, Network, SecretKey};
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes};
 use zeroize::{Zeroize, Zeroizing};
@@ -60,6 +61,22 @@ fn node_of(c: &Compute, key: &DerivedKey, birthday: Option<(i32, u32, u32)>) -> 
         public,
         private: Zeroizing::new(key.secret_key().secret_bytes()),
         birthday,
+    }
+}
+
+/// Costs an elliptic-curve multiplication: the node that the private key
+/// `key` is, its public key worked out from it.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the multiplication is counted by the token this function takes"
+)]
+pub(crate) fn node_of_secret_key(c: &Compute, key: &SecretKey) -> Node {
+    c.count(faraday_crypto::work::Work::KeyDerive);
+    let secp = Secp256k1::signing_only();
+    Node {
+        public: PublicKey::from_secret_key(&secp, key).serialize(),
+        private: Zeroizing::new(key.secret_bytes()),
+        birthday: None,
     }
 }
 

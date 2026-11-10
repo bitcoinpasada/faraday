@@ -104,7 +104,7 @@ AREAS = {
     "kef": ("area_kef", "Kef", ("kef.seal", "kef.open"), 60),
     "lightning": ("area_lightning", "Lightning",
                   ("lightning.ldk", "lightning.aezeed", "lightning.lnd", "lightning.aezeed-soft",
-                   "lightning.bolt11"), 300),
+                   "lightning.bolt11", "lightning.hsm_file", "lightning.hsm_words"), 360),
 }
 
 

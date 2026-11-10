@@ -183,7 +183,20 @@ def distribution_versions():
     except ImportError:
         out += "OpenSSL missing\n"
     import judges
-    return out + f"{go_version()}\n" + judges.versions()
+    return out + f"{go_version()}\n{libsodium_version()}\n" + judges.versions()
+
+
+def libsodium_version():
+    """`libsodium <version>` of the library Core Lightning's answer program
+    (tools/reference/cln) is linked with, or `libsodium missing`."""
+    import shutil
+    import subprocess
+    exe = shutil.which("pkg-config")
+    if not exe:
+        return "libsodium missing"
+    run = subprocess.run([exe, "--modversion", "libsodium"], capture_output=True, text=True)
+    version = run.stdout.strip()
+    return f"libsodium {version}" if run.returncode == 0 and version else "libsodium missing"
 
 
 def go_version():

@@ -106,6 +106,7 @@ table together and says in its message what was measured on what.
 | Argon2id for a KeePass file | The KDBX export written as a vault of one entry (`V::ExportKdbx`, then `V::PromptGo`) | Job |
 | Argon2id for each key | Practice's samples loaded (`SamplesLoad`) | Job |
 | scrypt | An aezeed read (Lightning) | Job |
+| Argon2id for a Core Lightning hsm_secret | An encrypted hsm_secret read (`hsm_secret::HsmJob`, `Keys::hsm_job`; the Lightning screen's wiring is still to come) | Job |
 | PBKDF2 for a Krux code | A Krux encrypted code sealed or opened (`Kind::KefSeal`, `Kind::KefOpen`; `Faraday::kef_seal`, `Faraday::kef_open`), and by the Krux code tool in Tools and a seed's Krux code item on the backup checklist: their Make the code and the Compare of Check my code; its count runs from 10,000 to 100,000,000 rounds, so it is a job whatever the count, and it stops on Cancel (§4) | Job |
 | The Krux code read card's timed run | The first Krux code read in a session sends a run of 50,000 PBKDF2 rounds (`Kind::KefTime`) that tells the card how long its count takes here; it has no busy screen, makes no job stale, is stopped by a seal or an open as it starts, and the card shows the count alone until its answer. The time is the run's own, on the worker, and is not kept if the run was stopped or took no time. Not measured on a Pi; about 100,000 compressions, so over the line on a Pi 3B+ if it ran drawn first | Job |
 | The vault cost measurement | One Argon2id pass over 64 MiB, thrown away, that tells the unlock times shown on Create a vault, Unlock, the family and the backup flow how long a pass takes here (`Kind::VaultMeasure`; `stretch::measure_start`). It is asked once, when one of those screens opens, and its figure is kept. It is a quiet job like the Krux code's timed run: no busy screen, no job made stale, so a lock, a Back or another job neither loses it nor starts it again; a job asked while it runs waits behind it on the one worker. The screens read "not measured" until its answer. The dev card's `vault cost measured` row is noted on the worker with the pass's time. Measured on a Pi 3B+ at 1400 MHz before the move: 840 ms (871 and 852 ms in the worst passes), over the line, on the main thread | Job |
@@ -470,7 +471,7 @@ What each piece is and changes:
   samples' keys stay drawn first (PBKDF2). faraday-keys' `job.rs`,
   `faraday-vault`'s Argon2 call site, `faraday-core/src/vault/`,
   `boot_import/`, `docs/KEYS.md`.
-- **The other stretches** (built): an aezeed read, the KDBX export written
+- **The other stretches** (built): an aezeed read, a Core Lightning hsm_secret read (the job in `faraday/faraday-keys/src/hsm_secret.rs`, its screen not yet), the KDBX export written
   and verified. A BIP-39 seed, SLIP-39 and a chart's passphrase try stay
   drawn first (§2.1). `faraday-core/src/lightning/`, the KDBX writer's
   call site (`faraday/faraday-keys/src/vault.rs`).
