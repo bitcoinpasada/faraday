@@ -564,3 +564,116 @@ fn a_page_that_nothing_reaches_is_refused() {
         assert!(rows(&fixture(name)).is_ok(), "{name}");
     }
 }
+
+/// A varint of a value under 16,384.
+fn put(out: &mut Vec<u8>, v: usize) {
+    if v < 128 {
+        out.push(v as u8);
+    } else {
+        out.push(0x80 | (v >> 7) as u8);
+        out.push((v & 0x7f) as u8);
+    }
+}
+
+/// A database of `pages` pages of 32,768 bytes made in memory, whose
+/// `sqlite_schema` holds a `(kind, name, root page)` row for each entry
+/// and every other page is empty.
+fn schema_db(rows: &[(&str, String, u8)], pages: usize) -> Vec<u8> {
+    const PAGE: usize = 32_768;
+    let mut b = vec![0u8; PAGE * pages];
+    b[..16].copy_from_slice(b"SQLite format 3\0");
+    b[16..18].copy_from_slice(&0x8000u16.to_be_bytes());
+    b[18] = 1;
+    b[19] = 1;
+    b[21..24].copy_from_slice(&[64, 32, 32]);
+    b[44..48].copy_from_slice(&1u32.to_be_bytes());
+    b[56..60].copy_from_slice(&1u32.to_be_bytes());
+    b[100] = 0x0d;
+    b[103..105].copy_from_slice(&(rows.len() as u16).to_be_bytes());
+    let mut end = PAGE;
+    for (i, (kind, name, root)) in rows.iter().enumerate() {
+        let mut record = vec![];
+        let serials = [13 + 2 * kind.len(), 13 + 2 * name.len(), 13, 1, 0];
+        let mut header = vec![];
+        for s in serials {
+            put(&mut header, s);
+        }
+        put(&mut record, header.len() + 1);
+        record.extend(header);
+        record.extend(kind.as_bytes());
+        record.extend(name.as_bytes());
+        record.push(*root);
+        let mut cell = vec![];
+        put(&mut cell, record.len());
+        put(&mut cell, i + 1);
+        cell.extend(record);
+        end -= cell.len();
+        b[end..end + cell.len()].copy_from_slice(&cell);
+        b[108 + 2 * i..110 + 2 * i].copy_from_slice(&(end as u16).to_be_bytes());
+    }
+    b[105..107].copy_from_slice(&(end as u16).to_be_bytes());
+    b
+}
+
+#[test]
+fn a_schema_of_many_rows_or_one_page_named_twice_is_refused() {
+    let many: Vec<(&str, String, u8)> = (0..65)
+        .map(|i| ("table", format!("t{i}"), 2 + i as u8))
+        .collect();
+    assert_eq!(
+        Database::open(&schema_db(&many, 70)).err(),
+        Some(Error::TooManySchemaRows)
+    );
+    let twice = [
+        ("table", "main".to_string(), 2),
+        ("table", "other".to_string(), 2),
+    ];
+    assert_eq!(
+        Database::open(&schema_db(&twice, 3)).err(),
+        Some(Error::RootRepeated(2))
+    );
+    let index_too = [
+        ("table", "main".to_string(), 2),
+        ("index", "sqlite_autoindex_main_1".to_string(), 2),
+    ];
+    assert_eq!(
+        Database::open(&schema_db(&index_too, 3)).err(),
+        Some(Error::RootRepeated(2))
+    );
+}
+
+#[test]
+fn a_schema_name_of_thousands_of_bytes_is_refused() {
+    let long = [("table", "n".repeat(5000), 2)];
+    assert_eq!(
+        Database::open(&schema_db(&long, 3)).err(),
+        Some(Error::SchemaTextTooLong)
+    );
+}
+
+#[test]
+fn an_index_page_of_the_wrong_kind_or_reached_twice_is_refused() {
+    // The index of every fixture has its root on page 3.
+    let base = fixture("small.db");
+    let mut b = base.clone();
+    b[at(3)] = 0x0d;
+    assert_eq!(rows(&b), Err(Error::BadPage(3)));
+    // An index whose right-most child is the root of `main`'s tree.
+    let base = fixture("ps4096.db");
+    let main = Database::open(&base).unwrap().tables()[0].root_page;
+    let index = 2 * 4096;
+    assert_eq!(base[index], 0x02);
+    let mut b = base.clone();
+    b[index + 8..index + 12].copy_from_slice(&main.to_be_bytes());
+    assert_eq!(rows(&b), Err(Error::PageRepeated(main)));
+}
+
+#[test]
+fn two_index_cells_on_the_same_bytes_are_refused() {
+    let base = fixture("small.db");
+    assert_eq!(base[at(3)], 0x0a);
+    let mut b = base.clone();
+    let first = [b[at(3) + 8], b[at(3) + 9]];
+    b[at(3) + 10..at(3) + 12].copy_from_slice(&first);
+    assert_eq!(rows(&b), Err(Error::CellOutside(3)));
+}

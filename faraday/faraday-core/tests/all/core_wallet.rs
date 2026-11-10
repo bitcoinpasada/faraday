@@ -499,3 +499,28 @@ fn a_record_that_only_starts_with_flags_does_not_change_the_flags() {
     assert_eq!(w.flags, real.flags);
     assert!(!w.is_whole());
 }
+
+#[test]
+fn failed_records_and_unknown_types_past_a_few_hundred_are_counted_not_kept() {
+    let wallet = read_with("plain", None, |records| {
+        for i in 0u32..2000 {
+            // A key that is no record layout, a record type no one knows
+            // (each its own, with a long name), and an `mkey` of no layout.
+            let mut layout = vec![0xff];
+            layout.extend([b'x'; 1000]);
+            layout.extend(i.to_le_bytes());
+            records.push((layout, vec![]));
+            let mut name = format!("unknown{i}").into_bytes();
+            name.extend([b'u'; 1000]);
+            let mut key = vec![0xfd];
+            key.extend((name.len() as u16).to_le_bytes());
+            key.extend(name);
+            records.push((key, vec![]));
+        }
+    });
+    assert!(!wallet.is_whole());
+    assert_eq!(wallet.failures.len(), 256);
+    assert_eq!(wallet.failures_more, 2000 - 256);
+    assert!(wallet.failures.iter().all(|f| f.record.len() < 400));
+    assert_eq!(wallet.unknown_more, 2000);
+}

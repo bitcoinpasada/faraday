@@ -22,17 +22,24 @@
 //! table other than the wanted one holding records, a tree deeper than
 //! [`MAX_DEPTH`], a table of more than [`MAX_ROWS`] rows, a page that no
 //! table tree, index tree, overflow chain or the freelist reaches (what
-//! `PRAGMA integrity_check` calls a page never used). Index trees are
-//! walked for their pages only: each page is counted once, but no index
-//! cell's content is read, so a changed byte inside an index entry is not
-//! seen. "Whole" means every page of the file is accounted for and every
+//! `PRAGMA integrity_check` calls a page never used), a `sqlite_schema` of
+//! more than [`MAX_SCHEMA_ROWS`] rows, a name or `CREATE` text of more
+//! than [`MAX_SCHEMA_TEXT`] bytes, and a page named as the root of two
+//! tables or indexes. Index trees are walked for their pages and their
+//! cells' extents only: each page is counted once and no cell overlaps
+//! another, but no index entry is read, so a changed byte inside an entry,
+//! or an index that disagrees with its table, is not seen. "Whole" means every page of the file is accounted for and every
 //! table's records are read; it does not mean SQLite's integrity check
 //! would pass.
 //!
-//! Memory: [`Database::rows`] holds the file's records twice at most (the
-//! pages and the copies it returns) and about 200 bytes for each row, and
-//! refuses a table past [`MAX_ROWS`], so the peak is bounded by twice the
-//! file and a fixed 200 MB or so, never by a count of tiny rows.
+//! Memory: [`Database::open`] holds the schema's at most
+//! [`MAX_SCHEMA_ROWS`] rows and a bit for each page. [`Database::rows`]
+//! returns each record once (a payload that spills over pages becomes the
+//! value in place; one that does not is copied from its page), so the
+//! rows are at most the file's bytes and, for each of the at most
+//! [`MAX_ROWS`] rows, 48 bytes and two allocations (some 120 bytes, some
+//! 125 MB in all) on top of the file itself, never more by a count of
+//! tiny rows.
 //!
 //! A lock or hot journal beside the file is for the caller to check where
 //! it can see the folder (Files): [`refusing_siblings`] names the files.
@@ -40,7 +47,7 @@
 
 #![forbid(unsafe_code)]
 
-use std::collections::HashSet;
+use std::borrow::Cow;
 use std::fmt;
 use std::ops::Range;
 
@@ -55,6 +62,14 @@ pub const MAX_FILE: usize = 1 << 30;
 /// holds some thousands of records; this is far above any real one, and
 /// bounds what the rows cost in memory whatever the file's size.
 pub const MAX_ROWS: usize = 1 << 20;
+
+/// The most rows `sqlite_schema` may hold: 64. Bitcoin Core writes two
+/// (`main` and its index `sqlite_autoindex_main_1`).
+pub const MAX_SCHEMA_ROWS: usize = 64;
+
+/// The longest name or `CREATE` text a `sqlite_schema` row may carry:
+/// 4,096 bytes. Bitcoin Core's are under 200.
+pub const MAX_SCHEMA_TEXT: usize = 4096;
 
 const MAGIC: &[u8; 16] = b"SQLite format 3\0";
 
@@ -130,6 +145,14 @@ pub enum Error {
     PageUnreached(u32),
     /// A `sqlite_schema` row that is not as SQLite writes it.
     SchemaRow,
+    /// More than [`MAX_SCHEMA_ROWS`] rows in `sqlite_schema`.
+    TooManySchemaRows,
+    /// A name or `CREATE` text in `sqlite_schema` longer than
+    /// [`MAX_SCHEMA_TEXT`] bytes.
+    SchemaTextTooLong,
+    /// A page named as the root of two tables or indexes of
+    /// `sqlite_schema`.
+    RootRepeated(u32),
     /// No table of that name.
     NoTable(String),
     /// A table holding records other than the one allowed.
@@ -224,7 +247,7 @@ impl Seen {
     }
 }
 
-type Visit<'f> = dyn FnMut(i64, Vec<u8>) -> Result<(), Error> + 'f;
+type Visit<'f> = dyn for<'p> FnMut(i64, Cow<'p, [u8]>) -> Result<(), Error> + 'f;
 
 fn be16(b: &[u8], at: usize) -> usize {
     usize::from(u16::from_be_bytes([b[at], b[at + 1]]))
@@ -367,17 +390,33 @@ impl Pages<'_> {
         Ok(())
     }
 
-    /// The payload of a cell: its local bytes and its overflow chain.
-    fn payload(
+    /// The payload of a cell: its local bytes, borrowed from the page
+    /// when nothing spills, and its overflow chain assembled when it does.
+    fn payload<'p>(
         &self,
-        local: &[u8],
+        local: &'p [u8],
         total: u64,
         first: u32,
         seen: &mut Seen,
-    ) -> Result<Vec<u8>, Error> {
+    ) -> Result<Cow<'p, [u8]>, Error> {
+        if total == local.len() as u64 {
+            return Ok(Cow::Borrowed(local));
+        }
         let mut out = Vec::with_capacity(total as usize);
         out.extend_from_slice(local);
-        let mut remaining = total - local.len() as u64;
+        self.chain(total - local.len() as u64, first, seen, Some(&mut out))?;
+        Ok(Cow::Owned(out))
+    }
+
+    /// Walks an overflow chain that holds `remaining` bytes, marking its
+    /// pages, and appends them to `out` where one is given.
+    fn chain(
+        &self,
+        mut remaining: u64,
+        first: u32,
+        seen: &mut Seen,
+        mut out: Option<&mut Vec<u8>>,
+    ) -> Result<(), Error> {
         let mut next = first;
         while remaining > 0 {
             if next == 0 {
@@ -386,14 +425,16 @@ impl Pages<'_> {
             seen.mark(next)?;
             let p = self.page(next)?;
             let n = remaining.min((self.usable - 4) as u64) as usize;
-            out.extend_from_slice(&p[4..4 + n]);
+            if let Some(out) = out.as_deref_mut() {
+                out.extend_from_slice(&p[4..4 + n]);
+            }
             remaining -= n as u64;
             next = be32(p, 0);
         }
         if next != 0 {
             return Err(Error::Overflow);
         }
-        Ok(out)
+        Ok(())
     }
 
     /// Walks a table b-tree in row order (section 1.5, 1.6). Row ids in
@@ -531,6 +572,7 @@ impl Pages<'_> {
         let max_local = (u - 12) * 64 / 255 - 23;
         let min_local = (u - 12) * 32 / 255 - 23;
         let mut children = Vec::new();
+        let mut extents: Vec<(usize, usize)> = Vec::with_capacity(cells);
         for i in 0..cells {
             let off = be16(p, head + 2 * i);
             if off < content || off >= self.usable {
@@ -559,11 +601,16 @@ impl Pages<'_> {
             if end > self.usable {
                 return Err(outside);
             }
+            extents.push((off, end));
             if size > local {
-                // The chain is walked as a table cell's is, for its pages.
+                // The chain is walked for its pages, not assembled.
                 let first = be32(p, at + local as usize);
-                self.payload(&p[at..at + local as usize], size, first, seen)?;
+                self.chain(size - local, first, seen, None)?;
             }
+        }
+        extents.sort_unstable();
+        if extents.windows(2).any(|w| w[0].1 > w[1].0) {
+            return Err(outside);
         }
         for child in children {
             self.walk_index(child, depth + 1, seen)?;
@@ -615,9 +662,9 @@ fn is_blob(t: u64) -> bool {
     t >= 12 && t.is_multiple_of(2)
 }
 
-fn text(p: &[u8], c: &(u64, Range<usize>)) -> Option<String> {
+fn text<'p>(p: &'p [u8], c: &(u64, Range<usize>)) -> Option<&'p str> {
     if c.0 >= 13 && c.0 % 2 == 1 {
-        String::from_utf8(p[c.1.clone()].to_vec()).ok()
+        std::str::from_utf8(&p[c.1.clone()]).ok()
     } else {
         None
     }
@@ -641,19 +688,33 @@ fn integer(p: &[u8], c: &(u64, Range<usize>)) -> Option<i64> {
 
 impl<'a> Database<'a> {
     /// Reads a database from its bytes: the header, the freelist, the
-    /// schema and every table's tree are checked (a page reached twice, a
-    /// cell or overflow past the file, keys out of order), but no record
-    /// of a table is read until [`rows`](Self::rows).
+    /// schema (at most [`MAX_SCHEMA_ROWS`] rows, no root named twice),
+    /// every table's tree and every index's tree are checked (a page
+    /// reached twice, a cell or overflow past the file or on another cell,
+    /// keys out of order), and so is that every page of the file is
+    /// reached by one of them, an overflow chain or the freelist
+    /// ([`Error::PageUnreached`]). No record of a table is read until
+    /// [`rows`](Self::rows), and no index entry is ever read.
     pub fn open(bytes: &'a [u8]) -> Result<Database<'a>, Error> {
         let (header, pages) = parse_header(bytes)?;
         let mut seen = Seen(vec![false; header.page_count as usize + 1]);
-        let mut tables = Vec::new();
-        let mut names: HashSet<String> = HashSet::new();
+        let mut tables: Vec<Table> = Vec::new();
         let mut indexes: Vec<u32> = Vec::new();
+        // The roots the schema names, so that no page is named twice and
+        // the rows are no more than the pages.
+        let mut named = Seen(vec![false; header.page_count as usize + 1]);
+        let mut rows = 0usize;
         pages.walk(1, 0, (i128::MIN, i128::MAX), &mut seen, &mut |_, p| {
+            rows += 1;
+            if rows > MAX_SCHEMA_ROWS {
+                return Err(Error::TooManySchemaRows);
+            }
             let cols = columns(&p)?;
             if cols.len() != 5 {
                 return Err(Error::SchemaRow);
+            }
+            if cols.iter().any(|c| c.1.len() > MAX_SCHEMA_TEXT) {
+                return Err(Error::SchemaTextTooLong);
             }
             let kind = text(&p, &cols[0]).ok_or(Error::SchemaRow)?;
             let name = text(&p, &cols[1]).ok_or(Error::SchemaRow)?;
@@ -668,17 +729,18 @@ impl<'a> Database<'a> {
                     .ok()
                     .filter(|r| (2..=header.page_count).contains(r))
                     .ok_or(Error::SchemaRow)?;
+                named.mark(root).map_err(|_| Error::RootRepeated(root))?;
                 if kind == "index" {
                     indexes.push(root);
                     return Ok(());
                 }
-                if !names.insert(name.to_ascii_lowercase()) {
-                    return Err(Error::TableRepeated(name));
+                if tables.iter().any(|t| t.name.eq_ignore_ascii_case(name)) {
+                    return Err(Error::TableRepeated(name.to_string()));
                 }
                 tables.push(Table {
-                    name,
+                    name: name.to_string(),
                     root_page: root,
-                    sql,
+                    sql: sql.map(str::to_string),
                 });
             }
             Ok(())
@@ -756,7 +818,19 @@ impl<'a> Database<'a> {
             if out.len() >= most {
                 return Err(Error::TooManyRows);
             }
-            out.push((p[cols[0].1.clone()].to_vec(), p[cols[1].1.clone()].to_vec()));
+            let key = p[cols[0].1.clone()].to_vec();
+            let value = match p {
+                Cow::Borrowed(page) => page[cols[1].1.clone()].to_vec(),
+                // An assembled payload becomes the value in place, so it
+                // is never held beside a copy of itself.
+                Cow::Owned(mut whole) => {
+                    whole.truncate(cols[1].1.end);
+                    whole.drain(..cols[1].1.start);
+                    whole.shrink_to_fit();
+                    whole
+                }
+            };
+            out.push((key, value));
             Ok(())
         })?;
         // Repeats are found by sorting references, not by a second copy of

@@ -22,7 +22,10 @@ itself: the pinned `bitcoind` on regtest, offline (`core_node.py`).
 - The same files with a byte flipped in a record, a record dropped, or whole
   pages cut off, against whether Core's `loadwallet` opens them: where Faraday
   calls the file whole, Core must load it and list the same descriptors; where
-  Core refuses it, Faraday must not call it whole; where Core loads it and
+  Core refuses it, Faraday must not call it whole (except where Core's
+  integrity check refuses the index beside `main`, which Faraday walks for its
+  pages and cell extents and does not read: a changed key, an entry dropped or
+  changed, an index emptied; see `INDEX`); where Core loads it and
   Faraday does not call it whole, the record and the fault must be one of the
   listed differences. The header's database version changed, and a page no
   tree reaches, are each refused by both.

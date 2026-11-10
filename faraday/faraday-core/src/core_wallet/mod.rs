@@ -41,10 +41,26 @@ use crate::wallet::network_name;
 /// The wallet flag bits Bitcoin Core knows (`walletutil.h`).
 const KNOWN_FLAGS: u64 = 0b111 | (0b1111 << 32);
 /// `WALLET_FLAG_DESCRIPTORS`.
+const FLAG_DESCRIPTORS: u64 = 1 << 34;
 /// The database version (`PRAGMA user_version`) Bitcoin Core writes
 /// (`WALLET_SCHEMA_VERSION`).
 const WALLET_SCHEMA_VERSION: i32 = 0;
-const FLAG_DESCRIPTORS: u64 = 1 << 34;
+
+/// The most failed records, and the most distinct unknown record types,
+/// kept by name; the rest are counted ([`Wallet::failures_more`],
+/// [`Wallet::unknown_more`]).
+pub const MAX_LISTED: usize = 256;
+/// The most bytes of a record's key after its type kept in a failure, in
+/// hex: Bitcoin Core's longest is 97.
+const MAX_TAIL: usize = 128;
+/// The longest unknown record type kept by name.
+const MAX_NAMED: usize = 64;
+/// The longest value of a private key record read: Bitcoin Core's are
+/// under 400 bytes. A longer one fails its record as one of another layout.
+const MAX_KEY_VALUE: usize = 1024;
+/// The longest address a label record names: 128 bytes (Bitcoin Core's
+/// addresses are under 100).
+const MAX_ADDRESS: usize = 128;
 
 /// Record types only a legacy (Berkeley DB era) wallet writes.
 const LEGACY: [&str; 11] = [
@@ -315,17 +331,23 @@ pub struct Wallet {
     pub block_locator: Option<usize>,
     /// Record types Bitcoin Core writes that are counted and not read.
     pub unread: Vec<(String, usize)>,
-    /// Record types Faraday does not know, by name and count.
+    /// Record types Faraday does not know, by name and count: the first
+    /// [`MAX_LISTED`] of at most 64 bytes each.
     pub unknown: Vec<(String, usize)>,
-    /// Each record that failed.
+    /// How many records are of an unknown type not in `unknown`: those
+    /// past the first [`MAX_LISTED`] types, and types of a longer name.
+    pub unknown_more: usize,
+    /// The records that failed: the first [`MAX_LISTED`].
     pub failures: Vec<Failure>,
+    /// How many more records failed than `failures` names.
+    pub failures_more: usize,
 }
 
 impl Wallet {
     /// Whether every record read and every key checked passed, and the
     /// passphrase, if one was given, was right.
     pub fn is_whole(&self) -> bool {
-        self.failures.is_empty() && self.passphrase != Passphrase::Wrong
+        self.failures.is_empty() && self.failures_more == 0 && self.passphrase != Passphrase::Wrong
     }
 
     /// Whether the wallet is encrypted.
@@ -479,29 +501,40 @@ struct Reader<'a> {
     app_kind_main: bool,
 }
 
-/// Names and how many of each, in the order first met, found by name in
-/// constant time.
+/// Names and how many of each, in the order first met: at most
+/// [`MAX_LISTED`] names of at most [`MAX_NAMED`] bytes, found by a search
+/// (so a name is stored once); the records of any other name are counted
+/// in `more`.
 #[derive(Default)]
 struct Counts {
     list: Vec<(String, usize)>,
-    at: HashMap<String, usize>,
+    more: usize,
 }
 
 impl Counts {
     fn bump(&mut self, name: &str) {
-        if let Some(&i) = self.at.get(name) {
-            self.list[i].1 += 1;
-        } else {
-            self.at.insert(name.to_string(), self.list.len());
+        if let Some(entry) = self.list.iter_mut().find(|(n, _)| n == name) {
+            entry.1 += 1;
+        } else if self.list.len() < MAX_LISTED && name.len() <= MAX_NAMED {
             self.list.push((name.to_string(), 1));
+        } else {
+            self.more += 1;
         }
     }
 }
 
 impl Reader<'_> {
     fn fail(&mut self, kind: &str, tail: &[u8], fault: Fault) {
+        if self.wallet.failures.len() >= MAX_LISTED {
+            self.wallet.failures_more += 1;
+            return;
+        }
+        let shown = &tail[..tail.len().min(MAX_TAIL)];
+        let more = if shown.len() < tail.len() { "..." } else { "" };
         self.wallet.failures.push(Failure {
-            record: format!("{kind} {}", hex(tail)).trim_end().to_string(),
+            record: format!("{kind} {}{more}", hex(shown))
+                .trim_end()
+                .to_string(),
             fault,
         });
     }
@@ -517,10 +550,13 @@ impl Reader<'_> {
 /// page of it reached by a table, an index, an overflow chain or the
 /// freelist), when its database version is not 0, when a table other than
 /// `main` holds a record, or when `main` has more than
-/// [`faraday_sqlite::MAX_ROWS`] rows (so memory is the file's twice and
-/// some 200 MB at most); then the rows of `main` are read with the
-/// header's application id. Each refusal is named
-/// ([`Refusal::File`], [`Refusal::Beside`]).
+/// [`faraday_sqlite::MAX_ROWS`] rows; then the rows of `main` are read
+/// with the header's application id. Each refusal is named
+/// ([`Refusal::File`], [`Refusal::Beside`]). Memory is at most three
+/// times the file (the file, its records copied once, and what the
+/// descriptors, labels and keys keep of them) and some 750 MB for the
+/// at most 2^20 rows, about 4 GiB at the 1 GiB limit; failed records and
+/// unknown record types past [`MAX_LISTED`] are counted, not kept.
 pub fn read_file(
     c: &Compute,
     file_name: &str,
@@ -621,7 +657,9 @@ pub fn read(
             block_locator: None,
             unread: Vec::new(),
             unknown: Vec::new(),
+            unknown_more: 0,
             failures: Vec::new(),
+            failures_more: 0,
         },
         held: HashSet::new(),
         at: HashMap::new(),
@@ -645,7 +683,7 @@ pub fn read(
             r.descriptor(tail, value)?;
         }
     }
-    let mut mkeys: Vec<(u32, Vec<u8>)> = Vec::new();
+    let mut mkeys: Vec<(u32, &[u8])> = Vec::new();
     let mut plain: Vec<KeyRecord> = Vec::new();
     let mut crypted: Vec<KeyRecord> = Vec::new();
     let mut locators: Vec<(bool, usize)> = Vec::new();
@@ -675,7 +713,7 @@ pub fn read(
             "activeexternalspk" | "activeinternalspk" => r.active(name, tail, value),
             "name" | "purpose" => r.label(name, tail, value),
             "mkey" => match <[u8; 4]>::try_from(tail) {
-                Ok(id) => mkeys.push((u32::from_le_bytes(id), value.clone())),
+                Ok(id) => mkeys.push((u32::from_le_bytes(id), value.as_slice())),
                 Err(_) => r.fail(name, tail, Fault::Layout),
             },
             "walletdescriptorkey" | "walletdescriptorckey" => {
@@ -683,6 +721,7 @@ pub fn read(
                     Some((<[u8; 32]>::try_from(id).ok()?, key_pubkey(rest)?.to_vec()))
                 });
                 match parsed {
+                    Some(_) if value.len() > MAX_KEY_VALUE => r.fail(name, tail, Fault::Layout),
                     Some((id, pubkey)) if r.held.contains(&id) => {
                         let item = (id, pubkey, Zeroizing::new(value.clone()), tail.to_vec());
                         if name == "walletdescriptorkey" {
@@ -731,7 +770,7 @@ pub fn read(
                 } else if m.rounds == 0 || m.rounds > MAX_ROUNDS {
                     r.fail("mkey", &tail, Fault::MasterRounds);
                 } else if i == 0 {
-                    openable = Some(value.as_slice());
+                    openable = Some(*value);
                 }
             }
         }
@@ -749,6 +788,7 @@ pub fn read(
     r.encrypted_keys(!mkeys.is_empty(), openable, &crypted, passphrase);
     r.wallet.unread = r.unread.list;
     r.wallet.unknown = r.unknown.list;
+    r.wallet.unknown_more = r.unknown.more;
     Ok(r.wallet)
 }
 
@@ -867,6 +907,9 @@ impl Reader<'_> {
         let (Some(address), Some(text)) = (whole_string(tail), whole_string(value)) else {
             return self.fail(name, tail, Fault::Layout);
         };
+        if address.len() > MAX_ADDRESS {
+            return self.fail(name, tail, Fault::Layout);
+        }
         let at = match self.label_at.get(address) {
             Some(&at) => at,
             None => {
