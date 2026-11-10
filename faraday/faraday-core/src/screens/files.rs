@@ -538,6 +538,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     ) + 8.0;
                 }
             }
+            FileKind::QrVault => {
+                bx += ui.button(
+                    bx,
+                    iy + 64.0,
+                    None,
+                    BUTTON_H,
+                    EN.files_open_qr_vault,
+                    Style::Primary,
+                    Action::OpenQrVault(k),
+                ) + 8.0;
+            }
             FileKind::Vault => {
                 let files = app.vault_files();
                 // The row's own vault, or no button.
@@ -1742,6 +1753,11 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
                 Action::Vault(action),
             ));
         }
+        FileKind::QrVault => out.push((
+            EN.inbox_actions_open_qr_vault.into(),
+            Style::Primary,
+            Action::OpenQrVault(k),
+        )),
         FileKind::Vault => {
             let files = app.vault_files();
             // The row's own vault, or no button.

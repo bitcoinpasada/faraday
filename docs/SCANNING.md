@@ -87,6 +87,7 @@ apart, and whether it is a secret (DESIGN §4.10, Mask policy).
 | Faraday file envelope | `faraday-file-v1`, any of the above as a file | as its contents |
 | Labels | BIP-329 JSON lines | no |
 | Lightning invoice, web address | `ln…`, `https://…` | no |
+| QR vault | the three packets of `docs/VAULT.md` §1.2 (binary; no text form), checked before a GPG key or text; **Open in QR vault** opens the QR vault tool holding the code, from Home's Scan and from Add a key's Scan a SeedQR, and it is never filed; a `.pgp` already in Files opens it from there | no (it is encrypted) |
 | Krux encrypted code | the last arm: text in Krux's forms or raw bytes that parse as a KEF envelope (`docs/KEF.md` §8); raw 16 or 32 bytes stay a CompactSeedQR | no (it is opened by a passphrase) |
 | Text | anything else printable | may be (recovery codes) |
 | Not readable | bytes that are none of these | — |

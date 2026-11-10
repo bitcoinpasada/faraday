@@ -961,6 +961,13 @@ impl Faraday {
         {
             return self.scan_say(crate::stick::keys_load(self.medium));
         }
+        // A scanner that takes a SeedQR names a QR vault and offers the QR
+        // vault tool, rather than refusing it.
+        if matches!(purpose, ScanPurpose::Seed | ScanPurpose::KeyPart)
+            && scan_read::is_qr_vault(&bytes)
+        {
+            return self.scan_not_taken(bytes);
+        }
         match purpose {
             ScanPurpose::VaultEntry => self.entry_code_scanned(bytes),
             ScanPurpose::KeyPart => self.part_scanned(bytes),
@@ -1209,6 +1216,7 @@ impl Faraday {
                 None => Vec::new(),
             },
             Kind::Message => vec![Way::Check],
+            Kind::QrVault => vec![Way::OpenQrVault],
             Kind::Gpg | Kind::File => vec![Way::Keep],
             Kind::Text if self.vaults.current_id().is_some() => vec![Way::Keep, Way::Note],
             Kind::Text => vec![Way::Keep],
@@ -1353,6 +1361,11 @@ impl Faraday {
                         self.seed_read_offer_kef(found.envelope);
                     }
                 }
+            }
+            // A QR vault scanned is never filed: the tool opens holding it.
+            Way::OpenQrVault => {
+                self.scan_close();
+                crate::qr_tool::open_code(self, code.to_vec());
             }
             Way::Open | Way::NotEncrypted => self.read_go_kef(way, kef, (named, ext, code)),
             Way::Share => {
@@ -1852,6 +1865,11 @@ impl Faraday {
         let Some((named, ext, data)) = self.read_code(bytes) else {
             return;
         };
+        // A QR vault is not filed: its card opens the QR vault tool.
+        if scan_read::is_qr_vault(&data) {
+            let data = zeroize::Zeroizing::new(data);
+            return self.read_card_show(&c, Kind::QrVault, (named, ext, data));
+        }
         // What the flow that opened it does not take, it hands over.
         if self.read_card_here() {
             let ask = self.camera.scan().map_or(crate::Ask::Any, |s| s.ask);
@@ -2107,6 +2125,9 @@ impl Faraday {
                     && scan_read::recognize_kef(&bytes).is_some()
                 {
                     (None, "txt", bytes.to_vec())
+                } else if scan_read::is_qr_vault(&bytes) {
+                    // A QR vault is binary too, and keeps its bytes.
+                    (None, "pgp", bytes.to_vec())
                 } else {
                     faraday_intake::arrival(faraday_qr::classify_text(&text))
                 }

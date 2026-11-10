@@ -1048,6 +1048,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::SeedPart => EN.kind_name_seed_part,
         FileKind::Text => EN.kind_name_text,
         FileKind::Gpg => EN.kind_name_gpg,
+        FileKind::QrVault => EN.kind_name_qr_vault,
         FileKind::Other => EN.kind_name_file,
     }
 }

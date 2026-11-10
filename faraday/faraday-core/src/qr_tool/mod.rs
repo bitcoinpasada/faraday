@@ -124,6 +124,8 @@ pub struct QrToolState {
     exponent: u8,
     error: Option<String>,
     made: Option<Made>,
+    /// A QR vault's bytes brought to the Open card (public: encrypted).
+    code: Option<Vec<u8>>,
 }
 
 impl QrToolState {
@@ -145,7 +147,13 @@ impl QrToolState {
             exponent: *QR_SEAL_EXPONENTS.start(),
             error: None,
             made: None,
+            code: None,
         }
+    }
+
+    /// The QR vault code a scan or a file brought, for the Open card.
+    pub fn code_to_open(&self) -> Option<&[u8]> {
+        self.code.as_deref()
     }
 
     /// Whether the tool holds something typed that is secret.
@@ -300,6 +308,15 @@ pub(crate) fn open(app: &mut Faraday) {
     let back = app.screen;
     app.tools.qr_tool_mut().state = Some(QrToolState::new(back));
     app.screen = Screen::QrTool;
+}
+
+/// Opens the tool, from the page on show, holding a QR vault code a
+/// scanner read or a file in Files held, for the Open card.
+pub(crate) fn open_code(app: &mut Faraday, bytes: Vec<u8>) {
+    open(app);
+    if let Some(s) = st(app) {
+        s.code = Some(bytes);
+    }
 }
 
 /// A press in the tool.

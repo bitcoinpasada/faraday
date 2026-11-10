@@ -4157,6 +4157,14 @@ strings! {
     read_keep: "Keep in Files",
     /// The read card's kind for a Krux encrypted code.
     read_kef: "An encrypted code",
+    /// A code read: a QR vault.
+    read_qr_vault: "A QR vault",
+    /// The read card's way over for a QR vault: the QR vault tool.
+    read_go_qr_vault: "Open in QR vault",
+    /// A file in Files that is a QR vault: its button.
+    files_open_qr_vault: "Open in QR vault",
+    /// A file in Files that is a QR vault: its action in the file menu.
+    inbox_actions_open_qr_vault: "Open in QR vault",
     /// The card's version line: the version number and its name.
     kef_version_fact: "Version {} · {}",
     /// The card's id line, the id as text or as 0x hex.
@@ -6904,6 +6912,8 @@ strings! {
     kind_name_text: "Text",
     /// Text in `kind_name`.
     kind_name_gpg: "GPG",
+    /// A QR vault in `kind_name`.
+    kind_name_qr_vault: "QR vault",
     /// Text in `kind_name`: another wallet's file that holds a private
     /// key or a seed beside its public keys.
     kind_name_secret_wallet: "Wallet file with a private key",
