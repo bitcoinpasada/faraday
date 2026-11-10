@@ -239,7 +239,8 @@ this pass came from, is on the board.
   Tools' `convert_mut` and `invoice_mut` (Decode a Lightning invoice's area), `qr_tool_mut`, Convert a seed's and the QR
   vault tool's `scroll_mut`, Check a signer's
   `check_scroll_mut` (the decode area's, its column's scroll, as the other
-  offsets), the backup flow's `keeps_mut` (a flow's Keep ticks of a seed),
+  offsets), Compare two PSBTs' `compare_scroll_mut` (its cards' scroll, as
+  the other offsets), the backup flow's `keeps_mut` (a flow's Keep ticks of a seed),
   the secret sheet's `out_mut`, and boot import's `state_mut`. These are to be narrowed into named methods
   (planned, not scheduled).
 
