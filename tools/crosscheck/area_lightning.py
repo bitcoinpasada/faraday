@@ -69,6 +69,7 @@ sources `tools/reference/aezeed/README.md` quotes, over btclib's BIP-32
 import hashlib
 import json
 import os
+import random
 import re
 import subprocess
 
@@ -839,7 +840,31 @@ class Lightning(Area):
         if rust[0] == "err":
             if ref[0] == "ok":
                 reason = re.match(r"\w+", rust[1]).group(0)
-                if reason not in OFFER_STRICTER.get(kind, set()) | OFFER_CLN_READS:
+                if reason == "ChainUnknown":
+                    # F232: chains naming no Bitcoin network Faraday knows. A text
+                    # damaged in the chain's bytes (kind None) reaches it too;
+                    # Core Lightning reads any chain, so what is checked is that
+                    # none of the chains it read is one of the five.
+                    known = {c.hex() for c in bolt12_enc.KNOWN_CHAINS}
+                    if any(c in known for c in ref[1]["chains"]):
+                        raise Mismatch(self.name, "lightning.bolt12", inputs, rust, ref,
+                                       "Faraday refuses as ChainUnknown an offer naming "
+                                       "a chain it knows")
+                elif reason == "ExpiryTooLate":
+                    # F232: an expiry past the year 9999, which a damaged text
+                    # reaches too; Core Lightning's own value must be past it.
+                    if (ref[1]["expiry"] or 0) <= 253402300799:
+                        raise Mismatch(self.name, "lightning.bolt12", inputs, rust, ref,
+                                       "Faraday refuses an expiry Core Lightning reads "
+                                       "as no later than the year 9999")
+                elif reason == "AmountTooLarge":
+                    # F232: an amount over 21 million bitcoin, likewise.
+                    amount = ref[1]["amount"] or {}
+                    if amount.get("msat", 0) <= 2100000000000000000:
+                        raise Mismatch(self.name, "lightning.bolt12", inputs, rust, ref,
+                                       "Faraday refuses an amount Core Lightning reads "
+                                       "as no more than 21 million bitcoin")
+                elif reason not in OFFER_STRICTER.get(kind, set()) | OFFER_CLN_READS:
                     raise Mismatch(self.name, "lightning.bolt12", inputs, rust, ref,
                                    "Faraday refuses what Core Lightning reads, not by a "
                                    "stricter rule of F232's list")
@@ -874,6 +899,29 @@ class Lightning(Area):
         for kind in rng.sample(sorted(bolt12_enc.KINDS), 3):
             fn, who = bolt12_enc.KINDS[kind]
             self.offer(fn(rng), "err", kind)
+
+    def directed_chains(self):
+        """F232's rule that an offer naming no Bitcoin network Faraday knows
+        is refused, asked of Core Lightning: it reads a chain that is none of
+        the five (a regtest genesis hash with one nibble changed, and a random
+        one), so the run fails if the difference stops holding (Core Lightning
+        refusing it, or Faraday reading it)."""
+        rng = random.Random(0xC4A1)
+        regtest = bolt12_enc.KNOWN_CHAINS[-1]
+        near = bytes([regtest[0] ^ 0x10]) + regtest[1:]
+        for chain in (near, rng.randbytes(32)):
+            o = bolt12_enc.base(rng, chains=[chain], amount=None, currency=None)
+            text = bolt12_enc.raw(bolt12_enc.tlvs_of(o))
+            inputs = {"offer": text}
+            rust = self.rust.call("lightning.bolt12", **inputs)
+            ref = cln_offer(text)
+            self.compared += 1
+            if rust[0] != "err" or not rust[1].startswith("ChainUnknown") or ref[0] != "ok" \
+                    or ref[1]["chains"] != [chain.hex()]:
+                raise Mismatch(self.name, "lightning.bolt12", inputs, rust, ref,
+                               "F232: Faraday refuses a chain it does not know and Core "
+                               "Lightning reads it")
+            self.known += 1
 
     def published_offers(self):
         base = ROOT / "tools/vectors/lightning-bolt12"
@@ -1032,6 +1080,7 @@ class Lightning(Area):
         self.published()
         self.published_cln()
         self.published_offers()
+        self.directed_chains()
 
     def case_corpus(self):
         self.corpus_case()
