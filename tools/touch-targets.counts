@@ -155,7 +155,7 @@ stick_1024x600 Spend ScanFor 1
 stick_1024x600 SpendBackup Seeds 1
 stick_1024x600 SpendBackup Slide 2
 stick_1024x600 SpendBackup SpendBackup 2
-stick_1024x600 Transfer TransferSend 5
+stick_1024x600 Transfer TransferSend 2
 stick_1024x600 Unlock Osk 38
 stick_1024x600 Vanity Osk 38
 stick_1024x600 VaultContents CodePng 4

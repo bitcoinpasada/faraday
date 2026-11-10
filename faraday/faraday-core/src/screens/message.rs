@@ -235,7 +235,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             // do not share the line.
             let next_w = ui.measure_as(TITLE_S, EN.message_continue) + 36.0;
             let shared = used + ui.measure_as(BODY_S, &count) + 12.0 + next_w <= w;
-            if !shared && !ui.pinning {
+            if !shared || ui.pinning {
                 cy += 48.0;
             }
             if next_button(ui, x, cy, w, EN.message_continue, Action::MNext(n)) {
