@@ -51,6 +51,7 @@ pub(crate) fn draws_own_bar(s: Screen) -> bool {
             | Screen::KefTool
             | Screen::QrTool
             | Screen::OtsCheck
+            | Screen::CoreWallet
             | Screen::Silent
             | Screen::Vanity
             | Screen::CreateVault
@@ -87,6 +88,7 @@ pub(crate) fn screen_name(s: Screen) -> &'static str {
         Screen::KefTool => EN.kef_tool_title,
         Screen::QrTool => EN.qr_tool_title,
         Screen::OtsCheck => EN.ots_title,
+        Screen::CoreWallet => EN.core_wallet_title,
         Screen::Silent => EN.compact_silent_payments,
         Screen::Explore => EN.compact_explore_a_key,
         Screen::Lightning => EN.compact_lightning,

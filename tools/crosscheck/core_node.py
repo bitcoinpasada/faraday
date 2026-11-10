@@ -38,6 +38,10 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PIN = ROOT / "tools" / "reference" / "core" / "release.pin"
+# A second, older release, only for making a legacy (Berkeley DB) wallet
+# for the Read a Bitcoin Core wallet samples (tools/vectors/core-wallet):
+# the pinned release no longer creates one. Pinned and fetched the same way.
+LEGACY_PIN = ROOT / "tools" / "reference" / "core" / "legacy.pin"
 ENV_DIR = "FARADAY_BITCOIN_CORE"
 ENV_RPC = "FARADAY_CROSSCHECK_CORE"
 FETCH = "python3 -I -B tools/crosscheck/fetch_core.py"
@@ -48,11 +52,12 @@ class CoreError(Exception):
     start or answer as it should."""
 
 
-def pin():
-    """The pinned release: version, url, guix.sigs repository and commit,
-    the signatures required, and each tarball's SHA-256."""
-    out = {"sha256": {}}
-    for line in PIN.read_text().splitlines():
+def pin(path=PIN):
+    """The release pinned in `path` (`release.pin`, or `legacy.pin`):
+    version, url, guix.sigs repository and commit, the signatures
+    required, and each tarball's SHA-256."""
+    out = {"sha256": {}, "file": path}
+    for line in path.read_text().splitlines():
         if not line.strip() or line.startswith("#"):
             continue
         key, *rest = line.split()
@@ -78,7 +83,7 @@ def tarball_name(p=None, machine=None):
                         "the cross-check runs on x86_64 or aarch64 Linux")
     name = f"bitcoin-{p['version']}-{arch}-linux-gnu.tar.gz"
     if name not in p["sha256"]:
-        raise CoreError(f"Bitcoin Core: {name} is not in {PIN.relative_to(ROOT)}")
+        raise CoreError(f"Bitcoin Core: {name} is not in {p['file'].relative_to(ROOT)}")
     return name
 
 
@@ -100,10 +105,11 @@ def sha256_file(path):
     return h.hexdigest()
 
 
-def checked_tarball():
+def checked_tarball(p=None):
     """The tarball's path, its name and its SHA-256, refused unless it is
-    there and matches the pin. Costs a read of the tarball."""
-    p = pin()
+    there and matches the pin (`release.pin`, or the pin `p` is). Costs a
+    read of the tarball."""
+    p = p or pin()
     name = tarball_name(p)
     path = folder() / name
     if not path.is_file():
@@ -113,8 +119,8 @@ def checked_tarball():
     got = sha256_file(path)
     if got != p["sha256"][name]:
         raise CoreError(f"Bitcoin Core: {path} has SHA-256 {got}, pinned "
-                        f"{p['sha256'][name]} in {PIN.relative_to(ROOT)}; "
-                        f"fetch it again with `{FETCH}`")
+                        f"{p['sha256'][name]} in {p['file'].relative_to(ROOT)}; "
+                        f"fetch it again with `{FETCH}{' --legacy' if p['file'] == LEGACY_PIN else ''}`")
     return path, name, got
 
 
@@ -170,7 +176,9 @@ class Node:
     """One bitcoind for the run, on regtest, offline. Use as a context
     manager: it is stopped and its folders deleted on every way out."""
 
-    def __init__(self, rpc_threads=4, wallet=False):
+    def __init__(self, rpc_threads=4, wallet=False, release=None, args=()):
+        self.release = release
+        self.args = list(args)
         self.rpc_threads = max(4, rpc_threads)
         self.wallet = wallet
         self.proc = None
@@ -192,8 +200,8 @@ class Node:
     def start(self):
         """Costs a tarball read and decompression and a node start (about
         two seconds)."""
-        p = pin()
-        tarball, name, digest = checked_tarball()
+        p = self.release or pin()
+        tarball, name, digest = checked_tarball(p)
         self.scratch = pathlib.Path(tempfile.mkdtemp(prefix="faraday-core-"))
         bins = unpack(tarball, p["version"], self.scratch)
         datadir = self.scratch / "data"
@@ -206,7 +214,7 @@ class Node:
              *([] if self.wallet else ["-disablewallet"]),
              # No -rpcbind or -rpcallowip: Core then binds RPC to loopback only.
              "-server", f"-rpcthreads={self.rpc_threads}", "-rpcworkqueue=256",
-             "-printtoconsole=0"],
+             "-printtoconsole=0", *self.args],
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
             stderr=open(self.scratch / "stderr", "wb"), preexec_fn=_die_with_parent,
         )
@@ -424,6 +432,13 @@ def _wallet_client(name):
                               timeout=120)
     client.reuse_http_connections = False
     return client
+
+
+def forget_rpc():
+    """The next `rpc()` reads `FARADAY_CROSSCHECK_CORE` again: for a
+    process that runs one node after another."""
+    global _proxy
+    _proxy = None
 
 
 def rpc():

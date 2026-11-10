@@ -1261,6 +1261,7 @@ impl Faraday {
             Screen::KefTool => &mut self.tools.kef_tool_mut().scroll_mut()?.y,
             Screen::QrTool => &mut self.tools.qr_tool_mut().scroll_mut()?.y,
             Screen::OtsCheck => &mut self.tools.ots_mut().scroll_mut()?.y,
+            Screen::CoreWallet => &mut self.tools.core_wallet_mut().scroll_mut()?.y,
             Screen::Silent => &mut self.silent.scroll_mut()?.y,
             Screen::CreateVault => self.vaults.create_scroll_y_mut()?,
             Screen::BackupFlow => match self.vaults.create_scroll_y_mut() {

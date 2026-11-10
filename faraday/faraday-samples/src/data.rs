@@ -693,6 +693,10 @@ pub(crate) static INPUTS: SampleInputs = SampleInputs {
     timestamp_proof: include_bytes!("../data/timestamp.ots"),
     timestamp_hash: "c70972a12908b73c2407d9cc6842ba2a02203a690f3090cd29f30c45f0cfd93d",
     timestamp_header: include_str!("../data/timestamp-header.hex"),
+    core_wallet: &[
+        include_bytes!("../data/core-wallet-plain.dat"),
+        include_bytes!("../data/core-wallet-encrypted.dat"),
+    ],
     hsm: &[
         SampleHsm {
             bytes: include_bytes!("../data/hsm-secret"),

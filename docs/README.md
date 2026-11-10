@@ -39,6 +39,7 @@ need. Each document's header says what kind it is:
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | What does Check a timestamp take and show, and what does a proof prove? | `docs/DESIGN.md` §5 (`OtsCheck`), `docs/decisions/F230.md`, `docs/learn/22-timestamps.md` |
+| What does Read a Bitcoin Core wallet take and show, and what does it check? | `docs/DESIGN.md` §5 (`CoreWallet`), `docs/decisions/F229.md`, `docs/learn/23-core-wallet.md` |
 | What does Decode a Lightning invoice show, and how does it open? | `docs/DESIGN.md` §5 (`Invoice`), `docs/SCANNING.md`, `docs/learn/21-lightning-invoices.md` |
 | How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` |
 | What does Check a signer show, and how does it open? | `docs/FLOWS.md` (Check a signer), `docs/guide/screens/signer-check.md`, `docs/learn/06-verifying.md` |

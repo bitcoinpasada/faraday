@@ -200,6 +200,7 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                 timestamp_proof: &[],
                 timestamp_hash: "",
                 timestamp_header: "",
+                core_wallet: &[],
                 hsm: &[],
                 hsm_words_nodes: &[],
             },

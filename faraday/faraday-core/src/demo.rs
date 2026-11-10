@@ -163,6 +163,8 @@ pub enum PassField {
     Check,
     /// An aezeed's passphrase.
     Aezeed,
+    /// Read a Bitcoin Core wallet's passphrase.
+    CoreWallet,
     /// The QR vault tool's Open card passphrase.
     QrOpen,
     /// The QR vault tool's Make passphrase (0) and its repeat (1).
@@ -436,6 +438,9 @@ impl Faraday {
             }
             PassField::Aezeed => {
                 self.lightning.set_passphrase(PASSPHRASE);
+            }
+            PassField::CoreWallet => {
+                crate::core_wallet::tool::fill_faraday(self);
             }
             PassField::QrOpen | PassField::QrMake(_) => {
                 crate::qr_tool::offers::fill_faraday(self, field);

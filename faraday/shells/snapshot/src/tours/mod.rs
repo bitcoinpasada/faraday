@@ -16,6 +16,7 @@ pub(crate) mod compact;
 pub(crate) mod components;
 pub(crate) mod convert;
 pub(crate) mod copy;
+pub(crate) mod core_wallet;
 pub(crate) mod create_from;
 pub(crate) mod create_shares;
 pub(crate) mod default;

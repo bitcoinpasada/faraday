@@ -74,6 +74,8 @@ pub enum Topic {
     LightningInvoices,
     /// Timestamps.
     Timestamps,
+    /// Bitcoin Core wallets.
+    CoreWallet,
     /// Shares of a wallet description.
     Shares,
     /// A backup plan's check.
@@ -106,6 +108,7 @@ impl Topic {
         Topic::SilentPayments,
         Topic::LightningInvoices,
         Topic::Timestamps,
+        Topic::CoreWallet,
         Topic::Shares,
         Topic::BackupPlanCheck,
         Topic::Vaults,
@@ -154,6 +157,7 @@ impl Topic {
             Topic::SilentPayments => &EN.silent_payments,
             Topic::LightningInvoices => &EN.lightning_invoices,
             Topic::Timestamps => &EN.timestamps,
+            Topic::CoreWallet => &EN.core_wallet,
             Topic::Shares => shares_page(),
             Topic::BackupPlanCheck => backup_plan_check_page(),
             Topic::Vaults => vaults_page(),
@@ -302,6 +306,7 @@ impl Faraday {
             Screen::Lightning => vec![&EN.tools, &EN.glossary],
             Screen::Tools => vec![&EN.tools, &EN.glossary],
             Screen::OtsCheck => vec![&EN.timestamps, &EN.tools],
+            Screen::CoreWallet => vec![&EN.core_wallet, &EN.tools],
             Screen::Bip85 | Screen::Convert | Screen::KefTool | Screen::QrTool => {
                 vec![&EN.words, &EN.passphrases, &EN.tools, &EN.glossary]
             }

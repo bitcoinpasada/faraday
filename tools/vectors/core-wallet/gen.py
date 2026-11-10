@@ -1,7 +1,7 @@
 """Bitcoin Core's descriptor wallets, made by Bitcoin Core (F229).
 
 Runs the pinned bitcoind of `tools/crosscheck/core_node.py` on regtest with
-no network, makes eight descriptor wallets (plain, encrypted with the
+no network, makes nine descriptor wallets (a migrated one, below, and plain, encrypted with the
 passphrase `faraday`, watch-only, blank, with labels, with an imported
 descriptor, with an imported uncompressed key, with an imported multisig and a miniscript
 descriptor of master keys with hardened steps), and writes for each, beside this file:
@@ -10,8 +10,16 @@ descriptor of master keys with hardened steps), and writes for each, beside this
   its table `main` as hex, Core's `listdescriptors` (with private keys
   where the wallet has them), `listdescriptors_public` (without them, the
   descriptors with their origins and the account keys) and `getwalletinfo`;
-- `<name>.dat`: the wallet.dat itself, for the plain and the encrypted
-  wallet (the SQLite reader and the Practice sample use them).
+- `<name>.dat`: the wallet.dat itself, for the plain, the encrypted, the
+  multisig, the watch-only and the migrated wallet (the SQLite reader, the Read a Bitcoin Core wallet tests and the
+  Practice sample use them).
+
+The migrated wallet is made in two steps: the older bitcoind of
+`tools/reference/core/legacy.pin` (fetched once with `fetch_core.py --legacy`)
+makes a legacy Berkeley DB wallet with keys of each kind, and the pinned
+bitcoind's `migratewallet` turns it into a descriptor wallet, which holds
+`combo()` descriptors for the imported keys. Only the migrated wallet's files
+(`migrated.json`, `migrated.dat`) come of it.
 
 Usage: python3 -I -B tools/vectors/core-wallet/gen.py [name ...]
 With names, only those wallets' files are written (the others are made and
@@ -26,6 +34,7 @@ import pathlib
 import shutil
 import sqlite3
 import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 HERE = pathlib.Path(__file__).resolve().parent
@@ -36,7 +45,7 @@ import core_node  # noqa: E402
 from area_core_wallet import multisig_descriptors  # noqa: E402
 
 PASSPHRASE = "faraday"
-KEEP_DAT = ("plain", "encrypted")
+KEEP_DAT = ("plain", "encrypted", "watchonly", "multisig", "migrated")
 DAT_LIMIT = 200 * 1024
 
 
@@ -56,6 +65,38 @@ def wif_uncompressed(key):
     return "1" * (len(raw) - len(raw.lstrip(b"\0"))) + out
 
 
+def legacy_wallet(into):
+    """Costs a node start and some blocks: a legacy Berkeley DB wallet,
+    made by the older release, copied into `into`/migrated/. It has an HD
+    chain, an address of each kind the legacy wallet makes, a change
+    address, and an imported private key of each of two kinds."""
+    release = core_node.pin(core_node.LEGACY_PIN)
+    with core_node.Node(wallet=True, release=release,
+                        args=["-deprecatedrpc=create_bdb", "-keypool=10"]) as node:
+        os.environ.update(node.environ())
+        core_node.forget_rpc()
+        rpc = core_node.rpc()
+        walletdir = pathlib.Path(json.loads(os.environ[core_node.ENV_RPC])["walletdir"])
+        rpc.createwallet("migrated", False, False, "", False, False, False)
+        client = core_node._wallet_client("migrated")
+        addr = client.getnewaddress("", "bech32")
+        for kind in ("legacy", "p2sh-segwit", "bech32"):
+            client.getnewaddress("", kind)
+        client.getrawchangeaddress()
+        rpc.generatetoaddress(1, addr)
+        # An imported key, and the key of an address of another wallet's:
+        # the legacy wallet keeps these outside its HD chain.
+        rpc.createwallet("other", False, False, "", False, False, False)
+        donor = core_node._wallet_client("other")
+        for kind in ("legacy", "bech32"):
+            client.importprivkey(donor.dumpprivkey(donor.getnewaddress("", kind)))
+        client.importprivkey(wif_uncompressed(os.urandom(32)))
+        rpc.unloadwallet("migrated")
+        rpc.unloadwallet("other")
+        shutil.copytree(walletdir / "migrated", into / "migrated")
+    core_node.forget_rpc()
+
+
 def dump(walletdir, name, extra):
     path = pathlib.Path(walletdir) / name / "wallet.dat"
     con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
@@ -70,6 +111,17 @@ def dump(walletdir, name, extra):
 
 
 def main():
+    only = sys.argv[1:]
+    legacy = pathlib.Path(tempfile.mkdtemp(prefix="faraday-legacy-"))
+    try:
+        if not only or "migrated" in only:
+            legacy_wallet(legacy)
+        run(legacy, only)
+    finally:
+        shutil.rmtree(legacy, ignore_errors=True)
+
+
+def run(legacy, only):
     with core_node.Node(wallet=True) as node:
         os.environ.update(node.environ())
         walletdir = json.loads(os.environ[core_node.ENV_RPC])["walletdir"]
@@ -135,6 +187,15 @@ def main():
             for t in multisig_descriptors(rpc, source)])
         assert all(r["success"] for r in done), done
 
+        # The legacy wallet, migrated by this release: its own folder in the
+        # wallet directory, then `migratewallet`.
+        if (legacy / "migrated").is_dir():
+            shutil.copytree(legacy / "migrated", pathlib.Path(walletdir) / "migrated")
+            moved = rpc.migratewallet("migrated")
+            print("migrated:", moved["wallet_name"], moved.get("watchonly_name"),
+                  moved.get("solvables_name"))
+            wallets["migrated"] = core_node._wallet_client("migrated")
+
         infos = {}
         for name, client in wallets.items():
             if name == "encrypted":
@@ -147,7 +208,6 @@ def main():
                 client.walletlock()
         for name in wallets:
             rpc.unloadwallet(name)
-        only = sys.argv[1:]
         for name in wallets:
             if (only and name not in only) or name == "source":
                 continue

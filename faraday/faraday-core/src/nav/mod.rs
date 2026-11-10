@@ -129,6 +129,7 @@ pub(crate) fn destination_of(s: Screen) -> Screen {
         | Screen::KefTool
         | Screen::QrTool
         | Screen::OtsCheck
+        | Screen::CoreWallet
         | Screen::Silent
         | Screen::Explore
         | Screen::Lightning

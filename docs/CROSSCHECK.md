@@ -378,6 +378,11 @@ The cross-check fetches nothing, ever.
   its folders deleted on every way out of the run, and killed if the
   run dies. The stamp records Core's version and the tarball's SHA-256,
   and `just lint` fails when they are not the pinned release's.
+  A second, older release (28.2, `tools/reference/core/legacy.pin`) is
+  fetched and checked the same way (`fetch_core.py --legacy`); it is run
+  only by `tools/vectors/core-wallet/gen.py`, to make the legacy wallet
+  that the pinned release's `migratewallet` turns into a sample, and no
+  cross-check run starts it.
 - **No network.** Python runs in a network namespace whose only
   interface is loopback, which the run brings up for Core's RPC, and
   refuses to run when any other interface is there. The Rust command is

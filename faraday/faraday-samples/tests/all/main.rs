@@ -4,6 +4,7 @@
 
 mod chip_caret;
 mod common;
+mod core_wallet_sample;
 mod demo_strip;
 mod files;
 mod guide_key;

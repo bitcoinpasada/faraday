@@ -353,6 +353,11 @@ network, from the repository root:
 python3 -I -B tools/crosscheck/fetch_core.py
 ```
 
+To make the Bitcoin Core wallet samples again
+(`tools/vectors/core-wallet/gen.py`), fetch the older release it also
+runs, pinned in `tools/reference/core/legacy.pin`, the same way, with
+`python3 -I -B tools/crosscheck/fetch_core.py --legacy`.
+
 It checks the release's `SHA256SUMS` against the signatures of the
 builders whose keys `guix.sigs` publishes (at least five good ones, no
 bad one), and the tarball against `SHA256SUMS` and the pin. It keeps

@@ -49,6 +49,7 @@ name, its line and its standards; the groups below scroll into view.*
 | **Wallets** | **Single-key wallet**, **Multisig**, **Taproot multisig**, "MuSig2" | [Make a new wallet](make-a-wallet.md), that kind chosen |
 | | **Miniscript and inheritance**, **Restore an existing wallet** | [Restore an existing wallet](restore.md) |
 | | **Back up a wallet** | the backup of the wallet chosen on Wallets |
+| | **Read a Bitcoin Core wallet** | each tool's page |
 | **Transactions** | **Sign a transaction** | the spend of the PSBT in Files, or the camera |
 | | **Nonce check** | the signed spend's last card; or the nonce check of a signed PSBT or a finished transaction in Files; or the camera |
 | | **Check a signer** | Check a signer, with nothing chosen: [Check a signer](signer-check.md) |

@@ -218,6 +218,11 @@ pub struct SampleInputs {
     /// The 80-byte header of the block the proof's Bitcoin attestation
     /// names, in hex.
     pub timestamp_header: &'static str,
+    /// Read a Bitcoin Core wallet: the descriptor wallet's `wallet.dat` of
+    /// Bitcoin Core's regtest, made by Bitcoin Core (`tools/vectors/core-wallet/`),
+    /// in the order plain, then encrypted under the passphrase `faraday`.
+    /// Empty where a set has none.
+    pub core_wallet: &'static [&'static [u8]],
     /// The Core Lightning node of every English words sample, with no
     /// passphrase and under `faraday`. Empty where a set has none.
     pub hsm_words_nodes: &'static [[u8; 33]],

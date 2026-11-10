@@ -63,6 +63,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                     .collect::<Vec<_>>(),
                 "failures_more": w.failures_more,
                 "descriptors": listing,
+                "kept": w.kept.iter().map(|k| k.text.clone()).collect::<Vec<_>>(),
                 "with_private_keys": w.descriptors.iter()
                     .filter(|d| d.private_keys + d.encrypted_keys > 0)
                     .count(),

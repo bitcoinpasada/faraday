@@ -1,0 +1,13 @@
+# An older Bitcoin Core release, used only to make a legacy (Berkeley DB)
+# wallet, which the release in release.pin can no longer create, so that
+# release's `migratewallet` has one to migrate (tools/vectors/core-wallet,
+# F229). The same checks as release.pin: `tools/crosscheck/fetch_core.py
+# --legacy` fetches the tarball once, checks SHA256SUMS against the guix.sigs
+# builders' keys at the commit below, and every run checks the tarball
+# against its line here. Regtest, no network.
+version 28.2
+url https://bitcoincore.org/bin/bitcoin-core-28.2/
+guix-sigs https://github.com/bitcoin-core/guix.sigs d48edd96db3740c2073545cfb4010d47c3df7f50
+min-signatures 5
+sha256 bitcoin-28.2-x86_64-linux-gnu.tar.gz 98add5f220c01b387343b70edeb6273403fe081e22cd85fda132704cdcaa98aa
+sha256 bitcoin-28.2-aarch64-linux-gnu.tar.gz 10581b6d4aeb091c08c9e69eb4e4ced000038c009286dc1edb8a876656ccf6df

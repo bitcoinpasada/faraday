@@ -101,6 +101,7 @@
 //! | `KefTool` | `kef_tool/screen.rs` |
 //! | `QrTool` | `qr_tool/screen.rs` |
 //! | `OtsCheck` | `ots_check/screen.rs` |
+//! | `CoreWallet` | `core_wallet/screen.rs` |
 //! | `Silent` | `silent/screen.rs` |
 //! | `Explore` | `explore/screen.rs` |
 //! | `Lightning` | `lightning/screen.rs` |
@@ -352,6 +353,8 @@ pub enum Screen {
     QrTool,
     /// Tools' Check a timestamp: an OpenTimestamps proof against a block header.
     OtsCheck,
+    /// Tools' Read a Bitcoin Core wallet: a `wallet.dat` read and checked.
+    CoreWallet,
     /// Silent payments: a loaded key's address and scan key.
     Silent,
     /// A loaded key's public side at any path.
@@ -591,8 +594,7 @@ pub(crate) fn qr_fits(item: &Item) -> bool {
     }
 }
 
-/// An account key of a loaded wallet held here, as
-/// [`Faraday::wallet_key`] finds it.
+/// An account key of a loaded wallet held here, as [`Faraday::wallet_key`] finds it.
 pub struct WalletKey {
     /// The master fingerprint, as text.
     pub fp: String,
@@ -646,8 +648,7 @@ impl Default for VaultAsk {
 /// not a count a person means.
 const MAX_VAULTS: usize = 1024;
 
-/// What [`Action::About`] names for a page's walk-through rather than a
-/// step's.
+/// What [`Action::About`] names for a page's walk-through rather than a step's.
 pub(crate) const ABOUT_PAGE: u8 = u8::MAX;
 
 /// The create cards, in order.
@@ -713,8 +714,7 @@ pub enum BStage {
     Checklist,
 }
 
-/// The cards of the backup's plan, in order (`docs/BACKUP-FLOW.md`
-/// §15.1).
+/// The cards of the backup's plan, in order (`docs/BACKUP-FLOW.md` §15.1).
 pub mod qstep {
     /// The watch-only software and the files' form.
     pub const SOFTWARE: u8 = 4;
@@ -799,8 +799,7 @@ pub(crate) fn plan_cards_of(ctx: &plan::cards::PlanCtx) -> Vec<u8> {
     plan_cards_on(&ctx.mapped)
 }
 
-/// The lists a [`Action::BAnswer`] ticks, as [`plan::Question`] names
-/// them.
+/// The lists a [`Action::BAnswer`] ticks, as [`plan::Question`] names them.
 pub mod qrow {
     /// Where the seeds go.
     pub const SEEDS: u8 = 0;
@@ -2431,6 +2430,7 @@ impl Faraday {
             Action::Vanity(v) => self.vanity_act(v),
             Action::Convert(_) | Action::KefTool(_) | Action::QrTool(_) => self.tool_act(action),
             Action::OtsCheck(k) => crate::ots_check::act(self, k),
+            Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),
             Action::Learn | Action::LearnClose | Action::How => self.learn_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),

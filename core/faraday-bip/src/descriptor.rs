@@ -34,7 +34,8 @@ pub fn descriptor_checksum(descriptor: &str) -> Option<[u8; 8]> {
 }
 
 /// Whether `descriptor` ends in `#` plus a checksum that matches the text
-/// before it.
+/// before it. A body holding another `#` is refused, as Bitcoin Core does
+/// ("Multiple '#' symbols").
 pub fn verify_checksum(descriptor: &str) -> bool {
     let bytes = descriptor.as_bytes();
     if bytes.len() < 9 || bytes[bytes.len() - 9] != b'#' {
@@ -43,6 +44,9 @@ pub fn verify_checksum(descriptor: &str) -> bool {
     let Some((body, checksum)) = descriptor.split_at_checked(bytes.len() - 9) else {
         return false;
     };
+    if body.contains('#') {
+        return false;
+    }
     descriptor_checksum(body).is_some_and(|expected| expected == checksum.as_bytes()[1..])
 }
 

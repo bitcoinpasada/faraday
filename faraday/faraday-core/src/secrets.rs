@@ -41,9 +41,11 @@ impl FileKind {
             FileKind::Vault | FileKind::Kdbx | FileKind::KdbxOther | FileKind::QrVault => {
                 Exposure::Sealed
             }
-            FileKind::Entries | FileKind::Words | FileKind::SeedPart | FileKind::SecretWallet => {
-                Exposure::Secret
-            }
+            FileKind::Entries
+            | FileKind::Words
+            | FileKind::SeedPart
+            | FileKind::SecretWallet
+            | FileKind::CoreWallet => Exposure::Secret,
             _ => Exposure::Public,
         }
     }
@@ -58,6 +60,7 @@ impl FileKind {
                 | FileKind::SeedPart
                 | FileKind::SecretWallet
                 | FileKind::Entries
+                | FileKind::CoreWallet
                 | FileKind::Text
                 | FileKind::Other
         )

@@ -484,6 +484,7 @@ impl Faraday {
             Screen::KefTool => crate::kef_tool::field(self).is_some(),
             Screen::QrTool => crate::qr_tool::field(self).is_some(),
             Screen::OtsCheck => crate::ots_check::field(self).is_some(),
+            Screen::CoreWallet => crate::core_wallet::tool::field(self).is_some(),
             Screen::SpendBackup => self.vaults.focus.is_some() || self.seeds_typing(),
             Screen::Restore => self.seeds_typing(),
             Screen::Unlock
@@ -575,6 +576,7 @@ impl Faraday {
             Screen::KefTool => crate::kef_tool::field(self).map(|(a, _)| a),
             Screen::QrTool => crate::qr_tool::field(self).map(|(a, _)| a),
             Screen::OtsCheck => crate::ots_check::field(self).map(|(a, _)| a),
+            Screen::CoreWallet => crate::core_wallet::tool::field(self).map(|(a, _)| a),
             Screen::Backup if crate::wallet_backup::kef::field(self).is_some() => {
                 crate::wallet_backup::kef::field(self).map(|(a, _)| a)
             }
@@ -689,6 +691,7 @@ impl Faraday {
             Action::KefTool(_) => crate::kef_tool::field(self)?.1,
             Action::QrTool(_) => crate::qr_tool::field(self)?.1,
             Action::OtsCheck(_) => crate::ots_check::field(self)?.1,
+            Action::CoreWallet(_) => crate::core_wallet::tool::field(self)?.1,
             Action::Rename => self.wallets.renaming().map(String::as_str)?,
             crate::file_menu::FIELD => &self.visit.files_menu().renaming.as_ref()?.stem,
             Action::RegisterField => &self.wallets.spend()?.register.as_ref()?.name,
@@ -777,6 +780,11 @@ impl Faraday {
                 .as_ref()
                 .is_some_and(|p| !p.text.text.is_empty())
             || self.seed_read.holds_secret()
+            || self
+                .tools
+                .core_wallet()
+                .state()
+                .is_some_and(crate::core_wallet::tool::CoreWalletState::holds_secret)
             || self.backup.kef_holds_secret()
             || self
                 .tools
@@ -1149,6 +1157,7 @@ impl Faraday {
             Screen::KefTool => self.tools.kef_tool().state().is_some(),
             Screen::QrTool => self.tools.qr_tool().state().is_some(),
             Screen::OtsCheck => self.tools.ots().state().is_some(),
+            Screen::CoreWallet => self.tools.core_wallet().state().is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
             Screen::Decode => self.decode().is_some(),

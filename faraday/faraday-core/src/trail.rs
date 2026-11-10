@@ -671,6 +671,7 @@ impl Faraday {
             Screen::KefTool => &crate::kef_tool::KEF_TOOL_STEPS,
             Screen::QrTool => &crate::qr_tool::QR_TOOL_STEPS,
             Screen::OtsCheck => &crate::ots_check::OTS_STEPS,
+            Screen::CoreWallet => &crate::core_wallet::tool::CORE_WALLET_STEPS,
             Screen::Silent => &crate::silent::SILENT_STEPS,
             Screen::Vanity => &crate::vanity::VANITY_STEPS,
             Screen::KeyGen => &crate::keygen::steps::KEYGEN_STEPS,

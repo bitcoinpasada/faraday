@@ -5,10 +5,12 @@ cross-check itself never fetches anything.
 
     python3 -I -B tools/crosscheck/fetch_core.py           this machine's tarball
     python3 -I -B tools/crosscheck/fetch_core.py --machine aarch64
+    python3 -I -B tools/crosscheck/fetch_core.py --legacy      the older release of legacy.pin
     python3 -I -B tools/crosscheck/fetch_core.py --from DIR   files already downloaded
 
 1. Fetches `SHA256SUMS` and `SHA256SUMS.asc` from the release's url in
-   `tools/reference/core/release.pin`, and the guix.sigs repository at
+   `tools/reference/core/release.pin` (`legacy.pin` with `--legacy`: the
+   older release that makes the legacy-wallet samples, checked the same way), and the guix.sigs repository at
    the pinned commit (git checks the commit's hash).
 2. Imports every key in guix.sigs' `builder-keys/` into a keyring of its
    own, and requires good signatures over `SHA256SUMS` from at least the
@@ -126,13 +128,15 @@ def _fingerprints(env):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--machine", help="x86_64 or aarch64 (default: this machine's)")
+    ap.add_argument("--legacy", action="store_true",
+                    help="the release pinned in legacy.pin instead of release.pin")
     ap.add_argument("--from", dest="given", type=pathlib.Path,
                     help="a folder holding SHA256SUMS, SHA256SUMS.asc and the tarball")
     args = ap.parse_args()
     for tool in ("git", "gpg"):
         if not shutil.which(tool):
             fail(f"{tool} is not on the PATH")
-    p = core_node.pin()
+    p = core_node.pin(core_node.LEGACY_PIN if args.legacy else core_node.PIN)
     try:
         name = core_node.tarball_name(p, args.machine)
     except core_node.CoreError as e:
@@ -164,7 +168,7 @@ def main():
             listed[fname.strip()] = digest.strip()
         if listed.get(name) != p["sha256"][name]:
             fail(f"SHA256SUMS gives {name} {listed.get(name)}, "
-                 f"pinned {p['sha256'][name]} in tools/reference/core/release.pin")
+                 f"pinned {p['sha256'][name]} in {p['file'].relative_to(core_node.ROOT)}")
 
         if not args.given:
             download(p["url"] + name, files[name])

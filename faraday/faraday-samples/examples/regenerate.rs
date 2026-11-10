@@ -610,6 +610,32 @@ fn emit_wallet(out: &mut String, w: &Wallet) {
     .expect("string");
 }
 
+/// The SHA-256 of the file the timestamp sample's proof is of
+/// (`gdp2q25-2nd.pdf`).
+const TIMESTAMP_HASH: &str = "c70972a12908b73c2407d9cc6842ba2a02203a690f3090cd29f30c45f0cfd93d";
+
+/// The sample files that are a vector as it stands: the timestamp proof
+/// and the header of the block it reaches (without its newline), and the
+/// plain and the encrypted wallet Bitcoin Core made.
+fn copy_vectors() {
+    let from = root().join("../../tools/vectors");
+    let data = root().join("data");
+    let copy = |src: &str, dst: &str| {
+        std::fs::copy(from.join(src), data.join(dst)).unwrap_or_else(|e| panic!("{src}: {e}"));
+    };
+    copy(
+        "opentimestamps/examples/gdp2q25-2nd.pdf.ots",
+        "timestamp.ots",
+    );
+    copy("core-wallet/plain.dat", "core-wallet-plain.dat");
+    copy("core-wallet/encrypted.dat", "core-wallet-encrypted.dat");
+    std::fs::write(
+        data.join("timestamp-header.hex"),
+        vector("opentimestamps/headers/912095.hex").trim(),
+    )
+    .expect("write");
+}
+
 fn main() {
     let c = compute();
     std::fs::create_dir_all(root().join("data")).expect("data dir");
@@ -617,6 +643,7 @@ fn main() {
     let wallets = wallets(&c, &keys);
     std::fs::write(root().join("data/sample.kdbx"), vault_file(&c)).expect("write");
     std::fs::write(root().join("data/qr-vault.pgp"), qr_vault(&c)).expect("write");
+    copy_vectors();
     let (address, message) = signed_message(&c);
     signer_pair(&c);
     let totp = testkit::ENTRIES_FILE.lines().next().expect("a line");
@@ -638,7 +665,7 @@ fn main() {
     out.push_str("];\n\n");
     write!(
         out,
-        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n    signer_sent: include_bytes!(\"../data/signer-sent.psbt\"),\n    signer_returned: include_bytes!(\"../data/signer-returned.psbt\"),\n    signer_returned_proprietary: include_bytes!(\"../data/signer-returned-proprietary.psbt\"),\n    compare_first: include_bytes!(\"../data/bump-original.psbt\"),\n    compare_second: include_bytes!(\"../data/bump-replacement.psbt\"),\n    krux_code: include_bytes!(\"../data/krux-code.kef\"),\n    qr_vault: include_bytes!(\"../data/qr-vault.pgp\"),\n    hsm: &[{hsm}],\n    hsm_words_nodes: &{words_nodes:?},\n}};\n\n\
+        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n    signer_sent: include_bytes!(\"../data/signer-sent.psbt\"),\n    signer_returned: include_bytes!(\"../data/signer-returned.psbt\"),\n    signer_returned_proprietary: include_bytes!(\"../data/signer-returned-proprietary.psbt\"),\n    compare_first: include_bytes!(\"../data/bump-original.psbt\"),\n    compare_second: include_bytes!(\"../data/bump-replacement.psbt\"),\n    krux_code: include_bytes!(\"../data/krux-code.kef\"),\n    qr_vault: include_bytes!(\"../data/qr-vault.pgp\"),\n    timestamp_proof: include_bytes!(\"../data/timestamp.ots\"),\n    timestamp_hash: {TIMESTAMP_HASH:?},\n    timestamp_header: include_str!(\"../data/timestamp-header.hex\"),\n    core_wallet: &[\n        include_bytes!(\"../data/core-wallet-plain.dat\"),\n        include_bytes!(\"../data/core-wallet-encrypted.dat\"),\n    ],\n    hsm: &[{hsm}],\n    hsm_words_nodes: &{words_nodes:?},\n}};\n\n\
          /// Every sample.\npub static SAMPLES: Samples = Samples {{ keys: KEYS, wallets: WALLETS, inputs: INPUTS }};\n",
     )
     .expect("string");

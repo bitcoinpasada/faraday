@@ -53,10 +53,12 @@ CRATES = [
 # (`own-randomness`), Faraday Demo's dice rollers (`roller`), the
 # picture a Codex32QR is written as (`seedqr`), the device's own draw mixed
 # with a person's (`device_own`, `own-randomness`) and Decode's txid, wtxid
-# and output addresses (`tx`).
+# and output addresses (`tx`) and a Core wallet's cached account keys
+# (`core_wallet`).
 FILES = ["faraday/faraday-core/src/fresh.rs", "faraday/faraday-core/src/fresh/roller/mod.rs",
          "faraday/faraday-core/src/fresh/roller/five.rs", "faraday/faraday-core/src/picture.rs",
-         "faraday/faraday-core/src/keygen/mod.rs", "faraday/faraday-core/src/decode/mod.rs"]
+         "faraday/faraday-core/src/keygen/mod.rs", "faraday/faraday-core/src/decode/mod.rs",
+         "faraday/faraday-core/src/core_wallet/normal.rs"]
 # The published vectors the cross-check reads (tools/vectors/<name>/).
 VECTORS = ["addresses", "aezeed", "bip129", "bip32", "bip327", "bip352", "bip374", "bip375", "bip39", "bip85", "bip93",
            "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "entropy",

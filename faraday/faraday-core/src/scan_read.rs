@@ -331,6 +331,7 @@ pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind 
         | FileKind::EfiImage
         | FileKind::Kdbx
         | FileKind::KdbxOther
+        | FileKind::CoreWallet
         | FileKind::Pdf => Kind::File,
         FileKind::Text | FileKind::Other => match text_kind(text, kind == FileKind::Text) {
             Kind::Text | Kind::Unreadable if recognize_kef(data).is_some() => Kind::Kef,

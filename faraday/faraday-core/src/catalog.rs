@@ -33,6 +33,8 @@ pub enum Go {
     QrVault,
     /// Check a timestamp.
     CheckTimestamp,
+    /// Read a Bitcoin Core wallet.
+    ReadCoreWallet,
     /// A vanity address.
     Vanity,
     /// Silent payments.
@@ -257,6 +259,13 @@ pub const TILES: &[Tile] = &[
         line: EN.catalog_seeds_by_hand,
         tags: &["SeedQR", "BIP-93", "Seed XOR"],
         go: Go::Backup,
+    },
+    Tile {
+        group: EN.catalog_wallets,
+        name: EN.catalog_read_core_wallet,
+        line: EN.catalog_read_core_wallet_line,
+        tags: &["BIP-380", "SQLite"],
+        go: Go::ReadCoreWallet,
     },
     Tile {
         group: EN.catalog_transactions,
@@ -515,6 +524,15 @@ impl Faraday {
             {
                 EN.catalog_copy_a_proof
             }
+            Go::ReadCoreWallet
+                if !self
+                    .inbox
+                    .iter()
+                    .any(|i| crate::core_wallet::is_wallet_file(&i.bytes))
+                    && self.put_on().is_none() =>
+            {
+                EN.catalog_copy_a_wallet_dat
+            }
             // The keys the backup flow makes: the tile starts it, or resumes
             // it, and asks for no vault first (`docs/BACKUP-FLOW.md` §3).
             Go::VaultCategory(c)
@@ -633,6 +651,7 @@ impl Faraday {
                 None => self.check_use_sample(),
             },
             Go::CheckTimestamp => crate::ots_check::open_tile(self),
+            Go::ReadCoreWallet => crate::core_wallet::tool::open_tile(self),
             Go::Vaults => self.act(Action::Nav(Screen::Vaults)),
             Go::CreateVault => self.act(Action::Vault(VaultAction::Create)),
             // The keys the backup flow makes: the flow, when none is open

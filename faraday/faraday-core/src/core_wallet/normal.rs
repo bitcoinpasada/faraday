@@ -190,6 +190,7 @@ fn key(
     }
     let ranged = raw
         .last()
+        // not wording: a descriptor's range step
         .is_some_and(|l| matches!(*l, "*" | "*'" | "*h" | "*H"));
     let hardened_range = ranged && raw.last().is_some_and(|l| *l != "*");
     let steps = &raw[..raw.len() - usize::from(ranged)];

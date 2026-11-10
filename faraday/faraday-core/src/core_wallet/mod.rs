@@ -18,6 +18,9 @@
 //! A key that is in the file twice, more than one `mkey` record, a plain
 //! private key in an encrypted wallet and an `mkey` record of a method
 //! other than 0 or of rounds none or past the cap fail their records.
+//! A `combo()` descriptor of one key (what `migratewallet` makes of a legacy
+//! wallet's keys) is not a failure: it is checked as any descriptor is and
+//! kept in [`Wallet::kept`], listed and never taken.
 //!
 //! The private keys are checked in `faraday-keys` ([`faraday_keys::core_wallet`]):
 //! each `walletdescriptorkey` record's private key must give the public
@@ -42,6 +45,8 @@ use crate::wallet::network_name;
 
 mod normal;
 use normal::{Failed, Need};
+pub(crate) mod screen;
+pub mod tool;
 
 /// The wallet flag bits Bitcoin Core knows (`walletutil.h`).
 const KNOWN_FLAGS: u64 = 0b111 | (0b1111 << 32);
@@ -131,6 +136,8 @@ pub enum Refusal {
     /// A database version (`PRAGMA user_version`) other than the 0
     /// Bitcoin Core writes: the version.
     SchemaVersion(i32),
+    /// A legacy wallet: a Berkeley DB file, told by its magic number.
+    BerkeleyDb,
 }
 
 impl Refusal {
@@ -165,6 +172,7 @@ impl Refusal {
             Refusal::File(_) => EN.core_wallet_file_damaged.to_string(),
             Refusal::Beside(name) => fill(EN.core_wallet_beside, &[name]),
             Refusal::SchemaVersion(v) => fill(EN.core_wallet_schema_version, &[&v.to_string()]),
+            Refusal::BerkeleyDb => EN.core_wallet_berkeley.to_string(),
         }
     }
 }
@@ -276,6 +284,18 @@ pub struct Descriptor {
     pub encrypted_keys: usize,
 }
 
+/// A `combo()` descriptor (BIP 384) the file holds, which Bitcoin Core
+/// keeps and Faraday does not take: Core's `migratewallet` makes one for
+/// each key a legacy wallet held. Its text is public keys only, and its
+/// checksum and id passed as any descriptor's do.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Kept {
+    /// The id: as [`Descriptor::id`].
+    pub id: [u8; 32],
+    /// The descriptor as stored, with its checksum.
+    pub text: String,
+}
+
 /// An active descriptor: the one a slot uses for new addresses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Active {
@@ -334,6 +354,9 @@ pub struct Wallet {
     pub flags: u64,
     /// Each descriptor that passed its checks, in file order.
     pub descriptors: Vec<Descriptor>,
+    /// The `combo()` descriptors that passed the same checks, in file
+    /// order: listed, never taken.
+    pub kept: Vec<Kept>,
     /// The active descriptors.
     pub active: Vec<Active>,
     /// The labels, in file order.
@@ -382,6 +405,22 @@ impl Wallet {
     pub fn descriptor(&self, id: &[u8; 32]) -> Option<&Descriptor> {
         self.descriptors.iter().find(|d| &d.id == id)
     }
+}
+
+/// The `pkh()` descriptor of the one key of a `combo(KEY)` descriptor, with
+/// its checksum: the text the descriptor library reads to check that key
+/// (public, of a network, with its origin), since it does not read `combo`.
+/// `None` for any other descriptor, and for a `combo` of anything but one
+/// key expression (no parenthesis or comma inside it).
+fn combo_twin(text: &str) -> Option<String> {
+    let (body, _) = text.split_once('#')?;
+    let key = body.strip_prefix("combo(")?.strip_suffix(')')?;
+    if key.is_empty() || key.contains(['(', ')', ',', '{', '}', '#']) {
+        return None;
+    }
+    let twin = format!("pkh({key})");
+    let sum = descriptor_checksum(&twin)?;
+    Some(format!("{twin}#{}", core::str::from_utf8(&sum).ok()?))
 }
 
 /// One record's key split: its type and the bytes after it.
@@ -537,6 +576,8 @@ struct Reader<'a> {
     held: HashSet<[u8; 32]>,
     /// Where each descriptor of the wallet is in its list.
     at: HashMap<[u8; 32], usize>,
+    /// The ids of the kept `combo()` descriptors.
+    kept_ids: HashSet<[u8; 32]>,
     /// Where each label's address is in the wallet's list.
     label_at: HashMap<String, usize>,
     /// The cached account keys each descriptor's keys need checked.
@@ -587,6 +628,27 @@ impl Reader<'_> {
     }
 }
 
+/// SQLite's first 16 bytes.
+const SQLITE_MAGIC: &[u8] = b"SQLite format 3\0";
+
+/// Whether a file starts as a SQLite database does.
+pub fn is_sqlite(file: &[u8]) -> bool {
+    file.starts_with(SQLITE_MAGIC)
+}
+
+/// Whether a file is a Berkeley DB database of the B-tree kind a legacy
+/// wallet is: its magic number, 0x00053162, at byte 12 in either byte order.
+pub fn is_berkeley_db(file: &[u8]) -> bool {
+    file.get(12..16)
+        .is_some_and(|m| m == [0x62, 0x31, 0x05, 0x00] || m == [0x00, 0x05, 0x31, 0x62])
+}
+
+/// Whether a file is one this area reads or names a refusal for: a SQLite
+/// database or a Berkeley DB one.
+pub fn is_wallet_file(file: &[u8]) -> bool {
+    is_sqlite(file) || is_berkeley_db(file)
+}
+
 /// Costs what [`read`] costs, after reading the file's pages. The wallet
 /// in `file`, the bytes of a `wallet.dat` named `file_name`, with
 /// `beside` the names of the other files in its folder: the file is
@@ -619,6 +681,9 @@ pub fn read_file(
         .find(|n| beside.iter().any(|b| b.eq_ignore_ascii_case(n)))
     {
         return Err(Refusal::Beside(name));
+    }
+    if is_berkeley_db(file) {
+        return Err(Refusal::BerkeleyDb);
     }
     let db = faraday_sqlite::Database::open(file).map_err(Refusal::File)?;
     // Bitcoin Core's `SQLiteDatabase::Verify` refuses any other version.
@@ -698,6 +763,7 @@ pub fn read(
             version: None,
             flags,
             descriptors: Vec::new(),
+            kept: Vec::new(),
             active: Vec::new(),
             labels: Vec::new(),
             master_keys: Vec::new(),
@@ -714,6 +780,7 @@ pub fn read(
         },
         held: HashSet::new(),
         at: HashMap::new(),
+        kept_ids: HashSet::new(),
         label_at: HashMap::new(),
         needs: HashMap::new(),
         compared: HashSet::new(),
@@ -914,7 +981,8 @@ impl Reader<'_> {
             self.fail(name, tail, Fault::Checksum);
             return Ok(());
         }
-        let Some(facts) = key_facts(self.c, text) else {
+        let combo = combo_twin(text);
+        let Some(facts) = key_facts(self.c, combo.as_deref().unwrap_or(text)) else {
             self.fail(name, tail, Fault::Descriptor);
             return Ok(());
         };
@@ -931,6 +999,14 @@ impl Reader<'_> {
         }
         if next_index < 0 || range_start < 0 || range_end < range_start {
             self.fail(name, tail, Fault::Range);
+            return Ok(());
+        }
+        if combo.is_some() {
+            self.kept_ids.insert(id);
+            self.wallet.kept.push(Kept {
+                id,
+                text: text.to_string(),
+            });
             return Ok(());
         }
         let body = text.split_once('#').map_or(text, |(body, _)| body);
@@ -986,7 +1062,7 @@ impl Reader<'_> {
         {
             return self.fail(name, tail, Fault::Repeated);
         }
-        if !self.held.contains(&id) {
+        if !self.held.contains(&id) || self.kept_ids.contains(&id) {
             return self.fail(name, tail, Fault::NotHeld);
         }
         self.wallet.active.push(Active {

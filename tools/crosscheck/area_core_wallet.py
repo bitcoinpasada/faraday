@@ -2,10 +2,12 @@
 (`faraday_core::core_wallet::read_file`, F229), against Bitcoin Core
 itself: the pinned `bitcoind` on regtest, offline (`core_node.py`).
 
-- The two wallet.dat files Core made for the vectors
-  (`tools/vectors/core-wallet/`, plain and encrypted with the passphrase
-  `faraday`) are read whole and compared with what Core said of them when
-  it made them (`listdescriptors` with private keys, `getwalletinfo`).
+- The three wallet.dat files Core made for the vectors
+  (`tools/vectors/core-wallet/`, plain, encrypted with the passphrase
+  `faraday`, and migrated by `migratewallet` from a legacy wallet) are read
+  whole and compared with what Core said of them when it made them
+  (`listdescriptors` with private keys, `getwalletinfo`); the migrated one's
+  `combo()` descriptors are listed as kept, one for each Core lists.
 - Wallets made fresh by Core on the run's node, of each shape (plain,
   encrypted, watch-only, blank, with labels, with an imported descriptor
   and its private keys, with an imported uncompressed key, each with or
@@ -179,8 +181,9 @@ class CoreWallet(Area):
         "same wallet"
     )
     vectors = (
-        "the two wallet.dat files Core made (`tools/vectors/core-wallet/`), plain and "
-        "encrypted, with what Core said of them"
+        "the three wallet.dat files Core made (`tools/vectors/core-wallet/`), plain, "
+        "encrypted and migrated from a legacy wallet by `migratewallet` (made with the older "
+        "release of `tools/reference/core/legacy.pin`), with what Core said of them"
     )
     corpus = (
         "fresh wallets of eight shapes (plain, encrypted, watch-only, blank, with labels, "
@@ -409,19 +412,28 @@ class CoreWallet(Area):
 
     def prelude(self):
         # The two files Core made for the vectors, with what it said then.
-        for name in ("plain", "encrypted"):
+        # The third was migrated by Core from a legacy wallet: its `combo()`
+        # descriptors are listed as kept by Faraday, one for each Core lists,
+        # and the others are the descriptors read.
+        for name in ("plain", "encrypted", "migrated"):
             data = (VECTORS / f"{name}.dat").read_bytes()
             core = json.loads((VECTORS / f"{name}.json").read_text())
             encrypted = "unlocked_until" in core["getwalletinfo"]
             got = self.rust.call("core_wallet.read", db=data.hex(),
                                  **({"passphrase": PASSPHRASE} if encrypted else {}))
             self.compared += 1
-            want_list = core_listing(core["listdescriptors_public"]["descriptors"])
+            entries = core["listdescriptors_public"]["descriptors"]
+            combos = [d for d in entries if d["desc"].startswith("combo(")]
+            want_list = core_listing([d for d in entries if d not in combos])
             inputs = {"vector": name}
             if got[0] != "ok":
                 raise Mismatch(self.name, "core_wallet.read", inputs, got, want_list)
             v = got[1]
             info = core["getwalletinfo"]
+            if sorted(v["kept"]) != sorted(d["desc"] for d in combos):
+                raise Mismatch(self.name, "core_wallet.read", inputs, v["kept"],
+                               [d["desc"] for d in combos],
+                               "the combo descriptors kept differ from Core's")
             if (faraday_listing(v["descriptors"]) != want_list or not v["whole"]
                     or v["encrypted"] != encrypted or v["tx_count"] != info["txcount"]
                     or v["with_private_keys"] != len(want_list)

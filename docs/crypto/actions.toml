@@ -420,7 +420,7 @@ completeness = "Built: all twelve versions read and written over AES-256, PBKDF2
 id = "sqlite"
 section = 3
 what = "SQLite database files, read only (`faraday/faraday-sqlite`, F229)"
-completeness = "Built: a reader of the part Bitcoin Core writes (the header, the table b-tree with interior, leaf and overflow pages, varints and records, in the rollback-journal form), checked against SQLite itself in the `sqlite` cross-check area, and a fuzz target. Not built: the wallet records, the tile and the screen"
+completeness = "Built: a reader of the part Bitcoin Core writes (the header, the table b-tree with interior, leaf and overflow pages, varints and records, in the rollback-journal form), checked against SQLite itself in the `sqlite` cross-check area, and a fuzz target. The wallet records and the Read a Bitcoin Core wallet tool read it"
 
 [[row]]
 id = "diceware"
@@ -2006,7 +2006,7 @@ standards = [
   "RFC 7914",
 ]
 learn = "tools"
-screens = []
+screens = ["CoreWallet"]
 functions = [
   "core/faraday-crypto/src/hash.rs::sha256",
   "core/faraday-crypto/src/hash.rs::sha256_whole",
@@ -2303,6 +2303,7 @@ standards = [
 ]
 learn = "coordinators"
 screens = [
+  "CoreWallet",
   "Wallets",
   "WalletsStart",
   "Files",
@@ -6635,7 +6636,7 @@ action = "Reads a SQLite database file and never writes one: the header, the sch
 row = "sqlite"
 standards = ["SQLite file format"]
 learn = "other_backups"
-screens = []
+screens = ["CoreWallet"]
 functions = [
   "faraday/faraday-sqlite/src/lib.rs::Database::open",
   "faraday/faraday-sqlite/src/lib.rs::Database::rows",
@@ -10155,7 +10156,7 @@ by = "the authors of BIP 173, BIP 350, BIP 380, BIP 49, BIP 84 and BIP 86 (bitco
 
 [vector.core-wallet]
 source = "outside"
-by = "Bitcoin Core (the pinned bitcoind on regtest), run by `tools/vectors/core-wallet/gen.py`: plain, encrypted (passphrase `faraday`), watch-only, blank, labelled, imported descriptor and imported uncompressed key wallets, and a multisig and a miniscript wallet of keys with further hardened steps, with Core's listdescriptors and getwalletinfo"
+by = "Bitcoin Core (the pinned bitcoind on regtest), run by `tools/vectors/core-wallet/gen.py`: plain, encrypted (passphrase `faraday`), watch-only, blank, labelled, imported descriptor and imported uncompressed key wallets, a multisig and a miniscript wallet of keys with further hardened steps, and a wallet Core's migratewallet made of a legacy wallet (its combo() descriptors, which Faraday lists and does not take), with Core's listdescriptors and getwalletinfo"
 
 [vector.openpgp]
 source = "published"

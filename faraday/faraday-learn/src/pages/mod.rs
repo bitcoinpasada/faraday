@@ -28,7 +28,7 @@ pub struct Section {
 }
 
 /// How many pages there are.
-pub const PAGES: usize = 22;
+pub const PAGES: usize = 23;
 
 /// Every page, in one language.
 pub struct Learn {
@@ -105,6 +105,9 @@ pub struct Learn {
     /// "Timestamps": what an OpenTimestamps proof is, what the device
     /// checks against a block header, and what is shown and not counted.
     pub timestamps: Page,
+    /// "Bitcoin Core wallets": what Read a Bitcoin Core wallet reads from a
+    /// `wallet.dat`, what it checks and what it refuses.
+    pub core_wallet: Page,
 }
 
 impl Learn {
@@ -133,6 +136,7 @@ impl Learn {
             &self.silent_payments,
             &self.lightning_invoices,
             &self.timestamps,
+            &self.core_wallet,
         ]
     }
 }

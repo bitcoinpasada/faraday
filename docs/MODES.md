@@ -207,6 +207,8 @@ sample. "Public set" means its fingerprint (or node id) is in
 | LND cipher seed | aezeed, for Lightning node key only; public node id | LND's published vector, `PRODUCTION_1` in `core/faraday-bip/src/aezeed.rs` (no passphrase) | the node id `aezeed.rs`'s test names |
 | Core Lightning hsm_secret, plain | a 32-byte `hsm_secret` put in Files; Lightning node key only; public node id | made for Faraday (F228) | the node id `faraday-samples` gives, which `faraday-keys` derives |
 | Core Lightning hsm_secret, encrypted | the same secret sealed by libsodium under `faraday` | the plain sample's node id | the same node id |
+| Core wallet.dat, plain | a regtest descriptor wallet's `wallet.dat` put in Files; the Read a Bitcoin Core wallet tile opens with it read, whole, its private keys checked | made by Bitcoin Core (`tools/vectors/core-wallet/plain.dat`) | Core's `listdescriptors` and `getwalletinfo` of it (`plain.json`) |
+| Core wallet.dat, encrypted | the same kind of wallet encrypted by Bitcoin Core under `faraday`; read with none, whole with its keys not checked, and with `faraday`, checked | `tools/vectors/core-wallet/encrypted.dat` | its `encrypted.json` |
 | Core Lightning hsm_secret, words form | a zero passphrase hash then the guide key's English words; the same words typed, with none and with `faraday` | the Core Lightning node of the guide key and of every other English words sample (the sample words and the abandon vector), with none and with `faraday` | those node ids |
 
 **With a passphrase.** Every key form that takes a passphrase (BIP-39,
@@ -399,6 +401,7 @@ and what a press puts in, stands.
 | The scanner: a TOTP code | `ScanPurpose::VaultEntry` | §5.3's setup code |
 | The scanner: Check a timestamp's block header | `ScanPurpose::OtsHeader` | §5.3's header, as hex |
 | Tools: Check a timestamp, in Practice with no proof in Files | `faraday/faraday-core/src/ots_check/mod.rs` `open_sample` | §5.3's proof, file hash and header, taken |
+| Tools: Read a Bitcoin Core wallet, in Practice with no wallet file in Files | `faraday/faraday-core/src/core_wallet/tool.rs` `open_sample` | the plain and the encrypted `wallet.dat` put in Files, the plain one read |
 | Scan a key (a wallet's missing key) | `faraday/faraday-core/src/scan_key.rs` | as WalletKey above |
 | Restore, seeds first: a cosigner's account key | `faraday/faraday-core/src/seeds/mod.rs` `Focus::Cosigner` | the account key, at the path chosen, of the next sample seed not among the wallet's |
 | The Spend tab's words | `faraday/faraday-core/src/spend_backup/mod.rs` | as Add a key |
@@ -549,6 +552,7 @@ the file has them.
 | `sample_xor` | Seed XOR, 2 parts |
 | `sample_aezeed` | LND cipher seed |
 | `sample_hsm_plain` / `sample_hsm_encrypted` / `sample_hsm_words` | hsm_secret / hsm_secret-encrypted / hsm_secret-words (files put in Files) |
+| `sample_core_wallet_plain_file` / `sample_core_wallet_encrypted_file` | sample-plain-wallet.dat / sample-encrypted-wallet.dat (files put in Files) |
 | `sample_savings` … `sample_tree` | Savings, Spending, Taproot, Nested SegWit, Legacy, Nested multisig, Legacy multisig, Taproot multisig, Inheritance, Taproot tree |
 | `sample_musig` / `sample_three_of_five` | MuSig2 / 3 of 5 |
 | `keygen_lock_in_adds` (changed) | Lock in adds sample {} ({}) in place of these words |

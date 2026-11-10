@@ -52,6 +52,17 @@ fn a_checksum_that_is_not_the_descriptors_is_refused() {
 }
 
 #[test]
+fn a_descriptor_with_a_second_hash_sign_is_refused() {
+    // Bitcoin Core: "Multiple '#' symbols".
+    let junk = "raw(deadbeef)#junk";
+    let sum = descriptor_checksum(junk).expect("`#` is in the charset");
+    let text = format!("{junk}#{}", String::from_utf8(sum.to_vec()).expect("ascii"));
+    assert!(!verify_checksum(&text));
+    assert!(!verify_checksum("raw(deadbeef)#89f8spxm#89f8spxm"));
+    assert!(!verify_checksum("raw(deadbeef)#junk#89f8spxm"));
+}
+
+#[test]
 fn single_symbol_errors_are_detected() {
     for &(desc, expected) in KNOWN {
         let full = format!("{desc}#{expected}");
@@ -78,8 +89,15 @@ fn every_charset_character_is_accepted() {
         sum.iter()
             .all(|c| b"qpzry9x8gf2tvdw0s3jn54khce6mua7l".contains(c))
     );
-    assert!(verify_checksum(&format!(
+    // A body holding `#` has a checksum, but is no descriptor text with one.
+    assert!(!verify_checksum(&format!(
         "{charset}#{}",
+        std::str::from_utf8(&sum).unwrap()
+    )));
+    let no_hash = charset.replace('#', "");
+    let sum = descriptor_checksum(&no_hash).unwrap();
+    assert!(verify_checksum(&format!(
+        "{no_hash}#{}",
         std::str::from_utf8(&sum).unwrap()
     )));
     assert_eq!(descriptor_checksum("raw(\u{dc})"), None, "non-charset char");

@@ -613,16 +613,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Action::LoadKey(k),
                 ) + 8.0;
             }
-            FileKind::Message => {
-                bx += ui.button(
-                    bx,
-                    iy + 64.0,
-                    None,
-                    BUTTON_H,
-                    EN.files_check_the_signature,
-                    Style::Primary,
-                    Action::CheckMessage(k),
-                ) + 8.0;
+            FileKind::Message | FileKind::CoreWallet => {
+                let (label, action) = if item.kind == FileKind::Message {
+                    (EN.files_check_the_signature, Action::CheckMessage(k))
+                } else {
+                    (
+                        EN.files_read_core_wallet,
+                        Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::OpenFile(k)),
+                    )
+                };
+                bx += ui.button(bx, iy + 64.0, None, BUTTON_H, label, Style::Primary, action) + 8.0;
             }
             FileKind::Sheet if app.online => {
                 bx += ui.button(
@@ -1850,6 +1850,13 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
                 EN.inbox_actions_check.into(),
                 Style::Primary,
                 Action::CheckMessage(k),
+            ));
+        }
+        FileKind::CoreWallet => {
+            out.push((
+                EN.inbox_actions_read_wallet.into(),
+                Style::Primary,
+                Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::OpenFile(k)),
             ));
         }
         FileKind::Sheet if app.online => {

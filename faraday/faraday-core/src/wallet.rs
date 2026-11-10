@@ -1527,6 +1527,9 @@ pub enum FileKind {
     /// A QR vault (`docs/VAULT.md` §1.2): three packets, sealed under a
     /// passphrase; opened in the QR vault tool.
     QrVault,
+    /// A SQLite database, which may be a Bitcoin Core wallet: read in
+    /// Tools' Read a Bitcoin Core wallet. It may hold private keys.
+    CoreWallet,
     /// Nothing this build reads.
     Other,
 }
@@ -1636,6 +1639,9 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     }
     if bytes.starts_with(b"%PDF-") {
         return FileKind::Pdf.into();
+    }
+    if crate::core_wallet::is_sqlite(bytes) {
+        return FileKind::CoreWallet.into();
     }
     if faraday_intake::is_older_kdbx(bytes) {
         return FileKind::Kdbx.into();

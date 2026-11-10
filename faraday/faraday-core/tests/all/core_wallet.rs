@@ -809,3 +809,140 @@ fn a_descriptor_that_is_not_ranged_has_no_range() {
     assert_eq!(single.range, None);
     assert!(wallet.descriptors.iter().any(|d| d.range.is_some()));
 }
+
+fn is_combo(text: &str) -> bool {
+    text.starts_with("combo(")
+}
+
+#[test]
+fn a_wallet_migrated_by_core_reads_whole_with_its_combo_descriptors_kept_not_taken() {
+    let wallet = load("migrated", None);
+    assert!(wallet.is_whole(), "{:?}", wallet.failures);
+    let (_, _, core) = dump("migrated");
+    let public: Vec<String> = core_public("migrated");
+    let combos = public.iter().filter(|t| is_combo(t)).count();
+    assert!(combos >= 2, "{public:?}");
+    assert_eq!(wallet.kept.len(), combos);
+    // The kept texts are Core's own combo list, checksums included.
+    let mut kept: Vec<&str> = wallet.kept.iter().map(|k| k.text.as_str()).collect();
+    kept.sort_unstable();
+    let want: Vec<&str> = public
+        .iter()
+        .filter(|t| is_combo(t))
+        .map(String::as_str)
+        .collect();
+    assert_eq!(kept, want);
+    // Only public keys are listed: none of Core's private descriptors'
+    // key text is in what was kept.
+    for d in core["listdescriptors"]["descriptors"]
+        .as_array()
+        .expect("list")
+    {
+        let text = d["desc"].as_str().expect("desc");
+        if is_combo(text) {
+            let key = text
+                .trim_start_matches("combo(")
+                .split(['/', ')'])
+                .next()
+                .expect("key");
+            let key = key.rsplit(']').next().expect("key");
+            assert!(
+                wallet.kept.iter().all(|k| !k.text.contains(key)),
+                "a private key is listed: {key}"
+            );
+        }
+    }
+    // The other descriptors are as Core lists them, and none is a combo.
+    let others: Vec<String> = public.iter().filter(|t| !is_combo(t)).cloned().collect();
+    assert_eq!(listed(&wallet), others);
+    assert_eq!(wallet.descriptors.len(), others.len());
+    assert!(!wallet.active.is_empty());
+}
+
+#[test]
+fn a_combo_descriptor_with_a_wrong_checksum_fails() {
+    let wallet = read_with("migrated", None, |records| {
+        let (key, value) = records
+            .iter_mut()
+            .find(|(k, v)| {
+                k.get(1..17) == Some(b"walletdescriptor".as_slice())
+                    && k.len() == 49
+                    && v.get(1..7) == Some(b"combo(".as_slice())
+            })
+            .expect("a combo record");
+        let _ = key;
+        let last = usize::from(value[0]);
+        value[last] ^= 1;
+    });
+    assert!(!wallet.is_whole());
+    assert!(wallet.failures.iter().any(|f| f.fault == Fault::Checksum));
+}
+
+#[test]
+fn the_private_key_of_a_combo_descriptor_is_still_checked() {
+    let whole = load("migrated", None);
+    let id = whole.kept[0].id;
+    let wallet = read_with("migrated", None, |records| {
+        let (_, value) = records
+            .iter_mut()
+            .find(|(k, _)| {
+                k.get(1..20) == Some(b"walletdescriptorkey".as_slice()) && k[20..52] == id
+            })
+            .expect("a key record of the combo descriptor");
+        let last = value.len() - 1;
+        value[last] ^= 1;
+    });
+    assert!(!wallet.is_whole());
+    assert!(
+        wallet
+            .failures
+            .iter()
+            .any(|f| f.record.starts_with("walletdescriptorkey") && f.fault == Fault::KeyHash)
+    );
+}
+
+#[test]
+fn a_descriptor_with_a_second_hash_sign_in_its_text_is_not_whole() {
+    let whole = load("migrated", None);
+    let old = whole.kept[0].text.clone();
+    let (body, _) = old.split_once('#').expect("checksum");
+    let id = whole.kept[0].id;
+    // Text after a first `#` that carries a valid checksum of everything
+    // before the last `#`: Bitcoin Core refuses it.
+    let junk = format!("{body}#junk");
+    let sum = faraday_bip::descriptor::descriptor_checksum(&junk).expect("checksum");
+    let text = format!("{junk}#{}", std::str::from_utf8(&sum).expect("ascii"));
+    let wallet = read_with("migrated", None, |records| {
+        let (_, value) = records
+            .iter_mut()
+            .find(|(k, v)| {
+                k.get(1..17) == Some(b"walletdescriptor".as_slice())
+                    && k.len() == 49
+                    && k[17..49] == id
+                    && v.get(1..7) == Some(b"combo(".as_slice())
+            })
+            .expect("the combo record");
+        let mut out = vec![u8::try_from(text.len()).expect("short")];
+        out.extend(text.as_bytes());
+        out.extend(&value[1 + usize::from(value[0])..]);
+        *value = out;
+    });
+    assert!(!wallet.is_whole());
+    assert!(failed(&wallet, "walletdescriptor", Fault::Checksum));
+}
+
+#[test]
+fn an_active_record_naming_a_combo_descriptor_is_not_held() {
+    let whole = load("migrated", None);
+    let id = whole.kept[0].id;
+    let wallet = read_with("migrated", None, |records| {
+        let (_, value) = records
+            .iter_mut()
+            .find(|(k, _)| k.starts_with(b"\x11activeexternalspk"))
+            .expect("an active record");
+        value.copy_from_slice(&id);
+    });
+    assert!(!wallet.is_whole());
+    assert!(wallet.failures.iter().any(|f| f.fault == Fault::NotHeld));
+    assert!(wallet.active.iter().all(|a| a.id != id));
+}

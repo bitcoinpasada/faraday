@@ -84,7 +84,7 @@ reason = "SHA-256 over a domain string, a fresh random answer and a counter, for
 
 [[uncovered]]
 file = "faraday/faraday-core/src/core_wallet/mod.rs"
-reason = "The id of a Bitcoin Core descriptor (a SHA-256 of its text) and the call of faraday-keys' checks of a wallet's private keys, which return only pass or fail; the keys are faraday-keys', checked against Bitcoin Core's own wallets, and the cross-check of a wallet file is not built yet (F229)."
+reason = "The id of a Bitcoin Core descriptor (a SHA-256 of its text) and the call of faraday-keys' checks of a wallet's private keys, which return only pass or fail; the keys are faraday-keys', checked against Bitcoin Core's own wallets; the core_wallet cross-check reads the wallet files' descriptors and cached account keys against Bitcoin Core (F229)."
 
 [[uncovered]]
 file = "faraday/faraday-core/src/create.rs"

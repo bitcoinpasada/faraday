@@ -284,6 +284,7 @@ pub(crate) enum Scrolled {
     /// The QR vault tool.
     QrTool,
     OtsCheck,
+    CoreWallet,
     /// New key.
     KeyGen,
     /// Vanity.
@@ -473,6 +474,9 @@ impl Faraday {
                 }
                 Scrolled::OtsCheck => {
                     self.tools.ots_mut().set_scroll(to);
+                }
+                Scrolled::CoreWallet => {
+                    self.tools.core_wallet_mut().set_scroll(to);
                 }
                 Scrolled::KeyGen => {
                     self.keygen.set_scroll(to);

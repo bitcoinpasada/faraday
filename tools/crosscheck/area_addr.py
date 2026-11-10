@@ -249,9 +249,9 @@ class Addr(Area):
     )
     differences = [
         (
-            "A descriptor with a second `#` in its body: btclib refuses it, as Bitcoin "
-            "Core's parser does, where BIP 380's code and Core's framework check the last "
-            "nine characters; its checksum is asked of those two only. btclib reads "
+            "A descriptor with a second `#` in its body: Faraday and btclib refuse it, as "
+            "Bitcoin Core's parser does, where BIP 380's code and Core's framework check the "
+            "last nine characters; its checksum is asked of btclib only. btclib reads "
             "descriptors Faraday takes for no account (`pk`, `combo`, `multi`, `addr`, "
             "`raw`) and other chains than `<0;1>`; the area asks it for the four account "
             "descriptors with both chains only."
@@ -359,15 +359,20 @@ class Addr(Area):
         return self.compare("addr.descsum", {"text": text}, ref(descriptors.descsum_create))
 
     def descsum_verify(self, text, expected=None):
-        """The checksum checked, asked of both; BIP 380's code raises on a
-        text too short to hold one, which counts as a refusal."""
+        """The checksum checked. A text with a second `#` is refused, as
+        Core's parser refuses it, and only btclib is asked: BIP 380's code
+        and Core's framework check the last nine characters and accept it.
+        Otherwise BIP 380's code, btclib and the framework are asked; BIP
+        380's code raises on a text too short to hold a checksum, which
+        counts as a refusal."""
+        if text.count("#") > 1:
+            return self.compare("addr.descsum_verify", {"text": text},
+                                lambda: {"valid": btclib.verify(text)}, ("ok", {"valid": False}),
+                                normalize=as_verify)
         self.compare("addr.descsum_verify", {"text": text},
                      lambda: {"valid": bip380.descsum_check(text)}, expected, normalize=as_verify)
-        if text.count("#") <= 1:
-            # btclib refuses a second `#` as Core's parser does; BIP 380's
-            # code and Core's framework check the last nine characters.
-            self.compare("addr.descsum_verify", {"text": text},
-                         lambda: {"valid": btclib.verify(text)}, expected, normalize=as_verify)
+        self.compare("addr.descsum_verify", {"text": text},
+                     lambda: {"valid": btclib.verify(text)}, expected, normalize=as_verify)
         return self.compare("addr.descsum_verify", {"text": text},
                             lambda: {"valid": descriptors.descsum_check(text, True)}, expected,
                             normalize=as_verify)

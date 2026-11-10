@@ -7177,6 +7177,8 @@ strings! {
     kind_name_gpg: "GPG",
     /// A QR vault in `kind_name`.
     kind_name_qr_vault: "QR vault",
+    /// A file's kind in Files: a SQLite database, which may be a Bitcoin Core wallet.
+    kind_name_sqlite: "SQLite database",
     /// Text in `kind_name`: another wallet's file that holds a private
     /// key or a seed beside its public keys.
     kind_name_secret_wallet: "Wallet file with a private key",
@@ -7213,6 +7215,8 @@ strings! {
     files_load_this_key: "Load this key",
     /// Button in `files`.
     files_check_the_signature: "Check the signature",
+    /// Files: a SQLite database's row button.
+    files_read_core_wallet: "Read the wallet",
     /// Text in `files_compact`. `{}`: `app.medium.a()`.
     files_waiting_medium: "Waiting for {}",
     /// Text in `files_compact`. `{}`: `app.medium.cap()`.
@@ -7420,6 +7424,8 @@ strings! {
     inbox_actions_load: "Load this key",
     /// Text in `inbox_actions`.
     inbox_actions_check: "Check the signature",
+    /// Files' actions: a SQLite database's button.
+    inbox_actions_read_wallet: "Read the wallet",
     /// Text in `inbox_actions`.
     inbox_actions_make: "Make PDF",
     // ----- visit (faraday-core/src/screens/visit.rs) -----
@@ -7465,6 +7471,8 @@ strings! {
     working_collecting: "Adding the signatures",
     /// The line of the job that hashes a large file in Check a timestamp.
     working_hashing: "Hashing the file",
+    /// The line of the job that reads a Bitcoin Core wallet.
+    working_core_wallet: "Reading the wallet",
     /// The line of the job that reads a PSBT and checks it.
     working_reading_psbt: "Reading the transaction",
     /// The line of the job that loads the ticked samples.
@@ -10429,6 +10437,8 @@ strings! {
     core_wallet_schema_version: "This wallet file has database version {}, not 0 as Bitcoin Core writes it",
     /// Refusal in `core_wallet::Refusal::message`. `{}`: the most rows.
     core_wallet_too_many_rows: "This wallet file holds more than {} records, more than a Bitcoin Core wallet has",
+    /// Refusal in `core_wallet::Refusal::message`.
+    core_wallet_berkeley: "This is a legacy Berkeley DB wallet; Bitcoin Core's migratewallet makes a descriptor wallet of it",
     /// Text in `text`. `{}`: `fp`.
     wallet_is_not_a_key: "{} is not a sample: Practice takes only samples",
     /// Text in `text`. `{}`: `network_name(*n)`.
@@ -13394,6 +13404,136 @@ strings! {
     ots_err_header_easy: "The header's target is easier than the network allows",
     /// Check a timestamp: refusal.
     ots_err_header_work: "The header's hash is above its own target",
+    /// Tools: the Read a Bitcoin Core wallet tile.
+    catalog_read_core_wallet: "Read a Bitcoin Core wallet",
+    /// Tools: the line under the Read a Bitcoin Core wallet tile.
+    catalog_read_core_wallet_line: "A wallet.dat, read and checked",
+    /// Text in `tile_need`.
+    catalog_copy_a_wallet_dat: "Copy a wallet.dat in first",
+    /// Read a Bitcoin Core wallet: the sample plain wallet's name.
+    sample_core_wallet_plain_file: "sample-plain-wallet.dat",
+    /// Read a Bitcoin Core wallet: the sample encrypted wallet's name.
+    sample_core_wallet_encrypted_file: "sample-encrypted-wallet.dat",
+    /// Read a Bitcoin Core wallet: the heading.
+    core_wallet_title: "Read a Bitcoin Core wallet",
+    /// Read a Bitcoin Core wallet: the Back button's name when opened from Tools.
+    core_wallet_tools: "Tools",
+    /// Read a Bitcoin Core wallet: the first card.
+    core_wallet_card_file: "File",
+    /// Read a Bitcoin Core wallet: the second card.
+    core_wallet_card_result: "Result",
+    /// Read a Bitcoin Core wallet: no file to choose.
+    core_wallet_none_in_files: "No wallet file in Files",
+    /// Read a Bitcoin Core wallet: the passphrase field's label.
+    core_wallet_passphrase: "Passphrase, if the wallet is encrypted",
+    /// Read a Bitcoin Core wallet: the button that reads the file.
+    core_wallet_read: "Read",
+    /// Read a Bitcoin Core wallet: the Result card before a read.
+    core_wallet_result_waits: "Nothing read yet",
+    /// Read a Bitcoin Core wallet: the result, every record and key passed.
+    core_wallet_whole: "The wallet is whole",
+    /// Read a Bitcoin Core wallet: the result, a record or key failed.
+    core_wallet_not_whole: "The wallet is not whole",
+    /// Read a Bitcoin Core wallet: the result, the passphrase failed.
+    core_wallet_wrong_passphrase: "The passphrase does not open the wallet",
+    /// Read a Bitcoin Core wallet: a label.
+    core_wallet_network: "Network",
+    /// Read a Bitcoin Core wallet: a label.
+    core_wallet_version: "Written by Bitcoin Core",
+    /// Read a Bitcoin Core wallet: a label.
+    core_wallet_encryption: "Encryption",
+    /// Read a Bitcoin Core wallet: the value for a wallet with no master key.
+    core_wallet_not_encrypted: "None",
+    /// Read a Bitcoin Core wallet: the value for an encrypted wallet. `{}`: the rounds.
+    core_wallet_encrypted: "SHA-512 and AES-256, {} rounds",
+    /// Read a Bitcoin Core wallet: a label.
+    core_wallet_keys: "Private keys",
+    /// Read a Bitcoin Core wallet: the value. `{}`: how many.
+    core_wallet_keys_checked: "{} checked",
+    /// Read a Bitcoin Core wallet: the value. `{}`: how many.
+    core_wallet_keys_not_checked: "{} not checked, no passphrase given",
+    /// Read a Bitcoin Core wallet: the value. `{}`: how many.
+    core_wallet_keys_not_opened: "{} not checked, the passphrase is wrong",
+    /// Read a Bitcoin Core wallet: a label.
+    core_wallet_descriptor: "Descriptor",
+    /// Read a Bitcoin Core wallet: a descriptor that is the active receive one.
+    core_wallet_active_receive: "Active, receive",
+    /// Read a Bitcoin Core wallet: a descriptor that is the active change one.
+    core_wallet_active_change: "Active, change",
+    /// Read a Bitcoin Core wallet: a descriptor's range. `{}`: first, last, next index.
+    core_wallet_range: "Range {} to {}, next index {}",
+    /// Read a Bitcoin Core wallet: a label.
+    core_wallet_labels: "Labels",
+    /// Read a Bitcoin Core wallet: a label.
+    core_wallet_transactions: "Transactions",
+    /// Read a Bitcoin Core wallet: a label for record types counted and not read.
+    core_wallet_not_read: "Records not read",
+    /// Read a Bitcoin Core wallet: a label for record types Faraday does not know.
+    core_wallet_unknown: "Records not known",
+    /// Read a Bitcoin Core wallet: records of unknown types past the list. `{}`: how many.
+    core_wallet_unknown_more: "and {} more",
+    /// Read a Bitcoin Core wallet: a record that failed. `{}`: the record, what failed.
+    core_wallet_failed: "{}: {}",
+    /// Read a Bitcoin Core wallet: failures past the list. `{}`: how many.
+    core_wallet_failed_more: "{} more records failed",
+    /// Read a Bitcoin Core wallet: the button that takes the descriptors to Wallets.
+    core_wallet_take: "Take to Wallets",
+    /// Read a Bitcoin Core wallet: the output type an active pair is of.
+    core_wallet_type_legacy: "Legacy (pkh)",
+    /// Read a Bitcoin Core wallet: the output type an active pair is of.
+    core_wallet_type_p2sh_segwit: "Nested SegWit (sh-wpkh)",
+    /// Read a Bitcoin Core wallet: the output type an active pair is of.
+    core_wallet_type_segwit: "Native SegWit (wpkh)",
+    /// Read a Bitcoin Core wallet: the output type an active pair is of.
+    core_wallet_type_taproot: "Taproot (tr)",
+    /// Read a Bitcoin Core wallet: the label of an active pair whose receive descriptor is a script, such as a multisig.
+    core_wallet_type_script: "Script",
+    /// Read a Bitcoin Core wallet: the result, a whole wallet with no active receive descriptor.
+    core_wallet_no_active: "No active descriptors",
+    /// Read a Bitcoin Core wallet: the label over the `combo()` descriptors Faraday lists and does not take. `{}`: how many.
+    core_wallet_kept: "Kept by Bitcoin Core, not taken ({})",
+    /// Read a Bitcoin Core wallet: `combo()` descriptors past the list. `{}`: how many.
+    core_wallet_kept_more: "{} more kept by Bitcoin Core, not taken",
+    /// Read a Bitcoin Core wallet: a failure, the record is not the shape Bitcoin Core writes.
+    core_wallet_fault_layout: "not the shape Bitcoin Core writes",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_flags: "the flags hold a bit Bitcoin Core does not know",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_descriptor: "not an output descriptor of public keys",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_checksum: "the descriptor's checksum is wrong",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_id: "the descriptor's id is not the hash of its text",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_range: "the range or next index is not valid",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_key_network: "the keys are of another network than the file",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_not_held: "names a descriptor the file does not hold",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_repeated: "its key is in the file twice",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_key_malformed: "the private key's record is not the shape Bitcoin Core writes",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_key_hash: "the private key's stored hash is wrong",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_key_public: "the private key gives another public key than the record names",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_no_master: "encrypted keys and no master key",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_many_master: "a second master key",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_plain_key: "a plain private key in an encrypted wallet",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_master_method: "the master key's method is not one Faraday opens",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_master_rounds: "the master key's rounds are none or too many",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_cache_missing: "the account key Core cached for a key of the descriptor is missing",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_cache_key: "a cached account key is not the one its path and master key give",
+    /// Read a Bitcoin Core wallet: a failure.
+    core_wallet_fault_cache_unchecked: "a cached account key could not be compared with a master key",
     /// The QR vault tool: the Back button's name when opened from Tools.
     qr_tool_tools: "Tools",
     /// The QR vault tool's first card: what the code holds.
