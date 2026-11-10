@@ -4679,6 +4679,10 @@ functions = [
   "faraday/faraday-keys/src/core_wallet.rs::check_encrypted_key",
   "faraday/faraday-keys/src/core_wallet.rs::decrypt",
   "faraday/faraday-keys/src/core_wallet.rs::gives",
+  "faraday/faraday-keys/src/core_wallet.rs::gives_accounts",
+  "faraday/faraday-keys/src/core_wallet.rs::check_private_key_accounts",
+  "faraday/faraday-keys/src/core_wallet.rs::check_encrypted_keys_accounts",
+  "faraday/faraday-core/src/core_wallet/normal.rs::key",
   "faraday/faraday-keys/src/core_wallet.rs::hash256",
   "faraday/faraday-core/src/core_wallet/mod.rs::descriptor_id",
   "core/faraday-bip/src/descriptor.rs::key_facts",
@@ -4696,7 +4700,7 @@ libraries = [
   "cbc",
 ]
 through = [{ library = "sha2", crate = "core/faraday-crypto" }]
-adds = "The master key is SHA-512 of the passphrase and the record's 8-byte salt, hashed again for the rounds less one (at most 10,000,000); its first 32 bytes are the AES-256 key and the next 16 the IV that open the 48-byte mkey under CBC with PKCS#7 padding. Each walletdescriptorckey is opened under AES-256-CBC with the double SHA-256 of its public key as the IV. A key must give the public key its record names (33 bytes, or 65 for an uncompressed key with its 279-byte DER), and in the clear match the stored hash of the public key and the DER. One mkey record is tried; a wallet with more is not whole."
+adds = "The master key is SHA-512 of the passphrase and the record's 8-byte salt, hashed again for the rounds less one (at most 10,000,000); its first 32 bytes are the AES-256 key and the next 16 the IV that open the 48-byte mkey under CBC with PKCS#7 padding. Each walletdescriptorckey is opened under AES-256-CBC with the double SHA-256 of its public key as the IV. A key must give the public key its record names (33 bytes, or 65 for an uncompressed key with its 279-byte DER), and in the clear match the stored hash of the public key and the DER. One mkey record is tried; a wallet with more is not whole. Where the keys are checked, each account key Core cached for a descriptor's key at a hardened step (a walletdescriptorlhcache record of 74 bytes) is derived again from the checked master key along the hardened path, one derivation for each account key, and must equal the cached bytes in constant time; a cached key whose depth, child number or parent fingerprint disagrees with its path, or is not a point on the curve, fails its record, and so does a cached key no master key was compared with, whatever the wallet's flags say."
 
 [[action.implementation.written_here]]
 what = "Bitcoin Core's key from a passphrase and the opening of its encrypted keys (`faraday-keys::core_wallet`)"
@@ -10151,7 +10155,7 @@ by = "the authors of BIP 173, BIP 350, BIP 380, BIP 49, BIP 84 and BIP 86 (bitco
 
 [vector.core-wallet]
 source = "outside"
-by = "Bitcoin Core (the pinned bitcoind on regtest), run by `tools/vectors/core-wallet/gen.py`: plain, encrypted (passphrase `faraday`), watch-only, blank, labelled, imported descriptor and imported uncompressed key wallets, with Core's listdescriptors and getwalletinfo"
+by = "Bitcoin Core (the pinned bitcoind on regtest), run by `tools/vectors/core-wallet/gen.py`: plain, encrypted (passphrase `faraday`), watch-only, blank, labelled, imported descriptor and imported uncompressed key wallets, and a multisig and a miniscript wallet of keys with further hardened steps, with Core's listdescriptors and getwalletinfo"
 
 [vector.openpgp]
 source = "published"

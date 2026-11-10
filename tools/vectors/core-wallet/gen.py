@@ -1,13 +1,15 @@
 """Bitcoin Core's descriptor wallets, made by Bitcoin Core (F229).
 
 Runs the pinned bitcoind of `tools/crosscheck/core_node.py` on regtest with
-no network, makes seven descriptor wallets (plain, encrypted with the
+no network, makes eight descriptor wallets (plain, encrypted with the
 passphrase `faraday`, watch-only, blank, with labels, with an imported
-descriptor, with an imported uncompressed key), and writes for each, beside this file:
+descriptor, with an imported uncompressed key, with an imported multisig and a miniscript
+descriptor of master keys with hardened steps), and writes for each, beside this file:
 
 - `<name>.json`: the wallet's SQLite application id, every (key, value) of
   its table `main` as hex, Core's `listdescriptors` (with private keys
-  where the wallet has them) and `getwalletinfo`;
+  where the wallet has them), `listdescriptors_public` (without them, the
+  descriptors with their origins and the account keys) and `getwalletinfo`;
 - `<name>.dat`: the wallet.dat itself, for the plain and the encrypted
   wallet (the SQLite reader and the Practice sample use them).
 
@@ -31,6 +33,7 @@ sys.path.insert(0, str(ROOT / "tools" / "crosscheck"))
 sys.path.insert(0, str(ROOT / "tools" / "reference" / "core"))
 
 import core_node  # noqa: E402
+from area_core_wallet import multisig_descriptors  # noqa: E402
 
 PASSPHRASE = "faraday"
 KEEP_DAT = ("plain", "encrypted")
@@ -88,6 +91,7 @@ def main():
         labels = make("labels", False, False, "", False, True, False)
         imported = make("imported", False, False, "", False, True, False)
         uncompressed = make("uncompressed", False, False, "", False, True, False)
+        multisig = make("multisig", False, True, "", False, True, False)
 
         # A coinbase in the plain wallet gives it a transaction record and a
         # block locator.
@@ -123,19 +127,29 @@ def main():
             {"desc": text, "timestamp": "now", "active": False}])
         assert done[0]["success"], done
 
+        # A multisig and a miniscript over the master key of a source wallet,
+        # whose keys carry an origin with further hardened steps, and none.
+        source = make("source", False, False, "", False, True, False)
+        done = multisig.importdescriptors([
+            {"desc": t, "timestamp": "now", "active": False, "range": [0, 20]}
+            for t in multisig_descriptors(rpc, source)])
+        assert all(r["success"] for r in done), done
+
         infos = {}
         for name, client in wallets.items():
             if name == "encrypted":
                 client.walletpassphrase(PASSPHRASE, 600)
             lst = client.listdescriptors(name not in ("watchonly",))
-            infos[name] = {"listdescriptors": lst, "getwalletinfo": client.getwalletinfo()}
+            infos[name] = {"listdescriptors": lst,
+                           "listdescriptors_public": client.listdescriptors(False),
+                           "getwalletinfo": client.getwalletinfo()}
             if name == "encrypted":
                 client.walletlock()
         for name in wallets:
             rpc.unloadwallet(name)
         only = sys.argv[1:]
         for name in wallets:
-            if only and name not in only:
+            if (only and name not in only) or name == "source":
                 continue
             dump(walletdir, name, infos[name])
             print(name, "ok")

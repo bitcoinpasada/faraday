@@ -5,7 +5,8 @@
 //! (read by `faraday-sqlite`) and does the whole; nothing is written.
 //!
 //! [`read`] gives the network (the application id is its message start),
-//! the version, the flags, each descriptor with its id, range and next
+//! the version, the flags, each descriptor with its id, its text as stored and as Bitcoin Core lists
+//! it (`normal.rs`: origins and the cached account key), range and next
 //! index, which descriptors are active, the labels, the master key's
 //! method and rounds, how many transactions the file holds and its block
 //! locator, and the record types it does not read by name and count.
@@ -30,13 +31,17 @@ use faraday_crypto::sha256;
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
 use faraday_keys::core_wallet::{
-    KeyVerdict, MAX_ROUNDS, METHOD_SHA512_AES, OpenError, check_encrypted_keys, check_private_key,
+    AccountCheck, KeyVerdict, MAX_ROUNDS, METHOD_SHA512_AES, OpenError,
+    check_encrypted_keys_accounts, check_private_key_accounts,
 };
 use faraday_strings::{EN, fill};
 use std::collections::{HashMap, HashSet};
 use zeroize::Zeroizing;
 
 use crate::wallet::network_name;
+
+mod normal;
+use normal::{Failed, Need};
 
 /// The wallet flag bits Bitcoin Core knows (`walletutil.h`).
 const KNOWN_FLAGS: u64 = 0b111 | (0b1111 << 32);
@@ -79,10 +84,9 @@ const LEGACY: [&str; 11] = [
 ];
 /// Record types Bitcoin Core writes in a descriptor wallet that are
 /// counted and not read.
-const UNREAD: [&str; 6] = [
+const UNREAD: [&str; 5] = [
     "orderposnext",
     "walletdescriptorcache",
-    "walletdescriptorlhcache",
     "destdata",
     "lockedutxo",
     "settings",
@@ -206,6 +210,20 @@ pub enum Fault {
     MasterMethod,
     /// The master key's rounds are none or past what Faraday opens.
     MasterRounds,
+    /// A descriptor's key at a hardened step needs the account key Core
+    /// caches in a `walletdescriptorlhcache` record, and the file has none
+    /// for it (the record named is the descriptor's).
+    CacheMissing,
+    /// A cached account key does not match: where the keys are checked and
+    /// compared, a key that is not the one its master key gives (a bad point
+    /// included) fails the `walletdescriptorlhcache` record; where they are
+    /// not, a bad point, depth, child number or parent fingerprint fails the
+    /// descriptor's record.
+    CacheKey,
+    /// A descriptor's cached account key was not compared with its master
+    /// key, though the wallet's keys were checked, whatever its flags say:
+    /// the descriptor has no key record for its master key.
+    CacheUnchecked,
 }
 
 /// A failed record and what failed.
@@ -238,15 +256,19 @@ pub struct Descriptor {
     pub id: [u8; 32],
     /// The descriptor as stored, with its checksum.
     pub text: String,
+    /// The descriptor as Bitcoin Core's `listdescriptors` gives it, with
+    /// its checksum: each key at a hardened step as `[fingerprint/path]`
+    /// and the account key Core cached for it, a key with an origin with
+    /// its origin, hardened steps written `h`.
+    pub listed: String,
     /// Unix time the descriptor was made.
     pub creation_time: i64,
     /// The next index to hand out, as written.
     pub next_index: i32,
-    /// The first index derived, as written.
-    pub range_start: i32,
-    /// One past the last index derived, as written (`listdescriptors`
-    /// gives the last, one less).
-    pub range_end: i32,
+    /// The first and the last index derived as `listdescriptors` gives
+    /// them (the file holds one past the last), for a descriptor that is
+    /// ranged; `None` for one that is not, whatever the file holds.
+    pub range: Option<(i32, i32)>,
     /// Private keys of it that are not encrypted and passed.
     pub private_keys: usize,
     /// Encrypted private keys of it; checked when the passphrase is
@@ -489,6 +511,26 @@ fn key_pubkey(tail: &[u8]) -> Option<&[u8]> {
 /// the value (wiped on drop) and the record's key tail.
 type KeyRecord = ([u8; 32], Vec<u8>, Zeroizing<Vec<u8>>, Vec<u8>);
 
+/// The cached account keys of a wallet's descriptors, borrowed from the
+/// records: the descriptor's id and the key's place give the 74 bytes.
+type Cache<'r> = HashMap<([u8; 32], u32), &'r [u8; 74]>;
+
+/// A `walletdescriptorlhcache` record: the descriptor's id, the key's
+/// place and the 74 bytes of the extended public key, where the record is
+/// the shape Bitcoin Core writes (the key `id`, a place of 4 bytes; the
+/// value a 74-byte vector holding a compressed public key).
+fn lh_record<'r>(tail: &[u8], value: &'r [u8]) -> Option<([u8; 32], u32, &'r [u8; 74])> {
+    let (id, place) = tail.split_at_checked(32)?;
+    let place = <[u8; 4]>::try_from(place).ok()?;
+    let (xpub, rest) = vector(value)?;
+    let xpub = <&[u8; 74]>::try_from(xpub).ok()?;
+    (rest.is_empty() && matches!(xpub[41], 2 | 3)).then_some((
+        <[u8; 32]>::try_from(id).ok()?,
+        u32::from_le_bytes(place),
+        xpub,
+    ))
+}
+
 struct Reader<'a> {
     c: &'a Compute,
     wallet: Wallet,
@@ -497,6 +539,10 @@ struct Reader<'a> {
     at: HashMap<[u8; 32], usize>,
     /// Where each label's address is in the wallet's list.
     label_at: HashMap<String, usize>,
+    /// The cached account keys each descriptor's keys need checked.
+    needs: HashMap<[u8; 32], Vec<Need>>,
+    /// The places whose cached key was compared with a master key.
+    compared: HashSet<([u8; 32], u32)>,
     unread: Counts,
     unknown: Counts,
     app_kind_main: bool,
@@ -584,7 +630,9 @@ pub fn read_file(
     read(c, db.header().application_id, &rows, mode, passphrase)
 }
 
-/// Costs a descriptor parse for each descriptor, an elliptic-curve
+/// Costs a descriptor parse for each descriptor (a second one for a descriptor
+/// whose cached account key is not compared), the derivation of each cached account key along its
+/// path (one for each account key) where the keys are checked, an elliptic-curve
 /// multiplication and two hashes for each private key and, with the
 /// passphrase, the master key's SHA-512 rounds (some hundreds of
 /// thousands, at most ten million) and a decryption for each encrypted
@@ -667,6 +715,8 @@ pub fn read(
         held: HashSet::new(),
         at: HashMap::new(),
         label_at: HashMap::new(),
+        needs: HashMap::new(),
+        compared: HashSet::new(),
         unread: Counts::default(),
         unknown: Counts::default(),
         app_kind_main: network.is_mainnet(),
@@ -680,10 +730,30 @@ pub fn read(
             None => r.fail("", key, Fault::Repeated),
         }
     }
-    // Descriptors first: the other records name them.
+    // The cached account keys first, then the descriptors, which list
+    // with them: the other records name the descriptors.
+    let mut cache: Cache = HashMap::new();
+    let mut placed: Vec<([u8; 32], u32)> = Vec::new();
+    for (key, value) in fresh.iter().copied() {
+        if let Some(("walletdescriptorlhcache", tail)) = split_key(key) {
+            match lh_record(tail, value) {
+                Some((id, place, xpub)) => {
+                    cache.insert((id, place), xpub);
+                    placed.push((id, place));
+                }
+                None => r.fail("walletdescriptorlhcache", tail, Fault::Layout),
+            }
+        }
+    }
     for (key, value) in fresh.iter().copied() {
         if let Some(("walletdescriptor", tail)) = split_key(key) {
-            r.descriptor(tail, value)?;
+            r.descriptor(tail, value, &cache)?;
+        }
+    }
+    for (id, place) in placed {
+        if !r.held.contains(&id) {
+            let tail = [id.as_slice(), &place.to_le_bytes()].concat();
+            r.fail("walletdescriptorlhcache", &tail, Fault::NotHeld);
         }
     }
     let mut mkeys: Vec<(u32, &[u8])> = Vec::new();
@@ -696,7 +766,7 @@ pub fn read(
             continue;
         };
         match name {
-            "walletdescriptor" => {}
+            "walletdescriptor" | "walletdescriptorlhcache" => {}
             "version" => match <[u8; 4]>::try_from(value.as_slice()) {
                 Ok(v) if tail.is_empty() => r.wallet.version = Some(u32::from_le_bytes(v)),
                 _ => r.fail(name, tail, Fault::Layout),
@@ -789,6 +859,7 @@ pub fn read(
         }
     }
     r.encrypted_keys(!mkeys.is_empty(), openable, &crypted, passphrase);
+    r.uncompared();
     r.wallet.unread = r.unread.list;
     r.wallet.unknown = r.unknown.list;
     r.wallet.unknown_more = r.unknown.more;
@@ -810,7 +881,7 @@ fn master_info(id: u32, value: &[u8]) -> Option<MasterRecord> {
 }
 
 impl Reader<'_> {
-    fn descriptor(&mut self, tail: &[u8], value: &[u8]) -> Result<(), Refusal> {
+    fn descriptor(&mut self, tail: &[u8], value: &[u8], cache: &Cache) -> Result<(), Refusal> {
         let name = "walletdescriptor";
         let Ok(id) = <[u8; 32]>::try_from(tail) else {
             self.fail(name, tail, Fault::Layout);
@@ -862,14 +933,33 @@ impl Reader<'_> {
             self.fail(name, tail, Fault::Range);
             return Ok(());
         }
+        let body = text.split_once('#').map_or(text, |(body, _)| body);
+        let lookup = |place: u32| cache.get(&(id, place)).map(|x| **x);
+        let (listed, needs) = match normal::normalize(body, &lookup) {
+            Ok(done) => done,
+            Err(Failed::Missing(_)) => {
+                self.fail(name, tail, Fault::CacheMissing);
+                return Ok(());
+            }
+            Err(Failed::Key) => {
+                self.fail(name, tail, Fault::CacheKey);
+                return Ok(());
+            }
+            Err(Failed::Unreadable) => {
+                self.fail(name, tail, Fault::Descriptor);
+                return Ok(());
+            }
+        };
+        let range = listed.contains('*').then_some((range_start, range_end - 1));
+        self.needs.insert(id, needs);
         self.at.insert(id, self.wallet.descriptors.len());
         self.wallet.descriptors.push(Descriptor {
             id,
             text: text.to_string(),
+            listed,
             creation_time,
             next_index,
-            range_start,
-            range_end,
+            range,
             private_keys: 0,
             encrypted_keys: 0,
         });
@@ -938,6 +1028,74 @@ impl Reader<'_> {
         *slot = Some(text.to_string());
     }
 
+    /// The cached account keys of descriptor `id` that this master key
+    /// (`pubkey`) is the root of.
+    fn accounts(&self, id: &[u8; 32], pubkey: &[u8]) -> Vec<(u32, AccountCheck)> {
+        self.needs.get(id).map_or_else(Vec::new, |needs| {
+            needs
+                .iter()
+                .filter(|n| n.root[..] == *pubkey)
+                .map(|n| {
+                    (
+                        n.index,
+                        AccountCheck {
+                            meta: n.meta,
+                            chain_code: n.chain_code,
+                            path: n.path.clone(),
+                            cached: n.cached,
+                        },
+                    )
+                })
+                .collect()
+        })
+    }
+
+    /// The cached keys no master key was compared with. Where the keys
+    /// were checked such a record fails ([`Fault::CacheUnchecked`]),
+    /// whatever the wallet's flags say. Only an encrypted wallet read without
+    /// its passphrase takes the cached key unchecked, as a descriptor file's
+    /// is read: a cached key that is not a point on the curve fails its
+    /// descriptor ([`Fault::CacheKey`]).
+    fn uncompared(&mut self) {
+        let checked = self.wallet.passphrase == Passphrase::Opened
+            || (!self.wallet.is_encrypted() && self.wallet.passphrase == Passphrase::NotNeeded);
+        let mut ids: Vec<[u8; 32]> = self.needs.keys().copied().collect();
+        ids.sort();
+        for id in ids {
+            let missed: Vec<u32> = self.needs[&id]
+                .iter()
+                .map(|n| n.index)
+                .filter(|i| !self.compared.contains(&(id, *i)))
+                .collect();
+            if missed.is_empty() {
+                continue;
+            }
+            if checked {
+                for place in missed {
+                    let tail = [id.as_slice(), &place.to_le_bytes()].concat();
+                    self.fail("walletdescriptorlhcache", &tail, Fault::CacheUnchecked);
+                }
+            } else if let Some(&at) = self.at.get(&id) {
+                let listed = self.wallet.descriptors[at].listed.clone();
+                if key_facts(self.c, &listed).is_none() {
+                    self.fail("walletdescriptor", &id, Fault::CacheKey);
+                }
+            }
+        }
+    }
+
+    /// Fails each cached key of `id` that `matches` says is not the one
+    /// its master key gives.
+    fn cached_keys(&mut self, id: &[u8; 32], places: &[(u32, AccountCheck)], matches: &[bool]) {
+        for ((place, _), ok) in places.iter().zip(matches) {
+            self.compared.insert((*id, *place));
+            if !ok {
+                let tail = [id.as_slice(), &place.to_le_bytes()].concat();
+                self.fail("walletdescriptorlhcache", &tail, Fault::CacheKey);
+            }
+        }
+    }
+
     fn verdict(&mut self, name: &str, tail: &[u8], id: &[u8; 32], v: KeyVerdict, crypted: bool) {
         let fault = match v {
             KeyVerdict::Pass => {
@@ -956,8 +1114,11 @@ impl Reader<'_> {
 
     fn private_keys(&mut self, keys: &[KeyRecord]) {
         for (id, pubkey, value, tail) in keys {
-            let v = check_private_key(self.c, pubkey, value.clone());
+            let places = self.accounts(id, pubkey);
+            let checks: Vec<AccountCheck> = places.iter().map(|(_, a)| a.clone()).collect();
+            let (v, matches) = check_private_key_accounts(self.c, pubkey, value.clone(), &checks);
             self.verdict("walletdescriptorkey", tail, id, v, false);
+            self.cached_keys(id, &places, &matches);
         }
     }
 
@@ -987,15 +1148,27 @@ impl Reader<'_> {
         let (Some(passphrase), Some(mkey)) = (passphrase, mkey) else {
             return;
         };
+        let places: Vec<Vec<(u32, AccountCheck)>> = keys
+            .iter()
+            .map(|(id, pubkey, _, _)| self.accounts(id, pubkey))
+            .collect();
+        let checks: Vec<Vec<AccountCheck>> = places
+            .iter()
+            .map(|p| p.iter().map(|(_, a)| a.clone()).collect())
+            .collect();
         let list = keys
             .iter()
-            .map(|(_, pubkey, value, _)| (pubkey.as_slice(), value.as_slice()));
-        match check_encrypted_keys(self.c, mkey, passphrase, list) {
+            .zip(&checks)
+            .map(|((_, pubkey, value, _), c)| (pubkey.as_slice(), value.as_slice(), c.as_slice()));
+        match check_encrypted_keys_accounts(self.c, mkey, passphrase, list) {
             Ok(verdicts) => {
                 self.wallet.passphrase = Passphrase::Opened;
                 self.wallet.keys_unchecked = 0;
-                for ((id, _, _, tail), v) in keys.iter().zip(verdicts) {
+                for (((id, _, _, tail), (v, matches)), places) in
+                    keys.iter().zip(verdicts).zip(&places)
+                {
                     self.verdict(name, tail, id, v, true);
+                    self.cached_keys(id, places, &matches);
                 }
             }
             Err(OpenError::WrongPassphrase) => self.wallet.passphrase = Passphrase::Wrong,

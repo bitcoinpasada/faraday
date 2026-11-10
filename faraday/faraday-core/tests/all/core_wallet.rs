@@ -73,7 +73,8 @@ fn each_wallet_reads_as_core_lists_it() {
                 .find(|w| {
                     d["timestamp"].as_i64() == Some(w.creation_time)
                         && d["next_index"].as_i64().unwrap_or(0) == i64::from(w.next_index)
-                        && d["range"][1].as_i64().unwrap_or(-1) == i64::from(w.range_end) - 1
+                        && d["range"].as_array().map(|r| r[1].as_i64())
+                            == w.range.map(|r| Some(i64::from(r.1)))
                         && bare(text).len() >= 4
                         && w.text.split('(').next() == text.split('(').next()
                 })
@@ -402,7 +403,8 @@ fn a_wallet_dat_read_whole_gives_what_core_lists() {
                 wallet.descriptors.iter().any(|w| {
                     d["timestamp"].as_i64() == Some(w.creation_time)
                         && d["next_index"].as_i64().unwrap_or(0) == i64::from(w.next_index)
-                        && d["range"][1].as_i64().unwrap_or(-1) == i64::from(w.range_end) - 1
+                        && d["range"].as_array().map(|r| r[1].as_i64())
+                            == w.range.map(|r| Some(i64::from(r.1)))
                 }),
                 "{name}: {}",
                 d["desc"]
@@ -538,4 +540,272 @@ fn unknown_types_with_short_names_past_the_cap_are_counted_not_kept() {
     assert!(wallet.is_whole());
     assert_eq!(wallet.unknown.len(), 256);
     assert_eq!(wallet.unknown_more, 300 - 256);
+}
+
+/// The descriptors Core's `listdescriptors` gives without private keys,
+/// sorted.
+fn core_public(name: &str) -> Vec<String> {
+    let (_, _, core) = dump(name);
+    let mut out: Vec<String> = core["listdescriptors_public"]["descriptors"]
+        .as_array()
+        .expect("list")
+        .iter()
+        .map(|d| d["desc"].as_str().expect("desc").to_string())
+        .collect();
+    out.sort();
+    out
+}
+
+fn listed(wallet: &Wallet) -> Vec<String> {
+    let mut out: Vec<String> = wallet
+        .descriptors
+        .iter()
+        .map(|d| d.listed.clone())
+        .collect();
+    out.sort();
+    out
+}
+
+#[test]
+fn each_descriptor_is_listed_with_its_origin_and_account_key_as_core_lists_it() {
+    for name in [
+        "plain",
+        "encrypted",
+        "watchonly",
+        "blank",
+        "labels",
+        "imported",
+        "uncompressed",
+        "multisig",
+    ] {
+        let wallet = load(name, Some("faraday"));
+        assert!(wallet.is_whole(), "{name}: {:?}", wallet.failures);
+        assert_eq!(listed(&wallet), core_public(name), "{name}");
+    }
+    // An encrypted wallet without its passphrase still gives them.
+    let locked = load("encrypted", None);
+    assert_eq!(locked.passphrase, Passphrase::NotGiven);
+    assert_eq!(listed(&locked), core_public("encrypted"));
+    // A file's descriptors are the same as the dump's.
+    let file = whole_file(&dat("plain"), &[], None).expect("plain");
+    assert_eq!(listed(&file), core_public("plain"));
+}
+
+fn cache_record(records: &mut Records) -> &mut (Vec<u8>, Vec<u8>) {
+    records
+        .iter_mut()
+        .find(|(k, _)| k.get(1..=23) == Some(b"walletdescriptorlhcache".as_slice()))
+        .expect("a cache record")
+}
+
+#[test]
+fn a_changed_cached_account_key_fails_where_the_keys_are_checked() {
+    for (name, passphrase) in [("plain", None), ("encrypted", Some("faraday"))] {
+        // A changed chain code and a changed public key.
+        for at in [20, 60] {
+            let wallet = read_with(name, passphrase, |records| {
+                cache_record(records).1[at] ^= 1;
+            });
+            assert!(
+                failed(&wallet, "walletdescriptorlhcache", Fault::CacheKey),
+                "{name} {at}"
+            );
+            assert!(!wallet.is_whole(), "{name} {at}");
+        }
+    }
+    // Not checked, the cached key is taken as it is: the wallet reads
+    // whole and lists the changed key.
+    let taken = read_with("encrypted", None, |records| {
+        cache_record(records).1[20] ^= 1;
+    });
+    assert!(taken.is_whole(), "{:?}", taken.failures);
+    assert_ne!(listed(&taken), core_public("encrypted"));
+}
+
+#[test]
+fn a_descriptor_whose_account_key_is_not_in_the_file_is_refused_and_named() {
+    let wallet = read_with("plain", None, |records| {
+        let key = cache_record(records).0.clone();
+        records.retain(|(k, _)| *k != key);
+    });
+    assert!(failed(&wallet, "walletdescriptor ", Fault::CacheMissing));
+    assert!(!wallet.is_whole());
+    assert_eq!(wallet.descriptors.len(), 7);
+    // A descriptor with its origin needs no cached key.
+    let watch = read_with("watchonly", None, |records| {
+        records.retain(|(k, _)| k.get(1..=23) != Some(b"walletdescriptorlhcache".as_slice()));
+    });
+    assert!(watch.is_whole(), "{:?}", watch.failures);
+    assert_eq!(listed(&watch), core_public("watchonly"));
+}
+
+#[test]
+fn a_cached_key_no_key_record_checks_fails_where_the_keys_are_checked() {
+    let drop_keys = |records: &mut Records| {
+        records.retain(|(k, _)| k.get(1..=19) != Some(b"walletdescriptorkey".as_slice()));
+    };
+    let wallet = read_with("plain", None, drop_keys);
+    assert!(failed(
+        &wallet,
+        "walletdescriptorlhcache",
+        Fault::CacheUnchecked
+    ));
+    assert!(!wallet.is_whole());
+    // An unencrypted watch-only wallet counts as checked, so a cached key with
+    // no key record would fail CacheUnchecked; this fixture has no cached
+    // keys, so it stays whole. It is not a test of that refusal.
+    let watch = read_with("watchonly", None, drop_keys);
+    assert!(watch.is_whole(), "{:?}", watch.failures);
+    // The bit that says the wallet holds no private keys is no way past it.
+    let flagged = read_with("plain", None, |records| {
+        drop_keys(records);
+        let flags = records
+            .iter_mut()
+            .find(|(k, _)| k.get(1..6) == Some(b"flags".as_slice()))
+            .expect("flags");
+        flags.1[4] |= 1;
+    });
+    assert!(failed(
+        &flagged,
+        "walletdescriptorlhcache",
+        Fault::CacheUnchecked
+    ));
+    assert!(!flagged.is_whole());
+}
+
+#[test]
+fn a_descriptor_of_two_master_keys_with_one_key_record_fails() {
+    let whole = load("multisig", None);
+    assert!(whole.is_whole(), "{:?}", whole.failures);
+    // The second key of the 2-of-2 is another master key, which has no key record.
+    let tpub = |records: &Records| -> Vec<u8> {
+        let (_, v) = record_of(records, "walletdescriptor");
+        let at = v.windows(4).position(|w| w == b"tpub").expect("tpub");
+        v[at..at + 111].to_vec()
+    };
+    let other = tpub(&dump("plain").1);
+    let wallet = read_with("multisig", None, |records| {
+        let root = tpub(records);
+        let mut renamed = None;
+        for (k, v) in records.iter_mut() {
+            let named = k.get(1..=16) == Some(b"walletdescriptor".as_slice());
+            if !named || k[0] != 16 || !v.windows(6).any(|w| w == b"multi(") {
+                continue;
+            }
+            let at = v.windows(111).rposition(|w| w == root).expect("root");
+            v[at..at + 111].copy_from_slice(&other);
+            // The text ends in its checksum, which is made again.
+            let start = v.windows(4).position(|w| w == b"wsh(").expect("text");
+            let hash = at + v[at..].iter().position(|b| *b == b'#').expect("checksum");
+            let sum = faraday_bip::descriptor::descriptor_checksum(
+                std::str::from_utf8(&v[start..hash]).expect("text"),
+            )
+            .expect("checksum");
+            v[hash + 1..hash + 9].copy_from_slice(&sum);
+            // Its id is the hash of the text, and every record of it is named by the id.
+            // (the hash is of the text with apostrophes for hardened steps).
+            let mut compat = std::str::from_utf8(&v[start..hash])
+                .expect("text")
+                .replace("h/", "'/")
+                .replace("h]", "']");
+            let apostrophes = faraday_bip::descriptor::descriptor_checksum(&compat).expect("sum");
+            compat.push('#');
+            compat.push_str(std::str::from_utf8(&apostrophes).expect("sum"));
+            let new = faraday_crypto::sha256(compat.as_bytes());
+            let old: [u8; 32] = k[17..49].try_into().expect("id");
+            renamed = Some((old, new));
+        }
+        let (old, new) = renamed.expect("the descriptor");
+        for (k, _) in records.iter_mut() {
+            let at = 1 + usize::from(k[0]);
+            if k.get(at..at + 32) == Some(old.as_slice()) && k[1..].starts_with(b"walletdescriptor")
+            {
+                k[at..at + 32].copy_from_slice(&new);
+            }
+        }
+    });
+    assert!(!wallet.is_whole());
+    assert!(
+        failed(&wallet, "walletdescriptorlhcache", Fault::CacheUnchecked),
+        "{:?}",
+        wallet.failures
+    );
+}
+
+#[test]
+fn a_cached_key_that_disagrees_with_its_path_or_the_curve_fails_where_keys_are_not_checked() {
+    // The depth of the cached key.
+    let deep = read_with("encrypted", None, |records| {
+        cache_record(records).1[1] ^= 1;
+    });
+    assert!(
+        failed(&deep, "walletdescriptor ", Fault::CacheKey),
+        "{:?}",
+        deep.failures
+    );
+    assert!(!deep.is_whole());
+    // The child number.
+    let child = read_with("encrypted", None, |records| {
+        cache_record(records).1[9] ^= 1;
+    });
+    assert!(
+        failed(&child, "walletdescriptor ", Fault::CacheKey),
+        "{:?}",
+        child.failures
+    );
+    // A key whose x is not on the curve: some value of the last byte is
+    // not, and every one that is not fails the descriptor.
+    let mut off = 0;
+    for last in 0..=255u8 {
+        let wallet = read_with("encrypted", None, |records| {
+            cache_record(records).1[74] = last;
+        });
+        if !wallet.is_whole() {
+            off += 1;
+            assert!(
+                failed(&wallet, "walletdescriptor ", Fault::CacheKey),
+                "{last}"
+            );
+        }
+    }
+    assert!(off > 0);
+}
+
+#[test]
+fn a_cache_record_that_is_not_the_shape_core_writes_fails_its_record() {
+    for edit in [
+        |r: &mut (Vec<u8>, Vec<u8>)| r.1.truncate(40),
+        |r: &mut (Vec<u8>, Vec<u8>)| r.1.push(0),
+        |r: &mut (Vec<u8>, Vec<u8>)| r.1[42] = 7,
+        |r: &mut (Vec<u8>, Vec<u8>)| {
+            r.0.pop();
+        },
+    ] {
+        let wallet = read_with("plain", None, |records| edit(cache_record(records)));
+        assert!(
+            failed(&wallet, "walletdescriptorlhcache", Fault::Layout),
+            "{:?}",
+            wallet.failures
+        );
+        assert!(!wallet.is_whole());
+    }
+    // A cache record of a descriptor the file does not hold.
+    let stray = read_with("plain", None, |records| {
+        let mut again = cache_record(records).clone();
+        again.0[29] ^= 1;
+        records.push(again);
+    });
+    assert!(failed(&stray, "walletdescriptorlhcache", Fault::NotHeld));
+}
+
+#[test]
+fn a_descriptor_that_is_not_ranged_has_no_range() {
+    let wallet = load("uncompressed", None);
+    let single = wallet
+        .descriptors
+        .iter()
+        .find(|d| d.text.starts_with("pkh([d34db33f"))
+        .expect("the imported key");
+    assert_eq!(single.range, None);
+    assert!(wallet.descriptors.iter().any(|d| d.range.is_some()));
 }

@@ -31,14 +31,13 @@ itself: the pinned `bitcoind` on regtest, offline (`core_node.py`).
   tree reaches, are each refused by both.
 
 Known differences, each checked to still hold and counted: see
-`KNOWN` below; each is asked of Core directly in the prelude.
+`KNOWN` below; each is made in `directed()` and asked of Core.
 """
 
 import http.client
 import json
 import os
 import pathlib
-import re
 import shutil
 import sqlite3
 
@@ -47,14 +46,38 @@ from common import ROOT, Area, Mismatch, reference
 
 VECTORS = ROOT / "tools" / "vectors" / "core-wallet"
 PASSPHRASE = "faraday"
-SHAPES = ("plain", "encrypted", "watchonly", "blank", "labels", "imported", "uncompressed")
+SHAPES = ("plain", "encrypted", "watchonly", "blank", "labels", "imported", "uncompressed",
+          "multisig")
 DISABLE_PRIVATE_KEYS = 1 << 32
 B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 # Where Core loads a file and Faraday does not call it whole, the record's
 # type and the fault Faraday names, with why Core does not see it. Each is
-# made in the prelude and asked of Core.
-KNOWN = {}
+# made in `directed()` and asked of Core.
+KNOWN = {
+    ("flags", "UnknownFlags"): "Core loads a wallet whose flags hold a bit set beyond the ones "
+                               "it names; Faraday does not call such a wallet whole",
+    ("file", "NotDescriptors"): "Core loads a wallet with no flags record and no descriptors "
+                                "(a blank one whose flags record is gone) as an empty wallet; "
+                                "Faraday refuses a file whose flags lack descriptors",
+    ("walletdescriptor", "CacheMissing"): "Core derives the account key from the private key it "
+                                          "holds where its cache record is gone; Faraday states "
+                                          "only what the file holds",
+    ("walletdescriptorlhcache", "CacheKey"): "Core lists the cached account key it loads "
+                                             "without deriving it from the master key; "
+                                             "Faraday checks it",
+    ("walletdescriptor", "CacheKey"): "Core lists the cached account key it loads without "
+                                      "comparing its depth, child number or parent fingerprint "
+                                      "with the path beside it; Faraday refuses the descriptor",
+    ("walletdescriptorlhcache", "CacheUnchecked"): "Core loads a private-key wallet whose "
+                                                   "descriptor lacks its master key's record; "
+                                                   "Faraday has no key to check the cached "
+                                                   "account key with and does not call it whole",
+    ("walletdescriptorlhcache", "Layout"): "Core loads a cache record whose public key does not "
+                                           "start with 02 or 03, taking the key as invalid; "
+                                           "Faraday refuses a record that is not the 74-byte "
+                                           "vector of a compressed key that it writes",
+}
 # Where Faraday calls a file whole and Core's loadwallet refuses it, the
 # record type changed (by a dropped record or a flipped byte) and why
 # Faraday does not see it: Faraday counts these records and does not read
@@ -77,11 +100,6 @@ def record_type(key_hex):
     return key[1:1 + key[0]].decode("latin-1") if key else ""
 
 
-def norm(text):
-    """A descriptor as text without its checksum, hardened steps as `'`."""
-    return re.sub(r"(\d)h(?=[/\])])", r"\1'", text.split("#")[0])
-
-
 def wif_uncompressed(key):
     """A regtest WIF of `key` (32 bytes) for an uncompressed public key."""
     import hashlib
@@ -95,40 +113,44 @@ def wif_uncompressed(key):
     return "1" * (len(raw) - len(raw.lstrip(b"\0"))) + out
 
 
-def kind(text):
-    """The script functions of a descriptor, outermost first: `sh,wpkh`."""
-    return ",".join(re.findall(r"[a-z_]+(?=\()", text.split("#")[0]))
+def multisig_descriptors(rpc, source):
+    """Costs a few RPC calls: the descriptors of the `multisig` shape, made
+    from `source`'s master key (a wallet of Core's with private keys):
+    a 2-of-2 whose keys are one `[fingerprint/48h/1h]tprv.../0h/2h/0/*`, an
+    origin and further hardened steps, and one bare master key with hardened
+    steps; and a miniscript with a hash before a key. Each with its checksum."""
+    import re
+    master = source.gethdkeys({"private": True})[0]["xprv"]
+    fp = re.search(r"\[([0-9a-f]{8})/", source.listdescriptors()["descriptors"][0]["desc"])[1]
+    a = f"[{fp}/48h/1h]{master}/0h/2h/0/*"
+    b = f"{master}/48h/1h/0h/2h/0/*"
+    h = "ab" * 32
+    texts = [f"wsh(multi(2,{a},{b}))", f"wsh(and_v(v:sha256({h}),pk({b})))"]
+    return [t + "#" + rpc.getdescriptorinfo(t)["checksum"] for t in texts]
 
 
-def shown(text, whole):
-    """What is compared of a descriptor's text: the whole of it where Core
-    keeps what was imported, else its script functions (Core lists a
-    descriptor of its own master key with the key at the account and its
-    origin, which Faraday does not rewrite)."""
-    return norm(text) if whole else kind(text)
-
-
-def core_listing(entries, with_text):
-    """Core's `listdescriptors` as the view both sides are compared in; with
-    not `with_text`, the script functions only."""
+def core_listing(entries):
+    """Core's `listdescriptors` as the view both sides are compared in:
+    the text with its checksum, the time, which is active and of which
+    chain, the last index of the range and the next, for a ranged one."""
     out = []
     for d in entries:
         ranged = "range" in d
         active = bool(d.get("active"))
-        out.append((shown(d["desc"], with_text), d["timestamp"], active,
+        out.append((d["desc"], d["timestamp"], active,
                     d.get("internal") if active else None,
                     d["range"][1] if ranged else None,
                     d.get("next_index", d.get("next")) if ranged else None))
     return sorted(out, key=repr)
 
 
-def faraday_listing(descriptors, with_text):
+def faraday_listing(descriptors):
     out = []
     for d in descriptors:
-        ranged = d["range_end"] > 0
-        out.append((shown(d["text"], with_text), d["timestamp"], d["active"],
+        ranged = d["range"] is not None
+        out.append((d["listed"], d["timestamp"], d["active"],
                     d["internal"] if d["active"] else None,
-                    d["range_end"] - 1 if ranged else None,
+                    d["range"][1] if ranged else None,
                     d["next_index"] if ranged else None))
     return sorted(out, key=repr)
 
@@ -161,18 +183,19 @@ class CoreWallet(Area):
         "encrypted, with what Core said of them"
     )
     corpus = (
-        "fresh wallets of seven shapes (plain, encrypted, watch-only, blank, with labels, "
-        "with an imported descriptor, with an imported uncompressed key), with and without "
+        "fresh wallets of eight shapes (plain, encrypted, watch-only, blank, with labels, "
+        "with an imported descriptor, with an imported uncompressed key, with imported "
+        "multisig and miniscript descriptors of keys with an origin and further hardened "
+        "steps, a bare master key with hardened steps, and a hash before a key), with and without "
         "a transaction, each read with the right passphrase, a wrong one and none; and the "
         "same files with a byte flipped in a record, a record dropped or pages cut off"
     )
     differences = [
         (
-            "Core lists a descriptor of its own master key with the key at the account and "
-            "its origin; the file stores it with the master key and the path, which Faraday "
-            "states as stored. The area compares the script functions of each descriptor "
-            "(`sh(wpkh(...))`) and, for a watch-only wallet whose descriptors were imported "
-            "as Core lists them, the whole text with hardened steps as `'`."
+            "Faraday gives each descriptor as Core lists it (the account key from the "
+            "`walletdescriptorlhcache` records, the master key's fingerprint and the hardened "
+            "path as the origin, checksum included), and the area compares that whole text, "
+            "with Core's `listdescriptors` without private keys, for every shape."
         ),
         (
             "Faraday checks what Core does not look at when it loads a wallet: a private "
@@ -185,9 +208,8 @@ class CoreWallet(Area):
             "Core runs SQLite's integrity check when it loads a wallet and refuses a file "
             "in which a record's key was changed (the unique index beside the table still "
             "holds the old key), and refuses one whose `walletdescriptorcache` record was "
-            "dropped; Faraday reads the table only and counts the cache records without "
-            "reading them, so it reads such a file whole when the changed key is still a "
-            "record it accepts. Each is asked of Core in the prelude."
+            "dropped; Faraday reads the table only, so it reads such a file whole when the "
+            "changed key is still a record it accepts. Each is asked of Core in the prelude."
         ),
         (
             "Faraday refuses a wallet of another network than its mode and a file with a "
@@ -211,7 +233,7 @@ class CoreWallet(Area):
         and what Core says of it. Returns (path of wallet.dat, facts)."""
         rpc = core_node.rpc()
         disable = shape == "watchonly"
-        blank = shape in ("blank", "watchonly")
+        blank = shape in ("blank", "watchonly", "multisig")
         rpc.createwallet(name, disable, blank, PASSPHRASE if shape == "encrypted" else "",
                          False, True, False)
         w = core_node._wallet_client(name)
@@ -238,6 +260,15 @@ class CoreWallet(Area):
             text += "#" + rpc.getdescriptorinfo(text)["checksum"]
             done = w.importdescriptors([{"desc": text, "timestamp": "now", "active": False}])
             assert done[0]["success"], done
+        if shape == "multisig":
+            src = name + "-src"
+            rpc.createwallet(src, False, False, "", False, True, False)
+            texts = multisig_descriptors(rpc, core_node._wallet_client(src))
+            done = w.importdescriptors([
+                {"desc": t, "timestamp": "now", "active": False, "range": [0, 10]}
+                for t in texts])
+            assert all(r["success"] for r in done), done
+            core_node.drop_wallet(src)
         if shape == "labels":
             for label in ("savings", "rent"):
                 w.getnewaddress(label)
@@ -338,12 +369,10 @@ class CoreWallet(Area):
                 "descriptors": True,
             }
 
-        whole_text = shape == "watchonly"
-
         def listing(v):
-            return faraday_listing(v["descriptors"], whole_text)
+            return faraday_listing(v["descriptors"])
 
-        want_list = core_listing(facts["pub"], whole_text)
+        want_list = core_listing(facts["pub"])
         # The right passphrase (or none needed).
         right = PASSPHRASE if encrypted else None
         v = need(ask(right), facts_of, "Faraday did not read a wallet Core made")
@@ -387,24 +416,25 @@ class CoreWallet(Area):
             got = self.rust.call("core_wallet.read", db=data.hex(),
                                  **({"passphrase": PASSPHRASE} if encrypted else {}))
             self.compared += 1
-            want_list = core_listing(core["listdescriptors"]["descriptors"], False)
+            want_list = core_listing(core["listdescriptors_public"]["descriptors"])
             inputs = {"vector": name}
             if got[0] != "ok":
                 raise Mismatch(self.name, "core_wallet.read", inputs, got, want_list)
             v = got[1]
             info = core["getwalletinfo"]
-            if (faraday_listing(v["descriptors"], False) != want_list or not v["whole"]
+            if (faraday_listing(v["descriptors"]) != want_list or not v["whole"]
                     or v["encrypted"] != encrypted or v["tx_count"] != info["txcount"]
                     or v["with_private_keys"] != len(want_list)
                     or v["flags"] & DISABLE_PRIVATE_KEYS):
                 raise Mismatch(self.name, "core_wallet.read", inputs,
-                               faraday_listing(v["descriptors"], False), want_list,
+                               faraday_listing(v["descriptors"]), want_list,
                                "the vector wallet differs from what Core said of it")
         self.directed()
 
     def directed(self):
         """Each listed difference, made and asked of Core, still holds."""
         self.directed_index()
+        self.directed_known()
         self.directed_outside_records()
         for record, why in LENIENT.items():
             for shape in ("plain", "watchonly"):
@@ -427,6 +457,70 @@ class CoreWallet(Area):
                                    "shape": shape}, got[0], core[0],
                                    f"the listed difference no longer holds: {why}")
                 break
+
+    def directed_known(self):
+        """Each entry of KNOWN, made in a plain wallet Core made and asked
+        of Core: Core loads the file and Faraday names the record and the
+        fault and does not call it whole."""
+        facts = self.make("plain", "k-known", mine=False)
+        con = sqlite3.connect(":memory:", isolation_level=None)
+        con.deserialize(facts["file"])
+
+        def keys(record):
+            return [bytes(k) for (k,) in con.execute("SELECT key FROM main ORDER BY rowid")
+                    if record_type(k.hex()) == record]
+
+        def value(key):
+            return bytes(con.execute("SELECT value FROM main WHERE key = ?", (key,)).fetchone()[0])
+
+        def edit(key, new):
+            con.execute("UPDATE main SET value = ? WHERE key = ?", (new, key))
+
+        def flipped(raw, at):
+            raw = bytearray(raw)
+            raw[at] ^= 1
+            return bytes(raw)
+
+        original = con.serialize()
+        flags = keys("flags")[0]
+        cache = keys("walletdescriptorlhcache")[0]
+        cases = [
+            (("flags", "UnknownFlags"), lambda: edit(
+                flags, (int.from_bytes(value(flags), "little") | 1 << 5).to_bytes(8, "little"))),
+            (("walletdescriptor", "CacheMissing"), lambda: con.execute(
+                "DELETE FROM main WHERE key = ?", (cache,))),
+            # The value is a compact size, then the 74 bytes: the chain code
+            # starts at 10, the public key's prefix at 42, the depth at 1.
+            (("walletdescriptorlhcache", "CacheKey"), lambda: edit(
+                cache, flipped(value(cache), 20))),
+            (("walletdescriptor", "CacheKey"), lambda: edit(
+                cache, flipped(value(cache), 1))),
+            (("walletdescriptorlhcache", "Layout"), lambda: edit(
+                cache, value(cache)[:42] + b"\x05" + value(cache)[43:])),
+            (("walletdescriptorlhcache", "CacheUnchecked"), lambda: [
+                con.execute("DELETE FROM main WHERE key = ?", (k,))
+                for k in keys("walletdescriptorkey")]),
+        ]
+        blank = self.make("blank", "k-known-blank", mine=False)["file"]
+        cases.append((("file", "NotDescriptors"), lambda: (
+            con.deserialize(blank),
+            con.execute("DELETE FROM main WHERE key = ?", (keys("flags")[0],)))))
+        for known, make_change in cases:
+            con.deserialize(original)
+            make_change()
+            changed = con.serialize()
+            got = self.rust.call("core_wallet.read", db=changed.hex())
+            core = self.loads(changed, f"k-known-{known[1]}-{known[0]}")
+            said = ({(f[0].split(" ")[0], f[1]) for f in got[1]["failures"]}
+                    if got[0] == "ok" else {("file", got[1].split("(")[0])})
+            self.known += 1
+            if not ((got[0] == "err" or not got[1]["whole"]) and known in said
+                    and core[0] == "ok"):
+                raise Mismatch(self.name, "core_wallet.read", {"changed": known},
+                               [got[0], sorted(said)], core[0],
+                               "the listed difference no longer holds: Core loads the file "
+                               "and Faraday names the record and fault in KNOWN")
+        con.close()
 
     def directed_index(self):
         """A byte changed in a record's key that Faraday reads as another
@@ -540,7 +634,9 @@ class CoreWallet(Area):
                     and record_type(desc["record"]) in LENIENT):
                 self.known += 1
                 return
-            if core[0] == "err" and desc.get("in") == "key" and INDEX in core[1]:
+            if core[0] == "err" and desc.get("kind") == "flip" and INDEX in core[1]:
+                # The flipped bytes are a copy of a key (an id also sits in
+                # other records' values), found in the table, not the index.
                 self.known += 1
                 return
             if core[0] != "ok":
@@ -553,11 +649,11 @@ class CoreWallet(Area):
             def loose(rows):
                 return sorted(((r[0], r[1], r[2], r[3]) for r in rows), key=repr)
 
-            if (loose(faraday_listing(got[1]["descriptors"], False))
-                    != loose(core_listing(core[1], False))):
+            if (loose(faraday_listing(got[1]["descriptors"]))
+                    != loose(core_listing(core[1]))):
                 raise Mismatch(self.name, "core_wallet.read", inputs,
-                               faraday_listing(got[1]["descriptors"], False),
-                               core_listing(core[1], False),
+                               faraday_listing(got[1]["descriptors"]),
+                               core_listing(core[1]),
                                "Faraday and Core list different descriptors")
         elif core[0] == "ok":
             # Core loads it and Faraday does not call it whole.

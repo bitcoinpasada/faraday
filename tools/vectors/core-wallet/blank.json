@@ -15,10 +15,14 @@
   ],
   [
    "1262657374626c6f636b5f6e6f6d65726b6c65",
-   "8011010002bd7b60e92243645281c88c2f60133f7dad6705bd675c1e80c931ccb0c5c98a2f06226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f"
+   "8011010002245e420c8629526289dd197125d32d6cc80d51aaf319f8687740f0cccaadea4206226e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f"
   ]
  ],
  "listdescriptors": {
+  "wallet_name": "blank",
+  "descriptors": []
+ },
+ "listdescriptors_public": {
   "wallet_name": "blank",
   "descriptors": []
  },
@@ -41,7 +45,7 @@
    "descriptor_wallet"
   ],
   "lastprocessedblock": {
-   "hash": "2f8ac9c5b0cc31c9801e5c67bd0567ad7d3f13602f8cc88152644322e9607bbd",
+   "hash": "42eaadcaccf0407768f819f3aa510dc86c2dd3257119dd89625229860c425e24",
    "height": 1
   }
  }

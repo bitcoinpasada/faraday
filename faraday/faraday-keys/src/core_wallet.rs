@@ -23,6 +23,8 @@
 use aes::Aes256;
 use aes::cipher::inout::InOutBuf;
 use aes::cipher::{BlockModeDecrypt, KeyIvInit};
+use faraday_bip::bitcoin::NetworkKind;
+use faraday_bip::bitcoin::bip32::{ChainCode, ChildNumber, Fingerprint, Xpriv, Xpub};
 use faraday_bip::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, sha256, sha512};
@@ -76,6 +78,24 @@ const PUBKEY_LEN: usize = 33;
 const PUBKEY_LEN_UNCOMPRESSED: usize = 65;
 /// A key under AES-256-CBC: 32 bytes and a block of padding.
 const CRYPTED_LEN: usize = 48;
+
+/// The extended public key Bitcoin Core caches for a descriptor's last
+/// hardened step (`walletdescriptorlhcache`), to be checked against the
+/// master key it comes from.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AccountCheck {
+    /// The master key's depth, parent fingerprint and child number, as
+    /// the descriptor's extended key states them (9 bytes).
+    pub meta: [u8; 9],
+    /// The master key's chain code, from the descriptor's extended key.
+    pub chain_code: [u8; 32],
+    /// The hardened steps from the master key to the cached key, each
+    /// with bit 31 set.
+    pub path: Vec<u32>,
+    /// The cached key as Core serializes it: depth, parent fingerprint,
+    /// child number, chain code and compressed public key (74 bytes).
+    pub cached: [u8; 74],
+}
 
 /// What one key record comes to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -178,14 +198,88 @@ fn gives(c: &Compute, secret: &[u8], pubkey: &[u8]) -> KeyVerdict {
     }
 }
 
+/// Costs a derivation along its path for each account check (counted once for each), and
+/// an elliptic-curve multiplication for the public key: whether the 32
+/// bytes are a secret key giving `pubkey`, and for each of `accounts`
+/// whether the key derived along its path is the cached one. Only the
+/// verdicts leave; every key derived is wiped.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the derivations are counted by the token this function takes"
+)]
+fn gives_accounts(
+    c: &Compute,
+    secret: &[u8],
+    pubkey: &[u8],
+    accounts: &[AccountCheck],
+) -> (KeyVerdict, Vec<bool>) {
+    let verdict = gives(c, secret, pubkey);
+    if verdict != KeyVerdict::Pass || accounts.is_empty() {
+        return (verdict, Vec::new());
+    }
+    let Ok(mut key) = SecretKey::from_slice(secret) else {
+        return (KeyVerdict::Malformed, Vec::new());
+    };
+    let secp = Secp256k1::signing_only();
+    let matches = accounts
+        .iter()
+        .map(|a| {
+            c.count(faraday_crypto::work::Work::KeyDerive);
+            let [depth, f0, f1, f2, f3, n0, n1, n2, n3] = a.meta;
+            let mut node = Xpriv {
+                network: NetworkKind::Test,
+                depth,
+                parent_fingerprint: Fingerprint::from([f0, f1, f2, f3]),
+                child_number: ChildNumber::from(u32::from_be_bytes([n0, n1, n2, n3])),
+                private_key: key,
+                chain_code: ChainCode::from(a.chain_code),
+            };
+            let mut ok = true;
+            for &step in &a.path {
+                match node.derive_priv(&secp, &[ChildNumber::from(step)]) {
+                    Ok(next) => {
+                        node.private_key.non_secure_erase();
+                        node = next;
+                    }
+                    Err(_) => {
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            let same = ok && {
+                let public = Xpub::from_priv(&secp, &node).encode();
+                bool::from(public[4..].ct_eq(&a.cached[..]))
+            };
+            node.private_key.non_secure_erase();
+            same
+        })
+        .collect();
+    key.non_secure_erase();
+    (KeyVerdict::Pass, matches)
+}
+
 /// Costs an elliptic-curve multiplication and two hashes. A
 /// `walletdescriptorkey` record's `value` (the private key's DER as a
 /// vector, then the 32-byte hash of the public key and that DER) against
 /// the public key its record's key names (`pubkey`, the 33 or 65 bytes
 /// without their length), wiped when this returns.
 pub fn check_private_key(c: &Compute, pubkey: &[u8], value: Zeroizing<Vec<u8>>) -> KeyVerdict {
+    check_private_key_accounts(c, pubkey, value, &[]).0
+}
+
+/// Costs what [`check_private_key`] costs and a hardened derivation for
+/// each step of each account check: the verdict, and where it is a pass,
+/// whether each of `accounts` (cached account keys, derived from this
+/// key as the master key of the descriptor) is the key derived from it.
+pub fn check_private_key_accounts(
+    c: &Compute,
+    pubkey: &[u8],
+    value: Zeroizing<Vec<u8>>,
+    accounts: &[AccountCheck],
+) -> (KeyVerdict, Vec<bool>) {
     let Some((der, hash)) = vector(&value) else {
-        return KeyVerdict::Malformed;
+        return (KeyVerdict::Malformed, Vec::new());
     };
     // Where the key sits in the DER, by the public key's form.
     let key_at = match (pubkey.len(), der.len()) {
@@ -201,16 +295,16 @@ pub fn check_private_key(c: &Compute, pubkey: &[u8], value: Zeroizing<Vec<u8>>) 
         {
             9
         }
-        _ => return KeyVerdict::Malformed,
+        _ => return (KeyVerdict::Malformed, Vec::new()),
     };
     if hash.len() != 32 {
-        return KeyVerdict::Malformed;
+        return (KeyVerdict::Malformed, Vec::new());
     }
     let stored = hash256(&[pubkey, der]);
     if !bool::from(stored[..].ct_eq(hash)) {
-        return KeyVerdict::HashDiffers;
+        return (KeyVerdict::HashDiffers, Vec::new());
     }
-    gives(c, &der[key_at..key_at + 32], pubkey)
+    gives_accounts(c, &der[key_at..key_at + 32], pubkey, accounts)
 }
 
 /// Costs the master key's SHA-512 rounds (up to [`MAX_ROUNDS`]) and a
@@ -229,11 +323,33 @@ pub fn check_encrypted_keys<'a>(
     passphrase: &SecretText,
     keys: impl IntoIterator<Item = (&'a [u8], &'a [u8])>,
 ) -> Result<Vec<KeyVerdict>, OpenError> {
+    let keys = keys
+        .into_iter()
+        .map(|(pubkey, value)| (pubkey, value, &[][..]));
+    Ok(check_encrypted_keys_accounts(c, mkey, passphrase, keys)?
+        .into_iter()
+        .map(|(verdict, _)| verdict)
+        .collect())
+}
+
+/// Costs what [`check_encrypted_keys`] costs and a hardened derivation
+/// for each step of each account check: each key also carries the cached
+/// account keys (`&[AccountCheck]`) to check against it as the master
+/// key of their descriptor, and its answer is the verdict with whether
+/// each matched.
+pub fn check_encrypted_keys_accounts<'a>(
+    c: &Compute,
+    mkey: &[u8],
+    passphrase: &SecretText,
+    keys: impl IntoIterator<Item = (&'a [u8], &'a [u8], &'a [AccountCheck])>,
+) -> Result<Vec<(KeyVerdict, Vec<bool>)>, OpenError> {
     c.count(faraday_crypto::work::Work::Kdf);
     let master = open_master_key(mkey, passphrase.as_str().as_bytes())?;
     Ok(keys
         .into_iter()
-        .map(|(pubkey, value)| check_encrypted_key(c, master.expose(), pubkey, value))
+        .map(|(pubkey, value, accounts)| {
+            check_encrypted_key(c, master.expose(), pubkey, value, accounts)
+        })
         .collect())
 }
 
@@ -270,20 +386,26 @@ fn open_master_key(mkey: &[u8], passphrase: &[u8]) -> Result<Secret<[u8; 32]>, O
 
 /// Costs an elliptic-curve multiplication and two hashes: one
 /// `walletdescriptorckey` against its public key, under the master key.
-fn check_encrypted_key(c: &Compute, master: &[u8; 32], pubkey: &[u8], value: &[u8]) -> KeyVerdict {
+fn check_encrypted_key(
+    c: &Compute,
+    master: &[u8; 32],
+    pubkey: &[u8],
+    value: &[u8],
+    accounts: &[AccountCheck],
+) -> (KeyVerdict, Vec<bool>) {
     let Some((crypted, rest)) = vector(value) else {
-        return KeyVerdict::Malformed;
+        return (KeyVerdict::Malformed, Vec::new());
     };
     if !matches!(pubkey.len(), PUBKEY_LEN | PUBKEY_LEN_UNCOMPRESSED)
         || crypted.len() != CRYPTED_LEN
         || !rest.is_empty()
     {
-        return KeyVerdict::Malformed;
+        return (KeyVerdict::Malformed, Vec::new());
     }
     let iv = hash256(&[pubkey]);
     match decrypt(master, &iv[..16], crypted) {
-        Some(plain) => gives(c, &plain[..], pubkey),
-        None => KeyVerdict::Malformed,
+        Some(plain) => gives_accounts(c, &plain[..], pubkey, accounts),
+        None => (KeyVerdict::Malformed, Vec::new()),
     }
 }
 

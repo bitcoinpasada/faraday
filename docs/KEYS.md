@@ -331,7 +331,11 @@ impl Keys {
     passphrase, keys)` for an encrypted wallet's `walletdescriptorckey`
     records, opened with the master key the passphrase gives. Each key is
     wiped as it is checked and only a pass or a fail (`KeyVerdict`)
-    leaves, never the key; a wrong passphrase is `OpenError`. Costs the
+    leaves, never the key; a wrong passphrase is `OpenError`. The `_accounts`
+    forms (`check_private_key_accounts`, `check_encrypted_keys_accounts`)
+    also derive each cached account key (`AccountCheck`) along its hardened
+    path from the key and say whether it matches, wiping each step; one
+    hardened derivation per step. Costs the
     master key's rounds (at most 10,000,000), so both take the token.
     `faraday-core`'s `core_wallet::read` calls them.
 

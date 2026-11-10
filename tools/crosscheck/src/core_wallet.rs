@@ -39,9 +39,10 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                     let active = w.active.iter().find(|a| a.id == d.id);
                     json!({
                         "text": d.text,
+                        "listed": d.listed,
                         "timestamp": d.creation_time,
                         "next_index": d.next_index,
-                        "range_end": d.range_end,
+                        "range": d.range.map(|(first, last)| [first, last]),
                         "active": active.is_some(),
                         "internal": active.map(|a| a.internal),
                     })
