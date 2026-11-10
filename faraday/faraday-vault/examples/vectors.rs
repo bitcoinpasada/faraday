@@ -93,6 +93,9 @@ const XPUB: &str = "[73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7W
 const WORDS: &str =
     "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 const FP: [u8; 4] = [0x73, 0xc5, 0xda, 0x0a];
+/// The key the same words make with the passphrase "TREZOR": what a
+/// passphrase record names.
+const TREZOR_KEY: [u8; 4] = [0xb4, 0xe3, 0xf5, 0xed];
 const DER: &[u8] = &[0x30, 0x03, 0x02, 0x01, 0x01];
 /// An armor's kind, built so that no whole armor line of a secret key is
 /// written in the source.
@@ -225,11 +228,11 @@ fn every_kind() -> Vec<Item> {
         (
             Body::Record(
                 Record::new(kind::PASSPHRASE)
-                    .with(field::PASSPHRASE_KEY, &FP)
+                    .with(field::PASSPHRASE_KEY, &TREZOR_KEY)
                     .with(field::PASSPHRASE, b"TREZOR"),
             ),
             "Passphrases",
-            "Passphrase for 73c5da0a",
+            "Passphrase for b4e3f5ed",
         ),
         (
             Body::Record(

@@ -129,7 +129,7 @@ fn open_py_prints_every_item_under_its_name_with_the_values_pykeepass_reads() {
         "wallet_share (Wallet shares) ",
         "  Title: Family\n  Password: share text\n  index: 1\n  of: 3\n",
         "passphrase (Passphrases) ",
-        "  Title: Passphrase for 73c5da0a\n  Password: TREZOR\n  for: 73c5da0a\n",
+        "  Title: Passphrase for b4e3f5ed\n  Password: TREZOR\n  for: b4e3f5ed\n",
         "share (Codex32 shares) ",
         "  Password: ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn\n  for: fab6868a\n",
         "entry 0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c\n",
