@@ -7942,6 +7942,9 @@ functions = [
   "faraday/faraday-vault/src/kdbx/xml/mod.rs::fuzz_document",
   "faraday/faraday-vault/src/kdbx/xml/read.rs::Rd::open_secret",
   "faraday/faraday-vault/src/kdbx/xml/mod.rs::W::secret",
+  "faraday/faraday-vault/src/kdbx/keyfile.rs::write",
+  "faraday/faraday-keys/src/job.rs::Stretched::key_file_document",
+  "faraday/faraday-keys/src/vault.rs::OpenVaults::key_file_document",
 ]
 code = [
   "faraday/faraday-vault/src/kdbx/mod.rs::open",
