@@ -1283,3 +1283,62 @@ fn the_identifiers_continue_takes_no_press_and_reads_disabled_until_it_is_whole(
         assert_eq!(open(&app), Some(Card::Entropy), "{w}x{h}: it goes on");
     }
 }
+
+/// On the Identifier card of a new Make codex32 shares, `typed` entered:
+/// whether Continue takes a press, and whether `line` is drawn.
+fn identifier_typed(app: &mut Faraday, typed: &str, line: &str) -> (bool, bool) {
+    app.press(Action::ReduceMotion(true));
+    opened(app);
+    c32(app, C32::Next);
+    for ch in typed.chars() {
+        key(app, ch);
+    }
+    let _ = app.frame();
+    let shown = !label_alphas(app, line).is_empty();
+    (app.offers(Action::Codex32(C32::Next)), shown)
+}
+
+#[test]
+fn an_identifier_the_set_of_a_loaded_key_carries_is_refused_naming_the_key() {
+    let (all, _) = vector2();
+    let mut app = on(1366, 768, 160);
+    opened(&mut app);
+    to_entry(&mut app, Way::Typed);
+    for s in &all[..2] {
+        for &ch in &s.as_bytes()[9..35] {
+            key(&mut app, char::from(ch));
+            let _ = app.frame();
+        }
+    }
+    c32(&mut app, C32::Next);
+    let _ = app.frame();
+    c32(&mut app, C32::Next);
+    for s in &all {
+        for ch in s[3..].chars() {
+            key(&mut app, ch);
+        }
+        let _ = app.frame();
+        c32(&mut app, C32::Next);
+    }
+    let _ = app.frame();
+    c32(&mut app, C32::Lock);
+    c32(&mut app, C32::Next);
+    assert_eq!(app.session.keys.len(), 1);
+    let line = format!("Used by the set of key {}", app.session.keys[0].fingerprint);
+    assert_eq!(identifier_typed(&mut app, "name", &line), (false, true));
+}
+
+#[test]
+fn an_identifier_a_record_of_an_open_vault_carries_is_refused_naming_the_vault() {
+    use crate::codex32_kept::{D, PHRASE, share_record, unlock_on_vaults, vault_of};
+    let mut app = crate::common::device(vec![(
+        "home.kdbx".into(),
+        vault_of(PHRASE, vec![share_record(D)], 7),
+    )]);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
+    let line = format!("Used in vault {}", app.vaults().open[0].name);
+    assert_eq!(identifier_typed(&mut app, "name", &line), (false, true));
+    // An identifier no set carries is taken.
+    let mut app = on(1366, 768, 160);
+    assert_eq!(identifier_typed(&mut app, "name", &line), (true, false));
+}

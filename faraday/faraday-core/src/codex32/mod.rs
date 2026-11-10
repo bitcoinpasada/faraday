@@ -2441,12 +2441,59 @@ impl Codex32Make {
     }
 }
 
-/// The identifiers the codex32 strings typed into Add a key's form
-/// carry, each with where (`docs/CODEX32.md` §6.4.5).
-pub(crate) fn taken(form: &[faraday_bip::codex32::Codex32]) -> Vec<([u8; 4], String)> {
-    form.iter()
-        .map(|s| (s.identifier(), EN.codex32_used_in_add_a_key.to_string()))
-        .collect()
+/// A lookup. The identifiers of every codex32 set on this device, each
+/// with where it is used (`docs/CODEX32.md` §6.4.5): the strings typed
+/// into Add a key's form, the set of each key loaded from codex32 in this
+/// session, the codex32 forms of the plan in hand and the codex32 share
+/// records of every open vault. Lower case.
+pub(crate) fn taken(
+    form: &[faraday_bip::codex32::Codex32],
+    keys: &faraday_keys::Keys,
+    plan: Option<&crate::plan::Answers>,
+    vaults: &crate::vault::VaultArea,
+) -> Vec<([u8; 4], String)> {
+    let lower = |id: [u8; 4]| id.map(|b| b.to_ascii_lowercase());
+    let mut out: Vec<([u8; 4], String)> = form
+        .iter()
+        .map(|s| {
+            (
+                lower(s.identifier()),
+                EN.codex32_used_in_add_a_key.to_string(),
+            )
+        })
+        .collect();
+    for i in 0..keys.len() {
+        let Some(info) = keys.info(i) else { continue };
+        if let Some(set) = &info.codex32 {
+            let line = fill(EN.codex32_used_by_key_set, &[&info.fingerprint.to_string()]);
+            out.push((lower(set.identifier), line));
+        }
+    }
+    if let Some(a) = plan {
+        for f in &a.codex32 {
+            out.push((lower(f.identifier), EN.codex32_used_in_plan.to_string()));
+        }
+    }
+    for open in &vaults.open {
+        for (_, r) in vaults
+            .records(open.id)
+            .of(faraday_vault::records::kind::CODEX32_SHARE)
+        {
+            if let Some((_, id, _)) = faraday_keys::vault::codex32_share_header(r) {
+                out.push((lower(id), fill(EN.codex32_used_in_vault, &[&open.name])));
+            }
+        }
+    }
+    out
+}
+
+/// A lookup. The identifiers of `taken`'s list, for a set drawn rather
+/// than typed.
+pub(crate) fn taken_ids(taken: &[([u8; 4], String)]) -> Vec<[u8; 4]> {
+    let mut ids: Vec<[u8; 4]> = taken.iter().map(|(id, _)| *id).collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
 }
 
 /// `v` moved by `d` within `lo..=hi`.

@@ -753,7 +753,7 @@ fn all(c: &Compute, keys: &Keys, why: Reveal) -> [Result<String, Convert>; 4] {
         text(keys.master_seed_hex(c, 0, why)),
         text(keys.master_xprv(c, 0, why)),
         text(keys.slip39_one_of_one(c, 0, why)),
-        keys.codex32_converted(c, 0, 0, 1, &[], why)
+        keys.codex32_converted(c, 0, 0, 1, (&[], &[]), why)
             .map(|h| h.release()[0].as_str().to_string()),
     ]
 }
@@ -828,7 +828,7 @@ fn a_codex32_set_of_a_key_recovers_the_same_wallet() {
     let want = keys.info(0).unwrap().fingerprint;
     let random: Vec<u8> = (0..R).map(|i| (i * 7 + 3) as u8).collect();
     let shares = keys
-        .codex32_converted(&c, 0, 2, 3, &random, Reveal::PaperForm)
+        .codex32_converted(&c, 0, 2, 3, (&random, &[]), Reveal::PaperForm)
         .unwrap()
         .release();
     assert_eq!(shares.len(), 3);
@@ -838,6 +838,31 @@ fn a_codex32_set_of_a_key_recovers_the_same_wallet() {
         let fresh = seed_key(&c, Network::Mainnet, &back);
         assert_eq!(fresh.info(0).unwrap().fingerprint, want);
     }
+}
+
+/// A codex32 set made for a key takes none of the identifiers other sets
+/// on the device carry, whatever the randomness drew.
+#[test]
+fn a_codex32_set_of_a_key_never_takes_an_identifier_already_taken() {
+    let c = compute();
+    let seed = unhex("ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100");
+    let keys = seed_key(&c, Network::Mainnet, &seed);
+    let random: Vec<u8> = (0..R).map(|i| (i * 7 + 3) as u8).collect();
+    let id_of = |taken: &[[u8; 4]]| {
+        let shares = keys
+            .codex32_converted(&c, 0, 2, 3, (&random, taken), Reveal::PaperForm)
+            .unwrap()
+            .release();
+        Codex32::parse(&shares[0])
+            .unwrap()
+            .identifier()
+            .map(|b| b.to_ascii_lowercase())
+    };
+    let first = id_of(&[]);
+    let second = id_of(&[first]);
+    assert_ne!(second, first);
+    let third = id_of(&[first, second]);
+    assert!(third != first && third != second);
 }
 
 /// A codex32 set of a key takes its identifier from the randomness: never
@@ -856,7 +881,7 @@ fn a_codex32_set_of_a_key_has_an_identifier_of_its_own_each_time() {
         let random: Vec<u8> = (0..faraday_keys::codex32_random_len(2))
             .map(|i| (i * 11 + base) as u8)
             .collect();
-        keys.codex32_converted(&c, 0, 2, 3, &random, Reveal::PaperForm)
+        keys.codex32_converted(&c, 0, 2, 3, (&random, &[]), Reveal::PaperForm)
             .map(|h| h.release())
     };
     let parse = |set: &[zeroize::Zeroizing<String>]| -> Vec<Codex32> {
@@ -887,7 +912,7 @@ fn a_codex32_set_of_a_key_has_an_identifier_of_its_own_each_time() {
     assert_ne!(again[0].identifier(), own);
     // The secret alone is fixed by the fingerprint and draws nothing.
     let alone = keys
-        .codex32_converted(&c, 0, 0, 1, &[], Reveal::PaperForm)
+        .codex32_converted(&c, 0, 0, 1, (&[], &[]), Reveal::PaperForm)
         .unwrap()
         .release();
     assert_eq!(Codex32::parse(&alone[0]).unwrap().identifier(), own);
@@ -895,7 +920,7 @@ fn a_codex32_set_of_a_key_has_an_identifier_of_its_own_each_time() {
     // A 16-byte seed's share takes its symbols, then four for the identifier.
     let short = vec![1u8; faraday_bip::codex32::symbols_for(16) + 3];
     assert_eq!(
-        keys.codex32_converted(&c, 0, 2, 3, &short, Reveal::PaperForm)
+        keys.codex32_converted(&c, 0, 2, 3, (&short, &[]), Reveal::PaperForm)
             .map(|h| h.release()),
         Err(Convert::Refused)
     );
@@ -1426,7 +1451,7 @@ mod aezeed_source {
             &entropy[..]
         );
         let codex = keys
-            .codex32_converted(&c, i, 0, 1, &[], why)
+            .codex32_converted(&c, i, 0, 1, (&[], &[]), why)
             .unwrap()
             .release();
         assert_eq!(codex[0].len(), 48);

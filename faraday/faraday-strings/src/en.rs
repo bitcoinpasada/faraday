@@ -11619,6 +11619,15 @@ strings! {
     codex32_four_characters: "Four characters",
     /// Where an identifier is already used: the codex32 strings in Add a key.
     codex32_used_in_add_a_key: "Used by the strings typed in Add a key",
+    /// Where an identifier is already used: the set of a key loaded from
+    /// codex32 in this session. `{}`: the key's fingerprint.
+    codex32_used_by_key_set: "Used by the set of key {}",
+    /// Where an identifier is already used: a codex32 record of an open
+    /// vault. `{}`: the vault's name.
+    codex32_used_in_vault: "Used in vault {}",
+    /// Where an identifier is already used: a codex32 form of the plan in
+    /// hand.
+    codex32_used_in_plan: "Used in this backup plan",
     /// The Entropy card's Choice: dice.
     codex32_roll_dice: "Roll dice",
     /// The Entropy card's Choice: characters typed.

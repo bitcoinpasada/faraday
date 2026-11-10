@@ -1171,7 +1171,12 @@ impl crate::Faraday {
             let m = crate::codex32::Codex32Make::with_scheme(
                 sk,
                 sn,
-                crate::codex32::taken(&k.entry_kept.parts.codex32),
+                crate::codex32::taken(
+                    &k.entry_kept.parts.codex32,
+                    &self.session.keys,
+                    self.backup.state().map(|b| &b.answers),
+                    &self.vaults,
+                ),
             );
             k.codex32 = Some(self.codex32_here(m));
         }
@@ -1296,7 +1301,12 @@ impl crate::Faraday {
                 k.set_slip39(start == Start::MakeShares);
             }
             let fresh = (start == Start::MakeCodex32).then(|| {
-                crate::codex32::Codex32Make::new(crate::codex32::taken(&k.entry_kept.parts.codex32))
+                crate::codex32::Codex32Make::new(crate::codex32::taken(
+                    &k.entry_kept.parts.codex32,
+                    &self.session.keys,
+                    self.backup.state().map(|b| &b.answers),
+                    &self.vaults,
+                ))
             });
             // What was typed for another choice goes.
             let mut e = crate::EntryState::default();

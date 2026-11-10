@@ -1209,6 +1209,14 @@ fn make(app: &mut Faraday, target: Target) {
     };
     let c = app.compute();
     let keys = &app.session.keys;
+    // The identifiers other sets on this device carry: a codex32 set made
+    // here draws one that is none of them.
+    let taken_ids = crate::codex32::taken_ids(&crate::codex32::taken(
+        &[],
+        keys,
+        app.backup.state().map(|b| &b.answers),
+        &app.vaults,
+    ));
     let why = Reveal::PaperForm;
     let written = |form| keys.words_written(&c, i, form, why).map(Value::Text);
     let code = |compact| {
@@ -1235,7 +1243,7 @@ fn make(app: &mut Faraday, target: Target) {
             .slip39_converted(&c, i, slip_t, &groups, &random, why)
             .map(Value::Set),
         Target::Codex32 => keys
-            .codex32_converted(&c, i, k, n, &random, why)
+            .codex32_converted(&c, i, k, n, (&random, &taken_ids), why)
             .map(Value::Set),
     };
     let Some(info) = keys.source_info(i) else {

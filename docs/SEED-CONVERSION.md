@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: SLIP-39's set functions in `faraday-bip` (§8); the fixed 1 of 1 (§4.4) and its cross-checks; the conversions in `faraday-keys`; Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6); SLIP-39 k of n and groups on the same card and result (§6); an LND aezeed as a source (§4.5, §6): From's row **An LND aezeed** opens the Lightning screen's entry, read on the worker and held in `faraday-keys` (`Keys::aezeed_hold`), never as a key, with the rows of a 16-byte seed and its Birthday, Paths and channels facts; the flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's; the SLIP-39 set actions on the screen (§8): From's row **A SLIP-39 set**, shares typed one at a time and held in `faraday-keys` (`Keys::slip39_set_hold`), To's Add a share, Replace a lost share and Rotate the set, their Settings and Result; Practice (§7: a public seed's own spellings, the one-to-one conversions and LND's published aezeed open, every split refused, each with a test), Learn's section on converting (`docs/learn/18-other-backups.md`), DESIGN §5's row and the guide's picture of Result (`docs/guide/screens/convert.md`)
-**Open:** the codex32 row opening the backup's set actions for a key with a plan, a copy scanned back in Check my copy (it is typed back), and refusing an identifier another set on this device carries (§6)
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: SLIP-39's set functions in `faraday-bip` (§8); the fixed 1 of 1 (§4.4) and its cross-checks; the conversions in `faraday-keys`; Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6), a codex32 set's drawn identifier never one another set on this device carries (§6); SLIP-39 k of n and groups on the same card and result (§6); an LND aezeed as a source (§4.5, §6): From's row **An LND aezeed** opens the Lightning screen's entry, read on the worker and held in `faraday-keys` (`Keys::aezeed_hold`), never as a key, with the rows of a 16-byte seed and its Birthday, Paths and channels facts; the flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's; the SLIP-39 set actions on the screen (§8): From's row **A SLIP-39 set**, shares typed one at a time and held in `faraday-keys` (`Keys::slip39_set_hold`), To's Add a share, Replace a lost share and Rotate the set, their Settings and Result; Practice (§7: a public seed's own spellings, the one-to-one conversions and LND's published aezeed open, every split refused, each with a test), Learn's section on converting (`docs/learn/18-other-backups.md`), DESIGN §5's row and the guide's picture of Result (`docs/guide/screens/convert.md`)
+**Open:** the codex32 row opening the backup's set actions for a key with a plan, and a copy scanned back in Check my copy (it is typed back)
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -275,9 +275,11 @@ given it. A codex32 set (k above 0) draws its identifier from the
 randomness, so each Make is a new set, never `identifier_for` the
 fingerprint nor the key's own set's (shares of two sets of one header
 would otherwise combine into another seed with no error); the secret alone
-keeps `identifier_for`. Not built: refusing an identifier another set on
-this device carries (`docs/CODEX32.md` §6.4.5), which needs the open vaults
-and Add a key's form, and a copy scanned back. The shown set is joined and
+keeps `identifier_for`. A drawn identifier is also none that another set
+on this device carries (`docs/CODEX32.md` §6.4.5: the set of a loaded
+key, the plan in hand, the open vaults and Add a key's form): a draw that
+lands on one is stepped on until it does not. Not built: a copy scanned
+back. The shown set is joined and
 numbered once, by the press that opens the eye, and held while it shows
 (F195).
 
@@ -307,8 +309,8 @@ on that key.
 3. **Settings** (where the target has any): k and n on Steppers
    (§4.2) for a split; groups on a Stepper with a threshold Stepper per
    group (SLIP-39); the length (codex32 48 or 74 where the seed allows);
-   for a new set, the identifier (codex32, typed as `docs/CODEX32.md`
-   §6.2 types it). A row that would draw randomness carries
+   for a new codex32 set, no identifier is asked: the set draws its own
+   (§6). A row that would draw randomness carries
    "Fresh randomness: Faraday's" as a Fact. Add and Replace: the group,
    where more than one has its quorum, and the share number (1 to 16) on a
    Stepper, the typed ones skipped; Add says the same number gives the

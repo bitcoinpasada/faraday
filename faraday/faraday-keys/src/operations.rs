@@ -106,13 +106,16 @@ const IDENTIFIER_LEN: usize = 4;
 
 /// A codex32 identifier drawn from `random`'s first four bytes, five bits
 /// of each, that is none of `avoid`: a draw that lands on one has its last
-/// character stepped on until it does not (two steps at most).
+/// character stepped on until it does not (a few steps, 32 at most).
 fn drawn_identifier(random: &[u8], avoid: &[[u8; 4]]) -> [u8; 4] {
     let mut id = [0u8; 4];
     for (c, b) in id.iter_mut().zip(random) {
         *c = codex32::CHARSET[usize::from(b & 31)];
     }
-    while avoid.contains(&id) {
+    for _ in 0..32 {
+        if !avoid.contains(&id) {
+            break;
+        }
         let at = codex32::CHARSET
             .iter()
             .position(|&c| c == id[3])
@@ -290,6 +293,22 @@ impl Keys {
         k: u8,
         n: u8,
         random: &[u8],
+        why: Reveal,
+    ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
+        self.codex32_shares_avoiding(i, k, n, random, &[], why)
+    }
+
+    /// [`Keys::codex32_shares`] where the set's drawn identifier is also
+    /// none of `taken`, the identifiers other sets on the device carry
+    /// (lower case): a draw that lands on one is stepped on as for the
+    /// key's own.
+    pub fn codex32_shares_avoiding(
+        &self,
+        i: usize,
+        k: u8,
+        n: u8,
+        random: &[u8],
+        taken: &[[u8; 4]],
         _why: Reveal,
     ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
         let s = self.source_secrets(i).ok_or(Paper::NoWords)?;
@@ -323,7 +342,10 @@ impl Keys {
             .source_info(i)
             .and_then(|k| k.codex32.as_ref())
             .map(|f| f.identifier);
-        let avoid: Vec<[u8; 4]> = std::iter::once(id).chain(own).collect();
+        let avoid: Vec<[u8; 4]> = std::iter::once(id)
+            .chain(own)
+            .chain(taken.iter().copied())
+            .collect();
         let id = drawn_identifier(drawn, &avoid);
         Codex32::from_seed(k, id, seed)
             .and_then(|secret| secret.split(k, n, fresh))
@@ -644,8 +666,8 @@ impl Keys {
     }
 
     /// Costs what [`Keys::codex32_shares`] costs and a master key.
-    /// [`Keys::codex32_shares`] for key `i` (`k` 0 and `n` 1 is the secret
-    /// itself), given only for `Reveal::PaperForm` and only when the set
+    /// [`Keys::codex32_shares_avoiding`] for key `i` (`k` 0 and `n` 1 is the secret
+    /// itself; the pair is the randomness and the identifiers taken), given only for `Reveal::PaperForm` and only when the set
     /// read back through codex32's decoder (every share parsed, and the
     /// first `k` and the last `k` each recovering the key, or the secret)
     /// gives the key's fingerprint. A key with words is refused
@@ -656,12 +678,12 @@ impl Keys {
         i: usize,
         k: u8,
         n: u8,
-        random: &[u8],
+        (random, taken): (&[u8], &[[u8; 4]]),
         why: Reveal,
     ) -> Result<Held<Vec<Zeroizing<String>>>, Convert> {
         let s = self.convert_source(i, why)?;
         let shares = self
-            .codex32_shares(i, k, n, random, why)
+            .codex32_shares_avoiding(i, k, n, random, taken, why)
             .map_err(|e| match e {
                 Paper::Words => Convert::Words,
                 Paper::NoWords => Convert::NotGiven,
