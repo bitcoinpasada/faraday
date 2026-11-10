@@ -451,14 +451,7 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
             fy,
             pw,
             if second { &e.again } else { &e.passphrase },
-            (
-                on,
-                app.pass_chip(if second {
-                    crate::demo::PassField::EntryAgain
-                } else {
-                    crate::demo::PassField::Entry
-                }),
-            ),
+            (on, entry_chip(app, second)),
             if second {
                 Action::EntryPassphraseAgain
             } else {
@@ -478,6 +471,25 @@ fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), la
         field(ui, 0, y);
         40.0
     }
+}
+
+/// Add a key's Use faraday for its first field or, `second`, the one
+/// again. It fills both, so an empty field offers it only while the other
+/// is empty too, never over what the person typed. A lookup.
+pub(crate) fn entry_chip(app: &View, second: bool) -> Option<Action> {
+    let e = app.entry.state();
+    let (this, other) = if second {
+        (&e.again, &e.passphrase)
+    } else {
+        (&e.passphrase, &e.again)
+    };
+    let other_typed = !other.is_empty() && (second || e.pair());
+    app.pass_chip(if second {
+        crate::demo::PassField::EntryAgain
+    } else {
+        crate::demo::PassField::Entry
+    })
+    .filter(|_| !(this.is_empty() && other_typed))
 }
 
 /// The BIP-39 passphrase and the buttons under the words.

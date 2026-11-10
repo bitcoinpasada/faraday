@@ -609,6 +609,9 @@ fn in_demo_the_keepass_export_takes_a_passphrase_typed_by_the_person_and_offers_
         "sevench",
         "what is typed stays"
     );
+    // The same seven again, so the two match and the length is what refuses.
+    app.press(Action::Vault(V::FocusPromptAgain));
+    type_in(&mut app, "sevench");
     app.press(Action::Vault(V::PromptGo));
     settle(&mut app);
     assert_eq!(
@@ -620,6 +623,9 @@ fn in_demo_the_keepass_export_takes_a_passphrase_typed_by_the_person_and_offers_
     );
     assert!(app.outbox.iter().all(|i| !i.name.ends_with(".kdbx")));
     // Eight go through and the export is written.
+    app.press(Action::Vault(V::FocusPrompt));
+    type_in(&mut app, "x");
+    app.press(Action::Vault(V::FocusPromptAgain));
     type_in(&mut app, "x");
     // A KeePass file takes nine answers.
     for i in 0..10u8 {
