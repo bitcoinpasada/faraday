@@ -28,6 +28,7 @@
 
 extern crate alloc;
 
+use alloc::collections::BTreeSet;
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -46,6 +47,8 @@ pub const MAX_PROOF_LEN: usize = 64 * 1024;
 pub const MAX_ENTRIES: usize = 16_384;
 /// The most bytes the operations of a whole tree may make, added up.
 pub const MAX_WORK_BYTES: usize = 16 * 1024 * 1024;
+/// The most bytes a number is written in (the reference's `MAX_VARUINT_BYTES`).
+const MAX_VARUINT_BYTES: u32 = 9;
 /// The longest attestation payload.
 const MAX_PAYLOAD_LEN: usize = 8192;
 /// The longest calendar address of a pending attestation.
@@ -68,15 +71,18 @@ pub enum Error {
     TooMuchWork,
     /// The file does not begin with the OpenTimestamps proof magic.
     BadMagic,
-    /// A version other than 1.
-    UnsupportedVersion,
+    /// A first version byte other than 1; the byte read.
+    NotVersion1(u8),
     /// The proof ends inside a value.
     Truncated,
     /// Bytes follow the proof's tree.
     TrailingBytes,
-    /// The file's hash is named by something other than SHA-1, RIPEMD-160,
-    /// SHA-256 or Keccak-256.
+    /// The file's hash is named by something other than SHA-1, RIPEMD-160
+    /// or SHA-256.
     BadFileHashOp,
+    /// The file's hash is Keccak-256, which the reference does not take
+    /// for a file.
+    FileHashKeccak256,
     /// An operation tag Faraday does not know.
     UnknownOp,
     /// An append or prepend with no bytes.
@@ -87,8 +93,10 @@ pub enum Error {
     ResultTooLong,
     /// A tree deeper than 256 levels.
     TooDeep,
-    /// A number that does not fit 64 bits.
-    NumberTooLarge,
+    /// A number written in more than 9 bytes.
+    VaruintTooLong,
+    /// The same operation twice at one node.
+    RepeatedOperation,
     /// A block height that does not fit 32 bits.
     HeightTooLarge,
     /// An attestation payload over 8,192 bytes.
@@ -139,7 +147,7 @@ impl Network {
 }
 
 /// A hash a proof's operations name.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HashOp {
     /// SHA-1.
     Sha1,
@@ -199,7 +207,7 @@ impl HashOp {
 }
 
 /// One operation of a path.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Op {
     /// The value, then these bytes.
     Append(Vec<u8>),
@@ -318,25 +326,18 @@ impl<'a> Reader<'a> {
         Ok(self.take(1)?[0])
     }
 
-    /// The reference's varuint: seven bits a byte, low first. A value that
-    /// does not fit 64 bits is refused.
+    /// The reference's varuint: seven bits a byte, low first, in at most
+    /// 9 bytes (a value of 63 bits). A tenth byte is refused.
     fn varuint(&mut self) -> Result<u64, Error> {
         let mut value = 0u64;
-        let mut shift = 0u32;
-        loop {
+        for i in 0..MAX_VARUINT_BYTES {
             let b = self.byte()?;
-            let bits = u64::from(b & 0x7f);
-            if bits != 0 {
-                if shift >= 64 || (bits << shift) >> shift != bits {
-                    return Err(Error::NumberTooLarge);
-                }
-                value |= bits << shift;
-            }
+            value |= u64::from(b & 0x7f) << (7 * i);
             if b & 0x80 == 0 {
                 return Ok(value);
             }
-            shift = shift.saturating_add(7);
         }
+        Err(Error::VaruintTooLong)
     }
 
     fn height(&mut self) -> Result<u32, Error> {
@@ -401,7 +402,13 @@ fn read_attestation(r: &mut Reader) -> Result<Attestation, Error> {
 }
 
 /// One tag of a node's entries: an attestation (0x00) or an operation.
-fn read_entry(r: &mut Reader, tag: u8, value: &[u8], limit: usize) -> Result<Entry, Error> {
+fn read_entry(
+    r: &mut Reader,
+    tag: u8,
+    value: &[u8],
+    limit: usize,
+    ops: &mut BTreeSet<Op>,
+) -> Result<Entry, Error> {
     r.entries += 1;
     if r.entries > MAX_ENTRIES {
         return Err(Error::TooManyEntries);
@@ -429,6 +436,11 @@ fn read_entry(r: &mut Reader, tag: u8, value: &[u8], limit: usize) -> Result<Ent
         0xf3 => Op::Hexlify,
         _ => Op::Hash(HashOp::from_tag(tag).ok_or(Error::UnknownOp)?),
     };
+    // As the reference does, before the operation is applied or anything
+    // below it is read.
+    if !ops.insert(op.clone()) {
+        return Err(Error::RepeatedOperation);
+    }
     let next = op.apply(value)?;
     r.made = r.made.saturating_add(next.len());
     if r.made > MAX_WORK_BYTES {
@@ -444,6 +456,7 @@ fn read_node(r: &mut Reader, value: &[u8], limit: usize) -> Result<Node, Error> 
         return Err(Error::TooDeep);
     }
     let mut entries = Vec::new();
+    let mut ops: BTreeSet<Op> = BTreeSet::new();
     loop {
         let first = r.byte()?;
         let (tag, last) = if first == 0xff {
@@ -451,7 +464,8 @@ fn read_node(r: &mut Reader, value: &[u8], limit: usize) -> Result<Node, Error> 
         } else {
             (first, true)
         };
-        entries.push(read_entry(r, tag, value, limit)?);
+        let entry = read_entry(r, tag, value, limit, &mut ops)?;
+        entries.push(entry);
         if last {
             // A node usually holds one entry: keep no spare room.
             entries.shrink_to_fit();
@@ -486,10 +500,14 @@ impl Proof {
             entries: 0,
             made: 0,
         };
-        if r.varuint()? != 1 {
-            return Err(Error::UnsupportedVersion);
+        let version = r.byte()?;
+        if version != 1 {
+            return Err(Error::NotVersion1(version));
         }
         let file_op = HashOp::from_tag(r.byte()?).ok_or(Error::BadFileHashOp)?;
+        if file_op == HashOp::Keccak256 {
+            return Err(Error::FileHashKeccak256);
+        }
         let file_digest = r.take(file_op.digest_len())?.to_vec();
         let tree = read_node(&mut r, &file_digest, MAX_DEPTH)?;
         if !r.at_end() {

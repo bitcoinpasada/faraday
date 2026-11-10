@@ -13242,12 +13242,16 @@ strings! {
     sample_ots_header_file: "sample-block-header",
     /// The scanner's tile that hands over a sample block header.
     scan_sample_header: "Load sample block header",
+    /// The scanner's tile that hands over a sample file hash.
+    scan_sample_hash: "Load sample file hash",
     /// Check a timestamp's heading.
     ots_title: "Check a timestamp",
     /// Check a timestamp: the Back button's name when opened from Tools.
     ots_tools: "Tools",
     /// Check a timestamp: the scanner's title.
     ots_scan_title: "Scan a block header",
+    /// Check a timestamp: the file hash scanner's title.
+    ots_scan_hash_title: "Scan the file's SHA-256",
     /// Check a timestamp's first card.
     ots_card_proof: "Proof",
     /// Check a timestamp's second card.
@@ -13274,8 +13278,14 @@ strings! {
     ots_result_waits: "Not checked yet",
     /// Check a timestamp: the verdict of a counted path.
     ots_committed: "The header commits to this file",
+    /// Check a timestamp: a second or later counted path; {} is its height.
+    ots_counted_also: "Bitcoin block {}: also counted",
+    /// Check a timestamp: the verdict of a counted path when only a SHA-256 read from a text file was given.
+    ots_committed_digest: "The header commits to this SHA-256",
+    /// Check a timestamp: a card's summary for a SHA-256 read from a text file; {} is the file's name.
+    ots_digest_from: "SHA-256 from {}",
     /// Check a timestamp: the verdict with no counted path.
-    ots_not_committed: "The header does not commit to this file",
+    ots_not_committed: "No path through SHA-256 alone reaches this header",
     /// Check a timestamp: the file is not the one the proof states.
     ots_file_differs: "This is not the file the proof states",
     /// Check a timestamp: the verdict when the file's hash is not enough.
@@ -13285,7 +13295,7 @@ strings! {
     /// Check a timestamp: a counted path's block hash.
     ots_block_hash: "Block hash",
     /// Check a timestamp: a counted path's block height.
-    ots_height: "Block height",
+    ots_height: "Height the proof states",
     /// Check a timestamp: a counted path's block time.
     ots_time: "Block time",
     /// Check a timestamp: a Bitcoin attestation the header does not match; {} is its height.
@@ -13300,6 +13310,8 @@ strings! {
     ots_litecoin: "Litecoin block {}: not checked",
     /// Check a timestamp: an Ethereum attestation; {} is the height.
     ots_ethereum: "Ethereum block {}: not checked",
+    /// Check a timestamp: the Result lists only some attestations; {} is how many more there are.
+    ots_more: "and {} more",
     /// Check a timestamp: an attestation of a kind Faraday does not know; {} is its tag in hex.
     ots_unknown: "Unknown attestation {}",
     /// Check a timestamp: what was given is not a block header.
@@ -13322,8 +13334,8 @@ strings! {
     ots_err_too_much_work: "The proof asks for too much work",
     /// Check a timestamp: refusal.
     ots_err_bad_magic: "Not an OpenTimestamps proof",
-    /// Check a timestamp: refusal.
-    ots_err_version: "The proof is not version 1",
+    /// Check a timestamp: refusal; {} is the version byte read.
+    ots_err_version: "The proof's version is {}, not 1",
     /// Check a timestamp: refusal.
     ots_err_truncated: "The proof ends too soon",
     /// Check a timestamp: refusal.
@@ -13341,7 +13353,11 @@ strings! {
     /// Check a timestamp: refusal.
     ots_err_too_deep: "The proof is nested too deep",
     /// Check a timestamp: refusal.
-    ots_err_number: "The proof has a number over 64 bits",
+    ots_err_number: "The proof has a number written in more than 9 bytes",
+    /// Check a timestamp: refusal.
+    ots_err_repeated_op: "The proof has the same operation twice at one step",
+    /// Check a timestamp: refusal.
+    ots_err_file_keccak: "The proof takes the file with Keccak-256, which Faraday does not accept for a file",
     /// Check a timestamp: refusal.
     ots_err_height: "The proof has a block height over 32 bits",
     /// Check a timestamp: refusal.

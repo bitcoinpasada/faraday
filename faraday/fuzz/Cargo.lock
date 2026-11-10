@@ -815,6 +815,7 @@ dependencies = [
  "faraday-intake",
  "faraday-keys",
  "faraday-learn",
+ "faraday-ots",
  "faraday-pgp",
  "faraday-psbt",
  "faraday-qr",

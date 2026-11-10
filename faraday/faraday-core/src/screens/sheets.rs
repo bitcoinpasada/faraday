@@ -827,6 +827,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (crate::ScanPurpose::MessageText, _) => EN.message_scan_title.to_string(),
         (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr.to_string(),
         (crate::ScanPurpose::OtsHeader, _) => EN.ots_scan_title.to_string(),
+        (crate::ScanPurpose::OtsFileHash, _) => EN.ots_scan_hash_title.to_string(),
         (
             crate::ScanPurpose::CheckCopy(_)
             | crate::ScanPurpose::CheckConvert(..)

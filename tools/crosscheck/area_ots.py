@@ -39,17 +39,17 @@ Known differences, each checked to still hold and counted:
 - An Ethereum attestation is verified by the reference against a block's
   transactions root and listed by Faraday, as a Litecoin one is (the reference
   raises for it).
-- The reference collapses an attestation repeated at one node and refuses an
-  operation repeated at one node; Faraday lists the one twice and reads the other.
-- The reference reads the version as one byte and a varuint of up to nine
-  bytes; Faraday reads both as a varuint, so a version written as 0x81 0x00 and
-  a varuint padded past nine bytes are read by Faraday and refused by the
-  reference.
-- Faraday refuses a proof over 64 KiB (and one of more than 16,384 entries or
-  whose operations make more than 16 MiB of values, which that size cannot
-  reach in a tree the reference reads); the reference reads it.
-- The reference takes the file's hash as a SHA-1, RIPEMD-160 or SHA-256
-  (Keccak-256 is not one of its file hashes); Faraday also reads Keccak-256.
+- The reference collapses an attestation repeated at one node; Faraday lists
+  the one twice. (An operation repeated at a node, a first version byte other
+  than 1, a varuint over nine bytes and Keccak-256 as the file's hash are refused
+  by both.)
+- Faraday refuses a proof over 64 KiB, one of more than 16,384 entries and one
+  whose operations make more than 16 MiB of values, each with an Error of its
+  own; the reference reads them. Each is reachable in a tree the reference
+  reads: a prepend to a value of 4,095 bytes, then 17 distinct one-byte
+  appends each followed by 250 reversals (about 8.6 KB, 17.5 MiB of values);
+  and 65 distinct appends each followed by a chain of 252 reversals (about
+  17 KB, over 16,384 entries). Each is built either side of its edge.
 """
 
 import hashlib
@@ -338,18 +338,14 @@ class Ots(Area):
         ),
         (
             "OTS: an attestation repeated at one node is collapsed by the reference and "
-            "listed twice by Faraday; an operation repeated at one node is refused by the "
-            "reference and read by Faraday."
+            "listed twice by Faraday."
         ),
         (
-            "OTS: the reference reads the version as one byte and a varuint of up to nine "
-            "bytes; Faraday reads both as a varuint of any length whose value fits 64 bits, "
-            "so a version written 0x81 0x00 and a varuint padded to ten bytes or more are "
-            "read by Faraday and refused by the reference."
-        ),
-        (
-            "OTS: Faraday reads a proof whose file is taken with Keccak-256; the "
-            "reference takes only SHA-1, RIPEMD-160 and SHA-256 for the file and refuses it."
+            "OTS: Faraday refuses a proof over 64 KiB, a tree of more than 16,384 entries "
+            "and a tree whose operations make more than 16 MiB of values; the reference "
+            "reads each (a tree of 17 appends of one byte to a value of 4,095 bytes, each "
+            "followed by 250 reversals, makes 17.5 MiB in 8.6 KB; 65 chains of 252 "
+            "reversals behind distinct appends make over 16,384 entries in 17 KB)."
         ),
     ]
     not_compared = (
@@ -378,9 +374,6 @@ class Ots(Area):
         if rust[0] == "ok" and ref[0] == "ok":
             got, want = rust[1], ref[1]
             leaves = got["leaves"]
-            if got["repeated_op"]:
-                self.fail("ots.read", inputs, rust, ref, "an operation repeated at a node is "
-                          "read by both")
             repeated = len(leaves) != len(set(leaves))
             if repeated != got["repeated_attestation"]:
                 self.fail("ots.read", inputs, rust, ref, "the repeated attestation flag is wrong")
@@ -390,31 +383,13 @@ class Ots(Area):
             if repeated:
                 self.known += 1
             return got
-        if rust[0] == "ok" and self.explained(data, rust[1], ref[1]):
-            self.known += 1
-            return rust[1]
-        if rust[0] == "err" and ref[0] == "ok" and "ProofTooLarge" in rust[1] \
-                and len(data) > 64 * 1024:
-            self.known += 1
-            return None
+        if rust[0] == "err" and ref[0] == "ok":
+            for kind, reason in (("ProofTooLarge", len(data) > 64 * 1024),
+                                 ("TooMuchWork", True), ("TooManyEntries", True)):
+                if kind in rust[1] and reason:
+                    self.known += 1
+                    return None
         self.fail("ots.read", inputs, rust, ref, label or "an unlisted difference")
-
-    def explained(self, data, got, why):
-        """Faraday reads what the reference refuses, for a reason the area
-        lists, and holds to it."""
-        if "repeated" in why and got["repeated_op"]:
-            return True
-        if why.startswith("UnsupportedMajorVersion") and len(data) > 32 and data[31] & 0x80:
-            value, shift = 0, 0
-            for b in data[31:]:
-                value |= (b & 0x7F) << shift
-                shift += 7
-                if not b & 0x80:
-                    break
-            return value == 1
-        if "varuint exceeds 9 bytes" in why:
-            return True
-        return "Unknown unary op tag 0x67" in why and len(data) > 32 and data[32] == 0x67
 
     def verify_both(self, data, digest, header):
         """Both walk a proof against a header (Faraday's work check met):
@@ -766,27 +741,30 @@ class Ots(Area):
         header = self.header_for(self.randbytes(32))
         base = raw_height(TAG_BITCOIN, 5)
         # A varuint of ten bytes or more, in a height, a payload's length and
-        # an argument's length.
+        # an argument's length, a first version byte of 0x81, Keccak-256 as the
+        # file's hash and an operation twice at a node: both refuse them.
         for pad in (10, 12):
-            for name, data in (
-                    ("a height", raw_proof(raw_attestation(TAG_BITCOIN, varuint(5, pad)))),
-                    ("a payload length", raw_proof(raw_attestation(TAG_BITCOIN, varuint(5),
-                                                                   pad))),
-                    ("an argument length",
-                     raw_proof(b"\xf0" + varuint(2, pad) + b"\x01\x02" + base))):
-                self.differs(data, "varuint exceeds 9 bytes", f"{name} padded to {pad} bytes",
-                             header)
-        self.differs(raw_proof(base, version=b"\x81\x00"), "UnsupportedMajorVersion",
-                     "a version written in two bytes", header)
-        keccak = raw_proof(base, file_op=b"\x67")
-        self.differs(keccak, "Unknown unary op tag 0x67", "a file taken with Keccak-256", header)
+            self.agreed(raw_proof(raw_attestation(TAG_BITCOIN, varuint(5, pad))), False,
+                        f"a height padded to {pad} bytes")
+            self.agreed(raw_proof(raw_attestation(TAG_BITCOIN, varuint(5), pad)), False,
+                        f"a payload length padded to {pad} bytes")
+            self.agreed(raw_proof(b"\xf0" + varuint(2, pad) + b"\x01\x02" + base), False,
+                        f"an argument length padded to {pad} bytes")
+        self.agreed(raw_proof(base, version=b"\x81\x00"), False,
+                    "a first version byte of 0x81")
+        self.agreed(raw_proof(base, file_op=b"\x67"), False, "a file taken with Keccak-256")
+        for label, op in (("a hash", b"\x08"), ("a reversal", b"\xf2"),
+                          ("an append", b"\xf0\x01\x05")):
+            self.agreed(raw_proof(b"\xff" + op + base + op + base), False,
+                        f"{label} repeated at a node")
+        self.agreed(raw_proof(b"\xff\xf0\x01\x05" + base + b"\xf0\x01\x06" + base), True,
+                    "two appends of different bytes at a node")
         # An attestation twice at a node, and an operation twice.
         twice = raw_proof(b"\xff" + raw_height(TAG_BITCOIN, 5) + raw_height(TAG_BITCOIN, 5))
         got = self.read_both(twice, "an attestation repeated at a node")
         if got is None or not got["repeated_attestation"]:
             raise AssertionError("a repeated attestation is no longer read by Faraday")
-        sha = raw_proof(b"\xff\x08" + base + b"\x08" + base)
-        self.differs(sha, "repeated", "an operation repeated at a node", header)
+        self.size_limits()
         # A proof of 64 KiB is read by both, one byte more only by the reference.
         self.agreed(self.sized(64 * 1024), True, "a proof of 64 KiB")
         before = self.known
@@ -828,16 +806,53 @@ class Ots(Area):
         if self.known != before + 1:
             raise AssertionError("the reference no longer verifies an Ethereum attestation")
 
-    def differs(self, data, why, label, header):
-        """Faraday reads `data` and the reference refuses it for `why`."""
+    def refused_alone(self, data, kind, label):
+        """The reference reads `data` and Faraday refuses it with `kind`."""
         inputs = {"proof": data.hex()}
         rust = self.rust.call("ots.read", **inputs)
         ref = reference(lambda: ref_read(data))
         self.compared += 1
-        if rust[0] != "ok" or ref[0] != "err" or why not in ref[1] \
-                or not self.explained(data, rust[1], ref[1]):
-            self.fail("ots.read", inputs, rust, ref, f"the known difference no longer holds: {label}")
+        if rust[0] != "err" or kind not in rust[1] or ref[0] != "ok":
+            self.fail("ots.read", inputs, rust, ref,
+                      f"the known difference no longer holds: {label}")
         self.known += 1
+
+    def work_tree(self, units):
+        """A prepend to make a value of 4,095 bytes, then `units` distinct
+        one-byte appends (4,096 bytes each) with 250 reversals behind each."""
+        end = raw_height(TAG_BITCOIN, 1)
+        tree = b"\xf1" + varbytes(b"\x07" * 4063)
+        for i in range(units):
+            tree += (b"\xff" if i + 1 < units else b"") + b"\xf0" + varbytes(bytes([i])) \
+                + b"\xf2" * 250 + end
+        return raw_proof(tree)
+
+    def entry_tree(self, entries):
+        """Distinct appends, each with a chain of reversals behind it and an
+        attestation: `entries` entries in all."""
+        end = raw_height(TAG_BITCOIN, 1)
+        tree, left, i = b"", entries, 0
+        while left > 0:
+            chain = min(left - 2, 252)
+            left -= chain + 2
+            tree += (b"\xff" if left > 0 else b"") + b"\xf0" + varbytes(i.to_bytes(2, "big")) \
+                + b"\xf2" * chain + end
+            i += 1
+        return raw_proof(tree)
+
+    def size_limits(self):
+        """Each limit Faraday keeps that the reference does not, built in a
+        tree the reference reads, either side of its edge."""
+        self.agreed(self.work_tree(16), True, "16 appends of 4,096 bytes, 250 reversals each")
+        big = self.work_tree(17)
+        if len(big) >= 64 * 1024:
+            raise AssertionError("the work case is no longer under 64 KiB")
+        self.refused_alone(big, "TooMuchWork", "over 16 MiB of values")
+        self.agreed(self.entry_tree(16384), True, "16,384 entries")
+        big = self.entry_tree(16385)
+        if len(big) >= 64 * 1024:
+            raise AssertionError("the entries case is no longer under 64 KiB")
+        self.refused_alone(big, "TooManyEntries", "16,385 entries")
 
     def prelude(self):
         self.shims()

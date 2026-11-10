@@ -59,6 +59,8 @@ pub enum ScanPurpose {
     /// Check a timestamp's block header: its 80 bytes or their hex, taken
     /// by the tool.
     OtsHeader,
+    /// Check a timestamp's file hash: 64 hex characters, taken by the tool.
+    OtsFileHash,
     /// Transfer's Receive: anything, saved by the shell into Downloads,
     /// never into the Inbox.
     Transfer,

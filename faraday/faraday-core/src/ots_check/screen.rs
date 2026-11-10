@@ -78,6 +78,7 @@ fn summary(s: &OtsState, step: u8) -> String {
         _ => s.shown.as_ref().map(|r| {
             match r.verdict {
                 Verdict::Committed => EN.ots_committed,
+                Verdict::CommittedDigest => EN.ots_committed_digest,
                 Verdict::NotCommitted => EN.ots_not_committed,
                 Verdict::FileDiffers => EN.ots_file_differs,
                 Verdict::NeedsFile => EN.ots_needs_file_short,
@@ -94,7 +95,17 @@ fn card(app: &View, s: &OtsState, ui: &mut Ui, step: u8, at: (f32, f32, f32)) ->
         ostep::FILE => {
             let mut cy = files(app, s, ui, at, 1) + GAP;
             cy += field(s, ui, (at.0, at.1 + cy, at.2), Field::Hash);
-            cy
+            cy += GAP;
+            ui.button(
+                at.0,
+                at.1 + cy,
+                None,
+                BUTTON_H,
+                EN.ots_scan,
+                Style::Secondary,
+                Action::OtsCheck(O::ScanHash),
+            );
+            cy + BUTTON_H
         }
         ostep::HEADER => {
             let mut cy = files(app, s, ui, at, 2) + GAP;
@@ -130,10 +141,12 @@ fn files(app: &View, s: &OtsState, ui: &mut Ui, (x, y, w): (f32, f32, f32), whic
             1 => (
                 !is_proof(&item.bytes),
                 O::File(i),
-                s.file.as_ref().is_some_and(|g| g.name == item.name),
+                s.file
+                    .as_ref()
+                    .is_some_and(|g| !g.digest_only && g.name == item.name),
             ),
             _ => (
-                super::header_bytes(&item.bytes).is_some(),
+                super::header_bytes(&item.bytes, true).is_some(),
                 O::Header(i),
                 s.header.as_ref().is_some_and(|g| g.name == item.name),
             ),
@@ -224,6 +237,7 @@ fn result(s: &OtsState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     };
     let (line, ok) = match r.verdict {
         Verdict::Committed => (EN.ots_committed, true),
+        Verdict::CommittedDigest => (EN.ots_committed_digest, true),
         Verdict::NotCommitted => (EN.ots_not_committed, false),
         Verdict::FileDiffers => (EN.ots_file_differs, false),
         Verdict::NeedsFile => (EN.ots_needs_file_short, false),

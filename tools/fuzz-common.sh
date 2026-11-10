@@ -36,7 +36,7 @@ options() {
         # a finding (the 18 MiB read limit is the real bound).
         classify_file) echo "-max_len=1048576 -timeout=10" ;;
         read_wallet | json | policy) echo "-max_len=1048576 -timeout=30" ;;
-        inbox_found | app_scanned | qr_assembler) echo "-max_len=262144 -timeout=60" ;;
+        inbox_found | app_scanned | qr_assembler | ots) echo "-max_len=262144 -timeout=60" ;;
         png_qr | pe_image | vault_header | vault_entries) echo "-max_len=262144 -timeout=30" ;;
         *) echo "-timeout=30" ;;
     esac

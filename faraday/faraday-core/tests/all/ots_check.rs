@@ -5,6 +5,7 @@
 use crate::common::{has, has_part};
 use faraday_core::ots_check::OtsAction as O;
 use faraday_core::{Action, Faraday, StorageEvent, testkit};
+use faraday_shell_api::{App, Event};
 
 const V: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -72,7 +73,10 @@ fn a_proof_with_only_a_pending_attestation_names_its_calendar() {
         vector("examples/incomplete.txt"),
         "headers/455605.hex",
     );
-    assert!(has(&mut app, "The header does not commit to this file"));
+    assert!(has(
+        &mut app,
+        "No path through SHA-256 alone reaches this header"
+    ));
     assert!(has_part(&mut app, "Pending at https://"));
 }
 
@@ -83,7 +87,10 @@ fn a_header_of_another_block_is_said_not_to_match() {
         vector("examples/different-blockchains.txt"),
         "headers/358391.hex",
     );
-    assert!(has(&mut app, "The header does not commit to this file"));
+    assert!(has(
+        &mut app,
+        "No path through SHA-256 alone reaches this header"
+    ));
     assert!(has_part(&mut app, "not this header"));
 }
 
@@ -94,7 +101,10 @@ fn a_path_through_ripemd160_is_named_and_not_counted() {
         vector("examples/hello-world.txt"),
         "headers/358391.hex",
     );
-    assert!(has(&mut app, "The header does not commit to this file"));
+    assert!(has(
+        &mut app,
+        "No path through SHA-256 alone reaches this header"
+    ));
     assert!(has_part(&mut app, "RIPEMD-160"));
 }
 
@@ -106,4 +116,259 @@ fn a_file_that_is_no_header_is_refused_in_a_line() {
         "examples/different-blockchains.txt",
     );
     assert!(has(&mut app, "Not an 80-byte block header or its hex"));
+}
+
+/// The tool open on the proof of the different-blockchains example, with
+/// the header of its block taken; the file is for the test to give.
+fn with_proof_and_header(extra: Vec<(&str, Vec<u8>)>) -> Faraday {
+    let mut inbox = vec![
+        (
+            "stamp.ots".to_string(),
+            vector("examples/different-blockchains.txt.ots"),
+        ),
+        ("header".to_string(), vector("headers/455605.hex")),
+        (
+            "bad.ots".to_string(),
+            vector("examples/different-blockchains.txt.ots")[..40].to_vec(),
+        ),
+    ];
+    inbox.extend(extra.into_iter().map(|(n, b)| (n.to_string(), b)));
+    let mut app = testkit::started();
+    app.storage(StorageEvent::Restored {
+        inbox,
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(faraday_core::Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Check a timestamp")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    app.press(Action::OtsCheck(O::Proof(0)));
+    app.press(Action::OtsCheck(O::Header(1)));
+    app
+}
+
+fn digest_text() -> String {
+    faraday_crypto::sha256(&vector("examples/different-blockchains.txt"))
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+#[test]
+fn a_refused_proof_clears_the_result_of_the_one_before() {
+    let mut app = checked(
+        "examples/different-blockchains.txt.ots",
+        vector("examples/different-blockchains.txt"),
+        "headers/455605.hex",
+    );
+    assert!(has(&mut app, "The header commits to this file"));
+    let mut app2 =
+        with_proof_and_header(vec![("file", vector("examples/different-blockchains.txt"))]);
+    app2.press(Action::OtsCheck(O::File(3)));
+    assert!(has(&mut app2, "The header commits to this file"));
+    app2.press(Action::OtsCheck(O::Proof(2)));
+    assert!(!has(&mut app2, "The header commits to this file"));
+    assert!(has(&mut app2, "Not checked yet"));
+}
+
+#[test]
+fn a_refused_file_hash_or_header_clears_the_result() {
+    let mut app =
+        with_proof_and_header(vec![("file", vector("examples/different-blockchains.txt"))]);
+    app.press(Action::OtsCheck(O::File(3)));
+    assert!(has(&mut app, "The header commits to this file"));
+    // A refused header (the proof file is no header).
+    app.press(Action::OtsCheck(O::Header(0)));
+    assert!(!has(&mut app, "The header commits to this file"));
+    // The right header again, then a typed hash that is refused.
+    app.press(Action::OtsCheck(O::Header(1)));
+    assert!(has(&mut app, "The header commits to this file"));
+    app.press(Action::OtsCheck(O::Focus(
+        faraday_core::ots_check::Field::Hash,
+    )));
+    for ch in "12zz".chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(ch)));
+    }
+    assert!(!has(&mut app, "The header commits to this file"));
+}
+
+#[test]
+fn typing_in_a_field_clears_the_result_before_it_is_used() {
+    let mut app =
+        with_proof_and_header(vec![("file", vector("examples/different-blockchains.txt"))]);
+    app.press(Action::OtsCheck(O::File(3)));
+    assert!(has(&mut app, "The header commits to this file"));
+    app.press(Action::OtsCheck(O::Focus(
+        faraday_core::ots_check::Field::Header,
+    )));
+    app.event(Event::Key(faraday_shell_api::Key::Char('a')));
+    assert!(!has(&mut app, "The header commits to this file"));
+}
+
+#[test]
+fn eighty_typed_characters_are_hex_text_and_not_a_header() {
+    let mut app =
+        with_proof_and_header(vec![("file", vector("examples/different-blockchains.txt"))]);
+    app.press(Action::OtsCheck(O::File(3)));
+    app.press(Action::OtsCheck(O::Step(2)));
+    app.press(Action::OtsCheck(O::Focus(
+        faraday_core::ots_check::Field::Header,
+    )));
+    for ch in "ab".repeat(40).chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(ch)));
+    }
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert!(has(&mut app, "Not an 80-byte block header or its hex"));
+    // A sign or a space inside a pair is no hex either.
+    app.press(Action::OtsCheck(O::Step(1)));
+    app.press(Action::OtsCheck(O::Focus(
+        faraday_core::ots_check::Field::Hash,
+    )));
+    for ch in format!("+{}", &digest_text()[1..]).chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(ch)));
+    }
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert!(has(&mut app, "Not a SHA-256: 64 hex digits"));
+}
+
+#[test]
+fn the_digest_picked_as_a_text_file_is_named_a_sha256_from_that_file() {
+    let text = format!("  {}\n", digest_text());
+    let mut app = with_proof_and_header(vec![("digest.txt", text.into_bytes())]);
+    app.press(Action::OtsCheck(O::File(3)));
+    assert!(has(&mut app, "The header commits to this SHA-256"));
+    assert!(has(&mut app, "SHA-256 from digest.txt"));
+    assert!(!has(&mut app, "The header commits to this file"));
+}
+
+#[test]
+fn picking_a_whole_file_clears_an_older_typed_hash() {
+    let mut app =
+        with_proof_and_header(vec![("file", vector("examples/different-blockchains.txt"))]);
+    app.press(Action::OtsCheck(O::Step(1)));
+    app.press(Action::OtsCheck(O::Focus(
+        faraday_core::ots_check::Field::Hash,
+    )));
+    for ch in "12ab".chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(ch)));
+    }
+    app.press(Action::OtsCheck(O::File(3)));
+    assert!(has(&mut app, "The header commits to this file"));
+    assert!(!has_part(&mut app, "12ab"));
+}
+
+#[test]
+fn a_second_counted_path_has_its_own_line() {
+    // The example's last node holds one Bitcoin attestation: it is there twice.
+    let mut proof = vector("examples/different-blockchains.txt.ots");
+    let at = proof.len() - 13;
+    let att = proof[at..].to_vec();
+    proof.truncate(at);
+    proof.push(0xff);
+    proof.extend(&att);
+    proof.extend(&att);
+    let mut app = with_proof_and_header(vec![
+        ("two.ots", proof),
+        ("file", vector("examples/different-blockchains.txt")),
+    ]);
+    app.press(Action::OtsCheck(O::Proof(3)));
+    app.press(Action::OtsCheck(O::File(4)));
+    assert!(has(&mut app, "The header commits to this file"));
+    assert!(has_part(&mut app, "also counted"));
+    assert!(!has_part(&mut app, "more"));
+}
+
+#[test]
+fn another_hex_value_picked_as_a_text_file_is_not_the_file() {
+    let text = "ab".repeat(32);
+    let mut app = with_proof_and_header(vec![("other.txt", text.into_bytes())]);
+    app.press(Action::OtsCheck(O::File(3)));
+    assert!(has(&mut app, "This is not the file the proof states"));
+}
+
+#[test]
+fn a_proof_of_many_attestations_lists_some_and_counts_the_rest() {
+    // Unknown attestations of 8 bytes of tag each, side by side.
+    let magic = vector("examples/different-blockchains.txt.ots");
+    let mut proof = magic[..31].to_vec();
+    proof.extend([1, 0x08]);
+    let digest = faraday_crypto::sha256(b"x");
+    proof.extend(digest);
+    for i in 0..100u8 {
+        if i < 99 {
+            proof.push(0xff);
+        }
+        proof.push(0x00);
+        proof.extend([9, 9, 9, 9, 9, 9, 9, i]);
+        proof.push(0);
+    }
+    let mut app = with_proof_and_header(vec![("many.ots", proof), ("x", b"x".to_vec())]);
+    app.press(Action::OtsCheck(O::Proof(3)));
+    app.press(Action::OtsCheck(O::File(4)));
+    assert!(has_part(&mut app, "Unknown attestation"));
+    assert!(has(&mut app, "and 88 more"));
+}
+
+fn scan_hash(app: &mut Faraday, text: &str) {
+    app.press(Action::OtsCheck(O::Step(1)));
+    app.press(Action::OtsCheck(O::ScanHash));
+    app.event(Event::Scanned {
+        bytes: text.as_bytes().to_vec(),
+    });
+}
+
+#[test]
+fn a_scanned_sha256_fills_the_hash_and_the_check_matches() {
+    let mut app = with_proof_and_header(vec![]);
+    scan_hash(&mut app, &format!("{}\n", digest_text()));
+    assert!(has(&mut app, "The header commits to this file"));
+    assert!(has(&mut app, "Scanned"));
+}
+
+#[test]
+fn a_refused_hash_scan_drops_the_hash_and_the_result() {
+    let mut app = with_proof_and_header(vec![]);
+    scan_hash(&mut app, &digest_text());
+    assert!(has(&mut app, "The header commits to this file"));
+    // An older refusal of a typed hash goes with it.
+    app.press(Action::OtsCheck(O::Step(1)));
+    app.press(Action::OtsCheck(O::Focus(
+        faraday_core::ots_check::Field::Hash,
+    )));
+    app.event(Event::Key(faraday_shell_api::Key::Char('z')));
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    assert!(has(&mut app, "Not a SHA-256: 64 hex digits"));
+    scan_hash(&mut app, "not a hash");
+    app.event(Event::Key(faraday_shell_api::Key::Escape));
+    app.press(Action::OtsCheck(O::Step(1)));
+    assert!(!has(&mut app, "Not a SHA-256: 64 hex digits"));
+    app.press(Action::OtsCheck(O::Step(3)));
+    assert!(!has(&mut app, "The header commits to this file"));
+    assert!(has(&mut app, "Not checked yet"));
+}
+
+#[test]
+fn a_scanned_text_that_is_no_sha256_is_refused() {
+    let mut app = with_proof_and_header(vec![]);
+    scan_hash(&mut app, "not a hash");
+    assert!(has(&mut app, "Not a SHA-256: 64 hex digits"));
+    assert!(!has(&mut app, "The header commits to this file"));
+}
+
+#[test]
+fn a_header_from_a_file_clears_an_older_typed_header() {
+    let mut app =
+        with_proof_and_header(vec![("file", vector("examples/different-blockchains.txt"))]);
+    app.press(Action::OtsCheck(O::Step(2)));
+    app.press(Action::OtsCheck(O::Focus(
+        faraday_core::ots_check::Field::Header,
+    )));
+    for ch in "12ab".chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(ch)));
+    }
+    app.press(Action::OtsCheck(O::Header(1)));
+    assert!(!has_part(&mut app, "12ab"));
 }

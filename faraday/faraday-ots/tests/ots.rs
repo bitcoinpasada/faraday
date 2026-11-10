@@ -86,7 +86,7 @@ fn a_gdp_proof_through_sha256_only_is_committed_by_its_block() {
 fn a_path_through_ripemd160_reaches_its_block_and_is_not_counted() {
     // The reference's older proofs go through the calendar's RIPEMD-160.
     for (proof, file, height) in [
-        ("hello-world.txt.ots", example("bad-stamp.txt"), 358391),
+        ("hello-world.txt.ots", example("hello-world.txt"), 358391),
         ("empty.ots", Vec::new(), 129405),
     ] {
         let r = report_for(proof, &file, height);
@@ -287,7 +287,7 @@ fn the_references_invalid_examples_are_refused() {
     let read = |n: &str| fs::read(vectors().join("examples/invalid").join(n)).unwrap();
     assert_eq!(
         Proof::parse(&compute(), &read("bad-major-version.ots")).unwrap_err(),
-        Error::UnsupportedVersion
+        Error::NotVersion1(0xff)
     );
     assert_eq!(
         Proof::parse(&compute(), &read("exceeds-max-msg-length.ots")).unwrap_err(),
@@ -389,14 +389,10 @@ fn what_a_proof_may_not_hold_is_refused() {
     ]
     .concat();
     assert_eq!(parse(&big).unwrap_err(), Error::ResultTooLong);
-    // A height over 32 bits, and a number over 64 bits.
+    // A height over 32 bits.
     assert_eq!(
         parse(&attestation(BTC, &varuint(1 << 32))).unwrap_err(),
         Error::HeightTooLarge
-    );
-    assert_eq!(
-        parse(&attestation(BTC, &[0xff; 10])).unwrap_err(),
-        Error::NumberTooLarge
     );
     // A payload over 8,192 bytes, and one with bytes after its height.
     assert_eq!(
@@ -420,7 +416,7 @@ fn what_a_proof_may_not_hold_is_refused() {
     let v2 = [MAGIC, &[2][..], &[0x08], &[0; 32], &btc].concat();
     assert_eq!(
         Proof::parse(&compute(), &v2).unwrap_err(),
-        Error::UnsupportedVersion
+        Error::NotVersion1(2)
     );
     assert_eq!(
         Proof::parse(&compute(), &proof_of(0xf2, &[0; 32], &btc)).unwrap_err(),
@@ -597,28 +593,27 @@ fn a_proof_over_64_kib_is_refused() {
 
 #[test]
 fn a_tree_whose_operations_make_over_16_mib_is_refused() {
-    // An append that makes a 4,096-byte value, then reversals of it side by
-    // side, each ending in an attestation: 12 bytes make 4,096.
+    // A prepend that makes a value of 4,095 bytes, then distinct one-byte
+    // appends at that node, each making 4,096 bytes and followed by 250
+    // reversals of it, each at a node of its own.
     let end = attestation([9; 8], &[]);
-    let unit = |last: bool| {
-        [
-            if last { vec![] } else { vec![0xff] },
-            vec![0xf2],
-            end.clone(),
-        ]
-        .concat()
-    };
     let build = |n: usize| {
-        let mut tree = vec![0xf0];
-        tree.extend(varbytes(&[1; 4064]));
+        let mut tree = vec![0xf1];
+        tree.extend(varbytes(&[1; 4063]));
         for i in 0..n {
-            tree.extend(unit(i + 1 == n));
+            if i + 1 < n {
+                tree.push(0xff);
+            }
+            tree.push(0xf0);
+            tree.extend(varbytes(&[i as u8]));
+            tree.extend(vec![0xf2; 250]);
+            tree.extend(&end);
         }
         proof_of(0x08, &[7; 32], &tree)
     };
-    // The append and 4,095 reversals make exactly 16 MiB.
-    assert!(Proof::parse(&compute(), &build(4095)).is_ok());
-    let big = build(4096);
+    // 16 of them make 15.7 MiB, 17 make 16.7.
+    assert!(Proof::parse(&compute(), &build(16)).is_ok());
+    let big = build(17);
     assert!(big.len() < 65536);
     assert_eq!(
         Proof::parse(&compute(), &big).unwrap_err(),
@@ -628,22 +623,24 @@ fn a_tree_whose_operations_make_over_16_mib_is_refused() {
 
 #[test]
 fn a_tree_of_over_16384_entries_is_refused() {
-    // Chains of 253 reversals ending in an attestation, side by side: each
-    // byte of a chain is an entry, and the values are 32 bytes.
+    // Distinct appends, each followed by a chain of reversals and an
+    // attestation, side by side: the values are a few bytes.
     let end = attestation([9; 8], &[]);
     let build = |entries: usize| {
         let mut tree = Vec::new();
         let mut left = entries;
+        let mut i = 0u16;
         while left > 0 {
-            // The first entry of a unit is a sibling of the others.
-            let chain = (left - 1).min(253);
-            left -= chain + 1;
+            let chain = (left - 2).min(252);
+            left -= chain + 2;
             if left > 0 {
                 tree.push(0xff);
             }
-            tree.push(0xf2);
-            tree.extend(vec![0xf2; chain - 1]);
+            tree.push(0xf0);
+            tree.extend(varbytes(&i.to_be_bytes()));
+            tree.extend(vec![0xf2; chain]);
             tree.extend(&end);
+            i += 1;
         }
         proof_of(0x08, &[7; 32], &tree)
     };
@@ -653,6 +650,69 @@ fn a_tree_of_over_16384_entries_is_refused() {
     assert_eq!(
         Proof::parse(&compute(), &big).unwrap_err(),
         Error::TooManyEntries
+    );
+}
+
+#[test]
+fn what_the_reference_refuses_is_refused_here() {
+    let btc = attestation(BTC, &varuint(1));
+    // A first version byte other than 1, even the start of a longer number.
+    let v = |version: &[u8]| [MAGIC, version, &[0x08], &[0; 32], &btc].concat();
+    assert_eq!(
+        Proof::parse(&compute(), &v(&[0x81, 0x00])).unwrap_err(),
+        Error::NotVersion1(0x81)
+    );
+    assert_eq!(
+        Proof::parse(&compute(), &v(&[0x02])).unwrap_err(),
+        Error::NotVersion1(2)
+    );
+    // A number in ten bytes, and in nine.
+    let mut ten = vec![0x85];
+    ten.extend([0x80; 8]);
+    ten.push(0x00);
+    assert_eq!(
+        parse(&attestation(BTC, &ten)).unwrap_err(),
+        Error::VaruintTooLong
+    );
+    let mut nine = vec![0x85];
+    nine.extend([0x80; 7]);
+    nine.push(0x00);
+    assert!(parse(&attestation(BTC, &nine)).is_ok());
+    // The same operation twice at one node: an append of the same bytes, a
+    // hash, a reversal; two appends of different bytes are read.
+    let twice = |op: &[u8]| {
+        [
+            vec![0xff],
+            op.to_vec(),
+            btc.clone(),
+            op.to_vec(),
+            btc.clone(),
+        ]
+        .concat()
+    };
+    for op in [&[0x08][..], &[0xf2], &[0xf3], &[0xf0, 1, 5]] {
+        assert_eq!(
+            parse(&twice(op)).unwrap_err(),
+            Error::RepeatedOperation,
+            "{op:?}"
+        );
+    }
+    let two = [
+        vec![0xff, 0xf0, 1, 5],
+        btc.clone(),
+        vec![0xf0, 1, 6],
+        btc.clone(),
+    ]
+    .concat();
+    assert!(parse(&two).is_ok());
+    // A repeated operation is refused as repeated, whatever is below it:
+    // here its subtree is cut short.
+    let cut = [vec![0xff, 0xf2], btc.clone(), vec![0xf2, 0x00]].concat();
+    assert_eq!(parse(&cut).unwrap_err(), Error::RepeatedOperation);
+    // Keccak-256 as the file's hash.
+    assert_eq!(
+        Proof::parse(&compute(), &proof_of(0x67, &[0; 32], &btc)).unwrap_err(),
+        Error::FileHashKeccak256
     );
 }
 

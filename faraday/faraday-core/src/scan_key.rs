@@ -686,7 +686,8 @@ impl Faraday {
                 | ScanPurpose::CompareSecond
                 | ScanPurpose::MessageText
                 | ScanPurpose::Sweep
-                | ScanPurpose::OtsHeader => true,
+                | ScanPurpose::OtsHeader
+                | ScanPurpose::OtsFileHash => true,
                 ScanPurpose::VaultEntry
                 | ScanPurpose::CheckCopy(_)
                 | ScanPurpose::CheckConvert(..)

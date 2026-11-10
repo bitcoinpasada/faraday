@@ -8,6 +8,8 @@ use faraday_core::{Action, Screen};
 use faraday_ots::{Header, Network, Outcome, Proof};
 use faraday_shell_api::App;
 
+/// The height of the block with [`BLOCK_HASH`].
+const BLOCK_HEIGHT: u32 = 912_095;
 const BLOCK_HASH: &str = "000000000000000000007f0753c6209263c7072e51b725e89e75a0c708b90345";
 
 fn unhex(s: &str) -> Vec<u8> {
@@ -39,7 +41,8 @@ fn the_sample_header_is_the_block_the_proof_names_and_its_merkle_root_is_the_pro
     assert!(report.committed());
     assert!(matches!(
         report.paths[0],
-        Outcome::BitcoinMatched { block_hash, .. } if hex(&block_hash) == BLOCK_HASH
+        Outcome::BitcoinMatched { block_hash, height, .. }
+            if hex(&block_hash) == BLOCK_HASH && height == BLOCK_HEIGHT
     ));
 }
 

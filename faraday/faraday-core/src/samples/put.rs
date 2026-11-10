@@ -320,6 +320,7 @@ impl Faraday {
             ScanPurpose::CheckConvert(_, true) => false,
             ScanPurpose::CheckKef(i) => crate::wallet_backup::kef::sample_text(self, i).is_some(),
             ScanPurpose::OtsHeader => !set.inputs.timestamp_header.is_empty(),
+            ScanPurpose::OtsFileHash => !set.inputs.timestamp_hash.is_empty(),
             ScanPurpose::Transfer
             | ScanPurpose::CheckCodex32
             | ScanPurpose::GpgPublic
@@ -361,6 +362,7 @@ impl Faraday {
             }
             Some(ScanPurpose::CheckKef(_)) => EN.scan_sample_krux,
             Some(ScanPurpose::OtsHeader) => EN.scan_sample_header,
+            Some(ScanPurpose::OtsFileHash) => EN.scan_sample_hash,
             Some(ScanPurpose::VaultEntry) => EN.scan_sample_code,
             Some(ScanPurpose::Files) if self.screen == Screen::Restore => EN.scan_sample_wallet,
             Some(ScanPurpose::Files) if self.screen == Screen::Catalog => EN.scan_sample_address,
@@ -479,6 +481,7 @@ impl Faraday {
                 crate::wallet_backup::kef::sample_text(self, i).map(String::into_bytes)
             }
             ScanPurpose::OtsHeader => Some(set.inputs.timestamp_header.as_bytes().to_vec()),
+            ScanPurpose::OtsFileHash => Some(set.inputs.timestamp_hash.as_bytes().to_vec()),
             ScanPurpose::VaultEntry => Some(set.inputs.totp.as_bytes().to_vec()),
             ScanPurpose::Intake => self.sample_spend(c, set).map(<[u8]>::to_vec),
             ScanPurpose::Files if self.screen == Screen::Restore => {

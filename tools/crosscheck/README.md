@@ -1116,16 +1116,13 @@ difference"), and says why.
     check it. A Litecoin one is listed by both (the reference raises
     when asked to verify it).
   - OTS: an attestation repeated at one node is collapsed by the
-    reference and listed twice by Faraday; an operation repeated at one
-    node is refused by the reference and read by Faraday.
-  - OTS: the reference reads the version as one byte and a varuint of up
-    to nine bytes; Faraday reads both as a varuint of any length whose
-    value fits 64 bits, so a version written 0x81 0x00 and a varuint
-    padded to ten bytes or more are read by Faraday and refused by the
-    reference.
-  - OTS: Faraday reads a proof whose file is taken with Keccak-256; the
-    reference takes only SHA-1, RIPEMD-160 and SHA-256 for the file and
-    refuses it.
+    reference and listed twice by Faraday.
+  - OTS: Faraday refuses a proof over 64 KiB, a tree of more than 16,384
+    entries and a tree whose operations make more than 16 MiB of values;
+    the reference reads each (a tree of 17 appends of one byte to a
+    value of 4,095 bytes, each followed by 250 reversals, makes 17.5 MiB
+    in 8.6 KB; 65 chains of 252 reversals behind distinct appends make
+    over 16,384 entries in 17 KB).
 <!-- facts:end known-differences -->
 
 ## Where each reference comes from

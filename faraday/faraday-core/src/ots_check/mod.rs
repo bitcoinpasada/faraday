@@ -57,6 +57,8 @@ pub enum OtsAction {
     Take(Field),
     /// The scanner for the block header.
     Scan,
+    /// The scanner for the file's SHA-256.
+    ScanHash,
 }
 
 /// A value taken from a file, a field or a scan, and where it came from.
@@ -74,6 +76,11 @@ pub(crate) struct FileGiven {
     pub name: String,
     /// Its SHA-256.
     pub sha256: Vec<u8>,
+    /// Whether only the digest was given (typed, scanned or read from a
+    /// text), never the file.
+    pub digest_only: bool,
+    /// Whether the digest was read from a text file.
+    pub from_text: bool,
     /// Its SHA-1, RIPEMD-160 and Keccak-256, for a file given whole.
     pub others: Vec<(HashOp, Vec<u8>)>,
 }
@@ -96,6 +103,9 @@ impl FileGiven {
 pub(crate) enum Verdict {
     /// A path is counted.
     Committed,
+    /// A path is counted for a SHA-256 read from a text file, which says
+    /// nothing about the file itself.
+    CommittedDigest,
     /// No path is counted.
     NotCommitted,
     /// The file is not the one the proof states.
@@ -110,9 +120,13 @@ pub(crate) struct Shown {
     pub verdict: Verdict,
     /// The block's hash, height and time of a counted path.
     pub facts: Vec<(String, String)>,
-    /// One line per attestation that is not counted.
+    /// One line per attestation that is not counted, up to [`MAX_LINES`],
+    /// then a line saying how many more there are.
     pub lines: Vec<String>,
 }
+
+/// The most attestation lines the Result lists.
+pub(crate) const MAX_LINES: usize = 12;
 
 /// The tool's state.
 pub struct OtsState {
@@ -207,29 +221,40 @@ pub(crate) fn is_proof(bytes: &[u8]) -> bool {
     bytes.starts_with(PROOF_START)
 }
 
-/// A header in a file or a code: 80 bytes as they are, or their hex.
-pub(crate) fn header_bytes(bytes: &[u8]) -> Option<Vec<u8>> {
-    if bytes.len() == 80 {
+/// A header in a file or a code: 80 bytes as they are when `raw_ok`, or
+/// their hex. Typed text is always hex: 80 typed characters are text.
+pub(crate) fn header_bytes(bytes: &[u8], raw_ok: bool) -> Option<Vec<u8>> {
+    if raw_ok && bytes.len() == 80 {
         return Some(bytes.to_vec());
     }
     let text = std::str::from_utf8(bytes).ok()?;
     unhex(text, 80)
 }
 
-/// The bytes `text` writes in hex, spaces and line breaks left out, when
-/// there are `len` of them.
+/// The bytes `text` writes in hex when there are `len` of them: pairs of
+/// `0-9a-fA-F`, with spaces or line breaks only between pairs.
 fn unhex(text: &str, len: usize) -> Option<Vec<u8>> {
-    let digits: Vec<u8> = text.bytes().filter(|b| !b.is_ascii_whitespace()).collect();
-    if digits.len() != 2 * len {
-        return None;
+    let mut out = Vec::with_capacity(len);
+    let mut high: Option<u8> = None;
+    for b in text.bytes() {
+        if b.is_ascii_whitespace() {
+            if high.is_some() {
+                return None;
+            }
+            continue;
+        }
+        let d = (b as char).to_digit(16)? as u8;
+        match high.take() {
+            None => high = Some(d),
+            Some(h) => {
+                if out.len() == len {
+                    return None;
+                }
+                out.push(h << 4 | d);
+            }
+        }
     }
-    digits
-        .chunks(2)
-        .map(|p| {
-            let s = std::str::from_utf8(p).ok()?;
-            u8::from_str_radix(s, 16).ok()
-        })
-        .collect()
+    (high.is_none() && out.len() == len).then_some(out)
 }
 
 /// The network a header is checked for.
@@ -244,22 +269,24 @@ fn network_of(n: faraday_bip::keys::Network) -> Network {
 }
 
 /// One refusal of the reader, as one plain line.
-pub(crate) fn error_text(e: Error) -> &'static str {
+pub(crate) fn error_text(e: Error) -> String {
     match e {
+        Error::NotVersion1(v) => return fill(EN.ots_err_version, &[&v.to_string()]),
         Error::ProofTooLarge => EN.ots_err_proof_too_large,
         Error::TooManyEntries => EN.ots_err_too_many_entries,
         Error::TooMuchWork => EN.ots_err_too_much_work,
         Error::BadMagic => EN.ots_err_bad_magic,
-        Error::UnsupportedVersion => EN.ots_err_version,
         Error::Truncated => EN.ots_err_truncated,
         Error::TrailingBytes => EN.ots_err_trailing,
         Error::BadFileHashOp => EN.ots_err_file_hash_op,
+        Error::FileHashKeccak256 => EN.ots_err_file_keccak,
+        Error::RepeatedOperation => EN.ots_err_repeated_op,
         Error::UnknownOp => EN.ots_err_unknown_op,
         Error::EmptyArgument => EN.ots_err_empty_argument,
         Error::ArgumentTooLong => EN.ots_err_argument_long,
         Error::ResultTooLong => EN.ots_err_result_long,
         Error::TooDeep => EN.ots_err_too_deep,
-        Error::NumberTooLarge => EN.ots_err_number,
+        Error::VaruintTooLong => EN.ots_err_number,
         Error::HeightTooLarge => EN.ots_err_height,
         Error::PayloadTooLong => EN.ots_err_payload_long,
         Error::PayloadTrailingBytes => EN.ots_err_payload_trailing,
@@ -270,6 +297,7 @@ pub(crate) fn error_text(e: Error) -> &'static str {
         Error::HeaderTargetTooEasy => EN.ots_err_header_easy,
         Error::HeaderWork => EN.ots_err_header_work,
     }
+    .to_string()
 }
 
 /// The name of a hash, as the proof's operations name it.
@@ -318,47 +346,64 @@ fn shown(c: &Compute, proof: &Proof, file: &FileGiven, header: &Header) -> Shown
     }
     let mut facts = Vec::new();
     let mut lines = Vec::new();
-    for o in &report.paths {
-        match o {
-            Outcome::BitcoinMatched {
-                block_hash,
-                height,
-                time,
-            } => {
-                if facts.is_empty() {
-                    facts.push((EN.ots_block_hash.to_string(), hex(block_hash)));
-                    facts.push((EN.ots_height.to_string(), height.to_string()));
-                    facts.push((EN.ots_time.to_string(), time_text(*time)));
-                }
+    let mut more = 0usize;
+    // Counted paths first, then the rest.
+    let counted = |o: &&Outcome| matches!(o, Outcome::BitcoinMatched { .. });
+    for o in report
+        .paths
+        .iter()
+        .filter(counted)
+        .chain(report.paths.iter().filter(|o| !counted(o)))
+    {
+        if let Outcome::BitcoinMatched {
+            block_hash,
+            height,
+            time,
+        } = o
+            && facts.is_empty()
+        {
+            facts.push((EN.ots_block_hash.to_string(), hex(block_hash)));
+            facts.push((EN.ots_height.to_string(), height.to_string()));
+            facts.push((EN.ots_time.to_string(), time_text(*time)));
+            continue;
+        }
+        if lines.len() >= MAX_LINES {
+            more += 1;
+            continue;
+        }
+        lines.push(match o {
+            Outcome::BitcoinMatched { height, .. } => {
+                fill(EN.ots_counted_also, &[&height.to_string()])
             }
-            Outcome::BitcoinMismatch { height } => {
-                lines.push(fill(EN.ots_mismatch, &[&height.to_string()]))
-            }
+            Outcome::BitcoinMismatch { height } => fill(EN.ots_mismatch, &[&height.to_string()]),
             Outcome::BitcoinNotSha256 {
                 height,
                 op,
                 reaches_header,
-            } => lines.push(fill(
+            } => fill(
                 if *reaches_header {
                     EN.ots_not_sha256_reaches
                 } else {
                     EN.ots_not_sha256
                 },
                 &[&height.to_string(), op_name(*op)],
-            )),
-            Outcome::Pending { uri } => lines.push(fill(EN.ots_pending, &[uri])),
-            Outcome::Litecoin { height } => {
-                lines.push(fill(EN.ots_litecoin, &[&height.to_string()]));
-            }
-            Outcome::Ethereum { height } => {
-                lines.push(fill(EN.ots_ethereum, &[&height.to_string()]));
-            }
-            Outcome::Unknown { tag } => lines.push(fill(EN.ots_unknown, &[&hex(tag)])),
-        }
+            ),
+            Outcome::Pending { uri } => fill(EN.ots_pending, &[uri]),
+            Outcome::Litecoin { height } => fill(EN.ots_litecoin, &[&height.to_string()]),
+            Outcome::Ethereum { height } => fill(EN.ots_ethereum, &[&height.to_string()]),
+            Outcome::Unknown { tag } => fill(EN.ots_unknown, &[&hex(tag)]),
+        });
+    }
+    if more > 0 {
+        lines.push(fill(EN.ots_more, &[&more.to_string()]));
     }
     Shown {
         verdict: if report.committed() {
-            Verdict::Committed
+            if file.from_text {
+                Verdict::CommittedDigest
+            } else {
+                Verdict::Committed
+            }
         } else {
             Verdict::NotCommitted
         },
@@ -404,9 +449,13 @@ pub(crate) fn act(app: &mut Faraday, action: OtsAction) {
             }
         }
         OtsAction::Take(f) => take_typed(app, f),
-        OtsAction::Scan => {
+        OtsAction::Scan | OtsAction::ScanHash => {
             let mut scan = crate::qr_view::ScanState::default();
-            scan.purpose = crate::ScanPurpose::OtsHeader;
+            scan.purpose = if action == OtsAction::Scan {
+                crate::ScanPurpose::OtsHeader
+            } else {
+                crate::ScanPurpose::OtsFileHash
+            };
             app.camera.open(scan);
             app.sheet = Some(crate::Sheet::Scan);
             app.out
@@ -441,23 +490,52 @@ fn take_proof(app: &mut Faraday, c: &Compute, name: String, bytes: &[u8]) {
                 advance(s, ostep::PROOF);
             }
         }
-        Err(e) => s.refused[0] = Some(error_text(e).to_string()),
+        Err(e) => {
+            s.proof = None;
+            s.shown = None;
+            s.refused[0] = Some(error_text(e));
+        }
     }
 }
 
-/// Costs a SHA-256, SHA-1, RIPEMD-160 and Keccak-256 pass over the file.
+/// Costs a SHA-256, SHA-1 and RIPEMD-160 pass over the file.
 fn take_file(app: &mut Faraday, c: &Compute, name: String, bytes: &[u8]) {
     let sha256 = faraday_crypto::sha256_whole(c, bytes).to_vec();
-    let others = [HashOp::Sha1, HashOp::Ripemd160, HashOp::Keccak256]
+    let others = [HashOp::Sha1, HashOp::Ripemd160]
         .into_iter()
         .map(|op| (op, op.digest_whole(c, bytes)))
         .collect();
     let Some(s) = st(app) else { return };
-    s.file = Some(FileGiven {
+    let mut given = FileGiven {
         name,
         sha256,
+        digest_only: false,
+        from_text: false,
         others,
-    });
+    };
+    // A file that is the proof's SHA-256 written as text (from a scan or a
+    // text file) is that digest, shown in the hash field with the file's
+    // name as its source; a file whose own hash matches is the file.
+    if let Some(p) = &s.proof {
+        let digest = p.value.file_digest();
+        if p.value.file_op() == HashOp::Sha256
+            && given.sha256 != digest
+            && hex_text_digest(bytes).as_deref() == Some(digest)
+        {
+            given.sha256 = digest.to_vec();
+            given.others = Vec::new();
+            given.digest_only = true;
+            given.from_text = true;
+            given.name = fill(EN.ots_digest_from, &[&given.name]);
+            s.hash_text = hex(digest);
+        }
+    }
+    // The hash field shows only the value that is checked: a whole file
+    // leaves no older typed text in it.
+    if !given.digest_only {
+        s.hash_text.clear();
+    }
+    s.file = Some(given);
     s.refused[1] = None;
     judge(app, c);
     if let Some(s) = st(app) {
@@ -465,12 +543,32 @@ fn take_file(app: &mut Faraday, c: &Compute, name: String, bytes: &[u8]) {
     }
 }
 
-/// Takes a header from a file, a field or a scan; false when it is none.
+/// The SHA-256 a file's text writes: exactly 64 hex characters, with
+/// whitespace around them.
+fn hex_text_digest(bytes: &[u8]) -> Option<Vec<u8>> {
+    let text = std::str::from_utf8(bytes).ok()?.trim();
+    if text.len() != 64 {
+        return None;
+    }
+    unhex(text, 32)
+}
+
+/// Takes a header from a file, a scan or the sample; false when it is
+/// none. Older typed header text is cleared, taken or refused.
 pub(crate) fn take_header(app: &mut Faraday, name: String, bytes: &[u8]) -> bool {
+    if let Some(s) = st(app) {
+        s.header_text.clear();
+    }
+    take_header_as(app, name, bytes, true)
+}
+
+/// [`take_header`], with `raw_ok` for 80 bytes taken as they are (not for
+/// typed text).
+fn take_header_as(app: &mut Faraday, name: String, bytes: &[u8], raw_ok: bool) -> bool {
     let network = network_of(app.session.network());
-    let parsed = match header_bytes(bytes) {
+    let parsed = match header_bytes(bytes, raw_ok) {
         Some(b) => Header::parse(network, &b).map_err(error_text),
-        None => Err(EN.ots_not_a_header),
+        None => Err(EN.ots_not_a_header.to_string()),
     };
     let c = app.compute();
     let Some(s) = st(app) else { return false };
@@ -485,7 +583,9 @@ pub(crate) fn take_header(app: &mut Faraday, name: String, bytes: &[u8]) -> bool
             true
         }
         Err(why) => {
-            s.refused[2] = Some(why.to_string());
+            s.header = None;
+            s.shown = None;
+            s.refused[2] = Some(why);
             false
         }
     }
@@ -502,6 +602,8 @@ fn take_typed(app: &mut Faraday, f: Field) {
                     s.file = Some(FileGiven {
                         name: EN.ots_typed.to_string(),
                         sha256: d,
+                        digest_only: true,
+                        from_text: false,
                         others: Vec::new(),
                     });
                     s.refused[1] = None;
@@ -510,12 +612,16 @@ fn take_typed(app: &mut Faraday, f: Field) {
                         advance(s, ostep::FILE);
                     }
                 }
-                None => s.refused[1] = Some(EN.ots_not_a_hash.to_string()),
+                None => {
+                    s.file = None;
+                    s.shown = None;
+                    s.refused[1] = Some(EN.ots_not_a_hash.to_string());
+                }
             }
         }
         Field::Header => {
             let text = s.header_text.as_str().to_string();
-            take_header(app, EN.ots_typed.to_string(), text.as_bytes());
+            take_header_as(app, EN.ots_typed.to_string(), text.as_bytes(), false);
         }
     }
 }
@@ -536,8 +642,13 @@ fn judge(app: &mut Faraday, c: &Compute) {
 /// A header the scanner read: Scanned, and the scanner closes. Whether
 /// the scanner on screen is this one.
 pub(crate) fn scanned(app: &mut Faraday, bytes: &[u8]) -> bool {
-    if app.camera.scan().map(|s| s.purpose) != Some(crate::ScanPurpose::OtsHeader) {
-        return false;
+    match app.camera.scan().map(|s| s.purpose) {
+        Some(crate::ScanPurpose::OtsHeader) => {}
+        Some(crate::ScanPurpose::OtsFileHash) => {
+            hash_scanned(app, bytes);
+            return true;
+        }
+        _ => return false,
     }
     if take_header(app, EN.ots_scanned.to_string(), bytes) {
         app.scan_close();
@@ -548,6 +659,51 @@ pub(crate) fn scanned(app: &mut Faraday, bytes: &[u8]) -> bool {
         app.scan_say(why);
     }
     true
+}
+
+/// A refused hash scan: says why on the scanner and drops the file or hash
+/// held and the Result, as a refused typed hash does.
+fn refuse_hash(app: &mut Faraday, why: String) {
+    if let Some(s) = st(app) {
+        s.file = None;
+        s.hash_text.clear();
+        s.shown = None;
+        s.refused[1] = None;
+    }
+    app.scan_say(why);
+}
+
+/// Costs what `scan_key::secret_code` costs: the file's SHA-256 the
+/// scanner read, exactly 64 hex characters with whitespace is
+/// trimmed. It fills the hash field and is named Scanned; a secret and
+/// anything else is refused on the scanner.
+fn hash_scanned(app: &mut Faraday, bytes: &[u8]) {
+    let c = app.compute();
+    if let Some(why) = crate::scan_key::secret_code(&c, bytes) {
+        refuse_hash(app, why.to_string());
+        return;
+    }
+    let text = std::str::from_utf8(bytes).ok().map(str::trim);
+    let digest = text.filter(|t| t.len() == 64).and_then(|t| unhex(t, 32));
+    let (Some(text), Some(d)) = (text, digest) else {
+        refuse_hash(app, EN.ots_not_a_hash.to_string());
+        return;
+    };
+    let Some(s) = st(app) else { return };
+    s.hash_text = text.to_string();
+    s.file = Some(FileGiven {
+        name: EN.ots_scanned.to_string(),
+        sha256: d,
+        digest_only: true,
+        from_text: false,
+        others: Vec::new(),
+    });
+    s.refused[1] = None;
+    judge(app, &c);
+    if let Some(s) = st(app) {
+        advance(s, ostep::FILE);
+    }
+    app.scan_close();
 }
 
 /// The field typing goes to, with what is typed.
@@ -567,25 +723,43 @@ pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
 /// The longest hex text a field takes, with room for spaces.
 const FIELD_CHARS: usize = 400;
 
+/// An edit of a field drops what the field gave before and the Result
+/// with it.
+fn edit(s: &mut OtsState, f: Field, change: impl FnOnce(&mut String)) {
+    match f {
+        Field::Hash => {
+            change(&mut s.hash_text);
+            s.file = None;
+            s.refused[1] = None;
+        }
+        Field::Header => {
+            change(&mut s.header_text);
+            s.header = None;
+            s.refused[2] = None;
+        }
+    }
+    s.shown = None;
+}
+
 pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
     if app.screen != Screen::OtsCheck || app.sheet.is_some() {
         return false;
     }
     let Some(s) = st(app) else { return false };
     let Some(f) = s.typing else { return false };
-    let text = match f {
-        Field::Hash => &mut s.hash_text,
-        Field::Header => &mut s.header_text,
-    };
     match key {
         Key::Char(ch) if !ch.is_control() => {
-            if text.as_str().len() < FIELD_CHARS {
-                text.push(ch);
-            }
+            edit(s, f, |t| {
+                if t.len() < FIELD_CHARS {
+                    t.push(ch);
+                }
+            });
             true
         }
         Key::Backspace => {
-            text.pop();
+            edit(s, f, |t| {
+                t.pop();
+            });
             true
         }
         Key::Enter => {

@@ -36,11 +36,11 @@ fn attestation_text(a: &Attestation) -> String {
 }
 
 /// Every attestation with the operations that lead to it, and whether a
-/// node holds the same operation or the same attestation twice.
-fn leaves(node: &Node, path: &mut Vec<String>, out: &mut Vec<String>, repeated: &mut [bool; 2]) {
+/// node holds the same attestation twice.
+fn leaves(node: &Node, path: &mut Vec<String>, out: &mut Vec<String>, repeated: &mut bool) {
     for (i, entry) in node.entries.iter().enumerate() {
         if matches!(entry, Entry::Attestation(_)) && node.entries[..i].contains(entry) {
-            repeated[1] = true;
+            *repeated = true;
         }
         match entry {
             Entry::Attestation(a) => {
@@ -51,12 +51,6 @@ fn leaves(node: &Node, path: &mut Vec<String>, out: &mut Vec<String>, repeated: 
                 out.push(format!("{line}=> {}", attestation_text(a)));
             }
             Entry::Op(op, next) => {
-                if node.entries[..i]
-                    .iter()
-                    .any(|e| matches!(e, Entry::Op(o, _) if o == op))
-                {
-                    repeated[0] = true;
-                }
                 path.push(op_text(op));
                 leaves(next, path, out, repeated);
                 path.pop();
@@ -97,14 +91,13 @@ pub fn handle(name: &str, req: &Value) -> Answer {
         "read" => {
             let proof = Proof::parse(&c, &bytes(req, "proof")).map_err(err)?;
             let mut out = Vec::new();
-            let mut repeated = [false; 2];
+            let mut repeated = false;
             leaves(proof.tree(), &mut Vec::new(), &mut out, &mut repeated);
             Ok(json!({
                 "file_op": proof.file_op().name(),
                 "digest": hex(proof.file_digest()),
                 "leaves": out,
-                "repeated_op": repeated[0],
-                "repeated_attestation": repeated[1],
+                "repeated_attestation": repeated,
             }))
         }
         // A header read: its hash, merkle root and time.
