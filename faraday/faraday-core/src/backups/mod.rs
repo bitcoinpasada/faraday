@@ -356,6 +356,18 @@ pub(crate) fn encode(all: &[Record]) -> Vec<u8> {
     out.into_bytes()
 }
 
+/// A `kef` line's fields after its tag, of any length kept so far: eight
+/// fields (kept before the drawn copy and the side were) read as not
+/// scanned, side unknown; ten (kept before Paper was) as not on Paper;
+/// any other count drops the line.
+fn read_kef_line(out: &mut [Record], rest: &[&str]) {
+    if matches!(rest.len(), 7 | 9 | 10) {
+        let mut f = ["0"; 10];
+        f[..rest.len()].copy_from_slice(rest);
+        read_kef(out, f);
+    }
+}
+
 /// The records read back; a line that does not read is skipped.
 pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
     let text = String::from_utf8_lossy(bytes);
@@ -412,55 +424,10 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
                     r.ids.push((fp, id));
                 }
             }
-            // A flag other than 0 or 1 drops the line too.
-            // A line without the hash and the options (kept before they
-            // were) is dropped: the code reads Not made.
-            // A line kept before the drawn copy and the side were (eight
-            // fields) reads as not scanned, side unknown; one kept before
-            // Paper was (ten fields) as not on Paper.
-            ["kef", fp, png, file, checked, sha, low, label] => {
-                read_kef(
-                    &mut out,
-                    [fp, png, file, checked, sha, low, label, "0", "0", "0"],
-                );
-            }
-            [
-                "kef",
-                fp,
-                png,
-                file,
-                checked,
-                sha,
-                low,
-                label,
-                scanned,
-                side,
-            ] => {
-                read_kef(
-                    &mut out,
-                    [fp, png, file, checked, sha, low, label, scanned, side, "0"],
-                );
-            }
-            [
-                "kef",
-                fp,
-                png,
-                file,
-                checked,
-                sha,
-                low,
-                label,
-                scanned,
-                side,
-                paper,
-            ] => {
-                read_kef(
-                    &mut out,
-                    [
-                        fp, png, file, checked, sha, low, label, scanned, side, paper,
-                    ],
-                );
-            }
+            // A flag other than 0 or 1 drops the line too. A line without
+            // the hash and the options (kept before they were) is dropped:
+            // the code reads Not made.
+            ["kef", ref rest @ ..] => read_kef_line(&mut out, rest),
             ["check", fp, n] => {
                 if let (Some(fp), Ok(n), Some(r)) = (read_hex4(fp), n.parse(), out.last_mut()) {
                     r.checks.push((fp, n));
