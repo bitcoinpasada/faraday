@@ -3,8 +3,8 @@
 
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
 use faraday_starter::api::{
-    Bus, Computer, DevImage, Disk, FaradayStick, FoundImage, ImageFinding, InUse, Mode, Os, Reason,
-    Source, StarterCommand, StarterEvent, Volume,
+    Bus, Computer, Concern, DevImage, Disk, FaradayStick, FoundImage, ImageFinding, InUse, Kind,
+    Mode, Os, Reason, Source, StarterCommand, StarterEvent, Volume,
 };
 use faraday_starter::decide::Target;
 use faraday_starter::{LearnId, Page, RestartTo, Sheet, Starter, StarterAction};
@@ -1142,4 +1142,52 @@ fn transfer_in_a_half_screen_window_is_one_column() {
     assert!(shows(&mut starter, "Transfer"));
     starter.event(display(3200, 1800, 320));
     assert!(!starter.held().is_compact());
+}
+
+#[test]
+fn in_a_virtual_machine_written_greys_the_start_and_says_why() {
+    let mut starter = starter_with(vec![disk("sdb", "Stick", 16 * GB)]);
+    to_confirm(&mut starter, "sdb", Mode::Whole);
+    starter.press(StarterAction::Write);
+    starter.starter_event(StarterEvent::Written(Ok(())));
+    assert_eq!(starter.page, Page::Done);
+    let _ = starter.drawn_texts();
+    assert!(starter.offers_action(StarterAction::Start));
+    assert!(!shows(&mut starter, "is a virtual machine"));
+    starter.starter_event(StarterEvent::Concerns(vec![Concern {
+        kind: Kind::VirtualMachine,
+        name: "QEMU".into(),
+        id: "vm".into(),
+    }]));
+    let _ = starter.drawn_texts();
+    assert!(!starter.offers_action(StarterAction::Start));
+    assert!(shows(&mut starter, "QEMU is a virtual machine"));
+    starter.press(StarterAction::Start);
+    assert_eq!(starter.page, Page::Done);
+}
+
+#[test]
+fn two_identical_sticks_read_differently_on_which_stick() {
+    let mut a = disk("sdb", "Stick", 16 * GB);
+    let mut b = disk("sdc", "Stick", 16 * GB);
+    a.serial = "AAA111".into();
+    b.serial = "BBB222".into();
+    let mut c = disk("sdd", "Other", 8 * GB);
+    c.serial = "CCC333".into();
+    let mut starter = starter_with(vec![a, b, c]);
+    starter.press(StarterAction::Make(Target::Stick));
+    assert!(shows(&mut starter, "Serial AAA111"));
+    assert!(shows(&mut starter, "Serial BBB222"));
+    // A row that already differs stays as it is.
+    assert!(!shows(&mut starter, "Serial CCC333"));
+    // With no serial, the device tells them apart.
+    let mut a = disk("sdb", "Stick", 16 * GB);
+    let mut b = disk("sdc", "Stick", 16 * GB);
+    a.serial.clear();
+    b.serial.clear();
+    let (da, db) = (a.device.clone(), b.device.clone());
+    let mut starter = starter_with(vec![a, b]);
+    starter.press(StarterAction::Make(Target::Stick));
+    assert!(shows(&mut starter, &da));
+    assert!(shows(&mut starter, &db));
 }

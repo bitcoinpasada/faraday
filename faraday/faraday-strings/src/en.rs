@@ -368,6 +368,12 @@ strings! {
     starter_serial: "Serial",
     /// A disk with no serial.
     starter_serial_none: "None",
+    /// A Which stick row that reads like another's: `{}` its second line,
+    /// then the disk's serial.
+    starter_row_serial: "{} · Serial {}",
+    /// The same for a disk with no serial: `{}` its second line, then the
+    /// device.
+    starter_row_device: "{} · {}",
     /// Confirm row.
     starter_disk_contents_row: "On it",
     /// Confirm row.

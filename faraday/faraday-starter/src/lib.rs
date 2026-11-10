@@ -1890,6 +1890,10 @@ impl Starter {
                     self.act(StarterAction::Make(target));
                 }
             }
+            // On Written a virtual machine holds Start (§3.1a).
+            StarterAction::Start
+                if self.page == Page::Done
+                    && self.concerns.iter().any(|c| c.kind == Kind::VirtualMachine) => {}
             StarterAction::Start => self.go(Page::Start),
             StarterAction::Restart => {
                 if self.page == Page::Start

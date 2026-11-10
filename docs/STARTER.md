@@ -750,9 +750,13 @@ Downloads.
    what is on it. A Faraday stick says "Faraday stick" and the Faraday
    version it holds (§4.1); any other disk says the names of its
    volumes and that it holds files ("2 volumes, files on them"), or
-   "Empty". The device path and serial are not on this screen; Confirm
-   has them. Faraday sticks come first, then the others by size, the
-   smallest first. The list follows sticks plugged in and pulled out. A
+   "Empty". The device path and serial are not on this screen, except on rows
+   that would read the same; Confirm has them. Faraday sticks come first, then the others by size, the
+   smallest first. Two or more rows that would read the same (maker and
+   model, what is on them, size) each add what tells them apart to the
+   second line: the serial when the disk has one ("Serial 1234"), else
+   the device name; rows that already differ stay as they are. The list
+   follows sticks plugged in and pulled out. A
    disk the computer uses (§4.2) is shown dimmed with the reason and
    cannot be chosen. **No disk is ever chosen for the person**, even
    when there is one (owner, 2026-10-12): the one attached USB disk is
@@ -818,7 +822,9 @@ Downloads.
    (<name>)`; HP: `USB Hard Drive - <name>`), shown also on §3.4's
    step that chooses the stick while a Faraday stick is attached, and
    not shown when the stick reports neither; then the next step:
-   **Start this computer from the stick** (§3.4). On failure the
+   **Start this computer from the stick** (§3.4), which in a virtual
+   machine is greyed under the virtual machine's line (§3.1a), as Home's
+   restart is: the stick must start on the real computer. On failure the
    reason the writer gave, and nothing claims success.
 
 ### 3.3 Make a Pi card

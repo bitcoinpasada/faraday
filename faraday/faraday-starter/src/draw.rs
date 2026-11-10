@@ -1002,7 +1002,8 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         return y + line(ui, x, y + 8.0, w, s, Role::OnSurfaceVariant);
     }
     y += 4.0;
-    for o in &offers {
+    let rows: Vec<(String, String)> = offers.iter().map(|o| disk_row_text(starter, o)).collect();
+    for (o, (_, sub)) in offers.iter().zip(&rows) {
         let d = o.disk;
         // A stick's glyph for a USB disk, the SD card's for the
         // computer's reader, the drive's for anything else
@@ -1012,13 +1013,10 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             crate::api::Bus::SdReader => Icon::SdCard.into(),
             crate::api::Bus::Other => Icon::Drive.into(),
         };
-        let (sub, action) = match &o.refused {
-            Some(r) => (refusal_text(r), None),
-            None if starter.no_writer => (on_it(d), None),
-            None => (
-                on_it(d),
-                Some(StarterAction::Disk(starter.disk_number(&d.id))),
-            ),
+        let action = match &o.refused {
+            Some(_) => None,
+            None if starter.no_writer => None,
+            None => Some(StarterAction::Disk(starter.disk_number(&d.id))),
         };
         y += nav_row(
             ui,
@@ -1027,12 +1025,39 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             w,
             icon,
             &disk_name(d),
-            &sub,
+            sub,
             &size_text(d.size),
             action,
         );
     }
     y
+}
+
+/// A Which stick row's name and second line. Rows that would read the
+/// same (name, second line and size) each add what tells them apart:
+/// the serial when the disk has one, else the device name.
+fn disk_row_text(starter: &Starter, o: &crate::decide::Offer<'_>) -> (String, String) {
+    let plain = |o: &crate::decide::Offer<'_>| {
+        let sub = match &o.refused {
+            Some(r) => refusal_text(r),
+            None => on_it(o.disk),
+        };
+        (disk_name(o.disk), sub, o.disk.size)
+    };
+    let (name, sub, size) = plain(o);
+    let same = starter
+        .offers()
+        .iter()
+        .filter(|other| plain(other) == (name.clone(), sub.clone(), size))
+        .count();
+    let sub = if same < 2 {
+        sub
+    } else if o.disk.serial.trim().is_empty() {
+        fill(S.starter_row_device, &[&sub, &o.disk.device])
+    } else {
+        fill(S.starter_row_serial, &[&sub, o.disk.serial.trim()])
+    };
+    (name, sub)
 }
 
 fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
@@ -1343,9 +1368,22 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                     Role::OnSurface,
                 ) + 8.0;
             }
+            // A virtual machine holds the restart here as on Home
+            // (§3.1a): the stick must start on the real computer.
+            let vm: Vec<_> = starter
+                .restart_holds()
+                .into_iter()
+                .filter(|c| c.kind == Kind::VirtualMachine)
+                .collect();
+            let start = Style::Primary.when(vm.is_empty());
+            if m.target == Target::Stick {
+                for c in &vm {
+                    y += warning(ui, x, y, w, &concern_text(c));
+                }
+            }
             let items: &[(&str, Style, StarterAction)] = match m.target {
                 Target::Stick => &[
-                    (start_label(starter), Style::Primary, StarterAction::Start),
+                    (start_label(starter), start, StarterAction::Start),
                     (S.starter_done, Style::Secondary, StarterAction::Home),
                 ],
                 Target::Pi => &[(S.starter_done, Style::Primary, StarterAction::Home)],
