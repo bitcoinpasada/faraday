@@ -1917,7 +1917,7 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     BODY_S,
                     Role::OnSurfaceVariant,
                     EN.convert_not_given,
-                ) + 12.0;
+                ) + T::GAP;
                 return cy - y;
             }
             cy += crate::screens::randomness::row(app, ui, (x, cy, w));
