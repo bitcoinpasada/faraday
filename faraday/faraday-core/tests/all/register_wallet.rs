@@ -85,6 +85,7 @@ fn an_unregistered_multisig_spend_is_blocked_and_signs_nothing() {
     );
     assert!(shown.contains("Register this wallet"), "{shown}");
     let before = app.spend().unwrap().spend.psbt.clone();
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert_eq!(
         app.spend().unwrap().spend.psbt,
@@ -171,6 +172,7 @@ fn register_this_wallet_shows_the_wallet_and_the_hold_registers_it_and_it_signs(
     );
     assert_eq!(app.spend().unwrap().wallet, Some(0));
     let before = app.spend().unwrap().spend.psbt.clone();
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert_ne!(app.spend().unwrap().spend.psbt, before, "now it signs");
 }

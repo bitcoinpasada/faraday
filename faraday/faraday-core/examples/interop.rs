@@ -71,8 +71,12 @@ fn sign(k: &Kit, seeds: &str, psbt: &Path, dir: &Path) -> Result<String, String>
     if app.spend().is_none() {
         return Err("Faraday did not open the spend".into());
     }
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let finished = app.spend().is_some_and(|s| s.spend.finished.is_some());
+    if !finished && app.spend().is_none_or(|s| s.spend.signed_here.is_empty()) {
+        return Err("nothing was signed".into());
+    }
     app.press(if finished {
         Action::TxToOutbox
     } else {

@@ -255,6 +255,7 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     assert_eq!(s.wallet, Some(savings), "the spend's wallet is not Savings");
     assert_eq!(s.open, Some(step::TRANSACTION), "the review is not first");
 
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let here = app.spend().unwrap().spend.psbt.to_bytes();
     assert!(!app.spend().unwrap().spend.signed_here.is_empty());
@@ -269,6 +270,7 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     other.press(Action::Vault(faraday_core::vault::VaultAction::LoadAll(0)));
     let at = inbox_at(&other, "savings-unsigned.psbt");
     other.press(Action::StartSpend(at));
+    testkit::steps_before_sign_done(&mut other);
     other.press(Action::SignHere);
     assert_eq!(here, other.spend().unwrap().spend.psbt.to_bytes());
 }
@@ -354,6 +356,7 @@ fn a_vault_with_the_wallet_and_one_key_takes_the_second_key_from_its_words() {
     app.press(Action::EntryAdd);
     assert_eq!(app.screen, Screen::Family, "adding the key left the tab");
     assert_eq!(app.session.keys.len(), 2);
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let s = app.spend().unwrap();
     assert_eq!(s.spend.signed_here.len(), 2, "both keys did not sign");
@@ -460,6 +463,7 @@ fn typed_words_open_the_kind_of_wallet_the_transaction_spends_from() {
     let w = s.wallet.expect("no wallet matched the Taproot spend");
     let tr = faraday_core::wallet::read_wallet(&c, &taproot.descriptor).unwrap();
     assert_eq!(desc(app.session.wallets[w].policy()), desc(&tr));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().complete);
 }
@@ -899,6 +903,7 @@ fn savings_spend_signed_here() -> Faraday {
     app.press(Action::Family(F::Choose(savings)));
     let at = inbox_at(&app, "savings-unsigned.psbt");
     app.press(Action::Family(F::UsePsbt(at)));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(!app.spend().unwrap().spend.signed_here.is_empty());
     assert!(!app.spend().unwrap().complete, "one signature finished it");

@@ -111,6 +111,7 @@ fn signed_from(bytes: Vec<u8>) -> (Faraday, Vec<u8>) {
     app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(
         app.spend().unwrap().spend.finished.is_some(),

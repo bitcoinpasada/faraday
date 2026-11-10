@@ -128,7 +128,32 @@ impl SignWork {
 
 /// Signs the open spend with the keys held here, on the worker. The
 /// refusals come first and answer at once.
+///
+/// Every route here requires the steps before Sign done: if one is not,
+/// the first of them opens and nothing is signed. The press that only
+/// opens a MuSig2 round (Go first, on the Nonces card) requires the
+/// steps before Nonces.
 pub(crate) fn sign_here(app: &mut Faraday) {
+    if let Some(s) = app.wallets.spend_mut() {
+        let last = if s.musig.is_none() && spend_opens_round(&s.inspection) {
+            wallet::step::NONCES
+        } else {
+            wallet::step::SIGN
+        };
+        // A file's round fields never stretch this past Sign.
+        let before: Vec<u8> = s
+            .steps
+            .iter()
+            .copied()
+            .take_while(|&n| n != last && n != wallet::step::SIGN)
+            .collect();
+        if let Some(pos) = before.iter().position(|&n| !s.done[n as usize]) {
+            s.open = Some(before[pos]);
+            s.follow = true;
+            s.error = Some(fill(EN.primary_finish_step, &[&(pos + 1).to_string()]));
+            return;
+        }
+    }
     let c = app.compute();
     // A key made here signs nothing until its backup is done
     // (`docs/history/NEW-WALLET.md` §14.3).
@@ -264,7 +289,7 @@ fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, String>) {
             s.error = None;
             if !nonce_only {
                 remember = Some(s.spend.psbt.clone());
-                s.done[5] = true;
+                s.done[wallet::step::SIGN as usize] = true;
             }
             part = w.part;
             for (kept, theirs) in app.session.wallets.iter().zip(w.wallets) {

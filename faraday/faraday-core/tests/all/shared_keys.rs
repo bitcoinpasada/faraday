@@ -100,6 +100,7 @@ fn the_shared_seed_signs_for_the_wallet_the_transaction_spends_from() {
     let s = app.spend().unwrap();
     let w = s.wallet.map(|i| app.session.wallets[i].name.clone());
     assert_eq!(w.as_deref(), Some("Savings"));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert_eq!(app.spend().unwrap().spend.signed_here.len(), 1);
 }

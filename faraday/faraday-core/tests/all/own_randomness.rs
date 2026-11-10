@@ -310,6 +310,7 @@ fn a_signing_round_does_not_open_on_what_was_added_alone() {
     add_dice(&mut app);
     add_frame(&mut app);
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().musig.is_none());
     assert!(our_nonce(&app).is_none());
@@ -1297,9 +1298,11 @@ fn a_musig2_round_offers_add_randomness_at_sign_here_and_other_dice_share_anothe
     let mut app = session(false);
     app.press(Action::Step(step::SIGN));
     opens_from_the_press_and_comes_back(&mut app, Action::SignHere);
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let plain = our_nonce(&app).expect("a nonce shared");
     let mut mixed = session(true);
+    testkit::steps_before_sign_done(&mut mixed);
     mixed.press(Action::SignHere);
     assert_ne!(Some(plain), our_nonce(&mixed), "the dice change the nonce");
 }

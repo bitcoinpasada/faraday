@@ -330,6 +330,7 @@ fn a_psbt_opened_to_its_review_and_signed_do_their_fixed_work() {
     check("a PSBT opened to its review", &since(&before), OPEN);
 
     let before = snapshot();
+    testkit::steps_before_sign_done(&mut app);
     press_and_draw(&mut app, Action::SignHere);
     let s = app.wallets.spend().expect("the spend");
     assert_eq!(s.spend.signed_here.len(), 2, "both seeds signed");

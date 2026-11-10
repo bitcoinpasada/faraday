@@ -50,6 +50,7 @@ fn a_psbt_with_another_programs_proprietary_records_is_signed() {
             .expect("the wallet");
         app.press(Action::StartSpend(0));
         assert_eq!(app.screen, Screen::Spend);
+        testkit::steps_before_sign_done(&mut app);
         app.press(Action::SignHere);
         let s = app.spend().expect("the spend");
         assert!(s.complete, "{:?}", s.error);

@@ -544,9 +544,11 @@ mod signing {
     #[test]
     fn a_transaction_signed_on_the_worker_has_the_same_signatures() {
         let mut inline = unsigned_spend();
+        testkit::steps_before_sign_done(&mut inline);
         inline.press(Action::SignHere);
 
         let mut app = unsigned_spend();
+        testkit::steps_before_sign_done(&mut app);
         testkit::press_on_worker(&mut app, Action::SignHere);
         assert!(app.busy().is_some(), "the screen is busy while it signs");
         testkit::settle(&mut app);
@@ -569,6 +571,7 @@ mod signing {
     #[test]
     fn a_session_copy_for_the_worker_reads_a_spend_as_the_session_does() {
         let mut app = unsigned_spend();
+        testkit::steps_before_sign_done(&mut app);
         app.press(Action::SignHere);
         let psbt = &app.spend().unwrap().spend.psbt;
         let c = testkit::compute();
@@ -610,6 +613,7 @@ mod signing {
     fn a_transaction_no_key_here_signs_says_what_it_says_inline() {
         let mut inline = inbox_of();
         open(&mut inline, false);
+        testkit::steps_before_sign_done(&mut inline);
         inline.press(Action::SignHere);
         let said = inline.spend().unwrap().error.clone();
         assert!(said.is_some());
@@ -617,6 +621,7 @@ mod signing {
         let mut app = inbox_of();
         open(&mut app, false);
         let asked = testkit::jobs_asked(&app);
+        testkit::steps_before_sign_done(&mut app);
         testkit::press_on_worker(&mut app, Action::SignHere);
         assert!(app.busy().is_none(), "a refusal starts no job");
         assert_eq!(testkit::jobs_asked(&app), asked);
@@ -627,6 +632,7 @@ mod signing {
     fn back_during_signing_leaves_it_unsigned() {
         let mut app = unsigned_spend();
         testkit::hold_worker();
+        testkit::steps_before_sign_done(&mut app);
         testkit::press_on_worker(&mut app, Action::SignHere);
         assert!(app.busy().is_some());
         app.press(Action::Back);
@@ -643,6 +649,7 @@ mod signing {
     fn a_lock_during_signing_leaves_it_unsigned_and_the_key_gone() {
         let mut app = unsigned_spend();
         testkit::hold_worker();
+        testkit::steps_before_sign_done(&mut app);
         testkit::press_on_worker(&mut app, Action::SignHere);
         app.press(Action::LockUnsealed);
         assert!(app.busy().is_none());
@@ -663,6 +670,7 @@ mod signing {
     fn a_lock_during_signing_leaves_the_store_empty_and_the_outbox_too() {
         let mut app = unsigned_spend();
         testkit::hold_worker();
+        testkit::steps_before_sign_done(&mut app);
         testkit::press_on_worker(&mut app, Action::SignHere);
         app.press(Action::LockUnsealed);
         testkit::release_worker();
@@ -682,6 +690,7 @@ mod signing {
         open(&mut app, true);
         let before = app.session.keys.master_for_tests(0).blindings();
         testkit::hold_worker();
+        testkit::steps_before_sign_done(&mut app);
         testkit::press_on_worker(&mut app, Action::SignHere);
         // The person adds randomness while the job holds the key.
         let mut rolls = faraday_entropy::DiceRolls::new();
@@ -874,6 +883,7 @@ mod signing {
                 kept: Vec::new(),
             });
             open(&mut app, true);
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             assert!(!app.spend().unwrap().spend.signed_here.is_empty());
             testkit::release_worker();
@@ -979,6 +989,7 @@ mod signing {
         fn a_musig_round_on_the_worker_completes() {
             let mut app = device(true);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            testkit::steps_before_sign_done(&mut app);
             testkit::press_on_worker(&mut app, Action::SignHere);
             testkit::settle(&mut app);
             assert!(our_nonce(&app).is_some(), "round 1 shares a nonce");
@@ -993,6 +1004,7 @@ mod signing {
             for i in copies {
                 app.press(Action::Collect(i));
             }
+            testkit::steps_before_sign_done(&mut app);
             testkit::press_on_worker(&mut app, Action::SignHere);
             testkit::settle(&mut app);
             let s = app.spend().unwrap();
@@ -1023,9 +1035,11 @@ mod signing {
 
         fn round(app: &mut Faraday, worker: bool) {
             if worker {
+                testkit::steps_before_sign_done(app);
                 testkit::press_on_worker(app, Action::SignHere);
                 testkit::settle(app);
             } else {
+                testkit::steps_before_sign_done(app);
                 app.press(Action::SignHere);
             }
         }
@@ -1057,6 +1071,7 @@ mod signing {
             let mut app = device(true);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
             testkit::hold_worker();
+            testkit::steps_before_sign_done(&mut app);
             testkit::press_on_worker(&mut app, Action::SignHere);
             app.press(Action::Back);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
@@ -1065,6 +1080,7 @@ mod signing {
             assert!(our_nonce(&app).is_none(), "a nonce was shared");
             assert!(app.spend().unwrap().musig.is_none());
             // Pressed again, a new round opens and shares a nonce.
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             assert!(our_nonce(&app).is_some());
         }
@@ -1073,6 +1089,7 @@ mod signing {
         fn back_during_round_two_loses_the_round_and_the_next_press_shares_a_new_nonce() {
             let mut app = device(true);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let first = our_nonce(&app).expect("round 1 shares a nonce");
             let copies = nonce_copies(&app);
@@ -1080,6 +1097,7 @@ mod signing {
                 app.press(Action::Collect(i));
             }
             testkit::hold_worker();
+            testkit::steps_before_sign_done(&mut app);
             testkit::press_on_worker(&mut app, Action::SignHere);
             app.press(Action::Back);
             testkit::release_worker();
@@ -1090,6 +1108,7 @@ mod signing {
                 assert!(s.spend.signed_here.is_empty(), "nothing signed");
             }
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let second = our_nonce(&app).expect("a new round shares a nonce");
             assert_ne!(first, second, "the nonce is a new one");
@@ -1101,10 +1120,12 @@ mod signing {
         fn reopened() -> (Faraday, Vec<usize>) {
             let mut app = device(true);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let copies = nonce_copies(&app);
             app.press(Action::Collect(copies[0]));
             app.press(Action::Collect(copies[1]));
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let partials: Vec<usize> = app
                 .inbox()
@@ -1194,10 +1215,12 @@ mod signing {
         fn collecting_the_last_partial_aggregates_at_once_and_takes_back_the_part_file() {
             let mut app = device(true);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let copies = nonce_copies(&app);
             app.press(Action::Collect(copies[0]));
             app.press(Action::Collect(copies[1]));
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let partials: Vec<usize> = app
                 .inbox()
@@ -1227,6 +1250,7 @@ mod signing {
         fn collecting_the_cosigners_nonces_signs_nothing_until_sign_is_pressed() {
             let mut app = device(true);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let shared = our_nonce(&app);
             for i in nonce_copies(&app) {
@@ -1237,6 +1261,7 @@ mod signing {
             assert!(s.musig.is_some(), "the nonce is still held for Sign");
             assert!(!s.to_sign.is_empty(), "Sign is offered");
             assert_eq!(our_nonce(&app), shared, "no new nonce was drawn");
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let s = app.spend().unwrap();
             assert_eq!(s.spend.signed_here.len(), 1, "the press signed");
@@ -1363,6 +1388,7 @@ mod signing {
             let mut shared = Vec::new();
             for a in all.iter_mut() {
                 a.press(Action::StartSpend(at(a, "musig-unsigned.psbt")));
+                testkit::steps_before_sign_done(a);
                 a.press(Action::SignHere);
                 shared.push(file_of(a));
             }
@@ -1384,6 +1410,7 @@ mod signing {
             give(&mut again, every);
             let i = again.inbox().len() - 1;
             again.press(Action::StartSpend(i));
+            testkit::steps_before_sign_done(&mut again);
             again.press(Action::SignHere);
             let new = file_of(&again);
             all[2] = again;
@@ -1567,6 +1594,7 @@ mod signing {
             for _ in 0..8 {
                 let mut files = Vec::new();
                 for a in all.iter_mut() {
+                    testkit::steps_before_sign_done(a);
                     a.press(Action::SignHere);
                     files.push(file_of(a));
                 }
@@ -1590,10 +1618,12 @@ mod signing {
         fn a_completed_aggregation_removes_only_its_own_part_file() {
             let mut app = device(true);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             for i in nonce_copies(&app) {
                 app.press(Action::Collect(i));
             }
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let partials: Vec<usize> = app
                 .inbox()
@@ -1630,10 +1660,12 @@ mod signing {
         fn part_files_after_a_reopened_spend_completes(other: bool) -> Vec<Vec<u8>> {
             let mut app = device(true);
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             for i in nonce_copies(&app) {
                 app.press(Action::Collect(i));
             }
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
             let partials: Vec<usize> = app
                 .inbox()
@@ -1724,6 +1756,7 @@ mod collect {
         add_key(&mut app, "bacon");
         app.press(Action::StartSpend(at(&app, "spend.psbt")));
         if signed {
+            testkit::steps_before_sign_done(&mut app);
             app.press(Action::SignHere);
         }
         app
@@ -1987,6 +2020,7 @@ mod collect {
         use crate::rounds::{at, device, our_nonce};
         let mut app = device(true);
         app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+        testkit::steps_before_sign_done(&mut app);
         app.press(Action::SignHere);
         let nonce = our_nonce(&app).expect("round 1 shares a nonce");
         let states = app.spend().unwrap().signers.clone();
@@ -2006,6 +2040,7 @@ mod collect {
         assert!(s.musig.is_some(), "the round is kept");
         assert_eq!(s.signers, states);
         assert_eq!(our_nonce(&app), Some(nonce));
+        testkit::steps_before_sign_done(&mut app);
         testkit::press_on_worker(&mut app, Action::SignHere);
         testkit::settle(&mut app);
         let s = app.spend().unwrap();

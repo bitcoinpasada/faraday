@@ -423,6 +423,7 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
             .keys
             .add_words(&c, &testkit::test_words(word), l, None);
     }
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let _ = app.frame();
     let s = app.wallets.spend().expect("the spend");

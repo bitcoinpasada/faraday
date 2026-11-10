@@ -896,6 +896,7 @@ fn in_the_demo_public_seeds_sign_keep_entries_and_go_into_a_vault() {
         .position(|i| i.name == "spend.psbt")
         .unwrap();
     app.press(Action::StartSpend(at));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let s = app.spend().unwrap();
     assert!(s.spend.finished.is_some(), "not signed: {:?}", s.error);

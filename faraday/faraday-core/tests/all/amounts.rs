@@ -37,6 +37,7 @@ fn offer(app: &mut Faraday, psbt: &faraday_psbt::Psbt, kept: Vec<(String, Vec<u8
     }
     app.press(Action::EntryAdd);
     app.press(Action::StartSpend(0));
+    testkit::steps_before_sign_done(app);
     app.press(Action::SignHere);
 }
 
@@ -163,6 +164,7 @@ fn sign_with_vault_open(vault: Vec<u8>, psbt: &faraday_psbt::Psbt) -> Faraday {
         .position(|i| i.name == "spend.psbt")
         .unwrap();
     app.press(Action::StartSpend(p));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     app
 }

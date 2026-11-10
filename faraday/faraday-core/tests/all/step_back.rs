@@ -305,6 +305,7 @@ fn sign_a_transaction_steps_back_and_once_signed_leaves() {
     assert_eq!(app.spend().unwrap().open, Some(before));
     forward(&mut app);
     assert_eq!(app.spend().unwrap().open, Some(open));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().spend.finished.is_some(), "signed here");
     back(&mut app);

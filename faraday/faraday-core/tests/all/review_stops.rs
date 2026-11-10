@@ -83,6 +83,7 @@ fn a_high_fee_is_paid_only_after_its_hold() {
     let s = app.spend().unwrap();
     assert!(!s.done[step::TRANSACTION as usize]);
     assert_eq!(s.error.as_deref(), Some(EN.step_review_hold_first));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().spend.signed_here.is_empty());
     // Held: Review is done and the key signs.
@@ -93,6 +94,7 @@ fn a_high_fee_is_paid_only_after_its_hold() {
     let s = app.spend().unwrap();
     assert!(s.done[step::TRANSACTION as usize]);
     assert!(!s.held.is_empty());
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(!app.spend().unwrap().spend.signed_here.is_empty());
 }
@@ -137,6 +139,7 @@ fn a_key_origin_that_does_not_give_the_inputs_key_is_refused_at_review() {
     let s = app.spend().unwrap();
     assert!(!s.done[step::TRANSACTION as usize]);
     assert_eq!(s.error.as_deref(), Some(EN.step_review_refused));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().spend.signed_here.is_empty());
 }
@@ -286,6 +289,7 @@ fn a_taproot_leaf_without_its_wallet_is_named_and_left_unsigned() {
     app.press(Action::StepNext(step::TRANSACTION));
     assert!(app.spend().unwrap().done[step::TRANSACTION as usize]);
 
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let spend = &app.spend().unwrap().spend;
     assert!(!spend.signed_here.is_empty());

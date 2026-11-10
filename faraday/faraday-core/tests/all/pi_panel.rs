@@ -482,6 +482,7 @@ fn every_spend_step(rig: &mut Rig) -> Vec<String> {
         rig.settle();
         found.extend(check(rig, &format!("spend step {s}")).0);
     }
+    testkit::steps_before_sign_done(rig);
     rig.press(Action::SignHere);
     rig.settle();
     found.extend(walk(rig, "spend signed"));

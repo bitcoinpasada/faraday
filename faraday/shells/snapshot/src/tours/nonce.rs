@@ -43,6 +43,19 @@ fn finished_hex(
     app.press(Action::StartSpend(
         at(&app, "spend.psbt").ok_or("no spend")?,
     ));
+    let before: Vec<u8> = app
+        .spend()
+        .map(|s| {
+            s.steps
+                .iter()
+                .copied()
+                .take_while(|&n| n != faraday_core::wallet::step::SIGN)
+                .collect()
+        })
+        .unwrap_or_default();
+    for n in before {
+        app.press(Action::StepNext(n));
+    }
     app.press(Action::SignHere);
     app.press(Action::Collect(at(&app, "cosigner.psbt").ok_or("no copy")?));
     app.spend()

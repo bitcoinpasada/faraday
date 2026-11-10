@@ -77,6 +77,7 @@ fn a_part_signed_psbt_replaces_its_own_transaction_and_keeps_another() {
         app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
         add_key(&mut app, "zebra");
         app.press(Action::StartSpend(at(&app, "spend.psbt")));
+        testkit::steps_before_sign_done(&mut app);
         app.press(Action::SignHere);
         app
     };
@@ -114,6 +115,7 @@ fn a_second_spends_remove_takes_off_its_own_file() {
     app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let index = |app: &Faraday, name: &str| app.outbox.iter().position(|i| i.name == name).unwrap();
     let (first, own) = (
@@ -142,6 +144,7 @@ fn spending_finished() -> Faraday {
     app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().spend.finished.is_some());
     app
@@ -180,6 +183,7 @@ fn a_signature_from_another_device_is_checked_but_not_recomputed() {
     a.press(Action::LoadWallet(at(&a, "savings-wallet.txt")));
     add_key(&mut a, "zebra");
     a.press(Action::StartSpend(at(&a, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut a);
     a.press(Action::SignHere);
     let from_a = a.spend().unwrap().spend.psbt.to_bytes();
 
@@ -192,6 +196,7 @@ fn a_signature_from_another_device_is_checked_but_not_recomputed() {
     b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut b);
     b.press(Action::SignHere);
     b.press(Action::Collect(at(&b, "from-a.psbt")));
     let s = b.spend().unwrap();
@@ -508,6 +513,7 @@ fn a_cosigners_signature_under_another_sighash_is_refused() {
     b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut b);
     b.press(Action::SignHere);
     let before = b.spend().unwrap().spend.psbt.to_bytes();
     b.press(Action::Collect(at(&b, "from-a.psbt")));
@@ -551,6 +557,7 @@ fn a_cosigner_writing_sighash_all_where_none_is_written_is_taken() {
     b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut b);
     b.press(Action::SignHere);
     b.press(Action::Collect(at(&b, "from-a.psbt")));
     let s = b.spend().unwrap();

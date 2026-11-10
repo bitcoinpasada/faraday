@@ -341,6 +341,7 @@ fn finished_savings() -> (String, Vec<u8>) {
     b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
     add_key(&mut b, "bacon");
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut b);
     b.press(Action::SignHere);
     b.press(Action::Collect(at(&b, "from-a.psbt")));
     let hex = b.spend().unwrap().spend.finished_hex().expect("finished");
@@ -540,6 +541,7 @@ fn a_collect_that_brings_a_changed_signature_shows_its_verdict_in_the_check() {
     app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     app.press(Action::Collect(at(&app, "from-a.psbt")));
     add_key(&mut app, "zebra");

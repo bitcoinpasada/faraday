@@ -62,12 +62,14 @@ pub(crate) fn our_nonce(app: &Faraday) -> Option<Vec<u8>> {
 fn a_transaction_started_again_shares_another_nonce() {
     let mut app = device(true);
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let first = our_nonce(&app).expect("round 1 shares this device's nonce");
     assert!(app.spend().unwrap().musig.is_some(), "the session is open");
 
     // The same unsigned transaction, started over: a new round.
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let second = our_nonce(&app).expect("round 1 again shares a nonce");
     assert_ne!(
@@ -80,6 +82,7 @@ fn a_transaction_started_again_shares_another_nonce() {
 fn a_round_waits_for_the_systems_randomness() {
     let mut app = device(false);
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let s = app.spend().unwrap();
     assert_eq!(s.error, None, "the press waits and says nothing");
@@ -106,6 +109,7 @@ fn a_round_waits_for_the_systems_randomness() {
 fn a_session_whose_nonce_has_signed_is_over() {
     let mut app = device(true);
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().musig.is_some());
     // The other signers' nonces arrive, and round 2 signs.
@@ -120,9 +124,51 @@ fn a_session_whose_nonce_has_signed_is_over() {
     for i in copies {
         app.press(Action::Collect(i));
     }
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let s = app.spend().unwrap();
     assert_eq!(s.error, None);
     assert!(!s.spend.signed_here.is_empty(), "round 2 signed");
     assert!(s.musig.is_none(), "nothing left to sign with");
+}
+
+/// Walks the steps before Nonces with Continue, as a person does.
+fn continue_before_nonces(app: &mut Faraday) {
+    let before: Vec<u8> = app
+        .spend()
+        .unwrap()
+        .steps
+        .iter()
+        .copied()
+        .take_while(|&n| n != faraday_core::wallet::step::NONCES)
+        .collect();
+    for n in before {
+        app.press(Action::StepNext(n));
+    }
+}
+
+#[test]
+fn go_first_shares_this_devices_nonce_once_the_steps_before_nonces_are_done() {
+    let mut app = device(true);
+    app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    continue_before_nonces(&mut app);
+    assert!(
+        !app.spend().unwrap().done[faraday_core::wallet::step::NONCES as usize],
+        "Nonces is still to do"
+    );
+    app.press(Action::SignHere);
+    assert!(our_nonce(&app).is_some(), "this device's nonce is shared");
+    assert!(app.spend().unwrap().musig.is_some(), "round 1 is open");
+}
+
+#[test]
+fn go_first_before_the_earlier_steps_shares_nothing() {
+    let mut app = device(true);
+    app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
+    app.press(Action::SignHere);
+    let s = app.spend().unwrap();
+    assert!(s.musig.is_none());
+    let first = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
+    assert_eq!(s.open, first);
+    assert!(our_nonce(&app).is_none(), "no nonce shared");
 }

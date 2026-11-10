@@ -72,6 +72,7 @@ fn nothing_of_the_sample_spend_is_cut_off_on_the_pi_panel() {
         app.press(Action::Step(s));
         found.extend(cut_off(&mut app, &format!("sample spend, step {s}")));
     }
+    faraday_core::testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     for s in [step::COLLECT, step::FINISH] {
         app.press(Action::Step(s));

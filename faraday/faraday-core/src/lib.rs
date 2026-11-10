@@ -4389,19 +4389,7 @@ impl Faraday {
             s.open = Some(wallet::step::FINISH);
             s.follow = true;
         } else if can_sign_here {
-            let before: Vec<u8> = s
-                .steps
-                .iter()
-                .copied()
-                .take_while(|&n| n != wallet::step::SIGN)
-                .collect();
-            if let Some(pos) = before.iter().position(|&n| !s.done[n as usize]) {
-                s.open = Some(before[pos]);
-                s.follow = true;
-                s.error = Some(fill(EN.primary_finish_step, &[&(pos + 1).to_string()]));
-            } else {
-                crate::signing::sign_here(self);
-            }
+            crate::signing::sign_here(self);
         } else {
             s.open = Some(wallet::step::COLLECT);
             s.follow = true;

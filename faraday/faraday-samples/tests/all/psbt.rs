@@ -80,6 +80,7 @@ fn the_spend_tab_loads_the_sample_psbt_reviews_and_signs_it() {
     let _ = app.frame();
     let s = app.spend().expect("the spend opened");
     assert_eq!(s.wallet, Some(0));
+    faraday_core::testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let s = app.spend().unwrap();
     assert!(s.spend.finished.is_some(), "not signed: {:?}", s.error);
@@ -115,6 +116,7 @@ fn signed_through(scan_button: impl Fn(&mut Faraday)) {
     let s = app.spend().expect("the spend opened");
     assert_eq!(s.wallet, Some(0));
     assert_eq!(s.open, Some(faraday_core::wallet::step::TRANSACTION));
+    faraday_core::testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let s = app.spend().unwrap();
     assert!(s.spend.finished.is_some(), "not signed: {:?}", s.error);

@@ -218,6 +218,7 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
         .unwrap();
     app.press(Action::Family(F::UsePsbt(p)));
     assert!(app.spend().unwrap().wallet.is_some());
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().complete, "the spend did not complete");
 }

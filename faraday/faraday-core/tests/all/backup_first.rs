@@ -174,6 +174,7 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
         .position(|i| i.name == "spend.psbt")
         .unwrap();
     app.press(Action::StartSpend(at));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     let s = app.spend().unwrap();
     assert!(s.spend.finished.is_none(), "a held key signed");
@@ -200,6 +201,7 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
     assert!(!app.key_held(&c, fp), "still held with the checklist done");
     assert_ne!(app.spend_button(&c, w).0, "Finish the backup first");
     app.press(Action::StartSpend(at));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(
         app.spend().unwrap().spend.finished.is_some(),
@@ -232,6 +234,7 @@ fn a_restored_key_signs_at_once() {
     assert!(!app.key_held(&c, fp));
     assert_ne!(app.spend_button(&c, 0).0, "Finish the backup first");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut app);
     app.press(Action::SignHere);
     assert!(app.spend().unwrap().spend.finished.is_some());
 }
