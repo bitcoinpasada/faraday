@@ -94,6 +94,6 @@ The value is hidden until it is shown, and dropped when the card is left.
 | **Birthday**, **Channels** | for an aezeed: the date its wallet was made, and that it restores on-chain coins only |
 | **Old set** | on Rotate: **No longer to be used** |
 | **Passphrase** | on a key with a passphrase: whether the value holds the passphrase's wallet or needs the passphrase to restore it |
-| **Check my copy** | a copy typed back: **Compare** says **Your copy matches** or **Your copy differs**, **Clear** empties it; on a set it is compared with every part and says which part matched, or for groups **Your copy matches group 1, share 2** |
+| **Check my copy** | a copy typed back: **Compare** says **Your copy matches** or **Your copy differs**, **Clear** empties it; on a set it is compared with every part and says which part matched, or for groups **Your copy matches group 1, share 2**; for a SeedQR or CompactSeedQR the button opens the camera, and the code read is compared word by word with the seed's (a word that differs is named on the scanner) |
 | **Save as a file…** | the value to a stick (a set: every part, one per line, in group order), through [This is a secret](files.md#this-is-a-secret) |
 | **Done** | back where the screen was opened from |

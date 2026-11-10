@@ -314,6 +314,10 @@ impl Faraday {
             ScanPurpose::Files => true,
             ScanPurpose::CheckCopy(fp) => english_keys(set)
                 .any(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0)),
+            // Only a SeedQR has a sample.
+            ScanPurpose::CheckConvert(fp, false) => english_keys(set)
+                .any(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0)),
+            ScanPurpose::CheckConvert(_, true) => false,
             ScanPurpose::CheckKef(i) => crate::wallet_backup::kef::sample_text(self, i).is_some(),
             ScanPurpose::Transfer
             | ScanPurpose::CheckCodex32
@@ -347,7 +351,9 @@ impl Faraday {
             Some(ScanPurpose::Seed) => EN.scan_sample_seed,
             Some(ScanPurpose::KeyPart) => EN.scan_sample_share,
             Some(ScanPurpose::WalletKey(_)) => EN.scan_sample_key,
-            Some(ScanPurpose::CheckCopy(_)) => EN.scan_sample_seedqr,
+            Some(ScanPurpose::CheckCopy(_) | ScanPurpose::CheckConvert(..)) => {
+                EN.scan_sample_seedqr
+            }
             Some(ScanPurpose::CheckKef(_)) => EN.scan_sample_krux,
             Some(ScanPurpose::VaultEntry) => EN.scan_sample_code,
             Some(ScanPurpose::Files) if self.screen == Screen::Restore => EN.scan_sample_wallet,
@@ -455,7 +461,8 @@ impl Faraday {
                     .find(|(_, k)| k.plain.is_some_and(|p| missing.contains(&p)))?;
                 seedqr_digits(k.parts.first()?)
             }
-            ScanPurpose::CheckCopy(fp) => {
+            ScanPurpose::CheckConvert(_, true) => None,
+            ScanPurpose::CheckCopy(fp) | ScanPurpose::CheckConvert(fp, false) => {
                 let (_, k) = english_keys(set)
                     .find(|(_, k)| k.plain == Some(fp.0) || k.with_passphrase == Some(fp.0))?;
                 seedqr_digits(k.parts.first()?)

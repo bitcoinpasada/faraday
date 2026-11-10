@@ -788,6 +788,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr.to_string(),
         (
             crate::ScanPurpose::CheckCopy(_)
+            | crate::ScanPurpose::CheckConvert(..)
             | crate::ScanPurpose::CheckCodex32
             | crate::ScanPurpose::CheckKef(_),
             _,

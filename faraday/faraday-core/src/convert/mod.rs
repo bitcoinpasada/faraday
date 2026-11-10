@@ -250,13 +250,12 @@ impl Target {
         !matches!(self, Target::SeedHex | Target::Xprv)
     }
 
-    /// Whether Check my copy is offered for a key on `lang`. A code's copy
-    /// would be scanned back, which is not built. Another list's words may
-    /// not be ASCII and are not compared: a copy typed by hand may be
+    /// Whether Check my copy is offered for a key on `lang`: a code's copy
+    /// is scanned back, any other value's is typed. Another list's words
+    /// may not be ASCII and are not compared: a copy typed by hand may be
     /// composed otherwise, and the keyboard may not hold them.
     fn checks(self, lang: Language) -> bool {
-        !self.is_code()
-            && (!matches!(self, Target::Words | Target::SeedXor) || lang == Language::English)
+        !matches!(self, Target::Words | Target::SeedXor) || lang == Language::English
     }
 }
 
@@ -581,6 +580,22 @@ impl ConvertArea {
         self.check = None;
         self.found = None;
         self.found_part = None;
+    }
+
+    /// Forgets what the last comparison found.
+    pub(crate) fn forget_found(&mut self) {
+        self.found = None;
+        self.found_part = None;
+    }
+
+    /// A copy scanned back: it matched or it differed.
+    pub(crate) fn set_found(&mut self, same: bool) {
+        self.found = Some(same);
+        self.found_part = None;
+        if let Some(s) = self.state.as_mut() {
+            // The answer is at the top of the Result card.
+            s.scroll.follow = true;
+        }
     }
 
     /// Check my copy, while it is open.
@@ -1050,6 +1065,34 @@ fn key_for(app: &Faraday, target: Target) -> Option<usize> {
         .then_some(i)
 }
 
+/// Whether Check my copy on the result open is scanned, not typed.
+pub(crate) fn checks_by_scan(app: &Faraday) -> bool {
+    state(app).is_some_and(|s| s.checkable && s.target.is_some_and(Target::is_code))
+}
+
+/// Check my copy on a SeedQR or CompactSeedQR result: the camera opens
+/// to read the copy back, compared with the key's words
+/// ([`Faraday::convert_copy_scanned`]). A lookup.
+fn scan_open(app: &mut Faraday) {
+    let Some(target) = state(app).filter(|s| s.checkable).and_then(|s| s.target) else {
+        return;
+    };
+    let Some(fp) = key_for(app, target)
+        .and_then(|i| app.session.keys.info(i))
+        .map(|k| k.fingerprint)
+    else {
+        return;
+    };
+    app.tools.convert_mut().forget_found();
+    let mut scan = crate::ScanState::default();
+    scan.purpose = crate::ScanPurpose::CheckConvert(fp, target == Target::CompactSeedQr);
+    app.camera.open(scan);
+    app.sheet = Some(crate::Sheet::Scan);
+    app.out
+        .commands
+        .push_back(faraday_shell_api::Command::CameraOn);
+}
+
 /// The row at `place` of [`ROWS`], if it applies to the key chosen. A
 /// lookup.
 fn row_for(app: &Faraday, place: u8) -> Option<Target> {
@@ -1428,6 +1471,9 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
                     None
                 };
             }
+        }
+        ConvertAction::Check if checks_by_scan(app) => {
+            scan_open(app);
         }
         ConvertAction::Check => app.tools.convert_mut().toggle_check(),
         ConvertAction::Compare => app.tools.convert_mut().compare(),

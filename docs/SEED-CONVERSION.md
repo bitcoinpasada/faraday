@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: SLIP-39's set functions in `faraday-bip` (§8); the fixed 1 of 1 (§4.4) and its cross-checks; the conversions in `faraday-keys`; Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6), a codex32 set's drawn identifier never one another set on this device carries (§6); SLIP-39 k of n and groups on the same card and result (§6); an LND aezeed as a source (§4.5, §6): From's row **An LND aezeed** opens the Lightning screen's entry, read on the worker and held in `faraday-keys` (`Keys::aezeed_hold`), never as a key, with the rows of a 16-byte seed and its Birthday, Paths and channels facts; the flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy and Save, and the two ways in, the chart sheet's and Explore's; the SLIP-39 set actions on the screen (§8): From's row **A SLIP-39 set**, shares typed one at a time and held in `faraday-keys` (`Keys::slip39_set_hold`), To's Add a share, Replace a lost share and Rotate the set, their Settings and Result; Practice (§7: a public seed's own spellings, the one-to-one conversions and LND's published aezeed open, every split refused, each with a test), Learn's section on converting (`docs/learn/18-other-backups.md`), DESIGN §5's row and the guide's picture of Result (`docs/guide/screens/convert.md`)
-**Open:** the codex32 row opening the backup's set actions for a key with a plan, and a copy scanned back in Check my copy (it is typed back)
+**Status:** Specified from the owner's ask (2026-10-23); the decision, F88, is the owner's (2026-10-23). Built: SLIP-39's set functions in `faraday-bip` (§8); the fixed 1 of 1 (§4.4) and its cross-checks; the conversions in `faraday-keys`; Seed XOR parts, the SLIP-39 1 of 1 and codex32 on the screen, with the Settings card (§6), a codex32 set's drawn identifier never one another set on this device carries (§6); SLIP-39 k of n and groups on the same card and result (§6); an LND aezeed as a source (§4.5, §6): From's row **An LND aezeed** opens the Lightning screen's entry, read on the worker and held in `faraday-keys` (`Keys::aezeed_hold`), never as a key, with the rows of a 16-byte seed and its Birthday, Paths and channels facts; the flow: the Tools tile, From with the loaded keys and Add a key, To's targets of §4.1 (the words, SeedQR, CompactSeedQR, hex entropy, word numbers and 4-letter starts) with the master seed in hex and xprv, §5's lines, Result with its Check my copy (typed back, or scanned back for a SeedQR and a CompactSeedQR) and Save, and the two ways in, the chart sheet's and Explore's; the SLIP-39 set actions on the screen (§8): From's row **A SLIP-39 set**, shares typed one at a time and held in `faraday-keys` (`Keys::slip39_set_hold`), To's Add a share, Replace a lost share and Rotate the set, their Settings and Result; Practice (§7: a public seed's own spellings, the one-to-one conversions and LND's published aezeed open, every split refused, each with a test), Learn's section on converting (`docs/learn/18-other-backups.md`), DESIGN §5's row and the guide's picture of Result (`docs/guide/screens/convert.md`)
+**Open:** the codex32 row opening the backup's set actions for a key with a plan
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -107,8 +107,18 @@ standard it is and which software restores it.
   LND's published vector, the Lightning screen's refusal otherwise.
   Learn's section "Converting between forms", DESIGN §5's row and the
   guide's picture (`docs/guide/screens/convert.md`) say what is built.
-- **Not built**: in the tool (`faraday/faraday-core/src/convert/`), a copy
-  scanned back in Check my copy (it is typed back). For a key with no
+- **Check my copy** (§6 step 4): a SeedQR or CompactSeedQR result is
+  scanned back, the other results typed. The press opens the camera (a
+  stick attached gets the Pull sheet first); the code read must be of the
+  kind made, and is compared word by word with the key's words, as the
+  wallet backup's copy item does (`copy_check::copy_indices`,
+  `Keys::words_match`): a match closes the camera and the result says
+  **Your copy matches**; a word that differs is named on the scanner, which
+  stays open; a code of the other kind, a code of another seed, and
+  something that is not a SeedQR are each said so. Words, codex32
+  strings, SLIP-39 shares, hex and xprv stay typed only. In Practice the
+  scanner offers the sample SeedQR for a SeedQR result.
+- **Not built**: in the tool (`faraday/faraday-core/src/convert/`). For a key with no
   backup plan, a codex32 set to a new codex32 set is the codex32 row (a
   fresh identifier on each Make, `codex32_converted`); for a key with a
   plan the backup's set actions (`docs/CODEX32.md` §9.7) are the way, and
@@ -278,8 +288,7 @@ would otherwise combine into another seed with no error); the secret alone
 keeps `identifier_for`. A drawn identifier is also none that another set
 on this device carries (`docs/CODEX32.md` §6.4.5: the set of a loaded
 key, the plan in hand, the open vaults and Add a key's form): a draw that
-lands on one is stepped on until it does not. Not built: a copy scanned
-back. The shown set is joined and
+lands on one is stepped on until it does not. The shown set is joined and
 numbered once, by the press that opens the eye, and held while it shows
 (F195).
 
@@ -329,8 +338,8 @@ on that key.
    carries it); the passphrase line of rule 3. A share or set made from a
    SLIP-39 set has no Fingerprint (no passphrase is taken) and says that the
    set's own passphrase still opens the same wallet; Rotate adds that the old
-   set is no longer to be used. Buttons: **Check my copy** (typed or
-   scanned back, as the backup's), **Save as a file…** (the Secret out
+   set is no longer to be used. Buttons: **Check my copy** (scanned back
+   for a SeedQR or CompactSeedQR, typed for any other result), **Save as a file…** (the Secret out
    sheet, §4.10), **Done**. Nothing is written or kept unless pressed.
 5. Leaving drops every result (rule 5).
 

@@ -691,6 +691,7 @@ impl Faraday {
                 | ScanPurpose::Sweep => true,
                 ScanPurpose::VaultEntry
                 | ScanPurpose::CheckCopy(_)
+                | ScanPurpose::CheckConvert(..)
                 | ScanPurpose::CheckCodex32
                 | ScanPurpose::CheckKef(_)
                 | ScanPurpose::GpgPaperkey => false,
@@ -981,6 +982,9 @@ impl Faraday {
             ScanPurpose::VaultEntry => self.entry_code_scanned(bytes),
             ScanPurpose::KeyPart => self.part_scanned(bytes),
             ScanPurpose::CheckCopy(fp) => self.copy_scanned(fp, bytes),
+            ScanPurpose::CheckConvert(fp, compact) => {
+                self.convert_copy_scanned(fp, compact, bytes);
+            }
             ScanPurpose::CheckCodex32 => self.c32_copy_scanned(bytes),
             ScanPurpose::CheckKef(i) => crate::wallet_backup::kef::scanned(self, i, &bytes),
             ScanPurpose::WalletKey(w) => self.wallet_key_code(w, bytes),
@@ -2035,6 +2039,57 @@ impl Faraday {
         }
         self.backup.set_scanned(found.clone());
         if matched {
+            self.camera.close();
+            self.sheet = None;
+            self.out.commands.push_back(Command::CameraOff);
+        } else if let Some(scan) = self.camera.scan_mut() {
+            scan.note = Some(crate::wallet_backup::copy_scan_line(&found));
+        }
+    }
+
+    /// Costs a parse of the key's words. A code read while Convert a seed's
+    /// Check my copy scans the copy of a SeedQR (or, `compact`, a CompactSeedQR) made from the key `fp`:
+    /// of the kind asked for, decoded and compared word by word with that
+    /// key, never loaded. A match closes the camera and the result says
+    /// the copy matches; a word that differs is named and the camera
+    /// stays open for the copy fixed.
+    pub(crate) fn convert_copy_scanned(
+        &mut self,
+        fp: faraday_bip::keys::Fingerprint,
+        compact: bool,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
+    ) {
+        let c = self.compute();
+        // A Standard SeedQR is digits; a Compact one is the entropy bytes.
+        let digits = !bytes.is_empty() && bytes.iter().all(u8::is_ascii_digit);
+        let copy = crate::copy_check::copy_indices(&bytes);
+        drop(bytes);
+        let note = match copy {
+            None => Some(EN.copy_scanned_not_seedqr),
+            Some(_) if digits && compact => Some(EN.convert_scan_is_standard),
+            Some(_) if !digits && !compact => Some(EN.convert_scan_is_compact),
+            Some(_) => None,
+        };
+        if let Some(note) = note {
+            if let Some(scan) = self.camera.scan_mut() {
+                scan.note = Some(note.to_string());
+            }
+            return;
+        }
+        let found = copy.and_then(|copy| {
+            let k = self.session.keys.position(fp)?;
+            self.session.keys.words_match(&c, k, &copy)
+        });
+        let Some(found) = found else {
+            // The key is no longer here: nothing to compare with.
+            self.camera.close();
+            self.sheet = None;
+            self.out.commands.push_back(Command::CameraOff);
+            return;
+        };
+        let matched = found == crate::wallet_backup::CopyCheck::Matches;
+        if matched {
+            self.tools.convert_mut().set_found(true);
             self.camera.close();
             self.sheet = None;
             self.out.commands.push_back(Command::CameraOff);

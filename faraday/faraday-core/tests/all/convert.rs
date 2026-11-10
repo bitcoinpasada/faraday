@@ -427,14 +427,73 @@ fn a_seedqr_and_a_compact_seedqr_read_back_to_the_same_words() {
 }
 
 #[test]
-fn a_code_masked_shows_nothing_and_has_no_check_of_a_copy() {
+fn a_code_masked_shows_nothing_and_its_copy_is_scanned() {
     let mut app = opened(mainnet(), ABOUT);
     let _ = scanned(&mut app, "SeedQR");
-    assert!(!app.drawn_texts().iter().any(|t| t == "Check my copy"));
     app.press(Action::Convert(C::Check));
-    assert_eq!(convert::typed(&app), None, "no check opens");
+    assert_eq!(convert::typed(&app), None, "nothing is typed for a code");
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the camera opens");
     app.press(Action::Convert(C::Show));
     assert!(convert::shown_code(&app).is_none());
+}
+
+/// The scanner's note after `bytes` are read in Check my copy.
+fn scan_copy(app: &mut Faraday, bytes: Vec<u8>) -> String {
+    app.event(Event::Scanned { bytes });
+    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
+}
+
+#[test]
+fn scanning_the_right_code_back_says_the_copy_matches() {
+    for (name, compact) in [("SeedQR", false), ("CompactSeedQR", true)] {
+        let mut app = opened(mainnet(), LEGAL);
+        let bytes = scanned(&mut app, name);
+        assert_eq!(compact, bytes.len() == 16);
+        app.press(Action::Convert(C::Check));
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        scan_copy(&mut app, bytes);
+        assert_eq!(app.sheet, None, "the camera closes on a match");
+        assert_eq!(convert::found(&app), Some(true));
+    }
+}
+
+#[test]
+fn a_code_with_one_word_changed_names_the_word() {
+    let mut app = opened(mainnet(), LEGAL);
+    let mut digits = scanned(&mut app, "SeedQR");
+    // The third word, "thank", becomes another word.
+    digits[8..12].copy_from_slice(b"0001");
+    app.press(Action::Convert(C::Check));
+    let note = scan_copy(&mut app, digits);
+    assert_eq!(note, "Your copy scans but word 3 differs");
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the camera stays open");
+    assert_eq!(convert::found(&app), None);
+}
+
+#[test]
+fn a_code_of_the_other_kind_is_refused() {
+    let mut app = opened(mainnet(), LEGAL);
+    let standard = scanned(&mut app, "SeedQR");
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    let compact = scanned(&mut app, "CompactSeedQR");
+    app.press(Action::Convert(C::Check));
+    let note = scan_copy(&mut app, standard);
+    assert_eq!(note, "This is a SeedQR, not a CompactSeedQR");
+    assert_eq!(convert::found(&app), None);
+    app.press(Action::Convert(C::Step(cstep::TO)));
+    let _ = scanned(&mut app, "SeedQR");
+    app.press(Action::Convert(C::Check));
+    let note = scan_copy(&mut app, compact);
+    assert_eq!(note, "This is a CompactSeedQR, not a SeedQR");
+}
+
+#[test]
+fn something_that_is_not_a_seedqr_is_said_not_to_be() {
+    let mut app = opened(mainnet(), LEGAL);
+    let _ = scanned(&mut app, "SeedQR");
+    app.press(Action::Convert(C::Check));
+    assert_eq!(scan_copy(&mut app, b"hello".to_vec()), "Not a SeedQR");
+    assert_eq!(app.sheet, Some(Sheet::Scan));
 }
 
 #[test]

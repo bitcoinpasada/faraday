@@ -1145,6 +1145,12 @@ strings! {
     convert_from_vault: "In vault {}",
     /// Result's button.
     convert_check: "Check my copy",
+    /// Note on the scanner of Check my copy for a CompactSeedQR, when a
+    /// SeedQR is read.
+    convert_scan_is_standard: "This is a SeedQR, not a CompactSeedQR",
+    /// Note on the scanner of Check my copy for a SeedQR, when a
+    /// CompactSeedQR is read.
+    convert_scan_is_compact: "This is a CompactSeedQR, not a SeedQR",
     /// Result's button.
     convert_save: "Save as a file…",
     /// The label over the copy typed back. `{}`: how many characters.

@@ -1999,6 +1999,7 @@ impl Faraday {
             | Action::Family(family::FamilyAction::Scan | family::FamilyAction::Again(true)) => {
                 EN.pull_what_scan
             }
+            Action::Convert(C::Check) if convert::checks_by_scan(self) => EN.pull_what_scan,
             Action::Entry(_)
             | Action::EntryWallet(_)
             | Action::ScanSeed
@@ -2034,8 +2035,7 @@ impl Faraday {
                 }
                 Go::NewShares => EN.pull_what_make_a_key,
                 Go::NewKey | Go::AddKey(_) | Go::SeedQr | Go::Sweep => EN.pull_what_add_a_key,
-                // Sign and Decode with nothing to open scan: the Scan
-                // they press waits instead.
+                // Sign and Decode with nothing to open: the Scan they press waits.
                 Go::CheckAddress | Go::Scan => EN.pull_what_scan,
                 _ => return None,
             },
