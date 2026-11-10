@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 pub mod builder;
+pub mod pair;
 
 use std::path::PathBuf;
 

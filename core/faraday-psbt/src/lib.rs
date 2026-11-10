@@ -27,6 +27,10 @@
 //!   asked, from the PSBT sent and the one that came back: signatures
 //!   added or an input finalized from them, and a finding for anything
 //!   else. Nothing there needs a key.
+//! - [`diff`] and [`bump`]: how two PSBTs or finished transactions differ,
+//!   inputs by outpoint and outputs by script, and whether a replacement
+//!   of a transaction changes only its fee. Both read inspections the
+//!   caller made and nothing else.
 //! - [`sweep`]: signs with one private key read from a WIF, matched by
 //!   the scripts it pays rather than by a key origin, for a sweep.
 //! - [`transaction`]: reads a raw transaction, or a PSBT as the
@@ -91,8 +95,10 @@ extern crate alloc;
 /// in [`faraday_bip`] because the BSMS records there carry base64 too.
 pub use faraday_bip::base64;
 
+pub mod bump;
 mod classify;
 mod context;
+pub mod diff;
 mod finalize;
 mod inspect;
 pub mod message;

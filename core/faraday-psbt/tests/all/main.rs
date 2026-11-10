@@ -6,7 +6,9 @@
 #![allow(clippy::duplicate_mod)]
 
 mod bips;
+mod bump;
 mod common;
+mod diff;
 mod finalize_checks;
 mod fixtures;
 mod inspect;
