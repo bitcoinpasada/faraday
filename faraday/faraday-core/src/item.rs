@@ -41,6 +41,10 @@ pub struct Item {
     /// wallet it spends from is found from it
     /// ([`wallet::Session::spends_from`]), so it follows the wallets.
     pub psbt: Option<wallet::PsbtSeen>,
+    /// The outpoints a PSBT or a finished transaction spends, sorted,
+    /// read once when the file came in, as [`Item::psbt`] is; empty for
+    /// any other file.
+    pub outpoints: Vec<faraday_bip::bitcoin::OutPoint>,
 }
 
 /// Prints the name, the byte count and the `secret` flag, never the bytes:
@@ -68,7 +72,12 @@ impl Item {
     /// hash of a vault or an EFI image. The file as it came in,
     /// classified, with what it describes read once.
     pub(crate) fn new(c: &Compute, name: &str, bytes: Vec<u8>) -> Item {
-        let wallet::Classified { kind, psbt, wallet } = wallet::classify_read(c, name, &bytes);
+        let wallet::Classified {
+            kind,
+            psbt,
+            wallet,
+            outpoints,
+        } = wallet::classify_read(c, name, &bytes);
         let sha =
             matches!(kind, FileKind::Vault | FileKind::EfiImage).then(|| sha256_of(c, &bytes));
         let facts = (kind == FileKind::Vault)
@@ -84,6 +93,7 @@ impl Item {
             facts,
             wallet,
             psbt,
+            outpoints,
         }
     }
 

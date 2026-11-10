@@ -445,7 +445,7 @@ impl DecodeArea {
 /// and witnesses, each with the output it spends where `prevouts` states
 /// it: what `faraday_psbt::verify` reads a finalized input from. `None`
 /// where the bytes are no transaction.
-fn raw_as_psbt(
+pub(crate) fn raw_as_psbt(
     c: &Compute,
     bytes: &[u8],
     prevouts: &[Option<TxOut>],
@@ -479,7 +479,11 @@ impl Faraday {
     /// spend's, then the Inbox's. An input's amount is used when no two of
     /// them state different ones for it (one that states none does not
     /// count), and the first that states one is named.
-    fn amounts_in(&self, c: &Compute, tx: &Transaction) -> (Vec<Option<TxOut>>, AmountsFrom) {
+    pub(crate) fn amounts_in(
+        &self,
+        c: &Compute,
+        tx: &Transaction,
+    ) -> (Vec<Option<TxOut>>, AmountsFrom) {
         // The unsigned transaction's id: `tx` with its scriptSigs and
         // witnesses taken off, as a PSBT holds it.
         let mut bare = tx.clone();

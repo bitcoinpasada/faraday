@@ -396,6 +396,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
             facts: None,
             wallet: None,
             psbt: None,
+            outpoints: Vec::new(),
         });
         app.storage(StorageEvent::Sticks(vec![StickInfo {
             make: Default::default(),

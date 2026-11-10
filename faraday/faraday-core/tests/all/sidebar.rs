@@ -120,6 +120,7 @@ fn the_session_strip_names_the_current_stage() {
         facts: None,
         wallet: None,
         psbt: None,
+        outpoints: Vec::new(),
     });
     assert_eq!(app.session_stage(&c), "Write out");
     app.storage(faraday_core::StorageEvent::Sticks(vec![

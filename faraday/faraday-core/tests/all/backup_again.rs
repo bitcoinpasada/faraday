@@ -373,6 +373,7 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
         facts: None,
         wallet: None,
         psbt: None,
+        outpoints: Vec::new(),
     });
     let _ = app.frame();
     assert!(

@@ -8,7 +8,7 @@ use crate::strings::{EN, fill};
 use crate::{Action, Faraday, Screen, Sheet, family, result_stem, wallet};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
-use faraday_bip::bitcoin::{Transaction, Txid};
+use faraday_bip::bitcoin::{OutPoint, Transaction, Txid};
 use faraday_bip::keys::{Fingerprint, Network, ScriptType};
 use faraday_bip::policy::{KeyPath, Template, WalletPolicy, Wrapper};
 use faraday_crypto::work::Compute;
@@ -1590,6 +1590,9 @@ pub struct Classified {
     pub psbt: Option<PsbtSeen>,
     /// The wallet a wallet file describes, when it is one.
     pub wallet: Option<WalletPolicy>,
+    /// The outpoints a PSBT or a finished transaction spends, sorted;
+    /// empty for any other file.
+    pub outpoints: Vec<OutPoint>,
 }
 
 impl From<FileKind> for Classified {
@@ -1598,8 +1601,16 @@ impl From<FileKind> for Classified {
             kind,
             psbt: None,
             wallet: None,
+            outpoints: Vec::new(),
         }
     }
+}
+
+/// The outpoints `tx` spends, sorted.
+fn sorted_outpoints(tx: &Transaction) -> Vec<OutPoint> {
+    let mut out: Vec<OutPoint> = tx.input.iter().map(|i| i.previous_output).collect();
+    out.sort();
+    out
 }
 
 /// Costs what [`classify`] costs. [`classify`], keeping what it read to
@@ -1626,6 +1637,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
             kind: FileKind::Psbt,
             psbt: Some(PsbtSeen::of(&p)),
             wallet: None,
+            outpoints: sorted_outpoints(p.unsigned_tx()),
         };
     }
     if crate::scan_read::is_qr_vault(bytes) {
@@ -1658,6 +1670,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
                 kind: FileKind::Wallet,
                 psbt: None,
                 wallet: Some(w),
+                outpoints: Vec::new(),
             };
         }
         if crate::create::read_key(text).is_some() {
@@ -1678,9 +1691,12 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         let t = text.trim();
         if !t.is_empty()
             && t.bytes().all(|b| b.is_ascii_hexdigit())
-            && faraday_psbt::transaction::read_raw(t.as_bytes()).is_some()
+            && let Some(tx) = faraday_psbt::transaction::read_raw(t.as_bytes())
         {
-            return FileKind::Transaction.into();
+            return Classified {
+                outpoints: sorted_outpoints(&tx),
+                ..FileKind::Transaction.into()
+            };
         }
         if is_text(text) {
             return FileKind::Text.into();

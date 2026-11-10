@@ -164,6 +164,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             facts: None,
             wallet: None,
             psbt: None,
+            outpoints: Vec::new(),
         });
     }
     if secret {
@@ -177,6 +178,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
             facts: None,
             wallet: None,
             psbt: None,
+            outpoints: Vec::new(),
         });
     }
     app.press(Action::Nav(Screen::Visit));
@@ -825,6 +827,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
             facts: None,
             wallet: None,
             psbt: None,
+            outpoints: Vec::new(),
         });
     }
     app.storage(StorageEvent::Sticks(vec![StickInfo {
@@ -1167,6 +1170,7 @@ fn a_cancel_on_another_stick_leaves_the_receipt_of_the_last_write() {
         facts: None,
         wallet: None,
         psbt: None,
+        outpoints: Vec::new(),
     });
     let at = app.outbox.len() - 1;
     if !app.visit().out.contains("vault.kdbx") {
@@ -1365,6 +1369,7 @@ fn made_unclean(app: &mut Faraday) {
             facts: None,
             wallet: None,
             psbt: None,
+            outpoints: Vec::new(),
         },
     );
     let stick = StickInfo {

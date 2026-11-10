@@ -942,6 +942,7 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
             facts: None,
             wallet: None,
             psbt: None,
+            outpoints: Vec::new(),
         },
     );
     assert!(
@@ -1021,6 +1022,7 @@ fn a_signature_never_overwrites_the_certificate() {
             facts: None,
             wallet: None,
             psbt: None,
+            outpoints: Vec::new(),
         },
     );
     app.press(Action::Vault(V::GpgSignPick));
@@ -1103,6 +1105,7 @@ fn the_signature_code_follows_the_file_not_its_place() {
             facts: None,
             wallet: None,
             psbt: None,
+            outpoints: Vec::new(),
         },
     );
     app.press(Action::ShowCode(code));
