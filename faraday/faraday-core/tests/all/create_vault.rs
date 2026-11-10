@@ -483,3 +483,30 @@ fn creating_a_vault_with_too_few_answers_says_the_randomness_has_not_come() {
         "the form says why"
     );
 }
+
+#[test]
+fn a_vault_waits_for_its_passphrase_typed_twice_alike() {
+    let mut app = on_create_vault();
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "one phrase");
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(&mut app, "another phrase");
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_core::strings::EN.pass_pair_differ),
+        "the line says the two differ"
+    );
+    assert!(!app.offers(Action::Vault(V::CGo)), "Create waits");
+    app.press(Action::Vault(V::CGo));
+    assert_ne!(app.screen, Screen::Unlock, "no vault was made");
+    // The second typed as the first is.
+    app.press(Action::Vault(V::CFocus(0, true)));
+    for _ in 0.."another phrase".len() {
+        app.event(Event::Key(faraday_shell_api::Key::Backspace));
+    }
+    type_text(&mut app, "one phrase");
+    let _ = app.frame();
+    assert!(app.offers(Action::Vault(V::CGo)), "Create is on");
+}

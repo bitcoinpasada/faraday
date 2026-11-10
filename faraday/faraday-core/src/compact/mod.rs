@@ -1563,7 +1563,9 @@ impl Faraday {
         use crate::vault::Focus as F;
         if matches!(
             self.vaults.focus,
-            Some(F::Passphrase | F::Phrase(..) | F::Field(_) | F::Name | F::Prompt)
+            Some(
+                F::Passphrase | F::Phrase(..) | F::Field(_) | F::Name | F::Prompt | F::PromptAgain
+            )
         ) {
             self.vaults.set_focus(None);
         }

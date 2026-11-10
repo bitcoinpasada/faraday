@@ -144,6 +144,8 @@ fn a_passphrase_makes_the_potential_wallet_another_key() {
         app.potential().unwrap().with.is_none(),
         "no key is shown while typing goes on"
     );
+    app.press(Action::PotentialTypeAgain);
+    type_text(&mut app, "TREZOR");
     testkit::pause(&mut app);
     let with = app.potential().unwrap().with.unwrap();
     assert_ne!(with, fp, "a passphrase gives another fingerprint");
@@ -276,4 +278,26 @@ fn too_many_words_and_passphrase_files_stop_the_pairing_and_say_so() {
         "{:?}",
         found.waiting.iter().map(|w| &w.line).collect::<Vec<_>>()
     );
+}
+
+#[test]
+fn the_potential_wallet_waits_for_its_passphrase_typed_twice_alike() {
+    let c = testkit::compute();
+    let mut app = with_inbox(vec![("summer-words.txt".to_string(), words("summer"))]);
+    let fp = app.inbox_found_now(&c).potential()[0].fingerprint;
+    app.press(Action::PotentialOpen(fp.0));
+    app.press(Action::PotentialType);
+    type_text(&mut app, "TREZOR");
+    app.press(Action::PotentialTypeAgain);
+    type_text(&mut app, "TREZOP");
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_core::strings::EN.pass_pair_differ),
+        "the line says the two differ"
+    );
+    app.press(Action::PotentialMake);
+    assert!(app.session.keys.is_empty(), "no key was loaded");
+    assert!(app.potential().is_some(), "the sheet stays");
 }

@@ -33,41 +33,50 @@ pub(crate) fn passphrase_dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
     let actions = [
         (EN.vault_cancel, Style::Secondary, va(V::FormCancel)),
-        (EN.vault_save, Style::Primary, va(V::FormSave)),
+        (
+            EN.vault_save,
+            Style::Primary.when(crate::screens::pass_pair::ready(
+                form.fields[0].2.text.as_str(),
+                form.fields[1].2.text.as_str(),
+            )),
+            va(V::FormSave),
+        ),
     ];
     crate::compact::dialog(
         ui,
         (w, h, DIALOG_MAX),
         head,
         &mut |ui, x, y, iw| {
+            let (first, again) = (
+                form.fields[0].2.text.as_str(),
+                form.fields[1].2.text.as_str(),
+            );
             let mut cy = y;
-            for (k, (_, label, b, _)) in form.fields.iter().enumerate() {
-                ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, label);
-                cy += ui.line_as(BODY_S) + GAP_SMALL;
-                let focused = app.vaults.focus == Some(crate::vault::Focus::Field(k));
-                secret_box(
-                    ui,
-                    x,
-                    cy,
-                    iw,
-                    b,
-                    app.field_shows(form, k),
-                    focused,
-                    va(V::FocusField(k)),
-                    va(V::ShowTyped),
-                );
-                cy += FIELD_H + GAP_SMALL;
-            }
-            // What the two fields say of each other, as Create says it.
-            let (a, b) = (&form.fields[0].2.text, &form.fields[1].2.text);
-            if !b.is_empty() {
-                let (line, color) = if **a == **b {
-                    (EN.vault_matches, Role::OnSurfaceVariant)
-                } else {
-                    (EN.vault_does_not_match, Role::Warning)
-                };
-                cy += ui.wrap_as((x, cy, iw), BODY_S, color, line) + GAP_SMALL;
-            }
+            cy += crate::screens::pass_pair::pass_pair(
+                ui,
+                (x, cy, iw),
+                (first, again),
+                |ui, k, fy| {
+                    let (_, label, b, _) = &form.fields[k as usize];
+                    let k = k as usize;
+                    let mut cy = fy;
+                    ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, label);
+                    cy += ui.line_as(BODY_S) + GAP_SMALL;
+                    let focused = app.vaults.focus == Some(crate::vault::Focus::Field(k));
+                    secret_box(
+                        ui,
+                        x,
+                        cy,
+                        iw,
+                        b,
+                        app.field_shows(form, k),
+                        focused,
+                        va(V::FocusField(k)),
+                        va(V::ShowTyped),
+                    );
+                    cy + FIELD_H + GAP_SMALL - fy
+                },
+            );
             cy + GAP - GAP_SMALL - y
         },
         &actions,

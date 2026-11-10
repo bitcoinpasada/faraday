@@ -1282,7 +1282,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
             cy += 50.0;
         }
         _ => {
-            let half = (w - 12.0) / 2.0;
             let may = app.may_load_keys();
             // Its name, which names the file: what it holds, since the
             // file is all anyone who sees the stick sees (`docs/VAULT.md`
@@ -1373,42 +1372,34 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                     );
                     cy += 52.0;
                 }
-                if may {
-                    let fa = app.vaults.focus == Some(Focus::Phrase(i, false));
-                    let fb = app.vaults.focus == Some(Focus::Phrase(i, true));
-                    crate::demo::pass_box(
-                        app,
-                        ui,
-                        (x, cy, half),
-                        a,
-                        (c.shown, fa),
-                        (va(V::CFocus(i, false)), va(V::CShow)),
-                        crate::demo::PassField::Phrase(i as u8, false),
-                    );
-                    crate::demo::pass_box(
-                        app,
-                        ui,
-                        (x + half + 12.0, cy, half),
-                        b,
-                        (c.shown, fb),
-                        (va(V::CFocus(i, true)), va(V::CShow)),
-                        crate::demo::PassField::Phrase(i as u8, true),
-                    );
-                } else {
-                    stick_field(app.medium, ui, x, cy, half);
-                    stick_field(app.medium, ui, x + half + 12.0, cy, half);
-                }
-                cy += FIELD_H + 6.0 + never_real_seed_if(may, app, ui, x, cy, w);
-                let (status, color) = if !b.text.is_empty() && *a.text == *b.text {
-                    (EN.vault_matches, good)
-                } else if !b.text.is_empty() {
-                    (EN.vault_does_not_match, warn)
-                } else {
-                    (EN.vault_type_it_then, muted)
-                };
-                let on = matches!(app.vaults.focus, Some(Focus::Phrase(j, _)) if j == i);
-                let line = ui.field_supporting((x, cy, w), color, status, on);
-                cy += line.max(22.0);
+                cy += crate::screens::pass_pair::pass_pair(
+                    ui,
+                    (x, cy, w),
+                    (a.text.as_str(), b.text.as_str()),
+                    |ui, n, fy| {
+                        let (box_, second) = if n == 0 { (a, false) } else { (b, true) };
+                        if may {
+                            let f = app.vaults.focus == Some(Focus::Phrase(i, second));
+                            crate::demo::pass_box(
+                                app,
+                                ui,
+                                (x, fy, w),
+                                box_,
+                                (c.shown, f),
+                                (va(V::CFocus(i, second)), va(V::CShow)),
+                                crate::demo::PassField::Phrase(i as u8, second),
+                            );
+                        } else {
+                            stick_field(app.medium, ui, x, fy, w);
+                        }
+                        let more = if second {
+                            never_real_seed_if(may, app, ui, x, fy, w)
+                        } else {
+                            0.0
+                        };
+                        FIELD_H + 6.0 + more
+                    },
+                );
                 // Its strength: the dice's bits and the cost's, if dice made it.
                 let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
                 let cost = vault::cost_bits(mem, passes);
@@ -2617,19 +2608,55 @@ fn detail(
         let heading = ui.fit_as(TITLE_M, &heading, dw);
         ui.text_as(dx, dy, TITLE_M, ink, &heading);
         dy += ui.line_as(TITLE_M) + faraday_draw::tokens::PAD;
-        ui.text_as(dx, dy, BODY_S, muted, EN.vault_passphrase);
-        dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
-        let focused = app.vaults.focus == Some(Focus::Prompt);
-        crate::demo::pass_box(
-            app,
-            ui,
-            (dx, dy, dw),
-            &p.text,
-            (app.vaults.typed_shown, focused),
-            (va(V::FocusPrompt), va(V::ShowTyped)),
-            crate::demo::PassField::Prompt,
-        );
-        dy += FIELD_H + 16.0 + never_under(app, ui, dx, dy, dw);
+        let pair = p.pair();
+        let fields = if pair { 2 } else { 1 };
+        for n in 0..fields {
+            let second = n == 1;
+            let label = if second {
+                EN.vault_passphrase_again
+            } else {
+                EN.vault_passphrase
+            };
+            ui.text_as(dx, dy, BODY_S, muted, label);
+            dy += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
+            let (focus, press, chip) = if second {
+                (
+                    Focus::PromptAgain,
+                    V::FocusPromptAgain,
+                    crate::demo::PassField::PromptAgain,
+                )
+            } else {
+                (
+                    Focus::Prompt,
+                    V::FocusPrompt,
+                    crate::demo::PassField::Prompt,
+                )
+            };
+            crate::demo::pass_box(
+                app,
+                ui,
+                (dx, dy, dw),
+                if second { &p.again } else { &p.text },
+                (app.vaults.typed_shown, app.vaults.focus == Some(focus)),
+                (va(press), va(V::ShowTyped)),
+                chip,
+            );
+            dy += FIELD_H + if second { 8.0 } else { 16.0 };
+            if second {
+                if !p.again.text.is_empty()
+                    && crate::screens::pass_pair::differ(
+                        p.text.text.as_str(),
+                        p.again.text.as_str(),
+                    )
+                {
+                    dy += ui
+                        .field_supporting((dx, dy, dw), Role::Error, EN.pass_pair_differ, false)
+                        .max(22.0);
+                }
+                dy += 8.0;
+            }
+        }
+        dy += never_under(app, ui, dx, dy, dw);
         if app.vaults.working == Some(vault::Work::Kdbx) {
             crate::screens::working_line(ui, (dx, dy, dw, 40.0), EN.vault_sealing);
         } else {
@@ -2648,7 +2675,13 @@ fn detail(
                 None,
                 40.0,
                 label,
-                Style::Primary,
+                Style::Primary.when(
+                    !p.pair()
+                        || !crate::screens::pass_pair::differ(
+                            p.text.text.as_str(),
+                            p.again.text.as_str(),
+                        ),
+                ),
                 va(V::PromptGo),
             ) {
                 ui.measure_as(LABEL_L, label) + 42.0

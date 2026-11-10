@@ -345,8 +345,10 @@ pub(crate) fn field_action(a: Action) -> bool {
                 | V::CName
                 | V::FocusField(_)
                 | V::FocusPrompt
+                | V::FocusPromptAgain
                 | V::Dice(_)
         ) | Action::EntryPassphrase
+            | Action::EntryPassphraseAgain
             | Action::KPassField(_)
             | Action::CPassField(_)
             | Action::SeedRead(seeds::read::Choice::Field(_))
@@ -363,6 +365,7 @@ pub(crate) fn field_action(a: Action) -> bool {
             | Action::TypeHere(_)
             | crate::edit::GPG_LINE
             | Action::PotentialType
+            | Action::PotentialTypeAgain
             | Action::LPassphrase
     ) || a == crate::file_menu::FIELD
 }

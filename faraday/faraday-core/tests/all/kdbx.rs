@@ -87,6 +87,8 @@ fn at_the_export_prompt_beside(answers: u8, outbox: Vec<(String, Vec<u8>)>) -> F
     app.press(Action::Vault(V::Item(entries - 1)));
     app.press(Action::Vault(V::ExportKdbx));
     type_text(&mut app, "keepass passphrase");
+    app.press(Action::Vault(V::FocusPromptAgain));
+    type_text(&mut app, "keepass passphrase");
     app
 }
 
@@ -293,4 +295,23 @@ fn exporting_for_keepass_before_the_randomness_arrives_says_why() {
         app.outbox.iter().all(|i| !i.name.ends_with(".kdbx")),
         "no file was made"
     );
+}
+
+#[test]
+fn the_export_passphrase_is_typed_twice_and_the_export_waits_for_it() {
+    let mut app = at_the_export_prompt();
+    // The helper typed the first and the second alike: another second
+    // letter makes them differ.
+    app.event(Event::Key(faraday_shell_api::Key::Char('x')));
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_core::strings::EN.pass_pair_differ),
+        "the line says the two differ"
+    );
+    assert!(!app.offers(Action::Vault(V::PromptGo)), "the export waits");
+    testkit::press_on_worker(&mut app, Action::Vault(V::PromptGo));
+    let _ = app.frame();
+    assert!(app.busy().is_none(), "nothing was sealed");
 }

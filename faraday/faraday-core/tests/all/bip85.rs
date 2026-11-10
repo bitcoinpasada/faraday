@@ -192,6 +192,8 @@ fn an_exported_password_names_neither_its_parent_nor_its_index() {
     app.press(Action::Vault(V::Item(at)));
     app.press(Action::Vault(V::ExportKdbx));
     type_text(&mut app, "keepass passphrase");
+    app.press(Action::Vault(V::FocusPromptAgain));
+    type_text(&mut app, "keepass passphrase");
     app.press(Action::Vault(V::PromptGo));
     crate::common::settle(&mut app, 30);
     let file = app

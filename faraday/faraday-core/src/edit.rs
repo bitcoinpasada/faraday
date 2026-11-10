@@ -284,11 +284,13 @@ impl Faraday {
             return Some(GPG_LINE);
         }
         if self.sheet == Some(Sheet::Potential) {
-            return self
-                .inbox
-                .potential()
-                .is_some_and(|p| p.typing)
-                .then_some(Action::PotentialType);
+            return self.inbox.potential().filter(|p| p.typing).map(|p| {
+                if p.typing_again {
+                    Action::PotentialTypeAgain
+                } else {
+                    Action::PotentialType
+                }
+            });
         }
         if self.sheet.is_some() {
             return None;
@@ -368,7 +370,11 @@ impl Faraday {
                 self.act(Action::MType);
             }
             Here::Entry | Here::Keyed if self.entry.state().on_passphrase => {
-                self.act(Action::EntryPassphrase);
+                self.act(if self.entry.state().on_again {
+                    Action::EntryPassphraseAgain
+                } else {
+                    Action::EntryPassphrase
+                });
             }
             Here::SilentName | Here::SilentDomain => {
                 self.silent.focus_dns(h == Here::SilentDomain);
@@ -420,6 +426,7 @@ impl Faraday {
             Some(
                 Action::TypeHere(Here::WordFind | Here::Find | Here::Chart)
                     | Action::PotentialType
+                    | Action::PotentialTypeAgain
                     | GPG_LINE
             )
         )
@@ -582,6 +589,7 @@ impl Faraday {
                 F::Dice => V::Dice(self.vaults.dice.open().map_or(0, |d| d.0)),
                 F::Rolls => V::Roller(crate::fresh::roller::Act::Count),
                 F::Prompt => V::FocusPrompt,
+                F::PromptAgain => V::FocusPromptAgain,
                 F::Name => V::CName,
                 F::Search(s) => V::Search(vault::SearchAct::Focus(s)),
             })),
@@ -609,7 +617,11 @@ impl Faraday {
     fn entry_target(&self) -> Option<Action> {
         let e = self.entry.state();
         if e.on_passphrase {
-            return Some(Action::EntryPassphrase);
+            return Some(if e.on_again {
+                Action::EntryPassphraseAgain
+            } else {
+                Action::EntryPassphrase
+            });
         }
         if e.form == crate::forms::Form::Words {
             return Some(Action::TypeHere(if e.keys.is_none() {
@@ -659,11 +671,13 @@ impl Faraday {
                     F::Dice => &v.dice.open()?.1.text,
                     F::Rolls => v.dice.roller().typed(),
                     F::Prompt => &v.prompt.as_ref()?.text.text,
+                    F::PromptAgain => &v.prompt.as_ref()?.again.text,
                     F::Name => &v.create.as_ref()?.name.text,
                     F::Search(s) => v.query(s),
                 }
             }
             Action::EntryPassphrase => &self.entry.state().passphrase,
+            Action::EntryPassphraseAgain => &self.entry.state().again,
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
             Action::KefRead(_) => crate::seeds::kef::kef_field(self)?,
             Action::KefTool(_) => crate::kef_tool::field(self)?.1,
@@ -716,6 +730,7 @@ impl Faraday {
                 Here::Keyed | Here::CheckKeyed => return None,
             },
             Action::PotentialType => &self.inbox.potential()?.passphrase,
+            Action::PotentialTypeAgain => &self.inbox.potential()?.again,
             GPG_LINE => self.gpg_restore_live()?.typed(),
             Action::LPassphrase => &self.lightning.state()?.passphrase,
             Action::SetTimeFocus(crate::set_time::Focus::Date) => &self.set_time.date().text,
@@ -736,6 +751,7 @@ impl Faraday {
             || self.lightning.state().is_some()
             || !self.entry.state().typed.is_empty()
             || !self.entry.state().passphrase.is_empty()
+            || !self.entry.state().again.is_empty()
             || !self.vaults.passphrase.text.is_empty()
             || self
                 .inbox

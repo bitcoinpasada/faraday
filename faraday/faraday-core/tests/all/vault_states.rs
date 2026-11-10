@@ -2144,3 +2144,18 @@ fn keeping_the_secret_after_removing_it_leaves_nothing_to_seal() {
     let out = lock_to_outbox(&mut app);
     assert!(!out.iter().any(|f| f.0.ends_with(".kdbx")), "sealed");
 }
+
+#[test]
+fn change_passphrase_waits_while_the_two_differ() {
+    let mut app = open_vault();
+    app.press(Action::Vault(V::ChangePassphrase));
+    type_text(&mut app, "one phrase");
+    app.press(Action::Vault(V::FocusField(1)));
+    type_text(&mut app, "another phrase");
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts().iter().any(|t| t == EN.pass_pair_differ),
+        "the line says the two differ"
+    );
+    assert!(!app.offers(Action::Vault(V::FormSave)), "Save waits");
+}

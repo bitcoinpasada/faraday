@@ -71,6 +71,8 @@ fn two_slip39_shares_and_the_passphrase_make_the_vectors_key() {
     enter(&mut app);
     app.press(Action::EntryPassphrase);
     typed(&mut app, "TREZOR");
+    app.press(Action::EntryPassphraseAgain);
+    typed(&mut app, "TREZOR");
     enter(&mut app);
     assert_eq!(
         only_key(&app),
@@ -285,6 +287,8 @@ fn words_key(count: u8, words: &str) -> Faraday {
     typed(&mut app, words);
     app.press(Action::EntryPassphrase);
     typed(&mut app, "TREZOR");
+    app.press(Action::EntryPassphraseAgain);
+    typed(&mut app, "TREZOR");
     app.press(Action::EntryAdd);
     app
 }
@@ -370,6 +374,8 @@ fn the_status_line_follows_the_words_and_the_passphrase_as_they_change() {
     assert!(app.drawn_texts().join(" ").contains(&fp(&bacon, "")));
     app.press(Action::EntryPassphrase);
     typed(&mut app, "Ride the 7 bus");
+    app.press(Action::EntryPassphraseAgain);
+    typed(&mut app, "Ride the 7 bus");
     faraday_core::testkit::pause(&mut app);
     let _ = app.frame();
     assert!(
@@ -377,6 +383,8 @@ fn the_status_line_follows_the_words_and_the_passphrase_as_they_change() {
             .join(" ")
             .contains(&fp(&bacon, "Ride the 7 bus"))
     );
+    // Back to the first field, and from it to the words.
+    app.press(Action::EntryPassphrase);
     app.press(Action::EntryPassphrase);
     app.press(Action::EntryClear);
     typed(&mut app, &zebra);
@@ -385,4 +393,31 @@ fn the_status_line_follows_the_words_and_the_passphrase_as_they_change() {
     let text = app.drawn_texts().join(" ");
     assert!(text.contains(&fp(&zebra, "Ride the 7 bus")), "{text}");
     assert!(!text.contains(&fp(&bacon, "Ride the 7 bus")));
+}
+
+#[test]
+fn add_a_key_takes_a_bip_39_passphrase_typed_twice() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Entry(None));
+    typed(&mut app, &faraday_core::testkit::test_words("bacon"));
+    app.press(Action::EntryPassphrase);
+    typed(&mut app, "TREZOR");
+    app.press(Action::EntryPassphraseAgain);
+    typed(&mut app, "TREZOP");
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_core::strings::EN.pass_pair_differ),
+        "the line says the two differ"
+    );
+    app.press(Action::EntryAdd);
+    assert!(app.session.keys.is_empty(), "no key was added");
+    app.press(Action::EntryPassphraseAgain);
+    app.event(faraday_shell_api::Event::Key(
+        faraday_shell_api::Key::Backspace,
+    ));
+    typed(&mut app, "R");
+    app.press(Action::EntryAdd);
+    assert_eq!(app.session.keys.len(), 1);
 }

@@ -1875,3 +1875,11 @@ pub fn kvm_gone(app: &mut Faraday) {
     app.press(Action::DevicesCheck);
     app.press(Action::DevicesUnderstood);
 }
+
+/// A BIP-39 passphrase typed on Add a key, and again.
+pub fn bip39_passphrase(app: &mut Faraday, text: &str) {
+    app.press(Action::EntryPassphrase);
+    type_text(app, text);
+    app.press(Action::EntryPassphraseAgain);
+    type_text(app, text);
+}

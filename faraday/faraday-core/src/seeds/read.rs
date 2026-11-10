@@ -571,6 +571,8 @@ impl Faraday {
         }
         self.entry.state_mut().typed.set(words);
         self.entry.state_mut().passphrase.set(pass);
+        // The sheet asked for it twice already.
+        self.entry.state_mut().again.set(pass);
         let keys = self.entry.state_mut().keys.take();
         self.entry_add();
         // Over the QR vault tool a refusal shows on its card, and the words

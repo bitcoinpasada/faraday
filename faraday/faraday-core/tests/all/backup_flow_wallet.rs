@@ -1863,8 +1863,7 @@ fn lone_passphrase_round(
     // the chart reads the plan of the wallet with it.
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
-    app.press(Action::EntryPassphrase);
-    type_text(&mut app, "kept apart");
+    bip39_passphrase(&mut app, "kept apart");
     app.press(Action::EntryAdd);
     app.press(Action::Backup(w));
     let press = Press::Loaded(w);
@@ -2041,8 +2040,7 @@ pub(crate) fn two_of_three_ready_with(shell: &mut Shell, passphrase: bool) -> Fa
             app.event(Event::Key(Key::Char(c)));
         }
         if i == 0 && passphrase {
-            app.press(Action::EntryPassphrase);
-            type_text(&mut app, "kept apart");
+            bip39_passphrase(&mut app, "kept apart");
         }
         app.press(Action::EntryAdd);
         fps.push(app.session.keys.last().unwrap().fingerprint.0);
@@ -3948,8 +3946,7 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
     for c in testkit::test_words(testkit::TEST_SEEDS[1].0).chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    app.press(Action::EntryPassphrase);
-    type_text(&mut app, "kept apart");
+    bip39_passphrase(&mut app, "kept apart");
     app.press(Action::EntryAdd);
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::Nav(Screen::Create));
@@ -4564,8 +4561,7 @@ fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
     for c in testkit::test_words(testkit::TEST_SEEDS[1].0).chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    app.press(Action::EntryPassphrase);
-    type_text(&mut app, "hidden");
+    bip39_passphrase(&mut app, "hidden");
     app.press(Action::EntryAdd);
     let k = app.session.keys.len() - 1;
     let text = NewKind::NativeSegwit
@@ -5025,8 +5021,7 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     for c in testkit::test_words(testkit::TEST_SEEDS[1].0).chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    app.press(Action::EntryPassphrase);
-    type_text(&mut app, "kept here");
+    bip39_passphrase(&mut app, "kept here");
     app.press(Action::EntryAdd);
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::Nav(Screen::Create));
@@ -5292,8 +5287,7 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
     for c in testkit::test_words(testkit::TEST_SEEDS[1].0).chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    app.press(Action::EntryPassphrase);
-    type_text(&mut app, "kept here");
+    bip39_passphrase(&mut app, "kept here");
     app.press(Action::EntryAdd);
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::Nav(Screen::Create));
@@ -5523,8 +5517,7 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
     create_vault(&mut shell, &mut app, 1, PHRASE_2);
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words("summer"));
-    app.press(Action::EntryPassphrase);
-    type_text(&mut app, "TREZOR");
+    bip39_passphrase(&mut app, "TREZOR");
     app.press(Action::EntryAdd);
     let fp = app.session.keys.last().unwrap().fingerprint;
     app.press(Action::Nav(Screen::Create));

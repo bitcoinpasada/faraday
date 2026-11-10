@@ -411,6 +411,75 @@ fn entry_status(
     y + 34.0
 }
 
+/// Add a key's passphrase on a wide page: the field with its label at its
+/// left, and a second one under it, with the line while they differ, where
+/// the passphrase is asked twice (`EntryState::pair`). Returns the height
+/// used.
+fn entry_pass_fields(app: &View, ui: &mut Ui, (x, y, width): (f32, f32, f32), label: &str) -> f32 {
+    let e = app.entry.state();
+    let px = x + 150.0;
+    let pw = 380.0f32.min(width - 150.0);
+    let field = |ui: &mut Ui, n: u8, fy: f32| {
+        let second = n == 1;
+        let on = e.on_passphrase && e.on_again == second;
+        ui.text_mid_as(
+            (x, fy, 40.0),
+            BODY_S,
+            Role::OnSurfaceVariant,
+            if second {
+                EN.keygen_passphrase_again
+            } else {
+                label
+            },
+        );
+        ui.fill(px, fy, pw, 40.0, 8.0, Role::SurfaceContainerHighest);
+        ui.stroke(
+            px,
+            fy,
+            pw,
+            40.0,
+            8.0,
+            if on {
+                Role::Primary
+            } else {
+                Role::OutlineVariant
+            },
+        );
+        dots_field(
+            ui,
+            px,
+            fy,
+            pw,
+            if second { &e.again } else { &e.passphrase },
+            (
+                on,
+                app.pass_chip(if second {
+                    crate::demo::PassField::EntryAgain
+                } else {
+                    crate::demo::PassField::Entry
+                }),
+            ),
+            if second {
+                Action::EntryPassphraseAgain
+            } else {
+                Action::EntryPassphrase
+            },
+        );
+        48.0
+    };
+    if e.pair() {
+        super::pass_pair::pass_pair(
+            ui,
+            (px, y, pw),
+            (e.passphrase.as_str(), e.again.as_str()),
+            field,
+        )
+    } else {
+        field(ui, 0, y);
+        40.0
+    }
+}
+
 /// The BIP-39 passphrase and the buttons under the words.
 /// The passphrase field, the way in from a stick, and the Add key ·
 /// Clear · Make a new key row. Returns the bottom of the row, so the
@@ -418,41 +487,11 @@ fn entry_status(
 fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> f32 {
     // An optional BIP-39 passphrase: the same words with another
     // passphrase are another key.
-    ui.text_mid_as(
-        (x, y, 40.0),
-        BODY_S,
-        Role::OnSurfaceVariant,
-        EN.entry_finish_bip39_passphrase,
-    );
-    let px = x + 150.0;
-    let pw = 380.0f32.min(width - 150.0);
-    let on = app.entry.state().on_passphrase;
-    ui.fill(px, y, pw, 40.0, 8.0, Role::SurfaceContainerHighest);
-    ui.stroke(
-        px,
-        y,
-        pw,
-        40.0,
-        8.0,
-        if on {
-            Role::Primary
-        } else {
-            Role::OutlineVariant
-        },
-    );
-    dots_field(
-        ui,
-        px,
-        y,
-        pw,
-        &app.entry.state().passphrase,
-        (on, app.pass_chip(crate::demo::PassField::Entry)),
-        Action::EntryPassphrase,
-    );
+    let ph = entry_pass_fields(app, ui, (x, y, width), EN.entry_finish_bip39_passphrase);
     // The stick row and the buttons sit at the bottom of the screen, but
     // move down below the passphrase field when the words above it (up
     // to 24 of them) would otherwise run under it.
-    let by = (h - 36.0 - 46.0).max(y + 40.0 + 24.0 + 48.0);
+    let by = (h - 36.0 - 46.0).max(y + ph + 24.0 + 48.0);
     entry_stick(app, ui, x, by - 48.0);
     ui.button(
         x,
@@ -460,7 +499,9 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         Some(140.0),
         BUTTON_H,
         EN.entry_finish_add_key,
-        if entry_typed(app) {
+        if app.entry.state().differs() {
+            Style::Disabled
+        } else if entry_typed(app) {
             Style::Primary
         } else {
             Style::Secondary
@@ -637,38 +678,9 @@ pub(crate) fn entry_form(
         y += codex32_check_button(app, ui, x, y, width);
     }
     // A SLIP-39 backup's passphrase; a Seed XOR key's BIP-39 one.
+    let mut ph = 40.0;
     if form != Form::Codex32 && flow.is_none() {
-        ui.text_mid_as(
-            (x, y, 40.0),
-            BODY_S,
-            Role::OnSurfaceVariant,
-            EN.entry_form_passphrase,
-        );
-        let px = x + 150.0;
-        let pw = 380.0f32.min(width - 150.0);
-        let on = app.entry.state().on_passphrase;
-        ui.fill(px, y, pw, 40.0, 8.0, Role::SurfaceContainerHighest);
-        ui.stroke(
-            px,
-            y,
-            pw,
-            40.0,
-            8.0,
-            if on {
-                Role::Primary
-            } else {
-                Role::OutlineVariant
-            },
-        );
-        dots_field(
-            ui,
-            px,
-            y,
-            pw,
-            &app.entry.state().passphrase,
-            (on, app.pass_chip(crate::demo::PassField::Entry)),
-            Action::EntryPassphrase,
-        );
+        ph = entry_pass_fields(app, ui, (x, y, width), EN.entry_form_passphrase);
     }
     // As `entry_finish`: the stick row and the buttons sit at the bottom
     // of the screen, but move down below what is above them (the
@@ -676,7 +688,7 @@ pub(crate) fn entry_form(
     // otherwise run under it.
     let by = match flow {
         Some(_) => y,
-        None => (h - 36.0 - 46.0).max(y + 40.0 + 24.0 + 48.0),
+        None => (h - 36.0 - 46.0).max(y + ph + 24.0 + 48.0),
     };
     if flow.is_none() {
         entry_stick(app, ui, x, by - 48.0);
@@ -719,7 +731,7 @@ pub(crate) fn entry_form(
         None,
         BUTTON_H,
         label,
-        Style::Primary.when(ready),
+        Style::Primary.when(ready && !app.entry.state().differs()),
         action,
     );
     // Its Enter on an empty line makes the key; the flow's opens Key.

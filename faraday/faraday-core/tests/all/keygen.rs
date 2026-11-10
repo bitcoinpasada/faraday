@@ -1365,6 +1365,8 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
     typed(&mut entry, &words);
     entry.press(Action::EntryPassphrase);
     typed(&mut entry, "Ride the 7 bus");
+    entry.press(Action::EntryPassphraseAgain);
+    typed(&mut entry, "Ride the 7 bus");
     entry.press(Action::EntryAdd);
     assert_eq!(entry.session.keys.last().map(|k| k.fingerprint), Some(fp));
 

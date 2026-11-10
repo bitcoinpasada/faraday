@@ -1200,8 +1200,13 @@ pub struct Potential {
     pub fingerprint: Option<Fingerprint>,
     /// The passphrase typed, empty for none.
     pub passphrase: crate::secret_text::SecretText,
+    /// The passphrase typed again: it is typed twice, for nothing checks
+    /// it and a typo makes another key.
+    pub again: crate::secret_text::SecretText,
     /// Typing goes to the passphrase.
     pub typing: bool,
+    /// With `typing`: it goes to the passphrase typed again.
+    pub typing_again: bool,
     /// The passphrase is shown in the clear.
     pub shown: bool,
     /// The kind of single-key wallet it becomes.
@@ -1253,6 +1258,17 @@ impl Faraday {
                 self.inbox.clear_potential();
                 self.sheet = None;
             }
+            // A passphrase's Enter moves to the one again; the second's, or
+            // an empty first's, makes the wallet.
+            KeyIn::Enter
+                if self.inbox.potential().is_some_and(|p| {
+                    p.typing && !p.typing_again && p.xpub.is_none() && !p.passphrase.is_empty()
+                }) =>
+            {
+                if let Some(p) = self.inbox.potential_mut() {
+                    p.typing_again = true;
+                }
+            }
             KeyIn::Enter => self.potential_make(),
             // Nothing secret is typed with a stick attached.
             _ if !self.stick.is_empty() => {}
@@ -1260,7 +1276,11 @@ impl Faraday {
                 if let Some(p) = self.inbox.potential_mut()
                     && p.typing
                 {
-                    p.passphrase.push(c);
+                    if p.typing_again {
+                        p.again.push(c);
+                    } else {
+                        p.passphrase.push(c);
+                    }
                     p.error = None;
                 }
                 self.potential_typed();
@@ -1269,7 +1289,11 @@ impl Faraday {
                 if let Some(p) = self.inbox.potential_mut()
                     && p.typing
                 {
-                    p.passphrase.pop();
+                    if p.typing_again {
+                        p.again.pop();
+                    } else {
+                        p.passphrase.pop();
+                    }
                     p.error = None;
                 }
                 self.potential_typed();
@@ -1413,6 +1437,13 @@ impl Faraday {
         // A watch-only wallet holds nothing secret: a stick may stay in.
         if self.inbox.potential().is_some_and(|p| p.xpub.is_some()) {
             self.xpub_make();
+            return;
+        }
+        // A passphrase made here is typed twice: a press with the two
+        // differing does nothing.
+        if self.inbox.potential().is_some_and(|p| {
+            crate::screens::pass_pair::differ(p.passphrase.as_str(), p.again.as_str())
+        }) {
             return;
         }
         if !self.may_load_keys() {
@@ -1593,6 +1624,13 @@ impl Faraday {
             Action::PotentialType => {
                 if let Some(p) = self.inbox.potential_mut() {
                     p.typing = self.stick.is_empty();
+                    p.typing_again = false;
+                }
+            }
+            Action::PotentialTypeAgain => {
+                if let Some(p) = self.inbox.potential_mut() {
+                    p.typing = self.stick.is_empty();
+                    p.typing_again = true;
                 }
             }
             Action::PotentialMake => self.potential_make(),

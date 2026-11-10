@@ -40,8 +40,12 @@ pub struct EntryState {
     pub back: Option<Screen>,
     /// The BIP-39 passphrase, when one is typed.
     pub passphrase: secret_text::SecretText,
+    /// The passphrase typed again, where it is asked twice ([`EntryState::pair`]).
+    pub again: secret_text::SecretText,
     /// Typing goes to the passphrase rather than the words.
     pub on_passphrase: bool,
+    /// With `on_passphrase`: typing goes to the passphrase typed again.
+    pub on_again: bool,
     /// Which form of key is being typed.
     pub form: forms::Form,
     /// The BIP-39 list the words are typed from, by its place in
@@ -80,6 +84,23 @@ pub struct EntryState {
 }
 
 impl EntryState {
+    /// Whether the BIP-39 passphrase is typed twice: nothing checks it, and
+    /// a typo makes another key. Not where it is checked against a wallet
+    /// (Restore, Spend from a backup, a wallet's missing key).
+    pub fn pair(&self) -> bool {
+        self.wallet.is_none()
+            && !matches!(
+                self.back,
+                Some(crate::Screen::Restore | crate::Screen::SpendBackup)
+            )
+    }
+
+    /// The passphrase is asked twice and the two differ: the key waits.
+    pub fn differs(&self) -> bool {
+        self.pair()
+            && crate::screens::pass_pair::differ(self.passphrase.as_str(), self.again.as_str())
+    }
+
     /// The word counts a BIP-39 key can have.
     pub const COUNTS: [u8; 5] = [12, 15, 18, 21, 24];
 
@@ -247,8 +268,10 @@ impl EntryArea {
         use faraday_shell_api::Key as K;
         let e = &mut self.state;
         let mut to = Keyed::Taken;
+        let (pair, second) = (e.pair(), e.on_again);
         match key {
             // BIP-39 passphrases here are printable ASCII (BIP-39's seed derivation).
+            K::Char(c) if (' '..='~').contains(&c) && second => e.again.push(c),
             K::Char(c) if (' '..='~').contains(&c) => e.passphrase.push(c),
             // Anything else is refused, and the field says so
             // (`docs/STANDARDS.md`).
@@ -256,12 +279,20 @@ impl EntryArea {
                 e.error = Some(ascii_refused());
                 e.refused = true;
             }
+            K::Backspace if second => {
+                e.again.pop();
+            }
             K::Backspace => {
                 e.passphrase.pop();
             }
+            // The first field's Enter and Tab move to the second.
+            K::Enter | K::Tab if pair && !second => e.on_again = true,
             K::Enter if e.form == Form::Words => to = Keyed::Add,
             K::Enter => to = Keyed::Recover,
-            K::Escape | K::Tab => e.on_passphrase = false,
+            K::Escape | K::Tab => {
+                e.on_passphrase = false;
+                e.on_again = false;
+            }
             _ => {}
         }
         to
@@ -1131,7 +1162,10 @@ impl Faraday {
 
     /// Puts the parts together and adds the key.
     pub(crate) fn form_recover(&mut self) {
-        if !self.may_load_keys() || self.entry.state().form == Form::Words {
+        if !self.may_load_keys()
+            || self.entry.state().form == Form::Words
+            || self.entry.state().differs()
+        {
             return;
         }
         if let Some(kind) = self.form_makes_more() {

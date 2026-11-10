@@ -595,6 +595,56 @@ fn pass_field(
     lh + FIELD_H + 12.0
 }
 
+/// Add a key's passphrase on a small panel: the field and, where it is
+/// asked twice, the one again and the line while they differ. Returns the
+/// height used.
+fn entry_pass(app: &View, ui: &mut Ui, (x, y, iw): (f32, f32, f32), label: &str) -> f32 {
+    let e = app.entry.state();
+    let field = |ui: &mut Ui, n: u8, fy: f32| {
+        let second = n == 1;
+        let (secret, field, action) = if second {
+            (
+                &e.again,
+                crate::demo::PassField::EntryAgain,
+                Action::EntryPassphraseAgain,
+            )
+        } else {
+            (
+                &e.passphrase,
+                crate::demo::PassField::Entry,
+                Action::EntryPassphrase,
+            )
+        };
+        pass_field(
+            ui,
+            x,
+            fy,
+            iw,
+            if second {
+                EN.keygen_passphrase_again
+            } else {
+                label
+            },
+            secret,
+            (
+                e.on_passphrase && e.on_again == second,
+                app.pass_chip(field),
+            ),
+            action,
+        )
+    };
+    if e.pair() {
+        crate::screens::pass_pair::pass_pair(
+            ui,
+            (x, y, iw),
+            (e.passphrase.as_str(), e.again.as_str()),
+            field,
+        )
+    } else {
+        field(ui, 0, y)
+    }
+}
+
 /// What Add a key on a small panel is for, over its form: the round's
 /// codex32 string typed in place (`docs/CODEX32.md` §9.5), the key a slot
 /// wants, or the wallet whose keys it may give.
@@ -677,21 +727,11 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     y = entry_words(app, ui, x, y, iw, true);
-    y += pass_field(
-        ui,
-        x,
-        y,
-        iw,
-        EN.compact_bip_39_passphrase,
-        &es.passphrase,
-        (
-            es.on_passphrase,
-            app.pass_chip(crate::demo::PassField::Entry),
-        ),
-        Action::EntryPassphrase,
-    );
+    y += entry_pass(app, ui, (x, y, iw), EN.compact_bip_39_passphrase);
     // Add key is pinned at the foot.
-    let add = if typed {
+    let add = if es.differs() {
+        Style::Disabled
+    } else if typed {
         Style::Primary
     } else {
         Style::Secondary
@@ -1067,19 +1107,7 @@ fn entry_form_foot(
     let form = app.entry.state().form;
     let mut y = y;
     if form != Form::Codex32 && flow.is_none() {
-        y += pass_field(
-            ui,
-            x,
-            y,
-            iw,
-            EN.compact_passphrase,
-            &app.entry.state().passphrase,
-            (
-                app.entry.state().on_passphrase,
-                app.pass_chip(crate::demo::PassField::Entry),
-            ),
-            Action::EntryPassphrase,
-        );
+        y += entry_pass(app, ui, (x, y, iw), EN.compact_passphrase);
     }
     let ready = app.entry.state().parts.ready(form);
     y += stack(
@@ -1111,7 +1139,7 @@ fn entry_form_foot(
                     Some(_) => EN.keygen_continue,
                     None => EN.compact_make_the_key,
                 },
-                Style::Primary.when(ready),
+                Style::Primary.when(ready && !app.entry.state().differs()),
                 flow.unwrap_or(Action::EntryRecover),
             ),
         ],

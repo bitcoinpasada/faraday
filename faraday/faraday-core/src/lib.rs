@@ -2619,6 +2619,7 @@ impl Faraday {
             | Action::EntryPart
             | Action::EntryRecover
             | Action::EntryPassphrase
+            | Action::EntryPassphraseAgain
             | Action::EntryField
             | Action::EntryWallet(..)
             | Action::Codex32Correct(..)
@@ -2656,6 +2657,7 @@ impl Faraday {
             | Action::PotentialKind(..)
             | Action::PotentialShow
             | Action::PotentialType
+            | Action::PotentialTypeAgain
             | Action::PotentialMake) => self.inbox_act(a, &c),
             a @ (Action::VisitStick(..)
             | Action::VisitSettings
@@ -3832,7 +3834,7 @@ impl Faraday {
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn entry_add(&mut self) {
         let c = self.compute();
-        if !self.may_load_keys() {
+        if !self.may_load_keys() || self.entry.state().differs() {
             return;
         }
         let wanted = self
@@ -3840,9 +3842,8 @@ impl Faraday {
             .state()
             .wanted
             .map(faraday_bip::keys::Fingerprint);
-        let label = self.entry.state().label.clone();
-        let typed = self.entry.mnemonic();
-        let m = match typed {
+        let mut label = self.entry.state().label.clone();
+        let m = match self.entry.mnemonic() {
             Ok(m) => m,
             Err(e) => {
                 self.entry.state_mut().error = Some(e);
@@ -3854,7 +3855,6 @@ impl Faraday {
         let back = self.entry.state().back.or(on_tab.then_some(self.screen));
         // Add a key for a wallet takes only a key the wallet is missing
         // (`docs/history/SCAN-TO-SIGN.md` §2.1).
-        let mut label = label;
         let mut for_wallet = None;
         if let Some(w) = self.entry.state().wallet {
             let fp = faraday_keys::identity::fingerprint_of_mnemonic(

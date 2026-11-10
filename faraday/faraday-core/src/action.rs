@@ -166,6 +166,8 @@ pub enum Action {
     ScanPart,
     /// Type the BIP-39 passphrase in Add a key, or go back to the words.
     EntryPassphrase,
+    /// Type the passphrase again in Add a key.
+    EntryPassphraseAgain,
     /// A press in Add a key's empty field: focuses it, and the Use a
     /// sample chip is gone for the visit.
     EntryField,
@@ -864,6 +866,8 @@ pub enum Action {
     PotentialShow,
     /// Typing goes to the potential wallet's passphrase.
     PotentialType,
+    /// Type the potential wallet's passphrase again.
+    PotentialTypeAgain,
     /// A press on a field that takes typing with no press to focus it:
     /// the caret goes where it lands (`docs/TEXT-CURSOR.md` §3).
     TypeHere(crate::edit::Here),

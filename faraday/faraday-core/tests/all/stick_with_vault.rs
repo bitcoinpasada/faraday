@@ -204,3 +204,32 @@ fn pulled_the_fields_take_typing_again() {
     type_text(&mut app, "now");
     assert_eq!(prompt_text(&app), "now");
 }
+
+#[test]
+fn a_key_s_bip_39_passphrase_is_typed_twice_and_loads_when_they_are_alike() {
+    let mut app = on_key_with_stick();
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    let before = app.session.keys.len();
+    app.press(Action::Vault(V::LoadWithPassphrase));
+    type_text(&mut app, "now");
+    app.press(Action::Vault(V::FocusPromptAgain));
+    type_text(&mut app, "then");
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == faraday_core::strings::EN.pass_pair_differ),
+        "the line says the two differ"
+    );
+    assert!(!app.offers(Action::Vault(V::PromptGo)), "Load waits");
+    app.press(Action::Vault(V::PromptGo));
+    assert_eq!(app.session.keys.len(), before, "nothing was loaded");
+    assert!(app.vaults().prompt.is_some());
+    app.press(Action::Vault(V::FocusPromptAgain));
+    for _ in 0..4 {
+        app.event(Event::Key(faraday_shell_api::Key::Backspace));
+    }
+    type_text(&mut app, "now");
+    let _ = app.frame();
+    assert!(app.offers(Action::Vault(V::PromptGo)), "Load is on");
+}

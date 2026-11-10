@@ -9061,15 +9061,9 @@ strings! {
     vault_generate_dice: "Generate with dice",
     /// Line in `create_body`.
     vault_or_type_your: "or type your own below",
-    /// Text in `create_body`.
-    vault_matches: "Matches",
-    /// Text in `create_body`.
-    vault_does_not_match: "Does not match yet",
     /// Line in `create_body`, in Practice, once the dice made a
     /// passphrase (`docs/DEMO.md` §5.2).
     vault_demo_uses_public: "Practice puts faraday in place of these words",
-    /// Text in `create_body`.
-    vault_type_it_then: "Type it, then type it again",
     /// Text in `create_body`. `{}`: `own`, `cost`, `own + cost`.
     vault_bits_from_dice: "{} bits from dice + ≈{} from the unlock cost ≈ {} bits",
     /// Text in `create_body`. `{}`: `cost`.

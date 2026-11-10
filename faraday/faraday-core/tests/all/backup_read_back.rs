@@ -39,6 +39,8 @@ fn key_in(app: &mut Faraday, n: usize, pass: &str) -> [u8; 4] {
     if !pass.is_empty() {
         app.press(Action::EntryPassphrase);
         type_text(app, pass);
+        app.press(Action::EntryPassphraseAgain);
+        type_text(app, pass);
     }
     app.press(Action::EntryAdd);
     app.session.keys.last().unwrap().fingerprint.0

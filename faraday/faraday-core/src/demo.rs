@@ -135,12 +135,16 @@ pub(crate) enum Show {
 /// A passphrase or password field that offers [`PASSPHRASE`] in Practice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PassField {
-    /// Add a key's BIP-39 passphrase.
+    /// Add a key's BIP-39 passphrase, and its repeat.
     Entry,
+    /// Add a key's BIP-39 passphrase typed again.
+    EntryAgain,
     /// New key's passphrase (0) and its repeat (1).
     KeyGen(u8),
     /// The potential wallet's passphrase.
     Potential,
+    /// The potential wallet's passphrase typed again.
+    PotentialAgain,
     /// A seed read's passphrase (0) and its repeat (1).
     SeedRead(u8),
     /// A Create slot's passphrase (0) and its repeat (1).
@@ -149,8 +153,10 @@ pub enum PassField {
     Phrase(u8, bool),
     /// The vault's unlock, the boot import's, a backup's.
     Unlock,
-    /// A passphrase prompt's.
+    /// A passphrase prompt's, and its repeat.
     Prompt,
+    /// A passphrase prompt's repeat.
+    PromptAgain,
     /// A vault entry's password field `k` of its form.
     Password(u8),
     /// Check my copy's passphrase typed back.
@@ -201,6 +207,9 @@ impl PassField {
             PassField::Slot(_) => PassField::Slot(0),
             PassField::Phrase(i, _) => PassField::Phrase(i, false),
             PassField::QrMake(_) => PassField::QrMake(0),
+            PassField::PromptAgain => PassField::Prompt,
+            PassField::EntryAgain => PassField::Entry,
+            PassField::PotentialAgain => PassField::Potential,
             f => f,
         }
     }
@@ -301,7 +310,7 @@ impl Faraday {
     /// a field that offers it. A lookup.
     pub(crate) fn pass_chip_shown(&self, field: PassField, empty: bool) -> bool {
         empty
-            && !(field == PassField::Prompt && !self.prompt_chip())
+            && !(matches!(field, PassField::Prompt | PassField::PromptAgain) && !self.prompt_chip())
             && self.pass_chip(field).is_some()
     }
 
@@ -337,8 +346,11 @@ impl Faraday {
             return;
         }
         match field {
-            PassField::Entry => {
+            PassField::Entry | PassField::EntryAgain => {
                 self.entry.state_mut().passphrase.set(PASSPHRASE);
+                if self.entry.state().pair() {
+                    self.entry.state_mut().again.set(PASSPHRASE);
+                }
                 self.entry.state_mut().error = None;
             }
             PassField::KeyGen(0) => {
@@ -358,9 +370,10 @@ impl Faraday {
             PassField::KeyGen(i) => {
                 self.keygen.demo_passphrase(i, PASSPHRASE);
             }
-            PassField::Potential => {
+            PassField::Potential | PassField::PotentialAgain => {
                 if let Some(p) = self.inbox.potential_mut() {
                     p.passphrase.set(PASSPHRASE);
+                    p.again.set(PASSPHRASE);
                     p.typing = true;
                     p.error = None;
                     self.potential_typed();
@@ -410,7 +423,7 @@ impl Faraday {
             PassField::Unlock => {
                 self.vaults.fill_unlock(PASSPHRASE);
             }
-            PassField::Prompt => {
+            PassField::Prompt | PassField::PromptAgain => {
                 self.vaults.fill_prompt(PASSPHRASE);
             }
             PassField::Password(k) => {

@@ -94,12 +94,14 @@ fn a_field_s_supporting_text_stands_above_the_keyboard_with_it() {
         let mut app = panel(size);
         create_vault(&mut app);
         press(&mut app, Action::Vault(V::CFocus(0, true)));
+        // The line under the second field shows once it is begun.
+        app.event(Event::Key(faraday_shell_api::Key::Char('x')));
         above_keyboard(&mut app, &format!("{size:?} the passphrase again"));
         let top = i32::from(app.keyboard_top().expect("the keyboard is up"));
         let (_, (_, y, _, h)) = app
             .drawn_text_boxes()
             .into_iter()
-            .find(|(t, _)| t == "Type it, then type it again")
+            .find(|(t, _)| t == "The two passphrases differ")
             .unwrap_or_else(|| panic!("{size:?}: the field's supporting text is drawn"));
         assert!(
             y >= 0 && y + h <= top,

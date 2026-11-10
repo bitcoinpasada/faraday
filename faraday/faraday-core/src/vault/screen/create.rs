@@ -110,7 +110,14 @@ pub(super) fn create_button(app: &View, ui: &mut Ui, x: f32, by: f32, w: f32) ->
     // Creating draws the vault's keys from the system's randomness: the
     // Randomness row above the press (`docs/OWN-RANDOMNESS.md` §8.1 row 5).
     let row = own_row(app, ui, (x, by, w));
-    let style = Style::Primary.when(app.may_load_keys());
+    let style = Style::Primary.when(
+        app.may_load_keys()
+            && !app
+                .vaults
+                .create
+                .as_ref()
+                .is_some_and(vault::Vaults::phrases_differ),
+    );
     let label = app.wait_label(va(V::CGo), EN.vault_create_vault);
     if !crate::screens::pin_button(ui, x, by + row, Some(w), 46.0, label, style, va(V::CGo)) {
         // Pinned at the panel's foot.

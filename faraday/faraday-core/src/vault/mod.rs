@@ -927,16 +927,19 @@ impl Faraday {
                 self.vaults.state.prompt = Some(Prompt {
                     purpose: Purpose::KeyPassphrase,
                     text: TextBox::default(),
+                    again: TextBox::default(),
                     error: None,
                 });
                 stick::focus(self, Focus::Prompt);
             }
             V::SaveKeyWithPassphrase(k) => keep::asks(self, k, true),
             V::FocusPrompt => stick::focus(self, Focus::Prompt),
+            V::FocusPromptAgain => stick::focus(self, Focus::PromptAgain),
             V::ExportKdbx => {
                 self.vaults.state.prompt = Some(Prompt {
                     purpose: Purpose::Kdbx,
                     text: TextBox::default(),
+                    again: TextBox::default(),
                     error: None,
                 });
                 stick::focus(self, Focus::Prompt);
@@ -1126,6 +1129,13 @@ impl Faraday {
         let Some(p) = self.vaults.state.prompt.as_mut() else {
             return;
         };
+        // A passphrase made here is typed twice: a press with the two
+        // differing does nothing.
+        if p.pair()
+            && crate::screens::pass_pair::differ(p.text.text.as_str(), p.again.text.as_str())
+        {
+            return;
+        }
         match p.purpose {
             Purpose::ForWallet(v, r) => self.pass_seed_try(v, r),
             Purpose::Kdbx => {
@@ -2437,12 +2447,18 @@ impl Faraday {
         if matches!(focus, Focus::Dice | Focus::Rolls) {
             return dice::key(self, focus, key);
         }
-        if focus == Focus::Prompt {
+        if matches!(focus, Focus::Prompt | Focus::PromptAgain) {
             if let Some(p) = self.vaults.state.prompt.as_mut() {
+                let (second, pair) = (focus == Focus::PromptAgain, p.pair());
+                let b = if second { &mut p.again } else { &mut p.text };
                 match key {
-                    K::Char(c) if !c.is_control() => p.text.text.push(c),
+                    K::Char(c) if !c.is_control() => b.text.push(c),
                     K::Backspace => {
-                        p.text.text.pop();
+                        b.text.pop();
+                    }
+                    // The first field's Enter moves to the second.
+                    K::Enter if pair && !second => {
+                        self.vaults.state.focus = Some(Focus::PromptAgain);
                     }
                     K::Enter => self.vault_act(VaultAction::PromptGo),
                     _ => {}
@@ -2455,7 +2471,11 @@ impl Faraday {
         }
         if key == K::Enter || key == K::Tab {
             match focus {
-                Focus::Dice | Focus::Rolls | Focus::Prompt | Focus::Search(_) => {}
+                Focus::Dice
+                | Focus::Rolls
+                | Focus::Prompt
+                | Focus::PromptAgain
+                | Focus::Search(_) => {}
                 Focus::YubiKey => {
                     if key == K::Enter {
                         self.vault_act(VaultAction::Unlock);
@@ -3379,6 +3399,7 @@ impl Faraday {
         self.vaults.state.prompt = Some(crate::vault::Prompt {
             purpose: crate::vault::Purpose::ForWallet(v, r),
             text: Default::default(),
+            again: Default::default(),
             error: None,
         });
         self.vaults.state.focus = self.may_load_keys().then_some(crate::vault::Focus::Prompt);

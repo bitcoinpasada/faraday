@@ -67,67 +67,97 @@ fn potential_body(
             _ => EN.potential_bip_39_passphrase,
         };
         cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::OnSurface, label) + 6.0;
-        if app.pass_is_public(&p.passphrase) {
-            super::parts::code_field(ui, x, cy, iw, T::TEXT_FIELD_SHEET, &p.passphrase);
-            ui.press_box(x, cy, iw, T::TEXT_FIELD_SHEET, Action::PotentialType);
-        } else if app.may_load_keys() {
-            let shown = if p.shown {
-                zeroize::Zeroizing::new(p.passphrase.to_string())
+        let field = |ui: &mut Ui, n: u8, fy0: f32| {
+            let second = n == 1;
+            let fy = if second {
+                fy0 + ui.wrap_as(
+                    (x, fy0, iw),
+                    LABEL_L,
+                    Role::OnSurface,
+                    EN.vault_passphrase_again,
+                ) + 6.0
             } else {
-                zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count()))
+                fy0
             };
-            ui.fill(x, cy, iw, 44.0, 8.0, Role::SurfaceContainerHighest);
-            ui.stroke(
-                x,
-                cy,
-                iw,
-                44.0,
-                8.0,
-                if p.typing {
-                    Role::Primary
+            let (pass, press, on, chip) = if second {
+                (
+                    &p.again,
+                    Action::PotentialTypeAgain,
+                    p.typing && p.typing_again,
+                    crate::demo::PassField::PotentialAgain,
+                )
+            } else {
+                (
+                    &p.passphrase,
+                    Action::PotentialType,
+                    p.typing && !p.typing_again,
+                    crate::demo::PassField::Potential,
+                )
+            };
+            if app.pass_is_public(pass) {
+                super::parts::code_field(ui, x, fy, iw, T::TEXT_FIELD_SHEET, pass);
+                ui.press_box(x, fy, iw, T::TEXT_FIELD_SHEET, press);
+            } else if app.may_load_keys() {
+                let shown = if p.shown {
+                    zeroize::Zeroizing::new(pass.to_string())
                 } else {
-                    Role::OutlineVariant
-                },
-            );
-            // A dot for each character, so the caret and a press fall
-            // between the characters they stand for (`docs/TEXT-CURSOR.md`
-            // §3).
-            ui.press_box(x, cy, iw - 44.0, 44.0, Action::PotentialType);
-            ui.typed(
-                x + 12.0,
-                cy,
-                44.0,
-                BODY_M.size,
-                W::M,
-                Role::OnSurface,
-                &shown,
-                iw - 60.0,
-                p.typing,
-                Action::PotentialType,
-            );
-            ui.icon(
-                x + iw - 44.0,
-                cy,
-                44.0,
-                if p.shown { Icon::EyeOff } else { Icon::Eye },
-                15.0,
-                if p.shown {
-                    Role::Primary
-                } else {
-                    Role::OnSurfaceVariant
-                },
-            );
-            let at = (x + iw - 44.0, cy, 44.0, 44.0);
-            crate::compact::eye_hit(ui, at, Action::PotentialShow, p.shown);
-            app.pass_chip_draw(
-                ui,
-                p.passphrase.is_empty(),
-                crate::demo::PassField::Potential,
-            );
-        } else {
-            crate::vault::screen::stick_field(app.medium, ui, x, cy, iw);
-        }
-        cy += FIELD_H + 8.0;
+                    zeroize::Zeroizing::new("•".repeat(pass.chars().count()))
+                };
+                ui.fill(x, fy, iw, 44.0, 8.0, Role::SurfaceContainerHighest);
+                ui.stroke(
+                    x,
+                    fy,
+                    iw,
+                    44.0,
+                    8.0,
+                    if on {
+                        Role::Primary
+                    } else {
+                        Role::OutlineVariant
+                    },
+                );
+                // A dot for each character, so the caret and a press fall
+                // between the characters they stand for (`docs/TEXT-CURSOR.md`
+                // §3).
+                ui.press_box(x, fy, iw - 44.0, 44.0, press);
+                ui.typed(
+                    x + 12.0,
+                    fy,
+                    44.0,
+                    BODY_M.size,
+                    W::M,
+                    Role::OnSurface,
+                    &shown,
+                    iw - 60.0,
+                    on,
+                    press,
+                );
+                ui.icon(
+                    x + iw - 44.0,
+                    fy,
+                    44.0,
+                    if p.shown { Icon::EyeOff } else { Icon::Eye },
+                    15.0,
+                    if p.shown {
+                        Role::Primary
+                    } else {
+                        Role::OnSurfaceVariant
+                    },
+                );
+                let at = (x + iw - 44.0, fy, 44.0, 44.0);
+                crate::compact::eye_hit(ui, at, Action::PotentialShow, p.shown);
+                app.pass_chip_draw(ui, pass.is_empty(), chip);
+            } else {
+                crate::vault::screen::stick_field(app.medium, ui, x, fy, iw);
+            }
+            fy - fy0 + FIELD_H + 8.0
+        };
+        cy += super::pass_pair::pass_pair(
+            ui,
+            (x, cy, iw),
+            (p.passphrase.as_str(), p.again.as_str()),
+            field,
+        );
     }
     if let Some((key, fixed)) = xpub {
         let k = ui.fit_as(BODY_S.mono(), key, iw);
@@ -213,7 +243,10 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (EN.potential_cancel, Style::Secondary, Action::Cancel),
         (
             go.as_str(),
-            Style::Primary.when(app.may_load_keys() || xpub.is_some()),
+            Style::Primary.when(
+                (app.may_load_keys() || xpub.is_some())
+                    && !crate::screens::pass_pair::differ(p.passphrase.as_str(), p.again.as_str()),
+            ),
             Action::PotentialMake,
         ),
     ];

@@ -99,6 +99,8 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
     if with {
         app.press(Action::EntryPassphrase);
         type_text(app, PASSPHRASE);
+        app.press(Action::EntryPassphraseAgain);
+        type_text(app, PASSPHRASE);
     }
     app.press(Action::EntryAdd);
     let key = app.session.keys.last().expect("the key was not added");

@@ -112,6 +112,7 @@ impl VaultArea {
             Focus::Dice => self.state.dice.typing(),
             Focus::Rolls | Focus::Search(_) => None,
             Focus::Prompt => self.state.prompt.as_mut().map(|p| &mut p.text),
+            Focus::PromptAgain => self.state.prompt.as_mut().map(|p| &mut p.again),
             Focus::Name => self.state.create.as_mut().map(|c| &mut c.name),
         }
     }
@@ -764,6 +765,9 @@ impl VaultArea {
     pub(crate) fn fill_prompt(&mut self, text: &str) {
         if let Some(p) = self.state.prompt.as_mut() {
             p.text.set(text);
+            if p.pair() {
+                p.again.set(text);
+            }
             p.error = None;
         }
     }
@@ -800,8 +804,19 @@ pub struct Prompt {
     pub purpose: Purpose,
     /// What is typed.
     pub text: TextBox,
+    /// The passphrase typed again, where the prompt makes one (`pair`).
+    pub again: TextBox,
     /// Why the last try failed.
     pub error: Option<String>,
+}
+
+impl Prompt {
+    /// Whether the passphrase is entered twice: one made for a KeePass
+    /// export, or a BIP-39 one typed for a key, which nothing checks. A
+    /// wallet's missing key is checked against the wallet and stays single.
+    pub fn pair(&self) -> bool {
+        !matches!(self.purpose, Purpose::ForWallet(..))
+    }
 }
 
 /// A line of typing, wiped when dropped, cleared or moved.
@@ -839,6 +854,8 @@ pub enum Focus {
     Rolls,
     /// The prompt.
     Prompt,
+    /// The prompt's passphrase typed again.
+    PromptAgain,
     /// Create's name for the vault.
     Name,
     /// A search bar ([`super::SearchIn`]).
@@ -2569,7 +2586,8 @@ impl Vaults {
             | Focus::YubiKey
             | Focus::Phrase(..)
             | Focus::Dice
-            | Focus::Prompt => true,
+            | Focus::Prompt
+            | Focus::PromptAgain => true,
             Focus::Field(_) => self.form.as_ref().is_some_and(Form::holds_secrets),
             Focus::Rolls | Focus::Search(_) | Focus::Name => false,
         }
@@ -2824,7 +2842,14 @@ impl Vaults {
     /// Whether a passphrase pair is typed the same twice, and not empty.
     pub fn phrase_ok(c: &CreateForm, i: usize) -> bool {
         let (a, b) = &c.phrases[i];
-        !a.text.is_empty() && *a.text == *b.text
+        crate::screens::pass_pair::ready(a.text.as_str(), b.text.as_str())
+    }
+
+    /// Whether a passphrase pair differs: Create waits while one does.
+    pub fn phrases_differ(c: &CreateForm) -> bool {
+        c.phrases
+            .iter()
+            .any(|(a, b)| crate::screens::pass_pair::differ(a.text.as_str(), b.text.as_str()))
     }
 
     /// Passphrase `i`'s own bits, known only while it is the words the
@@ -3502,6 +3527,8 @@ pub enum VaultAction {
     SaveKeyWithPassphrase(usize),
     /// Type into the prompt.
     FocusPrompt,
+    /// Type into the prompt's second field.
+    FocusPromptAgain,
     /// Do what the prompt asks.
     PromptGo,
     /// Leave the prompt.

@@ -1016,6 +1016,7 @@ impl Faraday {
             Action::EntryField => {
                 self.backup.check_sample_gone();
                 self.entry.state_mut().on_passphrase = false;
+                self.entry.state_mut().on_again = false;
                 self.entry.state_mut().sample.dismiss();
             }
             Action::EntryPart => self.form_add_part(),
@@ -1023,7 +1024,14 @@ impl Faraday {
             Action::Codex32Form(p) => self.form_codex32(p),
             Action::EntryRecover => self.form_recover(),
             Action::EntryPassphrase => {
-                self.entry.state_mut().on_passphrase = !self.entry.state().on_passphrase
+                let e = self.entry.state_mut();
+                e.on_passphrase = !(e.on_passphrase && !e.on_again);
+                e.on_again = false;
+            }
+            Action::EntryPassphraseAgain => {
+                let e = self.entry.state_mut();
+                e.on_passphrase = true;
+                e.on_again = true;
             }
             Action::EntryWallet(w) => {
                 if self.may_load_keys() && w < self.session.wallets.len() {

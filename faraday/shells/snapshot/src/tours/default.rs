@@ -1065,6 +1065,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     type_text(t, &testkit::test_words(testkit::TEST_SEEDS[2].0));
     t.press(Action::EntryPassphrase);
     type_text(t, "TREZOR");
+    t.press(Action::EntryPassphraseAgain);
+    type_text(t, "TREZOR");
     t.shot("entry-passphrase")?;
     t.press(Action::EntryAdd);
     let with = t

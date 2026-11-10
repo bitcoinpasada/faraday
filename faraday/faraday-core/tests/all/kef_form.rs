@@ -344,6 +344,8 @@ fn picking_a_size_makes_a_code_of_that_size() {
     );
     form.act(&mut app, KefAct::Field);
     type_in(&mut form, &mut app, "a passphrase");
+    form.act(&mut app, KefAct::FieldAgain);
+    type_in(&mut form, &mut app, "a passphrase");
     rounds(&mut form, &mut app, "10000");
     form.act(&mut app, KefAct::Size(25));
     assert_eq!(form.error(), None);
