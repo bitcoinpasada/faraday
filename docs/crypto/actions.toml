@@ -7704,6 +7704,8 @@ functions = [
   "faraday/faraday-vault/src/kdbx/mod.rs::checked_header",
   "faraday/faraday-vault/src/kdbx/mod.rs::open",
   "faraday/faraday-vault/src/kdbx/mod.rs::seal",
+  "faraday/faraday-vault/src/kdbx/mod.rs::derive",
+  "faraday/faraday-vault/src/kdbx/mod.rs::derive_with",
   "faraday/faraday-vault/src/kdbx/mod.rs::measure",
   "faraday/faraday-vault/src/file.rs::measure",
   "faraday/faraday-vault/src/file.rs::used_new",
