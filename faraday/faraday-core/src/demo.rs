@@ -422,12 +422,8 @@ impl Faraday {
                     }
                 }
             }
-            PassField::Unlock => {
-                self.vaults.fill_unlock(PASSPHRASE);
-            }
-            PassField::Prompt | PassField::PromptAgain => {
-                self.vaults.fill_prompt(PASSPHRASE);
-            }
+            PassField::Unlock => self.vaults.fill_unlock(PASSPHRASE),
+            PassField::Prompt | PassField::PromptAgain => self.vaults.fill_prompt(PASSPHRASE),
             PassField::Password(k) => {
                 self.vaults.fill_field(usize::from(k), PASSPHRASE);
             }
@@ -436,12 +432,8 @@ impl Faraday {
                     c.typed.set(PASSPHRASE);
                 }
             }
-            PassField::Aezeed => {
-                self.lightning.set_passphrase(PASSPHRASE);
-            }
-            PassField::CoreWallet => {
-                crate::core_wallet::tool::fill_faraday(self);
-            }
+            PassField::Aezeed => self.lightning.set_passphrase(PASSPHRASE),
+            PassField::CoreWallet => crate::core_wallet::tool::fill_faraday(self),
             PassField::QrOpen | PassField::QrMake(_) => {
                 crate::qr_tool::offers::fill_faraday(self, field);
             }
