@@ -1227,6 +1227,7 @@ dependencies = [
  "faraday-shell-api",
  "faraday-v4l2",
  "getrandom 0.4.3",
+ "png",
  "softbuffer",
  "windows-sys 0.52.0",
  "winit",
