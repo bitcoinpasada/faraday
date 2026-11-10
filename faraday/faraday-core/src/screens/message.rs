@@ -6,7 +6,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
 use crate::{Action, Code, Screen, flow, guide};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, TITLE_S};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, TITLE_S};
 use faraday_ui::parts::wrap_buttons;
 
 pub(crate) const MSTEPS: [&str; 4] = [
@@ -217,7 +217,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 Action::MType,
             );
             let scan_w = ui.button(
-                x + type_w + 8.0,
+                x + type_w + GAP,
                 cy,
                 None,
                 BUTTON_H,
@@ -225,7 +225,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 Style::Secondary,
                 Action::MScan,
             );
-            let used = type_w + 8.0 + scan_w + 12.0;
+            let used = type_w + GAP + scan_w + 12.0;
             let count = fill(
                 EN.message_characters,
                 &[&m.text.chars().count().to_string()],
