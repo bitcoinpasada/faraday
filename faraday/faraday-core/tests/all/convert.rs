@@ -430,6 +430,11 @@ fn a_seedqr_and_a_compact_seedqr_read_back_to_the_same_words() {
 fn a_code_masked_shows_nothing_and_its_copy_is_scanned() {
     let mut app = opened(mainnet(), ABOUT);
     let _ = scanned(&mut app, "SeedQR");
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::Convert(C::Check)),
+        "Check my copy is offered"
+    );
     app.press(Action::Convert(C::Check));
     assert_eq!(convert::typed(&app), None, "nothing is typed for a code");
     assert_eq!(app.sheet, Some(Sheet::Scan), "the camera opens");

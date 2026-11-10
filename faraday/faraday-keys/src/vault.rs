@@ -3998,6 +3998,15 @@ pub fn codex32_share_header(r: RecordView<'_>) -> Option<(u8, [u8; 4], u8)> {
     (r.kind() == kind::CODEX32_SHARE).then(|| codex32_header(r.raw()))?
 }
 
+/// The identifier of the codex32 set a key record keeps (lower case), the
+/// plain fact the record states; `None` for a record that is not a key or
+/// keeps no set. No key material. A lookup.
+pub fn codex32_key_set_identifier(r: RecordView<'_>) -> Option<[u8; 4]> {
+    (r.kind() == kind::KEY)
+        .then(|| codex32_set_of(r.raw()))?
+        .map(|f| f.identifier.map(|b| b.to_ascii_lowercase()))
+}
+
 /// Whether `r` is a codex32 share record of the key with fingerprint
 /// `fp`, of the set `set` (its threshold and identifier, either case), at
 /// share index `index` where one is given (a bech32 character, lower

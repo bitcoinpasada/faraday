@@ -2089,6 +2089,13 @@ impl Faraday {
         };
         let matched = found == crate::wallet_backup::CopyCheck::Matches;
         if matched {
+            if !crate::convert::scan_is_for(self, fp, compact) {
+                // The result moved on to another key or kind: no answer.
+                self.camera.close();
+                self.sheet = None;
+                self.out.commands.push_back(Command::CameraOff);
+                return;
+            }
             self.tools.convert_mut().set_found(true);
             self.camera.close();
             self.sheet = None;

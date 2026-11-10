@@ -105,24 +105,19 @@ pub fn codex32_random_len(k: u8) -> usize {
 const IDENTIFIER_LEN: usize = 4;
 
 /// A codex32 identifier drawn from `random`'s first four bytes, five bits
-/// of each, that is none of `avoid`: a draw that lands on one has its last
-/// character stepped on until it does not (a few steps, 32 at most).
-fn drawn_identifier(random: &[u8], avoid: &[[u8; 4]]) -> [u8; 4] {
-    let mut id = [0u8; 4];
-    for (c, b) in id.iter_mut().zip(random) {
-        *c = codex32::CHARSET[usize::from(b & 31)];
-    }
-    for _ in 0..32 {
-        if !avoid.contains(&id) {
-            break;
-        }
-        let at = codex32::CHARSET
-            .iter()
-            .position(|&c| c == id[3])
-            .unwrap_or(0);
-        id[3] = codex32::CHARSET[(at + 1) % 32];
-    }
-    id
+/// of each, that is none of `avoid`: a draw that lands on one is stepped
+/// through the whole 20-bit value (wrapping) until it does not. `None`
+/// where `avoid` holds every identifier, or `random` has fewer than four
+/// bytes.
+fn drawn_identifier(random: &[u8], avoid: &[[u8; 4]]) -> Option<[u8; 4]> {
+    let bits = random.get(..IDENTIFIER_LEN)?;
+    let start = bits.iter().fold(0u32, |v, b| (v << 5) | u32::from(b & 31));
+    (0..1u32 << 20).find_map(|step| {
+        let v = (start + step) & ((1 << 20) - 1);
+        let id: [u8; 4] =
+            std::array::from_fn(|k| codex32::CHARSET[((v >> (15 - 5 * k)) & 31) as usize]);
+        (!avoid.contains(&id)).then_some(id)
+    })
 }
 
 /// The fresh bytes a SLIP-39 set of these groups takes for a secret of
@@ -344,9 +339,10 @@ impl Keys {
             .map(|f| f.identifier);
         let avoid: Vec<[u8; 4]> = std::iter::once(id)
             .chain(own)
-            .chain(taken.iter().copied())
+            .chain(taken.iter().map(|t| t.map(|b| b.to_ascii_lowercase())))
             .collect();
-        let id = drawn_identifier(drawn, &avoid);
+        let id = drawn_identifier(drawn, &avoid)
+            .ok_or_else(|| one(codex32::Error::NotEnoughRandomness))?;
         Codex32::from_seed(k, id, seed)
             .and_then(|secret| secret.split(k, n, fresh))
             .map(|shares| {

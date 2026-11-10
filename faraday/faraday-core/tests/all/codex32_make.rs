@@ -1342,3 +1342,28 @@ fn an_identifier_a_record_of_an_open_vault_carries_is_refused_naming_the_vault()
     let mut app = on(1366, 768, 160);
     assert_eq!(identifier_typed(&mut app, "name", &line), (true, false));
 }
+
+#[test]
+fn an_identifier_the_set_of_a_key_record_of_an_open_vault_carries_is_refused_naming_the_vault() {
+    use crate::codex32_kept::{PHRASE, unlock_on_vaults, vault_of};
+    use faraday_vault::records::{field, kind};
+    let set = [0, b'c', b'a', b's', b'h', 48, 0, b's', 0];
+    let c = faraday_core::testkit::compute();
+    let words = faraday_bip::bip39::Mnemonic::parse(
+        &c,
+        faraday_bip::bip39::Language::English,
+        &faraday_core::testkit::test_words("summer"),
+    )
+    .unwrap();
+    let record = faraday_vault::Record::new(kind::KEY)
+        .with(field::KEY, &faraday_vault::records::words_payload(&words))
+        .with(field::KEY_CODEX32, &set);
+    let mut app = crate::common::device(vec![(
+        "home.kdbx".into(),
+        vault_of(PHRASE, vec![record], 7),
+    )]);
+    unlock_on_vaults(&mut app, "home.kdbx", PHRASE);
+    assert_eq!(app.session.keys.len(), 0, "the key is not loaded");
+    let line = format!("Used in vault {}", app.vaults().open[0].name);
+    assert_eq!(identifier_typed(&mut app, "cash", &line), (false, true));
+}

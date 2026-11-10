@@ -2445,7 +2445,7 @@ impl Codex32Make {
 /// with where it is used (`docs/CODEX32.md` §6.4.5): the strings typed
 /// into Add a key's form, the set of each key loaded from codex32 in this
 /// session, the codex32 forms of the plan in hand and the codex32 share
-/// records of every open vault. Lower case.
+/// records and the sets of the key records of every open vault. Lower case.
 pub(crate) fn taken(
     form: &[faraday_bip::codex32::Codex32],
     keys: &faraday_keys::Keys,
@@ -2480,6 +2480,14 @@ pub(crate) fn taken(
             .of(faraday_vault::records::kind::CODEX32_SHARE)
         {
             if let Some((_, id, _)) = faraday_keys::vault::codex32_share_header(r) {
+                out.push((lower(id), fill(EN.codex32_used_in_vault, &[&open.name])));
+            }
+        }
+        for (_, r) in vaults
+            .records(open.id)
+            .of(faraday_vault::records::kind::KEY)
+        {
+            if let Some(id) = faraday_keys::vault::codex32_key_set_identifier(r) {
                 out.push((lower(id), fill(EN.codex32_used_in_vault, &[&open.name])));
             }
         }

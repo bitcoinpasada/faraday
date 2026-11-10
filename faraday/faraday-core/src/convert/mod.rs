@@ -1070,6 +1070,26 @@ pub(crate) fn checks_by_scan(app: &Faraday) -> bool {
     state(app).is_some_and(|s| s.checkable && s.target.is_some_and(Target::is_code))
 }
 
+/// Whether the open result is still the SeedQR (or, `compact`, the
+/// CompactSeedQR) of the key `fp`, the one Check my copy's camera was
+/// opened for. A lookup.
+pub(crate) fn scan_is_for(
+    app: &Faraday,
+    fp: faraday_bip::keys::Fingerprint,
+    compact: bool,
+) -> bool {
+    state(app)
+        .filter(|s| s.checkable)
+        .and_then(|s| s.target)
+        .is_some_and(|t| {
+            t.is_code()
+                && (t == Target::CompactSeedQr) == compact
+                && key_for(app, t)
+                    .and_then(|i| app.session.keys.info(i))
+                    .is_some_and(|k| k.fingerprint == fp)
+        })
+}
+
 /// Check my copy on a SeedQR or CompactSeedQR result: the camera opens
 /// to read the copy back, compared with the key's words
 /// ([`Faraday::convert_copy_scanned`]). A lookup.
@@ -1255,7 +1275,7 @@ fn make(app: &mut Faraday, target: Target) {
     // The identifiers other sets on this device carry: a codex32 set made
     // here draws one that is none of them.
     let taken_ids = crate::codex32::taken_ids(&crate::codex32::taken(
-        &[],
+        &app.entry.state().parts.codex32,
         keys,
         app.backup.state().map(|b| &b.answers),
         &app.vaults,

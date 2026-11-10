@@ -865,6 +865,36 @@ fn a_codex32_set_of_a_key_never_takes_an_identifier_already_taken() {
     assert!(third != first && third != second);
 }
 
+/// Where every identifier that shares the draw's first three characters is
+/// taken, the set still gets one that is none of them.
+#[test]
+fn a_codex32_set_finds_a_free_identifier_when_a_whole_run_of_them_is_taken() {
+    let c = compute();
+    let seed = unhex("ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100");
+    let keys = seed_key(&c, Network::Mainnet, &seed);
+    let random: Vec<u8> = (0..R).map(|i| (i * 7 + 3) as u8).collect();
+    let id_of = |taken: &[[u8; 4]]| {
+        let shares = keys
+            .codex32_converted(&c, 0, 2, 3, (&random, taken), Reveal::PaperForm)
+            .unwrap()
+            .release();
+        Codex32::parse(&shares[0])
+            .unwrap()
+            .identifier()
+            .map(|b| b.to_ascii_lowercase())
+    };
+    let first = id_of(&[]);
+    let run: Vec<[u8; 4]> = (0..32)
+        .map(|k| {
+            let mut id = first;
+            id[3] = faraday_bip::codex32::CHARSET[k];
+            id
+        })
+        .collect();
+    let got = id_of(&run);
+    assert!(!run.contains(&got), "{got:?}");
+}
+
 /// A codex32 set of a key takes its identifier from the randomness: never
 /// the fingerprint's nor the key's own set's, a different one for other
 /// randomness, and shares of two such sets do not recover a seed together.
