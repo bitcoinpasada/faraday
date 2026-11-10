@@ -312,6 +312,22 @@ fn a_file_that_asks_takes_its_passphrase_at_once_and_the_next_file_starts_empty(
 }
 
 #[test]
+fn a_passphrase_typed_for_a_file_is_not_used_after_switching_to_words_or_the_aezeed() {
+    for to_aezeed in [false, true] {
+        let mut app = with_file(unhex(ONES_SEALED));
+        typed(&mut app, "test_password");
+        assert_eq!(&*app.lightning().unwrap().passphrase, "test_password");
+        app.press(if to_aezeed {
+            Action::LAezeed
+        } else {
+            Action::LCln(None)
+        });
+        assert_eq!(&*app.lightning().unwrap().passphrase, "");
+        assert_eq!(&*app.lightning().unwrap().typed, "");
+    }
+}
+
+#[test]
 fn the_aezeed_and_a_loaded_key_leave_a_chosen_file() {
     let mut app = with_file(unhex(ONES_SEALED));
     app.press(Action::LAezeed);

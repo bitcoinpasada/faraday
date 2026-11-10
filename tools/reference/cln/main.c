@@ -133,6 +133,7 @@ static int extract_mnemonic_secret(const unsigned char *file, size_t len,
 	}
 	if (!valid)
 		return 0;
+	/* hsmd/libhsmd.c node_key: "Use first 32 bytes for node key derivation" */
 	memcpy(out, seed, 32);
 	return 1;
 }

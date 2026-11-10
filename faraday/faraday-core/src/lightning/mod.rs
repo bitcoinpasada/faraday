@@ -370,6 +370,11 @@ impl LightningArea {
                 self.resolve(c, keys);
             }
             A::LAezeed => {
+                // What was typed for another source or file is not this one's.
+                if l.file.is_some() || l.source != Some(NodeSource::Aezeed) {
+                    l.typed.set("");
+                    l.passphrase.set("");
+                }
                 l.source = Some(NodeSource::Aezeed);
                 l.file = None;
                 l.file_asks = false;
@@ -378,6 +383,11 @@ impl LightningArea {
                 l.error = None;
             }
             A::LCln(None) => {
+                // What was typed for another source or file is not this one's.
+                if l.file.is_some() || l.source != Some(NodeSource::CoreLightning) {
+                    l.typed.set("");
+                    l.passphrase.set("");
+                }
                 l.source = Some(NodeSource::CoreLightning);
                 l.file = None;
                 l.file_asks = false;

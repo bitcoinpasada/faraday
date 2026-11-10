@@ -645,9 +645,10 @@ fn main() {
     std::fs::write(root().join("src/data.rs"), out).expect("write");
 }
 
-/// Core Lightning's `hsm_secret` samples in `data/` (made once, outside the
-/// repository, with libsodium; the encrypted one is under the passphrase
-/// `faraday`) and the node id `faraday-keys` gives each.
+/// Core Lightning's `hsm_secret` samples in `data/` (`hsm-secret-encrypted`
+/// is remade with the `seal` operation of `tools/reference/cln`, libsodium's
+/// secretstream under the passphrase `faraday`) and the node id
+/// `faraday-keys` gives each.
 fn hsm_samples(c: &Compute) -> String {
     use faraday_intake::secret_buf::SecretText;
     use faraday_keys::hsm_secret::node_from_file;

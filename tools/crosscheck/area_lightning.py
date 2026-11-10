@@ -521,6 +521,7 @@ class Lightning(Area):
 
     def hsm_words(self, words, passphrase, expected=None):
         def ref():
+            # hsmd/libhsmd.c node_key: "Use first 32 bytes for node key derivation"
             return self.cln_ref().node(ENGLISH.to_seed(words, passphrase)[:32])
         return self.compare("lightning.hsm_words", {"words": words, "passphrase": passphrase},
                             ref, expected)

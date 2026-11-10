@@ -1086,7 +1086,7 @@ Path naming the outside tool that generated it where one did.
 | `bbqr/` | <https://github.com/coinkite/BBQr> | `python/bbqr/` | none | `8dc7ef07d0d520763cc0001a885ca8d29ac8719a` |
 | `ur/` | <https://github.com/Foundation-Devices/foundation-ur-py> | `ur/` | none | `2c104058d2f6421aaf41f5e919392d3e5a5d2268` |
 | `lnd/` | <https://github.com/lightningnetwork/lnd> | `aezeed/` | none | `88959aec3d7a9d11a509714d9bee97c29ee02269` |
-| `cln/` | <https://github.com/ElementsProject/lightning> | `common/hsm_secret.c`, `ccan/` | `v26.06.10` | `e8b1609e67575036bd80aec32605e830f8f651cc` |
+| `cln/` | <https://github.com/ElementsProject/lightning> | `common/hsm_secret.c`, `hsmd/libhsmd.c`, `ccan/` | `v26.06.10` | `e8b1609e67575036bd80aec32605e830f8f651cc` |
 | `aezeed/` | <https://github.com/Yawning/aez> | `testdata/` | none | `e49e68abd344eba4a888cee91bc7370df2d14e27` |
 | `bip39-slip39/` | <https://github.com/btclib-org/bip39-slip39> | `bip39_slip39-2026.10.24-py3-none-any.whl` | `v2026.10.24` | `f75580077b2046d491abec1ef2a372080031d920` |
 | `booklet-dice/` | none (Faraday's own) | none | none | none |
