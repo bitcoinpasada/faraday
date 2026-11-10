@@ -121,7 +121,9 @@ impl SetTimeArea {
     pub(crate) fn typed_local(&self) -> Option<(i64, u32, u32)> {
         let (y, m, d) = valid_date(&self.date.text)?;
         let (h, mi) = valid_time(&self.time.text)?;
-        let local = days_from_civil(y, m, d) * 86_400 + i64::from(h) * 3600 + i64::from(mi) * 60;
+        let local = faraday_crypto::date::days_from_civil(y, m, d) * 86_400
+            + i64::from(h) * 3600
+            + i64::from(mi) * 60;
         Some((local, h, mi))
     }
 
@@ -182,18 +184,6 @@ fn days_in_month(y: i64, m: u32) -> u32 {
         }
         _ => 0,
     }
-}
-
-/// Howard Hinnant's civil-to-days, the inverse of [`crate::gpg::date`]'s
-/// days-to-civil.
-fn days_from_civil(y: i64, m: u32, d: u32) -> i64 {
-    let y = if m <= 2 { y - 1 } else { y };
-    let era = y.div_euclid(400);
-    let yoe = y.rem_euclid(400);
-    let mp = u64::from((m + 9) % 12);
-    let doy = ((153 * mp + 2) / 5) as i64 + i64::from(d) - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
 }
 
 /// `s` as `YYYY-MM-DD`, a real calendar date from 2020-01-01 to

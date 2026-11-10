@@ -23,7 +23,7 @@
 //!   six) is confined to this crate. scrypt is written here: it has one
 //!   caller, LND's aezeed, and is small enough that a crate would cost
 //!   more than it saves.
-//!
+//! - [`date`]: civil dates against day counts since 1970-01-01.
 //! - [`work`]: [`work::Compute`], the token a costly function takes,
 //!   which carries the counter the application notes that work with
 //!   (`docs/COMPUTE.md` §2), and the kinds of work ([`work::Work`]).
@@ -42,6 +42,7 @@ extern crate alloc;
 mod argon2;
 mod blake2b;
 mod crc32;
+pub mod date;
 mod hash;
 pub mod hex;
 mod pinned;

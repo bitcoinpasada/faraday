@@ -194,16 +194,6 @@ fn public_packets(text: &str) -> Option<Vec<u8>> {
     Some(packets.to_vec())
 }
 
-/// Days since 1970-01-01 of a civil date (proleptic Gregorian).
-fn days_of(y: i64, m: i64, d: i64) -> i64 {
-    let y = y - i64::from(m <= 2);
-    let era = y.div_euclid(400);
-    let yoe = y.rem_euclid(400);
-    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
-}
-
 /// A Unix time as an RFC 3339 time in UTC to the second:
 /// `2026-10-28T14:02:00Z`.
 fn utc_of(unix: u32) -> String {
@@ -246,7 +236,10 @@ fn unix_of(text: &str) -> Option<u32> {
     if !(1..=12).contains(&mo) || d < 1 || h > 23 || mi > 59 || s > 59 {
         return None;
     }
-    let unix = days_of(y, mo, d) * 86_400 + h * 3600 + mi * 60 + s;
+    let unix = faraday_crypto::date::days_from_civil(y, mo as u32, d as u32) * 86_400
+        + h * 3600
+        + mi * 60
+        + s;
     let unix = u32::try_from(unix).ok()?;
     // A day past the month's end rolls over: the text must be the one
     // written for the time.

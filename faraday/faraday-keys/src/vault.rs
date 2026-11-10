@@ -1701,12 +1701,7 @@ fn unix_of_rfc3339(t: &str) -> Option<u64> {
     if !(1..=12).contains(&m) || !(1..=31).contains(&d) || h > 23 || mi > 59 || s > 60 {
         return None;
     }
-    let y = y - i64::from(m <= 2);
-    let era = y.div_euclid(400);
-    let yoe = y - era * 400;
-    let doy = (153 * (m + if m > 2 { -3 } else { 9 }) + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    let days = era * 146_097 + doe - 719_468;
+    let days = faraday_crypto::date::days_from_civil(y, m as u32, d as u32);
     u64::try_from(days * 86_400 + h * 3_600 + mi * 60 + s).ok()
 }
 
