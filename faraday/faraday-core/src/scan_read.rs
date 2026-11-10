@@ -228,8 +228,11 @@ pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {
     if faraday_bip::slip39::Share::parse(&lower).is_ok() {
         return Some(Kind::Slip39Share);
     }
-    if lower.starts_with("ur:crypto-seed/") {
+    if lower.starts_with("ur:crypto-seed/") || lower.starts_with("ur:seed/") {
         return Some(Kind::UrSeed);
+    }
+    if faraday_intake::is_otpauth_migration(t) {
+        return Some(Kind::Totp);
     }
     if faraday_intake::looks_like_entries(t) {
         let one = t.lines().filter(|l| !l.trim().is_empty()).count() == 1;

@@ -225,3 +225,198 @@ fn a_2_kib_text_goes_through_bbqr_into_the_devices_assembler() {
     }
     assert_eq!(done, Some(Arrived::Text(text)));
 }
+
+const OTPAUTH: &str = "otpauth://totp/Mail:me?secret=JBSWY3DPEHPK3PXP&issuer=Mail";
+const MIGRATION: &str = "otpauth-migration://offline?data=CjEKCkhlbGxvId6tvu8SGEV4YW1wbGU6YWxpY2VAZXhhbXBsZS5jb20aB0V4YW1wbGUgASgBMAIQARgBIAAo2a";
+const SLIP39: &str = "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed";
+const PEM: &str = concat!(
+    "-----BEGIN OPENSSH ",
+    "PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmU=\n-----END OPENSSH ",
+    "PRIVATE KEY-----"
+);
+const PGP: &str = concat!(
+    "-----BEGIN PGP ",
+    "PRIVATE KEY BLOCK-----\n\nlQOYBF==\n-----END PGP ",
+    "PRIVATE KEY BLOCK-----"
+);
+
+/// Whether the text is refused, by the line under the field.
+fn refused(text: &str) -> bool {
+    let mut app = shown(text);
+    let no_code = app.qr().is_none();
+    let line = said(&mut app)
+        .iter()
+        .any(|l| l.starts_with("Not shown") || l.starts_with("Over "));
+    assert_eq!(no_code, line, "{text}: code and line disagree");
+    no_code
+}
+
+#[test]
+fn more_secrets_are_refused_whole_and_inside_a_sentence() {
+    let hd_private = {
+        let mut cbor = faraday_qr::cbor::head(5, 1);
+        cbor.extend(faraday_qr::cbor::head(0, 2));
+        cbor.push(0xf5);
+        faraday_codec::ur::encode_single("crypto-hdkey", &cbor)
+    };
+    let seed_ur = faraday_codec::ur::encode_single("seed", &[0xa0]);
+    let crypto_seed_ur = faraday_codec::ur::encode_single("crypto-seed", &[0xa0]);
+    for secret in [
+        OTPAUTH,
+        MIGRATION,
+        PEM,
+        PGP,
+        SLIP39,
+        &seed_ur,
+        &crypto_seed_ur,
+        &hd_private,
+        &format!("wpkh({XPRV}/0/*)"),
+        &format!("wpkh([d34db33f/84h/0h/0h]{XPRV}/0/*)"),
+    ] {
+        assert!(refused(secret), "{secret}: shown");
+        assert!(
+            refused(&format!("Please keep this safe: {secret} and thanks.")),
+            "{secret}: shown in a sentence"
+        );
+        assert!(refused(&format!("\"{secret}\"")), "{secret}: shown quoted");
+        assert!(
+            refused(&format!("({secret})")),
+            "{secret}: shown in brackets"
+        );
+    }
+}
+
+#[test]
+fn a_secret_joined_to_its_name_or_label_is_refused() {
+    let words = SEED;
+    for text in [
+        format!("MNEMONIC=\"{words}\""),
+        format!("{{\"mnemonic\":\"{words}\"}}"),
+        format!("seed={words}"),
+        format!("p2wpkh:{WIF}"),
+        format!("p2wpkh-p2sh:{WIF}"),
+        format!("{{\"bc1qexample\":\"p2wpkh:{WIF}\"}}"),
+        format!("nostr:{NSEC}"),
+        format!("key:{XPRV}"),
+        format!("url:{OTPAUTH}"),
+        format!("url:{MIGRATION}"),
+        format!(
+            "ur:{{{}}}",
+            faraday_codec::ur::encode_single("seed", &[0xa0])
+        ),
+    ] {
+        assert!(refused(&text), "{text}: shown");
+    }
+}
+
+#[test]
+fn a_secret_one_character_off_is_refused() {
+    for text in [
+        // A WIF and a codex32 string with a changed last character, an
+        // extended private key with a changed end, eleven and nineteen words.
+        "KwDiBf89QgGbjEhKnhXJuH7LrciVrZi3qYjgd9M7rFU73sVHnoWm",
+        "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlq",
+        &XPRV.replace("33yuGBxrMPHi", "33yuGBxrMPHj"),
+        &SEED.replacen(" about", "", 1),
+        SLIP39.rsplit_once(' ').unwrap().0,
+    ] {
+        assert!(refused(text), "{text}: shown");
+    }
+}
+
+#[test]
+fn bare_hex_of_entropy_or_a_seed_length_is_refused_and_64_digits_is_shown() {
+    let hex = |n: usize| "a1b2c3d4".repeat(n / 8 + 1)[..n].to_string();
+    for n in [32, 40, 48, 56, 128] {
+        assert!(refused(&hex(n)), "{n} hex digits shown");
+        assert!(refused(&format!("0x{}", hex(n))), "0x{n} shown");
+    }
+    for n in [31, 64, 66, 100] {
+        assert!(!refused(&hex(n)), "{n} hex digits refused");
+    }
+}
+
+#[test]
+fn seed_words_of_each_list_are_refused_with_their_name() {
+    // A numbered file of words reads as seed words, not as a private key.
+    let file: String = SEED
+        .split(' ')
+        .enumerate()
+        .map(|(i, w)| format!("{}. {w}\n", i + 1))
+        .collect();
+    let mut app = shown(&format!("# my seed\n{file}"));
+    assert!(app.qr().is_none());
+    assert!(
+        said(&mut app)
+            .iter()
+            .any(|l| l.starts_with("Not shown: this is a seed's words")),
+        "{:?}",
+        said(&mut app)
+    );
+}
+
+#[test]
+fn a_secret_in_a_urs_parts_is_refused_until_the_message_is_whole_and_read() {
+    let secret = format!("my key is p2wpkh:{WIF}");
+    let mut enc = faraday_codec::ur::Encoder::bytes(secret.as_bytes(), 20).unwrap();
+    assert!(enc.fragment_count() > 2);
+    let parts: Vec<String> = (0..enc.fragment_count()).map(|_| enc.next_part()).collect();
+    // A part, then all but one: the message is not whole.
+    assert!(refused(&parts[0]));
+    assert!(refused(&parts[..parts.len() - 1].join(" ")));
+    // All of them: the text inside is read, and it holds a key.
+    assert!(refused(&parts.join("\n")));
+    // A text with nothing secret in it is shown.
+    let mut enc =
+        faraday_codec::ur::Encoder::bytes(b"a block header, nothing secret in it", 20).unwrap();
+    let parts: Vec<String> = (0..enc.fragment_count()).map(|_| enc.next_part()).collect();
+    assert!(!refused(&parts.join("\n")));
+}
+
+#[test]
+fn a_zero_width_space_or_soft_hyphen_does_not_hide_a_secret() {
+    for gap in ["\u{200B}", "\u{00AD}"] {
+        assert!(refused(&WIF.replacen("Ki", &format!("K{gap}i"), 1)));
+        assert!(refused(&SEED.replacen(
+            "abandon abandon",
+            &format!("aban{gap}don abandon"),
+            1
+        )));
+        assert!(refused(&format!("{gap}{XPRV}")));
+    }
+}
+
+#[test]
+fn seedqr_digits_in_groups_of_four_are_refused() {
+    let groups = "0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0003";
+    assert!(refused(groups));
+    assert!(refused(&format!("code: {}", groups.replace(' ', "\n"))));
+    assert!(!refused("0000 0000 0000 0000 0003"));
+}
+
+#[test]
+fn a_paste_over_what_the_field_holds_is_refused_not_cut() {
+    let long = format!("{}\n{SEED}", " ".repeat(70 * 1024));
+    let mut app = shown(&long);
+    assert!(app.qr().is_none());
+    assert!(said(&mut app).iter().any(|l| l.starts_with("Over ")));
+    let text = format!("{}{HEADER}", " ".repeat(70 * 1024));
+    assert!(refused(&text));
+}
+
+#[test]
+fn text_changed_after_a_show_is_checked_again_at_the_next() {
+    let mut app = on_transfer();
+    for c in "hello".chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    app.press(Action::TransferText(TextPress::Show));
+    assert!(app.qr().is_some());
+    app.press(Action::Cancel);
+    app.press(Action::TransferText(TextPress::Clear));
+    for c in SEED.chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    app.press(Action::TransferText(TextPress::Show));
+    assert!(app.qr().is_none());
+}

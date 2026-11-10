@@ -1696,7 +1696,11 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
         {
             return FileKind::Words.into();
         }
-        if faraday_vault::entries::looks_like_entries(text) {
+        // Google Authenticator's export holds every TOTP secret of the
+        // account: kept as entries are, never filed as text.
+        if faraday_vault::entries::looks_like_entries(text)
+            || faraday_intake::is_otpauth_migration(text)
+        {
             return FileKind::Entries.into();
         }
         if crate::inbox::part_of(text).is_some() {

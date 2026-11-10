@@ -37,6 +37,11 @@ const NSEC: &str = "nsec1vl029mgpspedva04g90vltkh6fvh240zqtv9k0t9af8935ke9laqsnl
 /// place of its scan key.
 const SPSPEND: &str = "sp([0f056943/352h/1h/0h]tspspend1q05wxw5wc7wqmkf8cnfc6ry76qej8vhr3a3mmxmwgv35s0tlw24fs82k0npv2hv6p97s8sd9t7vpf44kluka9w863zjwxzfrym2ay9ccfzt06c4)";
 const TOTP: &str = "otpauth://totp/Scanned:me?secret=JBSWY3DPEHPK3PXP";
+/// A seed by its current UR name: the classifier reads the type, so the
+/// words after it are any a part has.
+const UR_SEED: &str = "ur:seed/oeadgdstaslplabghydrpfmkbggufgludprfgmaotpiecffltnlpqdenos";
+/// Google Authenticator's export of every TOTP secret of an account.
+const OTPAUTH_MIGRATION: &str = "otpauth-migration://offline?data=CjEKCkhlbGxvId6tvu8SGEV4YW1wbGU6YWxpY2VAZXhhbXBsZS5jb20aB0V4YW1wbGUgASgBMAIQARgBIAAo2a";
 const ENTRIES: &str = "title: Mail\npassword: correct horse";
 /// paperkey 1.6's printed lines of one key (`tools/vectors/paperkey/`).
 const PAPERKEY: &str = include_str!("../../../../tools/vectors/paperkey/faraday-key.txt");
@@ -47,7 +52,7 @@ const AEZEED: &str = "above judge emerge veteran reform crunch system all snap p
 const AEZEED_NODE: &str = "024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d";
 
 /// Every secret kind of `docs/SCANNING.md` §2 a scanner can read as text.
-const SECRETS: [&str; 14] = [
+const SECRETS: [&str; 16] = [
     AEZEED,
     WORDS,
     SEEDQR,
@@ -62,6 +67,8 @@ const SECRETS: [&str; 14] = [
     TOTP,
     ENTRIES,
     PAPERKEY,
+    UR_SEED,
+    OTPAUTH_MIGRATION,
 ];
 
 /// The scanners a person can open with no wallet or vault, by where

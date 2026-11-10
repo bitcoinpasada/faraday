@@ -47,6 +47,8 @@ pub enum TextCheck {
     Secret(Kind),
     /// This secret is in the text.
     Inside(Kind),
+    /// Part of a code that can hold a secret, and the rest is missing.
+    Partial,
 }
 
 /// The Send text card's field, and what its check said.
@@ -54,6 +56,9 @@ pub enum TextCheck {
 pub struct SendText {
     text: Zeroizing<String>,
     check: TextCheck,
+    /// A paste was longer than the field holds, so it is cut: refused
+    /// until the field is cleared.
+    over: bool,
 }
 
 impl Default for SendText {
@@ -61,6 +66,7 @@ impl Default for SendText {
         Self {
             text: Zeroizing::new(String::new()),
             check: TextCheck::Fine,
+            over: false,
         }
     }
 }
@@ -92,6 +98,7 @@ impl SendText {
     pub(crate) fn clear(&mut self) {
         self.text = Zeroizing::new(String::new());
         self.check = TextCheck::Fine;
+        self.over = false;
     }
 
     /// Costs what [`check`] costs. A key typed into the field: whether it
@@ -126,13 +133,18 @@ impl SendText {
             cut -= 1;
         }
         self.text = Zeroizing::new(text[..cut].to_string());
+        self.over = cut < text.len();
         self.recheck(c);
     }
 
     /// Costs what [`check`] costs. The check made again, on the text now
     /// in the field.
     pub(crate) fn recheck(&mut self, c: &Compute) {
-        self.check = check(c, &self.text);
+        self.check = if self.over {
+            TextCheck::TooLong
+        } else {
+            check(c, &self.text)
+        };
     }
 }
 
@@ -140,8 +152,9 @@ impl SendText {
 /// it, what `scan_read::secret_kind` costs: a checksum or a parse for a
 /// part that can be a secret, a lookup for each word. What is refused in
 /// `text`: the device's classifier on the whole and on every part a secret
-/// can hide in, a text over [`MAX_TEXT`]. Bare hex is not refused: a
-/// SHA-256, a transaction id and a block hash are hex (F236).
+/// can hide in, a part of the shape of a key whether or not its checksum
+/// holds, a text over [`MAX_TEXT`]. A 64-digit hex string is not refused:
+/// a SHA-256, a transaction id and a block hash are that (F236).
 pub fn check(c: &Compute, text: &str) -> TextCheck {
     let t = text.trim();
     if t.is_empty() {
@@ -150,25 +163,55 @@ pub fn check(c: &Compute, text: &str) -> TextCheck {
     if t.len() > MAX_TEXT {
         return TextCheck::TooLong;
     }
+    let cleaned = without_invisible(t);
+    let t = cleaned.trim();
     if let Some(kind) = scan_read::secret_kind(c, t.as_bytes()) {
         return TextCheck::Secret(kind);
     }
-    if wallet::classify(c, "text.txt", t.as_bytes()).exposure() == Exposure::Secret {
-        return TextCheck::Secret(Kind::Wif);
+    let file = wallet::classify(c, "text.txt", t.as_bytes());
+    if file.exposure() == Exposure::Secret {
+        return TextCheck::Secret(file_secret(file));
     }
-    match inside(c, t) {
-        Some(kind) => TextCheck::Inside(kind),
-        None => TextCheck::Fine,
+    inside(c, t).unwrap_or(TextCheck::Fine)
+}
+
+/// The text without the characters that show nothing and could split a
+/// word the checks read: a zero-width space, joiner or non-joiner, a word
+/// joiner, a byte order mark and a soft hyphen.
+fn without_invisible(t: &str) -> std::borrow::Cow<'_, str> {
+    let hidden = |ch: char| {
+        matches!(
+            ch,
+            '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}' | '\u{00AD}'
+        )
+    };
+    if t.contains(hidden) {
+        std::borrow::Cow::Owned(t.replace(hidden, ""))
+    } else {
+        std::borrow::Cow::Borrowed(t)
     }
 }
 
-/// Costs what [`check`] costs for the parts. The secret kind some part of
-/// `t` is, if any.
-fn inside(c: &Compute, t: &str) -> Option<Kind> {
+/// What a file kind that is a secret is called.
+fn file_secret(kind: wallet::FileKind) -> Kind {
+    use wallet::FileKind as F;
+    match kind {
+        F::Words => Kind::SeedWords,
+        F::SeedPart => Kind::Codex32Share,
+        F::Entries => Kind::Entries,
+        F::SecretWallet => Kind::Wallet,
+        _ => Kind::Wif,
+    }
+}
+
+/// Costs what [`check`] costs for the parts. What some part of `t` is, if
+/// it is a secret.
+fn inside(c: &Compute, t: &str) -> Option<TextCheck> {
     armour(t)
         .or_else(|| digits(t))
+        .map(TextCheck::Inside)
         .or_else(|| tokens(c, t))
-        .or_else(|| words(c, t))
+        .or_else(|| words(c, t).map(TextCheck::Inside))
 }
 
 /// An armoured private key (PEM, PGP).
@@ -177,65 +220,177 @@ fn armour(t: &str) -> Option<Kind> {
     (upper.contains("-----BEGIN") && upper.contains("PRIVATE KEY")).then_some(Kind::Wif)
 }
 
-/// A run of 48 or 96 digits: a SeedQR.
+/// A run of 48 or 96 digits, or of 12 or 24 groups of four: a SeedQR.
 fn digits(t: &str) -> Option<Kind> {
-    t.split(|ch: char| !ch.is_ascii_digit())
-        .any(|run| matches!(run.len(), 48 | 96))
-        .then_some(Kind::SeedQr)
+    let plain = t
+        .split(|ch: char| !ch.is_ascii_digit())
+        .any(|run| matches!(run.len(), 48 | 96));
+    let mut groups = 0;
+    let mut grouped = false;
+    for tok in t.split_whitespace() {
+        if tok.len() == 4 && tok.bytes().all(|b| b.is_ascii_digit()) {
+            groups += 1;
+            grouped |= groups >= 12;
+        } else {
+            groups = 0;
+        }
+    }
+    (plain || grouped).then_some(Kind::SeedQr)
+}
+
+/// The signs that join a value to its name or are put round it.
+const JOINS: &str = ",;=()[]{}<>\"'|";
+
+/// Whether `part` begins a `ur:` string.
+fn is_ur(part: &str) -> bool {
+    part.get(..3).is_some_and(|p| p.eq_ignore_ascii_case("ur:"))
+}
+
+/// The types of UR that can hold a secret: a part of one is not shown
+/// until the message is whole and read.
+fn ur_may_hold_secret(ur_type: &str) -> bool {
+    let t = ur_type.to_ascii_lowercase();
+    let t = t.strip_prefix("crypto-").unwrap_or(&t);
+    matches!(
+        t,
+        "seed" | "hdkey" | "output" | "account" | "bytes" | "eckey" | "sskr"
+    )
 }
 
 /// Costs what `scan_read::secret_text_kind` costs, for each part of a
 /// token long enough to be a key, and a classification for one that
 /// holds a private key's letters. Each whitespace-separated token, whole,
-/// trimmed of the punctuation round it and cut at the signs that join a
-/// value to its name, as a secret of the classifier, and the `ur:` parts
-/// put together.
-fn tokens(c: &Compute, t: &str) -> Option<Kind> {
+/// trimmed of the punctuation round it, cut at the signs that join a
+/// value to its name (`,;=()[]{}<>"'|`), and again at `:` and `/` (a
+/// label such as `p2wpkh:` or `nostr:`), as a secret of the classifier or
+/// a key's shape; and the `ur:` parts put together.
+fn tokens(c: &Compute, t: &str) -> Option<TextCheck> {
     let mut ur = faraday_codec::ur::Decoder::new();
     for tok in t.split_whitespace() {
-        let lower = tok.to_ascii_lowercase();
-        if lower.starts_with("ur:")
-            && let Some(kind) = ur_part(c, &mut ur, tok)
-        {
-            return Some(kind);
-        }
         let trimmed = tok.trim_matches(|ch: char| !ch.is_alphanumeric());
-        let pieces = tok.split(|ch: char| ",;=()[]{}<>\"'|".contains(ch));
-        for part in std::iter::once(tok)
-            .chain(std::iter::once(trimmed))
-            .chain(pieces)
-        {
-            if part.len() < 26 && !part.contains("://") && !part.starts_with("ur:") {
+        let mut parts: Vec<&str> = vec![tok, trimmed];
+        for piece in tok.split(|ch: char| JOINS.contains(ch)) {
+            parts.push(piece);
+            if let Some(i) = piece.find("://") {
+                let start = piece[..i]
+                    .rfind(|ch: char| !(ch.is_ascii_alphanumeric() || "+-.".contains(ch)))
+                    .map_or(0, |j| j + 1);
+                parts.push(&piece[start..]);
+            }
+            parts.extend(piece.split([':', '/']).filter(|s| s.len() >= 26));
+        }
+        // The `ur:` strings, at the start of a part or after a sign.
+        let mut urs: Vec<&str> = Vec::new();
+        for &part in &parts {
+            let lower = part.to_ascii_lowercase();
+            for (i, _) in lower.match_indices("ur:") {
+                let opens = i == 0
+                    || !part[..i]
+                        .chars()
+                        .next_back()
+                        .is_some_and(|ch| ch.is_ascii_alphanumeric());
+                if opens && !urs.contains(&&part[i..]) {
+                    urs.push(&part[i..]);
+                }
+            }
+        }
+        for u in urs {
+            if let Some(found) = ur_part(c, &mut ur, u) {
+                return Some(found);
+            }
+        }
+        let mut seen: Vec<&str> = Vec::new();
+        for part in parts {
+            if seen.contains(&part) {
                 continue;
             }
-            if let Some(kind) = scan_read::secret_text_kind(c, part) {
-                return Some(kind);
+            seen.push(part);
+            if part.len() < 26 && !part.contains("://") && !is_ur(part) {
+                continue;
+            }
+            if let Some(kind) = scan_read::secret_text_kind(c, part).or_else(|| shape(part)) {
+                return Some(TextCheck::Inside(kind));
             }
             if part.to_ascii_lowercase().contains("prv")
                 && wallet::classify(c, "part.txt", part.as_bytes()).exposure() == Exposure::Secret
             {
-                return Some(Kind::Xprv);
+                return Some(TextCheck::Inside(Kind::Xprv));
             }
         }
+    }
+    // A message of a type that can hold a secret that never came whole.
+    ur.ur_type()
+        .is_some_and(|ty| ur_may_hold_secret(&ty))
+        .then_some(TextCheck::Partial)
+}
+
+/// A string of the shape of a secret, whether or not its checksum holds
+/// (a typo does not make a key safe to show): a WIF's length and first
+/// character in base58, a codex32 string's characters and length, and bare
+/// hex of 32, 40, 48, 56 or 128 digits (BIP-39 entropy, a BIP-32 seed).
+fn shape(part: &str) -> Option<Kind> {
+    let bare = part
+        .strip_prefix("0x")
+        .or_else(|| part.strip_prefix("0X"))
+        .unwrap_or(part);
+    if matches!(bare.len(), 32 | 40 | 48 | 56 | 128) && bare.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return Some(Kind::CompactSeedQr);
+    }
+    const BASE58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+    let first = part.chars().next()?;
+    if ((part.len() == 51 && matches!(first, '5' | '9'))
+        || (part.len() == 52 && matches!(first, 'K' | 'L' | 'c')))
+        && part.chars().all(|ch| BASE58.contains(ch))
+    {
+        return Some(Kind::Wif);
+    }
+    const BECH32: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+    if (48..=127).contains(&part.len())
+        && part.get(..3).is_some_and(|p| p.eq_ignore_ascii_case("ms1"))
+        && part[3..]
+            .chars()
+            .all(|ch| BECH32.contains(ch.to_ascii_lowercase()))
+    {
+        let index = part.as_bytes()[8].to_ascii_lowercase();
+        return Some(if index == b's' {
+            Kind::Codex32Secret
+        } else {
+            Kind::Codex32Share
+        });
     }
     None
 }
 
-/// Costs a CBOR read, and what `scan_read::secret_kind` costs for the
-/// text of a `ur:bytes`. One `ur:` token fed to the decoder: the secret
-/// kind a message it completes is, if it is one.
-fn ur_part(c: &Compute, dec: &mut faraday_codec::ur::Decoder, tok: &str) -> Option<Kind> {
+/// Costs a CBOR read, and what [`check`] costs for the text of a
+/// `ur:bytes`. One `ur:` string fed to the decoder: what it is if it is a
+/// secret, or a part of a message of a type that can hold one and is not
+/// whole yet (a part of the other message the decoder was reading, when it
+/// is dropped for this one).
+fn ur_part(c: &Compute, dec: &mut faraday_codec::ur::Decoder, tok: &str) -> Option<TextCheck> {
     use faraday_codec::ur::Message;
-    let Ok(crate::qr_view::UrFed::Whole(message)) = crate::ur_feed(dec, tok) else {
+    let before = dec.ur_type();
+    let Ok(fed) = crate::ur_feed(dec, tok) else {
         return None;
+    };
+    let message = match fed {
+        crate::qr_view::UrFed::Whole(message) => message,
+        crate::qr_view::UrFed::More { restarted } => {
+            return (restarted && before.is_some_and(|ty| ur_may_hold_secret(&ty)))
+                .then_some(TextCheck::Partial);
+        }
     };
     match message {
         Message::Other { ur_type, cbor } => match faraday_qr::registry::read(&ur_type, &cbor) {
-            Err(faraday_qr::registry::Error::Private) => Some(Kind::Xprv),
-            Err(faraday_qr::registry::Error::Seed) => Some(Kind::UrSeed),
+            Err(faraday_qr::registry::Error::Private) => Some(TextCheck::Inside(Kind::Xprv)),
+            Err(faraday_qr::registry::Error::Seed) => Some(TextCheck::Inside(Kind::UrSeed)),
             _ => None,
         },
-        Message::Bytes(b) => scan_read::secret_kind(c, &b),
+        Message::Bytes(b) => match check(c, &String::from_utf8_lossy(&b)) {
+            TextCheck::Secret(k) | TextCheck::Inside(k) => Some(TextCheck::Inside(k)),
+            TextCheck::Partial => Some(TextCheck::Partial),
+            TextCheck::Fine | TextCheck::TooLong => None,
+        },
         Message::Psbt(_) => None,
     }
 }
@@ -256,44 +411,60 @@ fn lists() -> &'static (Vec<HashSet<&'static str>>, HashSet<&'static str>) {
     })
 }
 
-/// Costs what `scan_read::secret_text_kind` costs for a run found. Twelve
-/// or more words in a row of one BIP-39 list, checksum or not, or twenty
-/// or more of the SLIP-39 list: most of a seed is a seed. Numbers and
-/// punctuation between the words (a numbered list) do not break a run.
+/// Whether a character is a combining mark, which stays in a word.
+fn is_mark(ch: char) -> bool {
+    matches!(
+        ch as u32,
+        0x300..=0x36F | 0x1AB0..=0x1AFF | 0x1DC0..=0x1DFF | 0x20D0..=0x20FF | 0x3099..=0x309A
+            | 0xFE20..=0xFE2F
+    )
+}
+
+/// Costs what `scan_read::secret_text_kind` costs for a run found. Eleven
+/// or more words in a row of one BIP-39 list, checksum or not, or nineteen
+/// or more of the SLIP-39 list: a seed one word short is most of a seed.
+/// Words are cut at every character that is no letter and no combining
+/// mark, so a name or a quote glued to a word (`MNEMONIC="abandon`) does
+/// not hide it; numbers and punctuation between the words (a numbered
+/// list) do not break a run.
 fn words(c: &Compute, t: &str) -> Option<Kind> {
     let (bip39, slip39) = lists();
-    let mut runs: Vec<Vec<String>> = vec![Vec::new(); bip39.len() + 1];
-    for tok in t.split_whitespace() {
-        let w = tok.trim_matches(|ch: char| !ch.is_alphabetic());
-        if w.is_empty() {
-            continue;
-        }
-        let w = w.to_lowercase();
-        for (i, list) in bip39.iter().enumerate() {
-            if list.contains(w.as_str()) {
-                runs[i].push(w.clone());
-            } else {
-                runs[i].clear();
+    let ws: Vec<String> = t
+        .split_whitespace()
+        .flat_map(|tok| tok.split(|ch: char| !(ch.is_alphabetic() || is_mark(ch))))
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect();
+    if longest_run(&ws, |w| slip39.contains(w)) >= faraday_bip::slip39::MIN_WORDS - 1 {
+        return Some(Kind::Slip39Share);
+    }
+    for list in bip39 {
+        let mut start = 0;
+        for end in 0..=ws.len() {
+            if end < ws.len() && list.contains(ws[end].as_str()) {
+                continue;
             }
-        }
-        let last = bip39.len();
-        if slip39.contains(w.as_str()) {
-            runs[last].push(w);
-        } else {
-            runs[last].clear();
-        }
-        if runs[last].len() >= faraday_bip::slip39::MIN_WORDS {
-            return Some(Kind::Slip39Share);
-        }
-        if let Some(run) = runs[..last].iter().find(|r| r.len() >= 12) {
-            return Some(run_kind(c, run));
+            if end - start >= 11 {
+                return Some(run_kind(c, &ws[start..end]));
+            }
+            start = end + 1;
         }
     }
     None
 }
 
+/// The length of the longest run of words `on_list` holds.
+fn longest_run(ws: &[String], on_list: impl Fn(&str) -> bool) -> usize {
+    let (mut best, mut run) = (0, 0);
+    for w in ws {
+        run = if on_list(w) { run + 1 } else { 0 };
+        best = best.max(run);
+    }
+    best
+}
+
 /// Costs what `scan_read::secret_text_kind` costs, up to ten times. The
-/// name of a run of 12 or more words: what the classifier says of its
+/// name of a run of 11 or more words: what the classifier says of its
 /// first and its last 12, 15, 18, 21 or 24 words, else words that fail
 /// their checksum.
 fn run_kind(c: &Compute, run: &[String]) -> Kind {

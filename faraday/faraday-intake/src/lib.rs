@@ -218,6 +218,16 @@ pub fn is_otpauth(line: &str) -> bool {
 }
 
 const OTPAUTH: &str = "otpauth://";
+const OTPAUTH_MIGRATION: &str = "otpauth-migration://";
+
+/// Whether text begins with Google Authenticator's export scheme,
+/// `otpauth-migration://`, in either case: it holds every TOTP secret of
+/// the account. No more is read than the scheme.
+pub fn is_otpauth_migration(text: &str) -> bool {
+    text.trim()
+        .get(..OTPAUTH_MIGRATION.len())
+        .is_some_and(|p| p.eq_ignore_ascii_case(OTPAUTH_MIGRATION))
+}
 
 /// Whether text looks like entries for a vault: an `otpauth://` line, or
 /// a `title:` line.

@@ -8787,6 +8787,9 @@ strings! {
     /// Refusal under the field when a secret is found in the text. `{}`:
     /// the kind's name, as `Kind::label` writes it, in lower case.
     transfer_text_maybe_secret: "Not shown: it holds {}",
+    /// Refusal under the field when the text holds part of a code that can
+    /// hold a secret.
+    transfer_text_partial: "Not shown: it holds part of a code that may hold a secret",
     /// Refusal under the field when the text is too long. `{}`: the most
     /// text sent, as `size_text` writes it.
     transfer_text_too_long: "Over {}: send it as a file",
