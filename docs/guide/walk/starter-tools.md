@@ -68,6 +68,14 @@ whole file is read: it lands in Files
 | **Over 262.1 KB**, greyed | the file is too large for QR codes: carry it on a stick |
 | "… is empty" | the file holds nothing |
 
+To send text instead of a file, use **Send text**: type into **Text**
+or press **Paste**, check the line under the field (the characters and
+the size), then press **Show as QR**. The sheet **Text** shows the text
+as a code, read on Faraday the same way. A text that holds a seed, a
+private key or a code that may hold a secret is not shown, and the line
+under the field says so; a text too long reads "Over …: send it as a
+file".
+
 ## 3. Receive a file from Faraday
 
 ![Transfer's Receive with the line Saved ~/Downloads/payment-signed.psbt under its buttons](../pictures/starter-tools-receive.png)

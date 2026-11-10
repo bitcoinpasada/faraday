@@ -22,6 +22,15 @@
 
 *Transfer opened from Tools, under the top app bar that reads **Transfer** over **Tools**: **Send** lists Downloads (`payment.psbt`, and a photo dimmed as **Over 262.1 KB**), **Receive** holds **Scan with the camera** and **Open folder**. After a file is received, "Saved …" and its path are under the buttons ([Transfer](qr-and-scan.md#transfer)).*
 
+**Send text** holds a field, **Text**, that reads "Paste or type the
+text" while empty; under it a line gives the characters and the size,
+and **Paste** fills the field from the clipboard. **Show as QR** is
+dimmed until the field holds text and then shows the text as a QR code
+under the title **Text**. A text that holds a seed, a private key or a
+code that may hold a secret is not shown, and a line under the field says
+so; a text over the most Transfer sends reads "Over …: send it as a
+file".
+
 On Windows, when camera access is off in Windows' privacy settings,
 **Scan with the camera** opens the camera and it reads **The camera was
 refused**.
