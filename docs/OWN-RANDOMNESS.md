@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (`faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (`faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (`core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
-**Open:** the wait on a dev Pi's boot, which the owner reads off its log (§3.5, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Open:** the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case and the Pi are measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and
@@ -364,6 +364,21 @@ pool is ready within about a quarter of a second of the app asking for
 it, and before anything a person does needs randomness. Item 2, one
 real PC, is still to read.
 
+Results (2026-11-10, item 3): one boot of a dev Pi image at 7bd806248
+on a dev Pi, with `bcm2835-rng` not credited and the firmware's
+seed uncounted (§3.5); times from the kernel's start (CLOCK_BOOTTIME).
+
+| | Time |
+|---|---|
+| The app opened `/dev/random` | 3.87 s |
+| The kernel's "random: crng init done" | 11.53 s |
+| The app's first read of `/dev/random` returned | 11.52 s |
+| Time the app's read waited | 7.65 s |
+
+The Pi's pool becomes ready on jitter and interrupts about seven and a
+half seconds after the app asks for it, within §3.5's 60 seconds; a
+press that needs randomness in that time waits for it.
+
 ### 3.5 A late seed, and the Pi's generator (F102)
 
 - **Nothing at start** (built). Home says nothing of a missing seed.
@@ -402,8 +417,8 @@ real PC, is still to read.
   `/chosen/rng-seed` (§3.2), so the pool is not ready on jitter alone as
   written above. Patch 0004 (`docs/KERNEL-PATCHES.md`) leaves the seed
   uncounted (F224), and bcm2835-rng is not credited either.
-- **The Pi's wait** is read off a dev Pi's log in passing (the owner),
-  as the PC's is in §3.4.
+- **The Pi's wait** (measured). About 7.7 seconds after the app opens
+  `/dev/random`, 11.5 seconds after the kernel starts (§3.4, item 3).
 
 ## 4. Tests
 
