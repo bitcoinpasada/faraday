@@ -58,7 +58,8 @@ Demo's (§7.2).
    panic chord. Drawing includes painting a recorded frame in bands on
    threads started and joined inside the frame (`docs/FRAMES.md` §4.4):
    they hold nothing of `Faraday`, and a band that panics ends the frame
-   as a panic on the main thread does. Work on §2.1's list of jobs runs on the worker; any other
+   as a panic on the main thread does; so is a fade's blend of its two
+   kept frames, in bands of rows (`docs/FRAMES.md` §4.3). Work on §2.1's list of jobs runs on the worker; any other
    costly press is drawn first and done on the tick after, as SPEED §9
    point 2 says, and is short by the line of §2.1.
 2. **Drawing reads.** The busy screen (§4) reads what the core keeps

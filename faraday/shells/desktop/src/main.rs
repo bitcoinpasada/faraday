@@ -175,6 +175,8 @@ struct Shell {
     /// The window and its surface (`faraday-window`).
     view: Option<View>,
     shown: (u32, u32),
+    /// Whether the fade gate was on at the last line of `--timings`.
+    gate: Option<bool>,
     /// The window's scale factor.
     scale: f64,
     /// The ticks and the frames' pace (`faraday-window`).
@@ -398,17 +400,28 @@ impl Shell {
             // With the frames' line, what the fades did over the same
             // second (`docs/MOTION.md` §3.2).
             let f = app.app.take_fade_counts();
-            let median = f
-                .median_gap_ms
-                .map_or_else(|| "-".to_owned(), |g| g.to_string());
+            let gap = |g: Option<u16>| g.map_or_else(|| "-".to_owned(), |g| g.to_string());
+            let was = match self.gate.replace(f.on) {
+                Some(before) if before != f.on => Some(before),
+                _ => None,
+            };
             eprintln!(
-                "faraday: fades · started {} · skipped {} · reduced {} · steps {} · median gap {median} ms of {} · {}",
+                "faraday: fades · started {} · skipped {} · reduced {} · steps {} · median gap {} ms of {} · worst gap {} ms · bands {} · {}{} · {}x{} px",
                 f.started,
                 f.skipped,
                 f.reduced,
                 f.steps,
+                gap(f.median_gap_ms),
                 f.gaps_known,
+                gap(f.worst_gap_ms),
+                f.bands,
                 if f.on { "on" } else { "off" },
+                was.map_or_else(String::new, |b| format!(
+                    " (was {})",
+                    if b { "on" } else { "off" }
+                )),
+                self.shown.0,
+                self.shown.1,
             );
         }
         self.slow("frame", begun.elapsed());
@@ -788,6 +801,7 @@ fn main() -> ExitCode {
         }),
         view: None,
         shown: o.size,
+        gate: None,
         scale: 1.0,
         pace: Pacer::new(o.timings),
         last_slow: None,

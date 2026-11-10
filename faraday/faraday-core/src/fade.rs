@@ -277,6 +277,11 @@ pub struct FadeCounts {
     pub gaps_known: u8,
     /// The median of those gaps, milliseconds, when there are any.
     pub median_gap_ms: Option<u16>,
+    /// The longest of those gaps, milliseconds, when there are any.
+    pub worst_gap_ms: Option<u16>,
+    /// The most bands a blend of a fade's step was split in, 0 when none
+    /// ran (`bands.rs`).
+    pub bands: u8,
     /// Whether the next change would fade.
     pub on: bool,
 }
@@ -353,7 +358,14 @@ impl Faraday {
         } else {
             canvas.swap_pixels(&mut self.fade.after);
             let inset = self.fade.edge_drawn_over;
-            canvas.blend_noting(before, &self.fade.after, t, inset, &mut self.fade.bands);
+            let n = self.fade.cores.blend_noting(
+                canvas,
+                before,
+                &self.fade.after,
+                (t, inset),
+                &mut self.fade.bands,
+            );
+            self.fade.counts.bands = self.fade.counts.bands.max(n as u8);
             self.fade.due = true;
             self.out.commands.push_back(Command::Draw);
         }
@@ -393,7 +405,11 @@ impl Faraday {
             self.fade.end();
             self.fade.step_at = None;
         } else {
-            canvas.blend_within(before, &self.fade.after, t, &self.fade.bands);
+            let n =
+                self.fade
+                    .cores
+                    .blend_within(canvas, before, &self.fade.after, t, &self.fade.bands);
+            self.fade.counts.bands = self.fade.counts.bands.max(n as u8);
             self.fade.due = true;
             self.out.commands.push_back(Command::Draw);
         }
@@ -434,6 +450,7 @@ impl Faraday {
         FadeCounts {
             gaps_known: gaps.len() as u8,
             median_gap_ms: gaps.get(gaps.len() / 2).copied(),
+            worst_gap_ms: gaps.last().copied(),
             on: self.fades(),
             ..std::mem::take(&mut self.fade.counts)
         }

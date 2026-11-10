@@ -20,7 +20,7 @@ pub mod text;
 pub mod tokens;
 pub mod widgets;
 
-pub use canvas::Canvas;
+pub use canvas::{BlendBand, Canvas};
 pub use color::Color;
 pub use geom::{Dp, Edges, Point, Rect, Scale, Size, SizeClass};
 pub use text::{Font, TextAlign};

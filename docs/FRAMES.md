@@ -384,6 +384,19 @@ frame. A moved frame (§3) paints a strip, which bands barely help.
 - `n` from the machine: `std::thread::available_parallelism()`, at most
   four, one band for each 64 rows at least, and one (no threads, painted
   as now) when it says one or the canvas is under 64 rows a band.
+- A fade's blend is split in bands of rows the same way
+  (`faraday-draw`, `canvas/blend.rs`; `fade/bands.rs`): the screen it
+  fades to is drawn in bands as above, and each step's blend of the two
+  kept frames (`Canvas::blend_noting`, `Canvas::blend_within`, which cost
+  a pass over the canvas or over the bands noted) runs in `n` bands with
+  the first on the main thread, joined before the step returns. `n`
+  is from the pixels to blend, not the rows: one band for each 256 Ki
+  pixels at least, at most the cores (the cap above), so a window under
+  that blends on the main thread alone. A pixel is blended from the same
+  pixel of the two frames alone, so any count of bands gives the same
+  pixels and the same changed rectangles as one. This keeps a step of a
+  fade in a large window under the fade gate's limit (`docs/MOTION.md`
+  §3.5), which is not changed.
 - No new dependency: `std::thread` alone.
 
 ### 4.4 Beside the core's worker

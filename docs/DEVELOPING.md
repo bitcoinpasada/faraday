@@ -291,7 +291,11 @@ Never use it for keys that matter.
   per five seconds of the app's clock, each kind of work (a touch, a
   frame, a camera frame, a fade) counted with its mean and worst in
   milliseconds, and a `work` row for each kind of costly work done in
-  that time: a vault made, unlocked or its cost measured, named by its
+  that time (a `fade` row gives the gate on or off, `was` when it
+  changed in the block, the fades started and skipped, the median and
+  worst step gap and the bands a blend used; the header gives the
+  panel's pixels; a step's `blend`, `convert` and `write` buckets tell
+  Faraday's blend from the copy out): a vault made, unlocked or its cost measured, named by its
   strength, Argon2id memory and passes (a vault made or unlocked has a
   second row ending "(on the worker)" for the stretch itself; and "failed: no memory" or "not
   tried: too little memory free" where it did not fit), a key made, a
@@ -302,6 +306,13 @@ Never use it for keys that matter.
   app and the next one carries on in the same file. With the boot medium
   out (a key is loaded with it out) the timings stay in memory: plug it
   back and wait 30 seconds, and the file holds them.
+  Faraday Demo's `--timings` prints the same fade facts once a second
+  on stderr, on its `faraday: fades` line: started, skipped, steps, the
+  median and worst step gap, the bands, the gate (`(was on)` when it
+  changed since the last line) and the window's size in pixels, which is
+  the size the app draws at and the buffer it copies, the panel's own
+  pixels and not a scaled size (the scale only sets the density it is
+  laid out at).
 - **When a file is written.** The panel's console says
   `faraday-timings.txt written` and `faraday-boot-report.txt written`
   each time one is, so you can see when it is safe to power off. The

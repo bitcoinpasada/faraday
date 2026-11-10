@@ -263,7 +263,16 @@ since it, what its pass cost and the step chosen after it, in ms, and a
 were drawn at once because the last fades' steps came too far apart
 (`skipped`) or because reduce motion is on (`reduced`), how many fade
 steps were blended, how many recent step gaps are known and their median,
-and whether the next change would fade (`docs/MOTION.md` §3.5). A
+and whether the next change would fade (`docs/MOTION.md` §3.5); the line
+also gives the longest of those gaps (`worst_ms`), the most bands a
+blend was split in (`bands`, 0 when no step ran) and, after `on` or
+`off`, `was on` or `was off` when the gate changed since the last
+block, so a change is placed within five seconds. The header names the
+panel's size and its pixel count. A fade's step is told apart in the
+file by its `blend` bucket (the core's blend alone, the bands' threads
+included), `convert` and `write` (the copy out), and the `steps` line's
+pass cost, which holds all three; the wait for the buffer is the gap
+less the pass cost. A
 `part` row for each call the loop makes outside the buckets that ran in
 the interval gives its count, mean and worst in ms and its name last:
 `rescan` (the look for input devices plugged in), `sticks` (the look at

@@ -7,7 +7,7 @@
 //! every band is joined first, then the panic goes on (release builds
 //! abort, as a panic on the main thread does; `docs/WORKERS.md` §2.1).
 
-use faraday_draw::Canvas;
+use faraday_draw::{BlendBand, Canvas, Rect};
 
 /// The most bands a frame is painted in.
 const MOST: usize = 4;
@@ -15,11 +15,17 @@ const MOST: usize = 4;
 /// The fewest rows of a band.
 const ROWS: usize = 64;
 
+/// The fewest pixels of a band of a fade's blend: a blend over fewer is
+/// not worth a thread.
+const PIXELS: usize = 256 * 1024;
+
 /// How many bands a frame is painted in, and what a test asks of it.
 #[derive(Debug)]
 pub(crate) struct Bands {
     /// Bands for the machine; 1 paints as the calls are made.
     n: usize,
+    /// The fewest pixels of a band of a blend.
+    per: usize,
     /// A test asks for the calls recorded and painted from the list even
     /// at one band.
     #[cfg(test)]
@@ -41,6 +47,7 @@ impl Bands {
     fn with(n: usize) -> Self {
         Bands {
             n: n.max(1),
+            per: PIXELS,
             #[cfg(test)]
             recorded: false,
             #[cfg(test)]
@@ -61,6 +68,46 @@ impl Bands {
     /// How many bands a canvas of `rows` visible rows is painted in.
     fn bands_for(&self, rows: i32) -> usize {
         self.n.min(usize::try_from(rows).unwrap_or(0) / ROWS).max(1)
+    }
+
+    /// How many bands a blend of `pixels` pixels is split in.
+    fn bands_for_pixels(&self, pixels: usize) -> usize {
+        self.n.min(pixels / self.per.max(1)).max(1)
+    }
+
+    /// Costs a pass over the whole canvas. `Canvas::blend_noting`, in
+    /// bands of rows across the cores, the first on this thread.
+    pub(crate) fn blend_noting(
+        &self,
+        canvas: &mut Canvas,
+        before: &[u8],
+        after: &[u8],
+        how: (f32, i32),
+        out: &mut Vec<Rect>,
+    ) -> usize {
+        let pixels = canvas.width().max(0) as usize * canvas.height().max(0) as usize;
+        let n = self.bands_for_pixels(pixels);
+        canvas.blend_noting_banded(before, after, how, out, n, &mut blend_all);
+        n
+    }
+
+    /// Costs a pass over the pixels of `rects`. `Canvas::blend_within`,
+    /// in bands of rows across the cores, the first on this thread.
+    pub(crate) fn blend_within(
+        &self,
+        canvas: &mut Canvas,
+        before: &[u8],
+        after: &[u8],
+        t: f32,
+        rects: &[Rect],
+    ) -> usize {
+        let pixels = rects
+            .iter()
+            .map(|r| r.w.max(0) as usize * r.h.max(0) as usize)
+            .sum();
+        let n = self.bands_for_pixels(pixels);
+        canvas.blend_within_banded(before, after, t, rects, n, &mut blend_all);
+        n
     }
 
     /// Costs the painting of every call waiting on `canvas`. Paints them
@@ -97,12 +144,31 @@ impl Bands {
     }
 }
 
+/// Blends the bands, the first on this thread and the others on threads
+/// joined before it returns.
+fn blend_all(bands: &mut [BlendBand<'_>]) {
+    let Some((mine, others)) = bands.split_first_mut() else {
+        return;
+    };
+    if others.is_empty() {
+        mine.blend();
+        return;
+    }
+    std::thread::scope(|s| {
+        for band in others {
+            s.spawn(|| band.blend());
+        }
+        mine.blend();
+    });
+}
+
 #[cfg(test)]
 impl Bands {
     /// `n` bands whatever the machine, `0` for none and no recording.
     pub(crate) fn set_for_test(&mut self, n: usize) {
         *self = Self::with(n);
         self.recorded = n > 0;
+        self.per = 1;
     }
 
     /// The calls, and the barriers for the bands used, of the last frame
