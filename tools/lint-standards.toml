@@ -103,6 +103,18 @@ file = "faraday/faraday-core/src/decode/check_words.rs"
 reason = "Check a signer's findings in words: an outpoint is written as rust-bitcoin's `OutPoint` shows it; the findings are faraday-psbt's. No secret; no F79 area runs it."
 
 [[uncovered]]
+file = "faraday/faraday-core/src/compare/mod.rs"
+reason = "Compare two PSBTs' state: it keeps each file's unsigned txid as rust-bitcoin's `Txid` to name it in the lists; the diff and the fee bump are faraday-psbt's `diff` and `bump`, which the stamp covers. No secret; no F79 area runs it."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/compare/others.rs"
+reason = "Finds the files in Files that spend the same inputs, by rust-bitcoin's `Txid` and `OutPoint` kept on each file (a PSBT's txid from rust-bitcoin's `compute_txid`), and hands each pair to faraday-psbt's `bump`, which the stamp covers. No secret; no F79 area runs it."
+
+[[uncovered]]
+file = "faraday/faraday-core/src/compare/words.rs"
+reason = "Compare's and the fee bump's results in words: amounts, sequences and outpoints written from rust-bitcoin's `Amount`, `Sequence` and `OutPoint`; the results are faraday-psbt's. No secret; no F79 area runs it."
+
+[[uncovered]]
 file = "faraday/faraday-core/src/seeds/read.rs"
 reason = "The Sweep sheet's hold calls faraday-keys' `Keys::sweep_sign` and faraday-psbt's `finalize`, which the stamp covers (the sign area sweeps against Core); computes nothing itself."
 
