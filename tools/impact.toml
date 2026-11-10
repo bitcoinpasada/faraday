@@ -880,6 +880,13 @@ title = "a field a signer adds to a returned PSBT is stated only when its conten
 source = ["docs/decisions/F199.md", "docs/SIGNER-CHECK.md §6.9"]
 when = ["core/faraday-psbt/src/signer.rs"]
 kind = "review"
+
+[[rule]]
+id = "keys.fee-bump-rules"
+title = "a fee bump is said only when every rule of COMPARE §3.2 holds, a rule that cannot be worked out is Cannot tell, the result never stops signing, and Compare's differences carry no tone; a change to a rule is a decision"
+source = ["docs/decisions/F233.md", "docs/COMPARE.md §3"]
+when = ["docs/COMPARE.md"]
+kind = "review"
 [[rule]]
 id = "compute.token"
 title = "costly work takes the compute token and says so"

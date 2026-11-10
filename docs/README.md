@@ -39,6 +39,7 @@ need. Each document's header says what kind it is:
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | What does Decode a Lightning invoice show, and how does it open? | `docs/DESIGN.md` §5 (`Invoice`), `docs/SCANNING.md`, `docs/learn/21-lightning-invoices.md` |
+| How do two PSBTs differ, and does a replacement only raise the fee? | `docs/COMPARE.md` |
 | What does Check a signer show, and how does it open? | `docs/FLOWS.md` (Check a signer), `docs/guide/screens/signer-check.md`, `docs/learn/06-verifying.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | Where does the caret go in a text field, and how is it moved? | `docs/TEXT-CURSOR.md` |
@@ -114,6 +115,7 @@ need. Each document's header says what kind it is:
 - `docs/ACE.md`: Argon2id Compact Envelope (ACE): a proposed open format for one small secret from a fixed list (a seed, a codex32 string, a passphrase, a note, a raw key) under Argon2id, in a 29 × 29 or a 33 × 33 QR code. A draft for outside review; not built, and stays out of the app under `docs/STANDARDS.md` §0.
 - `docs/ANTI-EXFIL.md`: Anti-exfil, Faraday checking a signer and signing with it. Planned, not built; experimental, for dev builds only (F162, F176).
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
+- `docs/COMPARE.md`: Compare two PSBTs, and the fee bump: the differences between any two PSBTs or finished transactions, listed without judging, and whether a replacement only raises the fee, in Compare and on Sign a transaction's review. Specified (F233), not built.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GUIDE.md`: Faraday user guide, the index. Sections 1 to 7 are stubs pointing to `docs/guide/walk/`, one file per walkthrough; all twenty-three walkthroughs hold the written text and their pictures (`docs/guide/pictures/`), checked against the app; it waits on a test by a reader new to Faraday.
