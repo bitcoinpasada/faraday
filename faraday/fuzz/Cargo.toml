@@ -28,6 +28,7 @@ faraday-files = { path = "../faraday-files" }
 faraday-storage = { path = "../faraday-storage" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-kef = { path = "../faraday-kef" }
+faraday-ots = { path = "../faraday-ots" }
 faraday-boot = { path = "../faraday-boot" }
 # `pe_image` signs any image (`sign-any`); `release_sums` checks a
 # release's sums with faraday-pgp (F134).
@@ -131,6 +132,13 @@ bench = false
 [[bin]]
 name = "contents"
 path = "fuzz_targets/contents.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ots"
+path = "fuzz_targets/ots.rs"
 test = false
 doc = false
 bench = false

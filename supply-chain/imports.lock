@@ -125,13 +125,6 @@ version = "1.4.5"
 when = "2026-09-04"
 trusted-publisher = "github:rust-lang/cc-rs"
 
-[[publisher.chacha20poly1305]]
-version = "0.11.0"
-when = "2026-06-28"
-user-id = 267
-user-login = "tarcieri"
-user-name = "Tony Arcieri"
-
 [[publisher.cipher]]
 version = "0.5.2"
 when = "2026-05-19"
@@ -303,6 +296,11 @@ when = "2026-07-06"
 user-id = 55123
 user-login = "rust-lang-owner"
 
+[[publisher.keccak]]
+version = "0.2.2"
+when = "2026-08-21"
+trusted-publisher = "github:RustCrypto/sponges"
+
 [[publisher.libc]]
 version = "0.2.189"
 when = "2026-07-21"
@@ -402,6 +400,11 @@ user-id = 3618
 user-login = "dtolnay"
 user-name = "David Tolnay"
 
+[[publisher.ripemd]]
+version = "0.2.0"
+when = "2026-03-27"
+trusted-publisher = "github:RustCrypto/hashes"
+
 [[publisher.rsa]]
 version = "0.10.0-rc.18"
 when = "2026-04-27"
@@ -497,6 +500,11 @@ trusted-publisher = "github:RustCrypto/hashes"
 [[publisher.sha2]]
 version = "0.11.0"
 when = "2026-03-25"
+trusted-publisher = "github:RustCrypto/hashes"
+
+[[publisher.sha3]]
+version = "0.11.0"
+when = "2026-04-02"
 trusted-publisher = "github:RustCrypto/hashes"
 
 [[publisher.signature]]

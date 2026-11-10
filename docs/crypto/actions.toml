@@ -511,6 +511,12 @@ what = "Lightning offers, BOLT #12 (`core/faraday-codec/src/bolt12.rs`)"
 completeness = "Read only: the fields of an offer (`lno1`), nothing requested, paid or made; an invoice request (`lnr1`) is refused with a line of its own and any other prefix, `lni1` included, as unknown. BOLT #12 and BOLT #1 make mixed case, a `+` that does not stand between two Bech32 characters, types that do not strictly increase, a length past the end, a BigSize or truncated integer that is not minimal, a type outside 1 to 79 and 1,000,000,000 to 1,999,999,999, an unknown even type, features not minimally encoded or with an even bit set, a description, issuer or currency that is not BOLT #1's UTF-8, an amount without a description, an amount of zero, a currency without an amount, neither an issuer id nor a path, a path of no hops, a point that is not a compressed secp256k1 key, chains present but empty or of a length that is not a multiple of 32, and more than four bits of padding a refusal, and so does Faraday. Faraday is stricter where BOLT #12 leaves a case open: a text over 4,296 characters, a non-zero padding bit, whitespace after a `+` other than spaces, tabs and line breaks, a chain named twice, chains naming no Bitcoin network Faraday knows, a currency that is not three capital letters of its ISO 4217 list, an amount over 21 million bitcoin, an expiry past the year 9999, an offer_paths that holds no path, and a character of Unicode's Cn category"
 
 [[row]]
+id = "ots"
+section = 5
+what = "OpenTimestamps proofs (`faraday/faraday-ots/src/lib.rs`)"
+completeness = "Read and checked offline: a proof's magic, version 1, the file's hash and every path of operations (append, prepend, SHA-256, SHA-1, RIPEMD-160, Keccak-256, reverse, hexlify) to its attestations, against a block header the person gives, whose own proof of work must meet its stated target. A Bitcoin path counts only through SHA-256; a path through SHA-1, RIPEMD-160 or Keccak-256 is named and not counted. A pending, Litecoin, Ethereum or unknown attestation is listed and not trusted. Nothing is made or upgraded"
+
+[[row]]
 id = "qr-code"
 section = 4
 what = "QR codes (`core/faraday-codec/src/qr.rs`)"
@@ -916,6 +922,12 @@ name = "BOLT #12: Negotiation Protocol for Lightning Payments"
 status = "Deployed"
 checked = "2026-11-10"
 source = "lightning/bolts master"
+
+[standard."OpenTimestamps"]
+name = "OpenTimestamps proof files (.ots), as python-opentimestamps reads them"
+status = "Convention"
+checked = "2026-11-10"
+source = "vendored: tools/vectors/opentimestamps"
 
 [[action]]
 id = "words-read"
@@ -4276,6 +4288,97 @@ decision = "F232"
 reviewed = "2026-11-10"
 places = [
   "tools/vectors/lightning-bolt12/README.md",
+]
+
+[[action]]
+id = "ots"
+name = "Check a timestamp"
+action = "Reads an OpenTimestamps proof and follows every path of its operations from the file's hash to its attestations, and says for each Bitcoin one whether it reaches the merkle root of a block header the person gives, whose hash meets its own target."
+row = "ots"
+standards = [
+  "OpenTimestamps",
+]
+learn = "none"
+screens = []
+functions = [
+  "faraday/faraday-ots/src/lib.rs::HashOp::digest",
+  "faraday/faraday-ots/src/lib.rs::Op::apply",
+  "faraday/faraday-ots/src/lib.rs::Proof::parse",
+  "faraday/faraday-ots/src/lib.rs::Proof::verify",
+  "faraday/faraday-ots/src/lib.rs::Header::parse",
+  "faraday/faraday-ots/src/lib.rs::Header::block_hash",
+]
+code = [
+  "faraday/faraday-ots/src/lib.rs::HashOp::digest",
+  "faraday/faraday-ots/src/lib.rs::Op::apply",
+  "faraday/faraday-ots/src/lib.rs::Proof::parse",
+  "faraday/faraday-ots/src/lib.rs::Proof::verify",
+  "faraday/faraday-ots/src/lib.rs::Header::parse",
+  "faraday/faraday-ots/src/lib.rs::Header::block_hash",
+]
+
+[action.implementation]
+crate = "faraday/faraday-ots"
+libraries = [
+  "sha1",
+  "ripemd",
+  "sha3",
+]
+through = [{ library = "sha2", crate = "core/faraday-crypto" }]
+adds = "The proof's reader and the walk of its operations are written here; the hashes are the RustCrypto crates and SHA-256 is faraday-crypto's. A Bitcoin path is counted only when every hash on it is SHA-256, and the header's own proof of work is checked before it is used."
+
+[[action.implementation.written_here]]
+what = "OpenTimestamps proof reader and walk (`faraday-ots`)"
+why = "none-established"
+note = "No Rust implementation of the OpenTimestamps proof format is established; Faraday's follows python-opentimestamps and is tested against that project's example proofs."
+decision = "F230"
+
+[action.checked]
+vectors = [
+  "opentimestamps",
+]
+tests = [
+  "faraday/faraday-ots/tests/ots.rs::a_gdp_proof_through_sha256_only_is_committed_by_its_block",
+  "faraday/faraday-ots/tests/ots.rs::a_path_through_ripemd160_reaches_its_block_and_is_not_counted",
+  "faraday/faraday-ots/tests/ots.rs::a_proof_taken_with_sha1_is_named_and_not_counted",
+  "faraday/faraday-ots/tests/ots.rs::a_path_through_sha1_is_named_and_not_counted",
+  "faraday/faraday-ots/tests/ots.rs::a_path_through_keccak_or_ripemd_is_named_and_not_counted",
+  "faraday/faraday-ots/tests/ots.rs::each_operation_is_applied_in_order",
+  "faraday/faraday-ots/tests/ots.rs::the_references_invalid_examples_are_refused",
+  "faraday/faraday-ots/tests/ots.rs::what_a_proof_may_not_hold_is_refused",
+  "faraday/faraday-ots/tests/ots.rs::a_header_is_80_bytes_and_meets_its_own_target",
+  "faraday/faraday-ots/tests/ots.rs::a_header_target_above_its_networks_limit_is_refused",
+  "faraday/faraday-ots/tests/ots.rs::a_proof_over_64_kib_is_refused",
+  "faraday/faraday-ots/tests/ots.rs::a_tree_whose_operations_make_over_16_mib_is_refused",
+  "faraday/faraday-ots/tests/ots.rs::a_tree_of_over_16384_entries_is_refused",
+  "faraday/faraday-ots/tests/ots.rs::keccak256_of_nothing_is_the_published_value",
+]
+not_crosschecked = "Vectors only for now: the example proofs of the OpenTimestamps client and the blocks they name are tested here; the area that reads random proofs with python-opentimestamps is not built yet."
+fuzz = [
+  "ots",
+]
+
+[action.secrets]
+reveal = "none"
+constant_time = "Not stated; a proof and a header hold no secret."
+wiped = "Nothing secret is held."
+
+[action.limits]
+lines = [
+  "Reading only: no timestamp is made, upgraded or looked up; a pending attestation is listed with its calendar and not followed.",
+  "The header given is checked against its own target and not against the chain: a match says the file is committed to by that header.",
+  "An operation's argument or result over 4,096 bytes, a tree deeper than 256 levels, a height over 32 bits, a proof over 64 KiB, a tree of over 16,384 entries, over 16 MiB of values made by the operations in all, a header target above its network's limit and a proof with bytes after its tree are refused.",
+]
+
+[[action.own]]
+text = "A Bitcoin path counts only when the file's hash and every hash on it are SHA-256: a path through SHA-1, RIPEMD-160 or Keccak-256 is named and not counted, where python-opentimestamps counts it. Where the reference leaves a case open, Faraday refuses: an Ethereum attestation whose payload is not one height, a block height over 32 bits, a number over 64 bits, a proof over 64 KiB, a tree of over 16,384 entries or whose operations make over 16 MiB of values in all, and a header whose target is above its network's proof-of-work limit (the reference reads these without a limit)."
+kind = "Conservative"
+decision = "F230"
+
+[action.review]
+reviewed = "2026-11-10"
+places = [
+  "tools/vectors/opentimestamps/README.md",
 ]
 
 [[action]]
@@ -9853,7 +9956,13 @@ author = "the toml-rs developers"
 [library.serde_json]
 author = "David Tolnay"
 
+[library.ripemd]
+author = "the RustCrypto developers"
+
 [library.sha1]
+author = "the RustCrypto developers"
+
+[library.sha3]
 author = "the RustCrypto developers"
 
 [library.sha2]
@@ -9900,6 +10009,10 @@ by = "BOLT #11's authors (lightning/bolts): the examples of `bolt11/invoice-test
 [vector.lightning-bolt12]
 source = "published"
 by = "BOLT #12's authors (lightning/bolts): the offers of `bolt12/offers-test.json` and the strings of `bolt12/format-string-test.json`, valid and invalid, at the commit `tools/vectors/lightning-bolt12/README.md` names"
+
+[vector.opentimestamps]
+source = "published"
+by = "the OpenTimestamps client's example proofs (opentimestamps/opentimestamps-client), with the headers of the blocks they name from a public block explorer, each checked against its recorded hash"
 
 [vector.backup]
 source = "own"

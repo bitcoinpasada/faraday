@@ -514,6 +514,13 @@ start = "2024-07-23"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
 
+[[trusted.keccak]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/sponges"
+start = "2026-02-26"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md); F230: the OpenTimestamps reader's hashes"
+
 [[trusted.libc]]
 criteria = "safe-to-deploy"
 user-id = 55123 # rust-lang-owner
@@ -619,6 +626,13 @@ start = "2019-04-23"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
 
+[[trusted.ripemd]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/hashes"
+start = "2026-03-27"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md); F230: the OpenTimestamps reader's hashes"
+
 [[trusted.rsa]]
 criteria = "safe-to-deploy"
 trusted-publisher = "github:RustCrypto/RSA"
@@ -716,6 +730,13 @@ trusted-publisher = "github:RustCrypto/hashes"
 start = "2026-03-25"
 end = "2027-10-01"
 notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.sha3]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/hashes"
+start = "2026-02-26"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md); F230: the OpenTimestamps reader's hashes"
 
 [[trusted.signature]]
 criteria = "safe-to-deploy"

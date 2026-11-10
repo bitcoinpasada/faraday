@@ -31,6 +31,10 @@ crate = "faraday/faraday-files"
 reason = "Takes the compute token for its file reads; computes nothing cryptographic."
 
 [[uncovered]]
+crate = "faraday/faraday-ots"
+reason = "OpenTimestamps proofs read and walked against a block header, tested against the OpenTimestamps client's example proofs (`faraday/faraday-ots/tests/ots.rs`); no F79 area reads them with python-opentimestamps yet."
+
+[[uncovered]]
 crate = "faraday/faraday-payload"
 reason = "The Starter's SHA-256 of the images it writes (sha2); the sums are compared with `sha256sum`'s in its tests, and no F79 area runs the decoder."
 

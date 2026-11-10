@@ -11,7 +11,7 @@ screens_not 23
 # `implementation.written_here` pieces in docs/crypto/actions.toml: what Faraday writes
 # itself, each with its reason and decision. It only falls; raising it is the owner's
 # decision, recorded in DECISIONS (F178, F180).
-written_here 41
+written_here 42
 # The count of `[[not_established]]` entries: libraries the actions name that no
 # trusted publisher or imported audit establishes (ESTABLISHED §1.2). It only falls;
 # raising it is the owner's decision, recorded in DECISIONS (F180).

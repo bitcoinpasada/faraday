@@ -1,0 +1,23 @@
+[package]
+name = "faraday-ots"
+version = "0.1.10"
+description = "OpenTimestamps proofs read and checked against a Bitcoin block header, offline (docs/decisions/F230.md)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# SHA-256, the one hash a Bitcoin path is trusted through.
+faraday-crypto = { path = "../../core/faraday-crypto" }
+# The other hashes a proof's operations name: shown, never trusted.
+sha1 = { version = "0.11", default-features = false }
+ripemd = { version = "0.2", default-features = false }
+sha3 = { version = "0.11", default-features = false }
+
+[dev-dependencies]
+sha2 = { workspace = true }
+
+[lints]
+workspace = true

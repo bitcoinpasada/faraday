@@ -92,6 +92,7 @@ shipped binary does.
 | `hid_ranges` | `hid::ranges` over a USB touchscreen's HID report descriptor; the stick shell's `hid.rs` is included by path. |
 | `bip39_words` | `Mnemonic::parse`, `forms::typed_mnemonic` and `faraday_intake::file_words` over text, in the language the first byte picks. |
 | `kef` | Krux's encrypted code: `recognize` and `unwrap` over any bytes, and `open_with_key` under a fixed key on what unwraps, never past the inflate limit. |
+| `ots` | OpenTimestamps proofs: any bytes read as a proof and as a block header, and a proof that reads is walked against a fixed real header from its own digest and from a wrong one. |
 | `vault_header` | `faraday_vault::file::inspect` over any file. |
 | `keyfile` | `faraday_vault::kdbx::keyfile::read` over any file a person chooses as a vault's key file. |
 | `vault_entries` | `entries::parse` and `totp::parse`: a vault entries file and a TOTP setup code. |
