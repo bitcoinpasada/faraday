@@ -693,7 +693,9 @@ bar and the ⋮ menu (a popup under it, closed by a press outside) holds
 Appearance, About, Uninstall and Remove the boot entry. A press on a destination
 opens it at the scroll it was left at, and on the one shown goes to its
 top; Back from a task page lands on the destination it was opened from at
-the scroll it was opened at (F77). Tests are `tests/all/navigation.rs`.
+the scroll it was opened at (F77). Back from Mode keeps the chosen disk;
+Back from Confirm clears the confirmation. The mouse's forward button opens
+again the page Back left, except Confirm. Tests are `tests/all/navigation.rs`.
 
 **Transfer and Learn** are the held desktop app's frame drawn in the
 space under the Starter's top app bar (`Starter::compose`, which copies

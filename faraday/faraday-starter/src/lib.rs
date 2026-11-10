@@ -694,6 +694,8 @@ pub struct Starter {
     /// Where a task page's way back lands: the destination it was
     /// opened from, and how far that was scrolled (F77).
     origin: Option<(Page, f32)>,
+    /// The page Back left, which the mouse's forward button opens again.
+    forward: Option<Page>,
     /// How far each destination was scrolled when it was left through
     /// the rail or the bar: Home, Make, Tools (F77).
     seen_at: [f32; 3],
@@ -862,6 +864,7 @@ impl Starter {
             theme: faraday_ui::Theme::default(),
             menu: false,
             origin: None,
+            forward: None,
             seen_at: [0.0; 3],
             primaries: 0,
             hits: Vec::new(),
@@ -1170,6 +1173,11 @@ impl Starter {
     /// The number a disk's row carries.
     pub fn disk_number(&self, id: &str) -> u16 {
         self.seen.iter().position(|s| s == id).unwrap_or(0) as u16
+    }
+
+    /// The id of the disk tapped, kept while Back goes through the pages.
+    pub fn chosen_disk_id(&self) -> Option<&str> {
+        self.making.as_ref()?.disk.as_deref()
     }
 
     /// The disk tapped, as attached now.
@@ -1591,6 +1599,7 @@ impl Starter {
             self.origin = Some((self.page, self.offset));
         }
         self.page = page;
+        self.forward = None;
         self.sheet = None;
         self.menu = false;
         self.offset = 0.0;
@@ -2274,19 +2283,18 @@ impl Starter {
             | Page::TemplateSize => Page::Templates,
             _ => self.origin.map_or(Page::Home, |(p, _)| p),
         };
-        if to == Page::Disks
-            && let Some(m) = self.making.as_mut()
-        {
-            m.disk = None;
-            m.mode = None;
-        }
         if to == Page::Mode
             && let Some(m) = self.making.as_mut()
         {
             m.confirmed = None;
             m.refused = None;
         }
+        let from = self.page;
         self.go(to);
+        // A confirmation is made afresh, so Confirm is not reopened.
+        if from != Page::Confirm {
+            self.forward = Some(from);
+        }
         // Back at the destination the task was opened from: at the
         // scroll it was left at (F77).
         if to.destination().is_some()
@@ -2435,7 +2443,12 @@ impl App for Starter {
             Event::Back => self.act(StarterAction::Back),
             Event::Key(k) if self.name_key(k) => {}
             Event::Key(Key::Escape) => self.act(StarterAction::Back),
-            Event::Key(_) | Event::KeyUp(_) | Event::Shift { .. } | Event::Forward => return,
+            Event::Forward => match self.forward.take() {
+                Some(p) if self.menu || self.sheet.is_some() => self.forward = Some(p),
+                Some(p) => self.go(p),
+                None => return,
+            },
+            Event::Key(_) | Event::KeyUp(_) | Event::Shift { .. } => return,
             Event::ScrollEnd { .. } => return,
             // Everything else is the held app's: input while it is on
             // screen, and the answers to what it asked (entropy, the

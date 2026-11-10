@@ -276,3 +276,69 @@ fn a_wide_window_offers_every_make_button_on_screen() {
         }
     }
 }
+
+fn at_mode(s: &mut Starter) {
+    s.starter_event(StarterEvent::Disks(vec![stick()]));
+    s.press(StarterAction::Make(Target::Stick));
+    let n = StarterAction::Disk(s.disk_number("sdb"));
+    s.press(n);
+    s.press(StarterAction::Mode(faraday_starter::api::Mode::Whole));
+    assert_eq!(s.page, Page::Mode);
+}
+
+/// The mouse's forward button opens again the page Back left.
+#[test]
+fn forward_opens_again_the_page_back_left() {
+    let mut s = starter(700, 900);
+    tap(&mut s, StarterAction::ToolsPage);
+    tap(&mut s, StarterAction::Transfer);
+    s.event(Event::Back);
+    assert_eq!(s.page, Page::Tools);
+    s.event(Event::Forward);
+    assert!(s.showing_held());
+    // With nothing left by Back, Forward does nothing.
+    s.event(Event::Forward);
+    assert!(s.showing_held());
+}
+
+#[test]
+fn another_page_opened_after_back_clears_forward() {
+    let mut s = starter(700, 900);
+    tap(&mut s, StarterAction::MakePage);
+    tap(&mut s, StarterAction::Home);
+    s.event(Event::Back);
+    tap(&mut s, StarterAction::ToolsPage);
+    s.event(Event::Forward);
+    assert_eq!(s.page, Page::Tools);
+}
+
+#[test]
+fn back_from_mode_keeps_the_disk_chosen_and_forward_returns_to_mode() {
+    let mut s = starter(700, 900);
+    at_mode(&mut s);
+    s.event(Event::Back);
+    assert_eq!(s.page, Page::Disks);
+    assert_eq!(s.chosen_disk_id(), Some("sdb"));
+    s.event(Event::Forward);
+    assert_eq!(s.page, Page::Mode);
+    assert_eq!(s.chosen_disk_id(), Some("sdb"));
+}
+
+#[test]
+fn back_from_confirm_leaves_it_unconfirmed_and_forward_does_not_reopen_it() {
+    let mut s = starter(700, 900);
+    at_mode(&mut s);
+    s.press(StarterAction::Continue);
+    assert_eq!(s.page, Page::Confirm);
+    s.event(Event::Back);
+    assert_eq!(s.page, Page::Mode);
+    s.event(Event::Forward);
+    assert_eq!(s.page, Page::Mode);
+    s.press(StarterAction::Write);
+    assert!(
+        std::iter::from_fn(|| s.next_command())
+            .all(|c| !matches!(c, faraday_starter::api::StarterCommand::Write(_)))
+    );
+    s.press(StarterAction::Continue);
+    assert_eq!(s.page, Page::Confirm);
+}
