@@ -190,5 +190,5 @@ fn every_keepass_file_of_the_vectors_is_told_as_it_is() {
             vaults += 1;
         }
     }
-    assert_eq!((vaults, older), (11, 1));
+    assert_eq!((vaults, older), (15, 1));
 }
