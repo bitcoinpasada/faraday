@@ -527,17 +527,6 @@ pub(crate) fn secret_code(c: &Compute, bytes: &[u8]) -> Option<&'static str> {
     })
 }
 
-/// Whether every word is on one of the BIP-39 lists Faraday reads, in any
-/// case. A lookup per word.
-fn on_a_word_list(words: &[&str]) -> bool {
-    Language::ALL.iter().any(|lang| {
-        words.iter().all(|w| {
-            lang.index_of(&zeroize::Zeroizing::new(w.to_lowercase()))
-                .is_some()
-        })
-    })
-}
-
 /// Whether `text` starts as a part of `form` does, so the form's parser
 /// says what is wrong with it: a codex32 string's `ms1`, a SLIP-39
 /// share's first word, Seed XOR's words of a BIP-39 list. A lookup.
@@ -566,7 +555,8 @@ pub(crate) fn pasted_secret(c: &Compute, text: &str, seeds: bool) -> Option<&'st
     let t = text.trim();
     let words: Vec<&str> = t.split_whitespace().collect();
     // Words of any of the word lists Faraday reads, checksum or not.
-    if !seeds && matches!(words.len(), 12 | 15 | 18 | 21 | 24) && on_a_word_list(&words) {
+    if !seeds && matches!(words.len(), 12 | 15 | 18 | 21 | 24) && scan_read::on_a_word_list(&words)
+    {
         return Some(EN.pasted_words);
     }
     match faraday_intake::secret_text(c, t) {

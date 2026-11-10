@@ -708,3 +708,33 @@ fn text_read_is_masked_behind_its_eye_on_the_card() {
     assert!(!drawn.contains(NOTE), "the eye did not hide it: {drawn}");
     assert!(app.inbox().is_empty());
 }
+
+#[test]
+fn every_scanner_refuses_seed_words_of_every_list_in_any_form_pasted() {
+    let mut forms = crate::common::seed_forms();
+    for run in [crate::common::KOREAN_RUN, crate::common::FRENCH_RUN] {
+        forms.push(("run".into(), "composed", run.to_string()));
+    }
+    // Add a key's scanner loads a seed's words, as typing them would, and
+    // the codex32 form's has no use for words and says nothing.
+    for at in SCANNERS
+        .into_iter()
+        .filter(|at| !matches!(at, Opened::AddAKey | Opened::Codex32Form))
+    {
+        for (lang, form, text) in &forms {
+            // An English seed is one a scanner that loads seeds takes.
+            if lang == "English" {
+                continue;
+            }
+            let mut app = testkit::started();
+            app.clipboard = true;
+            open(&mut app, at);
+            paste(&mut app, text);
+            assert!(!filed(&app, text), "{at:?} filed {lang} {form}");
+            assert!(
+                !note(&app).is_empty(),
+                "{at:?}: {lang} {form}: no refusal named"
+            );
+        }
+    }
+}

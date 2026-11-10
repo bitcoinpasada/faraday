@@ -268,14 +268,12 @@ fn is_aezeed(words: &[&str]) -> bool {
 }
 
 /// Whether every word is on one of the BIP-39 lists Faraday reads, in any
-/// case. A lookup per word.
+/// case, composed or decomposed, with or without accents. A list lookup per
+/// word and list.
 pub(crate) fn on_a_word_list(words: &[&str]) -> bool {
-    Language::ALL.iter().any(|lang| {
-        words.iter().all(|w| {
-            lang.index_of(&zeroize::Zeroizing::new(w.to_lowercase()))
-                .is_some()
-        })
-    })
+    Language::ALL
+        .iter()
+        .any(|lang| words.iter().all(|w| lang.find_in(w).is_some()))
 }
 
 /// The kind of a whole code that is no secret, from what Files files it

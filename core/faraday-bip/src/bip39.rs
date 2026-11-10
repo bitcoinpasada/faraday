@@ -230,6 +230,68 @@ impl Language {
         bool::from(hit).then_some(found)
     }
 
+    /// The list and index of a word of free-form text, as a keyboard, a
+    /// web page or a file gives it: composed (NFC) or decomposed (NFKD),
+    /// in any case, and, for the Latin-script lists, without its accents
+    /// (the form [`fold`] gives). Searches every list in [`Language::ALL`]
+    /// order and returns the first that has it.
+    ///
+    /// Costs the whole of every list for each word, about ten times
+    /// [`index_of`](Self::index_of): every entry of every list is compared
+    /// in full, with no early exit, so the time does not follow the
+    /// word's place in a list or which list has it.
+    pub fn find(word: &str) -> Option<(Language, u16)> {
+        Self::find_among(word, &Language::ALL)
+    }
+
+    /// The index of a word of free-form text on this list: like
+    /// [`find`](Self::find), for one list, and costing one list.
+    pub fn find_in(self, word: &str) -> Option<u16> {
+        Self::find_among(word, &[self]).map(|(_, i)| i)
+    }
+
+    fn find_among(word: &str, langs: &[Language]) -> Option<(Language, u16)> {
+        use unicode_normalization::UnicodeNormalization;
+        // The word in NFKD and lower case; one longer than any listed
+        // word is on no list.
+        let mut buf = Secret::new([0u8; wordlists::MAX_NFKD_BYTES]);
+        let mut len = 0usize;
+        let mut long = false;
+        for ch in word.nfkd().flat_map(char::to_lowercase) {
+            let mut utf8 = [0u8; 4];
+            let n = ch.encode_utf8(&mut utf8).len();
+            match buf.expose_mut().get_mut(len..len + n) {
+                Some(at) => {
+                    at.copy_from_slice(&utf8[..n]);
+                    len += n;
+                }
+                None => long = true,
+            }
+        }
+        if long || len == 0 {
+            return None;
+        }
+        let nfkd = &buf.expose()[..len];
+        let exact = Padded::new(nfkd)?;
+        let plain = core::str::from_utf8(nfkd).ok().and_then(fold_bytes);
+        let plain = plain.as_ref().and_then(|(b, n)| Padded::new(&b[..*n]));
+        let mut found = (0u8, 0u16);
+        let mut hit = Choice::from(0);
+        for (l, lang) in langs.iter().enumerate() {
+            for (i, entry) in lang.words_nfkd().iter().enumerate() {
+                let mut eq = exact.ct_eq_entry(entry.as_bytes());
+                if let (Some(p), Some((e, n))) = (plain.as_ref(), fold_bytes(entry)) {
+                    eq |= p.ct_eq_entry(&e[..n]);
+                }
+                let take = eq & !hit;
+                found.0.conditional_assign(&(l as u8), take);
+                found.1.conditional_assign(&(i as u16), take);
+                hit |= eq;
+            }
+        }
+        bool::from(hit).then(|| (langs[usize::from(found.0)], found.1))
+    }
+
     /// Indices of every word whose published form starts with `prefix`,
     /// in list order. Drives the predictive keyboard.
     pub fn candidates<'a>(self, prefix: &'a str) -> impl Iterator<Item = u16> + 'a {
@@ -572,6 +634,24 @@ pub fn fold(word: &str) -> Option<Typed> {
         }
     }
     Some(out)
+}
+
+/// The word as the lists store it: decomposed (NFKD) and in lower case.
+/// Costs a copy of the word; it is for free-form text that is not secret
+/// until it matches a list ([`Language::find`] does not copy).
+pub fn nfkd_lower(word: &str) -> alloc::string::String {
+    use unicode_normalization::UnicodeNormalization;
+    word.nfkd().flat_map(char::to_lowercase).collect()
+}
+
+/// [`fold`]'s result as ASCII bytes and their count.
+fn fold_bytes(word: &str) -> Option<([u8; MAX_TYPED], usize)> {
+    let typed = fold(word)?;
+    let mut out = [0u8; MAX_TYPED];
+    for (o, c) in out.iter_mut().zip(typed.as_chars()) {
+        *o = *c as u8;
+    }
+    Some((out, typed.len()))
 }
 
 /// Raw entropy behind a mnemonic: 16, 20, 24, 28 or 32 bytes.

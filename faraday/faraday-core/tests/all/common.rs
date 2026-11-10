@@ -1883,3 +1883,50 @@ pub fn bip39_passphrase(app: &mut Faraday, text: &str) {
     app.press(Action::EntryPassphraseAgain);
     type_text(app, text);
 }
+
+/// A 12-word seed of each BIP-39 list, written as a keyboard or a web page
+/// gives it (composed), as the lists store it (decomposed) and, for the
+/// Latin lists, without accents: the list's name, the form's name, the text.
+pub fn seed_forms() -> Vec<(String, &'static str, String)> {
+    use faraday_bip::bip39::{Language, Mnemonic, fold};
+    let mut out = Vec::new();
+    for lang in Language::ALL {
+        let m = Mnemonic::from_entropy(lang, &[0x5a; 16]).expect("entropy");
+        let join = |f: &dyn Fn(u16) -> String| {
+            m.indices()
+                .iter()
+                .map(|&i| f(i))
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        out.push((
+            format!("{lang:?}"),
+            "composed",
+            join(&|i| lang.word_display(i).to_string()),
+        ));
+        out.push((
+            format!("{lang:?}"),
+            "decomposed",
+            join(&|i| lang.word_nfkd(i).to_string()),
+        ));
+        if lang.is_latin() {
+            out.push((
+                format!("{lang:?}"),
+                "accent-free",
+                join(&|i| {
+                    fold(lang.word_nfkd(i))
+                        .expect("folds")
+                        .as_chars()
+                        .iter()
+                        .collect()
+                }),
+            ));
+        }
+    }
+    out
+}
+
+/// A Korean and a French run of 12 list words, composed, as found in the
+/// wild (not seeds: no checksum is claimed).
+pub const KOREAN_RUN: &str = "가격 가끔 가난 가능 가득 가르침 가뭄 가방 가상 가슴 가운데 가을";
+pub const FRENCH_RUN: &str = "académie acquérir adéquat adhésif aérer aéronef agréable algèbre aliéner alléger alvéole aménager";

@@ -420,3 +420,32 @@ fn text_changed_after_a_show_is_checked_again_at_the_next() {
     app.press(Action::TransferText(TextPress::Show));
     assert!(app.qr().is_none());
 }
+#[test]
+fn seed_words_of_every_list_in_any_form_are_refused_alone_and_in_a_sentence() {
+    let mut forms = crate::common::seed_forms();
+    for run in [crate::common::KOREAN_RUN, crate::common::FRENCH_RUN] {
+        forms.push(("run".into(), "composed", run.to_string()));
+    }
+    for (lang, form, text) in forms {
+        let mut app = shown(&text);
+        assert!(app.qr().is_none(), "{lang} {form}: shown alone");
+        assert!(
+            said(&mut app)
+                .iter()
+                .any(|l| l.starts_with("Not shown: this is a seed's words")
+                    || l.starts_with("Not shown: this is words that fail")),
+            "{lang} {form}: not named alone"
+        );
+        let mut app = shown(&format!(
+            "Please keep this safe for me: {text}, and thanks."
+        ));
+        assert!(app.qr().is_none(), "{lang} {form}: shown in a sentence");
+        assert!(
+            said(&mut app)
+                .iter()
+                .any(|l| l.starts_with("Not shown: it holds a seed's words")
+                    || l.starts_with("Not shown: it holds words that fail")),
+            "{lang} {form}: not named in a sentence"
+        );
+    }
+}

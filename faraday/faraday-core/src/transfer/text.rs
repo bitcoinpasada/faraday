@@ -395,14 +395,21 @@ fn ur_part(c: &Compute, dec: &mut faraday_codec::ur::Decoder, tok: &str) -> Opti
     }
 }
 
-/// The words of each BIP-39 list Faraday reads, and the SLIP-39 list,
-/// as they are written.
-fn lists() -> &'static (Vec<HashSet<&'static str>>, HashSet<&'static str>) {
-    static LISTS: OnceLock<(Vec<HashSet<&'static str>>, HashSet<&'static str>)> = OnceLock::new();
+/// The words of each BIP-39 list Faraday reads, in NFKD and without their
+/// accents where a Latin list has them, and the SLIP-39 list.
+fn lists() -> &'static (Vec<HashSet<String>>, HashSet<&'static str>) {
+    static LISTS: OnceLock<(Vec<HashSet<String>>, HashSet<&'static str>)> = OnceLock::new();
     LISTS.get_or_init(|| {
         let bip39 = Language::ALL
             .iter()
-            .map(|l| l.words().iter().copied().collect())
+            .map(|l| {
+                let mut set: HashSet<String> = HashSet::new();
+                for w in l.words_nfkd() {
+                    set.extend(faraday_bip::bip39::fold(w).map(|f| f.as_chars().iter().collect()));
+                    set.insert((*w).to_owned());
+                }
+                set
+            })
             .collect();
         let slip39 = (0..faraday_bip::slip39::WORDLIST_LEN as u16)
             .map(faraday_bip::slip39::word)
@@ -429,19 +436,26 @@ fn is_mark(ch: char) -> bool {
 /// list) do not break a run.
 fn words(c: &Compute, t: &str) -> Option<Kind> {
     let (bip39, slip39) = lists();
+    // As the lists are stored: decomposed, in lower case.
     let ws: Vec<String> = t
         .split_whitespace()
         .flat_map(|tok| tok.split(|ch: char| !(ch.is_alphabetic() || is_mark(ch))))
         .filter(|w| !w.is_empty())
-        .map(str::to_lowercase)
+        .map(faraday_bip::bip39::nfkd_lower)
         .collect();
     if longest_run(&ws, |w| slip39.contains(w)) >= faraday_bip::slip39::MIN_WORDS - 1 {
         return Some(Kind::Slip39Share);
     }
+    // A word on a list as it is, or without its accents.
+    let on = |list: &HashSet<String>, w: &str| {
+        list.contains(w)
+            || faraday_bip::bip39::fold(w)
+                .is_some_and(|f| list.contains(&f.as_chars().iter().collect::<String>()))
+    };
     for list in bip39 {
         let mut start = 0;
         for end in 0..=ws.len() {
-            if end < ws.len() && list.contains(ws[end].as_str()) {
+            if end < ws.len() && on(list, &ws[end]) {
                 continue;
             }
             if end - start >= 11 {
