@@ -756,6 +756,9 @@ impl VaultArea {
     }
 }
 
+/// The fewest characters a KeePass export's passphrase may have.
+pub(crate) const KDBX_PASSPHRASE_MIN: usize = 8;
+
 /// What a one-line prompt in the contents is for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Purpose {

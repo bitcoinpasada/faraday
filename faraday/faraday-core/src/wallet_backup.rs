@@ -1902,7 +1902,7 @@ impl Faraday {
     }
 
     /// Whether the key the backup shows has words to make a paper form of.
-    fn paper_key(&self) -> bool {
+    pub(crate) fn paper_key(&self) -> bool {
         self.backup
             .state()
             .and_then(|b| self.session.keys.info(b.key))

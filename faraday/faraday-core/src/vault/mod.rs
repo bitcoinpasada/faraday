@@ -1094,7 +1094,7 @@ impl Faraday {
         match p.purpose {
             Purpose::ForWallet(v, r) => self.pass_seed_try(v, r),
             Purpose::Kdbx => {
-                if p.text.text.chars().count() < 8 {
+                if p.text.text.chars().count() < area::KDBX_PASSPHRASE_MIN {
                     p.error = Some(EN.vaults_a_passphrase.to_string());
                 } else {
                     stretch::defer(self, Work::Kdbx);
@@ -2153,34 +2153,45 @@ impl Faraday {
 
     fn vault_create_check(&mut self) {
         self.vaults.read_free();
-        let memory = self.vaults.create_memory_refusal();
-        let medium = self.medium;
+        let refusal = self.create_refusal();
         let Some(c) = self.vaults.state.create.as_mut() else {
             return;
         };
-        let error = if !self.stick.is_empty() {
-            Some(fill(EN.vaults_remove_the_first, &[medium.noun()]))
-        } else if let Some(n) = c
-            .steps()
-            .iter()
-            .position(|&i| !c.done[i as usize] && i != vstep::PHRASES)
-        {
-            c.open = Some(c.steps()[n]);
-            Some(fill(EN.vaults_finish_step, &[&(n + 1).to_string()]))
-        } else if c.phrases.iter().any(|(a, _)| a.text.is_empty()) {
-            c.open = Some(vstep::PHRASES);
-            Some(EN.vaults_every_passphrase.to_string())
-        } else if (0..c.phrases.len()).any(|i| !Vaults::phrase_ok(c, i)) {
-            c.open = Some(vstep::PHRASES);
-            Some(EN.vaults_each_passphrase.to_string())
-        } else {
-            memory
-        };
-        c.error = error;
+        if let Some((open, _)) = &refusal {
+            c.open = open.or(c.open);
+        }
+        c.error = refusal.map(|(_, text)| text);
         if c.error.is_none() {
             c.done[vstep::PHRASES as usize] = true;
             stretch::defer(self, Work::Create);
         }
+    }
+
+    /// What refuses Create as it stands: the step it opens (if any) and
+    /// the line it shows. `None` when Create goes on to make the vault.
+    pub(crate) fn create_refusal(&self) -> Option<(Option<u8>, String)> {
+        let c = self.vaults.state.create.as_ref()?;
+        if !self.stick.is_empty() {
+            return Some((
+                None,
+                fill(EN.vaults_remove_the_first, &[self.medium.noun()]),
+            ));
+        }
+        if let Some(n) = c
+            .steps()
+            .iter()
+            .position(|&i| !c.done[i as usize] && i != vstep::PHRASES)
+        {
+            let text = fill(EN.vaults_finish_step, &[&(n + 1).to_string()]);
+            return Some((Some(c.steps()[n]), text));
+        }
+        if c.phrases.iter().any(|(a, _)| a.text.is_empty()) {
+            return Some((Some(vstep::PHRASES), EN.vaults_every_passphrase.to_string()));
+        }
+        if (0..c.phrases.len()).any(|i| !Vaults::phrase_ok(c, i)) {
+            return Some((Some(vstep::PHRASES), EN.vaults_each_passphrase.to_string()));
+        }
+        self.vaults.create_memory_refusal().map(|t| (None, t))
     }
 
     /// `stem.kdbx`, or the first `stem-n.kdbx` no box holds.

@@ -24,7 +24,7 @@ pub(crate) fn new_vault_len() -> u64 {
 impl Faraday {
     // ---- the flow on screen ----
 
-    fn fi(&self) -> Option<usize> {
+    pub(crate) fn fi(&self) -> Option<usize> {
         self.flows.on.filter(|&i| i < self.flows.len())
     }
 
@@ -2091,6 +2091,26 @@ impl Faraday {
         });
     }
 
+    /// What refuses Make before it asks for the time or draws: a vault
+    /// still to unlock, a GPG key with no name.
+    pub(crate) fn flow_make_refusal(&self, i: usize) -> Option<&'static str> {
+        let ready = self
+            .flow_needed_vaults(i)
+            .iter()
+            .all(|&v| self.flow_open_index(i, v).is_some());
+        if !ready {
+            return Some(FEN.backup_flow_unlock_first);
+        }
+        let form = self.vaults.form.as_ref()?;
+        let name = |n: usize| {
+            form.fields
+                .get(n)
+                .is_none_or(|f| f.2.text.trim().is_empty())
+        };
+        (self.flows[i].kind == Kind::Gpg && name(0) && name(1))
+            .then_some(FEN.gpg_a_key_needs_a_name)
+    }
+
     fn flow_make_ask(&mut self, i: usize) {
         let (kind_, made) = {
             let f = &self.flows[i];
@@ -2101,25 +2121,8 @@ impl Faraday {
         if made || kind_.is_wallet() || !self.makes_secrets() {
             return;
         }
-        let ready = self
-            .flow_needed_vaults(i)
-            .iter()
-            .all(|&v| self.flow_open_index(i, v).is_some());
-        if !ready {
-            return self.toast(FEN.backup_flow_unlock_first);
-        }
-        let Some(form) = self.vaults.form.as_ref() else {
-            return;
-        };
-        let texts: Vec<String> = form.fields.iter().map(|f| f.2.text.to_string()).collect();
-        // The time first, as every key that keeps it asks.
-        match kind_ {
-            Kind::Gpg => {
-                if texts[0].trim().is_empty() && texts[1].trim().is_empty() {
-                    return self.toast(FEN.gpg_a_key_needs_a_name);
-                }
-            }
-            Kind::SecureBoot | Kind::Wallet => {}
+        if let Some(refusal) = self.flow_make_refusal(i) {
+            return self.toast(refusal);
         }
         if self.time_asked() {
             return;

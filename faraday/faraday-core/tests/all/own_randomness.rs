@@ -1505,3 +1505,30 @@ fn a_vault_lock_waits_for_the_answers_and_seals_by_itself() {
     testkit::settle(&mut app);
     assert!(sealed(&app).is_some(), "no second press");
 }
+
+#[test]
+fn before_the_seed_a_too_short_keepass_passphrase_is_refused_not_waited_on() {
+    use faraday_core::vault::VaultAction as V;
+    let mut app = vault_device(testkit::test_vault().unwrap());
+    open_and_change(&mut app);
+    app.press(Action::Vault(V::ExportKdbx));
+    assert!(
+        app.vaults().prompt.is_some(),
+        "the export asks for a passphrase"
+    );
+    for c in "sevench".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::Vault(V::PromptGo));
+    assert!(
+        !app.waits_for_randomness(Action::Vault(V::PromptGo)),
+        "a refused press does not wait"
+    );
+    assert_eq!(
+        app.vaults()
+            .prompt
+            .as_ref()
+            .and_then(|p| p.error.as_deref()),
+        Some("A passphrase of 8 characters or more")
+    );
+}

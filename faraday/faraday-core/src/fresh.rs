@@ -27,11 +27,10 @@ use faraday_draw::tokens::PRESS_EMPHASIS_MS;
 use faraday_shell_api::Command;
 use zeroize::Zeroizing;
 
-use crate::{Faraday, out::Out};
+use crate::{Action, Faraday, out::Out, strings::EN, vault::VaultAction as V};
 
 pub mod page;
 pub(crate) mod roller;
-mod wait;
 
 /// Answers kept waiting for the next key: as many as the most one press
 /// takes ([`Fresh::take_bytes`]), a codex32 set any nine of which recover
@@ -862,5 +861,113 @@ impl Faraday {
     /// The first display asks for the seed and fills the pool.
     pub(crate) fn fresh_ask(&mut self) {
         self.fresh.ask(&mut self.out);
+    }
+
+    /// Whether `action` is a press that draws from the system's
+    /// randomness now (`docs/OWN-RANDOMNESS.md` §8.1's rows 2, 3, 5 to
+    /// 13). A press that draws nothing in the state it is pressed in is
+    /// not one: Next before the Enter step, Sign here without a MuSig2
+    /// round.
+    fn draws_system_randomness(&self, action: Action) -> bool {
+        use crate::keygen::kstep;
+        match action {
+            Action::KNext => self
+                .keygen
+                .state()
+                .is_some_and(|k| k.slip39 && k.open == Some(kstep::ENTER) && k.ready()),
+            Action::Codex32(crate::codex32::C32::Suggest) => true,
+            Action::BXor(_) => self.makes_secrets() && self.paper_key(),
+            Action::SignHere => self
+                .wallets
+                .spend()
+                .is_some_and(|s| crate::spend_opens_round(&s.inspection)),
+            Action::Vault(V::CGo) => self.create_refusal().is_none(),
+            Action::Vault(V::SbEnrol | V::SbHoldSign) => true,
+            // A passphrase under the minimum is refused, not waited on.
+            Action::Vault(V::PromptGo) => self.vaults.prompt.as_ref().is_some_and(|p| {
+                matches!(p.purpose, crate::vault::Purpose::Kdbx)
+                    && p.text.text.chars().count() >= crate::vault::KDBX_PASSPHRASE_MIN
+            }),
+            Action::Flow(crate::backup_flow::steps::FlowAction::Make) => {
+                self.fi().is_some_and(|i| {
+                    let f = &self.flows[i];
+                    !f.kind.is_wallet()
+                        && !f.made
+                        && self.makes_secrets()
+                        && self.flow_make_refusal(i).is_none()
+                })
+            }
+            Action::BC32(crate::codex32_backup::Press::Set(
+                crate::codex32_backup::SetPress::MakeNew,
+            )) => true,
+            _ => false,
+        }
+    }
+
+    /// Run first by every press: a new press lets go of one that waits.
+    /// Returns whether this press waits now (or was refused as one that
+    /// can never be served), so nothing else is done with it.
+    pub(crate) fn seed_gate(&mut self, action: Action) -> bool {
+        self.fresh.wait_cancel();
+        if self.seeded() || !self.draws_system_randomness(action) {
+            return false;
+        }
+        if self.randomness_gives_none() {
+            self.toast(EN.no_randomness);
+        } else {
+            let answers = self.answers_for(action);
+            self.wait_for_randomness(action, answers);
+        }
+        true
+    }
+
+    /// The answers `action` takes from the pool, besides the seed.
+    fn answers_for(&self, action: Action) -> usize {
+        match action {
+            Action::SignHere => 0,
+            Action::Codex32(_) | Action::Vault(V::SbEnrol | V::SbHoldSign) => 1,
+            Action::Flow(_) => 2,
+            Action::BXor(n) => faraday_keys::seed_xor_random_len(n).div_ceil(32),
+            Action::Vault(_) => 8,
+            _ => crate::fresh::POOL,
+        }
+    }
+
+    /// A Lock that seals waits for the answers and goes on by itself.
+    pub(crate) fn lock_waits_for_seal(&mut self) {
+        self.out.commands.push_back(Command::RequestEntropy);
+        if !self.randomness_gives_none() {
+            self.wait_for_randomness(Action::Lock, self.seal_answers_needed());
+        }
+    }
+
+    /// `action` waits for the seed and the answers; they are asked for.
+    pub(crate) fn wait_for_randomness(&mut self, action: Action, answers: usize) {
+        let now = self.now_ms;
+        self.fresh.wait_on(action, now, answers);
+        self.out.command(Command::RequestEntropy);
+        self.out.redraw();
+    }
+
+    /// Whether `action` is the press that waits: its button reads
+    /// "Waiting for randomness".
+    pub fn waits_for_randomness(&self, action: Action) -> bool {
+        self.fresh.waiting() == Some(action)
+    }
+
+    /// `label`, or "Waiting for randomness" while `action` waits.
+    pub fn wait_label<'a>(&self, action: Action, label: &'a str) -> &'a str {
+        if self.waits_for_randomness(action) {
+            EN.waiting_for_randomness
+        } else {
+            label
+        }
+    }
+
+    /// An answer arrived: the press that waits goes on once they are in.
+    pub(crate) fn seed_replay(&mut self) {
+        if let Some(action) = self.fresh.take_ready() {
+            self.act(action);
+        }
     }
 }
