@@ -2246,7 +2246,10 @@ coordinate of its key, its nonce point (ECDSA's `r`, or BIP-340's `R.x`,
 on the key path, the script path, partial fields and final witnesses
 alike) and the sighash it verified against. This device's own signatures,
 a cosigner's brought in by Collect, and every signature of a file the
-Nonce check page opens are remembered alike. A row not checked (no output
+Nonce check page opens are remembered alike, but only under a key proved
+here, derived at the place the file states for it by a key of a wallet
+registered here or by a loaded master; any other key, a fingerprint filed
+beside it or not, is neither remembered nor compared. A row not checked (no output
 stated, a leaf not run, a preimage) has no message, and is neither
 remembered nor compared. The entries of one transaction are kept
 together, as `docs/VAULT.md` §7 writes them.

@@ -496,7 +496,7 @@ Moved to `docs/history/VAULT-HARDENING-LOG.md`.
 | `faraday/faraday-keys/src/vault.rs` | `&str` passphrases; `sealed` passes the time; the copy-read of §5.3 (`OpenVaults::copy_seals`, costs one decryption) |
 | `faraday/faraday-core/src/vault/mod.rs`, `area.rs`, `screen.rs` | the count shown; the highest seen kept on the summary; Unlock's lines |
 | `faraday/faraday-core/src/visit_taken.rs` and the visit's writing | §5.3 items 2 and 3 |
-| `faraday/faraday-core/src/memory.rs` | the summary's new fields under `vault-summaries` |
+| `faraday/faraday-core/src/memory/mod.rs` | the summary's new fields under `vault-summaries` |
 | `faraday/faraday-core/src/plan/text.rs`, `faraday/faraday-core/src/plan/` and the backup flow's record writing | §5.6's lines: read past by the answers, written and read by the plan area |
 | `faraday/faraday-intake/src/lib.rs`, `faraday/faraday-files/src/lib.rs`, `faraday/faraday-core/src/visit_taken.rs`, `faraday/faraday-core/src/lib.rs`, `faraday/faraday-core/src/boot_import/mod.rs`, `faraday/faraday-core/src/stick/wipe.rs` | §2.1: a vault by its magic and size |
 | `faraday/faraday-strings/src/en.rs` | §5.2's strings |

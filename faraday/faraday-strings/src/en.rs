@@ -5327,6 +5327,14 @@ strings! {
     nonce_check_witness_wrong: "Nonce check · signing data does not match its output",
     /// Text in `nonce_check`. `{}`: `reuse.name()`, `inputs.join(", ")`.
     nonce_check_one_nonce: "{}: one nonce on inputs {} · this gives the key away",
+    /// Line in `nonce_card` when the nonce history was compared and nothing was used before.
+    nonce_history_clean: "Not seen before in this vault",
+    /// Line in `nonce_card` when the nonce history of several open vaults was compared. `{}`: how many.
+    nonce_history_clean_vaults: "Not seen before in {} open vaults",
+    /// Line in `nonce_card` when nonce records of a vault do not read. `{}`: how many.
+    nonce_history_unread: "Not checked against this vault: {} nonce records do not read",
+    /// Line in `nonce_card` for a key whose nonce an open vault holds over another message. `{}`: the key's name, the inputs.
+    nonce_history_used: "{}: nonce used before, on another transaction, on inputs {}",
     /// Text in `nonce_check`. `{}`: `r.input`.
     nonce_check_input: "Input {}",
     /// Text in `nonce_check`.
@@ -5380,6 +5388,8 @@ strings! {
     nonce_screen_more_wanted: "Not finished: more signatures are wanted",
     /// Line in `Screen::NonceCheck` when a signature is wrong.
     nonce_screen_refused: "Not finished: a signature is wrong",
+    /// Line in `Screen::NonceCheck` when a key's nonce was used before on another transaction.
+    nonce_screen_refused_used: "Not finished: a nonce was used before",
     /// Line in `Screen::NonceCheck` when a PSBT has an input, final or not, whose output cannot be read or is stated falsely.
     nonce_screen_refused_unread: "Not finished: an input's output cannot be read",
     /// Line in `Screen::NonceCheck` when a PSBT has an input, final or not, whose `witness_utxo` and previous transaction state different outputs.

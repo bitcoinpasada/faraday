@@ -4823,7 +4823,7 @@ functions = [
   "core/faraday-psbt/src/context.rs::KeyRef::from_master",
   "core/faraday-psbt/src/context.rs::KeyRef::derive_key",
   "faraday/faraday-core/src/register.rs::path_text",
-  "faraday/faraday-core/src/memory.rs::stated",
+  "faraday/faraday-core/src/memory/mod.rs::stated",
   "faraday/faraday-core/src/wallet.rs::psbt_network",
   "faraday/faraday-core/src/wallet.rs::Faraday::register_act",
   "faraday/faraday-core/src/wallet.rs::Spend::collect",

@@ -2445,3 +2445,40 @@ pub fn show_busy(app: &mut crate::Faraday, line: &'static str, done: u32, of: u3
 pub fn end_busy(app: &mut crate::Faraday) {
     app.job_locked();
 }
+
+/// The nonce history holds `entries` as what open vault `id` was read to
+/// hold, as the vault's reader will leave it.
+pub fn nonce_history_held(
+    app: &mut crate::Faraday,
+    id: faraday_keys::vault::VaultId,
+    entries: &[crate::memory::nonces::NonceEntry],
+    unreadable: usize,
+) {
+    app.memory.nonces.take_held(id, entries, unreadable);
+}
+
+/// The nonce history's pending entries, as `(transaction, entries)`.
+pub fn nonce_history_pending(
+    app: &crate::Faraday,
+) -> Vec<([u8; 32], Vec<crate::memory::nonces::NonceEntry>)> {
+    app.memory.nonces.pending().to_vec()
+}
+
+/// Closes vault `id` for the nonce history.
+pub fn nonce_history_drop(app: &mut crate::Faraday, id: faraday_keys::vault::VaultId) {
+    app.memory.nonces.drop_vault(id);
+}
+
+/// Notes `entries` of transaction `tx` in the nonce history.
+pub fn nonce_history_note(
+    app: &mut crate::Faraday,
+    tx: [u8; 32],
+    entries: &[crate::memory::nonces::NonceEntry],
+) {
+    app.memory.nonces.note(tx, entries);
+}
+
+/// Sets whether the nonce history is kept.
+pub fn nonce_history_on(app: &mut crate::Faraday, on: bool) {
+    app.memory.nonces.set_on(on);
+}

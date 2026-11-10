@@ -918,7 +918,8 @@ impl Session {
         self.keys.recompute_signatures_all(c, view)
     }
 
-    /// Costs what `key_refs` and `deterministic` cost, a few classifies
+    /// Costs one derivation per signature, and what `key_refs` and
+    /// `deterministic` cost, a few classifies
     /// per input, and, per final input, what [`Spend::refused`] costs twice
     /// over (the refusal and the rows), a taproot script-path one's
     /// interpreter run and signature checks included. The cost is per input, linear in the file
@@ -957,9 +958,34 @@ impl Session {
                     (None, Some(_)) if sig.ours && sig.finalized => Some(Unmatched::Finalized),
                     (None, Some(_)) => None,
                 };
+                // Only a key proved here is kept and compared: derived at
+                // its stated place by a registered wallet's key or by a
+                // loaded master. A file could otherwise fill the history
+                // with keys of its own.
+                let named = sig.fingerprint.is_some_and(|fp| {
+                    let Some(inner) = psbt.inner().inputs.get(input.index) else {
+                        return false;
+                    };
+                    let Some((path, stated)) = faraday_psbt::verify::stated_place(inner, &sig)
+                    else {
+                        return false;
+                    };
+                    self.wallets
+                        .iter()
+                        .any(|w| w.derives(c, fp, &path, &stated))
+                        || self.keys.position(fp).is_some_and(|pos| {
+                            self.keys
+                                .xpub_at(c, pos, &path)
+                                .is_some_and(|x| stated.is(&x.public_key))
+                        })
+                });
+                let entry = named
+                    .then(|| crate::memory::nonces::NonceEntry::of_signature(&sig))
+                    .flatten();
                 rows.push(NonceRow {
                     input: input.index,
                     name: sig.name(),
+                    entry,
                     verdict: sig.verdict,
                     preimage: sig.preimage,
                     recomputed,
@@ -988,6 +1014,11 @@ impl Session {
             reused,
             unread,
             disagree,
+            tx: crate::memory::tx_hash(psbt),
+            partials: Vec::new(),
+            used_before: Vec::new(),
+            history: crate::memory::nonces::History::Off,
+            history_gen: 0,
         }
     }
 

@@ -271,6 +271,34 @@ pub fn verified_partials(
     index: usize,
     session: &crate::inspect::MusigInput,
 ) -> Vec<PublicKey> {
+    verified_rounds(c, psbt, index, session)
+        .into_iter()
+        .map(|v| v.participant)
+        .collect()
+}
+
+/// One verified partial signature with what makes its nonce's use known
+/// again (the nonce history, F227).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VerifiedPartial {
+    /// The participant whose partial signature verifies.
+    pub participant: PublicKey,
+    /// The x coordinate of the first point of the participant's public
+    /// nonce.
+    pub nonce_x: [u8; 32],
+    /// SHA-256 of the sighash and the aggregate nonce (66 bytes): the same
+    /// for every partial signature of one round.
+    pub round: [u8; 32],
+}
+
+/// Costs what [`verified_partials`] costs. The partial signatures of
+/// `session` on input `index` that verify, each with its nonce and round.
+pub fn verified_rounds(
+    c: &faraday_crypto::work::Compute,
+    psbt: &crate::Psbt,
+    index: usize,
+    session: &crate::inspect::MusigInput,
+) -> Vec<VerifiedPartial> {
     c.count(faraday_crypto::work::Work::Sign);
     let Some(input) = psbt.inner().inputs.get(index) else {
         return Vec::new();
@@ -311,7 +339,16 @@ pub fn verified_partials(
         )
         .is_ok()
         {
-            out.push(participant);
+            let mut nonce_x = [0u8; 32];
+            nonce_x.copy_from_slice(&nonces[at].serialize()[1..33]);
+            let mut engine = bitcoin::hashes::sha256::HashEngine::default();
+            engine.input(&msg);
+            engine.input(&aggnonce.serialize());
+            out.push(VerifiedPartial {
+                participant,
+                nonce_x,
+                round: bitcoin::hashes::sha256::Hash::from_engine(engine).to_byte_array(),
+            });
         }
     }
     out

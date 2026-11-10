@@ -52,6 +52,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             }
         } else if o.check.disagree_first() {
             (EN.nonce_screen_refused_disagree, Role::Error)
+        } else if !o.check.used_before.is_empty() && o.check.reused.is_empty() {
+            (EN.nonce_screen_refused_used, Role::Error)
         } else if o.check.wrong() {
             (EN.nonce_screen_refused, Role::Error)
         } else if wrong {

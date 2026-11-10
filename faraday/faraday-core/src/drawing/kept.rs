@@ -930,16 +930,25 @@ impl View<'_> {
     /// makes it where the file changes, and a PSBT that is other than the
     /// kept one (a write that did not refresh) is checked here. Costs the
     /// session's account keys, a derivation per signature made here and
-    /// the checks, in that case.
+    /// the checks, in that case; a map lookup per signature when only the
+    /// nonce history changed.
     pub(crate) fn nonce_check(&self, psbt: &faraday_psbt::Psbt) -> Option<Rc<NonceCheck>> {
         let s = self.wallets.spend()?;
         let mut cache = s.nonce_check.borrow_mut();
-        if let Some((p, check)) = cache.as_ref()
+        let history = self.app.nonce_snapshot();
+        if let Some((p, check)) = cache.as_mut()
             && p == psbt
         {
+            if check.history_gen != history.generation() {
+                // Only the history changed: compared again, nothing checked
+                // again. Costs a map lookup per signature.
+                Rc::make_mut(check).against(&history);
+            }
             return Some(check.clone());
         }
-        let check = Rc::new(self.kept(|c| self.session.nonce_check(c, psbt)));
+        let mut check = self.kept(|c| self.session.nonce_check(c, psbt));
+        check.against(&history);
+        let check = Rc::new(check);
         *cache = Some((psbt.clone(), check.clone()));
         Some(check)
     }

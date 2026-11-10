@@ -73,7 +73,7 @@ correction across them.
 The offset survives a lock. The stick and Pi shells start a new app
 process at every lock (exit 75), so the offset goes into what the app
 keeps across a lock (`kept()` and `restore_kept()` in
-`faraday-core/src/memory.rs`) as its own item, `"clock"`, whose text is
+`faraday-core/src/memory/mod.rs`) as its own item, `"clock"`, whose text is
 `offset=<i64>` and `checked=0|1` on separate lines. It does **not** go
 into `settings_body()`: an offset is meaningless after a power-off,
 when the Pi's clock restarts at 1970. A power-off loses it.

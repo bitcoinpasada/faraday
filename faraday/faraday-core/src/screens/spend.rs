@@ -2,6 +2,7 @@
 
 use super::parts::{made_place, side_panel_w, spaced};
 use crate::drawing::{Scrolled, View};
+use crate::memory::nonces::History;
 use crate::review::unchecked_text;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -67,6 +68,7 @@ pub(crate) fn nonce_card(
         );
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }
+    cy += history_lines(ui, check, x, cy, w);
     for input in check.mismatched.iter().take(SHOWN) {
         let text = if check.fields_refused.contains(input) {
             EN.psbt_final_signature_refused
@@ -129,6 +131,32 @@ pub(crate) fn nonce_card(
         cy += 32.0;
     }
     cy + 12.0 - y
+}
+
+/// The nonce history's lines under the headline: a red line per key used
+/// before, and what the history was compared against. Returns the height.
+fn history_lines(ui: &mut Ui, check: &crate::wallet::NonceCheck, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    for used in &check.used_before {
+        let inputs: Vec<String> = used.inputs.iter().map(|i| i.to_string()).collect();
+        let line = fill(EN.nonce_history_used, &[&used.name, &inputs.join(", ")]);
+        cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
+    }
+    let (line, tone) = match check.history {
+        History::Clean { .. } if !check.used_before.is_empty() => return cy - y,
+        History::Off => return cy - y,
+        History::Clean { vaults } if vaults > 1 => (
+            fill(EN.nonce_history_clean_vaults, &[&vaults.to_string()]),
+            Role::OnSurfaceVariant,
+        ),
+        History::Clean { .. } => (EN.nonce_history_clean.to_string(), Role::OnSurfaceVariant),
+        History::Unread { records, .. } => (
+            fill(EN.nonce_history_unread, &[&records.to_string()]),
+            Role::Warning,
+        ),
+    };
+    cy += ui.wrap_as((x, cy, w), LABEL_L, tone, &line) + GAP;
+    cy - y
 }
 
 /// A nonce check row's verdict and its tone. A lookup.
@@ -2089,6 +2117,7 @@ mod tests {
             preimage,
             recomputed: None,
             unmatched: None,
+            entry: None,
         }
     }
 

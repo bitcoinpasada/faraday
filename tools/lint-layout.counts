@@ -42,7 +42,7 @@ impl-faraday faraday/faraday-core/src/keygen/mod.rs
 impl-faraday faraday/faraday-core/src/learn.rs
 impl-faraday faraday/faraday-core/src/lib.rs
 impl-faraday faraday/faraday-core/src/lightning/mod.rs
-impl-faraday faraday/faraday-core/src/memory.rs
+impl-faraday faraday/faraday-core/src/memory/mod.rs
 impl-faraday faraday/faraday-core/src/modes/mod.rs
 impl-faraday faraday/faraday-core/src/motion.rs
 impl-faraday faraday/faraday-core/src/qr_view.rs

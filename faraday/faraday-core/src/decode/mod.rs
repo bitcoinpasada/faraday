@@ -306,6 +306,9 @@ pub struct OutsideCheck {
     pub back: Screen,
     /// The hex is shown.
     pub show_hex: bool,
+    /// `finished`, `hex` and `out` as worked out with no regard to the
+    /// nonce history, put back when the history stops refusing the check.
+    worked: Worked,
     /// The keys and wallets it was checked with.
     made_with: crate::wallet::InspectInputs,
     /// The PSBT checked (a raw transaction wrapped, its signatures
@@ -314,6 +317,35 @@ pub struct OutsideCheck {
     /// What the inputs spend, as far as is known, and from where, for
     /// Decode.
     prevouts: (Vec<Option<TxOut>>, AmountsFrom),
+}
+
+/// What [`OutsideCheck`] offers when the nonce history refuses nothing.
+struct Worked {
+    finished: Option<Transaction>,
+    hex: Option<String>,
+    out: (String, Vec<u8>),
+}
+
+impl OutsideCheck {
+    /// Costs a map lookup per signature. Compares the check with the
+    /// history `h` when the history has changed since: what is offered
+    /// goes when the check turns wrong, and comes back as worked out when
+    /// it turns right again. Whether it was compared again.
+    pub(crate) fn sync(&mut self, h: &crate::memory::nonces::HistorySnapshot) -> bool {
+        if self.check.history_gen == h.generation() {
+            return false;
+        }
+        self.check.against(h);
+        if self.check.wrong() {
+            self.finished = None;
+            self.hex = None;
+        } else {
+            self.finished = self.worked.finished.clone();
+            self.hex = self.worked.hex.clone();
+            self.out = self.worked.out.clone();
+        }
+        true
+    }
 }
 
 /// A press on the nonce check of a transaction brought in
@@ -589,14 +621,20 @@ impl Faraday {
             }
             _ => return,
         };
-        let check = self.session.nonce_check(c, &psbt);
+        let mut check = self.session.nonce_check(c, &psbt);
+        // Costs a map lookup per signature: each against the nonce history.
+        check.against(&self.nonce_snapshot());
+        self.note_nonces(&check);
         // A wrong signature, a witness or a nonce used twice refuses the
-        // transaction: nothing finished is offered.
-        let finished = if check.wrong() {
+        // transaction: nothing finished is offered. What would be offered
+        // with the history set aside is kept, for when it stops refusing.
+        let mut plain = check.clone();
+        plain.used_before.clear();
+        let finished = if plain.wrong() {
             None
         } else if let Some(tx) = &raw {
             Some(tx.clone())
-        } else if check.unread > 0 {
+        } else if plain.unread > 0 {
             // An input whose output does not read, or states one falsely,
             // is one nothing of can be checked: no transaction is finished
             // from the PSBT.
@@ -613,12 +651,23 @@ impl Faraday {
             ),
             _ => (name.clone(), bytes),
         };
+        let worked = Worked {
+            finished: finished.clone(),
+            hex: hex.clone(),
+            out: out.clone(),
+        };
+        let (finished, hex) = if check.wrong() {
+            (None, None)
+        } else {
+            (finished, hex)
+        };
         self.decode.outside = Some(Box::new(OutsideCheck {
             source: name,
             check,
             finished,
             hex,
             out,
+            worked,
             out_name: None,
             back,
             show_hex: false,
@@ -637,18 +686,39 @@ impl Faraday {
     /// none that came.
     pub(crate) fn nonce_check_back(&mut self, c: &Compute) {
         let now = self.session.inspect_inputs();
-        if let Some(o) = self.decode.outside.as_mut()
-            && o.made_with != now
-        {
-            o.check = self.session.nonce_check(c, &o.psbt);
-            if o.check.wrong() {
-                o.finished = None;
-                o.hex = None;
+        let history = self.nonce_snapshot();
+        let mut noted = None;
+        if let Some(o) = self.decode.outside.as_mut() {
+            if o.made_with != now {
+                o.check = self.session.nonce_check(c, &o.psbt);
+                o.made_with = now;
+                o.check.history_gen = u64::MAX;
             }
-            o.made_with = now;
+            // The history may have changed since the check was made.
+            o.sync(&history);
+            noted = Some(o.check.entries());
+        }
+        if let (Some(entries), Some(o)) = (noted, self.decode.outside.as_ref()) {
+            let tx = o.check.tx;
+            self.memory.nonces.note(tx, &entries);
         }
         self.screen = Screen::NonceCheck;
         self.list_offset = 0.0;
+    }
+
+    /// Costs a map lookup per signature. The nonce check page's check
+    /// compared again when the history changed under it (a vault opened or
+    /// closed, the setting turned), and what it now says noted. Run after
+    /// every input and before the presses that carry the check on.
+    pub(crate) fn nonce_outside_sync(&mut self) {
+        let history = self.nonce_snapshot();
+        let Some(o) = self.decode.outside.as_mut() else {
+            return;
+        };
+        if o.sync(&history) {
+            let (tx, entries) = (o.check.tx, o.check.entries());
+            self.memory.nonces.note(tx, &entries);
+        }
     }
 
     /// Costs what the presses below cost: the nonce check's own presses
@@ -663,6 +733,7 @@ impl Faraday {
                 }
             }
             CheckPress::Qr => {
+                self.nonce_outside_sync();
                 let Some(o) = self
                     .decode
                     .outside
@@ -679,6 +750,7 @@ impl Faraday {
             }
             // A transaction the check refuses is not offered to carry on.
             CheckPress::Out => {
+                self.nonce_outside_sync();
                 if let Some(o) = self.decode.outside.as_ref()
                     && !o.check.refused(o.hex.is_some())
                 {
@@ -691,6 +763,7 @@ impl Faraday {
                 }
             }
             CheckPress::Decode => {
+                self.nonce_outside_sync();
                 let Some(o) = self.decode.outside.as_ref() else {
                     return;
                 };
@@ -747,6 +820,24 @@ impl Faraday {
                 }
             }
             Action::QrDecoded => {
+                // Opened from the nonce check page: the history is compared
+                // again first, as the page's presses do.
+                if self
+                    .decode
+                    .state
+                    .as_ref()
+                    .is_some_and(|d| d.back == Screen::NonceCheck)
+                {
+                    self.nonce_outside_sync();
+                    if self
+                        .decode
+                        .outside
+                        .as_deref()
+                        .is_some_and(|o| o.check.refused(o.hex.is_some()))
+                    {
+                        return;
+                    }
+                }
                 if let Some(hex) = self.decode.hex() {
                     let hex = hex.to_string();
                     self.open_qr(QrView::text(c, EN.act_transaction, &hex));

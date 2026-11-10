@@ -15,6 +15,8 @@ use faraday_psbt::Psbt;
 use faraday_vault::Record;
 use faraday_vault::records::kind;
 
+pub mod nonces;
+
 use crate::Faraday;
 use crate::wallet::FileKind;
 
@@ -45,6 +47,12 @@ const MAX: usize = 1000;
 
 /// One signed transaction: its hash and what each input stated.
 pub type Signed = ([u8; 32], Vec<u64>);
+
+/// The unsigned transaction's SHA-256: what ties a record to it. Costs a
+/// serialization.
+pub fn tx_hash(psbt: &Psbt) -> [u8; 32] {
+    sha256::Hash::hash(&serialize(&psbt.inner().unsigned_tx)).to_byte_array()
+}
 
 /// The unsigned transaction's SHA-256, and the amount each input states,
 /// when every input states one the PSBT's own checks read. Costs a txid
@@ -134,6 +142,8 @@ pub(crate) struct MemoryArea {
     held: Vec<(faraday_keys::vault::VaultId, Signed)>,
     /// Seal the signed-amount memory into an open vault on lock.
     seal_amounts: bool,
+    /// The nonce history (F227).
+    pub(crate) nonces: nonces::NonceHistory,
     /// The wallets, by descriptor checksum, a person has pressed
     /// Continue on Check (Sign a transaction, Create) or "It matches"
     /// (Spend tab) for, this power-on (`docs/WALLETS.md` §4).
@@ -146,6 +156,7 @@ impl Default for MemoryArea {
             signed_amounts: Vec::new(),
             held: Vec::new(),
             seal_amounts: true,
+            nonces: nonces::NonceHistory::default(),
             checked_wallets: Vec::new(),
         }
     }
@@ -244,6 +255,17 @@ impl MemoryArea {
 }
 
 impl Faraday {
+    /// What a nonce check is compared against. Cheap.
+    pub(crate) fn nonce_snapshot(&self) -> nonces::HistorySnapshot {
+        self.memory.nonces.snapshot()
+    }
+
+    /// Adds the signatures `check` found valid to what is waiting for a
+    /// vault: only with the setting on and a vault open.
+    pub(crate) fn note_nonces(&mut self, check: &crate::wallet::NonceCheck) {
+        self.memory.nonces.note(check.tx, &check.entries());
+    }
+
     /// Whether the same transaction was signed stating other amounts:
     /// here, or as an open vault remembers it.
     pub(crate) fn amounts_refused(&self, psbt: &Psbt) -> bool {

@@ -156,6 +156,9 @@ pub struct SignaturePresent {
     pub finalized: bool,
     /// What checking it came to.
     pub verdict: Verdict,
+    /// The message the signature verified against (the sighash), where
+    /// `verdict` is [`Verdict::Valid`]; `None` for every other row.
+    pub message: Option<[u8; 32]>,
     /// A hash of this element is pushed in the taproot leaf, so it is
     /// data and not a signature: its sighash byte is not compared with
     /// what the input asks.
@@ -518,27 +521,7 @@ fn input_rows<C: secp256k1::Verification>(
     // A script that is not run proves no signature on it wrong.
     let unrun = judgement == Judgement::NotJudged && not_evaluated_of(&c, input);
     let mut out = Vec::with_capacity(present.len());
-    let mut checked = Vec::with_capacity(present.len());
-    let mut messages = BTreeMap::new();
-    let mut verified = 0;
-    if !present.is_empty() {
-        rest.with(index, &c, |restored, hashes| {
-            for p in &present {
-                let mut preimage = false;
-                if p.finalized && p.kind == SigKind::Ecdsa {
-                    verified += 1;
-                    if limited || verified > ROW_BOUND {
-                        let unchecked = Verdict::Unchecked(Unchecked::UnsupportedScript);
-                        checked.push((p.key.clone(), unchecked, false));
-                        continue;
-                    }
-                }
-                let at = (&mut *restored, &mut *hashes);
-                let (key, verdict) = check(secp, at, &c, index, p, &mut preimage, &mut messages);
-                checked.push((key, verdict, preimage));
-            }
-        });
-    }
+    let (checked, signed) = check_rows(secp, rest, &c, index, &present, limited);
     // A multisig's signatures stand in the script's key order, each key
     // walked forward as `OP_CHECKMULTISIG` walks them. What the
     // interpreter accepts needs no walk of ours.
@@ -550,7 +533,9 @@ fn input_rows<C: secp256k1::Verification>(
                 &present,
                 &checked,
             ));
-    for (p, (key, mut verdict, preimage)) in present.into_iter().zip(checked) {
+    for ((p, (key, mut verdict, preimage)), signed_over) in
+        present.into_iter().zip(checked).zip(signed)
+    {
         // A finalized script-path witness, or a finalized ECDSA scriptSig or
         // witness, that does not commit to the output signs nothing the
         // output holds: no row of it is valid (a proven preimage is data,
@@ -614,12 +599,56 @@ fn input_rows<C: secp256k1::Verification>(
             key,
             fingerprint,
             ours,
+            message: signed_over.filter(|_| verdict == Verdict::Valid),
             verdict,
             preimage,
             origin_left_out,
         });
     }
     (out, judgement)
+}
+
+/// What [`check_rows`] gives: the (key, verdict, preimage) of each signature and the message it verified against.
+type Checked = (Vec<(SigKey, Verdict, bool)>, Vec<Option<[u8; 32]>>);
+
+/// One verdict per signature found on an input, as (key, verdict,
+/// preimage), and the message each verified against.
+fn check_rows<C: secp256k1::Verification>(
+    secp: &Secp256k1<C>,
+    rest: &mut Rest,
+    c: &Classified,
+    index: usize,
+    present: &[Present],
+    limited: bool,
+) -> Checked {
+    let mut checked = Vec::with_capacity(present.len());
+    let mut signed = Vec::with_capacity(present.len());
+    let mut messages = BTreeMap::new();
+    let mut verified = 0;
+    if present.is_empty() {
+        return (checked, signed);
+    }
+    rest.with(index, c, |restored, hashes| {
+        for p in present {
+            let mut preimage = false;
+            if p.finalized && p.kind == SigKind::Ecdsa {
+                verified += 1;
+                if limited || verified > ROW_BOUND {
+                    let unchecked = Verdict::Unchecked(Unchecked::UnsupportedScript);
+                    checked.push((p.key.clone(), unchecked, false));
+                    signed.push(None);
+                    continue;
+                }
+            }
+            let at = (&mut *restored, &mut *hashes);
+            let mut signed_over = None;
+            let aside = (&mut preimage, &mut signed_over);
+            let (key, verdict) = check(secp, at, c, index, p, aside, &mut messages);
+            checked.push((key, verdict, preimage));
+            signed.push(signed_over);
+        }
+    });
+    (checked, signed)
 }
 
 /// The multisig script input `index`'s final data spends, where it is one
@@ -2140,7 +2169,7 @@ fn check<C: secp256k1::Verification>(
     c: &Classified,
     index: usize,
     p: &Present,
-    preimage: &mut bool,
+    (preimage, signed_over): (&mut bool, &mut Option<[u8; 32]>),
     messages: &mut BTreeMap<u32, Option<Message>>,
 ) -> (SigKey, Verdict) {
     let Some(utxo) = c.utxo.as_ref() else {
@@ -2164,6 +2193,7 @@ fn check<C: secp256k1::Verification>(
                     Verdict::Unchecked(Unchecked::UnsupportedScript),
                 );
             };
+            *signed_over = Some(*msg.as_ref());
             let verify = |key: &SigKey| match key {
                 SigKey::Ecdsa(pk) => secp.verify_ecdsa(&msg, &sig.signature, &pk.inner).is_ok(),
                 _ => false,
@@ -2212,6 +2242,7 @@ fn check<C: secp256k1::Verification>(
                     Verdict::Unchecked(Unchecked::UnsupportedScript),
                 );
             };
+            *signed_over = Some(*msg.as_ref());
             let verify = |key: &SigKey| match key {
                 SigKey::Schnorr(xonly) => secp.verify_schnorr(&sig.signature, &msg, xonly).is_ok(),
                 _ => false,

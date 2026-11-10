@@ -139,7 +139,7 @@ file = "faraday/faraday-core/src/lib.rs"
 reason = "`Faraday::address_note` parses a typed address with rust-bitcoin to name its network; computes nothing on a secret."
 
 [[uncovered]]
-file = "faraday/faraday-core/src/memory.rs"
+file = "faraday/faraday-core/src/memory/mod.rs"
 reason = "SHA-256 of an unsigned transaction (rust-bitcoin), the key of the signed-amount memory (F136); no F79 area runs it."
 
 [[uncovered]]

@@ -237,7 +237,7 @@ fn = "parse_path"
 target = "faraday/fuzz/fuzz_targets/core_text.rs"
 
 [[parser]]
-file = "faraday/faraday-core/src/memory.rs"
+file = "faraday/faraday-core/src/memory/mod.rs"
 fn = "decode"
 target = "faraday/fuzz/fuzz_targets/memory_kept.rs"
 

@@ -1,10 +1,12 @@
 //! The nonce check's findings (`Session::nonce_check`), as Spend's Send
 //! it card and the nonce check page draw them.
 
+use crate::memory::nonces::{History, HistorySnapshot, NonceEntry, UsedBefore};
 use crate::strings::{EN, fill};
 use faraday_psbt::verify::Verdict;
 
 /// What the nonce check found ([`Session::nonce_check`]).
+#[derive(Clone)]
 pub struct NonceCheck {
     /// Every signature, in input order.
     pub rows: Vec<NonceRow>,
@@ -33,9 +35,68 @@ pub struct NonceCheck {
     /// spend and that the script's interpreter refuses: a forged signature
     /// among them also has its Invalid row.
     pub fields_refused: Vec<usize>,
+    /// The unsigned transaction's SHA-256: what its entries are kept under.
+    pub tx: [u8; 32],
+    /// MuSig2 partial signatures that verified, as entries by input:
+    /// empty until the spend's partial signatures are added; the Nonce
+    /// check page has none.
+    pub partials: Vec<(usize, String, NonceEntry)>,
+    /// Keys whose nonce an open vault holds over another message
+    /// ([`NonceCheck::against`]).
+    pub used_before: Vec<UsedBefore>,
+    /// What the nonce history said of this check.
+    pub history: History,
+    /// The generation of the history the check was last compared with.
+    pub history_gen: u64,
 }
 
 impl NonceCheck {
+    /// Costs a map lookup per signature. Compares every signature that
+    /// verified with the history `h`: a key whose nonce was used before
+    /// over another message is named in `used_before`, and nothing is
+    /// offered. With the history off or no vault open, nothing changes.
+    pub fn against(&mut self, h: &HistorySnapshot) {
+        self.used_before.clear();
+        self.history = h.history();
+        self.history_gen = h.generation();
+        if self.history == History::Off {
+            return;
+        }
+        let rows = self.rows.iter().map(|r| (r.input, &r.name, r.entry));
+        let partials = self.partials.iter().map(|(i, n, e)| (*i, n, Some(*e)));
+        let own = self.entries();
+        let mut found: Vec<UsedBefore> = Vec::new();
+        for (input, name, entry) in rows.chain(partials) {
+            let Some(e) = entry else { continue };
+            if !h.used_before(&e, &own) {
+                continue;
+            }
+            match found.iter_mut().find(|u| u.key == e.key) {
+                Some(u) => {
+                    if !u.inputs.contains(&input) {
+                        u.inputs.push(input);
+                    }
+                }
+                None => found.push(UsedBefore {
+                    key: e.key,
+                    name: name.clone(),
+                    inputs: vec![input],
+                }),
+            }
+        }
+        for u in &mut found {
+            u.inputs.sort_unstable();
+        }
+        self.used_before = found;
+    }
+
+    /// Every signature that verified, as an entry. A lookup per row.
+    pub fn entries(&self) -> Vec<NonceEntry> {
+        let rows = self.rows.iter().filter_map(|r| r.entry);
+        rows.chain(self.partials.iter().map(|(_, _, e)| *e))
+            .collect()
+    }
+
     /// Whether nothing is wrong and nothing was left out: every signature
     /// was checked and is valid, every one made here was recomputed, and
     /// no nonce repeats; a transaction with no signature is not sound
@@ -46,6 +107,7 @@ impl NonceCheck {
         !self.rows.is_empty()
             && self.unread == 0
             && self.reused.is_empty()
+            && self.used_before.is_empty()
             && self.mismatched.is_empty()
             && self.not_evaluated.is_empty()
             && self.rows.iter().all(|r| !r.wrong() && !r.unchecked())
@@ -57,6 +119,7 @@ impl NonceCheck {
     /// per row.
     pub fn wrong(&self) -> bool {
         !self.reused.is_empty()
+            || !self.used_before.is_empty()
             || !self.mismatched.is_empty()
             || self.rows.iter().any(NonceRow::wrong)
     }
@@ -73,6 +136,7 @@ impl NonceCheck {
         !self.mismatched.is_empty()
             && self.disagree == 0
             && self.reused.is_empty()
+            && self.used_before.is_empty()
             && !self
                 .rows
                 .iter()
@@ -97,6 +161,7 @@ impl NonceCheck {
     pub(crate) fn disagree_first(&self) -> bool {
         self.disagree > 0
             && self.reused.is_empty()
+            && self.used_before.is_empty()
             && !self
                 .rows
                 .iter()
@@ -159,6 +224,7 @@ impl NonceCheck {
 }
 
 /// One signature, as the nonce check found it.
+#[derive(Clone)]
 pub struct NonceRow {
     /// The input it signs.
     pub input: usize,
@@ -176,6 +242,8 @@ pub struct NonceRow {
     /// device's: its key has no origin here, it is finalized under a
     /// key held here, or its script was not run. `None` for every other.
     pub unmatched: Option<Unmatched>,
+    /// The signature as the nonce history keeps it, where it verified.
+    pub entry: Option<NonceEntry>,
 }
 
 /// Why a signature's key could not be matched to a key held here, so its
