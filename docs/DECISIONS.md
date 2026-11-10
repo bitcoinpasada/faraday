@@ -178,7 +178,7 @@ Read this table, then only the decision you need.
 | [F161](decisions/F161.md) | A finalized input carries the smallest valid witness by its real size, a tie broken as Bitcoin Core breaks it | 2026-10-29 | Active | crypto |
 | [F162](decisions/F162.md) | Anti-exfil in both directions, Faraday as the host first, FractalEncrypt's exchange in dev builds only behind `experimental` | 2026-10-29 | Amended by F176 | crypto |
 | [F163](decisions/F163.md) | The toast's text is centred | 2026-10-29 | Active | design |
-| [F164](decisions/F164.md) | The manifest's screens_not count is 24 | 2026-10-29 | Active | crypto |
+| [F164](decisions/F164.md) | The manifest's screens_not count is 24 | 2026-10-29 | Amended by F237 | crypto |
 | [F165](decisions/F165.md) | The stick and the Pi read Faraday Offline | 2026-10-26 | Active | design |
 | [F166](decisions/F166.md) | A BIP-85 child seed's parent is kept only in a vault, when the person records it; nothing outside one says so; a wallet made over one says so once | 2026-10-29 | Active | keys |
 | [F167](decisions/F167.md) | Home's Scan takes everything a scanner takes | 2026-10-29 | Amended by F173 | keys |
@@ -251,3 +251,4 @@ Read this table, then only the decision you need.
 | [F234](decisions/F234.md) | Work kept out of the app is held by reachability, not by a cargo feature | 2026-11-10 | Active | wallets |
 | [F235](decisions/F235.md) | The stick is shown in Files, and the stick visit is no destination | 2026-11-10 | Active | stick |
 | [F236](decisions/F236.md) | The online apps' Send text tool shows any text as a QR code except a secret, by a rule of Faraday's own that fails closed; bare hex is let through | 2026-11-10 | Active | QR |
+| [F237](decisions/F237.md) | Transfer calls Read the words and does not offer it; the screens_not count is 23 | 2026-11-10 | Active | crypto |

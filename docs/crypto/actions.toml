@@ -1021,6 +1021,10 @@ places = [
   "docs/learn/02-words.md",
 ]
 
+[[action.screens_not]]
+screen = "Transfer"
+reason = "Send text looks words up in the BIP-39 lists only to refuse seed words; it reads no seed"
+
 [[action]]
 id = "words-make"
 name = "Make the words"
