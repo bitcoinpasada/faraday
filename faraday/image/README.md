@@ -59,6 +59,9 @@ The stick's built-in command line has `efi=disable_early_pci_dma`
 (`docs/IMAGES.md` §1): the board's `cmdline.txt` carries it and its
 `kernel.cmdline` checks it against the built kernel's `CONFIG_CMDLINE`.
 
+The Pi's command line is a file, so its `boot.cmdline` checks the words
+`cmdline.txt` ends up with (`rng_core.default_quality=0` among them).
+
 The Pi's kernel carries, in the board's own `linux.fragment`, vc4's display
 side through DRM with its framebuffer emulation, the sound core vc4 cannot
 build without (and no sound driver), the generic USB HID drivers, and USB

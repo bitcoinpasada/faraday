@@ -22,6 +22,15 @@ usbcore.authorized_default=2
 random.trust_cpu=off
 random.trust_bootloader=off
 
+# Faraday: the SoC's hardware generator, bcm2835-rng, is mixed into the pool
+# and credited with nothing (docs/OWN-RANDOMNESS.md §3.5). In the Raspberry
+# Pi 6.18 tree, hwrng_register in drivers/char/hw_random/core.c sets the
+# driver's quality to min(default_quality, 1024, its own or 1024), and
+# bcm2835-rng states none; default_quality is the built-in `rng_core`
+# module's parameter. At 0 the hwrng thread (hwrng_fillfn) still runs and
+# calls add_hwgenerator_randomness with a credit of 0: mixed, not counted.
+rng_core.default_quality=0
+
 # Faraday: loglevel=5, after common's `quiet`. The framebuffer console
 # draws no logo when the console log level is `quiet`'s 4 or lower
 # (fbcon_init in drivers/video/fbdev/core/fbcon.c), so with `quiet` alone

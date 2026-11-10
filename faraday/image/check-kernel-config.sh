@@ -23,7 +23,12 @@
 #                     (a word, then the reason). A word that is missing
 #                     fails, and so does a config with no CONFIG_CMDLINE.
 #
-# A line in either is a symbol without its CONFIG_ prefix, then the reason
+#   boot.cmdline      the same for a board whose command line is a file the
+#                     firmware reads (cmdline.txt on the boot partition):
+#                     the words the parts' cmdline.txt files add up to,
+#                     with a "-word" removing one, must carry each word.
+#
+# A line in any is a symbol without its CONFIG_ prefix, then the reason
 # it is in the list. The reasons are the point of the files; an entry
 # without one is a rule nobody can check later. Blank lines and lines
 # starting with # are comments.
@@ -44,6 +49,7 @@ shift
 forbidden=()
 required=()
 cmdline_words=()
+boot_words=()
 
 read_list() {
     local file="$1" name="$2" sym reason line
@@ -55,7 +61,7 @@ read_list() {
         # A symbol is upper-case letters, digits and underscores, without
         # CONFIG_: anything else (a prefix, a value, a typo with a stray
         # character) would match nothing in the config and so pass.
-        if [ "$name" != cmdline ] && ! [[ "$sym" =~ ^[A-Z0-9_]+$ && "$sym" != CONFIG_* ]]; then
+        if [ "$name" != cmdline ] && [ "$name" != bootcmdline ] && ! [[ "$sym" =~ ^[A-Z0-9_]+$ && "$sym" != CONFIG_* ]]; then
             echo "$file: $sym is not a kernel option name (no CONFIG_ prefix, no value)" >&2
             exit 2
         fi
@@ -66,6 +72,7 @@ read_list() {
         case "$name" in
             forbidden) forbidden+=("$sym|$reason|$file") ;;
             cmdline) cmdline_words+=("$sym|$reason|$file") ;;
+            bootcmdline) boot_words+=("$sym|$reason|$file") ;;
             *) required+=("$sym|$reason|$file") ;;
         esac
     done < "$file"
@@ -75,6 +82,7 @@ for part in "$@"; do
     read_list "$part/kernel.forbidden" forbidden
     read_list "$part/kernel.required" required
     read_list "$part/kernel.cmdline" cmdline
+    read_list "$part/boot.cmdline" bootcmdline
 done
 
 fail=0
@@ -141,9 +149,42 @@ if [ "${#cmdline_words[@]}" -gt 0 ]; then
     done
 fi
 
+if [ "${#boot_words[@]}" -gt 0 ]; then
+    # The line build.sh writes to cmdline.txt: the parts' words in order,
+    # a word with a "-" prefix removing the earlier one it names.
+    boot_line=()
+    for part in "$@"; do
+        [ -f "$part/cmdline.txt" ] || continue
+        for w in $(sed 's/#.*//' "$part/cmdline.txt"); do
+            if [ "${w#-}" != "$w" ]; then
+                keep=()
+                for k in ${boot_line[@]+"${boot_line[@]}"}; do
+                    [ "$k" = "${w#-}" ] || keep+=("$k")
+                done
+                boot_line=(${keep[@]+"${keep[@]}"})
+            else
+                boot_line+=("$w")
+            fi
+        done
+    done
+    for entry in "${boot_words[@]}"; do
+        word="${entry%%|*}"
+        rest="${entry#*|}"
+        case " ${boot_line[*]-} " in
+            *" $word "*) ;;
+            *)
+                echo "kernel config: cmdline.txt lacks $word" >&2
+                echo "               must be on the command line: ${rest%%|*}" >&2
+                echo "               (${rest##*|})" >&2
+                fail=1
+                ;;
+        esac
+    done
+fi
+
 if [ "$fail" != 0 ]; then
     echo "kernel config: $config does not describe this device" >&2
     exit 1
 fi
 
-echo "    kernel config: ${#forbidden[@]} options out, ${#required[@]} in, ${#cmdline_words[@]} command-line words, $(grep -c '=y$' "$config") built in"
+echo "    kernel config: ${#forbidden[@]} options out, ${#required[@]} in, $((${#cmdline_words[@]} + ${#boot_words[@]})) command-line words, $(grep -c '=y$' "$config") built in"

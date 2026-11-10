@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, partly built (F86, F157): §2.3's mixing into the seed and the pool, and the lock (`faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (`faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); pointer and keys on the desktop app (`core/faraday-entropy/src/pointer_keys.rs`); option A (§3.3); §8's Randomness row at every press that draws the system's randomness, first in the Pi's ⋮ (F157; `faraday/faraday-core/src/screens/randomness.rs`, `row`); the kernel check of §3 done from the repository
-**Open:** the Pi's generator (§3.5, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Open:** the wait on a dev Pi's boot, which the owner reads off its log (§3.5, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer moves and
@@ -253,13 +253,13 @@ Read from `faraday/image/boards/pi3/buildroot.fragment`, its
 
 - **The kernel is 6.18.** It is the Raspberry Pi 6.18 tree at commit
   `9b488bc7…` (6.18.59), `bcm2709` defconfig, 32-bit.
-- **bcm2835-rng is built in and credited.** `linux.fragment:81-84` sets
-  `CONFIG_HW_RANDOM=y` and `CONFIG_HW_RANDOM_BCM2835=y`. The hwrng core
-  feeds a built-in generator into the pool from the moment it probes and
-  credits it at `rng_core.default_quality`, full (1024 per 1024 bits) in
-  this kernel for a driver that states no quality of its own, as
-  bcm2835-rng does not. The command line sets no `rng_core.` parameter.
-  So the CRNG is ready shortly after the driver probes, early in boot.
+- **bcm2835-rng is built in, mixed and not credited.** `linux.fragment`
+  sets `CONFIG_HW_RANDOM=y` and `CONFIG_HW_RANDOM_BCM2835=y`. The hwrng
+  core feeds a built-in generator into the pool from the moment it probes
+  and, by default, credits it at `rng_core.default_quality`, full (1024
+  per 1024 bits) for a driver that states no quality of its own, as
+  bcm2835-rng does not. The Pi's `cmdline.txt` now sets
+  `rng_core.default_quality=0` (§3.5), so nothing is credited from it.
 - **No CPU generator, and the firmware's seed is credited.** 32-bit
   ARM has no RDRAND equivalent, so `random.trust_cpu=off` has nothing to
   act on. Since Linux 6.2 the kernel trusts the bootloader's seed by
@@ -327,9 +327,9 @@ seeds the pool from bcm2835-rng, which is the Pi's and not the stick's.
 How long `/dev/random` takes to be ready after power-on with option A,
 and when the app's first answer arrives. Since Linux 5.18 the kernel
 generates jitter entropy itself when a reader waits, which on an x86
-PC takes about a second, and the Pi credits its hardware generator
-either way, so a long wait is not expected; the measurement confirms
-it (owner, 2026-10-23: no session on several PCs).
+PC takes about a second, and the Pi mixes its hardware generator in without
+crediting it, so its wait is the kernel's jitter and interrupts, as on
+the stick; the measurement confirms it (owner, 2026-10-23: no session on several PCs).
 
 1. **QEMU, the worst case** (the build machine, automated): the stick
    image with A's two parameters, booted through
@@ -342,8 +342,9 @@ it (owner, 2026-10-23: no session on several PCs).
    writes the CLOCK_BOOTTIME at which it opened `/dev/random` and at
    which the read returned; the kernel's line is in `dmesg` in every
    variant.
-3. **The Pi** needs no measurement for A. Its generator is credited
-   from `bcm2835-rng` (§3.2) whatever the two parameters say.
+3. **The Pi** is read off a dev Pi's log in passing (the owner): the
+   kernel's "random: crng init done" line, now that `bcm2835-rng` is not
+   credited (§3.5).
 
 The results go in this section; the dev instrumentation stays in the
 dev variant only.
@@ -380,19 +381,27 @@ real PC, is still to read.
 - **No randomness at all** (built). A seed still missing 60 seconds after
   the first display is a system that gives none: a press that needs it
   then says so and does nothing.
-- **The Pi mixes bcm2835-rng and does not credit it.** `rng_core.`'s
-  quality is set to 0 on the command line. Where the Pi's kernel
-  then stops feeding the generator into the pool (its hwrng thread
-  starts only for a quality above 0), the Pi's shell reads
-  `/dev/hwrng` and writes the bytes to `/dev/random`, which mixes them
-  without crediting them, before its own read of `/dev/random`. The
-  pool is then ready on the kernel's jitter alone, timed by the ARM
-  generic timer.
+- **The Pi mixes bcm2835-rng and does not credit it** (built). The Pi's
+  `cmdline.txt` sets `rng_core.default_quality=0`, and
+  `faraday/image/boards/pi3/boot.cmdline` makes
+  `check-kernel-config.sh` fail an image without it. In the Raspberry Pi
+  6.18 tree (`drivers/char/hw_random/core.c`) `hwrng_register` sets the
+  driver's quality to `min(default_quality, 1024, rng->quality ?: 1024)`,
+  and `bcm2835-rng.c` sets none, so it becomes 0; the parameter is the
+  built-in `rng-core` module's, hence `rng_core.`. A quality of 0 does
+  not stop the feed: `hwrng_register` calls `set_current_rng` whenever
+  no generator is current (`!cur_rng`), which starts the `hwrng` thread,
+  and `hwrng_fillfn` calls `add_hwgenerator_randomness(buf, rc,
+  entropy >> 10, true)` with `entropy` 0; that mixes the bytes
+  (`mix_pool_bytes`) and credits nothing (`credit_init_bits(0)`). So the
+  generator still seeds the pool and the shell needs no code for it. The
+  pool becomes ready on the kernel's jitter and interrupts, timed by the
+  ARM generic timer.
 - **The firmware's seed is uncounted by patch 0004.** Not crediting
   bcm2835-rng would still leave the CRNG ready at once from the seed in
   `/chosen/rng-seed` (§3.2), so the pool is not ready on jitter alone as
   written above. Patch 0004 (`docs/KERNEL-PATCHES.md`) leaves the seed
-  uncounted (F224); what remains open is bcm2835-rng, still credited.
+  uncounted (F224), and bcm2835-rng is not credited either.
 - **The Pi's wait** is read off a dev Pi's log in passing (the owner),
   as the PC's is in §3.4.
 
@@ -509,7 +518,7 @@ Edit list:
   what comes out is at least as strong as the stronger of the two. On
   the stick the kernel does not credit the CPU's RDRAND or
   the firmware's seed (`docs/OWN-RANDOMNESS.md` §3); on the Pi it
-  credits the SoC's generator, bcm2835-rng."
+  mixes in the SoC's generator, bcm2835-rng, without crediting it."
 - `core/faraday-shell-api/src/lib.rs`, the entropy channel's module
   doc: replace "The core asks once at start and again whenever it
   rotates its session key (on lock, on wipe). A shell that cannot answer

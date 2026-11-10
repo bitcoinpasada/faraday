@@ -77,8 +77,9 @@ CONFIG_RESET_CONTROLLER=y
 CONFIG_WATCHDOG=y
 CONFIG_BCM2835_WDT=y
 
-# brcm,bcm2835-rng, the SoC's hardware generator, which feeds the pool
-# /dev/random draws the session's seed from.
+# brcm,bcm2835-rng, the SoC's hardware generator, which is mixed into the
+# pool /dev/random draws the session's seed from and credited with nothing
+# (rng_core.default_quality=0 in cmdline.txt).
 CONFIG_HW_RANDOM=y
 CONFIG_HW_RANDOM_BCM2835=y
 

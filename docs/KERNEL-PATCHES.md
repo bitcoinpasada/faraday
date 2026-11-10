@@ -89,8 +89,7 @@ The Raspberry Pi 6.18 tree (6.18.59), in `faraday/image/boards/pi3/linux-patches
   rule that only the kernel's jitter makes the pool ready can hold.
 - **From.** Faraday's own.
 - **Trade-off.** It credits less, never more: no new reach, no new code path,
-  no kept copy of anything. The pool is ready later, on bcm2835-rng until
-  that is uncounted too, then on jitter. It is carried through every kernel update.
+  no kept copy of anything. The pool is ready later, on jitter, as bcm2835-rng is not credited either. It is carried through every kernel update.
 - **When it can go.** When the Pi's kernel reads the command line before the
   device tree's seed, or the firmware can leave the seed out.
 

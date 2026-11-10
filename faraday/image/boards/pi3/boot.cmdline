@@ -1,0 +1,6 @@
+# Words cmdline.txt must carry (check-kernel-config.sh). The Pi's command
+# line is a file the firmware reads, not built into the kernel.
+
+rng_core.default_quality=0  the hwrng core credits a driver at 1024 per 1024 bits unless told otherwise; 0 mixes bcm2835-rng into the pool and credits nothing (docs/OWN-RANDOMNESS.md §3.5)
+random.trust_cpu=off        nothing in a CPU is credited (docs/OWN-RANDOMNESS.md §3.3); no effect on 32-bit ARM, kept for the kernel's other paths
+random.trust_bootloader=off the firmware's seed is not credited (patch 0004 makes this the default as well)

@@ -733,8 +733,9 @@ fn sysfs_dir(fb: &Path) -> Option<PathBuf> {
 /// interrupts have filled the pool: about a second on a PC
 /// (`docs/OWN-RANDOMNESS.md` §3.4). The read is on the event loop, before
 /// the first frame. On a Pi the SoC's hardware generator
-/// (`CONFIG_HW_RANDOM_BCM2835`) is credited, so the wait is over before
-/// the shell starts. A read that fails or comes up short is answered with
+/// (`CONFIG_HW_RANDOM_BCM2835`) is mixed into the pool by the kernel and
+/// credited with nothing (`rng_core.default_quality=0`), so the wait is
+/// the same jitter and interrupts as here. A read that fails or comes up short is answered with
 /// nothing at all, which the contract allows. Faraday's core then has no
 /// session seed: it seals no vault (a lock with a changed vault open asks
 /// before it loses the changes), gives a new keyboard no code, makes no
