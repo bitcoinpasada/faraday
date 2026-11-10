@@ -18,6 +18,7 @@ pub(crate) fn inbox_tour(t: &mut Tour) -> Result<(), String> {
         facts: None,
         wallet: None,
         psbt: None,
+        outpoints: Vec::new(),
     };
     t.app
         .outbox

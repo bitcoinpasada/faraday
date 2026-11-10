@@ -353,6 +353,7 @@ impl Faraday {
             Screen::Invoice => vec![&EN.lightning_invoices, &EN.tools],
             Screen::NonceCheck => vec![&EN.nonces, &EN.verifying],
             Screen::SignerCheck => vec![&EN.verifying, &EN.tools],
+            Screen::Compare => vec![&EN.verifying, &EN.tools],
             Screen::Catalog => vec![&EN.tools, &EN.glossary],
             Screen::Transfer => vec![&EN.air_gap, &EN.coordinators],
         }

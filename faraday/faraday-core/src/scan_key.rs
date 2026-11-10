@@ -688,6 +688,8 @@ impl Faraday {
                 | ScanPurpose::GpgPublic
                 | ScanPurpose::CheckSent
                 | ScanPurpose::CheckReturned
+                | ScanPurpose::CompareFirst
+                | ScanPurpose::CompareSecond
                 | ScanPurpose::Sweep => true,
                 ScanPurpose::VaultEntry
                 | ScanPurpose::CheckCopy(_)
@@ -948,6 +950,7 @@ impl Faraday {
             || self.gpg_restore_scanned(&bytes)
             || self.sweep_scanned(&bytes)
             || self.signer_check_scanned(&bytes)
+            || self.compare_scanned(&bytes)
         {
             return;
         }

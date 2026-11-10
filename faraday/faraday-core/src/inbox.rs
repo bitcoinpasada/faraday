@@ -1609,3 +1609,23 @@ pub(crate) fn stem(name: &str) -> String {
         _ => name.to_string(),
     }
 }
+
+/// The stem a wallet's public files are named by: its name in lower case,
+/// with anything but letters and digits as a hyphen.
+pub fn file_stem(name: &str) -> String {
+    name.to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect()
+}
+
+/// The name a result file takes from the PSBT it came from: the stem,
+/// without an `-unsigned` the coordinator put on it.
+pub(crate) fn result_stem(source: &str) -> String {
+    let s = stem(source);
+    ["-unsigned", "-partly-signed"]
+        .iter()
+        .find_map(|end| s.strip_suffix(end))
+        .map(str::to_string)
+        .unwrap_or(s)
+}

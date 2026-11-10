@@ -686,6 +686,8 @@ pub(crate) static INPUTS: SampleInputs = SampleInputs {
     signer_sent: include_bytes!("../data/signer-sent.psbt"),
     signer_returned: include_bytes!("../data/signer-returned.psbt"),
     signer_returned_proprietary: include_bytes!("../data/signer-returned-proprietary.psbt"),
+    compare_first: include_bytes!("../data/bump-original.psbt"),
+    compare_second: include_bytes!("../data/bump-replacement.psbt"),
     krux_code: include_bytes!("../data/krux-code.kef"),
     qr_vault: include_bytes!("../data/qr-vault.pgp"),
     hsm: &[

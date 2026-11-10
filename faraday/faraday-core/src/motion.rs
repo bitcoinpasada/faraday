@@ -1244,6 +1244,7 @@ impl Faraday {
             Screen::KeyGen => &mut self.keygen.scroll_mut()?.y,
             Screen::Bip85 => &mut self.bip85.scroll_mut()?.y,
             Screen::SignerCheck => &mut self.decode.check_scroll_mut()?.y,
+            Screen::Compare => &mut self.decode.compare_scroll_mut()?.y,
             Screen::Convert => &mut self.tools.convert_mut().scroll_mut()?.y,
             Screen::KefTool => &mut self.tools.kef_tool_mut().scroll_mut()?.y,
             Screen::QrTool => &mut self.tools.qr_tool_mut().scroll_mut()?.y,

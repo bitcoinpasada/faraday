@@ -268,11 +268,9 @@ the network, which the device cannot see.
   0xfffffffd and 0xfffffffe or 0xffffffff, which turns replace-by-fee
   signalling on or off, is no line.
 - **I4.** A shared input's amount is the same where both state it. An
-  input that one side states none for takes the other side's for the
-  same outpoint, the original's from the replacement's and the
-  replacement's from the original's; this is how a finished
-  transaction, which states no amounts, gets its fee. An amount used
-  on both sides cancels in the fee comparison. A lie in a shared amount is the same lie on
+  input of the original that states none takes the replacement's for
+  the same outpoint; this is how a finished transaction, which states
+  no amounts, gets its fee. A lie in a shared amount is the same lie on
   both sides, so it cannot make a change of payments look like a fee
   bump: the payments are compared by themselves (P1) and the fee's rise
   is the difference of two sums that both carry it.
@@ -334,8 +332,7 @@ A rule fails in one of two ways.
   two files state. The result is in `ERR`.
 - **Cannot tell.** No rule fails on what the files state, but one
   cannot be worked out:
-  - an input whose amount neither side states, or an amount or a fee past
-    21,000,000 BTC (F1; U1);
+  - an input whose amount neither side states (F1);
   - an output, on either side, whose key origin names a key not loaded,
     so whether it is yours is not known (P1, P2): loading that key
     tells;
@@ -595,8 +592,8 @@ broadcasts it, and `psbtbumpfee` makes its replacement.
 | bump-core-replacement.psbt | `psbtbumpfee`'s replacement of it | against either original, with "abandon" loaded: Only the fee is raised |
 | bump-core-added.psbt | `psbtbumpfee` at a rate the change cannot pay, so Core adds an input of the wallet's | Only the fee is raised; "Inputs added: 1" |
 
-The rest are built in the test suite from the builder's payment with
-change, one change each; none is committed as a bump-*.psbt file:
+The rest are written by a fixture writer in the test suite from those,
+one change each, and committed as bump-*.psbt:
 
 | Fixture | From the replacement, | Expect |
 |---|---|---|
@@ -622,11 +619,7 @@ difference in Compare); a shared input's amounts stated differently
 (B4); one outpoint spent twice (B5); a spoofed change output in the
 replacement under the loaded key (More: B10); the same unsigned
 transaction on both sides (no result); no outpoint in common (no
-result); the pair swapped (B11, B12); a fee or an amount past
-21,000,000 BTC (Cannot tell: U1, and in Compare no fee); a replacement
-input stating another transaction's output (Cannot tell: U1); change
-split into two outputs on one script, one without origins (Only the
-fee).
+result); the pair swapped (B11, B12).
 
 ### 6.2 The tests
 

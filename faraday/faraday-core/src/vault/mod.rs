@@ -1212,6 +1212,7 @@ impl Faraday {
             redraw = true;
             // A hold may have dropped a key.
             self.signer_check_sync();
+            self.compare_sync();
         }
         redraw
             | self.memory_tick(now_ms)

@@ -193,6 +193,8 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                 signer_sent: &[],
                 signer_returned: &[],
                 signer_returned_proprietary: &[],
+                compare_first: &[],
+                compare_second: &[],
                 krux_code: &[],
                 qr_vault: &[],
                 hsm: &[],

@@ -638,7 +638,7 @@ fn main() {
     out.push_str("];\n\n");
     write!(
         out,
-        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n    signer_sent: include_bytes!(\"../data/signer-sent.psbt\"),\n    signer_returned: include_bytes!(\"../data/signer-returned.psbt\"),\n    signer_returned_proprietary: include_bytes!(\"../data/signer-returned-proprietary.psbt\"),\n    krux_code: include_bytes!(\"../data/krux-code.kef\"),\n    qr_vault: include_bytes!(\"../data/qr-vault.pgp\"),\n    hsm: &[{hsm}],\n    hsm_words_nodes: &{words_nodes:?},\n}};\n\n\
+        "pub(crate) static INPUTS: SampleInputs = SampleInputs {{\n    vault: include_bytes!(\"../data/sample.kdbx\"),\n    signed_message: {message:?},\n    address: {address:?},\n    totp: {totp:?},\n    signer_sent: include_bytes!(\"../data/signer-sent.psbt\"),\n    signer_returned: include_bytes!(\"../data/signer-returned.psbt\"),\n    signer_returned_proprietary: include_bytes!(\"../data/signer-returned-proprietary.psbt\"),\n    compare_first: include_bytes!(\"../data/bump-original.psbt\"),\n    compare_second: include_bytes!(\"../data/bump-replacement.psbt\"),\n    krux_code: include_bytes!(\"../data/krux-code.kef\"),\n    qr_vault: include_bytes!(\"../data/qr-vault.pgp\"),\n    hsm: &[{hsm}],\n    hsm_words_nodes: &{words_nodes:?},\n}};\n\n\
          /// Every sample.\npub static SAMPLES: Samples = Samples {{ keys: KEYS, wallets: WALLETS, inputs: INPUTS }};\n",
     )
     .expect("string");

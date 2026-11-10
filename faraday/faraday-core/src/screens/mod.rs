@@ -127,6 +127,7 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Invoice
         | Screen::NonceCheck
         | Screen::SignerCheck
+        | Screen::Compare
         | Screen::Family => Area::Reading(READING_PAGE_W),
         // Tools, Transfer and a stick visit are reading content
         // (fields, rows, two lists side by side), each in its own area;
@@ -625,6 +626,7 @@ fn dispatch_screen(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Invoice => crate::invoice::screen::draw(app, ui, x, cw, h),
         Screen::NonceCheck => nonce_check::draw(app, ui, x, cw, h),
         Screen::SignerCheck => crate::decode::check_screen::draw(app, ui, x, cw, h),
+        Screen::Compare => crate::compare::screen::draw(app, ui, x, cw, h),
         Screen::Catalog => catalog::draw(app, ui, x, cw, h),
         Screen::Transfer => crate::transfer::screen::draw(app, ui, x, cw, h),
         Screen::BackupFlow => crate::backup_flow::screen::draw(app, ui, x, cw, h),

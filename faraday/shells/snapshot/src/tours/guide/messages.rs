@@ -47,6 +47,7 @@ pub(super) fn run(t: &mut Tour) -> Result<(), String> {
         facts: None,
         wallet: None,
         psbt: None,
+        outpoints: Vec::new(),
     };
     faraday_core::testkit::inbox_push(&mut t.app, item);
     let at = t.app.inbox().iter().count() - 1;

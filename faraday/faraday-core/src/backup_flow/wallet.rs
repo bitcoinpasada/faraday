@@ -382,6 +382,7 @@ impl Faraday {
     /// the press left other keys ([`Faraday::signer_check_sync`]).
     pub(crate) fn wallet_flow_sync(&mut self) {
         self.signer_check_sync();
+        self.compare_sync();
         let c = self.compute();
         let Some(i) = self.wallet_flow_of_backup() else {
             return;

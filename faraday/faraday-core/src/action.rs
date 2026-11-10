@@ -874,6 +874,8 @@ pub enum Action {
     NonceCheck(crate::decode::CheckPress),
     /// A press on Check a signer (`Screen::SignerCheck`).
     SignerCheck(crate::decode::check::SignerPress),
+    /// A press on Compare two PSBTs (`Screen::Compare`).
+    Compare(crate::compare::ComparePress),
     /// A press on Decode a Lightning invoice (`Screen::Invoice`).
     Invoice(crate::invoice::InvoicePress),
     /// Show or hide the decoded transaction's hex.

@@ -54,6 +54,7 @@ pub(crate) fn silent_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
                 facts: None,
                 wallet: None,
                 psbt: None,
+                outpoints: Vec::new(),
             },
         );
         t.press(Action::LoadWallet(0));

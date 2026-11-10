@@ -13414,4 +13414,26 @@ strings! {
     bump_signalled: "Signalled by the original",
     /// Text in `words::bump_facts`.
     bump_not_signalled: "Not signalled by the original",
+    /// The Tools tile's name for comparing two PSBTs.
+    catalog_compare_two_psbts: "Compare two PSBTs",
+    /// The Compare two PSBTs tile's line.
+    catalog_two_psbts_side_by_side: "Two PSBTs side by side",
+    /// Compare's last card, the facts and the differences.
+    compare_result: "Result",
+    /// Compare's scanner on the first card.
+    compare_scan_first: "Scan the first PSBT",
+    /// Compare's scanner on the second card.
+    compare_scan_second: "Scan the second PSBT",
+    /// Compare's card with no PSBT or finished transaction in Files.
+    compare_no_files: "No PSBT or transaction in Files",
+    /// What a scan and a card say of bytes that are neither a PSBT nor a finished transaction.
+    compare_not_a_transaction: "Not a PSBT or a transaction",
+    /// A finished transaction's line in Compare's list. `{}`: its id in short form.
+    compare_row_finished: "Finished · {}",
+    /// Compare's Result: the section label of the fee bump result.
+    compare_fee_bump_label: "Fee bump",
+    /// Compare's Result: the section label of the differences.
+    compare_differences_label: "Differences",
+    /// A file's ⋮ menu: compare this PSBT or transaction with another.
+    file_menu_compare: "Compare",
 }

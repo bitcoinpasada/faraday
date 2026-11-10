@@ -346,7 +346,7 @@ fn counted(both: usize, first: usize, second: usize) -> Vec<Value> {
 /// two are one unsigned transaction, else both), the fees, and the counts
 /// of inputs and outputs.
 pub(crate) fn compare_facts(d: &Differences) -> Vec<Fact> {
-    let id = |t: faraday_bip::bitcoin::Txid| t.to_string();
+    let id = |t: faraday_bip::bitcoin::Txid| faraday_ui::grouped(&t.to_string());
     let transaction = if d.same_transaction() {
         vec![value(None, id(d.first_txid))]
     } else {

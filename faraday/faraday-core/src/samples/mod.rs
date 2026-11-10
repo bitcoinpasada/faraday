@@ -185,6 +185,12 @@ pub struct SampleInputs {
     pub signer_returned: &'static [u8],
     /// That Returned with one proprietary pair added.
     pub signer_returned_proprietary: &'static [u8],
+    /// Compare's first card: Bitcoin Core's `psbtbumpfee` original
+    /// (`tools/vectors/psbt/bump-core-original.psbt`), fixed data that
+    /// `regenerate` does not remake.
+    pub compare_first: &'static [u8],
+    /// Its second: Core's replacement (`bump-core-replacement.psbt`).
+    pub compare_second: &'static [u8],
     /// A Krux encrypted code (KEF) of the first English words sample
     /// (`sample_guide`), under the passphrase `faraday`. It is fixed data:
     /// made once, by `Faraday::kef_make_seed` at the defaults of

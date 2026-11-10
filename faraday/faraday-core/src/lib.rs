@@ -114,6 +114,7 @@
 //! | `Invoice` | `invoice/screen.rs` |
 //! | `NonceCheck` | `screens/nonce_check.rs` |
 //! | `SignerCheck` | `decode/check_screen.rs` |
+//! | `Compare` | `compare/screen.rs` |
 //! | `Catalog` | `screens/catalog.rs` |
 //! | `Transfer` | `transfer/screen.rs` |
 //! | `BackupFlow` | `backup_flow/screen.rs` |
@@ -129,7 +130,7 @@ mod version;
 
 // State and actions: the app's state, its events and what a press does.
 mod compact;
-mod compare;
+pub mod compare;
 mod compute;
 pub mod copy_check;
 pub mod edit;
@@ -375,6 +376,8 @@ pub enum Screen {
     NonceCheck,
     /// Check a signer: the PSBT sent and the one returned, compared.
     SignerCheck,
+    /// Compare two PSBTs.
+    Compare,
     /// Tools: every flow on one page, with its standards.
     Catalog,
     /// The online app as the device's QR link: files out as codes, in by
@@ -2792,7 +2795,9 @@ impl Faraday {
             | Action::QrDecoded
             | Action::DecodeHex
             | Action::SpendHex) => self.decode_act(a, &c),
-            a @ (Action::NonceCheck(..) | Action::SignerCheck(..)) => self.decode_act(a, &c),
+            a @ (Action::NonceCheck(..) | Action::SignerCheck(..) | Action::Compare(..)) => {
+                self.decode_act(a, &c)
+            }
             Action::Invoice(p) => invoice::act(self, p),
             a @ (Action::SignMessage
             | Action::MStep(..)
@@ -5236,26 +5241,6 @@ impl Faraday {
 
 pub use create::create_steps;
 
-/// The stem a wallet's public files are named by: its name in lower case,
-/// with anything but letters and digits as a hyphen.
-pub fn file_stem(name: &str) -> String {
-    name.to_lowercase()
-        .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
-        .collect()
-}
-
-/// The name a result file takes from the PSBT it came from: the stem,
-/// without an `-unsigned` the coordinator put on it.
-pub(crate) fn result_stem(source: &str) -> String {
-    let s = stem(source);
-    ["-unsigned", "-partly-signed"]
-        .iter()
-        .find_map(|end| s.strip_suffix(end))
-        .map(str::to_string)
-        .unwrap_or(s)
-}
-
 /// What a press leaves for the tick after the frame that shows it (`docs/SPEED.md` §9).
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Later {
@@ -5270,7 +5255,8 @@ enum Later {
 use pointer::field_action;
 use slow::{drawn_first, working_text};
 
-pub(crate) use inbox::stem;
+pub use inbox::file_stem;
+pub(crate) use inbox::{result_stem, stem};
 
 impl App for Faraday {
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]

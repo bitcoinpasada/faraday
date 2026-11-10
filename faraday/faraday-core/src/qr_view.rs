@@ -79,6 +79,11 @@ pub enum ScanPurpose {
     CheckSent,
     /// Check a signer's **Scan** on the Returned card.
     CheckReturned,
+    /// Compare's **Scan** on the First card: a PSBT or a finished
+    /// transaction for that card, never filed.
+    CompareFirst,
+    /// Compare's **Scan** on the Second card.
+    CompareSecond,
 }
 
 /// What the camera sheet holds.

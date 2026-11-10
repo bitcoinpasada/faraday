@@ -15,6 +15,8 @@ use faraday_psbt::diff::Side;
 use faraday_psbt::{Inspection, Psbt};
 
 /// One other transaction's result on the review, in words.
+// used by the review
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Other {
     /// The original's file name.
@@ -71,7 +73,7 @@ pub(crate) fn counting<'a>(
 }
 
 /// Whether two sorted lists of outpoints have one in common.
-fn shares(a: &[OutPoint], b: &[OutPoint]) -> bool {
+pub(crate) fn shares(a: &[OutPoint], b: &[OutPoint]) -> bool {
     let (mut i, mut j) = (0, 0);
     while i < a.len() && j < b.len() {
         match a[i].cmp(&b[j]) {
@@ -86,7 +88,7 @@ fn shares(a: &[OutPoint], b: &[OutPoint]) -> bool {
 /// A PSBT's unsigned
 /// transaction's id, kept when the file came in; a finished transaction's
 /// with its signatures taken off, as a PSBT holds it.
-fn unsigned_txid(item: &Item) -> Option<Txid> {
+pub(crate) fn unsigned_txid(item: &Item) -> Option<Txid> {
     match item.kind {
         FileKind::Psbt => item.psbt().map(|p| p.txid),
         FileKind::Transaction => {
@@ -110,6 +112,8 @@ fn unsigned_txid(item: &Item) -> Option<Txid> {
 /// came as version 2) as the replacement. A file that does not read, or
 /// to which §3.1 gives no result, has none. Each other file is inspected
 /// once.
+// used by the review
+#[allow(dead_code)]
 pub(crate) fn make(
     c: &Compute,
     app: &Faraday,
