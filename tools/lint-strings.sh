@@ -99,6 +99,9 @@ faraday/shells/desktop/src/main.rs
 faraday/shells/desktop/src/lib.rs
 faraday/shells/starter/src/main.rs"
 
+# A failed awk is a failed lint, never a pass: its status and stderr are kept.
+awkerr=$(mktemp)
+trap 'rm -f "$awkerr"' EXIT
 # shellcheck disable=SC2086
 hits=$(awk '
 FNR == 1 { intest = 0; dev = 0; mark = 0 }
@@ -152,10 +155,16 @@ function allowed(s, b) {
     if (s ~ /\\[nt]/ || s ~ /^[a-z0-9-]+ [0-9]+$/) return 1
     if (b ~ /^ *([0-9.]+ )?(s|h|B|sat|sats|BTC|mBTC|bits|[KMGT]i?B)$/) return 1
     if (s ~ /^m$/ || s ~ /^(wpkh|wsh|sh|tr|pkh|musig)\(/ || s ~ /^ms1/ || s ~ /^0x/) return 1
-    if (b ~ /^( +[A-Za-z0-9]{1,2}){2,} *$/ || s ~ /^[0-9A-F ]+$/ || s ~ /^[A-Z][A-Za-z]+\(.*\)$/) return 1
+    if (b ~ /^( +[A-Za-z0-9][A-Za-z0-9]?)( +[A-Za-z0-9][A-Za-z0-9]?)+ *$/ || s ~ /^[0-9A-F ]+$/ || s ~ /^[A-Z][A-Za-z]+\(.*\)$/) return 1
     return 0
 }
-' $FARADAY_SCREENS)
+' $FARADAY_SCREENS 2>"$awkerr")
+awkstatus=$?
+if [ "$awkstatus" -ne 0 ] || [ -s "$awkerr" ]; then
+    echo "lint-strings: awk failed on the screen code (exit $awkstatus); the check did not run"
+    cat "$awkerr"
+    status=1
+fi
 if [ -n "$hits" ]; then
     echo "lint-strings: user-facing literal in Faraday's screen code; move it to $FARADAY_STRINGS"
     echo "$hits"
@@ -180,7 +189,7 @@ for file in "$FARADAY_STRINGS"; do
                 $3 ~ /^ / || $3 ~ / $/ { print $1 ": " $2 " starts or ends with a space"; next }
                 $3 ~ / just /       { print $1 ": " $2 " says \"just\""; next }
                 $3 ~ /don.t worry/  { print $1 ": " $2 " reassures"; next }
-            '
+            ' 2>&1 || echo "awk failed (exit $?)"
         )
         if [ -n "$untidy" ]; then
             echo "lint-strings: untidy wording in $file"

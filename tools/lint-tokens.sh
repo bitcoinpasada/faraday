@@ -76,7 +76,7 @@ scan() {
                     line = substr(line, RSTART + RLENGTH)
                 }
             }
-        ' "$f"
+        ' "$f" 2>&1 || echo "$f: awk failed (exit $?)"
     done
 }
 
@@ -93,7 +93,7 @@ scan_colours() {
                 n = gsub(/Color::rgba?\(/, "", line)
                 for (i = 0; i < n; i++) printf "%s:%d\n", file, NR
             }
-        ' "$f"
+        ' "$f" 2>&1 || echo "$f: awk failed (exit $?)"
     done
 }
 

@@ -110,7 +110,7 @@ rule2() {
                 }
                 derive = ""
             }
-        ' "$f"
+        ' "$f" 2>&1 || echo "$f: awk failed (exit $?)"
     done
 }
 report "Debug derived on a secret type (rule 2)" "$(rule2)"
