@@ -540,7 +540,7 @@ fn starts_as_form(form: crate::forms::Form, text: &str) -> bool {
         }
         Form::Xor | Form::Words => {
             let words: Vec<&str> = text.split_whitespace().collect();
-            !words.is_empty() && scan_read::on_a_word_list(&words)
+            !words.is_empty() && scan_read::on_a_word_list(&words).is_some()
         }
     }
 }
@@ -555,7 +555,9 @@ pub(crate) fn pasted_secret(c: &Compute, text: &str, seeds: bool) -> Option<&'st
     let t = text.trim();
     let words: Vec<&str> = t.split_whitespace().collect();
     // Words of any of the word lists Faraday reads, checksum or not.
-    if !seeds && matches!(words.len(), 12 | 15 | 18 | 21 | 24) && scan_read::on_a_word_list(&words)
+    if !seeds
+        && matches!(words.len(), 12 | 15 | 18 | 21 | 24)
+        && scan_read::on_a_word_list(&words).is_some()
     {
         return Some(EN.pasted_words);
     }
@@ -1658,7 +1660,9 @@ impl Faraday {
     /// The read card's Scan again: the code is wiped and the camera turns
     /// back on in the same scanner.
     fn read_again(&mut self) {
-        // It turns the camera on, which a stick in forbids: the card stays.
+        // It turns the camera on, which a stick in or a held device
+        // forbids: the press waits under its sheet (`pull_what`), and is
+        // run again when it is let through.
         if !self.stick.is_empty() {
             return;
         }
@@ -1666,6 +1670,7 @@ impl Faraday {
             && scan.card.take().is_some()
         {
             scan.note = None;
+            self.sheet = Some(Sheet::Scan);
             self.out.commands.push_back(Command::CameraOn);
         }
     }
@@ -2176,7 +2181,8 @@ impl Faraday {
         let scan = self.camera.scan_mut()?;
         scan.reads += 1;
         scan.single = None;
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
+        let raw = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
+        let text = zeroize::Zeroizing::new(raw.trim().to_string());
         // A wrong arrival is named, not refused generically (`docs/QR.md`
         // §1): a seed in any form, a private key or a paperkey never goes
         // in a box.
@@ -2187,7 +2193,7 @@ impl Faraday {
         // BBQr and numbered parts are put together here; anything else is
         // read as before.
         let mut item: Option<(Option<String>, &str, Vec<u8>)> = None;
-        match scan.assembler.feed(&text) {
+        match scan.assembler.feed(&raw) {
             faraday_qr::Step::Part {
                 what,
                 have,
@@ -2221,33 +2227,7 @@ impl Faraday {
                     return None;
                 }
             };
-            match message {
-                faraday_codec::ur::Message::Psbt(p) => item = Some((None, "psbt", p)),
-                faraday_codec::ur::Message::Bytes(b) => {
-                    item = Some(faraday_intake::arrival(faraday_qr::classify_text(
-                        &String::from_utf8_lossy(&b),
-                    )));
-                }
-                faraday_codec::ur::Message::Other { ur_type, cbor } => {
-                    match faraday_qr::registry::read(&ur_type, &cbor) {
-                        Ok(Some(faraday_qr::registry::Read::Psbt(p))) => {
-                            item = Some((None, "psbt", p));
-                        }
-                        Ok(Some(faraday_qr::registry::Read::Keys(t)))
-                        | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
-                            item = Some((None, "txt", t.into_bytes()));
-                        }
-                        Ok(None) => {
-                            scan.note = Some(fill(EN.read_code_ur_unknown, &[&ur_type]));
-                            return None;
-                        }
-                        Err(why) => {
-                            scan.note = Some(crate::qr_view::registry_text(&why));
-                            return None;
-                        }
-                    }
-                }
-            }
+            item = Some(ur_item(scan, message)?);
         }
         let (named, ext, data) = match item {
             Some(i) => i,
@@ -2295,4 +2275,41 @@ fn read_wallet_fact(c: &Compute, text: &str) -> Option<String> {
         crate::wallet::Origin::Named,
     );
     Some(crate::wallet::Session::shape(&w))
+}
+
+/// What a whole UR message read by a scanner is as a file; `None`, with
+/// the scanner's note set, for one that is refused. A message to sign is
+/// signed as it is: bytes that are no text are refused, as a single
+/// binary code is.
+fn ur_item(
+    scan: &mut ScanState,
+    message: faraday_codec::ur::Message,
+) -> Option<(Option<String>, &'static str, Vec<u8>)> {
+    Some(match message {
+        faraday_codec::ur::Message::Psbt(p) => (None, "psbt", p),
+        faraday_codec::ur::Message::Bytes(b) => {
+            if scan.purpose == crate::ScanPurpose::MessageText && std::str::from_utf8(&b).is_err() {
+                scan.note = Some(scan_read::Kind::Unreadable.not_here());
+                return None;
+            }
+            faraday_intake::arrival(faraday_qr::classify_text(&String::from_utf8_lossy(&b)))
+        }
+        faraday_codec::ur::Message::Other { ur_type, cbor } => {
+            match faraday_qr::registry::read(&ur_type, &cbor) {
+                Ok(Some(faraday_qr::registry::Read::Psbt(p))) => (None, "psbt", p),
+                Ok(Some(faraday_qr::registry::Read::Keys(t)))
+                | Ok(Some(faraday_qr::registry::Read::Descriptor(t))) => {
+                    (None, "txt", t.into_bytes())
+                }
+                Ok(None) => {
+                    scan.note = Some(fill(EN.read_code_ur_unknown, &[&ur_type]));
+                    return None;
+                }
+                Err(why) => {
+                    scan.note = Some(crate::qr_view::registry_text(&why));
+                    return None;
+                }
+            }
+        }
+    })
 }

@@ -561,12 +561,11 @@ fn scan_again_waits_on_the_card_for_the_stick_to_be_out_then_turns_the_camera_on
     while app.poll_command().is_some() {}
     app.press(Action::ReadAgain);
     assert!(!std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
-    assert_eq!(app.sheet, Some(Sheet::Scan));
+    // The press waits under the Pull sheet, as every Scan does, and runs
+    // when the stick is out.
+    assert_eq!(app.sheet, Some(Sheet::Pull));
     assert!(app.scan().is_some_and(|s| s.card.is_some()));
-    assert!(has(&mut app, "Remove the stick first"));
     app.storage(StorageEvent::Sticks(Vec::new()));
-    while app.poll_command().is_some() {}
-    app.press(Action::ReadAgain);
     assert!(std::iter::from_fn(|| app.poll_command()).any(|c| c == Command::CameraOn));
     assert_eq!(app.sheet, Some(Sheet::Scan));
     assert!(app.scan().is_some_and(|s| s.card.is_none()));

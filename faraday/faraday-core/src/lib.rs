@@ -1841,18 +1841,24 @@ impl Faraday {
     /// frame may picture a seed); `None` for anything a stick may stay in
     /// for.
     pub fn pull_what(&self, action: Action) -> Option<&'static str> {
-        use {backup_flow::steps::FlowAction as F, catalog::Go, convert::ConvertAction as C};
+        use {
+            backup_flow::steps::{FlowAction as F, RestorePress as R},
+            catalog::Go,
+            convert::ConvertAction as C,
+        };
         Some(match action {
             Action::Scan
             | Action::ScanFor(_)
             | Action::BScan
             | Action::MScan
+            | Action::ReadAgain
             | Action::Compare(compare::ComparePress::Scan(_))
             | Action::SignerCheck(decode::check::SignerPress::Scan(_))
             | Action::Sweep(seeds::sweep::SweepAction::Scan)
             | Action::BC32(codex32_backup::Press::ScanCopy)
             | Action::KefTool(kef_tool::KefToolAction::Backup(kef_form::KefAct::ScanCopy))
             | Action::Vault(vault::VaultAction::ScanEntry)
+            | Action::Flow(F::Restore(R::Scan | R::ScanPaperkey))
             | Action::SpendBackup(
                 spend_backup::SpendBackupAction::Scan
                 | spend_backup::SpendBackupAction::Again(true),
@@ -2333,6 +2339,13 @@ impl Faraday {
             Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
             Action::Cancel if self.sweep_scanning() => self.sweep_back(),
             Action::Cancel => {
+                // The read card's Scan again, held, goes back to nothing:
+                // the code it showed is wiped.
+                if matches!(self.visit.pull_mut(), Some(Action::ReadAgain))
+                    || matches!(self.devices.after, Some(Action::ReadAgain))
+                {
+                    self.camera.close();
+                }
                 self.vault_rekey_cancel();
                 *self.visit.pull_mut() = None;
                 self.vaults.clear_stick_save();

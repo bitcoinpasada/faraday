@@ -218,6 +218,46 @@ fn a_text_in_parts_becomes_the_message() {
 }
 
 #[test]
+fn specter_parts_cut_after_a_space_sign_the_original_text() {
+    let mut app = app(true);
+    app.press(Action::SignMessage);
+    app.press(Action::MScan);
+    let text = "I own this address and agree";
+    // Cut after "I own " and after "this address ".
+    let parts = faraday_qr::specter::encode(text, 6);
+    assert!(parts[0].ends_with("I own "), "{parts:?}");
+    for p in &parts {
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        read(&mut app, p);
+    }
+    assert_eq!(app.sheet, None);
+    assert_eq!(testkit::message(&app).unwrap().text, text);
+}
+
+#[test]
+fn a_ur_bytes_message_that_is_no_text_is_refused_whole_or_in_parts() {
+    let binary = [0x41u8, 0xFF, 0x42, 0x43, 0x80, 0x44, 0x45, 0x46, 0x47, 0x48];
+    for parts in [vec![faraday_codec::ur::encode_bytes(&binary)], {
+        let mut enc = faraday_codec::ur::Encoder::bytes(&binary, 4).expect("encoder");
+        assert!(enc.fragment_count() > 1);
+        (0..enc.fragment_count()).map(|_| enc.next_part()).collect()
+    }] {
+        let mut app = app(true);
+        app.press(Action::SignMessage);
+        app.press(Action::MScan);
+        for p in &parts {
+            read(&mut app, p);
+        }
+        assert_eq!(app.sheet, Some(Sheet::Scan));
+        assert_eq!(
+            note(&app),
+            faraday_core::scan_read::Kind::Unreadable.not_here()
+        );
+        assert_eq!(testkit::message(&app).unwrap().text, "");
+    }
+}
+
+#[test]
 fn a_new_scanned_text_clears_an_earlier_signature() {
     let mut app = app(true);
     app.press(Action::SignMessage);
@@ -281,10 +321,12 @@ fn keys_do_not_reach_the_message_while_the_scanner_is_open() {
 
 #[test]
 fn every_scan_that_opens_the_camera_waits_for_the_stick() {
+    use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};
     use faraday_core::compare::{ComparePress, Slot};
     use faraday_core::decode::check::{self, SignerPress};
     let presses = [
         Action::MScan,
+        Action::ReadAgain,
         Action::Compare(ComparePress::Scan(Slot::First)),
         Action::SignerCheck(SignerPress::Scan(check::Slot::Sent)),
         Action::Sweep(faraday_core::seeds::sweep::SweepAction::Scan),
@@ -292,6 +334,8 @@ fn every_scan_that_opens_the_camera_waits_for_the_stick() {
         Action::KefTool(faraday_core::kef_tool::KefToolAction::Backup(
             faraday_core::kef_form::KefAct::ScanCopy,
         )),
+        Action::Flow(F::Restore(R::Scan)),
+        Action::Flow(F::Restore(R::ScanPaperkey)),
     ];
     for press in presses {
         let mut app = app(true);

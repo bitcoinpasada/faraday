@@ -8787,9 +8787,9 @@ strings! {
     /// Refusal under the field when a secret is found in the text. `{}`:
     /// the kind's name, as `Kind::label` writes it, in lower case.
     transfer_text_maybe_secret: "Not shown: it holds {}",
-    /// Refusal under the field when the text holds part of a code that can
-    /// hold a secret.
-    transfer_text_partial: "Not shown: it holds part of a code that may hold a secret",
+    /// Refusal under the field when the text holds part of a code not known
+    /// to be public, or a whole one that holds a private key or a share.
+    transfer_text_partial: "Not shown: it holds a code that may hold a secret",
     /// Refusal under the field when the text holds bare hex of a seed's
     /// length.
     transfer_text_seed_hex: "Not shown: it holds hex of a seed's length",

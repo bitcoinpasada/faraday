@@ -731,10 +731,15 @@ fn every_scanner_refuses_seed_words_of_every_list_in_any_form_pasted() {
             open(&mut app, at);
             paste(&mut app, text);
             assert!(!filed(&app, text), "{at:?} filed {lang} {form}");
-            assert!(
-                !note(&app).is_empty(),
-                "{at:?}: {lang} {form}: no refusal named"
-            );
+            let said = note(&app);
+            assert!(!said.is_empty(), "{at:?}: {lang} {form}: no refusal named");
+            // A seed that is valid in its own list is not said to fail.
+            if lang != "run" {
+                assert!(
+                    said.contains("seed's words") && !said.contains("checksum"),
+                    "{at:?}: {lang} {form}: {said}"
+                );
+            }
         }
     }
 }

@@ -91,9 +91,12 @@ pub struct Assembler {
 }
 
 impl Assembler {
-    /// Takes one scanned text.
+    /// Takes one scanned text. The text of a numbered part is kept as the
+    /// code holds it, a space or a line end at its end included: the
+    /// parts are cut anywhere, and joined they read as written.
     pub fn feed(&mut self, text: &str) -> Step {
-        let text = text.trim();
+        let whole = text.trim_start();
+        let text = whole.trim_end();
         if text.len() > bbqr::MAX_FRAME {
             return Step::Refused(Refusal::TooLong);
         }
@@ -127,7 +130,7 @@ impl Assembler {
                 }
             };
         }
-        if let Some((n, m, body)) = specter::parse(text) {
+        if let Some((n, m, body)) = specter::parse(whole) {
             let c = self.specter.get_or_insert_with(specter::Collector::default);
             return match c.add(n, m, body) {
                 specter::Got::Part(have, total, missing) => Step::Part {

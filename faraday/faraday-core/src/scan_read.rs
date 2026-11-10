@@ -208,7 +208,13 @@ pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {
         None => {}
     }
     let words: Vec<&str> = t.split_whitespace().collect();
-    if matches!(words.len(), 12 | 15 | 18 | 21 | 24) && on_a_word_list(&words) {
+    if matches!(words.len(), 12 | 15 | 18 | 21 | 24)
+        && let Some(lang) = on_a_word_list(&words)
+    {
+        // A seed of a list other than English is a seed.
+        if checksum_holds(lang, &words) {
+            return Some(Kind::SeedWords);
+        }
         // 24 words whose BIP-39 checksum fails may be an aezeed, which
         // has its own (`docs/SCANNING.md` §4.2).
         return Some(if is_aezeed(&words) {
@@ -267,13 +273,35 @@ fn is_aezeed(words: &[&str]) -> bool {
     holds
 }
 
-/// Whether every word is on one of the BIP-39 lists Faraday reads, in any
-/// case, composed or decomposed, with or without accents. A list lookup per
-/// word and list.
-pub(crate) fn on_a_word_list(words: &[&str]) -> bool {
-    Language::ALL
-        .iter()
-        .any(|lang| words.iter().all(|w| lang.find_in(w).is_some()))
+/// The BIP-39 list Faraday reads that every word is on, in any case,
+/// composed or decomposed, with or without accents; where several lists
+/// have every word, the one whose checksum holds, else the first. A list
+/// lookup per word and list, and a checksum.
+pub(crate) fn on_a_word_list(words: &[&str]) -> Option<Language> {
+    let mut first = None;
+    for lang in Language::ALL {
+        if !words.iter().all(|w| lang.find_in(w).is_some()) {
+            continue;
+        }
+        if checksum_holds(lang, words) {
+            return Some(lang);
+        }
+        first = first.or(Some(lang));
+    }
+    first
+}
+
+/// Whether `words`, all on `lang`'s list, are a seed of it by their
+/// checksum. A lookup per word.
+fn checksum_holds(lang: Language, words: &[&str]) -> bool {
+    let mut idx = zeroize::Zeroizing::new(Vec::with_capacity(words.len()));
+    for w in words {
+        match lang.find_in(w) {
+            Some(i) => idx.push(i),
+            None => return false,
+        }
+    }
+    faraday_keys::words::from_indices(lang, &idx).is_ok()
 }
 
 /// The kind of a whole code that is no secret, from what Files files it

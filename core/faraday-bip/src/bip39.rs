@@ -230,27 +230,16 @@ impl Language {
         bool::from(hit).then_some(found)
     }
 
-    /// The list and index of a word of free-form text, as a keyboard, a
-    /// web page or a file gives it: composed (NFC) or decomposed (NFKD),
+    /// The index of a word of free-form text on this list, as a keyboard,
+    /// a web page or a file gives it: composed (NFC) or decomposed (NFKD),
     /// in any case, and, for the Latin-script lists, without its accents
-    /// (the form [`fold`] gives). Searches every list in [`Language::ALL`]
-    /// order and returns the first that has it.
+    /// (the form [`fold`] gives).
     ///
-    /// Costs the whole of every list for each word, about ten times
-    /// [`index_of`](Self::index_of): every entry of every list is compared
-    /// in full, with no early exit, so the time does not follow the
-    /// word's place in a list or which list has it.
-    pub fn find(word: &str) -> Option<(Language, u16)> {
-        Self::find_among(word, &Language::ALL)
-    }
-
-    /// The index of a word of free-form text on this list: like
-    /// [`find`](Self::find), for one list, and costing one list.
+    /// Costs the whole list, like [`index_of`](Self::index_of) and a
+    /// little more: every entry is folded as well as compared in full,
+    /// with no early exit, so the time does not follow the word's place in
+    /// the list.
     pub fn find_in(self, word: &str) -> Option<u16> {
-        Self::find_among(word, &[self]).map(|(_, i)| i)
-    }
-
-    fn find_among(word: &str, langs: &[Language]) -> Option<(Language, u16)> {
         use unicode_normalization::UnicodeNormalization;
         // The word in NFKD and lower case; one longer than any listed
         // word is on no list.
@@ -275,21 +264,17 @@ impl Language {
         let exact = Padded::new(nfkd)?;
         let plain = core::str::from_utf8(nfkd).ok().and_then(fold_bytes);
         let plain = plain.as_ref().and_then(|(b, n)| Padded::new(&b[..*n]));
-        let mut found = (0u8, 0u16);
+        let mut found = 0u16;
         let mut hit = Choice::from(0);
-        for (l, lang) in langs.iter().enumerate() {
-            for (i, entry) in lang.words_nfkd().iter().enumerate() {
-                let mut eq = exact.ct_eq_entry(entry.as_bytes());
-                if let (Some(p), Some((e, n))) = (plain.as_ref(), fold_bytes(entry)) {
-                    eq |= p.ct_eq_entry(&e[..n]);
-                }
-                let take = eq & !hit;
-                found.0.conditional_assign(&(l as u8), take);
-                found.1.conditional_assign(&(i as u16), take);
-                hit |= eq;
+        for (i, entry) in self.words_nfkd().iter().enumerate() {
+            let mut eq = exact.ct_eq_entry(entry.as_bytes());
+            if let (Some(p), Some((e, n))) = (plain.as_ref(), fold_bytes(entry)) {
+                eq |= p.ct_eq_entry(&e[..n]);
             }
+            found.conditional_assign(&(i as u16), eq & !hit);
+            hit |= eq;
         }
-        bool::from(hit).then(|| (langs[usize::from(found.0)], found.1))
+        bool::from(hit).then_some(found)
     }
 
     /// Indices of every word whose published form starts with `prefix`,
@@ -638,7 +623,7 @@ pub fn fold(word: &str) -> Option<Typed> {
 
 /// The word as the lists store it: decomposed (NFKD) and in lower case,
 /// one character at a time, kept nowhere; the caller collects it if it
-/// needs to ([`Language::find`] does not).
+/// needs to ([`Language::find_in`] does not).
 pub fn nfkd_lower(word: &str) -> impl Iterator<Item = char> + '_ {
     use unicode_normalization::UnicodeNormalization;
     word.nfkd().flat_map(char::to_lowercase)

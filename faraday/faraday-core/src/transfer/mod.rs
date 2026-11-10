@@ -119,7 +119,7 @@ fn read_any(
         });
     };
     let text = raw.trim();
-    match scan.assembler.feed(text) {
+    match scan.assembler.feed(raw) {
         faraday_qr::Step::Part {
             what,
             have,

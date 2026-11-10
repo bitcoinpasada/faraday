@@ -13,7 +13,7 @@ use crate::secrets::Exposure;
 use crate::wallet;
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 use zeroize::Zeroizing;
 
@@ -248,15 +248,36 @@ fn is_ur(part: &str) -> bool {
     part.get(..3).is_some_and(|p| p.eq_ignore_ascii_case("ur:"))
 }
 
-/// The types of UR that can hold a secret: a part of one is not shown
-/// until the message is whole and read.
-fn ur_may_hold_secret(ur_type: &str) -> bool {
+/// The types of UR known to be public: a PSBT. Parts of any other type
+/// are not shown until the message is whole and read.
+fn ur_is_public(ur_type: &str) -> bool {
+    let t = ur_type.to_ascii_lowercase();
+    matches!(t.as_str(), "psbt" | "crypto-psbt")
+}
+
+/// The types of UR that hold a private key or a seed's share, and that
+/// the registry does not read: one is refused whole.
+fn ur_is_secret(ur_type: &str) -> bool {
     let t = ur_type.to_ascii_lowercase();
     let t = t.strip_prefix("crypto-").unwrap_or(&t);
-    matches!(
-        t,
-        "seed" | "hdkey" | "output" | "account" | "bytes" | "eckey" | "sskr"
-    )
+    matches!(t, "eckey" | "sskr")
+}
+
+/// Puts `piece` in `parts`, trimmed of the punctuation round it, and each
+/// piece of it after a label (cut at `:` and `/`) long enough to be a key,
+/// whole and trimmed.
+fn add_labelled<'a>(parts: &mut Vec<&'a str>, piece: &'a str) {
+    let trim = |s: &'a str| s.trim_matches(|ch: char| !ch.is_alphanumeric());
+    parts.push(piece);
+    parts.push(trim(piece));
+    for sub in piece.split([':', '/']).filter(|s| s.len() >= 26) {
+        parts.push(sub);
+        parts.push(trim(sub));
+    }
+    for sub in trim(piece).split([':', '/']).filter(|s| s.len() >= 26) {
+        parts.push(sub);
+        parts.push(trim(sub));
+    }
 }
 
 /// Costs what `scan_read::secret_text_kind` costs, for each part of a
@@ -270,16 +291,17 @@ fn tokens(c: &Compute, t: &str) -> Option<TextCheck> {
     let mut ur = faraday_codec::ur::Decoder::new();
     for tok in t.split_whitespace() {
         let trimmed = tok.trim_matches(|ch: char| !ch.is_alphanumeric());
-        let mut parts: Vec<&str> = vec![tok, trimmed];
+        let mut parts: Vec<&str> = Vec::new();
+        add_labelled(&mut parts, tok);
+        add_labelled(&mut parts, trimmed);
         for piece in tok.split(|ch: char| JOINS.contains(ch)) {
-            parts.push(piece);
+            add_labelled(&mut parts, piece);
             if let Some(i) = piece.find("://") {
                 let start = piece[..i]
                     .rfind(|ch: char| !(ch.is_ascii_alphanumeric() || "+-.".contains(ch)))
                     .map_or(0, |j| j + 1);
                 parts.push(&piece[start..]);
             }
-            parts.extend(piece.split([':', '/']).filter(|s| s.len() >= 26));
         }
         // The `ur:` strings, at the start of a part or after a sign.
         let mut urs: Vec<&str> = Vec::new();
@@ -323,9 +345,9 @@ fn tokens(c: &Compute, t: &str) -> Option<TextCheck> {
             }
         }
     }
-    // A message of a type that can hold a secret that never came whole.
+    // A message of a type not known to be public that never came whole.
     ur.ur_type()
-        .is_some_and(|ty| ur_may_hold_secret(&ty))
+        .is_some_and(|ty| !ur_is_public(&ty))
         .then_some(TextCheck::Partial)
 }
 
@@ -382,11 +404,12 @@ fn ur_part(c: &Compute, dec: &mut faraday_codec::ur::Decoder, tok: &str) -> Opti
     let message = match fed {
         crate::qr_view::UrFed::Whole(message) => message,
         crate::qr_view::UrFed::More { restarted } => {
-            return (restarted && before.is_some_and(|ty| ur_may_hold_secret(&ty)))
+            return (restarted && before.is_some_and(|ty| !ur_is_public(&ty)))
                 .then_some(TextCheck::Partial);
         }
     };
     match message {
+        Message::Other { ur_type, .. } if ur_is_secret(&ur_type) => Some(TextCheck::Partial),
         Message::Other { ur_type, cbor } => match faraday_qr::registry::read(&ur_type, &cbor) {
             Err(faraday_qr::registry::Error::Private) => Some(TextCheck::Inside(Kind::Xprv)),
             Err(faraday_qr::registry::Error::Seed) => Some(TextCheck::Inside(Kind::UrSeed)),
@@ -424,6 +447,19 @@ fn lists() -> &'static (Vec<HashSet<String>>, HashSet<&'static str>) {
     })
 }
 
+/// The English BIP-39 words by their first four letters (a word of three
+/// letters by itself), which identify each: steel plates carry seeds so.
+fn prefixes() -> &'static HashMap<&'static str, &'static str> {
+    static PREFIXES: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+    PREFIXES.get_or_init(|| {
+        let mut map = HashMap::new();
+        for w in Language::English.words_nfkd() {
+            map.entry(w.get(..4).unwrap_or(w)).or_insert(*w);
+        }
+        map
+    })
+}
+
 /// Whether a character is a combining mark, which stays in a word.
 fn is_mark(ch: char) -> bool {
     matches!(
@@ -436,6 +472,11 @@ fn is_mark(ch: char) -> bool {
 /// Costs what `scan_read::secret_text_kind` costs for a run found. Eleven
 /// or more words in a row of one BIP-39 list, checksum or not, or nineteen
 /// or more of the SLIP-39 list: a seed one word short is most of a seed.
+/// Also twelve words in a row of which eleven are on one BIP-39 list, or
+/// twenty of which nineteen are on the SLIP-39 list: one misspelt or
+/// off-list word anywhere in a seed. And twelve or more words in a row that
+/// are each the first four letters of an English word (a three-letter word
+/// as it is), the form of a seed on a steel plate.
 /// Words are cut at every character that is no letter and no combining
 /// mark, so a name or a quote glued to a word (`MNEMONIC="abandon`) does
 /// not hide it; numbers and punctuation between the words (a numbered
@@ -449,8 +490,30 @@ fn words(c: &Compute, t: &str) -> Option<Kind> {
         .filter(|w| !w.is_empty())
         .map(|w| faraday_bip::bip39::nfkd_lower(w).collect())
         .collect();
-    if longest_run(&ws, |w| slip39.contains(w)) >= faraday_bip::slip39::MIN_WORDS - 1 {
+    let slip = faraday_bip::slip39::MIN_WORDS;
+    if longest_run(&ws, |w| slip39.contains(w)) >= slip - 1
+        || dense_window(&ws, slip, slip - 1, |w| slip39.contains(w)).is_some()
+    {
         return Some(Kind::Slip39Share);
+    }
+    // Twelve or more first-four-letter forms of English words in a row.
+    let short = prefixes();
+    let (mut start, mut best) = (0, (0, 0));
+    for end in 0..=ws.len() {
+        if end < ws.len() && short.contains_key(ws[end].as_str()) {
+            continue;
+        }
+        if end - start > best.1 - best.0 {
+            best = (start, end);
+        }
+        start = end + 1;
+    }
+    if best.1 - best.0 >= 12 {
+        let full: Vec<String> = ws[best.0..best.1]
+            .iter()
+            .map(|w| (*short.get(w.as_str()).unwrap_or(&"")).to_string())
+            .collect();
+        return Some(run_kind(c, &full));
     }
     // A word on a list as it is, or without its accents.
     let on = |list: &HashSet<String>, w: &str| {
@@ -468,6 +531,34 @@ fn words(c: &Compute, t: &str) -> Option<Kind> {
                 return Some(run_kind(c, &ws[start..end]));
             }
             start = end + 1;
+        }
+    }
+    // A misspelt or off-list word anywhere in a seed's worth of words.
+    for list in bip39 {
+        if let Some(at) = dense_window(&ws, 12, 11, |w| on(list, w)) {
+            return Some(run_kind(c, &ws[at..at + 12]));
+        }
+    }
+    None
+}
+
+/// The start of the first window of `size` consecutive words of which at
+/// least `need` are on the list: a seed with one word misspelt.
+fn dense_window(
+    ws: &[String],
+    size: usize,
+    need: usize,
+    on_list: impl Fn(&str) -> bool,
+) -> Option<usize> {
+    let hits: Vec<bool> = ws.iter().map(|w| on_list(w)).collect();
+    let mut count = 0;
+    for (i, &hit) in hits.iter().enumerate() {
+        count += usize::from(hit);
+        if i >= size {
+            count -= usize::from(hits[i - size]);
+        }
+        if i + 1 >= size && count >= need {
+            return Some(i + 1 - size);
         }
     }
     None

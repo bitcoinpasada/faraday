@@ -310,6 +310,37 @@ fn a_secret_joined_to_its_name_or_label_is_refused() {
 }
 
 #[test]
+fn a_secret_after_a_label_is_found_whatever_punctuation_is_round_it() {
+    let hex = "0c1e24e5917779d297e14d45f14e1a1a";
+    for value in [
+        format!("p2wpkh:{WIF}"),
+        format!("share:{CODEX32}"),
+        format!("entropy:{hex}"),
+        format!("key:{WIF}"),
+    ] {
+        for (before, after) in [
+            ("`", "`"),
+            ("", "."),
+            ("", "!"),
+            ("", "?"),
+            ("*", "*"),
+            ("_", "_"),
+            ("", "."),
+            ("(", ")."),
+            ("\"", "\","),
+        ] {
+            let wrapped = format!("{before}{value}{after}");
+            assert!(refused(&wrapped), "{wrapped}: shown");
+            assert!(refused(&format!("Sweep {wrapped}")), "end: {wrapped}");
+            assert!(
+                refused(&format!("Sweep {wrapped} then wait for the rest.")),
+                "middle: {wrapped}"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_secret_one_character_off_is_refused() {
     for text in [
         // A WIF and a codex32 string with a changed last character, an
@@ -325,6 +356,47 @@ fn a_secret_one_character_off_is_refused() {
 }
 
 #[test]
+fn a_seed_with_a_word_misspelt_anywhere_or_in_four_letter_form_is_refused() {
+    // One misspelt word, at each place of twelve.
+    let words: Vec<&str> = SEED.split(' ').collect();
+    for at in 0..words.len() {
+        let mut typo = words.clone();
+        let bad = format!("{}n", words[at]);
+        typo[at] = &bad;
+        let text = typo.join(" ");
+        assert!(refused(&text), "{text}: shown");
+        assert!(
+            refused(&format!("Keep this for me: {text}, thanks.")),
+            "{text}"
+        );
+    }
+    assert!(refused(
+        "abandon abandon abandon abandon abandon abandonn abandon abandon abandon abandon abandon about"
+    ));
+    // Twenty SLIP-39 words with one off the list, in the middle.
+    let mut slip: Vec<&str> = SLIP39.split(' ').collect();
+    slip[10] = "zzzzzz";
+    assert!(refused(&slip.join(" ")));
+    // The first four letters of each word, as on a steel plate.
+    assert!(refused(
+        "aban aban aban aban aban aban aban aban aban aban aban abou"
+    ));
+    assert!(refused(
+        "Aban ABAN aban aban aban aban aban aban aban aban aban ABOU and"
+    ));
+    // Ordinary sentences are shown.
+    assert!(!refused(
+        "The quick brown fox jumps over the lazy dog while the rest of us wait for the bus to town."
+    ));
+    assert!(!refused(
+        "the cat sat on the mat and the dog ran to a hat of the man"
+    ));
+    assert!(!refused(
+        "aban aban aban aban aban aban aban aban aban aban aban"
+    ));
+}
+
+#[test]
 fn bare_hex_of_entropy_or_a_seed_length_is_refused_and_64_digits_is_shown() {
     let hex = |n: usize| "a1b2c3d4".repeat(n / 8 + 1)[..n].to_string();
     for n in [32, 40, 48, 56, 128] {
@@ -337,7 +409,7 @@ fn bare_hex_of_entropy_or_a_seed_length_is_refused_and_64_digits_is_shown() {
 }
 
 #[test]
-fn seed_words_of_each_list_are_refused_with_their_name() {
+fn a_numbered_file_of_seed_words_is_refused_as_seed_words() {
     // A numbered file of words reads as seed words, not as a private key.
     let file: String = SEED
         .split(' ')
@@ -371,6 +443,34 @@ fn a_secret_in_a_urs_parts_is_refused_until_the_message_is_whole_and_read() {
         faraday_codec::ur::Encoder::bytes(b"a block header, nothing secret in it", 20).unwrap();
     let parts: Vec<String> = (0..enc.fragment_count()).map(|_| enc.next_part()).collect();
     assert!(!refused(&parts.join("\n")));
+}
+
+#[test]
+fn a_ur_that_can_hold_a_secret_is_refused_whole_or_in_parts_unless_known_public() {
+    // A whole eckey (a private key) and a whole sskr share.
+    let mut eckey = vec![0xa2, 0x02, 0xf5, 0x03, 0x58, 0x20];
+    eckey.extend([7u8; 32]);
+    assert!(refused(&faraday_codec::ur::encode_single(
+        "crypto-eckey",
+        &eckey
+    )));
+    assert!(refused(&faraday_codec::ur::encode_single("eckey", &eckey)));
+    assert!(refused(&faraday_codec::ur::encode_single(
+        "crypto-sskr",
+        &[0x58, 0x04, 1, 2, 3, 4]
+    )));
+    // Parts of a type nobody here knows (an envelope), one and all but one.
+    let mut enc = faraday_codec::ur::Encoder::bytes(&[9u8; 100], 20).unwrap();
+    let parts: Vec<String> = (0..enc.fragment_count())
+        .map(|_| enc.next_part().replacen("ur:bytes/", "ur:envelope/", 1))
+        .collect();
+    assert!(parts.len() > 2 && parts[0].starts_with("ur:envelope/"));
+    assert!(refused(&parts[0]));
+    assert!(refused(&parts[..parts.len() - 1].join(" ")));
+    // Parts of a PSBT are public: shown.
+    let mut enc = faraday_codec::ur::Encoder::psbt(&[9u8; 100], 20).unwrap();
+    let psbt_parts: Vec<String> = (0..enc.fragment_count()).map(|_| enc.next_part()).collect();
+    assert!(!refused(&psbt_parts[0]));
 }
 
 #[test]
@@ -426,14 +526,35 @@ fn seed_words_of_every_list_in_any_form_are_refused_alone_and_in_a_sentence() {
     for run in [crate::common::KOREAN_RUN, crate::common::FRENCH_RUN] {
         forms.push(("run".into(), "composed", run.to_string()));
     }
+    // Japanese words are separated by the ideographic space, as BIP-39
+    // gives them.
+    {
+        use faraday_bip::bip39::{Language, Mnemonic};
+        let m = Mnemonic::from_entropy(Language::Japanese, &[0x5a; 16]).expect("entropy");
+        let words: Vec<&str> = m
+            .indices()
+            .iter()
+            .map(|&i| Language::Japanese.word_display(i))
+            .collect();
+        forms.push((
+            "Japanese".into(),
+            "ideographic space",
+            words.join("\u{3000}"),
+        ));
+    }
     for (lang, form, text) in forms {
+        // A valid seed of a list is named a seed; a run that is no seed is
+        // named by its checksum.
+        let valid = lang != "run";
         let mut app = shown(&text);
         assert!(app.qr().is_none(), "{lang} {form}: shown alone");
         assert!(
-            said(&mut app)
-                .iter()
-                .any(|l| l.starts_with("Not shown: this is a seed's words")
-                    || l.starts_with("Not shown: this is words that fail")),
+            said(&mut app).iter().any(|l| if valid {
+                l.starts_with("Not shown: this is a seed's words")
+            } else {
+                l.starts_with("Not shown: this is a seed's words")
+                    || l.starts_with("Not shown: this is words that fail")
+            }),
             "{lang} {form}: not named alone"
         );
         let mut app = shown(&format!(
@@ -441,10 +562,12 @@ fn seed_words_of_every_list_in_any_form_are_refused_alone_and_in_a_sentence() {
         ));
         assert!(app.qr().is_none(), "{lang} {form}: shown in a sentence");
         assert!(
-            said(&mut app)
-                .iter()
-                .any(|l| l.starts_with("Not shown: it holds a seed's words")
-                    || l.starts_with("Not shown: it holds words that fail")),
+            said(&mut app).iter().any(|l| if valid {
+                l.starts_with("Not shown: it holds a seed's words")
+            } else {
+                l.starts_with("Not shown: it holds a seed's words")
+                    || l.starts_with("Not shown: it holds words that fail")
+            }),
             "{lang} {form}: not named in a sentence"
         );
     }

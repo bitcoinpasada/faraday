@@ -328,6 +328,34 @@ fn nothing_that_shows_a_secret_is_offered_while_held() {
 }
 
 #[test]
+fn no_scan_turns_the_camera_on_while_a_device_is_held() {
+    use faraday_core::backup_flow::steps::{FlowAction as F, RestorePress as R};
+    use faraday_core::compare::{ComparePress, Slot};
+    use faraday_core::decode::check::{self, SignerPress};
+    let presses = [
+        Action::Scan,
+        Action::BScan,
+        Action::MScan,
+        Action::ReadAgain,
+        Action::Compare(ComparePress::Scan(Slot::First)),
+        Action::SignerCheck(SignerPress::Scan(check::Slot::Sent)),
+        Action::Sweep(faraday_core::seeds::sweep::SweepAction::Scan),
+        Action::BC32(faraday_core::codex32_backup::Press::ScanCopy),
+        Action::Flow(F::Restore(R::Scan)),
+        Action::Flow(F::Restore(R::ScanPaperkey)),
+    ];
+    for press in presses {
+        let mut app = shown(laptop());
+        app.usb_devices(&[kvm()]);
+        app.press(Action::Cancel);
+        assert_eq!(app.sheet, None);
+        app.press(press);
+        assert_eq!(app.sheet, Some(Sheet::Devices), "{press:?}");
+        assert!(app.scan().is_none(), "{press:?} opened the camera");
+    }
+}
+
+#[test]
 fn check_again_after_it_is_pulled_releases_and_carries_on() {
     let mut app = shown(laptop());
     app.usb_devices(&[kvm()]);
