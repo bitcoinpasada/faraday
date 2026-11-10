@@ -278,11 +278,14 @@ the network, which the device cannot see.
 
 **The transaction.**
 
-- **X1.** The same version and the same locktime. A replacement that
-  moves the locktime changes when it can be mined, which is not the
-  fee. Bitcoin Core's `psbtbumpfee` keeps the original's locktime; the
-  Core fixture (§6.1) holds Faraday to that, and if Core is found to
-  move it, that is the owner's call before this rule changes.
+- **X1.** The same version. The locktime may change where both are
+  below 500,000,000 (none, or a block height): Bitcoin Core's
+  `psbtbumpfee` sets the replacement's to the chain's height, or a few
+  blocks under it (its guard against fee sniping), so a bump from Core
+  moves it (§6.1's fixtures show it). A locktime that is a time on
+  either side must be the same on both: moving it, or turning a height
+  into a time, changes when the transaction can be mined in a way no
+  fee bump needs.
 
 **Outputs.** An output is **yours** where the inspection verifies it the
 person's own (`OutputInfo::is_ours`: on the change chain or the receive
@@ -600,7 +603,7 @@ one change each, and committed as bump-*.psbt:
 | bump-pay-added | a second payment, taken from change | More: B10 |
 | bump-input-dropped | (from the added-input pair) the original's input left out | More: B1 |
 | bump-input-foreign | an input added under no key origin | More: B2 |
-| bump-locktime | the locktime one block later | More: B7 |
+| bump-locktime | the locktime a time (500,000,000 or above) in the original, one second later in the replacement | More: B7 |
 | bump-sequence-lock | a shared input's sequence a relative lock of 10 blocks | More: B3 |
 | bump-fee-same | the change as in the original, the fee unchanged | More: B11 and B12 |
 | bump-rate-lower | an input of the wallet's added for one sat more fee, so the rate falls | More: B12 |
