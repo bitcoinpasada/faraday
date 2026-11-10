@@ -16,7 +16,7 @@ A transaction can reach the device with signatures another device or another per
 
 ## Nonce history
 
-With a vault open, Faraday remembers each signature it checks: the key, the nonce and the message it signed, one entry of 96 bytes, written into the open vault when it is sealed and read again when the vault is unlocked. A signature whose key used the same nonce before on another message is refused, and nothing finishes, saves or shows as a code, because once both signatures are public the key is given away. Settings' Nonce history card turns it off; a vault's records then stay as written. A clean history does not show a signer is honest: it sees only signatures brought in or made here while it was on, per vault, and a dishonest signer can leak a key without reusing a nonce. Whoever opens the vault can read each checked input on chain by its nonce, transactions of wallets not held here included.
+With a vault open, Faraday remembers each signature it checks: the key, the nonce and the message it signed, one entry of 96 bytes, written into the open vault when it is sealed and read again when the vault is unlocked. A signature whose key used the same nonce before on another message is refused, and nothing finishes, saves or shows as a code, because once both signatures are public the key is given away. Settings' Nonce history card turns it off; nothing more is then written into a vault. A clean history does not show a signer is honest: it sees only signatures brought in or made here while it was on, per vault, and a dishonest signer can leak a key without reusing a nonce. Whoever opens the vault can read each checked input on chain by its nonce, transactions of wallets not held here included.
 
 ## How Faraday picks a nonce
 

@@ -310,7 +310,8 @@ impl Faraday {
     /// Sets whether the nonce history is kept. Turned on, the records of
     /// every open vault are read and what is open is compared again; turned
     /// off, nothing is recorded, compared or drawn, a refusal already found
-    /// stays, and a vault's records stay as written.
+    /// stays, and a vault's records are neither read nor added to (at its
+    /// ceiling they still go first, `docs/VAULT.md` §5).
     pub(crate) fn set_nonce_history(&mut self, on: bool) {
         self.memory.nonces.set_on(on);
         if on {

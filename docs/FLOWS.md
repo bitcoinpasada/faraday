@@ -2329,7 +2329,8 @@ nonce records are dropped before signed amounts (`docs/VAULT.md` §5).
 history**, with **Kept in an open vault** · **Off**, the status line
 "{n} signatures remembered" over the open vaults, and with Guided on an
 explainer under its title. Off, nothing is remembered, compared or
-drawn, and a vault's records stay as written: not read, not dropped.
+drawn, and a vault's records are neither read nor added to; at the
+vault's ceiling they still go first, as above.
 The default is **Kept in an open vault**.
 
 **What it does not show.** It sees only signatures brought in or made
