@@ -728,7 +728,9 @@ fn a_key_filed_under_a_held_fingerprint_but_not_derived_from_it_is_not_recorded(
         assert!(check.entries().is_empty(), "file {n} is not recorded");
     }
     // Only the real key's file, checked first, is waiting for a vault.
-    assert_eq!(nonce_history_pending(&app).len(), 1, "nothing else was noted");
+    let waiting = nonce_history_pending(&app);
+    assert_eq!(waiting.len(), 1, "nothing else was noted");
+    assert_eq!(waiting[0].0, entries_of(&real.0).0, "the real file's transaction");
     let again = check_file(&mut app, 2);
     assert_eq!(again.used_before.len(), 1, "the real key is still caught");
 }
@@ -1523,4 +1525,28 @@ fn a_nonce_value_that_does_not_read_is_said_and_kept_as_written_after_a_seal() {
     assert_eq!(unread.len(), 1);
     assert!(format!("faraday.nonces.{}", hex(tx_a)).starts_with(&unread[0].title));
     assert_eq!(held_in(&again, 0), vec![(tx_b, 1)]);
+}
+
+#[test]
+fn unreadable_values_under_other_keys_do_not_stop_a_transaction_being_written() {
+    let d = key(3);
+    let a = signed(0, &d, &key(9));
+    let (tx_a, _) = entries_of(&a);
+    let file = testkit::kdbx_edited(
+        "Test",
+        testkit::VAULT_PASSPHRASE,
+        7,
+        |doc| {
+            for k in ["faraday.zzz", "faraday.nonces.ab", "faraday.nonces", "faraday."] {
+                doc.custom_mut().set(k, "from another build").unwrap();
+            }
+        },
+        |xml| xml,
+    )
+    .unwrap();
+    let mut app = open_vaults(&[file], &[&a]);
+    let _ = check_file(&mut app, 1);
+    let sealed = lock_all(&mut app);
+    let again = open_vaults(&sealed, &[]);
+    assert_eq!(held_in(&again, 0), vec![(tx_a, 1)]);
 }

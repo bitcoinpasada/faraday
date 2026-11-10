@@ -38,6 +38,23 @@ impl NonceEntry {
         })
     }
 
+    /// The title a vault gives the custom value of transaction `tx`'s nonce
+    /// record: its key `faraday.nonces.<tx in hex>`, cut to the vault's 64
+    /// characters.
+    pub(crate) fn title_of(tx: &[u8; 32]) -> String {
+        let hex: String = tx.iter().map(|b| format!("{b:02x}")).collect();
+        format!("faraday.nonces.{hex}").chars().take(64).collect()
+    }
+
+    /// Whether `title`, an unreadable custom value's, is the one
+    /// [`NonceEntry::title_of`] gives some transaction.
+    pub(crate) fn is_record_title(title: &str) -> bool {
+        title.len() == 64
+            && title
+                .strip_prefix("faraday.nonces.")
+                .is_some_and(|h| h.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
+    }
+
     /// The vault's nonce record of transaction `tx` holding `entries`.
     pub(crate) fn record_of(tx: &[u8; 32], entries: &[NonceEntry]) -> faraday_vault::Record {
         use faraday_vault::records::{field, kind};

@@ -325,8 +325,9 @@ fn seal_memory(app: &mut Faraday, i: usize) {
     app.vaults.state.add_memory(&c, i, &[], new);
 }
 
-/// Costs what `Vaults::add_memory` costs and a walk of the vault's nonce
-/// records. The transactions waiting in the nonce history go into open
+/// Costs what `Vaults::add_memory` costs, one walk of the vault's nonce
+/// records and unreadable values, and a set lookup for each waiting entry.
+/// The transactions waiting in the nonce history go into open
 /// vault `i`: for each whose entries the vault lacks, its record becomes
 /// the union of the vault's own and the waiting entries, the newest. Only
 /// what was checked here is written, never a record read from a vault.
@@ -342,42 +343,56 @@ fn seal_nonces(app: &mut Faraday, i: usize) {
     if app.vaults.store().read_only(id).is_some() {
         return;
     }
+    use crate::memory::nonces::NonceEntry;
+    use std::collections::{BTreeSet, HashMap, HashSet};
+    // One walk of the vault's records and of its unreadable values.
+    let mut held: HashMap<[u8; 32], (Vec<NonceEntry>, BTreeSet<NonceEntry>)> = HashMap::new();
+    for (_, r) in app.vaults.records(id).of(faraday_vault::records::kind::NONCES) {
+        let Some(tx) = r
+            .public(faraday_vault::records::field::NONCES_TX)
+            .and_then(|t| <[u8; 32]>::try_from(t).ok())
+        else {
+            continue;
+        };
+        let (list, set) = held.entry(tx).or_default();
+        for e in r
+            .public_all(faraday_vault::records::field::NONCES_ENTRY)
+            .filter_map(NonceEntry::from_bytes)
+        {
+            if set.insert(e) {
+                list.push(e);
+            }
+        }
+    }
+    let unreadable: HashSet<&str> = app
+        .vaults
+        .store()
+        .unreadable(id)
+        .iter()
+        .filter(|u| u.uuid.is_none())
+        .map(|u| u.title.as_str())
+        .collect();
     let mut replace = Vec::new();
     let mut new = Vec::new();
     for (tx, waiting) in app.memory.nonces.pending() {
-        // A value that does not read under this key is left as written,
-        // and the transaction is not written to this vault (the vault
-        // names a key by its first 64 characters).
-        let key: String = tx.iter().map(|b| format!("{b:02x}")).collect();
-        let key = format!("faraday.nonces.{key}");
-        if app
-            .vaults
-            .store()
-            .unreadable(id)
-            .iter()
-            .any(|u| u.uuid.is_none() && key.starts_with(&u.title))
-        {
+        // A value that does not read under this very key is left as
+        // written, and the transaction is not written to this vault.
+        if unreadable.contains(NonceEntry::title_of(tx).as_str()) {
             continue;
         }
-        let mut have: Vec<crate::memory::nonces::NonceEntry> = Vec::new();
-        for (_, r) in app.vaults.records(id).of(faraday_vault::records::kind::NONCES) {
-            if r.public(faraday_vault::records::field::NONCES_TX) == Some(&tx[..]) {
-                have.extend(
-                    r.public_all(faraday_vault::records::field::NONCES_ENTRY)
-                        .filter_map(crate::memory::nonces::NonceEntry::from_bytes),
-                );
-            }
-        }
-        if waiting.iter().all(|e| have.contains(e)) {
-            continue;
-        }
+        let (mut list, mut set) = held.get(tx).cloned().unwrap_or_default();
+        let mut added = false;
         for e in waiting {
-            if !have.contains(e) {
-                have.push(*e);
+            if set.insert(*e) {
+                list.push(*e);
+                added = true;
             }
+        }
+        if !added {
+            continue;
         }
         replace.push(*tx);
-        new.push(crate::memory::nonces::NonceEntry::record_of(tx, &have));
+        new.push(NonceEntry::record_of(tx, &list));
     }
     let c = app.compute();
     app.vaults.state.add_memory(&c, i, &replace, new);

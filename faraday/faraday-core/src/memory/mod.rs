@@ -280,9 +280,11 @@ impl Faraday {
     }
 
     /// Takes in the nonce records open vault `id` holds, as what it was
-    /// read to hold: the records that do not read are counted, and a
-    /// vault of a newer format, whose values are all named unreadable,
-    /// is compared against nothing. Nothing is read with the setting off.
+    /// read to hold: the unreadable custom values under a transaction's
+    /// nonce key are counted. A vault whose custom data is read-only or
+    /// ambiguous (every value named unreadable and no record read) holds
+    /// no entries, so a check is compared against nothing from it.
+    /// Nothing is read with the setting off.
     pub(crate) fn nonces_from_vault(&mut self, id: faraday_keys::vault::VaultId) {
         if !self.memory.nonces.kept() {
             return;
@@ -300,7 +302,7 @@ impl Faraday {
             .store()
             .unreadable(id)
             .iter()
-            .filter(|u| u.uuid.is_none() && u.title.starts_with("faraday.nonces."))
+            .filter(|u| u.uuid.is_none() && nonces::NonceEntry::is_record_title(&u.title))
             .count();
         self.memory.nonces.take_held(id, &entries, unreadable);
     }

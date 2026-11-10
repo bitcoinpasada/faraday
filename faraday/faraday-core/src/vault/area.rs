@@ -1407,7 +1407,9 @@ impl Vaults {
     /// write for each pass. The memory's records `new` (signed amounts and
     /// nonce records) go into open vault `i`, after the nonce records of
     /// the transactions `replace` are taken out, and the oldest records
-    /// leave while the vault holds over [`CAP`] nonce entries and, only
+    /// leave while the vault holds over [`CAP`] nonce entries (never one
+    /// put in this call: one transaction over the cap is kept whole and
+    /// the others go) and, only
     /// while it is past the ceiling, for room: a nonce record before any
     /// signed amounts (`docs/VAULT.md` §7, types 10 and 17).
     pub(crate) fn add_memory(
@@ -1426,6 +1428,12 @@ impl Vaults {
         };
         let id = v.id;
         let puts_nonces = new.iter().any(|r| r.kind == kind::NONCES);
+        let new_txs: Vec<[u8; 32]> = new
+            .iter()
+            .filter(|r| r.kind == kind::NONCES)
+            .filter_map(|r| r.field(faraday_vault::records::field::NONCES_TX))
+            .filter_map(|t| <[u8; 32]>::try_from(t).ok())
+            .collect();
         self.edit(id, |s| {
             for tx in replace {
                 let at = s.records(id).of(kind::NONCES).find_map(|(k, r)| {
@@ -1446,7 +1454,16 @@ impl Vaults {
                         .sum::<usize>()
                 };
                 while entries(s) > crate::memory::nonces::CAP {
-                    let oldest = s.records(id).of(kind::NONCES).map(|(k, _)| k).next();
+                    // Records put in this call stay: one transaction over
+                    // the cap is kept whole, the others gone.
+                    let oldest = s
+                        .records(id)
+                        .of(kind::NONCES)
+                        .find(|(_, r)| {
+                            !r.public(faraday_vault::records::field::NONCES_TX)
+                                .is_some_and(|t| new_txs.iter().any(|p| &p[..] == t))
+                        })
+                        .map(|(k, _)| k);
                     match oldest {
                         Some(k) if s.remove(id, k) => {}
                         _ => break,
