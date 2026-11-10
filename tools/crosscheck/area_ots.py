@@ -33,8 +33,7 @@ for what they import and the repository does not vendor).
 
 Known differences, each checked to still hold and counted:
 
-- A Bitcoin path through SHA-1, RIPEMD-160 or Keccak-256 (or a file taken with
-  SHA-1 or RIPEMD-160) is counted by the reference when it reaches the merkle
+- A Bitcoin path through SHA-1 or Keccak-256 (or a file taken with SHA-1) is counted by the reference when it reaches the merkle
   root and named, not counted, by Faraday.
 - An Ethereum attestation is verified by the reference against a block's
   transactions root and listed by Faraday, as a Litecoin one is (the reference
@@ -103,7 +102,7 @@ TAG_ETHEREUM = EthereumBlockHeaderAttestation.TAG
 KNOWN_TAGS = (TAG_PENDING, TAG_BITCOIN, TAG_LITECOIN, TAG_ETHEREUM)
 URI_CHARS = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._/:"
 EASY_BITS = 0x207FFFFF
-NOT_SHA256 = ("sha1", "ripemd160", "keccak256")
+NOT_COUNTED = ("sha1", "keccak256")
 HASH_OPS = {"sha256": OpSHA256, "sha1": OpSHA1, "ripemd160": OpRIPEMD160}
 
 
@@ -173,7 +172,7 @@ def ref_walk(ts, path, bad, out):
         out.append((path, att, ts.msg, bad))
     for op, child in ts.ops.items():
         b = bad
-        if b is None and op.TAG_NAME in NOT_SHA256:
+        if b is None and op.TAG_NAME in NOT_COUNTED:
             b = op.TAG_NAME
         ref_walk(child, path + [str(op)], b, out)
 
@@ -183,7 +182,7 @@ def ref_parse(data):
     dtf = DetachedTimestampFile.deserialize(BytesDeserializationContext(data))
     name = dtf.file_hash_op.TAG_NAME
     leaves = []
-    ref_walk(dtf.timestamp, [], None if name == "sha256" else name, leaves)
+    ref_walk(dtf.timestamp, [], None if name not in NOT_COUNTED else name, leaves)
     return name, dtf.file_digest, leaves
 
 
@@ -210,8 +209,7 @@ class RefHeader:
 def ref_verify(data, digest, header):
     """The reference's verdict on every attestation of a proof against a
     header, in Faraday's words, and what the reference counts that
-    Faraday does not (a Bitcoin path through SHA-1, RIPEMD-160 or
-    Keccak-256 that reaches the root; an Ethereum one that verifies)."""
+    Faraday does not (a Bitcoin path through SHA-1 or Keccak-256 that reaches the root; an Ethereum one that verifies)."""
     _, file_digest, leaves = ref_parse(data)
     if file_digest != digest:
         return {"file_matches": False, "committed": False, "paths": []}, 0
@@ -226,7 +224,7 @@ def ref_verify(data, digest, header):
             except Exception:  # noqa: BLE001 - a VerificationError says it does not
                 time, good = None, False
             if bad:
-                paths.append({"kind": "bitcoin", "height": att.height, "result": "not-sha256",
+                paths.append({"kind": "bitcoin", "height": att.height, "result": "not-counted",
                               "op": bad, "reaches": good})
                 counted += good
             elif good:
@@ -307,7 +305,7 @@ class Ots(Area):
     reference_checked = (
         "the vendored files are hashed against `references.sha256` before any run; the "
         "client's example proofs (`tools/vectors/opentimestamps/`) are read by both and the "
-        "two that reach a block through SHA-256 alone are required to be committed by both; "
+        "four that reach a block through SHA-256 and RIPEMD-160 alone are required to be committed by both; "
         "the shims' hashes are checked against known values before the corpus; each limit is "
         "built either side of its edge and both must agree"
     )
@@ -326,8 +324,8 @@ class Ots(Area):
     )
     differences = [
         (
-            "OTS: a Bitcoin path through SHA-1, RIPEMD-160 or Keccak-256, or a file taken "
-            "with SHA-1 or RIPEMD-160, is counted by the reference when it reaches the "
+            "OTS: a Bitcoin path through SHA-1 or Keccak-256, or a file taken "
+            "with SHA-1, is counted by the reference when it reaches the "
             "header's merkle root; Faraday names the first such hash and does not count it. "
             "Each is asked of the reference and counted."
         ),
@@ -444,7 +442,8 @@ class Ots(Area):
     def published(self):
         headers = self.headers()
         wrong_digest = bytes(32)
-        sha256_only = {"different-blockchains.txt.ots", "gdp2q25-2nd.pdf.ots"}
+        counted_examples = {"different-blockchains.txt.ots", "gdp2q25-2nd.pdf.ots",
+                            "hello-world.txt.ots", "empty.ots"}
         for path in sorted((VECTORS / "examples").rglob("*.ots")):
             data = path.read_bytes()
             got = self.read_both(data, path.name)
@@ -466,8 +465,8 @@ class Ots(Area):
                 if self.verify_both(data, digest, raw)["committed"]:
                     committed = True
             self.verify_both(data, wrong_digest, next(iter(headers.values())))
-            if (path.name in sha256_only) != committed:
-                raise AssertionError(f"{path.name}: committed through SHA-256 alone is {committed}")
+            if (path.name in counted_examples) != committed:
+                raise AssertionError(f"{path.name}: committed through SHA-256 and RIPEMD-160 alone is {committed}")
 
     # ----- the shims -----------------------------------------------------------------
 
@@ -771,8 +770,8 @@ class Ots(Area):
         if self.read_both(self.sized(64 * 1024 + 1), "a proof over 64 KiB") is not None \
                 or self.known != before + 1:
             raise AssertionError("a proof over 64 KiB is no longer refused by Faraday alone")
-        # A path through a hash other than SHA-256 that reaches the root.
-        for hasher in (OpSHA1, OpRIPEMD160, OpKECCAK256):
+        # A path through SHA-1 or Keccak-256 that reaches the root.
+        for hasher in (OpSHA1, OpKECCAK256):
             digest = OpSHA256()(self.randbytes(20))
             root = Timestamp(digest)
             tip = root.ops.add(OpAppend(b"\x01")).ops.add(hasher())
@@ -784,16 +783,18 @@ class Ots(Area):
             if got["committed"] or self.known != before + 1:
                 raise AssertionError(f"a path through {hasher.TAG_NAME} was counted by Faraday "
                                      "or not by the reference")
-        # A file taken with SHA-1 or RIPEMD-160.
-        for fop in (OpSHA1, OpRIPEMD160):
+        # A file taken with SHA-1 is not counted; one taken with RIPEMD-160 is,
+        # by both.
+        for fop, counted in ((OpSHA1, False), (OpRIPEMD160, True)):
             digest = fop()(b"a file")
             root = Timestamp(digest)
             root.ops.add(OpSHA256()).attestations.add(BitcoinBlockHeaderAttestation(9))
             tip = root.ops[OpSHA256()]
             before = self.known
             got = self.verify_both(serialize(fop(), root), digest, self.header_for(tip.msg))
-            if got["committed"] or self.known != before + 1:
-                raise AssertionError("a file taken with a hash other than SHA-256 was counted")
+            if got["committed"] != counted or self.known != before + (0 if counted else 1):
+                raise AssertionError(f"a file taken with {fop.TAG_NAME} was "
+                                     f"{'not ' if counted else ''}counted")
         # Ethereum and Litecoin.
         digest = OpSHA256()(b"a file")
         root = Timestamp(digest)

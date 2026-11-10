@@ -1162,7 +1162,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "What the device checks",
                 paragraphs: &[
-                    "Check a timestamp takes the proof, the file (or its SHA-256) and the 80-byte header of the block, and does the steps itself. The file's hash must be the one the proof starts from. One path of steps that reaches the header's merkle root, through SHA-256 alone, is enough. The result gives the block's hash, the height the proof states and the time in the header.",
+                    "Check a timestamp takes the proof, the file (or its SHA-256) and the 80-byte header of the block, and does the steps itself. The file's hash must be the one the proof starts from. One path of steps that reaches the header's merkle root, through SHA-256 or RIPEMD-160, is enough. The result gives the block's hash, the height the proof states and the time in the header.",
                     "The height is written in the proof and nothing checks it: the header holds no height. Only the block hash is worth comparing, with a node you trust.",
                     "The device is offline and has no copy of the chain. A match says the header commits to the file; it does not say the header is in the chain.",
                 ],
@@ -1176,7 +1176,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "What is shown and not counted",
                 paragraphs: &[
-                    "A path counts only when the file's hash and every hash on the path are SHA-256. A path through SHA-1, RIPEMD-160 or Keccak-256 is shown with the hash named and whether it reaches the header, and is not counted. SHA-1 is broken, and the other two give a shorter or different guarantee than the one Bitcoin's own work rests on. Many older proofs go through the calendar's RIPEMD-160, so they show as reaching a block through a named hash.",
+                    "A path counts only when the file's hash and every hash on the path are SHA-256 or RIPEMD-160. A path through SHA-1 or Keccak-256 is shown with the hash named and whether it reaches the header, and is not counted. Many older proofs go through the calendar's RIPEMD-160, and those count.",
                     "A pending attestation names a calendar that has not yet seen its block: it proves nothing until the proof is upgraded on a computer with a network. An attestation for Litecoin or Ethereum is listed by its height, and an unknown kind by its tag. A Bitcoin attestation whose header does not match is listed as not matching.",
                 ],
             },

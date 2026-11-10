@@ -70,11 +70,11 @@ fn outcome(o: &Outcome) -> Value {
         Outcome::BitcoinMismatch { height } => {
             json!({"kind": "bitcoin", "height": height, "result": "mismatch"})
         }
-        Outcome::BitcoinNotSha256 {
+        Outcome::BitcoinNotCounted {
             height,
             op,
             reaches_header,
-        } => json!({"kind": "bitcoin", "height": height, "result": "not-sha256",
+        } => json!({"kind": "bitcoin", "height": height, "result": "not-counted",
                     "op": op.name(), "reaches": reaches_header}),
         Outcome::Pending { uri } => json!({"kind": "pending", "uri": uri}),
         Outcome::Litecoin { height } => json!({"kind": "litecoin", "height": height}),

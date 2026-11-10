@@ -75,7 +75,7 @@ fn a_proof_with_only_a_pending_attestation_names_its_calendar() {
     );
     assert!(has(
         &mut app,
-        "No path through SHA-256 alone reaches this header"
+        "No path through SHA-256 or RIPEMD-160 reaches this header"
     ));
     assert!(has_part(&mut app, "Pending at https://"));
 }
@@ -89,23 +89,37 @@ fn a_header_of_another_block_is_said_not_to_match() {
     );
     assert!(has(
         &mut app,
-        "No path through SHA-256 alone reaches this header"
+        "No path through SHA-256 or RIPEMD-160 reaches this header"
     ));
     assert!(has_part(&mut app, "not this header"));
 }
 
 #[test]
-fn a_path_through_ripemd160_is_named_and_not_counted() {
+fn a_path_through_ripemd160_is_counted() {
     let mut app = checked(
         "examples/hello-world.txt.ots",
         vector("examples/hello-world.txt"),
         "headers/358391.hex",
     );
+    assert!(has(&mut app, "The header commits to this file"));
+    assert!(!has(
+        &mut app,
+        "No path through SHA-256 or RIPEMD-160 reaches this header"
+    ));
+}
+
+#[test]
+fn a_path_through_sha1_is_named_and_not_counted() {
+    let mut app = checked(
+        "examples/sha1/a-or-b.ots",
+        vector("examples/sha1/a"),
+        "headers/466906.hex",
+    );
     assert!(has(
         &mut app,
-        "No path through SHA-256 alone reaches this header"
+        "No path through SHA-256 or RIPEMD-160 reaches this header"
     ));
-    assert!(has_part(&mut app, "RIPEMD-160"));
+    assert!(has_part(&mut app, "SHA-1"));
 }
 
 #[test]
@@ -408,8 +422,10 @@ fn opened(proof: Vec<u8>, file: Vec<u8>) -> Faraday {
 }
 
 fn says_pending(app: &mut Faraday) -> bool {
-    has(app, "No path through SHA-256 alone reaches this header")
-        && has_part(app, "Pending at https://")
+    has(
+        app,
+        "No path through SHA-256 or RIPEMD-160 reaches this header",
+    ) && has_part(app, "Pending at https://")
 }
 
 #[test]
@@ -428,7 +444,7 @@ fn a_large_file_reaches_the_verdict_a_small_one_does() {
             );
             assert!(!has(
                 &mut app,
-                "No path through SHA-256 alone reaches this header"
+                "No path through SHA-256 or RIPEMD-160 reaches this header"
             ));
             testkit::settle(&mut app);
         }

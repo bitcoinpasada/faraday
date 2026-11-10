@@ -13,9 +13,10 @@
 //! more.
 //!
 //! A Bitcoin path counts only when the file's hash and every hashing
-//! operation on the path are SHA-256: a path through SHA-1, RIPEMD-160 or
-//! Keccak-256 is reported with the operation named and is not counted. The
-//! reference counts such a path.
+//! operation on the path are SHA-256 or RIPEMD-160 (the calendars' own
+//! trees pass through RIPEMD-160): a path through SHA-1 or Keccak-256 is
+//! reported with the operation named and is not counted. The reference
+//! counts such a path.
 //!
 //! A proof is read within limits: 64 KiB of file, 16,384 entries in its
 //! tree, and 16 MiB of values made by its operations over the whole tree,
@@ -153,7 +154,7 @@ pub enum HashOp {
     Sha1,
     /// RIPEMD-160.
     Ripemd160,
-    /// SHA-256, the only hash a Bitcoin path is trusted through.
+    /// SHA-256, one of the two hashes a Bitcoin path is trusted through (the other is RIPEMD-160).
     Sha256,
     /// Keccak-256 (the original padding, not SHA3-256).
     Keccak256,
@@ -193,6 +194,12 @@ impl HashOp {
             HashOp::Sha256 => "sha256",
             HashOp::Keccak256 => "keccak256",
         }
+    }
+
+    /// Whether a path through this hash counts: SHA-256 and RIPEMD-160 do,
+    /// SHA-1 and Keccak-256 do not.
+    pub fn counts(self) -> bool {
+        matches!(self, HashOp::Sha256 | HashOp::Ripemd160)
     }
 
     fn from_tag(tag: u8) -> Option<HashOp> {
@@ -547,7 +554,7 @@ impl Proof {
             paths: Vec::new(),
         };
         if report.file_matches {
-            let untrusted = (self.file_op != HashOp::Sha256).then_some(self.file_op);
+            let untrusted = (!self.file_op.counts()).then_some(self.file_op);
             walk(
                 &self.tree,
                 file_digest,
@@ -575,7 +582,7 @@ fn walk(
                 // here; a path that somehow did would show nothing.
                 let Ok(v) = op.apply(value) else { continue };
                 let u = match op {
-                    Op::Hash(h) if *h != HashOp::Sha256 => untrusted.or(Some(*h)),
+                    Op::Hash(h) if !h.counts() => untrusted.or(Some(*h)),
                     _ => untrusted,
                 };
                 walk(next, &v, u, header, out);
@@ -590,7 +597,7 @@ fn outcome(a: &Attestation, value: &[u8], untrusted: Option<HashOp>, header: &He
             let height = *height;
             let reaches_header = value == header.merkle_root().as_slice();
             if let Some(op) = untrusted {
-                Outcome::BitcoinNotSha256 {
+                Outcome::BitcoinNotCounted {
                     height,
                     op,
                     reaches_header,
@@ -615,7 +622,7 @@ fn outcome(a: &Attestation, value: &[u8], untrusted: Option<HashOp>, header: &He
 /// What one attestation shows against the header given.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
-    /// The path is SHA-256 throughout and reaches the header's merkle root.
+    /// The path is SHA-256 or RIPEMD-160 throughout and reaches the header's merkle root.
     BitcoinMatched {
         /// The header's hash, in the order block explorers show it.
         block_hash: [u8; 32],
@@ -626,13 +633,13 @@ pub enum Outcome {
         /// The header's time, in seconds since 1970.
         time: u32,
     },
-    /// A SHA-256 path that does not reach this header's merkle root.
+    /// A SHA-256 or RIPEMD-160 path that does not reach this header's merkle root.
     BitcoinMismatch {
         /// The height the attestation names.
         height: u32,
     },
-    /// A Bitcoin path through a hash other than SHA-256: not counted.
-    BitcoinNotSha256 {
+    /// A Bitcoin path through SHA-1 or Keccak-256: not counted.
+    BitcoinNotCounted {
         /// The height the attestation names.
         height: u32,
         /// The first such hash on the path (the file's own hash counts).
@@ -675,7 +682,7 @@ pub struct Report {
 }
 
 impl Report {
-    /// At least one path is SHA-256 throughout and reaches the header.
+    /// At least one path is SHA-256 or RIPEMD-160 throughout and reaches the header.
     pub fn committed(&self) -> bool {
         self.paths
             .iter()

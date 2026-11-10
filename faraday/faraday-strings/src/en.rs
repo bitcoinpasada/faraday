@@ -13303,7 +13303,7 @@ strings! {
     /// Check a timestamp: a card's summary for a SHA-256 read from a text file; {} is the file's name.
     ots_digest_from: "SHA-256 from {}",
     /// Check a timestamp: the verdict with no counted path.
-    ots_not_committed: "No path through SHA-256 alone reaches this header",
+    ots_not_committed: "No path through SHA-256 or RIPEMD-160 reaches this header",
     /// Check a timestamp: the file is not the one the proof states.
     ots_file_differs: "This is not the file the proof states",
     /// Check a timestamp: the verdict when the file's hash is not enough.
@@ -13319,9 +13319,9 @@ strings! {
     /// Check a timestamp: a Bitcoin attestation the header does not match; {} is its height.
     ots_mismatch: "Bitcoin block {}: not this header",
     /// Check a timestamp: a path through a hash that is not counted; {} is the height, {} the hash.
-    ots_not_sha256: "Bitcoin block {}: passes through {}, not counted",
+    ots_not_counted: "Bitcoin block {}: passes through {}, not counted",
     /// Check a timestamp: a path through a hash that is not counted and reaches the header; {} is the height, {} the hash.
-    ots_not_sha256_reaches: "Bitcoin block {}: passes through {} and reaches the header, not counted",
+    ots_not_counted_reaches: "Bitcoin block {}: passes through {} and reaches the header, not counted",
     /// Check a timestamp: a pending attestation; {} is the calendar.
     ots_pending: "Pending at {}",
     /// Check a timestamp: a Litecoin attestation; {} is the height.

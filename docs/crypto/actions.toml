@@ -520,7 +520,7 @@ completeness = "Read only: the fields of an offer (`lno1`), nothing requested, p
 id = "ots"
 section = 5
 what = "OpenTimestamps proofs (`faraday/faraday-ots/src/lib.rs`)"
-completeness = "Read and checked offline: a proof's magic, version 1, the file's hash and every path of operations (append, prepend, SHA-256, SHA-1, RIPEMD-160, Keccak-256, reverse, hexlify) to its attestations, against a block header the person gives, whose own proof of work must meet its stated target. A Bitcoin path counts only through SHA-256; a path through SHA-1, RIPEMD-160 or Keccak-256 is named and not counted. A pending, Litecoin, Ethereum or unknown attestation is listed and not trusted. Nothing is made or upgraded"
+completeness = "Read and checked offline: a proof's magic, version 1, the file's hash and every path of operations (append, prepend, SHA-256, SHA-1, RIPEMD-160, Keccak-256, reverse, hexlify) to its attestations, against a block header the person gives, whose own proof of work must meet its stated target. A Bitcoin path counts only through SHA-256 and RIPEMD-160; a path through SHA-1 or Keccak-256 is named and not counted. A pending, Litecoin, Ethereum or unknown attestation is listed and not trusted. Nothing is made or upgraded"
 
 [[row]]
 id = "qr-code"
@@ -4361,10 +4361,10 @@ vectors = [
 ]
 tests = [
   "faraday/faraday-ots/tests/ots.rs::a_gdp_proof_through_sha256_only_is_committed_by_its_block",
-  "faraday/faraday-ots/tests/ots.rs::a_path_through_ripemd160_reaches_its_block_and_is_not_counted",
+  "faraday/faraday-ots/tests/ots.rs::a_path_through_ripemd160_reaches_its_block_and_is_counted",
   "faraday/faraday-ots/tests/ots.rs::a_proof_taken_with_sha1_is_named_and_not_counted",
   "faraday/faraday-ots/tests/ots.rs::a_path_through_sha1_is_named_and_not_counted",
-  "faraday/faraday-ots/tests/ots.rs::a_path_through_keccak_or_ripemd_is_named_and_not_counted",
+  "faraday/faraday-ots/tests/ots.rs::a_path_through_keccak_or_sha1_is_named_and_not_counted",
   "faraday/faraday-ots/tests/ots.rs::each_operation_is_applied_in_order",
   "faraday/faraday-ots/tests/ots.rs::the_references_invalid_examples_are_refused",
   "faraday/faraday-ots/tests/ots.rs::what_a_proof_may_not_hold_is_refused",
@@ -4394,7 +4394,7 @@ lines = [
 ]
 
 [[action.own]]
-text = "A Bitcoin path counts only when the file's hash and every hash on it are SHA-256: a path through SHA-1, RIPEMD-160 or Keccak-256 is named and not counted, where python-opentimestamps counts it. Where the reference leaves a case open, Faraday refuses: an Ethereum attestation whose payload is not one height, a block height over 32 bits, a number over 64 bits, a proof over 64 KiB, a tree of over 16,384 entries or whose operations make over 16 MiB of values in all, and a header whose target is above its network's proof-of-work limit (the reference reads these without a limit)."
+text = "A Bitcoin path counts only when the file's hash and every hash on it are SHA-256 or RIPEMD-160: a path through SHA-1 or Keccak-256 is named and not counted, where python-opentimestamps counts it. Where the reference leaves a case open, Faraday refuses: an Ethereum attestation whose payload is not one height, a block height over 32 bits, a number over 64 bits, a proof over 64 KiB, a tree of over 16,384 entries or whose operations make over 16 MiB of values in all, and a header whose target is above its network's proof-of-work limit (the reference reads these without a limit)."
 kind = "Conservative"
 decision = "F230"
 

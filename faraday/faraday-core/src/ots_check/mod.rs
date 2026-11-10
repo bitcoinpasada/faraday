@@ -379,15 +379,15 @@ fn shown(c: &Compute, proof: &Proof, file: &FileGiven, header: &Header) -> Shown
                 fill(EN.ots_counted_also, &[&height.to_string()])
             }
             Outcome::BitcoinMismatch { height } => fill(EN.ots_mismatch, &[&height.to_string()]),
-            Outcome::BitcoinNotSha256 {
+            Outcome::BitcoinNotCounted {
                 height,
                 op,
                 reaches_header,
             } => fill(
                 if *reaches_header {
-                    EN.ots_not_sha256_reaches
+                    EN.ots_not_counted_reaches
                 } else {
-                    EN.ots_not_sha256
+                    EN.ots_not_counted
                 },
                 &[&height.to_string(), op_name(*op)],
             ),

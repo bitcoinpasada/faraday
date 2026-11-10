@@ -543,14 +543,14 @@ leaves uncompared.
   text (a short channel id as `BxTxO/direction`, chain hashes reversed).
 - `ots`: the vendored files are hashed against `references.sha256`
   before any run; the client's example proofs
-  (`tools/vectors/opentimestamps/`) are read by both and the two that
-  reach a block through SHA-256 alone are required to be committed by
-  both; the shims' hashes are checked against known values before the
-  corpus; each limit is built either side of its edge and both must
-  agree. Not compared: the reference's printing of a tree and its stream
-  readers; the order of a node's entries (the walk is compared as a set
-  of paths); whether a header is in the chain; calendars, which neither
-  side asks.
+  (`tools/vectors/opentimestamps/`) are read by both and the four that
+  reach a block through SHA-256 and RIPEMD-160 alone are required to be
+  committed by both; the shims' hashes are checked against known values
+  before the corpus; each limit is built either side of its edge and
+  both must agree. Not compared: the reference's printing of a tree and
+  its stream readers; the order of a node's entries (the walk is
+  compared as a set of paths); whether a header is in the chain;
+  calendars, which neither side asks.
 <!-- facts:end what-runs -->
 
 <!-- facts:begin known-differences -->
@@ -1138,11 +1138,10 @@ difference"), and says why.
     year 9999, a first node that is no key, an unassigned character);
     the area requires Faraday's refusal and counts it as known
 - `ots`
-  - OTS: a Bitcoin path through SHA-1, RIPEMD-160 or Keccak-256, or a
-    file taken with SHA-1 or RIPEMD-160, is counted by the reference
-    when it reaches the header's merkle root; Faraday names the first
-    such hash and does not count it. Each is asked of the reference and
-    counted.
+  - OTS: a Bitcoin path through SHA-1 or Keccak-256, or a file taken
+    with SHA-1, is counted by the reference when it reaches the header's
+    merkle root; Faraday names the first such hash and does not count
+    it. Each is asked of the reference and counted.
   - OTS: an Ethereum attestation is verified by the reference against a
     block's transactions root; Faraday lists it by height and does not
     check it. A Litecoin one is listed by both (the reference raises

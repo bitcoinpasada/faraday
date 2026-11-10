@@ -83,7 +83,7 @@ fn a_gdp_proof_through_sha256_only_is_committed_by_its_block() {
 }
 
 #[test]
-fn a_path_through_ripemd160_reaches_its_block_and_is_not_counted() {
+fn a_path_through_ripemd160_reaches_its_block_and_is_counted() {
     // The reference's older proofs go through the calendar's RIPEMD-160.
     for (proof, file, height) in [
         ("hello-world.txt.ots", example("hello-world.txt"), 358391),
@@ -91,15 +91,11 @@ fn a_path_through_ripemd160_reaches_its_block_and_is_not_counted() {
     ] {
         let r = report_for(proof, &file, height);
         assert!(r.file_matches);
-        assert!(!r.committed());
-        assert_eq!(
-            r.paths,
-            vec![Outcome::BitcoinNotSha256 {
-                height,
-                op: HashOp::Ripemd160,
-                reaches_header: true
-            }]
-        );
+        assert!(r.committed());
+        assert!(matches!(
+            r.paths.as_slice(),
+            [Outcome::BitcoinMatched { height: h, .. }] if *h == height
+        ));
     }
 }
 
@@ -124,14 +120,7 @@ fn the_bad_stamp_does_not_reach_the_block_it_names() {
     let r = report_for("bad-stamp.txt.ots", &example("bad-stamp.txt"), 358391);
     assert!(r.file_matches);
     assert!(!r.committed());
-    assert_eq!(
-        r.paths,
-        vec![Outcome::BitcoinNotSha256 {
-            height: 358391,
-            op: HashOp::Ripemd160,
-            reaches_header: false
-        }]
-    );
+    assert_eq!(r.paths, vec![Outcome::BitcoinMismatch { height: 358391 }]);
 }
 
 #[test]
@@ -142,7 +131,7 @@ fn a_proof_taken_with_sha1_is_named_and_not_counted() {
     assert!(!r.committed());
     assert_eq!(
         r.paths,
-        vec![Outcome::BitcoinNotSha256 {
+        vec![Outcome::BitcoinNotCounted {
             height: 465751,
             op: HashOp::Sha1,
             reaches_header: true
@@ -185,7 +174,7 @@ fn a_path_through_sha1_is_named_and_not_counted() {
         let r = proof.verify(&compute(), &HashOp::Sha1.digest(&data), &header_at(466906));
         assert!(r.file_matches);
         assert!(!r.committed());
-        assert!(r.paths.contains(&Outcome::BitcoinNotSha256 {
+        assert!(r.paths.contains(&Outcome::BitcoinNotCounted {
             height: 466906,
             op: HashOp::Sha1,
             reaches_header: true
@@ -493,13 +482,78 @@ fn each_operation_is_applied_in_order() {
 }
 
 #[test]
-fn a_path_through_keccak_or_ripemd_is_named_and_not_counted() {
+fn a_proof_whose_file_hash_is_ripemd160_is_counted() {
+    let digest = HashOp::Ripemd160.digest(b"a file");
+    assert_eq!(digest.len(), 20);
+    let root = sha256(&digest);
+    let tree = [vec![0x08], attestation(BTC, &varuint(7))].concat();
+    let proof = Proof::parse(&compute(), &proof_of(0x03, &digest, &tree)).unwrap();
+    assert_eq!(proof.file_op(), HashOp::Ripemd160);
+    let r = proof.verify(&compute(), &digest, &mined(&root));
+    assert!(r.file_matches);
+    assert!(r.committed());
+}
+
+#[test]
+fn a_sha1_step_before_sha256_steps_is_named_and_not_counted() {
     let digest = [5u8; 32];
-    for (tag, op) in [
-        (0x67u8, HashOp::Keccak256),
-        (0x03, HashOp::Ripemd160),
-        (0x02, HashOp::Sha1),
-    ] {
+    let mut v = HashOp::Sha1.digest(&digest);
+    v.extend_from_slice(&[9; 12]);
+    let root = sha256(&sha256(&v));
+    let tree = [
+        vec![0x02, 0xf0],
+        varbytes(&[9; 12]),
+        vec![0x08, 0x08],
+        attestation(BTC, &varuint(7)),
+    ]
+    .concat();
+    let proof = Proof::parse(&compute(), &proof_of(0x08, &digest, &tree)).unwrap();
+    let r = proof.verify(&compute(), &digest, &mined(&root));
+    assert_eq!(
+        r.paths,
+        vec![Outcome::BitcoinNotCounted {
+            height: 7,
+            op: HashOp::Sha1,
+            reaches_header: true
+        }]
+    );
+    assert!(!r.committed());
+}
+
+#[test]
+fn the_first_uncounted_hash_on_a_path_is_the_one_named() {
+    let digest = [5u8; 32];
+    let root = HashOp::Keccak256.digest(
+        &HashOp::Sha1
+            .digest(&digest)
+            .iter()
+            .chain(&[9u8; 12])
+            .copied()
+            .collect::<Vec<u8>>(),
+    );
+    let tree = [
+        vec![0x02, 0xf0],
+        varbytes(&[9; 12]),
+        vec![0x67],
+        attestation(BTC, &varuint(7)),
+    ]
+    .concat();
+    let proof = Proof::parse(&compute(), &proof_of(0x08, &digest, &tree)).unwrap();
+    let r = proof.verify(&compute(), &digest, &mined(&root));
+    assert_eq!(
+        r.paths,
+        vec![Outcome::BitcoinNotCounted {
+            height: 7,
+            op: HashOp::Sha1,
+            reaches_header: true
+        }]
+    );
+}
+
+#[test]
+fn a_path_through_keccak_or_sha1_is_named_and_not_counted() {
+    let digest = [5u8; 32];
+    for (tag, op) in [(0x67u8, HashOp::Keccak256), (0x02, HashOp::Sha1)] {
         let mut root = op.digest(&digest);
         // Pad to 32 bytes so the value could equal a merkle root.
         let tree = if root.len() == 20 {
@@ -517,7 +571,7 @@ fn a_path_through_keccak_or_ripemd_is_named_and_not_counted() {
         let r = proof.verify(&compute(), &digest, &mined(&root));
         assert_eq!(
             r.paths,
-            vec![Outcome::BitcoinNotSha256 {
+            vec![Outcome::BitcoinNotCounted {
                 height: 7,
                 op,
                 reaches_header: true
