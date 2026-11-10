@@ -39,6 +39,8 @@ pub mod kind {
     pub const ROUND: u8 = 9;
     /// The amounts a transaction's inputs stated when it was signed.
     pub const AMOUNTS: u8 = 10;
+    /// The valid signatures of one transaction the nonce check found.
+    pub const NONCES: u8 = 17;
     /// A wallet's backup plan.
     pub const PLAN: u8 = 11;
     // Type 12 was an APK signing key. It is retired: no build knows it,
@@ -120,6 +122,12 @@ pub mod field {
     pub const AMOUNTS_TX: u8 = 1;
     /// Signed amounts: the amount one input stated (repeatable).
     pub const AMOUNTS_INPUT: u8 = 2;
+
+    /// Nonce record: SHA-256 of the unsigned transaction.
+    pub const NONCES_TX: u8 = 1;
+    /// Nonce record: one signature's key x coordinate, nonce point and
+    /// message, 32 bytes each (repeatable).
+    pub const NONCES_ENTRY: u8 = 2;
 
     /// Backup plan: the wallet, as its wallet record holds it.
     pub const PLAN_WALLET: u8 = 1;
@@ -270,6 +278,10 @@ const AMOUNTS_RULES: &[Rule] = &[
     rule(1, true, false, Shape::Exact(32)),
     rule(2, true, true, Shape::Exact(8)),
 ];
+const NONCES_RULES: &[Rule] = &[
+    rule(1, true, false, Shape::Exact(32)),
+    rule(2, true, true, Shape::Exact(96)),
+];
 const PLAN_RULES: &[Rule] = &[
     rule(1, true, false, TEXT),
     rule(2, false, false, TEXT),
@@ -309,6 +321,7 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
         kind::SECURE_BOOT => SECURE_BOOT_RULES,
         kind::ROUND => ROUND_RULES,
         kind::AMOUNTS => AMOUNTS_RULES,
+        kind::NONCES => NONCES_RULES,
         kind::PLAN => PLAN_RULES,
         kind::WALLET_SHARE => WALLET_SHARE_RULES,
         kind::PASSPHRASE => PASSPHRASE_RULES,

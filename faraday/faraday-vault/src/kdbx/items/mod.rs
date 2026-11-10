@@ -75,8 +75,8 @@ pub use text::{
 };
 use text::{Name, Path, Sealed, damage, title_of};
 pub use write::{
-    Place, Unwritable, check, put, put_known, put_plan, put_signed, remove, remove_custom,
-    remove_known, stamp,
+    Place, Unwritable, check, put, put_known, put_nonces, put_plan, put_signed, remove,
+    remove_custom, remove_known, stamp,
 };
 
 /// The `faraday.format` this build reads and writes.
@@ -733,6 +733,7 @@ fn count_uuid(g: &Group, uuid: &[u8; 16]) -> usize {
 
 const PLAN: &str = "faraday.plan.";
 const SIGNED: &str = "faraday.signed.";
+const NONCES: &str = "faraday.nonces.";
 
 /// The vault's own values, and the plans and signed amounts.
 fn read_meta(
@@ -790,7 +791,7 @@ fn read_meta(
                     bad(Fault::Value);
                 }
             }
-            _ if key.starts_with(PLAN) || key.starts_with(SIGNED) => {
+            _ if key.starts_with(PLAN) || key.starts_with(SIGNED) || key.starts_with(NONCES) => {
                 match custom_record(key, value) {
                     Some(record) => custom.push(Custom {
                         key: key.into(),
@@ -811,9 +812,35 @@ fn custom_record(key: &str, value: &str) -> Option<Record> {
     if let Some(n) = key.strip_prefix(PLAN) {
         forms::decimal(n, u64::from(u32::MAX))?;
         contents::read_plan(value.as_bytes()).ok()
+    } else if let Some(tx) = key.strip_prefix(NONCES) {
+        nonces_of(tx, value)
     } else {
         signed_of(key.strip_prefix(SIGNED)?, value)
     }
+}
+
+/// A nonce record from its key's `{tx}` and its value: entries joined by
+/// `,`, each `{key}:{r}:{msg}` of 64 lower-case hex digits apiece.
+fn nonces_of(tx: &str, value: &str) -> Option<Record> {
+    let tx = forms::unhex(tx).filter(|b| b.len() == 32)?;
+    let mut r = Record::new(kind::NONCES).with(field::NONCES_TX, &tx);
+    for entry in value.split(',') {
+        let mut entry_bytes = zeroize::Zeroizing::new(Vec::with_capacity(96));
+        let mut parts = 0;
+        for part in entry.split(':') {
+            parts += 1;
+            if part.len() != 64 {
+                return None;
+            }
+            entry_bytes.extend_from_slice(&forms::unhex(part)?);
+        }
+        if parts != 3 {
+            return None;
+        }
+        r.push(field::NONCES_ENTRY, &entry_bytes);
+    }
+    r.check().ok()?;
+    Some(r)
 }
 
 /// A signed amounts record from its key's `{tx}` and its value.

@@ -45,6 +45,31 @@ pub(super) fn signed_key(tx_hex: &[u8]) -> String {
     key
 }
 
+/// `faraday.nonces.{tx}` from the transaction's hex.
+pub(super) fn nonces_key(tx_hex: &[u8]) -> String {
+    let mut key = String::from(super::NONCES);
+    key.push_str(core::str::from_utf8(tx_hex).unwrap_or(""));
+    key
+}
+
+/// A nonce record's value: each entry's three 32-byte parts as
+/// `{key}:{r}:{msg}` in lower-case hex, entries comma separated.
+pub(super) fn nonces_value<'a>(entries: impl Iterator<Item = &'a [u8]>) -> String {
+    let mut value = String::new();
+    for e in entries {
+        if !value.is_empty() {
+            value.push(',');
+        }
+        for (i, part) in e.chunks(32).enumerate() {
+            if i > 0 {
+                value.push(':');
+            }
+            value.push_str(core::str::from_utf8(&super::forms::hex(part)).unwrap_or(""));
+        }
+    }
+    value
+}
+
 /// A signed amounts value: the inputs' amounts, comma separated.
 pub(super) fn signed_value(amounts: impl Iterator<Item = u64>) -> String {
     let mut value = String::new();
@@ -189,9 +214,10 @@ pub struct Related {
 }
 
 /// One value of the database's custom data that reads: a backup plan
-/// (type 11) or a transaction's signed amounts (type 10).
+/// (type 11), a transaction's signed amounts (type 10) or its nonce
+/// record (type 17).
 pub struct Custom {
-    /// Its key (`faraday.plan.2`, `faraday.signed.{tx}`).
+    /// Its key (`faraday.plan.2`, `faraday.signed.{tx}`, `faraday.nonces.{tx}`).
     pub key: String,
     /// The record.
     pub record: Record,

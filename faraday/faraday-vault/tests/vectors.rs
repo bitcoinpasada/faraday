@@ -45,9 +45,9 @@ fn the_vault_of_every_kind_opens_to_what_it_was_made_from() {
         (1, Some("2023-11-14T22:13:20Z"))
     );
     assert_eq!(o.vault_id(), *b"01010101010101010101010101010101");
-    // Twelve items, a plan and signed amounts, none unreadable.
+    // Twelve items, a plan, signed amounts and a nonce record, none unreadable.
     assert_eq!(read.items.len(), 12);
-    assert_eq!(read.custom.len(), 2);
+    assert_eq!(read.custom.len(), 3);
     assert!(read.unreadable.is_empty());
     assert_eq!(read.history + read.recycle_bin, 0);
     // The size and cost the file states.

@@ -7,7 +7,7 @@
 //! ```
 //!
 //! - `vault-all.kdbx`: a 256 KiB vault with one item of every kind of §7
-//!   and a person's entry, a backup plan and signed amounts.
+//!   and a person's entry, a backup plan, signed amounts and a nonce record.
 //! - `vault-small.kdbx`: a 64 KiB vault with an entry and a note.
 //! - `vault-codex32.kdbx`: a seed with its codex32 set's facts and one share
 //!   (`docs/CODEX32.md` §9.4, §9.5).
@@ -270,6 +270,18 @@ fn plan() -> Record {
         .with(field::PLAN_PLACE, b"Home")
 }
 
+fn nonces() -> Record {
+    let mut r = Record::new(kind::NONCES).with(field::NONCES_TX, &[0xcd; 32]);
+    for n in [1u8, 2] {
+        let mut entry = [0u8; 96];
+        for (i, part) in entry.chunks_mut(32).enumerate() {
+            part.fill(n * 16 + i as u8);
+        }
+        r.push(field::NONCES_ENTRY, &entry);
+    }
+    r
+}
+
 fn signed() -> Record {
     Record::new(kind::AMOUNTS)
         .with(field::AMOUNTS_TX, &[0xab; 32])
@@ -312,6 +324,7 @@ fn document(id: u8, label: &str, items: &[Item], more: bool) -> Document {
     if more {
         items::put_plan(&mut doc, 1, &plan()).expect("a plan");
         items::put_signed(&mut doc, &signed()).expect("amounts");
+        items::put_nonces(&mut doc, &nonces()).expect("nonces");
     }
     doc
 }

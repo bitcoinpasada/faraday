@@ -108,6 +108,7 @@ fn open_py_prints_every_item_under_its_name_with_the_values_pykeepass_reads() {
         "  faraday.seals: 1\n",
         "  faraday.sealed: 2023-11-14T22:13:20Z\n",
         "  faraday.signed.abababababababababababababababababababababababababababababababab: 5000,0\n",
+        "  faraday.nonces.cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd: 1010101010101010101010101010101010101010101010101010101010101010:1111111111111111111111111111111111111111111111111111111111111111:1212121212121212121212121212121212121212121212121212121212121212,2020202020202020202020202020202020202020202020202020202020202020:2121212121212121212121212121212121212121212121212121212121212121:2222222222222222222222222222222222222222222222222222222222222222\n",
         "  faraday.plan.1: wallet = \"wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodm",
         "seed (Bitcoin keys) 01010101010101010101010101010101\n  Title: Savings\n  Password: abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about\n  passphrase: TREZOR\n  faraday.load: false\n  faraday.held: true\n",
         "  faraday.codex32: {k = 2, id = \"name\", lengths = [48], unknown = 1, shares = [{index = \"a\", state = \"placed\"}, {index = \"c\", state = \"made\"}]}\n",

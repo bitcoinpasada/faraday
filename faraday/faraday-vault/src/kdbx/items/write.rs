@@ -9,7 +9,7 @@ use faraday_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 use super::{
-    Body, ENTRY_FIELDS, FORMAT, KEEPASS, KINDS, PEM_FIELDS, PLAN, Read, SIGNED, STANDARD,
+    Body, ENTRY_FIELDS, FORMAT, KEEPASS, KINDS, NONCES, PEM_FIELDS, PLAN, Read, SIGNED, STANDARD,
     count_uuid, custom_record, find_mut, forms, has_same_field, named, named_custom, text,
 };
 use crate::kdbx::xml::{Document, Entry, Group};
@@ -297,7 +297,7 @@ fn changeable_n(read: &Read, n: usize, uuid: &[u8; 16]) -> Result<usize, Unwrita
 /// Why a plan's or signed amounts' key may not be changed: it holds a
 /// value that does not read (`read` lists it as unreadable).
 fn custom_readable(doc: &Document, key: &str) -> Result<(), Unwritable> {
-    if !(key.starts_with(PLAN) || key.starts_with(SIGNED)) {
+    if !(key.starts_with(PLAN) || key.starts_with(SIGNED) || key.starts_with(NONCES)) {
         return Ok(());
     }
     match doc.custom().get(key) {
@@ -497,15 +497,38 @@ pub fn put_signed(doc: &mut Document, record: &Record) -> Result<(), Unwritable>
         .map_err(|_| Unwritable::Record(record.kind))
 }
 
-/// Removes a plan or a transaction's signed amounts by its key; the
+/// Writes a nonce record as `faraday.nonces.{tx}`; refused when the value
+/// already under that key does not read.
+pub fn put_nonces(doc: &mut Document, record: &Record) -> Result<(), Unwritable> {
+    locked(doc)?;
+    if record.kind != kind::NONCES || record.check().is_err() {
+        return Err(Unwritable::Record(record.kind));
+    }
+    let key = text::nonces_key(&forms::hex(record.field(field::NONCES_TX).unwrap_or(&[])));
+    let value = text::nonces_value(
+        record
+            .fields
+            .iter()
+            .filter(|f| f.number == field::NONCES_ENTRY)
+            .map(|f| &f.bytes[..]),
+    );
+    custom_readable(doc, &key)?;
+    doc.custom_mut()
+        .set(&key, &value)
+        .map_err(|_| Unwritable::Record(record.kind))
+}
+
+/// Removes a plan, a transaction's signed amounts or its nonce record by its key; the
 /// vault's own values (`faraday.format`, `faraday.seals`, `faraday.sealed`)
 /// are not removed. Whether it was there. Refused on a read-only vault and
 /// for a key whose value does not read.
 pub fn remove_custom(doc: &mut Document, key: &str) -> Result<bool, Unwritable> {
     locked(doc)?;
     custom_readable(doc, key)?;
-    Ok((key.starts_with(PLAN) || key.starts_with(SIGNED))
-        && doc.custom_mut().remove(key).unwrap_or(false))
+    Ok(
+        (key.starts_with(PLAN) || key.starts_with(SIGNED) || key.starts_with(NONCES))
+            && doc.custom_mut().remove(key).unwrap_or(false),
+    )
 }
 
 /// Writes the vault's own values for a seal: `faraday.format` 1, the seal
@@ -591,6 +614,13 @@ pub fn check(
                 return Err(Unwritable::Record(record.kind));
             }
             let key = text::signed_key(&forms::hex(record.field(field::AMOUNTS_TX).unwrap_or(&[])));
+            custom_readable(doc, &key)?;
+        }
+        Change::Nonces(record) => {
+            if record.kind != kind::NONCES || record.check().is_err() {
+                return Err(Unwritable::Record(record.kind));
+            }
+            let key = text::nonces_key(&forms::hex(record.field(field::NONCES_TX).unwrap_or(&[])));
             custom_readable(doc, &key)?;
         }
         Change::RemoveCustom(key) => custom_readable(doc, key)?,

@@ -17,7 +17,7 @@ is behind anything here. The GPG and Secure Boot keys are placeholders.
 
 | File | Passphrase | What it holds |
 |---|---|---|
-| `vault-all.kdbx` | `correct horse battery staple` | 256 KiB, "Everything": one item of every kind of §7 (two seeds, a words one with every custom data and a hex one; two wallets, a policy and a descriptor), a person's entry with its TOTP, a backup plan and signed amounts |
+| `vault-all.kdbx` | `correct horse battery staple` | 256 KiB, "Everything": one item of every kind of §7 (two seeds, a words one with every custom data and a hex one; two wallets, a policy and a descriptor), a person's entry with its TOTP, a backup plan, signed amounts and a nonce record |
 | `vault-small.kdbx` | the same | 64 KiB, "Small": an entry and a note |
 | `vault-codex32.kdbx` | the same | "Shares": BIP 93 vector 2's seed with its codex32 set's facts, and a share |
 | `vault-nfd.kdbx` | `café` in NFD (U+0065 U+0301) | "Accents", made with the passphrase in NFD; it opens under the NFC form (U+00E9) too (§3) |

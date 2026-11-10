@@ -693,6 +693,125 @@ fn custom_data_that_does_not_read_is_named_and_kept() {
     assert_eq!(written.custom().get("faraday.colour"), Some("blue"));
 }
 
+fn nonces(tx: u8, n: u8) -> Record {
+    let mut r = Record::new(kind::NONCES).with(field::NONCES_TX, &[tx; 32]);
+    for i in 0..n {
+        let mut entry = [0u8; 96];
+        for (j, part) in entry.chunks_mut(32).enumerate() {
+            part.fill(tx.wrapping_add(i * 3 + j as u8));
+        }
+        r.push(field::NONCES_ENTRY, &entry);
+    }
+    r
+}
+
+#[test]
+fn nonce_records_of_two_transactions_read_back_as_written() {
+    let mut doc = full();
+    items::put_nonces(&mut doc, &nonces(0x11, 3)).unwrap();
+    items::put_nonces(&mut doc, &nonces(0x22, 1)).unwrap();
+    let doc = again(&doc);
+    let key = format!("faraday.nonces.{}", "11".repeat(32));
+    let value = doc.custom().get(&key).expect("written");
+    let entries: Vec<&str> = value.split(',').collect();
+    assert_eq!(entries.len(), 3);
+    assert!(entries.iter().all(|e| e.len() == 64 * 3 + 2));
+    assert!(entries[0].starts_with(&format!("{}:{}:", "11".repeat(32), "12".repeat(32))));
+    let read = items::read(&compute(), &doc);
+    assert!(read.unreadable.is_empty(), "{:?}", read.unreadable);
+    for (tx, n) in [(0x11u8, 3u8), (0x22, 1)] {
+        let key = format!("faraday.nonces.{}", format!("{tx:02x}").repeat(32));
+        let c = read.custom.iter().find(|c| c.key == key).expect("read");
+        assert_eq!(fields(&c.record), fields(&nonces(tx, n)));
+    }
+    assert_eq!(read.custom.len(), 4);
+    // Written again, the value is the same.
+    let mut second = again(&doc);
+    items::put_nonces(&mut second, &nonces(0x11, 3)).unwrap();
+    assert_eq!(second.custom().get(&key), Some(value));
+}
+
+#[test]
+fn a_nonce_value_that_does_not_read_is_named_and_kept_as_written() {
+    let good = format!(
+        "{}:{}:{}",
+        "aa".repeat(32),
+        "bb".repeat(32),
+        "cc".repeat(32)
+    );
+    let upper = good.to_uppercase();
+    let short = format!(
+        "{}:{}:{}",
+        "aa".repeat(32),
+        "bb".repeat(32),
+        "cc".repeat(31)
+    );
+    let two = format!("{}:{}", "aa".repeat(32), "bb".repeat(32));
+    let mut doc = full();
+    let cases = [
+        ("1", upper),
+        ("2", String::new()),
+        ("3", short),
+        ("4", two),
+        ("5", format!("{good},")),
+        ("6", format!("{good},,{good}")),
+    ];
+    for (n, value) in &cases {
+        doc.custom_mut()
+            .set(&format!("faraday.nonces.{}", n.repeat(64)), value)
+            .unwrap();
+    }
+    // A key whose transaction is not 64 lower-case hex digits.
+    let bad_tx = format!("faraday.nonces.{}", "AB".repeat(32));
+    doc.custom_mut().set(&bad_tx, &good).unwrap();
+    doc.custom_mut()
+        .set(&format!("faraday.nonces.{}", "7".repeat(64)), &good)
+        .unwrap();
+    let read = read(&doc);
+    assert_eq!(read.unreadable.len(), cases.len() + 1);
+    assert!(read.unreadable.iter().all(|u| u.what.fault == Fault::Value));
+    assert!(
+        read.unreadable
+            .iter()
+            .any(|u| bad_tx.starts_with(&*u.title))
+    );
+    assert!(read.items.len() > 1, "the vault itself reads");
+    assert!(!read.read_only());
+    assert!(
+        read.custom
+            .iter()
+            .any(|c| c.key == format!("faraday.nonces.{}", "7".repeat(64)))
+    );
+    let written = again(&doc);
+    for (n, value) in &cases {
+        let key = format!("faraday.nonces.{}", n.repeat(64));
+        assert_eq!(written.custom().get(&key), Some(value.as_str()));
+    }
+    // A value that does not read is neither replaced nor removed.
+    let mut doc = written;
+    let key = format!("faraday.nonces.{}", "1".repeat(64));
+    assert_eq!(
+        items::put_nonces(&mut doc, &nonces(0x11, 1)),
+        Err(Unwritable::Unreadable)
+    );
+    assert_eq!(
+        items::remove_custom(&mut doc, &key),
+        Err(Unwritable::Unreadable)
+    );
+}
+
+#[test]
+fn a_vault_with_no_nonce_record_reads_as_before() {
+    let read = read(&full());
+    assert!(read.unreadable.is_empty());
+    assert_eq!(read.custom.len(), 2);
+    assert!(
+        read.custom
+            .iter()
+            .all(|c| !c.key.starts_with("faraday.nonces."))
+    );
+}
+
 // --- KeePass apps ------------------------------------------------------------
 
 #[test]

@@ -206,7 +206,9 @@ pub enum Change<'a> {
     },
     /// Write a transaction's signed amounts.
     Signed(&'a Record),
-    /// Remove a plan or signed amounts by its key.
+    /// Write a transaction's nonce record.
+    Nonces(&'a Record),
+    /// Remove a plan, signed amounts or a nonce record by its key.
     RemoveCustom(&'a str),
     /// Rename the vault.
     Label(&'a str),
@@ -407,6 +409,7 @@ fn applied(
             }
             Change::Plan { n, record } => items::put_plan(&mut copy, *n, record)?,
             Change::Signed(record) => items::put_signed(&mut copy, record)?,
+            Change::Nonces(record) => items::put_nonces(&mut copy, record)?,
             Change::RemoveCustom(key) => {
                 items::remove_custom(&mut copy, key)?;
             }

@@ -29,7 +29,7 @@ Each item is printed under §7's names: a line with its kind (`seed`,
 its UUID, then its fields and custom data as the file holds them, in the
 order the file has them. The vault's own values come first: its label, its
 identifier (the root group's UUID), `faraday.format`, `faraday.seals`,
-`faraday.sealed`, and each `faraday.signed.{tx}` and `faraday.plan.{n}`.
+`faraday.sealed`, and each `faraday.signed.{tx}`, `faraday.nonces.{tx}` and `faraday.plan.{n}`.
 
 `--field KIND.FIELD --out FILE` prints nothing of the vault and writes one
 value's bytes, as they are, to a new file created with mode 0600 (an
