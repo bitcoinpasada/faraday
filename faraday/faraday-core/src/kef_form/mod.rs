@@ -302,8 +302,14 @@ impl KefForm {
     }
 
     /// Where the code is copied by hand now: the plan's map has it on
-    /// Paper at a place.
-    pub(crate) fn set_paper(&mut self, paper: bool) {
+    /// Paper at a place. A code checked while it was not on Paper, and not
+    /// scanned, goes back to Not checked when it is put on Paper while a
+    /// camera is attached: its drawn copy is yet to be scanned
+    /// (`docs/KEF.md` §15.1). With no camera it stays checked.
+    pub(crate) fn set_paper(&mut self, paper: bool, camera: bool) {
+        if paper && !self.paper && camera && !self.scanned {
+            self.checked = false;
+        }
         self.paper = paper;
     }
 

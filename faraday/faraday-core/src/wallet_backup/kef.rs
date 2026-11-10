@@ -347,12 +347,24 @@ pub(crate) fn opened(app: &mut Faraday) {
     sync(app);
 }
 
+/// The plan is made into a checklist: every form follows the map, so a
+/// code put on Paper since it was checked reads as `docs/KEF.md` §15.1
+/// has it, and the record keeps it.
+pub(crate) fn plan_made(app: &mut Faraday) {
+    for i in app.backup.kef_seeds() {
+        sync_paper(app, i);
+        if app.backup.kef_form(i).is_some_and(|f| f.made().is_some()) {
+            sync_record(app, i);
+        }
+    }
+}
+
 /// Seed `i`'s form follows the map: on Paper where a place holds the
 /// code.
 fn sync_paper(app: &mut Faraday, i: usize) {
     let c = app.compute();
     let paper = on_paper(app, &c, i);
-    with_form(app, i, |f, _| f.set_paper(paper));
+    with_form(app, i, |f, app| f.set_paper(paper, !app.cameras().is_empty()));
 }
 
 /// Not on Paper: the open item's code comes off every place

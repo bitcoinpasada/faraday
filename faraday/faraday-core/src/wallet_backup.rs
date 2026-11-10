@@ -1564,6 +1564,7 @@ impl Faraday {
                     return;
                 }
                 self.backup_extras();
+                kef::plan_made(self);
                 self.plan_save();
                 // The files are made on the worker; the checklist opens with
                 // the answer.

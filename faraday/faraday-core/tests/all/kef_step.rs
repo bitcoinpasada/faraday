@@ -1158,3 +1158,30 @@ fn a_code_larger_than_the_largest_sheet_counts_no_sheet_in_the_templates_item() 
         "{texts:?}"
     );
 }
+
+#[test]
+fn a_code_checked_off_paper_reads_not_checked_once_put_on_paper_with_a_camera() {
+    let mut app = at_the_checklist();
+    app.storage(StorageEvent::Cameras(vec![(
+        "cam".to_string(),
+        "Camera".to_string(),
+    )]));
+    open_item(&mut app, bstep::KEF);
+    make(&mut app);
+    check_with(&mut app, "a passphrase");
+    assert!(done(&app));
+    assert_eq!(status(&mut app), "Checked");
+    // Back at the plan, the code is also put on Paper at the first place.
+    app.press(Action::BStep(bstep::KEF));
+    app.press(Action::BPlan);
+    board(&mut app, BP::Menu(Chip::List(Thing::Seed(0))));
+    board(&mut app, BP::MenuVerb(Verb::Kef));
+    board(&mut app, BP::MenuTo(Zone::Paper(0)));
+    board(&mut app, BP::Menu(Chip::List(Thing::Seed(0))));
+    board(&mut app, BP::MenuVerb(Verb::Add));
+    board(&mut app, BP::MenuTo(Zone::Paper(0)));
+    app.press(Action::BChecklist);
+    app.settle();
+    assert!(app.backup_items_now(&testkit::compute()).contains(&bstep::KEF), "no item");
+    assert!(!done(&app));
+}

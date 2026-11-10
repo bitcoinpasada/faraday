@@ -653,7 +653,8 @@ impl Faraday {
         Some(Ok(kef_make::made(&c, bytes, options)))
     }
 
-    /// Puts the code's picture (when it fits one code) and its file in
+    /// Costs two writes to the Outbox and a SHA-256 pass over the `.kef`
+    /// file. Puts the code's picture (when it fits one code) and its file in
     /// the Outbox, beside any other of the same name in the Outbox or Files. Neither is a secret
     /// (`docs/QR.md` §7.1). Gives the name the toast reads: the picture's,
     /// or the file's when there is no picture.
