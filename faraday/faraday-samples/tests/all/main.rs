@@ -15,6 +15,7 @@ mod passphrase;
 mod pi_panel;
 mod psbt;
 mod pull;
+mod qr_vault_sample;
 mod signer_check;
 mod use_sample;
 mod vectors;

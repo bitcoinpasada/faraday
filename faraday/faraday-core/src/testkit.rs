@@ -194,6 +194,7 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                 signer_returned: &[],
                 signer_returned_proprietary: &[],
                 krux_code: &[],
+                qr_vault: &[],
             },
         }
     })

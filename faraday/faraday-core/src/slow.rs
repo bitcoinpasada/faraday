@@ -89,6 +89,9 @@ pub(crate) fn drawn_first(a: Action) -> bool {
             | Action::PotentialMake
             | Action::SecretHold
             | Action::SeedRead(seeds::read::Choice::Plain | seeds::read::Choice::WithPass)
+            | Action::QrTool(
+                crate::qr_tool::QrToolAction::Seed | crate::qr_tool::QrToolAction::AddToKey,
+            )
             | Action::Seeds(seeds::SeedsAction::Make | seeds::SeedsAction::Sample(_))
             | Action::SelfTestRun
             | Action::Vanity(vanity::VanityAction::Use)

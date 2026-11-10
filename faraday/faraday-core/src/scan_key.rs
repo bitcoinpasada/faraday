@@ -879,7 +879,6 @@ impl Faraday {
     /// BIP 93 says. Returns whether it was one. A Create slot's New key
     /// keeps its own scanner, which takes SeedQRs only.
     pub(crate) fn seed_scan_codex32(&mut self, bytes: &[u8]) -> bool {
-        use crate::forms::Form;
         // Only Scan a SeedQR's scanner, and never while a stick is in
         // (the scanner says why itself).
         if !self
@@ -901,22 +900,31 @@ impl Faraday {
         self.camera.close();
         self.sheet = None;
         self.out.commands.push_back(Command::CameraOff);
-        let codex32 = Form::ALL.iter().position(|f| *f == Form::Codex32);
         if in_flow {
             self.keygen_open_on(crate::keygen::Start::Codex32);
+            self.entry.state_mut().typed.set(&given);
+            self.form_add_part();
         } else {
-            if self.screen != crate::Screen::Entry {
-                self.act(Action::Entry(None));
-            }
-            if let Some(i) = codex32
-                && self.entry.state().form != Form::Codex32
-            {
-                self.act(Action::EntryForm(i as u8));
-            }
+            self.codex32_form_with(&given);
         }
-        self.entry.state_mut().typed.set(&given);
-        self.form_add_part();
         true
+    }
+
+    /// Costs what adding the string costs. Add a key's codex32 form opens
+    /// with `given` typed in, as if the person had typed it.
+    pub(crate) fn codex32_form_with(&mut self, given: &str) {
+        use crate::forms::Form;
+        let codex32 = Form::ALL.iter().position(|f| *f == Form::Codex32);
+        if self.screen != crate::Screen::Entry {
+            self.act(Action::Entry(None));
+        }
+        if let Some(i) = codex32
+            && self.entry.state().form != Form::Codex32
+        {
+            self.act(Action::EntryForm(i as u8));
+        }
+        self.entry.state_mut().typed.set(given);
+        self.form_add_part();
     }
 }
 

@@ -8032,6 +8032,8 @@ strings! {
     seed_read_seedqr_read: "SeedQR read",
     /// The seed sheet's title for a seed's words read (`docs/SCANNING.md` §6).
     seed_read_words_read: "Words read",
+    /// The seed sheet's title for a seed opened from a QR vault.
+    seed_read_qr_vault_read: "QR vault read",
     /// The seed sheet's title for a CompactSeedQR read.
     seed_read_compact_read: "CompactSeedQR read",
     /// The seed sheet's line for a key a loaded wallet has. `{}`: its place in the wallet, the wallet.
@@ -12926,4 +12928,27 @@ strings! {
     qr_tool_open_key: "Key {}",
     /// The Open card: the code holds a note.
     qr_tool_open_note: "A note",
+    /// The Open card, a seed: opens the seed sheet again.
+    qr_tool_load_seed: "Load as a key",
+    /// The Open card, a codex32 share: opens Add a key's codex32 form with it.
+    qr_tool_add_share: "Add the share",
+    /// The Open card, a passphrase: adds it to the loaded key whose words make the key. `{}`: that key's fingerprint.
+    qr_tool_add_to_key: "Add to key {}",
+    /// The Open card, a passphrase whose key is not loaded. `{}`: the fingerprint of the key it makes.
+    qr_tool_key_not_loaded: "Key {} is not loaded",
+    /// The Open card, a passphrase whose key is not loaded: what to do first.
+    qr_tool_load_words_first: "Load its words without a passphrase first.",
+    /// The Open card, a note: saves it into the open vault.
+    qr_tool_save_note: "Save as a note",
+    /// The Open card, a note and no vault open: why Save as a note is dimmed.
+    qr_tool_open_vault_first: "Open a vault first",
+    /// The Open card, a note saved. `{}`: the vault's name.
+    qr_tool_note_saved: "Note saved in {}",
+    /// The Open card, a passphrase naming a loaded key that no loaded key's
+    /// words make with it. `{}`: the key's fingerprint.
+    qr_tool_pass_makes_no_loaded_key: "No loaded key makes key {} with this passphrase",
+    /// The Open card, a note saved: Save as a note, dimmed.
+    qr_tool_note_is_saved: "Saved as a note",
+    /// The Open card, a passphrase added to a key. `{}`: the key's fingerprint.
+    qr_tool_pass_added: "Key {} added",
 }

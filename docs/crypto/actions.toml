@@ -7730,7 +7730,7 @@ decision = "F190"
 [[action]]
 id = "qr-vault-open"
 name = "Open a QR vault"
-action = "Opens a scanned QR vault code, or a chosen .pgp file, under a typed passphrase, and holds the one item it holds for the QR vault tool to say what it is and, behind an eye, to show a note or a passphrase."
+action = "Opens a scanned QR vault code, or a chosen .pgp file, under a typed passphrase, and holds the one item it holds for the QR vault tool to say what it is and, behind an eye, to show a note or a passphrase; then offers what that item takes: a seed's words to the seed sheet, a share to the codex32 form, a passphrase added to the loaded key whose words make the key it names (with the offer worked out from fingerprints alone), and a note saved in the open file vault."
 row = "vault"
 standards = [
   "RFC 9580",
@@ -7745,6 +7745,11 @@ functions = [
   "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_hold",
   "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_note",
   "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_passphrase",
+  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_words",
+  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_share",
+  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_passphrase_offer",
+  "faraday/faraday-keys/src/qr_vault.rs::Keys::qr_add_passphrase",
+  "faraday/faraday-keys/src/qr_vault.rs::OpenVaults::qr_save_note",
 ]
 code = ["faraday/faraday-keys/src/qr_vault.rs::QrOpenJob::run"]
 
@@ -7752,7 +7757,7 @@ code = ["faraday/faraday-keys/src/qr_vault.rs::QrOpenJob::run"]
 crate = "faraday/faraday-keys"
 libraries = []
 through = []
-adds = "Reads the message of the action above with the typed passphrase after its stated Argon2 cost is checked against the limits (the app also checks the cost against the memory this computer has free before it starts the job, and names a code it cannot open at once), and reads the contents (`faraday-vault::contents`) into one held item that leaves `faraday-keys` only through the `Reveal::QrVault` reveals."
+adds = "Reads the message of the action above with the typed passphrase after its stated Argon2 cost is checked against the limits (the app also checks the cost against the memory this computer has free before it starts the job, and names a code it cannot open at once), and reads the contents (`faraday-vault::contents`) into one held item that leaves `faraday-keys` only through the `Reveal::QrVault` reveals. The offers lend the held words or share once to the seed sheet or the codex32 form; `qr_passphrase_offer` makes the BIP-39 seed and BIP-32 master fingerprint of each loaded key with the held passphrase and returns only fingerprints, and `qr_add_passphrase` adds the key it finds; `qr_save_note` writes the note as a note record of the open vault."
 
 [action.checked]
 vectors = ["vault"]
@@ -7762,6 +7767,10 @@ tests = [
   "faraday/faraday-core/tests/all/qr_tool.rs::a_seed_and_a_passphrase_are_named_and_a_passphrase_is_behind_its_eye",
   "faraday/faraday-core/tests/all/qr_tool.rs::the_right_passphrase_shows_a_note_behind_its_eye",
   "faraday/faraday-core/tests/all/qr_tool.rs::a_wrong_passphrase_says_so_and_a_second_try_opens",
+  "faraday/faraday-core/tests/all/qr_tool.rs::an_opened_seed_goes_to_the_seed_sheet_and_loads_as_a_key",
+  "faraday/faraday-core/tests/all/qr_tool.rs::an_opened_share_is_typed_into_the_codex32_form",
+  "faraday/faraday-core/tests/all/qr_tool.rs::an_opened_passphrase_is_added_to_the_key_its_words_make",
+  "faraday/faraday-core/tests/all/qr_tool.rs::an_opened_note_is_saved_as_a_note_last_in_the_open_vault",
 ]
 crosscheck = "qrvault"
 independence = { class = "outside-and-own", author = "Sequoia's sq and rPGP, as for the OpenPGP message the code is", ours = "none beyond the message's own" }
@@ -7770,12 +7779,13 @@ fuzz = ["pgp_message"]
 [action.secrets]
 reveal = ["Reveal::QrVault"]
 constant_time = "Not stated; the open is the message's."
-wiped = "The typed passphrase is wiped when the open ends, stops or fails; the item held is wiped on the next open, on leaving the tool, at the idle warning and at a lock."
+wiped = "The typed passphrase is wiped when the open ends, stops or fails; words or a share lent to an offer are wiped as the seed sheet or the form takes them; the item held is wiped on the next open, on leaving the tool, at the idle warning and at a lock."
 
 [action.limits]
 lines = [
   "A message Faraday does not open, or a stated cost outside the limits, is named before any memory is taken.",
   "A wrong passphrase is told from a changed message and may be tried again.",
+  "No key loads with a stick plugged in; the card says so. A key already loaded is not added twice; a vault that is read-only, full or not open takes no note.",
 ]
 
 [[action]]

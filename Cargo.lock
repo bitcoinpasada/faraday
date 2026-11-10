@@ -1113,6 +1113,7 @@ dependencies = [
  "faraday-vault",
  "serde_json",
  "unicode-normalization",
+ "zeroize",
 ]
 
 [[package]]

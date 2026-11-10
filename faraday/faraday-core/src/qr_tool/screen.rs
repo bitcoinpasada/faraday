@@ -3,6 +3,7 @@
 
 use super::{Field, Pick, QrToolAction as Q, QrToolState, qstep, state};
 use crate::Action;
+use crate::demo::{PassField, pass_box};
 use crate::drawing::{Scrolled, View};
 use crate::flow;
 use crate::screens::randomness::row as own_row;
@@ -12,7 +13,7 @@ use crate::ui::{Style, Ui};
 use crate::vault::screen::secret::secret_with;
 use crate::vault::screen::{secret_box, text_box};
 use faraday_draw::tokens::{self, BODY_M, BODY_S, BUTTON_H, FIELD_GAP, FIELD_H, GAP};
-use faraday_keys::{QR_SEAL_EXPONENTS, QrHolds, Reveal};
+use faraday_keys::{QR_SEAL_EXPONENTS, QrHolds, QrPassOffer, Reveal};
 use zeroize::Zeroizing;
 
 pub(crate) const TITLES: [&str; qstep::COUNT] =
@@ -122,6 +123,13 @@ fn card(app: &View, s: &QrToolState, ui: &mut Ui, step: u8, (x, y, w): (f32, f32
 
 fn contents(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
+    if s.pick().is_none()
+        && app
+            .put_on()
+            .is_some_and(|set| !set.inputs.qr_vault.is_empty())
+    {
+        crate::samples::put::offer(ui, act(Q::UseSample));
+    }
     for (label, pick) in [
         (EN.qr_tool_type_note, Pick::Note),
         (EN.qr_tool_loaded_key, Pick::Key),
@@ -209,22 +217,24 @@ fn contents(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
 
 fn passphrase(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
-    for (label, field, b) in [
-        (EN.qr_tool_pass, Field::Pass, &s.pass),
-        (EN.qr_tool_pass_again, Field::Again, &s.again),
+    for (label, field, b, chip) in [
+        (EN.qr_tool_pass, Field::Pass, &s.pass, PassField::QrMake(0)),
+        (
+            EN.qr_tool_pass_again,
+            Field::Again,
+            &s.again,
+            PassField::QrMake(1),
+        ),
     ] {
         cy += ui.field_label(x, cy, label);
-        let show = app.pass_shows(s.shown, b.text.as_str());
-        secret_box(
+        pass_box(
+            app,
             ui,
-            x,
-            cy,
-            w,
+            (x, cy, w),
             b,
-            show,
-            s.focus() == Some(field),
-            act(Q::Focus(field)),
-            act(Q::Eye),
+            (s.shown, s.focus() == Some(field)),
+            (act(Q::Focus(field)), act(Q::Eye)),
+            chip,
         );
         cy += FIELD_H + GAP;
     }
@@ -303,17 +313,14 @@ fn open_card(
     ) + GAP;
     let Some(holds) = s.holds() else {
         cy += ui.field_label(x, cy, EN.qr_tool_pass);
-        let show = app.pass_shows(s.shown, s.pass.text.as_str());
-        secret_box(
+        pass_box(
+            app,
             ui,
-            x,
-            cy,
-            w,
+            (x, cy, w),
             &s.pass,
-            show,
-            s.focus() == Some(Field::Pass),
-            act(Q::Focus(Field::Pass)),
-            act(Q::Eye),
+            (s.shown, s.focus() == Some(Field::Pass)),
+            (act(Q::Focus(Field::Pass)), act(Q::Eye)),
+            PassField::QrOpen,
         );
         cy += FIELD_H + GAP;
         if let Some(e) = &s.error {
@@ -339,23 +346,90 @@ fn open_card(
     match holds {
         QrHolds::Empty => cy += line(ui, cy, EN.qr_tool_open_empty),
         QrHolds::Seed { words } => {
-            cy += line(ui, cy, &fill(EN.qr_tool_open_seed, &[&words.to_string()]));
+            cy += line(ui, cy, &fill(EN.qr_tool_open_seed, &[&words.to_string()])) + GAP;
+            cy += offer(ui, (x, cy, w), EN.qr_tool_load_seed, true, Q::Seed);
         }
         QrHolds::Share { key } => {
             cy += line(ui, cy, EN.qr_tool_open_share) + GAP;
-            cy += line(ui, cy, &fill(EN.qr_tool_open_key, &[&key.to_string()]));
+            cy += line(ui, cy, &fill(EN.qr_tool_open_key, &[&key.to_string()])) + GAP;
+            cy += offer(ui, (x, cy, w), EN.qr_tool_add_share, true, Q::Share);
         }
         QrHolds::Passphrase { key } => {
             cy += line(ui, cy, EN.qr_tool_open_passphrase) + GAP;
             cy += line(ui, cy, &fill(EN.qr_tool_open_key, &[&key.to_string()])) + GAP;
             let text = || Zeroizing::new(keys.qr_passphrase(Reveal::QrVault).to_string());
-            cy += secret_with(ui, (x, cy, w), text, true, eye);
+            cy += secret_with(ui, (x, cy, w), text, true, eye) + GAP;
+            let fp = key.to_string();
+            match s.pass_offer() {
+                Some(QrPassOffer::Add(_)) => {
+                    let label = fill(EN.qr_tool_add_to_key, &[&fp]);
+                    cy += offer(ui, (x, cy, w), &label, true, Q::AddToKey);
+                }
+                Some(QrPassOffer::Loaded) => {
+                    cy += line(ui, cy, &fill(EN.scan_key_key_already, &[&fp]));
+                }
+                Some(QrPassOffer::NotLoaded) if keys.find(key).is_some() => {
+                    cy += ui.wrap_as(
+                        (x, cy, w),
+                        BODY_S,
+                        Role::OnSurfaceVariant,
+                        &fill(EN.qr_tool_pass_makes_no_loaded_key, &[&fp]),
+                    );
+                }
+                Some(QrPassOffer::NotLoaded) => {
+                    cy += line(ui, cy, &fill(EN.qr_tool_key_not_loaded, &[&fp])) + GAP;
+                    cy += ui.wrap_as(
+                        (x, cy, w),
+                        BODY_S,
+                        Role::OnSurfaceVariant,
+                        EN.qr_tool_load_words_first,
+                    );
+                }
+                None => {}
+            }
         }
         QrHolds::Note => {
             cy += line(ui, cy, EN.qr_tool_open_note) + GAP;
             let text = || Zeroizing::new(keys.qr_note(Reveal::QrVault).to_string());
-            cy += secret_with(ui, (x, cy, w), text, false, eye);
+            cy += secret_with(ui, (x, cy, w), text, false, eye) + GAP;
+            let current = app.vaults.open.get(app.vaults.current).map(|o| o.id);
+            let vault = current.is_some();
+            let saved = current.is_some() && s.note_saved == current;
+            let label = if saved {
+                EN.qr_tool_note_is_saved
+            } else {
+                EN.qr_tool_save_note
+            };
+            cy += offer(ui, (x, cy, w), label, vault && !saved, Q::SaveNote);
+            if !vault {
+                cy += GAP;
+                cy += ui.wrap_as(
+                    (x, cy, w),
+                    BODY_S,
+                    Role::OnSurfaceVariant,
+                    EN.qr_tool_open_vault_first,
+                );
+            }
         }
     }
+    if let Some(e) = &s.error {
+        cy += GAP;
+        cy += ui.wrap_as((x, cy, w), BODY_S, Role::Error, e);
+    }
     cy - y
+}
+
+/// An offer of the Open card: a button, dimmed when it cannot be pressed.
+/// Its height.
+fn offer(ui: &mut Ui, (x, y, w): (f32, f32, f32), label: &str, on: bool, a: Q) -> f32 {
+    ui.button(
+        x,
+        y,
+        Some(w),
+        BUTTON_H,
+        label,
+        Style::Primary.when(on),
+        act(a),
+    );
+    BUTTON_H
 }

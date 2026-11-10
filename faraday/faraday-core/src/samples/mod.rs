@@ -192,6 +192,11 @@ pub struct SampleInputs {
     /// rounds), and `regenerate` does not remake it, since a remake would
     /// draw a new id and IV. Empty where a set has none.
     pub krux_code: &'static [u8],
+    /// A QR vault code (`docs/VAULT.md` §13) of the `bacon` x 24 words
+    /// sample, a seed, under the passphrase `faraday` at the smallest
+    /// memory step, sealed with fixed public random bytes so that
+    /// `regenerate` makes the same file again. Empty where a set has none.
+    pub qr_vault: &'static [u8],
 }
 
 /// Every sample, as the samples crate holds them.

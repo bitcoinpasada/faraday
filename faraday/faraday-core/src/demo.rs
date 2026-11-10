@@ -157,6 +157,10 @@ pub enum PassField {
     Check,
     /// An aezeed's passphrase.
     Aezeed,
+    /// The QR vault tool's Open card passphrase.
+    QrOpen,
+    /// The QR vault tool's Make passphrase (0) and its repeat (1).
+    QrMake(u8),
 }
 
 /// A passphrase field with an eye at its right end, as
@@ -196,6 +200,7 @@ impl PassField {
             PassField::SeedRead(_) => PassField::SeedRead(0),
             PassField::Slot(_) => PassField::Slot(0),
             PassField::Phrase(i, _) => PassField::Phrase(i, false),
+            PassField::QrMake(_) => PassField::QrMake(0),
             f => f,
         }
     }
@@ -418,6 +423,9 @@ impl Faraday {
             }
             PassField::Aezeed => {
                 self.lightning.set_passphrase(PASSPHRASE);
+            }
+            PassField::QrOpen | PassField::QrMake(_) => {
+                crate::qr_tool::offers::fill_faraday(self, field);
             }
         }
     }

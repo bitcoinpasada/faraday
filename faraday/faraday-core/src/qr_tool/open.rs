@@ -94,6 +94,7 @@ pub(crate) fn opened(app: &mut Faraday, done: OpenDone) {
                 s.error = None;
                 s.focus = None;
             }
+            super::offers::after_open(app);
         }
         Err(e) => {
             if let Some(s) = st(app) {
@@ -118,6 +119,7 @@ pub(crate) fn open_stopped(app: &mut Faraday) {
     if let Some(s) = st(app) {
         s.wipe_typed();
         s.holds = None;
+        s.pass_offer = None;
         s.focus = Some(Field::Pass);
     }
 }

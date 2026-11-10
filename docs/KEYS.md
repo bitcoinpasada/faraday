@@ -284,9 +284,15 @@ impl Keys {
     opaque `QrOpened` kept by `Keys::qr_hold`), in place of any held
     before, wiped by `Keys::qr_forget` and by `Keys::clear` (a lock).
     The held item leaves only for `Reveal::QrVault`: `Keys::qr_words`,
-    `qr_share`, `qr_passphrase` and `qr_note` lend it, `qr_load_words`
-    and `qr_add_passphrase` load it as a key, and
-    `OpenVaults::qr_save_note` puts a note into an open vault. Every
+    `qr_share`, `qr_passphrase` and `qr_note` lend it,
+    `qr_add_passphrase` loads a passphrase as a key, `qr_passphrase_offer`
+    says from the keys loaded, in fingerprints only, whether a held
+    passphrase adds to one of them, is loaded already or has no key to
+    add to (worked out when the code opens and after an add, never while
+    drawing), and `OpenVaults::qr_save_note` puts a note into an open
+    vault. The Open card's seed goes to the seed sheet through
+    `qr_words`, a scanned SeedQR's flow, and its share to the codex32
+    form through `qr_share`; each lent copy is wiped as the flow takes it. Every
     seal and open of a QR vault in the app goes through this module
     (`tools/lint-secrets.sh`).
 

@@ -158,6 +158,12 @@ public values work; only the actions in the table are disabled.
   none is in Files (**Use a sample**), Unlock, Vault
   contents, entries, notes, TOTP codes, KeePass export, the stick
   visit and Files.
+- **QR vault** tool: Make seals a loaded public seed or a typed note under
+  a passphrase of `faraday` or the person's own (§5.4); Open takes a code
+  scanned, from Files or sample (**Use a sample**, §14.1), and its offers
+  are the forms' own: a seed's words go to the seed sheet and a share to
+  the codex32 form, which Practice takes only for a public seed (§3), a
+  passphrase adds to a loaded key, a note saves into an open vault.
 - **Vanity address** on the account dial; **Lightning node key**'s node
   id from a loaded public seed, and its LND cipher seed row, which takes
   only LND's published seed and offers it (**Use a sample**); **Silent payments**' address, labels,
@@ -333,6 +339,8 @@ Practice's alone (`Faraday::roller_offered`).
 | Make codex32 shares, the entry | Its own card: **Use a sample**, the five-dice roller and its step-through | `docs/CODEX32.md` §5.5 |
 | Make codex32 shares, the cards after the entry | "Practice puts sample NAME in place of these strings" | Practice replaces the strings made (`docs/CODEX32.md` §12) |
 | Vaults, no vault in Files | **Use a sample** (the sample vault) | A public file in place of the person's own |
+| QR vault, the first card | **Use a sample** | A public QR vault code (the seed of the bacon sample under `faraday`) in place of the person's own |
+| QR vault, Make's passphrase pair and the Open card's passphrase | **Use faraday** | §5.4 |
 | Create a vault | **Use faraday** for each passphrase and its repeat; the Generate with dice roller; "Practice puts faraday in place of these words" | §5.2 |
 | Unlock; the boot import's passphrase; a passphrase prompt; the Spend tab's vault passphrase; the backup flow's unlock | **Use faraday** | §5.4 |
 | Vault contents, an entry's password | **Use faraday** | §5.4 |

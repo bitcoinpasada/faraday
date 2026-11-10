@@ -447,8 +447,13 @@ fn a_seed_and_a_passphrase_are_named_and_a_passphrase_is_behind_its_eye() {
     let mut app = started();
     open_from_files(&mut app, seed);
     unseal(&mut app, VECTOR_PASS);
-    assert!(has(&mut app, "A seed of 12 words"));
+    assert_eq!(
+        qr_tool::state(&app).unwrap().holds(),
+        Some(QrHolds::Seed { words: 12 })
+    );
     assert!(!has_part(&mut app, "abandon"), "the words are not shown");
+    app.press(Action::Cancel);
+    assert!(has(&mut app, "A seed of 12 words"));
     let mut app = started();
     open_from_files(&mut app, pass);
     unseal(&mut app, VECTOR_PASS);
@@ -577,4 +582,293 @@ fn the_idle_warning_closes_the_eye_and_asks_for_the_passphrase_again() {
     let s = qr_tool::state(&app).expect("the tool stays open");
     assert!(s.holds().is_none());
     assert_eq!(s.focus(), Some(qr_tool::Field::Pass));
+}
+
+const SEED12: &[u8] = include_bytes!("../../../../tools/vectors/vault/qr/qr-seed-12.pgp");
+const SHARE: &[u8] = include_bytes!("../../../../tools/vectors/vault/qr/qr-codex32.pgp");
+const PASS: &[u8] = include_bytes!("../../../../tools/vectors/vault/qr/qr-passphrase.pgp");
+const NOTE: &[u8] = include_bytes!("../../../../tools/vectors/vault/qr/qr-note.pgp");
+
+/// The key of `WORDS12` with the passphrase `TREZOR`.
+const TREZOR_KEY: &str = "b4e3f5ed";
+
+#[test]
+fn an_opened_seed_goes_to_the_seed_sheet_and_loads_as_a_key() {
+    let mut app = started();
+    open_from_files(&mut app, SEED12);
+    unseal(&mut app, VECTOR_PASS);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::SeedRead));
+    assert!(has(&mut app, "QR vault read"));
+    assert!(has(&mut app, "Use without a passphrase"));
+    assert!(has(&mut app, "Add a passphrase"));
+    assert!(app.session.keys.is_empty());
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    testkit::settle(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    assert!(app.session.keys[0].has_words());
+}
+
+#[test]
+fn cancelling_the_seed_sheet_loads_nothing_and_the_card_offers_the_seed_again() {
+    let mut app = started();
+    open_from_files(&mut app, SEED12);
+    unseal(&mut app, VECTOR_PASS);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::SeedRead));
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::QrTool);
+    assert!(app.session.keys.is_empty());
+    assert!(has(&mut app, "A seed of 12 words"));
+    app.press(Action::QrTool(Q::Seed));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::SeedRead));
+}
+
+#[test]
+fn an_opened_share_is_typed_into_the_codex32_form() {
+    let mut app = started();
+    open_from_files(&mut app, SHARE);
+    unseal(&mut app, VECTOR_PASS);
+    assert!(has(&mut app, "Add the share"));
+    app.press(Action::QrTool(Q::Share));
+    assert_eq!(app.screen, Screen::Entry);
+    assert!(has(&mut app, "Share C · id name · 2 needed"));
+}
+
+fn add_twelve(app: &mut Faraday) {
+    let c = testkit::compute();
+    app.session
+        .keys
+        .add_words(&c, WORDS12, "Twelve", None)
+        .unwrap();
+}
+
+#[test]
+fn an_opened_passphrase_is_added_to_the_key_its_words_make() {
+    let mut app = started();
+    add_twelve(&mut app);
+    open_from_files(&mut app, PASS);
+    unseal(&mut app, VECTOR_PASS);
+    let add = format!("Add to key {TREZOR_KEY}");
+    assert!(has(&mut app, &add));
+    app.press(Action::QrTool(Q::AddToKey));
+    testkit::settle(&mut app);
+    assert_eq!(app.session.keys.len(), 2);
+    assert!(has_part(&mut app, TREZOR_KEY));
+    assert!(has(&mut app, &format!("Key {TREZOR_KEY} · already here")));
+    assert!(!offered(&mut app, Action::QrTool(Q::AddToKey)));
+}
+
+#[test]
+fn an_opened_passphrase_whose_key_is_loaded_says_so() {
+    let mut app = started();
+    add_twelve(&mut app);
+    let c = testkit::compute();
+    app.session
+        .keys
+        .add_with_passphrase(&c, 0, "TREZOR", "Twelve with")
+        .unwrap();
+    open_from_files(&mut app, PASS);
+    unseal(&mut app, VECTOR_PASS);
+    assert!(has(&mut app, &format!("Key {TREZOR_KEY} · already here")));
+    assert!(!offered(&mut app, Action::QrTool(Q::AddToKey)));
+}
+
+#[test]
+fn an_opened_passphrase_with_no_words_loaded_says_the_key_is_not_loaded() {
+    let mut app = started();
+    open_from_files(&mut app, PASS);
+    unseal(&mut app, VECTOR_PASS);
+    assert!(has(&mut app, &format!("Key {TREZOR_KEY} is not loaded")));
+    assert!(has(&mut app, "Load its words without a passphrase first."));
+    assert!(!offered(&mut app, Action::QrTool(Q::AddToKey)));
+}
+
+#[test]
+fn with_a_stick_plugged_in_no_key_is_loaded_and_the_card_says_why() {
+    let mut shell = crate::common::Shell::new();
+    shell.add(crate::common::Disk::empty("S1", "KEYSTICK"));
+    let mut app = started();
+    add_twelve(&mut app);
+    open_from_files(&mut app, PASS);
+    unseal(&mut app, VECTOR_PASS);
+    shell.plug(&mut app, "S1");
+    app.press(Action::Cancel);
+    app.press(Action::QrTool(Q::AddToKey));
+    testkit::settle(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    let t = texts(&mut app);
+    assert!(
+        t.iter().any(|x| x.contains("Keys load only with no")),
+        "{:?} {t:?}",
+        app.screen
+    );
+
+    let mut shell = crate::common::Shell::new();
+    shell.add(crate::common::Disk::empty("S1", "KEYSTICK"));
+    let mut app = started();
+    open_from_files(&mut app, SEED12);
+    unseal(&mut app, VECTOR_PASS);
+    app.press(Action::Cancel);
+    shell.plug(&mut app, "S1");
+    app.press(Action::Cancel);
+    app.press(Action::QrTool(Q::Seed));
+    assert_eq!(app.sheet, None);
+    assert!(app.session.keys.is_empty());
+    assert!(has_part(&mut app, "Keys load only with no"));
+}
+
+#[test]
+fn an_opened_note_is_saved_into_the_open_vault_and_dimmed_with_none() {
+    let mut app = started();
+    open_from_files(&mut app, NOTE);
+    unseal(&mut app, VECTOR_PASS);
+    assert!(has(&mut app, "Save as a note"));
+    assert!(has(&mut app, "Open a vault first"));
+    assert!(!offered(&mut app, Action::QrTool(Q::SaveNote)));
+}
+
+#[test]
+fn an_opened_note_is_saved_as_a_note_last_in_the_open_vault() {
+    use faraday_core::vault::VaultAction as V;
+    use faraday_vault::records::kind;
+    let file = testkit::kdbx_vault("Alpha", "vault phrase", 1, Vec::new()).unwrap();
+    let mut app = started();
+    app.storage(StorageEvent::Restored {
+        inbox: vec![
+            ("a.kdbx".to_string(), file),
+            ("code.pgp".to_string(), NOTE.to_vec()),
+        ],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_in(&mut app, "vault phrase");
+    app.press(Action::Vault(V::Unlock));
+    testkit::settle(&mut app);
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
+    app.press(Action::Vault(V::LoadNotNow));
+    app.press(Action::Nav(Screen::Files));
+    let _ = app.frame();
+    app.press(Action::QrTool(Q::OpenFile(1)));
+    assert_eq!(app.screen, Screen::QrTool);
+    unseal(&mut app, VECTOR_PASS);
+    assert!(offered(&mut app, Action::QrTool(Q::SaveNote)));
+    assert!(!has(&mut app, "Open a vault first"));
+    let id = app.vaults().open[0].id;
+    let before = app.vaults().records(id).of(kind::NOTE).count();
+    app.press(Action::QrTool(Q::SaveNote));
+    assert_eq!(app.vaults().records(id).of(kind::NOTE).count(), before + 1);
+    assert!(has(&mut app, "Saved as a note"));
+    assert!(!offered(&mut app, Action::QrTool(Q::SaveNote)));
+    app.press(Action::QrTool(Q::SaveNote));
+    assert_eq!(app.vaults().records(id).of(kind::NOTE).count(), before + 1);
+}
+
+#[test]
+fn practice_does_not_load_a_seed_that_is_not_public() {
+    let mut app = started();
+    testkit::into_demo(&mut app);
+    open_from_files(&mut app, SEED12);
+    unseal(&mut app, VECTOR_PASS);
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    testkit::settle(&mut app);
+    assert!(app.session.keys.is_empty());
+    assert_eq!(app.screen, Screen::QrTool);
+    assert!(has_part(&mut app, "Practice takes only samples"));
+}
+
+#[test]
+fn a_seed_already_loaded_says_so_on_the_card() {
+    let mut app = started();
+    add_twelve(&mut app);
+    open_from_files(&mut app, SEED12);
+    unseal(&mut app, VECTOR_PASS);
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    testkit::settle(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.screen, Screen::QrTool);
+    assert_eq!(app.sheet, None);
+    assert!(has_part(&mut app, "already loaded"));
+}
+
+#[test]
+fn a_share_is_not_typed_in_with_a_stick_plugged_in() {
+    let mut shell = crate::common::Shell::new();
+    shell.add(crate::common::Disk::empty("S1", "KEYSTICK"));
+    let mut app = started();
+    open_from_files(&mut app, SHARE);
+    unseal(&mut app, VECTOR_PASS);
+    shell.plug(&mut app, "S1");
+    app.press(Action::Cancel);
+    app.press(Action::QrTool(Q::Share));
+    assert_eq!(app.screen, Screen::QrTool);
+    assert!(has_part(&mut app, "Keys load only with no"));
+}
+
+/// A QR vault code holding `record`, sealed under the vector passphrase.
+fn sealed_record(record: faraday_vault::Record) -> Vec<u8> {
+    use faraday_keys::vault::{OpenVaults, SEAL_RANDOM_LEN, create};
+    let c = testkit::compute();
+    let file = create(
+        &c,
+        [7u8; 16],
+        "Test",
+        faraday_vault::Cost {
+            memory_kib: 8192,
+            passes: 1,
+            lanes: 1,
+        },
+        "pass",
+        &[7u8; SEAL_RANDOM_LEN],
+        None,
+    )
+    .expect("a vault");
+    let mut store = OpenVaults::default();
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
+    let at = store.insert(id, record).expect("kept");
+    store
+        .qr_seal_item(
+            &c,
+            id,
+            at,
+            VECTOR_PASS,
+            *faraday_keys::QR_SEAL_EXPONENTS.start(),
+            &[7u8; faraday_keys::QR_RANDOM_LEN],
+        )
+        .expect("sealed")
+}
+
+#[test]
+fn an_earlier_add_a_key_target_does_not_reach_a_seed_loaded_from_the_card() {
+    let mut app = started();
+    app.press(Action::Entry(Some([1, 2, 3, 4])));
+    app.press(Action::Nav(Screen::Home));
+    open_from_files(&mut app, SEED12);
+    unseal(&mut app, VECTOR_PASS);
+    app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
+    testkit::settle(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+#[test]
+fn a_passphrase_naming_a_plain_loaded_key_says_no_loaded_key_makes_it() {
+    use faraday_vault::records::{field, kind};
+    let code = sealed_record(
+        faraday_vault::Record::new(kind::PASSPHRASE)
+            .with(field::PASSPHRASE_KEY, &[0x73, 0xc5, 0xda, 0x0a])
+            .with(field::PASSPHRASE, b"TREZOR"),
+    );
+    let mut app = started();
+    add_twelve(&mut app);
+    open_from_files(&mut app, &code);
+    unseal(&mut app, VECTOR_PASS);
+    assert!(has(
+        &mut app,
+        "No loaded key makes key 73c5da0a with this passphrase"
+    ));
+    assert!(!has_part(&mut app, "is not loaded"));
+    assert!(!offered(&mut app, Action::QrTool(Q::AddToKey)));
 }

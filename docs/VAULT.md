@@ -1587,7 +1587,7 @@ would:
 |---|---|
 | A seed's words | the seed sheet (**Use without a passphrase** / **Add a passphrase**, `docs/FLOWS.md`), then the flow of a scanned SeedQR |
 | A codex32 share | Add a key's codex32 form, with the share typed in |
-| A passphrase | **Add to key {fingerprint}** when a loaded key's words make that key with this passphrase (the item names the key the words make with it, as in a file vault, §7); "Key {fingerprint} is already loaded" when that key is loaded; otherwise "Key {fingerprint} is not loaded", and the passphrase behind its eye |
+| A passphrase | **Add to key {fingerprint}** when a loaded key's words make that key with this passphrase (the item names the key the words make with it, as in a file vault, §7); "Key {fingerprint} · already here" when a loaded key's words make that key with this passphrase and it is loaded already; otherwise "Key {fingerprint} is not loaded" and "Load its words without a passphrase first.", and the passphrase behind its eye |
 | A note | the note behind its eye, and **Save as a note** in an open file vault (dimmed, "Open a vault first", when none is) |
 | Nothing | "This QR vault is empty." |
 

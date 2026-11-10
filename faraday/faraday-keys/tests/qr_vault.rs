@@ -8,8 +8,8 @@ use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::{self, Names, OpenVaults, SEAL_RANDOM_LEN, VaultId};
 use faraday_keys::{
-    Keys, QR_SEAL_EXPONENTS, QrError, QrFit, QrHolds, QrOpenJob, QrUnsupported, Reveal, qr_cost,
-    qr_item_offered, qr_note_over, qr_seal_note_job,
+    Keys, QR_SEAL_EXPONENTS, QrError, QrFit, QrHolds, QrOpenJob, QrPassOffer, QrUnsupported,
+    Reveal, qr_cost, qr_item_offered, qr_note_over, qr_seal_note_job,
 };
 use faraday_vault::Record;
 use faraday_vault::contents::write_qr;
@@ -158,9 +158,6 @@ fn a_loaded_key_of_12_or_24_words_is_sealed_and_loads_back() {
             Ok(QrHolds::Seed { words: count })
         );
         assert_eq!(&*other.qr_words(Reveal::QrVault), phrase);
-        let fp = other.qr_load_words(&c, "", "From a code").unwrap();
-        assert_eq!(fp, keys.info(0).unwrap().fingerprint);
-        assert_eq!(other.info(0).unwrap().label, "From a code");
     }
 }
 
@@ -415,10 +412,9 @@ fn offers_refuse_the_wrong_item() {
         .run(&c)
         .unwrap();
     let mut keys = Keys::on(Network::Mainnet);
-    assert_eq!(keys.qr_load_words(&c, "", ""), Err(QrError::NotHeld));
     open_code(&mut keys, &c, PASS, &code).unwrap();
-    assert_eq!(keys.qr_load_words(&c, "", ""), Err(QrError::NotHeld));
     assert_eq!(keys.qr_add_passphrase(&c, ""), Err(QrError::NotHeld));
+    assert_eq!(keys.qr_passphrase_offer(&c), None);
     assert_eq!(&*keys.qr_share(Reveal::QrVault), "");
 }
 
@@ -427,10 +423,16 @@ fn a_held_passphrase_is_added_to_the_key_its_words_make_with_it() {
     let c = compute();
     let mut keys = Keys::on(Network::Mainnet);
     open_code(&mut keys, &c, PASS, &committed("qr-passphrase.pgp")).unwrap();
+    assert_eq!(keys.qr_passphrase_offer(&c), Some(QrPassOffer::NotLoaded));
     assert_eq!(keys.qr_add_passphrase(&c, ""), Err(QrError::NotLoaded));
     keys.add_words(&c, ABANDON, "", None).unwrap();
     assert_eq!(keys.info(0).unwrap().fingerprint, Fingerprint(ABANDON_KEY));
+    assert_eq!(
+        keys.qr_passphrase_offer(&c),
+        Some(QrPassOffer::Add(Fingerprint(ABANDON_KEY)))
+    );
     let fp = keys.qr_add_passphrase(&c, "With passphrase").unwrap();
+    assert_eq!(keys.qr_passphrase_offer(&c), Some(QrPassOffer::Loaded));
     assert_eq!(fp, Fingerprint(TREZOR_KEY));
     assert_eq!(keys.len(), 2);
     assert!(keys.info(1).unwrap().has_passphrase);
@@ -439,6 +441,26 @@ fn a_held_passphrase_is_added_to_the_key_its_words_make_with_it() {
         Err(QrError::Key(faraday_intake::wallet::Refusal::Duplicate(f))) if f == fp
     ));
     assert_eq!(keys.len(), 2);
+}
+
+#[test]
+fn a_passphrase_naming_a_plain_loaded_key_is_not_already_here() {
+    let c = compute();
+    let (store, id, at) = vault_with(
+        &c,
+        vec![
+            Record::new(kind::PASSPHRASE)
+                .with(field::PASSPHRASE_KEY, &ABANDON_KEY)
+                .with(field::PASSPHRASE, b"TREZOR"),
+        ],
+    );
+    let code = store
+        .qr_seal_item(&c, id, at[0], PASS, EXPONENT, &RANDOM)
+        .unwrap();
+    let mut keys = Keys::on(Network::Mainnet);
+    keys.add_words(&c, ABANDON, "", None).unwrap();
+    open_code(&mut keys, &c, PASS, &code).unwrap();
+    assert_eq!(keys.qr_passphrase_offer(&c), Some(QrPassOffer::NotLoaded));
 }
 
 #[test]

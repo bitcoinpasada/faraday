@@ -17,6 +17,7 @@ use faraday_keys::{
 use faraday_shell_api::Key;
 use zeroize::{Zeroize, Zeroizing};
 
+pub(crate) mod offers;
 mod open;
 pub(crate) mod screen;
 mod seal;
@@ -100,6 +101,16 @@ pub enum QrToolAction {
     File,
     /// Back to the first card, with nothing kept.
     Another,
+    /// The opened seed on the seed sheet (open again).
+    Seed,
+    /// The opened codex32 share in Add a key's codex32 form.
+    Share,
+    /// The opened passphrase added to the key its words make.
+    AddToKey,
+    /// The opened note saved into the open vault.
+    SaveNote,
+    /// Practice: a sample QR vault code in place of one scanned.
+    UseSample,
 }
 
 /// A code made. Public (`docs/QR.md` §7.1); wiped with the tool.
@@ -138,6 +149,12 @@ pub struct QrToolState {
     code: Option<Vec<u8>>,
     /// What the code opened to; the item itself is held in `faraday-keys`.
     holds: Option<QrHolds>,
+    /// What an opened passphrase does for the keys loaded, worked out when
+    /// it opened and again after it is added.
+    pass_offer: Option<faraday_keys::QrPassOffer>,
+    /// The vault the opened note was saved into: Save as a note says so
+    /// for that vault.
+    note_saved: Option<faraday_keys::vault::VaultId>,
 }
 
 impl QrToolState {
@@ -161,6 +178,8 @@ impl QrToolState {
             made: None,
             code: None,
             holds: None,
+            pass_offer: None,
+            note_saved: None,
         }
     }
 
@@ -172,6 +191,11 @@ impl QrToolState {
     /// What the code brought opened to, once opened.
     pub fn holds(&self) -> Option<QrHolds> {
         self.holds
+    }
+
+    /// What an opened passphrase does for the keys loaded.
+    pub fn pass_offer(&self) -> Option<faraday_keys::QrPassOffer> {
+        self.pass_offer
     }
 
     /// Whether the tool holds something typed that is secret.
@@ -389,6 +413,11 @@ pub(crate) fn act(app: &mut Faraday, action: QrToolAction) {
         }
         QrToolAction::Make => make(app),
         QrToolAction::OpenCode => open::press(app),
+        QrToolAction::Seed => offers::seed(app),
+        QrToolAction::Share => offers::share(app),
+        QrToolAction::AddToKey => offers::add_to_key(app),
+        QrToolAction::SaveNote => offers::save_note(app),
+        QrToolAction::UseSample => offers::use_sample(app),
         QrToolAction::Show => show(app),
         QrToolAction::Png => png(app),
         QrToolAction::File => file(app),
@@ -666,6 +695,7 @@ fn type_in(app: &mut Faraday, f: Field, key: Key) -> bool {
 pub(crate) fn hide(app: &mut Faraday) {
     if let Some(s) = st(app) {
         s.shown = false;
+        s.pass_offer = None;
         if s.holds.take().is_some() {
             // What was opened goes with the warning: the passphrase is
             // typed again.

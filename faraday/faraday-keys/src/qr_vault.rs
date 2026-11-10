@@ -58,6 +58,18 @@ pub enum QrFit {
     Unwritable,
 }
 
+/// What a held passphrase does for the keys loaded: public values only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QrPassOffer {
+    /// It adds to the loaded key with this fingerprint, whose words make
+    /// the key the item names with it.
+    Add(Fingerprint),
+    /// The key it makes is loaded already.
+    Loaded,
+    /// No loaded key's words make the key the item names with it.
+    NotLoaded,
+}
+
 /// Why a QR vault was not sealed or opened, or an item not offered on.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QrError {
@@ -333,49 +345,57 @@ impl Keys {
         self.qr_item = None;
     }
 
-    /// Costs what `add_words_with` costs. Loads the held seed's words as a
-    /// key, as a scanned SeedQR's are, with `passphrase` (empty: none)
-    /// and `label`. The item stays held. [`QrError::NotHeld`] when
-    /// another item or none is held.
-    pub fn qr_load_words(
-        &mut self,
-        c: &Compute,
-        passphrase: &str,
-        label: &str,
-    ) -> Result<Fingerprint, QrError> {
-        let Some(HeldItem::Words(words, _)) = &self.qr_item else {
-            return Err(QrError::NotHeld);
+    /// Costs a PBKDF2 and an elliptic-curve multiplication for each key
+    /// with words. What the held passphrase can do for the keys loaded
+    /// (`docs/VAULT.md` §13 Open): a lookup of public values, no secret
+    /// leaves. `Loaded` only when a loaded key's words make the item's key with
+    /// the passphrase and that key is loaded. `None` when another item or none is held.
+    pub fn qr_passphrase_offer(&self, c: &Compute) -> Option<QrPassOffer> {
+        let Some(HeldItem::Passphrase(text, key)) = &self.qr_item else {
+            return None;
         };
-        let words = words.clone();
-        self.add_words_with(c, &words, passphrase, label, None)
-            .map_err(QrError::Key)
+        let base = (0..self.len())
+            .filter(|&i| self.info(i).is_some_and(|k| k.has_words()))
+            .find(|&i| self.fingerprint_with(c, i, text) == Some(Fingerprint(*key)));
+        // Loaded only when the words of a key loaded make the key the item
+        // names with the passphrase, not on the item's word alone.
+        Some(match base.and_then(|i| self.info(i)) {
+            Some(_) if self.position_of(*key).is_some() => QrPassOffer::Loaded,
+            Some(k) => QrPassOffer::Add(k.fingerprint),
+            None => QrPassOffer::NotLoaded,
+        })
     }
 
-    /// Costs a PBKDF2 and an elliptic-curve multiplication for each key
-    /// with words, and what `add_with_passphrase` costs. Adds the held
-    /// passphrase to the loaded key whose words make the fingerprint the
-    /// item names with it (as a file vault's passphrase item is read), as
-    /// a key of the same words with that passphrase. [`QrError::NotLoaded`]
-    /// when no key with words makes it; [`QrError::Key`] with
-    /// `Refusal::Duplicate` when the key with the passphrase is loaded
-    /// already (as for any key added twice); [`QrError::NotHeld`] when
-    /// another item or none is held. The item stays held.
+    /// Costs what `qr_passphrase_offer` costs, and what
+    /// `add_with_passphrase` costs. Adds the held passphrase to the loaded
+    /// key whose words make the fingerprint the item names with it (as a
+    /// file vault's passphrase item is read), as a key of the same words
+    /// with that passphrase. [`QrError::NotLoaded`] when no key with words
+    /// makes it; [`QrError::Key`] with `Refusal::Duplicate` when the key
+    /// with the passphrase is loaded already (as for any key added twice);
+    /// [`QrError::NotHeld`] when another item or none is held. The item
+    /// stays held.
     pub fn qr_add_passphrase(&mut self, c: &Compute, label: &str) -> Result<Fingerprint, QrError> {
-        let Some(HeldItem::Passphrase(text, key)) = &self.qr_item else {
+        let Some(HeldItem::Passphrase(text, _)) = &self.qr_item else {
             return Err(QrError::NotHeld);
         };
-        let (text, key) = (text.clone(), *key);
-        if self.position_of(key).is_some() {
-            return Err(QrError::Key(faraday_intake::wallet::Refusal::Duplicate(
-                Fingerprint(key),
-            )));
+        let text = text.clone();
+        match self.qr_passphrase_offer(c) {
+            Some(QrPassOffer::Loaded) => {
+                let Some(HeldItem::Passphrase(_, key)) = &self.qr_item else {
+                    return Err(QrError::NotHeld);
+                };
+                Err(QrError::Key(faraday_intake::wallet::Refusal::Duplicate(
+                    Fingerprint(*key),
+                )))
+            }
+            Some(QrPassOffer::Add(base)) => {
+                let i = self.position(base).ok_or(QrError::NotLoaded)?;
+                self.add_with_passphrase(c, i, &text, label)
+                    .map_err(QrError::Key)
+            }
+            _ => Err(QrError::NotLoaded),
         }
-        let i = (0..self.len())
-            .filter(|&i| self.info(i).is_some_and(|k| k.has_words()))
-            .find(|&i| self.fingerprint_with(c, i, &text) == Some(Fingerprint(key)))
-            .ok_or(QrError::NotLoaded)?;
-        self.add_with_passphrase(c, i, &text, label)
-            .map_err(QrError::Key)
     }
 
     /// The held seed's words, lent (`Reveal::QrVault`), for the seed

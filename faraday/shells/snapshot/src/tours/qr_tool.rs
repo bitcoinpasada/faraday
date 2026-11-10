@@ -55,5 +55,34 @@ pub(crate) fn qr_tool_tour(t: &mut Tour) -> Result<(), String> {
     t.tick();
     t.shot("qr-tool-opened")?;
     t.press(Action::QrTool(Q::Eye));
-    t.shot("qr-tool-opened-shown")
+    t.shot("qr-tool-opened-shown")?;
+    // A passphrase vault opened: its key is not loaded, then it is.
+    const PASSPHRASE_CODE: &[u8] =
+        include_bytes!("../../../../../tools/vectors/vault/qr/qr-passphrase.pgp");
+    t.app.storage(StorageEvent::Restored {
+        inbox: vec![("passphrase.pgp".to_string(), PASSPHRASE_CODE.to_vec())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    t.press(Action::Nav(Screen::Files));
+    t.press(Action::QrTool(Q::OpenFile(0)));
+    type_text(t, "correct horse battery staple");
+    t.press(Action::QrTool(Q::OpenCode));
+    testkit::settle(&mut t.app);
+    t.tick();
+    t.shot("qr-tool-opened-pass-not-loaded")?;
+    let words = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    t.app
+        .session
+        .keys
+        .add_words(&testkit::compute(), words, "Twelve", None)
+        .map_err(|e| format!("{e:?}"))?;
+    t.press(Action::QrTool(Q::OpenCode));
+    t.press(Action::Nav(Screen::Files));
+    t.press(Action::QrTool(Q::OpenFile(0)));
+    type_text(t, "correct horse battery staple");
+    t.press(Action::QrTool(Q::OpenCode));
+    testkit::settle(&mut t.app);
+    t.tick();
+    t.shot("qr-tool-opened-pass-add")
 }
