@@ -1695,13 +1695,23 @@ fn unix_of_rfc3339(t: &str) -> Option<u64> {
     {
         return None;
     }
-    let n = |a: usize, z: usize| t.get(a..z)?.parse::<i64>().ok();
+    let n = |a: usize, z: usize| -> Option<i64> {
+        let f = b.get(a..z)?;
+        if !f.iter().all(u8::is_ascii_digit) {
+            return None;
+        }
+        Some(f.iter().fold(0, |v, &c| v * 10 + i64::from(c - b'0')))
+    };
     let (y, m, d) = (n(0, 4)?, n(5, 7)?, n(8, 10)?);
     let (h, mi, s) = (n(11, 13)?, n(14, 16)?, n(17, 19)?);
     if !(1..=12).contains(&m) || !(1..=31).contains(&d) || h > 23 || mi > 59 || s > 60 {
         return None;
     }
     let days = faraday_crypto::date::days_from_civil(y, m as u32, d as u32);
+    // A day past its month's end (2026-02-31) names no day.
+    if faraday_crypto::date::civil_from_days(days) != (y, m as u32, d as u32) {
+        return None;
+    }
     u64::try_from(days * 86_400 + h * 3_600 + mi * 60 + s).ok()
 }
 
@@ -4340,5 +4350,23 @@ mod tests {
             );
         }
         assert_eq!(written, records.len());
+    }
+
+    #[test]
+    fn a_vaults_sealed_time_is_read_only_when_it_names_a_real_moment() {
+        assert_eq!(unix_of_rfc3339("2026-10-28T14:02:00Z"), Some(1_793_196_120));
+        assert_eq!(unix_of_rfc3339("2024-02-29T00:00:00Z"), Some(1_709_164_800));
+        for bad in [
+            "2026-02-31T00:00:00Z",
+            "2025-02-29T00:00:00Z",
+            "2026-10-28T-1:02:00Z",
+            "2026-10-28T14:+2:00Z",
+            "+026-10-28T14:02:00Z",
+            "2026-1 -28T14:02:00Z",
+            "2026-10-28T24:00:00Z",
+            "2026-10-28T14:02:00",
+        ] {
+            assert_eq!(unix_of_rfc3339(bad), None, "{bad}");
+        }
     }
 }
