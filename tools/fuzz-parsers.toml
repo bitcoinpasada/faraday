@@ -177,6 +177,11 @@ fn = "from_bytes"
 excuse = "hashes its input into a seed and reads nothing from it"
 
 [[parser]]
+file = "core/faraday-codec/src/bolt11.rs"
+fn = "decode"
+target = "fuzz/fuzz_targets/bolt11.rs"
+
+[[parser]]
 file = "core/faraday-draw/src/fonts/mod.rs"
 fn = "parse"
 excuse = "reads the font files compiled into the app, not input from outside"

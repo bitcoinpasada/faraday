@@ -201,6 +201,7 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `psbt_v2` | `faraday_psbt::v2::PsbtV2::parse_bytes`, written back and read to the same PSBT, then `to_v0`; `parse_base64` over text |
 | `raw_hex` | `faraday_entropy::RawHex::parse` over text |
 | `hex_decode` | `faraday_crypto::hex` `decode_vec`, `decode_into` and `decode_exact` over text, which must agree, and what decodes encodes back to the text in lower case |
+| `bolt11` | `faraday_codec::bolt11::decode` over text: a payee key read is in compressed form and every fallback address comes out as text |
 
 One of them shapes the input before the call, because the code under
 test rejects anything else in its first few lines and a fuzzer would
