@@ -183,10 +183,7 @@ fn a_wrong_passphrase_shows_its_message_on_the_unlock_screen() {
     assert!(app.vaults().open.is_empty());
     assert_eq!(app.screen, Screen::Unlock);
     let texts = page(&mut app);
-    // At 480x640 the pinned Unlock bar covers the message's second line:
-    // its first line is what shows.
-    let first = EN.vault_error_passphrase.split(". ").next().unwrap();
-    assert!(texts.contains(first), "{texts}");
+    assert!(texts.contains(EN.vault_error_wrong), "{texts}");
 }
 
 /// A vault open to read only for each reason.
@@ -1375,4 +1372,141 @@ fn a_memory_tick_with_no_dialog_open_does_nothing() {
     app.press(Action::Vault(V::MemoryHere));
     app.press(Action::Vault(V::MemoryAsk));
     assert_eq!(too_large_rows(&mut app, EN.vaults_pi_zero_2_w), 0);
+}
+
+// ---------------------------------------------------------------------
+// Unlock with a key file and a YubiKey's secret
+// ---------------------------------------------------------------------
+
+const KEY_BYTES: [u8; 32] = [7; 32];
+const SECRET_HEX: &str = "abababababababababababababababababababab";
+
+/// A vault that needs the key file `KEY_BYTES` and the secret `SECRET_HEX`
+/// decodes to, with a key file of those bytes in Files.
+fn keyed_app() -> Faraday {
+    let file =
+        testkit::kdbx_vault_keyed("Keyed", PHRASE, 3, (Some(KEY_BYTES), Some([0xab; 20]))).unwrap();
+    process_at(
+        800,
+        1200,
+        vec![
+            ("keyed.kdbx".into(), file),
+            ("other.keyx".into(), vec![9; 32]),
+            ("vault.keyx".into(), KEY_BYTES.to_vec()),
+        ],
+    )
+}
+
+fn open_unlock(app: &mut Faraday) {
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    let _ = app.frame();
+}
+
+/// Chooses the second of the files that are not vaults: `vault.keyx`.
+fn choose_key_file(app: &mut Faraday) {
+    app.press(Action::Vault(V::KeyFileAsk));
+    app.press(Action::Vault(V::KeyFilePick(1)));
+    app.press(Action::Vault(V::KeyFileChoose));
+}
+
+fn type_secret(app: &mut Faraday, text: &str) {
+    app.press(Action::Vault(V::YubiKeyAdd));
+    type_text(app, text);
+}
+
+/// Types the passphrase and presses Unlock, waiting for the run.
+fn attempt(app: &mut Faraday, phrase: &str) {
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(app, phrase);
+    app.press(Action::Vault(V::Unlock));
+    for t in 1..60u64 {
+        if !app.vaults().open.is_empty() || app.sheet.is_some() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+}
+
+fn in_files(app: &Faraday, name: &str) -> bool {
+    app.inbox().iter().any(|i| i.name == name)
+}
+
+#[test]
+fn a_vault_made_with_a_key_file_and_a_secret_opens_from_unlock_and_the_key_file_leaves_files() {
+    let mut app = keyed_app();
+    open_unlock(&mut app);
+    choose_key_file(&mut app);
+    type_secret(&mut app, SECRET_HEX);
+    attempt(&mut app, PHRASE);
+    assert_eq!(app.vaults().open.len(), 1, "{}", page(&mut app));
+    assert!(!in_files(&app, "vault.keyx"));
+    assert!(in_files(&app, "keyed.kdbx"));
+}
+
+#[test]
+fn a_secret_of_the_wrong_length_says_how_many_digits_it_has_and_nothing_runs() {
+    let mut app = keyed_app();
+    open_unlock(&mut app);
+    type_secret(&mut app, "abcd");
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    assert!(app.vaults().working.is_none());
+    let texts = page(&mut app);
+    assert!(texts.contains("This has 4."), "{texts}");
+}
+
+#[test]
+fn a_key_file_that_is_damaged_is_refused_naming_it() {
+    let bad = br#"<?xml version="1.0"?><KeyFile><Meta><Version>1.0</Version></Meta><Key><Data>AA<x/>AA</Data></Key></KeyFile>"#;
+    let file = testkit::kdbx_vault("Plain", PHRASE, 4, Vec::new()).unwrap();
+    let mut app = process_at(
+        800,
+        1200,
+        vec![
+            ("plain.kdbx".into(), file),
+            ("bad.keyx".into(), bad.to_vec()),
+        ],
+    );
+    open_unlock(&mut app);
+    app.press(Action::Vault(V::KeyFileAsk));
+    app.press(Action::Vault(V::KeyFileChoose));
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    assert!(app.vaults().working.is_none());
+    let texts = page(&mut app);
+    assert!(
+        texts.contains("bad.keyx is damaged as a key file."),
+        "{texts}"
+    );
+    assert!(in_files(&app, "bad.keyx"));
+}
+
+#[test]
+fn the_wrong_credentials_message_follows_what_was_tried_and_files_keep_the_key_file() {
+    let mut app = keyed_app();
+    open_unlock(&mut app);
+    // A wrong key file, then a wrong secret, then both.
+    let said = |app: &mut Faraday, line: &str| {
+        let texts = page(app);
+        assert!(texts.contains(line), "{line}: {texts}");
+    };
+    attempt(&mut app, "wrong");
+    said(&mut app, EN.vault_error_wrong);
+    app.press(Action::Vault(V::KeyFileAsk));
+    app.press(Action::Vault(V::KeyFilePick(0)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    attempt(&mut app, PHRASE);
+    said(&mut app, EN.vault_error_wrong_key_file);
+    app.press(Action::Vault(V::KeyFileDrop));
+    type_secret(&mut app, SECRET_HEX.replace("ab", "cd").as_str());
+    attempt(&mut app, PHRASE);
+    said(&mut app, EN.vault_error_wrong_yubikey);
+    choose_key_file(&mut app);
+    attempt(&mut app, PHRASE);
+    said(&mut app, EN.vault_error_wrong_both);
+    assert!(in_files(&app, "other.keyx") && in_files(&app, "vault.keyx"));
 }

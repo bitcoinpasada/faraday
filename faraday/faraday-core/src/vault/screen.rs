@@ -462,6 +462,12 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         stick_field(app.medium, ui, x, y, w);
     }
     y += FIELD_H + 16.0 + never_real_seed_if(app.may_load_keys(), app, ui, x, y, w);
+    if let Some(e) = &app.vaults.unlock_error {
+        y += ui.wrap_as((x, y, w), BODY_M, bad, e) + tokens::PAD;
+    }
+    if app.may_load_keys() {
+        y += super::unlock_keys::draw(app, ui, (x, y, w)) + tokens::PAD;
+    }
     let working = app.vaults.working == Some(vault::Work::Unlock);
     if working {
         let f = files.get(app.vaults.pick);
@@ -491,10 +497,6 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             None => EN.vault_this_computer_memory.to_string(),
         };
         ui.text_mid_as((x + 180.0, y, 46.0), BODY_S, muted, &free);
-    }
-    y += 60.0;
-    if let Some(e) = &app.vaults.unlock_error {
-        ui.wrap_as((x, y, w), BODY_M, bad, e);
     }
 }
 
@@ -744,8 +746,25 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         stick_field(app.medium, ui, x, y, w);
     }
     y += FIELD_H + 12.0 + never_real_seed_if(app.may_load_keys(), app, ui, x, y, w);
+    let said = y;
     if let Some(e) = &app.vaults.unlock_error {
         y += ui.wrap_as((x, y, w), BODY_M, bad, e) + 12.0;
+    }
+    if app.may_load_keys() {
+        y += super::unlock_keys::draw(app, ui, (x, y, w)) + 12.0;
+    }
+    // A refusal just said comes up above the pinned Unlock, whole: asked
+    // for at each frame until it is in view, since a follow asked for
+    // before the page's region is known goes nowhere. (While a keyboard
+    // is up there is no bar: it waits for one.)
+    if app.pin_h.get() > 0.0 && app.vaults.unlock_follow.get() {
+        // The page is laid out from zero: its offset is a line's y.
+        let (from, to) = (said, y);
+        if to > app.list_offset + h {
+            ui.follow_to = Some((to - h).min(from - tokens::GAP).max(0.0));
+        } else {
+            app.vaults.unlock_follow.set(false);
+        }
     }
     if app.vaults.working == Some(vault::Work::Unlock) {
         let f = files.get(app.vaults.pick);

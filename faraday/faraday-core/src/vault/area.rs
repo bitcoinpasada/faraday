@@ -94,6 +94,7 @@ impl VaultArea {
     pub(crate) fn text_box(&mut self, focus: Focus) -> Option<&mut TextBox> {
         match focus {
             Focus::Passphrase => Some(&mut self.state.passphrase),
+            Focus::YubiKey => self.state.yubikey.as_mut(),
             Focus::Phrase(i, second) => self
                 .state
                 .create
@@ -392,8 +393,17 @@ impl VaultArea {
         self.state.focus = focus;
     }
 
+    /// The key file chosen and the YubiKey secret typed, taken away.
+    pub(crate) fn clear_unlock_parts(&mut self) {
+        self.state.unlock_key = None;
+        self.state.yubikey = None;
+        self.state.secret_error = None;
+        self.state.key_pick = 0;
+    }
+
     /// The unlock passphrase wiped, shown hidden, with no error.
     pub(crate) fn clear_unlock(&mut self) {
+        self.clear_unlock_parts();
         self.state.passphrase.clear();
         self.state.typed_shown = false;
         self.state.unlock_error = None;
@@ -805,6 +815,8 @@ pub use crate::fresh::roller::{Act as RollerAct, PerClick as RollerPerClick};
 pub enum Focus {
     /// The unlock passphrase.
     Passphrase,
+    /// The unlock's YubiKey secret.
+    YubiKey,
     /// Create's passphrase n, first or second field.
     Phrase(usize, bool),
     /// The form's field n.
@@ -1903,6 +1915,20 @@ pub struct Vaults {
     pub passphrase: TextBox,
     /// Why the last unlock failed.
     pub unlock_error: Option<String>,
+    /// Unlock's page is to bring a refusal or failure just said into
+    /// view, once ([`crate::vault::screen`]'s small panel).
+    pub unlock_follow: std::cell::Cell<bool>,
+    /// The key file chosen to unlock with: its name in Files. Nothing of
+    /// it is read until Unlock.
+    pub unlock_key: Option<String>,
+    /// The YubiKey secret field, while it is shown.
+    pub yubikey: Option<TextBox>,
+    /// What the YubiKey secret was refused for, under its field.
+    pub secret_error: Option<String>,
+    /// The file the key file dialog has marked, by its place in the list.
+    pub key_pick: usize,
+    /// Whether the unlock last tried used a key file and a YubiKey secret.
+    pub unlock_tried: (bool, bool),
     /// The open vault on the contents screen.
     pub current: usize,
     /// The kind shown.
@@ -2422,7 +2448,11 @@ impl Vaults {
     /// note's field. A vault's name, a label and a search are not.
     pub(crate) fn focus_is_secret(&self, focus: Focus) -> bool {
         match focus {
-            Focus::Passphrase | Focus::Phrase(..) | Focus::Dice | Focus::Prompt => true,
+            Focus::Passphrase
+            | Focus::YubiKey
+            | Focus::Phrase(..)
+            | Focus::Dice
+            | Focus::Prompt => true,
             Focus::Field(_) => self.form.as_ref().is_some_and(Form::holds_secrets),
             Focus::Rolls | Focus::Search(_) | Focus::Name => false,
         }
@@ -3453,6 +3483,22 @@ pub enum VaultAction {
     QrSave,
     /// That dialog's **Close**.
     QrNoClose,
+    /// Unlock's **Add a key file**, and the chip: the dialog of files.
+    KeyFileAsk,
+    /// That dialog's file n marked.
+    KeyFilePick(usize),
+    /// That dialog's **Choose**.
+    KeyFileChoose,
+    /// That dialog's **Cancel**.
+    KeyFileCancel,
+    /// The chip's ×: the key file taken back.
+    KeyFileDrop,
+    /// Unlock's **Add a YubiKey secret**: its field.
+    YubiKeyAdd,
+    /// The field's ×: the secret taken away.
+    YubiKeyDrop,
+    /// The YubiKey secret field pressed.
+    FocusYubiKey,
     /// A vault on that sheet pressed, by its place in the list.
     CopyPick(usize),
     /// On that sheet: what a seed carries, its choice n, kept or left out.

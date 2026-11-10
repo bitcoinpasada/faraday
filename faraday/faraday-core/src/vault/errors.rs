@@ -45,7 +45,7 @@ fn kdbx_text(k: &Kdbx) -> String {
         Kdbx::Unsupported(u) => unsupported_text(*u).to_string(),
         Kdbx::Cost => EN.vault_error_cost.to_string(),
         Kdbx::Memory(mib) => fill(EN.vault_error_memory, &[&mib.to_string()]),
-        Kdbx::Passphrase => EN.vault_error_passphrase.to_string(),
+        Kdbx::Passphrase => EN.vault_error_wrong.to_string(),
         Kdbx::EmptyPassphrase => EN.vault_error_empty_passphrase.to_string(),
         Kdbx::Damaged => EN.vault_error_damaged.to_string(),
         Kdbx::TooLarge => EN.vault_error_too_large.to_string(),

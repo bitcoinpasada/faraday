@@ -1521,6 +1521,38 @@ pub fn kdbx_vault(
     )
 }
 
+/// A vault file under `passphrase` that also needs a key file's key and
+/// a YubiKey's secret, at the test cost, holding nothing.
+pub fn kdbx_vault_keyed(
+    label: &str,
+    passphrase: &str,
+    id: u8,
+    (key_file, secret): (Option<[u8; 32]>, Option<[u8; 20]>),
+) -> Result<Vec<u8>, String> {
+    use zeroize::Zeroizing;
+    let components = faraday_vault::kdbx::Components::new(
+        key_file.map(Zeroizing::new),
+        secret.map(Zeroizing::new),
+    );
+    let cost = faraday_vault::Cost {
+        memory_kib: *faraday_vault::kdbx::MEMORY_KIB.start(),
+        passes: 1,
+        lanes: 1,
+    };
+    faraday_vault::file::create_holding(
+        &compute(),
+        [id; 16],
+        label,
+        cost,
+        passphrase,
+        &components,
+        &[id; faraday_vault::kdbx::RANDOM_LEN],
+        None,
+        &[],
+    )
+    .map_err(|e| format!("{e:?}"))
+}
+
 /// [`kdbx_vault`] stretched with `memory_kib` of memory (one pass, one
 /// lane), which its header states.
 pub fn kdbx_vault_at(

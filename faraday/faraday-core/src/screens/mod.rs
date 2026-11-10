@@ -389,6 +389,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::SaveKeeps => Some(Action::Vault(crate::vault::VaultAction::KeepCancel)),
             Sheet::Trim => Some(Action::Vault(crate::vault::VaultAction::TrimCancel)),
             Sheet::QrNoFit => Some(Action::Vault(crate::vault::VaultAction::QrNoClose)),
+            Sheet::KeyFile => Some(Action::Vault(crate::vault::VaultAction::KeyFileCancel)),
             // A new touchscreen's sheet is the whole screen: only its
             // Ignore keeps the device out.
             Sheet::NewInput => app
@@ -454,6 +455,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::SaveKeeps => crate::vault::copy_screen::draw_keep(app, ui, w, h),
             Sheet::Trim => crate::vault::trim::draw(app, ui, w, h),
             Sheet::QrNoFit => crate::vault::qr_save::draw(app, ui, w, h),
+            Sheet::KeyFile => crate::vault::unlock_keys::dialog(app, ui, w, h),
             Sheet::KefOptions if app.screen == Screen::Backup => {
                 crate::wallet_backup::kef::options_sheet(app, ui, w, h)
             }

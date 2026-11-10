@@ -179,12 +179,22 @@ fn unlock_start(app: &mut Faraday) -> bool {
     let cost = f.facts.header.cost;
     // Unlocked on the boot import's sheet: the unlock imports.
     let for_import = app.sheet == Some(crate::Sheet::Import) && app.import.state().is_some();
+    // The key file and the secret are read for this try and wiped as the
+    // job ends; the chip and the field stay for another.
+    let Ok(components) = super::unlock_keys::parts(app) else {
+        return false;
+    };
+    app.vaults.state.unlock_tried = (components.has_key_file(), components.has_yubikey());
     let passphrase = std::mem::take(&mut app.vaults.state.passphrase.text);
     // The unlock and its parse check are held to what is free now.
     app.vaults.read_free();
+    // An open is never refused by `keyed`; if it were, nothing starts.
+    let Ok(job) = open_job(app, bytes, passphrase).keyed(components) else {
+        return false;
+    };
     app.start(
         Job::Stretch(Box::new(StretchWork {
-            job: open_job(app, bytes, passphrase),
+            job,
             act: VaultAct::Unlocked,
             cost,
             plan: Plan::Unlock {
@@ -315,6 +325,7 @@ fn unlocked(
         drop(stretched);
         app.vaults.state.unlock_error =
             Some(fill(EN.vaults_remove_to_unlock, &[app.medium.noun()]));
+        app.vaults.unlock_follow.set(true);
         return;
     }
     let before = app.vaults.open.len();
@@ -360,13 +371,28 @@ fn unlocked(
                 settings,
             });
             app.vaults.state.current = app.vaults.open.len() - 1;
+            // Nothing of the key file or the secret is remembered, and the
+            // key file's copy in Files is gone.
+            super::unlock_keys::used(app);
             if !app.vault_unlock_held(app.vaults.current, sha, for_import) {
                 app.vault_unlock_go_on(for_import);
             }
         }
         Err(e) => {
-            app.vaults.state.unlock_error =
-                Some(errors::stopped_text(&e, &name, app.vaults.memory_free_mib));
+            app.vaults.state.unlock_error = Some(match e {
+                // What was tried says what to try again.
+                faraday_vault::file::Error::Kdbx(faraday_vault::kdbx::Error::Passphrase) => {
+                    match app.vaults.unlock_tried {
+                        (false, false) => EN.vault_error_wrong,
+                        (true, false) => EN.vault_error_wrong_key_file,
+                        (false, true) => EN.vault_error_wrong_yubikey,
+                        (true, true) => EN.vault_error_wrong_both,
+                    }
+                    .to_string()
+                }
+                e => errors::stopped_text(&e, &name, app.vaults.memory_free_mib),
+            });
+            app.vaults.unlock_follow.set(true);
         }
     }
     if app.vaults.open.len() > before && app.vaults.older.is_none() {

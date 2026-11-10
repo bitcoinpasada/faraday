@@ -31,6 +31,7 @@ mod strength;
 pub(crate) mod stretch;
 mod summaries;
 pub(crate) mod trim;
+pub(crate) mod unlock_keys;
 
 /// What every press settles of the area: a copy waiting, the Keep
 /// choices, and the Nonce check page's comparison with the nonce history
@@ -511,6 +512,7 @@ impl Faraday {
                 self.vaults.state.just_made = None;
                 self.flow_create_left();
                 if let Some(s) = self.vaults.state.back_to.take() {
+                    self.vaults.clear_unlock_parts();
                     self.vaults.state.passphrase.clear();
                     self.vaults.state.typed_shown = false;
                     self.vaults.state.unlock_error = None;
@@ -682,6 +684,7 @@ impl Faraday {
             }
             V::CGo => self.vault_create_check(),
             V::Pick(i) => {
+                self.vaults.clear_unlock_parts();
                 self.vaults.state.pick = i;
                 self.vaults.state.unlock_error = None;
                 self.vaults.state.focus = self.may_load_keys().then_some(Focus::Passphrase);
@@ -768,6 +771,16 @@ impl Faraday {
             V::TrimCancel => trim::close(self),
             V::QrSave => qr_save::press(self),
             V::QrNoClose => qr_save::close(self),
+            V::KeyFileAsk => unlock_keys::ask(self),
+            V::KeyFilePick(n) => unlock_keys::pick(self, n),
+            V::KeyFileChoose => unlock_keys::choose(self),
+            V::KeyFileCancel => unlock_keys::cancel(self),
+            V::KeyFileDrop => unlock_keys::drop_key(self),
+            V::YubiKeyAdd => unlock_keys::add_secret(self),
+            V::YubiKeyDrop => unlock_keys::drop_secret(self),
+            V::FocusYubiKey => {
+                self.vaults.state.focus = self.may_load_keys().then_some(Focus::YubiKey);
+            }
             V::PassphraseKey(w) => self.pass_seeds_open(w),
             V::PassphrasePick(v, r) => self.pass_seed_pick(v, r),
             V::PassphraseList => self.pass_seed_list(),
@@ -1251,16 +1264,35 @@ impl Faraday {
         let Some(f) = files.get(self.vaults.pick) else {
             return;
         };
-        let error = if !self.may_load_keys() {
+        self.vaults.state.secret_error = None;
+        let mut error = if !self.may_load_keys() {
             Some(fill(EN.vaults_remove_to_unlock, &[self.medium.noun()]))
         } else if self.vaults.passphrase.text.is_empty() {
             Some(EN.vaults_type_the_passphrase.to_string())
         } else {
-            self.vaults
-                .unlock_memory_refusal(f.facts.header.cost, f.facts.len)
+            None
         };
-        self.vaults.state.unlock_error = error;
-        if self.vaults.unlock_error.is_none() {
+        if error.is_none() {
+            match unlock_keys::parts(self) {
+                Ok(_) => {}
+                Err(unlock_keys::Bad::KeyFile(e)) => error = Some(e),
+                Err(unlock_keys::Bad::Secret(e)) => {
+                    self.vaults.state.secret_error = Some(e);
+                    error = Some(String::new());
+                }
+            }
+        }
+        if error.is_none() {
+            error = self
+                .vaults
+                .unlock_memory_refusal(f.facts.header.cost, f.facts.len);
+        }
+        // A secret refused is said under its field alone.
+        self.vaults.state.unlock_error = error.filter(|e| !e.is_empty());
+        self.vaults
+            .unlock_follow
+            .set(self.vaults.unlock_error.is_some() || self.vaults.secret_error.is_some());
+        if self.vaults.unlock_error.is_none() && self.vaults.secret_error.is_none() {
             stretch::defer(self, Work::Unlock);
         }
     }
@@ -2385,6 +2417,11 @@ impl Faraday {
         if key == K::Enter || key == K::Tab {
             match focus {
                 Focus::Dice | Focus::Rolls | Focus::Prompt | Focus::Search(_) => {}
+                Focus::YubiKey => {
+                    if key == K::Enter {
+                        self.vault_act(VaultAction::Unlock);
+                    }
+                }
                 Focus::Passphrase => {
                     if key == K::Enter && import {
                         self.import_act(crate::boot_import::ImportAction::Submit);
@@ -2445,6 +2482,7 @@ impl Faraday {
             c.error = None;
         }
         self.vaults.state.unlock_error = None;
+        self.vaults.state.secret_error = None;
         true
     }
 }

@@ -580,8 +580,7 @@ impl Item {
 pub enum Sheet {
     /// A stick arrived while a secret is held.
     Lock,
-    /// Lock asked for while a vault is open: what is sealed and what is
-    /// not saved; or, with no seed to seal with, what is lost.
+    /// Lock asked for while a vault is open: what is sealed and not saved, or lost.
     LockAsk,
     /// Power off with files in the Outbox.
     Power,
@@ -611,8 +610,7 @@ pub enum Sheet {
     Pull,
     /// A node or line of the wallet's chart: what it is, where, its actions (`docs/history/NEW-WALLET.md` §9).
     Chart,
-    /// The backup board's list, opened by **Add** in the narrow column
-    /// (`docs/BACKUP-FLOW.md` §17.12 item 3).
+    /// The backup board's list, opened by **Add** in the narrow column (§17.12 item 3).
     BoardList,
     /// A drop let a place see the balance it could not before (`docs/BACKUP-FLOW.md` §17.5): **Keep it** or **Take it off**.
     BoardSees,
@@ -682,6 +680,8 @@ pub enum Sheet {
     Trim,
     /// **Save as a QR vault** on an item that does not fit.
     QrNoFit,
+    /// **Choose a key file**: the files in Files that are not vaults.
+    KeyFile,
     /// **Record it as a child seed?**: BIP-85 child words held (F166).
     ChildRecord,
     /// **Options** of the Krux code tool's form.

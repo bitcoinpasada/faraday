@@ -2,7 +2,7 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/vault/screen.rs`, `faraday/faraday-core/src/vault/panes_screen.rs`, `faraday/faraday-core/src/vault/load_screen.rs`, `faraday/faraday-core/src/vault/mod.rs`)
-**Screen:** `Vaults`, `Unlock`, `UnlockLoad`, `OlderCopy`, `SaveAlso`, `PassphraseSeeds`
+**Screen:** `Vaults`, `Unlock`, `UnlockLoad`, `OlderCopy`, `SaveAlso`, `KeyFile`, `PassphraseSeeds`
 **Group:** Vaults
 
 The list of the vaults in Files, a vault's Unlock, the dialog an

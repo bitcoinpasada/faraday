@@ -1,12 +1,21 @@
 //! The vault states tour: what Unlock and the vault's head say of a
 //! vault that is not simply Faraday's own and fresh.
 
-use crate::tour::{Tour, type_text};
+use crate::tour::{Tour, scroll, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, Sheet, StorageEvent};
+use faraday_shell_api::App;
 use faraday_vault::kdbx::xml::{Document, Entry};
 use faraday_vault::records::{Record, field, kind};
+
+/// The small panel's keyboard put away, so the form under it is seen;
+/// nothing where the window has none up.
+fn hide_keyboard(t: &mut Tour) {
+    // A frame first, so a field focused since the last one does not bring it back.
+    let _ = t.app.frame();
+    t.press(Action::Osk(faraday_core::OskPress::Hide));
+}
 
 /// The passphrase of the vectors other programs saved.
 const FOREIGN: &str = "kdbx vector passphrase";
@@ -140,10 +149,64 @@ fn unreadable_and_read_only(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
-    let own = testkit::test_vault()?;
-    // A wrong passphrase stays on Unlock and says so.
-    only(t, vec![("vault.kdbx".into(), own.clone())], Vec::new());
+/// A vault that also needs a key file and a YubiKey's secret.
+fn keyed_unlock(t: &mut Tour) -> Result<(), String> {
+    // A vault that also needs a key file and a YubiKey's secret: the two
+    // buttons, the dialog, the chip and the field with a refusal, and what
+    // a wrong try says.
+    let keyed = testkit::kdbx_vault_keyed(
+        "Keyed",
+        testkit::VAULT_PASSPHRASE,
+        3,
+        (Some([7; 32]), Some([0xab; 20])),
+    )?;
+    only(
+        t,
+        vec![
+            ("keyed.kdbx".into(), keyed),
+            ("backup.keyx".into(), vec![7; 32]),
+            ("notes.txt".into(), b"Notes".to_vec()),
+        ],
+        Vec::new(),
+    );
+    t.press(Action::Nav(Screen::Vaults));
+    t.press(Action::Vault(V::Open(0)));
+    t.shot("unlock-key-buttons")?;
+    t.press(Action::Vault(V::KeyFileAsk));
+    t.shot("unlock-key-file-dialog")?;
+    t.press(Action::Vault(V::KeyFileChoose));
+    t.press(Action::Vault(V::YubiKeyAdd));
+    type_text(t, "abcd");
+    t.press(Action::Vault(V::FocusPassphrase));
+    type_text(t, testkit::VAULT_PASSPHRASE);
+    t.press(Action::Vault(V::Unlock));
+    hide_keyboard(t);
+    scroll(t, 300);
+    t.shot("unlock-key-file-secret-refused")?;
+    t.press(Action::Vault(V::FocusYubiKey));
+    for _ in 0..4 {
+        t.app.event(faraday_shell_api::Event::Key(
+            faraday_shell_api::Key::Backspace,
+        ));
+    }
+    type_text(t, "0000000000000000000000000000000000000000");
+    t.press(Action::Vault(V::FocusPassphrase));
+    type_text(t, testkit::VAULT_PASSPHRASE);
+    t.press(Action::Vault(V::Unlock));
+    for _ in 0..30 {
+        t.tick();
+        if t.app.vaults().unlock_error.is_some() {
+            break;
+        }
+    }
+    hide_keyboard(t);
+    t.shot("unlock-key-file-secret-wrong")?;
+    Ok(())
+}
+
+/// A wrong passphrase stays on Unlock and says so.
+fn wrong_passphrase(t: &mut Tour, own: &[u8]) -> Result<(), String> {
+    only(t, vec![("vault.kdbx".into(), own.to_vec())], Vec::new());
     unlock(t, "not the passphrase");
     if !t.app.vaults().open.is_empty() {
         return Err("a wrong passphrase opened the vault".into());
@@ -152,6 +215,14 @@ pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
         return Err("a wrong passphrase gave no answer".into());
     }
     t.shot("unlock-wrong-passphrase")?;
+    Ok(())
+}
+
+pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
+    let own = testkit::test_vault()?;
+    wrong_passphrase(t, &own)?;
+
+    keyed_unlock(t)?;
 
     // A file another program saved: no padding, other settings.
     only(

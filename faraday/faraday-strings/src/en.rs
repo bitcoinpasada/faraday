@@ -8837,6 +8837,30 @@ strings! {
     vault_unlocking: "Unlocking · {}",
     /// Button in `unlock_compact`.
     vault_unlock: "Unlock",
+    /// Text button under Unlock's passphrase.
+    vault_add_key_file: "Add a key file",
+    /// Text button under Unlock's passphrase.
+    vault_add_yubikey: "Add a YubiKey secret",
+    /// Label of Unlock's YubiKey secret field.
+    vault_yubikey_secret: "YubiKey secret",
+    /// Head of the dialog that lists the files a key file is chosen from.
+    vault_choose_key_file: "Choose a key file",
+    /// Button of that dialog.
+    vault_choose: "Choose",
+    /// That dialog when Files holds no file that is not a vault.
+    vault_no_key_files: "Files holds no file that is not a vault",
+    /// Under Unlock's YubiKey secret field. `{}`: how many digits were typed.
+    vault_secret_digits: "A YubiKey secret is 40 hexadecimal digits. This has {}.",
+    /// Under Unlock's YubiKey secret field: something but a digit, a space or a colon was typed.
+    vault_secret_stray: "A YubiKey secret is 40 hexadecimal digits, with spaces or colons between them.",
+    /// Under Unlock: the key file read as damaged. `{}`: its name.
+    vault_key_file_damaged: "{} is damaged as a key file.",
+    /// Under Unlock: the key file is empty. `{}`: its name.
+    vault_key_file_empty: "{} is empty.",
+    /// Under Unlock: the key file is a vault. `{}`: its name.
+    vault_key_file_vault: "{} is a vault, not a key file.",
+    /// Under Unlock: the chosen key file is no longer in Files. `{}`: its name.
+    vault_key_file_gone: "{} is no longer in Files.",
     /// Text in `unlock_compact`. `{}`: `mib_text(m)`.
     vault_this_computer_free: "This computer: {} free",
     /// Text in `unlock_compact`.
@@ -9554,8 +9578,14 @@ strings! {
     vault_error_cost: "Its unlock cost is outside what Faraday reads",
     /// Under Unlock. `{}`: the MiB it needs.
     vault_error_memory: "Needs {} MiB, which this computer cannot spare",
-    /// Under Unlock: the wrong passphrase, or a file that needs more than one.
-    vault_error_passphrase: "Wrong passphrase. A file that also needs a key file or a security key cannot be opened here.",
+    /// Under Unlock: the wrong passphrase, tried alone.
+    vault_error_wrong: "Wrong passphrase, or this file also needs a key file or a YubiKey secret.",
+    /// Under Unlock: the wrong passphrase or key file.
+    vault_error_wrong_key_file: "Wrong passphrase or key file.",
+    /// Under Unlock: the wrong passphrase or YubiKey secret.
+    vault_error_wrong_yubikey: "Wrong passphrase or YubiKey secret.",
+    /// Under Unlock: the wrong passphrase, key file or YubiKey secret.
+    vault_error_wrong_both: "Wrong passphrase, key file or YubiKey secret.",
     /// Under Unlock and Create: an empty passphrase.
     vault_error_empty_passphrase: "The passphrase is empty",
     /// Under Unlock: damage found before any run.
