@@ -26,7 +26,7 @@ use std::process::Command;
 use std::time::Duration;
 
 use crate::fb::Geometry;
-use crate::system::System;
+use crate::system::Sampler;
 
 /// How often the whole file is written again while the app runs.
 pub const WRITE_EVERY: Duration = Duration::from_secs(30);
@@ -48,7 +48,7 @@ pub const DMESG: &str = "/bin/dmesg";
 pub struct Report {
     pub name: String,
     pub inventory: String,
-    pub system: System,
+    pub system: Sampler,
     pub schedule: Schedule,
     /// A failure has been said already, so it is not said every time.
     pub said: bool,
@@ -59,7 +59,7 @@ impl Report {
         Report {
             name: String::from(crate::files::BOOT_REPORT),
             inventory,
-            system: System::new(Path::new("/")),
+            system: Sampler::start(Path::new("/")),
             schedule: Schedule::new(),
             said: false,
         }

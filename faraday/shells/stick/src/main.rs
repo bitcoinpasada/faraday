@@ -1365,13 +1365,13 @@ impl Shell {
     /// mid-write keeps the last good report). A stick that cannot be
     /// written to is one line for `--verbose`, said once: the report is a
     /// diagnostic and never worth stopping for. The system's figures are
-    /// read once a second whether or not the report is due.
+    /// read once a second on a thread of their own (`system::Sampler`),
+    /// whether or not the report is due.
     fn write_boot_report(&mut self, last: bool) {
         let elapsed = self.epoch.elapsed();
         let Some(report) = self.boot_report.as_mut() else {
             return;
         };
-        report.system.sample(elapsed);
         if !report.schedule.due(elapsed, last) {
             return;
         }
@@ -1404,14 +1404,14 @@ impl Shell {
                 stick: stick.clone(),
                 name: report.name.clone(),
                 inventory: report.inventory.clone(),
-                system: report.system.clone(),
+                system: report.system.snapshot(),
                 elapsed,
             });
             report.schedule.tried(elapsed, true);
             return;
         }
         let kernel = bootreport::kernel_log(Path::new(bootreport::DMESG));
-        let mut blocks = report.system.block(kernel.as_deref().ok());
+        let mut blocks = report.system.snapshot().block(kernel.as_deref().ok());
         blocks.push_str(&radios::block(Path::new("/")));
         blocks.push_str(&devnodes::block(Path::new("/")));
         let text = bootreport::compose(&kernel, &report.inventory, &blocks, elapsed);

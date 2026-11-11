@@ -12,13 +12,76 @@
 //! these are the board's numbers.
 
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::sync::mpsc::{self, RecvTimeoutError, Sender};
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 /// How often the figures are read while the app runs.
 const SAMPLE_EVERY: Duration = Duration::from_secs(1);
 
 /// The most thermal zones followed.
 const ZONES: usize = 8;
+
+/// Reads the figures on a thread of its own, once a second, so that a
+/// read that blocks (a thermal zone's temperature comes through the
+/// board's embedded controller on some laptops and can take hundreds of
+/// milliseconds) never holds the drawing loop. The loop takes the latest
+/// figures with `snapshot`.
+pub struct Sampler {
+    latest: Arc<Mutex<System>>,
+    /// Dropping it ends the thread.
+    _stop: Option<Sender<()>>,
+}
+
+impl Sampler {
+    /// Starts the thread for the board whose files are under `root`. If
+    /// the thread cannot be started the figures stay unread, and the
+    /// block says they are not available.
+    pub fn start(root: &Path) -> Sampler {
+        let latest = Arc::new(Mutex::new(System::new(root)));
+        let (stop, wait) = mpsc::channel::<()>();
+        let shared = Arc::clone(&latest);
+        let mut system = System::new(root);
+        let started = std::thread::Builder::new()
+            .name(String::from("board-sampler"))
+            .spawn(move || {
+                let epoch = Instant::now();
+                loop {
+                    system.sample(epoch.elapsed());
+                    {
+                        let mut at = shared.lock().unwrap_or_else(PoisonError::into_inner);
+                        // The first frame is noted on the shared copy.
+                        let first = at.first_frame_ms;
+                        *at = system.clone();
+                        at.first_frame_ms = first;
+                    }
+                    if wait.recv_timeout(SAMPLE_EVERY) != Err(RecvTimeoutError::Timeout) {
+                        return;
+                    }
+                }
+            });
+        Sampler {
+            latest,
+            _stop: started.is_ok().then_some(stop),
+        }
+    }
+
+    /// Notes the app's first frame, as `System::first_frame` does.
+    pub fn first_frame(&self) {
+        self.latest
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .first_frame();
+    }
+
+    /// What has been read so far. Costs a copy of the figures.
+    pub fn snapshot(&self) -> System {
+        self.latest
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+}
 
 /// A figure now and the lowest and highest it has been since the shell
 /// started.
@@ -65,6 +128,10 @@ pub struct System {
     undervoltage: Option<(bool, bool)>,
     /// `MemAvailable`, KiB.
     available: Option<Seen>,
+    /// Which hwmon folder is the `rpi_volt` sensor: `None` until the
+    /// folders have been looked through once, then the folder's name or
+    /// `Some(None)` for no such sensor.
+    volt_sensor: Option<Option<String>>,
 }
 
 impl System {
@@ -78,6 +145,7 @@ impl System {
             clock: None,
             undervoltage: None,
             available: None,
+            volt_sensor: None,
         }
     }
 
@@ -155,20 +223,23 @@ impl System {
     /// The Raspberry Pi's undervoltage alarm, from the firmware's hwmon
     /// sensor (`rpi_volt`), which reads through the in-kernel firmware
     /// driver and not through `/dev/vcio`. `None` where there is none.
-    fn undervoltage_alarm(&self) -> Option<bool> {
-        let dir = self.root.join("sys/class/hwmon");
-        let mut hw: Vec<String> = std::fs::read_dir(&dir)
-            .into_iter()
-            .flatten()
-            .filter_map(|e| e.ok()?.file_name().into_string().ok())
-            .collect();
-        hw.sort();
-        hw.into_iter().find_map(|h| {
-            (self.read(&format!("sys/class/hwmon/{h}/name"))? == "rpi_volt")
-                .then(|| self.read(&format!("sys/class/hwmon/{h}/in0_lcrit_alarm")))
+    /// Costs a read of every hwmon `name` the first time, then one read.
+    fn undervoltage_alarm(&mut self) -> Option<bool> {
+        if self.volt_sensor.is_none() {
+            let dir = self.root.join("sys/class/hwmon");
+            let mut hw: Vec<String> = std::fs::read_dir(&dir)
+                .into_iter()
                 .flatten()
-                .map(|a| a != "0")
-        })
+                .filter_map(|e| e.ok()?.file_name().into_string().ok())
+                .collect();
+            hw.sort();
+            self.volt_sensor = Some(hw.into_iter().find(|h| {
+                self.read(&format!("sys/class/hwmon/{h}/name")).as_deref() == Some("rpi_volt")
+            }));
+        }
+        let h = self.volt_sensor.as_ref()?.as_ref()?;
+        self.read(&format!("sys/class/hwmon/{h}/in0_lcrit_alarm"))
+            .map(|a| a != "0")
     }
 
     /// The block, with what the kernel log `kernel` says of the random
@@ -439,6 +510,39 @@ mod tests {
             ["now 512 MiB, lowest 402 MiB"]
         );
         assert_eq!(row(&block, "app memory"), ["peak 186 MiB, now 92 MiB"]);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn the_sampler_hands_the_loop_the_figures_it_read() {
+        let root = tree(
+            "sampler",
+            &[
+                ("proc/uptime", "6.83 12.00\n"),
+                (
+                    "sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq",
+                    "1400000\n",
+                ),
+            ],
+        );
+        let sampler = Sampler::start(&root);
+        sampler.first_frame();
+        let mut block = String::new();
+        for _ in 0..200 {
+            block = sampler.snapshot().block(None);
+            if !row(&block, "cpu0 clock")[0].starts_with("not available") {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+        assert_eq!(
+            row(&block, "cpu0 clock"),
+            ["now 1400 MHz, lowest 1400 MHz, highest 1400 MHz"]
+        );
+        assert_eq!(
+            row(&block, "first frame"),
+            ["6.83 s after the kernel started"]
+        );
         let _ = std::fs::remove_dir_all(&root);
     }
 
