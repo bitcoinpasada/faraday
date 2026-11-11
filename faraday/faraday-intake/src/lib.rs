@@ -48,7 +48,7 @@ pub fn seedqr_words(payload: &[u8]) -> Option<Zeroizing<String>> {
     let digits = payload.iter().all(u8::is_ascii_digit);
     let m = if digits && matches!(payload.len(), 48 | 96) {
         faraday_codec::seedqr::from_digits(payload, lang).ok()?
-    } else if matches!(payload.len(), 16 | 32) && std::str::from_utf8(payload).is_err() {
+    } else if faraday_codec::classify::is_compact_seedqr(payload) {
         faraday_codec::seedqr::from_entropy(payload, lang).ok()?
     } else {
         return None;
@@ -232,7 +232,5 @@ pub fn is_otpauth_migration(text: &str) -> bool {
 /// Whether text looks like entries for a vault: an `otpauth://` line, or
 /// a `title:` line.
 pub fn looks_like_entries(text: &str) -> bool {
-    text.lines()
-        .map(str::trim)
-        .any(|l| is_otpauth(l) || l.to_ascii_lowercase().starts_with("title:"))
+    faraday_codec::classify::looks_like_entries(text)
 }

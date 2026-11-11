@@ -479,7 +479,13 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
     // Past the depth, or said not to be encrypted: a code that parses as
     // one goes on as an unknown code, never as a new card at depth 0.
     let is_code = faraday_codec::kef::recognize(&plain).is_some();
-    let secret = crate::scan_read::secret_kind(&c, &plain).is_some();
+    // 16 or 32 bytes of note text stay a note here, with the card's own
+    // **Read as a seed** (`docs/KEF.md` §6), though a scanned code of
+    // those bytes is a CompactSeedQR.
+    let secret = match crate::scan_read::secret_kind(&c, &plain) {
+        Some(crate::scan_read::Kind::CompactSeedQr) => !is_note_text(&plain),
+        other => other.is_some(),
+    };
     let names_something = secret
         || !is_code
             && !matches!(

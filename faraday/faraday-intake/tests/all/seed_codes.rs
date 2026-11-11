@@ -82,8 +82,8 @@ fn a_code_with_the_wrong_number_of_digits_or_a_word_past_2047_is_not_a_seedqr() 
 fn a_code_that_is_neither_digits_nor_entropy_is_not_a_seedqr() {
     assert!(seedqr_words(b"").is_none());
     assert!(seedqr_words(b"bitcoin:bc1q5y4r767v5fzx74ez4nw36hjqrhr4ayeyut5px6").is_none());
-    // 16 bytes that are text are words or an address, not entropy.
-    assert!(seedqr_words(b"abandon abandon!").is_none());
+    // 16 bytes of text that is a setup code are not entropy.
+    assert!(seedqr_words(b"otpauth://t/a?s=").is_none());
 }
 
 #[test]
@@ -110,4 +110,23 @@ fn words_with_a_wrong_checksum_or_a_wrong_count_are_not_a_seed() {
     assert!(seed_in_code(&c, eleven.as_bytes()).is_none());
     assert!(seed_in_code(&c, b"").is_none());
     assert!(seed_in_code(&c, &[0xff, 0xfe, 0x00]).is_none());
+}
+
+/// A CompactSeedQR whose entropy is ASCII text is read as one; the
+/// words are BIP-39's for those bytes (computed with the reference
+/// wordlist, as SeedSigner's own encoding does).
+#[test]
+fn compact_seedqr_of_ascii_entropy_is_read() {
+    let twelve = seedqr_words(b"abcdefghijklmnop").expect("12 words");
+    assert_eq!(
+        twelve.as_str(),
+        "gesture basic suit skull grid reflect pizza estate hockey hidden orange tiger"
+    );
+    let twenty_four = seedqr_words(b"abcdefghijklmnopqrstuvwxyzabcdef").expect("24 words");
+    assert_eq!(
+        twenty_four.as_str(),
+        "gesture basic suit skull grid reflect pizza estate hockey hidden orange thought \
+         blame defy spike put jazz sense future security change rate night series"
+    );
+    assert!(seedqr_words(b"otpauth://totp/a?secret=ABCDEFGH").is_none());
 }

@@ -99,6 +99,31 @@ fn a_scanned_text_is_the_message_and_is_signed() {
 }
 
 #[test]
+fn a_scanned_text_of_16_or_32_characters_is_the_message() {
+    for text in ["Pay the bearer!!", "Pay the bearer of this message!!"] {
+        let mut app = app(true);
+        app.press(Action::SignMessage);
+        app.press(Action::MScan);
+        read(&mut app, text);
+        assert_eq!(app.sheet, None, "{text}");
+        assert_eq!(testkit::message(&app).unwrap().text, text);
+    }
+}
+
+#[test]
+fn a_private_key_of_16_or_32_characters_is_not_the_message() {
+    for text in ["nsec1abcdefghijk", "xprv9s21ZrQH143Kabcdefghijklmnop"] {
+        let mut app = app(true);
+        app.press(Action::SignMessage);
+        app.press(Action::MScan);
+        read(&mut app, text);
+        assert_eq!(app.sheet, Some(Sheet::Scan), "{text}");
+        assert!(note(&app).contains("not used here"), "{}", note(&app));
+        assert_eq!(testkit::message(&app).unwrap().text, "");
+    }
+}
+
+#[test]
 fn a_scanned_seed_is_named_and_no_text_is_kept() {
     let mut app = app(true);
     app.press(Action::SignMessage);

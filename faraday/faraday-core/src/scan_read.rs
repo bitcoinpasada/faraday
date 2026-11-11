@@ -177,12 +177,30 @@ pub(crate) fn secret_kind(c: &Compute, bytes: &[u8]) -> Option<Kind> {
     if faraday_keys::gpg::is_paperkey(bytes) {
         return Some(Kind::Paperkey);
     }
-    // A CompactSeedQR is 16 or 32 bytes of entropy, not text.
-    if matches!(bytes.len(), 16 | 32) && std::str::from_utf8(bytes).is_err() {
+    // A CompactSeedQR is 16 or 32 bytes of entropy that no text kind took.
+    if faraday_codec::classify::is_compact_seedqr(bytes) {
         return Some(Kind::CompactSeedQr);
     }
     let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
     secret_text_kind(c, &text)
+}
+
+/// 16 or 32 bytes of valid UTF-8 that no text kind takes: a
+/// CompactSeedQR to a seed scanner, plain text to the message scanner
+/// (`docs/SCANNING.md` §4.3).
+pub(crate) fn is_compact_text(bytes: &[u8]) -> bool {
+    faraday_codec::classify::is_compact_seedqr(bytes) && core::str::from_utf8(bytes).is_ok()
+}
+
+/// Costs what [`secret_text_kind`] costs. [`secret_kind`] for Sign a
+/// message's scanner: 16 or 32 bytes of text no other kind takes are the
+/// message, but a key written as text is still refused.
+pub(crate) fn message_secret_kind(c: &Compute, bytes: &[u8]) -> Option<Kind> {
+    if is_compact_text(bytes) {
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
+        return secret_text_kind(c, &text);
+    }
+    secret_kind(c, bytes)
 }
 
 /// Costs what [`secret_kind`] costs but the paperkey's CRC. The secret

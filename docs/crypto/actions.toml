@@ -362,7 +362,7 @@ completeness = "2 to 4 parts"
 id = "seedqr"
 section = 3
 what = "SeedQR and CompactSeedQR (`core/faraday-codec/src/seedqr.rs`)"
-completeness = "12 and 24 words; English only, as the specification assumes"
+completeness = "12 and 24 words; English only, as the specification assumes; 16 or 32 bytes no text kind takes are entropy, valid UTF-8 or not, as SeedSigner's `decode_qr.py` and Krux's `mnemonic_loader.py` read them"
 
 [[row]]
 id = "bip85"

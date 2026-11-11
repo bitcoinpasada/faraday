@@ -88,6 +88,96 @@ pub enum PayloadKind {
     Unknown,
 }
 
+/// The kind a text payload names, if any text arm takes it.
+fn text_kind(text: &str) -> Option<PayloadKind> {
+    if let Some(ur) = ur_kind(text) {
+        return Some(ur);
+    }
+    // A codex32 string names itself with `ms1` and proves itself
+    // with its checksum; nothing else this function reads begins
+    // that way.
+    if is_codex32(text) {
+        return Some(PayloadKind::Codex32);
+    }
+    // A silent payment address is read before an ordinary one: it
+    // is bech32m under a part of its own, which no address parser
+    // takes, and the BIP-321 URI that carries one is text nothing
+    // else here reads.
+    if faraday_bip::silent::address_of(text).is_some() {
+        return Some(PayloadKind::SilentAddress);
+    }
+    if Address::<NetworkUnchecked>::from_str(text).is_ok() {
+        return Some(PayloadKind::Address);
+    }
+    if xkey::decode_xpub(text).is_ok() || slip132::decode_xpub(text).is_ok() {
+        return Some(PayloadKind::Xpub);
+    }
+    // Both BSMS records say what they are on their first line; the
+    // second line tells the two rounds apart, and neither is read
+    // as the descriptor or the wallet it carries.
+    if faraday_bip::bsms::looks_like_record(text) {
+        return Some(if faraday_bip::bsms::is_signer_record(text) {
+            PayloadKind::BsmsSigner
+        } else {
+            PayloadKind::BsmsDescriptor
+        });
+    }
+    if let Some(d) = descriptor_kind(text) {
+        return Some(d);
+    }
+    if faraday_bip::coldcard::looks_like_export(text) {
+        return Some(PayloadKind::ColdcardXpubs);
+    }
+    if faraday_bip::multisig_config::looks_like_config(text) {
+        return Some(PayloadKind::MultisigConfig);
+    }
+    if let Some(w) = words_kind(text) {
+        return Some(w);
+    }
+    None
+}
+
+/// Whether text looks like entries for a vault: an `otpauth://` line, or
+/// a `title:` line, on any line, after Unicode whitespace is trimmed.
+pub fn looks_like_entries(text: &str) -> bool {
+    text.lines().map(str::trim).any(|l| {
+        ["otpauth://", "title:"]
+            .iter()
+            .any(|p| l.get(..p.len()).is_some_and(|h| h.eq_ignore_ascii_case(p)))
+    })
+}
+
+/// Whether a 16 or 32 byte payload is a CompactSeedQR (SeedSigner's
+/// `docs/seed_qr/README.md`): entropy bytes in a byte-mode code. Both
+/// SeedSigner (`decode_qr.py`, `detect_segment_type`) and Krux
+/// (`mnemonic_loader.py`, `load_key_from_qr_code`) read text first and
+/// take 16 or 32 bytes that no text kind took as entropy, whether or not
+/// the bytes happen to be valid UTF-8. So does this: bytes that are not
+/// text are one, and so is text that no arm of [`classify`] and no
+/// setup-code or entry-list prefix claims. The one rule the classifier and
+/// the device's seed readers share.
+pub fn is_compact_seedqr(bytes: &[u8]) -> bool {
+    if !matches!(bytes.len(), 16 | 32) {
+        return false;
+    }
+    let head = bytes.trim_ascii_start();
+    if head.starts_with(b"psbt\xff") || head.starts_with(b"cHNidP8") {
+        return false;
+    }
+    let Ok(text) = core::str::from_utf8(bytes) else {
+        return true;
+    };
+    let text = text.trim();
+    let starts = |p: &str| {
+        text.get(..p.len())
+            .is_some_and(|h| h.eq_ignore_ascii_case(p))
+    };
+    if starts("otpauth-migration://") || looks_like_entries(text) {
+        return false;
+    }
+    text_kind(text).is_none()
+}
+
 /// Costs what its parsers cost, the last arm as much as
 /// [`crate::kef::recognize`] (base43 text of up to
 /// [`crate::kef::BASE43_MAX`] characters, a time that grows with the
@@ -103,53 +193,12 @@ pub fn classify(bytes: &[u8]) -> PayloadKind {
     if trimmed.starts_with(b"psbt\xff") || trimmed.starts_with(b"cHNidP8") {
         return PayloadKind::Psbt;
     }
-    if let Ok(text) = core::str::from_utf8(trimmed) {
-        if let Some(ur) = ur_kind(text) {
-            return ur;
-        }
-        // A codex32 string names itself with `ms1` and proves itself
-        // with its checksum; nothing else this function reads begins
-        // that way.
-        if is_codex32(text) {
-            return PayloadKind::Codex32;
-        }
-        // A silent payment address is read before an ordinary one: it
-        // is bech32m under a part of its own, which no address parser
-        // takes, and the BIP-321 URI that carries one is text nothing
-        // else here reads.
-        if faraday_bip::silent::address_of(text).is_some() {
-            return PayloadKind::SilentAddress;
-        }
-        if Address::<NetworkUnchecked>::from_str(text).is_ok() {
-            return PayloadKind::Address;
-        }
-        if xkey::decode_xpub(text).is_ok() || slip132::decode_xpub(text).is_ok() {
-            return PayloadKind::Xpub;
-        }
-        // Both BSMS records say what they are on their first line; the
-        // second line tells the two rounds apart, and neither is read
-        // as the descriptor or the wallet it carries.
-        if faraday_bip::bsms::looks_like_record(text) {
-            return if faraday_bip::bsms::is_signer_record(text) {
-                PayloadKind::BsmsSigner
-            } else {
-                PayloadKind::BsmsDescriptor
-            };
-        }
-        if let Some(d) = descriptor_kind(text) {
-            return d;
-        }
-        if faraday_bip::coldcard::looks_like_export(text) {
-            return PayloadKind::ColdcardXpubs;
-        }
-        if faraday_bip::multisig_config::looks_like_config(text) {
-            return PayloadKind::MultisigConfig;
-        }
-        if let Some(w) = words_kind(text) {
-            return w;
-        }
+    if let Ok(text) = core::str::from_utf8(trimmed)
+        && let Some(kind) = text_kind(text)
+    {
+        return kind;
     }
-    if matches!(bytes.len(), 16 | 32) {
+    if is_compact_seedqr(bytes) {
         return PayloadKind::CompactSeedQr {
             words: (bytes.len() * 3 / 4) as u8,
         };
@@ -563,5 +612,37 @@ mod tests {
         ] {
             assert_ne!(classify(file), PayloadKind::Kef);
         }
+    }
+
+    // Entropy bytes that happen to be ASCII text are still a
+    // CompactSeedQR, as SeedSigner and Krux read them; text that is
+    // a setup code is not.
+    #[test]
+    fn compact_seedqr_whose_bytes_are_text() {
+        assert_eq!(
+            classify(b"abcdefghijklmnop"),
+            PayloadKind::CompactSeedQr { words: 12 }
+        );
+        assert_eq!(
+            classify(b"abcdefghijklmnopqrstuvwxyzabcdef"),
+            PayloadKind::CompactSeedQr { words: 24 }
+        );
+        assert!(!is_compact_seedqr(b"otpauth://totp/a?secret=ABCDEFGH"));
+    }
+
+    #[test]
+    fn psbt_and_entries_text_of_16_or_32_bytes_is_not_a_seed() {
+        let b64 = b"cHNidP8BAHECAAAAAQAAAAAAAAAAAAAA";
+        let binary = b"psbt\xffabcdefghijk";
+        assert_eq!((b64.len(), binary.len()), (32, 16));
+        assert!(!is_compact_seedqr(b64));
+        assert!(!is_compact_seedqr(binary));
+        assert_eq!(classify(b64), PayloadKind::Psbt);
+        assert_eq!(classify(binary), PayloadKind::Psbt);
+        let later = b"ab\ntitle: abcdef";
+        let nbsp = "\u{a0}title: abcdefg".as_bytes();
+        assert_eq!((later.len(), nbsp.len()), (16, 16));
+        assert!(!is_compact_seedqr(later));
+        assert!(!is_compact_seedqr(nbsp));
     }
 }

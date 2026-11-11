@@ -954,7 +954,10 @@ impl Faraday {
             return false;
         }
         let c = self.compute();
-        if let Some(kind) = scan_read::secret_kind(&c, bytes) {
+        // Plain text is the message here, so 16 or 32 bytes that are valid
+        // UTF-8 are text, not a CompactSeedQR.
+        let secret = scan_read::message_secret_kind;
+        if let Some(kind) = secret(&c, bytes) {
             self.scan_say(kind.not_here());
             return true;
         }
@@ -964,7 +967,7 @@ impl Faraday {
             return true;
         };
         let data = zeroize::Zeroizing::new(data);
-        if let Some(kind) = scan_read::secret_kind(&c, &data) {
+        if let Some(kind) = secret(&c, &data) {
             self.scan_say(kind.not_here());
             return true;
         }

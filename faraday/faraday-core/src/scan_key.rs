@@ -514,7 +514,12 @@ fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16
 /// English BIP-39 seed. `None` for anything else, a share of a key and a
 /// TOTP setup code among them, which such a scanner routes.
 pub(crate) fn secret_code(c: &Compute, bytes: &[u8]) -> Option<&'static str> {
-    Some(match scan_read::secret_kind(c, bytes)? {
+    secret_note(scan_read::secret_kind(c, bytes)?)
+}
+
+/// The scanner's line for a secret kind; `None` for any other.
+fn secret_note(kind: Kind) -> Option<&'static str> {
+    Some(match kind {
         Kind::Paperkey => EN.read_code_is_paperkey,
         Kind::SeedQr => EN.read_code_is_seedqr,
         Kind::CompactSeedQr => EN.read_code_that_may,
@@ -2199,7 +2204,14 @@ impl Faraday {
         // A wrong arrival is named, not refused generically (`docs/QR.md`
         // §1): a seed in any form, a private key or a paperkey never goes
         // in a box.
-        if let Some(why) = secret_code(&c, &bytes) {
+        // Sign a message's scanner takes plain text of 16 or 32 bytes as
+        // the message.
+        let refused = if scan.purpose == ScanPurpose::MessageText {
+            scan_read::message_secret_kind(&c, &bytes).and_then(secret_note)
+        } else {
+            secret_code(&c, &bytes)
+        };
+        if let Some(why) = refused {
             scan.note = Some(why.to_string());
             return None;
         }

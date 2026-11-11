@@ -61,7 +61,7 @@ apart, and whether it is a secret (DESIGN §4.10, Mask policy).
 |---|---|---|
 | A seed's words | 12 to 24 English BIP-39 words, checksum holding (`faraday_intake::seed_in_code`) | yes |
 | SeedQR | 48 or 96 digits | yes |
-| CompactSeedQR | 16 or 32 bytes that are not UTF-8 | yes |
+| CompactSeedQR | 16 or 32 bytes that no text kind takes, valid UTF-8 or not, as SeedSigner and Krux read them (`faraday_codec::classify::is_compact_seedqr`, the one rule the classifier and the seed readers share); 16 or 32 bytes of text that is an address, a descriptor, another kind above or an `otpauth://` or `title:` entry stay text | yes |
 | Words that fail their checksum | 12 to 24 words of a BIP-39 list, checksum failing: a mistyped seed, an Electrum seed | yes |
 | LND aezeed | 24 words of the English list whose BIP-39 checksum fails and whose own version byte and CRC-32C hold | yes |
 | Seed XOR part | a valid BIP-39 mnemonic; nothing tells it from a whole seed | yes |
@@ -174,7 +174,7 @@ destination's action.
 | A wallet's Scan a key | a seed or a codex32 secret, matched to the wallet's missing keys; a codex32 or SLIP-39 share, to its form opened for the wallet (`EntryWallet`), back to the wallet once the key is whole | every other kind | as §4.2 |
 | What do you have? | a seed, shares, a description, split sheets, an account key, a PSBT | none: the camera stays on and the intake is not left (§10 item 6) | every other kind on its line, as in §5.5; a secret is not filed |
 | TOTP | a TOTP setup code, vault entries | a seed, a share, a PSBT, a wallet description, a signed message | as §4.2 |
-| Sign a message's Scan, on the Message step | plain text, as the message, never filed | none | every secret kind and every other kind of code on the line, "{kind} · not used here"; nothing is kept; a code in parts is put together first and what it makes is judged the same way |
+| Sign a message's Scan, on the Message step | plain text, as the message, never filed | none | every secret kind and every other kind of code on the line, "{kind} · not used here" (16 or 32 bytes of valid UTF-8 that no other kind takes are plain text and the message, unless they are a private key as text); nothing is kept; a code in parts is put together first and what it makes is judged the same way |
 | Copy checks | the copy, compared, never loaded | none | every other kind on the line; a SeedQR of another seed: "This is another seed's SeedQR" |
 | Transfer's Receive | every kind, into Downloads (F129 for a secret) | none | — |
 | Restore a GPG key's Scan the public key | a GPG public key, filed as `{name}-{fp8}.asc` and its restore opened (one not restored here filed, the sheet back saying why); a code in parts gathered first, as Home's | none | a seed, a private key, a paperkey or another secret, by the line Home's Scan names it with, nothing filed; every other kind: "Not a public key Faraday reads", nothing filed |
