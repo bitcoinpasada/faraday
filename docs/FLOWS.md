@@ -240,7 +240,8 @@ check an image**).
 
 **For the stick fills itself** (decision 24). A public file a flow makes
 goes For the stick the moment it is made: the signed PSBT and the
-finished transaction at Finish, the PSBT with this pass's signatures
+finished transaction at Finish (once Review is gone through for that
+PSBT, also when it was signed elsewhere), the PSBT with this pass's signatures
 while more are needed, the backup checklist's template, sheet or shares
 and public files when the checklist is made (made again when the word
 count or the shares change), a GPG public key or signature (a revocation
@@ -1095,7 +1096,8 @@ guarantees for this file's rule:
   wallet**.
 - **Signing ends on two results**, the signed PSBT for the wallet that wrote
   the transaction and the finished transaction with its txid, each shown as
-  a code and put For the stick the moment the transaction is finished
+  a code and put For the stick the moment the transaction is finished and
+  its Review gone through, also when it arrived signed elsewhere
   (decision 24): Finish's primary is **Insert a stick to write it**
   (opening Files), or **Open Files** with a stick in, and each result's
   card carries **Remove** while it waits.

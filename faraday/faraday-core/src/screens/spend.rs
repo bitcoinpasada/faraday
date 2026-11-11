@@ -369,7 +369,10 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel
     } else {
         crate::wallet::collect_line(to_come, count)
     };
-    let label = if s.spend.finished.is_some() {
+    let label = if (s.spend.finished.is_some() || missing == 0) && s.review_owed_shown().is_some() {
+        // Review comes first, also for a PSBT signed elsewhere.
+        EN.wallets_review.to_string()
+    } else if s.spend.finished.is_some() {
         // Both went For the stick at Finish: the next step is writing.
         if app.stick.is_empty() {
             fill(EN.spend_status_insert, &[app.medium.a()])
@@ -1482,6 +1485,11 @@ pub(crate) fn step_body(
                 if s.spend.nonce_hold {
                     cy += nonce_check(app, ui, &s.spend.psbt, x, cy, w);
                 }
+            } else if let Some((_, place)) = s.review_owed_shown() {
+                // Review comes first, also for a PSBT signed elsewhere.
+                let line = fill(EN.primary_finish_step, &[&place.to_string()]);
+                cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line) + GAP;
+                cy += nonce_check(app, ui, &s.spend.psbt, x, cy, w);
             } else {
                 // Side by side where each card's head, its place and its
                 // buttons fit its half; on a small panel, or where the

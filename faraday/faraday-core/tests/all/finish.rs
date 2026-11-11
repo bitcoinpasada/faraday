@@ -809,3 +809,107 @@ fn decode_refuses_an_amount_over_21_million_inside_the_previous_transaction() {
     assert!(beside.decode().is_none());
     assert_eq!(beside.toast_text(), Some(EN.decode_inputs_over_max_money));
 }
+
+/// The savings wallet's spend signed by two of its three keys on two
+/// devices, and the first device's partly signed file.
+fn two_devices_signed() -> (Vec<u8>, Vec<u8>, Vec<u8>, Faraday) {
+    let k = kit("savings");
+    let (unsigned, _) = testkit::spend_of(&k).unwrap();
+    let files = |extra: Vec<(String, Vec<u8>)>| {
+        let mut v = vec![
+            ("spend.psbt".to_string(), unsigned.to_bytes()),
+            (
+                "savings-wallet.txt".to_string(),
+                k.descriptor.clone().into_bytes(),
+            ),
+        ];
+        v.extend(extra);
+        v
+    };
+    let mut a = with_inbox(files(Vec::new()));
+    a.press(Action::LoadWallet(at(&a, "savings-wallet.txt")));
+    add_key(&mut a, "zebra");
+    a.press(Action::StartSpend(at(&a, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut a);
+    a.press(Action::SignHere);
+    let from_a = a.spend().unwrap().spend.psbt.to_bytes();
+    let mut b = with_inbox(files(vec![("from-a.psbt".to_string(), from_a.clone())]));
+    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    add_key(&mut b, "bacon");
+    b.press(Action::StartSpend(at(&b, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut b);
+    b.press(Action::SignHere);
+    b.press(Action::Collect(at(&b, "from-a.psbt")));
+    let full = b.spend().unwrap().spend.psbt.to_bytes();
+    (unsigned.to_bytes(), from_a, full, b)
+}
+
+fn results_waiting(app: &Faraday) -> Vec<String> {
+    app.outbox
+        .iter()
+        .filter(|i| i.name.ends_with("-signed.psbt") || i.name.ends_with("-final.txn"))
+        .map(|i| i.name.clone())
+        .collect()
+}
+
+/// A PSBT that arrives signed by enough keys elsewhere puts nothing in the
+/// Outbox until this device's Review (and Check) is gone through; then
+/// both results wait there.
+#[test]
+fn a_psbt_signed_elsewhere_waits_for_review_before_the_outbox() {
+    let k = kit("savings");
+    let (_, _, full, _) = two_devices_signed();
+    let mut app = with_inbox(vec![
+        ("full.psbt".to_string(), full),
+        ("savings-wallet.txt".to_string(), k.descriptor.into_bytes()),
+    ]);
+    app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
+    app.press(Action::StartSpend(at(&app, "full.psbt")));
+    assert!(app.spend().unwrap().spend.finished.is_some());
+    assert!(results_waiting(&app).is_empty());
+    // The main button does not skip Review either.
+    app.press(Action::Primary);
+    assert!(results_waiting(&app).is_empty());
+    assert_eq!(app.spend().unwrap().open, Some(step::TRANSACTION));
+    app.press(Action::StepNext(step::TRANSACTION));
+    assert!(
+        results_waiting(&app).is_empty(),
+        "Check is still to be gone through"
+    );
+    app.press(Action::SignedToOutbox);
+    app.press(Action::TxToOutbox);
+    assert!(results_waiting(&app).is_empty());
+    app.press(Action::StepNext(step::CHECK));
+    assert_eq!(
+        results_waiting(&app),
+        ["full-signed.psbt", "full-final.txn"]
+    );
+}
+
+/// A spend made complete by Collect waits for Review again, and a
+/// Collect answer after Review needs Review again.
+#[test]
+fn a_collect_answer_needs_review_again_before_the_outbox() {
+    let k = kit("savings");
+    let (unsigned, from_a, _, _) = two_devices_signed();
+    let mut b = with_inbox(vec![
+        ("spend.psbt".to_string(), unsigned),
+        ("savings-wallet.txt".to_string(), k.descriptor.into_bytes()),
+        ("from-a.psbt".to_string(), from_a),
+    ]);
+    b.press(Action::LoadWallet(at(&b, "savings-wallet.txt")));
+    add_key(&mut b, "bacon");
+    b.press(Action::StartSpend(at(&b, "spend.psbt")));
+    testkit::steps_before_sign_done(&mut b);
+    b.press(Action::SignHere);
+    assert!(results_waiting(&b).is_empty(), "not complete yet");
+    b.press(Action::Collect(at(&b, "from-a.psbt")));
+    assert!(b.spend().unwrap().spend.finished.is_some());
+    assert!(results_waiting(&b).is_empty());
+    assert_eq!(b.spend().unwrap().open, Some(step::TRANSACTION));
+    b.press(Action::StepNext(step::TRANSACTION));
+    assert_eq!(
+        results_waiting(&b),
+        ["spend-signed.psbt", "spend-final.txn"]
+    );
+}

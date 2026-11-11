@@ -877,6 +877,9 @@ fn a_clean_spend_finishes_and_is_saved_as_before() {
     start(&mut app, 1);
     let s = app.spend().unwrap();
     assert!(s.complete && s.spend.finished.is_some());
+    assert!(app.outbox.is_empty(), "Review comes first");
+    app.press(Action::StepNext(faraday_core::wallet::step::TRANSACTION));
+    app.press(Action::StepNext(faraday_core::wallet::step::CHECK));
     assert!(
         !app.outbox.is_empty(),
         "both results are made for the stick"
@@ -1179,6 +1182,8 @@ fn finished_then_history_holds() -> Faraday {
     start(&mut app, 2);
     let s = app.spend().unwrap();
     assert!(s.complete && s.spend.finished.is_some());
+    app.press(Action::StepNext(faraday_core::wallet::step::TRANSACTION));
+    app.press(Action::StepNext(faraday_core::wallet::step::CHECK));
     assert!(
         app.outbox.iter().any(|i| i.name.ends_with("-final.txn"))
             && app.outbox.iter().any(|i| i.name.ends_with("-signed.psbt"))

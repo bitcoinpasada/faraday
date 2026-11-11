@@ -2159,7 +2159,7 @@ impl Faraday {
     /// version 2 PSBT cannot take the signatures back (`Spend::out_bytes`).
     fn spend_files_out(&mut self) {
         let spend = self.wallets.spend_mut();
-        let Some(s) = spend.filter(|s| s.spend.finished.is_some()) else {
+        let Some(s) = spend.filter(|s| s.spend.finished.is_some() && s.reviewed_now()) else {
             return;
         };
         let stem = result_stem(&s.spend.source);
@@ -4212,13 +4212,11 @@ impl Faraday {
             .participating_keys
             .iter()
             .any(|fp| self.session.keys.key_label(*fp).is_some() && s.to_sign.contains(&fp.0));
-        if s.spend.finished.is_some() {
+        if s.spend.finished.is_some() && s.reviewed_now() {
             // Both files went For the stick at Finish: Files writes them.
             self.screen = Screen::Files;
         } else if complete {
-            s.done[wallet::step::COLLECT as usize] = true;
-            s.open = Some(wallet::step::FINISH);
-            s.follow = true;
+            s.open_finish();
         } else if can_sign_here {
             crate::signing::sign_here(self);
         } else {

@@ -155,6 +155,7 @@ impl SpendState {
             self.spend.finished = None;
             self.complete = false;
         }
+        self.settle_owed();
     }
 
     /// Moves only. The signers' lists of a [`Signing`].

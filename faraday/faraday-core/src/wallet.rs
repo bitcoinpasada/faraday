@@ -3162,9 +3162,102 @@ pub struct SpendState {
     pub(crate) others_from: Option<Vec<OtherFrom>>,
     /// The inspection was made again since [`SpendState::others`] were.
     pub(crate) others_stale: bool,
+    /// The PSBT this device's Review (and Check, where the wallet is
+    /// known) was gone through for: what the Outbox waits for. A PSBT that
+    /// is any other is not vouched for (`SpendState::review_lapse`).
+    reviewed: Option<Psbt>,
+    /// [`SpendState::review_owed`] as it was last worked out, for drawing
+    /// to read (`SpendState::review_owed_shown`). Worked out by
+    /// [`SpendState::settle_owed`] wherever the PSBT, `reviewed`, `steps`,
+    /// `wallet` or Check's `done` change; it starts as owed.
+    owed: Option<(u8, usize)>,
 }
 
 impl SpendState {
+    /// Review is gone through for the PSBT as it is, and Check too where
+    /// the wallet is known: a spend's files go to the Outbox only then.
+    pub(crate) fn reviewed_now(&self) -> bool {
+        self.reviewed.as_ref() == Some(&self.spend.psbt)
+            && (self.wallet.is_none() || self.done[step::CHECK as usize])
+    }
+
+    /// Notes that Review was gone through for the PSBT as it is.
+    pub(crate) fn mark_reviewed(&mut self) {
+        self.reviewed = Some(self.spend.psbt.clone());
+        self.settle_owed();
+    }
+
+    /// Review was gone through for `before`, the PSBT before this device
+    /// signed it: it vouches for the signed one.
+    pub(crate) fn carry_review(&mut self, before: &Psbt) {
+        if self.reviewed.as_ref() == Some(before) {
+            self.mark_reviewed();
+        }
+        self.settle_owed();
+    }
+
+    /// Review is needed again where the PSBT changed since it was gone
+    /// through (a Collect answer); signing here is not held by it, the
+    /// Outbox is.
+    pub(crate) fn review_lapse(&mut self) {
+        if self
+            .reviewed
+            .as_ref()
+            .is_some_and(|p| *p != self.spend.psbt)
+        {
+            self.reviewed = None;
+        }
+        self.settle_owed();
+    }
+
+    /// Works [`SpendState::review_owed`] out again and keeps it: called
+    /// wherever the PSBT, what was reviewed, the steps, the wallet or
+    /// Check's `done` change.
+    pub(crate) fn settle_owed(&mut self) {
+        self.owed = self.review_owed();
+    }
+
+    /// [`SpendState::review_owed`] as last settled: a read, for drawing.
+    pub(crate) fn review_owed_shown(&self) -> Option<(u8, usize)> {
+        self.owed
+    }
+
+    /// The first step of Review and Check not done yet, with its place in
+    /// the steps shown (counted from 1): `None` once the spend is reviewed.
+    pub(crate) fn review_owed(&self) -> Option<(u8, usize)> {
+        if self.reviewed_now() {
+            return None;
+        }
+        let owed = |n: u8| {
+            (n == step::TRANSACTION && self.reviewed.as_ref() != Some(&self.spend.psbt))
+                || (n == step::CHECK && self.wallet.is_some() && !self.done[n as usize])
+        };
+        let i = self
+            .steps
+            .iter()
+            .position(|&n| owed(n))
+            .or_else(|| self.steps.iter().position(|&n| n == step::TRANSACTION))
+            .unwrap_or(0);
+        Some((
+            self.steps.get(i).copied().unwrap_or(step::TRANSACTION),
+            i + 1,
+        ))
+    }
+
+    /// Collect is done and the spend complete: Finish opens, or Review
+    /// first where it is owed, also for a PSBT signed elsewhere.
+    pub(crate) fn open_finish(&mut self) {
+        self.done[step::COLLECT as usize] = true;
+        self.follow = true;
+        match self.review_owed() {
+            None => self.open = Some(step::FINISH),
+            Some((owed, place)) => {
+                self.open = Some(owed);
+                self.error = Some(fill(EN.primary_finish_step, &[&place.to_string()]));
+            }
+        }
+    }
+
     /// The keys this device has signed with that are not still to sign: the
     /// ones the Sign card names as signed.
     pub(crate) fn signed_keys(&self) -> Vec<Fingerprint> {
@@ -3219,6 +3312,8 @@ impl SpendState {
             others: Vec::new(),
             others_from: None,
             others_stale: true,
+            reviewed: None,
+            owed: Some((step::TRANSACTION, 1)),
         }
     }
 
@@ -3557,6 +3652,7 @@ impl Faraday {
                 s.take(fresh);
                 s.others_stale = true;
             }
+            s.review_lapse();
             let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
             let kind = wallet.map(|w| wallet::Kind::of(w.policy()));
             s.needed = wallet.map(wallet::needed).unwrap_or(1);
@@ -3577,6 +3673,7 @@ impl Faraday {
                     s.done[wallet::step::CHECK as usize] = true;
                 }
             }
+            s.settle_owed();
             let stale = s.open.is_some_and(|open| !s.steps.contains(&open));
             if stale || !s.opened {
                 s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
@@ -3865,6 +3962,10 @@ impl Faraday {
                         return;
                     }
                     s.done[n as usize] = true;
+                    if n == wallet::step::TRANSACTION {
+                        s.mark_reviewed();
+                    }
+                    s.settle_owed();
                     s.open = s.steps.iter().copied().find(|&i| !s.done[i as usize]);
                     s.error = None;
                     s.follow = true;
@@ -3878,6 +3979,9 @@ impl Faraday {
                     let checksum = wallet.checksum().to_string();
                     self.mark_checked(&checksum);
                 }
+                // A complete PSBT waits for this: its files go out once
+                // Review (and Check) is gone through.
+                self.spend_files_out();
                 if self.screen == Screen::SpendBackup {
                     self.spend_backup_step_moved(true);
                 }
@@ -3890,7 +3994,11 @@ impl Faraday {
             Action::SignHere => crate::signing::sign_here(self),
             Action::Collect(i) => crate::signing::collect::start_collect(self, i),
             Action::SignedToOutbox => {
-                if let Some(s) = self.wallets.spend_mut().filter(|s| !s.spend.nonce_hold) {
+                if let Some(s) = self
+                    .wallets
+                    .spend_mut()
+                    .filter(|s| !s.spend.nonce_hold && s.reviewed_now())
+                {
                     let name = format!("{}-signed.psbt", result_stem(&s.spend.source));
                     let Ok(bytes) = s.spend.out_bytes() else {
                         return self.toast(EN.spend_v2_not_written);
@@ -3904,6 +4012,7 @@ impl Faraday {
             }
             Action::TxToOutbox => {
                 if let Some(s) = self.wallets.spend_mut()
+                    && s.reviewed_now()
                     && let Some(hex) = s.spend.finished_hex()
                 {
                     let name = format!("{}-final.txn", result_stem(&s.spend.source));

@@ -2115,6 +2115,7 @@ pub fn steps_before_sign_done(app: &mut crate::Faraday) {
             }
             s.done[n as usize] = true;
         }
+        s.mark_reviewed();
     }
 }
 

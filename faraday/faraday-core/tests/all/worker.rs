@@ -1829,7 +1829,8 @@ mod collect {
         testkit::settle(&mut app);
         let s = app.spend().unwrap();
         assert!(s.complete);
-        assert_eq!(s.open, Some(faraday_core::wallet::step::FINISH));
+        // Review comes first, also for a PSBT the collect made complete.
+        assert_eq!(s.open, Some(faraday_core::wallet::step::TRANSACTION));
     }
 
     #[test]

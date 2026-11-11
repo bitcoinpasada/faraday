@@ -491,6 +491,10 @@ fn signed_by_seeds(id: &str) -> (Kit, Vec<u8>) {
 
 /// The Nonce check line of the Finish card as drawn.
 fn finish_line(app: &mut Faraday) -> Option<String> {
+    let finish = faraday_core::wallet::step::FINISH;
+    if app.spend().is_some_and(|s| s.open != Some(finish)) {
+        app.press(Action::Step(finish));
+    }
     let _ = app.frame();
     app.drawn_texts()
         .into_iter()

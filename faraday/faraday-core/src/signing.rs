@@ -284,7 +284,11 @@ fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, String>) {
     match worked {
         Ok(w) => {
             nonce_only = w.nonce_only;
+            // Review gone through for the PSBT as it was vouches for what
+            // this device signed of it.
+            let prior = s.spend.psbt.clone();
             s.take_spend(w.spend);
+            s.carry_review(&prior);
             s.take(w.fresh);
             s.error = None;
             if !nonce_only {
@@ -326,7 +330,7 @@ fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, String>) {
         s.follow = true;
         if s.complete {
             s.done[wallet::step::COLLECT as usize] = true;
-            s.open = Some(wallet::step::FINISH);
+            s.open = Some(s.review_owed().map_or(wallet::step::FINISH, |(n, _)| n));
         } else if s.steps.contains(&wallet::step::COLLECT) {
             s.open = Some(wallet::step::COLLECT);
         } else {
@@ -354,7 +358,7 @@ pub(crate) fn collect_end(
         s.follow = true;
         if s.complete {
             s.done[wallet::step::COLLECT as usize] = true;
-            s.open = Some(wallet::step::FINISH);
+            s.open = Some(s.review_owed().map_or(wallet::step::FINISH, |(n, _)| n));
         }
     }
 }
