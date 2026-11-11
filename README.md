@@ -366,7 +366,7 @@ your PC" the first time, and *More info*, then *Run anyway*, opens it.
 Check it against the signed `SHA256SUMS` first.
 
 A Faraday stick or Pi card needs a USB stick or SD card of 256 MB or
-larger. Faraday's own boot file takes about 14 MB of the
+larger. Faraday's own boot file takes about 15 MB of the
 stick's 64 MiB boot partition, and the Pi card's boot files about
 16 MB of its 64 MiB; the rest of that partition is room for
 later versions to grow. The 128 MiB data partition is storage for files:
