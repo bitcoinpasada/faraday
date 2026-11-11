@@ -32,7 +32,7 @@ env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
   CARGO_FUZZ_VERSION: 0.13.2
-  PARTS: 16
+  PARTS: 19
   FUZZ_SECONDS: ${{ inputs.seconds }}
 
 jobs:
@@ -93,18 +93,18 @@ jobs:
           compression-level: 0
 
   part:
-    name: part ${{ matrix.part }}/16
+    name: part ${{ matrix.part }}/19
     needs: build
     runs-on: ubuntu-26.04
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        part: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        part: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     env:
       FARADAY_FUZZ_PREBUILT: "1"
       FARADAY_FUZZ_JOBS: "4"
-      FARADAY_FUZZ_PARTITION: ${{ matrix.part }}/16
+      FARADAY_FUZZ_PARTITION: ${{ matrix.part }}/19
       CORPUS_TAG: ${{ needs.build.outputs.corpus }}
       REPOSITORY: ${{ github.repository }}
     steps:

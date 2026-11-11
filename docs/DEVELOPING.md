@@ -470,7 +470,7 @@ on the stable toolchain, no nightly or cargo-fuzz needed).
 The fuzz targets need the nightly in `fuzz/rust-toolchain.toml` and
 cargo-fuzz. The run before a release can also run on GitHub's runners,
 started by hand on the tree to fuzz (`gh workflow run fuzz.yml --ref BRANCH`,
-`.github/workflows/fuzz.yml`, F210): sixteen jobs from one compile, and the
+`.github/workflows/fuzz.yml`, F210): nineteen jobs from one compile, and the
 record, corpus and any crash input as the run's artifacts. `fuzz/README.md` and `faraday/fuzz/README.md` say what each
 target feeds; `tools/README.md`, "Before a release", is the release run.
 

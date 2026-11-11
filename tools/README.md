@@ -109,7 +109,7 @@ none is part of `just`, which stays fast.
 3. The fuzz run, and the corpora published after it (`fuzz/README.md`,
    "Before a release"). On any machine, or on GitHub's runners with
    `.github/workflows/fuzz.yml` started by hand, which does 1 and 2 in
-   sixteen partitions and joins them (F210):
+   nineteen partitions and joins them (F210):
    1. `just fuzz-release`, starting from the last published corpus
       (`FARADAY_FUZZ_CORPUS=<checkout of the corpus repository>`): every
       target for 10 minutes, in parallel, each keeping its corpus between
