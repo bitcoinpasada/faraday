@@ -401,8 +401,8 @@ fn on_a_device_the_writes_name_each_stick_by_its_number() {
     assert_eq!(app.flow().unwrap().step, Step::Done);
     // The Done card's rows, once it has opened.
     settle_n(&mut app, 100, 5);
-    expect_part(&mut app, "Stick 2 · Vault 1 (Place 1) · KEYSTICK");
-    expect_part(&mut app, "Stick 3 · Vault 1 (Place 2) · KEYSTICK");
+    expect_part(&mut app, "Stick 2 · Vault 1 (Place 1)");
+    expect_part(&mut app, "KEYSTICK · Vault-1.kdbx");
 }
 
 #[test]

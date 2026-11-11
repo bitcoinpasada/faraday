@@ -803,7 +803,18 @@ fn a_signature_verifies_in_gnupg() {
 fn the_page_shows_the_bytes_and_the_key_it_signs_with() {
     let c = faraday_core::testkit::compute();
     let mut app = signing();
-    let page = drawn(&mut app);
+    // The page is longer than the window: read it top to bottom, as a
+    // person scrolling would.
+    let mut page = drawn(&mut app);
+    for _ in 0..12 {
+        let (w, h) = app.size();
+        app.event(Event::Scroll {
+            x: (w * 0.75) as u16,
+            y: (h / 2.0) as u16,
+            dy: 120,
+        });
+        page.push_str(&drawn(&mut app));
+    }
     for (name, bytes) in release_files() {
         let hash = gpg::sha256_hex(&c, &bytes);
         assert!(page.contains(&hash), "{name}'s SHA-256 on the page");
