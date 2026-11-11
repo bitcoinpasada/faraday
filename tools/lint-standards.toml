@@ -23,6 +23,10 @@ crate = "faraday/faraday-strings"
 reason = "Writes the bytes of a refused key's version or pad as hex in an error message with faraday-crypto's hex; computes nothing cryptographic."
 
 [[uncovered]]
+crate = "tools/op-cost"
+reason = "Counts the instructions of named costly operations (F238) by calling faraday-bip, faraday-entropy and faraday-psbt on public test vectors, with the compute token that counts nothing; computes nothing of its own, and the functions it calls are cross-checked in their areas."
+
+[[uncovered]]
 crate = "faraday/faraday-disk"
 reason = "Takes the compute token for its file reads; computes nothing cryptographic."
 
