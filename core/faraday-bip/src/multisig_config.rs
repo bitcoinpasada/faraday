@@ -65,6 +65,17 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Stri
     let mut keys: Vec<String> = Vec::new();
     let mut named: Vec<Option<Script>> = Vec::new();
 
+    let mut seen = [false; 3];
+    let mut once = |i: usize| -> Result<(), Error> {
+        // A header that repeats is ambiguous, and is refused rather than
+        // overwritten. `Derivation` is not one: a config may give each
+        // cosigner its own.
+        if core::mem::replace(&mut seen[i], true) {
+            return Err(Error::Key);
+        }
+        Ok(())
+    };
+
     for line in text.lines() {
         let line = match line.split_once('#') {
             Some((head, _)) => head,
@@ -79,23 +90,31 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Stri
         };
         let (label, value) = (label.trim(), value.trim());
         if label.eq_ignore_ascii_case("name") {
+            once(0)?;
             if !value.is_empty() {
                 name = Some(String::from(value));
             }
             continue;
         } else if label.eq_ignore_ascii_case("policy") {
+            once(1)?;
             let (m, n) = quorum(value).ok_or(Error::Threshold)?;
             threshold = m;
             total = n;
         } else if label.eq_ignore_ascii_case("derivation") {
             derivation = Some(String::from(path_body(value)));
         } else if label.eq_ignore_ascii_case("format") {
+            once(2)?;
             wrapper = Some(wrapper_of(value).ok_or(Error::Template)?);
         } else if is_fingerprint(label) {
             if keys.len() == MAX_KEYS {
                 return Err(Error::Threshold);
             }
             let path = derivation.as_deref().ok_or(Error::Derivation)?;
+            // A key at the master has no steps and is written `[fp]`,
+            // which a config's `Derivation: m` does not say.
+            if path.is_empty() {
+                return Err(Error::Derivation);
+            }
             let key = slip132::decode(value).map_err(|_| Error::Key)?;
             keys.push(format!(
                 "[{}/{path}]{}",

@@ -170,6 +170,11 @@ pub struct PolicyKey {
 }
 
 impl PolicyKey {
+    /// The kind of network the extended key's version bytes name.
+    pub fn network_kind(&self) -> bitcoin::NetworkKind {
+        self.xpub.network
+    }
+
     /// The master fingerprint the origin names, or `None` when the key
     /// arrived with no origin. This is never the xpub's own identifier:
     /// a key whose master is unknown says so.
@@ -445,15 +450,6 @@ impl WalletPolicy {
     /// The keys, in placeholder order.
     pub fn keys(&self) -> &[PolicyKey] {
         &self.keys
-    }
-
-    /// The keys that repeat an earlier one, as `(first, later)` indices
-    /// into [`keys`](Self::keys): one pair per later key, naming the
-    /// first key it is the same as ([`PolicyKey::same_key`]). Empty when
-    /// no key repeats. A policy's keys all derive `<0;1>/*`, so two
-    /// placeholders holding one key always share their addresses.
-    pub fn repeated_keys(&self) -> Vec<(usize, usize)> {
-        repeats_among(&self.keys)
     }
 
     /// The internal key of a `tr()` wallet whose internal key is a plain
@@ -1364,20 +1360,6 @@ fn same_material(a: &Xpub, b: &Xpub) -> bool {
     a.public_key == b.public_key && a.chain_code == b.chain_code
 }
 
-/// `(first, later)` for every key that is the same as an earlier one,
-/// by [`same_material`].
-fn repeats_among(keys: &[PolicyKey]) -> Vec<(usize, usize)> {
-    keys.iter()
-        .enumerate()
-        .filter_map(|(later, key)| {
-            keys[..later]
-                .iter()
-                .position(|k| k.same_key(key))
-                .map(|first| (first, later))
-        })
-        .collect()
-}
-
 /// `(first, later)` for the keys of `texts`, each `[fingerprint/path]xpub`
 /// or a bare xpub, that are the same key as an earlier text's
 /// ([`PolicyKey::same_key`]). A text that is not a key counts as none.
@@ -1724,7 +1706,15 @@ fn check(template: &Template, keys: &[PolicyKey]) -> Result<(), Error> {
         return Err(Error::Placeholder);
     }
     for (i, key) in keys.iter().enumerate() {
-        if keys[..i].iter().any(|k| k.xpub == key.xpub) {
+        // The same public key and chain code under another origin, depth
+        // or parent is the same key: a quorum counting it twice is lower
+        // than it says.
+        if keys[..i].iter().any(|k| k.same_key(key)) {
+            return Err(Error::Key);
+        }
+        // One wallet is one network: a policy that mixes mainnet and
+        // test keys is ambiguous.
+        if key.xpub.network != keys[0].xpub.network {
             return Err(Error::Key);
         }
         if key
@@ -1825,8 +1815,13 @@ fn parse_key(text: &str) -> Result<PolicyKey, Error> {
     let path = if path.is_empty() {
         DerivationPath::master()
     } else {
-        DerivationPath::from_str(path.strip_prefix('/').ok_or(Error::Key)?)
-            .map_err(|_| Error::Key)?
+        // BIP-380 writes the path after the fingerprint with no `m/`
+        // head, and writes no path as no slash.
+        let steps = path.strip_prefix('/').ok_or(Error::Key)?;
+        if steps.is_empty() || steps.starts_with(['m', 'M']) {
+            return Err(Error::Key);
+        }
+        DerivationPath::from_str(steps).map_err(|_| Error::Key)?
     };
     Ok(PolicyKey {
         origin: Some(Origin {

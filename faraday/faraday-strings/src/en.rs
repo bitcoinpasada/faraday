@@ -8731,8 +8731,7 @@ strings! {
     tools_wallet: "Wallet",
     /// Label in `body`: the keys a descriptor uses twice.
     tools_keys: "Keys",
-    /// Text in `repeated_key_line`, and the line Restore shows for a
-    /// wallet that repeats a key. `{}`: the later key's number, the
+    /// Text in `repeated_key_line`. `{}`: the later key's number, the
     /// earlier key's number.
     tools_key_same_as: "Key {} is the same as key {}",
     /// Text in `repeated_key_line`. `{}`: the key's number.

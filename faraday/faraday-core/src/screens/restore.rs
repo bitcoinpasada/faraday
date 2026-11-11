@@ -9,7 +9,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
 use crate::wallet::{FileKind, Session, fp_text};
 use crate::{Action, Screen, flow, guide};
-use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, GAP_SMALL, LABEL_L, LABEL_M};
+use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP_SMALL, LABEL_L, LABEL_M};
 use faraday_ui::parts::wrap_buttons;
 
 /// The closed line of Restore's card of vaults: the answer.
@@ -196,16 +196,6 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += 8.0;
                 ui.rule(x, cy, w, Role::OutlineVariant);
                 cy += 14.0;
-            }
-            // A description that uses one key twice loads all the same; the
-            // card says so.
-            if r.described
-                && let Some(wallet) = r.wallet.and_then(|i| app.session.wallets.get(i))
-            {
-                for (first, later) in wallet.policy().repeated_keys() {
-                    let line = crate::tools::screen::repeated_key_line(first, later);
-                    cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line) + GAP;
-                }
             }
             cy += kind_rows(
                 ui,

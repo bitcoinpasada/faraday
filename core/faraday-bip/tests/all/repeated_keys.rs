@@ -65,18 +65,16 @@ fn the_same_key_under_another_origin_and_depth_is_found() {
 }
 
 #[test]
-fn a_loaded_policy_names_the_same_key_under_two_placeholders() {
+fn a_policy_naming_the_same_key_under_two_placeholders_is_refused() {
     let two_part = format!(
         "wsh(sortedmulti(2,@0/**,@1/**,@2/**))\n{},{},{}",
         a(),
         b(),
         a_again()
     );
-    let policy = WalletPolicy::parse_any(&Compute::unchecked(), &two_part).expect("loads");
-    assert_eq!(policy.repeated_keys(), vec![(0, 2)]);
+    assert!(WalletPolicy::parse_any(&Compute::unchecked(), &two_part).is_err());
     let distinct = format!("wsh(sortedmulti(2,@0/**,@1/**))\n{},{}", a(), b());
-    let policy = WalletPolicy::parse_any(&Compute::unchecked(), &distinct).expect("loads");
-    assert!(policy.repeated_keys().is_empty());
+    assert!(WalletPolicy::parse_any(&Compute::unchecked(), &distinct).is_ok());
 }
 
 #[test]

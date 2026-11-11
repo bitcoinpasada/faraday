@@ -142,6 +142,10 @@ impl SignerRecord {
             return Err(Error::Token);
         }
         let key = PolicyKey::parse(lines[2].trim()).map_err(|_| Error::Key)?;
+        // BIP 129 writes every key with its origin.
+        if key.fingerprint().is_none() {
+            return Err(Error::Key);
+        }
         let description = lines[3];
         if description.chars().count() > 80 {
             return Err(Error::Description);
@@ -319,6 +323,12 @@ impl DescriptorRecord {
             .into_iter()
             .find(|n| unchecked.is_valid_for_network(bitcoin::Network::from(*n)))
             .ok_or(Error::Address)?;
+        // The keys' version bytes name the network kind; the address
+        // must be one of that kind.
+        let kind = bitcoin::NetworkKind::from(bitcoin::Network::from(network));
+        if policy.keys().iter().any(|k| k.network_kind() != kind) {
+            return Err(Error::Address);
+        }
         let first = policy
             .address_at(c, network, false, 0)
             .map_err(Error::Policy)?;
