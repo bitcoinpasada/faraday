@@ -2556,6 +2556,16 @@ pub fn nonce_history_drop(app: &mut crate::Faraday, id: faraday_keys::vault::Vau
     app.memory.nonces.sync_open(&open);
 }
 
+/// How many vaults the nonce history compares a check against, or `None`
+/// with the setting off or no vault open.
+pub fn nonce_history_vaults(app: &crate::Faraday) -> Option<usize> {
+    match app.nonce_snapshot().history() {
+        crate::memory::nonces::History::Clean { vaults }
+        | crate::memory::nonces::History::Unread { vaults, .. } => Some(vaults),
+        crate::memory::nonces::History::Off => None,
+    }
+}
+
 /// Notes `entries` of transaction `tx` in the nonce history.
 pub fn nonce_history_note(
     app: &mut crate::Faraday,

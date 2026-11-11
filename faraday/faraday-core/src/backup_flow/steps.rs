@@ -2032,6 +2032,7 @@ impl Faraday {
                             })
                     {
                         self.vaults.close_at(o);
+                        self.nonces_sync_open();
                     }
                     let f = &mut self.flows.all[i];
                     f.live.not_it = Some((v, name));

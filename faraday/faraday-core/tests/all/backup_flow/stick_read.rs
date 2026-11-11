@@ -437,6 +437,20 @@ fn a_file_pressed_for_a_known_vault_that_is_another_vault_says_so_and_stays_as_i
 }
 
 #[test]
+fn a_vault_closed_for_not_being_the_one_asked_for_leaves_the_nonce_history_at_once() {
+    let mut shell = Shell::new();
+    let other = vault("Other", PHRASE_2, 0x82);
+    let mut app = press_unseen_file(&mut shell, &other);
+    faraday_core::testkit::nonce_history_on(&mut app, true);
+    assert!(app.nonce_history_kept());
+    shell.flow(&mut app, F::UnlockVault(0));
+    unlock(&mut app, PHRASE_2);
+    expect(&mut app, "b.kdbx is not Vault 1");
+    assert!(app.vaults().open.is_empty(), "the other vault is closed");
+    assert_eq!(faraday_core::testkit::nonce_history_vaults(&app), None);
+}
+
+#[test]
 fn a_file_pressed_for_a_known_vault_that_is_an_older_copy_of_it_opens_and_is_replaced() {
     let mut shell = Shell::new();
     let older = main_with_note(PHRASE, 0x81);
