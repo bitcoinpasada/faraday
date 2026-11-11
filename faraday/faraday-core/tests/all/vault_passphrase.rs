@@ -149,6 +149,26 @@ fn unlock_has_an_eye_that_shows_the_passphrase_typed() {
 }
 
 #[test]
+fn an_empty_unlock_field_says_nothing_wrong_until_unlock_is_pressed() {
+    let said = faraday_core::strings::EN.vaults_type_the_passphrase;
+    let mut app = shown();
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: vec![(
+            "vault.kdbx".to_string(),
+            crate::common::vault("Test", faraday_core::testkit::VAULT_PASSPHRASE, 7),
+        )],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    app.press(Action::Vault(V::Open(0)));
+    assert!(!crate::common::texts(&mut app).iter().any(|t| t == said));
+    app.press(Action::Vault(V::Unlock));
+    assert!(crate::common::texts(&mut app).iter().any(|t| t == said));
+    crate::common::type_text(&mut app, "a");
+    assert!(!crate::common::texts(&mut app).iter().any(|t| t == said));
+}
+
+#[test]
 fn create_vault_passphrase_fields_have_the_eye() {
     let mut app = shown();
     // Create opens on Name and passphrase.
