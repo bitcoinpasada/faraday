@@ -1294,9 +1294,9 @@ misses = "planned: F148's fuzz check"
 id = "fuzz.release-two-runs"
 title = "a release's fuzz run made of two runs reruns every target whose corpus reaches a changed file or a file naming a changed constant, every target compiling in a change that cannot be followed, and every target after a change to a fuzz crate's manifest, lock, toolchain or the fuzz tools; its record names both runs"
 source = ["docs/decisions/F241.md"]
-when = ["tools/fuzz-release.sh", "tools/fuzz-join.py", "tools/fuzz-common.sh", "tools/fuzz-corpus-export.sh", ".github/workflows/fuzz.yml"]
+when = ["tools/fuzz-release.sh", "tools/fuzz-join.py", "tools/fuzz-plan.py", "tools/fuzz-common.sh", "tools/fuzz-corpus-export.sh", ".github/workflows/fuzz.yml"]
 kind = "review"
-misses = "planned: nothing of F241 is built"
+misses = "whether the rerun targets are the ones the decision names: no check reads a plan against the rules"
 
 # --------------------------------------------------------------- release
 

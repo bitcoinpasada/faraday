@@ -36,7 +36,8 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/fuzz-release.sh` | release | `just fuzz-release` | the fuzz run before a release: every target of `fuzz/` and `faraday/fuzz/`, 10 minutes each, in parallel, corpus kept between runs; writes `out/fuzz-release.txt` for the release notes |
 | `tools/fuzz-corpus-export.sh` | release | `just fuzz-corpus-export` | each target's kept corpus and seeds minimized with `cargo fuzz cmin` into `out/fuzz-corpus/<target>/`, for the repository that publishes the corpora; the store keeps the minimized set |
 | `tools/fuzz-common.sh` | release | the two scripts above | the pinned nightly, each target's libFuzzer options and dictionary, the corpus store, the targets of the partitions `FARADAY_FUZZ_PARTITION` names |
-| `tools/fuzz-join.py` | release | `just fuzz-join OUT PART...` | a fuzz run split into partitions joined: each part's `fuzz-release.txt` and `fuzz-corpus/` into one record, each target once, and one corpus; refuses parts of different runs, a partition twice or one missing |
+| `tools/fuzz-join.py` | release | `just fuzz-join OUT PART...`; `python3 -I -B tools/fuzz-join.py --later OUT EARLIER LATER` | a fuzz run split into partitions joined: each part's `fuzz-release.txt` and `fuzz-corpus/` into one record, each target once, and one corpus; refuses parts of different runs, a partition twice or one missing. With `--later`, two runs of one release (F241): the record names both and marks each target's row with its run, the corpus is the later run's for the targets it ran |
+| `tools/fuzz-plan.py` | release | `tools/fuzz-release.sh` | the coverage map made at the end of a full fuzz run (the files each target's corpus reaches) and the targets a later run runs again after the changes since the earlier run's commit (F241) |
 | `tools/check-macos.sh` | lint | `just lint` | clippy over the Starter's macOS code for both Mac targets, without a Mac |
 | `tools/lint-crosscheck.sh` | lint | `just lint-release` | before a release, the crypto has not changed since the last passing cross-check (below) |
 | `tools/lint-standards.py` | lint | `just lint` | `docs/STANDARDS.md` §0 held against `tools/lint-standards.toml`: cross-check coverage, work kept out of the app, every hold with its decision, §8's disagreements (below) |
@@ -125,6 +126,15 @@ none is part of `just`, which stays fast.
    the same SECONDS and starting corpus for each part), each running 1 and
    2, and `just fuzz-join OUT PART...` makes the one `fuzz-release.txt` and
    `fuzz-corpus/` of the parts' `out/` folders.
+   A full run ends with `out/fuzz-map.txt`, the files each target's
+   corpus reaches at that commit (a run of parts: `tools/fuzz-release.sh
+   map out/fuzz-corpus` after the join, which the workflow does). After a
+   change, a later run needs only the targets the change reaches
+   (`FARADAY_FUZZ_EARLIER=<folder of the earlier run's fuzz-release.txt,
+   fuzz-map.txt and fuzz-corpus/> just fuzz-release`, or the `targets`
+   input of the workflow with the list `tools/fuzz-plan.py plan EARLIER`
+   prints), and `python3 -I -B tools/fuzz-join.py --later OUT
+   EARLIER LATER` joins the two into the record the notes quote (F241).
    3. Commit that folder's contents to the corpus repository,
       https://github.com/bitcoinpasada/faraday-fuzz-corpus, and tag the
       commit with the release's tag.

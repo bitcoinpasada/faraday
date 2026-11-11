@@ -130,6 +130,38 @@ are not its record's. `FARADAY_FUZZ_CORPUS` takes several folders
 separated by `:`, each merged in turn (the last release's corpus and an
 older one whose coverage the last run lost).
 
+**Two runs of one release (F241).** A change after a passed full run need
+not run every target again. A full run (every target, whole or joined from
+parts) ends with `out/fuzz-map.txt`: the commit, and for each target the
+repository's files in which its corpus, as the run left it, executes code.
+A run of parts has none until `tools/fuzz-release.sh map out/fuzz-corpus`
+makes it from the joined corpus (the workflow's last job does). A later run
+takes the earlier run's folder (its `fuzz-release.txt`, `fuzz-map.txt` and
+`fuzz-corpus/`):
+
+```
+FARADAY_FUZZ_EARLIER=DIR just fuzz-release
+python3 -I -B tools/fuzz-join.py --later OUT DIR LATER
+```
+
+`tools/fuzz-plan.py` reads the files that differ between the earlier run's
+commit and the checkout and names the targets to run: those whose corpus
+reaches a changed file, or a file that names a constant or static that
+changed (a file with no code, the strings, counts by the names in it);
+those that compile in a file whose change cannot be followed (a build
+script, an included file, a crate's manifest); every target after a change
+to a fuzz crate's manifest, lock or toolchain or to the fuzz tools; a new
+target or one whose source, seeds or dictionary changed; and a target that
+did not pass. Each runs for the same seconds from its own corpus in the
+earlier run's. `FARADAY_FUZZ_TARGETS="a b"` (the workflow's `targets`
+input) runs a list instead, and its record has a `Selected` line; if the
+plan is every target, it is a full run. `--later` writes the one record,
+which names both runs and marks each target's row with its run, and one
+corpus; it refuses runs of different toolchain, cargo-fuzz or seconds, an
+earlier run that is itself a combination or not a full run, and a target
+that crashed earlier and did not run again. A third run is made against
+the combination's tree as a full run.
+
 **Reproducing a release's run.** Check out the release's commit. Install
 the nightly `fuzz/rust-toolchain.toml` names and the cargo-fuzz version
 the record gives (`cargo install cargo-fuzz --locked --version X`). Check
