@@ -970,7 +970,9 @@ public) and its state:
 - a paper place: **Checked** once a copy of each seed it keeps matched
   here, typed back or scanned; the first check of a seed counts for the
   first place that keeps it, the second for the second, and so on; else
-  **Not checked**. A place that keeps only a sheet reads its file.
+  **Not checked**; where a date is kept for it, "Checked 14 months ago"
+  (with **To check** in `WARN` when a copy there is due, `docs/BACKUP-FLOW.md`
+  §18.3) in place of both. A place that keeps only a sheet reads its file.
 - the vault: the vault file holding the wallet and where it stands,
   "vault.kdbx · for the stick", "vault.kdbx · on STICK, 14:02",
   "vault.kdbx · changed since written"; "Not in a vault" when none holds

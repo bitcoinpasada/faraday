@@ -15,7 +15,10 @@
 //! plan record, for the vault's view (§7.2), which draws it the other way
 //! up: the backup on top, through the keys, to the wallet at the foot.
 
+pub mod age;
 pub mod sheet;
+
+pub use age::age_text;
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -385,6 +388,8 @@ pub enum Backup {
         items: Vec<plan::Item>,
         /// The map was edited on the chart, and is the plan (§9.7).
         edited: bool,
+        /// How long a check lasts for this wallet.
+        interval: age::Interval,
     },
     /// The plan is in a locked vault and not remembered: its name, and
     /// the press that unlocks it.
@@ -438,6 +443,9 @@ pub struct BackupNode {
     /// of its vault this power-on: its line reads "Older copy" in place of
     /// a date.
     pub older: Vec<bool>,
+    /// When its copies were last checked, as an age, and whether one is
+    /// due; `None` for a node with no copies to check.
+    pub age: Option<age::NodeAge>,
 }
 
 /// Costs what an open vault's plan records cost to read the first time:
@@ -711,7 +719,16 @@ fn build(
     let charted = plan.as_ref().map(|(a, _)| (shape.clone(), a.clone()));
     let backup = match plan {
         Some((a, names)) => backup_nodes(
-            r, &sum, &shape, &a, &names, notes, &slot_of, &keys, any_here,
+            r,
+            &sum,
+            &shape,
+            &a,
+            &names,
+            notes,
+            &slot_of,
+            &keys,
+            any_here,
+            age::Interval::of(wallet.waits().shortest.map(|s| s.margin)),
         ),
         None => none,
     };
@@ -778,6 +795,7 @@ fn backup_nodes(
     slot_of: &[Option<usize>],
     keys: &[KeyNode],
     any_here: bool,
+    iv: age::Interval,
 ) -> Backup {
     let app = r.app();
     let number = |i: usize| slot_of.get(i).copied().flatten().map_or(i + 1, |n| n + 1);
@@ -905,6 +923,8 @@ fn backup_nodes(
         });
         (mark, checked)
     };
+    // Today's date, read once for the chart's ages.
+    let today = app.today();
     let nodes = boxes
         .iter()
         // A cosigner's seed is theirs to keep: no node of this backup.
@@ -995,7 +1015,7 @@ fn backup_nodes(
             };
             let (marks, checked): (Vec<_>, Vec<_>) =
                 spot.holds.iter().map(|(w, _)| note_of(spot.at, *w)).unzip();
-            let older = spot
+            let older: Vec<bool> = spot
                 .holds
                 .iter()
                 .map(|(w, _)| match (spot.at, w) {
@@ -1003,10 +1023,15 @@ fn backup_nodes(
                     _ => false,
                 })
                 .collect();
+            // Only a place can be marked checked, so only a place has an age.
+            let age = matches!(spot.at, At::Place(_) | At::Stick(..))
+                .then(|| age::NodeAge::of(&checked, older.iter().any(|o| *o), &today, iv))
+                .flatten();
             BackupNode {
                 marks,
                 checked,
                 older,
+                age,
                 whats: spot.holds.iter().map(|(w, _)| *w).collect(),
                 at: spot.at,
                 name,
@@ -1045,6 +1070,7 @@ fn backup_nodes(
         check: r.plan_check(shape, a),
         items: plan::checklist_on(shape, a, &mapped),
         edited: a.map.is_some(),
+        interval: iv,
     }
 }
 
@@ -1054,6 +1080,8 @@ fn backup_nodes(
 
 /// A line of text in a node, and what a press on that line opens.
 struct Text {
+    /// At the line's right: "To check".
+    mark: Option<(&'static str, Paint)>,
     text: String,
     role: TypeRole,
     color: Paint,
@@ -1065,6 +1093,7 @@ struct Text {
 impl Text {
     fn new(text: impl Into<String>, role: TypeRole, color: Paint) -> Text {
         Text {
+            mark: None,
             text: text.into(),
             role,
             color,
@@ -1079,6 +1108,17 @@ impl Text {
             struck: true,
             ..self
         }
+    }
+
+    /// The line, with `mark` at its right.
+    fn marked(self, mark: Option<(&'static str, Paint)>) -> Text {
+        Text { mark, ..self }
+    }
+
+    /// The width the mark takes, with its gap.
+    fn mark_w(&self, ui: &Ui) -> f32 {
+        self.mark
+            .map_or(0.0, |(m, _)| ui.measure_as(LABEL_M, m) + tokens::GAP)
     }
 
     /// The line, pressed on its own.
@@ -1107,7 +1147,7 @@ impl Node {
         let lines = self
             .lines
             .iter()
-            .map(|l| ui.measure_as(l.role, &l.text))
+            .map(|l| ui.measure_as(l.role, &l.text) + l.mark_w(ui))
             .fold(title, f32::max);
         let button = self
             .button
@@ -1133,7 +1173,8 @@ impl Node {
             h += ui.line_as(BODY_S);
         }
         for l in &self.lines {
-            h += ui.wrap_lines_as(l.role, &l.text, inner) as f32 * ui.line_as(l.role);
+            h +=
+                ui.wrap_lines_as(l.role, &l.text, inner - l.mark_w(ui)) as f32 * ui.line_as(l.role);
         }
         if self.button.is_some() {
             h += tokens::GAP + tokens::CHART_BUTTON;
@@ -1175,7 +1216,12 @@ impl Node {
             cy += ui.line_as(BODY_S);
         }
         for l in &self.lines {
-            let lh = ui.wrap_as((x + pad, cy, inner), l.role, l.color, &l.text);
+            let mw = l.mark_w(ui);
+            let lh = ui.wrap_as((x + pad, cy, inner - mw), l.role, l.color, &l.text);
+            if let Some((m, c)) = l.mark {
+                let one = ui.line_as(l.role);
+                ui.text_right_as((x + w - pad, cy, one), LABEL_M, c, m);
+            }
             if l.struck {
                 let one = ui.line_as(l.role);
                 let tw = ui.measure_as(l.role, &l.text).min(inner);
@@ -1347,6 +1393,19 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                 };
                 if let Some(s) = &n.stick {
                     lines.push(Text::new(s.clone(), BODY_S, Role::OnSurfaceVariant.paint()));
+                }
+                if let Some(a) = &n.age {
+                    let (text, warn) = a.line();
+                    let (color, mark) = if warn {
+                        (Role::Warning.paint(), a.due.then_some(EN.glance_to_check))
+                    } else if a.oldest.is_some() && a.clock {
+                        (Role::Ok.paint(), None)
+                    } else {
+                        (Role::OnSurfaceVariant.paint(), None)
+                    };
+                    let mark = mark.map(|m| (m, Role::Warning.paint()));
+                    // Under the name, before what it holds.
+                    lines.insert(0, Text::new(text, BODY_S, color).marked(mark));
                 }
                 if let Some((s, t)) = &n.state {
                     lines.push(Text::new(s.clone(), BODY_S, tone_color(*t)));
@@ -1701,6 +1760,7 @@ pub(crate) fn draw_with(
     // The check leads, read either way (`docs/history/NEW-WALLET.md` §14.6).
     if check && let Backup::Plan { check, .. } = &g.backup {
         top += check_lines(ui, x, top, width, *check, true, &names_of(g));
+        top += due_line(ui, g, x, top, width);
         top += tokens::PAD;
     }
     // The lines' sources: the wallet to each key, each key held here to
@@ -1831,6 +1891,111 @@ pub(crate) fn check_lines(
 ) -> f32 {
     let h = check_boxes(ui, x, y, w, c, beside);
     h + check_facts(ui, x, y + h, w, c, place)
+}
+
+/// What the strip's fourth line says of when the copies were checked.
+enum Due {
+    /// Every copy was checked within the interval.
+    Clear,
+    /// These places, by place among the nodes and name, are due.
+    Places(Vec<(u8, String)>),
+    /// The clock is not checked: nothing can be told.
+    NoClock,
+}
+
+/// The strip's fourth line for chart `g`, `None` where no place has copies
+/// to check. It speaks of places only: a key a holder keeps has a date
+/// but no age.
+fn due_of(g: &Glance) -> Option<Due> {
+    let Backup::Plan { nodes, .. } = &g.backup else {
+        return None;
+    };
+    let ages: Vec<(usize, &BackupNode, &age::NodeAge)> = nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(i, n)| n.age.as_ref().map(|a| (i, n, a)))
+        .collect();
+    if ages.is_empty() {
+        return None;
+    }
+    if ages.iter().any(|(.., a)| !a.clock) {
+        return Some(Due::NoClock);
+    }
+    let due: Vec<(u8, String)> = ages
+        .iter()
+        .filter(|(.., a)| a.due)
+        .map(|(i, n, _)| (*i as u8, n.name.clone()))
+        .collect();
+    Some(if due.is_empty() {
+        Due::Clear
+    } else {
+        Due::Places(due)
+    })
+}
+
+/// The check strip's fourth line (`docs/BACKUP-FLOW.md` §18.3): every place
+/// checked in the interval (12 months, or the wallet's margin where shorter), the places that are due, or **Set the
+/// time** with no checked clock. A press on the places opens the first
+/// due one's sheet. Returns its height with the gap above, 0 with no line.
+pub(crate) fn due_line(ui: &mut Ui, g: &Glance, x: f32, y: f32, w: f32) -> f32 {
+    use crate::glance::sheet::{ChartAction as C, Target};
+    let Some(due) = due_of(g) else {
+        return 0.0;
+    };
+    let (text, tone, press) = match &due {
+        Due::Clear => {
+            let iv = match &g.backup {
+                Backup::Plan { interval, .. } => *interval,
+                _ => age::Interval::default(),
+            };
+            (fill(EN.glance_every_checked, &[&iv.text()]), Role::Ok, None)
+        }
+        Due::Places(p) => {
+            let names: Vec<&str> = p.iter().map(|(_, n)| n.as_str()).collect();
+            (
+                fill(EN.glance_to_check_places, &[&names.join(", ")]),
+                Role::Warning,
+                Some(Action::Chart(C::Open(g.press, Target::Node(p[0].0)))),
+            )
+        }
+        Due::NoClock => (EN.glance_set_time_to_see.to_string(), Role::OnSurface, None),
+    };
+    let pad = tokens::CHART_NODE_PAD;
+    let inner = w - 2.0 * pad;
+    let text_h = ui.wrap_lines_as(BODY_M, &text, inner) as f32 * ui.line_as(BODY_M);
+    let button = matches!(due, Due::NoClock);
+    let h = text_h
+        + 2.0 * pad
+        + if button {
+            tokens::GAP + tokens::CHART_BUTTON
+        } else {
+            0.0
+        };
+    let top = y + tokens::GAP;
+    let (bg, fg) = crate::ui::container_of(tone.paint());
+    ui.fill(x, top, w, h, tokens::RADIUS_SMALL, bg);
+    if let Some(a) = press {
+        ui.press(
+            Shape::new(x, top, w, h, tokens::RADIUS_SMALL),
+            Role::OnSurface.paint(),
+            a,
+        );
+    }
+    ui.wrap_as((x + pad, top + pad, inner), BODY_M, fg, &text);
+    if button {
+        let label = EN.glance_set_the_time;
+        let bw = ui.measure_as(LABEL_M, label) + 2.0 * tokens::PAD;
+        ui.button(
+            x + pad,
+            top + pad + text_h + tokens::GAP,
+            Some(bw),
+            tokens::CHART_BUTTON,
+            label,
+            Style::Secondary,
+            Action::OpenSetTime,
+        );
+    }
+    tokens::GAP + h
 }
 
 /// The two lines of fact under the three (`docs/BACKUP-FLOW.md` §10.3): a
@@ -1989,7 +2154,8 @@ pub(crate) fn draw_column_with(
     };
     // The check leads, as three rows (`docs/history/NEW-WALLET.md` §14.6).
     if let Some(c) = check {
-        cy += check_lines(ui, x, cy, width, c, false, &names_of(g)) + tokens::PAD;
+        cy += check_lines(ui, x, cy, width, c, false, &names_of(g));
+        cy += due_line(ui, g, x, cy, width) + tokens::PAD;
     }
     let order = match direction {
         Direction::WalletFirst => [

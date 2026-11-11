@@ -568,7 +568,7 @@ fn on_a_small_panel_the_chart_is_its_own_page() {
     // wallet's card and goes there.
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "At a glance"), "{texts:?}");
-    assert!(texts.iter().any(|t| t == "Savings"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Back to Savings"), "{texts:?}");
     assert_eq!(app.back_link(), Some(Action::Glance(false)));
     // A place names the keys a vault's stick opens.
     let nodes = nodes(&chart(&app, w));

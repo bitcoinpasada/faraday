@@ -273,6 +273,10 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         Backup::Plan { nodes, items, .. } => (nodes, items),
         _ => (&[], &[]),
     };
+    let iv = match &g.backup {
+        Backup::Plan { interval, .. } => *interval,
+        _ => glance::age::Interval::default(),
+    };
     // The checklist item that makes `it`, where the plan has one.
     let item = |it: Item| {
         items
@@ -639,27 +643,18 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             if let Some((s, t)) = &node.state {
                 facts.push((EN.glance_sheet_seen_here, s.clone(), tone_color(*t)));
             }
-            if matches!(node.at, At::Place(_)) && !node.whats.is_empty() {
+            if let Some(a) = &node.age {
                 // The oldest of its things' dates, when each was checked.
-                let dates: Option<Vec<&String>> = node.checked.iter().map(Option::as_ref).collect();
-                let older = node.older.iter().any(|o| *o);
-                facts.push(match dates.and_then(|d| d.into_iter().min()) {
-                    _ if older => (
-                        EN.glance_sheet_last_checked,
-                        EN.glance_older_copy.to_string(),
-                        Role::Warning.paint(),
-                    ),
-                    Some(d) => (
-                        EN.glance_sheet_last_checked,
-                        glance::checked_text(d),
-                        Role::Ok.paint(),
-                    ),
-                    None => (
-                        EN.glance_sheet_last_checked,
-                        EN.glance_sheet_not_yet.to_string(),
-                        Role::OnSurfaceVariant.paint(),
-                    ),
-                });
+                let (v, warn) = a.sheet_value(&app.today());
+                // A copy never checked is not good news: the plain value tone.
+                let tone = if warn || a.older {
+                    Role::Warning
+                } else if a.never {
+                    Role::OnSurface
+                } else {
+                    Role::Ok
+                };
+                facts.push((EN.glance_sheet_last_checked, v, tone.paint()));
             }
             let lines: Vec<Row> = node
                 .holds
@@ -839,11 +834,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     Role::Warning.paint(),
                 ));
             } else if let Some(d) = node.checked.get(usize::from(j)).cloned().flatten() {
-                facts.push((
-                    EN.glance_sheet_last_checked,
-                    glance::checked_text(&d),
-                    Role::Ok.paint(),
-                ));
+                let today = app.today();
+                let due = glance::age::is_due(&d, &today, iv);
+                let (v, warn) = glance::age::due_value(glance::age::date_age(&d, &today), due);
+                let tone = if warn { Role::Warning } else { Role::Ok };
+                facts.push((EN.glance_sheet_last_checked, v, tone.paint()));
             }
             if let Some(m) = mark {
                 let m = match m {

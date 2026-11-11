@@ -6,6 +6,7 @@ mod amounts;
 mod appearance;
 mod ascii_passphrase;
 mod backup_again;
+mod backup_ages;
 mod backup_board;
 mod backup_board_vaults;
 mod backup_checklist;

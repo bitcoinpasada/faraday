@@ -3153,11 +3153,11 @@ impl Faraday {
         wallet: &crate::wallet::Wallet,
     ) -> Option<usize> {
         use faraday_vault::records::kind;
-        let want = crate::wallet::same_wallet(wallet.policy());
+        let want = wallet.same();
         (0..self.vaults.open.len()).find(|&v| {
             self.vaults
                 .described_of(c, self.vaults.open[v].id, kind::PLAN)
-                .any(|(_, _, d)| d.same == want)
+                .any(|(_, _, d)| d.same == *want)
         })
     }
 

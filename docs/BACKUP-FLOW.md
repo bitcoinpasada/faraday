@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: GPG keys, the Secure Boot keys and the Bitcoin wallet
-**Open:** the Nostr key's part (`docs/NOSTR.md`, not scheduled); backups age, when each copy was last checked and a recovery path's wait (§18, planned, not scheduled)
+**Open:** the Nostr key's part (`docs/NOSTR.md`, not scheduled); backups age (§18): the **I moved every coin** action is not built, and §18 is still a Spec until it is (not scheduled)
 
 Decided by the owner (`docs/DECISIONS.md` F31; the plan by place F35,
 the backup board F37).
@@ -2602,20 +2602,21 @@ Tests: `tests/all/codex32qr_copy.rs` (the sheet named, the grid's
 blocks and rows, a copy drawn on the sheet's grid read back and
 checked), `check_copy.rs` (the SeedQR's blocks, keys and rows).
 
-## 18. Backups age (planned, not built; F87)
+## 18. Backups age (partly built; F87)
 
 A backup is only as good as its last check: paper fades, a box is
 moved, a stick stops reading, a share goes missing. And a wallet with a
 timelocked recovery path has a second clock, one Faraday cannot see:
 each coin's wait runs from the block it arrived in. This section adds
-both clocks to what the plan already shows. It is planned, not
-scheduled; `docs/FLOWS.md` (Wallets tab, the chart's sheets) points
+both clocks to what the plan already shows. Built: each copy's age and
+due mark, a stick read from an older copy making its place due, and a recovery wallet's spend paths and margin. Not built: the
+**I moved every coin** action (§18.4), after which this section becomes a
+Reference. It is not scheduled; `docs/FLOWS.md` (Wallets tab, the chart's sheets) points
 here.
 
 ### 18.1 What is built today
 
-Read from the tree on 2026-10-23, so that this section adds only what
-is missing.
+What is built, and what the rest of this section still adds.
 
 - **Dates already kept.** The plan's notes in the vault
   (`plan::Note`, `faraday/faraday-core/src/plan/mod.rs`) hold
@@ -2624,28 +2625,33 @@ is missing.
   them (`faraday/faraday-core/src/chart_edit.rs`): a place's **Mark
   checked** (every thing in the node), a key's **Mark checked** (its
   holder confirmed it), and a passphrase's **Check it** that matched.
-  The date is `Faraday::today`, the clock's local date when the clock is
-  known, checked or not, and empty when it is not known.
+  The date is `Faraday::today`, the clock's local date, written only
+  once the clock is checked (§18.3); a check with the clock not checked
+  writes an empty date.
+  A check in the checklist is dated too: at once where the seed has
+  copies at one place, and through **Which copy was this?** where it has
+  copies at more than one. It is held in RAM with the power-on's backup
+  record and written into the plan's notes at the next unlock of a vault
+  that keeps the plan.
 - **Dates already shown.** The chart's sheets show "Last checked" and
   "Last checked here" with the date ("Checked 2026-10-10", or "Checked"
   for an empty date; `faraday/faraday-core/src/glance/sheet.rs`); a
-  place's sheet shows the oldest of its things' dates. No age ("14
-  months ago") is shown anywhere, and nothing is ever marked due.
-- **Checks that keep no date.** The checklist's **Check my copy** (words
+  place's sheet shows the oldest of its things' dates. Each date is also
+  told as an age ("14 months ago") and a copy is marked due, as §18.3
+  says, for places and sticks, from the checked clock; nothing dates a
+  vault or files node.
+- **Checks counted by power-on.** A match of the checklist's **Check my copy** (words
   typed back, a SeedQR scanned; and the chart's **Type my copy** and
   **Scan my copy**, which open it) counts a match in the power-on's
   backup record (`Record::checks`, `faraday/faraday-core/src/backups/mod.rs`),
   which Backups reads as **Checked** or **Not checked** per paper place
-  and which power-off loses. It writes no vault note: the vault never
-  learns that the copy matched, or when, and a check does not know
-  which place's copy it was when a seed has copies at two places.
-- **Spend paths.** The one place a wallet's waits are shown is the spend
-  review's **Path** (`wallet::paths`, `faraday/faraday-core/src/wallet.rs`):
-  "52560 blocks after the coins arrived (about 365 days)". The wallet
-  card, the chart and the wallet sheet PDF (`wallet_sheet`,
-  `faraday/faraday-core/src/pdf.rs`: name, shape, descriptor and its
-  code, xpubs, first addresses, three lines to fill) say nothing about
-  paths or waits.
+  where nothing there is dated, and which power-off loses. The date is
+  written as above; a seed with copies at more than one place is dated
+  only once **Which copy was this?** names the place.
+- **Spend paths.** A wallet with a relative wait shows its paths, their
+  waits and the margin on its card, the chart's wallet sheet and the
+  wallet sheet PDF (`wallet::paths`, `faraday/faraday-core/src/wallet/paths.rs`),
+  and the spend review's **Path** shows the wait.
 - **Recovery wallets.** `core/faraday-bip/src/recovery.rs` builds a
   Liana-shaped wallet from keys and delays (`blocks_for_days`,
   `days_of_blocks`, 144 blocks a day, at most 455 days). Make a new
@@ -2740,24 +2746,35 @@ months, rounded down), "{n} years ago" after. Where it shows:
   "Last checked 14 months ago" from the oldest of its copies' dates,
   in `WARN` with **To check** at the node's right when any copy there
   is due; "Never checked" in `WARN` when a copy there has no date.
-  Vault and files nodes the same.
+  Places and sticks only: nothing dates a vault or files node.
 - **The place's sheet**: per line, "Last checked 2025-08-14 · 14 months
   ago", the line's due mark, and **Mark checked** as today.
 - **The wallet card's strip** (the plan's three checks above the
-  chart): a fourth line, "Every copy checked in the last 12 months" in
+  chart): a fourth line, "Every place checked in the last 12 months" in
   `OK`, or "To check: Bank box, Home" in `WARN`, its press opening the
   first due place's sheet. The small panel's At a glance page carries
   the same line, and each place row its age.
-- **Backups**: a paper place reads "Checked 14 months ago" (and **To
-  check** in `WARN` when due) where a date is kept, in place of
-  **Checked** or **Not checked**; with no date kept, as today.
+- **Backups**: a paper place reads as the chart's node does. "Checked
+  14 months ago" (in `WARN` when due) where every copy there has a date;
+  "Not checked" in `WARN` where a copy there was never checked; once the
+  clock is checked, **To check** in `WARN` where the only date is an
+  empty one and the place is due; "Older copy" in `WARN` where a stick
+  there was read from an older copy of its vault, dated or not (the
+  chart's rule: a vault stick the place holds). A place holding only
+  the vault stick, no paper copy, reads "Older copy" in `WARN` too when
+  that stick came from an older copy, as on the chart. With no date kept
+  at all, what was checked this power-on, **Checked** or **Not checked**.
 - **Home's lead tile** does not change (Q5, §18.7).
 
 **The interval.** **12 months** for every copy, one constant in
 `faraday-core` (Q1, Q2): a copy is due when its age is 12 months or
 more. For a wallet with a relative wait, the interval for its copies is
 the shorter of 12 months and its margin (§18.5; Q9), so each move of the
-coins and each check of the copies fall due together.
+coins and each check of the copies fall due together. The interval is
+never under 1 day (a margin of 0 reads as 1 day, and a copy checked
+today is never due); a margin of 1 reads "1 day". The 12 months are
+counted as the days in the 12 months ending today (366 when they hold
+29 February), so a margin of 365 days is then the shorter.
 
 **With no trusted clock.** A check's date is a kept time, so it follows
 `docs/TOTP.md` §1.3: a date is written only from a checked clock

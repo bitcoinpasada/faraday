@@ -51,7 +51,7 @@ fn device(inbox: Files, kept: Files) -> Faraday {
     app
 }
 
-fn desktop() -> Faraday {
+pub(crate) fn desktop() -> Faraday {
     device(Vec::new(), Vec::new())
 }
 
@@ -69,6 +69,12 @@ fn one_key(app: &mut Faraday) -> usize {
 /// [`one_key`], the key loaded with the BIP-39 passphrase `pass` when
 /// there is one.
 fn one_key_pass(app: &mut Faraday, pass: &str) -> usize {
+    one_key_wait(app, pass, None)
+}
+
+/// [`one_key_pass`], the wallet a recovery wallet whose second key waits
+/// `blocks` blocks when there is a wait.
+fn one_key_wait(app: &mut Faraday, pass: &str, blocks: Option<u32>) -> usize {
     let c = testkit::compute();
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
@@ -82,11 +88,19 @@ fn one_key_pass(app: &mut Faraday, pass: &str) -> usize {
     let text = faraday_core::create::NewKind::NativeSegwit
         .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();
+    let descriptor = match blocks {
+        None => format!("wpkh({text}/<0;1>/*)"),
+        Some(n) => {
+            let p = "m/48'/1'/0'/2'";
+            let (a, b) = (testkit::key(0, p), testkit::key(1, p));
+            format!("wsh(or_d(pk({a}/<0;1>/*),and_v(v:pkh({b}/<0;1>/*),older({n}))))")
+        }
+    };
     app.session
         .add_wallet(
             &c,
             "Spending",
-            &format!("wpkh({text}/<0;1>/*)"),
+            &descriptor,
             "test",
             faraday_core::wallet::Origin::Named,
         )
@@ -110,7 +124,7 @@ fn two_of_three(app: &mut Faraday) -> usize {
         .unwrap()
 }
 
-fn settle(app: &mut Faraday, until: impl Fn(&Faraday) -> bool) {
+pub(crate) fn settle(app: &mut Faraday, until: impl Fn(&Faraday) -> bool) {
     for t in 1..60u64 {
         if until(app) {
             break;
@@ -151,12 +165,12 @@ fn planned(app: &mut Faraday, w: usize, preset: u8) {
     let _ = app.frame();
 }
 
-fn chart(app: &Faraday, w: usize) -> Glance {
+pub(crate) fn chart(app: &Faraday, w: usize) -> Glance {
     let c = testkit::compute();
     faraday_core::glance::of_now(&c, app, w).expect("the wallet has a chart")
 }
 
-fn nodes(g: &Glance) -> Vec<BackupNode> {
+pub(crate) fn nodes(g: &Glance) -> Vec<BackupNode> {
     match &g.backup {
         Backup::Plan { nodes, .. } => nodes.clone(),
         other => panic!("no plan on the chart: {other:?}"),
@@ -164,7 +178,7 @@ fn nodes(g: &Glance) -> Vec<BackupNode> {
 }
 
 /// Backup node `name` on wallet `w`'s chart: its place in the row.
-fn node_of(app: &Faraday, w: usize, name: &str) -> (u8, BackupNode) {
+pub(crate) fn node_of(app: &Faraday, w: usize, name: &str) -> (u8, BackupNode) {
     let all = nodes(&chart(app, w));
     let i = all
         .iter()
@@ -192,7 +206,7 @@ fn holds(app: &Faraday, w: usize, name: &str) -> Vec<String> {
     node_of(app, w, name).1.holds
 }
 
-fn open(app: &mut Faraday, press: Press, t: Target) {
+pub(crate) fn open(app: &mut Faraday, press: Press, t: Target) {
     app.press(Action::Chart(C::Open(press, t)));
     crate::common::a_moment(app);
     assert_eq!(app.sheet, Some(Sheet::Chart), "{t:?} opened no sheet");
@@ -200,7 +214,7 @@ fn open(app: &mut Faraday, press: Press, t: Target) {
 
 /// Asks for `edit` as its row does, and confirms it once the check
 /// before and after is on the sheet.
-fn edit_and_confirm(app: &mut Faraday, press: Press, edit: Edit) {
+pub(crate) fn edit_and_confirm(app: &mut Faraday, press: Press, edit: Edit) {
     app.press(Action::Chart(C::Edit(press, edit)));
     crate::common::a_moment(app);
     assert_eq!(
@@ -215,7 +229,7 @@ fn edit_and_confirm(app: &mut Faraday, press: Press, edit: Edit) {
 }
 
 /// What the lock saved: For the stick, and the kept state.
-fn saved_at_lock(app: &mut Faraday) -> (Files, Files) {
+pub(crate) fn saved_at_lock(app: &mut Faraday) -> (Files, Files) {
     crate::common::top_up(app);
     app.press(Action::Lock);
     testkit::settle(app);
@@ -238,14 +252,24 @@ fn holds_bytes(files: &Files, needle: &str) -> Option<String> {
 
 /// A single key, a vault open, the Paper and vault plan made with it, its
 /// seed and the wallet saved into the vault; then the wallet's card.
-fn single_key_with_vault() -> (Faraday, usize) {
+pub(crate) fn single_key_with_vault() -> (Faraday, usize) {
     single_key_with_vault_pass("")
 }
 
 /// [`single_key_with_vault`], the key loaded with passphrase `pass`.
 fn single_key_with_vault_pass(pass: &str) -> (Faraday, usize) {
+    vault_wallet(pass, None)
+}
+
+/// [`single_key_with_vault`] over a recovery wallet whose second key waits
+/// `blocks` blocks.
+pub(crate) fn recovery_with_vault(blocks: u32) -> (Faraday, usize) {
+    vault_wallet("", Some(blocks))
+}
+
+fn vault_wallet(pass: &str, blocks: Option<u32>) -> (Faraday, usize) {
     let mut app = desktop();
-    let w = one_key_pass(&mut app, pass);
+    let w = one_key_wait(&mut app, pass, blocks);
     fresh_vault(&mut app);
     planned(&mut app, w, 2);
     app.press(Action::Backup(w));
@@ -657,7 +681,7 @@ fn a_place_marked_checked_dates_each_thing_in_it() {
         "{node:?}"
     );
     open(&mut app, press, Target::Node(n));
-    assert!(shown(&mut app, "Checked 2026-10-03"));
+    assert!(shown(&mut app, "2026-10-03 · today"));
 }
 
 #[test]
@@ -774,7 +798,7 @@ fn preset_saved(app: &mut Faraday, k: u8) {
 // ---------------------------------------------------------------------
 
 /// Set the time kept: the clock the desktop reads is then a checked one.
-fn clock_kept(app: &mut Faraday) {
+pub(crate) fn clock_kept(app: &mut Faraday) {
     app.press(Action::OpenSetTime);
     app.press(Action::SetTimeKeep);
 }
@@ -984,7 +1008,7 @@ fn a_dated_check_held_in_memory_is_written_into_the_notes_at_the_next_unlock() {
 
 /// The line of the chart holding `what`, as the node's and line's places:
 /// the node and what it shows for that line.
-fn line_holding(app: &Faraday, w: usize, what: What) -> (BackupNode, usize) {
+pub(crate) fn line_holding(app: &Faraday, w: usize, what: What) -> (BackupNode, usize) {
     for node in nodes(&chart(app, w)) {
         if let Some(j) = node.whats.iter().position(|x| *x == what) {
             return (node, j);
@@ -994,7 +1018,7 @@ fn line_holding(app: &Faraday, w: usize, what: What) -> (BackupNode, usize) {
 }
 
 /// The vault file the lock saved.
-fn vault_file(outbox: Files) -> (String, Vec<u8>) {
+pub(crate) fn vault_file(outbox: Files) -> (String, Vec<u8>) {
     outbox
         .into_iter()
         .find(|(n, _)| n.ends_with(".kdbx"))
@@ -1004,7 +1028,7 @@ fn vault_file(outbox: Files) -> (String, Vec<u8>) {
 /// Another power-on with the vault files `files` in the Inbox and the clock
 /// kept, the wallet's key in memory; the vault file at place `at` unlocked
 /// and the wallets in it loaded. The wallet is 0.
-fn unlocked_again(files: Files, from_stick: &[&str], at: usize) -> Faraday {
+pub(crate) fn unlocked_again(files: Files, from_stick: &[&str], at: usize) -> Faraday {
     unlocked_again_clock(files, from_stick, at, true)
 }
 
@@ -2082,4 +2106,69 @@ fn how_many_codex32_strings_exist_is_not_changed_past_a_flows_lock() {
     assert_eq!(st.note.as_deref(), Some(PAST_LOCK));
     let (_, plan) = app.board_plan().expect("the plan");
     assert_eq!(plan.c32(0).unwrap().n(), before);
+}
+
+#[test]
+fn a_place_with_only_its_words_dated_reads_not_checked_on_the_chart_and_on_backups() {
+    let (mut app, w) = single_key_with_vault();
+    clock_kept(&mut app);
+    type_back(&mut app, w);
+    app.press(Action::BWhich(0));
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    // The words are dated, the wallet sheet there never was.
+    assert_eq!(
+        words_checked(&app, w, "Place 1").as_deref(),
+        Some("2026-10-03")
+    );
+    let (_, node) = node_of(&app, w, "Place 1");
+    assert_eq!(
+        node.age.as_ref().unwrap().line(),
+        ("Never checked".to_string(), true)
+    );
+    let all = app.backups_now(&testkit::compute());
+    let line = all[0]
+        .lines
+        .clone()
+        .unwrap()
+        .into_iter()
+        .find(|l| l.place == "Place 1")
+        .unwrap();
+    assert_eq!(
+        (line.state, line.tone),
+        (
+            "Not checked".to_string(),
+            faraday_core::wallet_backup::Tone::Warn
+        )
+    );
+}
+
+#[test]
+fn a_stick_read_from_an_older_copy_reads_older_copy_on_its_node_and_never_clears_the_strip() {
+    let (mut app, w) = single_key_with_vault();
+    clock_kept(&mut app);
+    // Every copy is checked before the lock: only the stick can make
+    // Place 2 due.
+    for place in ["Place 1", "Place 2"] {
+        let (n, _) = node_of(&app, w, place);
+        app.press(Action::Chart(C::Checked(Press::Loaded(w), n)));
+    }
+    let (outbox, _) = saved_at_lock(&mut app);
+    let (name, old) = vault_file(outbox);
+    let new = testkit::kdbx_reseal(&old, "test phrase", 9).unwrap();
+    let files = vec![("a-new.kdbx".to_string(), new), (name.clone(), old)];
+    let mut app = unlocked_again(files, &[&name], 0);
+    testkit::vault_lock_one(&mut app, 0);
+    opened_from_dialog(&mut app, 1);
+    app.press(Action::OpenWallet(0));
+    let _ = app.frame();
+    let (node, _) = line_holding(&app, 0, What::VaultStick(0));
+    assert_eq!(
+        node.age.as_ref().unwrap().line(),
+        ("Older copy".to_string(), true)
+    );
+    let texts = app.drawn_texts().join(" ");
+    assert!(texts.contains("To check: Place 2"), "{texts}");
+    assert!(!texts.contains("Place 1,"), "{texts}");
+    assert!(!texts.contains("Every place checked"), "{texts}");
 }

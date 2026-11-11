@@ -670,6 +670,14 @@ impl BackupsArea {
             .retain(|(s, q, w)| !(s == sum && *q == p && *w == what));
     }
 
+    /// Whether a vault stick at place `p` of the wallet `sum` was read from
+    /// an older copy of its vault: the chart's rule, a vault stick only.
+    pub(crate) fn is_older_at(&self, sum: &str, p: usize) -> bool {
+        self.older
+            .iter()
+            .any(|(s, q, w)| s == sum && *q == p && matches!(w, plan::What::VaultStick(_)))
+    }
+
     /// Whether the stick was read from an older copy of its vault.
     pub(crate) fn is_older(&self, sum: &str, p: usize, what: plan::What) -> bool {
         self.older
@@ -811,6 +819,44 @@ impl Record {
             .iter()
             .find(|(f, _)| *f == fp)
             .map_or(0, |(_, n)| *n)
+    }
+
+    /// Whether the vault's notes or the checks held this power-on date
+    /// anything at place `p`.
+    fn dated_at(&self, notes: &[plan::Note], p: usize) -> bool {
+        self.dated.iter().any(|d| d.place == p)
+            || notes.iter().any(
+                |n| matches!(n, plan::Note::Checked(At::Place(q) | At::Stick(q, _), ..) if *q == p),
+            )
+    }
+
+    /// Each of the `things` at place `p` as the chart reads it: the date
+    /// kept for it (empty: no date) from the vault's notes and the checks
+    /// held this power-on, `None` for one never checked.
+    fn place_checks(&self, notes: &[plan::Note], p: usize, things: usize) -> Vec<Option<String>> {
+        let kept = notes.iter().filter_map(|n| match n {
+            plan::Note::Checked(At::Place(q) | At::Stick(q, _), w, d) if *q == p => Some((*w, d)),
+            _ => None,
+        });
+        let held = self
+            .dated
+            .iter()
+            .filter(|d| d.place == p)
+            .map(|d| (d.what, &d.date));
+        let mut dates: Vec<(plan::What, String)> = Vec::new();
+        for (w, d) in kept.chain(held) {
+            match dates.iter_mut().find(|(x, _)| *x == w) {
+                Some((_, old)) if old.is_empty() || (!d.is_empty() && d < old) => {
+                    *old = d.clone();
+                }
+                Some(_) => {}
+                None => dates.push((w, d.clone())),
+            }
+        }
+        let n = dates.len();
+        let mut out: Vec<Option<String>> = dates.into_iter().map(|(_, d)| Some(d)).collect();
+        out.resize(things.max(n), None);
+        out
     }
 
     /// Whether every copy by hand place `i` keeps was checked here: the
@@ -1877,7 +1923,7 @@ impl Faraday {
                     continue;
                 }
                 let lines = match self.backups_area.record(sum) {
-                    Some(r) => Some(self.record_lines(c, r, &[])),
+                    Some(r) => Some(self.record_lines(c, r, &[], &[], Default::default())),
                     None if s.planned.contains(sum) => Some(vec![Line {
                         place: EN.backups_plan.to_string(),
                         holds: String::new(),
@@ -1901,8 +1947,8 @@ impl Faraday {
         out
     }
 
-    /// Costs what `plan_load_of`, `record_lines` and `backup_spots` cost. A
-    /// wallet's map with what was seen of each place: from its record, else
+    /// Costs what `plan_load_of`, `plan_notes` (read for each wallet),
+    /// `record_lines` and `backup_spots` cost. A wallet's map with what was seen of each place: from its record, else
     /// from the plan an open vault keeps for it; `None` with neither.
     fn backup_lines(
         &self,
@@ -1913,13 +1959,20 @@ impl Faraday {
     ) -> Option<Vec<Line>> {
         let shape = self.plan_shape_of(w);
         let kept = self.plan_load_of(c, w, &shape);
+        let iv = crate::glance::age::Interval::of(w.waits().shortest.map(|s| s.margin));
+        // The dates the vault keeps for its copies.
+        let notes = if self.vaults.open.is_empty() {
+            Vec::new()
+        } else {
+            self.plan_notes(c, w, None)
+        };
         // The places' names: the backup under way's, else the vault's.
         let names = match self.backup.state() {
             Some(b) if wi.is_some_and(|i| i == b.wallet) => b.names.clone(),
             _ => kept.as_ref().map(|(_, n)| n.clone()).unwrap_or_default(),
         };
         if let Some(r) = self.backups_area.record(sum) {
-            return Some(self.record_lines(c, r, &names));
+            return Some(self.record_lines(c, r, &names, &notes, iv));
         }
         let (a, _) = kept?;
         let spots = self.backup_spots(c, w, wi, &a);
@@ -1937,12 +1990,20 @@ impl Faraday {
             kefs: Vec::new(),
             dated: Vec::new(),
         };
-        Some(self.record_lines(c, &r, &names))
+        Some(self.record_lines(c, &r, &names, &notes, iv))
     }
 
     /// Costs what `vault_state` costs. A record's lines, each place named
     /// and given what was seen of it.
-    fn record_lines(&self, c: &Compute, r: &Record, names: &[String]) -> Vec<Line> {
+    fn record_lines(
+        &self,
+        c: &Compute,
+        r: &Record,
+        names: &[String],
+        notes: &[plan::Note],
+        iv: crate::glance::age::Interval,
+    ) -> Vec<Line> {
+        let today = self.today();
         // One vault is "Vault"; several are numbered.
         let vaults = r
             .spots
@@ -1969,11 +2030,45 @@ impl Faraday {
                     At::Away => EN.backups_own_devices.to_string(),
                 };
                 let (state, tone) = match s.at {
-                    At::Place(_) if !s.copies.is_empty() => {
+                    // A stick there read from an older copy, dated or not,
+                    // with or without a paper copy there.
+                    At::Place(p) if self.backups_area.is_older_at(&r.sum, p) => {
+                        (EN.glance_older_copy.to_string(), Tone::Warn)
+                    }
+                    // Nothing dated there: what was checked this power-on.
+                    At::Place(p) if !s.copies.is_empty() && !r.dated_at(notes, p) => {
                         if r.place_checked(i) {
                             (EN.backups_checked.to_string(), Tone::Ok)
                         } else {
                             (EN.backups_not_checked.to_string(), Tone::Warn)
+                        }
+                    }
+                    At::Place(p) if !s.copies.is_empty() => {
+                        let checks = r.place_checks(notes, p, s.holds.len());
+                        let age = crate::glance::age::NodeAge::of(&checks, false, &today, iv);
+                        match age {
+                            // Nothing there was dated: what was checked
+                            // here this power-on.
+                            Some(a) if checks.iter().any(Option::is_some) => {
+                                if a.never {
+                                    (EN.backups_not_checked.to_string(), Tone::Warn)
+                                } else if let Some(d) = &a.oldest {
+                                    let when = a.text.clone().unwrap_or_else(|| d.clone());
+                                    if a.due {
+                                        (fill(EN.backups_checked_due, &[&when]), Tone::Warn)
+                                    } else {
+                                        (fill(EN.backups_checked_n, &[&when]), Tone::Ok)
+                                    }
+                                } else {
+                                    if a.due {
+                                        (EN.glance_to_check.to_string(), Tone::Warn)
+                                    } else {
+                                        (EN.backups_checked.to_string(), Tone::Ok)
+                                    }
+                                }
+                            }
+                            _ if r.place_checked(i) => (EN.backups_checked.to_string(), Tone::Ok),
+                            _ => (EN.backups_not_checked.to_string(), Tone::Warn),
                         }
                     }
                     At::Vault(_) => self.vault_state(c, r, &s.copies),

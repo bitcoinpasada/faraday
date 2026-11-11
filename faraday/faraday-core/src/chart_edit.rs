@@ -85,23 +85,31 @@ impl Faraday {
         v: Option<usize>,
     ) -> Vec<Note> {
         use faraday_vault::records::{field, kind};
-        let Some(v) = v.or_else(|| self.plan_vault_of(c, wallet)) else {
+        let want = wallet.same();
+        let kept_in = |v: usize| {
+            self.vaults
+                .described_of(c, self.vaults.open[v].id, kind::PLAN)
+                .any(|(_, _, d)| d.same == *want)
+        };
+        let Some(v) = v.or_else(|| (0..self.vaults.open.len()).find(|&v| kept_in(v))) else {
             return Vec::new();
         };
         let Some(open) = self.vaults.open.get(v) else {
             return Vec::new();
         };
-        let want = crate::wallet::same_wallet(wallet.policy());
-        let seeds = self.plan_shape_of(wallet).seeds.len();
-        self.vaults
+        let mut out = Vec::new();
+        for (_, r, _) in self
+            .vaults
             .described_of(c, open.id, kind::PLAN)
-            .filter(|(_, _, d)| d.same == want)
-            .flat_map(|(_, r, _)| {
-                r.public_all(field::PLAN_NOTE)
-                    .filter_map(|b| Note::from_text(&String::from_utf8_lossy(b), seeds))
-                    .collect::<Vec<_>>()
-            })
-            .collect()
+            .filter(|(_, _, d)| d.same == *want)
+        {
+            for b in r.public_all(field::PLAN_NOTE) {
+                // The seeds are counted only for a record that has notes.
+                let seeds = self.plan_shape_of(wallet).seeds.len();
+                out.extend(Note::from_text(&String::from_utf8_lossy(b), seeds));
+            }
+        }
+        out
     }
 
     /// Today's local date, `YYYY-MM-DD`; empty unless the clock is
@@ -161,7 +169,7 @@ impl Faraday {
         };
         let mut notes = self.plan_notes(&c, wallet, Some(v));
         change(&mut notes);
-        let want = crate::wallet::same_wallet(wallet.policy());
+        let want = wallet.same();
         // This wallet's plan records, by place.
         let ours: Vec<usize> = self.vaults.open.get(v).map_or_else(Vec::new, |o| {
             self.vaults
@@ -417,7 +425,7 @@ impl Faraday {
     /// holds seed 9A6A2580").
     fn plan_extras(&self, c: &Compute, wallet: &crate::wallet::Wallet, v: usize) -> Vec<String> {
         use faraday_vault::records::{field, kind};
-        let want = crate::wallet::same_wallet(wallet.policy());
+        let want = wallet.same();
         // What stands between the vault and the seed in such a line.
         let holds_seed = EN
             .held_holds_seed

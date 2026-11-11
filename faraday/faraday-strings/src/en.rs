@@ -1003,6 +1003,10 @@ strings! {
     backups_checked: "Checked",
     /// Text in `record_lines`.
     backups_not_checked: "Not checked",
+    /// Text in `record_lines`. `{}`: how long ago, or the date.
+    backups_checked_n: "Checked {}",
+    /// Text in `record_lines`. `{}`: how long ago; due.
+    backups_checked_due: "Checked {} · To check",
     /// Text in `record_lines`.
     backups_not_here: "Not here",
     /// Text in `record_lines`. `{}`: `self.medium.for_box()`.
@@ -2802,6 +2806,42 @@ strings! {
     glance_checked: "Checked · no date",
     /// Text in `checked_text`. `{}`: `d`.
     glance_checked_n: "Checked {}",
+    /// Text in `age_text`.
+    glance_age_today: "today",
+    /// Text in `age_text`.
+    glance_age_yesterday: "yesterday",
+    /// Text in `age_text`. `{}`: the days.
+    glance_age_days: "{} days ago",
+    /// Text in `age_text`.
+    glance_age_month: "1 month ago",
+    /// Text in `age_text`. `{}`: the months.
+    glance_age_months: "{} months ago",
+    /// Text in `age_text`. `{}`: the years.
+    glance_age_years: "{} years ago",
+    /// Text in `NodeAge::line`. `{}`: an age or a date.
+    glance_last_checked_n: "Last checked {}",
+    /// Text in `NodeAge::line`.
+    glance_never_checked: "Never checked",
+    /// Text in `rows`, at a node's right when a copy there is due.
+    glance_to_check: "To check",
+    /// Text in `due_line`. `{}`: the interval, `glance_interval_months`, `glance_interval_day` or `glance_interval_days`.
+    glance_every_checked: "Every place checked in the last {}",
+    /// Text in `Interval::text`.
+    glance_interval_months: "12 months",
+    /// Text in `Interval::text`, for a margin of 1 day.
+    glance_interval_day: "1 day",
+    /// Text in `Interval::text`. `{}`: the days.
+    glance_interval_days: "{} days",
+    /// Text in `due_line`. `{}`: the places that are due.
+    glance_to_check_places: "To check: {}",
+    /// Text in `due_line`, with the clock not checked.
+    glance_set_time_to_see: "Set the time to see what is due",
+    /// Button in `due_line`.
+    glance_set_the_time: "Set the time",
+    /// Text in `view`: a date and its age. `{}`: the date, the age.
+    glance_sheet_date_age: "{} · {}",
+    /// Text in `view`: a line's date and age with the line due. `{}`: the date and age.
+    glance_sheet_due: "{} · To check",
     /// Text in `alone_color`.
     glance_nothing: "Nothing",
     /// Text in `alone_color`.
@@ -2907,8 +2947,6 @@ strings! {
     glance_sheet_stick: "Stick",
     /// Text in `view`.
     glance_sheet_found: "Found alone",
-    /// Text in `view`.
-    glance_sheet_not_yet: "Not yet",
     /// Row in `view`.
     glance_sheet_open_vault_to_keep: "Open a vault to keep this",
     /// Text in `view`.
@@ -2959,7 +2997,7 @@ strings! {
     glance_sheet_seen_here: "Seen here",
     /// Text in `view`.
     glance_sheet_last_checked: "Last checked here",
-    /// Text in `view`: the value of a stick read from an older copy of its vault, in place of a date.
+    /// Text in `NodeAge::line` and `view`: a stick read from an older copy of its vault, in place of a date.
     glance_older_copy: "Older copy",
     /// Text in `view`.
     glance_sheet_marked: "Marked",

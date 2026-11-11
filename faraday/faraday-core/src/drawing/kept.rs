@@ -70,6 +70,9 @@ struct Charts {
     glances: Vec<(Press, Option<Rc<Glance>>)>,
     /// The backup list ([`crate::Faraday::backups_now`]).
     backups: Option<Rc<Vec<Entry>>>,
+    /// The date they were worked out on (ages are told against it): a
+    /// frame on another day starts them again.
+    today: String,
 }
 
 /// A silent payments record checked, by the record and the ids of the
@@ -136,14 +139,24 @@ pub(crate) struct Kept {
 impl Kept {
     /// A frame is about to be drawn: a whole one empties the charts and
     /// the backup list, since anything may have changed since the frame
-    /// before; a moved one (only the region's offset changed, which writes
+    /// before, and so does one on another day than the last (ages are told
+    /// against it); a moved one (only the region's offset changed, which writes
     /// none of what they are worked out from) keeps them.
-    pub(crate) fn charts_frame(&self, whole: bool) {
+    pub(crate) fn charts_frame(&self, whole: bool, today: &str) {
         let mut k = self.charts.borrow_mut();
-        if whole {
+        if whole || k.today != today {
             *k = Charts::default();
+            k.today = today.to_string();
         }
         k.open = true;
+    }
+
+    /// The day the frame being drawn was started on: read once per frame
+    /// ([`Kept::charts_frame`]), so a day that changes within a frame
+    /// leaves it as it was.
+    #[cfg(debug_assertions)]
+    fn frame_today(&self) -> String {
+        self.charts.borrow().today.clone()
     }
 
     /// The frame is drawn: lookups stop until the next one.
@@ -812,12 +825,16 @@ impl View<'_> {
     /// In a debug build a value kept is worked out again and compared.
     fn chart_kept(&self, press: Press, make: impl Fn() -> Option<Glance>) -> Option<Rc<Glance>> {
         if let Some(g) = self.app.kept.chart_get(press) {
+            // Only against the day the frame began on: a chart made after
+            // midnight within the frame tells other ages.
             #[cfg(debug_assertions)]
-            assert_eq!(
-                g.as_deref(),
-                make().as_ref(),
-                "a wallet chart kept across moved frames went stale"
-            );
+            if self.app.kept.frame_today() == self.app.today() {
+                assert_eq!(
+                    g.as_deref(),
+                    make().as_ref(),
+                    "a wallet chart kept across moved frames went stale"
+                );
+            }
             return g;
         }
         let g = make().map(Rc::new);

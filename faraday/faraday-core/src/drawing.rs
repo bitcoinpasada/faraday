@@ -545,7 +545,7 @@ impl Faraday {
     /// the backup list kept across moved frames ([`Kept::charts_frame`]).
     pub(crate) fn render(&mut self, only_moved: bool) {
         self.drawing.clear();
-        self.kept.charts_frame(!only_moved);
+        self.kept.charts_frame(!only_moved, &self.today());
         self.render_frame(only_moved);
         self.kept.charts_done();
         self.drawing.clear();
