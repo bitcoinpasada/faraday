@@ -299,8 +299,8 @@ Never use it for keys that matter.
   that time (a `fade` row gives the gate on or off, `was` when it
   changed in the block, the fades started and skipped, the median and
   worst step gap and the bands a blend used; the header gives the
-  panel's pixels; a step's `blend`, `convert` and `write` buckets tell
-  Faraday's blend from the copy out): a vault made, unlocked or its cost measured, named by its
+  panel's pixels; a step's `blend`, `move_kept`, `compare`, `convert_keep` and
+  `write` buckets tell Faraday's blend from the copy out): a vault made, unlocked or its cost measured, named by its
   strength, Argon2id memory and passes (a vault made or unlocked has a
   second row ending "(on the worker)" for the stretch itself; and "failed: no memory" or "not
   tried: too little memory free" where it did not fit), a key made, a

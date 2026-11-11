@@ -39,8 +39,14 @@ pub enum Bucket {
     Camera,
     /// One `Event::Scanned`: routing a code the scanner's worker read.
     Scanned,
-    /// The core's frame converted to the panel's pixel format.
-    Convert,
+    /// The rows of the kept frame and its converted copy moved for a
+    /// frame that moved a region (`docs/FRAMES.md` §3.7).
+    MoveKept,
+    /// The frame compared with the kept one, to find the rows that
+    /// changed.
+    Compare,
+    /// The changed rows converted to the panel's pixel format and kept.
+    ConvertKeep,
     /// The `pwrite` of that frame to the framebuffer: its own time, on
     /// whichever thread it ran. On a panel written by a thread of its
     /// own (`writer.rs`) it overlaps the loop and is not in the pass.
@@ -114,8 +120,19 @@ fn cpufreq(name: &str) -> String {
 }
 
 /// The bucket names, in the order the block prints them.
-const NAMES: [&str; 10] = [
-    "touch", "tick", "camera", "scanned", "convert", "write", "frame", "blend", "wait", "stage",
+const NAMES: [&str; 12] = [
+    "touch",
+    "tick",
+    "camera",
+    "scanned",
+    "move_kept",
+    "compare",
+    "convert_keep",
+    "write",
+    "frame",
+    "blend",
+    "wait",
+    "stage",
 ];
 
 /// The most rows of costly work one block keeps; an interval that did
@@ -273,7 +290,7 @@ impl Timings {
                 "faraday {version} panel {width}x{height} pixels {} \
                  columns: bucket count mean_ms worst_ms\n\
                  costly work columns: work count mean_ms worst_ms kind (the costliest an event did)\n\
-                 fade columns: started skipped reduced steps gaps median_ms worst_ms (step gaps) bands (most a blend was split in) on or off (the gate; \"was\" when it changed since the last block); blend is the core's work for a step, convert and write the rest\n\
+                 fade columns: started skipped reduced steps gaps median_ms worst_ms (step gaps) bands (most a blend was split in) on or off (the gate; \"was\" when it changed since the last block); blend is the core's work for a step, move_kept, compare, convert_keep and write the rest\n\
                  cpu0 driver {} governor {} min_khz {} max_khz {}\n\
                  parts columns: part count mean_ms worst_ms name (calls outside the buckets; clockwrite is a write of the CPU's lowest clock, inside a pass)\n\
                  moved and whole columns: kind count frame_mean_ms frame_worst_ms write_mean_ms write_worst_ms (passes that drew a moved or a whole frame)\n\

@@ -20,8 +20,8 @@ shell for both) and Faraday Demo (`faraday/shells/desktop` over
 ## 1. Where a frame's time goes
 
 A pass on the stick is the core's frame (`App::frame`), then the
-shell's comparison and conversion (`present.rs`, the `convert` bucket of
-`--timings`) and the write to the framebuffer (`panel.rs`, `write`).
+shell's comparison and conversion (`present.rs`, the `move_kept`, `compare` and
+`convert_keep` buckets of `--timings`) and the write to the framebuffer (`panel.rs`, `write`).
 The Pi's dev card, measured at its lowest clock while a finger moved:
 frame 27 to 32 ms (worst 53), convert 4.8 to 5.1 ms, write 3.1 to
 3.4 ms, on the firmware's 32-bit framebuffer. The kernel's vc4 emulation
@@ -75,7 +75,7 @@ and Files about 37: the last two miss 60 Hz on their floor alone.
 The shell's side, on the build machine, a whole 480 × 640 frame of
 32 bits: the conversion to the Pi's byte order 129 µs, a plain copy
 19 µs, a comparison of two equal frames 19 µs. The conversion is about
-seven copies' worth, which is why `convert` is the Pi's second cost.
+seven copies' worth, which is why `convert_keep` is the Pi's second cost.
 
 ## 2. Rules
 

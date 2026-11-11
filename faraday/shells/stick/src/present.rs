@@ -170,6 +170,16 @@ impl Presenter {
             (true, Some(m)) => self.move_kept(m, (fw, fh), g, turn),
             _ => None,
         };
+        let mut lap = start;
+        let mut took = |t: &mut Option<&mut Timings>, bucket| {
+            if let (Some(from), Some(t)) = (lap, t.as_deref_mut()) {
+                t.add(bucket, from.elapsed());
+                lap = Some(Instant::now());
+            }
+        };
+        if moved.is_some() {
+            took(&mut timings, Bucket::MoveKept);
+        }
         let changed = if !kept {
             self.last.clear();
             self.last.resize(rgba.len(), 0);
@@ -180,6 +190,7 @@ impl Presenter {
         } else {
             fb::changed_rows(&self.last, rgba, src_row)
         };
+        took(&mut timings, Bucket::Compare);
         for &(a, b) in &changed {
             if turn == Turn::R0 {
                 fb::convert_keep(
@@ -197,9 +208,7 @@ impl Presenter {
             }
             self.rows_converted += (b + 1 - a) as u64;
         }
-        if let (Some(start), Some(t)) = (start, timings.as_deref_mut()) {
-            t.add(Bucket::Convert, start.elapsed());
-        }
+        took(&mut timings, Bucket::ConvertKeep);
 
         // The panel's own rows of the moved view all changed, though
         // none of them was converted again: each shows another row.
