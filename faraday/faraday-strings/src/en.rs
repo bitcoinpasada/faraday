@@ -14238,6 +14238,9 @@ strings! {
     /// About's dialog title.
     #[cfg(feature = "aqrv")]
     aqrv_about_title: "About Argon QR Vault",
+    /// The Argon QR Vault's window title and the name its `.exe` carries.
+    #[cfg(feature = "aqrv")]
+    aqrv_window_title: "Argon QR Vault",
     /// About's text.
     #[cfg(feature = "aqrv")]
     aqrv_about_text: "The format is specified in docs/AQRV.md and its test vectors are in tools/vectors/aqrv. The format is not reviewed and is for testing only.",

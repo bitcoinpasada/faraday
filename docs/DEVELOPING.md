@@ -165,6 +165,20 @@ just faraday-testkit                              the test stick's files, into o
 just faraday-snap 480x640 spend                   one tour at one size, into out/snapshots/faraday/480x640/spend/
 ```
 
+The Argon QR Vault (`docs/AQRV.md`) is its own pair of programs, a
+window and a command line, built with the same recipes (the container
+leaves each file in `out/linux` or `out/windows`), and its screens are
+drawn to PNG with no window:
+
+```
+cargo run -p aqrv-desktop --release                                          the window
+just faraday-linux-bin out/linux out/build/run aqrv-desktop argon-qr-vault   out/linux/argon-qr-vault
+just faraday-linux-bin out/linux out/build/run aqrv-cli aqrv                 out/linux/aqrv
+just faraday-windows-bin build out/windows out/build/run aqrv-desktop argon-qr-vault   out/windows/argon-qr-vault.exe
+just faraday-windows-bin build out/windows out/build/run aqrv-cli aqrv                  out/windows/aqrv.exe
+cargo run -p aqrv-app --example snap -- 1280x800 out/snapshots/aqrv/1280x800  the Make and Open tabs, one picture a step
+```
+
 The desktop app, Faraday Demo, has none of the stick's protections and
 is never for a seed that holds funds. Its virtual sticks are folders in
 `~/faraday-sticks` (`--sticks DIR` moves them): README.md, "Faraday

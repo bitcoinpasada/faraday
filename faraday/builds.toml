@@ -77,6 +77,42 @@ recipe = "faraday-windows-bin"
 args = ["build", "out/windows", "out/build/run", "faraday-desktop", "faraday"]
 outputs = ["out/windows/faraday.exe"]
 
+[[build]]
+id = "aqrv-desktop-linux"
+label = "Argon QR Vault for Linux"
+group = "app"
+status = "built"
+recipe = "faraday-linux-bin"
+args = ["out/linux", "out/build/run", "aqrv-desktop", "argon-qr-vault"]
+outputs = ["out/linux/argon-qr-vault"]
+
+[[build]]
+id = "aqrv-desktop-windows"
+label = "Argon QR Vault for Windows"
+group = "app"
+status = "built"
+recipe = "faraday-windows-bin"
+args = ["build", "out/windows", "out/build/run", "aqrv-desktop", "argon-qr-vault"]
+outputs = ["out/windows/argon-qr-vault.exe"]
+
+[[build]]
+id = "aqrv-cli-linux"
+label = "Argon QR Vault command line for Linux"
+group = "app"
+status = "built"
+recipe = "faraday-linux-bin"
+args = ["out/linux", "out/build/run", "aqrv-cli", "aqrv"]
+outputs = ["out/linux/aqrv"]
+
+[[build]]
+id = "aqrv-cli-windows"
+label = "Argon QR Vault command line for Windows"
+group = "app"
+status = "built"
+recipe = "faraday-windows-bin"
+args = ["build", "out/windows", "out/build/run", "aqrv-cli", "aqrv"]
+outputs = ["out/windows/aqrv.exe"]
+
 # ---------------------------------------------------------------- images
 
 [[build]]

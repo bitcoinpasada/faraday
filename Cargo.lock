@@ -150,6 +150,7 @@ dependencies = [
  "aqrv-app",
  "faraday-files",
  "faraday-shell-api",
+ "faraday-strings",
  "faraday-window",
  "getrandom 0.4.3",
  "png",
