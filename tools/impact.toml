@@ -654,7 +654,7 @@ title = "the Argon QR Vault is a test tool in aqrv/: no app of Faraday's depends
 source = ["docs/decisions/F245.md", "docs/STANDARDS.md §0"]
 when = ["aqrv/**"]
 kind = "held"
-held_by = ["lint-standards", "lint-keys-tests", "lint-layout"]
+held_by = ["lint-standards", "lint-keys-tests", "lint-layout", "lint-strings", "costs-lint", "lint-secrets"]
 
 [[rule]]
 id = "standards.experimental-dev-only"

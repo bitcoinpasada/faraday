@@ -2,8 +2,10 @@
 # Secret-hygiene lint for the core crates and the secret state in
 # faraday/.
 #
-# Rules 1 and 2 are applied to every file under core/*/src/ and to every
-# file under faraday/faraday-core/src/; rule 3 only to the secret files
+# Rules 1 and 2 are applied to every file under core/*/src/, to every
+# file under faraday/faraday-core/src/ and to the Argon QR Vault library's
+# (aqrv/aqrv/src/, whose items and keys are as secret as Faraday's; its
+# text is zeroized strings, so rule 3 does not apply to it); rule 3 only to the secret files
 # listed below:
 #   1. No output or logging macros: println!, eprintln!, print!, eprint!,
 #      dbg!, log::, tracing::. Tests that need to print live under tests/
@@ -75,7 +77,7 @@ report() {
 }
 
 src_files() {
-    { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; } | sort
+    { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; find aqrv/aqrv/src -name '*.rs'; } | sort
 }
 
 # Rule 1: output and logging macros.

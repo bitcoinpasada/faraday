@@ -97,7 +97,8 @@ $(find core/faraday-bip/src -name '*.rs' -not -path '*/wordlists/*' -not -path '
 $(find core/faraday-psbt/src -name '*.rs' | sort)
 faraday/shells/desktop/src/main.rs
 faraday/shells/desktop/src/lib.rs
-faraday/shells/starter/src/main.rs"
+faraday/shells/starter/src/main.rs
+$(find aqrv/aqrv-app/src -name '*.rs' | sort)"
 
 # A failed awk is a failed lint, never a pass: its status and stderr are kept.
 awkerr=$(mktemp)

@@ -26,6 +26,11 @@
 # A fourth: no shipped binary turns on faraday-sb's `sign-any` feature,
 # which signs a boot program with no checked release behind it (F134).
 #
+# A fifth: the Argon QR Vault (`aqrv`, docs/AQRV.md, F245) is Faraday's own
+# construction, not reviewed outside it, and a test tool: no shipped binary
+# depends on any of its crates, and none turns on faraday-strings' `aqrv`
+# feature, which holds the wording of its app.
+#
 # Run from the repository root; `just lint` does.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -82,6 +87,25 @@ direct=$(cargo tree -q --color never --target all -e normal --depth 1 \
 if grep -qE '^[├└]── faraday-samples v' <<< "$direct"; then
     echo "lint-keys-tests: the Starter depends on faraday-samples other than through faraday-desktop"
     echo "$direct"
+    exit 1
+fi
+# The Argon QR Vault: the tree of dependents of aqrv over every shipped
+# binary names none of them, and faraday-strings' `aqrv` feature is on in
+# none. A binary that does not reach the crate prints nothing of itself.
+aqrv=$(cargo tree -q --color never --target all -e normal \
+    -p faraday-desktop -p faraday-stick -p faraday-disk -p faraday-grant \
+    -p faraday-boot -p faraday-starter-shell -i aqrv 2>&1 || true)
+if grep -qE '(faraday-desktop|faraday-stick|faraday-disk|faraday-grant|faraday-boot|faraday-starter-shell) v' <<< "$aqrv"; then
+    echo "lint-keys-tests: a shipped binary depends on the Argon QR Vault (aqrv)"
+    echo "$aqrv"
+    exit 1
+fi
+aqrv_words=$(cargo tree -q --color never --target all -e features,normal \
+    -p faraday-desktop -p faraday-stick -p faraday-disk -p faraday-grant \
+    -p faraday-boot -p faraday-starter-shell -i faraday-strings 2>&1 || true)
+if grep -q 'faraday-strings feature "aqrv"' <<< "$aqrv_words"; then
+    echo "lint-keys-tests: a shipped binary enables faraday-strings' aqrv feature"
+    echo "$aqrv_words"
     exit 1
 fi
 echo "lint-keys-tests: ok"

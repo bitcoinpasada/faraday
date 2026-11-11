@@ -31,7 +31,8 @@
 #    inherent `impl Faraday {` (`impl-faraday PATH`): a file not listed
 #    fails, and so does a listed file that has none.
 #
-# 5. Dependency direction: core/ crates stay inside core/; the drawing and
+# 5. Dependency direction: core/ crates stay inside core/; nothing under
+#    core/ or faraday/ depends on aqrv/; the drawing and
 #    string crates do not depend on faraday-core or faraday-starter.
 #
 # Raising a count is the owner's decision, recorded in DECISIONS (F74, F196).
@@ -228,7 +229,9 @@ for path in sorted(impl_listed - having):
 # 5. Dependency direction (docs/STRUCTURE-PASS.md §7). A `core/*` crate has
 #    no `path` dependency outside core/, and faraday-ui, faraday-draw,
 #    faraday-strings and faraday-learn depend (normal, build or dev) on
-#    neither faraday-core nor faraday-starter.
+#    neither faraday-core nor faraday-starter. No crate under core/ or
+#    faraday/ has a path dependency into aqrv/ (F245: the Argon QR Vault
+#    is a test tool the apps do not depend on).
 import tomllib
 
 LOWER = {"faraday-ui", "faraday-draw", "faraday-strings", "faraday-learn"}
@@ -254,6 +257,11 @@ for member in members:
             target = os.path.normpath(os.path.join(member, spec["path"]))
             if not target.startswith("core/"):
                 fail(f"{manifest}: {name} depends on {target}, outside core/")
+        if (member.startswith(("core/", "faraday/")) and isinstance(spec, dict)
+                and "path" in spec):
+            target = os.path.normpath(os.path.join(member, spec["path"]))
+            if target.startswith("aqrv/"):
+                fail(f"{manifest}: {name} depends on {target}, a crate of the Argon QR Vault")
         if name in LOWER and real in UPPER:
             fail(f"{manifest}: {name} depends on {real}; it is a layer below it")
 

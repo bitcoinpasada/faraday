@@ -41,4 +41,7 @@ platform's own hardware-backed KDF instead — on Android, deriving inside
 the secure element rather than beside it would remove this crate and the
 memory it needs.
 
+The Argon QR Vault (`aqrv/aqrv`, `docs/AQRV.md` §6), a test tool outside
+Faraday's apps, uses this crate directly for its envelope's key, as `chacha20` does.
+
 **Review.** Trusted by publisher (github:RustCrypto/password-hashes) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

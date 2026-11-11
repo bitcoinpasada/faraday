@@ -456,7 +456,10 @@ built, and is offered for outside review: the Argon QR Vault
 string, a passphrase, a note, a raw key) under Argon2id, in a 25 × 25, 29 × 29
 or 33 × 33 QR code. It is
 Faraday's own specification, so under §0 it stays compiled out of the app
-until it is reviewed outside Faraday.
+until it is reviewed outside Faraday. `tools/lint-standards.py` (no shipped
+function reaches its `seal` or `open`, and no line of `faraday/` names it),
+`tools/lint-keys-tests.sh` (no shipped binary depends on it) and
+`tools/lint-layout.sh` (no path dependency into `aqrv/`) keep it out (F245).
 
 <!-- crypto-manifest: begin §7 -->
 1. **Adds, changes, copies and makes public the records of an open vault, holding every secret field in a value that wipes on drop.** Faraday's own record layouts (`docs/VAULT.md` §7); the payload layouts are read by a second implementation Faraday's authors wrote from that document (`area_vault.py`) and the items by pykeepass, `keepassxc-cli` and keepass-rs. (F97) Own specification, not yet reviewed outside Faraday (F160, F177).
@@ -561,3 +564,7 @@ establishes them (`docs/ESTABLISHED.md` §1.2). The tables are written by
 | `rqrr` | The camera's QR decoder, vendored and patched against panics on hostile frames (third_party/rqrr/PATCHES.md): the only maintained pure-Rust QR decoder. What it reads is untrusted input that Faraday's parsers check. The same panic is reported upstream as rqrr's issue 54. | F180 |
 | `quick-xml` | The tokenizer under the XML of a KDBX vault file. It does no cryptography and has no outside review; its default features are off and it is already in the dependency graph. Which references are refused, the nesting cap and everything else the reader does are Faraday's own. | F213 |
 <!-- crypto-manifest: end §10 -->
+
+The Argon QR Vault (`aqrv/aqrv`, `docs/AQRV.md`) is Faraday's own
+construction of this kind, a test tool in `aqrv/` and in no app: the checks
+named in §7 keep it out (F245).

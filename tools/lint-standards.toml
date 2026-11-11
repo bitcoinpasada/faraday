@@ -11,6 +11,18 @@
 # FILES. A change here does not stale the stamp. Each says why.
 
 [[uncovered]]
+crate = "aqrv/aqrv"
+reason = "own specification, checked against tools/vectors/aqrv (argon2-cffi, PyCA) and kept out of the app"
+
+[[uncovered]]
+crate = "aqrv/aqrv-cli"
+reason = "The Argon QR Vault's command line (F245), a test tool outside the app: draws the envelope's salt from the system with getrandom and computes nothing else; its seal and open are aqrv's."
+
+[[uncovered]]
+crate = "aqrv/aqrv-desktop"
+reason = "The Argon QR Vault's desktop window (F245), a test tool outside the app: draws the envelope's salt from the system with getrandom and computes nothing else; its seal and open are aqrv's."
+
+[[uncovered]]
 crate = "core/faraday-draw"
 reason = "Names faraday-crypto's compute token (`work::Work`) to count drawing work; computes nothing cryptographic."
 
@@ -208,6 +220,14 @@ what = "MuSig2 signing across places (STANDARDS §0.1): a secret nonce is never 
 decision = "F234"
 functions = ["core/faraday-bip/src/musig.rs::SecNonce::from_bytes"]
 unnamed = '(?<![:\w])SecNonce\b|musig::SecNonce\b'
+
+# The Argon QR Vault is a test tool in aqrv/ (F245): no shipped function of
+# the app reaches its seal or open, and no line of faraday/ names its crates.
+[[out_of_app]]
+what = "The Argon QR Vault (STANDARDS §7: Faraday's own construction, not reviewed outside Faraday)"
+decision = "F245"
+functions = ["aqrv/aqrv/src/envelope.rs::seal", "aqrv/aqrv/src/envelope.rs::open"]
+unnamed = '\baqrv(_app|_cli|_desktop)?::|\buse aqrv\b'
 
 # ---------------------------------------------------------------- holds
 # Where the code says which actions are holds. Every action such a
