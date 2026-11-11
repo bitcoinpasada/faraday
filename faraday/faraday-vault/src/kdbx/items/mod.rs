@@ -359,7 +359,110 @@ fn read_secure_boot(f: &mut Fields<'_>) -> Result<Body, Damage> {
     checked(r)
 }
 
-/// Costs a parse of the words, a policy or a descriptor: an item of kind
+/// Whether one key expression reads as `[fingerprint/path]xpub`, its origin
+/// also taken written `[fingerprint/m/path]`, `[fingerprint/m]` or
+/// `[fingerprint/]`.
+fn key_reads(key: &str) -> bool {
+    use faraday_bip::policy::PolicyKey;
+    if PolicyKey::parse(key).is_ok() {
+        return true;
+    }
+    // An origin written `[fp/m/…]`, `[fp/m]` or `[fp/]`, which 0.2.0 loaded
+    // and the policy reader now refuses (`M` taken as `m`): it reads here as
+    // the origin `[fp/…]` or `[fp]`, so the refusal is shown with its reason.
+    let Some((origin, rest)) = key.strip_prefix('[').and_then(|k| k.split_once(']')) else {
+        return false;
+    };
+    let Some((fp, path)) = origin.split_once('/') else {
+        return false;
+    };
+    let path = match path {
+        "m" | "M" => "",
+        _ => path
+            .strip_prefix("m/")
+            .or_else(|| path.strip_prefix("M/"))
+            .unwrap_or(path),
+    };
+    let fixed = if path.is_empty() {
+        alloc::format!("[{fp}]{rest}")
+    } else {
+        alloc::format!("[{fp}/{path}]{rest}")
+    };
+    PolicyKey::parse(&fixed).is_ok()
+}
+
+/// Whether the text of a wallet field is a wallet's in form: a descriptor's
+/// checksum, when it has one, matches, and every key expression of the
+/// wallet reads on its own as `[fingerprint/path]xpub` (a policy's `#`
+/// comment lines skipped and its keys split as the policy reader splits
+/// them), with at least one key. A wallet that passes and is refused is
+/// refused by a wallet rule or its template; one that fails is a bad value.
+fn wallet_form_reads(which: &str, text: &str) -> bool {
+    let mut any = false;
+    if which == "policy" {
+        let mut lines = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'));
+        lines.next();
+        for line in lines {
+            for key in line.split(',') {
+                let key = key.trim().trim_matches('"').trim();
+                if key.is_empty() {
+                    continue;
+                }
+                if !key_reads(key) {
+                    return false;
+                }
+                any = true;
+            }
+        }
+        return any;
+    }
+    let text = text.trim();
+    let body = match text.split_once('#') {
+        Some((body, _)) => {
+            if !faraday_bip::descriptor::verify_checksum(text) {
+                return false;
+            }
+            body
+        }
+        None => text,
+    };
+    // Each token between the brackets and commas of the script that is not
+    // a function name, a number, a plain hex key or a derivation suffix is a
+    // key expression: its origin and xpub, up to the first `/` after them.
+    let mut token = alloc::string::String::new();
+    let mut tokens = Vec::new();
+    for ch in body.chars() {
+        match ch {
+            '(' => token.clear(),
+            ',' | ')' | '{' | '}' => tokens.push(core::mem::take(&mut token)),
+            c => token.push(c),
+        }
+    }
+    tokens.push(token);
+    for t in tokens {
+        let t = t.trim();
+        let hex = t.len() >= 64 && t.bytes().all(|b| b.is_ascii_hexdigit());
+        if t.is_empty() || t.starts_with('/') || hex || t.bytes().all(|b| b.is_ascii_digit()) {
+            continue;
+        }
+        let end = t.rfind(']').map_or(0, |i| i + 1);
+        let key = match t[end..].find('/') {
+            Some(i) => &t[..end + i],
+            None => t,
+        };
+        if !key_reads(key) {
+            return false;
+        }
+        any = true;
+    }
+    any
+}
+
+/// Costs a parse of the words, a policy or a descriptor (two of a wallet
+/// the rules refuse, which is read again for its reason): an item of kind
 /// `k` as its body.
 fn read_kind(c: &Compute, k: u8, e: &Entry) -> Result<Body, Damage> {
     let mut f = Fields {
@@ -377,7 +480,14 @@ fn read_kind(c: &Compute, k: u8, e: &Entry) -> Result<Body, Damage> {
                 reads_as_descriptor(c, text)
             };
             if !reads {
-                return Err(damage(which, Fault::Value));
+                // The refusal a fresh addition of the text would give, when
+                // the text is a wallet's in form and a wallet rule refuses
+                // it; anything else stays a plain bad value.
+                let fault = match WalletPolicy::parse_any(c, text) {
+                    Err(e) if wallet_form_reads(which, text) => Fault::Wallet(e),
+                    _ => Fault::Value,
+                };
+                return Err(damage(which, fault));
             }
             r.push(field::WALLET, text.as_bytes());
             if let Some(t) = f.get("Title") {

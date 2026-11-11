@@ -125,6 +125,9 @@ pub enum Fault {
     /// UUIDs, two names, a field with two values, ...): the damage's `at`
     /// is the reason as the document model words it.
     Ambiguous,
+    /// A wallet's text that no wallet rule reads, with the refusal a fresh
+    /// addition of the same text would give.
+    Wallet(faraday_bip::policy::Error),
 }
 
 /// Where an item is damaged: the field or the key, and the fault.

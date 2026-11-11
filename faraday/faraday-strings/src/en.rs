@@ -9995,6 +9995,10 @@ strings! {
     vault_fault_same_field: "Two fields of one name",
     /// Fault of an item.
     vault_fault_ambiguous: "Cannot be told apart from another item",
+    /// A wallet item that no wallet rule reads.
+    vault_fault_wallet: "Not a wallet this build reads",
+    /// The wallet fault, then the refusal's reason.
+    vault_fault_wallet_why: "{}: {}",
     // ----- A stick's FAT refused (faraday-files' `fat_text`, faraday-fat's kinds) -----
     /// Why a stick's file could not be read or written.
     fat_io: "the stick could not be read or written",
@@ -12654,6 +12658,10 @@ strings! {
     bip_policy_derivation: "derivation must be /** or /<0;1>/*",
     /// A wallet policy threshold out of range.
     bip_policy_threshold: "threshold must be between 1 and the number of keys",
+    /// A wallet that uses one key more than once.
+    bip_policy_repeated_key: "a key is used more than once",
+    /// A wallet whose keys are of more than one network.
+    bip_policy_mixed_network: "keys are of more than one network",
     /// A descriptor whose checksum is wrong.
     bip_policy_checksum: "descriptor checksum does not match",
     /// An extended private key that is not a master key.

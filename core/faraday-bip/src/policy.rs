@@ -64,8 +64,12 @@ use crate::spend::SpendPath;
 pub enum Error {
     /// The template is not one of the supported script forms.
     Template,
-    /// A key is not `[fingerprint/path]xpub`, or two keys are the same.
+    /// A key is not `[fingerprint/path]xpub`.
     Key,
+    /// Two keys are the same key.
+    RepeatedKey,
+    /// The keys are of more than one network.
+    MixedNetwork,
     /// A placeholder is repeated, out of order, or names no key; or a
     /// `musig()` holds fewer than two participants.
     Placeholder,
@@ -1710,12 +1714,12 @@ fn check(template: &Template, keys: &[PolicyKey]) -> Result<(), Error> {
         // or parent is the same key: a quorum counting it twice is lower
         // than it says.
         if keys[..i].iter().any(|k| k.same_key(key)) {
-            return Err(Error::Key);
+            return Err(Error::RepeatedKey);
         }
         // One wallet is one network: a policy that mixes mainnet and
         // test keys is ambiguous.
         if key.xpub.network != keys[0].xpub.network {
-            return Err(Error::Key);
+            return Err(Error::MixedNetwork);
         }
         if key
             .path()
@@ -2241,7 +2245,7 @@ mod tests {
         const KEY: &str = "[6738736c/48'/0'/0'/2']xpub6FC1fXFP1GXLX5TKtcjHGT4q89SDRehkQLtbKJ2PzWcvbBHtyDsJPLtpLtkGqYNYZdVVAjRQ5kug9CsapegmmeRutpP7PW4u4wVF9JfkDhw";
         assert_eq!(
             WalletPolicy::from_parts(&c, "wsh(sortedmulti(2,@0/**,@1/**))", &[KEY, KEY]),
-            Err(Error::Key)
+            Err(Error::RepeatedKey)
         );
     }
 

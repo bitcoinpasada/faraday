@@ -79,6 +79,22 @@ pub fn fault_text(f: Fault) -> &'static str {
         Fault::SameUuid => EN.vault_fault_same_uuid,
         Fault::SameField => EN.vault_fault_same_field,
         Fault::Ambiguous => EN.vault_fault_ambiguous,
+        Fault::Wallet(_) => EN.vault_fault_wallet,
+    }
+}
+
+/// [`fault_text`] with the wallet refusal's reason after it, as a fresh
+/// addition of the same text words it.
+pub fn fault_line(f: Fault) -> String {
+    match f {
+        Fault::Wallet(e) => fill(
+            EN.vault_fault_wallet_why,
+            &[
+                EN.vault_fault_wallet,
+                &faraday_strings::bip::policy_error(&e),
+            ],
+        ),
+        other => fault_text(other).to_string(),
     }
 }
 
@@ -101,5 +117,20 @@ pub fn names() -> Names {
         title_passphrase: EN.vault_title_passphrase.to_string(),
         title_share: EN.vault_title_share.to_string(),
         title_secure_boot: EN.vault_title_secure_boot.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use faraday_bip::policy::Error as Why;
+
+    /// A wallet item the rules refuse gives the line a wallet added fresh
+    /// would give.
+    #[test]
+    fn a_refused_wallet_items_line_names_the_real_reason() {
+        let line = |e| fault_line(Fault::Wallet(e));
+        assert!(line(Why::RepeatedKey).ends_with("a key is used more than once"));
+        assert!(line(Why::MixedNetwork).ends_with("keys are of more than one network"));
     }
 }

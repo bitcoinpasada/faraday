@@ -927,7 +927,9 @@ or used, and is written back as it was read at the next seal. An item
 is damaged when it has a `faraday.kind` not named here; a field its kind
 does not name, or a required one missing; words that are not a valid
 BIP-39 phrase of their list; a policy or descriptor that does not
-parse; a PEM block other than the one its field names; a
+parse (one whose keys each read but a wallet rule refuses, such as a key
+repeated or keys of two networks, is listed with the reason a wallet
+added fresh gives); a PEM block other than the one its field names; a
 `faraday.codex32`, `faraday.child` or `faraday.plan.{n}` that is not the
 TOML its key names; a GPG key not of Faraday's own shape (an Ed25519
 primary key with one Ed25519 signing subkey, unprotected); an entry with

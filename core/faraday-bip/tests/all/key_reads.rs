@@ -49,7 +49,7 @@ fn a_descriptor_with_one_key_twice_under_another_header_is_refused() {
     let c = Compute::unchecked();
     assert_eq!(
         WalletPolicy::from_descriptor(&c, &descriptor_with_repeat()),
-        Err(policy::Error::Key)
+        Err(policy::Error::RepeatedKey)
     );
 }
 
@@ -60,7 +60,7 @@ fn a_descriptor_record_with_one_key_twice_is_refused() {
     let record = format!("BSMS 1.0\n{text}\n/0/*,/1/*\nbc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
     assert_eq!(
         DescriptorRecord::parse(&c, &record),
-        Err(bsms::Error::Policy(policy::Error::Key))
+        Err(bsms::Error::Policy(policy::Error::RepeatedKey))
     );
 }
 
@@ -83,7 +83,10 @@ fn a_multisig_config_with_one_key_twice_is_refused() {
         (FP[1], KEYS[1].into()),
         (FP[2], second_again()),
     ]);
-    assert_eq!(multisig_config::parse(&c, &text), Err(policy::Error::Key));
+    assert_eq!(
+        multisig_config::parse(&c, &text),
+        Err(policy::Error::RepeatedKey)
+    );
 }
 
 #[test]
@@ -97,7 +100,7 @@ fn a_descriptor_of_mainnet_and_test_keys_is_refused() {
     );
     assert_eq!(
         WalletPolicy::from_descriptor(&c, &text),
-        Err(policy::Error::Key)
+        Err(policy::Error::MixedNetwork)
     );
 }
 

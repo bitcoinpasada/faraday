@@ -622,6 +622,124 @@ fn a_damaged_entry_is_written_back_as_it_was() {
 }
 
 #[test]
+fn a_wallet_that_repeats_a_key_is_not_loaded_and_its_row_gives_the_reason() {
+    let k = "[b3118e52/48h/0h/0h/2h]xpub6Du5Jn6eYZE96ccmAc1ZTFPzdnzrvqfG4mpamDun2qZYKywoiQJMCbS3kWWMr6U3XW6s125RLsaPABWgv2yA749ieaMe67FxkTjMsbcxCch";
+    let a = "[793cc70b/48h/0h/0h/2h]xpub6ErVmcYYHmavsMgxEcTZyzN5sqth1ZyRpFNJC26ij1wYGC2SBKYrgt9yariSbn7HLRoZUvhUhmPfsRTPrdhhGFscpPZzmch6UTdmRP1aZUj";
+    let policy = format!("wsh(sortedmulti(2,@0/**,@1/**,@2/**))\n{a}\n{k}\n{k}");
+    let mut doc = full();
+    doc.root_mut()
+        .push_entry(bad(90, Some("wallet"), &[("policy", &policy, false)], &[]))
+        .unwrap();
+    let read = read(&doc);
+    let u = read
+        .unreadable
+        .iter()
+        .find(|u| u.uuid == Some(uuid(90)))
+        .expect("the wallet is unreadable");
+    assert_eq!(u.what.at, "policy");
+    assert_eq!(
+        u.what.fault,
+        Fault::Wallet(faraday_bip::policy::Error::RepeatedKey)
+    );
+    assert!(read.items.iter().all(|i| i.uuid != uuid(90)));
+}
+
+#[test]
+fn a_wallet_field_is_a_refused_wallet_only_when_it_reads_as_one() {
+    use faraday_bip::policy::Error;
+    let a = "[793cc70b/48h/0h/0h/2h]xpub6ErVmcYYHmavsMgxEcTZyzN5sqth1ZyRpFNJC26ij1wYGC2SBKYrgt9yariSbn7HLRoZUvhUhmPfsRTPrdhhGFscpPZzmch6UTdmRP1aZUj";
+    let k = "[b3118e52/48h/0h/0h/2h]xpub6Du5Jn6eYZE96ccmAc1ZTFPzdnzrvqfG4mpamDun2qZYKywoiQJMCbS3kWWMr6U3XW6s125RLsaPABWgv2yA749ieaMe67FxkTjMsbcxCch";
+    let tpub = "[b3118e52/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
+    let template = "wsh(sortedmulti(2,@0/**,@1/**))";
+    let bad_origin = k.replace("[b3118e52/48h", "[b3118e52/m/48h");
+    let cases: Vec<(&str, String, Fault)> = vec![
+        (
+            "policy",
+            format!("{template}\n{a}\n{tpub}"),
+            Fault::Wallet(Error::MixedNetwork),
+        ),
+        (
+            "policy",
+            format!("# a comment\n{template}\n# keys\n{a}\n{a}"),
+            Fault::Wallet(Error::RepeatedKey),
+        ),
+        (
+            "policy",
+            format!("{template}\n{a}\n{bad_origin}"),
+            Fault::Wallet(Error::Key),
+        ),
+        (
+            "policy",
+            format!("{template}\n{a}\n{}", k.replace("/48h/0h/0h/2h]", "/]")),
+            Fault::Wallet(Error::Key),
+        ),
+        (
+            "descriptor",
+            format!("wsh(sortedmulti(2,{a}/<0;1>/*,{}/<0;1>/*))", bad_origin),
+            Fault::Wallet(Error::Key),
+        ),
+        (
+            "policy",
+            format!("{template}\n{a}\n{}", k.replace("/48h/0h/0h/2h]", "/zz]")),
+            Fault::Value,
+        ),
+        (
+            "policy",
+            format!(
+                "{template}\n{a}\n{}",
+                k.replace("[b3118e52/48h", "[b3118e52/m48h")
+            ),
+            Fault::Value,
+        ),
+        (
+            "policy",
+            format!(
+                "{template}\n{a}\n{}",
+                k.replace("[b3118e52/48h", "[b3118e52/m//48h")
+            ),
+            Fault::Value,
+        ),
+        (
+            "descriptor",
+            format!(
+                "wsh(sortedmulti(2,{a}/<0;1>/*,{}0/<0;1>/*))",
+                &k[..k.len() - 1]
+            ),
+            Fault::Value,
+        ),
+        (
+            "descriptor",
+            format!("wsh(sortedmulti(2,{a}/<0;1>/*,{k}/<0;1>/*))#aaaaaaaa"),
+            Fault::Value,
+        ),
+    ];
+    let mut doc = full();
+    for (n, (which, text, _)) in cases.iter().enumerate() {
+        doc.root_mut()
+            .push_entry(bad(
+                100 + n as u8,
+                Some("wallet"),
+                &[(which, text, false)],
+                &[],
+            ))
+            .unwrap();
+    }
+    let read = read(&doc);
+    for (n, (which, _, want)) in cases.iter().enumerate() {
+        let u = read
+            .unreadable
+            .iter()
+            .find(|u| u.uuid == Some(uuid(100 + n as u8)))
+            .unwrap_or_else(|| panic!("case {n} reads"));
+        assert_eq!(
+            (u.what.at.as_str(), u.what.fault),
+            (*which, *want),
+            "case {n}"
+        );
+    }
+}
+
+#[test]
 fn entries_sharing_a_uuid_are_unreadable() {
     let mut doc = full();
     doc.root_mut().push_entry(bad(80, None, &[], &[])).unwrap();

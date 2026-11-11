@@ -73,6 +73,8 @@ pub fn policy_error(e: &policy::Error) -> String {
     match e {
         E::Template => EN.bip_policy_template,
         E::Key => EN.bip_key_not_xpub,
+        E::RepeatedKey => EN.bip_policy_repeated_key,
+        E::MixedNetwork => EN.bip_policy_mixed_network,
         E::Placeholder => EN.bip_policy_placeholder,
         E::Derivation => EN.bip_policy_derivation,
         E::Threshold => EN.bip_policy_threshold,

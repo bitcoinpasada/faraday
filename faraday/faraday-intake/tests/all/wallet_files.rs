@@ -770,3 +770,21 @@ fn a_text_file_with_two_different_wallets_of_one_kind_is_refused_but_one_written
     let twice = format!("{}{}", wpkh_pair_lines(k0), wpkh_pair_lines(k0));
     assert!(read_text(&twice).is_ok());
 }
+
+const KEY_A: &str = "[793cc70b/48h/0h/0h/2h]xpub6ErVmcYYHmavsMgxEcTZyzN5sqth1ZyRpFNJC26ij1wYGC2SBKYrgt9yariSbn7HLRoZUvhUhmPfsRTPrdhhGFscpPZzmch6UTdmRP1aZUj";
+
+fn why(text: &str) -> String {
+    match read_wallet(&crate::common::compute(), text) {
+        Err(Refusal::NotAWallet(why)) => why,
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
+fn a_wallet_with_a_repeated_key_or_keys_of_two_networks_is_refused_with_its_own_reason() {
+    let repeated = format!("wsh(sortedmulti(2,{KEY_A}/<0;1>/*,{KEY_A}/<0;1>/*))");
+    assert_eq!(why(&repeated), "a key is used more than once");
+    let tpub = "[b3118e52/48h/1h/0h/2h]tpubDFH9dgzveyD8zTbPUFuLrGmCydNvxehyNdUXKJAQN8x4aZ4j6UZqGfnqFrD4NqyaTVGKbvEW54tsvPTK2UoSbCC1PJY8iCNiwTL3RWZEheQ";
+    let mixed = format!("wsh(sortedmulti(2,{KEY_A}/<0;1>/*,{tpub}/<0;1>/*))");
+    assert_eq!(why(&mixed), "keys are of more than one network");
+}
