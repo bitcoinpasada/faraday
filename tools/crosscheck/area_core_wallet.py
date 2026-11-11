@@ -33,7 +33,14 @@ itself: the pinned `bitcoind` on regtest, offline (`core_node.py`).
   tree reaches, are each refused by both.
 
 Known differences, each checked to still hold and counted: see
-`KNOWN` and `KNOWN_SHOWN` below; each is made in `directed()` and asked of Core.
+`KNOWN`, `KNOWN_SHOWN`, `LENIENT` and `SLOW` below; each is made in
+`directed()` and asked of Core.
+
+`sweep_core_wallet.py` makes every change the mutation loop can make to
+every shape's wallet (each bit of each record's key and value, by position
+class for long ones, each record dropped, each page cut) and judges each as
+the loop does; it is run by hand after a change to the reader or to these
+lists (its docstring says how), not in the cross-check.
 """
 
 import http.client
@@ -91,12 +98,57 @@ KNOWN = {
 }
 # Known only where Core's own reading shows it, as `shown_by_core` asks.
 KNOWN_SHOWN = {
+    ("name", "Layout"): "Core loads a name record (an address's label) whose value is not one "
+                        "whole UTF-8 string (walletdb.cpp `LoadAddressBookRecords` reads the "
+                        "string and checks neither its text nor bytes left past it) and keeps "
+                        "the label as read; Faraday refuses a record that is not the string "
+                        "Core writes. Taken only where Core lists the address with a label "
+                        "that is not UTF-8 or is short of the bytes the record holds",
     ("purpose", "Layout"): "Core loads a purpose record whose value is not one whole UTF-8 "
                            "string (a byte that is not UTF-8, bytes left past the string), "
                            "warns of a nonstandard purpose and keeps the address with none; "
                            "Faraday refuses a record that is not the string Core writes. "
                            "Taken only where Core lists the record's address with the "
                            "purpose \"unknown\"",
+    ("bestblock", "Layout"): "Core reads the old block locator `bestblock` (normally empty) and, "
+                             "where the record does not read as a locator (its count claims "
+                             "hashes it lacks), falls back to `bestblock_nomerkle` "
+                             "(walletdb.cpp `WalletBatch::ReadBestBlock`; db.h "
+                             "`DatabaseBatch::Read` returns false on a failed read); Faraday "
+                             "refuses a locator whose size is not its count's. Taken only where "
+                             "Core shows the fallback: the file with the genesis hash of "
+                             "`bestblock_nomerkle` changed is refused as another chain's",
+    ("bestblock_nomerkle", "Layout"): "Core loads a wallet whose `bestblock_nomerkle` does not "
+                                      "read as a locator (a count past its hashes, or short of "
+                                      "them) as one with no locator, rescanning from genesis; "
+                                      "Faraday refuses a locator whose size is not its count's. "
+                                      "Taken only where Core shows it read no locator from the "
+                                      "record: the file with the record's last byte changed "
+                                      "loads (a locator read would end in another genesis)",
+    ("walletdescriptor", "Range"): "Core loads a descriptor's range and next index as written, "
+                                   "unchecked (walletdb.cpp `LoadDescriptorWalletRecords`), "
+                                   "derives from the range's start to its end "
+                                   "(scriptpubkeyman.cpp `SetCache`) and tops the range up to "
+                                   "the next index and its key pool (`TopUpWithDB`, which also "
+                                   "sets the range of a descriptor that is not ranged to 0 and "
+                                   "1); Faraday refuses a negative next index or start, or an "
+                                   "end before the start. Taken only where Core, loading the "
+                                   "file on a node with -keypool=1, lists the descriptor "
+                                   "Faraday does not with no range, a negative next index or "
+                                   "start, a start past its end, or an end at the next index "
+                                   "(the end it read was not past the next index)",
+    ("walletdescriptorckey", "NoMasterKey"): "Core loads a wallet whose encrypted keys have "
+                                             "no master key record, as encrypted and locked "
+                                             "(walletdb.cpp `LoadDescriptorWalletRecords` "
+                                             "does not decrypt); Faraday names each key it "
+                                             "cannot open. Taken only where Core's "
+                                             "walletpassphrase does not open the wallet with "
+                                             "the passphrase",
+    ("file", "File"): "SQLite takes the header's text encoding as its low two bits, a 0 as "
+                      "UTF-8 (prepare.c `sqlite3InitOne`), so Core opens a file whose text "
+                      "encoding is 5, 9 or 0; Faraday refuses any value but the three the file "
+                      "format names. Taken only where Faraday's refusal is of the text encoding "
+                      "and SQLite reads the field as UTF-8",
 }
 # Where Faraday calls a file whole and Core's loadwallet refuses it, the
 # record type changed (by a dropped record or a flipped byte) and why
@@ -105,7 +157,33 @@ KNOWN_SHOWN = {
 LENIENT = {
     "walletdescriptorcache": "Core keeps the derived parent keys of a descriptor here and "
                              "refuses a wallet whose cache is not the one its keys give",
+    "tx": "Core reads each transaction record as it loads (walletdb.cpp `LoadTxRecords`) and "
+          "refuses a wallet one of which does not read (\"Wallet corrupted\"); Faraday counts "
+          "them. Taken only on Core's refusal as corrupted",
 }
+# The message Core refuses a wallet with where a record does not read.
+CORRUPTED = "Wallet corrupted"
+
+# Core derives every index of a descriptor's range, and tops it up to the
+# next index, as it loads the wallet (scriptpubkeyman.cpp `SetCache`,
+# `TopUpWithDB`), about 30 microseconds an index on an idle machine (2^20
+# in 31 s, 2^21 in 64 s) and many times that on a busy one. Faraday derives
+# nothing as it reads and reads such a file whole; Core's answer is not had.
+# Known only where Faraday lists a ranged descriptor whose next index or
+# last index is at least SLOW and Core did not answer in SLOW_WAIT seconds
+# or stopped; such a file is waited for SLOW_WAIT seconds.
+SLOW = 1 << 16
+
+# A descriptor that is not ranged whose stored range spans more than one
+# index: Core derives each index of the range as it loads, gets the same
+# script twice and refuses the wallet as corrupted (scriptpubkeyman.cpp
+# `SetCache`, "Already loaded script"); Faraday does not read the range of
+# such a descriptor and reads the file whole. Known only on Core's refusal
+# as corrupted, where the changed file holds such a descriptor
+# (`unranged_span`).
+SLOW_WAIT = 20
+LOAD_WAIT = 120
+TIMED_OUT = "took longer than"
 
 
 # A byte changed in a record's key: Core runs SQLite's integrity check at
@@ -120,6 +198,8 @@ INDEX = "sqlite_autoindex_main_1"
 # of the file: Faraday reads no chain, counts the locator's hashes and does
 # not read them.
 LOCATORS = ("bestblock_nomerkle", "bestblock")
+# The records whose fault asks Core's address book (`wants_book`).
+BOOK = (("purpose", "Layout"), ("name", "Layout"))
 CROSS_CHAIN = "Wallet files should not be reused across chains"
 
 
@@ -144,17 +224,156 @@ def purpose_address(failure):
     return raw[1:].decode("latin-1")
 
 
-def shown_by_core(known, got, core):
-    """Whether Core's own reading of the file shows the condition of each of
-    Faraday's failures of the KNOWN_SHOWN entry `known`: for a purpose
-    record, Core lists its address with the purpose "unknown"."""
-    if known == ("purpose", "Layout"):
-        book = core[2] if len(core) > 2 else {}
-        addresses = [purpose_address(f[0]) for f in got[1]["failures"]
-                     if (f[0].split(" ")[0], f[1]) == known]
-        return bool(addresses) and all(a is not None and book.get(a) == "unknown"
-                                       for a in addresses)
+def faraday_said(got):
+    """The (record, fault) pairs of Faraday's reading of a file it does not
+    call whole: its failures, a wrong passphrase, failures past the list,
+    or the refusal of the whole file."""
+    if got[0] != "ok":
+        return [("file", got[1].split("(")[0])]
+    said = sorted({(f[0].split(" ")[0], f[1]) for f in got[1]["failures"]})
+    if got[1]["passphrase"] == "wrong":
+        said = [("mkey", "Passphrase")]
+    if got[1].get("failures_more", 0) > 0:
+        # Failures past the list are a difference of their own.
+        said.append(("more", "failures past the list"))
+    return said
+
+
+def locator_end_changed(data):
+    """`data` with the last byte of its `bestblock_nomerkle` record's value
+    changed, or None where it has no such record of a hash or more."""
+    con = sqlite3.connect(":memory:", isolation_level=None)
+    con.deserialize(data)
+    rows = [(bytes(k), bytes(v)) for (k, v) in con.execute("SELECT key, value FROM main")
+            if record_type(bytes(k).hex()) == LOCATORS[0]]
+    if len(rows) != 1 or len(rows[0][1]) < 4 + 1 + 32:
+        con.close()
+        return None
+    key, value = rows[0]
+    con.execute("UPDATE main SET value = ? WHERE key = ?", (value[:-1] + bytes([value[-1] ^ 1]), key))
+    out = con.serialize()
+    con.close()
+    return out
+
+
+def slow_range(got):
+    """Whether Faraday's whole reading `got` lists a ranged descriptor whose
+    next index or last index is at least SLOW."""
+    return got[0] == "ok" and any(
+        d["range"] is not None and max(d["next_index"], d["range"][1]) >= SLOW
+        for d in got[1]["descriptors"])
+
+
+def unranged_span(data):
+    """Whether `data` holds a `walletdescriptor` record of a descriptor that
+    is not ranged (no `*` in its text) whose range spans more than one
+    index."""
+    con = sqlite3.connect(":memory:", isolation_level=None)
+    con.deserialize(data)
+    values = [bytes(v) for (k, v) in con.execute("SELECT key, value FROM main")
+              if record_type(bytes(k).hex()) == "walletdescriptor"]
+    con.close()
+    for v in values:
+        if len(v) < 21 or v[0] >= 253 or v[0] + 21 != len(v):
+            continue
+        start = int.from_bytes(v[-8:-4], "little", signed=True)
+        end = int.from_bytes(v[-4:], "little", signed=True)
+        if b"*" not in v[1:1 + v[0]] and end - start > 1:
+            return True
     return False
+
+
+def load_wait(got):
+    """How long Core's loadwallet is waited for, given Faraday's reading."""
+    return SLOW_WAIT if slow_range(got) else LOAD_WAIT
+
+
+def range_shown(got, listed):
+    """Whether Core's listing `listed` (on a node with -keypool=1) shows,
+    for each descriptor it lists and Faraday's reading `got` does not, a
+    range Faraday's rule refuses: none (Core does not read the range of a
+    descriptor that is not ranged), a negative next index or start, a
+    start past its end, or an end at the next index (Core topped up an end
+    it read at or before the next index). False where there is none."""
+    if got[0] != "ok" or isinstance(listed, tuple):
+        return False
+    read = {d["listed"] for d in got[1]["descriptors"]}
+    others = [d for d in listed if d["desc"] not in read]
+    if not others:
+        return False
+    for d in others:
+        r, n = d.get("range"), d.get("next_index", d.get("next"))
+        if r is None or n is None:
+            continue
+        if not (n < 0 or r[0] < 0 or r[0] > r[1] + 1 or r[1] == n):
+            return False
+    return True
+
+
+def encoding_shown(got, data):
+    """Whether Faraday's refusal `got` is of the header's text encoding
+    and SQLite reads the field of `data` as UTF-8 (its low two bits 0 or
+    1, prepare.c `sqlite3InitOne`)."""
+    return (got[0] != "ok" and "text encoding" in got[1]
+            and int.from_bytes(data[56:60], "big") & 3 in (0, 1))
+
+
+def wants_book(got):
+    """Whether Core's address book is asked of a file: where Faraday names
+    a purpose or name record it cannot read."""
+    return got[0] == "ok" and any((f[0].split(" ")[0], f[1]) in BOOK
+                                  for f in got[1]["failures"])
+
+
+def raw_call(url, method, *params):
+    """Costs an RPC call: Core's answer to `method`, its bytes that are not
+    UTF-8 kept as surrogate escapes (a label Core read as written), which
+    the vendored client cannot decode."""
+    import base64
+    import urllib.parse
+    u = urllib.parse.urlparse(url)
+    body = json.dumps({"jsonrpc": "1.0", "id": 1, "method": method, "params": list(params)},
+                      ensure_ascii=False).encode("utf-8", "surrogateescape")
+    auth = base64.b64encode(f"{u.username}:{u.password}".encode()).decode()
+    conn = http.client.HTTPConnection(u.hostname, u.port, timeout=60)
+    try:
+        conn.request("POST", u.path or "/", body, {"Authorization": "Basic " + auth,
+                                                   "Content-Type": "application/json"})
+        answer = json.loads(conn.getresponse().read().decode("utf-8", "surrogateescape"))
+    finally:
+        conn.close()
+    if answer.get("error"):
+        raise RuntimeError(answer["error"])
+    return answer["result"]
+
+
+def label_shown(got, core, changed):
+    """Whether Core's reading shows each of Faraday's name record failures:
+    Core lists the record's address with a label that is not UTF-8 or is
+    shorter than the bytes the record's value holds after its length."""
+    labels = core[3] if len(core) > 3 else {}
+    con = sqlite3.connect(":memory:", isolation_level=None)
+    con.deserialize(changed)
+    values = {bytes(k): bytes(v) for (k, v) in con.execute("SELECT key, value FROM main")
+              if record_type(bytes(k).hex()) == "name"}
+    con.close()
+    fails = [f[0] for f in got[1]["failures"] if (f[0].split(" ")[0], f[1]) == ("name", "Layout")]
+    if not fails:
+        return False
+    for failure in fails:
+        address = purpose_address(failure)
+        if address is None or address not in labels:
+            return False
+        value = values.get(b"\x04name" + bytes([len(address)]) + address.encode("latin-1"))
+        label = labels[address]
+        try:
+            label.decode("utf-8")
+            utf8 = True
+        except UnicodeDecodeError:
+            utf8 = False
+        if value is None or (utf8 and len(label) >= len(value) - 1):
+            return False
+    return True
 
 
 def wif_uncompressed(key):
@@ -260,8 +479,22 @@ class CoreWallet(Area):
             "key's stored hash and public key, a descriptor's id and checksum, and flags and "
             "records Core's loader ignores. A changed file Core loads and Faraday does not "
             "call whole is counted, and must name a record and fault of the listed set; "
-            "nothing is asked of Core there beyond that it loads, except for a purpose record "
-            "Faraday cannot read, where Core must list the address's purpose as unknown."
+            "nothing is asked of Core there beyond that it loads, except where Core's own "
+            "reading must show the condition: a purpose record Faraday cannot read (Core lists "
+            "the address's purpose as unknown), a block locator that does not read as one "
+            "(Core shows it read no locator from the record), a descriptor's range or next "
+            "index out of order (Core lists it so, loaded with -keypool=1), and a header text "
+            "encoding other than the three the file format names (SQLite reads it as UTF-8)."
+        ),
+        (
+            "Core reads each transaction record as it loads and refuses a wallet one of which "
+            "does not read; Faraday counts them. Core derives every index of a descriptor's "
+            "range, and tops it up to its next index, as it loads; it refuses a descriptor "
+            "that is not ranged whose stored range spans more than one index (the same "
+            "script twice), whose range Faraday does not read. Past 2^16 the area does not "
+            "wait for Core's answer (past 2^19 it takes minutes), and Faraday, which derives "
+            "nothing as it reads, reads such a file whole; it is counted where Core did not "
+            "answer. Each is asked of Core in the prelude."
         ),
         (
             "Core runs SQLite's integrity check when it loads a wallet and refuses a file "
@@ -358,49 +591,83 @@ class CoreWallet(Area):
         shutil.rmtree(path.parent, ignore_errors=True)
         return facts
 
-    def loads(self, data, name, book=False):
+    def loads(self, data, name, book=False, node=None, timeout=120, unlock=False):
         """Costs a bitcoind start and a wallet load: whether `loadwallet`
         opens `data` as a wallet, and what it lists then. The node is one
         of its own for each file (Core can stop on a damaged file, and the
         run's node is shared); one that stops is the answer "stopped".
-        With `book`, a third item: each labelled address's purpose as
-        `getaddressesbylabel` gives it ("unknown" where Core holds none)."""
+        With `book`, a third and fourth item: each labelled address's purpose
+        as `getaddressesbylabel` gives it ("unknown" where Core holds none),
+        and its label's bytes as Core gives them (`raw_call`).
+        With `unlock`, a third item: "ok" where `walletpassphrase` opens the
+        wallet with the passphrase, else Core's refusal.
+        Given a `node` (a `core_node.Node` with wallets, on regtest at its
+        genesis block, as a fresh one is), the file is loaded there and
+        unloaded after, and no node is started."""
+        if node is None:
+            with core_node.Node(rpc_threads=4, wallet=True) as fresh:
+                return self.loads(data, name, book, fresh, timeout, unlock)
         import sys
         folder = str(ROOT / "tools" / "reference" / "core")
         if folder not in sys.path:
             sys.path.insert(0, folder)
         from test_framework.authproxy import AuthServiceProxy
 
-        def client(node, path=""):
-            c = AuthServiceProxy(node.info["url"] + path, timeout=120)
+        def client(path=""):
+            c = AuthServiceProxy(node.info["url"] + path, timeout=timeout)
             c.reuse_http_connections = False
             return c
 
-        with core_node.Node(rpc_threads=4, wallet=True) as node:
-            where = node.scratch / "data" / "regtest" / "wallets" / name
-            where.mkdir(parents=True)
-            (where / "wallet.dat").write_bytes(data)
-            try:
-                client(node).loadwallet(name)
-            except (ConnectionError, OSError, http.client.HTTPException):
-                return ("err", "stopped")
-            except Exception as e:  # noqa: BLE001 - a refusal of Core's is the answer
-                return ("err", str(e))
-            try:
-                listed = client(node, f"/wallet/{name}").listdescriptors()["descriptors"]
-            except Exception as e:  # noqa: BLE001
-                listed = ("err", str(e))
-            if not book:
-                return ("ok", listed)
-            w = client(node, f"/wallet/{name}")
-            purposes = {}
+        where = node.scratch / "data" / "regtest" / "wallets" / name
+        where.mkdir(parents=True)
+        (where / "wallet.dat").write_bytes(data)
+        try:
+            client().loadwallet(name)
+        except (ConnectionError, OSError, http.client.HTTPException):
+            return ("err", "stopped")
+        except Exception as e:  # noqa: BLE001 - a refusal of Core's is the answer
+            shutil.rmtree(where, ignore_errors=True)
+            return ("err", str(e))
+        w = client(f"/wallet/{name}")
+        try:
+            listed = w.listdescriptors()["descriptors"]
+        except Exception as e:  # noqa: BLE001
+            listed = ("err", str(e))
+        out = ("ok", listed)
+        if book:
+            purposes, labels = {}, {}
+            wallet_url = node.info["url"] + f"/wallet/{name}"
             try:
                 for label in w.listlabels():
                     for address, entry in w.getaddressesbylabel(label).items():
                         purposes[address] = entry["purpose"]
             except Exception:  # noqa: BLE001 - nothing listed shows no condition
                 purposes = {}
-            return ("ok", listed, purposes)
+            try:
+                # Every address of the book with its label, none asked by a
+                # label (Core's JSON parser refuses one that is not UTF-8).
+                for entry in raw_call(wallet_url, "listreceivedbyaddress", 0, True, True):
+                    if "label" in entry:
+                        labels[entry["address"]] = entry["label"].encode("utf-8",
+                                                                         "surrogateescape")
+            except Exception:  # noqa: BLE001
+                labels = {}
+            out = ("ok", listed, purposes, labels)
+        if unlock:
+            try:
+                w.walletpassphrase(PASSPHRASE, 1)
+                unlocked = "ok"
+            except Exception as e:  # noqa: BLE001 - Core's refusal is the answer
+                unlocked = str(e)
+            out = ("ok", listed, unlocked)
+        try:
+            client().unloadwallet(name)
+        except (ConnectionError, OSError, http.client.HTTPException):
+            pass
+        except Exception:  # noqa: BLE001 - the answer is taken; the node is the caller's
+            pass
+        shutil.rmtree(where, ignore_errors=True)
+        return out
 
     # ----- The comparison ---------------------------------------------------
 
@@ -520,7 +787,12 @@ class CoreWallet(Area):
         self.directed_known()
         self.directed_outside_records()
         self.directed_cross_chain()
+        self.directed_shown()
+        self.directed_slow()
+        self.directed_unranged()
         for record, why in LENIENT.items():
+            if record == "tx":
+                continue  # made in directed_shown
             for shape in ("plain", "watchonly"):
                 facts = self.make(shape, f"k-{record}-{shape}", mine=False)
                 con = sqlite3.connect(":memory:", isolation_level=None)
@@ -632,14 +904,165 @@ class CoreWallet(Area):
                     if got[0] == "ok" else set())
             self.known += 1
             if not (got[0] == "ok" and not got[1]["whole"] and ("purpose", "Layout") in said
-                    and core[0] == "ok" and shown_by_core(("purpose", "Layout"), got, core)):
+                    and core[0] == "ok" and self.shown_by_core(("purpose", "Layout"), got, core,
+                                                              changed, "k-known-purpose")):
                 raise Mismatch(self.name, "core_wallet.read", {"changed": "purpose " + what},
                                [got[0], sorted(said)], [core[0], core[2:]],
                                "the listed difference no longer holds: Core loads a purpose "
                                "record that is not one whole UTF-8 string and lists its "
                                "address with the purpose \"unknown\", and Faraday names it "
                                "as a Layout fault")
+        # A name record (a label) changed the same two ways.
+        name = [k for k in keys("name") if len(value(k)) > 2][0]
+        text = value(name)
+        for what, new in (("not UTF-8", text[:1] + bytes([text[1] | 0x80]) + text[2:]),
+                          ("bytes left over", bytes([text[0] - 1]) + text[1:])):
+            con.deserialize(labelled)
+            edit(name, new)
+            changed = con.serialize()
+            got = self.rust.call("core_wallet.read", db=changed.hex())
+            core = self.loads(changed, f"k-known-name-{what.split()[0]}", book=True)
+            self.known += 1
+            if not (got[0] == "ok" and ("name", "Layout") in faraday_said(got)
+                    and core[0] == "ok" and self.shown_by_core(("name", "Layout"), got, core,
+                                                              changed, "k-known-name")):
+                raise Mismatch(self.name, "core_wallet.read", {"changed": "name " + what},
+                               faraday_said(got), [core[0], core[3:]],
+                               "the listed difference no longer holds: "
+                               + KNOWN_SHOWN[("name", "Layout")])
         con.close()
+
+    def directed_shown(self):
+        """Each KNOWN_SHOWN entry of a locator, a range or the text
+        encoding, made in a wallet Core made and asked of Core: Core loads
+        the file, Faraday names the record and fault, and Core's reading
+        shows it (`shown_by_core`); and a transaction record that does not
+        read, which Core refuses as corrupted and Faraday reads whole."""
+        plain = self.make("plain", "k-shown", mine=True)
+        data = plain["file"]
+
+        def changed_value(record, change, nth=0):
+            con = sqlite3.connect(":memory:", isolation_level=None)
+            con.deserialize(data)
+            key, value = [(bytes(k), bytes(v)) for (k, v) in
+                          con.execute("SELECT key, value FROM main ORDER BY rowid")
+                          if record_type(bytes(k).hex()) == record][nth]
+            con.execute("UPDATE main SET value = ? WHERE key = ?", (change(value), key))
+            out = con.serialize()
+            con.close()
+            return out
+
+        def at(raw, where, new):
+            return raw[:where] + new + raw[where + len(new):]
+
+        def tail(field, v):
+            # The descriptor's value ends in the time, then the next
+            # index, the range's start and its end, four bytes each.
+            where = {"next": -12, "start": -8, "end": -4}[field]
+            return lambda raw: at(raw, len(raw) + where, v.to_bytes(4, "little", signed=True))
+
+        cases = [
+            (("bestblock", "Layout"), "the count raised",
+             changed_value("bestblock", lambda v: at(v, 4, bytes([v[4] ^ 0x40])))),
+            (("bestblock_nomerkle", "Layout"), "the count raised",
+             changed_value("bestblock_nomerkle", lambda v: at(v, 4, bytes([v[4] ^ 0x40])))),
+            (("bestblock_nomerkle", "Layout"), "the count 0",
+             changed_value("bestblock_nomerkle", lambda v: at(v, 4, b"\0"))),
+            (("walletdescriptor", "Range"), "the next index -1",
+             changed_value("walletdescriptor", tail("next", -1))),
+            (("walletdescriptor", "Range"), "the start past the end",
+             changed_value("walletdescriptor", tail("start", 1 << 20))),
+            (("walletdescriptor", "Range"), "the end -1",
+             changed_value("walletdescriptor", tail("end", -1))),
+            (("file", "File"), "text encoding 0", at(data, 56, (0).to_bytes(4, "big"))),
+            (("file", "File"), "text encoding 5", at(data, 56, (5).to_bytes(4, "big"))),
+        ]
+        for n, (known, what, changed) in enumerate(cases):
+            got = self.rust.call("core_wallet.read", db=changed.hex())
+            core = self.loads(changed, f"k-shown-{n}")
+            self.known += 1
+            if not (core[0] == "ok" and known in faraday_said(got)
+                    and self.shown_by_core(known, got, core, changed, f"k-shown-{n}")):
+                raise Mismatch(self.name, "core_wallet.read", {"changed": what},
+                               faraday_said(got), core[0],
+                               f"the listed difference no longer holds: {KNOWN_SHOWN[known]}")
+        encrypted = self.make("encrypted", "k-shown-mkey", mine=False)["file"]
+        con = sqlite3.connect(":memory:", isolation_level=None)
+        con.deserialize(encrypted)
+        con.execute("DELETE FROM main WHERE key IN (SELECT key FROM main WHERE "
+                    "substr(key, 2, 4) = CAST('mkey' AS BLOB))")
+        changed = con.serialize()
+        con.close()
+        known = ("walletdescriptorckey", "NoMasterKey")
+        got = self.rust.call("core_wallet.read", db=changed.hex(), passphrase=PASSPHRASE)
+        core = self.loads(changed, "k-shown-mkey-d")
+        self.known += 1
+        if not (core[0] == "ok" and known in faraday_said(got)
+                and self.shown_by_core(known, got, core, changed, "k-shown-mkey-d")):
+            raise Mismatch(self.name, "core_wallet.read", {"changed": "the master key dropped"},
+                           faraday_said(got), core[0],
+                           f"the listed difference no longer holds: {KNOWN_SHOWN[known]}")
+        changed = changed_value("tx", lambda v: v[:-1])
+        got = self.rust.call("core_wallet.read", db=changed.hex())
+        core = self.loads(changed, "k-shown-tx")
+        self.known += 1
+        if not (got[0] == "ok" and got[1]["whole"] and core[0] == "err"
+                and CORRUPTED in str(core[1])):
+            raise Mismatch(self.name, "core_wallet.read", {"changed": "a transaction cut short"},
+                           got[0], core, f"the listed difference no longer holds: {LENIENT['tx']}")
+
+    def directed_unranged(self):
+        """The range of the descriptor of an imported uncompressed key (not
+        ranged) made to span five indexes: Faraday reads the file whole,
+        and Core refuses it as corrupted."""
+        facts = self.make("uncompressed", "k-unranged", mine=False)
+        con = sqlite3.connect(":memory:", isolation_level=None)
+        con.deserialize(facts["file"])
+        rows = [(bytes(k), bytes(v)) for (k, v) in
+                con.execute("SELECT key, value FROM main ORDER BY rowid")
+                if record_type(bytes(k).hex()) == "walletdescriptor"
+                and b"*" not in bytes(v)[1:1 + bytes(v)[0]]]
+        if not rows:
+            con.close()
+            raise Mismatch(self.name, "core_wallet.read", {}, None, None,
+                           "no descriptor that is not ranged to change")
+        key, value = rows[0]
+        con.execute("UPDATE main SET value = ? WHERE key = ?",
+                    (value[:-4] + (5).to_bytes(4, "little"), key))
+        changed = con.serialize()
+        con.close()
+        got = self.rust.call("core_wallet.read", db=changed.hex())
+        core = self.loads(changed, "k-unranged-d")
+        self.known += 1
+        if not (got[0] == "ok" and got[1]["whole"] and unranged_span(changed)
+                and core[0] == "err" and CORRUPTED in str(core[1])):
+            raise Mismatch(self.name, "core_wallet.read", {"changed": "unranged range end 5"},
+                           got[0], core, "the listed difference no longer holds: Core derives "
+                           "each index of a descriptor's range as it loads and refuses the same "
+                           "script twice")
+
+    def directed_slow(self):
+        """A next index of 2^24: Faraday reads the file whole and lists it,
+        and Core, deriving each index to it as it loads, does not answer in
+        SLOW_WAIT seconds."""
+        facts = self.make("watchonly", "k-slow", mine=False)
+        con = sqlite3.connect(":memory:", isolation_level=None)
+        con.deserialize(facts["file"])
+        key, value = [(bytes(k), bytes(v)) for (k, v) in
+                      con.execute("SELECT key, value FROM main ORDER BY rowid")
+                      if record_type(bytes(k).hex()) == "walletdescriptor"][0]
+        value = value[:-12] + (1 << 24).to_bytes(4, "little") + value[-8:]
+        con.execute("UPDATE main SET value = ? WHERE key = ?", (value, key))
+        changed = con.serialize()
+        con.close()
+        got = self.rust.call("core_wallet.read", db=changed.hex())
+        core = self.loads(changed, "k-slow-d", timeout=load_wait(got))
+        self.known += 1
+        if not (got[0] == "ok" and got[1]["whole"] and slow_range(got)
+                and (core == ("err", "stopped") or TIMED_OUT in str(core[1]))):
+            raise Mismatch(self.name, "core_wallet.read", {"changed": "next index 2^24"},
+                           got[0], core, "the listed difference no longer holds: Core derives "
+                           "each index to a descriptor's next index as it loads")
 
     def directed_index(self):
         """A byte changed in a record's key that Faraday reads as another
@@ -770,35 +1193,94 @@ class CoreWallet(Area):
             self.judge_changed(facts, changed, f"{stem}-{n}", desc)
         con.close()
 
+    def shown_by_core(self, known, got, core, changed, name, node=None):
+        """Whether Core's own reading of the file shows the condition of each of
+        Faraday's failures of the KNOWN_SHOWN entry `known`. A purpose record:
+        Core lists its address with the purpose "unknown". A block locator
+        record: Core reads no locator from it, which it shows by a variant
+        of the file with the last byte of `bestblock_nomerkle` changed (the
+        genesis hash its locator ends in): Core refuses that variant as a
+        wallet of another chain where it falls back from an unread
+        `bestblock` to `bestblock_nomerkle`, and loads it where it reads no
+        locator from `bestblock_nomerkle` (walletdb.cpp `ReadBestBlock`,
+        wallet.cpp `AttachChain`). Costs a further load for a locator."""
+        if known == ("name", "Layout"):
+            return label_shown(got, core, changed)
+        if known == ("purpose", "Layout"):
+            book = core[2] if len(core) > 2 else {}
+            addresses = [purpose_address(f[0]) for f in got[1]["failures"]
+                         if (f[0].split(" ")[0], f[1]) == known]
+            return bool(addresses) and all(a is not None and book.get(a) == "unknown"
+                                           for a in addresses)
+        if known[1] == "Layout" and known[0] in LOCATORS:
+            variant = locator_end_changed(changed)
+            if variant is None:
+                return False
+            again = self.loads(variant, name + "-v", node=node)
+            if known[0] == "bestblock":
+                return again[0] == "err" and CROSS_CHAIN in again[1]
+            return again[0] == "ok"
+        if known == ("walletdescriptor", "Range"):
+            with core_node.Node(rpc_threads=4, wallet=True, args=["-keypool=1"]) as one:
+                again = self.loads(changed, name + "-k", node=one, timeout=load_wait(got))
+            return again[0] == "ok" and range_shown(got, again[1])
+        if known == ("file", "File"):
+            return encoding_shown(got, changed)
+        if known == ("walletdescriptorckey", "NoMasterKey"):
+            again = self.loads(changed, name + "-u", node=node, unlock=True)
+            return again[0] == "ok" and again[2] != "ok"
+        return False
+
     def judge_changed(self, facts, changed, name, desc):
+        got = self.read_changed(facts, changed)
+        core = self.loads(changed, name, book=wants_book(got), timeout=load_wait(got))
+        outcome = self.verdict(facts, changed, name, desc, got, core)
+        if outcome[0] == "diff":
+            _, said, core_said, note = outcome
+            raise Mismatch(self.name, "core_wallet.read",
+                           {"shape": facts["shape"], "db": changed.hex(), **desc},
+                           said, core_said, note)
+        if outcome[0] == "known":
+            self.known += 1
+
+    def read_changed(self, facts, changed):
+        """Faraday's reading of a changed file, with the passphrase where
+        the wallet Core made was encrypted."""
         encrypted = "unlocked_until" in facts["info"]
         got = self.rust.call("core_wallet.read", db=changed.hex(),
                              **({"passphrase": PASSPHRASE} if encrypted else {}))
         self.compared += 1
-        book = got[0] == "ok" and any((f[0].split(" ")[0], f[1]) in KNOWN_SHOWN
-                                      for f in got[1]["failures"])
-        core = self.loads(changed, name, book=book)
-        inputs = {"shape": facts["shape"], "db": changed.hex(), **desc}
+        return got
+
+    def verdict(self, facts, changed, name, desc, got, core, node=None):
+        """Faraday's reading `got` and Core's `loads` answer `core` of a
+        changed file, judged: ("agree",), ("known", why) or ("diff",
+        Faraday's side, Core's side, note). Costs a further load of Core's
+        where a KNOWN_SHOWN entry asks Core of a variant of the file."""
         whole = got[0] == "ok" and got[1]["whole"]
         if whole:
-            if (core[0] != "ok" and desc.get("kind") in ("drop", "flip")
-                    and record_type(desc["record"]) in LENIENT):
-                self.known += 1
-                return
+            lenient = desc.get("kind") in ("drop", "flip") and record_type(desc["record"])
+            if (core[0] != "ok" and lenient in LENIENT
+                    and (lenient != "tx" or CORRUPTED in str(core[1]))):
+                return ("known", lenient)
+            if (core[0] == "err" and CORRUPTED in str(core[1]) and lenient == "walletdescriptor"
+                    and unranged_span(changed)):
+                return ("known", "unranged span")
+            if (core[0] != "ok" and slow_range(got)
+                    and (core == ("err", "stopped") or TIMED_OUT in str(core[1]))):
+                return ("known", "slow load")
             if core[0] == "err" and desc.get("kind") == "flip" and INDEX in core[1]:
                 # The flipped bytes are a copy of a key (an id also sits in
                 # other records' values), found in the table, not the index.
-                self.known += 1
-                return
+                return ("known", "index")
             if (core[0] == "err" and desc.get("kind") == "flip"
                     and record_type(desc["record"]) in LOCATORS and CROSS_CHAIN in core[1]):
-                self.known += 1
-                return
+                return ("known", "cross-chain")
             if core[0] != "ok":
-                raise Mismatch(self.name, "core_wallet.read", inputs, "whole", core,
-                               "Faraday called a file whole that Core's loadwallet refuses")
+                return ("diff", "whole", core,
+                        "Faraday called a file whole that Core's loadwallet refuses")
             if isinstance(core[1], tuple):
-                return
+                return ("agree",)
             # Core tops the key pool up as it loads, so the range and next
             # index are not compared here.
             def loose(rows):
@@ -806,26 +1288,18 @@ class CoreWallet(Area):
 
             if (loose(faraday_listing(got[1]["descriptors"]))
                     != loose(core_listing(core[1]))):
-                raise Mismatch(self.name, "core_wallet.read", inputs,
-                               faraday_listing(got[1]["descriptors"]),
-                               core_listing(core[1]),
-                               "Faraday and Core list different descriptors")
-        elif core[0] == "ok":
-            # Core loads it and Faraday does not call it whole.
-            if got[0] == "ok":
-                said = sorted({(f[0].split(" ")[0], f[1]) for f in got[1]["failures"]})
-                if (got[1]["passphrase"] == "wrong"):
-                    said = [("mkey", "Passphrase")]
-                if got[1].get("failures_more", 0) > 0:
-                    # Failures past the list are a difference of their own.
-                    said.append(("more", "failures past the list"))
-            else:
-                said = [("file", got[1].split("(")[0])]
-            for one in said:
-                if one in KNOWN_SHOWN and shown_by_core(one, got, core):
-                    continue
-                if one not in KNOWN:
-                    raise Mismatch(self.name, "core_wallet.read", inputs, one, core[0],
-                                   "Core loads a file Faraday does not call whole, and the "
-                                   "difference is not listed in KNOWN")
-            self.known += 1
+                return ("diff", faraday_listing(got[1]["descriptors"]), core_listing(core[1]),
+                        "Faraday and Core list different descriptors")
+            return ("agree",)
+        if core[0] != "ok":
+            return ("agree",)
+        # Core loads it and Faraday does not call it whole.
+        said = faraday_said(got)
+        for one in said:
+            if one in KNOWN_SHOWN and self.shown_by_core(one, got, core, changed, name, node):
+                continue
+            if one not in KNOWN:
+                return ("diff", one, core[0],
+                        "Core loads a file Faraday does not call whole, and the "
+                        "difference is not listed in KNOWN")
+        return ("known", " ".join("/".join(one) for one in said))

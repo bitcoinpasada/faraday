@@ -269,8 +269,9 @@ pub struct Descriptor {
     /// and the account key Core cached for it, a key with an origin with
     /// its origin, hardened steps written `h`.
     pub listed: String,
-    /// Unix time the descriptor was made.
-    pub creation_time: i64,
+    /// Unix time the descriptor was made, unsigned as Bitcoin Core writes
+    /// it (`WalletDescriptor::creation_time`).
+    pub creation_time: u64,
     /// The next index to hand out, as written.
     pub next_index: i32,
     /// The first and the last index derived as `listdescriptors` gives
@@ -962,7 +963,7 @@ impl Reader<'_> {
             rest.is_empty().then(|| {
                 (
                     text,
-                    i64::from_le_bytes(*time),
+                    u64::from_le_bytes(*time),
                     i32::from_le_bytes(*next),
                     i32::from_le_bytes(*start),
                     i32::from_le_bytes(*end),

@@ -71,7 +71,7 @@ fn each_wallet_reads_as_core_lists_it() {
                 .descriptors
                 .iter()
                 .find(|w| {
-                    d["timestamp"].as_i64() == Some(w.creation_time)
+                    d["timestamp"].as_u64() == Some(w.creation_time)
                         && d["next_index"].as_i64().unwrap_or(0) == i64::from(w.next_index)
                         && d["range"].as_array().map(|r| r[1].as_i64())
                             == w.range.map(|r| Some(i64::from(r.1)))
@@ -282,6 +282,30 @@ fn a_block_locator_with_a_count_past_the_file_is_refused() {
 }
 
 #[test]
+fn a_creation_time_past_i64_is_read_unsigned_as_core_lists_it() {
+    // Bitcoin Core writes the time as a uint64_t and lists it as one: its
+    // top bit set is a time past 2^63, not a negative one.
+    let once = read_with("plain", None, |_| {});
+    let wallet = read_with("plain", None, |records| {
+        let (_, v) = records
+            .iter_mut()
+            .find(|(k, _)| k.get(1..=16) == Some(b"walletdescriptor".as_slice()) && k[0] == 16)
+            .expect("descriptor");
+        // The text, then the time (8 bytes), the next index and the range.
+        let at = v.len() - 20 + 7;
+        v[at] |= 0x80;
+    });
+    assert!(wallet.is_whole(), "{:?}", wallet.failures);
+    let raised: Vec<u64> = wallet.descriptors.iter().map(|d| d.creation_time).collect();
+    let before: Vec<u64> = once.descriptors.iter().map(|d| d.creation_time).collect();
+    assert!(
+        raised
+            .iter()
+            .any(|t| *t >= 1 << 63 && before.contains(&(t - (1 << 63))))
+    );
+}
+
+#[test]
 fn a_purpose_that_is_not_one_whole_utf8_string_fails_its_record() {
     // Bitcoin Core loads such a record and keeps the address with no
     // purpose; Faraday names it and does not call the wallet whole.
@@ -425,7 +449,7 @@ fn a_wallet_dat_read_whole_gives_what_core_lists() {
         for d in listed {
             assert!(
                 wallet.descriptors.iter().any(|w| {
-                    d["timestamp"].as_i64() == Some(w.creation_time)
+                    d["timestamp"].as_u64() == Some(w.creation_time)
                         && d["next_index"].as_i64().unwrap_or(0) == i64::from(w.next_index)
                         && d["range"].as_array().map(|r| r[1].as_i64())
                             == w.range.map(|r| Some(i64::from(r.1)))

@@ -12,6 +12,9 @@
 #   tools/crosscheck/run.sh --jobs 4        four workers (default: one a core)
 #   tools/crosscheck/run.sh --identity      the same report under 1 and 4 workers
 #                                           (and PyPy when found): identity.py
+#   tools/crosscheck/run.sh --sweep-core-wallet [--shapes plain,blank] [--jobs N]
+#                                           the core_wallet area's sweep instead
+#                                           (sweep_core_wallet.py)
 #
 # A --fresh run also writes out/crosscheck-record.txt (record.py), which the
 # release carries beside SHA256SUMS.
@@ -47,6 +50,11 @@ if [ -z "$exe" ]; then
     exit 2
 fi
 say "build: done"
+if [ "${1:-}" = "--sweep-core-wallet" ]; then
+    shift
+    exec unshare --user --map-root-user --net \
+        python3 -I -B tools/crosscheck/sweep_core_wallet.py --rust "$exe" "$@"
+fi
 
 # The Go answer programs, LND's over the vendored tree of tools/reference/lnd/
 # btcd's BIP-322 over tools/reference/btcd-bip322/ and a released btcd's

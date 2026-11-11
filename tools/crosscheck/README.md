@@ -1147,8 +1147,22 @@ difference"), and says why.
     checksum, and flags and records Core's loader ignores. A changed
     file Core loads and Faraday does not call whole is counted, and must
     name a record and fault of the listed set; nothing is asked of Core
-    there beyond that it loads, except for a purpose record Faraday
-    cannot read, where Core must list the address's purpose as unknown.
+    there beyond that it loads, except where Core's own reading must
+    show the condition: a purpose record Faraday cannot read (Core lists
+    the address's purpose as unknown), a block locator that does not
+    read as one (Core shows it read no locator from the record), a
+    descriptor's range or next index out of order (Core lists it so,
+    loaded with -keypool=1), and a header text encoding other than the
+    three the file format names (SQLite reads it as UTF-8).
+  - Core reads each transaction record as it loads and refuses a wallet
+    one of which does not read; Faraday counts them. Core derives every
+    index of a descriptor's range, and tops it up to its next index, as
+    it loads; it refuses a descriptor that is not ranged whose stored
+    range spans more than one index (the same script twice), whose range
+    Faraday does not read. Past 2^16 the area does not wait for Core's
+    answer (past 2^19 it takes minutes), and Faraday, which derives
+    nothing as it reads, reads such a file whole; it is counted where
+    Core did not answer. Each is asked of Core in the prelude.
   - Core runs SQLite's integrity check when it loads a wallet and
     refuses a file in which a record's key was changed (the unique index
     beside the table still holds the old key), and refuses one whose
