@@ -3696,6 +3696,47 @@ impl Faraday {
         }
     }
 
+    /// The lines that name a wallet under its code: its shape and
+    /// network, and its keys' fingerprints.
+    pub(crate) fn wallet_label(&self, w: &wallet::Wallet) -> Vec<String> {
+        let net = self.session.network();
+        let shape = if net.is_mainnet() {
+            Session::shape(w)
+        } else {
+            format!("{} · {}", Session::shape(w), net.name())
+        };
+        let mut lines = vec![shape];
+        let all: Vec<String> = w
+            .policy()
+            .keys()
+            .iter()
+            .filter_map(|k| k.fingerprint().map(fp_text))
+            .collect();
+        if !all.is_empty() {
+            let word = if all.len() == 1 {
+                EN.wallet_label_key
+            } else {
+                EN.wallet_label_keys
+            };
+            lines.push(format!("{word} {}", all.join(" · ")));
+        }
+        lines
+    }
+
+    /// Takes out the wallets a key loaded by this press shows to hold
+    /// another seed's key under its fingerprint, and toasts the first one
+    /// ([`Session::drop_forged`]). A lookup unless a key was loaded.
+    pub(crate) fn drop_forged_wallets(&mut self) {
+        let c = self.compute();
+        let dropped = self.session.drop_forged(&c);
+        if let Some((name, why)) = dropped.first() {
+            let text = fill(EN.vaults_refused, &[name, why]);
+            self.wallets.set_wallet(0);
+            self.spend_after_wallet_removed();
+            self.toast(&text);
+        }
+    }
+
     /// Costs what `refresh_spend` costs. Keeps the open spend in step after
     /// a wallet was removed: it is closed when the wallet it was from is
     /// gone.

@@ -3720,33 +3720,6 @@ impl Faraday {
         }
     }
 
-    /// The lines that name a wallet under its code: its shape and
-    /// network, and its keys' fingerprints.
-    fn wallet_label(&self, w: &wallet::Wallet) -> Vec<String> {
-        let net = self.session.network();
-        let shape = if net.is_mainnet() {
-            Session::shape(w)
-        } else {
-            format!("{} · {}", Session::shape(w), net.name())
-        };
-        let mut lines = vec![shape];
-        let all: Vec<String> = w
-            .policy()
-            .keys()
-            .iter()
-            .filter_map(|k| k.fingerprint().map(fp_text))
-            .collect();
-        if !all.is_empty() {
-            let word = if all.len() == 1 {
-                EN.wallet_label_key
-            } else {
-                EN.wallet_label_keys
-            };
-            lines.push(format!("{word} {}", all.join(" · ")));
-        }
-        lines
-    }
-
     /// Costs an address derivation (through `address_at`), or `checked_config`.
     /// A wallet's public text file `what` (as [`Faraday::public_out`] numbers
     /// them): 2 the multisig config where it rebuilds the wallet, 6 BIP 129's.
@@ -5073,20 +5046,6 @@ impl Faraday {
         // one picture.
         let done = work::since(&before);
         slow::guard(action, &done);
-    }
-
-    /// Takes out the wallets a key loaded by this press shows to hold
-    /// another seed's key under its fingerprint, and toasts the first one
-    /// ([`Session::drop_forged`]). A lookup unless a key was loaded.
-    fn drop_forged_wallets(&mut self) {
-        let c = self.compute();
-        let dropped = self.session.drop_forged(&c);
-        if let Some((name, why)) = dropped.first() {
-            let text = fill(EN.vaults_refused, &[name, why]);
-            self.wallets.set_wallet(0);
-            self.spend_after_wallet_removed();
-            self.toast(&text);
-        }
     }
 
     /// What every press does once it has acted, however it came (a tap,
