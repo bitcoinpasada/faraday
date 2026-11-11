@@ -27,4 +27,4 @@ the targets Faraday builds for, all of which have `std`.
 **Reopen when** the document must be read where `std` is missing, or the
 crate changes how it reports references or offsets.
 
-**Review.** An exemption, not reviewed by a human (`supply-chain/config.toml`, F71); not read line by line here. It is a `[[not_established]]` library of the cryptography manifest by F213.
+**Review.** An exemption, not reviewed by a human (`supply-chain/config.toml`, F71); not read line by line here. The reader path Faraday calls was read by an AI and recorded under `ai-says-safe-to-deploy` in `supply-chain/audits.toml`; that is still not a review by a human. It is a `[[not_established]]` library of the cryptography manifest by F213.

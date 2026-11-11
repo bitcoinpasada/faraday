@@ -153,6 +153,33 @@ unfiltering (now split into filter/ with a portable-SIMD path behind the
 nightly feature) and Adam7 changes are safe Rust over caller-provided
 readers. No build script."""
 
+[[audits.quick-xml]]
+who = "bitcoinpasada <bitcoinpasada@proton.me>"
+criteria = "ai-says-safe-to-deploy"
+version = "0.41.0"
+notes = """
+The crate is `forbid(unsafe_code)` with `build = false`; Faraday enables no
+feature (only `memchr` is linked). Read the reader path Faraday calls,
+`Reader::from_reader` over `&[u8]` with `read_event` and `buffer_position`:
+lib.rs, reader/mod.rs (the event loop and close-markup macros, `BangType`),
+reader/slice_reader.rs, reader/state.rs (the `emit_*` functions), parser/
+(element, PI, comment, DTD skipping), the `BytesStart`, `BytesDecl`, `BytesPI`,
+`BytesText`, `BytesCData` and `BytesRef` accessors in events/mod.rs,
+`QName`/`LocalName` in name.rs, the `Attributes` iterator and
+`normalized_value` in events/attributes.rs, attribute normalization and
+character references in escape.rs, the UTF-8 `Decoder` and errors.rs. Every
+slice index is bounded by a terminator the scan found or by a prefix check
+(`<!--`, `<![CDATA[`, `<!DOCTYPE`, `<?` with `<?>` refused); the one
+`unwrap` is reached only with `expand_empty_elements`, which is off; each
+event scans forward once, the DTD is skipped in one pass, and entity
+expansion is limited to the five predefined entities at depth 1. Past 32
+attributes on one element the duplicate check keeps a `HashSet` of names
+hashed with `DefaultHasher::new()`, whose keys are fixed, so a crafted
+element could make it probe longer; the work stays bounded by the document.
+No I/O on this path (`from_file` is in the buffered reader). Not read: the
+buffered and namespace readers, the writer, the async-tokio, serde and
+encoding features."""
+
 [[audits.simd-adler32]]
 who = "bitcoinpasada <bitcoinpasada@proton.me>"
 criteria = "ai-says-safe-to-deploy"
