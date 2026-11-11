@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Writes the test vectors of the Argon2id Compact Envelope (docs/ACE.md §11).
+"""Writes the test vectors of the Argon QR Vault (AQRV) (docs/AQRV.md §11).
 
-    python3 -I -B tools/vectors/ace/gen.py            # writes ace.json, qr-53.png, qr-62.png
-    python3 -I -B tools/vectors/ace/gen.py --check    # compares, writes nothing
+    python3 -I -B tools/vectors/aqrv/gen.py            # writes aqrv.json, qr-53.png, qr-62.png
+    python3 -I -B tools/vectors/aqrv/gen.py --check    # compares, writes nothing
 
 Libraries Faraday's authors did not write: argon2-cffi (Argon2id), Python's
 hmac and hashlib (HMAC-SHA-256, HKDF-Expand, SHA-256, SHAKE-256), PyCA
@@ -651,7 +651,7 @@ def build():
         assert size == (29 if n == 53 else 33)
 
     doc = {
-        "about": "Test vectors for the Argon2id Compact Envelope, docs/ACE.md section 11. See README.md. Written by gen.py.",
+        "about": "Test vectors for the Argon QR Vault (AQRV), docs/AQRV.md section 11. See README.md. Written by gen.py.",
         "parameters": {
             "argon2id": {"passes": 3, "lanes": 4, "output_bytes": 32, "version": "0x13"},
             "steps": [{"step": s, "header": "0x%02X" % (0xF8 | s), "memory_kib": m} for s, m in STEPS.items()],
@@ -661,7 +661,7 @@ def build():
             "outcomes": {
                 "opens": "recognised, one kind's tag matches, the item reads: expect.kind and expect.item are what a reader shows",
                 "does_not_open": "recognised, asks for the passphrase, and reports that the code does not open",
-                "not_recognised": "not treated as ACE: no passphrase is asked for",
+                "not_recognised": "not treated as AQRV: no passphrase is asked for",
             },
         },
         "cases": cases,
@@ -669,7 +669,7 @@ def build():
         "qr": qrs,
     }
     text = json.dumps(doc, indent=1, ensure_ascii=True) + "\n"
-    out = {"ace.json": text.encode()}
+    out = {"aqrv.json": text.encode()}
     out.update(pngs)
     return out, len(cases)
 

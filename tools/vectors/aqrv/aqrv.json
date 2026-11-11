@@ -1,5 +1,5 @@
 {
- "about": "Test vectors for the Argon2id Compact Envelope, docs/ACE.md section 11. See README.md. Written by gen.py.",
+ "about": "Test vectors for the Argon QR Vault (AQRV), docs/AQRV.md section 11. See README.md. Written by gen.py.",
  "parameters": {
   "argon2id": {
    "passes": 3,
@@ -91,7 +91,7 @@
   "outcomes": {
    "opens": "recognised, one kind's tag matches, the item reads: expect.kind and expect.item are what a reader shows",
    "does_not_open": "recognised, asks for the passphrase, and reports that the code does not open",
-   "not_recognised": "not treated as ACE: no passphrase is asked for"
+   "not_recognised": "not treated as AQRV: no passphrase is asked for"
   }
  },
  "cases": [

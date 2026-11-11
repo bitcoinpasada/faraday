@@ -1,15 +1,15 @@
-# ACE vectors
+# AQRV vectors
 
-Test vectors for the Argon2id Compact Envelope (`docs/ACE.md` §11): one
+Test vectors for the Argon QR Vault (AQRV) (`docs/AQRV.md` §11): one
 small secret under a passphrase, in 53 or 62 bytes. No implementation of
 the format exists yet; these vectors are for the first ones, and for a
 reviewer who writes a reader from the document alone.
 
 | File | What it holds |
 |---|---|
-| `ace.json` | every case, each with its inputs, every intermediate value and the expected outcome |
+| `aqrv.json` | every case, each with its inputs, every intermediate value and the expected outcome |
 | `gen.py` | writes the other files; `--check` compares without writing |
-| `check.py` | a second reader and writer, written from `docs/ACE.md` §2 to §10 alone, run over every case |
+| `check.py` | a second reader and writer, written from `docs/AQRV.md` §2 to §10 alone, run over every case |
 | `qr-53.png`, `qr-62.png` | the QR code of the 24-word step 0 case at each size (version 3 level L, 29 × 29; version 4 level M, 33 × 33), 8 pixels a module, 4 modules of quiet zone, 1-bit greyscale, with the three chunks a PNG needs and no metadata |
 
 ## What computed them
@@ -37,7 +37,7 @@ checks the vectors and is not meant to be used.
 
 ## A case
 
-`ace.json` has `parameters` (the steps, labels, sizes, kinds and the three
+`aqrv.json` has `parameters` (the steps, labels, sizes, kinds and the three
 outcomes), `cases`, `writer_refuses` and `qr`. Every case has `name`, `group`,
 `size` (53 or 62), `passphrase`, `envelope` (hex) and `expect`. A case that
 opens also has:
@@ -59,7 +59,7 @@ opens also has:
 - `opens`: recognised, one kind's tag matches, the item reads as `expect.item`;
 - `does_not_open`: recognised, a passphrase is asked for, and the code does not
   open. `expect.why` and `expect.reason` say how;
-- `not_recognised`: not treated as ACE (§9), so no passphrase is asked for.
+- `not_recognised`: not treated as AQRV (§9), so no passphrase is asked for.
 
 ## Groups
 
@@ -83,11 +83,11 @@ opens also has:
 - A KEF envelope from Krux's own tests is not here: `tools/reference/krux/` holds
   only `bbqr.py` and `qr.py`, with no test file, and no code was fetched for this. The
   two envelopes above stand for it.
-- A pair of kinds whose tags agree is not offered (`docs/ACE.md` §11): `gen.py` stops
+- A pair of kinds whose tags agree is not offered (`docs/AQRV.md` §11): `gen.py` stops
   if a case has one, and every salt in the file avoids it.
 - The QR pictures were decoded by zxing-cpp and by zbar (the decoders `tools/crosscheck`
   uses), and both return the envelope's bytes. `check.py` also reads the PNG itself and
-  compares its modules with the matrix in `ace.json`, and the three chunks.
+  compares its modules with the matrix in `aqrv.json`, and the three chunks.
 
 ## The second reader
 
@@ -98,13 +98,13 @@ takes an envelope and a passphrase and answers not recognised, refused (with the
 opened (with the fields), and it seals the inputs of every case that opens and must make the
 same envelope. It compares every intermediate value the file gives, the outcome, the item and,
 for a case whose tag is right, the kind and the rule that refuses it. It is a second reader
-by Faraday's authors, so it is not the outside implementation `docs/ACE.md` §11 asks for.
+by Faraday's authors, so it is not the outside implementation `docs/AQRV.md` §11 asks for.
 
 ## Running
 
-    python3 -I -B tools/vectors/ace/gen.py            # writes the files
-    python3 -I -B tools/vectors/ace/gen.py --check    # compares, exit 1 on a difference
-    python3 -I -B tools/vectors/ace/check.py          # the second reader; --no-qr skips the decoders
+    python3 -I -B tools/vectors/aqrv/gen.py            # writes the files
+    python3 -I -B tools/vectors/aqrv/gen.py --check    # compares, exit 1 on a difference
+    python3 -I -B tools/vectors/aqrv/check.py          # the second reader; --no-qr skips the decoders
 
 `gen.py` needs `argon2-cffi` and `cryptography`; `check.py` needs `cryptography` (a version with Argon2id), and for the pictures `zxingcpp`, Pillow and `zbarimg`, each skipped with a note if missing. The whole run takes about 40 seconds and up
 to 1 GiB of memory (the one Argon2id run at the 1 GiB step at a time).

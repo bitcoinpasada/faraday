@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""A second reader and writer for the Argon2id Compact Envelope, written from
-docs/ACE.md section 2 to 10 alone, and run over every case of ace.json.
+"""A second reader and writer for the Argon QR Vault (AQRV), written from
+docs/AQRV.md section 2 to 10 alone, and run over every case of aqrv.json.
 
 It takes an envelope and a passphrase and answers: not recognised; refused,
 and why; or opened, with the fields. It also seals: for each case that opens,
@@ -11,11 +11,11 @@ Libraries other than gen.py's: PyCA cryptography's Argon2id; HKDF-Expand and
 HMAC-SHA-256 over Python's hmac and hashlib; ChaCha20 written out below from
 RFC 8439 and checked against its section 2.4.2 vector before anything else.
 
-    python3 -I -B tools/vectors/ace/check.py [--no-qr]
+    python3 -I -B tools/vectors/aqrv/check.py [--no-qr]
 
 Prints a one-line count and every disagreement; exits 1 on any. Written by
 Faraday's authors, so it is a second reader and not the outside
-implementation docs/ACE.md section 11 asks for.
+implementation docs/AQRV.md section 11 asks for.
 """
 
 import functools
@@ -465,7 +465,7 @@ def main():
     if not chacha20_self_test():
         print("ChaCha20 does not give RFC 8439 section 2.4.2")
         return 1
-    data = json.load(open(os.path.join(HERE, "ace.json")))
+    data = json.load(open(os.path.join(HERE, "aqrv.json")))
     cases = data["cases"]
     opened = refused = unrec = sealed = values_n = 0
     for case in cases:

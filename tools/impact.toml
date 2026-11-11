@@ -408,7 +408,7 @@ site_with = ["tools/cryptography.py", "web/cryptography.html"]
 [[consumer]]
 id = "website.vault"
 name = "the website's vault page"
-reads = ["docs/VAULT.md", "docs/KEF.md", "docs/ACE.md"]
+reads = ["docs/VAULT.md", "docs/KEF.md", "docs/AQRV.md"]
 act = "the page, written by hand from these, says what they now say"
 blocking = true
 site_with = ["web/vault.html"]

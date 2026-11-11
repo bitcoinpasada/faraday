@@ -10054,8 +10054,8 @@ folder = "age"
 reason = "The age passphrase codec is not yet read by an action; the change that swaps the vault file to age names these vectors in the vault actions."
 
 [[vector_no_action]]
-folder = "ace"
-reason = "The Argon2id Compact Envelope is a draft specification (docs/ACE.md) with no implementation in any app; its vectors wait for the outside readers."
+folder = "aqrv"
+reason = "The Argon QR Vault is a draft specification (docs/AQRV.md) with no implementation in any app; its vectors wait for the outside readers."
 
 # --- end: vaults, gpg and secure boot, the device and the starter ---
 

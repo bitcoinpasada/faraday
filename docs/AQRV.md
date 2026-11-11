@@ -1,12 +1,15 @@
-# Argon2id Compact Envelope (ACE)
+# Argon QR Vault (AQRV)
 
 **Kind:** Spec
 **Status:** Draft for outside review. Own specification, not yet reviewed outside Faraday; the only code is the test vectors' two scripts, and nothing is compiled into any app (`docs/STANDARDS.md` §0)
 **Open:** a KEF envelope from Krux's own tests among the vectors (§11), an outside second implementation, an outside cryptographic review of the construction and its 4-byte and 8-byte tags (§13), public comment, and whether Faraday ever offers it
 
-The Argon2id Compact Envelope (ACE) is a proposed open format for one small
-secret encrypted under a passphrase with Argon2id, small enough for a 29 × 29
-QR code. It has two sizes in one format, and the total length says which:
+The Argon QR Vault (AQRV) is a proposed open format for one small secret
+encrypted under a passphrase with Argon2id, small enough for a 29 × 29 QR
+code. The name says it uses Argon2id and is a vault in a QR code. It was first
+called the Argon2id Compact Envelope (ACE), an earlier working name.
+
+It has two sizes in one format, and the total length says which:
 
 - **53 bytes:** a 29 × 29 code at low error correction, a 4-byte tag and 32
   bytes of item. 29 × 29 is the size of a standard 24-word SeedQR; a Compact
@@ -29,7 +32,7 @@ written as a question in §13, not as a claim.
 keep it where a finder could see it. A finder holds nothing until they
 guess the passphrase, and each guess costs memory as well as time. Krux's
 KEF format (§14) does this in a similar space under PBKDF2, which needs
-no memory. ACE is the same idea under a memory-hard function.
+no memory. AQRV is the same idea under a memory-hard function.
 
 **It does not:**
 
@@ -44,7 +47,7 @@ no memory. ACE is the same idea under a memory-hard function.
   nothing (§7);
 - open on devices without the memory. The smallest step needs 64 MiB
   (§5). Most microcontroller signing devices cannot read it;
-- hide that a code may be an ACE code. Its first byte is distinctive
+- hide that a code may be an AQRV code. Its first byte is distinctive
   (§9). The total length also shows which size it is, though not which kind
   it holds;
 - take a new kind of item later under the same marker. A reader older than a
@@ -129,7 +132,7 @@ OpenPGP form (§14).
 
 **A passphrase's link to its seed is left out.** The OpenPGP QR vault's `for`
 (`docs/VAULT.md` §1.2) names the seed a passphrase goes with by its 4-byte
-fingerprint, and ACE could carry the same. The recommendation is to leave it
+fingerprint, and AQRV could carry the same. The recommendation is to leave it
 out, as a required field and as an optional one, for three reasons. A seed's
 fingerprint is public wherever a descriptor or a PSBT naming its origin has
 been shared, so those 4 bytes would be known plaintext, which is what the padding exists to
@@ -446,7 +449,7 @@ gives a seed. For the kinds without one, §7's table is what is left.
 
 ## 9. Recognition
 
-A payload is treated as ACE when both hold:
+A payload is treated as AQRV when both hold:
 
 1. It is exactly 53 or 62 bytes.
 2. Its first byte is 0xF8 to 0xFC.
@@ -470,12 +473,12 @@ in 62 bytes:   len_id + payload = 57
 - `len_id` is at most 48 or 57, and that only with an empty payload, which no
   version can decrypt. In Krux's code the shortest payload `decrypt`
   accepts is 10 bytes (version 15), which brings them to 38 and 47.
-- ACE's first byte is at least 248. A KEF envelope with `len_id` of 248 is
+- AQRV's first byte is at least 248. A KEF envelope with `len_id` of 248 is
   at least 253 bytes long, and `len_id` of 253 or more is outside KEF's
   range altogether. Krux's `unwrap` reads the version at index
   `1 + len_id`, off the end of 53 or 62 bytes, and answers "Invalid format".
 - The other way, a KEF envelope of 53 or 62 bytes never starts with 248 or
-  more, so an ACE reader never takes one. Length alone would not separate them:
+  more, so an AQRV reader never takes one. Length alone would not separate them:
   a version 20 envelope with an empty id is exactly 53 bytes and starts with
   0x00, and one with a 9-byte id is exactly 62 and starts with 0x09.
 
@@ -485,6 +488,23 @@ Compact SeedQRs are 16 and 32 bytes. An RFC 9580 message under a
 passphrase is far longer, and begins with a tag 3 packet. A text in
 another encoding, such as Latin-1, can start with those bytes: it asks for
 a passphrase and fails.
+
+### 9.1 A .aqrv file
+
+A `.aqrv` file holds exactly the envelope's bytes, 53 or 62, with nothing
+before or after: no text form, no newline and no header of its own. The text
+form is §15's printed sheet, which is not a file of this kind.
+
+A reader takes a file as AQRV only if its length is exactly 53 or 62 bytes and
+§9's recognition passes on its bytes. Otherwise it says the file is not an
+AQRV code and asks for no passphrase.
+
+A writer names the file with the `.aqrv` extension. The suggested media type is
+`application/vnd.aqrv`; it is not registered with IANA. Until it is,
+`application/octet-stream` is used.
+
+A file and a QR code of the same envelope are the same bytes, so either opens
+with the same passphrase.
 
 ## 10. The passphrase
 
@@ -496,7 +516,7 @@ other minimum, since a typed passphrase's strength cannot be measured; it
 should offer a generated one (§12's words) and say that the code is only
 as strong as its passphrase.
 
-BIP-39 takes its own passphrase in NFKD. ACE's choice differs, on purpose
+BIP-39 takes its own passphrase in NFKD. AQRV's choice differs, on purpose
 and only in this: a person who types "ﬁ" and later "fi" has two
 passphrases. Whether NFC or NFKD serves a format meant to outlast its
 keyboards better is §13, question 8. This is the passphrase that opens the
@@ -504,9 +524,9 @@ code, not a BIP-39 passphrase held as an item (§3), which is stored as given.
 
 ## 11. Test vectors
 
-The vectors are `tools/vectors/ace/ace.json`, with a README and the QR
+The vectors are `tools/vectors/aqrv/aqrv.json`, with a README and the QR
 code of one vector at each size as a PNG. They are computed by
-`tools/vectors/ace/gen.py` with libraries the format's authors did not write
+`tools/vectors/aqrv/gen.py` with libraries the format's authors did not write
 (argon2-cffi for Argon2id; Python's `hmac` and `hashlib`; PyCA cryptography's
 ChaCha20), so that they do not rest on a first implementation. Each case gives
 every intermediate value (`pw`, `PRK`, `K_enc`, `K_mac`, the keystream, `C`,
@@ -535,7 +555,7 @@ unless an item fits only one:
   empty id and 62 bytes with a 9-byte id, built from `docs/KEF.md`'s layout;
 - the QR code of one vector at each size, as an image and as its module matrix.
 
-`tools/vectors/ace/check.py` is a second reader and writer, written from §2 to §10
+`tools/vectors/aqrv/check.py` is a second reader and writer, written from §2 to §10
 alone with other libraries (PyCA cryptography's Argon2id; ChaCha20 written out from
 RFC 8439), and it agrees with every case, the sealed envelopes and the QR pictures, which
 zxing-cpp and zbar also decode to the envelope's bytes. It was written by Faraday's authors,
@@ -626,7 +646,7 @@ for today's hardware, while a printed code can last decades.
 - A bad random source at writing breaks the salt (§6.2) and the padding.
 - Argon2id's memory access depends on its input after its first half
   pass, as RFC 9106 describes, so a side channel on the reader could reveal
-  something about a passphrase. ACE is meant for offline devices.
+  something about a passphrase. AQRV is meant for offline devices.
 - A malicious writer can hide data in padding or the salt. Any format with
   random fields allows this, and a writer that malicious already has the item.
 - Low error correction tolerates less damage than the same bytes at medium
@@ -680,7 +700,7 @@ of all.
 
 ## 14. Comparison with KEF and with an OpenPGP QR vault
 
-| | ACE | Krux's KEF, version 20 | The OpenPGP QR vault (`docs/VAULT.md` §1.2) |
+| | AQRV | Krux's KEF, version 20 | The OpenPGP QR vault (`docs/VAULT.md` §1.2) |
 |---|---|---|---|
 | Key derivation | Argon2id, 64 MiB to 1 GiB | PBKDF2-HMAC-SHA-256, Krux's default 100,000 iterations; no memory cost | Argon2id, 64 MiB to 1 GiB |
 | Cipher and tag | ChaCha20, HMAC-SHA-256 cut to 4 or 8 bytes | AES-256-GCM, tag cut to 4 bytes | AES-256-OCB, full 16-byte tags |
@@ -693,15 +713,15 @@ of all.
 | Standing | This draft: no implementation, no review | One project's published specification, in use on its devices | An RFC 9580 message (Proposed Standard), which several outside programs open; not yet in the app |
 | Small devices | Needs 64 MiB or more | Runs on microcontrollers | Needs 64 MiB or more |
 
-**Could ACE be a version of KEF?** Not at these sizes. KEF's envelope keeps
+**Could AQRV be a version of KEF?** Not at these sizes. KEF's envelope keeps
 its id length byte, version byte and 3 iteration bytes: 1 + 16 + 1 + 3 + 32
 + 4 = 57 bytes, over 29 × 29's 53, and 1 + 16 + 1 + 3 + 37 + 8 = 66, over 33 ×
 33 medium's 62, with the iteration field meaning nothing under Argon2id.
 Offering an Argon2id version to KEF at 33 × 33 is another way to the same aim,
 and one the authors of KEF would decide. KEF's strength is that it runs on
-small devices; ACE gives that up for memory hardness.
+small devices; AQRV gives that up for memory hardness.
 
-ACE does not replace the OpenPGP form, which has a published standard and
+AQRV does not replace the OpenPGP form, which has a published standard and
 outside readers. It is for when size is the point.
 
 ## 15. A printed sheet (not part of the format)
@@ -710,7 +730,7 @@ A sheet may print the envelope's values beside the code, so a person can
 read them without a scanner:
 
 ```json
-{"format":"ACE","version":1,"memory_mib":256,"passes":3,"lanes":4,
+{"format":"AQRV","version":1,"memory_mib":256,"passes":3,"lanes":4,
  "salt":"<32 hex>","ciphertext":"<64 or 74 hex>","tag":"<8 or 16 hex>"}
 ```
 
@@ -725,7 +745,7 @@ wallet, so a sheet can use it without saying what it holds.
 
 | Step | State |
 |---|---|
-| A neutral name | Argon2id Compact Envelope, proposed here, with the full name first. Web searches (2026-11-04) found no format of that name. The short form "ACE" does collide in cryptography: ACE Encrypt and ACE-KEM (Shoup, recommended by NESSIE), the ACE authenticated cipher (a NIST lightweight cryptography candidate), Access Control Encryption (Damgård, Haagh and Orlandi), and the IETF's ACE working group (authorization for constrained environments). None is a passphrase format, but the short form should not stand alone in a title or a search. To check again before public comment |
+| A neutral name | Argon QR Vault, abbreviated AQRV, with the full name first. Web searches on 2026-11-11 for "Argon QR Vault" found no format of that name: the nearest were an npm tool, argon-vault, that encrypts key and value secrets under a passphrase without QR codes, and unrelated QR vault apps and sites such as QRVault and VaultQR. A search for "AQRV" found no standard, product or term of that name (only unrelated names such as ArqVR, a 3D architecture company, and function names in Rust's hexagon intrinsics). A search for the `.aqrv` file extension found no use of it; the nearest are `.aq` and `.aqz` (a genealogy program) and `.qrv`. The format was first called the Argon2id Compact Envelope (ACE), an earlier working name. To check again before public comment |
 | A written specification | This document, a draft |
 | Test vectors | §11: made, and agreed by a second reader of the same authors, which is not an outside implementation |
 | An outside second implementation | None. Anyone who is not one of the authors may write one from this document alone |
