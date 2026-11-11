@@ -183,13 +183,17 @@ cannot quietly undo it:
     `#[allow(clippy::too_many_arguments)]` is not counted, and each
     marker carries a `reason`, which the lint checks (F196);
   - `Faraday`'s top-level field count, which only falls;
-  - the files allowed an inherent `impl Faraday`: the list only shrinks.
+  - the files allowed an inherent `impl Faraday`: the list only shrinks;
+  - dependency direction: a `core/` crate has no `path` dependency outside
+    `core/`, and faraday-ui, faraday-draw, faraday-strings and faraday-learn
+    depend on neither faraday-core nor faraday-starter.
 - **`cargo vet --locked`** in `just lint` (F71), **`cargo-deny`**, fmt,
   and clippy with warnings as errors.
 
 **Every ratchet that remains works the same way.** A count that rises fails the
 lint, and a count that falls fails it too, until the file is lowered.
-Raising a count is the owner's decision, recorded in DECISIONS, as
+Raising a count is the owner's decision, recorded in a decision that names
+the raised file or token, as
 accepting more than a standard requires already is.
 
 **CLAUDE.md names each rule and its lint** (its "Code structure" section under "By area"),

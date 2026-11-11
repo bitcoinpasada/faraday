@@ -65,6 +65,10 @@ lines = '^[+-]\s+[a-z_]+:'          # optional: an added or removed line of a
 rises = false                       # optional: triggers only when a line's last
                                     # number is higher than before, or the line
                                     # is new (a ratchet count raised)
+names_raised = false                # optional, with rises and a pair: a partner
+                                    # in `with` counts only when its changed lines
+                                    # name each raised key (the last word of the
+                                    # counts line: a file path or a token name)
 kind = "held"                       # held | pair | forbid | trailer | review (§1.3)
 held_by = ["lint-guide"]
 with = []                           # pair: at least one changed path matches
@@ -416,7 +420,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `docs.no-silent-delete` | a file of `docs/decisions/` or a `docs/*.md` deleted | F | refused unless the same range adds it under `docs/history/` (`docs/history/decisions/F{n}.md`, `docs/history/{NAME}.md`: a move) | F149 |
 | `decisions.indexed` | `docs/decisions/F{n}.md`, `docs/history/decisions/**` | H | `lint-docs` rule 5 | `CLAUDE.md`, `docs/DECISIONS.md` |
 | `decisions.held-by` | `docs/decisions/F{n}.md` added | H | `lint-docs` rule 6 (§8) | F149 |
-| `structure.ratchet-raised` | `tools/lint-layout.counts`, `tools/lint-tokens.counts` (`rises`) | P | a decision added: `docs/decisions/F{n}.md` | `CLAUDE.md`, F74 |
+| `structure.ratchet-raised` | `tools/lint-layout.counts`, `tools/lint-tokens.counts` (`rises`) | P | a decision `docs/decisions/F{n}.md` naming the raised key | `CLAUDE.md`, F74 |
 | `structure.code-map` | `faraday/faraday-core/src/**` | H | `lint-layout` | `CLAUDE.md`, F74 |
 | `structure.size` | `**/*.rs` | H | `lint-layout` counts | `CLAUDE.md`, F74 |
 | `structure.impl-faraday` | `faraday/faraday-core/src/**` | H | `lint-layout` | `CLAUDE.md`, F74 |

@@ -31,6 +31,9 @@
 #    inherent `impl Faraday {` (`impl-faraday PATH`): a file not listed
 #    fails, and so does a listed file that has none.
 #
+# 5. Dependency direction: core/ crates stay inside core/; the drawing and
+#    string crates do not depend on faraday-core or faraday-starter.
+#
 # Raising a count is the owner's decision, recorded in DECISIONS (F74, F196).
 # Prints each failure and exits non-zero if there is one. Run from the
 # repository root; `just lint` does.
@@ -221,6 +224,38 @@ for path in sorted(impl_listed - having):
         fail(f"{COUNTS}: {path} has no `impl Faraday` now: remove its line")
     else:
         fail(f"{COUNTS}: {path} is no tracked file: remove its line")
+
+# 5. Dependency direction (docs/STRUCTURE-PASS.md §7). A `core/*` crate has
+#    no `path` dependency outside core/, and faraday-ui, faraday-draw,
+#    faraday-strings and faraday-learn depend (normal, build or dev) on
+#    neither faraday-core nor faraday-starter.
+import tomllib
+
+LOWER = {"faraday-ui", "faraday-draw", "faraday-strings", "faraday-learn"}
+UPPER = {"faraday-core", "faraday-starter"}
+with open("Cargo.toml", "rb") as fh:
+    members = tomllib.load(fh).get("workspace", {}).get("members", [])
+for member in members:
+    manifest = os.path.join(member, "Cargo.toml")
+    if not os.path.exists(manifest):
+        continue
+    with open(manifest, "rb") as fh:
+        data = tomllib.load(fh)
+    tables = [data]
+    tables += list(data.get("target", {}).values())
+    deps = {}
+    for t in tables:
+        for kind in ("dependencies", "build-dependencies", "dev-dependencies"):
+            deps.update(t.get(kind, {}))
+    name = data.get("package", {}).get("name", member)
+    for dep, spec in deps.items():
+        real = spec.get("package", dep) if isinstance(spec, dict) else dep
+        if member.startswith("core/") and isinstance(spec, dict) and "path" in spec:
+            target = os.path.normpath(os.path.join(member, spec["path"]))
+            if not target.startswith("core/"):
+                fail(f"{manifest}: {name} depends on {target}, outside core/")
+        if name in LOWER and real in UPPER:
+            fail(f"{manifest}: {name} depends on {real}; it is a layer below it")
 
 for f in failures:
     print(f"lint-layout: {f}")

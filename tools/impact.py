@@ -54,7 +54,7 @@ FIELDS = {
     "consumer": {"id": "s", "name": "s", "reads": "l", "act": "s",
                  "site_check": "s", "site_with": "l", "blocking": "b"},
     "rule": {"id": "s", "title": "s", "source": "l", "at": "s", "when": "l",
-             "on": "l", "lines": "s", "rises": "b", "kind": "s",
+             "on": "l", "lines": "s", "rises": "b", "names_raised": "b", "kind": "s",
              "held_by": "l", "with": "l", "with_each": "l", "trailer": "s",
              "misses": "s", "consumers": "l", "status": "s"},
     "amend": {"id": "s", "held_by": "l", "misses": "s", "with": "l",
@@ -66,7 +66,7 @@ DEFAULTS = {
     "consumer": {"name": "", "reads": [], "act": "", "site_check": "",
                  "site_with": [], "blocking": False},
     "rule": {"title": "", "source": [], "at": "change", "when": [],
-             "on": list(ONS), "lines": "", "rises": False, "kind": "review",
+             "on": list(ONS), "lines": "", "rises": False, "names_raised": False, "kind": "review",
              "held_by": [], "with": [], "with_each": [], "trailer": "",
              "misses": "", "consumers": [], "status": "active"},
 }
@@ -313,6 +313,8 @@ def lint(reg, root, tracked, justfile_text):
             errs.append(f"{i}: a pair names nothing in with or with_each")
         if r["kind"] == "trailer" and not r["trailer"]:
             errs.append(f"{i}: a trailer rule names no trailer")
+        if r["names_raised"] and not (r["rises"] and r["kind"] == "pair" and r["with"]):
+            errs.append(f"{i}: names_raised needs rises, kind pair and with")
         if r["lines"]:
             try:
                 re.compile(r["lines"])
@@ -459,9 +461,10 @@ def trailers(message):
 # ---------------------------------------------------------------- rules
 
 
-def rises(lines):
-    """Whether a counts file's numbers rose: some line's last integer is
-    higher than the same line's (without it) before, or the line is new."""
+def raised_keys(lines):
+    """The keys of a counts file's lines whose last integer is higher than
+    the same key's before, or is new: {key: name}, the name being the key's
+    last word (the path or token the counts file writes)."""
     def table(prefix):
         t = {}
         for l in lines:
@@ -472,7 +475,13 @@ def rises(lines):
                     t[key] = int(nums[-1])
         return t
     old, new = table("-"), table("+")
-    return any(v > old.get(k, 0) for k, v in new.items())
+    return {k: (k.split() or [k])[-1] for k, v in new.items() if v > old.get(k, 0)}
+
+
+def rises(lines):
+    """Whether a counts file's numbers rose: some line's last integer is
+    higher than the same line's (without it) before, or the line is new."""
+    return bool(raised_keys(lines))
 
 
 def triggers(rule, changes):
@@ -504,7 +513,15 @@ def pair_unmet(rule, changes, trig):
         others = [x.path for x in changes if x.path != c.path]
         anyp, each = partners(rule, caps)
         missing = []
-        if anyp and not any(match_list(anyp, o) is not None for o in others):
+        if rule["names_raised"]:
+            # A partner counts only when its changed lines name the raised key.
+            for name in dict.fromkeys(raised_keys(c.lines).values()):
+                named = [x for x in changes if x.path != c.path
+                         and match_list(anyp, x.path) is not None
+                         and any(name in l for l in x.lines)]
+                if not named:
+                    missing.append(f"a file matching {' or '.join(p for p in anyp if not p.startswith('!'))} naming `{name}`")
+        elif anyp and not any(match_list(anyp, o) is not None for o in others):
             missing.append(" or ".join(p for p in anyp if not p.startswith("!")))
         for p in each:
             if not p.startswith("!") and not any(compile_pattern(p).match(o) for o in others):
@@ -1120,6 +1137,8 @@ def trigger_text(r):
         parts.append("lines matching `" + r["lines"].replace("|", "\\|") + "`")
     if r["rises"]:
         parts.append("a number that rises")
+    if r["names_raised"]:
+        parts.append("each raised key named in the partner")
     return "<br>".join(parts)
 
 
@@ -1304,6 +1323,19 @@ def self_test():
     ok(not triggers(r3, [ch("M", "tools/a.counts", "-file a.rs 2950", "+file a.rs 2900")]), "count falls")
     ok(triggers(r3, [ch("M", "tools/a.counts", "+file new.rs 2600")]), "a new line is a rise")
     ok(not triggers(r3, [ch("M", "tools/a.counts", "-file gone.rs 2600")]), "a removed line is no rise")
+    # names_raised: a partner counts only when it names the raised key.
+    rn = mkrule(when=["tools/*.counts"], rises=True, names_raised=True, kind="pair", **{"with": ["docs/decisions/F{n}.md"]})
+    cnt = ch("M", "tools/a.counts", "-file src/lib.rs 2900", "+file src/lib.rs 2950")
+    res, _ = evaluate(_reg(rn), [cnt, ch("A", "docs/decisions/F9.md", "+Nothing here.")], [])
+    ok(res[0][0] == "unmet" and "naming `src/lib.rs`" in res[0][2], res)
+    res, _ = evaluate(_reg(rn), [cnt, ch("A", "docs/decisions/F9.md", "+src/lib.rs may grow.")], [])
+    ok(res[0][0] == "met", res)
+    res, _ = evaluate(_reg(rn), [cnt, ch("M", "docs/decisions/F9.md", "+Nothing here.")],
+                      [("a1b2c3d4", "S\n\nImpact-skip: other.rule: why")])
+    ok(res[0][0] == "unmet", "a waiver of another rule waives nothing")
+    res, _ = evaluate(_reg(rn), [cnt, ch("M", "docs/decisions/F9.md", "+Nothing here.")],
+                      [("a1b2c3d4", "S\n\nImpact-skip: " + rn["id"] + ": a reason")])
+    ok(res[0][0] == "waived", res)
     r4 = mkrule(when=["any/**"], on=["delete"])
     ok(triggers(r4, [ch("D", "any/x")]) and not triggers(r4, [ch("A", "any/x")]), "on delete")
     ok(len(triggers(mkrule(when=[]), [ch("M", "a"), ch("M", "b")])) == 2, "empty when is any change")

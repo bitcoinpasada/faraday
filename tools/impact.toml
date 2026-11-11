@@ -84,7 +84,7 @@ misses = "whether a document says what is true"
 id = "lint-layout"
 run = "tools/lint-layout.sh"
 stage = "just lint"
-catches = "the code map, file and function sizes, top-level field and impl Faraday counts beyond lint-layout.counts"
+catches = "the code map, file and function sizes, top-level field and impl Faraday counts beyond lint-layout.counts, a dependency pointing up a layer"
 misses = "structure that is legal but poor"
 
 [[check]]
@@ -1010,12 +1010,21 @@ held_by = ["budget-tests"]
 
 [[rule]]
 id = "structure.ratchet-raised"
-title = "a ratchet count raised (a file over 5,000 lines, Faraday's fields, impl Faraday) is the owner's decision, recorded in DECISIONS"
+title = "a ratchet count raised (a file over 5,000 lines, Faraday's fields, impl Faraday) is the owner's decision, recorded in a decision that names the raised file or token"
 source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md", "docs/decisions/F74.md", "docs/decisions/F196.md"]
 when = ["tools/lint-layout.counts", "tools/lint-tokens.counts", "tools/touch-targets.counts", "tools/lint-upstream.counts", "tools/lint-crypto.counts"]
 rises = true
+names_raised = true
 kind = "pair"
 with = ["docs/decisions/F{n}.md"]
+
+[[rule]]
+id = "structure.layers"
+title = "a core/ crate has no path dependency outside core/, and faraday-ui, faraday-draw, faraday-strings and faraday-learn do not depend on faraday-core or faraday-starter"
+source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md"]
+when = ["**/Cargo.toml"]
+kind = "held"
+held_by = ["lint-layout"]
 
 [[rule]]
 id = "structure.code-map"
