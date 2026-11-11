@@ -757,7 +757,7 @@ pub(crate) fn spend_paths_rows(
     for (label, value) in &rows {
         cy += crate::compact::kv(ui, x, cy, w, label, value, Role::OnSurface);
     }
-    cy + 8.0 - y
+    cy + faraday_draw::tokens::GAP - y
 }
 
 /// Where a wallet card's actions go in a row `w` wide: each item's row,

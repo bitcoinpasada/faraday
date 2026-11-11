@@ -9,6 +9,13 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode};
 use faraday_crypto::work::Compute;
+use faraday_draw::tokens::{
+    MOVE_TABLE_COLS, MOVE_TABLE_INSET, MOVE_TABLE_ROW, MOVE_TABLE_ROWS, MOVE_TABLE_RULE_GAP,
+    PATHS_END, PATHS_FIELD_ROW, PATHS_FIELDS_GAP, PATHS_GAP, PATHS_HEAD_GAP, PATHS_LINE,
+    PATHS_PARA_GAP, PATHS_RULE_DROP, PATHS_TITLE_GAP, PATHS_WAIT_X, SHARE_LINES_GAP,
+    SHARE_QUORUM_GAP, SHEET_FOOT_SIZE, SHEET_LABEL_SIZE, SHEET_RULE_GREY, SHEET_RULE_SIZE,
+    SHEET_TEXT_SIZE, SHEET_TITLE_SIZE,
+};
 
 use crate::wallet_backup::structural_dark;
 
@@ -432,7 +439,7 @@ fn wallet_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
         q.text(
             MARGIN,
             PAGE_H - MARGIN,
-            8.0,
+            SHEET_FOOT_SIZE,
             Font::Sans,
             EN.pdf_made_by_faraday_check,
         );
@@ -456,18 +463,18 @@ fn spend_paths_block(p: &mut Page, f: &[(String, String)], y0: f32) -> f32 {
     if paths.is_empty() {
         return 0.0;
     }
-    p.text(MARGIN, y, 10.0, Font::Bold, EN.pdf_spend_paths);
-    y += 16.0;
+    p.text(MARGIN, y, SHEET_LABEL_SIZE, Font::Bold, EN.pdf_spend_paths);
+    y += PATHS_HEAD_GAP;
     let waits = f
         .iter()
         .filter(|(k, _)| k == "wait")
         .map(|(_, v)| v.as_str());
     for (keys, wait) in paths.iter().zip(waits) {
-        p.text(MARGIN, y, 9.0, Font::Sans, keys);
-        p.text(MARGIN + 150.0, y, 9.0, Font::Sans, wait);
-        y += 14.0;
+        p.text(MARGIN, y, SHEET_TEXT_SIZE, Font::Sans, keys);
+        p.text(MARGIN + PATHS_WAIT_X, y, SHEET_TEXT_SIZE, Font::Sans, wait);
+        y += PATHS_LINE;
     }
-    y += 6.0;
+    y += PATHS_GAP;
     if let Some(u) = get(f, "unmoved") {
         let mut n = u.split_whitespace();
         let (days, blocks, margin) = (n.next(), n.next(), n.next());
@@ -477,10 +484,17 @@ fn spend_paths_block(p: &mut Page, f: &[(String, String)], y0: f32) -> f32 {
             (Some(d), Some(b)) => fill(EN.pdf_unmoved_blocks, &[d, b, keys]),
             _ => String::new(),
         };
-        y += p.wrapped(MARGIN, y, PAGE_W - 2.0 * MARGIN, 9.0, Font::Sans, &line) + 8.0;
+        y += p.wrapped(
+            MARGIN,
+            y,
+            PAGE_W - 2.0 * MARGIN,
+            SHEET_TEXT_SIZE,
+            Font::Sans,
+            &line,
+        ) + PATHS_PARA_GAP;
         y += move_table(p, y, &fill(EN.pdf_move_before, &[margin.unwrap_or("")]));
     }
-    y - y0 + 10.0
+    y - y0 + PATHS_END
 }
 
 /// The table to fill in by hand, one row per deposit: when it was
@@ -488,22 +502,35 @@ fn spend_paths_block(p: &mut Page, f: &[(String, String)], y0: f32) -> f32 {
 /// it. Returns its height.
 fn move_table(p: &mut Page, y0: f32, rule: &str) -> f32 {
     let mut y = y0;
-    p.text(MARGIN, y, 8.5, Font::Sans, rule);
-    y += 14.0;
-    let w = (PAGE_W - 2.0 * MARGIN) / 3.0;
+    p.text(MARGIN, y, SHEET_RULE_SIZE, Font::Sans, rule);
+    y += PATHS_LINE;
+    let w = (PAGE_W - 2.0 * MARGIN) / MOVE_TABLE_COLS as f32;
     for (i, head) in [EN.pdf_received_on, EN.pdf_amount, EN.pdf_move_before_col]
         .iter()
         .enumerate()
     {
-        p.text(MARGIN + i as f32 * w + 4.0, y, 9.0, Font::Bold, head);
+        p.text(
+            MARGIN + i as f32 * w + MOVE_TABLE_INSET,
+            y,
+            SHEET_TEXT_SIZE,
+            Font::Bold,
+            head,
+        );
     }
-    y += 14.0;
-    for _ in 0..8 {
-        for i in 0..3 {
+    y += PATHS_LINE;
+    for _ in 0..MOVE_TABLE_ROWS {
+        for i in 0..MOVE_TABLE_COLS {
             let x = MARGIN + i as f32 * w;
-            p.line(x, y + 14.0, x + w - 8.0, y + 14.0, 0.5, 0.55);
+            p.line(
+                x,
+                y + PATHS_LINE,
+                x + w - MOVE_TABLE_RULE_GAP,
+                y + PATHS_LINE,
+                0.5,
+                SHEET_RULE_GREY,
+            );
         }
-        y += 18.0;
+        y += MOVE_TABLE_ROW;
     }
     y - y0
 }
@@ -569,12 +596,18 @@ fn share_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
         Font::Sans,
         &fill(EN.pdf_part_of_the_wallet, &[quorum]),
     );
-    y += 18.0;
+    y += SHARE_QUORUM_GAP;
     if get(f, "recovery") == Some("yes") {
-        p.text(MARGIN, y, 10.0, Font::Sans, EN.pdf_has_recovery_path);
-        y += 18.0;
+        p.text(
+            MARGIN,
+            y,
+            SHEET_LABEL_SIZE,
+            Font::Sans,
+            EN.pdf_has_recovery_path,
+        );
+        y += SHARE_QUORUM_GAP;
     }
-    y += 10.0;
+    y += SHARE_LINES_GAP;
     let lines: Vec<&str> = f
         .iter()
         .filter(|(k, _)| k == "line")
@@ -612,28 +645,41 @@ fn share_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
 fn blank_paths_page() -> Page {
     let mut p = Page::default();
     let mut y = MARGIN;
-    p.text(MARGIN, y, 18.0, Font::Bold, EN.pdf_spend_paths);
-    y += 40.0;
-    p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_path_keys_wait);
-    y += 20.0;
+    p.text(MARGIN, y, SHEET_TITLE_SIZE, Font::Bold, EN.pdf_spend_paths);
+    y += PATHS_TITLE_GAP;
+    p.text(
+        MARGIN,
+        y,
+        SHEET_TEXT_SIZE,
+        Font::Sans,
+        EN.pdf_path_keys_wait,
+    );
+    y += PATHS_FIELDS_GAP;
     for _ in 0..3 {
-        p.line(MARGIN, y + 12.0, PAGE_W - MARGIN, y + 12.0, 0.5, 0.55);
-        y += 28.0;
+        p.line(
+            MARGIN,
+            y + PATHS_RULE_DROP,
+            PAGE_W - MARGIN,
+            y + PATHS_RULE_DROP,
+            0.5,
+            SHEET_RULE_GREY,
+        );
+        y += PATHS_FIELD_ROW;
     }
-    y += 12.0;
+    y += PATHS_RULE_DROP;
     y += p.wrapped(
         MARGIN,
         y,
         PAGE_W - 2.0 * MARGIN,
-        9.0,
+        SHEET_TEXT_SIZE,
         Font::Sans,
         EN.pdf_unmoved_blank,
-    ) + 14.0;
+    ) + PATHS_LINE;
     move_table(&mut p, y, EN.pdf_move_before_blank);
     p.text(
         MARGIN,
-        PAGE_H - MARGIN + 14.0,
-        8.0,
+        PAGE_H - MARGIN + PATHS_LINE,
+        SHEET_FOOT_SIZE,
         Font::Sans,
         EN.pdf_print_actual_size,
     );

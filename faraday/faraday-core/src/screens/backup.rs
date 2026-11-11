@@ -436,7 +436,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Style::Secondary,
                     Action::OpenSetTime,
                 );
-                fy += BUTTON_H + 12.0;
+                fy += BUTTON_H + T::GAP + T::GAP_SMALL;
             }
             fy - y
                 + if all_done {
@@ -1366,7 +1366,7 @@ fn dating(ui: &mut Ui, (x, y, w): (f32, f32, f32), b: &crate::wallet_backup::Bac
             LABEL_L,
             Role::OnSurface,
             EN.copy_check_which_copy,
-        ) + 8.0;
+        ) + T::GAP;
         for (n, p) in places.iter().enumerate() {
             let name = b
                 .names
@@ -1386,9 +1386,9 @@ fn dating(ui: &mut Ui, (x, y, w): (f32, f32, f32), b: &crate::wallet_backup::Bac
                 Style::Secondary,
                 Action::BWhich(n as u8),
             );
-            cy += BUTTON_H + 8.0;
+            cy += BUTTON_H + T::GAP;
         }
-        cy += 4.0;
+        cy += T::GAP_SMALL;
     }
     cy - y
 }
