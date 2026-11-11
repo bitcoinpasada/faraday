@@ -591,7 +591,7 @@ fn signed_with_uncompressed_derivations(n: u32) -> (Vec<u8>, Vec<u8>, std::time:
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     let start = std::time::Instant::now();
