@@ -1137,7 +1137,7 @@ impl Faraday {
             Some((w, n)) => app.wallet_key_said(w, n),
             None => app.toast(&crate::strings::fill(
                 crate::strings::EN.entry_add_key_added,
-                &[&crate::wallet::fp_text(fp).to_string()],
+                &[crate::wallet::fp_text(fp).as_str()],
             )),
         };
         match self.typed_load(&m, &pass, &label, wanted, back, said) {
