@@ -289,22 +289,30 @@ pub fn text_holds_secret(text: &str) -> bool {
 /// or `ckcc_xfp` read little-endian (1130956047 is `0f056943`).
 fn fingerprint(k: &Value) -> Result<Option<String>, String> {
     let bad = || fill(EN.wallet_electrum, &[EN.wallet_electrum_fingerprint]);
-    if let Some(f) = k.get("root_fingerprint").and_then(Value::as_str) {
-        let f = f.trim();
-        if f.len() != 8 || !f.bytes().all(|b| b.is_ascii_hexdigit()) {
-            return Err(bad());
+    let root = match k.get("root_fingerprint").and_then(Value::as_str) {
+        Some(f) => {
+            let f = f.trim();
+            if f.len() != 8 || !f.bytes().all(|b| b.is_ascii_hexdigit()) {
+                return Err(bad());
+            }
+            Some(f.to_ascii_lowercase())
         }
-        return Ok(Some(f.to_ascii_lowercase()));
-    }
-    match k.get("ckcc_xfp") {
-        None | Some(Value::Null) => Ok(None),
+        None => None,
+    };
+    let xfp = match k.get("ckcc_xfp") {
+        None | Some(Value::Null) => None,
         Some(x) => {
             let n = x
                 .as_u64()
                 .and_then(|n| u32::try_from(n).ok())
                 .ok_or_else(bad)?;
-            Ok(Some(faraday_crypto::hex::encode_string(&n.to_le_bytes())))
+            Some(faraday_crypto::hex::encode_string(&n.to_le_bytes()))
         }
+    };
+    // Two fingerprints that disagree are an ambiguous input.
+    match (root, xfp) {
+        (Some(a), Some(b)) if a != b => Err(bad()),
+        (a, b) => Ok(a.or(b)),
     }
 }
 

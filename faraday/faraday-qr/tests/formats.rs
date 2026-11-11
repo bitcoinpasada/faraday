@@ -67,6 +67,28 @@ fn bbqr_parts_that_do_not_hang_together_are_refused() {
 }
 
 #[test]
+fn a_bbqr_set_refused_whole_does_not_stop_the_next_good_set() {
+    let mut a = Assembler::default();
+    // Two parts of uneven length, the first the longer: refused at the end.
+    assert!(matches!(
+        a.feed(&format!("B$2P0200{}", bbqr::base32(&[1u8; 10]))),
+        Step::Part { .. }
+    ));
+    assert!(matches!(
+        a.feed(&format!("B$2P0201{}", bbqr::base32(&[2u8; 20]))),
+        Step::Refused(_)
+    ));
+    // A good set read after it.
+    let psbt = vec![3u8; 40];
+    let parts = bbqr::encode('P', &psbt, 20).unwrap();
+    let mut last = Step::NotMine;
+    for p in &parts {
+        last = a.feed(p);
+    }
+    assert_eq!(last, Step::Done(Arrived::Psbt(psbt)));
+}
+
+#[test]
 fn numbered_parts_read_back_and_say_what_is_missing() {
     let text = "wsh(sortedmulti(2,[aaaaaaaa/48h/0h/0h/2h]xpub/<0;1>/*))".repeat(4);
     let parts = specter::encode(&text, 60);

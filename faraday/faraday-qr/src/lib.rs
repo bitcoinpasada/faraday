@@ -121,9 +121,17 @@ impl Assembler {
                     }
                 }
                 Err(e) => {
-                    // A part of another transfer starts that one afresh;
-                    // anything else leaves the transfer as it was.
-                    if e == bbqr::Error::OtherTransfer {
+                    // A part of another transfer starts that one afresh,
+                    // and a set refused whole or in conflict is dropped;
+                    // any other refusal leaves the transfer as it was.
+                    if matches!(
+                        e,
+                        bbqr::Error::OtherTransfer
+                            | bbqr::Error::Conflict
+                            | bbqr::Error::Malformed(
+                                bbqr::Malformed::Uneven | bbqr::Malformed::Inflate
+                            )
+                    ) {
                         self.bbqr = None;
                     }
                     Step::Refused(Refusal::Bbqr(e))

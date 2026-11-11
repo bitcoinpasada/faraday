@@ -427,11 +427,27 @@ impl Decoder {
             self.ur_type = Some(ur_type.clone());
         }
         if inner.complete() {
-            let cbor = inner
-                .message()
-                .map_err(Error::scanning)?
-                .ok_or(Error::Empty)?;
-            self.done = Some(Message::new(&ur_type, cbor)?);
+            let cbor = match inner.message() {
+                Ok(Some(cbor)) => cbor,
+                Ok(None) => return Err(Error::Empty),
+                Err(e) => {
+                    // A message that fails its checksum or padding is
+                    // dropped, so the next part starts afresh.
+                    self.inner = None;
+                    self.ur_type = None;
+                    return Err(Error::scanning(e));
+                }
+            };
+            match Message::new(&ur_type, cbor) {
+                Ok(message) => self.done = Some(message),
+                Err(e) => {
+                    // So is a message whose CBOR is not what its type
+                    // holds.
+                    self.inner = None;
+                    self.ur_type = None;
+                    return Err(e);
+                }
+            }
         }
         Ok(self.done.is_some())
     }
@@ -499,6 +515,43 @@ impl Drop for Decoder {
 mod tests {
     use super::*;
     use crate::ur::xoshiro::test_utils::make_message;
+
+    #[test]
+    fn a_message_that_fails_its_checksum_does_not_stop_the_next_one() {
+        let bad = fountain::Part {
+            sequence: 1,
+            sequence_count: 1,
+            message_length: 3,
+            checksum: 0,
+            data: b"bad".to_vec(),
+        };
+        let text = alloc::format!("ur:bytes/1-1/{}", bytewords::encode(&bad.cbor()));
+        let mut decoder = Decoder::new();
+        assert!(decoder.receive(&text).is_err());
+        let mut encoder = Encoder::bytes(b"a good message", 64).unwrap();
+        assert_eq!(decoder.receive(&encoder.next_part()), Ok(true));
+        assert!(decoder.is_complete());
+    }
+
+    #[test]
+    fn a_message_that_is_not_a_byte_string_does_not_stop_the_next_one() {
+        // 0x62 0x61 0x64 is the CBOR text "ad", not the byte string a
+        // ur:bytes holds, under a checksum that matches.
+        let data = b"bad".to_vec();
+        let wrong = fountain::Part {
+            sequence: 1,
+            sequence_count: 1,
+            message_length: data.len(),
+            checksum: faraday_crypto::crc32(&data),
+            data,
+        };
+        let text = alloc::format!("ur:bytes/1-1/{}", bytewords::encode(&wrong.cbor()));
+        let mut decoder = Decoder::new();
+        assert_eq!(decoder.receive(&text), Err(Error::NotByteString));
+        let mut encoder = Encoder::bytes(b"a good message", 64).unwrap();
+        assert_eq!(decoder.receive(&encoder.next_part()), Ok(true));
+        assert!(decoder.is_complete());
+    }
 
     /// The single-part and multi-part URs BCR-2020-005 and the reference
     /// implementations produce for a seeded message. These are what

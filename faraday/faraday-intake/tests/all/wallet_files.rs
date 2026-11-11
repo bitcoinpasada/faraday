@@ -279,6 +279,20 @@ fn an_electrum_multisig_file_reads_as_its_2_of_4_on_testnet() {
 }
 
 #[test]
+fn an_electrum_keystore_with_two_fingerprints_is_read_only_when_they_agree() {
+    let c = crate::common::compute();
+    let text = interop("sparrow/electrum-multisig-wallet.json");
+    let xfp = "\"ckcc_xfp\": 3503269483";
+    assert!(text.contains(xfp));
+    let with =
+        |root: &str| text.replacen(xfp, &format!("\"root_fingerprint\": \"{root}\", {xfp}"), 1);
+    let plain = read_wallet(&c, &text).expect("the file as written");
+    let same = read_wallet(&c, &with("6ba6cfd0")).expect("both fingerprints equal");
+    assert_eq!(same.keys().len(), plain.keys().len());
+    assert!(read_wallet(&c, &with("aabbccdd")).is_err());
+}
+
+#[test]
 fn an_electrum_file_holding_a_private_key_is_called_a_secret_and_not_read_as_a_wallet() {
     let path = "bluewallet/fromsparrow-electrum.json";
     let text = interop(path);
