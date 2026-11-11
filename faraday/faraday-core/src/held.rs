@@ -417,9 +417,10 @@ impl Faraday {
         ));
     }
 
-    /// The fingerprints of the keys of session key `k`'s words that have no
-    /// passphrase: the words alone, which a copy of the words covers. Another
-    /// passphrase of the same words is not covered by it.
+    /// Costs what `with_same_words` costs. The fingerprints of the keys of
+    /// session key `k`'s words that have no passphrase: the words alone,
+    /// which a copy of the words covers. Another passphrase of the same
+    /// words is not covered by it.
     pub(crate) fn bare_words_of(&self, c: &Compute, k: usize) -> Vec<Fingerprint> {
         self.session
             .keys
@@ -430,13 +431,13 @@ impl Faraday {
             .collect()
     }
 
-    /// Whether another passphrase of session key `k`'s words is made here
-    /// still, its copy not written. A vault's pending record holds every
-    /// passphrase of its words, whichever it stores, so while one waits the
-    /// record keeps its mark. A key a flow holds back is not
-    /// counted: the flow keeps that hold in its own state until its sticks
-    /// are written, and the copies its lock seals say the backup is done, so
-    /// a mark kept for it would outlast it.
+    /// Costs what `with_same_words` costs. Whether another passphrase of
+    /// session key `k`'s words is made here still, its copy not written. A
+    /// vault's pending record holds every passphrase of its words, whichever
+    /// it stores, so while one waits the record keeps its mark. A key a flow
+    /// holds back is not counted: the flow keeps that hold in its own state
+    /// until its sticks are written, and the copies its lock seals say the
+    /// backup is done, so a mark kept for it would outlast it.
     fn other_passphrase_made_here(&self, c: &Compute, k: usize) -> bool {
         self.session
             .keys
