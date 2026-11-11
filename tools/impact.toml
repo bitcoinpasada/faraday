@@ -429,8 +429,8 @@ act = "the demo is built and its tests run; its own build refuses a break"
 
 [[rule]]
 id = "repo.ci-check"
-title = "GitHub Actions runs `just` and, by hand, the fuzz run before a release, nothing else: read-only, no secrets, GitHub's own actions pinned by commit, nothing built for release"
-source = ["CLAUDE.md", "docs/decisions/F183.md", "docs/decisions/F210.md"]
+title = "GitHub Actions runs `just` and, by hand, the fuzz run before a release and one targeted check, nothing else: read-only, no secrets, GitHub's own actions pinned by commit, nothing built for release"
+source = ["CLAUDE.md", "docs/decisions/F183.md", "docs/decisions/F210.md", "docs/decisions/F243.md"]
 when = [".github/workflows/**", ".github/actions/**"]
 kind = "review"
 misses = "a tool the check comes to need, until the workflow fails without it"

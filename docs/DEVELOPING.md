@@ -146,6 +146,16 @@ hash:k/14`), and the doc tests and the six parts of `just lint` run
 beside them. Its result is shown on the commit and the
 pull request.
 
+One crate's tests or one lint recipe can run there alone, started by hand on
+any branch (`.github/workflows/targeted.yml`, F243); `lint` is `none` for
+tests only, and `filter` is optional:
+
+```
+gh workflow run targeted.yml --ref <branch> -f crate=faraday-core -f filter='test(/^keygen::/)' -f lint=none
+```
+
+`just` stays the check; this is for a change that touches one crate.
+
 ## 3. The desktop app
 
 ```

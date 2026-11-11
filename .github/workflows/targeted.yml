@@ -1,0 +1,101 @@
+# One targeted check on GitHub's Linux runners (docs/decisions/F243.md),
+# started by hand on any branch: one crate's tests, or one of the justfile's
+# lint recipes. It does not replace `just`, the check. It reads only: no
+# secrets, the checkout's token not kept, GitHub's own actions pinned by
+# commit. It reads the check's cache and saves nothing to it
+# (docs/decisions/F212.md). Its inputs reach the shell only through env:.
+name: targeted
+
+on:
+  workflow_dispatch:
+    inputs:
+      crate:
+        description: The workspace crate whose tests run (empty for a lint only)
+        default: ""
+      filter:
+        description: A nextest filter for the crate's tests
+        default: all()
+      lint:
+        description: One lint recipe, or none for tests only
+        type: choice
+        options: [none, lint-clippy, lint-deps, lint-repo, lint-touch-targets, lint-op-cost]
+        default: none
+
+permissions:
+  contents: read
+
+concurrency:
+  group: targeted-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  # The tools DEVELOPING.md §1 names for the check, at the versions check.yml gives.
+  JUST_VERSION: 1.58.0
+  NEXTEST_VERSION: 0.9.146
+  DENY_VERSION: 0.20.2
+  VET_VERSION: 0.10.2
+  TOOLS: just-1.58.0-nextest-0.9.146-deny-0.20.2-vet-0.10.2
+
+jobs:
+  validate:
+    name: inputs
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - name: Check the inputs
+        env:
+          CRATE: ${{ inputs.crate }}
+          FILTER: ${{ inputs.filter }}
+          LINT: ${{ inputs.lint }}
+        run: |
+          if [ -z "$CRATE" ] && [ "$LINT" = none ]; then
+            echo "Nothing to run: give a crate or a lint recipe." >&2
+            exit 1
+          fi
+          if [ -n "$CRATE" ]; then
+            printf '%s' "$CRATE" | grep -Eq '^[a-z0-9_-]{1,64}$' \
+              || { echo "The crate name is not a crate name." >&2; exit 1; }
+          fi
+          printf '%s' "$FILTER" | grep -Eq '^[A-Za-z0-9_:/^$().|&!= ~*-]{0,200}$' \
+            || { echo "The filter has a character a filter does not use." >&2; exit 1; }
+
+  targeted:
+    name: targeted
+    needs: validate
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # lint-repo's impact.py check reads the commits since main.
+          fetch-depth: ${{ inputs.lint == 'lint-repo' && '0' || '1' }}
+          persist-credentials: false
+      - name: A local main to compare with
+        if: inputs.lint == 'lint-repo'
+        run: git fetch --no-tags origin main && git branch --force main FETCH_HEAD
+      - uses: ./.github/actions/setup
+        with:
+          packages: ${{ inputs.crate != '' }}
+          valgrind: ${{ inputs.lint == 'lint-op-cost' }}
+          deps: ${{ inputs.crate != '' && 'build-tests' || inputs.lint }}
+      - name: The crate is a member of the workspace
+        if: inputs.crate != ''
+        env:
+          CRATE: ${{ inputs.crate }}
+        run: |
+          cargo metadata --no-deps --format-version 1 --locked \
+            | python3 -c 'import json,sys; sys.exit(0 if sys.argv[1] in [p["name"] for p in json.load(sys.stdin)["packages"]] else 1)' "$CRATE" \
+            || { echo "$CRATE is not a member of the workspace." >&2; exit 1; }
+      - name: The crate's tests
+        if: inputs.crate != ''
+        env:
+          CRATE: ${{ inputs.crate }}
+          FILTER: ${{ inputs.filter }}
+        run: cargo nextest run --locked -p "$CRATE" -E "${FILTER:-all()}"
+      - name: The lint recipe
+        if: inputs.lint != 'none'
+        env:
+          LINT: ${{ inputs.lint }}
+        run: just "$LINT"
