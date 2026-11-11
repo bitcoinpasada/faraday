@@ -120,10 +120,12 @@ dependencies = [
  "aqrv",
  "faraday-bip",
  "faraday-codec",
+ "faraday-crypto",
  "faraday-draw",
  "faraday-shell-api",
  "faraday-strings",
  "faraday-ui",
+ "zeroize",
 ]
 
 [[package]]

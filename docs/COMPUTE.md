@@ -119,6 +119,7 @@ and checks no signature; events only today; a
 | `compute()` in `faraday-keys`'s `tests/core_wallet.rs` | `new(\|_\| {})` | The Core wallet key tests, which cannot reach faraday-core's test kit |
 | `compute()` in `faraday-kef`'s `tests/kef.rs` | `new(\|_\| {})` | The KEF tests, which cannot reach faraday-core's test kit |
 | `compute()` in `faraday-vault`'s `tests/kdbx.rs` | `new(count)`, a function that counts the key-stretching runs | The KDBX tests, which check that a work factor or cost over the limit is refused before any run |
+| `aqrv/aqrv-app/src/worker.rs`: `Worker::start` (the spawned thread's closure) | `new(\|_\| {})` | The Argon QR Vault's worker thread, which draws nothing: Argon2id, QR encoding and the one 64 MiB timing run; a token cannot cross threads, so the thread mints its own |
 | `faraday/shells/starter/src/finder.rs`: `Finder::answer` | `new(\|_\| {})` | The Starter's finder thread, which looks for images and draws nothing; a token cannot cross threads, so the thread mints its own |
 | `compute()` in the Starter shell's `tests/all/finder.rs` | `new(count)`, a function that counts the files hashed | The finder's tests, which check that only files named on the image list are read |
 | Core tests and benches, `fuzz/`, `faraday/fuzz/` | `unchecked()` | No app guarantee |

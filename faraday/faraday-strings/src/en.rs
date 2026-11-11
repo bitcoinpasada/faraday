@@ -13956,4 +13956,181 @@ strings! {
     compare_differences_label: "Differences",
     /// A file's ⋮ menu: compare this PSBT or transaction with another.
     file_menu_compare: "Compare",
+    /// The Argon QR Vault's tab for making a code.
+    #[cfg(feature = "aqrv")]
+    aqrv_tab_make: "Make",
+    /// The Argon QR Vault's tab for opening a code.
+    #[cfg(feature = "aqrv")]
+    aqrv_tab_open: "Open",
+    /// Make, the item: the heading of the sample list.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_title: "Item",
+    /// Make, the item: the choice to type an item.
+    #[cfg(feature = "aqrv")]
+    aqrv_type_own: "Type my own",
+    /// Make, the item: the card's title.
+    #[cfg(feature = "aqrv")]
+    aqrv_test_data_title: "Test data only",
+    /// Make, the item: the card's line.
+    #[cfg(feature = "aqrv")]
+    aqrv_test_data_line: "Samples and typed test items are not for real funds.",
+    /// Make, the item: the typed item's field label.
+    #[cfg(feature = "aqrv")]
+    aqrv_own_field: "Item",
+    /// A kind of typed item: BIP-39 entropy as hex.
+    #[cfg(feature = "aqrv")]
+    aqrv_kind_entropy: "Seed entropy (hex)",
+    /// A kind of typed item.
+    #[cfg(feature = "aqrv")]
+    aqrv_kind_codex32: "codex32 string",
+    /// A kind of typed item.
+    #[cfg(feature = "aqrv")]
+    aqrv_kind_passphrase: "BIP-39 passphrase",
+    /// A kind of typed item.
+    #[cfg(feature = "aqrv")]
+    aqrv_kind_note: "Note",
+    /// A kind of typed item: a 32-byte key as hex.
+    #[cfg(feature = "aqrv")]
+    aqrv_kind_raw_key: "Raw key (hex)",
+    /// Make, the item: a typed item that is not valid for its kind.
+    #[cfg(feature = "aqrv")]
+    aqrv_not_an_item: "Not a valid item",
+    /// The button to the next step.
+    #[cfg(feature = "aqrv")]
+    aqrv_next: "Next",
+    /// The button to the previous step.
+    #[cfg(feature = "aqrv")]
+    aqrv_back: "Back",
+    /// A sample's name.
+    #[cfg(feature = "aqrv")]
+    aqrv_sample_words12: "12-word seed",
+    /// A sample's name.
+    #[cfg(feature = "aqrv")]
+    aqrv_sample_words24: "24-word seed",
+    /// A sample's name.
+    #[cfg(feature = "aqrv")]
+    aqrv_sample_codex_secret: "codex32 secret (BIP 93 vector 1)",
+    /// A sample's name.
+    #[cfg(feature = "aqrv")]
+    aqrv_sample_codex_share: "codex32 share (BIP 93 vector 2)",
+    /// A sample's name.
+    #[cfg(feature = "aqrv")]
+    aqrv_sample_note: "Note",
+    /// A sample's name.
+    #[cfg(feature = "aqrv")]
+    aqrv_sample_passphrase: "BIP-39 passphrase",
+    /// A sample's name.
+    #[cfg(feature = "aqrv")]
+    aqrv_sample_raw_key: "Raw key",
+    /// A sample's type, under its name.
+    #[cfg(feature = "aqrv")]
+    aqrv_type_words12: "BIP-39 entropy, 12 words",
+    /// A sample's type, under its name.
+    #[cfg(feature = "aqrv")]
+    aqrv_type_words24: "BIP-39 entropy, 24 words",
+    /// A sample's type, under its name.
+    #[cfg(feature = "aqrv")]
+    aqrv_type_codex32: "codex32 string",
+    /// A sample's type, under its name.
+    #[cfg(feature = "aqrv")]
+    aqrv_type_note: "Note",
+    /// A sample's type, under its name.
+    #[cfg(feature = "aqrv")]
+    aqrv_type_passphrase: "BIP-39 passphrase",
+    /// A sample's type, under its name.
+    #[cfg(feature = "aqrv")]
+    aqrv_type_raw_key: "32-byte key",
+    /// Make, the settings: the size heading.
+    #[cfg(feature = "aqrv")]
+    aqrv_settings_size: "Size",
+    /// A code size: the small one.
+    #[cfg(feature = "aqrv")]
+    aqrv_size_29: "29 × 29 · 4-byte tag",
+    /// A code size: the large one.
+    #[cfg(feature = "aqrv")]
+    aqrv_size_33: "33 × 33 · 8-byte tag",
+    /// Make, the settings: the memory heading.
+    #[cfg(feature = "aqrv")]
+    aqrv_settings_memory: "Memory",
+    /// A memory step's row. `{}`: the memory, then the time.
+    #[cfg(feature = "aqrv")]
+    aqrv_memory_row: "{} · about {}",
+    /// Marks the suggested memory step.
+    #[cfg(feature = "aqrv")]
+    aqrv_memory_suggested: "Suggested",
+    /// A memory step.
+    #[cfg(feature = "aqrv")]
+    aqrv_memory_64: "64 MiB",
+    /// A memory step.
+    #[cfg(feature = "aqrv")]
+    aqrv_memory_128: "128 MiB",
+    /// A memory step.
+    #[cfg(feature = "aqrv")]
+    aqrv_memory_256: "256 MiB",
+    /// A memory step.
+    #[cfg(feature = "aqrv")]
+    aqrv_memory_512: "512 MiB",
+    /// A memory step.
+    #[cfg(feature = "aqrv")]
+    aqrv_memory_1g: "1 GiB",
+    /// A time. `{}`: whole seconds.
+    #[cfg(feature = "aqrv")]
+    aqrv_seconds: "{} s",
+    /// The memory rows' time while the timing run has not finished.
+    #[cfg(feature = "aqrv")]
+    aqrv_timing: "timing",
+    /// Make, the settings: the passphrase field's label.
+    #[cfg(feature = "aqrv")]
+    aqrv_passphrase: "Passphrase",
+    /// Make, the settings: the second passphrase field's label.
+    #[cfg(feature = "aqrv")]
+    aqrv_passphrase_again: "Passphrase again",
+    /// Make, the settings: the two passphrases are not the same.
+    #[cfg(feature = "aqrv")]
+    aqrv_passphrase_differ: "The two passphrases differ",
+    /// Make, the settings: under the passphrase.
+    #[cfg(feature = "aqrv")]
+    aqrv_passphrase_strength: "The code is only as strong as its passphrase",
+    /// Shows a passphrase typed.
+    #[cfg(feature = "aqrv")]
+    aqrv_show: "Show",
+    /// Hides a passphrase typed.
+    #[cfg(feature = "aqrv")]
+    aqrv_hide: "Hide",
+    /// The button that makes the code.
+    #[cfg(feature = "aqrv")]
+    aqrv_make: "Make code",
+    /// Make, working. `{}`: the memory.
+    #[cfg(feature = "aqrv")]
+    aqrv_working: "Using {}",
+    /// Cancels the work and discards its result.
+    #[cfg(feature = "aqrv")]
+    aqrv_cancel: "Cancel",
+    /// Make, the code: its size. `{}`: modules across.
+    #[cfg(feature = "aqrv")]
+    aqrv_code_size: "{} × {} modules",
+    /// Make, the code: its memory. `{}`: the memory.
+    #[cfg(feature = "aqrv")]
+    aqrv_code_step: "Memory {}",
+    /// Make, the code: the label of its bytes in hex.
+    #[cfg(feature = "aqrv")]
+    aqrv_code_bytes: "Bytes",
+    /// The button that saves the code as a picture.
+    #[cfg(feature = "aqrv")]
+    aqrv_save_picture: "Save picture",
+    /// The button that saves the code as a .aqrv file.
+    #[cfg(feature = "aqrv")]
+    aqrv_save_file: "Save .aqrv",
+    /// The button that shows the working.
+    #[cfg(feature = "aqrv")]
+    aqrv_show_working: "Show the working",
+    /// The button that makes another code.
+    #[cfg(feature = "aqrv")]
+    aqrv_make_again: "Make another",
+    /// Make: the memory could not be had.
+    #[cfg(feature = "aqrv")]
+    aqrv_not_enough_memory: "Not enough memory",
+    /// Make: the item or passphrase was refused.
+    #[cfg(feature = "aqrv")]
+    aqrv_not_made: "The code was not made",
 }

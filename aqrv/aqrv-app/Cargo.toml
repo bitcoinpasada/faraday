@@ -16,6 +16,8 @@ faraday-draw = { path = "../../core/faraday-draw" }
 faraday-shell-api = { path = "../../core/faraday-shell-api" }
 faraday-strings = { path = "../../faraday/faraday-strings", features = ["aqrv"] }
 faraday-codec = { path = "../../core/faraday-codec" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+zeroize.workspace = true
 
 [lints]
 workspace = true
