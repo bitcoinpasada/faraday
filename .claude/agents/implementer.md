@@ -28,6 +28,10 @@ tokens (or about 60 tool calls, if you cannot see the count), finish the
 step you are on, commit what you have, and report what is done and what is
 left; then stop, and the rest goes to a fresh agent.
 
+Every commit goes through the hooks: never `--no-verify`. Work set aside
+goes to a patch file in the scratchpad (`git diff > FILE`), never a
+throwaway commit or a bare `git stash`.
+
 A risk the brief did not ask about that CLAUDE.md's "Security scope" puts out
 of scope, or calls later work, gets one line in your report, not a fix.
 
