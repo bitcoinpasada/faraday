@@ -4,6 +4,7 @@
 //! output and its mask that encoder's choice, so the modules are compared
 //! only where both encoders chose the same mask.
 
+use aqrv::{recognise_code, to_text};
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode};
 use faraday_crypto::work::Compute;
 use faraday_files::qr_in_png;
@@ -42,10 +43,16 @@ fn mask_of(module: impl Fn(usize, usize) -> bool) -> u8 {
 }
 
 #[test]
-fn a_qr_picture_decodes_to_the_envelope_at_each_size() {
+fn a_qr_picture_decodes_to_the_envelope_or_its_text_at_each_size() {
     let c = Compute::unchecked();
     for entry in vectors()["qr"].as_array().unwrap() {
-        let envelope = unhex(entry["envelope"].as_str().unwrap());
+        let mut envelope = unhex(entry["envelope"].as_str().unwrap());
+        if envelope.len() == 32 {
+            // Carried as its text (§3), which is what the entry says it is.
+            let bytes: [u8; 32] = envelope.as_slice().try_into().unwrap();
+            assert_eq!(entry["text"].as_str().unwrap(), to_text(&bytes));
+            envelope = entry["text"].as_str().unwrap().as_bytes().to_vec();
+        }
         let file = entry["png"].as_str().unwrap();
         let path = format!(
             "{}/../../tools/vectors/aqrv/{file}",
@@ -53,21 +60,26 @@ fn a_qr_picture_decodes_to_the_envelope_at_each_size() {
         );
         let picture = std::fs::read(path).unwrap();
         let codes = qr_in_png(&c, &picture).unwrap();
-        assert_eq!(codes.to_vec(), vec![envelope], "{file}");
+        assert_eq!(codes.to_vec(), vec![envelope.clone()], "{file}");
+        assert!(recognise_code(&envelope).is_some(), "{file}");
     }
 }
 
 #[test]
-fn the_envelope_is_version_3_at_53_bytes_and_version_4_at_62() {
+fn the_envelope_is_version_2_at_32_bytes_3_at_53_and_4_at_62() {
     let c = Compute::unchecked();
+    let mut by_mask = 0;
     for entry in vectors()["qr"].as_array().unwrap() {
         let envelope = unhex(entry["envelope"].as_str().unwrap());
-        let (version, ecc) = match envelope.len() {
-            53 => (3, Ecc::Low),
-            62 => (4, Ecc::Medium),
+        // The 32-byte envelope is its text, in alphanumeric mode.
+        let text = entry["text"].as_str().unwrap_or_default();
+        let (version, ecc, payload) = match envelope.len() {
+            32 => (2, Ecc::Low, Payload::Alphanumeric(text.as_bytes())),
+            53 => (3, Ecc::Low, Payload::Bytes(&envelope)),
+            62 => (4, Ecc::Medium, Payload::Bytes(&envelope)),
             n => panic!("an envelope of {n} bytes"),
         };
-        let qr: QrMatrix = encode(&c, Payload::Bytes(&envelope), ecc).unwrap();
+        let qr: QrMatrix = encode(&c, payload, ecc).unwrap();
         assert_eq!(qr.version(), version);
         assert_eq!(qr.size() as u64, entry["modules"].as_u64().unwrap());
 
@@ -80,6 +92,7 @@ fn the_envelope_is_version_3_at_53_bytes_and_version_4_at_62() {
             .collect();
         let theirs = |x: usize, y: usize| rows[y].as_bytes()[x] == b'1';
         if mask_of(|x, y| qr.module(x, y)) == mask_of(theirs) {
+            by_mask += 1;
             for y in 0..qr.size() {
                 for x in 0..qr.size() {
                     assert_eq!(qr.module(x, y), theirs(x, y), "module {x},{y}");
@@ -87,4 +100,5 @@ fn the_envelope_is_version_3_at_53_bytes_and_version_4_at_62() {
             }
         }
     }
+    assert!(by_mask > 0, "no entry was compared by mask");
 }

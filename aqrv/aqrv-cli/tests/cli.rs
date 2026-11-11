@@ -71,6 +71,21 @@ fn a_file_of_40_bytes_is_not_recognised() {
 }
 
 #[test]
+fn a_qr_picture_of_32_binary_bytes_is_not_recognised() {
+    use faraday_codec::png::qr_png;
+    use faraday_codec::qr::{Ecc, Payload, encode};
+    use faraday_crypto::work::Compute;
+    let c = Compute::new(|_| {});
+    let mut payload = [0x11u8; 32];
+    payload[0] = 0xF8;
+    let matrix = encode(&c, Payload::Bytes(&payload), Ecc::Low).unwrap();
+    let file = scratch("binary32.png");
+    std::fs::write(&file, qr_png(&matrix, 4)).unwrap();
+    let out = aqrv(&["open", &file, "--passphrase-stdin"], "anything\n");
+    assert_eq!(out.status.code(), Some(2), "{:?}", out.stderr);
+}
+
+#[test]
 fn inspect_shows_the_code_and_asks_for_no_passphrase() {
     let file = scratch("inspect.aqrv");
     make_note(&file);
@@ -97,4 +112,48 @@ fn the_vectors_agree_without_the_large_cases() {
         "{}",
         String::from_utf8_lossy(&out.stdout)
     );
+}
+
+#[test]
+fn a_32_byte_code_prints_its_text_and_opens_from_the_text_or_a_file_of_it() {
+    let file = scratch("tiny.txt");
+    let made = aqrv(
+        &[
+            "make",
+            "--kind",
+            "note",
+            "--size",
+            "32",
+            "--memory",
+            "64",
+            "--passphrase-stdin",
+        ],
+        "meet at noon\ncorrect horse\n",
+    );
+    assert_eq!(made.status.code(), Some(0), "{:?}", made.stderr);
+    let stdout = String::from_utf8(made.stdout).unwrap();
+    let text = stdout.strip_suffix('\n').unwrap();
+    assert_eq!(text.chars().count(), 47);
+
+    let by_argument = aqrv(
+        &["open", "--text", text, "--passphrase-stdin"],
+        "correct horse\n",
+    );
+    assert_eq!(
+        by_argument.status.code(),
+        Some(0),
+        "{:?}",
+        by_argument.stderr
+    );
+    assert!(String::from_utf8_lossy(&by_argument.stdout).contains("note meet at noon"));
+
+    std::fs::write(&file, &stdout).unwrap();
+    let by_file = aqrv(&["open", &file, "--passphrase-stdin"], "correct horse\n");
+    assert_eq!(by_file.status.code(), Some(0), "{:?}", by_file.stderr);
+
+    let lower = aqrv(
+        &["open", "--text", &text.to_lowercase(), "--passphrase-stdin"],
+        "x\n",
+    );
+    assert_eq!(lower.status.code(), Some(2));
 }

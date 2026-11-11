@@ -22,9 +22,6 @@ const LABEL_MAC: &[u8] = b"argon-qr-vault-1 mac";
 const PASSES: u32 = 3;
 const LANES: u32 = 4;
 
-/// The size of a salt (§3).
-const SALT_LEN: usize = 16;
-
 /// An envelope opened: what §9 read from it, and the item.
 pub struct Opened {
     /// The size and step.
@@ -54,7 +51,7 @@ pub struct Workings {
     /// whose tag matches; None when none or more than one does.
     pub message: Option<Zeroizing<Vec<u8>>>,
     /// Each kind's tag, cut to the size's tag length (the rest is zero).
-    pub tags: [(Kind, [u8; 8]); 9],
+    pub tags: Vec<(Kind, [u8; 8])>,
 }
 
 /// The three values Argon2id and HKDF-Expand give (§6).
@@ -112,7 +109,7 @@ fn xor(a: &[u8], stream: &[u8]) -> Zeroizing<Vec<u8>> {
 
 /// §6: `H || N || salt || kind || C`.
 fn message(header: u8, size: Size, salt: &[u8], kind: Kind, c: &[u8]) -> Zeroizing<Vec<u8>> {
-    let mut m = Zeroizing::new(Vec::with_capacity(3 + SALT_LEN + c.len()));
+    let mut m = Zeroizing::new(Vec::with_capacity(3 + salt.len() + c.len()));
     m.push(header);
     m.push(size.bytes() as u8);
     m.extend_from_slice(salt);
@@ -121,19 +118,22 @@ fn message(header: u8, size: Size, salt: &[u8], kind: Kind, c: &[u8]) -> Zeroizi
     m
 }
 
-/// §6: the tag of every kind, each cut to the size's tag length.
-fn all_tags(k_mac: &[u8], header: u8, size: Size, salt: &[u8], c: &[u8]) -> [(Kind, [u8; 8]); 9] {
-    Kind::ALL.map(|kind| {
+/// §6: the tag of every kind the size holds, each cut to the size's tag
+/// length. A kind the size does not hold is never computed.
+fn all_tags(k_mac: &[u8], header: u8, size: Size, salt: &[u8], c: &[u8]) -> Vec<(Kind, [u8; 8])> {
+    let held = Kind::ALL.into_iter().filter(|kind| size.holds(*kind));
+    held.map(|kind| {
         let full = hmac_sha256(k_mac, &message(header, size, salt, kind, c));
         let mut tag = [0u8; 8];
         tag[..size.tag_len()].copy_from_slice(&full[..size.tag_len()]);
         (kind, tag)
     })
+    .collect()
 }
 
 /// Costs one Argon2id run at the memory of `step`: makes an envelope
 /// (§6 Writing). `random` fills each buffer it is given, in the order of
-/// §6: the salt (16 bytes), then for a codex32 string one byte for the
+/// §6: the salt (16 bytes, 11 at the 32-byte size), then for a codex32 string one byte for the
 /// item's unused low bits, then the padding (not asked for when the item
 /// fills the room). If another kind's tag equals this kind's, all three
 /// are drawn again.
@@ -152,7 +152,7 @@ pub fn seal(
     let pw = passphrase_bytes(passphrase);
     let header = step.header();
     loop {
-        let mut salt = [0u8; SALT_LEN];
+        let mut salt = vec![0u8; size.salt_len()];
         random(&mut salt);
 
         // `P`: the item, its unused low bits filled, then the padding.
@@ -204,8 +204,8 @@ struct Read {
 fn read(c: &Compute, envelope: &[u8], passphrase: &str) -> Result<Read, NotOpened> {
     let header = recognise(envelope).ok_or(NotOpened::NotRecognised)?;
     let size = header.size;
-    let salt = &envelope[1..1 + SALT_LEN];
-    let encrypted = &envelope[1 + SALT_LEN..envelope.len() - size.tag_len()];
+    let salt = &envelope[1..1 + size.salt_len()];
+    let encrypted = &envelope[1 + size.salt_len()..envelope.len() - size.tag_len()];
     let stored = &envelope[envelope.len() - size.tag_len()..];
 
     let pw = passphrase_bytes(passphrase);

@@ -61,6 +61,10 @@ pub(crate) struct Laid {
 
 /// §3: lays `item` out for `size`, or refuses it (§6 Writing step 1).
 pub(crate) fn lay_out(item: &Item, size: Size) -> Result<Laid, Refused> {
+    // A codex32 string is refused by its kind before it is packed.
+    if matches!(item, Item::Codex32(_)) && !size.holds(Kind::Codex32) {
+        return Err(Refused::KindNotHeld);
+    }
     let (kind, bytes, unused_mask) = match item {
         Item::Entropy(bytes) => {
             let kind = Kind::of_entropy_len(bytes.len()).ok_or(Refused::EntropyLength)?;
@@ -74,6 +78,9 @@ pub(crate) fn lay_out(item: &Item, size: Size) -> Result<Laid, Refused> {
             (Kind::Codex32, bytes, Some(mask))
         }
     };
+    if !size.holds(kind) {
+        return Err(Refused::KindNotHeld);
+    }
     Ok(Laid {
         kind,
         bytes,

@@ -1,8 +1,9 @@
 //! The Argon QR Vault's format: seal and open (`docs/AQRV.md`).
 //!
-//! One small secret under a passphrase, in 53 or 62 bytes (§3). [`seal`]
+//! One small secret under a passphrase, in 32, 53 or 62 bytes (§3). [`seal`]
 //! writes an envelope (§6 Writing), [`open`] reads one (§6 Reading),
-//! [`recognise`] says from the bytes alone whether they are one (§9), and
+//! [`recognise_code`] and [`recognise_file`] say from the bytes alone whether
+//! a QR payload or a file is one (§9, §9.1), and
 //! [`workings`] gives every intermediate value of §6 for the test vectors.
 //!
 //! The library prints nothing, takes its random bytes from the caller, and
@@ -15,13 +16,19 @@
 mod codex32;
 mod envelope;
 mod item;
+mod text;
 
 pub use envelope::{Opened, Workings, open, seal, workings};
 pub use item::Item;
+pub use text::{NotText, from_text, to_text};
 
-/// The two sizes (§3), told apart by the envelope's total length.
+/// The three sizes (§3), told apart by the envelope's total length.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Size {
+    /// 32 bytes: a 25 x 25 code, an 11-byte salt, a 4-byte tag, a room of
+    /// 16, and only the kinds 0x10, 0x40 and 0x41. In a QR code it is
+    /// text ([`to_text`], [`from_text`]).
+    Tiny,
     /// 53 bytes: a 29 x 29 code, a 4-byte tag, a room of 32.
     Small,
     /// 62 bytes: a 33 x 33 code, an 8-byte tag, a room of 37.
@@ -32,6 +39,7 @@ impl Size {
     /// The envelope's total length, `N` in §6.
     pub const fn bytes(self) -> usize {
         match self {
+            Size::Tiny => 32,
             Size::Small => 53,
             Size::Large => 62,
         }
@@ -40,6 +48,7 @@ impl Size {
     /// The room: the length of `C` and of `P` (§3).
     pub const fn room(self) -> usize {
         match self {
+            Size::Tiny => 16,
             Size::Small => 32,
             Size::Large => 37,
         }
@@ -48,14 +57,31 @@ impl Size {
     /// The tag's length, `t` in §6.
     pub const fn tag_len(self) -> usize {
         match self {
-            Size::Small => 4,
+            Size::Tiny | Size::Small => 4,
             Size::Large => 8,
         }
     }
 
-    /// The size whose total length is `n`, if either (§9, first rule).
+    /// The salt's length (§3): 11 bytes at the smallest size, else 16.
+    pub const fn salt_len(self) -> usize {
+        match self {
+            Size::Tiny => 11,
+            Size::Small | Size::Large => 16,
+        }
+    }
+
+    /// Whether the size holds `kind` (§3): the smallest holds three.
+    pub const fn holds(self, kind: Kind) -> bool {
+        match self {
+            Size::Tiny => matches!(kind, Kind::Words12 | Kind::Passphrase | Kind::Note),
+            Size::Small | Size::Large => true,
+        }
+    }
+
+    /// The size whose total length is `n`, if any (§9, first rule).
     pub fn of_len(n: usize) -> Option<Size> {
         match n {
+            32 => Some(Size::Tiny),
             53 => Some(Size::Small),
             62 => Some(Size::Large),
             _ => None,
@@ -168,12 +194,34 @@ pub struct Header {
     pub step: Step,
 }
 
-/// §9: bytes are treated as an AQRV code when they are 53 or 62 bytes
-/// long and the first is 0xF8 to 0xFC. Only the tag proves a match.
+/// The check both of §9's rules end in: an envelope's bytes are 32, 53 or
+/// 62 bytes long and the first is 0xF8 to 0xFC. Only the tag proves a match.
+/// It does not say where the bytes came from: a QR payload is
+/// [`recognise_code`], a file [`recognise_file`].
 pub fn recognise(bytes: &[u8]) -> Option<Header> {
     let size = Size::of_len(bytes.len())?;
     let step = Step::of_header(*bytes.first()?)?;
     Some(Header { size, step })
+}
+
+/// §9: the envelope a QR code's payload stands for. A payload of 53 or 62
+/// bytes of binary is one when its first byte is 0xF8 to 0xFC; a payload of
+/// 47 characters of text is one when [`from_text`] reads it and the first of
+/// its 32 bytes is 0xF8 to 0xFC. Anything else is not, 32 bytes of binary
+/// whatever their first byte included.
+pub fn recognise_code(payload: &[u8]) -> Option<Vec<u8>> {
+    if payload.len() != 32 && recognise(payload).is_some() {
+        return Some(payload.to_vec());
+    }
+    let bytes = from_text(std::str::from_utf8(payload).ok()?).ok()?;
+    recognise(&bytes).map(|_| bytes.to_vec())
+}
+
+/// §9.1: a `.aqrv` file holds the envelope's bytes and nothing else, so its
+/// bytes are one when they are 32, 53 or 62 long and the first is 0xF8 to
+/// 0xFC. A file's text form is not read here.
+pub fn recognise_file(bytes: &[u8]) -> Option<Header> {
+    recognise(bytes)
 }
 
 /// Why [`seal`] wrote nothing (§3, §6 Writing step 1).
@@ -185,6 +233,9 @@ pub enum Refused {
     EmptyText,
     /// The text is longer than the size has room for (§3).
     TooLong,
+    /// An item of a kind the size does not hold (§3): at 32 bytes, every
+    /// kind but a 12-word seed, a passphrase and a note.
+    KindNotHeld,
     /// Entropy of a length no BIP-39 word count has (§3).
     EntropyLength,
     /// A string BIP 93 refuses, or one of a length no form here has (§3.1).

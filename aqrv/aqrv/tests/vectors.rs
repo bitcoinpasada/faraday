@@ -6,7 +6,10 @@
 
 use std::collections::VecDeque;
 
-use aqrv::{Item, Kind, Layout, NotOpened, Refused, Size, Step, open, recognise, seal, workings};
+use aqrv::{
+    Item, Kind, Layout, NotOpened, NotText, Refused, Size, Step, from_text, open, recognise, seal,
+    to_text, workings,
+};
 use faraday_crypto::work::Compute;
 use serde_json::Value;
 use zeroize::Zeroizing;
@@ -58,7 +61,10 @@ fn text<'a>(v: &'a Value, key: &str) -> &'a str {
 
 /// The item a case says a reader shows.
 fn expected_item(case: &Value) -> Item {
-    let item = &case["expect"]["item"];
+    item_of(&case["expect"]["item"])
+}
+
+fn item_of(item: &Value) -> Item {
     match text(item, "type") {
         "entropy" => Item::Entropy(Zeroizing::new(unhex(text(item, "hex")))),
         "raw_key" => Item::RawKey(Zeroizing::new(unhex(text(item, "hex")).try_into().unwrap())),
@@ -250,8 +256,9 @@ fn every_case_that_is_not_recognised_asks_for_no_passphrase() {
 fn the_writer_refuses_a_64_byte_codex32_seed_and_a_bad_checksum() {
     let v = vectors();
     let refused = v["writer_refuses"].as_array().unwrap();
-    assert!(!refused.is_empty());
-    for entry in refused {
+    let strings: Vec<&Value> = refused.iter().filter(|e| e.get("size").is_none()).collect();
+    assert!(!strings.is_empty());
+    for entry in strings {
         for size in [Size::Small, Size::Large] {
             let item = Item::Codex32(Zeroizing::new(text(entry, "string").to_owned()));
             let got = seal(&compute(), &item, "pass", Step::Mib64, size, &mut |_| {
@@ -264,4 +271,86 @@ fn the_writer_refuses_a_64_byte_codex32_seed_and_a_bad_checksum() {
             );
         }
     }
+}
+
+#[test]
+fn the_writer_refuses_what_the_32_byte_size_does_not_hold() {
+    let v = vectors();
+    let refused: Vec<&Value> = v["writer_refuses"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|e| e.get("size").is_some())
+        .collect();
+    assert!(!refused.is_empty());
+    for entry in refused {
+        let size = Size::of_len(entry["size"].as_u64().unwrap() as usize).unwrap();
+        let got = seal(
+            &compute(),
+            &item_of(&entry["item"]),
+            "pass",
+            Step::Mib64,
+            size,
+            &mut |_| panic!("a refusal comes before any draw"),
+        );
+        assert!(
+            matches!(got, Err(Refused::TooLong | Refused::KindNotHeld)),
+            "{}",
+            text(entry, "reason")
+        );
+    }
+}
+
+/// One case's 32 bytes and what a reader does with its text, both ways.
+#[test]
+fn a_32_byte_envelope_is_47_characters_and_back_and_a_bad_text_is_refused() {
+    let v = vectors();
+    let cases = v["qr_text"].as_array().unwrap();
+    assert!(!cases.is_empty());
+    let mut opened = 0;
+    for case in cases {
+        let name = text(case, "name");
+        let got = from_text(text(case, "text"));
+        let expect = &case["expect"];
+        if expect["outcome"] == "opens" {
+            let envelope = unhex(text(expect, "envelope"));
+            let bytes = got.unwrap_or_else(|e| panic!("{name}: {e:?}"));
+            assert_eq!(bytes.to_vec(), envelope, "{name}");
+            assert_eq!(to_text(&bytes), text(case, "text"), "{name}");
+            assert!(recognise(&bytes).is_some(), "{name}");
+            let item = open(&compute(), &bytes, text(case, "passphrase"))
+                .unwrap()
+                .item;
+            assert_eq!(shown(&item), shown(&expected_item(case)), "{name}");
+            opened += 1;
+        } else {
+            // Not recognised: by the text's rules, or by the header byte.
+            let by_header = got.as_ref().is_ok_and(|b| recognise(b).is_none());
+            assert!(got.is_err() || by_header, "{name}");
+        }
+    }
+    assert!(opened > 0);
+    // Every 32-byte case that opens also goes there and back.
+    for case in cases_where(|c| opens(c) && c["size"] == 32) {
+        let envelope: [u8; 32] = unhex(text(&case, "envelope")).try_into().unwrap();
+        assert_eq!(from_text(&to_text(&envelope)), Ok(envelope));
+    }
+}
+
+#[test]
+fn a_text_is_refused_for_its_length_character_first_letter_or_value() {
+    let valid = "A3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-.";
+    assert!(from_text(valid).is_ok());
+    assert_eq!(from_text(&valid[..46]), Err(NotText::Length));
+    assert_eq!(from_text(&format!("{valid}0")), Err(NotText::Length));
+    assert_eq!(from_text(&valid.to_lowercase()), Err(NotText::Character));
+    assert_eq!(from_text(&valid.replace('Z', "#")), Err(NotText::Character));
+    assert_eq!(from_text(&valid.replacen('A', "B", 1)), Err(NotText::First));
+    // 256^32 exactly, and the greatest text, which is far over it.
+    let over = "AGZC8CGPPX3.8PW.LLZJ.MNSC%IGA7%SF/E3HY: ZA8OYLG";
+    assert_eq!(from_text(over), Err(NotText::OutOfRange));
+    assert_eq!(
+        from_text(&format!("A{}", ":".repeat(46))),
+        Err(NotText::OutOfRange)
+    );
 }

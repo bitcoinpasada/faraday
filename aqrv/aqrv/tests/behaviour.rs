@@ -1,7 +1,10 @@
 //! What a person sealing and opening codes would notice, apart from the
 //! vectors.
 
-use aqrv::{Header, Item, NotOpened, Refused, Size, Step, open, recognise, seal};
+use aqrv::{
+    Header, Item, NotOpened, Refused, Size, Step, open, recognise, recognise_code, recognise_file,
+    seal,
+};
 use faraday_crypto::work::Compute;
 use zeroize::Zeroizing;
 
@@ -176,4 +179,80 @@ fn the_writer_draws_the_salt_then_the_fill_byte_then_the_padding() {
     let string = "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw";
     let item = Item::Codex32(text(string));
     assert_eq!(draws(&item, Size::Small), [16, 1, 11]);
+}
+
+#[test]
+fn the_writer_refuses_a_text_too_long_for_its_size() {
+    let c = compute();
+    // 16 bytes of text: 17 item bytes, over the 16-byte room.
+    let at_32 = Item::Note(text(&"n".repeat(16)));
+    let got = seal(&c, &at_32, "pass", Step::Mib64, Size::Tiny, &mut counter());
+    assert!(matches!(got, Err(Refused::TooLong)));
+    let at_53 = Item::Passphrase(text(&"p".repeat(32)));
+    let got = seal(&c, &at_53, "pass", Step::Mib64, Size::Small, &mut counter());
+    assert!(matches!(got, Err(Refused::TooLong)));
+    let at_62 = Item::Note(text(&"n".repeat(37)));
+    let got = seal(&c, &at_62, "pass", Step::Mib64, Size::Large, &mut counter());
+    assert!(matches!(got, Err(Refused::TooLong)));
+}
+
+#[test]
+fn the_writer_refuses_entropy_of_a_length_bip_39_does_not_have() {
+    let c = compute();
+    for len in [0, 15, 17, 31, 33] {
+        for size in [Size::Tiny, Size::Small, Size::Large] {
+            let got = seal(&c, &entropy(len), "pass", Step::Mib64, size, &mut counter());
+            assert!(matches!(got, Err(Refused::EntropyLength)), "{len} bytes");
+        }
+    }
+}
+
+#[test]
+fn a_32_byte_envelope_holds_a_12_word_seed_and_short_text_and_no_other_kind() {
+    let c = compute();
+    let mut random = counter();
+    let seed = seal(
+        &c,
+        &entropy(16),
+        "pass",
+        Step::Mib64,
+        Size::Tiny,
+        &mut random,
+    )
+    .unwrap();
+    assert_eq!(seed.len(), 32);
+    let note = Item::Note(text("a 15 byte note."));
+    let note = seal(&c, &note, "pass", Step::Mib64, Size::Tiny, &mut random).unwrap();
+    assert_eq!(note.len(), 32);
+    let opened = open(&c, &note, "pass").unwrap();
+    assert_eq!(shown(&opened.item), "a 15 byte note.");
+    for len in [20, 24, 28, 32] {
+        let got = seal(
+            &c,
+            &entropy(len),
+            "pass",
+            Step::Mib64,
+            Size::Tiny,
+            &mut random,
+        );
+        assert!(matches!(got, Err(Refused::KindNotHeld)), "{len} bytes");
+    }
+    let key = Item::RawKey(Zeroizing::new([7; 32]));
+    let got = seal(&c, &key, "pass", Step::Mib64, Size::Tiny, &mut random);
+    assert!(matches!(got, Err(Refused::KindNotHeld)));
+}
+
+#[test]
+fn a_qr_payload_is_53_or_62_bytes_or_47_characters_and_a_file_is_32_53_or_62_bytes() {
+    let mut bytes = vec![0x11u8; 62];
+    bytes[0] = 0xF8;
+    assert_eq!(recognise_code(&bytes), Some(bytes.clone()));
+    bytes.truncate(53);
+    assert_eq!(recognise_code(&bytes), Some(bytes.clone()));
+    // 32 bytes of binary are a file's size, not a QR code's, whatever the first byte.
+    bytes.truncate(32);
+    assert_eq!(recognise_code(&bytes), None);
+    assert!(recognise_file(&bytes).is_some());
+    bytes[0] = 0xF0;
+    assert_eq!(recognise_file(&bytes), None);
 }

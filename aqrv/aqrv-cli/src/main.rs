@@ -7,7 +7,10 @@ mod tty;
 use std::io::{self, BufRead, Read};
 use std::process::ExitCode;
 
-use aqrv::{Item, Kind, NotOpened, Refused, Size, Step, open, recognise, seal, workings};
+use aqrv::{
+    Item, Kind, NotOpened, Refused, Size, Step, open, recognise, recognise_code, recognise_file,
+    seal, to_text, workings,
+};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::codex32::Codex32;
 use faraday_bip::json::{self, Value};
@@ -20,14 +23,14 @@ use zeroize::Zeroizing;
 
 /// The envelope lengths `--size` accepts. A size the library adds is
 /// named here; `Size::of_len` says whether it is one.
-const SIZE_NUMBERS: [usize; 2] = [53, 62];
+const SIZE_NUMBERS: [usize; 3] = [32, 53, 62];
 
 const USAGE: &str = "\
 usage:
-  aqrv make    --kind words|codex32|passphrase|note|key [--size 53|62]
+  aqrv make    --kind words|codex32|passphrase|note|key [--size 32|53|62]
                [--memory 64|128|256|512|1024] [--out FILE.aqrv] [--png FILE.png]
                [--scale 8] [--passphrase-stdin]
-  aqrv open    FILE|- [--show] [--passphrase-stdin]
+  aqrv open    FILE|- | --text TEXT [--show] [--passphrase-stdin]
   aqrv inspect FILE|- [--json] [--png FILE.png]
   aqrv vectors [PATH/aqrv.json] [--case NAME] [--skip-large]
   aqrv from-sheet FILE.json --out FILE.aqrv";
@@ -189,15 +192,21 @@ fn step_text(step: Step) -> String {
 /// §3: the QR level each size is written at.
 fn ecc(size: Size) -> Ecc {
     match size {
-        Size::Small => Ecc::Low,
+        Size::Tiny | Size::Small => Ecc::Low,
         Size::Large => Ecc::Medium,
     }
 }
 
 fn qr_file(c: &Compute, envelope: &[u8], path: &str, scale: usize) -> Run {
     let size = Size::of_len(envelope.len()).ok_or_else(|| Fail(2, "not recognised".into()))?;
-    let matrix = encode(c, Payload::Bytes(envelope), ecc(size))
-        .map_err(|_| Fail(3, "the code could not be drawn".into()))?;
+    // The 32-byte size is carried in a QR code as its text (§3).
+    let text = <[u8; 32]>::try_from(envelope).map(|e| to_text(&e));
+    let payload = match &text {
+        Ok(text) => Payload::Alphanumeric(text.as_bytes()),
+        Err(_) => Payload::Bytes(envelope),
+    };
+    let matrix =
+        encode(c, payload, ecc(size)).map_err(|_| Fail(3, "the code could not be drawn".into()))?;
     std::fs::write(path, qr_png(&matrix, scale)).map_err(|e| io_fail(path, &e))
 }
 
@@ -264,7 +273,11 @@ fn make(c: &Compute, args: &[String]) -> Run {
     if let Some(path) = p.value("--png") {
         qr_file(c, &envelope, path, scale)?;
     }
-    if p.value("--out").is_none() && p.value("--png").is_none() {
+    // The 32-byte size's text is what its QR code holds (§3): it is
+    // printed beside the file and the picture, and `open --text` takes it.
+    if let Ok(bytes) = <[u8; 32]>::try_from(envelope.as_slice()) {
+        println!("{}", to_text(&bytes));
+    } else if p.value("--out").is_none() && p.value("--png").is_none() {
         println!("{}", hex(&envelope));
     }
     Ok(())
@@ -308,6 +321,10 @@ fn refused(r: Refused) -> Fail {
         Refused::EmptyPassphrase => Fail(3, "not written: the passphrase is empty".into()),
         Refused::EmptyText => Fail(3, "not written: the text is empty".into()),
         Refused::TooLong => Fail(3, "not written: the text is too long for the size".into()),
+        Refused::KindNotHeld => Fail(
+            3,
+            "not written: the 32-byte size does not hold this kind".into(),
+        ),
         Refused::EntropyLength => Fail(3, "not written: the seed has no word count".into()),
         Refused::Codex32(_) => Fail(3, "not written: not a codex32 string".into()),
         Refused::Codex32TooLongForSmall => Fail(
@@ -319,7 +336,14 @@ fn refused(r: Refused) -> Fail {
 
 // open and inspect
 
-/// The envelope's bytes from a file, a PNG or standard input.
+/// The envelope a text of 47 characters stands for (§3, §9).
+fn envelope_of_text(text: &str) -> Option<Vec<u8>> {
+    recognise_code(text.as_bytes())
+}
+
+/// The envelope's bytes from a file, a PNG or standard input. A file holds
+/// the bytes (§9.1), or the 32-byte size's text with at most its one line
+/// ending: a space or any other character is part of the text.
 fn load(c: &Compute, source: &str) -> Result<Vec<u8>, Fail> {
     let bytes = if source == "-" {
         let mut all = Vec::new();
@@ -337,11 +361,16 @@ fn load(c: &Compute, source: &str) -> Result<Vec<u8>, Fail> {
             .map_err(|_| Fail(2, "not recognised: no code in the picture".into()))?;
         return codes
             .iter()
-            .find(|code| recognise(code).is_some())
-            .cloned()
+            .find_map(|code| recognise_code(code))
             .ok_or_else(|| Fail(2, "not recognised".into()));
     }
-    Ok(bytes)
+    if recognise_file(&bytes).is_some() {
+        return Ok(bytes);
+    }
+    let line = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
+    let line = line.strip_suffix(b"\r").unwrap_or(line);
+    let text = std::str::from_utf8(line).ok();
+    Ok(text.and_then(envelope_of_text).unwrap_or(bytes))
 }
 
 fn header_of(envelope: &[u8]) -> Result<aqrv::Header, Fail> {
@@ -349,16 +378,25 @@ fn header_of(envelope: &[u8]) -> Result<aqrv::Header, Fail> {
 }
 
 fn open_command(c: &Compute, args: &[String]) -> Run {
-    let p = parse(args, &[], &["--show", "--passphrase-stdin"])?;
-    let [source] = p.positional.as_slice() else {
-        return Err(usage("open takes one file, or - for standard input"));
+    let p = parse(args, &["--text"], &["--show", "--passphrase-stdin"])?;
+    let envelope = match (p.value("--text"), p.positional.as_slice()) {
+        (Some(text), []) => {
+            envelope_of_text(text).ok_or_else(|| Fail(2, "not recognised".into()))?
+        }
+        (None, [source]) => {
+            if source == "-" && p.has("--passphrase-stdin") {
+                return Err(usage(
+                    "the code and the passphrase cannot both be on standard input",
+                ));
+            }
+            load(c, source)?
+        }
+        _ => {
+            return Err(usage(
+                "open takes one file, or - for standard input, or --text",
+            ));
+        }
     };
-    if source == "-" && p.has("--passphrase-stdin") {
-        return Err(usage(
-            "the code and the passphrase cannot both be on standard input",
-        ));
-    }
-    let envelope = load(c, source)?;
     let header = header_of(&envelope)?;
     eprintln!(
         "{}, {}, memory {} MiB",
@@ -458,9 +496,9 @@ fn inspect(c: &Compute, args: &[String]) -> Run {
     let envelope = load(c, source)?;
     let header = header_of(&envelope)?;
     let size = header.size;
-    let salt = &envelope[1..17];
-    let ct = &envelope[17..17 + size.room()];
-    let tag = &envelope[17 + size.room()..];
+    let salt = &envelope[1..1 + size.salt_len()];
+    let ct = &envelope[1 + size.salt_len()..][..size.room()];
+    let tag = &envelope[1 + size.salt_len() + size.room()..];
     if p.has("--json") {
         println!(
             "{{\"format\":\"AQRV\",\"version\":1,\"memory_mib\":{},\"passes\":3,\"lanes\":4,\
@@ -526,7 +564,7 @@ fn from_sheet(args: &[String]) -> Run {
     envelope.extend_from_slice(&ct);
     envelope.extend_from_slice(&tag);
     let size = header_of(&envelope)?.size;
-    if salt.len() != 16 || ct.len() != size.room() || tag.len() != size.tag_len() {
+    if salt.len() != size.salt_len() || ct.len() != size.room() || tag.len() != size.tag_len() {
         return Err(not());
     }
     std::fs::write(out, &envelope).map_err(|e| io_fail(out, &e))
@@ -598,13 +636,35 @@ fn text_of<'a>(v: &'a Value, key: &str) -> &'a str {
 }
 
 fn run_refusal(c: &Compute, entry: &Value) -> Result<(), String> {
+    // An entry with a size and an item is refused at that size.
+    if let (Some(size), Some(item)) = (entry.get("size").and_then(Value::as_u64), entry.get("item"))
+    {
+        let size = Size::of_len(size as usize).ok_or("a size the library does not know")?;
+        let got = seal(
+            c,
+            &expected_item(item)?,
+            "pass",
+            Step::Mib64,
+            size,
+            &mut |_| unreachable!("a refusal comes before any draw"),
+        );
+        return match got {
+            Err(Refused::TooLong | Refused::KindNotHeld) => Ok(()),
+            _ => Err("written".into()),
+        };
+    }
     for number in SIZE_NUMBERS {
         let size = Size::of_len(number).ok_or("a size the library does not know")?;
         let item = Item::Codex32(Zeroizing::new(text_of(entry, "string").to_owned()));
         let got = seal(c, &item, "pass", Step::Mib64, size, &mut |_| {
             unreachable!("a refusal comes before any draw")
         });
-        if !matches!(got, Err(Refused::Codex32(_))) {
+        // The 32-byte size does not hold the kind, so it refuses that first.
+        let right = match size {
+            Size::Tiny => matches!(got, Err(Refused::KindNotHeld)),
+            _ => matches!(got, Err(Refused::Codex32(_))),
+        };
+        if !right {
             return Err(format!("written at {number} bytes"));
         }
     }
