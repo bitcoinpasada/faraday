@@ -364,6 +364,23 @@ CONFIG_RANDOM_KMALLOC_CACHES=y
 CONFIG_LIST_HARDENED=y
 CONFIG_RANDOMIZE_KSTACK_OFFSET_DEFAULT=y
 
+# Address-space and process-memory hardening, at the kernel's strictest
+# setting for this architecture. A process cannot map the lowest 64 KiB,
+# which is where a kernel null-pointer bug would be turned into code the
+# attacker placed; mmap and the stack are randomised with the most bits
+# x86_64 offers (32, the kernel's own maximum; the default is 28); no
+# line discipline is loaded on a process's request; writes through
+# /proc/PID/mem respect page protections instead of being forced; and the
+# cachestat system call, a page-cache probe nothing here calls, is out.
+# Its prompt needs EXPERT, set above.
+CONFIG_DEFAULT_MMAP_MIN_ADDR=65536
+CONFIG_ARCH_MMAP_RND_BITS=32
+# CONFIG_LDISC_AUTOLOAD is not set
+# CONFIG_CACHESTAT_SYSCALL is not set
+# CONFIG_PROC_MEM_ALWAYS_FORCE is not set
+# CONFIG_PROC_MEM_FORCE_PTRACE is not set
+CONFIG_PROC_MEM_NO_FORCE=y
+
 # The 32-bit system call table and the interfaces only 16-bit or
 # port-banging programs use. The shell is a static 64-bit musl binary.
 # CONFIG_IA32_EMULATION is not set

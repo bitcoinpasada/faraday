@@ -369,7 +369,8 @@ its board's lists. `check-kernel-config.sh` is the list, with a reason per line.
 `check-kernel-config.sh` reads two lists out of each part directory:
 `kernel.forbidden`, options that must not be built, and
 `kernel.required`, options that must be, each line a symbol and the reason
-it is in the list. `build.sh` runs it after `make linux-configure` has
+it is in the list; a required line may be `SYMBOL=NUMBER`, for an option
+whose value is a size or a bit count. `build.sh` runs it after `make linux-configure` has
 generated the kernel's `.config` and before the kernel is built, so a
 forbidden option fails the build in seconds and the offending line is
 what it prints. A driver that quietly lost a dependency — because the

@@ -16,7 +16,9 @@
 #   kernel.forbidden  options that must not be built: an option set to y
 #                     or m here fails
 #   kernel.required   options the device does not work without: an option
-#                     missing or unset here fails
+#                     missing or unset here fails; SYMBOL=NUMBER requires
+#                     that number as the option's value (a size or a bit
+#                     count), where a bare SYMBOL requires it to be y
 #   kernel.cmdline    words the kernel's built-in command line
 #                     (CONFIG_CMDLINE) must carry, for a board whose
 #                     command line is compiled in; the format is the same
@@ -61,7 +63,14 @@ read_list() {
         # A symbol is upper-case letters, digits and underscores, without
         # CONFIG_: anything else (a prefix, a value, a typo with a stray
         # character) would match nothing in the config and so pass.
-        if [ "$name" != cmdline ] && [ "$name" != bootcmdline ] && ! [[ "$sym" =~ ^[A-Z0-9_]+$ && "$sym" != CONFIG_* ]]; then
+        # A required option may carry a number after "=".
+        symname="$sym"
+        [ "$name" != required ] || symname="${sym%%=*}"
+        if [ "$name" = required ] && [[ "$sym" == *=* ]] && ! [[ "${sym#*=}" =~ ^[0-9]+$ ]]; then
+            echo "$file: $sym: the value after = must be a number" >&2
+            exit 2
+        fi
+        if [ "$name" != cmdline ] && [ "$name" != bootcmdline ] && ! [[ "$symname" =~ ^[A-Z0-9_]+$ && "$symname" != CONFIG_* ]]; then
             echo "$file: $sym is not a kernel option name (no CONFIG_ prefix, no value)" >&2
             exit 2
         fi
@@ -93,6 +102,7 @@ fail=0
 # hold, and an image built from them would be whichever ran last.
 for r in ${required[@]+"${required[@]}"}; do
     rsym="${r%%|*}"
+    rsym="${rsym%%=*}"
     for f in ${forbidden[@]+"${forbidden[@]}"}; do
         if [ "${f%%|*}" = "$rsym" ]; then
             echo "kernel config: CONFIG_$rsym is both required and forbidden:" >&2
@@ -124,8 +134,10 @@ done
 for entry in ${required[@]+"${required[@]}"}; do
     sym="${entry%%|*}"
     rest="${entry#*|}"
-    if ! grep -qE "^CONFIG_$sym=y\$" "$config"; then
-        echo "kernel config: CONFIG_$sym is not set" >&2
+    want=y
+    case "$sym" in *=*) want="${sym#*=}"; sym="${sym%%=*}" ;; esac
+    if ! grep -qE "^CONFIG_$sym=$want\$" "$config"; then
+        echo "kernel config: CONFIG_$sym is not $want" >&2
         echo "               must be built: ${rest%%|*}" >&2
         echo "               (${rest##*|})" >&2
         fail=1

@@ -30,6 +30,16 @@ inside it and the firmware's framebuffer, so nothing it runs needs the
 devices that flag cuts off. `KCMP` is forbidden on the PC (its own
 `kernel.forbidden`) and allowed on the Pi, where DRM selects it (F153).
 
+The PC's kernel also sets, in its own fragment and lists
+(`faraday/image/boards/x86_64-uefi/`), five options for how a process
+sees memory and the kernel's interfaces: `DEFAULT_MMAP_MIN_ADDR` at
+65536, `ARCH_MMAP_RND_BITS` at 32 (x86_64's maximum), `PROC_MEM_NO_FORCE`,
+and `LDISC_AUTOLOAD` and `CACHESTAT_SYSCALL` off. `kernel.required` holds
+the first three (a number after `=` is the value the check requires) and
+`kernel.forbidden` the other two, so the build's kernel-config check fails
+on any of them. They are not in the Pi's lists, whose kernel is not checked
+for them.
+
 A board's lists and fragments are the board's own, in its directory
 under `faraday/image/boards/`; there is no layer between the board and
 the panel. The root filesystem, the app and its checks are the same on

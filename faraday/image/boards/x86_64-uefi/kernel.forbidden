@@ -11,6 +11,8 @@ EFIVAR_FS               the firmware's own variable store, mounted writable; the
 PM                      the machine is on or it is off, and runtime power management is what SUSPEND and HIBERNATION are built on
 HYPERVISOR_GUEST        this is a kernel for a laptop; it boots in QEMU as a plain emulated PC
 VGA_CONSOLE             a machine booted through UEFI is in a graphics mode from the firmware onwards
+LDISC_AUTOLOAD          a terminal line discipline loaded because a process asked for it
+CACHESTAT_SYSCALL       a system call that probes the page cache, which nothing here calls
 PCIEPORTBUS             nothing here is hot-plugged, and the controllers are found by enumeration without it
 ATA                     the laptop's own SATA or IDE disk; without the driver the kernel never sees it, so nothing on it can be read, written or mounted
 BLK_DEV_NVME            the laptop's own NVMe disk, for the same reason
