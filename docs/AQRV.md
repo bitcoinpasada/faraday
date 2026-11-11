@@ -728,6 +728,7 @@ RFC 8439), and it agrees with every case, the sealed envelopes, the text forms a
 pictures, which zbar decodes to the envelope's bytes, or at the 32-byte size to its 47
 characters (zxing-cpp is run too where it is installed). It was written by Faraday's authors,
 so it is not the outside implementation this section and the **Open:** line ask for.
+The Rust library `aqrv`, the command line `aqrv-cli` and the desktop test app in `aqrv/` are also by Faraday's authors; the library's tests read every case and the three pictures, and `aqrv vectors` runs them. They are not an outside implementation either.
 
 A vector where two tags agree is not offered: finding one takes about 2^31
 Argon2id runs at the 32-byte size, 2^29 at the small size and 2^61 at the large one, so that branch of
@@ -911,7 +912,7 @@ are the same size of code. As `docs/KEF.md` §3 to §5 and §10 describe it:
 | Read as a seed by a reader of Compact SeedQRs | No: it is text (§9) | No: it is text |
 | Read as the other format | No (§9) | No (§9) |
 | Small devices | Needs 64 MiB or more | Runs on microcontrollers |
-| Standing | This draft: no implementation, no review | One project's published specification, in use on its devices |
+| Standing | This draft: a Rust implementation by Faraday's authors in `aqrv/` (library, command line, desktop test app), checked against the vectors and not an outside one; no review | One project's published specification, in use on its devices |
 
 KEF's version 5 does better in two of these: it runs on microcontrollers,
 and it is in use. Both are written as text, so neither is taken for a seed.
@@ -930,7 +931,7 @@ change its id to something other than the fingerprint (`docs/KEF.md` §10).
 | Copied by hand | Plausibly, not yet tried | Plausibly | No |
 | Holds | A fixed list (at the 32-byte size, 12 words or up to 15 bytes of text): BIP-39 entropy of any length, a codex32 string up to 192 bits (256 at the large size), up to 31 bytes (36) of passphrase or note, or a raw 32-byte key | Any bytes, with versions for several | A seed, a codex32 share, a BIP-39 passphrase or a note, up to 226 bytes of text |
 | Hides what it holds | Yes, within a size. A share over 192 bits needs the large size | No: the length shows | Yes |
-| Standing | This draft: no implementation, no review | One project's published specification, in use on its devices | An RFC 9580 message (Proposed Standard), which several outside programs open; not yet in the app |
+| Standing | This draft: a Rust implementation by Faraday's authors in `aqrv/` (library, command line, desktop test app), checked against the vectors and not an outside one; no review | One project's published specification, in use on its devices | An RFC 9580 message (Proposed Standard), which several outside programs open; not yet in the app |
 | Small devices | Needs 64 MiB or more | Runs on microcontrollers | Needs 64 MiB or more |
 
 **Could AQRV be a version of KEF?** Not at these sizes, the 32-byte one

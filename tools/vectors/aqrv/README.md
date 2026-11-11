@@ -1,9 +1,10 @@
 # AQRV vectors
 
 Test vectors for the Argon QR Vault (AQRV) (`docs/AQRV.md` §11): one
-small secret under a passphrase, in 32, 53 or 62 bytes. No implementation of
-the format exists yet; these vectors are for the first ones, and for a
-reviewer who writes a reader from the document alone.
+small secret under a passphrase, in 32, 53 or 62 bytes. The Rust library and
+command line in `aqrv/` and `check.py` read them, all by Faraday's authors; the
+vectors are for outside implementations, and for a reviewer who writes a reader
+from the document alone.
 
 | File | What it holds |
 |---|---|
@@ -112,6 +113,8 @@ by Faraday's authors, so it is not the outside implementation `docs/AQRV.md` §1
     python3 -I -B tools/vectors/aqrv/gen.py            # writes the files
     python3 -I -B tools/vectors/aqrv/gen.py --check    # compares, exit 1 on a difference
     python3 -I -B tools/vectors/aqrv/check.py          # the second reader; --no-qr skips the decoders
+    cargo nextest run --locked -p aqrv                 # the Rust library over every case and the three pictures
+    cargo run --locked -p aqrv-cli -- vectors          # the same cases from the command line
 
 `gen.py` needs `argon2-cffi` and `cryptography`; `check.py` needs `cryptography` (a version with Argon2id), and for the pictures `zxingcpp`, Pillow and `zbarimg`, each skipped with a note if missing. The whole run takes about 40 seconds and up
 to 1 GiB of memory (the one Argon2id run at the 1 GiB step at a time).
