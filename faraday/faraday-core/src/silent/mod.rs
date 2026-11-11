@@ -784,6 +784,18 @@ impl Faraday {
         Some(self.kept.silent_check(c, &self.session.keys, w))
     }
 
+    /// Costs what `silent_wallet_check` costs and an address the first
+    /// time. Session wallet `i`'s silent payments record check and its
+    /// encoded address, kept together; `None` for any other wallet.
+    pub(crate) fn silent_wallet_card(
+        &self,
+        c: &Compute,
+        i: usize,
+    ) -> Option<(RecordCheck, String)> {
+        let w = self.session.wallets.get(i)?.policy().silent()?;
+        Some(self.kept.silent_card(c, &self.session.keys, w))
+    }
+
     /// Costs two key derivations. [`Faraday::silent_wallet_check`] worked
     /// out from the record and the keys as they are, for a decision.
     pub(crate) fn silent_wallet_check_now(&self, c: &Compute, i: usize) -> Option<RecordCheck> {

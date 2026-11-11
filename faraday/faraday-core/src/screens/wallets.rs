@@ -807,7 +807,11 @@ pub(crate) fn silent_address_lines(
 ) -> f32 {
     use crate::silent::RecordCheck;
     let fp = fp_text(r.fingerprint).to_string();
-    match app.silent_wallet_check(app.wallets.wallet()) {
+    let (check, address) = match app.silent_wallet_card(app.wallets.wallet()) {
+        Some((check, address)) => (Some(check), address),
+        None => (None, r.address()),
+    };
+    match check {
         Some(RecordCheck::Differs) => ui.wrap_as(
             (x, y, w),
             BODY_M,
@@ -815,11 +819,10 @@ pub(crate) fn silent_address_lines(
             &fill(EN.silent_record_differs, &[&fp]),
         ),
         Some(RecordCheck::Matches) => {
-            ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, &r.address())
+            ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, &address)
         }
         _ => {
-            let h =
-                ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, &r.address()) + tokens::GAP;
+            let h = ui.wrap_as((x, y, w), BODY_M.mono(), Role::OnSurface, &address) + tokens::GAP;
             h + ui.wrap_as(
                 (x, y + h, w),
                 BODY_S,

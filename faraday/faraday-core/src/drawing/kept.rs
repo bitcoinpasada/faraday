@@ -73,11 +73,13 @@ struct Charts {
 }
 
 /// A silent payments record checked, by the record and the ids of the
-/// loaded keys with its fingerprint ([`Kept::silent_check`]).
+/// loaded keys with its fingerprint, with its encoded address
+/// ([`Kept::silent_card`]).
 type KeptSilentCheck = (
     faraday_bip::silent_wallet::SilentWallet,
     Vec<[u8; 32]>,
     crate::silent::RecordCheck,
+    String,
 );
 
 /// A description's first receive address on a network, or why there is
@@ -452,22 +454,36 @@ impl Kept {
         keys: &faraday_keys::Keys,
         w: &faraday_bip::silent_wallet::SilentWallet,
     ) -> crate::silent::RecordCheck {
+        self.silent_card(c, keys, w).0
+    }
+
+    /// Costs what `silent_check` costs and a bech32m encoding of the
+    /// address the first time. Silent payments record `w`'s check and its
+    /// address, kept together by the record and the ids of the loaded keys
+    /// with its fingerprint, a lookup after.
+    pub(crate) fn silent_card(
+        &self,
+        c: &Compute,
+        keys: &faraday_keys::Keys,
+        w: &faraday_bip::silent_wallet::SilentWallet,
+    ) -> (crate::silent::RecordCheck, String) {
         let ids = crate::silent::ids_of(keys, w.fingerprint.0);
-        if let Some((.., check)) = self
+        if let Some((.., check, address)) = self
             .silent_checks
             .borrow()
             .iter()
-            .find(|(r, i, _)| r == w && *i == ids)
+            .find(|(r, i, ..)| r == w && *i == ids)
         {
-            return *check;
+            return (*check, address.clone());
         }
         let check = crate::silent::check_record(c, keys, w).0;
+        let address = w.address();
         let mut kept = self.silent_checks.borrow_mut();
         if kept.len() >= SILENT_CHECKS_KEPT {
             kept.remove(0);
         }
-        kept.push((w.clone(), ids, check));
-        check
+        kept.push((w.clone(), ids, check, address.clone()));
+        (check, address)
     }
 
     /// The fingerprint of a seed with no passphrase, remembered by a hash
@@ -908,6 +924,17 @@ impl View<'_> {
     /// derivations the first time.
     pub(crate) fn silent_wallet_check(&self, i: usize) -> Option<crate::silent::RecordCheck> {
         self.kept(|c| self.app.silent_wallet_check(c, i))
+    }
+
+    /// How session wallet `i`'s silent payments record stands
+    /// ([`View::silent_wallet_check`]) and its encoded address, kept
+    /// together; `None` for any other wallet. Costs what
+    /// `silent_wallet_check` costs and an address the first time.
+    pub(crate) fn silent_wallet_card(
+        &self,
+        i: usize,
+    ) -> Option<(crate::silent::RecordCheck, String)> {
+        self.kept(|c| self.app.silent_wallet_card(c, i))
     }
 
     /// Whether session wallet `i` is a silent payments wallet whose record
