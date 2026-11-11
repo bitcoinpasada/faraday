@@ -38,7 +38,6 @@ same spend as on Wallets.
 
 | Control | What it does |
 |---|---|
-| the note | at the top: "This page takes someone spending for the first time through every step. …" |
 | the way back | at the top left: **Home** or **Wallets**, where it was opened from; once a card is closed, named after the card before the one open |
 | a card | its title, how it stands, and **Change** |
 | **More about this** | under a card's line: the rest of what the card is for |

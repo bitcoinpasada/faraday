@@ -355,7 +355,8 @@ guide gives them; the signed copy goes back with **Scan QR** and
 
 ### 7 · Bring the transaction here
 
-**Lead:** Two ways. Scanning is the simpler: nothing has to lock.
+No lead: the page opens on its controls. **More about this** holds the two
+ways in.
 
 - **Scan it.** Press Scan and hold Sparrow's QR up to this computer's
   camera. An animation is read as it loops; the count shows the parts.
@@ -371,10 +372,8 @@ The page closes when a spend is loaded.)*
 
 ### 8 · Read the transaction
 
-**Lead:** Read what leaves, what comes back and the fee before signing.
-Under it, a way to Learn's **Verifying**, which says why: change is the
-rest coming back, signing cannot be taken back, and declining costs
-nothing.
+**Lead:** What leaves, what comes back and the fee. Under it, a way to
+Learn's **Verifying**, which says why they are read before signing.
 
 Then the transaction id: write down its first and last few characters.
 Sparrow shows the same id for the transaction it wrote; after sending, the
@@ -384,7 +383,7 @@ id is how you follow it.
 
 ### 9 · Add the seeds that can sign (Paper route, multisig)
 
-**Lead:** One seed at a time: put its words in, add
+No lead; **More about this** says: one seed at a time: put its words in, add
 it, and the count goes up. Order does not matter and the same seed twice
 does no harm. Each list is checked against the wallet's own keys, so one
 belonging to a different wallet is refused. A seed kept as a QR code beside
@@ -434,7 +433,8 @@ last step, this is the part you can safely hand over.
 
 ### 12 · Put everything away
 
-**Lead:** Lock Faraday. The vault is sealed again with the keys inside
+No lead: the page holds Lock, Power off and Start over. **More about this**
+says: Lock Faraday. The vault is sealed again with the keys inside
 it, and none is left in memory. If the Outbox holds anything you still need (the finished
 transaction, or a vault that changed), plug a stick in and the visit
 writes it. Then switch off, take the stick out, and put it back with the

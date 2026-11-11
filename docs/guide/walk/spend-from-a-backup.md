@@ -32,8 +32,7 @@ Wallets too, and the signatures are the same.
 ## 1. Open it
 
 On **Home**, press [**Spend from a backup, step by step**](../screens/spend-tab.md). The page is
-**Spend**, with a note at the top: this page takes someone spending
-for the first time through every step. The link at the top left goes
+**Spend**. The link at the top left goes
 back to **Home**.
 
 With a wallet or a seed already loaded, Spend opens on a shorter page
@@ -43,7 +42,7 @@ below.
 
 ## 2. How to spend bitcoin
 
-![Spend with its note at the top and nine cards, from How to spend bitcoin to Put everything away](../pictures/spend-from-a-backup-map.png)
+![Spend with nine cards, from How to spend bitcoin to Put everything away](../pictures/spend-from-a-backup-map.png)
 
 The page lists its cards closed, each with a word on where it stands:
 **How to spend bitcoin**, **What do you have?**, **Check the money is
@@ -151,7 +150,7 @@ Signing* and *Show QR*. Press **I have the PSBT**.
 
 ## 6. Bring the transaction here
 
-![Bring the transaction here with Scan, and Copy it in from a stick grey until a stick is in, Scan outlined](../pictures/spend-from-a-backup-bring.png)
+![Bring the transaction here with Scan, Copy it in from a stick grey until a stick is in, and More about this, Scan outlined](../pictures/spend-from-a-backup-bring.png)
 
 | By QR code | On a stick |
 |---|---|
@@ -185,7 +184,7 @@ showed. If it differs, what was sent is not what was signed here.
 
 ## 8. Put everything away
 
-![Put everything away listing scanned-1-signed.psbt and scanned-1-final.txn, with Lock, Power off and Start over, Lock outlined](../pictures/spend-from-a-backup-away.png)
+![Put everything away listing scanned-1-signed.psbt and scanned-1-final.txn, with Lock, Power off and Start over and More about this, Lock outlined](../pictures/spend-from-a-backup-away.png)
 
 The card lists the files waiting for the stick, then **Lock**, **Power
 off** and **Start over**.

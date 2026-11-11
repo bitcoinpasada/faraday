@@ -2166,8 +2166,6 @@ strings! {
     spend_backup_spend_from_n: "Spend from {}",
     /// Text in `draw`.
     spend_backup_wallets: "Wallets",
-    /// Text in `draw`.
-    spend_backup_this_page_takes: "This page takes someone spending for the first time through every step. With a wallet or a seed already loaded, Spend opens on a shorter page instead: what is loaded and what each wallet needs next.",
     /// Text in `loaded_compact`.
     spend_backup_walk_through: "Walk through from the start",
     /// Text in `loaded_compact`.
@@ -2546,9 +2544,10 @@ strings! {
     /// Text in `lead`. `{}`: `app.medium.noun()`, `app.medium.a()`, `app.medium.noun()`, `app.medium.noun()`.
     spend_backup_lock_faraday: "Lock Faraday. The vault is sealed again with the keys inside it, and none is left in memory. If a file you still need waits for the {}, plug {} in and the {} visit writes it. Then switch off, take the {} out, and put it back with the papers.",
     /// Text in `lead`.
-    spend_backup_this_opens_once: "This opens once the transaction is here.",
     /// Text in `lead`.
-    spend_backup_read_the_summary: "Read what leaves, what comes back and the fee before signing.",
+    spend_backup_read_the_summary: "What leaves, what comes back and the fee",
+    /// Text in `lead`.
+    spend_backup_this_opens_once: "This opens once the transaction is here.",
     /// Text in `lead`.
     spend_backup_lead_write_down_id: "Write down the first and last few characters of this id. Sparrow shows the same id for the transaction it wrote; after sending, the id is how you follow it.",
     /// Text in `lead`.

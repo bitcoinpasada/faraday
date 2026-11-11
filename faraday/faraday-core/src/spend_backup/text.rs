@@ -177,30 +177,13 @@ pub fn lead(app: &View, id: CardId) -> String {
         }
         CardId::Page(page::CHECK) => EN.spend_backup_load_this_same,
         CardId::Page(page::WRITE) => EN.spend_backup_this_part_happens,
-        CardId::Page(page::BRING) => {
-            return fill(
-                EN.spend_backup_two_ways_scanning,
-                &[app.medium.a(), app.medium.a(), app.medium.noun()],
-            );
-        }
-        CardId::Page(_) => {
-            return fill(
-                EN.spend_backup_lock_faraday,
-                &[
-                    app.medium.noun(),
-                    app.medium.a(),
-                    app.medium.noun(),
-                    app.medium.noun(),
-                ],
-            );
-        }
+        // Bring and Put everything away say their how in More about this.
+        CardId::Page(_) => return String::new(),
         CardId::Later(_) => EN.spend_backup_this_opens_once,
+        // A label for the lines, over Learn's Verifying; Who signs has no note.
         CardId::Step(step::TRANSACTION) => EN.spend_backup_read_the_summary,
+        CardId::Step(step::SIGNERS) => return String::new(),
         CardId::Step(step::TXID) => EN.spend_backup_lead_write_down_id,
-        CardId::Step(step::SIGNERS) if signers_missing(app) => EN.spend_backup_lead_every_key,
-        CardId::Step(step::SIGNERS) if app.spend_backup.state.route == Some(Route::Paper) => {
-            EN.spend_backup_lead_one_seed
-        }
         CardId::Step(step::SIGN) => EN.spend_backup_signing_adds,
         CardId::Step(step::FINISH) => {
             return fill(EN.spend_backup_the_finished, &[app.medium.a()]);
@@ -289,7 +272,25 @@ pub fn more(app: &View, id: CardId) -> Vec<String> {
             EN.spend_backup_the_first_confirmation,
         ],
         CardId::Page(page::AWAY) => {
-            return vec![fill(EN.spend_backup_when_faraday, &[m.noun()])];
+            return vec![
+                fill(
+                    EN.spend_backup_lock_faraday,
+                    &[m.noun(), m.a(), m.noun(), m.noun()],
+                ),
+                fill(EN.spend_backup_when_faraday, &[m.noun()]),
+            ];
+        }
+        CardId::Page(page::BRING) => {
+            return vec![fill(
+                EN.spend_backup_two_ways_scanning,
+                &[m.a(), m.a(), m.noun()],
+            )];
+        }
+        CardId::Step(step::SIGNERS) if signers_missing(app) => {
+            return vec![EN.spend_backup_lead_every_key.to_string()];
+        }
+        CardId::Step(step::SIGNERS) if app.spend_backup.state.route == Some(Route::Paper) => {
+            return vec![EN.spend_backup_lead_one_seed.to_string()];
         }
         _ => &[],
     };

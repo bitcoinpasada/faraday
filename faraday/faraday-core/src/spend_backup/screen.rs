@@ -105,7 +105,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: true,
         switch: false,
         wrap_closed: false,
-        note: from.is_none().then_some(EN.spend_backup_this_page_takes),
+        note: None,
         chip: None,
         chip_tap: None,
         moves: crate::ui::Moves::No,

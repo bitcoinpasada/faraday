@@ -288,7 +288,7 @@ fn read_the_transaction_leads_to_verifying_in_learn() {
     assert_eq!(app.spend().unwrap().open, Some(step::TRANSACTION));
     let text = drawn(&mut app);
     assert!(
-        text.contains("Read what leaves, what comes back and the fee before signing."),
+        text.contains("What leaves, what comes back and the fee"),
         "{text}"
     );
     assert!(!text.contains("Declining costs nothing"), "{text}");
