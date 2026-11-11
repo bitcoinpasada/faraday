@@ -144,12 +144,10 @@ vault's passphrase.
 Not a page of its own (F103): **Start** opens page 3, whose lead and
 More begin with these until something comes in.
 
-**Lead, on the stick:** This computer is running Faraday from the stick.
-It has no network, and it forgets everything when it is switched off.
+**Lead, on the stick:** This computer runs Faraday from the stick, with no network.
 
-**Lead, on the desktop app (`app.online`):** This is the desktop copy of
-Faraday, which runs on an ordinary computer that has been online. It is
-for testing. For real money, start a computer from the Faraday stick.
+**Lead, on the desktop app (`app.online`):** The desktop copy of Faraday
+is for testing. For real money, start a computer from the Faraday stick.
 (The owner's answer 3: nothing is stopped.)
 
 **More (how to start a computer from the stick):**
@@ -166,8 +164,7 @@ for testing. For real money, start a computer from the Faraday stick.
 
 ### 3 · What do you have? (`docs/history/SCAN-TO-SIGN.md` §4, 2026-10-11)
 
-**Lead:** Scan or type everything in the envelope, one thing at a time,
-in any order. Faraday works out the wallet from it.
+**Lead:** Scan or type everything in the envelope, in any order.
 
 The card, top to bottom:
 
@@ -277,15 +274,12 @@ camera all happen on *What do you have?*.
 
 ### 5 · Check the money is really there
 
-**Lead:** Load this same wallet in Sparrow on your
-online computer to check the balance. The code below is the wallet's
-description: enough for Sparrow to find every address the wallet uses and
-add up what is on all of them. It cannot spend; that still needs the keys.
-
-Then check that the first address Sparrow shows is character for character
-the same as address 1 below. If it matches, two separate programs have
-read the same backup and agreed, and the balance Sparrow shows is the real
-one. If it does not match, stop: something was typed or scanned wrongly.
+**Lead:** Load this wallet in Sparrow, then compare its first address
+with receive address 0 below. **More about this** says the code is the
+wallet's description, enough for Sparrow to find every address and add up
+what is on them, and that it cannot spend; that a matching first address
+means two separate programs read the same backup; and that a mismatch
+means stop, something was typed or scanned wrongly.
 
 *(Controls: Show the wallet as a QR; the first three receive and three
 change addresses; Show more; **Yes, my money shows**, which marks the
@@ -295,9 +289,9 @@ wallet checked this power-on.)*
 out from seeds alone (one seed and That's everything, the Loaded view's
 Spend as a single-key wallet, or seeds shaped without a description).
 The title is **Check the money is there, on the online computer**; the
-lead says words alone do not say which kind of wallet they made, to open
-it in the wallet on the online computer and look at its balance, and
-that Faraday makes the next kind if no money shows. Under it: the ways
+lead says to open it in Sparrow, look at its balance and press **No money
+shows** if none does; **More about this** says words alone do not say which
+kind of wallet they made and that Faraday makes the next kind. Under it: the ways
 tried, each `{kind} · no money`, struck; the line `Trying: {kind}, {no
 passphrase | with a passphrase} · {k} of {total}`; the wallet QR with
 "Open this in the wallet on the online computer" ("Open this one on the
@@ -337,13 +331,10 @@ description or a vault was not guessed: its page is as above.
 
 ### 6 · Write the payment
 
-**Lead:** This part happens on the online computer. In Sparrow, open the
-wallet's Send tab, enter the address to pay and the amount, and choose a
-fee. Press **Create Transaction**, then **Finalize Transaction for
-Signing**, then **Show QR**: an animated code, which is what Faraday reads.
-Sparrow can also save it as a `.psbt` file. (Button names as Sparrow's QR
-guide gives them; the signed copy goes back with **Scan QR** and
-**Broadcast Transaction**.)
+**Lead:** On the online computer, in Sparrow's Send tab: the address, the
+amount and a fee. Then Create Transaction, Finalize Transaction for Signing
+and Show QR. **More about this** adds that Sparrow can also save the
+transaction as a `.psbt` file.
 
 **More:**
 - Paying into an exchange: the exchange gives you a deposit address for
@@ -375,9 +366,9 @@ The page closes when a spend is loaded.)*
 **Lead:** What leaves, what comes back and the fee. Under it, a way to
 Learn's **Verifying**, which says why they are read before signing.
 
-Then the transaction id: write down its first and last few characters.
-Sparrow shows the same id for the transaction it wrote; after sending, the
-id is how you follow it.
+Then the transaction id, whose lead is: write down its first and last few
+characters; Sparrow shows the same id. **More about this** says that after
+sending, the id is how to follow the transaction.
 
 *(Controls: Wallets' Transaction and Txid steps, as they are.)*
 
@@ -396,10 +387,10 @@ online device.
 
 ### 10 · Sign it
 
-**Lead:** Signing adds the signature of every key loaded here. For a
-wallet that needs signatures from elsewhere, the page lists who still has
-to sign and takes their signed copies by scan or from Files; each is
-checked against its key and this transaction before it counts.
+**Lead:** Signing adds the signature of every key loaded here. **More
+about this** says that for a wallet that needs signatures from elsewhere
+the next card lists who still has to sign and takes their signed copies,
+each checked against its key and this transaction before it counts.
 
 **More:** If the envelope held a
 hardware wallet that came with the papers and looks untouched, you can
@@ -410,15 +401,12 @@ Faraday on its own is enough to do the whole job.
 
 ### 11 · Send it
 
-**Lead:** The finished
-transaction is what the network accepts. Show it as a QR and scan it into
-Sparrow, which broadcasts it. Or put it in the Outbox and carry it on a
-stick (the stick visit writes it when Faraday next locks).
-
-The finished transaction is safe to hand to anyone. Nobody can change
-where the money goes without breaking the signatures, and a broken
-transaction is rejected, not redirected. If you would like help with this
-last step, this is the part you can safely hand over.
+**Lead:** Show the signed PSBT as a QR code; in Sparrow, on the same
+transaction, press Scan QR, then Broadcast Transaction. Or carry the
+finished transaction, in Files, on the stick. **More about this** says the
+finished transaction is what the network accepts and is safe to hand to
+anyone: nobody can change where the money goes without breaking the
+signatures, and a broken transaction is rejected, not redirected.
 
 **More:**
 - Any of these sends it: Sparrow (open the transaction from the QR, the
@@ -493,8 +481,8 @@ are one page, **Write the payment in Sparrow**:
 
 | Page | Lead | Controls |
 |---|---|---|
-| Load the wallet in Sparrow | In Sparrow: File, New Wallet, then scan the wallet QR. Its first address is receive address 0 here. | **I have the PSBT from Sparrow ready: Scan it** (the camera; once the PSBT reads, its review); **Show the wallet QR** (the descriptor, full text under it); receive address 0; **It is loaded**. Done already for a wallet checked this power-on. |
-| Write the payment in Sparrow | In Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, Finalize Transaction for Signing and Show QR. | **Scan the PSBT**; **On a stick** (the stick round trip); this wallet's PSBTs in Files. Done once a spend is loaded. |
+| Load the wallet in Sparrow | In Sparrow: File, New Wallet, then scan the wallet QR. | **I have the PSBT from Sparrow ready: Scan it** (the camera; once the PSBT reads, its review); **Show the wallet QR** (the descriptor, full text under it); receive address 0; **It is loaded**. Done already for a wallet checked this power-on. |
+| Write the payment in Sparrow | On the online computer, in Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, Finalize Transaction for Signing and Show QR. | **Scan the PSBT**; **On a stick** (the stick round trip); this wallet's PSBTs in Files. Done once a spend is loaded. |
 
 Then the spend's steps as they are. **Who signs**, with fewer keys here
 than sign, offers **Scan a key**, its Unlock buttons and **Collect a

@@ -169,14 +169,11 @@ pub fn lead(app: &View, id: CardId) -> String {
         CardId::Page(page::CHECK) if app.spend_backup.state.from_card => {
             EN.spend_backup_in_sparrow_file_new
         }
-        CardId::Page(page::WRITE) if app.spend_backup.state.from_card => {
-            EN.spend_backup_in_sparrow_s
-        }
+        CardId::Page(page::WRITE) => EN.spend_backup_in_sparrow_s,
         CardId::Page(page::CHECK) if app.spend_backup_guess().is_some() => {
             EN.spend_backup_words_alone
         }
         CardId::Page(page::CHECK) => EN.spend_backup_load_this_same,
-        CardId::Page(page::WRITE) => EN.spend_backup_this_part_happens,
         // Bring and Put everything away say their how in More about this.
         CardId::Page(_) => return String::new(),
         CardId::Later(_) => EN.spend_backup_this_opens_once,
@@ -188,19 +185,26 @@ pub fn lead(app: &View, id: CardId) -> String {
         CardId::Step(step::FINISH) => {
             return fill(EN.spend_backup_the_finished, &[app.medium.a()]);
         }
-        CardId::Step(n) => {
-            let s = app.wallets.spend();
-            let kind = s
-                .and_then(|s| s.wallet)
-                .and_then(|w| app.session.wallets.get(w))
-                .map(|w| Kind::of(w.policy()));
-            return match s {
-                Some(s) => guide::spend(n, kind, app.spend_needed(), s, app.medium),
-                None => String::new(),
-            };
-        }
+        CardId::Step(step::NONCES) => EN.spend_backup_lead_nonces,
+        CardId::Step(step::PATH) => EN.spend_backup_lead_path,
+        CardId::Step(step::COLLECT) => EN.spend_backup_lead_collect,
+        CardId::Step(n) => return walk(app, n),
     };
     s.to_string()
+}
+
+/// The walk-through text of a step (`guide::spend`), as More about this
+/// holds it where the card's lead is one line.
+fn walk(app: &View, n: u8) -> String {
+    let s = app.wallets.spend();
+    let kind = s
+        .and_then(|s| s.wallet)
+        .and_then(|w| app.session.wallets.get(w))
+        .map(|w| Kind::of(w.policy()));
+    match s {
+        Some(s) => guide::spend(n, kind, app.spend_needed(), s, app.medium),
+        None => String::new(),
+    }
 }
 
 /// The spend's wallet needs more keys than are here.
@@ -255,18 +259,40 @@ pub fn more(app: &View, id: CardId) -> Vec<String> {
             ]));
             return paras;
         }
-        CardId::Page(page::CHECK) => &[
-            EN.spend_backup_in_sparrow_file,
-            EN.spend_backup_more_trusted_software,
-            EN.spend_backup_faraday_can,
-            EN.spend_backup_on_a_phone_you,
+        CardId::Page(page::CHECK) => {
+            let mut paras = Vec::new();
+            if app.spend_backup_guess().is_some() {
+                paras.push(EN.spend_backup_more_words_kind.to_string());
+            } else if !app.spend_backup.state.from_card {
+                paras.push(EN.spend_backup_more_description.to_string());
+            }
+            paras.extend(strings(&[
+                EN.spend_backup_in_sparrow_file,
+                EN.spend_backup_more_trusted_software,
+                EN.spend_backup_faraday_can,
+                EN.spend_backup_on_a_phone_you,
+            ]));
+            return paras;
+        }
+        CardId::Page(page::WRITE) => &[
+            EN.spend_backup_more_psbt_file,
+            EN.spend_backup_paying_into,
+            EN.spend_backup_faraday_locks,
         ],
-        CardId::Page(page::WRITE) => &[EN.spend_backup_paying_into, EN.spend_backup_faraday_locks],
+        CardId::Step(step::TXID) => &[EN.spend_backup_more_follow_id],
         CardId::Step(step::SIGN) => &[
+            EN.spend_backup_more_other_signatures,
             EN.spend_backup_if_the_envelope,
             EN.spend_backup_more_faraday_enough,
         ],
+        CardId::Step(step::NONCES | step::PATH | step::COLLECT) => {
+            if let CardId::Step(n) = id {
+                return vec![walk(app, n)];
+            }
+            &[]
+        }
         CardId::Step(step::FINISH) => &[
+            EN.spend_backup_more_safe_to_hand,
             EN.spend_backup_any_of_these,
             EN.spend_backup_more_check_id,
             EN.spend_backup_the_first_confirmation,

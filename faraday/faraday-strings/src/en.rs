@@ -2526,40 +2526,56 @@ strings! {
     /// Text in `lead`.
     spend_backup_six_stops_three: "Six stops, three on this computer and three on an online one. Nothing moves until the last.",
     /// Text in `lead`. `{}`: `app.medium.noun()`.
-    spend_backup_lead_desktop_copy: "This is the desktop copy of Faraday, which runs on an ordinary computer that has been online. It is for testing. For real money, start a computer from the Faraday {}.",
+    spend_backup_lead_desktop_copy: "The desktop copy of Faraday is for testing. For real money, start a computer from the Faraday {}.",
     /// Text in `lead`. `{}`: `app.medium.noun()`.
-    spend_backup_lead_running_offline: "This computer is running Faraday from the {}. It has no network, and it forgets everything when it is switched off.",
+    spend_backup_lead_running_offline: "This computer runs Faraday from the {}, with no network.",
     /// Text in `lead`.
-    spend_backup_scan_or_type: "Scan or type everything in the envelope, one thing at a time, in any order. Faraday works out the wallet from it.",
+    spend_backup_scan_or_type: "Scan or type everything in the envelope, in any order.",
     /// Text in `lead`.
-    spend_backup_in_sparrow_file_new: "In Sparrow: File, New Wallet, then scan the wallet QR. Its first address is receive address 0 here.",
+    spend_backup_in_sparrow_file_new: "In Sparrow: File, New Wallet, then scan the wallet QR.",
     /// Text in `lead`.
-    spend_backup_in_sparrow_s: "In Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, Finalize Transaction for Signing and Show QR.",
+    spend_backup_in_sparrow_s: "On the online computer, in Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, Finalize Transaction for Signing and Show QR.",
     /// Text in `lead`.
-    spend_backup_words_alone: "Words alone do not say which kind of wallet they made. Faraday made the most common kind from them. Open it in the wallet on the online computer, such as Sparrow, and look at its balance. If no money shows, Faraday makes the next kind.",
+    spend_backup_words_alone: "Open this in Sparrow and look at its balance. If no money shows, press No money shows.",
     /// Text in `lead`.
-    spend_backup_load_this_same: "Load this same wallet in Sparrow on your online computer to check the balance. The code below is the wallet's description: enough for Sparrow to find every address the wallet uses and add up what is on all of them. It cannot spend. Then check that the first address Sparrow shows is character for character the same as receive address 0 below. If it matches, two separate programs have read the same backup and agreed. If it does not match, stop: something was typed or scanned wrongly.",
-    /// Text in `lead`.
-    spend_backup_this_part_happens: "This part happens on the online computer. In Sparrow, open the wallet's Send tab, enter the address to pay and the amount, and choose a fee. Press Create Transaction, then Finalize Transaction for Signing, then Show QR: an animated code, which is what Faraday reads. Sparrow can also save it as a .psbt file.",
+    spend_backup_load_this_same: "Load this wallet in Sparrow, then compare its first address with receive address 0 below.",
     /// Text in `lead`. `{}`: `app.medium.a()`, `app.medium.a()`, `app.medium.noun()`.
     spend_backup_two_ways_scanning: "Two ways. Scanning is the simpler: nothing has to lock. Press Scan and hold Sparrow's QR code up to this computer's camera; an animation is read as it loops. Or save the .psbt onto {} and copy it in. Faraday reads {} only while no vault or key is open, so with one open it locks first: it seals the vault, forgets the keys and starts again. Copy the PSBT in, remove the {}, and unlock with the same passphrase. This tab comes back on this page.",
     /// Text in `lead`. `{}`: `app.medium.noun()`, `app.medium.a()`, `app.medium.noun()`, `app.medium.noun()`.
     spend_backup_lock_faraday: "Lock Faraday. The vault is sealed again with the keys inside it, and none is left in memory. If a file you still need waits for the {}, plug {} in and the {} visit writes it. Then switch off, take the {} out, and put it back with the papers.",
     /// Text in `lead`.
     /// Text in `lead`.
+    spend_backup_lead_nonces: "Add the others' nonces, or go first and share this device's.",
+    /// Text in `lead`.
+    spend_backup_lead_path: "Each path lists the keys it needs and how long it waits.",
+    /// Text in `lead`.
+    spend_backup_lead_collect: "Scan or copy in each cosigner's signed copy.",
+    /// Text in `more`.
+    spend_backup_more_words_kind: "Words alone do not say which kind of wallet they made. Faraday made the most common kind from them. If no money shows, Faraday makes the next kind.",
+    /// Text in `more`.
+    spend_backup_more_description: "The code is the wallet's description: enough for Sparrow to find every address the wallet uses and add up what is on all of them. It cannot spend. If the first address matches, two separate programs have read the same backup and agreed. If it does not match, stop: something was typed or scanned wrongly.",
+    /// Text in `more`.
+    spend_backup_more_psbt_file: "Sparrow can also save the transaction as a .psbt file.",
+    /// Text in `more`.
+    spend_backup_more_follow_id: "After sending, the id is how to follow the transaction.",
+    /// Text in `more`.
+    spend_backup_more_other_signatures: "For a wallet that needs signatures from elsewhere, the next card lists who still has to sign and takes their signed copies; each is checked against its key and this transaction before it counts.",
+    /// Text in `more`.
+    spend_backup_more_safe_to_hand: "The finished transaction is what the network accepts. It is safe to hand to anyone: nobody can change where the money goes without breaking the signatures, and a broken transaction is rejected, not redirected.",
+    /// Text in `lead`.
     spend_backup_read_the_summary: "What leaves, what comes back and the fee",
     /// Text in `lead`.
     spend_backup_this_opens_once: "This opens once the transaction is here.",
     /// Text in `lead`.
-    spend_backup_lead_write_down_id: "Write down the first and last few characters of this id. Sparrow shows the same id for the transaction it wrote; after sending, the id is how you follow it.",
+    spend_backup_lead_write_down_id: "Write down the first and last few characters of this id; Sparrow shows the same id.",
     /// Text in `lead`.
     spend_backup_lead_every_key: "Every key that signs is listed. A key not here yet comes from its own place: Scan a key reads its SeedQR, or its words typed instead, and a vault that holds it unlocks. Faraday works out which key it is. Each is checked against the wallet, so a key from another wallet is refused. A key held by someone else does not have to come here at all: they sign the same PSBT on their own device, and their signed copy is collected after this device signs.",
     /// Text in `lead`.
     spend_backup_lead_one_seed: "One seed at a time: put its words in, add it, and the count goes up. Order does not matter and the same seed twice does no harm. Each list is checked against the wallet's own keys, so one belonging to a different wallet is refused. A seed kept as a QR code beside the words does not have to be typed: scan it. If that backup has a separate passphrase, type it in the passphrase box before adding.",
     /// Text in `lead`.
-    spend_backup_signing_adds: "Signing adds the signature of every key loaded here. For a wallet that needs signatures from elsewhere, the next card lists who still has to sign and takes their signed copies; each is checked against its key and this transaction before it counts.",
+    spend_backup_signing_adds: "Signing adds the signature of every key loaded here.",
     /// Text in `lead`. `{}`: `app.medium.a()`.
-    spend_backup_the_finished: "The finished transaction is what the network accepts. Show the signed PSBT as a QR code; in Sparrow, on the same transaction, press Scan QR and hold it up to the webcam, then Broadcast Transaction. Or carry the finished transaction, which waits in Files, on {}. It is safe to hand to anyone: nobody can change where the money goes without breaking the signatures, and a broken transaction is rejected, not redirected.",
+    spend_backup_the_finished: "Show the signed PSBT as a QR code; in Sparrow, on the same transaction, press Scan QR, then Broadcast Transaction. Or carry the finished transaction, in Files, on {}.",
     /// Text in `more`.
     spend_backup_anyone_who_reads: "Anyone who reads the words can spend the money from anywhere in the world, and it cannot be reversed. Where a wallet needs several lists, anyone with enough of them can. Treat every list as if it were the only one. No legitimate bitcoin company will ever ask for them: not a support line, not someone helping you, not an AI.",
     /// Text in `more`.
