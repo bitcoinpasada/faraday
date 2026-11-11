@@ -217,29 +217,9 @@ impl Presenter {
             None => changed,
         };
 
-        // Where the frame's changed bands are on the panel: its rows, or
-        // (turned a quarter) one band of its columns down every row,
-        // from the first changed column to the last. A stale panel shows
-        // nothing known: the whole frame goes out, changed or not.
         let (w, h) = (usize::from(g.width), rows);
-        let (bands, columns): (Vec<(usize, usize)>, _) = if lock(panel).stale() {
-            (vec![(0, h - 1)], None)
-        } else if let (Some(&(first, _)), Some(&(_, last))) = (changed.first(), changed.last()) {
-            match turn {
-                Turn::R0 => (changed.clone(), None),
-                Turn::R180 => (
-                    fb::merge_bands(
-                        changed
-                            .iter()
-                            .map(|&(a, b)| (h - 1 - b, h - 1 - a))
-                            .collect(),
-                    ),
-                    None,
-                ),
-                Turn::R90 => (vec![(0, h - 1)], Some((w - 1 - last, w - 1 - first))),
-                Turn::R270 => (vec![(0, h - 1)], Some((first, last))),
-            }
-        } else {
+        let Some((bands, columns)) = panel_bands(&changed, turn, (w, h), lock(panel).stale())
+        else {
             return Ok(());
         };
         let start = timings.is_some().then(Instant::now);
@@ -449,6 +429,37 @@ fn move_rows(
         };
         buf.copy_within(from * stride + c0..from * stride + c1, to * stride + c0);
     }
+}
+
+/// Where the frame's changed bands are on the panel: its rows, or (turned
+/// a quarter) one band of its columns down every row, from the first
+/// changed column to the last. A stale panel shows nothing known: the
+/// whole frame goes out, changed or not. `None`: nothing changed.
+#[allow(clippy::type_complexity)]
+fn panel_bands(
+    changed: &[(usize, usize)],
+    turn: Turn,
+    (w, h): (usize, usize),
+    stale: bool,
+) -> Option<(Vec<(usize, usize)>, Option<(usize, usize)>)> {
+    if stale {
+        return Some((vec![(0, h - 1)], None));
+    }
+    let (&(first, _), &(_, last)) = (changed.first()?, changed.last()?);
+    Some(match turn {
+        Turn::R0 => (changed.to_vec(), None),
+        Turn::R180 => (
+            fb::merge_bands(
+                changed
+                    .iter()
+                    .map(|&(a, b)| (h - 1 - b, h - 1 - a))
+                    .collect(),
+            ),
+            None,
+        ),
+        Turn::R90 => (vec![(0, h - 1)], Some((w - 1 - last, w - 1 - first))),
+        Turn::R270 => (vec![(0, h - 1)], Some((first, last))),
+    })
 }
 
 #[cfg(test)]
