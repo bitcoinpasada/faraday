@@ -122,8 +122,8 @@ pub(crate) const GLOBAL_V2_ONLY: &[u8] = &[
     GLOBAL_OUTPUT_COUNT,
     GLOBAL_TX_MODIFIABLE,
     GLOBAL_VERSION,
-    0x07,
-    0x08,
+    crate::silent::GLOBAL_SP_ECDH_SHARE,
+    crate::silent::GLOBAL_SP_DLEQ,
 ];
 /// The input fields version 0 does not have: BIP-370's and BIP-375's.
 pub(crate) const INPUT_V2_ONLY: &[u8] = &[
@@ -132,11 +132,16 @@ pub(crate) const INPUT_V2_ONLY: &[u8] = &[
     IN_SEQUENCE,
     IN_REQUIRED_TIME_LOCKTIME,
     IN_REQUIRED_HEIGHT_LOCKTIME,
-    0x1d,
-    0x1e,
+    crate::silent::IN_SP_ECDH_SHARE,
+    crate::silent::IN_SP_DLEQ,
 ];
 /// The output fields version 0 does not have: BIP-370's and BIP-375's.
-pub(crate) const OUTPUT_V2_ONLY: &[u8] = &[OUT_AMOUNT, OUT_SCRIPT, 0x09, 0x0a];
+pub(crate) const OUTPUT_V2_ONLY: &[u8] = &[
+    OUT_AMOUNT,
+    OUT_SCRIPT,
+    crate::silent::OUT_SP_V0_INFO,
+    crate::silent::OUT_SP_V0_LABEL,
+];
 
 /// The input fields a signing pass adds, which [`PsbtV2::merge_signed`]
 /// takes back: partial signatures, the final scriptSig and witness,
@@ -749,6 +754,25 @@ impl PsbtV2 {
             input,
             output,
         })
+    }
+
+    /// Whether any BIP-375 silent payment field is present: global
+    /// 0x07 or 0x08, input 0x1d or 0x1e, output 0x09 or 0x0a.
+    pub fn has_silent_fields(&self) -> bool {
+        let any = |m: &Map, types: &[u8]| types.iter().any(|t| m.all_of(*t).next().is_some());
+        use crate::silent::{
+            GLOBAL_SP_DLEQ, GLOBAL_SP_ECDH_SHARE, IN_SP_DLEQ, IN_SP_ECDH_SHARE, OUT_SP_V0_INFO,
+            OUT_SP_V0_LABEL,
+        };
+        any(&self.global, &[GLOBAL_SP_ECDH_SHARE, GLOBAL_SP_DLEQ])
+            || self
+                .inputs
+                .iter()
+                .any(|m| any(m, &[IN_SP_ECDH_SHARE, IN_SP_DLEQ]))
+            || self
+                .outputs
+                .iter()
+                .any(|m| any(m, &[OUT_SP_V0_INFO, OUT_SP_V0_LABEL]))
     }
 
     /// Costs a decode of the whole PSBT: the version 0 PSBT of the same

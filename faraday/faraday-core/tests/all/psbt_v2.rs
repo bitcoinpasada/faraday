@@ -171,3 +171,99 @@ fn signatures_that_do_not_go_back_into_the_version_2_psbt_write_nothing() {
     let spend = Spend::new_kept(v0, Some(as_read.clone()), "spend.psbt");
     assert_eq!(spend.out_bytes().unwrap(), as_read.to_bytes());
 }
+
+#[test]
+fn a_psbt_with_bip375_silent_payment_fields_is_refused() {
+    let c = testkit::compute();
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tools/vectors/bip375/bip375_test_vectors.json");
+    let v: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let valid = v["valid"].as_array().unwrap();
+    assert!(!valid.is_empty());
+    for case in valid {
+        let text = case["psbt"].as_str().unwrap();
+        let bytes = faraday_bip::base64::decode(text).unwrap();
+        for form in [bytes.clone(), text.as_bytes().to_vec()] {
+            assert!(
+                faraday_core::wallet::read_psbt_kept(&c, &form).is_none(),
+                "{}: read",
+                case["description"]
+            );
+            assert!(faraday_core::wallet::is_silent_payment_psbt(&c, &form));
+        }
+    }
+}
+
+/// A version 2 PSBT of a spend, every output with its script, that
+/// carries one BIP-375 field and nothing else of silent payments.
+fn v2_with_field(place: &str, key_type: u8) -> Vec<u8> {
+    let c = testkit::compute();
+    let kit = testkit::kits().into_iter().next().unwrap();
+    let mut v2 = PsbtV2::from_v0(&c, &testkit::unsigned(&kit).unwrap());
+    assert!(!v2.has_silent_fields());
+    let map = match place {
+        "global" => &mut v2.global,
+        "input" => &mut v2.inputs[0],
+        _ => &mut v2.outputs[0],
+    };
+    map.set(vec![key_type], vec![0]);
+    v2.to_bytes()
+}
+
+#[test]
+fn a_psbt_with_only_one_bip375_field_is_refused() {
+    let c = testkit::compute();
+    for (place, ty) in [
+        ("global", 0x07),
+        ("global", 0x08),
+        ("input", 0x1d),
+        ("input", 0x1e),
+        ("output", 0x09),
+        ("output", 0x0a),
+    ] {
+        let bytes = v2_with_field(place, ty);
+        assert!(
+            faraday_core::wallet::read_psbt_kept(&c, &bytes).is_none(),
+            "{place} {ty:#x}: read"
+        );
+        assert!(faraday_core::wallet::is_silent_payment_psbt(&c, &bytes));
+    }
+}
+
+#[test]
+fn a_version_0_psbt_with_a_bip375_field_is_refused() {
+    let c = testkit::compute();
+    let kit = testkit::kits().into_iter().next().unwrap();
+    let plain = testkit::unsigned(&kit).unwrap();
+    assert!(faraday_core::wallet::read_psbt_kept(&c, &plain.to_bytes()).is_some());
+    for (place, ty) in [
+        ("global", 0x07),
+        ("global", 0x08),
+        ("input", 0x1d),
+        ("input", 0x1e),
+        ("output", 0x09),
+        ("output", 0x0a),
+    ] {
+        let mut v0 = plain.clone();
+        let unknown = match place {
+            "global" => &mut v0.inner_mut().unknown,
+            "input" => &mut v0.inner_mut().inputs[0].unknown,
+            _ => &mut v0.inner_mut().outputs[0].unknown,
+        };
+        unknown.insert(
+            faraday_bip::bitcoin::psbt::raw::Key {
+                type_value: ty,
+                key: vec![],
+            },
+            vec![0],
+        );
+        for form in [v0.to_bytes(), v0.to_base64().into_bytes()] {
+            assert!(
+                faraday_core::wallet::read_psbt_kept(&c, &form).is_none(),
+                "{place} {ty:#x}: read"
+            );
+            assert!(faraday_core::wallet::is_silent_payment_psbt(&c, &form));
+        }
+    }
+}

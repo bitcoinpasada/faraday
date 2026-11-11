@@ -4346,6 +4346,8 @@ strings! {
     // ----- start_spend (faraday-core/src/lib.rs) -----
     /// Toast in `start_spend`.
     start_spend_not_a_psbt: "Not a PSBT",
+    /// Toast in `start_spend` for a PSBT with silent payment fields.
+    start_spend_silent_payments: "Not signed: this PSBT sends to silent payments, which this device does not sign",
     // ----- out_bytes (faraday-core/src/wallet/v2.rs) -----
     /// Toast where a spend's version 2 PSBT cannot take its signatures
     /// back (`Spend::out_bytes`).

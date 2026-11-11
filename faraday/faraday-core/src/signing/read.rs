@@ -64,12 +64,15 @@ pub(crate) struct ReadDone {
     bytes: Vec<u8>,
     /// `None` where the file holds no PSBT.
     read: Option<Read>,
+    /// The file is a PSBT with silent payment fields, which is not read.
+    silent: bool,
     from: Origin,
 }
 
 impl ReadWork {
-    /// Costs what `read_psbt_kept` and `worked_out` cost. The file read as a
-    /// PSBT and worked out as a refresh does, on the copy of the session
+    /// Costs what `read_psbt_kept` and `worked_out` cost, and a second parse
+    /// of the file in `is_silent_payment_psbt` when it is not read. The file
+    /// read as a PSBT and worked out as a refresh does, on the copy of the session
     /// after it took the PSBT's network as `Session::follow_psbt` does; where
     /// the session does not take it, or is not as the copy was at the apply,
     /// the apply works the spend out again.
@@ -96,7 +99,13 @@ impl ReadWork {
             }
             None => None,
         };
-        ReadDone { bytes, read, from }
+        let silent = read.is_none() && wallet::is_silent_payment_psbt(c, &bytes);
+        ReadDone {
+            bytes,
+            read,
+            silent,
+            from,
+        }
     }
 }
 
@@ -129,7 +138,12 @@ pub(crate) fn start_spend(app: &mut Faraday, index: usize, then: Then) {
 /// the Inbox no longer holds the file the job was given or the person is
 /// no longer on the screen and sheet they pressed on.
 pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
-    let ReadDone { bytes, read, from } = done;
+    let ReadDone {
+        bytes,
+        read,
+        silent,
+        from,
+    } = done;
     let held = app
         .inbox
         .get(from.index)
@@ -137,7 +151,7 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
     if !held || (app.screen, app.sheet) != (from.screen, from.sheet) {
         return;
     }
-    let opened = spend_opened(app, read);
+    let opened = spend_opened(app, read, silent);
     match from.then {
         Then::Spend if opened => app.screen = Screen::Spend,
         Then::Spend => {}
@@ -149,14 +163,18 @@ pub(crate) fn spend_read(app: &mut Faraday, done: ReadDone) {
 /// the job's (the network it took, the keys, the wallets). Opens the spend
 /// the job read, a MuSig2 file holding every partial signature aggregated at
 /// once. Whether it opened.
-fn spend_opened(app: &mut Faraday, read: Option<Read>) -> bool {
+fn spend_opened(app: &mut Faraday, read: Option<Read>, silent: bool) -> bool {
     let Some(Read {
         spend,
         fresh,
         wallets,
     }) = read
     else {
-        app.toast(EN.start_spend_not_a_psbt);
+        app.toast(if silent {
+            EN.start_spend_silent_payments
+        } else {
+            EN.start_spend_not_a_psbt
+        });
         return false;
     };
     if let Err(e) = app.session.follow_psbt(&spend.psbt) {
