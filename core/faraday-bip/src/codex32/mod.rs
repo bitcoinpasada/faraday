@@ -282,6 +282,17 @@ fn append_checksum(data: &mut [u8], len: usize) -> usize {
     }
 }
 
+/// The checksum BIP 93 gives for data characters (5-bit symbols: the
+/// threshold, identifier, share index and payload, as [`Codex32::payload`]
+/// has them): 13 symbols, or 15 for a long string. For a reader that holds
+/// the data part without its checksum.
+pub fn checksum(symbols: &[u8]) -> Vec<u8> {
+    let mut data = zeroize::Zeroizing::new(alloc::vec![0u8; symbols.len() + LONG_CHECKSUM_LEN]);
+    data[..symbols.len()].copy_from_slice(symbols);
+    let len = append_checksum(&mut data, symbols.len());
+    data[symbols.len()..len].to_vec()
+}
+
 // ---------------------------------------------------------------------
 // GF(32)
 // ---------------------------------------------------------------------

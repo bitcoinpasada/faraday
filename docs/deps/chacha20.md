@@ -10,6 +10,10 @@ It is also the generator of the Secure Boot keys
 (`faraday/faraday-sb/src/rng.rs`): `ChaCha20Rng`, seeded from one fresh
 32-byte draw, feeds the RSA key generation and the signing's blinding.
 
+The Argon QR Vault (`aqrv/aqrv`, `docs/AQRV.md` §6), a test tool outside
+Faraday's apps, uses plain ChaCha20 with a zero nonce to encrypt its envelope, under a
+key derived per envelope from Argon2id.
+
 **Why this crate.** It is the RustCrypto stream cipher, by the publisher
 F71 trusts, with the `cipher` 0.5 interface the tree's other primitives
 use. Writing ChaCha20 by hand instead would be ~100 lines of
