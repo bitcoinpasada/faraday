@@ -1444,7 +1444,13 @@ guarantees for this file's rule:
   body scrolls between its head and its buttons. On a small panel an
   **At a glance** row opens the chart as its own page, one column, no
   lines, each backup node naming the keys it holds ("Key 1 words · Key
-  2 in the vault"); Back returns to the card.
+  2 in the vault"); Back returns to the card. A wallet with a relative
+  wait (`older`) has a **Spend paths** group under the signatures: a row
+  per path with its keys and when it can spend ("Any time", "52 560
+  blocks after each coin arrives · about 365 days") and **Move each coin
+  within**, 90 % of the shortest wait in whole days (`docs/BACKUP-FLOW.md`
+  §18.4); on a small panel a **Spend paths** row opens it as its own
+  page, and the chart's wallet sheet shows the same rows.
 - **The chart's sheets** (decision 44). A press on a node of the chart,
   on the card or in an open vault, or on a line of what a backup node
   holds, opens a sheet (DESIGN §4.16): its title, what it is and where

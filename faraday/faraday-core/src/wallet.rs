@@ -111,6 +111,8 @@ pub struct Signed {
     pub by: Vec<Fingerprint>,
 }
 
+pub(crate) mod paths;
+
 /// A wallet described by its public keys.
 pub struct Wallet {
     /// What the person called it: one line of text ([`wallet_name`]),
@@ -140,6 +142,75 @@ pub struct Wallet {
     /// The fingerprints of the keys loaded when its keys were last
     /// checked against them ([`Session::drop_forged`]).
     checked: Vec<Fingerprint>,
+    /// The spend paths, read once from the policy when it is set
+    /// ([`Wallet::waits`]).
+    waits: Waits,
+}
+
+/// A wallet's spend paths with their waits, read once from its policy
+/// (`docs/BACKUP-FLOW.md` §18.4), and the shortest relative wait.
+#[derive(Debug, Clone, Default)]
+pub struct Waits {
+    /// The ways to spend, as [`WalletPolicy::spend_paths`] lists them.
+    pub paths: Vec<faraday_bip::spend::SpendPath>,
+    /// The shortest relative wait among them, `None` where no path has
+    /// one.
+    pub shortest: Option<Shortest>,
+}
+
+/// The shortest relative wait of a wallet's paths (`docs/BACKUP-FLOW.md`
+/// §18.5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Shortest {
+    /// The path it belongs to, by place in [`Waits::paths`].
+    pub path: usize,
+    /// The wait: [`Lock::Blocks`] or [`Lock::Intervals`].
+    pub lock: faraday_bip::spend::Lock,
+    /// It in whole days, rounded down.
+    pub days: u32,
+    /// The margin: 90 % of the wait, in whole days rounded down.
+    pub margin: u32,
+}
+
+impl Waits {
+    /// Reads the paths of `policy`: its spend paths and the shortest
+    /// relative wait.
+    fn of(policy: &WalletPolicy) -> Waits {
+        use faraday_bip::spend::Lock;
+        let paths = policy.spend_paths();
+        let mut shortest: Option<(u64, Shortest)> = None;
+        for (i, p) in paths.iter().enumerate() {
+            for &lock in &p.locks {
+                // Seconds, so that blocks and 512-second units compare.
+                let (seconds, days, margin) = match lock {
+                    Lock::Blocks(n) => {
+                        let n = u64::from(n);
+                        (n * 600, n / 144, n * 9 / 10 / 144)
+                    }
+                    Lock::Intervals(n) => {
+                        let s = u64::from(n) * 512;
+                        (s, s / 86_400, s * 9 / 10 / 86_400)
+                    }
+                    _ => continue,
+                };
+                if shortest.is_none_or(|(best, _)| seconds < best) {
+                    shortest = Some((
+                        seconds,
+                        Shortest {
+                            path: i,
+                            lock,
+                            days: days as u32,
+                            margin: margin as u32,
+                        },
+                    ));
+                }
+            }
+        }
+        Waits {
+            paths,
+            shortest: shortest.map(|(_, s)| s),
+        }
+    }
 }
 
 /// A script a wallet derived at a place, with the keys derived for it.
@@ -155,6 +226,7 @@ impl Wallet {
     pub fn new(name: String, policy: WalletPolicy, source: String, origin: Origin) -> Wallet {
         Wallet {
             name: wallet_name(&name).into_owned(),
+            waits: Waits::of(&policy),
             policy,
             source,
             origin,
@@ -163,6 +235,12 @@ impl Wallet {
             same: std::cell::OnceCell::new(),
             checked: Vec::new(),
         }
+    }
+
+    /// The wallet's spend paths and the shortest relative wait, kept
+    /// when the policy was read.
+    pub fn waits(&self) -> &Waits {
+        &self.waits
     }
 
     /// A copy for work off the main thread: the policy, and the scripts, the
@@ -177,6 +255,7 @@ impl Wallet {
             scripts: std::cell::RefCell::new(self.scripts.borrow().clone()),
             same: self.same.clone(),
             checked: Vec::new(),
+            waits: self.waits.clone(),
         }
     }
 
@@ -348,6 +427,7 @@ impl Wallet {
     /// Replaces the policy, dropping the addresses and scripts kept from
     /// the one before.
     pub(crate) fn set_policy(&mut self, policy: WalletPolicy) {
+        self.waits = Waits::of(&policy);
         self.policy = policy;
         self.same = std::cell::OnceCell::new();
         self.addresses.borrow_mut().clear();
@@ -3064,8 +3144,8 @@ pub fn paths(session: &Session, wallet: &Wallet, psbt: &Psbt) -> Vec<PathView> {
     let value = seq & 0xffff;
     let slots = session.slots(wallet);
     wallet
-        .policy
-        .spend_paths()
+        .waits
+        .paths
         .iter()
         .map(|p| {
             let keys = p

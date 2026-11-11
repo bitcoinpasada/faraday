@@ -35,6 +35,9 @@ pub enum Action {
     /// Open, or close, the wallet's chart as its own page on a small
     /// panel.
     Glance(bool),
+    /// Open, or close, the wallet's spend paths as their own page on a
+    /// small panel.
+    SpendPaths(bool),
     /// A press on a stick's pill across the top of the window: 0 the boot
     /// stick, `n` Stick `n`. The shell inserts the stick or pulls it.
     StickPill(u8),

@@ -296,6 +296,9 @@ pub fn sheet_share(wallet: &Wallet, part: usize, of: usize, share: &str) -> Stri
     out.push_str(&format!("shape: {}\n", Session::shape(wallet)));
     out.push_str(&format!("part: {part} of {of}\n"));
     out.push_str(&format!("quorum: {m} of {n}\n"));
+    if wallet.waits().shortest.is_some() {
+        out.push_str("recovery: yes\n");
+    }
     for line in share.lines() {
         out.push_str(&format!("line: {line}\n"));
     }
@@ -343,6 +346,7 @@ pub(crate) fn sheet_wallet_on(
             key.key_text()
         ));
     }
+    out.push_str(&crate::wallet::paths::sheet_lines(wallet.waits()));
     for (label, change, index) in [
         ("0/0", false, 0),
         ("0/1", false, 1),

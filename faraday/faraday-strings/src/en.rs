@@ -4956,6 +4956,28 @@ strings! {
     pdf_xpubs: "Xpubs",
     /// Line in `wallet_sheet`.
     pdf_first_addresses: "First addresses",
+    /// Heading in `wallet_sheet`.
+    pdf_spend_paths: "Spend paths",
+    /// Line in `wallet_sheet`, a wait in blocks. `{}`: days, blocks, the keys.
+    pdf_unmoved_blocks: "Coins left unmoved for {} days ({} blocks) can be spent by {} alone. Move every coin to a new address of this wallet before then.",
+    /// Line in `wallet_sheet`, a wait in 512-second units. `{}`: days, the keys.
+    pdf_unmoved_days: "Coins left unmoved for {} days can be spent by {} alone. Move every coin to a new address of this wallet before then.",
+    /// Line in `wallet_sheet`, over the table. `{}`: the margin in days.
+    pdf_move_before: "Move before = received on + {} days",
+    /// Line in `wallet_sheet`, over the table on the Starter's blank sheet.
+    pdf_move_before_blank: "Move before = received on + the margin in days",
+    /// Heading in `wallet_sheet`: a table column.
+    pdf_received_on: "Received on",
+    /// Heading in `wallet_sheet`: a table column.
+    pdf_amount: "Amount",
+    /// Heading in `wallet_sheet`: a table column.
+    pdf_move_before_col: "Move before",
+    /// Line in `share_sheet`.
+    pdf_has_recovery_path: "This wallet has a recovery path: see its wallet sheet",
+    /// Line in `blank_sheet`, where its keys and wait are filled in by hand.
+    pdf_path_keys_wait: "Keys · Wait",
+    /// Line in `blank_sheet`, the sentence with its numbers left blank.
+    pdf_unmoved_blank: "Coins left unmoved for ______ days (______ blocks) can be spent by ______ alone. Move every coin to a new address of this wallet before then.",
     /// Text in `wallet_sheet`.
     pdf_written_on_label: "Written on",
     /// Text in `wallet_sheet`.
@@ -10737,6 +10759,35 @@ strings! {
     wallet_after_time: "after time {}",
     /// Text in `paths`.
     wallet_a_secret_preimage: "a secret preimage",
+    // ----- spend paths (faraday-core/src/wallet/paths.rs) -----
+    /// Value of the small panel's Spend paths row. `{}`: how many paths.
+    wallet_paths_count: "{} ways to spend",
+    /// Heading in the wallet card, the small panel's row and the chart's wallet sheet.
+    wallet_paths_heading: "Spend paths",
+    /// Text in `when_text`: a path with no wait.
+    wallet_paths_any_time: "Any time",
+    /// Text in `keys_text`. `{}`: the key's number.
+    wallet_paths_key: "Key {}",
+    /// Text in `keys_text`. `{}`: the numbers as a list, how many keys, how many it wants.
+    wallet_paths_keys: "Keys {}, {} of {}",
+    /// Text in `list`. `{}`: the numbers before the last, the last.
+    wallet_paths_list_and: "{} and {}",
+    /// Text in `lock_text`. `{}`: the wait in blocks, in about so many days.
+    wallet_paths_blocks: "{} blocks after each coin arrives · about {} days",
+    /// Text in `lock_text`. `{}`: the wait in days.
+    wallet_paths_intervals: "{} days after each coin arrives",
+    /// Text in `lock_text`. `{}`: the block height.
+    wallet_paths_after_block: "After block {}",
+    /// Text in `lock_text`. `{}`: the date.
+    wallet_paths_after_date: "After {}",
+    /// Text in `lock_text`.
+    wallet_paths_preimage: "A secret preimage",
+    /// Label in `rows`: the margin of the shortest relative wait.
+    wallet_paths_move_within: "Move each coin within",
+    /// Value in `margin_text`, a wait in blocks. `{}`: whole days.
+    wallet_paths_within_about: "about {} days of arriving",
+    /// Value in `margin_text`, a wait in 512-second units. `{}`: whole days.
+    wallet_paths_within: "{} days of arriving",
     // ----- wordlist (faraday-core/src/wordlist/mod.rs) -----
     /// Text in `PRESS_A_WORD`.
     wordlist_press_a_word: "Press a word to see it in the list",

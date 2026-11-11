@@ -229,6 +229,9 @@ pub const WAITING: &str = EN.glance_waiting_backup;
 pub(crate) struct GlanceArea {
     /// The chart is open as its own page, on a small panel.
     open: bool,
+    /// The wallet's spend paths are open as their own page, on a small
+    /// panel.
+    paths: bool,
     /// The chart and the thing on it whose sheet is open.
     chart: Option<(Press, sheet::Target)>,
     /// A chart's key whose lines are drawn bold, by place among its keys:
@@ -266,6 +269,18 @@ impl GlanceArea {
     /// Opens or closes the chart's own page.
     pub(crate) fn set_open(&mut self, open: bool) {
         self.open = open;
+        self.paths = false;
+    }
+
+    /// Whether the wallet's spend paths are open as their own page.
+    pub(crate) fn paths_open(&self) -> bool {
+        self.paths
+    }
+
+    /// Opens or closes the spend paths' own page.
+    pub(crate) fn set_paths_open(&mut self, open: bool) {
+        self.paths = open;
+        self.open = false;
     }
 
     /// The chart and the thing on it whose sheet is open.

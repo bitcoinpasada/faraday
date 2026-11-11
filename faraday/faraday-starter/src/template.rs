@@ -146,7 +146,11 @@ impl Template {
                 self.size, self.places
             );
         }
-        sheet_blank(self.words, self.copy, None, Network::Mainnet, self.places)
+        // The blank Spend paths block, to fill in by hand
+        // (`docs/STARTER.md` §3.8), on its own page after the places.
+        let mut sheet = sheet_blank(self.words, self.copy, None, Network::Mainnet, self.places);
+        sheet.push_str("paths: blank\n");
+        sheet
     }
 
     /// Costs what `sheet` costs. The PDF of [`Template::sheet`].

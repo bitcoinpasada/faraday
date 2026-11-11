@@ -19,6 +19,7 @@ mod idle;
 mod keys;
 mod moments;
 mod name;
+mod paths;
 mod presses;
 mod roller;
 mod scaling;

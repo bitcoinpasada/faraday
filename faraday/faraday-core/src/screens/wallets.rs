@@ -665,6 +665,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     cy += 66.0;
 
+    // The spend paths and the margin, where a path has a wait.
+    cy += spend_paths_rows(ui, ix, cy, iw, wlt);
+
     // The wallet at a glance (`docs/history/NEW-WALLET.md` §6): its keys and
     // its backup, where each thing is and what each place gives.
     ui.text_as(
@@ -726,6 +729,35 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         end,
         &placed,
     );
+}
+
+/// A wallet's **Spend paths** group (`docs/BACKUP-FLOW.md` §18.4): a
+/// fact row per path and the margin, as read when the wallet was loaded.
+/// Nothing for a wallet with no relative wait. Returns its height.
+pub(crate) fn spend_paths_rows(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    wallet: &crate::wallet::Wallet,
+) -> f32 {
+    let rows = crate::wallet::paths::rows(wallet.waits());
+    if rows.is_empty() {
+        return 0.0;
+    }
+    let mut cy = y;
+    ui.text_as(
+        x,
+        cy,
+        LABEL_M,
+        Role::OnSurfaceVariant,
+        EN.wallet_paths_heading,
+    );
+    cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
+    for (label, value) in &rows {
+        cy += crate::compact::kv(ui, x, cy, w, label, value, Role::OnSurface);
+    }
+    cy + 8.0 - y
 }
 
 /// Where a wallet card's actions go in a row `w` wide: each item's row,

@@ -160,6 +160,13 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
 
+    // The spend paths, as their own page.
+    if app.glance.paths_open() {
+        cy += crate::screens::spend_paths_rows(ui, x, cy, iw, wlt);
+        finish(app, ui, h, cy - top + 8.0);
+        return;
+    }
+
     // A PSBT waiting leads, unless it is this wallet's: the card's first
     // button is for that.
     let lead = match app.wallets.spend() {
@@ -350,6 +357,23 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &sub,
             Role::OnSurfaceVariant.paint(),
             Some(Action::Glance(true)),
+        );
+    }
+    // The spend paths, as their own page, where a path has a wait.
+    if !crate::wallet::paths::rows(wlt.waits()).is_empty() {
+        cy += row(
+            ui,
+            x,
+            cy,
+            iw,
+            None,
+            EN.wallet_paths_heading,
+            &fill(
+                EN.wallet_paths_count,
+                &[&wlt.waits().paths.len().to_string()],
+            ),
+            Role::OnSurfaceVariant.paint(),
+            Some(Action::SpendPaths(true)),
         );
     }
     cy += crate::screens::slot_marks(app, ui, (x, cy, iw), &slots);

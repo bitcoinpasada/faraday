@@ -14,6 +14,14 @@ A timelock written as after is a point on the chain, not a wait: a block height 
 
 Blocks are not minutes. Ten minutes a block is the average the network aims for, not a promise, so the durations the review shows beside a block count are approximate and are said as such.
 
+## Moving coins before the wait ends
+
+Each coin's wait starts at its own block, the block it arrived in. A coin received a year ago and a coin received last week reach the end of the same wait on different days. A spend that moves every coin to a new address of the wallet makes new coins, and every wait starts again from the block that spend is mined in.
+
+Blocks come about every ten minutes on average and arrive faster while mining grows, so a wait counted in blocks can end days earlier than the days shown beside it say. The wallet card's Move each coin within is 90 % of the shortest wait, in whole days, and is the time to move each coin by. A wait counted in 512-second units is shown in days without "about", and the same 90 % applies.
+
+This device is not connected to the chain. It cannot see when a coin arrived or whether it was moved. The wallet sheet's table, Received on, Amount and Move before, is where deposits and their dates are written down by hand. A wallet whose only wait is a point on the chain, an after, has no Move each coin within: moving the coins does not change it.
+
 ## Who chooses the path
 
 The coordinator builds the transaction, and the transaction is what picks the path: the sequence and locktime fields it sets, and the signatures it collects. This device does not choose. It reads what arrived, shows you the wallet and its paths, and signs what you approve.

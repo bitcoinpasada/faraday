@@ -1062,6 +1062,11 @@ back; then the buttons:
   never over a file ("name (2).pdf", as Transfer's Receive names) →
   "Saved {path}" with **Open it** (the viewer).
 
+The BIP-39 template's PDF ends with a page of the wallet sheet's **Spend
+paths** block left empty (`docs/BACKUP-FLOW.md` §18.4): three rows for the keys
+and wait of a path, the line about coins left unmoved with its numbers blank,
+and the eight-row table of deposits (the sheet file's `paths: blank` line).
+
 Nothing else: no wallet, key or seed is asked for or shown. Tests: each of the six choices of Words and Copy makes a PDF whose sheet
 text has those `words:` and `copy:` lines and no `name:`, saved under
 its name; a second save beside a first is named "(2)"; Print makes the

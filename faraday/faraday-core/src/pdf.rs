@@ -313,8 +313,8 @@ pub fn notes(
 
 /// The fields of a sheet that may appear more than once, one line each:
 /// a share's lines, a wallet's keys and addresses, the envelopes' places
-/// and what each holds. Every other field is read once ([`get`]).
-const REPEATED: [&str; 5] = ["line", "key", "address", "place", "thing"];
+/// and what each holds, a wallet's spend paths and their waits. Every other field is read once ([`get`]).
+const REPEATED: [&str; 7] = ["line", "key", "address", "place", "thing", "path", "wait"];
 
 /// The fields of a sheet file, in order. Refused when a field other than
 /// the [`REPEATED`] ones appears twice: which of the two the sheet means
@@ -425,7 +425,87 @@ fn wallet_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
         Font::Sans,
         EN.pdf_made_by_faraday_check,
     );
+    // The spend paths and the table of deposits stand on a page after the
+    // xpubs, where there is room for the table.
+    let mut q = Page::default();
+    if spend_paths_block(&mut q, f, MARGIN) > 0.0 {
+        q.text(
+            MARGIN,
+            PAGE_H - MARGIN,
+            8.0,
+            Font::Sans,
+            EN.pdf_made_by_faraday_check,
+        );
+        return document(c, vec![p, q]);
+    }
     document(c, vec![p])
+}
+
+/// The **Spend paths** block of a wallet sheet (`docs/BACKUP-FLOW.md`
+/// §18.4), drawn from `y`: per path its keys and wait; then, where a path
+/// has a relative wait, the line about coins left unmoved and the table
+/// to fill in by hand. Nothing for a sheet file without `path` fields.
+/// Returns its height.
+fn spend_paths_block(p: &mut Page, f: &[(String, String)], y0: f32) -> f32 {
+    let mut y = y0;
+    let paths: Vec<&str> = f
+        .iter()
+        .filter(|(k, _)| k == "path")
+        .map(|(_, v)| v.as_str())
+        .collect();
+    if paths.is_empty() {
+        return 0.0;
+    }
+    p.text(MARGIN, y, 10.0, Font::Bold, EN.pdf_spend_paths);
+    y += 16.0;
+    let waits = f
+        .iter()
+        .filter(|(k, _)| k == "wait")
+        .map(|(_, v)| v.as_str());
+    for (keys, wait) in paths.iter().zip(waits) {
+        p.text(MARGIN, y, 9.0, Font::Sans, keys);
+        p.text(MARGIN + 150.0, y, 9.0, Font::Sans, wait);
+        y += 14.0;
+    }
+    y += 6.0;
+    if let Some(u) = get(f, "unmoved") {
+        let mut n = u.split_whitespace();
+        let (days, blocks, margin) = (n.next(), n.next(), n.next());
+        let keys = get(f, "alone").unwrap_or("");
+        let line = match (days, blocks) {
+            (Some(d), Some("-")) => fill(EN.pdf_unmoved_days, &[d, keys]),
+            (Some(d), Some(b)) => fill(EN.pdf_unmoved_blocks, &[d, b, keys]),
+            _ => String::new(),
+        };
+        y += p.wrapped(MARGIN, y, PAGE_W - 2.0 * MARGIN, 9.0, Font::Sans, &line) + 8.0;
+        y += move_table(p, y, &fill(EN.pdf_move_before, &[margin.unwrap_or("")]));
+    }
+    y - y0 + 10.0
+}
+
+/// The table to fill in by hand, one row per deposit: when it was
+/// received, its amount, the date to move it before. `rule` stands over
+/// it. Returns its height.
+fn move_table(p: &mut Page, y0: f32, rule: &str) -> f32 {
+    let mut y = y0;
+    p.text(MARGIN, y, 8.5, Font::Sans, rule);
+    y += 14.0;
+    let w = (PAGE_W - 2.0 * MARGIN) / 3.0;
+    for (i, head) in [EN.pdf_received_on, EN.pdf_amount, EN.pdf_move_before_col]
+        .iter()
+        .enumerate()
+    {
+        p.text(MARGIN + i as f32 * w + 4.0, y, 9.0, Font::Bold, head);
+    }
+    y += 14.0;
+    for _ in 0..8 {
+        for i in 0..3 {
+            let x = MARGIN + i as f32 * w;
+            p.line(x, y + 14.0, x + w - 8.0, y + 14.0, 0.5, 0.55);
+        }
+        y += 18.0;
+    }
+    y - y0
 }
 
 /// Costs a picture drawn (through `document`). What goes in each
@@ -489,7 +569,12 @@ fn share_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
         Font::Sans,
         &fill(EN.pdf_part_of_the_wallet, &[quorum]),
     );
-    y += 28.0;
+    y += 18.0;
+    if get(f, "recovery") == Some("yes") {
+        p.text(MARGIN, y, 10.0, Font::Sans, EN.pdf_has_recovery_path);
+        y += 18.0;
+    }
+    y += 10.0;
     let lines: Vec<&str> = f
         .iter()
         .filter(|(k, _)| k == "line")
@@ -518,6 +603,41 @@ fn share_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
         EN.pdf_made_by_faraday,
     );
     document(c, vec![p])
+}
+
+/// The Starter's blank **Spend paths** block (`docs/STARTER.md` §3.8): a
+/// page of three paths with their keys and wait to fill in, the line
+/// about coins left unmoved with its numbers blank, and the table of
+/// deposits.
+fn blank_paths_page() -> Page {
+    let mut p = Page::default();
+    let mut y = MARGIN;
+    p.text(MARGIN, y, 18.0, Font::Bold, EN.pdf_spend_paths);
+    y += 40.0;
+    p.text(MARGIN, y, 9.0, Font::Sans, EN.pdf_path_keys_wait);
+    y += 20.0;
+    for _ in 0..3 {
+        p.line(MARGIN, y + 12.0, PAGE_W - MARGIN, y + 12.0, 0.5, 0.55);
+        y += 28.0;
+    }
+    y += 12.0;
+    y += p.wrapped(
+        MARGIN,
+        y,
+        PAGE_W - 2.0 * MARGIN,
+        9.0,
+        Font::Sans,
+        EN.pdf_unmoved_blank,
+    ) + 14.0;
+    move_table(&mut p, y, EN.pdf_move_before_blank);
+    p.text(
+        MARGIN,
+        PAGE_H - MARGIN + 14.0,
+        8.0,
+        Font::Sans,
+        EN.pdf_print_actual_size,
+    );
+    p
 }
 
 /// Costs a picture drawn (through `document`).
@@ -656,5 +776,9 @@ fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
         q.line(MARGIN + 238.0, y + 34.0, right, y + 34.0, 0.5, 0.55);
         y += 56.0;
     }
-    Ok(document(c, vec![p, q]))
+    let mut pages = vec![p, q];
+    if get(f, "paths") == Some("blank") {
+        pages.push(blank_paths_page());
+    }
+    Ok(document(c, pages))
 }

@@ -490,9 +490,34 @@ pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
     (BAR_H, h - BAR_H)
 }
 
+/// The way back and the name of the wallet card's own pages on a small
+/// panel, the chart's and the spend paths': back to the card. A lookup.
+fn wallet_page_head<'a>(app: &'a View) -> Option<((&'a str, Action), &'a str)> {
+    let w = app.session.wallets.get(app.wallets.wallet())?;
+    if app.screen != Screen::Wallets {
+        return None;
+    }
+    if app.glance.open() {
+        Some((
+            (w.name.as_str(), Action::Glance(false)),
+            EN.compact_at_a_glance,
+        ))
+    } else if app.glance.paths_open() {
+        Some((
+            (w.name.as_str(), Action::SpendPaths(false)),
+            EN.wallet_paths_heading,
+        ))
+    } else {
+        None
+    }
+}
+
 /// A page's way back with the name of where it lands, and the page's
 /// own name: what its bar or its top app bar shows. A lookup.
 pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
+    if let Some(head) = wallet_page_head(app) {
+        return head;
+    }
     let explore = app.explore.page();
     let name = match app.session.wallets.get(app.wallets.wallet()) {
         _ if app.screen == Screen::Explore && explore == Some(crate::explore::Page::Addresses) => {
@@ -506,7 +531,6 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         {
             n
         }
-        Some(_) if app.screen == Screen::Wallets && app.glance.open() => EN.compact_at_a_glance,
         Some(w) if app.screen == Screen::Wallets => w.name.as_str(),
         _ if app.screen == Screen::Lightning && app.lightning.for_convert() => {
             EN.convert_lnd_aezeed
@@ -514,14 +538,6 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
         _ => screen_name(app.screen),
     };
     let back = match app.screen {
-        // The chart's page goes back to the wallet's card.
-        Screen::Wallets if app.glance.open() => (
-            app.session
-                .wallets
-                .get(app.wallets.wallet())
-                .map_or(EN.compact_wallets, |w| w.name.as_str()),
-            Action::Glance(false),
-        ),
         // Explore's address list and search go back to its path.
         Screen::Explore if explore.is_some_and(|p| p != crate::explore::Page::Path) => (
             EN.compact_explore_a_key,

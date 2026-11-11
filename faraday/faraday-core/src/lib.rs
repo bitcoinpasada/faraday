@@ -2720,10 +2720,8 @@ impl Faraday {
             a @ (Action::OpenCodes | Action::CodesOpen(..) | Action::CodesAdd) => self.codes_act(a),
             Action::Chart(c) => self.chart_act(c),
             Action::TypeHere(h) => self.type_here(h),
-            Action::Glance(open) => {
-                self.glance.set_open(open && self.screen == Screen::Wallets);
-                self.list_offset = 0.0;
-            }
+            Action::SpendPaths(open) => self.glance_page(open, true),
+            Action::Glance(open) => self.glance_page(open, false),
             a @ (Action::BackupChecklist(..)
             | Action::Backup(..)
             | Action::BQ(..)

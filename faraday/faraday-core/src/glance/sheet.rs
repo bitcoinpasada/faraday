@@ -170,6 +170,9 @@ pub(crate) struct View {
     pub go: Option<(String, Option<Action>)>,
     /// The loaded wallet whose first addresses are shown.
     pub addresses: Option<usize>,
+    /// A wallet's spend paths and the margin: label and value, each a
+    /// fact under the **Spend paths** heading.
+    pub paths: Vec<(String, String)>,
 }
 
 impl View {
@@ -184,6 +187,7 @@ impl View {
             field: None,
             go: None,
             addresses: None,
+            paths: Vec::new(),
         }
     }
 }
@@ -401,6 +405,15 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     Role::OnSurface.paint(),
                 ),
             ];
+            // The wallet's spend paths and the margin, as its card has them
+            // (`docs/BACKUP-FLOW.md` §18.4): a wallet loaded here.
+            if let Press::Loaded(w) = press
+                && let Some(wl) = app.session.wallets.get(w)
+            {
+                for (label, value) in crate::wallet::paths::rows(wl.waits()) {
+                    v.paths.push((label, value));
+                }
+            }
             v.groups = vec![(String::new(), rows)];
             Some(v)
         }
@@ -1556,6 +1569,17 @@ fn body(
     for (label, value, tone) in &v.facts {
         cy += crate::compact::kv(ui, x, cy, iw, label, value, *tone);
     }
+    if !v.paths.is_empty() {
+        cy += ui.wrap_as(
+            (x, cy, iw),
+            LABEL_M,
+            Role::OnSurfaceVariant,
+            EN.wallet_paths_heading,
+        ) + tokens::GAP;
+        for (label, value) in &v.paths {
+            cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
+        }
+    }
     for (line, tone) in &v.lines {
         cy += ui.wrap_as((x, cy, iw), LABEL_L, *tone, line) + tokens::GAP_SMALL;
     }
@@ -1694,6 +1718,18 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
 }
 
 impl Faraday {
+    /// Opens or closes the chart's own page, or the wallet's spend
+    /// paths' own page (`paths`), on a small panel's Wallets screen.
+    pub(crate) fn glance_page(&mut self, open: bool, paths: bool) {
+        let open = open && self.screen == crate::Screen::Wallets;
+        if paths {
+            self.glance.set_paths_open(open);
+        } else {
+            self.glance.set_open(open);
+        }
+        self.list_offset = 0.0;
+    }
+
     /// Whether the wallet's chart is open as its own page.
     pub fn glance(&self) -> bool {
         self.glance.open()

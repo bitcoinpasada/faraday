@@ -384,6 +384,14 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
+                heading: "Moving coins before the wait ends",
+                paragraphs: &[
+                    "Each coin's wait starts at its own block, the block it arrived in. A coin received a year ago and a coin received last week reach the end of the same wait on different days. A spend that moves every coin to a new address of the wallet makes new coins, and every wait starts again from the block that spend is mined in.",
+                    "Blocks come about every ten minutes on average and arrive faster while mining grows, so a wait counted in blocks can end days earlier than the days shown beside it say. The wallet card's Move each coin within is 90 % of the shortest wait, in whole days, and is the time to move each coin by. A wait counted in 512-second units is shown in days without \"about\", and the same 90 % applies.",
+                    "This device is not connected to the chain. It cannot see when a coin arrived or whether it was moved. The wallet sheet's table, Received on, Amount and Move before, is where deposits and their dates are written down by hand. A wallet whose only wait is a point on the chain, an after, has no Move each coin within: moving the coins does not change it.",
+                ],
+            },
+            Section {
                 heading: "Who chooses the path",
                 paragraphs: &[
                     "The coordinator builds the transaction, and the transaction is what picks the path: the sequence and locktime fields it sets, and the signatures it collects. This device does not choose. It reads what arrived, shows you the wallet and its paths, and signs what you approve.",
@@ -444,6 +452,14 @@ pub static EN: Learn = Learn {
                 paragraphs: &[
                     "Do not put the seed words in your will. A will passes through many hands and can end up on public record.",
                     "Do not leave a clue that only you can follow. Do not leave one copy in one place. Do not assume that someone technical in the family will work it out.",
+                ],
+            },
+            Section {
+                heading: "A wallet that opens to an heir after a wait",
+                paragraphs: &[
+                    "Some wallets have a second path: after a wait, a recovery key can spend alone. The owner spends with the first key at any time. The heir waits until the wait has passed for the coins, then spends with the recovery keys alone.",
+                    "The wait runs from the block each coin arrived in. While the owner is alive, the owner moves every coin to a new address of the wallet before each wait ends, which starts the waits again. The wallet card's Move each coin within says how long that is, and the wallet sheet has a table for the dates.",
+                    "A wait that ends while the owner is alive lets the recovery keys spend. If their holder acts, the coins move without the owner's key.",
                 ],
             },
             Section {

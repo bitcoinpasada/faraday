@@ -18,6 +18,14 @@ Do not put the seed words in your will. A will passes through many hands and can
 
 Do not leave a clue that only you can follow. Do not leave one copy in one place. Do not assume that someone technical in the family will work it out.
 
+## A wallet that opens to an heir after a wait
+
+Some wallets have a second path: after a wait, a recovery key can spend alone. The owner spends with the first key at any time. The heir waits until the wait has passed for the coins, then spends with the recovery keys alone.
+
+The wait runs from the block each coin arrived in. While the owner is alive, the owner moves every coin to a new address of the wallet before each wait ends, which starts the waits again. The wallet card's Move each coin within says how long that is, and the wallet sheet has a table for the dates.
+
+A wait that ends while the owner is alive lets the recovery keys spend. If their holder acts, the coins move without the owner's key.
+
 ## Test it while you can
 
 Have your heir walk through a recovery once, with a small amount, while you are there to answer questions. An untested plan is a guess, and this is one you will not be able to fix later.
