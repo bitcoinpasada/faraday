@@ -29,8 +29,10 @@ Libraries the format's authors did not write:
   copied from the BIP's text in `tools/vectors/bip93/`.
 
 Everything is fixed by the script: passphrases are in it, a salt is
-the first 16 bytes of SHA-256 of `ACE vector salt ` and the case's name, and
-entropy, keys and padding are SHAKE-256 of a label and the case's name. A second run
+the first 16 bytes of SHA-256 of `AQRV vector salt ` and the case's name, and
+entropy, keys and padding are SHAKE-256 of a label and the case's name.
+The case gives each random draw of `docs/AQRV.md` §6: `salt`, then
+`last_byte_fill` (codex32 only), then `padding`. A second run
 writes the same bytes. `gen.py` also reads every case back with a plain reading of
 §6 and §9 and stops if an answer differs from the one it writes; that reader
 checks the vectors and is not meant to be used.
@@ -88,6 +90,8 @@ opens also has:
 - The QR pictures were decoded by zxing-cpp and by zbar (the decoders `tools/crosscheck`
   uses), and both return the envelope's bytes. `check.py` also reads the PNG itself and
   compares its modules with the matrix in `aqrv.json`, and the three chunks.
+  The payload bytes, version and level are normative; the matrix is Nayuki's output,
+  its mask that library's choice, and a reader compares decoded bytes.
 
 ## The second reader
 

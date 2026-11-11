@@ -118,8 +118,9 @@ passphrase has nine chances to match (§8).
 | 0x50 | A raw 32-byte key | the key | `kind` | 32 | yes | yes |
 
 The list is fixed for this marker (§4). A writer refuses an item that does
-not fit the size it is writing, and may always write a smaller item at the
-large size for the longer tag.
+not fit the size it is writing. A writer asked for the small size with an
+item that does not fit refuses; it never moves to the large size by itself. It
+may always write a smaller item at the large size for the longer tag.
 
 A passphrase or a note is stored as the bytes given, in no particular
 normal form: BIP-39 applies its own NFKD when a passphrase is used, and a
@@ -161,7 +162,9 @@ designator.
 | 62 bytes | 4 | 33 × 33 | M | 62 | 18 codewords in each of two blocks of 50; corrects up to 9 in each |
 
 A writer may draw an envelope larger than this for more tolerance, such as
-the 53 bytes at 33 × 33 medium. A reader takes the payload and does not look
+the 53 bytes at 33 × 33 medium. The payload's bytes, the version and the level in the table
+are the format; the module matrix is one encoder's output, whose mask is that
+library's choice (§11). A reader takes the payload and does not look
 at the version or the level: the payload's length alone says which size it
 is, so those 53 bytes still have a 4-byte tag. The longer tag comes only from
 writing 62 bytes.
@@ -301,8 +304,8 @@ or 37) and `t` the tag's length (4 or 8):
 ```text
 pw      = UTF-8 bytes of the NFC form of the passphrase           (§10)
 PRK     = Argon2id(pw, salt, m, t = 3, p = 4), 32 bytes
-K_enc   = HKDF-Expand(PRK, "argon2id-compact-envelope-1 enc", 32)
-K_mac   = HKDF-Expand(PRK, "argon2id-compact-envelope-1 mac", 32)
+K_enc   = HKDF-Expand(PRK, "argon-qr-vault-1 enc", 32)
+K_mac   = HKDF-Expand(PRK, "argon-qr-vault-1 mac", 32)
 C       = P ⊕ ChaCha20(K_enc, nonce = twelve 0x00 bytes, counter = 0)[:r]
 T(kind) = HMAC-SHA-256(K_mac, H || N || salt || kind || C)[:t]
 ```
@@ -315,24 +318,29 @@ second byte, so that a tag at one size says nothing about the other.
 
 **Writing.**
 
-1. Refuse an empty passphrase, and an item that does not fit (§3). Draw
-   `salt`, 16 bytes, from a cryptographic random source, for this envelope
-   alone. Sealing the same item again draws a new one.
-2. Make `P` and `kind` (§3).
+1. Refuse an empty passphrase, and an item that does not fit the size asked
+   for (§3). Draw `salt`, 16 bytes, from a cryptographic random source, for
+   this envelope alone. Sealing the same item again draws a new one. The
+   writer's random draws come in this order: the salt, then for codex32 only
+   the byte that fills the item's unused low bits, then the padding.
+2. Make `P` and `kind` (§3), drawing the fill byte and the padding.
 3. Derive the keys, encrypt, and compute `T` for all nine kinds. If any other
-   kind's tag equals this kind's, start again from step 1. This happens with
+   kind's tag equals this kind's, start again from step 1, drawing a new salt,
+   fill byte and padding. This happens with
    probability about 2^-29 at the small size and 2^-61 at the large one.
 4. Output `H || salt || C || T(kind)`.
 
 **Reading.**
 
-1. Apply §9's recognition. Show the memory the step needs; refuse before
-   asking for the passphrase if the machine cannot allocate it.
+1. Apply §9's recognition. Show the memory the step needs. A reader that can
+   learn before asking for the passphrase that it cannot have the memory
+   refuses then; otherwise a failed allocation during Argon2id is reported
+   as "not enough memory", in words distinct from "does not open".
 2. Derive the keys. Compute `T` for all nine kinds and compare each with the
    stored `T`.
 3. None matches: the code does not open. A reader cannot tell a wrong
-   passphrase from a damaged code, and says so. More than one matches: refuse,
-   since no conforming writer makes this.
+   passphrase from a damaged code, and says so. More than one matches: refuse in the
+   same words as "does not open", since no conforming writer makes this.
 4. One matches: decrypt, and read the item by its kind's layout. A size, length
    or threshold out of range, an item that does not fit the room or text that
    is not valid UTF-8 means the code does not open, in the same words: no
@@ -409,11 +417,11 @@ of the right item.
 
 | Kind | Shown | What a person can compare | Checked by the reader |
 |---|---|---|---|
-| BIP-39 entropy | The words, which BIP-39's checksum completes, and the wallet's fingerprint | The fingerprint | Nothing more: any bytes of these lengths are valid |
-| codex32 string | The string, its threshold, identifier and index, and whether it is a share or a secret; a secret's fingerprint | The identifier and threshold; a secret's fingerprint. A share has no fingerprint until a set is combined | Size, threshold and BIP 93's threshold rule. The checksum is computed, so it shows nothing |
+| BIP-39 entropy | The words (BIP-39 English), which BIP-39's checksum completes, and the BIP-32 master fingerprint, 8 lower-case hex digits, taken with an empty BIP-39 passphrase | The fingerprint | Nothing more: any bytes of these lengths are valid |
+| codex32 string | The string, its threshold, identifier and index, and whether it is a share or a secret; a secret (index `s`) with the fingerprint of the master key of its seed, in the form above | The identifier and threshold; a secret's fingerprint. A share has no fingerprint until a set is combined | Size, threshold and BIP 93's threshold rule. The checksum is computed, so it shows nothing |
 | BIP-39 passphrase | The text | Its reading; a fingerprint only with the seed it goes with | Length and UTF-8 |
 | Note | The text | Its reading | Length and UTF-8 |
-| Raw key | The 32 bytes in hexadecimal | Nothing in the format. A reader may also derive a public key where a person says what the key is for | Nothing |
+| Raw key | The 32 bytes as 64 lower-case hex digits | Nothing in the format. A reader may also derive a public key where a person says what the key is for; the vectors do not | Nothing |
 
 ## 8. False matches
 
@@ -511,7 +519,8 @@ with the same passphrase.
 The passphrase is put in NFC, and Argon2id takes that form's UTF-8 bytes.
 Nothing else is done: no character is mapped or refused; compatibility
 characters, case and spaces are kept as typed. Two passphrases with one
-NFC form are one passphrase. A writer refuses an empty one and requires no
+NFC form are one passphrase. A passphrase read from a file or a pipe has one
+trailing line ending (`\n` or `\r\n`) taken off and nothing else. A writer refuses an empty one and requires no
 other minimum, since a typed passphrase's strength cannot be measured; it
 should offer a generated one (§12's words) and say that the code is only
 as strong as its passphrase.
@@ -554,6 +563,10 @@ unless an item fits only one:
 - must-not-recognise cases: real KEF version 20 envelopes of 53 bytes with an
   empty id and 62 bytes with a 9-byte id, built from `docs/KEF.md`'s layout;
 - the QR code of one vector at each size, as an image and as its module matrix.
+  The payload bytes, the version and the level are normative; the matrix is
+  one encoder's output, its mask that library's choice, and a reader compares
+  decoded bytes, not modules. The vectors give each random draw of §6 (the
+  salt, the fill byte, the padding).
 
 `tools/vectors/aqrv/check.py` is a second reader and writer, written from §2 to §10
 alone with other libraries (PyCA cryptography's Argon2id; ChaCha20 written out from

@@ -40,8 +40,8 @@ from qrcodegen import QrCode, QrSegment  # noqa: E402
 # ---------------------------------------------------------------- the format
 
 STEPS = {0: 65536, 1: 131072, 2: 262144, 3: 524288, 4: 1048576}  # KiB
-LABEL_ENC = b"argon2id-compact-envelope-1 enc"
-LABEL_MAC = b"argon2id-compact-envelope-1 mac"
+LABEL_ENC = b"argon-qr-vault-1 enc"
+LABEL_MAC = b"argon-qr-vault-1 mac"
 SIZES = {53: (32, 4), 62: (37, 8)}  # N -> (room r, tag length t)
 
 KINDS = [  # kind, name, item bytes or None
@@ -216,11 +216,11 @@ def read(env, passphrase):
 
 
 def shake(label, n):
-    return hashlib.shake_256(b"ACE vector " + label.encode()).digest(n)
+    return hashlib.shake_256(b"AQRV vector " + label.encode()).digest(n)
 
 
 def salt_of(name):
-    return hashlib.sha256(b"ACE vector salt " + name.encode()).digest()[:16]
+    return hashlib.sha256(b"AQRV vector salt " + name.encode()).digest()[:16]
 
 
 def kh(k):
@@ -390,7 +390,7 @@ def png_of(qr, scale=8, quiet=4):
 
 # ------------------------------------------------------------------ cases
 
-PASS = "ace vector passphrase"
+PASS = "aqrv vector passphrase"
 UNI = "café ✨ Ångström"
 UNI_NFD = unicodedata.normalize("NFD", UNI)
 assert UNI != UNI_NFD and nfc(UNI_NFD) == UNI

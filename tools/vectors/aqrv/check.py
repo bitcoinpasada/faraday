@@ -104,8 +104,8 @@ STEP_KIB = {0: 65536, 1: 131072, 2: 262144, 3: 524288, 4: 1048576}
 SIZES = {53: (32, 4), 62: (37, 8)}  # envelope length -> room, tag length
 KINDS = [0x10, 0x14, 0x18, 0x1C, 0x20, 0x30, 0x40, 0x41, 0x50]
 ENTROPY = {0x10: 16, 0x14: 20, 0x18: 24, 0x1C: 28, 0x20: 32}
-LABEL_ENC = b"argon2id-compact-envelope-1 enc"
-LABEL_MAC = b"argon2id-compact-envelope-1 mac"
+LABEL_ENC = b"argon-qr-vault-1 enc"
+LABEL_MAC = b"argon-qr-vault-1 mac"
 
 CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"  # BIP-173 values
 CODEX_SIZE = {0: (26, 21), 1: (32, 25), 2: (39, 29), 3: (45, 33), 4: (52, 37)}  # c, item bytes
