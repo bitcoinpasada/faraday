@@ -13,6 +13,7 @@
 pub(crate) mod cards;
 pub mod codex32;
 mod groups;
+pub mod question;
 mod setup_sticks;
 pub use groups::REACH_STEPS;
 pub mod text;

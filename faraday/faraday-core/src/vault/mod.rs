@@ -22,6 +22,7 @@ pub(crate) mod load_screen;
 pub(crate) mod more;
 pub mod out;
 pub(crate) mod panes_screen;
+pub(crate) mod plan_store;
 pub(crate) mod qr_save;
 pub(crate) mod rekey_screen;
 mod related;

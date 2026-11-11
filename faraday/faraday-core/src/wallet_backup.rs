@@ -2739,6 +2739,471 @@ impl crate::trail::StepFlow for BackupSteps {
     }
 }
 
+impl Faraday {
+    /// The session keys that sign for wallet `i`, by index into the
+    /// session, that came from words.
+    pub fn backup_keys(&self, i: usize) -> Vec<usize> {
+        let Some(w) = self.session.wallets.get(i) else {
+            return Vec::new();
+        };
+        self.backup_keys_of(w)
+    }
+
+    /// [`Faraday::backup_keys`] for a wallet that need not be loaded.
+    pub(crate) fn backup_keys_of(&self, w: &crate::wallet::Wallet) -> Vec<usize> {
+        let fps: Vec<_> = w
+            .policy()
+            .keys()
+            .iter()
+            .filter_map(|k| k.fingerprint())
+            .collect();
+        self.session
+            .keys
+            .all()
+            .enumerate()
+            // A key with words, or one whose seed is a codex32 set it
+            // knows (`docs/CODEX32.md` §9.4): its backup places that set.
+            .filter(|(_, k)| (k.has_words() || k.codex32.is_some()) && fps.contains(&k.fingerprint))
+            .map(|(i, _)| i)
+            .collect()
+    }
+
+    /// Wallet `w`'s seeds, in its order, as the plan and the panel list
+    /// them: a name each (its fingerprint, or a share not here by number)
+    /// and the session key that holds it, when its words are here.
+    ///
+    /// Works out [`crate::drawing::View::backup_seed_list`] from the state as it is.
+    pub fn backup_seed_list_now(&self, w: usize) -> Vec<(String, Option<usize>)> {
+        match self.session.wallets.get(w) {
+            Some(wallet) => self.backup_seed_list_of(wallet),
+            None => Vec::new(),
+        }
+    }
+
+    /// [`Faraday::backup_seed_list_now`] for a wallet that need not be loaded.
+    pub(crate) fn backup_seed_list_of(
+        &self,
+        wallet: &crate::wallet::Wallet,
+    ) -> Vec<(String, Option<usize>)> {
+        let here = self.backup_keys_of(wallet);
+        let mut fps: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
+        for f in wallet
+            .policy()
+            .keys()
+            .iter()
+            .filter_map(|k| k.fingerprint())
+        {
+            if !fps.contains(&f) {
+                fps.push(f);
+            }
+        }
+        fps.into_iter()
+            .map(|fp| {
+                let key = here
+                    .iter()
+                    .copied()
+                    .find(|&k| self.session.keys[k].fingerprint == fp);
+                (fp_text(fp), key)
+            })
+            .collect()
+    }
+
+    /// Costs a map of the plan and its check the first time.
+    /// [`crate::drawing::Kept::plan_mapped`] on the state's own kept lists.
+    pub(crate) fn plan_mapped(
+        &self,
+        c: &Compute,
+        shape: &plan::Shape,
+        a: &plan::Answers,
+    ) -> std::rc::Rc<plan::Mapped> {
+        self.kept.plan_mapped(c, shape, a)
+    }
+
+    /// What wallet `w`'s plan is for: its quorum, its seeds and whether
+    /// its description splits. Searches the session's keys; kept for the frame while one is drawn.
+    ///
+    /// Works out [`crate::drawing::View::plan_shape`] from the state as it is.
+    pub fn plan_shape_now(&self, w: usize) -> plan::Shape {
+        let Some(wallet) = self.session.wallets.get(w) else {
+            return plan::Shape {
+                m: 1,
+                keys: 1,
+                seeds: Vec::new(),
+                splits: false,
+                vaults: 0,
+            };
+        };
+        self.plan_shape_of(wallet)
+    }
+
+    /// [`Faraday::plan_shape_now`] for a wallet that need not be loaded.
+    pub(crate) fn plan_shape_of(&self, wallet: &crate::wallet::Wallet) -> plan::Shape {
+        let (m, n) = Session::quorum(wallet);
+        let seeds: Vec<plan::Seed> = self
+            .backup_seed_list_of(wallet)
+            .into_iter()
+            .map(|(name, key)| plan::Seed {
+                name,
+                here: key.is_some(),
+                passphrase: key.is_some_and(|k| self.session.keys[k].has_passphrase),
+            })
+            .collect();
+        // The vaults set up before the keys are the plan's first vaults.
+        let vaults = self
+            .wallet_flow_active(wallet.checksum())
+            .and_then(|i| self.flows[i].wallet.as_ref())
+            .map_or(0, |w| w.shape.vaults);
+        plan::Shape {
+            m: m.clamp(1, seeds.len().max(1)),
+            keys: n.max(1),
+            seeds,
+            splits: crate::wallet_backup::splits(wallet),
+            vaults,
+        }
+    }
+
+    /// [`Faraday::backup_public`] for wallet `w` under answers `a`.
+    pub(crate) fn backup_public_for(w: &crate::wallet::Wallet, a: &plan::Answers) -> Vec<u8> {
+        use faraday_bip::policy::{Template, Wrapper};
+        use plan::software as sw;
+        let config = crate::wallet_backup::multisig_config(w, None).is_some();
+        let bsms = matches!(
+            w.policy().template(),
+            Template::Multi {
+                wrapper: Wrapper::Wsh | Wrapper::ShWsh,
+                ..
+            }
+        );
+        let core = w.policy().silent().is_none();
+        let mut v: Vec<u8> = Vec::new();
+        let add = |v: &mut Vec<u8>, x: u8| {
+            if !v.contains(&x) {
+                v.push(x);
+            }
+        };
+        if a.software[sw::SPARROW] {
+            add(&mut v, 5);
+        }
+        if a.software[sw::HARDWARE] {
+            add(&mut v, if config { 2 } else { 1 });
+        }
+        if a.software[sw::NUNCHUK] {
+            add(&mut v, if bsms { 6 } else { 1 });
+        }
+        if a.software[sw::CORE] {
+            add(&mut v, if core { 7 } else { 1 });
+        }
+        if a.software[sw::NOT_SURE] || v.is_empty() {
+            add(&mut v, 1);
+        }
+        v
+    }
+
+    /// Costs what `account_key_names` costs.
+    /// [`Faraday::backup_public_names`] for loaded wallet `wi` under
+    /// answers `a`.
+    ///
+    /// Works out [`crate::drawing::View::backup_public_names_for`] from the state as it
+    /// is.
+    pub(crate) fn backup_public_names_for_now(
+        &self,
+        c: &Compute,
+        wi: usize,
+        a: &plan::Answers,
+    ) -> Vec<String> {
+        let Some(w) = self.session.wallets.get(wi) else {
+            return Vec::new();
+        };
+        let stem = file_stem(&w.name);
+        let (qr, text) = (a.form[plan::form::QR], a.form[plan::form::TEXT]);
+        let mut out = Vec::new();
+        for what in Self::backup_public_for(w, a) {
+            let file = match what {
+                1 => format!("{stem}-descriptor.txt"),
+                2 => format!("{stem}-multisig-config.txt"),
+                5 => format!("{stem}-wallet.json"),
+                6 => format!("{stem}-bsms.txt"),
+                _ => format!("{stem}-bitcoin-core.json"),
+            };
+            let picture = match what {
+                1 => crate::picture_names(
+                    &format!("{stem}-descriptor"),
+                    "-",
+                    &w.policy().to_descriptor_checksummed(),
+                )
+                .into_iter()
+                .next(),
+                2 => Some(format!("{stem}-multisig-config.png")),
+                6 => Some(format!("{stem}-bsms.png")),
+                _ => None,
+            };
+            match picture {
+                Some(p) if qr => {
+                    out.push(p);
+                    if text {
+                        out.push(file);
+                    }
+                }
+                _ => out.push(file),
+            }
+        }
+        // Each key loaded here, its account key and, on a `wsh` or
+        // `sh(wsh)` multisig at Create's own account, its BIP 129 record.
+        out.extend(self.account_key_names(c, wi));
+        out
+    }
+
+    /// Costs what `wallet_key` costs. The names of the account key files of
+    /// wallet `wi`, without making them: the checklist asks for them on
+    /// every frame.
+    pub(crate) fn account_key_names(&self, c: &Compute, wi: usize) -> Vec<String> {
+        let mut out = Vec::new();
+        for slot in self.wallet_keys_here(wi) {
+            if let Ok(k) = self.wallet_key(c, wi, slot) {
+                out.push(format!("xpub-{}.txt", k.fp));
+                // The BIP 129 record is signed by the key, for a `wsh` or
+                // `sh(wsh)` multisig at Create's own account.
+                if matches!(
+                    k.standard,
+                    Some(crate::create::NewKind::Multi | crate::create::NewKind::MultiNested)
+                ) {
+                    out.push(format!("xpub-{}-bsms.txt", k.fp));
+                }
+            }
+        }
+        out
+    }
+
+    /// Costs what `wallet_key` and `wallet_key_record` cost. The account
+    /// key files of the keys of wallet `wi` held here: the key as
+    /// `[fingerprint/path]xpub`, and its signed BIP 129 record where the
+    /// kind has one. A cosigner's key not loaded here has neither; its
+    /// account key is in the descriptor.
+    pub(crate) fn account_key_files(&self, c: &Compute, wi: usize) -> Vec<(String, Vec<u8>)> {
+        let mut out = Vec::new();
+        for slot in self.wallet_keys_here(wi) {
+            if let Ok(k) = self.wallet_key(c, wi, slot) {
+                out.push((
+                    format!("xpub-{}.txt", k.fp),
+                    format!("# Account xpub {}, {}\n{}\n", k.fp, k.kind, k.text).into_bytes(),
+                ));
+            }
+            if let Ok((fp, text)) = self.wallet_key_record(c, wi, slot) {
+                out.push((format!("xpub-{fp}-bsms.txt"), text.into_bytes()));
+            }
+        }
+        out
+    }
+
+    /// Whether a file of key `k`'s seed, for the wallet whose files are
+    /// named `stem`, is For the stick or was written by the last visit.
+    pub(crate) fn seed_file_made(&self, stem: &str, k: &faraday_keys::KeyInfo) -> bool {
+        let fps = fp_text(k.fingerprint).to_lowercase();
+        ["words.txt", "seedqr.png", "compactseedqr.png"]
+            .iter()
+            .any(|end| {
+                let name = format!("{stem}-{fps}-{end}");
+                self.outbox.iter().any(|i| i.secret && i.name == name)
+                    || self
+                        .visit
+                        .receipt()
+                        .as_ref()
+                        .is_some_and(|r| r.wrote(&name))
+                    || self.wallet_wrote(&name)
+            })
+    }
+
+    /// Costs what `vault_holds_seed` costs. Whether open vault `o` holds a
+    /// seed the plan puts into another vault and not vault `v`: it is not
+    /// offered for vault `v`.
+    pub fn backup_vault_taken(&self, c: &Compute, v: usize, o: usize) -> bool {
+        let (_, others) = self.backup_vault_seeds(v);
+        others
+            .iter()
+            .any(|&k| self.vault_holds_seed(c, o, k, false))
+    }
+
+    /// Costs what `backup_vault_wanted` and `backup_open_fits` cost. The
+    /// open vault that does the plan's vault `v`: it holds every seed the
+    /// plan puts into `v`, the wallet where the plan puts it there, and no
+    /// seed only another vault is to hold. A vault set up before the keys
+    /// is the plan's vault of its number; no other plan vault takes it. Its
+    /// place among the open vaults.
+    pub(crate) fn backup_vault_open(&self, c: &Compute, v: usize) -> Option<usize> {
+        self.backup_vault_wanted(c, v)?;
+        if let Some(o) = self.backup_vault_set_up(v) {
+            return self.backup_open_fits(c, v, o).then_some(o);
+        }
+        let theirs = self.backup_vaults_set_up_but(v);
+        (0..self.vaults.open.len())
+            .find(|&o| !theirs.contains(&o) && self.backup_open_fits(c, v, o))
+    }
+
+    /// What the plan's vault `v` is called where its seeds are chosen:
+    /// "Vault 1", and the name of the vault set up for it before the keys.
+    pub(crate) fn backup_vault_title(&self, v: usize) -> String {
+        let n = (v + 1).to_string();
+        match self
+            .backup_vault_set_up(v)
+            .map(|o| &self.vaults.open[o].name)
+        {
+            Some(name) if !name.is_empty() => fill(EN.plan_vault_names, &[&n, name]),
+            _ => fill(EN.plan_vault, &[&n]),
+        }
+    }
+
+    /// The open vault that was set up before the keys for the plan's vault
+    /// `v`, when the wallet's flow has one.
+    pub(crate) fn backup_vault_set_up(&self, v: usize) -> Option<usize> {
+        let i = self.wallet_flow_of_backup()?;
+        self.flow_open_index(i, v)
+    }
+
+    /// The open vault the checklist puts plan vault `v` in: the vault set
+    /// up for it, else the current one if no other plan vault is its.
+    pub(crate) fn backup_vault_target(&self, v: usize) -> Option<usize> {
+        if let Some(o) = self.backup_vault_set_up(v) {
+            return Some(o);
+        }
+        let cur = self.vaults.current;
+        self.vaults.open.get(cur)?;
+        (!self.backup_vaults_set_up_but(v).contains(&cur)).then_some(cur)
+    }
+
+    /// Costs what `plan_load_of` costs. The plan an open vault keeps for
+    /// wallet `w` (record type 11): its answers and the places' names. None
+    /// when no open vault has one, or it is not for a wallet of this shape.
+    pub(crate) fn plan_load(
+        &self,
+        c: &Compute,
+        w: usize,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
+        self.plan_load_of(c, self.session.wallets.get(w)?, shape)
+    }
+
+    /// Costs what `plan_in_vault` costs. [`Faraday::plan_load`] for a
+    /// wallet that need not be loaded.
+    pub(crate) fn plan_load_of(
+        &self,
+        c: &Compute,
+        wallet: &crate::wallet::Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
+        (0..self.vaults.open.len()).find_map(|v| self.plan_in_vault(c, v, wallet, shape))
+    }
+
+    /// Costs what `described_of` costs. The plan open vault `v` keeps for
+    /// `wallet` (its type 11 record), read against `shape`, with the
+    /// places' names.
+    pub(crate) fn plan_in_vault(
+        &self,
+        c: &Compute,
+        v: usize,
+        wallet: &crate::wallet::Wallet,
+        shape: &plan::Shape,
+    ) -> Option<(plan::Answers, Vec<String>)> {
+        self.plan_in_vault_stored(c, v, wallet, &|_| shape.clone())
+            .map(|(_, a, names)| (self.kef_dropped(wallet, a), names))
+    }
+
+    /// Saves the backup's plan into the open vault as record type 11,
+    /// over the one it kept for this wallet: the wallet, the answers, the
+    /// places' names and what each holds. The names are kept nowhere
+    /// else. The vault that already keeps a plan for the wallet is the one
+    /// written, else the current one.
+    pub(crate) fn plan_save(&mut self) {
+        let c = self.compute();
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(w) = self.session.wallets.get(b.wallet) else {
+            return;
+        };
+        let v = self
+            .plan_vault_of(&c, w)
+            .filter(|_| self.vaults.open.get(self.vaults.current).is_some())
+            .unwrap_or(self.vaults.current);
+        let (wi, answers, names, extras) = (
+            b.wallet,
+            b.answers.clone(),
+            b.names.clone(),
+            b.extras.clone(),
+        );
+        self.plan_store(v, wi, &answers, &names, &extras, None);
+        // And in each other open vault the wallet's flow keeps, so that
+        // every vault holds the plan with its places' names
+        // (`docs/BACKUP-FLOW.md` §15.7).
+        if let Some(i) = self.wallet_flow_of_backup() {
+            let others: Vec<usize> = (0..self.flows[i].plan.vaults.len())
+                .filter_map(|pv| self.flow_open_index(i, pv))
+                .filter(|&o| o != v)
+                .collect();
+            for o in others {
+                self.plan_store(o, wi, &answers, &names, &extras, None);
+            }
+        }
+    }
+
+    /// Costs what `described_of` costs. The open vault that keeps a plan
+    /// (record type 11) for `wallet`.
+    pub(crate) fn plan_vault_of(
+        &self,
+        c: &Compute,
+        wallet: &crate::wallet::Wallet,
+    ) -> Option<usize> {
+        use faraday_vault::records::kind;
+        let want = crate::wallet::same_wallet(wallet.policy());
+        (0..self.vaults.open.len()).find(|&v| {
+            self.vaults
+                .described_of(c, self.vaults.open[v].id, kind::PLAN)
+                .any(|(_, _, d)| d.same == want)
+        })
+    }
+
+    /// Writes loaded wallet `wi`'s plan into open vault `v` as record type
+    /// 11, over the one it kept for the wallet: `answers`, the places'
+    /// `names`, what each spot holds, work a later plan dropped
+    /// (`extras`), and the notes on its map (§9.5): `notes`, or those the
+    /// record kept.
+    pub(crate) fn plan_store(
+        &mut self,
+        v: usize,
+        wi: usize,
+        answers: &plan::Answers,
+        names: &[String],
+        extras: &[String],
+        notes: Option<&[plan::Note]>,
+    ) {
+        let c = self.compute();
+        let Some(w) = self.session.wallets.get(wi) else {
+            return;
+        };
+        let Some(open) = self.vaults.open.get(v) else {
+            return;
+        };
+        let (id, name) = (open.id, open.name.clone());
+        let src = vault::plan_store::PlanSource {
+            wallet: w,
+            held: self.wallet_held_stored(&c, wi),
+            shape: self.plan_shape_now(wi),
+            medium: self.medium,
+            answers,
+            names,
+            extras,
+            notes,
+        };
+        let Some(made) = self.vaults.plan_record(&c, v, &src) else {
+            return;
+        };
+        let old = self.vaults.plan_take(id, &made.ours);
+        let said = fill(EN.plan_store_the_plan, &[&name.to_string()]);
+        let fitted = self.vault_push_in(v, made.record, &said);
+        self.vaults.plan_restore(id, old, fitted);
+        self.vaults.seals_write(&c, v);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

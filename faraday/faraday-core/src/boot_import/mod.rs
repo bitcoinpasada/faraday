@@ -335,6 +335,96 @@ impl BootImportArea {
 }
 
 impl Faraday {
+    /// What a picture's codes held, read as the camera reads them.
+    pub(crate) fn qr_read(&mut self, name: &str, payloads: Vec<Vec<u8>>) {
+        if payloads.is_empty() {
+            self.visit
+                .log
+                .push((fill(EN.qr_read_copied_no_qr, &[name]), true));
+        } else {
+            // An image is read as the camera reads: a UR in parts can
+            // span several images.
+            if self.camera.scan().is_none() {
+                self.camera.open(crate::ScanState::default());
+            }
+            let before = self.inbox.len();
+            let mut seeds = 0;
+            let mut asked = 0;
+            for p in payloads {
+                if self.visit_seedqr(name, &p, &mut seeds, &mut asked) {
+                    continue;
+                }
+                if self.camera.scan().is_none() {
+                    self.camera.open(crate::ScanState::default());
+                }
+                let parts = self.camera.scan().is_some_and(crate::ScanState::in_parts);
+                let n = self.inbox.len();
+                self.scanned(p);
+                // A transfer in parts that has just come together
+                // ends the reading: what follows is another.
+                if parts && self.inbox.len() > n {
+                    break;
+                }
+            }
+            let note = self.camera.scan().and_then(|s| s.note.clone());
+            let seed_last = self
+                .inbox
+                .last()
+                .is_some_and(|i| self.visit.load_after.contains(&i.name));
+            if self.inbox.len() > before + seeds && !seed_last {
+                // Named after the picture it came from.
+                let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
+                let taken: Vec<String> = self.inbox.iter().map(|i| i.name.clone()).collect();
+                let mut got = String::new();
+                if let Some(last) = self.inbox.last_mut() {
+                    let ext = last
+                        .name
+                        .rsplit_once('.')
+                        .map_or("txt", |(_, e)| e)
+                        .to_string();
+                    let wanted = format!("{stem}.{ext}");
+                    if !taken.contains(&wanted) {
+                        last.name = wanted;
+                    }
+                    got = last.name.clone();
+                }
+                self.save_boxes();
+                self.toast(&fill(EN.qr_read_is_in_files, &[&got.to_string()]));
+                self.visit.log.push((
+                    fill(EN.qr_read_read_into_files, &[name, &got.to_string()]),
+                    true,
+                ));
+            } else if seeds == 0 && asked == 0 {
+                self.visit.log.push((
+                    format!("{name}: {}", note.unwrap_or_else(|| EN.qr_read_read.into())),
+                    true,
+                ));
+            }
+        }
+    }
+
+    /// What a picture copied in holds, from what its codes added to the
+    /// Inbox from `before` on: the kind most in need of care, a seed's
+    /// words before any other secret, a secret before a sealed file, and
+    /// [`FileKind::Other`] when they added nothing.
+    pub(crate) fn picture_holds(&self, before: usize) -> FileKind {
+        let care = |k: FileKind| match k.exposure() {
+            _ if matches!(k, FileKind::Words | FileKind::SeedPart) => 5,
+            crate::secrets::Exposure::Secret => 4,
+            _ if k.may_be_secret() => 3,
+            crate::secrets::Exposure::Sealed => 2,
+            crate::secrets::Exposure::Public => 1,
+        };
+        self.inbox
+            .iter()
+            .skip(before)
+            .map(|i| i.kind)
+            .max_by_key(|k| care(*k))
+            .unwrap_or(FileKind::Other)
+    }
+}
+
+impl Faraday {
     /// A picture's code at a stick visit: whether it was handled here. A SeedQR is copied in as its words, to load when the stick is removed; 16 or 32 bytes of text that read as one too ask first.
     pub(crate) fn visit_seedqr(
         &mut self,

@@ -1049,6 +1049,137 @@ impl Faraday {
     }
 }
 
+impl Faraday {
+    /// Enter on the words form: Add a key adds the key; New key's Words
+    /// card goes on to Key.
+    pub(crate) fn entry_enter(&mut self) {
+        if self.screen == Screen::KeyGen {
+            self.keygen_act(Action::KNext);
+        } else {
+            self.entry_add();
+        }
+    }
+
+    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+    pub(crate) fn entry_add(&mut self) {
+        let c = self.compute();
+        if !self.may_load_keys() || self.entry.state().differs() {
+            return;
+        }
+        let wanted = self
+            .entry
+            .state()
+            .wanted
+            .map(faraday_bip::keys::Fingerprint);
+        let mut label = self.entry.state().label.clone();
+        let m = match self.entry.mnemonic() {
+            Ok(m) => m,
+            Err(e) => {
+                self.entry.state_mut().error = Some(e);
+                return;
+            }
+        };
+        // A SeedQR scanned over the Spend tab or Restore returns to it too.
+        let on_tab = matches!(self.screen, Screen::SpendBackup | Screen::Restore);
+        let back = self.entry.state().back.or(on_tab.then_some(self.screen));
+        // Add a key for a wallet takes only a key the wallet is missing
+        // (`docs/history/SCAN-TO-SIGN.md` §2.1).
+        let mut for_wallet = None;
+        if let Some(w) = self.entry.state().wallet {
+            let fp = faraday_keys::identity::fingerprint_of_mnemonic(
+                &c,
+                &m,
+                &self.entry.state().passphrase,
+            )
+            .ok();
+            if let Some(fp) = fp {
+                match self.wallet_key_found(w, fp) {
+                    crate::scan_key::Found::None => {
+                        let wallet = self
+                            .session
+                            .wallets
+                            .get(w)
+                            .map(|wl| wl.name.clone())
+                            .unwrap_or_default();
+                        self.entry.state_mut().error = Some(
+                            crate::wallet::Refusal::NotOfWallet {
+                                got: crate::wallet::fp_text(fp),
+                                wallet,
+                            }
+                            .text(),
+                        );
+                        return;
+                    }
+                    crate::scan_key::Found::Missing(n) => {
+                        if label.trim().is_empty() {
+                            label = self.wallet_key_label(&c, w, fp);
+                        }
+                        for_wallet = Some((w, n));
+                    }
+                    crate::scan_key::Found::Here(_) => {}
+                }
+            }
+        }
+        // Restore takes a seed only into a slot it fills: with the
+        // description known, one of its keys (`docs/history/NEW-WALLET.md` §12.1).
+        if back == Some(Screen::Restore)
+            && let Some(why) = self.restore_refusal_typed(&c, &m)
+        {
+            if let Some(r) = self.restore.state_mut() {
+                r.error = Some(why);
+            }
+            self.entry.reset();
+            self.screen = Screen::Restore;
+            return;
+        }
+        let pass = crate::secret_text::SecretText::of(self.entry.state().passphrase.as_str());
+        let said = |app: &mut Self, fp: faraday_bip::keys::Fingerprint| match for_wallet {
+            Some((w, n)) => app.wallet_key_said(w, n),
+            None => app.toast(&crate::strings::fill(
+                crate::strings::EN.entry_add_key_added,
+                &[&crate::wallet::fp_text(fp).to_string()],
+            )),
+        };
+        match self.typed_load(&m, &pass, &label, wanted, back, said) {
+            Ok(_) => {
+                self.entry.reset();
+                self.refresh_spend();
+                self.screen = match back {
+                    Some(s) => s,
+                    None if self.wallets.spend().is_some() => Screen::Spend,
+                    None => Screen::Wallets,
+                };
+                if back == Some(Screen::SpendBackup) {
+                    self.spend_backup_key_added();
+                }
+            }
+            // A seed already loaded comes in on the Spend tab's What do
+            // you have? as it is (`docs/history/SCAN-TO-SIGN.md` §4).
+            Err(crate::wallet::Refusal::Duplicate(_)) if back == Some(Screen::SpendBackup) => {
+                if let Ok(fp) = faraday_keys::identity::fingerprint_of_mnemonic(
+                    &c,
+                    &m,
+                    &self.entry.state().passphrase,
+                ) {
+                    self.seeds_took(fp, back);
+                    self.entry.reset();
+                    self.refresh_spend();
+                    self.screen = Screen::SpendBackup;
+                    self.spend_backup_key_added();
+                }
+            }
+            // A SeedQR scanned on Restore: the refusal shows there.
+            Err(e) if self.screen == Screen::Restore => {
+                if let Some(r) = self.restore.state_mut() {
+                    r.error = Some(e.text());
+                }
+                self.entry.reset();
+            }
+            Err(e) => self.entry.state_mut().error = Some(e.text()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
