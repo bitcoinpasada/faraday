@@ -22,7 +22,10 @@
 # The other order is the device first: `answer` hands Core the PSBT the
 # device's round 1 wrote and prints what Core makes of it, which is the
 # fixture round 2 reads; `accept` finalizes and judges the PSBT the
-# device's round 2 wrote, which is already aggregated.
+# device's round 2 wrote, which is already aggregated. Core's first
+# `answer` adds its nonce and its second, on that output, its partial
+# signature; the daemon must stay up between them, as it holds the secret
+# nonce in memory (so must it between `setup` and `finish`).
 #
 # Core's key is generated afresh on every `setup`, so a rerun produces a
 # different wallet and different fixtures. Its `tprv` stays in the

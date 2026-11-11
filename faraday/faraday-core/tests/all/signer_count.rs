@@ -1761,7 +1761,7 @@ mod musig_partials {
 
     const POLICY: &str = include_str!("../../../../tools/vectors/psbt/wallet-musig-regtest.policy");
     const ABANDON_FP: &str = "73c5da0a";
-    const CORE_FP: &str = "5e8169da";
+    const CORE_FP: &str = "04c04143";
 
     fn fixture(name: &str) -> Psbt {
         let c = faraday_core::testkit::compute();

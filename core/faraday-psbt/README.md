@@ -241,9 +241,12 @@ aggregation.
 
 The session is `MusigSession`: the unsigned transaction's txid, a seed,
 and one secret nonce per input and participant. Each `NonceGen` call
-draws its own `rand'` as `tagged_hash("Faraday/musig-rand", seed ‖
-input index ‖ participant key)`, which is the fresh value per call
-BIP-327 asks for. It is memory and nothing else: not `Clone`, never
+draws its own `rand'` as RFC 5869 HKDF-Expand of the seed, with
+`Faraday/musig-rand`, a draw counter (u32, little-endian), the input index
+(u32, little-endian) and the 33-byte participant key as `info`. The counter
+goes up after every draw, so no two calls share a `rand'`, which is the fresh
+value per call BIP-327 asks for; at the counter's end the session refuses.
+It is memory and nothing else: not `Clone`, never
 serialised, dropped and wiped when another transaction opens a session,
 and empty once every nonce it held has signed. The caller passes it to
 `sign` as `&mut Option<MusigSession>` with the seed a new one would use,

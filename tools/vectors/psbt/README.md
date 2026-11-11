@@ -177,7 +177,7 @@ tools/scripts/musig-regtest.sh stop <datadir>
 ```
 
 `setup` imports
-`tr(musig([73c5da0a/86h/1h/0h]tpub…,[5e8169da/86h/1h/0h]tpub…)/<0;1>/*)`,
+`tr(musig([73c5da0a/86h/1h/0h]tpub…,[04c04143/86h/1h/0h]tpub…)/<0;1>/*)`,
 funds it with 1 BTC, and asks for a 0.5 BTC spend; Core's `tprv` stays in
 the datadir.
 
@@ -190,7 +190,7 @@ the datadir.
 | `sign` | this crate | `wallet-musig-core-first-signed.psbt`: this device's public nonce and partial signature, the PSBT not complete |
 | `walletprocesspsbt` | Core | `complete: true` — Core read this device's nonce and partial signature, wrote its own, and aggregated |
 | `finalizepsbt` | Core | `complete: true` |
-| `testmempoolaccept` | Core | `allowed: true`, txid `f7616435c000b521129945c872f669fa3e2bc6d627103acdfe547388962b571d`, 154 vB, 1 550 sat |
+| `testmempoolaccept` | Core | `allowed: true`, txid `b517d63fcb361e5b6158d614746a6c14934f5eb019cfc4b191e699667aec1e2d`, wtxid `aeecc45ea3305a8b740f56a5c55e089456281a88348657c60838c46ee19f081b`, 154 vB, 1 550 sat |
 
 **The device first, with the session.**
 
@@ -201,11 +201,11 @@ the datadir.
 | `walletprocesspsbt` | Core | `complete: false`, two nonces and one partial signature: `wallet-musig-device-first-core.psbt`. A third call changes nothing, because what is missing is this device's signature |
 | `sign` round 2 | this crate | `wallet-musig-device-first-signed.psbt`: this device's partial signature, both aggregated, and the aggregate written as `tap_key_sig` |
 | `finalizepsbt` | Core | `complete: true` |
-| `testmempoolaccept` | Core | `allowed: true`, txid `f7616435c000b521129945c872f669fa3e2bc6d627103acdfe547388962b571d`, 154 vB, 616 WU, 1 550 sat |
+| `testmempoolaccept` | Core | `allowed: true`, txid `b517d63fcb361e5b6158d614746a6c14934f5eb019cfc4b191e699667aec1e2d`, wtxid `e299246ec124243f8361253ecc318a1fb5802d4823657865c28b5b8f1d5ee1c5`, 154 vB, 1 550 sat |
 
 Both orders spend the same unsigned transaction, so both end at the same
 txid; the witnesses differ, because the two runs aggregate different
-nonces, and so do the wtxids (`3d413ccd…` and `832cfb12…`).
+nonces, and so do the wtxids (`aeecc45e…` for Core first, `e299246e…` for the device first).
 
 The three PSBTs this device wrote are written by
 `cargo run -p faraday-psbt --example musig -- tools/vectors/psbt`, that is
@@ -218,13 +218,13 @@ as they came out of the run:
 
 | File | SHA-256 |
 |---|---|
-| `wallet-musig-regtest.policy` | `fee6addc49714a89f0a97d9a807068718e3538dc53d5574ffd4330b8e71103f2` |
-| `wallet-musig-device-first.psbt` | `07c2d9e03fdb89b12420bbdbf523d1f4615aef56bd49010676ce870b5f7b027d` |
-| `wallet-musig-core-first.psbt` | `dcfda85105aabe3597146ab9b3e676cad0eecc7b0373c7789bda2b6f3bde5d75` |
-| `wallet-musig-core-first-signed.psbt` | `fa64fccc09f367129806734e3dc57cfdef8d63a58a9609e18c53a53ab03c140e` |
-| `wallet-musig-device-first-nonce.psbt` | `b5f3949f555f8eda24e39a96079ee344e164076cccc60b68fa3a9ef5fe4b8a39` |
-| `wallet-musig-device-first-core.psbt` | `90c5c7f3a7e673b6a4cfa6735474e27c27cb014c5c25d8f3e83c74bbaff47cc6` |
-| `wallet-musig-device-first-signed.psbt` | `62d366e3c618714db2c03292f3700c78c9b3b7805abcdafb3a42a643eb45ea7c` |
+| `wallet-musig-regtest.policy` | `ed5486164c59f6046e27faa21ffe17509a96e262ae65f7171d94a5d560a92fc0` |
+| `wallet-musig-device-first.psbt` | `14f5ccc107ca82019104a371f1fc41d4360f2321e627f978319e128e0885bbbc` |
+| `wallet-musig-core-first.psbt` | `61aeaa929dd1b4e7179a1cb1c7fedf120d23cbb41ea9d0138a73a45b963e80de` |
+| `wallet-musig-core-first-signed.psbt` | `ba0aede3658fb091a3ee90eb306d91ecb963988e1771b13be3721db71fb550b3` |
+| `wallet-musig-device-first-nonce.psbt` | `1255ffbbf588d58c15092b54c85e65eb89fb80c9f3cce79fb03d61e705ed5860` |
+| `wallet-musig-device-first-core.psbt` | `40ba578fd5846335c0fe45d4344fe87c2a8130ef765057f8f44f1bd707046aea` |
+| `wallet-musig-device-first-signed.psbt` | `d336d5eaf5cfb73427abf6ad764a27a28299ba42a387f8e872604bef0bc88832` |
 
 ## The taproot multisig, and what Bitcoin Core 31.1 checked
 

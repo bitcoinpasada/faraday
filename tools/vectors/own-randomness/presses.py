@@ -24,10 +24,12 @@ rule of Faraday's own specification: the session's seed (the system's
 answer, hashed with the person's accumulator by "faraday reseed" when
 they added some), then the signing pass's seed, SHA-256("faraday sign
 seed" || seed || the pass's number as 8 bytes, little-endian), the
-first pass; then BIP-340's tagged hash "Faraday/musig-rand" of that seed,
-the input's index (4 bytes, little-endian) and the participant's
-compressed key. The 66 bytes are the two nonce points, compressed.
+first pass; then RFC 5869 HKDF-Expand (HMAC-SHA-256, 32 bytes) of that
+seed as the PRK, its info "Faraday/musig-rand", the session's draw
+counter (4 bytes, little-endian, 0 for the first draw), the input's index
+(4 bytes, little-endian) and the participant's compressed key. The 66 bytes are the two nonce points, compressed.
 """
+import hmac
 import importlib.util
 import json
 from hashlib import sha256
@@ -72,6 +74,16 @@ def phrase(entropy):
     return " ".join(WORDS[i] for i in indices(entropy))
 
 
+def hkdf_expand(prk, info, length):
+    """RFC 5869 HKDF-Expand with HMAC-SHA-256."""
+    out, t, n = b"", b"", 1
+    while len(out) < length:
+        t = hmac.new(prk, t + info + bytes([n]), "sha256").digest()
+        out += t
+        n += 1
+    return out[:length]
+
+
 def musig_pubnonce(entropy, acc):
     """This device's public nonce on input 0 of `musig-unsigned.psbt`:
     test key 1, a device seeded with `entropy`, the person's accumulator
@@ -88,7 +100,8 @@ def musig_pubnonce(entropy, acc):
     msg = btc.sighash(psbt.tx, utxos, 0, hash_type)
     seed = entropy if acc is None else H(b"faraday reseed", entropy, acc)
     seed = H(b"faraday sign seed", seed, (1).to_bytes(8, "little"))
-    rand = btc.tagged("Faraday/musig-rand", seed + (0).to_bytes(4, "little") + account.pub)
+    info = b"Faraday/musig-rand" + (0).to_bytes(4, "little") + (0).to_bytes(4, "little") + account.pub
+    rand = hkdf_expand(seed, info, 32)
     _, pub = btc.ref.nonce_gen_internal(rand, account.secret(), account.pub, aggpk, msg, None)
     assert len(pub) == 66
     return pub.hex()

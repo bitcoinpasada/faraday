@@ -3815,7 +3815,7 @@ kind = "Novel"
 decision = "F86"
 
 [[action.own]]
-text = "MuSig2's rand' is taken from the session seed chain; rounds across a lock are not offered."
+text = "MuSig2's rand' is HKDF-Expand of the session seed with a draw counter; rounds across a lock are not offered."
 kind = "Neutral"
 decision = "F234"
 
@@ -5789,7 +5789,7 @@ lines = [
 ]
 
 [[action.own]]
-text = "Each nonce's rand' is a tagged hash of the session's seed, the input's index and the participant's key: a fresh value per call from the session's seed chain."
+text = "Each nonce's rand' is RFC 5869 HKDF-Expand of the session's seed, with the draw counter, the input's index and the participant's key as info: a fresh value per call, and a refusal when the counter would wrap."
 kind = "Neutral"
 decision = "no decision"
 

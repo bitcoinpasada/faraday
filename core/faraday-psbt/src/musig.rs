@@ -472,27 +472,9 @@ pub fn write_input_participants(input: &mut Input, participants: &Participants) 
 // The session
 // ---------------------------------------------------------------------
 
-/// The tag the `rand'` of one [`nonce_gen`](faraday_bip::musig::nonce_gen)
-/// call is hashed under, so that one session seed gives a different
-/// value for every input and participant, which is what BIP-327 asks
-/// for.
-const RAND_TAG: &[u8] = b"Faraday/musig-rand";
-
-/// The tag a session's seed is hashed under after every draw, so that no
-/// two draws of one session use the same seed.
-const NEXT_SEED_TAG: &[u8] = b"Faraday/musig-next-seed";
-
-/// BIP-340's tagged hash.
-pub(crate) fn tagged(tag: &[u8], parts: &[&[u8]]) -> [u8; 32] {
-    let prefix = bitcoin::hashes::sha256::Hash::hash(tag).to_byte_array();
-    let mut engine = bitcoin::hashes::sha256::Hash::engine();
-    engine.input(&prefix);
-    engine.input(&prefix);
-    for part in parts {
-        engine.input(part);
-    }
-    bitcoin::hashes::sha256::Hash::from_engine(engine).to_byte_array()
-}
+/// The label every `rand'` is expanded under, so that no other use of the
+/// session seed can give the same bytes.
+const RAND_LABEL: &[u8] = b"Faraday/musig-rand";
 
 /// One open MuSig2 signing session: the transaction it is for, and the
 /// secret nonce this device drew for every input and participant of it.
@@ -502,14 +484,16 @@ pub(crate) fn tagged(tag: &[u8], parts: &[&[u8]]) -> [u8; 32] {
 /// so none can sign twice, and dropping it wipes the seed and every
 /// nonce still in it.
 ///
-/// The seed moves forward after every draw, so a nonce drawn again for
-/// an input whose nonce was already signed under is a different nonce.
+/// A draw counter goes up after every draw and is part of what each
+/// `rand'` is expanded from, so a nonce drawn again for an input whose
+/// nonce was already signed under is a different nonce.
 /// A cosigner that strips this device's partial signature and changes
 /// its own nonce gets a fresh nonce from this device, never a second
 /// signature under the first one, which would give away the key.
 pub struct MusigSession {
     txid: bitcoin::Txid,
     seed: [u8; 32],
+    draws: u32,
     held: Vec<(usize, PublicKey, PubNonce, faraday_bip::musig::SecNonce)>,
 }
 
@@ -520,6 +504,7 @@ impl MusigSession {
         MusigSession {
             txid,
             seed,
+            draws: 0,
             held: Vec::new(),
         }
     }
@@ -565,24 +550,23 @@ impl MusigSession {
         }
     }
 
-    /// The `rand'` for one `NonceGen` call: the seed with the input index
-    /// and the participant key hashed into it. The seed is then replaced
-    /// by its own hash, so no two calls of a session share one, even for
-    /// the same input and participant.
-    pub(crate) fn draw(&mut self, input: usize, participant: &PublicKey) -> [u8; 32] {
-        use faraday_crypto::Zeroize;
-        let rand = tagged(
-            RAND_TAG,
-            &[
-                &self.seed,
-                &(input as u32).to_le_bytes(),
-                &participant.serialize(),
-            ],
-        );
-        let mut next = tagged(NEXT_SEED_TAG, &[&self.seed]);
-        self.seed.copy_from_slice(&next);
-        next.zeroize();
-        rand
+    /// Costs one HMAC-SHA-256. The `rand'` for one `NonceGen` call: RFC 5869
+    /// HKDF-Expand of the seed, with the label, the draw counter, the input
+    /// index and the participant key as `info`. The counter goes up after
+    /// every draw, so no two calls of a session share a `rand'`, even for
+    /// the same input and participant. `None`, with nothing drawn, when
+    /// the counter has no next value: the session refuses and never wraps.
+    pub(crate) fn draw(&mut self, input: usize, participant: &PublicKey) -> Option<[u8; 32]> {
+        let next = self.draws.checked_add(1)?;
+        let mut info = Vec::with_capacity(RAND_LABEL.len() + 4 + 4 + 33);
+        info.extend_from_slice(RAND_LABEL);
+        info.extend_from_slice(&self.draws.to_le_bytes());
+        info.extend_from_slice(&(input as u32).to_le_bytes());
+        info.extend_from_slice(&participant.serialize());
+        let mut rand = [0u8; 32];
+        faraday_crypto::hkdf_sha256_expand(&self.seed, &info, &mut rand)?;
+        self.draws = next;
+        Some(rand)
     }
 
     /// Keeps the secret nonce drawn for `participant` on `input`, with

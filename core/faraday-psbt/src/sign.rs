@@ -1039,7 +1039,12 @@ fn sign_musig(
                     *session = Some(MusigSession::new(txid, *seed));
                 }
                 let open = session.as_mut().expect("just set");
-                let rand = open.draw(index, &participation.key);
+                let rand = open
+                    .draw(index, &participation.key)
+                    .ok_or(Error::Unsupported {
+                        input: index,
+                        reason: Reason::MusigNonceNotDrawn,
+                    })?;
                 let aggpk = musig.output_key.x_only_public_key().0.serialize();
                 let (secnonce, pubnonce) = faraday_bip::musig::nonce_gen(
                     signer,

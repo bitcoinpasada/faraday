@@ -33,7 +33,7 @@ a format or a derivation as they were. With no one holding a file made
 by an earlier build, those were renamed afterwards (F144): the font
 outlines' magic is `FDOL`; the labels and tags are `faraday-sealed-v1`,
 `faraday-sealed-nonce`, `faraday-session-key-weak`, `faraday-secp-blind`,
-`faraday-schnorr-aux`, `Faraday/musig-rand`, `Faraday/musig-next-seed`
+`faraday-schnorr-aux`, `Faraday/musig-rand`
 and `faraday-kdbx-uuid`; the silent payments record's header is
 `faraday-silent`.
 
