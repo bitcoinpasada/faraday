@@ -383,12 +383,20 @@ fn key_reads(key: &str) -> bool {
             .or_else(|| path.strip_prefix("M/"))
             .unwrap_or(path),
     };
-    let fixed = if path.is_empty() {
-        alloc::format!("[{fp}]{rest}")
-    } else {
-        alloc::format!("[{fp}/{path}]{rest}")
-    };
-    PolicyKey::parse(&fixed).is_ok()
+    // Put together on the stack: this file holds no heap text.
+    let mut buf = [0u8; 512];
+    let short = ["[", fp, "]", rest];
+    let long = ["[", fp, "/", path, "]", rest];
+    let parts: &[&str] = if path.is_empty() { &short } else { &long };
+    let mut n = 0;
+    for p in parts {
+        let Some(slot) = buf.get_mut(n..n + p.len()) else {
+            return false;
+        };
+        slot.copy_from_slice(p.as_bytes());
+        n += p.len();
+    }
+    core::str::from_utf8(&buf[..n]).is_ok_and(|fixed| PolicyKey::parse(fixed).is_ok())
 }
 
 /// Whether the text of a wallet field is a wallet's in form: a descriptor's
@@ -432,16 +440,19 @@ fn wallet_form_reads(which: &str, text: &str) -> bool {
     // Each token between the brackets and commas of the script that is not
     // a function name, a number, a plain hex key or a derivation suffix is a
     // key expression: its origin and xpub, up to the first `/` after them.
-    let mut token = alloc::string::String::new();
+    let mut start = 0;
     let mut tokens = Vec::new();
-    for ch in body.chars() {
+    for (i, ch) in body.char_indices() {
         match ch {
-            '(' => token.clear(),
-            ',' | ')' | '{' | '}' => tokens.push(core::mem::take(&mut token)),
-            c => token.push(c),
+            '(' => start = i + 1,
+            ',' | ')' | '{' | '}' => {
+                tokens.push(&body[start..i]);
+                start = i + 1;
+            }
+            _ => {}
         }
     }
-    tokens.push(token);
+    tokens.push(&body[start..]);
     for t in tokens {
         let t = t.trim();
         let hex = t.len() >= 64 && t.bytes().all(|b| b.is_ascii_hexdigit());
