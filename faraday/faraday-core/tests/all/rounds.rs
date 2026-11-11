@@ -22,12 +22,20 @@ pub(crate) fn at(app: &Faraday, name: &str) -> usize {
 /// Test key 1 and the MuSig2 wallet loaded, the unsigned spend and the
 /// other signers' nonce copies in the Inbox; seeded when `seeded`.
 pub(crate) fn device(seeded: bool) -> Faraday {
+    device_with(seeded.then_some(5), Vec::new())
+}
+
+/// [`device`], seeded with `entropy` and with `extra` files in the Inbox
+/// beside the kit's.
+fn device_with(entropy: Option<u8>, extra: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = testkit::started();
-    if seeded {
-        app.event(Event::Entropy(EntropyBytes::new([5u8; 32])));
+    if let Some(e) = entropy {
+        app.event(Event::Entropy(EntropyBytes::new([e; 32])));
     }
+    let mut inbox = kit_files("musig-");
+    inbox.extend(extra);
     app.storage(StorageEvent::Restored {
-        inbox: kit_files("musig-"),
+        inbox,
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -171,4 +179,48 @@ fn go_first_before_the_earlier_steps_shares_nothing() {
     let first = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
     assert_eq!(s.open, first);
     assert!(our_nonce(&app).is_none(), "no nonce shared");
+}
+
+/// A version 2 file that carries an older nonce of this device's, offered
+/// for a new round 1: the file written back is version 2 and holds the
+/// nonce this device's pass just wrote.
+#[test]
+fn a_version_2_file_with_an_older_nonce_of_this_device_is_written_back_with_the_new_one() {
+    let c = testkit::compute();
+    let mut first = device_with(Some(5), Vec::new());
+    first.press(Action::StartSpend(at(&first, "musig-unsigned.psbt")));
+    testkit::steps_before_sign_done(&mut first);
+    first.press(Action::SignHere);
+    let older = our_nonce(&first).expect("round 1 shares this device's nonce");
+    let file = faraday_psbt::v2::PsbtV2::from_v0(&c, &first.spend().unwrap().spend.psbt).to_bytes();
+
+    let mut app = device_with(Some(6), vec![("older.psbt".to_string(), file)]);
+    app.press(Action::StartSpend(at(&app, "older.psbt")));
+    testkit::steps_before_sign_done(&mut app);
+    app.press(Action::SignHere);
+    let new = our_nonce(&app).expect("round 1 shares a nonce again");
+    assert_ne!(older, new);
+    let out = app
+        .spend()
+        .unwrap()
+        .spend
+        .out_bytes()
+        .expect("the version 2 file takes the new nonce");
+    let back = faraday_psbt::v2::PsbtV2::parse_bytes(&c, &out)
+        .expect("written as version 2")
+        .to_v0(&c)
+        .unwrap();
+    let ours = app
+        .session
+        .keys
+        .master_for_tests(0)
+        .derive(&c, &"m/86'/1'/0'".parse().unwrap())
+        .to_xpub(&c)
+        .public_key;
+    let got = faraday_psbt::musig::pub_nonces(&back.inner().inputs[0])
+        .unwrap()
+        .into_iter()
+        .find(|n| n.participant == ours)
+        .map(|n| n.value.serialize().to_vec());
+    assert_eq!(got, Some(new));
 }

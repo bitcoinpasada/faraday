@@ -1743,6 +1743,11 @@ pub struct Spend {
     pub txid: Txid,
     /// Keys of this session that signed it here.
     pub signed_here: Vec<Fingerprint>,
+    /// The MuSig2 public nonces this device's passes wrote in this
+    /// session, for its own keys (round 1 draws and mends): a version 2
+    /// file's older nonce for such a key on such an input is replaced by
+    /// exactly that value (`PsbtV2::merge_signed_by`).
+    pub nonces_written: Vec<faraday_psbt::NonceWritten>,
     /// The MuSig2 partial signatures this device wrote in this session: the
     /// only entries in the file it reads as its own (F220).
     pub wrote: Vec<Written>,
@@ -1860,6 +1865,7 @@ impl Spend {
             source: source.to_string(),
             txid,
             signed_here: Vec::new(),
+            nonces_written: Vec::new(),
             wrote: Vec::new(),
             collected: Vec::new(),
             finished: None,
@@ -1990,7 +1996,18 @@ impl Spend {
     /// fingerprints that signed are noted, unless the pass only opened a
     /// MuSig2 round (`nonce_only`: a nonce and no signature). Notes the
     /// partial signatures first, which the signers' lists read.
-    pub fn take_signed(&mut self, psbt: Psbt, fps: Vec<Fingerprint>, nonce_only: bool) {
+    pub fn take_signed(
+        &mut self,
+        psbt: Psbt,
+        fps: Vec<Fingerprint>,
+        nonces: Vec<faraday_psbt::NonceWritten>,
+        nonce_only: bool,
+    ) {
+        for n in nonces {
+            self.nonces_written
+                .retain(|w| (w.input, w.participant) != (n.input, n.participant));
+            self.nonces_written.push(n);
+        }
         if nonce_only {
             self.psbt = psbt;
             return;

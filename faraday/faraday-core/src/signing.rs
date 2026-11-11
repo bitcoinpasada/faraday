@@ -91,7 +91,7 @@ impl SignWork {
                     waiting,
                 } = after;
                 let nonce_only = fps.is_empty() && view.is_some();
-                spend.take_signed(psbt, fps, nonce_only);
+                spend.take_signed(psbt, fps, r.nonces_written, nonce_only);
                 let fresh = fresh::worked_out(c, &session, &mut spend, view.as_ref(), true);
                 let part = (nonce_only || spend.psbt.to_bytes() != from.before).then(|| {
                     collect::Planned {

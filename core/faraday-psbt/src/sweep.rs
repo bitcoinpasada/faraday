@@ -141,6 +141,7 @@ pub fn sign(
         complete: is_complete(psbt),
         signed_inputs,
         nonces_shared: 0,
+        nonces_written: Vec::new(),
     })
 }
 

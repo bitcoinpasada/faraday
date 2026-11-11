@@ -110,7 +110,7 @@ impl Spend {
             return Ok(self.psbt.to_bytes());
         };
         let mut out = v2.clone();
-        out.merge_signed(&self.psbt)?;
+        out.merge_signed_by(&self.psbt, &self.nonces_written)?;
         Ok(out.to_bytes())
     }
 }

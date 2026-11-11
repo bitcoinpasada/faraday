@@ -127,7 +127,9 @@ pub use musig::{MusigSession, MusigSessionView};
 pub use psbt::{Error, Psbt};
 pub use reason::Reason;
 pub use register::{Reading, RegisterRefusal, RegisteredKey, Registration, register};
-pub use sign::{Aux, InputSignature, MusigRole, Nonce, Schnorr, SigKind, SignResult, sign};
+pub use sign::{
+    Aux, InputSignature, MusigRole, Nonce, NonceWritten, Schnorr, SigKind, SignResult, sign,
+};
 
 /// The rust-bitcoin version this crate is built against, re-exported so
 /// callers use the same types without a second dependency.

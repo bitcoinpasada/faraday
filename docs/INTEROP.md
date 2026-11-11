@@ -418,9 +418,14 @@ amount, `0x04` script), the locktime by BIP-370's determination from
 and `0xfb`, and keeps every other key. Back to v2, `PsbtV2::merge_signed`
 writes the original pairs plus only the per-input fields signing added
 (`0x02`, `0x13`/`0x14`, MuSig2 nonces and partial signatures `0x1b`/`0x1c`,
-`0x07`/`0x08` when finalised). `PsbtV2::from_v0` writes the version 2
-PSBT of a version 0 one, as HWI's `convert_to_v2` does, which `to_v0`
-turns back into the same bytes.
+`0x07`/`0x08` when finalised). The app writes back with
+`PsbtV2::merge_signed_by`, which also replaces a MuSig2 nonce (`0x1b`) with
+the one this device's pass wrote for that participant key on that input (and
+no other value), and drops the partial signatures (`0x1c`) the signed copy no
+longer has on that input, with the nonce of a participant whose partial
+signature went too; any other changed pair is still refused.
+`PsbtV2::from_v0` writes the version 2 PSBT of a version 0 one, as HWI's
+`convert_to_v2` does, which `to_v0` turns back into the same bytes.
 
 In the app, `wallet::read_psbt` reads version 2 wherever it reads a PSBT
 (Files, Home's Scan, a pasted PSBT, Decode, combining another signer's

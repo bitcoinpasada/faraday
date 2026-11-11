@@ -983,6 +983,109 @@ fn a_nonce_no_session_holds_is_replaced_and_earlier_signatures_dropped() {
     assert_ne!(ours.value, stale, "a new nonce, not the one it replaced");
 }
 
+/// The same round over a version 2 file: the nonce of this device's the
+/// file carries is replaced by the new one and the partial signatures
+/// made against the old one go, while a changed nonce of the other signer
+/// is still refused.
+#[test]
+fn a_version_2_file_takes_a_new_nonce_of_this_device_and_refuses_another_signers() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let zoo = master(ZOO, NET);
+    let policy = two_key_policy(&abandon, &zoo);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [policy.clone()];
+    let mut psbt = two_key_psbt(&policy, &abandon, &zoo);
+    let mut session = None;
+    let ctx = context_with(&keys, &wallets, None);
+    pass(&mut psbt, &[&abandon], &ctx, &mut session, 0x61);
+    session = None;
+
+    let established = inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap();
+    let msg = key_path_sighash(&psbt);
+    let (_, pubnonce) = other_nonce(
+        &zoo,
+        &established.output_key.x_only_public_key().0.serialize(),
+        &msg,
+        0x62,
+    );
+    let zoo_key = account_xpub(&zoo).public_key;
+    let input = &mut psbt.inner_mut().inputs[0];
+    faraday_psbt::musig::write_pub_nonce(input, &zoo_key, &established.output_key, &pubnonce);
+    faraday_psbt::musig::write_partial_sig(
+        input,
+        &zoo_key,
+        &established.output_key,
+        &faraday_bip::musig::PartialSig::from_bytes(&[9u8; 32]).unwrap(),
+    );
+    let file = faraday_psbt::v2::PsbtV2::from_v0(&c, &psbt);
+    let old = faraday_psbt::musig::pub_nonces(&psbt.inner().inputs[0]).unwrap();
+
+    let own = pass(&mut psbt, &[&abandon], &ctx, &mut session, 0x63).nonces_written;
+
+    let mut without = file.clone();
+    assert_eq!(
+        without.merge_signed(&psbt),
+        Err(faraday_psbt::v2::Error::Mismatch)
+    );
+
+    let mut merged = file.clone();
+    assert!(merged.merge_signed_by(&psbt, &own).is_ok());
+    let back = merged.to_v0(&c).unwrap();
+    let new = faraday_psbt::musig::pub_nonces(&psbt.inner().inputs[0]).unwrap();
+    let got = faraday_psbt::musig::pub_nonces(&back.inner().inputs[0]).unwrap();
+    let ours = |v: &[faraday_psbt::musig::Entry<faraday_bip::musig::PubNonce>]| {
+        v.iter()
+            .find(|n| n.participant == established.ours[0].key)
+            .unwrap()
+            .value
+    };
+    assert_ne!(ours(&old), ours(&new));
+    assert_eq!(ours(&got), ours(&new));
+    assert!(
+        faraday_psbt::musig::partial_sigs(&back.inner().inputs[0])
+            .unwrap()
+            .is_empty()
+    );
+
+    // The other signer's nonce changed in the signed copy: refused.
+    let mut forged = psbt.clone();
+    let (_, other) = other_nonce(
+        &zoo,
+        &established.output_key.x_only_public_key().0.serialize(),
+        &msg,
+        0x64,
+    );
+    faraday_psbt::musig::write_pub_nonce(
+        &mut forged.inner_mut().inputs[0],
+        &zoo_key,
+        &established.output_key,
+        &other,
+    );
+    let mut refused = file.clone();
+    assert_eq!(
+        refused.merge_signed_by(&forged, &own),
+        Err(faraday_psbt::v2::Error::Mismatch)
+    );
+    assert_eq!(refused, file, "nothing changed");
+
+    // The same, with the file's label for the other signer's key
+    // changed to this device's fingerprint: a label widens nothing.
+    for (_, (_, (fp, _))) in forged.inner_mut().inputs[0]
+        .tap_key_origins
+        .iter_mut()
+        .filter(|(x, _)| **x == zoo_key.x_only_public_key().0)
+    {
+        *fp = (*abandon.fingerprint().as_bytes()).into();
+    }
+    let mut relabelled = file.clone();
+    assert_eq!(
+        relabelled.merge_signed_by(&forged, &own),
+        Err(faraday_psbt::v2::Error::Mismatch)
+    );
+    assert_eq!(relabelled, file, "nothing changed");
+}
+
 /// A cosigner that strips this device's partial signature and changes
 /// its own nonce, while the session stays open under one seed, gets a
 /// new nonce from this device: two partial signatures under one secret
@@ -1830,6 +1933,7 @@ fn a_file_with_an_older_nonce_of_ours_gets_the_kept_one_back_and_loses_the_parti
         &older,
     );
     write_partial(&mut r, &zoo_key, &forged());
+    let file = faraday_psbt::v2::PsbtV2::from_v0(&c, &r.psbt);
 
     let view = r.session.as_ref().unwrap().view();
     let ctx = context_with(&keys, &wallets, Some(&view));
@@ -1855,6 +1959,27 @@ fn a_file_with_an_older_nonce_of_ours_gets_the_kept_one_back_and_loses_the_parti
             .iter()
             .all(|n| n.participant != zoo_key),
         "the nonce of the cosigner whose partial went is spent and gone"
+    );
+
+    // The version 2 file the older copy came in takes the same: the kept
+    // nonce for this device's key, and no nonce or partial signature of
+    // the cosigner whose partial went.
+    let mut merged = file.clone();
+    assert!(merged.merge_signed_by(&r.psbt, &out.nonces_written).is_ok());
+    let back = merged.to_v0(&c).unwrap();
+    let back_nonces = faraday_psbt::musig::pub_nonces(&back.inner().inputs[0]).unwrap();
+    assert_eq!(
+        back_nonces
+            .iter()
+            .find(|n| n.participant == ours)
+            .map(|n| n.value),
+        Some(kept)
+    );
+    assert!(back_nonces.iter().all(|n| n.participant != zoo_key));
+    assert!(
+        faraday_psbt::musig::partial_sigs(&back.inner().inputs[0])
+            .unwrap()
+            .is_empty()
     );
 
     // The cosigner shares again and answers the kept nonce; the same

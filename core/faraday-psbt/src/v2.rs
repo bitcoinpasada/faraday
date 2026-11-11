@@ -899,6 +899,26 @@ impl PsbtV2 {
     /// nothing else. Refuses, changing nothing, when the signed PSBT is
     /// of another transaction or changes a pair this one already has.
     pub fn merge_signed(&mut self, signed: &crate::Psbt) -> Result<usize, Error> {
+        self.merge_signed_by(signed, &[])
+    }
+
+    /// [`PsbtV2::merge_signed`] for a pass that wrote the MuSig2 public
+    /// nonces `written` (`SignResult::nonces_written`): a nonce pair on
+    /// an input that has another value here is replaced when its
+    /// participant key and its value are exactly one of `written` on
+    /// that input, as round 1 writes a new nonce over an older one of
+    /// this device's. On such an input the MuSig2 partial signatures the
+    /// signed PSBT no longer has go, as they were made against the nonce
+    /// it replaces, and so does the nonce of another participant that
+    /// the signed PSBT no longer has when that participant's partial
+    /// signature goes too (a mend removes both: the nonce is spent).
+    /// Every other changed pair, another participant's nonce included,
+    /// is still refused.
+    pub fn merge_signed_by(
+        &mut self,
+        signed: &crate::Psbt,
+        written: &[crate::sign::NonceWritten],
+    ) -> Result<usize, Error> {
         if signed.unsigned_tx() != &self.unsigned_tx()? {
             return Err(Error::Mismatch);
         }
@@ -909,16 +929,49 @@ impl PsbtV2 {
         };
         r.map().map_err(|_| Error::Bridge)?;
         let mut added: Vec<(usize, Vec<u8>, Vec<u8>)> = Vec::new();
+        let mut removed: Vec<(usize, Vec<u8>)> = Vec::new();
         for (i, ours) in self.inputs.iter().enumerate() {
             let theirs = r.map().map_err(|_| Error::Bridge)?;
             let signing = |k: &[u8]| k.first().is_some_and(|t| SIGNING_FIELDS.contains(t));
+            let wrote = |k: &[u8], v: &[u8]| {
+                k.len() == 1 + 33 + 33
+                    && written.iter().any(|w| {
+                        w.input == i
+                            && w.participant.serialize()[..] == k[1..34]
+                            && w.nonce[..] == *v
+                    })
+            };
+            let mut replaced = false;
             for (k, v) in theirs.pairs().filter(|(k, _)| signing(k)) {
                 match ours.get(k) {
                     Some(existing) if existing == v => {}
+                    Some(_) if k.first() == Some(&crate::musig::IN_PUB_NONCE) && wrote(k, v) => {
+                        replaced = true;
+                        added.push((i, k.to_vec(), v.to_vec()));
+                    }
                     Some(_) => return Err(Error::Mismatch),
                     None => added.push((i, k.to_vec(), v.to_vec())),
                 }
             }
+            if replaced {
+                let gone_psig = |k: &[u8]| {
+                    let mut psig = k.to_vec();
+                    psig[0] = crate::musig::IN_PARTIAL_SIG;
+                    ours.get(&psig).is_some() && theirs.get(&psig).is_none()
+                };
+                for (k, _) in ours.pairs() {
+                    let psig = k.first() == Some(&crate::musig::IN_PARTIAL_SIG);
+                    let spent_nonce = k.first() == Some(&crate::musig::IN_PUB_NONCE)
+                        && k.len() == 1 + 33 + 33
+                        && gone_psig(k);
+                    if (psig || spent_nonce) && theirs.get(k).is_none() {
+                        removed.push((i, k.to_vec()));
+                    }
+                }
+            }
+        }
+        for (i, k) in removed {
+            self.inputs[i].remove(&k);
         }
         let n = added.len();
         for (i, k, v) in added {

@@ -188,6 +188,18 @@ pub struct InputSignature {
     pub musig: Option<MusigRole>,
 }
 
+/// A MuSig2 public nonce a pass wrote for one of this device's keys: the
+/// input, the participant key and the 66-byte nonce.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NonceWritten {
+    /// The input it is on.
+    pub input: usize,
+    /// The participant key it is for.
+    pub participant: secp256k1::PublicKey,
+    /// The public nonce, serialized.
+    pub nonce: [u8; 66],
+}
+
 /// What [`sign`] did.
 #[derive(Debug, PartialEq, Eq)]
 pub struct SignResult {
@@ -196,6 +208,11 @@ pub struct SignResult {
     /// Public nonces this pass drew, wrote and kept in the session:
     /// round 1 of §16.100, one per input and participant.
     pub nonces_shared: usize,
+    /// The public nonces this pass wrote into the PSBT for this
+    /// device's own keys (a round 1 draw, or the kept nonce a mend
+    /// puts back): what a version 2 file's older nonce of this device's
+    /// is replaced by (`PsbtV2::merge_signed_by`).
+    pub nonces_written: Vec<NonceWritten>,
     /// Every input now has enough signatures to finalize.
     pub complete: bool,
 }
@@ -294,6 +311,7 @@ pub fn sign(
     let outputs = Outputs::default();
     let mut signed_inputs = Vec::new();
     let mut nonces_shared = 0usize;
+    let mut nonces_written = Vec::new();
 
     // A refusal on any MuSig2 input comes before any input takes a kept
     // nonce, so a pass that refuses burns none, whatever input it
@@ -450,6 +468,13 @@ pub fn sign(
                     seed.map(|s| &**s),
                 )?;
                 nonces_shared += done.nonces_shared;
+                nonces_written.extend(done.nonces_written.into_iter().map(
+                    |(participant, nonce)| NonceWritten {
+                        input: i,
+                        participant,
+                        nonce,
+                    },
+                ));
                 signed_inputs.extend(done.signatures);
             }
             ScriptKind::P2trKey => {
@@ -552,6 +577,7 @@ pub fn sign(
         complete: is_complete(psbt),
         signed_inputs,
         nonces_shared,
+        nonces_written,
     })
 }
 
@@ -871,6 +897,9 @@ fn sign_taproot(
 struct MusigPass {
     signatures: Vec<InputSignature>,
     nonces_shared: usize,
+    /// The (participant key, public nonce) pairs this pass wrote for
+    /// keys of `musig.ours` that passed the derivation check.
+    nonces_written: Vec<(secp256k1::PublicKey, [u8; 66])>,
 }
 
 /// Costs a key derivation (through `derive` and `to_xpub`). Signing a
@@ -1005,16 +1034,19 @@ fn sign_musig(
                 .iter()
                 .any(|pk| k.key.starts_with(&pk.serialize()))
         });
+        let mut mended = Vec::new();
         for key in &stale {
             let kept = session
                 .as_ref()
                 .and_then(|s| s.public_of(index, key))
                 .expect("the key was found among the kept nonces");
             crate::musig::write_pub_nonce(here, key, &musig.output_key, &kept);
+            mended.push((*key, kept.serialize()));
         }
         return Ok(MusigPass {
             signatures: Vec::new(),
             nonces_shared: 0,
+            nonces_written: mended,
         });
     }
     // The public nonces this device kept are the ones that count for its
@@ -1023,6 +1055,7 @@ fn sign_musig(
     let mut checked = false;
     let mut written = Vec::new();
     let mut nonces_shared = 0usize;
+    let mut nonces_written = Vec::new();
     for (participation, round) in order {
         if matches!(round, MusigRound::Sign) && !checked {
             check_others(
@@ -1085,6 +1118,7 @@ fn sign_musig(
                 nonces.retain(|(pk, _)| *pk != participation.key);
                 nonces.push((participation.key, pubnonce));
                 nonces_shared += 1;
+                nonces_written.push((participation.key, pubnonce.serialize()));
             }
             MusigRound::Sign => {
                 let open = session.as_mut().expect("the round says it holds one");
@@ -1225,6 +1259,7 @@ fn sign_musig(
         return Ok(MusigPass {
             signatures: written,
             nonces_shared,
+            nonces_written,
         });
     }
     let taproot_sig = crate::musig::aggregate(c, psbt, index, musig)
@@ -1245,6 +1280,7 @@ fn sign_musig(
     Ok(MusigPass {
         signatures: written,
         nonces_shared,
+        nonces_written,
     })
 }
 
