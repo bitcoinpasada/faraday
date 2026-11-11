@@ -8,12 +8,14 @@ use faraday_draw::Color;
 use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, FIELD_PAD, GAP, GAP_SMALL, PAD, TITLE_M, TITLE_S, TOUCH,
 };
+use faraday_draw::widgets::Icon;
 use faraday_strings::{EN, fill};
 use faraday_ui::tabs::{Tab as TabItem, TabKind};
-use faraday_ui::{Role, Style, Ui, W};
+use faraday_ui::{Glyph, Role, Style, Ui, W};
 
 use crate::samples::SAMPLES;
-use crate::state::{Action, Field, OwnKind, Page, SIZES, Source, State, Tab};
+use crate::state::{Action, Dialog, Field, OpenStage, OwnKind, Page, SIZES, Source, State, Tab};
+use crate::worker::{Label, Value};
 
 /// The widest a column of content grows, in design units.
 const COLUMN: f32 = 480.0;
@@ -41,7 +43,7 @@ pub fn window(ui: U, state: &State, (w, h): (f32, f32), phase: Option<f32>) -> f
             Page::Working => working(ui, state, (x, top - state.offset, cw), phase),
             Page::Code => code(ui, state, (x, top - state.offset, cw)),
         },
-        Tab::Open => top - state.offset,
+        Tab::Open => open(ui, state, (x, top - state.offset, cw), phase),
     };
     let content = end + state.offset + PAD;
     // The tabs stand over the content as it scrolls under them.
@@ -61,6 +63,14 @@ pub fn window(ui: U, state: &State, (w, h): (f32, f32), phase: Option<f32>) -> f
         },
     ];
     ui.tabs((0.0, 0.0, w, TOUCH), TabKind::Primary, &tabs);
+    match state.dialog {
+        Some(Dialog::About) => about(ui, (w, h)),
+        Some(Dialog::Working) => working_dialog(ui, state, (w, h)),
+        None => {}
+    }
+    if let Some(text) = state.snack.as_deref() {
+        ui.snackbar_closable((0.0, w, h), text, (1.0, 0.0), Action::CloseSnack);
+    }
     (content - h).max(0.0)
 }
 
@@ -369,9 +379,220 @@ fn code(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
     y += button(
         ui,
         (x, y, w),
-        EN.aqrv_make_again,
+        EN.aqrv_save_picture,
         Style::Primary,
+        Action::SavePicture,
+    );
+    y += button(
+        ui,
+        (x, y, w),
+        EN.aqrv_save_file,
+        Style::Secondary,
+        Action::SaveFile,
+    );
+    y += button(
+        ui,
+        (x, y, w),
+        EN.aqrv_show_working,
+        Style::Secondary,
+        Action::ShowWorking,
+    );
+    y += button(
+        ui,
+        (x, y, w),
+        EN.aqrv_make_again,
+        Style::Secondary,
         Action::Again,
     );
+    y += button(ui, (x, y, w), EN.aqrv_about, Style::Ghost, Action::About);
     y - GAP
+}
+
+fn item_label(l: Label) -> &'static str {
+    match l {
+        Label::Words => EN.aqrv_item_words,
+        Label::Fingerprint => EN.aqrv_item_fingerprint,
+        Label::String => EN.aqrv_item_string,
+        Label::Threshold => EN.aqrv_item_threshold,
+        Label::Identifier => EN.aqrv_item_identifier,
+        Label::Index => EN.aqrv_item_index,
+        Label::Secret => EN.aqrv_item_secret,
+        Label::Share => EN.aqrv_item_share,
+        Label::Text => EN.aqrv_item_text,
+        Label::Key => EN.aqrv_item_key,
+    }
+}
+
+/// A muted label with its value under it. Returns the height taken.
+fn pair(ui: U, (x, y, w): (f32, f32, f32), label: &str, value: &str) -> f32 {
+    let mut h = ui.line_as(TITLE_S);
+    ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, label);
+    if !value.is_empty() {
+        h += GAP_SMALL;
+        h += ui.wrap_as((x, y + h, w), BODY_L, Role::OnSurface, value);
+    }
+    h + GAP
+}
+
+/// Open (Material 3 Text field, Buttons, Lists): the path, then what
+/// came of the file, the passphrase and the item.
+fn open(ui: U, st: &State, (x, y0, w): (f32, f32, f32), phase: Option<f32>) -> f32 {
+    let o = &st.open;
+    let mut y = y0;
+    y += field(
+        ui,
+        (x, y, w),
+        EN.aqrv_open_path,
+        &o.path,
+        false,
+        st.focus == Some(Field::Path),
+        Action::Field(Field::Path),
+    );
+    let style = if o.path.trim().is_empty() {
+        Style::PrimaryOff
+    } else {
+        Style::Primary
+    };
+    y += button(ui, (x, y, w), EN.aqrv_open_file, style, Action::ReadPath);
+    let error = |ui: U, y: f32, text: &str| ui.wrap_as((x, y, w), BODY_M, Role::Error, text) + GAP;
+    match o.stage {
+        OpenStage::Empty => {}
+        OpenStage::Reading => {
+            y += ui.wrap_as((x, y, w), BODY_L, Role::OnSurface, EN.aqrv_reading) + GAP;
+        }
+        OpenStage::Unreadable => y += error(ui, y, EN.aqrv_file_unread),
+        OpenStage::NotACode => y += error(ui, y, EN.aqrv_not_a_code),
+        _ => {
+            if let Some(h) = o.header {
+                y += ui.wrap_as((x, y, w), BODY_L, Role::OnSurface, size_label(h.size)) + GAP_SMALL;
+                let step = fill(EN.aqrv_code_step, &[memory_label(h.step)]);
+                y += ui.wrap_as((x, y, w), BODY_L, Role::OnSurface, &step) + GAP;
+            }
+            match o.stage {
+                OpenStage::Working => {
+                    let step = o.header.map_or("", |h| memory_label(h.step));
+                    let line = fill(EN.aqrv_opening, &[step]);
+                    y += ui.wrap_as((x, y, w), TITLE_M, Role::OnSurface, &line) + GAP;
+                    ui.progress((x, y, w), None, phase);
+                    y += 4.0 + 2.0 * GAP;
+                    y += button(
+                        ui,
+                        (x, y, w),
+                        EN.aqrv_cancel,
+                        Style::Secondary,
+                        Action::Cancel,
+                    );
+                }
+                OpenStage::Opened => {
+                    if let Some(shown) = o.shown.as_ref() {
+                        for (label, value) in &shown.lines {
+                            y += pair(ui, (x, y, w), item_label(*label), value);
+                        }
+                    }
+                    y += button(
+                        ui,
+                        (x, y, w),
+                        EN.aqrv_open_another,
+                        Style::Secondary,
+                        Action::OpenAnother,
+                    );
+                }
+                stage => {
+                    y += field(
+                        ui,
+                        (x, y, w),
+                        EN.aqrv_passphrase,
+                        &o.pass,
+                        !st.shown,
+                        st.focus == Some(Field::OpenPass),
+                        Action::Field(Field::OpenPass),
+                    );
+                    match stage {
+                        OpenStage::DoesNotOpen => y += error(ui, y, EN.aqrv_does_not_open),
+                        OpenStage::NotEnoughMemory => y += error(ui, y, EN.aqrv_not_enough_memory),
+                        _ => {}
+                    }
+                    let eye = if st.shown { EN.aqrv_hide } else { EN.aqrv_show };
+                    y += button(ui, (x, y, w), eye, Style::Ghost, Action::Eye);
+                    let style = if o.pass.is_empty() {
+                        Style::PrimaryOff
+                    } else {
+                        Style::Primary
+                    };
+                    y += button(ui, (x, y, w), EN.aqrv_unlock, style, Action::Unlock);
+                }
+            }
+        }
+    }
+    y += button(ui, (x, y, w), EN.aqrv_about, Style::Ghost, Action::About);
+    y - GAP
+}
+
+fn value_label(v: Value) -> String {
+    match v {
+        Value::Pw => EN.aqrv_w_pw.to_owned(),
+        Value::Prk => EN.aqrv_w_prk.to_owned(),
+        Value::KEnc => EN.aqrv_w_k_enc.to_owned(),
+        Value::KMac => EN.aqrv_w_k_mac.to_owned(),
+        Value::Keystream => EN.aqrv_w_keystream.to_owned(),
+        Value::P => EN.aqrv_w_p.to_owned(),
+        Value::C => EN.aqrv_w_c.to_owned(),
+        Value::Message => EN.aqrv_w_message.to_owned(),
+        Value::Tag(k) => fill(EN.aqrv_w_tag, &[&format!("{k:02x}")]),
+    }
+}
+
+/// About (Material 3 Dialog).
+fn about(ui: U, (w, h): (f32, f32)) {
+    let head = (
+        Glyph::from(Icon::Info),
+        Role::OnSurface.paint(),
+        EN.aqrv_about_title,
+    );
+    faraday_ui::sheet::dialog(
+        ui,
+        (w, h, COLUMN),
+        head,
+        &mut |ui, x, y, iw| {
+            ui.wrap_as(
+                (x, y, iw),
+                BODY_M,
+                Role::OnSurfaceVariant,
+                EN.aqrv_about_text,
+            )
+        },
+        &[(EN.aqrv_close, Style::Primary, Action::CloseDialog)],
+    );
+}
+
+/// The working of the code made (Material 3 Dialog): each value of
+/// `aqrv::workings`, as the worker sent it back.
+fn working_dialog(ui: U, st: &State, (w, h): (f32, f32)) {
+    let head = (
+        Glyph::from(Icon::Info),
+        Role::OnSurface.paint(),
+        EN.aqrv_working_title,
+    );
+    ui.offset = st.dialog_offset;
+    faraday_ui::sheet::dialog(
+        ui,
+        (w, h, COLUMN),
+        head,
+        &mut |ui, x, y, iw| match st.working.as_ref() {
+            None => ui.wrap_as(
+                (x, y, iw),
+                BODY_M,
+                Role::OnSurfaceVariant,
+                EN.aqrv_working_wait,
+            ),
+            Some(values) => {
+                let mut cy = y;
+                for (v, hex) in values {
+                    cy += pair(ui, (x, cy, iw), &value_label(*v), hex);
+                }
+                cy - y
+            }
+        },
+        &[(EN.aqrv_close, Style::Primary, Action::CloseDialog)],
+    );
 }

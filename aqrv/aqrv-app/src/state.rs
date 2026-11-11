@@ -1,11 +1,11 @@
 //! What the app holds: the tab and step, what was chosen and typed, and
 //! what the worker sent back. Drawing reads this and changes nothing.
 
-use aqrv::{Item, Size, Step};
+use aqrv::{Header, Item, Size, Step};
 use zeroize::Zeroizing;
 
 use crate::samples::SAMPLES;
-use crate::worker::{Fail, Made};
+use crate::worker::{Fail, Made, Shown, Working};
 
 /// The sizes the choice offers, smallest first.
 pub const SIZES: [Size; 2] = [Size::Small, Size::Large];
@@ -15,7 +15,7 @@ pub const SIZES: [Size; 2] = [Size::Small, Size::Large];
 pub enum Tab {
     /// Making a code.
     Make,
-    /// Opening one (a placeholder here).
+    /// Opening one.
     Open,
 }
 
@@ -76,6 +76,74 @@ pub enum Field {
     Pass,
     /// The passphrase again.
     Again,
+    /// The path of a file to open.
+    Path,
+    /// The passphrase of the code being opened.
+    OpenPass,
+}
+
+/// How far Open has come.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpenStage {
+    /// No file yet.
+    Empty,
+    /// The file is being read.
+    Reading,
+    /// The shell could not read the file.
+    Unreadable,
+    /// The file is not a code: no passphrase is asked for.
+    NotACode,
+    /// A code; the passphrase is asked for.
+    Asking,
+    /// The worker is opening it.
+    Working,
+    /// Opened: the item is shown.
+    Opened,
+    /// Neither tag nor layout holds.
+    DoesNotOpen,
+    /// Argon2id's memory could not be had.
+    NotEnoughMemory,
+}
+
+/// A dialog over the window.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Dialog {
+    /// The working of the code just made.
+    Working,
+    /// About.
+    About,
+}
+
+/// What Open holds.
+pub struct OpenState {
+    /// The typed path.
+    pub path: Zeroizing<String>,
+    /// How far it has come.
+    pub stage: OpenStage,
+    /// The code's bytes, once the file is one.
+    pub envelope: Option<Vec<u8>>,
+    /// Its size and step.
+    pub header: Option<Header>,
+    /// The passphrase typed.
+    pub pass: Zeroizing<String>,
+    /// The item, once opened.
+    pub shown: Option<Shown>,
+    /// The request the worker is answering.
+    pub job: Option<u64>,
+}
+
+impl OpenState {
+    fn new() -> OpenState {
+        OpenState {
+            path: Zeroizing::new(String::new()),
+            stage: OpenStage::Empty,
+            envelope: None,
+            header: None,
+            pass: Zeroizing::new(String::new()),
+            shown: None,
+            job: None,
+        }
+    }
 }
 
 /// Everything a press can do.
@@ -107,6 +175,24 @@ pub enum Action {
     Cancel,
     /// Starts again at the item.
     Again,
+    /// Reads the file at the typed path.
+    ReadPath,
+    /// Opens the code with the typed passphrase.
+    Unlock,
+    /// Starts Open again with no file.
+    OpenAnother,
+    /// Saves the code as a PNG picture.
+    SavePicture,
+    /// Saves the code as a `.aqrv` file.
+    SaveFile,
+    /// Shows the working of the code made.
+    ShowWorking,
+    /// Shows About.
+    About,
+    /// Closes the dialog.
+    CloseDialog,
+    /// Closes the snackbar.
+    CloseSnack,
 }
 
 /// The app's state.
@@ -143,6 +229,18 @@ pub struct State {
     pub job: Option<u64>,
     /// How far the page is scrolled, in design units.
     pub offset: f32,
+    /// What Open holds.
+    pub open: OpenState,
+    /// The dialog shown.
+    pub dialog: Option<Dialog>,
+    /// How far the dialog is scrolled.
+    pub dialog_offset: f32,
+    /// The working, once the worker has it.
+    pub working: Option<Working>,
+    /// The request for the working.
+    pub work_job: Option<u64>,
+    /// What the snackbar says.
+    pub snack: Option<String>,
     pub(crate) next_job: u64,
 }
 
@@ -166,6 +264,12 @@ impl State {
             failed: None,
             job: None,
             offset: 0.0,
+            open: OpenState::new(),
+            dialog: None,
+            dialog_offset: 0.0,
+            working: None,
+            work_job: None,
+            snack: None,
             next_job: 0,
         }
     }
@@ -216,7 +320,14 @@ impl State {
             Field::Own => Some(&mut self.own_text),
             Field::Pass => Some(&mut self.pass),
             Field::Again => Some(&mut self.again),
+            Field::Path => Some(&mut self.open.path),
+            Field::OpenPass => Some(&mut self.open.pass),
         }
+    }
+
+    /// Whether the worker has a request out that a caller may wait for.
+    pub fn working_on(&self) -> bool {
+        self.open.job.is_some() || self.work_job.is_some()
     }
 
     /// Keeps the size chosen one the item fits.

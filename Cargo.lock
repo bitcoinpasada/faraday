@@ -122,9 +122,11 @@ dependencies = [
  "faraday-codec",
  "faraday-crypto",
  "faraday-draw",
+ "faraday-files",
  "faraday-shell-api",
  "faraday-strings",
  "faraday-ui",
+ "png",
  "zeroize",
 ]
 

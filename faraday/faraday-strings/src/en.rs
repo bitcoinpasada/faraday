@@ -14133,4 +14133,112 @@ strings! {
     /// Make: the item or passphrase was refused.
     #[cfg(feature = "aqrv")]
     aqrv_not_made: "The code was not made",
+    /// Open: the path field's label.
+    #[cfg(feature = "aqrv")]
+    aqrv_open_path: "File path",
+    /// Open: the button that reads the file at the path.
+    #[cfg(feature = "aqrv")]
+    aqrv_open_file: "Open a file",
+    /// Open: the file is being read.
+    #[cfg(feature = "aqrv")]
+    aqrv_reading: "Reading the file",
+    /// Open: the file could not be read.
+    #[cfg(feature = "aqrv")]
+    aqrv_file_unread: "The file could not be read",
+    /// Open: the file is not a code, so no passphrase is asked for.
+    #[cfg(feature = "aqrv")]
+    aqrv_not_a_code: "Not an Argon QR Vault code",
+    /// Open: the button that opens the code with the passphrase.
+    #[cfg(feature = "aqrv")]
+    aqrv_unlock: "Open code",
+    /// Open: the code is being opened, with its memory.
+    #[cfg(feature = "aqrv")]
+    aqrv_opening: "Opening with {}",
+    /// Open: neither the tag nor the item's layout holds.
+    #[cfg(feature = "aqrv")]
+    aqrv_does_not_open: "Does not open: a wrong passphrase or a damaged code",
+    /// Open: the button that starts again with no file.
+    #[cfg(feature = "aqrv")]
+    aqrv_open_another: "Open another",
+    /// Open: the item's BIP-39 words.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_words: "Words",
+    /// Open: the item's master fingerprint.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_fingerprint: "Fingerprint",
+    /// Open: a codex32 string.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_string: "String",
+    /// Open: a codex32 string's threshold.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_threshold: "Threshold",
+    /// Open: a codex32 string's identifier.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_identifier: "Identifier",
+    /// Open: a codex32 string's share index.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_index: "Index",
+    /// Open: a codex32 string is a secret.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_secret: "Secret",
+    /// Open: a codex32 string is a share.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_share: "Share",
+    /// Open: a passphrase's or note's text.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_text: "Text",
+    /// Open: a raw key as hex.
+    #[cfg(feature = "aqrv")]
+    aqrv_item_key: "Key (hex)",
+    /// A file was saved, by its name.
+    #[cfg(feature = "aqrv")]
+    aqrv_saved: "Saved {}",
+    /// A file was not saved.
+    #[cfg(feature = "aqrv")]
+    aqrv_not_saved: "Not saved",
+    /// The label of a dialog's closing button.
+    #[cfg(feature = "aqrv")]
+    aqrv_close: "Close",
+    /// The working's dialog title.
+    #[cfg(feature = "aqrv")]
+    aqrv_working_title: "The working",
+    /// The working is being worked out.
+    #[cfg(feature = "aqrv")]
+    aqrv_working_wait: "Working out the values",
+    /// The working: the passphrase's bytes.
+    #[cfg(feature = "aqrv")]
+    aqrv_w_pw: "Passphrase bytes (NFC)",
+    /// The working: Argon2id's output.
+    #[cfg(feature = "aqrv")]
+    aqrv_w_prk: "Argon2id output",
+    /// The working: the encryption key.
+    #[cfg(feature = "aqrv")]
+    aqrv_w_k_enc: "Encryption key",
+    /// The working: the MAC key.
+    #[cfg(feature = "aqrv")]
+    aqrv_w_k_mac: "MAC key",
+    /// The working: the keystream.
+    #[cfg(feature = "aqrv")]
+    aqrv_w_keystream: "Keystream",
+    /// The working: the decrypted item bytes.
+    #[cfg(feature = "aqrv")]
+    aqrv_w_p: "P",
+    /// The working: the encrypted item bytes.
+    #[cfg(feature = "aqrv")]
+    aqrv_w_c: "C",
+    /// The working: the HMAC's message.
+    #[cfg(feature = "aqrv")]
+    aqrv_w_message: "Tag message",
+    /// The working: a kind's tag, by the kind's byte in hex.
+    #[cfg(feature = "aqrv")]
+    aqrv_w_tag: "Tag, kind {}",
+    /// The button that shows About.
+    #[cfg(feature = "aqrv")]
+    aqrv_about: "About",
+    /// About's dialog title.
+    #[cfg(feature = "aqrv")]
+    aqrv_about_title: "About Argon QR Vault",
+    /// About's text.
+    #[cfg(feature = "aqrv")]
+    aqrv_about_text: "The format is specified in docs/AQRV.md and its test vectors are in tools/vectors/aqrv. The format is not reviewed and is for testing only.",
 }

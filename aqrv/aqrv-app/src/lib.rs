@@ -1,9 +1,10 @@
 //! The Argon QR Vault's screens (`docs/AQRV.md`): a
 //! `faraday_shell_api::App` with two tabs, Make and Open. Make is four
-//! screens (the item, the settings, working, the code); Open is empty
-//! until its own change. Argon2id and QR encoding run on one worker
-//! thread (`worker.rs`); drawing takes `&State` and reads what it sent
-//! back.
+//! screens (the item, the settings, working, the code); Open takes a
+//! file (a typed path, or one dropped on the window), asks for the
+//! passphrase and shows the item. Argon2id, QR encoding and decoding and
+//! the fingerprint run on one worker thread (`worker.rs`); drawing takes
+//! `&State` and reads what it sent back.
 
 mod draw;
 pub mod samples;
@@ -13,10 +14,11 @@ pub mod worker;
 use std::collections::VecDeque;
 
 use faraday_draw::{Canvas, Rect};
-use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Key, TouchPhase};
+use faraday_shell_api::{App, Command, DisplayInfo, Event, FileKind, Frame, Key, TouchPhase};
+use faraday_strings::{EN, fill};
 use zeroize::Zeroizing;
 
-pub use state::{Action, Field, OwnKind, Page, Source, State, Tab};
+pub use state::{Action, Dialog, Field, OpenStage, OwnKind, Page, Source, State, Tab};
 use worker::{Answer, Job, Worker};
 
 /// How many 32-byte answers of the entropy channel one code draws from.
@@ -38,6 +40,8 @@ pub struct ArgonQrVault {
     /// The request waiting for the shell's entropy, with what came.
     waiting: Option<u64>,
     pool: Zeroizing<Vec<u8>>,
+    /// The name of the file a write was asked for, until it is answered.
+    saving: Option<String>,
 }
 
 impl ArgonQrVault {
@@ -60,6 +64,7 @@ impl ArgonQrVault {
             dirty: false,
             waiting: None,
             pool: Zeroizing::new(Vec::new()),
+            saving: None,
         }
     }
 
@@ -78,7 +83,10 @@ impl ArgonQrVault {
     /// ticks do one answer at a time. Returns at once while the shell has
     /// not yet answered the entropy a code is waiting for.
     pub fn finish_work(&mut self) {
-        while self.state.job.is_some() && self.waiting.is_none() || self.state.timing.is_none() {
+        while self.state.job.is_some() && self.waiting.is_none()
+            || self.state.working_on()
+            || self.state.timing.is_none()
+        {
             match self.worker.wait() {
                 Some(answer) => self.take(answer),
                 None => break,
@@ -92,8 +100,73 @@ impl ArgonQrVault {
         self.commands.push_back(Command::Draw);
     }
 
+    fn next_id(&mut self) -> u64 {
+        self.state.next_job += 1;
+        self.state.next_job
+    }
+
+    /// Starts reading `bytes` as a code on the worker.
+    fn read(&mut self, bytes: Vec<u8>) {
+        let id = self.next_id();
+        let open = &mut self.state.open;
+        open.stage = OpenStage::Reading;
+        open.envelope = None;
+        open.header = None;
+        open.shown = None;
+        open.pass = Zeroizing::new(String::new());
+        open.job = Some(id);
+        self.state.tab = Tab::Open;
+        self.state.offset = 0.0;
+        self.worker.ask(Job::Read { id, bytes });
+    }
+
     fn take(&mut self, answer: Answer) {
         match answer {
+            Answer::Read(id, found) => {
+                let open = &mut self.state.open;
+                if open.job != Some(id) {
+                    return;
+                }
+                open.job = None;
+                match found {
+                    Some((envelope, header)) => {
+                        open.envelope = Some(envelope);
+                        open.header = Some(header);
+                        open.stage = OpenStage::Asking;
+                        self.state.focus = Some(Field::OpenPass);
+                    }
+                    None => open.stage = OpenStage::NotACode,
+                }
+            }
+            Answer::Opened(id, result) => {
+                let open = &mut self.state.open;
+                if open.job != Some(id) {
+                    return;
+                }
+                open.job = None;
+                match *result {
+                    Ok(shown) => {
+                        open.shown = Some(shown);
+                        open.stage = OpenStage::Opened;
+                        open.pass = Zeroizing::new(String::new());
+                        self.state.focus = None;
+                    }
+                    Err(aqrv::NotOpened::NotEnoughMemory) => {
+                        open.stage = OpenStage::NotEnoughMemory;
+                    }
+                    Err(_) => open.stage = OpenStage::DoesNotOpen,
+                }
+            }
+            Answer::Working(id, result) => {
+                if self.state.work_job != Some(id) {
+                    return;
+                }
+                self.state.work_job = None;
+                match *result {
+                    Ok(w) => self.state.working = Some(w),
+                    Err(_) => self.state.dialog = None,
+                }
+            }
             Answer::Timed(d) => self.state.timing = Some(d.as_secs_f32()),
             Answer::Made(id, result) => {
                 // A cancelled request's answer is discarded.
@@ -116,12 +189,115 @@ impl ArgonQrVault {
         }
     }
 
+    /// What the actions of Open, saving, the working and About do.
+    /// Returns whether `action` was one of them.
+    fn act_open(&mut self, action: Action) -> bool {
+        let st = &mut self.state;
+        match action {
+            Action::Cancel if st.tab == Tab::Open => {
+                // The run finishes on its thread; its answer is dropped.
+                st.open.job = None;
+                st.open.stage = OpenStage::Asking;
+            }
+            Action::ReadPath => {
+                let path = st.open.path.trim().to_owned();
+                if !path.is_empty() {
+                    st.open.stage = OpenStage::Reading;
+                    st.open.job = None;
+                    self.commands.push_back(Command::ReadFile {
+                        kind: FileKind::Any,
+                        name: path,
+                    });
+                }
+            }
+            Action::Unlock => {
+                let open = &st.open;
+                let ready = matches!(
+                    open.stage,
+                    OpenStage::Asking | OpenStage::DoesNotOpen | OpenStage::NotEnoughMemory
+                );
+                if let (true, false, Some(envelope)) =
+                    (ready, open.pass.is_empty(), open.envelope.clone())
+                {
+                    let passphrase = open.pass.clone();
+                    let id = self.next_id();
+                    self.state.open.stage = OpenStage::Working;
+                    self.state.open.job = Some(id);
+                    self.state.focus = None;
+                    self.worker.ask(Job::Open {
+                        id,
+                        envelope,
+                        passphrase,
+                    });
+                }
+            }
+            Action::OpenAnother => {
+                st.open.stage = OpenStage::Empty;
+                st.open.envelope = None;
+                st.open.header = None;
+                st.open.shown = None;
+                st.open.job = None;
+                st.open.pass = Zeroizing::new(String::new());
+                st.focus = Some(Field::Path);
+            }
+            Action::SavePicture | Action::SaveFile => {
+                if let Some(made) = st.made.as_ref() {
+                    let (kind, name, bytes) = if action == Action::SavePicture {
+                        (FileKind::Png, "argon-qr-vault.png", made.png.clone())
+                    } else {
+                        (FileKind::Any, "argon-qr-vault.aqrv", made.bytes.clone())
+                    };
+                    self.saving = Some(name.to_owned());
+                    self.commands.push_back(Command::WriteFile {
+                        kind,
+                        name_hint: name.to_owned(),
+                        bytes,
+                    });
+                }
+            }
+            Action::ShowWorking => {
+                if let Some(made) = st.made.as_ref()
+                    && st.passphrase_ready()
+                {
+                    let (envelope, passphrase) = (made.bytes.clone(), st.pass.clone());
+                    let id = self.next_id();
+                    let st = &mut self.state;
+                    st.dialog = Some(Dialog::Working);
+                    st.dialog_offset = 0.0;
+                    st.working = None;
+                    st.work_job = Some(id);
+                    self.worker.ask(Job::Workings {
+                        id,
+                        envelope,
+                        passphrase,
+                    });
+                }
+            }
+            Action::About => {
+                st.dialog = Some(Dialog::About);
+                st.dialog_offset = 0.0;
+            }
+            Action::CloseDialog => {
+                st.dialog = None;
+                st.working = None;
+                st.work_job = None;
+            }
+            Action::CloseSnack => st.snack = None,
+            _ => return false,
+        }
+        true
+    }
+
     fn act(&mut self, action: Action) {
+        if self.act_open(action) {
+            return;
+        }
         let st = &mut self.state;
         match action {
             Action::Tab(t) => {
                 st.tab = t;
                 st.offset = 0.0;
+                st.focus = (t == Tab::Open).then_some(Field::Path);
             }
             Action::Sample(i) => {
                 st.source = Source::Sample(i);
@@ -154,6 +330,12 @@ impl ArgonQrVault {
                     st.offset = 0.0;
                 }
             }
+            Action::Back if st.dialog.is_some() => {
+                st.dialog = None;
+                st.working = None;
+                st.work_job = None;
+            }
+            Action::Back if st.tab == Tab::Open => {}
             Action::Back => match st.page {
                 Page::Settings => st.page = Page::Item,
                 Page::Code => st.page = Page::Settings,
@@ -166,8 +348,8 @@ impl ArgonQrVault {
                     st.page = Page::Working;
                     st.offset = 0.0;
                     st.focus = None;
-                    st.next_job += 1;
-                    let id = st.next_job;
+                    let id = self.next_id();
+                    let st = &mut self.state;
                     st.job = Some(id);
                     self.waiting = Some(id);
                     self.pool = Zeroizing::new(Vec::new());
@@ -190,6 +372,7 @@ impl ArgonQrVault {
                 st.page = Page::Item;
                 st.offset = 0.0;
             }
+            _ => {}
         }
     }
 
@@ -251,10 +434,15 @@ impl ArgonQrVault {
             Key::Tab => {
                 self.state.focus = match (self.state.page, self.state.focus) {
                     (Page::Settings, Some(Field::Pass)) => Some(Field::Again),
-                    (Page::Settings, _) => Some(Field::Pass),
+                    (Page::Settings, _) if self.state.tab == Tab::Make => Some(Field::Pass),
+                    (_, Some(Field::Path)) if self.state.tab == Tab::Open => Some(Field::OpenPass),
                     _ => self.state.focus,
                 };
             }
+            Key::Enter if self.state.tab == Tab::Open => match self.state.focus {
+                Some(Field::OpenPass) => self.act(Action::Unlock),
+                _ => self.act(Action::ReadPath),
+            },
             Key::Enter => match self.state.page {
                 Page::Item => self.act(Action::Next),
                 Page::Settings => self.act(Action::Make),
@@ -289,7 +477,10 @@ impl App for ArgonQrVault {
                     self.take(answer);
                     any = true;
                 }
-                let moving = self.state.page == Page::Working && self.state.tab == Tab::Make;
+                let moving = match self.state.tab {
+                    Tab::Make => self.state.page == Page::Working,
+                    Tab::Open => self.state.open.stage == OpenStage::Working,
+                };
                 if moving {
                     self.phase = Some((now_ms % 1500) as f32 / 1500.0);
                 }
@@ -312,12 +503,28 @@ impl App for ArgonQrVault {
                     }
                 }
             }
+            Event::Wheel { dy, .. } | Event::Scroll { dy, .. } if self.state.dialog.is_some() => {
+                self.state.dialog_offset =
+                    (self.state.dialog_offset - f32::from(dy) / self.f).clamp(0.0, 4000.0);
+            }
             Event::Wheel { dy, .. } | Event::Scroll { dy, .. } => {
                 self.state.offset =
                     (self.state.offset - f32::from(dy) / self.f).clamp(0.0, self.max);
             }
             Event::Back => self.act(Action::Back),
             Event::Key(k) => return self.key(k),
+            Event::File { bytes, .. } => self.read(bytes),
+            Event::FileUnavailable { .. } => self.state.open.stage = OpenStage::Unreadable,
+            Event::FileCancelled { .. } => self.state.open.stage = OpenStage::Empty,
+            Event::FileWritten { .. } => {
+                if let Some(name) = self.saving.take() {
+                    self.state.snack = Some(fill(EN.aqrv_saved, &[&name]));
+                }
+            }
+            Event::FileNotWritten { .. } => {
+                self.saving = None;
+                self.state.snack = Some(EN.aqrv_not_saved.to_owned());
+            }
             Event::Entropy(e) => {
                 if self.waiting.is_some() {
                     self.pool.extend_from_slice(&e.into_bytes());
