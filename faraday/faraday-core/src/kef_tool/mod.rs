@@ -150,6 +150,21 @@ fn wallet_text(app: &Faraday, i: usize) -> Option<(String, Option<[u8; 4]>)> {
     Some((w.policy().to_descriptor_checksummed(), fp))
 }
 
+/// A stick is attached: the typed text and the form's secret fields lose
+/// focus and, with `wipe`, what was typed.
+pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
+    if let Some(s) = st(app) {
+        s.typing = false;
+        if wipe {
+            s.typed.clear();
+        }
+        if let Some(f) = s.form.as_mut() {
+            f.stick_attached(wipe);
+        }
+    }
+    crate::wallet_backup::kef::stick_attached(app, wipe);
+}
+
 /// A press in the tool.
 pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
     match action {
@@ -171,15 +186,19 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
         }
         KefToolAction::Step(k) => step(app, k),
         KefToolAction::Pick(p) => {
+            let no_stick = app.stick.is_empty();
             if let Some(s) = st(app) {
                 s.pick = Some(p);
-                s.typing = p == Pick::Type;
+                s.typing = p == Pick::Type && no_stick;
                 s.wallet = None;
                 s.form = None;
                 s.done = [false; kstep::COUNT];
             }
         }
         KefToolAction::Field => {
+            if crate::stick::refuses_secret(app) {
+                return;
+            }
             if let Some(s) = st(app) {
                 s.typing = true;
             }
@@ -196,10 +215,15 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
         }
         KefToolAction::Next => {
             let Some(s) = st(app) else { return };
-            let text = s.typed.text.as_str().to_string();
-            if !text.is_empty() {
-                begin(app, text, None, None);
+            if s.typed.text.is_empty() {
+                return;
             }
+            if crate::stick::refuses_secret(app) {
+                return;
+            }
+            let Some(s) = st(app) else { return };
+            let text = s.typed.text.as_str().to_string();
+            begin(app, text, None, None);
         }
         KefToolAction::Form(a) => {
             with_form(app, |f, app| f.act(app, a));
@@ -349,6 +373,9 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
 }
 
 fn type_text(app: &mut Faraday, key: Key) -> bool {
+    if crate::stick::refuses_secret_key(app, key) {
+        return true;
+    }
     let Some(s) = st(app) else { return false };
     match key {
         Key::Char(c) if !c.is_control() => {

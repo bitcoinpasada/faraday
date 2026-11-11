@@ -2655,6 +2655,41 @@ fn the_set_source_asks_for_the_stick_to_be_pulled() {
     assert!(convert::state(&app).unwrap().set.is_none());
 }
 
+/// A share typed before a stick came is not held with the stick attached,
+/// is gone when it is pulled, and typing works again after.
+#[test]
+fn a_share_typed_before_a_stick_is_wiped_when_the_stick_refuses_it() {
+    let stick = || {
+        faraday_core::StorageEvent::Sticks(vec![faraday_core::StickInfo {
+            make: Default::default(),
+            serial: None,
+            id: "stick".into(),
+            label: "STICK".into(),
+            boot: false,
+            files: Vec::new(),
+            vaults: Vec::new(),
+        }])
+    };
+    let mut app = mainnet();
+    let c = testkit::compute();
+    app.session.keys.add_words(&c, ABOUT, "Test", None).unwrap();
+    open(&mut app);
+    app.press(Action::Convert(C::SetSource));
+    type_in(&mut app, SET_A);
+    app.storage(stick());
+    if app.sheet == Some(Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+    assert!(nothing_held(&app));
+    app.storage(faraday_core::StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Convert(C::SetSource));
+    app.event(Event::Key(Key::Enter));
+    assert!(nothing_held(&app), "the typed share is gone");
+    type_in(&mut app, SET_A);
+    app.event(Event::Key(Key::Enter));
+    assert!(!nothing_held(&app), "typing works with the stick pulled");
+}
+
 /// Rotate's Settings card, collapsed under its Result, shows the set's
 /// shape.
 #[test]

@@ -182,6 +182,42 @@ impl KefForm {
         self.check_shown = false;
     }
 
+    /// A stick is attached: the secret fields lose focus and, with `wipe`,
+    /// what was typed in them and the dice rolls.
+    pub(crate) fn stick_attached(&mut self, wipe: bool) {
+        if wipe {
+            self.pass.clear();
+            self.pass2.clear();
+            self.check.clear();
+            self.dice.close();
+        }
+        if matches!(
+            self.focus,
+            Some(Focus::Pass | Focus::PassAgain | Focus::Check | Focus::Dice(_))
+        ) {
+            self.focus = None;
+        }
+    }
+
+    /// Whether the stick rule refuses a secret press; the form's own
+    /// secrets go with it.
+    fn refused(&mut self, app: &mut Faraday) -> bool {
+        let refused = crate::stick::refuses_secret(app);
+        if refused {
+            self.stick_attached(true);
+        }
+        refused
+    }
+
+    /// [`Self::refused`] for a key.
+    fn refused_key(&mut self, app: &mut Faraday, key: Key) -> bool {
+        let refused = crate::stick::refuses_secret_key(app, key);
+        if refused {
+            self.stick_attached(true);
+        }
+        refused
+    }
+
     /// Whether the form holds something typed that is secret: the
     /// passphrase, the passphrase typed again to check, or dice rolls
     /// still being entered (for the clean state, `Faraday::clean`).
@@ -465,8 +501,10 @@ impl KefForm {
                 self.rows = r;
                 self.pin = 0;
             }
+            (Stage::Check, KefAct::CheckField) if self.refused(app) => {}
             (Stage::Check, KefAct::CheckField) => self.focus = Some(Focus::Check),
             (Stage::Check, KefAct::CheckEye) => self.check_shown = !self.check_shown,
+            (Stage::Check, KefAct::Compare) if self.refused(app) => {}
             (Stage::Check, KefAct::Compare) => self.compare(app),
             (Stage::Check, KefAct::CheckBack) => {
                 self.from_scan = false;
@@ -483,6 +521,8 @@ impl KefForm {
 
     fn entry_press(&mut self, app: &mut Faraday, a: KefAct) {
         match a {
+            KefAct::Field | KefAct::FieldAgain | KefAct::Dice | KefAct::DiceField
+                if self.refused(app) => {}
             KefAct::Field => self.focus = Some(Focus::Pass),
             KefAct::FieldAgain => self.focus = Some(Focus::PassAgain),
             KefAct::Eye => self.shown = !self.shown,
@@ -564,6 +604,9 @@ impl KefForm {
         if self.stage != Stage::Entry || matches!(p, Press::Roller(_)) && !app.roller_offered() {
             return;
         }
+        if self.refused(app) {
+            return;
+        }
         let out = self.with_dice(app, |d, env| d.press(p, env));
         self.apply(app, out);
     }
@@ -584,10 +627,20 @@ impl KefForm {
 
     fn typed(&mut self, app: &mut Faraday, key: Key) -> bool {
         if self.stage == Stage::Check {
+            if self.refused_key(app, key) {
+                return true;
+            }
             return self.check_key(app, key);
         }
         if self.stage != Stage::Entry {
             return false;
+        }
+        if matches!(
+            self.focus,
+            Some(Focus::Dice(_) | Focus::Pass | Focus::PassAgain)
+        ) && self.refused_key(app, key)
+        {
+            return true;
         }
         match self.focus {
             Some(Focus::Dice(part)) => {
@@ -787,6 +840,9 @@ impl KefForm {
         let Ok(envelope) = faraday_keys::kef::unwrap(&made.bytes) else {
             return;
         };
+        if self.refused(app) {
+            return;
+        }
         self.error = None;
         let pass = Zeroizing::new(self.check.text.as_str().as_bytes().to_vec());
         app.kef_open(pass, envelope, EN.kef_comparing);
@@ -899,6 +955,9 @@ impl KefForm {
 
     fn make(&mut self, app: &mut Faraday) {
         if self.stage != Stage::Entry || !self.passphrases_agree() {
+            return;
+        }
+        if self.refused(app) {
             return;
         }
         self.error = None;

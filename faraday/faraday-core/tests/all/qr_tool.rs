@@ -62,7 +62,7 @@ fn make_note(app: &mut Faraday, note: &str, pass: &str, name: &str) {
 fn open_code(keys: &mut Keys, c: &Compute, pass: &str, code: &[u8]) -> Result<QrHolds, QrError> {
     keys.qr_forget();
     let opened = QrOpenJob::new(code, pass).run(c)?;
-    Ok(keys.qr_hold(opened))
+    keys.qr_hold(opened)
 }
 
 #[test]

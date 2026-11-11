@@ -461,6 +461,9 @@ pub(crate) fn act(app: &mut Faraday, action: CoreWalletAction) {
             }
         }
         CoreWalletAction::Focus => {
+            if crate::stick::refuses_secret(app) {
+                return;
+            }
             if let Some(s) = st(app) {
                 s.typing = true;
             }
@@ -554,6 +557,9 @@ fn begin(app: &mut Faraday) -> Option<ReadWork> {
 /// A press on Read: starts the job that reads the chosen file with the
 /// passphrase typed, and keeps the Result's text when it comes back.
 fn read(app: &mut Faraday) {
+    if st(app).is_some_and(|s| s.holds_secret()) && crate::stick::refuses_secret(app) {
+        return;
+    }
     if let Some(work) = begin(app) {
         app.start(
             crate::worker::Job::CoreWalletRead(Box::new(work)),
@@ -635,6 +641,17 @@ fn take(app: &mut Faraday, pair: usize) {
     }
 }
 
+/// A stick is attached: the passphrase field loses focus and, with
+/// `wipe`, what was typed.
+pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
+    if let Some(s) = st(app) {
+        s.typing = false;
+        if wipe {
+            s.passphrase.clear();
+        }
+    }
+}
+
 /// The field typing goes to, with what is typed.
 pub(crate) fn field(app: &Faraday) -> Option<(Action, &str)> {
     if app.screen != Screen::CoreWallet {
@@ -657,6 +674,10 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
     if !s.typing {
         return false;
     }
+    if crate::stick::refuses_secret_key(app, key) {
+        return true;
+    }
+    let Some(s) = st(app) else { return false };
     match key {
         Key::Char(ch) if !ch.is_control() => {
             if s.passphrase.text.len() + ch.len_utf8() <= PASSPHRASE_MAX {

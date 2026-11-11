@@ -39,6 +39,54 @@ pub(crate) fn refuses(app: &mut Faraday, entry: bool) -> bool {
     true
 }
 
+/// The stick rule for a tool's own secret field (a passphrase, a password,
+/// a seed or a copy of a secret): while a stick is attached it takes no
+/// typing and no focus, and no press uses what was typed before it came.
+/// Returns whether it refused, with the vault's toast; what the tools hold
+/// typed is wiped and their focus cleared.
+pub(crate) fn refuses_secret(app: &mut Faraday) -> bool {
+    if app.stick.is_empty() {
+        return false;
+    }
+    tools_lose_secrets(app, true);
+    let line = keys_load(app.medium);
+    app.toast(&line);
+    true
+}
+
+/// [`refuses_secret`] for a key that types into the field or goes on from
+/// it (a character, a backspace, Enter or Tab); the other keys move and
+/// are not refused.
+pub(crate) fn refuses_secret_key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
+    use faraday_shell_api::Key;
+    matches!(
+        key,
+        Key::Char(_) | Key::Backspace | Key::Delete | Key::Enter | Key::Tab
+    ) && refuses_secret(app)
+}
+
+/// The tools' secret fields lose focus, and with `wipe` what is typed in
+/// them goes too: a stick arrived, or the stick rule refused.
+pub(crate) fn tools_lose_secrets(app: &mut Faraday, wipe: bool) {
+    crate::core_wallet::tool::stick_attached(app, wipe);
+    crate::qr_tool::stick_attached(app, wipe);
+    crate::kef_tool::stick_attached(app, wipe);
+    crate::convert::stick_attached(app, wipe);
+}
+
+/// With a stick attached, no tool's secret field has focus, whatever press
+/// or answer just set it: called where a tool's state changes, so no path
+/// needs its own check. Convert's fields are opened by their card and are
+/// closed on arrival ([`tools_lose_secrets`]) instead.
+pub(crate) fn keep_focus_off(app: &mut Faraday) {
+    if app.stick.is_empty() {
+        return;
+    }
+    crate::core_wallet::tool::stick_attached(app, false);
+    crate::qr_tool::stick_attached(app, false);
+    crate::kef_tool::stick_attached(app, false);
+}
+
 /// Whether typing at `focus` is a secret the stick rule refuses
 /// ([`refuses`]); an entry's field (editing an entry, too) is one.
 pub(crate) fn refuses_focus(app: &mut Faraday, focus: Focus) -> bool {

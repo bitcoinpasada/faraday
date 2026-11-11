@@ -58,6 +58,9 @@ pub(super) fn press(app: &mut Faraday) {
     if s.pass.text.is_empty() || s.holds.is_some() {
         return;
     }
+    if crate::stick::refuses_secret(app) {
+        return;
+    }
     let cost = match qr_cost(&code) {
         Ok(cost) => cost,
         Err(e) => return say(app, open_line(&e)),
@@ -86,7 +89,13 @@ pub(crate) fn opened(app: &mut Faraday, done: OpenDone) {
     }
     match opened {
         Ok(item) => {
-            let holds = app.session.keys.qr_hold(item);
+            let Ok(holds) = app.session.keys.qr_hold(item) else {
+                crate::stick::refuses_secret(app);
+                if let Some(s) = st(app) {
+                    s.wipe_typed();
+                }
+                return;
+            };
             if let Some(s) = st(app) {
                 s.wipe_typed();
                 s.holds = Some(holds);

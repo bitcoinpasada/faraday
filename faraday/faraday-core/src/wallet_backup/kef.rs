@@ -291,6 +291,14 @@ pub(crate) fn dropped(app: &mut Faraday) {
     }
 }
 
+/// A stick is attached: every form's secret fields lose focus and, with
+/// `wipe`, what was typed.
+pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
+    for i in app.backup.kef_seeds() {
+        with_form(app, i, |f, _| f.stick_attached(wipe));
+    }
+}
+
 /// Closes the eyes of the forms: the idle warning.
 pub(crate) fn hide(app: &mut Faraday) {
     for i in app.backup.kef_seeds() {
@@ -470,6 +478,7 @@ pub(crate) fn act(app: &mut Faraday, a: KefAct) {
         .kef_open()
         .is_some_and(|i| app.backup.kef_form(i).is_some_and(|f| f.made().is_some()));
     with_open(app, |f, app| f.act(app, a));
+    crate::stick::keep_focus_off(app);
     poll(app);
     if let Some(i) = app.backup.kef_open()
         && (before || app.backup.kef_form(i).is_some_and(|f| f.made().is_some()))
@@ -580,6 +589,7 @@ pub(crate) fn tidy(app: &mut Faraday) {
             .is_some_and(KefForm::options_open)
     {
         with_open(app, |f, app| f.act(app, KefAct::Back));
+        crate::stick::keep_focus_off(app);
     }
 }
 

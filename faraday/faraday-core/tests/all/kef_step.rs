@@ -7,6 +7,7 @@ use crate::common::{Disk, Shell, board, open_item, take_off, type_text};
 use faraday_core::backup_flow::Step;
 use faraday_core::backup_flow::steps::FlowAction as F;
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Verb, Zone};
+use faraday_core::dice_entry::Press;
 use faraday_core::kef_form::KefAct;
 use faraday_core::kef_tool::KefToolAction as K;
 use faraday_core::plan::{Item, Preset};
@@ -16,7 +17,7 @@ use faraday_shell_api::{App, EntropyBytes, Event, Key};
 
 /// A one-key wallet whose plan keeps seed A's Krux code on a new stick,
 /// at the checklist.
-fn at_the_checklist() -> Faraday {
+pub(crate) fn at_the_checklist() -> Faraday {
     at_the_checklist_on(1)
 }
 
@@ -1270,4 +1271,109 @@ fn a_record_kept_before_paper_was_kept_reads_as_before() {
     app.press(Action::Backup(w));
     plan_the_code(&mut app, 1);
     assert!(done(&app), "Checked after the older record was read");
+}
+
+/// With a stick attached the Krux code item takes no passphrase, typed or
+/// rolled, and a code is not made from one typed before the stick came.
+#[test]
+fn with_a_stick_attached_the_krux_code_takes_no_passphrase() {
+    let line = "Keys load only with no stick attached";
+    let stick = |on: bool| {
+        StorageEvent::Sticks(if on {
+            vec![faraday_core::StickInfo {
+                make: Default::default(),
+                serial: None,
+                id: "a".into(),
+                label: "STICK".into(),
+                boot: false,
+                files: Vec::new(),
+                vaults: Vec::new(),
+            }]
+        } else {
+            Vec::new()
+        })
+    };
+    let mut app = at_the_checklist();
+    open_item(&mut app, bstep::KEF);
+    app.press(Action::KefTool(K::Backup(KefAct::Field)));
+    type_in(&mut app, "a passphrase");
+    app.press(Action::KefTool(K::Backup(KefAct::FieldAgain)));
+    type_in(&mut app, "a passphrase");
+    app.storage(stick(true));
+    if app.sheet == Some(faraday_core::Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+    open_item(&mut app, bstep::KEF);
+    app.event(Event::Key(Key::Enter));
+    app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    testkit::settle(&mut app);
+    assert!(kef_files(&app).is_empty(), "no code from the passphrase");
+    assert_eq!(app.toast_text(), Some(line));
+    app.storage(stick(false));
+    app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    testkit::settle(&mut app);
+    assert!(
+        kef_files(&app).is_empty(),
+        "the passphrase typed before is gone"
+    );
+}
+
+/// Dice rolled before a stick came do not become the Krux code item's
+/// passphrase while it is attached, and the Options sheet closing does not
+/// give the passphrase field focus.
+#[test]
+fn with_a_stick_attached_rolled_dice_are_not_used_and_options_gives_no_focus() {
+    let stick = |on: bool| {
+        StorageEvent::Sticks(if on {
+            vec![faraday_core::StickInfo {
+                make: Default::default(),
+                serial: None,
+                id: "a".into(),
+                label: "STICK".into(),
+                boot: false,
+                files: Vec::new(),
+                vaults: Vec::new(),
+            }]
+        } else {
+            Vec::new()
+        })
+    };
+    let mut app = at_the_checklist();
+    open_item(&mut app, bstep::KEF);
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Rounds)));
+    for _ in 0..8 {
+        app.event(Event::Key(Key::Backspace));
+    }
+    type_in(&mut app, "10000");
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    app.press(Action::KefTool(K::Backup(KefAct::Dice)));
+    app.press(Action::KefTool(K::Backup(KefAct::DiceField)));
+    type_in(&mut app, &"12345".repeat(6));
+    app.storage(stick(true));
+    if app.sheet == Some(faraday_core::Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+    open_item(&mut app, bstep::KEF);
+    app.press(Action::KefTool(K::BackupDice(Press::Use)));
+    assert_eq!(
+        app.toast_text(),
+        Some("Keys load only with no stick attached")
+    );
+    app.storage(stick(false));
+    app.press(Action::KefTool(K::Backup(KefAct::Make)));
+    testkit::settle(&mut app);
+    assert!(kef_files(&app).is_empty(), "the rolls are gone");
+    app.storage(stick(true));
+    if app.sheet == Some(faraday_core::Sheet::Lock) {
+        app.press(Action::NotNow);
+    }
+    open_item(&mut app, bstep::KEF);
+    app.press(Action::KefTool(K::Backup(KefAct::Options)));
+    app.press(Action::KefTool(K::Backup(KefAct::Back)));
+    app.event(Event::Key(Key::Char('x')));
+    assert_ne!(
+        app.toast_text(),
+        Some("Keys load only with no stick attached")
+    );
 }

@@ -139,6 +139,15 @@ impl ConvertArea {
             .is_some_and(|s| s.set.is_some() && s.open == Some(cstep::FROM))
     }
 
+    /// The share entry card closes, so its field has no focus.
+    pub(crate) fn close_share_entry(&mut self) {
+        if self.entering_share()
+            && let Some(s) = self.state.as_mut()
+        {
+            s.open = None;
+        }
+    }
+
     /// The entry opens again on a set already held: what is held and what
     /// the cards show stay as they are.
     fn reopen_set(&mut self, ready: bool) {
@@ -274,7 +283,12 @@ fn hold(app: &mut Faraday) {
             area.set_typed.clear();
             None
         }
-        Err(r) => Some(refused_text(&r, medium)),
+        Err(r) => {
+            if matches!(r, SetRefused::Stick(_)) {
+                area.set_typed.clear();
+            }
+            Some(refused_text(&r, medium))
+        }
     };
     area.drop_result(false);
     if let Some(s) = area.state.as_mut() {

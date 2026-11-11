@@ -160,7 +160,7 @@ fn opened_code(app: &mut Faraday) -> (Keys, QrHolds) {
     let c: Compute = testkit::compute();
     let mut keys = Keys::default();
     let opened = QrOpenJob::new(&item.bytes, PASS).run(&c).unwrap();
-    let holds = keys.qr_hold(opened);
+    let holds = keys.qr_hold(opened).unwrap();
     (keys, holds)
 }
 

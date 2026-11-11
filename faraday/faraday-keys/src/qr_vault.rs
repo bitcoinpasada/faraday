@@ -75,6 +75,8 @@ pub enum QrPassOffer {
 pub enum QrError {
     /// The passphrase is empty.
     EmptyPassphrase,
+    /// A stick is attached, named here, and no code is held while one is.
+    Stick(&'static str),
     /// The passphrase or the Argon2id memory could not be allocated: the
     /// MiB it needs.
     Memory(u32),
@@ -328,10 +330,15 @@ impl Keys {
 
     /// Holds what an opened code gave, in place of any item held before
     /// (wiped first). Says what it holds, with no secret in it. A move.
-    pub fn qr_hold(&mut self, opened: QrOpened) -> QrHolds {
+    /// Refused ([`QrError::Stick`]) while a stick is attached, as every
+    /// way a key is added is; what was held stays.
+    pub fn qr_hold(&mut self, opened: QrOpened) -> Result<QrHolds, QrError> {
+        if let Some(noun) = self.stick_attached() {
+            return Err(QrError::Stick(noun));
+        }
         let holds = opened.item.holds();
         self.qr_item = Some(opened.item);
-        holds
+        Ok(holds)
     }
 
     /// What is held, with no secret in it (a lookup); `None` when no code

@@ -650,6 +650,12 @@ impl ConvertArea {
         }
     }
 
+    /// A share typed and what is typed to check are wiped.
+    fn wipe_typed(&mut self) {
+        self.set_typed.clear();
+        self.clear_check();
+    }
+
     /// Clears what is typed.
     fn clear_check(&mut self) {
         self.found = None;
@@ -1419,6 +1425,18 @@ fn forget_held(app: &mut Faraday) {
     app.session.keys.slip39_set_forget();
 }
 
+/// A stick is attached: the share entry and Check my copy close, and the
+/// share and the copy typed go (whether or not `wipe` asks: a closed field
+/// keeps nothing).
+pub(crate) fn stick_attached(app: &mut Faraday, _wipe: bool) {
+    // The share entry and Check my copy are the secret fields: they close,
+    // and what they held is wiped with them.
+    let area = app.tools.convert_mut();
+    area.wipe_typed();
+    area.check = None;
+    area.close_share_entry();
+}
+
 /// A press in the flow.
 pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
     match action {
@@ -1495,8 +1513,22 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         ConvertAction::Check if checks_by_scan(app) => {
             scan_open(app);
         }
-        ConvertAction::Check => app.tools.convert_mut().toggle_check(),
-        ConvertAction::Compare => app.tools.convert_mut().compare(),
+        ConvertAction::Check => {
+            let opening = app.tools.convert().check().is_none();
+            if !(opening && crate::stick::refuses_secret(app)) {
+                app.tools.convert_mut().toggle_check();
+            }
+        }
+        ConvertAction::Compare => {
+            let typed = app
+                .tools
+                .convert()
+                .check()
+                .is_some_and(|c| !c.typed.is_empty());
+            if !(typed && crate::stick::refuses_secret(app)) {
+                app.tools.convert_mut().compare();
+            }
+        }
         ConvertAction::CheckClear => app.tools.convert_mut().clear_check(),
         ConvertAction::Save if state(app).is_some_and(|s| s.set.is_some()) => set::save(app),
         ConvertAction::Save => save(app),
@@ -1513,6 +1545,10 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
 pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
     if app.screen != Screen::Convert || app.sheet.is_some() || state(app).is_none() {
         return false;
+    }
+    let typing = app.tools.convert().entering_share() || app.tools.convert().check().is_some();
+    if typing && crate::stick::refuses_secret_key(app, key) {
+        return true;
     }
     if set::key(app, key) {
         return true;

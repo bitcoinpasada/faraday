@@ -104,7 +104,7 @@ fn note(text: &str) -> Record {
 /// new open is the tool's job, not this store's.
 fn open_code(keys: &mut Keys, c: &Compute, pass: &str, code: &[u8]) -> Result<QrHolds, QrError> {
     let opened = QrOpenJob::new(code, pass).run(c)?;
-    Ok(keys.qr_hold(opened))
+    keys.qr_hold(opened)
 }
 
 #[test]
@@ -557,4 +557,21 @@ fn a_memory_step_outside_the_seal_steps_is_refused() {
         qr_seal_note_job("x", PASS, 12, Zeroizing::new(RANDOM)).run(&c),
         Err(QrError::Cost)
     );
+}
+
+#[test]
+fn a_code_is_not_held_while_a_stick_is_attached() {
+    let c = compute();
+    let code = qr_seal_note_job("a note", PASS, EXPONENT, Zeroizing::new(RANDOM))
+        .run(&c)
+        .unwrap();
+    let mut keys = Keys::on(Network::Mainnet);
+    keys.set_stick_attached(Some("stick"));
+    assert_eq!(
+        open_code(&mut keys, &c, PASS, &code),
+        Err(QrError::Stick("stick"))
+    );
+    assert_eq!(keys.qr_holds(), None);
+    keys.set_stick_attached(None);
+    assert_eq!(open_code(&mut keys, &c, PASS, &code), Ok(QrHolds::Note));
 }

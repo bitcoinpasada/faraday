@@ -23,8 +23,8 @@ mod open;
 pub(crate) mod screen;
 mod seal;
 
-pub(crate) use open::{OpenDone, OpenWork, open_stopped, opened};
-pub(crate) use seal::{SealDone, SealWork, seal_stopped, sealed};
+pub(crate) use open::{OpenDone, OpenWork};
+pub(crate) use seal::{SealDone, SealWork};
 
 use crate::strings::{EN, fill};
 
@@ -379,6 +379,45 @@ pub(crate) fn open_code(app: &mut Faraday, bytes: Vec<u8>) {
         s.open = Some(qstep::CONTENTS);
         s.focus = Some(Field::Pass);
     }
+    crate::stick::keep_focus_off(app);
+}
+
+/// The open's answer arrives; with a stick attached no secret field has
+/// focus after it.
+pub(crate) fn opened(app: &mut Faraday, done: OpenDone) {
+    open::opened(app, done);
+    crate::stick::keep_focus_off(app);
+}
+
+/// The open is stopped, as [`opened`] keeps focus.
+pub(crate) fn open_stopped(app: &mut Faraday) {
+    open::open_stopped(app);
+    crate::stick::keep_focus_off(app);
+}
+
+/// The seal's answer arrives, as [`opened`] keeps focus.
+pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
+    seal::sealed(app, done);
+    crate::stick::keep_focus_off(app);
+}
+
+/// The seal is stopped, as [`opened`] keeps focus.
+pub(crate) fn seal_stopped(app: &mut Faraday) {
+    seal::seal_stopped(app);
+    crate::stick::keep_focus_off(app);
+}
+
+/// A stick is attached: the fields lose focus and, with `wipe`, what was
+/// typed in them.
+pub(crate) fn stick_attached(app: &mut Faraday, wipe: bool) {
+    if let Some(s) = st(app) {
+        if s.focus != Some(Field::Name) {
+            s.focus = None;
+        }
+        if wipe {
+            s.wipe_typed();
+        }
+    }
 }
 
 /// A press in the tool.
@@ -402,6 +441,9 @@ pub(crate) fn act(app: &mut Faraday, action: QrToolAction) {
             }
         }
         QrToolAction::Focus(f) => {
+            if f != Field::Name && crate::stick::refuses_secret(app) {
+                return;
+            }
             if let Some(s) = st(app) {
                 s.focus = Some(f);
             }
@@ -522,6 +564,10 @@ fn make(app: &mut Faraday) {
     if !s.passphrase_ready() || (pick == Pick::Note && s.note.text.is_empty()) {
         return;
     }
+    if (pick == Pick::Note || !s.pass.text.is_empty()) && crate::stick::refuses_secret(app) {
+        return;
+    }
+    let Some(s) = st(app) else { return };
     let (note, pass) = (
         Zeroizing::new(s.note.text.as_str().to_string()),
         Zeroizing::new(s.pass.text.as_str().to_string()),
@@ -693,6 +739,9 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
 }
 
 fn type_in(app: &mut Faraday, f: Field, key: Key) -> bool {
+    if f != Field::Name && crate::stick::refuses_secret_key(app, key) {
+        return true;
+    }
     let Some(s) = st(app) else { return false };
     let box_ = match f {
         Field::Note => &mut s.note,

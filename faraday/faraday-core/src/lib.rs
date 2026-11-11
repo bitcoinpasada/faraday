@@ -1701,6 +1701,7 @@ impl Faraday {
         ) {
             self.vaults.set_focus(None);
         }
+        stick::tools_lose_secrets(self, false);
         // The backup flow on screen takes the stick: never the visit, at any
         // step (`docs/BACKUP-FLOW.md` §5).
         if self.flow_stick_arrived() {

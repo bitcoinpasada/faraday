@@ -476,6 +476,7 @@ impl Faraday {
             crate::Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),
             _ => {}
         }
+        crate::stick::keep_focus_off(self);
     }
 
     /// Typing into one of those tools. Returns whether the key was taken.
