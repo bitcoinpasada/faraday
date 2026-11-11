@@ -450,9 +450,12 @@ fn a_vault_closed_for_not_being_the_one_asked_for_leaves_the_nonce_history_at_on
     type_text(&mut app, PHRASE_2);
     faraday_core::testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
     let mut closed = false;
-    for t in 100..400u64 {
+    for t in 100..140u64 {
         let _ = app.frame();
         app.event(faraday_shell_api::Event::Tick { now_ms: t * 1000 });
+        // Waits for the worker's answer and takes it as a tick does,
+        // without the settling a press brings.
+        faraday_core::testkit::settle(&mut app);
         if has_part(&mut app, "b.kdbx is not Vault 1") {
             closed = true;
             break;
