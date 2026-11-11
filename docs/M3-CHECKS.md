@@ -66,8 +66,11 @@ No new state on the app. Two small additions, both read-only:
 - `Reach` gains `cut: bool`: the control's box as asked was cut by its
   clip (scrolled part-way out of its region, or under a reveal). Set in
   `Ui::hit`, where the uncut box is already computed for `Ui::cut`.
+- `Reach` gains `grown: Rect`: the target as grown and clipped, before it
+  was cut back for a neighbour (§1), so a side the clip alone trimmed is
+  told from one a neighbour trimmed.
 - `Faraday::drawn_targets()`: each press the last frame offers, in
-  drawing order, as `(Action, target, drawn, cut)` in pixels: the
+  drawing order, as `(Action, target, drawn, cut, grown)` in pixels: the
   pointer's `reach`, and for a hit with no target left (trimmed, §1) its
   box, marked cut. A lookup, beside `Faraday::hit_box` in
   `faraday/faraday-core/src/lib.rs`.
@@ -83,6 +86,10 @@ A target is counted when it is under the floor and:
 
 - its control is not cut by a clip (§2.1): a row half scrolled out is
   pressed by scrolling it in, as a person does;
+- its control is fully in view but its target is short only because its
+  clip trims it, at a scrolled region's or the screen's edge: a person
+  scrolls it off the edge. A side a neighbour also trimmed (`target`
+  smaller than `grown` there) is counted;
 - it is not an exception listed in §3 at that size class;
 - it is not `hit_around`'s press beside a sheet, which has no target
   (already true: `Ui::hit` keeps it out of `reach`).

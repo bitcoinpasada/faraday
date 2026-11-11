@@ -566,11 +566,11 @@ impl Tour {
             .app
             .drawn_targets()
             .into_iter()
-            .filter(|(a, t, _, cut)| {
-                !cut && (t.w + 1 < floor || t.h + 1 < floor)
+            .filter(|(a, t, _, cut, g)| {
+                !cut && crate::targets::short(*t, *g, floor)
                     && !crate::targets::excepted(&format!("{a:?}"), small)
             })
-            .map(|(action, t, d, _)| Small {
+            .map(|(action, t, d, _, _)| Small {
                 step: format!("{:02}-{name}", self.n),
                 screen: format!("{:?}", self.app.screen),
                 sheet: self.app.sheet.map(|s| format!("{s:?}")),

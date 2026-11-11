@@ -35,6 +35,14 @@ use faraday_starter::{LearnId, Starter, StarterAction};
     clippy::disallowed_methods,
     reason = "a mint: the Starter's snapshots, which draw nothing"
 )]
+/// Whether target `t`, `g` before any neighbour cut it back, is counted
+/// as under the `floor` (`docs/M3-CHECKS.md` §2.2): it is when a side is
+/// short and a neighbour trimmed that side; a side only its clip trims
+/// is not counted.
+fn short(t: faraday_draw::geom::Rect, g: faraday_draw::geom::Rect, floor: i32) -> bool {
+    (t.w + 1 < floor && t.w < g.w) || (t.h + 1 < floor && t.h < g.h)
+}
+
 fn compute() -> faraday_crypto::work::Compute {
     faraday_crypto::work::Compute::new(|_| {})
 }
@@ -278,8 +286,8 @@ impl Snap<'_> {
         starter
             .drawn_targets()
             .into_iter()
-            .filter(|(_, t, _, cut)| !cut && (t.w + 1 < floor || t.h + 1 < floor))
-            .map(|(action, t, d, _)| Small {
+            .filter(|(_, t, _, cut, g)| !cut && short(*t, *g, floor))
+            .map(|(action, t, d, _, _)| Small {
                 step: name.to_string(),
                 screen: format!("{:?}", starter.page),
                 sheet: starter.sheet.map(|s| format!("{s:?}")),

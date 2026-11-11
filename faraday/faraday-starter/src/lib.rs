@@ -1316,13 +1316,13 @@ impl Starter {
     }
 
     /// Each press the Starter's own last frame offers, in drawing order,
-    /// as (action, target, drawn, cut), pixels: for the touch-target test
+    /// as (action, target, drawn, cut, grown), pixels: for the touch-target test
     /// over the snapshot example's frames (`docs/M3-CHECKS.md` §2). A
     /// lookup.
-    pub fn drawn_targets(&self) -> Vec<(Action, Rect, Rect, bool)> {
+    pub fn drawn_targets(&self) -> Vec<(Action, Rect, Rect, bool, Rect)> {
         self.reach
             .iter()
-            .map(|t| (t.action, t.target, t.drawn, t.cut))
+            .map(|t| (t.action, t.target, t.drawn, t.cut, t.grown))
             .collect()
     }
 

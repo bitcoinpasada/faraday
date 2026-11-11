@@ -34,6 +34,9 @@ pub struct Reach<A> {
     /// The control's box as asked was cut by its clip (scrolled part-way
     /// out of its region, or under a reveal).
     pub cut: bool,
+    /// `target` as grown and clipped, before it was cut back for any
+    /// neighbour: what the clip alone leaves of it.
+    pub grown: Rect,
 }
 
 /// Where the keyboard moves among `order`, the controls in the order a
@@ -239,6 +242,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             drawn.h + gh,
         )
         .intersect(&clip);
+        let grown = target;
         if gw > 0 || gh > 0 {
             for r in self.reach.iter_mut() {
                 if r.target.intersect(&target).is_empty() {
@@ -254,6 +258,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             drawn,
             action,
             cut,
+            grown,
         });
     }
 

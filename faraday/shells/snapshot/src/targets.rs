@@ -15,6 +15,14 @@ pub(crate) fn kind(action: &str) -> &str {
     action.split(['(', ' ', '{']).next().unwrap_or(action)
 }
 
+/// Whether target `t`, `g` before any neighbour cut it back, is counted
+/// as under the `floor` (`docs/M3-CHECKS.md` §2.2): it is when a side is
+/// short and a neighbour trimmed that side; a side only its clip trims
+/// is not counted.
+pub(crate) fn short(t: faraday_draw::geom::Rect, g: faraday_draw::geom::Rect, floor: i32) -> bool {
+    (t.w + 1 < floor && t.w < g.w) || (t.h + 1 < floor && t.h < g.h)
+}
+
 /// Whether a target of `action` (its `Debug` text) is an exception of
 /// `docs/M3-CHECKS.md` §3 on a layout of the small class (a window under
 /// 600 dp wide: the 240 × 320 and 480 × 640 panels), where it cannot be
