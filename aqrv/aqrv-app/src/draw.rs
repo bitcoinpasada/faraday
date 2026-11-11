@@ -6,7 +6,7 @@
 use aqrv::{Size, Step};
 use faraday_draw::Color;
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, BODY_S, FIELD_PAD, GAP, GAP_SMALL, PAD, TITLE_M, TITLE_S, TOUCH,
+    BODY_L, BODY_M, BODY_S, FIELD_PAD, GAP, GAP_SMALL, LABEL_L, PAD, TITLE_M, TITLE_S, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 use faraday_strings::{EN, fill};
@@ -217,6 +217,7 @@ fn item(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
 
 fn size_label(s: Size) -> &'static str {
     match s {
+        Size::Tiny => EN.aqrv_size_25,
         Size::Small => EN.aqrv_size_29,
         Size::Large => EN.aqrv_size_33,
     }
@@ -234,8 +235,17 @@ fn memory_label(s: Step) -> &'static str {
 
 fn time_label(st: &State, s: Step) -> String {
     match st.seconds(s) {
-        Some(t) => fill(EN.aqrv_seconds, &[&format!("{}", t.ceil().max(1.0))]),
+        Some(t) => fill(EN.aqrv_seconds, &[&seconds(t)]),
         None => EN.aqrv_timing.to_owned(),
+    }
+}
+
+/// A time in seconds, rounded up: one decimal under 10 s, else whole.
+fn seconds(t: f32) -> String {
+    if t < 10.0 {
+        format!("{:.1}", (t * 10.0).ceil().max(1.0) / 10.0)
+    } else {
+        format!("{}", t.ceil())
     }
 }
 
@@ -245,15 +255,13 @@ fn settings(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
     ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, EN.aqrv_settings_size);
     y += ui.line_as(TITLE_S) + GAP;
-    for s in SIZES {
-        let style = match (st.size == s, st.fits(s)) {
-            (true, _) => Style::Selected,
-            (false, true) => Style::Secondary,
-            (false, false) => Style::Disabled,
-        };
-        y += button(ui, (x, y, w), size_label(s), style, Action::Size(s));
-    }
-    y += GAP;
+    // A size the item does not fit does nothing when pressed.
+    let options: Vec<(&str, Action)> = SIZES
+        .iter()
+        .map(|&s| (size_label(s), Action::Size(s)))
+        .collect();
+    let chosen = SIZES.iter().position(|&s| s == st.size);
+    y += ui.choices((x, y, w, 40.0), LABEL_L.size, &options, chosen) + GAP;
     ui.text_as(
         x,
         y,
@@ -376,6 +384,17 @@ fn code(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
         );
     }
     y += GAP;
+    if let Some(text) = &made.text {
+        ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, EN.aqrv_text);
+        y += ui.line_as(TITLE_S) + GAP_SMALL;
+        let chars: Vec<char> = text.chars().collect();
+        for chunk in chars.chunks(16) {
+            let line: String = chunk.iter().collect();
+            ui.code_box(x, y, BODY_M.size, &line);
+            y += ui.code_height(BODY_M.size) + GAP_SMALL;
+        }
+        y += GAP;
+    }
     y += button(
         ui,
         (x, y, w),

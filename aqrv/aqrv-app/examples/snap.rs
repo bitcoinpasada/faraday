@@ -132,6 +132,14 @@ fn run(size: (u16, u16), dpi: u16, dir: &Path) -> Result<(), String> {
     s.app.tap(Action::ShowWorking);
     s.app.finish_work();
     s.shot("make-working-dialog")?;
+    for _ in 0..40 {
+        s.app.event(Event::Scroll {
+            x: 100,
+            y: 100,
+            dy: -400,
+        });
+    }
+    s.shot("make-working-dialog-end")?;
     s.app.tap(Action::CloseDialog);
     s.app.tap(Action::SavePicture);
     s.app.tap(Action::SaveFile);
@@ -140,6 +148,18 @@ fn run(size: (u16, u16), dpi: u16, dir: &Path) -> Result<(), String> {
     s.app.tap(Action::About);
     s.shot("about")?;
     s.app.tap(Action::CloseDialog);
+    s.app.tap(Action::Again);
+    s.app.tap(Action::Sample(0));
+    s.app.tap(Action::Next);
+    s.app.tap(Action::Step(Step::Mib64));
+    s.typed(Field::Pass, PASS);
+    s.typed(Field::Again, PASS);
+    s.app.tap(Action::Size(Size::Tiny));
+    s.shot("make-settings-tiny")?;
+    s.app.tap(Action::Make);
+    s.serve();
+    s.app.finish_work();
+    s.shot("make-code-tiny")?;
 
     let file = written
         .iter()

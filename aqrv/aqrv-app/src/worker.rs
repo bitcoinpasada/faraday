@@ -135,6 +135,8 @@ pub struct Made {
     pub bytes: Vec<u8>,
     /// The QR code of those bytes, kept to draw from.
     pub matrix: QrMatrix,
+    /// The 47-character text form the 32-byte size's code holds (§3).
+    pub text: Option<String>,
     /// The size.
     pub size: Size,
     /// The memory step.
@@ -242,16 +244,18 @@ fn answer(c: &Compute, job: Job) -> Answer {
 /// An envelope's own bytes (a `.aqrv` file), or the first code in a PNG
 /// that is one.
 fn read(c: &Compute, bytes: &[u8]) -> Option<(Vec<u8>, Header)> {
-    if let Some(header) = aqrv::recognise(bytes) {
+    if let Some(header) = aqrv::recognise_file(bytes) {
         return Some((bytes.to_vec(), header));
     }
     if !bytes.starts_with(&[0x89, b'P', b'N', b'G']) {
         return None;
     }
     let codes = faraday_files::qr_in_png(c, bytes).ok()?;
-    codes
-        .iter()
-        .find_map(|code| aqrv::recognise(code).map(|h| (code.clone(), h)))
+    codes.iter().find_map(|code| {
+        let envelope = aqrv::recognise_code(code)?;
+        let header = aqrv::recognise(&envelope)?;
+        Some((envelope, header))
+    })
 }
 
 fn open(c: &Compute, envelope: &[u8], passphrase: &str) -> Result<Shown, NotOpened> {
@@ -392,15 +396,23 @@ fn make(
         Err(Refused::NotEnoughMemory) => return Err(Fail::NotEnoughMemory),
         Err(_) => return Err(Fail::Refused),
     };
-    let ecc = match size {
-        Size::Small => Ecc::Low,
-        Size::Large => Ecc::Medium,
+    // The 32-byte size is carried as its text in alphanumeric mode,
+    // version 2 at level L; the others as their bytes (§9).
+    let text = match <&[u8; 32]>::try_from(bytes.as_slice()) {
+        Ok(b) if size == Size::Tiny => Some(aqrv::to_text(b)),
+        _ => None,
     };
-    let matrix = encode(c, Payload::Bytes(&bytes), ecc).map_err(|_| Fail::Refused)?;
+    let matrix = match (&text, size) {
+        (Some(t), _) => encode(c, Payload::Alphanumeric(t.as_bytes()), Ecc::Low),
+        (None, Size::Large) => encode(c, Payload::Bytes(&bytes), Ecc::Medium),
+        (None, _) => encode(c, Payload::Bytes(&bytes), Ecc::Low),
+    }
+    .map_err(|_| Fail::Refused)?;
     let png = picture(&matrix).ok_or(Fail::Refused)?;
     Ok(Made {
         bytes,
         matrix,
+        text,
         size,
         step,
         png,

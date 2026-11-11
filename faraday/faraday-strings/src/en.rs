@@ -14043,6 +14043,12 @@ strings! {
     /// Make, the settings: the size heading.
     #[cfg(feature = "aqrv")]
     aqrv_settings_size: "Size",
+    /// A code size: the 32-byte one.
+    #[cfg(feature = "aqrv")]
+    aqrv_size_25: "25 × 25 · 4-byte tag",
+    /// A made code's text form, as the hex bytes have a label.
+    #[cfg(feature = "aqrv")]
+    aqrv_text: "Text",
     /// A code size: the small one.
     #[cfg(feature = "aqrv")]
     aqrv_size_29: "29 × 29 · 4-byte tag",

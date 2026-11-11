@@ -8,7 +8,7 @@ use crate::samples::SAMPLES;
 use crate::worker::{Fail, Made, Shown, Working};
 
 /// The sizes the choice offers, smallest first.
-pub const SIZES: [Size; 2] = [Size::Small, Size::Large];
+pub const SIZES: [Size; 3] = [Size::Tiny, Size::Small, Size::Large];
 
 /// The app's two tabs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -374,6 +374,11 @@ fn own_item(kind: OwnKind, text: &str) -> Option<Item> {
 }
 
 fn fits(item: &Item, size: Size) -> bool {
+    if let Some(kind) = item.kind()
+        && !size.holds(kind)
+    {
+        return false;
+    }
     match item {
         Item::Entropy(bytes) => bytes.len() <= size.room(),
         Item::RawKey(_) => 32 <= size.room(),
@@ -384,6 +389,7 @@ fn fits(item: &Item, size: Size) -> bool {
         Item::Codex32(s) => {
             let seed = s.len().saturating_sub(22) * 5 / 8;
             seed <= match size {
+                Size::Tiny => 0,
                 Size::Small => 24,
                 Size::Large => 32,
             }
