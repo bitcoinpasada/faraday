@@ -10,6 +10,8 @@
 //! unlocking and creating, Argon2id, runs on the tick after a frame that
 //! says it is working has been drawn.
 
+mod act_create;
+mod act_state;
 mod area;
 pub(crate) mod copy;
 pub(crate) mod copy_screen;
@@ -379,6 +381,10 @@ impl Faraday {
         ) {
             self.list_offset = 0.0;
         }
+        let may_load = self.may_load_keys();
+        if self.vaults.create_card_act(a, may_load) || self.vaults.state_act(a, may_load) {
+            return;
+        }
         match a {
             V::Search(s) => self.vaults.search_act(s),
             V::Open(i) => {
@@ -438,11 +444,6 @@ impl Faraday {
                 self.vaults.state.just_made = None;
                 self.secret_sheet_waits();
                 self.screen = Screen::Vaults;
-            }
-            V::EachShown(v) => {
-                if let Some(o) = self.vaults.state.open.get_mut(v) {
-                    o.each_shown = !o.each_shown;
-                }
             }
             V::LoadKeyOf(fp, at) => {
                 let found = self
@@ -537,29 +538,14 @@ impl Faraday {
                     };
                 }
             }
-            V::Choose(v, r) => {
-                if let Some(o) = self.vaults.state.open.get_mut(v)
-                    && !o.skip.remove(&r)
-                {
-                    o.skip.insert(r);
-                }
-            }
             V::ChooseAll(v) => {
-                let rows = self.vault_rows_now(&c, v);
-                if let Some(o) = self.vaults.state.open.get_mut(v) {
-                    let open: Vec<usize> = rows
-                        .iter()
-                        .filter(|r| !r.loaded)
-                        .map(|r| r.record)
-                        .collect();
-                    if open.iter().all(|r| !o.skip.contains(r)) {
-                        o.skip.extend(open);
-                    } else {
-                        for r in open {
-                            o.skip.remove(&r);
-                        }
-                    }
-                }
+                let open: Vec<usize> = self
+                    .vault_rows_now(&c, v)
+                    .iter()
+                    .filter(|r| !r.loaded)
+                    .map(|r| r.record)
+                    .collect();
+                self.vaults.choose_all(v, open);
             }
             V::LoadAll(v) | V::LoadChosen(v) => {
                 let all = matches!(a, V::LoadAll(_));
@@ -591,152 +577,26 @@ impl Faraday {
                 );
                 self.vault_loaded_toast(Some(counts));
             }
-            V::CStep(k) => {
-                if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.open = if c.open == Some(k) { None } else { Some(k) };
-                    c.scroll.follow = true;
-                    if c.open == Some(vstep::PHRASES) {
-                        self.vaults.state.focus = Some(Focus::Phrase(0, false));
-                    } else if matches!(self.vaults.focus, Some(Focus::Phrase(..) | Focus::Name)) {
-                        // Typing goes nowhere on a card with no field.
-                        self.vaults.state.focus = None;
-                    }
-                }
-            }
-            V::CNext(k) => {
-                if let Some(c) = self.vaults.state.create.as_mut()
-                    && usize::from(k) < vstep::COUNT
-                {
-                    c.done[k as usize] = true;
-                    c.open = c.steps().iter().copied().find(|&i| !c.done[i as usize]);
-                    c.scroll.follow = true;
-                    c.error = None;
-                    if c.open == Some(vstep::PHRASES) {
-                        self.vaults.state.focus = Some(Focus::Phrase(0, false));
-                    }
-                }
-            }
-            V::CHere => {
-                if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.not_here = !c.not_here;
-                    c.error = None;
-                }
-            }
-            V::CMachine(k) => {
-                if let Some(c) = self.vaults.state.create.as_mut()
-                    && k < MACHINES.len()
-                {
-                    c.on[k] = !c.on[k];
-                    c.error = None;
-                }
-            }
-            V::CPreset(k) => {
-                if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.preset = Some(k.min(CUSTOM));
-                    c.error = None;
-                }
-            }
-            V::CSizeRow(k) => {
-                if let Some(c) = self.vaults.state.create.as_mut()
-                    && let Some(&(_, preset, on)) = SIZES.get(k)
-                {
-                    c.preset = Some(preset);
-                    c.on = on;
-                    c.not_here = false;
-                    c.error = None;
-                }
-            }
-            V::CCustomise => {
-                if let Some(c) = self.vaults.state.create.as_mut() {
-                    // The two cards open on the preset's values, to be
-                    // walked through in order.
-                    c.customise = true;
-                    for k in [vstep::WHERE, vstep::COST] {
-                        c.done[usize::from(k)] = false;
-                    }
-                    if matches!(
-                        self.vaults.state.focus,
-                        Some(Focus::Phrase(..) | Focus::Name)
-                    ) {
-                        self.vaults.state.focus = None;
-                    }
-                    c.open = Some(vstep::WHERE);
-                    c.scroll.follow = true;
-                    c.error = None;
-                }
-            }
-            V::CMemory(k) => {
-                if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.memory = CUSTOM_MEMORY[k.min(CUSTOM_MEMORY.len() - 1)];
-                    c.preset = Some(CUSTOM);
-                }
-            }
-            V::CPasses(k) => {
-                if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.passes = CUSTOM_PASSES[k.min(CUSTOM_PASSES.len() - 1)];
-                    c.preset = Some(CUSTOM);
-                }
-            }
-            V::CFocus(i, second) => {
-                self.vaults.state.focus = self.may_load_keys().then_some(Focus::Phrase(i, second));
-            }
-            V::CName => self.vaults.state.focus = Some(Focus::Name),
-            V::CShow => {
-                if let Some(c) = self.vaults.state.create.as_mut() {
-                    c.shown = !c.shown;
-                }
-            }
             V::CGo => self.vault_create_check(),
-            V::Pick(i) => {
-                self.vaults.clear_unlock_parts();
-                self.vaults.state.pick = i;
-                self.vaults.state.unlock_error = None;
-                self.vaults.state.focus = self.may_load_keys().then_some(Focus::Passphrase);
-            }
-            V::FocusPassphrase => {
-                self.vaults.state.focus = self.may_load_keys().then_some(Focus::Passphrase);
-            }
             V::Unlock => self.vault_unlock_check(),
             V::Show(i) => {
                 self.gpg_page_reset();
-                if i < self.vaults.open.len() {
-                    self.vaults.state.current = i;
-                    self.vaults.state.form = None;
-                    self.vaults.state.saving = false;
-                    self.vaults.state.item_open = false;
-                    self.vaults.set_item_offset(0.0);
-                }
+                self.vaults.show_vault(i);
             }
             V::Category(k) => {
                 self.gpg_page_reset();
-                self.vaults
-                    .show_category(k, &mut self.list_offset, self.compact);
-                self.vaults.set_item_offset(0.0);
-                self.vaults.state.category_chosen = true;
-                self.vaults.state.form = None;
-                self.vaults.state.saving = false;
-                self.vaults.state.item_open = false;
+                self.vaults.show_tab(k, &mut self.list_offset, self.compact);
             }
             V::Item(k) => {
                 self.gpg_page_reset();
-                self.vaults.state.item[self.vaults.category] = k;
-                self.vaults.set_item_offset(0.0);
-                self.vaults.state.form = None;
-                self.vaults.state.saving = false;
-                self.vaults.state.item_open = true;
+                self.vaults.select_item(k);
                 // A key made before revocations were kept gets its one
                 // now, on first use of its page.
                 self.gpg_keep_revocation();
             }
             V::ItemBack => {
                 self.gpg_page_reset();
-                self.vaults.state.item_open = false;
-                self.vaults.state.form = None;
-                self.vaults.state.prompt = None;
-                self.vaults.state.saving = false;
-                self.vaults.state.sb_images = false;
-                self.vaults.state.sb_sign = None;
-                self.vaults.state.focus = None;
+                self.vaults.close_item();
             }
             V::Reveal(n) => self
                 .vaults
@@ -744,17 +604,6 @@ impl Faraday {
             V::ShowSeedQr => self.vaults.toggle_seedqr(&c, self.vault_secrets_on_page()),
             V::WalletQr | V::TotpQr | V::PaperkeyQr => self.vault_qr_act(a),
             V::SaveToStick => self.vault_stick_save_open(),
-            V::SaveTick(k) => {
-                if let Some(f) = self
-                    .vaults
-                    .state
-                    .stick_save
-                    .as_mut()
-                    .and_then(|s| s.files.get_mut(usize::from(k)))
-                {
-                    f.ticked = !f.ticked;
-                }
-            }
             V::SaveToStickGo => self.vault_stick_save_ask(),
             V::LoadTick(_)
             | V::LoadTickAll
@@ -793,9 +642,6 @@ impl Faraday {
             V::CKeyDrop => create_key::drop_key(self),
             V::YubiKeyAdd => unlock_keys::add_secret(self),
             V::YubiKeyDrop => unlock_keys::drop_secret(self),
-            V::FocusYubiKey => {
-                self.vaults.state.focus = self.may_load_keys().then_some(Focus::YubiKey);
-            }
             V::PassphraseKey(w) => self.pass_seeds_open(w),
             V::PassphrasePick(v, r) => self.pass_seed_pick(v, r),
             V::PassphraseList => self.pass_seed_list(),
@@ -904,7 +750,6 @@ impl Faraday {
                     stick::focus(self, Focus::Field(0));
                 }
             }
-            V::ShowTyped => self.vaults.state.typed_shown = !self.vaults.typed_shown,
             V::ImportEntries(k) => self.vault_import_entries(&[k]),
             V::AddFile(k) => self.vault_add_file(k),
             V::ImportAllEntries => {
@@ -945,10 +790,6 @@ impl Faraday {
                 });
                 stick::focus(self, Focus::Prompt);
             }
-            V::PromptCancel => {
-                self.vaults.state.prompt = None;
-                self.vaults.state.focus = None;
-            }
             // A key made in the backup flow signs nothing until every place
             // of its plan is written: the action opens the flow.
             V::GpgSignPick
@@ -962,7 +803,6 @@ impl Faraday {
             {
                 self.flow_resume_selected();
             }
-            V::GpgYears(y) => self.vaults.state.gpg_years = y,
             V::GpgExport => self.gpg_export(),
             V::GpgExportRevocation => self.gpg_export_revocation(),
             V::GpgRevocationPage => {
@@ -970,8 +810,6 @@ impl Faraday {
                     self.vault_form_for_revocation();
                 }
             }
-            V::GpgReason(n) => self.vaults.state.revoke_reason = n.min(3),
-            V::GpgRenewTerm(y) => self.vaults.state.renew_years = Some(y),
             V::GpgHoldRevoke => self.gpg_mark_revoked(),
             V::GpgRenew => {
                 if !self.time_asked() {
@@ -994,16 +832,10 @@ impl Faraday {
             // time the sheet shows rather than asking for it (F63).
             V::GpgSign => self.gpg_sign_sheet_open(),
             V::GpgHoldSign => self.gpg_sign_sheet_hold(),
-            V::SbOwnOnly(on) => self.vaults.state.sb_own_only = on,
             V::SbEnrol => {
                 if !self.time_asked() {
                     self.sb_enrol();
                 }
-            }
-            V::SbImages => {
-                self.vaults.state.sb_images = !self.vaults.sb_images;
-                self.vaults.state.sb_sign = None;
-                self.vaults.state.sb_checked = None;
             }
             V::SbPick(k) => self.vaults.state.sb_sign = self.sb_release_now(k).map(|r| (k, r)),
             V::SbHoldSign => {
