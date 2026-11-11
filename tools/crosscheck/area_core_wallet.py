@@ -168,7 +168,9 @@ CORRUPTED = "Wallet corrupted"
 # next index, as it loads the wallet (scriptpubkeyman.cpp `SetCache`,
 # `TopUpWithDB`), about 30 microseconds an index on an idle machine (2^20
 # in 31 s, 2^21 in 64 s) and many times that on a busy one. Faraday derives
-# nothing as it reads and reads such a file whole; Core's answer is not had.
+# nothing as it reads and reads such a file whole up to the limit of 1,000,000
+# on the size of a range and on the next index, past which it refuses;
+# Core's answer is not had.
 # Known only where Faraday lists a ranged descriptor whose next index or
 # last index is at least SLOW and Core did not answer in SLOW_WAIT seconds
 # or stopped; such a file is waited for SLOW_WAIT seconds.
@@ -177,10 +179,13 @@ SLOW = 1 << 16
 # A descriptor that is not ranged whose stored range spans more than one
 # index: Core derives each index of the range as it loads, gets the same
 # script twice and refuses the wallet as corrupted (scriptpubkeyman.cpp
-# `SetCache`, "Already loaded script"); Faraday does not read the range of
-# such a descriptor and reads the file whole. Known only on Core's refusal
-# as corrupted, where the changed file holds such a descriptor
-# (`unranged_span`).
+# `SetCache`, "Already loaded script"); Faraday refuses the record too
+# (`Range`), so both refuse. A range of one index or none on such a
+# descriptor is ignored and reset by Core, and Faraday lists no range. A
+# range of 1,000,000 indexes or more, or a next index of 1,000,000 or more,
+# is refused by Faraday (Core's `CheckDescriptorRangeBounds`, "Range is too
+# large", is on the size of the range); a small range that starts high is
+# read whole, as Core reads it.
 SLOW_WAIT = 20
 LOAD_WAIT = 120
 TIMED_OUT = "took longer than"
@@ -256,31 +261,17 @@ def locator_end_changed(data):
     return out
 
 
+def wholly(got):
+    """Whether Faraday's reading `got` is a whole wallet."""
+    return got[0] == "ok" and got[1]["whole"]
+
+
 def slow_range(got):
     """Whether Faraday's whole reading `got` lists a ranged descriptor whose
     next index or last index is at least SLOW."""
     return got[0] == "ok" and any(
         d["range"] is not None and max(d["next_index"], d["range"][1]) >= SLOW
         for d in got[1]["descriptors"])
-
-
-def unranged_span(data):
-    """Whether `data` holds a `walletdescriptor` record of a descriptor that
-    is not ranged (no `*` in its text) whose range spans more than one
-    index."""
-    con = sqlite3.connect(":memory:", isolation_level=None)
-    con.deserialize(data)
-    values = [bytes(v) for (k, v) in con.execute("SELECT key, value FROM main")
-              if record_type(bytes(k).hex()) == "walletdescriptor"]
-    con.close()
-    for v in values:
-        if len(v) < 21 or v[0] >= 253 or v[0] + 21 != len(v):
-            continue
-        start = int.from_bytes(v[-8:-4], "little", signed=True)
-        end = int.from_bytes(v[-4:], "little", signed=True)
-        if b"*" not in v[1:1 + v[0]] and end - start > 1:
-            return True
-    return False
 
 
 def load_wait(got):
@@ -491,9 +482,11 @@ class CoreWallet(Area):
             "does not read; Faraday counts them. Core derives every index of a descriptor's "
             "range, and tops it up to its next index, as it loads; it refuses a descriptor "
             "that is not ranged whose stored range spans more than one index (the same "
-            "script twice), whose range Faraday does not read. Past 2^16 the area does not "
+            "script twice), and Faraday refuses it too; Faraday also refuses a range of "
+            "1,000,000 indexes or more and a next index of 1,000,000 or more (Core's limit on "
+            "the size of a range). Past 2^16 the area does not "
             "wait for Core's answer (past 2^19 it takes minutes), and Faraday, which derives "
-            "nothing as it reads, reads such a file whole; it is counted where Core did not "
+            "nothing as it reads, reads such a file whole up to that limit; it is counted where Core did not "
             "answer. Each is asked of Core in the prelude."
         ),
         (
@@ -1012,57 +1005,95 @@ class CoreWallet(Area):
                            got[0], core, f"the listed difference no longer holds: {LENIENT['tx']}")
 
     def directed_unranged(self):
-        """The range of the descriptor of an imported uncompressed key (not
-        ranged) made to span five indexes: Faraday reads the file whole,
-        and Core refuses it as corrupted."""
+        """The range stored on the descriptor of an imported uncompressed
+        key (not ranged): five indexes, which Core refuses as corrupted (it
+        derives the same script twice) and Faraday refuses as `Range`, so both
+        refuse; a range of one index or none, which Core ignores and resets
+        and Faraday lists with no range (Core is not asked)."""
         facts = self.make("uncompressed", "k-unranged", mine=False)
-        con = sqlite3.connect(":memory:", isolation_level=None)
-        con.deserialize(facts["file"])
-        rows = [(bytes(k), bytes(v)) for (k, v) in
-                con.execute("SELECT key, value FROM main ORDER BY rowid")
-                if record_type(bytes(k).hex()) == "walletdescriptor"
-                and b"*" not in bytes(v)[1:1 + bytes(v)[0]]]
-        if not rows:
+
+        def stored(end):
+            con = sqlite3.connect(":memory:", isolation_level=None)
+            con.deserialize(facts["file"])
+            rows = [(bytes(k), bytes(v)) for (k, v) in
+                    con.execute("SELECT key, value FROM main ORDER BY rowid")
+                    if record_type(bytes(k).hex()) == "walletdescriptor"
+                    and b"*" not in bytes(v)[1:1 + bytes(v)[0]]]
+            if not rows:
+                con.close()
+                raise Mismatch(self.name, "core_wallet.read", {}, None, None,
+                               "no descriptor that is not ranged to change")
+            key, value = rows[0]
+            con.execute("UPDATE main SET value = ? WHERE key = ?",
+                        (value[:-4] + end.to_bytes(4, "little"), key))
+            out = con.serialize()
             con.close()
-            raise Mismatch(self.name, "core_wallet.read", {}, None, None,
-                           "no descriptor that is not ranged to change")
-        key, value = rows[0]
-        con.execute("UPDATE main SET value = ? WHERE key = ?",
-                    (value[:-4] + (5).to_bytes(4, "little"), key))
-        changed = con.serialize()
-        con.close()
+            return out
+
+        changed = stored(5)
         got = self.rust.call("core_wallet.read", db=changed.hex())
         core = self.loads(changed, "k-unranged-d")
-        self.known += 1
-        if not (got[0] == "ok" and got[1]["whole"] and unranged_span(changed)
+        self.compared += 1
+        if not (not wholly(got) and "Range" in {f for (_, f) in faraday_said(got)}
                 and core[0] == "err" and CORRUPTED in str(core[1])):
             raise Mismatch(self.name, "core_wallet.read", {"changed": "unranged range end 5"},
-                           got[0], core, "the listed difference no longer holds: Core derives "
-                           "each index of a descriptor's range as it loads and refuses the same "
-                           "script twice")
+                           faraday_said(got), core, "Faraday and Core must both refuse a "
+                           "descriptor that is not ranged whose range spans more than one index")
+        for end in (0, 1):
+            got = self.rust.call("core_wallet.read", db=stored(end).hex())
+            self.compared += 1
+            if not wholly(got):
+                raise Mismatch(self.name, "core_wallet.read", {"changed": f"unranged end {end}"},
+                               faraday_said(got), "whole", "Faraday reads a range of one "
+                               "index or none on a descriptor that is not ranged, as Core "
+                               "ignores it")
 
     def directed_slow(self):
-        """A next index of 2^24: Faraday reads the file whole and lists it,
-        and Core, deriving each index to it as it loads, does not answer in
-        SLOW_WAIT seconds."""
+        """Core derives each index to a descriptor's next index as it loads.
+        A next index of 999,999 (just under the limit): Faraday reads the
+        file whole and lists it, and Core does not answer in SLOW_WAIT
+        seconds. Past the limit Faraday refuses (Core is not asked): a next
+        index of 1,000,000 and a range of 1,000,000 indexes, at any start;
+        a small range that starts high is read whole."""
         facts = self.make("watchonly", "k-slow", mine=False)
-        con = sqlite3.connect(":memory:", isolation_level=None)
-        con.deserialize(facts["file"])
-        key, value = [(bytes(k), bytes(v)) for (k, v) in
-                      con.execute("SELECT key, value FROM main ORDER BY rowid")
-                      if record_type(bytes(k).hex()) == "walletdescriptor"][0]
-        value = value[:-12] + (1 << 24).to_bytes(4, "little") + value[-8:]
-        con.execute("UPDATE main SET value = ? WHERE key = ?", (value, key))
-        changed = con.serialize()
-        con.close()
+
+        def stored(next_index, start, end):
+            con = sqlite3.connect(":memory:", isolation_level=None)
+            con.deserialize(facts["file"])
+            key, value = [(bytes(k), bytes(v)) for (k, v) in
+                          con.execute("SELECT key, value FROM main ORDER BY rowid")
+                          if record_type(bytes(k).hex()) == "walletdescriptor"][0]
+            tail = b"".join(n.to_bytes(4, "little") for n in (next_index, start, end))
+            con.execute("UPDATE main SET value = ? WHERE key = ?", (value[:-12] + tail, key))
+            out = con.serialize()
+            con.close()
+            return out
+
+        changed = stored(999_999, 0, 10)
         got = self.rust.call("core_wallet.read", db=changed.hex())
         core = self.loads(changed, "k-slow-d", timeout=load_wait(got))
         self.known += 1
-        if not (got[0] == "ok" and got[1]["whole"] and slow_range(got)
+        if not (wholly(got) and slow_range(got)
                 and (core == ("err", "stopped") or TIMED_OUT in str(core[1]))):
-            raise Mismatch(self.name, "core_wallet.read", {"changed": "next index 2^24"},
-                           got[0], core, "the listed difference no longer holds: Core derives "
-                           "each index to a descriptor's next index as it loads")
+            raise Mismatch(self.name, "core_wallet.read", {"changed": "next index 999,999"},
+                           faraday_said(got), core, "the listed difference no longer holds: "
+                           "Core derives each index to a descriptor's next index as it loads")
+        for what, args in (("next index 1,000,000", (1_000_000, 0, 10)),
+                           ("range of 1,000,000 indexes", (0, 0, 1_000_001)),
+                           ("range of 1,000,000 indexes from 5", (0, 5, 1_000_006))):
+            got = self.rust.call("core_wallet.read", db=stored(*args).hex())
+            self.compared += 1
+            if wholly(got) or "Range" not in {f for (_, f) in faraday_said(got)}:
+                raise Mismatch(self.name, "core_wallet.read", {"changed": what},
+                               faraday_said(got), "refused by Core's limit of 1,000,000",
+                               "Faraday must refuse a range of 1,000,000 indexes or a next "
+                               "index of 1,000,000 or more")
+        got = self.rust.call("core_wallet.read", db=stored(0, 5_000_000, 5_000_010).hex())
+        self.compared += 1
+        if not wholly(got):
+            raise Mismatch(self.name, "core_wallet.read", {"changed": "small range, high start"},
+                           faraday_said(got), "whole", "Faraday reads a small range that "
+                           "starts high, as Core does")
 
     def directed_index(self):
         """A byte changed in a record's key that Faraday reads as another
@@ -1263,9 +1294,6 @@ class CoreWallet(Area):
             if (core[0] != "ok" and lenient in LENIENT
                     and (lenient != "tx" or CORRUPTED in str(core[1]))):
                 return ("known", lenient)
-            if (core[0] == "err" and CORRUPTED in str(core[1]) and lenient == "walletdescriptor"
-                    and unranged_span(changed)):
-                return ("known", "unranged span")
             if (core[0] != "ok" and slow_range(got)
                     and (core == ("err", "stopped") or TIMED_OUT in str(core[1]))):
                 return ("known", "slow load")

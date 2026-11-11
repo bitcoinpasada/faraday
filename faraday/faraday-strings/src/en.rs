@@ -13495,7 +13495,7 @@ strings! {
     /// Read a Bitcoin Core wallet: a failure.
     core_wallet_fault_id: "the descriptor's id is not the hash of its text",
     /// Read a Bitcoin Core wallet: a failure.
-    core_wallet_fault_range: "the range or next index is not valid",
+    core_wallet_fault_range: "the range or next index is not valid, or a descriptor with no wildcard stores a range of more than one index",
     /// Read a Bitcoin Core wallet: a failure.
     core_wallet_fault_key_network: "the keys are of another network than the file",
     /// Read a Bitcoin Core wallet: a failure.

@@ -1158,10 +1158,12 @@ difference"), and says why.
     one of which does not read; Faraday counts them. Core derives every
     index of a descriptor's range, and tops it up to its next index, as
     it loads; it refuses a descriptor that is not ranged whose stored
-    range spans more than one index (the same script twice), whose range
-    Faraday does not read. Past 2^16 the area does not wait for Core's
-    answer (past 2^19 it takes minutes), and Faraday, which derives
-    nothing as it reads, reads such a file whole; it is counted where
+    range spans more than one index (the same script twice), and Faraday
+    refuses it too; Faraday also refuses a range of 1,000,000 indexes or
+    more and a next index of 1,000,000 or more (Core's limit on the size
+    of a range). Past 2^16 the area does not wait for Core's answer (past
+    2^19 it takes minutes), and Faraday, which derives nothing as it
+    reads, reads such a file whole up to that limit; it is counted where
     Core did not answer. Each is asked of Core in the prelude.
   - Core runs SQLite's integrity check when it loads a wallet and
     refuses a file in which a record's key was changed (the unique index

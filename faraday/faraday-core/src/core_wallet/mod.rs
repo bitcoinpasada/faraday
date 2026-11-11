@@ -191,7 +191,9 @@ pub enum Fault {
     Checksum,
     /// The descriptor's id is not the hash of its text.
     Id,
-    /// The range or next index is negative or the range is inverted.
+    /// The range or next index is negative, the range is inverted, the range's
+    /// size or the next index is 1,000,000 or more, or a descriptor with no `*`
+    /// stores a range of more than one index.
     Range,
     /// The descriptor's keys are of another network than the file's.
     KeyNetwork,
@@ -948,6 +950,28 @@ fn master_info(id: u32, value: &[u8]) -> Option<MasterRecord> {
     })
 }
 
+/// Bitcoin Core's limit on the size of a descriptor's range
+/// (`CheckDescriptorRangeBounds`, src/script/descriptor.cpp).
+const RANGE_LIMIT: i64 = 1_000_000;
+
+/// Whether a record's next index and range are ones Faraday lists. Core's
+/// `CheckDescriptorRangeBounds` refuses a range whose inclusive high minus
+/// its low is `RANGE_LIMIT` or more ("Range is too large"); the stored end is
+/// one past the high, so that is `(end - 1) - start`. The limit is on the
+/// size, so a range that starts high and is small is read whole. The next
+/// index is held to the same limit (the owner's call). A descriptor with no
+/// `*` that stores a range of more than one index is refused by the caller:
+/// Core calls such a file "Wallet corrupted" (SetCache derives the same
+/// script twice); one index or none is ignored and reset by Core, and
+/// Faraday lists no range for it.
+fn stored_range_ok(next_index: i32, start: i32, end: i32) -> bool {
+    next_index >= 0
+        && start >= 0
+        && end >= start
+        && i64::from(next_index) < RANGE_LIMIT
+        && i64::from(end) - 1 - i64::from(start) < RANGE_LIMIT
+}
+
 impl Reader<'_> {
     fn descriptor(&mut self, tail: &[u8], value: &[u8], cache: &Cache) -> Result<(), Refusal> {
         let name = "walletdescriptor";
@@ -998,11 +1022,16 @@ impl Reader<'_> {
             self.fail(name, tail, Fault::Id);
             return Ok(());
         }
-        if next_index < 0 || range_start < 0 || range_end < range_start {
+        if !stored_range_ok(next_index, range_start, range_end) {
             self.fail(name, tail, Fault::Range);
             return Ok(());
         }
+        let not_ranged = |listed: &str| !listed.contains('*') && range_end - range_start > 1;
         if combo.is_some() {
+            if not_ranged(text) {
+                self.fail(name, tail, Fault::Range);
+                return Ok(());
+            }
             self.kept_ids.insert(id);
             self.wallet.kept.push(Kept {
                 id,
@@ -1027,6 +1056,10 @@ impl Reader<'_> {
                 return Ok(());
             }
         };
+        if not_ranged(&listed) {
+            self.fail(name, tail, Fault::Range);
+            return Ok(());
+        }
         let range = listed.contains('*').then_some((range_start, range_end - 1));
         self.needs.insert(id, needs);
         self.at.insert(id, self.wallet.descriptors.len());

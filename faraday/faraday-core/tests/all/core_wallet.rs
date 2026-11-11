@@ -1009,3 +1009,48 @@ fn an_active_record_naming_a_combo_descriptor_is_not_held() {
     assert!(wallet.failures.iter().any(|f| f.fault == Fault::NotHeld));
     assert!(wallet.active.iter().all(|a| a.id != id));
 }
+
+/// Reads "uncompressed" with the next index, range start and range end of the
+/// record whose text starts with `prefix` set as given.
+fn with_stored_range(prefix: &str, next: i32, start: i32, end: i32) -> Wallet {
+    read_with("uncompressed", None, |records| {
+        let (_, value) = records
+            .iter_mut()
+            .find(|(k, v)| {
+                k.get(1..17) == Some(b"walletdescriptor".as_slice())
+                    && k.len() == 49
+                    && v.get(1..=prefix.len()) == Some(prefix.as_bytes())
+            })
+            .expect("the descriptor record");
+        let at = value.len() - 12;
+        value[at..at + 4].copy_from_slice(&next.to_le_bytes());
+        value[at + 4..at + 8].copy_from_slice(&start.to_le_bytes());
+        value[at + 8..].copy_from_slice(&end.to_le_bytes());
+    })
+}
+
+#[test]
+fn a_descriptor_with_no_wildcard_that_stores_a_range_of_many_indexes_is_refused() {
+    let wallet = with_stored_range("pkh([d34db33f", 0, 0, 5);
+    assert!(!wallet.is_whole());
+    assert!(failed(&wallet, "walletdescriptor", Fault::Range));
+    assert!(wallet.descriptors.iter().all(|d| !d.text.starts_with("pkh([d34db33f")));
+    // One index, or none, is not refused.
+    for end in [0, 1] {
+        assert!(with_stored_range("pkh([d34db33f", 0, 0, end).is_whole());
+    }
+}
+
+#[test]
+fn a_range_of_a_million_indexes_or_a_next_index_of_a_million_is_refused() {
+    // The stored end is one past the last index: Core's size is end - 1 - start.
+    for (next, start, end) in [(0, 0, 1_000_001), (1_000_000, 0, 10), (0, 5, 1_000_006)] {
+        let wallet = with_stored_range("wpkh(", next, start, end);
+        assert!(failed(&wallet, "walletdescriptor", Fault::Range), "{next} {start} {end}");
+    }
+    // A range of 999,999 and a small one that starts high are read whole.
+    for (next, start, end) in [(999_999, 0, 1_000_000), (0, 5_000_000, 5_000_010)] {
+        let wallet = with_stored_range("wpkh(", next, start, end);
+        assert!(!failed(&wallet, "walletdescriptor", Fault::Range), "{next} {start} {end}");
+    }
+}
