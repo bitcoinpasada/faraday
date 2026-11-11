@@ -17,7 +17,10 @@ Run only the checks of what you touched: the test module or the one crate
 <crate> --all-targets -- -D warnings`), and the one lint script for the files
 you changed (`tools/lint-docs.sh`, `tools/lint-strings.sh`, …). Do not run
 `just`, `just lint` or `just lint-all`: the full check runs once, when the
-whole piece of work is finished (CLAUDE.md). To look at a screen, render the one script at
+whole piece of work is finished (CLAUDE.md). Before committing, run `cargo
+fmt` on the crates you changed and clippy on each (`cargo clippy -p <crate>
+--all-targets -- -D warnings`), since a format or lint miss is the commonest
+reason a full check fails. To look at a screen, render the one script at
 the one size the change is about (`just faraday-snap 480x640 spend`) and read
 that PNG; never `just faraday-snapshots` unless the brief says the change is to
 the layout engine. Keep check output short (`-q`, `| tail`): read failures,
