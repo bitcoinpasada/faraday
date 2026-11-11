@@ -155,8 +155,26 @@ pub(crate) fn outbox_removed(app: &mut Faraday, name: &str) {
     else {
         return;
     };
-    let (id, _) = app.vaults.state.key_outbox.remove(at);
+    let id = app.vaults.key_outbox[at].0;
+    let was = app.vaults.store().key_file_changing(id);
     if app.vaults.edit(id, |s| s.unmake_key_file(id)) {
+        count_key_change(app, id, was);
+    } else if app.vaults.store().key_file_made(id) {
+        // Refused (a sealing vault): the key is still pending, so its
+        // `.keyx` stays listed.
+        return;
+    }
+    app.vaults.state.key_outbox.remove(at);
+}
+
+/// A change of vault `id`'s key file counts once, however many times it
+/// is made, chosen or removed before the seal: `was` is whether one was
+/// waiting before the edit. A key file change taken back leaves none.
+fn count_key_change(app: &mut Faraday, id: VaultId, was: bool) {
+    let now = app.vaults.store().key_file_changing(id);
+    if now && !was {
+        app.vaults.changed(id);
+    } else if was && !now {
         app.vaults.unchanged(id);
     }
 }
@@ -203,6 +221,7 @@ pub(crate) fn make(app: &mut Faraday) {
     let mut random = Zeroizing::new([0u8; 32]);
     random.copy_from_slice(&bytes);
     drop(bytes);
+    let was = app.vaults.store().key_file_changing(id);
     if !app.vaults.edit(id, |s| s.make_key_file(id, &random)) {
         done(app);
         return;
@@ -211,6 +230,7 @@ pub(crate) fn make(app: &mut Faraday) {
     let held = app.vaults.edit(id, |s| s.key_file_document(id, reveal));
     let Some(document) = held.map(|h| h.clone()) else {
         app.vaults.edit(id, |s| s.unmake_key_file(id));
+        count_key_change(app, id, was);
         unkeep(app, id);
         app.vaults.state.key_chosen = None;
         done(app);
@@ -223,7 +243,7 @@ pub(crate) fn make(app: &mut Faraday) {
     app.outbox_secret(crate::secrets::OutReason::KeyFile, item);
     app.vaults.state.key_outbox.push((id, keyx));
     app.vaults.state.key_chosen = None;
-    app.vaults.changed(id);
+    count_key_change(app, id, was);
     done(app);
     app.toast(EN.vault_key_file_next_seal);
 }
@@ -249,10 +269,11 @@ pub(crate) fn chosen(app: &mut Faraday) {
     };
     match unlock_keys::read_named(app, &file) {
         Ok(key) => {
+            let was = app.vaults.store().key_file_changing(id);
             if app.vaults.edit(id, |s| s.set_key_file(id, Some(key))) {
                 unkeep(app, id);
                 app.vaults.state.key_chosen = Some((id, file));
-                app.vaults.changed(id);
+                count_key_change(app, id, was);
                 app.toast(EN.vault_key_file_next_seal);
             }
         }
@@ -266,10 +287,11 @@ pub(crate) fn remove(app: &mut Faraday) {
     let Some((id, _)) = target(app) else {
         return;
     };
+    let was = app.vaults.store().key_file_changing(id);
     if app.vaults.edit(id, |s| s.set_key_file(id, None)) {
         unkeep(app, id);
         app.vaults.state.key_chosen = None;
-        app.vaults.changed(id);
+        count_key_change(app, id, was);
         app.toast(EN.vault_key_file_next_seal);
     }
     done(app);

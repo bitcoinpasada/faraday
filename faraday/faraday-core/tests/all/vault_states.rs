@@ -2117,6 +2117,34 @@ fn taking_a_pending_keyx_out_of_the_outbox_takes_its_key_back() {
 }
 
 #[test]
+fn a_key_file_made_twice_counts_once_and_taking_its_keyx_back_leaves_nothing_to_seal() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyMake);
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(app.vaults().open[0].changes, 1);
+    assert_eq!(outbox_names(&app).len(), 1);
+    app.press(Action::OutboxRemove(0));
+    assert!(outbox_names(&app).is_empty());
+    assert_eq!(app.vaults().open[0].changes, 0);
+    let out = lock_to_outbox(&mut app);
+    assert!(!out.iter().any(|f| f.0.ends_with(".kdbx")), "sealed");
+}
+
+#[test]
+fn a_key_file_chosen_then_made_counts_once() {
+    let mut app = open_keyed();
+    more_then(&mut app, V::VKeyChoose);
+    app.press(Action::Vault(V::KeyFilePick(0)));
+    app.press(Action::Vault(V::KeyFileChoose));
+    more_then(&mut app, V::VKeyMake);
+    assert_eq!(app.vaults().open[0].changes, 1);
+    app.press(Action::OutboxRemove(0));
+    // The chosen key was replaced by the made one, which is taken back:
+    // no key file change is waiting.
+    assert_eq!(app.vaults().open[0].changes, 0);
+}
+
+#[test]
 fn taking_a_pending_keyx_out_of_the_outbox_leaves_a_real_change_to_seal_with_the_vaults_own_key() {
     let mut app = open_keyed();
     more_then(&mut app, V::VKeyMake);

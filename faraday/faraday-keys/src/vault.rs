@@ -2223,6 +2223,19 @@ impl OpenVaults {
         }
     }
 
+    /// A lookup. Whether open vault `id` has a change of its key file
+    /// waiting for the next seal (a key made, chosen or removed), made key
+    /// or not.
+    pub fn key_file_changing(&self, id: VaultId) -> bool {
+        self.slot(id).is_some_and(|s| s.new_key_file.is_some())
+    }
+
+    /// A lookup. Whether the key file waiting in open vault `id` is one
+    /// Faraday drew ([`OpenVaults::make_key_file`]) and not taken back.
+    pub fn key_file_made(&self, id: VaultId) -> bool {
+        self.slot(id).is_some_and(|s| s.key_made)
+    }
+
     /// A lookup. Whether open vault `id` has a new passphrase, a new
     /// memory step or a change of its key file or YubiKey waiting for its
     /// seal: a change, so a lock seals it. A key file Faraday drew whose
