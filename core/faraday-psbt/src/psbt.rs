@@ -1,5 +1,6 @@
 //! The PSBT container and the crate error type.
 
+use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
@@ -223,10 +224,20 @@ impl Psbt {
 /// the first read field that comes after it in `now`. A read field
 /// `bitcoin` does not write at all (a `PSBT_GLOBAL_VERSION` of 0) stays
 /// as read.
-fn merged(raw: &Map, canonical: &Map, now: &Map) -> Map {
+fn merged<'a>(raw: &'a Map, canonical: &'a Map, now: &'a Map) -> Map {
+    // Each map indexed by key once, the first pair of a key as `Map::get`
+    // finds it, so a map of many pairs is worked through in linear time.
+    let index = |m: &'a Map| {
+        let mut by_key: BTreeMap<&'a [u8], &'a [u8]> = BTreeMap::new();
+        for (k, v) in m.pairs() {
+            by_key.entry(k).or_insert(v);
+        }
+        by_key
+    };
+    let (raw_by, canonical_by, now_by) = (index(raw), index(canonical), index(now));
     let mut out: Vec<(Vec<u8>, Vec<u8>)> = Vec::new();
     for (key, value) in raw.pairs() {
-        match (canonical.get(key), now.get(key)) {
+        match (canonical_by.get(&key).copied(), now_by.get(&key).copied()) {
             (None, _) => out.push((key.to_vec(), value.to_vec())),
             (Some(was), Some(is)) if was == is => out.push((key.to_vec(), value.to_vec())),
             (Some(_), Some(is)) => out.push((key.to_vec(), is.to_vec())),
@@ -234,13 +245,21 @@ fn merged(raw: &Map, canonical: &Map, now: &Map) -> Map {
         }
     }
     let now_pairs: Vec<(&[u8], &[u8])> = now.pairs().collect();
+    // A later key of `now` is in `out` exactly when it is in `raw`, so the
+    // next later key found in `raw` is worked out once, from the end.
+    let mut next_in_raw: Vec<Option<&[u8]>> = (0..now_pairs.len()).map(|_| None).collect();
+    let mut next: Option<&[u8]> = None;
+    for (i, (key, _)) in now_pairs.iter().enumerate().rev() {
+        next_in_raw[i] = next;
+        if raw_by.contains_key(key) {
+            next = Some(key);
+        }
+    }
     for (i, (key, value)) in now_pairs.iter().enumerate() {
-        if raw.get(key).is_some() || canonical.get(key) == Some(*value) {
+        if raw_by.contains_key(key) || canonical_by.get(key) == Some(value) {
             continue;
         }
-        let before = now_pairs[i + 1..]
-            .iter()
-            .find_map(|(later, _)| out.iter().position(|(k, _)| k == later));
+        let before = next_in_raw[i].and_then(|later| out.iter().position(|(k, _)| k == later));
         let pair = (key.to_vec(), value.to_vec());
         match before {
             Some(at) => out.insert(at, pair),

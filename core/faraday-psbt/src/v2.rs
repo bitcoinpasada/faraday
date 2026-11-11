@@ -311,6 +311,7 @@ impl Reader<'_> {
 
     fn map(&mut self) -> Result<Map, Error> {
         let mut map = Map::default();
+        let mut seen = alloc::collections::BTreeSet::new();
         loop {
             let key_len = self.compact()?;
             if key_len == 0 {
@@ -322,7 +323,7 @@ impl Reader<'_> {
             let value = self
                 .take(usize::try_from(value_len).map_err(|_| Error::Truncated)?)?
                 .to_vec();
-            if map.get(&key).is_some() {
+            if !seen.insert(key.clone()) {
                 return Err(Error::DuplicateKey);
             }
             map.pairs.push((key, value));

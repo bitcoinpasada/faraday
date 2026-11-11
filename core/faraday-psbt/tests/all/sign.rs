@@ -510,3 +510,115 @@ fn a_key_path_input_with_another_programs_proprietary_records_is_signed() {
         "the records kept"
     );
 }
+
+/// `bytes` of an unsigned one-input file with `n` derivations of other
+/// keys, each key written as 65 uncompressed bytes, put first in the
+/// input's map. Every key's compressed form sorts before `real`, the
+/// device's own key, so that writing the file out has to place the
+/// signature after each of them.
+fn with_uncompressed_derivations(
+    bytes: &[u8],
+    n: u32,
+    real: &bitcoin::secp256k1::PublicKey,
+) -> Vec<u8> {
+    // Past the magic and the global map: pairs up to a zero length key.
+    let mut at = 5;
+    while bytes[at] != 0 {
+        let key = usize::from(bytes[at]);
+        let value = usize::from(bytes[at + 1 + key]);
+        assert!(value < 0xfd);
+        at += 2 + key + value;
+    }
+    at += 1;
+    let secp = Secp256k1::new();
+    let one = {
+        let mut secret = [0u8; 32];
+        secret[31] = 1;
+        bitcoin::secp256k1::PublicKey::from_secret_key(
+            &secp,
+            &bitcoin::secp256k1::SecretKey::from_slice(&secret).unwrap(),
+        )
+    };
+    let limit = real.serialize();
+    // The points are 1G, 2G, ...: one addition each.
+    let mut pk = one;
+    let mut added = Vec::new();
+    let mut count = 0;
+    while count < n {
+        if pk.serialize() < limit {
+            added.extend_from_slice(&[0x42, 0x06]);
+            added.extend_from_slice(&pk.serialize_uncompressed());
+            added.extend_from_slice(&[0x08, 1, 2, 3, 4, 0x2c, 0, 0, 0x80]);
+            count += 1;
+        }
+        pk = pk.combine(&one).unwrap();
+    }
+    let mut out = bytes[..at].to_vec();
+    out.extend_from_slice(&added);
+    out.extend_from_slice(&bytes[at..]);
+    out
+}
+
+/// The file `with_uncompressed_derivations` makes, signed and written out:
+/// the bytes read, with only the signature put in, before the key that
+/// `bitcoin` writes after it. The third value is the time the write-out
+/// took; the file is built, read and signed before it starts.
+fn signed_with_uncompressed_derivations(n: u32) -> (Vec<u8>, Vec<u8>, std::time::Duration) {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+    };
+    let unsigned = build(ScriptType::NativeSegwit);
+    let real = *unsigned.inner().inputs[0]
+        .bip32_derivation
+        .keys()
+        .next()
+        .unwrap();
+    let before = with_uncompressed_derivations(&unsigned.to_bytes(), n, &real);
+    let mut psbt = Psbt::parse_bytes(&c, &before).expect("it parses");
+    sign(
+        &c,
+        &mut psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        &[],
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut None,
+        &faraday_crypto::Zeroizing::new([0u8; 32]),
+    )
+    .unwrap();
+    let start = std::time::Instant::now();
+    let after = psbt.to_bytes();
+    let took = start.elapsed();
+    // The signature goes before the real key's derivation.
+    let mut marker = vec![0x22, 0x06];
+    marker.extend_from_slice(&real.serialize());
+    let at = before
+        .windows(marker.len())
+        .position(|w| w == marker)
+        .expect("the real key's derivation");
+    let added = after.len() - before.len();
+    assert_eq!(&after[..at], &before[..at]);
+    assert_eq!(&after[at + added..], &before[at..]);
+    assert_eq!(&after[at..at + 2], &[0x22, 0x02]);
+    (before, after, took)
+}
+
+#[test]
+fn a_signed_file_with_uncompressed_derivations_is_written_with_its_bytes_as_read() {
+    let (before, after, _) = signed_with_uncompressed_derivations(20);
+    assert!(after.len() > before.len());
+}
+
+#[test]
+fn a_signed_file_with_many_uncompressed_derivations_is_written_out_quickly() {
+    let (_, _, took) = signed_with_uncompressed_derivations(200_000);
+    assert!(took < std::time::Duration::from_secs(10), "{took:?}");
+}
