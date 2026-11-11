@@ -65,6 +65,7 @@ import datetime
 import hashlib
 import json
 import os
+import tempfile
 import unicodedata
 
 import keepass_rs as rs
@@ -252,6 +253,25 @@ class Vault(Area):
             "keepass-rs writes files Faraday refuses (§4): Twofish, AES-KDF and a Salsa20 "
             "inner stream (`keepass_rs.REFUSED`). The area makes one of each, expects "
             "Faraday to refuse it and counts the refusals as known differences."
+        ),
+        (
+            "KeePassXC 2.7.10 (and its development branch, November 2026) fails a save of a "
+            "ChaCha20 file whose plaintext is a multiple of 1024 bytes, \"Writing the database "
+            "failed: Cannot process 0 length data.\", and writes nothing: "
+            "`SymmetricCipherStream` encrypts each full block of 1024 bytes as it fills and "
+            "then the empty rest, which `SymmetricCipher::process` refuses (AES-256's last "
+            "block is padded). Each save puts a random value of 128 to 1022 hex digits in the "
+            "file (`KPXC_RANDOM_SLUG`), so it is chance, compressed or not, about one save in "
+            "450 at most. `readers.Kpxc` makes a command that writes again, once, from the "
+            "file in a new shell, only on exactly that message and for a ChaCha20 file left "
+            "byte for byte as it was; the save made again is judged as any other, a second "
+            "such failure in a row fails the run, and each is counted as a known difference. "
+            "The prelude shows the condition (`kpxc_zero_length`): on a file whose plaintext "
+            "but for the random value is known (its ciphertext's length less the value "
+            "pykeepass reads), 1500 saves that cannot reach a multiple of 1024 bytes do not "
+            "fail, of saves that can, one must fail within 20,000, and the same file under "
+            "AES-256 does not fail; when KeePassXC no longer fails, the run fails and the "
+            "handling is to go."
         ),
         (
             "keepass-rs decodes a custom data item's value as Base64 when it can, and the "
@@ -458,6 +478,7 @@ class Vault(Area):
         self.big_sheet()
         self.nfc_cases()
         self.vectors()
+        self.kpxc_zero_length()
         # One vault with an item of every kind, whatever the corpus draws.
         self.faraday_case(kinds=list(vf.KINDS), kpxc=self.kpxc_on())
 
@@ -933,6 +954,7 @@ class Vault(Area):
         with readers.Kpxc(empty) as k:
             model = vf.kpxc_edit(rng, k, p)
             data = k.data()
+            self.known += k.zero_length
         v = self.read_all(data, p, True, flips=rng.random() < 0.3)
         by = {(tuple(e["path"]), vf.fields_of(e)["Title"]): vf.fields_of(e) for e in v["entries"]}
         if by.keys() != model.keys():
@@ -966,6 +988,121 @@ class Vault(Area):
 
     def case_kpxc(self):
         self.kpxc_case()
+
+    # KeePassXC's zero-length save (`readers.Kpxc`, "A failed save").
+
+    ZERO_SAVES = 1500  # saves where no multiple of 1024 bytes is reachable: none may fail
+    ZERO_MOST = 20000  # saves at most before one that reaches it fails
+
+    def kpxc_zero_length(self):
+        """KeePassXC 2.7.10 fails a save of a ChaCha20 file whose plaintext
+        is a multiple of 1024 bytes (`readers.Kpxc`, "A failed save"), shown
+        on a file whose plaintext, but for KeePassXC's random value of 128 to
+        1022 hex digits (`KPXC_RANDOM_SLUG`), is known: one entry whose
+        UserName each save changes for another of the same length, no
+        history kept, no compression. Under ChaCha20 the plaintext's length
+        is the ciphertext's (`readers.payload_length`), and the rest of the
+        plaintext (its base) is that length less the random value's, read by
+        pykeepass. The UserName's length sets the base modulo 1024: at 0, no
+        save can reach a multiple of 1024 bytes and none may fail; at 448,
+        about one save in 450 does, and one must fail and be made again
+        within `ZERO_MOST` saves (missed by chance about once in e^44). Every
+        save's length must be the base and an even 128 to 1022. The same
+        file under AES-256 never fails. When a later KeePassXC no longer
+        fails, the run fails here and the handling in `readers.Kpxc` is to
+        go."""
+        if not self.kpxc_on():
+            return
+        reach = set(range(128, 1023, 2))  # the random value's hex digits
+
+        def made(cipher, n):
+            from lxml import etree
+            from pykeepass import create_database
+            fd, path = tempfile.mkstemp(suffix=".kdbx")
+            os.close(fd)
+            try:
+                kp = create_database(path, password="zero")
+                kp.add_entry(kp.root_group, "e", "a" * n, "zero")
+                meta = kp.tree.xpath("/KeePassFile/Meta")[0]
+                limit = meta.find("HistoryMaxItems")
+                if limit is None:
+                    limit = etree.SubElement(meta, "HistoryMaxItems")
+                limit.text = "0"
+                dyn = kp.kdbx.header.value.dynamic_header
+                dyn.cipher_id.data = cipher
+                if cipher == "chacha20":
+                    dyn.encryption_iv.data = self.randbytes(12)
+                dyn.compression_flags.data.compression = False
+                params = dyn.kdf_parameters.data.dict
+                params["M"].value, params["I"].value, params["P"].value = 1024 * 1024, 1, 1
+                for f in ("data", "length", "offset1", "offset2"):
+                    kp.kdbx.header.pop(f, None)
+                kp.save()
+                with open(path, "rb") as f:
+                    return f.read()
+            finally:
+                os.unlink(path)
+
+        def save(k, user):
+            if not k.edit_user("zero", "e", user):
+                self.fail("keepassxc-cli", {"user": len(user)}, k.error, "saved",
+                          "keepassxc-cli's save failed", k.data())
+            return readers.payload_length(k.data())
+
+        def base(k):
+            kp = readers.open_kdbx(k.data(), "zero")
+            slug = [i.findtext("Value") for i in kp.tree.xpath("/KeePassFile/Meta/CustomData/Item")
+                    if i.findtext("Key") == "KPXC_RANDOM_SLUG"]
+            if len(slug) != 1 or len(slug[0]) not in reach:
+                self.fail("keepassxc-cli", {}, slug, "one KPXC_RANDOM_SLUG of 128 to 1022 hex digits",
+                          "keepassxc-cli's save is not as readers.Kpxc takes it", k.data())
+            return readers.payload_length(k.data()) - len(slug[0])
+
+        def aimed(k, n, at):
+            """The UserName's length that puts the base at `at` modulo 1024, saved."""
+            n += (at - base(k)) % 1024
+            save(k, "a" * n)
+            if base(k) % 1024 != at:
+                self.fail("keepassxc-cli", {"user": n}, base(k) % 1024, at,
+                          "a longer UserName does not lengthen the plaintext by as much", k.data())
+            return n
+
+        def saves(k, n, at, most, until_made_again):
+            first = k.zero_length
+            for j in range(most):
+                if until_made_again and k.zero_length > first:
+                    return
+                got = save(k, ("b" if j % 2 else "a") * n)
+                if (got - at) % 1024 not in reach:
+                    self.fail("keepassxc-cli", {"user": n, "save": j}, got % 1024,
+                              f"{at} and 128 to 1022",
+                              "a save's plaintext is not the base and KeePassXC's random value",
+                              k.data())
+            if until_made_again and k.zero_length == first:
+                self.fail("keepassxc-cli", {"user": n, "saves": most}, "no save failed",
+                          readers.ZERO_LENGTH,
+                          "KeePassXC no longer fails a ChaCha20 save of a multiple of 1024 bytes: "
+                          "the handling in readers.Kpxc is to go", k.data())
+
+        with readers.Kpxc(made("chacha20", 10)) as k:
+            save(k, "b" * 10)
+            n = aimed(k, 10, 0)
+            first = k.zero_length  # the saves before could fail by chance
+            saves(k, n, 0, self.ZERO_SAVES, False)
+            if k.zero_length != first:
+                self.fail("keepassxc-cli", {"user": n}, k.zero_length - first, 0,
+                          "a ChaCha20 save failed whose plaintext cannot be a multiple of 1024 bytes",
+                          k.data())
+            n = aimed(k, n, 448)
+            saves(k, n, 448, self.ZERO_MOST, True)
+            self.known += k.zero_length
+            self.compared += 1
+        with readers.Kpxc(made("aes256", n)) as k:
+            for j in range(self.ZERO_SAVES):
+                save(k, ("b" if j % 2 else "a") * n)
+            if k.zero_length:
+                self.fail("keepassxc-cli", {"user": n}, k.zero_length, 0,
+                          "an AES-256 save was made again", k.data())
 
     # The files of tools/vectors/vault/.
 

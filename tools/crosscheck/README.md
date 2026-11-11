@@ -656,6 +656,25 @@ difference"), and says why.
     Salsa20 inner stream (`keepass_rs.REFUSED`). The area makes one of
     each, expects Faraday to refuse it and counts the refusals as known
     differences.
+  - KeePassXC 2.7.10 (and its development branch, November 2026) fails a
+    save of a ChaCha20 file whose plaintext is a multiple of 1024 bytes,
+    "Writing the database failed: Cannot process 0 length data.", and
+    writes nothing: `SymmetricCipherStream` encrypts each full block of
+    1024 bytes as it fills and then the empty rest, which
+    `SymmetricCipher::process` refuses (AES-256's last block is padded).
+    Each save puts a random value of 128 to 1022 hex digits in the file
+    (`KPXC_RANDOM_SLUG`), so it is chance, compressed or not, about one
+    save in 450 at most. `readers.Kpxc` makes a command that writes
+    again, once, from the file in a new shell, only on exactly that
+    message and for a ChaCha20 file left byte for byte as it was; the
+    save made again is judged as any other, a second such failure in a
+    row fails the run, and each is counted as a known difference. The
+    prelude shows the condition (`kpxc_zero_length`): on a file whose
+    plaintext but for the random value is known (its ciphertext's length
+    less the value pykeepass reads), 1500 saves that cannot reach a
+    multiple of 1024 bytes do not fail, of saves that can, one must fail
+    within 20,000, and the same file under AES-256 does not fail; when
+    KeePassXC no longer fails, the run fails and the handling is to go.
   - keepass-rs decodes a custom data item's value as Base64 when it can,
     and the program encodes the bytes again (`keepass-rs/src/main.rs`).
     A value that is valid Base64 but not canonical (padding or trailing

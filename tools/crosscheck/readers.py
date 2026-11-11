@@ -9,13 +9,17 @@ passing without the check.
 `keepassxc-cli` runs on a file in a folder of its own and a home folder of
 its own, so it reads and writes nothing else, with the passphrase on standard
 input: one `open` shell for the commands of a file (`Kpxc`), a process of its
-own for a command the shell cannot take.
+own for a command the shell cannot take. KeePassXC 2.7.10 fails a save of
+a ChaCha20 file now and then for a fault of its own (`Kpxc`, "A failed
+save"); that save is made again, once, and only when the failure is that
+one.
 """
 
 import os
 import re
 import secrets
 import selectors
+import struct
 import subprocess
 import tempfile
 
@@ -63,6 +67,43 @@ def open_kdbx(data, passphrase):
         return kp
     finally:
         os.unlink(path)
+
+
+CHACHA20 = bytes.fromhex("d6038a2b8b6f4cb5a524339a31dbb59a")  # the outer cipher's UUID
+ZERO_LENGTH = "Writing the database failed: Cannot process 0 length data."
+
+
+def outer_cipher(data):
+    """The cipher UUID a KDBX 4 file's outer header names, or None."""
+    i = 12
+    while i + 5 <= len(data):
+        kind, n = data[i], struct.unpack_from("<I", data, i + 1)[0]
+        if kind == 2:
+            return data[i + 5:i + 5 + n]
+        if kind == 0:
+            return None
+        i += 5 + n
+    return None
+
+
+def payload_length(data):
+    """The bytes of ciphertext a KDBX 4 file's HMAC block stream holds; under
+    ChaCha20, a stream cipher, the length of the plaintext the cipher was
+    given (the inner header and the XML document, uncompressed or not)."""
+    i = 12
+    while True:
+        kind, n = data[i], struct.unpack_from("<I", data, i + 1)[0]
+        i += 5 + n
+        if kind == 0:
+            break
+    i += 64  # the header's SHA-256 and HMAC
+    total = 0
+    while True:
+        n = struct.unpack_from("<I", data, i + 32)[0]
+        i += 36 + n
+        total += n
+        if n == 0:
+            return total
 
 
 def keepassxc_cli():
@@ -117,7 +158,29 @@ class Kpxc:
       a one-shot run, which first closes the shell, as it changes the file
       under it.
     - A wide terminal (`COLUMNS`) stops its line editor redrawing a long line
-      in its echo."""
+      in its echo.
+
+    A failed save. KeePassXC 2.7.10 (and its development branch, 2026-11)
+    encrypts the plaintext of a save in blocks of 1024 bytes when the cipher
+    is a stream cipher (`SymmetricCipherStream`, ChaCha20): each full block
+    is encrypted as it fills, and the end of the save encrypts what is left,
+    which is nothing when the plaintext is a multiple of 1024 bytes, and
+    `SymmetricCipher::process` refuses 0 bytes, so the save fails with
+    "Writing the database failed: Cannot process 0 length data." and the
+    file is not written. AES-256's last block is padded and never empty.
+    Each save puts a random value of 64 to 511 random bytes, in hex, in the
+    file (`KPXC_RANDOM_SLUG`, `Database::saveAs`), so whether a save's
+    plaintext is a multiple of 1024 is chance, about one save in 450 at
+    most, compressed or not. A command that writes is made again, once,
+    from the file (the shell closed: its database holds the change that was
+    not saved) when it failed with exactly that message, the file's cipher
+    is ChaCha20 and the file is byte for byte what it was before the
+    command; the save made again has another random value and succeeds,
+    and is judged as any other. The same failure twice in a row fails the
+    run. `zero_length` counts the saves made again (known differences).
+    The area's prelude shows the condition on every run (`area_vault.py`,
+    `kpxc_zero_length`): a save fails only where the plaintext can reach a
+    multiple of 1024 bytes, and the run fails when none does."""
 
     PROMPT = b"vault.kdbx> "
     PASSWORD_PROMPT = b"Enter password for new entry: "
@@ -137,6 +200,7 @@ class Kpxc:
         self.error = ""
         self.shell = None  # (process, selector, {"o": bytes, "e": bytes}, passphrase) or None
         self.refused = set()  # the passphrases the file did not open with
+        self.zero_length = 0  # the saves made again (A failed save)
 
     def __enter__(self):
         return self
@@ -302,7 +366,30 @@ class Kpxc:
         """`cmd` with its options and the positional arguments after the
         database: (succeeded, standard output), in the shell when it can take
         it and else in one process of its own. `more` is the password `add -p`
-        asks for. What a failure wrote is in `self.error`."""
+        asks for. What a failure wrote is in `self.error`. A command that
+        `writes` and fails KeePassXC's zero-length save is made again once (A
+        failed save, in the class's account)."""
+        if not writes:
+            return self.once(passphrase, cmd, options, positionals, more, writes)
+        before = self.data()
+        done = self.once(passphrase, cmd, options, positionals, more, writes)
+        if done[0] or not self.zero_length_save(before):
+            return done
+        self.zero_length += 1
+        self.close_shell()
+        done = self.once(passphrase, cmd, options, positionals, more, writes)
+        if not done[0] and self.zero_length_save(before):
+            raise AssertionError(f"keepassxc-cli {cmd} failed its save twice in a row: {self.error}")
+        return done
+
+    def zero_length_save(self, before):
+        """Whether the command just made failed KeePassXC's zero-length save
+        of a ChaCha20 file: exactly its message, the cipher ChaCha20, and the
+        file as it was before the command."""
+        return (self.error == ZERO_LENGTH and outer_cipher(before) == CHACHA20
+                and self.data() == before)
+
+    def once(self, passphrase, cmd, options, positionals, more, writes):
         done = self.command(passphrase, [cmd, *options, *positionals], more)
         if done is not None:
             return done
@@ -367,6 +454,9 @@ class Kpxc:
     def add(self, passphrase, entry, user, password, url):
         # Without `-q`: the shell is told by the password prompt when to send the password.
         return self.go(passphrase, "add", ["-p", "-u", user, "--url", url], [entry], password, writes=True)[0]
+
+    def edit_user(self, passphrase, entry, user):
+        return self.go(passphrase, "edit", ["-q", "-u", user], [entry], writes=True)[0]
 
     def edit_notes(self, passphrase, entry, notes):
         # A note of several lines does not fit a line of the shell: one process.
