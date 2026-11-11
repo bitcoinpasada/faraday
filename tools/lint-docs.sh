@@ -216,9 +216,9 @@ def check_decisions():
                    if l.startswith("**Status:**")), None)
         if st != status:
             fail(path, 1, f"Status `{st}` is not the index's `{status}`")
-    for num in range(1, max(rows, default=0) + 1):
-        if num not in rows:
-            fail(index, 1, f"no row for F{num}")
+    # A number may be missing: batches made in parallel take numbers in
+    # one order and reach main in another. A decision deleted with its row
+    # is caught by docs.no-silent-delete.
     for f in files:
         m = re.match(r"docs/(history/)?decisions/F(\d+)\.md$", f)
         if m and int(m.group(2)) not in rows:
