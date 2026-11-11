@@ -191,6 +191,24 @@ screen and at a lock. A function reached
 by drawing that does more work (a constant-time fix, say) is costly work
 that takes `c: &Compute` and is counted (F195 point 6).
 
+**Elevation rings and rounded corners are not kept (measured).** A
+floating card's shadow ring and the corners of rounded fills were timed as
+candidates for a cache (F238): a release build of `faraday-snapshot` on a
+build machine, the `spend`, `pills`, `themes` and default tours at 480x640
+and 1280x800, the least of three runs per frame. Raster of corners and rings
+is 20 to 60 per cent of a frame by a timer round each call, an upper bound
+that counts the row copies and fills round them. A ring kept between frames
+(its alphas under the card's size, radius, blur, spread, drop and colour
+alpha, blended on a hit, pixel for pixel the same) made the mean frame 0 to
+6 per cent shorter, too little to pay for a second cache with its bounds and
+tests, so it was not built. A kept corner's blit is a quarter to a third of
+tiny-skia's rounded fill (4 to 6 us against 16 us, whole-pixel placed), but
+a frame fills 4 to 16 and strokes 3 to 34 rounded rectangles (`pills` at
+480x640 6 and 6, at 1280x800 16 and 34), so for the fills it is up to 5
+per cent of a frame, again too little. Strokes were not measured as a
+cached outline; a stroke cache is the one open candidate, to be timed
+before it is built.
+
 ### 3.4 Public file names without making the files (issue 123)
 
 A new function `picture_names(name: &str, part: &str, text: &str) ->
