@@ -288,7 +288,6 @@ use std::collections::BTreeSet;
 use faraday_crypto::work::Compute;
 use faraday_draw::Canvas;
 use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Key as KeyIn, TouchPhase};
-
 use wallet::{FileKind, Session, fp_text};
 
 /// Minutes without input before the session locks, at first (F58).
@@ -2744,6 +2743,7 @@ impl Faraday {
             | Action::BScan
             | Action::BCheckClear
             | Action::BKeepWords
+            | Action::BWhich(..)
             | Action::BVaultSave(..)
             | Action::BVaultLoad(..)
             | Action::BFilesMake
@@ -3194,22 +3194,8 @@ impl Faraday {
         wallet: &wallet::Wallet,
         shape: &plan::Shape,
     ) -> Option<(plan::Answers, Vec<String>)> {
-        use faraday_vault::records::{field, kind};
-        let want = wallet::same_wallet(wallet.policy());
-        let o = self.vaults.open.get(v)?;
-        self.vaults
-            .described_of(c, o.id, kind::PLAN)
-            .find_map(|(_, r, d)| {
-                if d.same != want {
-                    return None;
-                }
-                let a = plan::Answers::from_text(shape, r.public_text(field::PLAN_ANSWERS)?)?;
-                let names = r
-                    .public_all(field::PLAN_PLACE)
-                    .map(|b| String::from_utf8_lossy(b).into_owned())
-                    .collect();
-                Some((self.kef_dropped(wallet, a), names))
-            })
+        self.plan_in_vault_stored(c, v, wallet, &|_| shape.clone())
+            .map(|(_, a, names)| (self.kef_dropped(wallet, a), names))
     }
 
     /// Saves the backup's plan into the open vault as record type 11,

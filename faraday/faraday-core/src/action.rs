@@ -435,6 +435,9 @@ pub enum Action {
     /// Keep the words only: the open copy item's SeedQR copies become
     /// copies of the words (`docs/history/NEW-WALLET.md` §14.7 item 3).
     BKeepWords,
+    /// **Which copy was this?**: the place offered `n`th is the one a
+    /// match dates (`docs/BACKUP-FLOW.md` §18.3).
+    BWhich(u8),
     /// Vault `v`'s item: save into the open vault, in one press,
     /// everything the plan puts in that vault: its seeds, each passphrase
     /// the plan keeps there, and the wallet where the plan puts it there.

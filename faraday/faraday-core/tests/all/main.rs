@@ -21,6 +21,7 @@ mod backup_read_back;
 mod backup_restores;
 mod backup_spend_reach;
 mod backup_stick;
+mod backup_which;
 mod backups;
 mod bip85;
 mod bip85_child;

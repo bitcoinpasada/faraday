@@ -2682,22 +2682,46 @@ vault note, `checked <at> <what> <date>`, for that copy alone:
 
 A vault's stick read whose unlock names an older copy (its seal count is
 lower than one seen since power-on or among the copies in Files) is not
-dated, and its place's line reads "Older copy" in place of a date.
+dated, and its place's line reads "Older copy" in place of a date, until
+a date is written for that place (a match or a stick read in the current
+copy). **Mark checked** in a copy that is not the current one writes
+nothing and toasts "This is not the current copy. Open the current copy
+to mark it checked." A copy sealed as many times as another with other
+bytes is dated and marked by nothing: its line keeps its earlier date or
+none.
 
 **Which place.** A check opened from the chart knows its place: the line
 pressed. A check opened from the checklist knows its seed and form, not
 its place; where the plan keeps that form of the seed at more than one
 place, the match result asks **Which copy was this?**, one option button
 per place by its name (from the vault) or number, and dates the one
-pressed. One place: no question. The power-on count Backups shows
+pressed, if the backup's plan, changed meanwhile, still keeps the thing at
+that place (a changed plan drops the question and the place a chart
+named). One place: no question. The power-on count Backups shows
 (`Record::checks`) keeps working as it does.
 
 **Where it is kept.** In the plan's notes in the vault, as today. With
 no vault open, a check matched in the checklist is held in RAM only,
 with the power-on's backup record (place by number, the thing by kind,
-the date; no names), until the next unlock of the vault that keeps the
-plan, which writes it into the plan's notes; power-off before then
-loses it. It is never in the kept state and never on disk outside the
+the date; no names) and the place's own line in the plan it was checked
+under (its name, where it is and what it keeps there). The line is read
+the same whatever keys are in memory: from the plan's answers as the plan
+record keeps them, with every seed the plan names counted as loaded (with a
+passphrase where the record gives the seed passphrase places) and every
+vault it names counted as made, and no codex32 set of a loaded key put into
+them and no Krux code dropped for a loaded key. The checklist's own side
+reads the flow's answers; when a codex32 set is made in the checklist the
+plan record is saved with the set into the vaults that keep the plan, so
+the two agree, and where no vault keeps the plan nothing is dated. A stick
+check dates the copy the stick held and the copies this device sealed from
+it; a vault that is not a copy of that vault takes it where its own plan has
+the place's line. The check is held until the next unlock of a vault that keeps
+that plan, which writes it into the plan's notes; a vault opened as an
+older copy, or as a copy sealed as many times with other bytes, takes
+none, and a vault whose plan has no place of that number with that line
+that keeps the thing takes none (a plan whose places moved dates
+nothing; a change elsewhere in the plan does not stop a place being
+dated). A lock or a power-off before then loses it. It is never in the kept state and never on disk outside the
 vault (Q3, §18.7; `docs/FLOWS.md`, the chart's rule). The chart's
 **Mark checked** with no vault open reads "Open a vault to keep this",
 as today.
@@ -2740,7 +2764,13 @@ power-on, or the desktop app with its clock known).
    today ("Matches"), with **Set the time** beside it, which opens Set
    the time over the page and returns to it; once set, the check is
    dated with that day. Without it, the note is written with an empty
-   date, shown "Checked · no date".
+   date, shown "Checked · no date". A vault's stick read
+   with no checked clock writes the same empty-date note and keeps the
+   check, with its place's line and the copy the stick held, in RAM
+   until Set the time or the next unlock dates it, in that copy only or
+   in the copy this device's own lock sealed from it in this power-on (a
+   newer copy from elsewhere takes nothing); a check no such vault takes
+   stays kept.
 2. With the clock not checked, no age is shown and nothing is marked
    due: each place shows its date ("Last checked 2025-08-14"), and the
    strip's fourth line reads "Set the time to see what is due" with

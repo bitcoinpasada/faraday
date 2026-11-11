@@ -92,10 +92,10 @@ pub enum Step {
     Item(u8),
     /// Scan a copy of the seed with this fingerprint, and back to the
     /// chart.
-    Scan([u8; 4]),
+    Scan([u8; 4], Option<At>),
     /// Type the words of a copy of the seed with this fingerprint, at the
     /// checklist's copy item by [`bstep`], with the check open.
-    Type([u8; 4], u8),
+    Type([u8; 4], u8, Option<At>),
     /// The backup's plan questions, with the plan the chart shows.
     Plan,
     /// Type a new name for place p: the plan's Places question.
@@ -284,7 +284,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
     // What checking a copy of seed `s`, with fingerprint `fp`, in the
     // `forms` it takes asks for (`docs/history/NEW-WALLET.md` §14.7): the rows a
     // key or a line offers, one per check.
-    let check_rows = |forms: plan::CopyForms, s: usize, fp: [u8; 4]| {
+    let check_rows = |forms: plan::CopyForms, s: usize, fp: [u8; 4], at: Option<At>| {
         let english = app
             .session
             .keys
@@ -294,11 +294,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         let checks = forms.checks(!app.cameras().is_empty(), english);
         let mut rows = Vec::new();
         if checks.scan {
-            rows.push((EN.glance_sheet_scan_my, doing(Step::Scan(fp))));
+            rows.push((EN.glance_sheet_scan_my, doing(Step::Scan(fp, at))));
         }
         if checks.typed && items.contains(&Item::Copy(s)) {
             let n = bstep::of(Item::Copy(s));
-            rows.push((EN.glance_sheet_type_my, doing(Step::Type(fp, n))));
+            rows.push((EN.glance_sheet_type_my, doing(Step::Type(fp, n, at))));
         }
         rows
     };
@@ -563,7 +563,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         words: holds(&|w| w == What::Words(s)),
                         seedqr: holds(&|w| w == What::SeedQr(s)),
                     };
-                    for (label, a) in check_rows(forms, s, fp) {
+                    for (label, a) in check_rows(forms, s, fp, None) {
                         check.push(row(label, "", a));
                     }
                 }
@@ -642,7 +642,13 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             if matches!(node.at, At::Place(_)) && !node.whats.is_empty() {
                 // The oldest of its things' dates, when each was checked.
                 let dates: Option<Vec<&String>> = node.checked.iter().map(Option::as_ref).collect();
+                let older = node.older.iter().any(|o| *o);
                 facts.push(match dates.and_then(|d| d.into_iter().min()) {
+                    _ if older => (
+                        EN.glance_sheet_last_checked,
+                        EN.glance_older_copy.to_string(),
+                        Role::Warning.paint(),
+                    ),
                     Some(d) => (
                         EN.glance_sheet_last_checked,
                         glance::checked_text(d),
@@ -826,7 +832,13 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             if let Some((s, t)) = &node.state {
                 facts.push((EN.glance_sheet_seen_here, s.clone(), tone_color(*t)));
             }
-            if let Some(d) = node.checked.get(usize::from(j)).cloned().flatten() {
+            if node.older.get(usize::from(j)).copied().unwrap_or(false) {
+                facts.push((
+                    EN.glance_sheet_last_checked,
+                    EN.glance_older_copy.to_string(),
+                    Role::Warning.paint(),
+                ));
+            } else if let Some(d) = node.checked.get(usize::from(j)).cloned().flatten() {
                 facts.push((
                     EN.glance_sheet_last_checked,
                     glance::checked_text(&d),
@@ -882,7 +894,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         words: matches!(what, What::Words(_)),
                         seedqr: matches!(what, What::SeedQr(_)),
                     };
-                    for (label, a) in check_rows(forms, s, fp) {
+                    for (label, a) in check_rows(forms, s, fp, Some(node.at)) {
                         rows.push(row(label, EN.glance_sheet_check_copy, a));
                     }
                     rows.push(row(
@@ -1855,7 +1867,7 @@ impl Faraday {
                             self.screen = Screen::Backup;
                         }
                     }
-                    Step::Scan(fp) => {
+                    Step::Scan(fp, at) => {
                         // The copy is checked against the seed, and the
                         // chart stays under the camera.
                         let k = self.session.keys.all().position(|k| k.fingerprint.0 == fp);
@@ -1863,10 +1875,11 @@ impl Faraday {
                             && self.chart_checklist(w, from_vault)
                         {
                             self.act(Action::BKey(k));
+                            self.backup.check_at_set(at);
                             self.act(Action::BScan);
                         }
                     }
-                    Step::Type(fp, n) => {
+                    Step::Type(fp, n, at) => {
                         // The words of the copy typed back, at its item.
                         let k = self.session.keys.all().position(|k| k.fingerprint.0 == fp);
                         if let Some(k) = k
@@ -1874,6 +1887,7 @@ impl Faraday {
                         {
                             self.backup_item_open(Some(n));
                             self.act(Action::BKey(k));
+                            self.backup.check_at_set(at);
                             self.act(Action::BCheck);
                             self.screen = Screen::Backup;
                         }

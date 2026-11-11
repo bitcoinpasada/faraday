@@ -275,6 +275,39 @@ pub fn held_in(text: &str) -> Vec<String> {
 }
 
 impl Answers {
+    /// Which seeds a stored plan `text` gives a passphrase's places: those
+    /// with a non-empty `pass` row, by seed number. A plan read as stored
+    /// takes this and not the loaded key's passphrase.
+    #[must_use]
+    pub fn pass_seeds(text: &str) -> Vec<bool> {
+        let mut out: Vec<bool> = Vec::new();
+        for line in text.lines() {
+            let Some(("pass", value)) = line.split_once(' ') else {
+                continue;
+            };
+            let Some((i, row)) = value.split_once(' ') else {
+                continue;
+            };
+            let Ok(i) = i.parse::<usize>() else {
+                continue;
+            };
+            if i < 4096 {
+                if out.len() <= i {
+                    out.resize(i + 1, false);
+                }
+                out[i] = !row.is_empty();
+            }
+        }
+        out
+    }
+
+    /// Which seeds these answers give a passphrase's places (a non-empty
+    /// row), the same as [`Answers::pass_seeds`] reads of their text.
+    #[must_use]
+    pub fn pass_flags(&self) -> Vec<bool> {
+        self.pass.iter().map(|r| !r.is_empty()).collect()
+    }
+
     /// Reads [`Answers::to_text`] back for `shape`: None when it is not
     /// for a wallet of this shape. A plan saved before vaults were one per
     /// seed, with one `sticks` line and no `vault` line, reads as one

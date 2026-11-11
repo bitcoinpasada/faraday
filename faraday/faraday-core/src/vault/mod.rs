@@ -1397,6 +1397,7 @@ impl Faraday {
             self.toast(&said);
         }
         self.vault_gather_codex32();
+        self.dated_unlock();
         if for_import {
             // Its Load sheet (F62); after it, the next vault the import
             // brought is offered, or, with none left, the landing (F60).

@@ -720,19 +720,19 @@ fn the_chart_checks_a_copy_by_the_form_of_its_line() {
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let fp = fp_of(&app);
-    assert!(chart_has(&mut app, Step::Type(fp, bstep::COPY)));
-    assert!(!chart_has(&mut app, Step::Scan(fp)));
+    assert!(chart_has(&mut app, Step::Type(fp, bstep::COPY, None)));
+    assert!(!chart_has(&mut app, Step::Scan(fp, None)));
 
     // A SeedQR with a camera: scanned.
     let mut app = backing_up(ATTACK, true, SEEDQR_ONLY);
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let fp = fp_of(&app);
-    assert!(chart_has(&mut app, Step::Scan(fp)));
-    assert!(!chart_has(&mut app, Step::Type(fp, bstep::COPY)));
+    assert!(chart_has(&mut app, Step::Scan(fp, None)));
+    assert!(!chart_has(&mut app, Step::Type(fp, bstep::COPY, None)));
     // The scan keeps the chart under the camera.
     app.press(Action::Chart(C::Open(Press::Loaded(0), Target::Key(0))));
-    app.press(Action::Chart(C::Do(Press::Loaded(0), Step::Scan(fp))));
+    app.press(Action::Chart(C::Do(Press::Loaded(0), Step::Scan(fp, None))));
     assert_eq!(app.sheet, Some(Sheet::Scan));
     app.press(Action::Cancel);
     assert_eq!(app.screen, faraday_core::Screen::Wallets);
@@ -742,16 +742,16 @@ fn the_chart_checks_a_copy_by_the_form_of_its_line() {
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let fp = fp_of(&app);
-    assert!(chart_has(&mut app, Step::Type(fp, bstep::COPY)));
-    assert!(!chart_has(&mut app, Step::Scan(fp)));
+    assert!(chart_has(&mut app, Step::Type(fp, bstep::COPY, None)));
+    assert!(!chart_has(&mut app, Step::Scan(fp, None)));
 
     // Both forms, with a camera: a row for each.
     let mut app = backing_up(ATTACK, true, BOTH);
     app.press(Action::OpenWallet(0));
     let _ = app.frame();
     let fp = fp_of(&app);
-    assert!(chart_has(&mut app, Step::Type(fp, bstep::COPY)));
-    assert!(chart_has(&mut app, Step::Scan(fp)));
+    assert!(chart_has(&mut app, Step::Type(fp, bstep::COPY, None)));
+    assert!(chart_has(&mut app, Step::Scan(fp, None)));
 }
 
 // ---------------------------------------------------------------------

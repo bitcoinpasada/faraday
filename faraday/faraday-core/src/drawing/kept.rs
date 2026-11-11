@@ -1048,6 +1048,9 @@ impl crate::glance::Reads for View<'_> {
     ) -> Option<(plan::Answers, Vec<String>)> {
         self.kept(|c| self.app.plan_in_vault(c, v, wallet, shape))
     }
+    fn older_copy(&self, sum: &str, p: usize, what: plan::What) -> bool {
+        self.app.backups_area.is_older(sum, p, what)
+    }
     fn plan_notes(&self, wallet: &Wallet, v: Option<usize>) -> Vec<plan::Note> {
         self.kept(|c| self.app.plan_notes(c, wallet, v))
     }

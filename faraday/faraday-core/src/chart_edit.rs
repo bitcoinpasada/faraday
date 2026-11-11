@@ -104,9 +104,12 @@ impl Faraday {
             .collect()
     }
 
-    /// Today's local date, `YYYY-MM-DD`; empty when the clock is not
-    /// known (`docs/TOTP.md` §2.3).
+    /// Today's local date, `YYYY-MM-DD`; empty unless the clock is
+    /// checked (`docs/TOTP.md` §1.3): a date kept is a checked one.
     pub(crate) fn today(&self) -> String {
+        if !self.clock_checked() {
+            return String::new();
+        }
         self.clock_now()
             .map(|t| crate::gpg::date(crate::vault::local_secs(t, self.tz_min())))
             .unwrap_or_default()
@@ -508,12 +511,29 @@ impl Faraday {
         }
     }
 
+    /// Costs what `notes_vault` costs. Whether the vault a date would be
+    /// written into is a copy that is not the current one: it would live
+    /// only there, so nothing is written, and the toast says so.
+    fn chart_copy_not_current(&mut self, c: &Compute, press: Press) -> bool {
+        if let Some(w) = self.press_wallet(press)
+            && let Some(v) = self.notes_vault(c, press, w)
+            && self.vaults.open.get(v).is_some_and(|o| o.is_not_current())
+        {
+            self.toast(EN.chart_edit_not_current);
+            return true;
+        }
+        false
+    }
+
     /// Every thing in backup node `n`, checked here today.
     pub(crate) fn chart_checked(&mut self, press: Press, n: u8) {
         let c = self.compute();
         let Some(things) = self.chart_things(&c, press, n, None) else {
             return;
         };
+        if self.chart_copy_not_current(&c, press) {
+            return;
+        }
         let today = self.today();
         let kept = self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
             for &(at, what) in &things {
@@ -522,6 +542,18 @@ impl Faraday {
             }
         });
         if kept {
+            // A date written for a place ends its "Older copy" mark.
+            let sum = self
+                .press_wallet(press)
+                .and_then(|w| self.session.wallets.get(w))
+                .map(|w| w.checksum().to_string());
+            if let Some(sum) = sum {
+                for &(at, what) in &things {
+                    if let At::Place(p) = at {
+                        self.backups_area.older_clear(&sum, p, what);
+                    }
+                }
+            }
             self.toast(EN.chart_edit_checked);
         }
     }
@@ -532,6 +564,9 @@ impl Faraday {
         let Some(fp) = self.chart_key_fp(&c, press, k) else {
             return;
         };
+        if self.chart_copy_not_current(&c, press) {
+            return;
+        }
         let today = self.today();
         if self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
             notes.retain(|x| !matches!(x, Note::KeyChecked(f, _) if *f == fp));

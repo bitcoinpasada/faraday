@@ -2390,6 +2390,19 @@ pub fn keep_sheet_seeds(app: &crate::Faraday) -> Vec<[u8; 4]> {
         .map_or_else(Vec::new, |s| s.asks.iter().map(|a| a.fp).collect())
 }
 
+/// Inbox vault file `name` was read from the stick labelled `label` on a
+/// stick visit, as a visit's copy-in records it.
+pub fn vault_read_from_stick(app: &mut crate::Faraday, name: &str, label: &str) {
+    let bytes = app
+        .inbox
+        .iter()
+        .find(|i| i.name == name)
+        .map(|i| i.bytes.clone());
+    if let Some(bytes) = bytes {
+        app.vault_read_from(name, &bytes, label);
+    }
+}
+
 /// A test-only stand-in for a visit's write of Inbox file `name` having
 /// started: a write can start only while no secret was held, so a test
 /// with a vault open cannot press Write.

@@ -1847,6 +1847,12 @@ impl OpenVault {
     pub fn vault_id(&self) -> [u8; 32] {
         self.vault_id
     }
+
+    /// The SHA-256 of the copy this vault was opened from, or was last
+    /// sealed into.
+    pub(crate) fn copy_digest(&self) -> [u8; 32] {
+        self.seal_digest
+    }
 }
 
 /// Create a vault's form.
@@ -2043,6 +2049,10 @@ pub struct Vaults {
     /// closed together ([`Vaults::close`], [`Vaults::close_all`]). Read
     /// through [`Vaults::store`]; changed through [`Vaults::edit`].
     pub(super) store: OpenVaults,
+    /// The copies this device sealed this power-on: a vault's identifier,
+    /// the digest of the copy opened and the digest of the copy its seal
+    /// wrote. RAM only ([`Vaults::copy_descends`]).
+    pub(super) sealed_from: Vec<([u8; 32], [u8; 32], [u8; 32])>,
     /// Create a vault, while it is on screen.
     pub create: Option<CreateForm>,
     /// The machines ticked in the Memory dialog, its own.

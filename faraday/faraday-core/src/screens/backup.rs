@@ -423,18 +423,34 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 // (`docs/BACKUP-FLOW.md` §15.1).
                 return 0.0;
             }
-            if all_done {
-                backup_done(app_ref, ui, x, y, w)
-            } else {
-                wrap_buttons(
-                    ui,
+            // A match with the clock not checked is dated by Set the
+            // time, whichever item the checklist has moved on to.
+            let mut fy = y;
+            if app_ref.backup().is_some_and(|b| b.undated) && !app_ref.clock_checked() {
+                ui.button(
                     x,
-                    y,
-                    w,
-                    40.0,
-                    &[(EN.backup_change_the_plan, Style::Secondary, Action::BPlan)],
-                )
+                    fy,
+                    None,
+                    BUTTON_H,
+                    EN.copy_check_set_the_time,
+                    Style::Secondary,
+                    Action::OpenSetTime,
+                );
+                fy += BUTTON_H + 12.0;
             }
+            fy - y
+                + if all_done {
+                    backup_done(app_ref, ui, x, fy, w)
+                } else {
+                    wrap_buttons(
+                        ui,
+                        x,
+                        fy,
+                        w,
+                        40.0,
+                        &[(EN.backup_change_the_plan, Style::Secondary, Action::BPlan)],
+                    )
+                }
         };
         flow::column_wide(ui, &col, work, &cards, scroll, &mut body, Some(&mut foot))
     };
@@ -1314,6 +1330,9 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if b.checked.contains(&(key.fingerprint.0, form)) {
             cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, line) + 12.0;
         }
+        if !pass {
+            cy += dating(ui, (x, cy, w), b);
+        }
         return cy - y;
     };
     if c.passphrase {
@@ -1334,6 +1353,43 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Action::BCheckClear,
     );
     cy += lh.max(18.0) + 12.0;
+    cy - y
+}
+
+/// What a match asks to be dated: **Which copy was this?** with a button
+/// per place. Returns its height.
+fn dating(ui: &mut Ui, (x, y, w): (f32, f32, f32), b: &crate::wallet_backup::BackupState) -> f32 {
+    let mut cy = y;
+    if let Some((_, places)) = b.which.as_ref() {
+        cy += ui.wrap_as(
+            (x, cy, w),
+            LABEL_L,
+            Role::OnSurface,
+            EN.copy_check_which_copy,
+        ) + 8.0;
+        for (n, p) in places.iter().enumerate() {
+            let name = b
+                .names
+                .get(*p)
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .map_or_else(
+                    || fill(EN.backups_place, &[&(p + 1).to_string()]),
+                    str::to_string,
+                );
+            ui.button(
+                x,
+                cy,
+                None,
+                BUTTON_H,
+                &name,
+                Style::Secondary,
+                Action::BWhich(n as u8),
+            );
+            cy += BUTTON_H + 8.0;
+        }
+        cy += 4.0;
+    }
     cy - y
 }
 

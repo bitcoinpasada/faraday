@@ -61,6 +61,36 @@ pub struct Record {
     /// the passphrase or the seed is in it (`docs/KEF.md` §15.1). Empty in
     /// a record kept before it was written.
     pub kefs: Vec<([u8; 4], KefMark)>,
+    /// Copies checked this power-on, dated, and held here until an unlock
+    /// of a vault that keeps the same plan (and is the newest copy seen)
+    /// writes them into its notes (`docs/BACKUP-FLOW.md` §18.3). RAM only:
+    /// never written into the kept records, nor carried across a lock, so
+    /// a lock or a power-off loses what was not written.
+    pub dated: Vec<Dated>,
+}
+
+/// A copy checked, as a record holds it until the vault keeps it: the
+/// place by number, the thing by kind, the date. No names.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Dated {
+    /// The place, by number from zero.
+    pub place: usize,
+    /// The thing checked.
+    pub what: plan::What,
+    /// The date (`YYYY-MM-DD`), empty when the clock was not checked.
+    pub date: String,
+    /// The vault's plan notes hold this date.
+    pub written: bool,
+    /// The place's own line in the plan the check was made under
+    /// ([`place_line`]: its name, where it is and what it holds, no mark
+    /// of what is loaded now). Only a vault whose plan has, at this number,
+    /// a place with the same line that keeps the thing takes the date.
+    pub line: String,
+    /// The copy a stick check read, where there is one: the stick's own
+    /// vault takes the date only in that copy or one this device sealed
+    /// from it, and a current vault of another id that keeps the plan takes
+    /// it (`docs/BACKUP-FLOW.md` §18.3).
+    pub copy: Option<CopyRead>,
 }
 
 /// A Krux code made in a wallet's backup, as its record keeps it.
@@ -147,6 +177,33 @@ pub struct Line {
     pub at: Option<At>,
     /// A place that keeps a copy by hand of a seed.
     pub paper: bool,
+}
+
+/// Place `p`'s own line in a plan, as a dated check carries it: the name
+/// it was given (`names[p]`, as the plan record keeps it) and the place's
+/// spot line as [`plan::text::at_code`] and [`plan::text::what_code`]
+/// write it, with no mark of what is loaded now. None where `places` (the
+/// plan's map as places keep it) has no place `p` that keeps `what`.
+pub(crate) fn place_line(
+    places: &[plan::Spot],
+    names: &[String],
+    p: usize,
+    what: What,
+) -> Option<String> {
+    let spot = places.iter().find(|s| s.at == At::Place(p))?;
+    if !spot.holds.iter().any(|(w, _)| *w == what) {
+        return None;
+    }
+    let mut line = format!(
+        "{}\n{}",
+        names.get(p).map_or("", |n| n.trim()),
+        plan::text::at_code(spot.at)
+    );
+    for (w, _) in &spot.holds {
+        line.push(' ');
+        line.push_str(&plan::text::what_code(*w));
+    }
+    Some(line)
 }
 
 /// The most exposed of two tags.
@@ -259,6 +316,23 @@ pub(crate) fn hex32(b: &[u8; 32]) -> String {
 
 pub(crate) fn read_hex32(s: &str) -> Option<[u8; 32]> {
     faraday_crypto::hex::decode_exact(s)
+}
+
+/// Whether locked vault summary `s` is the vault that does a plan's
+/// vault: each of `own` (the seeds the plan puts there, told by
+/// [`summary_has_seed`]) is held, each of `others` (seeds only another
+/// vault is to hold) is not, and the wallet's checksum `sum` is listed
+/// when `wallet_too`. A seed that cannot be told is not done.
+pub(crate) fn summary_fits(
+    s: &crate::vault::VaultSummary,
+    sum: &str,
+    wallet_too: bool,
+    own: &[Option<bool>],
+    others: &[Option<bool>],
+) -> bool {
+    own.iter().all(|h| *h == Some(true))
+        && others.iter().all(|h| *h == Some(false))
+        && (!wallet_too || s.sums.iter().any(|x| x == sum))
 }
 
 /// Whether locked vault summary `s` holds seed `fp` whose master id is
@@ -447,7 +521,23 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
 pub(crate) struct BackupsArea {
     at: usize,
     records: Vec<Record>,
+    /// Vault sticks read from an older copy of their vault this power-on:
+    /// the wallet's checksum, the place, the stick. RAM only, never kept
+    /// (`docs/BACKUP-FLOW.md` §18.3).
+    older: Vec<(String, usize, plan::What)>,
+    /// Stick checks made with the clock not checked, of wallets with no
+    /// record this power-on: dated at **Set the time**.
+    undated: Vec<Held>,
 }
+
+/// The copy of a vault a stick check was made from: the vault's
+/// identifier and the digest of the copy the stick held.
+pub(crate) type CopyRead = ([u8; 32], [u8; 32]);
+
+/// A stick check held for the clock: the wallet's checksum, the place, the
+/// thing, the place's line, and the copy the stick held. Only that copy,
+/// or one this device sealed from it, takes the date.
+pub(crate) type Held = (String, usize, plan::What, String, CopyRead);
 
 impl BackupsArea {
     /// The wallet Backups shows, a page each on a small panel.
@@ -516,6 +606,7 @@ impl BackupsArea {
                 answers,
                 ids,
                 kefs: Vec::new(),
+                dated: Vec::new(),
             }),
         }
     }
@@ -562,6 +653,89 @@ impl BackupsArea {
                 None => r.checks.push((fp, 1)),
             }
         }
+    }
+
+    /// The vault stick `what` at place `p` of wallet `sum`'s plan was read
+    /// from an older copy of its vault.
+    pub(crate) fn older_mark(&mut self, sum: &str, p: usize, what: plan::What) {
+        if !self.is_older(sum, p, what) {
+            self.older.push((sum.to_string(), p, what));
+        }
+    }
+
+    /// The mark of [`BackupsArea::older_mark`] is gone: the stick was read
+    /// from a copy that is not older.
+    pub(crate) fn older_clear(&mut self, sum: &str, p: usize, what: plan::What) {
+        self.older
+            .retain(|(s, q, w)| !(s == sum && *q == p && *w == what));
+    }
+
+    /// Whether the stick was read from an older copy of its vault.
+    pub(crate) fn is_older(&self, sum: &str, p: usize, what: plan::What) -> bool {
+        self.older
+            .iter()
+            .any(|(s, q, w)| s == sum && *q == p && *w == what)
+    }
+
+    /// A copy checked and dated, held in wallet `sum`'s record: one entry
+    /// per place and thing, the latest.
+    pub(crate) fn dated_add(&mut self, sum: &str, d: Dated) {
+        if let Some(r) = self.record_mut(sum) {
+            r.dated
+                .retain(|x| !(x.place == d.place && x.what == d.what));
+            r.dated.push(d);
+        }
+    }
+
+    /// The dated checks of wallet `sum`'s record at these places and
+    /// things are in a vault's notes.
+    pub(crate) fn dated_written(&mut self, sum: &str, done: &[(usize, plan::What)]) {
+        if let Some(r) = self.record_mut(sum) {
+            for d in &mut r.dated {
+                if done.contains(&(d.place, d.what)) {
+                    d.written = true;
+                }
+            }
+        }
+    }
+
+    /// A stick check with no date, of a wallet with no record, made from
+    /// `copy`: held until the clock is set.
+    pub(crate) fn undated_hold(
+        &mut self,
+        sum: &str,
+        p: usize,
+        what: plan::What,
+        line: &str,
+        copy: CopyRead,
+    ) {
+        let held = (sum.to_string(), p, what, line.to_string(), copy);
+        if !self.undated.contains(&held) {
+            self.undated.push(held);
+        }
+    }
+
+    /// The stick checks of [`BackupsArea::undated_hold`], taken.
+    pub(crate) fn undated_take(&mut self) -> Vec<Held> {
+        std::mem::take(&mut self.undated)
+    }
+
+    /// The dated checks with no date take `today`, to be written again;
+    /// the checksums of the records that had one.
+    pub(crate) fn date_undated(&mut self, today: &str) -> Vec<String> {
+        let mut sums = Vec::new();
+        for r in &mut self.records {
+            let mut any = false;
+            for d in r.dated.iter_mut().filter(|d| d.date.is_empty()) {
+                d.date = today.to_string();
+                d.written = false;
+                any = true;
+            }
+            if any {
+                sums.push(r.sum.clone());
+            }
+        }
+        sums
     }
 
     /// The descriptor was shown in wallet `sum`'s backup.
@@ -658,6 +832,51 @@ impl Record {
 
 /// A codex32 string the plan keeps: its seed and its share index.
 type Pair = (usize, usize);
+
+impl Faraday {
+    /// Costs what `described_of` costs. The plan open vault `v` keeps for
+    /// `wallet`, read as the record says (no Krux code dropped for a key
+    /// loaded now): the shape `shape_for` makes from the record's own
+    /// passphrase flags ([`plan::Answers::pass_seeds`]), the answers read
+    /// under it and the places' names.
+    pub(crate) fn plan_in_vault_stored(
+        &self,
+        c: &Compute,
+        v: usize,
+        wallet: &Wallet,
+        shape_for: &dyn Fn(&[bool]) -> plan::Shape,
+    ) -> Option<(plan::Shape, plan::Answers, Vec<String>)> {
+        let want = crate::wallet::same_wallet(wallet.policy());
+        let o = self.vaults.open.get(v)?;
+        self.vaults
+            .described_of(c, o.id, kind::PLAN)
+            .find_map(|(_, r, d)| {
+                if d.same != want {
+                    return None;
+                }
+                let text = r.public_text(field::PLAN_ANSWERS)?;
+                let shape = shape_for(&plan::Answers::pass_seeds(text));
+                let a = plan::Answers::from_text(&shape, text)?;
+                let names = r
+                    .public_all(field::PLAN_PLACE)
+                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                    .collect();
+                Some((shape, a, names))
+            })
+    }
+
+    /// Costs what `plan_in_vault` costs. The first plan the open vaults
+    /// keep for `wallet` that parses, read as the record says, with the
+    /// shape `shape_for` makes from that same record's passphrase flags.
+    pub(crate) fn plan_load_stored(
+        &self,
+        c: &Compute,
+        wallet: &Wallet,
+        shape_for: &dyn Fn(&[bool]) -> plan::Shape,
+    ) -> Option<(plan::Shape, plan::Answers, Vec<String>)> {
+        (0..self.vaults.open.len()).find_map(|v| self.plan_in_vault_stored(c, v, wallet, shape_for))
+    }
+}
 
 impl Faraday {
     /// Costs what `backup_public_names_for_now` and `plan_mapped` cost. The
@@ -817,12 +1036,16 @@ impl Faraday {
     }
 
     /// A copy by hand of seed `fp` matched in the backup under way in
-    /// `form`: that form is checked. Once the seed is checked in every
-    /// form its copies ask for, one more of its copies is checked in the
-    /// record.
+    /// `form`: that form is checked, and the copy at its place is dated in
+    /// the plan's notes (`docs/BACKUP-FLOW.md` §18.3): the place a chart's
+    /// line named, the plan's one place for that form, or, where the plan
+    /// keeps it at more than one, the one the match result asks for. Once
+    /// the seed is checked in every form its copies ask for, one more of
+    /// its copies is checked in the record.
     pub(crate) fn copy_matched(&mut self, fp: [u8; 4], form: crate::plan::CopyForm) {
         let c = self.compute();
         self.backup.note_checked(fp, form);
+        self.copy_dating(&c, fp, form);
         if !self.seed_copy_checked(&c, fp) {
             return;
         }
@@ -838,6 +1061,665 @@ impl Faraday {
             self.backups_sync();
         }
         self.backups_area.copy_checked(&sum, fp);
+    }
+
+    /// Costs what `plan_mapped` costs. Dates the copy of seed `fp` that
+    /// matched in `form`, or asks which copy it was.
+    fn copy_dating(&mut self, c: &Compute, fp: [u8; 4], form: crate::plan::CopyForm) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let seed = self
+            .backup_seed_list_now(b.wallet)
+            .iter()
+            .position(|(_, k)| {
+                k.and_then(|k| self.session.keys.info(k))
+                    .is_some_and(|k| k.fingerprint.0 == fp)
+            });
+        let (Some(i), at) = (seed, b.check_at) else {
+            return;
+        };
+        let what = match form {
+            plan::CopyForm::Words => What::Words(i),
+            plan::CopyForm::SeedQr => What::SeedQr(i),
+            plan::CopyForm::Passphrase => return,
+        };
+        self.backup.check_at_take();
+        self.what_dating(c, what, at);
+    }
+
+    /// Costs what `plan_mapped` costs. Dates the copy of `what` that
+    /// matched at `at`, or at the one place the plan keeps it, or asks
+    /// which copy it was.
+    fn what_dating(&mut self, c: &Compute, what: What, at: Option<At>) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let (wallet, answers) = (b.wallet, b.answers.clone());
+        // A question still open was for an earlier match: that one is not
+        // dated.
+        self.backup.which_take();
+        let shape = self.plan_shape_now(wallet);
+        let places: Vec<usize> = self
+            .kept
+            .plan_mapped(c, &shape, &answers)
+            .places
+            .iter()
+            .filter_map(|s| match s.at {
+                At::Place(p) if s.holds.iter().any(|(w, _)| *w == what) => Some(p),
+                _ => None,
+            })
+            .collect();
+        // The place a chart named is dated where the plan keeps this
+        // thing there; where it does not, the checklist's way.
+        if let Some(At::Place(p)) = at
+            && places.contains(&p)
+        {
+            self.dated_add(c, p, what);
+            return;
+        }
+        match places[..] {
+            [] => {}
+            [p] => self.dated_add(c, p, what),
+            _ => self.backup.ask_which(what, places),
+        }
+    }
+
+    /// Costs what `plan_mapped` costs. Dates each codex32 string that
+    /// became checked since `was` (a Check my copy that held).
+    fn c32_dating(&mut self, c: &Compute, was: &[(usize, usize)]) {
+        let new: Vec<(usize, usize)> = self
+            .backup
+            .state()
+            .map(|b| {
+                b.c32_checked
+                    .iter()
+                    .copied()
+                    .filter(|x| !was.contains(x))
+                    .collect()
+            })
+            .unwrap_or_default();
+        for (i, j) in new {
+            self.what_dating(c, What::Codex32Share(i, j), None);
+        }
+    }
+
+    /// Costs what `described_of` costs. The policies of the loaded wallets
+    /// and of the WALLET records of open vault `id`.
+    fn wallet_policies_with(
+        &self,
+        c: &Compute,
+        id: faraday_keys::vault::VaultId,
+    ) -> Vec<faraday_bip::policy::WalletPolicy> {
+        let mut policies: Vec<faraday_bip::policy::WalletPolicy> = self
+            .session
+            .wallets
+            .iter()
+            .map(|w| w.policy().clone())
+            .collect();
+        policies.extend(
+            self.vaults
+                .described_of(c, id, faraday_vault::records::kind::WALLET)
+                .map(|(_, _, d)| d.policy.clone()),
+        );
+        policies
+    }
+
+    /// Costs what `plan_mapped` costs, for each wallet the open vaults
+    /// keep a plan for. Open vault `o`, just unlocked from the file with
+    /// hash `sha`: when that file was read from a stick on a stick visit,
+    /// the plan's one vault it does (held as a vault holds its seeds, the
+    /// wallet and no seed only another vault holds, as a locked vault's
+    /// summary says) has its stick dated at the one place the plan keeps
+    /// it (`docs/BACKUP-FLOW.md` §18.3). An unlock of an older copy dates
+    /// nothing: the stick's line reads "Older copy", held in RAM; a copy
+    /// sealed as many times with other bytes dates nothing and marks
+    /// nothing. The wallets need not be loaded.
+    pub(crate) fn vault_stick_dated(&mut self, o: usize, sha: Option<[u8; 32]>) {
+        let from_stick = sha.is_some_and(|h| self.visit.vault_from_find(|x| x.1 == h).is_some());
+        let Some((open_id, salt)) = self
+            .vaults
+            .open
+            .get(o)
+            .filter(|_| from_stick)
+            .map(|v| (v.id, v.vault_id()))
+        else {
+            return;
+        };
+        let (older, diverged) = self.vaults.open.get(o).map_or((false, false), |v| {
+            (v.is_older_copy(), v.is_not_current() && !v.is_older_copy())
+        });
+        if diverged {
+            return;
+        }
+        let Some(summary) = self.vaults.summaries.iter().find(|s| s.id == salt).cloned() else {
+            return;
+        };
+        let copy = self
+            .vaults
+            .open
+            .get(o)
+            .map(|v| (v.vault_id(), v.copy_digest()));
+        let Some(copy) = copy else {
+            return;
+        };
+        let c = self.compute();
+        let policies = self.wallet_policies_with(&c, open_id);
+        let mut seen: Vec<String> = Vec::new();
+        for policy in policies {
+            let sum = policy.checksum().to_string();
+            if seen.contains(&sum) {
+                continue;
+            }
+            seen.push(sum.clone());
+            let wallet = crate::wallet::Wallet::new(
+                String::new(),
+                policy,
+                String::new(),
+                crate::wallet::Origin::Named,
+            );
+            let Some((shape, answers, _)) = self.plan_load_stored(&c, &wallet, &|pass| {
+                let mut shape = self.plan_shape_of(&wallet);
+                for (i, seed) in shape.seeds.iter_mut().enumerate() {
+                    seed.here |= summary.keys.contains(&seed.name);
+                    seed.passphrase = pass.get(i).copied().unwrap_or(false);
+                }
+                shape
+            }) else {
+                continue;
+            };
+            let slots = self.session.slots(&wallet);
+            let fp_of = |i: usize| {
+                let name = &shape.seeds.get(i)?.name;
+                slots
+                    .iter()
+                    .find_map(|s| s.fingerprint.filter(|f| fp_text(*f) == *name))
+                    .map(|f| f.0)
+            };
+            let record = self.backups_area.record(&sum);
+            let has = |fp: [u8; 4]| summary_has_seed(&summary, fp, self.seed_id(record, fp));
+            let made = answers.vaults_made(&shape);
+            let fits = |pv: usize| {
+                let own = answers.vault_seeds(&shape, pv);
+                let wallet_too = answers.wallet_in_vault(pv);
+                if own.is_empty() && !wallet_too {
+                    return false;
+                }
+                let told = |i: usize| fp_of(i).and_then(has);
+                let others: Vec<Option<bool>> = made
+                    .iter()
+                    .filter(|&&u| u != pv)
+                    .flat_map(|&u| answers.vault_seeds(&shape, u))
+                    .filter(|i| !own.contains(i))
+                    .map(told)
+                    .collect();
+                let own: Vec<Option<bool>> = own.iter().map(|&i| told(i)).collect();
+                summary_fits(&summary, &sum, wallet_too, &own, &others)
+            };
+            let [pv] = made
+                .iter()
+                .copied()
+                .filter(|&pv| fits(pv))
+                .collect::<Vec<_>>()[..]
+            else {
+                continue;
+            };
+            let places = self.stick_places(&c, &wallet, &answers, pv);
+            if let [p] = places[..] {
+                if older {
+                    self.backups_area.older_mark(&sum, p, What::VaultStick(pv));
+                } else if let Some(line) =
+                    self.plan_place_line(&c, &wallet, p, What::VaultStick(pv))
+                {
+                    self.dated_add_to(&sum, p, What::VaultStick(pv), line, Some(copy));
+                }
+            }
+        }
+    }
+
+    /// The shape a dated check's place line is built under, the same
+    /// whatever keys are in memory: every seed the plan names counts as
+    /// loaded (with a passphrase where the plan as stored gives the seed
+    /// one, `pass`, not where the key has one) and so every vault it names counts as
+    /// made, and no vault is set up before the keys. Both the check's side
+    /// and the vault's read a place's line under it
+    /// (`docs/BACKUP-FLOW.md` §18.3).
+    pub(crate) fn plan_shape_made(
+        &self,
+        wallet: &crate::wallet::Wallet,
+        pass: &[bool],
+    ) -> plan::Shape {
+        let mut shape = self.plan_shape_of(wallet);
+        for (i, seed) in shape.seeds.iter_mut().enumerate() {
+            seed.here = true;
+            seed.passphrase = pass.get(i).copied().unwrap_or(false);
+        }
+        shape.vaults = 0;
+        shape
+    }
+
+    /// Costs what `plan_mapped` costs. The places of the plan (`answers`)
+    /// that keep vault `pv`'s stick, under the one shape a place line is
+    /// read under ([`Faraday::plan_shape_made`]), not the one that names
+    /// the vault the stick is of.
+    fn stick_places(
+        &self,
+        c: &Compute,
+        wallet: &crate::wallet::Wallet,
+        answers: &plan::Answers,
+        pv: usize,
+    ) -> Vec<usize> {
+        let shape = self.plan_shape_made(wallet, &answers.pass_flags());
+        self.kept
+            .plan_mapped(c, &shape, answers)
+            .places
+            .iter()
+            .filter_map(|s| match s.at {
+                At::Place(p) if s.holds.iter().any(|(x, _)| *x == What::VaultStick(pv)) => Some(p),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Costs what `plan_mapped` costs. Place `p`'s [`place_line`] in the
+    /// plan the open vaults keep for `wallet`, read as the vault's own
+    /// records are read, under [`Faraday::plan_shape_made`]: the line does
+    /// not depend on which keys are loaded.
+    fn plan_place_line(
+        &self,
+        c: &Compute,
+        wallet: &crate::wallet::Wallet,
+        p: usize,
+        what: What,
+    ) -> Option<String> {
+        let (shape, answers, names) =
+            self.plan_load_stored(c, wallet, &|pass| self.plan_shape_made(wallet, pass))?;
+        let mapped = self.kept.plan_mapped(c, &shape, &answers);
+        place_line(&mapped.places, &names, p, what)
+    }
+
+    /// **Which copy was this?**: the `n`th place offered is the one dated,
+    /// where the backup's plan now still keeps the thing there.
+    pub(crate) fn copy_which(&mut self, n: usize) {
+        let Some((what, places)) = self.backup.which_take() else {
+            return;
+        };
+        if let Some(&p) = places.get(n) {
+            let c = self.compute();
+            self.dated_add(&c, p, what);
+        }
+    }
+
+    /// Costs what `plan_mapped` costs. The copy of `what` at place `p` of
+    /// the backup under way checked today: held on the wallet's record
+    /// and written into the plan's notes of an open vault that keeps the
+    /// plan. With the clock not checked the date is empty, and **Set the
+    /// time** dates it. Nothing where the backup's plan has no place `p`
+    /// that keeps `what`.
+    fn dated_add(&mut self, c: &Compute, p: usize, what: What) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(sum) = self
+            .session
+            .wallets
+            .get(b.wallet)
+            .map(|w| w.checksum().to_string())
+        else {
+            return;
+        };
+        let (wallet, answers, names) = (b.wallet, b.answers.clone(), b.names.clone());
+        let Some(w) = self.session.wallets.get(wallet) else {
+            return;
+        };
+        let shape = self.plan_shape_made(w, &answers.pass_flags());
+        let mapped = self.kept.plan_mapped(c, &shape, &answers);
+        let Some(line) = place_line(&mapped.places, &names, p, what) else {
+            return;
+        };
+        self.dated_add_to(&sum, p, what, line, None);
+    }
+
+    /// Costs what `dated_into` costs. [`Faraday::dated_add`] on the record
+    /// of the wallet with checksum `sum`, the check made at a place whose
+    /// line (a [`place_line`]) is `line`. A stick read (`copy` is the copy
+    /// the stick held) dates the stick's own vault only in that copy, or one
+    /// this device sealed from it (`Vaults::copy_descends`), and a current
+    /// vault of another id that keeps the plan takes it
+    /// (`docs/BACKUP-FLOW.md` §18.3); it is held for the clock as such.
+    fn dated_add_to(
+        &mut self,
+        sum: &str,
+        p: usize,
+        what: What,
+        line: String,
+        copy: Option<CopyRead>,
+    ) {
+        let sum = sum.to_string();
+        if !self.backups_area.has(&sum) {
+            self.backups_sync();
+        }
+        let date = self.today();
+        // **Set the time** is offered on the backup of this wallet only.
+        if date.is_empty()
+            && self
+                .backup
+                .state()
+                .and_then(|b| self.session.wallets.get(b.wallet))
+                .is_some_and(|w| w.checksum() == sum)
+        {
+            self.backup.set_undated(true);
+        }
+        self.backups_area.older_clear(&sum, p, what);
+        if !self.backups_area.has(&sum) {
+            // No backup of this wallet was under way this power-on (its
+            // vault was just unlocked and the wallet is not loaded): the
+            // date goes straight into the notes of the open vaults that
+            // keep its plan; with no date, it waits for the clock.
+            let c = self.compute();
+            // With no date the note is written empty ("Checked · no
+            // date") and held, so Set the time dates it.
+            if date.is_empty() {
+                for v in 0..self.vaults.open.len() {
+                    if self.copy_takes(v, copy) {
+                        self.dated_into(
+                            &c,
+                            v,
+                            &sum,
+                            &[(At::Place(p), what, String::new(), line.clone())],
+                        );
+                    }
+                }
+                if let Some(copy) = copy {
+                    self.backups_area.undated_hold(&sum, p, what, &line, copy);
+                }
+                return;
+            }
+            let takers: Vec<usize> = (0..self.vaults.open.len())
+                .filter(|&v| self.copy_takes(v, copy))
+                .collect();
+            for v in takers {
+                self.dated_into(
+                    &c,
+                    v,
+                    &sum,
+                    &[(At::Place(p), what, date.clone(), line.clone())],
+                );
+            }
+            return;
+        }
+        self.backups_area.dated_add(
+            &sum,
+            Dated {
+                place: p,
+                what,
+                date,
+                written: false,
+                line,
+                copy,
+            },
+        );
+        self.dated_write(&sum);
+    }
+
+    /// Costs what a wallet description's read costs, and `plan_mapped`.
+    /// The places of the plan a vault's record keeps for wallet `sum`
+    /// (answers `text`), read as the check's side reads its plan (the same
+    /// parse, under [`Faraday::plan_shape_made`], with no codex32 set of a
+    /// loaded key put into the answers and no Krux code dropped for a
+    /// loaded key: the strings a place keeps are the
+    /// ones the plan record says, as the check's side reads the backup's
+    /// answers): as places keep the map. The wallet is the loaded one
+    /// or the one any open vault describes; None where the text does not
+    /// read or the wallet is not known.
+    fn plan_places_as_read(&self, c: &Compute, sum: &str, text: &str) -> Option<Vec<plan::Spot>> {
+        let loaded = self
+            .session
+            .wallets
+            .iter()
+            .position(|w| w.checksum() == sum);
+        let built;
+        let wallet = match loaded {
+            Some(i) => &self.session.wallets[i],
+            None => {
+                let policy = self
+                    .vaults
+                    .open
+                    .iter()
+                    .flat_map(|o| {
+                        self.vaults
+                            .described_of(c, o.id, faraday_vault::records::kind::WALLET)
+                    })
+                    .map(|(_, _, d)| d.policy.clone())
+                    .find(|p| p.checksum() == sum)?;
+                built = crate::wallet::Wallet::new(
+                    String::new(),
+                    policy,
+                    String::new(),
+                    crate::wallet::Origin::Named,
+                );
+                &built
+            }
+        };
+        let shape = self.plan_shape_made(wallet, &plan::Answers::pass_seeds(text));
+        let a = plan::Answers::from_text(&shape, text)?;
+        Some(self.kept.plan_mapped(c, &shape, &a).places.clone())
+    }
+
+    /// Costs what `dated_into` costs. Writes the dated checks of wallet
+    /// `sum`'s record not yet in a vault into the plan's notes of each
+    /// open vault that keeps the plan.
+    fn dated_write(&mut self, sum: &str) {
+        type Pending = (At, What, String, String, Option<CopyRead>);
+        let pending: Vec<Pending> = self.backups_area.record(sum).map_or_else(Vec::new, |r| {
+            r.dated
+                .iter()
+                .filter(|d| !d.written)
+                .map(|d| {
+                    (
+                        At::Place(d.place),
+                        d.what,
+                        d.date.clone(),
+                        d.line.clone(),
+                        d.copy,
+                    )
+                })
+                .collect()
+        });
+        if pending.is_empty() {
+            return;
+        }
+        let c = self.compute();
+        let mut done = vec![false; pending.len()];
+        for v in 0..self.vaults.open.len() {
+            let mine: Vec<usize> = (0..pending.len())
+                .filter(|&n| self.copy_takes(v, pending[n].4))
+                .collect();
+            let one: Vec<(At, What, String, String)> = mine
+                .iter()
+                .map(|&n| {
+                    let (a, w, d, l, _) = &pending[n];
+                    (*a, *w, d.clone(), l.clone())
+                })
+                .collect();
+            if one.is_empty() {
+                continue;
+            }
+            for (&n, kept) in mine.iter().zip(self.dated_into(&c, v, sum, &one)) {
+                done[n] |= kept;
+            }
+        }
+        let done: Vec<(usize, What)> = pending
+            .iter()
+            .zip(done)
+            .filter_map(|((at, w, ..), d)| match at {
+                At::Place(p) if d => Some((*p, *w)),
+                _ => None,
+            })
+            .collect();
+        self.backups_area.dated_written(sum, &done);
+    }
+
+    /// Costs what `dated_write` costs, once per vault. Writes the unwritten
+    /// dated checks of every wallet's record, at an unlock of a vault, and
+    /// the stick checks held for the clock once it is checked.
+    pub(crate) fn dated_unlock(&mut self) {
+        let sums: Vec<String> = self
+            .backups_area
+            .records()
+            .iter()
+            .filter(|r| r.dated.iter().any(|d| !d.written))
+            .map(|r| r.sum.clone())
+            .collect();
+        for sum in sums {
+            self.dated_write(&sum);
+        }
+        let today = self.today();
+        if !today.is_empty() {
+            self.undated_written(&today);
+        }
+    }
+
+    /// The clock was just checked: a dated check with no date takes
+    /// today's, in the record and in the notes of an open vault.
+    pub(crate) fn dated_clock_set(&mut self) {
+        self.backup.set_undated(false);
+        let today = self.today();
+        if today.is_empty() {
+            return;
+        }
+        let sums = self.backups_area.date_undated(&today);
+        for sum in sums {
+            self.dated_write(&sum);
+        }
+        self.undated_written(&today);
+    }
+
+    /// Costs what `dated_into` costs. The held stick checks take `today`
+    /// in each open vault that takes them; one no vault took stays held.
+    fn undated_written(&mut self, today: &str) {
+        let held = self.backups_area.undated_take();
+        if held.is_empty() {
+            return;
+        }
+        let c = self.compute();
+        for (sum, p, what, line, copy) in held {
+            let mut taken = false;
+            let takers: Vec<usize> = (0..self.vaults.open.len())
+                .filter(|&v| self.copy_takes(v, Some(copy)))
+                .collect();
+            for v in takers {
+                let one = [(At::Place(p), what, today.to_string(), line.clone())];
+                taken |= self.dated_into(&c, v, &sum, &one).contains(&true);
+            }
+            if !taken {
+                self.backups_area.undated_hold(&sum, p, what, &line, copy);
+            }
+        }
+    }
+
+    /// Whether open vault `v` may take a check made from `copy` (None: any
+    /// vault may). Of a copy of the vault the stick held, only that copy
+    /// or one this device sealed from it; any other vault takes it where
+    /// its own plan has the place's line.
+    fn copy_takes(&self, v: usize, copy: Option<CopyRead>) -> bool {
+        copy.is_none_or(|(id, digest)| match self.vaults.open.get(v) {
+            Some(o) if o.vault_id() == id => self.vaults.copy_descends(v, &id, &digest),
+            Some(_) => true,
+            None => false,
+        })
+    }
+
+    /// Costs what a plan record's description costs. Sets the notes
+    /// `checked <place> <thing> <date>` in the plan records of open vault
+    /// `v` that are wallet `sum`'s, for each of `dated` (a place, a thing,
+    /// a date, the plan it was checked under): true for each that was
+    /// written. Nothing is written into a vault that is not the newest
+    /// copy seen, nor a check made under another plan than the vault's.
+    fn dated_into(
+        &mut self,
+        c: &Compute,
+        v: usize,
+        sum: &str,
+        dated: &[(At, What, String, String)],
+    ) -> Vec<bool> {
+        use crate::plan::Note;
+        let none = vec![false; dated.len()];
+        let Some((id, current)) = self.vaults.open.get(v).map(|o| (o.id, !o.is_not_current()))
+        else {
+            return none;
+        };
+        if !current {
+            return none;
+        }
+        let mut want = None;
+        let mut ours = Vec::new();
+        for (i, _, d) in self.vaults.described_of(c, id, kind::PLAN) {
+            if d.checksum == sum {
+                want.get_or_insert_with(|| d.same.clone());
+                ours.push(i);
+            }
+        }
+        let Some(want) = want else {
+            return none;
+        };
+        // Each record's places, read as the vault's own records are read,
+        // with the names it keeps.
+        let kept: Vec<(Vec<plan::Spot>, Vec<String>)> = ours
+            .iter()
+            .filter_map(|i| self.vaults.records(id).get(*i))
+            .filter_map(|r| {
+                let places =
+                    self.plan_places_as_read(c, sum, r.public_text(field::PLAN_ANSWERS)?)?;
+                let names = r
+                    .public_all(field::PLAN_PLACE)
+                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                    .collect();
+                Some((places, names))
+            })
+            .collect();
+        let fits: Vec<bool> = dated
+            .iter()
+            .map(|(at, what, _, line)| {
+                let At::Place(p) = at else {
+                    return false;
+                };
+                kept.iter()
+                    .any(|(pl, names)| place_line(pl, names, *p, *what).as_ref() == Some(line))
+            })
+            .collect();
+        if !fits.contains(&true) {
+            return none;
+        }
+        // Every record of the plan holds the same notes.
+        let mut notes: Vec<Note> = self
+            .vaults
+            .described_of(c, id, kind::PLAN)
+            .filter(|(_, _, d)| d.same == want)
+            .flat_map(|(_, r, _)| {
+                r.public_all(field::PLAN_NOTE)
+                    .filter_map(|b| Note::from_text(&String::from_utf8_lossy(b), usize::MAX))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        for ((at, what, date, _), _) in dated.iter().zip(&fits).filter(|(_, f)| **f) {
+            notes.retain(|x| !matches!(x, Note::Checked(a, w, _) if a == at && w == what));
+            notes.push(Note::Checked(*at, *what, date.clone()));
+        }
+        let texts: Vec<String> = notes.iter().map(Note::to_text).collect();
+        let values: Vec<&[u8]> = texts.iter().map(|t| t.as_bytes()).collect();
+        let c = self.compute();
+        if self
+            .vaults
+            .edit(id, |s| {
+                s.set_public_all_in(&c, id, &ours, field::PLAN_NOTE, &values)
+            })
+            .is_err()
+        {
+            return none;
+        }
+        self.vaults.changed(id);
+        fits
     }
 
     /// The descriptor was shown in the backup under way.
@@ -1053,6 +1935,7 @@ impl Faraday {
             passphrases: Vec::new(),
             answers: String::new(),
             kefs: Vec::new(),
+            dated: Vec::new(),
         };
         Some(self.record_lines(c, &r, &names))
     }
@@ -1463,7 +2346,9 @@ impl Faraday {
                 self.c32_show_drawn(c, i);
             }
             Press::Key(k) => {
+                let was = self.backup.state().map(|b| b.c32_checked.clone());
                 self.backup.c32_key(k);
+                self.c32_dating(c, &was.unwrap_or_default());
                 self.c32_keep_held(key);
                 // A string of a set that exists, typed from its paper:
                 // its Codex32QR to draw, where the plan draws one.
@@ -1482,7 +2367,9 @@ impl Faraday {
             }
             Press::ScanCopy => self.c32_scan_open(),
             Press::Next => {
+                let was = self.backup.state().map(|b| b.c32_checked.clone());
                 self.c32_next(c, i, key);
+                self.c32_dating(c, &was.unwrap_or_default());
                 self.c32_show_drawn(c, i);
             }
             Press::Skip => {
@@ -1523,6 +2410,14 @@ impl Faraday {
         let Some(mut form) = b.answers.c32(i).cloned() else {
             return;
         };
+        // The count changes the checklist's answers: past a flow's lock
+        // of a wallet holding the seed it is refused as a set's action is.
+        if let Some(line) = self.c32_lock_refusal(key) {
+            if let Some(st) = self.backup.c32_mut() {
+                st.note = Some(line);
+            }
+            return;
+        }
         let known = form.indices.len();
         let lo = known.max(usize::from(form.k)) as i16;
         let total =
@@ -1556,6 +2451,7 @@ impl Faraday {
         let Some(b) = self.backup.state() else {
             return;
         };
+        let wallet_i = b.wallet;
         let shape = self.plan_shape_now(b.wallet);
         let mut answers = b.answers.clone();
         let fixed = plan::codex32::C32 {
@@ -1593,6 +2489,17 @@ impl Faraday {
         );
         self.backup
             .change_answers(&shape, &|a, _| *a = answers.clone());
+        // The plan record is saved with the set made, into the vaults that
+        // keep the plan, so that the record and the answers agree and a
+        // string typed back is dated (`docs/BACKUP-FLOW.md` §18.3).
+        let kept = self
+            .session
+            .wallets
+            .get(wallet_i)
+            .is_some_and(|w| self.plan_vault_of(c, w).is_some());
+        if kept {
+            self.plan_save();
+        }
         let texts: Vec<&str> = list.iter().map(|(_, s)| s.as_str()).collect();
         self.session.keys.keep_codex32(c, key, &texts);
         if let Some(st) = self.backup.c32_mut() {
@@ -1703,7 +2610,10 @@ impl Faraday {
             let i = b.c32.as_ref()?.seed;
             self.backup_seed_list_now(b.wallet).get(i).and_then(|x| x.1)
         });
+        let was = self.backup.state().map(|b| b.c32_checked.clone());
         let found = self.backup.c32_scanned(&text);
+        let c = self.compute();
+        self.c32_dating(&c, &was.unwrap_or_default());
         if let Some(key) = key {
             self.c32_keep_held(key);
         }
@@ -1789,9 +2699,18 @@ impl Faraday {
         let Some(form) = b.answers.c32(i).cloned() else {
             return;
         };
+        let past_lock = self.c32_lock_refusal(key);
         let Some(st) = self.backup.c32_mut() else {
             return;
         };
+        // Past a flow's lock the set's actions are refused at their start,
+        // before a string is typed or destroyed.
+        if let Some(line) = past_lock
+            && matches!(p, SetPress::Add | SetPress::Replace(_) | SetPress::Rotate)
+        {
+            st.note = Some(line);
+            return;
+        }
         match p {
             SetPress::Leave => {
                 st.set = SetStep::None;
@@ -1879,6 +2798,12 @@ impl Faraday {
     ) -> Result<(), Option<String>> {
         use crate::codex32_backup::SetStep;
         use crate::plan::codex32::index_of;
+        // A backup past its lock keeps its plan until its writes are done
+        // (`docs/BACKUP-FLOW.md` §15.8): a set made or a share added
+        // changes it, so neither is made then.
+        if let Some(line) = self.c32_lock_refusal(key) {
+            return Err(Some(line));
+        }
         match set {
             SetStep::Typing { index } => {
                 let j = index.map(usize::from).ok_or(None)?;
@@ -1908,7 +2833,7 @@ impl Faraday {
                 Ok(())
             }
             SetStep::Scheme(k, n) => {
-                let id = self.c32_rotation_refusal(i, form, typed)?;
+                let id = self.c32_rotation_refusal(i, key, form, typed)?;
                 let Some(draw) =
                     self.fresh_bytes(b"codex32 rotation", faraday_keys::codex32_random_len(*k))
                 else {
@@ -1945,6 +2870,29 @@ impl Faraday {
         }
     }
 
+    /// What refuses a set's action past a flow's lock: a backup past its
+    /// lock keeps its plan until its writes are done
+    /// (`docs/BACKUP-FLOW.md` §15.8). The set is the key's, shared by
+    /// every wallet that holds its seed, so a lock of any of them
+    /// refuses it, not only the open wallet's.
+    fn c32_lock_refusal(&self, key: usize) -> Option<String> {
+        // By the flow's own seed names, so a wallet not loaded (the usual
+        // case after a lock) still counts.
+        let fp = fp_text(self.session.keys[key].fingerprint);
+        let locked = self.backup_locked_flow().is_some()
+            || self.flows.iter().any(|f| {
+                f.made
+                    && f.step != crate::backup_flow::Step::Done
+                    && f.wallet.as_ref().is_some_and(|wf| {
+                        wf.shape
+                            .seeds
+                            .iter()
+                            .any(|s| s.name.eq_ignore_ascii_case(&fp))
+                    })
+            });
+        locked.then(|| EN.backup_flow_past_lock.to_string())
+    }
+
     /// The new set's identifier for seed `i`, or what refuses the rotation
     /// before it draws: `Err` says what to tell (`None`: nothing, as in
     /// the demo). Used by the press and by the wait for the seed, so a
@@ -1952,9 +2900,13 @@ impl Faraday {
     fn c32_rotation_refusal(
         &self,
         i: usize,
+        key: usize,
         form: &crate::plan::codex32::C32,
         typed: &str,
     ) -> Result<[u8; 4], Option<String>> {
+        if let Some(line) = self.c32_lock_refusal(key) {
+            return Err(Some(line));
+        }
         let id = <[u8; 4]>::try_from(typed.as_bytes())
             .map_err(|_| Some(EN.c32_set_identifier.to_string()))?;
         let was = self
@@ -1982,19 +2934,14 @@ impl Faraday {
             return false;
         };
         let i = st.seed;
-        if self
-            .backup_seed_list_now(b.wallet)
-            .get(i)
-            .and_then(|x| x.1)
-            .is_none()
-        {
+        let Some(key) = self.backup_seed_list_now(b.wallet).get(i).and_then(|x| x.1) else {
             return false;
-        }
+        };
         let Some(form) = b.answers.c32(i) else {
             return false;
         };
         matches!(st.set, crate::codex32_backup::SetStep::Scheme(..))
-            && self.c32_rotation_refusal(i, form, &st.typed).is_ok()
+            && self.c32_rotation_refusal(i, key, form, &st.typed).is_ok()
     }
 
     /// String `s` at index `j`, derived for seed
@@ -2015,8 +2962,20 @@ impl Faraday {
             form.indices.push(j);
         }
         answers.set_c32(&shape, i, Some(form));
+        let wallet_i = b.wallet;
         self.backup
             .change_answers(&shape, &|a, _| *a = answers.clone());
+        // The plan record is saved with the share added, so that the record
+        // and the answers agree and the string typed back is dated.
+        let c = self.compute();
+        let kept = self
+            .session
+            .wallets
+            .get(wallet_i)
+            .is_some_and(|w| self.plan_vault_of(&c, w).is_some());
+        if kept {
+            self.plan_save();
+        }
         if let Some(mut facts) = self.session.keys.info(key).and_then(|k| k.codex32.clone()) {
             let ch = plan::codex32::CHARSET[j];
             facts.strings.retain(|&(x, _)| x != ch);
@@ -2067,6 +3026,9 @@ impl Faraday {
         // A codex32 string open counts as not done yet, so its Continue
         // is what moves the item on.
         let done = done && !typing;
+        // A match that asks which copy it was waits for the answer; the
+        // question goes when the item is left.
+        let done = done && b.which.is_none();
         self.backup.set_seen(Some((n, done)));
         if moves && done && was == Some(false) {
             self.backup_act(Action::BNext(n), c);
@@ -2731,7 +3693,9 @@ impl Faraday {
         if let (Some(o), Some(sha)) = (self.vaults.open.get(v), sha) {
             self.vaults.copy_seen(&o.vault_id(), sha);
         }
-        if !self.vaults.older_hold(v, (for_import, self.sheet), before) {
+        let held = self.vaults.older_hold(v, (for_import, self.sheet), before);
+        self.vault_stick_dated(v, sha);
+        if !held {
             return false;
         }
         self.sheet = Some(crate::Sheet::OlderCopy);

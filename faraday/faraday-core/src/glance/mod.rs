@@ -67,6 +67,9 @@ pub(crate) trait Reads {
         wallet: &crate::wallet::Wallet,
         shape: &plan::Shape,
     ) -> Option<(plan::Answers, Vec<String>)>;
+    /// Whether a stick `what` at place `p` of `sum`'s plan was read from an
+    /// older copy of its vault ([`crate::backups::BackupsArea::is_older`]).
+    fn older_copy(&self, sum: &str, p: usize, what: What) -> bool;
     /// The notes the vaults keep on `wallet` ([`Faraday::plan_notes`]).
     fn plan_notes(&self, wallet: &crate::wallet::Wallet, v: Option<usize>) -> Vec<plan::Note>;
     /// A vault key record's fingerprint
@@ -143,6 +146,9 @@ impl Reads for Now<'_> {
         shape: &plan::Shape,
     ) -> Option<(plan::Answers, Vec<String>)> {
         self.app.plan_in_vault(self.c, v, wallet, shape)
+    }
+    fn older_copy(&self, sum: &str, p: usize, what: What) -> bool {
+        self.app.backups_area.is_older(sum, p, what)
     }
     fn plan_notes(&self, wallet: &crate::wallet::Wallet, v: Option<usize>) -> Vec<plan::Note> {
         self.app.plan_notes(self.c, wallet, v)
@@ -428,6 +434,10 @@ pub struct BackupNode {
     /// When each of [`BackupNode::whats`] was last checked here, as the
     /// vault keeps it.
     pub checked: Vec<Option<String>>,
+    /// Each of [`BackupNode::whats`] a vault stick read from an older copy
+    /// of its vault this power-on: its line reads "Older copy" in place of
+    /// a date.
+    pub older: Vec<bool>,
 }
 
 /// Costs what an open vault's plan records cost to read the first time:
@@ -985,9 +995,18 @@ fn backup_nodes(
             };
             let (marks, checked): (Vec<_>, Vec<_>) =
                 spot.holds.iter().map(|(w, _)| note_of(spot.at, *w)).unzip();
+            let older = spot
+                .holds
+                .iter()
+                .map(|(w, _)| match (spot.at, w) {
+                    (At::Place(p), What::VaultStick(_)) => r.older_copy(sum, p, *w),
+                    _ => false,
+                })
+                .collect();
             BackupNode {
                 marks,
                 checked,
+                older,
                 whats: spot.holds.iter().map(|(w, _)| *w).collect(),
                 at: spot.at,
                 name,

@@ -457,8 +457,11 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     open(&mut app, press, Target::Key(0));
     assert!(shown(&mut app, "Make another backup of this seed"));
     // A copy of the words is checked by typing them back, not scanned.
-    assert!(app.offers(Action::Chart(C::Do(press, Step::Type(fp, bstep::COPY)))));
-    assert!(!app.offers(Action::Chart(C::Do(press, Step::Scan(fp)))));
+    assert!(app.offers(Action::Chart(C::Do(
+        press,
+        Step::Type(fp, bstep::COPY, None)
+    ))));
+    assert!(!app.offers(Action::Chart(C::Do(press, Step::Scan(fp, None)))));
     // The xpub's code over the card; closed, the chart again.
     app.press(Action::Chart(C::Do(press, Step::KeyQr(0))));
     assert_eq!(app.sheet, Some(Sheet::Qr));
@@ -472,7 +475,10 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     assert_eq!(chart(&app, w).focus, Some(0));
     // Typing a copy opens the checklist at its check.
     open(&mut app, press, Target::Key(0));
-    app.press(Action::Chart(C::Do(press, Step::Type(fp, bstep::COPY))));
+    app.press(Action::Chart(C::Do(
+        press,
+        Step::Type(fp, bstep::COPY, None),
+    )));
     assert_eq!(app.screen, Screen::Backup);
     assert!(app.backup().is_some_and(|b| b.check.is_some()));
 }

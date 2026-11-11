@@ -614,6 +614,15 @@ pub struct BackupState {
     /// backup, with the form that matched: the words typed back, or the
     /// drawn SeedQR scanned.
     pub checked: Vec<([u8; 4], plan::CopyForm)>,
+    /// The place a chart's line named for the check under way: the copy
+    /// that matches is that place's (`docs/BACKUP-FLOW.md` §18.3).
+    pub check_at: Option<plan::At>,
+    /// A match that keeps one thing at more than one place, waiting for
+    /// **Which copy was this?**: the thing and the places, by number.
+    pub which: Option<(plan::What, Vec<usize>)>,
+    /// A match was written with no date, the clock not being checked:
+    /// **Set the time** shows beside it.
+    pub undated: bool,
     /// The scans of each seed's SeedQR copy without a match in this
     /// backup, by fingerprint: each opening of the camera on the copy
     /// that closed without one (`docs/history/NEW-WALLET.md` §14.7 item 3). Goes
@@ -819,6 +828,8 @@ impl WalletBackupArea {
                 b.key = k;
                 b.reveal = false;
                 b.check = None;
+                b.check_at = None;
+                b.which = None;
                 b.scanned = None;
                 b.paper = None;
             }
@@ -827,6 +838,7 @@ impl WalletBackupArea {
                 // the check starts again from word 1.
                 b.reveal = b.check.is_some() || !b.reveal;
                 b.check = None;
+                b.check_at = None;
             }
             Action::BPaperHide => {
                 b.paper = None;
@@ -1046,6 +1058,7 @@ impl WalletBackupArea {
             b.stage = BStage::Plan;
             b.q = q;
             b.check = None;
+            b.check_at = None;
             b.scroll = flow::Scroll::default();
         }
     }
@@ -1067,6 +1080,8 @@ impl WalletBackupArea {
             && let Some((answers, names)) = known
         {
             b.answers = answers;
+            b.which = None;
+            b.check_at = None;
             if b.names.iter().all(|n| n.trim().is_empty()) {
                 b.names = names;
             }
@@ -1118,6 +1133,9 @@ impl WalletBackupArea {
                 b.reveal = false;
             }
             b.open = n;
+            b.check_at = None;
+            // A question left unanswered is dropped, nothing dated.
+            b.which = None;
             b.public_more = more;
             // The codex32 item opens on its seed's strings, its list.
             if let Some(i) = n.and_then(bstep::item).and_then(|it| match it {
@@ -1171,6 +1189,9 @@ impl WalletBackupArea {
     pub(crate) fn follow_answers(&mut self, w: usize, answers: plan::Answers) {
         if let Some(b) = self.state.as_mut().filter(|b| b.wallet == w) {
             b.answers = answers;
+            // A question or a place from the plan before is not for this one.
+            b.which = None;
+            b.check_at = None;
         }
     }
 
@@ -1196,6 +1217,9 @@ impl WalletBackupArea {
         };
         b.answers = answers.clone();
         b.names = names.to_vec();
+        // A question or a place from the plan before is not for this one.
+        b.which = None;
+        b.check_at = None;
         b.extras.clone()
     }
 
@@ -1206,6 +1230,8 @@ impl WalletBackupArea {
             b.answers = answers;
             b.scanned = None;
             b.check = None;
+            b.which = None;
+            b.check_at = None;
         }
     }
 
@@ -1310,6 +1336,38 @@ impl WalletBackupArea {
         }
     }
 
+    /// The check about to open is of the copy at place `at`, as a chart's
+    /// line says.
+    pub(crate) fn check_at_set(&mut self, at: Option<plan::At>) {
+        if let Some(b) = self.state.as_mut() {
+            b.check_at = at;
+        }
+    }
+
+    /// The place the check under way was opened for, taken.
+    pub(crate) fn check_at_take(&mut self) -> Option<plan::At> {
+        self.state.as_mut().and_then(|b| b.check_at.take())
+    }
+
+    /// A match of `what` is kept at `places`: **Which copy was this?**
+    pub(crate) fn ask_which(&mut self, what: plan::What, places: Vec<usize>) {
+        if let Some(b) = self.state.as_mut() {
+            b.which = Some((what, places));
+        }
+    }
+
+    /// The question answered or put away.
+    pub(crate) fn which_take(&mut self) -> Option<(plan::What, Vec<usize>)> {
+        self.state.as_mut().and_then(|b| b.which.take())
+    }
+
+    /// A match was written with no date (or has since been dated).
+    pub(crate) fn set_undated(&mut self, undated: bool) {
+        if let Some(b) = self.state.as_mut() {
+            b.undated = undated;
+        }
+    }
+
     /// Seed `fp`'s copy matched in form `form`.
     pub(crate) fn note_checked(&mut self, fp: [u8; 4], form: plan::CopyForm) {
         if let Some(b) = self.state.as_mut()
@@ -1330,7 +1388,11 @@ impl WalletBackupArea {
     /// miss.
     pub(crate) fn scan_closed(&mut self, purpose: &crate::ScanPurpose) {
         match purpose {
-            crate::ScanPurpose::CheckCopy(fp) => self.copy_missed(fp.0),
+            crate::ScanPurpose::CheckCopy(fp) => {
+                // The place a chart named is for a scan that matches.
+                self.check_at_take();
+                self.copy_missed(fp.0)
+            }
             crate::ScanPurpose::CheckKef(i) => self.kef_missed(*i),
             _ => {}
         }
@@ -1396,6 +1458,8 @@ impl WalletBackupArea {
         let typed = c.key(key);
         if typed == copy_check::Typed::Close {
             self.check_close();
+            // Escape ends a check the chart opened: its place goes too.
+            self.check_at_take();
         }
         typed
     }
@@ -1682,6 +1746,7 @@ impl Faraday {
             }
             Action::BCheckClear => self.copy_check_clear(),
             Action::BKeepWords => self.keep_words_only(),
+            Action::BWhich(n) => self.copy_which(usize::from(n)),
             Action::BVaultSave(v) => self.backup_vault_save(usize::from(v)),
             Action::BVaultLoad(v) => self.backup_vault_load_toggle(usize::from(v)),
             Action::BFilesMake => {
@@ -2507,14 +2572,15 @@ impl Faraday {
             crate::backups::summary_has_seed(s, f.0, self.seed_id(record, f.0))
         };
         let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.vault_id()).collect();
+        let told = |s: &crate::vault::VaultSummary, ks: &[faraday_bip::keys::Fingerprint]| {
+            ks.iter().map(|f| has(s, f)).collect::<Vec<_>>()
+        };
         self.vaults
             .summaries
             .iter()
             .filter(|s| !salts.contains(&s.id))
             .find(|s| {
-                own.iter().all(|f| has(s, f) == Some(true))
-                    && others.iter().all(|f| has(s, f) == Some(false))
-                    && (!wallet_too || s.sums.contains(&sum))
+                crate::backups::summary_fits(s, &sum, wallet_too, &told(s, &own), &told(s, &others))
             })
             .map(|s| s.file.clone())
     }

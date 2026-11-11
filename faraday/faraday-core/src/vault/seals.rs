@@ -145,6 +145,19 @@ impl OpenVault {
     pub fn seal_warning(&self) -> Option<String> {
         self.seal_warn.as_ref().map(SealWarn::line)
     }
+
+    /// Whether it was opened from a copy with a lower seal count than one
+    /// seen.
+    pub fn is_older_copy(&self) -> bool {
+        matches!(self.seal_warn, Some(SealWarn::Older { .. }))
+    }
+
+    /// Whether it was opened from a copy that is not the newest seen: an
+    /// older one, or one sealed as many times with other bytes. Nothing is
+    /// dated in it (`docs/BACKUP-FLOW.md` §18.3).
+    pub fn is_not_current(&self) -> bool {
+        self.seal_warn.is_some()
+    }
 }
 
 impl Vaults {
@@ -370,6 +383,31 @@ impl Vaults {
         }
     }
 
+    /// Whether open vault `v` is the copy with digest `copy` of the vault
+    /// with identifier `id`, or one this device sealed from it this
+    /// power-on (by one lock or a chain of them). A newer copy from
+    /// elsewhere is not.
+    pub(crate) fn copy_descends(&self, v: usize, id: &[u8; 32], copy: &[u8; 32]) -> bool {
+        let Some(o) = self.open.get(v).filter(|o| &o.vault_id == id) else {
+            return false;
+        };
+        let mut at = o.seal_digest;
+        for _ in 0..=self.sealed_from.len() {
+            if &at == copy {
+                return true;
+            }
+            match self
+                .sealed_from
+                .iter()
+                .find(|(i, _, child)| i == id && *child == at)
+            {
+                Some((_, parent, _)) => at = *parent,
+                None => return false,
+            }
+        }
+        false
+    }
+
     /// Costs a SHA-256 over the whole file (counted as a file hash). Open
     /// vault `i` has just been sealed into `bytes`: its new count and the
     /// file's digest raise the highest seen, and the file is a copy of the
@@ -378,12 +416,15 @@ impl Vaults {
         let Some(o) = self.open.get(i) else {
             return;
         };
-        let (id, vault_id) = (o.id, o.vault_id);
+        let (id, vault_id, parent) = (o.id, o.vault_id, o.seal_digest);
         let Some((_, seals)) = self.store().seal_state(id) else {
             return;
         };
         let digest = faraday_crypto::sha256_whole(c, bytes);
         self.copy_seen(&vault_id, digest);
+        if parent != digest {
+            self.sealed_from.push((vault_id, parent, digest));
+        }
         // The file opened carries the count it was opened at; the seal
         // wrote one higher.
         self.seals_raise(

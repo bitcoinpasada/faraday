@@ -197,6 +197,9 @@ matched, with **Continue**:
 
 A match proves the paper holds this seed. It does not prove the paper
 will stay readable: keep it dry, and check it again from time to time.
+Each match is kept in the vault as that copy's last check, with the
+day's date. While the clock has not been set, **Set the time** shows
+under the checklist's items: set it, and the check takes that day.
 
 ### 4.8 The vault
 

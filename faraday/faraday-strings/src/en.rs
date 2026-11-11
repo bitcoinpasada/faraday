@@ -1784,6 +1784,8 @@ strings! {
     chart_edit_off_plan: "{} off the plan",
     /// Toast in `chart_key_checked`.
     chart_edit_checked: "Checked today",
+    /// Toast in `chart_checked`.
+    chart_edit_not_current: "This is not the current copy. Open the current copy to mark it checked.",
     /// Text in `envelopes_out`. `{}`: `v + 1`.
     chart_edit_vault_stick: "Vault {} stick",
     // ----- codes (faraday-core/src/codes/mod.rs) -----
@@ -2777,7 +2779,7 @@ strings! {
     /// Text in `backup_nodes`.
     glance_not_here: "Not here",
     /// Text in `checked_text`.
-    glance_checked: "Checked",
+    glance_checked: "Checked · no date",
     /// Text in `checked_text`. `{}`: `d`.
     glance_checked_n: "Checked {}",
     /// Text in `alone_color`.
@@ -2937,6 +2939,8 @@ strings! {
     glance_sheet_seen_here: "Seen here",
     /// Text in `view`.
     glance_sheet_last_checked: "Last checked here",
+    /// Text in `view`: the value of a stick read from an older copy of its vault, in place of a date.
+    glance_older_copy: "Older copy",
     /// Text in `view`.
     glance_sheet_marked: "Marked",
     /// Row in `view`.
@@ -6726,6 +6730,10 @@ strings! {
     copy_check_word_count: "Word {} of {}",
     /// Text in `copy_check`.
     copy_check_your_copy: "Your copy matches the seed",
+    /// Text in `dating`: asked when the plan keeps the form checked at more than one place; a button follows for each.
+    copy_check_which_copy: "Which copy was this?",
+    /// Button in `dating`, beside a match the clock not checked left with no date.
+    copy_check_set_the_time: "Set the time",
     /// Text in `copy_check`. `{}`: `k`.
     copy_check_word_differs: "Word {} differs from the seed",
     /// Button in `copy_check`.
