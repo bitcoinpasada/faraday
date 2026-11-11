@@ -167,7 +167,7 @@ pub fn is_compact_seedqr(bytes: &[u8]) -> bool {
     let Ok(text) = core::str::from_utf8(bytes) else {
         return true;
     };
-    let text = text.trim();
+    let text = text.trim_ascii();
     let starts = |p: &str| {
         text.get(..p.len())
             .is_some_and(|h| h.eq_ignore_ascii_case(p))
@@ -644,5 +644,21 @@ mod tests {
         assert_eq!((later.len(), nbsp.len()), (16, 16));
         assert!(!is_compact_seedqr(later));
         assert!(!is_compact_seedqr(nbsp));
+    }
+
+    #[test]
+    fn a_value_that_is_text_only_inside_non_ascii_whitespace_is_classified_one_way() {
+        // An address between no-break spaces (U+00A0, 2 bytes each): a
+        // text kind only if Unicode whitespace is trimmed, which neither
+        // reader does, so both call it a CompactSeedQR.
+        let address = "1111111111111111111114oLvT2";
+        assert_eq!(classify(address.as_bytes()), PayloadKind::Address);
+        let edged = format!("\u{a0} {address}\u{a0}");
+        assert_eq!(edged.len(), 32);
+        assert_eq!(
+            classify(edged.as_bytes()),
+            PayloadKind::CompactSeedQr { words: 24 }
+        );
+        assert!(is_compact_seedqr(edged.as_bytes()));
     }
 }

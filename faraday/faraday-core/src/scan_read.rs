@@ -196,6 +196,9 @@ pub(crate) fn is_compact_text(bytes: &[u8]) -> bool {
 /// message's scanner: 16 or 32 bytes of text no other kind takes are the
 /// message, but a key written as text is still refused.
 pub(crate) fn message_secret_kind(c: &Compute, bytes: &[u8]) -> Option<Kind> {
+    if faraday_keys::gpg::is_paperkey(bytes) {
+        return Some(Kind::Paperkey);
+    }
     if is_compact_text(bytes) {
         let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
         return secret_text_kind(c, &text);
@@ -593,5 +596,38 @@ pub fn asked(ask: crate::Ask, kind: Kind) -> bool {
         Ask::Cosigner => kind == Kind::AccountKey,
         Ask::SpendPsbt => kind == Kind::Psbt,
         Ask::Any | Ask::Sign | Ask::Decode | Ask::Address | Ask::Invoice => true,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A paperkey's first line of `data` bytes, written as text.
+    fn paperkey_line(data: &[u8]) -> String {
+        let crc = faraday_pgp::crc24(data).to_be_bytes();
+        let hex: String = data
+            .iter()
+            .chain(&crc[1..])
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        format!("1:{hex}")
+    }
+
+    #[test]
+    fn a_paperkey_of_16_or_32_characters_is_named_the_same_by_both_scanners() {
+        let c = crate::testkit::compute();
+        for data in [
+            &[0u8, 4, 1, 2][..],
+            &[0, 4, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10][..],
+        ] {
+            let text = paperkey_line(data);
+            assert!(matches!(text.len(), 16 | 32), "{text}");
+            assert_eq!(secret_kind(&c, text.as_bytes()), Some(Kind::Paperkey));
+            assert_eq!(
+                message_secret_kind(&c, text.as_bytes()),
+                Some(Kind::Paperkey)
+            );
+        }
     }
 }
