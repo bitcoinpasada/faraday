@@ -433,6 +433,7 @@ impl Faraday {
             }
             self.session.wallets.remove(w);
             self.wallets.set_wallet(w.saturating_sub(1));
+            self.spend_after_wallet_removed();
         }
     }
 }

@@ -180,6 +180,7 @@ mod small_panel;
 mod spend_backup;
 mod spend_from_vault;
 mod spend_loaded;
+mod spend_wallet_removed;
 mod step_back;
 mod stepper;
 mod stick_copy;

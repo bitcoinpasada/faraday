@@ -3503,6 +3503,19 @@ impl Faraday {
         }
     }
 
+    /// Costs what `refresh_spend` costs. Keeps the open spend in step after
+    /// a wallet was removed: it is closed when the wallet it was from is
+    /// gone.
+    pub(crate) fn spend_after_wallet_removed(&mut self) {
+        let had = self.wallets.spend().is_some_and(|s| s.wallet.is_some());
+        self.refresh_spend();
+        // The wallet an open spend was from is gone (the wallets after it
+        // moved up one place): the spend closes, not another wallet's.
+        if had && self.wallets.spend().is_some_and(|s| s.wallet.is_none()) {
+            self.wallets.clear_spend();
+        }
+    }
+
     /// Costs an inspection and the nonce check when the PSBT or the session changed, and
     /// what `aggregate_musig`, `signers_by` and `wallet_for` cost. Keeps the open spend in
     /// step with the session: its inspection, signers, wallet and steps.
@@ -3795,6 +3808,7 @@ impl Faraday {
                 if i < self.session.wallets.len() {
                     self.session.wallets.remove(i);
                     self.wallets.set_wallet(0);
+                    self.spend_after_wallet_removed();
                 }
             }
             Action::RemoveKeys => {
