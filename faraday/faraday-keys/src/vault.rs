@@ -1490,6 +1490,9 @@ pub struct OpenVaults {
     limit: Option<usize>,
     /// What the slots are told of the room for a copy.
     copy_room: Arc<CopyRoom>,
+    /// The made vault's unlock parts, kept for its unlock
+    /// ([`OpenVaults::hold_made_parts`]); wiped by [`OpenVaults::clear`].
+    pub(crate) made_parts: Option<crate::parts::UnlockParts>,
 }
 
 type Codex32 = faraday_bip::codex32::Codex32;
@@ -1787,7 +1790,7 @@ impl OpenVaults {
         file: Vec<u8>,
         passphrase: &str,
     ) -> Result<(VaultId, fv::file::Facts), fv::file::Error> {
-        self.unlock_with(c, file, passphrase, &fv::kdbx::Components::none())
+        self.unlock_with(c, file, passphrase, fv::kdbx::Components::none())
     }
 
     /// Costs what [`OpenVaults::unlock`] costs. [`OpenVaults::unlock`] for a
@@ -1799,7 +1802,7 @@ impl OpenVaults {
         c: &Compute,
         file: Vec<u8>,
         passphrase: &str,
-        components: &fv::kdbx::Components,
+        components: fv::kdbx::Components,
     ) -> Result<(VaultId, fv::file::Facts), fv::file::Error> {
         let mut opened = fv::file::open_with(
             c,
@@ -1909,6 +1912,7 @@ impl OpenVaults {
     /// Closes every open vault.
     pub fn clear(&mut self) {
         self.slots.clear();
+        self.made_parts = None;
     }
 
     /// A lookup once read, which [`OpenVaults::warm`] does before a frame.
@@ -2051,6 +2055,18 @@ impl OpenVaults {
         s.new_key_file = Some(key);
         s.changed();
         true
+    }
+
+    /// Costs a SHA-256 of the key file. Reads the key file `bytes` and
+    /// takes its key as [`OpenVaults::set_key_file`] does; a refused file
+    /// changes nothing.
+    pub fn set_key_file_from(
+        &mut self,
+        id: VaultId,
+        bytes: &[u8],
+    ) -> Result<bool, fv::kdbx::keyfile::KeyFileError> {
+        let key = fv::kdbx::keyfile::read(bytes)?;
+        Ok(self.set_key_file(id, Some(key)))
     }
 
     /// Takes `random`, drawn by the caller for this and nothing else, as a

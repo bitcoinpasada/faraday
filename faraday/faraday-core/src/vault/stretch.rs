@@ -8,10 +8,10 @@
 //! main thread, and the open vault joins the store there.
 
 use faraday_crypto::work::Compute;
+use faraday_keys::UnlockParts;
 use faraday_keys::job::{Budget, KdbxJob, Parsed, StretchJob, Stretched};
 use faraday_keys::vault::SEAL_RANDOM_LEN;
 use faraday_vault::file::STEPS_KIB;
-use faraday_vault::kdbx::{Components, keyfile};
 use faraday_vault::{Cost, records::field, records::kind};
 use zeroize::Zeroizing;
 
@@ -197,7 +197,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
     // The key file and the secret are read for this try and wiped as the
     // job ends; the chip and the field stay for another.
     // A vault just made unlocks at once with the key file it was made with.
-    let made = app.vaults.state.made_parts.take();
+    let made = app.vaults.state.store.take_made_parts();
     let Ok(components) = made.map_or_else(|| super::unlock_keys::parts(app), Ok) else {
         return false;
     };
@@ -496,11 +496,9 @@ fn created(
             let name = app.free_vault_name(&vault_stem(typed));
             // The components the vault is unlocked with at once, if a
             // waiting copy or backup flow does that.
-            let parts = match (&key, &document) {
-                (Made::Chosen(f), _) => unlock_keys::read_named(app, f)
-                    .ok()
-                    .map(Components::with_key_file),
-                (Made::Drawn, Some(d)) => keyfile::read(d).ok().map(Components::with_key_file),
+            let mut parts = match (&key, &document) {
+                (Made::Chosen(f), _) => unlock_keys::file_parts(app, f).ok(),
+                (Made::Drawn, Some(d)) => UnlockParts::read(Some(d), None).ok(),
                 _ => None,
             };
             if matches!(key, Made::Drawn) {
@@ -539,13 +537,13 @@ fn created(
             }
             // Made for an item that waits to go in it: unlocked at once, the
             // item put in when it is open.
-            if super::copy::made(app, &name, id, (first, parts.clone())) {
+            if super::copy::made(app, &name, id, (first, &mut parts)) {
                 app.toast(EN.vaults_vault_created);
                 return;
             }
             // Made inside a backup flow: unlocked at once with the
             // passphrase just typed twice, never leaving the flow.
-            if app.flow_vault_made(&name, (first, parts)) {
+            if app.flow_vault_made(&name, (first, &mut parts)) {
                 app.toast(EN.vaults_vault_created);
                 return;
             }

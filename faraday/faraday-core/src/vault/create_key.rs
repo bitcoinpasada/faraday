@@ -16,7 +16,7 @@ use crate::{Action, Faraday, Sheet};
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, DIALOG_MAX, GAP, GAP_SMALL, LIST_1, PAD, RADIUS_SMALL,
 };
-use faraday_vault::kdbx::Components;
+use faraday_keys::UnlockParts;
 
 fn va(a: V) -> Action {
     Action::Vault(a)
@@ -63,12 +63,12 @@ pub(crate) fn drop_key(app: &mut Faraday) {
 /// The key file Create has been given, read now: the chosen file's name
 /// and key, `None` for none or a made one; why a chosen file is refused
 /// otherwise, naming it.
-pub(crate) fn chosen(app: &Faraday) -> Result<Option<(String, Components)>, String> {
+pub(crate) fn chosen(app: &Faraday) -> Result<Option<(String, UnlockParts)>, String> {
     let Some(KeyChoice::File(name)) = app.vaults.create.as_ref().map(|c| &c.key) else {
         return Ok(None);
     };
-    match unlock_keys::read_named(app, name) {
-        Ok(key) => Ok(Some((name.clone(), Components::with_key_file(key)))),
+    match unlock_keys::file_parts(app, name) {
+        Ok(parts) => Ok(Some((name.clone(), parts))),
         Err(Bad::KeyFile(e) | Bad::Secret(e)) => Err(e),
     }
 }

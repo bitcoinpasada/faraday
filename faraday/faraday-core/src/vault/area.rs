@@ -215,6 +215,15 @@ impl VaultArea {
         self.state.edit(id, change)
     }
 
+    /// As [`Self::edit`], for a change that may be refused ([`Vaults::edit_or`]).
+    pub(crate) fn edit_or<T, E>(
+        &mut self,
+        id: VaultId,
+        change: impl FnOnce(&mut OpenVaults) -> Result<T, E>,
+    ) -> Result<T, E> {
+        self.state.edit_or(id, change)
+    }
+
     /// Open vault `id` changed ([`Vaults::changed`]).
     pub(crate) fn changed(&mut self, id: VaultId) {
         self.state.changed(id);
@@ -406,12 +415,12 @@ impl VaultArea {
         self.state.yubikey = None;
         self.state.secret_error = None;
         self.state.key_pick = 0;
-        self.state.made_parts = None;
+        self.state.store.clear_made_parts();
     }
 
     /// The key file of a vault just made, held for the unlock at once.
-    pub(crate) fn set_made_parts(&mut self, parts: Option<faraday_vault::kdbx::Components>) {
-        self.state.made_parts = parts;
+    pub(crate) fn set_made_parts(&mut self, parts: Option<faraday_keys::UnlockParts>) {
+        self.state.store.hold_made_parts(parts);
     }
 
     /// The unlock passphrase wiped, shown hidden, with no error.
@@ -1545,6 +1554,18 @@ impl Vaults {
         out
     }
 
+    /// As [`Vaults::edit`], for a change that may be refused: what was
+    /// read is dropped only when `change` gives `Ok`, so a refusal leaves
+    /// the vault as it was.
+    pub fn edit_or<T, E>(
+        &mut self,
+        id: VaultId,
+        change: impl FnOnce(&mut OpenVaults) -> Result<T, E>,
+    ) -> Result<T, E> {
+        let out = change(&mut self.store)?;
+        Ok(self.edit(id, |_| out))
+    }
+
     /// Counts one change not yet sealed in open vault `id`.
     pub fn changed(&mut self, id: VaultId) {
         if let Some(o) = self.open.iter_mut().find(|o| o.id == id) {
@@ -2058,9 +2079,6 @@ pub struct Vaults {
     /// The Outbox name of the `.keyx` made for a vault's pending key file,
     /// until a seal writes that key or the key is replaced or taken back.
     pub key_outbox: Vec<(VaultId, String)>,
-    /// The key file of a vault just made, held for its unlock at once
-    /// (a copy or a backup flow waiting for it), taken by that unlock.
-    pub made_parts: Option<faraday_vault::kdbx::Components>,
     /// Whether the unlock last tried used a key file and a YubiKey secret.
     pub unlock_tried: (bool, bool),
     /// The open vault on the contents screen.

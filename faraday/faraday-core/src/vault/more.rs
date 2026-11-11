@@ -280,10 +280,10 @@ pub(crate) fn chosen(app: &mut Faraday) {
     let Some((file, _)) = files.get(app.vaults.key_pick).cloned() else {
         return;
     };
-    match unlock_keys::read_named(app, &file) {
-        Ok(key) => {
-            let was = app.vaults.store().key_file_changing(id);
-            if app.vaults.edit(id, |s| s.set_key_file(id, Some(key))) {
+    let was = app.vaults.store().key_file_changing(id);
+    match unlock_keys::set_named(app, id, &file) {
+        Ok(taken) => {
+            if taken {
                 unkeep(app, id);
                 app.vaults.state.key_chosen = Some((id, file));
                 count_key_change(app, id, was);

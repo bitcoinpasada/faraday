@@ -19,9 +19,8 @@ use faraday_draw::tokens::{
     LABEL_L, LIST_1, PAD, RADIUS_SMALL, TITLE_S, shape_full,
 };
 use faraday_draw::widgets::Icon;
-use faraday_vault::kdbx::Components;
-use faraday_vault::kdbx::keyfile::{self, KeyFileError};
-use zeroize::Zeroizing;
+use faraday_keys::{PartsRefused, UnlockParts};
+use faraday_vault::kdbx::keyfile::KeyFileError;
 
 /// The mark that takes a chip's or a field's content away.
 const TAKE_AWAY: &str = "\u{d7}";
@@ -48,44 +47,66 @@ pub(crate) fn candidates(app: &Faraday) -> Vec<(String, usize)> {
         .collect()
 }
 
-/// The key in the file `name` of Files, read now: why it is refused
-/// otherwise, naming the file.
-pub(crate) fn read_named(app: &Faraday, name: &str) -> Result<Zeroizing<[u8; 32]>, Bad> {
+/// The bytes of the file `name` of Files, or why there are none.
+fn bytes_named<'a>(app: &'a Faraday, name: &str) -> Result<&'a [u8], Bad> {
+    match app.inbox.iter().find(|i| i.name == name) {
+        Some(item) => Ok(&item.bytes),
+        None => Err(Bad::KeyFile(fill(EN.vault_key_file_gone, &[name]))),
+    }
+}
+
+/// What a refused key file says, naming the file.
+fn key_file_line(e: KeyFileError, name: &str) -> String {
+    let line = match e {
+        KeyFileError::Empty => EN.vault_key_file_empty,
+        KeyFileError::Database => EN.vault_key_file_vault,
+        KeyFileError::Damaged => EN.vault_key_file_damaged,
+    };
+    fill(line, &[name])
+}
+
+/// Takes the key file `name` of Files, read now (in `faraday-keys`), as
+/// the next seal's key file of open vault `id`: whether the vault took it,
+/// or why the file is refused, naming it.
+pub(crate) fn set_named(
+    app: &mut Faraday,
+    id: faraday_keys::vault::VaultId,
+    name: &str,
+) -> Result<bool, Bad> {
     let Some(item) = app.inbox.iter().find(|i| i.name == name) else {
         return Err(Bad::KeyFile(fill(EN.vault_key_file_gone, &[name])));
     };
-    keyfile::read(&item.bytes).map_err(|e| {
-        let line = match e {
-            KeyFileError::Empty => EN.vault_key_file_empty,
-            KeyFileError::Database => EN.vault_key_file_vault,
-            KeyFileError::Damaged => EN.vault_key_file_damaged,
-        };
-        Bad::KeyFile(fill(line, &[name]))
+    let bytes = &item.bytes;
+    app.vaults
+        .edit_or(id, |s| s.set_key_file_from(id, bytes))
+        .map_err(|e| Bad::KeyFile(key_file_line(e, name)))
+}
+
+/// The key file `name` of Files alone as the make takes it (read in
+/// `faraday-keys`); why it is refused otherwise, naming the file.
+pub(crate) fn file_parts(app: &Faraday, name: &str) -> Result<UnlockParts, Bad> {
+    UnlockParts::read(Some(bytes_named(app, name)?), None).map_err(|e| match e {
+        PartsRefused::KeyFile(e) => Bad::KeyFile(key_file_line(e, name)),
+        PartsRefused::Secret(_) => Bad::Secret(String::new()),
     })
 }
 
-/// The key file and the secret
-/// Unlock has been given, as the open takes them; why one is refused
-/// otherwise, naming the file.
-pub(crate) fn parts(app: &Faraday) -> Result<Components, Bad> {
-    let key = match app.vaults.unlock_key.as_deref() {
+/// The key file and the secret Unlock has been given, as the open takes
+/// them (read in `faraday-keys`); why one is refused otherwise, naming the
+/// file.
+pub(crate) fn parts(app: &Faraday) -> Result<UnlockParts, Bad> {
+    let named = match app.vaults.unlock_key.as_deref() {
         None => None,
-        Some(name) => Some(read_named(app, name)?),
+        Some(name) => Some((name, bytes_named(app, name)?)),
     };
-    let secret = match app.vaults.yubikey.as_ref() {
-        None => None,
-        Some(b) => match keyfile::secret(&b.text) {
-            Ok(s) => Some(s),
-            Err(e) if e.stray => return Err(Bad::Secret(EN.vault_secret_stray.to_string())),
-            Err(e) => {
-                return Err(Bad::Secret(fill(
-                    EN.vault_secret_digits,
-                    &[&e.digits.to_string()],
-                )));
-            }
-        },
-    };
-    Ok(Components::new(key, secret))
+    let typed = app.vaults.yubikey.as_ref().map(|b| b.text.as_str());
+    UnlockParts::read(named.map(|(_, b)| b), typed).map_err(|e| match e {
+        PartsRefused::KeyFile(e) => Bad::KeyFile(key_file_line(e, named.map_or("", |n| n.0))),
+        PartsRefused::Secret(e) if e.stray => Bad::Secret(EN.vault_secret_stray.to_string()),
+        PartsRefused::Secret(e) => {
+            Bad::Secret(fill(EN.vault_secret_digits, &[&e.digits.to_string()]))
+        }
+    })
 }
 
 /// A vault opened with the key file: it leaves Files, wiped as it drops.

@@ -511,7 +511,7 @@ pub(crate) fn made(
     app: &mut Faraday,
     name: &str,
     id: [u8; 16],
-    (passphrase, parts): (&str, Option<faraday_vault::kdbx::Components>),
+    (passphrase, parts): (&str, &mut Option<faraday_keys::UnlockParts>),
 ) -> bool {
     let Some(w) = app
         .vaults
@@ -536,7 +536,7 @@ pub(crate) fn made(
     app.vaults.drop_create();
     app.vaults
         .unlock_with(at, passphrase, Screen::VaultContents);
-    app.vaults.set_made_parts(parts);
+    app.vaults.set_made_parts(parts.take());
     app.screen = Screen::Unlock;
     crate::vault::stretch::defer(app, Work::Unlock);
     true

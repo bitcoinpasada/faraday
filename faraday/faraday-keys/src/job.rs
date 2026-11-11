@@ -130,7 +130,11 @@ impl StretchJob {
     /// seals. Faraday never sets a YubiKey up (F208): a make given a secret
     /// is refused and gives nothing back; the job and its components wipe
     /// as they drop.
-    pub fn keyed(mut self, with: fv::kdbx::Components) -> Result<StretchJob, KeyedRefused> {
+    pub fn keyed(
+        mut self,
+        with: impl Into<crate::parts::UnlockParts>,
+    ) -> Result<StretchJob, KeyedRefused> {
+        let with = with.into().0;
         match &mut self.what {
             What::Open { components, .. } => *components = with,
             What::Make {
@@ -211,7 +215,7 @@ impl StretchJob {
                     c,
                     &file,
                     passphrase.as_str(),
-                    &components,
+                    components,
                     &mut |plain| budget.as_ref().map_or(Ok(()), |b| b(plain)),
                     &mut |doc, att| parsed.as_ref().map_or(Ok(None), |p| p(doc, att)),
                     room,

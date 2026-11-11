@@ -112,9 +112,17 @@ Moved to `docs/history/KEYS-LOG.md`.
   `SealJob` gets one copy that wipes with the job, so a seal that fails
   keeps the pending passphrase for a retry.
   A vault's key file (32 bytes) and YubiKey secret (20 bytes) are held
-  in the same way (`faraday_vault::kdbx::Components`, moved
-  into `StretchJob::keyed`, lent to `OpenVaults::unlock_with` and cloned
-  into the opened file, wiped as it drops, never shown): every seal writes them back
+  in the same way (`faraday_vault::kdbx::Components`, neither `Clone` nor
+  `Debug`, read from the key file's bytes and the typed secret by
+  `UnlockParts::read` and moved into `StretchJob::keyed`, then into
+  `OpenVaults::unlock_with` and the opened file, wiped as it drops, never
+  shown; no second copy is kept, and each seal makes a short-lived copy
+  of them (`Components::changed`) that wipes as it drops; a key file added
+  to an open vault is read in faraday-keys by `OpenVaults::set_key_file_from`,
+  so faraday-core never holds its key; the `impl Into<UnlockParts>` argument
+  of `StretchJob::keyed` and `From<Components> for UnlockParts` stay public
+  only because faraday-keys/tests/vault_keyed.rs and
+  `testkit::kdbx_vault_keyed` build a `Components` directly): every seal writes them back
   unless `set_key_file` (add, replace or remove) or `remove_yubikey` is
   pending, and a `SealJob` gets one copy of a pending key file that wipes
   with the job. `OpenVaults::needs` says which the next seal writes. A
@@ -129,7 +137,11 @@ Moved to `docs/history/KEYS-LOG.md`.
   vault's key, and a failed make gives none; `OpenVaults::key_file_document`
   hands it out once (a second call gives none until another key is made)
   and not while the vault seals, and `OpenVaults::unmake_key_file` takes a
-  made key back where its document was not kept. A
+  made key back where its document was not kept. The parts of a vault
+  just made, which a copy or backup flow unlocks at once, wait in
+  `OpenVaults` (`hold_made_parts`) as an opaque `UnlockParts`, taken once
+  by the unlock (`take_made_parts`) and wiped by `clear_made_parts` or
+  `OpenVaults::clear` at a lock; the screens keep none. A
   key file chosen (`set_key_file`) or opened with has no way out. A make
   never takes a YubiKey's secret (F208): `StretchJob::keyed` refuses it.
 - **A signing job** (`job::SignJob`, WORKERS §6) shares the keys, it does

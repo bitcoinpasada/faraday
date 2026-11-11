@@ -28,8 +28,9 @@ pub(super) struct Keys {
 
 /// What a file needs besides its passphrase (`docs/VAULT.md` §3.2, F208).
 /// Both are secret bytes and wipe as they drop; neither has a reveal
-/// outside this crate.
-#[derive(Default, Clone)]
+/// outside this crate, and no second copy is kept; each seal makes a
+/// short-lived copy ([`Components::changed`]) that wipes as it drops.
+#[derive(Default)]
 pub struct Components {
     /// A key file's 32-byte key ([`super::keyfile::read`]).
     key_file: Option<Zeroizing<[u8; 32]>>,

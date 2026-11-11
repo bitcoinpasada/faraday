@@ -1907,7 +1907,7 @@ impl Faraday {
     pub(crate) fn flow_vault_made(
         &mut self,
         name: &str,
-        (passphrase, parts): (&str, Option<faraday_vault::kdbx::Components>),
+        (passphrase, parts): (&str, &mut Option<faraday_keys::UnlockParts>),
     ) -> bool {
         let Some(i) = self.fi() else {
             return false;
@@ -1943,7 +1943,7 @@ impl Faraday {
         // and its Unlock waits for the stick to go.
         if self.may_load_keys() {
             self.vaults.unlock_with(at, passphrase, Screen::BackupFlow);
-            self.vaults.set_made_parts(parts);
+            self.vaults.set_made_parts(parts.take());
             crate::vault::stretch::defer(self, Work::Unlock);
         }
         true

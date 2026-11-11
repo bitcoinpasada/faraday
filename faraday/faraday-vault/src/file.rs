@@ -286,7 +286,7 @@ pub fn open_within(
         c,
         file,
         passphrase,
-        &Components::none(),
+        Components::none(),
         budget,
         parsed,
         room,
@@ -295,12 +295,12 @@ pub fn open_within(
 
 /// Costs what [`open`] costs. [`open_within`] for a file that also needs a
 /// key file or a YubiKey's secret (§3.2, F208): `components`, which the
-/// opened vault keeps for its seals.
+/// opened vault keeps for its seals (moved in: no second copy is made).
 pub fn open_with(
     c: &Compute,
     file: &[u8],
     passphrase: &str,
-    components: &Components,
+    components: Components,
     budget: &mut dyn FnMut(usize) -> Result<(), u32>,
     parsed: &mut dyn FnMut(usize, usize) -> Result<Option<usize>, u32>,
     room: Option<usize>,
@@ -313,7 +313,7 @@ pub fn open_with(
         c,
         file,
         passphrase,
-        components,
+        &components,
         budget,
         &mut |document, attachments| {
             cap.set(parsed(document, attachments)?);
@@ -374,7 +374,7 @@ pub fn open_with(
         binaries: opened.binaries,
         document_len: opened.document.len(),
         passphrase,
-        components: components.clone(),
+        components,
     })
 }
 

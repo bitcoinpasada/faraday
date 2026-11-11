@@ -69,7 +69,7 @@ fn make(components: &Components, random: &[u8; RANDOM_LEN]) -> Vec<u8> {
     .expect("made")
 }
 
-fn open(bytes: &[u8], components: &Components) -> Result<Opened, Error> {
+fn open(bytes: &[u8], components: Components) -> Result<Opened, Error> {
     file::open_with(
         &compute(),
         bytes,
@@ -776,31 +776,33 @@ fn a_secret_is_forty_digits_however_a_tool_prints_them() {
 
 #[test]
 fn a_vault_with_a_key_file_or_a_secret_opens_only_with_what_it_was_made_with() {
-    for made_with in [with_key(), with_secret(), with_both()] {
-        let bytes = make(&made_with, &random(2));
-        assert!(open(&bytes, &made_with).is_ok());
-        assert!(is_wrong_credentials(open(&bytes, &Components::none())));
-        for other in [with_key(), with_secret(), with_both()] {
-            let same = other.has_key_file() == made_with.has_key_file()
-                && other.has_yubikey() == made_with.has_yubikey();
-            assert_eq!(open(&bytes, &other).is_ok(), same);
+    let kinds: [fn() -> Components; 3] = [with_key, with_secret, with_both];
+    for made_with in kinds {
+        let bytes = make(&made_with(), &random(2));
+        assert!(open(&bytes, made_with()).is_ok());
+        assert!(is_wrong_credentials(open(&bytes, Components::none())));
+        for other in kinds {
+            let (m, o) = (made_with(), other());
+            let same = o.has_key_file() == m.has_key_file() && o.has_yubikey() == m.has_yubikey();
+            assert_eq!(open(&bytes, o).is_ok(), same);
         }
     }
     // The same passphrase alone is a different vault.
     assert!(is_wrong_credentials(open(
         &make(&Components::none(), &random(2)),
-        &with_key()
+        with_key()
     )));
 }
 
 #[test]
 fn a_seal_keeps_what_the_vault_was_opened_with() {
-    for components in [with_key(), with_secret(), with_both()] {
-        let first = make(&components, &random(3));
-        let opened = open(&first, &components).unwrap();
+    let kinds: [fn() -> Components; 3] = [with_key, with_secret, with_both];
+    for components in kinds {
+        let first = make(&components(), &random(3));
+        let opened = open(&first, components()).unwrap();
         let second = file::seal(&compute(), &opened, &[], &random(4), Some(1_700_000_100)).unwrap();
-        assert!(open(&second, &components).is_ok());
-        assert!(is_wrong_credentials(open(&second, &Components::none())));
+        assert!(open(&second, components()).is_ok());
+        assert!(is_wrong_credentials(open(&second, Components::none())));
     }
 }
 
@@ -820,7 +822,7 @@ fn a_salt_ending_0x20_is_changed_to_0x21_only_when_a_secret_is_held() {
     assert_eq!(salt(&make(&with_key(), &r)), 0x20);
     let kept = make(&with_secret(), &r);
     assert_eq!(salt(&kept), 0x21);
-    assert!(open(&kept, &with_secret()).is_ok());
+    assert!(open(&kept, with_secret()).is_ok());
 }
 
 fn repo(path: &str) -> PathBuf {
@@ -901,10 +903,9 @@ fn pykeepass_opens_a_vault_faraday_sealed_with_a_key_file_and_the_other_way() {
         String::from_utf8_lossy(&made.stderr)
     );
     let key = keyfile::read(&std::fs::read(&key_path).unwrap()).unwrap();
-    let components = Components::with_key_file(key);
     let bytes = std::fs::read(&theirs).unwrap();
-    assert!(open(&bytes, &components).is_ok());
-    assert!(is_wrong_credentials(open(&bytes, &Components::none())));
+    assert!(open(&bytes, Components::with_key_file(key)).is_ok());
+    assert!(is_wrong_credentials(open(&bytes, Components::none())));
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -956,8 +957,8 @@ fn pykeepass_opens_a_vault_faraday_sealed_under_a_secret_and_the_other_way() {
             String::from_utf8_lossy(&made.stderr)
         );
         let bytes = std::fs::read(&theirs).unwrap();
-        assert_eq!(open(&bytes, &components).err(), None, "both {both}");
-        assert!(is_wrong_credentials(open(&bytes, &Components::none())));
+        assert_eq!(open(&bytes, components).err(), None, "both {both}");
+        assert!(is_wrong_credentials(open(&bytes, Components::none())));
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -972,7 +973,7 @@ fn vector(name: &str) -> Vec<u8> {
 /// The passphrase of the keepassxc-cli vectors (`tools/vectors/kdbx/README.md`).
 const KEEPASSXC_PASSPHRASE: &str = "kdbx vector passphrase";
 
-fn opens_to_example_and_other(bytes: &[u8], passphrase: &str, components: &Components) {
+fn opens_to_example_and_other(bytes: &[u8], passphrase: &str, components: Components) {
     let o = open_as(bytes, passphrase, components).expect("opens");
     let mut titles: Vec<&str> = o
         .document()
@@ -992,17 +993,17 @@ fn keepassxc_key() -> Components {
 #[test]
 fn a_vault_keepassxc_locked_with_a_passphrase_and_a_key_file_opens_with_both() {
     let bytes = vector("keepassxc-keyfile-password.kdbx");
-    opens_to_example_and_other(&bytes, KEEPASSXC_PASSPHRASE, &keepassxc_key());
+    opens_to_example_and_other(&bytes, KEEPASSXC_PASSPHRASE, keepassxc_key());
     assert!(is_wrong_credentials(open_as(
         &bytes,
         KEEPASSXC_PASSPHRASE,
-        &Components::none()
+        Components::none()
     )));
-    assert!(is_wrong_credentials(open_as(&bytes, "b", &keepassxc_key())));
+    assert!(is_wrong_credentials(open_as(&bytes, "b", keepassxc_key())));
     assert!(is_wrong_credentials(open_as(
         &bytes,
         KEEPASSXC_PASSPHRASE,
-        &with_key()
+        with_key()
     )));
 }
 
@@ -1012,7 +1013,7 @@ fn a_vault_keepassxc_locked_with_a_passphrase_and_a_key_file_opens_with_both() {
 #[test]
 fn a_vault_keepassxc_locked_with_a_key_file_alone_is_refused_for_having_no_passphrase() {
     let bytes = vector("keepassxc-keyfile-only.kdbx");
-    let refused = open_as(&bytes, "", &keepassxc_key());
+    let refused = open_as(&bytes, "", keepassxc_key());
     assert!(matches!(
         refused,
         Err(Error::Kdbx(kdbx::Error::EmptyPassphrase))
@@ -1020,7 +1021,7 @@ fn a_vault_keepassxc_locked_with_a_key_file_alone_is_refused_for_having_no_passp
     assert!(is_wrong_credentials(open_as(
         &bytes,
         PASSPHRASE,
-        &keepassxc_key()
+        keepassxc_key()
     )));
 }
 
@@ -1030,20 +1031,20 @@ fn a_vault_keepassxc_locked_with_a_key_file_alone_is_refused_for_having_no_passp
 #[test]
 fn a_vault_kdbxweb_locked_with_a_passphrase_and_a_yubikey_opens_with_its_secret() {
     let bytes = vector("kdbxweb-yubikey-password.kdbx");
-    opens_to_example_and_other(&bytes, PASSPHRASE, &with_secret());
+    opens_to_example_and_other(&bytes, PASSPHRASE, with_secret());
     assert!(is_wrong_credentials(open_as(
         &bytes,
         PASSPHRASE,
-        &Components::none()
+        Components::none()
     )));
     assert!(is_wrong_credentials(open_as(
         &bytes,
         PASSPHRASE,
-        &with_key()
+        with_key()
     )));
 }
 
-fn open_as(bytes: &[u8], passphrase: &str, components: &Components) -> Result<Opened, Error> {
+fn open_as(bytes: &[u8], passphrase: &str, components: Components) -> Result<Opened, Error> {
     file::open_with(
         &compute(),
         bytes,

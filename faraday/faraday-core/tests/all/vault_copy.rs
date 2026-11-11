@@ -1542,3 +1542,80 @@ fn a_key_changed_between_two_presses_is_judged_by_its_new_words() {
         "Beta did not take the item"
     );
 }
+
+/// Create's form for an item waiting for a new vault, with a key file made
+/// for it and the passphrase typed twice, then Create pressed and run
+/// until the new vault's file is in the Outbox: the unlock it is made for
+/// has not run yet.
+fn make_new_with_key_file_until_made(app: &mut Faraday) {
+    app.press(Action::Vault(V::CKeyAsk));
+    app.press(Action::Vault(V::CKeyMake));
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(app, PHRASE);
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(app, PHRASE);
+    // As a person's press: the make runs on the worker, and the unlock
+    // it is made for waits for a frame that is not drawn here.
+    testkit::press_on_worker(app, Action::Vault(V::CGo));
+    let _ = app.frame();
+    // The tick starts the make; its answer is applied when it settles.
+    app.event(Event::Tick { now_ms: 1000 });
+    testkit::settle(app);
+    assert!(
+        app.outbox.iter().any(|i| i.name == "vault.kdbx"),
+        "no vault was made"
+    );
+}
+
+#[test]
+fn a_new_vault_with_a_key_file_made_for_an_item_opens_at_once_with_it() {
+    let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
+    let mut app = opened(vec![("a.kdbx", a)]);
+    sheet_for(&mut app, 0, ENTRIES, 0);
+    app.press(Action::Vault(V::CopyPick(0)));
+    make_new_with_key_file_until_made(&mut app);
+    // The tick starts the unlock the make waits for; it settles.
+    let _ = app.frame();
+    app.event(Event::Tick { now_ms: 2000 });
+    testkit::settle(&mut app);
+    assert_eq!(app.vaults().open.len(), 2, "the new vault did not open");
+}
+
+#[test]
+fn a_lock_while_a_made_vaults_unlock_waits_leaves_it_locked() {
+    let a = vault("Alpha", 1, vec![entry("Mail", "hunter2")]);
+    let mut app = opened(vec![("a.kdbx", a)]);
+    sheet_for(&mut app, 0, ENTRIES, 0);
+    app.press(Action::Vault(V::CopyPick(0)));
+    make_new_with_key_file_until_made(&mut app);
+    assert_eq!(app.vaults().open.len(), 1, "the unlock ran before the lock");
+    // A person's lock: the waiting unlock's answer is dropped. (The
+    // lock's clears of the kept parts are defence in depth.)
+    testkit::press_on_worker(&mut app, Action::Lock);
+    if app.sheet == Some(Sheet::LockAsk) {
+        testkit::press_on_worker(&mut app, Action::LockUnsealed);
+    }
+    testkit::settle_stale(&mut app);
+    assert_eq!(app.vaults().open.len(), 0, "{:?}", app.sheet);
+    // The vault is brought back to Files without its key file: the
+    // passphrase alone does not open it.
+    testkit::outbox_to_files(&mut app, &["vault.kdbx".to_string()]);
+    let at = app
+        .vault_files()
+        .iter()
+        .position(|f| f.name == "vault.kdbx")
+        .expect("the vault is in Files");
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Open(at)));
+    let _ = app.frame();
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, PHRASE);
+    testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
+    testkit::settle(&mut app);
+    assert_eq!(
+        app.vaults().unlock_error.as_deref(),
+        Some(EN.vault_error_wrong),
+        "the passphrase alone opened the vault"
+    );
+    assert_eq!(app.vaults().open.len(), 0);
+}
