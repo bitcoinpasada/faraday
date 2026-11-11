@@ -282,6 +282,30 @@ fn a_block_locator_with_a_count_past_the_file_is_refused() {
 }
 
 #[test]
+fn a_purpose_that_is_not_one_whole_utf8_string_fails_its_record() {
+    // Bitcoin Core loads such a record and keeps the address with no
+    // purpose; Faraday names it and does not call the wallet whole.
+    for (what, change) in [
+        (
+            "not UTF-8",
+            (|v: &mut Vec<u8>| v[3] |= 0x80) as fn(&mut Vec<u8>),
+        ),
+        ("bytes left over", |v: &mut Vec<u8>| v[0] -= 1),
+    ] {
+        let wallet = read_with("labels", None, |records| {
+            let (_, v) = records
+                .iter_mut()
+                .find(|(k, _)| k.get(1..=7) == Some(b"purpose".as_slice()))
+                .expect("purpose");
+            assert_eq!(v.as_slice(), b"\x07receive");
+            change(v);
+        });
+        assert!(failed(&wallet, "purpose", Fault::Layout), "{what}");
+        assert!(!wallet.is_whole(), "{what}");
+    }
+}
+
+#[test]
 fn an_encrypted_wallet_holds_one_master_key_and_no_plain_key() {
     let two = read_with("encrypted", Some("faraday"), |records| {
         let (mut k, v) = record_of(records, "mkey");
