@@ -38,31 +38,15 @@ runs:
     - name: System packages
       if: inputs.packages == 'true'
       shell: bash
-      run: |
-        # A mirror can stall with no error: each try has a limit, or the job
-        # waits out its own timeout.
-        for try in 1 2 3; do
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 update \
-            && timeout 300 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 \
-              install --yes --no-install-recommends \
-              gnupg sq paperkey openssl sbsigntool mtools dosfstools \
-            && exit 0
-          echo "apt: try $try did not finish"
-        done
-        exit 1
+      # Each try has a time limit; after a failed one, a second mirror (apt-install.sh).
+      run: >-
+        "$GITHUB_ACTION_PATH/apt-install.sh"
+        gnupg sq paperkey openssl sbsigntool mtools dosfstools
 
     - name: Valgrind
       if: inputs.valgrind == 'true'
       shell: bash
-      run: |
-        for try in 1 2 3; do
-          timeout 240 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 update \
-            && timeout 300 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 \
-              install --yes --no-install-recommends valgrind \
-            && exit 0
-          echo "apt: try $try did not finish"
-        done
-        exit 1
+      run: '"$GITHUB_ACTION_PATH/apt-install.sh" valgrind'
 
     - name: Rust toolchain
       shell: bash
