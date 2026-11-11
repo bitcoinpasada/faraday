@@ -882,3 +882,36 @@ fn a_codex32_secret_read_at_restores_scan_goes_into_its_slot() {
     let s = app.restore().unwrap().seeds.as_ref().unwrap();
     assert_eq!(s.keys, vec![fp], "the slot does not hold the key");
 }
+
+/// A step's count never states a total that a later step changes: the
+/// small panel's Restore reads "Step 2", not "Step 2 of 6".
+#[test]
+fn a_restore_s_step_count_states_no_total() {
+    let mut app = shown();
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(MULTI));
+    app.press(Action::RNext(KIND));
+    let shown = crate::common::texts(&mut app);
+    assert!(
+        shown.iter().any(|t| t.starts_with("Step ")),
+        "a step is counted: {shown:?}"
+    );
+    assert!(
+        !shown
+            .iter()
+            .any(|t| t.starts_with("Step ") && t.contains(" of ")),
+        "a step count states a total: {shown:?}"
+    );
+}

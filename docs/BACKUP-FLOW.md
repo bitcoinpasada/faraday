@@ -412,10 +412,14 @@ stick.
 
 ### 4.7 Done
 
-A Result: "Written" in `OK`, a row per stick, "Vault 1 (Place 1) ·
-{label} · {time}". **Unlock {vault}** opens Unlock with the vault picked
-and lands on the key's page, where it signs; for a wallet, the
-checklist's done card (NEW-WALLET §14.6), with nothing For the stick.
+A Result: "Written" in `OK`, then one list row per stick: the stick and
+its vault and place ("Stick 2 · Vault 1 (Place 1)") as the headline, the
+stick's label and the files written as the supporting line, the time at
+the right. **Unlock {vault}** opens Unlock with the vault picked and
+lands on the key's page, where it signs; for a wallet, the checklist's
+done card (NEW-WALLET §14.6), with nothing For the stick. **Done**, a
+filled button (tonal beside Unlock), leaves the flow as the back arrow
+does.
 
 ### 4.8 Changing the plan
 
@@ -452,7 +456,7 @@ inserted before step 2.
 ## 5. Screens, progress, leaving
 
 - **Step cards** on `wide`, as Make a new wallet's (DESIGN §4.14;
-  decision 16); **pages** on `small`, the head reading "Step 2 of 7" with
+  decision 16); **pages** on `small`, the head reading "Step 2" (no total: the cards a plan skips change it) with
   a row per earlier card, "{card} · {value}". Steps 2 and 6 hold one
   sub-card per stick, each closing with its place and label when done.
   The cards a plan skips (2, 3, 5, 6 with no stick) are not drawn and

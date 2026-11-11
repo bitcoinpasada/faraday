@@ -85,6 +85,10 @@ pub struct Column<'a> {
     /// On the compact layout, whether a closed card's line too long for its
     /// row wraps; otherwise it is cut to fit.
     pub wrap_closed: bool,
+    /// Whether the number of steps is known before the first and never
+    /// changes; where it can (Spend, Restore, Backup)
+    /// a step reads "Step N" alone.
+    pub total_fixed: bool,
     /// A line at the head of the column, about the page as a whole.
     pub note: Option<&'a str>,
     /// A chip at the head of the column: where the flow goes next, or
@@ -476,7 +480,11 @@ fn paged(
                 String::new()
             } else {
                 let (n, of) = (i + 1 - lead, cards.len() - lead);
-                fill(EN.flow_step_count, &[&n.to_string(), &of.to_string()])
+                if col.total_fixed {
+                    fill(EN.flow_step_count, &[&n.to_string(), &of.to_string()])
+                } else {
+                    fill(EN.flow_step_number, &[&n.to_string()])
+                }
             };
             let count_w = ui.measure_as(BODY_S, &count);
             let title_w = inner - count_w - 10.0;

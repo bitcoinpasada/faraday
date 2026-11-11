@@ -2633,6 +2633,8 @@ strings! {
     flow_change: "Change",
     /// Text in `paged`. `{}`: `i + 1`, `cards.len()`.
     flow_step_count: "Step {} of {}",
+    /// Text in `paged` where the step count can change. `{}`: `i + 1`.
+    flow_step_number: "Step {}",
     /// Text in `paged`.
     flow_about_this_step: "About this step",
     /// Text in `paged`.
@@ -11089,6 +11091,8 @@ strings! {
     backup_flow_first_gone_toast: "A written copy was deleted",
     /// Done's result.
     backup_flow_done: "Written",
+    /// The button that leaves the flow once its files are written.
+    backup_flow_done_button: "Done",
     /// The key page's row.
     backup_flow_row: "Backup",
     /// The Backup row before any write.

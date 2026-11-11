@@ -1,5 +1,5 @@
 //! The backup flow's cards (`docs/BACKUP-FLOW.md` §4, §5): step cards on a
-//! wide panel, pages with "Step 2 of 7" on a small one. Drawing only; what
+//! wide panel, pages with "Step 2" on a small one. Drawing only; what
 //! a press does is `backup_flow/steps.rs`. The Create a vault form is
 //! `vault::screen::create`, drawn in the flow's place while a vault is
 //! made.
@@ -94,6 +94,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         guided: f.is_setup() && app.guided(),
         switch: f.is_setup(),
         wrap_closed: false,
+        total_fixed: false,
         note: None,
         chip: named.map(|n| n.1),
         chip_tap: None,
@@ -1510,20 +1511,16 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
             .flow_slot_row(k)
             .unwrap_or_else(|| f.target_short(&s.target, app.medium.noun()));
         let at = read_time(app, wr.time);
-        cy += ui.wrap_as(
-            (x, cy, w),
-            BODY_S,
-            Role::OnSurface,
-            &format!("{name} · {} · {at}", wr.label),
-        ) + 4.0;
         // What was written to it, the public files with the copies.
         let files: Vec<&str> = wr.files.iter().map(|(n, _)| n.as_str()).collect();
-        cy += ui.wrap_as(
-            (x, cy, w),
-            BODY_S.mono(),
-            Role::OnSurfaceVariant,
-            &files.join(", "),
-        ) + 8.0;
+        let sup = fill(FEN.backup_flow_slot_row, &[&wr.label, &files.join(", ")]);
+        let it = faraday_ui::roles::ListItem {
+            headline: &name,
+            supporting: &sup,
+            trailing: Some((&at, Role::OnSurfaceVariant.paint())),
+            action: fa(F::Back),
+        };
+        cy += ui.list_item_still((x, cy, w), &it);
     }
     cy += 8.0;
     // In Guided, extra copies (`docs/BACKUP-FLOW.md` §17.19 item 7).
@@ -1539,14 +1536,14 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
             Style::Primary,
             fa(F::UnlockDone(v)),
         ));
-    } else if f.kind.is_wallet() {
-        // A plan with no vault leaves nothing to unlock.
-        items.push((
-            FEN.backup_flow_leave.to_string(),
-            Style::Primary,
-            fa(F::Leave),
-        ));
     }
+    // Done leaves the flow as the back arrow does.
+    let lead = if items.is_empty() {
+        Style::Primary
+    } else {
+        Style::Tonal
+    };
+    items.push((FEN.backup_flow_done_button.to_string(), lead, fa(F::Back)));
     let refs: Vec<(&str, Style, Action)> =
         items.iter().map(|(l, s, a)| (l.as_str(), *s, *a)).collect();
     cy += crate::screens::wrap_buttons(ui, x, cy, w, 40.0, &refs) + 6.0;

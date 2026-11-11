@@ -615,11 +615,23 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// or three lines by its supporting text (the third line cut with an
     /// ellipsis); `chosen` in Material's selected state (secondary
     /// container). The whole item takes its press. Returns its height.
-    pub fn list_item(
+    pub fn list_item(&mut self, at: (f32, f32, f32), it: &ListItem<'_, A>, chosen: bool) -> f32 {
+        self.list_item_as(at, it, chosen, true)
+    }
+
+    /// A list item as [`Ui::list_item`] draws it that takes no press: a
+    /// row that only states what is there (Material 3 Lists, a
+    /// non-interactive item). Its `action` is not used. Returns its height.
+    pub fn list_item_still(&mut self, at: (f32, f32, f32), it: &ListItem<'_, A>) -> f32 {
+        self.list_item_as(at, it, false, false)
+    }
+
+    fn list_item_as(
         &mut self,
         (x, y, w): (f32, f32, f32),
         it: &ListItem<'_, A>,
         chosen: bool,
+        pressed: bool,
     ) -> f32 {
         let lines = self.list_lines(w, it);
         let h = self.list_item_height(w, it);
@@ -630,7 +642,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             self.fill(x, y, w, h, SHAPE_L, selected_or(true, Role::Surface));
         }
         let ink = on_selected(chosen, Role::OnSurface);
-        self.press(Shape::new(x, y, w, h, SHAPE_L), ink, it.action);
+        if pressed {
+            self.press(Shape::new(x, y, w, h, SHAPE_L), ink, it.action);
+        }
         let (line, sup) = (self.line_as(BODY_L), self.line_as(BODY_M));
         let head_lines = self.list_head_lines(w, it);
         let head = line * head_lines as f32;

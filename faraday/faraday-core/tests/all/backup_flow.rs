@@ -929,6 +929,24 @@ fn home_leads_with_the_backup_not_finished_and_the_power_sheet_lists_it() {
 }
 
 #[test]
+fn the_done_page_lists_one_row_per_stick_and_ends_on_done() {
+    let mut shell = Shell::new();
+    let mut app = gpg_locked(&mut shell);
+    write_all(&mut shell, &mut app, &[("S1", false), ("S2", true)]);
+    assert_eq!(step(&app), Step::Done);
+    let t = texts(&mut app);
+    let rows = t
+        .iter()
+        .filter(|x| x.starts_with("Stick ") && x.contains("(Place"))
+        .count();
+    assert_eq!(rows, 2, "one row per stick written: {t:?}");
+    assert!(has(&mut app, "Done"), "Done is offered: {t:?}");
+    assert!(offered(&mut app, Action::Flow(F::Back)));
+    app.press(Action::Flow(F::Back));
+    assert_ne!(app.screen, Screen::BackupFlow, "Done leaves the flow");
+}
+
+#[test]
 fn a_flow_left_hands_a_stick_to_the_visit_with_its_files_in_the_backup() {
     let mut shell = Shell::new();
     let mut app = gpg_locked(&mut shell);

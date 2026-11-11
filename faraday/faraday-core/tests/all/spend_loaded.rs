@@ -288,3 +288,78 @@ fn a_loaded_wallets_card_keeps_its_lines_apart_at_every_text_size() {
         }
     }
 }
+
+/// A step's count never states a total that a later step changes: the
+/// number of steps is not known before the flow's input is read.
+#[test]
+fn a_spend_s_step_count_states_no_total() {
+    let mut app = spending_review(false);
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let shown = crate::common::texts(&mut app);
+    assert!(
+        shown.iter().any(|t| t.starts_with("Step ")),
+        "a step is counted: {shown:?}"
+    );
+    assert!(
+        !shown
+            .iter()
+            .any(|t| t.starts_with("Step ") && t.contains(" of ")),
+        "a step count states a total: {shown:?}"
+    );
+}
+
+/// Spend from a backup counts its steps without a total: the list grows
+/// once the transaction is read.
+#[test]
+fn spending_from_a_backup_counts_its_steps_without_a_total() {
+    use faraday_core::strings::EN;
+    let c = testkit::compute();
+    let mut app = with_files(vec![savings_psbt()]);
+    app.event(Event::Display(DisplayInfo {
+        width: 480,
+        height: 640,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    add_key(&mut app, 0);
+    add_key(&mut app, 1);
+    app.session
+        .add_wallet(
+            &c,
+            "Savings",
+            &kit("savings").descriptor,
+            EN.create_make_made_here,
+            faraday_core::wallet::Origin::Statement,
+        )
+        .unwrap();
+    app.press(Action::Nav(Screen::SpendBackup));
+    app.press(Action::SpendBackup(F::SpendFrom(0)));
+    let shown = crate::common::texts(&mut app);
+    assert!(
+        shown.iter().any(|t| t.starts_with("Step ")),
+        "a step is counted: {shown:?}"
+    );
+    assert!(
+        !shown
+            .iter()
+            .any(|t| t.starts_with("Step ") && t.contains(" of ")),
+        "a step count states a total: {shown:?}"
+    );
+}
