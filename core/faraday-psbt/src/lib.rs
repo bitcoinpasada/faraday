@@ -1,8 +1,9 @@
 //! PSBT (BIP-174) parsing, inspection, policy warnings, signing and
 //! finalization.
 //!
-//! The crate is the only place in the core where a private key is used.
-//! Everything else works from non-secret data:
+//! The crate signs with the private keys it is handed (`docs/KEYS.md`
+//! names where key material lives and leaves); `faraday-bip` holds the
+//! others that derive or use one. Its other work is from non-secret data:
 //!
 //! - [`Psbt`]: parse and serialise (binary and base64).
 //! - [`inspect`]: a complete structured view for the Sign screens:

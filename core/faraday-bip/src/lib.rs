@@ -1,6 +1,7 @@
-//! BIP standards: BIP-39 mnemonics, BIP-32 keys,
+//! Bitcoin's key standards: BIP-39 mnemonics, BIP-32 keys,
 //! BIP-44/49/84/86 accounts and addresses, SLIP-132 and BIP-380
-//! descriptor checksums, and BIP-85 child mnemonics.
+//! descriptor checksums, BIP-85 child mnemonics, SLIP-39, codex32, MuSig2,
+//! silent payments, aezeed, BSMS, Coldcard files and policy compiling.
 //!
 //! Design:
 //!
@@ -37,7 +38,7 @@
 //!
 //! The crate is `no_std`; `bitcoin` needs `alloc`, so heap allocation
 //! exists but is confined to non-secret data. `tools/lint-secrets.sh`
-//! keeps `bip39.rs`, `slip39.rs` and `keys.rs` free of heap text.
+//! keeps the files that hold secrets free of heap text (see its header).
 
 #![no_std]
 

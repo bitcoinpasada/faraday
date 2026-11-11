@@ -153,8 +153,8 @@ The moves from the old layout: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
   into it. The review's "a handful of types" missed that.
 - **faraday-starter takes its strings from faraday-strings.** It still
   uses faraday-core for the PDF writer, version comparison, EDID, the
-  mark and the blank backup sheet. Moving those out is a separate piece
-  of work, done only if a reason comes up.
+  mark, the blank backup sheet, `Action`, `Screen`, `Host`, `motion` and
+  `codex32_backup`.
 
 The steps: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
@@ -192,7 +192,7 @@ lint, and a count that falls fails it too, until the file is lowered.
 Raising a count is the owner's decision, recorded in DECISIONS, as
 accepting more than a standard requires already is.
 
-**CLAUDE.md names each rule and its lint** (its "Structure" section),
+**CLAUDE.md names each rule and its lint** (its "Code structure" section under "By area"),
 so a session sees the rules before it writes code.
 
 **What lints cannot check is judgement.** That rests on CLAUDE.md's
@@ -216,33 +216,16 @@ this pass came from, is on the board.
   where areas only exchange messages, is not taken.
 - The measures are `Faraday`'s top-level field count and the number of
   files with `impl Faraday`; both only fall, held by
-  `tools/lint-layout.counts`. `Faraday` has 85 top-level fields (190
-  before phase 7) and 61 files hold `impl Faraday` (72 before). The
+  `tools/lint-layout.counts`. the counts are held by
+  `tools/lint-layout.counts`. The
   queues to the shell are one `Out`, the pointer's ten fields one
   `Pointer` and the idle lock's six one `Idle`; the 13 fields the shells
   set stay separate public fields.
 - Two areas keep their types in an `area.rs` beside `mod.rs`
   (`faraday/faraday-core/src/vault/area.rs`,
-  `faraday/faraday-core/src/backup_flow/area.rs`), because their
-  `mod.rs` is at its line count.
-- Several areas still hand out a transitional mutable accessor:
-  `Camera::scan_mut`, `EntryArea::state_mut`, the `state_mut` of
-  Create, Restore and Seeds, Wallets' `spend_mut`, `renaming_mut` and
-  `card_offset_mut`, `VisitArea`'s `DerefMut` to `VisitState` and `name_taken_mut`, Glance's
-  `work_mut`, Inbox's `potential_mut` and `skip_mut`, `files_menu_mut`,
-  `vault_from_mut`, the Spend tab's `seeds_mut` and `scroll_y_mut`, the wallet
-  backup checklist's `board_mut`, `check_mut` and `scroll_y_mut`, the
-  vault's `item_offset_mut`, `create_scroll_y_mut` and `text_box`, and
-  the backup flow's `board_mut`, `scroll_y_mut` and
-  `board_list_offset_mut`, Message's `scroll_y_mut`, New key's
-  `sheet_pan_mut` (the codex32 worksheet's pan, as the other offsets)
-  Tools' `convert_mut` and `invoice_mut` (Decode a Lightning invoice's area), `ots_mut` (Check a timestamp's area), `core_wallet_mut` (Read a Bitcoin Core wallet's area), `qr_tool_mut`, Convert a seed's and the QR
-  vault tool's `scroll_mut`, Check a signer's
-  `check_scroll_mut` (the decode area's, its column's scroll, as the other
-  offsets), Compare two PSBTs' `compare_scroll_mut` (its cards' scroll, as
-  the other offsets), the backup flow's `keeps_mut` (a flow's Keep ticks of a seed),
-  the secret sheet's `out_mut`, and boot import's `state_mut`. These are to be narrowed into named methods
-  (planned, not scheduled).
+  `faraday/faraday-core/src/backup_flow/area.rs`).
+- The transitional mutable accessors some areas still hand out: moved to
+  `docs/history/STRUCTURE-PASS-LOG.md`.
 
 ### 7.4 Phase 7's plan
 

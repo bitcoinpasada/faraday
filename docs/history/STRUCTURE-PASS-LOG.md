@@ -1044,3 +1044,26 @@ same commit.
 - **Not grouped in this phase.** The fields the shells set (`online`
   and the twelve beside it) stay as separate fields: grouping them is a
   shell API change, and the owner's decision.
+
+## 7.3 The transitional mutable accessors (from docs/STRUCTURE-PASS.md)
+
+Moved on 2026-11-11; the list is as it stood.
+
+- Several areas still hand out a transitional mutable accessor:
+  `Camera::scan_mut`, `EntryArea::state_mut`, the `state_mut` of
+  Create, Restore and Seeds, Wallets' `spend_mut`, `renaming_mut` and
+  `card_offset_mut`, `VisitArea`'s `DerefMut` to `VisitState` and `name_taken_mut`, Glance's
+  `work_mut`, Inbox's `potential_mut` and `skip_mut`, `files_menu_mut`,
+  `vault_from_mut`, the Spend tab's `seeds_mut` and `scroll_y_mut`, the wallet
+  backup checklist's `board_mut`, `check_mut` and `scroll_y_mut`, the
+  vault's `item_offset_mut`, `create_scroll_y_mut` and `text_box`, and
+  the backup flow's `board_mut`, `scroll_y_mut` and
+  `board_list_offset_mut`, Message's `scroll_y_mut`, New key's
+  `sheet_pan_mut` (the codex32 worksheet's pan, as the other offsets)
+  Tools' `convert_mut` and `invoice_mut` (Decode a Lightning invoice's area), `ots_mut` (Check a timestamp's area), `core_wallet_mut` (Read a Bitcoin Core wallet's area), `qr_tool_mut`, Convert a seed's and the QR
+  vault tool's `scroll_mut`, Check a signer's
+  `check_scroll_mut` (the decode area's, its column's scroll, as the other
+  offsets), Compare two PSBTs' `compare_scroll_mut` (its cards' scroll, as
+  the other offsets), the backup flow's `keeps_mut` (a flow's Keep ticks of a seed),
+  the secret sheet's `out_mut`, and boot import's `state_mut`. These are to be narrowed into named methods
+  (planned, not scheduled).

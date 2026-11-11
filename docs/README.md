@@ -123,18 +123,18 @@ need. Each document's header says what kind it is:
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GUIDE.md`: Faraday user guide, the index. Sections 1 to 7 are stubs pointing to `docs/guide/walk/`, one file per walkthrough; all twenty-three walkthroughs hold the written text and their pictures (`docs/guide/pictures/`), checked against the app; it waits on a test by a reader new to Faraday.
 - `docs/guide/screens/README.md`: the guide's screen reference, one page per screen or group of small screens; every screen and sheet of Faraday has its page.
-- `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145), not built.
+- `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145); the PC's and the Pi's builds, the one Pi image and the release's files are built; trials and measurements are open.
 - `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Built (F149).
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/MAC.md`: Faraday on Macs. Partly built; paused until a Mac is available to test on.
 - `docs/M3-CHECKS.md`: Material 3 checks: touch targets tested over the snapshot tours, and state layers by construction. Built (F152).
-- `docs/MODES.md`: Modes, Practice and samples. Specified (F81), not built.
+- `docs/MODES.md`: Modes, Practice and samples. Built here (F81), except the website.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
-- `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148), not built.
+- `docs/CRYPTO-LEARN.md`: How Faraday does it: one manifest for every cryptographic action. Specified (F148); the manifest, its inventory lint, fingerprints, re-stamp recipe and generator are built and held by `just lint`; the order of flow blocks, guide pictures, the website's rendering and a few tables are open.
 - `docs/STICK-IDENTITY.md`: A stick that does not say it is Faraday's. Specified (F174, F182); built, a stick Windows leaves whole included; the Windows 11 virtual machine run with real builds, its timings and macOS keys checked against a Mac (paused until one is available) are not.
-- `docs/VAULT.md`: The Faraday vault: a KDBX 4 database under one passphrase and Argon2id, its items as KeePass entries, in four sizes, and the smallest, a QR code, an RFC 9580 OpenPGP message. Specified (F190, amending F189; F226); the KDBX file vault is built, the QR vault tool in Tools is not.
-- `docs/WORKERS.md`: Costly work off the drawing thread: work over a tenth of a second on a Pi 3B+ on one worker in the core for every Faraday (F184), shorter work drawn first; the list of each, the screen while a job runs, the token and key material on the worker. Planned, not built.
+- `docs/VAULT.md`: The Faraday vault: a KDBX 4 database under one passphrase and Argon2id, its items as KeePass entries, in four sizes, and the smallest, a QR code, an RFC 9580 OpenPGP message. Specified (F190, amending F189; F226); the file vault and the QR vault tool are built; key files and a YubiKey's secret are built in part (its Open line).
+- `docs/WORKERS.md`: Costly work off the drawing thread: work over a tenth of a second on a Pi 3B+ on one worker in the core for every Faraday (F184), shorter work drawn first; the list of each, the screen while a job runs, the token and key material on the worker. The worker, the shells' wake, the busy screen, the vault stretches, PSBT signing and read, the backup checklist and more are built; the rest of the jobs (§9) are open.
 - `docs/FRAMES.md`: Frames at the panel's rate: a scroll step that moves the rows already drawn, the frame painted in bands across the cores, the Pi's panel without a conversion, the framebuffer write. Partly built: the moved frame on the compact Settings page, the stick shell taking it, the Pi's frame without a conversion and most of the framebuffer write; its Status and Open lines say the rest.
 - `docs/CROSSCHECK.md`: A second implementation of each cryptographic step, and which compare Faraday with others' code and which with Faraday's second version (§10, §10.7, F160, F177, F179). Option A decided (F79) and built (§10.5); options B and C deferred.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).

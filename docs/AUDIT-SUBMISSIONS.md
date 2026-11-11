@@ -1,7 +1,8 @@
 # Audits: the request, the submission and the record
 
-**Kind:** Reference
-**Status:** Built (F19); the Audits page does not yet show §10 (F160)
+**Kind:** Spec
+**Status:** Built (F19), except the Audits page's part of §10 (F160)
+**Open:** the Audits page showing §10's outside reviews of Faraday's own specifications.
 
 The process lives here; `SECURITY.md` and the issue form follow it, and
 the website's Audits page shows it.

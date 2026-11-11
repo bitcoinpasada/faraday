@@ -1,4 +1,5 @@
-//! Argon2id at a [`Cost`] the caller chooses and a file carries. The
+//! A [`Cost`] for Argon2id that the caller chooses and a file carries, and
+//! the function that runs it (a wrapper over `faraday_crypto::argon2`). The
 //! self-test checks it against a known answer and the cross-check's
 //! `vault.argon2id` judges it. The vault (`docs/VAULT.md`) takes this
 //! crate's [`Cost`] and stretches its passphrases through
