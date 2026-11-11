@@ -26,7 +26,7 @@ use faraday_crypto::work::Compute;
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Seek, SeekFrom};
-use std::os::unix::fs::FileExt;
+use std::os::unix::fs::{FileExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
 use faraday_boot::layout;
@@ -49,9 +49,41 @@ fn urandom() -> Option<u32> {
     Some(u32::from_le_bytes(b))
 }
 
-/// A partition's device node, as a FAT volume reads it.
+/// The alignment a read straight from the medium needs, and the largest
+/// block a medium may have.
+const ALIGN: usize = 4096;
+
+/// A buffer whose first byte is aligned to [`ALIGN`].
+struct Aligned {
+    raw: Vec<u8>,
+    off: usize,
+    len: usize,
+}
+
+impl Aligned {
+    fn new(len: usize) -> Self {
+        let raw = vec![0u8; len + ALIGN];
+        let off = raw.as_ptr().align_offset(ALIGN);
+        Aligned { raw, off, len }
+    }
+
+    fn bytes(&mut self) -> &mut [u8] {
+        &mut self.raw[self.off..self.off + self.len]
+    }
+}
+
+/// A partition's device node, as a FAT volume reads it. A read goes
+/// through the kernel's cache, as any file's does; the read that checks
+/// a write ([`Disk::read_back`]) comes from the medium itself, through a
+/// second handle opened with `O_DIRECT`, so a stick that drops or wraps
+/// writes is not hidden by the cache. Where that handle cannot be
+/// opened, a regular file (an image) is read back through the cache; a
+/// block device is not, and its read-back fails.
 pub struct Node {
     file: File,
+    direct: Option<File>,
+    /// The node is a regular file, whose read-back may use the cache.
+    regular: bool,
     len: u64,
 }
 
@@ -61,7 +93,40 @@ impl Node {
         let mut file = OpenOptions::new().read(true).write(true).open(path)?;
         // A block device's metadata says length 0; its end says the truth.
         let len = file.seek(SeekFrom::End(0))?;
-        Ok(Node { file, len })
+        let regular = file.metadata()?.is_file();
+        let direct = OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_DIRECT)
+            .open(path)
+            .ok();
+        Ok(Node {
+            file,
+            direct,
+            regular,
+            len,
+        })
+    }
+
+    /// Fills `buf` from the medium through aligned blocks.
+    fn read_direct(direct: &File, offset: u64, buf: &mut [u8]) -> std::io::Result<()> {
+        let start = offset - offset % ALIGN as u64;
+        let skip = (offset - start) as usize;
+        let want = (skip + buf.len()).div_ceil(ALIGN) * ALIGN;
+        let mut raw = Aligned::new(want);
+        let mut got = 0;
+        while got < want {
+            match direct.read_at(&mut raw.bytes()[got..], start + got as u64) {
+                Ok(0) => break,
+                Ok(n) => got += n,
+                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(e) => return Err(e),
+            }
+        }
+        if got < skip + buf.len() {
+            return Err(std::io::ErrorKind::UnexpectedEof.into());
+        }
+        buf.copy_from_slice(&raw.bytes()[skip..skip + buf.len()]);
+        Ok(())
     }
 }
 
@@ -79,6 +144,18 @@ impl Disk for Node {
             .map_err(|_| faraday_fat::Error::Io)
     }
 
+    fn read_back(&mut self, offset: u64, buf: &mut [u8]) -> Result<(), faraday_fat::Error> {
+        if offset.saturating_add(buf.len() as u64) > self.len {
+            return Err(faraday_fat::Error::Io);
+        }
+        match &self.direct {
+            Some(d) => Self::read_direct(d, offset, buf),
+            None if self.regular => self.file.read_exact_at(buf, offset),
+            None => Err(std::io::ErrorKind::Unsupported.into()),
+        }
+        .map_err(|_| faraday_fat::Error::Io)
+    }
+
     fn write_at(&mut self, offset: u64, buf: &[u8]) -> Result<(), faraday_fat::Error> {
         if offset.saturating_add(buf.len() as u64) > self.len {
             return Err(faraday_fat::Error::Io);
@@ -89,7 +166,8 @@ impl Disk for Node {
     }
 
     fn flush(&mut self) -> Result<(), faraday_fat::Error> {
-        self.file.sync_all().map_err(|_| faraday_fat::Error::Io)
+        self.file.sync_all().map_err(|_| faraday_fat::Error::Io)?;
+        Ok(())
     }
 }
 
@@ -730,7 +808,10 @@ impl Disks {
                     .and_then(|mut p| faraday_files::wipe(&mut p, &name));
                 // What this process changed changes the listing.
                 self.seen.remove(&stick);
-                wiped.map(|()| Response::Wiped)
+                wiped.map(|w| match w {
+                    faraday_files::Wiped::Zeroed => Response::Wiped,
+                    faraday_files::Wiped::NameOnly => Response::WipedName,
+                })
             }
             Request::Rename {
                 stick,
@@ -783,4 +864,33 @@ fn name_volume(place: &mut Fat<Node>, label: &str) -> Result<(), String> {
         return Err(EN.stick_name_boot.into());
     }
     place.0.set_label(bytes).map_err(faraday_files::fat_text)
+}
+
+#[cfg(test)]
+mod node_tests {
+    use super::*;
+
+    /// A read is served as any file's is; only the read-back asks the
+    /// medium. The direct handle is one that cannot be read, so a read
+    /// that used it would fail.
+    #[test]
+    fn only_the_read_back_goes_to_the_medium() {
+        let dir = std::env::temp_dir().join(format!("faraday-node-unit-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("node.img");
+        fs::write(&path, vec![7u8; 8192]).unwrap();
+        let mut node = Node::open(&path).unwrap();
+        node.direct = Some(OpenOptions::new().write(true).open(&path).unwrap());
+        let mut got = [0u8; 10];
+        assert!(node.read_at(5, &mut got).is_ok());
+        assert_eq!(got, [7u8; 10]);
+        assert!(node.read_back(5, &mut got).is_err());
+        // Where the medium cannot be asked: an image reads through the
+        // cache, a block device fails.
+        node.direct = None;
+        assert!(node.read_back(5, &mut got).is_ok());
+        node.regular = false;
+        assert!(node.read_back(5, &mut got).is_err());
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

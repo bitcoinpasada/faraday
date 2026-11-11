@@ -8572,6 +8572,8 @@ strings! {
     stick_wipe_about_hours: "about {} hours",
     /// Text in `wiped`. `{}`: `name`.
     stick_wipe_deleted: "{} deleted, zeros over it first",
+    /// Text in `wiped`. `{}`: `name`.
+    stick_wipe_name_only: "{} removed by name, its bytes left",
     /// Text in `wiped`. `{}`: `name`, `why`.
     stick_wipe_not_deleted: "{} not deleted: {}",
     /// Text in `zero_step`. `{}`: `share`.

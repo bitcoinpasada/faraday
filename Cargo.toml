@@ -172,7 +172,7 @@ softbuffer = "0.4"
 getrandom = "0.4"
 # Camera capture on Linux (§16.33; docs/deps/libc.md): the C type and
 # constant declarations the raw V4L2 ioctls need. Used by
-# `faraday-v4l2` and by nothing else.
+# `faraday-v4l2`, and by `faraday-disk` for `O_DIRECT` alone.
 libc = { version = "0.2", default-features = false }
 # Camera capture on macOS and Windows (§16.33; docs/deps/cc.md): compiles
 # the one Objective-C file of `faraday-avfoundation` and the one C file

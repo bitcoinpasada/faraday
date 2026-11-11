@@ -32,8 +32,8 @@ impl Place for Memory {
     fn remove(&mut self, name: &str) -> Result<(), String> {
         self.0.remove(name).map(|_| ()).ok_or("no such file".into())
     }
-    fn wipe(&mut self, name: &str) -> Result<(), String> {
-        self.remove(name)
+    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, String> {
+        self.remove(name).map(|()| faraday_files::Wiped::Zeroed)
     }
     fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
         let b = self.0.remove(from).ok_or("no such file")?;

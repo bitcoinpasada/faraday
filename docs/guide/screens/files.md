@@ -249,7 +249,7 @@ the chip reads "Lock to use {stick}".
 | **In Faraday** | the lists: what can be written to the stick, each row ticked or not |
 | **On the stick** | the stick pane: the stick's files, each row ticked to copy in or not |
 | the warning band | under the cards: "Remove the stick when you are done", "Remove the stick to unlock vault.kdbx", "1 key copied in · remove the stick to load it" |
-| the last two lines | what the stick did, in the ok or error tone. After a write, a line per file: "Wrote payment-signed.psbt, read back and matched", or "Wrote payment-signed.psbt as payment-signed-2.psbt, read back and matched" where **Keep both** gave it another name; otherwise "… not written: …", "… renamed …", "… deleted, zeros over it first" |
+| the last two lines | what the stick did, in the ok or error tone. After a write, a line per file: "Wrote payment-signed.psbt, read back and matched", or "Wrote payment-signed.psbt as payment-signed-2.psbt, read back and matched" where **Keep both** gave it another name; otherwise "… not written: …", "… renamed …", "… deleted, zeros over it first", "… removed by name, its bytes left" |
 
 #### In Faraday
 

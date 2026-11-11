@@ -976,3 +976,33 @@ fn an_abandoned_pieced_write_leaves_nothing_to_join() {
     let late = d.handle(&c, last(&stick, "x.bin", 3000, &[2; 1000]));
     assert!(matches!(late, Response::Failed(_)), "{late:?}");
 }
+
+/// What a node reads after a flush, from the medium: any offset and
+/// length, aligned or not, returns what was written. A node of a file
+/// system that takes no `O_DIRECT` reads as it did.
+#[test]
+fn a_node_reads_back_what_was_written_at_any_offset_and_length() {
+    use faraday_fat::Disk;
+    let dir = std::env::temp_dir().join(format!("faraday-node-{}", std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("node.img");
+    fs::write(&path, vec![0u8; 20_000]).unwrap();
+    let mut node = faraday_disk::Node::open(&path).unwrap();
+    let data: Vec<u8> = (0..9_001u32).map(|i| (i % 251) as u8).collect();
+    node.write_at(4_093, &data).unwrap();
+    node.flush().unwrap();
+    for (at, len) in [
+        (4_093u64, 9_001usize),
+        (4_096, 5),
+        (0, 20_000),
+        (19_999, 1),
+        (5_000, 4_096),
+    ] {
+        let mut got = vec![0u8; len];
+        node.read_back(at, &mut got).unwrap();
+        let mut want = vec![0u8; 20_000];
+        want[4_093..4_093 + data.len()].copy_from_slice(&data);
+        assert_eq!(got, want[at as usize..at as usize + len], "at {at}, {len}");
+    }
+    let _ = fs::remove_dir_all(&dir);
+}

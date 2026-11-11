@@ -14,7 +14,7 @@ use faraday_core::{Faraday, StickInfo, StorageCommand, StorageEvent};
 use faraday_files::{Dir, checked};
 use faraday_strings::{EN, fill};
 
-pub use faraday_files::{MAX_PIXELS, MAX_READ, OnTaken, Unrenamed, WriteRefused, foreign};
+pub use faraday_files::{MAX_PIXELS, MAX_READ, OnTaken, Unrenamed, Wiped, WriteRefused, foreign};
 
 /// Costs a look at the folder and a read of four bytes of each file
 /// that could be a vault: what a stick directory holds at its top level,
@@ -150,8 +150,9 @@ pub trait Sticks {
     fn hash_taken(&mut self, _stick: &str, _name: &str) -> bool {
         false
     }
-    /// Deletes a file, zeros over it first.
-    fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String>;
+    /// Deletes a file, zeros over it first; or only its name, where its
+    /// clusters are in use.
+    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, String>;
     /// The free space and the whole data space, in bytes.
     fn space(&mut self, stick: &str) -> Result<(u64, u64), String>;
     /// One step of zeros over the free space: the next cluster, of how
@@ -362,7 +363,7 @@ impl Sticks for Dirs {
             on_taken,
         )
     }
-    fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {
+    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, String> {
         faraday_files::wipe(&mut dir(stick), name)
     }
     fn space(&mut self, stick: &str) -> Result<(u64, u64), String> {
@@ -967,9 +968,13 @@ fn serve_queued(
             }
             StorageCommand::Wipe { stick, name } => {
                 let ev = match sticks.wipe(&stick, &name) {
-                    Ok(()) => {
+                    Ok(faraday_files::Wiped::Zeroed) => {
                         said.push(format!("deleted {stick}/{name}, zeros over it first"));
                         StorageEvent::Wiped { stick, name }
+                    }
+                    Ok(faraday_files::Wiped::NameOnly) => {
+                        said.push(format!("removed the name {stick}/{name}, bytes left")); // not shown: a line for a verbose shell's console
+                        StorageEvent::WipedName { stick, name }
                     }
                     Err(reason) => {
                         said.push(format!("cannot delete {stick}/{name}: {reason}"));
@@ -1822,13 +1827,14 @@ impl Sticks for DiskProcess {
         self.write_asking(stick, name, bytes, copies, replace, renamed, on_taken)
     }
 
-    fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {
+    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, String> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::Wipe {
             stick: stick.into(),
             name: name.into(),
         })? {
-            Response::Wiped => Ok(()),
+            Response::Wiped => Ok(faraday_files::Wiped::Zeroed),
+            Response::WipedName => Ok(faraday_files::Wiped::NameOnly),
             Response::Failed(why) => Err(why),
             _ => Err(EN.storage_answer_delete.to_string()),
         }

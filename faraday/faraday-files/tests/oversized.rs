@@ -45,8 +45,8 @@ impl Place for Claimed {
     fn remove(&mut self, name: &str) -> Result<(), String> {
         self.files.remove(name).map(|_| ()).ok_or("none".into())
     }
-    fn wipe(&mut self, name: &str) -> Result<(), String> {
-        self.remove(name)
+    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, String> {
+        self.remove(name).map(|()| faraday_files::Wiped::Zeroed)
     }
     fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
         let f = self.files.remove(from).ok_or("none")?;

@@ -653,6 +653,29 @@ fn chosen_files_are_deleted_only_from_the_sheet() {
     assert!(text.contains("spend-01.psbt deleted"), "{text}");
 }
 
+#[test]
+fn a_delete_that_left_the_bytes_says_only_the_name_went() {
+    let mut app = with_stick(2);
+    asked(&mut app);
+    app.press(Action::DeleteFiles);
+    asked(&mut app);
+    app.press(Action::DeletePick(1));
+    app.press(Action::DeleteGo);
+    asked(&mut app);
+    app.storage(StorageEvent::WipedName {
+        stick: "S".into(),
+        name: "spend-01.psbt".into(),
+    });
+    let _ = app.frame();
+    assert!(!app.visit().inn.contains("spend-01.psbt"));
+    let text = app.drawn_texts().join("\n");
+    assert!(
+        text.contains("spend-01.psbt removed by name, its bytes left"),
+        "{text}"
+    );
+    assert!(!text.contains("zeros over it first"), "{text}");
+}
+
 /// A file's size reads the same on the visit and on the Delete sheet,
 /// in decimal units.
 #[test]

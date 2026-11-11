@@ -767,8 +767,28 @@ replaces that copy; no older copy is kept. On a stick visit:
    61), when it takes the new name, or `name-2.kdbx` where another file on
    the stick has that.
 4. FAT has no atomic replace. If a visit finds a new file that reads back
-   whole and no original, it completes step 3; if it finds both, it
-   keeps the original and discards the new file.
+   whole and no original, it completes step 3, under the original's name
+   even where the app would not write that name (a device name such as
+   `con.kdbx`), for a name the volume can hold. If it finds both, and the
+   original reads as a whole vault with its chain of clusters ending
+   where its size says, it keeps the original and discards the new file.
+   If the original does not, the new file is the vault: the original's
+   entries are erased, its clusters freed only where its chain reads whole,
+   ends where its size says and no other file's chain, in the root or in any
+   folder, and not the FAT32 root's own, touches it (each cluster is read
+   once; a folder's chain longer than a root may be, a chain that cannot be
+   followed, or more than 16 MiB of folders read leaves the clusters), and
+   the new file takes the original's name. A delete frees a file's clusters
+   only where its chain ends where its size says and no other file, in the
+   root or in any folder, nor the FAT32 root, uses one of them (a chain is
+   followed one cluster past what its size needs, no further), and otherwise
+   removes only the name. Wiping a name whose chain is
+   longer than its size needs, runs through another file's cluster (or the
+   root's), shares one with another name, or goes where the walk of the
+   folders passes its limit removes only the name and leaves the bytes: the
+   stick's log says the name was removed and its bytes left, never that zeros
+   were written. A rename writes the new name to the stick before it erases
+   the old.
 
 Once written and matched, the vault leaves For the stick and stays in
 Files as the stick now holds it, and the visit's receipt keeps the

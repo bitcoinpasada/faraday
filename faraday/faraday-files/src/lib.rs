@@ -68,6 +68,11 @@ pub trait Place {
     fn files(&mut self) -> Result<Vec<(String, u64)>, String>;
     /// A file's bytes; refused over `max`.
     fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String>;
+    /// A file's bytes as the medium holds them, not a cache in front of
+    /// it: the read that checks a write took.
+    fn read_checked(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String> {
+        self.read(name, max)
+    }
     /// A file's length and its `len` bytes from `from` (fewer where it
     /// ends first); refused where the file is over `max`. Where a place
     /// cannot read a part, it reads the whole.
@@ -97,8 +102,21 @@ pub trait Place {
     fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String>;
     /// Removes a file.
     fn remove(&mut self, name: &str) -> Result<(), String>;
-    /// Overwrites a file with zeros, reads them back, and removes it.
-    fn wipe(&mut self, name: &str) -> Result<(), String>;
+    /// Whether a file's chain of clusters ends where its size says. A
+    /// place with no chains says yes.
+    fn chain_ends(&mut self, _name: &str) -> Result<bool, String> {
+        Ok(true)
+    }
+    /// Removes a file whose clusters may be torn, freeing none that
+    /// another file could hold. Where a place has none, it is
+    /// [`Place::remove`].
+    fn discard(&mut self, name: &str) -> Result<(), String> {
+        self.remove(name)
+    }
+    /// Overwrites a file with zeros, reads them back, and removes it; or,
+    /// where its clusters are in use ([`Wiped::NameOnly`]), removes only
+    /// its name.
+    fn wipe(&mut self, name: &str) -> Result<Wiped, String>;
     /// Renames a file; refused when the new name is taken.
     fn rename(&mut self, from: &str, to: &str) -> Result<(), String>;
     /// The data space no file holds, and all of it, in bytes.
@@ -109,7 +127,7 @@ pub trait Place {
     fn make_empty(&mut self) -> Result<(), String>;
 }
 
-pub use faraday_fat::Zeroed;
+pub use faraday_fat::{Wiped, Zeroed};
 
 /// About how much one step of zeroing writes: a step is a pause of a
 /// second or so on a slow stick, between which the app draws.
@@ -200,7 +218,7 @@ impl Place for Dir {
         fs::remove_file(self.0.join(name)).map_err(io_text)
     }
 
-    fn wipe(&mut self, name: &str) -> Result<(), String> {
+    fn wipe(&mut self, name: &str) -> Result<Wiped, String> {
         use std::io::{Read, Seek, SeekFrom};
         let path = self.0.join(name);
         let mut f = fs::OpenOptions::new()
@@ -229,7 +247,8 @@ impl Place for Dir {
             }
         }
         drop(f);
-        fs::remove_file(path).map_err(io_text)
+        fs::remove_file(path).map_err(io_text)?;
+        Ok(Wiped::Zeroed)
     }
 
     // A folder standing for a stick has no free space of its own to
@@ -329,6 +348,11 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
         self.0.read(name, max).map_err(fat_text)
     }
 
+    fn read_checked(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String> {
+        let max = u32::try_from(max).unwrap_or(u32::MAX);
+        self.0.read_checked(name, max).map_err(fat_text)
+    }
+
     fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, String> {
         let max = u32::try_from(max).unwrap_or(u32::MAX);
         self.0.head(name, n, max).map_err(fat_text)
@@ -362,7 +386,18 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
             .map_err(fat_text)
     }
 
-    fn wipe(&mut self, name: &str) -> Result<(), String> {
+    fn chain_ends(&mut self, name: &str) -> Result<bool, String> {
+        self.0.chain_exact(name).map_err(fat_text)
+    }
+
+    fn discard(&mut self, name: &str) -> Result<(), String> {
+        self.0
+            .discard(name)
+            .and_then(|()| self.0.flush())
+            .map_err(fat_text)
+    }
+
+    fn wipe(&mut self, name: &str) -> Result<Wiped, String> {
         self.0.wipe(name).map_err(fat_text)
     }
 
@@ -387,9 +422,9 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
 }
 
 /// Deletes a file the person chose from a stick, zeros over it first
-/// ([`Place::wipe`]). Only a name the app could have written: no hidden
+/// ([`Place::wipe`]), or only its name where its clusters are in use. Only a name the app could have written: no hidden
 /// file, nothing outside the top folder.
-pub fn wipe(place: &mut dyn Place, name: &str) -> Result<(), String> {
+pub fn wipe(place: &mut dyn Place, name: &str) -> Result<Wiped, String> {
     place.wipe(checked(name)?)
 }
 
@@ -585,7 +620,7 @@ fn put_checked(place: &mut dyn Place, temp: &str, bytes: &[u8]) -> Result<(), St
         place.remove(temp)?;
     }
     place.create(temp, bytes)?;
-    let back = place.read(temp, bytes.len() as u64);
+    let back = place.read_checked(temp, bytes.len() as u64);
     if back.as_deref() != Ok(bytes) {
         let _ = place.remove(temp);
         return Err(EN.files_read_back.to_string());
@@ -853,13 +888,19 @@ fn replace_file(
     bytes: &[u8],
     renamed: bool,
 ) -> Result<String, String> {
+    // The new name is checked before anything is written or removed.
+    let new_name = if renamed {
+        Some(checked_for_write(name)?)
+    } else {
+        None
+    };
     let temp = format!(".faraday-{original}.part");
     put_checked(place, &temp, bytes)?;
     // FAT has no atomic replace: the original goes, then the copy that
     // read back whole takes its name, or the person's new one.
     place.remove(original)?;
-    let to = if renamed {
-        free_name(place, checked_for_write(name)?)?
+    let to = if let Some(n) = new_name {
+        free_name(place, n)?
     } else {
         original.to_string()
     };
@@ -997,8 +1038,25 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         if !named && !whole {
             continue;
         }
-        if files.iter().any(|(o, _)| o.eq_ignore_ascii_case(name)) || !whole {
+        if !whole {
             let _ = place.remove(n);
+            continue;
+        }
+        if let Some((original, olen)) = files.iter().find(|(o, _)| o.eq_ignore_ascii_case(name)) {
+            // The part goes only where the original reads as a whole
+            // vault with its chain ending where its size says; a torn
+            // delete or rename can leave the part as the only good copy.
+            let kept = *olen <= MAX_VAULT_READ
+                && place
+                    .read(original, MAX_VAULT_READ)
+                    .is_ok_and(|b| whole_vault(&b))
+                && place.chain_ends(original) == Ok(true);
+            if kept {
+                let _ = place.remove(n);
+            } else if place.discard(original).is_ok() {
+                // The part is the vault: it takes the original's name.
+                let _ = place.rename(n, original);
+            }
             continue;
         }
         // A whole vault takes the name it was written for only where a
@@ -1012,10 +1070,19 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
             format!("{name}.kdbx")
         };
         let taken = files.iter().any(|(o, _)| o.eq_ignore_ascii_case(&target));
-        if checked_for_write(&target).is_ok() && !taken {
+        // A vault found with a `.kdbx` name had that name on the stick,
+        // so the stick's own rule for a name decides, never the app's for
+        // a new one: a device name such as con.kdbx is the person's
+        // vault and takes its name back. A name no volume holds is a
+        // crafted part file's, and goes.
+        if named {
+            if !faraday_fat::name_allowed(&target) {
+                let _ = place.remove(n);
+            } else if !taken {
+                let _ = place.rename(n, &target);
+            }
+        } else if checked_for_write(&target).is_ok() && !taken {
             let _ = place.rename(n, &target);
-        } else if named {
-            let _ = place.remove(n);
         }
     }
 }

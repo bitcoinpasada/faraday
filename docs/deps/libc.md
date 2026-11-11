@@ -1,12 +1,16 @@
-# `libc` 0.2 — shell-only, for the V4L2 camera
+# `libc` 0.2 — for the V4L2 camera and `faraday-disk`'s direct read
 
 **Where it is used:** `faraday/shells/v4l2` (`faraday-v4l2`) and
-nowhere else. The Linux desktop shell depends on that crate under
+`faraday/faraday-disk`, which takes only the constant `O_DIRECT` from it
+(the flag of its read-back from a stick, not the kernel's cache; no
+`unsafe`, no function). The Linux desktop shell depends on that crate under
 `[target.'cfg(target_os = "linux")'.dependencies]`; the Pi shell depends
-on it directly. No core crate depends on `libc`, and no release binary
+on it directly. No `core/` crate depends on `libc`, and no release binary
 of a core crate carries it.
 
-**Why it is needed.** no platform
+**Why it is needed.** `faraday-disk` needs the one constant `O_DIRECT`,
+to open a stick for the read that checks a write, which the standard
+library does not name. For the camera, no platform
 gets a camera library: each shell captures through the operating
 system's own interface with code we write and can read. On Linux that
 interface is V4L2, which is `ioctl`, `mmap` and `poll` on a

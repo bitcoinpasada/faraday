@@ -52,8 +52,8 @@ impl Place for Memory {
             .map(|_| ())
             .ok_or("no such file".into())
     }
-    fn wipe(&mut self, name: &str) -> Result<(), String> {
-        self.remove(name)
+    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, String> {
+        self.remove(name).map(|()| faraday_files::Wiped::Zeroed)
     }
     fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
         if self.files.contains_key(to) {

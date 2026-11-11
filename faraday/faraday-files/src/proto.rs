@@ -257,6 +257,9 @@ pub enum Response {
     },
     /// The file is gone, zeros over it first.
     Wiped,
+    /// Only the file's name is gone: its bytes are left, since another
+    /// file or folder uses its clusters or they could not be told apart.
+    WipedName,
     /// The free space and the whole data space, in bytes.
     Space {
         /// Bytes no file holds.
@@ -729,6 +732,7 @@ impl Response {
                 o
             }
             Response::Wiped => Out::tag(0x85),
+            Response::WipedName => Out::tag(0x8D),
             Response::Space { free, size } => {
                 let mut o = Out::tag(0x86);
                 o.0.extend_from_slice(&free.to_le_bytes());
@@ -823,6 +827,7 @@ impl Response {
                 }
             }
             0x85 => Response::Wiped,
+            0x8D => Response::WipedName,
             0x86 => Response::Space {
                 free: i.u64()?,
                 size: i.u64()?,
@@ -1032,6 +1037,7 @@ mod tests {
                 codes: vec![b"wpkh(...)".to_vec(), vec![]],
             },
             Response::Wiped,
+            Response::WipedName,
             Response::Space {
                 free: 7 << 30,
                 size: 15 << 30,

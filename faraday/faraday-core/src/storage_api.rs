@@ -224,6 +224,15 @@ pub enum StorageEvent {
         /// The file.
         name: String,
     },
+    /// A file removed from a stick by its name only: its bytes were left,
+    /// since another file or folder uses their clusters or the stick's
+    /// folders could not all be read.
+    WipedName {
+        /// The stick.
+        stick: String,
+        /// The file.
+        name: String,
+    },
     /// A delete that failed; the file may hold zeros in part.
     WipeFailed {
         /// The stick.
@@ -531,7 +540,9 @@ pub enum StorageCommand {
         name: String,
     },
     /// Delete a file from a stick, zeros written over it and read back
-    /// first ([`StorageEvent::Wiped`] or [`StorageEvent::WipeFailed`]).
+    /// first ([`StorageEvent::Wiped`]), or only its name removed where its
+    /// bytes are in use ([`StorageEvent::WipedName`]), or
+    /// [`StorageEvent::WipeFailed`].
     Wipe {
         /// The stick's id.
         stick: String,

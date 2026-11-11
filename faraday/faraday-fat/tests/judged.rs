@@ -868,12 +868,12 @@ impl Disk for Pulled {
     }
 }
 
-/// A rename interrupted at any write never leaves two entries on one
-/// chain (the file is under one name, or under none with its clusters
-/// left lost for a check to reclaim); one that finishes leaves the new
-/// name.
+/// A rename interrupted at any write never loses the file (it is under
+/// the old name, the new, or both, and each reads whole); where both are
+/// there, removing one leaves the other whole. One that finishes leaves
+/// the new name.
 #[test]
-fn a_rename_cut_part_way_leaves_no_two_entries_on_one_chain() {
+fn a_rename_cut_part_way_never_loses_the_file() {
     if !have_tools() {
         return;
     }
@@ -893,9 +893,20 @@ fn a_rename_cut_part_way_leaves_no_two_entries_on_one_chain() {
             let done = v.rename("wallet.txt.new", "wallet.txt").is_ok();
             let mut v = Volume::open(v.into_disk().bytes).unwrap();
             let names: Vec<String> = v.list().unwrap().into_iter().map(|e| e.name).collect();
-            assert!(names.len() <= 1, "{name}: cut after {left}: {names:?}");
+            assert!(
+                (1..=2).contains(&names.len()),
+                "{name}: cut after {left}: {names:?}"
+            );
             for n in &names {
                 assert_eq!(v.read(n, 1 << 20).unwrap(), pattern(5_000, 9), "{name}");
+            }
+            if let [first, second] = &names[..] {
+                v.delete(first).unwrap();
+                assert_eq!(
+                    v.read(second, 1 << 20).unwrap(),
+                    pattern(5_000, 9),
+                    "{name}: cut after {left}"
+                );
             }
             if done {
                 assert_eq!(names, ["wallet.txt"], "{name}");

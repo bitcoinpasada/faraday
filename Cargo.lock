@@ -923,6 +923,7 @@ dependencies = [
  "faraday-fat",
  "faraday-files",
  "faraday-strings",
+ "libc",
  "zeroize",
 ]
 

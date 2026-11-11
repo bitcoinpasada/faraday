@@ -1324,7 +1324,8 @@ impl Faraday {
                 self.visit_write_failed(&name, &reason)
             }
             StorageEvent::NotKept => self.not_kept(),
-            StorageEvent::Wiped { stick, name } => self.wiped(&stick, &name, None),
+            StorageEvent::Wiped { stick, name } => self.wiped(&stick, &name, None, true),
+            StorageEvent::WipedName { stick, name } => self.wiped(&stick, &name, None, false),
             e @ StorageEvent::Renamed { .. } => self.file_renamed(e),
             e @ StorageEvent::StickNamed { .. } => self.stick_named(e),
             StorageEvent::BootMedium(m) => self.stick.set_boot_medium(m),
@@ -1343,7 +1344,7 @@ impl Faraday {
                 stick,
                 name,
                 reason,
-            } => self.wiped(&stick, &name, Some(&reason)),
+            } => self.wiped(&stick, &name, Some(&reason), false),
             StorageEvent::Printed { path } => {
                 self.toast(&fill(EN.storage_event_saved, &[&path.to_string()]))
             }

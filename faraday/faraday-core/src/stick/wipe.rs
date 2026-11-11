@@ -277,14 +277,17 @@ impl Faraday {
     }
 
     /// A file's delete answered.
-    pub(crate) fn wiped(&mut self, stick: &str, name: &str, failed: Option<&str>) {
+    pub(crate) fn wiped(&mut self, stick: &str, name: &str, failed: Option<&str>, zeroed: bool) {
         match failed {
             None => {
                 self.flow_copy_gone(stick, Some(name));
                 self.visit.inn.retain(|n| n != name);
-                self.visit
-                    .log
-                    .push((fill(EN.stick_wipe_deleted, &[name]), true));
+                let said = if zeroed {
+                    EN.stick_wipe_deleted
+                } else {
+                    EN.stick_wipe_name_only
+                };
+                self.visit.log.push((fill(said, &[name]), true));
             }
             Some(why) => self
                 .visit

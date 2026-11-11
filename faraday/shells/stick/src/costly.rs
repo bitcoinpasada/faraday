@@ -22,7 +22,7 @@
 use std::time::{Duration, Instant};
 
 use faraday_core::work::{self, Counts, VaultAct, VaultEnded, VaultWork, Work};
-use faraday_storage::{PictureRead, Sticks};
+use faraday_storage::{PictureRead, Sticks, Wiped};
 
 use crate::timings::Timings;
 
@@ -200,7 +200,7 @@ impl Sticks for Timed<'_> {
         self.sticks.hash_taken(stick, name)
     }
 
-    fn wipe(&mut self, stick: &str, name: &str) -> Result<(), String> {
+    fn wipe(&mut self, stick: &str, name: &str) -> Result<Wiped, String> {
         self.sticks.wipe(stick, name)
     }
 

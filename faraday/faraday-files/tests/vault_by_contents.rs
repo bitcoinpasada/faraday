@@ -49,8 +49,8 @@ impl Place for Memory {
             .map(|_| ())
             .ok_or("no such file".into())
     }
-    fn wipe(&mut self, name: &str) -> Result<(), String> {
-        self.remove(name)
+    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, String> {
+        self.remove(name).map(|()| faraday_files::Wiped::Zeroed)
     }
     fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
         if self.files.contains_key(to) {
@@ -480,4 +480,25 @@ fn a_failed_read_back_going_over_leaves_the_old_file() {
     assert!(taken_write(&mut place, &sealed_again(1, 3), over).is_err());
     assert_eq!(place.files["Vault.kdbx"], sealed_again(1, 7));
     assert_eq!(place.files.len(), 1, "no part file is left");
+}
+
+#[test]
+fn a_write_back_under_a_bad_new_name_is_refused_and_the_stick_is_unchanged() {
+    let c = compute();
+    let mut place = Memory::default();
+    place.files.insert("mine.kdbx".into(), vault(1));
+    let sha = faraday_crypto::sha256_whole(&c, &vault(1));
+    let before = place.files.clone();
+    let r = write_vault_over(
+        &c,
+        &mut place,
+        "bad:name.kdbx",
+        &vault(2),
+        &[sha],
+        true,
+        true,
+        OnTaken::Beside,
+    );
+    assert!(r.is_err());
+    assert_eq!(place.files, before);
 }

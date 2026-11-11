@@ -786,7 +786,9 @@ to use {stick}" and no pane.
   "Hold to zero the free space", "Hold to zero the whole partition"
   (F131): what it writes over cannot be read back, and a press alone
   starts nothing. The disk process does the work; a file's answer is a line on
-  the visit ("{file} deleted, zeros over it first", or why not). The free
+  the visit ("{file} deleted, zeros over it first", "{file} removed by name,
+  its bytes left" where the file's clusters are in use or the
+  stick's folders could not all be read, or why not). The free
   space is zeroed in steps of about 8 MB, each asked for on the tick
   after the last one's answer, read back, the first step also clearing
   deleted directory entries and kept files' last clusters past their
