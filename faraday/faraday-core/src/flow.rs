@@ -524,27 +524,47 @@ fn paged(
                 ui.fill(M, y, 3.0, nh, 1.5, Role::Primary.paint());
                 y += nh + 14.0;
             }
+            // A title wraps rather than being cut, and every row takes the
+            // lines the longest title needs (three at most), so the rows
+            // are one height (Material 3 Lists: consistent in a list).
+            let tw = inner - 70.0;
+            let lh = ui.line_as(LABEL_L);
+            let title_h = cards
+                .iter()
+                .map(|c| ui.wrap_height_as(LABEL_L, &c.title, tw))
+                .fold(lh, f32::max)
+                .min(3.0 * lh);
+            let row = 52.0 + title_h - lh;
             for (i, card) in cards.iter().enumerate() {
                 // Each step a row on the page, a rule above it (F39).
                 ui.rule(M, y, inner, Role::OutlineVariant);
                 let n = i + 1 - heads(cards).min(i + 1);
                 ui.badge(M + 10.0, y + 13.0, &n.to_string(), card.done, false);
-                let tw = inner - 70.0;
-                let title = ui.fit_as(LABEL_L, &card.title, tw);
-                ui.text_as(M + 46.0, y + 8.0, LABEL_L, Role::OnSurface, &title);
+                let own = ui.wrap_as(
+                    (M + 46.0, y + 8.0, tw),
+                    LABEL_L,
+                    Role::OnSurface,
+                    &card.title,
+                );
                 let role = if card.mono { BODY_S.mono() } else { BODY_S };
                 let summary = ui.fit_as(role, &card.summary, tw);
-                ui.text_as(M + 46.0, y + 29.0, role, Role::OnSurfaceVariant, &summary);
+                ui.text_as(
+                    M + 46.0,
+                    y + 8.0 + own + 3.0,
+                    role,
+                    Role::OnSurfaceVariant,
+                    &summary,
+                );
                 ui.icon(
                     M + inner - 24.0,
-                    y + 16.0,
+                    y + row / 2.0 - 10.0,
                     20.0,
                     Icon::ChevronRight,
                     9.0,
                     Role::OnSurfaceVariant,
                 );
-                ui.press_box(M, y, inner, 52.0, card.toggle);
-                y += 52.0;
+                ui.press_box(M, y, inner, row, card.toggle);
+                y += row;
             }
             if !cards.is_empty() {
                 ui.rule(M, y, inner, Role::OutlineVariant);

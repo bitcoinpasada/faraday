@@ -796,10 +796,14 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         // Deeper on a small panel, where it is the sign there is more.
         let depth = if self.compact { 44.0 } else { 24.0 };
         let band = ((depth * self.f).round() as i32).clamp(1, view.h / 4 + 1);
+        // The bottom fade is shallower, so a control resting at the fold
+        // (a text button last on a page) still reads at its own emphasis.
+        let low = ((if self.compact { 18.0 } else { 24.0 } * self.f).round() as i32)
+            .clamp(1, view.h / 4 + 1);
         let page = self.col(ground);
         let reach = band as f32 / self.f;
         let top = (offset / reach).clamp(0.0, 1.0);
-        let bottom = ((max - offset) / reach).clamp(0.0, 1.0);
+        let bottom = ((max - offset) / (low as f32 / self.f)).clamp(0.0, 1.0);
         for i in 0..band {
             let k = 1.0 - (i as f32 + 0.5) / band as f32;
             let a = k * k * 230.0;
@@ -807,6 +811,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 let row = Rect::new(view.x, view.y + i, view.w, 1);
                 self.c.fill_rect(row, page.with_alpha((a * top) as u8));
             }
+        }
+        for i in 0..low {
+            let k = 1.0 - (i as f32 + 0.5) / low as f32;
+            let a = k * k * 230.0;
             if bottom > 0.0 {
                 let row = Rect::new(view.x, view.bottom() - 1 - i, view.w, 1);
                 self.c.fill_rect(row, page.with_alpha((a * bottom) as u8));
