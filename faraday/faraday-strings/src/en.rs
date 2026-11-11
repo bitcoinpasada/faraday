@@ -8586,7 +8586,6 @@ strings! {
     stick_settings_not_written: "{} not written: {}",
     // ----- stick_wipe (faraday-core/src/stick/wipe.rs) -----
     /// Text in `LIMIT`.
-    stick_wipe_no_zeroing: "No zeroing is a certain erase. A USB stick or SD card can keep old copies of a file's blocks where no write reaches: its controller moves data around inside the chip. Zeros stop recovery tools; a lab that reads the chip itself may still find them. Only destroying the stick is certain.",
     /// Text in `REACH`.
     stick_wipe_faraday: "Faraday only ever writes into this partition, so zeroing it reaches everything Faraday ever wrote to the stick.",
     /// Text in `SECRET`.
@@ -8594,7 +8593,6 @@ strings! {
     /// Text in `WITHIN`.
     stick_wipe_within: "Only this stick's files partition is written. Its other partitions, its partition table and any space outside a partition are not touched.",
     /// Text in `BOUNDARY`.
-    stick_wipe_boundary_why: "Why: the process that reads sticks takes in whatever a stick brings, so it is given the files partition and nothing else. It can never write a boot partition or a partition table, where a bad stick could leave code for the next computer to boot.",
     /// Text in `minutes_text`.
     stick_wipe_about_minute: "about a minute",
     /// Text in `minutes_text`. `{}`: `m`.

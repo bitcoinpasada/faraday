@@ -82,6 +82,8 @@ pub enum Topic {
     BackupPlanCheck,
     /// Vaults.
     Vaults,
+    /// Wiping a stick, from the wipe sheet.
+    WipingAStick,
     /// Extra copies, from the backup's last card.
     ExtraCopies,
 }
@@ -112,6 +114,7 @@ impl Topic {
         Topic::Shares,
         Topic::BackupPlanCheck,
         Topic::Vaults,
+        Topic::WipingAStick,
     ];
 
     /// The label of the link to this page, made once and kept: drawing
@@ -161,6 +164,7 @@ impl Topic {
             Topic::Shares => shares_page(),
             Topic::BackupPlanCheck => backup_plan_check_page(),
             Topic::Vaults => vaults_page(),
+            Topic::WipingAStick => faraday_learn::wiping_a_stick_page(),
             Topic::ExtraCopies => faraday_learn::extra_copies_page(),
         }
     }

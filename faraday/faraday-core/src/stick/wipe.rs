@@ -28,15 +28,12 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Faraday, Sheet, StorageCommand};
 
-/// What zeros do not reach.
-const LIMIT: &str = EN.stick_wipe_no_zeroing;
 /// What the partition holds of Faraday's.
 const REACH: &str = EN.stick_wipe_faraday;
 /// What only destroying the stick removes.
 const SECRET: &str = EN.stick_wipe_if_a_seed;
 /// That nothing outside the files partition is written, and why.
 const WITHIN: &str = EN.stick_wipe_within;
-const BOUNDARY: &str = EN.stick_wipe_boundary_why;
 
 /// How fast a typical stick is written and read back, MB a second, for
 /// the time the sheet says before the first step measures it.
@@ -648,9 +645,8 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }
         cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::OnSurface, WITHIN) + 8.0;
         cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, REACH) + 10.0;
-        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, BOUNDARY) + 10.0;
-        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, LIMIT) + 10.0;
-        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, SECRET) + 12.0;
+        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, SECRET);
+        cy += crate::flow::learn_link(ui, x, cy, iw, crate::learn::Topic::WipingAStick) + 12.0;
         // A vault chosen is deleted by a hold (decision 4); zeroing the
         // free space or the partition is a hold too (F131).
         if hold {

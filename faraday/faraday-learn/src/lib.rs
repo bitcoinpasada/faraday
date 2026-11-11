@@ -33,7 +33,7 @@ pub use pages::{Page, Section};
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
 /// this one, except `replace-faraday`, which the Starter's Keep data
 /// shows ([`known`]).
-const OWN: [(&str, &str); 11] = [
+const OWN: [(&str, &str); 12] = [
     // A multisig backup's shares (`docs/history/NEW-WALLET.md` §4.2).
     (
         "shares",
@@ -69,6 +69,11 @@ const OWN: [(&str, &str); 11] = [
     (
         "vaults",
         include_str!("../../../docs/learn/faraday/vaults.md"),
+    ),
+    // What wiping a stick reaches and what it does not.
+    (
+        "wiping-a-stick",
+        include_str!("../../../docs/learn/faraday/wiping-a-stick.md"),
     ),
     // The three Secure Boot keys (`docs/CRYPTO-LEARN.md` §12).
     (
@@ -348,6 +353,11 @@ pub fn backup_plan_check_page() -> &'static LearnPage {
 /// "Extra copies".
 pub fn extra_copies_page() -> &'static LearnPage {
     known("extra-copies")
+}
+
+/// "Wiping a stick".
+pub fn wiping_a_stick_page() -> &'static LearnPage {
+    known("wiping-a-stick")
 }
 
 /// "Practice and its public seeds".
