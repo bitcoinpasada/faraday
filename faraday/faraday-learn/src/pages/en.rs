@@ -388,6 +388,7 @@ pub static EN: Learn = Learn {
                 paragraphs: &[
                     "Each coin's wait starts at its own block, the block it arrived in. A coin received a year ago and a coin received last week reach the end of the same wait on different days. A spend that moves every coin to a new address of the wallet makes new coins, and every wait starts again from the block that spend is mined in.",
                     "Blocks come about every ten minutes on average and arrive faster while mining grows, so a wait counted in blocks can end days earlier than the days shown beside it say. The wallet card's Move each coin within is 90 % of the shortest wait, in whole days, and is the time to move each coin by. A wait counted in 512-second units is shown in days without \"about\", and the same 90 % applies.",
+                    "After moving every coin, press I moved every coin on the wallet's card or on its sheet in the chart. It writes today's date into the vault, and the card then shows Coins last moved with the days since and where the wait ends. The row turns to the warning colour once the days since reach the margin. The date is your word: this device cannot check it against the chain. The same margin sets how often the wallet's backups are due for a check, the shorter of 12 months and the margin.",
                     "This device is not connected to the chain. It cannot see when a coin arrived or whether it was moved. The wallet sheet's table, Received on, Amount and Move before, is where deposits and their dates are written down by hand. A wallet whose only wait is a point on the chain, an after, has no Move each coin within: moving the coins does not change it.",
                 ],
             },
@@ -460,6 +461,12 @@ pub static EN: Learn = Learn {
                     "Some wallets have a second path: after a wait, a recovery key can spend alone. The owner spends with the first key at any time. The heir waits until the wait has passed for the coins, then spends with the recovery keys alone.",
                     "The wait runs from the block each coin arrived in. While the owner is alive, the owner moves every coin to a new address of the wallet before each wait ends, which starts the waits again. The wallet card's Move each coin within says how long that is, and the wallet sheet has a table for the dates.",
                     "A wait that ends while the owner is alive lets the recovery keys spend. If their holder acts, the coins move without the owner's key.",
+                ],
+            },
+            Section {
+                heading: "Checking the copies stays dated",
+                paragraphs: &[
+                    "Each copy of a backup has the date it was last checked, written into the vault when a check matches or when you press Mark checked. The Wallet chart, a place's sheet and Backups show it as an age, \"14 months ago\", and mark a place To check after 12 months, or sooner for a wallet with a wait, by its margin. A date is written only once the clock is set, so set the time first. A stick that was read from an older copy of its vault reads Older copy: open the current copy and check again.",
                 ],
             },
             Section {

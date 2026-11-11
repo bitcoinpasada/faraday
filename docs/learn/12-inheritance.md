@@ -26,6 +26,10 @@ The wait runs from the block each coin arrived in. While the owner is alive, the
 
 A wait that ends while the owner is alive lets the recovery keys spend. If their holder acts, the coins move without the owner's key.
 
+## Checking the copies stays dated
+
+Each copy of a backup has the date it was last checked, written into the vault when a check matches or when you press Mark checked. The Wallet chart, a place's sheet and Backups show it as an age, "14 months ago", and mark a place To check after 12 months, or sooner for a wallet with a wait, by its margin. A date is written only once the clock is set, so set the time first. A stick that was read from an older copy of its vault reads Older copy: open the current copy and check again.
+
 ## Test it while you can
 
 Have your heir walk through a recovery once, with a small amount, while you are there to answer questions. An untested plan is a guess, and this is one you will not be able to fix later.

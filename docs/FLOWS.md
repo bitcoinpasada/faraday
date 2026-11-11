@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -1452,7 +1452,13 @@ guarantees for this file's rule:
   blocks after each coin arrives · about 365 days") and **Move each coin
   within**, 90 % of the shortest wait in whole days (`docs/BACKUP-FLOW.md`
   §18.4); on a small panel a **Spend paths** row opens it as its own
-  page, and the chart's wallet sheet shows the same rows.
+  page, and the chart's wallet sheet shows the same rows. The card and
+  that sheet offer **I moved every coin**, which dates a vault note
+  ("Coins moved today"; "Open a vault to keep this" with none open, and
+  **Set the time** in its place with the clock not checked), and a
+  **Coins last moved** row reads "300 days ago · the wait ends at about
+  365 days" (without "about" for a wait in 512-second units), in the
+  warning tone once the age reaches the margin.
 - **The chart's sheets** (decision 44). A press on a node of the chart,
   on the card or in an open vault, or on a line of what a backup node
   holds, opens a sheet (DESIGN §4.16): its title, what it is and where
@@ -1538,20 +1544,24 @@ guarantees for this file's rule:
   field, the key it makes with the seed here compared by fingerprint, the
   typed text wiped at once; "Matches: it makes key {fp}" or "Does not
   match", and a match dates the line in the vault.
-- **Backups age** (planned, not built; `docs/BACKUP-FLOW.md` §18).
-  Every check of a copy (Check my copy typed or scanned, a codex32
-  string's check, a passphrase's Check it, a place's Mark checked, a
-  vault's stick read and unlocked) dates that copy in the plan's notes
-  in the vault, asking **Which copy was this?** where the seed has that
-  form at more than one place; a date is written only from a checked
-  clock (`docs/TOTP.md` §1.3). The chart's place nodes, their sheets,
-  the card's strip ("To check: Bank box") and Backups show each copy's
-  age ("Last checked 14 months ago") and mark it **To check** past the
-  interval (12 months proposed); with the clock not checked they show
-  dates only. A wallet with a relative timelock shows its **Spend
-  paths** on the card, the chart's wallet sheet and the wallet sheet
-  PDF, each wait in blocks and days with **Move each coin within**, and
-  the PDF a table to fill by hand per deposit.
+- **Backups age** (`docs/BACKUP-FLOW.md` §18, F87). Every check of a
+  copy (Check my copy typed or scanned, a codex32 string's check, a
+  passphrase's Check it, a place's Mark checked, a vault's stick read and
+  unlocked) dates that copy in the plan's notes in the vault, asking
+  **Which copy was this?** where the seed has that form at more than one
+  place; a date is written only from a checked clock (`docs/TOTP.md`
+  §1.3). The chart's place nodes, their sheets, the card's strip ("To
+  check: Bank box", or "Every place checked in the last 12 months") and
+  Backups show each copy's age ("Last checked 14 months ago") and mark it
+  **To check** after 12 months, or sooner by a recovery wallet's margin
+  (90 % of its shortest relative wait); with the clock not checked they
+  show dates only, and the strip offers **Set the time**. A stick read
+  from an older copy of its vault reads **Older copy** on the chart and
+  Backups. A wallet with a relative timelock shows its **Spend paths** on
+  the card, the chart's wallet sheet and the wallet sheet PDF, each wait
+  in blocks and days with **Move each coin within**, **I moved every
+  coin** and **Coins last moved** (the Wallets tab above), and the PDF a
+  table to fill by hand per deposit.
 - **Restore** (decision 48): **Kind** (Single key · native SegWit
   ticked, Multisig · native SegWit, More kinds), with **I have the wallet
   description: Scan it** and **From Files** above it; **Quorum** for a

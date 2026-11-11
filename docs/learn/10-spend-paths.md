@@ -20,6 +20,8 @@ Each coin's wait starts at its own block, the block it arrived in. A coin receiv
 
 Blocks come about every ten minutes on average and arrive faster while mining grows, so a wait counted in blocks can end days earlier than the days shown beside it say. The wallet card's Move each coin within is 90 % of the shortest wait, in whole days, and is the time to move each coin by. A wait counted in 512-second units is shown in days without "about", and the same 90 % applies.
 
+After moving every coin, press I moved every coin on the wallet's card or on its sheet in the chart. It writes today's date into the vault, and the card then shows Coins last moved with the days since and where the wait ends. The row turns to the warning colour once the days since reach the margin. The date is your word: this device cannot check it against the chain. The same margin sets how often the wallet's backups are due for a check, the shorter of 12 months and the margin.
+
 This device is not connected to the chain. It cannot see when a coin arrived or whether it was moved. The wallet sheet's table, Received on, Amount and Move before, is where deposits and their dates are written down by hand. A wallet whose only wait is a point on the chain, an after, has no Move each coin within: moving the coins does not change it.
 
 ## Who chooses the path
