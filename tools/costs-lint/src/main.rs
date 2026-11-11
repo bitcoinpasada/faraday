@@ -96,6 +96,16 @@ const MINTS: &[(&str, &str, &str)] = &[
         "the app's worker thread, which draws nothing (a token cannot cross threads)",
     ),
     (
+        "aqrv/aqrv-app/tests/make.rs",
+        "a_sample_and_a_passphrase_make_a_code_the_library_opens",
+        "the app's test that opens what it made with the library, outside the app",
+    ),
+    (
+        "aqrv/aqrv-cli/tests/cli.rs",
+        "a_qr_picture_of_32_binary_bytes_is_not_recognised",
+        "the command line's test that draws a QR picture to read back",
+    ),
+    (
         "faraday/tools/argon2-bench/src/main.rs",
         "main",
         "a benchmark tool that draws nothing",
