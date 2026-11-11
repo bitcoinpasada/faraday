@@ -1161,10 +1161,10 @@ difference"), and says why.
     range spans more than one index (the same script twice), and Faraday
     refuses it too; Faraday also refuses a range of 1,000,000 indexes or
     more and a next index of 1,000,000 or more (Core's limit on the size
-    of a range). Past 2^16 the area does not wait for Core's answer (past
-    2^19 it takes minutes), and Faraday, which derives nothing as it
-    reads, reads such a file whole up to that limit; it is counted where
-    Core did not answer. Each is asked of Core in the prelude.
+    of a range). Past 2^16 the area does not wait for Core's answer
+    (past 2^19 it takes minutes), and Faraday, which derives nothing as
+    it reads, reads such a file whole up to that limit; it is counted
+    where Core did not answer. Each is asked of Core in the prelude.
   - Core runs SQLite's integrity check when it loads a wallet and
     refuses a file in which a record's key was changed (the unique index
     beside the table still holds the old key), and refuses one whose
