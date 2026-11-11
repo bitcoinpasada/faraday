@@ -652,3 +652,121 @@ fn an_sp_descriptor_with_no_origin_or_a_wrong_one_is_refused_by_name() {
     let damaged = text.replacen("tspscan1q05", "tspscan1q06", 1);
     assert!(read_wallet(&c, &damaged).is_err());
 }
+
+fn core_list(descs: &[&str]) -> String {
+    let items: Vec<String> = descs
+        .iter()
+        .map(|d| format!("{{\"desc\":\"{d}\"}}"))
+        .collect();
+    format!(
+        "{{\"wallet_name\":\"w\",\"descriptors\":[{}]}}",
+        items.join(",")
+    )
+}
+
+fn read_text(text: &str) -> Result<WalletPolicy, String> {
+    read_wallet(&crate::common::compute(), text).map_err(|e| e.text())
+}
+
+const SPECTER_KEYS: [&str; 2] = [
+    "[ca9a2b19/48h/0h/0h/2h]xpub6EhbRDNhmMX863W8RujJyAMw1vtM4MHXnsk14paK1ZBEH75k44gWqfaraXCrzg6w9pzC2yLc28vAdUfpB9ShuEB1HA9xMs6BjmRi4PKbt1K",
+    "[046b9450/48h/0h/0h/2h]xpub6Ej6a311KAYh6jUAnD4zHhgtgemM4DfMksQUNbAzXCQEkjKf5Ep2WLmMtJkmR4MHm8aEy648kzZo4cphwYhMpfwfYvHRQY4u2e4ijWzohwE",
+];
+
+#[test]
+fn a_json_file_with_a_single_key_and_a_multisig_descriptor_loads_the_multisig_in_either_order() {
+    let key = "[a262308d/86h/0h/0h]xpub6DM7CYgaTMdMbhTcLTUWmNUE5WLXK5hx8ZMa4sRw8qYJPqtqKYiKnwsmT8A6AijDVAUZRivdBnXdR8QE7Y9vVnqvzPL3fXCmu1WtCRLdAoz";
+    let tr = format!("tr({key}/<0;1>/*)");
+    let multi = format!(
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*))",
+        SPECTER_KEYS[0], SPECTER_KEYS[1]
+    );
+    let a = read_text(&core_list(&[&tr, &multi])).unwrap();
+    let b = read_text(&core_list(&[&multi, &tr])).unwrap();
+    assert!(a.to_descriptor().starts_with("wsh(sortedmulti(2,"));
+    assert_eq!(a.to_descriptor(), b.to_descriptor());
+}
+
+#[test]
+fn a_json_file_with_two_different_multisig_descriptors_is_refused() {
+    let multi = |k: &str| {
+        format!(
+            "wsh(sortedmulti(2,{}/<0;1>/*,{k}/<0;1>/*))",
+            SPECTER_KEYS[0]
+        )
+    };
+    let one = multi(SPECTER_KEYS[1]);
+    let other = multi(
+        "[747b698e/48h/0h/0h/2h]xpub6Eb6Z1xtmWRiWKgRpHf6dHiEagGd6FLiBXrnma1nFK4PGRYqSVqVyJaxna5Mb8etSP4ATKVAvKnXG1a9HZauoAawuSDJT5RgH2HqEVHZVHY",
+    );
+    let why = read_text(&core_list(&[&one, &other])).unwrap_err();
+    assert!(why.contains("more than one wallet"), "{why}");
+}
+
+const SINGLE_KEY: &str = "[a262308d/84h/0h/0h]xpub6DM7CYgaTMdMbhTcLTUWmNUE5WLXK5hx8ZMa4sRw8qYJPqtqKYiKnwsmT8A6AijDVAUZRivdBnXdR8QE7Y9vVnqvzPL3fXCmu1WtCRLdAoz";
+
+fn multi_at(chain: u8) -> String {
+    format!(
+        "wsh(sortedmulti(2,{}/{chain}/*,{}/{chain}/*))",
+        SPECTER_KEYS[0], SPECTER_KEYS[1]
+    )
+}
+
+#[test]
+fn a_json_file_with_a_descriptor_that_does_not_read_is_refused() {
+    let bad = format!("{}#aaaaaaaa", multi_at(0));
+    let a = format!("wpkh({SINGLE_KEY}/0/*)");
+    let b = format!("wpkh({SINGLE_KEY}/1/*)");
+    assert!(read_text(&core_list(&[&bad, &a, &b])).is_err());
+}
+
+#[test]
+fn a_lone_receive_descriptor_among_several_is_not_a_wallet_of_its_own() {
+    let a = format!("wpkh({SINGLE_KEY}/0/*)");
+    let b = format!("wpkh({SINGLE_KEY}/1/*)");
+    let w = read_text(&core_list(&[&multi_at(0), &a, &b])).unwrap();
+    assert!(w.to_descriptor().starts_with("wpkh("));
+    let other = format!("pkh({}/1/*)", SPECTER_KEYS[1]);
+    assert!(read_text(&core_list(&[&a, &other])).is_err());
+}
+
+#[test]
+fn a_core_list_with_a_multisig_pair_and_a_wpkh_pair_loads_the_multisig() {
+    let a = format!("wpkh({SINGLE_KEY}/0/*)");
+    let b = format!("wpkh({SINGLE_KEY}/1/*)");
+    let w = read_text(&core_list(&[&a, &b, &multi_at(0), &multi_at(1)])).unwrap();
+    assert!(w.to_descriptor().starts_with("wsh(sortedmulti(2,"));
+}
+
+#[test]
+fn a_musig_wallet_among_several_json_descriptors_loads_in_either_order() {
+    let musig = format!("tr(musig({},{})/<0;1>/*)", SPECTER_KEYS[0], SPECTER_KEYS[1]);
+    let single = format!("wpkh({SINGLE_KEY}/<0;1>/*)");
+    let a = read_text(&core_list(&[&musig, &single])).unwrap();
+    let b = read_text(&core_list(&[&single, &musig])).unwrap();
+    assert!(a.to_descriptor().starts_with("tr(musig("));
+    assert_eq!(a.to_descriptor(), b.to_descriptor());
+}
+
+#[test]
+fn the_reason_shown_for_a_descriptor_that_does_not_read_is_its_own() {
+    let a = format!("wpkh({SINGLE_KEY}/0/*)");
+    let own = format!("wpkh({SINGLE_KEY}/<0;1>/*)#aaaaaaaa");
+    let alone = read_text(&core_list(&[&own])).unwrap_err();
+    let among = read_text(&core_list(&[&a, &own])).unwrap_err();
+    assert_eq!(alone, among);
+}
+
+fn wpkh_pair_lines(key: &str) -> String {
+    format!("wpkh({key}/0/*)\nwpkh({key}/1/*)\n")
+}
+
+#[test]
+fn a_text_file_with_two_different_wallets_of_one_kind_is_refused_but_one_written_twice_loads() {
+    let (k0, k1) = (SPECTER_KEYS[0], SPECTER_KEYS[1]);
+    let two = format!("{}{}", wpkh_pair_lines(k0), wpkh_pair_lines(k1));
+    let why = read_text(&two).unwrap_err();
+    assert!(why.contains("more than one wallet"), "{why}");
+    let twice = format!("{}{}", wpkh_pair_lines(k0), wpkh_pair_lines(k0));
+    assert!(read_text(&twice).is_ok());
+}

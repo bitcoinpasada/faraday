@@ -10585,6 +10585,8 @@ strings! {
     wallet_no_signing_key: "No key in this session signs this transaction",
     /// Text in `read_wallet`.
     wallet_a_json_file: "a .json file with no descriptor",
+    /// Text in `pick_best`.
+    wallet_several: "a file with more than one wallet",
     /// Text in `read_wallet`. `{}`: `e`.
     wallet_bsms: "BSMS: {}",
     /// Text in `coldcard_export`. `{}`: `why`.

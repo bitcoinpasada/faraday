@@ -229,19 +229,20 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     if text.trim_start().starts_with('{') {
         let no_descriptor = || Refusal::NotAWallet(EN.wallet_a_json_file.into());
         let v = read_json.ok_or_else(no_descriptor)?;
-        let d = v
-            .find("descriptor")
-            .and_then(Value::as_str)
-            .or_else(|| v.find("desc").and_then(Value::as_str))
-            .ok_or_else(no_descriptor)?;
-        return WalletPolicy::parse_any(c, &plain(d)?).or_else(|e| {
-            let mut all = v.strings_named("descriptor");
-            all.extend(v.strings_named("desc"));
-            let all = all
-                .iter()
-                .map(|d| plain(d.as_str()))
-                .collect::<Result<Vec<_>, _>>()?;
-            multipath(c, &all).ok_or_else(|| Refusal::NotAWallet(bip::policy_error(&e)))
+        let mut all = v.strings_named("descriptor");
+        all.extend(v.strings_named("desc"));
+        let all = all
+            .iter()
+            .map(|d| plain(d.as_str()))
+            .collect::<Result<Vec<_>, _>>()?;
+        if all.is_empty() {
+            return Err(no_descriptor());
+        }
+        if all.len() > 1 {
+            return one_of_several(c, &all);
+        }
+        return WalletPolicy::parse_any(c, &all[0]).or_else(|e| {
+            multipath(c, &all).unwrap_or_else(|| Err(Refusal::NotAWallet(bip::policy_error(&e))))
         });
     }
     // BIP 129's descriptor record: read whole, its first address checked
@@ -294,8 +295,9 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
             None => plain(l),
         })
         .collect::<Result<Vec<String>, _>>()?;
-    WalletPolicy::parse_any(c, &lines.concat())
-        .or_else(|e| multipath(c, &lines).ok_or_else(|| Refusal::NotAWallet(bip::policy_error(&e))))
+    WalletPolicy::parse_any(c, &lines.concat()).or_else(|e| {
+        multipath(c, &lines).unwrap_or_else(|| Err(Refusal::NotAWallet(bip::policy_error(&e))))
+    })
 }
 
 /// Costs what [`read_wallet`] costs: the forms [`read_wallet`] reads
@@ -372,7 +374,7 @@ fn specter_diy_wallet(c: &Compute, d: &str) -> Result<WalletPolicy, Refusal> {
     let d = slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(mismatch_text(&m)))?;
     WalletPolicy::parse_any(c, &d).or_else(|e| {
         multipath(c, core::slice::from_ref(&d))
-            .ok_or_else(|| Refusal::NotAWallet(bip::policy_error(&e)))
+            .unwrap_or_else(|| Err(Refusal::NotAWallet(bip::policy_error(&e))))
     })
 }
 
@@ -417,8 +419,38 @@ pub fn holds_secret(text: &str) -> bool {
 /// - any of these after a label, `Receive: wpkh(…)` (Sparrow).
 ///
 /// Each descriptor must read on its own, checksum and all, before it is
-/// rewritten; one that does not refuses the file.
-fn multipath(c: &Compute, descs: &[String]) -> Option<WalletPolicy> {
+/// rewritten; one that does not refuses the file, and so do two different
+/// wallets of the best kind.
+fn multipath(c: &Compute, descs: &[String]) -> Option<Result<WalletPolicy, Refusal>> {
+    let wallets = multipath_wallets(c, descs)?;
+    let mut found = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    for d in wallets {
+        if let Ok(w) = WalletPolicy::parse_any(c, &d) {
+            let text = w.to_descriptor();
+            if seen.insert(text.clone()) {
+                found.push((rank(&text), text, w));
+            }
+        }
+    }
+    pick_best(found)
+}
+
+/// The wallet of the best kind among `found`, or the refusal when that
+/// kind holds more than one different wallet; `None` when there is none.
+fn pick_best(found: Vec<(u8, String, WalletPolicy)>) -> Option<Result<WalletPolicy, Refusal>> {
+    let best = found.iter().map(|(r, ..)| *r).min()?;
+    let mut top = found.into_iter().filter(|(r, ..)| *r == best);
+    Some(match (top.next(), top.next()) {
+        (Some((_, _, w)), None) => Ok(w),
+        _ => Err(Refusal::NotAWallet(EN.wallet_several.into())),
+    })
+}
+
+/// Costs a parse of each descriptor and a sorted set of them: the `<0;1>`
+/// wallets [`multipath`] reads out of descriptors, none of them read yet; `None` when a
+/// descriptor does not read on its own.
+fn multipath_wallets(c: &Compute, descs: &[String]) -> Option<Vec<String>> {
     let mut plain = Vec::new();
     for d in descs {
         let d = without_label(d.trim());
@@ -427,14 +459,22 @@ fn multipath(c: &Compute, descs: &[String]) -> Option<WalletPolicy> {
         }
         plain.push(d.split('#').next().unwrap_or(d).to_string());
     }
+    Some(chain_wallets(&plain))
+}
+
+/// The `<0;1>` wallets the receive and change descriptors in `plain` (all
+/// the file's, checksums dropped) make, and the lone ones that stand for a
+/// wallet.
+fn chain_wallets(plain: &[String]) -> Vec<String> {
+    let have: std::collections::BTreeSet<&String> = plain.iter().collect();
     let mut wallets: Vec<String> = plain
         .iter()
         .filter(|d| d.contains("/0/*") && !d.contains("/1/*"))
-        .filter(|d| plain.len() == 1 || plain.contains(&d.replace("/0/*", "/1/*")))
+        .filter(|d| plain.len() == 1 || have.contains(&d.replace("/0/*", "/1/*")))
         .map(|d| d.replace("/0/*", "/<0;1>/*"))
         .collect();
     // A change descriptor alone (Keystone's export): the same wallet.
-    if let [only] = &plain[..]
+    if let [only] = plain
         && wallets.is_empty()
         && only.contains("/1/*")
         && !only.contains("/0/*")
@@ -444,23 +484,60 @@ fn multipath(c: &Compute, descs: &[String]) -> Option<WalletPolicy> {
     if plain.len() == 1 && wallets.is_empty() {
         wallets.extend(with_chains(&plain[0]));
     }
-    let rank = |d: &String| {
-        if d.starts_with("wpkh(") {
-            1
-        } else if d.starts_with("tr(") && !d.contains(',') {
-            2
-        } else if d.starts_with("sh(wpkh(") {
-            3
-        } else if d.starts_with("pkh(") {
-            4
-        } else {
-            0
+    wallets
+}
+
+/// Where a wallet stands in the order [`multipath`] documents: the
+/// multisig or miniscript one first, then BIP-84's, 86's, 49's, 44's.
+fn rank(d: &str) -> u8 {
+    if d.starts_with("wpkh(") {
+        1
+    } else if d.starts_with("tr(") && !d.contains(',') {
+        2
+    } else if d.starts_with("sh(wpkh(") {
+        3
+    } else if d.starts_with("pkh(") {
+        4
+    } else {
+        0
+    }
+}
+
+/// Costs a parse of each descriptor and of each wallet tried, and a
+/// sorted list of the wallets found (linear in the descriptors, bounded by
+/// the JSON size cap): the wallet a file with several descriptors holds,
+/// by the order [`multipath`] documents whatever order the file writes
+/// them in. Each descriptor that reads whole, and each receive and change
+/// pair, is a wallet; a descriptor that does not read on its own refuses
+/// the file, and so does a best-ranked kind holding more than one
+/// different wallet. A lone `/0/*` or `/1/*` among several is not a wallet.
+fn one_of_several(c: &Compute, all: &[String]) -> Result<WalletPolicy, Refusal> {
+    let mut found: Vec<(u8, String, WalletPolicy)> = Vec::new();
+    let mut seen = std::collections::BTreeSet::new();
+    let mut add = |w: WalletPolicy| {
+        let d = w.to_descriptor();
+        if seen.insert(d.clone()) {
+            found.push((rank(&d), d, w));
         }
     };
-    wallets.sort_by_key(rank);
-    wallets
-        .iter()
-        .find_map(|d| WalletPolicy::parse_any(c, d).ok())
+    let mut plain = Vec::new();
+    for d in all {
+        let t = without_label(d.trim());
+        match WalletPolicy::parse_any(c, d) {
+            Ok(w) => add(w),
+            Err(e) if !faraday_bip::descriptor::reads_as_descriptor(c, t) => {
+                return Err(Refusal::NotAWallet(bip::policy_error(&e)));
+            }
+            Err(_) => {}
+        }
+        plain.push(t.split('#').next().unwrap_or(t).to_string());
+    }
+    for d in chain_wallets(&plain) {
+        if let Ok(w) = WalletPolicy::parse_any(c, &d) {
+            add(w);
+        }
+    }
+    pick_best(found).unwrap_or_else(|| Err(Refusal::NotAWallet(EN.wallet_a_json_file.into())))
 }
 
 /// A descriptor line without the label before it: `Receive: wpkh(…)`.
