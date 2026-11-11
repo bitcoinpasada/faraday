@@ -16,8 +16,10 @@ path = "src/main.rs"
 aqrv = { path = "../aqrv" }
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-codec = { path = "../../core/faraday-codec" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-files = { path = "../../faraday/faraday-files" }
 getrandom.workspace = true
+zeroize.workspace = true
 
 [lints]
 workspace = true

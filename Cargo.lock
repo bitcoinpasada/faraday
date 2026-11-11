@@ -133,8 +133,10 @@ dependencies = [
  "aqrv",
  "faraday-bip",
  "faraday-codec",
+ "faraday-crypto",
  "faraday-files",
  "getrandom 0.4.3",
+ "zeroize",
 ]
 
 [[package]]
