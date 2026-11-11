@@ -117,10 +117,22 @@ fn the_bars_way_back_reads_back_to_the_step_before() {
         app.press(Action::RKind(4));
         tick(&mut app);
         let boxes = app.drawn_text_boxes();
-        let line = boxes
-            .iter()
-            .find(|(t, _)| t == "Back to Kind")
-            .unwrap_or_else(|| panic!("no Back to Kind at {width} × {height}"));
+        let Some(line) = boxes.iter().find(|(t, _)| t == "Back to Kind") else {
+            // The name is too long for one line and wraps onto the second:
+            // it takes both and Back's label is left off.
+            let first = boxes
+                .iter()
+                .filter(|(_, r)| r.1 + r.3 <= bar_px(dpi) && r.0 > 40)
+                .map(|(_, r)| (r.0, r.1))
+                .collect::<Vec<_>>();
+            assert!(
+                first
+                    .iter()
+                    .any(|a| first.iter().any(|b| (a.0 - b.0).abs() <= 6 && a.1 < b.1)),
+                "no Back to Kind and no name on two lines at {width} × {height}: {boxes:?}"
+            );
+            continue;
+        };
         assert!(
             line.1.1 + line.1.3 <= bar_px(dpi),
             "Back to Kind at {:?} is not in the bar at {width} × {height}",

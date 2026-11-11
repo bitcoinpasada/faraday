@@ -237,7 +237,7 @@ Read this table, then only the decision you need.
 | [F220](decisions/F220.md) | What a cosigner's partial MuSig2 signature proves on the device | 2026-11-05 | Active | security |
 | [F221](decisions/F221.md) | Two more kernel patches of Faraday's own on the Pi: a 32-bit framebuffer with red first, and vc4's output polling stopped on unbind | 2026-11-06 | Active | security |
 | [F222](decisions/F222.md) | On a Pi's HDMI screen, fades start off | 2026-11-07 | Active | design |
-| [F223](decisions/F223.md) | On the small panel off mainnet, the mode pill stands on the top bar's second line | 2026-11-08 | Active | design |
+| [F223](history/decisions/F223.md) | On the small panel off mainnet, the mode pill stands on the top bar's second line | 2026-11-08 | Replaced by F246 | design |
 | [F224](decisions/F224.md) | A kernel patch of Faraday's own on the Pi: the bootloader's seed is not credited unless the command line says to | 2026-11-08 | Active | security |
 | [F225](history/decisions/F225.md) | The open checklist card's header at 1024 × 600 is held at eight under the touch-target floor | 2026-11-08 | Withdrawn | design |
 | [F226](decisions/F226.md) | A QR vault is made and opened in a tool in Tools, never kept open, and a file vault's item can be saved as one | 2026-11-08 | Active | security |
@@ -258,3 +258,4 @@ Read this table, then only the decision you need.
 | [F241](decisions/F241.md) | A release's fuzz run may be made of two runs, the later one running only the targets whose corpus reaches what changed | 2026-11-11 | Active | repository |
 | [F242](decisions/F242.md) | Change at an address index of 10,000 or more is shown as change with a Caution, not as verified change; signing stays possible | 2026-11-11 | Active | signing |
 | [F243](decisions/F243.md) | One targeted check may run on GitHub Actions, started by hand: one crate's tests or one lint recipe, under F183's limits | 2026-11-11 | Active | repository |
+| [F246](decisions/F246.md) | Off mainnet, the mode pill stands at the end of the top bar's first line, and a long name steps down, then wraps | 2026-11-11 | Active | design |

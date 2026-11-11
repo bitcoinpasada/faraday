@@ -76,9 +76,9 @@ pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
     pill_within(app, ui, px, py, None)
 }
 
-/// [`pill`] at the foot of a bar `bar_h` tall: its press target is the
-/// touch floor high and kept inside the bar, so it is not cut where the
-/// pill stands against the bar's lower edge.
+/// [`pill`] in a bar `bar_h` tall: its press target is the touch floor
+/// high and kept inside the bar, so it is not cut where the pill stands
+/// against the bar's upper or lower edge.
 pub(crate) fn pill_in_bar(app: &View, ui: &mut Ui, px: f32, py: f32, bar_h: f32) -> f32 {
     pill_within(app, ui, px, py, Some(bar_h))
 }

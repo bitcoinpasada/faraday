@@ -65,13 +65,18 @@ fn heading(k: &KeyGen, ui: &Ui, right: f32) -> (String, Option<String>) {
         return (name.to_string(), None);
     };
     let right = ui.bar_tools_x.unwrap_or(right);
+    // One line first, the short form before the whole wrapped onto two.
+    if faraday_ui::nav::bar_title_one_line(ui, &whole, right) {
+        return (whole, None);
+    }
+    let short = crate::codex32::screen::entering(m, true);
+    if let Some(short) = short.filter(|s| faraday_ui::nav::bar_title_one_line(ui, s, right)) {
+        return (short, None);
+    }
     if faraday_ui::nav::bar_title_whole(ui, &whole, right) {
         return (whole, None);
     }
-    match crate::codex32::screen::entering(m, true) {
-        Some(short) if faraday_ui::nav::bar_title_whole(ui, &short, right) => (short, None),
-        _ => (name.to_string(), Some(whole)),
-    }
+    (name.to_string(), Some(whole))
 }
 
 /// Where the bar has no room for the codex32 entry's `step`, the

@@ -18,7 +18,8 @@ mod chip;
 mod rail;
 
 pub use app_bar::{
-    AppBar, app_bar, app_bar_fill, bar_title_whole, help, icon_action, more, pill_top,
+    AppBar, app_bar, app_bar_fill, bar_title_one_line, bar_title_whole, help, icon_action, more,
+    pill_top,
 };
 pub use bar::bar;
 pub use chip::{Chip, status_chip};

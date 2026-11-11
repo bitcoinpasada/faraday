@@ -122,7 +122,7 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &
     BAR_H
 }
 
-/// What the mode pill takes of the bar's second line, off mainnet: its
+/// What the mode pill takes of the bar's first line, off mainnet: its
 /// width and a gap each side. Where it stands: [`tools`]. A lookup.
 pub(crate) fn pill_room(app: &View, ui: &Ui) -> f32 {
     if crate::modes::screen::shows_pill(app) {
@@ -174,7 +174,7 @@ fn back_end(ui: &Ui) -> f32 {
 /// The tools at the bar's right end, each Material's icon button in a
 /// touch target or, for Cancel, its text button: the ? when the page has
 /// something in Learn, the keyboard where the page types, the codex32 eye
-/// and Cancel, and, on the bar's second line left of them, the mode pill
+/// and Cancel, and, at the end of the bar's first line left of them, the mode pill
 /// off mainnet. Returns where the tools begin, not counting the pill.
 /// Where they would reach the Back button, the ?, then the keyboard, then
 /// the eye go into Material's overflow menu, a ⋮ where the ? stood;
@@ -203,8 +203,8 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     let mut out = steps[skip.min(steps.len() - 1)];
     for o in steps.into_iter().skip(skip) {
         out = o;
-        // The pill stands on the second line, left of the tools: they
-        // leave it its room before Back's target.
+        // The pill stands at the end of the first line, left of the tools:
+        // they leave it its room before Back's target.
         if screen::measured(ui, |ui| tools_from(app, ui, w, o)) >= back_end(ui) + pill_room(app, ui)
         {
             break;
@@ -266,8 +266,8 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
         right = bar_eye(app, ui, right);
     }
     right = bar_cancel(app, ui, right);
-    // The mode, off mainnet, on the bar's second line beside where Back
-    // goes, left of the tools: the name keeps the first line whole.
+    // The mode, off mainnet, at the end of the bar's first line, centred
+    // on the page's name's line, left of the tools.
     // Pressed, it opens the mode sheet.
     if crate::modes::screen::shows_pill(app) {
         let pw = crate::modes::screen::pill_width(app, ui);

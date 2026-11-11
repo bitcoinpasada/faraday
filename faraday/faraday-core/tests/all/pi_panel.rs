@@ -1335,38 +1335,49 @@ fn flow_bar_name(rig: &mut Rig) -> Option<(String, f32)> {
         .next()
 }
 
-/// Off mainnet the mode pill stands on the bar's second line beside where
-/// Back goes, so a page's name keeps the whole first line: it is drawn
-/// whole, and the pill is drawn whole and can be pressed.
+/// Off mainnet the mode pill stands at the end of the bar's first line,
+/// level with the page's name, which is drawn whole (on one line, or
+/// wrapped onto two with no "Back to" under it); the pill is drawn whole
+/// and can be pressed (F246).
 #[test]
-fn on_the_pi_the_mode_pill_leaves_a_pages_name_whole_on_the_bars_first_line() {
-    // F223: off mainnet the pill stands on the bar's second line.
-    for (mode, pill) in [(Mode::Testnet, "Testnet"), (Mode::Practice, "Practice")] {
-        {
-            let (screen, name) = (Screen::Convert, "Convert a seed");
-            let mut rig = rig(On::Stick, mode, Vec::new());
+fn on_the_pi_the_mode_pill_stands_on_the_bars_first_line_and_a_pages_name_stays_whole() {
+    for on in [On::Stick, On::Preview] {
+        for (mode, pill) in [(Mode::Testnet, "Testnet"), (Mode::Practice, "Practice")] {
+            let name = "Convert a seed";
+            let mut rig = rig(on, mode, Vec::new());
             rig.press(Action::Convert(faraday_core::convert::ConvertAction::Open));
             rig.settle();
             let _ = rig.frame();
             let f = f32::from(rig.w) / rig.size().0;
             let texts = rig.drawn_past_sides_and_text().1;
-            let label = format!("{mode:?}, {screen:?}");
-            let drawn = rig.drawn_texts();
-            assert!(
-                drawn.iter().any(|t| t == name),
-                "{label}: the name {name:?} is whole, drawn: {drawn:?}"
-            );
+            let label = format!("{on:?} {mode:?}");
             let (_, r) = texts
                 .iter()
                 .find(|(t, _)| t == pill)
                 .unwrap_or_else(|| panic!("{label}: the pill {pill:?} is drawn whole"));
             assert!(
-                (r.1 as f32) >= 32.0 * f,
-                "{label}: the pill is on the second line"
+                (r.1 as f32) < 32.0 * f,
+                "{label}: the pill is on the first line"
             );
             assert!(
                 rig.offers(Action::ModeSheet),
                 "{label}: the pill is pressed"
+            );
+            // Whole on one line, or wrapped at a word onto two.
+            let drawn = rig.drawn_texts();
+            let one = drawn.iter().any(|t| t == name);
+            let two = name
+                .char_indices()
+                .filter(|(_, c)| *c == ' ')
+                .any(|(i, _)| {
+                    let (a, b) = (&name[..i], &name[i + 1..]);
+                    drawn.iter().any(|t| t == a) && drawn.iter().any(|t| t == b)
+                });
+            assert!(one || two, "{label}: {name:?} is whole, drawn: {drawn:?}");
+            let back = drawn.iter().any(|t| t.starts_with("Back to"));
+            assert_eq!(
+                back, one,
+                "{label}: Back to shows where the name is one line"
             );
         }
     }
@@ -1388,15 +1399,20 @@ fn on_the_pi_sign_a_transaction_with_nothing_loaded_names_itself_beside_the_menu
             .map(|b| i32::from(b.0))
             .expect("the ⋮");
         let (_, texts) = rig.drawn_past_sides_and_text();
-        let name = texts
+        // Whole on one line, or wrapped at a word onto two.
+        let f = f32::from(rig.w) / rig.size().0;
+        let name: Vec<_> = texts
             .iter()
-            .find(|(t, _)| t == NAME)
-            .unwrap_or_else(|| panic!("{mode:?}: {NAME:?} whole"));
+            .filter(|(t, r)| (r.1 as f32) < 64.0 * f && NAME.contains(t.as_str()))
+            .collect();
+        let joined: Vec<&str> = name.iter().map(|(t, _)| t.as_str()).collect();
         assert!(
-            name.1.0 + name.1.2 <= more,
-            "{mode:?}: {:?} runs under the ⋮",
-            name.0
+            joined.join(" ") == NAME,
+            "{mode:?}: {NAME:?} whole, drawn: {joined:?}"
         );
+        for (t, r) in name {
+            assert!(r.0 + r.2 <= more, "{mode:?}: {t:?} runs under the ⋮");
+        }
     }
 }
 
@@ -1555,13 +1571,12 @@ fn on_the_pi_a_step_flows_bar_names_it_whole_smaller_where_its_tools_leave_less_
         flow_bar_name(&mut rig).expect("New key's bar names it")
     };
     // On Mainnet the ? alone stands beside it: the bar's own size.
-    let (text, roomy) = name(Mode::Mainnet);
+    let (text, _) = name(Mode::Mainnet);
     assert_eq!(text, "Add a key");
-    // On Testnet the mode pill stands on the bar's second line, so the
-    // name has the first line to itself: whole, at the bar's own size.
-    let (text, pi) = name(Mode::Testnet);
-    assert_eq!(text, "Add a key", "whole beside the ?");
-    assert_eq!(pi, roomy, "the name's size is the same with the pill");
+    // On Testnet the mode pill stands at the end of the first line, so the
+    // name steps down or wraps before it is cut: whole.
+    let (text, _) = name(Mode::Testnet);
+    assert_eq!(text, "Add a key", "whole beside the ? and the pill");
     // Create vault's name beside Cancel and the ?: whole words or none,
     // never a piece of a word.
     let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());

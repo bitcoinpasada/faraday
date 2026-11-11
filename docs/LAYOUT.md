@@ -250,9 +250,10 @@ each at the text size the person's system asks for.
   its sheet or the panel, and no line is drawn over another. A view
   that pans sideways (a codex32 worksheet) is scrolled there, not cut.
   The small panel's bar holds Back, the page's name, the eye and
-  the ?, and a ⋮ whose first row is a flow's Cancel (owner, 2026-11-11; likewise on a window under 600 dp wide), and off mainnet the mode pill on its second line, left of them
-  and beside where Back goes, so the name keeps the first line: it is
-  shortened, or left off where the tools leave it no room, and the ?
+  the ?, and a ⋮ whose first row is a flow's Cancel (owner, 2026-11-11; likewise on a window under 600 dp wide), and off mainnet the mode pill at the end of the first line, left of them
+  and level with the name: the name steps down, then wraps onto the second
+  line (F246), is shortened only where one word does not fit, or left off
+  where the tools leave it no room, and the ?
   where they and the pill would reach Back's target (DESIGN §4.1). Where the page offers a cryptographic action, **How
   Faraday does it** stands left of the ? and goes into the ⋮ first,
   before the ?, its row the menu's first (not built;

@@ -518,12 +518,12 @@ fn the_step_being_rolled_is_the_top_app_bars_title_while_the_page_scrolls() {
     }
 }
 
-/// On the Pi's panel off mainnet the mode pill stands on the bar's second
-/// line, so the bar has the first line for the entry's step: it reads the
-/// short form, "Share A · 2 of 26", the card keeps its name, Characters,
-/// and the way back is named after Entropy.
+/// On the Pi's panel off mainnet the mode pill stands at the end of the
+/// bar's first line, so the entry's step, too long for one line beside it,
+/// wraps onto the second and is read whole there, with no way-back label
+/// under it; the card keeps its name, Characters.
 #[test]
-fn on_the_pi_panel_off_mainnet_the_card_reads_the_step_the_bar_has_no_room_for() {
+fn on_the_pi_panel_off_mainnet_the_step_wraps_in_the_bar_beside_the_pill() {
     let mut app = on_at(480, 640, 286);
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     to_entry(&mut app, 6);
@@ -540,17 +540,17 @@ fn on_the_pi_panel_off_mainnet_the_card_reads_the_step_the_bar_has_no_room_for()
     app.settle();
     let _ = app.frame();
     let texts = app.drawn_texts();
-    assert_eq!(
-        texts.iter().filter(|t| *t == "Share A · 2 of 26").count(),
-        1,
-        "the bar reads the step once: {texts:?}"
+    assert!(
+        texts.iter().any(|t| t == "Share A") && texts.iter().any(|t| t == "· character 2 of 26"),
+        "the bar reads the step whole on two lines: {texts:?}"
     );
+    assert!(texts.iter().any(|t| t == "Testnet"), "{texts:?}");
     assert!(
         texts.iter().any(|t| t == "Characters"),
         "the card keeps its name: {texts:?}"
     );
     assert!(
-        texts.iter().any(|t| t.starts_with("Entr")) && !texts.iter().any(|t| t.starts_with("Back")),
-        "the way back is named after Entropy: {texts:?}"
+        !texts.iter().any(|t| t.starts_with("Back to")),
+        "no way-back label under a name on two lines: {texts:?}"
     );
 }
