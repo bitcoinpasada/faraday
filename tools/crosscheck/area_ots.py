@@ -295,7 +295,7 @@ class Ots(Area):
         "the three requests `ots.read`, `ots.verify` and `ots.header`"
     )
     reference = (
-        "python-opentimestamps' `opentimestamps/core/` (`ots/`, unchanged), by the "
+        "python-opentimestamps' core modules, vendored unchanged in `tools/reference/opentimestamps/`, by the "
         "OpenTimestamps developers, on three small shims for what it imports and the "
         "repository does not vendor (Keccak-256, RIPEMD-160 over Bitcoin Core's pure-Python "
         "hash, and four names of python-bitcoinlib that only its printing routine uses); "

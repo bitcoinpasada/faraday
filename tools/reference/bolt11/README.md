@@ -13,6 +13,17 @@ publishes, and a stand-in for the one dependency that is not pure Python.
 | `base58-2.1.1-py3-none-any.whl` | base58, <https://github.com/keis/base58> | 2.1.1 | MIT | `11a36f4d3ce51dfc1043f3218591ac4eb1ceb172919cebe05b52a5bcc8d245c2` |
 | `bitstring-3.1.9-py3-none-any.whl` | bitstring, <https://github.com/scott-griffiths/bitstring> | 3.1.9 | MIT | `0de167daa6a00c9386255a7cac931b45e6e24e0ad7ea64f1f92a64ac23ad4578` |
 
+Each wheel is the file PyPI publishes for a release of the project's
+repository, whose tag and commit are these (`bech32` has no tag: its
+commit is the one that set version 1.2.0 in `setup.py`):
+
+| Wheel | Repository | Tag | Commit |
+|---|---|---|---|
+| `bolt11` | <https://github.com/lnbits/bolt11> | `v2.2.0` | `51bd3b97aeed28a9c4bb0e10dbe8d9414a79d01b` |
+| `bech32` | <https://github.com/fiatjaf/bech32> | none | `231e4d88b15f3dc8faf7d339f365b84f6ab5cbcc` |
+| `base58` | <https://github.com/keis/base58> | `v2.1.1` | `11c293f4479fafffbc7b766fcb703a835c02dccd` |
+| `bitstring` | <https://github.com/scott-griffiths/bitstring> | `bitstring-3.1.9` | `c84ad7f02818caf7102d556c6dcbdef153b0cf11` |
+
 `bolt11` asks for `bitstring` without a version. Its 4.x and 5.x releases need
 a C or Rust extension (`bitarray`, `tibs`); 3.1.9 is pure Python and is what
 the cross-check runs `bolt11` over. `bolt11`'s command-line module, which
