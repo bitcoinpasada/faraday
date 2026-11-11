@@ -444,8 +444,21 @@ fn a_vault_closed_for_not_being_the_one_asked_for_leaves_the_nonce_history_at_on
     faraday_core::testkit::nonce_history_on(&mut app, true);
     assert!(app.nonce_history_kept());
     shell.flow(&mut app, F::UnlockVault(0));
-    unlock(&mut app, PHRASE_2);
-    expect(&mut app, "b.kdbx is not Vault 1");
+    // The device's path: the unlock runs on the worker and its result
+    // arrives on a tick, with no press after it.
+    app.press(Action::Vault(V::FocusPassphrase));
+    type_text(&mut app, PHRASE_2);
+    faraday_core::testkit::press_on_worker(&mut app, Action::Vault(V::Unlock));
+    let mut closed = false;
+    for t in 100..400u64 {
+        let _ = app.frame();
+        app.event(faraday_shell_api::Event::Tick { now_ms: t * 1000 });
+        if has_part(&mut app, "b.kdbx is not Vault 1") {
+            closed = true;
+            break;
+        }
+    }
+    assert!(closed, "the other vault is refused");
     assert!(app.vaults().open.is_empty(), "the other vault is closed");
     assert_eq!(faraday_core::testkit::nonce_history_vaults(&app), None);
 }

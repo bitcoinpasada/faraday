@@ -143,9 +143,22 @@ fn unkeep(app: &mut Faraday, id: VaultId) {
     app.save_boxes();
 }
 
-/// The person took `name` out of the Outbox: if it is the `.keyx` of a
-/// vault's pending made key, that key is taken back, so the next seal
-/// writes the vault's own components and not a key with no document.
+/// Whether `name` may leave the Outbox: not when it is the `.keyx` of a
+/// made key still pending on a vault that is sealing or read-only, which
+/// cannot take the key back; the item stays listed.
+pub(crate) fn outbox_may_remove(app: &Faraday, name: &str) -> bool {
+    !app.vaults.key_outbox.iter().any(|k| {
+        k.1 == name
+            && app.vaults.open.iter().any(|o| o.id == k.0)
+            && app.vaults.store().key_file_made(k.0)
+            && app.vaults.store().is_locked(k.0)
+    })
+}
+
+/// `name` left the Outbox ([`outbox_may_remove`] said it may): if it is
+/// the `.keyx` of a vault's pending made key, that key is taken back, so
+/// the next seal writes the vault's own components and not a key with no
+/// document.
 pub(crate) fn outbox_removed(app: &mut Faraday, name: &str) {
     let Some(at) = app
         .vaults
@@ -160,8 +173,8 @@ pub(crate) fn outbox_removed(app: &mut Faraday, name: &str) {
     if app.vaults.edit(id, |s| s.unmake_key_file(id)) {
         count_key_change(app, id, was);
     } else if app.vaults.store().key_file_made(id) {
-        // Refused (a sealing vault): the key is still pending, so its
-        // `.keyx` stays listed.
+        // Not taken back although made: the key stays pending, so its
+        // entry stays.
         return;
     }
     app.vaults.state.key_outbox.remove(at);

@@ -1570,7 +1570,9 @@ impl Faraday {
                 }
             }
             Action::OutboxRemove(i) => {
-                if i < self.outbox.len() {
+                if i < self.outbox.len()
+                    && crate::vault::more::outbox_may_remove(self, &self.outbox[i].name)
+                {
                     let gone = self.outbox.remove(i);
                     self.visit.files_menu_mut().renamed.remove(&gone.name);
                     crate::vault::more::outbox_removed(self, &gone.name);

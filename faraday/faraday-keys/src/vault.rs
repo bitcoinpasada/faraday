@@ -2230,6 +2230,12 @@ impl OpenVaults {
         self.slot(id).is_some_and(|s| s.new_key_file.is_some())
     }
 
+    /// A lookup. Whether open vault `id` is read-only or sealing, so no
+    /// edit of it is taken: [`OpenVaults::unmake_key_file`] refuses it.
+    pub fn is_locked(&self, id: VaultId) -> bool {
+        self.slot(id).is_some_and(|s| s.locked())
+    }
+
     /// A lookup. Whether the key file waiting in open vault `id` is one
     /// Faraday drew ([`OpenVaults::make_key_file`]) and not taken back.
     pub fn key_file_made(&self, id: VaultId) -> bool {
