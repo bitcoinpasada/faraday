@@ -47,6 +47,16 @@ fn inside(element: &[u8]) -> &[u8] {
 /// attributes in DER order or `reversed`, signed as written, and
 /// with `signers` the SignerInfos of the SET OF, in the order given.
 fn rewritten(reversed: bool, signers: impl Fn(&[u8]) -> Vec<Vec<u8>>) -> (Vec<u8>, Vec<u8>) {
+    rewritten_attrs(reversed, |attrs| attrs, signers)
+}
+
+/// [`rewritten`] with the signed attributes (each whole) passed through
+/// `edit` before they are written and signed.
+fn rewritten_attrs(
+    reversed: bool,
+    edit: impl Fn(Vec<Vec<u8>>) -> Vec<Vec<u8>>,
+    signers: impl Fn(&[u8]) -> Vec<Vec<u8>>,
+) -> (Vec<u8>, Vec<u8>) {
     let keys = make(&[3u8; 32], "Attributes", NOW).unwrap();
     let tiny = include_bytes!("vectors/tiny.efi");
     let mut blind = rng::stream(&[5u8; 32], 0);
@@ -62,7 +72,7 @@ fn rewritten(reversed: bool, signers: impl Fn(&[u8]) -> Vec<Vec<u8>>) -> (Vec<u8
     let fields = elements(inside(info));
     let attrs = elements(inside(fields[3]));
     assert!(attrs.len() > 1);
-    let mut ordered = attrs.clone();
+    let mut ordered = edit(attrs.iter().map(|a| a.to_vec()).collect());
     if reversed {
         ordered.reverse();
     }
@@ -145,4 +155,50 @@ fn the_first_signer_is_the_first_one_written() {
         vec![good.to_vec(), other]
     });
     assert_eq!(pe::check(&image, &cert).unwrap(), Check::Valid);
+}
+
+/// The index of the message digest attribute in `attrs`.
+fn digest_attr(attrs: &[Vec<u8>]) -> usize {
+    let oid = [
+        0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x04,
+    ];
+    attrs
+        .iter()
+        .position(|a| inside(a).starts_with(&oid))
+        .expect("a message digest attribute")
+}
+
+#[test]
+fn a_signature_with_two_message_digest_attributes_is_unreadable() {
+    let (image, cert) = rewritten_attrs(
+        false,
+        |mut attrs| {
+            let at = digest_attr(&attrs);
+            attrs.push(attrs[at].clone());
+            attrs
+        },
+        |i| vec![i.to_vec()],
+    );
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::Unreadable);
+}
+
+#[test]
+fn a_message_digest_attribute_with_two_values_is_unreadable() {
+    let (image, cert) = rewritten_attrs(
+        false,
+        |mut attrs| {
+            let at = digest_attr(&attrs);
+            let parts = elements(inside(&attrs[at]));
+            let value = elements(inside(parts[1]))[0].to_vec();
+            // A second value that sorts after the digest.
+            let mut extra = value.clone();
+            extra[1] += 1;
+            extra.push(0);
+            let set = tlv(0x31, &[value, extra].concat());
+            attrs[at] = tlv(0x30, &[parts[0], &set].concat());
+            attrs
+        },
+        |i| vec![i.to_vec()],
+    );
+    assert_eq!(pe::check(&image, &cert).unwrap(), Check::Unreadable);
 }

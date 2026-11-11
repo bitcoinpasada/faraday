@@ -316,15 +316,21 @@ fn read_signature(pe: &[u8], at: usize, size: usize, cert: &[u8]) -> Option<Chec
     let info_der = sd.signer_infos.first()?.to_der().ok()?;
     let info = SignerInfo::from_der(&info_der).ok()?;
     let attrs = info.signed_attrs?;
-    // The message digest attribute must name the content.
+    // RFC 5652 11.2: exactly one message digest attribute, with one value,
+    // and it must name the content.
     let content_digest: [u8; 32] = Sha256::digest(spc.value()).into();
-    let named_digest = attrs.iter().any(|a| {
-        a.oid == cms::MESSAGE_DIGEST
-            && a.values
-                .iter()
-                .next()
-                .is_some_and(|v| v.value() == content_digest)
-    });
+    let mut digests = attrs.iter().filter(|a| a.oid == cms::MESSAGE_DIGEST);
+    let named_digest = match (digests.next(), digests.next()) {
+        (Some(a), None) => {
+            let mut values = a.values.iter();
+            match (values.next(), values.next()) {
+                (Some(v), None) => v.value() == content_digest,
+                _ => return None,
+            }
+        }
+        (Some(_), Some(_)) => return None,
+        _ => false,
+    };
     if !named_digest {
         return Some(Check::Altered);
     }
