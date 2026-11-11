@@ -527,6 +527,16 @@ fn the_pc_finds_the_one_stick_of_its_own_build() {
     );
 }
 
+#[test]
+fn a_stick_whose_disk_sequence_cannot_be_read_gives_a_record_that_matches_no_disk() {
+    let m = Machine::new("no-diskseq");
+    m.stick("1-2", "sdb", "", Some(RELEASE));
+    let mut f = m.finder(RELEASE);
+    let record = Record::parse(&settled(&mut f).text());
+    assert!(!record.is_boot_disk(["sdb2"], ""));
+    assert!(!record.is_boot_disk(["sdb2"], "7"));
+}
+
 /// A 256 MB stick, in sectors; the last usable sector of its GPT is 34
 /// before the end.
 const STICK_SECTORS: u64 = 524_288;

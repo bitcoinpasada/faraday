@@ -245,6 +245,12 @@ fn hex(bytes: &[u8]) -> String {
     faraday_crypto::hex::encode_string(bytes)
 }
 
+/// Text an invoice or offer carries, as one line: the rule a wallet's name
+/// gets, so a line break in it cannot draw as another row.
+fn one_line(text: &str) -> String {
+    faraday_intake::wallet::wallet_name(text).into_owned()
+}
+
 /// The lines an invoice shows, in the order they are drawn.
 fn rows(i: &Invoice) -> Vec<Row> {
     let mut out = Vec::new();
@@ -263,7 +269,7 @@ fn rows(i: &Invoice) -> Vec<Row> {
         false,
     );
     if let Some(d) = &i.description {
-        put(EN.invoice_description, d.clone(), false);
+        put(EN.invoice_description, one_line(d), false);
     }
     if let Some(h) = &i.description_hash {
         put(EN.invoice_description_hash, hex(h), true);
@@ -436,10 +442,10 @@ fn offer_rows(o: &bolt12::Offer) -> Vec<Row> {
     put(EN.invoice_chains, offer_chains(&o.chains), false);
     put(EN.invoice_amount, offer_amount(o.amount.as_ref()), false);
     if let Some(d) = &o.description {
-        put(EN.invoice_description, d.clone(), false);
+        put(EN.invoice_description, one_line(d), false);
     }
     if let Some(i) = &o.issuer {
-        put(EN.invoice_issuer, i.clone(), false);
+        put(EN.invoice_issuer, one_line(i), false);
     }
     if let Some(k) = &o.issuer_id {
         put(EN.invoice_issuer_id, hex(k), true);
@@ -530,5 +536,33 @@ fn offer_refusal(e: bolt12::Error) -> String {
         E::NoIssuer => EN.invoice_err_no_issuer.to_string(),
         E::Path => EN.invoice_err_path.to_string(),
         E::Point(t) => fill(EN.invoice_err_point, &[&n(t)]),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const VECTORS: &str =
+        include_str!("../../../../tools/vectors/lightning-bolt11/invoice-test.json");
+
+    #[test]
+    fn a_description_with_a_line_break_shows_on_one_line() {
+        let v: serde_json::Value = serde_json::from_str(VECTORS).unwrap();
+        let text = v
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["description"].as_str().unwrap().contains("cup of coffee"))
+            .and_then(|i| i["invoice"].as_str())
+            .unwrap();
+        let mut inv = bolt11::decode(text).unwrap();
+        inv.description = Some("coffee\nPayee\r\u{7}02ab".to_string());
+        let shown = rows(&inv)
+            .into_iter()
+            .find(|r| r.label == EN.invoice_description)
+            .unwrap()
+            .value;
+        assert_eq!(shown, "coffeePayee02ab");
     }
 }

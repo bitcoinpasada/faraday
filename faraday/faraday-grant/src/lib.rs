@@ -591,6 +591,9 @@ impl Finder {
         }
         Some(match found.as_slice() {
             [] => Record::NotFound,
+            // A disk whose sequence number cannot be read is not matched
+            // by its node's name alone: the record says none was found.
+            [one] if one.seq.is_empty() => Record::NotFound,
             [one] => Record::Found {
                 partition: one.data.clone(),
                 diskseq: Some(one.seq.clone()),
