@@ -220,6 +220,15 @@ pub struct Glance {
     pub held: bool,
     /// A vault is open to keep names, dates and marks in (§9.5).
     pub keep: bool,
+    /// The wallet has a relative wait and a plan to keep a note in:
+    /// **I moved every coin** is offered (`docs/BACKUP-FLOW.md` §18.4).
+    pub waits: bool,
+    /// The clock is checked; without it **Set the time** is offered in
+    /// place of **I moved every coin**.
+    pub clock: bool,
+    /// The **Coins last moved** value and whether it is in the warning
+    /// tone; `None` where the coins were never moved or there is no wait.
+    pub moved: Option<(String, bool)>,
     /// The plan charted, with the shape it is read against.
     pub plan: Option<(plan::Shape, plan::Answers)>,
 }
@@ -751,6 +760,16 @@ fn build(
         held,
         keep: matches!(press, Press::Vault(..))
             || app.vaults.open.get(app.vaults.current).is_some(),
+        waits: wallet.waits().shortest.is_some() && charted.is_some(),
+        clock: !app.today().is_empty(),
+        moved: wallet.waits().shortest.and_then(|s| {
+            let date = notes.iter().rev().find_map(|n| match n {
+                plan::Note::Moved(d) => Some(d.as_str()),
+                _ => None,
+            })?;
+            let (_, value, warn) = crate::wallet::paths::moved_row(date, &app.today(), s);
+            Some((value, warn))
+        }),
         plan: charted,
     })
 }

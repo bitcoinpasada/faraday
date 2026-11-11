@@ -666,7 +666,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += 66.0;
 
     // The spend paths and the margin, where a path has a wait.
-    cy += spend_paths_rows(ui, ix, cy, iw, wlt);
+    cy += spend_paths_rows(app, ui, ix, cy, iw, app.wallets.wallet(), wlt);
 
     // The wallet at a glance (`docs/history/NEW-WALLET.md` §6): its keys and
     // its backup, where each thing is and what each place gives.
@@ -735,10 +735,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// fact row per path and the margin, as read when the wallet was loaded.
 /// Nothing for a wallet with no relative wait. Returns its height.
 pub(crate) fn spend_paths_rows(
+    app: &View,
     ui: &mut Ui,
     x: f32,
     y: f32,
     w: f32,
+    wi: usize,
     wallet: &crate::wallet::Wallet,
 ) -> f32 {
     let rows = crate::wallet::paths::rows(wallet.waits());
@@ -756,6 +758,40 @@ pub(crate) fn spend_paths_rows(
     cy += ui.line_as(LABEL_M) + faraday_draw::tokens::GRID;
     for (label, value) in &rows {
         cy += crate::compact::kv(ui, x, cy, w, label, value, Role::OnSurface);
+    }
+    // When every coin was last moved, and the way to say it was
+    // (`docs/BACKUP-FLOW.md` §18.4): kept in the vault.
+    if let Some(g) = app.glance_of(wi) {
+        if let Some((value, warn)) = &g.moved {
+            let tone = if *warn {
+                Role::Warning
+            } else {
+                Role::OnSurface
+            };
+            cy += crate::compact::kv(ui, x, cy, w, EN.wallet_coins_last_moved, value, tone);
+        }
+        if g.waits {
+            let moved = Action::Chart(crate::glance::sheet::ChartAction::Moved(
+                crate::glance::Press::Loaded(wi),
+            ));
+            let (label, style, action) = if !g.clock {
+                (
+                    EN.glance_set_the_time,
+                    Style::Secondary,
+                    Action::OpenSetTime,
+                )
+            } else if g.keep {
+                (EN.wallet_coins_i_moved, Style::Secondary, moved)
+            } else {
+                (
+                    EN.glance_sheet_open_vault_to_keep,
+                    Style::Secondary.off(),
+                    moved,
+                )
+            };
+            cy +=
+                faraday_ui::parts::button_rows(ui, x, cy, w, &[(label.to_string(), style, action)]);
+        }
     }
     cy + faraday_draw::tokens::GAP - y
 }

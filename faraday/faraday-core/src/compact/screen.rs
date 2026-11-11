@@ -162,7 +162,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // The spend paths, as their own page.
     if app.glance.paths_open() {
-        cy += crate::screens::spend_paths_rows(ui, x, cy, iw, wlt);
+        cy += crate::screens::spend_paths_rows(app, ui, x, cy, iw, app.wallets.wallet(), wlt);
         finish(app, ui, h, cy - top + faraday_draw::tokens::GAP);
         return;
     }

@@ -566,6 +566,27 @@ impl Faraday {
         }
     }
 
+    /// Costs what `chart_notes_change` costs. Every coin of the chart's
+    /// wallet moved today, in the vault (`docs/BACKUP-FLOW.md` §18.4): one
+    /// date per wallet, a later press replacing it. Nothing without a
+    /// checked clock (the card then offers Set the time instead).
+    pub(crate) fn chart_moved(&mut self, press: Press) {
+        let c = self.compute();
+        if self.chart_copy_not_current(&c, press) {
+            return;
+        }
+        let today = self.today();
+        if today.is_empty() {
+            return;
+        }
+        if self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
+            notes.retain(|x| !matches!(x, Note::Moved(_)));
+            notes.push(Note::Moved(today.clone()));
+        }) {
+            self.toast(EN.chart_edit_moved);
+        }
+    }
+
     /// Key `k` of the chart, its holder's backup confirmed today.
     pub(crate) fn chart_key_checked(&mut self, press: Press, k: u8) {
         let c = self.compute();

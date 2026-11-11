@@ -106,6 +106,17 @@ pub fn age_text(date: &str, today: &str) -> Option<String> {
     })
 }
 
+/// Whether `s` is a calendar date, `YYYY-MM-DD`.
+pub(crate) fn is_date(s: &str) -> bool {
+    Day::parse(s).is_some()
+}
+
+/// Whole days from `date` to `today`: `None` where no age is told (as
+/// [`age_text`]).
+pub(crate) fn age_days(date: &str, today: &str) -> Option<i64> {
+    span(date, today).map(|(days, _)| days)
+}
+
 /// Whether a copy last checked on `date` is due on `today`: its age is
 /// the interval or more, or it has no date. Never with the clock not
 /// checked, and not for a date later than today.

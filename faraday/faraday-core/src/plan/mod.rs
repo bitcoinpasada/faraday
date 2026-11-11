@@ -3586,6 +3586,9 @@ pub enum Note {
     Holder([u8; 4], String),
     /// What the plan's vault `v` is called.
     VaultName(usize, String),
+    /// Every coin of the wallet was moved on this date (`YYYY-MM-DD`): the
+    /// person's word, one per wallet (`docs/BACKUP-FLOW.md` §18.4).
+    Moved(String),
 }
 
 impl Note {
@@ -3605,6 +3608,7 @@ impl Note {
             Note::Marked(at, w, m) => format!("{} {} {}", m.name(), at_code(*at), what_code(*w)),
             Note::Holder(fp, n) => format!("holder {} {}", fp_code(*fp), clean(n)),
             Note::VaultName(v, n) => format!("vaultname {v} {}", clean(n)),
+            Note::Moved(d) => format!("moved {}", clean(d)),
         }
     }
 

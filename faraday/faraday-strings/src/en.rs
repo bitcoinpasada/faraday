@@ -10860,6 +10860,16 @@ strings! {
     wallet_paths_within_about: "about {} days of arriving",
     /// Value in `margin_text`, a wait in 512-second units. `{}`: whole days.
     wallet_paths_within: "{} days of arriving",
+    /// Label in `moved_row`: when the person last moved every coin.
+    wallet_coins_last_moved: "Coins last moved",
+    /// Value in `moved_row`, a wait in blocks. `{}`: the age, then whole days.
+    wallet_coins_moved_about: "{} · the wait ends at about {} days",
+    /// Value in `moved_row`, a wait in 512-second units. `{}`: the age, then whole days.
+    wallet_coins_moved: "{} · the wait ends at {} days",
+    /// Action on the wallet's card and its chart sheet: every coin moved today.
+    wallet_coins_i_moved: "I moved every coin",
+    /// Toast in `chart_moved`.
+    chart_edit_moved: "Coins moved today",
     // ----- wordlist (faraday-core/src/wordlist/mod.rs) -----
     /// Text in `PRESS_A_WORD`.
     wordlist_press_a_word: "Press a word to see it in the list",

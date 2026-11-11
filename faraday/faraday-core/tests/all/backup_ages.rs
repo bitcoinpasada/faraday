@@ -3,8 +3,8 @@
 //! with the clock not checked no age or due mark is shown.
 
 use crate::chart_edit::{
-    clock_kept, edit_and_confirm, line_holding, node_of, open, recovery_with_vault, saved_at_lock,
-    settle, single_key_with_vault, unlocked_again, vault_file,
+    clock_kept, edit_and_confirm, fresh_vault, line_holding, node_of, one_key_wait, open, planned,
+    recovery_with_vault, saved_at_lock, settle, single_key_with_vault, unlocked_again, vault_file,
 };
 use crate::common::type_text;
 use faraday_core::glance::age::{Interval, NodeAge, is_due};
@@ -467,4 +467,120 @@ fn a_copy_never_checked_is_not_shown_in_the_success_tone_on_its_sheet() {
     );
     // The plain value tone, as the line above it.
     assert_eq!(never, colour("Can spend"));
+}
+
+/// The colour of the drawn line that contains `part`.
+fn ink_of(app: &mut Faraday, part: &str) -> String {
+    use faraday_draw::canvas::InkKind;
+    app.drawn_ink()
+        .into_iter()
+        .find_map(|i| match i.kind {
+            InkKind::Text { text, color, .. } if text.contains(part) => Some(format!("{color:?}")),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("{part} is not drawn"))
+}
+
+#[test]
+fn a_recovery_wallets_copies_are_due_at_its_margin_and_i_moved_every_coin_dates_the_coins() {
+    // A wait of 52 560 blocks: the margin is 328 days, under 12 months.
+    let (mut app, w) = recovery_with_vault(52_560);
+    clock_kept(&mut app);
+    mark_both(&mut app, w);
+    card(&mut app, w);
+    assert!(shown(&mut app, "Every place checked in the last 328 days"));
+    assert!(!shown(&mut app, "Coins last moved"));
+    app.press(Action::Chart(C::Moved(Press::Loaded(w))));
+    card(&mut app, w);
+    assert!(shown(&mut app, "Coins last moved"));
+    assert!(shown(&mut app, "today · the wait ends at about 365 days"));
+    // The date is in the vault: it survives a lock and an unlock.
+    let (outbox, _) = saved_at_lock(&mut app);
+    let (name, _) = vault_file(outbox.clone());
+    let mut app = unlocked_again(outbox, &[&name], 0);
+    app.press(Action::Vault(V::LoadTicked));
+    let w = (0..2)
+        .find(|&i| {
+            card(&mut app, i);
+            shown(&mut app, "Spend paths")
+        })
+        .expect("the recovery wallet is loaded");
+    assert!(shown(&mut app, "today · the wait ends at about 365 days"));
+    // The warning tone from the margin on, not before.
+    set_clock(&mut app, "2027-08-26");
+    card(&mut app, w);
+    assert!(shown(&mut app, "10 months ago · the wait"));
+    assert_eq!(
+        ink_of(&mut app, "10 months ago · the wait"),
+        ink_of(&mut app, "Any time")
+    );
+    set_clock(&mut app, "2027-08-27");
+    card(&mut app, w);
+    assert!(shown(&mut app, "10 months ago · the wait"));
+    assert_ne!(
+        ink_of(&mut app, "10 months ago · the wait"),
+        ink_of(&mut app, "Any time")
+    );
+}
+
+#[test]
+fn with_no_vault_open_the_action_reads_open_a_vault_to_keep_this_and_holds_nothing() {
+    // A plan made with no vault open, the clock checked.
+    let mut app = crate::chart_edit::desktop();
+    let w = one_key_wait(&mut app, "", Some(52_560));
+    planned(&mut app, w, 2);
+    clock_kept(&mut app);
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    assert!(shown(&mut app, "Open a vault to keep this"));
+    assert!(!shown(&mut app, "I moved every coin"));
+    app.press(Action::Chart(C::Moved(Press::Loaded(w))));
+    // Nothing was held: with a vault open there is no date.
+    fresh_vault(&mut app);
+    card(&mut app, w);
+    assert!(shown(&mut app, "I moved every coin"));
+    assert!(!shown(&mut app, "Coins last moved"));
+}
+
+#[test]
+fn with_the_clock_not_checked_the_card_offers_set_the_time_until_it_is_set() {
+    let (mut app, w) = recovery_with_vault(52_560);
+    card(&mut app, w);
+    assert!(app.offers(Action::OpenSetTime));
+    assert!(!app.offers(Action::Chart(C::Moved(Press::Loaded(w)))));
+    assert!(!shown(&mut app, "I moved every coin"));
+    clock_kept(&mut app);
+    card(&mut app, w);
+    assert!(shown(&mut app, "I moved every coin"));
+    app.press(Action::Chart(C::Moved(Press::Loaded(w))));
+    card(&mut app, w);
+    assert!(shown(&mut app, "today · the wait ends at about 365 days"));
+}
+
+#[test]
+fn a_recovery_wallet_with_no_plan_has_no_i_moved_every_coin() {
+    let mut app = crate::wallet_paths::with(crate::wallet_paths::YEAR);
+    let _ = app.frame();
+    assert!(shown(&mut app, "Spend paths"));
+    assert!(!shown(&mut app, "I moved every coin"));
+    assert!(!shown(&mut app, "Set the time"));
+    assert!(!shown(&mut app, "Open a vault to keep this"));
+}
+
+#[test]
+fn the_moved_note_round_trips_and_a_malformed_one_is_refused() {
+    use faraday_core::plan::Note;
+    let n = Note::Moved("2026-10-03".to_string());
+    assert_eq!(n.to_text(), "moved 2026-10-03");
+    assert_eq!(Note::from_text(&n.to_text(), 1), Some(n));
+    for bad in [
+        "moved",
+        "moved ",
+        "moved yesterday",
+        "moved 2026-13-01",
+        "moved 2026-10-03 extra",
+        "moved 2026-10-03 x y",
+    ] {
+        assert_eq!(Note::from_text(bad, 1), None, "{bad}");
+    }
 }

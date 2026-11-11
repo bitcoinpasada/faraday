@@ -131,6 +131,8 @@ pub enum ChartAction {
     Checked(Press, u8),
     /// Key k's holder confirmed its backup today.
     KeyChecked(Press, u8),
+    /// Every coin of the wallet moved today.
+    Moved(Press),
     /// Thing j of the place being removed goes to place p, or [`OFF`].
     Dest(u8, u8),
     /// Keep the name typed.
@@ -172,7 +174,7 @@ pub(crate) struct View {
     pub addresses: Option<usize>,
     /// A wallet's spend paths and the margin: label and value, each a
     /// fact under the **Spend paths** heading.
-    pub paths: Vec<(String, String)>,
+    pub paths: Vec<(String, String, Paint)>,
 }
 
 impl View {
@@ -415,7 +417,27 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 && let Some(wl) = app.session.wallets.get(w)
             {
                 for (label, value) in crate::wallet::paths::rows(wl.waits()) {
-                    v.paths.push((label, value));
+                    v.paths.push((label, value, Role::OnSurface.paint()));
+                }
+                if let Some((value, warn)) = &g.moved {
+                    let tone = if *warn {
+                        Role::Warning
+                    } else {
+                        Role::OnSurface
+                    };
+                    v.paths.push((
+                        EN.wallet_coins_last_moved.to_string(),
+                        value.clone(),
+                        tone.paint(),
+                    ));
+                }
+                if g.waits && !g.clock {
+                    rows.push(row(EN.glance_set_the_time, "", Some(Action::OpenSetTime)));
+                } else if g.waits {
+                    rows.push(keeping(
+                        EN.wallet_coins_i_moved,
+                        chart_do(ChartAction::Moved(press)),
+                    ));
                 }
             }
             v.groups = vec![(String::new(), rows)];
@@ -1583,8 +1605,8 @@ fn body(
             Role::OnSurfaceVariant,
             EN.wallet_paths_heading,
         ) + tokens::GAP;
-        for (label, value) in &v.paths {
-            cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
+        for (label, value, tone) in &v.paths {
+            cy += crate::compact::kv(ui, x, cy, iw, label, value, *tone);
         }
     }
     for (line, tone) in &v.lines {
@@ -1831,6 +1853,7 @@ impl Faraday {
             ChartAction::Mark(press, n, j, m) => self.chart_mark(press, n, j, m),
             ChartAction::Checked(press, n) => self.chart_checked(press, n),
             ChartAction::KeyChecked(press, k) => self.chart_key_checked(press, k),
+            ChartAction::Moved(press) => self.chart_moved(press),
             ChartAction::Dest(j, p) => {
                 let j = usize::from(j);
                 if self.glance.work_mut().dest.len() <= j {

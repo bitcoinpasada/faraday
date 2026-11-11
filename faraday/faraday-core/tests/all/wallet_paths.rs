@@ -10,7 +10,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use crate::common::texts;
 
 /// A session on a desktop window with `miniscript` loaded as a wallet.
-fn with(miniscript: &str) -> Faraday {
+pub(crate) fn with(miniscript: &str) -> Faraday {
     let mut app = Faraday::new();
     testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
@@ -48,7 +48,7 @@ fn screen(app: &mut Faraday) -> String {
     texts(app).join(" ")
 }
 
-const YEAR: &str = "wsh(or_d(pk(@A),and_v(v:pkh(@B),older(52560))))";
+pub(crate) const YEAR: &str = "wsh(or_d(pk(@A),and_v(v:pkh(@B),older(52560))))";
 
 #[test]
 fn a_wallet_with_a_wait_states_its_paths_and_the_margin() {

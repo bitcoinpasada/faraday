@@ -621,6 +621,10 @@ pub(super) fn note_read(s: &str) -> Option<Note> {
         "exposed" => Note::Marked(at_read(a)?, what_read(b)?, Mark::Exposed),
         "holder" => Note::Holder(fp_read(a)?, after(2)),
         "vaultname" => Note::VaultName(a.parse().ok()?, after(2)),
+        // A date alone: anything else is refused.
+        "moved" if b.is_empty() && rest.is_empty() && crate::glance::age::is_date(a) => {
+            Note::Moved(a.to_string())
+        }
         _ => return None,
     })
 }

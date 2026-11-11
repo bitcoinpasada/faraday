@@ -142,3 +142,27 @@ pub(crate) fn sheet_lines(spend: &Waits) -> String {
     ));
     out
 }
+
+/// The **Coins last moved** row of a wallet whose coins were moved on
+/// `date` (`docs/BACKUP-FLOW.md` §18.4): the age and where the shortest
+/// wait ends, and whether it is in the warning tone, the age in days having
+/// reached the margin. With the clock not checked, the date alone and
+/// never the warning.
+pub(crate) fn moved_row(date: &str, today: &str, s: Shortest) -> (String, String, bool) {
+    let label = EN.wallet_coins_last_moved.to_string();
+    let (Some(age), Some(days)) = (
+        crate::glance::age_text(date, today),
+        crate::glance::age::age_days(date, today),
+    ) else {
+        return (label, date.to_string(), false);
+    };
+    let template = match s.lock {
+        Lock::Blocks(_) => EN.wallet_coins_moved_about,
+        _ => EN.wallet_coins_moved,
+    };
+    (
+        label,
+        fill(template, &[&age, &s.days.to_string()]),
+        days >= i64::from(s.margin),
+    )
+}

@@ -74,7 +74,7 @@ fn one_key_pass(app: &mut Faraday, pass: &str) -> usize {
 
 /// [`one_key_pass`], the wallet a recovery wallet whose second key waits
 /// `blocks` blocks when there is a wait.
-fn one_key_wait(app: &mut Faraday, pass: &str, blocks: Option<u32>) -> usize {
+pub(crate) fn one_key_wait(app: &mut Faraday, pass: &str, blocks: Option<u32>) -> usize {
     let c = testkit::compute();
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
@@ -135,7 +135,7 @@ pub(crate) fn settle(app: &mut Faraday, until: impl Fn(&Faraday) -> bool) {
 }
 
 /// A vault made and unlocked, with the passphrase "test phrase".
-fn fresh_vault(app: &mut Faraday) {
+pub(crate) fn fresh_vault(app: &mut Faraday) {
     for i in 0..8u8 {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x40 + i; 32],
@@ -157,7 +157,7 @@ fn fresh_vault(app: &mut Faraday) {
 
 /// The backup of wallet `w` planned with preset `preset` and its
 /// checklist made; then the wallet's card.
-fn planned(app: &mut Faraday, w: usize, preset: u8) {
+pub(crate) fn planned(app: &mut Faraday, w: usize, preset: u8) {
     app.press(Action::Backup(w));
     preset_saved(app, preset);
     app.press(Action::BChecklist);
