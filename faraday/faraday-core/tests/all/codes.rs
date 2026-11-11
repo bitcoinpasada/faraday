@@ -137,7 +137,7 @@ fn making_at(bip87: bool) -> (Faraday, String) {
     }
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     app.press(Action::CNext(0));
     if bip87 {
         let _ = app.frame();

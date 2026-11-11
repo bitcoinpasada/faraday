@@ -4,13 +4,14 @@ use super::{NAME, c32, c32_type, fresh_session, kind_at, open_item, vault_made, 
 use crate::tour::Tour;
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::codex32::{C32, OskPress, WAYS, Way as C32Way};
-use faraday_core::create::NewKind;
+use faraday_core::create::{BackupForm, NewKind};
+use faraday_core::keygen::Start;
 use faraday_core::{Action, Screen, cstep};
 use faraday_crypto::work::Compute;
 
 /// Costs what making a codex32 set and its wallet costs. §4.11: Make a
-/// new wallet, Single key, backup in shares at 2 of 3:
-/// Quorum, Keys, its slot opening Make codex32 shares on the identifier,
+/// new wallet, Single key, its Backup card on Shares (codex32), New key's
+/// Start on Make a new key · Codex32, Scheme at 2 of 3, the identifier,
 /// vector 2's characters typed and its three strings typed back, Strings
 /// made, Lock in; Check; the board's standard way; the checklist's
 /// codex32 item.
@@ -18,13 +19,19 @@ pub(super) fn shares_backup(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::{bstep, plan};
     fresh_session(t);
     t.press(Action::CreateWallet);
-    // Kind opens with this kind ticked; pressed, it moves on (F103).
-    t.press(Action::CKind(kind_at(NewKind::Shares)?));
-    t.shot_marking("4-11-quorum", Action::CNext(cstep::QUORUM))?;
-    t.press(Action::CNext(cstep::QUORUM));
+    // A row pressed moves on (F103): Kind, then Backup.
+    t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
+    let shares = Action::CBackupForm(BackupForm::Codex32.index());
+    t.shot_marking("4-11-backup", shares)?;
+    t.press(shares);
     t.press(Action::CVaults(false));
-    t.shot_marking("4-11-keys", Action::KeyGen(Some(0)))?;
-    t.press(Action::KeyGen(Some(0)));
+    // With no key loaded, Keys is passed over: New key opens on Start.
+    let make = Action::KStart(Start::MakeCodex32.index());
+    t.shot_marking("4-11-start", make)?;
+    t.press(make);
+    // Scheme at its first split, 2 of 3, 48 characters.
+    t.shot("4-11-scheme")?;
+    c32(t, C32::Next);
     t.shot("4-11-identifier")?;
     c32_type(t, "name");
     c32(t, C32::Next);

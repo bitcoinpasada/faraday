@@ -7,8 +7,7 @@
 
 **Opened from:** **Add a key** on Wallets and on Tools; Tools' tiles for
 one form (**SLIP-39 shares**, **Restore from SLIP-39**, "codex32",
-**Seed XOR**), each opening with that choice made; **New key** or
-**Make codex32 shares** on a slot of [Make a new wallet](make-a-wallet.md#keys);
+**Seed XOR**), each opening with that choice made; **New key** on a slot of [Make a new wallet](make-a-wallet.md#keys);
 **Make a new key** on the [typing page](add-a-key.md). With a stick
 attached, [Pull the stick](prompts.md#pull-the-stick) opens first.
 
@@ -50,6 +49,15 @@ Open at first, with no choice ticked: a choice is pressed to go on.
 | **Other forms** | a press opens the list: **Make SLIP-39 shares**, **Type SLIP-39 shares**, **Type Seed XOR parts** |
 
 A choice moves on to the next card by itself. **Change** on Start opens it again with the choice made ticked.
+
+Opened for a slot of Make a new wallet, Start offers fewer ways to make a key:
+
+| Slot | Under **Make a new key** |
+|---|---|
+| a single key's | the form its **Backup** card chose: **BIP-39 words** for **Words (BIP-39)**, **Codex32** for **Shares (codex32)** |
+| a multisig cosigner's | **BIP-39 words** only; **Make SLIP-39 shares** is not offered either |
+
+Every way to add a key you have is offered for both. In a single key's slot **Make SLIP-39 shares** stays under **Other forms**. On its own (Tools, Add a key) every choice is offered. **Change** on Start opens the same list.
 
 ## Length
 
@@ -167,16 +175,12 @@ For SLIP-39 shares, each share in turn: **Share**, "1 of 3 · 2 needed",
 
 ## Make codex32 shares
 
-**Opened from:** **Codex32** on Start, and **Make codex32 shares** on a
-slot of a single-key wallet backed up in shares. From Make a new wallet
-with **Use vaults** answered **No**, the page opens as **New key** with
-**Start** and **Scheme** already filled from the wallet's quorum, on
-**Identifier**. **Make the rest** and **Add a share** on the typing page
+**Opened from:** **Codex32** on Start, which a single key's slot offers when its **Backup** card chose **Shares (codex32)**. It opens on **Scheme**; for a wallet's key **Scheme** has no **None, the secret alone**, and **Lock in** fills the slot, makes the wallet and opens **Check**. **Make the rest** and **Add a share** on the typing page
 open the same cards on strings typed in.
 
 ![New key on Identifier: four empty boxes, Suggest and the codex32 keyboard, the cards Entropy, Characters and Worksheets after it](../pictures/4-11-identifier.png)
 
-*New key from Make a new wallet: **Start** reads "Make a new key · Codex32", **Scheme** "48 characters · 2 of 3", and **Identifier** is open on the codex32 keyboard with **Suggest**.*
+*New key from Make a new wallet: **Start** reads "Make a new key · Codex32", **Scheme** "48 characters · 2 of 3" (chosen with **Continue**), and **Identifier** is open on the codex32 keyboard with **Suggest**.*
 
 | Card | Controls |
 |---|---|

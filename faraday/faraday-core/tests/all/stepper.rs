@@ -106,7 +106,7 @@ fn quorum() -> Faraday {
         .iter()
         .position(|k| *k == NewKind::Multi)
         .unwrap();
-    app.press(Action::CKind(multi as u8));
+    crate::common::ckind(&mut app, multi as u8);
     tick(&mut app, 1000);
     app.settle();
     let _ = app.frame();

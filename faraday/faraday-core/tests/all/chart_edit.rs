@@ -509,9 +509,7 @@ fn move_money_opens_kind_with_no_kind_ticked_and_next_waits_for_one() {
     let texts = app.drawn_texts();
     assert!(
         texts.iter().position(|t| t == "Single key · native SegWit")
-            < texts
-                .iter()
-                .position(|t| t == "Single key, backup in shares (codex32)"),
+            < texts.iter().position(|t| t == "Multisig · native SegWit"),
         "the rows in the same order: {texts:?}"
     );
     app.press(Action::CNext(cstep::KIND));
@@ -545,18 +543,17 @@ fn create_from_home_ticks_no_kind_until_a_row_is_pressed() {
     let texts = app.drawn_texts();
     let at = |s: &str| texts.iter().position(|t| t == s);
     assert!(
-        at("Single key · native SegWit") < at("Multisig · native SegWit")
-            && at("Multisig · native SegWit") < at("Single key, backup in shares (codex32)"),
+        at("Single key · native SegWit") < at("Multisig · native SegWit"),
         "the rows in order: {texts:?}"
     );
-    let shares = NewKind::ALL
-        .iter()
-        .position(|k| *k == NewKind::Shares)
-        .unwrap() as u8;
-    app.press(Action::CKind(shares));
+    assert!(
+        at("Single key, backup in shares (codex32)").is_none(),
+        "no shares kind: {texts:?}"
+    );
+    app.press(Action::CKind(0));
     let c = app.create().unwrap();
-    assert_eq!((c.kind, c.kind_unchosen), (NewKind::Shares, false));
-    assert_eq!(c.open, Some(cstep::QUORUM));
+    assert_eq!((c.kind, c.kind_unchosen), (NewKind::NativeSegwit, false));
+    assert_eq!(c.open, Some(cstep::BACKUP_FORM));
 }
 
 #[test]

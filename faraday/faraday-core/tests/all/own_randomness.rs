@@ -1584,8 +1584,7 @@ fn unseeded_desktop() -> Faraday {
 #[test]
 fn before_the_seed_suggest_waits_and_gives_an_identifier_when_it_arrives() {
     use faraday_core::codex32::C32;
-    let mut app = crate::create_shares::on_quorum_of(unseeded_desktop());
-    crate::create_shares::on_keys(&mut app);
+    let mut app = crate::create_shares::on_identifier_of(unseeded_desktop());
     let suggest = Action::Codex32(C32::Suggest);
     app.press(suggest);
     assert!(app.waits_for_randomness(suggest), "it draws, so it waits");
@@ -1599,17 +1598,14 @@ fn before_the_seed_suggest_waits_and_gives_an_identifier_when_it_arrives() {
 
 #[test]
 fn before_the_seed_suggest_with_the_strings_entered_is_not_waited_on() {
-    use crate::create_shares::{key, on_quorum_of};
+    use crate::create_shares::{key, on_identifier_of};
     use faraday_core::codex32::{C32, WAYS, Way};
     let all = [
         "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
         "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
         "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg",
     ];
-    let mut app = on_quorum_of(unseeded_desktop());
-    app.press(Action::CNext(faraday_core::cstep::QUORUM));
-    app.press(Action::CVaults(false));
-    app.press(Action::KeyGen(Some(0)));
+    let mut app = on_identifier_of(unseeded_desktop());
     for ch in "name".chars() {
         key(&mut app, ch);
     }

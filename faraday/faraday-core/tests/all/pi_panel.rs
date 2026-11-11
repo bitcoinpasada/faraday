@@ -814,17 +814,17 @@ fn kind_rows(rig: &mut Rig, what: &str, card: Action, more: Action) -> Vec<u8> {
 /// Make a new wallet's single key with its backup in shares, at 2 of 3:
 /// Make codex32 shares opened for its key, on the identifier.
 fn to_codex32_from_create(rig: &mut Rig) {
-    use faraday_core::create::NewKind;
-    use faraday_core::cstep;
-    let shares = NewKind::ALL
-        .iter()
-        .position(|k| *k == NewKind::Shares)
-        .unwrap();
+    use faraday_core::create::BackupForm;
     rig.press(Action::Nav(Screen::WalletsStart));
     rig.press(Action::CreateWallet);
-    rig.press(Action::CKind(shares as u8));
-    rig.press(Action::CNext(cstep::QUORUM));
+    rig.press(Action::CKind(0));
+    rig.press(Action::CBackupForm(BackupForm::Codex32.index()));
     rig.press(Action::CVaults(false));
+    // New key's Start, then Scheme at its first split: Identifier opens.
+    rig.press(Action::KStart(
+        faraday_core::keygen::Start::MakeCodex32.index(),
+    ));
+    rig.press(Action::Codex32(faraday_core::codex32::C32::Next));
     rig.settle();
 }
 
@@ -1242,6 +1242,9 @@ fn tap(rig: &mut Rig, a: Action) {
 fn new_key_from_create(rig: &mut Rig) {
     rig.press(Action::CreateWallet);
     rig.press(Action::CKind(0));
+    rig.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     rig.press(Action::KeyGen(Some(0)));
     rig.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     rig.press(Action::KWords(12));

@@ -1,8 +1,8 @@
 //! `Screen::Create`: creating a wallet.
 
 use super::parts::{
-    buttons_and_next, descriptor_row, first_addresses, kind_list, locked_tag, never_real_seed,
-    next_button, pass_field, stepper, vaults_answer_line,
+    OptionRow, buttons_and_next, descriptor_row, first_addresses, kind_list, locked_tag,
+    never_real_seed, next_button, option_list, pass_field, stepper, vaults_answer_line,
 };
 use super::pass_pair::{self, pass_pair};
 use crate::drawing::{Scrolled, View};
@@ -27,6 +27,7 @@ pub(crate) const CSTEPS: [&str; crate::cstep::COUNT] = [
     EN.backup_flow_card_vaults,
     // Sticks and vaults: named by the medium where it is drawn.
     "",
+    EN.create_backup,
 ];
 
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -54,7 +55,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             mono: false,
             done: app.create_card_done(k),
             open: c.open == Some(k),
-            default: k == cstep::KIND || k == cstep::QUORUM || k == cstep::WHERE,
+            default: k == cstep::KIND
+                || k == cstep::QUORUM
+                || k == cstep::BACKUP_FORM
+                || k == cstep::WHERE,
             toggle: Action::CStep(k),
             // Only the open card shows its walk-through: the others make none.
             guide: (c.open == Some(k))
@@ -95,26 +99,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     app.scroll(Scrolled::Create, next, again);
 }
 
-/// The walk-through of Make a new wallet's card `k`: Single key, backup
-/// in shares has its own on Quorum and Keys (`docs/CODEX32.md` §6.9).
+/// The walk-through of Make a new wallet's card `k`: the Backup card has
+/// its own (F240).
 fn create_guide(k: u8, c: &crate::CreateState, medium: crate::medium::Medium) -> String {
     use crate::cstep;
     match k {
-        cstep::QUORUM if c.kind.shares() => fill(
-            EN.create_guide_shares_quorum,
-            &[&c.share_k.to_string(), &c.share_n.to_string()],
-        ),
-        cstep::KEYS if c.kind.shares() => EN.create_guide_shares_keys.to_string(),
+        cstep::BACKUP_FORM => EN.create_guide_backup.to_string(),
         _ => guide::create(k, c.kind, c.m, c.n, medium),
     }
 }
 
-/// The Learn page under card `k`'s walk-through: codex32 is on Other
-/// backups.
+/// The Learn page under card `k`'s walk-through: the Backup card's is
+/// Other backups, where codex32 is.
 fn create_topic(k: u8, kind: crate::create::NewKind) -> Option<crate::learn::Topic> {
     use crate::cstep;
     match k {
-        cstep::QUORUM | cstep::KEYS if kind.shares() => Some(crate::learn::Topic::OtherBackups),
+        cstep::BACKUP_FORM => Some(crate::learn::Topic::OtherBackups),
         _ => guide::create_topic(k, kind),
     }
 }
@@ -133,10 +133,10 @@ fn card_summary(app: &View, k: u8, filled: usize) -> String {
         }
         cstep::KIND if c.kind_unchosen => EN.create_not_answered.to_string(),
         cstep::KIND => c.kind.name().to_string(),
-        cstep::QUORUM if c.kind.shares() => fill(
-            EN.create_threshold,
-            &[&c.share_k.to_string(), &c.share_n.to_string()],
-        ),
+        cstep::BACKUP_FORM => c
+            .backup
+            .map_or(EN.create_not_answered, crate::create::BackupForm::name)
+            .to_string(),
         cstep::QUORUM => fill(EN.create_threshold, &[&c.m.to_string(), &c.n.to_string()]),
         cstep::KEYS => match app.create_waiting() {
             0 => fill(
@@ -296,15 +296,10 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     match n {
         cstep::KIND => {
             // A row pressed moves on, the ticked one too: no Continue.
-            let shown =
-                crate::create::NewKind::create_rows(c.more_kinds, crate::create::MAKE_OFFERED);
+            let shown = crate::create::NewKind::create_rows(c.more_kinds);
             let rows: Vec<(usize, String)> = shown
                 .into_iter()
-                .map(|i| {
-                    let line = crate::create::NewKind::ALL[i]
-                        .create_line((c.m, c.n), (c.share_k, c.share_n));
-                    (i, line)
-                })
+                .map(|i| (i, crate::create::NewKind::ALL[i].create_line((c.m, c.n))))
                 .collect();
             let more = (!c.more_kinds).then_some(Action::CMoreKinds);
             // From Move money no kind is ticked: the person chooses
@@ -317,7 +312,22 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += buttons_and_next(ui, x, cy, w, &over, None);
             }
         }
-        cstep::QUORUM if c.kind.shares() => cy += shares_quorum(ui, x, cy, w, c),
+        // A single key's backup: a row pressed moves on, the ticked one
+        // too (F103); "codex32" in the Shares row's name carries the one
+        // tooltip on a working screen (F112, F240).
+        cstep::BACKUP_FORM => {
+            let rows: Vec<OptionRow> = crate::create::BackupForm::offered()
+                .into_iter()
+                .map(|f| OptionRow {
+                    name: f.name(),
+                    line: f.line().to_string(),
+                    on: c.backup == Some(f),
+                    action: Action::CBackupForm(f.index()),
+                    tip: f == crate::create::BackupForm::Codex32,
+                })
+                .collect();
+            cy += option_list(ui, (x, cy, w), &rows, None, !locked);
+        }
         cstep::QUORUM => {
             // MuSig2 is every key: only the count is chosen.
             let rows: &[(&str, usize, Action, Action)] = if c.kind.all_sign() {
@@ -447,15 +457,9 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             i != slot && matches!(s, Source::Cosigner(t) if t == text)
                         })
                     };
-                    // The choices for the slot, wrapped to the card. A
-                    // backup in shares has one way in: its key is made
-                    // as the scheme's codex32 shares (`docs/CODEX32.md`
-                    // §6.9).
+                    // The choices for the slot, wrapped to the card.
                     let mut row: Vec<(String, Style, Action)> = Vec::new();
                     for k in &app.session.keys {
-                        if c.kind.shares() {
-                            continue;
-                        }
                         let fp = k.fingerprint;
                         if used_elsewhere_here(fp.0) {
                             continue;
@@ -468,12 +472,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         ));
                     }
                     row.push((
-                        (if c.kind.shares() {
-                            EN.create_make_codex32_shares
-                        } else {
-                            EN.create_new_key
-                        })
-                        .to_string(),
+                        EN.create_new_key.to_string(),
                         if first_empty == Some(slot) {
                             Style::Primary
                         } else {
@@ -481,8 +480,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         },
                         Action::KeyGen(Some(slot as u8)),
                     ));
-                    let files = !c.kind.shares();
-                    for (i, name, text) in key_files.iter().filter(|_| files) {
+                    for (i, name, text) in &key_files {
                         if used_elsewhere_cosigner(text) {
                             continue;
                         }
@@ -526,9 +524,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     }
                     cy += button_rows(ui, x + indent, cy, w - indent, &row) - 44.0;
                     cy += 44.0;
-                    if !c.kind.shares() {
-                        cy += create_vault_rows(app, ui, &vaults, slot, x + indent, cy, w - indent);
-                    }
+                    cy += create_vault_rows(app, ui, &vaults, slot, x + indent, cy, w - indent);
                     // A key held here goes out to the cosigners, who need
                     // it to make the same wallet.
                     if c.kind.multi() && matches!(src, Source::Here(_)) {
@@ -662,9 +658,10 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(c.built.unwrap_or(0)));
                 cy += path_row(ui, x, cy, w, &c.path, app.create_can_take_back());
                 cy += super::parts::key_path_line(app, ui, (x, cy, w), wl.policy());
-                // Single key, backup in shares: the set its key was made
-                // as (`docs/CODEX32.md` §6.9).
-                if let Some(set) = c.shares_set.as_ref().filter(|_| c.kind.shares()) {
+                // A single key made here as codex32 shares, whatever its
+                // address type: the set it was made as (F240,
+                // `docs/CODEX32.md` §6.9).
+                if let Some(set) = c.built.and_then(|i| app.create_shares_set(i)) {
                     cy += change_row(ui, x, cy, w, EN.create_backup, &set.line(), None);
                 }
                 cy += first_addresses(app, ui, c.built.unwrap_or(0), x, cy, w);
@@ -721,63 +718,6 @@ fn check_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, checked: bool) ->
         &left,
         Some((EN.create_back_up_button, Action::CBackup)),
     )
-}
-
-/// Single key, backup in shares' Quorum: the codex32 scheme, How many to
-/// rebuild it (2 to 9) and How many shares (k to 31), as Make codex32
-/// shares' Other asks them; the line of fact under them, the Account row
-/// at the foot (F98) and Continue (`docs/CODEX32.md` §6.9). Returns its
-/// height.
-fn shares_quorum(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::CreateState) -> f32 {
-    let locked = c.built.is_some();
-    let mut cy = y;
-    let rows = [
-        (
-            EN.create_shares_rebuild,
-            c.share_k,
-            Action::CM(-1),
-            Action::CM(1),
-        ),
-        (
-            EN.create_shares_count,
-            c.share_n,
-            Action::CN(-1),
-            Action::CN(1),
-        ),
-    ];
-    for (label, value, minus, plus) in rows {
-        stepper(
-            ui,
-            x,
-            cy,
-            w,
-            label,
-            usize::from(value),
-            minus,
-            plus,
-            !locked,
-        );
-        cy += tokens::STEPPER_ROW;
-    }
-    let line = fill(
-        EN.create_shares_any,
-        &[&c.share_k.to_string(), &c.share_n.to_string()],
-    );
-    cy += ui.wrap_as((x, cy, w), BODY_M, Role::OnSurface, &line) + tokens::PAD;
-    if c.account_card() == Some(crate::cstep::QUORUM) {
-        cy += account_row(ui, x, cy, w, c);
-    }
-    if next_button(
-        ui,
-        x,
-        cy,
-        w,
-        EN.create_continue,
-        Action::CNext(crate::cstep::QUORUM),
-    ) {
-        cy += tokens::TOUCH;
-    }
-    cy - y
 }
 
 /// Check's Path row: the made wallet's derivation paths, worked out when

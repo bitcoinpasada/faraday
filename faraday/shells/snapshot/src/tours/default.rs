@@ -882,8 +882,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.sticks(false);
     t.load_kit()?;
     t.press(Action::CreateWallet);
-    // Create opens on Kind (`docs/CODEX32.md` §6.9), the backup in shares
-    // the default; Multisig instead.
+    // Create opens on Kind, nothing ticked: Multisig.
     t.press(Action::CKind(4));
     t.shot("create-kind")?;
     t.press(Action::CNext(0));

@@ -224,7 +224,7 @@ fn key_card() -> Faraday {
         .iter()
         .position(|k| *k == NewKind::Multi)
         .unwrap() as u8;
-    app.press(Action::CKind(at));
+    crate::common::ckind(&mut app, at);
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CNext(faraday_core::cstep::QUORUM));
     app.press(Action::KeyGen(Some(0)));

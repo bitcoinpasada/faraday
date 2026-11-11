@@ -551,7 +551,7 @@ fn a_mix_of_dice_and_coins_is_the_hash_of_both_commitments() {
 fn a_key_made_for_a_create_slot_fills_it() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
     app.press(Action::KeyGen(Some(1)));
@@ -710,7 +710,7 @@ fn slot_flow(multi: bool) -> Faraday {
         NewKind::NativeSegwit
     };
     let at = NewKind::ALL.iter().position(|k| *k == kind).unwrap() as u8;
-    app.press(Action::CKind(at));
+    crate::common::ckind(&mut app, at);
     app.press(Action::CNext(faraday_core::cstep::KIND));
     if multi {
         app.press(Action::CNext(faraday_core::cstep::QUORUM));
@@ -1264,7 +1264,7 @@ fn offers_every_start(app: &mut Faraday) {
 }
 
 #[test]
-fn add_a_key_opens_on_start_offering_every_way_in_and_a_create_slot_offers_the_same() {
+fn add_a_key_opens_on_start_offering_every_way_in_and_a_cosigner_slot_all_but_slip39_making() {
     let mut app = add_a_key();
     let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::START), "Start opens first");
@@ -1279,12 +1279,25 @@ fn add_a_key_opens_on_start_offering_every_way_in_and_a_create_slot_offers_the_s
         .iter()
         .position(|k| *k == NewKind::Multi)
         .unwrap() as u8;
-    app.press(Action::CKind(at));
+    crate::common::ckind(&mut app, at);
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CNext(faraday_core::cstep::QUORUM));
     app.press(Action::KeyGen(Some(0)));
     assert_eq!(app.keygen().unwrap().open, Some(kstep::START));
-    offers_every_start(&mut app);
+    // A cosigner's slot makes BIP-39 words only: no share threshold is
+    // stacked on the quorum (F240).
+    let _ = app.frame();
+    for s in [Start::Make, Start::Words, Start::Scan, Start::Codex32] {
+        assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
+    }
+    app.press(Action::KOthers);
+    let _ = app.frame();
+    for s in [Start::Shares, Start::Xor] {
+        assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
+    }
+    for s in [Start::MakeShares, Start::MakeCodex32] {
+        assert!(!app.offers(Action::KStart(s.index())), "{s:?} is not");
+    }
 }
 
 /// The Randomness card's options a flow offers, every group open.
@@ -1399,7 +1412,7 @@ fn words_typed_for_a_create_slot_fill_the_slot_with_that_key() {
         .iter()
         .position(|k| *k == NewKind::Multi)
         .unwrap() as u8;
-    app.press(Action::CKind(at));
+    crate::common::ckind(&mut app, at);
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CNext(faraday_core::cstep::QUORUM));
     app.press(Action::KeyGen(Some(0)));

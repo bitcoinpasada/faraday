@@ -71,7 +71,7 @@ choice and **Change**. It opens on **Start**, open with no choice ticked:
 
 | Group | Choices |
 |---|---|
-| **Make a new key** | **BIP-39 words** (this guide); **Codex32**, a key made by hand as codex32 shares |
+| **Make a new key** | **BIP-39 words** (this guide); **Codex32**, a key made by hand as codex32 shares. For a slot of Make a new wallet, only the form the **Backup** card chose (a multisig cosigner's slot: **BIP-39 words** only) |
 | **Add a key you have** | **Type the words**, **Scan a SeedQR**, **Type codex32 strings** |
 | **Other forms** (a link that opens the group) | SLIP-39 shares, made here or typed; Seed XOR parts, typed |
 

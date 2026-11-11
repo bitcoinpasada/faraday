@@ -41,24 +41,78 @@ pub enum NewKind {
     /// `tr(musig(…)/<0;1>/*)` over the keys' Taproot accounts (BIP-327,
     /// 328, 390).
     MuSig,
-    /// Single key, backup in shares (`docs/CODEX32.md` §6.9): `wpkh`,
-    /// BIP-84, as Single key is on chain; its key is made as k of n
-    /// codex32 shares, the scheme asked on Quorum.
-    Shares,
 }
 
-/// Whether Make codex32 shares is offered, and with it Make a new
-/// wallet's Single key, backup in shares (`docs/CODEX32.md` §6.9). The
-/// same switch as `codex32::MAKE_OFFERED`, which this one joins.
-pub const MAKE_OFFERED: bool = true;
+/// How a single key made for the wallet is backed up: the Backup card's
+/// answer (F240), which fixes what its slot's New key makes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackupForm {
+    /// BIP-39 words.
+    Words,
+    /// Codex32 shares, k of n (`docs/CODEX32.md` §6.9).
+    Codex32,
+}
+
+impl BackupForm {
+    /// The forms, by their number in `Action::CBackupForm`, in the order
+    /// the Backup card lists them.
+    pub const ALL: [BackupForm; 2] = [BackupForm::Words, BackupForm::Codex32];
+
+    /// The forms the Backup card offers: codex32 only where Make codex32
+    /// shares is (`codex32::MAKE_OFFERED`).
+    pub fn offered() -> Vec<BackupForm> {
+        Self::ALL
+            .into_iter()
+            .filter(|f| *f == BackupForm::Words || crate::codex32::MAKE_OFFERED)
+            .collect()
+    }
+
+    /// Its number in `Action::CBackupForm`.
+    pub fn index(self) -> u8 {
+        Self::ALL.iter().position(|f| *f == self).unwrap_or(0) as u8
+    }
+
+    /// The row's name on the Backup card.
+    pub fn name(self) -> &'static str {
+        match self {
+            BackupForm::Words => EN.create_backup_words,
+            BackupForm::Codex32 => EN.create_backup_codex32,
+        }
+    }
+
+    /// The row's second line: a fact of the row.
+    pub fn line(self) -> &'static str {
+        match self {
+            BackupForm::Words => EN.create_backup_words_line,
+            BackupForm::Codex32 => EN.create_backup_codex32_line,
+        }
+    }
+}
+
+/// The number a kept flow wrote for Single key, backup in shares, a kind
+/// since folded into Single key with a codex32 backup (F240): read as
+/// Single key, native SegWit, its Backup card answered Codex32 shares.
+pub const OLD_SHARES_CODE: u8 = 10;
+
+/// The kind and the Backup card's answer a kept number names: a kind's
+/// own ([`NewKind::from_code`]), or [`OLD_SHARES_CODE`].
+pub fn from_kept_code(code: u8) -> Option<(NewKind, Option<BackupForm>)> {
+    if code == OLD_SHARES_CODE {
+        return Some((NewKind::NativeSegwit, Some(BackupForm::Codex32)));
+    }
+    NewKind::from_code(code).map(|k| (k, None))
+}
 
 /// The create cards a kind shows. Check is the last: its **Back up
 /// wallet** opens Back up on the wallet made, with no card of its own
-/// (owner, 2026-10-26).
+/// (owner, 2026-10-26). A single key asks how its key is backed up, on
+/// Backup, where there is more than one form to choose (F240).
 pub fn create_steps(kind: NewKind) -> Vec<u8> {
     let mut v = vec![cstep::KIND];
-    if kind.multi() || kind.shares() {
+    if kind.multi() {
         v.push(cstep::QUORUM);
+    } else if BackupForm::offered().len() > 1 {
+        v.push(cstep::BACKUP_FORM);
     }
     v.extend([cstep::WHERE, cstep::KEYS, cstep::CHECK]);
     v
@@ -72,7 +126,7 @@ impl NewKind {
     /// a new kind is added at the end, never between. A backup flow kept
     /// across a lock writes a kind by [`NewKind::code`] instead. The Kind
     /// card's order is [`NewKind::CREATE_ROWS`].
-    pub const ALL: [NewKind; 10] = [
+    pub const ALL: [NewKind; 9] = [
         NewKind::NativeSegwit,
         NewKind::Taproot,
         NewKind::NestedSegwit,
@@ -82,15 +136,14 @@ impl NewKind {
         NewKind::MultiLegacy,
         NewKind::TapMulti,
         NewKind::MuSig,
-        NewKind::Shares,
     ];
 
     /// The kind's number in a backup flow kept across a lock, which never
-    /// changes: 8 was a kind since removed (F127) and is read as none.
+    /// changes: 8 was a kind since removed (F127) and is read as none, 10
+    /// a kind since folded into Single key ([`OLD_SHARES_CODE`]).
     pub fn code(self) -> u8 {
         match self {
             NewKind::MuSig => 9,
-            NewKind::Shares => 10,
             k => Self::ALL.iter().position(|x| *x == k).unwrap_or(0) as u8,
         }
     }
@@ -100,35 +153,27 @@ impl NewKind {
         match code {
             0..=7 => Some(Self::ALL[usize::from(code)]),
             9 => Some(NewKind::MuSig),
-            10 => Some(NewKind::Shares),
             _ => None,
         }
     }
 
     /// Make a new wallet's Kind rows, by place in [`NewKind::ALL`], in the
-    /// order shown: Single key, Multisig, then Single key, backup in
-    /// shares (`docs/CODEX32.md` §6.9, owner 2026-11-09), then the others
-    /// behind **More kinds**.
-    pub(crate) const CREATE_ROWS: [usize; 10] = [0, 4, 9, 1, 2, 3, 5, 6, 7, 8];
+    /// order shown: who signs, Single key then Multisig, then the address
+    /// types and MuSig2 behind **More kinds** (F240).
+    pub(crate) const CREATE_ROWS: [usize; 9] = [0, 4, 1, 2, 3, 5, 6, 7, 8];
 
     /// How many of [`NewKind::CREATE_ROWS`] show before **More kinds**.
-    pub(crate) const CREATE_FIRST: usize = 3;
+    pub(crate) const CREATE_FIRST: usize = 2;
 
     /// Make a new wallet's Kind rows as shown, by place in
-    /// [`NewKind::ALL`]: the first three, or with `more` every one, and
-    /// Single key, backup in shares only where `shares_offered`
-    /// ([`MAKE_OFFERED`]).
-    pub fn create_rows(more: bool, shares_offered: bool) -> Vec<usize> {
+    /// [`NewKind::ALL`]: the first two, or with `more` every one.
+    pub fn create_rows(more: bool) -> Vec<usize> {
         let shown = if more {
             &Self::CREATE_ROWS[..]
         } else {
             &Self::CREATE_ROWS[..Self::CREATE_FIRST]
         };
-        shown
-            .iter()
-            .copied()
-            .filter(|&i| shares_offered || !Self::ALL[i].shares())
-            .collect()
+        shown.to_vec()
     }
 
     /// The kind's name on the card.
@@ -143,7 +188,6 @@ impl NewKind {
             NewKind::MultiLegacy => EN.create_multisig_legacy,
             NewKind::TapMulti => EN.create_multisig_taproot,
             NewKind::MuSig => EN.create_all_keys_musig2,
-            NewKind::Shares => EN.create_single_key_shares,
         }
     }
 
@@ -159,21 +203,15 @@ impl NewKind {
             NewKind::MultiLegacy => EN.create_multisig_legacy_line,
             NewKind::TapMulti => EN.create_multisig_taproot_line,
             NewKind::MuSig => EN.create_every_key_signs,
-            NewKind::Shares => EN.create_shares_line_plain,
         }
     }
 
-    /// The second line of the kind's row on Make a new wallet's Kind card
-    /// (`docs/CODEX32.md` §6.9): a fact of the row, with the counts the
-    /// creation holds now: `m` of `n` for a multisig, `k` of `shares` for
-    /// the backup in shares.
-    pub fn create_line(self, (m, n): (usize, usize), (k, shares): (u8, u8)) -> String {
+    /// The second line of the kind's row on Make a new wallet's Kind card:
+    /// a fact of the row, with the counts the creation holds now, `m` of
+    /// `n` for a multisig.
+    pub fn create_line(self, (m, n): (usize, usize)) -> String {
         match self {
             NewKind::NativeSegwit => EN.create_single_key_line.to_string(),
-            NewKind::Shares => fill(
-                EN.create_shares_line,
-                &[&shares.to_string(), &k.to_string()],
-            ),
             NewKind::Multi => fill(EN.create_multisig_line, &[&n.to_string(), &m.to_string()]),
             other => other.line().to_string(),
         }
@@ -213,12 +251,6 @@ impl NewKind {
         )
     }
 
-    /// Whether the one key is made as codex32 shares, its scheme asked on
-    /// Quorum (`docs/CODEX32.md` §6.9).
-    pub fn shares(self) -> bool {
-        self == NewKind::Shares
-    }
-
     /// Whether every key must sign: MuSig2, n of n.
     pub(crate) fn all_sign(self) -> bool {
         self == NewKind::MuSig
@@ -235,7 +267,7 @@ impl NewKind {
     pub fn path(self, network: faraday_bip::keys::Network) -> String {
         let c = network.coin_type();
         match self {
-            NewKind::NativeSegwit | NewKind::Shares => format!("m/84'/{c}'/0'"),
+            NewKind::NativeSegwit => format!("m/84'/{c}'/0'"),
             NewKind::Taproot => format!("m/86'/{c}'/0'"),
             NewKind::NestedSegwit => format!("m/49'/{c}'/0'"),
             NewKind::Legacy => format!("m/44'/{c}'/0'"),
@@ -308,9 +340,7 @@ impl NewKind {
     pub fn spec(self, network: Network, account: u32) -> Result<faraday_keys::Spec, String> {
         use faraday_keys::Spec;
         Ok(match self {
-            NewKind::NativeSegwit | NewKind::Shares => {
-                Spec::Single(ScriptType::NativeSegwit, account)
-            }
+            NewKind::NativeSegwit => Spec::Single(ScriptType::NativeSegwit, account),
             // A MuSig2 participant's key is its Taproot account.
             NewKind::Taproot | NewKind::MuSig => Spec::Single(ScriptType::Taproot, account),
             NewKind::NestedSegwit => Spec::Single(ScriptType::NestedSegwit, account),
@@ -390,7 +420,7 @@ impl NewKind {
             .collect::<Vec<_>>()
             .join(",");
         match self {
-            NewKind::NativeSegwit | NewKind::Shares => format!("wpkh({list})"),
+            NewKind::NativeSegwit => format!("wpkh({list})"),
             NewKind::Taproot => format!("tr({list})"),
             NewKind::NestedSegwit => format!("sh(wpkh({list}))"),
             NewKind::Legacy => format!("pkh({list})"),
@@ -598,9 +628,6 @@ impl Faraday {
         let Some((kind, bip87)) = self.create.state().map(|c| (c.kind, c.at_bip87())) else {
             return std::rc::Rc::default();
         };
-        if kind.shares() {
-            return std::rc::Rc::default();
-        }
         std::rc::Rc::new(
             self.inbox
                 .iter()
@@ -623,12 +650,11 @@ impl Faraday {
 /// kind's derivation (any account; with `bip87`, BIP-87's instead), its path's coin type that of its
 /// xpub's network, and in a file of one key a SLIP-132 version, where it
 /// has one, naming the kind's script type. A key with no origin, or at another path, is never taken
-/// for the slot: its path would be a guess. None for Single key, backup
-/// in shares, whose key is made here as codex32 shares, and for the kinds
-/// whose keys are dealt here.
+/// for the slot: its path would be a guess. None for the kinds whose
+/// keys are dealt here.
 pub fn key_for_slot(kind: NewKind, bip87: bool, text: &str) -> Result<String, String> {
     let none = || fill(EN.create_scan_no_key, &[kind.name()]);
-    if kind.shares() || path_shape(&kind.path(Network::Mainnet)).is_none() {
+    if path_shape(&kind.path(Network::Mainnet)).is_none() {
         return Err(none());
     }
     let keys = read_keys(text);
@@ -752,15 +778,13 @@ pub(crate) fn at_kind(kind: NewKind, key: &str, bip87: bool) -> bool {
         }
 }
 
-/// The script type a `kind` wallet's keys are written under; `None` for
-/// the kinds whose keys are made here.
+/// The script type a `kind` wallet's keys are written under.
 fn kind_script(kind: NewKind) -> Option<ScriptType> {
     match kind {
         NewKind::NativeSegwit | NewKind::Multi => Some(ScriptType::NativeSegwit),
         NewKind::NestedSegwit | NewKind::MultiNested => Some(ScriptType::NestedSegwit),
         NewKind::Legacy | NewKind::MultiLegacy => Some(ScriptType::Legacy),
         NewKind::Taproot | NewKind::TapMulti | NewKind::MuSig => Some(ScriptType::Taproot),
-        NewKind::Shares => None,
     }
 }
 
@@ -810,7 +834,7 @@ pub(crate) fn key_of_wallet(
 fn named_agrees(kind: NewKind, text: &str) -> bool {
     use slip132::Script;
     let around = match kind {
-        NewKind::NativeSegwit | NewKind::Shares => Script::NativeSegwit,
+        NewKind::NativeSegwit => Script::NativeSegwit,
         NewKind::NestedSegwit => Script::NestedSegwit,
         NewKind::Legacy => Script::Legacy,
         NewKind::Multi => Script::NativeMultisig,
@@ -862,8 +886,8 @@ pub(crate) fn paths_text(policy: &WalletPolicy) -> String {
     }
 }
 
-/// What Make a new wallet keeps of the codex32 set its key was made as
-/// (`docs/CODEX32.md` §6.9, §9.4): plain facts, no string. Check shows
+/// What Make a new wallet keeps of the codex32 set a single key was made
+/// as (`docs/CODEX32.md` §6.9, §9.4): plain facts, no string. Check shows
 /// it, and Back up is handed it for the wallet made.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SharesSet {
@@ -923,13 +947,10 @@ pub struct CreateState {
     pub m: usize,
     /// Keys.
     pub n: usize,
-    /// Single key, backup in shares: how many strings rebuild the key,
-    /// 2 to 9 (`docs/CODEX32.md` §6.9).
-    pub share_k: u8,
-    /// Single key, backup in shares: how many strings are made, `share_k`
-    /// to 31.
-    pub share_n: u8,
-    /// The codex32 set the slot's key was made as, from Make codex32
+    /// A single key's Backup card: how its key is backed up, `None` until
+    /// a row is pressed (F240). What its slot's New key makes.
+    pub backup: Option<BackupForm>,
+    /// The codex32 set a single key's slot was made as, from Make codex32
     /// shares' Lock in; Check's Backup row, and what Back up is handed.
     pub shares_set: Option<SharesSet>,
     /// Where each key comes from.
@@ -1093,9 +1114,6 @@ impl CreateArea {
                         c.n = c.n.clamp(2, c.kind.max_keys());
                         c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
                     }
-                    if c.kind.shares() && c.share_k < 2 {
-                        (c.share_k, c.share_n) = (2, 3);
-                    }
                     let n = if c.kind.multi() { c.n } else { 1 };
                     c.slots.resize(n, create::Source::Empty);
                     c.slots.truncate(n);
@@ -1116,23 +1134,14 @@ impl CreateArea {
                     c.more_kinds = true;
                 }
             }
-            // Single key, backup in shares: the scheme's two steppers,
-            // How many to rebuild it (2 to 9) and How many shares (k to
-            // 31), as Make codex32 shares' Other has them.
-            Action::CM(d) if self.state.as_ref().is_some_and(|c| c.kind.shares()) => {
-                if let Some(c) = self.state.as_mut() {
-                    let max = faraday_bip::codex32::MAX_THRESHOLD;
-                    c.share_k =
-                        (i16::from(c.share_k) + i16::from(d)).clamp(2, i16::from(max)) as u8;
-                    c.share_n = c.share_n.max(c.share_k);
-                }
-            }
-            Action::CN(d) if self.state.as_ref().is_some_and(|c| c.kind.shares()) => {
-                if let Some(c) = self.state.as_mut() {
-                    let max = faraday_bip::codex32::MAX_SHARES;
-                    c.share_n = (i16::from(c.share_n) + i16::from(d))
-                        .clamp(i16::from(c.share_k), i16::from(max))
-                        as u8;
+            // The Backup card's row: how the single key is backed up.
+            Action::CBackupForm(i) => {
+                if let Some(c) = self.state.as_mut()
+                    && c.built.is_none()
+                    && !c.kind.multi()
+                    && let Some(&f) = BackupForm::ALL.get(usize::from(i))
+                {
+                    c.backup = Some(f);
                 }
             }
             Action::CM(d) => {
@@ -1254,8 +1263,6 @@ impl Faraday {
                             && self.create.state.as_ref().is_some_and(|c| c.from_home)),
                     m: 2,
                     n: 3,
-                    share_k: 2,
-                    share_n: 3,
                     slots: vec![create::Source::Empty; 1],
                     ..CreateState::default()
                 });
@@ -1282,9 +1289,16 @@ impl Faraday {
             // Kind with no row ticked waits for one (Move money).
             Action::CNext(k)
                 if k == cstep::KIND && self.create.state().is_some_and(|c| c.kind_unchosen) => {}
+            // The Backup card with no row ticked waits for one.
+            Action::CNext(k)
+                if k == cstep::BACKUP_FORM
+                    && self.create.state().is_some_and(|c| c.backup.is_none()) => {}
+            // Keys stays closed until a single key's backup is chosen: its
+            // slot's New key makes the key in that form (F240).
+            Action::CStep(k) if k == cstep::KEYS && self.create_backup_unanswered() => {}
             // The info button after "codex32" shows its tooltip at once
-            // (F112).
-            Action::CKindAbout => self.pointer.tip_show(Action::CKindAbout),
+            // (F112, F240).
+            Action::CBackupAbout => self.pointer.tip_show(Action::CBackupAbout),
             // The question of vaults waits for its answer.
             Action::CNext(k)
                 if k == cstep::WHERE
@@ -1434,17 +1448,24 @@ impl Faraday {
             },
             // A kind moves on by itself, and so does the kind already
             // ticked, pressed again: that is how the default is taken.
-            // The backup in shares is not made while Make codex32 shares
-            // is not offered.
-            Action::CKind(i)
-                if create::NewKind::ALL
-                    .get(usize::from(i))
-                    .is_some_and(|k| k.shares() && !MAKE_OFFERED) => {}
             Action::CKind(_) => {
                 self.create.edit(action);
                 self.create_from_refresh();
                 if let Some(c) = self.create.state.as_mut().filter(|c| c.built.is_none()) {
                     c.done[cstep::KIND as usize] = true;
+                    self.create_open_next();
+                }
+            }
+            // A backup form moves on by itself, as a kind does (F103); one
+            // not offered is not taken.
+            Action::CBackupForm(i)
+                if !BackupForm::ALL
+                    .get(usize::from(i))
+                    .is_some_and(|f| BackupForm::offered().contains(f)) => {}
+            Action::CBackupForm(_) => {
+                self.create.edit(action);
+                if let Some(c) = self.create.state.as_mut().filter(|c| c.built.is_none()) {
+                    c.done[cstep::BACKUP_FORM as usize] = true;
                     self.create_open_next();
                 }
             }
@@ -1478,7 +1499,7 @@ impl Faraday {
                 | Action::CreateOver
                 | Action::CStep(_)
                 | Action::CMoreKinds
-                | Action::CKindAbout
+                | Action::CBackupAbout
                 | Action::CKind(_)
         ) {
             return;
@@ -1504,9 +1525,9 @@ impl Faraday {
     /// Costs what `create_vaults_now` costs. Whether Make a new wallet's Keys card would
     /// offer one way on only: a single key's slot, empty, whose one choice
     /// is its key flow, **New key** (no key in the session, no key or wallet
-    /// file in the Inbox, offered or refused, no open vault's key and no locked vault) or **Make
-    /// codex32 shares** for a backup in shares, which takes no other key.
-    /// Such a card is passed over: the key flow opens in its place.
+    /// file in the Inbox, offered or refused, no open vault's key and no
+    /// locked vault). Such a card is passed over: the key flow opens in
+    /// its place.
     pub(crate) fn create_keys_one_way(&self, c: &Compute) -> bool {
         let Some(cs) = self.create.state() else {
             return false;
@@ -1516,9 +1537,6 @@ impl Faraday {
             || cs.slots.iter().any(|s| *s != create::Source::Empty)
         {
             return false;
-        }
-        if cs.kind.shares() {
-            return true;
         }
         if !self.session.keys.is_empty() {
             return false;
@@ -1940,51 +1958,52 @@ impl Faraday {
         true
     }
 
-    /// Single key, backup in shares: the scheme its Quorum chose, `(k,
-    /// n)`, while the wallet is not made; what its slot opens Make codex32
-    /// shares with (`docs/CODEX32.md` §6.9). `None` for any other kind.
-    pub(crate) fn create_codex32_scheme(&self) -> Option<(u8, u8)> {
+    /// A single key's Backup card, while the wallet is not made: the form
+    /// its slot's New key makes (F240). `None` for a multisig, before the
+    /// card is answered, and with no creation open.
+    pub(crate) fn create_slot_backup(&self) -> Option<BackupForm> {
         self.create
             .state()
-            .filter(|c| c.kind.shares() && c.built.is_none())
-            .map(|c| (c.share_k, c.share_n))
+            .filter(|c| !c.kind.multi() && c.built.is_none())
+            .and_then(|c| c.backup)
     }
 
-    /// Make codex32 shares' Lock in for a slot of a backup-in-shares
-    /// wallet: the set's facts are kept with the creation, for Check and
-    /// for Back up. Called before the slot is filled.
+    /// Whether a single key's Backup card is still to answer: Keys waits
+    /// for it.
+    pub(crate) fn create_backup_unanswered(&self) -> bool {
+        self.create
+            .state()
+            .is_some_and(|c| c.built.is_none() && c.backup.is_none())
+            && self.create_cards().contains(&cstep::BACKUP_FORM)
+    }
+
+    /// Make codex32 shares' Lock in for a single key's slot, whatever its
+    /// address type: the set's facts are kept with the creation, for Check
+    /// and for Back up. Called before the slot is filled.
     pub(crate) fn create_codex32_made(&mut self, set: SharesSet) {
         if let Some(c) = self
             .create
             .state
             .as_mut()
-            .filter(|c| c.kind.shares() && c.built.is_none())
+            .filter(|c| !c.kind.multi() && c.built.is_none())
         {
             c.shares_set = Some(set);
         }
     }
 
-    /// The codex32 set of wallet `wallet`, when it is the one this
-    /// creation made as Single key, backup in shares: what Back up opens
-    /// on (`docs/CODEX32.md` §6.9, §9.5).
+    /// The codex32 set of wallet `wallet`, when this creation made it from
+    /// a key made here as codex32 shares, the key in its slot: Check's
+    /// Backup row, and what Back up opens on (`docs/CODEX32.md` §6.9,
+    /// §9.5).
     pub fn create_shares_set(&self, wallet: usize) -> Option<&SharesSet> {
-        self.create
+        // A single key's only: a kind changed after the set was made (Check's
+        // Path, Change) keeps the set and the key in slot 0.
+        let c = self
+            .create
             .state()
-            .filter(|c| c.kind.shares() && c.built == Some(wallet))
-            .and_then(|c| c.shares_set.as_ref())
-    }
-
-    /// Single key, backup in shares: why its slot's key does not make the
-    /// wallet, unless it is the key a codex32 set was made as here.
-    fn create_shares_refusal(&self) -> Option<String> {
-        let c = self.create.state().filter(|c| c.kind.shares())?;
-        let Some(create::Source::Here(fp)) = c.slots.first() else {
-            return None;
-        };
-        match &c.shares_set {
-            Some(set) if set.fingerprint == *fp => None,
-            _ => Some(EN.create_shares_key_needed.to_string()),
-        }
+            .filter(|c| c.built == Some(wallet) && !c.kind.multi())?;
+        let set = c.shares_set.as_ref()?;
+        (c.slots.first() == Some(&create::Source::Here(set.fingerprint))).then_some(set)
     }
 
     /// A wallet just made with a key recorded as a BIP-85 child seed
@@ -2012,12 +2031,6 @@ impl Faraday {
 
     pub(crate) fn create_make(&mut self) {
         let k = self.compute();
-        if let Some(e) = self.create_shares_refusal() {
-            if let Some(c) = self.create.state.as_mut() {
-                c.error = Some(e);
-            }
-            return;
-        }
         let keys = match self.create_keys(&k) {
             Ok(k) => k,
             Err(e) => {

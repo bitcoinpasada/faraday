@@ -369,7 +369,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
         .position(|k| *k == NewKind::Multi)
         .unwrap() as u8;
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi));
+    crate::common::ckind(&mut app, multi);
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
@@ -473,7 +473,7 @@ fn passphrase_key() -> Faraday {
     use faraday_shell_api::{App, Event, Key};
     let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
     app.press(Action::KWords(12));
@@ -978,7 +978,7 @@ fn three_here() -> Faraday {
         .position(|k| *k == NewKind::Multi)
         .unwrap() as u8;
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi));
+    crate::common::ckind(&mut app, multi);
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));

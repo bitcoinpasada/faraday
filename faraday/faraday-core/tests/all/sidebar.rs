@@ -450,7 +450,7 @@ fn create_at_places() -> Faraday {
         key_in(&mut app, n);
     }
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
@@ -561,7 +561,7 @@ fn no_row_before_a_step_is_done() {
 fn the_row_goes_when_the_flow_is_started_over() {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::Nav(Screen::Settings));
     assert!(offered(&mut app, Action::Resume(Going::Create)));
     app.press(Action::Resume(Going::Create));
@@ -651,7 +651,7 @@ fn a_lock_wipes_what_it_wipes_and_a_kept_flow_keeps_its_row() {
     crate::common::start(&mut app, Kind::Gpg);
     app.press(Action::Flow(F::Continue));
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     assert!(offered(&mut app, Action::Resume(Going::Create)));
     let mut app = shell.lock(&mut app);
     assert!(
@@ -686,7 +686,7 @@ fn create_at_places_from_wallets() -> Faraday {
     }
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
@@ -757,7 +757,7 @@ fn a_flow_on_its_first_card_ends_without_the_sheet() {
     assert!(!row_on_settings(&mut app, Going::Create));
     // Make a new wallet opens afresh, past Kind closed on its default.
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     assert_eq!(app.create().unwrap().open, Some(cstep::WHERE));
 }
 
@@ -765,7 +765,7 @@ fn a_flow_on_its_first_card_ends_without_the_sheet() {
 fn start_over_still_begins_make_a_new_wallet_again() {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::CreateOver);
     assert_eq!(app.screen, Screen::Create, "Start over stays on the flow");
     assert!(offered(&mut app, Action::CancelFlow));

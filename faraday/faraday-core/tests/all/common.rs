@@ -928,11 +928,22 @@ pub fn tile_of(kind: Kind) -> u8 {
         .expect("a tile") as u8
 }
 
-/// Make a new wallet opened, Single key chosen on its Kind card, which
-/// opens on the backup in shares (`docs/CODEX32.md` §6.9).
+/// Make a new wallet opened, Single key chosen on its Kind card and
+/// Words on its Backup card, which opens on Use vaults.
 pub fn create_single_key(app: &mut Faraday) {
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    ckind(app, 0);
+}
+
+/// Kind `i` chosen on Make a new wallet's Kind card, and a single key's
+/// Backup card, if that opens, answered Words.
+pub fn ckind(app: &mut Faraday, i: u8) {
+    app.press(Action::CKind(i));
+    if app.create().and_then(|c| c.open) == Some(faraday_core::cstep::BACKUP_FORM) {
+        app.press(Action::CBackupForm(
+            faraday_core::create::BackupForm::Words.index(),
+        ));
+    }
 }
 
 /// Starts the flow as Tools' tile does.

@@ -45,7 +45,7 @@ fn board_of(m: usize, n: usize) -> Faraday {
         words_in(&mut app, w);
     }
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     for _ in 3..n {
         app.press(Action::CN(1));
     }
@@ -200,7 +200,7 @@ fn a_single_keys_seed_says_it_spends_alone_and_never_asks() {
     let mut app = testkit::started();
     words_in(&mut app, &testkit::test_words("bacon"));
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));

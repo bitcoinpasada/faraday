@@ -118,7 +118,7 @@ fn create_with_vaults(app: &mut Faraday, count: usize) {
         .iter()
         .position(|k| *k == NewKind::Multi)
         .unwrap() as u8;
-    app.press(Action::CKind(multi));
+    crate::common::ckind(app, multi);
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CVaultN(count as u16));

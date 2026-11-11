@@ -340,9 +340,8 @@ pub(super) fn vaults_answer_line(ask: crate::VaultAsk) -> String {
 }
 
 /// Restore's Kind card's rows: Single key and Multisig, both native
-/// SegWit, the two everyday kinds, and the other eight behind **More
-/// kinds** until `more`. Single key, backup in shares is Make a new
-/// wallet's only (`docs/CODEX32.md` §6.9). Returns the height used.
+/// SegWit, the two everyday kinds, and the others behind **More kinds**
+/// until `more`. Returns the height used.
 #[allow(
     clippy::too_many_arguments,
     reason = "the kind rows' position, width, chosen kind, more state, enabled state and pick"
@@ -360,9 +359,7 @@ pub(crate) fn kind_rows(
 ) -> f32 {
     use crate::create::NewKind;
     let shown: Vec<usize> = if more {
-        (0..NewKind::ALL.len())
-            .filter(|&i| !NewKind::ALL[i].shares())
-            .collect()
+        (0..NewKind::ALL.len()).collect()
     } else {
         vec![0, 4]
     };
@@ -395,10 +392,50 @@ pub(crate) fn kind_list(
     pick: fn(u8) -> Action,
 ) -> f32 {
     use crate::create::NewKind;
+    let rows: Vec<OptionRow> = rows
+        .iter()
+        .map(|(i, line)| {
+            let k = NewKind::ALL[*i];
+            OptionRow {
+                name: k.name(),
+                line: line.clone(),
+                on: chosen == Some(k),
+                action: pick(*i as u8),
+                tip: false,
+            }
+        })
+        .collect();
+    option_list(ui, (x, y, w), &rows, more, enabled)
+}
+
+/// One row of a card that asks one thing (DESIGN §4.2, Option row): its
+/// name, its second line, whether it is ticked, its press, and whether
+/// "codex32" in its name carries the Backup card's tooltip (F112, F240).
+pub(crate) struct OptionRow {
+    /// The row's name.
+    pub name: &'static str,
+    /// Its second line: a fact of the row.
+    pub line: String,
+    /// It is the one ticked.
+    pub on: bool,
+    /// Its press.
+    pub action: Action,
+    /// "codex32" in the name carries the tooltip.
+    pub tip: bool,
+}
+
+/// A card's option rows, in the order given, and **More kinds** under
+/// them when `more` is given. Returns the height used.
+pub(crate) fn option_list(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    rows: &[OptionRow],
+    more: Option<Action>,
+    enabled: bool,
+) -> f32 {
     let mut cy = y;
-    for (i, line) in rows {
-        let k = &NewKind::ALL[*i];
-        let on = chosen == Some(*k);
+    for r in rows {
+        let (on, name, line) = (r.on, r.name, &r.line);
         let size = TITLE_S;
         let left = x + 14.0;
         // On a compact window the name and the line each wrap, the row
@@ -406,8 +443,8 @@ pub(crate) fn kind_list(
         // for the info button where it has one.
         let inner = w - 28.0;
         let (names, lines) = if ui.compact {
-            let room = if k.shares() { tokens::ICON_BUTTON } else { 0.0 };
-            let names = lines_of(ui, size, k.name(), inner - room);
+            let room = if r.tip { tokens::ICON_BUTTON } else { 0.0 };
+            let names = lines_of(ui, size, name, inner - room);
             (names, lines_of(ui, BODY_S, line, inner))
         } else {
             (Vec::new(), Vec::new())
@@ -431,19 +468,19 @@ pub(crate) fn kind_list(
         );
         ui.stroke(x, cy, w, h, 8.0, selected_or(on, Role::OutlineVariant));
         if enabled {
-            ui.press_box(x, cy, w, h, pick(*i as u8));
+            ui.press_box(x, cy, w, h, r.action);
         }
         let (ink, muted) = (
             on_selected(on, Role::OnSurface),
             on_selected(on, Role::OnSurfaceVariant),
         );
-        // Where "codex32" and the name's end are, on the backup in shares.
+        // Where "codex32" and the name's end are, on the row with the tip.
         let mut tip = None;
         if ui.compact {
             for (n, text) in names.iter().enumerate() {
                 let ty = cy + top + n as f32 * name_h;
                 let end = left + ui.text_as(left, ty, size, ink, text);
-                if k.shares() {
+                if r.tip {
                     tip = tip.or(word_at(ui, (left, end, ty + name_h / 2.0), size, text));
                 }
             }
@@ -452,11 +489,11 @@ pub(crate) fn kind_list(
                 ui.text_as(left, ty, BODY_S, muted, text);
             }
         } else {
-            let end = left + ui.text_mid_as((left, cy, h), size, ink, k.name());
+            let end = left + ui.text_mid_as((left, cy, h), size, ink, name);
             let line = ui.fit_as(BODY_S, line, w - 260.0);
             ui.text_right_as((x + w - 14.0, cy, h), BODY_S, muted, &line);
-            if k.shares() {
-                tip = word_at(ui, (left, end, cy + h / 2.0), size, k.name());
+            if r.tip {
+                tip = word_at(ui, (left, end, cy + h / 2.0), size, name);
             }
         }
         // Drawn after the row, so a press on the button is the button's.
@@ -489,15 +526,16 @@ fn word_at(
     size: TypeRole,
     shown: &str,
 ) -> Option<(f32, f32, f32, f32)> {
-    let word = EN.create_shares_tip_word;
+    let word = EN.create_backup_tip_word;
     let at = shown.find(word)?;
     let from = x + ui.measure_as(size, &shown[..at]);
     Some((from, ui.measure_as(size, word), end, mid))
 }
 
 /// Make a new wallet's one explanation on a working screen (owner,
-/// 2026-10-24; F112): Material's info icon button right after
-/// "(codex32)", `end`, centred on `mid`, in the row's secondary ink, and
+/// 2026-10-24; F112, on the Backup card since F240): Material's info icon
+/// button right after "(codex32)", `end`, centred on `mid`, in the row's
+/// secondary ink, and
 /// the rich tooltip it shows. The pointer resting on the button or on
 /// the word, the keyboard on the button, a long press on either, or a
 /// press of the button bring it up; the row `y`, `h` tall, keeps every
@@ -505,7 +543,7 @@ fn word_at(
 fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h): (f32, f32)) {
     use faraday_ui::tooltip::TipKind;
     use tokens::{ICON_BUTTON, ICON_SMALL, shape_full};
-    let a = Action::CKindAbout;
+    let a = Action::CBackupAbout;
     // The button is a full touch target around the icon button.
     let side = ui.touch.max(ICON_BUTTON);
     let (bx, by) = (end - (side - ICON_BUTTON) / 2.0, mid - side / 2.0);
@@ -523,7 +561,7 @@ fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h
         Role::OnSurfaceVariant,
     );
     // The button first: the tooltip stands over it.
-    let tip = EN.create_shares_tip;
+    let tip = EN.create_backup_tip;
     ui.tip_anchor((bx, by, side, side), a, tip, TipKind::Rich);
     ui.tip_anchor((word, y, word_w, h), a, tip, TipKind::Rich);
 }

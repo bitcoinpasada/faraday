@@ -331,9 +331,15 @@ pub struct KeyGen {
     pub started: Option<Start>,
     /// The Start card's Other forms are shown.
     pub others_open: bool,
-    /// Make codex32 shares is offered: a key on its own, or for a
-    /// single-key wallet's slot (`docs/CODEX32.md` §6.9).
+    /// Make codex32 shares is offered: a key on its own, or for the slot
+    /// of a single key whose Backup card chose codex32 shares (F240).
     pub codex32_offered: bool,
+    /// Make a new key's BIP-39 words is offered: everywhere but the slot
+    /// of a single key whose Backup card chose codex32 shares (F240).
+    pub words_offered: bool,
+    /// Make SLIP-39 shares is offered, under Other forms: everywhere but
+    /// a multisig's slot, where two thresholds would stack (F240).
+    pub slip39_offered: bool,
     /// Make codex32 shares, while it is the Start card's choice and its
     /// cards are open (`docs/CODEX32.md` §6).
     pub codex32: Option<crate::codex32::Codex32Make>,
@@ -430,6 +436,8 @@ impl KeyGen {
             started: None,
             others_open: false,
             codex32_offered: slot.is_none(),
+            words_offered: true,
+            slip39_offered: true,
             codex32: None,
             entry_kept: crate::EntryState::default(),
             entropy_source: None,
@@ -516,12 +524,19 @@ impl KeyGen {
     }
 
     /// [`KeyGen::starts`] with making codex32 shares switched on or off
-    /// (`crate::codex32::MAKE_OFFERED`).
+    /// (`crate::codex32::MAKE_OFFERED`). A Create slot offers the one way
+    /// to make a key its wallet's Backup card chose, and every key you
+    /// have (F240).
     pub fn starts_with(&self, make_codex32: bool) -> Vec<Start> {
         STARTS
             .iter()
             .copied()
-            .filter(|s| *s != Start::MakeCodex32 || (make_codex32 && self.codex32_offered))
+            .filter(|s| match s {
+                Start::MakeCodex32 => make_codex32 && self.codex32_offered,
+                Start::Make => self.words_offered,
+                Start::MakeShares => self.slip39_offered,
+                _ => true,
+            })
             .collect()
     }
 
@@ -1148,9 +1163,22 @@ impl crate::Faraday {
         let mut k = KeyGen::new(slot, back);
         k.entropy_source = self.keygen.entropy_source;
         k.with_own = self.fresh.own_acc().is_some();
-        // Codex32 is made for single-key wallets only (`docs/CODEX32.md`
-        // §6.9).
-        k.codex32_offered = slot.is_none() || self.create.state().is_some_and(|c| !c.kind.multi());
+        // A slot makes its key the one way its wallet asks (F240): a
+        // single key's as its Backup card chose, words or codex32 shares;
+        // a multisig's as BIP-39 words, neither codex32 nor SLIP-39
+        // shares stacked on its quorum (`docs/CODEX32.md` §6.9).
+        if slot.is_some() {
+            let multi = self.create.state().is_none_or(|c| c.kind.multi());
+            let codex32 = self.create_slot_backup() == Some(crate::create::BackupForm::Codex32);
+            k.codex32_offered = !multi && codex32;
+            k.words_offered = !k.codex32_offered;
+            k.slip39_offered = !multi;
+            // The cards after Start are the codex32 ones until a choice
+            // is pressed; nothing is ticked.
+            if k.codex32_offered {
+                k.start = Start::MakeCodex32;
+            }
+        }
         // A small panel is a touch screen with no keyboard of its own:
         // the faces are pressed, not typed.
         k.typing = !self.compact;
@@ -1161,25 +1189,6 @@ impl crate::Faraday {
         // the cards after it open from there (F103, `docs/FLOWS.md`, New
         // key).
         k.open = Some(kstep::START);
-        // Single key, backup in shares: its slot opens Make codex32
-        // shares on the identifier, the Quorum's scheme fixed
-        // (`docs/CODEX32.md` §6.9).
-        if let Some((sk, sn)) = slot.and_then(|_| self.create_codex32_scheme()) {
-            k.start = Start::MakeCodex32;
-            k.started = Some(Start::MakeCodex32);
-            k.open = Some(kstep::CODEX32);
-            let m = crate::codex32::Codex32Make::with_scheme(
-                sk,
-                sn,
-                crate::codex32::taken(
-                    &k.entry_kept.parts.codex32,
-                    &self.session.keys,
-                    self.backup.state().map(|b| &b.answers),
-                    &self.vaults,
-                ),
-            );
-            k.codex32 = Some(self.codex32_here(m));
-        }
         self.keygen.state = Some(k);
         self.screen = Screen::KeyGen;
     }
@@ -1300,6 +1309,9 @@ impl crate::Faraday {
             if matches!(start, Start::Make | Start::MakeShares) {
                 k.set_slip39(start == Start::MakeShares);
             }
+            // A wallet's key is made as shares: its Scheme has no "None,
+            // the secret alone" (F240).
+            let for_slot = k.slot.is_some();
             let fresh = (start == Start::MakeCodex32).then(|| {
                 crate::codex32::Codex32Make::new(crate::codex32::taken(
                     &k.entry_kept.parts.codex32,
@@ -1307,6 +1319,7 @@ impl crate::Faraday {
                     self.backup.state().map(|b| &b.answers),
                     &self.vaults,
                 ))
+                .shares_only(for_slot)
             });
             // What was typed for another choice goes.
             let mut e = crate::EntryState::default();

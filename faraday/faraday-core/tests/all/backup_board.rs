@@ -82,7 +82,7 @@ fn three_here() -> Faraday {
         key_in(&mut app, n);
     }
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
@@ -568,7 +568,7 @@ pub(crate) fn three_with_vaults(shell: &mut Shell, n: usize) -> (Faraday, Vec<[u
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CVaultN(n as u16));
@@ -673,7 +673,7 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
     keep_time(&mut app);
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     for (i, fp) in fps.iter().enumerate() {
         app.press(Action::CSlotHere(i as u8, *fp));
     }
@@ -774,7 +774,7 @@ pub(crate) fn three_on_an_empty_board() -> Faraday {
         key_in(&mut app, n);
     }
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
@@ -1434,7 +1434,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CVaultN(1));
@@ -2074,7 +2074,7 @@ fn fresh_three() -> Faraday {
         key_in(&mut app, n);
     }
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));

@@ -27,7 +27,9 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .ok_or("no native SegWit")? as u8;
     t.press(Action::CreateWallet);
     t.press(Action::CKind(kind));
-    t.press(Action::CNext(faraday_core::cstep::KIND));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     device_key(t, 0);
     let w = t
         .app

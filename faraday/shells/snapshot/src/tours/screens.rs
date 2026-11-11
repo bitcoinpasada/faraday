@@ -153,6 +153,9 @@ fn wallet(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::CreateWallet);
     t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.press(Action::CVaults(false));
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));

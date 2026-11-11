@@ -197,7 +197,7 @@ fn the_question_put_away_puts_nothing_in() {
 /// Check.
 fn make_wallet(app: &mut Faraday, k: usize) -> usize {
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(app, 0);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));

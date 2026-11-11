@@ -1017,6 +1017,9 @@ pub struct Again {
     pub m: usize,
     /// Keys.
     pub n: usize,
+    /// A single key's Backup card, as answered (F240): written after the
+    /// quorum, 0 for none, 1 words, 2 codex32 shares.
+    pub backup: Option<crate::create::BackupForm>,
 }
 
 impl BackupFlow {
@@ -1678,11 +1681,12 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
             }
             if let Some(a) = &w.again {
                 out.push_str(&format!(
-                    "wagain\t{}\t{}\t{}\t{}\n",
+                    "wagain\t{}\t{}\t{}\t{}\t{}\n",
                     u8::from(a.restore),
                     a.kind.code(),
                     a.m,
-                    a.n
+                    a.n,
+                    a.backup.map_or(0, |f| f.index() + 1)
                 ));
             }
             out.push_str(&format!(
@@ -1996,12 +2000,23 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             });
             true
         }
-        ["wagain", restore, kind, m, n] => {
+        // A flow kept before the Backup card has no form; one of the kind
+        // since folded into Single key reads as Single key with codex32
+        // shares (F240).
+        ["wagain", restore, kind, m, n, ref rest @ ..] if rest.len() <= 1 => {
             let (Ok(kind), Ok(m), Ok(n)) = (kind.parse::<u8>(), m.parse(), n.parse()) else {
                 return false;
             };
-            let Some(kind) = crate::create::NewKind::from_code(kind) else {
+            let Some((kind, old_form)) = crate::create::from_kept_code(kind) else {
                 return false;
+            };
+            let form = match rest.first().map(|f| f.parse::<usize>()) {
+                None | Some(Ok(0)) => old_form,
+                Some(Ok(f)) => match crate::create::BackupForm::ALL.get(f - 1) {
+                    Some(&f) => Some(f),
+                    None => return false,
+                },
+                Some(Err(_)) => return false,
             };
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.again = Some(Again {
@@ -2009,6 +2024,7 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
                 kind,
                 m,
                 n,
+                backup: form,
             });
             true
         }

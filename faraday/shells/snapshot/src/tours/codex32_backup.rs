@@ -18,6 +18,9 @@ fn wallet_of(t: &mut Tour, k: usize) -> Result<(), String> {
     use faraday_core::cstep;
     t.press(Action::CreateWallet);
     t.press(Action::CKind(0));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     let fp = t.app.session.keys[k].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));

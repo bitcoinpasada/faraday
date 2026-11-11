@@ -22,7 +22,7 @@ fn multi_index() -> u8 {
 fn opened() -> Faraday {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     assert_eq!(app.screen, Screen::Create);
     app
 }
@@ -56,7 +56,7 @@ fn a_kind_pressed_moves_on_and_its_head_reopens_it_keeping_the_choice() {
         "Kind has no Continue"
     );
     app.press(Action::CMoreKinds);
-    app.press(Action::CKind(kind_index(NewKind::Taproot)));
+    crate::common::ckind(&mut app, kind_index(NewKind::Taproot));
     assert_eq!(app.create().map(|c| c.kind), Some(NewKind::Taproot));
     assert_eq!(
         app.create().and_then(|c| c.open),
@@ -71,7 +71,7 @@ fn a_kind_pressed_moves_on_and_its_head_reopens_it_keeping_the_choice() {
         "the kind chosen earlier is kept"
     );
     // The kind already ticked, pressed again, moves on too.
-    app.press(Action::CKind(kind_index(NewKind::Taproot)));
+    crate::common::ckind(&mut app, kind_index(NewKind::Taproot));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::WHERE));
 }
 
@@ -164,7 +164,7 @@ fn made_on(mut app: Faraday) -> (Faraday, usize) {
     }
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::CNext(cstep::KIND)); // single key, the default: opens Keys
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
@@ -256,7 +256,7 @@ fn multisig_on_keys() -> Faraday {
     add_key(&mut app, "bacon");
     add_key(&mut app, "zebra");
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
@@ -335,7 +335,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
         .reveal(0, faraday_keys::Reveal::Words)
         .to_string();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, first));
@@ -384,7 +384,7 @@ fn a_slot_whose_key_has_a_passphrase_offers_no_add_a_passphrase() {
         .unwrap()
         .0;
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, with));
@@ -401,7 +401,7 @@ fn unequal_passphrases_in_a_slot_lock_nothing_in() {
     add_key(&mut app, "bacon");
     let plain = app.session.keys[0].fingerprint.0;
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, plain));
@@ -428,7 +428,7 @@ fn a_slots_lock_waits_until_the_two_passphrases_match() {
     add_key(&mut app, "bacon");
     let plain = app.session.keys[0].fingerprint.0;
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, plain));
@@ -559,7 +559,7 @@ fn new_wallet_from_a_two_of_three_held_here_takes_every_key_at_account_1() {
         add_key(&mut app, seed);
     }
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
@@ -644,7 +644,7 @@ fn changing_kind_to_taproot_keeps_the_keys_and_makes_a_taproot_wallet() {
         .iter()
         .position(|k| *k == NewKind::Taproot)
         .unwrap() as u8;
-    app.press(Action::CKind(taproot));
+    crate::common::ckind(&mut app, taproot);
     app.press(Action::CNext(cstep::KIND));
     let made = continue_throughout(&mut app);
     let w = &app.session.wallets[made];
@@ -718,7 +718,7 @@ fn a_multisig_at_account_1_set_on_quorum_has_it_in_its_path_and_check_returns_th
     app.press(Action::CStep(cstep::KIND));
     let _ = app.frame();
     assert!(!app.offers(Action::CAccount(0)), "Kind asks no account");
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::QUORUM));
     let _ = app.frame();
     assert!(
@@ -773,7 +773,7 @@ fn a_kind_without_an_account_offers_no_account_row() {
         "a single key's Keys offers its account"
     );
     app.press(Action::CStep(cstep::KIND));
-    app.press(Action::CKind(kind_index(NewKind::MultiLegacy)));
+    crate::common::ckind(&mut app, kind_index(NewKind::MultiLegacy));
     app.press(Action::CNext(cstep::KIND));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::QUORUM));
     let _ = app.frame();
@@ -833,7 +833,7 @@ fn with_a_key_in_the_session_the_keys_card_shows() {
     let mut app = testkit::started();
     add_key(&mut app, "bacon");
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     single_key_to_keys(&mut app);
     assert_eq!(app.screen, Screen::Create);
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
@@ -847,7 +847,7 @@ fn with_a_key_in_the_session_the_keys_card_shows() {
 fn a_multisig_shows_the_keys_card() {
     let mut app = opened();
     app.press(Action::CStep(cstep::KIND));
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     app.press(Action::CNext(cstep::QUORUM));
     app.press(Action::CVaults(false));
     assert_eq!(app.screen, Screen::Create);
@@ -859,7 +859,7 @@ fn cancel_in_new_key_from_create_with_rolls_asks_then_returns_to_keys_with_the_s
     let mut app = testkit::started();
     add_key(&mut app, "bacon");
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     single_key_to_keys(&mut app);
     app.press(Action::KeyGen(Some(0)));
     let _ = app.frame();
@@ -935,7 +935,7 @@ fn a_slots_passphrase_refuses_a_letter_outside_ascii_and_says_so() {
     let mut app = testkit::started();
     let first = key_made_on_its_own(&mut app);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, first));
@@ -994,7 +994,7 @@ fn made_multisig_at(kind: NewKind, bip87: bool) -> (Faraday, usize) {
         add_key(&mut app, seed);
     }
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(kind_index(kind)));
+    crate::common::ckind(&mut app, kind_index(kind));
     app.press(Action::CNext(cstep::KIND));
     let _ = app.frame();
     if bip87 {
@@ -1056,7 +1056,7 @@ fn the_bip_87_choice_is_offered_on_quorum_for_every_multisig_and_the_account_fol
     ] {
         let mut app = testkit::started();
         app.press(Action::CreateWallet);
-        app.press(Action::CKind(kind_index(kind)));
+        crate::common::ckind(&mut app, kind_index(kind));
         app.press(Action::CNext(cstep::KIND));
         let _ = app.frame();
         assert!(
@@ -1077,7 +1077,7 @@ fn the_bip_87_choice_is_offered_on_quorum_for_every_multisig_and_the_account_fol
 fn a_single_key_kind_offers_no_path_choice() {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(kind_index(NewKind::NativeSegwit)));
+    crate::common::ckind(&mut app, kind_index(NewKind::NativeSegwit));
     let _ = app.frame();
     assert!(!app.offers(Action::CMultiPath(true)));
 }
@@ -1214,7 +1214,7 @@ fn changing_the_kind_empties_a_cosigners_slot_whose_key_is_not_at_the_new_kinds_
         .iter()
         .position(|k| *k == NewKind::MultiNested)
         .unwrap();
-    app.press(Action::CKind(nested as u8));
+    crate::common::ckind(&mut app, nested as u8);
     let c = app.create().unwrap();
     assert!(!c.bip87, "the new kind starts at its own path");
     assert_ne!(c.slots[pos], Source::Cosigner(xpub));

@@ -126,9 +126,14 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    // Create opens on Kind; Single key opens Use vaults, whose No moves
-    // on to Keys: with nothing loaded, New key for its slot.
+    // Create opens on Kind; Single key opens Backup, Words opens Use
+    // vaults, whose No moves on to Keys: with nothing loaded, New key for
+    // its slot.
     tap(&mut app, Action::CKind(0));
+    tap(
+        &mut app,
+        Action::CBackupForm(faraday_core::create::BackupForm::Words.index()),
+    );
     tap(&mut app, Action::CVaults(false));
     assert_eq!(app.screen, Screen::KeyGen);
     // New key opens on Start with nothing ticked; a choice opens Length,
@@ -286,27 +291,25 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Home));
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
-    // Create opens on Kind. A row is Kind's forward action: Single key,
-    // backup in shares, Single key (0) and Multisig (4), shown
-    // before More kinds.
-    let shares = faraday_core::create::NewKind::ALL
-        .iter()
-        .position(|k| k.shares())
-        .expect("the backup in shares") as u8;
-    for kind in [shares, 0, 4] {
+    // Create opens on Kind. A row is Kind's forward action: Single key
+    // (0) and Multisig (4), shown before More kinds.
+    for kind in [0, 4] {
         assert!(
             in_view(&mut app, h, Action::CKind(kind)),
             "Make a new wallet, Kind, row {kind}"
         );
     }
-    tap(&mut app, Action::CKind(shares));
-    assert!(
-        in_view(&mut app, h, Action::CNext(faraday_core::cstep::QUORUM)),
-        "Make a new wallet, the backup in shares' Quorum"
-    );
+    tap(&mut app, Action::CKind(0));
+    for form in faraday_core::create::BackupForm::ALL {
+        assert!(
+            in_view(&mut app, h, Action::CBackupForm(form.index())),
+            "Make a new wallet, Backup, {form:?}"
+        );
+    }
 }
 
-/// Create opens on Kind; Single key opens Use vaults, whose No opens
+/// Create opens on Kind; Single key opens Backup, whose Words opens Use
+/// vaults, whose No opens
 /// Keys (a key loaded, so the card has a choice), whose head then
 /// carries Kind with Change.
 #[test]
@@ -323,8 +326,17 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
     tap(&mut app, Action::CKind(0));
     assert_eq!(
         app.create().and_then(|c| c.open),
+        Some(faraday_core::cstep::BACKUP_FORM),
+        "Single key opens Backup"
+    );
+    tap(
+        &mut app,
+        Action::CBackupForm(faraday_core::create::BackupForm::Words.index()),
+    );
+    assert_eq!(
+        app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::WHERE),
-        "Single key opens Use vaults"
+        "Words opens Use vaults"
     );
     tap(&mut app, Action::CVaults(false));
     assert_eq!(
@@ -438,7 +450,7 @@ fn the_small_homes_first_tile_opens_the_flow_in_progress() {
     assert!(on_panel(&mut app, row).is_none(), "nothing in progress");
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    app.press(Action::CKind(0));
+    tap(&mut app, Action::CKind(0));
     // The way back opens Kind first (F104), then leaves for Home.
     tap(&mut app, Action::Nav(Screen::Home));
     assert_eq!(app.screen, Screen::Create);
@@ -465,7 +477,7 @@ fn the_small_home_offers_a_flow_in_progress_once_its_tile() {
     use faraday_core::in_progress::Going;
     let mut app = panel();
     tap(&mut app, Action::CreateWallet);
-    app.press(Action::CKind(0));
+    tap(&mut app, Action::CKind(0));
     tap(&mut app, Action::Nav(Screen::Home));
     tap(&mut app, Action::Nav(Screen::Home));
     let _ = app.frame();

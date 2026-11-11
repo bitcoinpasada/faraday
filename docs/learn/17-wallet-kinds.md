@@ -10,7 +10,7 @@ In Faraday the sidebar lists them apart: Keys are the secrets, and Wallets are t
 
 One key spends. The wallet still has a choice in it: the script type, which decides the address prefix and the derivation path. Legacy, nested SegWit, native SegWit and Taproot are four different wallets over the same words.
 
-It is the cheapest arrangement to hold and to recover: seed words, a script type, and a derivation path. It is also the one where a single stolen backup is a total loss.
+In Make a new wallet, Single key asks one more thing, how the key is backed up: Words (BIP-39) or Shares (codex32), for every script type. It is the cheapest arrangement to hold and to recover: seed words, a script type, and a derivation path. It is also the one where a single stolen backup is a total loss.
 
 ## Multisig
 

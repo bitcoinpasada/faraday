@@ -81,6 +81,9 @@ fn child_seed(t: &mut Tour, fp: [u8; 4]) -> Result<(), String> {
         .ok_or("no child loaded")?;
     t.press(Action::CreateWallet);
     t.press(Action::CKind(0));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.press(Action::CNext(cstep::KIND));
     t.press(Action::CVaults(false));
     t.press(Action::CNext(cstep::WHERE));

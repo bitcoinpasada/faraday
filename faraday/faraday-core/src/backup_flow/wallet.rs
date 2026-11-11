@@ -1780,6 +1780,11 @@ impl Faraday {
             return Vec::new();
         };
         let mut v = crate::create_steps(c.kind);
+        // A wallet made from another takes its keys: there is no backup
+        // to choose (F240).
+        if c.from.is_some() {
+            v.retain(|&k| k != cstep::BACKUP_FORM);
+        }
         if c.into_vaults() {
             let at = v
                 .iter()
@@ -2480,6 +2485,7 @@ impl Faraday {
                     kind: c.kind,
                     m: c.m,
                     n: c.n,
+                    backup: c.backup,
                 })
             } else {
                 self.restore.state().filter(|r| r.owner == owner).map(|r| {
@@ -2488,6 +2494,7 @@ impl Faraday {
                         kind: r.kind(),
                         m: r.seeds.as_ref().map_or(1, |s| s.m),
                         n: r.seeds.as_ref().map_or(1, |s| s.n),
+                        backup: None,
                     }
                 })
             };
@@ -2540,6 +2547,7 @@ impl Faraday {
                     kind,
                     m: a.m,
                     n: a.n,
+                    backup: a.backup,
                     vaults: ask,
                     ..crate::CreateState::default()
                 };
@@ -2548,6 +2556,9 @@ impl Faraday {
                 for k in [cstep::KIND, cstep::QUORUM, cstep::WHERE, cstep::HOW_MANY] {
                     c.done[k as usize] = true;
                 }
+                // The Backup card is done once answered; a flow kept
+                // before it asks it again.
+                c.done[cstep::BACKUP_FORM as usize] = a.backup.is_some();
                 self.create.set(c);
                 self.create_open_next();
             }

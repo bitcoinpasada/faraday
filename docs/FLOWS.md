@@ -120,9 +120,8 @@ passphrase.
 **Step cards** (decisions 16 and 34). In Sign a transaction, Back up and
 Create a vault a step card with a default opens closed and shows its
 value and **Change** in place of the chevron; the flow opens on the first
-card without one. Make a new wallet opens on Kind, open, with its
-default ticked (Single key, backup in shares where Make codex32 shares is
-offered, else Single key; owner, 2026-10-24); a Tools tile that ticks a
+card without one. Make a new wallet opens on Kind, open, with nothing
+ticked (owner, 2026-11-09); a Tools tile that ticks a
 kind opens the card after it. New key opens on its first step, whatever
 opened it.
 A card that asks one thing (a kind, Yes
@@ -394,9 +393,14 @@ under **Make a new key**, **BIP-39 words** and **Codex32**, the same; under **Ad
 words**, **Scan a SeedQR** and **Type codex32 strings**; and under
 **Other forms** (closed) **Make SLIP-39 shares**, **Type SLIP-39
 shares**, **Type Seed XOR parts**; closed, it shows the choice ("Make a
-new key · Codex32") and **Change** until the key is locked in. Codex32
-under Make a new key is offered only where a single-key wallet is made:
-on its own, and in a single-key Create's slot (`docs/CODEX32.md` §6.9). A key typed is Start · **Words** · Key, one scanned
+new key · Codex32") and **Change** until the key is locked in. Opened
+for a single key's slot (F240) Make a new key offers only the Backup
+card's form, **BIP-39 words** for Words and **Codex32** for Shares, and
+**Change** reopens the same list; opened for a multisig cosigner's slot
+it offers **BIP-39 words** only (no Codex32, and **Make SLIP-39 shares**
+is not offered there); in both, every way to add a key you have is
+offered. On its own (Tools, Add a key) every choice is offered
+(`docs/CODEX32.md` §6.9). A key typed is Start · **Words** · Key, one scanned
 Start · Key: Words is Add a key's form drawn by its own code (count,
 boxes or keyboard, lists; the other forms' fields with **Add this one**
 and **Scan a QR code**), whose Continue opens Key once the words are
@@ -465,7 +469,7 @@ makes no value a real die did not, and the flow is otherwise unchanged.
 **Make codex32 shares** (`docs/CODEX32.md` §6, §7). Start's Codex32
 opens the flow's own cards: **Scheme** (Length 48 · 74 characters; Split
 2 of 3 · 3 of 5 · Other, with a threshold stepper 2 to 9 and a strings
-stepper k to 31 · None, the secret alone; for k of 4 or more a line that
+stepper k to 31 · None, the secret alone, not offered for a wallet's key (F240); for k of 4 or more a line that
 the booklet publishes no translation sheet for it), **Identifier** (four
 characters typed on the codex32 keyboard, or **Suggest**; one used by
 the strings typed in Add a key is refused), **Entropy** (Roll dice ·
@@ -1107,35 +1111,37 @@ guarantees for this file's rule:
   (offered with wallets loaded as well; the Spend tab lights **Wallets**
   in the sidebar) and last **Add a key**, "Keys first, wallets later"
   (decision 50).
-- **Make a new wallet** (decisions 17, 20 and 37; F53, F55, F98; `docs/CODEX32.md` §14 D5).
-  The cards are Kind · Quorum · Use vaults · Keys · Check · Back up;
-  the flow opens on Kind, open, no row ticked (owner, 2026-11-09). Kind
-  offers Single key ("One key, its words on paper"), Multisig ("3 keys,
-  any 2 sign", the quorum's) and **Single key, backup in shares
-  (codex32)** ("One key, its backup in 3 shares, any 2 rebuild it", the
-  counts the scheme's), all three native SegWit; the other seven
-  are behind **More kinds**. An info
-  button follows "(codex32)" in the third row's name; it and the word
-  carry a tooltip (DESIGN §4.12, Tooltip; F112): "codex32 is the only
-  method that makes a seed and its shares fully by hand, the checksum
-  included." A kind pressed closes Kind and opens the next card, the
-  one pressed again too. Next waits until a row is chosen; a Tools tile
-  that opens Create with a kind chosen ticks it. Use vaults' **Yes** opens
-  How many, **No** opens Keys; closed before it is answered it reads
-  "Not answered".
-- **Single key, backup in shares** (`docs/CODEX32.md` §6.9, §14 D5). On
-  chain a single-key native SegWit wallet, one `wpkh` descriptor, one
-  xpub. Its Quorum asks the codex32 scheme: **How many to rebuild it**
-  (2 to 9, 2 to begin with) and **How many shares** (k to 31, 3), "Any 2
-  of the 3 shares rebuild the key.", then the Account row and
-  **Continue**; there is no None. Its one slot offers **Make codex32
-  shares** only, which opens New key on Make codex32 shares with the
-  scheme fixed, past Scheme on the identifier; Lock in fills the slot
-  and makes the wallet. Any other key put in the slot is refused with
-  its reason. Check has a **Backup** row, "codex32 w0za · 2 of 3". Back
-  up opens on codex32's standard way, one string per place on paper
-  (`docs/CODEX32.md` §9.5; that way is planned). Restore does not offer
-  the kind: the wallet it makes is a Single key one. Every kind whose path has an
+- **Make a new wallet** (decisions 17, 20 and 37; F53, F55, F98, F240; `docs/CODEX32.md` §6.9, §14 D5).
+  A single key's cards are Kind · Backup · Use vaults · Keys · Check; a
+  multisig's Kind · Quorum · Use vaults · Keys · Check, **Back up
+  wallet** at Check's foot for both. The flow opens on Kind, open, no row
+  ticked (owner, 2026-11-09). Kind asks only who signs: **Single key**
+  ("One key signs") and **Multisig** ("3 keys, any 2 sign", the
+  quorum's counts), both native SegWit; the address types (Single key
+  Taproot, nested, legacy; Multisig nested, legacy, Taproot) and MuSig2
+  are behind **More kinds**. A kind pressed closes Kind and opens the
+  next card, the one pressed again too. Next waits until a row is
+  chosen; a Tools tile that opens Create with a kind chosen ticks it.
+  Use vaults' **Yes** opens How many, **No** opens Keys; closed before
+  it is answered it reads "Not answered".
+- **A single key's Backup card** (F240; `docs/CODEX32.md` §6.9, §14 D5).
+  A single key of any address type has a **Backup** card after Kind with
+  **Words (BIP-39)** ("12 to 24 words on paper") and **Shares
+  (codex32)** ("The key in shares on paper, a few of them rebuild it"),
+  nothing ticked; a row pressed closes it and opens the next card (F103),
+  Next waits until one is chosen, and closed it reads the form's name or
+  "Not answered". An info button follows "(codex32)" in the Shares
+  row; it and the word carry a tooltip (DESIGN §4.12, Tooltip; F112):
+  "codex32 is the only method that makes a seed and its shares fully by
+  hand, the checksum included." Keys stays closed until Backup is
+  answered. A wallet made from another (New wallet from this one) has no
+  Backup card. There is no shares Quorum: the codex32 scheme is asked on
+  Make codex32 shares' own Scheme card. On chain the wallet is what the
+  address type makes, one descriptor, one xpub. Check has a **Backup**
+  row, "codex32 w0za · 2 of 3", for a key made here as codex32 shares,
+  whatever its address type. Back up opens on codex32's standard way,
+  one string per place on paper (`docs/CODEX32.md` §9.5; that way is
+  planned). Restore does not offer the choice. Every kind whose path has an
   account has an **Account** row, at the foot of Quorum under the
   quorum's line, or at the head of Keys for a kind with no Quorum card:
   "Account" and its number, starting at 0, with **Change**, which opens
@@ -1155,8 +1161,7 @@ guarantees for this file's rule:
   Lock in opens Check with **Back up wallet** at its foot.
 - **The Keys card** (decisions 35, 36 and 39). Where it would offer
   one way on only (a single key's empty slot with no key in the
-  session, no key or wallet file in the Inbox, offered or refused, and no vault's key, or a backup in
-  shares, whose one way is Make codex32 shares), the Continue on the
+  session, no key or wallet file in the Inbox, offered or refused, and no vault's key; F115, F240), the Continue on the
   card before it opens that key flow for slot 1 in its place; Keys
   stays in the list of steps, not done, and is done with the key once
   it is locked in (owner, 2026-10-24). A multisig, or a slot with more

@@ -35,6 +35,9 @@ pub(crate) fn compact_tour(t: &mut Tour) -> Result<(), String> {
     // (`docs/CODEX32.md` §6.9); Single key here.
     t.shot("create-kind")?;
     t.press(Action::CKind(0));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.shot("create-keys")?;
     t.press(Action::KeyGen(Some(0)));
     t.shot("keygen-start")?;

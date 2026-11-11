@@ -24,7 +24,7 @@ use faraday_ui::parts::wrap_buttons;
 
 use super::dice_screen::{dice_rows, dice_sheet, rolled_line};
 use super::worksheet_screen as sheet;
-use super::{C32, CARDS, Card, Cell, Codex32Make, Given, SPLITS, Split, Tab, WAYS, Way, char_of};
+use super::{C32, CARDS, Card, Cell, Codex32Make, Given, Split, Tab, WAYS, Way, char_of};
 use crate::drawing::View;
 use crate::keygen::{KeyGen, kstep};
 use crate::screens::{next_button, next_button_when};
@@ -463,10 +463,10 @@ fn scheme(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     );
     crate::screens::section_label(ui, x, cy, EN.codex32_split);
     cy += t::PAD + t::GAP_SMALL;
-    let items: Vec<(&str, bool, Action)> = SPLITS
-        .iter()
-        .enumerate()
-        .map(|(i, &s)| (split_name(s), m.split() == s, a(C32::Split(i as u8))))
+    let items: Vec<(&str, bool, Action)> = m
+        .splits()
+        .into_iter()
+        .map(|(i, s)| (split_name(s), m.split() == s, a(C32::Split(i))))
         .collect();
     cy += choice(ui, x, cy, w, &items);
     let (k, n) = m.k_n();

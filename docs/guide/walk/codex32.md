@@ -29,21 +29,31 @@ does not need this step.
 The test data: BIP 93's published vector 2, identifier `name`. Its
 characters make key `fab6868a`. Never keep funds on it.
 
-**Wallets → Make a new wallet**. Kind opens with **Single key, backup
-in shares (codex32)** chosen; press it:
+**Wallets → Make a new wallet**. Kind opens with no row chosen; press
+**Single key · native SegWit**. The **Backup** card opens; press **Shares
+(codex32)** (The key in shares on paper, a few of them rebuild it):
 
-![The Quorum card at 2 of 3, Continue outlined](../pictures/4-11-quorum.png)
+![The Backup card, Shares (codex32) outlined](../pictures/4-11-backup.png)
 
-**How many to rebuild it** reads 2 and **How many shares** 3; the line
-under them reads **Any 2 of the 3 shares rebuild the key.** Press
-**Continue**, then **No** on **Use vaults**. With no key loaded, Keys
-is not shown: the key is made at once.
+The ⓘ after "(codex32)" says what codex32 is. Then press **No** on
+**Use vaults**. With no key loaded, **Keys** is not shown: the key is
+made at once, and the page is [**New key**](../screens/new-key.md#make-codex32-shares), open on **Start**:
+
+![New key on Start, Make a new key · Codex32 outlined](../pictures/4-11-start.png)
+
+Under **Make a new key** only **Codex32** is offered, beside the ways to
+add a key you have. Press **Codex32**. **Scheme** opens:
+
+![The Scheme card at 2 of 3, 48 characters](../pictures/4-11-scheme.png)
+
+**Length** reads **48 characters** and **Split** **2 of 3**: any 2 of the
+3 strings rebuild the key. There is no **None, the secret alone** for a
+wallet's key. Press **Continue**.
 
 ![New key open on Identifier, its four boxes and the keyboard](../pictures/4-11-identifier.png)
 
-The page is [**New key**](../screens/new-key.md#make-codex32-shares), open on **Identifier**: **Start** reads **Make
-a new key · Codex32** and **Scheme** **48 characters · 2 of 3**, from
-Quorum. Type four characters that name the set (**Suggest** fills four),
+**Identifier** is open: **Start** reads **Make a new key · Codex32** and
+**Scheme** **48 characters · 2 of 3**. Type four characters that name the set (**Suggest** fills four),
 then **Continue**. **Entropy** offers **Roll dice**, **Type the
 characters** (made on paper) and **Type shares made by hand**; dice
 can have 4, 6 (the default), 8, 10, 12 or 20 faces, five of one size,

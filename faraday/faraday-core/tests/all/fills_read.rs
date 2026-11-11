@@ -229,7 +229,7 @@ fn the_board() -> Faraday {
         .iter()
         .position(|k| *k == NewKind::Multi)
         .unwrap() as u8;
-    app.press(Action::CKind(multi));
+    crate::common::ckind(&mut app, multi);
     for slot in 0..3u8 {
         let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
@@ -285,7 +285,7 @@ fn what_the_screens_write_reads_on_their_fills_in_every_theme() {
                 let mut app = faraday_core::testkit::started();
                 in_theme(&mut app, theme);
                 app.press(Action::CreateWallet);
-                app.press(Action::CKind(0));
+                crate::common::ckind(&mut app, 0);
                 app.press(Action::CStep(faraday_core::cstep::KIND));
                 app
             }),

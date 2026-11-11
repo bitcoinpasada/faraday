@@ -25,15 +25,18 @@ pub(super) fn run(c: &Compute, t: &mut Tour) -> Result<(), String> {
     checklist(c, t)
 }
 
-/// §4.1: Make a new wallet, a single key from the dice key: Kind, the
-/// vault question, Keys, Check, and its Back up step.
+/// §4.1: Make a new wallet, a single key from the dice key: Kind, its
+/// Backup, the vault question, Keys, Check, and its Back up step.
 fn single_key(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::CreateWallet);
-    // Create opens on Kind (`docs/CODEX32.md` §6.9); a kind pressed
-    // moves on (F103).
+    // Create opens on Kind; a kind pressed moves on (F103), a single key
+    // to its Backup card (F240), and a form pressed moves on too.
     t.shot_marking("4-1-kind", Action::CKind(kind_at(NewKind::NativeSegwit)?))?;
     t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
+    let words = Action::CBackupForm(faraday_core::create::BackupForm::Words.index());
+    t.shot_marking("4-1-backup", words)?;
+    t.press(words);
     t.shot("4-1-use-vaults")?;
     // No moves on to Keys by itself.
     t.press(Action::CVaults(false));

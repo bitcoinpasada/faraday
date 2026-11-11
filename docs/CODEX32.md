@@ -1,7 +1,7 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Reference
-**Status:** Built. Codex32 in Faraday: the worksheets, symbols and fresh sets in `faraday-bip`, the error-correction decoder, the dice method, the work set, Make codex32 shares and its wallet kind, dice of up to twenty faces in colours the person picks with the booklet's dice sheet drawn as the booklet draws it, hand-made shares, Add a share, Check a string, scanning and the correction in the form, backups, the Starter's templates, both dice rollers on Faraday Demo, the codex32 one stepping through the work in a Practice only pane that holds its place, and Practice's sample; decisions F93 to F96 and F107. Strings of 74 and 127 characters have no Codex32QR picture, as the profile does not define one (§10.4)
+**Status:** Built. Codex32 in Faraday: the worksheets, symbols and fresh sets in `faraday-bip`, the error-correction decoder, the dice method, the work set, Make codex32 shares and a single key's Backup card, dice of up to twenty faces in colours the person picks with the booklet's dice sheet drawn as the booklet draws it, hand-made shares, Add a share, Check a string, scanning and the correction in the form, backups, the Starter's templates, both dice rollers on Faraday Demo, the codex32 one stepping through the work in a Practice only pane that holds its place, and Practice's sample; decisions F93 to F96 and F240. Strings of 74 and 127 characters have no Codex32QR picture, as the profile does not define one (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -135,11 +135,16 @@ Sources read for it, each as data and none vendored:
 19. **Codex32 is made for single-key wallets only**: Make codex32
     shares is not offered in a multisig, Taproot multisig, MuSig2
     or recovery wallet's slot; a codex32 key already loaded is accepted
-    in any slot (§6.9).
+    in any slot (§6.9). The owner's call of 2026-11-10 (F240) narrows it
+    further: a multisig cosigner's slot makes BIP-39 words only, and
+    Make SLIP-39 shares is no longer offered there either.
 20. **A wallet kind, "Single key, backup in shares"**, on Make a new
     wallet's Kind card (its place since item 24, changed 2026-11-09, §6.9): single-sig
     on chain, its Quorum the share scheme, its one slot made by Make
-    codex32 shares; codex32 only, not SLIP-39 (§6.9).
+    codex32 shares; codex32 only, not SLIP-39 (§6.9). The owner's call
+    of 2026-11-10 (F240) takes it off the Kind card: Shares (codex32) is
+    a row of a single key's Backup card, for every address type, and
+    its scheme is asked on Make codex32 shares' own Scheme card.
 21. **SLIP-39 words and other conversions** leave this spec (owner,
     2026-10-23): seed conversions (codex32 to SLIP-39 and the others) are
     a dedicated conversion tool of their own, planned, not scheduled
@@ -157,7 +162,9 @@ Sources read for it, each as data and none vendored:
     by hand, the checksum included.": the one explanation on a working
     screen, a deliberate exception recorded as a decision (F112). The
     tooltip is marked by Material's info icon button right after
-    "(codex32)" (§6.9).
+    "(codex32)" (§6.9). The owner's call of 2026-11-10 (F240) moves the
+    tooltip and its button to the Shares (codex32) row of the Backup
+    card; the Kind card has no codex32 row.
 25. **Move the money opens Kind with nothing ticked** (owner,
     2026-10-24): the person moves money to a wallet of their choosing,
     so Faraday does not guess. The rows are in the same order; Next waits
@@ -438,19 +445,21 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   in loading the sample's key; a Practice with no sample shows none
   (`codex32_rest.rs`). Hand-made shares (the Entropy card's third way,
   §5.3) go on to Add a key's codex32 form, Make the rest pressed (§8.1).
-- **Single key, backup in shares** (§6.9, D5), a kind of Make a new
-  wallet (`faraday/faraday-core/src/create.rs`, `NewKind::Shares`; drawn
-  in `faraday/faraday-core/src/screens/create.rs`): on Kind between
-  Single key and Multisig, its line following the scheme; its Quorum the
-  scheme's two steppers (2 to 9, k to 31), the Account row at its foot;
-  its one slot offering Make codex32 shares only, opened with the scheme
-  fixed (`Codex32Make::with_scheme`); the set's facts kept with the
-  creation at Lock in (`SharesSet`: fingerprint, identifier, k, n,
-  length) and shown on Check as "Backup · codex32 w0za · 2 of 3"; a key
-  not made as the set refused. On chain one `wpkh` descriptor. Not in
-  Restore. Tested in `faraday/faraday-core/tests/all/create_shares.rs`.
-  Back up opens on the wallet as for Single key; codex32's standard way
-  (§9.5) is C8's, and reads the set from `Faraday::create_shares_set`.
+- **A single key's Backup card** (§6.9, D5, F240), a card of Make a new
+  wallet (`faraday/faraday-core/src/create.rs`; drawn in
+  `faraday/faraday-core/src/screens/create.rs`): after Kind for a
+  single key of every address type, Words (BIP-39) or Shares
+  (codex32); a Shares choice opens New key for the slot with Codex32 as
+  its one way to make a key, on Make codex32 shares' Scheme card, with
+  no "None, the secret alone"; the set's facts kept with the creation
+  at Lock in (fingerprint, identifier, k, n, length) and shown on Check
+  as "Backup · codex32 w0za · 2 of 3"; a key put in a codex32 backup's
+  slot that is not a codex32 set is not taken from a set made here, but
+  any key you have fills either backup. On chain what the address type
+  makes. Not in Restore. Tested in
+  `faraday/faraday-core/tests/all/create_shares.rs`. Back up opens on
+  the wallet as for Single key; codex32's standard way (§9.5) is C8's,
+  and reads the set from `Faraday::create_shares_set`.
 - **Add a key › Type codex32 strings** (C6; `faraday/faraday-core/src/forms.rs`,
   `state.rs`, `screens/entry.rs` and the compact form): one string at a
   time, typed on the codex32 keyboard (`?` on it with the tick, a
@@ -1412,27 +1421,25 @@ A Record, opened from Strings made and from the key's backup checks:
 The record names no product. Learn (§15.3) names the implementations
 that read codex32 as of the build, with the date.
 
-### 6.9 A wallet kind: Single key, backup in shares (owner, 2026-10-22)
+### 6.9 A single key's backup: Words or Shares (owner, 2026-10-22; F240, 2026-11-10)
 
-Built (F107).
+Built (F240; it replaces F107's kind "Single key, backup in shares").
 
 Codex32 gives a single-key wallet much of what a person reaches for
 multisig to get, on the backup side: no one paper or place loses the
 wallet, and fewer than k papers reveal nothing. It does not do what
 multisig does at spending: to sign, the whole key is on one device. So
-it is offered where the person chooses what kind of wallet to make, as
-an answer of its own, each row stating plainly what it is.
+it is offered where the person chooses how a single key is backed up,
+as an answer of its own, each row stating plainly what it is.
 
 **Make a new wallet's Kind card** (FLOWS, Make a new wallet; DESIGN
-§4.2, Option row). The flow opens on it, open, in this order, no row
-ticked (owner, 2026-11-09, replacing the call of 2026-10-24, §1.1 items
-24 and 25):
+§4.2, Option row) asks only who signs. The flow opens on it, open, no
+row ticked (owner, 2026-11-09, §1.1 items 24 and 25):
 
-- **Single key**: one key, its words on paper.
-- **Multisig**: 3 keys, any 2 sign.
-- **Single key, backup in shares (codex32)**: one key, its backup in 3
-  shares, any 2 rebuild it (the line follows the scheme chosen).
-- **More kinds**, as today.
+- **Single key**: "One key signs".
+- **Multisig**: "3 keys, any 2 sign", the quorum's counts.
+- **More kinds**: the address types (Single key Taproot, nested,
+  legacy; Multisig nested, legacy, Taproot) and MuSig2.
 
 Whatever opens Create (Home, Wallets, Start over, a chart's **Move the
 money**) leaves the card with no row ticked: the person chooses, and
@@ -1440,7 +1447,21 @@ Next waits until they have. A Tools tile that opens Create with a kind
 chosen ticks that kind. A row pressed opens the next card, as any row
 does (F103).
 
-Right after "(codex32)" in the first row's name stands Material's info
+**The Backup card** follows Kind for a single key of every address type
+(native SegWit, Taproot, nested, legacy). Its title is "Backup" and its
+rows, nothing ticked:
+
+- **Words (BIP-39)**: 12 to 24 words on paper.
+- **Shares (codex32)**: the key in shares on paper, a few of them
+  rebuild it.
+
+A row pressed closes the card and opens the next (F103); Next waits
+until one is chosen; closed it reads the form's name, or "Not
+answered". Keys stays closed until Backup is answered. A wallet made
+from another (New wallet from this one) takes its keys and has no
+Backup card.
+
+Right after "(codex32)" in the Shares row's name stands Material's info
 icon button (the outlined "info" symbol, in the row's secondary ink, a
 48 dp target that takes the press only on the button itself). It and
 the word carry a rich tooltip (DESIGN §4.12, Tooltip, rich): "codex32 is the
@@ -1448,42 +1469,53 @@ only method that makes a seed and its shares fully by hand, the
 checksum included." It shows when the pointer rests on the button or
 the word, when the keyboard is on the button, on a long press of
 either, and at once when the button is pressed. It is the one
-explanation on a working screen, by the owner's decision (F112).
-Where Make codex32 shares is not offered, the row is not drawn and Single
-key is the default.
+explanation on a working screen, by the owner's decision (F112); F240
+moved it here from the Kind card.
 
 The second line of each row is a fact of the row, not an explanation;
-how the two compare is Learn's (§15.3). The new kind is single-sig on
-chain, native SegWit, as Single key is; its descriptor is a single-key
-descriptor, and a coordinator sees one xpub.
+how the two compare is Learn's (§15.3). On chain a single key is what
+its address type makes: one descriptor, one xpub, which a coordinator
+sees as one key.
 
-**Its cards** follow the wallet flow's (Kind · Quorum · Keys · Check ·
-Back up), each doing codex32's part:
+**Its cards** are Kind · Backup · Use vaults · Keys · Check, with Back
+up wallet at Check's foot; a multisig's are Kind · Quorum · Use vaults ·
+Keys · Check. Each does codex32's part:
 
-- **Quorum** asks the scheme: **How many to rebuild it?** (2 ticked, to
-  9) and **How many shares?** (k to 31, 3 ticked), the steppers of
-  §6.1's Other; "None, the secret alone" is not offered here (that is
-  Single key with a codex32 seed, §6). The Account row follows, at the
-  foot of Quorum as F98 places it.
-- **Keys** has one slot; its button opens Make codex32 shares (§6) with
-  the scheme already chosen, so §6.1 is skipped, starting at the
-  identifier (§6.2). Lock in fills the slot and returns to Keys.
-- **Check** as for Single key, with "Backup · codex32 w0za · 2 of 3" among
-  its rows.
+- **Backup** chooses Shares (codex32), as above. There is no shares
+  Quorum: the scheme is asked where the shares are made.
+- **Keys** is passed over where it would offer one way on only (F115);
+  the key flow opens for slot 1. The Account row is at the head of Keys
+  (F98), as for every kind without a Quorum card.
+- **New key**, opened for the slot, starts on Start with nothing ticked.
+  Under Make a new key it offers the Backup card's form only: Codex32
+  for Shares. Codex32 opens Make codex32 shares on its **Scheme** card
+  (Length 48 · 74; Split 2 of 3 · 3 of 5 · Other, §6.1), which for a
+  wallet's key offers no "None, the secret alone" (that is Single key
+  with a codex32 seed, §6); then Identifier (§6.2) and the rest. Lock in
+  fills the slot and makes the wallet, opening Check.
+- A key put in the slot is never refused for its form: a codex32 set you
+  hold, typed at Type codex32 strings, fills a codex32 backup's slot,
+  and any key you have fills either backup's.
+- **Check** as for Single key, with "Backup · codex32 w0za · 2 of 3"
+  among its rows for a key made here as codex32 shares, whatever its
+  address type.
 - **Back up** opens on the standard way for a codex32 key (§9.5): one
   string per place, on paper, Customize backup for the rest.
 
 It is codex32 only (owner, §1.1 item 20); SLIP-39 stays under New key's
-Other forms.
+Other forms. A backup flow kept across a lock under the old kind (kind
+code 10) is read as Single key, native SegWit, its Backup card answered
+Shares (codex32).
 
 **Where codex32 is offered, and where not** (owner, §1.1 item 19):
 
-- Make codex32 shares is offered where a single-key wallet is made: this
-  kind's slot; Single key's slot and Add a key on its own, through New
-  key's Start card (§6), BIP-39 words ticked there.
-- A slot of a multisig, Taproot multisig, MuSig2 or recovery
-  wallet offers BIP-39 words only under Make a new key: two thresholds
-  stacked add work and ways to go wrong for little more safety.
+- Make codex32 shares is offered where a single-key wallet's backup is
+  Shares (codex32): its slot; and under New key's Start on its own
+  (Tools, Add a key), where every choice is offered.
+- A cosigner's slot of a multisig, Taproot multisig, MuSig2 or recovery
+  wallet makes BIP-39 words only under Make a new key (F240): two
+  thresholds stacked add work and ways to go wrong for little more
+  safety; Make SLIP-39 shares is not offered there either.
 - A codex32 key already loaded (typed, scanned, from a vault) is refused
   nowhere: it can fill any slot a key can, as a cosigner, and its backup
   places the set it has (§9.4).

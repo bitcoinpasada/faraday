@@ -26,8 +26,8 @@ made at **Make the wallet**; its backup follows from **Back up wallet**.
 | a card | its title, what was chosen, and **Change** |
 | **Cancel** | at the top right, while the wallet is in progress: asks, then leaves ([Cancel a flow](prompts.md#cancel-a-flow)) |
 
-The cards: **Kind**, **Quorum** (for a kind of several keys, and for a
-backup in shares), **Use vaults**, **Sticks and vaults**, "Bring in the
+The cards: **Kind**, **Backup** (for a single key) or **Quorum** (for a
+kind of several keys), **Use vaults**, **Sticks and vaults**, "Bring in the
 sticks" and **Vaults** (while the backup uses vaults), **Keys**,
 **Check**.
 
@@ -37,12 +37,20 @@ A row pressed is chosen and the next card opens. No row is ticked at first.
 
 | Row | Line |
 |---|---|
-| **Single key · native SegWit** | **One key, its words on paper** |
+| **Single key · native SegWit** | **One key signs** |
 | **Multisig · native SegWit** | "3 keys, any 2 sign" |
-| **Single key, backup in shares (codex32)** | "One key, its backup in 3 shares, any 2 rebuild it" |
 | **More kinds** | opens the rest: **Single key · Taproot**, **Single key · nested SegWit**, **Single key · legacy**, **Multisig · nested SegWit**, **Multisig · legacy**, **Multisig · Taproot**, **All keys · MuSig2**, each with its line |
-| the ⓘ after "(codex32)" | the pointer resting on it or on the word, or a press: the tip **codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.** |
 | **Start over** | while a wallet is part made: forgets it and starts again |
+
+## Backup
+
+For a single key of any address type, after **Kind**. A row pressed is chosen and the next card opens; nothing is ticked at first, and **Next** waits until one is chosen. Closed, it reads the form's name, or "Not answered". **Keys** stays closed until it is answered. A wallet made from another (**New wallet from this one**) has no **Backup** card.
+
+| Row | Line |
+|---|---|
+| **Words (BIP-39)** | "12 to 24 words on paper" |
+| **Shares (codex32)** | "The key in shares on paper, a few of them rebuild it" |
+| the ⓘ after "(codex32)" | the pointer resting on it or on the word, or a press: the tip **codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.** |
 
 ## Quorum
 
@@ -54,11 +62,7 @@ A row pressed is chosen and the next card opens. No row is ticked at first.
 | **Account** | the account the keys are taken at, 0 at first; **Change** opens its stepper. The legacy kind has it only with **BIP-87** |
 | **Continue** | the next card |
 
-For a backup in shares the card asks the codex32 scheme instead: **How
-many to rebuild it** (2 to 9), **How many shares**, the line "Any 2 of
-the 3 shares rebuild the key.", **Account** and **Continue**.
-
-A kind with no **Quorum** has **Account** at the head of **Keys**.
+A kind with no **Quorum**, a single key among them, has **Account** at the head of **Keys**.
 
 ## Use vaults
 
@@ -69,9 +73,7 @@ A kind with no **Quorum** has **Account** at the head of **Keys**.
 
 ![Make a new wallet on Sticks and vaults: Vaults 3 and Sticks 2, Stick 2 holding Vault 1 and Stick 3 holding Vault 2 and Vault 3, Continue](../pictures/make-a-wallet-sticks-and-vaults.png)
 
-For a backup in shares, **No** goes straight on to [New key](new-key.md#make-codex32-shares)
-at its **Identifier** card, the scheme taken from **Quorum**; **Keys**
-closes on the key once its strings are locked in.
+Where **Keys** would offer one way on only (a single key's empty slot, with no key in the session, no key or wallet file in Files and no vault's key), it is passed over: **No** opens [New key](new-key.md) for **Key 1**, on **Start**. For **Shares (codex32)** that is **Codex32**, then [**Scheme**](new-key.md#make-codex32-shares); **Lock in** fills the slot, makes the wallet and opens **Check**.
 
 After **Yes**, "Bring in the sticks" ("1 of 2 read") and **Vaults** ("1
 of 2 unlocked") bring the vaults in before the keys; [Back it
@@ -94,7 +96,7 @@ own), "5d388376 · a cosigner's xpub", or **A cosigner adds it later · waiting 
 |---|---|
 | a key loaded | a button with its fingerprint, ticked while it fills the slot: fills it. A key in another slot is not offered |
 | an open vault's keys | under the vault's name: loads the key and fills the slot. "Unlock vault.kdbx" for a locked vault in Files |
-| **New key** | opens [New key](new-key.md) for the slot; the leading button on the first empty slot. For a backup in shares it is **Make codex32 shares**, the slot's only way |
+| **New key** | opens [New key](new-key.md) for the slot; the leading button on the first empty slot. A single key's slot makes the form its **Backup** card chose, a cosigner's slot BIP-39 words |
 | "From cosigner.txt" | an xpub file in Files fills the slot. A file whose key does not fit the kind is listed after the slots, greyed, with why |
 | **Scan its xpub** | for a wallet of several keys: the camera, for a cosigner's key |
 | **Someone else adds it later** | for a wallet of several keys: the slot waits for the cosigner's xpub file |
@@ -115,7 +117,7 @@ The card closes on "3 of 3 chosen", or "2 of 3 chosen · 1 to come".
 | Control | What it does |
 |---|---|
 | **Descriptor** | the wallet's kind, keys and checksum: "2 of 3 · native SegWit multisig · 3dca6805, 5d388376, cf2e083d". A press shows the wallet's code with the descriptor's full text |
-| **Backup** | for a backup in shares: the set, "codex32 name · 2 of 3" |
+| **Backup** | for a single key made here as codex32 shares, of any address type: the set, "codex32 name · 2 of 3" |
 | **Path** | the derivation path, "m/48'/0'/0'/2'"; **Change** goes back to **Account** while the wallet can still be taken back |
 | **The wallet's first addresses** | **Receive 0/0**, **Receive 0/1**, **Change 1/0**, to compare with a watch-only wallet; **Back up before you receive**, in the warning tone, in their place while a key made here waits for its backup |
 | **It matches** | marks the wallet checked; the card stays open |

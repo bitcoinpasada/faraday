@@ -25,7 +25,7 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
     add_key(&mut app, "bacon");
     add_key(&mut app, "zebra");
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(musig_index()));
+    crate::common::ckind(&mut app, musig_index());
     app.press(Action::CNext(cstep::KIND));
     // Two keys: one fewer than Create starts with.
     app.press(Action::CN(-1));
@@ -63,7 +63,7 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
 fn the_signatures_needed_follow_the_keys() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(musig_index()));
+    crate::common::ckind(&mut app, musig_index());
     let n = app.create().unwrap().n;
     app.press(Action::CN(1));
     app.press(Action::CM(-1));

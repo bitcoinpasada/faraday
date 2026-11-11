@@ -12268,32 +12268,24 @@ strings! {
     // Fewer presses (F103).
     /// Button: closes the board's Add list, a sheet on a small panel.
     board_list_close: "Close",
-    // ----- Make a new wallet: Single key, backup in shares (docs/CODEX32.md §6.9), and fewer presses, faraday-core/src/create.rs and screens/create.rs -----
-    /// Kind row: the wallet kind whose one key is made as codex32 shares.
-    create_single_key_shares: "Single key, backup in shares (codex32)",
-    /// The word in that row's name that carries the tooltip below: it is in the name as written there.
-    create_shares_tip_word: "codex32",
-    /// Tooltip on "codex32" in the Kind row's name: an explanation on a working screen, by the owner's decision (2026-10-24).
-    create_shares_tip: "codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.",
-    /// The kind's line where no scheme is chosen.
-    create_shares_line_plain: "One key, its backup in codex32 shares",
+    // ----- Make a new wallet: who signs, then a single key's Backup card (F240), and fewer presses, faraday-core/src/create.rs and screens/create.rs -----
+    /// Backup card's row: the key backed up as its BIP-39 words.
+    create_backup_words: "Words (BIP-39)",
+    /// Backup card's row: Words' line.
+    create_backup_words_line: "12 to 24 words on paper",
+    /// Backup card's row: the key backed up as codex32 shares.
+    create_backup_codex32: "Shares (codex32)",
+    /// Backup card's row: Shares' line.
+    create_backup_codex32_line: "The key in shares on paper, a few of them rebuild it",
+    /// The word in the Shares row's name that carries the tooltip below: it is in the name as written there.
+    create_backup_tip_word: "codex32",
+    /// Tooltip on "codex32" in the Backup card's Shares row: an explanation on a working screen, by the owner's decision (2026-10-24, F112; moved to the Backup card by F240).
+    create_backup_tip: "codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.",
     /// Make a new wallet's Kind row: Single key's line.
-    create_single_key_line: "One key, its words on paper",
-    /// Make a new wallet's Kind row: the backup in shares' line. `{}`: the shares, how many rebuild it.
-    create_shares_line: "One key, its backup in {} shares, any {} rebuild it",
+    create_single_key_line: "One key signs",
     /// Make a new wallet's Kind row: Multisig's line. `{}`: the keys, the signatures needed.
     create_multisig_line: "{} keys, any {} sign",
-    /// Quorum's stepper for the backup in shares: the threshold.
-    create_shares_rebuild: "How many to rebuild it",
-    /// Quorum's stepper for the backup in shares: the strings made.
-    create_shares_count: "How many shares",
-    /// Quorum's line for the backup in shares. `{}`: k, n.
-    create_shares_any: "Any {} of the {} shares rebuild the key.",
-    /// Keys' slot button for the backup in shares: opens Make codex32 shares with the scheme.
-    create_make_codex32_shares: "Make codex32 shares",
-    /// Why the backup in shares is not made from the key in its slot.
-    create_shares_key_needed: "Key 1 is not a key made here as codex32 shares: clear it and press Make codex32 shares.",
-    /// Check's row label for the backup in shares.
+    /// The Backup card's title, and Check's row label for a key made as codex32 shares.
     create_backup: "Backup",
     /// Check's row value. `{}`: the identifier, k, n.
     create_shares_set: "codex32 {} · {} of {}",
@@ -12303,10 +12295,8 @@ strings! {
     create_it_matches: "It matches",
     /// Use vaults, closed before it is answered.
     create_not_answered: "Not answered",
-    /// Guided: the backup in shares' Quorum. `{}`: k, n.
-    create_guide_shares_quorum: "Any {} of the {} codex32 shares rebuild the key, and fewer show nothing of it. Keep each share in a place of its own, so no one place holds the key.",
-    /// Guided: the backup in shares' Keys.
-    create_guide_shares_keys: "Make codex32 shares makes the key from your dice with this scheme, every worksheet shown as on paper. Lock in fills the slot and makes the wallet.",
+    /// Guided: a single key's Backup card.
+    create_guide_backup: "Choose how the key is written down. Words are one list on one paper. Codex32 shares split the key: a set number of them rebuild it and fewer show nothing of it, so each can be kept in a place of its own.",
     // ----- Codex32 in backups (docs/CODEX32.md §9), faraday-core -----
     /// A codex32 string on paper, as the plan names it. `{}`: the seed, the share index.
     c32_plan_string: "Seed {}: codex32 {}",

@@ -94,7 +94,7 @@ Press **Home**, then [**Make a new wallet**](../screens/make-a-wallet.md).
 | Kind | Quorum |
 |---|---|
 | ![Kind opened again with Multisig · native SegWit chosen, that row outlined](../pictures/5-2-kind.png) | ![Quorum at 2 of 3, Account 0, Continue outlined](../pictures/5-2-quorum.png) |
-| Kind opens with no row ticked: **Single key · native SegWit**, **Multisig · native SegWit** and **Single key, backup in shares (codex32)**; **More kinds** lists the others. Press **Multisig · native SegWit** (**3 keys, any 2 sign**): **Quorum** opens. **Change** on Kind, as in the picture, shows it chosen; pressed again, it moves on. | **Signatures needed** 2 and **Keys** 3 (**-** and **+** change them). The line under them says what the quorum means: **Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.** **Account** 0. Press **Continue**. |
+| Kind opens with no row ticked: **Single key · native SegWit** and **Multisig · native SegWit**; **More kinds** lists the others. Press **Multisig · native SegWit** (**3 keys, any 2 sign**): **Quorum** opens. **Change** on Kind, as in the picture, shows it chosen; pressed again, it moves on. | **Signatures needed** 2 and **Keys** 3 (**-** and **+** change them). The line under them says what the quorum means: **Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.** **Account** 0. Press **Continue**. |
 
 On **Use vaults**, press **No**: **Keys** opens.
 

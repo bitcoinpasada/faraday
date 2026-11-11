@@ -491,9 +491,12 @@ pub struct Codex32Make {
     split: Split,
     other_k: u8,
     other_n: u8,
-    /// The scheme came from Make a new wallet's Quorum (§6.9): the Scheme
-    /// card is closed on it and offers no change.
+    /// The scheme was chosen before the flow opened: the Scheme card is
+    /// closed on it and offers no change.
     fixed: bool,
+    /// A wallet's key, made as shares: the Scheme card offers no "None,
+    /// the secret alone" (F240).
+    shares_only: bool,
     id: [u8; 4],
     id_len: u8,
     /// Identifiers already used on this device, with where.
@@ -623,6 +626,7 @@ impl Codex32Make {
             other_k: 2,
             other_n: 3,
             fixed: false,
+            shares_only: false,
             id: [0; 4],
             id_len: 0,
             taken,
@@ -741,8 +745,9 @@ impl Codex32Make {
         self
     }
 
-    /// The flow for a wallet whose Quorum chose `k` of `n` (§6.9): the
-    /// Scheme card closed on it, the identifier open.
+    /// The flow with `k` of `n` chosen and fixed: the Scheme card closed
+    /// on it, the identifier open.
+    #[cfg(test)]
     pub(crate) fn with_scheme(k: u8, n: u8, taken: Vec<([u8; 4], String)>) -> Codex32Make {
         let mut m = Codex32Make::new(taken);
         m.split = Split::Other;
@@ -752,6 +757,23 @@ impl Codex32Make {
         m.done[usize::from(Card::Scheme.index())] = true;
         m.open = Some(Card::Identifier);
         m
+    }
+
+    /// The flow for a wallet's key, with `on`: its Scheme offers the
+    /// splits into shares and not the secret alone (F240).
+    pub(crate) fn shares_only(mut self, on: bool) -> Codex32Make {
+        self.shares_only = on;
+        self
+    }
+
+    /// The splits the Scheme card lists, by place in [`SPLITS`].
+    pub fn splits(&self) -> Vec<(u8, Split)> {
+        SPLITS
+            .iter()
+            .enumerate()
+            .filter(|(_, s)| !(self.shares_only && **s == Split::Alone))
+            .map(|(i, &s)| (i as u8, s))
+            .collect()
     }
 
     // ----- What drawing reads -----
@@ -835,7 +857,7 @@ impl Codex32Make {
         self.work.is_some()
     }
 
-    /// The scheme was fixed by the wallet's Quorum.
+    /// The scheme was chosen before the flow opened.
     pub fn fixed(&self) -> bool {
         self.fixed
     }
@@ -1617,7 +1639,7 @@ impl Codex32Make {
                 };
             }
             C32::Split(i) if self.scheme_open() => {
-                if let Some(&s) = SPLITS.get(usize::from(i)) {
+                if let Some((_, s)) = self.splits().into_iter().find(|(at, _)| *at == i) {
                     self.split = s;
                 }
             }
@@ -1693,7 +1715,7 @@ impl Codex32Make {
     }
 
     /// Whether the Scheme card's length and split take a press: before
-    /// the entry, not fixed by a wallet's Quorum, not a set typed in.
+    /// the entry, not chosen before the flow opened, not a set typed in.
     fn scheme_open(&self) -> bool {
         self.work.is_none() && !self.fixed && self.given.is_none()
     }

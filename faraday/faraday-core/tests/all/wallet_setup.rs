@@ -268,7 +268,7 @@ fn plan_after_setup(multi: bool, vaults: usize, sticks_n: usize) -> Faraday {
             .iter()
             .position(|k| *k == NewKind::Multi)
             .unwrap() as u8;
-        app.press(Action::CKind(k));
+        crate::common::ckind(&mut app, k);
     }
     app.press(Action::CVaultN(vaults as u16));
     app.press(Action::CSticks(sticks_n as u16));

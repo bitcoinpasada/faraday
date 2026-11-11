@@ -72,7 +72,7 @@ fn faradays_own_records_read_back() {
     }
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
     let fp = app.session.keys[0].fingerprint.0;

@@ -35,8 +35,13 @@ with no row chosen; a choice moves on to the next card by itself.
 
 | Kind | Use vaults |
 |---|---|
-| ![The Kind card, Single key · native SegWit outlined](../pictures/4-1-kind.png) | ![The Use vaults card asking Will you use vaults as part of this backup?](../pictures/4-1-use-vaults.png) |
-| **Single key, backup in shares (codex32)** (One key, its backup in 3 shares, any 2 rebuild it) makes its one key as codex32 shares instead of words (step 4.11); the ⓘ after its name says what codex32 is. **Multisig · native SegWit** is section 5; **More kinds** lists the rest. This section keeps the key's words: press **Single key · native SegWit** (One key, its words on paper). | Kind closes on **Single key · native SegWit**. **Will you use vaults as part of this backup?** Press **No**: the card closes on **No** and **Keys** opens. The vault in this section is a new one, made in the checklist; **Yes** is for a vault already on a stick, which is brought in here. |
+| ![The Kind card, Single key · native SegWit outlined](../pictures/4-1-kind.png) | ![The Backup card, Words (BIP-39) outlined](../pictures/4-1-backup.png) |
+| Kind asks who signs. **Multisig · native SegWit** is section 5; **More kinds** lists the rest. Press **Single key · native SegWit** (One key signs). | Kind closes and **Backup** opens. **Shares (codex32)** (The key in shares on paper, a few of them rebuild it) makes the key as codex32 shares instead of words (step 4.11); the ⓘ after its name says what codex32 is. This section keeps the key's words: press **Words (BIP-39)** (12 to 24 words on paper). |
+
+| Use vaults |
+|---|
+| ![The Use vaults card asking Will you use vaults as part of this backup?](../pictures/4-1-use-vaults.png) |
+| Backup closes on **Words (BIP-39)**. **Will you use vaults as part of this backup?** Press **No**: the card closes on **No** and **Keys** opens. The vault in this section is a new one, made in the checklist; **Yes** is for a vault already on a stick, which is brought in here. |
 
 When **Use vaults** is **Yes**, the sticks are laid out and read before the keys, on **Sticks and vaults** and then **Bring in the sticks**. A stick is not read while a key or a vault is open, so with one open the card offers only **Lock and bring in the sticks**. Reading the sticks now makes sure every vault has a stick that works before there is anything to lose. Nothing is written to them until the lock, after the keys are saved into the vaults. **Check it later** on a waiting stick puts its check off to the write step: its vaults are made now and kept sealed in this device's memory only until that stick is written, and a stick that fails then can be replaced. A stick that holds a vault already on a stick cannot be put off, because that vault is read only before the keys. ([Bring in the sticks](gpg.md#3-bring-in-the-sticks) shows the card.)
 

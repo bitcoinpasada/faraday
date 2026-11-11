@@ -121,15 +121,15 @@ Read this table, then only the decision you need.
 | [F104](decisions/F104.md) | Back and Forward move within a flow's steps | 2026-10-23 | Active | design |
 | [F105](decisions/F105.md) | The boot guides give written directions, not mock-ups of firmware screens | 2026-10-23 | Active | Starter |
 | [F106](decisions/F106.md) | Faraday reads PSBTs, mnemonics and vaults as their standards say, and writes back what it read | 2026-10-23 | Active | formats |
-| [F107](decisions/F107.md) | Single key, backup in shares | 2026-10-22 | Active | wallets |
+| [F107](history/decisions/F107.md) | Single key, backup in shares | 2026-10-22 | Superseded by F240 | wallets |
 | [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Amended by F113, F152, F188 | design |
 | [F109](history/decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Superseded by F234 | wallets |
 | [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Amended by F118 | design |
 | [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |
-| [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Active | design |
+| [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Amended by F240 | design |
 | [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Amended by F126, F138 | design |
 | [F114](decisions/F114.md) | Wide content takes the room beside the navigation; reading content keeps its column | 2026-10-24 | Active | design |
-| [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Active | design |
+| [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Amended by F240 | design |
 | [F116](decisions/F116.md) | Faraday's scope: an offline signer and keeper of keys, Bitcoin first | 2026-10-25 | Active | scope |
 | [F117](decisions/F117.md) | Faraday Demo matches the device; it differs only where the platform or an owner decision forces it | 2026-10-25 | Amended by F119 | design |
 | [F118](decisions/F118.md) | Faraday Demo is a simulator: what is Faraday Demo's or Practice's stands in a host strip outside the app | 2026-10-25 | Amended by F119 | design |
@@ -254,3 +254,4 @@ Read this table, then only the decision you need.
 | [F237](decisions/F237.md) | Transfer calls Read the words and does not offer it; the screens_not count is 23 | 2026-11-10 | Active | crypto |
 | [F238](decisions/F238.md) | Named costly operations are held by an instruction count in the check: more than 25% over fails, a count is raised only in a commit that says why; a stated cost says how it was measured | 2026-11-10 | Active | speed |
 | [F239](decisions/F239.md) | A release's cross-check may be made of runs at one fresh seed, the later ones running only the areas whose own inputs changed | 2026-11-10 | Active | repository |
+| [F240](decisions/F240.md) | Make a new wallet asks who signs, then a single key's backup: Words (BIP-39) or Shares (codex32) on a Backup card, New key making the key in that form | 2026-11-10 | Active | wallets |

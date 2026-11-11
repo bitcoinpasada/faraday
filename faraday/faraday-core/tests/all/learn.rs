@@ -15,7 +15,7 @@ fn shown(app: &Faraday) -> &'static str {
 fn the_question_mark_opens_the_pages_for_the_screen() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
     assert_eq!(shown(&app), "Multisig");
@@ -109,7 +109,7 @@ fn at_1920_learn_opens_beside_the_page_whose_controls_stay_pressable() {
         u32::from(kind.0) + u32::from(kind.2) <= u32::from(tab.0),
         "the kind {kind:?} stands left of the pane's tab {tab:?}"
     );
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     frame(&mut app);
     assert!(app.offers(Action::LearnClose), "the pane stays open");
     assert_ne!(shown(&app), first, "and shows the multisig's pages");
@@ -127,7 +127,7 @@ fn at_1280_learn_opens_as_the_sheet() {
 fn a_pinned_pane_follows_the_step_and_the_screens_to_their_pages() {
     let mut app = learn_on_create(1920, 1080);
     // A multisig chosen: the pane shows the pages about it.
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     frame(&mut app);
     assert_eq!(shown(&app), "Multisig");
     assert!(app.offers(Action::LearnClose));

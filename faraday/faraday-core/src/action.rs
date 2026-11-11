@@ -485,9 +485,12 @@ pub enum Action {
     CKind(u8),
     /// Expands the Kind card's other eight kinds.
     CMoreKinds,
-    /// The info button after "codex32" on the Kind card: shows its
-    /// tooltip at once (F112).
-    CKindAbout,
+    /// The info button after "codex32" on the Backup card: shows its
+    /// tooltip at once (F112, F240).
+    CBackupAbout,
+    /// A single key's Backup card: how its key is backed up, by place in
+    /// `BackupForm::ALL` (F240).
+    CBackupForm(u8),
     /// Answers the question of vaults on Make a new wallet: yes or no.
     CVaults(bool),
     /// The same on Restore.

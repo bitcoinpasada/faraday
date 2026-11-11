@@ -292,7 +292,7 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, faraday_bip::bip39::Mn
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)
         .unwrap() as u8;
-    app.press(Action::CKind(at));
+    crate::common::ckind(&mut app, at);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
@@ -430,7 +430,7 @@ fn create_on_keys(app: &mut Faraday, kind: faraday_core::create::NewKind) {
         .position(|k| *k == kind)
         .unwrap() as u8;
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(i));
+    crate::common::ckind(app, i);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));

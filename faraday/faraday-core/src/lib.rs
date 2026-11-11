@@ -50,7 +50,7 @@
 //!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`, `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`, `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`), `kef_form` (the form that makes a Krux code, `kef_form/screen.rs`), `dice_entry` (the dice entry Create a vault uses, `dice_entry/screen.rs`), `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`) and `core_wallet` (a Bitcoin Core wallet's records, read and checked, F229). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
-//! - Wallets and PSBTs: `plan`, `decode`, `spend_backup`, `explore`, `catalog`, `register`, `review`, `signing`.
+//! - Wallets and PSBTs: `plan`, `decode`, `spend_backup`, `explore`, `catalog`, `register`, `review`, `signing`, `cstep` (Make a new wallet's cards, numbered).
 //! - Backups and the backup flow: `backup_flow`, `backups`, `board`,
 //!   `held` (the backup before spending, and signing), `restore`, `wallet_backup`, `public_files`,
 //!   `bstep` (the checklist's items, numbered), `codex32_backup` (its
@@ -652,28 +652,7 @@ const MAX_VAULTS: usize = 1024;
 pub(crate) const ABOUT_PAGE: u8 = u8::MAX;
 
 /// The create cards, in order.
-pub mod cstep {
-    /// The kind.
-    pub const KIND: u8 = 0;
-    /// The quorum.
-    pub const QUORUM: u8 = 1;
-    /// The keys; their Continue makes the wallet.
-    pub const KEYS: u8 = 2;
-    /// The descriptor and the first addresses.
-    pub const CHECK: u8 = 3;
-    /// No card now: Check's **Back up wallet** opens Back up.
-    pub const BACKUP: u8 = 4;
-    /// Whether vaults are part of the backup, before Keys.
-    pub const WHERE: u8 = 5;
-    /// Bring in the sticks of the vaults, before Keys.
-    pub const STICKS: u8 = 6;
-    /// Unlock and make the vaults, before Keys.
-    pub const VAULTS: u8 = 7;
-    /// How many vaults, before the sticks.
-    pub const HOW_MANY: u8 = 8;
-    /// How many cards there are.
-    pub const COUNT: usize = 9;
-}
+pub mod cstep;
 
 /// What Restore says of a seed that is not one of the description's keys.
 pub const NOT_A_KEY: &str = EN.app_not_wallet_key;
@@ -2807,7 +2786,8 @@ impl Faraday {
             | Action::CSticks(..)
             | Action::PlanAddPass
             | Action::CMoreKinds
-            | Action::CKindAbout
+            | Action::CBackupAbout
+            | Action::CBackupForm(..)
             | Action::CM(..)
             | Action::CN(..)
             | Action::CSlotVault(..)

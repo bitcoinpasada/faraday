@@ -358,7 +358,7 @@ fn a_multisig_slot_offers_no_codex32_to_make() {
         .iter()
         .position(|k| *k == NewKind::Multi)
         .unwrap() as u8;
-    app.press(Action::CKind(at));
+    crate::common::ckind(&mut app, at);
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CNext(faraday_core::cstep::QUORUM));
     app.press(Action::KeyGen(Some(0)));

@@ -202,7 +202,7 @@ fn multi_index() -> u8 {
 pub(crate) fn create_with_vaults(app: &mut Faraday, multi: bool, count: usize) {
     create_single_key(app);
     if multi {
-        app.press(Action::CKind(multi_index()));
+        crate::common::ckind(app, multi_index());
     }
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
@@ -3296,7 +3296,7 @@ fn a_setup_survives_the_lock_that_makes_the_process_clean() {
     // A key put in a slot before the question was answered.
     key_in(&mut app, 0);
     app.press(Action::Nav(Screen::Create));
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CVaultN(2));
@@ -3466,7 +3466,7 @@ fn each_places_stick_of_files_takes_only_that_places_seed_file() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -4238,7 +4238,7 @@ fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -4663,7 +4663,7 @@ fn two_of_three_paper(shell: &mut Shell, n: usize) -> Faraday {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    crate::common::ckind(&mut app, multi_index());
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {

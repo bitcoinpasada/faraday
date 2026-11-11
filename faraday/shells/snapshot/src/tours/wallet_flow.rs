@@ -53,6 +53,9 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     };
     t.press(Action::CreateWallet);
     t.press(Action::CKind(0));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.shot("wallet-flow-1-create-yes-no")?;
     t.press(Action::CVaults(true));
     t.press(Action::CNext(cstep::WHERE));
@@ -200,6 +203,9 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::Guided(false));
     t.press(Action::CreateWallet);
     t.press(Action::CKind(0));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.press(Action::CVaults(true));
     t.press(Action::CNext(cstep::WHERE));
     t.press(Action::CVaultN(2));

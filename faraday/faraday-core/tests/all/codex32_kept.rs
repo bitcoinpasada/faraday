@@ -648,7 +648,7 @@ fn made_with_set() -> Faraday {
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)
         .unwrap() as u8;
-    app.press(Action::CKind(kind));
+    crate::common::ckind(&mut app, kind);
     app.press(Action::CSlotHere(0, FP));
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));

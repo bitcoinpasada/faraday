@@ -90,7 +90,7 @@ fn made(seeds: &[usize], pass: &str) -> (Faraday, String, Vec<[u8; 4]>) {
     } else {
         NewKind::Multi
     };
-    app.press(Action::CKind(kind_index(kind)));
+    crate::common::ckind(&mut app, kind_index(kind));
     for (i, fp) in fps.iter().enumerate() {
         app.press(Action::CSlotHere(i as u8, *fp));
     }

@@ -83,7 +83,7 @@ need. Each document's header says what kind it is:
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record, and the call for outside review of Faraday's own specifications (§10). Built (F19); the Audits page does not yet show §10 (F160, F177).
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/COMPARE.md`: Compare two PSBTs, and the fee bump: the differences between any two PSBTs or finished transactions, listed without judging, and whether a replacement only raises the fee, in Compare and on Sign a transaction's review. Built (F233).
-- `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built (F93 to F96, F107); no Codex32QR picture for 74 and 127 characters.
+- `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built (F93 to F96, F240); no Codex32QR picture for 74 and 127 characters.
 - `docs/CHECKS.md`: Checks: what holds each rule, generated from `tools/impact.toml`. Built (F149).
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
 - `docs/DEMO.md`: Practice, and Faraday Demo for developers. Built (F30, F61).

@@ -47,6 +47,9 @@ pub(crate) fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     // rolls entered it asks, and Discard returns to Keys.
     t.press(Action::CreateWallet);
     t.press(Action::CKind(0));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.press(Action::CVaults(false));
     t.press(Action::KeyGen(Some(0)));
     t.press(Action::KStart(faraday_core::keygen::Start::Make.index()));

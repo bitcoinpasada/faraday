@@ -7,7 +7,6 @@
 
 use crate::tour::Tour;
 use faraday_core::create::NewKind;
-use faraday_core::cstep;
 use faraday_core::fresh::OwnSource;
 use faraday_core::fresh::page::Act;
 use faraday_core::keygen::{Start, Way};
@@ -25,7 +24,9 @@ pub(crate) fn keygen_tour(t: &mut Tour) -> Result<(), String> {
         .position(|k| *k == NewKind::NativeSegwit)
         .unwrap_or(0) as u8;
     t.press(Action::CKind(at));
-    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.press(Action::KeyGen(Some(0)));
     if t.app.screen != Screen::KeyGen {
         return Err("Make a new wallet opened no New key".into());

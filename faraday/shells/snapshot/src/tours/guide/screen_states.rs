@@ -204,6 +204,9 @@ fn chart(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::CreateWallet);
     t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.press(Action::CVaults(false));
     t.press(Action::CSlotHere(0, DICE_FP));
     t.press(Action::CNext(cstep::KEYS));
@@ -343,6 +346,9 @@ fn sticks_and_vaults(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::CreateWallet);
     t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.press(Action::CVaults(true));
     t.press(Action::CVaultN(3));
     t.press(Action::CSticks(2));
@@ -359,6 +365,9 @@ fn two_vaults_on_a_stick(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::CreateWallet);
     t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
+    t.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     t.press(Action::CVaults(false));
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));

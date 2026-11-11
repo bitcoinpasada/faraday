@@ -58,13 +58,13 @@ A backup does not write a key of words as codex32 strings. Strings of its 512-bi
 
 In the backup plan a key made as a codex32 set, or loaded from strings, keeps those strings, each placed on its own. A place with k strings of one set holds the seed. The key keeps the set's facts (threshold, identifier, length, indices; no strings), and its backup places that set rather than splitting the seed again. Add a share, Replace a lost share and Rotate the set are the set's actions.
 
-## Single key, backup in shares
+## A single key backed up in shares
 
-Make a new wallet opens with no kind ticked; Single key, backup in shares (codex32) is the third row, below Single key and Multisig. Its Quorum is the codex32 scheme, how many shares rebuild it and how many there are. Its one key is made by Make codex32 shares.
+Make a new wallet opens with no kind ticked. Choose Single key, and the next card, Backup, offers Words (BIP-39) and Shares (codex32); choose Shares (codex32). This works for a single key of any address type. The key is then made by Make codex32 shares, whose Scheme card asks how many shares rebuild it and how many there are.
 
-On the backup side it gives a single-key wallet much of what multisig gives: no one paper or place loses the wallet, and fewer than k papers reveal nothing. At spending it does nothing multisig does. The wallet is single-key on chain, native SegWit, one xpub to the coordinator, and to sign, the whole key is on one device. Whoever holds k shares can spend alone.
+On the backup side it gives a single-key wallet much of what multisig gives: no one paper or place loses the wallet, and fewer than k papers reveal nothing. At spending it does nothing multisig does. The wallet is single-key on chain, of the address type you chose, one xpub to the coordinator, and to sign, the whole key is on one device. Whoever holds k shares can spend alone.
 
-Codex32 shares are made only for single-key wallets. A slot of a multisig, Taproot multisig, MuSig2 or recovery wallet offers BIP-39 words to make a key. A codex32 key already loaded can fill any slot.
+Codex32 shares are made only for single-key wallets. A cosigner's slot of a multisig, Taproot multisig, MuSig2 or recovery wallet offers BIP-39 words to make a key, and no shares of any kind. A codex32 key already loaded can fill any slot.
 
 ## Codex32 sheets from the Starter
 

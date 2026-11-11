@@ -316,7 +316,7 @@ it — Wallets, Home, or a Tools tile with its kind already ticked
 this flow only); Kind's Continue closes it as done and opens the next
 card. Keys' Continue makes the wallet and opens Check; there is no card
 of its own for the descriptor. Keys that would offer one way on only
-(a single key with nothing to choose from, or a backup in shares) is
+(a single key with nothing to choose from; F115, F240) is
 passed over: the card before it opens that key flow for slot 1, and the
 key flow's Cancel returns to the card before Keys (`docs/FLOWS.md`,
 Cancel). On the Keys card, a key chosen for one

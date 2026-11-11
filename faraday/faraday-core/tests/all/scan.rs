@@ -155,7 +155,7 @@ fn a_code_says_whether_it_is_safe_to_scan() {
 fn a_cosigners_key_scanned_while_making_a_multisig_fills_the_waiting_slot() {
     let mut app = Faraday::new();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
     app.press(Action::CSlotLater(1));
@@ -176,7 +176,7 @@ fn a_cosigners_key_scanned_while_making_a_multisig_fills_the_waiting_slot() {
 fn making_a_multisig() -> Faraday {
     let mut app = Faraday::new();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
     app.press(Action::CSlotLater(1));
@@ -927,7 +927,7 @@ fn keys_card_with_file(name: &str, bytes: &[u8]) -> Faraday {
         kept: Vec::new(),
     });
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(0));
+    crate::common::ckind(&mut app, 0);
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(faraday_core::cstep::WHERE));
@@ -978,7 +978,7 @@ fn a_seed_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
     let c = testkit::compute();
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
     app.press(Action::ScanFor(faraday_core::Ask::Xpub(2)));
@@ -1009,7 +1009,7 @@ fn a_seed_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
 fn a_codex32_secret_read_at_creates_scan_its_xpub_becomes_the_slots_key() {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(4));
+    crate::common::ckind(&mut app, 4);
     app.press(Action::CNext(0));
     app.press(Action::CNext(1));
     app.press(Action::ScanFor(faraday_core::Ask::Xpub(2)));
