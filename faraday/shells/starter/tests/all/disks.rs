@@ -215,8 +215,9 @@ fn a_faraday_sticks_version_is_read_where_the_desktop_mounted_its_boot_partition
         stick.faraday.as_ref().and_then(|f| f.release.as_deref()),
         Some(BOOT_RELEASE)
     );
-    // Nothing mounted, unmounted or opened.
-    assert_eq!(bus.calls, Vec::<String>::new());
+    // Nothing mounted or unmounted; the boot partition alone is opened,
+    // to read its sum.
+    assert_eq!(bus.calls, [format!("open {BOOT_OBJECT}")]);
     // A Faraday stick comes first in the list.
     let mut all = listed(&recorded("attached.txt"));
     all.extend(disks);
@@ -246,12 +247,13 @@ fn an_unmounted_stick_has_its_boot_partition_alone_mounted_read_only_for_the_mom
         bus.calls,
         [
             format!("mount {BOOT_OBJECT}"),
-            format!("unmount {BOOT_OBJECT}")
+            format!("unmount {BOOT_OBJECT}"),
+            format!("open {BOOT_OBJECT}"),
         ]
     );
     // Read once while the stick stays attached.
     linux::list(&mut bus, &recording, &mut versions);
-    assert_eq!(bus.calls.len(), 2);
+    assert_eq!(bus.calls.len(), 3);
     assert!(!bus.calls.iter().any(|c| c.contains(DATA_OBJECT)));
 }
 

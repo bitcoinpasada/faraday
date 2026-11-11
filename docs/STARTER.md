@@ -771,8 +771,9 @@ Downloads.
      partition is written; the data partition, with its vaults and
      settings, is not read and not written. One line under it states
      the fact the Learn page explains (§4.4). F2 and F5's rules
-     apply (owner, D15): the same build string as the
-     stick already holds is refused with the reason; an older Faraday
+     apply (owner, D15): the same build as the
+     stick already holds (the same build string and a boot partition
+     that is exactly the release's, F244) is refused with the reason; an older Faraday
      over a newer stick is warned about on Confirm, with the case it is
      for ("Only to go back to an older release."), and is written only
      with **Hold to write the older release** (F136); anything else is
@@ -2183,7 +2184,8 @@ what moved.
 - **D14 Linux download:** a `.tar.gz`, so the executable bit survives
   and nobody runs `chmod` (§1.2).
 - **D15 Keep data reads the stick's version** from the boot partition
-  and applies F2 and F5's rules (§3.2, §4.1).
+  and applies F2 and F5's rules (§3.2, §4.1); the same build is refused
+  only when the stick's boot partition is already the release's (F244).
 - **D16 Guard order:** the key in hand first, then suspend.
   Superseded by F33.
 - **D17 Resuming:** the person's act through the Starter, with a logon

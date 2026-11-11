@@ -185,6 +185,7 @@ fn one(c: &Compute, list: &ImageList, path: &Path, memo: &mut Memo) -> Option<Im
                     board: image.board.clone(),
                     panel: image.panel.clone(),
                     starts: image.starts.clone(),
+                    boot_sha256: image.boot_sha256.map(|s| s.to_string()),
                 })
             } else {
                 ImageFinding::Mismatch { path: shown, name }

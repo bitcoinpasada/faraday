@@ -667,7 +667,16 @@ pub struct Image {
     pub dev: bool,
     /// A boot partition alone: keep data only.
     pub boot_only: bool,
+    /// The SHA-256 the stick's boot partition has once this image is
+    /// written, hex: the list's `-boot.vfat` value for a found image, the
+    /// file's own for a boot partition alone, `None` for a developer's
+    /// image whose boot partition is not known (F244).
+    pub boot_sha256: Option<String>,
 }
+
+/// What the elevated copy read of a stick's boot partition: the release
+/// string, and the SHA-256 of the partition, when each could be read.
+type VersionRead = (Option<String>, Option<String>);
 
 /// The Starter.
 pub struct Starter {
@@ -731,7 +740,7 @@ pub struct Starter {
     /// The versions the elevated copy read this session (Windows),
     /// by disk id, serial and size: asked once per stick,
     /// and forgotten once the stick is written.
-    versions: Vec<((String, String, u64), Option<String>)>,
+    versions: Vec<((String, String, u64), VersionRead)>,
     /// A stick's write is under way: set by the write asked, cleared by
     /// its result. The page does not say it: an event that is not the
     /// person's press can leave the Writing page.
@@ -1156,6 +1165,7 @@ impl Starter {
                 size: d.size,
                 dev: true,
                 boot_only: d.boot_only,
+                boot_sha256: d.boot_only.then(|| d.sha256.clone()),
             });
         }
         self.found_image(target)
@@ -1206,9 +1216,10 @@ impl Starter {
         for d in &mut disks {
             let key = (d.id.clone(), d.serial.clone(), d.size);
             if let Some(f) = d.faraday.as_mut().filter(|f| !f.read)
-                && let Some((_, release)) = self.versions.iter().find(|(k, _)| *k == key)
+                && let Some((_, (release, sum))) = self.versions.iter().find(|(k, _)| *k == key)
             {
                 f.release = release.clone();
+                f.boot_sha256 = sum.clone();
                 f.read = true;
             }
         }
@@ -1255,8 +1266,9 @@ impl Starter {
             Mode::KeepData => match disk.and_then(|d| d.faraday.as_ref()) {
                 None => Some(ModeRefusal::NotFaraday),
                 Some(stick) => {
-                    let build = image.and_then(|i| i.build);
-                    (decide::keep_data(stick, build.as_deref()) == faraday_core::build::Fit::Same)
+                    let image = image?;
+                    (decide::keep_data(stick, image.build.as_deref(), image.boot_sha256.as_deref())
+                        == faraday_core::build::Fit::Same)
                         .then_some(ModeRefusal::Same)
                 }
             },
@@ -1554,11 +1566,11 @@ impl Starter {
                     self.version_reading = None;
                 }
                 match result {
-                    Ok(release) => {
+                    Ok(read) => {
                         self.version_failed = None;
                         let key = (disk, serial, size);
                         self.versions.retain(|(k, _)| *k != key);
-                        self.versions.push((key, release));
+                        self.versions.push((key, read));
                         self.apply_versions();
                     }
                     Err(why) => self.version_failed = Some(why),

@@ -130,6 +130,7 @@ impl Starter {
             size: f.inner_size,
             dev: false,
             boot_only: false,
+            boot_sha256: f.boot_sha256.clone(),
         })
     }
 

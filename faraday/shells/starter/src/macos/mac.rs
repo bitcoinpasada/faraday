@@ -240,9 +240,12 @@ fn follow(out: &Sender<StarterEvent>, forget: &Receiver<String>) {
                                 r
                             }
                         };
+                        // The boot partition's sum is not read here: a
+                        // stick is then written by keep data (F244).
                         disk.faraday = Some(FaradayStick {
                             release,
                             read: true,
+                            boot_sha256: None,
                         });
                     }
                     disks.push(disk);

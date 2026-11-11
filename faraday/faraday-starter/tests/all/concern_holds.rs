@@ -50,6 +50,7 @@ fn stick() -> Disk {
         faraday: Some(FaradayStick {
             release: Some("6.6.84-faraday-0.2.0".into()),
             read: true,
+            boot_sha256: None,
         }),
     }
 }

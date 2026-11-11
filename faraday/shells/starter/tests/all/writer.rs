@@ -1182,7 +1182,7 @@ fn stick_holding(release: &[u8]) -> Sparse {
 fn the_elevated_copy_reads_which_faraday_a_stick_holds_from_its_boot_partition() {
     let read = |image: Sparse| {
         let len = image.len;
-        writer::release_on_stick(&mut StrictDisk::new(image), len, "Disk 2")
+        writer::release_on_stick(&mut StrictDisk::new(image), len, "Disk 2").map(|(r, _)| r)
     };
     assert_eq!(
         read(stick_holding(
@@ -1207,26 +1207,68 @@ fn the_elevated_copy_reads_which_faraday_a_stick_holds_from_its_boot_partition()
 }
 
 #[test]
+fn the_elevated_copy_reads_the_sum_of_a_sticks_whole_boot_partition() {
+    let image = stick_holding(b"\x006.6.84-faraday-0.2.0+0123456789ab.test (b) #1\x00");
+    let (from, to) = boot_range();
+    let want = sticks::sha(&image.bytes(from, (to - from) as usize));
+    let len = image.len;
+    let (release, sum) =
+        writer::release_on_stick(&mut StrictDisk::new(image), len, "Disk 2").expect("read");
+    assert!(release.is_some());
+    assert_eq!(sum.as_deref(), Some(want.as_str()));
+}
+
+#[test]
+fn a_keep_data_write_that_stopped_part_way_is_not_refused_as_the_same_build() {
+    let on = Some("6.6.84-faraday-0.2.0+0123456789ab");
+    let release = Some("ab".repeat(32));
+    let half = Some("cd".repeat(32));
+    // Build B's string is on the stick but its boot partition is not B's.
+    assert_eq!(
+        writer::refuse_same_build(
+            on,
+            half.as_deref(),
+            Some("0.2.0+0123456789ab"),
+            release.as_deref()
+        ),
+        Ok(())
+    );
+    // Its boot partition could not be read.
+    assert_eq!(
+        writer::refuse_same_build(on, None, Some("0.2.0+0123456789ab"), release.as_deref()),
+        Ok(())
+    );
+    // The exact boot partition of the release is refused.
+    assert_eq!(
+        writer::refuse_same_build(
+            on,
+            release.as_deref(),
+            Some("0.2.0+0123456789ab"),
+            release.as_deref()
+        ),
+        Err(Reason::SameBuild)
+    );
+}
+
+#[test]
 fn the_elevated_writer_refuses_keep_data_of_the_build_the_stick_already_holds() {
     use faraday_core::strings::EN;
     let on = Some("6.6.84-faraday-0.2.0+0123456789ab");
-    assert_eq!(
-        writer::refuse_same_build(on, Some("0.2.0+0123456789ab")),
-        Err(Reason::SameBuild)
-    );
+    let sum = Some("ab".repeat(32));
+    let same = |on: Option<&str>, build: Option<&str>| {
+        writer::refuse_same_build(on, sum.as_deref(), build, sum.as_deref())
+    };
+    assert_eq!(same(on, Some("0.2.0+0123456789ab")), Err(Reason::SameBuild));
     assert_eq!(
         faraday_starter::reason_text(&Reason::SameBuild),
         EN.starter_why_same_build
     );
-    assert_eq!(writer::refuse_same_build(on, Some("0.3.0")), Ok(()));
+    assert_eq!(same(on, Some("0.3.0")), Ok(()));
     // An older Faraday over a newer one: Confirm warned, and it is written.
-    assert_eq!(
-        writer::refuse_same_build(Some("6.6.84-faraday-0.3.0"), Some("0.2.0")),
-        Ok(())
-    );
+    assert_eq!(same(Some("6.6.84-faraday-0.3.0"), Some("0.2.0")), Ok(()));
     // A stick made before versions, and an image with no build ID.
-    assert_eq!(writer::refuse_same_build(None, Some("0.2.0")), Ok(()));
-    assert_eq!(writer::refuse_same_build(on, None), Ok(()));
+    assert_eq!(same(None, Some("0.2.0")), Ok(()));
+    assert_eq!(same(on, None), Ok(()));
 }
 
 /// udisks2 answering from a recording, remembering what the writer asked.

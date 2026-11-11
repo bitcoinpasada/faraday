@@ -1203,7 +1203,8 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if mode == Mode::KeepData
         && let Some(stick) = disk.and_then(|d| d.faraday.as_ref())
     {
-        match crate::decide::keep_data(stick, image.build.as_deref()) {
+        match crate::decide::keep_data(stick, image.build.as_deref(), image.boot_sha256.as_deref())
+        {
             Fit::Newer => {
                 let s = fill(S.starter_keep_newer, &[&version(stick.release.as_deref())]);
                 y += warning(ui, x, y, w, &s);

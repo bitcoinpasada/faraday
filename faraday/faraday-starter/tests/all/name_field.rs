@@ -51,6 +51,7 @@ fn starter() -> Starter {
             board: String::new(),
             panel: String::new(),
             starts: Vec::new(),
+            boot_sha256: None,
         },
     )]));
     s.starter_event(StarterEvent::Disks(vec![Disk {
@@ -66,6 +67,7 @@ fn starter() -> Starter {
         faraday: Some(FaradayStick {
             release: Some("6.6.84-faraday-0.2.0".into()),
             read: true,
+            boot_sha256: None,
         }),
     }]));
     s

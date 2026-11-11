@@ -884,11 +884,14 @@ fn check_opened(order: &WriteOrder, now: &Identity, opened: &Identity) -> Result
     Ok(())
 }
 
-/// Reads the stick's partition table and up to `faraday_boot::MAX_PARTITION`
-/// bytes of its boot partition: which Faraday the stick on `disk` holds
-/// (`len` bytes long, `device` as a person knows it): the kernel's
-/// release string searched for in the boot partition's bytes
-/// (`faraday_boot::find_release`). The partition table must be a
+/// Costs a read of the stick's whole boot partition and its SHA-256.
+/// Reads the stick's partition table and its boot partition: which
+/// Faraday the stick on `disk` holds (`len` bytes long, `device` as a
+/// person knows it): the kernel's release string searched for in the
+/// first `faraday_boot::MAX_PARTITION` bytes of the boot partition
+/// (`faraday_boot::find_release`), and the SHA-256 of the whole boot
+/// partition, hex, which is the release's `-boot.vfat` sum when the stick
+/// holds exactly that release (F244). The partition table must be a
 /// Faraday stick's, as keep data checks it; `None` for a stick made
 /// before Faraday put its version there. Read in aligned blocks, as a
 /// disk opened unbuffered (Windows) takes its reads. The elevated copy's
@@ -897,7 +900,7 @@ pub fn release_on_stick<R: Read + Seek>(
     disk: &mut R,
     len: u64,
     device: &str,
-) -> Result<Option<String>, Reason> {
+) -> Result<(Option<String>, Option<String>), Reason> {
     let not_stick = |fault| Reason::NotStick {
         device: device.to_string(),
         fault,
@@ -919,11 +922,14 @@ pub fn release_on_stick<R: Read + Seek>(
     )
     .map_err(not_stick)?;
     let boot = gpt::faraday_boot(&table, 0).map_err(not_stick)?;
-    let end = boot.offset + boot.len.min(faraday_boot::MAX_PARTITION);
+    let end = boot.offset + boot.len;
+    let search_end = boot.offset + boot.len.min(faraday_boot::MAX_PARTITION);
     // Each chunk keeps the end of the one before, so a string that
     // straddles two is still seen whole.
     let overlap = faraday_boot::MAX_RELEASE * 2;
     let mut hay: Vec<u8> = Vec::with_capacity(CHUNK + overlap);
+    let mut release = None;
+    let mut sum = Sha256::new();
     let mut at = boot.offset;
     while at < end {
         let n = (CHUNK as u64).min(end - at) as usize;
@@ -931,25 +937,40 @@ pub fn release_on_stick<R: Read + Seek>(
         if got < skip + n {
             return Err(failed(io::Error::from(io::ErrorKind::UnexpectedEof)));
         }
-        hay.extend_from_slice(&raw[skip..skip + n]);
-        if let Some(r) = faraday_boot::find_release(&hay) {
-            return Ok(Some(r));
+        let bytes = &raw[skip..skip + n];
+        sum.update(bytes);
+        if release.is_none() && at < search_end {
+            hay.extend_from_slice(bytes);
+            release = faraday_boot::find_release(&hay);
+            hay.drain(..hay.len().saturating_sub(overlap));
         }
-        hay.drain(..hay.len().saturating_sub(overlap));
         at += n as u64;
     }
-    Ok(None)
+    Ok((release, Some(Sha256Sum(sum.finalize().into()).to_string())))
 }
 
 /// Keep data's second check, in the elevated writer on Windows:
-/// writing build `build` over a stick that holds the release
-/// string `on_stick` is refused when it is the same build, by Keep
-/// data's rule (`faraday_core::build::compare`). A source with
-/// no build ID it can be compared by passes, as Confirm lets it.
-pub fn refuse_same_build(on_stick: Option<&str>, build: Option<&str>) -> Result<(), Reason> {
+/// writing build `build` (whose boot partition has the SHA-256 `want`)
+/// over a stick that holds the release string `on_stick` and whose boot
+/// partition has the SHA-256 `got` is refused when it is the same build,
+/// by Keep data's rule: the build IDs are the same
+/// (`faraday_core::build::compare`) and the boot partition is already
+/// exactly the release's (F244). A source with no build ID it can be
+/// compared by passes, as Confirm lets it, and so does a stick whose boot
+/// partition is not known to be the release's.
+pub fn refuse_same_build(
+    on_stick: Option<&str>,
+    got: Option<&str>,
+    build: Option<&str>,
+    want: Option<&str>,
+) -> Result<(), Reason> {
     let on_stick = on_stick.and_then(faraday_core::build::build_id);
+    let exact = matches!((got, want), (Some(g), Some(w)) if g.eq_ignore_ascii_case(w));
     match build {
-        Some(b) if faraday_core::build::compare(on_stick, b) == faraday_core::build::Fit::Same => {
+        Some(b)
+            if exact
+                && faraday_core::build::compare(on_stick, b) == faraday_core::build::Fit::Same =>
+        {
             Err(Reason::SameBuild)
         }
         _ => Ok(()),

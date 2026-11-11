@@ -209,6 +209,11 @@ pub struct FaradayStick {
     /// read. While `false`, `release` is `None` and says
     /// nothing about the stick.
     pub read: bool,
+    /// The SHA-256 of the boot partition as it is on the stick now, hex,
+    /// when it could be read. `None` where it was not read (a stick known
+    /// only by its release string): such a stick is not known to hold a
+    /// release's exact boot partition (F244).
+    pub boot_sha256: Option<String>,
 }
 
 /// One disk attached, as the shell reads it (udisks2's `Drive`, `Block`,
@@ -751,7 +756,8 @@ pub enum StarterEvent {
     RecoveryKey(Result<RecoveryKey, Reason>),
     /// [`StarterCommand::ReadVersion`] ended: the release string on the
     /// stick's boot partition (`None` for a stick made before Faraday put one
-    /// there), or why not.
+    /// there) and the SHA-256 of that partition when it could be read, or why
+    /// not.
     VersionRead {
         /// The disk, as the command named it.
         disk: String,
@@ -760,7 +766,7 @@ pub enum StarterEvent {
         /// Its size, as the command named it.
         size: u64,
         /// What was read, or why not.
-        result: Result<Option<String>, Reason>,
+        result: Result<(Option<String>, Option<String>), Reason>,
     },
     /// [`StarterCommand::ListBootFiles`] answered: the `.efi` files in
     /// `folder`, as full paths, newest first (§4.5).
@@ -833,6 +839,9 @@ pub struct FoundImage {
     pub panel: String,
     /// The boards it starts, as the list names them.
     pub starts: Vec<String>,
+    /// The SHA-256 of the release's boot partition (its `-boot.vfat`
+    /// value), as the list says, hex; `None` where the list gives none.
+    pub boot_sha256: Option<String>,
 }
 
 /// How a stick or card is written (§3.2 step 2).

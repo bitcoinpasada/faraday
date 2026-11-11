@@ -461,6 +461,7 @@ impl Snapshot {
                     faraday: faraday.then_some(FaradayStick {
                         release: None,
                         read: false,
+                        boot_sha256: None,
                     }),
                 },
                 boot,
@@ -626,5 +627,6 @@ pub fn stick_read(release: Option<String>) -> FaradayStick {
     FaradayStick {
         read: release.is_some(),
         release,
+        boot_sha256: None,
     }
 }

@@ -157,7 +157,12 @@ impl Platform for Windows {
         }
     }
 
-    fn read_version(&self, disk: &str, serial: &str, size: u64) -> Result<Option<String>, Reason> {
+    fn read_version(
+        &self,
+        disk: &str,
+        serial: &str,
+        size: u64,
+    ) -> Result<(Option<String>, Option<String>), Reason> {
         elevate_read_version(disk, serial, size)
     }
 
@@ -554,7 +559,11 @@ fn elevate_write(
 /// the elevated copy started on it with `--read-version`, and the
 /// release string it answered. A declined prompt on an account that is
 /// not an administrator's says so.
-fn elevate_read_version(disk: &str, serial: &str, size: u64) -> Result<Option<String>, Reason> {
+fn elevate_read_version(
+    disk: &str,
+    serial: &str,
+    size: u64,
+) -> Result<(Option<String>, Option<String>), Reason> {
     let device = disk_number(disk).map_or_else(|| disk.to_string(), disk_device);
     let fail = |detail: String| Reason::Device {
         device: device.clone(),
@@ -601,7 +610,7 @@ fn elevate_read_version(disk: &str, serial: &str, size: u64) -> Result<Option<St
     let (mut release, mut result) = (None, None);
     while let Some(m) = pipe::next(&mut reader) {
         match m.map_err(fail)? {
-            Message::Release(r) => release = Some(r),
+            Message::Release(r, sum) => release = Some((r, sum)),
             Message::Done(r) => result = Some(r),
             Message::Progress { .. } => {}
         }
@@ -715,8 +724,12 @@ fn elevated_write(args: &[String]) -> ExitCode {
                 Job::Found { file, .. } => Some(file.build_id.as_str()),
                 Job::Image(i) => i.build_id.as_deref(),
             };
-            let on_stick = release_of(&mut device, &e.order.device)?;
-            writer::refuse_same_build(on_stick.as_deref(), build)?;
+            let want = match &job {
+                Job::Found { file, .. } => file.boot_sha256.map(|s| s.to_string()),
+                Job::Image(i) => i.boot_only.then(|| i.sum.sha256.to_string()),
+            };
+            let (on_stick, got) = release_of(&mut device, &e.order.device)?;
+            writer::refuse_same_build(on_stick.as_deref(), got.as_deref(), build, want.as_deref())?;
         }
         let mut last = None::<Instant>;
         let mut progress = |stage: WriteStage, done, total| {
@@ -753,8 +766,8 @@ fn elevated_read_version(args: &[String]) -> ExitCode {
         let _ = pipe.write_all(m.encode().as_bytes());
     };
     match read_listed(&r) {
-        Ok(release) => {
-            send(Message::Release(release));
+        Ok((release, sum)) => {
+            send(Message::Release(release, sum));
             send(Message::Done(Ok(())));
             ExitCode::SUCCESS
         }
@@ -768,7 +781,7 @@ fn elevated_read_version(args: &[String]) -> ExitCode {
 /// The release string on the disk `r` names, once it is checked to be
 /// the one the window listed: the same serial and size, a disk the
 /// Starter offers.
-fn read_listed(r: &ReadVersion) -> Result<Option<String>, Reason> {
+fn read_listed(r: &ReadVersion) -> Result<(Option<String>, Option<String>), Reason> {
     let n = disk_number(&r.disk).ok_or(Reason::Gone)?;
     let mut device = PhysicalDrive {
         n,
@@ -788,7 +801,10 @@ fn read_listed(r: &ReadVersion) -> Result<Option<String>, Reason> {
 /// Opens the disk read-only and reads its partition table and up to
 /// `faraday_boot::MAX_PARTITION` bytes of its boot partition: the
 /// release string on it (`writer::release_on_stick`).
-fn release_of(device: &mut PhysicalDrive, name: &str) -> Result<Option<String>, Reason> {
+fn release_of(
+    device: &mut PhysicalDrive,
+    name: &str,
+) -> Result<(Option<String>, Option<String>), Reason> {
     let mut f = device.open_read()?;
     let len = device.length(&mut f).map_err(|e| Reason::Device {
         device: name.to_string(),

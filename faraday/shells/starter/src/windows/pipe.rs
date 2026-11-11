@@ -12,7 +12,8 @@
 //!
 //! The elevated copy's `--read-version` answers on the
 //! same kind of pipe: `release` and the release string found on the
-//! stick's boot partition, or `release` alone for none, then `ok`; or
+//! stick's boot partition, then the SHA-256 of that partition when it
+//! was read, or `release` alone for none, then `ok`; or
 //! `failed` and the reason.
 
 use std::io::BufRead;
@@ -39,7 +40,7 @@ pub enum Message {
     Done(Result<(), Reason>),
     /// `--read-version`: the release string on the stick's boot
     /// partition, or `None` for a stick made before Faraday put one there.
-    Release(Option<String>),
+    Release(Option<String>, Option<String>),
 }
 
 pub(crate) fn escape(s: &str) -> String {
@@ -477,8 +478,9 @@ impl Message {
                 total.to_string(),
             ],
             Message::Done(Ok(())) => vec!["ok".into()],
-            Message::Release(r) => std::iter::once(String::from("release"))
+            Message::Release(r, sum) => std::iter::once(String::from("release"))
                 .chain(r.clone())
+                .chain(r.as_ref().and(sum.clone()))
                 .collect(),
             Message::Done(Err(r)) => {
                 let (name, rest) = reason_fields(r);
@@ -519,8 +521,14 @@ impl Message {
                 }
             }
             "ok" => Message::Done(Ok(())),
-            "release" if fields.len() == 1 => Message::Release(None),
-            "release" => Message::Release(Some(f.s()?)),
+            "release" if fields.len() == 1 => Message::Release(None, None),
+            "release" => {
+                let release = f.s()?;
+                Message::Release(
+                    Some(release),
+                    (fields.len() > 2).then(|| f.s()).transpose()?,
+                )
+            }
             "failed" => {
                 let name = f.s()?;
                 Message::Done(Err(reason(&name, &mut f)?))

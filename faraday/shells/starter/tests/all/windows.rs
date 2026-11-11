@@ -200,6 +200,7 @@ fn a_stick_windows_did_not_let_the_starter_read_is_not_read_not_an_old_one() {
         Some(FaradayStick {
             release: None,
             read: false,
+            boot_sha256: None,
         })
     );
     // Windows refused the boot volume to a process that is not elevated.
@@ -715,8 +716,12 @@ fn what_the_elevated_writer_reports_reaches_the_window_as_it_was_sent() {
             total: IMAGE,
         },
         Message::Done(Ok(())),
-        Message::Release(Some("6.6.84-faraday-0.2.0+0123456789ab.test".into())),
-        Message::Release(None),
+        Message::Release(Some("6.6.84-faraday-0.2.0+0123456789ab.test".into()), None),
+        Message::Release(
+            Some("6.6.84-faraday-0.2.0+0123456789ab.test".into()),
+            Some("ab".repeat(32)),
+        ),
+        Message::Release(None, None),
     ];
     sent.extend(every_reason().into_iter().map(|r| Message::Done(Err(r))));
     let bytes: String = sent.iter().map(Message::encode).collect();
@@ -734,7 +739,7 @@ fn what_the_elevated_writer_reports_reaches_the_window_as_it_was_sent() {
         "failed\tTooSmall\t1\t2\t3\n",
         "failed\tWriteFailed\tbad \\x escape\n",
         "ok\textra\n",
-        "release\ta\tb\n",
+        "release\ta\tb\tc\n",
         "ok",
     ] {
         let mut r = Cursor::new(bad.as_bytes().to_vec());

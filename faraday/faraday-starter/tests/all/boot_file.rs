@@ -46,6 +46,7 @@ fn images() -> Vec<ImageFinding> {
             board: String::new(),
             panel: String::new(),
             starts: Vec::new(),
+            boot_sha256: None,
         })
     };
     vec![
@@ -74,6 +75,7 @@ fn stick() -> Disk {
         faraday: Some(FaradayStick {
             release: Some("6.6.84-faraday-0.2.0".into()),
             read: true,
+            boot_sha256: None,
         }),
     }
 }
@@ -296,6 +298,7 @@ fn a_found_image_is_what_a_pi_card_is_written_from() {
         board: "pi3".into(),
         panel: "any".into(),
         starts: vec!["Pi 3B".into()],
+        boot_sha256: None,
     };
     let mut s = starter();
     s.starter_event(StarterEvent::ImagesFound(vec![ImageFinding::Found(
@@ -329,6 +332,7 @@ fn what_the_finder_answers_is_kept_and_the_matching_images_listed() {
         board: "pi3".into(),
         panel: "any".into(),
         starts: vec!["Pi 3B".into()],
+        boot_sha256: None,
     };
     let older = ImageFinding::OtherRelease {
         path: file("faraday-pi-0.2.1.img.xz"),
@@ -373,6 +377,7 @@ fn make_a_pi_card_offers_the_found_images_once_and_names_what_is_missing() {
         board: "pi3".into(),
         panel: "any".into(),
         starts: vec!["Pi 3B".into()],
+        boot_sha256: None,
     };
     s.starter_event(StarterEvent::ImagesWanted(vec![
         first_pi.into(),

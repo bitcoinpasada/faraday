@@ -45,6 +45,7 @@ fn disk(id: &str, faraday: bool) -> Disk {
         faraday: faraday.then(|| FaradayStick {
             release: Some("6.6.84-faraday-0.1.0".into()),
             read: true,
+            boot_sha256: None,
         }),
     }
 }

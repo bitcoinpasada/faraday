@@ -26,6 +26,10 @@ pub(super) fn display(width: u16, height: u16, dpi: u16) -> Event {
     })
 }
 
+/// One hex digit; the release's boot partition has this digit sixty-four
+/// times as its SHA-256, and a stick made from it carries the same.
+pub(super) const BOOT_SUM: &str = "9";
+
 /// The stick and Pi images the finder found in Downloads, the stick's
 /// carrying `stick_build`.
 pub(super) fn images(stick_build: &str) -> Vec<ImageFinding> {
@@ -40,6 +44,7 @@ pub(super) fn images(stick_build: &str) -> Vec<ImageFinding> {
             board: String::new(),
             panel: String::new(),
             starts: Vec::new(),
+            boot_sha256: Some(BOOT_SUM.repeat(64)),
         })
     };
     vec![
@@ -77,6 +82,7 @@ pub(super) fn faraday_stick(id: &str, model: &str, size: u64, release: Option<&s
         faraday: Some(FaradayStick {
             release: release.map(str::to_string),
             read: true,
+            boot_sha256: release.map(|_| BOOT_SUM.repeat(64)),
         }),
         volumes: Vec::new(),
         ..disk(id, model, size)
@@ -414,6 +420,25 @@ fn keep_data_refuses_the_same_build() {
     assert_eq!(starter.page, Page::Mode);
     // The whole stick can still be written.
     assert!(starter.offers_action(StarterAction::Mode(Mode::Whole)));
+}
+
+#[test]
+fn keep_data_writes_a_build_whose_string_is_on_the_stick_but_whose_boot_partition_differs() {
+    // A keep-data write that stopped part way: the new build's string is
+    // at the start of the boot partition, the rest is the old one's.
+    let mut stick = faraday_stick("sdb", "Mine", 16 * GB, Some("6.6.84-faraday-0.2.0"));
+    if let Some(f) = stick.faraday.as_mut() {
+        f.boot_sha256 = Some("7".repeat(64));
+    }
+    let mut starter = starter_with(vec![stick]);
+    starter.press(StarterAction::Make(Target::Stick));
+    let n = number(&starter, "sdb");
+    starter.press(n);
+    assert!(!shows(&mut starter, "Already this build"));
+    assert!(starter.offers_action(StarterAction::Mode(Mode::KeepData)));
+    starter.press(StarterAction::Mode(Mode::KeepData));
+    starter.press(StarterAction::Continue);
+    assert_eq!(starter.page, Page::Confirm);
 }
 
 /// Writing an older release over a newer stick is a hold that names

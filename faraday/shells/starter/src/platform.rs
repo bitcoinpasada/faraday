@@ -106,7 +106,12 @@ pub trait Platform: Send + Sync {
     /// data (Windows): `None` for a stick made before
     /// Faraday put one there. Other systems read it while listing the
     /// disks and never ask.
-    fn read_version(&self, disk: &str, serial: &str, size: u64) -> Result<Option<String>, Reason> {
+    fn read_version(
+        &self,
+        disk: &str,
+        serial: &str,
+        size: u64,
+    ) -> Result<(Option<String>, Option<String>), Reason> {
         let _ = (disk, serial, size);
         Err(Reason::Unsupported)
     }

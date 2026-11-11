@@ -200,7 +200,10 @@ pub fn follow<U: Udisks>(mut bus: U, out: &Sender<StarterEvent>, forget: &Receiv
 /// The versions read from Faraday sticks' boot partitions, by disk, so a
 /// stick is read once while it stays attached.
 #[derive(Debug, Default)]
-pub struct Versions(BTreeMap<String, ((String, u64), Option<String>)>);
+pub struct Versions(BTreeMap<String, ((String, u64), BootRead)>);
+
+/// A boot partition as read: its release string and its SHA-256.
+type BootRead = (Option<String>, Option<String>);
 
 impl Versions {
     /// Reads `id`'s version again next time (it was written).
@@ -227,22 +230,47 @@ pub fn list<U: Udisks + ?Sized>(
         let mut disk = f.disk;
         if let Some(boot) = f.boot {
             let key = (disk.serial.clone(), disk.size);
-            let release = match versions.0.get(&disk.id) {
-                Some((k, release)) if *k == key => release.clone(),
+            let (release, boot_sha256) = match versions.0.get(&disk.id) {
+                Some((k, read)) if *k == key => read.clone(),
                 _ => {
-                    let release = read_version(bus, &boot);
-                    versions.0.insert(disk.id.clone(), (key, release.clone()));
-                    release
+                    let read = (read_version(bus, &boot), boot_sum(bus, &boot));
+                    versions.0.insert(disk.id.clone(), (key, read.clone()));
+                    read
                 }
             };
             disk.faraday = Some(FaradayStick {
                 release,
                 read: true,
+                boot_sha256,
             });
         }
         disks.push(disk);
     }
     disks
+}
+
+/// Costs a read of the whole boot partition and its SHA-256, hex:
+/// the partition's block opened read-only, as udisks2 hands it, and read
+/// to its end. `None` when it could not be opened or read: the stick is
+/// then not known to hold a release's exact boot partition (F244).
+fn boot_sum<U: Udisks + ?Sized>(bus: &mut U, boot: &udisks::BootPart) -> Option<String> {
+    use sha2::{Digest, Sha256};
+    use std::io::Read;
+    let mut f = bus.open(&boot.object, Open::Read).ok()?;
+    let mut sum = Sha256::new();
+    let mut buf = vec![0u8; 1 << 20];
+    loop {
+        match f.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => sum.update(&buf[..n]),
+            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(e) => {
+                eprintln!("faraday-starter: the stick's boot partition could not be read: {e}");
+                return None;
+            }
+        }
+    }
+    Some(faraday_payload::Sha256Sum(sum.finalize().into()).to_string())
 }
 
 fn read_version<U: Udisks + ?Sized>(bus: &mut U, boot: &udisks::BootPart) -> Option<String> {

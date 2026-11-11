@@ -136,15 +136,31 @@ pub fn boot_menu_entry(vendor: &str, model: &str, computer: &Computer) -> Option
 /// [`Fit::Same`] is refused; [`Fit::Newer`] and [`Fit::Dev`] are warned
 /// about on Confirm; [`Fit::Fits`] is written. An image with no build ID
 /// it can be compared by is written. The comparison is F5's build IDs
-/// (`faraday_core::build::compare`).
-pub fn keep_data(stick: &FaradayStick, build: Option<&str>) -> Fit {
+/// (`faraday_core::build::compare`). The same build is refused only when
+/// the stick's boot partition is already exactly the release's
+/// (`boot_sha256` is the sum the image's boot partition has, F244): a
+/// stick whose build ID matches but whose boot partition differs, or
+/// whose boot partition was not read, is written as any other build.
+pub fn keep_data(stick: &FaradayStick, build: Option<&str>, boot_sha256: Option<&str>) -> Fit {
     let on_stick = stick
         .release
         .as_deref()
         .and_then(faraday_core::build::build_id);
     match build {
-        Some(b) => compare(on_stick, b),
+        Some(b) => match compare(on_stick, b) {
+            Fit::Same if !boot_is(stick, boot_sha256) => Fit::Fits,
+            fit => fit,
+        },
         None => Fit::Fits,
+    }
+}
+
+/// Whether the boot partition read from `stick` is the one with SHA-256
+/// `want`: both known and equal.
+fn boot_is(stick: &FaradayStick, want: Option<&str>) -> bool {
+    match (stick.boot_sha256.as_deref(), want) {
+        (Some(got), Some(want)) => got.eq_ignore_ascii_case(want),
+        _ => false,
     }
 }
 
@@ -166,7 +182,9 @@ impl crate::Starter {
             .iter()
             .find(|d| &d.id == id)
             .and_then(|d| d.faraday.as_ref())
-            .is_some_and(|stick| keep_data(stick, image.build.as_deref()) == Fit::Newer)
+            .is_some_and(|stick| {
+                keep_data(stick, image.build.as_deref(), image.boot_sha256.as_deref()) == Fit::Newer
+            })
     }
 }
 

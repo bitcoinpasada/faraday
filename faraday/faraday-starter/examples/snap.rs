@@ -60,6 +60,7 @@ fn found_images() -> Vec<ImageFinding> {
             board: board.into(),
             panel: "any".into(),
             starts: Vec::new(),
+            boot_sha256: None,
         })
     };
     vec![
@@ -108,6 +109,7 @@ fn stick(id: &str, release: &str) -> Disk {
         faraday: Some(FaradayStick {
             release: Some(release.into()),
             read: true,
+            boot_sha256: None,
         }),
         ..disk(id, "SanDisk", "Ultra Fit", 32 * GB, &[])
     }
@@ -758,6 +760,7 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
         d.faraday = Some(FaradayStick {
             release: None,
             read: false,
+            boot_sha256: None,
         });
         d
     };
@@ -887,6 +890,7 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
             board: board.into(),
             panel: "any".into(),
             starts: Vec::new(),
+            boot_sha256: None,
         })
     };
     let wanted = vec![
@@ -1072,6 +1076,7 @@ fn run_tour(s: &Snap) -> Result<(), String> {
         faraday: Some(FaradayStick {
             release: Some(format!("6.6.84-faraday-{}", env!("CARGO_PKG_VERSION"))),
             read: true,
+            boot_sha256: None,
         }),
         ..blank
     };
@@ -1255,6 +1260,7 @@ fn guide_start_shots(s: &Snap) -> Result<(), String> {
         d.faraday = Some(FaradayStick {
             release: None,
             read: false,
+            boot_sha256: None,
         });
         StarterEvent::Disks(vec![d])
     };

@@ -44,6 +44,7 @@ fn unread_stick() -> Disk {
         faraday: Some(FaradayStick {
             release: None,
             read: false,
+            boot_sha256: None,
         }),
     }
 }
@@ -87,7 +88,7 @@ fn to_mode(s: &mut Starter) {
 }
 
 /// The elevated copy's answer.
-fn read(s: &mut Starter, result: Result<Option<String>, Reason>) {
+fn read(s: &mut Starter, result: Result<(Option<String>, Option<String>), Reason>) {
     s.starter_event(StarterEvent::VersionRead {
         disk: r"\\.\PhysicalDrive2".into(),
         serial: "AAA111".into(),
@@ -110,7 +111,7 @@ fn a_version_not_read_says_so_and_never_0_1_0_or_earlier() {
     let mut s = starter();
     to_mode(&mut s);
     s.press(StarterAction::Mode(Mode::KeepData));
-    read(&mut s, Ok(None));
+    read(&mut s, Ok((None, None)));
     s.press(StarterAction::Home);
     assert!(shows(&mut s, "Faraday stick attached · 0.1.0 or earlier"));
 }
@@ -150,7 +151,10 @@ fn keep_data_asks_for_the_elevated_read_once_then_refuses_the_same_build() {
     s.press(StarterAction::Mode(Mode::KeepData));
     assert!(commands(&mut s).is_empty());
 
-    read(&mut s, Ok(Some("6.6.84-faraday-0.2.0".into())));
+    read(
+        &mut s,
+        Ok((Some("6.6.84-faraday-0.2.0".into()), Some("9".repeat(64)))),
+    );
     assert!(shows(&mut s, "Already this build"));
     assert!(!s.offers_action(StarterAction::Mode(Mode::KeepData)));
     s.press(StarterAction::Continue);
@@ -171,7 +175,7 @@ fn keep_data_after_the_elevated_read_warns_about_an_older_faraday_and_writes_it(
     to_mode(&mut s);
     s.press(StarterAction::Mode(Mode::KeepData));
     assert_eq!(commands(&mut s).len(), 1);
-    read(&mut s, Ok(Some("6.6.84-faraday-0.3.0".into())));
+    read(&mut s, Ok((Some("6.6.84-faraday-0.3.0".into()), None)));
     s.press(StarterAction::Continue);
     assert_eq!(s.page, Page::Confirm);
     assert!(shows(&mut s, "This stick holds a newer Faraday: 0.3.0"));
@@ -214,12 +218,12 @@ fn a_read_that_arrives_during_the_write_does_not_put_the_old_version_back() {
     to_mode(&mut s);
     s.press(StarterAction::Mode(Mode::KeepData));
     assert_eq!(commands(&mut s).len(), 1);
-    read(&mut s, Ok(Some("6.6.84-faraday-0.3.0".into())));
+    read(&mut s, Ok((Some("6.6.84-faraday-0.3.0".into()), None)));
     s.press(StarterAction::Continue);
     s.press(StarterAction::Write);
     assert_eq!(commands(&mut s).len(), 1);
     // A second read, asked before the write, answers while it runs.
-    read(&mut s, Ok(Some("6.6.84-faraday-0.3.0".into())));
+    read(&mut s, Ok((Some("6.6.84-faraday-0.3.0".into()), None)));
     assert_eq!(s.page, Page::Writing);
     s.starter_event(StarterEvent::Written(Ok(())));
     assert_eq!(s.page, Page::Done);

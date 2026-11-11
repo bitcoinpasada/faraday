@@ -363,6 +363,7 @@ impl Answers {
                 faraday: boot.as_ref().map(|_| FaradayStick {
                     release: None,
                     read: true,
+                    boot_sha256: None,
                 }),
             },
             boot,
