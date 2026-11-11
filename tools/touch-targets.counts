@@ -6,7 +6,6 @@ desktop_1280x800 Backup Board 51
 desktop_1280x800 Backup PlanAddPass 1
 desktop_1280x800 Backup Resume 5
 desktop_1280x800 BackupFlow Board 9
-desktop_1280x800 BackupFlow Flow 2
 desktop_1280x800 BackupFlow Resume 3
 desktop_1280x800 Backups Resume 1
 desktop_1280x800 Bip85 Resume 1
@@ -59,7 +58,6 @@ desktop_1280x800 WalletsStart OpenWallet 2
 desktop_1280x800 WalletsStart Resume 2
 small_240x320 Backup BWallets 1
 small_240x320 Backup Board 24
-small_240x320 BackupFlow Flow 7
 small_240x320 Catalog WordList 1
 small_240x320 CreateVault WordList 3
 small_240x320 Entry EntryCandidate 17
@@ -73,7 +71,6 @@ small_240x320 Wallets PickKey 1
 small_480x640 Backup BC32 1
 small_480x640 Backup BWallets 1
 small_480x640 Backup Board 21
-small_480x640 BackupFlow Flow 9
 small_480x640 Catalog WordList 1
 small_480x640 CreateVault WordList 3
 small_480x640 Entry EntryCandidate 17
@@ -101,14 +98,11 @@ starter_240x320 Start Host 1
 starter_480x640 Appearance Host 40
 starter_480x640 Home Host 2
 starter_480x640 Start Host 1
-stick_1024x600 Backup About 1
 stick_1024x600 Backup BC32 19
-stick_1024x600 Backup BReveal 1
 stick_1024x600 Backup Board 43
 stick_1024x600 Backup EntryKey 25
 stick_1024x600 Backup EntryKeyBack 1
 stick_1024x600 Backup Osk 38
-stick_1024x600 BackupFlow Flow 3
 stick_1024x600 BackupFlow Osk 38
 stick_1024x600 Catalog Osk 38
 stick_1024x600 Catalog WordList 1
@@ -127,7 +121,7 @@ stick_1024x600 Files File 11
 stick_1024x600 Files LoadWallet 1
 stick_1024x600 Files Osk 38
 stick_1024x600 Files StartSpend 1
-stick_1024x600 Home Import 2
+stick_1024x600 Home Import 1
 stick_1024x600 Home Nav 1
 stick_1024x600 Home Osk 38
 stick_1024x600 Invoice Osk 38
@@ -141,7 +135,6 @@ stick_1024x600 Message Osk 38
 stick_1024x600 QrTool Osk 38
 stick_1024x600 Restore RStep 3
 stick_1024x600 Restore Slide 2
-stick_1024x600 SetTime Back 1
 stick_1024x600 Settings Theme 30
 stick_1024x600 SignerCheck SignerCheck 2
 stick_1024x600 Silent Osk 38
@@ -159,4 +152,3 @@ stick_1024x600 VaultContents Osk 38
 stick_1024x600 VaultContents ShowCode 1
 stick_1024x600 VaultContents Vault 8
 stick_1024x600 Wallets PickKey 2
-stick_1024x600 Wallets RemoveWallet 1
