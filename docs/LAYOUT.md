@@ -249,8 +249,8 @@ each at the text size the person's system asks for.
   wraps or is shortened with an ellipsis; it never runs past its card,
   its sheet or the panel, and no line is drawn over another. A view
   that pans sideways (a codex32 worksheet) is scrolled there, not cut.
-  The small panel's bar holds Back, the page's name, Cancel, the eye and
-  the ?, and off mainnet the mode pill on its second line, left of them
+  The small panel's bar holds Back, the page's name, the eye and
+  the ?, and a ⋮ whose first row is a flow's Cancel (owner, 2026-11-11; likewise on a window under 600 dp wide), and off mainnet the mode pill on its second line, left of them
   and beside where Back goes, so the name keeps the first line: it is
   shortened, or left off where the tools leave it no room, and the ?
   where they and the pill would reach Back's target (DESIGN §4.1). Where the page offers a cryptographic action, **How
@@ -312,7 +312,7 @@ each at the text size the person's system asks for.
   `sheet_head`. The compact bar is Material's small top app bar, `APP_BAR_H`
   (64 dp) on every compact window and on the Pi's panel: the page's name
   in `TITLE_L` (or `TITLE_M`, below) over the place Back goes in `LABEL_M`, its actions each in
-  a 48 dp target and Cancel Material's text button; where Title L would be
+  a 48 dp target and Cancel Material's text button (on the compact layouts, the ⋮'s first row instead); where Title L would be
   cut beside the actions the name is Title M, shortened with an ellipsis
   only where that is cut too (DESIGN §4.1), and
   the actions that would reach the back arrow's target go into

@@ -26,8 +26,12 @@ pub enum MenuPress {
 /// leave no room on it, in the order they go there.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BarTool {
+    /// **Cancel**, on the compact layouts (the Pi's panel, a window under
+    /// 600 dp wide): the menu's first row on a flow page that can be cancelled.
+    Cancel,
     /// **Add randomness**, on a step whose press draws the system's
-    /// randomness (`docs/OWN-RANDOMNESS.md` §8.3): the menu's first row.
+    /// randomness (`docs/OWN-RANDOMNESS.md` §8.3): the menu's first row after
+    /// Cancel.
     Own,
     /// **How Faraday does it**: Learn on the How tab.
     How,

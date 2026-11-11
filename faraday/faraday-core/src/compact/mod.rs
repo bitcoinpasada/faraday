@@ -234,7 +234,9 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
         keyboard_up: over.keyboard && keyboard.is_some_and(|(_, shown)| shown),
         eye: over.eye && eye.is_some(),
     };
-    if held.any() {
+    // On the compact layouts a flow page's Cancel is the ⋮'s first row, so the
+    // bar has one leave control (`docs/DESIGN.md` §4.1).
+    if held.any() || cancel_in_menu(app) {
         let open = Action::NavMenu(MenuPress::Open(Some(held)));
         right = faraday_ui::nav::more(ui, right, open, EN.tip_more);
     } else {
@@ -290,12 +292,19 @@ pub(crate) fn bar_eye(app: &View, ui: &mut Ui, right: f32) -> f32 {
     kx - edge
 }
 
+/// Whether **Cancel** is the ⋮ menu's first row and not a button on the
+/// bar: on the compact layouts (the Pi's panel and a window under 600 dp
+/// wide), on a page that can be cancelled. A lookup.
+pub(crate) fn cancel_in_menu(app: &View) -> bool {
+    matches!(app.nav(), crate::nav::Nav::Menu | crate::nav::Nav::Bar) && app.cancel_shown()
+}
+
 /// **Cancel** on a top app bar, its right edge at `right`, on a flow that
 /// can be in progress: it leaves the flow (`docs/FLOWS.md`, Cancel; F51).
 /// Material's text button, in a touch target. Returns where the next
 /// action ends.
 pub(crate) fn bar_cancel(app: &View, ui: &mut Ui, right: f32) -> f32 {
-    if !app.cancel_shown() {
+    if !app.cancel_shown() || cancel_in_menu(app) {
         return right;
     }
     let a = Action::CancelFlow;
@@ -324,7 +333,10 @@ pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Over
         crate::menu::Line::Item(label.to_string(), Action::NavMenu(MenuPress::Tool(t)))
     };
     let mut lines = Vec::new();
-    // Add randomness first, on a step whose press draws the system's
+    if cancel_in_menu(app) {
+        lines.push(item(EN.flow_cancel, BarTool::Cancel));
+    }
+    // Add randomness next, on a step whose press draws the system's
     // randomness (`docs/OWN-RANDOMNESS.md` §8.3).
     if held.own {
         lines.push(item(EN.own_add_randomness, BarTool::Own));
@@ -1729,6 +1741,7 @@ impl Faraday {
             MenuPress::Tool(t) => {
                 self.sheet = None;
                 self.act_inner(match t {
+                    BarTool::Cancel => Action::CancelFlow,
                     BarTool::Own => Action::Own(crate::fresh::page::Act::Open),
                     BarTool::How => Action::How,
                     BarTool::Help => Action::Learn,

@@ -1272,7 +1272,7 @@ fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_learn_in_its_over
     for mode in [Mode::Testnet, Mode::Practice] {
         let mut rig = rig(On::Stick, mode, Vec::new());
         // New key's passphrase, from Make a new wallet, typed on the
-        // panel's keyboard: Cancel, the keyboard button and the mode pill
+        // panel's keyboard: the keyboard button, the ⋮ and the mode pill
         // leave no room for the ?.
         new_key_from_create(&mut rig);
         rig.press(Action::KNext);
@@ -1288,9 +1288,11 @@ fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_learn_in_its_over
         let found = check(&mut rig, &label).0;
         assert_none(&found);
         assert!(!rig.offers(Action::Learn), "{label}: no ? on the bar");
-        for kept in [Action::CancelFlow, Action::ModeSheet] {
-            assert!(rig.offers(kept), "{label}: {kept:?} stays on the bar");
-        }
+        assert!(rig.offers(Action::ModeSheet), "{label}: the pill stays");
+        assert!(
+            !rig.offers(Action::CancelFlow),
+            "{label}: Cancel is in the ⋮, not on the bar"
+        );
         let held = overflow_on_the_bar(&rig).unwrap_or_else(|| panic!("{label}: a ⋮"));
         assert!(held.help, "{label}: the ⋮ holds Learn");
         // The ⋮ opens the menu; its Learn opens the page's Learn.
@@ -1305,29 +1307,6 @@ fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_learn_in_its_over
             "{label}: Learn opens the Learn sheet"
         );
         assert_eq!(rig.screen, Screen::KeyGen, "{label}: on the same page");
-        // The keyboard button went in with it: the menu's row brings the
-        // keyboard up or puts it away, as the button does, and says which.
-        assert!(held.keyboard, "{label}: the ⋮ holds the keyboard");
-        rig.sheet = None;
-        rig.settle();
-        let _ = rig.frame();
-        for _ in 0..2 {
-            let up = rig.offers(Action::Osk(OskPress::Char('q')));
-            let held = overflow_on_the_bar(&rig).unwrap_or_else(|| panic!("{label}: a ⋮"));
-            tap(&mut rig, Action::NavMenu(MenuPress::Open(Some(held))));
-            let row = if up { "Hide keyboard" } else { "Show keyboard" };
-            assert!(rig.drawn_texts().iter().any(|t| t == row), "{label}: {row}");
-            tap(
-                &mut rig,
-                Action::NavMenu(MenuPress::Tool(BarTool::Keyboard)),
-            );
-            assert_eq!(rig.sheet, None, "{label}");
-            assert_eq!(
-                rig.offers(Action::Osk(OskPress::Char('q'))),
-                !up,
-                "{label}: {row}"
-            );
-        }
         leave(&mut rig);
     }
 }
@@ -1337,7 +1316,6 @@ fn where_the_page_offers_cryptography_the_overflow_menu_holds_it_with_the_questi
     let mut rig = rig(On::Stick, Mode::Testnet, Vec::new());
     new_key_from_create(&mut rig);
     let _ = rig.frame();
-    assert!(rig.offers(Action::CancelFlow));
     let held = overflow_on_the_bar(&rig).expect("a ⋮");
     assert!(held.how && held.help, "Cryptography first, with the ?");
 }
@@ -1394,39 +1372,69 @@ fn on_the_pi_the_mode_pill_leaves_a_pages_name_whole_on_the_bars_first_line() {
     }
 }
 
-/// Sign a transaction with nothing loaded names itself on the bar beside
-/// Cancel: whole words or none, and never under Cancel.
+/// Sign a transaction with nothing loaded names itself whole on the bar,
+/// beside the ⋮ that holds its Cancel, and never under it.
 #[test]
-fn on_the_pi_sign_a_transaction_with_nothing_loaded_names_itself_beside_cancel() {
+fn on_the_pi_sign_a_transaction_with_nothing_loaded_names_itself_beside_the_menu() {
     const NAME: &str = "Sign a transaction";
     for mode in [Mode::Mainnet, Mode::Testnet] {
         let mut rig = rig(On::Stick, mode, Vec::new());
         open(&mut rig, Screen::Spend);
+        let _ = rig.frame();
+        assert!(!rig.offers(Action::CancelFlow), "{mode:?}: not on the bar");
+        let held = overflow_on_the_bar(&rig).unwrap_or_else(|| panic!("{mode:?}: a ⋮"));
+        let more = rig
+            .hit_box(Action::NavMenu(MenuPress::Open(Some(held))))
+            .map(|b| i32::from(b.0))
+            .expect("the ⋮");
         let (_, texts) = rig.drawn_past_sides_and_text();
-        let cancel = texts
+        let name = texts
             .iter()
-            .find(|(t, _)| t == "Cancel")
-            .unwrap_or_else(|| panic!("{mode:?}: Cancel is on the bar"));
-        // Where no whole word fits beside the tools the bar names
-        // nothing.
-        let Some(name) = texts
-            .iter()
-            .find(|(t, _)| NAME.starts_with(t.trim_end_matches('…')) && t.len() > 1)
-        else {
-            continue;
-        };
-        let words = name.0.trim_end_matches('…');
+            .find(|(t, _)| t == NAME)
+            .unwrap_or_else(|| panic!("{mode:?}: {NAME:?} whole"));
         assert!(
-            words == NAME || NAME[words.len()..].starts_with(' '),
-            "{mode:?}: {:?} cuts a word",
-            name.0
-        );
-        assert!(
-            name.1.0 + name.1.2 <= cancel.1.0,
-            "{mode:?}: {:?} runs under Cancel",
+            name.1.0 + name.1.2 <= more,
+            "{mode:?}: {:?} runs under the ⋮",
             name.0
         );
     }
+}
+
+/// At 1024x600 a flow's Cancel is on the bar, not in a ⋮ menu.
+#[test]
+fn at_1024_by_600_a_flows_cancel_stays_on_the_bar() {
+    let mut app = Faraday::new();
+    app.event(display(1024, 600, 160));
+    app.press(Action::Nav(Screen::Spend));
+    let _ = app.frame();
+    assert!(app.offers(Action::CancelFlow), "Cancel on the bar");
+}
+
+/// At 480x640 a flow is cancelled from the ⋮, not from the bar.
+#[test]
+fn at_480_by_640_a_flow_is_cancelled_from_the_overflow_menu() {
+    let mut app = Faraday::new();
+    app.event(display(480, 640, 160));
+    app.press(Action::Nav(Screen::Spend));
+    let _ = app.frame();
+    assert!(!app.offers(Action::CancelFlow), "no Cancel on the bar");
+    app.press(Action::NavMenu(MenuPress::Tool(BarTool::Cancel)));
+    assert_ne!(app.screen, Screen::Spend, "the flow is left");
+}
+
+/// A flow is cancelled from the ⋮ on the Pi's panel, its first row.
+#[test]
+fn on_the_pi_a_flow_is_cancelled_from_the_overflow_menu() {
+    let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());
+    open(&mut rig, Screen::Spend);
+    let _ = rig.frame();
+    assert!(!rig.offers(Action::CancelFlow), "no Cancel on the bar");
+    let held = overflow_on_the_bar(&rig).expect("a ⋮");
+    tap(&mut rig, Action::NavMenu(MenuPress::Open(Some(held))));
+    let texts = rig.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Cancel"), "the menu's Cancel row");
+    tap(&mut rig, Action::NavMenu(MenuPress::Tool(BarTool::Cancel)));
+    assert_ne!(rig.screen, Screen::Spend, "the flow is left");
 }
 
 /// The Learn sheet's tab of the page on show reads whole where the panel
