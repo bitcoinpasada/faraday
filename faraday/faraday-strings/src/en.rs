@@ -9060,11 +9060,11 @@ strings! {
     /// Text in `create_guide`.
     vault_a_vault_opens_only: "A vault opens only on a machine with the memory its cost asks for. Choose every kind of machine it will ever be opened on; the cost suggested next fits the one with the least memory.",
     /// Text in `create_guide`.
-    vault_guide_guess_cost: "Each guess at a passphrase costs this much memory and time; a machine without the memory cannot open the vault at all. The passphrase counts for more than the cost. The cost cannot be changed later.",
+    vault_guide_guess_cost: "Each guess at a passphrase costs this much memory and time; a machine without the memory cannot open the vault at all. The passphrase counts for more than the cost.",
     /// Text in `create_guide`.
-    vault_a_vault_opens: "512 MiB opens on PCs; 64 MiB on a Raspberry Pi as well. The cost cannot be changed later. Customise sets the machines and the cost one by one.",
+    vault_a_vault_opens: "512 MiB opens on PCs; 64 MiB on a Raspberry Pi as well. Customise sets the machines and the cost one by one.",
     /// Text in `create_guide`.
-    vault_each_passphrase: "The passphrase is fixed now: a change later means a new vault. Six EFF words are out of reach at any cost.",
+    vault_each_passphrase: "Six EFF words are out of reach at any cost.",
     /// Text in `create_summaries`.
     vault_none_chosen: "None chosen",
     /// Text. `{}`: `name`, `mib_text(mem)`, `passes`.

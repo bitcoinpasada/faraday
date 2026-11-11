@@ -390,7 +390,7 @@ fails and says so. `--machine aarch64` fetches the other tarball;
 `SHA256SUMS.asc` and the tarball) instead of fetching them.
 
 ```
-just crosscheck                 the stamp run: fixed seed, about 90 s on 12 threads
+just crosscheck                 the stamp run: fixed seed
 just crosscheck --fresh         before a release: a new seed, ten times the cases
 just crosscheck --combine R     before a release: the fresh run of record R again, for the
                                 areas whose own files changed or that failed (F239)
