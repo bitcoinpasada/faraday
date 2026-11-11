@@ -487,9 +487,9 @@ leaves uncompared.
   SHA-256 (`tools/reference/core/release.pin`) before every run and the
   node's version is asked; every wallet.dat is one Core wrote and every
   answer is one Core gave of the same wallet. Not compared: labels and
-  the block locator (counted by Faraday, listed by no Core call the area
-  reads), the records Faraday counts and does not read, and the
-  transactions themselves.
+  the block locator (counted by Faraday; Core's address book is asked
+  only for a purpose record Faraday refuses), the records Faraday counts
+  and does not read, and the transactions themselves.
 - `lightning`: LND's code reads the aezeed (wordlist, version, CRC-32C,
   scrypt, AEZ) and derives the node key, and its published answers
   (`tools/vectors/aezeed/`) are required of it as well as of Faraday;
@@ -1100,13 +1100,17 @@ difference"), and says why.
     checksum, and flags and records Core's loader ignores. A changed
     file Core loads and Faraday does not call whole is counted, and must
     name a record and fault of the listed set; nothing is asked of Core
-    there beyond that it loads.
+    there beyond that it loads, except for a purpose record Faraday
+    cannot read, where Core must list the address's purpose as unknown.
   - Core runs SQLite's integrity check when it loads a wallet and
     refuses a file in which a record's key was changed (the unique index
     beside the table still holds the old key), and refuses one whose
     `walletdescriptorcache` record was dropped; Faraday reads the table
     only, so it reads such a file whole when the changed key is still a
-    record it accepts. Each is asked of Core in the prelude.
+    record it accepts. Core also refuses a wallet whose block locator
+    ends in another chain's genesis block, as it attaches the wallet to
+    its node's chain; Faraday reads no chain and does not read the
+    locator's hashes. Each is asked of Core in the prelude.
   - Faraday refuses a wallet of another network than its mode and a file
     with a journal, log or lock beside it, which Core opens (and
     recovers); the area reads regtest wallets with nothing beside them,
