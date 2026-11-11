@@ -429,6 +429,7 @@ fn unlocked(
             // Nothing of the key file or the secret is remembered, and the
             // key file's copy in Files is gone.
             super::unlock_keys::used(app);
+            app.held_unlock_clear(app.vaults.current, sha);
             if !app.vault_unlock_held(app.vaults.current, sha, for_import) {
                 app.vault_unlock_go_on(for_import);
             }

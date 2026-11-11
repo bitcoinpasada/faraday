@@ -676,6 +676,7 @@ impl Faraday {
         if i >= self.flows.len() {
             return;
         }
+        self.flow_copies_note(i);
         if self.flows.drop_flow(i) && self.vaults.back_to == Some(Screen::BackupFlow) {
             self.vaults.leave_create();
         }

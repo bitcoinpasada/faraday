@@ -30,6 +30,13 @@ fn same_words(c: &Compute, app: &Faraday, r: RecordView<'_>, key: usize) -> bool
         .is_some_and(|id| app.vaults.record_words_id(c, r).is_some_and(|x| *x == *id))
 }
 
+/// Whether vault key record `r` stores session key `key`'s passphrase.
+fn stores_passphrase(app: &Faraday, r: RecordView<'_>, key: usize) -> bool {
+    app.vaults
+        .store()
+        .stores_passphrase_of(r, &app.session.keys, key)
+}
+
 /// Whether vault key record `r` says its key's backup is pending.
 fn pending(r: RecordView<'_>) -> bool {
     r.public(field::KEY_FLAGS)
@@ -98,6 +105,48 @@ impl Faraday {
     /// The keys here that a wallet's flow holds back until its writes are
     /// done.
     pub(crate) fn flow_held(&self) -> Vec<Fingerprint> {
+        self.flow_keys(false)
+    }
+
+    /// The keys here whose copy is written: since the app started, or by a
+    /// wallet's flow that held them back and has written its sticks. A
+    /// vault's record that says its backup is pending holds none of them,
+    /// as that mark may be kept for another key of its words.
+    fn keys_copied(&self) -> Vec<Fingerprint> {
+        let mut out = self.flow_keys(true);
+        for &fp in self.flows.copied() {
+            if !out.contains(&fp) {
+                out.push(fp);
+            }
+        }
+        out
+    }
+
+    /// Flow `i` goes: the keys it released, its sticks written, stay
+    /// counted as copied once it is gone.
+    pub(crate) fn flow_copies_note(&mut self, i: usize) {
+        let Some(f) = self.flows.get(i) else {
+            return;
+        };
+        let Some(w) = f.wallet.as_ref().filter(|_| f.made) else {
+            return;
+        };
+        let released: Vec<Fingerprint> = self
+            .session
+            .keys
+            .all()
+            .map(|k| k.fingerprint)
+            .filter(|&fp| {
+                w.held.iter().any(|h| h.eq_ignore_ascii_case(&fp_text(fp)))
+                    && self.wallet_seed_released(i, fp)
+            })
+            .collect();
+        self.flows.note_copied(released);
+    }
+
+    /// The keys here a wallet's flow held back: those it still holds, or
+    /// with `released` those it has released, its sticks written.
+    fn flow_keys(&self, released: bool) -> Vec<Fingerprint> {
         let mut out: Vec<Fingerprint> = Vec::new();
         for (i, f) in self.flows.iter().enumerate() {
             let Some(w) = f.wallet.as_ref().filter(|_| f.made) else {
@@ -107,12 +156,18 @@ impl Faraday {
                 let fp = k.fingerprint;
                 if w.held.iter().any(|h| h.eq_ignore_ascii_case(&fp_text(fp)))
                     && !out.contains(&fp)
-                    && !self.wallet_seed_released(i, fp)
+                    && self.wallet_seed_released(i, fp) == released
                 {
                     out.push(fp);
                 }
             }
         }
+        if !released {
+            return out;
+        }
+        // A key another flow still holds is not released.
+        let held = self.flow_keys(false);
+        out.retain(|f| !held.contains(f));
         out
     }
 
@@ -140,6 +195,7 @@ impl Faraday {
                 out.push(fp);
             }
         };
+        let copied = self.keys_copied();
         for open in &self.vaults.open {
             for (_, r) in self.vaults.records(open.id).of(kind::PLAN) {
                 let Some(text) = r.public_text(field::PLAN_ANSWERS) else {
@@ -163,7 +219,10 @@ impl Faraday {
                 .filter(|(_, r)| pending(*r))
             {
                 for (i, k) in self.session.keys.all().enumerate() {
-                    if !same_words(c, self, r, i) {
+                    // Every key of its words, as before the passphrase was
+                    // told apart; a copy written since takes the key out of
+                    // the hold the mark keeps for another key of them.
+                    if !same_words(c, self, r, i) || copied.contains(&k.fingerprint) {
                         continue;
                     }
                     add(k.fingerprint);
@@ -241,8 +300,10 @@ impl Faraday {
         backup_kept_nowhere_on(&Now { app: self, c })
     }
 
-    /// Before an open vault is sealed: every held key's record in it says
-    /// so, and the held keys are remembered here once the vault is gone.
+    /// Before an open vault is sealed: every key record of a held key's
+    /// words in it says so, whichever passphrase it stores, as a pending
+    /// record holds every key of its words; and the held keys are
+    /// remembered here once the vault is gone.
     pub(crate) fn held_sweep(&mut self) {
         let c = self.compute();
         let held = self.held_keys_stored(&c);
@@ -251,23 +312,39 @@ impl Faraday {
             .filter(|&k| held.contains(&self.session.keys[k].fingerprint))
             .collect();
         for v in 0..self.vaults.open.len() {
+            let (id, vault) = (self.vaults.open[v].id, self.vaults.open[v].vault_id());
+            let opened = self.vaults.store().opened_digest(id);
+            // Each key record of a held key's words: where it is, whether it
+            // was marked already, its id and the held keys of its words.
+            type Row = (usize, bool, Option<[u8; 32]>, Vec<Fingerprint>);
+            let rows: Vec<Row> = self
+                .vaults
+                .records(id)
+                .of(kind::KEY)
+                .filter_map(|(i, r)| {
+                    let fps: Vec<Fingerprint> = keys
+                        .iter()
+                        .filter(|&&k| same_words(&c, self, r, k))
+                        .map(|&k| self.session.keys[k].fingerprint)
+                        .collect();
+                    (!fps.is_empty())
+                        .then(|| (i, pending(r), faraday_keys::vault::key_record_id(r), fps))
+                })
+                .collect();
             let mut changed = false;
-            for &k in &keys {
-                let marks: Vec<usize> = self
-                    .vaults
-                    .records(self.vaults.open[v].id)
-                    .of(kind::KEY)
-                    .filter(|(_, r)| same_words(&c, self, *r, k) && !pending(*r))
-                    .map(|(i, _)| i)
-                    .collect();
-                let id = self.vaults.open[v].id;
-                for i in marks {
-                    let flags = self.flags_of(id, i);
-                    self.vaults.edit(id, |s| {
-                        s.set_public(id, i, field::KEY_FLAGS, &[flags | records::BACKUP_PENDING])
-                    });
-                    changed = true;
+            for (i, was, record, fps) in rows {
+                if let Some(record) = record {
+                    self.flows
+                        .note_sealed_for((vault, opened), record, &fps, !was);
                 }
+                if was {
+                    continue;
+                }
+                let flags = self.flags_of(id, i);
+                self.vaults.edit(id, |s| {
+                    s.set_public(id, i, field::KEY_FLAGS, &[flags | records::BACKUP_PENDING])
+                });
+                changed = true;
             }
             if changed {
                 self.vaults.bump(v);
@@ -319,28 +396,161 @@ impl Faraday {
         }
         for &(fp, k) in &released {
             // The same words without that passphrase are kept too.
-            let same: Vec<Fingerprint> = self
-                .session
-                .keys
-                .with_same_words(&c, k)
-                .into_iter()
-                .map(|o| self.session.keys[o].fingerprint)
-                .collect();
+            let same = self.bare_words_of(&c, k);
             self.flows.release_made(fp, &same);
             self.held_clear_marks(fp, k);
         }
-        let names: Vec<String> = released.iter().map(|(fp, _)| fp_text(*fp)).collect();
+        // The toast names only what signs now: a key another hold keeps is
+        // not among them.
+        let held = self.held_keys_now(&c);
+        let names: Vec<String> = released
+            .iter()
+            .filter(|(fp, _)| !held.contains(fp))
+            .map(|(fp, _)| fp_text(*fp))
+            .collect();
+        if names.is_empty() {
+            return;
+        }
         self.toast(&fill(
             EN.held_signs_from_now,
             &[&names.join(", ").to_string()],
         ));
     }
 
-    /// Takes the mark "backup pending" off session key `k`'s record in every
-    /// open vault, and key `fp`'s `held` line off every plan they keep.
+    /// The fingerprints of the keys of session key `k`'s words that have no
+    /// passphrase: the words alone, which a copy of the words covers. Another
+    /// passphrase of the same words is not covered by it.
+    pub(crate) fn bare_words_of(&self, c: &Compute, k: usize) -> Vec<Fingerprint> {
+        self.session
+            .keys
+            .with_same_words(c, k)
+            .into_iter()
+            .filter(|&o| self.session.keys.info(o).is_some_and(|i| !i.has_passphrase))
+            .map(|o| self.session.keys[o].fingerprint)
+            .collect()
+    }
+
+    /// Whether another passphrase of session key `k`'s words is made here
+    /// still, its copy not written. A vault's pending record holds every
+    /// passphrase of its words, whichever it stores, so while one waits the
+    /// record keeps its mark. A key a flow holds back is not
+    /// counted: the flow keeps that hold in its own state until its sticks
+    /// are written, and the copies its lock seals say the backup is done, so
+    /// a mark kept for it would outlast it.
+    fn other_passphrase_made_here(&self, c: &Compute, k: usize) -> bool {
+        self.session
+            .keys
+            .with_same_words(c, k)
+            .into_iter()
+            .filter(|&o| o != k && self.session.keys.info(o).is_some_and(|i| i.has_passphrase))
+            .map(|o| self.session.keys[o].fingerprint)
+            .any(|f| self.flows.made_here().contains(&f))
+    }
+
+    /// Costs what `same_words` costs. Whether a copy of session key `k`
+    /// written takes the mark "backup pending" off vault key record `r` of
+    /// its words, unless `other_made` (another passphrase of them is made
+    /// here still): one with no passphrase, at once; one that stores a
+    /// passphrase, when `k` is that one's key or a copy of that key is
+    /// written too (in `copied`).
+    fn copy_clears(
+        &self,
+        c: &Compute,
+        r: RecordView<'_>,
+        k: usize,
+        copied: &[Fingerprint],
+        other_made: bool,
+    ) -> bool {
+        if other_made || !same_words(c, self, r, k) {
+            return false;
+        }
+        !r.has(field::KEY_PASSPHRASE)
+            || stores_passphrase(self, r, k)
+            || self
+                .session
+                .keys
+                .all()
+                .enumerate()
+                .any(|(j, o)| copied.contains(&o.fingerprint) && stores_passphrase(self, r, j))
+    }
+
+    /// Open vault `o` was sealed into the file whose SHA-256 is `written`:
+    /// the marks "backup pending" its lock made are that file's
+    /// ([`Self::held_unlock_clear`]).
+    pub(crate) fn held_sealed(&mut self, o: usize, written: [u8; 32]) {
+        let Some((id, vault)) = self.vaults.open.get(o).map(|v| (v.id, v.vault_id())) else {
+            return;
+        };
+        let opened = self.vaults.store().opened_digest(id);
+        self.flows.note_sealed_file((vault, opened), written);
+    }
+
+    /// Costs what `copy_clears` costs, for each key of each key record of
+    /// open vault `o`. At `o`'s unlock from the file whose SHA-256 is `sha`:
+    /// the mark "backup pending" comes off each key record of it that a lock
+    /// in this session marked in that file, when the
+    /// keys it marked it for and its keys here all have a copy written
+    /// since the app started, none of them made here or held by a flow, as
+    /// the last of those copies would have taken it off had the vault been
+    /// open then. A vault locked while that copy was written keeps no hold
+    /// for the next start; a mark from an earlier session stays.
+    pub(crate) fn held_unlock_clear(&mut self, o: usize, sha: Option<[u8; 32]>) {
+        let c = self.compute();
+        let Some((id, vault)) = self.vaults.open.get(o).map(|v| (v.id, v.vault_id())) else {
+            return;
+        };
+        let copied = self.keys_copied();
+        let flow = self.flow_held();
+        let done = |fp: &Fingerprint| {
+            copied.contains(fp) && !self.flows.made_here().contains(fp) && !flow.contains(fp)
+        };
+        let marks: Vec<usize> = self
+            .vaults
+            .records(id)
+            .of(kind::KEY)
+            .filter(|(_, r)| {
+                // Only a mark a lock in this session made in the file opened,
+                // once every key it was made for has a copy: a mark from an
+                // earlier session, in another copy too, may be kept for a key
+                // that is not here.
+                let sealed = faraday_keys::vault::key_record_id(*r)
+                    .and_then(|record| self.flows.sealed_for(vault, record, sha));
+                if !pending(*r) || !sealed.is_some_and(|fps| fps.iter().all(done)) {
+                    return false;
+                }
+                let keys: Vec<usize> = (0..self.session.keys.len())
+                    .filter(|&k| same_words(&c, self, *r, k))
+                    .collect();
+                !keys.is_empty()
+                    && keys
+                        .iter()
+                        .all(|&k| done(&self.session.keys[k].fingerprint))
+                    && keys
+                        .iter()
+                        .any(|&k| self.copy_clears(&c, *r, k, &copied, false))
+            })
+            .map(|(i, _)| i)
+            .collect();
+        if marks.is_empty() {
+            return;
+        }
+        for i in marks {
+            let flags = self.flags_of(id, i);
+            self.vaults.edit(id, |s| {
+                s.set_public(id, i, field::KEY_FLAGS, &[flags & !records::BACKUP_PENDING])
+            });
+        }
+        self.vaults.bump(o);
+    }
+
+    /// Takes the mark "backup pending" off the records in every open vault
+    /// that a copy of session key `k` covers ([`Faraday::copy_clears`]), and
+    /// key `fp`'s `held` line off every plan they keep.
     pub(crate) fn held_clear_marks(&mut self, fp: Fingerprint, k: usize) {
         let c = self.compute();
         let text = fp_text(fp);
+        let other_made = self.other_passphrase_made_here(&c, k);
+        let copied = self.keys_copied();
         for v in 0..self.vaults.open.len() {
             let mut changed = false;
             if self.session.keys.info(k).is_none() {
@@ -350,7 +560,7 @@ impl Faraday {
                 .vaults
                 .records(self.vaults.open[v].id)
                 .of(kind::KEY)
-                .filter(|(_, r)| same_words(&c, self, *r, k) && pending(*r))
+                .filter(|(_, r)| pending(*r) && self.copy_clears(&c, *r, k, &copied, other_made))
                 .map(|(i, _)| i)
                 .collect();
             let id = self.vaults.open[v].id;

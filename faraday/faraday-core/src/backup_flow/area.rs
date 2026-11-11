@@ -28,6 +28,15 @@ pub(crate) struct BackupFlowArea {
     /// is. Never a secret; kept in a vault beside the seed and in the plan
     /// record.
     pub(super) made_here: Vec<Fingerprint>,
+    /// The keys whose copy was written since the app started, by
+    /// fingerprint: a vault's record that says its backup is pending holds
+    /// none of them, as that mark may be kept for another key of its words.
+    copied: Vec<Fingerprint>,
+    /// The key records a lock in this session marked "backup pending": by
+    /// the vault's identifier, the record's id and the file the seal wrote,
+    /// with the keys held here it was marked for. An unlock takes off no
+    /// other mark: not one in another copy of the same vault.
+    sealed_for: Vec<SealedFor>,
     /// The last number given to a Make a new wallet or a Restore, which a
     /// wallet's backup flow is tied to while the wallet is being made.
     pub(super) owner_seq: u64,
@@ -46,6 +55,19 @@ pub(crate) struct BackupFlowArea {
     /// The Restore a GPG key sheet's rows: the public keys in Files, read
     /// when it opened.
     pub(super) restore_rows: Vec<super::gpg_restore::SheetRow>,
+}
+
+/// A key record a lock in this session marked "backup pending"
+/// ([`BackupFlowArea::sealed_for`]).
+struct SealedFor {
+    vault: [u8; 32],
+    record: [u8; 32],
+    /// The SHA-256 of the file the open vault was opened from.
+    from: Option<[u8; 32]>,
+    /// The SHA-256 of the file the seal wrote; `None` while the seal has
+    /// not written it, when the entry matches no file.
+    file: Option<[u8; 32]>,
+    keys: Vec<Fingerprint>,
 }
 
 /// Reading the area is reading its flows: `self.flows[i]` reads as the
@@ -137,6 +159,7 @@ impl BackupFlowArea {
 
     /// Key `fp` was made here: it signs nothing until its backup is done.
     pub(crate) fn note_made(&mut self, fp: Fingerprint) {
+        self.copied.retain(|f| *f != fp);
         if !self.made_here.contains(&fp) {
             self.made_here.push(fp);
         }
@@ -147,9 +170,98 @@ impl BackupFlowArea {
         self.made_here = made;
     }
 
-    /// Key `fp`, and the keys `same` with its words, are released.
+    /// Key `fp`, and the keys `same` with its words, are released: a copy
+    /// of them is written.
     pub(crate) fn release_made(&mut self, fp: Fingerprint, same: &[Fingerprint]) {
         self.made_here.retain(|f| *f != fp && !same.contains(f));
+        self.note_copied(same.iter().copied().chain(std::iter::once(fp)));
+    }
+
+    /// The copies of keys `fps` are written.
+    pub(crate) fn note_copied(&mut self, fps: impl IntoIterator<Item = Fingerprint>) {
+        for f in fps {
+            if !self.copied.contains(&f) {
+                self.copied.push(f);
+            }
+        }
+    }
+
+    /// The keys whose copy was written since the app started.
+    pub(crate) fn copied(&self) -> &[Fingerprint] {
+        &self.copied
+    }
+
+    /// Key record `record` of open vault `vault`, opened from the file whose
+    /// SHA-256 is `opened`, is marked "backup pending" by a lock for keys
+    /// `keys`: afresh when `fresh`, else added to a mark this session made
+    /// in that file or in this seal (a mark from an earlier session stays
+    /// unknown here). The mark is tied to a file once its seal writes one
+    /// ([`Self::note_sealed_file`]).
+    pub(crate) fn note_sealed_for(
+        &mut self,
+        (vault, opened): ([u8; 32], Option<[u8; 32]>),
+        record: [u8; 32],
+        keys: &[Fingerprint],
+        fresh: bool,
+    ) {
+        let waiting = self.sealed_for.iter().position(|s| {
+            s.vault == vault && s.record == record && s.from == opened && s.file.is_none()
+        });
+        let mut all: Vec<Fingerprint> = match (waiting, fresh) {
+            (Some(i), false) => self.sealed_for.remove(i).keys,
+            (Some(i), true) => {
+                self.sealed_for.remove(i);
+                Vec::new()
+            }
+            (None, true) => Vec::new(),
+            (None, false) => match opened.and_then(|f| self.sealed_for(vault, record, Some(f))) {
+                Some(earlier) => earlier.to_vec(),
+                None => return,
+            },
+        };
+        for &k in keys {
+            if !all.contains(&k) {
+                all.push(k);
+            }
+        }
+        self.sealed_for.push(SealedFor {
+            vault,
+            record,
+            from: opened,
+            file: None,
+            keys: all,
+        });
+    }
+
+    /// Open vault `vault`, opened from the file whose SHA-256 is `opened`,
+    /// was sealed into the file whose SHA-256 is `file`: the marks its lock
+    /// made are that file's. A seal that writes nothing ties none.
+    pub(crate) fn note_sealed_file(
+        &mut self,
+        (vault, opened): ([u8; 32], Option<[u8; 32]>),
+        file: [u8; 32],
+    ) {
+        for s in &mut self.sealed_for {
+            if s.vault == vault && s.from == opened && s.file.is_none() {
+                s.file = Some(file);
+            }
+        }
+    }
+
+    /// The keys a lock in this session marked key record `record` of vault
+    /// `vault` "backup pending" for, in the file whose SHA-256 is `file`;
+    /// `None` for a mark it did not make in that file.
+    pub(crate) fn sealed_for(
+        &self,
+        vault: [u8; 32],
+        record: [u8; 32],
+        file: Option<[u8; 32]>,
+    ) -> Option<&[Fingerprint]> {
+        let file = file?;
+        self.sealed_for
+            .iter()
+            .find(|s| s.vault == vault && s.record == record && s.file == Some(file))
+            .map(|s| s.keys.as_slice())
     }
 
     /// The board's list of things, design units scrolled past.

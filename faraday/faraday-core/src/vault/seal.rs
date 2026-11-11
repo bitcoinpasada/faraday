@@ -660,6 +660,8 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
             if let Some(i) = app.vaults.open.iter().position(|o| o.id == id) {
                 let c = app.compute();
                 app.vaults.seals_sealed(&c, i, &bytes);
+                // The marks this lock made are the written file's.
+                app.held_sealed(i, app.vaults.open[i].seal_digest);
                 // The keys waiting for their copies that this sealing holds.
                 app.flow_sealed(i, &name, &bytes);
             }

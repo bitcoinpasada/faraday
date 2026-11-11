@@ -13,6 +13,8 @@ mod backup_first;
 mod backup_flow;
 mod backup_flow_wallet;
 mod backup_flow_wallet_moved;
+mod backup_hold_passphrases;
+mod backup_hold_vault_passphrase;
 mod backup_keep;
 mod backup_marks;
 mod backup_plan;

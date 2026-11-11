@@ -282,7 +282,7 @@ pub(crate) fn single_key_ready(shell: &mut Shell) -> (Faraday, usize, [u8; 4]) {
 
 /// A key made by New key for slot 0 of the Create open: coin flips, its
 /// words locked in. The wallet is made with it.
-fn new_key(app: &mut Faraday) -> [u8; 4] {
+pub(crate) fn new_key(app: &mut Faraday) -> [u8; 4] {
     faraday_core::testkit::new_key_on_length(app, Some(0));
     app.press(Action::KWords(12));
     app.press(Action::KWay(faraday_core::keygen::Way::Coins.index()));

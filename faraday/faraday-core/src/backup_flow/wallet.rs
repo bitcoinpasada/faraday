@@ -868,6 +868,7 @@ impl Faraday {
                     })
                     .collect();
                 for k in done.into_iter().rev() {
+                    self.flow_copies_note(k);
                     let gone = self.flows.all.remove(k);
                     if gone.waiting()
                         && let Some(w) = gone.wallet
@@ -1037,13 +1038,7 @@ impl Faraday {
         for (fp, k) in moved {
             // The same words without that passphrase are covered by the
             // same copy.
-            let same: Vec<Fingerprint> = self
-                .session
-                .keys
-                .with_same_words(&c, k)
-                .into_iter()
-                .map(|o| self.session.keys[o].fingerprint)
-                .collect();
+            let same = self.bare_words_of(&c, k);
             self.flows
                 .made_here
                 .retain(|f| *f != fp && !same.contains(f));
@@ -1080,8 +1075,9 @@ impl Faraday {
         if !f.all_written() {
             return false;
         }
+        // A key no seed of the plan is stays held: nothing here writes it.
         let Some(s) = self.wallet_seed_of_key(i, &fp_text(fp)) else {
-            return true;
+            return false;
         };
         // Each stick counted for the seed holds it as written: a stick of
         // files the seed's file, a vault's stick a vault sealed with it.
@@ -1101,7 +1097,53 @@ impl Faraday {
                 // A stick may carry a vault and files beside it
                 // (`docs/BACKUP-FLOW.md` §17.4): either holds the seed.
                 wr.files.iter().any(|(n, _)| f.is_seed_file(s, n))
-                    || f.vaults_of(k).iter().any(|&v| sealed_with(v))
+                    || f.vaults_of(k).iter().any(|&v| {
+                        sealed_with(v)
+                            && f.sealing
+                                .iter()
+                                .any(|x| x.vault == v && wr.files.iter().any(|(m, _)| *m == x.name))
+                    })
+            })
+    }
+
+    /// Costs what `vault_holds_seed` costs. Whether open vault `o`, sealed
+    /// as vault `v` of flow `i`'s plan, still holds each seed the plan puts
+    /// in it (with its passphrase where the plan does): a seed taken out or
+    /// moved after the lock makes the seal no copy of it.
+    pub(crate) fn wallet_vault_has_its_seeds(
+        &self,
+        c: &Compute,
+        i: usize,
+        o: usize,
+        v: usize,
+    ) -> bool {
+        let Some(wf) = self.flows[i].wallet.as_ref() else {
+            return true;
+        };
+        let marks = wf
+            .sealed
+            .iter()
+            .find(|(x, _)| *x == v)
+            .map_or(&[][..], |(_, m)| m.as_slice());
+        marks
+            .iter()
+            .filter(|&&s| s < wf.shape.seeds.len())
+            .all(|&s| {
+                let name = &wf.shape.seeds[s].name;
+                let with_pass = marks.contains(&(PASS_MARK + s));
+                // A seed with its passphrase is the key its name says; the
+                // words alone are any key of them.
+                let find = |want: &str| {
+                    (0..self.session.keys.len()).find(|&k| {
+                        fp_text(self.session.keys[k].fingerprint).eq_ignore_ascii_case(want)
+                    })
+                };
+                let key = find(name)
+                    .or_else(|| wf.base.get(s).filter(|_| !with_pass).and_then(|b| find(b)));
+                let Some(k) = key else {
+                    return true;
+                };
+                self.vault_holds_seed(c, o, k, with_pass)
             })
     }
 
@@ -2164,9 +2206,19 @@ impl Faraday {
             .filter(|s| s.written.is_some())
             .map(|s| s.target)
             .collect();
-        if !written
-            .iter()
-            .all(|t| trial.slots.iter().any(|s| s.target == *t))
+        // ... and keeps the vaults it was written with.
+        let same_vaults = self.flows[i].slots.iter().enumerate().all(|(k, s)| {
+            s.written.is_none()
+                || trial
+                    .slots
+                    .iter()
+                    .position(|t| t.target == s.target)
+                    .is_none_or(|j| trial.vaults_of(j) == self.flows[i].vaults_of(k))
+        });
+        if !same_vaults
+            || !written
+                .iter()
+                .all(|t| trial.slots.iter().any(|s| s.target == *t))
         {
             // A stick already written stays on the plan until its copy is
             // destroyed.

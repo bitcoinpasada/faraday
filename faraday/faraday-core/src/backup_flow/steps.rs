@@ -2460,11 +2460,41 @@ impl Faraday {
                         .is_some_and(|s| super::record_in(&self.vaults, o, f.kind, &s.id).is_some())
             })
             .collect();
-        for (f, holds) in self.flows.all.iter_mut().zip(holds) {
+        // A wallet's vault sealed without a seed the plan puts in it is no
+        // copy of that seed: it is made again, as a changed plan makes it.
+        let mut bare: Vec<(usize, usize)> = Vec::new();
+        for (i, f) in self.flows.iter().enumerate() {
+            if !f.kind.is_wallet() || !f.made || f.step == Step::Done {
+                continue;
+            }
+            for v in f.plan.used_vaults() {
+                if f.plan.vaults[v].salt == Some(salt)
+                    && f.made_in.contains(&v)
+                    && !self.wallet_vault_has_its_seeds(&c, i, o, v)
+                {
+                    bare.push((i, v));
+                }
+            }
+        }
+        for (i, f) in self.flows.all.iter_mut().enumerate() {
+            for &(_, v) in bare.iter().filter(|(x, _)| *x == i) {
+                f.made_in.retain(|x| *x != v);
+                f.sealing.retain(|s| s.vault != v);
+                for k in 0..f.slots.len() {
+                    if f.vaults_of(k).contains(&v) {
+                        f.slots[k].written = None;
+                    }
+                }
+            }
+        }
+        for (i, (f, holds)) in self.flows.all.iter_mut().zip(holds).enumerate() {
             if !f.made || f.step == Step::Done || !holds {
                 continue;
             }
             for v in f.plan.used_vaults() {
+                if bare.contains(&(i, v)) {
+                    continue;
+                }
                 if f.plan.vaults[v].salt == Some(salt) && f.made_in.contains(&v) {
                     f.plan.vaults[v].len = bytes.len();
                     f.plan.vaults[v].file = Some(name.to_string());
