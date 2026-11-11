@@ -790,15 +790,27 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// lowers the contrast of what is under it, and the scrollbar says
     /// the page goes on.
     fn edge_fades(&mut self, view: Rect, max: f32, offset: f32, ground: Role) {
+        use faraday_draw::tokens::{
+            EDGE_FADE, EDGE_FADE_ALPHA, EDGE_FADE_COMPACT, EDGE_FADE_LOW_COMPACT,
+        };
         if max <= 0.0 || view.h <= 0 || self.theme.is_high_contrast() {
             return;
         }
         // Deeper on a small panel, where it is the sign there is more.
-        let depth = if self.compact { 44.0 } else { 24.0 };
+        let depth = if self.compact {
+            EDGE_FADE_COMPACT
+        } else {
+            EDGE_FADE
+        };
         let band = ((depth * self.f).round() as i32).clamp(1, view.h / 4 + 1);
         // The bottom fade is shallower, so a control resting at the fold
         // (a text button last on a page) still reads at its own emphasis.
-        let low = ((if self.compact { 18.0 } else { 24.0 } * self.f).round() as i32)
+        let low = ((if self.compact {
+            EDGE_FADE_LOW_COMPACT
+        } else {
+            EDGE_FADE
+        } * self.f)
+            .round() as i32)
             .clamp(1, view.h / 4 + 1);
         let page = self.col(ground);
         let reach = band as f32 / self.f;
@@ -806,7 +818,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let bottom = ((max - offset) / (low as f32 / self.f)).clamp(0.0, 1.0);
         for i in 0..band {
             let k = 1.0 - (i as f32 + 0.5) / band as f32;
-            let a = k * k * 230.0;
+            let a = k * k * EDGE_FADE_ALPHA;
             if top > 0.0 {
                 let row = Rect::new(view.x, view.y + i, view.w, 1);
                 self.c.fill_rect(row, page.with_alpha((a * top) as u8));
@@ -814,7 +826,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
         for i in 0..low {
             let k = 1.0 - (i as f32 + 0.5) / low as f32;
-            let a = k * k * 230.0;
+            let a = k * k * EDGE_FADE_ALPHA;
             if bottom > 0.0 {
                 let row = Rect::new(view.x, view.bottom() - 1 - i, view.w, 1);
                 self.c.fill_rect(row, page.with_alpha((a * bottom) as u8));

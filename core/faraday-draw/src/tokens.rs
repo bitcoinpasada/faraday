@@ -2028,6 +2028,17 @@ pub const TIP_LONG_PRESS_MS: u64 = 500;
 /// The scrim over a sheet's frosted page: Material's 32 %.
 pub const SCRIM_ALPHA: u8 = 82;
 
+/// How deep a scroll region's edge fade is on a small panel, where it is
+/// the sign there is more, units.
+pub const EDGE_FADE_COMPACT: f32 = 44.0;
+/// How deep a scroll region's edge fade is elsewhere, units.
+pub const EDGE_FADE: f32 = 24.0;
+/// The bottom edge's fade on a small panel, shallower so a control
+/// resting at the fold still reads at its own emphasis, units.
+pub const EDGE_FADE_LOW_COMPACT: f32 = 18.0;
+/// An edge fade's opacity at the very edge, of 255.
+pub const EDGE_FADE_ALPHA: f32 = 230.0;
+
 /// A progress indicator's track and bar.
 pub const PROGRESS_H: f32 = 4.0;
 /// The indeterminate indicator's bar, as a share of its track.
