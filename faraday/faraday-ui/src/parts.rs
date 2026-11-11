@@ -72,7 +72,13 @@ pub fn button_rows<A: Copy + PartialEq>(
             bx = x;
             by += bh + GAP;
         }
-        bx += ui.button(bx, by, Some(bw), bh, label, *style, *action) + GAP;
+        bx += if *style == Style::Ghost && bx == x {
+            // A text button on its own at the row's start: its label on
+            // the edge (`Ui::text_button`).
+            ui.text_button(bx, by, label, *style, *action) + GAP
+        } else {
+            ui.button(bx, by, Some(bw), bh, label, *style, *action) + GAP
+        };
     }
     by - y + bh + GAP
 }
@@ -116,7 +122,11 @@ pub fn wrap_buttons_spaced<A: Copy + PartialEq>(
             bx = x;
             by += h + row_gap;
         }
-        bx += ui.button(bx, by, Some(bw), h, label, style, action) + GAP;
+        bx += if style == Style::Ghost && bx == x {
+            ui.text_button(bx, by, label, style, action) + GAP
+        } else {
+            ui.button(bx, by, Some(bw), h, label, style, action) + GAP
+        };
     }
     by - y + h + row_gap
 }

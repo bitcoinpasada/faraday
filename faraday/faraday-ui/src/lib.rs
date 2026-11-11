@@ -1901,6 +1901,21 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.button_drawn((x, y, w, grown, r), size, label, style, action, None)
     }
 
+    /// A text button standing alone in a column of content, or first in
+    /// a row at its edge (`docs/DESIGN.md` §4.13): its label starts at
+    /// `x`, the content's start edge, and the button's state layer and
+    /// touch target reach out past it by Material's container padding.
+    /// `style` is [`Style::Ghost`] or [`Style::GhostOff`]. Returns how far
+    /// the button's right edge is past `x`.
+    pub fn text_button(&mut self, x: f32, y: f32, label: &str, style: Style, action: A) -> f32 {
+        use faraday_draw::tokens::{BUTTON_H, BUTTON_PAD};
+        // Where the content starts nearer the panel's edge than the
+        // padding, the container reaches to the edge and no further.
+        let pad = BUTTON_PAD.min(x.max(0.0));
+        let w = self.button_width(label, style) - 2.0 * (BUTTON_PAD - pad);
+        self.button(x - pad, y, Some(w), BUTTON_H, label, style, action) - pad
+    }
+
     /// [`Ui::button`] with corners of `r` rather than round ends: a key
     /// of the on-screen keyboard, its label the key's
     /// ([`faraday_draw::tokens::key_label`]).

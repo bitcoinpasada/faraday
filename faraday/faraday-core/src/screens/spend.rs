@@ -1602,12 +1602,18 @@ pub(crate) fn step_body(
                         Role::OnSurface,
                         &detail,
                     );
-                    let bw = ui.button(bx + 14.0, by, Some(lw), BUTTON_H, label, style, action);
+                    // A text button's label starts at the card's text.
+                    let right = if style == Style::Ghost {
+                        bx + 14.0 + ui.text_button(bx + 14.0, by, label, style, action)
+                    } else {
+                        bx + 14.0
+                            + ui.button(bx + 14.0, by, Some(lw), BUTTON_H, label, style, action)
+                    };
                     if k == 0 {
                         let (qx, qy) = if stacked {
                             (bx + 14.0, by + 44.0)
                         } else {
-                            (bx + 22.0 + bw, by)
+                            (right + 8.0, by)
                         };
                         ui.button(
                             qx,

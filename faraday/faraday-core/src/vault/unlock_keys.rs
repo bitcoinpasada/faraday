@@ -15,8 +15,8 @@ use crate::vault::{Focus, TextBox};
 use crate::wallet::FileKind;
 use crate::{Action, Faraday, Sheet};
 use faraday_draw::tokens::{
-    BODY_M, BODY_S, BUTTON_H, DIALOG_MAX, FIELD_H, FILTER_CHIP_H, GAP, GAP_SMALL, GRID, ICON_SMALL,
-    LABEL_L, LIST_1, PAD, RADIUS_SMALL, TITLE_S, shape_full,
+    BODY_M, BODY_S, BUTTON_H, BUTTON_PAD, DIALOG_MAX, FIELD_H, FILTER_CHIP_H, GAP, GAP_SMALL, GRID,
+    ICON_SMALL, LABEL_L, LIST_1, PAD, RADIUS_SMALL, TITLE_S, shape_full,
 };
 use faraday_draw::widgets::Icon;
 use faraday_keys::{PartsRefused, UnlockParts};
@@ -206,17 +206,10 @@ pub(crate) fn key_slot(
     let muted = Role::OnSurfaceVariant;
     match chosen {
         None => {
-            let width = ui.button_width(EN.vault_add_key_file, Style::Ghost);
+            // `place` gives the label's edge; the container reaches past it.
+            let width = ui.button_width(EN.vault_add_key_file, Style::Ghost) - BUTTON_PAD;
             let (bx, by) = place(width);
-            ui.button(
-                bx,
-                by,
-                None,
-                BUTTON_H,
-                EN.vault_add_key_file,
-                Style::Ghost,
-                va(ask),
-            );
+            ui.text_button(bx, by, EN.vault_add_key_file, Style::Ghost, va(ask));
         }
         Some(name) => {
             // An input chip: the file's name and its ×.
@@ -272,15 +265,25 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     if app.vaults.yubikey.is_none() {
         let width = ui.button_width(EN.vault_add_yubikey, Style::Ghost);
         let (bx, by) = place(width);
-        ui.button(
-            bx,
-            by,
-            None,
-            BUTTON_H,
-            EN.vault_add_yubikey,
-            Style::Ghost,
-            va(V::YubiKeyAdd),
-        );
+        if bx == x {
+            ui.text_button(
+                bx,
+                by,
+                EN.vault_add_yubikey,
+                Style::Ghost,
+                va(V::YubiKeyAdd),
+            );
+        } else {
+            ui.button(
+                bx,
+                by,
+                None,
+                BUTTON_H,
+                EN.vault_add_yubikey,
+                Style::Ghost,
+                va(V::YubiKeyAdd),
+            );
+        }
     }
     let mut end = cy + BUTTON_H;
     if let Some(b) = app.vaults.yubikey.as_ref() {

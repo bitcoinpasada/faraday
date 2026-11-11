@@ -811,11 +811,9 @@ fn more(app: &View, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w
     let bit = more_bit(id);
     let shown = app.spend_backup.state.more & (1 << u32::from(bit)) != 0;
     let mut cy = y + 4.0;
-    ui.button(
-        x - 12.0,
+    ui.text_button(
+        x,
         cy,
-        None,
-        BUTTON_H,
         if shown {
             EN.spend_backup_less_about
         } else {
@@ -963,15 +961,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let label = fill(EN.spend_backup_copy_files_button, &[app.medium.a()]);
         cy += stick_row(app, ui, x, cy, w, &label);
     }
-    ui.button(
-        x - 12.0,
-        cy,
-        None,
-        BUTTON_H,
-        text::UNSURE,
-        Style::Ghost,
-        fa(F::Unsure),
-    );
+    ui.text_button(x, cy, text::UNSURE, Style::Ghost, fa(F::Unsure));
     cy += 40.0;
     if app.spend_backup.state.help {
         for (look, what) in text::looks(app.medium) {
@@ -1055,14 +1045,14 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy += opened(app, ui, x, cy, w);
     if !rows.is_empty() || app.spend_backup.state.route.is_some() {
-        cy += crate::screens::wrap_buttons(
-            ui,
-            x - 12.0,
+        ui.text_button(
+            x,
             cy,
-            w,
-            36.0,
-            &[(EN.spend_backup_start_over, Style::Ghost, fa(F::StartOver))],
+            EN.spend_backup_start_over,
+            Style::Ghost,
+            fa(F::StartOver),
         );
+        cy += ui.button_height(36.0) + faraday_draw::tokens::GAP;
     }
     cy - y
 }
