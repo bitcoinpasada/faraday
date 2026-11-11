@@ -250,7 +250,7 @@ completeness = "Receive, labels, scan-key export, `sp()` read and written (INTER
 id = "silent-send"
 section = 2
 what = "Silent payments, send and PSBT (`core/faraday-psbt/src/silent.rs`, `core/faraday-bip/src/dleq.rs`)"
-completeness = "Built in core, not reachable from the app: the device does not send"
+completeness = "Built in core, not reachable from the app: the device does not send, and the app refuses a PSBT of version 0 or 2 carrying any BIP-375 field (global 0x07 and 0x08, input 0x1d and 0x1e, output 0x09 and 0x0a) rather than sign it unchecked"
 
 [[row]]
 id = "watch-only"
