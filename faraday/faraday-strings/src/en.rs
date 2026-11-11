@@ -434,6 +434,8 @@ strings! {
     starter_writing_title: "Writing",
     /// Progress: `{}` done, `{}` in all.
     starter_progress_bytes: "{} of {}",
+    /// Writing page, after the window was asked to close.
+    starter_close_after_write: "Closes when the write ends.",
     /// Progress while writing.
     starter_progress_writing: "Written {}",
     /// Progress while reading back.

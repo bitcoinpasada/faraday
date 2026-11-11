@@ -207,3 +207,22 @@ fn a_declined_elevation_says_so_and_nothing_is_written() {
         [StarterCommand::ReadVersion { .. }]
     ));
 }
+
+#[test]
+fn a_read_that_arrives_during_the_write_does_not_put_the_old_version_back() {
+    let mut s = starter();
+    to_mode(&mut s);
+    s.press(StarterAction::Mode(Mode::KeepData));
+    assert_eq!(commands(&mut s).len(), 1);
+    read(&mut s, Ok(Some("6.6.84-faraday-0.3.0".into())));
+    s.press(StarterAction::Continue);
+    s.press(StarterAction::Write);
+    assert_eq!(commands(&mut s).len(), 1);
+    // A second read, asked before the write, answers while it runs.
+    read(&mut s, Ok(Some("6.6.84-faraday-0.3.0".into())));
+    assert_eq!(s.page, Page::Writing);
+    s.starter_event(StarterEvent::Written(Ok(())));
+    assert_eq!(s.page, Page::Done);
+    s.press(StarterAction::Home);
+    assert!(shows(&mut s, "Faraday stick attached · version not read"));
+}

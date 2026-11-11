@@ -816,6 +816,9 @@ Downloads.
    left"); then written of total, then *Reading back*.
    Under *keep data* the total is the boot partition's size, the only
    bytes that reach the stick, also when a whole image is written.
+   Closing the window during the write does not end it: the page says
+   "Closes when the write ends." and the window closes by itself when
+   the write ends, done or failed.
 5. **Done** (Result): "Keep the stick in to start this computer from it. To start another computer, pull it out." (a Pi card: "The card can be pulled out."); a row **In the
    boot menu**, "something like" the entry this computer's boot menu
    will list the stick as, from the stick's own vendor and model and

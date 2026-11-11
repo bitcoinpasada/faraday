@@ -474,6 +474,30 @@ fn a_developers_image_says_it_is_not_the_apps_own_and_shows_its_sum() {
 }
 
 #[test]
+fn an_uninstall_that_ends_during_a_write_leaves_the_write_on_screen() {
+    let mut starter = starter_with(vec![disk("sdb", "Stick", 16 * GB)]);
+    to_confirm(&mut starter, "sdb", Mode::Whole);
+    starter.press(StarterAction::Write);
+    starter.starter_event(StarterEvent::UninstallDone(Ok(())));
+    assert_eq!(starter.page, Page::Writing);
+    starter.starter_event(StarterEvent::WriteProgress {
+        stage: faraday_starter::api::WriteStage::Writing,
+        done: GB,
+        total: 4 * GB,
+    });
+    assert!(shows(&mut starter, "Written 1.0\u{a0}GB of 4.0\u{a0}GB"));
+    starter.starter_event(StarterEvent::Written(Err(Reason::BackDiffers {
+        device: "/dev/sdb".into(),
+        at: 12,
+    })));
+    assert_eq!(starter.page, Page::Done);
+    assert!(shows(
+        &mut starter,
+        "differs from what was written at byte 12"
+    ));
+}
+
+#[test]
 fn writing_shows_progress_then_done_or_the_writers_reason() {
     let mut starter = starter_with(vec![disk("sdb", "Stick", 16 * GB)]);
     to_confirm(&mut starter, "sdb", Mode::Whole);

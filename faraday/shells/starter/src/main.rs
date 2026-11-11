@@ -102,6 +102,8 @@ struct Shell {
     check: Sender<()>,
     /// The disk being written.
     writing: Option<String>,
+    /// The window was asked to close during the write.
+    close_held: bool,
     /// The folders of the sheets this run printed with the BitLocker
     /// recovery key on them (F49), removed when the Starter exits.
     key_sheets: Vec<PathBuf>,
@@ -542,8 +544,13 @@ impl Shell {
             {
                 let _ = self.forget.send(id);
             }
+            let ended = matches!(e, StarterEvent::Written(_));
             self.starter.starter_event(e);
             any = true;
+            if ended && self.close_held {
+                event_loop.exit();
+                return;
+            }
         }
         if any {
             let mut events = Vec::new();
@@ -676,6 +683,13 @@ impl ApplicationHandler for Shell {
                 self.starter.close_demo();
                 let mut events = Vec::new();
                 self.answer(event_loop, &mut events);
+                self.redraw();
+            }
+            // A write under way is not cut short: the window closes when
+            // it ends (`reported`).
+            WindowEvent::CloseRequested if self.writing.is_some() => {
+                self.starter.hold_close();
+                self.close_held = true;
                 self.redraw();
             }
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -989,6 +1003,7 @@ fn main() -> ExitCode {
         forget,
         check,
         writing: None,
+        close_held: false,
         key_sheets: Vec::new(),
         host: Host {
             print,

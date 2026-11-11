@@ -869,10 +869,11 @@ fn check_identity(order: &WriteOrder, seen: &Identity) -> Result<(), Reason> {
 }
 
 /// Whether `opened`, read after the disk was opened, is the disk `now`
-/// was: the same device and size, and the same serial when both have
-/// one (some disks report none).
+/// was: the same device and size, and the same serial, or none on both
+/// (some disks report none): a disk that had a serial and reports none
+/// now is not the one confirmed.
 fn check_opened(order: &WriteOrder, now: &Identity, opened: &Identity) -> Result<(), Reason> {
-    let serials = now.serial.is_empty() || opened.serial.is_empty() || now.serial == opened.serial;
+    let serials = now.serial == opened.serial;
     if opened.device != now.device || opened.size != now.size || !serials {
         return Err(Reason::Changed {
             device: order.device.clone(),

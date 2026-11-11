@@ -493,13 +493,14 @@ fn a_disk_whose_serial_or_size_changed_since_confirm_is_refused_before_any_byte(
 fn a_disk_that_is_another_once_opened_gets_no_byte() {
     let (image, source) = image_job("swapped.img", &stick_image());
     let job = Job::Image(image);
-    for change in ["serial", "size", "device"] {
-        let (path, before) = blank(&format!("swapped-{change}"));
+    for change in ["serial", "no serial", "size", "device"] {
+        let (path, before) = blank(&format!("swapped-{}", change.replace(' ', "-")));
         let mut disk = FileDisk::new(&path);
         let order = disk.order(source.clone(), Mode::Whole);
         let mut other = disk.now.clone();
         match change {
             "serial" => other.serial = String::from("SERIAL2"),
+            "no serial" => other.serial = String::new(),
             "size" => other.size += 512,
             _ => other.device.push('2'),
         }

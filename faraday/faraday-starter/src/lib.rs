@@ -732,6 +732,16 @@ pub struct Starter {
     /// by disk id, serial and size: asked once per stick,
     /// and forgotten once the stick is written.
     versions: Vec<((String, String, u64), Option<String>)>,
+    /// A stick's write is under way: set by the write asked, cleared by
+    /// its result. The page does not say it: an event that is not the
+    /// person's press can leave the Writing page.
+    writing: bool,
+    /// The window was asked to close during the write: the shell holds
+    /// the close until the write ends, and the Writing page says so.
+    close_held: bool,
+    /// A version read asked before the write, still to arrive: what it
+    /// reads is the stick before the write, so it is dropped.
+    version_stale: Option<String>,
     /// A stick's version being read through the elevated copy: its id.
     pub version_reading: Option<String>,
     /// Why the last such read did not happen.
@@ -882,6 +892,9 @@ impl Starter {
             disks: Vec::new(),
             shell_disks: Vec::new(),
             versions: Vec::new(),
+            writing: false,
+            close_held: false,
+            version_stale: None,
             version_reading: None,
             version_failed: None,
             dev: None,
@@ -1408,17 +1421,18 @@ impl Starter {
             StarterEvent::TextKept(t) => self.text_kept_read(t),
             StarterEvent::NoWriter => self.no_writer = true,
             // Progress and the result belong to the write this Starter
-            // asked for, which is under way while its page is shown: one
+            // asked for, which is under way while `writing` is set: one
             // that arrives with no write asked, or after its result, is
             // not that write's.
-            StarterEvent::WriteProgress { stage, done, total } if self.page == Page::Writing => {
+            StarterEvent::WriteProgress { stage, done, total } if self.writing => {
                 if let Some(m) = self.making.as_mut() {
                     m.progress = Some((stage, done, total));
                 }
             }
             StarterEvent::WriteProgress { .. } => {}
-            StarterEvent::Written(_) if self.page != Page::Writing => {}
+            StarterEvent::Written(_) if !self.writing => {}
             StarterEvent::Written(r) => {
+                self.writing = false;
                 // What the elevated copy read is no longer on the stick.
                 if let Some((id, ..)) = self.making.as_ref().and_then(|m| m.confirmed.as_ref()) {
                     let id = id.clone();
@@ -1445,7 +1459,10 @@ impl Starter {
                 Ok(()) => {
                     self.uninstall_failed = None;
                     self.installed = None;
-                    self.go(Page::Home);
+                    // A write under way keeps its page.
+                    if !self.writing {
+                        self.go(Page::Home);
+                    }
                 }
                 Err(why) => self.uninstall_failed = Some(why),
             },
@@ -1513,6 +1530,18 @@ impl Starter {
                     }
                     Ok(_) => {}
                     Err(why) => self.notes_open_failed = Some(why),
+                }
+            }
+            // A read asked before the write, or arriving during it, saw
+            // the stick as it was before.
+            StarterEvent::VersionRead { disk, .. }
+                if self.writing || self.version_stale.as_ref() == Some(&disk) =>
+            {
+                if self.version_reading.as_ref() == Some(&disk) {
+                    self.version_reading = None;
+                }
+                if self.version_stale.as_ref() == Some(&disk) {
+                    self.version_stale = None;
                 }
             }
             StarterEvent::VersionRead {
@@ -2175,6 +2204,14 @@ impl Starter {
         }
     }
 
+    /// The window was asked to close while a write runs: the Writing
+    /// page says it closes when the write ends.
+    pub fn hold_close(&mut self) {
+        self.close_held = true;
+        self.dirty = true;
+        self.commands.push_back(Command::Draw);
+    }
+
     /// Confirm's action: the disk checked again, then the write asked of
     /// the shell, which checks it once more (§4.1).
     fn write(&mut self) {
@@ -2219,6 +2256,8 @@ impl Starter {
                 (WriteStage::Writing, 0, image.size)
             });
         }
+        self.writing = true;
+        self.version_stale = self.version_reading.clone();
         self.go(Page::Writing);
     }
 

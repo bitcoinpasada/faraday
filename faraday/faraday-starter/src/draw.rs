@@ -1324,6 +1324,16 @@ fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             Role::OnSurfaceVariant,
         );
     }
+    if starter.close_held {
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            S.starter_close_after_write,
+            Role::OnSurfaceVariant,
+        );
+    }
     y
 }
 
