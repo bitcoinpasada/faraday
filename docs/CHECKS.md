@@ -258,6 +258,7 @@ does what is `tools/README.md`'s.
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
 | `fuzz.parser-target`: a parser of untrusted input has its fuzz target in the same change | `core/*/src/**`<br>`faraday/**/src/**`<br>`!core/faraday-draw/**`<br>`!**/screen.rs`<br>`!faraday/faraday-core/src/screens/**`<br>`!faraday/faraday-ui/**`<br>lines matching `^\+.*\bfn\s+(parse\|decode\|read\|from_bytes\|from_str\|deserialize)\w*` | review | - | - | planned: F148's fuzz check | `tools/README.md` |
+| `fuzz.release-two-runs`: a release's fuzz run made of two runs reruns every target whose corpus reaches a changed file or a file naming a changed constant, every target compiling in a change that cannot be followed, and every target after a change to a fuzz crate's manifest, lock, toolchain or the fuzz tools; its record names both runs | `tools/fuzz-release.sh`<br>`tools/fuzz-join.py`<br>`tools/fuzz-common.sh`<br>`tools/fuzz-corpus-export.sh`<br>`.github/workflows/fuzz.yml` | review | - | - | planned: nothing of F241 is built | `docs/decisions/F241.md` |
 
 ### 2.20 release
 
@@ -327,6 +328,7 @@ No script holds these; a reviewer reads this list for the change.
 | `guide.pictures`: the guide's pictures are drawn again when a screen changes | `docs/GUIDE.md` |
 | `deps.locked`: builds and checks pass --locked | `CLAUDE.md`<br>`docs/decisions/F71.md` |
 | `fuzz.parser-target`: a parser of untrusted input has its fuzz target in the same change | `tools/README.md` |
+| `fuzz.release-two-runs`: a release's fuzz run made of two runs reruns every target whose corpus reaches a changed file or a file naming a changed constant, every target compiling in a change that cannot be followed, and every target after a change to a fuzz crate's manifest, lock, toolchain or the fuzz tools; its record names both runs | `docs/decisions/F241.md` |
 | `release.before`: before a release: just, just crosscheck --fresh (or runs combined at its seed, F239), the fuzz run and its corpus | `tools/README.md` |
 
 ## 4. Read by

@@ -255,3 +255,4 @@ Read this table, then only the decision you need.
 | [F238](decisions/F238.md) | Named costly operations are held by an instruction count in the check: more than 25% over fails, a count is raised only in a commit that says why; a stated cost says how it was measured | 2026-11-10 | Active | speed |
 | [F239](decisions/F239.md) | A release's cross-check may be made of runs at one fresh seed, the later ones running only the areas whose own inputs changed | 2026-11-10 | Active | repository |
 | [F240](decisions/F240.md) | Make a new wallet asks who signs, then a single key's backup: Words (BIP-39) or Shares (codex32) on a Backup card, New key making the key in that form | 2026-11-10 | Active | wallets |
+| [F241](decisions/F241.md) | A release's fuzz run may be made of two runs, the later one running only the targets whose corpus reaches what changed | 2026-11-11 | Active, not built | repository |

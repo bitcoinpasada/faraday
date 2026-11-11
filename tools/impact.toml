@@ -1290,6 +1290,14 @@ lines = '^\+.*\bfn\s+(parse|decode|read|from_bytes|from_str|deserialize)\w*'
 kind = "review"
 misses = "planned: F148's fuzz check"
 
+[[rule]]
+id = "fuzz.release-two-runs"
+title = "a release's fuzz run made of two runs reruns every target whose corpus reaches a changed file or a file naming a changed constant, every target compiling in a change that cannot be followed, and every target after a change to a fuzz crate's manifest, lock, toolchain or the fuzz tools; its record names both runs"
+source = ["docs/decisions/F241.md"]
+when = ["tools/fuzz-release.sh", "tools/fuzz-join.py", "tools/fuzz-common.sh", "tools/fuzz-corpus-export.sh", ".github/workflows/fuzz.yml"]
+kind = "review"
+misses = "planned: nothing of F241 is built"
+
 # --------------------------------------------------------------- release
 
 [[rule]]
