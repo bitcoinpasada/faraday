@@ -1847,7 +1847,7 @@ fn a_chosen_key_path_signature_beside_a_final_taproot_witness_is_changed() {
             faraday_psbt::Nonce::LowR,
             aux,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         )
         .expect("signs");
         p
@@ -3278,7 +3278,7 @@ fn taproot_pair() -> (Psbt, Psbt) {
         faraday_psbt::Nonce::LowR,
         faraday_psbt::Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("signs");
     (sent, signed_)

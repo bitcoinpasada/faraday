@@ -231,7 +231,8 @@ pub struct SignResult {
 /// after every draw, so nonces drawn while it stays open never repeat;
 /// a new session for the same transaction needs a new seed. Faraday
 /// derives one per signing press from its session key and a count of
-/// the draws.
+/// the draws. With no seed, a pass that would draw a nonce is refused
+/// ([`Error::NoNonceSeed`]), never drawn from a fixed one.
 #[allow(
     clippy::too_many_arguments,
     reason = "the signing request: PSBT, keys, selection, context, accepted warnings, nonce, aux and MuSig session"
@@ -247,7 +248,7 @@ pub fn sign(
     nonce: Nonce,
     aux: Aux,
     session: &mut Option<MusigSession>,
-    seed: &Zeroizing<[u8; 32]>,
+    seed: Option<&Zeroizing<[u8; 32]>>,
 ) -> Result<SignResult, Error> {
     c.count(Work::Sign);
     if let Some(kind) = accepted.iter().find(|k| !k.is_holdable()) {
@@ -434,8 +435,19 @@ pub fn sign(
                     continue;
                 }
                 let done = sign_musig(
-                    c, psbt, &mut cache, &outputs, i, &cl, musig, &mine, &selected, aux, txid,
-                    session, seed,
+                    c,
+                    psbt,
+                    &mut cache,
+                    &outputs,
+                    i,
+                    &cl,
+                    musig,
+                    &mine,
+                    &selected,
+                    aux,
+                    txid,
+                    session,
+                    seed.map(|s| &**s),
                 )?;
                 nonces_shared += done.nonces_shared;
                 signed_inputs.extend(done.signatures);
@@ -904,7 +916,7 @@ fn sign_musig(
     aux: Aux,
     txid: bitcoin::Txid,
     session: &mut Option<MusigSession>,
-    seed: &[u8; 32],
+    seed: Option<&[u8; 32]>,
 ) -> Result<MusigPass, Error> {
     // The first selected key's own blinded context, not a plain one.
     let secp = selected
@@ -1036,6 +1048,7 @@ fn sign_musig(
                 // another one replaces it, and the nonces of the old one
                 // are dropped and wiped with it.
                 if session.as_ref().is_none_or(|s| s.txid() != txid) {
+                    let seed = seed.ok_or(Error::NoNonceSeed)?;
                     *session = Some(MusigSession::new(txid, *seed));
                 }
                 let open = session.as_mut().expect("just set");

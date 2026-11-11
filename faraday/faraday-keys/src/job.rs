@@ -461,7 +461,7 @@ pub struct SignJob {
     policies: Vec<WalletPolicy>,
     accepted: Vec<faraday_psbt::WarningKind>,
     musig: Option<faraday_psbt::MusigSession>,
-    seed: Zeroizing<[u8; 32]>,
+    seed: Option<Zeroizing<[u8; 32]>>,
 }
 
 /// What a [`SignJob`] gives back: the PSBT, as far as it was signed, the
@@ -481,7 +481,7 @@ impl SignJob {
         (accepted, musig, seed): (
             Vec<faraday_psbt::WarningKind>,
             Option<faraday_psbt::MusigSession>,
-            Zeroizing<[u8; 32]>,
+            Option<Zeroizing<[u8; 32]>>,
         ),
     ) -> SignJob {
         SignJob {
@@ -514,7 +514,7 @@ impl SignJob {
             &self.selection,
             (&ctx, &self.accepted),
             &mut self.musig,
-            &self.seed,
+            self.seed.as_ref(),
         );
         Signing {
             psbt: self.psbt,

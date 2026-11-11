@@ -282,6 +282,7 @@ pub(crate) fn sign_error_text(e: &faraday_psbt::Error) -> String {
             fill(EN.psbt_error_input, &[&n(*input), reason_text(*reason)])
         }
         E::KeyMismatch { input } => fill(EN.psbt_error_key_mismatch, &[&n(*input)]),
+        E::NoNonceSeed => EN.no_randomness.to_string(),
         E::NoSuchKey(fp) => fill(EN.psbt_error_no_such_key, &[&fp.to_string()]),
         E::Danger(kinds) => fill(EN.psbt_error_danger, &[&n(kinds.len())]),
         E::NotHoldable(_) => EN.psbt_error_not_holdable.to_string(),
@@ -476,7 +477,7 @@ impl Session {
         &self,
         c: &Compute,
         psbt: &Psbt,
-        seed: &zeroize::Zeroizing<[u8; 32]>,
+        seed: Option<&zeroize::Zeroizing<[u8; 32]>>,
         musig: &mut Option<faraday_psbt::MusigSession>,
         known: Option<&Inspection>,
         accepted: &[faraday_psbt::WarningKind],
@@ -504,7 +505,7 @@ impl Session {
             psbt.clone(),
             selection,
             (self.network(), refs, policies),
-            (accepted.to_vec(), musig.take(), seed.clone()),
+            (accepted.to_vec(), musig.take(), seed.cloned()),
         ))
     }
 
@@ -517,7 +518,7 @@ impl Session {
         &self,
         c: &Compute,
         psbt: &Psbt,
-        seed: &zeroize::Zeroizing<[u8; 32]>,
+        seed: Option<&zeroize::Zeroizing<[u8; 32]>>,
         s: &mut SpendState,
     ) -> Result<faraday_keys::job::SignJob, String> {
         let inputs = self.inspect_inputs();

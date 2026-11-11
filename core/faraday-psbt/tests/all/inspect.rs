@@ -145,7 +145,7 @@ fn spoofed_change_blocks_signing() {
                 Nonce::LowR,
                 Aux::Deterministic,
                 &mut None,
-                &faraday_crypto::Zeroizing::new([0u8; 32]),
+                Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
             )
             .unwrap_err();
             assert!(
@@ -215,7 +215,7 @@ fn change_under_an_unloaded_account_is_unverified() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 1);
@@ -395,7 +395,7 @@ fn sign_abandon(
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
 }
 
@@ -616,7 +616,7 @@ fn no_participating_key() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         ),
         Err(Error::Danger(vec![WarningKind::NoParticipatingKey]))
     );
@@ -632,7 +632,7 @@ fn no_participating_key() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         ),
         Err(Error::NotHoldable(WarningKind::NoParticipatingKey))
     );
@@ -714,7 +714,7 @@ fn missing_and_lying_utxo() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         ),
         Err(Error::Blocked(_))
     ));
@@ -760,7 +760,7 @@ fn segwit_v0_inputs_without_their_previous_transaction_block_a_transaction_of_tw
                     Nonce::LowR,
                     Aux::Deterministic,
                     &mut None,
-                    &faraday_crypto::Zeroizing::new([0u8; 32]),
+                    Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
                 )
                 .unwrap_err();
                 assert!(
@@ -815,7 +815,7 @@ fn a_single_input_transaction_is_signed_without_its_previous_transaction() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         )
         .unwrap();
         assert_eq!(r.signed_inputs.len(), 1, "{script_type}");
@@ -897,7 +897,7 @@ fn a_p2wsh_input_without_its_previous_transaction_is_blocked() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         ),
         Err(Error::Blocked(vec![WarningKind::AmountUnverified]))
     );
@@ -940,7 +940,7 @@ fn mixed_script_types_is_info() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 2);
@@ -980,7 +980,7 @@ fn a_finalized_input_without_its_previous_transaction_is_blocked() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         )
     };
 
@@ -1094,7 +1094,7 @@ fn a_high_fee_and_an_absurd_rate_sign_only_after_the_hold() {
                 Nonce::LowR,
                 Aux::Deterministic,
                 &mut None,
-                &faraday_crypto::Zeroizing::new([0u8; 32]),
+                Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
             )
         };
         // Nothing held: nothing signed.
@@ -1149,7 +1149,7 @@ fn an_input_with_its_key_origin_stripped_is_not_signed() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         )
         .unwrap_or_else(|e| panic!("{script_type}: {e:?} {:?}", insp.warnings));
         assert_eq!(done.signed_inputs.len(), 1, "{script_type}");

@@ -327,7 +327,7 @@ fn run(a: Args) -> Result<(), String> {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .map_err(|e| {
         if !insp.refuses() && !insp.holdable().is_empty() && !a.hold {

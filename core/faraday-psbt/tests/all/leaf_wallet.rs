@@ -167,7 +167,7 @@ fn review_and_sign(
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     );
     (insp, result)
 }

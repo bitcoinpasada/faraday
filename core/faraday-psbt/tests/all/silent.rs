@@ -524,7 +524,7 @@ fn a_silent_payment_is_signed_through_its_version_0_form() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("signed");
     assert_eq!(signed.signed_inputs.len(), 1);

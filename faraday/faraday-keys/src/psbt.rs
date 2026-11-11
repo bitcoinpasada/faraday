@@ -37,7 +37,7 @@ pub fn recompute_signatures_all(
 
 /// Costs what `faraday_psbt::sign` costs. Signs `psbt` with the
 /// `masters` chosen by `selection`; `seed` is the pass's own randomness
-/// for the nonces it draws. `accepted`, beside the context, is the
+/// for the nonces it draws (none: a pass that draws one is refused). `accepted`, beside the context, is the
 /// holdable dangers the person held past (F136); every other danger
 /// refuses.
 pub fn sign(
@@ -47,7 +47,7 @@ pub fn sign(
     selection: &[Fingerprint],
     (ctx, accepted): (&Context<'_>, &[WarningKind]),
     musig: &mut Option<MusigSession>,
-    seed: &Zeroizing<[u8; 32]>,
+    seed: Option<&Zeroizing<[u8; 32]>>,
 ) -> Result<SignResult, faraday_psbt::Error> {
     faraday_psbt::sign(
         c,

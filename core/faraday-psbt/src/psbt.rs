@@ -287,6 +287,9 @@ pub enum Error {
     },
     /// A selected fingerprint is not among the supplied master keys.
     NoSuchKey(Fingerprint),
+    /// A MuSig2 nonce is to be drawn and no seed was given. Nothing signs
+    /// from a fixed seed.
+    NoNonceSeed,
     /// The inspection has danger-level warnings the caller did not pass
     /// as accepted: every danger but a holdable one (F136).
     Danger(Vec<WarningKind>),

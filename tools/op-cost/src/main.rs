@@ -104,7 +104,7 @@ fn psbt_sign() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &Zeroizing::new([0u8; 32]),
+        Some(&Zeroizing::new([0u8; 32])),
     )
     .expect("vector psbt signs");
     assert!(result.complete);

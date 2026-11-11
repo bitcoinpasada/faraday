@@ -1138,7 +1138,7 @@ impl Session {
         known: Option<&Inspection>,
         accepted: &[faraday_psbt::WarningKind],
     ) -> Result<Signed, String> {
-        let job = self.sign_job(c, psbt, seed, musig, known, accepted)?;
+        let job = self.sign_job(c, psbt, Some(seed), musig, known, accepted)?;
         let (made, result) = crate::review::signed(musig, job.run(c));
         *psbt = made;
         result

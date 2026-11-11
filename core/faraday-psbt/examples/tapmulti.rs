@@ -141,7 +141,7 @@ pub fn signed_by(dir: &Path, holders: &[&str]) -> (Psbt, SignResult) {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("the wallet holds these keys");
     (psbt, result)

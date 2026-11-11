@@ -252,7 +252,7 @@ fn two_of_the_three_keys_sign_and_the_input_finalizes() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("two of the wallet's keys are ours");
     assert_eq!(result.signed_inputs.len(), 2, "one signature per key");
@@ -421,7 +421,7 @@ fn a_taproot_multisig_input_is_not_signed_without_its_wallet() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         );
         assert!(
             matches!(&result, Err(faraday_psbt::Error::Blocked(_))),

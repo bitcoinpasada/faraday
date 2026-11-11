@@ -134,7 +134,7 @@ fn sign_verify_finalize_every_script_type() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         )
         .unwrap();
         assert!(result.complete, "{script_type}");
@@ -226,7 +226,7 @@ fn sign_verify_finalize_every_script_type() {
                 Nonce::LowR,
                 Aux::Deterministic,
                 &mut None,
-                &faraday_crypto::Zeroizing::new([0u8; 32]),
+                Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
             ),
             Err(Error::Danger(vec![WarningKind::NoParticipatingKey]))
         );
@@ -258,7 +258,7 @@ fn signing_needs_a_matching_master_key() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         ),
         Err(Error::NoSuchKey(abandon.fingerprint()))
     );
@@ -273,7 +273,7 @@ fn signing_needs_a_matching_master_key() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     assert!(r.signed_inputs.is_empty() && !r.complete);
@@ -316,7 +316,7 @@ fn key_origin_that_does_not_match_the_derived_key_is_refused() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         ),
         Err(Error::Blocked(vec![WarningKind::UnknownDerivation]))
     );
@@ -362,7 +362,7 @@ fn a_taproot_tree_with_no_way_into_it_is_refused() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         ),
         Err(Error::Danger(vec![WarningKind::NoParticipatingKey]))
     );
@@ -458,7 +458,7 @@ fn a_taproot_signature_beside_an_input_without_its_spent_output_does_not_stop_th
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     );
     assert!(signed.is_err(), "{signed:?}");
     assert!(finalize(&mut psbt).is_err());
@@ -499,7 +499,7 @@ fn a_key_path_input_with_another_programs_proprietary_records_is_signed() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     );
     assert!(r.is_ok(), "{r:?}");
     let input = &psbt.inner().inputs[0];

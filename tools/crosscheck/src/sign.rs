@@ -87,7 +87,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 nonce,
                 Aux::Deterministic,
                 &mut None,
-                &faraday_crypto::Zeroizing::new([0u8; 32]),
+                Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
             )
             .map_err(err)?;
             Ok(json!({

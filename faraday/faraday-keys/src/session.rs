@@ -1733,7 +1733,7 @@ impl Keys {
         (accepted, musig, seed): (
             Vec<faraday_psbt::WarningKind>,
             Option<faraday_psbt::MusigSession>,
-            Zeroizing<[u8; 32]>,
+            Option<Zeroizing<[u8; 32]>>,
         ),
     ) -> crate::job::SignJob {
         let masters = self

@@ -291,7 +291,7 @@ fn a_legacy_input_with_a_code_separator_is_refused_and_nothing_is_signed() {
         Nonce::LowR,
         faraday_psbt::Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([7u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([7u8; 32])),
     );
     assert!(
         matches!(

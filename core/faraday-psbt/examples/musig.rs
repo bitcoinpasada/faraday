@@ -99,7 +99,7 @@ pub fn core_first_signed(dir: &Path) -> Psbt {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("the device signs last");
     assert!(!out.signed_inputs.is_empty(), "nothing was signed");
@@ -138,7 +138,7 @@ pub fn device_first_nonce(dir: &Path) -> (Psbt, Option<MusigSession>) {
         Nonce::LowR,
         Aux::Deterministic,
         &mut session,
-        &faraday_crypto::Zeroizing::new(SESSION_SEED),
+        Some(&faraday_crypto::Zeroizing::new(SESSION_SEED)),
     )
     .expect("the device goes first");
     assert_eq!(out.nonces_shared, 1, "one nonce, for the one input");
@@ -175,7 +175,7 @@ pub fn device_first_signed(dir: &Path) -> Psbt {
         Nonce::LowR,
         Aux::Deterministic,
         &mut session,
-        &faraday_crypto::Zeroizing::new(SESSION_SEED),
+        Some(&faraday_crypto::Zeroizing::new(SESSION_SEED)),
     )
     .expect("the session signs");
     assert!(out.complete, "every partial signature was there");

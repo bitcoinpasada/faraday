@@ -57,7 +57,7 @@ fn signing_twice_is_byte_identical() {
                     nonce,
                     Aux::Deterministic,
                     &mut None,
-                    &faraday_crypto::Zeroizing::new([0u8; 32]),
+                    Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
                 )
                 .unwrap();
                 assert!(
@@ -81,7 +81,7 @@ fn signing_twice_is_byte_identical() {
                 nonce,
                 Aux::Deterministic,
                 &mut None,
-                &faraday_crypto::Zeroizing::new([0u8; 32]),
+                Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
             )
             .unwrap();
             assert_eq!(
@@ -126,7 +126,7 @@ fn low_r_gives_the_shortest_signature() {
                 Nonce::LowR,
                 Aux::Deterministic,
                 &mut None,
-                &faraday_crypto::Zeroizing::new([0u8; 32]),
+                Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
             )
             .unwrap();
             for s in &r.signed_inputs {
@@ -229,7 +229,7 @@ fn fresh_auxiliary_randomness_changes_a_taproot_signature() {
             Nonce::LowR,
             aux,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         )
         .unwrap();
         assert!(r.signed_inputs.iter().all(|s| s.verified));

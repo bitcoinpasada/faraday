@@ -86,7 +86,7 @@ fn the_device_signs_last_after_bitcoin_core() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     assert_eq!(out.signed_inputs.len(), 1);
@@ -210,7 +210,7 @@ fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut session,
-        &faraday_crypto::Zeroizing::new([3u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([3u8; 32])),
     )
     .unwrap();
     assert_eq!(out.nonces_shared, 1);
@@ -226,6 +226,35 @@ fn a_psbt_with_no_nonce_on_it_shares_this_devices_nonce() {
     assert_eq!(session.txid(), psbt.unsigned_tx().compute_txid());
     let established = inspect(&c, &psbt, &ctx).inputs[0].musig.clone().unwrap();
     assert!(session.holds(0, &established.ours[0].key));
+}
+
+/// With no seed, a round that would draw a nonce is refused and nothing
+/// is written or kept.
+#[test]
+fn a_round_that_draws_a_nonce_is_refused_with_no_seed() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let wallets = [core_policy()];
+    let ctx = core_context(&keys, &wallets);
+    let mut psbt = fixture(example::DEVICE_FIRST_NAME);
+    let before = psbt.to_bytes();
+    let mut session = None;
+    let out = sign(
+        &c,
+        &mut psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        &[],
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut session,
+        None,
+    );
+    assert!(matches!(out, Err(faraday_psbt::Error::NoNonceSeed)));
+    assert_eq!(psbt.to_bytes(), before);
+    assert!(session.is_none());
 }
 
 /// The change output of the funded PSBT is the wallet's own address at
@@ -545,7 +574,7 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     assert_eq!(out.signed_inputs.len(), 1);
@@ -587,7 +616,7 @@ fn a_second_signer_and_the_device_finish_the_transaction() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     assert_eq!(out.signed_inputs.len(), 1);
@@ -643,7 +672,7 @@ fn a_bad_partial_signature_names_its_participant() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap_err();
     match err {
@@ -742,7 +771,7 @@ fn pass(
         Nonce::LowR,
         Aux::Deterministic,
         session,
-        &faraday_crypto::Zeroizing::new([seed; 32]),
+        Some(&faraday_crypto::Zeroizing::new([seed; 32])),
     )
     .expect("the pass runs")
 }
@@ -1339,7 +1368,7 @@ fn a_refused_pass_leaves_the_nonce_held() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut r.session,
-        &faraday_crypto::Zeroizing::new([0x41u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0x41u8; 32])),
     )
     .unwrap_err();
     assert!(matches!(err, Error::MusigPartialSig { .. }), "{err:?}");
@@ -1503,7 +1532,7 @@ fn a_refused_pass_over_two_inputs_leaves_both_nonces_held() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut session,
-        &faraday_crypto::Zeroizing::new([0x41u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0x41u8; 32])),
     )
     .unwrap_err();
     assert!(
@@ -1694,7 +1723,7 @@ fn a_sighash_refused_on_a_later_input_leaves_every_nonce_held() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut session,
-        &faraday_crypto::Zeroizing::new([0x41u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0x41u8; 32])),
     )
     .unwrap_err();
     assert!(

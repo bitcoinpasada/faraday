@@ -128,7 +128,7 @@ fn the_liana_spend_completes_with_the_first_key_alone() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("the input is ours to sign");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -187,7 +187,7 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap_err();
     assert_eq!(
@@ -216,7 +216,7 @@ fn the_liana_recovery_spend_waits_for_the_recovery_key() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("the recovery key is ours");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -270,7 +270,7 @@ fn a_recovery_spend_below_its_timelock_is_refused() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap_err();
     assert!(
@@ -323,7 +323,7 @@ fn a_timelocked_path_is_not_refused_while_the_persons_other_way_is_open() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("the recovery key is ours");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -362,7 +362,7 @@ fn the_tree_key_path_spend_signs_with_the_internal_key() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("the internal key is ours");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -423,7 +423,7 @@ fn the_tree_leaf_spend_signs_under_the_leaf_hash() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("the leaf key is ours");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -535,7 +535,7 @@ fn a_taproot_pkh_leaf_is_signed_and_left_to_finalize() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         ),
         Err(faraday_psbt::Error::Danger(vec![
             WarningKind::NoParticipatingKey
@@ -567,7 +567,7 @@ fn a_taproot_pkh_leaf_is_signed_and_left_to_finalize() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .expect("the leaf is signed");
     assert_eq!(result.signed_inputs.len(), 1);
@@ -645,7 +645,7 @@ fn a_relative_wait_is_not_met_by_a_version_one_transaction() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap_err();
     assert!(
@@ -827,7 +827,7 @@ fn a_miniscript_input_is_not_signed_without_its_wallet() {
             Nonce::LowR,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         );
         assert!(
             matches!(&result, Err(faraday_psbt::Error::Blocked(k)) if k.contains(&WarningKind::WalletNotRegistered)),

@@ -107,7 +107,7 @@ fn two_of_three_sortedmulti() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 1);
@@ -139,7 +139,7 @@ fn two_of_three_sortedmulti() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 1);
@@ -195,7 +195,7 @@ fn two_of_three_sortedmulti() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
     assert_eq!(r.signed_inputs.len(), 1);
@@ -341,7 +341,7 @@ fn bip174_signer_finalizer_extractor() {
                 Nonce::First,
                 Aux::Deterministic,
                 &mut None,
-                &faraday_crypto::Zeroizing::new([0u8; 32]),
+                Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
             ),
             Err(Error::Blocked(held.clone())),
             "accepted {accepted:?}"
@@ -377,7 +377,7 @@ fn bip174_signer_finalizer_extractor() {
             Nonce::First,
             Aux::Deterministic,
             &mut None,
-            &faraday_crypto::Zeroizing::new([0u8; 32]),
+            Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
         ),
         Err(Error::Blocked(held))
     );
@@ -443,7 +443,7 @@ fn multisig_under_low_r() {
         Nonce::LowR,
         Aux::Deterministic,
         &mut None,
-        &faraday_crypto::Zeroizing::new([0u8; 32]),
+        Some(&faraday_crypto::Zeroizing::new([0u8; 32])),
     )
     .unwrap();
 

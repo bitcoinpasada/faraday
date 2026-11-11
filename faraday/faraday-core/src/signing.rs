@@ -134,6 +134,9 @@ impl SignWork {
 /// opens a MuSig2 round (Go first, on the Nonces card) requires the
 /// steps before Nonces.
 pub(crate) fn sign_here(app: &mut Faraday) {
+    // The checks below read the inspection the job will sign from, not
+    // one made before the session changed.
+    app.refresh_spend();
     if let Some(s) = app.wallets.spend_mut() {
         let last = if s.musig.is_none() && spend_opens_round(&s.inspection) {
             wallet::step::NONCES
@@ -188,16 +191,13 @@ pub(crate) fn sign_here(app: &mut Faraday) {
         .wallets
         .spend()
         .is_some_and(|s| spend_opens_round(&s.inspection));
-    let seed = match app.sign_seed() {
-        Some(seed) => seed,
-        None if opens_round => {
-            if let Some(s) = app.wallets.spend_mut() {
-                s.error = Some(EN.no_randomness.to_string());
-            }
-            return;
+    let seed = app.sign_seed();
+    if seed.is_none() && opens_round {
+        if let Some(s) = app.wallets.spend_mut() {
+            s.error = Some(EN.no_randomness.to_string());
         }
-        None => zeroize::Zeroizing::new([0u8; 32]),
-    };
+        return;
+    }
     // The same transaction stating other amounts than when it was
     // signed here is refused, with no override (`docs/WALLETS.md` §3.3).
     if app
@@ -215,7 +215,7 @@ pub(crate) fn sign_here(app: &mut Faraday) {
     };
     let psbt = s.spend.psbt.clone();
     let before = s.spend.psbt.to_bytes();
-    match app.session.sign_spend_job(&c, &psbt, &seed, s) {
+    match app.session.sign_spend_job(&c, &psbt, seed.as_ref(), s) {
         Ok(job) => sign_start(app, job, before),
         Err(e) => sign_end(app, &before, Err(e)),
     }
