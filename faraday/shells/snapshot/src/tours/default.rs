@@ -393,6 +393,18 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .position(|i| i.name == "savings-cosigner-5d388376.psbt")
         .ok_or("no copy")?;
     t.press(Action::Collect(copy));
+    // The collected copy changes the PSBT: Review and Check are gone
+    // through again before Finish puts the files out.
+    t.press(Action::StepNext(2));
+    t.press(Action::StepNext(1));
+    if !t
+        .app
+        .outbox
+        .iter()
+        .any(|i| i.name.ends_with("-signed.psbt"))
+    {
+        return Err("the signed PSBT is not in the Outbox after Review".into());
+    }
     t.shot("spend-finished")?;
     // The end of signing: the nonce check, the raw hex, and the
     // transaction taken apart.
