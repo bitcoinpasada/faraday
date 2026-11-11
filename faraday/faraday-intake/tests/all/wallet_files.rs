@@ -788,3 +788,27 @@ fn a_wallet_with_a_repeated_key_or_keys_of_two_networks_is_refused_with_its_own_
     let mixed = format!("wsh(sortedmulti(2,{KEY_A}/<0;1>/*,{tpub}/<0;1>/*))");
     assert_eq!(why(&mixed), "keys are of more than one network");
 }
+
+fn silent_record() -> String {
+    wallet("sparrow/keystone-singlesig-sp-keystore-1.txt").to_text()
+}
+
+fn json_string(text: &str) -> String {
+    format!("{text:?}")
+}
+
+#[test]
+fn a_silent_payments_wallet_beside_a_bip_84_wallet_in_a_json_file_is_refused_in_either_order() {
+    let single = format!("\"wpkh({SINGLE_KEY}/<0;1>/*)\"");
+    let silent = json_string(&silent_record());
+    for list in [[&silent, &single], [&single, &silent]] {
+        let text = format!(
+            "{{\"descriptors\":[{{\"desc\":{}}},{{\"desc\":{}}}]}}",
+            list[0], list[1]
+        );
+        let why = read_text(&text).unwrap_err();
+        assert!(why.contains("more than one wallet"), "{why}");
+    }
+    let alone = format!("{{\"descriptors\":[{{\"desc\":{silent}}}]}}");
+    assert!(read_text(&alone).is_ok());
+}

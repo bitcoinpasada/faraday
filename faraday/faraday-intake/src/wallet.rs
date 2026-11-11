@@ -10,7 +10,8 @@
 use crate::{caravan, electrum, single_key, specter_diy};
 use faraday_bip::json::{self, Value};
 use faraday_bip::keys::Network;
-use faraday_bip::policy::WalletPolicy;
+use faraday_bip::keys::ScriptType;
+use faraday_bip::policy::{Template, WalletPolicy};
 use faraday_bip::slip132::{self, Mismatch, Script};
 use faraday_crypto::work::Compute;
 use faraday_strings::{EN, bip, fill};
@@ -409,9 +410,9 @@ pub fn holds_secret(text: &str) -> bool {
 ///
 /// - a receive and a change descriptor, the same but for `/0/*` and
 ///   `/1/*` (Sparrow's older export, Bitcoin Core's `listdescriptors`,
-///   which lists one pair per kind: the wallet is the multisig or
-///   miniscript one if there is one, else BIP-84's, 86's, 49's, 44's,
-///   in that order);
+///   which lists one pair per kind: the wallet is the multisig,
+///   miniscript, script-tree or MuSig2 one if there is one, else
+///   BIP-84's, 86's, 49's, 44's, in that order);
 /// - a receive descriptor alone, `/0/*` (Jade's export), or a change
 ///   descriptor alone, `/1/*` (Keystone's);
 /// - one descriptor whose keys carry no derivation (Specter Desktop's
@@ -420,7 +421,10 @@ pub fn holds_secret(text: &str) -> bool {
 ///
 /// Each descriptor must read on its own, checksum and all, before it is
 /// rewritten; one that does not refuses the file, and so do two different
-/// wallets of the best kind.
+/// wallets of the best kind. A silent payments wallet has no place in that
+/// order (neither Bitcoin Core's `listdescriptors` nor Sparrow writes one
+/// beside another wallet), so a file that holds one beside another wallet is
+/// refused as holding more than one wallet.
 fn multipath(c: &Compute, descs: &[String]) -> Option<Result<WalletPolicy, Refusal>> {
     let wallets = multipath_wallets(c, descs)?;
     let mut found = Vec::new();
@@ -429,7 +433,7 @@ fn multipath(c: &Compute, descs: &[String]) -> Option<Result<WalletPolicy, Refus
         if let Ok(w) = WalletPolicy::parse_any(c, &d) {
             let text = w.to_descriptor();
             if seen.insert(text.clone()) {
-                found.push((rank(&text), text, w));
+                found.push((rank(&w), text, w));
             }
         }
     }
@@ -440,6 +444,9 @@ fn multipath(c: &Compute, descs: &[String]) -> Option<Result<WalletPolicy, Refus
 /// kind holds more than one different wallet; `None` when there is none.
 fn pick_best(found: Vec<(u8, String, WalletPolicy)>) -> Option<Result<WalletPolicy, Refusal>> {
     let best = found.iter().map(|(r, ..)| *r).min()?;
+    if found.len() > 1 && found.iter().any(|(r, ..)| *r == UNRANKED) {
+        return Some(Err(Refusal::NotAWallet(EN.wallet_several.into())));
+    }
     let mut top = found.into_iter().filter(|(r, ..)| *r == best);
     Some(match (top.next(), top.next()) {
         (Some((_, _, w)), None) => Ok(w),
@@ -487,19 +494,26 @@ fn chain_wallets(plain: &[String]) -> Vec<String> {
     wallets
 }
 
-/// Where a wallet stands in the order [`multipath`] documents: the
-/// multisig or miniscript one first, then BIP-84's, 86's, 49's, 44's.
-fn rank(d: &str) -> u8 {
-    if d.starts_with("wpkh(") {
-        1
-    } else if d.starts_with("tr(") && !d.contains(',') {
-        2
-    } else if d.starts_with("sh(wpkh(") {
-        3
-    } else if d.starts_with("pkh(") {
-        4
-    } else {
-        0
+/// The place of a wallet that has none in the order [`rank`] gives: a
+/// silent payments wallet, which a file of several wallets cannot hold.
+const UNRANKED: u8 = u8::MAX;
+
+/// Where a wallet stands in the order [`multipath`] documents, by its kind
+/// as read: 0 the multisig, miniscript, script-tree or MuSig2 wallet, 1
+/// BIP-84's, 2 BIP-86's, 3 BIP-49's, 4 BIP-44's, and [`UNRANKED`] for a
+/// silent payments wallet.
+fn rank(w: &WalletPolicy) -> u8 {
+    match w.template() {
+        Template::Single { script } => match script {
+            ScriptType::NativeSegwit => 1,
+            ScriptType::Taproot => 2,
+            ScriptType::NestedSegwit => 3,
+            ScriptType::Legacy => 4,
+        },
+        Template::Silent => UNRANKED,
+        Template::Multi { .. } | Template::MuSig | Template::Miniscript { .. } | Template::Tree => {
+            0
+        }
     }
 }
 
@@ -510,14 +524,15 @@ fn rank(d: &str) -> u8 {
 /// them in. Each descriptor that reads whole, and each receive and change
 /// pair, is a wallet; a descriptor that does not read on its own refuses
 /// the file, and so does a best-ranked kind holding more than one
-/// different wallet. A lone `/0/*` or `/1/*` among several is not a wallet.
+/// different wallet. A lone `/0/*` or `/1/*` among several is not a wallet,
+/// and a silent payments wallet beside any other refuses the file.
 fn one_of_several(c: &Compute, all: &[String]) -> Result<WalletPolicy, Refusal> {
     let mut found: Vec<(u8, String, WalletPolicy)> = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
     let mut add = |w: WalletPolicy| {
         let d = w.to_descriptor();
         if seen.insert(d.clone()) {
-            found.push((rank(&d), d, w));
+            found.push((rank(&w), d, w));
         }
     };
     let mut plain = Vec::new();
