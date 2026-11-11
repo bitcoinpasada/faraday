@@ -1588,7 +1588,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let narrow = ui.compact;
     let (cx, ix, wx, down, step) = if narrow {
         let cx = x + num_w + 14.0;
-        (cx, cx, cx + index_w + 14.0, 26.0, 58.0)
+        (cx, cx, cx + index_w + 14.0, 26.0, 57.0)
     } else {
         (
             x + num_w + 14.0,

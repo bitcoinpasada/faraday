@@ -2750,16 +2750,14 @@ fn detail(
             dy += ui.advance_as(BODY_S, 30.0);
         } else {
             let all_ticked = files.iter().all(|f| app.gpg_ticked(f));
-            ui.checkbox(dx, dy + 11.0, all_ticked, true);
-            ui.text_mid_as(
-                (dx + 30.0, dy, 40.0),
-                BODY_M.mono(),
-                ink,
-                EN.vault_select_all,
-            );
-            ui.press_box(dx, dy, dw, 40.0, va(V::GpgTickAll));
-            ui.rule(dx, dy + 40.0, dw, Role::OutlineVariant);
-            dy += 42.0;
+            // A row a touch target tall, so its press and the next
+            // row's do not share the overlap.
+            let rh = ui.touch.max(40.0);
+            ui.checkbox(dx, dy + (rh - 18.0) / 2.0, all_ticked, true);
+            ui.text_mid_as((dx + 30.0, dy, rh), BODY_M.mono(), ink, EN.vault_select_all);
+            ui.press_box(dx, dy, dw, rh, va(V::GpgTickAll));
+            ui.rule(dx, dy + rh, dw, Role::OutlineVariant);
+            dy += rh + 2.0;
         }
         for (fi, f) in files.iter().enumerate() {
             let ticked = app.gpg_ticked(f);
@@ -2788,19 +2786,30 @@ fn detail(
                 .map(|(l, _)| ui.measure_as(LABEL_L, l) + 30.0)
                 .collect();
             let all = widths.iter().sum::<f32>() + 6.0;
-            let (name_w, by) = if ui.compact {
-                (dw - 40.0 - signed_w - 8.0, dy + 44.0)
+            // The buttons' row is a touch target tall on a wide panel, so
+            // their presses and the file's own do not share the overlap.
+            let rh = if ui.compact {
+                ui.touch.max(44.0)
             } else {
-                (dw - 40.0 - all - signed_w - 24.0, dy + 2.0)
+                ui.touch.max(40.0)
             };
-            ui.checkbox(dx, dy + 11.0, ticked, true);
+            let lift = (ui.touch - BUTTON_H).max(0.0) / 2.0;
+            let (name_w, by) = if ui.compact {
+                (dw - 40.0 - signed_w - 8.0, dy + rh + lift)
+            } else {
+                (
+                    dw - 40.0 - all - signed_w - 24.0,
+                    dy + (rh - BUTTON_H) / 2.0,
+                )
+            };
+            ui.checkbox(dx, dy + (rh - 18.0) / 2.0, ticked, true);
             let line = format!("{} · {}", f.name, crate::screens::size_text(f.size as u64));
             let name = ui.fit_as(BODY_M.mono(), &line, name_w);
-            ui.text_mid_as((dx + 30.0, dy, 40.0), BODY_M.mono(), ink, &name);
+            ui.text_mid_as((dx + 30.0, dy, rh), BODY_M.mono(), ink, &name);
             if signed {
                 ui.tag(
                     dx + 30.0 + name_w + 8.0,
-                    dy + 10.0,
+                    dy + (rh - 20.0) / 2.0,
                     EN.vault_signed,
                     Status::Ok,
                 );
@@ -2808,13 +2817,7 @@ fn detail(
             // On a small panel the buttons are on the line below: the
             // whole first line ticks.
             let hit_w = if ui.compact { dw } else { dw - all - 16.0 };
-            ui.press_box(
-                dx,
-                dy,
-                hit_w,
-                if ui.compact { 44.0 } else { 40.0 },
-                va(V::GpgTick(fi)),
-            );
+            ui.press_box(dx, dy, hit_w, rh, va(V::GpgTick(fi)));
             let mut bx = if ui.compact { dx + 30.0 } else { dx + dw - all };
             for ((label, action), bw) in buttons.iter().zip(&widths) {
                 ui.button(
@@ -2830,7 +2833,12 @@ fn detail(
             }
             // What is signed: the file's SHA-256, and a small text file's
             // text, so that the bytes can be checked before the hold.
-            let mut ey = dy + if ui.compact { 88.0 } else { 46.0 };
+            let mut ey = dy
+                + if ui.compact {
+                    rh + ui.touch.max(44.0)
+                } else {
+                    rh + 6.0
+                };
             let hex: String = faraday_crypto::hex::encode_string(&f.hash);
             ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), muted, &hex) + 6.0;
             if let Some(t) = &f.text {

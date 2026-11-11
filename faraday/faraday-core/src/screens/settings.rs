@@ -168,9 +168,9 @@ fn session_body(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         EN.settings_power_off_button
     };
     items.push((leave, Style::Secondary, Action::PowerAsk));
-    y += wrap_buttons(ui, x, y, w, BUTTON_H, &items) + 4.0;
+    y += wrap_buttons(ui, x, y, w, BUTTON_H, &items);
     if !app.online {
-        y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, PANIC_KEY) + 10.0;
+        y += ui.wrap_as((x, y, w), BODY_S, Role::OnSurfaceVariant, PANIC_KEY) + 6.0;
     }
     for (label, now, choices, action) in idle_rows(app) {
         ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, label);

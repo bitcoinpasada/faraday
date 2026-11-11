@@ -47,11 +47,9 @@ desktop_1280x800 Tools Resume 3
 desktop_1280x800 Transfer TransferSend 5
 desktop_1280x800 Unlock Resume 2
 desktop_1280x800 VaultContents Chart 10
-desktop_1280x800 VaultContents CodePng 2
 desktop_1280x800 VaultContents OpenCodes 1
 desktop_1280x800 VaultContents Resume 4
-desktop_1280x800 VaultContents ShowCode 2
-desktop_1280x800 VaultContents Vault 18
+desktop_1280x800 VaultContents Vault 16
 desktop_1280x800 Vaults Resume 2
 desktop_1280x800 Wallets BackupsOf 3
 desktop_1280x800 Wallets Chart 12
@@ -156,9 +154,9 @@ stick_1024x600 SpendBackup SpendBackup 2
 stick_1024x600 Transfer TransferSend 2
 stick_1024x600 Unlock Osk 38
 stick_1024x600 Vanity Osk 38
-stick_1024x600 VaultContents CodePng 4
+stick_1024x600 VaultContents CodePng 1
 stick_1024x600 VaultContents Osk 38
-stick_1024x600 VaultContents ShowCode 4
-stick_1024x600 VaultContents Vault 11
+stick_1024x600 VaultContents ShowCode 1
+stick_1024x600 VaultContents Vault 8
 stick_1024x600 Wallets PickKey 2
 stick_1024x600 Wallets RemoveWallet 1
