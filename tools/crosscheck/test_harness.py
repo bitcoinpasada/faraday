@@ -671,12 +671,15 @@ class Pool(unittest.TestCase):
 
     def test_a_fresh_run_writes_the_release_record(self):
         folder = self.tmp / "record" / "crosscheck"
-        # A fresh disagreement is kept beside the harness; this test's is not.
-        self.addCleanup(lambda: (HERE / "found" / "beta-test-seed.json").unlink(missing_ok=True))
         r = self.run_crosscheck("--fresh", "--scale", "1", "--jobs", "2", "--python", "cpython",
                                 progress=folder)
         record = (folder.parent / "crosscheck-record.txt").read_text()
         self.assertEqual(r.returncode, 1)
+        # A fresh disagreement is kept in the progress folder, outside the
+        # tree the record names.
+        self.assertTrue((folder / "found" / "beta-test-seed.json").is_file())
+        self.assertFalse((HERE / "found").exists())
+        self.assertRegex(record, r"inputs:\n  shared [0-9a-f]{64}\n  alpha [0-9a-f]{64}\n")
         for line in ("tree without fingerprints ", "seed test-seed", "scale 1.0", " UTC", "alpha: pass, 340 cases",
                      "beta: mismatch", "tools/reference/bbqr  commit ",
                      "result: first disagreement in beta at case corpus:"):
@@ -701,6 +704,147 @@ class Pool(unittest.TestCase):
         cpython = self.run_crosscheck("--jobs", "3", "--python", "cpython")
         pypy = self.run_crosscheck("--jobs", "3", "--python", "pypy")
         self.assertEqual(untimed(pypy.stdout), untimed(cpython.stdout))
+
+
+COMBINE_AREA = r'''
+"""An area of its own module, for the combined runs' tests: its answers
+are the stand-in's, but for one case when WRONG is set."""
+import combine_shared
+from common import Area
+
+WRONG = {wrong}
+
+
+class {cls}(Area):
+    name = "{name}"
+    LOOPS = (("corpus", 60),)
+
+    def prelude(self):
+        self.compare("fake.len", {{"data": "00"}}, lambda: {{"n": combine_shared.ONE}})
+
+    def case_corpus(self):
+        d = self.randbytes(self.rng.randint(1, 9))
+        off = WRONG and self.case_at == ("corpus", 7)
+        self.compare("fake.len", {{"data": d.hex()}}, lambda: {{"n": len(d) + off}})
+'''
+
+
+class Combine(unittest.TestCase):
+    """A release's cross-check made of two runs at one seed (F239): the
+    second runs the areas whose own files changed or that failed, takes
+    the rest from the first, and refuses when it cannot be one run."""
+
+    def setUp(self):
+        made = tempfile.TemporaryDirectory()
+        self.addCleanup(made.cleanup)
+        self.tmp = pathlib.Path(made.name)
+        self.areas = self.tmp / "areas"
+        self.areas.mkdir()
+        (self.areas / "areas.json").write_text(json.dumps({
+            "left": ["combine_left", "Left", "fake.len", 1],
+            "right": ["combine_right", "Right", "fake.len", 1]}))
+        (self.areas / "combine_shared.py").write_text("ONE = 1\n")
+        self.area("left", wrong=False)
+        self.area("right", wrong=True)
+        self.rust = self.tmp / "stand-in"
+        self.rust.write_text(STAND_IN)
+        self.rust.chmod(0o755)
+        self.folder = self.tmp / "out" / "crosscheck"
+        self.earlier = self.tmp / "earlier"
+
+    def area(self, name, wrong):
+        (self.areas / f"combine_{name}.py").write_text(COMBINE_AREA.format(
+            wrong=wrong, cls=name.capitalize(), name=name))
+
+    def run_crosscheck(self, *args):
+        cmd = [sys.executable, "-I", "-B", str(HERE / "crosscheck.py"), "--rust", str(self.rust),
+               "--test-areas", str(self.areas), "--allow-network", "--jobs", "2",
+               "--python", "cpython", "--progress", str(self.folder), *args]
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+
+    def first_run(self):
+        """A fresh run in which right disagrees, its record and report
+        copied aside as run.sh's next start would clear them."""
+        r = self.run_crosscheck("--fresh", "--seed", "combine-seed", "--scale", "1")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("right: MISMATCH", r.stdout)
+        self.earlier.mkdir()
+        shutil.copy(self.folder.parent / "crosscheck-record.txt", self.earlier)
+        shutil.copy(self.folder / "report.txt", self.earlier)
+        return self.earlier / "crosscheck-record.txt"
+
+    def test_a_combined_run_takes_an_unchanged_area_and_runs_the_changed_one(self):
+        record = self.first_run()
+        first = (self.earlier / "report.txt").read_text()
+        left = re.search(r"^  left: \d+ answers agree.*$", first, re.M).group(0)
+        self.area("right", wrong=False)
+        r = self.run_crosscheck("--combine", str(record))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("crosscheck: seed combine-seed, scale 1.0, areas right\n", r.stdout)
+        self.assertIn("self-test right: caught", r.stdout)
+        self.assertNotIn("self-test left", r.stdout)
+        self.assertIn("taken from it: left\n", r.stdout)
+        self.assertIn(left + " [run of ", r.stdout)
+        self.assertIn("every answer agrees", r.stdout)
+        combined = (self.folder.parent / "crosscheck-record.txt").read_text()
+        self.assertRegex(combined, r"areas:\n  left: pass, 60 cases, \d+ answers, 0 known "
+                                   r"differences\n  right: pass, 60 cases")
+        self.assertIn("result: every answer agreed", combined)
+        runs = re.search(r"runs:\n((?:  .*\n)+)", combined).group(1).splitlines()
+        self.assertEqual(len(runs), 2)
+        self.assertRegex(runs[0], r"^  \d{4}-\d\d-\d\d [\d:]+ UTC, tree \S+, areas left right$")
+        self.assertRegex(runs[1], r"^  \d{4}-\d\d-\d\d [\d:]+ UTC, tree \S+, areas right$")
+        tree = re.search(r"^tree without fingerprints (\S+)$", combined, re.M).group(1)
+        self.assertTrue(runs[1].endswith(f"tree {tree}, areas right"))
+        # The combined record can itself be combined: nothing changed, nothing runs.
+        again = self.tmp / "again"
+        again.mkdir()
+        shutil.copy(self.folder.parent / "crosscheck-record.txt", again)
+        shutil.copy(self.folder / "report.txt", again)
+        r = self.run_crosscheck("--combine", str(again / "crosscheck-record.txt"))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("areas none\n", r.stdout)
+        self.assertEqual(r.stdout.count(" [run of "), 2)
+
+    def test_a_changed_shared_file_refuses(self):
+        record = self.first_run()
+        (self.areas / "combine_shared.py").write_text("ONE = 1  # changed\n")
+        self.area("right", wrong=False)
+        r = self.run_crosscheck("--combine", str(record))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("what the areas share changed since that run", r.stdout)
+        self.assertNotIn("self-test", r.stdout)
+
+    def test_another_seed_or_scale_refuses(self):
+        record = self.first_run()
+        for flags in (("--seed", "another-seed"), ("--scale", "2"), ("--area", "right")):
+            r = self.run_crosscheck("--combine", str(record), *flags)
+            self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+            self.assertNotIn("self-test", r.stdout)
+        # Without its report beside it, the record cannot be combined.
+        (self.earlier / "report.txt").unlink()
+        r = self.run_crosscheck("--combine", str(record))
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("copied aside first", r.stdout)
+
+    def test_an_area_taken_that_did_not_pass_refuses(self):
+        record = self.first_run()
+        self.area("right", wrong=False)
+        # The record says left passed; its report has no line of left's
+        # answers agreeing.
+        report = self.earlier / "report.txt"
+        report.write_text(re.sub(r"^  left: \d+ answers agree.*\n", "", report.read_text(),
+                                 flags=re.M))
+        r = self.run_crosscheck("--combine", str(record))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("left passed in the record but its report has no line", r.stdout)
+        # An area that failed is run again, never taken: unchanged, it fails again.
+        self.area("right", wrong=True)
+        shutil.copy(self.folder / "report.txt", report)
+        r = self.run_crosscheck("--combine", str(record))
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("areas right\n", r.stdout)
+        self.assertIn("right: MISMATCH", r.stdout)
 
 
 DELTA_MODULE = r'''

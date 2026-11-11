@@ -211,7 +211,7 @@ Read this table, then only the decision you need.
 | [F194](decisions/F194.md) | A KDBX file is never refused for its contents: a damaged item is Unreadable, and every TOTP form is read for the codes page | 2026-11-03 | Amended by F231 | security |
 | [F195](decisions/F195.md) | A secret the person chose to show is worked out once and held while shown, and wiped when hidden | 2026-11-03 | Active | speed |
 | [F196](decisions/F196.md) | A Rust file may grow to 5,000 lines, and the function counts are no longer ratchets | 2026-11-03 | Active | repository |
-| [F197](decisions/F197.md) | The full cross-check runs before a release, and the tip between releases is not kept cross-checked | 2026-11-03 | Active | repository |
+| [F197](decisions/F197.md) | The full cross-check runs before a release, and the tip between releases is not kept cross-checked | 2026-11-03 | Amended by F239 | repository |
 | [F198](decisions/F198.md) | The download page has one Pi tile | 2026-11-03 | Active | release |
 | [F199](decisions/F199.md) | A field a signer adds is stated when its content can be checked in full against Sent, and is a finding otherwise | 2026-11-03 | Active | security |
 | [F200](decisions/F200.md) | Convert a seed carries the step-card head's and the keyboard's touch-target exceptions | 2026-11-04 | Amended by F201 | design |
@@ -253,3 +253,4 @@ Read this table, then only the decision you need.
 | [F236](decisions/F236.md) | The online apps' Send text tool shows any text as a QR code except a secret, by a rule of Faraday's own that fails closed; bare hex is let through | 2026-11-10 | Active | QR |
 | [F237](decisions/F237.md) | Transfer calls Read the words and does not offer it; the screens_not count is 23 | 2026-11-10 | Active | crypto |
 | [F238](decisions/F238.md) | Named costly operations are held by an instruction count in the check: more than 25% over fails, a count is raised only in a commit that says why; a stated cost says how it was measured | 2026-11-10 | Active | speed |
+| [F239](decisions/F239.md) | A release's cross-check may be made of runs at one fresh seed, the later ones running only the areas whose own inputs changed | 2026-11-10 | Active | repository |

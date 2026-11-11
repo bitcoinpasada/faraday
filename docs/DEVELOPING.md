@@ -392,6 +392,8 @@ fails and says so. `--machine aarch64` fetches the other tarball;
 ```
 just crosscheck                 the stamp run: fixed seed, about 90 s on 12 threads
 just crosscheck --fresh         before a release: a new seed, ten times the cases
+just crosscheck --combine R     before a release: the fresh run of record R again, for the
+                                areas whose own files changed or that failed (F239)
 just crosscheck --area musig    one area
 just crosscheck --jobs 4        four workers (default: one a core)
 ```
@@ -412,7 +414,24 @@ differences and result; each folder of `tools/reference/` with the commit
 its README names and the SHA-256 of its files; Bitcoin Core's tarball with
 its version and SHA-256; and "every answer agreed" or the first
 disagreement. The release flow stages it as `crosscheck-<version>.txt`
-beside `SHA256SUMS` and lists it there.
+beside `SHA256SUMS` and lists it there. It also holds the hash of what
+the areas share and of each area's own files, so that a release's
+cross-check can be made of two runs at one seed (F239): when a fresh run
+fails in one area and the fix is in that area's own files
+(`python3 -I -B tools/crosscheck/stamp.py parts` lists them), copy its
+record and report aside, as the next run clears both, and combine:
+
+```
+mkdir -p out/crosscheck-earlier
+cp out/crosscheck-record.txt out/crosscheck/report.txt out/crosscheck-earlier/
+just crosscheck --combine out/crosscheck-earlier/crosscheck-record.txt
+```
+
+It runs again only the areas whose own files changed or that did not pass,
+at that run's seed and scale, takes the rest from it, and writes the stamp
+and record of a full run naming both runs; it refuses when anything the
+areas share changed (`tools/crosscheck/README.md`, "A release's run made
+of two").
 
 **Watching a run.** From another terminal, or over ssh:
 
@@ -426,7 +445,7 @@ tail -f out/crosscheck/progress.log the same, as it is written
 A run writes `out/crosscheck/progress.log` (one line at each event and
 at least every ten seconds: cases done, cases a second, workers busy,
 time left), `progress.json` and `report.txt`. A disagreement under
-`--fresh` is kept in `found/` with its seed and inputs.
+`--fresh` is kept in `out/crosscheck/found/` with its seed and inputs.
 
 **The cryptographic actions' manifest.** `docs/crypto/actions.toml` lists
 every cryptographic action with the functions it covers

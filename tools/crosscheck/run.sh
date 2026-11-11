@@ -5,6 +5,9 @@
 #
 #   tools/crosscheck/run.sh                 the stamp run
 #   tools/crosscheck/run.sh --fresh         before a release
+#   tools/crosscheck/run.sh --combine R     a release's run made of two (F239): copy
+#                                           the record and report.txt aside first,
+#                                           as this clears both
 #   tools/crosscheck/run.sh --area musig    one area, no stamp
 #   tools/crosscheck/run.sh --jobs 4        four workers (default: one a core)
 #   tools/crosscheck/run.sh --identity      the same report under 1 and 4 workers

@@ -51,6 +51,7 @@ does what is `tools/README.md`'s.
 | `doctests` | just test | `cargo test --locked --workspace --doc` | the doc tests, which nextest does not run | - | built |
 | `budget-tests` | just test | `cargo nextest run --locked -p faraday-core -E 'test(/^work::budget::/)'` | a frame, a pointer move, a press or a key doing costly work its budget does not name | work that is not counted through the compute token | built |
 | `crosscheck` | just crosscheck | `just crosscheck` | Faraday's Rust against the Python references over published vectors and a seeded random corpus (F79) | PSBT signing end to end, taproot script trees, miniscript, AEZ (docs/CROSSCHECK.md §10.5) | built |
+| `crosscheck-test` | just crosscheck | `just crosscheck-test` | the harness's own tests: the report is the same for any number of workers, the record, run.sh's two sides, and a combined run's refusals (F239) | Faraday's answers: the stand-in command answers in their place | built |
 | `lint-docs-held-by` | just lint | `tools/lint-docs.sh` | a decision without a Held by line, naming a rule the registry lacks, or held by tests that no Rust file names (docs/IMPACT.md §8) | whether the ids named are the right ones, and whether the test that names a decision tests all of it; review is the author's judgement | built |
 | `impact-check` | just lint | `python3 -I -B tools/impact.py check --quiet` | a pair left unmet in the range from main, a refused change, a missing Material trailer | a rule a reviewer must judge | built |
 | `impact-docs` | just lint | `python3 -I -B tools/impact.py docs --check` | docs/CHECKS.md differing from the registry | - | built |
@@ -123,6 +124,7 @@ does what is `tools/README.md`'s.
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
 | `crypto.crosscheck-stamp`: before a release, the crypto sources match the last passing cross-check and each action's fingerprint its code | `core/*/src/**`<br>`tools/crosscheck/**`<br>`Cargo.lock` | held | - | `lint-crosscheck`, `crypto-fingerprints` | - | `docs/decisions/F79.md`<br>`docs/decisions/F148.md`<br>`docs/decisions/F197.md`<br>`CLAUDE.md` |
+| `crypto.crosscheck-combined`: a release's cross-check made of runs at one fresh seed and scale takes an area's earlier pass only while what the areas share and the area's own inputs are unchanged; a file two areas use, or whose user cannot be told, is shared | `tools/crosscheck/crosscheck.py`<br>`tools/crosscheck/stamp.py`<br>`tools/crosscheck/record.py`<br>`tools/crosscheck/run.sh` | held | - | `crosscheck-test` | - | `docs/decisions/F239.md` |
 | `crypto.crosscheck-covered`: cryptography outside the cross-check stamp's crates and files is listed with the reason it is not covered | `core/*/src/**`<br>`faraday/**/src/**`<br>`core/*/Cargo.toml`<br>`faraday/**/Cargo.toml`<br>`tools/crosscheck/stamp.py`<br>`tools/lint-standards.toml` | held | - | `lint-standards` | whether a reason is true, and whether a listed file should be in the stamp's FILES | `docs/STANDARDS.md` §0<br>`docs/decisions/F79.md` |
 | `crypto.independence-labelled`: an action with a cross-check area says whether the implementation it is compared with is outside, own or both; an action of Faraday's own specification carries its label; each library and vector folder an action names says whose it is | `docs/crypto/actions.toml`<br>`tools/crosscheck/area_*.py` | held | - | `crypto-verified` | whether a stated class is true of the area's code | `docs/decisions/F160.md`<br>`docs/decisions/F177.md`<br>`docs/decisions/F179.md` |
 | `crypto.independence-said`: no text calls a check outside where the implementation it compares with is Faraday's own, or calls such a check not independent: it is not checked against an outside source | `docs/CROSSCHECK.md`<br>`docs/STANDARDS.md`<br>`docs/AUDIT.md`<br>`docs/crypto/actions.toml`<br>`tools/crosscheck/README.md`<br>`tools/crosscheck/area_*.py`<br>`tools/reference/**`<br>`tools/vault/**` | review | - | - | - | `docs/decisions/F160.md`<br>`docs/decisions/F177.md`<br>`docs/decisions/F179.md` |
@@ -261,7 +263,7 @@ does what is `tools/README.md`'s.
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
-| `release.before`: before a release: just, just crosscheck --fresh, the fuzz run and its corpus | `**`<br>at release | review | - | - | - | `tools/README.md` |
+| `release.before`: before a release: just, just crosscheck --fresh (or runs combined at its seed, F239), the fuzz run and its corpus | `**`<br>at release | review | - | - | - | `tools/README.md` |
 
 ### 2.21 impact
 
@@ -325,7 +327,7 @@ No script holds these; a reviewer reads this list for the change.
 | `guide.pictures`: the guide's pictures are drawn again when a screen changes | `docs/GUIDE.md` |
 | `deps.locked`: builds and checks pass --locked | `CLAUDE.md`<br>`docs/decisions/F71.md` |
 | `fuzz.parser-target`: a parser of untrusted input has its fuzz target in the same change | `tools/README.md` |
-| `release.before`: before a release: just, just crosscheck --fresh, the fuzz run and its corpus | `tools/README.md` |
+| `release.before`: before a release: just, just crosscheck --fresh (or runs combined at its seed, F239), the fuzz run and its corpus | `tools/README.md` |
 
 ## 4. Read by
 

@@ -15,19 +15,29 @@ it (F197). It is a record,
 not a security control. Standard library only; about a tenth of a
 second.
 
+The same inputs are also split in two (F239, `parts`): what the areas
+share, and each area's own (its `area_<name>.py` and the reference folders
+only it uses), so that a release's cross-check can be made of two runs at
+one seed, the second running only the areas whose own inputs changed
+(`crosscheck.py --combine`).
+
     stamp.py check     exit 1 when the inputs changed since the stamp
     stamp.py show      print what is hashed
+    stamp.py parts     print which files are each area's own
 """
 
+import ast
 import hashlib
 import pathlib
 import platform
+import re
 import sys
 import time
 import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "tools" / "crosscheck"))
+HERE = ROOT / "tools" / "crosscheck"
+sys.path.insert(0, str(HERE))
 STAMP = ROOT / "tools" / "crosscheck" / "stamp"
 
 # The code whose results the cross-check checks, and the cross-check:
@@ -67,7 +77,7 @@ VECTORS = ["addresses", "aezeed", "bip129", "bip32", "bip327", "bip352", "bip374
 # Other wallets' files from their test suites, which the `import` area reads.
 FOLDERS = ["faraday/faraday-core/tests/vectors/interop"]
 # Everything under tools/crosscheck/ that is the harness, not its output.
-HARNESS_SKIP = {"stamp", "found", "__pycache__", "README.md"}
+HARNESS_SKIP = {"stamp", "__pycache__", "README.md"}
 
 # Crates in that graph that compute nothing the cross-check checks: test
 # dependencies, serialisation, macros and the operating system's
@@ -141,6 +151,152 @@ def digest():
     return h.hexdigest()
 
 
+# ----- What the areas share, and each area's own (F239) ----------------------
+
+MANIFEST = HERE / "references.sha256"
+# How an area names a reference folder it uses: through `use_reference` or
+# `use_wheels`, or in a path to it.
+USES = (r'(?:use_reference|use_wheels)\(\s*["\']{n}["\']'
+        r'|reference/{n}(?![\w.-])'
+        r'|["\']reference["\']\s*[,/]\s*["\']{n}["\']'
+        r'|REFERENCES?\s*/\s*["\']{n}["\']')
+# Anything else that could name it: the folder's name as a string, or a path;
+# in Rust (Faraday's answering program and the outside programs built
+# beside it, whose strings name operations), a path.
+NAMES = r'["\']{n}["\']|reference/{n}(?![\w.-])'
+PATHS = r'reference/{n}(?![\w.-])'
+
+
+def harness_texts(folder=None):
+    """{file: text} of the harness's files, as an area's own files are
+    told from them: the manifest, which lists every folder, this file,
+    which names every input, and the harness's own tests, which never run
+    in a cross-check, left out; in
+    `crosscheck.py`, the area table (each area's declaration, not a use)
+    left out, and so is the test areas' table (`areas.json`). A file that
+    is not text names nothing."""
+    files = [f for f in source_files() if f.is_relative_to(HERE)]
+    if folder:
+        files += folder_files(folder)
+    out = {}
+    for f in files:
+        if f in (MANIFEST, HERE / "stamp.py") or f.name == "test_harness.py" \
+                or folder and f == pathlib.Path(folder) / "areas.json":
+            continue
+        try:
+            text = f.read_text()
+        except (UnicodeDecodeError, OSError):
+            continue
+        if f == HERE / "crosscheck.py":
+            text = without_area_table(text)
+        out[f] = text
+    return out
+
+
+def without_area_table(text):
+    lines = text.splitlines(keepends=True)
+    for node in ast.parse(text).body:
+        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "AREAS":
+            del lines[node.lineno - 1:node.end_lineno]
+            break
+    return "".join(lines)
+
+
+def folder_files(folder):
+    """The code of the harness's own test areas (`--test-areas`): their
+    Python files and their table, not what a run writes beside them."""
+    folder = pathlib.Path(folder)
+    return sorted(f for f in folder.rglob("*") if f.is_file() and "__pycache__" not in f.parts
+                  and (f.suffix == ".py" or f.name == "areas.json"))
+
+
+def reference_folders():
+    """{folder name: [manifest lines]} of the vendored references."""
+    out = {}
+    for line in MANIFEST.read_text().splitlines():
+        if line.strip() and not line.startswith("#"):
+            path = line.split(None, 1)[1].strip()
+            parts = path.split("/")
+            if len(parts) > 3 and parts[:2] == ["tools", "reference"]:
+                out.setdefault(parts[2], []).append(line)
+    return out
+
+
+def owners(areas, folder=None):
+    """({file: area}, {reference folder: area}): the inputs only one area
+    uses. An area's module is its own when no other area runs it and no
+    other harness file names it; a reference folder is an area's own when
+    that area's module uses it and no other harness file names it. Every
+    other input is shared: a file two areas use, or whose user cannot be
+    told, is shared. `areas` is {area: module}."""
+    texts = harness_texts(folder)
+    base = pathlib.Path(folder) if folder else HERE
+    modules = list(areas.values())
+    files = {}
+    for area, module in areas.items():
+        path = base / f"{module}.py"
+        if modules.count(module) != 1 or path not in texts:
+            continue
+        word = re.compile(rf"(?<![\w]){re.escape(module)}(?![\w])")
+        if any(word.search(t) for f, t in texts.items() if f != path):
+            continue
+        files[path] = area
+    folders = {}
+    for name in reference_folders():
+        uses = re.compile(USES.format(n=re.escape(name)))
+        names = re.compile(NAMES.format(n=re.escape(name)))
+        paths = re.compile(PATHS.format(n=re.escape(name)))
+        users = [f for f in files if uses.search(texts[f])]
+        if len(users) != 1:
+            continue
+        if any((paths if f.suffix == ".rs" else names).search(t)
+               for f, t in texts.items() if f != users[0]):
+            continue
+        folders[name] = files[users[0]]
+    return files, folders
+
+
+def tool_versions(interpreters=()):
+    """The tools the areas ran with, as the shared inputs take them: the
+    Python, the distribution's packages and the judges' versions, and any
+    other interpreter's."""
+    return (f"python {platform.python_version()}\n" + distribution_versions()
+            + "".join(f"interpreter {interpreter(p)}\n" for p in list(interpreters)[1:]))
+
+
+def parts(areas, tools, folder=None):
+    """Costs a read of every input, as `digest`, and of the harness's
+    files once more. (shared, {area: own}): SHA-256 over what the areas
+    share (the inputs `digest` hashes but the areas' own, the crypto
+    crates' Cargo.lock entries and `tools`) and over each area's own
+    files and reference folders, its lines of the manifest included."""
+    files, folders = owners(areas, folder)
+    shared = hashlib.sha256()
+    own = {area: hashlib.sha256() for area in areas}
+    every = source_files() + (folder_files(folder) if folder else [])
+    for f in every:
+        if f == MANIFEST:
+            continue
+        rel = (f.relative_to(ROOT).as_posix() if f.is_relative_to(ROOT)
+               else "test-areas/" + f.relative_to(folder).as_posix())
+        area = files.get(f) or folders.get(rel.split("/")[2] if rel.startswith("tools/reference/")
+                                            else None)
+        (own[area] if area else shared).update(
+            rel.encode() + b"\0" + hashlib.sha256(f.read_bytes()).digest())
+    for name, lines in reference_folders().items():
+        h = own[folders[name]] if name in folders else shared
+        for line in lines:
+            h.update(line.encode() + b"\n")
+    for line in MANIFEST.read_text().splitlines():
+        if not line.strip() or line.startswith("#") or not line.split(None, 1)[1].strip() \
+                .startswith("tools/reference/"):
+            shared.update(line.encode() + b"\n")
+    for line in lock_entries():
+        shared.update(line.encode() + b"\n")
+    shared.update(tools.encode())
+    return shared.hexdigest(), {area: h.hexdigest() for area, h in own.items()}
+
+
 def interpreter(path):
     """`implementation version` of a Python, asked."""
     import subprocess
@@ -150,7 +306,7 @@ def interpreter(path):
     return out.stdout.strip() or "unknown"
 
 
-def write(seed, scale, seconds, jobs=1, interpreters=(), cases=None, core=None):
+def write(seed, scale, seconds, jobs=1, interpreters=(), cases=None, core=None, runs=()):
     refs = hashlib.sha256((ROOT / "tools/crosscheck/references.sha256").read_bytes()).hexdigest()
     # The number of workers is the machine's, not the cross-check's: it is
     # left out of the stamp.
@@ -170,6 +326,9 @@ def write(seed, scale, seconds, jobs=1, interpreters=(), cases=None, core=None):
         f"{workers}"
         f"seconds {seconds}\n"
         + "".join(f"cases {area} {n}\n" for area, n in (cases or {}).items())
+        # A run made of two (F239): each run, its date, tree and areas (the
+        # last one's tree is the stamp's own commit's, which it cannot name).
+        + "".join(f"run {r}\n" for r in runs)
     )
 
 
@@ -252,6 +411,14 @@ def main():
         for line in lock_entries():
             print(line)
         print(digest())
+        return 0
+    if cmd == "parts":
+        import facts
+        files, folders = owners(dict(facts.areas()))
+        for area, _ in facts.areas():
+            own = [f.relative_to(ROOT).as_posix() for f, a in files.items() if a == area]
+            own += [f"tools/reference/{n}/" for n, a in folders.items() if a == area]
+            print(f"{area}: {', '.join(own) or 'nothing of its own'}")
         return 0
     if cmd != "check":
         print(__doc__)

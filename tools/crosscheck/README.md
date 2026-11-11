@@ -14,6 +14,8 @@ Faraday's second version" below says which, per action.
 
     just crosscheck              the stamp run: fixed seed, about 90 s on 12 threads
     just crosscheck --fresh      before a release: a new seed, ten times the cases
+    just crosscheck --combine R  before a release: the fresh run of record R again, for
+                                 the areas whose own files changed or that failed (F239)
     just crosscheck --area musig one area (no stamp is written)
     just crosscheck --seed S     reproduce a run (with its --scale: 10 for --fresh)
     just crosscheck --jobs 4     four workers (default: one a core)
@@ -83,8 +85,9 @@ fails with "crypto changed since the last cross-check: run `just
 crosscheck`" when they no longer match the stamp. `python3 stamp.py show`
 lists what is hashed.
 
-Under `--fresh`, a disagreement is kept in `found/` with its seed,
-case and inputs, to become a vector.
+Under `--fresh`, a disagreement is kept in `out/crosscheck/found/` with
+its seed, case and inputs, to become a vector; it is never in the tree
+the run's record names.
 
 ## Workers, and why the report does not depend on them
 
@@ -175,6 +178,50 @@ Core's version and tarball SHA-256; and "every answer agreed" or the
 first disagreement, or that the OVMF Secure Boot run failed. A signal to
 `run.sh` ends both that run and the areas. `faraday/tools/stage-release.sh`
 stages the record as `crosscheck-<version>.txt` beside `SHA256SUMS`, listed in it.
+The record also holds the `inputs` of the run: the hash of what the areas
+share and of each area's own (below).
+
+## A release's run made of two
+
+A release's cross-check is a fresh run, or a combination of runs at one
+fresh seed and scale (F239). What the stamp hashes is split in two
+(`stamp.py parts` lists it): each area's own inputs, its `area_<name>.py`
+and the reference folders only it uses, and what the areas share, which is
+everything else: the harness, the Rust command, the crypto crates and their
+`Cargo.lock` entries, the vectors, the shared references and the tools'
+versions (Python, the distribution's packages, the judges, PyPy when it
+runs). A file two areas use, or whose user cannot be told from the harness's
+files, is shared.
+
+`run.sh` clears `out/crosscheck-record.txt` and `out/crosscheck/report.txt`
+as it starts, so the earlier run's are copied aside first, the report beside
+the record:
+
+    mkdir -p out/crosscheck-earlier
+    cp out/crosscheck-record.txt out/crosscheck/report.txt out/crosscheck-earlier/
+    just crosscheck --combine out/crosscheck-earlier/crosscheck-record.txt
+
+The run takes the record's seed and scale, and runs the funding, the
+self-test and the run of the areas whose own hash changed since and of
+those that did not pass there (a mismatch, an error, or a judge that judged
+nothing). Every other area's result is the earlier run's: its line of the
+report, marked `[run of <date>]`, its counts in the record and its case
+count in the stamp. The results are in the areas' order; the Bitcoin Core
+line is this run's when an area here asked Core, else the earlier run's
+(two that differ fail the run). The judged tests and the OVMF run run again.
+The stamp and the record are a full run's, and each lists the runs it is
+made of, a `run` line in the stamp and the `runs:` section of the record:
+date, the tree checked and the areas run (the stamp names its own run's tree
+as its commit's). A combined record can be combined again.
+
+It refuses, writing no stamp: when what the areas share changed (every area
+runs again, with `--fresh`); when the record holds no `inputs` (a record of
+a run before them, or of a run of some areas); when an area it would take
+passed in the record but its report has no line of answers that agree; with
+`--seed` or `--scale` other than the record's, `--area`, `--case` or
+`--no-self-test`; without the report beside the record; and when the
+earlier run had a network interface up and this one has not been given
+`--allow-network`.
 
 ## The self-test
 

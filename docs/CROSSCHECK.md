@@ -285,6 +285,19 @@ interpreter and mempool policy.
   keeps its seed and inputs as a new vector. Then `just crypto-review
   ID` for each action whose code changed, and `just lint-release` must
   pass.
+- **A release's run made of two (F239).** The release's cross-check may
+  be a combination of runs at one fresh seed and scale: `just crosscheck
+  --combine RECORD` runs again only the areas whose own inputs (their
+  `area_<name>.py` and the reference folders only they use) changed since
+  the run of RECORD and those that did not pass there, and takes every
+  other area's result from it. It refuses when anything the areas share
+  changed (the harness, the Rust command, the crypto crates and their
+  `Cargo.lock` entries, the vectors, a shared reference, a tool's
+  version), when the record names no per-area inputs, or when an area it
+  would take did not pass; a file two areas use, or whose user cannot be
+  told, is shared. The stamp and record it writes are a full run's, and
+  name each run: date, tree and areas (`tools/crosscheck/README.md`, "A
+  release's run made of two").
 
 ### 10.3 How long
 

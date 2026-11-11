@@ -13,6 +13,11 @@ disagreement. Paths in it are relative to the repository. The release
 flow renames it `crosscheck-<version>.txt`
 (`tools/README.md`, "Before a release"). Standard library only.
 
+It also holds the hash of what the areas share and of each area's own
+inputs (`stamp.parts`), so that a later run at the same seed can be
+combined with it (F239, `crosscheck.py --combine`); a combined record
+names each run it is made of, with its date, tree and the areas it ran.
+
 `record.py tree COMMIT` prints the tree a commit's record names, which is how
 staging and anyone reading a published record compare the two; with no commit,
 the tree of the files as they stand.
@@ -93,14 +98,30 @@ def references():
     return lines
 
 
-def text(seed, scale, results, core, interpreters, jobs, allow_network=False, now=None):
-    """The record. `results` is each area's merged result, in the order run."""
+def when(now):
+    """A run's date as a record gives it."""
+    return now.strftime("%Y-%m-%d %H:%M:%S") + " UTC"
+
+
+def run_line(date, tree, areas):
+    """One run a combined record or stamp is made of (F239): its date, the
+    tree it checked and the areas it ran."""
+    return f"{date}, tree {tree}, areas {' '.join(areas) or 'none'}"
+
+
+def text(seed, scale, results, core, interpreters, jobs, allow_network=False, now=None,
+         inputs=None, runs=(), ran=None):
+    """The record. `results` is each area's merged result, in the order run;
+    `inputs` is (shared, {area: own}) from `stamp.parts`; `runs` the earlier
+    runs a combined record is made of, a line each, and `ran` the areas this
+    run ran, whose line follows them."""
     now = now or datetime.datetime.now(datetime.timezone.utc)
+    checked = tree()
     out = ["Faraday crypto cross-check record",
-           f"{TREE_LINE} {tree()}",
+           f"{TREE_LINE} {checked}",
            f"seed {seed}",
            f"scale {scale}",
-           f"date {now.strftime('%Y-%m-%d %H:%M:%S')} UTC",
+           f"date {when(now)}",
            f"workers {jobs}",
            "python " + ", ".join(interpreters)]
     if allow_network:
@@ -113,6 +134,11 @@ def text(seed, scale, results, core, interpreters, jobs, allow_network=False, no
                    f"{r.get('compared', 0)} answers, {known} known differences")
         if r["status"] != "pass" and first is None:
             first = r
+    if inputs:
+        shared, own = inputs
+        out += ["", "inputs:", f"  shared {shared}"] + [f"  {a} {h}" for a, h in own.items()]
+    if runs:
+        out += ["", "runs:"] + [f"  {r}" for r in runs] + [f"  {run_line(when(now), checked, ran)}"]
     out += ["", "references:"] + references()
     if core:
         out.append(f"  bitcoin-core {core['version']}  {core['tarball']}  sha256 {core['sha256']}")
@@ -126,6 +152,60 @@ def text(seed, scale, results, core, interpreters, jobs, allow_network=False, no
                    + (f" at case {first['case']}" if first.get("case") else ""))
         out += ["  " + line for line in first.get("report", "").splitlines()]
     return "\n".join(out) + "\n"
+
+
+AREA_LINE = re.compile(r"  (\S+): (\S+), (\d+) cases, (\d+) answers, (\d+) known differences")
+
+
+def read(text):
+    """A record's fields, or None when it is not one: tree, seed, scale,
+    date, network (allowed or not), areas ({area: result}), inputs
+    ((shared, {area: own}) or None), runs, core (as `stamp.write` takes
+    it, or None) and result."""
+    lines = text.splitlines()
+    if not lines or lines[0] != "Faraday crypto cross-check record":
+        return None
+    out = {"areas": {}, "inputs": None, "runs": [], "core": None, "network": False,
+           "result": None}
+    section = None
+    shared, own = None, {}
+    keys = {"seed": "seed", "scale": "scale", "date": "date", TREE_LINE: "tree",
+            "result:": "result"}
+    for line in lines[1:]:
+        if not line.startswith("  "):
+            section = line[:-1] if line.endswith(":") else None
+            for key, name in keys.items():
+                if line.startswith(key + " "):
+                    out[name] = line[len(key) + 1:]
+            out["network"] |= line.startswith("network allowed")
+            continue
+        if section == "areas":
+            m = AREA_LINE.fullmatch(line)
+            if m:
+                out["areas"][m.group(1)] = {
+                    "area": m.group(1), "status": m.group(2), "cases": int(m.group(3)),
+                    "compared": int(m.group(4)), "known": int(m.group(5))}
+        elif section == "inputs":
+            name, _, digest = line.strip().partition(" ")
+            if name == "shared":
+                shared = digest
+            else:
+                own[name] = digest
+        elif section == "runs":
+            out["runs"].append(line.strip())
+        elif section == "references" and line.startswith("  bitcoin-core "):
+            f = line.split()
+            if len(f) == 5 and f[3] == "sha256":
+                out["core"] = {"version": f[1], "tarball": f[2], "sha256": f[4]}
+    if shared:
+        out["inputs"] = (shared, own)
+    if not all(k in out for k in ("tree", "seed", "scale", "date")):
+        return None
+    try:
+        out["scale"] = float(out["scale"])
+    except ValueError:
+        return None
+    return out
 
 
 if __name__ == "__main__":

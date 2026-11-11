@@ -96,8 +96,12 @@ none is part of `just`, which stays fast.
    finalizing end to end, taproot script trees, miniscript, AEZ). The
    `vault` area needs the distribution's argon2-cffi, PyCA cryptography and
    pykeepass. A disagreement it finds is kept in
-   its `found` folder with its seed and inputs
-   (`docs/decisions/F79.md`). A full run also writes
+   `out/crosscheck/found/` with its seed and inputs
+   (`docs/decisions/F79.md`). A run that failed in areas whose fix is in
+   their own files is made whole by `just crosscheck --combine RECORD` at
+   its seed, its record and report copied aside first: only those areas run
+   again, and it refuses when anything the areas share changed (F239,
+   `tools/crosscheck/README.md`). A full run also writes
    `out/crosscheck-record.txt` (the tree it checked without the fingerprints, seed, scale, date, each area's
    cases and answers, each reference's SHA-256, Core's tarball, the
    result); staging puts it beside `SHA256SUMS` as

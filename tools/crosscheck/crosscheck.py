@@ -14,6 +14,10 @@ builds the Rust command offline and runs this with no network.
     crosscheck.py --rust EXE --fresh      a new seed, ten times the cases
     crosscheck.py --rust EXE --area musig one area only (writes no stamp)
     crosscheck.py --rust EXE --jobs 4     four workers (default: one a core)
+    crosscheck.py --rust EXE --combine R  a release's run made of two (F239): the
+                                          earlier run's record R, its report.txt
+                                          beside it, and only the areas whose own
+                                          inputs changed or that did not pass
 
 Each area is cut into batches: its prelude (the published vectors), its
 corpus loops by case index, and its coda. Every corpus case draws from a
@@ -33,11 +37,13 @@ far it has got (`status.py`, `just crosscheck-status`).
 """
 
 import argparse
+import datetime
 import importlib
 import json
 import os
 import pathlib
 import platform
+import re
 import secrets
 import selectors
 import shutil
@@ -831,6 +837,9 @@ def self_test(args, areas, jobs, interpreters, progress, coins=None):
     names, one round for each operation an area names."""
     ok = True
     lines = []
+    if not areas:
+        progress.log("self-test: no area runs")
+        return True, lines
     for k in range(max(len(sabotaged_ops(a)) for a in areas)):
         round_areas = [a for a in areas if len(sabotaged_ops(a)) > k]
         SABOTAGED.clear()
@@ -880,6 +889,10 @@ def main():
     ap.add_argument("--log-every", type=float, default=10.0, help=argparse.SUPPRESS)
     ap.add_argument("--allow-network", action="store_true",
                     help="run although a network interface is up (no stamp is written)")
+    ap.add_argument("--combine", metavar="RECORD",
+                    help="a release's run made of two (F239): an earlier --fresh run's record, "
+                         "copied aside with its report.txt beside it; runs only the areas whose "
+                         "own inputs changed or that did not pass, at its seed and scale")
     ap.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--shape", help=argparse.SUPPRESS)
     ap.add_argument("--alternative", action="store_true", help=argparse.SUPPRESS)
@@ -902,9 +915,24 @@ def main():
         common.check_references()
     except common.HarnessError as e:
         return refuse(args, f"crosscheck: the references are not the vendored ones: {e}")
-    seed = args.seed or (secrets.token_hex(16) if args.fresh else DEFAULT_SEED)
-    scale = args.scale or (10.0 if args.fresh else 1.0)
-    areas = args.area or list(AREAS)
+    args.interpreters = interpreters_for(args)
+    args.inputs = None
+    args.earlier = None
+    if args.combine:
+        args.earlier, why = earlier_run(args)
+        if why:
+            return refuse(args, why)
+        args.fresh = True
+        seed, scale, areas = args.earlier["seed"], args.earlier["scale"], args.earlier["rerun"]
+        args.inputs = args.earlier["now"]
+    else:
+        seed = args.seed or (secrets.token_hex(16) if args.fresh else DEFAULT_SEED)
+        scale = args.scale or (10.0 if args.fresh else 1.0)
+        areas = args.area or list(AREAS)
+        if args.fresh and not (args.area or args.case or args.no_self_test):
+            # A release's run: its record holds what the areas share and each
+            # area's own inputs, so that a later run can be combined with it.
+            args.inputs = inputs_now(args)
     for a in areas:
         if a not in AREAS:
             ap.error(f"--area {a}: no such area; the areas are {', '.join(AREAS)}")
@@ -945,7 +973,7 @@ def _exit_on(sig, frame):
 def run(args, areas, jobs, only, seed, scale, core):
     """The self-test and the run, with Bitcoin Core's node already up when
     an area needs it (`core` is what it is, for the stamp)."""
-    interpreters = interpreters_for(args)
+    interpreters = args.interpreters
     os.environ["FARADAY_CROSSCHECK_CPYTHON"] = sys.executable  # for the QR helper (qr_decode.py)
     if args.python == "auto":
         global ALTERNATIVE_FOR
@@ -974,7 +1002,12 @@ def run(args, areas, jobs, only, seed, scale, core):
             report.append("crosscheck: the self-test failed; the cross-check cannot be trusted")
             return finish(progress, report, "failed", 1)
 
-    report.append(f"crosscheck: seed {seed}, scale {scale}, areas {', '.join(areas)}")
+    report.append(f"crosscheck: seed {seed}, scale {scale}, areas {', '.join(areas) or 'none'}")
+    earlier = args.earlier
+    if earlier:
+        report.append(f"crosscheck: combined with the run of {earlier['date']} "
+                      f"(tree {earlier['tree']}); taken from it: "
+                      f"{', '.join(a for a in AREAS if a not in areas) or 'none'}")
     batches, queue = plan(areas, seed, scale, args.rust, args.shaped, only=only, coins=coins[0])
     progress.phase("run", batches, jobs)
     progress.log(f"run: {len(areas)} areas, {len(batches)} batches, "
@@ -983,7 +1016,14 @@ def run(args, areas, jobs, only, seed, scale, core):
     failed = False
     cases = {}
     merged = []
-    for area in areas:
+    for area in (list(AREAS) if earlier else areas):
+        if earlier and area not in areas:
+            # Taken from the earlier run (F239), which it passed.
+            r = dict(earlier["areas"][area])
+            merged.append(r)
+            cases[area] = r["cases"]
+            report.append(earlier["lines"][area])
+            continue
         r = merge(batches, results, area)
         merged.append(r)
         cases[area] = r["cases"]
@@ -1011,8 +1051,19 @@ def run(args, areas, jobs, only, seed, scale, core):
                               if ":" in r["case"] else f"    in its {r['case']}")
             report.append("    " + r.get("report", "").replace("\n", "\n    "))
             if r["status"] == "mismatch" and args.fresh:
-                report.append(keep(area, seed, scale, r))
+                report.append(keep(area, seed, scale, r, progress.dir))
     total = round(time.monotonic() - started, 1)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    runs, ran = (), None
+    if earlier:
+        import record
+        runs, ran = earlier["runs"], areas
+        if core and earlier["core"] and core != earlier["core"]:
+            failed = True
+            report.append(f"crosscheck: FAILED: Bitcoin Core {core['version']} ({core['sha256']}) "
+                          f"is not the earlier run's {earlier['core']['version']} "
+                          f"({earlier['core']['sha256']})")
+        core = core or earlier["core"]
 
     def write_record():
         # The release's record (record.py), beside the progress folder;
@@ -1022,7 +1073,8 @@ def run(args, areas, jobs, only, seed, scale, core):
             import record
             (progress.dir.parent / record.NAME).write_text(
                 record.text(seed, scale, merged, core, list(interpreters.values()), jobs,
-                            args.allow_network))
+                            args.allow_network, now=now, inputs=args.inputs, runs=runs,
+                            ran=ran))
     if failed:
         write_record()
         report.append(f"crosscheck: FAILED ({total} s); rerun with --seed {seed} to reproduce")
@@ -1034,7 +1086,9 @@ def run(args, areas, jobs, only, seed, scale, core):
         write_record()
         return finish(progress, report, "passed", 0)
     import stamp
-    stamp.write(seed, scale, total, jobs, list(interpreters.values()), cases, core)
+    stamp.write(seed, scale, total, jobs, list(interpreters.values()), cases, core,
+                runs=list(runs) + [record.run_line(record.when(now), "of this stamp's commit", ran)]
+                if earlier else ())
     report.append(f"crosscheck: stamp written to {stamp.STAMP.relative_to(common.ROOT)}")
     # What the manifest makes quotes the stamp (a fresh run's seed in the
     # Learn blocks), so it is written again from it, before the record
@@ -1046,6 +1100,79 @@ def run(args, areas, jobs, only, seed, scale, core):
         return finish(progress, report, "failed", 1)
     write_record()
     return finish(progress, report, "passed", 0)
+
+
+def inputs_now(args):
+    """Costs a read of every input the stamp hashes (`stamp.parts`), about
+    five seconds. (shared, {area: own}) as they stand, the tools this run
+    uses among the shared."""
+    import stamp
+    tools = stamp.tool_versions(list(args.interpreters.values()))
+    return stamp.parts({a: AREAS[a][0] for a in AREAS}, tools, TEST_AREAS)
+
+
+AGREE = re.compile(r"  (\S+): \d+ answers agree")
+FAILED_LINE = re.compile(r"  (\S+): (?:FAILED|MISMATCH|ERROR)\b")
+
+
+def earlier_run(args):
+    """`--combine RECORD` (F239): the earlier run and what this one runs
+    again, or why the two cannot be one release's cross-check. The run
+    takes the earlier one's seed and scale; what the areas share must be
+    unchanged; an area runs again when its own inputs changed or it did
+    not pass, and every other area's result is the earlier run's, which
+    must have passed it."""
+    import record
+    path = pathlib.Path(args.combine)
+    said = f"crosscheck: --combine {args.combine}"
+    for flag, given in (("--area", args.area), ("--case", args.case),
+                        ("--no-self-test", args.no_self_test)):
+        if given:
+            return None, f"{said}: a combined run runs every area that needs it; no {flag}"
+    report_path = path.parent / "report.txt"
+    if not path.is_file() or not report_path.is_file():
+        return None, (f"{said}: needs the earlier run's record and its report.txt beside it; "
+                      "run.sh clears out/crosscheck-record.txt and out/crosscheck/report.txt "
+                      "as it starts, so both are copied aside first (tools/crosscheck/README.md)")
+    rec = record.read(path.read_text())
+    if rec is None:
+        return None, f"{said}: not a cross-check record"
+    if args.seed and args.seed != rec["seed"] or args.scale and args.scale != rec["scale"]:
+        return None, (f"{said}: the earlier run's seed and scale are {rec['seed']} and "
+                      f"{rec['scale']}; a combined run takes them and no others")
+    if rec["inputs"] is None:
+        return None, (f"{said}: the record names no inputs of what the areas share and "
+                      "each area's own, so what changed since cannot be told")
+    if rec["network"] and not args.allow_network:
+        return None, f"{said}: the earlier run had a network interface up; it was no release run"
+    shared, own = rec["inputs"]
+    if list(rec["areas"]) != list(AREAS) or list(own) != list(AREAS):
+        return None, f"{said}: the record does not hold every area's result and inputs"
+    report = report_path.read_text().splitlines()
+    header = f"crosscheck: seed {rec['seed']}, scale {rec['scale']}, areas "
+    if not any(line.startswith(header) for line in report):
+        return None, f"{said}: the report.txt beside it is not that run's"
+    agree, failed = {}, set()
+    for line in report:
+        m = AGREE.match(line)
+        if m and m.group(1) in AREAS:
+            agree[m.group(1)] = line if " [run of " in line else f"{line} [run of {rec['date']}]"
+        m = FAILED_LINE.match(line)
+        if m:
+            failed.add(m.group(1))
+    now = inputs_now(args)
+    if now[0] != shared:
+        return None, (f"{said}: what the areas share changed since that run (the harness, the "
+                      "Rust command, the crypto crates, a shared reference or a tool's version; "
+                      "`stamp.py parts` lists each area's own): every area runs again")
+    rerun = [a for a in AREAS
+             if now[1][a] != own[a] or rec["areas"][a]["status"] != "pass" or a in failed]
+    for a in AREAS:
+        if a not in rerun and a not in agree:
+            return None, (f"{said}: {a} passed in the record but its report has no line of "
+                          "answers that agree: it was not passed and cannot be taken")
+    runs = rec["runs"] or [record.run_line(rec["date"], rec["tree"], list(AREAS))]
+    return dict(rec, rerun=rerun, lines=agree, runs=runs, now=now), None
 
 
 def refuse(args, text):
@@ -1075,15 +1202,18 @@ def finish(progress, report, verdict, code):
     return code
 
 
-def keep(area, seed, scale, r):
-    """A disagreement found with a fresh seed is kept as a new vector."""
-    d = HERE / "found"
-    d.mkdir(exist_ok=True)
+def keep(area, seed, scale, r, folder):
+    """A disagreement found with a fresh seed is kept, to become a new
+    vector: in `found/` of the progress folder (`out/crosscheck/found/`),
+    never in the tree the run's record names."""
+    d = (folder or common.ROOT / "out" / "crosscheck") / "found"
+    d.mkdir(parents=True, exist_ok=True)
     path = d / f"{area}-{seed}.json"
     path.write_text(json.dumps({"area": area, "seed": seed, "scale": scale, "case": r.get("case"),
                                 "op": r["op"], "inputs": r["inputs"], "faraday": r["rust"],
                                 "reference": r["reference"]}, indent=1) + "\n")
-    return f"    kept as {path.relative_to(common.ROOT)}"
+    where = path.relative_to(common.ROOT) if path.is_relative_to(common.ROOT) else path.name
+    return f"    kept as {where}"
 
 
 if __name__ == "__main__":

@@ -249,6 +249,13 @@ catches = "Faraday's Rust against the Python references over published vectors a
 misses = "PSBT signing end to end, taproot script trees, miniscript, AEZ (docs/CROSSCHECK.md §10.5)"
 
 [[check]]
+id = "crosscheck-test"
+run = "just crosscheck-test"
+stage = "just crosscheck"
+catches = "the harness's own tests: the report is the same for any number of workers, the record, run.sh's two sides, and a combined run's refusals (F239)"
+misses = "Faraday's answers: the stand-in command answers in their place"
+
+[[check]]
 id = "lint-docs-held-by"
 run = "tools/lint-docs.sh"
 stage = "just lint"
@@ -698,6 +705,14 @@ source = ["docs/decisions/F79.md", "docs/decisions/F148.md", "docs/decisions/F19
 when = ["core/*/src/**", "tools/crosscheck/**", "Cargo.lock"]
 kind = "held"
 held_by = ["lint-crosscheck", "crypto-fingerprints"]
+
+[[rule]]
+id = "crypto.crosscheck-combined"
+title = "a release's cross-check made of runs at one fresh seed and scale takes an area's earlier pass only while what the areas share and the area's own inputs are unchanged; a file two areas use, or whose user cannot be told, is shared"
+source = ["docs/decisions/F239.md"]
+when = ["tools/crosscheck/crosscheck.py", "tools/crosscheck/stamp.py", "tools/crosscheck/record.py", "tools/crosscheck/run.sh"]
+kind = "held"
+held_by = ["crosscheck-test"]
 
 [[rule]]
 id = "crypto.crosscheck-covered"
@@ -1279,7 +1294,7 @@ misses = "planned: F148's fuzz check"
 
 [[rule]]
 id = "release.before"
-title = "before a release: just, just crosscheck --fresh, the fuzz run and its corpus"
+title = "before a release: just, just crosscheck --fresh (or runs combined at its seed, F239), the fuzz run and its corpus"
 source = ["tools/README.md"]
 at = "release"
 when = ["**"]
