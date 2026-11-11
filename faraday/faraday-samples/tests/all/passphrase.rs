@@ -695,6 +695,9 @@ fn in_demo_a_wallet_slots_passphrase_offers_faraday() {
     let first = app.session.keys[0].fingerprint.0;
     app.press(Action::CreateWallet);
     app.press(Action::CKind(0));
+    app.press(Action::CBackupForm(
+        faraday_core::create::BackupForm::Words.index(),
+    ));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, first));
