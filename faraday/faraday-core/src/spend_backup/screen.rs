@@ -917,8 +917,12 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             EN.spend_backup_scan_the_qr,
             if ready {
                 Style::Secondary
-            } else {
+            } else if app.vaults.open.is_empty() {
                 Style::Primary
+            } else {
+                // An open vault's Load is the way forward: one filled
+                // button on the page.
+                Style::Tonal
             },
             fa(F::Scan),
         ),
