@@ -44,17 +44,11 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
             .add_words(&c, &words.join(" "), &format!("Seed {i}"), None)
             .unwrap();
     }
-    let text = (wallets > 0).then(|| {
-        faraday_core::create::NewKind::NativeSegwit
-            .key_text(&c, app.session.keys.master_for_tests(0))
-            .unwrap()
-    });
     for a in 0..wallets {
-        let text = text.as_deref().unwrap();
-        let text = text.replace("/0h]", &format!("/{a}h]"));
+        let text = faraday_core::create::NewKind::NativeSegwit
+            .key_text_at(&c, app.session.keys.master_for_tests(0), a as u32)
+            .unwrap();
         let d = format!("wpkh({text}/<0;1>/*)");
-        // The account number differs only in the origin: enough for a
-        // wallet of its own in the list.
         app.session
             .add_wallet(
                 &c,
@@ -355,14 +349,13 @@ fn the_files_row_names_the_session_stage() {
 fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
     let c = testkit::compute();
     let mut app = with_height(2, 0, 1000);
-    let text_of = |app: &Faraday, k: usize, a: usize| {
+    let text_of = |app: &Faraday, k: usize, a: u32| {
         faraday_core::create::NewKind::NativeSegwit
-            .key_text(&c, app.session.keys.master_for_tests(k))
+            .key_text_at(&c, app.session.keys.master_for_tests(k), a)
             .unwrap()
-            .replace("/0h]", &format!("/{a}h]"))
     };
     // Twelve wallets over the second seed, then one over the first.
-    for a in 0..12 {
+    for a in 0..12u32 {
         let d = format!("wpkh({}/<0;1>/*)", text_of(&app, 1, a));
         app.session
             .add_wallet(

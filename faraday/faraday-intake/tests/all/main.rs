@@ -6,4 +6,5 @@ mod secret_buf;
 mod secret_text;
 mod seed_codes;
 mod split_seed;
+mod wallet_bare_xpub;
 mod wallet_files;

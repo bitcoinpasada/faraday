@@ -69,6 +69,9 @@ pub enum Refusal {
     /// the loaded key with its fingerprint (this one) gives at its
     /// account.
     SilentDiffers(String),
+    /// A key of the wallet has a loaded key's master fingerprint (this
+    /// one) and is not what that key gives at its origin path.
+    NotYourKey(String),
     /// A key that is not one of the wallet's spends it alone by the key
     /// path, and the person has not confirmed it yet (F132).
     KeyPathUnconfirmed,
@@ -107,6 +110,7 @@ impl Refusal {
             Refusal::NetworkFixed(n) => fill(EN.wallet_runs_on_only, &[network_name(*n)]),
             Refusal::StickAttached(noun) => fill(EN.stick_keys_keys_load, &[noun]),
             Refusal::SilentDiffers(fp) => fill(EN.wallet_silent_differs, &[&fp.to_string()]),
+            Refusal::NotYourKey(fp) => fill(EN.wallet_not_your_key, &[&fp.to_string()]),
             Refusal::KeyPathUnconfirmed => EN.wallet_key_path_unconfirmed.to_string(),
             Refusal::AccountUnchosen => EN.wallet_account_unchosen.to_string(),
             Refusal::MuSigOneSeed => EN.wallet_musig_one_seed.to_string(),
@@ -152,7 +156,19 @@ pub fn policy_network(policy: &WalletPolicy, current: Network) -> Option<Network
 /// it, so a wallet read from a multisig config or typed with `'` is the
 /// same wallet, with the same descriptor and checksum, as the one made
 /// here.
+///
+/// A wallet one of whose keys is a bare extended public key, with no
+/// origin, is refused: nothing says whose key it is or at what path.
 pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
+    let policy = read_any(c, text)?;
+    if policy.keys().iter().any(|k| k.fingerprint().is_none()) {
+        return Err(Refusal::NotAWallet(EN.wallet_key_no_origin.into()));
+    }
+    Ok(policy)
+}
+
+/// What [`read_wallet`] reads, before its refusal of a key with no origin.
+fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     if let Some(read) = read_whole(c, text) {
         return read;
     }

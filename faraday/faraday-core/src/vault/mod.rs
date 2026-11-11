@@ -1763,10 +1763,14 @@ impl Faraday {
             let added = self
                 .session
                 .add_policy(&c, &name, policy, EN.vaults_vault, to);
-            // A kept MuSig2 wallet two of whose keys are one seed's is
+            // A kept MuSig2 wallet two of whose keys are one seed's, or a
+            // wallet with a loaded key's fingerprint and another xpub, is
             // left out; the load's toast says why.
             match added {
-                Err(e @ crate::wallet::Refusal::MuSigOneSeed) => {
+                Err(
+                    e @ (crate::wallet::Refusal::MuSigOneSeed
+                    | crate::wallet::Refusal::NotYourKey(_)),
+                ) => {
                     self.vaults.state.refused = Some((name.clone(), e.text()));
                 }
                 other => self.silent_refused(other),

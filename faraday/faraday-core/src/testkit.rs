@@ -2082,6 +2082,15 @@ pub trait KindText {
         c: &faraday_crypto::work::Compute,
         master: &MasterKey,
     ) -> Result<String, String>;
+
+    /// Costs a key derivation. `[fingerprint/path]xpub` of `master` at the
+    /// kind's path, at `account`.
+    fn key_text_at(
+        self,
+        c: &faraday_crypto::work::Compute,
+        master: &MasterKey,
+        account: u32,
+    ) -> Result<String, String>;
 }
 
 impl KindText for crate::create::NewKind {
@@ -2090,7 +2099,16 @@ impl KindText for crate::create::NewKind {
         c: &faraday_crypto::work::Compute,
         master: &MasterKey,
     ) -> Result<String, String> {
-        faraday_keys::texts::key_text(c, master, &self.spec(master.network(), 0)?)
+        self.key_text_at(c, master, 0)
+    }
+
+    fn key_text_at(
+        self,
+        c: &faraday_crypto::work::Compute,
+        master: &MasterKey,
+        account: u32,
+    ) -> Result<String, String> {
+        faraday_keys::texts::key_text(c, master, &self.spec(master.network(), account)?)
     }
 }
 

@@ -220,6 +220,7 @@ mod vault_trim;
 mod vault_way;
 mod visit;
 mod wallet_names;
+mod wallet_not_your_key;
 mod wallet_setup;
 mod wallets_page;
 mod way_back;

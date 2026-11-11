@@ -10421,6 +10421,9 @@ strings! {
     core_wallet_legacy: "This is a legacy wallet (records {}); Bitcoin Core's migratewallet makes a descriptor wallet of it",
     /// Refusal in `core_wallet::Refusal::message`.
     core_wallet_not_descriptors: "This wallet is not a descriptor wallet",
+    /// Text in `text`: a wallet read with a key that is a bare extended
+    /// public key.
+    wallet_key_no_origin: "A key of this wallet has no fingerprint and derivation path",
     /// Refusal in `core_wallet::Refusal::message`. `{}`: the record.
     core_wallet_no_origin: "A descriptor of this wallet has a key with no origin ({})",
     /// Refusal in `core_wallet::Refusal::message`.
@@ -10445,6 +10448,10 @@ strings! {
     wallet_is_not_a_key: "{} is not a sample: Practice takes only samples",
     /// Text in `text`. `{}`: `network_name(*n)`.
     wallet_runs_on_only: "This app runs on {} only",
+    /// Text in `text`: a wallet refused because one of its keys has a
+    /// loaded key's fingerprint and is not what that key gives at its
+    /// path. `{}`: the key's fingerprint.
+    wallet_not_your_key: "Key {} in this wallet is not this device's key at its path",
     /// Text in `text`: a silent payments wallet refused because a loaded
     /// key with its fingerprint gives another scan key or spend key. `{}`:
     /// the key's fingerprint.

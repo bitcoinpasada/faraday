@@ -1017,10 +1017,14 @@ impl Faraday {
             let Ok(parsed) = faraday_bip::policy::PolicyKey::parse(&key) else {
                 continue;
             };
-            let kind = match parsed.path().map(kind_of_path) {
-                Some(Err(())) => continue,
-                Some(Ok(k)) => k,
-                None => None,
+            // A key with no fingerprint and path is refused as a wallet's
+            // key, so it is not offered as a wallet.
+            let (Some(_), Some(path)) = (parsed.fingerprint(), parsed.path()) else {
+                continue;
+            };
+            let kind = match kind_of_path(path) {
+                Err(()) => continue,
+                Ok(k) => k,
             };
             let xpub = parsed.xpub().to_string();
             let fp = parsed.fingerprint();
@@ -1141,12 +1145,15 @@ impl Faraday {
                 .files
                 .first()
                 .map_or(EN.inbox_its_shares.to_string(), |k| items[*k].name.clone());
-            if self
+            match self
                 .session
                 .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
-                .is_ok()
             {
-                wallets += 1;
+                Ok(_) => wallets += 1,
+                Err(e @ crate::wallet::Refusal::NotYourKey(_)) => {
+                    self.toast(&fill(EN.vaults_refused, &[&name, &e.text()]));
+                }
+                Err(_) => {}
             }
         }
         (wallets, keys)
@@ -1177,12 +1184,15 @@ impl Faraday {
                     EN.inbox_its_shares.to_string(),
                 ),
             };
-            if self
+            match self
                 .session
                 .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
-                .is_ok()
             {
-                n += 1;
+                Ok(_) => n += 1,
+                Err(e @ crate::wallet::Refusal::NotYourKey(_)) => {
+                    self.toast(&fill(EN.vaults_refused, &[&name, &e.text()]));
+                }
+                Err(_) => {}
             }
         }
         if n > 0 {

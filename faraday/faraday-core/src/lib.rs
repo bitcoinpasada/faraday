@@ -1207,6 +1207,7 @@ impl Faraday {
         self.event_settled();
         self.stick.note_visit(self.stick_pane());
         self.storage_left(screen);
+        self.drop_forged_wallets();
     }
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -5073,6 +5074,20 @@ impl Faraday {
         slow::guard(action, &done);
     }
 
+    /// Takes out the wallets a key loaded by this press shows to hold
+    /// another seed's key under its fingerprint, and toasts the first one
+    /// ([`Session::drop_forged`]). A lookup unless a key was loaded.
+    fn drop_forged_wallets(&mut self) {
+        let c = self.compute();
+        let dropped = self.session.drop_forged(&c);
+        if let Some((name, why)) = dropped.first() {
+            let text = fill(EN.vaults_refused, &[name, why]);
+            self.wallets.set_wallet(0);
+            self.spend_after_wallet_removed();
+            self.toast(&text);
+        }
+    }
+
     /// What every press does once it has acted, however it came (a tap,
     /// a key, the mouse's back button, a scripted press): a screen left
     /// drops what it held, a detour not taken ends, a spent round goes
@@ -5144,6 +5159,7 @@ impl Faraday {
         // A device still waiting comes back up once no other sheet is.
         self.input_sheet();
         self.device_sheet();
+        self.drop_forged_wallets();
     }
 
     /// Whether the last frame drawn offers `action` to a press: for

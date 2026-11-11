@@ -14,9 +14,9 @@
 //! every key of one type. A key's fingerprint is `root_fingerprint` (hex)
 //! or Coldcard's `ckcc_xfp`, a decimal number whose four bytes are the
 //! fingerprint little-endian. A key with no fingerprint and derivation has
-//! no origin: a single-key wallet loads without one (watch-only here); a
-//! multisig wallet is refused by name, since a multisig `WalletPolicy`
-//! holds no key without one (BIP-388; upstream's `policy::check`).
+//! no origin, and its wallet is refused, a multisig by the key's name:
+//! Faraday holds no key without the fingerprint and path it has under the
+//! device's key (BIP-388; upstream's `policy::check`).
 //!
 //! A file whose keystores hold an `xprv`, a `seed` or imported private
 //! keys is a secret ([`holds_secret`]); only its public keys are read.

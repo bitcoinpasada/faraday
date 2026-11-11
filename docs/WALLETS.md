@@ -140,8 +140,8 @@ is a list of them.
 Through `faraday-codec` and `faraday-bip`: descriptors, BIP-388 policies, the
 Coldcard/Sparrow/Nunchuk/Specter multisig config (whole or partial), BSMS
 records, key lines in every form a keyholder may have (`73C5DA0A: xpub…`,
-`[73c5da0a/48h/0h/0h/2h]xpub…/<0;1>/*`, a bare xpub, flagged because it
-cannot be matched to a PSBT), Coldcard's JSON account export, SLIP-132
+`[73c5da0a/48h/0h/0h/2h]xpub…/<0;1>/*`, a bare xpub, refused because it
+has no origin to match a key or a PSBT), Coldcard's JSON account export, SLIP-132
 keys, `ur:crypto-account`, `ur:crypto-hdkey` and `ur:crypto-output`
 (`docs/QR.md`). Sparrow's wallet `.json` is read here. A
 descriptor is kept exactly as it arrived, never re-emitted from its keys,

@@ -244,6 +244,23 @@ fn a_cosigners_multisig_xpub_is_not_a_wallet_on_its_own() {
 }
 
 #[test]
+fn a_bare_xpub_with_no_origin_is_not_offered_as_a_wallet() {
+    let c = testkit::compute();
+    let with_origin = testkit::key(1, "m/84'/1'/0'");
+    let bare = with_origin.split_once(']').unwrap().1.to_string();
+    let app = with_inbox(vec![
+        ("bare.txt".to_string(), format!("{bare}\n").into_bytes()),
+        (
+            "origin.txt".to_string(),
+            format!("{with_origin}\n").into_bytes(),
+        ),
+    ]);
+    let found = app.inbox_found_now(&c);
+    assert_eq!(found.xpubs.len(), 1);
+    assert_eq!(found.xpubs[0].key, with_origin);
+}
+
+#[test]
 fn an_xpub_whose_seed_is_here_gives_way_to_the_seed() {
     let c = testkit::compute();
     let mut files = kit_files(|n| n.starts_with("xpub-3-") && n.ends_with("-single.txt"));

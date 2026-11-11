@@ -177,8 +177,8 @@ const LOAD: Table = &[
     ),
     (
         Work::KeyDerive,
-        1,
-        "the loaded key's master xpub, for its id (wallet::master_id), kept on the key",
+        23,
+        "the loaded key's master xpub, for its id (wallet::master_id), kept on the key (1); each of the 22 kept wallet keys under the loaded key's fingerprint derived at its origin path, to check it is the loaded key's as the wallet is added (Session::add_policy) (22)",
     ),
     (
         Work::Address,

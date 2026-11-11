@@ -103,8 +103,14 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
     (
         "SamplesLoad",
         Work::KeyDerive,
-        3,
-        "each key added derives the account keys its entry keeps (three: Savings' keys)",
+        9,
+        "each key added derives the account keys its entry keeps (three: Savings' keys), and the wallet added checks each of its keys under a loaded fingerprint is this device's at its path (Session::add_policy, two derivations a key: six)",
+    ),
+    (
+        "LoadWallet",
+        Work::KeyDerive,
+        2,
+        "a wallet file in Files is added with each of its keys under a loaded fingerprint checked to be this device's at its path (Session::add_policy, two derivations a key: one key here)",
     ),
     (
         "SamplesLoad",

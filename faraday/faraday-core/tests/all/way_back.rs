@@ -44,11 +44,11 @@ fn with(wallets: usize, width: u16, height: u16) -> Faraday {
         .keys
         .add_words(&c, &words.join(" "), "Seed", None)
         .unwrap();
-    let text = NewKind::NativeSegwit
-        .key_text(&c, app.session.keys.master_for_tests(0))
-        .unwrap();
-    for a in 0..wallets {
-        let d = format!("wpkh({}/<0;1>/*)", text.replace("/0h]", &format!("/{a}h]")));
+    for a in 0..wallets as u32 {
+        let text = NewKind::NativeSegwit
+            .key_text_at(&c, app.session.keys.master_for_tests(0), a)
+            .unwrap();
+        let d = format!("wpkh({text}/<0;1>/*)");
         app.session
             .add_wallet(
                 &c,

@@ -147,6 +147,9 @@ impl Faraday {
             self.take_answer(answer);
             any = true;
         }
+        if any {
+            self.drop_forged_wallets();
+        }
         any
     }
 

@@ -137,6 +137,9 @@ pub struct Wallet {
     scripts: std::cell::RefCell<Vec<ScriptKept>>,
     /// [`Wallet::same`], kept; dropped with the policy.
     same: std::cell::OnceCell<String>,
+    /// The fingerprints of the keys loaded when its keys were last
+    /// checked against them ([`Session::drop_forged`]).
+    checked: Vec<Fingerprint>,
 }
 
 /// A script a wallet derived at a place, with the keys derived for it.
@@ -158,6 +161,7 @@ impl Wallet {
             addresses: std::cell::RefCell::new(Vec::new()),
             scripts: std::cell::RefCell::new(Vec::new()),
             same: std::cell::OnceCell::new(),
+            checked: Vec::new(),
         }
     }
 
@@ -172,6 +176,7 @@ impl Wallet {
             addresses: std::cell::RefCell::new(self.addresses.borrow().clone()),
             scripts: std::cell::RefCell::new(self.scripts.borrow().clone()),
             same: self.same.clone(),
+            checked: Vec::new(),
         }
     }
 
@@ -667,8 +672,79 @@ impl Session {
         self.add_policy(c, name, policy, source, origin)
     }
 
+    /// The fingerprint of a key of `policy` that is under a loaded
+    /// fingerprint (one of `only`, when given) and is not what that key
+    /// gives at the key's origin path.
+    ///
+    /// Costs a key derivation (of at most `MAX_PATH_STEPS` steps) per key
+    /// checked.
+    fn forged_key(
+        &self,
+        c: &Compute,
+        policy: &WalletPolicy,
+        only: Option<&[Fingerprint]>,
+    ) -> Option<Fingerprint> {
+        for key in policy.keys() {
+            let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
+                continue;
+            };
+            if only.is_some_and(|o| !o.contains(&fp)) {
+                continue;
+            }
+            let Some(i) = self.keys.position(fp) else {
+                continue;
+            };
+            let gives = self.keys.xpub_at(c, i, path);
+            if !gives.is_some_and(|x| {
+                x.public_key == key.xpub().public_key && x.chain_code == key.xpub().chain_code
+            }) {
+                return Some(fp);
+            }
+        }
+        None
+    }
+
+    /// Takes out of the session every wallet with a key under a
+    /// fingerprint that was not loaded when the wallet was added (or last
+    /// checked) that is not what that key gives at its path (a wallet
+    /// added before its key), and returns each one's name and the
+    /// refusal's text.
+    ///
+    /// Costs a key derivation per wallet key under a fingerprint loaded
+    /// since the wallet was checked, none when no key was loaded.
+    pub(crate) fn drop_forged(&mut self, c: &Compute) -> Vec<(String, String)> {
+        let now: Vec<Fingerprint> = self.keys.all().map(|k| k.fingerprint).collect();
+        let mut dropped = Vec::new();
+        let mut i = 0;
+        while i < self.wallets.len() {
+            let new: Vec<Fingerprint> = now
+                .iter()
+                .copied()
+                .filter(|f| !self.wallets[i].checked.contains(f))
+                .collect();
+            if new.is_empty() {
+                i += 1;
+                continue;
+            }
+            match self.forged_key(c, &self.wallets[i].policy, Some(&new)) {
+                Some(fp) => {
+                    let w = self.wallets.remove(i);
+                    let why = Refusal::NotYourKey(fp_text(fp).to_string()).text();
+                    dropped.push((w.name, why));
+                }
+                None => {
+                    self.wallets[i].checked.clone_from(&now);
+                    i += 1;
+                }
+            }
+        }
+        dropped
+    }
+
     /// Costs two key derivations per loaded key with a silent payments
-    /// wallet's fingerprint, nothing for any other wallet.
+    /// wallet's fingerprint, and a key derivation (of at most
+    /// `MAX_PATH_STEPS` steps) per key of any other wallet that is under a
+    /// loaded fingerprint.
     /// [`Session::add_wallet`] of a description read before (a vault's
     /// kept records): no parse. A silent payments wallet whose scan key or
     /// spend key is not what a loaded key with its fingerprint gives at
@@ -692,6 +768,9 @@ impl Session {
         }
         if musig_one_seed(&policy) {
             return Err(Refusal::MuSigOneSeed);
+        }
+        if let Some(fp) = self.forged_key(c, &policy, None) {
+            return Err(Refusal::NotYourKey(fp_text(fp).to_string()));
         }
         let descriptor = same_wallet(&policy);
         if let Some(i) = self
@@ -719,12 +798,9 @@ impl Session {
             return Err(Refusal::KeyPathUnconfirmed);
         }
         self.follow(policy_network(&policy, self.network()))?;
-        self.wallets.push(Wallet::new(
-            name.to_string(),
-            policy,
-            source.to_string(),
-            origin,
-        ));
+        let mut wallet = Wallet::new(name.to_string(), policy, source.to_string(), origin);
+        wallet.checked = self.keys.all().map(|k| k.fingerprint).collect();
+        self.wallets.push(wallet);
         Ok(self.wallets.len() - 1)
     }
 
@@ -2923,10 +2999,15 @@ impl Session {
                 faraday_bip::bitcoin::bip32::ChildNumber::from_normal_idx(index)
                     .map_err(|e| e.to_string())?,
             );
-        self.keys
+        let signed = self
+            .keys
             .sign_message(c, place, &path, script, message, format)
             .ok_or(EN.wallet_the_wallet_s_key)?
-            .map_err(|e| crate::state::message_error_text(e).to_string())
+            .map_err(|e| crate::state::message_error_text(e).to_string())?;
+        if signed.address != self.address(c, w, false, index) {
+            return Err(fill(EN.wallet_not_your_key, &[&fp_text(fp).to_string()]));
+        }
+        Ok(signed)
     }
 
     /// Costs an address derivation (through `find_address`). Checks a

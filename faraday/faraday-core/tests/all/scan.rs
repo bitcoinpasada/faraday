@@ -229,7 +229,7 @@ fn a_descriptor_that_cannot_be_the_waiting_key_is_filed_and_says_why() {
     let cases = [
         (
             checksummed(&format!("wpkh({bare}/<0;1>/*)")),
-            "no fingerprint and derivation path; most wallets export a key with them",
+            "no fingerprint and derivation path",
         ),
         (bad_sum, "checksum"),
         (

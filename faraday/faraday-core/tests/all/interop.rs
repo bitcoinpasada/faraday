@@ -301,8 +301,8 @@ fn keystones_change_descriptor_with_an_upper_case_fingerprint_reads_as_its_walle
 #[test]
 fn bip_84s_account_as_a_zpub_has_bip_84s_first_address() {
     let c = faraday_core::testkit::compute();
-    let bare = read_wallet(&c, BIP84_ZPUB).unwrap();
-    assert_eq!(first(&bare, Network::Mainnet), BIP84_FIRST);
+    // A bare key has no origin and is refused.
+    assert!(read_wallet(&c, BIP84_ZPUB).is_err());
     let rooted = read_wallet(&c, &format!("[73c5da0a/84h/0h/0h]{BIP84_ZPUB}")).unwrap();
     assert_eq!(first(&rooted, Network::Mainnet), BIP84_FIRST);
     // The same account as Jade writes it, in xpub form.
@@ -869,11 +869,8 @@ fn an_electrum_file_of_bip_84s_account_has_bip_84s_first_address_however_its_ori
         );
         assert_eq!(first(&w, Network::Mainnet), BIP84_FIRST);
     }
-    // With neither, a single key loads with no origin, at the same
-    // address: upstream holds a single key without one.
-    let bare = read_wallet(&c, &electrum_bip84("")).unwrap();
-    assert!(bare.keys()[0].fingerprint().is_none());
-    assert_eq!(first(&bare, Network::Mainnet), BIP84_FIRST);
+    // With neither, the key has no origin and is refused.
+    assert!(read_wallet(&c, &electrum_bip84("")).is_err());
 }
 
 #[test]
