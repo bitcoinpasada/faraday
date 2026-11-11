@@ -89,6 +89,42 @@ fn a_bbqr_set_refused_whole_does_not_stop_the_next_good_set() {
 }
 
 #[test]
+fn a_bbqr_part_in_conflict_does_not_stop_the_next_good_set() {
+    let mut a = Assembler::default();
+    assert!(matches!(
+        a.feed(&format!("B$2P0200{}", bbqr::base32(&[1u8; 10]))),
+        Step::Part { .. }
+    ));
+    // The same part again with other contents.
+    assert!(matches!(
+        a.feed(&format!("B$2P0200{}", bbqr::base32(&[2u8; 10]))),
+        Step::Refused(_)
+    ));
+    let psbt = vec![3u8; 40];
+    let mut last = Step::NotMine;
+    for p in &bbqr::encode('P', &psbt, 20).unwrap() {
+        last = a.feed(p);
+    }
+    assert_eq!(last, Step::Done(Arrived::Psbt(psbt)));
+}
+
+#[test]
+fn a_bbqr_set_that_does_not_inflate_does_not_stop_the_next_good_set() {
+    let mut a = Assembler::default();
+    // One compressed part whose data is not a deflate stream.
+    assert!(matches!(
+        a.feed(&format!("B$ZP0100{}", bbqr::base32(&[0xffu8; 10]))),
+        Step::Refused(_)
+    ));
+    let psbt = vec![3u8; 40];
+    let mut last = Step::NotMine;
+    for p in &bbqr::encode('P', &psbt, 40).unwrap() {
+        last = a.feed(p);
+    }
+    assert_eq!(last, Step::Done(Arrived::Psbt(psbt)));
+}
+
+#[test]
 fn numbered_parts_read_back_and_say_what_is_missing() {
     let text = "wsh(sortedmulti(2,[aaaaaaaa/48h/0h/0h/2h]xpub/<0;1>/*))".repeat(4);
     let parts = specter::encode(&text, 60);

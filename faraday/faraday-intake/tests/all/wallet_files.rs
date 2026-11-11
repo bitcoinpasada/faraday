@@ -289,6 +289,14 @@ fn an_electrum_keystore_with_two_fingerprints_is_read_only_when_they_agree() {
     let plain = read_wallet(&c, &text).expect("the file as written");
     let same = read_wallet(&c, &with("6ba6cfd0")).expect("both fingerprints equal");
     assert_eq!(same.keys().len(), plain.keys().len());
+    let fingerprints = |w: &WalletPolicy| -> Vec<String> {
+        w.keys()
+            .iter()
+            .map(|k| k.fingerprint().unwrap().to_string())
+            .collect()
+    };
+    assert!(fingerprints(&same).contains(&"6ba6cfd0".to_string()));
+    assert_eq!(fingerprints(&same), fingerprints(&plain));
     assert!(read_wallet(&c, &with("aabbccdd")).is_err());
 }
 
