@@ -1,6 +1,6 @@
 [package]
 name = "faraday-alloc-count"
-version = "0.1.10"
+version = "0.2.0"
 description = "A global allocator that counts each thread's allocations, for faraday-core's frame budgets; tests only"
 edition.workspace = true
 license.workspace = true

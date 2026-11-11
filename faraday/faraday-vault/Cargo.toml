@@ -1,6 +1,6 @@
 [package]
 name = "faraday-vault"
-version = "0.1.10"
+version = "0.2.0"
 description = "The Faraday vault file: a KDBX 4 file under one passphrase, Argon2id and ChaCha20 (docs/VAULT.md)"
 edition.workspace = true
 license.workspace = true

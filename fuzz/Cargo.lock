@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-intake"
-version = "0.1.10"
+version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-codec",
@@ -407,7 +407,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-pgp"
-version = "0.1.10"
+version = "0.2.0"
 dependencies = [
  "aes",
  "argon2",
@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-qr"
-version = "0.1.10"
+version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-codec",
@@ -444,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-strings"
-version = "0.1.10"
+version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-crypto",
@@ -453,7 +453,7 @@ dependencies = [
 
 [[package]]
 name = "faraday-vault"
-version = "0.1.10"
+version = "0.2.0"
 dependencies = [
  "aes",
  "argon2",

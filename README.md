@@ -10,7 +10,7 @@ Every document, and which one answers which question: `docs/README.md`.
 Building it, checking it, reproducing a release and trying it on your
 own hardware: `docs/DEVELOPING.md`.
 
-> **Use at your own risk.** 0.1.10 is a pre-release. One outside audit,
+> **Use at your own risk.** 0.2.0 is a pre-release. One outside audit,
 > AI-assisted, has read its code; no person outside the project has
 > reviewed its code, its cryptography or its builds, and no second
 > builder has reproduced it. It comes with no warranty of any kind (see
