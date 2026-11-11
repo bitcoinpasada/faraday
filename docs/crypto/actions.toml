@@ -9769,7 +9769,7 @@ places = ["docs/AUDIT.md"]
 [[action]]
 id = "starter-write"
 name = "Write an image to a stick"
-action = "Writes an image to a stick and checks it: the SHA-256 of the found image file against the release's image list before any write, of the decompressed bytes against the list as they are written, and of what was read back from the stick, with the stick's own IDs and name taken back out, against the list after."
+action = "Writes an image to a stick and checks it: the SHA-256 of the found image file against the release's image list before any write, of the decompressed bytes against the list as they are written, and of what was read back from the stick, with the stick's own IDs and name taken back out, against the list after; keep data takes a stick as the same build only when its boot partition's SHA-256 is the release's boot partition sum (F244)."
 row = "starter-image"
 standards = ["FIPS 180-4"]
 learn = "faraday:checking-written"
@@ -9792,6 +9792,8 @@ functions = [
   "faraday/faraday-payload/src/decode.rs::hash_image",
   "faraday/faraday-payload/src/images.rs::sha256_of",
   "faraday/shells/starter/src/writer.rs::Source::check_boot_sum",
+  "faraday/shells/starter/src/writer.rs::release_on_stick",
+  "faraday/shells/starter/src/linux/mod.rs::boot_sum",
 ]
 code = [
   "faraday/faraday-payload/src/decode.rs::write_payload",
