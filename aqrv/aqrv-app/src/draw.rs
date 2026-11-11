@@ -261,7 +261,8 @@ fn settings(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
         .map(|&s| (size_label(s), Action::Size(s)))
         .collect();
     let chosen = SIZES.iter().position(|&s| s == st.size);
-    y += ui.choices((x, y, w, 40.0), LABEL_L.size, &options, chosen) + GAP;
+    let off: Vec<bool> = SIZES.iter().map(|&s| !st.fits(s)).collect();
+    y += ui.choices_with((x, y, w, 40.0), LABEL_L.size, &options, chosen, &off) + GAP;
     ui.text_as(
         x,
         y,

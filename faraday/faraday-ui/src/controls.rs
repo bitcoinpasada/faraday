@@ -369,11 +369,26 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// the fill is, in segments from the first. Returns its width.
     pub fn segmented(
         &mut self,
+        at: (f32, f32, f32),
+        size: f32,
+        options: &[(&str, A)],
+        chosen: Option<usize>,
+        slide: Option<f32>,
+    ) -> f32 {
+        self.segmented_with(at, size, options, chosen, slide, &[])
+    }
+
+    /// [`Ui::segmented`] with the options `off` marks (by index; one past
+    /// its end is enabled) disabled: label and tick at the disabled
+    /// opacity, no press (Material's disabled segment).
+    pub fn segmented_with(
+        &mut self,
         (x, y, h): (f32, f32, f32),
         size: f32,
         options: &[(&str, A)],
         chosen: Option<usize>,
         slide: Option<f32>,
+        off: &[bool],
     ) -> f32 {
         let sw = self.segment_width_of(size, options.iter().map(|o| o.0));
         let total = sw * options.len() as f32;
@@ -390,6 +405,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         for (i, &(label, action)) in options.iter().enumerate() {
             let sx = x + i as f32 * sw;
             let on = chosen == Some(i);
+            let off = off.get(i).copied().unwrap_or(false);
+            let dim = Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT);
             let layer = if on {
                 Role::OnSecondaryContainer
             } else {
@@ -401,7 +418,9 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 first: ends.0,
                 last: ends.1,
             };
-            self.press_segment(Shape::new(sx, y, sw, h, r), ring, layer, action);
+            if !off {
+                self.press_segment(Shape::new(sx, y, sw, h, r), ring, layer, action);
+            }
             if i > 0 {
                 self.vrule(sx, y, h, Role::Outline);
             }
@@ -416,10 +435,19 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                     ICON_GLYPH_BUTTON,
                     Icon::Done,
                     ICON_GLYPH_BUTTON,
-                    Role::OnSecondaryContainer,
+                    if off {
+                        dim
+                    } else {
+                        Role::OnSecondaryContainer.paint()
+                    },
                 );
                 let lx = gx + ICON_GLYPH_BUTTON + ICON_GAP;
-                self.text_mid(lx, y, h, size, W::S, Role::OnSecondaryContainer, label);
+                let fg = if off {
+                    dim
+                } else {
+                    Role::OnSecondaryContainer.paint()
+                };
+                self.text_mid(lx, y, h, size, W::S, fg, label);
             } else {
                 self.text_mid(
                     sx + (sw - tw) / 2.0,
@@ -427,7 +455,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                     h,
                     size,
                     W::S,
-                    Role::OnSurface,
+                    if off { dim } else { Role::OnSurface.paint() },
                     label,
                 );
             }
@@ -442,16 +470,30 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// Returns the height it took.
     pub fn choices(
         &mut self,
+        at: (f32, f32, f32, f32),
+        size: f32,
+        options: &[(&str, A)],
+        chosen: Option<usize>,
+    ) -> f32 {
+        self.choices_with(at, size, options, chosen, &[])
+    }
+
+    /// [`Ui::choices`] with the options `off` marks (by index; one past
+    /// its end is enabled) disabled: a dimmed segment, or a
+    /// [`Style::Disabled`] button, taking no press.
+    pub fn choices_with(
+        &mut self,
         (x, y, w, h): (f32, f32, f32, f32),
         size: f32,
         options: &[(&str, A)],
         chosen: Option<usize>,
+        off: &[bool],
     ) -> f32 {
         let sw = self.segment_width_of(size, options.iter().map(|o| o.0));
         // A row as tall as larger text needs (`docs/TEXT-SIZE.md` §5).
         let h = self.button_height(h);
         if sw * options.len() as f32 <= w {
-            self.segmented((x, y, h), size, options, chosen, None);
+            self.segmented_with((x, y, h), size, options, chosen, None, off);
             return h;
         }
         // Each is a button of its own, padded as [`Ui::button`] pads
@@ -472,7 +514,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             } else {
                 std::borrow::Cow::Owned(self.fit(size, W::S, label, w - pad))
             };
-            let style = Style::chosen(chosen == Some(i));
+            let style = if off.get(i).copied().unwrap_or(false) {
+                Style::Disabled
+            } else {
+                Style::chosen(chosen == Some(i))
+            };
             bx += self.button(bx, by, Some(bw), h, &shown, style, action) + GAP;
         }
         by - y + h
