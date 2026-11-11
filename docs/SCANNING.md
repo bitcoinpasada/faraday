@@ -44,6 +44,9 @@ Ways in that are not the camera: Paste on Faraday Demo
 (`Faraday::pasted`, routed as a scan after `pasted_secret`); a PNG on a
 stick, read at a stick visit or Import (`Faraday::qr_read`: a SeedQR
 copied in as `{stem}-words.txt` and loaded when the stick is removed,
+except a CompactSeedQR whose 16 or 32 bytes are also valid UTF-8 text, which
+asks first, one sheet for each such picture, **Load as a key** or **Leave as
+a file** (the picture stays a file and nothing loads),
 anything else routed as the `Files` scanner routes it, with no sheet). A
 file dropped on Faraday Demo's window goes to Transfer's Send, never to a
 scanner. The device has no clipboard and no file picker.

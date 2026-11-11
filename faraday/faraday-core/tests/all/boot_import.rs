@@ -1483,3 +1483,64 @@ fn a_mouse_over_the_devices_sheet_over_the_import_returns_each_in_turn() {
     }
     assert_eq!(app.sheet, Some(Sheet::Import));
 }
+
+/// Booted with one text picture, Import pressed and its codes read: the ask is up.
+fn text_picture_asked() -> faraday_core::Faraday {
+    let files: Vec<(String, Vec<u8>)> = vec![("note.png".to_string(), b"a picture".to_vec())];
+    let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+    app.storage(StorageEvent::Memory {
+        available_mib: 15_000,
+    });
+    app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
+    let answer = |app: &mut faraday_core::Faraday| {
+        while let Some(c) = app.poll_storage() {
+            match c {
+                StorageCommand::Read { stick, name } => {
+                    let bytes = files.iter().find(|(n, _)| *n == name).unwrap().1.clone();
+                    app.storage(StorageEvent::Read { stick, name, bytes });
+                }
+                StorageCommand::ReadQr { name, .. } => {
+                    app.storage(StorageEvent::QrRead {
+                        name,
+                        bytes: Vec::new(),
+                        payloads: vec![b"a short note 123".to_vec()],
+                    });
+                }
+                _ => {}
+            }
+        }
+    };
+    answer(&mut app);
+    app.press(Action::Import(I::Go));
+    answer(&mut app);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::TextSeed));
+    app
+}
+
+#[test]
+fn a_text_picture_on_the_boot_stick_loads_only_once_it_is_confirmed() {
+    let mut app = text_picture_asked();
+    app.press(Action::TextSeed(boot_import::TextSeedAnswer::Load));
+    pull(&mut app);
+    assert_eq!(app.session.keys.len(), 1, "the confirmed key did not load");
+}
+
+#[test]
+fn leaving_a_text_picture_at_the_boot_import_loads_nothing() {
+    let mut app = text_picture_asked();
+    app.press(Action::TextSeed(boot_import::TextSeedAnswer::Leave));
+    pull(&mut app);
+    assert!(app.session.keys.is_empty());
+}
+
+#[test]
+fn an_ask_whose_sheet_was_replaced_does_not_hold_the_import() {
+    let mut app = text_picture_asked();
+    app.press(Action::PowerAsk);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Power));
+    app.press(Action::Cancel);
+    pull(&mut app);
+    assert!(app.import().is_none(), "the import is still held");
+    assert!(app.session.keys.is_empty());
+}

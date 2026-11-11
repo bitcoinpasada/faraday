@@ -446,6 +446,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Delete => crate::stick::wipe::delete_sheet(app, ui, w, h),
             Sheet::Zeroing => crate::stick::wipe::zeroing_sheet(app, ui, w, h),
             Sheet::Taken => crate::visit_taken::taken_sheet(app, ui, w, h),
+            Sheet::TextSeed => crate::boot_import::text_ask::sheet(app, ui, w, h),
             Sheet::NameTaken => crate::visit_taken::name_taken_sheet(app, ui, w, h),
             Sheet::Devices => devices_sheet(app, ui, w, h),
             Sheet::KeyPath => key_path_sheet(app, ui, w, h),

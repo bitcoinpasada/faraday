@@ -914,6 +914,8 @@ pub enum Action {
     WriteAsk,
     /// The boot import's sheet.
     Import(boot_import::ImportAction),
+    /// The answer of the sheet for a picture whose code reads as a seed or as text.
+    TextSeed(boot_import::text_ask::TextSeedAnswer),
     /// A press on a screen the app holding this one draws with
     /// [`ui::Ui`] (the Starter, `docs/STARTER.md` §2), in that app's own
     /// numbering. This app does nothing with it.

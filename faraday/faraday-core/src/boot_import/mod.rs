@@ -13,6 +13,9 @@
 //! each [`Item`] drops.
 
 pub(crate) mod screen;
+pub(crate) mod text_ask;
+use text_ask::Ask;
+pub use text_ask::TextSeedAnswer;
 
 use crate::strings::EN;
 use crate::strings::fill;
@@ -21,7 +24,8 @@ use std::collections::BTreeSet;
 use crate::vault::{Focus, VaultAction};
 use crate::wallet::FileKind;
 use crate::{
-    Action, Faraday, Item, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, stem, stick_kind,
+    Action, Faraday, Item, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, seedqr_words,
+    stem, stick_kind,
 };
 
 /// What the import sheet can do.
@@ -267,6 +271,8 @@ pub(crate) struct BootImportArea {
     /// The boot import's sheet waits under the new-device sheet, and
     /// comes up once every waiting device is decided.
     under_input: bool,
+    /// Pictures whose code reads as a seed or as text, waiting to be asked about.
+    text: text_ask::TextAsks,
 }
 
 impl BootImportArea {
@@ -299,6 +305,7 @@ impl BootImportArea {
     pub(crate) fn clear_all(&mut self) {
         self.state = None;
         self.load_after.clear();
+        self.text_forget();
     }
 
     /// Whether the sheet waits under the new-device sheet.
@@ -324,6 +331,125 @@ impl BootImportArea {
     /// Takes the files that wait for the pull.
     pub(crate) fn take_load_after(&mut self) -> BTreeSet<String> {
         std::mem::take(&mut self.load_after)
+    }
+}
+
+impl Faraday {
+    /// A picture's code at a stick visit: whether it was handled here. A SeedQR is copied in as its words, to load when the stick is removed; 16 or 32 bytes of text that read as one too ask first.
+    pub(crate) fn visit_seedqr(
+        &mut self,
+        name: &str,
+        p: &[u8],
+        seeds: &mut usize,
+        asked: &mut usize,
+    ) -> bool {
+        let c = self.compute();
+        if crate::scan_read::is_compact_text(p) {
+            self.text_seed_ask(name, p.to_vec(), None);
+            *asked += 1;
+            return true;
+        }
+        let Some(words) = seedqr_words(p) else {
+            return false;
+        };
+        let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
+        let got = self.free_inbox_name(&format!("{stem}-words.txt"));
+        self.inbox
+            .push(Item::new(&c, &got, words.as_bytes().to_vec()));
+        self.visit.load_after.insert(got.clone());
+        self.save_boxes();
+        *seeds += 1;
+        self.visit.log.push((
+            fill(
+                EN.qr_read_a_seedqr_copied,
+                &[name, &got, self.medium.noun()],
+            ),
+            true,
+        ));
+        true
+    }
+
+    /// Holds a code for the sheet, which comes up over what is showing.
+    pub(crate) fn text_seed_ask(&mut self, name: &str, code: Vec<u8>, file: Option<usize>) {
+        self.import.text.queue.push_back(Ask {
+            name: name.to_string(),
+            code: zeroize::Zeroizing::new(code),
+            file,
+        });
+        if self.sheet != Some(Sheet::TextSeed) {
+            self.import.text.back = self.sheet;
+            self.sheet = Some(Sheet::TextSeed);
+        }
+    }
+
+    /// The answer to the first code waiting; the next comes up, or the
+    /// sheet that was showing returns.
+    pub(crate) fn text_seed_answer(&mut self, a: TextSeedAnswer) {
+        let Some(ask) = self.import.text.queue.pop_front() else {
+            self.sheet = None;
+            return;
+        };
+        let c = self.compute();
+        let words = match a {
+            TextSeedAnswer::Load => crate::seedqr_words(&ask.code),
+            TextSeedAnswer::Leave => None,
+        };
+        let stem = stem(&ask.name);
+        match (words, ask.file) {
+            (Some(words), None) => {
+                let old_stem = ask.name.rsplit_once('.').map_or(&*ask.name, |(s, _)| s);
+                let got = self.free_inbox_name(&format!("{old_stem}-words.txt"));
+                self.inbox
+                    .push(Item::new(&c, &got, words.as_bytes().to_vec()));
+                // The picture is held as the words it now is.
+                if let Some(pic) = self
+                    .inbox
+                    .iter_mut()
+                    .find(|i| i.name == ask.name && i.picture.is_some())
+                {
+                    pic.picture = Some(FileKind::Words);
+                }
+                // With the stick already out nothing waits for a pull.
+                if self.may_load_keys() {
+                    let at = self.inbox.len() - 1;
+                    if self.load_key(at) {
+                        self.inbox_load_named();
+                    }
+                } else {
+                    self.visit.load_after.insert(got.clone());
+                }
+                self.save_boxes();
+                self.visit.log.push((
+                    fill(
+                        EN.qr_read_a_seedqr_copied,
+                        &[&ask.name, &got, self.medium.noun()],
+                    ),
+                    true,
+                ));
+            }
+            (Some(words), Some(f)) => {
+                if let Some(imp) = self.import.state_mut() {
+                    let item =
+                        Item::new(&c, &format!("{stem}-words.txt"), words.as_bytes().to_vec());
+                    let mut item = item;
+                    let taken: Vec<String> = imp.items.iter().map(|i| i.name.clone()).collect();
+                    item.name = free_name(&item.name, |n| taken.iter().any(|t| t == n));
+                    imp.items.push(item);
+                    imp.item_file.push(f);
+                }
+            }
+            (None, None) => self
+                .visit
+                .log
+                .push((fill(EN.qr_read_text_left, &[&ask.name]), true)),
+            (None, Some(_)) => {}
+        }
+        if self.import.text.queue.is_empty() {
+            if self.sheet == Some(Sheet::TextSeed) {
+                self.sheet = self.import.text.back.take();
+            }
+            self.import_if_read();
+        }
     }
 }
 
@@ -480,6 +606,11 @@ impl Faraday {
         let codes = payloads.len();
         let scan = self.camera.swap(Some(crate::ScanState::default()));
         for mut p in payloads {
+            // 16 or 32 bytes of text that read as a seed too ask first.
+            if crate::scan_read::is_compact_text(&p) {
+                self.text_seed_ask(name, p, Some(f));
+                continue;
+            }
             // A SeedQR's digits are a seed: wiped once read as words.
             if let Some(words) = crate::seedqr_words(&p) {
                 zeroize::Zeroize::zeroize(&mut p);
@@ -821,6 +952,13 @@ impl Faraday {
     /// still in load as it is pulled, as Import and load's do); the vaults
     /// into Files, locked, each then offered its Unlock.
     fn import_if_read(&mut self) {
+        // An ask whose sheet was replaced is given up: the picture stays a file.
+        if self.sheet != Some(Sheet::TextSeed) {
+            self.import.text_forget();
+        }
+        if self.import.text_waits_for_import() {
+            return;
+        }
         let Some(imp) = self.import.state_mut() else {
             return;
         };

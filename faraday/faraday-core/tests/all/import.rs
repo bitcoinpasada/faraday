@@ -2,6 +2,7 @@
 //! offers its own Load button (refused with the stick still attached);
 //! "Import and load" loads it on its own the moment the stick is pulled.
 
+use faraday_core::boot_import::TextSeedAnswer;
 use faraday_core::wallet::FileKind;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent};
 
@@ -219,4 +220,148 @@ fn import_and_load_under_a_held_name_loads_only_the_copy_from_the_stick() {
     let fp =
         faraday_keys::identity::fingerprint_of_words(&c, &words(), "").expect("the stick's words");
     assert_eq!(app.session.keys[0].fingerprint, fp);
+}
+
+/// 16 bytes of text that no text kind takes: also a CompactSeedQR.
+const TEXT_SEEDQR: &[u8; 16] = b"a short note 123";
+
+fn read_text_picture(app: &mut faraday_core::Faraday, payload: Vec<u8>) {
+    app.storage(StorageEvent::QrRead {
+        name: "note.png".to_string(),
+        bytes: b"a picture".to_vec(),
+        payloads: vec![payload],
+    });
+}
+
+#[test]
+fn a_picture_whose_code_is_text_and_a_seed_asks_before_it_loads_a_key() {
+    let mut app = faraday_core::testkit::started();
+    attach(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    read_text_picture(&mut app, TEXT_SEEDQR.to_vec());
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::TextSeed));
+    detach(&mut app);
+    assert!(
+        app.session.keys.is_empty(),
+        "loaded before it was confirmed"
+    );
+    assert!(app.inbox().iter().all(|i| !i.name.ends_with("-words.txt")));
+}
+
+#[test]
+fn confirming_the_ask_loads_the_key_when_the_stick_is_pulled() {
+    let mut app = faraday_core::testkit::started();
+    attach(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    read_text_picture(&mut app, TEXT_SEEDQR.to_vec());
+    app.press(Action::TextSeed(TextSeedAnswer::Load));
+    assert_eq!(app.sheet, None);
+    assert!(app.inbox().iter().any(|i| i.name == "note-words.txt"));
+    detach(&mut app);
+    assert_eq!(app.session.keys.len(), 1, "the key did not load");
+}
+
+#[test]
+fn declining_the_ask_loads_nothing_and_keeps_the_picture_a_file() {
+    let mut app = faraday_core::testkit::started();
+    attach(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    read_text_picture(&mut app, TEXT_SEEDQR.to_vec());
+    app.press(Action::TextSeed(TextSeedAnswer::Leave));
+    assert_eq!(app.sheet, None);
+    detach(&mut app);
+    assert!(app.session.keys.is_empty());
+    assert!(app.inbox().iter().any(|i| i.name == "note.png"));
+    assert!(app.inbox().iter().all(|i| !i.name.ends_with("-words.txt")));
+}
+
+#[test]
+fn a_binary_compact_seedqr_picture_loads_with_no_ask() {
+    let mut app = faraday_core::testkit::started();
+    attach(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    read_text_picture(&mut app, vec![0xff; 16]);
+    assert_eq!(app.sheet, None);
+    assert!(app.inbox().iter().any(|i| i.name == "note-words.txt"));
+    detach(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+}
+
+#[test]
+fn a_text_picture_confirmed_after_the_stick_is_out_loads_at_once_and_is_held_as_words() {
+    let mut app = faraday_core::testkit::started();
+    attach(&mut app);
+    app.press(Action::Nav(Screen::Files));
+    read_text_picture(&mut app, TEXT_SEEDQR.to_vec());
+    detach(&mut app);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::TextSeed));
+    app.press(Action::TextSeed(TextSeedAnswer::Load));
+    assert_eq!(app.session.keys.len(), 1, "the key did not load at once");
+    let pic = app.inbox().iter().find(|i| i.name == "note.png").unwrap();
+    assert_eq!(pic.picture, Some(FileKind::Words));
+    // Nothing is left to load when the stick is pulled again.
+    assert!(app.visit().load_after.is_empty());
+}
+
+/// A stick holding a text CompactSeedQR picture and a wallet file over
+/// that picture's seed; the picture is read with its sheet still up and
+/// the stick pulled before it is answered.
+fn stick_with_a_text_picture_and_its_wallet() -> Faraday {
+    use faraday_bip::bitcoin::bip32::DerivationPath;
+    let c = faraday_core::testkit::compute();
+    let m = faraday_bip::bip39::Mnemonic::from_entropy(
+        faraday_bip::bip39::Language::English,
+        TEXT_SEEDQR,
+    )
+    .unwrap();
+    let mut probe = faraday_core::wallet::Session::default();
+    probe.keys.add_mnemonic(&c, &m, "", "", None).unwrap();
+    let master = probe.keys.master_for_tests(0);
+    let path = faraday_core::testkit::on_net("m/84'/1'/0'");
+    let p: DerivationPath = path.parse().unwrap();
+    let shown = path.trim_start_matches("m/").replace('\'', "h");
+    let wallet = format!(
+        "# Note: a wallet over the picture's seed\nwpkh([{}/{shown}]{}/<0;1>/*)\n",
+        master.fingerprint(),
+        master.derive(&c, &p).to_xpub(&c)
+    );
+    let mut app = faraday_core::testkit::started();
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        make: Default::default(),
+        serial: None,
+        id: STICK.to_string(),
+        label: "TESTSTICK".to_string(),
+        boot: false,
+        files: vec![("note-wallet.txt".to_string(), wallet.len() as u64)],
+        vaults: Vec::new(),
+    }]));
+    app.press(Action::Nav(Screen::Files));
+    app.press(Action::VisitIn(0));
+    app.press(Action::VisitCopy);
+    app.storage(StorageEvent::Read {
+        stick: STICK.to_string(),
+        name: "note-wallet.txt".to_string(),
+        bytes: wallet.into_bytes(),
+    });
+    read_text_picture(&mut app, TEXT_SEEDQR.to_vec());
+    detach(&mut app);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::TextSeed));
+    assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
+    app
+}
+
+#[test]
+fn loading_a_text_picture_after_the_pull_loads_the_wallet_that_names_its_seed() {
+    let mut app = stick_with_a_text_picture_and_its_wallet();
+    app.press(Action::TextSeed(TextSeedAnswer::Load));
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.session.wallets.len(), 1, "the wallet did not load");
+}
+
+#[test]
+fn leaving_a_text_picture_after_the_pull_loads_no_key_and_no_wallet() {
+    let mut app = stick_with_a_text_picture_and_its_wallet();
+    app.press(Action::TextSeed(TextSeedAnswer::Leave));
+    assert!(app.session.keys.is_empty());
+    assert!(app.session.wallets.is_empty());
 }

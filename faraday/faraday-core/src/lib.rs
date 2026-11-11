@@ -514,6 +514,8 @@ pub enum Sheet {
     Taken,
     /// A vault's write refused for its name, a file on the stick having it and nothing proving a copy: Hold to overwrite, Save beside or Cancel (`visit_taken`).
     NameTaken,
+    /// A picture on a stick whose code reads as a seed or as text: **Load as a key** or **Leave as a file** (`boot_import/text_ask`).
+    TextSeed,
     /// What is attached that can capture the screen or the keys, each named
     /// with what it can do, and before a secret the reminders (`devices`).
     Devices,
@@ -2304,6 +2306,9 @@ impl Faraday {
             Action::Cancel if self.sheet == Some(Sheet::GpgSign) => self.sheet = None,
             Action::Cancel if self.sheet == Some(Sheet::KefRead) => seeds::kef::kef_cancel(self),
             Action::Cancel if self.sheet == Some(Sheet::NameTaken) => self.name_taken_cancel(),
+            Action::Cancel if self.sheet == Some(Sheet::TextSeed) => {
+                self.text_seed_answer(boot_import::text_ask::TextSeedAnswer::Leave);
+            }
             Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
             Action::Cancel if self.sweep_scanning() => self.sweep_back(),
             Action::Cancel => {
@@ -2408,6 +2413,7 @@ impl Faraday {
                 self.vault_summaries_refresh();
             }
             Action::Import(a) => self.import_act(a),
+            Action::TextSeed(a) => self.text_seed_answer(a),
             Action::Host(_) => {}
             Action::SpendBackup(f) => self.spend_backup_act(f),
             Action::Vanity(v) => self.vanity_act(v),
@@ -3927,7 +3933,6 @@ impl Faraday {
 
     /// What a picture's codes held, read as the camera reads them.
     fn qr_read(&mut self, name: &str, payloads: Vec<Vec<u8>>) {
-        let c = self.compute();
         if payloads.is_empty() {
             self.visit
                 .log
@@ -3940,25 +3945,9 @@ impl Faraday {
             }
             let before = self.inbox.len();
             let mut seeds = 0;
+            let mut asked = 0;
             for p in payloads {
-                // A SeedQR on a stick is a seed's words in another
-                // form: copied in as the words, and loaded when the
-                // stick is removed, as Import and load does.
-                if let Some(words) = seedqr_words(&p) {
-                    let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
-                    let got = self.free_inbox_name(&format!("{stem}-words.txt"));
-                    self.inbox
-                        .push(Item::new(&c, &got, words.as_bytes().to_vec()));
-                    self.visit.load_after.insert(got.clone());
-                    self.save_boxes();
-                    seeds += 1;
-                    self.visit.log.push((
-                        fill(
-                            EN.qr_read_a_seedqr_copied,
-                            &[name, &got.to_string(), self.medium.noun()],
-                        ),
-                        true,
-                    ));
+                if self.visit_seedqr(name, &p, &mut seeds, &mut asked) {
                     continue;
                 }
                 if self.camera.scan().is_none() {
@@ -4001,7 +3990,7 @@ impl Faraday {
                     fill(EN.qr_read_read_into_files, &[name, &got.to_string()]),
                     true,
                 ));
-            } else if seeds == 0 {
+            } else if seeds == 0 && asked == 0 {
                 self.visit.log.push((
                     format!("{name}: {}", note.unwrap_or_else(|| EN.qr_read_read.into())),
                     true,

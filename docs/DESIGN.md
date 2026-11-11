@@ -804,7 +804,7 @@ records it only inside a vault and that nothing written for its backup
 says so, **OK**; once per wallet made; F166), the Sweep sheet (a WIF
 private key typed or scanned: the key's field, then its addresses with
 their QR codes, then its PSBT's review and **Hold to sign**, **Done**
-erasing the key; `docs/INTEROP.md` §5, Sweeping a private key, F171), and the question a
+erasing the key; `docs/INTEROP.md` §5, Sweeping a private key, F171), **{file} reads as a seed or as text** (`TextSeed`: a picture on a stick whose code is 16 or 32 bytes of text that also read as a CompactSeedQR, the file's name, **Leave as a file** and **Load as a key**, a dialog, one for each such picture in turn; `docs/SCANNING.md` §1), and the question a
 flow's Cancel asks (§4.13).
 
 In Faraday (`faraday-ui`) every page's working area is one colour, the

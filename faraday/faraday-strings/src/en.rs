@@ -4731,6 +4731,14 @@ strings! {
     qr_read_copied_no_qr: "Copied {}: no QR code read",
     /// Text in `qr_read`. `{}`: `name`, `got`, `self.medium.noun()`.
     qr_read_a_seedqr_copied: "{}: a SeedQR, copied in as {}; its key loads when the {} is removed",
+    /// Receipt line in `text_seed_answer`: the picture stays a file. `{}`: its name.
+    qr_read_text_left: "{}: left as a file",
+    /// Title of the sheet for a picture whose code reads as a seed or as text. `{}`: the file's name.
+    text_seed_title: "{} reads as a seed or as text",
+    /// Action of that sheet.
+    text_seed_load: "Load as a key",
+    /// Action of that sheet.
+    text_seed_leave: "Leave as a file",
     /// Toast in `qr_read`. `{}`: `got`.
     qr_read_is_in_files: "{} is in Files",
     /// Text in `qr_read`. `{}`: `name`, `got`.
