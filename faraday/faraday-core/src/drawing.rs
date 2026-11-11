@@ -413,6 +413,14 @@ impl Faraday {
         faraday_draw::tokens::touch(self.window())
     }
 
+    /// Whether notes are set one type step up: on a low window wider than
+    /// the compact class, the 7-inch panel (`docs/LAYOUT.md` §8); never
+    /// inside the held rule. A lookup.
+    pub(crate) fn note_up(&self) -> bool {
+        let w = self.window();
+        !self.held && w.low() && w.class() != faraday_draw::geom::WindowClass::Compact
+    }
+
     /// The window as `docs/LAYOUT.md` §2 classes it: its size in dp at
     /// the screen's own density times the person's Display scale, its
     /// class by width, and whether it is short or low. Read from the last

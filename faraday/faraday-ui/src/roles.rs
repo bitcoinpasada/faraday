@@ -87,9 +87,28 @@ pub struct ListItem<'s, A> {
 }
 
 impl<A: Copy + PartialEq> Ui<'_, A> {
+    /// `role` as it is drawn here: Body small, a note, is Body medium
+    /// where [`Ui::note_up`] says so, in the same face. A lookup.
+    pub fn stepped(&self, role: TypeRole) -> TypeRole {
+        if self.note_up
+            && role.size == BODY_S.size
+            && role.line == BODY_S.line
+            && role.face != TypeFace::Medium
+        {
+            TypeRole {
+                size: BODY_M.size,
+                line: BODY_M.line,
+                face: role.face,
+            }
+        } else {
+            role
+        }
+    }
+
     /// The height of one line in `role`, in design units: its line height
     /// at this canvas's type size, times the text size.
     pub fn line_as(&self, role: TypeRole) -> f32 {
+        let role = self.stepped(role);
         role.line * self.text_factor() * self.c.scale().factor() / self.f
     }
 
@@ -151,6 +170,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// step of [`TEXT_FIT_STEP_PCT`] under it that fits, never under
     /// Standard. Measures `s` once.
     pub(crate) fn fit_factor(&self, role: TypeRole, s: &str, max: f32) -> f32 {
+        let role = self.stepped(role);
         self.fit_factor_of(self.measure_as(role, s), max)
     }
 
@@ -180,6 +200,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         color: impl Into<Paint>,
         s: &str,
     ) -> f32 {
+        let role = self.stepped(role);
         let color: Paint = color.into();
         let k = self.fit_factor(role, s, max);
         let sized = TypeRole {
@@ -200,6 +221,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// How wide [`Ui::text_fit_as`] draws `s` in `role` in a slot `max`
     /// wide. Makes the cut string only where it does not fit.
     pub fn text_fit_width(&self, role: TypeRole, s: &str, max: f32) -> f32 {
+        let role = self.stepped(role);
         let k = self.fit_factor(role, s, max);
         let t = self.text_factor();
         let wide = self.measure_as(role, s) * k / t;
@@ -217,6 +239,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
 
     /// The width of `s` in `role`.
     pub fn measure_as(&self, role: TypeRole, s: &str) -> f32 {
+        let role = self.stepped(role);
         self.measure(role.size, role.face.into(), s)
     }
 
@@ -229,6 +252,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         color: impl Into<Paint>,
         s: &str,
     ) -> f32 {
+        let role = self.stepped(role);
         self.text(x, y, role.size, role.face.into(), color, s)
     }
 
@@ -240,6 +264,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         color: impl Into<Paint>,
         s: &str,
     ) -> f32 {
+        let role = self.stepped(role);
         self.text_mid(x, y, h, role.size, role.face.into(), color, s)
     }
 
@@ -251,17 +276,20 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         color: impl Into<Paint>,
         s: &str,
     ) {
+        let role = self.stepped(role);
         self.text_right(right, y, h, role.size, role.face.into(), color, s);
     }
 
     /// `s` in `role` cut with an ellipsis to fit `max`.
     pub fn fit_as(&self, role: TypeRole, s: &str, max: f32) -> String {
+        let role = self.stepped(role);
         self.fit(role.size, role.face.into(), s, max)
     }
 
     /// How many lines [`Ui::wrap_as`] breaks `s` onto at `max` width:
     /// one at least.
     pub fn wrap_lines_as(&self, role: TypeRole, s: &str, max: f32) -> usize {
+        let role = self.stepped(role);
         let face = self.face(role.size, role.face.into());
         text::wrap(&face, s, self.px(max)).len().max(1)
     }
@@ -269,6 +297,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// The height [`Ui::wrap_as`] takes for `s` at `width`, drawn
     /// nowhere.
     pub fn wrap_height_as(&self, role: TypeRole, s: &str, width: f32) -> f32 {
+        let role = self.stepped(role);
         let face = self.face(role.size, role.face.into());
         text::wrap(&face, s, self.px(width)).len() as f32 * self.line_as(role)
     }
@@ -283,6 +312,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         color: impl Into<Paint>,
         s: &str,
     ) -> f32 {
+        let role = self.stepped(role);
         let laid = self.wrapped_as(role, s, width);
         self.draw_wrapped((x, y), color, &laid);
         laid.h
@@ -293,6 +323,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// it is drawn (a row's press), then drawn with [`Ui::draw_wrapped`]
     /// in the same frame, so it is broken once.
     pub fn wrapped_as<'s>(&self, role: TypeRole, s: &'s str, width: f32) -> Wrapped<'s> {
+        let role = self.stepped(role);
         let face = self.face(role.size, role.face.into());
         let lines = Lines::Own(text::wrap(&face, s, self.px(width)));
         self.laid(role, s, width, lines)
@@ -302,6 +333,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// text: a caller that keeps the lines of a text between frames keeps
     /// them with this and uses them while it is equal.
     pub fn wrap_basis(&self, role: TypeRole, width: f32) -> WrapBasis {
+        let role = self.stepped(role);
         WrapBasis(
             self.font(role.size, role.face.into()),
             self.c.scale(),
@@ -316,6 +348,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         s: &str,
         width: f32,
     ) -> std::rc::Rc<[(usize, usize)]> {
+        let role = self.stepped(role);
         let face = self.face(role.size, role.face.into());
         text::wrap(&face, s, self.px(width)).into()
     }
@@ -329,10 +362,12 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         width: f32,
         lines: std::rc::Rc<[(usize, usize)]>,
     ) -> Wrapped<'s> {
+        let role = self.stepped(role);
         self.laid(role, s, width, Lines::Kept(lines))
     }
 
     fn laid<'s>(&self, role: TypeRole, s: &'s str, width: f32, lines: Lines) -> Wrapped<'s> {
+        let role = self.stepped(role);
         let h = lines.len() as f32 * self.line_as(role);
         Wrapped {
             s,
@@ -378,6 +413,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         text: &str,
         typing: (bool, A),
     ) -> f32 {
+        let role = self.stepped(role);
         let laid = self.wrapped_as(role, text, width);
         self.draw_typed((x, y), color, &laid, typing);
         laid.h
@@ -687,6 +723,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// Where `s` in `role` wrapped `max` wide breaks: the byte its first
     /// line ends at.
     fn first_line_end(&self, role: TypeRole, s: &str, max: f32) -> usize {
+        let role = self.stepped(role);
         let face = self.face(role.size, role.face.into());
         text::wrap(&face, s, self.px(max))
             .first()

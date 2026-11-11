@@ -59,6 +59,7 @@ pub fn button_rows<A: Copy + PartialEq>(
 ) -> f32 {
     // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
     let bh = ui.button_height(BUTTON_H);
+    let pitch = (bh + GAP).max(ui.touch);
     let (mut bx, mut by) = (x, y);
     for (label, style, action) in items {
         // No wider than the row; a long label is cut.
@@ -70,7 +71,7 @@ pub fn button_rows<A: Copy + PartialEq>(
         );
         if bx > x && bx + bw > x + w {
             bx = x;
-            by += bh + GAP;
+            by += pitch;
         }
         bx += if *style == Style::Ghost && bx == x {
             // A text button on its own at the row's start: its label on
@@ -80,7 +81,7 @@ pub fn button_rows<A: Copy + PartialEq>(
             ui.button(bx, by, Some(bw), bh, label, *style, *action) + GAP
         };
     }
-    by - y + bh + GAP
+    by - y + pitch
 }
 
 /// Buttons `h` high, or as tall as larger text needs
@@ -114,13 +115,16 @@ pub fn wrap_buttons_spaced<A: Copy + PartialEq>(
         return 0.0;
     }
     let h = ui.button_height(h);
+    // A row is a touch target tall, so the presses of two rows do not
+    // share the overlap.
+    let pitch = (h + row_gap).max(ui.touch);
     let (mut bx, mut by) = (x, y);
     for &(label, style, action) in items {
         let bw = ui.button_width(label, style).min(w);
         let label = &ui.fit_as(LABEL_L, label, bw - ui.button_width("", style) + BUTTON_PAD);
         if bx > x && bx + bw > x + w {
             bx = x;
-            by += h + row_gap;
+            by += pitch;
         }
         bx += if style == Style::Ghost && bx == x {
             ui.text_button(bx, by, label, style, action) + GAP
@@ -128,7 +132,7 @@ pub fn wrap_buttons_spaced<A: Copy + PartialEq>(
             ui.button(bx, by, Some(bw), h, label, style, action) + GAP
         };
     }
-    by - y + h + row_gap
+    by - y + pitch
 }
 
 /// The height [`wrap_buttons`] takes for these labels, `h` high in `w`,
@@ -143,16 +147,17 @@ pub fn wrap_buttons_height<A: Copy + PartialEq>(
         return 0.0;
     }
     let h = ui.button_height(h);
+    let pitch = (h + GAP).max(ui.touch);
     let (mut bx, mut by) = (0.0, 0.0);
     for label in labels {
         let bw = ui.button_width(label, Style::Secondary).min(w);
         if bx > 0.0 && bx + bw > w {
             bx = 0.0;
-            by += h + GAP;
+            by += pitch;
         }
         bx += bw + GAP;
     }
-    by + h + GAP
+    by + pitch
 }
 
 /// The height `draw` takes, drawing nothing and keeping no hits: what a

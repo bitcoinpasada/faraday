@@ -520,6 +520,9 @@ pub struct Ui<'a, A> {
     /// smaller target of the compact and short layout where the screen
     /// sets it (`tokens::touch`, F188).
     pub touch: f32,
+    /// Notes are set one type step up (Body medium for Body small): a low
+    /// window that is not compact, the 7-inch panel (`docs/LAYOUT.md` §8).
+    pub note_up: bool,
     /// Where the step column drew a chip that a press opens, this
     /// frame: its left edge, its foot and its width, units.
     pub chip_at: Option<(f32, f32, f32)>,
@@ -682,6 +685,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             follow_to: None,
             compact: false,
             touch: faraday_draw::tokens::TOUCH,
+            note_up: false,
             chip_at: None,
             cut: Vec::new(),
             hit_clip: None,

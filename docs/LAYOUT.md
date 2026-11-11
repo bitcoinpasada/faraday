@@ -37,6 +37,10 @@ panel): §3 says what each changes.
 A press is taken on at least 48 × 48 dp (`TOUCH`); on the compact and
 short layout, the Pi panel, the floor is 44 × 44 dp
 (`TOUCH_COMPACT_SHORT`, `tokens::touch`, F188).
+A button or chip drawn smaller than that (a 40 dp button, a 32 dp
+chip) keeps its container and takes its press on the floor square round
+it (`Ui::reach_for`); a column of them is spaced a touch target apart so
+the squares do not share their overlap.
 
 Every class lays the screen out again at its own width. Nothing is
 scaled to fill a window.
@@ -380,6 +384,12 @@ each at the text size the person's system asks for.
   title `TITLE_L`, the navigation labels `LABEL_M` (the rail's rows
   `LABEL_L`), the snackbar and a rich tooltip `BODY_M`, a plain
   tooltip `BODY_S`.
+
+  On a low window that is not compact (the 7-inch panel, 1024 × 600),
+  a note, `BODY_S` regular or monospaced, is set one step up, as
+  `BODY_M` in the same face: `Ui::stepped`, which every `_as` method
+  applies (`Ui::note_up`, from `Faraday::note_up`). The compact panels
+  and every taller window keep `BODY_S`.
 
 ## 9. Tokens
 

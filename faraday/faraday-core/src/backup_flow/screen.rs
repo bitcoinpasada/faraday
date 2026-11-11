@@ -33,7 +33,7 @@ fn btn(
     room: f32,
 ) -> f32 {
     ui.button(x, y, w, h, label, style, action);
-    room
+    room.max(ui.touch)
 }
 
 fn fa(a: F) -> Action {
@@ -983,7 +983,7 @@ fn bind_card(
                 &label,
                 Style::Primary,
                 fa(F::Tap),
-                52.0,
+                56.0,
             );
         }
         Confirm::Hold => {
