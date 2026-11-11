@@ -1,8 +1,8 @@
 # Prompts
 
 **Kind:** Reference
-**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/boot_import/screen.rs`, `faraday/faraday-core/src/in_progress.rs`)
-**Screen:** `Devices`, `NewInput`, `Import`, `Pull`, `CancelFlow`, `CancelKey`
+**Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-core/src/screens/sheets.rs`, `faraday/faraday-core/src/boot_import/screen.rs`, `faraday/faraday-core/src/boot_import/text_ask.rs`, `faraday/faraday-core/src/in_progress.rs`)
+**Screen:** `Devices`, `NewInput`, `Import`, `TextSeed`, `Pull`, `CancelFlow`, `CancelKey`
 **Group:** Home
 
 The small sheets that open over any screen when something needs an
@@ -125,6 +125,22 @@ read until **Import**.
 
 **Unlock** opens the vault and then its Load sheet; **Cancel** leaves the
 vault locked in Files and goes on to the next.
+
+## A picture that reads as a seed or as text
+
+**Opened from:** a stick visit or **Import** from the boot stick, for
+each picture whose QR code is 16 or 32 bytes that are both text and a
+CompactSeedQR (`docs/SCANNING.md` §1). Its title names the file ("seed.png
+reads as a seed or as text"). One sheet opens for each such picture, in
+turn; nothing in it is loaded as a key until it is answered.
+
+| Control | What it does |
+|---|---|
+| **Load as a key** | reads the code as a CompactSeedQR: its words are kept as a file beside the picture and loaded as a key, at once when no stick is in, or when the stick is pulled |
+| **Leave as a file** | keeps the picture as a file and loads nothing; the visit's list says it was left as a file. Closing the sheet does the same |
+
+A binary CompactSeedQR, and every other seed, loads as before, with no
+sheet.
 
 ## Pull the stick
 
