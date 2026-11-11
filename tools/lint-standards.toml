@@ -398,6 +398,11 @@ decision = "F136"
 case = "Signs with a caution: a signature stricter than its input asks; a signer that committed to more"
 
 [[caution]]
+kind = "WarningKind::ChangeFarIndex"
+decision = "F242"
+case = "Signs with a caution: change at an address index of 10,000 or more, which a wallet with a gap limit does not find; it is still the wallet's own change"
+
+[[caution]]
 kind = "Kind::SignatureUnchecked"
 decision = "F84"
 case = "Check a signer's finding (F84): a removal or an unchecked signature is a Caution and fails the verdict; nothing is signed past it"

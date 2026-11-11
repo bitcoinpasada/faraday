@@ -672,12 +672,12 @@ impl Session {
         self.add_policy(c, name, policy, source, origin)
     }
 
+    /// Costs a key derivation (of at most `MAX_PATH_STEPS` steps) per key
+    /// checked.
+    ///
     /// The fingerprint of a key of `policy` that is under a loaded
     /// fingerprint (one of `only`, when given) and is not what that key
     /// gives at the key's origin path.
-    ///
-    /// Costs a key derivation (of at most `MAX_PATH_STEPS` steps) per key
-    /// checked.
     fn forged_key(
         &self,
         c: &Compute,
@@ -704,14 +704,14 @@ impl Session {
         None
     }
 
+    /// Costs a key derivation per wallet key under a fingerprint loaded
+    /// since the wallet was checked, none when no key was loaded.
+    ///
     /// Takes out of the session every wallet with a key under a
     /// fingerprint that was not loaded when the wallet was added (or last
     /// checked) that is not what that key gives at its path (a wallet
     /// added before its key), and returns each one's name and the
     /// refusal's text.
-    ///
-    /// Costs a key derivation per wallet key under a fingerprint loaded
-    /// since the wallet was checked, none when no key was loaded.
     pub(crate) fn drop_forged(&mut self, c: &Compute) -> Vec<(String, String)> {
         let now: Vec<Fingerprint> = self.keys.all().map(|k| k.fingerprint).collect();
         let mut dropped = Vec::new();

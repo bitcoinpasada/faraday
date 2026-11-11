@@ -168,7 +168,8 @@ pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     Ok(policy)
 }
 
-/// What [`read_wallet`] reads, before its refusal of a key with no origin.
+/// Costs what [`read_wallet`] costs: what it reads, before its refusal
+/// of a key with no origin.
 fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
     if let Some(read) = read_whole(c, text) {
         return read;
