@@ -1,0 +1,23 @@
+[package]
+name = "aqrv-cli"
+version = "0.2.0"
+description = "The Argon QR Vault's command line (docs/AQRV.md)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "aqrv"
+path = "src/main.rs"
+
+[dependencies]
+aqrv = { path = "../aqrv" }
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-codec = { path = "../../core/faraday-codec" }
+faraday-files = { path = "../../faraday/faraday-files" }
+getrandom.workspace = true
+
+[lints]
+workspace = true

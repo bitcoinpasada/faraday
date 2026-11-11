@@ -258,5 +258,6 @@ Read this table, then only the decision you need.
 | [F241](decisions/F241.md) | A release's fuzz run may be made of two runs, the later one running only the targets whose corpus reaches what changed | 2026-11-11 | Active | repository |
 | [F242](decisions/F242.md) | Change at an address index of 10,000 or more is shown as change with a Caution, not as verified change; signing stays possible | 2026-11-11 | Active | signing |
 | [F243](decisions/F243.md) | One targeted check may run on GitHub Actions, started by hand: one crate's tests or one lint recipe, under F183's limits | 2026-11-11 | Active | repository |
-| [F246](decisions/F246.md) | Off mainnet, the mode pill stands at the end of the top bar's first line, and a long name steps down, then wraps | 2026-11-11 | Active | design |
 | [F244](decisions/F244.md) | Keep data refuses the same build only when the stick's boot partition is already exactly the release's | 2026-11-11 | Active | starter |
+| [F245](decisions/F245.md) | The Argon QR Vault is built as a test tool outside Faraday's apps: a library, a command line and a desktop app in `aqrv/`, test data only, into the app only after an outside review | 2026-11-11 | Active | standards |
+| [F246](decisions/F246.md) | Off mainnet, the mode pill stands at the end of the top bar's first line, and a long name steps down, then wraps | 2026-11-11 | Active | design |

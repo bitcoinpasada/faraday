@@ -8,10 +8,17 @@ rust-version.workspace = true
 repository.workspace = true
 publish = false
 
+[features]
+# Faraday's own side: the camera with its scanner (`camera`, `lens`) and
+# `wake_on_work`. The Argon QR Vault's window turns it off (F245).
+default = ["faraday"]
+faraday = ["dep:faraday-core", "dep:faraday-camera", "dep:faraday-scanner",
+    "dep:faraday-v4l2", "dep:faraday-avfoundation", "dep:faraday-mediafoundation"]
+
 [dependencies]
-faraday-core = { path = "../../faraday-core" }
-faraday-camera = { path = "../camera" }
-faraday-scanner = { path = "../../faraday-scanner" }
+faraday-core = { path = "../../faraday-core", optional = true }
+faraday-camera = { path = "../camera", optional = true }
+faraday-scanner = { path = "../../faraday-scanner", optional = true }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 winit.workspace = true
 softbuffer.workspace = true
@@ -21,13 +28,13 @@ png.workspace = true
 
 # The webcam.
 [target.'cfg(target_os = "linux")'.dependencies]
-faraday-v4l2 = { path = "../../../faraday/shells/v4l2" }
+faraday-v4l2 = { path = "../../../faraday/shells/v4l2", optional = true }
 
 [target.'cfg(target_os = "macos")'.dependencies]
-faraday-avfoundation = { path = "../../../faraday/shells/avfoundation" }
+faraday-avfoundation = { path = "../../../faraday/shells/avfoundation", optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-faraday-mediafoundation = { path = "../mediafoundation" }
+faraday-mediafoundation = { path = "../mediafoundation", optional = true }
 
 # The clipboard's text on Windows: the API, no tool (clipboard.rs,
 # docs/deps/clipboard.md). The release the Starter pins (winit brings it

@@ -1,0 +1,20 @@
+[package]
+name = "aqrv"
+version = "0.2.0"
+description = "The Argon QR Vault's format (docs/AQRV.md): seal and open, nothing else"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-bip = { path = "../../core/faraday-bip" }
+chacha20.workspace = true
+unicode-normalization.workspace = true
+zeroize.workspace = true
+subtle.workspace = true
+
+[lints]
+workspace = true

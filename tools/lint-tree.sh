@@ -24,6 +24,7 @@ cd "$(dirname "$0")/.." || exit 2
 
 # What each top-level entry is.
 TOP=(
+    aqrv                 # the Argon QR Vault, a test tool outside Faraday's apps (F245)
     .claude              # the agent definitions a change may use
     .github              # issue templates and the check's workflow (F183)
     .gitignore

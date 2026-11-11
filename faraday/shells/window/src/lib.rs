@@ -8,10 +8,12 @@
 //! loop and what only it does (the desktop's stick folders, the Starter's
 //! disks).
 
+#[cfg(feature = "faraday")]
 pub mod camera;
 pub mod clipboard;
 pub mod drag;
 pub mod input;
+#[cfg(feature = "faraday")]
 pub mod lens;
 pub mod pace;
 pub mod view;
@@ -47,6 +49,7 @@ pub fn entropy() -> Vec<Event> {
 /// Has `app` call the window's loop when its worker has an answer
 /// (`docs/WORKERS.md` §7.2): the loop's next pass sends the tick that
 /// applies it ([`pace::Pacer::woken`]).
+#[cfg(feature = "faraday")]
 pub fn wake_on_work(
     app: &mut faraday_core::Faraday,
     proxy: &winit::event_loop::EventLoopProxy<()>,

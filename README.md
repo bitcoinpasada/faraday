@@ -631,6 +631,7 @@ are signed with the same key as well (`git tag -v v0.1.10`).
 |---|---|
 | `core/` | the libraries with no flow and no wording in them: the cryptography, the codecs, the drawing base and the shell contract |
 | `faraday/` | Faraday itself: `faraday-core`, the shells (stick, Pi, desktop, Starter), the vault, GPG, Secure Boot, QR codes, the image build |
+| `aqrv/` | the Argon QR Vault (`docs/AQRV.md`): its library, command line and desktop test app, a test tool outside Faraday's apps (F245) |
 | `docs/` | what is true now or still to be built, indexed in `docs/README.md`; how it was built is in `docs/history/` |
 | `tools/` | the lints, the cross-check, the vendored references and vectors, and the scripts `just` runs (`tools/README.md`) |
 | `fuzz/` | the shared crates' fuzz targets (`faraday/fuzz/` holds Faraday's own) |

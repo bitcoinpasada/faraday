@@ -810,6 +810,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "faraday")]
     #[test]
     fn faraday_demos_window_shows_every_step_of_its_fades_whole() {
         use faraday_core::{Action, Faraday, Host, Screen};

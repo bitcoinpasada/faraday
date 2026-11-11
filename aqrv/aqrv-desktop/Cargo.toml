@@ -1,0 +1,25 @@
+[package]
+name = "aqrv-desktop"
+version = "0.2.0"
+description = "The Argon QR Vault's desktop test app (docs/AQRV.md)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "argon-qr-vault"
+path = "src/main.rs"
+
+[dependencies]
+aqrv-app = { path = "../aqrv-app" }
+faraday-window = { path = "../../faraday/shells/window", default-features = false }
+faraday-shell-api = { path = "../../core/faraday-shell-api" }
+faraday-files = { path = "../../faraday/faraday-files" }
+winit.workspace = true
+getrandom.workspace = true
+png.workspace = true
+
+[lints]
+workspace = true
