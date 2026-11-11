@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A second reader and writer for the Argon QR Vault (AQRV), written from
-docs/AQRV.md section 2 to 10 alone, and run over every case of aqrv.json.
+docs/AQRV.md section 2 to 10 alone, and run over every case of aqrv.json,
+the 32-byte size's text forms and the QR pictures.
 
 It takes an envelope and a passphrase and answers: not recognised; refused,
 and why; or opened, with the fields. It also seals: for each case that opens,
@@ -101,8 +102,10 @@ def chacha20_self_test():
 # ---------------------------------------------------------------- the format
 
 STEP_KIB = {0: 65536, 1: 131072, 2: 262144, 3: 524288, 4: 1048576}
-SIZES = {53: (32, 4), 62: (37, 8)}  # envelope length -> room, tag length
+SIZES = {32: (16, 4), 53: (32, 4), 62: (37, 8)}  # envelope length -> room, tag length
+SALT = {32: 11, 53: 16, 62: 16}  # envelope length -> salt length
 KINDS = [0x10, 0x14, 0x18, 0x1C, 0x20, 0x30, 0x40, 0x41, 0x50]
+KINDS_OF = {32: [0x10, 0x40, 0x41], 53: KINDS, 62: KINDS}  # the kinds each size holds and tests
 ENTROPY = {0x10: 16, 0x14: 20, 0x18: 24, 0x1C: 28, 0x20: 32}
 LABEL_ENC = b"argon-qr-vault-1 enc"
 LABEL_MAC = b"argon-qr-vault-1 mac"
@@ -148,7 +151,7 @@ def derive(passphrase, salt, kib):
 
 def tags_for(k_mac, header, n, salt, c, t):
     out = {}
-    for kind in KINDS:
+    for kind in KINDS_OF[n]:
         msg = bytes([header, n]) + salt + bytes([kind]) + c
         out[kind] = hmac.new(k_mac, msg, hashlib.sha256).digest()[:t]
     return out
@@ -218,6 +221,28 @@ def recognised(env):
     return len(env) in SIZES and 0xF8 <= env[0] <= 0xFC
 
 
+QR_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"  # QR alphanumeric, index = digit
+
+
+def text_to_envelope(s):
+    """Section 9: the 32 bytes a 47-character code stands for, or None (not recognised)."""
+    if len(s) != 47 or any(ch not in QR_ALPHABET for ch in s):
+        return None
+    v = functools.reduce(lambda a, ch: a * 45 + QR_ALPHABET.index(ch), s, 0)
+    if v >> 256:
+        return None
+    return v.to_bytes(32, "big")
+
+
+def envelope_to_text(env):
+    """Section 3: a 32-byte envelope as 47 base-45 digits, most significant first."""
+    v, out = int.from_bytes(env, "big"), []
+    for _ in range(47):
+        v, d = divmod(v, 45)
+        out.append(QR_ALPHABET[d])
+    return "".join(reversed(out))
+
+
 def read(env, passphrase):
     """Returns (answer, values). answer is ("not_recognised",), ("no_match",),
     ("ambiguous",), ("layout", kind, rule) or ("opens", kind, item)."""
@@ -225,7 +250,8 @@ def read(env, passphrase):
         return ("not_recognised",), {}
     header, n = env[0], len(env)
     room, t = SIZES[n]
-    salt, c, tag = env[1:17], env[17 : 17 + room], env[17 + room :]
+    sl = SALT[n]
+    salt, c, tag = env[1 : 1 + sl], env[1 + sl : 1 + sl + room], env[1 + sl + room :]
     pw, prk, k_enc, k_mac = derive(passphrase, salt, STEP_KIB[header & 7])
     ks = chacha20_stream(k_enc, 0, bytes(12), room)
     p = xor(c, ks)
@@ -234,9 +260,9 @@ def read(env, passphrase):
         "pw": pw.hex(), "PRK": prk.hex(), "K_enc": k_enc.hex(), "K_mac": k_mac.hex(),
         "keystream": ks.hex(), "P": p.hex(), "C": c.hex(), "tag": tag.hex(),
         "tags": {"0x%02X" % k: v.hex() for k, v in tags.items()},
-        "hmac_message": {k: bytes([header, n]) + salt + bytes([k]) + c for k in KINDS},
+        "hmac_message": {k: bytes([header, n]) + salt + bytes([k]) + c for k in KINDS_OF[n]},
     }
-    hits = [k for k in KINDS if hmac.compare_digest(tags[k], tag)]
+    hits = [k for k in KINDS_OF[n] if hmac.compare_digest(tags[k], tag)]
     if not hits:
         return ("no_match",), values
     if len(hits) > 1:
@@ -305,6 +331,10 @@ def seal(passphrase, step, size, kind, item, salt, padding, fill=0):
     if not passphrase:
         raise WriterRefuses("empty passphrase")
     room, t = SIZES[size]
+    if kind not in KINDS_OF[size]:
+        raise WriterRefuses("kind not held at this size")
+    if len(salt) != SALT[size]:
+        raise WriterRefuses("salt length")
     ib = item_bytes_for(kind, item, fill)
     if len(ib) > room:
         raise WriterRefuses("does not fit")
@@ -314,7 +344,7 @@ def seal(passphrase, step, size, kind, item, salt, padding, fill=0):
     _, _, k_enc, k_mac = derive(passphrase, salt, STEP_KIB[step])
     c = xor(ib + padding, chacha20_stream(k_enc, 0, bytes(12), room))
     tags = tags_for(k_mac, header, size, salt, c, t)
-    if any(tags[k] == tags[kind] for k in KINDS if k != kind):
+    if any(tags[k] == tags[kind] for k in KINDS_OF[size] if k != kind):
         raise WriterRefuses("two kinds' tags agree")
     return bytes([header]) + salt + c + tags[kind]
 
@@ -412,6 +442,10 @@ def qr_checks(data, fails):
         if hashlib.sha256(open(path, "rb").read()).hexdigest() != q["png_sha256"]:
             fails.append("qr %s: sha256 differs from the JSON" % q["png"])
         want = bytes.fromhex(q["envelope"])
+        if "text" in q:
+            if text_to_envelope(q["text"]) != want or envelope_to_text(want) != q["text"]:
+                fails.append("qr %s: the text is not the envelope's text form" % q["png"])
+            want = q["text"].encode("ascii")
         notes.append(decode_qr(path, want, q["png"], fails))
     return notes
 
@@ -538,6 +572,13 @@ def main():
                 fails.append("%s: sealed envelope differs" % name)
     # what a writer refuses
     for r in data["writer_refuses"]:
+        if "size" in r:
+            try:
+                seal("p", 0, r["size"], int(r["kind"], 16), r["item"], bytes(SALT[r["size"]]), b"")
+                fails.append("writer takes %s at %d bytes (%s)" % (r["kind"], r["size"], r["reason"]))
+            except WriterRefuses:
+                pass
+            continue
         try:
             codex32_item(r["string"], 0)
             fails.append("writer takes %r (%s)" % (r["string"], r["reason"]))
@@ -548,15 +589,34 @@ def main():
         ("empty note", lambda: item_bytes_for(0x41, {"text": ""}, 0)),
         ("note over the room at 53", lambda: seal("p", 0, 53, 0x41, {"text": "x" * 32}, bytes(16), b"")),
         ("37 bytes of codex32 at 53", lambda: seal("p", 0, 53, 0x30, {"string": "ms1" + "q" * 71}, bytes(16), b"")),
+        ("a raw key at 32", lambda: seal("p", 0, 32, 0x50, {"hex": "00" * 32}, bytes(11), b"")),
+        ("a 16-byte salt at 32", lambda: seal("p", 0, 32, 0x10, {"hex": "00" * 16}, bytes(16), b"")),
     ):
         try:
             call()
             fails.append("writer takes: %s" % what)
         except WriterRefuses:
             pass
+    # the 32-byte size's text form
+    texts = 0
+    for tc in data.get("qr_text", []):
+        texts += 1
+        name, exp = tc["name"], tc["expect"]
+        env = text_to_envelope(tc["text"])
+        if exp["outcome"] == "not_recognised":
+            if env is not None and recognised(env):
+                fails.append("%s: the text is recognised" % name)
+            continue
+        if env is None or env.hex() != exp["envelope"] or envelope_to_text(env) != tc["text"]:
+            fails.append("%s: the text does not decode to the envelope" % name)
+            continue
+        ans, _ = read(env, tc["passphrase"])
+        if ans[0] != "opens" or ans[1] != int(exp["kind"], 16) or ans[2] != exp["item"]:
+            fails.append("%s: expected to open, got %s" % (name, ans))
     qr_notes = [] if "--no-qr" in sys.argv else qr_checks(data, fails)
-    print("%d cases: %d open, %d do not open, %d not recognised; %d sealed again; %d values compared; %d disagreements"
-          % (len(cases), opened, refused, unrec, sealed, values_n, len(fails)))
+    print("%d cases: %d open, %d do not open, %d not recognised; %d sealed again; %d values compared; "
+          "%d text forms; %d disagreements"
+          % (len(cases), opened, refused, unrec, sealed, values_n, texts, len(fails)))
     for n in qr_notes:
         print("qr " + n)
     for f in fails:

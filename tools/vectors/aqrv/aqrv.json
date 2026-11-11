@@ -40,14 +40,49 @@
   },
   "sizes": [
    {
+    "bytes": 32,
+    "salt_bytes": 11,
+    "room": 16,
+    "tag_bytes": 4,
+    "kinds": [
+     "0x10",
+     "0x40",
+     "0x41"
+    ]
+   },
+   {
     "bytes": 53,
+    "salt_bytes": 16,
     "room": 32,
-    "tag_bytes": 4
+    "tag_bytes": 4,
+    "kinds": [
+     "0x10",
+     "0x14",
+     "0x18",
+     "0x1C",
+     "0x20",
+     "0x30",
+     "0x40",
+     "0x41",
+     "0x50"
+    ]
    },
    {
     "bytes": 62,
+    "salt_bytes": 16,
     "room": 37,
-    "tag_bytes": 8
+    "tag_bytes": 8,
+    "kinds": [
+     "0x10",
+     "0x14",
+     "0x18",
+     "0x1C",
+     "0x20",
+     "0x30",
+     "0x40",
+     "0x41",
+     "0x50"
+    ]
    }
   ],
   "kinds": [
@@ -5501,6 +5536,1061 @@
     "iv": "0f4da3a7849d8f0b9c0e9f98",
     "tag_bytes": 4
    }
+  },
+  {
+   "name": "step-0-12w-32",
+   "group": "step",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x10",
+   "kind_name": "BIP-39 entropy, 12 words",
+   "item_bytes": "511dde409a28bd2d7684456f040fe6a3",
+   "salt": "93130a8b484d7cf3df825f",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "984f1c72bb6b32f32677af366d2f829d602c754f4fcd02d66a06cba3fcba1fe1",
+    "K_enc": "22f36fa20990c04e2593e54a0abb779f8336242e023e65987a971e6899adf9f0",
+    "K_mac": "f5f2857007632f7c19044705c5a9a07de2d57d20d4ddfb7dd72d06d7bb27cebe",
+    "keystream": "41c7d0f2ef59682bf802419c6f45f566",
+    "P": "511dde409a28bd2d7684456f040fe6a3",
+    "C": "10da0eb27571d5068e8604f36b4a13c5",
+    "hmac_message": "f82093130a8b484d7cf3df825f1010da0eb27571d5068e8604f36b4a13c5",
+    "tags": {
+     "0x10": "540ae3e0",
+     "0x40": "f2a624c3",
+     "0x41": "0fb91c80"
+    },
+    "tag": "540ae3e0"
+   },
+   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "511dde409a28bd2d7684456f040fe6a3"
+    }
+   }
+  },
+  {
+   "name": "step-1-12w-32",
+   "group": "step",
+   "size": 32,
+   "step": 1,
+   "memory_kib": 131072,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x10",
+   "kind_name": "BIP-39 entropy, 12 words",
+   "item_bytes": "1b9f2451d09be12608075bfa461f5654",
+   "salt": "66e22d4f09b0923354f386",
+   "header": "0xF9",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "ddc38a031f187f659e852d34d98377fbfd8aab951b1ccbd721d61882ae0f127e",
+    "K_enc": "d90409e016a5decb51e846744e80c8d0b9679f703ebee68ccc112c939bd6f726",
+    "K_mac": "686f11ac3b7ec3f664f4771b70aa007cb4441facd3b62ca1c60ed437428f9ffd",
+    "keystream": "a9d781a867e7f5bb4e6418ece9cef47f",
+    "P": "1b9f2451d09be12608075bfa461f5654",
+    "C": "b248a5f9b77c149d46634316afd1a22b",
+    "hmac_message": "f92066e22d4f09b0923354f38610b248a5f9b77c149d46634316afd1a22b",
+    "tags": {
+     "0x10": "2818232f",
+     "0x40": "033df7f2",
+     "0x41": "f075763a"
+    },
+    "tag": "2818232f"
+   },
+   "envelope": "f966e22d4f09b0923354f386b248a5f9b77c149d46634316afd1a22b2818232f",
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "1b9f2451d09be12608075bfa461f5654"
+    }
+   }
+  },
+  {
+   "name": "step-2-12w-32",
+   "group": "step",
+   "size": 32,
+   "step": 2,
+   "memory_kib": 262144,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x10",
+   "kind_name": "BIP-39 entropy, 12 words",
+   "item_bytes": "bc009a7c63f8cb33ca885350c0ae3236",
+   "salt": "46f727f4c92ff341cb64b4",
+   "header": "0xFA",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "ff4f11c10256154557b7c0d534cdcf9c356ae28ea1c0513a2460d2a1db96dc82",
+    "K_enc": "c48257d4e57ffda55ff8d141c0836c55b4b5a1a4565ea6c0485cf773cebf7374",
+    "K_mac": "7dfe2666de64c2daf70842b56a5da6e0fc53f5cf99d8e8b548f4b1c10595b561",
+    "keystream": "69057485240589ff03c4290ae964c538",
+    "P": "bc009a7c63f8cb33ca885350c0ae3236",
+    "C": "d505eef947fd42ccc94c7a5a29caf70e",
+    "hmac_message": "fa2046f727f4c92ff341cb64b410d505eef947fd42ccc94c7a5a29caf70e",
+    "tags": {
+     "0x10": "f3b4612d",
+     "0x40": "b41f62e1",
+     "0x41": "41581089"
+    },
+    "tag": "f3b4612d"
+   },
+   "envelope": "fa46f727f4c92ff341cb64b4d505eef947fd42ccc94c7a5a29caf70ef3b4612d",
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "bc009a7c63f8cb33ca885350c0ae3236"
+    }
+   }
+  },
+  {
+   "name": "step-3-12w-32",
+   "group": "step",
+   "size": 32,
+   "step": 3,
+   "memory_kib": 524288,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x10",
+   "kind_name": "BIP-39 entropy, 12 words",
+   "item_bytes": "52fc9850877d890124e18c3a4c70f70d",
+   "salt": "59dbf4706929ab5936a61f",
+   "header": "0xFB",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "0b27cd1ed914d88d161d3737e657856055dcf85f6c6eb7f900acb9d73aaf7e54",
+    "K_enc": "e77da7f93c29bab8d9c7fda68da6e1a4471b4094529ab29840161b4544ca557a",
+    "K_mac": "50e155bfbbf4c6b73076f0fe0e1b49a695b0810ea32dde7c422bba17acb83ab8",
+    "keystream": "71c1ae7198c14d66004cfd1d16fe7882",
+    "P": "52fc9850877d890124e18c3a4c70f70d",
+    "C": "233d36211fbcc46724ad71275a8e8f8f",
+    "hmac_message": "fb2059dbf4706929ab5936a61f10233d36211fbcc46724ad71275a8e8f8f",
+    "tags": {
+     "0x10": "2ef01ce3",
+     "0x40": "da95df6e",
+     "0x41": "12f32388"
+    },
+    "tag": "2ef01ce3"
+   },
+   "envelope": "fb59dbf4706929ab5936a61f233d36211fbcc46724ad71275a8e8f8f2ef01ce3",
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "52fc9850877d890124e18c3a4c70f70d"
+    }
+   }
+  },
+  {
+   "name": "step-4-12w-32",
+   "group": "step",
+   "size": 32,
+   "step": 4,
+   "memory_kib": 1048576,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x10",
+   "kind_name": "BIP-39 entropy, 12 words",
+   "item_bytes": "51cef3e8ab69e9f5b2bae97b6510ce7a",
+   "salt": "f48e86cd9420004fb0bba0",
+   "header": "0xFC",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "46d25c3c089a59745badc82d52a27ab5449f14fd5f86a6e33e073f5e070c8b47",
+    "K_enc": "97e930232196ac989aa2067dcc28ab0dcdaf55a0850f9fc6c003037abc2afb2c",
+    "K_mac": "e9d05d2c05ebb01e0fd3cadaa26645d1026ec957359847cc0ff3d17136d864ab",
+    "keystream": "20f4ebfe720ecfd30ad8c5ec3f087488",
+    "P": "51cef3e8ab69e9f5b2bae97b6510ce7a",
+    "C": "713a1816d9672626b8622c975a18baf2",
+    "hmac_message": "fc20f48e86cd9420004fb0bba010713a1816d9672626b8622c975a18baf2",
+    "tags": {
+     "0x10": "0c60df68",
+     "0x40": "c9ceb269",
+     "0x41": "a917e316"
+    },
+    "tag": "0c60df68"
+   },
+   "envelope": "fcf48e86cd9420004fb0bba0713a1816d9672626b8622c975a18baf20c60df68",
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "51cef3e8ab69e9f5b2bae97b6510ce7a"
+    }
+   }
+  },
+  {
+   "name": "passphrase-shortest-32",
+   "group": "kind",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x40",
+   "kind_name": "a BIP-39 passphrase",
+   "item_bytes": "0178",
+   "salt": "c9ad7e6b5d5378e3ff093a",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "fff2b5b2ba044eb5adf2d01eb62b5316f7b2a1499b43987711ade1fa484200fb",
+    "K_enc": "508aec10b23d79e5a066a6ed1e9003da6aa86d8ab745e5eb60d176562aa67168",
+    "K_mac": "c79420fbd6ac8a03ed78685990360a40fca3593d95d12a73906d4e46ec5303b2",
+    "keystream": "eb46429ab8dfe89560f9ce5518f895dc",
+    "P": "0178f875030d25e3c613c4f0480f0e46",
+    "C": "ea3ebaefbbd2cd76a6ea0aa550f79b9a",
+    "hmac_message": "f820c9ad7e6b5d5378e3ff093a40ea3ebaefbbd2cd76a6ea0aa550f79b9a",
+    "tags": {
+     "0x10": "c8a15737",
+     "0x40": "0da93ae5",
+     "0x41": "50344b20"
+    },
+    "tag": "0da93ae5"
+   },
+   "envelope": "f8c9ad7e6b5d5378e3ff093aea3ebaefbbd2cd76a6ea0aa550f79b9a0da93ae5",
+   "text_bytes": 1,
+   "padding": "f875030d25e3c613c4f0480f0e46",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x40",
+    "item": {
+     "type": "passphrase",
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "passphrase-longest-32",
+   "group": "kind",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x40",
+   "kind_name": "a BIP-39 passphrase",
+   "item_bytes": "0f303132333435363738396162636465",
+   "salt": "9c33efe61cacd7dfab3a65",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "e9ae448f5ad5e87c44ea29e2ba64f77801b8396b6638f486b24e22c629f40f5e",
+    "K_enc": "167523a467465baee848e51d567d8f88b073532394e7f67098f868f23280e548",
+    "K_mac": "b1fc3b5e789dafd84e71150e397ab10de6e0edd3600cac0f3f9a5ccb045f6686",
+    "keystream": "7ab1b0e1fbe5871f3509a3cc62a8cdc6",
+    "P": "0f303132333435363738396162636465",
+    "C": "758181d3c8d1b22902319aad00cba9a3",
+    "hmac_message": "f8209c33efe61cacd7dfab3a6540758181d3c8d1b22902319aad00cba9a3",
+    "tags": {
+     "0x10": "e8653387",
+     "0x40": "c7d99c25",
+     "0x41": "a52f55b9"
+    },
+    "tag": "c7d99c25"
+   },
+   "envelope": "f89c33efe61cacd7dfab3a65758181d3c8d1b22902319aad00cba9a3c7d99c25",
+   "text_bytes": 15,
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x40",
+    "item": {
+     "type": "passphrase",
+     "text": "0123456789abcde"
+    }
+   }
+  },
+  {
+   "name": "passphrase-non-ascii-32",
+   "group": "kind",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x40",
+   "kind_name": "a BIP-39 passphrase",
+   "item_bytes": "0f5a6fc3ab20e29c9320e697a5e69cac",
+   "salt": "b1f6a54541b2cecc50dd77",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "2f290424e1ea0186b9a8e48e7de02a36bb62e2062eb5dad2a04ea87e9e4d6930",
+    "K_enc": "aefbfdcd7a9e23db70d05a2a1eac80f5ea87ea898c80bb8ef6ff207083100bf3",
+    "K_mac": "3a364e3de92650f5619a42d306d5f3a53b4547476a91833853eb9e908a40b28d",
+    "keystream": "71077703355d7f969d83777d663ca4f9",
+    "P": "0f5a6fc3ab20e29c9320e697a5e69cac",
+    "C": "7e5d18c09e7d9d0a0ea391eac3da3855",
+    "hmac_message": "f820b1f6a54541b2cecc50dd77407e5d18c09e7d9d0a0ea391eac3da3855",
+    "tags": {
+     "0x10": "76237c0d",
+     "0x40": "3f23d84c",
+     "0x41": "b64284a3"
+    },
+    "tag": "3f23d84c"
+   },
+   "envelope": "f8b1f6a54541b2cecc50dd777e5d18c09e7d9d0a0ea391eac3da38553f23d84c",
+   "text_bytes": 15,
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x40",
+    "item": {
+     "type": "passphrase",
+     "text": "Zo\u00eb \u2713 \u65e5\u672c"
+    }
+   }
+  },
+  {
+   "name": "note-shortest-32",
+   "group": "kind",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x41",
+   "kind_name": "a note",
+   "item_bytes": "0178",
+   "salt": "d793668a82b8420710dbbc",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "4fa2ac7d1f1fdc5abb4965f245bc33b5baf94886ec51947687f9a89d0ab197a9",
+    "K_enc": "40aac28c5688e3c6724e30c9ed207bd61d199038c397936dfd75299e259deaf1",
+    "K_mac": "ef6c148729ec2bf5e700f58522bd50301c4cb0ed8b2e89895f5b8bae8ad2d1b0",
+    "keystream": "d7116694dff1a3da53eab36163eb7604",
+    "P": "01783d5f31b8e0af19406aaf5007b278",
+    "C": "d6695bcbee4943754aaad9ce33ecc47c",
+    "hmac_message": "f820d793668a82b8420710dbbc41d6695bcbee4943754aaad9ce33ecc47c",
+    "tags": {
+     "0x10": "676f6d0c",
+     "0x40": "ef225d78",
+     "0x41": "ca48e3a6"
+    },
+    "tag": "ca48e3a6"
+   },
+   "envelope": "f8d793668a82b8420710dbbcd6695bcbee4943754aaad9ce33ecc47cca48e3a6",
+   "text_bytes": 1,
+   "padding": "3d5f31b8e0af19406aaf5007b278",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x41",
+    "item": {
+     "type": "note",
+     "text": "x"
+    }
+   }
+  },
+  {
+   "name": "note-longest-32",
+   "group": "kind",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x41",
+   "kind_name": "a note",
+   "item_bytes": "0f303132333435363738396162636465",
+   "salt": "8661dced2493367fe9326d",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "f0763975f052353d77b2550b1492119b054da981eb4e1db196ecc5f68cd44c84",
+    "K_enc": "7097bd5f9b252d190c2827e67e8ae5cdfb0c133a57cb56b1eaeccf739cd076e1",
+    "K_mac": "2fe30f33c5ba5edc33cecbdf851d222fb3e6682e8b4a9be20b59f8965cd4e082",
+    "keystream": "7522357ccf29477079cefa8c871b18c3",
+    "P": "0f303132333435363738396162636465",
+    "C": "7a12044efc1d72464ef6c3ede5787ca6",
+    "hmac_message": "f8208661dced2493367fe9326d417a12044efc1d72464ef6c3ede5787ca6",
+    "tags": {
+     "0x10": "8d68d046",
+     "0x40": "0352445c",
+     "0x41": "07f3e02c"
+    },
+    "tag": "07f3e02c"
+   },
+   "envelope": "f88661dced2493367fe9326d7a12044efc1d72464ef6c3ede5787ca607f3e02c",
+   "text_bytes": 15,
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x41",
+    "item": {
+     "type": "note",
+     "text": "0123456789abcde"
+    }
+   }
+  },
+  {
+   "name": "note-non-ascii-32",
+   "group": "kind",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x41",
+   "kind_name": "a note",
+   "item_bytes": "0f5a6fc3ab20e29c9320e697a5e69cac",
+   "salt": "44f3e6ec9869d1cdea0cd2",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "d00fc567b7193f32eb3811cf8d806437a313765e8fbe8ba9c28f8d9ba94a4920",
+    "K_enc": "a3fe02b200f5d6f9f826d5bb43929bbe0555b3b1efc0a47c25a41a5aa1e4e3f5",
+    "K_mac": "da0b0f16a0f9eeb2e85df3bab2c9ebdd525718f51bbb9ba9311c4bf26c68991d",
+    "keystream": "e9fd24b419c1ce4c59e222eac5131bf4",
+    "P": "0f5a6fc3ab20e29c9320e697a5e69cac",
+    "C": "e6a74b77b2e12cd0cac2c47d60f58758",
+    "hmac_message": "f82044f3e6ec9869d1cdea0cd241e6a74b77b2e12cd0cac2c47d60f58758",
+    "tags": {
+     "0x10": "1c0e475f",
+     "0x40": "9b1f9d5d",
+     "0x41": "723aa14b"
+    },
+    "tag": "723aa14b"
+   },
+   "envelope": "f844f3e6ec9869d1cdea0cd2e6a74b77b2e12cd0cac2c47d60f58758723aa14b",
+   "text_bytes": 15,
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x41",
+    "item": {
+     "type": "note",
+     "text": "Zo\u00eb \u2713 \u65e5\u672c"
+    }
+   }
+  },
+  {
+   "name": "note-longest-multibyte-32",
+   "group": "kind",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x41",
+   "kind_name": "a note",
+   "item_bytes": "0fc3a9c3a9c3a9c3a9c3a9c3a9c3a961",
+   "salt": "8565c09efb1379213a34c3",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "c39d581b6a3f0497933b4b6fe723f586721c3de0d995f303ba3f33785b1cdbf7",
+    "K_enc": "fac42177bd30cc53d70cefdb6a1b43913f0918bd87b726cdb37d9ff51cceb08a",
+    "K_mac": "195e9d24d5ecef28f87e1aca1b12ef6af847f33881c685cad8446292d98e6cd2",
+    "keystream": "15d2ca67efe1e386df6aff1ff44b8a30",
+    "P": "0fc3a9c3a9c3a9c3a9c3a9c3a9c3a961",
+    "C": "1a1163a446224a4576a956dc5d882351",
+    "hmac_message": "f8208565c09efb1379213a34c3411a1163a446224a4576a956dc5d882351",
+    "tags": {
+     "0x10": "044435b3",
+     "0x40": "60acabe5",
+     "0x41": "d228634d"
+    },
+    "tag": "d228634d"
+   },
+   "envelope": "f88565c09efb1379213a34c31a1163a446224a4576a956dc5d882351d228634d",
+   "text_bytes": 15,
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x41",
+    "item": {
+     "type": "note",
+     "text": "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9a"
+    }
+   }
+  },
+  {
+   "name": "zero-seed-12w-32",
+   "group": "seed",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x10",
+   "kind_name": "BIP-39 entropy, 12 words",
+   "item_bytes": "00000000000000000000000000000000",
+   "salt": "13d12a739a9ccd55cbda85",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "7f4bfda7fb14387d5baafc64b21287bdd94322a0ff96dd5af57389a2e119ec17",
+    "K_enc": "d5559b61d478d4474e5740b5dbf8db17d66f13350411c62caad123894a8d58ea",
+    "K_mac": "03d903ac3dbb45c7404658def6c6f8bff3478e4617be7877308417c59749a80f",
+    "keystream": "259668d04a445165da451d37d76fc083",
+    "P": "00000000000000000000000000000000",
+    "C": "259668d04a445165da451d37d76fc083",
+    "hmac_message": "f82013d12a739a9ccd55cbda8510259668d04a445165da451d37d76fc083",
+    "tags": {
+     "0x10": "db417036",
+     "0x40": "5ef3eecf",
+     "0x41": "a1e0da9b"
+    },
+    "tag": "db417036"
+   },
+   "envelope": "f813d12a739a9ccd55cbda85259668d04a445165da451d37d76fc083db417036",
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "00000000000000000000000000000000"
+    }
+   }
+  },
+  {
+   "name": "ones-seed-12w-32",
+   "group": "seed",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x10",
+   "kind_name": "BIP-39 entropy, 12 words",
+   "item_bytes": "ffffffffffffffffffffffffffffffff",
+   "salt": "e0b6a20ef2d7333fe3468a",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "e3c9be22263cc8255a97805ed456a152b922c85e8eb79248ae78b2b431c7963a",
+    "K_enc": "d0e2a67eb704fee754eff7c95221c73bfeeb527aea3c8922a9737cbc6ecdedd1",
+    "K_mac": "88e8058f1c3f789198778710fc9eb8b24a0c9ccc86e3ec479649a16f222738e5",
+    "keystream": "613cefb25a7edc60d3ec298cabc3c26d",
+    "P": "ffffffffffffffffffffffffffffffff",
+    "C": "9ec3104da581239f2c13d673543c3d92",
+    "hmac_message": "f820e0b6a20ef2d7333fe3468a109ec3104da581239f2c13d673543c3d92",
+    "tags": {
+     "0x10": "93f7fea2",
+     "0x40": "d6cfa794",
+     "0x41": "6bbde993"
+    },
+    "tag": "93f7fea2"
+   },
+   "envelope": "f8e0b6a20ef2d7333fe3468a9ec3104da581239f2c13d673543c3d9293f7fea2",
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "ffffffffffffffffffffffffffffffff"
+    }
+   }
+  },
+  {
+   "name": "unicode-nfc-32",
+   "group": "unicode",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "caf\u00e9 \u2728 \u00c5ngstr\u00f6m",
+   "kind": "0x10",
+   "kind_name": "BIP-39 entropy, 12 words",
+   "item_bytes": "ae859713ef7c1e298b7b88bc8556cdd8",
+   "salt": "acd2dcfe26be3dd70cf746",
+   "header": "0xF8",
+   "values": {
+    "pw": "636166c3a920e29ca820c3856e67737472c3b66d",
+    "PRK": "8e03b72d54b76a417d9c1b8f43b750371e25e7cffb4e2b844c7535958735e4ce",
+    "K_enc": "f34f8dee22b8a47c78cff9fcbe57a0097c6bfe9c878dfb70df9a9c4e3a408a2b",
+    "K_mac": "39a77ce4e062c7d980e4c2375113bb769b21971f5b10df69d2f0d1484666ab6e",
+    "keystream": "6bc607f3e35e7f19e8764f7bcd6acf50",
+    "P": "ae859713ef7c1e298b7b88bc8556cdd8",
+    "C": "c54390e00c226130630dc7c7483c0288",
+    "hmac_message": "f820acd2dcfe26be3dd70cf74610c54390e00c226130630dc7c7483c0288",
+    "tags": {
+     "0x10": "701f44eb",
+     "0x40": "32b37cfc",
+     "0x41": "b57e1461"
+    },
+    "tag": "701f44eb"
+   },
+   "envelope": "f8acd2dcfe26be3dd70cf746c54390e00c226130630dc7c7483c0288701f44eb",
+   "passphrase_utf8": "636166c3a920e29ca820c3856e67737472c3b66d",
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "ae859713ef7c1e298b7b88bc8556cdd8"
+    }
+   }
+  },
+  {
+   "name": "unicode-nfd-32",
+   "group": "unicode",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "cafe\u0301 \u2728 A\u030angstro\u0308m",
+   "kind": "0x10",
+   "kind_name": "BIP-39 entropy, 12 words",
+   "item_bytes": "ae859713ef7c1e298b7b88bc8556cdd8",
+   "salt": "acd2dcfe26be3dd70cf746",
+   "header": "0xF8",
+   "values": {
+    "pw": "636166c3a920e29ca820c3856e67737472c3b66d",
+    "PRK": "8e03b72d54b76a417d9c1b8f43b750371e25e7cffb4e2b844c7535958735e4ce",
+    "K_enc": "f34f8dee22b8a47c78cff9fcbe57a0097c6bfe9c878dfb70df9a9c4e3a408a2b",
+    "K_mac": "39a77ce4e062c7d980e4c2375113bb769b21971f5b10df69d2f0d1484666ab6e",
+    "keystream": "6bc607f3e35e7f19e8764f7bcd6acf50",
+    "P": "ae859713ef7c1e298b7b88bc8556cdd8",
+    "C": "c54390e00c226130630dc7c7483c0288",
+    "hmac_message": "f820acd2dcfe26be3dd70cf74610c54390e00c226130630dc7c7483c0288",
+    "tags": {
+     "0x10": "701f44eb",
+     "0x40": "32b37cfc",
+     "0x41": "b57e1461"
+    },
+    "tag": "701f44eb"
+   },
+   "envelope": "f8acd2dcfe26be3dd70cf746c54390e00c226130630dc7c7483c0288701f44eb",
+   "passphrase_utf8": "63616665cc8120e29ca82041cc8a6e677374726fcc886d",
+   "padding": "",
+   "expect": {
+    "outcome": "opens",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "ae859713ef7c1e298b7b88bc8556cdd8"
+    }
+   }
+  },
+  {
+   "name": "fail-wrong-passphrase-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase!",
+   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "a wrong passphrase"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-header-step-bit-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f993130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "the step changed from 0 to 1: a different memory, a different key and tag"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-header-marker-bit-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "7893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "a bit of the marker changed: the first byte is 0x78"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-salt-bit-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f892130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "a bit of the salt changed"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-c-bit-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f893130a8b484d7cf3df825f11da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "a bit of the encrypted item changed"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-tag-bit-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e1",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "a bit of the tag changed"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-reserved-step-5-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "fd93130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "step 5 is reserved: the first byte is 0xFD"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-reserved-step-6-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "fe93130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "step 6 is reserved: the first byte is 0xFE"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-reserved-step-7-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "ff93130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "step 7 is reserved: the first byte is 0xFF"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-marker-11110-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f093130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "marker 0b11110, which a later version would use: the first byte is 0xF0"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-length-31",
+   "group": "fail",
+   "size": 31,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "31 bytes: the 32-byte envelope with its last byte removed"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-length-33",
+   "group": "fail",
+   "size": 33,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e000",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "33 bytes: the 32-byte envelope with a zero byte added"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-53-cut-to-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697c",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "the first 32 bytes of a 53-byte envelope: the length byte N is 32, the salt is read as 11 bytes, and the bytes read as C and tag are not the ones sealed"
+   },
+   "made_from": "step-0-24w-53"
+  },
+  {
+   "name": "fail-tag-with-n-53-on-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c50d184b05",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "the tag is HMAC over the message with N = 53 instead of 32, cut to 4 bytes: a tag made at one size does not open the other"
+   },
+   "made_from": "step-0-12w-32"
+  },
+  {
+   "name": "fail-tag-with-n-32-on-53",
+   "group": "fail",
+   "size": 53,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7001a599635",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "the tag is HMAC over the message with N = 32 instead of 53, cut to 4 bytes: a tag made at one size does not open the other"
+   },
+   "made_from": "step-0-24w-53"
+  },
+  {
+   "name": "fail-kind-20-not-at-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f8884eb40219e9cd97cbee718bbf784950d1498687e80aa8e5363e967205e705",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "the tag is right for kind 0x20 (BIP-39 entropy, 24 words), which the 32-byte size does not hold, so a reader does not test it"
+   },
+   "note": "made with the key: P is e11e2939325182b16744bd7bd7ecab9f, and the tag is HMAC over H || N || salt || 0x20 || C"
+  },
+  {
+   "name": "fail-kind-30-not-at-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f85da3c3683bc1e0c5553ecaa9e607a73ae05f363c212ef911de3ade2a818744",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "the tag is right for kind 0x30 (a codex32 string), which the 32-byte size does not hold, so a reader does not test it"
+   },
+   "note": "made with the key: P is 6b0c75b405d67ce6c5a3ab9ac8a8dffb, and the tag is HMAC over H || N || salt || 0x30 || C"
+  },
+  {
+   "name": "fail-kind-50-not-at-32",
+   "group": "fail",
+   "size": 32,
+   "passphrase": "aqrv vector passphrase",
+   "envelope": "f8a6dfd9dbd8f1695c89f612fb8edc7a1415c45f74c4a459852a568dac3f49bd",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "no kind's tag matches",
+    "reason": "the tag is right for kind 0x50 (a raw 32-byte key), which the 32-byte size does not hold, so a reader does not test it"
+   },
+   "note": "made with the key: P is ff719ff42445ec2dd5446fd0717c8b8f, and the tag is HMAC over H || N || salt || 0x50 || C"
+  },
+  {
+   "name": "tag-ok-note-len-0-32",
+   "group": "fail-right-tag",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x41",
+   "kind_name": "a note",
+   "item_bytes": "0042bb6a30b8ebd27b4f97f28175ff55",
+   "salt": "43aca025e3d0d294d25edc",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "1ed58ac1e169189371f68fb438cfbb8bc9c8658f00e861bb7da0e9401d307299",
+    "K_enc": "665f336eeef63562ca6b06a2562ced41632455fb21480b3d37098bca2f1f2932",
+    "K_mac": "a0876614f1de08b5b188d054c6e9246d3fed04da2ed34aaad736fecf9cfc128e",
+    "keystream": "6e1ade4492d99b6febe69f225d39fb43",
+    "P": "0042bb6a30b8ebd27b4f97f28175ff55",
+    "C": "6e58652ea26170bd90a908d0dc4c0416",
+    "hmac_message": "f82043aca025e3d0d294d25edc416e58652ea26170bd90a908d0dc4c0416",
+    "tags": {
+     "0x10": "2987896d",
+     "0x40": "9fdbb678",
+     "0x41": "77f4e438"
+    },
+    "tag": "77f4e438"
+   },
+   "envelope": "f843aca025e3d0d294d25edc6e58652ea26170bd90a908d0dc4c041677f4e438",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "the tag of kind 0x41 matches and the item fails its layout",
+    "reason": "len is 0"
+   }
+  },
+  {
+   "name": "tag-ok-passphrase-len-0-32",
+   "group": "fail-right-tag",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x40",
+   "kind_name": "a BIP-39 passphrase",
+   "item_bytes": "0036d35bca8ac0fa74323c56bfaad95d",
+   "salt": "dda7bbd96c8564e67ce5e5",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "42e6f5dda3b5280f8bd6f3a50400d1812654c8a4639dc131a1ded64c5a699fa4",
+    "K_enc": "9f3bde2afc20b254a7cff50421d95fdce10a4f578cac5f2716953879ff82c3fc",
+    "K_mac": "f828a4981b14f2cd07309e6048d22bf65bc96ae4dd4851d0c99db350e0cbbe05",
+    "keystream": "73262745d8f05927ddbbedaf23013b9d",
+    "P": "0036d35bca8ac0fa74323c56bfaad95d",
+    "C": "7310f41e127a99dda989d1f99cabe2c0",
+    "hmac_message": "f820dda7bbd96c8564e67ce5e5407310f41e127a99dda989d1f99cabe2c0",
+    "tags": {
+     "0x10": "8d9910a4",
+     "0x40": "45587652",
+     "0x41": "ef8de56b"
+    },
+    "tag": "45587652"
+   },
+   "envelope": "f8dda7bbd96c8564e67ce5e57310f41e127a99dda989d1f99cabe2c045587652",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "the tag of kind 0x40 matches and the item fails its layout",
+    "reason": "len is 0"
+   }
+  },
+  {
+   "name": "tag-ok-note-len-past-room-32",
+   "group": "fail-right-tag",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x41",
+   "kind_name": "a note",
+   "item_bytes": "10cf5b8fc901052234338f067b81b2f6",
+   "salt": "4840c88f8a3ab244e0f403",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "ee517f82305926658a4e9af46730fd495b5b53a33f4dce403f4c0dffaba1b23b",
+    "K_enc": "acd1d30c28c1916e7e140adb62652df1881d597e68b9c30852cca0b18d7f466b",
+    "K_mac": "743683fee3f45246e712393a36a30a62307185d1b4f1be29b1dea06ce979e6fa",
+    "keystream": "1ca8dda5c7cc5d5dedf2db0ea216537f",
+    "P": "10cf5b8fc901052234338f067b81b2f6",
+    "C": "0c67862a0ecd587fd9c15408d997e189",
+    "hmac_message": "f8204840c88f8a3ab244e0f403410c67862a0ecd587fd9c15408d997e189",
+    "tags": {
+     "0x10": "d33df8a3",
+     "0x40": "1ebc57e2",
+     "0x41": "6ccfd4bd"
+    },
+    "tag": "6ccfd4bd"
+   },
+   "envelope": "f84840c88f8a3ab244e0f4030c67862a0ecd587fd9c15408d997e1896ccfd4bd",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "the tag of kind 0x41 matches and the item fails its layout",
+    "reason": "len is 16, one past the longest allowed, room - 1 = 15"
+   }
+  },
+  {
+   "name": "tag-ok-passphrase-len-past-room-32",
+   "group": "fail-right-tag",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x40",
+   "kind_name": "a BIP-39 passphrase",
+   "item_bytes": "10fec2f304ff3c4d8fbffd56aaa259bd",
+   "salt": "e9331492ea853e368326f7",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "fca4588fad407206a43a6789ee1e4e0d4e8640ef75eeab4e365576c5e7e0d555",
+    "K_enc": "5f8e6b77551efaffdf9328e462b3c3741b8f660193ea490f9c2fed97324a99bb",
+    "K_mac": "551d7265a6020679c1098849e56acfb8e7c4cc51c8bb321fc1dac7b140637639",
+    "keystream": "d441c3630f60c59e25e47be7bc968a76",
+    "P": "10fec2f304ff3c4d8fbffd56aaa259bd",
+    "C": "c4bf01900b9ff9d3aa5b86b11634d3cb",
+    "hmac_message": "f820e9331492ea853e368326f740c4bf01900b9ff9d3aa5b86b11634d3cb",
+    "tags": {
+     "0x10": "1556e369",
+     "0x40": "62324cb3",
+     "0x41": "922da815"
+    },
+    "tag": "62324cb3"
+   },
+   "envelope": "f8e9331492ea853e368326f7c4bf01900b9ff9d3aa5b86b11634d3cb62324cb3",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "the tag of kind 0x40 matches and the item fails its layout",
+    "reason": "len is 16, one past the longest allowed, room - 1 = 15"
+   }
+  },
+  {
+   "name": "tag-ok-note-not-utf8-32",
+   "group": "fail-right-tag",
+   "size": 32,
+   "step": 0,
+   "memory_kib": 65536,
+   "passphrase": "aqrv vector passphrase",
+   "kind": "0x41",
+   "kind_name": "a note",
+   "item_bytes": "03fffefd39f422d47cf4c6a8b481fdfe",
+   "salt": "57542c69ae850778c7adb8",
+   "header": "0xF8",
+   "values": {
+    "pw": "6171727620766563746f722070617373706872617365",
+    "PRK": "c77cec5c101cfe54adce186456ab88f986c81b9554b74fcb2d989f61502dd5c0",
+    "K_enc": "9b77ba319e07b974373906fee79ed04bea5b11581e52e04bcb43165ac189e3a9",
+    "K_mac": "c8f2bce322ea4d98085b79a52a12a23a270b54f12b779d01fd0fabc42dc38753",
+    "keystream": "3e02a8f9346650b7f7e53a66ca359720",
+    "P": "03fffefd39f422d47cf4c6a8b481fdfe",
+    "C": "3dfd56040d9272638b11fcce7eb46ade",
+    "hmac_message": "f82057542c69ae850778c7adb8413dfd56040d9272638b11fcce7eb46ade",
+    "tags": {
+     "0x10": "b3729981",
+     "0x40": "f892fb04",
+     "0x41": "69bae4f9"
+    },
+    "tag": "69bae4f9"
+   },
+   "envelope": "f857542c69ae850778c7adb83dfd56040d9272638b11fcce7eb46ade69bae4f9",
+   "expect": {
+    "outcome": "does_not_open",
+    "why": "the tag of kind 0x41 matches and the item fails its layout",
+    "reason": "the 3 bytes of text 0xFF 0xFE 0xFD are not UTF-8"
+   }
+  },
+  {
+   "name": "kef-v5-8-char-id-32",
+   "group": "not-recognised",
+   "size": 32,
+   "envelope": "0837336335646130610500000a89bb3bb325a671c284ff8b634fe94f97f109f4",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "a KEF version 5 envelope: its first byte is the id length, 0x08, below 0xF8"
+   },
+   "kef": {
+    "id": "3733633564613061",
+    "id_text": "73c5da0a",
+    "version": 5,
+    "iterations_field": 10,
+    "iterations": 100000,
+    "passphrase": "kef vector passphrase",
+    "plaintext": "1945ad892041f2e643475a106d53eed4",
+    "check_bytes": 3
+   }
   }
  ],
  "writer_refuses": [
@@ -5511,6 +6601,33 @@
   {
    "string": "ms10fauxsxxxxxxxxxxxxxxxxxxxxxxxxxxve740yyge2ghq",
    "reason": "BIP 93's first invalid string: the checksum is wrong"
+  },
+  {
+   "size": 32,
+   "kind": "0x20",
+   "item": {
+    "type": "entropy",
+    "hex": "59734e702ad2de6c2133217030aee67d6922e55a0eb12a5ecf3bdb805db100d3"
+   },
+   "reason": "24 words of entropy: 32 bytes, over the 16-byte room of the 32-byte size"
+  },
+  {
+   "size": 32,
+   "kind": "0x41",
+   "item": {
+    "type": "note",
+    "text": "0123456789abcdef"
+   },
+   "reason": "a note of 16 bytes of text: 17 item bytes, over the 16-byte room"
+  },
+  {
+   "size": 32,
+   "kind": "0x30",
+   "item": {
+    "type": "codex32",
+    "string": "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw"
+   },
+   "reason": "a 128-bit codex32 string: 21 item bytes, and the kind is not held at the 32-byte size"
   }
  ],
  "qr": [
@@ -5605,6 +6722,113 @@
     "111111101111001100110111000010011"
    ],
    "matrix_note": "one string per row, top to bottom, 1 is a dark module, no quiet zone"
+  },
+  {
+   "case": "step-0-12w-32",
+   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "bytes": 32,
+   "text": "A3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "version": 2,
+   "modules": 25,
+   "level": "L",
+   "mask": 2,
+   "segment": "one alphanumeric-mode segment of 47 characters, no ECI",
+   "png": "qr-32.png",
+   "png_sha256": "af14fb7fe8310c89d0aaec28b86e4e0c0e717ebc71a56339d2b223fdb90a5f26",
+   "matrix": [
+    "1111111001111001001111111",
+    "1000001011000111001000001",
+    "1011101000111000101011101",
+    "1011101010000110001011101",
+    "1011101001011110101011101",
+    "1000001011011001001000001",
+    "1111111010101010101111111",
+    "0000000000010110000000000",
+    "1111101110000111110101010",
+    "0011110101011011010010111",
+    "0000001110100101110000010",
+    "1011000110011101010001110",
+    "1100101000000010000000001",
+    "1101110011010001010000011",
+    "1010101011010000000110011",
+    "1011000010001000001001101",
+    "1000001010100101111110110",
+    "0000000010011011100011011",
+    "1111111010000010101010000",
+    "1000001000001100100011110",
+    "1011101011110011111110111",
+    "1011101010110011011101111",
+    "1011101011001001111100001",
+    "1000001011010101010001000",
+    "1111111010100000110001101"
+   ],
+   "matrix_note": "one string per row, top to bottom, 1 is a dark module, no quiet zone"
+  }
+ ],
+ "qr_text": [
+  {
+   "name": "text-valid-32",
+   "text": "A3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "passphrase": "aqrv vector passphrase",
+   "source": "step-0-12w-32",
+   "expect": {
+    "outcome": "opens",
+    "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+    "kind": "0x10",
+    "item": {
+     "type": "entropy",
+     "hex": "511dde409a28bd2d7684456f040fe6a3"
+    }
+   }
+  },
+  {
+   "name": "text-over-256-32",
+   "text": "AGZC8CGPPX3.8PW.LLZJ.MNSC%IGA7%SF/E3HY: ZA8OYLG",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "the 47 characters stand for 256^32 exactly, the least value that is not 32 bytes"
+   }
+  },
+  {
+   "name": "text-46-characters",
+   "text": "A3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "46 characters: the valid text with its last one removed"
+   }
+  },
+  {
+   "name": "text-48-characters",
+   "text": "0A3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "48 characters: the valid text with a 0 before it, the same value but not 47 characters"
+   }
+  },
+  {
+   "name": "text-lower-case",
+   "text": "a3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "its first letter is a lower-case a: not in the alphabet, and not read as A"
+   }
+  },
+  {
+   "name": "text-outside-alphabet",
+   "text": "A3A: 2ZG6IEY12.EY2N%#8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "its 21st character is #, which is not in the alphabet"
+   }
+  },
+  {
+   "name": "text-kef-v5-base43",
+   "text": "2T*VMXYQ41S./9BKM8ES-D:1R83QPIRB7QHJ2H1W.E5V3Z3",
+   "source": "kef-v5-8-char-id-32",
+   "expect": {
+    "outcome": "not_recognised",
+    "reason": "the KEF version 5 envelope of kef-v5-8-char-id-32 as Krux's base43 text: read as AQRV's base 45 it is 32 bytes whose first byte is 0x41, below 0xF8"
+   }
   }
  ]
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes the test vectors of the Argon QR Vault (AQRV) (docs/AQRV.md §11).
 
-    python3 -I -B tools/vectors/aqrv/gen.py            # writes aqrv.json, qr-53.png, qr-62.png
+    python3 -I -B tools/vectors/aqrv/gen.py            # writes aqrv.json, qr-32.png, qr-53.png, qr-62.png
     python3 -I -B tools/vectors/aqrv/gen.py --check    # compares, writes nothing
 
 Libraries Faraday's authors did not write: argon2-cffi (Argon2id), Python's
@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.join(ROOT, "tools", "reference", "qrcodegen"))
 
 from argon2.low_level import Type, hash_secret_raw  # noqa: E402
 from cryptography.hazmat.primitives import hashes  # noqa: E402
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms  # noqa: E402
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes  # noqa: E402
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # noqa: E402
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand  # noqa: E402
 from qrcodegen import QrCode, QrSegment  # noqa: E402
@@ -42,7 +42,8 @@ from qrcodegen import QrCode, QrSegment  # noqa: E402
 STEPS = {0: 65536, 1: 131072, 2: 262144, 3: 524288, 4: 1048576}  # KiB
 LABEL_ENC = b"argon-qr-vault-1 enc"
 LABEL_MAC = b"argon-qr-vault-1 mac"
-SIZES = {53: (32, 4), 62: (37, 8)}  # N -> (room r, tag length t)
+SIZES = {32: (16, 4), 53: (32, 4), 62: (37, 8)}  # N -> (room r, tag length t)
+SALT_LEN = {32: 11, 53: 16, 62: 16}  # N -> salt bytes
 
 KINDS = [  # kind, name, item bytes or None
     (0x10, "BIP-39 entropy, 12 words", 16),
@@ -56,6 +57,8 @@ KINDS = [  # kind, name, item bytes or None
     (0x50, "a raw 32-byte key", 32),
 ]
 KIND_NAME = {k: n for k, n, _ in KINDS}
+ALL_KINDS = [k for k, _, _ in KINDS]
+KINDS_AT = {32: [0x10, 0x40, 0x41], 53: ALL_KINDS, 62: ALL_KINDS}  # the kinds a size tests
 ENTROPY_LEN = {k: b for k, _, b in KINDS if k in (0x10, 0x14, 0x18, 0x1C, 0x20)}
 
 CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
@@ -198,10 +201,11 @@ def read(env, passphrase):
     if n not in SIZES or not (0xF8 <= env[0] <= 0xFC):
         return {"outcome": "not_recognised"}
     r, t = SIZES[n]
+    sl = SALT_LEN[n]
     step = env[0] & 7
-    salt, c, stored = env[1:17], env[17:17 + r], env[17 + r:]
+    salt, c, stored = env[1:1 + sl], env[1 + sl:1 + sl + r], env[1 + sl + r:]
     d = derive(passphrase, salt, step)
-    hits = [k for k, _, _ in KINDS if tag(d["k_mac"], env[0], n, salt, k, c, t) == stored]
+    hits = [k for k in KINDS_AT[n] if tag(d["k_mac"], env[0], n, salt, k, c, t) == stored]
     if not hits:
         return {"outcome": "does_not_open", "why": "no_tag_matches"}
     assert len(hits) == 1
@@ -219,8 +223,8 @@ def shake(label, n):
     return hashlib.shake_256(b"AQRV vector " + label.encode()).digest(n)
 
 
-def salt_of(name):
-    return hashlib.sha256(b"AQRV vector salt " + name.encode()).digest()[:16]
+def salt_of(name, n=53):
+    return hashlib.sha256(b"AQRV vector salt " + name.encode()).digest()[:SALT_LEN[n]]
 
 
 def kh(k):
@@ -242,11 +246,12 @@ def make_p(name, item, r, unused_mask=0):
 def seal(name, group, n, step, passphrase, kind, p, item_hex, expect_item, extra=None, salt=None):
     r, t = SIZES[n]
     assert len(p) == r
-    salt = salt or salt_of(name)
+    salt = salt or salt_of(name, n)
+    assert len(salt) == SALT_LEN[n]
     header = 0xF8 | step
     d = derive(passphrase, salt, step)
     c = xor(p, d["keystream"][:r])
-    tags = {kh(k): hx(tag(d["k_mac"], header, n, salt, k, c, t)) for k, _, _ in KINDS}
+    tags = {kh(k): hx(tag(d["k_mac"], header, n, salt, k, c, t)) for k in KINDS_AT[n]}
     assert len(set(tags.values())) == len(tags), "two kinds share a tag: choose another salt"
     env = bytes([header]) + salt + c + bytes.fromhex(tags[kh(kind)])
     assert len(env) == n
@@ -358,10 +363,60 @@ def codex_p(head_size, upper, threshold, ident, index, payload):
 # -------------------------------------------------------------------- QR
 
 
+QR_ALNUM = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"  # QR alphanumeric mode, in its index order
+TEXT_LEN = 47
+B43 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ$*+-./:"  # Electrum's base43, as KEF's Krux writes it
+
+
+def text_of(env):
+    """§3: the 32-byte size in a QR code, 47 base-45 digits, most significant first."""
+    assert len(env) == 32
+    v = int.from_bytes(env, "big")
+    s = ""
+    for _ in range(TEXT_LEN):
+        v, d = divmod(v, 45)
+        s = QR_ALNUM[d] + s
+    assert v == 0
+    return s
+
+
+def envelope_of_text(s):
+    """§9: the 32 bytes a scanned text stands for, or None and why it is not recognised."""
+    if len(s) != TEXT_LEN:
+        return None, "%d characters, not 47" % len(s)
+    for i, ch in enumerate(s):
+        if ch not in QR_ALNUM:
+            return None, "character %d (from 1), %r, is not in QR's alphanumeric alphabet" % (i + 1, ch)
+    v = 0
+    for ch in s:
+        v = v * 45 + QR_ALNUM.index(ch)
+    if v >= 256 ** 32:
+        return None, "its value is 256^32 or more, so it is not 32 bytes"
+    return v.to_bytes(32, "big"), None
+
+
+def read_text(s, passphrase):
+    """§9 for a 47-character code: decoded, then the usual reading."""
+    env, why = envelope_of_text(s)
+    if env is None:
+        return {"outcome": "not_recognised", "why": why}
+    return read(env, passphrase)
+
+
+def base43_of(b):  # Electrum's base_encode for base 43: big-endian, a leading zero byte is a 0
+    v = int.from_bytes(b, "big")
+    s = ""
+    while v:
+        v, d = divmod(v, 43)
+        s = B43[d] + s
+    return "0" * (len(b) - len(b.lstrip(b"\x00"))) + s
+
+
 def qr_of(env):
     n = len(env)
-    version, ecc = (3, QrCode.Ecc.LOW) if n == 53 else (4, QrCode.Ecc.MEDIUM)
-    qr = QrCode.encode_segments([QrSegment.make_bytes(env)], ecc, version, version, -1, False)
+    version, ecc = {32: (2, QrCode.Ecc.LOW), 53: (3, QrCode.Ecc.LOW), 62: (4, QrCode.Ecc.MEDIUM)}[n]
+    seg = QrSegment.make_alphanumeric(text_of(env)) if n == 32 else QrSegment.make_bytes(env)
+    qr = QrCode.encode_segments([seg], ecc, version, version, -1, False)
     return qr
 
 
@@ -632,23 +687,206 @@ def build():
         assert read(env, "x")["outcome"] == "not_recognised"
     cases += kef
 
+    # The 32-byte size (25 x 25): the three kinds it holds, then what fails.
+    # Added after every case above so that those keep their places in the file.
+    n = 32
+    r, t = SIZES[n]
+    sl = SALT_LEN[n]
+    for step in range(5):
+        nm = "step-%d-12w-%d" % (step, n)
+        ent = shake("entropy " + nm, 16)
+        env = add(valid_case(nm, "step", n, step, PASS, 0x10, ent,
+                             expect_item={"type": "entropy", "hex": hx(ent)}))
+        if step == 0:
+            base[n] = (env, PASS, nm)
+    for kind, label, tname in ((0x40, "passphrase", "passphrase"), (0x41, "note", "note")):
+        for how, text in (
+            ("shortest", "x"),
+            ("longest", "0123456789abcdefghijklmnopqrstuvwxyz"[:r - 1]),
+            ("non-ascii", "Zoë ✓ 日本"),
+        ):
+            b = text.encode("utf-8")
+            assert 1 <= len(b) <= r - 1
+            nm = "%s-%s-%d" % (label, how, n)
+            add(valid_case(nm, "kind", n, 0, PASS, kind, bytes([len(b)]) + b,
+                           expect_item={"type": tname, "text": text}, extra={"text_bytes": len(b)}))
+    text = "é" * ((r - 1) // 2) + "a"
+    b = text.encode("utf-8")
+    assert len(b) == r - 1
+    nm = "note-longest-multibyte-%d" % n
+    add(valid_case(nm, "kind", n, 0, PASS, 0x41, bytes([len(b)]) + b,
+                   expect_item={"type": "note", "text": text}, extra={"text_bytes": len(b)}))
+    for label, byte in (("zero", 0x00), ("ones", 0xFF)):
+        ent = bytes([byte]) * 16
+        nm = "%s-seed-12w-%d" % (label, n)
+        add(valid_case(nm, "seed", n, 0, PASS, 0x10, ent, expect_item={"type": "entropy", "hex": hx(ent)}))
+    ent = shake("entropy unicode-%d" % n, 16)
+    salt = salt_of("unicode-%d" % n, n)
+    envs = []
+    for form, pp in (("nfc", UNI), ("nfd", UNI_NFD)):
+        nm = "unicode-%s-%d" % (form, n)
+        envs.append(add(valid_case(nm, "unicode", n, 0, pp, 0x10, ent,
+                                   expect_item={"type": "entropy", "hex": hx(ent)}, salt=salt,
+                                   pad_name="unicode-%d" % n, extra={"passphrase_utf8": hx(pp.encode())})))
+    assert envs[0] == envs[1]
+
+    env, pp, src = base[n]
+
+    def flip32(i, bit=0x01):
+        b = bytearray(env)
+        b[i] ^= bit
+        return bytes(b)
+
+    cases.append(fail_case("fail-wrong-passphrase-32", "fail", env, PASS + "!", "does_not_open",
+                           "a wrong passphrase", src))
+    cases.append(fail_case("fail-header-step-bit-32", "fail", flip32(0), PASS, "does_not_open",
+                           "the step changed from 0 to 1: a different memory, a different key and tag", src))
+    cases.append(fail_case("fail-header-marker-bit-32", "fail", flip32(0, 0x80), PASS, "not_recognised",
+                           "a bit of the marker changed: the first byte is 0x78", src))
+    cases.append(fail_case("fail-salt-bit-32", "fail", flip32(1), PASS, "does_not_open",
+                           "a bit of the salt changed", src))
+    cases.append(fail_case("fail-c-bit-32", "fail", flip32(1 + sl), PASS, "does_not_open",
+                           "a bit of the encrypted item changed", src))
+    cases.append(fail_case("fail-tag-bit-32", "fail", flip32(n - 1), PASS, "does_not_open",
+                           "a bit of the tag changed", src))
+    for h in (0xFD, 0xFE, 0xFF):
+        cases.append(fail_case("fail-reserved-step-%d-32" % (h & 7), "fail", bytes([h]) + env[1:], PASS,
+                               "not_recognised", "step %d is reserved: the first byte is 0x%02X" % (h & 7, h), src))
+    cases.append(fail_case("fail-marker-11110-32", "fail", bytes([0xF0]) + env[1:], PASS, "not_recognised",
+                           "marker 0b11110, which a later version would use: the first byte is 0xF0", src))
+    cases.append(fail_case("fail-length-31", "fail", env[:31], PASS, "not_recognised",
+                           "31 bytes: the 32-byte envelope with its last byte removed", src))
+    cases.append(fail_case("fail-length-33", "fail", env + b"\x00", PASS, "not_recognised",
+                           "33 bytes: the 32-byte envelope with a zero byte added", src))
+    cases.append(fail_case("fail-53-cut-to-32", "fail", base[53][0][:32], PASS, "does_not_open",
+                           "the first 32 bytes of a 53-byte envelope: the length byte N is 32, the salt is read as 11 bytes, and the bytes read as C and tag are not the ones sealed",
+                           base[53][2]))
+    # A tag made with the other length byte N: 53 on the 32-byte envelope, 32 on the 53-byte one.
+    d = derive(PASS, env[1:1 + sl], 0)
+    wrong = tag(d["k_mac"], env[0], 53, env[1:1 + sl], 0x10, env[1 + sl:1 + sl + r], t)
+    cases.append(fail_case("fail-tag-with-n-53-on-32", "fail", env[:1 + sl + r] + wrong, PASS, "does_not_open",
+                           "the tag is HMAC over the message with N = 53 instead of 32, cut to 4 bytes: a tag made at one size does not open the other",
+                           src))
+    e53 = base[53][0]
+    d53 = derive(PASS, e53[1:17], 0)
+    wrong = tag(d53["k_mac"], e53[0], 32, e53[1:17], 0x20, e53[17:49], 4)
+    cases.append(fail_case("fail-tag-with-n-32-on-53", "fail", e53[:49] + wrong, PASS, "does_not_open",
+                           "the tag is HMAC over the message with N = 32 instead of 53, cut to 4 bytes: a tag made at one size does not open the other",
+                           base[53][2]))
+    # A right tag for a kind this size does not hold: the reader does not test it.
+    for kind in (0x20, 0x30, 0x50):
+        nm = "fail-kind-%02X-not-at-32" % kind
+        salt = salt_of(nm, n)
+        d = derive(PASS, salt, 0)
+        p = shake("padding " + nm, r)
+        c = xor(p, d["keystream"][:r])
+        envk = bytes([0xF8]) + salt + c + tag(d["k_mac"], 0xF8, n, salt, kind, c, t)
+        assert all(tag(d["k_mac"], 0xF8, n, salt, k, c, t) != envk[-t:] for k in KINDS_AT[n])
+        cases.append(fail_case(nm, "fail", envk, PASS, "does_not_open",
+                               "the tag is right for kind %s (%s), which the 32-byte size does not hold, so a reader does not test it" % (kh(kind), KIND_NAME[kind]),
+                               note="made with the key: P is %s, and the tag is HMAC over H || N || salt || %s || C" % (hx(p), kh(kind))))
+    # Right tags over a P the format refuses.
+    pad32 = lambda label, head: head + shake("padding crafted-%s-%d" % (label, n), r - len(head))
+    cases.append(crafted_case("tag-ok-note-len-0-32", 0x41, n, pad32("len0", b"\x00"), PASS, "len is 0"))
+    cases.append(crafted_case("tag-ok-passphrase-len-0-32", 0x40, n, pad32("plen0", b"\x00"), PASS, "len is 0"))
+    cases.append(crafted_case("tag-ok-note-len-past-room-32", 0x41, n, pad32("lenr", bytes([r])), PASS,
+                              "len is %d, one past the longest allowed, room - 1 = %d" % (r, r - 1)))
+    cases.append(crafted_case("tag-ok-passphrase-len-past-room-32", 0x40, n, pad32("plenr", bytes([r])), PASS,
+                              "len is %d, one past the longest allowed, room - 1 = %d" % (r, r - 1)))
+    cases.append(crafted_case("tag-ok-note-not-utf8-32", 0x41, n, pad32("utf8", b"\x03\xff\xfe\xfd"), PASS,
+                              "the 3 bytes of text 0xFF 0xFE 0xFD are not UTF-8"))
+    # Must not be recognised: KEF version 5 with an 8-character id and 12 words, 32 bytes.
+    nm = "kef-v5-8-char-id-32"
+    kid = b"73c5da0a"  # a fingerprint's form: 8 hex characters
+    kpass = "kef vector passphrase"
+    count_field = 10
+    key = hashlib.pbkdf2_hmac("sha256", kpass.encode(), kid, count_field * 10000, 32)
+    plain = shake("kef plaintext " + nm, 16)
+    assert plain[-1] != 0
+    ecb = Cipher(algorithms.AES(key), modes.ECB()).encryptor()
+    ct = ecb.update(plain) + ecb.finalize()
+    check = hashlib.sha256(bytes([5]) + plain + key).digest()[:3]
+    envk = bytes([len(kid)]) + kid + bytes([5]) + count_field.to_bytes(3, "big") + ct + check
+    assert len(envk) == 32
+    assert read(envk, "x")["outcome"] == "not_recognised"
+    cases.append({
+        "name": nm, "group": "not-recognised", "size": 32, "envelope": hx(envk),
+        "expect": {"outcome": "not_recognised",
+                   "reason": "a KEF version 5 envelope: its first byte is the id length, 0x08, below 0xF8"},
+        "kef": {"id": hx(kid), "id_text": kid.decode(), "version": 5, "iterations_field": count_field,
+                "iterations": count_field * 10000, "passphrase": kpass, "plaintext": hx(plain), "check_bytes": 3},
+    })
+    writer_refuses += [
+        {"size": 32, "kind": "0x20", "item": {"type": "entropy", "hex": hx(shake("entropy refused-24w-32", 32))},
+         "reason": "24 words of entropy: 32 bytes, over the 16-byte room of the 32-byte size"},
+        {"size": 32, "kind": "0x41", "item": {"type": "note", "text": "0123456789abcdef"},
+         "reason": "a note of 16 bytes of text: 17 item bytes, over the 16-byte room"},
+        {"size": 32, "kind": "0x30", "item": {"type": "codex32", "string": [s for _, s in strings if len(s) == 48][0]},
+         "reason": "a 128-bit codex32 string: 21 item bytes, and the kind is not held at the 32-byte size"},
+    ]
+
     # The QR code of one vector at each size.
     qrs = []
     pngs = {}
-    for n in (53, 62):
+    for n in (53, 62, 32):
         env, pp, nm = base[n]
         qr = qr_of(env)
         size = qr.get_size()
         pngs["qr-%d.png" % n] = png_of(qr)
-        qrs.append({
-            "case": nm, "envelope": hx(env), "bytes": n,
-            "version": qr.get_version(), "modules": size, "level": "L" if n == 53 else "M",
-            "mask": qr.get_mask(), "segment": "one byte-mode segment, no ECI",
+        entry = {"case": nm, "envelope": hx(env), "bytes": n}
+        if n == 32:
+            entry["text"] = text_of(env)
+        entry.update({
+            "version": qr.get_version(), "modules": size, "level": "M" if n == 62 else "L",
+            "mask": qr.get_mask(),
+            "segment": "one alphanumeric-mode segment of 47 characters, no ECI" if n == 32
+            else "one byte-mode segment, no ECI",
             "png": "qr-%d.png" % n, "png_sha256": hashlib.sha256(pngs["qr-%d.png" % n]).hexdigest(),
             "matrix": ["".join("1" if qr.get_module(x, y) else "0" for x in range(size)) for y in range(size)],
             "matrix_note": "one string per row, top to bottom, 1 is a dark module, no quiet zone",
         })
-        assert size == (29 if n == 53 else 33)
+        qrs.append(entry)
+        assert size == {32: 25, 53: 29, 62: 33}[n]
+
+    # The 32-byte size's text form in a QR code (§3, §9): what a reader decodes and what it refuses.
+    env, pp, src = base[32]
+    good = text_of(env)
+    assert envelope_of_text(good) == (env, None) and good[0] == "A"
+    over = ""
+    v = 256 ** 32
+    for _ in range(TEXT_LEN):
+        v, d = divmod(v, 45)
+        over = QR_ALNUM[d] + over
+    assert v == 0
+    ent32 = [c for c in cases if c["name"] == src][0]["expect"]
+    text_cases = [
+        {"name": "text-valid-32", "text": good, "passphrase": PASS, "source": src,
+         "expect": {"outcome": "opens", "envelope": hx(env), "kind": ent32["kind"], "item": ent32["item"]}},
+        {"name": "text-over-256-32", "text": over,
+         "expect": {"outcome": "not_recognised",
+                    "reason": "the 47 characters stand for 256^32 exactly, the least value that is not 32 bytes"}},
+        {"name": "text-46-characters", "text": good[:-1],
+         "expect": {"outcome": "not_recognised", "reason": "46 characters: the valid text with its last one removed"}},
+        {"name": "text-48-characters", "text": "0" + good,
+         "expect": {"outcome": "not_recognised",
+                    "reason": "48 characters: the valid text with a 0 before it, the same value but not 47 characters"}},
+        {"name": "text-lower-case", "text": "a" + good[1:],
+         "expect": {"outcome": "not_recognised",
+                    "reason": "its first letter is a lower-case a: not in the alphabet, and not read as A"}},
+        {"name": "text-outside-alphabet", "text": good[:20] + "#" + good[21:],
+         "expect": {"outcome": "not_recognised", "reason": "its 21st character is #, which is not in the alphabet"}},
+    ]
+    ktext = base43_of(envk)
+    assert len(ktext) == TEXT_LEN and ktext[0] in "0123456789"
+    text_cases.append(
+        {"name": "text-kef-v5-base43", "text": ktext, "source": "kef-v5-8-char-id-32",
+         "expect": {"outcome": "not_recognised",
+                    "reason": "the KEF version 5 envelope of kef-v5-8-char-id-32 as Krux's base43 text: read as "
+                              "AQRV's base 45 it is 32 bytes whose first byte is 0x%02X, below 0xF8"
+                              % envelope_of_text(ktext)[0][0]}})
+    for tc in text_cases:
+        got = read_text(tc["text"], tc.get("passphrase", "x"))
+        assert got["outcome"] == tc["expect"]["outcome"], (tc["name"], got)
 
     doc = {
         "about": "Test vectors for the Argon QR Vault (AQRV), docs/AQRV.md section 11. See README.md. Written by gen.py.",
@@ -656,7 +894,8 @@ def build():
             "argon2id": {"passes": 3, "lanes": 4, "output_bytes": 32, "version": "0x13"},
             "steps": [{"step": s, "header": "0x%02X" % (0xF8 | s), "memory_kib": m} for s, m in STEPS.items()],
             "labels": {"enc": LABEL_ENC.decode(), "mac": LABEL_MAC.decode()},
-            "sizes": [{"bytes": n, "room": r, "tag_bytes": t} for n, (r, t) in SIZES.items()],
+            "sizes": [{"bytes": n, "salt_bytes": SALT_LEN[n], "room": r, "tag_bytes": t,
+                       "kinds": [kh(k) for k in KINDS_AT[n]]} for n, (r, t) in SIZES.items()],
             "kinds": [{"kind": kh(k), "name": nme} for k, nme, _ in KINDS],
             "outcomes": {
                 "opens": "recognised, one kind's tag matches, the item reads: expect.kind and expect.item are what a reader shows",
@@ -667,6 +906,7 @@ def build():
         "cases": cases,
         "writer_refuses": writer_refuses,
         "qr": qrs,
+        "qr_text": text_cases,
     }
     text = json.dumps(doc, indent=1, ensure_ascii=True) + "\n"
     out = {"aqrv.json": text.encode()}

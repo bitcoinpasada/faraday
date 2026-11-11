@@ -453,8 +453,8 @@ of each, what a reviewer gets and how a review is recorded, is
 The list below is of what is built. One specification is written and not
 built, and is offered for outside review: the Argon QR Vault
 (AQRV, `docs/AQRV.md`), one small secret from a fixed list (a seed, a codex32
-string, a passphrase, a note, a raw key) under Argon2id, in a 29 × 29 or a
-33 × 33 QR code. It is
+string, a passphrase, a note, a raw key) under Argon2id, in a 25 × 25, 29 × 29
+or 33 × 33 QR code. It is
 Faraday's own specification, so under §0 it stays compiled out of the app
 until it is reviewed outside Faraday.
 
