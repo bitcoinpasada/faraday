@@ -832,6 +832,11 @@ pub const GUIDE_LINK_H: f32 = 32.0;
 /// A Guided text's Learn link: the room between the text and the button.
 pub const GUIDE_LINK_ABOVE: f32 = 6.0;
 
+/// A Guided text's Learn link: the room kept under the button, so its
+/// touch target, which reaches out past it to the touch floor, does not
+/// meet that of the control below.
+pub const GUIDE_LINK_BELOW: f32 = 4.0;
+
 /// A Guided text's Learn link: the room added to its label's width.
 pub const GUIDE_LINK_PAD: f32 = 24.0;
 

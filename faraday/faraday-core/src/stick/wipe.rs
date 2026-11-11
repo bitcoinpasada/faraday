@@ -644,7 +644,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
         }
         cy += ui.wrap_as((x, cy, iw), LABEL_L, Role::OnSurface, WITHIN) + 8.0;
-        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, REACH) + 10.0;
+        cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, REACH) + 6.0;
         cy += ui.wrap_as((x, cy, iw), BODY_S, Role::OnSurfaceVariant, SECRET);
         cy += crate::flow::learn_link(ui, x, cy, iw, crate::learn::Topic::WipingAStick) + 12.0;
         // A vault chosen is deleted by a hold (decision 4); zeroing the

@@ -674,7 +674,7 @@ pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         Style::Ghost,
         Action::LearnTopic(crate::learn::Topic::ExtraCopies),
     );
-    cy += 32.0 + 12.0;
+    cy += BUTTON_H + 12.0;
     cy - y
 }
 

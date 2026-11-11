@@ -6,8 +6,7 @@ desktop_1280x800 Backup Board 51
 desktop_1280x800 Backup PlanAddPass 1
 desktop_1280x800 Backup Resume 5
 desktop_1280x800 BackupFlow Board 9
-desktop_1280x800 BackupFlow Flow 3
-desktop_1280x800 BackupFlow LearnTopic 1
+desktop_1280x800 BackupFlow Flow 2
 desktop_1280x800 BackupFlow Resume 3
 desktop_1280x800 Backups Resume 1
 desktop_1280x800 Bip85 Resume 1
@@ -111,8 +110,7 @@ stick_1024x600 Backup Board 43
 stick_1024x600 Backup EntryKey 25
 stick_1024x600 Backup EntryKeyBack 1
 stick_1024x600 Backup Osk 38
-stick_1024x600 BackupFlow Flow 4
-stick_1024x600 BackupFlow LearnTopic 1
+stick_1024x600 BackupFlow Flow 3
 stick_1024x600 BackupFlow Osk 38
 stick_1024x600 Catalog Osk 38
 stick_1024x600 Catalog WordList 1

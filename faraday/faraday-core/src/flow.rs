@@ -654,7 +654,8 @@ pub(crate) fn about(
 
 /// A Guided text's link to its Learn page: a ghost button under the text,
 /// labelled with the page's title, as the backup's Extra copies line has.
-/// Returns its height with the gap above it.
+/// Returns its height with the gap above it and the room under it, where
+/// its touch target reaches out past the button.
 pub(crate) fn learn_link(ui: &mut Ui, x: f32, y: f32, w: f32, topic: crate::learn::Topic) -> f32 {
     let label = topic.label();
     let bw = (ui.measure_as(LABEL_L, label) + tokens::GUIDE_LINK_PAD).min(w);
@@ -667,7 +668,7 @@ pub(crate) fn learn_link(ui: &mut Ui, x: f32, y: f32, w: f32, topic: crate::lear
         crate::ui::Style::Ghost,
         Action::LearnTopic(topic),
     );
-    tokens::GUIDE_LINK_ABOVE + tokens::GUIDE_LINK_H
+    tokens::GUIDE_LINK_ABOVE + tokens::GUIDE_LINK_H + tokens::GUIDE_LINK_BELOW
 }
 
 /// The width of [`guided_choice`]. Arithmetic.
