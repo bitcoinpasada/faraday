@@ -103,7 +103,12 @@ pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             None,
         )
         .map_err(|e| e.text())?;
+    // The cosigner's key on the tour's network: one wallet is one network.
     let mut elsewhere = faraday_core::wallet::Session::default();
+    elsewhere
+        .keys
+        .set_network(t.app.session.keys.network(), false)
+        .map_err(|e| e.text())?;
     elsewhere
         .keys
         .add_words(

@@ -146,7 +146,12 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // A 2-of-3 with test key 3 a cosigner's: its holder named.
     t.press(Action::Entry(None));
     t.type_key(1);
+    // The cosigner's key on the tour's network: one wallet is one network.
     let mut elsewhere = faraday_core::wallet::Session::default();
+    elsewhere
+        .keys
+        .set_network(t.app.session.keys.network(), false)
+        .map_err(|e| e.text())?;
     elsewhere
         .keys
         .add_words(
