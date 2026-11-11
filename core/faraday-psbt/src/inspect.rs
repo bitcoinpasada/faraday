@@ -46,6 +46,10 @@ pub const HIGH_FEE_DANGER_ABS: Amount = Amount::from_sat(1_000_000);
 /// Fee rate at or above this many sat/vB is a danger (Bitcoin Core's
 /// `-maxfeerate`-style sanity limit is far above any real market rate).
 pub const ABSURD_FEE_RATE_SAT_VB: u64 = 1000;
+/// A change output at this address index or above, on the change or
+/// receive chain, is not verified change (F242): a wallet scanning with a
+/// gap limit does not find coins that far along.
+pub const FAR_CHANGE_INDEX: u32 = 10_000;
 
 /// How serious a warning is (`docs/STANDARDS.md` §0, F136). A danger
 /// refuses signing at the API, unless its kind is one a decision names
@@ -86,6 +90,10 @@ pub enum WarningKind {
     /// fingerprint is not loaded, or the path is not under a loaded
     /// account.
     UnverifiedChange,
+    /// An output is change that derives correctly, at an address index of
+    /// [`FAR_CHANGE_INDEX`] or more, which a wallet with a gap limit does
+    /// not find (F242).
+    ChangeFarIndex,
     /// An output claims to be change of a loaded key but the derived
     /// script does not match. Treat as an attack.
     ChangeSpoof,
@@ -1835,6 +1843,12 @@ fn output_kind<C: Verification>(
         claim_warnings.retain(|w| w.level >= Level::Danger);
     }
     warnings.append(&mut claim_warnings);
+    match kind {
+        OutputKind::Change { index, .. } | OutputKind::WalletChange { index, .. } => {
+            far_change(warnings, i, index);
+        }
+        _ => {}
+    }
     kind
 }
 
@@ -1993,6 +2007,19 @@ fn output_claims<C: Verification>(
         }
     }
     kind
+}
+
+/// Raises F242's Caution for a change output at `index` where it is
+/// [`FAR_CHANGE_INDEX`] or more.
+fn far_change(warnings: &mut Vec<Warning>, output: usize, index: u32) {
+    if index >= FAR_CHANGE_INDEX {
+        warn(
+            warnings,
+            Level::Caution,
+            WarningKind::ChangeFarIndex,
+            Detail::ChangeFarIndex { output, index },
+        );
+    }
 }
 
 fn locktime(lt: LockTime) -> Locktime {

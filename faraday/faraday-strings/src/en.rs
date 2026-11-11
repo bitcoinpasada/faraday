@@ -6286,6 +6286,8 @@ strings! {
     psbt_warn_change_not_registered: "output {} claims to be change of your key {} at {}; no wallet registered on this device holds that script, so it is counted as a payment to others. Register the wallet to check its change.",
     /// A warning on Review. `{}`: the output, the key, the path.
     psbt_warn_change_not_under_account: "output {} claims to be change of your key {} at {}, which is not under a loaded account; treat it as a payment to others",
+    /// A warning on Review. `{}`: the output, the address index.
+    psbt_warn_change_far_index: "output {} is change at address index {}; a wallet that scans with a gap limit does not find coins at an index that high",
     /// A warning on Review. `{}`: the key, the network it is loaded for, the one checked for.
     psbt_warn_key_network: "key {} is loaded for {} but the transaction is being checked for {}",
     /// A warning on Review. `{}`: the network checked for.

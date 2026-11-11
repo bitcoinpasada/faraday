@@ -201,6 +201,14 @@ pub enum Detail {
         /// The key's fingerprint.
         key: Fingerprint,
     },
+    /// An output is change that derives correctly, at an index of
+    /// `FAR_CHANGE_INDEX` or more.
+    ChangeFarIndex {
+        /// The output.
+        output: usize,
+        /// The address index.
+        index: u32,
+    },
     /// An output claims to be change of a loaded key, and is not that
     /// address.
     ChangeSpoof {

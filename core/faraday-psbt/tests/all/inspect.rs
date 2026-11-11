@@ -1,7 +1,9 @@
 //! Change detection and the policy warnings, each built from a hostile or
 //! unusual PSBT.
 
-use crate::common::builder::{Build, multisig_policy, single_sig, sorted_multisig};
+use crate::common::builder::{
+    Build, multisig_policy, single_sig, sorted_multisig, sorted_multisig_change_at,
+};
 use crate::common::{ABANDON, LEGAL, ZOO, master};
 use bitcoin::psbt::PsbtSighashType;
 use bitcoin::secp256k1::{Message, Secp256k1, XOnlyPublicKey};
@@ -102,6 +104,71 @@ fn verified_change_for_every_script_type() {
                 || insp.outputs[1].address.starts_with('2')
                 || insp.outputs[1].address.starts_with('m')
                 || insp.outputs[1].address.starts_with('n')
+        );
+    }
+}
+
+#[test]
+fn change_at_a_far_index_is_change_with_a_caution() {
+    let abandon = master(ABANDON, NET);
+    for (index, caution) in [(9_999, false), (10_000, true), (2_000_000_000, true)] {
+        let mut b = Build::new(ScriptType::NativeSegwit, NET);
+        b.recipients.push((foreign_script(), 60_000));
+        b.change = Some(39_000);
+        b.change_index = index;
+        let insp = inspect_with_abandon(&single_sig(&abandon, &b));
+        assert!(
+            matches!(insp.outputs[1].kind, OutputKind::Change { index: i, .. } if i == index),
+            "{index}: {:?}",
+            insp.outputs[1].kind
+        );
+        assert_eq!(
+            has(&insp, Level::Caution, &WarningKind::ChangeFarIndex),
+            caution,
+            "{index}"
+        );
+        assert!(!insp.has_danger(), "{index}: {:?}", insp.warnings);
+    }
+}
+
+#[test]
+fn a_registered_wallets_change_at_a_far_index_is_change_with_a_caution() {
+    let c = Compute::unchecked();
+    let (abandon, zoo, legal) = (master(ABANDON, NET), master(ZOO, NET), master(LEGAL, NET));
+    let keys = [
+        KeyRef::from_master(&c, &abandon, 0).unwrap(),
+        KeyRef::from_master(&c, &zoo, 0).unwrap(),
+    ];
+    let wallets = [multisig_policy(&[&abandon, &zoo, &legal], 2, NET)];
+    for (index, caution) in [(9_999, false), (10_000, true), (2_000_000_000, true)] {
+        let psbt = sorted_multisig_change_at(
+            &[&abandon, &zoo, &legal],
+            2,
+            NET,
+            100_000,
+            &[(foreign_script(), 60_000)],
+            39_000,
+            index,
+        );
+        let insp = inspect(
+            &c,
+            &psbt,
+            &Context {
+                network: NET,
+                keys: &keys,
+                wallets: &wallets,
+                musig_session: None,
+            },
+        );
+        assert!(
+            matches!(insp.outputs[1].kind, OutputKind::WalletChange { index: i, .. } if i == index),
+            "{index}: {:?}",
+            insp.outputs[1].kind
+        );
+        assert_eq!(
+            has(&insp, Level::Caution, &WarningKind::ChangeFarIndex),
+            caution,
+            "{index}"
         );
     }
 }

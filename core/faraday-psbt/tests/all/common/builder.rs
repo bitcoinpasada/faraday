@@ -49,6 +49,8 @@ pub struct Build {
     pub recipients: Vec<(ScriptBuf, u64)>,
     /// A change output to `…/1/0` with key-origin data, appended last.
     pub change: Option<u64>,
+    /// The change output's address index.
+    pub change_index: u32,
     /// Absolute locktime.
     pub locktime: u32,
     /// Input sequence.
@@ -63,6 +65,7 @@ impl Build {
             input_value: 100_000,
             recipients: Vec::new(),
             change: None,
+            change_index: 0,
             locktime: 0,
             sequence: 0xffff_fffd,
         }
@@ -112,7 +115,10 @@ pub fn single_sig(master: &MasterKey, b: &Build) -> Psbt {
     if let Some(v) = b.change {
         output.push(TxOut {
             value: Amount::from_sat(v),
-            script_pubkey: account.address(true, 0).unwrap().script_pubkey(),
+            script_pubkey: account
+                .address(true, b.change_index)
+                .unwrap()
+                .script_pubkey(),
         });
     }
     let tx = Transaction {
@@ -152,7 +158,7 @@ pub fn single_sig(master: &MasterKey, b: &Build) -> Psbt {
         input.bip32_derivation.insert(pk.inner, source);
     }
     if b.change.is_some() {
-        let (pk, source) = origin(master, b.script_type, true, 0);
+        let (pk, source) = origin(master, b.script_type, true, b.change_index);
         let out = psbt.outputs.last_mut().unwrap();
         if b.script_type == ScriptType::Taproot {
             let xonly = pk.inner.x_only_public_key().0;
@@ -241,18 +247,31 @@ pub fn sorted_multisig_change(
     recipients: &[(ScriptBuf, u64)],
     change: u64,
 ) -> Psbt {
+    sorted_multisig_change_at(masters, m, network, input_value, recipients, change, 0)
+}
+
+/// [`sorted_multisig_change`] with the change at `…/1/index`.
+pub fn sorted_multisig_change_at(
+    masters: &[&MasterKey],
+    m: usize,
+    network: Network,
+    input_value: u64,
+    recipients: &[(ScriptBuf, u64)],
+    change: u64,
+    index: u32,
+) -> Psbt {
     let c = Compute::unchecked();
     let mut psbt = sorted_multisig(masters, m, network, input_value, recipients);
     let policy = multisig_policy(masters, m, network);
     let leaf = [
         ChildNumber::from_normal_idx(1).unwrap(),
-        ChildNumber::from_normal_idx(0).unwrap(),
+        ChildNumber::from_normal_idx(index).unwrap(),
     ];
     let path = bip48_path(network).extend(leaf);
     let inner = psbt.inner_mut();
     inner.unsigned_tx.output.push(TxOut {
         value: Amount::from_sat(change),
-        script_pubkey: policy.script_at(&c, true, 0).unwrap(),
+        script_pubkey: policy.script_at(&c, true, index).unwrap(),
     });
     let mut out = bitcoin::psbt::Output::default();
     for master in masters {

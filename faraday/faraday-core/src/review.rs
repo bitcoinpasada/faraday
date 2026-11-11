@@ -145,6 +145,10 @@ fn output_words(d: &Detail) -> Option<Cow<'static, str>> {
             EN.psbt_warn_change_not_loaded,
             &[&n(*output), &key.to_string()],
         ),
+        D::ChangeFarIndex { output, index } => t(
+            EN.psbt_warn_change_far_index,
+            &[&n(*output), &index.to_string()],
+        ),
         D::ChangeSpoof { output, key, path } => t(
             EN.psbt_warn_change_spoof,
             &[&n(*output), &key.to_string(), &path.to_string()],

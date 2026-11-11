@@ -157,7 +157,9 @@ non-cryptographic and live in `faraday-core`:
   names a key not loaded, or a path under no loaded account) is drawn under
   **Sends** as a payment, with its address and amount, never as change;
   its caution stays among the warnings (F136). One that names a loaded key
-  and is not that key's address is refused (`ChangeSpoof`).
+  and is not that key's address is refused (`ChangeSpoof`). Change at an
+  address index of 10,000 or more is still change but carries a Caution,
+  as a wallet with a gap limit does not find coins that far (F242).
 - **Review stops** where nothing would sign (F136): a blocked warning, or a
   danger with no way past it, stops the Review step with the refusal and
   what to do instead, and signing refuses it too. No key here taking
