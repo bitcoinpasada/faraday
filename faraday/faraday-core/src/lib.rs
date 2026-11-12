@@ -67,7 +67,7 @@
 //!   `secure_boot/state.rs`.
 //! - Faraday Demo's host is the `faraday-host` crate (`docs/DESKTOP-HOST.md`); the app gives it the
 //!   fields and methods marked "Used by faraday-host."
-//! - Support: `slow` (the presses whose work waits for a frame), `wordlist`, `guide`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/put.rs`, Use a sample, whose buttons Faraday Demo's strip shows), `tools`, `testkit`.
+//! - Support: `slow` (the presses whose work waits for a frame), `wordlist`, `guide`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/put.rs`, Use a sample, whose buttons Faraday Demo's strip shows), `tools`, `testkit`, `leaks` (the tours' leak check's planted forms, `testkit` only).
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
 //! come before any action, then sends each `Action` to its area's
