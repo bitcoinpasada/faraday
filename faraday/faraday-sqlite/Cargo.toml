@@ -8,5 +8,8 @@ rust-version.workspace = true
 repository.workspace = true
 publish = false
 
+[dependencies]
+zeroize = { workspace = true, features = ["alloc"] }
+
 [lints]
 workspace = true

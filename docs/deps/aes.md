@@ -21,7 +21,7 @@ in constant time. It is the crate the RustCrypto AEADs build on, and the
 round is checked here against AEZ's own vectors.
 
 **Cost.** Version 0.9 with `default-features = false` and the `hazmat`
-feature: one new crate in the lock file. It builds on `cipher` 0.5,
+and `zeroize` features (`zeroize` wipes a key schedule as it drops): one new crate in the lock file. It builds on `cipher` 0.5,
 `cpufeatures` and `cpubits`, which the workspace's lock file already
 holds (the main fuzz workspace's gains `cpubits`). Its `unsafe` is the intrinsics backends, entered only
 after `cpufeatures` finds the instructions.

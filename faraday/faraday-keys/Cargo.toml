@@ -30,7 +30,7 @@ poly1305 = { workspace = true }
 subtle.workspace = true
 # Bitcoin Core's wallet keys (F229): AES-256 in CBC, over the `aes` the tree holds.
 aes = { workspace = true }
-cbc = { version = "0.2", default-features = false }
+cbc = { version = "0.2", default-features = false, features = ["zeroize"] }
 
 [features]
 # `Keys::master_for_tests`: a key's master key, for the tests that check a

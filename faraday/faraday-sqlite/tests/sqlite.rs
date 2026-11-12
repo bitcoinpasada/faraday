@@ -2,6 +2,7 @@
 //! and against those databases with one thing changed.
 
 use faraday_sqlite::{Database, Error, Row, refusing_siblings};
+use zeroize::Zeroizing;
 
 fn fixture(name: &str) -> Vec<u8> {
     std::fs::read(format!(
@@ -31,7 +32,9 @@ fn rows(bytes: &[u8]) -> Result<Vec<Row>, Error> {
 
 #[test]
 fn every_page_size_reads_the_rows_sqlite_wrote() {
-    let expected: Vec<_> = (0..300).map(|i| (key(i), value(i))).collect();
+    let expected: Vec<_> = (0..300)
+        .map(|i| (key(i), Zeroizing::new(value(i))))
+        .collect();
     for ps in [512, 1024, 2048, 4096, 8192, 16384, 32768, 65536] {
         let bytes = fixture(&format!("ps{ps}.db"));
         let db = Database::open(&bytes).unwrap();
@@ -68,7 +71,7 @@ fn values_that_spill_onto_overflow_pages_read_whole() {
     let expected: Vec<_> = sizes
         .iter()
         .enumerate()
-        .map(|(i, &n)| (key(i), blob(i, n)))
+        .map(|(i, &n)| (key(i), Zeroizing::new(blob(i, n))))
         .collect();
     assert_eq!(rows(&fixture("overflow.db")).unwrap(), expected);
 }
@@ -79,7 +82,7 @@ fn deleted_rows_are_not_returned() {
     // Row ids are 1-based: odd ones remain, except 101..=159.
     let expected: Vec<_> = (1..=400usize)
         .filter(|r| r % 2 == 1 && !(*r > 100 && *r < 160))
-        .map(|r| (key(r - 1), blob(r - 1, 40 + (r - 1) % 90)))
+        .map(|r| (key(r - 1), Zeroizing::new(blob(r - 1, 40 + (r - 1) % 90))))
         .collect();
     assert_eq!(got, expected);
 }

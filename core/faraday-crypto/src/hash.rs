@@ -16,6 +16,23 @@ pub fn sha512(data: &[u8]) -> [u8; 64] {
     Sha512::digest(data).into()
 }
 
+/// SHA-512 of `data` written into `out`, which may be a secret's stretch:
+/// no result array is returned, so none is left on the stack. The
+/// hasher's state is wiped as it drops (sha2's `zeroize` feature).
+pub fn sha512_into(data: &[u8], out: &mut [u8; 64]) {
+    let mut hasher = Sha512::new();
+    hasher.update(data);
+    hasher.finalize_into(out.into());
+}
+
+/// SHA-512 of the 64 bytes in `buf`, written over them: a hash chain's
+/// next round with no second array.
+pub fn sha512_again(buf: &mut [u8; 64]) {
+    let mut hasher = Sha512::new();
+    hasher.update(&buf[..]);
+    hasher.finalize_into(buf.into());
+}
+
 /// Costs a SHA-256 pass over every byte: the SHA-256 of a whole file or
 /// transaction, `bytes`, counted as [`Work::FileHash`].
 pub fn sha256_whole(c: &Compute, bytes: &[u8]) -> [u8; 32] {

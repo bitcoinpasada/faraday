@@ -353,6 +353,12 @@ impl Keys {
     hardened derivation per step. Costs the
     master key's rounds (at most 10,000,000), so both take the token.
     `faraday-core-wallet`'s `read` calls them.
+    The passphrase's SHA-512 chain is written round over round into one
+    wiping array, the records' values are held in wiping buffers from the
+    SQLite reader on, and the AES key schedules wipe as they drop. What
+    stays unwiped is inside rust-bitcoin's `derive_priv` (its HMAC-SHA-512
+    state and the intermediate keys on its stack) and the `Xpriv` it
+    returns by value.
 
   Each comes back as `Held` (an `XprivAscii`, a `WifAscii`, or
   `Zeroizing` strings, every one wiped on drop) and is made once, at the

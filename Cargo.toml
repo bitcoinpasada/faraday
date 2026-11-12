@@ -103,7 +103,7 @@ poly1305 = { version = "0.9", default-features = false, features = ["zeroize"] }
 # (docs/deps/aes.md). `hazmat` is the feature that exposes the round; it
 # builds on `cipher` 0.5, `cpufeatures` and `cpubits`, already in the
 # lock file.
-aes = { version = "0.9", default-features = false, features = ["hazmat"] }
+aes = { version = "0.9", default-features = false, features = ["hazmat", "zeroize"] }
 # AES-256-OCB (RFC 7253) for the QR vault's OpenPGP message
 # (docs/deps/ocb3.md): the mode over the `aes` above, with the 15-byte
 # nonce RFC 9580 uses.

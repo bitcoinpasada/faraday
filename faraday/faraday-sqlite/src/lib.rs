@@ -52,9 +52,10 @@
 
 #![forbid(unsafe_code)]
 
-use std::borrow::Cow;
 use std::fmt;
-use std::ops::Range;
+use std::ops::{Deref, Range};
+
+use zeroize::Zeroizing;
 
 /// The most levels a b-tree may have, the root counting as one: SQLite's
 /// own limit (`BTCURSOR_MAX_DEPTH`), which calls a tree of 21 levels corrupt.
@@ -200,7 +201,10 @@ pub struct Header {
 }
 
 /// A row of a table of two blob columns: its key and its value.
-pub type Row = (Vec<u8>, Vec<u8>);
+///
+/// The value is wiped when the row is dropped: a plain wallet's
+/// `walletdescriptorkey` value is a private key's DER.
+pub type Row = (Vec<u8>, Zeroizing<Vec<u8>>);
 
 /// A table in `sqlite_schema`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -252,7 +256,25 @@ impl Seen {
     }
 }
 
-type Visit<'f> = dyn for<'p> FnMut(i64, Cow<'p, [u8]>) -> Result<(), Error> + 'f;
+/// A cell's payload: borrowed from its page when nothing spills, and
+/// held in a buffer that wipes on drop when an overflow chain was
+/// assembled.
+enum Payload<'p> {
+    Page(&'p [u8]),
+    Spilled(Zeroizing<Vec<u8>>),
+}
+
+impl Deref for Payload<'_> {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        match self {
+            Payload::Page(page) => page,
+            Payload::Spilled(whole) => whole,
+        }
+    }
+}
+
+type Visit<'f> = dyn for<'p> FnMut(i64, Payload<'p>) -> Result<(), Error> + 'f;
 
 fn be16(b: &[u8], at: usize) -> usize {
     usize::from(u16::from_be_bytes([b[at], b[at + 1]]))
@@ -403,14 +425,16 @@ impl Pages<'_> {
         total: u64,
         first: u32,
         seen: &mut Seen,
-    ) -> Result<Cow<'p, [u8]>, Error> {
+    ) -> Result<Payload<'p>, Error> {
         if total == local.len() as u64 {
-            return Ok(Cow::Borrowed(local));
+            return Ok(Payload::Page(local));
         }
-        let mut out = Vec::with_capacity(total as usize);
+        // The final size is reserved first, so the buffer never grows by
+        // reallocation and leaves a copy behind.
+        let mut out = Zeroizing::new(Vec::with_capacity(total as usize));
         out.extend_from_slice(local);
         self.chain(total - local.len() as u64, first, seen, Some(&mut out))?;
-        Ok(Cow::Owned(out))
+        Ok(Payload::Spilled(out))
     }
 
     /// Walks an overflow chain that holds `remaining` bytes, marking its
@@ -834,13 +858,14 @@ impl<'a> Database<'a> {
             }
             let key = p[cols[0].1.clone()].to_vec();
             let value = match p {
-                Cow::Borrowed(page) => page[cols[1].1.clone()].to_vec(),
+                Payload::Page(page) => Zeroizing::new(page[cols[1].1.clone()].to_vec()),
                 // An assembled payload becomes the value in place, so it
-                // is never held beside a copy of itself.
-                Cow::Owned(mut whole) => {
+                // is never held beside a copy of itself, and it is not
+                // shrunk (a shrink copies): the buffer wipes to its whole
+                // capacity when dropped.
+                Payload::Spilled(mut whole) => {
                     whole.truncate(cols[1].1.end);
                     whole.drain(..cols[1].1.start);
-                    whole.shrink_to_fit();
                     whole
                 }
             };

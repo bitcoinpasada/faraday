@@ -713,10 +713,10 @@ pub fn read_file(
     clippy::too_many_lines,
     reason = "one pass over the records, one arm for each record type Bitcoin Core writes"
 )]
-pub fn read(
+pub fn read<V: AsRef<[u8]>>(
     c: &Compute,
     application_id: u32,
-    records: &[(Vec<u8>, Vec<u8>)],
+    records: &[(Vec<u8>, V)],
     mode: Network,
     passphrase: Option<&SecretText>,
 ) -> Result<Wallet, Refusal> {
@@ -732,12 +732,13 @@ pub fn read(
     // not read.
     let mut seen: HashSet<&[u8]> = HashSet::with_capacity(records.len());
     let mut repeats: Vec<&[u8]> = Vec::new();
-    let fresh: Vec<&(Vec<u8>, Vec<u8>)> = records
+    let fresh: Vec<(&[u8], &[u8])> = records
         .iter()
+        .map(|(key, value)| (key.as_slice(), value.as_ref()))
         .filter(|(key, _)| {
-            let new = seen.insert(key.as_slice());
+            let new = seen.insert(*key);
             if !new {
-                repeats.push(key.as_slice());
+                repeats.push(key);
             }
             new
         })
@@ -748,7 +749,7 @@ pub fn read(
         match split_key(key) {
             Some((name, _)) if LEGACY.contains(&name) => legacy.bump(name),
             Some(("flags", [])) => {
-                flags = value.as_slice().try_into().ok().map(u64::from_le_bytes);
+                flags = value.try_into().ok().map(u64::from_le_bytes);
             }
             _ => {}
         }
@@ -838,7 +839,7 @@ pub fn read(
         };
         match name {
             "walletdescriptor" | "walletdescriptorlhcache" => {}
-            "version" => match <[u8; 4]>::try_from(value.as_slice()) {
+            "version" => match <[u8; 4]>::try_from(value) {
                 Ok(v) if tail.is_empty() => r.wallet.version = Some(u32::from_le_bytes(v)),
                 _ => r.fail(name, tail, Fault::Layout),
             },
@@ -857,7 +858,7 @@ pub fn read(
             "activeexternalspk" | "activeinternalspk" => r.active(name, tail, value),
             "name" | "purpose" => r.label(name, tail, value),
             "mkey" => match <[u8; 4]>::try_from(tail) {
-                Ok(id) => mkeys.push((u32::from_le_bytes(id), value.as_slice())),
+                Ok(id) => mkeys.push((u32::from_le_bytes(id), value)),
                 Err(_) => r.fail(name, tail, Fault::Layout),
             },
             "walletdescriptorkey" | "walletdescriptorckey" => {
@@ -867,7 +868,7 @@ pub fn read(
                 match parsed {
                     Some(_) if value.len() > MAX_KEY_VALUE => r.fail(name, tail, Fault::Layout),
                     Some((id, pubkey)) if r.held.contains(&id) => {
-                        let item = (id, pubkey, Zeroizing::new(value.clone()), tail.to_vec());
+                        let item = (id, pubkey, Zeroizing::new(value.to_vec()), tail.to_vec());
                         if name == "walletdescriptorkey" {
                             plain.push(item);
                         } else {

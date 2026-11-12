@@ -61,6 +61,7 @@ pub use crc32::crc32;
 pub use hash::{
     HKDF_SHA256_MAX, PBKDF2_STEP, hkdf_sha256, hkdf_sha256_expand, hmac_sha256, hmac_sha512,
     pbkdf2_hmac_sha256, pbkdf2_hmac_sha256_block, pbkdf2_hmac_sha512, sha256, sha256_whole, sha512,
+    sha512_again, sha512_into,
 };
 pub use pinned::{Pinned, pin_failure_to_report};
 pub use scrypt::{Error as ScryptError, scrypt};

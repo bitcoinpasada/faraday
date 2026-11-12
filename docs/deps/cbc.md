@@ -26,7 +26,8 @@ on the same machine.
 **Cost.** One crate, `cbc` 0.2 with `default-features = false`: without
 its `block-padding` feature, which would bring `block-padding` (a crate
 by a publisher F71 does not name) into the tree, so padding is handled
-in `faraday-vault` and in `faraday-kef` themselves. `aes` there is
+in `faraday-vault` and in `faraday-kef` themselves; with its `zeroize`
+feature, which wipes a key schedule as it drops. `aes` there is
 the same 0.9 as for AEZ, now with its block cipher used as well as its
 round.
 

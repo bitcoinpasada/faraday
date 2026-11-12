@@ -27,10 +27,10 @@ use faraday_bip::bitcoin::NetworkKind;
 use faraday_bip::bitcoin::bip32::{ChainCode, ChildNumber, Fingerprint, Xpriv, Xpub};
 use faraday_bip::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use faraday_crypto::work::Compute;
-use faraday_crypto::{Secret, sha256, sha512};
+use faraday_crypto::{Secret, sha256, sha512_again, sha512_into};
 use faraday_intake::secret_buf::SecretText;
 use subtle::ConstantTimeEq;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 /// The master key's derivation method Bitcoin Core writes (0): SHA-512
 /// rounds, then AES-256-CBC.
@@ -198,6 +198,15 @@ fn gives(c: &Compute, secret: &[u8], pubkey: &[u8]) -> KeyVerdict {
     }
 }
 
+/// Overwrites an `Xpriv`'s private key and chain code in place. rust-bitcoin's
+/// own derivation leaves its HMAC-SHA-512 state and the intermediate keys
+/// it works through on its own stack, out of reach here; this wipes what
+/// Faraday holds.
+fn erase(node: &mut Xpriv) {
+    node.private_key.non_secure_erase();
+    AsMut::<[u8; 32]>::as_mut(&mut node.chain_code).zeroize();
+}
+
 /// Costs a derivation along its path for each account check (counted once for each), and
 /// an elliptic-curve multiplication for the public key: whether the 32
 /// bytes are a secret key giving `pubkey`, and for each of `accounts`
@@ -238,7 +247,7 @@ fn gives_accounts(
             for &step in &a.path {
                 match node.derive_priv(&secp, &[ChildNumber::from(step)]) {
                     Ok(next) => {
-                        node.private_key.non_secure_erase();
+                        erase(&mut node);
                         node = next;
                     }
                     Err(_) => {
@@ -251,7 +260,7 @@ fn gives_accounts(
                 let public = Xpub::from_priv(&secp, &node).encode();
                 bool::from(public[4..].ct_eq(&a.cached[..]))
             };
-            node.private_key.non_secure_erase();
+            erase(&mut node);
             same
         })
         .collect();
@@ -372,9 +381,11 @@ fn open_master_key(mkey: &[u8], passphrase: &[u8]) -> Result<Secret<[u8; 32]>, O
         return Err(OpenError::Rounds(rounds));
     }
     let mut chain = Zeroizing::new([passphrase, salt].concat());
-    let mut digest = Zeroizing::new(sha512(&chain));
+    // Each round's digest is written over the last, in one wiping array.
+    let mut digest = Zeroizing::new([0u8; 64]);
+    sha512_into(&chain, &mut digest);
     for _ in 1..rounds {
-        *digest = sha512(&digest[..]);
+        sha512_again(&mut digest);
     }
     chain.fill(0);
     let plain =
