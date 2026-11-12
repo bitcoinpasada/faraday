@@ -788,9 +788,13 @@ stand alone at the large size. The same goes for a text kind at either size:
 readable text says the guess is right.
 
 **The cost per step.** A figure for scale, not an estimate of any real
-attacker: 2^40 Argon2 block steps a second, about a million cores each
-filling about 1 GiB a second. Memory is what the figure leaves out: at 64
-MiB that many cores hold 64 TiB, and at 1 GiB, 1 PiB. The times include
+attacker: 2^40 Argon2 block steps a second, about a million CPU cores each
+filling about 1 GiB a second. That is an attacker the size of a large data
+centre, about 16,000 servers of 64 cores, holding 64 TiB of memory at 64 MiB
+(about 4 GiB a server) and 1 PiB at 1 GiB (about 64 GiB a server); memory's
+cost is what the figure leaves out. The times scale with the attacker: one
+with 1,000 cores, about 16 such servers, takes a thousand times as long, and
+one desktop computer of 16 cores about 65,000 times as long. The times include
 Argon2: a guess costs three passes over its memory in 1 KiB blocks, 2^17.6
 block steps at 64 MiB, 2^19.6 at 256 MiB and 2^21.6 at 1 GiB, which is where
 each column's guesses a second come from. The total work is the passphrase's
