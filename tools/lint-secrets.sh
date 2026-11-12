@@ -8,16 +8,27 @@
 # (faraday/faraday-core-wallet/src/, whose records carry a wallet's keys on
 # their way to faraday-keys) and to the Argon QR Vault library's
 # (aqrv/aqrv/src/, whose items and keys are as secret as Faraday's; its
-# text is zeroized strings, so rule 3 does not apply to it); rule 3 only to the secret files
-# listed below:
+# text is zeroized strings, so rule 3 does not apply to it); rule 2's
+# derives also to every other non-test source file under core/, faraday/ and
+# aqrv/ except the Starter's, the shells' and tools' (docs/SECRET-LEAKS.md
+# §6); rule 3 to the secret files listed below, which a file's use of a secret
+# type also selects:
 #   1. No output or logging macros: println!, eprintln!, print!, eprint!,
 #      dbg!, log::, tracing::. Tests that need to print live under tests/
 #      (integration tests), or use assert! only.
-#   2. No `#[derive(... Debug ...)]` on a type named Secret,
-#      Mnemonic, MnemonicBytes, Seed, Entropy, MasterKey,
-#      DerivedKey, PinEntry, Session, Key or Item (checked on the item
-#      that follows the derive). Types of those names that hold no secret
-#      are excepted one by one in ALLOWED below.
+#   2. A secret type derives none of Clone, PartialEq or Debug and has no
+#      Display impl. A secret type is a struct or enum whose body names a
+#      secret type (Secret, SecretText, Zeroizing, SeedBytes, MnemonicBytes,
+#      a faraday-keys Held*, rule 4a's key types) as a field's type, that derives
+#      Zeroize, or that has an `impl Drop`, `Zeroize` or `ZeroizeOnDrop`
+#      for it. A copy is a function of the type (`duplicate`), a comparison
+#      one that does not branch on the bytes, a Debug one that prints a
+#      redaction. Types named Secret, Mnemonic, MnemonicBytes, Seed,
+#      Entropy, MasterKey, DerivedKey, PinEntry, Session, Key or Item
+#      derive no Debug either (checked on the item that follows the
+#      derive); those that hold no secret are excepted one by one in
+#      ALLOWED below, and a secret type that keeps a derive is excepted by
+#      file and name in ALLOWED_TYPES, each with its reason.
 # Applied to the files that handle secret material, currently
 # core/faraday-crypto/src/secret.rs (secrets, seeds and mnemonics),
 # core/faraday-bip/src/bip39.rs (mnemonics, entropy, seeds),
@@ -58,9 +69,17 @@
 #      literal holding the KDBX XML element `<String>`, which the vault's
 #      xml/mod.rs writes into a document.
 #      Other files in faraday-bip (accounts, descriptors, SLIP-132) hold only
-#      public data and may use String freely. A new module that touches
-#      secrets must be added to SECRET_FILES below; paths are relative to
-#      the repository root and need not be under core/.
+#      public data and may use String freely. A file is a secret file when
+#      it is in SECRET_FILES below (paths are relative to the repository
+#      root and need not be under core/) or in tools/lint-secrets-excepted.txt,
+#      which names each non-test source file under core/, faraday/ or aqrv/
+#      that uses a secret type and is not yet held by rule 3, with its
+#      reason. A file that uses a secret type (the names of rule 2, 4a's
+#      key types, `zeroize`) and is in neither list is reported, so a new
+#      module is found without anyone adding it; so is a listed file that
+#      uses none (unless it is in NAMELESS, with its reason), an excepted
+#      file that no longer uses one or has no heap text (it moves to
+#      SECRET_FILES), and one listed twice.
 #
 # Rule 4, the key boundary, and rule 5, the dev card's reports, are
 # described where they are checked, below.
@@ -84,6 +103,20 @@ report() {
 src_files() {
     { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; find faraday/faraday-plan/src -name '*.rs'; find faraday/faraday-paper/src -name '*.rs'; find faraday/faraday-host/src -name '*.rs'; find faraday/faraday-core-wallet/src -name '*.rs'; find aqrv/aqrv/src -name '*.rs'; } | sort
 }
+
+# Every non-test source file that can name a secret type: core/, faraday/ and
+# aqrv/, but not tests/, examples/, benches/ and fuzz/, the Starter (which runs
+# on an online computer and holds test data), the shells and tools.
+type_files() {
+    find core faraday aqrv -path '*/src/*' -name '*.rs' \
+        -not -path '*/tests/*' -not -path '*/examples/*' -not -path '*/benches/*' \
+        -not -path 'faraday/faraday-starter*' -not -path 'faraday/shells/*' \
+        -not -path 'faraday/tools/*' -not -path 'faraday/fuzz/*' | sort
+}
+# A secret type, by name: the wiping types, faraday-keys' holders (Held,
+# HeldSet, HeldItem, HeldAezeed), rule 4a's key types and anything that
+# wipes itself.
+SECRET_NAMES='\b(Secret|SecretText|Zeroizing|SeedBytes|MnemonicBytes|Held[A-Za-z]*|Zeroize|ZeroizeOnDrop|MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)\b|\bzeroize\b'
 
 # Rule 1: output and logging macros.
 report "output/logging macro in core source (rule 1)" \
@@ -122,11 +155,139 @@ rule2() {
 }
 report "Debug derived on a secret type (rule 2)" "$(rule2)"
 
+# Rule 2, by type: a struct or enum that holds a secret (its body names a
+# secret type as a field's type, it derives Zeroize, or it has an `impl Drop`,
+# `Zeroize` or `ZeroizeOnDrop`) derives none of Clone, PartialEq or Debug and
+# has no Display impl. The ones that keep a derive are named here by file and
+# type, then the derives it excepts (Clone, PartialEq, Debug, Display, comma
+# separated; only those, any other derive on it is still flagged), then the
+# reason ("fixed in a later change": the type's callers copy, compare or print
+# it and are not yet changed to a function of the type that does).
+ALLOWED_TYPES=$(cat <<'EOF'
+core/faraday-bip/src/bip39.rs:Typed Clone,PartialEq,Debug the keys typed so far of a mnemonic word, which is secret; let through because no production code prints it (the Debug is used by the tests' failure messages only) and the entry's matching copies and compares it; fixed in a later change by a Debug that prints nothing and a matching that borrows
+faraday/faraday-core/src/codex32/mod.rs:DieRow Clone,PartialEq,Debug one die's two values, a Copy element of wiped buffers that the tour and the tests compare and print
+core/faraday-shell-api/src/lib.rs:EntropyBytes Clone Event is Clone and the snapshot and replay shells copy events
+core/faraday-codec/src/decode.rs:Decoded Clone,PartialEq,Debug fixed in a later change
+core/faraday-shell-api/src/lib.rs:Command Clone,PartialEq,Debug fixed in a later change
+faraday/faraday-core/src/backup_flow/mod.rs:Writing Clone fixed in a later change
+faraday/faraday-core/src/codes/mod.rs:CodeKind Clone,PartialEq,Debug fixed in a later change
+faraday/faraday-core/src/glance/sheet.rs:View Clone,Debug fixed in a later change
+faraday/faraday-core/src/item.rs:Item Clone fixed in a later change
+faraday/faraday-core/src/storage_api.rs:StorageCommand Clone,PartialEq,Debug fixed in a later change
+faraday/faraday-core/src/transfer/text.rs:SendText Debug fixed in a later change
+faraday/faraday-files/src/proto.rs:Request Clone,PartialEq,Debug fixed in a later change
+faraday/faraday-intake/src/wallet.rs:Seen PartialEq fixed in a later change
+faraday/faraday-pgp/src/message.rs:Body Debug fixed in a later change
+faraday/faraday-vault/src/contents.rs:KeyName Clone fixed in a later change
+faraday/faraday-vault/src/contents/tree.rs:Name Clone fixed in a later change
+faraday/faraday-vault/src/kdbx/inner.rs:Shared Clone fixed in a later change
+faraday/faraday-vault/src/kdbx/xml/mod.rs:Piece Clone fixed in a later change
+faraday/faraday-vault/src/kdbx/xml/mod.rs:Leaf Clone fixed in a later change
+faraday/faraday-vault/src/kdbx/xml/mod.rs:Frame Clone fixed in a later change
+faraday/faraday-vault/src/kdbx/xml/mod.rs:Pair Clone fixed in a later change
+faraday/faraday-vault/src/kdbx/xml/mod.rs:Orig Clone fixed in a later change
+faraday/faraday-vault/src/kdbx/xml/mod.rs:Group Clone fixed in a later change
+faraday/faraday-vault/src/records.rs:Field Clone fixed in a later change
+EOF
+)
+ALLOWED_TYPES_LIST=$(echo "$ALLOWED_TYPES" | awk '{print $1 "=" $2}' | tr '\n' ' ')
+rule2_types() {
+    for f in $(type_files); do
+        names=$(grep -ohE 'impl(<[^>]*>)? +(Drop|Zeroize|ZeroizeOnDrop|zeroize::Zeroize|zeroize::ZeroizeOnDrop) +for +[A-Za-z0-9_]+' "$f" | sed -E 's/.* for //' | sort -u | tr '\n' ' ')
+        awk -v file="$f" -v allowed="$ALLOWED_TYPES_LIST" -v names="$names" '
+            function inbody(b,   re) {
+                re = "([:(<,&[]|&mut)[[:space:]]*(pub(\\([a-z]+\\))?[[:space:]]+)?([a-z_]+::)*(Secret|SecretText|Zeroizing|SeedBytes|MnemonicBytes|Held[A-Za-z]*|MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecNonce|SlotKey)([^A-Za-z0-9_(]|$)"
+                return b ~ re
+            }
+            function excepts(key,   i, n, a) {
+                n = split(allowed, a, " ")
+                for (i = 1; i <= n; i++)
+                    if (index(a[i], key "=") == 1) return substr(a[i], length(key) + 2)
+                return ""
+            }
+            BEGIN { split_d[1] = "Clone"; split_d[2] = "PartialEq"; split_d[3] = "Debug" }
+            function flush() {
+                if (name != "" && (inbody(body) || derive ~ /Zeroize/ || index(" " names, " " name " "))) {
+                    ex = excepts(file ":" name)
+                    bad = ""
+                    for (k = 1; k <= 3; k++)
+                        if (derive ~ ("(^|[^A-Za-z0-9_])" split_d[k] "([^A-Za-z0-9_]|$)") && index("," ex ",", "," split_d[k] ",") == 0)
+                            bad = bad " " split_d[k]
+                    if (bad != "")
+                        printf "%s:%d: %s: %s\n", file, dline, name, derive
+                    secret[name] = 1
+                }
+                if (name != "") seen[name] = 1
+                name = ""; body = ""
+            }
+            collecting { pend = pend " " $0; if ($0 ~ /\)\]/) collecting = 0; next }
+            /^[[:space:]]*#\[derive\(/ { pend = $0; pline = FNR; if ($0 !~ /\)\]/) collecting = 1; next }
+            pend != "" && /^[[:space:]]*(#\[|\/\/)/ { next }
+            /^[[:space:]]*impl(<[^>]*>)?[[:space:]]+([A-Za-z_:]*::)?Display[[:space:]]+for[[:space:]]+[A-Za-z_]/ {
+                l = $0; sub(/^.*Display[[:space:]]+for[[:space:]]+/, "", l); sub(/[^A-Za-z0-9_].*$/, "", l)
+                disp[l] = FNR
+            }
+            { sub(/[[:space:]]*\/\/.*$/, ""); if ($0 == "") $0 = "|" }
+            name != "" {
+                body = body " " $0
+                if (depth_open) { n = gsub(/\{/, "{"); m = gsub(/\}/, "}"); depth += n - m; if (depth <= 0) flush() }
+                else if ($0 ~ /;/) flush()
+                next
+            }
+            /(^|[^A-Za-z0-9_])(struct|enum)[[:space:]]+[A-Za-z_]/ && !/\/\// {
+                derive = pend; dline = pline; pend = ""
+                l = $0; sub(/^.*(struct|enum)[[:space:]]+/, "", l); sub(/[^A-Za-z0-9_].*$/, "", l); name = l
+                body = $0
+                if ($0 ~ /\{/) { depth_open = 1; n = gsub(/\{/, "{"); m = gsub(/\}/, "}"); depth = n - m; if (depth <= 0) flush() }
+                else { depth_open = 0; if ($0 ~ /;/) flush() }
+                next
+            }
+            { pend = "" }
+            END {
+                for (t in disp)
+                    if ((t in secret) && index("," excepts(file ":" t) ",", ",Display,") == 0)
+                        printf "%s:%d: %s: Display implemented\n", file, disp[t], t
+            }
+        ' "$f" 2>&1 || echo "$f: awk failed (exit $?)"
+    done
+}
+report "Clone, PartialEq, Debug derived or Display implemented on a secret type (rule 2)" "$(rule2_types)"
+
 # Rule 3: no heap text in the files that hold secret material.
-SECRET_FILES="faraday/faraday-vault/src/contents.rs faraday/faraday-vault/src/contents/tree.rs faraday/faraday-vault/src/kdbx/mod.rs faraday/faraday-vault/src/kdbx/header.rs faraday/faraday-vault/src/kdbx/keys.rs faraday/faraday-vault/src/kdbx/keyfile.rs faraday/faraday-vault/src/kdbx/blocks.rs faraday/faraday-vault/src/kdbx/inner.rs faraday/faraday-vault/src/kdbx/xml/mod.rs faraday/faraday-vault/src/kdbx/xml/read.rs faraday/faraday-vault/src/kdbx/items/mod.rs faraday/faraday-vault/src/kdbx/items/write.rs faraday/faraday-vault/src/kdbx/items/forms.rs faraday/faraday-vault/src/kdbx/gzip.rs faraday/faraday-vault/src/file.rs core/faraday-crypto/src/secret.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-bip/src/wif.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/booklet.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs faraday/faraday-vault/src/layouts.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/codex32/correct.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/message.rs faraday/faraday-keys/src/job.rs faraday/faraday-keys/src/hsm_secret.rs faraday/faraday-keys/src/slip39_set.rs faraday/faraday-pgp/src/secret.rs faraday/faraday-vault/src/qr.rs faraday/faraday-kef/src/lib.rs faraday/faraday-core/src/worker/kef.rs faraday/faraday-keys/src/kef.rs faraday/faraday-keys/src/qr_vault.rs faraday/faraday-keys/src/core_wallet.rs"
+SECRET_FILES="faraday/faraday-vault/src/contents.rs faraday/faraday-vault/src/contents/tree.rs faraday/faraday-vault/src/kdbx/mod.rs faraday/faraday-vault/src/kdbx/keys.rs faraday/faraday-vault/src/kdbx/keyfile.rs faraday/faraday-vault/src/kdbx/blocks.rs faraday/faraday-vault/src/kdbx/inner.rs faraday/faraday-vault/src/kdbx/xml/mod.rs faraday/faraday-vault/src/kdbx/xml/read.rs faraday/faraday-vault/src/kdbx/items/mod.rs faraday/faraday-vault/src/kdbx/items/write.rs faraday/faraday-vault/src/kdbx/items/forms.rs faraday/faraday-vault/src/kdbx/gzip.rs faraday/faraday-vault/src/file.rs core/faraday-crypto/src/secret.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-bip/src/wif.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/booklet.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs faraday/faraday-vault/src/layouts.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/codex32/correct.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/message.rs faraday/faraday-keys/src/job.rs faraday/faraday-keys/src/hsm_secret.rs faraday/faraday-keys/src/slip39_set.rs faraday/faraday-pgp/src/secret.rs faraday/faraday-vault/src/qr.rs faraday/faraday-kef/src/lib.rs faraday/faraday-core/src/worker/kef.rs faraday/faraday-core/src/worker.rs faraday/faraday-keys/src/kef.rs faraday/faraday-keys/src/qr_vault.rs faraday/faraday-keys/src/core_wallet.rs faraday/faraday-vault/src/records.rs faraday/faraday-vault/src/kdbx/tests.rs faraday/faraday-ui/src/press.rs faraday/faraday-scanner/src/lib.rs faraday/faraday-samples/src/data.rs faraday/faraday-pgp/src/message/tests.rs faraday/faraday-keys/src/vault/seal.rs faraday/faraday-keys/src/vault/edits.rs faraday/faraday-keys/src/psbt.rs faraday/faraday-keys/src/parts.rs faraday/faraday-keys/src/lib.rs faraday/faraday-host/src/scroll.rs faraday/faraday-guide/src/how.rs faraday/faraday-guide/src/block.rs faraday/faraday-core/src/wallet_backup/shown.rs faraday/faraday-core/src/vault/screen/secret.rs faraday/faraday-core/src/nav/mod.rs faraday/faraday-core/src/fresh/roller/five.rs faraday/faraday-core/src/codex32/walk.rs faraday/faraday-core/src/codex32/tracker.rs core/faraday-draw/src/tokens.rs core/faraday-crypto/src/pinned.rs core/faraday-crypto/src/lib.rs core/faraday-crypto/src/hash.rs core/faraday-crypto/src/argon2.rs core/faraday-codec/src/seedqr.rs core/faraday-codec/src/lib.rs core/faraday-codec/src/decode.rs core/faraday-codec/src/png.rs core/faraday-crypto/src/blake2b.rs core/faraday-crypto/src/scrypt.rs core/faraday-crypto/src/wipe.rs core/faraday-crypto/src/work.rs core/faraday-entropy/src/pointer_keys.rs core/faraday-psbt/src/context.rs core/faraday-psbt/src/lib.rs core/faraday-psbt/src/musig.rs faraday/faraday-core/src/fresh/page.rs faraday/faraday-core/src/work/budget/codex32.rs faraday/faraday-core/src/work.rs faraday/faraday-keys/src/message.rs faraday/faraday-keys/src/vanity.rs faraday/faraday-sb/src/rng.rs"
 for f in $SECRET_FILES; do
     [ -f "$f" ] || { echo "lint-secrets: missing $f (update SECRET_FILES)"; status=1; }
 done
+# Files in SECRET_FILES that hold a secret without naming a secret type, each
+# with why:
+#   codex32/fresh.rs   makes shares from entropy through the types of mod.rs
+#   vault/qr.rs        takes the passphrase as text for the PGP layer's seal
+#   worker/kef.rs      holds the KEF worker's answers behind faraday-keys calls
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs"
+EXCEPTED_FILE=tools/lint-secrets-excepted.txt
+EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
+names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
+has_heap_text() { grep -E '\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!' "$1" | grep -qvE 'b"[^"]*</?String>'; }
+unlisted=$(for f in $(type_files); do
+    names_secret "$f" || continue
+    case " $SECRET_FILES " in *" $f "*) continue ;; esac
+    grep -qxF "$f" <<< "$EXCEPTED" || echo "$f"
+done)
+report "a file that uses a secret type is in neither SECRET_FILES nor $EXCEPTED_FILE (rule 3)" "$unlisted"
+nameless=$(for f in $SECRET_FILES; do
+    [ -f "$f" ] || continue
+    names_secret "$f" && continue
+    case " $NAMELESS " in *" $f "*) ;; *) echo "$f" ;; esac
+done)
+report "a file in SECRET_FILES that uses no secret type (rule 3; remove it, or name it in NAMELESS with why)" "$nameless"
+stale=$(for f in $EXCEPTED; do
+    if [ ! -f "$f" ]; then echo "$f: missing"
+    elif ! names_secret "$f"; then echo "$f: uses no secret type any more"
+    elif ! has_heap_text "$f"; then echo "$f: has no heap text: move it to SECRET_FILES"
+    elif case " $SECRET_FILES " in *" $f "*) true ;; *) false ;; esac; then echo "$f: also in SECRET_FILES"
+    fi
+done; sort <<< "$EXCEPTED" | uniq -d | sed 's/$/: listed twice/')
+report "$EXCEPTED_FILE is out of date (rule 3)" "$stale"
 report "heap text in secret-handling source (rule 3)" \
     "$(grep -nE '\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!' $SECRET_FILES \
         | grep -vE 'b"[^"]*</?String>')"

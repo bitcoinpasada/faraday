@@ -54,6 +54,7 @@
 //! roots and the field are checked in this file's tests; the decoder is
 //! checked against python-codex32's frozen correction corpus and, in the
 //! crypto cross-check, against its decoder (`docs/CODEX32.md` §13.5).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Zeroize, ZeroizeOnDrop};

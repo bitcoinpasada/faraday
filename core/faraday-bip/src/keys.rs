@@ -39,6 +39,7 @@
 //! runs unblinded (security review M1). Contexts that only verify are
 //! built where they are needed and need no blinding: there is no secret
 //! in them.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use core::fmt;
 
@@ -248,6 +249,8 @@ pub enum Error {
 /// Why an extended private key offered as text was not taken as a master
 /// key. Both halves are the existing vocabulary: the decoder's reason, or
 /// the master-key rule [`Error::NotMaster`] states.
+// `allow`, not `expect`: a derive copies `allow` onto what it writes, not `expect`.
+#[allow(clippy::disallowed_methods)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ImportError {
     /// The text is not a valid extended private key.
@@ -656,6 +659,10 @@ impl MasterKey {
     pub fn for_network(&self, network: Network) -> MasterKey {
         let mut xpriv = *self.xpriv();
         xpriv.network = network.kind();
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the context is a copy of the blinded one, which the new key needs"
+        )]
         let held = MasterKey {
             xpriv: Pinned::new(XprivCell(xpriv)),
             network,
@@ -703,6 +710,10 @@ impl MasterKey {
             .xpriv()
             .derive_priv(&self.secp, path)
             .expect("child derivation yields a valid key");
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the path is public and the context a copy of the blinded one"
+        )]
         let derived = DerivedKey {
             xpriv,
             master_fingerprint: self.fingerprint,

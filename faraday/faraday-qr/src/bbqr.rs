@@ -151,11 +151,17 @@ pub enum Got {
 
 /// A transfer being put together. The parts read are wiped when it is
 /// dropped: a transfer may be a secret.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Collector {
     header: Option<(u8, u8, usize)>,
     parts: BTreeMap<usize, Vec<u8>>,
     bytes: usize,
+}
+
+impl std::fmt::Debug for Collector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Collector(..)")
+    }
 }
 
 impl Drop for Collector {

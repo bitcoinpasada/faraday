@@ -25,10 +25,16 @@ pub fn parse(text: &str) -> Option<(usize, usize, &str)> {
 
 /// Parts being put together. The parts read are wiped when it is
 /// dropped: a transfer may be a secret.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Collector {
     total: usize,
     parts: BTreeMap<usize, String>,
+}
+
+impl std::fmt::Debug for Collector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Collector(..)")
+    }
 }
 
 impl Drop for Collector {

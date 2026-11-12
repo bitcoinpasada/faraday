@@ -598,7 +598,7 @@ impl Keys {
         let parsed: Option<Vec<Share>> = lines.iter().map(|l| Share::parse(l).ok()).collect();
         let parsed = parsed.ok_or(Convert::NotSameWallet)?;
         let recovers = |chosen: &[usize]| {
-            let own: Vec<Share> = chosen.iter().map(|&n| parsed[n].clone()).collect();
+            let own: Vec<Share> = chosen.iter().map(|&n| parsed[n].duplicate()).collect();
             slip39_seed(c, &own, b"")
                 .ok()
                 .and_then(|secret| fingerprint_of_seed(c, &secret))

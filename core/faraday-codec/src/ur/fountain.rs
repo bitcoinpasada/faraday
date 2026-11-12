@@ -75,7 +75,6 @@ impl Part {
 }
 
 /// Emits the parts of one message, endlessly.
-#[derive(Debug)]
 pub struct Encoder {
     fragments: Vec<Vec<u8>>,
     fragment_count: usize,
@@ -133,6 +132,12 @@ impl Encoder {
 }
 
 /// The fragments hold the message: wiped when the encoder is dropped.
+impl core::fmt::Debug for Encoder {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("Encoder(..)")
+    }
+}
+
 impl Drop for Encoder {
     fn drop(&mut self) {
         for f in &mut self.fragments {

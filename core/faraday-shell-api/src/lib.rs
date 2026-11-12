@@ -390,7 +390,11 @@ pub struct FileEntry {
 /// printing an event, and whatever is still held is wiped on drop.
 ///
 /// [`into_bytes`]: EntropyBytes::into_bytes
-#[derive(Clone, PartialEq, Eq)]
+///
+/// Equality folds every byte, with no branch on a byte's value. `Clone`
+/// stays derived: [`Event`] is `Clone`, and the snapshot and replay shells
+/// copy events.
+#[derive(Clone)]
 pub struct EntropyBytes([u8; 32]);
 
 impl EntropyBytes {
@@ -407,6 +411,18 @@ impl EntropyBytes {
         bytes
     }
 }
+
+impl PartialEq for EntropyBytes {
+    fn eq(&self, other: &Self) -> bool {
+        self.0
+            .iter()
+            .zip(&other.0)
+            .fold(0u8, |diff, (a, b)| diff | (a ^ b))
+            == 0
+    }
+}
+
+impl Eq for EntropyBytes {}
 
 impl fmt::Debug for EntropyBytes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -27,6 +27,7 @@
 //! on drop ([`Text`]), because the same code writes the scan private
 //! key and the address, and `tools/lint-secrets.sh` holds this file to
 //! the rule that a secret never reaches the heap as text.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 use core::fmt;
@@ -961,8 +962,8 @@ pub fn find_payments(
 // ---------------------------------------------------------------------
 
 /// The private key of one eligible input, with whether it spends a
-/// taproot output — which decides whether BIP-352 negates it first.
-#[derive(Debug, Clone, Copy)]
+/// taproot output — which decides whether BIP-352 negates it first. It
+/// has no `Debug`, `Clone` or `Copy`.
 pub struct SendKey {
     /// The key that spends the input.
     pub key: SecretKey,

@@ -5,6 +5,7 @@
 //! their checksum, and must be the file's hex; the parts XORed by a plain
 //! byte fold must be the seed's hex and the seed's words; and `SeedXor`
 //! must give the same seed.
+#![allow(clippy::disallowed_methods)]
 
 use bip39::{Language, Mnemonic};
 use faraday_entropy::SeedXor;

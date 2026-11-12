@@ -15,6 +15,7 @@
 //! identifier are the same in every string of the set and interpolate
 //! to themselves, so the strings take their headers once the identifier
 //! is set ([`Scheme`]).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 

@@ -46,6 +46,7 @@
 //! made from `k` initial shares of fresh entropy ([`Scheme`],
 //! [`fresh_set`]), the secret and the derived shares interpolated from
 //! them, for any threshold and up to 31 strings.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 

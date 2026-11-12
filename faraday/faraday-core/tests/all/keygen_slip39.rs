@@ -62,7 +62,7 @@ fn any_two_of_the_three_shares_restore_the_key() {
     assert!(k.shares.iter().all(|s| s.word_count() == 20));
     let fp = k.fingerprint.unwrap();
     for pair in [[0usize, 1], [0, 2], [1, 2]] {
-        let two = [k.shares[pair[0]].clone(), k.shares[pair[1]].clone()];
+        let two = [k.shares[pair[0]].duplicate(), k.shares[pair[1]].duplicate()];
         let secret = faraday_bip::slip39::recover(&c, &two, b"").unwrap();
         let got = faraday_core::wallet::Session::default()
             .keys
@@ -70,7 +70,7 @@ fn any_two_of_the_three_shares_restore_the_key() {
             .unwrap();
         assert_eq!(got.0, fp, "shares {pair:?} restore another key");
     }
-    let one = [k.shares[0].clone()];
+    let one = [k.shares[0].duplicate()];
     assert!(
         faraday_bip::slip39::recover(&c, &one, b"").is_err(),
         "one share is not enough"

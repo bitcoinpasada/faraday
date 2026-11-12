@@ -23,6 +23,7 @@
 //! BLAKE2b when it is not, which is the case aezeed is in — and those
 //! 48 bytes are the three subkeys `I`, `J`, `L` that the four- and
 //! ten-round AES calls run over.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec;
 use alloc::vec::Vec;

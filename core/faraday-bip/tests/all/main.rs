@@ -1,4 +1,5 @@
 //! The integration tests of faraday-bip, one module per subject.
+#![allow(clippy::disallowed_methods)]
 
 mod accounts;
 mod aez;

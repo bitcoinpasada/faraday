@@ -1,4 +1,5 @@
 //! Known-answer tests for the hash wrappers and the `Secret` type.
+#![allow(clippy::disallowed_methods)]
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 

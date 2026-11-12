@@ -17,6 +17,7 @@
 //! response `k + e·a` is libsecp256k1's `SecretKey` multiply and add,
 //! the challenge `e` the tweak. The secret's bytes, the nonce and the
 //! hashes they pass through are zeroized or erased before return.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use bitcoin::secp256k1::{All, PublicKey, Secp256k1, SecretKey, Verification};
 use faraday_crypto::Zeroize;
