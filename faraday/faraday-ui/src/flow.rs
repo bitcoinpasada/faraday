@@ -14,26 +14,70 @@ struct Piece<'a> {
     width: f32,
 }
 
-/// The paragraph `spans` (a text and whether it is bold) from (x, y), `w`
-/// wide, in `role`, the bold spans in its medium face. Words are broken at
-/// spaces across spans, so punctuation stays with its word. Only the lines
-/// in view are drawn, and the words of one face on a line are drawn as one
-/// run, the line counting as one line of text drawn. Costs one measure of
-/// each piece of a word and one draw of each run in view, and two
-/// allocations. Returns the
-/// height used.
-pub fn word_flow<'s, A: Copy + PartialEq>(
+/// One run of a laid-out line: the words of one face, joined by spaces,
+/// and the run's left edge from the paragraph's.
+struct Run {
+    bold: bool,
+    x: f32,
+    text: String,
+}
+
+/// A paragraph laid out: its lines, each of runs, at the width and font it
+/// was broken for. Kept by a caller, so a frame drawn again measures and
+/// breaks nothing ([`Flow::draw`]).
+pub struct Flow {
+    role: TypeRole,
+    line: f32,
+    lines: Vec<Vec<Run>>,
+}
+
+impl Flow {
+    /// The height the paragraph uses. A lookup.
+    pub fn height(&self) -> f32 {
+        self.lines.len() as f32 * self.line
+    }
+
+    /// Draws the lines in view from (x, y), the runs of a line counting as
+    /// one line of text drawn. Costs one draw of each run in view. Returns
+    /// the height used.
+    pub fn draw<A: Copy + PartialEq>(&self, ui: &mut Ui<A>, (x, y): (f32, f32)) -> f32 {
+        for (n, runs) in self.lines.iter().enumerate() {
+            let cy = n as f32 * self.line;
+            if !ui.shows(y + cy, self.line) {
+                continue;
+            }
+            let mark = ui.c.lines_drawn();
+            for r in runs {
+                let role = if r.bold {
+                    self.role.medium()
+                } else {
+                    self.role
+                };
+                ui.text_mid_as((x + r.x, y + cy, self.line), role, Role::OnSurface, &r.text);
+            }
+            ui.c.join_lines_since(mark);
+        }
+        self.height()
+    }
+}
+
+/// The paragraph `spans` (a text and whether it is bold) laid out `w`
+/// wide in `role`, the bold spans in its medium face. Words are broken at
+/// spaces across spans, so punctuation stays with its word, and the words
+/// of one face on a line are one run. Costs one measure of each piece of
+/// a word and an allocation for each run.
+pub fn lay_out<'s, A: Copy + PartialEq>(
     ui: &mut Ui<A>,
-    (x, y, w): (f32, f32, f32),
+    w: f32,
     role: TypeRole,
     spans: impl IntoIterator<Item = (&'s str, bool)> + Clone,
-) -> f32 {
+) -> Flow {
     let face = |bold: bool| if bold { role.medium() } else { role };
-    // One count of the pieces and the bytes, so the two buffers are made
-    // once each at their size.
-    let (count, bytes) = spans.clone().into_iter().fold((0, 0), |(n, b), (t, _)| {
-        (n + t.split(char::is_whitespace).count(), b + t.len())
-    });
+    let count = spans
+        .clone()
+        .into_iter()
+        .map(|(t, _)| t.split(char::is_whitespace).count())
+        .sum();
     let mut pieces: Vec<Piece> = Vec::with_capacity(count);
     let mut joins = false;
     for (text, bold) in spans {
@@ -54,12 +98,8 @@ pub fn word_flow<'s, A: Copy + PartialEq>(
     }
     let line = ui.line_as(role);
     let space = ui.measure_as(role, "a a") - ui.measure_as(role, "aa");
-    let (mut cx, mut cy) = (0.0_f32, 0.0_f32);
-    // The run being gathered: its text, face and left edge.
-    let mut run = String::with_capacity(bytes);
-    let (mut run_bold, mut run_x) = (false, 0.0_f32);
-    // A line's runs count as one line of text drawn.
-    let mut mark = ui.c.lines_drawn();
+    let mut cx = 0.0_f32;
+    let mut lines: Vec<Vec<Run>> = vec![Vec::new()];
     let mut i = 0;
     while i < pieces.len() {
         let end = pieces[i + 1..]
@@ -70,46 +110,42 @@ pub fn word_flow<'s, A: Copy + PartialEq>(
         let ww: f32 = word.iter().map(|p| p.width).sum();
         let mut spaced = false;
         if cx > 0.0 && cx + space + ww > w {
-            flush(ui, (x, y, line), role, &mut run, run_bold, (run_x, cy));
-            ui.c.join_lines_since(mark);
-            mark = ui.c.lines_drawn();
+            lines.push(Vec::new());
             cx = 0.0;
-            cy += line;
         } else if cx > 0.0 {
             cx += space;
             spaced = true;
         }
+        let runs = lines.last_mut().expect("a line");
         for (n, p) in word.iter().enumerate() {
-            if !run.is_empty() && p.bold != run_bold {
-                flush(ui, (x, y, line), role, &mut run, run_bold, (run_x, cy));
+            match runs.last_mut() {
+                Some(r) if r.bold == p.bold => {
+                    if n == 0 && spaced {
+                        r.text.push(' ');
+                    }
+                    r.text.push_str(p.text);
+                }
+                _ => runs.push(Run {
+                    bold: p.bold,
+                    x: cx,
+                    text: p.text.to_string(),
+                }),
             }
-            if run.is_empty() {
-                (run_bold, run_x) = (p.bold, cx);
-            } else if n == 0 && spaced {
-                run.push(' ');
-            }
-            run.push_str(p.text);
             cx += p.width;
         }
         i = end;
     }
-    flush(ui, (x, y, line), role, &mut run, run_bold, (run_x, cy));
-    ui.c.join_lines_since(mark);
-    cy + line
+    Flow { role, line, lines }
 }
 
-/// Draws the gathered run, if its line is in view, and empties it.
-fn flush<A: Copy + PartialEq>(
+/// The paragraph `spans` laid out and drawn from (x, y), `w` wide: the
+/// two steps in one, for a caller that keeps nothing ([`lay_out`],
+/// [`Flow::draw`]). Returns the height used.
+pub fn word_flow<'s, A: Copy + PartialEq>(
     ui: &mut Ui<A>,
-    (x, y, line): (f32, f32, f32),
+    (x, y, w): (f32, f32, f32),
     role: TypeRole,
-    run: &mut String,
-    bold: bool,
-    (run_x, cy): (f32, f32),
-) {
-    if !run.is_empty() && ui.shows(y + cy, line) {
-        let role = if bold { role.medium() } else { role };
-        ui.text_mid_as((x + run_x, y + cy, line), role, Role::OnSurface, run);
-    }
-    run.clear();
+    spans: impl IntoIterator<Item = (&'s str, bool)> + Clone,
+) -> f32 {
+    lay_out(ui, w, role, spans).draw(ui, (x, y))
 }

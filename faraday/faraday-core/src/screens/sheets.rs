@@ -2118,11 +2118,11 @@ fn guide_one(
     let basis = ui.wrap_basis(role, w);
     let at = (text.as_ptr() as usize, text.len());
     let lines = match state.wrap_kept(at, basis) {
-        Some((_, Some(lines))) => lines,
+        Some((_, crate::guide::Lines::Ranges(lines))) => lines,
         _ => {
             let lines = ui.wrap_ranges(role, text, w);
             let h = ui.wrapped_with(role, text, w, lines.clone()).h;
-            state.wrap_keep(at, basis, h, Some(lines.clone()));
+            state.wrap_keep(at, basis, h, crate::guide::Lines::Ranges(lines.clone()));
             lines
         }
     };
@@ -2148,20 +2148,28 @@ fn guide_text(
         return guide_one(app, ui, (x, y, w), role, &one.text);
     }
     let at = (para.as_ptr() as usize, para.len());
-    let kept = state.wrap_kept(at, basis);
-    if let Some((h, _)) = kept
-        && !ui.shows(y, h)
-    {
-        return h;
+    let flow = match state.wrap_kept(at, basis) {
+        Some((_, crate::guide::Lines::Flow(flow))) => flow,
+        _ => {
+            let flow = std::rc::Rc::new(faraday_ui::flow::lay_out(
+                ui,
+                w,
+                role,
+                para.iter().map(|s| (s.text.as_str(), s.bold)),
+            ));
+            state.wrap_keep(
+                at,
+                basis,
+                flow.height(),
+                crate::guide::Lines::Flow(flow.clone()),
+            );
+            flow
+        }
+    };
+    if !ui.shows(y, flow.height()) {
+        return flow.height();
     }
-    let h = faraday_ui::flow::word_flow(
-        ui,
-        (x, y, w),
-        role,
-        para.iter().map(|s| (s.text.as_str(), s.bold)),
-    );
-    state.wrap_keep(at, basis, h, None);
-    h
+    flow.draw(ui, (x, y))
 }
 
 /// A guide page from (x, y), `w` wide: its title, the lead's text, then

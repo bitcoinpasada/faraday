@@ -437,12 +437,18 @@ pub struct GuideState {
     wraps: std::cell::RefCell<Vec<GuideWrap>>,
 }
 
-/// The lines of a text as kept: none for a text of several runs.
-pub type Lines = Option<std::rc::Rc<[(usize, usize)]>>;
+/// The lines of a text as kept: the ranges of a text of one run, the
+/// layout of a text of several.
+#[derive(Clone)]
+pub enum Lines {
+    /// Byte ranges of the lines.
+    Ranges(std::rc::Rc<[(usize, usize)]>),
+    /// Lines of runs in two faces.
+    Flow(std::rc::Rc<faraday_ui::flow::Flow>),
+}
 
 /// One text of a guide page, broken into lines for a basis: the text by
-/// where it is, what it was broken for, its height and its lines (none
-/// for a text of several runs, whose height alone is kept).
+/// where it is, what it was broken for, its height and its lines.
 pub struct GuideWrap {
     at: (usize, usize),
     basis: faraday_ui::roles::WrapBasis,
@@ -822,7 +828,13 @@ impl GuideArea {
     /// Opens the guide at `key`, as the sheet: the key's page, scrolled
     /// to its section; the contents where the place has no page.
     pub(crate) fn open_at(&mut self, key: &'static str, sheet: &mut Option<crate::Sheet>) {
-        self.state = GuideState::default();
+        // The kept lines are facts about static text at a width and font,
+        // not about the page open: they stay.
+        let wraps = std::mem::take(&mut self.state.wraps);
+        self.state = GuideState {
+            wraps,
+            ..GuideState::default()
+        };
         self.show_key(key);
         self.close_pane();
         *sheet = Some(crate::Sheet::Guide);
