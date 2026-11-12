@@ -18,7 +18,7 @@ pub(crate) fn how_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("how-6-page")?;
     // Settings' tabs, Cryptography, Key storage and Glossary, each whole;
     // where the guide is a pane it is pinned, and stays open on the Spend
-    // tab, the one screen whose the guide offers Spending, step by step.
+    // tab.
     t.press(Action::Nav(Screen::Settings));
     t.press(Action::Guide);
     t.shot("how-7-settings")?;

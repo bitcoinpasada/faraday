@@ -363,7 +363,7 @@ pub fn measure(v: &mut dyn Vblank, beat: &Beat, clock: &mut dyn FnMut() -> Insta
         .windows(2)
         .map(|w| w[1].saturating_duration_since(w[0]))
         .collect();
-    beat.guide(&gaps, times[SAMPLES]);
+    beat.learn(&gaps, times[SAMPLES]);
 }
 
 #[cfg(test)]
