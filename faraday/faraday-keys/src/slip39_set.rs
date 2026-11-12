@@ -8,6 +8,7 @@
 //! Nothing is decrypted and no passphrase is taken: what is read back is
 //! the EMS and its parameters, not a wallet, so the set's own passphrase
 //! still opens the same wallet. No PBKDF2 runs here.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::slip39::{self, Ems, GroupSpec, Share};
 use subtle::ConstantTimeEq;
@@ -43,6 +44,10 @@ pub enum SetRefused {
 
 /// One group of the held set, as far as it has been typed.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub struct GroupFacts {
     /// The group, 0-based.
     pub index: u8,
@@ -57,6 +62,10 @@ pub struct GroupFacts {
 /// What is held, for a screen: no secret in it. Worked out as each share
 /// is typed; a screen reads it.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub struct SetFacts {
     /// The set's fifteen-bit identifier.
     pub identifier: u16,

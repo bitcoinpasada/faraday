@@ -1,5 +1,6 @@
 //! PSBT signing and the nonce check, which use the master keys a session
 //! holds.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::keys::{Fingerprint, MasterKey};
 use faraday_crypto::work::Compute;

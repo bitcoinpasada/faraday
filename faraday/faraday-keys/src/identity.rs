@@ -1,5 +1,6 @@
 //! Fingerprints and identity: which key some words, a seed or a record
 //! make, worked out from the secret and returned as public values.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
@@ -162,7 +163,7 @@ pub fn key_text_of_words(
     let m = Mnemonic::parse(c, Language::English, &normal)
         .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     let master = master_of(c, Material::Words(&m), passphrase, network)
-        .ok_or_else(|| "no key".to_string())?;
+        .ok_or_else(|| String::from("no key"))?;
     crate::texts::key_text(c, &master, spec)
 }
 

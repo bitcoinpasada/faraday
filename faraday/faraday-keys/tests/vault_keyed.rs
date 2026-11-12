@@ -2,6 +2,7 @@
 //! §3.2, F208) keeps them while it is open: every seal writes a file that
 //! opens with the same ones, taking one out is a change the next seal
 //! writes, and a seal that fails changes nothing.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;

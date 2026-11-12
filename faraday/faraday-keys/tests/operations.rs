@@ -3,6 +3,7 @@
 //! signature that verifies for the address its published key has, BIP-352's
 //! address, and the fingerprint BIP-39 and BIP-32 publish for the
 //! "abandon" words.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::bip32::DerivationPath;

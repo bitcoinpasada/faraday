@@ -19,6 +19,7 @@
 //! Core's `crypter.cpp`). Each key's IV is the first 16 bytes of the
 //! double SHA-256 of its public key (`DecryptSecret`). Written here over
 //! RustCrypto's `aes` and `cbc` and `faraday-crypto`'s SHA-512.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use aes::Aes256;
 use aes::cipher::inout::InOutBuf;
@@ -83,6 +84,10 @@ const CRYPTED_LEN: usize = 48;
 /// hardened step (`walletdescriptorlhcache`), to be checked against the
 /// master key it comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub struct AccountCheck {
     /// The master key's depth, parent fingerprint and child number, as
     /// the descriptor's extended key states them (9 bytes).

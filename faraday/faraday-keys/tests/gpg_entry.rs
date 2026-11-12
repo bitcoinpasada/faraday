@@ -1,6 +1,7 @@
 //! A GPG key as a KDBX vault's entry holds it (`docs/VAULT.md` §7) and as
 //! the app's record: the one becomes the other and back, and a key that is
 //! not in Faraday's own shape is not taken.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_keys::gpg::{gpg_key_of, record_of};
 use faraday_keys::vault::gpg_field as f;

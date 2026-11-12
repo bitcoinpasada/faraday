@@ -1,4 +1,5 @@
 //! Signing a message with a key below a master key.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bitcoin::bip32::DerivationPath;
 use faraday_bip::keys::{MasterKey, Network, ScriptType};

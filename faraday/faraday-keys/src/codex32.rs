@@ -26,6 +26,7 @@
 //! is filled from them, and a push or a pop is refused.
 //! [`StringCheck`] is one string's checksum worksheet for Check a string
 //! (§8.3).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::codex32::{
     ChecksumWorksheet, Codex32, Error, FreshSet, INDEX_ORDER, Length, Scheme, TranslationWorksheet,
@@ -263,12 +264,14 @@ impl WorkSet {
     /// The share indices of the live translation worksheets, in their
     /// order: each share made, then `s` (the secret) where its sheet is
     /// kept. Public. None at threshold 0. Cheap.
+    #[expect(clippy::disallowed_methods, reason = "share indices are public")]
     pub fn targets(&self) -> Vec<u8> {
         self.targets.clone()
     }
 
     /// The share indices of every string of the set known here: the
     /// inputs, then the strings made, each once. Public. Cheap.
+    #[expect(clippy::disallowed_methods, reason = "share indices are public")]
     pub fn indices(&self) -> Vec<u8> {
         let mut out = self.inputs.clone();
         for s in self.made.iter().flat_map(|m| m.strings()) {
@@ -431,7 +434,7 @@ impl WorkSet {
         Some(Held::of(
             set.strings()
                 .iter()
-                .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+                .map(|s| crate::texts::wiped(s.encode().as_str()))
                 .collect(),
         ))
     }
@@ -525,7 +528,7 @@ impl Keys {
                 .given
                 .iter()
                 .chain(work.made.iter().flat_map(Made::strings))
-                .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+                .map(|s| crate::texts::wiped(s.encode().as_str()))
                 .collect();
             let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
             self.keep_codex32(c, self.len() - 1, &refs);
@@ -603,7 +606,7 @@ impl Keys {
             .map(|x| Codex32::parse(x.encode().as_str()).map_err(refused))
             .collect::<Result<Vec<Codex32>, Paper>>()?;
         let made = Codex32::derive_share(&have, index).map_err(refused)?;
-        Ok(Held::of(Zeroizing::new(made.encode().as_str().to_string())))
+        Ok(Held::of(crate::texts::wiped(made.encode().as_str())))
     }
 
     /// Costs a parse of the words and a PBKDF2 for a key with words, and a
@@ -638,7 +641,7 @@ impl Keys {
         Ok(Held::of(
             shares
                 .iter()
-                .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+                .map(|s| crate::texts::wiped(s.encode().as_str()))
                 .collect(),
         ))
     }

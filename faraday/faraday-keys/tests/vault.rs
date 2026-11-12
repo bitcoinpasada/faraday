@@ -2,6 +2,7 @@
 //! record of the "abandon" words loads as the fingerprint BIP-39 and
 //! BIP-32 publish for them, a vault sealed after a change opens with the
 //! change, and a wrong passphrase opens nothing.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::Network;

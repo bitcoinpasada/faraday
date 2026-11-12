@@ -1,5 +1,6 @@
 //! Lightning node keys: ldk-node's from a BIP-39 seed, LND's from an
 //! aezeed.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::aezeed;
 use faraday_bip::bip39::{Language, Mnemonic};
@@ -188,7 +189,7 @@ fn seed_from_aezeed(
         .expose_mut()
         .copy_from_slice(seed.entropy().expose());
     let public = node_of(c, &aezeed::node_key(c, &entropy, network), None).public;
-    let bytes = SeedBytes::new(&entropy.expose()[..]).ok_or_else(|| "length".to_string())?;
+    let bytes = SeedBytes::new(&entropy.expose()[..]).ok_or_else(|| String::from("length"))?;
     let master = MasterKey::from_seed_bytes(c, &Secret::new(bytes), network);
     let info = KeyInfo {
         id: KeyId(crate::identity::master_id(c, &master)),

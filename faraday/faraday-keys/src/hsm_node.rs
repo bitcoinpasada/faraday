@@ -3,6 +3,7 @@
 //! demo's refusal of a node that is not a public one
 //! (`docs/decisions/F228.md`). The file and its opening are in
 //! [`crate::hsm_secret`].
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;
@@ -13,6 +14,10 @@ use crate::lightning::Node;
 
 /// Why no node came from BIP-39 words.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub enum WordsRefusal {
     /// The words are not in English: Core Lightning takes only the
     /// English list, so no node of its could come from them.
@@ -105,6 +110,10 @@ impl crate::Keys {
 
 /// Why [`crate::Keys::hsm_node`] gave no node.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub enum NodeRefusal {
     /// The file or passphrase.
     File(Refusal),

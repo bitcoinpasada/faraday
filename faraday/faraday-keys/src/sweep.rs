@@ -8,6 +8,7 @@
 //! ([`crate::Keys::sweep_sign`]). The store holds at most one
 //! ([`crate::Keys::sweep_read`]) and drops it, erasing it, at
 //! [`crate::Keys::sweep_forget`] and with the session's keys.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bitcoin::{Address, NetworkKind};
 use faraday_bip::keys::{Network, ScriptType};
@@ -53,6 +54,7 @@ impl SweepKey {
             ScriptType::NativeSegwit,
             ScriptType::NestedSegwit,
         ];
+        #[expect(clippy::disallowed_methods, reason = "an address is public")]
         let addresses = kinds
             .into_iter()
             .zip(key.scripts())

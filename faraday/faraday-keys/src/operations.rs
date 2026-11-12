@@ -2,6 +2,7 @@
 //! [`Keys`](crate::Keys): each takes the key's place and the plain values
 //! it needs, and gives back a public result, or a new secret that the
 //! caller holds under `Zeroizing` (`docs/KEYS.md` §3).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
@@ -32,6 +33,10 @@ pub enum Dial {
 
 /// Why a paper form was not made.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub enum Paper {
     /// The key has no words, or they do not read.
     NoWords,
@@ -323,8 +328,8 @@ impl Keys {
                 )));
             }
             let secret = Codex32::from_seed(0, id, seed).map_err(one)?;
-            return Ok(Held::of(vec![Zeroizing::new(
-                secret.encode().as_str().to_string(),
+            return Ok(Held::of(vec![crate::texts::wiped(
+                secret.encode().as_str(),
             )]));
         }
         let need = usize::from(k.saturating_sub(1)) * codex32::symbols_for(seed.len());
@@ -349,7 +354,7 @@ impl Keys {
             .map(|shares| {
                 shares
                     .iter()
-                    .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+                    .map(|s| crate::texts::wiped(s.encode().as_str()))
                     .collect()
             })
             .map(Held::of)

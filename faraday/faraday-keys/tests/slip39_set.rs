@@ -2,6 +2,7 @@
 //! a new set of the same master secret, and what is held while it is typed.
 //! Fixed sets are SLIP-39's published vectors; the new shares are read back
 //! through the decoder that opens the published ones.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_bip::keys::Network;
 use faraday_bip::slip39::{Error, GroupSpec, Share};

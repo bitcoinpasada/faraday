@@ -2,6 +2,7 @@
 //! item sealed as a QR vault and opened back to the same item, what does
 //! not fit said as the contents count it, one code held at a time and
 //! wiped at a lock, and committed codes opened or refused.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::{Fingerprint, Network};

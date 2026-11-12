@@ -1,5 +1,6 @@
 //! Public key texts and records, derived from a master key: the account
 //! keys a wallet's descriptor names, and the BSMS record a signer writes.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
 use faraday_bip::keys::{Fingerprint, MasterKey, MultisigScriptType, ScriptType};
@@ -7,6 +8,10 @@ use faraday_crypto::work::Compute;
 
 /// An account key: public, with the origin it is derived at.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub struct AccountKey {
     /// The extended public key.
     pub xpub: Xpub,
@@ -19,6 +24,10 @@ pub struct AccountKey {
 /// Which public key a text is of: an account key of a script, or any path.
 /// Public data only; the master key stays in this crate.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub enum Spec {
     /// A single-key wallet's account key of this script, at this account.
     Single(ScriptType, u32),
@@ -47,6 +56,7 @@ pub fn key_text(c: &Compute, master: &MasterKey, spec: &Spec) -> Result<String, 
 
 /// Costs a key derivation. The account key of `master` for a single-key
 /// wallet of `script`, at `account`.
+#[expect(clippy::disallowed_methods, reason = "a derivation path is public")]
 pub fn single_account(
     c: &Compute,
     master: &MasterKey,
@@ -66,6 +76,7 @@ pub fn single_account(
 /// Costs a key derivation. The account key of `master` for a multisig
 /// cosigner of `script`, at `account`, on BIP-48's path or, with `bip87`,
 /// BIP-87's.
+#[expect(clippy::disallowed_methods, reason = "a derivation path is public")]
 pub fn multisig_account(
     c: &Compute,
     master: &MasterKey,
@@ -84,6 +95,7 @@ pub fn multisig_account(
 }
 
 /// Costs a key derivation. The key of `master` at any `path`.
+#[expect(clippy::disallowed_methods, reason = "a derivation path is public")]
 pub fn account_at(c: &Compute, master: &MasterKey, path: &DerivationPath) -> AccountKey {
     let d = master.derive(c, path);
     AccountKey {
@@ -112,4 +124,13 @@ pub(crate) fn bsms_record(
         .ok()?
         .ok()?;
     Some(record.to_text())
+}
+
+/// A secret's text in a buffer wiped on drop: the only copy made of it.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the text goes straight into a buffer wiped on drop"
+)]
+pub(crate) fn wiped(text: &str) -> zeroize::Zeroizing<String> {
+    zeroize::Zeroizing::new(text.to_string())
 }

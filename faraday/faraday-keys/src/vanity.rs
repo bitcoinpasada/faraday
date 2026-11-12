@@ -1,5 +1,6 @@
 //! Vanity grinding: a key's first address made to begin with characters
 //! the person chose, by one of two dials.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::{MasterKey, Network};
