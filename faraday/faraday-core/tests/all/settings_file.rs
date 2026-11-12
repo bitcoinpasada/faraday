@@ -62,7 +62,7 @@ fn pump(app: &mut Faraday, file: Option<&[u8]>) -> Vec<(String, String, Vec<u8>)
                     name: name.clone(),
                     wrote_as: name.clone(),
                 });
-                wrote.push((stick, name, bytes));
+                wrote.push((stick, name, bytes.to_vec()));
             }
             _ => {}
         }

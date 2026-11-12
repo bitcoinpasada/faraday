@@ -99,7 +99,7 @@ fn pump(app: &mut Faraday, file: Option<&[u8]>) -> Option<Vec<u8>> {
                     wrote_as: name.clone(),
                 });
                 if name == FILE {
-                    wrote = Some(bytes);
+                    wrote = Some(bytes.to_vec());
                 }
             }
             _ => {}

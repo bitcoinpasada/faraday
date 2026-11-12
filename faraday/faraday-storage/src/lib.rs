@@ -200,7 +200,7 @@ pub enum Transfer {
         /// The file's name.
         name: String,
         /// The file.
-        bytes: Vec<u8>,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
         /// The SHA-256 of the copies of a vault the session has seen.
         copies: Vec<[u8; 32]>,
         /// Over a file of its name.
@@ -1194,7 +1194,7 @@ enum Going {
     Write {
         stick: String,
         name: String,
-        bytes: Vec<u8>,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
         copies: Vec<[u8; 32]>,
         replace: bool,
         renamed: bool,

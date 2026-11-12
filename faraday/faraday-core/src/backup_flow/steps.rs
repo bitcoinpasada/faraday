@@ -2701,7 +2701,7 @@ impl Faraday {
         };
         let f = &self.flows[i];
         let slot = r.slot;
-        let mut sends: Vec<(String, Vec<u8>, bool)> = Vec::new();
+        let mut sends: Vec<(String, Zeroizing<Vec<u8>>, bool)> = Vec::new();
         // Each vault file's plan: an existing vault asks where its name is
         // taken; a new vault goes beside what the stick holds.
         let mut asks: Vec<String> = Vec::new();
@@ -2720,7 +2720,7 @@ impl Faraday {
                     if f.plan.vaults.get(v).is_some_and(|vp| vp.existing) {
                         asks.push(it.name.clone());
                     }
-                    sends.push((it.name.clone(), it.bytes.clone(), true));
+                    sends.push((it.name.clone(), Zeroizing::new(it.bytes.clone()), true));
                 }
                 _ => refused = true,
             }
@@ -2747,7 +2747,7 @@ impl Faraday {
                 .find(|it| it.name == name)
             {
                 Some(it) if it.exposure() != crate::secrets::Exposure::Secret => {
-                    sends.push((it.name.clone(), it.bytes.clone(), false));
+                    sends.push((it.name.clone(), Zeroizing::new(it.bytes.clone()), false));
                 }
                 Some(it)
                     if files_stick
@@ -2756,7 +2756,7 @@ impl Faraday {
                         && f.kind.is_wallet()
                         && f.seed_file_ok_for(&c, slot, &it.name) =>
                 {
-                    sends.push((it.name.clone(), it.bytes.clone(), false));
+                    sends.push((it.name.clone(), Zeroizing::new(it.bytes.clone()), false));
                 }
                 _ => refused = true,
             }
@@ -2805,7 +2805,7 @@ impl Faraday {
         &mut self,
         c: &Compute,
         stick: &str,
-        sends: Vec<(String, Vec<u8>, bool)>,
+        sends: Vec<(String, Zeroizing<Vec<u8>>, bool)>,
         asks: &[String],
     ) -> (Vec<String>, Vec<(String, Zeroizing<Vec<u8>>)>) {
         let (vaults, files): (Vec<_>, Vec<_>) = sends.into_iter().partition(|(_, _, v)| *v);
@@ -2813,13 +2813,7 @@ impl Faraday {
         let (now, held) = if vaults.is_empty() {
             (files, Vec::new())
         } else {
-            (
-                vaults,
-                files
-                    .into_iter()
-                    .map(|(n, b, _)| (n, Zeroizing::new(b)))
-                    .collect(),
-            )
+            (vaults, files.into_iter().map(|(n, b, _)| (n, b)).collect())
         };
         self.name_taken_wrote_clear();
         for (name, bytes, vault) in now {
@@ -2839,7 +2833,7 @@ impl Faraday {
         c: &Compute,
         stick: &str,
         name: String,
-        bytes: Vec<u8>,
+        bytes: Zeroizing<Vec<u8>>,
         vault: bool,
         ask: bool,
     ) {
@@ -2870,9 +2864,7 @@ impl Faraday {
         let held = std::mem::take(&mut w.held);
         let stick = w.id.clone();
         let c = self.compute();
-        for (name, mut bytes) in held {
-            // Moves the buffer out: the emptied wrapper wipes nothing left.
-            let bytes = std::mem::take(&mut *bytes);
+        for (name, bytes) in held {
             self.flow_push_write(&c, &stick, name, bytes, false, false);
         }
     }
@@ -3041,7 +3033,7 @@ impl Faraday {
             .iter()
             .chain(self.inbox.iter())
             .find(|it| it.name == meant)
-            .map(|it| it.bytes.clone());
+            .map(|it| Zeroizing::new(it.bytes.clone()));
         let (Some(bytes), false) = (item, w.retried.iter().any(|n| n == meant)) else {
             self.flows.all[i].live.writing = None;
             self.name_taken_flow_ended();
@@ -3057,7 +3049,11 @@ impl Faraday {
             }
         }
         let copies = self.vault_copies(&c, &bytes);
-        let bytes_sent = bytes.clone();
+        let on_taken = if crate::visit_taken::is_vault(&bytes) {
+            crate::storage_api::OnTaken::Ask
+        } else {
+            crate::storage_api::OnTaken::Beside
+        };
         self.out.storage_out.push_back(StorageCommand::Write {
             stick,
             name: sent.to_string(),
@@ -3065,11 +3061,7 @@ impl Faraday {
             copies,
             replace: over,
             renamed: false,
-            on_taken: if crate::visit_taken::is_vault(&bytes_sent) {
-                crate::storage_api::OnTaken::Ask
-            } else {
-                crate::storage_api::OnTaken::Beside
-            },
+            on_taken,
         });
     }
 

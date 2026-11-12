@@ -19,6 +19,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::{Action, Faraday, Screen, Sheet, StorageCommand, sha256_of, stick};
 use faraday_draw::tokens::BODY_M;
+use zeroize::Zeroizing;
 
 /// One row of the sheet: a file whose name is taken, and the name Keep
 /// both writes it under.
@@ -770,17 +771,17 @@ impl Faraday {
     /// What the visit's Write writes, the settings file aside: each
     /// chosen Outbox file, then each chosen Inbox file the visit lists,
     /// with its bytes and whether it came from the Inbox.
-    fn visit_files(&self) -> Vec<(String, Vec<u8>, bool)> {
-        let mut out: Vec<(String, Vec<u8>, bool)> = self
+    fn visit_files(&self) -> Vec<(String, Zeroizing<Vec<u8>>, bool)> {
+        let mut out: Vec<(String, Zeroizing<Vec<u8>>, bool)> = self
             .outbox
             .iter()
             .filter(|i| self.visit.out.contains(&i.name))
-            .map(|i| (i.name.clone(), i.bytes.clone(), false))
+            .map(|i| (i.name.clone(), Zeroizing::new(i.bytes.clone()), false))
             .collect();
         for k in self.visit_inbox_rows() {
             let item = &self.inbox[k];
             if self.visit.from_inbox.contains(&item.name) {
-                out.push((item.name.clone(), item.bytes.clone(), true));
+                out.push((item.name.clone(), Zeroizing::new(item.bytes.clone()), true));
             }
         }
         out
@@ -902,12 +903,12 @@ impl Faraday {
         };
         self.visit.log_clear();
         self.name_taken_wrote_clear();
-        let mut sends: Vec<(String, Vec<u8>, bool)> = Vec::new();
+        let mut sends: Vec<(String, Zeroizing<Vec<u8>>, bool)> = Vec::new();
 
         if self.visit_settings_on() {
             sends.push((
                 stick::settings::FILE.to_string(),
-                self.settings_file_text().into_bytes(),
+                Zeroizing::new(self.settings_file_text().into_bytes()),
                 false,
             ));
         }
@@ -1108,14 +1109,14 @@ impl Faraday {
         flow: bool,
         name: &str,
         sent: [u8; 32],
-    ) -> Option<(Vec<u8>, bool)> {
+    ) -> Option<(Zeroizing<Vec<u8>>, bool)> {
         if flow {
             self.outbox
                 .iter()
                 .chain(self.inbox.iter())
                 .find(|i| i.name == name && sha256_of(c, &i.bytes) == sent)
                 .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
-                .map(|i| (i.bytes.clone(), true))
+                .map(|i| (Zeroizing::new(i.bytes.clone()), true))
         } else {
             self.visit_files()
                 .into_iter()

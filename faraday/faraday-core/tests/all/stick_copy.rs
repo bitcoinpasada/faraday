@@ -116,7 +116,7 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
             StorageCommand::Write {
                 stick, name, bytes, ..
             } => {
-                wrote.push((stick.clone(), name.clone(), bytes));
+                wrote.push((stick.clone(), name.clone(), bytes.to_vec()));
                 app.storage(StorageEvent::Written {
                     stick,
                     wrote_as: name.clone(),

@@ -88,7 +88,7 @@ fn a_vault_longer_than_a_frame_is_written_and_read_back_whole() {
     let asked = disk.transfer_later(Transfer::Write {
         stick: "s".into(),
         name: "Passwords.kdbx".into(),
-        bytes: vault.clone(),
+        bytes: zeroize::Zeroizing::new(vault.clone()),
         copies: Vec::new(),
         replace: false,
         renamed: false,

@@ -514,7 +514,7 @@ pub enum StorageCommand {
         /// The name to write under.
         name: String,
         /// The contents.
-        bytes: Vec<u8>,
+        bytes: zeroize::Zeroizing<Vec<u8>>,
         /// The SHA-256 of every copy of this vault the session has seen,
         /// when it is one: the file on the stick with one of them is
         /// the vault written back over (`docs/VAULT.md` §6).
