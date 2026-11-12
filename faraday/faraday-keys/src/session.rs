@@ -1013,7 +1013,8 @@ impl Keys {
     /// Whether keys `a` and `b` have the same words, from whichever list.
     pub fn same_words(&self, c: &Compute, a: usize, b: usize) -> bool {
         match (self.words_id(c, a), self.words_id(c, b)) {
-            (Some(x), Some(y)) => x == y,
+            // A hash of the entropy: compared in constant time.
+            (Some(x), Some(y)) => bool::from(x.ct_eq(y)),
             _ => false,
         }
     }

@@ -526,15 +526,21 @@ impl OpenVaults {
         let Some(slot) = self.slot(id) else {
             return job;
         };
+        // Each mnemonic is held inline: reserved once, so a growing vector
+        // never frees an earlier copy of the word indices unwiped.
+        let count = slot
+            .records
+            .iter()
+            .enumerate()
+            .filter(|(i, r)| r.kind == kind::KEY && set.contains(i))
+            .count();
+        job.words.reserve_exact(count);
         for (i, r) in slot
             .records
             .iter()
             .enumerate()
-            .filter(|(_, r)| r.kind == kind::KEY)
+            .filter(|(i, r)| r.kind == kind::KEY && set.contains(i))
         {
-            if !set.contains(&i) {
-                continue;
-            }
             let label = Zeroizing::new(r.text(field::KEY_LABEL).unwrap_or("").as_bytes().to_vec());
             let codex32 = codex32_set_of(r);
             if let Some(m) = record_words(c, r) {
