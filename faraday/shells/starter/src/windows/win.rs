@@ -548,7 +548,7 @@ fn elevate_write(
                 let _ = out.send(StarterEvent::WriteProgress { stage, done, total });
             }
             Message::Done(r) => result = Some(r),
-            Message::Release(_) => {}
+            Message::Release(..) => {}
         }
     }
     while !child.ended(Duration::from_millis(200)) {}
