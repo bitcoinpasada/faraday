@@ -102,17 +102,23 @@ const FIELD: Field = {
     Field { exp, log }
 };
 
+/// The product of two elements, by GF(32)'s masked multiplication: no
+/// branch and no table index on either factor, which the syndromes and
+/// everything worked out from them are.
 fn mul(a: u16, b: u16) -> u16 {
-    if a == 0 || b == 0 {
-        0
-    } else {
-        FIELD.exp[usize::from(FIELD.log[usize::from(a)]) + usize::from(FIELD.log[usize::from(b)])]
-    }
+    mul1024_raw(a, b)
 }
 
-/// The inverse of a nonzero element.
+/// The inverse of a nonzero element, `a^1022`, by square-and-multiply
+/// over a fixed exponent (so the work does not follow the element); 0
+/// for 0.
 fn inv(a: u16) -> u16 {
-    FIELD.exp[ORDER - usize::from(FIELD.log[usize::from(a)])]
+    // 1022 = 0b11_1111_1110: nine squarings, eight multiplications.
+    let mut r = a;
+    for _ in 0..8 {
+        r = mul(mul(r, r), a);
+    }
+    mul(r, r)
 }
 
 /// The element whose logarithm is `e`, any `e`.
@@ -120,6 +126,8 @@ fn exp(e: usize) -> u16 {
     FIELD.exp[e % ORDER]
 }
 
+/// The logarithm of an element. A table index, so it is only for
+/// public elements: the code's `beta`, a constant of the checksum.
 fn log(a: u16) -> usize {
     usize::from(FIELD.log[usize::from(a)])
 }

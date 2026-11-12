@@ -880,7 +880,9 @@ impl Mnemonic {
                 .chunks_exact_mut(8)
                 .zip(slot.expose().iter())
             {
-                d.copy_from_slice(&c.to_le_bytes());
+                // The chunk's bytes pass through a wiped temporary.
+                let le = zeroize::Zeroizing::new(c.to_le_bytes());
+                d.copy_from_slice(&*le);
             }
             buf[n..n + len].copy_from_slice(&bytes.expose()[..len]);
             n += len;
@@ -1046,6 +1048,13 @@ const CHUNKS: usize = wordlists::MAX_NFKD_BYTES.div_ceil(8);
 struct Padded {
     chunks: [u64; CHUNKS],
     len: usize,
+}
+
+impl Drop for Padded {
+    fn drop(&mut self) {
+        self.chunks.zeroize();
+        self.len.zeroize();
+    }
 }
 
 impl Padded {

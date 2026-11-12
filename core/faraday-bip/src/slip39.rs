@@ -206,9 +206,10 @@ pub fn word(idx: u16) -> &'static str {
 ///
 /// Costs all 1024 entries for every word: the first four letters are
 /// compared with every entry's in constant time, and the rest of the
-/// typed word with the entry found, masked.
+/// typed word with the entry found, gathered by a second scan of the
+/// whole list, masked.
 pub fn index_of(w: &str) -> Option<u16> {
-    use subtle::{Choice, ConditionallySelectable};
+    use subtle::{Choice, ConditionallySelectable, ConstantTimeGreater};
     let wb = w.as_bytes();
     let n = wb.len().min(4);
     let mut key = [0u8; 4];
@@ -229,15 +230,26 @@ pub fn index_of(w: &str) -> Option<u16> {
         found.conditional_assign(&(i as u16), eq & !hit);
         hit |= eq;
     }
-    if !bool::from(hit) {
+    // The rest of the typed word is a prefix of the entry found. The
+    // entry is gathered by a scan of the whole list into a fixed slot,
+    // so no load follows the word found.
+    if wb.len() > 8 {
         return None;
     }
-    // The rest of the typed word is a prefix of the entry found.
-    let entry = wordlist::WORDS[usize::from(found)].as_bytes();
-    let mut ok = Choice::from(u8::from(wb.len() <= entry.len()));
+    let mut entry = Zeroizing::new([0u8; 8]);
+    let mut elen = 0u32;
+    for (i, cand) in wordlist::WORDS.iter().enumerate() {
+        let pick = (i as u16).ct_eq(&found);
+        let cb = cand.as_bytes();
+        for (k, slot) in entry.iter_mut().enumerate() {
+            slot.conditional_assign(&cb.get(k).copied().unwrap_or(0), pick);
+        }
+        elen.conditional_assign(&(cb.len() as u32), pick);
+    }
+    let wl = wb.len() as u32;
+    let mut ok = hit & (elen.ct_gt(&wl) | elen.ct_eq(&wl));
     for (k, &b) in wb.iter().enumerate().skip(4) {
-        let e = entry.get(k).copied().unwrap_or(0);
-        ok &= e.ct_eq(&b);
+        ok &= entry[k].ct_eq(&b);
     }
     bool::from(ok).then_some(found)
 }
