@@ -391,6 +391,76 @@ pub fn payload_reason(e: PayloadError) -> Reason {
     }
 }
 
+/// Windows' ERROR_MEDIA_CHANGED, which a read of a disk answers while the
+/// system reads its new partition table.
+const MEDIA_CHANGED: i32 = 1110;
+
+/// Why a read back stopped: the system said the media changed (worth
+/// one more try), or another reason.
+#[derive(Debug)]
+enum Back {
+    Media(Reason),
+    Other(Reason),
+}
+
+impl Back {
+    fn reason(self) -> Reason {
+        match self {
+            Back::Media(r) | Back::Other(r) => r,
+        }
+    }
+}
+
+/// The reason for a failed read back, marked when it is the media
+/// changing.
+fn back_failed(e: PayloadError, device: &str) -> Back {
+    let media = matches!(&e, PayloadError::Write(io) if io.raw_os_error() == Some(MEDIA_CHANGED));
+    let r = read_back_reason(e, device);
+    if media {
+        Back::Media(r)
+    } else {
+        Back::Other(r)
+    }
+}
+
+/// Costs a read of the whole disk: the regions, then the source.
+/// Windows may read the new partition table and bring the disk back
+/// while it is read: a read then fails with "the media may have
+/// changed", and the disk is opened again and read from the start,
+/// once.
+#[allow(clippy::too_many_arguments)]
+fn read_back_again(
+    order: &WriteOrder,
+    source: &Source<'_>,
+    plan: Plan,
+    patches: &[Patch],
+    device: &mut dyn Device,
+    made: &[Region],
+    range: &Cell<Option<(u64, u64)>>,
+    report: &mut dyn FnMut(WriteStage, u64, u64),
+) -> Result<File, Reason> {
+    let mut again = false;
+    loop {
+        let mut back = device.open_read()?;
+        let done = compare_regions(&mut back, made, &order.device).and_then(|()| {
+            read_back(
+                order,
+                source,
+                plan,
+                patches,
+                &mut back,
+                range,
+                &mut |d, t| report(WriteStage::ReadingBack, d, t),
+            )
+        });
+        match done {
+            Err(Back::Media(_)) if !again => again = true,
+            Err(Back::Media(r) | Back::Other(r)) => return Err(r),
+            Ok(()) => return Ok(back),
+        }
+    }
+}
+
 /// The same while reading the disk back, which names the device.
 fn read_back_reason(e: PayloadError, device: &str) -> Reason {
     match e {
@@ -520,22 +590,21 @@ pub fn write(
     // 6. Read back and compared: the regions, then the source; for a Pi
     // card, with the patches taken back out of what was read, the
     // source's own SHA-256.
-    let mut back = device.open_read()?;
-    compare_regions(&mut back, &made, &order.device)?;
-    read_back(
+    let mut back = read_back_again(
         order,
         &source,
         plan,
         &patches,
-        &mut back,
+        device,
+        &made,
         &range,
-        &mut |d, t| report(WriteStage::ReadingBack, d, t),
+        &mut report,
     )?;
     if !held.is_empty() {
         drop(back);
         put_table(order, device, &now, &held, block as usize)?;
         back = device.open_read()?;
-        compare_regions(&mut back, &held, &order.device)?;
+        compare_regions(&mut back, &held, &order.device).map_err(Back::reason)?;
     }
     // 7. Keep data: the partition table as it was.
     if let Some((table, before)) = table
@@ -642,7 +711,7 @@ fn read_back(
     back: &mut File,
     range: &Cell<Option<(u64, u64)>>,
     report: &mut dyn FnMut(u64, u64),
-) -> Result<(), Reason> {
+) -> Result<(), Back> {
     let revert = RefCell::new(matches!(plan, Plan::At(0)).then(|| Revert {
         patches,
         hasher: Sha256::new(),
@@ -655,15 +724,15 @@ fn read_back(
         let mut out = Patched::new(plan.writer(compare, range), patches);
         source
             .pump(&mut out, report)
-            .map_err(|e| read_back_reason(e, &order.device))?;
+            .map_err(|e| back_failed(e, &order.device))?;
     }
     if let Some(r) = revert.into_inner() {
         let got = Sha256Sum(r.hasher.finalize().into());
         if got != source.sha256() {
-            return Err(Reason::BackSum {
+            return Err(Back::Other(Reason::BackSum {
                 device: order.device.clone(),
                 sha256: got.to_string(),
-            });
+            }));
         }
     }
     Ok(())
@@ -848,13 +917,13 @@ fn put_regions(sink: &mut dyn Flush, regions: &[Region]) -> io::Result<()> {
 }
 
 /// Costs a read of the regions written: each compared with the disk.
-fn compare_regions(back: &mut File, made: &[Region], device: &str) -> Result<(), Reason> {
+fn compare_regions(back: &mut File, made: &[Region], device: &str) -> Result<(), Back> {
     let none = RefCell::new(None);
     let mut sink = Comparing {
         disk: back,
         revert: &none,
     };
-    put_regions(&mut sink, made).map_err(|e| read_back_reason(PayloadError::Write(e), device))
+    put_regions(&mut sink, made).map_err(|e| back_failed(PayloadError::Write(e), device))
 }
 
 /// The reason a write to the disk failed.
