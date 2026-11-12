@@ -123,6 +123,15 @@ pub(crate) struct LightningArea {
     state: Option<LightningState>,
 }
 
+impl LightningArea {
+    /// The private key hidden (its eye shows it again).
+    pub(crate) fn hide_secrets(&mut self) {
+        if let Some(l) = self.state.as_mut() {
+            l.shown = false;
+        }
+    }
+}
+
 impl LightningState {
     /// The file chosen in Files asks for a passphrase.
     pub fn file_asks_passphrase(&self) -> bool {

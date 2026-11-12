@@ -1490,7 +1490,7 @@ impl Codex32Make {
 
     /// The cell whose working is open.
     pub fn cell(&self) -> Option<Cell> {
-        self.cell
+        self.cell.filter(|_| !self.hidden)
     }
 
     /// The strings to write, once the set is made.
@@ -1795,6 +1795,12 @@ impl Codex32Make {
     pub(crate) fn mask(&mut self) {
         self.hidden = true;
         self.cell = None;
+    }
+
+    /// The strings masked for a lock, the selected cell kept: its working
+    /// is not drawn while they are masked and comes back with the eye.
+    pub(crate) fn mask_keeping_cell(&mut self) {
+        self.hidden = true;
     }
 
     /// The cell `d` places along the row of `cell`, if there is one.

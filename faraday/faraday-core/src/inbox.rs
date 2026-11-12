@@ -355,6 +355,13 @@ impl InboxArea {
         &self.skip
     }
 
+    /// The potential wallet's passphrase hidden (its eye shows it again).
+    pub(crate) fn hide_secrets(&mut self) {
+        if let Some(p) = self.potential.as_mut() {
+            p.shown = false;
+        }
+    }
+
     /// The seed being made a wallet.
     pub(crate) fn potential(&self) -> Option<&Potential> {
         self.potential.as_ref()

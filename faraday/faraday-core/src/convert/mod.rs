@@ -596,14 +596,6 @@ impl ConvertArea {
         self.state.as_ref()
     }
 
-    /// The result hidden (the eye shows it again), the flow kept.
-    pub(crate) fn hide_secrets(&mut self) {
-        if let Some(s) = self.state.as_mut() {
-            s.shown = false;
-        }
-        self.shown_text = None;
-    }
-
     /// Forgets the flow and its result.
     pub(crate) fn clear(&mut self) {
         self.state = None;

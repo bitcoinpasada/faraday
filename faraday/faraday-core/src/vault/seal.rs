@@ -11,7 +11,9 @@
 //! flows hold and finishes (the wipes), and a lock of one closes that
 //! vault and goes on with what was waiting for it. What a lock does that
 //! cannot be undone is only what the seals themselves need: the running
-//! job's answer is dropped and the code on show closes.
+//! job's answer is dropped and every secret on show goes off the screen
+//! ([`secrets_off_screen`]); what was typed is kept, to be finished if the
+//! lock stops.
 
 use std::collections::VecDeque;
 
@@ -103,21 +105,34 @@ pub(crate) fn lock_pending(app: &Faraday) -> bool {
         .is_some_and(|r| r.all || r.lock_after.is_some())
 }
 
-/// A lock takes every secret on show off the screen first, its bytes
-/// wiped as it drops: the code on show (it may be an entry's TOTP secret,
-/// `docs/QR.md` §7.1), an open entry's revealed fields, a key's SeedQR and
-/// words on the item page, the backup checklist's seed and a codex32
-/// string with its QR, New key's words and codex32 strings, the child
-/// of BIP-85, the Convert result and a Krux code's contents. The one
-/// place that says what a secret on show is; a screen that shows a
-/// secret only while its eye is open is put away here.
+/// Takes every secret on show off the screen, its bytes wiped as it
+/// drops; what is typed and not yet shown stays where it is held. Called
+/// by a lock, first, and by the idle warning. The code on show (it may be
+/// an entry's TOTP secret, `docs/QR.md` §7.1), an open entry's revealed
+/// fields, a key's SeedQR and words on the item page, Create a vault's
+/// passphrases, the backup checklist's seed, Seed XOR parts and codex32
+/// string with its QR, New key's words and codex32 strings, the child of
+/// BIP-85, Explore's words and passphrase, the Convert result, the QR,
+/// Krux code and core wallet tools, a Krux code's contents, Lightning's
+/// private key, Vanity's passphrase, the Inbox's passphrase and a scanned
+/// text shown unmasked. The one place that says what a secret on show is;
+/// a screen that shows a secret only while its eye is open is put away
+/// here, and a new one is added here.
 pub(crate) fn secrets_off_screen(app: &mut Faraday) {
     app.qr.close();
+    app.explore_hide();
+    crate::convert::hide(app);
+    crate::kef_tool::hide(app);
+    crate::qr_tool::hide(app);
+    crate::core_wallet::tool::hide(app);
+    app.lightning.hide_secrets();
+    app.vanity.hide_secrets();
+    app.inbox.hide_secrets();
+    app.scan_card_hide();
     app.vaults.hide_secrets();
     app.backup.hide_secrets();
     app.keygen.hide_secrets();
     app.bip85.hide_secrets();
-    app.tools.convert.hide_secrets();
     app.seed_read.hide_secrets();
 }
 

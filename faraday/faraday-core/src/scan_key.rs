@@ -1249,6 +1249,13 @@ impl Faraday {
         }
     }
 
+    /// The read card's unrecognised text masked again (its eye shows it).
+    pub(crate) fn scan_card_hide(&mut self) {
+        if let Some(card) = self.camera.scan.as_mut().and_then(|s| s.card.as_mut()) {
+            card.shown = false;
+        }
+    }
+
     /// The card shows; the camera goes off, its picture wiped.
     fn read_card_put(&mut self, card: scan_read::ReadCard) {
         if let Some(scan) = self.camera.scan.as_mut() {

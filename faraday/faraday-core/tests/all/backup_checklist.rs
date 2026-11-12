@@ -18,7 +18,7 @@ use faraday_vault::records::{field, kind};
 
 const NAME: &str = "Harbour cellar";
 
-fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
+pub(crate) fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
@@ -79,7 +79,7 @@ fn one_key(app: &mut Faraday) -> usize {
 
 /// Presses `action`, which the screen on show must offer somewhere down
 /// its column.
-fn press_offered(app: &mut Faraday, action: Action) {
+pub(crate) fn press_offered(app: &mut Faraday, action: Action) {
     if crate::common::moved_on(app, action) {
         return;
     }
@@ -463,7 +463,7 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
 /// Test keys 1 and 2 typed in and the 2-of-3 over the three test keys
 /// loaded: two of its seeds here, the third a cosigner's. Returns the
 /// wallet's index.
-fn two_of_three_two_here(app: &mut Faraday) -> usize {
+pub(crate) fn two_of_three_two_here(app: &mut Faraday) -> usize {
     let c = faraday_core::testkit::compute();
     for i in 0..8u8 {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
@@ -489,7 +489,7 @@ fn two_of_three_two_here(app: &mut Faraday) -> usize {
 
 /// Create a vault, opened from the backup: a passphrase typed twice, the
 /// vault made, unlocked, and back to the backup.
-fn make_the_vault(app: &mut Faraday) {
+pub(crate) fn make_the_vault(app: &mut Faraday) {
     assert_eq!(app.screen, Screen::CreateVault);
     let before = app.vaults().open.len();
     for second in [false, true] {

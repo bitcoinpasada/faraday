@@ -433,15 +433,6 @@ impl Faraday {
             || crate::core_wallet::tool::key(self, key)
     }
 
-    /// The idle warning: the Explore page and those tools close their eyes.
-    pub(crate) fn tool_hide(&mut self) {
-        self.explore_hide();
-        crate::convert::hide(self);
-        crate::kef_tool::hide(self);
-        crate::qr_tool::hide(self);
-        crate::core_wallet::tool::hide(self);
-    }
-
     /// After a press: those tools end unless they are on show.
     pub(crate) fn tool_tidy(&mut self) {
         crate::convert::tidy(self);

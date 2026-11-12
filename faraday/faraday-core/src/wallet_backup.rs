@@ -726,15 +726,17 @@ impl WalletBackupArea {
     }
 
     /// What the checklist shows of a seed put away, the backup kept: the
-    /// words and SeedQR hidden, the typed check and the open codex32
-    /// string and its QR closed, the held seed dropped (wiped).
+    /// words, SeedQR and Seed XOR parts hidden, the open codex32 string
+    /// and its QR closed unless something is typed back, the held seed
+    /// dropped (wiped); the typed check stays.
     pub(crate) fn hide_secrets(&mut self) {
         if let Some(b) = self.state.as_mut() {
             b.reveal = false;
-            b.check = None;
-            b.check_at = None;
+            b.paper = None;
+            // What is typed back stays, with the string it is typed back
+            // from; one with nothing typed goes back to the list.
             if let Some(c) = b.c32.as_mut() {
-                c.list();
+                c.hide();
             }
         }
         self.drop_shown();

@@ -241,9 +241,9 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_a_key_s_words_at_once() {
     seal_ends_and_locks(&mut app);
 }
 
-#[test]
-fn a_lock_pressed_while_one_vault_is_sealed_hides_a_codex32_share_s_qr_at_once() {
-    use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way};
+/// New key's Make codex32 shares, on the card that shows the strings made.
+fn codex32_made() -> Faraday {
+    use faraday_core::codex32::{C32, SPLITS, Split, WAYS, Way};
     use faraday_core::keygen::Start;
     use faraday_ui::keyboard::OskPress;
     let mut app = device(cheap_vault());
@@ -287,30 +287,27 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_a_codex32_share_s_qr_at_once()
         c32(&mut app, C32::Next);
     }
     let m = app.keygen().unwrap().codex32.as_ref().unwrap();
-    assert_eq!(m.open(), Some(Card::Made));
+    assert_eq!(m.open(), Some(faraday_core::codex32::Card::Made));
     let _ = app.frame();
-    c32(&mut app, C32::Qr);
-    let _ = app.frame();
-    let shown = |app: &Faraday| {
-        app.keygen()
-            .unwrap()
-            .codex32
-            .as_ref()
-            .unwrap()
-            .qr()
-            .is_some()
-    };
-    assert!(shown(&app), "no Codex32QR shown");
+    app
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_a_codex32_share_at_once() {
+    use faraday_core::codex32::{C32, CARDS, Card};
+    let mut app = codex32_made();
+    // The string is drawn in groups of four on the card that types it back.
+    let at = CARDS.iter().position(|c| *c == Card::Strings).unwrap();
+    app.press(Action::Codex32(C32::Card(at as u8)));
     assert!(
-        !app.keygen().unwrap().codex32.as_ref().unwrap().masked(),
-        "the strings are masked before the press"
+        text_on_screen(&mut app, "ms12 name"),
+        "no string is shown: {:?}",
+        app.drawn_texts()
     );
     lock_during_seal(&mut app);
-    let _ = app.frame();
-    assert!(!shown(&app), "the QR stays on show during the seal");
     assert!(
-        app.keygen().unwrap().codex32.as_ref().unwrap().masked(),
-        "the strings stay on show during the seal"
+        !text_on_screen(&mut app, "ms12 name"),
+        "the string stays on show during the seal"
     );
     seal_ends_and_locks(&mut app);
 }
@@ -362,12 +359,113 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_a_child_seed_at_once() {
     app.press(Action::PNext);
     app.press(Action::PNext);
     app.press(Action::PShow);
-    assert!(app.bip85().is_some_and(|b| b.shown), "the child is hidden");
-    lock_during_seal(&mut app);
-    let _ = app.frame();
+    let child = app
+        .bip85_value(&testkit::compute())
+        .expect("a child")
+        .split(' ')
+        .take(2)
+        .collect::<Vec<_>>()
+        .join(" ");
     assert!(
-        app.bip85().is_some_and(|b| !b.shown),
+        text_on_screen(&mut app, &child),
+        "the child is hidden: {:?}",
+        app.drawn_texts()
+    );
+    lock_during_seal(&mut app);
+    assert!(
+        !text_on_screen(&mut app, &child),
         "the child stays on show during the seal"
+    );
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_the_convert_result_at_once() {
+    use faraday_core::convert::{self, ConvertAction as C, ROWS};
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::Catalog));
+    let tile = faraday_core::catalog::TILES
+        .iter()
+        .position(|t| t.name == "Convert a seed")
+        .unwrap();
+    app.press(Action::Catalog(tile as u8));
+    let row = ROWS.iter().position(|r| r.name == "xprv").unwrap();
+    app.press(Action::Convert(C::To(row as u8)));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    testkit::settle(&mut app);
+    app.press(Action::Convert(C::Show));
+    let _ = app.frame();
+    let xprv = convert::shown(&app)
+        .expect("the result is shown")
+        .to_string();
+    assert!(
+        text_on_screen(&mut app, &xprv[..20]),
+        "the result is hidden"
+    );
+    lock_during_seal(&mut app);
+    assert!(
+        !text_on_screen(&mut app, &xprv[..20]),
+        "the result stays on show during the seal"
+    );
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_a_krux_code_s_contents_at_once() {
+    use faraday_codec::kef::{Form, encode};
+    use faraday_core::seeds::kef::KefAct;
+    use zeroize::Zeroizing;
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x30 + i; 32])));
+    }
+    app.kef_seal(
+        Zeroizing::new(b"note key".to_vec()),
+        Zeroizing::new(b"a note about the pantry".to_vec()),
+        20,
+        faraday_core::worker::kef::KefId::Random(8),
+        10_000,
+        "Working",
+    )
+    .expect("fresh bytes");
+    testkit::settle(&mut app);
+    let raw = app.kef_take_sealed().unwrap().unwrap();
+    let code = encode(Form::Base43, &raw).unwrap();
+    app.event(Event::Scanned {
+        bytes: code.into_bytes(),
+    });
+    let _ = app.frame();
+    let open = app
+        .scan()
+        .and_then(|s| s.card.as_ref())
+        .and_then(|c| c.ways.iter().position(|w| w.label() == "Open"))
+        .expect("no Open way");
+    app.press(Action::ReadGo(open as u8));
+    type_text(&mut app, "note key");
+    app.event(Event::Key(faraday_shell_api::Key::Enter));
+    for _ in 0..6 {
+        testkit::settle(&mut app);
+        if app.busy().is_none() {
+            break;
+        }
+    }
+    let _ = app.frame();
+    app.press(Action::KefRead(KefAct::Show));
+    assert!(
+        text_on_screen(&mut app, "pantry"),
+        "the note is hidden: {:?}",
+        app.drawn_texts()
+    );
+    lock_during_seal(&mut app);
+    assert!(
+        !text_on_screen(&mut app, "pantry"),
+        "the note stays on show during the seal"
     );
     seal_ends_and_locks(&mut app);
 }
@@ -392,22 +490,38 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_the_backup_checklist_s_words_a
         faraday_core::plan::Answers::preset_at(&shape, preset, base),
     );
     app.press(Action::BChecklist);
+    if app
+        .backup_items_now(&testkit::compute())
+        .contains(&bstep::BLANK)
+    {
+        app.press(Action::BNext(bstep::BLANK));
+    }
     if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));
     }
     app.press(Action::BReveal);
-    assert!(app.backup().unwrap().reveal, "the words are not revealed");
-    lock_during_seal(&mut app);
-    let _ = app.frame();
+    // The checklist draws each word of the seed in a row of its own.
+    let word = testkit::TEST_SEEDS[1].0;
+    let word_shown = |app: &mut Faraday| {
+        app.settle();
+        let _ = app.frame();
+        app.drawn_texts().iter().any(|t| t == word)
+    };
     assert!(
-        !app.backup().unwrap().reveal,
-        "the words stay revealed during the seal"
+        word_shown(&mut app) || codes_on_screen(&mut app) > 0,
+        "the seed is not shown: {:?}",
+        app.drawn_texts()
+    );
+    lock_during_seal(&mut app);
+    assert!(
+        !word_shown(&mut app) && codes_on_screen(&mut app) == 0,
+        "the seed stays on show during the seal"
     );
     seal_ends_and_locks(&mut app);
 }
 
 #[test]
-fn a_lock_pressed_with_no_seal_running_closes_the_secrets_on_show_and_locks() {
+fn a_lock_pressed_with_no_seal_running_takes_the_secrets_on_show_off_the_screen_at_once() {
     let mut app = on_key_page();
     let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
     let two = words.split(' ').take(2).collect::<Vec<_>>().join(" ");
@@ -416,11 +530,130 @@ fn a_lock_pressed_with_no_seal_running_closes_the_secrets_on_show_and_locks() {
     assert!(text_on_screen(&mut app, &two), "the words are not shown");
     randomness(&mut app, 0x21);
     crate::common::top_up(&mut app);
-    lock(&mut app);
-    assert!(sealed(&app).is_some(), "the vault was not sealed");
-    assert!(app.restart_requested(), "the device did not lock");
+    // The seal is held on the worker: the screen is looked at while the
+    // session is still there.
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Lock);
+    assert!(!app.restart_requested(), "the lock did not wait");
     assert!(!text_on_screen(&mut app, &two), "the words are on show");
     assert_eq!(codes_on_screen(&mut app), 0, "the SeedQR is on show");
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_from_the_checklist_s_one_vault_seal_through_the_lock_sheet_locks_when_it_ends() {
+    use crate::backup_checklist::{
+        device as checklist_device, make_the_vault, press_offered, two_of_three_two_here,
+    };
+    use faraday_core::bstep;
+    let mut app = checklist_device(Vec::new());
+    let w = two_of_three_two_here(&mut app);
+    app.press(Action::Backup(w));
+    testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
+    let c = testkit::compute();
+    crate::common::no_words(&mut app);
+    press_offered(&mut app, Action::BChecklist);
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    press_offered(&mut app, Action::Vault(V::CreateFrom(Screen::Backup)));
+    make_the_vault(&mut app);
+    press_offered(&mut app, Action::BVaultSave(0));
+    press_offered(&mut app, Action::BStep(bstep::VAULT + 1));
+    for _ in 0..20 {
+        app.settle();
+        let _ = app.frame();
+        if app.offers(Action::BNewVault(1)) {
+            break;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    assert!(app.offers(Action::BNewVault(1)), "no new vault is offered");
+    crate::common::top_up(&mut app);
+    // The checklist's press starts the seal of the first vault; Lock from
+    // the sidebar and the Lock sheet's Lock go on while it runs.
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::BNewVault(1));
+    testkit::press_on_worker(&mut app, Action::LockAsk);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    testkit::press_on_worker(&mut app, Action::Lock);
+    assert!(!app.restart_requested(), "the lock did not wait");
+    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
+    let two = words.split(' ').take(2).collect::<Vec<_>>().join(" ");
+    assert!(!text_on_screen(&mut app, &two), "the words are on show");
+    assert_eq!(codes_on_screen(&mut app), 0, "a code is on show");
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(sealed(&app).is_some(), "the vault was not sealed");
+    assert!(app.restart_requested(), "the device did not lock");
+}
+
+/// A lock that stops for want of randomness: nothing is sealed or wiped.
+fn lock_stops(app: &mut Faraday) {
+    app.event(Event::Tick { now_ms: 1_000 });
+    app.event(Event::Tick { now_ms: 120_000 });
+    app.press(Action::Lock);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk), "the lock did not stop");
+    assert!(!app.restart_requested());
+}
+
+#[test]
+fn a_lock_that_stops_keeps_the_check_being_typed_on_the_checklist() {
+    use faraday_core::bstep;
+    use faraday_core::seeds::SeedsAction as S;
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    let fp = app.session.keys.last().expect("a key").fingerprint.0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    app.press(Action::Backup(0));
+    let w = app.backup().unwrap().wallet;
+    let shape = app.plan_shape_now(w);
+    let base = if shape.multi() { shape.seeds.len() } else { 2 };
+    let preset = faraday_core::plan::Preset::ALL[2];
+    testkit::set_backup_answers(
+        &mut app,
+        faraday_core::plan::Answers::preset_at(&shape, preset, base),
+    );
+    app.press(Action::BChecklist);
+    if app
+        .backup_items_now(&testkit::compute())
+        .contains(&bstep::BLANK)
+    {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
+        app.press(Action::BStep(bstep::COPY));
+    }
+    app.press(Action::BReveal);
+    app.press(Action::BCheck);
+    assert!(app.backup().unwrap().check.is_some(), "no check is open");
+    type_text(&mut app, "aban");
+    lock_stops(&mut app);
+    assert!(
+        app.backup().is_some_and(|b| b.check.is_some()),
+        "the check typed was thrown away"
+    );
+}
+
+#[test]
+fn a_lock_that_stops_keeps_new_key_s_selected_cell() {
+    use faraday_core::codex32::{C32, Cell};
+    let mut app = codex32_made();
+    app.press(Action::Codex32(C32::Cell(Cell::Given { sheet: 0, b: 0 })));
+    let cell = |app: &Faraday| app.keygen().unwrap().codex32.as_ref().unwrap().cell();
+    assert!(cell(&app).is_some(), "no cell is selected");
+    lock_stops(&mut app);
+    app.press(Action::Cancel);
+    // Masked or not, the eye brings the working back.
+    if app.keygen().unwrap().codex32.as_ref().unwrap().masked() {
+        app.press(Action::Codex32(C32::Eye));
+    }
+    assert!(cell(&app).is_some(), "the selected cell was thrown away");
 }
 
 #[test]

@@ -116,6 +116,13 @@ pub(crate) struct VanityArea {
 }
 
 impl VanityArea {
+    /// The passphrase a find names hidden (its eye shows it again).
+    pub(crate) fn hide_secrets(&mut self) {
+        if let Some(v) = self.state.as_mut() {
+            v.shown = false;
+        }
+    }
+
     /// The screen's state, while it is open.
     pub(crate) fn state(&self) -> Option<&VanityState> {
         self.state.as_ref()

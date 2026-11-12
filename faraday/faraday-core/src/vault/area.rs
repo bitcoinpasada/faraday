@@ -535,6 +535,9 @@ impl VaultArea {
         let code = self.state.code.take();
         self.hide_shown();
         self.state.code = code;
+        if let Some(c) = self.state.create.as_mut() {
+            c.shown = false;
+        }
     }
 
     /// Costs a parse of a key's words, or a paperkey's making, when the

@@ -1507,7 +1507,7 @@ impl Faraday {
             if changed && self.sheet.is_none() {
                 self.sheet = Some(Sheet::IdleWarn);
                 self.idle.set_warn_min(idle / min);
-                self.tool_hide();
+                self.secrets_off_screen();
             }
             let left = (lock - idle).div_ceil(1000);
             if self.sheet == Some(Sheet::IdleWarn) && self.idle.shown() != Some(left) {

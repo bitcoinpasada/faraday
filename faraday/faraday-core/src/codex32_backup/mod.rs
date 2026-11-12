@@ -221,6 +221,16 @@ impl Strings {
         self.block = 0;
     }
 
+    /// What the open string shows put away: back to the list when nothing
+    /// is typed back, else the Codex32QR only, the typed text kept.
+    pub fn hide(&mut self) {
+        if self.typed.is_empty() {
+            self.list();
+        } else {
+            self.qr = None;
+        }
+    }
+
     /// The block (or row) of the open Codex32QR marked: `at`, kept within
     /// the code's blocks (rows).
     pub fn mark(&mut self, at: u8) {
