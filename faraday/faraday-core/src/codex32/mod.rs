@@ -2432,6 +2432,13 @@ impl Codex32Make {
         }
     }
 
+    /// The string's Codex32QR code put away, its modules wiped as it
+    /// drops: the string shows again as text.
+    pub(crate) fn hide_qr(&mut self) {
+        self.qr = None;
+        self.qr_on = false;
+    }
+
     /// The key is loaded (Lock in): nothing changes after this.
     pub(crate) fn set_locked(&mut self) {
         self.locked = true;

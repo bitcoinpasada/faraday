@@ -523,13 +523,18 @@ impl VaultArea {
             None => true,
         };
         if left {
-            // The entry's code is the refresh's to keep or drop
-            // (`Faraday::vault_code_refresh`): dropped here, it would be
-            // made again after every input.
-            let code = self.state.code.take();
-            self.hide_shown();
-            self.state.code = code;
+            self.hide_secrets();
         }
+    }
+
+    /// The item page's secret fields, the SeedQR, a key's words and a
+    /// paperkey hidden at once, each wiped as it drops. The entry's code
+    /// is the refresh's to keep or drop (`Faraday::vault_code_refresh`):
+    /// dropped here, it would be made again after every input.
+    pub(crate) fn hide_secrets(&mut self) {
+        let code = self.state.code.take();
+        self.hide_shown();
+        self.state.code = code;
     }
 
     /// Costs a parse of a key's words, or a paperkey's making, when the

@@ -725,6 +725,21 @@ impl WalletBackupArea {
         self.state = None;
     }
 
+    /// What the checklist shows of a seed put away, the backup kept: the
+    /// words and SeedQR hidden, the typed check and the open codex32
+    /// string and its QR closed, the held seed dropped (wiped).
+    pub(crate) fn hide_secrets(&mut self) {
+        if let Some(b) = self.state.as_mut() {
+            b.reveal = false;
+            b.check = None;
+            b.check_at = None;
+            if let Some(c) = b.c32.as_mut() {
+                c.list();
+            }
+        }
+        self.drop_shown();
+    }
+
     /// Drops the backup under way, returning it.
     pub(crate) fn take(&mut self) -> Option<BackupState> {
         self.shown = None;

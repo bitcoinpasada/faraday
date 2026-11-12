@@ -102,6 +102,13 @@ impl KeyGenArea {
         }
     }
 
+    /// The flow's codex32 string QR put away, the flow kept.
+    pub(crate) fn hide_secrets(&mut self) {
+        if let Some(m) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            m.hide_qr();
+        }
+    }
+
     /// Forgets the flow, with everything in it.
     pub(crate) fn forget(&mut self) {
         self.state = None;

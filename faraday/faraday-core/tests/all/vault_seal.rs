@@ -139,6 +139,191 @@ fn a_lock_pressed_while_one_vault_is_sealed_closes_the_code_on_show_at_once() {
     assert!(app.restart_requested(), "the device did not lock");
 }
 
+/// A seal of the open vault under way, held on the worker, and Lock
+/// pressed meanwhile: the lock waits for it.
+fn lock_during_seal(app: &mut Faraday) {
+    randomness(app, 0x21);
+    crate::common::top_up(app);
+    testkit::hold_worker();
+    assert!(!testkit::vault_lock_one(app, 0), "the seal is under way");
+    testkit::press_on_worker(app, Action::Lock);
+    assert!(!app.restart_requested(), "the lock did not wait");
+}
+
+/// The seal ends: the vault is sealed and the device locks.
+fn seal_ends_and_locks(app: &mut Faraday) {
+    testkit::release_worker();
+    testkit::settle(app);
+    assert!(sealed(app).is_some(), "the vault was not sealed");
+    assert!(app.restart_requested(), "the device did not lock");
+}
+
+/// Whether the frame drawn now has a text holding `part`.
+fn text_on_screen(app: &mut Faraday, part: &str) -> bool {
+    app.settle();
+    let _ = app.frame();
+    app.drawn_texts().iter().any(|t| t.contains(part))
+}
+
+/// The codes a camera reads off the frame drawn now.
+fn codes_on_screen(app: &mut Faraday) -> usize {
+    let c = testkit::compute();
+    app.settle();
+    let f = app.frame();
+    let luma: Vec<u8> = f
+        .rgba
+        .chunks_exact(4)
+        .map(|p| ((u32::from(p[0]) * 3 + u32::from(p[1]) * 6 + u32::from(p[2])) / 10) as u8)
+        .collect();
+    faraday_codec::decode_luma(&c, usize::from(f.width), usize::from(f.height), &luma).len()
+}
+
+/// The vault open and changed, on its first key's page.
+fn on_key_page() -> Faraday {
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(0)));
+    app.press(Action::Vault(V::Item(0)));
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_an_entry_s_revealed_fields_at_once() {
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(2)));
+    app.press(Action::Vault(V::Add));
+    app.press(Action::Vault(V::FocusField(0)));
+    type_text(&mut app, "Locker");
+    app.press(Action::Vault(V::FocusField(4)));
+    type_text(&mut app, "combination under the mat");
+    app.press(Action::Vault(V::FormSave));
+    app.press(Action::Vault(V::Reveal(0)));
+    assert!(text_on_screen(&mut app, "under the mat"), "not revealed");
+    lock_during_seal(&mut app);
+    assert!(
+        !text_on_screen(&mut app, "under the mat"),
+        "the notes stay on show during the seal"
+    );
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_a_key_s_seedqr_at_once() {
+    let mut app = on_key_page();
+    assert_eq!(codes_on_screen(&mut app), 0, "a code before the press");
+    app.press(Action::Vault(V::ShowSeedQr));
+    assert_eq!(codes_on_screen(&mut app), 1, "no SeedQR shown");
+    lock_during_seal(&mut app);
+    assert_eq!(
+        codes_on_screen(&mut app),
+        0,
+        "the SeedQR stays on show during the seal"
+    );
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_a_key_s_words_at_once() {
+    let mut app = on_key_page();
+    let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
+    let two = words.split(' ').take(2).collect::<Vec<_>>().join(" ");
+    app.press(Action::Vault(V::Reveal(0)));
+    assert!(text_on_screen(&mut app, &two), "the words are not shown");
+    lock_during_seal(&mut app);
+    assert!(
+        !text_on_screen(&mut app, &two),
+        "the words stay on show during the seal"
+    );
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_a_codex32_share_s_qr_at_once() {
+    use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way};
+    use faraday_core::keygen::Start;
+    use faraday_ui::keyboard::OskPress;
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KStart(Start::MakeCodex32.index()));
+    let c32 = |app: &mut Faraday, p: C32| app.press(Action::Codex32(p));
+    let split = SPLITS.iter().position(|s| *s == Split::TwoOfThree).unwrap();
+    c32(&mut app, C32::Split(split as u8));
+    c32(&mut app, C32::Next);
+    for ch in "name".chars() {
+        c32(&mut app, C32::Key(OskPress::Char(ch)));
+    }
+    c32(&mut app, C32::Next);
+    let way = WAYS.iter().position(|w| *w == Way::Typed).unwrap();
+    c32(&mut app, C32::Way(way as u8));
+    c32(&mut app, C32::Next);
+    // Vector 2 of BIP 93: the strings A and C, typed from their 10th
+    // character, make the set.
+    for s in [
+        "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
+        "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
+    ] {
+        for ch in s[9..35].chars() {
+            c32(&mut app, C32::Key(OskPress::Char(ch)));
+            let _ = app.frame();
+        }
+    }
+    c32(&mut app, C32::Next);
+    c32(&mut app, C32::Next);
+    for s in [
+        "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
+        "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
+        "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg",
+    ] {
+        for ch in s[3..].chars() {
+            c32(&mut app, C32::Key(OskPress::Char(ch)));
+        }
+        let _ = app.frame();
+        c32(&mut app, C32::Next);
+    }
+    let m = app.keygen().unwrap().codex32.as_ref().unwrap();
+    assert_eq!(m.open(), Some(Card::Made));
+    let _ = app.frame();
+    c32(&mut app, C32::Qr);
+    let _ = app.frame();
+    let shown = |app: &Faraday| {
+        app.keygen()
+            .unwrap()
+            .codex32
+            .as_ref()
+            .unwrap()
+            .qr()
+            .is_some()
+    };
+    assert!(shown(&app), "no Codex32QR shown");
+    lock_during_seal(&mut app);
+    let _ = app.frame();
+    assert!(!shown(&app), "the QR stays on show during the seal");
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_pressed_with_no_seal_running_closes_the_secrets_on_show_and_locks() {
+    let mut app = on_key_page();
+    let words = testkit::test_words(testkit::TEST_SEEDS[1].0);
+    let two = words.split(' ').take(2).collect::<Vec<_>>().join(" ");
+    app.press(Action::Vault(V::Reveal(0)));
+    app.press(Action::Vault(V::ShowSeedQr));
+    assert!(text_on_screen(&mut app, &two), "the words are not shown");
+    randomness(&mut app, 0x21);
+    crate::common::top_up(&mut app);
+    lock(&mut app);
+    assert!(sealed(&app).is_some(), "the vault was not sealed");
+    assert!(app.restart_requested(), "the device did not lock");
+    assert!(!text_on_screen(&mut app, &two), "the words are on show");
+    assert_eq!(codes_on_screen(&mut app), 0, "the SeedQR is on show");
+}
+
 #[test]
 fn a_lock_pressed_while_one_vault_fails_to_seal_still_locks() {
     let mut app = device(cheap_vault());

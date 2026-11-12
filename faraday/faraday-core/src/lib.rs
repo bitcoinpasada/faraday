@@ -2111,9 +2111,8 @@ impl Faraday {
             return;
         }
         self.job_locked();
-        // The code on show goes first, its text wiped: it may be an
-        // entry's TOTP secret (`docs/QR.md` §7.1).
-        self.qr.close();
+        // What is on show goes first, its text wiped.
+        self.secrets_off_screen();
         // The vaults seal on the worker; the lock goes on in
         // `lock_finish` when the last is done.
         self.vault_seal_all(may_lose);

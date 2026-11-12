@@ -92,13 +92,24 @@ pub(crate) fn sealing(app: &Faraday) -> bool {
     app.vaults.state.sealing.is_some()
 }
 
+/// A lock takes every secret on show off the screen first, its bytes
+/// wiped as it drops: the code on show (it may be an entry's TOTP secret,
+/// `docs/QR.md` §7.1), an open entry's revealed fields, a key's SeedQR and
+/// words on the item page, the backup checklist's seed and a codex32
+/// string with its QR, and New key's codex32 string QR. The one place that says what a secret on show is.
+pub(crate) fn secrets_off_screen(app: &mut Faraday) {
+    app.qr.close();
+    app.vaults.hide_secrets();
+    app.backup.hide_secrets();
+    app.keygen.hide_secrets();
+}
+
 /// Remembers a lock asked for while a seal runs, to be done when it ends
 /// (the seal finishes first). A lock of every vault already under way is
-/// that lock: nothing is remembered. The code on show closes at once,
-/// whatever the lock waits for: it may be an entry's TOTP secret
-/// (`docs/QR.md` §7.1).
+/// that lock: nothing is remembered. Every secret on show closes at once,
+/// whatever the lock waits for ([`secrets_off_screen`]).
 pub(crate) fn lock_after_seal(app: &mut Faraday, may_lose: bool) {
-    app.qr.close();
+    secrets_off_screen(app);
     if let Some(run) = app.vaults.state.sealing.as_mut().filter(|r| !r.all) {
         run.lock_after = Some(run.lock_after.unwrap_or(false) || may_lose);
     }

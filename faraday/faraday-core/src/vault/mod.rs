@@ -2264,6 +2264,12 @@ impl Faraday {
         seal::lock_after_seal(self, may_lose)
     }
 
+    /// Takes every secret on show off the screen, as a lock does first
+    /// ([`seal::secrets_off_screen`]).
+    pub(crate) fn secrets_off_screen(&mut self) {
+        seal::secrets_off_screen(self);
+    }
+
     /// Seals every open vault, then finishes the lock ([`seal`]); `may_lose`
     /// lets a vault that cannot be sealed go.
     pub(crate) fn vault_seal_all(&mut self, may_lose: bool) {
