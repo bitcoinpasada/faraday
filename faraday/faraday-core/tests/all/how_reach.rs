@@ -1,7 +1,7 @@
 //! Every action of the manifest with a screen is one press from that
 //! screen's Cryptography button (two on the Pi's panel, through the ⋮),
-//! its block is on the tab it opens, and its Learn page is among the
-//! screen's pages (`docs/CRYPTO-LEARN.md` §9.1). The blocks and their
+//! its block is on the tab it opens, and the guide opens there at a page
+//! with the Cryptography tab beside it (`docs/CRYPTO-LEARN.md` §9.1). The blocks and their
 //! screens are `faraday-learn`'s generated ones.
 
 use faraday_core::nav::{BarTool, MenuPress, Overflow};

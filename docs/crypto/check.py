@@ -94,7 +94,7 @@ LIBRARY_KEYS = {"author"}
 # Whose answers a vector folder an action names holds (F177): `[vector.<folder>]`.
 VECTOR_KEYS = {"source", "by", "own"}
 VECTOR_SOURCES = {"published", "outside", "own"}
-# A construction (§18): how a format several actions share is built, drawn in Learn.
+# A construction (§18): how a format several actions share is built, drawn on the Cryptography tab.
 CONSTRUCTION_KEYS = {"id", "title", "actions", "section", "review"}
 SECTION_KEYS = {"heading", "para"}
 PARA_KEYS = {"text", "table", "words", "planned", "until", "piece", "does", "instead", "why"}
@@ -1692,7 +1692,7 @@ def digit_free(c, text):
 
 
 def check_constructions(c):
-    """§18.6: a construction's schema, the pages and actions it names, its open items,
+    """§18.6: a construction's schema, the actions it names, its open items,
     that no number is typed, and that every placeholder and table resolves."""
     e, g = c.errors, gen_module()
     v = c.data.get("construction", [])
