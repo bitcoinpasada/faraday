@@ -102,10 +102,15 @@ impl KeyGenArea {
         }
     }
 
-    /// The flow's codex32 string QR put away, the flow kept.
+    /// The flow's words hidden and its codex32 string QR put away, its
+    /// sheets and strings masked (the eye shows them again), the flow kept.
     pub(crate) fn hide_secrets(&mut self) {
-        if let Some(m) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
-            m.hide_qr();
+        if let Some(k) = self.state.as_mut() {
+            k.shown = false;
+            if let Some(m) = k.codex32.as_mut() {
+                m.hide_qr();
+                m.mask();
+            }
         }
     }
 

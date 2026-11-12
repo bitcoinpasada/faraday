@@ -363,6 +363,13 @@ impl SeedsArea {
         }
     }
 
+    /// The Krux code's contents hidden (the eye shows them again).
+    pub(crate) fn hide_secrets(&mut self) {
+        if let Some(k) = self.kef.as_mut() {
+            k.hide();
+        }
+    }
+
     /// Forgets the sheet, and the Krux code's contents and any passphrase
     /// carried to the next seed with it.
     pub(crate) fn clear(&mut self) {

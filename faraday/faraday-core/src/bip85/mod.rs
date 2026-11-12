@@ -228,6 +228,13 @@ impl Bip85Area {
         self.state.as_ref()
     }
 
+    /// The child hidden (the eye shows it again), the flow kept.
+    pub(crate) fn hide_secrets(&mut self) {
+        if let Some(b) = self.state.as_mut() {
+            b.shown = false;
+        }
+    }
+
     /// Forgets the flow's state.
     pub(crate) fn clear(&mut self) {
         self.state = None;

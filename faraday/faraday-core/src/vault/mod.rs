@@ -2264,6 +2264,11 @@ impl Faraday {
         seal::lock_after_seal(self, may_lose)
     }
 
+    /// Whether a lock waits for a seal to end ([`seal::lock_pending`]).
+    pub(crate) fn lock_pending(&self) -> bool {
+        seal::lock_pending(self)
+    }
+
     /// Takes every secret on show off the screen, as a lock does first
     /// ([`seal::secrets_off_screen`]).
     pub(crate) fn secrets_off_screen(&mut self) {
@@ -3621,7 +3626,7 @@ impl Faraday {
     /// entry, and again after an edit. Dropped once the screen is left.
     /// Run before every frame, with [`Self::vault_code_refresh`].
     pub(crate) fn vault_codes_refresh(&mut self) {
-        if self.screen != Screen::Codes || self.vaults.open.is_empty() {
+        if self.screen != Screen::Codes || self.vaults.open.is_empty() || self.lock_pending() {
             self.vaults.state.codes = None;
             return;
         }
@@ -3692,7 +3697,7 @@ impl Faraday {
                 .get(h.record)
                 .is_some_and(|r| r.kind() == kind::ENTRY && r.has(field::TOTP))
         });
-        let Some(here) = here else {
+        let Some(here) = here.filter(|_| !self.lock_pending()) else {
             self.vaults.state.code = None;
             return;
         };

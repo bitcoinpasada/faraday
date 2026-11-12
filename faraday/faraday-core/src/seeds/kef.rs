@@ -517,6 +517,13 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
     kef_show(app, Stage::Note, shown);
 }
 
+impl KefRead {
+    /// The contents hidden: the eye is closed.
+    pub(super) fn hide(&mut self) {
+        self.eye = false;
+    }
+}
+
 fn kef_show(app: &mut Faraday, stage: Stage, shown: Zeroizing<String>) {
     if let Some(k) = app.seed_read.kef.as_mut() {
         k.stage = stage;

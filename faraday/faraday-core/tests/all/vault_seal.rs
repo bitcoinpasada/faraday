@@ -301,9 +301,108 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_a_codex32_share_s_qr_at_once()
             .is_some()
     };
     assert!(shown(&app), "no Codex32QR shown");
+    assert!(
+        !app.keygen().unwrap().codex32.as_ref().unwrap().masked(),
+        "the strings are masked before the press"
+    );
     lock_during_seal(&mut app);
     let _ = app.frame();
     assert!(!shown(&app), "the QR stays on show during the seal");
+    assert!(
+        app.keygen().unwrap().codex32.as_ref().unwrap().masked(),
+        "the strings stay on show during the seal"
+    );
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_takes_an_entry_s_code_off_the_page_at_once() {
+    use faraday_vault::Record;
+    use faraday_vault::records::field;
+    const URI: &str = "otpauth://totp/Example:you?secret=JBSWY3DPEHPK3PXP";
+    let vault = crate::common::vault_with(
+        "Test",
+        testkit::VAULT_PASSPHRASE,
+        7,
+        vec![
+            Record::new(kind::ENTRY)
+                .with(field::TITLE, b"Mail")
+                .with(field::TOTP, URI.as_bytes()),
+        ],
+    );
+    let mut app = device(vault);
+    app.online = true;
+    app.storage(StorageEvent::Clock {
+        unix_secs: 2_000_000_000,
+    });
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::VaultContents));
+    app.press(Action::Vault(V::Category(2)));
+    app.press(Action::Vault(V::Item(0)));
+    let code = faraday_vault::totp::grouped(
+        &faraday_vault::totp::parse(URI)
+            .unwrap()
+            .code(app.clock_now().expect("a clock")),
+    );
+    assert!(text_on_screen(&mut app, &code), "no code on the page");
+    lock_during_seal(&mut app);
+    assert!(
+        !text_on_screen(&mut app, &code),
+        "the code stays on the page during the seal"
+    );
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_a_child_seed_at_once() {
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Bip85);
+    app.press(Action::PApp(0));
+    app.press(Action::PNext);
+    app.press(Action::PNext);
+    app.press(Action::PShow);
+    assert!(app.bip85().is_some_and(|b| b.shown), "the child is hidden");
+    lock_during_seal(&mut app);
+    let _ = app.frame();
+    assert!(
+        app.bip85().is_some_and(|b| !b.shown),
+        "the child stays on show during the seal"
+    );
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_the_backup_checklist_s_words_at_once() {
+    use faraday_core::bstep;
+    use faraday_core::seeds::SeedsAction as S;
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    let fp = app.session.keys.last().expect("a key").fingerprint.0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    assert_eq!(app.session.wallets.len(), 1, "no wallet was made");
+    app.press(Action::Backup(0));
+    let w = app.backup().unwrap().wallet;
+    let shape = app.plan_shape_now(w);
+    let base = if shape.multi() { shape.seeds.len() } else { 2 };
+    let preset = faraday_core::plan::Preset::ALL[2];
+    testkit::set_backup_answers(
+        &mut app,
+        faraday_core::plan::Answers::preset_at(&shape, preset, base),
+    );
+    app.press(Action::BChecklist);
+    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
+        app.press(Action::BStep(bstep::COPY));
+    }
+    app.press(Action::BReveal);
+    assert!(app.backup().unwrap().reveal, "the words are not revealed");
+    lock_during_seal(&mut app);
+    let _ = app.frame();
+    assert!(
+        !app.backup().unwrap().reveal,
+        "the words stay revealed during the seal"
+    );
     seal_ends_and_locks(&mut app);
 }
 

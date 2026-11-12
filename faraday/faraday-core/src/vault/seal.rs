@@ -92,16 +92,33 @@ pub(crate) fn sealing(app: &Faraday) -> bool {
     app.vaults.state.sealing.is_some()
 }
 
+/// Whether a lock is under way that waits for a seal to end: nothing
+/// secret is put on show again until it has gone through (the TOTP codes
+/// are not made).
+pub(crate) fn lock_pending(app: &Faraday) -> bool {
+    app.vaults
+        .state
+        .sealing
+        .as_ref()
+        .is_some_and(|r| r.all || r.lock_after.is_some())
+}
+
 /// A lock takes every secret on show off the screen first, its bytes
 /// wiped as it drops: the code on show (it may be an entry's TOTP secret,
 /// `docs/QR.md` §7.1), an open entry's revealed fields, a key's SeedQR and
 /// words on the item page, the backup checklist's seed and a codex32
-/// string with its QR, and New key's codex32 string QR. The one place that says what a secret on show is.
+/// string with its QR, New key's words and codex32 strings, the child
+/// of BIP-85, the Convert result and a Krux code's contents. The one
+/// place that says what a secret on show is; a screen that shows a
+/// secret only while its eye is open is put away here.
 pub(crate) fn secrets_off_screen(app: &mut Faraday) {
     app.qr.close();
     app.vaults.hide_secrets();
     app.backup.hide_secrets();
     app.keygen.hide_secrets();
+    app.bip85.hide_secrets();
+    app.tools.convert.hide_secrets();
+    app.seed_read.hide_secrets();
 }
 
 /// Remembers a lock asked for while a seal runs, to be done when it ends
