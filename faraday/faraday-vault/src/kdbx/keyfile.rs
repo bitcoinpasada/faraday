@@ -47,6 +47,7 @@
 //! except a `KeyFile` root under a declared encoding other than UTF-8 in a
 //! file with a byte at or above 0x80, which is refused.
 
+use alloc::borrow::Cow;
 use alloc::vec::Vec;
 
 use base64ct::{Base64, Encoding};
@@ -54,7 +55,7 @@ use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 use super::xml::{MAX_DEPTH, valid_ref};
 
@@ -93,15 +94,18 @@ pub fn read(bytes: &[u8]) -> Result<Zeroizing<[u8; 32]>, KeyFileError> {
     if let Some(key) = xml(bytes)? {
         return Ok(key);
     }
-    if let Ok(key) = <[u8; 32]>::try_from(bytes) {
-        return Ok(Zeroizing::new(key));
-    }
-    if bytes.len() == 64
-        && let Some(key) = hex_key(bytes)
-    {
+    let mut key = Zeroizing::new([0u8; 32]);
+    if bytes.len() == 32 {
+        key.copy_from_slice(bytes);
         return Ok(key);
     }
-    Ok(Zeroizing::new(Sha256::digest(bytes).into()))
+    if bytes.len() == 64 && hex_into(bytes, key.as_mut_slice()) {
+        return Ok(key);
+    }
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hasher.finalize_into((&mut *key).into());
+    Ok(key)
 }
 
 /// The key file `key` is kept in: KeePass's XML key file version 2.0, byte
@@ -160,15 +164,17 @@ pub fn secret(text: &str) -> Result<Zeroizing<[u8; 20]>, SecretError> {
     for b in text.bytes() {
         match b {
             b' ' | b':' => {}
-            _ => match nibble(b) {
-                Some(n) => {
+            _ => {
+                let (n, valid) = nibble(b);
+                if valid != 0 {
                     if let Some(slot) = out.get_mut(digits / 2) {
                         *slot = (*slot << 4) | n;
                     }
                     digits += 1;
+                } else {
+                    stray = true;
                 }
-                None => stray = true,
-            },
+            }
         }
     }
     if digits == 40 && !stray {
@@ -178,23 +184,37 @@ pub fn secret(text: &str) -> Result<Zeroizing<[u8; 20]>, SecretError> {
     }
 }
 
-fn nibble(b: u8) -> Option<u8> {
-    match b {
-        b'0'..=b'9' => Some(b - b'0'),
-        b'a'..=b'f' => Some(b - b'a' + 10),
-        b'A'..=b'F' => Some(b - b'A' + 10),
-        _ => None,
+/// The value of the hexadecimal digit `b` and a mask, all ones if `b` is
+/// one and zero if not (the value is then zero). The same steps run for
+/// every byte: no branch follows the digit.
+fn nibble(b: u8) -> (u8, u32) {
+    let x = i32::from(b);
+    // All ones when `x` is inside `lo..=hi`: neither difference is negative.
+    let within = |lo: i32, hi: i32| !(((x - lo) | (hi - x)) >> 31) as u32;
+    let (d, l, u) = (within(0x30, 0x39), within(0x61, 0x66), within(0x41, 0x46));
+    let value =
+        (d & (x - 0x30) as u32) | (l & (x - 0x61 + 10) as u32) | (u & (x - 0x41 + 10) as u32);
+    (value as u8, d | l | u)
+}
+
+/// The bytes that `digits` spell into `out`, and whether every digit was a
+/// hexadecimal one. `digits` is twice as long as `out`.
+fn hex_into(digits: &[u8], out: &mut [u8]) -> bool {
+    let mut valid = u32::MAX;
+    for (slot, pair) in out.iter_mut().zip(digits.chunks_exact(2)) {
+        let (hi, hi_ok) = nibble(pair[0]);
+        let (lo, lo_ok) = nibble(pair[1]);
+        *slot = (hi << 4) | lo;
+        valid &= hi_ok & lo_ok;
     }
+    valid == u32::MAX
 }
 
 /// The 32 bytes that `digits` (64 of them) spell, or none if any is not a
 /// hexadecimal digit.
 fn hex_key(digits: &[u8]) -> Option<Zeroizing<[u8; 32]>> {
     let mut out = Zeroizing::new([0u8; 32]);
-    for (slot, pair) in out.iter_mut().zip(digits.chunks_exact(2)) {
-        *slot = (nibble(pair[0])? << 4) | nibble(pair[1])?;
-    }
-    Some(out)
+    hex_into(digits, out.as_mut_slice()).then_some(out)
 }
 
 fn is_ws(b: &u8) -> bool {
@@ -658,14 +678,14 @@ fn scan_document(
             }
             Event::Text(t) => {
                 if let Some((_, _, buf)) = text.as_mut() {
-                    buf.extend_from_slice(&t);
+                    push_wiped(buf, t.into_inner());
                 } else if path.is_empty() && !t.iter().all(is_ws) {
                     return not_a_key(closed);
                 }
             }
             Event::CData(t) => {
                 if let Some((_, _, buf)) = text.as_mut() {
-                    buf.extend_from_slice(&t);
+                    push_wiped(buf, t.into_inner());
                 } else if path.is_empty() {
                     if !seen_root {
                         return Ok(None);
@@ -763,16 +783,22 @@ fn wanted(path: &[Vec<u8>], name: &[u8]) -> Option<bool> {
     }
 }
 
+/// Appends `piece` to `buf` and wipes it if the reader made an owned copy of
+/// it (a borrowed one is the input's own bytes, wiped by the caller).
+fn push_wiped(buf: &mut Zeroizing<Vec<u8>>, piece: Cow<'_, [u8]>) {
+    buf.extend_from_slice(&piece);
+    if let Cow::Owned(mut copy) = piece {
+        copy.zeroize();
+    }
+}
+
 /// The 4 bytes that 8 hexadecimal digits spell.
 fn hex_key_n(digits: &[u8]) -> Option<[u8; 4]> {
     if digits.len() != 8 {
         return None;
     }
     let mut out = [0u8; 4];
-    for (slot, pair) in out.iter_mut().zip(digits.chunks_exact(2)) {
-        *slot = (nibble(pair[0])? << 4) | nibble(pair[1])?;
-    }
-    Some(out)
+    hex_into(digits, &mut out).then_some(out)
 }
 
 /// Whether every attribute of `e` is well formed: quoted, none twice.

@@ -111,7 +111,10 @@ pub const PBKDF2_STEP: u32 = 5_000;
 /// `between` is called with the rounds done so far, and the work stops,
 /// returning `None`, when it returns `false`. `None` also for 0 `rounds`.
 /// The key is in a [`Secret`] and the running value `u` and the sum are
-/// [`Zeroizing`](zeroize::Zeroizing); the HMAC states are not wiped.
+/// [`Zeroizing`](zeroize::Zeroizing). The HMAC is spelled out (RFC 2104)
+/// over SHA-256 states that wipe on drop: the `hmac` crate's states do not,
+/// with or without its `zeroize` feature, so the keyed pads, each round's
+/// clone of them and the pad block are wiped here.
 pub fn pbkdf2_hmac_sha256_block(
     c: &Compute,
     password: &[u8],
@@ -123,21 +126,48 @@ pub fn pbkdf2_hmac_sha256_block(
         return None;
     }
     c.count(Work::Kdf);
-    let prf = Hmac::<Sha256>::new_from_slice(password).expect("HMAC accepts any key length");
+    // The key, hashed if longer than a block, padded with zeros to one.
+    let mut block = zeroize::Zeroizing::new([0u8; 64]);
+    if password.len() > 64 {
+        let mut hasher = Sha256::new();
+        hasher.update(password);
+        hasher.finalize_into((&mut block[..32]).try_into().expect("32 bytes"));
+    } else {
+        block[..password.len()].copy_from_slice(password);
+    }
+    let mut inner_key = Sha256::new();
+    let mut outer_key = Sha256::new();
+    for b in block.iter_mut() {
+        *b ^= 0x36;
+    }
+    inner_key.update(block.as_slice());
+    for b in block.iter_mut() {
+        *b ^= 0x36 ^ 0x5c;
+    }
+    outer_key.update(block.as_slice());
+    // PRF(P, m) into `out`.
+    let prf = |m: &[&[u8]], out: &mut [u8; 32]| {
+        let mut inner = inner_key.clone();
+        for part in m {
+            inner.update(part);
+        }
+        let mut mid = zeroize::Zeroizing::new([0u8; 32]);
+        inner.finalize_into((&mut *mid).into());
+        let mut outer = outer_key.clone();
+        outer.update(mid.as_slice());
+        outer.finalize_into(out.into());
+    };
     // U_1 = PRF(P, S || INT(1)).
-    let mut mac = prf.clone();
-    mac.update(salt);
-    mac.update(&1u32.to_be_bytes());
     let mut u = zeroize::Zeroizing::new([0u8; 32]);
-    u.copy_from_slice(&mac.finalize().into_bytes());
+    prf(&[salt, &1u32.to_be_bytes()], &mut u);
     let mut t = Secret::new(*u);
+    let mut next = zeroize::Zeroizing::new([0u8; 32]);
     let mut done = 1u32;
     while done < rounds {
         let stop = done.saturating_add(PBKDF2_STEP).min(rounds);
         for _ in done..stop {
-            let mut mac = prf.clone();
-            mac.update(&*u);
-            u.copy_from_slice(&mac.finalize().into_bytes());
+            prf(&[&*u], &mut next);
+            u.copy_from_slice(&*next);
             for (a, b) in t.expose_mut().iter_mut().zip(u.iter()) {
                 *a ^= b;
             }
