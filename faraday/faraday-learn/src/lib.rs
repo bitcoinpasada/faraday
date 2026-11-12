@@ -18,10 +18,12 @@ use pages::Page as LearnPage;
 
 pub mod block;
 pub mod construction;
+pub mod guide;
 pub mod how;
 pub mod pages;
 
 pub use block::Block;
+pub use guide::{GuidePage, GuideSection, Span, guide_page, guide_places, guide_section};
 pub use pages::{Page, Section};
 
 /// Faraday's own pages, each by its id.

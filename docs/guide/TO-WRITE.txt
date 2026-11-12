@@ -1,0 +1,3 @@
+# Places the app reaches that have no page in docs/guide/ yet, one a line.
+# A place leaves this list when its page is written; none is added.
+secure-boot-keys

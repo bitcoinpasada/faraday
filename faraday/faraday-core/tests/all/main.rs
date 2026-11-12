@@ -90,6 +90,7 @@ mod forms;
 mod glance;
 mod gpg;
 mod gpg_restore;
+mod guide_keys;
 mod home;
 mod home_scan;
 mod hover;

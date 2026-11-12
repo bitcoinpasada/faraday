@@ -17,6 +17,386 @@ use crate::create::NewKind;
 use crate::wallet::Kind;
 use crate::{Faraday, Screen};
 
+/// What the guide is opened on within a place (`docs/GUIDE-IN-APP.md` §1.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GuideAt {
+    /// The place as a whole.
+    Whole,
+    /// The open card of a flow, by the number the place's step module
+    /// gives it (`cstep`, `kstep`, `rstep`, `qstep`, `mstep`, `step`).
+    Step(u8),
+    /// The shared backup flow's kind and step.
+    Flow(crate::backup_flow::Kind, crate::backup_flow::Step),
+    /// The shared backup flow of a kind as a whole, before a step.
+    Kind(crate::backup_flow::Kind),
+    /// The card showing what the flow is for, before its steps (the key a
+    /// GPG restore is made against).
+    Head,
+    /// The sheet a place opens before its steps.
+    Sheet,
+    /// A code brought in to open, in the place of the card that makes one.
+    Opening,
+    /// An item of the backup checklist, by the number `bstep` gives it.
+    Item(u8),
+    /// A step of the flow a place holds in its column (the spend that
+    /// Spend from a backup carries), by that flow's step module.
+    Inner(u8),
+    /// The tab, section, category or form the place has open, by its place
+    /// in the place's own list: Settings' sections, a vault's categories,
+    /// Add a key's forms (`entry::Form::ALL`).
+    Part(u8),
+}
+
+/// Where the guide opens: the section key (`docs/GUIDE-IN-APP.md` §1.1)
+/// of what `screen` shows at `at`. A lookup, done when the guide is
+/// opened or the step changes, never while drawing. A step with no part
+/// of its own gives the place's key.
+pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
+    use crate::{mstep, qstep};
+    let step = match at {
+        GuideAt::Step(n) => Some(n),
+        _ => None,
+    };
+    match screen {
+        Screen::Home => "home",
+        Screen::WalletsStart => "wallets-start",
+        Screen::Wallets => "wallets",
+        Screen::Spend => spend_key(step),
+        Screen::Files => "files",
+        Screen::Entry => entry_key(at),
+        Screen::Backup => match (at, step) {
+            (GuideAt::Item(n), _) => backup_item_key(n),
+            (_, Some(qstep::SOFTWARE)) => "backup.software",
+            (_, Some(qstep::PLAN)) => "backup.plan",
+            (_, Some(qstep::BOARD)) => "backup.board",
+            _ => "backup",
+        },
+        Screen::Message => match step {
+            Some(mstep::ADDRESS) => "message.address",
+            Some(mstep::TEXT) => "message.text",
+            Some(mstep::FORMAT) => "message.format",
+            Some(mstep::SIGN) => "message.sign",
+            _ => "message",
+        },
+        Screen::CheckMessage => "check-message",
+        Screen::Create => create_key(step),
+        Screen::Restore => restore_key(step),
+        Screen::Settings => settings_key(at),
+        Screen::SetTime => "set-time",
+        Screen::Randomness => "randomness",
+        Screen::Vaults => "vaults",
+        Screen::Backups => "backups",
+        Screen::CreateVault => "create-vault",
+        Screen::KeyGen => keygen_key(step),
+        Screen::Bip85 => bip85_key(step),
+        Screen::Convert => convert_key(step),
+        Screen::KefTool => kef_tool_key(step),
+        Screen::QrTool => qr_tool_key(at, step),
+        Screen::OtsCheck => "ots-check",
+        Screen::CoreWallet => match step {
+            Some(crate::core_wallet::tool::cstep::FILE) => "core-wallet.file",
+            Some(crate::core_wallet::tool::cstep::RESULT) => "core-wallet.result",
+            _ => "core-wallet",
+        },
+        Screen::Silent => "silent",
+        Screen::Explore => "explore",
+        Screen::Lightning => "lightning",
+        Screen::Tools => "tools",
+        Screen::Unlock => "unlock",
+        Screen::VaultContents => vault_contents_key(at),
+        Screen::Codes => "codes",
+        Screen::SpendBackup => spend_backup_key(at),
+        Screen::Vanity => vanity_key(step),
+        Screen::Decode => "decode",
+        Screen::Invoice => "invoice",
+        Screen::NonceCheck => "nonce-check",
+        Screen::SignerCheck => "signer-check",
+        Screen::Compare => "compare",
+        Screen::Catalog => "catalog",
+        Screen::Transfer => "transfer",
+        Screen::BackupFlow => flow_key(at),
+    }
+}
+
+/// The key of an Add a key form.
+fn entry_key(at: GuideAt) -> &'static str {
+    match at {
+        GuideAt::Part(0) => "entry.words",
+        GuideAt::Part(1) => "entry.shares",
+        GuideAt::Part(2) => "entry.codex32",
+        GuideAt::Part(3) => "entry.xor",
+        _ => "entry",
+    }
+}
+
+/// The key of a Settings section.
+fn settings_key(at: GuideAt) -> &'static str {
+    match at {
+        GuideAt::Part(0) => "settings.mode",
+        GuideAt::Part(1) => "settings.session",
+        GuideAt::Part(2) => "settings.time",
+        GuideAt::Part(3) => "settings.randomness",
+        GuideAt::Part(4) => "settings.appearance",
+        GuideAt::Part(5) => "settings.display",
+        GuideAt::Part(6) => "settings.signed-amounts",
+        GuideAt::Part(7) => "settings.nonce-history",
+        GuideAt::Part(8) => "settings.about",
+        _ => "settings",
+    }
+}
+
+/// The key of a vault's category.
+fn vault_contents_key(at: GuideAt) -> &'static str {
+    match at {
+        GuideAt::Part(0) => "vault-contents.bitcoin-keys",
+        GuideAt::Part(1) => "vault-contents.wallets",
+        GuideAt::Part(2) => "vault-contents.entries",
+        GuideAt::Part(3) => "vault-contents.notes",
+        GuideAt::Part(4) => "vault-contents.gpg-keys",
+        GuideAt::Part(5) => "vault-contents.secure-boot",
+        _ => "vault-contents",
+    }
+}
+
+/// The key of a BIP-85 step.
+fn bip85_key(step: Option<u8>) -> &'static str {
+    match step {
+        Some(crate::bip85::pstep::KEY) => "bip85.key",
+        Some(crate::bip85::pstep::APP) => "bip85.app",
+        Some(crate::bip85::pstep::INDEX) => "bip85.index",
+        Some(crate::bip85::pstep::RESULT) => "bip85.result",
+        _ => "bip85",
+    }
+}
+
+/// The key of a QR vault step.
+fn qr_tool_key(at: GuideAt, step: Option<u8>) -> &'static str {
+    match (at, step) {
+        (GuideAt::Opening, _) => "qr-tool.open",
+        (_, Some(crate::qr_tool::qstep::CONTENTS)) => "qr-tool.contents",
+        (_, Some(crate::qr_tool::qstep::PASSPHRASE)) => "qr-tool.passphrase",
+        (_, Some(crate::qr_tool::qstep::CODE)) => "qr-tool.code",
+        _ => "qr-tool",
+    }
+}
+
+/// The key of a convert step.
+fn convert_key(step: Option<u8>) -> &'static str {
+    match step {
+        Some(crate::convert::cstep::FROM) => "convert.from",
+        Some(crate::convert::cstep::TO) => "convert.to",
+        Some(crate::convert::cstep::SETTINGS) => "convert.settings",
+        Some(crate::convert::cstep::RESULT) => "convert.result",
+        _ => "convert",
+    }
+}
+
+/// The key of a Krux code step.
+fn kef_tool_key(step: Option<u8>) -> &'static str {
+    match step {
+        Some(crate::kef_tool::kstep::CONTENTS) => "kef-tool.contents",
+        Some(crate::kef_tool::kstep::MAKE) => "kef-tool.make",
+        Some(crate::kef_tool::kstep::CODE) => "kef-tool.code",
+        _ => "kef-tool",
+    }
+}
+
+/// The key of a backup checklist item, by its `bstep` number.
+fn backup_item_key(n: u8) -> &'static str {
+    use crate::plan::Item;
+    match crate::bstep::item(n) {
+        Some(Item::Templates) => "backup.blank",
+        Some(Item::Copy(_)) => "backup.copy",
+        Some(Item::Codex32(_)) => "backup.codex32",
+        Some(Item::Passphrase(_)) => "backup.passphrase",
+        Some(Item::KefCode(_)) => "backup.kef",
+        Some(Item::Vault(_)) => "backup.vault",
+        Some(Item::SeedFiles) => "backup.files",
+        Some(Item::Sheets) => "backup.sheets",
+        Some(Item::PublicFiles) => "backup.public",
+        Some(Item::ShowDescriptor) => "backup.show",
+        Some(Item::Envelopes) => "backup.envelope",
+        Some(Item::Sticks) => "backup.sticks",
+        None => "backup",
+    }
+}
+
+/// The key of a card of Spend from a backup: one of the tab's pages, or
+/// a step of the spend in its column. The start from the stick and the
+/// open wallet are folded into what you have; the spend's wallet is
+/// chosen there too, and its first addresses are the check.
+fn spend_backup_key(at: GuideAt) -> &'static str {
+    use crate::spend_backup::page;
+    use crate::wallet::step;
+    match at {
+        GuideAt::Step(page::MAP) => "spend-from-backup.map",
+        GuideAt::Step(page::SAFE | page::HOLDING | page::OPEN) => "spend-from-backup.holding",
+        GuideAt::Step(page::CHECK) => "spend-from-backup.check",
+        GuideAt::Step(page::WRITE) => "spend-from-backup.write",
+        GuideAt::Step(page::BRING) => "spend-from-backup.bring",
+        GuideAt::Step(page::AWAY) => "spend-from-backup.away",
+        GuideAt::Inner(step::WALLET) => "spend-from-backup.holding",
+        GuideAt::Inner(step::CHECK) => "spend-from-backup.check",
+        GuideAt::Inner(step::TRANSACTION) => "spend-from-backup.transaction",
+        GuideAt::Inner(step::TXID) => "spend-from-backup.txid",
+        GuideAt::Inner(step::PATH) => "spend-from-backup.path",
+        GuideAt::Inner(step::NONCES) => "spend-from-backup.nonces",
+        GuideAt::Inner(step::SIGNERS) => "spend-from-backup.signers",
+        GuideAt::Inner(step::SIGN) => "spend-from-backup.sign",
+        GuideAt::Inner(step::COLLECT) => "spend-from-backup.collect",
+        GuideAt::Inner(step::FINISH) => "spend-from-backup.finish",
+        _ => "spend-from-backup",
+    }
+}
+
+/// The key of a spend step.
+fn spend_key(step: Option<u8>) -> &'static str {
+    match step {
+        Some(crate::wallet::step::WALLET) => "spend.wallet",
+        Some(crate::wallet::step::CHECK) => "spend.check",
+        Some(crate::wallet::step::TRANSACTION) => "spend.transaction",
+        Some(crate::wallet::step::TXID) => "spend.txid",
+        Some(crate::wallet::step::SIGNERS) => "spend.signers",
+        Some(crate::wallet::step::SIGN) => "spend.sign",
+        Some(crate::wallet::step::COLLECT) => "spend.collect",
+        Some(crate::wallet::step::FINISH) => "spend.finish",
+        Some(crate::wallet::step::PATH) => "spend.path",
+        Some(crate::wallet::step::NONCES) => "spend.nonces",
+        _ => "spend",
+    }
+}
+
+/// The key of a create step.
+fn create_key(step: Option<u8>) -> &'static str {
+    use crate::cstep;
+    match step {
+        Some(cstep::KIND) => "create.kind",
+        Some(cstep::QUORUM) => "create.quorum",
+        Some(cstep::KEYS) => "create.keys",
+        Some(cstep::CHECK) => "create.check",
+        Some(cstep::BACKUP) => "create.backup",
+        Some(cstep::WHERE) => "create.where",
+        Some(cstep::STICKS) => "create.sticks",
+        Some(cstep::VAULTS) => "create.vaults",
+        Some(cstep::HOW_MANY) => "create.how-many",
+        Some(cstep::BACKUP_FORM) => "create.backup-form",
+        _ => "create",
+    }
+}
+
+/// The key of a restore step.
+fn restore_key(step: Option<u8>) -> &'static str {
+    use crate::rstep;
+    match step {
+        Some(rstep::KIND) => "restore.kind",
+        Some(rstep::QUORUM) => "restore.quorum",
+        Some(rstep::DESCRIPTION) => "restore.description",
+        Some(rstep::SEEDS) => "restore.seeds",
+        Some(rstep::CHECK) => "restore.check",
+        Some(rstep::DONE) => "restore.done",
+        Some(rstep::WHERE) => "restore.where",
+        Some(rstep::HOW_MANY) => "restore.how-many",
+        _ => "restore",
+    }
+}
+
+/// The key of a keygen step.
+fn keygen_key(step: Option<u8>) -> &'static str {
+    match step {
+        Some(crate::keygen::kstep::START) => "keygen.start",
+        Some(crate::keygen::kstep::LENGTH) => "keygen.length",
+        Some(crate::keygen::kstep::SOURCE) => "keygen.source",
+        Some(crate::keygen::kstep::ENTER) => "keygen.enter",
+        Some(crate::keygen::kstep::KEY) => "keygen.key",
+        Some(crate::keygen::kstep::CHECK) => "keygen.check",
+        Some(crate::keygen::kstep::WORDS) => "keygen.words",
+        Some(crate::keygen::kstep::QUIZ) => "keygen.quiz",
+        Some(crate::keygen::kstep::TYPED) => "keygen.typed",
+        Some(crate::keygen::kstep::CODEX32) => "keygen.codex32",
+        _ => "keygen",
+    }
+}
+
+/// The key of a vanity step.
+fn vanity_key(step: Option<u8>) -> &'static str {
+    match step {
+        Some(crate::vanity::vstep::KEY) => "vanity.key",
+        Some(crate::vanity::vstep::DIAL) => "vanity.dial",
+        Some(crate::vanity::vstep::SCRIPT) => "vanity.script",
+        Some(crate::vanity::vstep::PREFIX) => "vanity.prefix",
+        Some(crate::vanity::vstep::RUN) => "vanity.run",
+        _ => "vanity",
+    }
+}
+
+/// The key of a step of the shared backup flow.
+fn flow_key(at: GuideAt) -> &'static str {
+    use crate::backup_flow::{Kind as FlowKind, Step as FlowStep};
+    match at {
+        GuideAt::Flow(FlowKind::Gpg, s) => match s {
+            FlowStep::Where => "gpg-restore.where",
+            FlowStep::Sticks => "gpg-restore.sticks",
+            FlowStep::Vaults => "gpg-restore.vaults",
+            FlowStep::Make => "gpg-restore.make",
+            FlowStep::Lock => "gpg-restore.lock",
+            FlowStep::Write => "gpg-restore.write",
+            FlowStep::Done => "gpg-restore.done",
+        },
+        GuideAt::Flow(FlowKind::SecureBoot, s) => match s {
+            FlowStep::Where => "secure-boot-keys.where",
+            FlowStep::Sticks => "secure-boot-keys.sticks",
+            FlowStep::Vaults => "secure-boot-keys.vaults",
+            FlowStep::Make => "secure-boot-keys.make",
+            FlowStep::Lock => "secure-boot-keys.lock",
+            FlowStep::Write => "secure-boot-keys.write",
+            FlowStep::Done => "secure-boot-keys.done",
+        },
+        GuideAt::Flow(FlowKind::Wallet, s) => match s {
+            FlowStep::Where => "backup-flow.where",
+            FlowStep::Sticks => "backup-flow.sticks",
+            FlowStep::Vaults => "backup-flow.vaults",
+            FlowStep::Make => "backup-flow.make",
+            FlowStep::Lock => "backup-flow.lock",
+            FlowStep::Write => "backup-flow.write",
+            FlowStep::Done => "backup-flow.done",
+        },
+        GuideAt::Kind(FlowKind::Gpg) => "gpg-restore",
+        GuideAt::Kind(FlowKind::SecureBoot) => "secure-boot-keys",
+        GuideAt::Head => "gpg-restore.head",
+        GuideAt::Sheet => "gpg-restore.sheet",
+        _ => "backup-flow",
+    }
+}
+
+/// The section Back up's Extra copies card opens, in Guided only
+/// (`docs/GUIDE-IN-APP.md` §4): a card shown under the plan, not a step.
+pub const EXTRA_COPIES_KEY: &str = "backup.extra-copies";
+
+/// Where a key resolves in the written pages.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GuideAim {
+    /// The key's own section.
+    Section(&'static str),
+    /// The place's lead section: the part has none.
+    Lead(&'static str),
+    /// The guide's contents: the place has no page.
+    Contents,
+}
+
+/// Where `key` opens: its section if written, else its place's lead,
+/// else the contents (`docs/GUIDE-IN-APP.md` §1.2). The guide never
+/// opens empty.
+pub fn guide_aim(key: &'static str) -> GuideAim {
+    let place = key.split('.').next().unwrap_or(key);
+    if faraday_learn::guide_section(key).is_some() {
+        GuideAim::Section(key)
+    } else if faraday_learn::guide_page(place).is_some() {
+        GuideAim::Lead(place)
+    } else {
+        GuideAim::Contents
+    }
+}
+
 /// The label of `page`'s tab in the Learn sheet and pane: its title, or
 /// a shorter name where the title is too long for a row of tabs to show
 /// whole beside the others (Material 3 Tabs). A lookup.

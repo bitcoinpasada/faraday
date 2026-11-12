@@ -25,7 +25,7 @@ The passphrase encrypts the code, and the same passphrase opens it again. It is 
 
 ## Size
 
-**Key:** kef-tool.size
+**Key:** kef-tool.make-size
 
 **Size** in Options lists one row for each sheet size the contents can take under the options: 25 × 25, 29 × 29, 33 × 33 or 37 × 37 squares, each with its sheet in Faraday Starter, Blank templates, Krux code. The size follows the version, the id and the contents; choosing a row sets the options that give it. Where the contents fit none, the card says **By hand** is **No**, **Largest** 37 × 37. **Low error correction** is a switch offered for version 5 only. A compressed version shows **Known once made**.
 
