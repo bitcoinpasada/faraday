@@ -77,6 +77,7 @@ impl OpenVaults {
     ) -> Result<(VaultId, fv::file::Facts), fv::file::Error> {
         let slot = stretched.into_opened()?;
         let crate::job::OpenedSlot {
+            identities: _,
             digest,
             base,
             opened,

@@ -2090,3 +2090,63 @@ fn an_entry_edited_after_adds_moves_and_deletes_is_the_one_chosen() {
     texts.sort();
     assert_eq!(texts, ["a", "c, edited", "d", "e, edited"]);
 }
+
+/// A vault of a seed alone, the same seed with a passphrase, and the
+/// first seed kept again under another label.
+fn made_keys(c: &Compute) -> Vec<u8> {
+    let key = |words: &str| {
+        let m = Mnemonic::parse(c, Language::English, words).expect("the words");
+        Record::new(kind::KEY).with(field::KEY, &faraday_vault::records::words_payload(&m))
+    };
+    let zoo = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong";
+    made_with(
+        c,
+        "pass",
+        vec![
+            key(ABANDON),
+            key(ABANDON).with(field::KEY_PASSPHRASE, b"extra"),
+            key(zoo),
+            key(ABANDON).with(field::KEY_LABEL, b"Again"),
+        ],
+    )
+}
+
+#[test]
+fn an_open_asked_for_identities_gives_each_keys_fingerprint_and_master_id_once() {
+    use faraday_keys::job::StretchJob;
+    let c = compute();
+    let file = made_keys(&c);
+    for network in [Network::Mainnet, Network::Testnet] {
+        let stretched = StretchJob::open(file.clone(), SecretText::of("pass"))
+            .with_identities(network)
+            .run(&c);
+        let found = stretched.identities().to_vec();
+        let mut store = store();
+        let (id, _) = store.adopt(stretched).expect("opens");
+        let mut want: Vec<faraday_keys::job::KeyIdentity> = Vec::new();
+        for (_, r) in store.records(id).of(kind::KEY) {
+            let rid = vault::key_record_id(r).expect("an id");
+            if want.iter().any(|(k, ..)| *k == rid) {
+                continue;
+            }
+            let (fp, mid) = vault::key_identity(&c, network, r).expect("a key");
+            want.push((rid, fp, mid));
+        }
+        assert_eq!(want.len(), 3, "four records, three keys");
+        assert_eq!(found, want, "the same as worked out fresh");
+    }
+}
+
+#[test]
+fn an_open_not_asked_or_given_a_wrong_passphrase_gives_no_identities() {
+    use faraday_keys::job::StretchJob;
+    let c = compute();
+    let file = made_keys(&c);
+    let plain = StretchJob::open(file.clone(), SecretText::of("pass")).run(&c);
+    assert!(plain.identities().is_empty());
+    let wrong = StretchJob::open(file, SecretText::of("nope"))
+        .with_identities(Network::Mainnet)
+        .run(&c);
+    assert!(wrong.error().is_some());
+    assert!(wrong.identities().is_empty());
+}

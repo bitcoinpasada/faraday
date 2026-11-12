@@ -141,8 +141,9 @@ fn open_job(
     file: Vec<u8>,
     passphrase: crate::secret_text::SecretText,
 ) -> StretchJob {
+    let network = app.session.network();
     let Some(free) = app.vaults.memory_free_mib else {
-        return StretchJob::open(file, passphrase);
+        return StretchJob::open(file, passphrase).with_identities(network);
     };
     const MIB: usize = 1024 * 1024;
     // What is free beside the app. The copy of the file this job holds is
@@ -177,6 +178,7 @@ fn open_job(
         }
     });
     StretchJob::open_within(file, passphrase, Some(room), Some(budget), Some(parsed))
+        .with_identities(network)
 }
 
 /// The front half of an unlock: the chosen vault's file and the
@@ -384,6 +386,8 @@ fn unlocked(
         return;
     }
     let before = app.vaults.open.len();
+    // The key records' fingerprints and master ids, worked out in the job.
+    let identities = stretched.identities().to_vec();
     match app.vaults.state.adopt(stretched) {
         Ok((id, facts)) => {
             let vault_id = app.vaults.state.store().vault_id(id).unwrap_or_default();
@@ -408,6 +412,7 @@ fn unlocked(
                 super::area::size_line(&facts),
                 super::area::settings_line(&facts),
             );
+            app.vaults.keep_identities(&identities);
             app.vaults.state.typed_shown = false;
             app.vaults.state.focus = None;
             app.vaults.state.open.push(super::OpenVault {

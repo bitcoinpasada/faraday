@@ -3750,6 +3750,15 @@ impl Vaults {
         self.kept_identity(id, || faraday_keys::vault::key_identity(c, network, r))
     }
 
+    /// Keeps the identities a vault's unlock worked out in its job, by
+    /// key record id, as `kept_identity` keeps them: no work. Ids already
+    /// kept stay as they are.
+    pub(crate) fn keep_identities(&self, found: &[faraday_keys::job::KeyIdentity]) {
+        for (id, fp, mid) in found {
+            self.kept_identity(*id, || Some((*fp, *mid)));
+        }
+    }
+
     /// Costs what `key_identity` costs. A key record's fingerprint on
     /// `network`, worked out once per key and kept.
     pub(crate) fn key_fingerprint(

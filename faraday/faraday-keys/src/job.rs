@@ -38,7 +38,15 @@ pub type Parsed = Box<dyn Fn(usize, usize) -> Result<Option<usize>, u32> + Send>
 /// The costly part of opening or making a vault, with what it needs.
 pub struct StretchJob {
     what: What,
+    /// The network an open works its key records' identities out on; none:
+    /// they are not worked out.
+    identities: Option<Network>,
 }
+
+/// A key record's identity: its id ([`crate::vault::key_record_id`]), its
+/// fingerprint and its [`faraday_bip::keys::MasterKey`]-derived master id.
+/// Public: no secret is in it.
+pub type KeyIdentity = ([u8; 32], Fingerprint, [u8; 32]);
 
 enum What {
     Open {
@@ -87,6 +95,7 @@ enum Out {
 /// A vault opened: the digest of the file it came from, the opened file and the
 /// records built from it.
 pub(crate) struct OpenedSlot {
+    pub(crate) identities: Vec<KeyIdentity>,
     pub(crate) digest: [u8; 32],
     pub(crate) base: usize,
     pub(crate) opened: Arc<fv::file::Opened>,
@@ -120,6 +129,7 @@ impl StretchJob {
                 budget,
                 parsed,
             },
+            identities: None,
         }
     }
 
@@ -193,14 +203,27 @@ impl StretchJob {
                 random,
                 now,
             },
+            identities: None,
         }
+    }
+
+    /// This job for an open that also works out each key record's
+    /// fingerprint and master id on `network`, in the job, so the thread
+    /// that adopts the vault finds them ([`Stretched::identities`]). A make
+    /// is not changed.
+    pub fn with_identities(mut self, network: Network) -> StretchJob {
+        self.identities = Some(network);
+        self
     }
 
     /// Costs an Argon2id run over the vault's memory (the same call as
     /// `faraday_vault::file::open` or `create`), and the reading of each
-    /// GPG key of an opened file. Everything the job held is wiped as it
+    /// GPG key of an opened file; with [`StretchJob::with_identities`],
+    /// also a PBKDF2 and two elliptic-curve multiplications for each
+    /// distinct key record. Everything the job held is wiped as it
     /// ends.
     pub fn run(self, c: &Compute) -> Stretched {
+        let network = self.identities;
         let mut document = None;
         let out = match self.what {
             What::Open {
@@ -222,10 +245,12 @@ impl StretchJob {
                 )
                 .map(|mut opened| {
                     let built = crate::vault::build(&opened);
+                    let identities = network.map_or_else(Vec::new, |n| identities_of(c, n, &built));
                     let digest = faraday_crypto::sha256_whole(c, &file);
                     // The file is not needed past its digest.
                     drop(file);
                     Box::new(OpenedSlot {
+                        identities,
                         digest,
                         base: crate::vault::base_of(&mut opened),
                         opened: Arc::new(opened),
@@ -261,7 +286,42 @@ impl StretchJob {
     }
 }
 
+/// Costs a PBKDF2 and two elliptic-curve multiplications for each key
+/// record of `built` with a key, once for records of one id. Each key
+/// record's identity on `network`, worked out fresh; only the fingerprint
+/// and master id leave.
+fn identities_of(c: &Compute, network: Network, built: &Built) -> Vec<KeyIdentity> {
+    let mut out: Vec<KeyIdentity> = Vec::new();
+    for r in built
+        .records
+        .iter()
+        .filter(|r| r.kind == fv::records::kind::KEY)
+    {
+        let view = crate::vault::RecordView::of(r);
+        let Some(id) = crate::vault::key_record_id(view) else {
+            continue;
+        };
+        if out.iter().any(|(k, ..)| *k == id) {
+            continue;
+        }
+        if let Some((fp, mid)) = crate::vault::key_identity(c, network, view) {
+            out.push((id, fp, mid));
+        }
+    }
+    out
+}
+
 impl Stretched {
+    /// The identities of the key records an open worked out, when asked
+    /// ([`StretchJob::with_identities`]): public, no secret. Empty for a
+    /// make, a failed open or an open not asked. A lookup.
+    pub fn identities(&self) -> &[KeyIdentity] {
+        match &self.out {
+            Out::Opened(Ok(slot)) => &slot.identities,
+            _ => &[],
+        }
+    }
+
     /// Reveal: the KeePass key file of the key a make drew
     /// ([`StretchJob::making_key_file`]), for `why` (`Reveal::OutboxFile`
     /// of `Part::KeyFile`), to be written to a stick (`docs/KEYS.md` §2).

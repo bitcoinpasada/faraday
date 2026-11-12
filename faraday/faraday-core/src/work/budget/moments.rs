@@ -120,17 +120,17 @@ const UNLOCK: Table = &[
     (
         Work::Kdf,
         5,
-        "Argon2id once over the passphrase; PBKDF2 for the vault's seed (its identity, kept) and for the three seed files Files lists under the Load sheet (their fingerprints, kept)",
+        "Argon2id once over the passphrase; PBKDF2 for the vault's seed (its identity, worked out in the unlock's job, which this harness runs on the calling thread) and for the three seed files Files lists under the Load sheet (their fingerprints, kept)",
     ),
     (
         Work::MasterKey,
         4,
-        "the vault's seed and the three seed files in Files, each made a master key once for its fingerprint, then kept",
+        "the vault's seed (in the unlock's job) and the three seed files in Files, each made a master key once for its fingerprint, then kept",
     ),
     (
         Work::WordsParse,
         6,
-        "the three seed files in Files once each; the vault's key record three times: once by the vault's reader, which checks the words read as it maps the file's items (faraday_vault::kdbx::items::read, on the worker, so a seed that does not read is shown as unreadable), then for its words' hash (VaultRecords) and its identity (key_identity), each kept",
+        "the three seed files in Files once each; the vault's key record three times: once by the vault's reader, which checks the words read as it maps the file's items (faraday_vault::kdbx::items::read, on the worker, so a seed that does not read is shown as unreadable), then for its words' hash (VaultRecords) and, in the unlock's job, its identity (key_identity), each kept",
     ),
     (
         Work::FileHash,
@@ -140,7 +140,7 @@ const UNLOCK: Table = &[
     (
         Work::KeyDerive,
         1,
-        "the vault seed's master key's xpub, for its id (key_identity), kept",
+        "the vault seed's master key's xpub, for its id (key_identity), worked out in the unlock's job",
     ),
     (
         Work::DescriptorParse,
