@@ -776,15 +776,29 @@ readable text says the guess is right.
 **The cost per step.** A figure for scale, not an estimate of any real
 attacker: 2^40 Argon2 block steps a second, about a million cores each
 filling about 1 GiB a second. Memory is what the figure leaves out: at 64
-MiB that many cores hold 64 TiB, and at 1 GiB, 1 PiB. Time to try every
-passphrase of EFF's long list (12.925 bits a word; half this on average):
+MiB that many cores hold 64 TiB, and at 1 GiB, 1 PiB. The times include
+Argon2: a guess costs three passes over its memory in 1 KiB blocks, 2^17.6
+block steps at 64 MiB, 2^19.6 at 256 MiB and 2^21.6 at 1 GiB, which is where
+each column's guesses a second come from. The total work is the passphrase's
+bits plus those. The KEF column is Krux's KEF (§14) at its default of 100,000
+PBKDF2-HMAC-SHA-256 iterations, 200,000 SHA-256 compressions a guess, on the
+same million cores at about 2^25 compressions a second each (about 2 GB a
+second with SHA extensions): 2^45 a second, about 176 million guesses a
+second, 31 times the 64 MiB rate. Time to try every passphrase of EFF's long
+list (12.925 bits a word; half this on average):
 
-| Passphrase | Bits | 64 MiB (5.6 million guesses/s) | 256 MiB (1.4 million) | 1 GiB (350,000) |
-|---|---|---|---|---|
-| 3 words | 38.8 | 1 day | 4 days | 16 days |
-| 4 words | 51.7 | 21 years | 83 years | 331 years |
-| 5 words | 64.6 | 160,000 years | 640,000 years | 2.6 million years |
-| 6 words | 77.5 | 1.3 billion years | 5 billion years | 20 billion years |
+| Passphrase | Passphrase bits | Total work, bits (64 MiB / 256 MiB / 1 GiB) | 64 MiB (5.6 million guesses/s) | 256 MiB (1.4 million) | 1 GiB (350,000) | KEF (176 million) |
+|---|---|---|---|---|---|---|
+| 3 words | 38.8 | 56.4 / 58.4 / 60.4 | 1 day | 4 days | 16 days | 45 minutes |
+| 4 words | 51.7 | 69.3 / 71.3 / 73.3 | 21 years | 83 years | 331 years | 241 days |
+| 5 words | 64.6 | 82.2 / 84.2 / 86.2 | 160,000 years | 640,000 years | 2.6 million years | 5,100 years |
+| 6 words | 77.5 | 95.1 / 97.1 / 99.1 | 1.3 billion years | 5 billion years | 20 billion years | 40 million years |
+
+Without Argon2, one SHA-256 a guess at 2^45 a second tries every 3-word
+passphrase in under a second, every 4-word one in about 2 minutes and every
+5-word one in about 9 days. KEF's figure counts its compute only: it needs
+almost no memory, so GPUs and dedicated hardware, which Argon2's memory
+resists, make it cheaper still.
 
 The five steps span a factor of 16, four bits; one more word is 12.9 bits.
 The word count matters more than the step. A person-chosen passphrase can
