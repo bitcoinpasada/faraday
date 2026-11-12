@@ -1,7 +1,7 @@
 # Practice, and Faraday Demo for developers
 
 **Kind:** Reference
-**Status:** Built (F30, F61, F81; Practice's aids in Faraday Demo's host strip, §14, F118); the website's part is in its own repository
+**Status:** Built (F30, F61, F81; Practice's aids in Faraday Demo's host strip, §14, F118)
 
 ## 1. The decision
 
@@ -19,8 +19,8 @@
    container recipes stay working, and the Starter's release builds go
    through the same recipes, so every release exercises them. The README
    says how to build it.
-3. The website demo, the desktop shell compiled to WebAssembly in the
-   website's own repository, is the way to try Faraday.
+3. The website carries no demo; Faraday Demo, in the Starter or as its
+   own download, is the way to try Faraday.
 4. Practice lets people open every tab and screen, and every action
    that would make a secret is disabled. Bitcoin use with the eleven
    public seeds stays fully open, as F20 has it. Practice is for trying
@@ -32,10 +32,8 @@ Practice is a mode (F81, `docs/MODES.md`): a session whose
 shell called `Session::set_demo`, on Testnet. `Keys::demo()` is true, and
 `Faraday::mode()` is Practice. Its keys derive at coin type 1 and its
 addresses are real testnet addresses, so nothing sent to a public seed's
-address is bitcoin. Two builds have it:
+address is bitcoin. One build has it:
 
-- **The website**, which also calls `Session::fix_network`, so it is in
-  Practice for the whole session.
 - **Faraday Demo**, a developer's build or a release, which starts in
   Practice. Leaving it for Testnet, Signet or Regtest is a lock into a
   fresh session in that mode (F81). No warning sheet comes first (M3,
@@ -263,8 +261,7 @@ any copy made away from the device is.
   does today on Home, Entry, New key and Settings. Its "New key in the
   demo" section stays and gains Generate with dice (§5.2); a new section,
   "What Practice does not make", gives the list of §4 in one paragraph,
-  and that a Faraday stick makes them. The website says
-  the same in its own words beside the app.
+  and that a Faraday stick makes them.
 
 ### 7.1 The exception to FLOWS decisions 8 and 10
 
