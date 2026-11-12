@@ -1202,6 +1202,7 @@ impl Shell {
         let start = self.timings.is_some().then(Instant::now);
         let parts = self.app.as_mut().map(App::parts);
         let moved = parts.as_ref().and_then(|p| p.moved);
+        let changed = parts.as_ref().and_then(|p| p.changed);
         self.last_moved = moved.is_some();
         let frame = parts.map(|p| p.base);
         if let (Some(start), Some(t)) = (start, self.timings.as_mut()) {
@@ -1221,9 +1222,9 @@ impl Shell {
                 complaint = Some("short frame; not drawing");
             }
             Some(frame) => {
-                result = Some(self.presenter.present_moved(
+                result = Some(self.presenter.present_parts(
                     &frame.rgba[..pixels * 4],
-                    moved,
+                    present::Known { moved, changed },
                     g,
                     turn,
                     &self.panel,

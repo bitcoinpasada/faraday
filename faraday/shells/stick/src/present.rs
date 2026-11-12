@@ -2,8 +2,9 @@
 //! the panel's format and written, nothing more (`docs/SPEED.md` §11.1).
 //!
 //! The core paints its whole canvas whenever it draws, so the shell
-//! cannot tell from a `Draw` what changed. It keeps the core's last frame
-//! and compares: a frame drawn again with nothing changed converts and
+//! cannot tell from a `Draw` what changed, unless the core gives the
+//! bands (`Parts::changed`): those rows are converted with no comparison.
+//! Otherwise it keeps the core's last frame and compares: a frame drawn again with nothing changed converts and
 //! writes nothing, and one that moves a caret converts and writes the
 //! rows between the first and the last that differ. Comparing is a
 //! `memcmp`; converting is a loop over every pixel, several times slower
@@ -27,7 +28,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use faraday_shell_api::Moved;
+use faraday_shell_api::{Changed, Moved};
 
 use crate::fb::{self, Depth, Geometry};
 use crate::orient::Turn;
@@ -133,14 +134,9 @@ impl Presenter {
         self.last.clear();
     }
 
-    /// Costs what [`Presenter::present`] costs, for a frame the core says
-    /// moved a region (`docs/FRAMES.md` §3.7). At no turn or a half turn on the
-    /// converting path the rows of the kept frame and of the converted
-    /// copy are moved inside the region's columns first, in ordinary
-    /// memory, so the comparison finds only the strip, the overlays and
-    /// what is outside the region, and only those are converted. A
-    /// `moved` that does not fit the kept frame (another size, a quarter
-    /// turn, nothing kept) is ignored.
+    /// Costs what [`Presenter::present_parts`] costs, given only what the
+    /// core says moved.
+    #[cfg(test)]
     pub fn present_moved<S: Sink>(
         &mut self,
         rgba: &[u8],
@@ -148,8 +144,38 @@ impl Presenter {
         g: Geometry,
         turn: Turn,
         panel: &Mutex<Panel<S>>,
+        timings: Option<&mut Timings>,
+    ) -> std::io::Result<()> {
+        let known = Known {
+            moved,
+            changed: None,
+        };
+        self.present_parts(rgba, known, g, turn, panel, timings)
+    }
+
+    /// Costs what [`Presenter::present`] costs, for a frame with what the
+    /// core says of it (`known`). Given `moved` (`docs/FRAMES.md` §3.7), at
+    /// no turn or a half turn on the converting path the rows of the kept
+    /// frame and of the converted copy are moved inside the region's
+    /// columns first, in ordinary memory, so the comparison finds only the
+    /// strip, the overlays and what is outside the region, and only those
+    /// are converted. A `moved` that does not fit the kept frame (another
+    /// size, a quarter turn, nothing kept) is ignored.
+    ///
+    /// Given `changed` and no `moved`, over a kept frame of the same size
+    /// and turn, the rows to convert are the rows of those rectangles, and
+    /// the comparison is not made: a rectangle that is only a bound
+    /// converts rows that did not change, at the cost of the conversion.
+    pub fn present_parts<S: Sink>(
+        &mut self,
+        rgba: &[u8],
+        known: Known<'_>,
+        g: Geometry,
+        turn: Turn,
+        panel: &Mutex<Panel<S>>,
         mut timings: Option<&mut Timings>,
     ) -> std::io::Result<()> {
+        let moved = known.moved;
         let panel_size = (g.width, g.height);
         let (fw, fh) = turn.frame_size(panel_size);
         let (rows, frame_rows) = (usize::from(g.height), usize::from(fh));
@@ -180,18 +206,44 @@ impl Presenter {
         if moved.is_some() {
             took(&mut timings, Bucket::MoveKept);
         }
-        let changed = if !kept {
-            self.last.clear();
-            self.last.resize(rgba.len(), 0);
-            self.converted.clear();
-            self.converted.resize(rows * out_row, 0);
-            self.turn = Some(turn);
-            vec![(0, frame_rows - 1)]
-        } else {
-            fb::changed_rows(&self.last, rgba, src_row)
+        let changed = match (kept, moved, known.changed) {
+            (false, ..) => {
+                self.last.clear();
+                self.last.resize(rgba.len(), 0);
+                self.converted.clear();
+                self.converted.resize(rows * out_row, 0);
+                self.turn = Some(turn);
+                vec![(0, frame_rows - 1)]
+            }
+            (true, None, Some(c)) => bands_of(c, frame_rows),
+            (true, ..) => fb::changed_rows(&self.last, rgba, src_row),
         };
         took(&mut timings, Bucket::Compare);
-        for &(a, b) in &changed {
+        self.convert_bands(rgba, &changed, g, turn);
+        took(&mut timings, Bucket::ConvertKeep);
+
+        // The panel's own rows of the moved view all changed, though
+        // none of them was converted again: each shows another row.
+        let changed = match view {
+            Some(v) => fb::merge_bands([changed, vec![v]].concat()),
+            None => changed,
+        };
+        let start = timings.is_some().then(Instant::now);
+        let result = self.write_bands(&changed, g, turn, panel);
+        if let (Some(start), Some(t)) = (start, timings) {
+            t.add(Bucket::Write, start.elapsed());
+        }
+        result
+    }
+
+    /// Costs a pass over the pixels of `bands` (rows of the core's frame):
+    /// converts them into the panel's copy and keeps them in the last
+    /// frame.
+    fn convert_bands(&mut self, rgba: &[u8], bands: &[(usize, usize)], g: Geometry, turn: Turn) {
+        let panel_size = (g.width, g.height);
+        let (fw, _) = turn.frame_size(panel_size);
+        let src_row = usize::from(fw) * 4;
+        for &(a, b) in bands {
             if turn == Turn::R0 {
                 fb::convert_keep(
                     rgba,
@@ -208,21 +260,21 @@ impl Presenter {
             }
             self.rows_converted += (b + 1 - a) as u64;
         }
-        took(&mut timings, Bucket::ConvertKeep);
+    }
 
-        // The panel's own rows of the moved view all changed, though
-        // none of them was converted again: each shows another row.
-        let changed = match view {
-            Some(v) => fb::merge_bands([changed, vec![v]].concat()),
-            None => changed,
-        };
-
-        let (w, h) = (usize::from(g.width), rows);
-        let Some((bands, columns)) = panel_bands(&changed, turn, (w, h), lock(panel).stale())
-        else {
+    /// Writes the panel's rows for the frame's changed `bands`, in chunks
+    /// of [`CHUNK_ROWS`], each under its own hold of the lock.
+    fn write_bands<S: Sink>(
+        &self,
+        bands: &[(usize, usize)],
+        g: Geometry,
+        turn: Turn,
+        panel: &Mutex<Panel<S>>,
+    ) -> std::io::Result<()> {
+        let (w, h) = (usize::from(g.width), usize::from(g.height));
+        let Some((bands, columns)) = panel_bands(bands, turn, (w, h), lock(panel).stale()) else {
             return Ok(());
         };
-        let start = timings.is_some().then(Instant::now);
         let mut result = Ok(());
         'bands: for (a, b) in bands {
             let mut first = a;
@@ -242,9 +294,6 @@ impl Presenter {
         }
         if result.is_ok() {
             lock(panel).complete();
-        }
-        if let (Some(start), Some(t)) = (start, timings) {
-            t.add(Bucket::Write, start.elapsed());
         }
         result
     }
@@ -402,6 +451,33 @@ impl Presenter {
             written: lock(panel).rows_written(),
         }
     }
+}
+
+/// What the core says of a frame beside its pixels (`Parts`).
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Known<'a> {
+    /// The region the frame moved.
+    pub moved: Option<Moved>,
+    /// Where the frame may differ from the last; `None` where unknown.
+    pub changed: Option<&'a [Changed]>,
+}
+
+/// The rows of a frame of `frame_rows` rows that `changed` covers, as
+/// sorted bands with none touching; what lies outside the frame is
+/// dropped.
+fn bands_of(changed: &[Changed], frame_rows: usize) -> Vec<(usize, usize)> {
+    let bands = changed
+        .iter()
+        .filter(|c| c.width > 0 && c.height > 0 && usize::from(c.y) < frame_rows)
+        .map(|c| {
+            let first = usize::from(c.y);
+            (
+                first,
+                (first + usize::from(c.height) - 1).min(frame_rows - 1),
+            )
+        })
+        .collect();
+    fb::merge_bands(bands)
 }
 
 /// Moves the pixels of columns `(x, w)` of rows `(y, h)` of `buf` (rows
@@ -884,6 +960,67 @@ mod tests {
                     &[0u8; 4][..]
                 };
                 assert_eq!(&shown[i..i + 4], want, "pixel {x},{y}");
+            }
+        }
+    }
+
+    /// The dots a step sets, and the bands the core gives for it.
+    type Step = (Vec<(usize, usize)>, Option<Vec<Changed>>);
+
+    #[test]
+    fn a_panel_given_the_changed_bands_holds_what_the_comparison_gives() {
+        let band = |y: u16, height: u16| Changed {
+            x: 0,
+            y,
+            width: 8,
+            height,
+        };
+        for turn in [Turn::R0, Turn::R90, Turn::R180, Turn::R270] {
+            let (with, without) = (
+                Mutex::new(Panel::new(Vec::new(), G)),
+                Mutex::new(Panel::new(Vec::new(), G)),
+            );
+            lock(&with).set_turn(turn);
+            lock(&without).set_turn(turn);
+            let (mut a, mut b) = (Presenter::default(), Presenter::default());
+            let mut frame = grey(turn, 40);
+            let (_, fh) = turn.frame_size((G.width, G.height));
+            let last = fh - 1;
+            // Each step: the dots it sets, and the bands the core gives.
+            let steps: [Step; 6] = [
+                (vec![], None),
+                (
+                    vec![(5, 7), (100, 200)],
+                    Some(vec![band(7, 1), band(200, 1)]),
+                ),
+                // A band far wider than the change.
+                (vec![(9, 300)], Some(vec![band(250, 100)])),
+                (
+                    vec![(3, 0), (4, last as usize)],
+                    Some(vec![band(0, 1), band(last, 1)]),
+                ),
+                // Nothing changed.
+                (vec![], Some(vec![])),
+                // A band that runs off the frame's foot.
+                (vec![(12, last as usize)], Some(vec![band(last - 2, 50)])),
+            ];
+            for (i, (dots, bands)) in steps.iter().enumerate() {
+                for &(x, y) in dots {
+                    dot(&mut frame, turn, x, y, 200 + i as u8);
+                }
+                let known = Known {
+                    moved: None,
+                    changed: bands.as_deref(),
+                };
+                a.present_parts(&frame, known, G, turn, &with, None)
+                    .expect("written");
+                b.present(&frame, G, turn, &without, None).expect("written");
+                assert_eq!(*lock(&with).sink(), *lock(&without).sink(), "{turn:?} {i}");
+                assert_eq!(
+                    *lock(&with).sink(),
+                    want(&frame, turn, None),
+                    "{turn:?} {i}"
+                );
             }
         }
     }

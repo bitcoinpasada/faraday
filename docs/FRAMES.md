@@ -32,7 +32,13 @@ with no conversion (§5).
 At no turn the shell converts the changed rows and copies them into the
 kept frame in one pass per row (`fb::convert_keep`), the rows in bands
 over up to eight threads, the first on the calling thread, each depth a
-loop over whole pixels the compiler vectorises. At 3200 × 1800 with
+loop over whole pixels the compiler vectorises. The rows are the bands the
+core gives in `Parts::changed` (`present.rs`, `Known`) when it gives them
+and the shell holds a kept frame of the same size and turn, and the
+comparison is then not made (the `compare` bucket reads about 0): a band
+that is only a bound converts rows that did not change, the same bytes at
+the cost of the conversion. Without bands, or with a `moved` region, the
+rows are the ones `fb::changed_rows` finds by comparing. At 3200 × 1800 with
 every row changed, as a fade step changes them, `present` took 12.4 ms
 (BGRA) and 11.5 ms (24-bit BGR) before and 5.7 ms and 4.6 ms after, on
 the build machine in release (the ignored test
@@ -278,7 +284,7 @@ Option<Moved>` (`faraday-shell-api`), the region's columns and rows and
 `d`, set only when the frame is a moved frame and relative to the frame
 the shell last took (two moved frames between two takes compose when
 they move the same region; any other mix is `None`). A shell that
-ignores it is right, as `changed` is today.
+ignores it is right.
 
 The stick's `Presenter` (`present.rs`), given `moved`, moves the rows of
 its kept frame (`last`) and of its converted copy by `d` inside the
