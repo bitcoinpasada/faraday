@@ -19,7 +19,6 @@
 //!
 //! This file is listed in `tools/lint-secrets.sh` and may hold no heap
 //! text.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 

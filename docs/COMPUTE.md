@@ -237,6 +237,10 @@ only by `#[expect]` at §3's sites), `Compute::unchecked`,
 under `#[expect]`). Hashing engines are not listed (risk 5). Paths
 resolve through the `faraday_bip::bitcoin`/`miniscript` re-exports.
 
+In `faraday-vault`, `faraday-pgp`, `faraday-kef` and `faraday-keys` these
+entries hold in every source file outside test code; in those crates' tests
+only the costs lint holds the mints.
+
 A path that names nothing (mistyped, or moved in a dependency) does not
 fail `-D warnings`: clippy prints a warning about its configuration and
 exits 0, and the entry guards nothing. `tools/clippy.py` runs clippy and

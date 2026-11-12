@@ -49,7 +49,6 @@
 //! BIP-39 words by `faraday-bip`, a policy and a descriptor by
 //! `faraday-bip`'s wallet policy and descriptor readers, a codex32 string
 //! by its reader, the TOML values by `contents`, PEM by `pem-rfc7468`.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 mod forms;
 mod text;

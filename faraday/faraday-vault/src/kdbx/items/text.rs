@@ -4,7 +4,6 @@
 //! other values are plain heap text, which `tools/lint-secrets.sh` refuses
 //! in `mod.rs`, `write.rs` and `forms.rs` and allows in this file. The
 //! secret values of an item stay in the wiping buffers of those three.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::collections::BTreeSet;
 use alloc::string::{String, ToString};
@@ -101,7 +100,8 @@ pub(super) fn number(n: u64) -> String {
 }
 
 /// What `faraday.format` says.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum Format {
     /// `1`: a vault Faraday made.
     Faraday,
@@ -112,20 +112,6 @@ pub enum Format {
     /// apart from what it was read as. Faraday's items are not read and the
     /// vault is read-only.
     Newer(String),
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Format {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Faraday => Self::Faraday,
-            Self::Foreign => Self::Foreign,
-            Self::Newer(a0) => Self::Newer(a0.clone()),
-        }
-    }
 }
 
 /// What was wrong with an item or a key.
@@ -158,26 +144,14 @@ pub enum Fault {
 }
 
 /// Where an item is damaged: the field or the key, and the fault.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Damage {
     /// The field (`Password`) or custom data key (`faraday.child`); for the
     /// database's custom data, the key.
     pub at: String,
     /// What was wrong.
     pub fault: Fault,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Damage {
-    fn clone(&self) -> Self {
-        Self {
-            at: self.at.clone(),
-            fault: self.fault,
-        }
-    }
 }
 
 pub(super) fn damage(at: &str, fault: Fault) -> Damage {
@@ -189,7 +163,8 @@ pub(super) fn damage(at: &str, fault: Fault) -> Damage {
 
 /// An item or a key that does not read. It is never a record, and its entry
 /// or key is written back unchanged.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Unreadable {
     /// The entry's title, or the database key.
     pub title: String,
@@ -197,20 +172,6 @@ pub struct Unreadable {
     pub uuid: Option<[u8; 16]>,
     /// Where, and what.
     pub what: Damage,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Unreadable {
-    fn clone(&self) -> Self {
-        Self {
-            title: self.title.clone(),
-            uuid: self.uuid,
-            what: self.what.clone(),
-        }
-    }
 }
 
 /// A GPG key's fields (§7, `gpg`), armored, as the vault holds them.
@@ -229,25 +190,13 @@ pub struct GpgKey {
 
 /// A field of a person's entry beyond the six Faraday reads: kept in the
 /// document, shown on the entry's page.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Extra {
     /// The field's key.
     pub name: String,
     /// Whether its value is protected.
     pub protected: bool,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Extra {
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            protected: self.protected,
-        }
-    }
 }
 
 /// One entry that reads.
@@ -399,7 +348,8 @@ pub struct Read {
 }
 
 /// Why an open vault is not changed or sealed.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum ReadOnly {
     /// `faraday.format` states a format newer than this build writes (the
     /// value as read).
@@ -407,19 +357,6 @@ pub enum ReadOnly {
     /// The database's `Meta` or custom data cannot be told apart from
     /// what it was read as: the reason, as the document model words it.
     Ambiguous(&'static str),
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for ReadOnly {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Newer(a0) => Self::Newer(a0.clone()),
-            Self::Ambiguous(a0) => Self::Ambiguous(a0),
-        }
-    }
 }
 
 /// `faraday.sealed`'s form from Unix seconds: RFC 3339 in UTC

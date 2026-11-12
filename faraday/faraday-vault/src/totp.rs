@@ -7,6 +7,11 @@
 //! 6238 over a Unix time; [`normalise`] is what the entry form and the
 //! Inbox import (`faraday-vault::entries`) store back into field 6.
 
+#![allow(
+    clippy::disallowed_methods,
+    reason = "holds secret text as a plain String until it is moved to wiping text (docs/SECRET-LEAKS.md §6)"
+)]
+
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;

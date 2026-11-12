@@ -90,7 +90,6 @@
 //!
 //! The work is linear in the document: each byte is read once by the
 //! tokenizer, nesting is capped, and an element takes at least four bytes.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -172,7 +171,8 @@ pub(crate) fn valid_ref(name: &[u8]) -> bool {
 }
 
 /// What a reader refuses, naming what it found.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum Refused {
     /// Not well formed XML.
     NotWellFormed,
@@ -208,31 +208,6 @@ pub enum Refused {
     Memory(usize),
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Refused {
-    fn clone(&self) -> Self {
-        match self {
-            Self::NotWellFormed => Self::NotWellFormed,
-            Self::NotUtf8 => Self::NotUtf8,
-            Self::Encoding(a0) => Self::Encoding(a0.clone()),
-            Self::DocType => Self::DocType,
-            Self::Entity(a0) => Self::Entity(a0.clone()),
-            Self::ProcessingInstruction(a0) => Self::ProcessingInstruction(a0.clone()),
-            Self::AfterRoot => Self::AfterRoot,
-            Self::TooDeep => Self::TooDeep,
-            Self::Base64(a0) => Self::Base64(a0),
-            Self::NotText => Self::NotText,
-            Self::Uuid => Self::Uuid,
-            Self::Structure(a0) => Self::Structure(a0),
-            Self::TooLarge => Self::TooLarge,
-            Self::Memory(a0) => Self::Memory(*a0),
-        }
-    }
-}
-
 type R<T> = Result<T, Refused>;
 
 fn is(name: &[u8], tag: &[u8]) -> bool {
@@ -262,6 +237,11 @@ fn room(buf: &mut Zeroizing<Vec<u8>>, extra: usize) {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// A piece of carried bytes.
 enum Piece {
     Bytes(Zeroizing<Vec<u8>>),
@@ -269,32 +249,13 @@ enum Piece {
     Secret(Zeroizing<Vec<u8>>),
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Piece {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Bytes(a0) => Self::Bytes(a0.clone()),
-            Self::Secret(a0) => Self::Secret(a0.clone()),
-        }
-    }
-}
-
 /// Bytes kept as read, with the protected values in them.
-#[derive(Default)]
-struct Carried(Vec<Piece>);
-
-#[expect(
+#[derive(Default, Clone)]
+#[allow(
     clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
 )]
-impl Clone for Carried {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
+struct Carried(Vec<Piece>);
 
 impl Carried {
     fn bytes(&mut self, b: &[u8]) {
@@ -340,26 +301,17 @@ impl Carried {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// An element with text the model reads: its bytes as read, and the text.
 struct Leaf {
     orig: Carried,
     text: Zeroizing<Vec<u8>>,
     /// Read from a protected element: written in plain form.
     protected: bool,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Leaf {
-    fn clone(&self) -> Self {
-        Self {
-            orig: self.orig.clone(),
-            text: self.text.clone(),
-            protected: self.protected,
-        }
-    }
 }
 
 /// Where a write goes: a buffer, or a count of what a buffer would hold
@@ -458,6 +410,11 @@ impl W<'_> {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// An element with parts: its opening and closing tags as read.
 struct Frame<P> {
     tag: &'static [u8],
@@ -467,22 +424,6 @@ struct Frame<P> {
     /// Not in the document: written only with content.
     absent: bool,
     parts: Vec<P>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the tags and parts are copies in wiping memory (`Zeroizing`)"
-)]
-impl<P: Clone> Clone for Frame<P> {
-    fn clone(&self) -> Self {
-        Self {
-            tag: self.tag,
-            open: self.open.clone(),
-            close: self.close.clone(),
-            absent: self.absent,
-            parts: self.parts.clone(),
-        }
-    }
 }
 
 trait Part: Sized {
@@ -583,6 +524,11 @@ impl<P: Part> Frame<P> {
 
 // ----------------------------------------------------------- the model
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// A key and a value: an entry's field, or an item of custom data.
 pub struct Pair {
     key: Zeroizing<Vec<u8>>,
@@ -593,43 +539,17 @@ pub struct Pair {
     orig: Option<Orig>,
 }
 
-#[expect(
+#[derive(Clone)]
+#[allow(
     clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
 )]
-impl Clone for Pair {
-    fn clone(&self) -> Self {
-        Self {
-            key: self.key.clone(),
-            value: self.value.clone(),
-            protected: self.protected,
-            ambiguous: self.ambiguous,
-            orig: self.orig.clone(),
-        }
-    }
-}
-
 /// What a pair was when read.
 struct Orig {
     carried: Carried,
     key: Zeroizing<Vec<u8>>,
     value: Zeroizing<Vec<u8>>,
     protected: bool,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Orig {
-    fn clone(&self) -> Self {
-        Self {
-            carried: self.carried.clone(),
-            key: self.key.clone(),
-            value: self.value.clone(),
-            protected: self.protected,
-        }
-    }
 }
 
 impl Pair {
@@ -690,22 +610,14 @@ impl Pair {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum CdPart {
     Carried(Carried),
     Item(Pair),
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for CdPart {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Carried(a0) => Self::Carried(a0.clone()),
-            Self::Item(a0) => Self::Item(a0.clone()),
-        }
-    }
 }
 
 impl Part for CdPart {
@@ -720,24 +632,16 @@ impl Part for CdPart {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 /// A list of custom data: Faraday's items, with the others kept, not read.
 pub struct CustomData {
     frame: Frame<CdPart>,
     /// Why it is not edited: it, or what holds it, is ambiguous.
     ambiguous: Option<&'static str>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for CustomData {
-    fn clone(&self) -> Self {
-        Self {
-            frame: self.frame.clone(),
-            ambiguous: self.ambiguous,
-        }
-    }
 }
 
 impl CustomData {
@@ -819,22 +723,14 @@ impl CustomData {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum TimesPart {
     Carried(Carried),
     Modified,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for TimesPart {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Carried(a0) => Self::Carried(a0.clone()),
-            Self::Modified => Self::Modified,
-        }
-    }
 }
 
 impl Part for TimesPart {
@@ -849,28 +745,17 @@ impl Part for TimesPart {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum EntryPart {
     Carried(Carried),
     Uuid,
     Field(Box<Pair>),
     Times(Box<Frame<TimesPart>>),
     Custom,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for EntryPart {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Carried(a0) => Self::Carried(a0.clone()),
-            Self::Uuid => Self::Uuid,
-            Self::Field(a0) => Self::Field(a0.clone()),
-            Self::Times(a0) => Self::Times(a0.clone()),
-            Self::Custom => Self::Custom,
-        }
-    }
 }
 
 impl Part for EntryPart {
@@ -885,6 +770,11 @@ impl Part for EntryPart {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 /// An entry.
 pub struct Entry {
     frame: Frame<EntryPart>,
@@ -896,26 +786,6 @@ pub struct Entry {
     dup_keys: Vec<Vec<u8>>,
     dup_uuid: bool,
     ambiguous: Option<&'static str>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Entry {
-    fn clone(&self) -> Self {
-        Self {
-            frame: self.frame.clone(),
-            uuid: self.uuid,
-            uuid_leaf: self.uuid_leaf.clone(),
-            custom: self.custom.clone(),
-            modified: self.modified,
-            mod_leaf: self.mod_leaf.clone(),
-            dup_keys: self.dup_keys.clone(),
-            dup_uuid: self.dup_uuid,
-            ambiguous: self.ambiguous,
-        }
-    }
 }
 
 impl Entry {
@@ -1115,6 +985,11 @@ fn decode_time(text: &[u8]) -> Option<i64> {
     ticks.checked_sub(EPOCH_GAP)
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum GroupPart {
     Carried(Carried),
     Uuid,
@@ -1122,23 +997,6 @@ enum GroupPart {
     Custom,
     Group(Box<Group>),
     Entry(Box<Entry>),
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for GroupPart {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Carried(a0) => Self::Carried(a0.clone()),
-            Self::Uuid => Self::Uuid,
-            Self::Name => Self::Name,
-            Self::Custom => Self::Custom,
-            Self::Group(a0) => Self::Group(a0.clone()),
-            Self::Entry(a0) => Self::Entry(a0.clone()),
-        }
-    }
 }
 
 impl Part for GroupPart {
@@ -1153,6 +1011,11 @@ impl Part for GroupPart {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// A group.
 pub struct Group {
     frame: Frame<GroupPart>,
@@ -1163,25 +1026,6 @@ pub struct Group {
     custom: CustomData,
     dup_uuid: bool,
     ambiguous: Option<&'static str>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Group {
-    fn clone(&self) -> Self {
-        Self {
-            frame: self.frame.clone(),
-            uuid: self.uuid,
-            uuid_leaf: self.uuid_leaf.clone(),
-            name: self.name.clone(),
-            name_leaf: self.name_leaf.clone(),
-            custom: self.custom.clone(),
-            dup_uuid: self.dup_uuid,
-            ambiguous: self.ambiguous,
-        }
-    }
 }
 
 impl Group {
@@ -1346,24 +1190,15 @@ impl Group {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum MetaPart {
     Carried(Carried),
     Name,
     Custom,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for MetaPart {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Carried(a0) => Self::Carried(a0.clone()),
-            Self::Name => Self::Name,
-            Self::Custom => Self::Custom,
-        }
-    }
 }
 
 impl Part for MetaPart {
@@ -1378,28 +1213,17 @@ impl Part for MetaPart {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 struct Meta {
     frame: Frame<MetaPart>,
     label: Vec<u8>,
     label_leaf: Option<Leaf>,
     custom: CustomData,
     ambiguous: Option<&'static str>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Meta {
-    fn clone(&self) -> Self {
-        Self {
-            frame: self.frame.clone(),
-            label: self.label.clone(),
-            label_leaf: self.label_leaf.clone(),
-            custom: self.custom.clone(),
-            ambiguous: self.ambiguous,
-        }
-    }
 }
 
 impl Meta {
@@ -1412,22 +1236,14 @@ impl Meta {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum RootPart {
     Carried(Carried),
     Group(Box<Group>),
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for RootPart {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Carried(a0) => Self::Carried(a0.clone()),
-            Self::Group(a0) => Self::Group(a0.clone()),
-        }
-    }
 }
 
 impl Part for RootPart {
@@ -1442,24 +1258,15 @@ impl Part for RootPart {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum FilePart {
     Carried(Carried),
     Meta(Box<Meta>),
     Root(Frame<RootPart>),
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for FilePart {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Carried(a0) => Self::Carried(a0.clone()),
-            Self::Meta(a0) => Self::Meta(a0.clone()),
-            Self::Root(a0) => Self::Root(a0.clone()),
-        }
-    }
 }
 
 impl Part for FilePart {
@@ -1474,6 +1281,11 @@ impl Part for FilePart {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 /// A KDBX 4 XML document.
 pub struct Document {
     prolog: Vec<u8>,
@@ -1483,23 +1295,6 @@ pub struct Document {
     dropped: usize,
     /// What the reader charged for what it built ([`MODEL_PER_BYTE`]).
     charged: usize,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Document {
-    fn clone(&self) -> Self {
-        Self {
-            prolog: self.prolog.clone(),
-            epilog: self.epilog.clone(),
-            file: self.file.clone(),
-            history: self.history,
-            dropped: self.dropped,
-            charged: self.charged,
-        }
-    }
 }
 
 /// The reader's running charge for what it holds, and where it stops.

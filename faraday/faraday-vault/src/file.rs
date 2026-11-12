@@ -17,7 +17,6 @@
 //! The passphrase an [`Opened`] keeps is in its NFC form in a wiping
 //! buffer; the copy of the document a seal changes, the document written
 //! and the attachments are wiping buffers too.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 
@@ -77,7 +76,8 @@ pub fn file_len(size: usize) -> usize {
 }
 
 /// What a file's clear header and length state, with no work.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Facts {
     /// The version, cipher, compression, key derivation, cost and public
     /// custom data.
@@ -90,20 +90,6 @@ pub struct Facts {
     /// of [`STEP`], and any compressed file, whose plaintext can be longer
     /// than its length.
     pub size: Option<usize>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Facts {
-    fn clone(&self) -> Self {
-        Self {
-            header: self.header.clone(),
-            len: self.len,
-            size: self.size,
-        }
-    }
 }
 
 impl Facts {
@@ -120,7 +106,8 @@ impl Facts {
 }
 
 /// Why a file could not be opened, sealed or made.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum Error {
     /// The container: not KDBX, a version or setting not taken, a wrong
     /// passphrase, damage (§7.1).
@@ -138,23 +125,6 @@ pub enum Error {
     },
     /// The memory the work needs, in MiB, could not be allocated.
     Memory(u32),
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Error {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Kdbx(a0) => Self::Kdbx(*a0),
-            Self::Xml(a0) => Self::Xml(a0.clone()),
-            Self::Unwritable(a0) => Self::Unwritable(a0.clone()),
-            Self::ReadOnly => Self::ReadOnly,
-            Self::Full { over } => Self::Full { over: *over },
-            Self::Memory(a0) => Self::Memory(*a0),
-        }
-    }
 }
 
 impl From<kdbx::Error> for Error {

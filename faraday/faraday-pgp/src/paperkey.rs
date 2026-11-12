@@ -210,25 +210,13 @@ pub fn entries(data: &[u8]) -> Result<Vec<Entry<'_>>, Refusal> {
 
 /// What the start of a paperkey's data says, once checked against the
 /// keys it must be for ([`check`]): public, all of it.
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Progress {
     /// The fingerprints read, in order.
     pub fingerprints: Vec<[u8; 20]>,
     /// The data's whole length, once every entry's length is read.
     pub total: Option<usize>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Progress {
-    fn clone(&self) -> Self {
-        Self {
-            fingerprints: self.fingerprints.clone(),
-            total: self.total,
-        }
-    }
 }
 
 /// The start of a paperkey's data, `prefix`, checked against `keys`, the

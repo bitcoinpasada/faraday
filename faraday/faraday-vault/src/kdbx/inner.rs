@@ -1,7 +1,6 @@
 //! The inner header that begins the decrypted body, and the inner random
 //! stream that encrypts the protected values of the XML document
 //! (`docs/VAULT.md` §1.1, §7.1).
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -26,6 +25,11 @@ const STREAM_CHACHA20: u32 = 3;
 /// Salsa20, KeePass 2's older inner stream; named and refused.
 const STREAM_SALSA20: u32 = 2;
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// A range of one wiping buffer that several holders share without copying
 /// it (F206 point 6): the decrypted body an opened file read, of which
 /// each attachment is a range. The XML document is in a buffer of its own,
@@ -34,20 +38,6 @@ pub struct Shared {
     buf: Arc<Zeroizing<Vec<u8>>>,
     start: usize,
     end: usize,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Shared {
-    fn clone(&self) -> Self {
-        Self {
-            buf: self.buf.clone(),
-            start: self.start,
-            end: self.end,
-        }
-    }
 }
 
 impl Shared {
@@ -104,6 +94,11 @@ impl From<Zeroizing<Vec<u8>>> for Shared {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 /// An attachment: a binary of the inner header, which entries refer to by
 /// its position. Its bytes are a range of the body the file was read into.
 pub struct Binary {
@@ -111,19 +106,6 @@ pub struct Binary {
     pub protected: bool,
     /// Its bytes.
     pub data: Shared,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Binary {
-    fn clone(&self) -> Self {
-        Self {
-            protected: self.protected,
-            data: self.data.clone(),
-        }
-    }
 }
 
 /// The attachments a seal writes: those read, with the ones nothing refers

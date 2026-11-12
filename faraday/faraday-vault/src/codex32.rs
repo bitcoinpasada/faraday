@@ -74,6 +74,7 @@ impl State {
 /// A codex32 set's plain facts: what a key record keeps of the set its
 /// seed was split into, or the set it was loaded from. No string.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct SetFacts {
     /// The threshold: 0 for the secret alone, else 2 to 9.
     pub threshold: u8,

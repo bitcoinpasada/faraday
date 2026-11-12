@@ -9,7 +9,6 @@
 //! unknown type: a build reads only what it knows.
 //!
 //! Every field's bytes are wiped when the record is dropped.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 
@@ -331,25 +330,17 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
     })
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// One field of a record. Its bytes are wiped on drop.
 pub struct Field {
     /// The field's number.
     pub number: u8,
     /// Its bytes.
     pub bytes: Zeroizing<Vec<u8>>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Field {
-    fn clone(&self) -> Self {
-        Self {
-            number: self.number,
-            bytes: self.bytes.clone(),
-        }
-    }
 }
 
 impl core::fmt::Debug for Field {
@@ -359,25 +350,16 @@ impl core::fmt::Debug for Field {
 }
 
 /// One record of a vault.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 pub struct Record {
     /// Its type (`kind`).
     pub kind: u8,
     /// Its fields, in the order they are written.
     pub fields: Vec<Field>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Record {
-    fn clone(&self) -> Self {
-        Self {
-            kind: self.kind,
-            fields: self.fields.clone(),
-        }
-    }
 }
 
 impl Record {

@@ -1,6 +1,5 @@
 //! Reading the XML document (`super`): the tokenizer's events checked and
 //! made into the model, every byte of what the model does not read kept.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
@@ -381,7 +380,7 @@ impl<'a> Rd<'a> {
     /// markup the attribute means nothing, nothing is consumed, and false.
     #[expect(
         clippy::disallowed_methods,
-        reason = "a copy of the reader's position over the same bytes: a borrow, no new buffer"
+        reason = "a copy of the reader's stack of open tag names (public element names)"
     )]
     fn carried_secret(&mut self, a: usize, b: usize, c: &mut Carried) -> R<bool> {
         let saved = (self.r.clone(), self.pos, self.depth);
@@ -769,7 +768,7 @@ impl<'a> Rd<'a> {
     /// refused. The bin is then read once, by `skip_element`.
     #[expect(
         clippy::disallowed_methods,
-        reason = "a copy of the reader's position over the same bytes: a borrow, no new buffer"
+        reason = "a copy of the reader's stack of open tag names (public element names)"
     )]
     fn bin_probe(&mut self) -> R<Option<usize>> {
         let saved = (self.r.clone(), self.pos, self.depth);
@@ -781,7 +780,7 @@ impl<'a> Rd<'a> {
 
     #[expect(
         clippy::disallowed_methods,
-        reason = "a copy of the reader's position over the same bytes: a borrow, no new buffer"
+        reason = "a copy of the reader's stack of open tag names (public element names)"
     )]
     fn probe_group(&mut self) -> R<(bool, usize)> {
         let mut bin = false;

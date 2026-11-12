@@ -30,7 +30,8 @@ use crate::{
 
 /// Why a certificate, a paperkey or the pair is not restored
 /// (`docs/GPG-PAPERKEY.md` §4.4).
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum Refusal {
     /// Not one armoured public key block that Faraday takes as public.
     NotCertificate,
@@ -63,31 +64,6 @@ pub enum Refusal {
     NotOurs,
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Refusal {
-    fn clone(&self) -> Self {
-        match self {
-            Self::NotCertificate => Self::NotCertificate,
-            Self::Algorithm(a0) => Self::Algorithm(a0.clone()),
-            Self::Version(a0) => Self::Version(*a0),
-            Self::Shape => Self::Shape,
-            Self::NoUserId => Self::NoUserId,
-            Self::FormatVersion(a0) => Self::FormatVersion(*a0),
-            Self::OtherKey(a0) => Self::OtherKey(*a0),
-            Self::OtherSubkey(a0) => Self::OtherSubkey(*a0),
-            Self::Count(a0) => Self::Count(*a0),
-            Self::Protected => Self::Protected,
-            Self::Crc => Self::Crc,
-            Self::Unreadable => Self::Unreadable,
-            Self::Mismatch => Self::Mismatch,
-            Self::NotOurs => Self::NotOurs,
-        }
-    }
-}
-
 /// Where a signature sits in the certificate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Place {
@@ -107,7 +83,8 @@ enum By {
 }
 
 /// A signature by the key, as the certificate states it.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 struct Own {
     place: Place,
     by: By,
@@ -120,29 +97,11 @@ struct Own {
     reason: Option<(u8, Vec<u8>)>,
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Own {
-    fn clone(&self) -> Self {
-        Self {
-            place: self.place,
-            by: self.by,
-            kind: self.kind,
-            body: self.body.clone(),
-            created: self.created,
-            expires: self.expires,
-            flags: self.flags,
-            reason: self.reason.clone(),
-        }
-    }
-}
-
 /// A certificate of Faraday's shape, read: public, all of it. What it
 /// states (dates, expiry, revocation) is a claim until [`restore`] has
 /// made every signature of the key's again.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Certificate {
     primary: Vec<u8>,
     fingerprint: [u8; 20],
@@ -151,24 +110,6 @@ pub struct Certificate {
     user_ids: Vec<String>,
     own: Vec<Own>,
     set_aside: usize,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Certificate {
-    fn clone(&self) -> Self {
-        Self {
-            primary: self.primary.clone(),
-            fingerprint: self.fingerprint,
-            subkey: self.subkey.clone(),
-            subkey_fingerprint: self.subkey_fingerprint,
-            user_ids: self.user_ids.clone(),
-            own: self.own.clone(),
-            set_aside: self.set_aside,
-        }
-    }
 }
 
 /// A signature's fields, as far as a restore or a verification reads

@@ -4,7 +4,6 @@
 //! only trusted once the file's HMACs have verified (F206 point 5); it is
 //! bounded by the ceiling and asked of the caller's budget before anything
 //! is allocated, and inflating cannot write past the buffer.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 

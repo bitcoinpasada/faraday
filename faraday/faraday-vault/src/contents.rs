@@ -24,7 +24,6 @@
 //! every key of the document; what `toml_parser` keeps is wiped when this
 //! reader is done with it, and what the parser of words keeps is not
 //! (`docs/deps/toml_parser.md`).
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 mod tree;
 
@@ -120,7 +119,8 @@ pub enum Why {
 
 /// A refusal: what, and at which key (empty when it is the whole value;
 /// a syntax refusal carries its line in [`Why::Syntax`]).
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Refusal {
     /// What was wrong.
     pub why: Why,
@@ -129,33 +129,15 @@ pub struct Refusal {
     pub key: KeyName,
 }
 
-#[expect(
+#[derive(Clone)]
+#[allow(
     clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
 )]
-impl Clone for Refusal {
-    fn clone(&self) -> Self {
-        Self {
-            why: self.why,
-            key: self.key.clone(),
-        }
-    }
-}
-
 /// The name of the key a [`Refusal`] is at: a prefix, a dot where there is
 /// a prefix, and the first 64 characters of the key, kept as UTF-8 bytes in
 /// a buffer that is wiped when it drops.
 pub struct KeyName(Zeroizing<Vec<u8>>);
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for KeyName {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
 
 impl KeyName {
     /// `prefix`, a dot where there is a prefix, and the first 64

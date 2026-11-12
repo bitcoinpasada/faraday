@@ -10,7 +10,6 @@
 //!
 //! Every string value and every key is kept in a buffer that is wiped when
 //! it drops.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
@@ -57,18 +56,13 @@ pub(super) enum Val {
     Table(Table),
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// A key of a table, in a buffer that is wiped when it drops.
 pub(super) struct Name(Zeroizing<Vec<u8>>);
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for Name {
-    fn clone(&self) -> Self {
-        Self(self.0.clone())
-    }
-}
 
 impl Name {
     fn of(text: &str) -> Name {

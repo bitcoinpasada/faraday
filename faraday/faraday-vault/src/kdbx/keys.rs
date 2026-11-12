@@ -1,6 +1,5 @@
 //! The keys of a KDBX file (`docs/VAULT.md` §1.1) and the HMAC the
 //! header and the block stream are authenticated with.
-#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use argon2::Algorithm;
 use faraday_crypto::work::Compute;

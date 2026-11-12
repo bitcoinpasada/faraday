@@ -732,7 +732,8 @@ pub fn signature_time(packets: &[u8]) -> Option<u32> {
 }
 
 /// What one block of public armour holds, once it has read in full.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct PublicArmor {
     /// A public key or a signature.
     pub kind: Armor,
@@ -743,20 +744,6 @@ pub struct PublicArmor {
     /// tell a seed or a private key from text runs its detectors over
     /// these; the packets can be nothing else that hides one.
     pub texts: Vec<String>,
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a public value: its fields hold no secret"
-)]
-impl Clone for PublicArmor {
-    fn clone(&self) -> Self {
-        Self {
-            kind: self.kind,
-            tags: self.tags.clone(),
-            texts: self.texts.clone(),
-        }
-    }
 }
 
 /// Whether `bytes` are nothing but one ASCII-armoured OpenPGP block of

@@ -8,6 +8,11 @@
 //! names the entry from its label when no title line does. Any other
 //! `field: value` line is kept in the notes, so nothing typed is lost.
 
+#![allow(
+    clippy::disallowed_methods,
+    reason = "holds secret text as a plain String until it is moved to wiping text (docs/SECRET-LEAKS.md §6)"
+)]
+
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;

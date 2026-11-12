@@ -1,7 +1,7 @@
 # Clippy reads the nearest clippy.toml, so this file repeats every entry of
 # faraday/clippy.toml (see it for why each is there) and adds the three
 # refusals of core/faraday-bip/clippy.toml for the secret files of this crate
-# (docs/SECRET-LEAKS.md §6): a file turns them on with
+# (docs/SECRET-LEAKS.md §6): lib.rs turns them on outside tests with
 # `#![cfg_attr(not(test), warn(clippy::disallowed_methods))]`, and a legitimate
 # use carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
 
