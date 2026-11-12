@@ -266,20 +266,78 @@ impl InboxArea {
         self.files.extend(items);
     }
 
-    /// The last file, to change it.
-    pub(crate) fn last_mut(&mut self) -> Option<&mut Item> {
-        self.files.last_mut()
+    /// Names the last file after `stem` and its own extension (`txt`
+    /// when it has none) unless a name in `taken` is that; its name
+    /// after, or `None` when there is no file.
+    pub(crate) fn name_last_after(&mut self, stem: &str, taken: &[String]) -> Option<String> {
+        let last = self.files.changed().last_mut()?;
+        let ext = last
+            .name
+            .rsplit_once('.')
+            .map_or("txt", |(_, e)| e)
+            .to_string();
+        let wanted = format!("{stem}.{ext}");
+        if !taken.contains(&wanted) {
+            last.name = wanted;
+        }
+        Some(last.name.clone())
     }
 
-    /// File `at`, to change it.
-    #[cfg(any(test, feature = "testkit"))]
-    pub(crate) fn item_mut(&mut self, at: usize) -> &mut Item {
-        &mut self.files[at]
+    /// Notes that every file named `name` is a picture holding `kind`.
+    pub(crate) fn set_picture_kind(&mut self, name: &str, kind: FileKind) {
+        for i in self.files.changed().iter_mut().filter(|i| i.name == name) {
+            i.picture = Some(kind);
+        }
     }
 
-    /// Every file, to change them.
-    pub(crate) fn iter_mut(&mut self) -> std::slice::IterMut<'_, Item> {
-        self.files.iter_mut()
+    /// Notes that the first file named `name` that is a picture holds
+    /// `kind` now.
+    pub(crate) fn retag_picture(&mut self, name: &str, kind: FileKind) {
+        if let Some(pic) = self
+            .files
+            .changed()
+            .iter_mut()
+            .find(|i| i.name == name && i.picture.is_some())
+        {
+            pic.picture = Some(kind);
+        }
+    }
+
+    /// Gives file `at` the name `name`.
+    #[cfg(test)]
+    pub(crate) fn rename(&mut self, at: usize, name: String) {
+        self.files.changed()[at].name = name;
+    }
+
+    /// Puts `item` in place of file `at`.
+    #[cfg(test)]
+    pub(crate) fn replace_at(&mut self, at: usize, item: Item) {
+        self.files.changed()[at] = item;
+    }
+
+    /// Gives file `at` the contents `bytes`.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn set_bytes(&mut self, at: usize, bytes: Vec<u8>) {
+        self.files.changed()[at].bytes = bytes;
+    }
+
+    /// Flips the lowest bit of byte `i` of file `at`.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn flip_byte(&mut self, at: usize, i: usize) {
+        self.files.changed()[at].bytes[i] ^= 1;
+    }
+
+    /// Types `text` as the passphrase and its repeat of the potential
+    /// wallet, and clears its error; whether there is a potential wallet.
+    pub(crate) fn type_potential_passphrase(&mut self, text: &str) -> bool {
+        let Some(p) = self.potential.as_mut() else {
+            return false;
+        };
+        p.passphrase.set(text);
+        p.again.set(text);
+        p.typing = true;
+        p.error = None;
+        true
     }
 
     /// Takes every file out.
@@ -297,19 +355,9 @@ impl InboxArea {
         &self.skip
     }
 
-    /// The wallets left out of the next load, to change them.
-    pub(crate) fn skip_mut(&mut self) -> &mut BTreeSet<String> {
-        &mut self.skip
-    }
-
     /// The seed being made a wallet.
     pub(crate) fn potential(&self) -> Option<&Potential> {
         self.potential.as_ref()
-    }
-
-    /// The potential wallet, to change it.
-    pub(crate) fn potential_mut(&mut self) -> Option<&mut Potential> {
-        self.potential.as_mut()
     }
 
     /// Starts making a wallet of a seed.
@@ -388,12 +436,37 @@ impl std::ops::Deref for InboxFiles {
     }
 }
 
-/// A change to the files drops what was worked out of them: the
+/// Every change to the files drops what was worked out of them: the
 /// invariant of [`InboxFiles`].
-impl std::ops::DerefMut for InboxFiles {
-    fn deref_mut(&mut self) -> &mut Vec<Item> {
+impl InboxFiles {
+    fn changed(&mut self) -> &mut Vec<Item> {
         *self.kept.get_mut() = None;
         &mut self.items
+    }
+
+    fn push(&mut self, item: Item) {
+        self.changed().push(item);
+    }
+
+    #[cfg(feature = "testkit")]
+    fn insert(&mut self, at: usize, item: Item) {
+        self.changed().insert(at, item);
+    }
+
+    fn remove(&mut self, at: usize) -> Item {
+        self.changed().remove(at)
+    }
+
+    fn retain(&mut self, keep: impl FnMut(&Item) -> bool) {
+        self.changed().retain(keep);
+    }
+
+    fn extend(&mut self, items: impl IntoIterator<Item = Item>) {
+        self.changed().extend(items);
+    }
+
+    fn clear(&mut self) {
+        self.changed().clear();
     }
 }
 
@@ -1243,7 +1316,7 @@ impl Faraday {
     /// out once typing pauses ([`Faraday::typed_tick`]), and none is
     /// shown until then.
     pub(crate) fn potential_typed(&mut self) {
-        let Some(p) = self.inbox.potential_mut() else {
+        let Some(p) = self.inbox.potential.as_mut() else {
             return;
         };
         if p.passphrase.is_empty() || p.xpub.is_some() {
@@ -1273,7 +1346,7 @@ impl Faraday {
                     p.typing && !p.typing_again && p.xpub.is_none() && !p.passphrase.is_empty()
                 }) =>
             {
-                if let Some(p) = self.inbox.potential_mut() {
+                if let Some(p) = self.inbox.potential.as_mut() {
                     p.typing_again = true;
                 }
             }
@@ -1281,7 +1354,7 @@ impl Faraday {
             // Nothing secret is typed with a stick attached.
             _ if !self.stick.is_empty() => {}
             KeyIn::Char(c) if !c.is_control() => {
-                if let Some(p) = self.inbox.potential_mut()
+                if let Some(p) = self.inbox.potential.as_mut()
                     && p.typing
                 {
                     if p.typing_again {
@@ -1294,7 +1367,7 @@ impl Faraday {
                 self.potential_typed();
             }
             KeyIn::Backspace => {
-                if let Some(p) = self.inbox.potential_mut()
+                if let Some(p) = self.inbox.potential.as_mut()
                     && p.typing
                 {
                     if p.typing_again {
@@ -1372,7 +1445,7 @@ impl Faraday {
                 self.toast(&fill(EN.inbox_is_a_wallet, &[&name.to_string()]));
             }
             Err(e) => {
-                if let Some(p) = self.inbox.potential_mut() {
+                if let Some(p) = self.inbox.potential.as_mut() {
                     p.error = Some(e.text());
                 }
             }
@@ -1419,7 +1492,7 @@ impl Faraday {
                 None => None,
             }
         };
-        if let Some(p) = self.inbox.potential_mut() {
+        if let Some(p) = self.inbox.potential.as_mut() {
             p.with = with;
         }
     }
@@ -1456,7 +1529,7 @@ impl Faraday {
         }
         if !self.may_load_keys() {
             let error = fill(EN.inbox_remove_the_first, &[self.medium.noun()]);
-            if let Some(p) = self.inbox.potential_mut() {
+            if let Some(p) = self.inbox.potential.as_mut() {
                 p.error = Some(error);
             }
             return;
@@ -1505,7 +1578,7 @@ impl Faraday {
             // passphrase made.
             Err(Refusal::Duplicate(fp)) => fp,
             Err(e) => {
-                if let Some(p) = self.inbox.potential_mut() {
+                if let Some(p) = self.inbox.potential.as_mut() {
                     p.error = Some(e.text());
                 }
                 return;
@@ -1535,7 +1608,7 @@ impl Faraday {
         let text = match self.session.keys.account_text(&c, key, kind, 0) {
             Ok(t) => t,
             Err(e) => {
-                if let Some(p) = self.inbox.potential_mut() {
+                if let Some(p) = self.inbox.potential.as_mut() {
                     p.error = Some(e);
                 }
                 return;
@@ -1558,7 +1631,7 @@ impl Faraday {
                 self.toast(&fill(EN.inbox_is_a_wallet, &[&name.to_string()]));
             }
             Err(e) => {
-                if let Some(p) = self.inbox.potential_mut() {
+                if let Some(p) = self.inbox.potential.as_mut() {
                     p.error = Some(e.text());
                 }
             }
@@ -1606,8 +1679,8 @@ impl Faraday {
             Action::InboxChoose(i) => {
                 if let Some(w) = self.inbox_found_now(c).to_load().get(i) {
                     let d = w.descriptor.clone();
-                    if !self.inbox.skip_mut().remove(&d) {
-                        self.inbox.skip_mut().insert(d);
+                    if !self.inbox.skip.remove(&d) {
+                        self.inbox.skip.insert(d);
                     }
                 }
             }
@@ -1620,25 +1693,26 @@ impl Faraday {
             }
             Action::XpubOpen(i) => self.xpub_open(i),
             Action::PotentialKind(k) => {
-                if let (Some(p), Some(&kind)) =
-                    (self.inbox.potential_mut(), inbox::KINDS.get(usize::from(k)))
-                {
+                if let (Some(p), Some(&kind)) = (
+                    self.inbox.potential.as_mut(),
+                    inbox::KINDS.get(usize::from(k)),
+                ) {
                     p.kind = kind;
                 }
             }
             Action::PotentialShow => {
-                if let Some(p) = self.inbox.potential_mut() {
+                if let Some(p) = self.inbox.potential.as_mut() {
                     p.shown = !p.shown;
                 }
             }
             Action::PotentialType => {
-                if let Some(p) = self.inbox.potential_mut() {
+                if let Some(p) = self.inbox.potential.as_mut() {
                     p.typing = self.stick.is_empty();
                     p.typing_again = false;
                 }
             }
             Action::PotentialTypeAgain => {
-                if let Some(p) = self.inbox.potential_mut() {
+                if let Some(p) = self.inbox.potential.as_mut() {
                     p.typing = self.stick.is_empty();
                     p.typing_again = true;
                 }

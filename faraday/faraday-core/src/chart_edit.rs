@@ -226,7 +226,7 @@ impl Faraday {
                 .flat_map(|s| s.holds.iter().map(|(w, _)| *w))
                 .enumerate()
                 .map(|(j, what)| {
-                    let to = self.glance.work_mut().dest.get(j).copied().flatten();
+                    let to = self.glance.work().dest.get(j).copied().flatten();
                     (what, to.filter(|&t| t != OFF).map(usize::from))
                 })
                 .collect(),
@@ -268,7 +268,7 @@ impl Faraday {
             _ => {}
         }
         let title = self.edit_title(&c, press, w, edit, &names);
-        self.glance.work_mut().ask = Some(Ask {
+        self.glance.set_ask(Ask {
             press,
             edit,
             title,
@@ -374,7 +374,7 @@ impl Faraday {
     /// copy, where it makes one.
     pub(crate) fn chart_confirm(&mut self) {
         let c = self.compute();
-        let Some(ask) = self.glance.work_mut().ask.take() else {
+        let Some(ask) = self.glance.take_ask() else {
             return;
         };
         self.glance.set_chart(None);
@@ -486,7 +486,7 @@ impl Faraday {
                     _ => None,
                 };
                 if let (Some(k), Some((n, j))) = (k, line) {
-                    self.glance.work_mut().reveal = false;
+                    self.glance.set_reveal(false);
                     self.glance
                         .set_chart(Some((press, Target::PassShow(k as u8, n, j))));
                     self.sheet = Some(Sheet::Chart);
@@ -612,7 +612,7 @@ impl Faraday {
         let Some((_, target)) = self.glance.chart() else {
             return;
         };
-        let name = self.glance.work_mut().text.trim().to_string();
+        let name = self.glance.work().text.trim().to_string();
         let done = match target {
             Target::Holder(k) => {
                 let Some(fp) = self.chart_key_fp(&c, press, k) else {
@@ -640,7 +640,7 @@ impl Faraday {
             _ => false,
         };
         if done {
-            self.glance.work_mut().text.clear();
+            self.glance.clear_text();
             self.glance.set_chart(None);
             if self.sheet == Some(Sheet::Chart) {
                 self.sheet = None;
@@ -660,15 +660,14 @@ impl Faraday {
         let fp = self.chart_key_fp(&c, press, k);
         let matched = fp.and_then(|fp| {
             let key = self.session.keys.position_of(fp)?;
-            let made =
-                self.session
-                    .keys
-                    .fingerprint_with(&c, key, &self.glance.work_mut().secret)?;
+            let made = self
+                .session
+                .keys
+                .fingerprint_with(&c, key, &self.glance.work().secret)?;
             Some(made.0 == fp)
         });
-        self.glance.work_mut().secret.clear();
         let matched = matched.unwrap_or(false);
-        self.glance.work_mut().result = Some(matched);
+        self.glance.finish_pass_check(matched);
         if matched && let Some(things) = self.chart_things(&c, press, n, Some(j)) {
             let today = self.today();
             self.chart_notes_change(press, &|notes: &mut Vec<Note>| {
@@ -729,7 +728,7 @@ impl Faraday {
         else {
             return;
         };
-        self.glance.work_mut().moving = Some(sum);
+        self.glance.set_moving(sum);
         self.glance.set_chart(None);
         self.sheet = None;
         self.act(Action::CreateWallet);
@@ -762,12 +761,9 @@ impl Faraday {
         };
         match target {
             Target::Holder(_) | Target::VaultName(_) => {
-                let t = &mut self.glance.work_mut().text;
                 match key {
-                    KeyIn::Char(c) if !c.is_control() && t.chars().count() < 48 => t.push(c),
-                    KeyIn::Backspace | KeyIn::Delete => {
-                        t.pop();
-                    }
+                    KeyIn::Char(c) if !c.is_control() => self.glance.type_name_char(c),
+                    KeyIn::Backspace | KeyIn::Delete => self.glance.erase_name_char(),
                     KeyIn::Enter => self.chart_save_name(press),
                     KeyIn::Escape => {
                         self.glance.set_chart(None);
@@ -781,20 +777,14 @@ impl Faraday {
                 match key {
                     // BIP-39 passphrases here are printable ASCII.
                     KeyIn::Char(c) if (' '..='~').contains(&c) => {
-                        self.glance.work_mut().secret.push(c);
-                        self.glance.work_mut().result = None;
-                        self.glance.work_mut().refused = false;
+                        self.glance.type_pass_char(c);
                     }
                     // Anything else is refused, and the sheet says so.
-                    KeyIn::Char(c) if !c.is_control() => self.glance.work_mut().refused = true,
-                    KeyIn::Backspace | KeyIn::Delete => {
-                        self.glance.work_mut().secret.pop();
-                        self.glance.work_mut().result = None;
-                    }
+                    KeyIn::Char(c) if !c.is_control() => self.glance.refuse_pass_char(),
+                    KeyIn::Backspace | KeyIn::Delete => self.glance.erase_pass_char(),
                     KeyIn::Enter => self.chart_pass_try(press),
                     KeyIn::Escape => {
-                        self.glance.work_mut().refused = false;
-                        self.glance.work_mut().secret.clear();
+                        self.glance.close_pass_check();
                         self.glance.set_chart(None);
                         self.sheet = None;
                     }

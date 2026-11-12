@@ -435,9 +435,7 @@ impl Faraday {
                     return;
                 };
                 self.delete_open();
-                if let Some(d) = self.stick.delete_ask_mut() {
-                    d.chosen = vec![name];
-                }
+                self.stick.choose_delete(vec![name]);
             }
         }
     }

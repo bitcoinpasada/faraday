@@ -188,9 +188,12 @@ impl StickArea {
         self.waits
     }
 
-    /// Every stick, to change them.
-    pub(crate) fn iter_mut(&mut self) -> std::slice::IterMut<'_, StickInfo> {
-        self.sticks.iter_mut()
+    /// Names the medium the device started from `label`, as the label of
+    /// the sticks that are it.
+    pub(crate) fn label_boot_sticks(&mut self, label: &str) {
+        for s in self.sticks.iter_mut().filter(|s| s.boot) {
+            s.label = label.to_string();
+        }
     }
 
     /// Whether "Not now" was chosen for the sticks present.
@@ -240,9 +243,12 @@ impl StickArea {
         self.settings = body;
     }
 
-    /// What the Delete sheet is choosing, to change it.
-    pub(crate) fn delete_ask_mut(&mut self) -> Option<&mut wipe::DeleteAsk> {
-        self.delete_ask.as_mut()
+    /// Chooses `names` as the files the Delete sheet is to delete, when
+    /// it is open.
+    pub(crate) fn choose_delete(&mut self, names: Vec<String>) {
+        if let Some(d) = self.delete_ask.as_mut() {
+            d.chosen = names;
+        }
     }
 
     /// Forgets what the Delete sheet was choosing.

@@ -326,9 +326,92 @@ impl GlanceArea {
         &self.work
     }
 
-    /// What the chart's sheets hold, for the glue that edits it.
-    pub(crate) fn work_mut(&mut self) -> &mut crate::chart_edit::Work {
-        &mut self.work
+    /// Asks for a change, to be confirmed.
+    pub(crate) fn set_ask(&mut self, ask: crate::chart_edit::Ask) {
+        self.work.ask = Some(ask);
+    }
+
+    /// Takes the change asked for, to make it.
+    pub(crate) fn take_ask(&mut self) -> Option<crate::chart_edit::Ask> {
+        self.work.ask.take()
+    }
+
+    /// Shows or hides a passphrase on its sheet.
+    pub(crate) fn set_reveal(&mut self, reveal: bool) {
+        self.work.reveal = reveal;
+    }
+
+    /// Forgets the name typed.
+    pub(crate) fn clear_text(&mut self) {
+        self.work.text.clear();
+    }
+
+    /// Types `c` into the name, up to 48 characters.
+    pub(crate) fn type_name_char(&mut self, c: char) {
+        if !c.is_control() && self.work.text.chars().count() < 48 {
+            self.work.text.push(c);
+        }
+    }
+
+    /// Erases the name's last character.
+    pub(crate) fn erase_name_char(&mut self) {
+        self.work.text.pop();
+    }
+
+    /// Notes what checking the typed passphrase found, and wipes it.
+    pub(crate) fn finish_pass_check(&mut self, matched: bool) {
+        self.work.secret.clear();
+        self.work.result = Some(matched);
+    }
+
+    /// Drops what a chart's sheet was asking: the typed passphrase is
+    /// wiped and the change asked for is forgotten.
+    pub(crate) fn cancel_work(&mut self) {
+        self.work.secret.clear();
+        self.work.ask = None;
+    }
+
+    /// Types `c` into the passphrase to check: its last result and
+    /// refusal are gone.
+    pub(crate) fn type_pass_char(&mut self, c: char) {
+        self.work.secret.push(c);
+        self.work.result = None;
+        self.work.refused = false;
+    }
+
+    /// A character the passphrase does not take was typed: the sheet says so.
+    pub(crate) fn refuse_pass_char(&mut self) {
+        self.work.refused = true;
+    }
+
+    /// Erases the passphrase's last character; its last result is gone.
+    pub(crate) fn erase_pass_char(&mut self) {
+        self.work.secret.pop();
+        self.work.result = None;
+    }
+
+    /// Closes the passphrase check: no refusal, nothing typed.
+    pub(crate) fn close_pass_check(&mut self) {
+        self.work.refused = false;
+        self.work.secret.clear();
+    }
+
+    /// The wallet whose money is moving to a new wallet, by checksum.
+    pub(crate) fn set_moving(&mut self, sum: String) {
+        self.work.moving = Some(sum);
+    }
+
+    /// The new wallet `sum` is gone: the money is no longer moving to it.
+    pub(crate) fn forget_moving_to(&mut self, sum: &str) {
+        if self.work.moving_to.as_deref() == Some(sum) {
+            self.work.moving_to = None;
+        }
+    }
+
+    /// Create made wallet `i` of `session`: the money moves to it, while a
+    /// move is under way.
+    pub(crate) fn moved_to(&mut self, session: &crate::wallet::Session, i: usize) {
+        self.work.moved_to(session, i);
     }
 
     /// The side sheet as the last tick saw it.

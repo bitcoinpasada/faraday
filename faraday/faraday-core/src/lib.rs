@@ -1573,9 +1573,7 @@ impl Faraday {
         self.stick.clear_problems();
         // The medium the device started from goes by what it is, not by its volume label.
         let boot = self.medium.boot();
-        for s in self.stick.iter_mut().filter(|s| s.boot) {
-            s.label = boot.to_string();
-        }
+        self.stick.label_boot_sticks(boot);
         let ids_now: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
         if self.visit.stick >= self.stick.len() {
             self.visit.set_stick(0);
@@ -2301,8 +2299,7 @@ impl Faraday {
                 self.guide_cancel();
                 self.qr.close();
                 self.glance.set_chart(None);
-                self.glance.work_mut().secret.clear();
-                self.glance.work_mut().ask = None;
+                self.glance.cancel_work();
                 self.backup.close_pick();
                 self.input_sheet();
             }

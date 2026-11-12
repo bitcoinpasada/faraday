@@ -882,7 +882,7 @@ fn a_ticked_file_whose_bytes_change_drops_its_tick() {
         .iter()
         .position(|i| i.name == "SHA256SUMS")
         .unwrap();
-    faraday_core::testkit::inbox_item_mut(&mut app, at).bytes = changed.1.clone();
+    faraday_core::testkit::inbox_set_bytes(&mut app, at, changed.1.clone());
     // The sheet lists no file to sign.
     let sheet = drawn(&mut app);
     assert!(!sheet.contains("Holdtosign1file"), "{sheet}");
@@ -1161,9 +1161,8 @@ fn the_signature_code_signs_nothing_over_a_file_changed_since() {
         .iter()
         .position(|i| i.name == "SHA256SUMS")
         .unwrap();
-    let item = testkit::inbox_item_mut(&mut app, k);
-    assert!(item.bytes.len() > 64);
-    item.bytes[32] ^= 0x01;
+    assert!(app.inbox()[k].bytes.len() > 64);
+    testkit::inbox_flip_byte(&mut app, k, 32);
     app.press(Action::ShowCode(code));
     assert!(
         app.qr().is_none(),
@@ -1642,8 +1641,11 @@ fn the_page_follows_a_files_text_and_the_displays_width() {
         .iter()
         .position(|i| i.name == "SHA256SUMS")
         .unwrap();
-    testkit::inbox_item_mut(&mut app, at).bytes =
-        b"# Faraday 0.1.0, commit 7fcc43a\n9a1e  faraday-0.1.0-linux-x86_64\n".to_vec();
+    testkit::inbox_set_bytes(
+        &mut app,
+        at,
+        b"# Faraday 0.1.0, commit 7fcc43a\n9a1e  faraday-0.1.0-linux-x86_64\n".to_vec(),
+    );
     let page = drawn(&mut app);
     assert!(page.contains("9a1e"), "{page}");
     assert!(!page.contains("3d6f"), "{page}");

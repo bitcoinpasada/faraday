@@ -201,14 +201,7 @@ fn flip(app: &mut Faraday, fp: [u8; 4], number: u8) {
     if !same || !fields_of(app, key).contains(&number) {
         return;
     }
-    if let Some(crate::secrets::Keep::Key { left, .. }) = app.secrets.out_mut().map(|o| &mut o.keep)
-    {
-        if left.contains(&number) {
-            left.retain(|n| *n != number);
-        } else {
-            left.push(number);
-        }
-    }
+    app.secrets.toggle_left_field(number);
 }
 
 /// The sheet's save, if any.

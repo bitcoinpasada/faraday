@@ -369,19 +369,7 @@ impl Faraday {
                 // Named after the picture it came from.
                 let stem = name.rsplit_once('.').map_or(name, |(s, _)| s);
                 let taken: Vec<String> = self.inbox.iter().map(|i| i.name.clone()).collect();
-                let mut got = String::new();
-                if let Some(last) = self.inbox.last_mut() {
-                    let ext = last
-                        .name
-                        .rsplit_once('.')
-                        .map_or("txt", |(_, e)| e)
-                        .to_string();
-                    let wanted = format!("{stem}.{ext}");
-                    if !taken.contains(&wanted) {
-                        last.name = wanted;
-                    }
-                    got = last.name.clone();
-                }
+                let got = self.inbox.name_last_after(stem, &taken).unwrap_or_default();
                 self.save_boxes();
                 self.toast(&fill(EN.qr_read_is_in_files, &[&got.to_string()]));
                 self.visit.log_push((
@@ -486,13 +474,7 @@ impl Faraday {
                 self.inbox
                     .push(Item::new(&c, &got, words.as_bytes().to_vec()));
                 // The picture is held as the words it now is.
-                if let Some(pic) = self
-                    .inbox
-                    .iter_mut()
-                    .find(|i| i.name == ask.name && i.picture.is_some())
-                {
-                    pic.picture = Some(FileKind::Words);
-                }
+                self.inbox.retag_picture(&ask.name, FileKind::Words);
                 // With the stick already out nothing waits for a pull.
                 if self.may_load_keys() {
                     let at = self.inbox.len() - 1;

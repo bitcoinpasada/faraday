@@ -1791,41 +1791,37 @@ impl Faraday {
                                 _ => None,
                             })
                             .unwrap_or(0);
-                        self.glance.work_mut().dest = vec![None; things];
+                        self.glance.work.dest = vec![None; things];
                     }
                     Target::Holder(k) => {
-                        self.glance.work_mut().text =
-                            chart(&glance::Now { app: self, c: &c }, press)
-                                .and_then(|g| {
-                                    g.keys.get(usize::from(k)).and_then(|k| k.holder.clone())
-                                })
-                                .unwrap_or_default();
+                        self.glance.work.text = chart(&glance::Now { app: self, c: &c }, press)
+                            .and_then(|g| g.keys.get(usize::from(k)).and_then(|k| k.holder.clone()))
+                            .unwrap_or_default();
                     }
                     Target::VaultName(n) => {
-                        self.glance.work_mut().text =
-                            chart(&glance::Now { app: self, c: &c }, press)
-                                .and_then(|g| match g.backup {
-                                    Backup::Plan { nodes, .. } => {
-                                        nodes.get(usize::from(n)).map(|x| x.name.clone())
-                                    }
-                                    _ => None,
-                                })
-                                .filter(|name| {
-                                    !name.starts_with(
-                                        EN.glance_vault.split("{}").next().unwrap_or_default(),
-                                    )
-                                })
-                                .unwrap_or_default();
+                        self.glance.work.text = chart(&glance::Now { app: self, c: &c }, press)
+                            .and_then(|g| match g.backup {
+                                Backup::Plan { nodes, .. } => {
+                                    nodes.get(usize::from(n)).map(|x| x.name.clone())
+                                }
+                                _ => None,
+                            })
+                            .filter(|name| {
+                                !name.starts_with(
+                                    EN.glance_vault.split("{}").next().unwrap_or_default(),
+                                )
+                            })
+                            .unwrap_or_default();
                     }
                     Target::PassCheck(..) => {
-                        self.glance.work_mut().secret.clear();
-                        self.glance.work_mut().result = None;
+                        self.glance.work.secret.clear();
+                        self.glance.work.result = None;
                     }
-                    Target::PassShow(..) => self.glance.work_mut().reveal = false,
+                    Target::PassShow(..) => self.glance.work.reveal = false,
                     _ => {}
                 }
                 if target != Target::Confirm {
-                    self.glance.work_mut().ask = None;
+                    self.glance.work.ask = None;
                 }
                 // Beside the chart, a sheet newly open slides in from now;
                 // another node's replaces it where it stands.
@@ -1856,14 +1852,14 @@ impl Faraday {
             ChartAction::Moved(press) => self.chart_moved(press),
             ChartAction::Dest(j, p) => {
                 let j = usize::from(j);
-                if self.glance.work_mut().dest.len() <= j {
-                    self.glance.work_mut().dest.resize(j + 1, None);
+                if self.glance.work.dest.len() <= j {
+                    self.glance.work.dest.resize(j + 1, None);
                 }
-                self.glance.work_mut().dest[j] = Some(p);
+                self.glance.work.dest[j] = Some(p);
             }
             ChartAction::Save(press) => self.chart_save_name(press),
             ChartAction::PassTry(press) => self.chart_pass_try(press),
-            ChartAction::Reveal => self.glance.work_mut().reveal = true,
+            ChartAction::Reveal => self.glance.work.reveal = true,
             ChartAction::MoveMoney(press) => self.chart_move_money(press),
             ChartAction::Do(press, step) => {
                 self.close_chart();

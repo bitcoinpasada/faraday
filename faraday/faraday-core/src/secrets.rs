@@ -211,9 +211,18 @@ impl SecretsArea {
         self.out.as_ref()
     }
 
-    /// The secret waiting, to change its choices.
-    pub(crate) fn out_mut(&mut self) -> Option<&mut SecretOut> {
-        self.out.as_mut()
+    /// Unticks field `number` of the waiting key's record, or ticks it
+    /// again.
+    pub(crate) fn toggle_left_field(&mut self, number: u8) {
+        if let Some(out) = self.out.as_mut()
+            && let Keep::Key { left, .. } = &mut out.keep
+        {
+            if left.contains(&number) {
+                left.retain(|n| *n != number);
+            } else {
+                left.push(number);
+            }
+        }
     }
 
     /// The secret about to be saved as a plain file, waiting for its

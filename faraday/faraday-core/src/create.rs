@@ -2281,7 +2281,7 @@ impl Faraday {
             wallet::Origin::Statement,
         ) {
             Ok(i) => {
-                self.glance.work_mut().moved_to(&self.session, i);
+                self.glance.moved_to(&self.session, i);
                 self.wallets.set_wallet(i);
                 let path = create::paths_text(self.session.wallets[i].policy());
                 let owner = self.create.state.as_ref().map(|c| c.owner);

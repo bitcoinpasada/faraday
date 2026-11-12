@@ -369,11 +369,7 @@ impl Faraday {
                 self.keygen.demo_passphrase(i, PASSPHRASE);
             }
             PassField::Potential | PassField::PotentialAgain => {
-                if let Some(p) = self.inbox.potential_mut() {
-                    p.passphrase.set(PASSPHRASE);
-                    p.again.set(PASSPHRASE);
-                    p.typing = true;
-                    p.error = None;
+                if self.inbox.type_potential_passphrase(PASSPHRASE) {
                     self.potential_typed();
                 }
             }

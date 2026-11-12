@@ -622,9 +622,7 @@ impl Faraday {
                             .copied()
                             .find(|c| format!("{c:?}") == k) // not shown: a key read back
                             .unwrap_or(FileKind::Other);
-                        for i in self.inbox.iter_mut().filter(|i| i.name == name) {
-                            i.picture = Some(kind);
-                        }
+                        self.inbox.set_picture_kind(name, kind);
                     }
                 }
                 "idle-unsaved" => self.vaults.set_changes_lost(),

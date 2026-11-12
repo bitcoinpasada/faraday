@@ -2243,9 +2243,14 @@ pub fn inbox_retain(app: &mut crate::Faraday, keep: impl FnMut(&crate::Item) -> 
     app.inbox.retain(keep);
 }
 
-/// Inbox file `at`, to change it.
-pub fn inbox_item_mut(app: &mut crate::Faraday, at: usize) -> &mut crate::Item {
-    app.inbox.item_mut(at)
+/// Gives Inbox file `at` the contents `bytes`.
+pub fn inbox_set_bytes(app: &mut crate::Faraday, at: usize, bytes: Vec<u8>) {
+    app.inbox.set_bytes(at, bytes);
+}
+
+/// Flips the lowest bit of byte `i` of Inbox file `at`.
+pub fn inbox_flip_byte(app: &mut crate::Faraday, at: usize, i: usize) {
+    app.inbox.flip_byte(at, i);
 }
 
 /// Back up's plan answers, to set what they hold. Panics where no backup

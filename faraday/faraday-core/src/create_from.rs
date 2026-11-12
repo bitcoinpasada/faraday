@@ -379,9 +379,7 @@ impl Faraday {
         }
         if added {
             let sum = self.session.wallets[w].checksum().to_string();
-            if self.glance.work_mut().moving_to.as_deref() == Some(sum.as_str()) {
-                self.glance.work_mut().moving_to = None;
-            }
+            self.glance.forget_moving_to(&sum);
             self.session.wallets.remove(w);
             self.wallets.set_wallet(w.saturating_sub(1));
             self.spend_after_wallet_removed();
