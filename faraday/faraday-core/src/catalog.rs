@@ -623,10 +623,7 @@ impl Faraday {
                     .spend()
                     .is_some_and(|s| s.spend.finished.is_some()) =>
             {
-                if let Some(s) = self.wallets.spend_mut() {
-                    s.open = Some(crate::wallet::step::FINISH);
-                    s.follow = true;
-                }
+                self.wallets.open_step_followed(crate::wallet::step::FINISH);
                 self.act(Action::Nav(Screen::Spend));
             }
             Go::NonceCheck => self.nonce_check_tile(),

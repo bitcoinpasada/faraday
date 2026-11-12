@@ -553,20 +553,18 @@ impl Faraday {
         {
             return Open::Page(p);
         }
-        match self.wallets.spend_mut() {
-            Some(s) => {
-                let next = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
-                match next {
-                    // The spend's Check is the tab's Check the money.
-                    Some(step::CHECK) => Open::Page(page::CHECK),
-                    Some(n) => {
-                        s.open = Some(n);
-                        Open::Spend
-                    }
-                    None => Open::Page(page::AWAY),
-                }
+        let next = self
+            .wallets
+            .spend()
+            .map(|s| s.steps.iter().copied().find(|&n| !s.done[n as usize]));
+        match next {
+            // The spend's Check is the tab's Check the money.
+            Some(Some(step::CHECK)) => Open::Page(page::CHECK),
+            Some(Some(n)) => {
+                self.wallets.open_step(n);
+                Open::Spend
             }
-            None => Open::Page(page::AWAY),
+            Some(None) | None => Open::Page(page::AWAY),
         }
     }
 
@@ -640,12 +638,9 @@ impl Faraday {
                     self.mark_checked(&checksum);
                 }
                 // The spend's own Check is this page, done by the person.
-                if p == page::CHECK
-                    && self.spend_backup_page_done(page::CHECK)
-                    && let Some(s) = self.wallets.spend_mut()
-                {
-                    s.done[step::CHECK as usize] = true;
-                    s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
+                if p == page::CHECK && self.spend_backup_page_done(page::CHECK) {
+                    self.wallets.mark_step_done(step::CHECK);
+                    self.wallets.open_next_undone();
                 }
                 self.spend_backup_advance(p);
             }
@@ -1689,11 +1684,11 @@ impl Faraday {
         // The addresses are checked on the tab's own page, Check the
         // money: the spend's Check is done only once the person did it.
         let checked = self.spend_backup_page_done(page::CHECK);
-        if let Some(s) = self.wallets.spend_mut() {
-            s.done[step::WALLET as usize] = true;
-            s.done[step::CHECK as usize] |= checked;
-            s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
+        self.wallets.mark_step_done(step::WALLET);
+        if checked {
+            self.wallets.mark_step_done(step::CHECK);
         }
+        self.wallets.open_next_undone();
         self.spend_backup_step_moved(false);
         if self.spend_backup.state.open.is_none() {
             self.spend_backup.state.open = Some(Open::Spend);

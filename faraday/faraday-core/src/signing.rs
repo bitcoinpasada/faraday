@@ -137,25 +137,8 @@ pub(crate) fn sign_here(app: &mut Faraday) {
     // The checks below read the inspection the job will sign from, not
     // one made before the session changed.
     app.refresh_spend();
-    if let Some(s) = app.wallets.spend_mut() {
-        let last = if s.musig.is_none() && spend_opens_round(&s.inspection) {
-            wallet::step::NONCES
-        } else {
-            wallet::step::SIGN
-        };
-        // A file's round fields never stretch this past Sign.
-        let before: Vec<u8> = s
-            .steps
-            .iter()
-            .copied()
-            .take_while(|&n| n != last && n != wallet::step::SIGN)
-            .collect();
-        if let Some(pos) = before.iter().position(|&n| !s.done[n as usize]) {
-            s.open = Some(before[pos]);
-            s.follow = true;
-            s.error = Some(fill(EN.primary_finish_step, &[&(pos + 1).to_string()]));
-            return;
-        }
+    if app.wallets.stop_at_undone_step() {
+        return;
     }
     let c = app.compute();
     // A key made here signs nothing until its backup is done
@@ -174,14 +157,10 @@ pub(crate) fn sign_here(app: &mut Faraday) {
         })
         .unwrap_or_default();
     if !waiting.is_empty() {
-        if let Some(s) = app.wallets.spend_mut() {
-            s.error = Some(fill(
-                EN.sign_here_backup_first,
-                &[&waiting.join(", ").to_string()],
-            ));
-            s.open = Some(wallet::step::SIGNERS);
-            s.follow = true;
-        }
+        app.wallets.open_signers_with(fill(
+            EN.sign_here_backup_first,
+            &[&waiting.join(", ").to_string()],
+        ));
         return;
     }
     // A MuSig2 round opened here draws its secret nonces
@@ -193,9 +172,7 @@ pub(crate) fn sign_here(app: &mut Faraday) {
         .is_some_and(|s| spend_opens_round(&s.inspection));
     let seed = app.sign_seed();
     if seed.is_none() && opens_round {
-        if let Some(s) = app.wallets.spend_mut() {
-            s.error = Some(EN.no_randomness.to_string());
-        }
+        app.wallets.set_spend_error(EN.no_randomness.to_string());
         return;
     }
     // The same transaction stating other amounts than when it was
@@ -205,17 +182,14 @@ pub(crate) fn sign_here(app: &mut Faraday) {
         .spend()
         .is_some_and(|s| app.amounts_refused(&s.spend.psbt))
     {
-        if let Some(s) = app.wallets.spend_mut() {
-            s.error = Some(EN.sign_here_this_transaction.to_string());
-        }
+        app.wallets
+            .set_spend_error(EN.sign_here_this_transaction.to_string());
         return;
     }
-    let Some(s) = app.wallets.spend_mut() else {
+    let Some((made, before)) = app.wallets.sign_job(&app.session, &c, seed.as_ref()) else {
         return;
     };
-    let psbt = s.spend.psbt.clone();
-    let before = s.spend.psbt.to_bytes();
-    match app.session.sign_spend_job(&c, &psbt, seed.as_ref(), s) {
+    match made {
         Ok(job) => sign_start(app, job, before),
         Err(e) => sign_end(app, &before, Err(e)),
     }
@@ -257,13 +231,9 @@ pub(crate) fn signed_spend(app: &mut Faraday, done: SignDone) {
         worked,
         from,
     } = done;
-    let Some(s) = app.wallets.spend_mut() else {
-        return;
-    };
-    if s.spend.psbt != from.input {
+    if !app.wallets.keep_round(&from.input, round) {
         return;
     }
-    s.musig = round;
     sign_end(app, &from.before, worked);
 }
 
@@ -273,34 +243,19 @@ fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, String>) {
     let mut remember: Option<Psbt> = None;
     let mut nonce_only = false;
     let mut part = None;
-    let Some(s) = app.wallets.spend_mut() else {
+    if !app.wallets.end_spent_round() {
         return;
-    };
-    // A session whose every nonce has signed is over: the next pass
-    // over this transaction opens a new one, never the same nonce.
-    if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
-        s.musig = None;
     }
     match worked {
         Ok(w) => {
             nonce_only = w.nonce_only;
-            // Review gone through for the PSBT as it was vouches for what
-            // this device signed of it.
-            let prior = s.spend.psbt.clone();
-            s.take_spend(w.spend);
-            s.carry_review(&prior);
-            s.take(w.fresh);
-            s.error = None;
-            if !nonce_only {
-                remember = Some(s.spend.psbt.clone());
-                s.done[wallet::step::SIGN as usize] = true;
-            }
+            remember = app.wallets.take_signed(w.spend, w.fresh, nonce_only);
             part = w.part;
             for (kept, theirs) in app.session.wallets.iter().zip(w.wallets) {
                 kept.take_kept(theirs);
             }
         }
-        Err(e) => s.error = Some(e),
+        Err(e) => app.wallets.set_spend_error(e),
     }
     if let Some(p) = remember {
         app.remember_amounts(&p);
@@ -309,10 +264,7 @@ fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, String>) {
     if nonce_only {
         app.refresh_spend();
         part_put(app, part);
-        if let Some(s) = app.wallets.spend_mut() {
-            s.open = Some(wallet::step::NONCES);
-            s.follow = true;
-        }
+        app.wallets.open_step_followed(wallet::step::NONCES);
         app.toast(EN.sign_here_this_device);
         return;
     }
@@ -326,17 +278,7 @@ fn sign_end(app: &mut Faraday, before: &[u8], worked: Result<Worked, String>) {
     {
         part_out(app);
     }
-    if let Some(s) = app.wallets.spend_mut() {
-        s.follow = true;
-        if s.complete {
-            s.done[wallet::step::COLLECT as usize] = true;
-            s.open = Some(s.review_owed().map_or(wallet::step::FINISH, |(n, _)| n));
-        } else if s.steps.contains(&wallet::step::COLLECT) {
-            s.open = Some(wallet::step::COLLECT);
-        } else {
-            s.open = Some(wallet::step::FINISH);
-        }
-    }
+    app.wallets.open_after_sign();
 }
 
 /// Costs what `part_out` costs where the Outbox changed under the job. The end of
@@ -349,18 +291,12 @@ pub(crate) fn collect_end(
     nothing: Option<&String>,
     part: Option<collect::Planned>,
 ) {
-    if let (Some(name), Some(s)) = (nothing, app.wallets.spend_mut()) {
-        s.error = Some(fill(EN.collect_has_nothing, &[name]));
+    if let Some(name) = nothing {
+        app.wallets.collect_found_nothing(name);
     }
     app.refresh_spend();
     part_put(app, part);
-    if let Some(s) = app.wallets.spend_mut() {
-        s.follow = true;
-        if s.complete {
-            s.done[wallet::step::COLLECT as usize] = true;
-            s.open = Some(s.review_owed().map_or(wallet::step::FINISH, |(n, _)| n));
-        }
-    }
+    app.wallets.open_after_collect();
 }
 
 /// Costs what `part_out` costs where the Outbox changed under the job. Puts
@@ -477,9 +413,7 @@ pub(crate) fn part_apply(app: &mut Faraday, plan: PartPlan) {
         }
         PartPlan::Beside(plan) => app.beside_apply(plan),
     };
-    if let Some(s) = app.wallets.spend_mut() {
-        s.out_names.part = Some(name);
-    }
+    app.wallets.set_part_name(name);
 }
 
 /// Costs what `part_plan` costs. The part file of the open spend, worked

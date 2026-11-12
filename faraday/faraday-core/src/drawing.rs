@@ -497,10 +497,7 @@ impl Faraday {
                     self.vaults.set_create_scroll(to);
                 }
                 Scrolled::Spend => {
-                    if let Some(s) = self.wallets.spend_mut() {
-                        s.scroll = to.y;
-                        s.follow = to.follow;
-                    }
+                    self.wallets.scroll_spend_to(to.y, to.follow);
                 }
                 Scrolled::Backup => {
                     self.backup.set_scroll(to);

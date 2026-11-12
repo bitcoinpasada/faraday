@@ -333,9 +333,520 @@ impl WalletsArea {
         self.spend.as_ref()
     }
 
-    /// The transaction being signed, to change it.
-    pub(crate) fn spend_mut(&mut self) -> Option<&mut SpendState> {
-        self.spend.as_mut()
+    /// Scrolls the open spend's step column to `to`, and follows the open
+    /// step or not.
+    pub(crate) fn scroll_spend_to(&mut self, to: f32, follow: bool) {
+        if let Some(s) = self.spend.as_mut() {
+            s.scroll = to;
+            s.follow = follow;
+        }
+    }
+
+    /// Opens step `n` on the open spend, without scrolling to it.
+    pub(crate) fn open_step(&mut self, n: u8) {
+        if let Some(s) = self.spend.as_mut() {
+            s.open = Some(n);
+        }
+    }
+
+    /// Opens step `n` on the open spend and scrolls it into view.
+    pub(crate) fn open_step_followed(&mut self, n: u8) {
+        if let Some(s) = self.spend.as_mut() {
+            s.open = Some(n);
+            s.follow = true;
+        }
+    }
+
+    /// Closes step `n` as done on the open spend.
+    pub(crate) fn mark_step_done(&mut self, n: u8) {
+        if let Some(s) = self.spend.as_mut() {
+            s.done[n as usize] = true;
+        }
+    }
+
+    /// Opens the first step of the open spend not done yet.
+    pub(crate) fn open_next_undone(&mut self) {
+        if let Some(s) = self.spend.as_mut() {
+            s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
+        }
+    }
+
+    /// The open spend's error is `error`.
+    pub(crate) fn set_spend_error(&mut self, error: String) {
+        if let Some(s) = self.spend.as_mut() {
+            s.error = Some(error);
+        }
+    }
+
+    /// A step was pressed on the open spend: it opens, or closes where it
+    /// is the open one (not from the Spend tab's page, where a step opened
+    /// from another card stays open), and the error is cleared.
+    pub(crate) fn press_step(&mut self, n: u8, from_page: bool) {
+        if let Some(s) = self.spend.as_mut() {
+            s.open = if s.open == Some(n) && !from_page {
+                None
+            } else {
+                Some(n)
+            };
+            s.error = None;
+            s.follow = true;
+        }
+    }
+
+    /// Continue on step `n` of the open spend: it is done, Review's
+    /// continue marks the PSBT reviewed, and the next step not done opens.
+    /// False where Review's continue is stopped (its reason is the error).
+    pub(crate) fn continue_step(&mut self, n: u8) -> bool {
+        let Some(s) = self.spend.as_mut() else {
+            return true;
+        };
+        if n == step::TRANSACTION && crate::review::stopped(s) {
+            return false;
+        }
+        s.done[n as usize] = true;
+        if n == step::TRANSACTION {
+            s.mark_reviewed();
+        }
+        s.settle_owed();
+        s.open = s.steps.iter().copied().find(|&i| !s.done[i as usize]);
+        s.error = None;
+        s.follow = true;
+        true
+    }
+
+    /// Holds the open spend's holdable dangers on Review where a fee is
+    /// what stops it, with the session's `inputs`. Whether it held.
+    pub(crate) fn hold_review(&mut self, inputs: &InspectInputs) -> bool {
+        crate::review::hold(self.spend.as_mut(), inputs)
+    }
+
+    /// Shows or hides the open spend's full table.
+    pub(crate) fn toggle_table(&mut self) {
+        if let Some(s) = self.spend.as_mut() {
+            s.table = !s.table;
+        }
+    }
+
+    /// Shows or hides the open spend's finished transaction's hex.
+    pub(crate) fn toggle_show_hex(&mut self) {
+        if let Some(s) = self.spend.as_mut() {
+            s.show_hex = !s.show_hex;
+        }
+    }
+
+    /// Opens Finish on the open spend (Collect done), or Review first where
+    /// it is owed.
+    pub(crate) fn open_finish(&mut self) {
+        if let Some(s) = self.spend.as_mut() {
+            s.open_finish();
+        }
+    }
+
+    /// Marks the steps before Sign done on the open spend, as a person who
+    /// has been through them has, and its Review gone through.
+    pub(crate) fn mark_steps_before_sign_done(&mut self) {
+        if let Some(s) = self.spend.as_mut() {
+            for n in s.steps.clone() {
+                if n == step::SIGN {
+                    break;
+                }
+                s.done[n as usize] = true;
+            }
+            s.mark_reviewed();
+        }
+    }
+
+    /// Where a step before the one a press needs (never past Sign) is not
+    /// done, opens it with the error that says so. Whether it did.
+    pub(crate) fn stop_at_undone_step(&mut self) -> bool {
+        let Some(s) = self.spend.as_mut() else {
+            return false;
+        };
+        let last = if s.musig.is_none() && crate::spend_opens_round(&s.inspection) {
+            step::NONCES
+        } else {
+            step::SIGN
+        };
+        // A file's round fields never stretch this past Sign.
+        let before: Vec<u8> = s
+            .steps
+            .iter()
+            .copied()
+            .take_while(|&n| n != last && n != step::SIGN)
+            .collect();
+        if let Some(pos) = before.iter().position(|&n| !s.done[n as usize]) {
+            s.open = Some(before[pos]);
+            s.follow = true;
+            s.error = Some(fill(EN.primary_finish_step, &[&(pos + 1).to_string()]));
+            return true;
+        }
+        false
+    }
+
+    /// Opens Signers with `error`, scrolled into view.
+    pub(crate) fn open_signers_with(&mut self, error: String) {
+        if let Some(s) = self.spend.as_mut() {
+            s.error = Some(error);
+            s.open = Some(step::SIGNERS);
+            s.follow = true;
+        }
+    }
+
+    /// Costs what [`Session::sign_spend_job`] costs. The job that signs
+    /// the open spend, with its PSBT as it was before; `None` with no spend.
+    pub(crate) fn sign_job(
+        &mut self,
+        session: &Session,
+        c: &Compute,
+        seed: Option<&zeroize::Zeroizing<[u8; 32]>>,
+    ) -> Option<(Result<faraday_keys::job::SignJob, String>, Vec<u8>)> {
+        let s = self.spend.as_mut()?;
+        let psbt = s.spend.psbt.clone();
+        let before = s.spend.psbt.to_bytes();
+        Some((session.sign_spend_job(c, &psbt, seed, s), before))
+    }
+
+    /// A signing's answer kept: the round it left, where the spend still
+    /// holds the PSBT `from` it was started on. Whether it was kept.
+    pub(crate) fn keep_round(
+        &mut self,
+        from: &Psbt,
+        round: Option<faraday_psbt::MusigSession>,
+    ) -> bool {
+        let Some(s) = self.spend.as_mut().filter(|s| s.spend.psbt == *from) else {
+            return false;
+        };
+        s.musig = round;
+        true
+    }
+
+    /// Ends a MuSig2 round every nonce of which has signed. Whether there
+    /// is an open spend.
+    pub(crate) fn end_spent_round(&mut self) -> bool {
+        let Some(s) = self.spend.as_mut() else {
+            return false;
+        };
+        // A session whose every nonce has signed is over: the next pass
+        // over this transaction opens a new one, never the same nonce.
+        if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
+            s.musig = None;
+        }
+        true
+    }
+
+    /// A signing's result moved into the open spend: the spend as the job
+    /// left it, Review carried over to it and what was worked out. Where a
+    /// signature was made (not only a nonce) Sign is done, and the PSBT to
+    /// remember the amounts of is returned.
+    pub(crate) fn take_signed(
+        &mut self,
+        spend: Spend,
+        fresh: crate::signing::fresh::Fresh,
+        nonce_only: bool,
+    ) -> Option<Psbt> {
+        let s = self.spend.as_mut()?;
+        // Review gone through for the PSBT as it was vouches for what
+        // this device signed of it.
+        let prior = s.spend.psbt.clone();
+        s.take_spend(spend);
+        s.carry_review(&prior);
+        s.take(fresh);
+        s.error = None;
+        if nonce_only {
+            return None;
+        }
+        s.done[step::SIGN as usize] = true;
+        Some(s.spend.psbt.clone())
+    }
+
+    /// What a signing leaves open on the spend once it is worked out again.
+    pub(crate) fn open_after_sign(&mut self) {
+        if let Some(s) = self.spend.as_mut() {
+            s.follow = true;
+            if s.complete {
+                s.done[step::COLLECT as usize] = true;
+                s.open = Some(s.review_owed().map_or(step::FINISH, |(n, _)| n));
+            } else if s.steps.contains(&step::COLLECT) {
+                s.open = Some(step::COLLECT);
+            } else {
+                s.open = Some(step::FINISH);
+            }
+        }
+    }
+
+    /// What a Collect leaves open on the spend once it is worked out again.
+    pub(crate) fn open_after_collect(&mut self) {
+        if let Some(s) = self.spend.as_mut() {
+            s.follow = true;
+            if s.complete {
+                s.done[step::COLLECT as usize] = true;
+                s.open = Some(s.review_owed().map_or(step::FINISH, |(n, _)| n));
+            }
+        }
+    }
+
+    /// Whether the open spend still holds `input`.
+    pub(crate) fn spend_holds(&self, input: &Psbt) -> bool {
+        self.spend.as_ref().is_some_and(|s| s.spend.psbt == *input)
+    }
+
+    /// A Collect's answer moved into the open spend, where it still holds
+    /// the PSBT `input` the job was given. Whether it did. `error` is
+    /// kept where there is one; with none, the error clears where
+    /// something was `found`, and stays otherwise (the end says it).
+    pub(crate) fn take_collected(
+        &mut self,
+        input: &Psbt,
+        spend: Spend,
+        error: Option<String>,
+        found: bool,
+        fresh: Option<crate::signing::fresh::Fresh>,
+    ) -> bool {
+        let Some(s) = self.spend.as_mut().filter(|s| s.spend.psbt == *input) else {
+            return false;
+        };
+        s.take_spend(spend);
+        if error.is_some() {
+            s.error = error;
+        } else if found {
+            s.error = None;
+        }
+        if let Some(f) = fresh {
+            s.take(f);
+        }
+        true
+    }
+
+    /// The name the open spend's part-signed file went out under.
+    pub(crate) fn set_part_name(&mut self, name: String) {
+        if let Some(s) = self.spend.as_mut() {
+            s.out_names.part = Some(name);
+        }
+    }
+
+    /// The name the open spend's signed PSBT went out under.
+    pub(crate) fn set_signed_name(&mut self, name: String) {
+        if let Some(s) = self.spend.as_mut() {
+            s.out_names.signed = Some(name);
+        }
+    }
+
+    /// The name the open spend's finished transaction went out under.
+    pub(crate) fn set_tx_name(&mut self, name: String) {
+        if let Some(s) = self.spend.as_mut() {
+            s.out_names.tx = Some(name);
+        }
+    }
+
+    /// The signed PSBT's file for the Outbox, marked as gone there: its
+    /// name and bytes, where the spend is reviewed and held by no nonce.
+    /// `None` where it is not; an error where a version 2 PSBT cannot be
+    /// written.
+    pub(crate) fn take_signed_file(&mut self) -> Option<Result<(String, Vec<u8>), ()>> {
+        let s = self
+            .spend
+            .as_mut()
+            .filter(|s| !s.spend.nonce_hold && s.reviewed_now())?;
+        let name = format!("{}-signed.psbt", crate::result_stem(&s.spend.source));
+        let Ok(bytes) = s.spend.out_bytes() else {
+            return Some(Err(()));
+        };
+        s.out_signed = true;
+        Some(Ok((name, bytes)))
+    }
+
+    /// The finished transaction's file for the Outbox, marked as gone
+    /// there, where the spend is reviewed and finished.
+    pub(crate) fn take_tx_file(&mut self) -> Option<(String, Vec<u8>)> {
+        let s = self.spend.as_mut().filter(|s| s.reviewed_now())?;
+        let hex = s.spend.finished_hex()?;
+        let name = format!("{}-final.txn", crate::result_stem(&s.spend.source));
+        s.out_tx = true;
+        Some((name, hex.into_bytes()))
+    }
+
+    /// The files of a finished, reviewed spend not made yet, marked as gone
+    /// to the Outbox, each with whether it is the signed PSBT. An error
+    /// where a version 2 PSBT cannot take the signatures back.
+    pub(crate) fn take_result_files(&mut self) -> Result<Vec<(bool, String, Vec<u8>)>, ()> {
+        let Some(s) = self
+            .spend
+            .as_mut()
+            .filter(|s| s.spend.finished.is_some() && s.reviewed_now())
+        else {
+            return Ok(Vec::new());
+        };
+        let stem = crate::result_stem(&s.spend.source);
+        let mut made = Vec::new();
+        if !s.out_signed {
+            let Ok(bytes) = s.spend.out_bytes() else {
+                return Err(());
+            };
+            s.out_signed = true;
+            made.push((true, format!("{stem}-signed.psbt"), bytes));
+        }
+        if !s.out_tx
+            && let Some(hex) = s.spend.finished_hex()
+        {
+            s.out_tx = true;
+            made.push((false, format!("{stem}-final.txn"), hex.into_bytes()));
+        }
+        Ok(made)
+    }
+
+    /// A Collect found nothing to add from the file `name`.
+    pub(crate) fn collect_found_nothing(&mut self, name: &str) {
+        if let Some(s) = self.spend.as_mut() {
+            s.error = Some(fill(EN.collect_has_nothing, &[name]));
+        }
+    }
+
+    /// Opens the register sheet's state over the open spend. Whether the
+    /// inspection offers one.
+    pub(crate) fn open_register(&mut self) -> bool {
+        let Some(s) = self
+            .spend
+            .as_mut()
+            .filter(|s| s.inspection.register.is_some())
+        else {
+            return false;
+        };
+        s.register = Some(crate::register::RegisterAsk::new(&s.spend.source));
+        true
+    }
+
+    /// The register sheet's name field is being typed in.
+    pub(crate) fn register_typing(&mut self) {
+        if let Some(ask) = self.spend.as_mut().and_then(|s| s.register.as_mut()) {
+            ask.typing = true;
+        }
+    }
+
+    /// The register sheet reads the policy as reading `k`.
+    pub(crate) fn register_reading(&mut self, k: u8) {
+        if let Some(ask) = self.spend.as_mut().and_then(|s| s.register.as_mut()) {
+            ask.reading = usize::from(k);
+            ask.refused = None;
+        }
+    }
+
+    /// The register sheet refused with `why`.
+    pub(crate) fn register_refused(&mut self, why: String) {
+        if let Some(ask) = self.spend.as_mut().and_then(|s| s.register.as_mut()) {
+            ask.refused = Some(why);
+        }
+    }
+
+    /// A key pressed on the register sheet's field. Whether it took it.
+    pub(crate) fn register_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        self.spend
+            .as_mut()
+            .and_then(|s| s.register.as_mut())
+            .is_some_and(|ask| ask.key(key))
+    }
+
+    /// Closes the register sheet's state.
+    pub(crate) fn close_register(&mut self) {
+        if let Some(s) = self.spend.as_mut() {
+            s.register = None;
+        }
+    }
+
+    /// The other transactions made for the open spend, from the files
+    /// `from` counts.
+    pub(crate) fn keep_others(
+        &mut self,
+        made: Vec<crate::compare::others::Other>,
+        from: Vec<OtherFrom>,
+    ) {
+        if let Some(s) = self.spend.as_mut() {
+            s.others = made;
+            s.others_from = Some(from);
+            s.others_stale = false;
+        }
+    }
+
+    /// The nonce check's hold on the open spend is `held`: where it
+    /// changed, a held spend is not finished and its files are taken back
+    /// (their names are returned), and a lifted one is finished again.
+    /// The names, and whether it was lifted.
+    pub(crate) fn apply_nonce_hold(&mut self, held: bool) -> (Vec<String>, bool) {
+        let mut taken_back = Vec::new();
+        let mut lifted = false;
+        let Some(s) = self.spend.as_mut() else {
+            return (taken_back, lifted);
+        };
+        if held != s.spend.nonce_hold {
+            s.spend.nonce_hold = held;
+            if held {
+                s.spend.finished = None;
+                s.complete = false;
+                // What this spend already put in the Outbox goes back.
+                s.out_signed = false;
+                s.out_tx = false;
+                taken_back.extend(s.out_names.signed.take());
+                taken_back.extend(s.out_names.tx.take());
+                taken_back.extend(s.out_names.part.take());
+            } else {
+                s.complete = s.spend.finish().is_ok();
+                lifted = s.complete;
+            }
+        }
+        (taken_back, lifted)
+    }
+
+    /// Costs an inspection when the PSBT or the session changed. Keeps the
+    /// open spend in step with the session: its inspection, signers,
+    /// wallet and steps. `checked` says whether a wallet's checksum was
+    /// checked this power-on.
+    pub(crate) fn refresh(
+        &mut self,
+        c: &Compute,
+        session: &Session,
+        checked: impl Fn(&str) -> bool,
+    ) {
+        let Some(s) = self.spend.as_mut() else {
+            return;
+        };
+        // Inspected once each time the PSBT or the session changes,
+        // not on every press that refreshes the spend. The signers, the
+        // wallet and whether it is complete are read from that
+        // inspection, so they are worked out when it is made (a spend
+        // opens with them worked out, `SpendState::opened_with`).
+        let inputs = session.inspect_inputs();
+        let view = s.musig.as_ref().map(|m| m.view());
+        if !s.inspected_for(&inputs) {
+            let fresh =
+                crate::signing::fresh::worked_out(c, session, &mut s.spend, view.as_ref(), true);
+            s.take(fresh);
+            s.others_stale = true;
+        }
+        s.review_lapse();
+        let wallet = s.wallet.and_then(|w| session.wallets.get(w));
+        let kind = wallet.map(|w| Kind::of(w.policy()));
+        s.needed = wallet.map(needed).unwrap_or(1);
+        // With no wallet loaded the signers come from the PSBT alone,
+        // and a second device may still be needed.
+        let kind = kind.unwrap_or(if s.inspection.participating_keys.len() > 1 {
+            Kind::Multi(faraday_bip::policy::Wrapper::Wsh)
+        } else {
+            Kind::Single(faraday_bip::keys::ScriptType::NativeSegwit)
+        });
+        s.steps = kind.steps();
+        // Check is done already, this power-on, when this wallet was
+        // checked before (`docs/WALLETS.md` §4): the flow opens on
+        // the next card without a default instead.
+        if let Some(wallet) = wallet
+            && checked(wallet.checksum())
+        {
+            s.done[step::CHECK as usize] = true;
+        }
+        s.settle_owed();
+        let stale = s.open.is_some_and(|open| !s.steps.contains(&open));
+        if stale || !s.opened {
+            s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
+            s.opened = true;
+        }
     }
 
     /// The transaction being signed scrolled to `y` units, if one is.

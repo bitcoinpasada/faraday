@@ -909,9 +909,7 @@ impl Faraday {
                 self.decode.toggle_hex();
             }
             Action::SpendHex => {
-                if let Some(s) = self.wallets.spend_mut() {
-                    s.show_hex = !s.show_hex;
-                }
+                self.wallets.toggle_show_hex();
             }
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),

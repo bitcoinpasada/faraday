@@ -178,25 +178,15 @@ pub(crate) fn collected(app: &mut Faraday, done: CollectDone) {
         spend_backup,
         wallets,
     } = done;
-    let Some(s) = app.wallets.spend_mut() else {
-        return;
-    };
-    if s.spend.psbt != input {
+    if !app.wallets.spend_holds(&input) {
         return;
     }
     for (kept, theirs) in app.session.wallets.iter().zip(wallets) {
         kept.take_kept(theirs);
     }
-    s.take_spend(spend);
     // `nothing` leaves the error as it was; the end says it.
-    if error.is_some() {
-        s.error = error;
-    } else if nothing.is_none() {
-        s.error = None;
-    }
-    if let Some(f) = fresh {
-        s.take(f);
-    }
+    app.wallets
+        .take_collected(&input, spend, error, nothing.is_none(), fresh);
     super::collect_end(app, nothing.as_ref(), part);
     if spend_backup {
         app.spend_backup_step_moved(false);

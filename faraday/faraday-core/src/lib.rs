@@ -2124,33 +2124,15 @@ impl Faraday {
     /// removed is not made again unless they ask; neither is made where a
     /// version 2 PSBT cannot take the signatures back (`Spend::out_bytes`).
     fn spend_files_out(&mut self) {
-        let spend = self.wallets.spend_mut();
-        let Some(s) = spend.filter(|s| s.spend.finished.is_some() && s.reviewed_now()) else {
-            return;
+        let Ok(made) = self.wallets.take_result_files() else {
+            return self.toast(EN.spend_v2_not_written);
         };
-        let stem = result_stem(&s.spend.source);
-        let mut made: Vec<(bool, String, Vec<u8>)> = Vec::new();
-        if !s.out_signed {
-            let Ok(bytes) = s.spend.out_bytes() else {
-                return self.toast(EN.spend_v2_not_written);
-            };
-            s.out_signed = true;
-            made.push((true, format!("{stem}-signed.psbt"), bytes));
-        }
-        if !s.out_tx
-            && let Some(hex) = s.spend.finished_hex()
-        {
-            s.out_tx = true;
-            made.push((false, format!("{stem}-final.txn"), hex.into_bytes()));
-        }
         for (signed, name, bytes) in made {
             let name = self.put_outbox_beside(&name, bytes);
-            if let Some(s) = self.wallets.spend_mut() {
-                if signed {
-                    s.out_names.signed = Some(name);
-                } else {
-                    s.out_names.tx = Some(name);
-                }
+            if signed {
+                self.wallets.set_signed_name(name);
+            } else {
+                self.wallets.set_tx_name(name);
             }
         }
     }
@@ -3360,7 +3342,7 @@ impl Faraday {
     }
 
     fn primary(&mut self) {
-        let Some(s) = self.wallets.spend_mut() else {
+        let Some(s) = self.wallets.spend() else {
             return;
         };
         let complete = s.complete;
@@ -3373,12 +3355,11 @@ impl Faraday {
             // Both files went For the stick at Finish: Files writes them.
             self.screen = Screen::Files;
         } else if complete {
-            s.open_finish();
+            self.wallets.open_finish();
         } else if can_sign_here {
             crate::signing::sign_here(self);
         } else {
-            s.open = Some(wallet::step::COLLECT);
-            s.follow = true;
+            self.wallets.open_step_followed(wallet::step::COLLECT);
         }
     }
 

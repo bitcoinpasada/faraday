@@ -2126,15 +2126,7 @@ pub fn guide_scroll_to(app: &mut crate::Faraday, y: f32) {
 /// Marks the open spend's steps before Sign done, as a person who has
 /// been through them has: Sign then signs from any route.
 pub fn steps_before_sign_done(app: &mut crate::Faraday) {
-    if let Some(s) = app.wallets.spend_mut() {
-        for n in s.steps.clone() {
-            if n == crate::wallet::step::SIGN {
-                break;
-            }
-            s.done[n as usize] = true;
-        }
-        s.mark_reviewed();
-    }
+    app.wallets.mark_steps_before_sign_done();
 }
 
 /// Opens the vanity screen's card `step`, as a press on it does.

@@ -5,7 +5,7 @@
 
 use crate::modes::Mode;
 use crate::strings::{EN, fill};
-use crate::{Action, Faraday, Screen, Sheet, result_stem, spend_backup, wallet};
+use crate::{Action, Faraday, Screen, Sheet, spend_backup, wallet};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{OutPoint, Transaction, Txid};
@@ -3332,27 +3332,18 @@ impl Faraday {
     /// file is added, and inspects the spend again; a refusal stays on
     /// the sheet.
     pub(crate) fn register_act(&mut self, action: Action) {
-        let Some(s) = self.wallets.spend_mut() else {
+        let Some(s) = self.wallets.spend() else {
             return;
         };
         match action {
             Action::RegisterOpen if s.inspection.register.is_some() => {
-                s.register = Some(crate::register::RegisterAsk::new(&s.spend.source));
+                self.wallets.open_register();
                 self.sheet = Some(Sheet::Register);
             }
-            Action::RegisterField => {
-                if let Some(ask) = s.register.as_mut() {
-                    ask.typing = true;
-                }
-            }
-            Action::RegisterReading(k) => {
-                if let Some(ask) = s.register.as_mut() {
-                    ask.reading = usize::from(k);
-                    ask.refused = None;
-                }
-            }
+            Action::RegisterField => self.wallets.register_typing(),
+            Action::RegisterReading(k) => self.wallets.register_reading(k),
             Action::RegisterCancel => {
-                s.register = None;
+                self.wallets.close_register();
                 self.sheet = None;
             }
             Action::RegisterHold => {
@@ -3378,20 +3369,14 @@ impl Faraday {
                     });
                 match added {
                     Ok(i) => {
-                        if let Some(s) = self.wallets.spend_mut() {
-                            s.register = None;
-                        }
+                        self.wallets.close_register();
                         self.sheet = None;
                         self.wallets.set_wallet(i);
                         self.refresh_spend();
                         self.toast(&fill(EN.register_added, &[&name]));
                     }
                     Err(why) => {
-                        if let Some(ask) =
-                            self.wallets.spend_mut().and_then(|s| s.register.as_mut())
-                        {
-                            ask.refused = Some(why);
-                        }
+                        self.wallets.register_refused(why);
                     }
                 }
             }
@@ -3458,53 +3443,9 @@ impl Faraday {
     /// step with the session: its inspection, signers, wallet and steps.
     pub(crate) fn refresh_spend(&mut self) {
         let c = self.compute();
-        if let Some(s) = self.wallets.spend_mut() {
-            // Inspected once each time the PSBT or the session changes,
-            // not on every press that refreshes the spend. The signers, the
-            // wallet and whether it is complete are read from that
-            // inspection, so they are worked out when it is made (a spend
-            // opens with them worked out, `SpendState::opened_with`).
-            let inputs = self.session.inspect_inputs();
-            let view = s.musig.as_ref().map(|m| m.view());
-            if !s.inspected_for(&inputs) {
-                let fresh = crate::signing::fresh::worked_out(
-                    &c,
-                    &self.session,
-                    &mut s.spend,
-                    view.as_ref(),
-                    true,
-                );
-                s.take(fresh);
-                s.others_stale = true;
-            }
-            s.review_lapse();
-            let wallet = s.wallet.and_then(|w| self.session.wallets.get(w));
-            let kind = wallet.map(|w| wallet::Kind::of(w.policy()));
-            s.needed = wallet.map(wallet::needed).unwrap_or(1);
-            // With no wallet loaded the signers come from the PSBT alone,
-            // and a second device may still be needed.
-            let kind = kind.unwrap_or(if s.inspection.participating_keys.len() > 1 {
-                wallet::Kind::Multi(faraday_bip::policy::Wrapper::Wsh)
-            } else {
-                wallet::Kind::Single(faraday_bip::keys::ScriptType::NativeSegwit)
-            });
-            s.steps = kind.steps();
-            // Check is done already, this power-on, when this wallet was
-            // checked before (`docs/WALLETS.md` §4): the flow opens on
-            // the next card without a default instead.
-            if let Some(wallet) = wallet {
-                let checksum = wallet.checksum().to_string();
-                if self.memory.is_checked(&checksum) {
-                    s.done[wallet::step::CHECK as usize] = true;
-                }
-            }
-            s.settle_owed();
-            let stale = s.open.is_some_and(|open| !s.steps.contains(&open));
-            if stale || !s.opened {
-                s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
-                s.opened = true;
-            }
-        }
+        let memory = &self.memory;
+        self.wallets
+            .refresh(&c, &self.session, |checksum| memory.is_checked(checksum));
         self.refresh_others(&c);
         self.nonce_spend_sync();
         self.spend_files_out();
@@ -3555,11 +3496,7 @@ impl Faraday {
                 &s.inspection,
             )
         };
-        if let Some(s) = self.wallets.spend_mut() {
-            s.others = made;
-            s.others_from = Some(now);
-            s.others_stale = false;
-        }
+        self.wallets.keep_others(made, now);
     }
 
     /// Costs a map lookup per signature when only the nonce history
@@ -3576,7 +3513,7 @@ impl Faraday {
         let history = self.nonce_snapshot();
         let c = self.compute();
         let session = &self.session;
-        let Some(s) = self.wallets.spend_mut() else {
+        let Some(s) = self.wallets.spend() else {
             return;
         };
         let kept = s
@@ -3626,24 +3563,7 @@ impl Faraday {
             *s.nonce_check.borrow_mut() = Some((s.spend.psbt.clone(), check.clone()));
         }
         let held = check.held_back();
-        let mut taken_back = Vec::new();
-        let mut lifted = false;
-        if held != s.spend.nonce_hold {
-            s.spend.nonce_hold = held;
-            if held {
-                s.spend.finished = None;
-                s.complete = false;
-                // What this spend already put in the Outbox goes back.
-                s.out_signed = false;
-                s.out_tx = false;
-                taken_back.extend(s.out_names.signed.take());
-                taken_back.extend(s.out_names.tx.take());
-                taken_back.extend(s.out_names.part.take());
-            } else {
-                s.complete = s.spend.finish().is_ok();
-                lifted = s.complete;
-            }
-        }
+        let (taken_back, lifted) = self.wallets.apply_nonce_hold(held);
         if !taken_back.is_empty() && self.outbox.iter().any(|i| taken_back.contains(&i.name)) {
             self.outbox.retain(|i| !taken_back.contains(&i.name));
             self.save_boxes();
@@ -3677,10 +3597,7 @@ impl Faraday {
             self.register_act(Action::RegisterCancel);
             return true;
         }
-        self.wallets
-            .spend_mut()
-            .and_then(|s| s.register.as_mut())
-            .is_some_and(|ask| ask.key(key))
+        self.wallets.register_key(key)
     }
 
     /// Costs what `add_wallet` costs. Loads the wallet an Inbox file
@@ -3758,42 +3675,24 @@ impl Faraday {
                 crate::signing::read::start_spend(self, i, crate::signing::read::Then::Spend);
             }
             Action::Step(n) => {
-                if let Some(s) = self.wallets.spend_mut() {
-                    // On the Spend tab a step opened from another card
-                    // stays open.
-                    let from_page = self.screen == Screen::SpendBackup
-                        && self.spend_backup.state().open != Some(spend_backup::Open::Spend);
-                    s.open = if s.open == Some(n) && !from_page {
-                        None
-                    } else {
-                        Some(n)
-                    };
-                    s.error = None;
-                    s.follow = true;
-                }
+                // On the Spend tab a step opened from another card
+                // stays open.
+                let from_page = self.screen == Screen::SpendBackup
+                    && self.spend_backup.state().open != Some(spend_backup::Open::Spend);
+                self.wallets.press_step(n, from_page);
                 if self.screen == Screen::SpendBackup {
                     self.spend_backup_step_moved(false);
                 }
             }
             Action::ReviewHold => {
                 let inputs = self.session.inspect_inputs();
-                if crate::review::hold(self.wallets.spend_mut(), &inputs) {
+                if self.wallets.hold_review(&inputs) {
                     self.wallet_act(Action::StepNext(wallet::step::TRANSACTION));
                 }
             }
             Action::StepNext(n) => {
-                if let Some(s) = self.wallets.spend_mut() {
-                    if n == wallet::step::TRANSACTION && crate::review::stopped(s) {
-                        return;
-                    }
-                    s.done[n as usize] = true;
-                    if n == wallet::step::TRANSACTION {
-                        s.mark_reviewed();
-                    }
-                    s.settle_owed();
-                    s.open = s.steps.iter().copied().find(|&i| !s.done[i as usize]);
-                    s.error = None;
-                    s.follow = true;
+                if !self.wallets.continue_step(n) {
+                    return;
                 }
                 // Check's own Continue: this wallet is checked this
                 // power-on (`docs/WALLETS.md` §4), kept across a lock.
@@ -3812,40 +3711,23 @@ impl Faraday {
                 }
             }
             Action::ToggleTable => {
-                if let Some(s) = self.wallets.spend_mut() {
-                    s.table = !s.table;
-                }
+                self.wallets.toggle_table();
             }
             Action::SignHere => crate::signing::sign_here(self),
             Action::Collect(i) => crate::signing::collect::start_collect(self, i),
             Action::SignedToOutbox => {
-                if let Some(s) = self
-                    .wallets
-                    .spend_mut()
-                    .filter(|s| !s.spend.nonce_hold && s.reviewed_now())
-                {
-                    let name = format!("{}-signed.psbt", result_stem(&s.spend.source));
-                    let Ok(bytes) = s.spend.out_bytes() else {
+                if let Some(file) = self.wallets.take_signed_file() {
+                    let Ok((name, bytes)) = file else {
                         return self.toast(EN.spend_v2_not_written);
                     };
-                    s.out_signed = true;
                     let name = self.put_outbox_beside(&name, bytes);
-                    if let Some(s) = self.wallets.spend_mut() {
-                        s.out_names.signed = Some(name);
-                    }
+                    self.wallets.set_signed_name(name);
                 }
             }
             Action::TxToOutbox => {
-                if let Some(s) = self.wallets.spend_mut()
-                    && s.reviewed_now()
-                    && let Some(hex) = s.spend.finished_hex()
-                {
-                    let name = format!("{}-final.txn", result_stem(&s.spend.source));
-                    s.out_tx = true;
-                    let name = self.put_outbox_beside(&name, hex.into_bytes());
-                    if let Some(s) = self.wallets.spend_mut() {
-                        s.out_names.tx = Some(name);
-                    }
+                if let Some((name, bytes)) = self.wallets.take_tx_file() {
+                    let name = self.put_outbox_beside(&name, bytes);
+                    self.wallets.set_tx_name(name);
                 }
             }
             Action::Primary => self.primary(),
