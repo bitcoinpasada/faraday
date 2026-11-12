@@ -74,6 +74,8 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/winvm/` | dev aid | `docs/history/BITLOCKER-ACCEPTANCE.md`, `docs/STARTER.md` | Windows 11 test machine in QEMU for the Starter's BitLocker checks |
 | `faraday/tools/testkit/` | test | `just faraday-testkit`, `just faraday-snap`, `just faraday-snapshots` | writes the test stick's files after checking every spend signs |
 | `faraday/tools/alloc-count/` | test | `faraday-core`'s frame budgets (`docs/SPEED.md`) | allocator that counts allocations per thread; tests only |
+| `faraday/tools/leak-scan/` | test | `faraday-core`'s leak tests (`faraday/faraday-core/tests/leaks`, `docs/SECRET-LEAKS.md`) | allocator that searches the blocks an armed test thread frees, and the live ones on demand, for a test secret's forms; tests only |
+| `tools/leak-entries.toml` | test | the leak tests | the copies of a test secret a flow is let to leave in a freed block: its flow, form, place, reason and fix; an entry no run hits fails |
 | `faraday/tools/argon2-bench/` | dev aid | `docs/VAULT.md` §3.1 | times the vault's Argon2id presets on a machine |
 | `faraday/tools/stage-release.sh` | release | `just faraday-release-stage`, `faraday-release-stage-starter` | stages a release's files, every image `faraday/builds.toml` releases, `IMAGES` and `SHA256SUMS` under `out/release/VERSION/` |
 | `faraday/tools/stick-qemu.py` | test | `disk-test.py`, `qemu-check.py`; `faraday/image/README.md` | boots the stick image in QEMU with OVMF the way a laptop does |

@@ -62,6 +62,11 @@ faraday-scanner = { path = "../faraday-scanner" }
 # The test binary's allocator, counting each thread's allocations for the
 # frame budgets (`src/work/budget.rs`).
 faraday-alloc-count = { path = "../tools/alloc-count" }
+# The leak tests' allocator (`tests/leaks`): fails on a freed or kept block
+# that holds a test secret (`docs/SECRET-LEAKS.md`).
+faraday-leak-scan = { path = "../tools/leak-scan" }
+# The leak tests' passphrase forms, in NFC and NFKD.
+unicode-normalization.workspace = true
 # The wallet files `tests/all/core_wallet.rs` builds, read as rows.
 faraday-sqlite = { path = "../faraday-sqlite" }
 # The known answers of Faraday's own specifications (`tools/vectors/`).

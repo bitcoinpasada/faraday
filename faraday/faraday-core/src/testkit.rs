@@ -2537,6 +2537,14 @@ pub fn press_on_worker(app: &mut crate::Faraday, action: crate::Action) {
     app.press_as(action, false);
 }
 
+/// Sets what the worker this thread starts runs first, on its own
+/// thread: `hook` runs on this thread when the worker starts and gives
+/// what the worker's thread runs (a leak test arms it with the test's
+/// secrets, `tests/leaks`). `None` takes the hook away.
+pub fn on_worker_start(hook: Option<crate::worker::OnStart>) {
+    crate::worker::set_on_start(hook);
+}
+
 /// Holds the worker before its next job until [`release_worker`]: for a
 /// test to put something in between a press and its answer.
 pub fn hold_worker() {

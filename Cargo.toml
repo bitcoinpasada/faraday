@@ -53,6 +53,7 @@ members = [
     "faraday/tools/testkit",
     "faraday/tools/argon2-bench",
     "faraday/tools/alloc-count",
+    "faraday/tools/leak-scan",
     "aqrv/aqrv",
     "aqrv/aqrv-cli",
     "aqrv/aqrv-app",
