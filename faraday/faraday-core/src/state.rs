@@ -1299,7 +1299,6 @@ impl Faraday {
         let Some((named, _, data)) = self.read_code(bytes.clone()) else {
             return true;
         };
-        let data = zeroize::Zeroizing::new(data);
         if let Some(kind) = secret(&c, &data) {
             self.scan_say(kind.not_here());
             return true;

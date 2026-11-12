@@ -977,7 +977,8 @@ impl Faraday {
             _ => return false,
         }
         let c = self.compute();
-        let Some((named, _, data)) = self.read_code(zeroize::Zeroizing::new(bytes.to_vec())) else {
+        let Some((named, _, mut data)) = self.read_code(zeroize::Zeroizing::new(bytes.to_vec()))
+        else {
             return true;
         };
         let public = faraday_pgp::read_public_armor(&data) == Some(faraday_pgp::Armor::PublicKey);
@@ -987,7 +988,7 @@ impl Faraday {
             (None, Some(n)) => (None, n),
             (None, None) => (None, format!("scanned-{}.asc", self.camera.next_number())),
         };
-        let item = crate::Item::new(&c, &self.free_inbox_name(&name), data);
+        let item = crate::Item::new(&c, &self.free_inbox_name(&name), std::mem::take(&mut *data));
         if !public || item.kind != crate::FileKind::Gpg {
             self.camera.say(EN.gpg_restore_not_public.to_string());
             return true;

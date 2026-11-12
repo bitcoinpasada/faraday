@@ -686,8 +686,12 @@ impl Faraday {
                 ));
                 continue;
             }
-            if let Some((named, ext, data)) = self.read_code(zeroize::Zeroizing::new(p)) {
-                let item = Item::new(&c, &named.unwrap_or_else(|| format!("{stem}.{ext}")), data);
+            if let Some((named, ext, mut data)) = self.read_code(zeroize::Zeroizing::new(p)) {
+                let item = Item::new(
+                    &c,
+                    &named.unwrap_or_else(|| format!("{stem}.{ext}")),
+                    std::mem::take(&mut *data),
+                );
                 if item.kind == FileKind::Other {
                     note = Some(EN.boot_import_not_a_psbt.into());
                 } else {

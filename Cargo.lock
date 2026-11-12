@@ -990,6 +990,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-shell-api",
  "tiny-skia 0.12.0",
+ "zeroize",
 ]
 
 [[package]]

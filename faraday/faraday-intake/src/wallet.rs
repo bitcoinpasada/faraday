@@ -432,25 +432,41 @@ fn multipath(c: &Compute, descs: &[String]) -> Option<Result<WalletPolicy, Refus
     let mut seen = std::collections::BTreeSet::new();
     for d in wallets {
         if let Ok(w) = WalletPolicy::parse_any(c, &d) {
-            let text = w.to_descriptor();
-            if seen.insert(text.clone()) {
-                found.push((rank(&w), text, w));
+            if seen.insert(Seen(zeroize::Zeroizing::new(w.to_descriptor()))) {
+                found.push((rank(&w), w));
             }
         }
     }
     pick_best(found)
 }
 
+/// A descriptor kept only to tell a wallet already seen: it may hold a
+/// silent payments scan key, so it is wiped when dropped.
+#[derive(PartialEq, Eq)]
+struct Seen(zeroize::Zeroizing<String>);
+
+impl PartialOrd for Seen {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Seen {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.as_str().cmp(other.0.as_str())
+    }
+}
+
 /// The wallet of the best kind among `found`, or the refusal when that
 /// kind holds more than one different wallet; `None` when there is none.
-fn pick_best(found: Vec<(u8, String, WalletPolicy)>) -> Option<Result<WalletPolicy, Refusal>> {
+fn pick_best(found: Vec<(u8, WalletPolicy)>) -> Option<Result<WalletPolicy, Refusal>> {
     let best = found.iter().map(|(r, ..)| *r).min()?;
     if found.len() > 1 && found.iter().any(|(r, ..)| *r == UNRANKED) {
         return Some(Err(Refusal::NotAWallet(EN.wallet_several.into())));
     }
     let mut top = found.into_iter().filter(|(r, ..)| *r == best);
     Some(match (top.next(), top.next()) {
-        (Some((_, _, w)), None) => Ok(w),
+        (Some((_, w)), None) => Ok(w),
         _ => Err(Refusal::NotAWallet(EN.wallet_several.into())),
     })
 }
@@ -528,12 +544,11 @@ fn rank(w: &WalletPolicy) -> u8 {
 /// different wallet. A lone `/0/*` or `/1/*` among several is not a wallet,
 /// and a silent payments wallet beside any other refuses the file.
 fn one_of_several(c: &Compute, all: &[String]) -> Result<WalletPolicy, Refusal> {
-    let mut found: Vec<(u8, String, WalletPolicy)> = Vec::new();
+    let mut found: Vec<(u8, WalletPolicy)> = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
     let mut add = |w: WalletPolicy| {
-        let d = w.to_descriptor();
-        if seen.insert(d.clone()) {
-            found.push((rank(&w), d, w));
+        if seen.insert(Seen(zeroize::Zeroizing::new(w.to_descriptor()))) {
+            found.push((rank(&w), w));
         }
     };
     let mut plain = Vec::new();

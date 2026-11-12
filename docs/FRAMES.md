@@ -355,7 +355,10 @@ the list is painted in bands:
     band holds the hidden rows. The scratch is allocated once and a
     band allocates nothing after.
   - A pixel of a secret on show must not stay in the scratch: the rows
-    a band wrote in it are zeroed when it has painted its run.
+    a band wrote in it are zeroed when it has painted its run. The
+    list's text, which may be a seed's words, is wiped over its whole
+    capacity (`zeroize`, capacity kept) when the list is cleared after
+    a frame, so it does not stay until later frames overwrite it.
   Calls are recorded with caches held (the damage of a call is noted
   when it is recorded, and a path's may be a few pixels larger than its
   ink).

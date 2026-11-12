@@ -330,8 +330,16 @@ fn checksum_holds(lang: Language, words: &[&str]) -> bool {
 /// apart here, since nothing files them. Costs, for base43 text, a base43
 /// decoding of up to 8,192 characters (a Krux encrypted code's check).
 pub(crate) fn public_kind(kind: FileKind, enveloped: bool, data: &[u8]) -> Kind {
-    let text = String::from_utf8_lossy(data);
-    let text = text.as_ref();
+    // Valid text is borrowed; only bytes that are not text are copied, and
+    // that copy is wiped.
+    let lossy;
+    let text = match std::str::from_utf8(data) {
+        Ok(t) => t,
+        Err(_) => {
+            lossy = zeroize::Zeroizing::new(String::from_utf8_lossy(data).into_owned());
+            lossy.as_str()
+        }
+    };
     if enveloped {
         return Kind::File;
     }

@@ -133,7 +133,11 @@ impl List {
         self.bytes.clear();
         self.points.clear();
         self.lens.clear();
-        self.text.clear();
+        // The text may be a seed's words: the whole buffer is wiped, its
+        // capacity kept so the next frame records without allocating.
+        if !self.text.is_empty() {
+            zeroize::Zeroize::zeroize(&mut self.text);
+        }
         self.clips.clear();
     }
 }

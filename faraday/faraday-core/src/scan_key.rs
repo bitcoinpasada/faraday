@@ -1203,7 +1203,6 @@ impl Faraday {
         let Some((named, ext, data)) = self.read_code(bytes) else {
             return;
         };
-        let data = zeroize::Zeroizing::new(data);
         let kind = scan_read::public_kind(
             crate::wallet::classify(&c, "", &data),
             named.is_some(),
@@ -2045,7 +2044,6 @@ impl Faraday {
         };
         // A QR vault is not filed: its card opens the QR vault tool.
         if scan_read::is_qr_vault(&data) {
-            let data = zeroize::Zeroizing::new(data);
             return self.read_card_show(&c, Kind::QrVault, (named, ext, data));
         }
         // What the flow that opened it does not take, it hands over.
@@ -2057,7 +2055,6 @@ impl Faraday {
                 &data,
             );
             if !scan_read::asked(ask, kind) {
-                let data = zeroize::Zeroizing::new(data);
                 return self.read_card_show(&c, kind, (named, ext, data));
             }
         }
@@ -2067,7 +2064,6 @@ impl Faraday {
             && scan_read::public_kind(crate::wallet::classify(&c, "", &data), false, &data)
                 == Kind::Kef
         {
-            let data = zeroize::Zeroizing::new(data);
             return self.read_card_show(&c, Kind::Kef, (None, "txt", data));
         }
         self.file_scanned(&c, named, ext, data, intake);
@@ -2082,14 +2078,14 @@ impl Faraday {
         c: &Compute,
         named: Option<String>,
         ext: &str,
-        data: Vec<u8>,
+        mut data: zeroize::Zeroizing<Vec<u8>>,
         intake: bool,
     ) {
         // A file in the Faraday file envelope is a file sent as one, of
         // whatever kind (`docs/QR.md` §2): it is filed under its name.
         let enveloped = named.is_some();
         let name = self.scanned_file_name(named, ext, &data);
-        let item = crate::Item::new(c, &name, data);
+        let item = crate::Item::new(c, &name, std::mem::take(&mut *data));
         if item.kind == crate::wallet::FileKind::Other && !enveloped {
             if let Some(scan) = self.camera.scan.as_mut() {
                 scan.note = Some(EN.scanned_not_a_psbt.to_string());
@@ -2266,7 +2262,7 @@ impl Faraday {
     pub(crate) fn read_code(
         &mut self,
         bytes: zeroize::Zeroizing<Vec<u8>>,
-    ) -> Option<(Option<String>, &'static str, Vec<u8>)> {
+    ) -> Option<(Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>)> {
         let c = self.compute();
         let scan = self.camera.scan.as_mut()?;
         scan.reads += 1;
@@ -2355,7 +2351,7 @@ impl Faraday {
                 }
             }
         };
-        Some((named, ext, data))
+        Some((named, ext, zeroize::Zeroizing::new(data)))
     }
 }
 

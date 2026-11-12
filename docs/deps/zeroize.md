@@ -8,7 +8,9 @@ review 2026-09-11, L4).
 
 It also wipes the Argon2 working memory in `faraday_crypto::argon2`
 (the one Argon2 call the self-test, the KDBX container and the QR
-vault's OpenPGP message make) and the cluster buffer in `faraday-fat`.
+vault's OpenPGP message make), the cluster buffer in `faraday-fat`, and
+`faraday-draw`'s recorded drawing list, whose text is wiped when it is
+cleared after a frame.
 
 **Why this crate.** Its `zeroize()` is a volatile write followed by a
 compiler fence, which is what stops the optimiser from removing a store
