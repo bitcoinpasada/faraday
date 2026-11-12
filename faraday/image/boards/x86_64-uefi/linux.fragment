@@ -322,7 +322,7 @@ CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
 # CONFIG_HYPERVISOR_GUEST is not set
 
 # ---- Faraday: no filesystem on a stick is parsed by the kernel ----
-# (docs/history/PLAN.md §4.2.) The stick's partitions are read by faraday-disk, an
+# (docs/SECURITY-MODEL.md "What the kernel can reach".) The stick's partitions are read by faraday-disk, an
 # unprivileged process with its own FAT code, never mounted. This board
 # fragment comes after common/linux.fragment, which turns vfat on for
 # upstream's exchange partition; these lines turn it, and every other
@@ -343,14 +343,14 @@ CONFIG_EFI_PARTITION=y
 CONFIG_MSDOS_PARTITION=y
 
 # ---- Faraday: USB drivers for storage, HID, video and hubs only ----
-# (docs/history/PLAN.md §4.6.) A printer and the USB traffic monitor have no place on a
+# (docs/SECURITY-MODEL.md "What the kernel can reach".) A printer and the USB traffic monitor have no place on a
 # device that signs: usbmon would show every key a USB keyboard sends.
 # CONFIG_USB_PRINTER is not set
 # CONFIG_USB_MON is not set
 # CONFIG_USB_SERIAL is not set
 # CONFIG_USB_ACM is not set
 
-# ---- Faraday: no core dumps (docs/history/PLAN.md §5.3) ----
+# ---- Faraday: no core dumps (docs/SECURITY-MODEL.md "Stateless") ----
 # A crashing app would write its memory, keys included, to a file. The
 # core limit is 0 by default; this takes the feature out of the kernel so
 # nothing in userspace can raise it. The prompt needs EXPERT, set above.

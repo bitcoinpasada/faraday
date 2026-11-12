@@ -630,7 +630,7 @@ partition of the medium the machine started from, the Pi's own card's
 first, and every partition whose GPT name is `EFI system partition` (or
 `FARADAYBOOT`, on a stick made before F174), and `faraday-disk` refuses
 the same and any FAT volume labelled `EFI`, `bootfs` or `FARADAYBOOT`, in
-its boot sector or its root directory (`docs/history/PLAN.md` §4.3). That
+its boot sector or its root directory (`docs/SECURITY-MODEL.md` "When root is used"). That
 keeps back any stick's EFI system partition, which fails closed: Faraday
 writes no boot partition (F128).
 

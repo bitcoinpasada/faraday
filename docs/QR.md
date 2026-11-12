@@ -86,7 +86,7 @@ classifies everything, and names a wrong arrival instead of refusing it
 generically. The QR transfer tab's **Receive** and Home's **Scan** want
 anything. Every scanner opens only with no stick attached, as Add a key
 does: a frame may picture a seed. A stick plugged in while the camera is
-on is held back until it is off (`docs/history/PLAN.md` §5.4).
+on is held back until it is off (`docs/FLOWS.md` "Rules every flow keeps").
 
 | Arrived | Goes to |
 |---|---|
@@ -148,12 +148,12 @@ intact, not who sent it.
 1. **QR from images: PNG only, in the disk process only.** (JPEG was
    dropped on 2026-10-05: it needs a decoder crate.) An image
    file on a stick is never decoded by the app. `faraday-disk`
-   (`docs/history/PLAN.md` §4.3), which is unprivileged and holds no secret, decodes the
+   (`docs/SECURITY-MODEL.md` "When root is used"), which is unprivileged and holds no secret, decodes the
    image and the QR codes in it and passes the app the decoded text,
    each code arriving exactly as a camera scan would, and beside it the
    picture's bytes as they are (2026-10-08). The app keeps those bytes as
    an Inbox file, to be written to another stick as the same `.png`
-   (`docs/history/PLAN.md` §5.4), with the exposure of what the codes held; it never
+   (`docs/FLOWS.md` "Files"), with the exposure of what the codes held; it never
    parses them. A picture whose codes cannot be read still comes in, as
    one with no code read. Several images at
    once are read in turn, one at a time off the shell's own thread (the

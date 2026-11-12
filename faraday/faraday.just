@@ -353,7 +353,7 @@ faraday-stick-image: faraday-stick-bin
     cp "out/pi/$variant/output/images/esp.vfat" "out/stick/$name-boot.vfat"
     ls -l "out/stick/$name.img" "out/stick/$name-boot.vfat"
 
-# For development, not offered to users (docs/history/PLAN.md §5.5): writes the stick
+# For development, not offered to users (docs/DEVELOPING.md): writes the stick
 # image's boot partition over the first partition of a Faraday stick,
 # leaving its data partition, vaults and settings as they are.
 # Refuses a disk that is not removable on USB, has anything mounted, or

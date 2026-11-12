@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Boot the dev stick image and prove the stick rule (docs/history/PLAN.md §4.3, §5.1).
+"""Boot the dev stick image and prove the stick rule (docs/SECURITY-MODEL.md "When root is used", "Stateless").
 
     faraday/tools/disk-test.py [--no-kvm] [--stick FILE] IMAGE OUT_DIR TESTKIT_DIR
 
@@ -357,7 +357,7 @@ def main():
         ps = console.run("ps")
         expect("faraday-grant" in ps, "the grant helper runs")
         expect("faraday-disk" in ps, "the disk process runs")
-        # USB (docs/history/PLAN.md §4.6): only hard-wired devices are authorised by
+        # USB (docs/SECURITY-MODEL.md "What the kernel can reach"): only hard-wired devices are authorised by
         # the kernel; the grant helper authorises the rest by class.
         expect("usbcore.authorized_default=2" in console.run("cat /proc/cmdline"),
                "the kernel authorises only hard-wired USB devices by itself")

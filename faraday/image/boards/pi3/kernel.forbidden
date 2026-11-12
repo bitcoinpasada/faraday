@@ -10,7 +10,7 @@ BCM_VCIO       /dev/vcio is the firmware mailbox from userspace, which is how vc
 # The screen is DRM's, found at boot (docs/IMAGES.md §3.3).
 FB_BCM2708    the firmware's framebuffer, which would compete with DRM's for /dev/fb0
 
-# Faraday (docs/history/PLAN.md §4.2, §4.6).
+# Faraday (docs/SECURITY-MODEL.md "What the kernel can reach").
 FAT_FS        the card's FAT is read by faraday-disk, unprivileged, never by the kernel
 VFAT_FS       as FAT_FS
 MSDOS_FS      as FAT_FS
@@ -19,7 +19,7 @@ ISO9660_FS    as EXFAT_FS
 USB_PRINTER   a printer interface has nothing to bind to here
 USB_MON       the USB traffic monitor has nothing to show anyone on a device that signs
 
-# Faraday (docs/history/PLAN.md §5.3): no process's memory is ever written to a file.
+# Faraday (docs/SECURITY-MODEL.md "Stateless"): no process's memory is ever written to a file.
 COREDUMP      a crash would write the app's memory, keys included, to a file
 
 # The display only.

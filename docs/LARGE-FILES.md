@@ -21,7 +21,7 @@ this spec are in `docs/history/LARGE-FILES-LOG.md`.
 
 ## 0. Rules for the implementing agent
 
-The privilege split of `docs/history/PLAN.md` §4.3 stays as it is: the
+The privilege split of `docs/SECURITY-MODEL.md` "When root is used" stays as it is: the
 disk process reads and writes FAT and nothing else; the app decides
 what a file is and hashes what it signs. The disk process still treats
 the app as hostile: no request lets the app rename or remove a file
@@ -214,7 +214,7 @@ Everything it keeps comes from that one pass:
   serial, §8);
 - an OpenPGP SHA-256 state and an OpenPGP SHA-512 state over the file's
   bytes, as a binary signature (type `0x00`) hashes them before its
-  trailer. Faraday makes no text-mode signature. Both of `docs/history/PLAN.md` §7's
+  trailer. Faraday makes no text-mode signature. Both of `docs/FLOWS.md` "GPG"'s
   hashes run, so Sign a file still asks which. The file's SHA-256 shown
   anywhere is a copy of the SHA-256 state, finished: the hash a person
   compares and the hash GPG signs are one computation;
@@ -232,7 +232,7 @@ each other, as a file copied in replaces one of its name today. "Already
 in by name and size" compares the entry's kept size.
 
 **Across a lock** it holds hashes and no bytes of the file, so a lock
-keeps it, as it keeps public files (`docs/history/PLAN.md` §5.3), and its name stays
+keeps it, as it keeps public files (`docs/SECURITY-MODEL.md` "Stateless"), and its name stays
 as the names of public files do. It is kept in `/run/faraday/signing/`
 (§4.2), one file per entry: a magic `FSOE`, a version byte, then each
 field with its length. The hash states are kept whole: each one's
@@ -326,7 +326,7 @@ keeps its 120. A request that times out ends the transfer as Stop does.
 
 ## 9. Untrusted input
 
-Bounds that hold whatever the file's size (`docs/history/PLAN.md` §4.4):
+Bounds that hold whatever the file's size (`docs/STANDARDS.md` §0):
 
 - a picture over the threshold is not decoded for codes (§8).
 
@@ -412,6 +412,6 @@ Outbox file of any size is written. Then §5 and §6: the single streamed
 pass, the signing-only entry and its box, GPG over it; the 200 MiB
 fixture. Each comes with its tests.
 
-Until the first is built, `README.md`, `docs/history/PLAN.md` and
+Until the first is built, `README.md` and
 `docs/FLOWS.md` give today's 18 MiB and mark this spec's behaviour as not
 built; building it changes them.

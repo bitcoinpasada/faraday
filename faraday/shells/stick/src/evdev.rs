@@ -310,7 +310,7 @@ pub struct Device {
     /// Part of the machine: the built-in keyboard and touchpad, anything
     /// on a hard-wired USB port, the touch panel on the machine's own bus.
     /// Any other device's input is held back until a person says it is
-    /// theirs (`docs/history/PLAN.md` §4.6, F153).
+    /// theirs (`docs/SECURITY-MODEL.md` "What the kernel can reach", F153).
     pub trusted: bool,
     /// A HID touchscreen's axis ranges, from its report descriptor
     /// (`hid.rs`). None for a panel that is not HID, such as the Pi's

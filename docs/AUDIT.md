@@ -220,7 +220,7 @@ tools (`faraday-testkit`, `faraday-argon2-bench`, `faraday-fontbake`,
 `costs-lint`). The snapshot shell and the testkit tool build the test
 keys and wallets they render and write, and ship in nothing. The Starter
 reads a BitLocker recovery password through Windows' own API (§4).
-These matter to the trust model (`docs/history/PLAN.md` §4 — privilege separation,
+These matter to the trust model (`docs/SECURITY-MODEL.md`: privilege separation,
 untrusted input, the stick rule) but never see a key, a seed or a
 passphrase; that is a property of the process boundaries, not of
 anything in this file.

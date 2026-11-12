@@ -1,5 +1,5 @@
 //! The grant helper, as `rcS` starts it: as root, once, in the
-//! background (`docs/history/PLAN.md` §4.3).
+//! background (`docs/SECURITY-MODEL.md` "When root is used").
 //!
 //! ```text
 //! faraday-grant
@@ -10,7 +10,7 @@
 //! bounding set and the ambient set emptied while it is still root, its
 //! own user and group (`ofgrant`, 202) with no supplementary groups,
 //! `CAP_CHOWN` the only capability it keeps, and no-new-privileges set.
-//! It has no seccomp filter (`docs/history/PLAN.md` §12, decision 8): its only input
+//! It has no seccomp filter: its only input
 //! is `/sys`, and it reads nothing from a stick.
 //!
 //! Then it looks at `/sys` twice a second for as long as the machine is

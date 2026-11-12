@@ -127,7 +127,7 @@ stops what depends on it: no export, no signing, no loading of the wallet.
   reproducible build, pinned and hashed like everything else.
 - **Secrets in a second language.** Python cannot reliably wipe a seed:
   strings are immutable and copied by the runtime. The lock cycle still
-  ends the process and the kernel zeroes its memory (`docs/history/PLAN.md` §5.3), but
+  ends the process and the kernel zeroes its memory (`docs/SECURITY-MODEL.md` "Stateless"), but
   between locks the seed would sit in a second process's heap. This is the
   cost of option C, and the reason to keep it separate from B.
 - **Speed.** Pure-Python curve arithmetic takes tens of milliseconds an

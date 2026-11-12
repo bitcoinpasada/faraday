@@ -1,5 +1,5 @@
 # Faraday: upstream's common/kernel.required at 96e2144 without VFAT_FS,
-# which docs/history/PLAN.md §4.2 forbids: no stick is mounted.
+# which docs/SECURITY-MODEL.md "What the kernel can reach" forbids: no stick is mounted.
 # What every Faraday image needs to come up and be used, whatever it
 # runs on. A driver that quietly loses a dependency — because the
 # subsystem above it went out — fails here rather than on the owner's desk.

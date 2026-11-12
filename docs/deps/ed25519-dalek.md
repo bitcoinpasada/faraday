@@ -3,7 +3,7 @@
 **Cryptography:** computes
 
 **Purpose.** Ed25519 signatures for Faraday's GPG keys
-(`faraday/faraday-pgp`, `docs/history/PLAN.md` §7): the certification primary key and
+(`faraday/faraday-pgp`, `docs/FLOWS.md` "GPG"): the certification primary key and
 the signing subkey are Ed25519, and every self-signature, detached
 signature and revocation certificate Faraday writes is one Ed25519
 signature over an OpenPGP digest.

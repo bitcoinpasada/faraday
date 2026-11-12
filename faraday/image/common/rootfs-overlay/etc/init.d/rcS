@@ -1,6 +1,6 @@
 #!/bin/sh
 # Faraday's rcS, without a single mount of
-# storage (docs/history/PLAN.md §4.1, §4.3). The kernel has no FAT driver; a stick's
+# storage (docs/SECURITY-MODEL.md "One program, not a desktop", "When root is used"). The kernel has no FAT driver; a stick's
 # partitions reach the disk process only through faraday-grant.
 #
 # The kernel mounts devtmpfs on /dev itself (CONFIG_DEVTMPFS_MOUNT), and
@@ -33,7 +33,7 @@ mount -o remount,nosuid,noexec /dev
 echo 2 > /proc/sys/kernel/kptr_restrict
 echo 3 > /proc/sys/kernel/yama/ptrace_scope
 
-# USB interfaces (docs/history/PLAN.md §4.6): no root hub authorises an interface by
+# USB interfaces (docs/SECURITY-MODEL.md "What the kernel can reach"): no root hub authorises an interface by
 # itself from here on. usbcore.authorized_default=2 already keeps every
 # device off a hard-wired port unauthorised; faraday-grant authorises
 # those devices and then their interfaces one class at a time.
@@ -41,7 +41,7 @@ for f in /sys/bus/usb/devices/usb*/interface_authorized_default; do
     [ -f "$f" ] && echo 0 > "$f"
 done
 
-# The clean marker's directory (docs/history/PLAN.md §5.1): the app writes the marker
+# The clean marker's directory (docs/SECURITY-MODEL.md "Stateless"): the app writes the marker
 # while it is clean and removes it when it is not; faraday-grant reads it.
 mkdir -p /run/faraday-clean
 chown faraday:faraday /run/faraday-clean

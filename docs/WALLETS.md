@@ -16,7 +16,7 @@ Wallets-tab types that wrap `faraday-psbt`, `faraday-bip`, `faraday-codec` and
 whether `core/` can build it, load it, sign for it, and in how many
 rounds; the shared steps of §3, each a declared group of fields, a
 summary line and a result, rendered by `faraday-ui` as step cards on
-`wide` and pages on `small` (`docs/history/PLAN.md` §9.1); and flows as ordered lists
+`wide` and pages on `small` (`docs/LAYOUT.md`); and flows as ordered lists
 of steps per wallet kind (§4–§6), the reassembly model (§2), and the
 Wallets tab's own non-cryptographic logic: the split-backup plan, the
 two-round amount memory, the descriptor QR plan, the plain-sentence

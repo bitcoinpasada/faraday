@@ -649,7 +649,7 @@ else", that line alone in the danger tone and listed first; then
 **Then**. At power-off a vault never written or changed since, and the
 files For the stick, are under Wiped from memory, in the danger tone. The
 write-out sheet adds **Dropped from Files** before Then: each Inbox
-file a lock drops (`docs/history/PLAN.md` §5.3); its Then reads "Lock,
+file a lock drops (`docs/SECURITY-MODEL.md` "Stateless"); its Then reads "Lock,
 and the visit writes them" with the stick already in.
 
 **Power off** → the sheet listing what is kept and what is wiped
@@ -1929,7 +1929,7 @@ power-off times (30 and 60 minutes at first, F58), reduce motion, light
 or dark (light on a device with no settings saved, decision 32), the
 network (decision 14), ignored devices, **Time** and About (version, build hash). They are kept across a
 lock in RAM, and across a power-off in `faraday-settings.txt` on the
-boot stick, read at boot before the passphrase (`docs/history/PLAN.md` §5.2). Never
+boot stick, read at boot before the passphrase (`docs/FLOWS.md` "Files"). Never
 for an idle time, the signed-amount memory's seal and the network are
 not read from the file.
 
@@ -2110,8 +2110,7 @@ Ruled out (owner, 2026-10-16): **Restart into the BIOS**, the computer
 restarting straight into its firmware screen by the UEFI variable
 `OsIndications`, as Faraday Starter does on Windows from the person's
 own system. The stick writes no firmware variable: README (Stateless,
-"no access to its firmware variables"), docs/history/PLAN.md ("Faraday never writes
-EFI variables"), `EFIVAR_FS` in the x86_64-uefi
+"no access to its firmware variables"), `EFIVAR_FS` in the x86_64-uefi
 board's `kernel.forbidden`, and the Learn pages that cite it. It would
 also need a privileged helper for the write. The BIOS key row does the
 same job and writes nothing.

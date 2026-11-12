@@ -13,7 +13,7 @@ BCM2835_VCHIQ_MMAL        the transport VIDEO_BCM2835 talks to the GPU over
 
 CPU_FREQ_DEFAULT_GOV_SCHEDUTIL the Pi defconfig's default governor is powersave, which holds the cores at their lowest clock
 
-# Faraday (docs/history/PLAN.md §4.3).
+# Faraday (docs/SECURITY-MODEL.md "When root is used").
 MSDOS_PARTITION           the card's partitions as their own nodes, so the whole card is never handed out
 
 # The display, input and storage (docs/IMAGES.md §1).

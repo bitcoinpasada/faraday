@@ -1,4 +1,4 @@
-//! FAT as other implementations see it (`docs/history/PLAN.md` §12.5): volumes made by
+//! FAT as other implementations see it (`docs/STICK-IDENTITY.md`): volumes made by
 //! `mkfs.fat`, files put there by mtools and read here, files written
 //! here and read by mtools, labels and serials written here read by
 //! dosfstools' `fatlabel` and labels it wrote read here, and every volume

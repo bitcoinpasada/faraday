@@ -47,7 +47,7 @@ RMI4_CORE                 the pads that leave PS/2 for the SMBus once they are a
 RMI4_F11                  the pointing function a pad reports through; a core with no function driver reports nothing
 I2C_I801                  the SMBus controller on every Intel chipset, which is where those pads go
 
-# Faraday (docs/history/PLAN.md §4.2, §4.3).
+# Faraday (docs/SECURITY-MODEL.md "What the kernel can reach", "When root is used").
 MSDOS_PARTITION           an MBR stick's partitions as their own nodes, so the whole disk is never handed out
 
 # Upstream hardening, at 96e2144.

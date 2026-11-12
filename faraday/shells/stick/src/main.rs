@@ -1,6 +1,6 @@
 //! Faraday's stick shell: it
 //! hosts `faraday-core`. The app (`Faraday`), sticks reported to
-//! it by the disk process over its two FIFOs (`docs/history/PLAN.md` §4.3), or from
+//! it by the disk process over its two FIFOs (`docs/SECURITY-MODEL.md` "When root is used"), or from
 //! `/proc/mounts` where there is no disk process, with their files read
 //! and written through `faraday-storage`; the clean marker
 //! `faraday-grant` checks, published while the app is clean (§5.1); the
@@ -217,7 +217,7 @@ enum Wake {
     Frame,
     /// The core's worker has an answer; the pass's tick applies it.
     Work,
-    /// What a device not yet believed sent, held back (`docs/history/PLAN.md` §4.6).
+    /// What a device not yet believed sent, held back (`docs/SECURITY-MODEL.md` "What the kernel can reach").
     Held(u32, HeldInput),
     /// The panic chord, Super and S, closed (`true`) or opened again
     /// (`keyboard.rs`).
@@ -416,12 +416,12 @@ const USB_DEVICES: &str = "/sys/bus/usb/devices";
 /// How often the mounts are looked at again.
 const STICK_SCAN: Duration = Duration::from_millis(700);
 
-/// The disk process's FIFOs, which `rcS` makes (`docs/history/PLAN.md` §4.3). Where
+/// The disk process's FIFOs, which `rcS` makes (`docs/SECURITY-MODEL.md` "When root is used"). Where
 /// they are missing, sticks are read from the mounts.
 const DISK_REQUESTS: &str = "/run/faraday-disk/requests";
 const DISK_RESPONSES: &str = "/run/faraday-disk/responses";
 
-/// The clean marker (`docs/history/PLAN.md` §5.1): present exactly while the app is in
+/// The clean marker (`docs/SECURITY-MODEL.md` "Stateless"): present exactly while the app is in
 /// the clean state. `faraday-grant` hands a partition out only while it
 /// is there, and takes every one back when it goes.
 const CLEAN_MARKER: &str = "/run/faraday-clean/clean";

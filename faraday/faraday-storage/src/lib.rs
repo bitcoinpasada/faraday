@@ -3,7 +3,7 @@
 //! A stick is a directory: a mounted FAT partition on the device, a plain
 //! folder on a desktop. Each shell finds its sticks its own way and hands
 //! the directories here; this crate lists them, reads a file the app asked
-//! for, writes one as `docs/history/PLAN.md` §4.3 says (a new file, read back and
+//! for, writes one as `docs/SECURITY-MODEL.md` "When root is used" says (a new file, read back and
 //! compared, then renamed into place, never over a file already there),
 //! and keeps the Inbox and Outbox where the next process finds them.
 
@@ -1135,7 +1135,7 @@ fn serve_queued(
     }
 }
 
-/// The disk process, from the shell's side (`docs/history/PLAN.md` §4.3): requests go
+/// The disk process, from the shell's side (`docs/SECURITY-MODEL.md` "When root is used"): requests go
 /// down one FIFO and answers come up the other. A thread reads the
 /// answers, so a disk process that never answers costs a timeout rather
 /// than the shell; an answer that comes after its timeout is known by its

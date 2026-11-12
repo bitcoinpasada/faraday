@@ -5,7 +5,7 @@ binary), on top of its use in `faraday-v4l2`
 (`docs/deps/libc.md`). The version is the workspace's; no new crate
 enters the lock file.
 
-**Why it is needed.** `docs/history/PLAN.md` §4.3: the helper starts as root, keeps
+**Why it is needed.** `docs/SECURITY-MODEL.md` "When root is used": the helper starts as root, keeps
 `CAP_CHOWN` alone, drops to its own user, empties its bounding set and
 sets no-new-privileges, then changes the owner of partition nodes. `std`
 offers none of these: `chown` and `chmod` on a path through `libc::chown`
@@ -15,8 +15,7 @@ keep-capabilities and no-new-privileges; `setgroups`, `setgid` and
 takes those declarations and `SYS_capset`.
 
 **What it is not used for.** The capability header and data structs are
-declared in `faraday-grant`'s own `main.rs`. There is no seccomp filter
-(`docs/history/PLAN.md` §12, decision 8).
+declared in `faraday-grant`'s own `main.rs`. There is no seccomp filter.
 
 **Why `unsafe` is allowed in that crate alone.** Like `faraday-v4l2`,
 `faraday-grant` does not inherit the workspace's `unsafe_code = "forbid"`

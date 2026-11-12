@@ -29,7 +29,7 @@ checklist. The flow is written here once; `docs/history/NEW-WALLET.md` §14.8,
 
 Rules still in force:
 
-- A stick is handed only to a clean process (`docs/history/PLAN.md` §5.3 and §5.4).
+- A stick is handed only to a clean process (`docs/SECURITY-MODEL.md` "Stateless" and `docs/FLOWS.md` "Rules every flow keeps").
   Nothing in this flow opens a secret in a process that holds a stick,
   or hands a stick to a process that holds a secret. A change that would
   need either stops and asks the owner.
@@ -195,7 +195,7 @@ no vault the key goes into.
 
 - **A clean process first.** With anything secret open when step 2
   begins, its card's foot is **Lock and bring in the sticks**: the lock
-  of `docs/history/PLAN.md` §5.3, the flow's state kept.
+  described in `docs/SECURITY-MODEL.md` "Stateless", the flow's state kept.
 - **Each stick drawn, in any order** (`docs/STICK-SETUP.md` §3): a figure
   per stick with its name, the vaults it will hold and its state
   (Waiting, Reading, Checked with a tick, or its problem in one line).

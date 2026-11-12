@@ -3,7 +3,7 @@
 **Cryptography:** computes
 
 **Purpose.** RSA-2048 for Faraday's Secure Boot keys
-(`faraday/faraday-sb`, `docs/history/PLAN.md` §8): UEFI Secure Boot verifies PK, KEK
+(`faraday/faraday-sb`, `docs/FLOWS.md` "Secure Boot"): UEFI Secure Boot verifies PK, KEK
 and db signatures and Authenticode signatures with RSA PKCS #1 v1.5 over
 SHA-256, so the platform key, key exchange key and db key are RSA-2048
 and every certificate, `.auth` update and signed image Faraday writes

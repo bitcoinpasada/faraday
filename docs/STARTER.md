@@ -1267,7 +1267,7 @@ The rule, by name alone: a name beginning with a dot, or one of
 `System Volume Information`, `$RECYCLE.BIN`, `RECYCLER`, `desktop.ini`
 and `Thumbs.db` compared ignoring case, is the computer's own. It is
 never listed, never read and never counted: not in the first look at
-the boot stick (`docs/history/PLAN.md` §5.4), not on a visit, not in the Inbox, and
+the boot stick (`docs/FLOWS.md` "Rules every flow keeps"), not on a visit, not in the Inbox, and
 a read that names one is refused. Folders are never entered in any
 case. The hidden and system attributes are not trusted alone, either
 way: Windows marks its own files with them, but a file is ignored for
@@ -2079,7 +2079,7 @@ building.
 The first and, for now, only screen is the 2.8 inch panel (§12, D1);
 the next profile comes with the next screen tried. A USB webcam works
 on every Pi, because the Pi's USB already allows cameras
-(docs/history/PLAN.md §3); a camera module works on the legacy camera stack, which
+(docs/HARDWARE.md §1); a camera module works on the legacy camera stack, which
 reads Camera Module v1 and v2, not v3. The Starter's Pi card page says
 which. HDMI with no touch needs a USB keyboard and mouse, which the Pi
 forbids today (§12, D2). A Pi card is upgraded by writing it whole.

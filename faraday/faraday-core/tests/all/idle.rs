@@ -1,4 +1,4 @@
-//! The idle timers (`docs/history/PLAN.md` §12.3, F58): a session left alone is warned
+//! The idle timers (F58): a session left alone is warned
 //! at twenty-five minutes, with a countdown, and locks at thirty; a
 //! machine left alone with nothing held powers off at sixty, unless the
 //! Outbox still holds what would be lost. Make a new wallet holds the

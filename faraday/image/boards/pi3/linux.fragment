@@ -136,7 +136,7 @@ CONFIG_USB_VIDEO_CLASS=y
 # without it. CONFIG_STAGING, because the legacy camera lives there.
 
 # ---- Faraday: no filesystem on the card is parsed by the kernel ----
-# (docs/history/PLAN.md §4.2.) faraday-disk reads the card's data partition, unprivileged,
+# (docs/SECURITY-MODEL.md "What the kernel can reach".) faraday-disk reads the card's data partition, unprivileged,
 # with its own FAT code; common/linux.fragment turns vfat on for upstream's
 # mount, and these lines turn it off again. MBR partitions stay, so the
 # card's partitions are their own nodes and the whole card is never handed
@@ -150,11 +150,11 @@ CONFIG_USB_VIDEO_CLASS=y
 # CONFIG_UDF_FS is not set
 CONFIG_PARTITION_ADVANCED=y
 CONFIG_MSDOS_PARTITION=y
-# USB is kept for a webcam (docs/history/PLAN.md §4.6): no printer, no traffic monitor.
+# USB is kept for a webcam (docs/SECURITY-MODEL.md "What the kernel can reach"): no printer, no traffic monitor.
 # CONFIG_USB_PRINTER is not set
 # CONFIG_USB_MON is not set
 
-# ---- Faraday: no core dumps (docs/history/PLAN.md §5.3) ----
+# ---- Faraday: no core dumps (docs/SECURITY-MODEL.md "Stateless") ----
 # A crashing app would write its memory, keys included, to a file. The
 # core limit is 0 by default; this takes the feature out of the kernel so
 # nothing in userspace can raise it. The prompt needs EXPERT.

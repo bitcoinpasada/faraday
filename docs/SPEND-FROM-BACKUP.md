@@ -24,7 +24,7 @@ control the job needs on the page that needs it. Creating wallets and
 backing up are out of scope.
 
 Faraday's own parts: the vault, the stick rule and the lock cycle
-(`docs/history/PLAN.md` §5, `docs/FLOWS.md`).
+(`docs/SECURITY-MODEL.md`, `docs/FLOWS.md`).
 
 ## 1. Rules
 

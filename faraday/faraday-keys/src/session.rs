@@ -543,7 +543,7 @@ impl Keys {
     }
 
     /// Whether any secret is held: the stick rule's test
-    /// (`docs/history/PLAN.md` §5.1).
+    /// (`docs/SECURITY-MODEL.md` "Stateless").
     pub fn holds_secret(&self) -> bool {
         !self.entries.is_empty()
             || self.sweep.is_some()

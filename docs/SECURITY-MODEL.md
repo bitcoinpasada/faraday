@@ -246,7 +246,7 @@ An amnesiac live system makes a general-purpose desktop forget. Its
 amnesia is a policy laid over a system that can still reach a network
 and a disk. Faraday does not have those capabilities to begin with.
 Every component that parses input is attack surface, and Faraday's
-complete list of untrusted input fits in one paragraph (`docs/history/PLAN.md` §4.4).
+complete list of untrusted input fits in one paragraph.
 
 | | Amnesiac live Linux | Faraday |
 |---|---|---|

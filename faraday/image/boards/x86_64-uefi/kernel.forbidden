@@ -20,7 +20,7 @@ NVME_CORE               the layer BLK_DEV_NVME sits on, named so a driver cannot
 MMC                     the laptop's eMMC and its SD card reader, which are a disk and a card this device does not read
 SCSI_LOWLEVEL           the SAS, iSCSI, fibre-channel and RAID controllers a disk can be behind; the USB stick is behind none of them
 
-# Faraday (docs/history/PLAN.md §4.2): no filesystem on a stick is parsed by the kernel.
+# Faraday (docs/SECURITY-MODEL.md "What the kernel can reach"): no filesystem on a stick is parsed by the kernel.
 FAT_FS        a stick's FAT is read by faraday-disk, unprivileged, never by the kernel
 VFAT_FS       as FAT_FS
 MSDOS_FS      as FAT_FS
@@ -30,13 +30,13 @@ ISO9660_FS    as EXFAT_FS
 UDF_FS        as EXFAT_FS
 HFSPLUS_FS    as EXFAT_FS
 
-# Faraday (docs/history/PLAN.md §4.6): USB drivers for storage, HID, video and hubs only.
+# Faraday (docs/SECURITY-MODEL.md "What the kernel can reach"): USB drivers for storage, HID, video and hubs only.
 USB_PRINTER   a printer interface has nothing to bind to here
 USB_MON       the USB traffic monitor would show every key a USB keyboard sends
 USB_SERIAL    a serial adapter is a way in, not a device this signs with
 USB_ACM       as USB_SERIAL
 
-# Faraday (docs/history/PLAN.md §5.3): no process's memory is ever written to a file.
+# Faraday (docs/SECURITY-MODEL.md "Stateless"): no process's memory is ever written to a file.
 COREDUMP      a crash would write the app's memory, keys included, to a file
 
 # Upstream hardening, at 96e2144.

@@ -233,7 +233,7 @@ CONFIG_LOCALVERSION="${FARADAY_LOCALVERSION:?}"
 # CONFIG_LOCALVERSION_AUTO is not set
 EOF
 
-# ---- the disk process and the grant helper (docs/history/PLAN.md §4.3),
+# ---- the disk process and the grant helper (docs/SECURITY-MODEL.md "When root is used"),
 # beside the app in /usr/bin. The app itself is the faraday package's.
 mkdir -p "$gen/overlay/usr/bin"
 # The overlay is kept between builds: an earlier build's boot copier is

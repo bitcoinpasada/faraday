@@ -721,7 +721,7 @@ S2K and every data packet.
   (a backup's "Lock it and make a new vault") refuses the same way with
   a toast.
 
-Sealing happens on every lock (`docs/history/PLAN.md` §5.3), and for one
+Sealing happens on every lock (`docs/SECURITY-MODEL.md` "Stateless"), and for one
 vault alone when a backup's vault item locks it to make the next vault
 ("Lock it and make a new vault"); that vault closes and the rest stay
 open. A QR vault is never open, so never sealed at a lock: the tool seals
@@ -757,7 +757,7 @@ replaces that copy; no older copy is kept. On a stick visit:
    overwrite. The visit's Already on the stick sheet decides nothing for a
    vault. The visit holds no passphrase and opens nothing: a
    process that has unlocked a vault is never handed a stick
-   (`docs/history/PLAN.md` §5.1). Counts are compared at unlock instead
+   (`docs/SECURITY-MODEL.md` "Stateless"). Counts are compared at unlock instead
    (§11).
 2. Write the sealed vault as a new file beside it, read it back and
    compare byte for byte.

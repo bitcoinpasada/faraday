@@ -79,7 +79,7 @@ if [ -n "$tree_state" ]; then
 fi
 "${DOCKER:-docker}" build -t faraday-image "$image"
 # /binary holds the app (faraday) and the disk process and the grant
-# helper (docs/history/PLAN.md §4.3) beside it.
+# helper (docs/SECURITY-MODEL.md "When root is used") beside it.
 in_container() {
     "${DOCKER:-docker}" run --rm \
         -e BOARD="$board" -e PANEL="$panel" -e DEV="$dev" \
