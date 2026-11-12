@@ -32,6 +32,18 @@
 //! by [`Codex32::parse`], which stays the only way in, and the screens
 //! apply nothing without the person (§8.4).
 //!
+//! Constant time, as far as the values go: the syndromes and everything
+//! worked out from them (the discrepancies and the locator of
+//! Berlekamp–Massey, the roots, the changes) are only multiplied (GF(32)'s
+//! masked product), selected with masks and scanned in full, with no
+//! branch, table index or early exit on them; every box is tried and
+//! the verdict is taken once at the end. What still varies is public or
+//! the verdict: the string's length, the code chosen for it, which boxes
+//! the caller marked unreadable (and so the count and the run), whether
+//! a correction is found or refused, the Gaussian solve of a long run
+//! (`run_of`, which branches on its pivots), and the building of the
+//! proposal from the changes.
+//!
 //! The arithmetic: syndromes are the failing residue evaluated at the
 //! generator's eight consecutive roots in GF(1024); erasures are taken
 //! out of them (Forney syndromes), Berlekamp–Massey finds the
@@ -44,6 +56,7 @@
 
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Zeroize, ZeroizeOnDrop};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq, ConstantTimeGreater};
 
 use super::{
     CHECKSUM_LEN, Codex32, Error, HEADER_LEN, INV, LONG_CHECKSUM_LEN, MAX_DATA_LEN, MS32_CONST,
@@ -249,37 +262,47 @@ fn derivative(p: &[u16]) -> [u16; POLY] {
 }
 
 /// Berlekamp–Massey: the shortest linear recurrence that generates `t`,
-/// as its connection polynomial and its length.
+/// as its connection polynomial and its length. Every step does the same
+/// work whatever the discrepancy is: both outcomes are worked out and
+/// chosen between with masks, and the loops run over the fixed width of
+/// a polynomial, not over the length found so far.
 fn berlekamp_massey(t: &[u16]) -> ([u16; POLY], usize) {
     let mut c = [0u16; POLY];
     let mut b = [0u16; POLY];
     c[0] = 1;
     b[0] = 1;
-    let (mut l, mut m, mut last) = (0usize, 1usize, 1u16);
+    let (mut l, mut m, mut last) = (0u64, 1u64, 1u16);
     for (n, &tn) in t.iter().enumerate() {
+        // The degree of c never passes l, so the terms past it are 0.
         let mut d = tn;
-        for (i, &ci) in c.iter().enumerate().take(l + 1).skip(1) {
+        for (i, &ci) in c.iter().enumerate().take(n + 1).skip(1) {
             d ^= mul(ci, t[n - i]);
         }
-        if d == 0 {
-            m += 1;
-            continue;
+        let nonzero = !d.ct_eq(&0);
+        let grow = nonzero & !(2 * l).ct_gt(&(n as u64));
+
+        // b shifted up by m places, by a scan of every place.
+        let mut shifted = [0u16; POLY];
+        for (j, &bj) in b.iter().enumerate() {
+            for (i, slot) in shifted.iter_mut().enumerate() {
+                let hit = (j as u64 + m).ct_eq(&(i as u64));
+                *slot = u16::conditional_select(slot, &bj, hit);
+            }
         }
         let before = c;
+        // With d = 0 the coefficient is 0 and c is left as it was.
         let coef = mul(d, inv(last));
-        for (ci, &bi) in c[m..].iter_mut().zip(&b) {
-            *ci ^= mul(coef, bi);
+        for (ci, &si) in c.iter_mut().zip(&shifted) {
+            *ci ^= mul(coef, si);
         }
-        if 2 * l <= n {
-            l = n + 1 - l;
-            b = before;
-            last = d;
-            m = 1;
-        } else {
-            m += 1;
+        for (bi, &old) in b.iter_mut().zip(&before) {
+            *bi = u16::conditional_select(bi, &old, grow);
         }
+        last = u16::conditional_select(&last, &d, grow);
+        l = u64::conditional_select(&l, &(n as u64 + 1).wrapping_sub(l), grow);
+        m = u64::conditional_select(&(m + 1), &1, grow);
     }
-    (c, l)
+    (c, l as usize)
 }
 
 // ---------------------------------------------------------------------
@@ -527,41 +550,44 @@ fn bch(code: &Code, d: &Damaged, fixed: usize) -> Option<Changes> {
     }
 
     // Every box whose locator is a root of Λ is a substitution; there
-    // must be exactly l of them, none fixed and none unreadable.
-    let mut found = 0usize;
-    let mut wrong = [false; MAX_DATA_LEN];
+    // must be exactly l of them, none fixed and none unreadable. Every
+    // box is tried and none ends the search; the verdict is taken once
+    // at the end.
+    let mut found = 0u64;
+    let mut bad = Choice::from(0);
+    let mut wrong = [0u8; MAX_DATA_LEN];
     for (i, w) in wrong.iter_mut().enumerate().take(n) {
         let x_inv = exp(ORDER - code.locator_log(n - 1 - i));
-        if eval(&lambda[..=l], x_inv) == 0 {
-            if i < fixed || d.unreadable[i] {
-                return None;
-            }
-            *w = true;
-            found += 1;
-        }
+        let root = eval(&lambda, x_inv).ct_eq(&0);
+        let public = Choice::from(u8::from(i < fixed || d.unreadable[i]));
+        bad |= root & public;
+        *w = root.unwrap_u8();
+        found += u64::from(*w);
     }
-    if found != l {
-        return None;
-    }
+    bad |= !found.ct_eq(&(l as u64));
 
-    // Forney: each box's change from Ω = SΨ mod x^8 and Ψ = ΛΓ.
-    let psi = product(&lambda[..=l], &gamma[..=e], POLY);
-    let omega = product(&syndromes, &psi[..=l + e], SYNDROMES);
-    let dpsi = derivative(&psi[..=l + e]);
+    // Forney: each box's change from Ω = SΨ mod x^8 and Ψ = ΛΓ, worked
+    // out at every box and kept where the box is wrong or unreadable.
+    // The higher coefficients of these are 0, so the whole arrays are
+    // used and the work does not follow l.
+    let psi = product(&lambda, &gamma[..=e], POLY);
+    let omega = product(&syndromes, &psi, SYNDROMES);
+    let dpsi = derivative(&psi);
     let mut changes = Changes([0u8; MAX_DATA_LEN]);
-    for i in (0..n).filter(|&i| wrong[i] || d.unreadable[i]) {
+    for (i, &w) in wrong.iter().enumerate().take(n) {
         let xl = code.locator_log(n - 1 - i);
         let x_inv = exp(ORDER - xl);
-        let den = eval(&dpsi[..l + e], x_inv);
-        if den == 0 {
-            return None;
-        }
+        let den = eval(&dpsi, x_inv);
         let scale = exp(xl * (1 + ORDER - code.first % ORDER));
         let value = mul(mul(eval(&omega[..SYNDROMES], x_inv), scale), inv(den));
-        if value >> 5 != 0 || (wrong[i] && value == 0) {
-            return None;
-        }
-        changes.0[i] = value as u8;
+        let active = Choice::from(w | u8::from(d.unreadable[i]));
+        let fails = den.ct_eq(&0) | !(value >> 5).ct_eq(&0) | (Choice::from(w) & value.ct_eq(&0));
+        bad |= active & fails;
+        changes.0[i] = u8::conditional_select(&0, &(value as u8), active);
+    }
+    wrong.zeroize();
+    if bool::from(bad) {
+        return None;
     }
     Some(changes)
 }
