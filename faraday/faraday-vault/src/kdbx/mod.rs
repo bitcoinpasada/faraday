@@ -421,8 +421,10 @@ fn read_body(
     // The end field's value is not kept either, whatever its length.
     let kept = scanned.kept;
     plain[kept..].zeroize();
+    // Not shrunk: a reallocation would leave the old copy, which holds the
+    // inner stream key, unwiped. The buffer is wiped past `kept` and the
+    // attachments stay in it.
     plain.truncate(kept);
-    plain.shrink_to_fit();
     let plain = Shared::new(plain);
     let inner = scanned.into_inner(&plain)?;
     debug_assert_eq!(inner.document_at, at);

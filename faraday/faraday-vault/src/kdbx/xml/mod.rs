@@ -27,7 +27,14 @@
 //! written protected again. Every one written is encrypted in document order
 //! from its plaintext under the key given, so the stream is right whatever
 //! was removed or changed; nothing of the ciphertext read is reused.
-//! Plaintexts are in wiping buffers.
+//! Everything read from the document that a person wrote or that is
+//! protected is held in wiping buffers: the protected plaintexts, the text
+//! of every leaf (names, keys, values, notes), the bytes carried as read
+//! (History and the recycle bin included), and the buffers they grow in, so
+//! a buffer that grows moves to a new wiping one and leaves no copy. What
+//! is not wiped is the document's structure (tags, attributes, times,
+//! UUIDs), which is not secret, and the XML text it is read from, which its
+//! caller holds in a wiping buffer.
 //!
 //! **Kept, out of the model:** entry `History`, and the recycle bin unless
 //! `Meta/RecycleBinEnabled` is present and not `True`, as KeePassXC has it
@@ -217,10 +224,22 @@ fn is_ws(b: &u8) -> bool {
 
 // ---------------------------------------------------------------- bytes
 
+/// Makes room for `extra` more bytes in a wiping buffer: when it has none,
+/// the bytes move to a larger wiping buffer and the old one is wiped as it
+/// drops, so growing leaves no copy behind.
+fn room(buf: &mut Zeroizing<Vec<u8>>, extra: usize) {
+    if buf.capacity() - buf.len() < extra {
+        let want = (buf.len() + extra).max(buf.capacity().saturating_mul(2));
+        let mut grown = Zeroizing::new(Vec::with_capacity(want));
+        grown.extend_from_slice(buf);
+        *buf = grown;
+    }
+}
+
 /// A piece of carried bytes.
 #[derive(Clone)]
 enum Piece {
-    Bytes(Vec<u8>),
+    Bytes(Zeroizing<Vec<u8>>),
     /// A protected value's plaintext, encrypted when written.
     Secret(Zeroizing<Vec<u8>>),
 }
@@ -235,9 +254,10 @@ impl Carried {
             return;
         }
         if let Some(Piece::Bytes(last)) = self.0.last_mut() {
+            room(last, b.len());
             last.extend_from_slice(b);
         } else {
-            self.0.push(Piece::Bytes(b.to_vec()));
+            self.0.push(Piece::Bytes(Zeroizing::new(b.to_vec())));
         }
     }
 
@@ -381,9 +401,9 @@ impl W<'_> {
 /// An element with parts: its opening and closing tags as read.
 struct Frame<P> {
     tag: &'static [u8],
-    open: Vec<u8>,
+    open: Zeroizing<Vec<u8>>,
     /// None: written self-closed while it has no content.
-    close: Option<Vec<u8>>,
+    close: Option<Zeroizing<Vec<u8>>>,
     /// Not in the document: written only with content.
     absent: bool,
     parts: Vec<P>,
@@ -398,8 +418,12 @@ impl<P: Part> Frame<P> {
     fn read(tag: &'static [u8], open: &[u8], selfclosed: bool) -> Self {
         Self {
             tag,
-            open: open.to_vec(),
-            close: if selfclosed { None } else { Some(Vec::new()) },
+            open: Zeroizing::new(open.to_vec()),
+            close: if selfclosed {
+                None
+            } else {
+                Some(Zeroizing::new(Vec::new()))
+            },
             absent: false,
             parts: Vec::new(),
         }
@@ -411,7 +435,7 @@ impl<P: Part> Frame<P> {
         open.extend_from_slice(b"/>");
         Self {
             tag,
-            open,
+            open: Zeroizing::new(open),
             close: None,
             absent: true,
             parts: Vec::new(),
@@ -424,8 +448,8 @@ impl<P: Part> Frame<P> {
         close.extend_from_slice(&tag[1..]);
         Self {
             tag,
-            open: tag.to_vec(),
-            close: Some(close),
+            open: Zeroizing::new(tag.to_vec()),
+            close: Some(Zeroizing::new(close)),
             absent: false,
             parts: Vec::new(),
         }
@@ -460,7 +484,7 @@ impl<P: Part> Frame<P> {
             }
             None => {
                 // Self-closed as read: opened only if something is written.
-                let open = self.open.strip_suffix(b"/>").unwrap_or(&self.open);
+                let open = self.open.strip_suffix(b"/>").unwrap_or(&self.open[..]);
                 let open = open.trim_ascii_end();
                 w.raw(open);
                 w.out.push(b'>');
@@ -486,7 +510,7 @@ impl<P: Part> Frame<P> {
 #[derive(Clone)]
 /// A key and a value: an entry's field, or an item of custom data.
 pub struct Pair {
-    key: Vec<u8>,
+    key: Zeroizing<Vec<u8>>,
     value: Zeroizing<Vec<u8>>,
     protected: bool,
     /// Why the field cannot be told apart from what it was read as.
@@ -498,7 +522,7 @@ pub struct Pair {
 /// What a pair was when read.
 struct Orig {
     carried: Carried,
-    key: Vec<u8>,
+    key: Zeroizing<Vec<u8>>,
     value: Zeroizing<Vec<u8>>,
     protected: bool,
 }
@@ -507,7 +531,7 @@ impl Pair {
     /// A new pair.
     pub fn new(key: &str, value: &str, protected: bool) -> Self {
         Self {
-            key: key.as_bytes().to_vec(),
+            key: Zeroizing::new(key.as_bytes().to_vec()),
             value: Zeroizing::new(value.as_bytes().to_vec()),
             protected,
             ambiguous: None,
@@ -610,7 +634,7 @@ impl CustomData {
     /// The value of a Faraday key.
     pub fn get(&self, key: &str) -> Option<&str> {
         self.faraday_items()
-            .find(|p| p.key == key.as_bytes())
+            .find(|p| p.key[..] == *key.as_bytes())
             .map(Pair::value)
     }
 
@@ -624,7 +648,7 @@ impl CustomData {
         }
         for p in &mut self.frame.parts {
             if let CdPart::Item(pair) = p
-                && pair.key == key.as_bytes()
+                && pair.key[..] == *key.as_bytes()
             {
                 pair.set(value, false);
                 return Ok(());
@@ -653,7 +677,7 @@ impl CustomData {
     pub fn remove(&mut self, key: &str) -> R<bool> {
         self.editable()?;
         let at = self.frame.parts.iter().position(|p| {
-            matches!(p, CdPart::Item(pair) if pair.key.starts_with(b"faraday.") && pair.key == key.as_bytes())
+            matches!(p, CdPart::Item(pair) if pair.key.starts_with(b"faraday.") && pair.key[..] == *key.as_bytes())
         });
         Ok(at.map(|i| self.frame.parts.remove(i)).is_some())
     }
@@ -785,7 +809,7 @@ impl Entry {
 
     /// The first field with this key.
     pub fn field(&self, key: &str) -> Option<&Pair> {
-        self.fields().find(|f| f.key == key.as_bytes())
+        self.fields().find(|f| f.key[..] == *key.as_bytes())
     }
 
     /// Sets the field with this key (the first one), or adds it after the
@@ -794,7 +818,7 @@ impl Entry {
         self.editable()?;
         for p in &mut self.frame.parts {
             if let EntryPart::Field(f) = p
-                && f.key == key.as_bytes()
+                && f.key[..] == *key.as_bytes()
             {
                 f.set(value, protected);
                 return Ok(());
@@ -820,7 +844,7 @@ impl Entry {
         let before = self.frame.parts.len();
         self.frame
             .parts
-            .retain(|p| !matches!(p, EntryPart::Field(f) if f.key == key.as_bytes()));
+            .retain(|p| !matches!(p, EntryPart::Field(f) if f.key[..] == *key.as_bytes()));
         Ok(self.frame.parts.len() != before)
     }
 
@@ -944,7 +968,7 @@ pub struct Group {
     frame: Frame<GroupPart>,
     uuid: [u8; 16],
     uuid_leaf: Option<Leaf>,
-    name: Vec<u8>,
+    name: Zeroizing<Vec<u8>>,
     name_leaf: Option<Leaf>,
     custom: CustomData,
     dup_uuid: bool,
@@ -958,7 +982,7 @@ impl Group {
             frame: Frame::fresh(T_GROUP),
             uuid,
             uuid_leaf: None,
-            name: name.as_bytes().to_vec(),
+            name: Zeroizing::new(name.as_bytes().to_vec()),
             name_leaf: None,
             custom: CustomData::none(),
             dup_uuid: false,
@@ -1020,7 +1044,7 @@ impl Group {
     /// Renames the group. An ambiguous group is refused, unchanged.
     pub fn set_name(&mut self, name: &str) -> R<()> {
         self.editable()?;
-        self.name = name.as_bytes().to_vec();
+        self.name = Zeroizing::new(name.as_bytes().to_vec());
         Ok(())
     }
 

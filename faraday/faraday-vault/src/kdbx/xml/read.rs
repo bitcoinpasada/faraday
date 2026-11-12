@@ -35,7 +35,7 @@ fn entry_cost(en: &Entry, times: bool) -> usize {
 fn frame_cost<P>(fr: &Frame<P>) -> usize {
     fr.parts.capacity() * size_of::<P>()
         + fr.open.capacity()
-        + fr.close.as_ref().map_or(0, Vec::capacity)
+        + fr.close.as_ref().map_or(0, |c| c.capacity())
         + 2 * ALLOC
 }
 
@@ -184,11 +184,11 @@ struct Rd<'a> {
 }
 
 struct Text {
-    text: Vec<u8>,
+    text: Zeroizing<Vec<u8>>,
     /// Where the end tag begins.
     end_at: usize,
     /// The comments in it, as read.
-    comments: Vec<u8>,
+    comments: Zeroizing<Vec<u8>>,
 }
 
 type Handler<'a, 'h, P> =
@@ -305,8 +305,8 @@ impl<'a> Rd<'a> {
 
     /// As `read_text`; none when the element holds markup.
     fn text_or_markup(&mut self) -> R<Option<Text>> {
-        let mut text = Vec::new();
-        let mut comments = Vec::new();
+        let mut text = Zeroizing::new(Vec::new());
+        let mut comments = Zeroizing::new(Vec::new());
         loop {
             let (ev, a, _) = self.next()?;
             match ev {
@@ -315,11 +315,13 @@ impl<'a> Rd<'a> {
                 Event::GeneralRef(r) => {
                     let ch = decode_ref(&r)?;
                     let mut buf = [0u8; 4];
+                    room(&mut text, 4);
                     text.extend_from_slice(ch.encode_utf8(&mut buf).as_bytes());
                 }
                 // As KeePassXC's readElementText: a comment is skipped, and
                 // so is a processing instruction.
                 Event::Comment(_) | Event::PI(_) => {
+                    room(&mut comments, self.pos - a);
                     comments.extend_from_slice(&self.src[a..self.pos])
                 }
                 Event::End(_) => {
@@ -448,7 +450,7 @@ impl<'a> Rd<'a> {
                     }
                 }
                 Event::End(_) => {
-                    fr.close = Some(self.src[a..b].to_vec());
+                    fr.close = Some(Zeroizing::new(self.src[a..b].to_vec()));
                     return Ok(());
                 }
                 _ => {
@@ -484,7 +486,7 @@ impl<'a> Rd<'a> {
         orig.bytes(&self.src[a..self.pos]);
         Ok(Leaf {
             orig,
-            text: Zeroizing::new(t.text),
+            text: t.text,
             protected: false,
         })
     }
@@ -495,7 +497,7 @@ impl<'a> Rd<'a> {
         self.spend(CARRIED)?;
         let mut c = Carried::default();
         c.bytes(&self.src[a..b]);
-        let mut key: Option<Vec<u8>> = None;
+        let mut key: Option<Zeroizing<Vec<u8>>> = None;
         let mut value: Option<(Zeroizing<Vec<u8>>, bool)> = None;
         let mut ambiguous = None;
         if !empty {
@@ -513,7 +515,7 @@ impl<'a> Rd<'a> {
                                 continue;
                             }
                             let leaf = self.leaf(e, a, b, empty)?;
-                            key = Some(leaf.text.to_vec());
+                            key = Some(Zeroizing::new(leaf.text.to_vec()));
                             c.append(leaf.orig);
                         } else if is(name, T_VALUE) {
                             if value.is_some() {
@@ -531,7 +533,7 @@ impl<'a> Rd<'a> {
                             } else {
                                 let t = self.read_text()?;
                                 c.bytes(&self.src[a..self.pos]);
-                                value = Some((Zeroizing::new(t.text), false));
+                                value = Some((t.text, false));
                             }
                         } else {
                             self.skip_element(e, a, b, empty, &mut c)?;
@@ -891,7 +893,7 @@ impl<'a> Rd<'a> {
             uuid_leaf,
             name: name_leaf
                 .as_ref()
-                .map(|l| l.text.to_vec())
+                .map(|l| Zeroizing::new(l.text.to_vec()))
                 .unwrap_or_default(),
             name_leaf,
             custom,
@@ -1040,7 +1042,8 @@ impl<'a> Rd<'a> {
 /// Appends `bytes` with each CR LF and each lone CR as one LF, as XML 1.0
 /// §2.11 has a parser pass line ends on (a character reference to CR is a
 /// separate event and stays).
-fn push_normalised(out: &mut Vec<u8>, bytes: &[u8]) {
+fn push_normalised(out: &mut Zeroizing<Vec<u8>>, bytes: &[u8]) {
+    room(out, bytes.len());
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'\r' {
