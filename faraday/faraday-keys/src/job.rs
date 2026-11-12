@@ -615,14 +615,14 @@ impl Signing {
 /// A key record of words to load: the words as the record keeps them and
 /// the passphrase to stretch them with.
 pub(crate) struct WordsToLoad {
-    pub(crate) phrase: Zeroizing<String>,
+    pub(crate) phrase: Zeroizing<Vec<u8>>,
     pub(crate) mnemonic: faraday_bip::bip39::Mnemonic,
     /// The passphrase the record stores with its key; none: the one an
     /// open vault keeps alone for the key, if one is.
-    pub(crate) own: Option<Zeroizing<String>>,
+    pub(crate) own: Option<Zeroizing<Vec<u8>>>,
     /// Which of the passphrases kept alone for the key is wanted.
     pub(crate) chosen: usize,
-    pub(crate) label: String,
+    pub(crate) label: Zeroizing<Vec<u8>>,
     pub(crate) codex32: Option<fv::codex32::SetFacts>,
     pub(crate) child: Option<fv::child::ChildOf>,
 }
@@ -630,7 +630,7 @@ pub(crate) struct WordsToLoad {
 /// A key record of a master seed to load.
 pub(crate) struct SeedToLoad {
     pub(crate) seed: Zeroizing<Vec<u8>>,
-    pub(crate) label: String,
+    pub(crate) label: Zeroizing<Vec<u8>>,
     pub(crate) codex32: Option<fv::codex32::SetFacts>,
 }
 
@@ -645,7 +645,7 @@ pub struct KeysJob {
     pub(crate) seeds: Vec<SeedToLoad>,
     /// The passphrase records the open vaults keep alone, each with the
     /// fingerprint it names, in the order the vaults are held.
-    pub(crate) kept: Vec<(Vec<u8>, Zeroizing<String>)>,
+    pub(crate) kept: Vec<(Vec<u8>, Zeroizing<Vec<u8>>)>,
 }
 
 /// The keys a [`KeysJob`] worked out, in the order they are added.
@@ -657,6 +657,12 @@ pub(crate) struct LoadedKey {
     pub(crate) entry: crate::session::Entry,
     pub(crate) codex32: Option<fv::codex32::SetFacts>,
     pub(crate) child: Option<fv::child::ChildOf>,
+}
+
+/// The text a held byte string stands for: what was stored as text, so it
+/// is text; empty if it is not.
+fn text(bytes: &[u8]) -> &str {
+    core::str::from_utf8(bytes).unwrap_or("")
 }
 
 impl KeysJob {
@@ -687,14 +693,15 @@ impl KeysJob {
                 Some(p) => p.clone(),
                 None => self.kept_for(c, w).unwrap_or_default(),
             };
-            let Ok(m) = crate::session::parse_words(c, &w.phrase) else {
+            let (phrase, pass) = (text(&w.phrase), text(&pass));
+            let Ok(m) = crate::session::parse_words(c, phrase) else {
                 continue;
             };
-            let Ok(master) = crate::session::mnemonic_master(c, &m, &pass, network) else {
+            let Ok(master) = crate::session::mnemonic_master(c, &m, pass, network) else {
                 continue;
             };
             items.push(LoadedKey {
-                entry: crate::session::mnemonic_entry(c, master, &m, &pass, &w.label),
+                entry: crate::session::mnemonic_entry(c, master, &m, pass, text(&w.label)),
                 codex32: w.codex32.clone(),
                 child: w.child,
             });
@@ -704,7 +711,7 @@ impl KeysJob {
                 continue;
             };
             items.push(LoadedKey {
-                entry: crate::session::seed_entry(c, master, &s.seed, &s.label),
+                entry: crate::session::seed_entry(c, master, &s.seed, text(&s.label)),
                 codex32: s.codex32.clone(),
                 child: None,
             });
@@ -715,13 +722,13 @@ impl KeysJob {
     /// Costs a PBKDF2 for each passphrase kept alone. The `chosen`th of
     /// the passphrases kept alone for the words of `w` (the first when it
     /// names none), found by the fingerprint each record names.
-    fn kept_for(&self, c: &Compute, w: &WordsToLoad) -> Option<Zeroizing<String>> {
+    fn kept_for(&self, c: &Compute, w: &WordsToLoad) -> Option<Zeroizing<Vec<u8>>> {
         use crate::identity::{Material, fingerprint};
-        let found: Vec<&Zeroizing<String>> = self
+        let found: Vec<&Zeroizing<Vec<u8>>> = self
             .kept
             .iter()
             .filter(|(fp, p)| {
-                fingerprint(c, Material::Words(&w.mnemonic), p, self.network)
+                fingerprint(c, Material::Words(&w.mnemonic), text(p), self.network)
                     .is_some_and(|got| got.0[..] == fp[..])
             })
             .map(|(_, p)| p)

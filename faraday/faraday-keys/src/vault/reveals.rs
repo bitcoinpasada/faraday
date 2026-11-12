@@ -531,16 +531,16 @@ impl OpenVaults {
             if !set.contains(&i) {
                 continue;
             }
-            let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
+            let label = Zeroizing::new(r.text(field::KEY_LABEL).unwrap_or("").as_bytes().to_vec());
             let codex32 = codex32_set_of(r);
             if let Some(m) = record_words(c, r) {
                 job.words.push(WordsToLoad {
-                    phrase: phrase_of(&m),
+                    phrase: Zeroizing::new(phrase_of(&m).as_bytes().to_vec()),
                     mnemonic: m,
                     // Stored with the key, or kept alone in an open vault.
                     own: r
                         .text(field::KEY_PASSPHRASE)
-                        .map(|p| Zeroizing::new(p.to_string())),
+                        .map(|p| Zeroizing::new(p.as_bytes().to_vec())),
                     chosen: chosen.get(&i).copied().unwrap_or(0),
                     label,
                     codex32,
@@ -560,7 +560,8 @@ impl OpenVaults {
                     if let (Some(fp), Some(p)) =
                         (r.field(field::PASSPHRASE_KEY), r.text(field::PASSPHRASE))
                     {
-                        job.kept.push((fp.to_vec(), Zeroizing::new(p.to_string())));
+                        job.kept
+                            .push((fp.to_vec(), Zeroizing::new(p.as_bytes().to_vec())));
                     }
                 }
             }

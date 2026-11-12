@@ -1544,3 +1544,56 @@ fn an_ask_whose_sheet_was_replaced_does_not_hold_the_import() {
     assert!(app.import().is_none(), "the import is still held");
     assert!(app.session.keys.is_empty());
 }
+
+/// The boot sheet's vault unlocked and its Load sheet up, Load pressed so
+/// that its job is out on the worker, held there.
+fn load_pressed_on_worker() -> Faraday {
+    let files = vec![("vault.kdbx".to_string(), testkit::test_vault().unwrap())];
+    let mut app = imported_with(&files);
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Import(I::Submit));
+    run_unlock(&mut app);
+    assert_eq!(app.vaults().open.len(), 1);
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Vault(V::LoadTicked));
+    for t in 30..40 {
+        if app.busy().is_some() {
+            break;
+        }
+        let _ = app.frame();
+        app.event(Event::Tick { now_ms: t * 1000 });
+    }
+    assert!(app.busy().is_some(), "the seeds are loading");
+    app
+}
+
+/// Back, Cancel or Lock pressed while the seeds load: the answer, when it
+/// comes, adds no key.
+#[test]
+fn seeds_loading_when_back_cancel_or_lock_is_pressed_add_no_key() {
+    for (name, action) in [
+        ("Back", Action::Back),
+        ("Cancel", Action::Cancel),
+        ("Lock", Action::Lock),
+    ] {
+        let mut app = load_pressed_on_worker();
+        app.press(action);
+        testkit::release_worker();
+        testkit::settle_stale(&mut app);
+        let _ = app.frame();
+        assert!(key_fps(&app).is_empty(), "{name}: {:?}", key_fps(&app));
+    }
+}
+
+/// The answer, taken as it comes, adds the vault's key.
+#[test]
+fn seeds_loaded_on_the_worker_are_added_when_the_answer_is_taken() {
+    let mut app = load_pressed_on_worker();
+    assert!(
+        key_fps(&app).is_empty(),
+        "nothing is added before the answer"
+    );
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert_eq!(key_fps(&app), [fp(0)]);
+}
