@@ -12,6 +12,7 @@ use faraday_bip::keys::{MasterKey, Network};
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode};
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes};
+use faraday_strings::{EN, fill};
 use zeroize::Zeroizing;
 
 /// What the thread is asked.
@@ -137,6 +138,12 @@ pub struct Made {
     pub matrix: QrMatrix,
     /// The 47-character text form the 32-byte size's code holds (§3).
     pub text: Option<String>,
+    /// The item that was sealed, as lines to show, the same lines Open
+    /// shows for it.
+    pub lines: Vec<(Label, Zeroizing<String>)>,
+    /// The QR's version, size, level, mode and the envelope's bytes, as a
+    /// line to show.
+    pub label: String,
     /// The size.
     pub size: Size,
     /// The memory step.
@@ -408,13 +415,44 @@ fn make(
         (None, _) => encode(c, Payload::Bytes(&bytes), Ecc::Low),
     }
     .map_err(|_| Fail::Refused)?;
+    let label = code_label(&matrix, text.is_some(), bytes.len());
     let png = picture(&matrix).ok_or(Fail::Refused)?;
     Ok(Made {
         bytes,
         matrix,
         text,
+        lines: lines(c, item),
+        label,
         size,
         step,
         png,
     })
+}
+
+/// The QR's version, size, error-correction level, mode and the
+/// envelope's byte count, as one line.
+fn code_label(matrix: &QrMatrix, alphanumeric: bool, bytes: usize) -> String {
+    let level = match matrix.ecc() {
+        Ecc::Low => EN.aqrv_level_l,
+        Ecc::Medium => EN.aqrv_level_m,
+        Ecc::Quartile => EN.aqrv_level_q,
+        Ecc::High => EN.aqrv_level_h,
+    };
+    let mode = if alphanumeric {
+        EN.aqrv_mode_alphanumeric
+    } else {
+        EN.aqrv_mode_byte
+    };
+    let n = matrix.size().to_string();
+    fill(
+        EN.aqrv_code_label,
+        &[
+            &matrix.version().to_string(),
+            &n,
+            &n,
+            level,
+            mode,
+            &bytes.to_string(),
+        ],
+    )
 }

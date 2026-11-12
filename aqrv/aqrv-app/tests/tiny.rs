@@ -47,6 +47,12 @@ fn made_tiny() -> (Vec<u8>, Vec<u8>) {
     assert_eq!(made.size, Size::Tiny);
     assert_eq!(made.matrix.size(), 25);
     assert_eq!(made.text.as_deref().map(str::len), Some(47));
+    assert_eq!(
+        made.label,
+        "Version 2 · 25 × 25 · Level L · Alphanumeric · 32 bytes"
+    );
+    let words = made.lines.iter().find(|(l, _)| *l == Label::Words);
+    assert!(words.is_some_and(|(_, w)| w.split(' ').count() == 12));
     app.tap(Action::SaveFile);
     app.tap(Action::SavePicture);
     let (mut file, mut picture) = (None, None);

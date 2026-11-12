@@ -14109,9 +14109,29 @@ strings! {
     /// Cancels the work and discards its result.
     #[cfg(feature = "aqrv")]
     aqrv_cancel: "Cancel",
-    /// Make, the code: its size. `{}`: modules across.
+    /// Make, the code: what the QR is. `{}` in order: its version, modules
+    /// across, modules down, its error-correction level, its mode, the
+    /// envelope's bytes.
     #[cfg(feature = "aqrv")]
-    aqrv_code_size: "{} × {} modules",
+    aqrv_code_label: "Version {} · {} × {} · Level {} · {} · {} bytes",
+    /// Make, the code: the lowest error-correction level's letter.
+    #[cfg(feature = "aqrv")]
+    aqrv_level_l: "L",
+    /// Make, the code: the medium error-correction level's letter.
+    #[cfg(feature = "aqrv")]
+    aqrv_level_m: "M",
+    /// Make, the code: the quartile error-correction level's letter.
+    #[cfg(feature = "aqrv")]
+    aqrv_level_q: "Q",
+    /// Make, the code: the highest error-correction level's letter.
+    #[cfg(feature = "aqrv")]
+    aqrv_level_h: "H",
+    /// Make, the code: the QR's byte mode.
+    #[cfg(feature = "aqrv")]
+    aqrv_mode_byte: "Byte",
+    /// Make, the code: the QR's alphanumeric mode.
+    #[cfg(feature = "aqrv")]
+    aqrv_mode_alphanumeric: "Alphanumeric",
     /// Make, the code: its memory. `{}`: the memory.
     #[cfg(feature = "aqrv")]
     aqrv_code_step: "Memory {}",

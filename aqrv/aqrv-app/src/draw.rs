@@ -346,8 +346,8 @@ fn working(ui: U, st: &State, (x, y0, w): (f32, f32, f32), phase: Option<f32>) -
     ) - GAP
 }
 
-/// Make, the code: the QR drawn from the kept matrix, then its size, its
-/// step and its bytes in hex.
+/// Make, the code: the QR drawn from the kept matrix, its label, the item
+/// sealed, its memory step and its bytes in hex.
 fn code(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
     let mut y = y0;
     let Some(made) = st.made.as_ref() else {
@@ -368,8 +368,10 @@ fn code(ui: U, st: &State, (x, y0, w): (f32, f32, f32)) -> f32 {
         }
     }
     y += full + GAP;
-    let dims = fill(EN.aqrv_code_size, &[&n.to_string(), &n.to_string()]);
-    y += ui.wrap_as((x, y, w), BODY_L, Role::OnSurface, &dims) + GAP_SMALL;
+    y += ui.wrap_as((x, y, w), BODY_M, Role::OnSurfaceVariant, &made.label) + GAP;
+    for (label, value) in &made.lines {
+        y += pair(ui, (x, y, w), item_label(*label), value);
+    }
     let step = fill(EN.aqrv_code_step, &[memory_label(made.step)]);
     y += ui.wrap_as((x, y, w), BODY_L, Role::OnSurface, &step) + GAP;
     ui.text_as(x, y, TITLE_S, Role::OnSurfaceVariant, EN.aqrv_code_bytes);

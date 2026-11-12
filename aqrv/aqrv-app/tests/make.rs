@@ -2,6 +2,7 @@
 
 use aqrv::{Item, Size, Step};
 use aqrv_app::state::Field;
+use aqrv_app::worker::Label;
 use aqrv_app::{Action, ArgonQrVault, Page, Source};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Command, EntropyBytes, Event, Key};
@@ -53,6 +54,11 @@ fn a_sample_and_a_passphrase_make_a_code_the_library_opens() {
     assert_eq!(app.state().page, Page::Code);
     let made = app.state().made.as_ref().expect("a code was made");
     assert_eq!(made.matrix.size(), 29);
+    assert_eq!(
+        made.label,
+        "Version 3 · 29 × 29 · Level L · Byte · 53 bytes"
+    );
+    assert!(made.lines.iter().any(|(l, _)| *l == Label::Words));
     let c = Compute::new(|_| {});
     let opened = aqrv::open(&c, &made.bytes, "correct horse").expect("it opens");
     let Item::Entropy(entropy) = opened.item else {
