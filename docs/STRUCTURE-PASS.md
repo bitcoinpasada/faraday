@@ -191,6 +191,21 @@ cannot quietly undo it:
     marker carries a `reason`, which the lint checks (F196);
   - `Faraday`'s top-level field count, which only falls;
   - the files allowed an inherent `impl Faraday`: the list only shrinks;
+  - mutable accessors: in faraday-core a `pub` or `pub(crate)` `fn
+    *_mut(` and an `impl DerefMut` are listed in `tools/lint-layout.counts`
+    or fail; an area's state is reached through its own methods, and
+    `Faraday::canvas_mut` and private functions are not held. The ones
+    that stay:
+    - `Restore`'s `state_mut` (`restore.rs`): serves the code of the
+      Restore half that writes its state;
+    - `Faraday::seeds_mut` (`seeds/mod.rs`): one reference to the seeds
+      state of Restore or the Spend tab, for the long functions of
+      `seeds/` and `samples/` that also read the rest of the app;
+    - the Spend tab's `seeds_mut` (`spend_backup/mod.rs`): the same, for
+      the Spend tab's seeds state;
+    - the wallet backup checklist's `c32_mut` (`wallet_backup.rs`): the
+      codex32 item's state, written by the codex32 steps of
+      `backups/mod.rs`;
   - dependency direction: a `core/` crate has no `path` dependency outside
     `core/`, and faraday-ui, faraday-draw, faraday-strings and faraday-guide
     depend on neither faraday-core nor faraday-starter.

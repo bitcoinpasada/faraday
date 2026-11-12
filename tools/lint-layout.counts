@@ -66,3 +66,16 @@ impl-faraday faraday/faraday-core/src/visit_taken.rs
 impl-faraday faraday/faraday-core/src/wallet.rs
 impl-faraday faraday/faraday-core/src/wallet_backup.rs
 impl-faraday faraday/faraday-core/src/word_entry.rs
+
+# Mutable accessors of faraday-core that stay (`pub` or `pub(crate)` `fn
+# *_mut(`, `impl DerefMut`): another one fails. Each says why it stays.
+# Restore's state, for the Restore half of the code that writes it.
+mut-accessor faraday/faraday-core/src/restore.rs state_mut
+# Faraday::seeds_mut: one reference to the seeds state of Restore or the Spend
+# tab, for the long functions of seeds/ and samples/ that also read the rest of the app.
+mut-accessor faraday/faraday-core/src/seeds/mod.rs seeds_mut
+# The Spend tab's seeds_mut: the same, for the Spend tab's seeds state.
+mut-accessor faraday/faraday-core/src/spend_backup/mod.rs seeds_mut
+# The wallet backup checklist's codex32 item state, written by the codex32
+# steps of backups/mod.rs.
+mut-accessor faraday/faraday-core/src/wallet_backup.rs c32_mut

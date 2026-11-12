@@ -84,7 +84,7 @@ misses = "whether a document says what is true"
 id = "lint-layout"
 run = "tools/lint-layout.sh"
 stage = "just lint"
-catches = "the code map, file and function sizes, top-level field and impl Faraday counts beyond lint-layout.counts, a dependency pointing up a layer"
+catches = "the code map, file and function sizes, top-level field and impl Faraday counts beyond lint-layout.counts, a mutable accessor not listed there, a dependency pointing up a layer"
 misses = "structure that is legal but poor"
 
 [[check]]
@@ -1045,12 +1045,11 @@ held_by = ["lint-layout"]
 
 [[rule]]
 id = "structure.no-new-mut"
-title = "a new *_mut accessor or DerefMut on an area is avoided; the few that exist are listed in STRUCTURE-PASS.md"
+title = "a new pub *_mut accessor or DerefMut on an area fails; the few that stay are listed in lint-layout.counts and STRUCTURE-PASS.md"
 source = ["docs/STRUCTURE-PASS.md §7"]
 when = ["faraday/faraday-core/src/**"]
-lines = '^\+.*(\bfn \w+_mut\(|\bDerefMut\b)'
-kind = "pair"
-with = ["docs/STRUCTURE-PASS.md"]
+kind = "held"
+held_by = ["lint-layout"]
 
 [[rule]]
 id = "structure.areas-private"

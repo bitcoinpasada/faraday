@@ -30,6 +30,12 @@
 #    core/ or faraday/ depends on aqrv/; the drawing and
 #    string crates do not depend on faraday-core or faraday-starter.
 #
+# 6. Mutable accessors (docs/STRUCTURE-PASS.md §7.2). In faraday-core, a
+#    `pub` or `pub(crate)` `fn <name>_mut(` and an `impl DerefMut for`
+#    are listed in lint-layout.counts (`mut-accessor PATH NAME`, with why
+#    it stays); another fails, naming file:line. `Faraday::canvas_mut`
+#    and private functions are not held.
+#
 # Raising a count is the owner's decision, recorded in DECISIONS (F74, F196).
 # Prints each failure and exits non-zero if there is one. Run from the
 # repository root; `just lint` does.
@@ -109,6 +115,7 @@ for v in table:
 # ---- the counts file ----
 counts = {}
 impl_listed = set()
+mut_listed = set()
 for n, line in enumerate(open(COUNTS, encoding="utf-8"), 1):
     line = line.split("#", 1)[0].strip()
     if not line:
@@ -118,8 +125,10 @@ for n, line in enumerate(open(COUNTS, encoding="utf-8"), 1):
         counts["fields Faraday"] = int(f[2])
     elif f[0] == "impl-faraday" and len(f) == 2:
         impl_listed.add(f[1])
+    elif f[0] == "mut-accessor" and len(f) == 3:
+        mut_listed.add((f[1], f[2]))
     else:
-        fail(f"{COUNTS}:{n}: not `fields Faraday N` or `impl-faraday PATH`")
+        fail(f"{COUNTS}:{n}: not `fields Faraday N`, `impl-faraday PATH` or `mut-accessor PATH NAME`")
 
 
 for key in ("fields Faraday",):
@@ -194,6 +203,27 @@ for path in sorted(impl_listed - having):
         fail(f"{COUNTS}: {path} has no `impl Faraday` now: remove its line")
     else:
         fail(f"{COUNTS}: {path} is no tracked file: remove its line")
+
+# ---- 6. Mutable accessors ----
+MUT_FN = re.compile(r"^[ \t]*pub(?:\([a-z: ]+\))?[ \t]+(?:const[ \t]+)?(?:unsafe[ \t]+)?fn (\w+_mut)\(", re.M)
+DEREF_MUT = re.compile(r"^[ \t]*impl(?:<[^>]*>)?[ \t]+(?:(?:std|core)::ops::)?DerefMut[ \t]+for\b", re.M)
+mut_seen = set()
+for path in files:
+    if not path.startswith(CORE + "/"):
+        continue
+    text = open(path, encoding="utf-8").read()
+    found = [(m.start(), m.group(1)) for m in MUT_FN.finditer(text)]
+    found += [(m.start(), "DerefMut") for m in DEREF_MUT.finditer(text)]
+    for pos, name in found:
+        if (path, name) == (f"{CORE}/lib.rs", "canvas_mut"):
+            continue
+        mut_seen.add((path, name))
+        if (path, name) not in mut_listed:
+            fail(f"{path}:{text.count(chr(10), 0, pos) + 1}: a new `{name}` hands out "
+                 "an area's state to write: reach the area's state through its own "
+                 "methods (docs/STRUCTURE-PASS.md §7)")
+for path, name in sorted(mut_listed - mut_seen):
+    fail(f"{COUNTS}: `mut-accessor {path} {name}` is gone: remove its line")
 
 # 5. Dependency direction (docs/STRUCTURE-PASS.md §7). A `core/*` crate has
 #    no `path` dependency outside core/, and faraday-ui, faraday-draw,
