@@ -900,6 +900,7 @@ dependencies = [
  "faraday-ui",
  "faraday-vault",
  "serde_json",
+ "subtle",
  "zeroize",
 ]
 

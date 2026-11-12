@@ -13,6 +13,7 @@ use faraday_codec::seedqr;
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes};
 use faraday_entropy::SeedXor;
+use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
 use crate::bip85;
@@ -460,7 +461,7 @@ impl Keys {
         i: usize,
         compact: bool,
         why: Reveal,
-    ) -> Result<(Held<QrMatrix>, usize), Convert> {
+    ) -> Result<(Held<Box<QrMatrix>>, usize), Convert> {
         let s = self.convert_source(i, why)?;
         let words = s.words.ok_or(Convert::NotGiven)?;
         if s.language != Language::English {
@@ -483,7 +484,9 @@ impl Keys {
                 crate::words::from_seedqr_digits(digits.expose().as_bytes(), s.language),
             )
         };
-        let matrix = matrix.map_err(|_| Convert::NotGiven)?;
+        // Boxed at once, so the matrix is not moved about by value, which
+        // leaves a copy of its modules on the stack at each move.
+        let matrix = Box::new(matrix.map_err(|_| Convert::NotGiven)?);
         let held = same_words(&m, read.ok().as_ref(), matrix)?;
         Ok((held, m.word_count()))
     }
@@ -796,8 +799,10 @@ fn checked<T>(key: Fingerprint, read: Option<Fingerprint>, result: T) -> Result<
 /// [`checked`].
 fn same_words<T>(m: &Mnemonic, read: Option<&Mnemonic>, result: T) -> Result<Held<T>, Convert> {
     let same = read.is_some_and(|r| {
-        r.language() == m.language()
-            && r.entropy().expose().as_bytes() == m.entropy().expose().as_bytes()
+        // Lengths are not secret; the bytes are compared in constant time.
+        let (a, b) = (r.entropy(), m.entropy());
+        let (a, b) = (a.expose().as_bytes(), b.expose().as_bytes());
+        r.language() == m.language() && a.len() == b.len() && bool::from(a.ct_eq(b))
     });
     if same {
         Ok(Held::of(result))
@@ -860,7 +865,16 @@ fn starts_read(text: &str) -> Option<Zeroizing<Vec<u16>>> {
     for start in text.split(' ') {
         let mut found = (0..2048u16).filter(|&n| {
             let word = Language::English.word(n);
-            word == start || (start.len() == 4 && word.starts_with(start))
+            // Lengths are not secret; the bytes are compared in constant
+            // time, the whole word or its four-letter start.
+            let whole =
+                word.len() == start.len() && bool::from(word.as_bytes().ct_eq(start.as_bytes()));
+            let prefix = start.len() == 4
+                && word
+                    .as_bytes()
+                    .get(..4)
+                    .is_some_and(|w| bool::from(w.ct_eq(start.as_bytes())));
+            whole | prefix
         });
         let n = found.next()?;
         found.next().is_none().then_some(())?;

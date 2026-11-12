@@ -90,7 +90,8 @@ pub(crate) fn symbol_of(c: char) -> Option<u8> {
 
 /// A symbol's character, lowercase.
 pub(crate) fn char_of(v: u8) -> char {
-    char::from(CHARSET[usize::from(v & 31)])
+    // A masked scan of the whole alphabet: the symbol may be secret.
+    char::from(faraday_bip::codex32::symbol_char(v & 31))
 }
 
 /// The flow's cards, in order (`docs/CODEX32.md` §6.1 to §6.7).

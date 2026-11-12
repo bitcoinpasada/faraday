@@ -37,8 +37,8 @@
 //! out; the one costly call, the decode, is made by a press.
 
 use faraday_bip::codex32::{
-    CHARSET, CORRECTION_BOUND, Codex32, Codex32Ascii, Edit, MAX_EDITS, MAX_STRING_LEN, Proposal,
-    Refusal, UNREADABLE, correct,
+    CORRECTION_BOUND, Codex32, Codex32Ascii, Edit, MAX_EDITS, MAX_STRING_LEN, Proposal, Refusal,
+    UNREADABLE, correct,
 };
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Key;
@@ -591,7 +591,10 @@ impl Correction {
             (Step::Retype, Key::Char(ch)) => {
                 let ch = ch.to_ascii_lowercase();
                 let total = s.proposal.edits().len();
-                if !ch.is_ascii() || !CHARSET.contains(&(ch as u8)) || s.retyped.at >= total {
+                if !ch.is_ascii()
+                    || faraday_bip::codex32::charval(ch as u8).is_none()
+                    || s.retyped.at >= total
+                {
                     return Outcome::Stay;
                 }
                 // The box at the caret takes it, and the caret moves on.

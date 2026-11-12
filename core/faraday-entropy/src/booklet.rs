@@ -114,7 +114,8 @@ pub fn character(
         }
         bits[d] = bit(first[d], second[d]).ok_or(BookletError::Equal(d))?;
     }
-    Ok(TREE[value_of_bits(bits) as usize])
+    // A masked scan of the whole table, as the dice's bits are secret.
+    Ok(faraday_bip::codex32::symbol_char(value_of_bits(bits)))
 }
 
 /// The rolls of one character in progress, erased on drop. Entered in

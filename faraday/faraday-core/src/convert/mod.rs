@@ -20,6 +20,7 @@ use faraday_codec::qr::QrMatrix;
 use faraday_crypto::work::Compute;
 use faraday_keys::operations::WordsForm;
 use faraday_keys::{Held, KeyInfo, Reveal, operations::Convert};
+use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
 /// The most SLIP-39 groups, and shares in a group: SLIP-39's own limit.
@@ -448,7 +449,7 @@ pub enum Value {
     /// A written form.
     Text(Held<Zeroizing<String>>),
     /// A SeedQR or CompactSeedQR, for a seed of this many words.
-    Code(Box<Held<QrMatrix>>, usize),
+    Code(Held<Box<QrMatrix>>, usize),
     /// A result of several strings, each one a secret, numbered when shown.
     Set(Held<Vec<Zeroizing<String>>>),
 }
@@ -517,6 +518,33 @@ pub(crate) fn place_in(groups: &[u8], i: usize) -> (usize, usize) {
     (groups.len(), left + 1)
 }
 
+/// Whether `a` and `b` are the same text, compared in constant time.
+/// Lengths are not secret, so a difference in them returns early.
+fn same_text(a: &str, b: &str) -> bool {
+    a.len() == b.len() && bool::from(a.as_bytes().ct_eq(b.as_bytes()))
+}
+
+/// Whether the words of `typed` are those of `other`, one for one, each
+/// compared in constant time and all of them compared.
+fn same_tokens<'a>(typed: &str, other: &mut impl Iterator<Item = &'a str>) -> bool {
+    let mut same = subtle::Choice::from(1);
+    let mut typed = typed.split_whitespace();
+    loop {
+        match (typed.next(), other.next()) {
+            (None, None) => return bool::from(same),
+            (Some(a), Some(b)) => {
+                let eq = if a.len() == b.len() {
+                    a.as_bytes().ct_eq(b.as_bytes())
+                } else {
+                    subtle::Choice::from(0)
+                };
+                same &= eq;
+            }
+            _ => return false,
+        }
+    }
+}
+
 /// Whether a typed copy is `value`. The value's own text exactly, single
 /// spaces being what separate words and starts. Word numbers read in lines
 /// with a second number beside each, so a copy is the 1 to 2048 numbers
@@ -526,9 +554,11 @@ fn copy_is(target: Option<Target>, typed: &str, value: &str) -> bool {
     if target == Some(Target::WordNumbers) {
         let mut numbers = value.split_whitespace().filter(|t| !t.starts_with('('));
         let mut shown = value.split_whitespace();
-        typed.split_whitespace().eq(&mut shown) || typed.split_whitespace().eq(&mut numbers)
+        let shown = same_tokens(typed, &mut shown);
+        let numbers = same_tokens(typed, &mut numbers);
+        shown | numbers
     } else {
-        typed == value
+        same_text(typed, value)
     }
 }
 
@@ -1300,7 +1330,7 @@ fn make(app: &mut Faraday, target: Target) {
         if !scan_reads(app, &c, i, &grid, compact) {
             return Err(Convert::NotSameWallet);
         }
-        Ok(Value::Code(Box::new(grid), words))
+        Ok(Value::Code(grid, words))
     };
     let given = match target {
         Target::SeedHex => keys.master_seed_hex(&c, i, why).map(Value::Text),
@@ -1341,7 +1371,13 @@ fn make(app: &mut Faraday, target: Target) {
 /// words, in the digits' form, whichever the code is (a CompactSeedQR's
 /// entropy bytes are written as the words' digits first). The picture
 /// of the code and the payload are wiped when done.
-fn scan_reads(app: &Faraday, c: &Compute, i: usize, grid: &Held<QrMatrix>, compact: bool) -> bool {
+fn scan_reads(
+    app: &Faraday,
+    c: &Compute,
+    i: usize,
+    grid: &Held<Box<QrMatrix>>,
+    compact: bool,
+) -> bool {
     let (w, h, luma) = grid.to_luma(6, 4);
     let luma = Zeroizing::new(luma);
     let read = faraday_codec::decode::decode_luma(c, w, h, &luma);
