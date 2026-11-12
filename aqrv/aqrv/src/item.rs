@@ -134,3 +134,18 @@ fn text(p: &[u8]) -> Result<Zeroizing<String>, Layout> {
     let text = core::str::from_utf8(&p[1..=len]).map_err(|_| Layout::NotUtf8)?;
     Ok(Zeroizing::new(text.to_owned()))
 }
+
+/// The fuzz target `aqrv_item`'s entry: [`read`] on a room of bytes, then
+/// [`lay_out`] on what it read. Off by default; only the fuzz crate turns
+/// the feature on, no app does.
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub fn fuzz_read(
+    kind: Kind,
+    size: Size,
+    p: &[u8],
+) -> Result<(Item, Result<(Kind, Vec<u8>, Option<u8>), Refused>), Layout> {
+    let item = read(kind, p)?;
+    let laid = lay_out(&item, size).map(|l| (l.kind, l.bytes.to_vec(), l.unused_mask));
+    Ok((item, laid))
+}

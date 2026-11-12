@@ -30,6 +30,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "aqrv"
+version = "0.2.0"
+dependencies = [
+ "argon2",
+ "chacha20",
+ "faraday-bip",
+ "faraday-crypto",
+ "subtle",
+ "unicode-normalization",
+ "zeroize",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -381,6 +394,7 @@ dependencies = [
 name = "faraday-fuzz"
 version = "0.0.0"
 dependencies = [
+ "aqrv",
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",

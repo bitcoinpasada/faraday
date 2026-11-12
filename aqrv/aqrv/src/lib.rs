@@ -18,8 +18,14 @@ mod envelope;
 mod item;
 mod text;
 
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub use envelope::fuzz_open_with_prk;
 pub use envelope::{Opened, Workings, open, seal, workings};
 pub use item::Item;
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub use item::fuzz_read;
 pub use text::{NotText, from_text, to_text};
 
 /// The three sizes (§3), told apart by the envelope's total length.

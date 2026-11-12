@@ -1,0 +1,8 @@
+# The Argon QR Vault header byte (docs/AQRV.md §4): the marker and the step, 0xF8 to 0xFC.
+"\xf8"
+"\xf9"
+"\xfa"
+"\xfb"
+"\xfc"
+"\xfd"
+"A"

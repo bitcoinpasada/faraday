@@ -365,3 +365,38 @@ target = "fuzz/fuzz_targets/hex_decode.rs"
 file = "core/faraday-crypto/src/hex.rs"
 fn = "decode_vec"
 target = "fuzz/fuzz_targets/hex_decode.rs"
+
+[[parser]]
+file = "aqrv/aqrv/src/lib.rs"
+fn = "recognise"
+target = "fuzz/fuzz_targets/aqrv_recognise.rs"
+
+[[parser]]
+file = "aqrv/aqrv/src/lib.rs"
+fn = "recognise_code"
+target = "fuzz/fuzz_targets/aqrv_recognise.rs"
+
+[[parser]]
+file = "aqrv/aqrv/src/lib.rs"
+fn = "recognise_file"
+target = "fuzz/fuzz_targets/aqrv_recognise.rs"
+
+[[parser]]
+file = "aqrv/aqrv/src/text.rs"
+fn = "from_text"
+target = "fuzz/fuzz_targets/aqrv_text.rs"
+
+[[parser]]
+file = "aqrv/aqrv/src/item.rs"
+fn = "read"
+target = "fuzz/fuzz_targets/aqrv_item.rs"
+
+[[parser]]
+file = "aqrv/aqrv/src/envelope.rs"
+fn = "open"
+target = "fuzz/fuzz_targets/aqrv_open.rs"
+
+[[parser]]
+file = "aqrv/aqrv/src/envelope.rs"
+fn = "fuzz_open_with_prk"
+target = "fuzz/fuzz_targets/aqrv_envelope.rs"

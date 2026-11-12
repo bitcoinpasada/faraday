@@ -209,6 +209,11 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 | `xkey` | `faraday_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
 | `pgp_armor` | `faraday_pgp::read_public` |
 | `pgp_qr_vault` | `faraday_pgp::message::parse` on the whole input (the QR vault's OpenPGP message: packets in any length form, the cost limits, each refusal), then `open` where the stated cost is the least one (8 MiB), which must not return plaintext for anything but the seeded vault's own bytes |
+| `aqrv_recognise` | `aqrv::recognise`, `recognise_code` and `recognise_file` on the input as a QR payload and as a file (the Argon QR Vault, §9): a recognised header is the length's and the first byte's, a text payload reads back to its 47 characters |
+| `aqrv_text` | `aqrv::from_text` on the input as text, and `to_text` on its first 32 bytes: what reads is 47 characters and writes the same text |
+| `aqrv_item` | the Argon QR Vault's item layouts (`read` of a kind and a room of bytes): an item read is laid out again by the writer as the bytes it came from |
+| `aqrv_envelope` | `aqrv::open` after the key derivation (the first 32 bytes are Argon2id's output): the envelope split, the tags and the item's layout |
+| `aqrv_open` | `aqrv::open` whole, Argon2id included, on envelopes at the smallest memory step (64 MiB) under the vectors' passphrase |
 | `pgp_verify` | `faraday_pgp::verify_detached` with the input as the signature, the signed data and the certificate, against the GnuPG-made release-sums fixture (F134): what it takes is the fixture's own signature over the fixture's sums |
 | `pgp_paperkey` | `faraday_pgp::paperkey::read_text`, `read_raw`, `line` and `check` on what reads, then `entries` |
 | `pgp_restore` | `faraday_pgp::Certificate::read` on the whole input, then `restore` with the input as a paperkey's data against what read and against a Faraday key's certificate, and that key's own data with the input laid over it |

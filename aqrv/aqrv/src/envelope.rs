@@ -71,16 +71,21 @@ fn derive_keys(c: &Compute, pw: &[u8], salt: &[u8], step: Step) -> Result<Keys, 
     };
     let mut prk = Secret::new([0u8; 32]);
     faraday_crypto::argon2(c, Algorithm::Argon2id, pw, salt, cost, &mut prk)?;
+    Ok(expand_keys(prk.expose()))
+}
+
+/// §6: the two keys HKDF-Expand makes of Argon2id's output.
+fn expand_keys(prk: &[u8; 32]) -> Keys {
     let expand = |label: &[u8]| {
         let mut key = Zeroizing::new(vec![0u8; 32]);
-        hkdf_sha256_expand(prk.expose(), label, &mut key).expect("32 bytes is within HKDF's limit");
+        hkdf_sha256_expand(prk, label, &mut key).expect("32 bytes is within HKDF's limit");
         key
     };
-    Ok(Keys {
+    Keys {
         k_enc: expand(LABEL_ENC),
         k_mac: expand(LABEL_MAC),
-        prk: Zeroizing::new(prk.expose().to_vec()),
-    })
+        prk: Zeroizing::new(prk.to_vec()),
+    }
 }
 
 /// §10: the UTF-8 bytes of the passphrase's NFC form.
@@ -205,11 +210,19 @@ fn read(c: &Compute, envelope: &[u8], passphrase: &str) -> Result<Read, NotOpene
     let header = recognise(envelope).ok_or(NotOpened::NotRecognised)?;
     let size = header.size;
     let salt = &envelope[1..1 + size.salt_len()];
-    let encrypted = &envelope[1 + size.salt_len()..envelope.len() - size.tag_len()];
-    let stored = &envelope[envelope.len() - size.tag_len()..];
 
     let pw = passphrase_bytes(passphrase);
     let keys = derive_keys(c, &pw, salt, header.step).map_err(|_| NotOpened::NotEnoughMemory)?;
+    Ok(finish(envelope, header, pw, keys))
+}
+
+/// §6 Reading step 2 on, once the keys are made: the keystream, every
+/// tag in full, and which of them match the stored one.
+fn finish(envelope: &[u8], header: Header, pw: Zeroizing<Vec<u8>>, keys: Keys) -> Read {
+    let size = header.size;
+    let salt = &envelope[1..1 + size.salt_len()];
+    let encrypted = &envelope[1 + size.salt_len()..envelope.len() - size.tag_len()];
+    let stored = &envelope[envelope.len() - size.tag_len()..];
     let stream = keystream(&keys.k_enc, size.room());
     let tags = all_tags(&keys.k_mac, envelope[0], size, salt, encrypted);
 
@@ -234,18 +247,22 @@ fn read(c: &Compute, envelope: &[u8], passphrase: &str) -> Result<Read, NotOpene
         message,
         tags,
     };
-    Ok(Read {
+    Read {
         header,
         workings,
         matches,
-    })
+    }
 }
 
 /// Costs one Argon2id run at the envelope's step: opens an envelope
 /// (§6 Reading). A wrong passphrase and a damaged code are both
 /// [`NotOpened::NoTag`].
 pub fn open(c: &Compute, envelope: &[u8], passphrase: &str) -> Result<Opened, NotOpened> {
-    let read = read(c, envelope, passphrase)?;
+    opened(read(c, envelope, passphrase)?)
+}
+
+/// §6 Reading step 3 on: the one kind whose tag matches, and its item.
+fn opened(read: Read) -> Result<Opened, NotOpened> {
     let kind = match read.matches[..] {
         [] => return Err(NotOpened::NoTag),
         [kind] => kind,
@@ -262,4 +279,16 @@ pub fn open(c: &Compute, envelope: &[u8], passphrase: &str) -> Result<Opened, No
 /// envelope and a passphrase, whether or not it opens.
 pub fn workings(c: &Compute, envelope: &[u8], passphrase: &str) -> Result<Workings, NotOpened> {
     read(c, envelope, passphrase).map(|read| read.workings)
+}
+
+/// The fuzz target `aqrv_envelope`'s entry: `open` after the key
+/// derivation, which a run of the target cannot afford, with Argon2id's
+/// output given as `prk`. Off by default; only the fuzz crate turns the
+/// feature on, no app does.
+#[cfg(feature = "fuzzing")]
+#[doc(hidden)]
+pub fn fuzz_open_with_prk(envelope: &[u8], prk: &[u8; 32]) -> Result<Opened, NotOpened> {
+    let header = recognise(envelope).ok_or(NotOpened::NotRecognised)?;
+    let keys = expand_keys(prk);
+    opened(finish(envelope, header, passphrase_bytes(""), keys))
 }

@@ -24,5 +24,10 @@ faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] 
 faraday-files = { path = "../../faraday/faraday-files" }
 serde_json = { workspace = true }
 
+[features]
+# The entries the fuzz targets aqrv_item and aqrv_envelope feed. Off by
+# default; only the fuzz crate (fuzz/Cargo.toml) turns it on, no app does.
+fuzzing = []
+
 [lints]
 workspace = true
