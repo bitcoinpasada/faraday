@@ -1150,7 +1150,7 @@ is the release's as it is, serial included.
 
 **What the Starter reads from a Faraday stick.** Only the boot
 partition, and only to learn which Faraday it holds: the build string
-(F5), compared by `faraday-core/src/build.rs`: the kernel release string in
+(F5), compared by `faraday-paper/src/build.rs`: the kernel release string in
 `EFI/BOOT/BOOTX64.EFI` on a stick, or `faraday-build.txt` on a Pi
 card (§1.3). On Linux it is read from the desktop's own mount of the
 boot partition; when it is not mounted, the Starter has udisks2 mount it

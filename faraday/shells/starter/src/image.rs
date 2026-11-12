@@ -68,5 +68,5 @@ fn build_id(path: &Path, kind: ImageKind) -> Option<String> {
         return None;
     }
     let release = crate::stick::release_in_file(path)?;
-    faraday_core::build::build_id(&release).map(str::to_string)
+    faraday_paper::build::build_id(&release).map(str::to_string)
 }

@@ -127,7 +127,6 @@
 
 // The shell's protocol and the app's types: storage, version, actions, QR view, receipt, state.
 mod action;
-pub mod build;
 mod qr_view;
 mod receipt;
 mod state;
@@ -170,9 +169,7 @@ pub mod demo;
 pub mod devices;
 pub mod dice_entry;
 mod drawing;
-pub mod edid;
 pub mod glance;
-pub mod pdf;
 pub mod picture;
 mod scan_key;
 pub mod scan_read;
@@ -3048,7 +3045,7 @@ impl Faraday {
         if !self.online {
             return;
         }
-        match pdf::sheet(&c, &String::from_utf8_lossy(bytes)) {
+        match faraday_paper::pdf::sheet(&c, &String::from_utf8_lossy(bytes)) {
             Ok(pdf) => self.out.storage_out.push_back(StorageCommand::Print {
                 name: fill(EN.make_pdf_pdf, &[&stem(name).to_string()]),
                 bytes: pdf,

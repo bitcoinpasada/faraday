@@ -685,7 +685,7 @@ fn input_device(value: &str) -> Result<evdev::Device, String> {
 /// a firmware framebuffer says how many pixels it has and never how large
 /// they are. A laptop's screen or a monitor cannot be asked, so a person
 /// who finds the text small edits one boot entry.
-fn dpi(args: &Args, cmdline: &str, edid: Option<faraday_core::edid::Size>, fb: (u16, u16)) -> u16 {
+fn dpi(args: &Args, cmdline: &str, edid: Option<faraday_paper::edid::Size>, fb: (u16, u16)) -> u16 {
     if let Some(dpi) = args.dpi {
         return dpi;
     }
@@ -2058,9 +2058,9 @@ fn run(args: Args) -> Result<Exit, String> {
     // A connected HDMI connector is how the shell knows the screen is not
     // the panel (the boot script picks the HDMI directory the same way).
     let hdmi = !drm_edid.is_empty();
-    let edid_size = faraday_core::edid::from_boot_params(&boot_params)
+    let edid_size = faraday_paper::edid::from_boot_params(&boot_params)
         .or_else(|| (!drm_edid.is_empty()).then_some(drm_edid.as_slice()))
-        .and_then(faraday_core::edid::size)
+        .and_then(faraday_paper::edid::size)
         // The EDID gives the size of the whole screen, never of a window
         // in it: a window is judged by its own pixels, so the page lays
         // out as on a screen of that size.
@@ -2226,7 +2226,7 @@ fn run(args: Args) -> Result<Exit, String> {
                     &text(PRODUCT_NAME),
                     &text(CHASSIS_TYPE),
                 )
-                .with_edid(faraday_core::edid::from_boot_params(&boot_params));
+                .with_edid(faraday_paper::edid::from_boot_params(&boot_params));
             }
             app
         }),

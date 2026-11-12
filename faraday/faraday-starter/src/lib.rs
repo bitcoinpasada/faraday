@@ -1297,7 +1297,7 @@ impl Starter {
                 Some(stick) => {
                     let image = image?;
                     (decide::keep_data(stick, image.build.as_deref(), image.boot_sha256.as_deref())
-                        == faraday_core::build::Fit::Same)
+                        == faraday_paper::build::Fit::Same)
                         .then_some(ModeRefusal::Same)
                 }
             },
@@ -2103,7 +2103,7 @@ impl Starter {
             StarterAction::PlacesMore if self.page == Page::TemplatePlaces => {
                 // No more than the places page holds.
                 self.template.places =
-                    (self.template.places + 1).min(faraday_core::pdf::PLACES_MAX);
+                    (self.template.places + 1).min(faraday_paper::pdf::PLACES_MAX);
                 self.template.saved = None;
             }
             StarterAction::PrintTemplate if self.page == Page::Templates => {
@@ -2231,7 +2231,7 @@ impl Starter {
         let Some(i) = &self.installed else {
             return false;
         };
-        let n = faraday_core::build::version_number;
+        let n = faraday_paper::build::version_number;
         // A copy that does not report a version is older than any.
         match (n(VERSION), n(&i.version)) {
             (Some(r), Some(i)) => r > i,

@@ -3,10 +3,10 @@
 //! with no wallet; nothing here holds or asks for a key or a seed.
 
 use faraday_bip::keys::Network;
-use faraday_core::pdf;
 pub use faraday_core::wallet_backup::BlankCopy as Copy;
 use faraday_core::wallet_backup::sheet_blank;
 use faraday_crypto::work::Compute;
+use faraday_paper::pdf;
 
 use crate::api::Reason;
 use crate::sheets;

@@ -85,7 +85,7 @@ pub fn release() -> &'static str {
 /// a local build.
 pub fn version_label() -> String {
     match BUILD {
-        Some(build) => crate::build::describe(build),
+        Some(build) => faraday_paper::build::describe(build),
         None => fill(EN.version_label_local, &[VERSION]),
     }
 }

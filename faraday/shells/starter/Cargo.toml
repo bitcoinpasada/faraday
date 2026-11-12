@@ -20,6 +20,8 @@ path = "src/main.rs"
 [dependencies]
 faraday-starter = { path = "../../faraday-starter" }
 faraday-core = { path = "../../faraday-core" }
+# The printed sheets, the EDID rules and the build ID.
+faraday-paper = { path = "../../faraday-paper" }
 faraday-crypto = { path = "../../../core/faraday-crypto" }
 faraday-payload = { path = "../../faraday-payload" }
 faraday-fat = { path = "../../faraday-fat" }

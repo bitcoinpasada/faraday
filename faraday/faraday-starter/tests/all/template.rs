@@ -1,7 +1,7 @@
 //! Blank templates (`docs/STARTER.md` §3.8): what a person sees and
 //! gets from the Blank templates page.
 
-use faraday_core::pdf;
+use faraday_paper::pdf;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::api::{Reason, StarterCommand, StarterEvent};
 use faraday_starter::template::Copy;

@@ -4,7 +4,7 @@
 //! (§3.1), on a Mac too (§3.1's "On a Mac", `docs/MAC.md` §6). The screens draw these; the tests check them through the
 //! screens.
 
-use faraday_core::build::{Fit, compare};
+use faraday_paper::build::{Fit, compare};
 use faraday_strings::EN;
 use faraday_strings::fill;
 
@@ -136,7 +136,7 @@ pub fn boot_menu_entry(vendor: &str, model: &str, computer: &Computer) -> Option
 /// [`Fit::Same`] is refused; [`Fit::Newer`] and [`Fit::Dev`] are warned
 /// about on Confirm; [`Fit::Fits`] is written. An image with no build ID
 /// it can be compared by is written. The comparison is F5's build IDs
-/// (`faraday_core::build::compare`). The same build is refused only when
+/// (`faraday_paper::build::compare`). The same build is refused only when
 /// the stick's boot partition is already exactly the release's
 /// (`boot_sha256` is the sum the image's boot partition has, F244): a
 /// stick whose build ID matches but whose boot partition differs, or
@@ -145,7 +145,7 @@ pub fn keep_data(stick: &FaradayStick, build: Option<&str>, boot_sha256: Option<
     let on_stick = stick
         .release
         .as_deref()
-        .and_then(faraday_core::build::build_id);
+        .and_then(faraday_paper::build::build_id);
     match build {
         Some(b) => match compare(on_stick, b) {
             Fit::Same if !boot_is(stick, boot_sha256) => Fit::Fits,
@@ -193,7 +193,7 @@ impl crate::Starter {
 /// kept apart from a stick made before Faraday put its version there.
 pub fn version_of(stick: &FaradayStick) -> String {
     if stick.read {
-        faraday_core::build::version(stick.release.as_deref())
+        faraday_paper::build::version(stick.release.as_deref())
     } else {
         EN.starter_version_not_read.to_string()
     }

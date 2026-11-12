@@ -5011,7 +5011,7 @@ strings! {
     paper_no_words_to_split: "This key has no words to split",
     /// Toast in `paper_codex32`. `{}`: `e`.
     paper_codex32: "codex32: {}",
-    // ----- pdf (faraday-core/src/pdf.rs) -----
+    // ----- pdf (faraday-paper/src/pdf.rs) -----
     /// Error in `fields`.
     pdf_not_a_faraday_sheet: "not a Faraday sheet",
     /// Error in `fields`: a field read once appears twice. `{}`: the field.
@@ -8974,7 +8974,7 @@ strings! {
     ui_monochrome: "Monochrome",
     /// Mark on the chip of the theme a first start is in.
     ui_default_theme: "Default",
-    // ----- build (faraday-core/src/build.rs) -----
+    // ----- build (faraday-paper/src/build.rs) -----
     /// Text in `version`.
     build_0_1_0_or_earlier: "0.1.0 or earlier",
     /// Text in `describe`. `{}`: `number`, `commit`.

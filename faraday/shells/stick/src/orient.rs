@@ -13,7 +13,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, Ordering};
 
-use faraday_core::edid;
+use faraday_paper::edid;
 use faraday_shell_api::Orientation;
 
 /// How far the core's frame is turned clockwise to sit on the panel.

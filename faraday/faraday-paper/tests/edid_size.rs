@@ -1,7 +1,7 @@
 //! What an EDID base block says of a screen's size (`docs/ORIENTATION.md`
 //! §2): the native pixels, how large it is, and so how dense.
 
-use faraday_core::edid::{Size, size};
+use faraday_paper::edid::{Size, size};
 
 /// A 7-inch 800 × 1280 handheld's panel, as captured in the public EDID
 /// database `linuxhw/EDID` (`Digital/Valve/VLV3001`). Its detailed timing

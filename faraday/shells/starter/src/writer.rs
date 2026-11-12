@@ -954,7 +954,7 @@ pub fn release_on_stick<R: Read + Seek>(
 /// over a stick that holds the release string `on_stick` and whose boot
 /// partition has the SHA-256 `got` is refused when it is the same build,
 /// by Keep data's rule: the build IDs are the same
-/// (`faraday_core::build::compare`) and the boot partition is already
+/// (`faraday_paper::build::compare`) and the boot partition is already
 /// exactly the release's (F244). A source with no build ID it can be
 /// compared by passes, as Confirm lets it, and so does a stick whose boot
 /// partition is not known to be the release's.
@@ -964,12 +964,13 @@ pub fn refuse_same_build(
     build: Option<&str>,
     want: Option<&str>,
 ) -> Result<(), Reason> {
-    let on_stick = on_stick.and_then(faraday_core::build::build_id);
+    let on_stick = on_stick.and_then(faraday_paper::build::build_id);
     let exact = matches!((got, want), (Some(g), Some(w)) if g.eq_ignore_ascii_case(w));
     match build {
         Some(b)
             if exact
-                && faraday_core::build::compare(on_stick, b) == faraday_core::build::Fit::Same =>
+                && faraday_paper::build::compare(on_stick, b)
+                    == faraday_paper::build::Fit::Same =>
         {
             Err(Reason::SameBuild)
         }

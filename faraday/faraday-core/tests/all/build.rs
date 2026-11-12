@@ -7,8 +7,8 @@
 //! another commit; a higher version number is Newer. And Settings, which
 //! no longer offers to upgrade a stick (F128).
 
-use faraday_core::build::{Fit, build_id, compare, version};
 use faraday_core::{Action, Faraday, Screen};
+use faraday_paper::build::{Fit, build_id, compare, version};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// How writing `source` over a stick holding `target` stands, both as

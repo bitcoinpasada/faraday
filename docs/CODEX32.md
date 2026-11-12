@@ -632,7 +632,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   `core/faraday-entropy/src/dice.rs`) shows every entry and, for
   Dice that name words, every word as it is made.
 - **Blank templates** (`docs/STARTER.md` §3.8,
-  `faraday/faraday-starter/src/template.rs`, `faraday/faraday-core/src/pdf.rs`)
+  `faraday/faraday-starter/src/template.rs`, `faraday/faraday-paper/src/pdf.rs`)
   print BIP-39 sheets and, from batch C9, the codex32 card and the
   booklet's worksheets and tables (§11;
   `faraday/faraday-starter/src/sheets.rs`).
@@ -2254,7 +2254,7 @@ glyphs.
 **The booklet's worksheets.** The booklet's PostScript carries the MIT
 licence, "Copyright (c) 2022 Blockstream" (its repository has no LICENSE
 file), so its worksheets may be copied with that notice. Faraday draws
-its own, in `faraday/faraday-core/src/pdf.rs`, with the booklet's
+its own, in `faraday/faraday-paper/src/pdf.rs`, with the booklet's
 layout and numbering, from BIP 93's arithmetic (the checksum table rows
 are computed, not copied); the tests check the drawn checksum table
 against the residues of §7.1. The MIT notice is kept in the repository

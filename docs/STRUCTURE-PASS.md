@@ -152,8 +152,8 @@ The moves from the old layout: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
   shells and the app: it takes `&mut Faraday` and feeds stick events
   into it. The review's "a handful of types" missed that.
 - **faraday-starter takes its strings from faraday-strings.** It still
-  uses faraday-core for the PDF writer, version comparison, EDID, the
-  mark, the blank backup sheet, `Action`, `Screen`, `Host`, `motion` and
+  uses faraday-paper for the PDF writer, version comparison and EDID, and
+  faraday-core for the mark, the blank backup sheet, `Action`, `Screen`, `Host`, `motion` and
   `codex32_backup`.
 
 The steps: moved to `docs/history/STRUCTURE-PASS-LOG.md`.

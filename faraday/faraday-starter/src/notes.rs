@@ -8,8 +8,8 @@
 //! the person ticks it, the sheet also carries the system drive's
 //! recovery key (F49): the one secret here, wiped once the sheet is made.
 
-use faraday_core::pdf;
 use faraday_crypto::work::Compute;
+use faraday_paper::pdf;
 use faraday_strings::fill;
 use faraday_strings::{EN, Strings};
 

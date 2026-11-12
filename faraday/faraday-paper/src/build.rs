@@ -2,8 +2,7 @@
 //! release string, described for a person, and compared with another, as
 //! the Starter's Keep data decides by.
 
-use crate::strings::EN;
-use crate::strings::fill;
+use faraday_strings::{EN, fill};
 
 /// How writing one build over a stick that holds another stands under F2
 /// and F5's rules ([`compare`]).
@@ -32,7 +31,7 @@ pub fn version(release: Option<&str>) -> String {
 }
 
 /// A build ID described (`docs/DECISIONS.md` F5): the part of the kernel
-/// release string after `-faraday-`, or [`crate::BUILD`] directly.
+/// release string after `-faraday-`, or `faraday_core::BUILD` directly.
 ///
 /// | Input | Output |
 /// |---|---|

@@ -321,7 +321,7 @@ below, the action is the one whose functions reach it, from the inventory.
 | FAT16 and FAT32, read and written (carries) | `faraday/faraday-fat` | `stick-write` | F180 | No FAT library comes from a publisher Faraday's dependency review trusts. |
 | The FAT32 formatter for the Starter's data partition (carries) | `faraday/faraday-fat` | `starter-write` | F180 | No FAT library comes from a publisher Faraday's dependency review trusts; the partition it makes is checked by dosfstools' `fsck.fat`, against what `mkfs.fat` makes. |
 | GPT and MBR tables, read and rewritten (carries) | `faraday/shells/starter/src/gpt.rs`, `faraday/shells/starter/src/ids.rs` | `starter-write` | F180 | No partition-table library comes from a publisher Faraday's dependency review trusts. |
-| The PDF writer (carries) | `faraday/faraday-core/src/pdf.rs`, `faraday/faraday-starter/src/sheets.rs` | `starter-recovery-key` | F180 | No PDF library comes from a publisher Faraday's dependency review trusts. |
+| The PDF writer (carries) | `faraday/faraday-paper/src/pdf.rs`, `faraday/faraday-starter/src/sheets.rs` | `starter-recovery-key` | F180 | No PDF library comes from a publisher Faraday's dependency review trusts. |
 | The plist reader for the disk tool's output (carries) | `faraday/shells/starter/src/macos/plist.rs` | `starter-write` | F180 | No plist library comes from a publisher Faraday's dependency review trusts. |
 | WipeOnFree, the allocator that wipes what it frees | `core/faraday-crypto/src/wipe.rs` | `hold` | F180 | No wiping allocator comes from a publisher Faraday's dependency review trusts; this one is installed in no shipped program (F181). |
 

@@ -3,10 +3,8 @@
 //! The pages use PDF's standard fonts (Helvetica and Courier), so nothing
 //! is embedded, and draw QR codes and grids as filled squares. The sheets
 //! go to the Outbox as PDFs on every shell; the device itself prints
-//! nothing. Neither sheet carries a secret ([`crate::wallet_backup`]).
+//! nothing. Neither sheet carries a secret (`faraday-core`'s `wallet_backup`).
 
-use crate::strings::EN;
-use crate::strings::fill;
 use faraday_codec::qr::{Ecc, Payload, QrMatrix, encode};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens::{
@@ -16,8 +14,66 @@ use faraday_draw::tokens::{
     SHARE_QUORUM_GAP, SHEET_FOOT_SIZE, SHEET_LABEL_SIZE, SHEET_RULE_GREY, SHEET_RULE_SIZE,
     SHEET_TEXT_SIZE, SHEET_TITLE_SIZE,
 };
+use faraday_strings::{EN, fill};
 
-use crate::wallet_backup::structural_dark;
+thread_local! {
+    static PICTURES: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
+
+/// The documents written on this thread so far: the app's count of
+/// costly work reads it as the pictures made.
+pub fn documents_counted() -> u64 {
+    PICTURES.with(std::cell::Cell::get)
+}
+
+/// The squares fixed for every SeedQR of side `n`: finders and their
+/// separators, timing and the alignment square. The format areas are left
+/// out: they depend on the mask the seed's code was given.
+pub fn structural_fixed(x: usize, y: usize, n: usize) -> bool {
+    let finder = (x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8);
+    // The format bits go round the sixth row and column, which stay timing.
+    let format = ((y == 8 && (x < 9 || x >= n - 8)) || (x == 8 && (y < 9 || y >= n - 8)))
+        && x != 6
+        && y != 6;
+    let version = (n - 17) / 4;
+    let align = version >= 2 && {
+        let c = n - 7;
+        x.abs_diff(c) <= 2 && y.abs_diff(c) <= 2
+    };
+    (finder && !format) || ((x == 6 || y == 6) && !format) || align
+}
+
+/// Whether a fixed square of a code of side `n` ([`structural_fixed`]) is
+/// dark, as ISO/IEC 18004 draws it: a finder is a dark ring of 7 by 7, a
+/// light ring, a dark 3 by 3 centre, with a light separator beside it;
+/// timing alternates from dark at the sixth square; the alignment square
+/// is a dark ring of 5 by 5 round a dark centre with a light ring between.
+/// It depends on the side alone. A square that is not fixed is `false`.
+pub fn structural_dark(x: usize, y: usize, n: usize) -> bool {
+    if !structural_fixed(x, y, n) {
+        return false;
+    }
+    // Distance from the code's nearest edges, which is the place in a finder.
+    let (fx, fy) = (x.min(n - 1 - x), y.min(n - 1 - y));
+    let in_finder = (x < 8 && y < 8) || (x >= n - 8 && y < 8) || (x < 8 && y >= n - 8);
+    if in_finder {
+        // Its separator is the eighth row and column from the corner.
+        if fx > 6 || fy > 6 {
+            return false;
+        }
+        return fx.abs_diff(3).max(fy.abs_diff(3)) != 2;
+    }
+    let c = n - 7;
+    if (n - 17) / 4 >= 2 && x.abs_diff(c) <= 2 && y.abs_diff(c) <= 2 {
+        return x.abs_diff(c).max(y.abs_diff(c)) != 1;
+    }
+    // Timing: the row or column 6.
+    if y == 6 {
+        x.is_multiple_of(2)
+    } else {
+        y.is_multiple_of(2)
+    }
+}
 
 /// A4, in points.
 const PAGE_W: f32 = 595.0;
@@ -174,7 +230,7 @@ impl Page {
 /// Costs the document written out, its pages compressed: the finished
 /// document.
 fn document(_c: &Compute, pages: Vec<Page>) -> Vec<u8> {
-    crate::work::count(crate::work::Work::Picture);
+    PICTURES.with(|c| c.set(c.get().wrapping_add(1)));
     let mut out: Vec<u8> = b"%PDF-1.4\n%\xE2\xE3\xCF\xD3\n".to_vec();
     let mut offsets: Vec<usize> = Vec::new();
     let n = pages.len();

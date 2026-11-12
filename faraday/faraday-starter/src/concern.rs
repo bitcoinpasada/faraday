@@ -13,8 +13,8 @@
 //! and USB video capture cards. The stick has no driver for any of them.
 
 use crate::api::Kind;
-use faraday_core::edid::{self, Display, names_kvm, words};
-pub use faraday_core::edid::{edid_maker, edid_name};
+use faraday_paper::edid::{self, Display, names_kvm, words};
+pub use faraday_paper::edid::{edid_maker, edid_name};
 use faraday_strings::EN;
 
 /// What a screen is, from its EDID: [`edid::display`]'s rules, as the

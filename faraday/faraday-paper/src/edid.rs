@@ -184,7 +184,7 @@ pub fn display(edid: &[u8]) -> Option<Display> {
 
 /// Whether the maker an EDID names makes TVs as well as monitors: a
 /// screen whose base block alone names no TV may still be one.
-pub(crate) fn tv_maker(edid: &[u8]) -> bool {
+pub fn tv_maker(edid: &[u8]) -> bool {
     edid_maker(edid).is_some_and(|m| TV_MAKERS.contains(&m.as_str()))
 }
 

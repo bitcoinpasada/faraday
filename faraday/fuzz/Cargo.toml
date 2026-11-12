@@ -21,6 +21,7 @@ faraday-intake = { path = "../faraday-intake" }
 # `testkit::open_scan`): `classify_file`, `inbox_found`, `app_scanned`,
 # `edid`, `bip39_words`. The shipped binaries are built without it.
 faraday-core = { path = "../faraday-core", features = ["testkit"] }
+faraday-paper = { path = "../faraday-paper" }
 faraday-shell-api = { path = "../../core/faraday-shell-api" }
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-qr = { path = "../faraday-qr" }

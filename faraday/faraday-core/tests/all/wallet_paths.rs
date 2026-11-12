@@ -4,7 +4,8 @@
 
 use faraday_core::wallet::Origin;
 use faraday_core::wallet_backup::sheet_wallet;
-use faraday_core::{Action, Faraday, Screen, pdf, testkit};
+use faraday_core::{Action, Faraday, Screen, testkit};
+use faraday_paper::pdf;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 use crate::common::texts;

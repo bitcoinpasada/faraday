@@ -77,7 +77,6 @@ mod devices;
 mod dialogs;
 mod dice_input_panel;
 mod drop_target;
-mod edid_size;
 mod explore;
 mod explore_addresses;
 mod fee_bump_review;

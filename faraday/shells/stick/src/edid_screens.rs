@@ -221,7 +221,7 @@ fn drm_tree(name: &str, edid: &[u8]) -> PathBuf {
 /// The density and class the shell gives for the EDID on `root`.
 fn shell_sees(root: &Path, fb: (u16, u16)) -> (u16, WindowClass, bool) {
     let edid = drm_edid(root);
-    let size = faraday_core::edid::size(&edid);
+    let size = faraday_paper::edid::size(&edid);
     let dpi = dpi(&Args::default(), "faraday.dpi=160", size, fb);
     let display = DisplayInfo {
         width: fb.0,

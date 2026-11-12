@@ -849,7 +849,7 @@ impl Faraday {
                 text.push_str(&format!("thing: {label}\n"));
             }
         }
-        let Ok(pdf) = crate::pdf::sheet(&c, &text) else {
+        let Ok(pdf) = faraday_paper::pdf::sheet(&c, &text) else {
             return;
         };
         let name = format!("{}-envelopes.pdf", crate::file_stem(&g.name));

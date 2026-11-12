@@ -6,7 +6,8 @@
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::{Origin, Session};
 use faraday_core::wallet_backup::{sheet_share, sheet_wallet};
-use faraday_core::{Action, Faraday, StorageEvent, pdf, testkit};
+use faraday_core::{Action, Faraday, StorageEvent, testkit};
+use faraday_paper::pdf;
 use faraday_shell_api::{App, Event, Key};
 use faraday_vault::records::{field, kind};
 

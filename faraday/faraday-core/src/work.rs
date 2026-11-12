@@ -194,6 +194,7 @@ pub fn snapshot() -> Counts {
         }
         // The plan crate counts its own maps and checks.
         out.0[Work::PlanMap as usize] += faraday_plan::maps_counted();
+        out.0[Work::Picture as usize] += faraday_paper::pdf::documents_counted();
         out
     })
 }

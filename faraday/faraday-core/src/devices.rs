@@ -325,7 +325,7 @@ impl DeviceCheck {
     }
 
     /// The screen's EDID base block as the firmware passed it at start
-    /// ([`crate::edid::from_boot_params`]), when it did. A TV or a KVM is
+    /// ([`faraday_paper::edid::from_boot_params`]), when it did. A TV or a KVM is
     /// held by its name. A screen whose maker makes no TVs, or a
     /// computer's own panel, needs no reminder that it may be a TV. A TV
     /// maker's separate screen whose base block names no TV may still be
@@ -335,18 +335,20 @@ impl DeviceCheck {
         let Some(e) = edid else {
             return self;
         };
-        let kind = crate::edid::display(e).map(|d| match d {
-            crate::edid::Display::Tv => Kind::Tv,
-            crate::edid::Display::Kvm => Kind::Kvm,
+        let kind = faraday_paper::edid::display(e).map(|d| match d {
+            faraday_paper::edid::Display::Tv => Kind::Tv,
+            faraday_paper::edid::Display::Kvm => Kind::Kvm,
         });
         if let Some(kind) = kind {
             self.screen = Some(Concern {
                 key: "screen".into(),
-                name: crate::edid::edid_name(e).unwrap_or_else(|| EN.devices_this_screen.into()),
+                name: faraday_paper::edid::edid_name(e)
+                    .unwrap_or_else(|| EN.devices_this_screen.into()),
                 kind,
             });
         }
-        self.screen_settled = kind.is_some() || !crate::edid::tv_maker(e) || !self.external_screen;
+        self.screen_settled =
+            kind.is_some() || !faraday_paper::edid::tv_maker(e) || !self.external_screen;
         self
     }
 

@@ -5,8 +5,8 @@
 //! bar with the way back.
 
 use faraday_core::Action;
-use faraday_core::build::{Fit, describe, version};
 use faraday_draw::widgets::Icon;
+use faraday_paper::build::{Fit, describe, version};
 use faraday_strings::fill;
 use faraday_strings::{EN, Strings};
 use faraday_ui::Region;
@@ -2534,7 +2534,7 @@ fn template_places(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
             ),
             (
                 S.starter_tpl_more,
-                Style::Secondary.when(starter.template.places < faraday_core::pdf::PLACES_MAX),
+                Style::Secondary.when(starter.template.places < faraday_paper::pdf::PLACES_MAX),
                 StarterAction::PlacesMore,
             ),
         ],

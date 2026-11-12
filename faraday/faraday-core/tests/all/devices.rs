@@ -13,8 +13,8 @@
 use faraday_core::devices::{
     DeviceCheck, Interface, Kind, UsbDevice, screen_external, usb_kind, usb_name, virtual_machine,
 };
-use faraday_core::edid::from_boot_params;
 use faraday_core::{Action, Faraday, Screen, Sheet, StickInfo, StorageEvent};
+use faraday_paper::edid::from_boot_params;
 use faraday_shell_api::{App, DisplayInfo, EntropyBytes, Event};
 
 use crate::common::hold;

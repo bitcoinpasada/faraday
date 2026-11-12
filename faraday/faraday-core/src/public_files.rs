@@ -19,7 +19,7 @@ use crate::strings::{EN, fill};
 use crate::wallet::{self, Origin, Session, Wallet, fp_text};
 use crate::worker::Job;
 use crate::{
-    Faraday, Screen, Sheet, bstep, file_stem, pdf, picture, plan, qr_view, restore, wallet_backup,
+    Faraday, Screen, Sheet, bstep, file_stem, picture, plan, qr_view, restore, wallet_backup,
 };
 
 /// What a wallet's files are made from, owned: its name and policy, the
@@ -70,7 +70,7 @@ pub(crate) struct Made {
     pub(crate) toast: Option<String>,
 }
 
-/// Costs what [`pictures`] and `pdf::sheet` cost, and for the multisig
+/// Costs what [`pictures`] and `faraday_paper::pdf::sheet` cost, and for the multisig
 /// config (2) or the split sheets (4) what `restore::rebuilds` costs per
 /// set tried. The files kind `what` makes with their bytes (as
 /// `Faraday::public_out` numbers them); the config or the sheets only where
@@ -226,7 +226,7 @@ pub(crate) fn pictures(c: &Compute, inp: &Inputs, what: u8) -> Vec<picture::Labe
     }
 }
 
-/// Costs what the files cost: [`file_text`], `pdf::sheet`, [`pictures`].
+/// Costs what the files cost: [`file_text`], `faraday_paper::pdf::sheet`, [`pictures`].
 /// A wallet's public files `what`, their pictures and PDFs made only when
 /// `bytes`, else named with no bytes. A PDF that cannot be made is
 /// named in the toast.
@@ -275,7 +275,7 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
         3 if !bytes => files.push((format!("{stem}-backup.pdf"), Vec::new())),
         3 => {
             let sheet = wallet_backup::sheet_wallet_on(c, net, &inp.slots, w);
-            match pdf::sheet(c, &sheet) {
+            match faraday_paper::pdf::sheet(c, &sheet) {
                 Ok(p) => files.push((format!("{stem}-backup.pdf"), p)),
                 Err(e) => out.toast = Some(fill(EN.public_made_no_pdf, &[&e.to_string()])),
             }
@@ -290,9 +290,10 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
                     let pdf_name = format!("{stem}-share-{}-of-{n}.pdf", i + 1);
                     if !bytes {
                         files.push((pdf_name, Vec::new()));
-                    } else if let Ok(pdf) =
-                        pdf::sheet(c, &wallet_backup::sheet_share(w, i + 1, plan.len(), &share))
-                    {
+                    } else if let Ok(pdf) = faraday_paper::pdf::sheet(
+                        c,
+                        &wallet_backup::sheet_share(w, i + 1, plan.len(), &share),
+                    ) {
                         files.push((pdf_name, pdf));
                     }
                     files.push((

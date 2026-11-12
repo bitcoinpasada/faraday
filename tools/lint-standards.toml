@@ -39,6 +39,10 @@ crate = "faraday/faraday-plan"
 reason = "The backup plan's logic, moved from faraday-core: takes the compute token for its costly maps and writes hashes and fingerprints as hex with faraday-crypto's hex; computes nothing cryptographic."
 
 [[uncovered]]
+crate = "faraday/faraday-paper"
+reason = "The PDF sheets, the EDID rules and the build ID, moved from faraday-core: takes the compute token for the documents it writes; computes nothing cryptographic."
+
+[[uncovered]]
 crate = "faraday/faraday-strings"
 reason = "Writes the bytes of a refused key's version or pad as hex in an error message with faraday-crypto's hex; computes nothing cryptographic."
 

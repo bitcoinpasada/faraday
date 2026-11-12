@@ -19,7 +19,7 @@ use faraday_bip::codex32::{
     INDEX_ORDER, SYMBOL_GLYPHS, checksum_table, pair_symbol, translation_symbols,
 };
 
-use faraday_core::pdf::{RawPage, pdf_text, raw_document};
+use faraday_paper::pdf::{RawPage, pdf_text, raw_document};
 
 mod dice;
 use faraday_crypto::work::Compute;
@@ -307,7 +307,7 @@ pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
     let places: usize = get(f, "places")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1)
-        .clamp(1, faraday_core::pdf::PLACES_MAX);
+        .clamp(1, faraday_paper::pdf::PLACES_MAX);
     let mut pages = Vec::new();
     if string {
         pages.push(card(chars));
@@ -352,7 +352,7 @@ fn krux_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let places: usize = get(f, "places")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1)
-        .clamp(1, faraday_core::pdf::PLACES_MAX);
+        .clamp(1, faraday_paper::pdf::PLACES_MAX);
     let pages = [krux_page(side), places_page(places)];
     Ok(raw_document(
         c,

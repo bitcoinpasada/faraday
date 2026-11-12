@@ -809,6 +809,7 @@ dependencies = [
  "faraday-intake",
  "faraday-keys",
  "faraday-ots",
+ "faraday-paper",
  "faraday-pgp",
  "faraday-plan",
  "faraday-psbt",
@@ -915,6 +916,7 @@ dependencies = [
  "faraday-intake",
  "faraday-kef",
  "faraday-ots",
+ "faraday-paper",
  "faraday-payload",
  "faraday-pgp",
  "faraday-psbt",
@@ -1006,6 +1008,16 @@ dependencies = [
  "ripemd",
  "sha1",
  "sha3",
+]
+
+[[package]]
+name = "faraday-paper"
+version = "0.2.0"
+dependencies = [
+ "faraday-codec",
+ "faraday-crypto",
+ "faraday-draw",
+ "faraday-strings",
 ]
 
 [[package]]
@@ -1135,6 +1147,7 @@ dependencies = [
  "faraday-fat",
  "faraday-files",
  "faraday-guide",
+ "faraday-paper",
  "faraday-shell-api",
  "faraday-start",
  "faraday-strings",
@@ -1152,6 +1165,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-desktop",
  "faraday-fat",
+ "faraday-paper",
  "faraday-payload",
  "faraday-sb",
  "faraday-shell-api",

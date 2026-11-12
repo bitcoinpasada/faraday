@@ -6,7 +6,8 @@
 
 #![no_main]
 
-use faraday_core::{SecureBootAtStart, edid};
+use faraday_core::SecureBootAtStart;
+use faraday_paper::edid;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
