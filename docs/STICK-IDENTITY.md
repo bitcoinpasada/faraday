@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F174, F182); built: the image, the device, the Starter, the Name field, Learn and the guide (§3 to §8), with a stick Windows leaves whole (§4, §5.1)
-**Open:** the dev build and disk test, the write timings and the Windows 11 virtual machine run of §10; macOS's `diskutil` keys checked against a Mac, paused until one is available (`docs/MAC.md`)
+**Open:** macOS's `diskutil` keys checked against a Mac, paused until one is available (`docs/MAC.md`)
 
 A Faraday stick or Pi card has partitions with the same names as any
 other stick or card, its own IDs, and nothing in Faraday that finds it
@@ -626,8 +626,8 @@ For F182:
 - Clear the whole stick first: every sector outside what the Starter
   then writes reads zero, and the time shown before it starts is the
   stick's size at 8 MB/s.
-- The device under QEMU (`faraday/tools/disk-test.py`, which gains
-  `--no-kvm` for a builder without KVM, as `stick-qemu.py` has): it
+- The device under QEMU (`faraday/tools/disk-test.py`, with `--no-kvm`
+  for a builder without KVM, as `stick-qemu.py` has): it
   starts from a stick made for its size and finds its data partition; a
   stick in §2's state, plugged in, has no partitions and nothing is
   handed out; one in §2's state at start is repaired by OVMF and found.

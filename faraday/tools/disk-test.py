@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """Boot the dev stick image and prove the stick rule (docs/history/PLAN.md §4.3, §5.1).
 
-    faraday/tools/disk-test.py [--no-kvm] IMAGE OUT_DIR TESTKIT_DIR
+    faraday/tools/disk-test.py [--no-kvm] [--stick FILE] IMAGE OUT_DIR TESTKIT_DIR
 
 --no-kvm emulates rather than uses /dev/kvm, for a builder without it;
 every wait is then four times as long.
+
+The device starts from a stick made for its size: --stick names one the
+Starter wrote, and without it a 1 GiB one is made from IMAGE the way the
+Starter lays it out (the backup table at the disk's end, the data
+partition to the last usable sector).
 
 The dev image has a root login on ttyS0. QEMU's serial port is a unix
 socket here, so this script logs in and looks at the machine itself
@@ -25,6 +30,14 @@ while it plugs sticks in and pulls them out through QMP:
 6. USB: the kernel authorises only hard-wired devices, and the grant
    helper authorises storage, HID and hub interfaces of the rest.
 
+Then, in two more starts (docs/STICK-IDENTITY.md §10), with a stick in
+the state Windows leaves one (§2: the primary table's entries pointed at
+sectors of zeros, the backup table whole):
+
+7. Plugged in at run time, it has no partitions and nothing is handed out.
+8. As the stick the device starts from, OVMF repairs it and the device
+   finds its data partition.
+
 Screenshots go to OUT_DIR. Exits non-zero at the first check that fails.
 """
 
@@ -33,9 +46,11 @@ import os
 import re
 import shutil
 import socket
+import struct
 import subprocess
 import sys
 import time
+import zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -135,6 +150,144 @@ def wait_owner(console, node, uid, seconds):
     return False
 
 
+SECTOR = 512
+
+
+def _header(raw, fields):
+    """A GPT header (92 bytes) with `fields` set and its CRC worked out."""
+    h = bytearray(raw[:92])
+    for off, fmt, value in fields:
+        struct.pack_into(fmt, h, off, value)
+    struct.pack_into("<I", h, 16, 0)
+    struct.pack_into("<I", h, 16, zlib.crc32(bytes(h)))
+    return bytes(h)
+
+
+def made_for_size(image, path, sectors):
+    """The image written to a disk of `sectors` as the Starter does: the
+    backup table at the disk's end, the data partition to the last usable
+    sector."""
+    with open(image, "rb") as f:
+        raw = f.read()
+    n = len(raw) // SECTOR
+    entries = bytearray(raw[2 * SECTOR:34 * SECTOR])
+    last = sectors - 34
+    struct.pack_into("<Q", entries, 128 + 40, last)  # partition 2's last sector
+    crc = zlib.crc32(bytes(entries))
+    head = raw[SECTOR:2 * SECTOR]
+    primary = _header(head, [(32, "<Q", sectors - 1), (48, "<Q", last), (88, "<I", crc)])
+    backup = _header(head, [
+        (24, "<Q", sectors - 1), (32, "<Q", 1), (48, "<Q", last),
+        (72, "<Q", sectors - 33), (88, "<I", crc)])
+    with open(path, "wb") as f:
+        f.truncate(sectors * SECTOR)
+        f.write(raw[:(n - 33) * SECTOR])  # without the image's own backup table
+        f.seek(SECTOR)
+        f.write(primary + bytes(SECTOR - 92))
+        f.write(bytes(entries))
+        f.seek((sectors - 33) * SECTOR)
+        f.write(bytes(entries))
+        f.write(backup + bytes(SECTOR - 92))
+    return path
+
+
+def windows_state(source, path):
+    """A copy of a stick in the state Windows leaves one (docs/STICK-IDENTITY.md
+    §2): the primary header's entries moved to sector 2016, which holds
+    zeros, the backup table whole."""
+    shutil.copyfile(source, path)
+    with open(path, "r+b") as f:
+        f.seek(SECTOR)
+        h = f.read(SECTOR)
+        f.seek(SECTOR)
+        f.write(_header(h, [(72, "<Q", 2016)]) + h[92:])
+    return path
+
+
+def start(boot, work, tag, kvm):
+    """A machine started from `boot`: its process, monitor, console and
+    the file its screen is dumped to."""
+    sock = os.path.join(work, f"qmp-{tag}.sock")
+    serial_sock = os.path.join(work, f"serial-{tag}.sock")
+    for p in (sock, serial_sock):
+        if os.path.exists(p):
+            os.remove(p)
+    vars_dir = os.path.join(work, f"vars-{tag}")
+    os.makedirs(vars_dir, exist_ok=True)
+    argv = qemu.command(boot, vars_fd=qemu.vars_copy(vars_dir),
+                        serial=f"unix:{serial_sock},server=on,wait=off",
+                        qmp=sock, vnc=19, kvm=kvm)
+    proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(100):
+        if os.path.exists(sock) and os.path.exists(serial_sock):
+            break
+        time.sleep(0.1)
+    monitor = st.Qmp(sock)
+    console = Serial(serial_sock)
+    return proc, monitor, console, os.path.join(work, f"screen-{tag}.ppm")
+
+
+def windows_state_checks(image_stick, work, out, kvm):
+    """7 and 8: a stick in Windows' state plugged in, and started from."""
+    rewritten = windows_state(image_stick, os.path.join(work, "windows-state.img"))
+
+    boot = shutil.copyfile(image_stick, os.path.join(work, "boot-plug.img"))
+    proc, monitor, console, scratch = start(boot, work, "plug", kvm)
+    try:
+        check.settle(monitor, scratch, 90 * SLOW)
+        console.login()
+        console.run("dmesg -n 1")
+        expect(wait_found(console, "/dev/sda2", 300 * SLOW),
+               "the device finds its own stick before the other is plugged in")
+        st.plug_in(monitor, rewritten)
+        # The other stick's disk is listed; its partitions never are.
+        deadline = time.monotonic() + 120 * SLOW
+        while not re.search(r"\bsdb\b", console.run("ls /sys/class/block | cat")):
+            if time.monotonic() > deadline:
+                print(console.run("ls /sys/class/block | cat; dmesg | tail -15"))
+                expect(False, "the plugged-in stick's disk appears")
+            time.sleep(2)
+        time.sleep(10 * SLOW)
+        disks = console.run("ls /sys/class/block | cat").split()
+        print("block devices:", disks)
+        expect(not any(re.fullmatch(r"sdb[0-9]+", d) for d in disks),
+               "a stick in Windows' state, plugged in, has no partitions")
+        expect("/dev/sdb" not in console.run("cat /etc/faraday/exchange")
+               and console.run("ls /dev | grep -c '^sdb' || true").strip() in ("1", "0"),
+               "nothing is handed out of it")
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)
+
+    boot = shutil.copyfile(rewritten, os.path.join(work, "boot-repair.img"))
+    proc, monitor, console, scratch = start(boot, work, "repair", kvm)
+    try:
+        check.settle(monitor, scratch, 90 * SLOW)
+        check.shot(monitor, scratch, out, "04-windows-state-boot.png")
+        console.login()
+        console.run("dmesg -n 1")
+        deadline = time.monotonic() + 180 * SLOW
+        while "sda2" not in console.run("ls /sys/class/block | cat"):
+            if time.monotonic() > deadline:
+                expect(False, "the stick OVMF repaired has its partitions")
+            time.sleep(2)
+        expect(True, "the stick OVMF repaired has its partitions")
+        expect(wait_found(console, "/dev/sda2", 120 * SLOW),
+               "the device finds the data partition of a stick started in Windows' state")
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)
+
+
+def wait_found(console, node, seconds):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if node in console.run("cat /etc/faraday/exchange"):
+            return True
+        time.sleep(2)
+    return False
+
+
 def expect(ok, what):
     print(("ok    " if ok else "FAIL  ") + what)
     if not ok:
@@ -151,12 +304,23 @@ def main():
     kvm = "--no-kvm" not in args
     if not kvm:
         SLOW = 4
+    stick_file = None
+    if "--stick" in args:
+        i = args.index("--stick")
+        stick_file = args[i + 1]
+        del args[i:i + 2]
     image, out, kit = [a for a in args if a != "--no-kvm"][:3]
     os.makedirs(out, exist_ok=True)
     work = os.path.join(out, "work")
     os.makedirs(work, exist_ok=True)
     boot = os.path.join(work, "boot.img")
-    shutil.copyfile(image, boot)
+    # The device starts from a stick made for its size (docs/STICK-IDENTITY.md §10).
+    sized = os.path.join(work, "sized.img")
+    if stick_file:
+        shutil.copyfile(stick_file, sized)
+    else:
+        made_for_size(image, sized, (1 << 30) // SECTOR)
+    shutil.copyfile(sized, boot)
     stick = check.test_stick(os.path.join(work, "teststick.img"),
                              sorted(os.path.join(kit, n) for n in os.listdir(kit)))
     late = check.test_stick(os.path.join(work, "late.img"), [], label="LATESTICK")
@@ -225,7 +389,7 @@ def main():
         # QEMU on the build machine runs the guest's clock slowly: the boot stick's
         # disk can take a long time to be enumerated.
         deadline = time.monotonic() + 180 * SLOW
-        while "sda2" not in console.run("ls /sys/class/block"):
+        while "sda2" not in console.run("ls /sys/class/block | cat"):
             if time.monotonic() > deadline:
                 expect(False, "the boot stick's partitions appear")
             time.sleep(2)
@@ -266,7 +430,7 @@ def main():
         monitor.command("device_add", driver="usb-storage", bus="xhci.0",
                         drive="late", id="late-dev")
         deadline = time.monotonic() + 120 * SLOW
-        while not re.search(r"sd[a-z][0-9]", console.run("ls /sys/class/block")):
+        while not re.search(r"sd[a-z][0-9]", console.run("ls /sys/class/block | cat")):
             if time.monotonic() > deadline:
                 expect(False, "the late stick's partition appears")
             time.sleep(2)
@@ -284,6 +448,7 @@ def main():
     finally:
         proc.terminate()
         proc.wait(timeout=10)
+    windows_state_checks(sized, work, out, kvm)
 
 
 if __name__ == "__main__":
