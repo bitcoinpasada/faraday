@@ -459,9 +459,7 @@ impl Faraday {
                 }
                 let (i, next) = self.sample_choose(set, &cands, cursor)?;
                 self.sample_area.set_krux_next(true);
-                if let Some(s) = self.camera.scan_mut() {
-                    s.sample = next;
-                }
+                self.camera.set_sample(next);
                 seedqr_digits(set.keys[i].parts.first()?)
             }
             ScanPurpose::KeyPart => self.entry_sample_part(set).map(|t| t.as_bytes().to_vec()),
@@ -492,9 +490,7 @@ impl Faraday {
                 let all: Vec<usize> = (0..set.wallets.len()).collect();
                 let list = if open.is_empty() { &all } else { &open };
                 let at = usize::from(cursor) % list.len().max(1);
-                if let Some(s) = self.camera.scan_mut() {
-                    s.sample = ((at + 1) % list.len().max(1)) as u8;
-                }
+                self.camera.set_sample(((at + 1) % list.len().max(1)) as u8);
                 list.get(at)
                     .map(|s| set.wallets[*s].text.as_bytes().to_vec())
             }

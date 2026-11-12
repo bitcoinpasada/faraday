@@ -538,10 +538,10 @@ impl Faraday {
     /// One code read on Receive.
     pub(crate) fn transfer_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
         let c = self.compute();
-        let Some(scan) = self.camera.scan_mut() else {
-            return;
-        };
-        let Some((name, data)) = self.transfer.scanned(&c, scan, &bytes, &mut self.out) else {
+        let Some(Some((name, data))) = self
+            .camera
+            .with_scan(|scan| self.transfer.scanned(&c, scan, &bytes, &mut self.out))
+        else {
             return;
         };
         // A secret waits for **Hold to save without encryption** (F129).
@@ -558,24 +558,24 @@ impl Faraday {
     /// camera's sheet back for the next code.
     pub(crate) fn transfer_save(&mut self, name: String, data: zeroize::Zeroizing<Vec<u8>>) {
         self.transfer_skip();
-        let Some(scan) = self.camera.scan_mut() else {
-            return;
-        };
-        self.transfer
-            .save(scan, name, data.to_vec(), true, &mut self.out);
+        self.camera.with_scan(|scan| {
+            self.transfer
+                .save(scan, name, data.to_vec(), true, &mut self.out)
+        });
     }
 
     /// A received secret not saved: the camera's sheet back, where it is
     /// still on.
     pub(crate) fn transfer_skip(&mut self) {
-        if self.camera.scan_mut().is_some() {
+        if self.camera.scan().is_some() {
             self.sheet = Some(Sheet::Scan);
         }
     }
 
     /// The shell saved a received file, or could not.
     pub(crate) fn transfer_saved(&mut self, saved: Result<String, String>) {
-        self.transfer.saved(saved, self.camera.scan_mut());
+        self.camera
+            .with_scan_or_none(|scan| self.transfer.saved(saved, scan));
     }
 
     /// Opens the Downloads folder in this computer's file manager.

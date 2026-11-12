@@ -297,9 +297,20 @@ impl WalletsArea {
         self.renaming.as_ref()
     }
 
-    /// The new name being typed, to change it.
-    pub(crate) fn renaming_mut(&mut self) -> Option<&mut String> {
-        self.renaming.as_mut()
+    /// A character typed into the new name, up to 40.
+    pub(crate) fn rename_type(&mut self, c: char) {
+        if let Some(name) = self.renaming.as_mut()
+            && name.chars().count() < 40
+        {
+            name.push(c);
+        }
+    }
+
+    /// The last character of the new name erased.
+    pub(crate) fn rename_backspace(&mut self) {
+        if let Some(name) = self.renaming.as_mut() {
+            name.pop();
+        }
     }
 
     /// Starts, changes or ends the typing of a new name.

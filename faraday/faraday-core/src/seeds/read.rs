@@ -794,17 +794,10 @@ impl Faraday {
             Some(EN.sweep_practice.to_string())
         };
         if let Some(why) = why {
-            match self
-                .camera
-                .scan_mut()
-                .filter(|_| self.sheet == Some(Sheet::Scan))
-            {
-                Some(scan) => scan.note = Some(why),
-                None => {
-                    if let Some(s) = self.seed_read.sweep.as_mut() {
-                        s.error = Some(why);
-                    }
-                }
+            if self.sheet == Some(Sheet::Scan) && self.camera.scan().is_some() {
+                self.camera.say(why);
+            } else if let Some(s) = self.seed_read.sweep.as_mut() {
+                s.error = Some(why);
             }
             return;
         }
@@ -844,9 +837,7 @@ impl Faraday {
                 self.sweep_psbt(bytes.clone());
             }
             ScanPurpose::Sweep => {
-                if let Some(scan) = self.camera.scan_mut() {
-                    scan.note = Some(EN.wif_not_a_key.to_string());
-                }
+                self.camera.say(EN.wif_not_a_key.to_string());
             }
             _ if wif && home => {
                 self.seed_read.sweep = Some(Sweep::default());
@@ -859,9 +850,7 @@ impl Faraday {
             // (`docs/SCANNING.md` §4.2).
             _ if wif && self.read_card_here() => return false,
             _ if wif => {
-                if let Some(scan) = self.camera.scan_mut() {
-                    scan.note = Some(EN.sweep_elsewhere.to_string());
-                }
+                self.camera.say(EN.sweep_elsewhere.to_string());
             }
             _ => return false,
         }
@@ -878,9 +867,7 @@ impl Faraday {
             return;
         };
         let Some(psbt) = crate::wallet::read_psbt_kept(&c, &data) else {
-            if let Some(scan) = self.camera.scan_mut() {
-                scan.note = Some(EN.sweep_not_psbt.to_string());
-            }
+            self.camera.say(EN.sweep_not_psbt.to_string());
             return;
         };
         let review = crate::seeds::sweep::review(&c, &self.session, psbt);

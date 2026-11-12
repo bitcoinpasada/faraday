@@ -452,9 +452,7 @@ pub(crate) fn scanned(app: &mut Faraday, i: usize, bytes: &[u8]) {
             .push_back(faraday_shell_api::Command::CameraOff);
         sync_record(app, i);
     } else {
-        if let Some(scan) = app.camera.scan_mut() {
-            scan.note = Some(EN.kef_not_this_code.to_string());
-        }
+        app.camera.say(EN.kef_not_this_code.to_string());
     }
 }
 

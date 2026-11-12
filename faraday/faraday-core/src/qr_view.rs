@@ -989,9 +989,7 @@ impl Faraday {
         };
         let item = crate::Item::new(&c, &self.free_inbox_name(&name), data);
         if !public || item.kind != crate::FileKind::Gpg {
-            if let Some(s) = self.camera.scan_mut() {
-                s.note = Some(EN.gpg_restore_not_public.to_string());
-            }
+            self.camera.say(EN.gpg_restore_not_public.to_string());
             return true;
         }
         let at = self.inbox_file_in(item);
@@ -1034,9 +1032,7 @@ impl Faraday {
                     .push_back(faraday_shell_api::Command::CameraOff);
             }
             Err(why) => {
-                if let Some(s) = self.camera.scan_mut() {
-                    s.note = Some(why);
-                }
+                self.camera.say(why);
             }
         }
         self.out.redraw();

@@ -14,9 +14,10 @@ use faraday_crypto::work::Compute;
 use faraday_shell_api::Command;
 
 use crate::plan::{At, What};
+use crate::qr_view::TOO_FINE_PASSES;
 use crate::scan_read::{self, Kind};
 use crate::wallet::fp_text;
-use crate::{Action, Faraday, ScanPurpose, ScanState, Sheet};
+use crate::{Action, Faraday, SEEN_FRAMES, ScanPurpose, ScanState, Sheet, TOO_FINE_TENTHS};
 use faraday_intake::seed_in_code;
 
 /// Costs what `add_words_with` costs. The key `words` make with `pass`,
@@ -68,10 +69,116 @@ impl Camera {
         self.scan.as_ref()
     }
 
-    /// The scan sheet's state to change: the one door the code routing
-    /// writes the sheet's note, frame and decoders through.
-    pub(crate) fn scan_mut(&mut self) -> Option<&mut ScanState> {
-        self.scan.as_mut()
+    /// The scanner's line says `note`, while the sheet is open.
+    pub(crate) fn say(&mut self, note: String) {
+        if let Some(scan) = self.scan.as_mut() {
+            scan.note = Some(note);
+        }
+    }
+
+    /// Runs `f` on the open sheet's state, for the Receive tab's reads,
+    /// which hand the state to their own helpers; `None` when closed.
+    pub(crate) fn with_scan<R>(&mut self, f: impl FnOnce(&mut ScanState) -> R) -> Option<R> {
+        self.scan.as_mut().map(f)
+    }
+
+    /// Runs `f` on the sheet's state, or on `None` when it is closed.
+    pub(crate) fn with_scan_or_none<R>(
+        &mut self,
+        f: impl FnOnce(Option<&mut ScanState>) -> R,
+    ) -> R {
+        f(self.scan.as_mut())
+    }
+
+    /// The sample the scanner shows next is number `next`.
+    pub(crate) fn set_sample(&mut self, next: u8) {
+        if let Some(s) = self.scan.as_mut() {
+            s.sample = next;
+        }
+    }
+
+    /// The read card's facts are made again by `make` from its Krux
+    /// header; whether there was one.
+    pub(crate) fn remake_card_facts(
+        &mut self,
+        make: impl FnOnce(&crate::seeds::kef::Header) -> Vec<String>,
+    ) -> bool {
+        if let Some(card) = self.scan.as_mut().and_then(|s| s.card.as_mut())
+            && let Some(h) = card.kef.as_ref()
+        {
+            card.facts = make(h);
+            return true;
+        }
+        false
+    }
+
+    /// A code was looked for in the last picture: where it was seen, and
+    /// how fine its modules were (`docs/QR.md` §8 items 7 and 8). The
+    /// scanner's line says what to do when it stays unread.
+    pub(crate) fn qr_seen(
+        &mut self,
+        now_ms: u64,
+        seen: crate::Seen,
+        module_tenths: u16,
+        whole: bool,
+    ) {
+        let Some(s) = self.scan.as_mut() else {
+            return;
+        };
+        let now = s.frames;
+        let away = s
+            .seen
+            .is_none_or(|(_, at)| now.wrapping_sub(at) > SEEN_FRAMES);
+        let read = seen.read;
+        s.seen = Some((seen, now));
+        let fine = module_tenths < TOO_FINE_TENTHS;
+        // Only a whole-frame pass counts: a reduced copy is
+        // fine because it is small, and leaves the count alone
+        // unless it read the code.
+        if read || (whole && !fine) {
+            s.too_fine = 0;
+        } else if whole {
+            s.too_fine += 1;
+        }
+        if s.too_fine >= TOO_FINE_PASSES {
+            s.note = Some(crate::qr_view::too_fine_line(&s.purpose).to_string());
+        }
+        // Large enough and still not read after a while: the
+        // picture is the problem (`docs/QR.md` §8 item 8).
+        if read || fine {
+            s.unread_since = None;
+        } else {
+            match s.unread_since {
+                Some(since) if !away => {
+                    if now_ms.saturating_sub(since) >= faraday_draw::tokens::POOR_PICTURE_MS {
+                        s.note = Some(EN.scan_hold_square_hint.to_string());
+                    }
+                }
+                _ => s.unread_since = Some(now_ms),
+            }
+        }
+    }
+
+    /// A picture came from the camera: it replaces the last, which is
+    /// wiped as it drops. `false` when the sheet is closed.
+    pub(crate) fn frame_in(
+        &mut self,
+        width: u16,
+        height: u16,
+        luma: Vec<u8>,
+        chroma: Option<Vec<u8>>,
+    ) -> bool {
+        let Some(s) = self.scan.as_mut() else {
+            return false;
+        };
+        s.frame = Some((width, height, zeroize::Zeroizing::new(luma)));
+        s.chroma = chroma.map(zeroize::Zeroizing::new);
+        s.frames = s.frames.wrapping_add(1);
+        s.waiting_since = None;
+        if s.no_picture == Some(crate::NoPicture::Silent) {
+            s.no_picture = None;
+        }
+        true
     }
 
     /// Opens the scan sheet's state (the caller shows the sheet and
@@ -304,16 +411,13 @@ impl Faraday {
     pub(crate) fn wallet_key_scanned(&mut self, w: usize, words: &str) {
         let c = self.compute();
         let Some(fp) = key_of(&c, words, "") else {
-            if let Some(scan) = self.camera.scan_mut() {
-                scan.note = Some(EN.scan_key_not_a_seedqr.to_string());
-            }
+            self.camera.say(EN.scan_key_not_a_seedqr.to_string());
             return;
         };
         match self.wallet_key_found(w, fp) {
             Found::Here(n) => {
-                if let Some(scan) = self.camera.scan_mut() {
-                    scan.note = Some(fill(EN.scan_key_key_already, &[&(n + 1).to_string()]));
-                }
+                self.camera
+                    .say(fill(EN.scan_key_key_already, &[&(n + 1).to_string()]));
             }
             Found::Missing(n) => {
                 let label = self.wallet_key_label(&c, w, fp);
@@ -324,9 +428,7 @@ impl Faraday {
                 {
                     Ok(_) => self.wallet_key_added(w, n),
                     Err(e) => {
-                        if let Some(scan) = self.camera.scan_mut() {
-                            scan.note = Some(e.text());
-                        }
+                        self.camera.say(e.text());
                     }
                 }
             }
@@ -365,7 +467,7 @@ impl Faraday {
     pub(crate) fn wallet_key_said(&mut self, w: usize, n: usize) {
         let short = self.keys_short(w);
         if short > 0
-            && let Some(scan) = self.camera.scan_mut()
+            && let Some(scan) = self.camera.scan.as_mut()
         {
             scan.note = Some(fill(
                 EN.scan_key_key_added_more,
@@ -398,7 +500,7 @@ impl Faraday {
             Action::PasteWords => self.entry_paste(),
             Action::ScanCamera(i) => {
                 if self.camera.choose(usize::from(i))
-                    && let Some(s) = self.camera.scan_mut()
+                    && let Some(s) = self.camera.scan.as_mut()
                 {
                     s.seen = None;
                     s.too_fine = 0;
@@ -434,7 +536,7 @@ impl Faraday {
             Action::ReadGo(i) => self.read_go(usize::from(i)),
             Action::ReadAgain => self.read_again(),
             Action::ReadShow => {
-                if let Some(card) = self.camera.scan_mut().and_then(|s| s.card.as_mut())
+                if let Some(card) = self.camera.scan.as_mut().and_then(|s| s.card.as_mut())
                     && card.masked.is_some()
                 {
                     card.shown = !card.shown;
@@ -449,7 +551,7 @@ impl Faraday {
                 if self.screen == crate::Screen::SpendBackup =>
             {
                 self.spend_backup_scan(None);
-                if let Some(scan) = self.camera.scan_mut() {
+                if let Some(scan) = self.camera.scan.as_mut() {
                     scan.ask = crate::Ask::Description;
                 }
             }
@@ -768,7 +870,7 @@ impl Faraday {
             .scan()
             .is_some_and(|s| s.purpose == ScanPurpose::Sweep)
             && faraday_keys::identity::is_wif(t);
-        if let Some(scan) = self.camera.scan_mut() {
+        if let Some(scan) = self.camera.scan.as_mut() {
             if t.is_empty() {
                 scan.nothing_to_paste = Some(until);
                 return;
@@ -841,9 +943,7 @@ impl Faraday {
         } else {
             crate::stick::keys_load(self.medium)
         };
-        if let Some(scan) = self.camera.scan_mut() {
-            scan.note = Some(why);
-        }
+        self.camera.say(why);
         None
     }
 
@@ -874,9 +974,7 @@ impl Faraday {
                 self.out.commands.push_back(Command::CameraOff);
             }
             Some(why) => {
-                if let Some(scan) = self.camera.scan_mut() {
-                    scan.note = Some(why);
-                }
+                self.camera.say(why);
             }
         }
     }
@@ -1010,7 +1108,7 @@ impl Faraday {
     /// with the reason in its square and its other ways in live
     /// (`docs/QR.md` §8 item 6).
     pub(crate) fn camera_failed(&mut self, why: crate::NoPicture) {
-        if let Some(s) = self.camera.scan_mut() {
+        if let Some(s) = self.camera.scan.as_mut() {
             s.no_picture = Some(why);
             s.waiting_since = None;
         }
@@ -1021,7 +1119,7 @@ impl Faraday {
     /// picture, and "Nothing to paste" running out. Whether the sheet
     /// changed.
     pub(crate) fn scan_tick(&mut self, now_ms: u64) -> bool {
-        let Some(s) = self.camera.scan_mut() else {
+        let Some(s) = self.camera.scan.as_mut() else {
             return false;
         };
         let mut changed = false;
@@ -1093,9 +1191,7 @@ impl Faraday {
 
     /// The scanner's line says `why`; the camera stays on.
     pub(crate) fn scan_say(&mut self, why: String) {
-        if let Some(scan) = self.camera.scan_mut() {
-            scan.note = Some(why);
-        }
+        self.camera.say(why);
     }
 
     /// The camera closes and the scanner with it.
@@ -1173,7 +1269,7 @@ impl Faraday {
 
     /// The card shows; the camera goes off, its picture wiped.
     fn read_card_put(&mut self, card: scan_read::ReadCard) {
-        if let Some(scan) = self.camera.scan_mut() {
+        if let Some(scan) = self.camera.scan.as_mut() {
             scan.card = Some(card);
             scan.note = None;
             scan.frame = None;
@@ -1367,7 +1463,7 @@ impl Faraday {
     /// that is dimmed does nothing.
     fn read_go(&mut self, i: usize) {
         use scan_read::Way;
-        let Some(scan) = self.camera.scan_mut() else {
+        let Some(scan) = self.camera.scan.as_mut() else {
             return;
         };
         let Some(way) = scan.card.as_ref().and_then(|k| k.ways.get(i).cloned()) else {
@@ -1381,7 +1477,7 @@ impl Faraday {
         if way == Way::Open && self.read_kef_ask_again() {
             return;
         }
-        let Some(card) = self.camera.scan_mut().and_then(|s| s.card.take()) else {
+        let Some(card) = self.camera.scan.as_mut().and_then(|s| s.card.take()) else {
             return;
         };
         let scan_read::ReadCard {
@@ -1472,7 +1568,8 @@ impl Faraday {
     fn read_kef_ask_again(&mut self) -> bool {
         let Some(h) = self
             .camera
-            .scan_mut()
+            .scan
+            .as_mut()
             .and_then(|s| s.card.as_mut())
             .and_then(|k| k.kef.as_mut())
         else {
@@ -1674,7 +1771,7 @@ impl Faraday {
         if !self.stick.is_empty() {
             return;
         }
-        if let Some(scan) = self.camera.scan_mut()
+        if let Some(scan) = self.camera.scan.as_mut()
             && scan.card.take().is_some()
         {
             scan.note = None;
@@ -2015,7 +2112,7 @@ impl Faraday {
         let name = self.scanned_file_name(named, ext, &data);
         let item = crate::Item::new(c, &name, data);
         if item.kind == crate::wallet::FileKind::Other && !enveloped {
-            if let Some(scan) = self.camera.scan_mut() {
+            if let Some(scan) = self.camera.scan.as_mut() {
                 scan.note = Some(EN.scanned_not_a_psbt.to_string());
                 scan.decoder = faraday_codec::ur::Decoder::new();
             }
@@ -2038,7 +2135,7 @@ impl Faraday {
                 .is_some_and(|s| s.purpose == ScanPurpose::Files && s.ask == crate::Ask::Any);
         // Home's card keeps the code's own bytes for Sign this message.
         let single = if home {
-            self.camera.scan_mut().and_then(|s| s.single.take())
+            self.camera.scan.as_mut().and_then(|s| s.single.take())
         } else {
             None
         };
@@ -2096,9 +2193,7 @@ impl Faraday {
         let copy = crate::copy_check::copy_indices(&bytes);
         drop(bytes);
         let Some(copy) = copy else {
-            if let Some(scan) = self.camera.scan_mut() {
-                scan.note = Some(EN.copy_scanned_not_seedqr.to_string());
-            }
+            self.camera.say(EN.copy_scanned_not_seedqr.to_string());
             return;
         };
         let found = self
@@ -2123,7 +2218,7 @@ impl Faraday {
             self.camera.close();
             self.sheet = None;
             self.out.commands.push_back(Command::CameraOff);
-        } else if let Some(scan) = self.camera.scan_mut() {
+        } else if let Some(scan) = self.camera.scan.as_mut() {
             scan.note = Some(crate::wallet_backup::copy_scan_line(&found));
         }
     }
@@ -2159,9 +2254,7 @@ impl Faraday {
             Some(_) => None,
         };
         if let Some(note) = note {
-            if let Some(scan) = self.camera.scan_mut() {
-                scan.note = Some(note.to_string());
-            }
+            self.camera.say(note.to_string());
             return;
         }
         let found = copy.and_then(|copy| {
@@ -2181,7 +2274,7 @@ impl Faraday {
             self.camera.close();
             self.sheet = None;
             self.out.commands.push_back(Command::CameraOff);
-        } else if let Some(scan) = self.camera.scan_mut() {
+        } else if let Some(scan) = self.camera.scan.as_mut() {
             scan.note = Some(crate::wallet_backup::copy_scan_line(&found));
         }
     }
@@ -2196,7 +2289,7 @@ impl Faraday {
         bytes: zeroize::Zeroizing<Vec<u8>>,
     ) -> Option<(Option<String>, &'static str, Vec<u8>)> {
         let c = self.compute();
-        let scan = self.camera.scan_mut()?;
+        let scan = self.camera.scan.as_mut()?;
         scan.reads += 1;
         scan.single = None;
         let raw = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
@@ -2263,9 +2356,7 @@ impl Faraday {
                 // An address is checked against the loaded wallets, not
                 // filed.
                 if let Some(said) = self.address_note(&c, &text) {
-                    if let Some(scan) = self.camera.scan_mut() {
-                        scan.note = Some(said);
-                    }
+                    self.camera.say(said);
                     return None;
                 }
                 // A Krux encrypted code read as raw bytes keeps its bytes:
@@ -2278,7 +2369,7 @@ impl Faraday {
                     // A QR vault is binary too, and keeps its bytes.
                     (None, "pgp", bytes.to_vec())
                 } else {
-                    if let Some(scan) = self.camera.scan_mut() {
+                    if let Some(scan) = self.camera.scan.as_mut() {
                         scan.single = Some(bytes.clone());
                     }
                     faraday_intake::arrival(faraday_qr::classify_text(&text))

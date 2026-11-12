@@ -1057,9 +1057,7 @@ impl Faraday {
     pub(crate) fn spend_backup_intake_seed(&mut self, words: &str) {
         let c = self.compute();
         let Some(fp) = key_of(&c, words, "") else {
-            if let Some(scan) = self.camera.scan_mut() {
-                scan.note = Some(EN.spend_backup_not_a_seedqr.to_string());
-            }
+            self.camera.say(EN.spend_backup_not_a_seedqr.to_string());
             return;
         };
         let Some(w) = self.spend_backup_described() else {
@@ -1095,9 +1093,7 @@ impl Faraday {
                 return;
             }
         };
-        if let Some(scan) = self.camera.scan_mut() {
-            scan.note = Some(note);
-        }
+        self.camera.say(note);
     }
 
     /// A SLIP-39 share or a codex32 string read by the intake scanner or
@@ -1116,9 +1112,7 @@ impl Faraday {
             return false;
         };
         if !self.may_load_keys() {
-            if let Some(scan) = self.camera.scan_mut() {
-                scan.note = Some(crate::stick::keys_load(self.medium));
-            }
+            self.camera.say(crate::stick::keys_load(self.medium));
             return true;
         }
         self.camera.close();
@@ -1178,9 +1172,7 @@ impl Faraday {
             _ => fill(EN.spend_backup_is_in_files, &[&name.to_string()]),
         };
         let note = self.spend_backup.state.error.clone().unwrap_or(note);
-        if let Some(scan) = self.camera.scan_mut() {
-            scan.note = Some(note);
-        }
+        self.camera.say(note);
     }
 
     /// The split sheets that came in on What do you have?, as text.

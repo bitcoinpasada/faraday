@@ -2715,9 +2715,7 @@ impl Faraday {
                     .push_back(faraday_shell_api::Command::CameraOff);
             }
             Some(crate::codex32_backup::Found::Differs(line)) => {
-                if let Some(scan) = self.camera.scan_mut() {
-                    scan.note = Some(line);
-                }
+                self.camera.say(line);
             }
             None => {}
         }

@@ -246,12 +246,9 @@ pub(crate) fn kef_timed(app: &mut Faraday, rate_ms: Option<u64>) -> bool {
         k.facts = facts(&k.envelope, Some(rate)).join(" · ");
         changed = true;
     }
-    if let Some(card) = app.camera.scan_mut().and_then(|s| s.card.as_mut())
-        && let Some(h) = card.kef.as_ref()
-    {
-        card.facts = facts(&h.envelope, Some(rate));
-        changed = true;
-    }
+    changed |= app
+        .camera
+        .remake_card_facts(|h| facts(&h.envelope, Some(rate)));
     changed
 }
 

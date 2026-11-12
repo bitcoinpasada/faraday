@@ -263,7 +263,7 @@ pub use qr_view::{
     Ask, Code, NoPicture, QR_PARTS, QR_SPEEDS, QrFormat, QrSource, QrView, SEEN_FRAMES,
     ScanPurpose, ScanState, Seen, TOO_FINE_TENTHS,
 };
-pub(crate) use qr_view::{TOO_FINE_PASSES, UrFed, send_error, transfer_name, ur_feed, ur_note};
+pub(crate) use qr_view::{UrFed, send_error, transfer_name, ur_feed, ur_note};
 pub(crate) use receipt::sha256_of;
 pub use receipt::{Receipt, ReceiptFile};
 pub use restore::RestoreState;
@@ -1339,49 +1339,17 @@ impl Faraday {
                 whole,
             } => {
                 let now_ms = self.now_ms;
-                if let Some(s) = self.camera.scan_mut() {
-                    let now = s.frames;
-                    let away = s
-                        .seen
-                        .is_none_or(|(_, at)| now.wrapping_sub(at) > SEEN_FRAMES);
-                    s.seen = Some((
-                        Seen {
-                            width,
-                            height,
-                            corners,
-                            read,
-                        },
-                        now,
-                    ));
-                    let fine = module_tenths < TOO_FINE_TENTHS;
-                    // Only a whole-frame pass counts: a reduced copy is
-                    // fine because it is small, and leaves the count alone
-                    // unless it read the code.
-                    if read || (whole && !fine) {
-                        s.too_fine = 0;
-                    } else if whole {
-                        s.too_fine += 1;
-                    }
-                    if s.too_fine >= TOO_FINE_PASSES {
-                        s.note = Some(qr_view::too_fine_line(&s.purpose).to_string());
-                    }
-                    // Large enough and still not read after a while: the
-                    // picture is the problem (`docs/QR.md` §8 item 8).
-                    if read || fine {
-                        s.unread_since = None;
-                    } else {
-                        match s.unread_since {
-                            Some(since) if !away => {
-                                if now_ms.saturating_sub(since)
-                                    >= faraday_draw::tokens::POOR_PICTURE_MS
-                                {
-                                    s.note = Some(EN.scan_hold_square_hint.to_string());
-                                }
-                            }
-                            _ => s.unread_since = Some(now_ms),
-                        }
-                    }
-                }
+                self.camera.qr_seen(
+                    now_ms,
+                    Seen {
+                        width,
+                        height,
+                        corners,
+                        read,
+                    },
+                    module_tenths,
+                    whole,
+                );
             }
             StorageEvent::QrRead {
                 name,
@@ -3580,13 +3548,11 @@ impl Faraday {
             return;
         }
         if self.screen == Screen::Wallets
-            && let Some(name) = self.wallets.renaming_mut()
+            && let Some(name) = self.wallets.renaming()
         {
             match key {
-                KeyIn::Char(c) if name.chars().count() < 40 => name.push(c),
-                KeyIn::Backspace => {
-                    name.pop();
-                }
+                KeyIn::Char(c) => self.wallets.rename_type(c),
+                KeyIn::Backspace => self.wallets.rename_backspace(),
                 KeyIn::Enter => {
                     let n = wallet::wallet_name(name).into_owned();
                     if !n.is_empty()
@@ -4701,19 +4667,11 @@ impl App for Faraday {
                 height,
                 luma,
                 chroma,
-            } => match self.camera.scan_mut() {
-                Some(s) => {
-                    // The frame replaced is wiped as it drops.
-                    s.frame = Some((width, height, zeroize::Zeroizing::new(luma)));
-                    s.chroma = chroma.map(zeroize::Zeroizing::new);
-                    s.frames = s.frames.wrapping_add(1);
-                    s.waiting_since = None;
-                    if s.no_picture == Some(NoPicture::Silent) {
-                        s.no_picture = None;
-                    }
+            } => {
+                if !self.camera.frame_in(width, height, luma, chroma) {
+                    return;
                 }
-                None => return,
-            },
+            }
             Event::Scanned { bytes } => {
                 self.scanned(bytes);
                 self.release_held_stick();
