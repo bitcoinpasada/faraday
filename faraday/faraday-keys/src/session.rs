@@ -830,13 +830,17 @@ impl Keys {
     /// worked out ([`crate::job::KeysJob`]), in the order the job made
     /// them, as `add_words_with` and `add_seed` add them: one the session
     /// refuses (a stick attached, not a sample in the demo, already held)
-    /// is left out. Returns the fingerprints of the keys that joined.
+    /// is left out, and so is every key worked out on another network than
+    /// the session's. Returns the fingerprints of the keys that joined.
     pub fn adopt_loaded(
         &mut self,
         c: &Compute,
         loaded: crate::job::KeysLoaded,
     ) -> Vec<Fingerprint> {
         let mut out = Vec::new();
+        if loaded.network != self.network {
+            return out;
+        }
         for item in loaded.items {
             let fp = item.entry.info.fingerprint;
             if self.no_stick().is_err() || self.allowed(fp).is_err() || self.position(fp).is_some()

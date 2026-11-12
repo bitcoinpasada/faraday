@@ -2252,3 +2252,16 @@ fn a_load_with_a_stick_attached_adds_no_key() {
     assert!(keys.adopt_loaded(&c, job.run(&c)).is_empty());
     assert!(keys.is_empty());
 }
+
+#[test]
+fn a_load_worked_out_on_another_network_adds_no_key() {
+    let c = compute();
+    let file = made(&c, "first passphrase");
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file, "first passphrase").expect("opens");
+    let all = store.records(id).of(kind::KEY).map(|(i, _)| i).collect();
+    let mut keys = Keys::on(Network::Testnet);
+    let job = store.load_job(&c, Network::Mainnet, id, &all, &Default::default());
+    assert!(keys.adopt_loaded(&c, job.run(&c)).is_empty());
+    assert!(keys.is_empty());
+}

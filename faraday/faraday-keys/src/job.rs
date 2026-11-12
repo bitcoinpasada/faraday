@@ -650,6 +650,8 @@ pub struct KeysJob {
 
 /// The keys a [`KeysJob`] worked out, in the order they are added.
 pub struct KeysLoaded {
+    /// The network the keys were worked out on; a session on another adds none.
+    pub(crate) network: Network,
     pub(crate) items: Vec<LoadedKey>,
 }
 
@@ -716,7 +718,7 @@ impl KeysJob {
                 child: None,
             });
         }
-        KeysLoaded { items }
+        KeysLoaded { network, items }
     }
 
     /// Costs a PBKDF2 for each passphrase kept alone. The `chosen`th of
