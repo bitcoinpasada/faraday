@@ -338,14 +338,6 @@ reads = [
 act = "the Starter is built again"
 
 [[consumer]]
-id = "website.guide"
-name = "the website's guide"
-reads = ["docs/guide/**"]
-act = "the guide's pages are made again"
-blocking = true
-site_with = ["assets/guide/**"]
-
-[[consumer]]
 id = "website.start"
 name = "the website's start pages"
 reads = ["docs/guide/start/*.md"]
