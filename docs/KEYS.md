@@ -580,6 +580,18 @@ What was open after step 3:
   because the wallets and the keys share one network. Handles are still
   indices and `[u8; 32]` ids. Neither weakens the boundary.
 
+### 4.2 Stated limits: the HMAC and PBKDF2 calls
+
+`hmac_sha256`, `hmac_sha512`, `hkdf_sha256`, `pbkdf2_hmac_sha512` (the
+BIP-39 seed stretch) and `pbkdf2_hmac_sha256` (SLIP-39 and scrypt) go
+through the `hmac` and `pbkdf2` crates. Their hash states wipe on drop
+(`sha2`'s `zeroize` feature is on), but each call leaves two things on
+the stack, unwiped: the key padded to one hash block, and the inner hash
+(the first of the two hashes an HMAC takes). The key or password they
+come from is the caller's and is wiped there. Only
+`pbkdf2_hmac_sha256_block` (the key stretch of KEF, the vault's encrypted format) is written by hand and
+wipes both.
+
 ## 5. What does not change
 
 - No format: vaults, KDBX, PSBTs and files written to sticks.

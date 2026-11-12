@@ -475,3 +475,18 @@ fn pbkdf2_with_a_passphrase_over_64_bytes() {
     let block = pbkdf2_hmac_sha256_block(&c, &password, &salt, 3, &mut |_| true).unwrap();
     assert_eq!(block.expose().to_vec(), want);
 }
+
+/// A key of exactly 64 bytes (one whole HMAC block, not hashed first) gives
+/// the key Python's `hashlib` gives, from both PBKDF2s:
+/// `hashlib.pbkdf2_hmac('sha256', b'k' * 64, b'salt', 1000, 32).hex()`.
+#[test]
+fn pbkdf2_with_a_key_of_exactly_64_bytes() {
+    let c = Compute::new(|_| {});
+    let want = unhex("ebe48612bde5807255313042e29bb09eb61ca24b8c02d18073c2f74e22f797ac");
+    let key = [b'k'; 64];
+    let mut out = [0u8; 32];
+    pbkdf2_hmac_sha256(&c, &key, b"salt", 1000, &mut out);
+    assert_eq!(out.to_vec(), want);
+    let got = pbkdf2_hmac_sha256_block(&c, &key, b"salt", 1000, &mut |_| true).unwrap();
+    assert_eq!(got.expose().to_vec(), want);
+}

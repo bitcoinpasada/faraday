@@ -1,4 +1,5 @@
 use hmac::{Hmac, KeyInit, Mac};
+use sha2::block_api::compress256;
 use sha2::{Digest, Sha256, Sha512};
 
 use crate::Secret;
@@ -117,6 +118,18 @@ pub(crate) fn pbkdf2_sha256(password: &[u8], salt: &[u8], rounds: u32, out: &mut
     pbkdf2::pbkdf2_hmac::<Sha256>(password, salt, rounds, out);
 }
 
+/// SHA-256's initial state (FIPS 180-4 §5.3.3).
+const SHA256_IV: [u32; 8] = [
+    0x6a09_e667,
+    0xbb67_ae85,
+    0x3c6e_f372,
+    0xa54f_f53a,
+    0x510e_527f,
+    0x9b05_688c,
+    0x1f83_d9ab,
+    0x5be0_cd19,
+];
+
 /// How many rounds [`pbkdf2_hmac_sha256_block`] runs between two calls to
 /// its `between`.
 pub const PBKDF2_STEP: u32 = 5_000;
@@ -127,11 +140,15 @@ pub const PBKDF2_STEP: u32 = 5_000;
 /// steps of [`PBKDF2_STEP`] rounds; before the first and after each step
 /// `between` is called with the rounds done so far, and the work stops,
 /// returning `None`, when it returns `false`. `None` also for 0 `rounds`.
-/// The key is in a [`Secret`] and the running value `u` and the sum are
-/// [`Zeroizing`](zeroize::Zeroizing). The HMAC is spelled out (RFC 2104)
-/// over SHA-256 states that wipe on drop: the `hmac` crate's states do not,
-/// with or without its `zeroize` feature, so the keyed pads, each round's
-/// clone of them and the pad block are wiped here.
+/// The key is in a [`Secret`] and the sum is too. The HMAC is spelled out
+/// (RFC 2104) on SHA-256's compression function: the states after the key
+/// xor ipad and the key xor opad are worked out once, and each round is
+/// then two compressions from them (the inner one of `u`, the outer one of
+/// that hash, each in a block padded once), with nothing cloned and nothing
+/// wiped per round. The `hmac` crate's states wipe on drop (with sha2's
+/// `zeroize`); what it leaves on the stack is the padded key block and the
+/// inner hash, and this keeps both, and the states and blocks here, in
+/// [`Zeroizing`](zeroize::Zeroizing) wiped once, at the end.
 pub fn pbkdf2_hmac_sha256_block(
     c: &Compute,
     password: &[u8],
@@ -152,40 +169,59 @@ pub fn pbkdf2_hmac_sha256_block(
     } else {
         block[..password.len()].copy_from_slice(password);
     }
-    let mut inner_key = Sha256::new();
-    let mut outer_key = Sha256::new();
-    for b in block.iter_mut() {
-        *b ^= 0x36;
+    let mut ipad = zeroize::Zeroizing::new([0u8; 64]);
+    let mut opad = zeroize::Zeroizing::new([0u8; 64]);
+    for ((i, o), k) in ipad.iter_mut().zip(opad.iter_mut()).zip(block.iter()) {
+        *i = k ^ 0x36;
+        *o = k ^ 0x5c;
     }
-    inner_key.update(block.as_slice());
-    for b in block.iter_mut() {
-        *b ^= 0x36 ^ 0x5c;
-    }
-    outer_key.update(block.as_slice());
-    // PRF(P, m) into `out`.
-    let prf = |m: &[&[u8]], out: &mut [u8; 32]| {
-        let mut inner = inner_key.clone();
-        for part in m {
-            inner.update(part);
-        }
+    // U_1 = PRF(P, S || INT(1)), with the salt of any length, through the
+    // buffered hasher: once.
+    let mut u = zeroize::Zeroizing::new([0u8; 32]);
+    {
+        let mut inner = Sha256::new();
+        inner.update(ipad.as_slice());
+        inner.update(salt);
+        inner.update(1u32.to_be_bytes());
         let mut mid = zeroize::Zeroizing::new([0u8; 32]);
         inner.finalize_into((&mut *mid).into());
-        let mut outer = outer_key.clone();
+        let mut outer = Sha256::new();
+        outer.update(opad.as_slice());
         outer.update(mid.as_slice());
-        outer.finalize_into(out.into());
-    };
-    // U_1 = PRF(P, S || INT(1)).
-    let mut u = zeroize::Zeroizing::new([0u8; 32]);
-    prf(&[salt, &1u32.to_be_bytes()], &mut u);
+        outer.finalize_into((&mut *u).into());
+    }
     let mut t = Secret::new(*u);
-    let mut next = zeroize::Zeroizing::new([0u8; 32]);
+    // The states after one block of each pad, and the two blocks each round
+    // fills: 32 bytes, 0x80 and the length, (64 + 32) * 8 bits, which are
+    // the same every round.
+    let mut inner_state = zeroize::Zeroizing::new(SHA256_IV);
+    let mut outer_state = zeroize::Zeroizing::new(SHA256_IV);
+    compress256(&mut inner_state, core::slice::from_ref(&*ipad));
+    compress256(&mut outer_state, core::slice::from_ref(&*opad));
+    let mut inner_block = zeroize::Zeroizing::new([0u8; 64]);
+    let mut outer_block = zeroize::Zeroizing::new([0u8; 64]);
+    for blk in [&mut inner_block, &mut outer_block] {
+        blk[32] = 0x80;
+        blk[56..].copy_from_slice(&768u64.to_be_bytes());
+    }
+    inner_block[..32].copy_from_slice(&*u);
+    let mut work = zeroize::Zeroizing::new([0u32; 8]);
     let mut done = 1u32;
     while done < rounds {
         let stop = done.saturating_add(PBKDF2_STEP).min(rounds);
         for _ in done..stop {
-            prf(&[&*u], &mut next);
-            u.copy_from_slice(&*next);
-            for (a, b) in t.expose_mut().iter_mut().zip(u.iter()) {
+            // The inner block holds U_i; the next U is the outer hash.
+            work.copy_from_slice(&*inner_state);
+            compress256(&mut work, core::slice::from_ref(&*inner_block));
+            for (w, bytes) in work.iter().zip(outer_block.chunks_exact_mut(4)) {
+                bytes.copy_from_slice(&w.to_be_bytes());
+            }
+            work.copy_from_slice(&*outer_state);
+            compress256(&mut work, core::slice::from_ref(&*outer_block));
+            for (w, bytes) in work.iter().zip(inner_block.chunks_exact_mut(4)) {
+                bytes.copy_from_slice(&w.to_be_bytes());
+            }
+            for (a, b) in t.expose_mut().iter_mut().zip(inner_block.iter()) {
                 *a ^= b;
             }
         }
