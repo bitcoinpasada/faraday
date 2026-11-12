@@ -91,6 +91,11 @@ const MINTS: &[(&str, &str, &str)] = &[
         "the command line's thread, which draws nothing (a token cannot cross threads)",
     ),
     (
+        "aqrv/aqrv-cli/examples/diff_batch.rs",
+        "main",
+        "the differential run's batch reader, a test tool that draws nothing",
+    ),
+    (
         "aqrv/aqrv-app/src/worker.rs",
         "run",
         "the app's worker thread, which draws nothing (a token cannot cross threads)",
