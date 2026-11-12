@@ -45,7 +45,10 @@ pub(crate) const FIRST_STEP_MS: u64 = 16;
 pub const WHEEL_NOTCH: f32 = 56.0;
 /// What the shells send for one notch (`docs/MOTION.md` §3.1): 48
 /// pixels. Here it is read as a count of notches, not as a distance.
-pub(crate) const SHELL_NOTCH_PX: f32 = 48.0;
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub const SHELL_NOTCH_PX: f32 = 48.0;
 /// How long a change of screen or sheet takes to cross-fade in: linear,
 /// since an eased fade of this length is over in a few frames and reads
 /// as a flash, where a straight one reads as a fade. Desktops sit
@@ -176,10 +179,16 @@ pub(crate) const SWITCH_MS: u64 = tokens::MOTION_SHORT3;
 pub(crate) const DISCLOSE_MS: u64 = tokens::MOTION_MEDIUM2;
 /// How long a host menu takes to fade in, on Material's standard
 /// decelerate: Material's medium 1.
-pub(crate) const MENU_IN_MS: u64 = tokens::MOTION_MEDIUM1;
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub const MENU_IN_MS: u64 = tokens::MOTION_MEDIUM1;
 /// How long it takes to fade out, on Material's standard accelerate:
 /// Material's short 3, quicker out than in.
-pub(crate) const MENU_OUT_MS: u64 = tokens::MOTION_SHORT3;
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub const MENU_OUT_MS: u64 = tokens::MOTION_SHORT3;
 /// How long a side sheet takes to slide in from the window's edge, on
 /// Material's emphasized decelerate: Material's medium 4, for what
 /// enters the screen (`docs/MOTION.md`).
@@ -209,7 +218,10 @@ pub(crate) fn ease_open(t: f32) -> f32 {
 
 /// Something moving on screen and staying there (a switch's pill, a
 /// change of theme): Material's standard easing, `t` from 0 to 1.
-pub(crate) fn ease_move(t: f32) -> f32 {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub fn ease_move(t: f32) -> f32 {
     ease(tokens::EASE_STANDARD, t)
 }
 

@@ -290,7 +290,7 @@ extent; a motion left from another screen or sheet is stopped.
 - **Touchscreen drag**: a press that moves past the slop on a scrolled
   region becomes a pan (the press is cancelled, as now), and the lift is
   a `ScrollEnd`. Faraday Demo's host (its menus, Samples' sheet and the
-  strip's row, `host/scroll.rs`, `docs/DESKTOP-HOST.md` §5) and the
+  strip's row, `faraday-host/src/scroll.rs`, `docs/DESKTOP-HOST.md` §5) and the
   Starter (its page and its sheet, `faraday-starter` `scroll.rs`,
   `docs/STARTER.md` §3.1d) move by the same `Motion`, a `Motion` of
   their own each, past the same slop (`motion::SLOP`).

@@ -857,6 +857,7 @@ version = "0.2.0"
 dependencies = [
  "faraday-core",
  "faraday-crypto",
+ "faraday-host",
  "faraday-samples",
  "faraday-shell-api",
  "faraday-storage",
@@ -936,6 +937,17 @@ name = "faraday-guide"
 version = "0.2.0"
 dependencies = [
  "faraday-strings",
+]
+
+[[package]]
+name = "faraday-host"
+version = "0.2.0"
+dependencies = [
+ "faraday-core",
+ "faraday-draw",
+ "faraday-shell-api",
+ "faraday-strings",
+ "faraday-ui",
 ]
 
 [[package]]
@@ -1147,6 +1159,7 @@ dependencies = [
  "faraday-fat",
  "faraday-files",
  "faraday-guide",
+ "faraday-host",
  "faraday-paper",
  "faraday-shell-api",
  "faraday-start",
@@ -1165,6 +1178,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-desktop",
  "faraday-fat",
+ "faraday-host",
  "faraday-paper",
  "faraday-payload",
  "faraday-sb",

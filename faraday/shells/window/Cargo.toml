@@ -48,6 +48,10 @@ features = [
     "Win32_System_Ole",
 ]
 
+[dev-dependencies]
+# Faraday Demo's host, which a test of the window holds the app in.
+faraday-host = { path = "../../faraday-host" }
+
 [lints.rust]
 # Not `workspace = true`: on Windows the clipboard's four Win32 calls need
 # `unsafe` (clipboard.rs, `windows` alone). `deny`, not `forbid`, so that

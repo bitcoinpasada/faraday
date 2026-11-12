@@ -975,6 +975,7 @@ version = "0.2.0"
 dependencies = [
  "faraday-core",
  "faraday-crypto",
+ "faraday-host",
  "faraday-samples",
  "faraday-shell-api",
  "faraday-storage",
@@ -1056,6 +1057,25 @@ name = "faraday-guide"
 version = "0.2.0"
 dependencies = [
  "faraday-strings",
+]
+
+[[package]]
+name = "faraday-host"
+version = "0.2.0"
+dependencies = [
+ "faraday-bip",
+ "faraday-codec",
+ "faraday-core",
+ "faraday-crypto",
+ "faraday-draw",
+ "faraday-entropy",
+ "faraday-files",
+ "faraday-keys",
+ "faraday-pgp",
+ "faraday-shell-api",
+ "faraday-strings",
+ "faraday-ui",
+ "faraday-vault",
 ]
 
 [[package]]
@@ -1209,6 +1229,7 @@ dependencies = [
  "faraday-bip",
  "faraday-core",
  "faraday-crypto",
+ "faraday-host",
  "faraday-intake",
  "faraday-keys",
  "faraday-ots",
@@ -1272,6 +1293,7 @@ dependencies = [
  "faraday-core",
  "faraday-crypto",
  "faraday-draw",
+ "faraday-host",
  "faraday-keys",
  "faraday-qr",
  "faraday-samples",
@@ -1309,6 +1331,7 @@ dependencies = [
  "faraday-fat",
  "faraday-files",
  "faraday-guide",
+ "faraday-host",
  "faraday-paper",
  "faraday-shell-api",
  "faraday-start",
@@ -1328,6 +1351,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-desktop",
  "faraday-fat",
+ "faraday-host",
  "faraday-paper",
  "faraday-payload",
  "faraday-sb",
@@ -1447,6 +1471,7 @@ dependencies = [
  "faraday-avfoundation",
  "faraday-camera",
  "faraday-core",
+ "faraday-host",
  "faraday-mediafoundation",
  "faraday-scanner",
  "faraday-shell-api",

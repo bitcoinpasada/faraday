@@ -39,7 +39,7 @@ window is always there.
 
 ## 2. What it does
 
-The host (`faraday-core/src/host/`) gives the app a display of the
+The host (`faraday/faraday-host/`) gives the app a display of the
 chosen size in dp at the window's own density, in place of the window
 less the strip. Everything the layout reads from a display follows from
 that, exactly as on that screen: the class, the short and low rules,
@@ -71,7 +71,7 @@ window. It is in no settings file and no kept state.
 
 ## 4. Tests
 
-`faraday/faraday-core/tests/all/desktop_host.rs`: Size opens the menu
+`faraday/faraday-host/tests/all/desktop_host.rs`: Size opens the menu
 and the Pi panel lays Home out with the Pi's menu, compact and short,
 the frame centred above the strip; a press inside it opens the Vaults
 tile under it, one beside it nothing; This window lays the app out again

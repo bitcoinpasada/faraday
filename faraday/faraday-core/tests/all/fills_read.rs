@@ -5,8 +5,6 @@
 //! more (7:1 at High contrast), in every scheme Settings offers: each
 //! theme in Light and Dark at Standard, Medium and High contrast.
 
-use std::collections::HashMap;
-
 use faraday_core::{Action, Faraday, Screen};
 use faraday_draw::Color;
 use faraday_draw::canvas::InkKind;
@@ -15,67 +13,7 @@ use faraday_ui::Theme;
 use faraday_ui::pal::Role;
 
 use super::codex32_make::both_typed_in;
-use super::common::settle_n;
-
-/// WCAG relative luminance.
-pub(crate) fn luminance(c: Color) -> f64 {
-    let lin = |v: u8| {
-        let v = f64::from(v) / 255.0;
-        if v <= 0.040_45 {
-            v / 12.92
-        } else {
-            ((v + 0.055) / 1.055).powf(2.4)
-        }
-    };
-    0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
-}
-
-/// WCAG contrast ratio.
-pub(crate) fn ratio(a: Color, b: Color) -> f64 {
-    let (x, y) = (luminance(a), luminance(b));
-    (x.max(y) + 0.05) / (x.min(y) + 0.05)
-}
-
-/// `ink` laid over the opaque `under`.
-pub(crate) fn over(ink: Color, under: Color) -> Color {
-    let a = u32::from(ink.a);
-    let mix = |f: u8, b: u8| ((u32::from(f) * a + u32::from(b) * (255 - a) + 127) / 255) as u8;
-    Color::rgb(
-        mix(ink.r, under.r),
-        mix(ink.g, under.g),
-        mix(ink.b, under.b),
-    )
-}
-
-/// The colour most of the pixels just outside the box (x, y, w, h) are:
-/// the fill a text was drawn on.
-pub(crate) fn under(
-    rgba: &[u8],
-    width: i32,
-    height: i32,
-    (x, y, w, h): (i32, i32, i32, i32),
-) -> Color {
-    let mut seen: HashMap<(u8, u8, u8), usize> = HashMap::new();
-    let mut take = |px: i32, py: i32| {
-        if px >= 0 && py >= 0 && px < width && py < height {
-            let i = ((py * width + px) * 4) as usize;
-            *seen.entry((rgba[i], rgba[i + 1], rgba[i + 2])).or_default() += 1;
-        }
-    };
-    for px in x - 1..=x + w {
-        take(px, y - 1);
-        take(px, y + h);
-    }
-    for py in y..y + h {
-        take(x - 1, py);
-        take(x + w, py);
-    }
-    let ((r, g, b), _) = seen
-        .into_iter()
-        .max_by_key(|&(c, n)| (n, c))
-        .expect("a box on the frame");
-    Color::rgb(r, g, b)
-}
+use super::common::{over, ratio, settle_n, under};
 
 /// Every line of text the frame draws on `fill`: what it reads and how
 /// far it stands out from the fill, as drawn.

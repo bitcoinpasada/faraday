@@ -85,7 +85,10 @@ fn per_labels() -> [&'static str; 4] {
 /// The die alone with its top-left at (`x`, `y`), tumbling as the row's
 /// does: Faraday Demo's host strip draws it beside its own Roll and
 /// Rolls per click (`docs/DESKTOP-HOST.md` §3.2). Takes `ROW_H`.
-pub(crate) fn die_alone(ui: &mut Ui, (x, y): (f32, f32), r: &Roller) {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub fn die_alone(ui: &mut Ui, (x, y): (f32, f32), r: &Roller) {
     let p = r.progress();
     let lift = ROLLER_BOUNCE * (p * std::f32::consts::PI).sin();
     let sway = ROLLER_SWAY * (p * std::f32::consts::TAU).sin() * (1.0 - p);
@@ -94,7 +97,10 @@ pub(crate) fn die_alone(ui: &mut Ui, (x, y): (f32, f32), r: &Roller) {
 
 /// Rolls per click's choices, each its name and what it sets, in the
 /// order the row shows them.
-pub(crate) fn per_choices() -> [(&'static str, PerClick); 4] {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub fn per_choices() -> [(&'static str, PerClick); 4] {
     let l = per_labels();
     [
         (l[0], PerClick::One),

@@ -418,7 +418,10 @@ impl Faraday {
     /// Whoever holds the app draws over a ring `px` wide round its canvas
     /// every frame (Faraday Demo's focus edge): a fade leaves it out of
     /// what it blends and of what it says changed.
-    pub(crate) fn set_edge_drawn_over(&mut self, px: i32) {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn set_edge_drawn_over(&mut self, px: i32) {
         self.fade.edge_drawn_over = px.max(0);
     }
 
@@ -426,7 +429,10 @@ impl Faraday {
     /// after, as rectangles of its pixels, or `None` where that is not
     /// known (a frame drawn in full): a fade's steps give their bands, so
     /// a shell copies and presents those alone. Counted from now on.
-    pub(crate) fn take_changed(&mut self) -> Option<Vec<Rect>> {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn take_changed(&mut self) -> Option<Vec<Rect>> {
         self.fade.changed.replace(Vec::new())
     }
 
@@ -438,7 +444,10 @@ impl Faraday {
 
     /// Whether the next frame asked for changes the app's pixels: drawn in
     /// full, or a fade's step. Otherwise the canvas is shown as it is.
-    pub(crate) fn paints_next(&self) -> bool {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn paints_next(&self) -> bool {
         self.out.wanted() || self.fade.is_due()
     }
 
@@ -461,7 +470,10 @@ impl Faraday {
     /// far apart for a fade to read as one rather than as steps, until it
     /// has shown a run of frames fast enough again (`Fade::shown`).
     /// Until a few steps have been timed, it does.
-    pub(crate) fn fades(&self) -> bool {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn fades(&self) -> bool {
         self.fade.fades(self.settings.reduce_motion())
     }
 }

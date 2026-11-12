@@ -7,7 +7,8 @@
 use crate::common::*;
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, WalkAct, Way};
 use faraday_core::keygen::Start;
-use faraday_core::{Action, BOOT_FOLDER, Faraday, Host, HostMenu, HostPress, Screen, testkit};
+use faraday_core::{Action, BOOT_FOLDER, Faraday, Screen, testkit};
+use faraday_host::{Host, HostMenu, HostPress};
 use faraday_shell_api::{
     App, BootState, Command, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
 };
@@ -704,7 +705,7 @@ fn the_strips_more_rows_are_offered_at_the_clocks_very_start() {
 /// The host's text, in the colour it was drawn in, against the pixels
 /// round it, for each line the frame now drawn writes at full strength.
 fn host_reads(host: &mut Host) -> Vec<(String, f64)> {
-    use super::fills_read::{over, ratio, under};
+    use crate::common::{over, ratio, under};
     use faraday_draw::canvas::InkKind;
     let (width, height, rgba) = {
         let f = host.frame();
@@ -732,7 +733,7 @@ fn pixel(host: &mut Host, x: i32, y: i32) -> faraday_draw::Color {
 
 #[test]
 fn the_strip_and_the_space_round_a_preview_are_told_apart_from_the_app_in_every_theme() {
-    use super::fills_read::ratio;
+    use crate::common::ratio;
     use faraday_ui::Theme;
     use faraday_ui::pal::Role;
     let mut shell = Shell::default();

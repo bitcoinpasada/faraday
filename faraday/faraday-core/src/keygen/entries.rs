@@ -139,7 +139,10 @@ impl KeyGen {
     /// How many more rolls the dice pad takes now, for the roller beside
     /// it (`docs/CODEX32.md` §5.6): none unless dice are being entered
     /// (a lookup).
-    pub(crate) fn roller_room(&self) -> usize {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn roller_room(&self) -> usize {
         if self.active() != Some(Source::Dice) || self.locked {
             return 0;
         }

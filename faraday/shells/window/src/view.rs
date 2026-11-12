@@ -813,7 +813,8 @@ mod tests {
     #[cfg(feature = "faraday")]
     #[test]
     fn faraday_demos_window_shows_every_step_of_its_fades_whole() {
-        use faraday_core::{Action, Faraday, Host, Screen};
+        use faraday_core::{Action, Faraday, Screen};
+        use faraday_host::Host;
         let (w, h) = (900u16, 560u16);
         let sw = usize::from(w);
         let mut host = Host::new(Faraday::new());

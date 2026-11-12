@@ -8,7 +8,7 @@
 use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, WalkAct, Way};
 use faraday_core::keygen::{Start, kstep};
 use faraday_core::testkit::five::Reach;
-use faraday_core::vault::{RollerAct, RollerPerClick};
+use faraday_core::vault::RollerAct;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
@@ -98,73 +98,8 @@ fn entered(app: &Faraday, s: usize) -> usize {
     make(app).work().map_or(0, |w| w.entered(s))
 }
 
-/// From the finished entry to Strings made, each string's typing back
-/// skipped.
-fn to_made(app: &mut Faraday) {
-    c32(app, C32::Next);
-    let _ = app.frame();
-    c32(app, C32::Next);
-    for _ in 0..12 {
-        if make(app).open() == Some(Card::Made) {
-            break;
-        }
-        let _ = app.frame();
-        c32(app, C32::Skip);
-    }
-    assert_eq!(make(app).open(), Some(Card::Made), "{:?}", make(app).note());
-}
-
 fn shows(app: &mut Faraday, text: &str) -> bool {
     app.drawn_texts().iter().any(|t| t == text)
-}
-
-/// Whether Faraday Demo's host strip offers `text` for the app as it
-/// stands (`docs/DESKTOP-HOST.md` §3.1).
-fn in_strip(app: &mut Faraday, text: &str) -> bool {
-    crate::common::strip(app).iter().any(|t| t == text)
-}
-
-#[test]
-fn the_five_dice_are_offered_beside_your_dice_on_faraday_desktop_only() {
-    let mut desk = app(true, true);
-    on_dice_entry(&mut desk);
-    assert!(in_strip(&mut desk, "Next") && in_strip(&mut desk, "Play"));
-    assert!(shows(&mut desk, "Your dice"), "the pad for real dice stays");
-    // Where the walk stands is the Working area's, beside the pad.
-    assert!(shows(&mut desk, "Character 1"));
-    assert!(
-        !shows(&mut desk, "Next rolls character 1"),
-        "not the card's"
-    );
-
-    let mut stick = app(false, true);
-    on_dice_entry(&mut stick);
-    assert!(!in_strip(&mut stick, "Next"));
-    // A press that reaches a device shell anyway rolls nothing.
-    c32(&mut stick, C32::Walk(WalkAct::Next));
-    assert_eq!(make(&stick).seq_len(), 0);
-}
-
-#[test]
-fn on_faraday_desktop_in_testnet_the_dice_step_offers_no_demo_aid() {
-    // Faraday Demo, its roller set, but in Testnet: Practice is the one
-    // condition for every aid (owner, 2026-10-24).
-    let mut test = app(false, true);
-    test.set_roller_offered(true);
-    faraday_core::testkit::move_to(&mut test.session, faraday_core::testkit::NET).unwrap();
-    on_dice_entry(&mut test);
-    let s = crate::common::strip(&mut test);
-    assert!(
-        !s.iter()
-            .any(|t| t == "Practice" || t == "Next" || t == "Use a sample"),
-        "no aid: {s:?}"
-    );
-    assert!(shows(&mut test, "Your dice"), "the person's own dice stay");
-
-    // In Practice the same step has them.
-    let mut demo = app(true, true);
-    on_dice_entry(&mut demo);
-    assert!(in_strip(&mut demo, "Next") && in_strip(&mut demo, "Use a sample"));
 }
 
 #[test]
@@ -214,42 +149,6 @@ fn the_arrow_keys_step_through_on_faraday_desktop() {
 }
 
 #[test]
-fn play_to_the_end_makes_the_strings_and_demo_puts_its_sample_in_their_place() {
-    let mut app = app(true, true);
-    on_dice_entry(&mut app);
-    play(&mut app, Reach::End);
-    assert!(make(&app).strings().is_some(), "every share entered");
-    assert!(make(&app).front().is_none());
-    to_made(&mut app);
-    // The roller is Practice's alone, so what the computer rolled never
-    // leaves the entry (`docs/CODEX32.md` §12).
-    assert!(make(&app).sample());
-    assert!(in_strip(
-        &mut app,
-        "Practice puts sample NAME in place of these strings"
-    ));
-}
-
-#[test]
-fn faces_from_both_finish_the_entry_and_demo_puts_its_sample_in_their_place() {
-    let mut app = app(true, true);
-    on_dice_entry(&mut app);
-    // One character by hand: each die 4 then 3.
-    for f in [4, 4, 4, 4, 4, 3, 3, 3, 3, 3] {
-        c32(&mut app, C32::Key(OskPress::Char(char::from(b'0' + f))));
-    }
-    assert_eq!(entered(&app, 0), 1);
-    assert!(!make(&app).char_rolled(0, 0), "a real die's, not marked");
-    play(&mut app, Reach::End);
-    to_made(&mut app);
-    assert!(make(&app).sample());
-    assert!(in_strip(
-        &mut app,
-        "Practice puts sample NAME in place of these strings"
-    ));
-}
-
-#[test]
 fn play_one_character_stops_after_its_last_step() {
     let mut app = app(true, false);
     on_dice_entry(&mut app);
@@ -275,21 +174,6 @@ fn on_bip39_dice(offered: bool) -> Faraday {
     }
     assert_eq!(app.keygen().unwrap().open, Some(kstep::ENTER));
     app
-}
-
-#[test]
-fn the_one_die_fills_new_keys_rolls_and_the_card_says_simulated_dice() {
-    let mut app = on_bip39_dice(true);
-    assert!(in_strip(&mut app, "Roll"), "the die in the strip");
-    app.press(Action::KRoller(RollerAct::Per(RollerPerClick::Five)));
-    app.press(Action::KRoller(RollerAct::Roll));
-    assert_eq!(app.keygen().unwrap().dice.len(), 5);
-    app.press(Action::KRoller(RollerAct::Per(RollerPerClick::ToEnd)));
-    app.press(Action::KRoller(RollerAct::Roll));
-    let k = app.keygen().unwrap();
-    assert_eq!(k.progress().0, k.progress().1, "the rolls are full");
-    app.press(Action::KNext);
-    assert!(shows(&mut app, "Entropy · simulated dice"));
 }
 
 #[test]

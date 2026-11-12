@@ -35,6 +35,7 @@ members = [
     "faraday/faraday-ots",
     "faraday/faraday-plan",
     "faraday/faraday-paper",
+    "faraday/faraday-host",
     "faraday/faraday-sqlite",
     "faraday/faraday-core-wallet",
     "faraday/faraday-sb",

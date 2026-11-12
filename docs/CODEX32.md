@@ -905,7 +905,7 @@ this computer", "simulated dice". The person's own entry is the dice
 sheet in the page and the input panel: each die's two rolls and
 **Your dice**. The strip reads the walk from `codex32/walk_screen.rs`
 (`host_aids`, `host_play_options`); tested in
-`tests/all/desktop_host.rs` (the walk in the strip, Next stepping it
+`faraday-host/tests/all/desktop_host.rs` (the walk in the strip, Next stepping it
 from one place at every step, nothing practice-only in the app, Play's
 options) and `tests/all/codex32_dice.rs` (none on the stick; a d20
 share played and padded 1 to 20).

@@ -644,7 +644,7 @@ impl Faraday {
     }
 
     /// The display the app was last given, if any: what Faraday Demo's
-    /// host holds it at ([`crate::Host::strip_for`]). A lookup.
+    /// host holds it at (`faraday_host::Host::strip_for`). A lookup.
     pub fn last_display_info(&self) -> Option<faraday_shell_api::DisplayInfo> {
         self.last_display
     }
@@ -657,8 +657,11 @@ impl Faraday {
         self.settings.hosted()
     }
 
-    /// Notes that Faraday Demo's host holds the app ([`crate::Host`]).
-    pub(crate) fn set_hosted(&mut self, on: bool) {
+    /// Notes that Faraday Demo's host holds the app.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn set_hosted(&mut self, on: bool) {
         self.settings.set_hosted(on);
         self.out.redraw();
     }

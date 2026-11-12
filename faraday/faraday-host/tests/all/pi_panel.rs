@@ -26,7 +26,8 @@ use faraday_core::nav::{BarTool, MenuPress, Overflow};
 use faraday_core::spend_backup::SpendBackupAction as F;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wallet::step;
-use faraday_core::{Action, Faraday, Host, ScanPurpose, Screen, Sheet, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, ScanPurpose, Screen, Sheet, StorageEvent, testkit};
+use faraday_host::Host;
 use faraday_shell_api::{
     App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware, TouchPhase,
 };
@@ -1494,10 +1495,24 @@ fn on_the_pi_the_guide_sheets_tab_names_are_read_whole() {
     }
 }
 
+/// Whether Back up's plan offers `action` anywhere down its column.
+fn offered_down(app: &mut Faraday, action: Action) -> bool {
+    for _ in 0..20 {
+        if crate::common::offered(app, action) {
+            return true;
+        }
+        app.event(Event::Scroll {
+            x: 400,
+            y: 384,
+            dy: 300,
+        });
+    }
+    false
+}
+
 #[test]
 fn on_the_small_panel_both_segments_of_a_vaults_choice_are_on_the_page_and_the_second_can_be_pressed()
  {
-    use crate::backup_flow_wallet::offered_down;
     use crate::common::{create_single_key, keep_time, process, texts};
     use faraday_core::board::{BoardPress, Thing, Zone};
     use faraday_core::{Action, cstep};

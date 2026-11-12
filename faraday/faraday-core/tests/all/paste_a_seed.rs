@@ -8,7 +8,6 @@
 
 use std::str::FromStr;
 
-use crate::common::strip_offers;
 use crate::common::type_text;
 use faraday_bip::bitcoin::bip32::Xpriv;
 use faraday_bip::bitcoin::secp256k1::Secp256k1;
@@ -392,50 +391,4 @@ fn a_wrong_checksum_an_unknown_word_or_a_wrong_count_pasted_is_refused_and_the_w
         app.press(Action::EntryAdd);
         assert!(app.session.keys.is_empty(), "{bad} loaded a key");
     }
-}
-
-#[test]
-fn the_device_takes_no_words_pasted_on_any_network() {
-    for testnet in [false, true] {
-        let mut app = testkit::started();
-        if testnet {
-            app.session = Session::on(testkit::NET);
-        }
-        app.press(Action::Entry(None));
-        let _ = app.frame();
-        assert!(!app.entry_pastes());
-        let (words, _) = VECTORS[0];
-        for ctrl_v in [false, true] {
-            assert!(!paste_words(&mut app, words, ctrl_v), "the shell was asked");
-        }
-        assert_eq!(words_in(&app), "", "words went in");
-        assert!(!strip_offers(&mut app, Action::PasteWords));
-    }
-}
-
-#[test]
-fn paste_words_is_in_practices_strip_and_a_sample_pasted_loads() {
-    let mut app = desktop();
-    app.online = true;
-    testkit::into_demo(&mut app);
-    app.set_modes(DESKTOP_MODES);
-    app.press(Action::Entry(None));
-    let _ = app.frame();
-    assert!(strip_offers(&mut app, Action::PasteWords));
-    let zebra = testkit::test_words("zebra");
-    assert!(paste_words(&mut app, &zebra, false));
-    assert_eq!(words_in(&app), zebra);
-    added(&mut app);
-}
-
-#[test]
-fn on_testnet_the_strip_offers_paste_words_and_it_and_ctrl_v_paste() {
-    let mut app = demo_on_testnet();
-    assert!(strip_offers(&mut app, Action::PasteWords));
-    let (words, _) = VECTORS[0];
-    assert!(paste_words(&mut app, words, false));
-    assert_eq!(words_in(&app), words);
-    let mut app = demo_on_testnet();
-    assert!(paste_words(&mut app, words, true));
-    assert_eq!(words_in(&app), words);
 }

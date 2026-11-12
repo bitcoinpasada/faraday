@@ -304,7 +304,10 @@ pub enum Pick {
 
 /// One row of the sheet.
 #[derive(Debug, Clone)]
-pub(crate) struct Row {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub struct Row {
     /// Its place in [`Samples::wallets`] or [`Samples::keys`].
     pub(crate) sample: usize,
     /// What the sample is, as its value: made once when the sheet opens
@@ -324,16 +327,51 @@ pub(crate) struct Row {
 /// reads it and works nothing out. A test changes the session, then opens
 /// the sheet, and sees the change.
 #[derive(Debug, Default)]
-pub(crate) struct SheetState {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub struct SheetState {
     /// The sample wallets, in the order of [`Samples::wallets`].
     pub(crate) wallets: Vec<Row>,
     /// The sample keys the sheet lists, in the order of [`Samples::keys`].
     pub(crate) keys: Vec<Row>,
 }
 
+impl Row {
+    /// Its place in [`Samples::wallets`] or [`Samples::keys`].
+    pub fn sample(&self) -> usize {
+        self.sample
+    }
+
+    /// What the sample is, as made when the sheet opened.
+    pub fn kind(&self) -> &str {
+        &self.kind
+    }
+
+    /// Whether the person has ticked it, to load.
+    pub fn ticked(&self) -> bool {
+        self.ticked
+    }
+
+    /// Whether it is already in the session.
+    pub fn loaded(&self) -> bool {
+        self.loaded
+    }
+}
+
 impl SheetState {
+    /// The sample wallets' rows, in the order of [`Samples::wallets`].
+    pub fn wallets(&self) -> &[Row] {
+        &self.wallets
+    }
+
+    /// The sample keys' rows, in the order of [`Samples::keys`].
+    pub fn keys(&self) -> &[Row] {
+        &self.keys
+    }
+
     /// Whether any row is ticked.
-    pub(crate) fn any_ticked(&self) -> bool {
+    pub fn any_ticked(&self) -> bool {
         self.wallets.iter().chain(&self.keys).any(|r| r.ticked)
     }
 
@@ -434,7 +472,10 @@ impl SampleKey {
     }
 
     /// What the key is called on screen.
-    pub(crate) fn label(&self) -> String {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn label(&self) -> String {
         label(self.name, self.word, self.count).unwrap_or_default()
     }
 
@@ -523,7 +564,10 @@ fn loaded_text(wallets: usize, keys: usize) -> String {
 /// The computer's dice roller the host's strip holds
 /// (`docs/CODEX32.md` §5.6).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Roller {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub enum Roller {
     /// New key's dice.
     KeyGen,
     /// Create a vault's Generate with dice.
@@ -533,7 +577,10 @@ pub(crate) enum Roller {
 /// What the host's strip holds for the page besides the buttons the page
 /// hands the frame.
 #[derive(Debug, Clone, Default, PartialEq)]
-pub(crate) struct Hosted {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub struct Hosted {
     /// The lines saying what Practice puts in place of the person's own.
     pub lines: Vec<String>,
     /// The computer's dice roller.
@@ -543,7 +590,10 @@ pub(crate) struct Hosted {
 /// The samples area: the Load samples sheet's rows, and what the last
 /// frame offered for the demo while Faraday Demo's host holds the app.
 #[derive(Default)]
-pub(crate) struct SamplesArea {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub struct SamplesArea {
     sheet: SheetState,
     /// What the page and its sheet handed the frame for the "Demo only"
     /// card in the frame last drawn, noted by the drawing for the host's
@@ -568,7 +618,10 @@ impl SamplesArea {
     }
 
     /// The Load samples sheet's rows.
-    pub(crate) fn sheet(&self) -> &SheetState {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn sheet(&self) -> &SheetState {
         &self.sheet
     }
 
@@ -583,7 +636,10 @@ impl SamplesArea {
     }
 
     /// What the frame last drawn offered for the demo.
-    pub(crate) fn aids(&self) -> Vec<faraday_ui::demo::DemoItem<crate::Action>> {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn aids(&self) -> Vec<faraday_ui::demo::DemoItem<crate::Action>> {
         self.aids.borrow().clone()
     }
 }
@@ -592,7 +648,10 @@ impl Faraday {
     /// Whether the Load samples pill and sheet are on: Practice, with the
     /// samples set by the shell (the desktop). The stick, the Pi and every
     /// other mode have none.
-    pub(crate) fn samples_on(&self) -> bool {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn samples_on(&self) -> bool {
         self.samples.is_some() && self.mode() == Mode::Demo
     }
 
@@ -814,7 +873,10 @@ impl Faraday {
     /// buttons it hands the frame (`docs/DESKTOP-HOST.md` §3.1): in Practice,
     /// the lines that say what Practice puts in place of the person's own, and
     /// the computer's dice roller where its dice entry is open. A lookup.
-    pub(crate) fn demo_hosted_now(&self) -> Option<Hosted> {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn demo_hosted_now(&self) -> Option<Hosted> {
         // Practice is the one condition for every aid.
         if !self.demo_passphrase() {
             return None;

@@ -18,11 +18,11 @@ use faraday_ui::demo::DemoItem;
 use faraday_ui::{Mode, Paint, Role, Theme};
 
 use super::{Area, Host, HostMenu as Menu, HostPress};
-use crate::fresh::roller::Act as DieAct;
-use crate::samples::{PASSPHRASE, Pick, Roller};
-use crate::strings::{EN, fill};
-use crate::ui::{Plain, Shape};
-use crate::{Action, Faraday};
+use faraday_core::fresh::roller::Act as DieAct;
+use faraday_core::samples::{PASSPHRASE, Pick, Roller};
+use faraday_core::ui::{Plain, Shape};
+use faraday_core::{Action, Faraday};
+use faraday_strings::{EN, fill};
 
 /// The host's colours for the app's scheme: the strip in the app's
 /// inverse roles, and what stands on it, round it and over it in the
@@ -206,10 +206,10 @@ fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>, bool) {
     let roller = app.roller_offered();
     if let Some(m) = app
         .keygen()
-        .filter(|k| k.open == Some(crate::keygen::kstep::CODEX32))
+        .filter(|k| k.open == Some(faraday_core::keygen::kstep::CODEX32))
         .and_then(|k| k.codex32.as_ref())
     {
-        for (label, on, primary, act) in crate::codex32::walk_screen::host_aids(m, roller) {
+        for (label, on, primary, act) in faraday_core::codex32::walk_screen::host_aids(m, roller) {
             let kind = match (on, primary) {
                 (false, _) => Kind::Off,
                 (true, true) => Kind::Primary,
@@ -222,13 +222,13 @@ fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>, bool) {
                 kind,
             });
         }
-        walks = crate::codex32::walk_screen::host_walks(m, roller);
+        walks = faraday_core::codex32::walk_screen::host_walks(m, roller);
         if walks {
             let die = fill(EN.codex32_die_size, &[&m.dice_choice().faces.to_string()]);
             lines.push(fill(EN.codex32_rolls_die, &[&die]));
         }
     }
-    for item in app.sample_area.aids() {
+    for item in app.sample_area().aids() {
         match item {
             DemoItem::Button(label, action) => {
                 let press = HostPress::App(action);
@@ -255,7 +255,11 @@ fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>, bool) {
 }
 
 /// The die, its press for each of the roller's own, whether it may roll.
-type DieOf<'a> = (&'a crate::fresh::roller::Roller, fn(DieAct) -> Action, bool);
+type DieOf<'a> = (
+    &'a faraday_core::fresh::roller::Roller,
+    fn(DieAct) -> Action,
+    bool,
+);
 
 /// The computer's die `which` the page shows: the roller, its press for
 /// each of the roller's own, and whether it may roll now (the entries
@@ -270,8 +274,10 @@ fn roller_of(app: &Faraday, which: Roller) -> Option<DieOf<'_>> {
             )
         }),
         Roller::Vault => {
-            let act: fn(DieAct) -> Action = |a| Action::Vault(crate::vault::VaultAction::Roller(a));
-            Some((app.vaults.dice.roller(), act, app.vaults.dice.room() > 0))
+            let act: fn(DieAct) -> Action =
+                |a| Action::Vault(faraday_core::vault::VaultAction::Roller(a));
+            let (roller, room) = app.vault_dice();
+            Some((roller, act, room))
         }
     }
 }
@@ -298,7 +304,7 @@ fn roller_ctls(app: &Faraday, which: Roller) -> Vec<Ctl> {
             kind: if room { Kind::Primary } else { Kind::Off },
         }
     };
-    let per = crate::fresh::roller::screen::per_choices()
+    let per = faraday_core::fresh::roller::screen::per_choices()
         .into_iter()
         .find(|(_, p)| *p == r.per())
         .map_or_else(
@@ -788,7 +794,7 @@ fn piece(
             ui.text_mid_as((x, cy, t::HOST_CONTROL_H), t::TITLE_S, ink, label)
         }
         Piece::Die(r) => {
-            let y = top + (sh - crate::fresh::roller::screen::ROW_H) / 2.0;
+            let y = top + (sh - faraday_core::fresh::roller::screen::ROW_H) / 2.0;
             die(host, ui, look, *r, (x, y));
             t::ROLLER_DIE
         }
@@ -843,8 +849,9 @@ fn menus(
 ) -> (Vec<String>, Option<(Rect, f32)>) {
     let anchor = |m: Menu| anchors.iter().find(|(a, _)| *a == m).map(|(_, x)| *x);
     if let Some((m, at)) = host.leaving {
-        let p = crate::motion::progress(Some(at), host.now, crate::motion::MENU_OUT_MS);
-        let shown = 1.0 - crate::motion::ease(t::EASE_STANDARD_ACCELERATE, p);
+        let p =
+            faraday_core::motion::progress(Some(at), host.now, faraday_core::motion::MENU_OUT_MS);
+        let shown = 1.0 - faraday_core::motion::ease(t::EASE_STANDARD_ACCELERATE, p);
         if shown > 0.0 {
             let mark = ui.presses_mark();
             if m == Menu::Samples {
@@ -858,8 +865,12 @@ fn menus(
     if let Some((m, at)) = host.menu {
         let shown = match at {
             Some(at) if host.app.fades() => {
-                let p = crate::motion::progress(Some(at), host.now, crate::motion::MENU_IN_MS);
-                crate::motion::ease(t::EASE_STANDARD_DECELERATE, p)
+                let p = faraday_core::motion::progress(
+                    Some(at),
+                    host.now,
+                    faraday_core::motion::MENU_IN_MS,
+                );
+                faraday_core::motion::ease(t::EASE_STANDARD_DECELERATE, p)
             }
             // At rest, under Reduce motion or with fades off: whole.
             _ => 1.0,
@@ -1016,7 +1027,7 @@ fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<MenuRow> {
                 return Vec::new();
             };
             let mut v = Vec::new();
-            for (head, items) in crate::codex32::walk_screen::host_play_options(m) {
+            for (head, items) in faraday_core::codex32::walk_screen::host_play_options(m) {
                 v.push(MenuRow {
                     label: head.to_string(),
                     note: String::new(),
@@ -1038,8 +1049,8 @@ fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<MenuRow> {
             let Some((r, act, _)) = roller_shown(app).and_then(|w| roller_of(app, w)) else {
                 return Vec::new();
             };
-            let typed = r.per() == crate::fresh::roller::PerClick::Typed;
-            crate::fresh::roller::screen::per_choices()
+            let typed = r.per() == faraday_core::fresh::roller::PerClick::Typed;
+            faraday_core::fresh::roller::screen::per_choices()
                 .into_iter()
                 .map(|(l, p)| {
                     row(
@@ -1212,9 +1223,9 @@ fn die(host: &Host, ui: &mut HostUi, look: &Look, which: Roller, (x, y): (f32, f
     };
     let mut hits: Vec<(faraday_draw::geom::Rect, Action)> = Vec::new();
     let f = ui.f;
-    let mut aui = crate::ui::Ui::new(&mut *ui.c, f, &mut hits, None);
+    let mut aui = faraday_core::ui::Ui::new(&mut *ui.c, f, &mut hits, None);
     aui.theme = look.theme;
-    crate::fresh::roller::screen::die_alone(&mut aui, (x, y), r);
+    faraday_core::fresh::roller::screen::die_alone(&mut aui, (x, y), r);
 }
 
 /// Where Samples' sheet stands and how tall it may grow, dp: its left
@@ -1279,15 +1290,15 @@ fn samples_sheet(
     if app.samples.is_none() {
         return (Vec::new(), None);
     }
-    let state = app.sample_area.sheet();
-    let warn = (app.selftest_passed() && !app.stick.is_empty()).then(|| {
+    let state = app.sample_area().sheet();
+    let warn = (app.selftest_passed() && !app.no_stick_in()).then(|| {
         fill(
             EN.pull_medium_to_reason,
             &[app.medium.noun(), EN.pull_what_load_samples],
         )
     });
     let (row, line) = (t::HOST_MENU_ROW, t::HOST_LINE);
-    let n = state.wallets.len() + state.keys.len();
+    let n = state.wallets().len() + state.keys().len();
     let body =
         line + warn.as_ref().map_or(0.0, |_| line) + row + 2.0 * line + n as f32 * row + t::GAP;
     let head = t::GAP + row;
@@ -1344,7 +1355,7 @@ fn sheet_lists(
     let Some(set) = app.samples else {
         return;
     };
-    let state = app.sample_area.sheet();
+    let state = app.sample_area().sheet();
     let (row, line) = (t::HOST_MENU_ROW, t::HOST_LINE);
     let (x, iw) = (mx + t::PAD, mw - 2.0 * t::PAD);
     let mut cy = y;
@@ -1387,21 +1398,23 @@ fn sheet_lists(
     texts.push(link.to_string());
     cy += row;
     let wallets: Vec<String> = state
-        .wallets
+        .wallets()
         .iter()
-        .map(|r| crate::samples::label(set.wallets[r.sample].name, "", 0).unwrap_or_default())
+        .map(|r| {
+            faraday_core::samples::label(set.wallets[r.sample()].name, "", 0).unwrap_or_default()
+        })
         .collect();
     let keys: Vec<String> = state
-        .keys
+        .keys()
         .iter()
-        .map(|r| set.keys[r.sample].label())
+        .map(|r| set.keys[r.sample()].label())
         .collect();
     cy += tick_list(
         ui,
         &look,
         (mx, mw, cy),
         EN.samples_wallets,
-        (&state.wallets, &wallets),
+        (state.wallets(), &wallets),
         Pick::Wallet,
         texts,
     );
@@ -1410,7 +1423,7 @@ fn sheet_lists(
         &look,
         (mx, mw, cy),
         EN.samples_keys,
-        (&state.keys, &keys),
+        (state.keys(), &keys),
         Pick::Key,
         texts,
     );
@@ -1424,7 +1437,7 @@ fn tick_list(
     look: &Look,
     (mx, mw, y): (f32, f32, f32),
     heading: &str,
-    (rows, names): (&[crate::samples::Row], &[String]),
+    (rows, names): (&[faraday_core::samples::Row], &[String]),
     pick: fn(u8) -> Pick,
     texts: &mut Vec<String>,
 ) -> f32 {
@@ -1470,7 +1483,7 @@ fn sheet_foot(
         mark: false,
         label: EN.samples_load.to_string(),
         press: HostPress::App(Action::SamplesLoad),
-        kind: if app.sample_area.sheet().any_ticked() && app.selftest_passed() && busy.is_none() {
+        kind: if app.sample_area().sheet().any_ticked() && app.selftest_passed() && busy.is_none() {
             Kind::Primary
         } else {
             Kind::Off
@@ -1509,12 +1522,12 @@ fn tick_row(
     ui: &mut HostUi,
     look: &Look,
     (x, w, y): (f32, f32, f32),
-    r: &crate::samples::Row,
+    r: &faraday_core::samples::Row,
     label: &str,
     press: HostPress,
 ) {
     let row = t::HOST_MENU_ROW;
-    let on = !r.loaded;
+    let on = !r.loaded();
     let ink = look.on_raised;
     if on {
         ui.press(Shape::new(x, y, w, row, 0.0), Paint::Fixed(ink), press);
@@ -1527,7 +1540,7 @@ fn tick_row(
     };
     let b = t::ICON_SMALL;
     let (bx, by) = (x + t::PAD, y + (row - b) / 2.0);
-    if r.ticked || r.loaded {
+    if r.ticked() || r.loaded() {
         ui.wash(bx, by, b, b, t::GAP_SMALL, tick);
         ui.icon(bx, by, b, Icon::Check, t::BODY_M.size, look.on_main);
     } else {
@@ -1539,7 +1552,7 @@ fn tick_row(
     let name_w = ui.text_mid_as((tx, y, row), t::BODY_L, ink, &name);
     let note_room = room - name_w - t::GAP;
     if note_room > t::TOUCH {
-        let note = ui.fit_as(t::BODY_M, &r.kind, note_room);
+        let note = ui.fit_as(t::BODY_M, r.kind(), note_room);
         let nw = ui.measure_as(t::BODY_M, &note);
         let dim = if on { look.on_raised_dim } else { ink };
         ui.text_mid_as((x + w - t::PAD - nw, y, row), t::BODY_M, dim, &note);

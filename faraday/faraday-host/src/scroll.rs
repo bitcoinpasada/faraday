@@ -2,7 +2,7 @@
 //! menu's rows and Samples' sheet's lists, and the strip's row where it
 //! is wider than the window, each dragged past the slop by a finger or
 //! the mouse, coasting when it lifts and springing back from an end, as
-//! the app's own pages do (`crate::motion`, `docs/MOTION.md` §3.3). A
+//! the app's own pages do (`faraday_core::motion`, `docs/MOTION.md` §3.3). A
 //! press that moves past the slop presses nothing; a touch on a list
 //! still coasting only stops it. Each motion asks for frames only while
 //! it moves (`docs/SPEED.md` §12).

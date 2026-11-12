@@ -661,77 +661,6 @@ fn new_key(app: &mut Faraday, way: Way, words: u8) -> String {
     k.phrase().expect("words made").to_string()
 }
 
-fn fingerprint(words: &str) -> [u8; 4] {
-    let c = testkit::compute();
-    let mut s = faraday_core::wallet::Session::default();
-    s.keys.add_words_with(&c, words, "", "", None).unwrap().0
-}
-
-fn loaded(app: &Faraday) -> Vec<[u8; 4]> {
-    app.session.keys.all().map(|k| k.fingerprint.0).collect()
-}
-
-/// Lock in, the words' quiz passed, Done.
-fn finish(app: &mut Faraday) {
-    use faraday_core::quiz::QuizState;
-    app.press(Action::KLock);
-    app.press(Action::KNext);
-    app.press(Action::KNext);
-    for _ in 0..30 {
-        let Some(q) = app.keygen().and_then(|k| k.quiz.as_ref()) else {
-            break;
-        };
-        if q.state() == QuizState::Passed {
-            break;
-        }
-        let slot = q.correct_slot() as u8;
-        app.press(Action::KQuiz(slot));
-    }
-    app.press(Action::KAdd);
-}
-
-#[test]
-fn in_the_demo_new_key_from_every_source_adds_a_sample_of_its_length_in_place_of_its_words() {
-    let ways = [
-        Way::DiceFlips,
-        Way::Coins,
-        Way::DiceWords,
-        Way::DiceHashed,
-        Way::DiceSixAsZero,
-        Way::Hex,
-        Way::Cards,
-        Way::Mix,
-        Way::Device,
-    ];
-    // Every source at 12 words, and every length from one source: the
-    // sample put in place of the words does not depend on the other.
-    let walks = ways.into_iter().map(|way| (way, 12u8, "twelve")).chain([
-        (Way::Device, 15, "lucky"),
-        (Way::Device, 18, "glad"),
-        (Way::Device, 21, "brave"),
-        (Way::Device, 24, "bacon"),
-    ]);
-    for (way, words, first) in walks {
-        {
-            let mut app = app_on(true);
-            let made = new_key(&mut app, way, words);
-            assert_eq!(made.split(' ').count(), usize::from(words));
-            assert_ne!(made, faraday_core::samples::repeated(first, words));
-            let says = format!("Lock in adds sample {first} \u{d7}{words}");
-            assert!(
-                crate::common::strip(&mut app)
-                    .iter()
-                    .any(|t| t.contains(&says)),
-                "{way:?} at {words}: the strip does not say so"
-            );
-            finish(&mut app);
-            let have = loaded(&app);
-            assert_eq!(have, vec![sample_fp(first, words)], "{way:?} at {words}");
-            assert!(!have.contains(&fingerprint(&made)), "the key made was kept");
-        }
-    }
-}
-
 #[test]
 fn in_the_demo_with_every_sample_of_a_length_loaded_lock_in_is_dimmed_at_that_length_only() {
     let c = testkit::compute();
@@ -763,28 +692,6 @@ fn in_the_demo_with_every_sample_of_a_length_loaded_lock_in_is_dimmed_at_that_le
     }
     new_key(&mut app24, Way::Device, 24);
     assert!(offered(&mut app24, Action::KLock), "Lock in is dimmed");
-}
-
-#[test]
-fn a_sample_loaded_with_the_passphrase_counts_as_loaded_for_new_key() {
-    let c = testkit::compute();
-    let mut app = app_on(true);
-    app.session
-        .keys
-        .add_words_with(
-            &c,
-            &faraday_core::samples::repeated("twelve", 12),
-            faraday_core::samples::PASSPHRASE,
-            "",
-            None,
-        )
-        .unwrap();
-    new_key(&mut app, Way::Device, 12);
-    assert!(
-        crate::common::strip(&mut app)
-            .iter()
-            .any(|t| t.contains("Lock in adds sample ocean \u{d7}12"))
-    );
 }
 
 // ---------------------------------------------------------------------
@@ -827,76 +734,12 @@ fn opens_with(app: &mut Faraday, phrase: &str) -> bool {
 }
 
 #[test]
-fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_faraday() {
-    let rolled =
-        faraday_core::dice_entry::dice_words(ROLLS, faraday_bip::diceware::List::Large).join("");
-    let mut app = app_on(true);
-    app.press(Action::Nav(Screen::Vaults));
-    app.press(Action::Vault(V::Create));
-    app.press(Action::Vault(V::Dice(0)));
-    crate::common::type_text(&mut app, ROLLS);
-    // The rolled words are shown as they are rolled.
-    let words = faraday_core::dice_entry::dice_words(ROLLS, faraday_bip::diceware::List::Large);
-    assert!(crate::common::has_part(&mut app, words[0]));
-    app.press(Action::Vault(V::DiceUse));
-    assert!(
-        crate::common::strip(&mut app)
-            .iter()
-            .any(|t| t == "Practice puts faraday in place of these words")
-    );
-    // Both fields hold faraday, and the dice's strength is not measured.
-    let c = app.vaults().create.as_ref().expect("the form");
-    assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
-    assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
-    assert!(!crate::common::has_part(&mut app, "bits from dice"));
-    app.press(Action::Vault(V::CGo));
-    crate::common::settle(&mut app, 1);
-    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
-    assert!(opens_with(&mut app, demo::PASSPHRASE));
-    assert_ne!(rolled, demo::PASSPHRASE);
-
-    // On the stick the rolled words are the passphrase.
-    let mut app = app_on(false);
-    make_vault(&mut app, None);
-    assert!(opens_with(&mut app, &rolled));
-}
-
-#[test]
 fn in_the_demo_a_vault_takes_a_typed_passphrase_and_opens_with_it() {
     let mut app = app_on(true);
     make_vault(&mut app, Some("harbour lantern"));
     assert!(!opens_with(&mut app, demo::PASSPHRASE));
     assert!(opens_with(&mut app, "harbour lantern"));
     assert_eq!(app.vaults().open.len(), 1);
-}
-
-#[test]
-fn in_the_demo_use_faraday_puts_faraday_in_a_vaults_passphrase_and_its_repeat_and_it_opens_with_it()
-{
-    let mut app = app_on(true);
-    app.press(Action::Nav(Screen::Vaults));
-    app.press(Action::Vault(V::Create));
-    let chip = Action::PassChip(demo::PassField::Phrase(0, false));
-    assert!(
-        crate::common::strip_offers(&mut app, chip),
-        "the pair offers faraday"
-    );
-    assert!(
-        !crate::common::strip_offers(&mut app, Action::PassChip(demo::PassField::Phrase(0, true))),
-        "once, for both fields"
-    );
-    app.press(chip);
-    assert!(
-        !crate::common::strip_offers(&mut app, chip),
-        "gone once both fields hold it"
-    );
-    let c = app.vaults().create.as_ref().expect("the form");
-    assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
-    assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
-    app.press(Action::Vault(V::CGo));
-    crate::common::settle(&mut app, 1);
-    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
-    assert!(opens_with(&mut app, demo::PASSPHRASE));
 }
 
 // ---------------------------------------------------------------------

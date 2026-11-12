@@ -39,7 +39,7 @@ fn toasted(theme: Theme) -> Faraday {
 
 #[test]
 fn a_toasts_text_reads_on_its_container_in_every_theme() {
-    use super::fills_read::{over, ratio, under};
+    use crate::common::{over, ratio, under};
     let mut short = Vec::new();
     for theme in Theme::all() {
         let mut app = toasted(theme);

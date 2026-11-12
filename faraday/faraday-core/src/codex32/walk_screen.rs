@@ -236,13 +236,19 @@ fn buttons(m: &Codex32Make) -> [(&'static str, Style, C32); 3] {
 /// One of the entry's demo aids as Faraday Demo's host strip offers it
 /// (`docs/DESKTOP-HOST.md` §3): its label, whether it takes a press,
 /// whether it is the step's main press, and the press.
-pub(crate) type HostAid = (&'static str, bool, bool, C32);
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub type HostAid = (&'static str, bool, bool, C32);
 
 /// What the host strip offers for the entry: Practice's Use a sample while a
 /// character is left, and the computer's walk, Previous, Next and Play
 /// (Pause while it runs), where the entry's "Demo only" card would hold
 /// them; none elsewhere. A lookup.
-pub(crate) fn host_aids(m: &Codex32Make, roller: bool) -> Vec<HostAid> {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub fn host_aids(m: &Codex32Make, roller: bool) -> Vec<HostAid> {
     let entering = m.open() == Some(super::Card::Enter);
     if !entering || !super::dice_screen::demo_box_offered(m, roller) {
         return Vec::new();
@@ -261,7 +267,10 @@ pub(crate) fn host_aids(m: &Codex32Make, roller: bool) -> Vec<HostAid> {
 
 /// Whether the host strip offers Play's options: while the computer's
 /// walk is offered. A lookup.
-pub(crate) fn host_walks(m: &Codex32Make, roller: bool) -> bool {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub fn host_walks(m: &Codex32Make, roller: bool) -> bool {
     m.open() == Some(super::Card::Enter)
         && roller
         && m.way() == super::Way::Dice
@@ -270,12 +279,18 @@ pub(crate) fn host_walks(m: &Codex32Make, roller: bool) -> bool {
 
 /// A heading of Play's options and its choices: a name, whether it is
 /// chosen, and its press.
-pub(crate) type PlayOptions = (&'static str, Vec<(&'static str, bool, C32)>);
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub type PlayOptions = (&'static str, Vec<(&'static str, bool, C32)>);
 
 /// Play's options as the host's menu lists them: how far Play runs, then
 /// how fast, each a heading and its choices, a name, whether it is
 /// chosen and its press. A lookup.
-pub(crate) fn host_play_options(m: &Codex32Make) -> [PlayOptions; 2] {
+///
+/// Used by faraday-host.
+#[doc(hidden)]
+pub fn host_play_options(m: &Codex32Make) -> [PlayOptions; 2] {
     let walk = m.walk();
     let reaches = REACHES
         .iter()

@@ -82,7 +82,7 @@ changes, never while drawing.
 ### 1.3 What holds the keys true
 
 - A test walks every screen and every flow step (as
-  `faraday/faraday-core/tests/all/pi_panel.rs` walks them) and fails
+  `faraday/faraday-host/tests/all/pi_panel.rs` walks them) and fails
   where the key the app works out has no section and is not the
   fallback.
 - The guide lint (`tools/lint-guide.py`, §8) fails a key written twice,

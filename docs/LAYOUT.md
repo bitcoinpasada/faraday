@@ -256,7 +256,7 @@ each at the text size the person's system asks for.
   where they and the pill would reach Back's target (DESIGN §4.1). Where the page offers a cryptographic action, **How
   Faraday does it** stands left of the ? and goes into the ⋮ first,
   before the ?, its row the menu's first (not built;
-  `docs/CRYPTO-LEARN.md` §8.3). The test is `tests/all/pi_panel.rs`: on the stick's
+  `docs/CRYPTO-LEARN.md` §8.3). The test is `faraday/faraday-host/tests/all/pi_panel.rs`: on the stick's
   Pi (480 × 640 at 286 dpi) and in Faraday Demo's Pi preview, on
   Mainnet, Testnet and in Practice, it walks every screen and sheet
   (listed by a match that fails to build when one is added), each step

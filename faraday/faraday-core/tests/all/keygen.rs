@@ -876,54 +876,6 @@ fn unequal_passphrases_lock_nothing_in() {
     assert_eq!(app.session.keys.len(), 1);
 }
 
-/// The demo on a Create slot (F20, `docs/MODES.md` §7): the passphrase is
-/// `faraday` once Use faraday is pressed, in both fields; Lock in adds the next
-/// sample with it, saying so before and after.
-#[test]
-fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
-    use faraday_core::wallet::fp_text;
-    let c = faraday_core::testkit::compute();
-    let mut app = slot_flow(true);
-    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
-    app.session.set_demo(faraday_core::testkit::demo_samples());
-    flip_all(&mut app);
-    app.press(Action::KNext);
-    let n = app.keygen().unwrap().handout_words();
-    let (word, fp) = app.session.keys.next_handout(n).unwrap();
-    assert!(crate::common::strip(&mut app).contains(&format!(
-        "Lock in adds sample {word} ×{n} ({}) in place of these words",
-        fp_text(fp)
-    )));
-    let chip = Action::PassChip(faraday_core::demo::PassField::KeyGen(0));
-    assert!(
-        crate::common::strip_offers(&mut app, chip),
-        "the pair offers faraday"
-    );
-    app.press(chip);
-    let k = app.keygen().unwrap();
-    assert_eq!(k.passphrase.as_str(), "faraday");
-    assert_eq!(k.passphrase2.as_str(), "faraday");
-    app.press(Action::KLock);
-    let with = faraday_core::wallet::Session::default()
-        .keys
-        .add_words_with(
-            &c,
-            &faraday_core::samples::repeated(word, n),
-            "faraday",
-            "",
-            None,
-        )
-        .unwrap()
-        .0;
-    assert_eq!(added(&app), vec![with]);
-    let c = app.create().unwrap();
-    assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
-    // Lock in went back to Create, which shows the sample's key.
-    assert_eq!(app.screen, Screen::Create);
-    let shown = texts(&mut app);
-    assert!(shown.contains(&fp_text(faraday_bip::keys::Fingerprint(with))));
-}
-
 /// The passphrase stays optional in Practice: left empty, the sample goes in
 /// as it is.
 #[test]

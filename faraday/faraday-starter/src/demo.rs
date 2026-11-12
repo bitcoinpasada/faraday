@@ -1,6 +1,6 @@
 //! Faraday Demo inside the Starter (F126, `docs/STARTER.md` §5.3): Open
 //! Faraday Demo on Home shows the Demo, held by its host
-//! (`faraday_core::Host`, `docs/DESKTOP-HOST.md`), in the Starter's own
+//! (`faraday_host::Host, `docs/DESKTOP-HOST.md`), in the Starter's own
 //! window under the top app bar, whose way back returns to Home. The
 //! shell makes the Demo's app ([`StarterCommand::OpenDemo`]), serves its
 //! sticks and storage, and lets go of them when it is left
@@ -13,7 +13,8 @@
 //! chosen in the Demo is the Starter's, kept as About's choice is
 //! (`docs/TEXT-SIZE.md` §6).
 
-use faraday_core::{Action, Host};
+use faraday_core::Action;
+use faraday_host::Host;
 use faraday_shell_api::{App, Command, DisplayInfo, Event};
 
 use crate::api::{Os, StarterCommand};

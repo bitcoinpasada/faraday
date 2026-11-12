@@ -1,0 +1,33 @@
+[package]
+name = "faraday-host"
+version = "0.2.0"
+description = "Faraday Demo's host: the desktop app held as a simulator of the device, with the strip at its foot (docs/DESKTOP-HOST.md)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# The app the host holds, and the parts of it the host reads.
+faraday-core = { path = "../faraday-core" }
+faraday-shell-api = { path = "../../core/faraday-shell-api" }
+faraday-draw = { path = "../../core/faraday-draw" }
+# Faraday's drawing, in the host's own look.
+faraday-ui = { path = "../faraday-ui" }
+faraday-strings = { path = "../faraday-strings" }
+
+[dev-dependencies]
+# The test wallets, and the shell the app's own tests share.
+faraday-core = { path = "../faraday-core", features = ["testkit"] }
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-codec = { path = "../../core/faraday-codec" }
+faraday-entropy = { path = "../../core/faraday-entropy" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-keys = { path = "../faraday-keys", features = ["master-for-tests"] }
+faraday-vault = { path = "../faraday-vault" }
+faraday-pgp = { path = "../faraday-pgp" }
+faraday-files = { path = "../faraday-files" }
+
+[lints]
+workspace = true

@@ -7,7 +7,8 @@
 use crate::common::{demo_app, show, strip, strip_offers};
 use faraday_core::keygen::{Way, kstep};
 use faraday_core::vault::{RollerAct, VaultAction as V};
-use faraday_core::{Action, Faraday, Host, HostPress, Screen, Sheet, testkit};
+use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
+use faraday_host::{Host, HostPress};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
 /// Practice with the samples, at `w` × `h` (one pixel a unit).

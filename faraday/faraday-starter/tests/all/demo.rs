@@ -4,7 +4,8 @@
 //! to Home; and a theme chosen in the Demo is the Starter's.
 
 use faraday_core::ui::{Contrast, Mode, Theme, ThemeName};
-use faraday_core::{Action, Host, Screen};
+use faraday_core::{Action, Screen};
+use faraday_host::Host;
 use faraday_shell_api::{App, Event, Key, TouchPhase};
 use faraday_starter::api::{Computer, Os, StarterCommand, StarterEvent};
 use faraday_starter::{Page, Starter, StarterAction};

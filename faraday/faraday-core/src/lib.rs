@@ -64,9 +64,8 @@
 //! - Sticks, boot and files: `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
 //!   `secure_boot/state.rs`.
-//! - Faraday Demo's host: `host` (the strip at the window's foot, the
-//!   preview frame and the pointer carried into the app, with
-//!   `host/screen.rs` and its lists under a finger in `host/scroll.rs`; `docs/DESKTOP-HOST.md`).
+//! - Faraday Demo's host is the `faraday-host` crate (`docs/DESKTOP-HOST.md`); the app gives it the
+//!   fields and methods marked "Used by faraday-host."
 //! - Support: `slow` (the presses whose work waits for a frame), `wordlist`, `guide`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/put.rs`, Use a sample, whose buttons Faraday Demo's strip shows), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
@@ -237,7 +236,6 @@ pub mod transfer;
 
 // Support: word lists, the guide pages, the tools page, test data.
 pub mod guide;
-pub mod host;
 pub mod modes;
 pub mod samples;
 #[cfg(feature = "testkit")]
@@ -257,7 +255,6 @@ pub use faraday_intake::secret_buf as secret_text;
 /// Faraday's wording, in its own crate.
 pub use faraday_strings as strings;
 pub use file_menu::Unrenamed;
-pub use host::{Host, HostMenu, HostPress};
 pub use item::Item;
 pub use medium::Medium;
 pub use modes::{DESKTOP_MODES, Mode, STICK_MODES};
@@ -1846,8 +1843,51 @@ impl Faraday {
     }
 
     /// The self-test has run and every check passed.
-    pub(crate) fn selftest_passed(&self) -> bool {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn selftest_passed(&self) -> bool {
         matches!(self.selftest, Some(Ok(_)))
+    }
+
+    /// The Load samples sheet's state and the demo aids of the screen.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn sample_area(&self) -> &samples::SamplesArea {
+        &self.sample_area
+    }
+
+    /// No stick is in.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn no_stick_in(&self) -> bool {
+        self.stick.is_empty()
+    }
+
+    /// The dice entry's roller and whether it has room for more.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn vault_dice(&self) -> (&fresh::roller::Roller, bool) {
+        (self.vaults.dice.roller(), self.vaults.dice.room() > 0)
+    }
+
+    /// The frame last painted, if any.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn canvas(&self) -> Option<&Canvas> {
+        self.canvas.as_ref()
+    }
+
+    /// The frame last painted, to draw on.
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn canvas_mut(&mut self) -> Option<&mut Canvas> {
+        self.canvas.as_mut()
     }
 
     /// The self-test has run and a check failed: the app is blocked.

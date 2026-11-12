@@ -69,7 +69,7 @@
 //! with a fresh one in the same window, with the Inbox and Outbox carried
 //! over, which is what the device's app loop does.
 //!
-//! The app is held by Faraday Demo's host (`faraday_core::Host`,
+//! The app is held by Faraday Demo's host (`faraday_host::Host,
 //! `docs/DESKTOP-HOST.md`): a strip at the window's foot holds the stick
 //! pills, Samples, the preview size and the screen's demo aids, outside
 //! the app, and a preview size frames the app as that screen lays it
@@ -88,8 +88,9 @@ use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use faraday_core::strings::{EN, fill};
-use faraday_core::{Action, Faraday, Host as AppHost, Screen};
+use faraday_core::{Action, Faraday, Screen};
 use faraday_desktop::{Asked, Demo, Paths};
+use faraday_host::Host as AppHost;
 use faraday_shell_api::{App, Command, Event};
 use faraday_window::camera::Camera;
 use faraday_window::drag::TitleDrag;

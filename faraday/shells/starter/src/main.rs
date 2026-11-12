@@ -48,9 +48,10 @@ use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
+use faraday_core::StorageEvent;
 use faraday_core::strings::EN;
-use faraday_core::{Host as AppHost, StorageEvent};
 use faraday_desktop::{Asked, Demo, Paths};
+use faraday_host::Host as AppHost;
 use faraday_shell_api::{App, Command, Event};
 use faraday_starter::api::{Reason, Source, StarterCommand, StarterEvent, WriteOrder};
 use faraday_starter::{Starter, StarterAction};

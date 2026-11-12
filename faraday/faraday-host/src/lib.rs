@@ -15,7 +15,7 @@
 //! a host menu is the host's; anywhere else, nothing. Keys and every other
 //! event are the app's.
 
-pub(crate) mod screen;
+mod screen;
 mod scroll;
 
 use std::collections::VecDeque;
@@ -25,8 +25,8 @@ use faraday_draw::geom::Rect;
 use faraday_draw::tokens as t;
 use faraday_shell_api::{App, Changed, Command, DisplayInfo, Event, Frame, Parts, TouchPhase};
 
-use crate::motion::{Motion, Region, SLOP};
-use crate::{Action, Faraday};
+use faraday_core::motion::{Motion, Region, SLOP};
+use faraday_core::{Action, Faraday};
 
 /// A press on the host's own controls.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -454,7 +454,7 @@ impl Host {
     /// lookup.
     pub(crate) fn strip_dp(&self) -> f32 {
         if screen::roller_shown(&self.app).is_some() {
-            t::HOST_STRIP_H.max(crate::fresh::roller::screen::ROW_H + 2.0 * t::GAP)
+            t::HOST_STRIP_H.max(faraday_core::fresh::roller::screen::ROW_H + 2.0 * t::GAP)
         } else {
             t::HOST_STRIP_H
         }
@@ -768,7 +768,7 @@ impl Host {
                 .filter(|c| c.width() == i32::from(d.width) && c.height() == i32::from(h));
             return Some(held.unwrap_or_else(|| {
                 let mut c = Canvas::part(d.width, h, scale);
-                c.set_counter(crate::work::core_count);
+                c.set_counter(faraday_core::work::core_count);
                 c
             }));
         }
@@ -779,7 +779,7 @@ impl Host {
         Some(held.unwrap_or_else(|| {
             let mut c = Canvas::part(d.width, d.height, scale);
             c.record_ink(self.ink_on);
-            c.set_counter(crate::work::core_count);
+            c.set_counter(faraday_core::work::core_count);
             // What no part covers is the host's own space.
             c.clear(screen::Look::now(self).surround);
             c
@@ -804,10 +804,10 @@ impl Host {
         let opening = self
             .menu
             .and_then(|(_, at)| at)
-            .is_some_and(|at| self.now.saturating_sub(at) < crate::motion::MENU_IN_MS);
+            .is_some_and(|at| self.now.saturating_sub(at) < faraday_core::motion::MENU_IN_MS);
         let closing = self
             .leaving
-            .is_some_and(|(_, at)| self.now.saturating_sub(at) < crate::motion::MENU_OUT_MS);
+            .is_some_and(|(_, at)| self.now.saturating_sub(at) < faraday_core::motion::MENU_OUT_MS);
         let edge = self
             .edge_move
             .is_some_and(|(_, at)| self.now.saturating_sub(at) < t::HOST_FOCUS_FADE_MS);
@@ -847,8 +847,8 @@ impl Host {
         let to = if self.edge_on { 1.0 } else { 0.0 };
         match self.edge_move {
             Some((from, at)) if self.app.fades() => {
-                let p = crate::motion::progress(Some(at), self.now, t::HOST_FOCUS_FADE_MS);
-                from + (to - from) * crate::motion::ease_move(p)
+                let p = faraday_core::motion::progress(Some(at), self.now, t::HOST_FOCUS_FADE_MS);
+                from + (to - from) * faraday_core::motion::ease_move(p)
             }
             _ => to,
         }
@@ -904,7 +904,7 @@ impl Host {
             .role(faraday_ui::Role::OutlineVariant)
             .mix(theme.role(faraday_ui::Role::Primary), self.edge_shown());
         let e = edge_px(self.f());
-        let Some(c) = self.app.canvas.as_mut() else {
+        let Some(c) = self.app.canvas_mut() else {
             return;
         };
         self.edge_drawn = Some((e, color));
@@ -924,7 +924,7 @@ impl Host {
         self.now = now_ms;
         if self
             .leaving
-            .is_some_and(|(_, at)| now_ms.saturating_sub(at) >= crate::motion::MENU_OUT_MS)
+            .is_some_and(|(_, at)| now_ms.saturating_sub(at) >= faraday_core::motion::MENU_OUT_MS)
         {
             self.leaving = None;
         }
@@ -982,7 +982,7 @@ pub(crate) fn edge_px(f: f32) -> i32 {
 /// The app's frame as last painted, without painting: the host has had
 /// [`App::frame`] paint it this frame. A lookup.
 fn painted(app: &Faraday) -> Frame<'_> {
-    match app.canvas.as_ref() {
+    match app.canvas() {
         Some(c) => c.frame(),
         None => Frame {
             width: 0,
@@ -1053,7 +1053,10 @@ impl App for Host {
                 let step = match event {
                     // The window's pixels per dp: never zero.
                     Event::Scroll { .. } => f32::from(dy) / self.f(),
-                    _ => f32::from(dy) / crate::motion::SHELL_NOTCH_PX * crate::motion::WHEEL_NOTCH,
+                    _ => {
+                        f32::from(dy) / faraday_core::motion::SHELL_NOTCH_PX
+                            * faraday_core::motion::WHEEL_NOTCH
+                    }
                 };
                 if self.menu.is_some() {
                     // The open menu or Samples' sheet scrolls its rows

@@ -122,7 +122,7 @@ pub fn reference_key_text(words: &str, path: &str) -> String {
 /// demo aids among them (`docs/DESKTOP-HOST.md` §3.1): the app held by
 /// the host for one frame and given back.
 pub fn strip(app: &mut Faraday) -> Vec<String> {
-    faraday_core::Host::strip_for(app)
+    faraday_host::Host::strip_for(app)
 }
 
 /// Whether the host strip (or its More menu) offers the press `a` for
@@ -133,5 +133,5 @@ pub fn strip_offers(app: &mut Faraday, a: faraday_core::Action) -> bool {
     if app.now_ms() < 1000 {
         app.event(Event::Tick { now_ms: 1000 });
     }
-    faraday_core::Host::strip_actions_for(app).contains(&a)
+    faraday_host::Host::strip_actions_for(app).contains(&a)
 }

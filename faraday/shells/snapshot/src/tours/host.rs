@@ -6,7 +6,8 @@
 //! Home on Testnet, whose strip holds only the sticks and Size.
 
 use crate::tour::{Tour, display};
-use faraday_core::{Action, Faraday, Host, HostMenu, Screen, StickInfo, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, Screen, StickInfo, StorageEvent, testkit};
+use faraday_host::{Host, HostMenu};
 use faraday_shell_api::{App as _, Event};
 
 /// The Pi panel's size and the 7-inch panel's, in dp, as the Size menu

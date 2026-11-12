@@ -46,7 +46,9 @@ pub(crate) mod tracker_screen;
 #[cfg(test)]
 mod tracker_tests;
 mod walk;
-pub(crate) mod walk_screen;
+/// Used by faraday-host.
+#[doc(hidden)]
+pub mod walk_screen;
 #[cfg(test)]
 mod walk_tests;
 pub(crate) mod worksheet_screen;

@@ -26,7 +26,9 @@ use zeroize::Zeroizing;
 
 pub mod five;
 pub mod five_screen;
-pub(crate) mod screen;
+/// Used by faraday-host.
+#[doc(hidden)]
+pub mod screen;
 
 #[cfg(test)]
 mod five_tests;

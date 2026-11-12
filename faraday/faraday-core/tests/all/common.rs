@@ -11,7 +11,9 @@ use faraday_core::vault::VaultAction as V;
 use faraday_core::{
     Action, Faraday, Screen, Sheet, StickInfo, StorageCommand, StorageEvent, testkit,
 };
+use faraday_draw::Color;
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
+use std::collections::HashMap;
 
 pub type Files = Vec<(String, Vec<u8>)>;
 
@@ -1740,19 +1742,6 @@ pub fn progress_shown(app: &mut Faraday) -> Vec<Option<f32>> {
         .collect()
 }
 
-/// What Faraday Demo's host strip offers for `app` as it stands, its
-/// demo aids among them (`docs/DESKTOP-HOST.md` §3.1): the app held by
-/// the host for one frame and given back.
-pub fn strip(app: &mut Faraday) -> Vec<String> {
-    faraday_core::Host::strip_for(app)
-}
-
-/// Whether Faraday Demo's host strip offers the press `a` for `app` as
-/// it stands (`docs/DESKTOP-HOST.md` §3.1).
-pub fn strip_offers(app: &mut Faraday, a: Action) -> bool {
-    faraday_core::Host::strip_actions_for(app).contains(&a)
-}
-
 /// The one code of a PNG picture, as text, read by the decoder the disk
 /// process and the camera use.
 pub fn png_text(png: &[u8]) -> String {
@@ -1941,3 +1930,58 @@ pub fn seed_forms() -> Vec<(String, &'static str, String)> {
 /// wild (not seeds: no checksum is claimed).
 pub const KOREAN_RUN: &str = "가격 가끔 가난 가능 가득 가르침 가뭄 가방 가상 가슴 가운데 가을";
 pub const FRENCH_RUN: &str = "académie acquérir adéquat adhésif aérer aéronef agréable algèbre aliéner alléger alvéole aménager";
+
+/// WCAG relative luminance.
+pub fn luminance(c: Color) -> f64 {
+    let lin = |v: u8| {
+        let v = f64::from(v) / 255.0;
+        if v <= 0.040_45 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+}
+
+/// WCAG contrast ratio.
+pub fn ratio(a: Color, b: Color) -> f64 {
+    let (x, y) = (luminance(a), luminance(b));
+    (x.max(y) + 0.05) / (x.min(y) + 0.05)
+}
+
+/// `ink` laid over the opaque `under`.
+pub fn over(ink: Color, under: Color) -> Color {
+    let a = u32::from(ink.a);
+    let mix = |f: u8, b: u8| ((u32::from(f) * a + u32::from(b) * (255 - a) + 127) / 255) as u8;
+    Color::rgb(
+        mix(ink.r, under.r),
+        mix(ink.g, under.g),
+        mix(ink.b, under.b),
+    )
+}
+
+/// The colour most of the pixels just outside the box (x, y, w, h) are:
+/// the fill a text was drawn on.
+pub fn under(rgba: &[u8], width: i32, height: i32, (x, y, w, h): (i32, i32, i32, i32)) -> Color {
+    let mut seen: HashMap<(u8, u8, u8), usize> = HashMap::new();
+    let mut take = |px: i32, py: i32| {
+        if px >= 0 && py >= 0 && px < width && py < height {
+            let i = ((py * width + px) * 4) as usize;
+            *seen.entry((rgba[i], rgba[i + 1], rgba[i + 2])).or_default() += 1;
+        }
+    };
+    for px in x - 1..=x + w {
+        take(px, y - 1);
+        take(px, y + h);
+    }
+    for py in y..y + h {
+        take(x - 1, py);
+        take(x + w, py);
+    }
+    let ((r, g, b), _) = seen
+        .into_iter()
+        .max_by_key(|&(c, n)| (n, c))
+        .expect("a box on the frame");
+    Color::rgb(r, g, b)
+}

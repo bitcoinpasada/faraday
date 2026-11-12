@@ -444,7 +444,10 @@ impl Faraday {
     /// Where the job's progress indicator stands, for drawing: the share
     /// done where the work has a count, and where its moving bar is along
     /// the track where it has none (still under reduce motion).
-    pub(crate) fn busy_marks(&self, b: &Busy) -> (Option<f32>, Option<f32>) {
+    ///
+    /// Used by faraday-host.
+    #[doc(hidden)]
+    pub fn busy_marks(&self, b: &Busy) -> (Option<f32>, Option<f32>) {
         let done = (b.of > 0).then(|| b.done as f32 / b.of as f32);
         let phase =
             (!self.reduce_motion()).then(|| crate::motion::busy_phase(b.began_ms, self.now_ms));

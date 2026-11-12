@@ -19,6 +19,8 @@ faraday-bip = { path = "../../core/faraday-bip" }
 faraday-core = { path = "../faraday-core" }
 # The printed sheets, the EDID rules and the build ID.
 faraday-paper = { path = "../faraday-paper" }
+# Faraday Demo's host, which the Starter's demo window holds the app in.
+faraday-host = { path = "../faraday-host" }
 faraday-strings = { path = "../faraday-strings" }
 # The token the notes' and the template's PDFs take (docs/COMPUTE.md §2).
 faraday-crypto = { path = "../../core/faraday-crypto" }

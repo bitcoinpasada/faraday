@@ -3,7 +3,8 @@
 # faraday/.
 #
 # Rules 1 and 2 are applied to every file under core/*/src/, to every
-# file under faraday/faraday-core/src/ and faraday/faraday-plan/src/ and faraday/faraday-paper/src/, to the Bitcoin Core wallet reader's
+# file under faraday/faraday-core/src/, faraday/faraday-plan/src/,
+# faraday/faraday-paper/src/ and faraday/faraday-host/src/, to the Bitcoin Core wallet reader's
 # (faraday/faraday-core-wallet/src/, whose records carry a wallet's keys on
 # their way to faraday-keys) and to the Argon QR Vault library's
 # (aqrv/aqrv/src/, whose items and keys are as secret as Faraday's; its
@@ -79,7 +80,7 @@ report() {
 }
 
 src_files() {
-    { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; find faraday/faraday-plan/src -name '*.rs'; find faraday/faraday-paper/src -name '*.rs'; find faraday/faraday-core-wallet/src -name '*.rs'; find aqrv/aqrv/src -name '*.rs'; } | sort
+    { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; find faraday/faraday-plan/src -name '*.rs'; find faraday/faraday-paper/src -name '*.rs'; find faraday/faraday-host/src -name '*.rs'; find faraday/faraday-core-wallet/src -name '*.rs'; find aqrv/aqrv/src -name '*.rs'; } | sort
 }
 
 # Rule 1: output and logging macros.

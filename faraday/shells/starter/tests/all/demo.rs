@@ -5,9 +5,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use faraday_core::Action;
 use faraday_core::ui::{Contrast, Mode, Theme, ThemeName};
-use faraday_core::{Action, Host};
 use faraday_desktop::{Demo, Paths, desktop_app_in};
+use faraday_host::Host;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 use faraday_starter::{Starter, StarterAction};
 

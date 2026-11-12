@@ -458,7 +458,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `design.left-out` | the same | R | none of F111's components | F111 |
 | `design.new-component` | `core/faraday-draw/src/widgets/*.rs` added | P | `docs/DESIGN.md` (§4) | `CLAUDE.md` |
 | `design.new-screen` | a `Screen` or `Sheet` variant added in `faraday/faraday-core/src/lib.rs` (`lines`) | P | `docs/DESIGN.md` (§5) and `CLAUDE.md`'s count | `CLAUDE.md` |
-| `design.demo-matches` | `faraday/shells/window/**`, `faraday/faraday-core/src/host/**` | R | differs from the device only by a decision | F117 |
+| `design.demo-matches` | `faraday/shells/window/**`, `faraday/faraday-host/**` | R | differs from the device only by a decision | F117 |
 | `design.maker-pages` | the Starter's maker pages | R | several families at once, no model, no maker's screenshot or name | F14, F18 |
 | `tokens.named` | `core/faraday-draw/src/**`, the screens | H | `lint-tokens` | `CLAUDE.md` |
 | `themes.generated` | `faraday/faraday-ui/src/pal/**`, `tools/themes/**` | H | `lint-themes` | F113 |
@@ -493,7 +493,7 @@ change to the paths they name.
 | `website.wordmark` | `faraday/faraday-ui/assets/wordmark.txt` | the site's wordmark outlines copied again | yes |
 | `website.standards` | `docs/STANDARDS.md` | the standards page edited to match (rendered from the manifest once F148 is built) | yes |
 | `website.tour` | the screens the tour shows | the tour's pictures made again | no |
-| `website.demo` | `faraday/faraday-core/src/host/**`, `faraday/faraday-samples/**`, `Cargo.lock` | the demo built and its tests run | no; its own build refuses a break |
+| `website.demo` | `faraday/faraday-host/**`, `faraday/faraday-samples/**`, `Cargo.lock` | the demo built and its tests run | no; its own build refuses a break |
 
 The app consumers are for plan's "read by" line; which apps a commit
 touches is `cargo tree -i <crate>`'s answer, and the patterns above are

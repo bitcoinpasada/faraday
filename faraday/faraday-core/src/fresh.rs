@@ -30,7 +30,9 @@ use zeroize::Zeroizing;
 use crate::{Action, Faraday, out::Out, strings::EN, vault::VaultAction as V};
 
 pub mod page;
-pub(crate) mod roller;
+/// Used by faraday-host.
+#[doc(hidden)]
+pub mod roller;
 
 /// Answers kept waiting for the next key: as many as the most one press
 /// takes ([`Fresh::take_bytes`]), a codex32 set any nine of which recover

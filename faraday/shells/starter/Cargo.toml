@@ -22,6 +22,8 @@ faraday-starter = { path = "../../faraday-starter" }
 faraday-core = { path = "../../faraday-core" }
 # The printed sheets, the EDID rules and the build ID.
 faraday-paper = { path = "../../faraday-paper" }
+# Faraday Demo's host, which holds the app (docs/DESKTOP-HOST.md).
+faraday-host = { path = "../../faraday-host" }
 faraday-crypto = { path = "../../../core/faraday-crypto" }
 faraday-payload = { path = "../../faraday-payload" }
 faraday-fat = { path = "../../faraday-fat" }

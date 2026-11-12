@@ -313,7 +313,7 @@ reads = [
   "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/image/**", "core/**",
   "faraday/faraday-boot/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
   "faraday/faraday-files/**", "faraday/faraday-start/**", "faraday/faraday-intake/**",
-  "faraday/faraday-payload/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**",  "faraday/faraday-paper/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-qr/**",
+  "faraday/faraday-payload/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**", "faraday/faraday-paper/**", "faraday/faraday-host/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-qr/**",
   "faraday/faraday-samples/**", "faraday/faraday-sb/**", "faraday/faraday-scanner/**",
   "faraday/faraday-storage/**", "faraday/faraday-vault/**", "faraday/faraday-grant/**",
   "faraday/shells/camera/**", "faraday/shells/v4l2/**", "faraday/shells/avfoundation/**", "faraday/shells/mediafoundation/**",
@@ -330,7 +330,7 @@ reads = [
   "faraday/faraday-files/**", "faraday/faraday-payload/**", "faraday/faraday-guide/**",
   "faraday/faraday-start/**", "faraday/faraday-grant/**", "faraday/faraday-storage/**",
   "faraday/faraday-keys/**", "faraday/faraday-vault/**", "faraday/faraday-qr/**",
-  "faraday/faraday-scanner/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**",  "faraday/faraday-paper/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-intake/**",
+  "faraday/faraday-scanner/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**", "faraday/faraday-paper/**", "faraday/faraday-host/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-intake/**",
   "faraday/faraday-sb/**", "faraday/faraday-boot/**", "faraday/faraday-samples/**",
   "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/shells/camera/**", "faraday/shells/v4l2/**", "faraday/shells/avfoundation/**",
   "faraday/shells/mediafoundation/**", "core/**",
@@ -416,7 +416,7 @@ act = "the tour's pictures are made again"
 [[consumer]]
 id = "website.demo"
 name = "the website's demo"
-reads = ["faraday/faraday-core/src/host/**", "faraday/faraday-samples/**", "Cargo.lock"]
+reads = ["faraday/faraday-host/**", "faraday/faraday-samples/**", "Cargo.lock"]
 act = "the demo is built and its tests run; its own build refuses a break"
 
 # ------------------------------------------------------------------ repo
@@ -1176,7 +1176,7 @@ misses = "CLAUDE.md's count of screens, which a new Sheet leaves unchanged"
 id = "design.demo-matches"
 title = "Faraday Demo differs from the device only by a decision"
 source = ["docs/decisions/F117.md"]
-when = ["faraday/shells/window/**", "faraday/faraday-core/src/host/**"]
+when = ["faraday/shells/window/**", "faraday/faraday-host/**"]
 kind = "review"
 
 [[rule]]
