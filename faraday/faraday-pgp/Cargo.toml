@@ -10,6 +10,7 @@ publish = false
 
 [dependencies]
 zeroize = { workspace = true, features = ["alloc"] }
+subtle.workspace = true
 base16ct = { workspace = true }
 # Ed25519 signatures, the only public-key algorithm this crate writes.
 ed25519-dalek = { version = "3", default-features = false, features = ["zeroize"] }

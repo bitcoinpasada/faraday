@@ -302,11 +302,15 @@ impl OpenVaults {
         let mut record = r.clone();
         record.set(field::TITLE, title.as_bytes());
         if let Some(n) = r.text(field::NOTES) {
-            let kept: String = n
+            // Sized to the notes up front, so no growing leaves a copy.
+            let mut kept = Zeroizing::new(Vec::with_capacity(n.len()));
+            for l in n
                 .split_inclusive('\n')
                 .filter(|l| !l.trim_start().starts_with(BIP85_PATH))
-                .collect();
-            record.set(field::NOTES, kept.as_bytes());
+            {
+                kept.extend_from_slice(l.as_bytes());
+            }
+            record.set(field::NOTES, &kept);
         }
         body_of(&record)?;
         let mut u = [0u8; 16];

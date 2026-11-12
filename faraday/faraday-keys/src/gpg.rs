@@ -92,19 +92,19 @@ pub fn record_of(g: &GpgKey) -> Option<Record> {
             let read = Certificate::read(text.as_bytes()).ok()?;
             if read.fingerprint() != key.fingerprint()
                 || read.subkey_fingerprint() != key.subkey_fingerprint()
-                || packets != key.certificate(faraday_pgp::signature_time(&packets)?)
+                || packets.as_slice() != key.certificate(faraday_pgp::signature_time(&packets)?)
             {
                 return None;
             }
             packets
         }
-        None => key.certificate(at),
+        None => Zeroizing::new(key.certificate(at)),
     };
     let revocation = match &g.revocation {
         Some(text) => {
             let packets = public_packets(text)?;
             let (t, reason, why) = revocation_parts(&packets)?;
-            if packets != key.revocation(t, reason, &why) {
+            if packets.as_slice() != Zeroizing::new(key.revocation(t, reason, &why)).as_slice() {
                 return None;
             }
             Some(packets)
@@ -118,7 +118,7 @@ pub fn record_of(g: &GpgKey) -> Option<Record> {
     Some(key_record(
         &key,
         &certificate,
-        revocation.as_deref(),
+        revocation.as_ref().map(|r| r.as_slice()),
         revoked,
     ))
 }
@@ -179,13 +179,12 @@ fn revocation_parts(packets: &[u8]) -> Option<(u32, Reason, String)> {
 
 /// The packets of an armoured public block, any packets (the revocation
 /// certificate is one signature).
-fn public_packets(text: &str) -> Option<Vec<u8>> {
-    let packets = faraday_pgp::dearmor(
+fn public_packets(text: &str) -> Option<Zeroizing<Vec<u8>>> {
+    faraday_pgp::dearmor(
         b"-----BEGIN PGP PUBLIC KEY BLOCK-----",
         b"-----END PGP PUBLIC KEY BLOCK-----",
         text.as_bytes(),
-    )?;
-    Some(packets.to_vec())
+    )
 }
 
 /// A Unix time as an RFC 3339 time in UTC to the second:

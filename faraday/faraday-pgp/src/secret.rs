@@ -13,6 +13,7 @@
 
 use alloc::vec::Vec;
 use base64ct::{Base64, Encoding};
+use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
 use crate::length::{NewFormat, new_format_whole};
@@ -180,15 +181,19 @@ pub fn read_secret_at(armored: &[u8]) -> Option<(Key, u32)> {
     let (subkey, subkey_created) = subkey?;
     let cert = Certificate::read(armor(Armor::PublicKey, &public).as_bytes()).ok()?;
     let at = cert.certified_at()?;
-    let key = Key {
-        primary_seed: *primary,
+    // The seeds are copied into the key from references, so no by-value
+    // copy of either is left on the stack.
+    let mut key = Key {
+        primary_seed: [0; 32],
         created,
-        subkey_seed: *subkey,
+        subkey_seed: [0; 32],
         subkey_created,
         user_ids,
         expiry: cert.expiry(),
     };
-    (*key.secret_key(at) == **data).then_some((key, at))
+    key.primary_seed.copy_from_slice(&primary[..]);
+    key.subkey_seed.copy_from_slice(&subkey[..]);
+    bool::from(key.secret_key(at).ct_eq(&data[..])).then_some((key, at))
 }
 
 /// Costs Ed25519 signatures. The key `armored` holds, when it is exactly
