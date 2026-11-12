@@ -97,7 +97,7 @@ pub fn lay_out<'s, A: Copy + PartialEq>(
         }
     }
     let line = ui.line_as(role);
-    let space = ui.measure_as(role, "a a") - ui.measure_as(role, "aa");
+    let space = ui.measure_as(role, "0 0") - ui.measure_as(role, "00");
     let mut cx = 0.0_f32;
     let mut lines: Vec<Vec<Run>> = vec![Vec::new()];
     let mut i = 0;
