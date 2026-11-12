@@ -541,6 +541,22 @@ fn save_writes_a_codes_labelled_picture_with_the_backups_name() {
 }
 
 #[test]
+fn the_sheet_for_a_file_going_to_the_outbox_says_it_stays_there() {
+    let mut app = opened(mainnet(), ABOUT);
+    let _ = make(&mut app, "The words").unwrap();
+    save(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::SecretOut));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Stays in the Outbox"));
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == "Until it is sent or removed, or until power-off")
+    );
+}
+
+#[test]
 fn save_writes_each_text_form() {
     let mut app = opened(mainnet(), ABOUT);
     for (row, end) in [

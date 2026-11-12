@@ -2291,6 +2291,15 @@ pub(super) fn guide_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     ui.region_reported(Region::page(clip).on(ground), max);
 }
 
+/// The label and value rows of the secret sheet's head.
+fn secret_rows(out: &crate::secrets::SecretOut) -> [(&'static str, &str); 3] {
+    [
+        (EN.secret_out_file, out.name.as_str()),
+        (EN.secret_out_what_label, out.what.as_str()),
+        (EN.secret_out_who_can, out.gives.as_str()),
+    ]
+}
+
 /// Where a secret goes: the open vault, or, past **Save without
 /// encryption?**'s hold, the Outbox unprotected (F129).
 pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
@@ -2346,11 +2355,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (Icon::Lock.into(), Role::Warning.paint(), head),
         &mut |ui, x, y, iw| {
             let mut cy = y;
-            for (label, value) in [
-                (EN.secret_out_file, out.name.as_str()),
-                (EN.secret_out_what_label, out.what.as_str()),
-                (EN.secret_out_who_can, out.gives.as_str()),
-            ] {
+            for (label, value) in secret_rows(out) {
                 cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
             }
             cy += 4.0;
@@ -2393,6 +2398,12 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
             ui.text_as(x, cy, LABEL_L, Role::Error, &unprotected);
             cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GAP_SMALL;
+            // The Outbox keeps it, through Lock, in memory; a file ticked
+            // for another stick is not put there.
+            if !out.to_visit {
+                let (label, value) = (EN.secret_out_stays_label, EN.secret_out_stays);
+                cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
+            }
             if forms.len() > 1 {
                 cy += wrap_buttons(ui, x, cy, iw, BUTTON_H, &forms) + 4.0;
             }
