@@ -989,11 +989,11 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     // Split sheets in Files that add up.
     if !ready {
-        let sheets: Vec<String> = app
+        let sheets: Vec<zeroize::Zeroizing<String>> = app
             .inbox
             .iter()
             .filter(|i| i.kind == FileKind::Share)
-            .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+            .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
             .collect();
         if !sheets.is_empty() && crate::restore::merge(&sheets).is_ok_and(|m| m.whole.is_some()) {
             cy += crate::screens::wrap_buttons(
@@ -1071,7 +1071,7 @@ fn wallet_once(w: &crate::wallet::Wallet) -> String {
 /// the files still in Files.
 fn came_rows(app: &View) -> Vec<String> {
     let mut sheets = 0;
-    let mut texts: Vec<String> = Vec::new();
+    let mut texts: Vec<zeroize::Zeroizing<String>> = Vec::new();
     let mut rows = Vec::new();
     // Split sheets already in Files, copied in from a stick say, are
     // listed after what came in on the card.
@@ -1113,7 +1113,9 @@ fn came_rows(app: &View) -> Vec<String> {
                     }
                     FileKind::Share => {
                         sheets += 1;
-                        texts.push(String::from_utf8_lossy(&item.bytes).into_owned());
+                        texts.push(zeroize::Zeroizing::new(
+                            String::from_utf8_lossy(&item.bytes).into_owned(),
+                        ));
                         match crate::restore::merge(&texts) {
                             Ok(m) => fill(
                                 EN.spend_backup_part_of_keys,
