@@ -1763,15 +1763,7 @@ impl Faraday {
                 in_check: true,
             };
         }
-        let e = self.entry.state_mut();
-        let lang = e.language();
-        WordsUse {
-            keys: &mut e.keys,
-            shift: &mut e.shift,
-            error: &mut e.error,
-            lang,
-            in_check: false,
-        }
+        self.entry.typing_use()
     }
 
     /// Costs what `plan_mapped` costs. The forms of the copies of seed `i`

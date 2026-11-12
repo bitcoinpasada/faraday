@@ -645,7 +645,7 @@ impl Faraday {
                         r.error = None;
                     }
                     self.entry.reset();
-                    self.entry.state_mut().back = Some(Screen::Restore);
+                    self.entry.set_back(Some(Screen::Restore));
                     self.act(Action::ScanSeed);
                 }
             }

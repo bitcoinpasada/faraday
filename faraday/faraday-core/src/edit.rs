@@ -1030,9 +1030,8 @@ impl Faraday {
         };
         let done = match h {
             Here::Words => {
-                let e = self.entry.state_mut();
-                splice_text(&mut e.typed, (lo, hi), insert);
-                e.error = None;
+                self.entry
+                    .edit_typed(|typed| splice_text(typed, (lo, hi), insert));
                 true
             }
             _ => self

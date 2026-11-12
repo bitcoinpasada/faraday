@@ -903,7 +903,7 @@ impl Faraday {
     pub(crate) fn worksheet_pan_mut(&mut self) -> Option<&mut crate::codex32::SheetPan> {
         match self.screen {
             Screen::KeyGen => self.keygen.sheet_pan_mut(),
-            Screen::Entry => Some(&mut self.entry.state_mut().codex32.pan),
+            Screen::Entry => Some(self.entry.worksheet_pan()),
             _ => None,
         }
     }

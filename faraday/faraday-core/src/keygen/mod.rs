@@ -1251,13 +1251,14 @@ impl crate::Faraday {
                 .ok()
                 .and_then(|seed| faraday_keys::identity::fingerprint_of_seed(&c, &seed));
             if let Some(fp) = fp.filter(|&fp| !self.session.keys.is_public(fp)) {
-                self.entry.state_mut().error =
-                    Some(crate::wallet::Refusal::NotAllowed(crate::wallet::fp_text(fp)).text());
+                self.entry.set_error(
+                    crate::wallet::Refusal::NotAllowed(crate::wallet::fp_text(fp)).text(),
+                );
                 return;
             }
         }
         // The form's strings stay; it makes the key again if pressed.
-        self.entry.state_mut().codex32.making = None;
+        self.entry.keep_strings();
         if self.screen != Screen::KeyGen || self.keygen.state().is_none() {
             self.keygen_open(None);
         }
@@ -1403,7 +1404,7 @@ impl crate::Faraday {
             let m = match self.entry.mnemonic() {
                 Ok(m) => m,
                 Err(e) => {
-                    self.entry.state_mut().error = Some(e);
+                    self.entry.set_error(e);
                     return;
                 }
             };
@@ -1412,7 +1413,7 @@ impl crate::Faraday {
             return;
         }
         let parts = self.entry.state().parts.lines(form).len();
-        self.entry.state_mut().error = None;
+        self.entry.forget_error();
         let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
@@ -1797,7 +1798,7 @@ impl crate::Faraday {
                 .typed_load(&m, &pass, "", None, None, |_, _| {})
                 .map_err(|e| e.text()),
             None if form != Form::Words => {
-                self.entry.state_mut().passphrase.set(&pass);
+                self.entry.set_passphrase(&pass);
                 self.form_key()
             }
             None => return,

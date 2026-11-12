@@ -704,12 +704,8 @@ impl Faraday {
                     if self.sheet == Some(Sheet::Scan) {
                         self.sheet = None;
                     }
-                    self.entry.reset();
-                    self.entry.state_mut().back = Some(Screen::SpendBackup);
-                    if self.compact {
-                        self.entry.state_mut().keys =
-                            Some(crate::forms::word_typer(self.entry.state().language()));
-                    }
+                    self.entry
+                        .begin(None, Some(Screen::SpendBackup), self.compact);
                     self.screen = Screen::Entry;
                 }
             }
@@ -1122,7 +1118,7 @@ impl Faraday {
         if let Some(i) = crate::forms::Form::ALL.iter().position(|f| *f == form) {
             self.act(Action::EntryForm(i as u8));
         }
-        self.entry.state_mut().typed.set(&text);
+        self.entry.set_typed(&text);
         self.form_add_part();
         true
     }

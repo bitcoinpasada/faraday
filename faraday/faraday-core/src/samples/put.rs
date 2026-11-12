@@ -45,6 +45,17 @@ impl Use {
         self.dismissed = true;
     }
 
+    /// A press gave words of a count: its next pick `next` at place `at`.
+    pub(crate) fn took_words(&mut self, at: usize, next: u8) {
+        self.next[at] = next;
+    }
+
+    /// A press gave a part: the next pick `next`, of the set `begun`.
+    pub(crate) fn took_part(&mut self, next: u8, begun: Option<u8>) {
+        self.next[0] = next;
+        self.begun = begun;
+    }
+
     /// Whether the chip may show, the field being empty.
     pub(crate) fn shown(&self) -> bool {
         !self.dismissed && !self.filled
@@ -156,7 +167,7 @@ impl Faraday {
     pub(crate) fn entry_typing_key(&mut self) -> bool {
         let here = self.entry_typing_here();
         if here {
-            self.entry.state_mut().sample.dismiss();
+            self.entry.dismiss_sample();
         }
         here
     }
@@ -207,8 +218,7 @@ impl Faraday {
             }
         };
         let k = &set.keys[i];
-        self.entry.state_mut().sample.next[at] = next;
-        self.entry.state_mut().word_count = word_count(k) as u8;
+        self.entry.sampled_words(at, next, word_count(k) as u8);
         k.parts.first().copied()
     }
 
@@ -242,8 +252,7 @@ impl Faraday {
             .map(|(i, _)| i)
             .collect();
         let (i, next) = self.sample_choose(set, &cands, self.entry.state().sample.next[0])?;
-        self.entry.state_mut().sample.next[0] = next;
-        self.entry.state_mut().sample.begun = u8::try_from(i).ok();
+        self.entry.sampled_part(next, u8::try_from(i).ok());
         set.keys[i].parts.first().copied()
     }
 
@@ -263,7 +272,7 @@ impl Faraday {
         }) else {
             return;
         };
-        self.entry.state_mut().on_passphrase = false;
+        self.entry.leave_passphrase();
         if words {
             // The samples' words are English, whatever list was chosen.
             let english = forms::LANGUAGES
@@ -273,19 +282,11 @@ impl Faraday {
             if self.entry.state().language_at != english {
                 self.act(Action::EntryLanguage(english));
             }
-            if self.entry.state().keys.is_some() {
-                let mut w = forms::word_typer(Language::English);
-                forms::type_words(&mut w, Language::English, text);
-                self.entry.state_mut().keys = Some(w);
-            } else {
-                self.entry.state_mut().typed.set(text);
-                self.entry.state_mut().typed.push(' ');
-            }
+            self.entry.put_sample_words(text);
         } else {
-            self.entry.state_mut().typed.set(text);
+            self.entry.set_typed(text);
         }
-        self.entry.state_mut().error = None;
-        self.entry.state_mut().sample.filled = true;
+        self.entry.sample_filled();
         self.entry.state().forget_probe();
     }
 

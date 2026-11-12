@@ -740,32 +740,11 @@ impl Faraday {
         let idx = match pasted_words(lang, text) {
             Ok(idx) => idx,
             Err(why) => {
-                self.entry.state_mut().error = Some(why);
+                self.entry.set_error(why);
                 return true;
             }
         };
-        let e = self.entry.state_mut();
-        if e.keys.is_some() {
-            let mut w = crate::forms::word_typer(lang);
-            for &i in idx.iter() {
-                w.put(i);
-            }
-            e.keys = Some(w);
-        } else {
-            let mut typed = zeroize::Zeroizing::new(String::new());
-            for &i in idx.iter() {
-                if let Some(t) = lang.typed(i) {
-                    typed.extend(t.as_chars());
-                }
-                typed.push(' ');
-            }
-            e.typed.set(&typed);
-        }
-        e.word_count = idx.len() as u8;
-        e.on_passphrase = false;
-        e.error = None;
-        e.sample.dismiss();
-        e.forget_probe();
+        self.entry.put_pasted_words(lang, &idx);
         true
     }
 }
@@ -1011,7 +990,7 @@ impl Faraday {
         self.out.commands.push_back(Command::CameraOff);
         if in_flow {
             self.keygen_open_on(crate::keygen::Start::Codex32);
-            self.entry.state_mut().typed.set(&given);
+            self.entry.set_typed(&given);
             self.form_add_part();
         } else {
             self.codex32_form_with(&given);
@@ -1032,7 +1011,7 @@ impl Faraday {
         {
             self.act(Action::EntryForm(i as u8));
         }
-        self.entry.state_mut().typed.set(given);
+        self.entry.set_typed(given);
         self.form_add_part();
     }
 }
@@ -1681,7 +1660,7 @@ impl Faraday {
             Some(words) => {
                 let kind = scan_read::secret_kind(c, bytes).unwrap_or(Kind::SeedWords);
                 self.entry.reset();
-                self.entry.state_mut().back = Some(back);
+                self.entry.set_back(Some(back));
                 self.seed_scanned(&words, kind);
             }
             None => self.codex32_into_slot(&given, back),
@@ -1704,8 +1683,8 @@ impl Faraday {
         {
             self.act(Action::EntryForm(i as u8));
         }
-        self.entry.state_mut().back = Some(back);
-        self.entry.state_mut().typed.set(given);
+        self.entry.set_back(Some(back));
+        self.entry.set_typed(given);
         self.form_add_part();
     }
 
@@ -1885,15 +1864,15 @@ impl Faraday {
             None => zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string()),
         };
         let ours = kind_form.is_some() || starts_as_form(self.entry.state().form, &text);
-        self.entry.state_mut().typed.set(&text);
+        self.entry.set_typed(&text);
         drop(text);
-        self.entry.state_mut().error = None;
+        self.entry.forget_error();
         self.form_add_part();
         match self.entry.state().error.clone() {
             None => self.scan_close(),
             Some(why) => {
-                zeroize::Zeroize::zeroize(&mut self.entry.state_mut().typed);
-                self.entry.state_mut().error = None;
+                self.entry.wipe_typed();
+                self.entry.forget_error();
                 if ours {
                     self.scan_say(why);
                 } else {
@@ -1931,8 +1910,8 @@ impl Faraday {
         if let Some(i) = Form::ALL.iter().position(|f| *f == form) {
             self.act(Action::EntryForm(i as u8));
         }
-        self.entry.state_mut().wallet = Some(w);
-        self.entry.state_mut().typed.set(&text);
+        self.entry.set_wallet(w);
+        self.entry.set_typed(&text);
         self.form_add_part();
     }
 

@@ -175,8 +175,8 @@ pub(crate) enum Keyed {
 }
 
 /// Seed entry's area: its state, which only its own methods replace and
-/// which other areas reach through [`EntryArea::state`] to read and
-/// [`EntryArea::state_mut`] to change a field.
+/// which other areas reach through [`EntryArea::state`] to read; they
+/// change it only through the area's own methods.
 #[derive(Default)]
 pub(crate) struct EntryArea {
     state: EntryState,
@@ -186,11 +186,6 @@ impl EntryArea {
     /// The entry's state.
     pub(crate) fn state(&self) -> &EntryState {
         &self.state
-    }
-
-    /// The entry's state, to change a field of.
-    pub(crate) fn state_mut(&mut self) -> &mut EntryState {
-        &mut self.state
     }
 
     /// Forgets everything typed and chosen.
@@ -206,6 +201,332 @@ impl EntryArea {
     /// Puts a state back in place of the current one.
     pub(crate) fn put(&mut self, state: EntryState) {
         self.state = state;
+    }
+
+    /// Opens a fresh entry: what is wanted and the screen Back goes to
+    /// kept, and, on a small panel, every list's words on the word
+    /// keyboard.
+    pub(crate) fn begin(&mut self, wanted: Option<[u8; 4]>, back: Option<Screen>, compact: bool) {
+        self.reset();
+        self.state.wanted = wanted;
+        self.state.back = back;
+        if compact {
+            self.restart_keys();
+        }
+    }
+
+    /// Forgets what the form holds but keeps what is wanted and where
+    /// Back goes, and shows `form` with the chips of the other forms.
+    pub(crate) fn choose_form(&mut self, form: Form) {
+        let (wanted, back) = (self.state.wanted, self.state.back);
+        self.reset();
+        self.state.wanted = wanted;
+        self.state.back = back;
+        self.state.form = form;
+        self.state.other_forms = true;
+    }
+
+    /// Shows the chips of the other forms.
+    pub(crate) fn show_other_forms(&mut self) {
+        self.state.other_forms = true;
+    }
+
+    /// Opens for a round of the backup (`EntryState::c32_round`): Back
+    /// goes to the backup flow, the string wanted for the round.
+    pub(crate) fn open_round(&mut self, want: crate::plan::codex32::Wanted) {
+        self.state.other_forms = false;
+        self.state.back = Some(Screen::BackupFlow);
+        self.state.c32_round = Some(want);
+    }
+
+    /// Refuses a string typed for the round: the parts dropped, `line`
+    /// shown.
+    pub(crate) fn refuse_round(&mut self, line: String) {
+        self.state.parts.codex32.clear();
+        self.state.error = Some(line);
+    }
+
+    /// Sets the screen Back goes to.
+    pub(crate) fn set_back(&mut self, back: Option<Screen>) {
+        self.state.back = back;
+    }
+
+    /// Sets the wallet the key is added for.
+    pub(crate) fn set_wallet(&mut self, wallet: usize) {
+        self.state.wallet = Some(wallet);
+    }
+
+    /// Shows `error` as the last refusal.
+    pub(crate) fn set_error(&mut self, error: String) {
+        self.state.error = Some(error);
+    }
+
+    /// Clears the last refusal, whatever it was.
+    pub(crate) fn forget_error(&mut self) {
+        self.state.error = None;
+    }
+
+    /// Takes the last refusal away.
+    pub(crate) fn take_error(&mut self) -> Option<String> {
+        self.state.error.take()
+    }
+
+    /// Puts `text` in as typed.
+    pub(crate) fn set_typed(&mut self, text: &str) {
+        self.state.typed.set(text);
+    }
+
+    /// Wipes what was typed.
+    pub(crate) fn wipe_typed(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.state.typed);
+    }
+
+    /// Changes the text typed through `f` and clears the last refusal.
+    pub(crate) fn edit_typed(&mut self, f: impl FnOnce(&mut secret_text::SecretText)) {
+        f(&mut self.state.typed);
+        self.state.error = None;
+    }
+
+    /// Puts `pass` in as the passphrase.
+    pub(crate) fn set_passphrase(&mut self, pass: &str) {
+        self.state.passphrase.set(pass);
+    }
+
+    /// Puts `pass` in as the passphrase's repeat.
+    pub(crate) fn set_again(&mut self, pass: &str) {
+        self.state.again.set(pass);
+    }
+
+    /// Takes the on-screen keyboard's words away.
+    pub(crate) fn take_keys(&mut self) -> Option<Box<crate::word_entry::WordEntry>> {
+        self.state.keys.take()
+    }
+
+    /// Starts the on-screen keyboard's words over on the list chosen.
+    pub(crate) fn restart_keys(&mut self) {
+        self.state.keys = Some(forms::word_typer(self.state.language()));
+    }
+
+    /// `f` on the on-screen keyboard's words, if it has any.
+    pub(crate) fn with_keys<T>(
+        &mut self,
+        f: impl FnOnce(&mut crate::word_entry::WordEntry) -> Option<T>,
+    ) -> Option<T> {
+        f(self.state.keys.as_deref_mut()?)
+    }
+
+    /// The words typed on the computer's keyboard or the word keyboard,
+    /// for the shared helper that types a key into them.
+    pub(crate) fn typing_words(&mut self, numbers: bool) -> forms::WordsMut<'_> {
+        let e = &mut self.state;
+        let lang = e.language();
+        forms::WordsMut {
+            typed: &mut e.typed,
+            keys: &mut e.keys,
+            error: &mut e.error,
+            lang,
+            numbers,
+        }
+    }
+
+    /// The state the on-screen word keys press into.
+    pub(crate) fn typing_use(&mut self) -> crate::copy_check::WordsUse<'_> {
+        let e = &mut self.state;
+        let lang = e.language();
+        crate::copy_check::WordsUse {
+            keys: &mut e.keys,
+            shift: &mut e.shift,
+            error: &mut e.error,
+            lang,
+            in_check: false,
+        }
+    }
+
+    /// Sets how many words the form is for.
+    pub(crate) fn set_word_count(&mut self, n: u8) {
+        self.state.word_count = n;
+    }
+
+    /// Clears the words form: the words, the count, the label and the
+    /// refusal, with the chip's use forgotten.
+    pub(crate) fn clear_words(&mut self) {
+        self.state.sample.emptied();
+        self.state.word_count = 0;
+        self.state.typed.clear();
+        if self.state.keys.is_some() {
+            self.restart_keys();
+        }
+        self.state.label.clear();
+        self.state.error = None;
+    }
+
+    /// Opens or closes the list of languages.
+    pub(crate) fn toggle_languages(&mut self) {
+        self.state.languages = !self.state.languages;
+    }
+
+    /// Chooses the word list `at`, `lang`: a list with a keyboard of its
+    /// own, or any on a small panel, starts its words over; one typed in
+    /// Latin letters keeps them.
+    pub(crate) fn choose_language(&mut self, at: u8, lang: Language, compact: bool) {
+        self.state.language_at = at;
+        self.state.error = None;
+        self.state.shift = false;
+        self.state.keys = (forms::on_screen(lang) || compact).then(|| forms::word_typer(lang));
+        if compact {
+            self.state.languages = false;
+        }
+    }
+
+    /// Chooses the word list `at` without touching the words.
+    pub(crate) fn set_language_at(&mut self, at: u8) {
+        self.state.language_at = at;
+    }
+
+    /// A field of the form pressed: neither passphrase field has the
+    /// focus and the chip is gone.
+    pub(crate) fn focus_words(&mut self) {
+        self.state.on_passphrase = false;
+        self.state.on_again = false;
+        self.state.sample.dismiss();
+    }
+
+    /// Leaves the passphrase field.
+    pub(crate) fn leave_passphrase(&mut self) {
+        self.state.on_passphrase = false;
+    }
+
+    /// The passphrase's chip pressed: the field opens, or closes where it
+    /// was open and not on its repeat.
+    pub(crate) fn toggle_passphrase(&mut self) {
+        let e = &mut self.state;
+        e.on_passphrase = !(e.on_passphrase && !e.on_again);
+        e.on_again = false;
+    }
+
+    /// The passphrase's repeat has the focus.
+    pub(crate) fn focus_again(&mut self) {
+        self.state.on_passphrase = true;
+        self.state.on_again = true;
+    }
+
+    /// The chip inside the field is gone for the visit.
+    pub(crate) fn dismiss_sample(&mut self) {
+        self.state.sample.dismiss();
+    }
+
+    /// Notes that the chip gave words: its next pick at `at`, and the
+    /// count.
+    pub(crate) fn sampled_words(&mut self, at: usize, next: u8, count: u8) {
+        self.state.sample.took_words(at, next);
+        self.state.word_count = count;
+    }
+
+    /// Notes that the chip gave the part of set `begun`, its next pick
+    /// `next`.
+    pub(crate) fn sampled_part(&mut self, next: u8, begun: Option<u8>) {
+        self.state.sample.took_part(next, begun);
+    }
+
+    /// Puts the chip's `text` in as typed words, on the keyboard's words
+    /// where it has them.
+    pub(crate) fn put_sample_words(&mut self, text: &str) {
+        if self.state.keys.is_some() {
+            let mut w = forms::word_typer(Language::English);
+            forms::type_words(&mut w, Language::English, text);
+            self.state.keys = Some(w);
+        } else {
+            self.state.typed.set(text);
+            self.state.typed.push(' ');
+        }
+    }
+
+    /// The chip's text is in: the refusal is gone and the chip is used.
+    pub(crate) fn sample_filled(&mut self) {
+        self.state.error = None;
+        self.state.sample.fill();
+    }
+
+    /// The codex32 form's strings stay; it makes the key again if
+    /// pressed.
+    pub(crate) fn keep_strings(&mut self) {
+        self.state.codex32.making = None;
+    }
+
+    /// Notes how many of the open vaults' codex32 strings count and how
+    /// many the checked string has. Returns whether the strings and the
+    /// vaults' now make `k` of the set where they did not (so the key
+    /// may load).
+    pub(crate) fn set_vault_counts(&mut self, n: usize, checked: usize) -> bool {
+        let e = &mut self.state;
+        let before = e.parts.codex32_vaults;
+        e.parts.codex32_vaults = n;
+        e.codex32.check_in_vaults = checked;
+        let k = e
+            .parts
+            .codex32
+            .first()
+            .map_or(0, |s| usize::from(s.threshold()));
+        let typed = e.parts.codex32.len();
+        n != before && e.codex32.making.is_none() && k >= 2 && typed < k && typed + n >= k
+    }
+
+    /// Toggles making `kind` (the rest or a share) on the codex32 form.
+    /// `None` where the strings offer no more; else whether they make it
+    /// now.
+    pub(crate) fn toggle_making(&mut self, kind: crate::codex32::Given) -> Option<bool> {
+        let e = &mut self.state;
+        if !forms::offers_more(&e.parts) {
+            return None;
+        }
+        e.codex32.making = (e.codex32.making != Some(kind)).then_some(kind);
+        Some(e.codex32.making.is_some() && forms::makes_more(&e.parts))
+    }
+
+    /// The codex32 correction's caret put in box `i`.
+    pub(crate) fn correction_caret_to_box(&mut self, i: usize) {
+        self.state.correction.caret_to_box(i);
+    }
+
+    /// The press on the codex32 correction.
+    pub(crate) fn correction_press(
+        &mut self,
+        p: crate::codex32_correct::Press,
+    ) -> crate::codex32_correct::Outcome {
+        self.state.correction.press(p)
+    }
+
+    /// The worksheet's pan, for the motion that moves it.
+    pub(crate) fn worksheet_pan(&mut self) -> &mut crate::codex32::SheetPan {
+        &mut self.state.codex32.pan
+    }
+
+    /// Puts the words pasted in, `idx` their indices on list `lang`: on
+    /// the keyboard's words where it has them, else as typed, with the
+    /// count set to theirs.
+    pub(crate) fn put_pasted_words(&mut self, lang: Language, idx: &[u16]) {
+        let e = &mut self.state;
+        if e.keys.is_some() {
+            let mut w = forms::word_typer(lang);
+            for &i in idx.iter() {
+                w.put(i);
+            }
+            e.keys = Some(w);
+        } else {
+            let mut typed = zeroize::Zeroizing::new(String::new());
+            for &i in idx.iter() {
+                if let Some(t) = lang.typed(i) {
+                    typed.extend(t.as_chars());
+                }
+                typed.push(' ');
+            }
+            e.typed.set(&typed);
+        }
+        e.word_count = idx.len() as u8;
+        e.on_passphrase = false;
+        e.error = None;
+        e.sample.dismiss();
+        e.forget_probe();
     }
 
     /// The word just typed into `typed`, the way Tab completes it: the
@@ -1152,17 +1473,7 @@ impl Faraday {
             .filter(|ch| ch.holds)
             .and_then(|_| Codex32::parse(e.typed.trim()).ok())
             .map_or(0, |s| self.vaults.store().codex32_count(&[s]));
-        let e = self.entry.state_mut();
-        let before = e.parts.codex32_vaults;
-        e.parts.codex32_vaults = n;
-        e.codex32.check_in_vaults = checked;
-        let k = e
-            .parts
-            .codex32
-            .first()
-            .map_or(0, |s| usize::from(s.threshold()));
-        let typed = e.parts.codex32.len();
-        if n != before && e.codex32.making.is_none() && k >= 2 && typed < k && typed + n >= k {
+        if self.entry.set_vault_counts(n, checked) {
             self.form_complete();
         }
     }
@@ -1198,12 +1509,12 @@ impl Faraday {
         // press, as the last frame drew it, takes the caret.
         if let crate::codex32_correct::Press::Group(_) = p {
             if let Some(i) = self.pressed_index(Action::Codex32Correct(p)) {
-                self.entry.state_mut().correction.caret_to_box(i + 1);
+                self.entry.correction_caret_to_box(i + 1);
             }
             return;
         }
         let c = self.compute();
-        let out = self.entry.state_mut().correction.press(p);
+        let out = self.entry.correction_press(p);
         if self.entry.codex32_outcome(&c, out) {
             self.form_complete();
             return;
@@ -1229,12 +1540,7 @@ impl Faraday {
         };
         // Pressed again it is off; on, the strings make the rest or a
         // share once k are in, at once where they are in already.
-        let e = self.entry.state_mut();
-        if !forms::offers_more(&e.parts) {
-            return;
-        }
-        e.codex32.making = (e.codex32.making != Some(kind)).then_some(kind);
-        if e.codex32.making.is_some() && forms::makes_more(&e.parts) {
+        if self.entry.toggle_making(kind) == Some(true) {
             self.form_complete();
         }
     }
@@ -1271,7 +1577,7 @@ impl Faraday {
                     self.spend_backup_key_added();
                 }
             }
-            Err(e) => self.entry.state_mut().error = Some(e),
+            Err(e) => self.entry.set_error(e),
         }
     }
 

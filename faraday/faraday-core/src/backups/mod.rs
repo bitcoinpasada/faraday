@@ -3338,10 +3338,7 @@ impl Faraday {
             .position(|f| *f == crate::forms::Form::Codex32)
             .unwrap_or(0);
         self.act(Action::EntryForm(codex32 as u8));
-        let e = self.entry.state_mut();
-        e.other_forms = false;
-        e.back = Some(Screen::BackupFlow);
-        e.c32_round = Some(want);
+        self.entry.open_round(want);
     }
 
     /// Costs a parse of the string and what `codex32_of_seed` costs, twice
@@ -3409,9 +3406,7 @@ impl Faraday {
             // are here to rebuild the seed, or the key's own facts of its
             // set refuse the index.
             let line = refusal.unwrap_or_else(|| fill(EN.c32_round_unproved, &[&share, &id]));
-            let e = self.entry.state_mut();
-            e.parts.codex32.clear();
-            e.error = Some(line);
+            self.entry.refuse_round(line);
             return;
         }
         self.entry.reset();

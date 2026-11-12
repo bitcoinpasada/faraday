@@ -421,7 +421,7 @@ impl Faraday {
         if let Some(i) = xor {
             self.act(Action::EntryForm(i as u8));
         }
-        self.entry.state_mut().typed.set(words.as_str());
+        self.entry.set_typed(words.as_str());
         self.form_add_part();
     }
 
@@ -567,25 +567,24 @@ impl Faraday {
                 .iter()
                 .position(|&l| crate::forms::typed_mnemonic(l, words).is_ok())
         {
-            self.entry.state_mut().language_at = at as u8;
+            self.entry.set_language_at(at as u8);
         }
-        self.entry.state_mut().typed.set(words);
-        self.entry.state_mut().passphrase.set(pass);
+        self.entry.set_typed(words);
+        self.entry.set_passphrase(pass);
         // The sheet asked for it twice already.
-        self.entry.state_mut().again.set(pass);
-        let keys = self.entry.state_mut().keys.take();
+        self.entry.set_again(pass);
+        let keys = self.entry.take_keys();
         self.entry_add();
         // Over the QR vault tool a refusal shows on its card, and the words
         // do not stay in Add a key's form.
         if self.screen == Screen::QrTool {
-            let error = self.entry.state_mut().error.take();
+            let error = self.entry.take_error();
             self.entry.reset();
             crate::qr_tool::offers::say_error(self, error);
             return;
         }
         if self.screen == Screen::Entry && keys.is_some() {
-            self.entry.state_mut().keys =
-                Some(crate::forms::word_typer(self.entry.state().language()));
+            self.entry.restart_keys();
         }
     }
 

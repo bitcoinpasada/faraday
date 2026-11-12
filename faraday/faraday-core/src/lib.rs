@@ -3528,18 +3528,7 @@ impl Faraday {
         // typed in Latin letters. Check my copy types through the same
         // function (`forms::word_key`).
         if here {
-            let e = self.entry.state_mut();
-            let lang = e.language();
-            let typed = forms::word_key(
-                forms::WordsMut {
-                    typed: &mut e.typed,
-                    keys: &mut e.keys,
-                    error: &mut e.error,
-                    lang,
-                    numbers: false,
-                },
-                key,
-            );
+            let typed = forms::word_key(self.entry.typing_words(false), key);
             match typed {
                 forms::WordKey::Enter => self.entry_enter(),
                 forms::WordKey::Escape => self.screen = self.entry_leave(),

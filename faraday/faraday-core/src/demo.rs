@@ -345,11 +345,11 @@ impl Faraday {
         }
         match field {
             PassField::Entry | PassField::EntryAgain => {
-                self.entry.state_mut().passphrase.set(PASSPHRASE);
+                self.entry.set_passphrase(PASSPHRASE);
                 if self.entry.state().pair() {
-                    self.entry.state_mut().again.set(PASSPHRASE);
+                    self.entry.set_again(PASSPHRASE);
                 }
-                self.entry.state_mut().error = None;
+                self.entry.forget_error();
             }
             PassField::KeyGen(0) => {
                 for i in [0, 1] {
