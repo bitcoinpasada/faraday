@@ -14000,10 +14000,10 @@ strings! {
     aqrv_back: "Back",
     /// A sample's name.
     #[cfg(feature = "aqrv")]
-    aqrv_sample_words12: "12-word seed",
+    aqrv_sample_words12: "12 words, abandon … about",
     /// A sample's name.
     #[cfg(feature = "aqrv")]
-    aqrv_sample_words24: "24-word seed",
+    aqrv_sample_words24: "24 words, zoo … vote",
     /// A sample's name.
     #[cfg(feature = "aqrv")]
     aqrv_sample_codex_secret: "codex32 secret (BIP 93 vector 1)",

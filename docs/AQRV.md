@@ -675,7 +675,12 @@ The vectors are `tools/vectors/aqrv/aqrv.json`, with a README and the QR
 code of one vector at each of the three sizes as a PNG. They are computed by
 `tools/vectors/aqrv/gen.py` with libraries the format's authors did not write
 (argon2-cffi for Argon2id; Python's `hmac` and `hashlib`; PyCA cryptography's
-ChaCha20), so that they do not rest on a first implementation. Each case gives
+ChaCha20), so that they do not rest on a first implementation. The entropies of the
+entropy cases are BIP 39's published test entropies (all `00`, `7f`, `80` or
+`ff` bytes; the step 0 seeds read "abandon … about" and "zoo … vote"), taken
+from the Trezor reference vectors, and each such case records its words;
+the 20- and 28-byte ones, which BIP 39 does not list, have the words of
+python-mnemonic. Each case gives
 every intermediate value (`pw`, `PRK`, `K_enc`, `K_mac`, the keystream, `C`,
 all nine tags) and the whole envelope, and says what a reader must do with it:
 open to given fields, not open, or not recognise it. They cover, at the small

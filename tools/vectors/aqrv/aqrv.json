@@ -139,7 +139,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "e352ee2cc2f809ad3da89a0a6f804a02027793af5cd60992bdd2cc45d6fd71cd",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "c201250db0fd72bcbf0e9b8ec721a7f8",
    "header": "0xF8",
    "values": {
@@ -148,30 +148,31 @@
     "K_enc": "b01e07f343e30a2dd032da3702d174389f8f74fd2b8aab425833770032961aff",
     "K_mac": "0838682f85a27b52c85effc10db4b135ef140081f4595ab844c6ba10c5ebe4ae",
     "keystream": "5ff99b7bb0a5b0dddf9a87ca0be936a8f40a06f89ba87f5e13ea59b73bf9a6cd",
-    "P": "e352ee2cc2f809ad3da89a0a6f804a02027793af5cd60992bdd2cc45d6fd71cd",
-    "C": "bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d700",
-    "hmac_message": "f835c201250db0fd72bcbf0e9b8ec721a7f820bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d700",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "C": "a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932",
+    "hmac_message": "f835c201250db0fd72bcbf0e9b8ec721a7f820a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932",
     "tags": {
-     "0x10": "ada6a738",
-     "0x14": "1d782c48",
-     "0x18": "d5e7e296",
-     "0x1C": "2f79e703",
-     "0x20": "0413336d",
-     "0x30": "2b6357d4",
-     "0x40": "4f45788d",
-     "0x41": "e4a20906",
-     "0x50": "e3d5001b"
+     "0x10": "b7ec4e57",
+     "0x14": "d8c654f5",
+     "0x18": "3b4d7d42",
+     "0x1C": "0ebf9399",
+     "0x20": "e45ae2ac",
+     "0x30": "1e525d95",
+     "0x40": "4089706a",
+     "0x41": "184d7f9e",
+     "0x50": "2f6609ee"
     },
-    "tag": "0413336d"
+    "tag": "e45ae2ac"
    },
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "e352ee2cc2f809ad3da89a0a6f804a02027793af5cd60992bdd2cc45d6fd71cd"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -184,7 +185,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "fea2f50781db081d2434b6c57a1e303cd1245ba6eab7ab23db6608dc4cbd4823",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "27f241d59073eb84ef6cb68c5a60a88c",
    "header": "0xF9",
    "values": {
@@ -193,30 +194,31 @@
     "K_enc": "01c7118165bc439d362b33597fe898055568cf43cb382f716b76ab8ca46d7795",
     "K_mac": "ce052d0e7d40f1e8d8dbeefb747e7e624f46255fb0865b0d56cc552762e3b285",
     "keystream": "d46229fd6b700286d54e6d2cafc0d861a49fbe32939be323aca25d441ff49fa7",
-    "P": "fea2f50781db081d2434b6c57a1e303cd1245ba6eab7ab23db6608dc4cbd4823",
-    "C": "2ac0dcfaeaab0a9bf17adbe9d5dee85d75bbe594792c480077c455985349d784",
-    "hmac_message": "f93527f241d59073eb84ef6cb68c5a60a88c202ac0dcfaeaab0a9bf17adbe9d5dee85d75bbe594792c480077c455985349d784",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "C": "2b9dd602948ffd792ab192d3503f279e5b6041cd6c641cdc535da2bbe00b6058",
+    "hmac_message": "f93527f241d59073eb84ef6cb68c5a60a88c202b9dd602948ffd792ab192d3503f279e5b6041cd6c641cdc535da2bbe00b6058",
     "tags": {
-     "0x10": "23354e4f",
-     "0x14": "2802811a",
-     "0x18": "f4267a6c",
-     "0x1C": "75d1bb21",
-     "0x20": "6f506ae0",
-     "0x30": "fe1249d4",
-     "0x40": "0e2add89",
-     "0x41": "dbb24344",
-     "0x50": "80873e23"
+     "0x10": "3f5056ba",
+     "0x14": "2bcf0d4a",
+     "0x18": "10125161",
+     "0x1C": "82c24d7b",
+     "0x20": "6a650cd3",
+     "0x30": "f9943d2e",
+     "0x40": "f72d5254",
+     "0x41": "db24cd40",
+     "0x50": "8c27b3e7"
     },
-    "tag": "6f506ae0"
+    "tag": "6a650cd3"
    },
-   "envelope": "f927f241d59073eb84ef6cb68c5a60a88c2ac0dcfaeaab0a9bf17adbe9d5dee85d75bbe594792c480077c455985349d7846f506ae0",
+   "envelope": "f927f241d59073eb84ef6cb68c5a60a88c2b9dd602948ffd792ab192d3503f279e5b6041cd6c641cdc535da2bbe00b60586a650cd3",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "fea2f50781db081d2434b6c57a1e303cd1245ba6eab7ab23db6608dc4cbd4823"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -229,7 +231,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "9569f92e93e1d9f9bb0d3a31af5644ac43f2257ce5f33c79adc33b0c4999a6a9",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "167053d21d25a6689e1e521f952de89a",
    "header": "0xFA",
    "values": {
@@ -238,30 +240,31 @@
     "K_enc": "19e527d161b347c86bc8a8d1465d472dd645569815bfd95ad480301df08271c6",
     "K_mac": "dcae230276c71d95a6141adc6dff2056603a4f7000f5bcfe5d1f499501ed8079",
     "keystream": "21a113c5922065af766215b8025630ee5ae2ed8f90fdacfd9d472e88f4090145",
-    "P": "9569f92e93e1d9f9bb0d3a31af5644ac43f2257ce5f33c79adc33b0c4999a6a9",
-    "C": "b4c8eaeb01c1bc56cd6f2f89ad0074421910c8f3750e908430841584bd90a7ec",
-    "hmac_message": "fa35167053d21d25a6689e1e521f952de89a20b4c8eaeb01c1bc56cd6f2f89ad0074421910c8f3750e908430841584bd90a7ec",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "C": "de5eec3a6ddf9a50899dea47fda9cf11a51d12706f02530262b8d1770bf6feba",
+    "hmac_message": "fa35167053d21d25a6689e1e521f952de89a20de5eec3a6ddf9a50899dea47fda9cf11a51d12706f02530262b8d1770bf6feba",
     "tags": {
-     "0x10": "435a4d65",
-     "0x14": "64eb43e0",
-     "0x18": "4140070b",
-     "0x1C": "fd81da7a",
-     "0x20": "8ed09b2e",
-     "0x30": "737513dc",
-     "0x40": "b19ee146",
-     "0x41": "8fd44429",
-     "0x50": "a43e92d8"
+     "0x10": "51ee9314",
+     "0x14": "f4fa3068",
+     "0x18": "1ec4711e",
+     "0x1C": "36545278",
+     "0x20": "2d79a47c",
+     "0x30": "d05f2e83",
+     "0x40": "864014c8",
+     "0x41": "6fe8bb15",
+     "0x50": "64d2a15e"
     },
-    "tag": "8ed09b2e"
+    "tag": "2d79a47c"
    },
-   "envelope": "fa167053d21d25a6689e1e521f952de89ab4c8eaeb01c1bc56cd6f2f89ad0074421910c8f3750e908430841584bd90a7ec8ed09b2e",
+   "envelope": "fa167053d21d25a6689e1e521f952de89ade5eec3a6ddf9a50899dea47fda9cf11a51d12706f02530262b8d1770bf6feba2d79a47c",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "9569f92e93e1d9f9bb0d3a31af5644ac43f2257ce5f33c79adc33b0c4999a6a9"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -274,7 +277,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "4ffa9247a763fa9bd810da27f30a0cfa5cd3452661bb3f3af0c4d77507c061b0",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "c2a58410efcd5364424e5d457e11ffd6",
    "header": "0xFB",
    "values": {
@@ -283,30 +286,31 @@
     "K_enc": "f745c1a834c6681e80daa8af0efc05b1d1f5b8c3de2855ee246432bb898ad9e7",
     "K_mac": "5b1043aa3c278d740aa9c5ba7bf5ad847351eb1fae8f46826a079cf21c0f0018",
     "keystream": "4d589d2b0eba8d420774240461ab09ac481c45e731f1f5b0b0448835162402a7",
-    "P": "4ffa9247a763fa9bd810da27f30a0cfa5cd3452661bb3f3af0c4d77507c061b0",
-    "C": "02a20f6ca9d977d9df64fe2392a1055614cf00c1504aca8a40805f4011e46317",
-    "hmac_message": "fb35c2a58410efcd5364424e5d457e11ffd62002a20f6ca9d977d9df64fe2392a1055614cf00c1504aca8a40805f4011e46317",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "C": "b2a762d4f14572bdf88bdbfb9e54f653b7e3ba18ce0e0a4f4fbb77cae9dbfd58",
+    "hmac_message": "fb35c2a58410efcd5364424e5d457e11ffd620b2a762d4f14572bdf88bdbfb9e54f653b7e3ba18ce0e0a4f4fbb77cae9dbfd58",
     "tags": {
-     "0x10": "c12c9bfc",
-     "0x14": "4a0a5ab2",
-     "0x18": "e338a159",
-     "0x1C": "305e13d7",
-     "0x20": "843ea5e7",
-     "0x30": "5a03a865",
-     "0x40": "d9edb81c",
-     "0x41": "61f42602",
-     "0x50": "15c2a84a"
+     "0x10": "a823afed",
+     "0x14": "20a6ca51",
+     "0x18": "33aa2db6",
+     "0x1C": "90511c11",
+     "0x20": "1ddd4b22",
+     "0x30": "f5831567",
+     "0x40": "d43527fb",
+     "0x41": "42d164ec",
+     "0x50": "3ade158c"
     },
-    "tag": "843ea5e7"
+    "tag": "1ddd4b22"
    },
-   "envelope": "fbc2a58410efcd5364424e5d457e11ffd602a20f6ca9d977d9df64fe2392a1055614cf00c1504aca8a40805f4011e46317843ea5e7",
+   "envelope": "fbc2a58410efcd5364424e5d457e11ffd6b2a762d4f14572bdf88bdbfb9e54f653b7e3ba18ce0e0a4f4fbb77cae9dbfd581ddd4b22",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "4ffa9247a763fa9bd810da27f30a0cfa5cd3452661bb3f3af0c4d77507c061b0"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -319,7 +323,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "690d945321c0c4e18b5a718ddf58a7a8569f6e5c5285a88e73784f07f5257306",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "e3d52862ebb1d631f24ee6a647288885",
    "header": "0xFC",
    "values": {
@@ -328,30 +332,31 @@
     "K_enc": "1c71af7cfe90da89cbaa936dd17f50bd04b69f3bd251e80ac7b74e0b22144212",
     "K_mac": "2db92ae86b6ab154ca5f1689192b568bf3c919aa95181011d6ecf1bf8823aaba",
     "keystream": "b2035e52293afb51219036360cb2ec43325e2d81b884818da9b3c14b918c23e4",
-    "P": "690d945321c0c4e18b5a718ddf58a7a8569f6e5c5285a88e73784f07f5257306",
-    "C": "db0eca0108fa3fb0aaca47bbd3ea4beb64c143ddea012903dacb8e4c64a950e2",
-    "hmac_message": "fc35e3d52862ebb1d631f24ee6a64728888520db0eca0108fa3fb0aaca47bbd3ea4beb64c143ddea012903dacb8e4c64a950e2",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "C": "4dfca1add6c504aede6fc9c9f34d13bccda1d27e477b7e72564c3eb46e73dc1b",
+    "hmac_message": "fc35e3d52862ebb1d631f24ee6a647288885204dfca1add6c504aede6fc9c9f34d13bccda1d27e477b7e72564c3eb46e73dc1b",
     "tags": {
-     "0x10": "e168953f",
-     "0x14": "bbd86ba8",
-     "0x18": "27fd0847",
-     "0x1C": "3d3d4778",
-     "0x20": "35a1ab7f",
-     "0x30": "6304e94a",
-     "0x40": "026c069c",
-     "0x41": "0df17234",
-     "0x50": "3993eb70"
+     "0x10": "6d8e9a25",
+     "0x14": "88b181ed",
+     "0x18": "85c28650",
+     "0x1C": "a117068f",
+     "0x20": "0c0663c9",
+     "0x30": "138ea431",
+     "0x40": "833d5cf6",
+     "0x41": "fd6797ad",
+     "0x50": "05984bc3"
     },
-    "tag": "35a1ab7f"
+    "tag": "0c0663c9"
    },
-   "envelope": "fce3d52862ebb1d631f24ee6a647288885db0eca0108fa3fb0aaca47bbd3ea4beb64c143ddea012903dacb8e4c64a950e235a1ab7f",
+   "envelope": "fce3d52862ebb1d631f24ee6a6472888854dfca1add6c504aede6fc9c9f34d13bccda1d27e477b7e72564c3eb46e73dc1b0c0663c9",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "690d945321c0c4e18b5a718ddf58a7a8569f6e5c5285a88e73784f07f5257306"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -364,7 +369,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "db15b046d60e4b314ac65f0038b3dba49547d7112a730b27a838aca1d459b76f",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "b40321e3c3c1e6245fe325992cd1b0e0",
    "header": "0xF8",
    "values": {
@@ -373,30 +378,31 @@
     "K_enc": "3fb412aae26c17d4262a39a86ba304b9de7808e1e428949556263eb6c6761b26",
     "K_mac": "22cfb8f02e28c567cd99a5de4f64287e162fcb02932f75c2fe36cd2a7b347cef",
     "keystream": "e05fcc3cabb43fe5d5de85691e5e53e2c99bd439a993509d463bd087860ac2b1d0b82aeb41",
-    "P": "db15b046d60e4b314ac65f0038b3dba49547d7112a730b27a838aca1d459b76f2d155382f3",
-    "C": "3b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2",
-    "hmac_message": "f83eb40321e3c3c1e6245fe325992cd1b0e0203b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff2d155382f3",
+    "C": "1fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b2",
+    "hmac_message": "f83eb40321e3c3c1e6245fe325992cd1b0e0201fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b2",
     "tags": {
-     "0x10": "8cd77627a8439f17",
-     "0x14": "2ad749f64bd7f256",
-     "0x18": "2f4b962044f6a980",
-     "0x1C": "8c10ae92534ef745",
-     "0x20": "aa7aa95ffcb06241",
-     "0x30": "d499985228effe57",
-     "0x40": "ec0b2beab57baed2",
-     "0x41": "35c4d443fe809e39",
-     "0x50": "b8c758fccda72347"
+     "0x10": "c3b6b491c98f8dbf",
+     "0x14": "583d260caa0bbbfb",
+     "0x18": "18f6009fc9d7cb39",
+     "0x1C": "fdfe1e7c69bf2138",
+     "0x20": "4e780556aabe8bb0",
+     "0x30": "91b3ca3c0f1a9c95",
+     "0x40": "84774aef8e47d39b",
+     "0x41": "b1ef22cfc3ea4b60",
+     "0x50": "9024746e36b0518a"
     },
-    "tag": "aa7aa95ffcb06241"
+    "tag": "4e780556aabe8bb0"
    },
-   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "2d155382f3",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "db15b046d60e4b314ac65f0038b3dba49547d7112a730b27a838aca1d459b76f"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -409,7 +415,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "0325743a9aafd313e881b2db3a5deac2ea704262e0d8a6e88c7a10140eb7e90c",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "2400a6afd7c608789d0d7de5d535b2ed",
    "header": "0xF9",
    "values": {
@@ -418,30 +424,31 @@
     "K_enc": "cc9e85963b75e2d342d5aea94ac83ad893f455c14f70f18f391384ea3e9a0315",
     "K_mac": "411f219f54fabc19aaa143b7c5677435f2fde58fd0ec212eb3f89d0d21d90aa0",
     "keystream": "6814630f594e0ef31041da2ba50fe5c95672be598f72f5750d17b22d118e4757378e36f2a2",
-    "P": "0325743a9aafd313e881b2db3a5deac2ea704262e0d8a6e88c7a10140eb7e90c5ec0bc3030",
-    "C": "6b311735c3e1dde0f8c068f09f520f0bbc02fc3b6faa539d816da2391f39ae5b694e8ac292",
-    "hmac_message": "f93e2400a6afd7c608789d0d7de5d535b2ed206b311735c3e1dde0f8c068f09f520f0bbc02fc3b6faa539d816da2391f39ae5b694e8ac292",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5ec0bc3030",
+    "C": "97eb9cf0a6b1f10cefbe25d45af01a36a98d41a6708d0a8af2e84dd2ee71b8a8694e8ac292",
+    "hmac_message": "f93e2400a6afd7c608789d0d7de5d535b2ed2097eb9cf0a6b1f10cefbe25d45af01a36a98d41a6708d0a8af2e84dd2ee71b8a8694e8ac292",
     "tags": {
-     "0x10": "64adc96e787f27a8",
-     "0x14": "dfe368492a48ff2a",
-     "0x18": "a69eaa668dddc84c",
-     "0x1C": "70405705a34960db",
-     "0x20": "9f63c38f5b598c87",
-     "0x30": "8c58cfacfc396d2c",
-     "0x40": "a5a22419827fb661",
-     "0x41": "a8903893fffbdddd",
-     "0x50": "0b663d5546be76cb"
+     "0x10": "6fcd96f280ee71aa",
+     "0x14": "c61cc79e1d647a63",
+     "0x18": "2e61054bb117e585",
+     "0x1C": "439e0638bc926d90",
+     "0x20": "161cacd71dc964cb",
+     "0x30": "1a6fffeedec3e0be",
+     "0x40": "028993d4f5bf424c",
+     "0x41": "a4c50e4d3486e5ab",
+     "0x50": "5c6c5f64c04817b3"
     },
-    "tag": "9f63c38f5b598c87"
+    "tag": "161cacd71dc964cb"
    },
-   "envelope": "f92400a6afd7c608789d0d7de5d535b2ed6b311735c3e1dde0f8c068f09f520f0bbc02fc3b6faa539d816da2391f39ae5b694e8ac2929f63c38f5b598c87",
+   "envelope": "f92400a6afd7c608789d0d7de5d535b2ed97eb9cf0a6b1f10cefbe25d45af01a36a98d41a6708d0a8af2e84dd2ee71b8a8694e8ac292161cacd71dc964cb",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "5ec0bc3030",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "0325743a9aafd313e881b2db3a5deac2ea704262e0d8a6e88c7a10140eb7e90c"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -454,7 +461,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "e2a19dbf78c89ab65c370a27acafce1bc9ed4b90c200148b1cf499f374ba65c6",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "4b9241a780fbc2db464f9dcf39071602",
    "header": "0xFA",
    "values": {
@@ -463,30 +470,31 @@
     "K_enc": "8748d44c7ce9f64a05e727e264e76dc8fc13aee444c371c7ada5170b46799819",
     "K_mac": "3e950f98f60188483ca96b5419d721ec045afcafa4b308c700f07bee6cb58b59",
     "keystream": "bb66b72fedd2265f99a6a04102dd79be2266f756fa12fb576b113836a3125dd051eedaf7d4",
-    "P": "e2a19dbf78c89ab65c370a27acafce1bc9ed4b90c200148b1cf499f374ba65c66eed3185b3",
-    "C": "59c72a90951abce9c591aa66ae72b7a5eb8bbcc63812efdc77e5a1c5d7a838163f03eb7267",
-    "hmac_message": "fa3e4b9241a780fbc2db464f9dcf390716022059c72a90951abce9c591aa66ae72b7a5eb8bbcc63812efdc77e5a1c5d7a838163f03eb7267",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff6eed3185b3",
+    "C": "449948d0122dd9a066595fbefd228641dd9908a905ed04a894eec7c95ceda22f3f03eb7267",
+    "hmac_message": "fa3e4b9241a780fbc2db464f9dcf3907160220449948d0122dd9a066595fbefd228641dd9908a905ed04a894eec7c95ceda22f3f03eb7267",
     "tags": {
-     "0x10": "7378df0d30477f32",
-     "0x14": "9d295be771ff3859",
-     "0x18": "fb34d7a7c66ba436",
-     "0x1C": "2d86960577f579f2",
-     "0x20": "32b4d7dc0dcfda85",
-     "0x30": "3d2475eecf3375a4",
-     "0x40": "a1ac30feb0fc6e7f",
-     "0x41": "1f04ca749008cc8c",
-     "0x50": "978b8dd5c71ad329"
+     "0x10": "017fd9132356cccb",
+     "0x14": "de36a2652aa8de29",
+     "0x18": "ffd0f2c81c94e749",
+     "0x1C": "7452d65abf1ba60c",
+     "0x20": "b923137b1edb5c27",
+     "0x30": "abe447c9f6c07b16",
+     "0x40": "43a37ad01fe21a85",
+     "0x41": "89259e90f38b5cca",
+     "0x50": "cb979d2f93be0282"
     },
-    "tag": "32b4d7dc0dcfda85"
+    "tag": "b923137b1edb5c27"
    },
-   "envelope": "fa4b9241a780fbc2db464f9dcf3907160259c72a90951abce9c591aa66ae72b7a5eb8bbcc63812efdc77e5a1c5d7a838163f03eb726732b4d7dc0dcfda85",
+   "envelope": "fa4b9241a780fbc2db464f9dcf39071602449948d0122dd9a066595fbefd228641dd9908a905ed04a894eec7c95ceda22f3f03eb7267b923137b1edb5c27",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "6eed3185b3",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "e2a19dbf78c89ab65c370a27acafce1bc9ed4b90c200148b1cf499f374ba65c6"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -499,7 +507,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "6d55fc808b2c30a1c1a46b9e97cef346b1f49aad3eef8041d22f448d82aa76a1",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "e56cae843f8bc77c5b008ff892e038b4",
    "header": "0xFB",
    "values": {
@@ -508,30 +516,31 @@
     "K_enc": "89710d73d6dc5a5affc5ee6ea8f01e77f61945b01c4884b57cbfb1934aa2e92b",
     "K_mac": "d170b9c7e087b3e2ece0849383b4454fad2924ee6c4e147787492abb39a5727f",
     "keystream": "fc097d5b162761c4a0f43a72f0b72dbd3409ee578940967aae9a7749b1a0ed68d44798bbaa",
-    "P": "6d55fc808b2c30a1c1a46b9e97cef346b1f49aad3eef8041d22f448d82aa76a19c600e9af4",
-    "C": "915c81db9d0b5165615051ec6779defb85fd74fab7af163b7cb533c4330a9bc9482796215e",
-    "hmac_message": "fb3ee56cae843f8bc77c5b008ff892e038b420915c81db9d0b5165615051ec6779defb85fd74fab7af163b7cb533c4330a9bc9482796215e",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff9c600e9af4",
+    "C": "03f682a4e9d89e3b5f0bc58d0f48d242cbf611a876bf6985516588b64e5f1297482796215e",
+    "hmac_message": "fb3ee56cae843f8bc77c5b008ff892e038b42003f682a4e9d89e3b5f0bc58d0f48d242cbf611a876bf6985516588b64e5f1297482796215e",
     "tags": {
-     "0x10": "d64b784aabf56d00",
-     "0x14": "99c7ce48b579051f",
-     "0x18": "641149b6bda77ab7",
-     "0x1C": "74f629d5cf676979",
-     "0x20": "fcb5b0e0dfd0a450",
-     "0x30": "e8ccaf2511b0cda3",
-     "0x40": "5d17ec7db438788c",
-     "0x41": "a79ee73f3563d3c6",
-     "0x50": "b17b4d1da36bf0f1"
+     "0x10": "1eb4db6bcd4587b4",
+     "0x14": "f91125663e141c56",
+     "0x18": "78933f06a21409b8",
+     "0x1C": "f19e98db69599e8e",
+     "0x20": "168454088727ff52",
+     "0x30": "1969a32011d38168",
+     "0x40": "81471c506a7e9a1c",
+     "0x41": "f30ce5cde2961726",
+     "0x50": "6593b4f5d7aff191"
     },
-    "tag": "fcb5b0e0dfd0a450"
+    "tag": "168454088727ff52"
    },
-   "envelope": "fbe56cae843f8bc77c5b008ff892e038b4915c81db9d0b5165615051ec6779defb85fd74fab7af163b7cb533c4330a9bc9482796215efcb5b0e0dfd0a450",
+   "envelope": "fbe56cae843f8bc77c5b008ff892e038b403f682a4e9d89e3b5f0bc58d0f48d242cbf611a876bf6985516588b64e5f1297482796215e168454088727ff52",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "9c600e9af4",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "6d55fc808b2c30a1c1a46b9e97cef346b1f49aad3eef8041d22f448d82aa76a1"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -544,7 +553,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x20",
    "kind_name": "BIP-39 entropy, 24 words",
-   "item_bytes": "833e1ae5a34144585f56a27926ff9e382a2e5c3b6059cbfc65a2c582ac5413c5",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "30dc10cf3a175a50e1c805ef9e200e49",
    "header": "0xFC",
    "values": {
@@ -553,30 +562,31 @@
     "K_enc": "0bf4a519ec8e510ceba0d353d09c5257e8a8d779d29c55579f1c1da701769cd4",
     "K_mac": "0c030db4632cd3372421da90222db0739b694d500f228e280a09701e76a46243",
     "keystream": "6de72829f02a1201e54fd92a3fccb6a686301727d61e3833be6bb2a0bab5b9fd9a82f59ef3",
-    "P": "833e1ae5a34144585f56a27926ff9e382a2e5c3b6059cbfc65a2c582ac5413c53dc12c0dbc",
-    "C": "eed932cc536b5659ba197b531933289eac1e4b1cb647f3cfdbc9772216e1aa38a743d9934f",
-    "hmac_message": "fc3e30dc10cf3a175a50e1c805ef9e200e4920eed932cc536b5659ba197b531933289eac1e4b1cb647f3cfdbc9772216e1aa38a743d9934f",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff3dc12c0dbc",
+    "C": "9218d7d60fd5edfe1ab026d5c033495979cfe8d829e1c7cc41944d5f454a4602a743d9934f",
+    "hmac_message": "fc3e30dc10cf3a175a50e1c805ef9e200e49209218d7d60fd5edfe1ab026d5c033495979cfe8d829e1c7cc41944d5f454a4602a743d9934f",
     "tags": {
-     "0x10": "3b9838ba7bc5a9a1",
-     "0x14": "bca6a2c76a344c35",
-     "0x18": "ebf8e5fb80a6df78",
-     "0x1C": "1ed6966500944663",
-     "0x20": "d0070dbd77dddc19",
-     "0x30": "81e8191a61356c26",
-     "0x40": "97386ca3b87c1a6f",
-     "0x41": "a28d593a5996ae90",
-     "0x50": "d9c4b60acbb8faef"
+     "0x10": "ce7a7d2874c29adc",
+     "0x14": "7a071f51b1aa03c9",
+     "0x18": "d4c9f7b69ed5f0a3",
+     "0x1C": "c40d7758e1e02a5c",
+     "0x20": "2175a12f71746946",
+     "0x30": "7adce5a0304b88b2",
+     "0x40": "9851f40b2c597fc1",
+     "0x41": "b349056d2429b030",
+     "0x50": "e89f10398b1263b5"
     },
-    "tag": "d0070dbd77dddc19"
+    "tag": "2175a12f71746946"
    },
-   "envelope": "fc30dc10cf3a175a50e1c805ef9e200e49eed932cc536b5659ba197b531933289eac1e4b1cb647f3cfdbc9772216e1aa38a743d9934fd0070dbd77dddc19",
+   "envelope": "fc30dc10cf3a175a50e1c805ef9e200e499218d7d60fd5edfe1ab026d5c033495979cfe8d829e1c7cc41944d5f454a4602a743d9934f2175a12f71746946",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "3dc12c0dbc",
    "expect": {
     "outcome": "opens",
     "kind": "0x20",
     "item": {
      "type": "entropy",
-     "hex": "833e1ae5a34144585f56a27926ff9e382a2e5c3b6059cbfc65a2c582ac5413c5"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -589,7 +599,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "4a1961ee49593ede1a397643bbed0c39",
+   "item_bytes": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
    "salt": "5e8642c88cdfe5a584e45d386a3b213b",
    "header": "0xF8",
    "values": {
@@ -598,30 +608,31 @@
     "K_enc": "4c587416c8b7dda05c7ea6b525c2d2d68d9b73ba9daf7247a5f8b8822652137f",
     "K_mac": "6d10fd5beb10e0638ee98bbef27bea2e2f86a7a27cf78023ae6c11efb89ce1fe",
     "keystream": "b7a965e0a70ff45aefae3105a29ad2367c4a19c13ae42519865a093e6d9d375f",
-    "P": "4a1961ee49593ede1a397643bbed0c39cc7c6e5213c2e8cec9e48b84e2812faa",
-    "C": "fdb0040eee56ca84f59747461977de0fb03677932926cdd74fbe82ba8f1c18f5",
-    "hmac_message": "f8355e8642c88cdfe5a584e45d386a3b213b10fdb0040eee56ca84f59747461977de0fb03677932926cdd74fbe82ba8f1c18f5",
+    "P": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7fcc7c6e5213c2e8cec9e48b84e2812faa",
+    "C": "c8d61a9fd8708b2590d14e7adde5ad49b03677932926cdd74fbe82ba8f1c18f5",
+    "hmac_message": "f8355e8642c88cdfe5a584e45d386a3b213b10c8d61a9fd8708b2590d14e7adde5ad49b03677932926cdd74fbe82ba8f1c18f5",
     "tags": {
-     "0x10": "07db4d16",
-     "0x14": "f3f07c7d",
-     "0x18": "92679d10",
-     "0x1C": "514e1c5f",
-     "0x20": "f2466d80",
-     "0x30": "a724dba8",
-     "0x40": "0522166f",
-     "0x41": "3abf3ad2",
-     "0x50": "bf793521"
+     "0x10": "4d1be200",
+     "0x14": "e54c2be4",
+     "0x18": "5bc079e4",
+     "0x1C": "b2b5dd93",
+     "0x20": "475177d3",
+     "0x30": "2ba753ae",
+     "0x40": "58d8570a",
+     "0x41": "34b40e09",
+     "0x50": "5fd77926"
     },
-    "tag": "07db4d16"
+    "tag": "4d1be200"
    },
-   "envelope": "f85e8642c88cdfe5a584e45d386a3b213bfdb0040eee56ca84f59747461977de0fb03677932926cdd74fbe82ba8f1c18f507db4d16",
+   "envelope": "f85e8642c88cdfe5a584e45d386a3b213bc8d61a9fd8708b2590d14e7adde5ad49b03677932926cdd74fbe82ba8f1c18f54d1be200",
+   "bip39_words": "legal winner thank year wave sausage worth useful legal winner thank yellow",
    "padding": "cc7c6e5213c2e8cec9e48b84e2812faa",
    "expect": {
     "outcome": "opens",
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "4a1961ee49593ede1a397643bbed0c39"
+     "hex": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f"
     }
    }
   },
@@ -634,7 +645,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x14",
    "kind_name": "BIP-39 entropy, 15 words",
-   "item_bytes": "07a3f59ef11b875519f3305da84b3054acb66dbb",
+   "item_bytes": "0000000000000000000000000000000000000000",
    "salt": "442c741d286f360e8fd21662c96e78ee",
    "header": "0xF8",
    "values": {
@@ -643,30 +654,31 @@
     "K_enc": "887ec42b280e84e9725466a4b11fe67c3098d4d024370e9c2af4ca9177372276",
     "K_mac": "987c5b1d160d29d0599950c0c93836cb1dd358c44f03a61190a3d6293bae3bcd",
     "keystream": "eba8b0be9df32f29216029bddaa844d44a77f0694204ea205587dbb88351eaec",
-    "P": "07a3f59ef11b875519f3305da84b3054acb66dbb3db9d614de284712f8d28304",
-    "C": "ec0b45206ce8a87c389319e072e37480e6c19dd27fbd3c348baf9caa7b8369e8",
-    "hmac_message": "f835442c741d286f360e8fd21662c96e78ee14ec0b45206ce8a87c389319e072e37480e6c19dd27fbd3c348baf9caa7b8369e8",
+    "P": "00000000000000000000000000000000000000003db9d614de284712f8d28304",
+    "C": "eba8b0be9df32f29216029bddaa844d44a77f0697fbd3c348baf9caa7b8369e8",
+    "hmac_message": "f835442c741d286f360e8fd21662c96e78ee14eba8b0be9df32f29216029bddaa844d44a77f0697fbd3c348baf9caa7b8369e8",
     "tags": {
-     "0x10": "7a4a5679",
-     "0x14": "b9a47c53",
-     "0x18": "b77e001f",
-     "0x1C": "b2293e53",
-     "0x20": "05870067",
-     "0x30": "77d494b9",
-     "0x40": "c397b234",
-     "0x41": "959ead20",
-     "0x50": "0290f822"
+     "0x10": "6e789943",
+     "0x14": "4e340c09",
+     "0x18": "d15189b7",
+     "0x1C": "cb3798d0",
+     "0x20": "d33c808a",
+     "0x30": "cbb1b458",
+     "0x40": "384e9972",
+     "0x41": "b611ce1c",
+     "0x50": "9c5a5524"
     },
-    "tag": "b9a47c53"
+    "tag": "4e340c09"
    },
-   "envelope": "f8442c741d286f360e8fd21662c96e78eeec0b45206ce8a87c389319e072e37480e6c19dd27fbd3c348baf9caa7b8369e8b9a47c53",
+   "envelope": "f8442c741d286f360e8fd21662c96e78eeeba8b0be9df32f29216029bddaa844d44a77f0697fbd3c348baf9caa7b8369e84e340c09",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon address",
    "padding": "3db9d614de284712f8d28304",
    "expect": {
     "outcome": "opens",
     "kind": "0x14",
     "item": {
      "type": "entropy",
-     "hex": "07a3f59ef11b875519f3305da84b3054acb66dbb"
+     "hex": "0000000000000000000000000000000000000000"
     }
    }
   },
@@ -679,7 +691,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x18",
    "kind_name": "BIP-39 entropy, 18 words",
-   "item_bytes": "36f40a55cf9efdf72148d805acdacb6a888cf2c34c9bd40f",
+   "item_bytes": "808080808080808080808080808080808080808080808080",
    "salt": "9b251d9762b5aac31e1fbd831079403f",
    "header": "0xF8",
    "values": {
@@ -688,30 +700,31 @@
     "K_enc": "4751cc1d3ef1830463c43385a1ec8efd2180dfa20b962aa05bfb11335fcaf57d",
     "K_mac": "d5ea66818e520b5212b39a2d4dcd0cd51d972c67bf823cfd75a27301bfe168a9",
     "keystream": "231162efffd7e0e9adcc18acd4d0083d180c528e255356b1255348c2607211e8",
-    "P": "36f40a55cf9efdf72148d805acdacb6a888cf2c34c9bd40ff976a9b6d4f32320",
-    "C": "15e568ba30491d1e8c84c0a9780ac3579080a04d69c882bedc25e174b48132c8",
-    "hmac_message": "f8359b251d9762b5aac31e1fbd831079403f1815e568ba30491d1e8c84c0a9780ac3579080a04d69c882bedc25e174b48132c8",
+    "P": "808080808080808080808080808080808080808080808080f976a9b6d4f32320",
+    "C": "a391e26f7f5760692d4c982c545088bd988cd20ea5d3d631dc25e174b48132c8",
+    "hmac_message": "f8359b251d9762b5aac31e1fbd831079403f18a391e26f7f5760692d4c982c545088bd988cd20ea5d3d631dc25e174b48132c8",
     "tags": {
-     "0x10": "795a5ad4",
-     "0x14": "f428e98d",
-     "0x18": "88344261",
-     "0x1C": "35ceec40",
-     "0x20": "7cd45ba0",
-     "0x30": "80d0cc2b",
-     "0x40": "fc6e7f09",
-     "0x41": "018fb346",
-     "0x50": "33baa3a8"
+     "0x10": "66477b92",
+     "0x14": "591d7751",
+     "0x18": "9f40982e",
+     "0x1C": "90648c32",
+     "0x20": "54dc0435",
+     "0x30": "e5bcc1bf",
+     "0x40": "d3f11b7f",
+     "0x41": "883f0f3b",
+     "0x50": "55b91530"
     },
-    "tag": "88344261"
+    "tag": "9f40982e"
    },
-   "envelope": "f89b251d9762b5aac31e1fbd831079403f15e568ba30491d1e8c84c0a9780ac3579080a04d69c882bedc25e174b48132c888344261",
+   "envelope": "f89b251d9762b5aac31e1fbd831079403fa391e26f7f5760692d4c982c545088bd988cd20ea5d3d631dc25e174b48132c89f40982e",
+   "bip39_words": "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
    "padding": "f976a9b6d4f32320",
    "expect": {
     "outcome": "opens",
     "kind": "0x18",
     "item": {
      "type": "entropy",
-     "hex": "36f40a55cf9efdf72148d805acdacb6a888cf2c34c9bd40f"
+     "hex": "808080808080808080808080808080808080808080808080"
     }
    }
   },
@@ -724,7 +737,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x1C",
    "kind_name": "BIP-39 entropy, 21 words",
-   "item_bytes": "cd3d6575d8b683763c8881cac9c1cbfbb1d382e2ad0d0505aa6f9d0b",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "833ad0572b5d788cf620b38d3d6ae6ce",
    "header": "0xF8",
    "values": {
@@ -733,30 +746,31 @@
     "K_enc": "d010c468bfbe4fcd19e3a35e22504bd8e8c4fe2b107cad049689495a6c0e99a9",
     "K_mac": "e8f413b3a6c74ac81bd09c4834e9f6dee6c7009102575fa597111108645c33d3",
     "keystream": "978ba52d1c7692c8bb69fb02e16fe73b22eaf19683cc5f6e93e9ac6bba9031ec",
-    "P": "cd3d6575d8b683763c8881cac9c1cbfbb1d382e2ad0d0505aa6f9d0bed8144e1",
-    "C": "5ab6c058c4c011be87e17ac828ae2cc0933973742ec15a6b398631605711750d",
-    "hmac_message": "f835833ad0572b5d788cf620b38d3d6ae6ce1c5ab6c058c4c011be87e17ac828ae2cc0933973742ec15a6b398631605711750d",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffed8144e1",
+    "C": "68745ad2e3896d37449604fd1e9018c4dd150e697c33a0916c1653945711750d",
+    "hmac_message": "f835833ad0572b5d788cf620b38d3d6ae6ce1c68745ad2e3896d37449604fd1e9018c4dd150e697c33a0916c1653945711750d",
     "tags": {
-     "0x10": "d37a7459",
-     "0x14": "2dd9135d",
-     "0x18": "310e082f",
-     "0x1C": "e33f6b79",
-     "0x20": "f4026da9",
-     "0x30": "ba57fdf4",
-     "0x40": "ba22197d",
-     "0x41": "5373c7f9",
-     "0x50": "233f3017"
+     "0x10": "89e8b4f9",
+     "0x14": "3b03135d",
+     "0x18": "bab8947b",
+     "0x1C": "a29f134f",
+     "0x20": "96298bde",
+     "0x30": "ea397494",
+     "0x40": "bc07ac82",
+     "0x41": "34eabf84",
+     "0x50": "2137dce9"
     },
-    "tag": "e33f6b79"
+    "tag": "a29f134f"
    },
-   "envelope": "f8833ad0572b5d788cf620b38d3d6ae6ce5ab6c058c4c011be87e17ac828ae2cc0933973742ec15a6b398631605711750de33f6b79",
+   "envelope": "f8833ad0572b5d788cf620b38d3d6ae6ce68745ad2e3896d37449604fd1e9018c4dd150e697c33a0916c1653945711750da29f134f",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo veteran",
    "padding": "ed8144e1",
    "expect": {
     "outcome": "opens",
     "kind": "0x1C",
     "item": {
      "type": "entropy",
-     "hex": "cd3d6575d8b683763c8881cac9c1cbfbb1d382e2ad0d0505aa6f9d0b"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -1136,7 +1150,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "d5a59be606b61ae8aa1ada201aa02d21",
+   "item_bytes": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
    "salt": "3c57237d758b173da1b6b02fc951b269",
    "header": "0xF8",
    "values": {
@@ -1145,30 +1159,31 @@
     "K_enc": "235731cfc2df6561a4e31cf7b4f5ddd5523cd57d4de1065c98c918eb6eceec8b",
     "K_mac": "8c2fbc0175011b77d13c00afd5819b9323f83f4c7b0164d909dbf834d4972ebd",
     "keystream": "30ca76e1abd6c50fa184b9e74b356e1f004656f4517c5a0501471a3e9193ec545f46e33847",
-    "P": "d5a59be606b61ae8aa1ada201aa02d21a5e21b4552ad34c366627af823ec3e48f5cd43a304",
-    "C": "e56fed07ad60dfe70b9e63c75195433ea5a44db103d16ec6672560c6b27fd21caa8ba09b43",
-    "hmac_message": "f83e3c57237d758b173da1b6b02fc951b26910e56fed07ad60dfe70b9e63c75195433ea5a44db103d16ec6672560c6b27fd21caa8ba09b43",
+    "P": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7fa5e21b4552ad34c366627af823ec3e48f5cd43a304",
+    "C": "4fb5099ed4a9ba70defbc698344a1160a5a44db103d16ec6672560c6b27fd21caa8ba09b43",
+    "hmac_message": "f83e3c57237d758b173da1b6b02fc951b269104fb5099ed4a9ba70defbc698344a1160a5a44db103d16ec6672560c6b27fd21caa8ba09b43",
     "tags": {
-     "0x10": "089277a8f7852486",
-     "0x14": "1e62da7f48f57cfd",
-     "0x18": "a8e418aed887a2d4",
-     "0x1C": "db9b047b8a20f087",
-     "0x20": "2fb9c0c2f4c4303b",
-     "0x30": "79d1843852b9fe26",
-     "0x40": "8be100d3b1b7c728",
-     "0x41": "742883b11c7c1158",
-     "0x50": "0b61f853a4a248e9"
+     "0x10": "f4c18d8bb45318d6",
+     "0x14": "2c22a1c154250cd6",
+     "0x18": "2a3f540f27b1135a",
+     "0x1C": "d054997d43e0c5c7",
+     "0x20": "d70caa4c07844d86",
+     "0x30": "960560b55ff25793",
+     "0x40": "b0fc6f7c5635425f",
+     "0x41": "7bd1158c19ed80eb",
+     "0x50": "e252837340c072fa"
     },
-    "tag": "089277a8f7852486"
+    "tag": "f4c18d8bb45318d6"
    },
-   "envelope": "f83c57237d758b173da1b6b02fc951b269e56fed07ad60dfe70b9e63c75195433ea5a44db103d16ec6672560c6b27fd21caa8ba09b43089277a8f7852486",
+   "envelope": "f83c57237d758b173da1b6b02fc951b2694fb5099ed4a9ba70defbc698344a1160a5a44db103d16ec6672560c6b27fd21caa8ba09b43f4c18d8bb45318d6",
+   "bip39_words": "legal winner thank year wave sausage worth useful legal winner thank yellow",
    "padding": "a5e21b4552ad34c366627af823ec3e48f5cd43a304",
    "expect": {
     "outcome": "opens",
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "d5a59be606b61ae8aa1ada201aa02d21"
+     "hex": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f"
     }
    }
   },
@@ -1181,7 +1196,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x14",
    "kind_name": "BIP-39 entropy, 15 words",
-   "item_bytes": "51994217d6a42123805ad73d0e6ddafc1e83ca12",
+   "item_bytes": "0000000000000000000000000000000000000000",
    "salt": "efadd349c5c3717e56ce43ed2bb64e02",
    "header": "0xF8",
    "values": {
@@ -1190,30 +1205,31 @@
     "K_enc": "858c64814877cf2a73cb5e1603c4805f09fc34456c48a937e4c419dd28fd94e3",
     "K_mac": "87bd760d0c077995aab6ec538068abd7475500e59a8a17f8b504e8df0c44ab10",
     "keystream": "f8f637b1415f029e88840ace2c2e355151ac81ce31b42de1e2e5890b7c378ac4ff5ce19451",
-    "P": "51994217d6a42123805ad73d0e6ddafc1e83ca12632e33c10ec7302470eb5f4e4bac79cfd0",
-    "C": "a96f75a697fb23bd08deddf32243efad4f2f4bdc529a1e20ec22b92f0cdcd58ab4f0985b81",
-    "hmac_message": "f83eefadd349c5c3717e56ce43ed2bb64e0214a96f75a697fb23bd08deddf32243efad4f2f4bdc529a1e20ec22b92f0cdcd58ab4f0985b81",
+    "P": "0000000000000000000000000000000000000000632e33c10ec7302470eb5f4e4bac79cfd0",
+    "C": "f8f637b1415f029e88840ace2c2e355151ac81ce529a1e20ec22b92f0cdcd58ab4f0985b81",
+    "hmac_message": "f83eefadd349c5c3717e56ce43ed2bb64e0214f8f637b1415f029e88840ace2c2e355151ac81ce529a1e20ec22b92f0cdcd58ab4f0985b81",
     "tags": {
-     "0x10": "0dc89e65002ae69e",
-     "0x14": "9595cd4eb9f2e2ab",
-     "0x18": "34b04c26c960da90",
-     "0x1C": "00da0539cd510146",
-     "0x20": "ea9f2bcd7b0241e5",
-     "0x30": "2a9a80caf0ccdd8c",
-     "0x40": "f3727f577635804d",
-     "0x41": "c548e1bfb846a5c2",
-     "0x50": "48f86ad38ca552e9"
+     "0x10": "0ccf650c92f701f2",
+     "0x14": "19bcd3b72707065e",
+     "0x18": "e3157477fca9e466",
+     "0x1C": "c639f2abf692b413",
+     "0x20": "21c0ccea6e17e68d",
+     "0x30": "be763b0ad7998780",
+     "0x40": "068d63a434f61ec8",
+     "0x41": "7f84d20019e24ac4",
+     "0x50": "41e5a03d6cb93e2e"
     },
-    "tag": "9595cd4eb9f2e2ab"
+    "tag": "19bcd3b72707065e"
    },
-   "envelope": "f8efadd349c5c3717e56ce43ed2bb64e02a96f75a697fb23bd08deddf32243efad4f2f4bdc529a1e20ec22b92f0cdcd58ab4f0985b819595cd4eb9f2e2ab",
+   "envelope": "f8efadd349c5c3717e56ce43ed2bb64e02f8f637b1415f029e88840ace2c2e355151ac81ce529a1e20ec22b92f0cdcd58ab4f0985b8119bcd3b72707065e",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon address",
    "padding": "632e33c10ec7302470eb5f4e4bac79cfd0",
    "expect": {
     "outcome": "opens",
     "kind": "0x14",
     "item": {
      "type": "entropy",
-     "hex": "51994217d6a42123805ad73d0e6ddafc1e83ca12"
+     "hex": "0000000000000000000000000000000000000000"
     }
    }
   },
@@ -1226,7 +1242,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x18",
    "kind_name": "BIP-39 entropy, 18 words",
-   "item_bytes": "d21a83ae9bc133a774f3bd3cb5b8d91af5c16d9f6f3c603d",
+   "item_bytes": "808080808080808080808080808080808080808080808080",
    "salt": "698f1d44e2841d61bfc08107550909c8",
    "header": "0xF8",
    "values": {
@@ -1235,30 +1251,31 @@
     "K_enc": "d2514e15f49b3243efcf47175023bc1e155aa1a86d88f389309405bfe72d1b3c",
     "K_mac": "5d0f471fdd3e786d1f34e9052854b9732144050e12d7cc8aa8963eca7177b3c3",
     "keystream": "6e520f1d31d0f41ceecdcc0c3fef1d3be7fd0411af9a1492a8b3fe5ed47bb2932ae2475f58",
-    "P": "d21a83ae9bc133a774f3bd3cb5b8d91af5c16d9f6f3c603d6aa5575a939d0452bc3b2b389b",
-    "C": "bc488cb3aa11c7bb9a3e71308a57c421123c698ec0a674afc216a90447e6b6c196d96c67c3",
-    "hmac_message": "f83e698f1d44e2841d61bfc08107550909c818bc488cb3aa11c7bb9a3e71308a57c421123c698ec0a674afc216a90447e6b6c196d96c67c3",
+    "P": "8080808080808080808080808080808080808080808080806aa5575a939d0452bc3b2b389b",
+    "C": "eed28f9db150749c6e4d4c8cbf6f9dbb677d84912f1a9412c216a90447e6b6c196d96c67c3",
+    "hmac_message": "f83e698f1d44e2841d61bfc08107550909c818eed28f9db150749c6e4d4c8cbf6f9dbb677d84912f1a9412c216a90447e6b6c196d96c67c3",
     "tags": {
-     "0x10": "5ccfab57927cf7ce",
-     "0x14": "b38bf86971f2b361",
-     "0x18": "df424c344104ffaf",
-     "0x1C": "a8018e959a41edbb",
-     "0x20": "f51e34298c7015f0",
-     "0x30": "af4d6b704412ea61",
-     "0x40": "9013330aba600b75",
-     "0x41": "d7fe5c64c39c6008",
-     "0x50": "2e7ff59f0f07cab6"
+     "0x10": "bb32333ab8ac9b49",
+     "0x14": "1dbc8fc76b01e38e",
+     "0x18": "4815ed07fa6aca4d",
+     "0x1C": "5f1e9674510fd3cb",
+     "0x20": "ac1e4bd54db38543",
+     "0x30": "5691769833ce6f9a",
+     "0x40": "9e65d56b60c8261c",
+     "0x41": "4166bc9f6d5926d3",
+     "0x50": "cdc89e7c256cfe80"
     },
-    "tag": "df424c344104ffaf"
+    "tag": "4815ed07fa6aca4d"
    },
-   "envelope": "f8698f1d44e2841d61bfc08107550909c8bc488cb3aa11c7bb9a3e71308a57c421123c698ec0a674afc216a90447e6b6c196d96c67c3df424c344104ffaf",
+   "envelope": "f8698f1d44e2841d61bfc08107550909c8eed28f9db150749c6e4d4c8cbf6f9dbb677d84912f1a9412c216a90447e6b6c196d96c67c34815ed07fa6aca4d",
+   "bip39_words": "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
    "padding": "6aa5575a939d0452bc3b2b389b",
    "expect": {
     "outcome": "opens",
     "kind": "0x18",
     "item": {
      "type": "entropy",
-     "hex": "d21a83ae9bc133a774f3bd3cb5b8d91af5c16d9f6f3c603d"
+     "hex": "808080808080808080808080808080808080808080808080"
     }
    }
   },
@@ -1271,7 +1288,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x1C",
    "kind_name": "BIP-39 entropy, 21 words",
-   "item_bytes": "4bf53d33c950b89d7a5eadefc6c73562c3778dc909bfe2e499ed0eb9",
+   "item_bytes": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
    "salt": "de3cdc0468206bafea52f7057469f46a",
    "header": "0xF8",
    "values": {
@@ -1280,30 +1297,31 @@
     "K_enc": "ad36b3e1cba5199c311334e67cb35f1343cf210a64e8f0789efec466a367ca8c",
     "K_mac": "4649aaca0ffdefd0e58992cf5dbef2f9676fc0c3442e21f6892ac8a0b434953f",
     "keystream": "58093d7e6f88490b0476d3f24d5de37e692f6e845395686f883d48b5a8267df38d9fd69b41",
-    "P": "4bf53d33c950b89d7a5eadefc6c73562c3778dc909bfe2e499ed0eb97e150a1a34fa1b2f12",
-    "C": "13fc004da6d8f1967e287e1d8b9ad61caa58e34d5a2a8a8b11d0460cd63377e9b965cdb453",
-    "hmac_message": "f83ede3cdc0468206bafea52f7057469f46a1c13fc004da6d8f1967e287e1d8b9ad61caa58e34d5a2a8a8b11d0460cd63377e9b965cdb453",
+    "P": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffff7e150a1a34fa1b2f12",
+    "C": "a7f6c2819077b6f4fb892c0db2a21c8196d0917bac6a979077c2b74ad63377e9b965cdb453",
+    "hmac_message": "f83ede3cdc0468206bafea52f7057469f46a1ca7f6c2819077b6f4fb892c0db2a21c8196d0917bac6a979077c2b74ad63377e9b965cdb453",
     "tags": {
-     "0x10": "a63ef42c2b8796e0",
-     "0x14": "9f8b3cb7e2070f23",
-     "0x18": "aa1c91ee7ae197f3",
-     "0x1C": "46d665360a7f99a4",
-     "0x20": "931906534441253d",
-     "0x30": "5f0a8a50523f7dab",
-     "0x40": "94730aa360bf844c",
-     "0x41": "1ec74d1c7205f70c",
-     "0x50": "fa0c1374439e0c2b"
+     "0x10": "0ddbbd8717f9c186",
+     "0x14": "9b1866e652dab5f2",
+     "0x18": "d6377a96e75bda30",
+     "0x1C": "805de6e821180810",
+     "0x20": "0621670840e0cc33",
+     "0x30": "e4405654ee1d37c4",
+     "0x40": "200558b1a8c3abeb",
+     "0x41": "cbeb5762383a3e8d",
+     "0x50": "18e64fa398e8b593"
     },
-    "tag": "46d665360a7f99a4"
+    "tag": "805de6e821180810"
    },
-   "envelope": "f8de3cdc0468206bafea52f7057469f46a13fc004da6d8f1967e287e1d8b9ad61caa58e34d5a2a8a8b11d0460cd63377e9b965cdb45346d665360a7f99a4",
+   "envelope": "f8de3cdc0468206bafea52f7057469f46aa7f6c2819077b6f4fb892c0db2a21c8196d0917bac6a979077c2b74ad63377e9b965cdb453805de6e821180810",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo veteran",
    "padding": "7e150a1a34fa1b2f12",
    "expect": {
     "outcome": "opens",
     "kind": "0x1C",
     "item": {
      "type": "entropy",
-     "hex": "4bf53d33c950b89d7a5eadefc6c73562c3778dc909bfe2e499ed0eb9"
+     "hex": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
    }
   },
@@ -1709,6 +1727,7 @@
     "tag": "b76bc1f4"
    },
    "envelope": "f85a88a463235e8fa96f145d5efbf9dbd1a0043a50c92dc4320cfee5e5d4ca885aa947081f26c4649c7605f5319a86909ab76bc1f4",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
    "padding": "1bc5ef400d59ff72356477594e6758b9",
    "expect": {
     "outcome": "opens",
@@ -1754,6 +1773,7 @@
     "tag": "01902321"
    },
    "envelope": "f800f77ed5fbf629044407c27039f66cc803c4cf3eceb2def8a71b1aa21b2a1ff392eeea58520bc53177a3bf8b3ccdf3c201902321",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
    "padding": "86b64da66498f174008fc09757103fd7",
    "expect": {
     "outcome": "opens",
@@ -1799,6 +1819,7 @@
     "tag": "bb83de9e659b5c0d"
    },
    "envelope": "f8ecbc45b1194117f8e694d679eda7a5661596a45098eea168806e8ee4008b37ad4914c707617e397b1be263a0bb7dc9d2c3e9a9492fbb83de9e659b5c0d",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
    "padding": "190d3918124127aee46a44e560383fa727cec2f1de",
    "expect": {
     "outcome": "opens",
@@ -1844,6 +1865,7 @@
     "tag": "c682878a68869bf8"
    },
    "envelope": "f82fb30a67bc684cf4893dc2e89493f091a23a7b131811537b6e1094c8df6b7ffa20a96b462eed8b791f932cbc528e2da5c1e5cc0ffbc682878a68869bf8",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
    "padding": "81ff155af32a0dca60d1a04f767edbd0775eb90af0",
    "expect": {
     "outcome": "opens",
@@ -1889,6 +1911,7 @@
     "tag": "700d8042"
    },
    "envelope": "f888563daf63e0777f99b5bc5c653e6314812a360324d449299f07cf8d20d9ae2e218159ed2dee0a55d8cbf9ae0d6675bd700d8042",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
    "padding": "",
    "expect": {
     "outcome": "opens",
@@ -1934,6 +1957,7 @@
     "tag": "bbe80722"
    },
    "envelope": "f8da941a2f581e3c3c77d5a630d8ccf9f756e7da84f3d28dd3cd0668a01cab366c0263a45e8d534ad2d2a344d03ee3973cbbe80722",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "",
    "expect": {
     "outcome": "opens",
@@ -1979,6 +2003,7 @@
     "tag": "ea1a5268154a4e90"
    },
    "envelope": "f84b3abdb3617cb54352bad2d1b24ab1fa1b54b9a5e12c904f3df451d9f0f36b4efb0f9a5f0b96a745f2e1eb9bda3529199d056648d0ea1a5268154a4e90",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art",
    "padding": "24a14e0a89",
    "expect": {
     "outcome": "opens",
@@ -2024,6 +2049,7 @@
     "tag": "23da1bcc347ebb11"
    },
    "envelope": "f841b4c3ebd1795ad864f19d79be1854e0d04c35d96bac0d10725a58ec374020dc73332aa98b251ed5bb3fb6cdcf96150da5da78b73223da1bcc347ebb11",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote",
    "padding": "5ab3da8294",
    "expect": {
     "outcome": "opens",
@@ -2043,7 +2069,7 @@
    "passphrase": "caf\u00e9 \u2728 \u00c5ngstr\u00f6m",
    "kind": "0x18",
    "kind_name": "BIP-39 entropy, 18 words",
-   "item_bytes": "a7cdc539e4303b15802034cfad6dc0a0701eb4a0d1fd9068",
+   "item_bytes": "808080808080808080808080808080808080808080808080",
    "salt": "af2e9f4609ef374fef713a479721346a",
    "header": "0xF8",
    "values": {
@@ -2052,23 +2078,24 @@
     "K_enc": "4b79abc82e839938ba8b82a4e96c7aadaf86badcdf43e6fa5c328ffb1aa6f8b0",
     "K_mac": "a7161fae55afd7b985602c628d3fa088c773408f331c25d5772de42a5cb243b6",
     "keystream": "162cff4c6dc6056bbb3ee9258b92bda76712500ef1a1dc110350730e22548b1a",
-    "P": "a7cdc539e4303b15802034cfad6dc0a0701eb4a0d1fd9068c6911a751722d9c8",
-    "C": "b1e13a7589f63e7e3b1eddea26ff7d07170ce4ae205c4c79c5c1697b357652d2",
-    "hmac_message": "f835af2e9f4609ef374fef713a479721346a18b1e13a7589f63e7e3b1eddea26ff7d07170ce4ae205c4c79c5c1697b357652d2",
+    "P": "808080808080808080808080808080808080808080808080c6911a751722d9c8",
+    "C": "96ac7fcced4685eb3bbe69a50b123d27e792d08e71215c91c5c1697b357652d2",
+    "hmac_message": "f835af2e9f4609ef374fef713a479721346a1896ac7fcced4685eb3bbe69a50b123d27e792d08e71215c91c5c1697b357652d2",
     "tags": {
-     "0x10": "6424118e",
-     "0x14": "3487d1da",
-     "0x18": "5dfc888f",
-     "0x1C": "3f33c5fd",
-     "0x20": "2cc3b2be",
-     "0x30": "9d374e75",
-     "0x40": "07bbf3fd",
-     "0x41": "5c149830",
-     "0x50": "bb3e17ba"
+     "0x10": "9ea753d6",
+     "0x14": "7d3c9d63",
+     "0x18": "c6360051",
+     "0x1C": "49d0f28f",
+     "0x20": "b1ad9fd2",
+     "0x30": "2fec46cf",
+     "0x40": "c916e9d1",
+     "0x41": "28fc611c",
+     "0x50": "5b123030"
     },
-    "tag": "5dfc888f"
+    "tag": "c6360051"
    },
-   "envelope": "f8af2e9f4609ef374fef713a479721346ab1e13a7589f63e7e3b1eddea26ff7d07170ce4ae205c4c79c5c1697b357652d25dfc888f",
+   "envelope": "f8af2e9f4609ef374fef713a479721346a96ac7fcced4685eb3bbe69a50b123d27e792d08e71215c91c5c1697b357652d2c6360051",
+   "bip39_words": "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
    "passphrase_utf8": "636166c3a920e29ca820c3856e67737472c3b66d",
    "padding": "c6911a751722d9c8",
    "expect": {
@@ -2076,7 +2103,7 @@
     "kind": "0x18",
     "item": {
      "type": "entropy",
-     "hex": "a7cdc539e4303b15802034cfad6dc0a0701eb4a0d1fd9068"
+     "hex": "808080808080808080808080808080808080808080808080"
     }
    }
   },
@@ -2089,7 +2116,7 @@
    "passphrase": "cafe\u0301 \u2728 A\u030angstro\u0308m",
    "kind": "0x18",
    "kind_name": "BIP-39 entropy, 18 words",
-   "item_bytes": "a7cdc539e4303b15802034cfad6dc0a0701eb4a0d1fd9068",
+   "item_bytes": "808080808080808080808080808080808080808080808080",
    "salt": "af2e9f4609ef374fef713a479721346a",
    "header": "0xF8",
    "values": {
@@ -2098,23 +2125,24 @@
     "K_enc": "4b79abc82e839938ba8b82a4e96c7aadaf86badcdf43e6fa5c328ffb1aa6f8b0",
     "K_mac": "a7161fae55afd7b985602c628d3fa088c773408f331c25d5772de42a5cb243b6",
     "keystream": "162cff4c6dc6056bbb3ee9258b92bda76712500ef1a1dc110350730e22548b1a",
-    "P": "a7cdc539e4303b15802034cfad6dc0a0701eb4a0d1fd9068c6911a751722d9c8",
-    "C": "b1e13a7589f63e7e3b1eddea26ff7d07170ce4ae205c4c79c5c1697b357652d2",
-    "hmac_message": "f835af2e9f4609ef374fef713a479721346a18b1e13a7589f63e7e3b1eddea26ff7d07170ce4ae205c4c79c5c1697b357652d2",
+    "P": "808080808080808080808080808080808080808080808080c6911a751722d9c8",
+    "C": "96ac7fcced4685eb3bbe69a50b123d27e792d08e71215c91c5c1697b357652d2",
+    "hmac_message": "f835af2e9f4609ef374fef713a479721346a1896ac7fcced4685eb3bbe69a50b123d27e792d08e71215c91c5c1697b357652d2",
     "tags": {
-     "0x10": "6424118e",
-     "0x14": "3487d1da",
-     "0x18": "5dfc888f",
-     "0x1C": "3f33c5fd",
-     "0x20": "2cc3b2be",
-     "0x30": "9d374e75",
-     "0x40": "07bbf3fd",
-     "0x41": "5c149830",
-     "0x50": "bb3e17ba"
+     "0x10": "9ea753d6",
+     "0x14": "7d3c9d63",
+     "0x18": "c6360051",
+     "0x1C": "49d0f28f",
+     "0x20": "b1ad9fd2",
+     "0x30": "2fec46cf",
+     "0x40": "c916e9d1",
+     "0x41": "28fc611c",
+     "0x50": "5b123030"
     },
-    "tag": "5dfc888f"
+    "tag": "c6360051"
    },
-   "envelope": "f8af2e9f4609ef374fef713a479721346ab1e13a7589f63e7e3b1eddea26ff7d07170ce4ae205c4c79c5c1697b357652d25dfc888f",
+   "envelope": "f8af2e9f4609ef374fef713a479721346a96ac7fcced4685eb3bbe69a50b123d27e792d08e71215c91c5c1697b357652d2c6360051",
+   "bip39_words": "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
    "passphrase_utf8": "63616665cc8120e29ca82041cc8a6e677374726fcc886d",
    "padding": "c6911a751722d9c8",
    "expect": {
@@ -2122,7 +2150,7 @@
     "kind": "0x18",
     "item": {
      "type": "entropy",
-     "hex": "a7cdc539e4303b15802034cfad6dc0a0701eb4a0d1fd9068"
+     "hex": "808080808080808080808080808080808080808080808080"
     }
    }
   },
@@ -2135,7 +2163,7 @@
    "passphrase": "caf\u00e9 \u2728 \u00c5ngstr\u00f6m",
    "kind": "0x18",
    "kind_name": "BIP-39 entropy, 18 words",
-   "item_bytes": "05e1e89efe1f49ec770eb219dd9e4e7ad618b2e68333e4b0",
+   "item_bytes": "808080808080808080808080808080808080808080808080",
    "salt": "aa0c449773706ec7b68d8e9545d82381",
    "header": "0xF8",
    "values": {
@@ -2144,23 +2172,24 @@
     "K_enc": "0308b501c77701c28622509c4dca3fa5da37c131bc4f0ce675b877c2dcd1bcf3",
     "K_mac": "a083d2813d188bee66b06ed57e2eb83c3824493d7b995cd768a977d4fd2ad956",
     "keystream": "84d52a939218dfe234ff020ff36db5fd9233370adc0f7e58d4b37b25a1c9f83a39482702fb",
-    "P": "05e1e89efe1f49ec770eb219dd9e4e7ad618b2e68333e4b0c8804b91005c7ee5c5c176fc61",
-    "C": "8134c20d6c07960e43f1b0162ef3fb87442b85ec5f3c9ae81c3330b4a19586dffc8951fe9a",
-    "hmac_message": "f83eaa0c449773706ec7b68d8e9545d82381188134c20d6c07960e43f1b0162ef3fb87442b85ec5f3c9ae81c3330b4a19586dffc8951fe9a",
+    "P": "808080808080808080808080808080808080808080808080c8804b91005c7ee5c5c176fc61",
+    "C": "0455aa1312985f62b47f828f73ed357d12b3b78a5c8ffed81c3330b4a19586dffc8951fe9a",
+    "hmac_message": "f83eaa0c449773706ec7b68d8e9545d82381180455aa1312985f62b47f828f73ed357d12b3b78a5c8ffed81c3330b4a19586dffc8951fe9a",
     "tags": {
-     "0x10": "884960c6354c35b5",
-     "0x14": "5da4e976d8daa01d",
-     "0x18": "6838ad1ae9cacc80",
-     "0x1C": "d0f6b976f8632c61",
-     "0x20": "6437feabd6f567f1",
-     "0x30": "4faae814c73188fa",
-     "0x40": "a5210b32518ba6b6",
-     "0x41": "4da1f77e85da85d4",
-     "0x50": "136ed15468a029fa"
+     "0x10": "688a9e784cfb1063",
+     "0x14": "35206925c9f420c3",
+     "0x18": "adf46a5296c47df4",
+     "0x1C": "57f8f6fa292fd88f",
+     "0x20": "52542179f7b1c497",
+     "0x30": "e7114114f0411c01",
+     "0x40": "b9db34ca57cb9813",
+     "0x41": "2fe6b73fd83b0d9c",
+     "0x50": "cc4350f8a227d42a"
     },
-    "tag": "6838ad1ae9cacc80"
+    "tag": "adf46a5296c47df4"
    },
-   "envelope": "f8aa0c449773706ec7b68d8e9545d823818134c20d6c07960e43f1b0162ef3fb87442b85ec5f3c9ae81c3330b4a19586dffc8951fe9a6838ad1ae9cacc80",
+   "envelope": "f8aa0c449773706ec7b68d8e9545d823810455aa1312985f62b47f828f73ed357d12b3b78a5c8ffed81c3330b4a19586dffc8951fe9aadf46a5296c47df4",
+   "bip39_words": "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
    "passphrase_utf8": "636166c3a920e29ca820c3856e67737472c3b66d",
    "padding": "c8804b91005c7ee5c5c176fc61",
    "expect": {
@@ -2168,7 +2197,7 @@
     "kind": "0x18",
     "item": {
      "type": "entropy",
-     "hex": "05e1e89efe1f49ec770eb219dd9e4e7ad618b2e68333e4b0"
+     "hex": "808080808080808080808080808080808080808080808080"
     }
    }
   },
@@ -2181,7 +2210,7 @@
    "passphrase": "cafe\u0301 \u2728 A\u030angstro\u0308m",
    "kind": "0x18",
    "kind_name": "BIP-39 entropy, 18 words",
-   "item_bytes": "05e1e89efe1f49ec770eb219dd9e4e7ad618b2e68333e4b0",
+   "item_bytes": "808080808080808080808080808080808080808080808080",
    "salt": "aa0c449773706ec7b68d8e9545d82381",
    "header": "0xF8",
    "values": {
@@ -2190,23 +2219,24 @@
     "K_enc": "0308b501c77701c28622509c4dca3fa5da37c131bc4f0ce675b877c2dcd1bcf3",
     "K_mac": "a083d2813d188bee66b06ed57e2eb83c3824493d7b995cd768a977d4fd2ad956",
     "keystream": "84d52a939218dfe234ff020ff36db5fd9233370adc0f7e58d4b37b25a1c9f83a39482702fb",
-    "P": "05e1e89efe1f49ec770eb219dd9e4e7ad618b2e68333e4b0c8804b91005c7ee5c5c176fc61",
-    "C": "8134c20d6c07960e43f1b0162ef3fb87442b85ec5f3c9ae81c3330b4a19586dffc8951fe9a",
-    "hmac_message": "f83eaa0c449773706ec7b68d8e9545d82381188134c20d6c07960e43f1b0162ef3fb87442b85ec5f3c9ae81c3330b4a19586dffc8951fe9a",
+    "P": "808080808080808080808080808080808080808080808080c8804b91005c7ee5c5c176fc61",
+    "C": "0455aa1312985f62b47f828f73ed357d12b3b78a5c8ffed81c3330b4a19586dffc8951fe9a",
+    "hmac_message": "f83eaa0c449773706ec7b68d8e9545d82381180455aa1312985f62b47f828f73ed357d12b3b78a5c8ffed81c3330b4a19586dffc8951fe9a",
     "tags": {
-     "0x10": "884960c6354c35b5",
-     "0x14": "5da4e976d8daa01d",
-     "0x18": "6838ad1ae9cacc80",
-     "0x1C": "d0f6b976f8632c61",
-     "0x20": "6437feabd6f567f1",
-     "0x30": "4faae814c73188fa",
-     "0x40": "a5210b32518ba6b6",
-     "0x41": "4da1f77e85da85d4",
-     "0x50": "136ed15468a029fa"
+     "0x10": "688a9e784cfb1063",
+     "0x14": "35206925c9f420c3",
+     "0x18": "adf46a5296c47df4",
+     "0x1C": "57f8f6fa292fd88f",
+     "0x20": "52542179f7b1c497",
+     "0x30": "e7114114f0411c01",
+     "0x40": "b9db34ca57cb9813",
+     "0x41": "2fe6b73fd83b0d9c",
+     "0x50": "cc4350f8a227d42a"
     },
-    "tag": "6838ad1ae9cacc80"
+    "tag": "adf46a5296c47df4"
    },
-   "envelope": "f8aa0c449773706ec7b68d8e9545d823818134c20d6c07960e43f1b0162ef3fb87442b85ec5f3c9ae81c3330b4a19586dffc8951fe9a6838ad1ae9cacc80",
+   "envelope": "f8aa0c449773706ec7b68d8e9545d823810455aa1312985f62b47f828f73ed357d12b3b78a5c8ffed81c3330b4a19586dffc8951fe9aadf46a5296c47df4",
+   "bip39_words": "letter advice cage absurd amount doctor acoustic avoid letter advice cage absurd amount doctor acoustic avoid letter always",
    "passphrase_utf8": "63616665cc8120e29ca82041cc8a6e677374726fcc886d",
    "padding": "c8804b91005c7ee5c5c176fc61",
    "expect": {
@@ -2214,7 +2244,7 @@
     "kind": "0x18",
     "item": {
      "type": "entropy",
-     "hex": "05e1e89efe1f49ec770eb219dd9e4e7ad618b2e68333e4b0"
+     "hex": "808080808080808080808080808080808080808080808080"
     }
    }
   },
@@ -2227,7 +2257,7 @@
    "passphrase": "fine",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "33752f75b32decc6f5dbc8e00b69095b",
+   "item_bytes": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f",
    "salt": "fcb735e9155c8de3e3b85c3f17dd08d4",
    "header": "0xF8",
    "values": {
@@ -2236,30 +2266,31 @@
     "K_enc": "f2c169e68837876e36b9f7dde7c125b1ad04c14ecd5dc76f99e1bcb9150a2406",
     "K_mac": "d18a0f28a4e515f3cdb14fd80725887cc10dcd706f508d4864fd5e69d2e11ca6",
     "keystream": "bbb3f90c056513be4c946b70cfde22bb9e863e368ee6c58ab14c347477094b7a",
-    "P": "33752f75b32decc6f5dbc8e00b69095b332309fa7fb4cf6242878c459d1ff485",
-    "C": "88c6d679b648ff78b94fa390c4b72be0ada537ccf1520ae8f3cbb831ea16bfff",
-    "hmac_message": "f835fcb735e9155c8de3e3b85c3f17dd08d41088c6d679b648ff78b94fa390c4b72be0ada537ccf1520ae8f3cbb831ea16bfff",
+    "P": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f332309fa7fb4cf6242878c459d1ff485",
+    "C": "c4cc86737a1a6cc133eb140fb0a15dc4ada537ccf1520ae8f3cbb831ea16bfff",
+    "hmac_message": "f835fcb735e9155c8de3e3b85c3f17dd08d410c4cc86737a1a6cc133eb140fb0a15dc4ada537ccf1520ae8f3cbb831ea16bfff",
     "tags": {
-     "0x10": "2c251039",
-     "0x14": "ffa99ab0",
-     "0x18": "26c7c6f6",
-     "0x1C": "5f7ca286",
-     "0x20": "188458ff",
-     "0x30": "2060409c",
-     "0x40": "c8e1e6da",
-     "0x41": "1e5fb170",
-     "0x50": "6c20a278"
+     "0x10": "effc01e4",
+     "0x14": "2791eb60",
+     "0x18": "4a843ed9",
+     "0x1C": "88854a01",
+     "0x20": "e8d1b8e8",
+     "0x30": "09ccd679",
+     "0x40": "526a35e5",
+     "0x41": "c0482740",
+     "0x50": "2379730b"
     },
-    "tag": "2c251039"
+    "tag": "effc01e4"
    },
-   "envelope": "f8fcb735e9155c8de3e3b85c3f17dd08d488c6d679b648ff78b94fa390c4b72be0ada537ccf1520ae8f3cbb831ea16bfff2c251039",
+   "envelope": "f8fcb735e9155c8de3e3b85c3f17dd08d4c4cc86737a1a6cc133eb140fb0a15dc4ada537ccf1520ae8f3cbb831ea16bfffeffc01e4",
+   "bip39_words": "legal winner thank year wave sausage worth useful legal winner thank yellow",
    "padding": "332309fa7fb4cf6242878c459d1ff485",
    "expect": {
     "outcome": "opens",
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "33752f75b32decc6f5dbc8e00b69095b"
+     "hex": "7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f"
     }
    }
   },
@@ -2268,7 +2299,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "\ufb01ne",
-   "envelope": "f8fcb735e9155c8de3e3b85c3f17dd08d488c6d679b648ff78b94fa390c4b72be0ada537ccf1520ae8f3cbb831ea16bfff2c251039",
+   "envelope": "f8fcb735e9155c8de3e3b85c3f17dd08d4c4cc86737a1a6cc133eb140fb0a15dc4ada537ccf1520ae8f3cbb831ea16bfffeffc01e4",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4181,7 +4212,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase!",
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4194,7 +4225,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f9c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "f9c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4207,7 +4238,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "78c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "78c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "expect": {
     "outcome": "not_recognised",
     "reason": "a bit of the marker changed: the first byte is 0x78"
@@ -4219,7 +4250,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8c301250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "f8c301250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4232,7 +4263,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bdab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a10664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4245,7 +4276,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336c",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ad",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4258,7 +4289,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "fdc201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "fdc201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "expect": {
     "outcome": "not_recognised",
     "reason": "step 5 is reserved: the first byte is 0xFD"
@@ -4270,7 +4301,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "fec201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "fec201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "expect": {
     "outcome": "not_recognised",
     "reason": "step 6 is reserved: the first byte is 0xFE"
@@ -4282,7 +4313,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "ffc201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "ffc201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "expect": {
     "outcome": "not_recognised",
     "reason": "step 7 is reserved: the first byte is 0xFF"
@@ -4294,7 +4325,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f0c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "f0c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "expect": {
     "outcome": "not_recognised",
     "reason": "marker 0b11110, which a later version would use: the first byte is 0xF0"
@@ -4306,7 +4337,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase!",
-   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4319,7 +4350,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f9b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "f9b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4332,7 +4363,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "78b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "78b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "expect": {
     "outcome": "not_recognised",
     "reason": "a bit of the marker changed: the first byte is 0x78"
@@ -4344,7 +4375,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8b50321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "f8b50321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4357,7 +4388,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e03a4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e01ea033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4370,7 +4401,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06240",
+   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb1",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4383,7 +4414,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "fdb40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "fdb40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "expect": {
     "outcome": "not_recognised",
     "reason": "step 5 is reserved: the first byte is 0xFD"
@@ -4395,7 +4426,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "feb40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "feb40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "expect": {
     "outcome": "not_recognised",
     "reason": "step 6 is reserved: the first byte is 0xFE"
@@ -4407,7 +4438,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "ffb40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "ffb40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "expect": {
     "outcome": "not_recognised",
     "reason": "step 7 is reserved: the first byte is 0xFF"
@@ -4419,7 +4450,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f0b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "f0b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "expect": {
     "outcome": "not_recognised",
     "reason": "marker 0b11110, which a later version would use: the first byte is 0xF0"
@@ -4431,7 +4462,7 @@
    "group": "fail",
    "size": 52,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d700041333",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2",
    "expect": {
     "outcome": "not_recognised",
     "reason": "52 bytes: the 53-byte envelope with its last byte removed"
@@ -4443,7 +4474,7 @@
    "group": "fail",
    "size": 54,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d00",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac00",
    "expect": {
     "outcome": "not_recognised",
     "reason": "54 bytes: the 53-byte envelope with a zero byte added"
@@ -4455,7 +4486,7 @@
    "group": "fail",
    "size": 61,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb062",
+   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8b",
    "expect": {
     "outcome": "not_recognised",
     "reason": "61 bytes: the 62-byte envelope with its last byte removed"
@@ -4467,7 +4498,7 @@
    "group": "fail",
    "size": 63,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb0624100",
+   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb000",
    "expect": {
     "outcome": "not_recognised",
     "reason": "63 bytes: the 62-byte envelope with a zero byte added"
@@ -4479,7 +4510,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969",
+   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4492,7 +4523,7 @@
    "group": "fail",
    "size": 62,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2fc47fb876d952ed7",
+   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b2e1d02f5915d75fb0",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -4505,7 +4536,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d700c0e7e7fb",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932fedfbdc1",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -5546,7 +5577,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "511dde409a28bd2d7684456f040fe6a3",
+   "item_bytes": "00000000000000000000000000000000",
    "salt": "93130a8b484d7cf3df825f",
    "header": "0xF8",
    "values": {
@@ -5555,24 +5586,25 @@
     "K_enc": "22f36fa20990c04e2593e54a0abb779f8336242e023e65987a971e6899adf9f0",
     "K_mac": "f5f2857007632f7c19044705c5a9a07de2d57d20d4ddfb7dd72d06d7bb27cebe",
     "keystream": "41c7d0f2ef59682bf802419c6f45f566",
-    "P": "511dde409a28bd2d7684456f040fe6a3",
-    "C": "10da0eb27571d5068e8604f36b4a13c5",
-    "hmac_message": "f82093130a8b484d7cf3df825f1010da0eb27571d5068e8604f36b4a13c5",
+    "P": "00000000000000000000000000000000",
+    "C": "41c7d0f2ef59682bf802419c6f45f566",
+    "hmac_message": "f82093130a8b484d7cf3df825f1041c7d0f2ef59682bf802419c6f45f566",
     "tags": {
-     "0x10": "540ae3e0",
-     "0x40": "f2a624c3",
-     "0x41": "0fb91c80"
+     "0x10": "967cac9b",
+     "0x40": "9127d0cc",
+     "0x41": "ba367918"
     },
-    "tag": "540ae3e0"
+    "tag": "967cac9b"
    },
-   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "f893130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "511dde409a28bd2d7684456f040fe6a3"
+     "hex": "00000000000000000000000000000000"
     }
    }
   },
@@ -5585,7 +5617,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "1b9f2451d09be12608075bfa461f5654",
+   "item_bytes": "00000000000000000000000000000000",
    "salt": "66e22d4f09b0923354f386",
    "header": "0xF9",
    "values": {
@@ -5594,24 +5626,25 @@
     "K_enc": "d90409e016a5decb51e846744e80c8d0b9679f703ebee68ccc112c939bd6f726",
     "K_mac": "686f11ac3b7ec3f664f4771b70aa007cb4441facd3b62ca1c60ed437428f9ffd",
     "keystream": "a9d781a867e7f5bb4e6418ece9cef47f",
-    "P": "1b9f2451d09be12608075bfa461f5654",
-    "C": "b248a5f9b77c149d46634316afd1a22b",
-    "hmac_message": "f92066e22d4f09b0923354f38610b248a5f9b77c149d46634316afd1a22b",
+    "P": "00000000000000000000000000000000",
+    "C": "a9d781a867e7f5bb4e6418ece9cef47f",
+    "hmac_message": "f92066e22d4f09b0923354f38610a9d781a867e7f5bb4e6418ece9cef47f",
     "tags": {
-     "0x10": "2818232f",
-     "0x40": "033df7f2",
-     "0x41": "f075763a"
+     "0x10": "af77ca99",
+     "0x40": "99b179bb",
+     "0x41": "32079c4e"
     },
-    "tag": "2818232f"
+    "tag": "af77ca99"
    },
-   "envelope": "f966e22d4f09b0923354f386b248a5f9b77c149d46634316afd1a22b2818232f",
+   "envelope": "f966e22d4f09b0923354f386a9d781a867e7f5bb4e6418ece9cef47faf77ca99",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "1b9f2451d09be12608075bfa461f5654"
+     "hex": "00000000000000000000000000000000"
     }
    }
   },
@@ -5624,7 +5657,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "bc009a7c63f8cb33ca885350c0ae3236",
+   "item_bytes": "00000000000000000000000000000000",
    "salt": "46f727f4c92ff341cb64b4",
    "header": "0xFA",
    "values": {
@@ -5633,24 +5666,25 @@
     "K_enc": "c48257d4e57ffda55ff8d141c0836c55b4b5a1a4565ea6c0485cf773cebf7374",
     "K_mac": "7dfe2666de64c2daf70842b56a5da6e0fc53f5cf99d8e8b548f4b1c10595b561",
     "keystream": "69057485240589ff03c4290ae964c538",
-    "P": "bc009a7c63f8cb33ca885350c0ae3236",
-    "C": "d505eef947fd42ccc94c7a5a29caf70e",
-    "hmac_message": "fa2046f727f4c92ff341cb64b410d505eef947fd42ccc94c7a5a29caf70e",
+    "P": "00000000000000000000000000000000",
+    "C": "69057485240589ff03c4290ae964c538",
+    "hmac_message": "fa2046f727f4c92ff341cb64b41069057485240589ff03c4290ae964c538",
     "tags": {
-     "0x10": "f3b4612d",
-     "0x40": "b41f62e1",
-     "0x41": "41581089"
+     "0x10": "1ae4fc6c",
+     "0x40": "2892b9a7",
+     "0x41": "3facdee3"
     },
-    "tag": "f3b4612d"
+    "tag": "1ae4fc6c"
    },
-   "envelope": "fa46f727f4c92ff341cb64b4d505eef947fd42ccc94c7a5a29caf70ef3b4612d",
+   "envelope": "fa46f727f4c92ff341cb64b469057485240589ff03c4290ae964c5381ae4fc6c",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "bc009a7c63f8cb33ca885350c0ae3236"
+     "hex": "00000000000000000000000000000000"
     }
    }
   },
@@ -5663,7 +5697,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "52fc9850877d890124e18c3a4c70f70d",
+   "item_bytes": "00000000000000000000000000000000",
    "salt": "59dbf4706929ab5936a61f",
    "header": "0xFB",
    "values": {
@@ -5672,24 +5706,25 @@
     "K_enc": "e77da7f93c29bab8d9c7fda68da6e1a4471b4094529ab29840161b4544ca557a",
     "K_mac": "50e155bfbbf4c6b73076f0fe0e1b49a695b0810ea32dde7c422bba17acb83ab8",
     "keystream": "71c1ae7198c14d66004cfd1d16fe7882",
-    "P": "52fc9850877d890124e18c3a4c70f70d",
-    "C": "233d36211fbcc46724ad71275a8e8f8f",
-    "hmac_message": "fb2059dbf4706929ab5936a61f10233d36211fbcc46724ad71275a8e8f8f",
+    "P": "00000000000000000000000000000000",
+    "C": "71c1ae7198c14d66004cfd1d16fe7882",
+    "hmac_message": "fb2059dbf4706929ab5936a61f1071c1ae7198c14d66004cfd1d16fe7882",
     "tags": {
-     "0x10": "2ef01ce3",
-     "0x40": "da95df6e",
-     "0x41": "12f32388"
+     "0x10": "4e7bfdeb",
+     "0x40": "a28fd0da",
+     "0x41": "fddd216a"
     },
-    "tag": "2ef01ce3"
+    "tag": "4e7bfdeb"
    },
-   "envelope": "fb59dbf4706929ab5936a61f233d36211fbcc46724ad71275a8e8f8f2ef01ce3",
+   "envelope": "fb59dbf4706929ab5936a61f71c1ae7198c14d66004cfd1d16fe78824e7bfdeb",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "52fc9850877d890124e18c3a4c70f70d"
+     "hex": "00000000000000000000000000000000"
     }
    }
   },
@@ -5702,7 +5737,7 @@
    "passphrase": "aqrv vector passphrase",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "51cef3e8ab69e9f5b2bae97b6510ce7a",
+   "item_bytes": "00000000000000000000000000000000",
    "salt": "f48e86cd9420004fb0bba0",
    "header": "0xFC",
    "values": {
@@ -5711,24 +5746,25 @@
     "K_enc": "97e930232196ac989aa2067dcc28ab0dcdaf55a0850f9fc6c003037abc2afb2c",
     "K_mac": "e9d05d2c05ebb01e0fd3cadaa26645d1026ec957359847cc0ff3d17136d864ab",
     "keystream": "20f4ebfe720ecfd30ad8c5ec3f087488",
-    "P": "51cef3e8ab69e9f5b2bae97b6510ce7a",
-    "C": "713a1816d9672626b8622c975a18baf2",
-    "hmac_message": "fc20f48e86cd9420004fb0bba010713a1816d9672626b8622c975a18baf2",
+    "P": "00000000000000000000000000000000",
+    "C": "20f4ebfe720ecfd30ad8c5ec3f087488",
+    "hmac_message": "fc20f48e86cd9420004fb0bba01020f4ebfe720ecfd30ad8c5ec3f087488",
     "tags": {
-     "0x10": "0c60df68",
-     "0x40": "c9ceb269",
-     "0x41": "a917e316"
+     "0x10": "dbb9cbb1",
+     "0x40": "e66480bb",
+     "0x41": "5515ec75"
     },
-    "tag": "0c60df68"
+    "tag": "dbb9cbb1"
    },
-   "envelope": "fcf48e86cd9420004fb0bba0713a1816d9672626b8622c975a18baf20c60df68",
+   "envelope": "fcf48e86cd9420004fb0bba020f4ebfe720ecfd30ad8c5ec3f087488dbb9cbb1",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
    "padding": "",
    "expect": {
     "outcome": "opens",
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "51cef3e8ab69e9f5b2bae97b6510ce7a"
+     "hex": "00000000000000000000000000000000"
     }
    }
   },
@@ -6041,6 +6077,7 @@
     "tag": "db417036"
    },
    "envelope": "f813d12a739a9ccd55cbda85259668d04a445165da451d37d76fc083db417036",
+   "bip39_words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
    "padding": "",
    "expect": {
     "outcome": "opens",
@@ -6080,6 +6117,7 @@
     "tag": "93f7fea2"
    },
    "envelope": "f8e0b6a20ef2d7333fe3468a9ec3104da581239f2c13d673543c3d9293f7fea2",
+   "bip39_words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong",
    "padding": "",
    "expect": {
     "outcome": "opens",
@@ -6099,7 +6137,7 @@
    "passphrase": "caf\u00e9 \u2728 \u00c5ngstr\u00f6m",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "ae859713ef7c1e298b7b88bc8556cdd8",
+   "item_bytes": "80808080808080808080808080808080",
    "salt": "acd2dcfe26be3dd70cf746",
    "header": "0xF8",
    "values": {
@@ -6108,17 +6146,18 @@
     "K_enc": "f34f8dee22b8a47c78cff9fcbe57a0097c6bfe9c878dfb70df9a9c4e3a408a2b",
     "K_mac": "39a77ce4e062c7d980e4c2375113bb769b21971f5b10df69d2f0d1484666ab6e",
     "keystream": "6bc607f3e35e7f19e8764f7bcd6acf50",
-    "P": "ae859713ef7c1e298b7b88bc8556cdd8",
-    "C": "c54390e00c226130630dc7c7483c0288",
-    "hmac_message": "f820acd2dcfe26be3dd70cf74610c54390e00c226130630dc7c7483c0288",
+    "P": "80808080808080808080808080808080",
+    "C": "eb46877363deff9968f6cffb4dea4fd0",
+    "hmac_message": "f820acd2dcfe26be3dd70cf74610eb46877363deff9968f6cffb4dea4fd0",
     "tags": {
-     "0x10": "701f44eb",
-     "0x40": "32b37cfc",
-     "0x41": "b57e1461"
+     "0x10": "a1e5ae72",
+     "0x40": "f0843517",
+     "0x41": "bee7a0ce"
     },
-    "tag": "701f44eb"
+    "tag": "a1e5ae72"
    },
-   "envelope": "f8acd2dcfe26be3dd70cf746c54390e00c226130630dc7c7483c0288701f44eb",
+   "envelope": "f8acd2dcfe26be3dd70cf746eb46877363deff9968f6cffb4dea4fd0a1e5ae72",
+   "bip39_words": "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
    "passphrase_utf8": "636166c3a920e29ca820c3856e67737472c3b66d",
    "padding": "",
    "expect": {
@@ -6126,7 +6165,7 @@
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "ae859713ef7c1e298b7b88bc8556cdd8"
+     "hex": "80808080808080808080808080808080"
     }
    }
   },
@@ -6139,7 +6178,7 @@
    "passphrase": "cafe\u0301 \u2728 A\u030angstro\u0308m",
    "kind": "0x10",
    "kind_name": "BIP-39 entropy, 12 words",
-   "item_bytes": "ae859713ef7c1e298b7b88bc8556cdd8",
+   "item_bytes": "80808080808080808080808080808080",
    "salt": "acd2dcfe26be3dd70cf746",
    "header": "0xF8",
    "values": {
@@ -6148,17 +6187,18 @@
     "K_enc": "f34f8dee22b8a47c78cff9fcbe57a0097c6bfe9c878dfb70df9a9c4e3a408a2b",
     "K_mac": "39a77ce4e062c7d980e4c2375113bb769b21971f5b10df69d2f0d1484666ab6e",
     "keystream": "6bc607f3e35e7f19e8764f7bcd6acf50",
-    "P": "ae859713ef7c1e298b7b88bc8556cdd8",
-    "C": "c54390e00c226130630dc7c7483c0288",
-    "hmac_message": "f820acd2dcfe26be3dd70cf74610c54390e00c226130630dc7c7483c0288",
+    "P": "80808080808080808080808080808080",
+    "C": "eb46877363deff9968f6cffb4dea4fd0",
+    "hmac_message": "f820acd2dcfe26be3dd70cf74610eb46877363deff9968f6cffb4dea4fd0",
     "tags": {
-     "0x10": "701f44eb",
-     "0x40": "32b37cfc",
-     "0x41": "b57e1461"
+     "0x10": "a1e5ae72",
+     "0x40": "f0843517",
+     "0x41": "bee7a0ce"
     },
-    "tag": "701f44eb"
+    "tag": "a1e5ae72"
    },
-   "envelope": "f8acd2dcfe26be3dd70cf746c54390e00c226130630dc7c7483c0288701f44eb",
+   "envelope": "f8acd2dcfe26be3dd70cf746eb46877363deff9968f6cffb4dea4fd0a1e5ae72",
+   "bip39_words": "letter advice cage absurd amount doctor acoustic avoid letter advice cage above",
    "passphrase_utf8": "63616665cc8120e29ca82041cc8a6e677374726fcc886d",
    "padding": "",
    "expect": {
@@ -6166,7 +6206,7 @@
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "ae859713ef7c1e298b7b88bc8556cdd8"
+     "hex": "80808080808080808080808080808080"
     }
    }
   },
@@ -6175,7 +6215,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase!",
-   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "f893130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -6188,7 +6228,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f993130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "f993130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -6201,7 +6241,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "7893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "7893130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
    "expect": {
     "outcome": "not_recognised",
     "reason": "a bit of the marker changed: the first byte is 0x78"
@@ -6213,7 +6253,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f892130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "f892130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -6226,7 +6266,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f893130a8b484d7cf3df825f11da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "f893130a8b484d7cf3df825f40c7d0f2ef59682bf802419c6f45f566967cac9b",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -6239,7 +6279,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e1",
+   "envelope": "f893130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9a",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -6252,7 +6292,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "fd93130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "fd93130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
    "expect": {
     "outcome": "not_recognised",
     "reason": "step 5 is reserved: the first byte is 0xFD"
@@ -6264,7 +6304,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "fe93130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "fe93130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
    "expect": {
     "outcome": "not_recognised",
     "reason": "step 6 is reserved: the first byte is 0xFE"
@@ -6276,7 +6316,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "ff93130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "ff93130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
    "expect": {
     "outcome": "not_recognised",
     "reason": "step 7 is reserved: the first byte is 0xFF"
@@ -6288,7 +6328,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f093130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "f093130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
    "expect": {
     "outcome": "not_recognised",
     "reason": "marker 0b11110, which a later version would use: the first byte is 0xF0"
@@ -6300,7 +6340,7 @@
    "group": "fail",
    "size": 31,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3",
+   "envelope": "f893130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac",
    "expect": {
     "outcome": "not_recognised",
     "reason": "31 bytes: the 32-byte envelope with its last byte removed"
@@ -6312,7 +6352,7 @@
    "group": "fail",
    "size": 33,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e000",
+   "envelope": "f893130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b00",
    "expect": {
     "outcome": "not_recognised",
     "reason": "33 bytes: the 32-byte envelope with a zero byte added"
@@ -6324,7 +6364,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697c",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -6337,7 +6377,7 @@
    "group": "fail",
    "size": 32,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c50d184b05",
+   "envelope": "f893130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f5667c1e73b6",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -6350,7 +6390,7 @@
    "group": "fail",
    "size": 53,
    "passphrase": "aqrv vector passphrase",
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7001a599635",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c40659322b764482",
    "expect": {
     "outcome": "does_not_open",
     "why": "no kind's tag matches",
@@ -6607,7 +6647,7 @@
    "kind": "0x20",
    "item": {
     "type": "entropy",
-    "hex": "59734e702ad2de6c2133217030aee67d6922e55a0eb12a5ecf3bdb805db100d3"
+    "hex": "0000000000000000000000000000000000000000000000000000000000000000"
    },
    "reason": "24 words of entropy: 32 bytes, over the 16-byte room of the 32-byte size"
   },
@@ -6633,51 +6673,51 @@
  "qr": [
   {
    "case": "step-0-24w-53",
-   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8bcab7557725db970e2321dc064697caaf67d9557c77e76ccae3895f2ed04d7000413336d",
+   "envelope": "f8c201250db0fd72bcbf0e9b8ec721a7f8a00664844f5a4f2220657835f416c9570bf5f907645780a1ec15a648c4065932e45ae2ac",
    "bytes": 53,
    "version": 3,
    "modules": 29,
    "level": "L",
-   "mask": 3,
+   "mask": 0,
    "segment": "one byte-mode segment, no ECI",
    "png": "qr-53.png",
-   "png_sha256": "4353b603d6e3d90b33957f1fbf657175643a1f8856392f019525f871a290ff67",
+   "png_sha256": "389f3dea464b8bb45ecd95663db94ad5ce98a36241f72906da77fcfd2771cf86",
    "matrix": [
-    "11111110111010111100101111111",
-    "10000010010101001110101000001",
-    "10111010100010100110001011101",
-    "10111010100010111110101011101",
-    "10111010101100100011001011101",
-    "10000010011000110001101000001",
+    "11111110010000101100001111111",
+    "10000010000100111001101000001",
+    "10111010111000001011001011101",
+    "10111010001100101110001011101",
+    "10111010001100110110001011101",
+    "10000010000001101011001000001",
     "11111110101010101010101111111",
-    "00000000001100001111000000000",
-    "11110010110000110111110011101",
-    "00001001000011101000110001011",
-    "00100011101111000100011011100",
-    "11001101000111010101100011011",
-    "10000111010001111100101110010",
-    "10111001110110011101000111000",
-    "10001111000100111101111010001",
-    "01101000001001000011001100111",
-    "10111110100100010001100101000",
-    "01110000110000011010000001001",
-    "10111110111000100111010100001",
-    "00110001001111101100010011000",
-    "01001010010100010000111110100",
-    "00000000100101001101100011101",
-    "11111110001001001111101011111",
-    "10000010010101001111100010011",
-    "10111010011001000001111111100",
-    "10111010101011011100101010111",
-    "10111010100111001001100011101",
-    "10000010100001011011100010110",
-    "11111110100110100011011011010"
+    "00000000100001011111100000000",
+    "11101111111000000110111000100",
+    "00010101000001101101010110011",
+    "11100011000001010111110101101",
+    "00110101110100100101111111000",
+    "01100010001100111110110110101",
+    "01010101100111010100110110110",
+    "00110110001010100010111001101",
+    "00000001011010001100101011111",
+    "10000110110011100100101011001",
+    "01010100100101011101011101010",
+    "10000110001010100000101100110",
+    "01100100001110110111000010110",
+    "10111111001011011100111111000",
+    "00000000111110011011100010101",
+    "11111110111110011011101011110",
+    "10000010111101001101100010000",
+    "10111010111110100111111111011",
+    "10111010001111110111011011001",
+    "10111010111010001000000000001",
+    "10000010110010111010100101110",
+    "11111110111011100101010101011"
    ],
    "matrix_note": "one string per row, top to bottom, 1 is a dark module, no quiet zone"
   },
   {
    "case": "step-0-24w-62",
-   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e03b4a7c7a7dba74d49f18da6926ed88465cdc032883e05bbaee037c26525375defdad7969b2aa7aa95ffcb06241",
+   "envelope": "f8b40321e3c3c1e6245fe325992cd1b0e01fa033c3544bc01a2a217a96e1a1ac1d36642bc6566caf62b9c42f7879f53d4efdad7969b24e780556aabe8bb0",
    "bytes": 62,
    "version": 4,
    "modules": 33,
@@ -6685,82 +6725,82 @@
    "mask": 0,
    "segment": "one byte-mode segment, no ECI",
    "png": "qr-62.png",
-   "png_sha256": "725aba9edbafb01e583a58c100382eff20496c789ee478f78b21a809862cf41f",
+   "png_sha256": "114d8f945eab8f86ae9e1e4ae607e03f196f7025e71d2fa4f4044878a9224d88",
    "matrix": [
-    "111111100100101111010011101111111",
-    "100000101100000111010011101000001",
-    "101110100000001011011010101011101",
-    "101110100011011000000110001011101",
-    "101110101011001101010101101011101",
-    "100000100011001101111111001000001",
+    "111111100001111101000111101111111",
+    "100000101010000001011101101000001",
+    "101110100101010101011010101011101",
+    "101110100000000100010010101011101",
+    "101110101011100010010101001011101",
+    "100000100110010001111111101000001",
     "111111101010101010101010101111111",
-    "000000000100100100110001100000000",
-    "101010100000110011110001000010010",
-    "011110010101110011101111011010000",
-    "001101110001001011101111001110111",
-    "100101000100111000011101110101011",
-    "011100101010101101110000011000111",
-    "111010000101010000001110100010101",
-    "010000101000000111100010011100100",
-    "010010011001001111011010011100110",
-    "000100110111101101010110101011100",
-    "111011001010001110101110011011010",
-    "111010111110010111101110000101011",
-    "000110011001010101000110001101010",
-    "000011110110110101011100100010000",
-    "011100011101101011100111001110101",
-    "100101110000011100010010111010110",
-    "010010000001010010011000110111011",
-    "100111110100011100011101111110110",
-    "000000001110000100111101100011010",
-    "111111100010101001100001101011100",
-    "100000100000000010000010100010100",
-    "101110101000011101110001111110010",
-    "101110100100010111001110100101001",
-    "101110101110110000011011011101001",
-    "100000100001111100001101111011010",
-    "111111101111001100110111000010011"
+    "000000000010101011010000100000000",
+    "101010100011011100011001000010010",
+    "000100010100010101011011011010001",
+    "010110100011001111110011010110101",
+    "011011011011110001000011110101000",
+    "101001100100101100000100100000110",
+    "000001001111000000001110011000001",
+    "101111110011101111100010111000000",
+    "100001011100010000111011111000010",
+    "101101100001101100010110101010000",
+    "111001000100010010000110011011000",
+    "100110101001011001001000010101001",
+    "001001000110011101010110001101010",
+    "010101101100000011001110111110010",
+    "000101011101110001100111111000001",
+    "101101110010010110110011011000110",
+    "011011010000101011011001010001011",
+    "101101110110110010111101111110010",
+    "000000001100001000100001100011011",
+    "111111100101010010110001101011100",
+    "100000100011010001001110100010100",
+    "101110101110111100110001111110001",
+    "101110100011010110001100100101101",
+    "101110101001100001111011011101001",
+    "100000100010100111001100110010110",
+    "111111101011111011110010000010111"
    ],
    "matrix_note": "one string per row, top to bottom, 1 is a dark module, no quiet zone"
   },
   {
    "case": "step-0-12w-32",
-   "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+   "envelope": "f893130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
    "bytes": 32,
-   "text": "A3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "text": "A3A: 2ZG6IEY12.EY2%80OQ%8B+P%4.AK:RUPXIQ7VYL.DP",
    "version": 2,
    "modules": 25,
    "level": "L",
    "mask": 2,
    "segment": "one alphanumeric-mode segment of 47 characters, no ECI",
    "png": "qr-32.png",
-   "png_sha256": "af14fb7fe8310c89d0aaec28b86e4e0c0e717ebc71a56339d2b223fdb90a5f26",
+   "png_sha256": "fe6ae830529457c62033d2a91f16fa57acddc8383c106d4e402c83eddc0bab35",
    "matrix": [
-    "1111111001111001001111111",
-    "1000001011000111001000001",
-    "1011101000111000101011101",
-    "1011101010000110001011101",
-    "1011101001011110101011101",
-    "1000001011011001001000001",
+    "1111111001000010101111111",
+    "1000001011011101101000001",
+    "1011101000111111001011101",
+    "1011101010110111001011101",
+    "1011101000100001101011101",
+    "1000001011100010101000001",
     "1111111010101010101111111",
-    "0000000000010110000000000",
-    "1111101110000111110101010",
-    "0011110101011011010010111",
-    "0000001110100101110000010",
-    "1011000110011101010001110",
-    "1100101000000010000000001",
-    "1101110011010001010000011",
-    "1010101011010000000110011",
-    "1011000010001000001001101",
-    "1000001010100101111110110",
-    "0000000010011011100011011",
-    "1111111010000010101010000",
-    "1000001000001100100011110",
-    "1011101011110011111110111",
-    "1011101010110011011101111",
-    "1011101011001001111100001",
-    "1000001011010101010001000",
-    "1111111010100000110001101"
+    "0000000000101001100000000",
+    "1111101110001101010101010",
+    "1110110100111110010010111",
+    "0000011101101101010000010",
+    "1111000110111100110001110",
+    "0110001001010011000000001",
+    "1100110110101101010000011",
+    "1001101110110101000110011",
+    "1010010011001111101001101",
+    "1000101011101100111110110",
+    "0000000011111011100011011",
+    "1111111010100110101010000",
+    "1000001000111000100011110",
+    "1011101010010101111110111",
+    "1011101010111110011101111",
+    "1011101011010100111100001",
+    "1000001010101011010001000",
+    "1111111010011000110001101"
    ],
    "matrix_note": "one string per row, top to bottom, 1 is a dark module, no quiet zone"
   }
@@ -6768,16 +6808,16 @@
  "qr_text": [
   {
    "name": "text-valid-32",
-   "text": "A3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "text": "A3A: 2ZG6IEY12.EY2%80OQ%8B+P%4.AK:RUPXIQ7VYL.DP",
    "passphrase": "aqrv vector passphrase",
    "source": "step-0-12w-32",
    "expect": {
     "outcome": "opens",
-    "envelope": "f893130a8b484d7cf3df825f10da0eb27571d5068e8604f36b4a13c5540ae3e0",
+    "envelope": "f893130a8b484d7cf3df825f41c7d0f2ef59682bf802419c6f45f566967cac9b",
     "kind": "0x10",
     "item": {
      "type": "entropy",
-     "hex": "511dde409a28bd2d7684456f040fe6a3"
+     "hex": "00000000000000000000000000000000"
     }
    }
   },
@@ -6791,7 +6831,7 @@
   },
   {
    "name": "text-46-characters",
-   "text": "A3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-",
+   "text": "A3A: 2ZG6IEY12.EY2%80OQ%8B+P%4.AK:RUPXIQ7VYL.D",
    "expect": {
     "outcome": "not_recognised",
     "reason": "46 characters: the valid text with its last one removed"
@@ -6799,7 +6839,7 @@
   },
   {
    "name": "text-48-characters",
-   "text": "0A3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "text": "0A3A: 2ZG6IEY12.EY2%80OQ%8B+P%4.AK:RUPXIQ7VYL.DP",
    "expect": {
     "outcome": "not_recognised",
     "reason": "48 characters: the valid text with a 0 before it, the same value but not 47 characters"
@@ -6807,7 +6847,7 @@
   },
   {
    "name": "text-lower-case",
-   "text": "a3A: 2ZG6IEY12.EY2N%C8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "text": "a3A: 2ZG6IEY12.EY2%80OQ%8B+P%4.AK:RUPXIQ7VYL.DP",
    "expect": {
     "outcome": "not_recognised",
     "reason": "its first letter is a lower-case a: not in the alphabet, and not read as A"
@@ -6815,7 +6855,7 @@
   },
   {
    "name": "text-outside-alphabet",
-   "text": "A3A: 2ZG6IEY12.EY2N%#8D4YCLUQU2FSTIIR8 I%58$0-.",
+   "text": "A3A: 2ZG6IEY12.EY2%8#OQ%8B+P%4.AK:RUPXIQ7VYL.DP",
    "expect": {
     "outcome": "not_recognised",
     "reason": "its 21st character is #, which is not in the alphabet"

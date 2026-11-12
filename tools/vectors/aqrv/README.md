@@ -31,7 +31,16 @@ Libraries the format's authors did not write:
 
 Everything is fixed by the script: passphrases are in it, a salt is
 the first 16 bytes (11 at the 32-byte size) of SHA-256 of `AQRV vector salt ` and the case's name, and
-entropy, keys and padding are SHAKE-256 of a label and the case's name.
+keys and padding are SHAKE-256 of a label and the case's name. Entropy is
+not: an entropy case takes BIP 39's published test entropy of its length (all
+`00`, `7f`, `80` or `ff` bytes, so the 12-word step 0 seed reads "abandon … about" and the
+24-word one "zoo … vote"), from the Trezor reference vectors in
+`tools/vectors/bip39/vectors.json` (python-mnemonic's `vectors.json`, the
+`english` list, at commit `b57a5ad77a981e743f4167ab2f7927a55c1e82a8` of
+`trezor/python-mnemonic`). Each entropy case records its words as `bip39_words`,
+and `gen.py` stops if they differ from the published ones; at 20 and 28 bytes,
+which the vectors do not list, the words are the vendored python-mnemonic's
+(`tools/reference/bip39/`).
 The case gives each random draw of `docs/AQRV.md` §6: `salt`, then
 `last_byte_fill` (codex32 only), then `padding`. A second run
 writes the same bytes. `gen.py` also reads every case back with a plain reading of

@@ -1,5 +1,5 @@
 //! The samples of Make's first step: the public inputs of the test
-//! vectors (`tools/vectors/aqrv/aqrv.json`, BIP 93), so a code made from
+//! vectors (`tools/vectors/aqrv/aqrv.json`): the entropies BIP 39 publishes, so a code made from
 //! one is a code the vectors' reader opens. They hold no real funds.
 
 use aqrv::Item;
@@ -35,12 +35,12 @@ pub static SAMPLES: [Sample; 7] = [
     Sample {
         name: |s| s.aqrv_sample_words12,
         kind: |s| s.aqrv_type_words12,
-        item: || entropy("4a1961ee49593ede1a397643bbed0c39"),
+        item: || entropy("00000000000000000000000000000000"),
     },
     Sample {
         name: |s| s.aqrv_sample_words24,
         kind: |s| s.aqrv_type_words24,
-        item: || entropy("e352ee2cc2f809ad3da89a0a6f804a02027793af5cd60992bdd2cc45d6fd71cd"),
+        item: || entropy("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
     },
     Sample {
         name: |s| s.aqrv_sample_codex_secret,

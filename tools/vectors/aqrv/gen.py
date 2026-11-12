@@ -29,12 +29,14 @@ import zlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 sys.path.insert(0, os.path.join(ROOT, "tools", "reference", "qrcodegen"))
+sys.path.insert(0, os.path.join(ROOT, "tools", "reference", "bip39"))
 
 from argon2.low_level import Type, hash_secret_raw  # noqa: E402
 from cryptography.hazmat.primitives import hashes  # noqa: E402
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes  # noqa: E402
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # noqa: E402
 from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand  # noqa: E402
+from mnemonic import Mnemonic  # noqa: E402
 from qrcodegen import QrCode, QrSegment  # noqa: E402
 
 # ---------------------------------------------------------------- the format
@@ -217,6 +219,38 @@ def read(env, passphrase):
 
 
 # ------------------------------------------------------------ case building
+
+
+def _bip39_published():
+    """BIP 39's published entropies and words (the Trezor reference vectors, english)."""
+    path = os.path.join(ROOT, "tools", "vectors", "bip39", "vectors.json")
+    return {bytes.fromhex(h): w for h, w, *_ in json.load(open(path))["english"]}
+
+
+_BIP39 = _bip39_published()
+_MNEMONIC = Mnemonic("english")
+
+
+def bip39(byte, ln):
+    """A BIP 39 entropy of ln bytes, all `byte`, with its words. Where the published
+    vectors list it, the words are theirs; at the lengths they do not list (20 and 28
+    bytes) python-mnemonic's, which the published ones agree with at the others."""
+    ent = bytes([byte]) * ln
+    words = _MNEMONIC.to_mnemonic(ent)
+    if ent in _BIP39:
+        assert _BIP39[ent] == words, (byte, ln)
+    else:
+        assert ln in (20, 28), (byte, ln)
+    return ent
+
+
+def words_extra(ent):
+    """What an entropy case records beside its item: the BIP 39 words of the entropy."""
+    return {"bip39_words": _MNEMONIC.to_mnemonic(ent)}
+
+
+# The byte each length's kind case takes (the 24-word one is the step 0 case).
+KIND_BYTE = {0x10: 0x7F, 0x14: 0x00, 0x18: 0x80, 0x1C: 0xFF}
 
 
 def shake(label, n):
@@ -463,9 +497,9 @@ def build():
     for n in (53, 62):
         for step in range(5):
             nm = "step-%d-24w-%d" % (step, n)
-            ent = shake("entropy " + nm, 32)
+            ent = bip39(0xFF, 32)  # "zoo ... vote"
             env = add(valid_case(nm, "step", n, step, PASS, 0x20, ent,
-                                 expect_item={"type": "entropy", "hex": hx(ent)}))
+                                 expect_item={"type": "entropy", "hex": hx(ent)}, extra=words_extra(ent)))
             if step == 0:
                 base[n] = (env, PASS, nm)
 
@@ -475,9 +509,9 @@ def build():
             if kind == 0x20:
                 continue
             nm = "entropy-%dw-%d" % (ln * 3 // 4, n)
-            ent = shake("entropy " + nm, ln)
+            ent = bip39(KIND_BYTE[kind], ln)
             add(valid_case(nm, "kind", n, 0, PASS, kind, ent,
-                           expect_item={"type": "entropy", "hex": hx(ent)}))
+                           expect_item={"type": "entropy", "hex": hx(ent)}, extra=words_extra(ent)))
         nm = "raw-key-%d" % n
         key = shake("key " + nm, 32)
         add(valid_case(nm, "kind", n, 0, PASS, 0x50, key, expect_item={"type": "raw_key", "hex": hx(key)}))
@@ -506,28 +540,29 @@ def build():
     # All-zero and all-one seeds.
     for n, ln, kind in ((53, 16, 0x10), (62, 16, 0x10), (53, 32, 0x20), (62, 32, 0x20)):
         for label, byte in (("zero", 0x00), ("ones", 0xFF)):
-            ent = bytes([byte]) * ln
+            ent = bip39(byte, ln)
             nm = "%s-seed-%dw-%d" % (label, ln * 3 // 4, n)
             add(valid_case(nm, "seed", n, 0, PASS, kind, ent,
-                           expect_item={"type": "entropy", "hex": hx(ent)}))
+                           expect_item={"type": "entropy", "hex": hx(ent)}, extra=words_extra(ent)))
 
     # A passphrase that is not ASCII, in NFC and in NFD: one envelope.
     for n in (53, 62):
-        ent = shake("entropy unicode-%d" % n, 24)
+        ent = bip39(0x80, 24)
         salt = salt_of("unicode-%d" % n)
         envs = []
         for form, pp in (("nfc", UNI), ("nfd", UNI_NFD)):
             nm = "unicode-%s-%d" % (form, n)
             envs.append(add(valid_case(nm, "unicode", n, 0, pp, 0x18, ent,
                                        expect_item={"type": "entropy", "hex": hx(ent)}, salt=salt,
-                                       pad_name="unicode-%d" % n, extra={"passphrase_utf8": hx(pp.encode())})))
+                                       pad_name="unicode-%d" % n,
+                                       extra=dict(words_extra(ent), passphrase_utf8=hx(pp.encode())))))
         assert envs[0] == envs[1]
     # A compatibility character is kept: "fine" and "ﬁne" are two passphrases.
     n = 53
     nm = "unicode-compat-fine-53"
-    ent = shake("entropy " + nm, 16)
+    ent = bip39(0x7F, 16)
     env = add(valid_case(nm, "unicode", n, 0, "fine", 0x10, ent,
-                         expect_item={"type": "entropy", "hex": hx(ent)}))
+                         expect_item={"type": "entropy", "hex": hx(ent)}, extra=words_extra(ent)))
     cases.append(fail_case("unicode-compat-ligature-53", "fail", env, "ﬁne", "does_not_open",
                            "NFC keeps the ligature, so it is a different passphrase from fine",
                            source=nm))
@@ -694,9 +729,9 @@ def build():
     sl = SALT_LEN[n]
     for step in range(5):
         nm = "step-%d-12w-%d" % (step, n)
-        ent = shake("entropy " + nm, 16)
+        ent = bip39(0x00, 16)  # "abandon ... about"
         env = add(valid_case(nm, "step", n, step, PASS, 0x10, ent,
-                             expect_item={"type": "entropy", "hex": hx(ent)}))
+                             expect_item={"type": "entropy", "hex": hx(ent)}, extra=words_extra(ent)))
         if step == 0:
             base[n] = (env, PASS, nm)
     for kind, label, tname in ((0x40, "passphrase", "passphrase"), (0x41, "note", "note")):
@@ -717,17 +752,19 @@ def build():
     add(valid_case(nm, "kind", n, 0, PASS, 0x41, bytes([len(b)]) + b,
                    expect_item={"type": "note", "text": text}, extra={"text_bytes": len(b)}))
     for label, byte in (("zero", 0x00), ("ones", 0xFF)):
-        ent = bytes([byte]) * 16
+        ent = bip39(byte, 16)
         nm = "%s-seed-12w-%d" % (label, n)
-        add(valid_case(nm, "seed", n, 0, PASS, 0x10, ent, expect_item={"type": "entropy", "hex": hx(ent)}))
-    ent = shake("entropy unicode-%d" % n, 16)
+        add(valid_case(nm, "seed", n, 0, PASS, 0x10, ent, expect_item={"type": "entropy", "hex": hx(ent)},
+                       extra=words_extra(ent)))
+    ent = bip39(0x80, 16)
     salt = salt_of("unicode-%d" % n, n)
     envs = []
     for form, pp in (("nfc", UNI), ("nfd", UNI_NFD)):
         nm = "unicode-%s-%d" % (form, n)
         envs.append(add(valid_case(nm, "unicode", n, 0, pp, 0x10, ent,
                                    expect_item={"type": "entropy", "hex": hx(ent)}, salt=salt,
-                                   pad_name="unicode-%d" % n, extra={"passphrase_utf8": hx(pp.encode())})))
+                                   pad_name="unicode-%d" % n,
+                                   extra=dict(words_extra(ent), passphrase_utf8=hx(pp.encode())))))
     assert envs[0] == envs[1]
 
     env, pp, src = base[n]
@@ -817,7 +854,7 @@ def build():
                 "iterations": count_field * 10000, "passphrase": kpass, "plaintext": hx(plain), "check_bytes": 3},
     })
     writer_refuses += [
-        {"size": 32, "kind": "0x20", "item": {"type": "entropy", "hex": hx(shake("entropy refused-24w-32", 32))},
+        {"size": 32, "kind": "0x20", "item": {"type": "entropy", "hex": hx(bip39(0x00, 32))},
          "reason": "24 words of entropy: 32 bytes, over the 16-byte room of the 32-byte size"},
         {"size": 32, "kind": "0x41", "item": {"type": "note", "text": "0123456789abcdef"},
          "reason": "a note of 16 bytes of text: 17 item bytes, over the 16-byte room"},
