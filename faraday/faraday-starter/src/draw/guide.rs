@@ -21,7 +21,7 @@ pub(super) fn page(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
             x,
             y,
             w,
-            Icon::Learn,
+            Icon::Help,
             &page.title,
             "",
             "",
@@ -84,7 +84,7 @@ pub(super) fn sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
                 x,
                 cy,
                 iw,
-                Icon::Learn,
+                Icon::Help,
                 Role::OnSurface,
                 S.starter_row_guide,
             );
@@ -152,7 +152,7 @@ pub(super) fn start_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
                 x,
                 cy,
                 iw,
-                Icon::Learn,
+                Icon::Help,
                 Role::OnSurface,
                 S.starter_row_guide,
             );

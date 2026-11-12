@@ -41,7 +41,7 @@ fn destinations(starter: &Starter) -> [fnav::Dest<'static, Action>; 4] {
             Destination::Tools,
         ),
         one(
-            Icon::Learn.into(),
+            Icon::Help.into(),
             S.starter_row_guide,
             StarterAction::Learn,
             Destination::Guide,
@@ -181,7 +181,7 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
         fnav::icon_action(
             ui,
             right,
-            Icon::Learn,
+            Icon::Help,
             StarterAction::Guide.host(),
             starter.sheet == Some(Sheet::Guide),
             S.starter_row_guide,

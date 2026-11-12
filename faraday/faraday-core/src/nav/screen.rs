@@ -104,7 +104,7 @@ pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
     let (mut top, more) = destinations(app);
     top.extend(more);
     let under = [
-        dest(app, Icon::Learn, EN.sidebar_guide, Action::Guide),
+        dest(app, Icon::Help, EN.sidebar_guide, Action::Guide),
         dest(
             app,
             Icon::Settings,

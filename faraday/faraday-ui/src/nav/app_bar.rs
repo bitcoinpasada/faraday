@@ -8,9 +8,9 @@
 //! and its actions at the right end, each a touch target.
 
 use crate::pal::*;
-use crate::{Glyph, Shape, Ui, W};
+use crate::{Glyph, Shape, Ui};
 use faraday_draw::tokens::{
-    APP_BAR_H, GAP_SMALL, ICON_SMALL, LABEL, LABEL_M, MARGIN_COMPACT, MODE_PILL_HEIGHT, NAV_ICON,
+    APP_BAR_H, GAP_SMALL, LABEL_M, MARGIN_COMPACT, MODE_PILL_HEIGHT, NAV_ICON,
     TITLE_L, TITLE_M, TITLE_S, TOUCH, TypeRole,
 };
 use faraday_draw::widgets::Icon;
@@ -239,37 +239,17 @@ pub fn icon_action<A: Copy + PartialEq>(
     x
 }
 
-/// The ? that opens what explains the page, its right edge at `right`,
-/// named `label` by its tooltip. Returns where the next action ends.
+/// The help button that opens what explains the page, its right edge at
+/// `right`, named `label` by its tooltip: Material's standard icon
+/// button with the `help` symbol, [`Icon::Help`]. Returns where the next
+/// action ends.
 pub fn help<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     right: f32,
     action: A,
     label: &'static str,
 ) -> f32 {
-    let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
-    let d = ICON_SMALL + GAP_SMALL * 2.0;
-    let (cx, cy) = (x + (TOUCH - d) / 2.0, y + (TOUCH - d) / 2.0);
-    let round = (cx, cy, d, d, d / 2.0);
-    ui.press_to(
-        Shape::new(round.0, round.1, round.2, round.3, round.4),
-        (x, y, TOUCH, TOUCH),
-        Role::OnSurfaceVariant.paint(),
-        action,
-    );
-    ui.stroke(cx, cy, d, d, d / 2.0, Role::Outline);
-    let tw = ui.measure(LABEL, W::S, "?");
-    ui.text_mid(
-        cx + (d - tw) / 2.0,
-        cy,
-        d,
-        LABEL,
-        W::S,
-        Role::OnSurfaceVariant,
-        "?",
-    );
-    ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
-    x
+    icon_action(ui, right, Icon::Help, action, false, label)
 }
 
 /// The ⋮ that opens the page's menu, its right edge at `right`, named

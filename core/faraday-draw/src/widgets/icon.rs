@@ -26,8 +26,8 @@ pub enum Icon {
     Verify,
     /// The key explorer.
     Explore,
-    /// The Learn section.
-    Learn,
+    /// The guide: its button, rail entry and menu row.
+    Help,
     /// Settings.
     Settings,
     /// Tools.
@@ -172,7 +172,7 @@ impl Icon {
         Icon::Sign,
         Icon::Verify,
         Icon::Explore,
-        Icon::Learn,
+        Icon::Help,
         Icon::Settings,
         Icon::Tools,
         Icon::Back,
@@ -269,7 +269,7 @@ impl Icon {
             Icon::Download => '\u{f019}',
             Icon::Lock => '\u{f023}',
             Icon::Flag => '\u{f024}',
-            Icon::Learn => '\u{f02d}',
+            Icon::Help => '\u{f059}',
             Icon::List => '\u{f03a}',
             Icon::Compress => '\u{f066}',
             Icon::Eye => '\u{f06e}',
@@ -317,7 +317,7 @@ impl Icon {
             Icon::Sign => "Sign",
             Icon::Verify => "Verify",
             Icon::Explore => "Explore",
-            Icon::Learn => "Learn",
+            Icon::Help => "Help",
             Icon::Settings => "Settings",
             Icon::Tools => "Tools",
             Icon::Back => "Back",

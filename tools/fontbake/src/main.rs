@@ -133,8 +133,8 @@ const ICONS: &[u32] = &[
     0xF019, // download
     0xF023, // lock
     0xF024, // flag
-    0xF02D, // book
     0xF03A, // list
+    0xF059, // circle-question
     0xF066, // compress
     0xF067, // plus
     0xF068, // minus

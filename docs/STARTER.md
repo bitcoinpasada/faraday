@@ -573,7 +573,7 @@ under it:
 | **Home** | `Icon::House`, as Faraday's own rail | §3.1 |
 | **Make** | `Glyph::Stick` | two cards: **Faraday stick** (the attached stick's version, or "No Faraday stick attached"; **Make a Faraday stick**, §3.2) and **Pi card** (the Pi image's version, or "Not in this Starter"; **Make a Pi card**, §3.3, disabled without the image) |
 | **Tools** | `Icon::Qr` | two cards: **Transfer** (Send files and text, Receive, §3.6) and **Blank templates** (§3.8) |
-| **Guide** | `Icon::Learn` (the `help` symbol once faraday-ui has it) | the Starter's guide pages, then the start guides under their heading (§3.6, §7) |
+| **Guide** | `Icon::Help` (the `help` symbol) | the Starter's guide pages, then the start guides under their heading (§3.6, §7) |
 
 On each destination its first card's button is the primary; on Make,
 **Make a Faraday stick** is primary until a stick is attached, then

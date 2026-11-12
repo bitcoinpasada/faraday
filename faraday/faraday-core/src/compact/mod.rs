@@ -1061,7 +1061,7 @@ fn tiles(app: &View) -> Vec<Tile> {
             true,
         ),
         (
-            Icon::Learn.into(),
+            Icon::Help.into(),
             EN.compact_guide,
             String::new(),
             Action::Guide,

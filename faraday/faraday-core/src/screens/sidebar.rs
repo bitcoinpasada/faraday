@@ -129,7 +129,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             row(
                 ui,
                 y,
-                Glyph::Icon(Icon::Learn),
+                Glyph::Icon(Icon::Help),
                 EN.sidebar_guide,
                 app.sheet == Some(Sheet::Guide) || app.guide_pane_shown(),
                 Action::Guide,

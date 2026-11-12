@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F247); mostly built: the renames, the guide's pages, the keys and their lookup, the sheet and pane, the Guide button and the Starter's guide destination
-**Open:** the contents list (§4.3: the guide's index page, the **Contents** button and **Here**; their strings exist, nothing draws them), and the Guide button's `help` symbol (it still draws the book icon, `Icon::Learn`)
+**Open:** nothing; the Spec becomes a Reference once the guide sheet's late-flow timing is done.
 
 Learn is replaced by the guide. Wherever the person is (a flow and its
 step, a screen and its part), the guide button opens the guide at the
@@ -187,8 +187,9 @@ Checked against Material 3's pages on m3.material.io:
 
 The ? of today, renamed. **Guide** is its name: its tooltip and its ⋮
 row read "Guide" (`tip_learn` and `bar_menu_learn` become the guide's
-keys). It is Material's standard icon button with the `help` symbol, in
-a 48 dp target (44 dp on the Pi's panel, F188), with no selected state.
+keys). It is Material's standard icon button with the `help` symbol
+(`Icon::Help`, drawn as Font Awesome's circle-question, the icon face's form
+of Material's `help`), in a 48 dp target (44 dp on the Pi's panel, F188), with no selected state.
 It stands on every page that has a place in the guide (§1.2: every
 page, once every place has its page; a place still to write opens the
 contents), and on every step of a flow.
@@ -204,7 +205,7 @@ contents), and on every step of a flow.
 The rail's and the menu's **Guide** opens the guide exactly as the bar's
 button does, at the place's section: the destination Learn becomes this
 entry and is no destination of its own (it keeps its place in the rail
-and Home's menu). Its icon is `help`, in place of `Icon::Learn`.
+and Home's menu). Its icon is `Icon::Help`, in place of the book.
 
 The steps' rows of the stick's 1024 × 600 panel are being laid out
 again elsewhere, and the Guided walk-through's "Learn: …" link they
