@@ -1,7 +1,7 @@
 # Argon QR Vault (AQRV)
 
 **Kind:** Spec
-**Status:** Draft for outside review. Own specification, not yet reviewed outside Faraday; the only code is the test vectors' two scripts, and nothing is compiled into any app (`docs/STANDARDS.md` §0)
+**Status:** Draft for outside review. Own specification, not yet reviewed outside Faraday; its code is the test vectors' two scripts and a Rust reference implementation by Faraday's authors in `aqrv/` (library, command line, desktop test app), and nothing is compiled into any app (`docs/STANDARDS.md` §0)
 **Open:** a KEF envelope from Krux's own tests among the vectors (§11), an outside second implementation, an outside cryptographic review of the construction and its 4-byte and 8-byte tags (§13), public comment, and whether Faraday ever offers it
 
 The Argon QR Vault (AQRV) is a proposed open format for one small secret
@@ -9,6 +9,13 @@ encrypted under a passphrase with Argon2id, small enough for a 29 × 29 QR
 code, and a 12-word seed for a 25 × 25 one. The name says it uses Argon2id and
 is a vault in a QR code. It was first called the Argon2id Compact Envelope
 (ACE), an earlier working name.
+
+The reference implementation, a desktop test app and a command line for
+Linux and Windows on x86-64, is downloaded from
+[faradayoffline.app/aqrv](https://faradayoffline.app/aqrv/#try) or from its
+[GitHub release](https://github.com/bitcoinpasada/faraday/releases/tag/aqrv-test-1),
+with `SHA256SUMS`. It is a test release, written by Faraday's authors and not
+an outside implementation (§11): use it with test data only.
 
 Krux's KEF (§14) does the same job with PBKDF2-HMAC-SHA-256 on
 microcontrollers, whose few megabytes of memory leave no room for a
