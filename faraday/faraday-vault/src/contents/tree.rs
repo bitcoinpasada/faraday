@@ -8,16 +8,17 @@
 //! what is read is 1.0.0: a line break or a trailing comma in an inline
 //! table, and the `\x` and `\e` escapes of a basic string.
 //!
-//! Every string value is kept in a buffer that is wiped when it drops.
+//! Every string value and every key is kept in a buffer that is wiped when
+//! it drops.
 
 use alloc::borrow::Cow;
-use alloc::string::String;
 use alloc::vec::Vec;
 
+use faraday_intake::secret_buf::SecretText;
 use toml_parser::decoder::{Encoding, ScalarKind};
 use toml_parser::parser::{EventReceiver, RecursionGuard, parse_document};
 use toml_parser::{ErrorSink, ParseError, Raw, Source, Span};
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 /// The deepest nesting of arrays and inline tables read.
 const MAX_DEPTH: u32 = 16;
@@ -40,7 +41,7 @@ const MAX_KEYS: usize = 64;
 /// One TOML value.
 pub(super) enum Val {
     /// A string.
-    Str(Zeroizing<String>),
+    Str(SecretText),
     /// An integer.
     Int(i64),
     /// A boolean, which no key of the vault takes.
@@ -53,6 +54,26 @@ pub(super) enum Val {
     Array(Arr),
     /// A table.
     Table(Table),
+}
+
+/// A key of a table, in a buffer that is wiped when it drops.
+#[derive(Clone)]
+pub(super) struct Name(Zeroizing<Vec<u8>>);
+
+impl Name {
+    fn of(text: &str) -> Name {
+        Name(Zeroizing::new(text.as_bytes().to_vec()))
+    }
+
+    /// Whether the key is `key`.
+    pub fn is(&self, key: &str) -> bool {
+        self.0.as_slice() == key.as_bytes()
+    }
+
+    /// The key as text: it was read from text, so it always is.
+    pub fn text(&self) -> &str {
+        core::str::from_utf8(&self.0).unwrap_or("")
+    }
 }
 
 /// An array: written as one (`[…]`) or built by `[[…]]` headers.
@@ -76,7 +97,7 @@ enum How {
 
 /// A table: its keys in the order written.
 pub(super) struct Table {
-    pub entries: Vec<(String, Val)>,
+    pub entries: Vec<(Name, Val)>,
     how: How,
 }
 
@@ -93,7 +114,7 @@ impl Table {
     }
 
     fn at(&self, key: &str) -> Option<usize> {
-        self.entries.iter().position(|(k, _)| k == key)
+        self.entries.iter().position(|(k, _)| k.is(key))
     }
 
     /// The value under `key`, taken out of the table.
@@ -104,11 +125,11 @@ impl Table {
 
     /// Adds `val` under the dotted `keys`; `Err` where a key is already
     /// there or a table on the way is not one a dotted key may extend.
-    fn insert(&mut self, keys: &[String], val: Val) -> Result<(), ()> {
+    fn insert(&mut self, keys: &[Name], val: Val) -> Result<(), ()> {
         let (last, via) = keys.split_last().ok_or(())?;
         let mut t = self;
         for k in via {
-            let i = match t.at(k) {
+            let i = match t.at(k.text()) {
                 Some(i) => i,
                 None => {
                     if t.full() {
@@ -124,7 +145,7 @@ impl Table {
                 _ => return Err(()),
             }
         }
-        if t.at(last).is_some() || t.full() {
+        if t.at(last.text()).is_some() || t.full() {
             return Err(());
         }
         t.entries.push((last.clone(), val));
@@ -134,10 +155,10 @@ impl Table {
 
 /// The table `path` names under `root`, going into the last table of an
 /// array of tables.
-fn walk<'a>(root: &'a mut Table, path: &[String]) -> Option<&'a mut Table> {
+fn walk<'a>(root: &'a mut Table, path: &[Name]) -> Option<&'a mut Table> {
     let mut t = root;
     for k in path {
-        let i = t.at(k)?;
+        let i = t.at(k.text())?;
         t = match &mut t.entries[i].1 {
             Val::Table(next) => next,
             Val::Array(a) if a.of_headers => match a.items.last_mut()? {
@@ -155,7 +176,7 @@ enum Open {
     Array(Vec<Val>),
     Inline {
         table: Table,
-        keys: Vec<String>,
+        keys: Vec<Name>,
         done: bool,
         comma: bool,
     },
@@ -165,9 +186,9 @@ struct Builder<'i> {
     input: &'i str,
     root: Table,
     /// The table the current `[header]` opened.
-    path: Vec<String>,
+    path: Vec<Name>,
     /// The key (or header) being read at the top level.
-    keys: Vec<String>,
+    keys: Vec<Name>,
     done: bool,
     open: Vec<Open>,
     /// The offset of the first thing refused.
@@ -183,7 +204,7 @@ impl Builder<'_> {
         Raw::new_unchecked(&self.input[span.start()..span.end()], enc, span)
     }
 
-    fn key_text(&mut self, span: Span, enc: Option<Encoding>) -> Option<String> {
+    fn key_text(&mut self, span: Span, enc: Option<Encoding>) -> Option<Name> {
         let mut out: Cow<str> = Cow::Borrowed("");
         let mut err: Option<ParseError> = None;
         if matches!(enc, Some(Encoding::BasicString))
@@ -193,15 +214,12 @@ impl Builder<'_> {
             return None;
         }
         self.raw(span, enc).decode_key(&mut out, &mut err);
-        if err.is_some() {
+        let name = (err.is_none() && out.len() <= MAX_KEY_LEN).then(|| Name::of(&out));
+        wipe(&mut out);
+        if name.is_none() {
             self.refuse(span.start());
-            return None;
         }
-        if out.len() > MAX_KEY_LEN {
-            self.refuse(span.start());
-            return None;
-        }
-        Some(out.into_owned())
+        name
     }
 
     fn scalar_val(&mut self, span: Span, enc: Option<Encoding>) -> Option<Val> {
@@ -215,30 +233,33 @@ impl Builder<'_> {
         let mut err: Option<ParseError> = None;
         let kind = self.raw(span, enc).decode_scalar(&mut out, &mut err);
         if err.is_some() {
+            wipe(&mut out);
             self.refuse(span.start());
             return None;
         }
-        Some(match kind {
-            ScalarKind::String => {
-                // An owned string came from escapes and is wiped on drop;
-                // a borrowed one is copied into a wiped buffer.
-                Val::Str(Zeroizing::new(out.into_owned()))
-            }
+        let val = match kind {
             ScalarKind::Boolean(_) => Val::Bool,
             ScalarKind::DateTime => Val::Date,
             ScalarKind::Float => Val::Float,
             ScalarKind::Integer(radix) => match int_of(&out, radix) {
                 Some(n) => Val::Int(n),
                 None => {
+                    wipe(&mut out);
                     self.refuse(span.start());
                     return None;
                 }
             },
-        })
+            // The one kind left is a string: copied into a wiped buffer.
+            _ => Val::Str(SecretText::of(&out)),
+        };
+        // What the decoder built from escapes is wiped here, not left
+        // behind as it is.
+        wipe(&mut out);
+        Some(val)
     }
 
     /// The key list a key being read goes in.
-    fn keys_mut(&mut self) -> (&mut Vec<String>, &mut bool) {
+    fn keys_mut(&mut self) -> (&mut Vec<Name>, &mut bool) {
         match self.open.last_mut() {
             Some(Open::Inline { keys, done, .. }) => (keys, done),
             _ => (&mut self.keys, &mut self.done),
@@ -285,7 +306,7 @@ impl Builder<'_> {
         };
         let mut t = &mut self.root;
         for k in via {
-            let i = match t.at(k) {
+            let i = match t.at(k.text()) {
                 Some(i) => i,
                 None => {
                     if t.full() {
@@ -312,11 +333,11 @@ impl Builder<'_> {
                 }
             };
         }
-        if t.at(last).is_none() && t.full() {
+        if t.at(last.text()).is_none() && t.full() {
             self.fail.get_or_insert(at);
             return;
         }
-        let ok = match (t.at(last), array) {
+        let ok = match (t.at(last.text()), array) {
             (None, false) => {
                 t.entries
                     .push((last.clone(), Val::Table(Table::new(How::Header))));
@@ -355,6 +376,13 @@ impl Builder<'_> {
     }
 }
 
+/// Wipes what the decoder built, where it built a new buffer.
+fn wipe(text: &mut Cow<str>) {
+    if let Cow::Owned(s) = text {
+        s.zeroize();
+    }
+}
+
 /// Whether a basic string's text holds `\x` or `\e`, which TOML 1.1 added.
 fn has_1_1_escape(raw: &str) -> bool {
     let mut chars = raw.chars();
@@ -380,8 +408,19 @@ fn int_of(text: &str, radix: toml_parser::decoder::IntegerRadix) -> Option<i64> 
         IntegerRadix::Oct => (8, digits.strip_prefix("0o").unwrap_or(digits)),
         IntegerRadix::Bin => (2, digits.strip_prefix("0b").unwrap_or(digits)),
     };
-    let clean: String = digits.chars().filter(|&c| c != '_').collect();
-    let n = i128::from_str_radix(&clean, base).ok()?;
+    // Digits and underscores only: read digit by digit, no copy.
+    let mut n: i128 = 0;
+    let mut any = false;
+    for c in digits.chars().filter(|&c| c != '_') {
+        let d = c.to_digit(base)?;
+        n = n
+            .checked_mul(i128::from(base))?
+            .checked_add(i128::from(d))?;
+        any = true;
+    }
+    if !any {
+        return None;
+    }
     i64::try_from(if neg { -n } else { n }).ok()
 }
 

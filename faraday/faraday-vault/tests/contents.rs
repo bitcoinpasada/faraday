@@ -255,7 +255,7 @@ fn a_codex32_set_may_be_written_another_way_and_refuses_what_it_does_not_name() 
     );
     assert_eq!(
         refused("{k = 1, id = \"name\", lengths = [48], unknown = 1}"),
-        (Why::BadCodex32, String::new())
+        (Why::BadCodex32, "".into())
     );
     assert_eq!(
         refused(
@@ -268,7 +268,7 @@ fn a_codex32_set_may_be_written_another_way_and_refuses_what_it_does_not_name() 
         refused(
             "{k = 2, id = \"name\", lengths = [48], unknown = 0, shares = [{index = \"a\", state = \"made\"}, {index = \"a\", state = \"lost\"}]}"
         ),
-        (Why::BadCodex32, String::new())
+        (Why::BadCodex32, "".into())
     );
     // A second key after the table, a table that is not one, and text that
     // is not TOML.

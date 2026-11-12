@@ -20,17 +20,18 @@
 //! refusal names the key ([`Refusal`]). Anything not named in §7 is
 //! refused ([`Why::Unknown`]).
 //!
-//! Every string is kept in a buffer that is wiped when it drops; what
-//! `toml_parser` and the parser of words keep is not
+//! Every string is kept in a buffer that is wiped when it drops, and so is
+//! every key of the document; what `toml_parser` keeps is wiped when this
+//! reader is done with it, and what the parser of words keeps is not
 //! (`docs/deps/toml_parser.md`).
 
 mod tree;
 
-use alloc::string::String;
 use alloc::vec::Vec;
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;
+use faraday_intake::secret_buf::SecretText;
 use zeroize::Zeroizing;
 
 use crate::child::ChildOf;
@@ -124,20 +125,81 @@ pub struct Refusal {
     pub why: Why,
     /// The key, as the value or the Spec names it; a key of a table
     /// inside is written `table.key`.
-    pub key: String,
+    pub key: KeyName,
+}
+
+/// The longest key a [`Refusal`] names, in bytes: a prefix, a dot and up
+/// to 64 characters of the key, which is all of it for every key of §7.
+const KEY_NAME_MAX: usize = 80;
+
+/// The name of the key a [`Refusal`] is at, in a fixed buffer: what is
+/// longer than [`KEY_NAME_MAX`] is cut at a character.
+#[derive(Clone, PartialEq, Eq)]
+pub struct KeyName {
+    buf: [u8; KEY_NAME_MAX],
+    len: u8,
+}
+
+impl KeyName {
+    /// `prefix`, a dot where there is a prefix, and the first 64
+    /// characters of `key`, as many as fit.
+    fn of(prefix: &str, key: &str) -> KeyName {
+        let mut name = KeyName {
+            buf: [0; KEY_NAME_MAX],
+            len: 0,
+        };
+        if !prefix.is_empty() {
+            name.push(prefix);
+            name.push(".");
+        }
+        for ch in key.chars().take(64) {
+            let mut b = [0u8; 4];
+            if !name.push(ch.encode_utf8(&mut b)) {
+                break;
+            }
+        }
+        name
+    }
+
+    fn push(&mut self, text: &str) -> bool {
+        let at = usize::from(self.len);
+        let Some(room) = self.buf.get_mut(at..at + text.len()) else {
+            return false;
+        };
+        room.copy_from_slice(text.as_bytes());
+        self.len += text.len() as u8;
+        true
+    }
+
+    /// The name.
+    pub fn as_str(&self) -> &str {
+        core::str::from_utf8(&self.buf[..usize::from(self.len)]).unwrap_or("")
+    }
+}
+
+impl From<&str> for KeyName {
+    fn from(key: &str) -> KeyName {
+        KeyName::of("", key)
+    }
+}
+
+impl core::fmt::Debug for KeyName {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        core::fmt::Debug::fmt(self.as_str(), f)
+    }
 }
 
 fn refuse(why: Why) -> Refusal {
     Refusal {
         why,
-        key: String::new(),
+        key: KeyName::from(""),
     }
 }
 
 fn at(key: &str, why: Why) -> Refusal {
     Refusal {
         why,
-        key: key.into(),
+        key: KeyName::from(key),
     }
 }
 
@@ -199,8 +261,17 @@ impl Out {
         self.raw(&buf[i..]);
     }
 
+    /// `bytes` as lower-case hex, written straight into the document's
+    /// reserved buffer, so no other copy is made.
     fn hex(&mut self, bytes: &[u8]) {
-        self.raw(faraday_crypto::hex::encode_secret(bytes).as_bytes());
+        if self.bytes.len() + 2 * bytes.len() > self.limit {
+            self.full = true;
+            return;
+        }
+        for &b in bytes {
+            self.bytes.push(nibble(b >> 4));
+            self.bytes.push(nibble(b & 15));
+        }
     }
 
     /// A basic string: `"` and `\` escaped, control characters as escapes
@@ -263,6 +334,13 @@ impl Out {
     }
 }
 
+/// The lower-case hex digit of `n` (0 to 15), with no branch and no table
+/// indexed by it: 39 is added for the digits past 9, as the high bit of
+/// `9 - n` says.
+fn nibble(n: u8) -> u8 {
+    b'0' + n + 39 * (9u8.wrapping_sub(n) >> 7)
+}
+
 fn text_of(r: &Record, n: u8) -> &str {
     r.text(n).unwrap_or("")
 }
@@ -289,20 +367,17 @@ struct Item {
 
 impl Item {
     fn err(&self, why: Why, key: &str) -> Refusal {
-        let mut k = String::new();
-        if !self.prefix.is_empty() {
-            k.push_str(self.prefix);
-            k.push('.');
+        Refusal {
+            why,
+            key: KeyName::of(self.prefix, key),
         }
-        k.extend(key.chars().take(64));
-        Refusal { why, key: k }
     }
 
     fn val(&mut self, key: &str) -> Option<Val> {
         self.t.take(key)
     }
 
-    fn str(&mut self, key: &str) -> Result<Option<Zeroizing<String>>, Refusal> {
+    fn str(&mut self, key: &str) -> Result<Option<SecretText>, Refusal> {
         match self.val(key) {
             None => Ok(None),
             Some(Val::Str(s)) => Ok(Some(s)),
@@ -310,7 +385,7 @@ impl Item {
         }
     }
 
-    fn need_str(&mut self, key: &str) -> Result<Zeroizing<String>, Refusal> {
+    fn need_str(&mut self, key: &str) -> Result<SecretText, Refusal> {
         self.str(key)?.ok_or_else(|| self.err(Why::Missing, key))
     }
 
@@ -342,7 +417,7 @@ impl Item {
         }
     }
 
-    fn strs(&mut self, key: &str) -> Result<Vec<Zeroizing<String>>, Refusal> {
+    fn strs(&mut self, key: &str) -> Result<Vec<SecretText>, Refusal> {
         let Some(a) = self.array(key)? else {
             return Ok(Vec::new());
         };
@@ -357,7 +432,7 @@ impl Item {
 
     fn finish(self) -> Result<(), Refusal> {
         match self.t.entries.first() {
-            Some((k, _)) => Err(self.err(Why::Unknown, k)),
+            Some((k, _)) => Err(self.err(Why::Unknown, k.text())),
             None => Ok(()),
         }
     }
@@ -456,7 +531,7 @@ pub fn read_qr(c: &Compute, bytes: &[u8]) -> Result<Record, Refusal> {
         return Err(refuse(Why::NotQr));
     }
     let root = parse_tree(bytes, QR_LEN)?;
-    let has = |k: &str| root.entries.iter().any(|(n, _)| n == k);
+    let has = |k: &str| root.entries.iter().any(|(n, _)| n.is(k));
     if root.entries.is_empty() {
         return Ok(Record::new(kind::NOTE).with(field::NOTE, b""));
     }
@@ -472,9 +547,9 @@ pub fn read_qr(c: &Compute, bytes: &[u8]) -> Result<Record, Refusal> {
     if let Some((n, _)) = root
         .entries
         .iter()
-        .find(|(n, _)| !allowed.contains(&n.as_str()))
+        .find(|(n, _)| !allowed.contains(&n.text()))
     {
-        return Err(at(&n.chars().take(64).collect::<String>(), Why::Unknown));
+        return Err(at(n.text(), Why::Unknown));
     }
     let key = if has("words") {
         "words"
@@ -586,7 +661,7 @@ pub fn read_plan(bytes: &[u8]) -> Result<Record, Refusal> {
     rec.push(field::PLAN_WALLET, it.need_str("wallet")?.as_bytes());
     let answers = it.strs("answers")?;
     if !answers.is_empty() {
-        let mut joined: Zeroizing<String> = Zeroizing::new(String::new());
+        let mut joined = SecretText::new();
         for (i, a) in answers.iter().enumerate() {
             if a.contains('\n') {
                 return Err(it.err(Why::BadValue, "answers"));
@@ -777,7 +852,7 @@ fn value_table(bytes: &[u8], max: usize) -> Result<Item, Refusal> {
         return Err(refuse(Why::TooLong));
     }
     let text = core::str::from_utf8(bytes).map_err(|_| refuse(Why::NotUtf8))?;
-    let mut doc: Zeroizing<String> = Zeroizing::new(String::with_capacity(text.len() + 4));
+    let mut doc = SecretText::new();
     doc.push_str("v = ");
     doc.push_str(text);
     let mut root = tree::parse(&doc).map_err(|line| refuse(Why::Syntax(line)))?;

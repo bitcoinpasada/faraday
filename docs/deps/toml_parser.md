@@ -22,9 +22,11 @@ and a year of four digits. It is checked against toml-test's TOML v1.0.0
 cases (`tools/vectors/toml/`).
 
 **Secrets.** The parser decodes a string into a `Cow<str>`: borrowed from the
-text where it has no escape, owned where it has. `contents` moves each into
-a buffer that is wiped when it drops. Not wiped: the owned buffer of a string
-with escapes, while it grows (a reallocation leaves the old copy), the token
+text where it has no escape, owned where it has. `contents` copies each into
+a buffer that is wiped when it drops (a key into a wiped byte buffer, a string
+into wiped text) and wipes the owned buffer the parser built. Not wiped: that
+owned buffer of a string with escapes, while the parser grows it (a
+reallocation leaves the old copy), the token
 list and the events (spans only, no text), and the error value (a description
 and spans, no text). The plaintext the parser reads is the caller's, wiped by
 the caller. Wiping these is later work under the Security scope
