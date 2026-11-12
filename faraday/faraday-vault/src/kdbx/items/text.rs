@@ -32,6 +32,10 @@ pub(super) fn title_of(e: &Entry) -> String {
 }
 
 /// `faraday.plan.{n}`.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a number made into text: no secret in it"
+)]
 pub(super) fn plan_key(n: u32) -> String {
     let mut key = String::from(super::PLAN);
     key.push_str(&n.to_string());
@@ -71,6 +75,10 @@ pub(super) fn nonces_value<'a>(entries: impl Iterator<Item = &'a [u8]>) -> Strin
 }
 
 /// A signed amounts value: the inputs' amounts, comma separated.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "an amount made into text: no secret in it"
+)]
 pub(super) fn signed_value(amounts: impl Iterator<Item = u64>) -> String {
     let mut value = String::new();
     for a in amounts {
@@ -83,12 +91,17 @@ pub(super) fn signed_value(amounts: impl Iterator<Item = u64>) -> String {
 }
 
 /// A number as text.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a number made into text: no secret in it"
+)]
 pub(super) fn number(n: u64) -> String {
     n.to_string()
 }
 
 /// What `faraday.format` says.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum Format {
     /// `1`: a vault Faraday made.
     Faraday,
@@ -132,6 +145,7 @@ pub enum Fault {
 
 /// Where an item is damaged: the field or the key, and the fault.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Damage {
     /// The field (`Password`) or custom data key (`faraday.child`); for the
     /// database's custom data, the key.
@@ -150,6 +164,7 @@ pub(super) fn damage(at: &str, fault: Fault) -> Damage {
 /// An item or a key that does not read. It is never a record, and its entry
 /// or key is written back unchanged.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Unreadable {
     /// The entry's title, or the database key.
     pub title: String,
@@ -176,6 +191,7 @@ pub struct GpgKey {
 /// A field of a person's entry beyond the six Faraday reads: kept in the
 /// document, shown on the entry's page.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Extra {
     /// The field's key.
     pub name: String,
@@ -333,6 +349,7 @@ pub struct Read {
 
 /// Why an open vault is not changed or sealed.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum ReadOnly {
     /// `faraday.format` states a format newer than this build writes (the
     /// value as read).
@@ -376,6 +393,10 @@ pub fn utc_time(unix: u64) -> Option<String> {
 impl Read {
     /// Why the vault may not be changed, if it may not
     /// ([`Read::read_only`]): an ambiguous `Meta` before a newer format.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a file format version number: no secret in it"
+    )]
     pub fn why_read_only(&self) -> Option<ReadOnly> {
         if let Some(why) = self.meta_ambiguous {
             return Some(ReadOnly::Ambiguous(why));

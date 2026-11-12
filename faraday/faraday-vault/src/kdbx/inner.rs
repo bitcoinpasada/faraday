@@ -25,11 +25,15 @@ const STREAM_CHACHA20: u32 = 3;
 /// Salsa20, KeePass 2's older inner stream; named and refused.
 const STREAM_SALSA20: u32 = 2;
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// A range of one wiping buffer that several holders share without copying
 /// it (F206 point 6): the decrypted body an opened file read, of which
 /// each attachment is a range. The XML document is in a buffer of its own,
 /// wiped and freed once it is parsed.
-#[derive(Clone)]
 pub struct Shared {
     buf: Arc<Zeroizing<Vec<u8>>>,
     start: usize,
@@ -48,6 +52,10 @@ impl Shared {
     }
 
     /// Bytes `start..end` of the same buffer, if they lie inside this one.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a second handle on the same buffer, not a second copy of it"
+    )]
     pub(super) fn range(&self, start: usize, end: usize) -> Option<Self> {
         let (from, to) = (self.start.checked_add(start)?, self.start.checked_add(end)?);
         (start <= end && to <= self.end).then(|| Self {
@@ -86,9 +94,13 @@ impl From<Zeroizing<Vec<u8>>> for Shared {
     }
 }
 
+#[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 /// An attachment: a binary of the inner header, which entries refer to by
 /// its position. Its bytes are a range of the body the file was read into.
-#[derive(Clone)]
 pub struct Binary {
     /// Whether the file marks it for memory protection.
     pub protected: bool,

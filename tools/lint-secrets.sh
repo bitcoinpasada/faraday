@@ -222,7 +222,9 @@ rule2_types() {
             }
             collecting { pend = pend " " $0; if ($0 ~ /\)\]/) collecting = 0; next }
             /^[[:space:]]*#\[derive\(/ { pend = $0; pline = FNR; if ($0 !~ /\)\]/) collecting = 1; next }
-            pend != "" && /^[[:space:]]*(#\[|\/\/)/ { next }
+            pend != "" && inattr { if ($0 ~ /\][[:space:]]*$/) inattr = 0; next }
+            pend != "" && /^[[:space:]]*#\[/ { if ($0 !~ /\][[:space:]]*$/) inattr = 1; next }
+            pend != "" && /^[[:space:]]*\/\// { next }
             /^[[:space:]]*impl(<[^>]*>)?[[:space:]]+([A-Za-z_:]*::)?Display[[:space:]]+for[[:space:]]+[A-Za-z_]/ {
                 l = $0; sub(/^.*Display[[:space:]]+for[[:space:]]+/, "", l); sub(/[^A-Za-z0-9_].*$/, "", l)
                 disp[l] = FNR

@@ -2,6 +2,7 @@
 //! §7.1): files pykeepass wrote (`tools/vectors/kdbx/`), the KeePass
 //! export's vector read and written again byte for byte, a file sealed
 //! here opening here, and each way a file is refused.
+#![allow(clippy::disallowed_methods)]
 
 use std::cell::Cell;
 use std::path::PathBuf;

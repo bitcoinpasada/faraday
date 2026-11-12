@@ -14,6 +14,11 @@
 //! `no_std` + `alloc`.
 
 #![no_std]
+// clippy.toml has the refusal of a copy, text or second buffer of a secret
+// (docs/SECRET-LEAKS.md §6); it is on for the whole crate outside tests. A
+// legitimate use carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
+#![cfg_attr(test, allow(clippy::disallowed_methods))]
 
 extern crate alloc;
 

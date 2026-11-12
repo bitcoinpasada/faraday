@@ -3,6 +3,7 @@
 //! key, and anything else (another key's packets, a passphrase on the key,
 //! a changed byte, an added packet, a block that is not a secret key)
 //! does not read.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_pgp::{Armor, Hash, Key, armor, armor_secret, read_secret, read_secret_at};
 

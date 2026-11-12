@@ -143,7 +143,10 @@ shows it. Beside that, `faraday/clippy.toml` disallows
 `Compute::unchecked` outright and `Compute::new` except under
 `#[expect(clippy::disallowed_methods, reason = "a mint: …")]` at the sites
 above (clippy reads the nearest `clippy.toml` above each manifest, so this
-governs every crate under `faraday/` and no other); and the costs lint
+governs every crate under `faraday/` that has none of its own; `faraday-keys`,
+`faraday-vault`, `faraday-pgp` and `faraday-kef` each have one that repeats every
+entry of `faraday/clippy.toml` and adds the refusals of `docs/SECRET-LEAKS.md` §6,
+and a change to an entry is made in all five); and the costs lint
 rejects `unchecked` under `faraday/`, a mint outside its list,
 and the `unchecked` feature in any `faraday/**/Cargo.toml`. `faraday/fuzz/`,
 a workspace of its own with no app guarantee, is exempt from both:
@@ -233,10 +236,10 @@ only by `#[expect]` at §3's sites), `Compute::unchecked`,
 `disallowed-types`: `miniscript::Descriptor` (`testkit.rs` and `examples/`
 under `#[expect]`). Hashing engines are not listed (risk 5). Paths
 resolve through the `faraday_bip::bitcoin`/`miniscript` re-exports.
-`faraday/faraday-keys/clippy.toml` repeats these entries for that crate,
-beside its refusal of copies; the crate turns `disallowed-methods` on in
-every source file outside test code, so in its tests only the costs lint
-holds.
+The `clippy.toml` of `faraday-keys`, `faraday-vault`, `faraday-pgp` and
+`faraday-kef` repeats these entries beside its refusal of copies; each of those
+crates turns `disallowed-methods` on in every source file outside test code, so
+in their tests only the costs lint holds the mints.
 
 A path that names nothing (mistyped, or moved in a dependency) does not
 fail `-D warnings`: clippy prints a warning about its configuration and

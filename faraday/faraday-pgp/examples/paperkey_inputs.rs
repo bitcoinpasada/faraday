@@ -9,6 +9,7 @@
 //! The key is `tests/paperkey.rs`'s: fixed seeds with leading zero bytes
 //! (a shorter secret MPI), made at 1,780,000,000 with one user ID and a
 //! two-year term. It guards nothing.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_pgp::Key;
 

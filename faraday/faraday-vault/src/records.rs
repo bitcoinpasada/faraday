@@ -330,8 +330,12 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
     })
 }
 
-/// One field of a record. Its bytes are wiped on drop.
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
+/// One field of a record. Its bytes are wiped on drop.
 pub struct Field {
     /// The field's number.
     pub number: u8,
@@ -347,6 +351,10 @@ impl core::fmt::Debug for Field {
 
 /// One record of a vault.
 #[derive(Clone, Debug)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 pub struct Record {
     /// Its type (`kind`).
     pub kind: u8,

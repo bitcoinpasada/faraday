@@ -5,6 +5,7 @@
 //! (`docs/VAULT.md` §10). The file vectors are skipped, and it is said, where
 //! Python or pykeepass is missing; a missing Python or `sq` fails the QR tests
 //! (DEVELOPING.md).
+#![allow(clippy::disallowed_methods)]
 
 #[path = "../examples/vectors.rs"]
 mod vectors;

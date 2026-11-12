@@ -641,6 +641,10 @@ type Walked<'a> = Vec<(Path, Marks, &'a Entry)>;
 /// `names` are the groups from the root down to `g`, each stored once; the
 /// entries of `g` share one [`Path`] made from them (at most `MAX_DEPTH`
 /// pointers), so a group name is never copied per entry.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a second handle on a group path's name, not a second copy of it"
+)]
 fn walk<'a>(g: &'a Group, names: &mut Vec<Arc<str>>, marked: Marks, out: &mut Walked<'a>) {
     let marked = Marks {
         same_uuid: marked.same_uuid || g.duplicate_uuid(),

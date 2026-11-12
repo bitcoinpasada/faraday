@@ -22,6 +22,7 @@
 //! part of the SKESK v4 and SEIPD v1 file is filler: it has the packets
 //! GnuPG writes and is refused before anything is decrypted.
 #![allow(dead_code)]
+#![allow(clippy::disallowed_methods)]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;

@@ -18,6 +18,7 @@ use crate::{child, codex32, contents};
 
 /// Why a change was not applied.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum Unwritable {
     /// The vault is read-only: its format is not one this build writes, or
     /// its `Meta` or database custom data cannot be told apart from what it

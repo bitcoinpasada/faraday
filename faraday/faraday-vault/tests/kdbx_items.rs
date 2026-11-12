@@ -5,6 +5,7 @@
 //! back as it was; pykeepass's file opens with its entry; a person's
 //! entry keeps the fields Faraday does not read; an item moved to another
 //! group keeps its kind.
+#![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

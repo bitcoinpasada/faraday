@@ -3,6 +3,7 @@
 //! three TOML values a file vault keeps in KDBX custom data (a backup
 //! plan, a seed's codex32 facts and its BIP-85 facts) written, read back
 //! and refused as §7 says.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;

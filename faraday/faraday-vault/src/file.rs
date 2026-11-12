@@ -77,6 +77,7 @@ pub fn file_len(size: usize) -> usize {
 
 /// What a file's clear header and length state, with no work.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Facts {
     /// The version, cipher, compression, key derivation, cost and public
     /// custom data.
@@ -106,6 +107,7 @@ impl Facts {
 
 /// Why a file could not be opened, sealed or made.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum Error {
     /// The container: not KDBX, a version or setting not taken, a wrong
     /// passphrase, damage (§7.1).
@@ -381,6 +383,10 @@ pub fn open_with(
 /// Costs a document write for each item changed and a copy of the
 /// document: `doc` with `changes` applied, in order, and the vault's own
 /// values stamped for the next seal at `now`.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the document is copied into wiping buffers, as the one it came from"
+)]
 fn applied(
     c: &Compute,
     doc: &Document,
@@ -554,6 +560,10 @@ impl Opened {
     /// no copy of it: what [`Opened::used`] gives for no change, or more
     /// by the attachments no entry refers to, the vault's own values stamped
     /// in place and put back as they were.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the vault's custom data is copied into wiping buffers"
+    )]
     pub fn base_used(&mut self) -> Result<usize, Error> {
         let saved = self.doc.custom().clone();
         let time = items::utc_time(0);
