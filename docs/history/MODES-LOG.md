@@ -292,3 +292,61 @@ Owner, 2026-10-22, after M6.
 §9. In the website's repository; its HANDOFF.md is the contract. The
 web shell sets `Faraday::online`, so §4's line shows at every
 secret-typing step there too.
+
+## 9. The website, in its repository
+
+The website is pinned to an older Faraday; it
+moves the pin to the current commit by the procedure its HANDOFF.md
+gives, and makes the changes below there. Faraday's repository holds
+nothing of it.
+
+- `web/Cargo.toml`: faraday-core without `testkit`; faraday-samples
+  added.
+- `web/src/lib.rs` (`start`): `Session::on(Network::Testnet)`,
+  `set_demo` with the samples, `fix_network`, `app.modes =
+  DESKTOP_MODES`, `app.samples = Some(&SAMPLES)`. The pills show "Practice ·
+  Testnet" and Load samples; the pill and Settings' Mode row open the
+  mode sheet, where Testnet, Signet and Regtest are dimmed.
+- **The stories use the samples** (`web/src/desk.rs`, `story.rs`,
+  `stories.rs`, `walk.rs`):
+  - **Bring in a wallet**: the wallet is sample Savings. Seed papers A,
+    B and C are SeedQRs of Savings' three seeds (bacon, zebra, summer,
+    the words they are today); the Restore they make gives Savings'
+    descriptor, testnet, BIP-48 account 0 at coin type 1 (today's
+    is coin type 0). The phone shows Savings' sample unsigned spend:
+    0.1 tBTC in, 0.015 tBTC to the testkit's recipient (tb1), the rest
+    less 2,140 sat to change.
+  - **Spend using a Faraday backup**: the boot stick's vault holds Seed
+    A and Savings' sample descriptor, with the plan and places as today
+    (`backup_answers`), under the one passphrase `faraday` (Practice's;
+    the second, easy slot goes, since it was the same word); Seed B's
+    paper and the phone as above. The sticky note says `faraday`.
+  - **Start fresh** loads no sample: the story is making a wallet, and
+    its key comes from New key's handout (a 12 or 24-word sample by the
+    length chosen).
+  - `desk.rs`'s own `descriptor`, `account`, `spend`, `fingerprint`,
+    `PATH` and `NET` go; it reads the samples. Hints and walk steps
+    that name an amount say tBTC where Faraday shows tBTC; those that
+    name the vault's passphrase or the easy one say `faraday`.
+- Tests: each story walked to its end (`stories.rs`), on testnet; the
+  papers' SeedQRs and the phone's PSBT equal the samples'; nothing in
+  the website depends on faraday-core's `testkit` (a check in its
+  `just`).
+- HANDOFF.md and the page's own words follow: "mainnet" goes from the
+  demo's description.
+
+**Where the website and the desktop still differ in Practice**, by design:
+
+| | Faraday Demo | Website | Why |
+|---|---|---|---|
+| Switching mode | Practice, Testnet, Signet, Regtest | Practice only | a public page takes samples only; a person's own test seeds belong in the downloaded app |
+| Files | the Inbox and Outbox are folders on disk (Downloads) | sticks in memory, drawn round the laptop | a browser has no folder Faraday may watch |
+| Paste | the clipboard, a seed on a seed scanner and a key's words on the words form, by Ctrl+V or the strip's Paste words, in every mode Faraday Demo has (F75) | none | the web shell has no clipboard |
+| Camera | the computer's cameras | one webcam that sees the desk's props | the props are the page's way in |
+
+The website no longer carries the web demo; its web shell and demo page were taken out of the website repository.
+
+### Item 9 of §2, as it read (from docs/MODES.md)
+
+9. The website's mode is fixed (`Keys::fix_network` on Testnet with the
+   demo set): the sheet lists the other three dimmed.

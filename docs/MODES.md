@@ -1,8 +1,7 @@
 # Modes, Practice and samples
 
-**Kind:** Spec
-**Status:** Built here (F81), except the website
-**Open:** §9, the website, in its own repository: moving its pin to the current Faraday and the changes below are not built.
+**Kind:** Reference
+**Status:** Built (F81)
 
 The owner's decisions are F81. This says how they are built. Where it
 and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
@@ -38,8 +37,8 @@ and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
    session, so it cannot drift from it.
 2. `Faraday::modes: &'static [Mode]`, set by the shell: `STICK_MODES`
    (Mainnet, Testnet, Signet, Regtest; `Faraday::new()`'s default) and
-   `DESKTOP_MODES` (Practice, Testnet, Signet, Regtest). The desktop and the
-   website set `DESKTOP_MODES`.
+   `DESKTOP_MODES` (Practice, Testnet, Signet, Regtest). The desktop sets
+   `DESKTOP_MODES`.
 3. **Practice in faraday-keys.** `Keys::demo()` becomes "the shell set the
    demo up", with no network condition; `has_demo()` goes (one test,
    one meaning). `Keys::set_demo` takes the public set as values, not
@@ -95,7 +94,7 @@ and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
    another network kind is refused with today's `Refusal::Network` text.
    `follow` takes the allowed modes as an argument (`Session` does not
    know `Faraday`).
-9. The website's mode is fixed (`Keys::fix_network` on Testnet with the
+9. A shell can fix the mode (`Keys::fix_network` on Testnet with the
    demo set): the sheet lists the other three dimmed.
 
 ## 3. The pill and the mode sheet
@@ -126,7 +125,7 @@ and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
   use marked by a tick in the accent at the row's right; the Practice row
   carries "Testnet" muted before the tick's place; a press on another row is
   `Action::Mode(m)`; **Not now** at the foot. A row that cannot be
-  chosen (the website's three) is dimmed, its label alone: no reason
+  chosen (the three a fixed mode leaves) is dimmed, its label alone: no reason
   line (DESIGN §4.11, nothing on the device changes it). No line says a
   change locks: the Lock sheet or LockAsk, where the lock needs one,
   says what it keeps.
@@ -157,8 +156,7 @@ and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
   is typed), so a sheet on one path protects nothing.
 - **Instead, one line at every place a secret is typed** (owner,
   2026-10-22): where the shell sets `Faraday::seed_line` (a seed typed
-  here is on an online computer: the desktop, with `Faraday::online`, and
-  the website alone, which does not become Faraday Demo; never the
+  here is on an online computer: the desktop, with `Faraday::online`; never the
   stick or the Pi), every step where a
   seed or a secret can be typed or pasted draws one caution-tone line
   under its field, `never_real_seed` "Never type a seed that holds real
@@ -179,8 +177,6 @@ run directory it keeps the Inbox and Outbox in; at start it reads it,
 takes it only if it names one of `STICK_MODES` exactly, removes it, and
 starts the session on that network. No file, or anything else in it:
 Mainnet. Settings' file (`faraday-settings.txt`) still holds no network.
-
-**Website**: §9.
 
 ## 5. The samples
 
@@ -304,7 +300,7 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
 - Names on screen are not in the crate: each sample carries a key into
   `faraday/faraday-strings/src/en.rs` (§8).
 - `Faraday::samples: Option<&'static Samples>`, set by Faraday Demo (in
-  its own window and inside the Starter, F126) and the website. With
+  its own window and inside the Starter, F126). With
   `None` (the stick, the Pi, the Faraday the Starter holds for Transfer
   and Learn)
   no pill, no sheet and no Use a sample is drawn or acted on.
@@ -344,7 +340,7 @@ loaded, and for a set, not yet begun.
 **Placement.** In Faraday Demo's host strip (DESIGN §4.19,
 `docs/DEMO.md` §14), never inside the field or the scanner's band: the field keeps its
 caret and placeholder as in every mode. Never drawn on Mainnet,
-Testnet, Signet or Regtest; drawn on the website. The scanner's button
+Testnet, Signet or Regtest. The scanner's button
 says what it hands over (Load sample PSBT, wallet, seed, share, key,
 SeedQR, code, address). Every scanner that takes a file offers it; a
 step that asks for the transaction (the Spend tab's What do you have?,
@@ -564,54 +560,7 @@ the file has them.
 
 ## 9. The website, in its repository
 
-The website is pinned to an older Faraday; it
-moves the pin to the current commit by the procedure its HANDOFF.md
-gives, and makes the changes below there. Faraday's repository holds
-nothing of it.
-
-- `web/Cargo.toml`: faraday-core without `testkit`; faraday-samples
-  added.
-- `web/src/lib.rs` (`start`): `Session::on(Network::Testnet)`,
-  `set_demo` with the samples, `fix_network`, `app.modes =
-  DESKTOP_MODES`, `app.samples = Some(&SAMPLES)`. The pills show "Practice ·
-  Testnet" and Load samples; the pill and Settings' Mode row open the
-  mode sheet, where Testnet, Signet and Regtest are dimmed.
-- **The stories use the samples** (`web/src/desk.rs`, `story.rs`,
-  `stories.rs`, `walk.rs`):
-  - **Bring in a wallet**: the wallet is sample Savings. Seed papers A,
-    B and C are SeedQRs of Savings' three seeds (bacon, zebra, summer,
-    the words they are today); the Restore they make gives Savings'
-    descriptor, testnet, BIP-48 account 0 at coin type 1 (today's
-    is coin type 0). The phone shows Savings' sample unsigned spend:
-    0.1 tBTC in, 0.015 tBTC to the testkit's recipient (tb1), the rest
-    less 2,140 sat to change.
-  - **Spend using a Faraday backup**: the boot stick's vault holds Seed
-    A and Savings' sample descriptor, with the plan and places as today
-    (`backup_answers`), under the one passphrase `faraday` (Practice's;
-    the second, easy slot goes, since it was the same word); Seed B's
-    paper and the phone as above. The sticky note says `faraday`.
-  - **Start fresh** loads no sample: the story is making a wallet, and
-    its key comes from New key's handout (a 12 or 24-word sample by the
-    length chosen).
-  - `desk.rs`'s own `descriptor`, `account`, `spend`, `fingerprint`,
-    `PATH` and `NET` go; it reads the samples. Hints and walk steps
-    that name an amount say tBTC where Faraday shows tBTC; those that
-    name the vault's passphrase or the easy one say `faraday`.
-- Tests: each story walked to its end (`stories.rs`), on testnet; the
-  papers' SeedQRs and the phone's PSBT equal the samples'; nothing in
-  the website depends on faraday-core's `testkit` (a check in its
-  `just`).
-- HANDOFF.md and the page's own words follow: "mainnet" goes from the
-  demo's description.
-
-**Where the website and the desktop still differ in Practice**, by design:
-
-| | Faraday Demo | Website | Why |
-|---|---|---|---|
-| Switching mode | Practice, Testnet, Signet, Regtest | Practice only | a public page takes samples only; a person's own test seeds belong in the downloaded app |
-| Files | the Inbox and Outbox are folders on disk (Downloads) | sticks in memory, drawn round the laptop | a browser has no folder Faraday may watch |
-| Paste | the clipboard, a seed on a seed scanner and a key's words on the words form, by Ctrl+V or the strip's Paste words, in every mode Faraday Demo has (F75) | none | the web shell has no clipboard |
-| Camera | the computer's cameras | one webcam that sees the desk's props | the props are the page's way in |
+Moved to `docs/history/MODES-LOG.md`.
 
 ## 10. Batches
 
