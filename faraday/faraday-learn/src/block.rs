@@ -71,7 +71,7 @@ pub struct Area {
 }
 
 /// One action's block: the nine fields of `docs/CRYPTO-LEARN.md` §1,
-/// where it is offered, and its Learn page.
+/// and where it is offered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Block {
     /// The action's id in the manifest.
@@ -111,8 +111,4 @@ pub struct Block {
     /// (`starter:write`, `starter:confirm`, `starter:writing`,
     /// `starter:done`, `starter:start`).
     pub screens: &'static [&'static str],
-    /// The id of the Learn page that carries the block after its sections
-    /// (a page of `pages::EN` by its field name, or `faraday:<id>` for one
-    /// of [`crate::ids`]); empty for none.
-    pub learn: &'static str,
 }

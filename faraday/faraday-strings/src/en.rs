@@ -237,7 +237,7 @@ strings! {
     /// (`docs/THEMES.md` §14).
     starter_row_appearance: "Appearance",
     /// Home row.
-    starter_row_learn: "Guide",
+    starter_row_guide: "Guide",
     /// Rail and bar destination, and the title of its page.
     starter_nav_make: "Make",
     /// Rail and bar destination, and the title of its page.
@@ -498,7 +498,6 @@ strings! {
     /// computer from the stick.
     starter_guide_head_start: "Starting a computer from the stick",
     /// A guide whose Learn page is not there: `{}` its title.
-    starter_guide_placeholder: "Learn: {}",
     /// Guide title.
     starter_start_windows: "Starting a Windows computer from the stick",
     /// Guide title.

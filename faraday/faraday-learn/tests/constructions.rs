@@ -1,28 +1,24 @@
-//! The constructions (`docs/CRYPTO-LEARN.md` §18) a Learn page carries
-//! after its own sections: the Vaults page is followed by how the vault
-//! is built, then by passphrase strength, and no other page carries one.
+//! The constructions (`docs/CRYPTO-LEARN.md` §18) the Cryptography tab
+//! draws after the blocks of the actions they belong to.
 
 use faraday_learn::construction::Item;
-use faraday_learn::{constructions_after, how, ids, page, vaults_page};
+use faraday_learn::how;
 
 #[test]
-fn the_vaults_page_is_followed_by_how_the_vault_is_built_then_passphrase_strength() {
-    let titles: Vec<&str> = constructions_after(vaults_page())
-        .map(|c| c.title)
+fn a_construction_follows_the_last_block_of_its_actions_shown() {
+    let shown: Vec<_> = ["vault-create", "vault-unlock", "vault-seal"]
+        .iter()
+        .map(|id| how::BLOCKS.iter().find(|b| b.id == *id).expect("a block"))
         .collect();
-    assert_eq!(titles, ["How the vault is built", "Passphrase strength"]);
-    let ids: Vec<&str> = how::constructions_for_page("faraday:vaults")
-        .map(|c| c.id)
-        .collect();
-    assert_eq!(ids, ["vault", "passphrase-strength"]);
-}
-
-#[test]
-fn no_other_page_carries_a_construction() {
-    for id in ids().filter(|i| *i != "vaults") {
-        let p = page(id).expect("an own page");
-        assert_eq!(constructions_after(p).count(), 0, "{id}");
-    }
+    let after = |at| -> Vec<&str> {
+        how::constructions_after_block(&shown, at)
+            .map(|c| c.id)
+            .filter(|id| *id == "vault")
+            .collect()
+    };
+    assert!(after(0).is_empty());
+    assert!(after(1).is_empty());
+    assert_eq!(after(2), ["vault"]);
 }
 
 #[test]

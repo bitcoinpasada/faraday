@@ -8,7 +8,7 @@ use faraday_starter::api::{
     StarterCommand, StarterEvent, Volume,
 };
 use faraday_starter::decide::Target;
-use faraday_starter::{LearnId, Page, Starter, StarterAction};
+use faraday_starter::{Page, StartGuide, Starter, StarterAction};
 
 const GB: u64 = 1_000_000_000;
 
@@ -246,15 +246,19 @@ fn every_mac_gets_the_mac_guide_whatever_it_runs() {
             "",
         ] {
             let c = mac(os, model, false);
-            assert_eq!(LearnId::for_computer(&c), LearnId::MacIntel, "{model}");
             assert_eq!(
-                LearnId::for_computer(&c).address(),
+                StartGuide::for_computer(&c),
+                StartGuide::MacIntel,
+                "{model}"
+            );
+            assert_eq!(
+                StartGuide::for_computer(&c).address(),
                 "https://faradayoffline.app/start/mac-intel"
             );
         }
     }
     assert_eq!(
-        LearnId::MacIntel.page().map(|p| p.title),
+        StartGuide::MacIntel.page().map(|p| p.title),
         Some("Starting an Intel Mac from the stick")
     );
 }

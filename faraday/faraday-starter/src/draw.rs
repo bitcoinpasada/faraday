@@ -23,7 +23,7 @@ use crate::macs::{self, StickFor};
 use crate::notes;
 use crate::template::{CODEX_LENGTHS, CodexCopy, Copy, Form, KRUX_SIZES};
 use crate::{
-    Card, Destination, LearnId, ModeRefusal, Page, RestartTo, Sheet, Starter, StarterAction,
+    Card, Destination, ModeRefusal, Page, RestartTo, Sheet, StartGuide, Starter, StarterAction,
     TemplateChoice,
 };
 
@@ -185,7 +185,7 @@ fn page_name(starter: &Starter) -> String {
         return if starter.held.screen == faraday_core::Screen::Transfer {
             S.starter_row_transfer
         } else {
-            S.starter_row_learn
+            S.starter_row_guide
         }
         .to_string();
     }
@@ -218,7 +218,7 @@ fn page_name_of(starter: &Starter, page: Page) -> String {
         Page::Install => S.starter_row_install.to_string(),
         Page::Installed => S.starter_row_installed.to_string(),
         Page::About => S.starter_row_about.to_string(),
-        Page::Guide => S.starter_row_learn.to_string(),
+        Page::Guide => S.starter_row_guide.to_string(),
         Page::Appearance => S.starter_row_appearance.to_string(),
         Page::Templates => S.starter_row_templates.to_string(),
         Page::TemplateWords => S.starter_tpl_words.to_string(),
@@ -279,7 +279,7 @@ fn destination_name(page: Page) -> String {
     match page {
         Page::Make => S.starter_nav_make,
         Page::Tools => S.starter_nav_tools,
-        Page::Guide => S.starter_row_learn,
+        Page::Guide => S.starter_row_guide,
         _ => S.starter_home,
     }
     .to_string()
@@ -506,12 +506,12 @@ fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str) -> f32 {
 /// A link to a Learn page: a line in the accent colour that opens it,
 /// drawn only when the page exists (another batch writes some of them).
 /// Returns its height, nothing when the page does not exist.
-pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
+pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: StartGuide) -> f32 {
     if id.page().is_none() {
         return 0.0;
     }
     let label = learn_title(id);
-    let action = StarterAction::LearnPage(id).host();
+    let action = StarterAction::StartGuide(id).host();
     let label = ui.fit_as(TITLE_S, label, w);
     let tw = ui.measure_as(TITLE_S, &label);
     // Material's text button: the label in primary, its state layer
@@ -595,7 +595,7 @@ fn concern_block(
             StarterAction::CheckAgain,
         )],
     ) + 8.0;
-    y += link(ui, x, y, w, LearnId::ScreensThatRecord);
+    y += link(ui, x, y, w, StartGuide::ScreensThatRecord);
     y + 12.0 - y0
 }
 
@@ -1414,31 +1414,19 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 // Start this computer from the stick
 // ---------------------------------------------------------------------
 
-/// The guide's line: a row that opens its Learn page, or until batch G
-/// writes it, its title as a line.
-fn guide_line(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
-    let title = learn_title(id);
-    match id.page() {
-        Some(_) => nav_row(
-            ui,
-            x,
-            y,
-            w,
-            Icon::Learn,
-            title,
-            "",
-            "",
-            Some(StarterAction::LearnPage(id)),
-        ),
-        None => line(
-            ui,
-            x,
-            y,
-            w,
-            &fill(S.starter_guide_placeholder, &[title]),
-            Role::OnSurfaceVariant,
-        ),
-    }
+/// The start guide's line: a row that opens it in the guide.
+fn guide_line(ui: &mut Ui, x: f32, y: f32, w: f32, id: StartGuide) -> f32 {
+    nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Learn,
+        learn_title(id),
+        "",
+        "",
+        Some(StarterAction::StartGuide(id)),
+    )
 }
 
 /// Keep data's link: a row that opens the guide's section about
@@ -1457,21 +1445,20 @@ fn keep_data_guide(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     )
 }
 
-/// A guide's title, as its Learn page will carry it; a maker page's is
-/// its page's own.
-fn learn_title(id: LearnId) -> &'static str {
+/// A start guide's title; a maker page's is its page's own.
+fn learn_title(id: StartGuide) -> &'static str {
     match id {
-        LearnId::StartWindows => S.starter_start_windows,
-        LearnId::StartLinux => S.starter_start_linux,
-        LearnId::NoStart => S.starter_start_no_start,
-        LearnId::KeepData => S.starter_start_keep_data,
-        LearnId::CheckingWritten => S.starter_start_checking_written,
-        LearnId::Maker(_) => id.page().map_or("", |p| p.title),
-        LearnId::SecureBootBitLocker => S.starter_start_secure_boot_bitlocker,
-        LearnId::ScreensThatRecord => S.starter_start_screens,
-        LearnId::WhatElseRuns => S.starter_start_what_else_runs,
-        LearnId::BootEntry => S.starter_start_boot_entry,
-        LearnId::MacIntel => S.starter_start_mac_intel,
+        StartGuide::StartWindows => S.starter_start_windows,
+        StartGuide::StartLinux => S.starter_start_linux,
+        StartGuide::NoStart => S.starter_start_no_start,
+        StartGuide::KeepData => S.starter_start_keep_data,
+        StartGuide::CheckingWritten => S.starter_start_checking_written,
+        StartGuide::Maker(_) => id.page().map_or("", |p| p.title),
+        StartGuide::SecureBootBitLocker => S.starter_start_secure_boot_bitlocker,
+        StartGuide::ScreensThatRecord => S.starter_start_screens,
+        StartGuide::WhatElseRuns => S.starter_start_what_else_runs,
+        StartGuide::BootEntry => S.starter_start_boot_entry,
+        StartGuide::MacIntel => S.starter_start_mac_intel,
     }
 }
 
@@ -1496,9 +1483,9 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let held = starter.restart_holds();
     y += concern_block(starter, ui, x, y, w, &held);
     y += receiver_line(starter, ui, x, y, w);
-    let guide = LearnId::for_computer(c);
+    let guide = StartGuide::for_computer(c);
     y += guide_line(ui, x, y, w, guide);
-    y += link(ui, x, y, w, LearnId::SecureBootBitLocker);
+    y += link(ui, x, y, w, StartGuide::SecureBootBitLocker);
     y += 8.0;
     let ix = x + 38.0;
     let iw = w - 38.0;
@@ -1631,7 +1618,7 @@ fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs:
     let held = starter.restart_holds();
     y += concern_block(starter, ui, x, y, w, &held);
     y += receiver_line(starter, ui, x, y, w);
-    let guide = LearnId::MacIntel;
+    let guide = StartGuide::MacIntel;
     y += guide_line(ui, x, y, w, guide);
     y += 8.0;
     y += notes_block(starter, ui, x, y, w);
@@ -1924,7 +1911,7 @@ fn dialog(
 }
 
 fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) {
-    let address = LearnId::for_computer(&starter.computer).address();
+    let address = StartGuide::for_computer(&starter.computer).address();
     let os = starter.computer.os;
     let head = match to {
         RestartTo::Firmware => S.starter_restart,
@@ -1966,7 +1953,7 @@ fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) 
             }
             y += 4.0;
             if to == RestartTo::Stick && os == Os::Linux {
-                y += link(ui, x, y, iw, LearnId::BootEntry);
+                y += link(ui, x, y, iw, StartGuide::BootEntry);
             }
             // Small enough on a small panel that the sheet's buttons fit.
             let side = if ui.compact { 104.0 } else { 160.0 };

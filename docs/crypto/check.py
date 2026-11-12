@@ -95,7 +95,7 @@ LIBRARY_KEYS = {"author"}
 VECTOR_KEYS = {"source", "by", "own"}
 VECTOR_SOURCES = {"published", "outside", "own"}
 # A construction (§18): how a format several actions share is built, drawn in Learn.
-CONSTRUCTION_KEYS = {"id", "title", "learn", "actions", "section", "review"}
+CONSTRUCTION_KEYS = {"id", "title", "actions", "section", "review"}
 SECTION_KEYS = {"heading", "para"}
 PARA_KEYS = {"text", "table", "words", "planned", "until", "piece", "does", "instead", "why"}
 OPEN_ITEM_KEYS = {"spec", "names"}
@@ -115,7 +115,7 @@ ROW_KEYS = {"id", "section", "what", "completeness", "standard_note", "uses", "n
             "standard", "verified", "own"}
 ROW_TEXTS = ("standard", "verified", "own")
 STARTER_PAGES = {"write", "confirm", "writing", "done", "start"}
-ACTION_KEYS = {"id", "name", "screens_not", "action", "row", "standards", "learn", "screens", "functions", "code",
+ACTION_KEYS = {"id", "name", "screens_not", "action", "row", "standards", "screens", "functions", "code",
                "novel_rank", "implementation", "checked", "secrets", "limits", "own", "review", "label"}
 IMPL_KEYS = {"crate", "libraries", "through", "adds", "written_here"}
 CHECKED_KEYS = {"vectors", "tests", "crosscheck", "not_crosschecked", "selftest", "fuzz",
@@ -672,7 +672,7 @@ def schema_action(c, a, i):
         e.add("schema", msg, i)
 
     unknown(e, f"action {i}", a, ACTION_KEYS, i)
-    for k in ("name", "action", "row", "learn"):
+    for k in ("name", "action", "row"):
         if not str_ok(a.get(k)):
             bad(f"`{k}` is missing or empty")
     if str_ok(a.get("name")) and not 2 <= len(a["name"].split()) <= 6:
@@ -812,15 +812,6 @@ def enum_variants(text, name):
     return set(re.findall(r"^    ([A-Z]\w*)\b", m.group(1), re.M))
 
 
-def learn_pages(c):
-    en = c.read("faraday/faraday-learn/src/pages/en.rs")
-    lib = c.read("faraday/faraday-learn/src/lib.rs")
-    pages = set(re.findall(r"^    (\w+): Page \{", en, re.M))
-    m = re.search(r"const OWN[^=]*=\s*\[(.*?)\n\];", lib, re.S)
-    own = set(re.findall(r'"([a-z0-9-]+)",\s*include_str!', m.group(1))) if m else set()
-    return pages, own
-
-
 def fuzz_targets(c):
     out = set()
     for rel in ("fuzz/Cargo.toml", "faraday/fuzz/Cargo.toml"):
@@ -844,7 +835,6 @@ def areas_present(c):
 
 def check_truth(c):
     e, inv = c.errors, c.inv
-    pages, own_pages = learn_pages(c)
     reveals = enum_variants(c.read("faraday/faraday-keys/src/session.rs"), "Reveal")
     screens = enum_variants(c.read("faraday/faraday-core/src/lib.rs"), "Screen")
     fuzz = fuzz_targets(c)
@@ -901,14 +891,6 @@ def check_truth(c):
             m = re.fullmatch(r"Reveal::(\w+)", str(r))
             if not m or reveals is None or m.group(1) not in reveals:
                 e.add("untrue", f"reveal {r} is not a variant of Reveal", i)
-        lp = a.get("learn")
-        if lp and lp != "none":
-            if lp.startswith("faraday:"):
-                ok = lp[8:] in own_pages
-            else:
-                ok = lp in pages
-            if not ok:
-                e.add("untrue", f"Learn page `{lp}` does not exist", i)
         for s in as_list(a.get("screens")) + [n.get("screen") for n in as_list(a.get("screens_not"))]:
             if s.startswith("starter:"):
                 ok = s[8:] in STARTER_PAGES
@@ -1746,7 +1728,6 @@ def check_constructions(c):
             e.add("construction", f"name_with_digits {n.get('name') or n.get('pattern')}: a `name` "
                   "or a `pattern`, and its `reason`")
     used = {k: False for k in items}
-    pages, own_pages = learn_pages(c)
     seen = set()
     for con in v:
         i = con.get("id") if isinstance(con, dict) else None
@@ -1757,12 +1738,9 @@ def check_constructions(c):
             e.add("construction", "the id is another construction's or an action's", i)
         seen.add(i)
         unknown(e, f"construction {i}", con, CONSTRUCTION_KEYS, i)
-        for k in ("title", "learn"):
+        for k in ("title",):
             if not str_ok(con.get(k)):
                 e.add("construction", f"`{k}` is missing or empty", i)
-        lp = str(con.get("learn", ""))
-        if lp and not (lp[8:] in own_pages if lp.startswith("faraday:") else lp in pages):
-            e.add("construction", f"Learn page `{lp}` does not exist", i)
         acts = con.get("actions")
         if not (isinstance(acts, list) and acts and all(str_ok(a) for a in acts)):
             e.add("construction", "`actions` is not a list of action ids", i)
@@ -2039,7 +2017,7 @@ def git(root, *args):
 
 def touchpoints(c, a):
     i = a["id"]
-    out = [f"Learn page: {a.get('learn')}; screens: {', '.join(as_list(a.get('screens'))) or 'none'}",
+    out = [f"screens: {', '.join(as_list(a.get('screens'))) or 'none'}",
            f"STANDARDS row: {a.get('row')} (docs/STANDARDS.md); standards: "
            f"{', '.join(as_list(a.get('standards'))) or 'none'}",
            f"AUDIT §1 crate row and §3 line for {a.get('implementation', {}).get('crate')} "
@@ -2088,7 +2066,7 @@ def review_construction(root, i, manifest, lock_raw):
     print("\n== what it reads from the code")
     for x in (diff_parts(locked, now) if locked is not None else now):
         print(f"  {x}")
-    print(f"\n== touchpoints: Learn page {con.get('learn')}; actions "
+    print(f"\n== touchpoints: actions "
           f"{', '.join(as_list(con.get('actions')))}; the website's /cryptography#{i}\n")
     if mine:
         print("review refuses; nothing was written:")
@@ -2364,7 +2342,6 @@ name = "Do one"
 action = "Does one."
 row = "row-one"
 standards = ["BIP 1"]
-learn = "none"
 screens = ["Spend"]
 functions = ["src/a.rs::f"]
 code = ["src/a.rs::f"]
@@ -2404,7 +2381,6 @@ name = "Do two"
 action = "Does two."
 row = "row-one"
 standards = ["BIP 1"]
-learn = "none"
 screens = []
 functions = ["src/a.rs::g"]
 code = ["src/a.rs::g"]
@@ -2479,8 +2455,6 @@ FIXTURE_FILES = {
     "docs/decisions/F9.md": "# F9 Withdrawn\n\n**Kind:** Record\n**Status:** Withdrawn\n",
     "supply-chain/audits.toml": SUPPLY_AUDITS,
     "supply-chain/imports.lock": SUPPLY_IMPORTS,
-    "faraday/faraday-learn/src/lib.rs": 'const OWN: [(&str, &str); 1] = [\n'
-                                        '    ("page", include_str!("page.md")),\n];\n',
     "src/k.rs": "pub const SIDES: usize = 2 + EXTRA;\nconst EXTRA: usize = 4;\n"
                 "pub static WORDS: [&str; 3] = [\"a\", \"b\", \"c\"];\n",
     "docs/SPEC.md": "# A spec\n\n**Kind:** Spec\n**Status:** Specified\n"
@@ -2499,7 +2473,6 @@ reason = "A name."
 [[construction]]
 id = "dice"
 title = "How dice are read"
-learn = "faraday:page"
 actions = ["one"]
 
 [[construction.section]]
@@ -3036,8 +3009,6 @@ def self_test():
              "an open item no Spec's Open line names fails"),
             ("in words;", "in words, {planned:7};", "only for a planned paragraph",
              "a number of work not built outside a planned paragraph fails"),
-            ('learn = "faraday:page"', 'learn = "faraday:none"', "Learn page",
-             "a Learn page that does not exist fails"),
             ('actions = ["one"]', 'actions = ["nine"]', "action nine does not exist",
              "an action that does not exist fails"),
             ("[[construction.section.para]]\ntext = \"they",

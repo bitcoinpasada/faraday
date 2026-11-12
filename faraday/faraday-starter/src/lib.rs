@@ -25,10 +25,10 @@ mod draw;
 mod found;
 mod guide;
 mod how;
-mod learn_id;
 mod name;
+mod start_guide;
 pub use guide::{PLACES as GUIDE_PLACES, guide_key};
-pub use learn_id::LearnId;
+pub use start_guide::StartGuide;
 pub mod macs;
 pub mod notes;
 mod scroll;
@@ -358,7 +358,7 @@ pub enum StarterAction {
     /// Guide: the destination listing the guide's pages.
     Learn,
     /// A guide's Learn page.
-    LearnPage(LearnId),
+    StartGuide(StartGuide),
     /// About.
     About,
     /// I have its rescue disk or password: another encryption product
@@ -480,7 +480,7 @@ impl StarterAction {
             StarterAction::OpenDesktop => (20, 0),
             StarterAction::Transfer => (21, 0),
             StarterAction::Learn => (22, 0),
-            StarterAction::LearnPage(LearnId::Maker(id)) => (
+            StarterAction::StartGuide(StartGuide::Maker(id)) => (
                 23,
                 MAKER_CODE
                     + faraday_learn::MAKERS
@@ -488,9 +488,9 @@ impl StarterAction {
                         .position(|m| m.id == id)
                         .unwrap_or(0) as u32,
             ),
-            StarterAction::LearnPage(id) => (
+            StarterAction::StartGuide(id) => (
                 23,
-                LearnId::ALL.iter().position(|x| *x == id).unwrap_or(0) as u32,
+                StartGuide::ALL.iter().position(|x| *x == id).unwrap_or(0) as u32,
             ),
             StarterAction::About => (24, 0),
             StarterAction::Rescue => (33, 0),
@@ -568,10 +568,10 @@ impl StarterAction {
             20 => StarterAction::OpenDesktop,
             21 => StarterAction::Transfer,
             22 => StarterAction::Learn,
-            23 if arg >= MAKER_CODE => StarterAction::LearnPage(LearnId::Maker(
+            23 if arg >= MAKER_CODE => StarterAction::StartGuide(StartGuide::Maker(
                 faraday_learn::MAKERS.get((arg - MAKER_CODE) as usize)?.id,
             )),
-            23 => StarterAction::LearnPage(*LearnId::ALL.get(arg as usize)?),
+            23 => StarterAction::StartGuide(*StartGuide::ALL.get(arg as usize)?),
             24 => StarterAction::About,
             33 => StarterAction::Rescue,
             34 => StarterAction::CheckAgain,
@@ -983,8 +983,8 @@ impl Starter {
     /// changes ([`Starter::phone_code`]).
     fn phone_codes_make(&mut self) {
         let want = [
-            LearnId::for_computer(&self.computer).address(),
-            LearnId::MacIntel.address(),
+            StartGuide::for_computer(&self.computer).address(),
+            StartGuide::MacIntel.address(),
         ];
         self.phone_codes.retain(|(a, _)| want.contains(a));
         let c = self.held.compute();
@@ -1781,13 +1781,13 @@ impl Starter {
     /// The start guides the Guide destination lists under their heading:
     /// this computer's maker page first where there is one, then every
     /// guide that is written. A lookup.
-    pub fn start_guides(&self) -> Vec<LearnId> {
-        let mut ids: Vec<LearnId> = LearnId::ALL
+    pub fn start_guides(&self) -> Vec<StartGuide> {
+        let mut ids: Vec<StartGuide> = StartGuide::ALL
             .iter()
             .copied()
             .filter(|id| id.page().is_some())
             .collect();
-        if let id @ LearnId::Maker(_) = LearnId::for_computer(&self.computer)
+        if let id @ StartGuide::Maker(_) = StartGuide::for_computer(&self.computer)
             && id.page().is_some()
         {
             ids.insert(0, id);
@@ -1818,7 +1818,7 @@ impl Starter {
                     | StarterAction::How
                     | StarterAction::Guide
             )
-            && !(action == StarterAction::LearnPage(LearnId::BootEntry)
+            && !(action == StarterAction::StartGuide(StartGuide::BootEntry)
                 && self.sheet == Some(Sheet::Restart(RestartTo::Stick)))
             && !(action == StarterAction::Back
                 && matches!(self.sheet, Some(Sheet::How | Sheet::Guide)))
@@ -2035,7 +2035,7 @@ impl Starter {
             StarterAction::OpenDesktop => self.open_demo_asked(),
             StarterAction::Transfer => self.show_held(None),
             StarterAction::Learn => self.open(Page::Guide),
-            StarterAction::LearnPage(id) => {
+            StarterAction::StartGuide(id) => {
                 if let Some(page) = id.page() {
                     self.show_held(Some(vec![page]));
                 }

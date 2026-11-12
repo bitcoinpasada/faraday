@@ -1,12 +1,11 @@
-//! The Starter's guides, each by its Learn page.
+//! The Starter's start guides.
 
 use crate::api::{Computer, Os};
 use crate::macs;
 
-/// A guide, by its Learn page (§7.2, `docs/guide/start/`). A page
-/// that does not exist shows its title as a line and opens nothing.
+/// A start guide, by its page (`docs/guide/start/`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LearnId {
+pub enum StartGuide {
     /// Starting a Windows computer from the stick.
     StartWindows,
     /// Starting a Linux computer from the stick.
@@ -33,22 +32,22 @@ pub enum LearnId {
     MacIntel,
 }
 
-impl LearnId {
+impl StartGuide {
     /// The page's id among the guides (`faraday_start::BOOT`), which
     /// is also its name on the website.
     pub fn id(self) -> &'static str {
         match self {
-            LearnId::StartWindows => "windows",
-            LearnId::StartLinux => "linux",
-            LearnId::NoStart => "not-starting",
-            LearnId::KeepData => "replace-faraday",
-            LearnId::Maker(id) => id,
-            LearnId::SecureBootBitLocker => "secure-boot-bitlocker",
-            LearnId::ScreensThatRecord => "screens-that-record",
-            LearnId::WhatElseRuns => "what-else-runs",
-            LearnId::CheckingWritten => "checking-written",
-            LearnId::BootEntry => "boot-entry",
-            LearnId::MacIntel => "mac-intel",
+            StartGuide::StartWindows => "windows",
+            StartGuide::StartLinux => "linux",
+            StartGuide::NoStart => "not-starting",
+            StartGuide::KeepData => "replace-faraday",
+            StartGuide::Maker(id) => id,
+            StartGuide::SecureBootBitLocker => "secure-boot-bitlocker",
+            StartGuide::ScreensThatRecord => "screens-that-record",
+            StartGuide::WhatElseRuns => "what-else-runs",
+            StartGuide::CheckingWritten => "checking-written",
+            StartGuide::BootEntry => "boot-entry",
+            StartGuide::MacIntel => "mac-intel",
         }
     }
 
@@ -66,32 +65,32 @@ impl LearnId {
     /// runs, the Mac guide; otherwise its maker's page where there is one
     /// (§7.6), and the general page for its operating system where there
     /// is not.
-    pub fn for_computer(c: &Computer) -> LearnId {
+    pub fn for_computer(c: &Computer) -> StartGuide {
         if macs::is_apple(&c.maker) {
-            return LearnId::MacIntel;
+            return StartGuide::MacIntel;
         }
         let general = match c.os {
-            Os::Windows => LearnId::StartWindows,
+            Os::Windows => StartGuide::StartWindows,
             // macOS on a computer whose maker is not Apple: none is
             // expected, and Linux's page is the nearer of the two.
-            Os::Linux | Os::MacOs => LearnId::StartLinux,
+            Os::Linux | Os::MacOs => StartGuide::StartLinux,
         };
         match faraday_learn::guide_id(&c.maker, &c.family, &c.model, general.id()) {
             id if id == general.id() => general,
-            id => LearnId::Maker(id),
+            id => StartGuide::Maker(id),
         }
     }
 
-    pub(crate) const ALL: [LearnId; 10] = [
-        LearnId::StartWindows,
-        LearnId::StartLinux,
-        LearnId::NoStart,
-        LearnId::KeepData,
-        LearnId::CheckingWritten,
-        LearnId::SecureBootBitLocker,
-        LearnId::ScreensThatRecord,
-        LearnId::BootEntry,
-        LearnId::MacIntel,
-        LearnId::WhatElseRuns,
+    pub(crate) const ALL: [StartGuide; 10] = [
+        StartGuide::StartWindows,
+        StartGuide::StartLinux,
+        StartGuide::NoStart,
+        StartGuide::KeepData,
+        StartGuide::CheckingWritten,
+        StartGuide::SecureBootBitLocker,
+        StartGuide::ScreensThatRecord,
+        StartGuide::BootEntry,
+        StartGuide::MacIntel,
+        StartGuide::WhatElseRuns,
     ];
 }

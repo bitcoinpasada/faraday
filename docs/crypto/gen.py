@@ -821,7 +821,6 @@ def gen_constructions(root, data):
         out += ["    Construction {",
                 f"        id: {rs_str(con.get('id'))},",
                 f"        title: {rs_str(con.get('title'))},",
-                f"        learn: {rs_str(con.get('learn'))},",
                 "        actions: &[" + ", ".join(rs_str(a) for a in as_list(con.get("actions"))) + "],",
                 "        sections: &["]
         for heading, items in sections:

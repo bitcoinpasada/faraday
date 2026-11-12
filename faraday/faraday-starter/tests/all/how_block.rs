@@ -10,7 +10,7 @@ use faraday_starter::api::{
     Bus, Computer, Disk, FaradayStick, FoundImage, ImageFinding, Os, StarterEvent,
 };
 use faraday_starter::decide::Target;
-use faraday_starter::{LearnId, Page, Starter, StarterAction};
+use faraday_starter::{Page, StartGuide, Starter, StarterAction};
 use faraday_strings::EN;
 
 const GB: u64 = 1_000_000_000;
@@ -137,10 +137,10 @@ fn the_sheet_is_put_away_by_the_back_arrow_and_by_the_button_again() {
 fn the_guide_destination_lists_what_is_written_after_replacing_faraday() {
     let s = starter(1280, 800);
     let pages = s.start_guides();
-    let at = |id: LearnId| pages.iter().position(|p| *p == id);
-    assert!(at(LearnId::KeepData).is_some());
+    let at = |id: StartGuide| pages.iter().position(|p| *p == id);
+    assert!(at(StartGuide::KeepData).is_some());
     assert_eq!(
-        at(LearnId::CheckingWritten),
-        at(LearnId::KeepData).map(|n| n + 1)
+        at(StartGuide::CheckingWritten),
+        at(StartGuide::KeepData).map(|n| n + 1)
     );
 }

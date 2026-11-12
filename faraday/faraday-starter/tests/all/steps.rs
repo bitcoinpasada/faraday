@@ -4,7 +4,7 @@
 
 use faraday_core::Action;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, TouchPhase};
-use faraday_starter::{LearnId, Starter, StarterAction};
+use faraday_starter::{StartGuide, Starter, StarterAction};
 
 fn new_starter() -> Starter {
     let mut starter = Starter::new();
@@ -38,7 +38,7 @@ fn tap_step(starter: &mut Starter, n: u32) {
 }
 
 fn open_hp(starter: &mut Starter) {
-    starter.press(StarterAction::LearnPage(LearnId::Maker("maker-hp")));
+    starter.press(StarterAction::StartGuide(StartGuide::Maker("maker-hp")));
 }
 
 fn hp_page() -> &'static faraday_learn::Page {

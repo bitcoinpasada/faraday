@@ -8,7 +8,7 @@ use faraday_starter::api::{
     Bus, Computer, Disk, FaradayStick, InstallItem, Installed, Os, StarterEvent,
 };
 use faraday_starter::decide::{Item, Target};
-use faraday_starter::{LearnId, Page, Starter, StarterAction};
+use faraday_starter::{Page, StartGuide, Starter, StarterAction};
 
 const GB: u64 = 1_000_000_000;
 
@@ -229,7 +229,7 @@ fn the_guide_keeps_the_rail_or_the_bar_and_a_start_guide_goes_back_to_it() {
             }
         }
         assert!(!s.offers_action(StarterAction::Back), "{w}");
-        s.press(StarterAction::LearnPage(LearnId::StartWindows));
+        s.press(StarterAction::StartGuide(StartGuide::StartWindows));
         assert!(s.showing_held(), "{w}");
         tap(&mut s, StarterAction::Back);
         assert!(!s.showing_held(), "{w}");

@@ -7,7 +7,7 @@
 //! acted on: its items take no press.
 
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LIST_PAD_V, PAD, TITLE_S, TypeRole,
+    BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LIST_PAD_V, PAD, TITLE_M, TITLE_S, TypeRole,
 };
 use faraday_draw::widgets::Icon;
 use faraday_learn::block::{Area, Block, CrossCheck, Kind, Line};
@@ -19,16 +19,18 @@ use crate::{Role, Ui};
 
 /// The blocks in `blocks`, one after another from (x, y), `w` wide, a
 /// full-width divider with `GAP` above and below between two. `release`
-/// is the build's own release string, put before each Code entry.
-/// Returns the height used. A block's height is kept for the width and
+/// is the build's own release string, put before each Code entry. A
+/// construction is drawn, in `look`, after the last block of the actions
+/// it belongs to (`docs/CRYPTO-LEARN.md` §18.5). Returns the height used. A block's height is kept for the width and
 /// text size it was drawn at, and a block wholly outside the clip is not
 /// drawn again: it costs a lookup. Costs a pass over the text of the
 /// blocks in view, and of those not yet drawn.
 pub fn blocks<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (x, y, w): (f32, f32, f32),
-    blocks: &[&Block],
+    blocks: &[&'static Block],
     release: &str,
+    look: &PageLook,
 ) -> f32 {
     let mut cy = y;
     for (i, b) in blocks.iter().enumerate() {
@@ -38,6 +40,12 @@ pub fn blocks<A: Copy + PartialEq>(
             cy += GAP;
         }
         cy += kept_block(ui, (x, cy, w), b, release);
+        for c in faraday_learn::how::constructions_after_block(blocks, i) {
+            cy += GAP;
+            ui.rule(x, cy, w, Role::OutlineVariant);
+            cy += GAP;
+            cy += construction(ui, (x, cy, w), c, look);
+        }
     }
     cy - y
 }
@@ -343,9 +351,9 @@ fn line<A: Copy + PartialEq>(
     }
 }
 
-/// The type and the room a construction is drawn with: a Learn page's
-/// own (`docs/CRYPTO-LEARN.md` §18.2), so its sections read as more of
-/// the page's.
+/// The type and the room a construction is drawn with
+/// (`docs/CRYPTO-LEARN.md` §18.2), so that its sections read as the
+/// tab's own text.
 #[derive(Debug, Clone, Copy)]
 pub struct PageLook {
     /// The construction's title, as a page's title.
@@ -358,8 +366,18 @@ pub struct PageLook {
     pub after: [f32; 4],
 }
 
-/// A construction from (x, y), `w` wide, after a Learn page's own
-/// sections: its title, then each section's heading and its paragraphs
+impl PageLook {
+    /// The look of the Starter's Cryptography sheet.
+    pub const SHEET: PageLook = PageLook {
+        title: TITLE_M,
+        heading: TITLE_S,
+        body: BODY_M,
+        after: [PAD, GAP, GAP + GAP_SMALL, GAP + GAP_SMALL],
+    };
+}
+
+/// A construction from (x, y), `w` wide, after the blocks of its
+/// actions: its title, then each section's heading and its paragraphs
 /// and tables. It is read, not acted on: nothing in it takes a press.
 /// Returns the height used. Each part's height is kept for the width and
 /// text size it was drawn at, as a block's is, and a part wholly outside

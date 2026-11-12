@@ -2071,7 +2071,7 @@ fn guide_body(
     let mark = ui.presses_mark();
     let at = (bx, top + look.text_top - scroll, bw);
     let (text, section) = if how {
-        (learn_how(app, ui, at), None)
+        (learn_how(app, ui, look, at), None)
     } else if learn.contents {
         (guide_contents(app, ui, look, at), None)
     } else if let Some(page) = learn.shown_page() {
@@ -2273,7 +2273,7 @@ fn legacy_body(
     let at = (bx, top + look.text_top - scroll, bw);
     let text = match page {
         Some(page) if !how => learn_page(app, ui, look, page, at),
-        _ => learn_how(app, ui, at),
+        _ => learn_how(app, ui, look, at),
     };
     if look.clip_hits {
         ui.clip_presses_since(mark, clip);
@@ -2287,9 +2287,15 @@ fn legacy_body(
 /// The How Faraday does it tab: the blocks of the screen's actions
 /// from (x, y), `w` wide, drawn as `faraday_ui::how` draws them
 /// (`docs/CRYPTO-LEARN.md` §8.5). Returns the height used.
-fn learn_how(app: &View, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+fn learn_how(app: &View, ui: &mut Ui, look: &LearnLook, at: (f32, f32, f32)) -> f32 {
     let blocks = app.how_blocks();
-    faraday_ui::how::blocks(ui, at, &blocks, crate::version::release())
+    let page_look = faraday_ui::how::PageLook {
+        title: look.head,
+        heading: look.heading,
+        body: look.body,
+        after: look.after,
+    };
+    faraday_ui::how::blocks(ui, at, &blocks, crate::version::release(), &page_look)
 }
 
 /// The page's title and its sections from (x, y), `w` wide: headings,
@@ -2336,26 +2342,6 @@ fn learn_page(
             cy += ui.wrap_as((px, cy, pw), look.body, Role::OnSurface, para) + after_para;
         }
         cy += after_section;
-    }
-    // Then the constructions told after this page (`docs/CRYPTO-LEARN.md`
-    // §18.5), as more of its sections.
-    let page_look = faraday_ui::how::PageLook {
-        title: look.head,
-        heading: look.heading,
-        body: look.body,
-        after: look.after,
-    };
-    for c in faraday_learn::constructions_after(page) {
-        cy += faraday_ui::how::construction(ui, (bx, cy, bw), c, &page_look);
-    }
-    // The blocks of the actions the page is about, after its own sections
-    // and its constructions
-    // (`docs/CRYPTO-LEARN.md` §3.1).
-    let blocks = faraday_learn::how::for_learn_page(page);
-    if !blocks.is_empty() {
-        let at = (bx, cy, bw);
-        cy += ui.wrap_as(at, look.heading, Role::Primary, EN.learn_tab_how) + after_heading;
-        cy += faraday_ui::how::blocks(ui, (bx, cy, bw), &blocks, crate::version::release());
     }
     cy - y
 }

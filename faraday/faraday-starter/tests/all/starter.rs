@@ -7,7 +7,7 @@ use faraday_starter::api::{
     Mode, Os, Reason, Source, StarterCommand, StarterEvent, Volume,
 };
 use faraday_starter::decide::Target;
-use faraday_starter::{LearnId, Page, RestartTo, Sheet, Starter, StarterAction};
+use faraday_starter::{Page, RestartTo, Sheet, StartGuide, Starter, StarterAction};
 
 const GB: u64 = 1_000_000_000;
 
@@ -776,7 +776,7 @@ fn guide_for(maker: &str, family: &str, model: &str, os: Os) -> &'static str {
         model: model.into(),
         ..linux(true)
     };
-    LearnId::for_computer(&c).id()
+    StartGuide::for_computer(&c).id()
 }
 
 #[test]
@@ -806,7 +806,7 @@ fn the_guide_is_the_makers_page_where_there_is_one() {
     assert_eq!(guide_for("", "", "", Os::Windows), "windows");
     // Every maker page is there to open.
     for m in faraday_core::learn::MAKERS {
-        assert!(LearnId::Maker(m.id).page().is_some(), "no page {}", m.id);
+        assert!(StartGuide::Maker(m.id).page().is_some(), "no page {}", m.id);
     }
 }
 
@@ -821,7 +821,7 @@ fn start_opens_the_makers_page_and_its_address_is_on_the_restart() {
         &mut starter,
         "Starting a Dell computer from the stick"
     ));
-    assert!(starter.offers_action(StarterAction::LearnPage(LearnId::Maker("maker-dell"))));
+    assert!(starter.offers_action(StarterAction::StartGuide(StartGuide::Maker("maker-dell"))));
     tap(&mut starter, StarterAction::Restart);
     assert!(shows(
         &mut starter,
@@ -919,7 +919,7 @@ fn transfer_is_the_desktop_apps_and_back_returns_to_home() {
         &mut starter,
         "Starting a Windows computer from the stick"
     ));
-    starter.press(StarterAction::LearnPage(LearnId::StartWindows));
+    starter.press(StarterAction::StartGuide(StartGuide::StartWindows));
     assert!(starter.showing_held());
     starter.event(Event::Key(faraday_shell_api::Key::Escape));
     assert!(!starter.showing_held());
@@ -1156,7 +1156,7 @@ fn the_stick_and_the_starter_show_the_same_address_for_a_computer() {
         app.maker_model = model.into();
         assert_eq!(
             app.secure_boot_guide(),
-            Some(LearnId::for_computer(&c).address()),
+            Some(StartGuide::for_computer(&c).address()),
             "{maker}"
         );
     }

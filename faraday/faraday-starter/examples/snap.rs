@@ -25,7 +25,7 @@ use faraday_starter::api::{
 };
 use faraday_starter::decide::Target;
 use faraday_starter::notes::Notes;
-use faraday_starter::{LearnId, Starter, StarterAction};
+use faraday_starter::{StartGuide, Starter, StarterAction};
 
 /// Whether target `t`, `g` before any neighbour cut it back, is counted
 /// as under the `floor` (`docs/M3-CHECKS.md` §2.2): it is when a side is
@@ -1133,11 +1133,11 @@ fn codex32_template_shots(s: &Snap) -> Result<(), String> {
 /// ticked.
 fn step_shots(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();
-    h.press(StarterAction::LearnPage(LearnId::Maker("maker-hp")));
+    h.press(StarterAction::StartGuide(StartGuide::Maker("maker-hp")));
     s.shot(&mut h, "steps-hp")?;
 
     let mut h = s.starter();
-    h.press(StarterAction::LearnPage(LearnId::Maker("maker-dell")));
+    h.press(StarterAction::StartGuide(StartGuide::Maker("maker-dell")));
     for n in 1..=3 {
         h.held().press(faraday_core::Action::LearnStep(n));
     }

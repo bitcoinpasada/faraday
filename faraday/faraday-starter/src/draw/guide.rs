@@ -125,7 +125,7 @@ pub(super) fn sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
                 iw,
                 Icon::Learn,
                 Role::OnSurface,
-                S.starter_row_learn,
+                S.starter_row_guide,
             );
             if let Some(page) = page {
                 cy += ui.wrap_as((x, cy, iw), TITLE_L, Role::OnSurface, &page.title) + GAP;

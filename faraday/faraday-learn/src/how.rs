@@ -16,21 +16,20 @@
 //!   label and what ends it, then what the cross-check compares Faraday
 //!   with: others' code, Faraday's second version or both, F179; empty for
 //!   neither), then `screens` (the `Screen`
-//!   variants' names, or `starter:<page>`) and `learn` (a page id, or
-//!   `""` for none);
+//!   variants' names, or `starter:<page>`);
 //! - a `Line` per entry: `Kind::Warn` for what is not checked,
 //!   `Kind::Mono` for text read character by character, else
 //!   `Kind::Plain`; a library's version read from `Cargo.lock`; no
 //!   release string (it is filled when the block is drawn);
 //! - an area's text is one `static AREA_<NAME>: Area`, written once and
 //!   referred to by every block of the area;
-//! - an action with no screen (`screens: &[]`, `learn: ""`) is emitted
+//! - an action with no screen (`screens: &[]`) is emitted
 //!   too and is offered nowhere;
 //! - `CONSTRUCTIONS` (`docs/CRYPTO-LEARN.md` §18), written by gen.py: a
 //!   `Construction` per `[[construction]]` in the manifest's order, its
 //!   paragraphs' placeholders filled from the code, one about work not
 //!   built led by "Not in the app yet:", its tables written from the code;
-//! - only `BLOCKS`, `learn_page`, `CONSTRUCTIONS` and the area statics change between generations. The
+//! - only `BLOCKS`, `CONSTRUCTIONS` and the area statics change between generations. The
 //!   lookups below the marker line are written once and the same in
 //!   every generation.
 
@@ -559,7 +558,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Word counts of 12, 15, 18, 21 and 24 only."), p("A word not in the chosen list is refused and its position reported."), p("A checksum that fails is refused.")],
         own_calls: &[p("Word entry by readings and kana: typed readings find the listed words. Neutral."), w("no decision")],
         screens: &["Entry", "Restore", "Files", "SpendBackup"],
-        learn: "words",
     },
     Block {
         id: "words-make",
@@ -575,7 +573,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Entropy lengths other than 16, 20, 24, 28 and 32 bytes are refused.")],
         own_calls: &[p("none")],
         screens: &["KeyGen"],
-        learn: "words",
     },
     Block {
         id: "seed",
@@ -591,7 +588,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A passphrase longer than 256 bytes, or with a byte outside 0x20 to 0x7E, is refused."), p("Nothing is added while a stick is attached.")],
         own_calls: &[p("A passphrase is printable ASCII, at most 256 bytes. BIP 39 allows any NFKD text, so a wallet made elsewhere with another passphrase cannot be restored here; a letter outside the range typed into a passphrase field is refused. Conservative, F155.")],
         screens: &["Entry", "KeyGen", "Restore", "VaultContents", "SpendBackup", "Bip85", "Vanity"],
-        learn: "passphrases",
     },
     Block {
         id: "master",
@@ -607,7 +603,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Only a depth-0 key is a master key; a key at another depth is refused."), p("An extended key text that breaks any of BIP 32 test vector 5's rules is refused.")],
         own_calls: &[p("An extended private key is decoded by Faraday's own strict reader because bitcoin accepts seven of the sixteen serialisations vector 5 rejects. Conservative."), w("no decision")],
         screens: &["Entry", "KeyGen", "Restore", "Files", "Bip85", "VaultContents"],
-        learn: "xpubs",
     },
     Block {
         id: "derive",
@@ -623,7 +618,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Account and address indexes of 2^31 or more are refused."), p("An Explore path of more than 10 levels, or with an empty level or an index of 2^31 or more, is refused.")],
         own_calls: &[p("Hardened steps are written h. Neutral, F66."), p("The account is asked after the quorum, not on Kind. Neutral, F98."), p("Restore takes a seed for a wallet's key slot only when its whole extended public key at the slot's path matches the wallet's, not the four bytes of its fingerprint. Conservative, F155.")],
         screens: &["Create", "Explore", "Wallets", "Tools", "Restore", "Vanity"],
-        learn: "xpubs",
     },
     Block {
         id: "multisig-account",
@@ -639,7 +633,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Only BIP 48 script types 1' and 2' are derived; the 3' some wallets use is not."), p("Account indexes of 2^31 or more are refused.")],
         own_calls: &[p("A multisig key with no origin is refused where a policy reads it. Conservative, F155.")],
         screens: &["Create", "Wallets", "Tools"],
-        learn: "multisig",
     },
     Block {
         id: "hold",
@@ -655,7 +648,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Pinning is a feature of the desktop app and of the stick and Pi images (faraday-crypto's pin-pages); a build without it holds the same value unpinned.")],
         own_calls: &[p("A key's signing context is blinded from the session's randomness. Neutral."), w("no decision")],
         screens: &["Settings"],
-        learn: "faraday:keys-kept",
     },
     Block {
         id: "seed-shown",
@@ -671,7 +663,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Another reason gets nothing."), p("A key with words gets nothing here; its words are lent by the words reveals.")],
         own_calls: &[p("none")],
         screens: &["Explore"],
-        learn: "faraday:keys-kept",
     },
     Block {
         id: "xprv-shown",
@@ -687,7 +678,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Another reason gets nothing.")],
         own_calls: &[p("none")],
         screens: &["Explore"],
-        learn: "xpubs",
     },
     Block {
         id: "seed-converted",
@@ -703,7 +693,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Another reason gets nothing."), p("A result that does not read back as the key's wallet is not returned.")],
         own_calls: &[p("Only conversions that keep the same master fingerprint. Conservative, F88.")],
         screens: &["Convert"],
-        learn: "other_backups",
     },
     Block {
         id: "slip39-set-converted",
@@ -719,7 +708,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Another reason gets nothing."), p("Nothing is held in Practice or while a stick is attached, and no share or set is made while one is; the held set stays."), p("The fuzz target `seed_parts` reaches the core SLIP-39 functions these call, not the held set or these wrappers."), p("A result that does not read back as the same EMS and parameters is not returned.")],
         own_calls: &[p("A SLIP-39 set's actions are in Convert a seed, not with the backup, since no plan or vault tracks a SLIP-39 set; nothing is remembered, and a share is refused where one more member than its group's threshold would be held. Conservative, F204.")],
         screens: &["Convert"],
-        learn: "other_backups",
     },
     Block {
         id: "wif-shown",
@@ -735,7 +723,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Another reason gets nothing.")],
         own_calls: &[p("none")],
         screens: &["Explore"],
-        learn: "xpubs",
     },
     Block {
         id: "words-shown",
@@ -751,7 +738,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A reason that lends no stored text, or a key with no words, gives the empty text.")],
         own_calls: &[p("The list of reasons is closed: a new reason is a new variant, seen in review. Conservative, F70.")],
         screens: &["Explore", "Backup", "BackupFlow", "VaultContents"],
-        learn: "backups",
     },
     Block {
         id: "hashes-macs",
@@ -767,7 +753,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("PBKDF2 here is HMAC-SHA256 or HMAC-SHA512 only.")],
         own_calls: &[p("none")],
         screens: &["CoreWallet"],
-        learn: "tools",
     },
     Block {
         id: "hkdf",
@@ -783,7 +768,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("HKDF-Expand makes at most 255 blocks of 32 bytes (RFC 5869 §2.3); a longer output is refused and nothing is written.")],
         own_calls: &[p("none")],
         screens: &[],
-        learn: "tools",
     },
     Block {
         id: "scrypt",
@@ -799,7 +783,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A cost n that is not a power of two above 1, an r or p of zero, an empty output or parameters needing more memory than usize can address are refused.")],
         own_calls: &[p("scrypt is written here rather than taken from a crate. Neutral."), w("no decision")],
         screens: &[],
-        learn: "tools",
     },
     Block {
         id: "address",
@@ -815,7 +798,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("An address index of 2^31 or more is refused."), p("A search looks only as far as the index it is given."), p("A search keeps its first 50 matches and counts the rest.")],
         own_calls: &[p("none")],
         screens: &["Wallets", "Explore", "Spend", "SpendBackup", "Tools"],
-        learn: "verifying",
     },
     Block {
         id: "descriptor",
@@ -831,7 +813,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A threshold above the keys, a key repeated, a key with no origin outside a single-key template, and a miniscript that is not sane are refused."), p("A key expression's derivation must be /** or /<0;1>/*."), p("Multisig takes at most 15 keys.")],
         own_calls: &[p("Only BIP 341's H, or an extended key over H, counts as an unspendable internal key. Conservative, F132."), p("One text is written, with h for hardened. Neutral, F66.")],
         screens: &["CoreWallet", "Wallets", "WalletsStart", "Files", "Restore", "Create", "Tools", "Explore", "Silent", "VaultContents"],
-        learn: "coordinators",
     },
     Block {
         id: "recovery",
@@ -847,7 +828,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A wallet no one could recover is refused."), p("A wallet that never waits is not read back as a recovery wallet."), p("Not reached from the app: Create makes no recovery wallet, and one is read as any miniscript wallet.")],
         own_calls: &[p("Script shape is left to rust-miniscript's compiler. Neutral."), w("no decision")],
         screens: &[],
-        learn: "",
     },
     Block {
         id: "tapmulti",
@@ -863,7 +843,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A hardened wildcard is parsed but not derived.")],
         own_calls: &[p("The path m/48'/coin'/0'/3' has no standard; it is Faraday's choice. Neutral."), w("no decision"), p("Only BIP 341's H, or an extended key over H, counts as an unspendable internal key. Conservative, F132.")],
         screens: &["Wallets", "Create"],
-        learn: "multisig",
     },
     Block {
         id: "wallet-files",
@@ -879,7 +858,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A file whose stated first address is not its wallet's is refused."), p("A key in a SLIP-132 version that disagrees with the script is refused."), p("A receive and a change descriptor are one wallet only when they are the same but for /0/* and /1/*, each with its checksum, if any, holding; otherwise the file is refused."), p("A file for Wasabi is written only for a native SegWit single-key wallet at 84h/0h/0h (mainnet) or 84h/1h/0h (test networks).")],
         own_calls: &[p("A SLIP-132 version is checked against the script and the path around the key. Conservative, F155."), p("A Caravan file whose startingAddressIndex is not 0, and an Electrum multisig keystore with no fingerprint, are refused. Conservative, F155.")],
         screens: &["Files", "Restore", "WalletsStart", "SpendBackup"],
-        learn: "coordinators",
     },
     Block {
         id: "bsms",
@@ -895,7 +873,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Encrypted records are refused by name."), p("A paths line other than /0/*,/1/* or No path restrictions is refused."), p("A record of a version other than BSMS 1.0 is refused.")],
         own_calls: &[p("Upper-case bech32 and No path restrictions are accepted. Neutral."), w("no decision"), p("A descriptor record whose paths line is neither /0/*,/1/* nor No path restrictions is refused. Conservative."), w("no decision")],
         screens: &["Create", "Files", "Restore"],
-        learn: "coordinators",
     },
     Block {
         id: "compile",
@@ -911,7 +888,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Only SegWit v0 and Taproot are offered.")],
         own_calls: &[p("The script shape is left to rust-miniscript's compiler. Neutral."), w("no decision")],
         screens: &["Tools"],
-        learn: "spend_paths",
     },
     Block {
         id: "musig-key",
@@ -927,7 +903,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A nested musig() or one with fewer than two participants is refused."), p("Key path only: script-path spends are refused; no WIF participant, no tap tree.")],
         own_calls: &[p("Script-path spends of a musig() wallet are refused; only the key path is built. Conservative, F155."), p("A musig() wallet two of whose keys have one master fingerprint is refused at registration: the MuSig2 check matches one participant to each master fingerprint, so a second account of one seed never signs. Conservative."), w("no decision")],
         screens: &["Create", "Wallets"],
-        learn: "multisig",
     },
     Block {
         id: "xpub-spellings",
@@ -943,7 +918,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A key whose version disagrees with its script is refused.")],
         own_calls: &[p("A SLIP-132 version is checked against the script and the path around the key. Conservative, F155.")],
         screens: &["Tools", "Wallets"],
-        learn: "xpubs",
     },
     Block {
         id: "address-read",
@@ -959,7 +933,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("An address of another network is refused."), p("A scanned address is looked for among 100 addresses on each chain of each loaded wallet.")],
         own_calls: &[p("none")],
         screens: &["Files", "Spend", "Tools"],
-        learn: "verifying",
     },
     Block {
         id: "tools-hash",
@@ -975,7 +948,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A text that is none of the five spellings gives no reading.")],
         own_calls: &[p("none")],
         screens: &["Tools"],
-        learn: "tools",
     },
     Block {
         id: "dice",
@@ -991,7 +963,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Fewer rolls than the strength needs make no key."), p("Direct selection rerolls a 5 or a 6 in a word's first five positions."), p("At most 200 rolls are held.")],
         own_calls: &[p("Cautions about runs and skew are warnings only. Neutral."), w("no decision"), p("99 rolls give 256 bits, as the other tools accept. Neutral."), w("no decision")],
         screens: &["KeyGen", "Randomness"],
-        learn: "randomness",
     },
     Block {
         id: "coins-hex",
@@ -1007,7 +978,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Coins: 128, 160, 192, 224 or 256 flips; hex: 32, 40, 48, 56 or 64 digits."), p("A character that is not a hex digit is refused.")],
         own_calls: &[p("Coins and hex are packed or taken as typed, with no hashing. Neutral."), w("no decision")],
         screens: &["KeyGen", "Randomness"],
-        learn: "randomness",
     },
     Block {
         id: "cards",
@@ -1023,7 +993,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A card already out of its deck is refused."), p("At most two decks (104 cards) are held."), p("Five cards in a row in the deck's own order, up or down, are cautioned, not refused.")],
         own_calls: &[p("The procedure is Faraday's own: a card is the index suit × 13 + rank, and the entropy is SHA-256 of those one-byte indices; no other wallet's card mode is claimed to match, and the bits counted assume a well-shuffled deck. Novel, F158.")],
         screens: &["KeyGen", "Randomness"],
-        learn: "randomness",
     },
     Block {
         id: "camera",
@@ -1039,7 +1008,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A frame of fewer than 32 distinct values is refused."), p("A frame whose SHA-256 was already taken is refused."), p("At most 8 frames are held."), p("Never a key's only source: a mix's member, or added to the session's randomness.")],
         own_calls: &[p("The procedure is Faraday's own, and three frames per 128 bits is a heuristic; the frames only add to a mix or to the system's randomness, never make a key alone. Novel, F158.")],
         screens: &["KeyGen", "Randomness"],
-        learn: "randomness",
     },
     Block {
         id: "pointer-keys",
@@ -1055,7 +1023,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Offered only where the shell has a pointer and keys (the desktop app).")],
         own_calls: &[p("Pointer and key timings are added to the session's randomness, never made into a key on their own. Novel, F86.")],
         screens: &["KeyGen", "Randomness"],
-        learn: "randomness",
     },
     Block {
         id: "mix",
@@ -1071,7 +1038,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Fewer than two sources make no entropy; at most five are held."), p("A mix without dice or this device among its sources makes no key.")],
         own_calls: &[p("The specification is Faraday's own: SHA-256 over the concatenated commitments. With dice or this device among the sources, each at its full count, it only adds to that member's strength. Novel, F158.")],
         screens: &["KeyGen"],
-        learn: "randomness",
     },
     Block {
         id: "device",
@@ -1087,7 +1053,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Nothing is made before the shell has answered.")],
         own_calls: &[p("The source trusts the device's generator. Neutral."), w("no decision")],
         screens: &["KeyGen"],
-        learn: "randomness",
     },
     Block {
         id: "system-random",
@@ -1103,7 +1068,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Nothing is made from a generator that did not answer.")],
         own_calls: &[p("The stick and the Pi read /dev/random; the Pi's generator is mixed, not credited. Conservative, F102."), p("The stick's kernel credits neither the CPU's RDRAND nor the firmware's seed; both are still mixed in. Conservative, F86.")],
         screens: &["Randomness", "Settings"],
-        learn: "randomness",
     },
     Block {
         id: "fresh",
@@ -1119,7 +1083,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("What a person adds alone makes nothing."), p("A batch of nothing is refused."), p("No signing round opens on bytes the system did not give.")],
         own_calls: &[p("Added randomness never replaces the system's bytes. Conservative, F86."), p("The mixing is Faraday's own specification. Novel, F86."), p("MuSig2's rand' is HKDF-Expand of the session seed with a draw counter; rounds across a lock are not offered. Neutral, F234.")],
         screens: &["KeyGen", "Randomness", "Settings", "CreateVault", "Spend"],
-        learn: "randomness",
     },
     Block {
         id: "booklet",
@@ -1135,7 +1098,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Faces outside the die's range are refused.")],
         own_calls: &[p("The comparison is the booklet's; reading dice of 2 to 20 faces is an addition. Neutral."), w("no decision")],
         screens: &["KeyGen"],
-        learn: "other_backups",
     },
     Block {
         id: "roller",
@@ -1151,7 +1113,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Offered only in Faraday Demo, never on the stick, the Pi or the website."), p("Its values are labelled simulated dice.")],
         own_calls: &[p("The roller is an exception to Faraday's randomness never making a codex32 seed; it is testnet-only. Neutral, F96.")],
         screens: &["KeyGen"],
-        learn: "faraday:demo",
     },
     Block {
         id: "diceware",
@@ -1167,7 +1128,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A roll that is not a throw of the list names no word.")],
         own_calls: &[p("none")],
         screens: &["VaultContents", "CreateVault", "Tools"],
-        learn: "passphrases",
     },
     Block {
         id: "bip85",
@@ -1183,7 +1143,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Applications 2', 32', 39', 128169', 707764' and 707785' only; no DICE, RSA or Nostr 128002'."), p("Hex is 16 to 64 bytes, a base64 password 20 to 86 characters, a base85 password 10 to 80."), p("An index of 2^31 or more is refused.")],
         own_calls: &[p("Nostr keys by application 128002' are not built. Neutral, F27.")],
         screens: &["Bip85"],
-        learn: "tools",
     },
     Block {
         id: "vanity",
@@ -1199,7 +1158,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("The counter is at most 8 characters wide."), p("A prefix may hold only characters an address of that kind can carry.")],
         own_calls: &[p("A passphrase found by grinding becomes key material to back up; the account dial gives a non-zero account. Neutral."), w("no decision")],
         screens: &["Vanity"],
-        learn: "passphrases",
     },
     Block {
         id: "bolt11",
@@ -1215,7 +1173,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Reading only: no invoice is written, paid or stored."), p("A text over 1023 characters, mixed case or a checksum that fails is refused."), p("Fields of a tag BOLT #11 does not define, and a fallback address of an unknown version, are listed and not used.")],
         own_calls: &[p("BOLT #11 makes mixed case, an amount finer than a millisatoshi and a `c`, `x` or `9` field that begins with a zero value (the minimal form of zero is an empty field) a refusal, and Faraday refuses them. Where BOLT #11 leaves a case open, Faraday refuses the invoice: an amount with a leading zero, a repeated `x`, `c`, `m`, `9`, `d`, `h` or `n`, a malformed fallback of a version it defines, an empty route hint or a hop key that is not a curve point, an `n` key that is not on the curve, a non-zero padding bit, and a text over 1023 characters (what the Bech32 checksum guarantees). Conservative."), w("no decision")],
         screens: &["Invoice"],
-        learn: "",
     },
     Block {
         id: "bolt12",
@@ -1231,7 +1188,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Reading only: no offer is written, requested, paid or stored."), p("A text over 4,296 characters, mixed case, an invoice request or a field outside the offer's ranges is refused."), p("An expiry is shown and not judged against the clock; odd fields BOLT #12 does not define are listed and not used.")],
         own_calls: &[p("BOLT #12 and BOLT #1 make mixed case, a misplaced `+`, a malformed TLV stream, a type outside the offer's ranges, an unknown even type, an unknown required feature, text that is not BOLT #1's UTF-8, an amount of zero or without a description, a currency without an amount, an offer naming neither an issuer id nor a path, a path of no hops, a point that is not a curve point, empty chains and more than four bits of padding a refusal, and Faraday refuses them. Where BOLT #12 leaves a case open, Faraday refuses the offer: a text over 4,296 characters (what a QR code holds in capital letters), a non-zero padding bit, whitespace after a `+` other than spaces, tabs and line breaks, a chain named twice, chains naming no Bitcoin network Faraday knows, a currency that is not in its ISO 4217 list, an amount over 21 million bitcoin, an expiry past the year 9999, an offer_paths that holds no path, and a character of Unicode's Cn category. Conservative, F232.")],
         screens: &["Invoice"],
-        learn: "",
     },
     Block {
         id: "ots",
@@ -1247,7 +1203,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Reading only: no timestamp is made, upgraded or looked up; a pending attestation is listed with its calendar and not followed."), p("The header given is checked against its own target and not against the chain: a match says the file is committed to by that header."), p("An operation's argument or result over 4,096 bytes, a tree deeper than 256 levels, a height over 32 bits, a proof over 64 KiB, a tree of over 16,384 entries, over 16 MiB of values made by the operations in all, a header target above its network's limit and a proof with bytes after its tree are refused.")],
         own_calls: &[p("A Bitcoin path counts only when the file's hash and every hash on it are SHA-256 or RIPEMD-160: a path through SHA-1 or Keccak-256 is named and not counted, where python-opentimestamps counts it. Where the reference leaves a case open, Faraday refuses: an Ethereum attestation whose payload is not one height, a block height over 32 bits, a number over 64 bits, a proof over 64 KiB, a tree of over 16,384 entries or whose operations make over 16 MiB of values in all, and a header whose target is above its network's proof-of-work limit (the reference reads these without a limit). Conservative, F230.")],
         screens: &["OtsCheck"],
-        learn: "timestamps",
     },
     Block {
         id: "aezeed",
@@ -1263,7 +1218,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Version 0 only; a seed of another version or a failed checksum is refused before scrypt."), p("Reading only.")],
         own_calls: &[p("aezeed and AEZ are written here; the cross-check asks LND's own Go aezeed package, over Yawning Angel's AEZ, the same words and passphrases and requires the same answers or refusals, once with the processor's AES round on both sides and once with the aes crate's software round against AEZ built without assembly. Neutral."), w("no decision")],
         screens: &["Lightning"],
-        learn: "tools",
     },
     Block {
         id: "lightning-node",
@@ -1279,7 +1233,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A node key is hot by nature: it is shown, not loaded as a key.")],
         own_calls: &[p("none")],
         screens: &["Lightning"],
-        learn: "tools",
     },
     Block {
         id: "hsm-secret",
@@ -1295,7 +1248,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Reading only: an hsm_secret is never made and never loaded as a key."), p("A file shorter than 32 bytes, or longer than the mnemonic form can be, is refused. In the mnemonic form the words are English only, in single-space form with no NUL, newline or other whitespace; Core Lightning's text reading is stricter in no case and looser in some, which Faraday refuses.")],
         own_calls: &[p("none")],
         screens: &["Lightning"],
-        learn: "tools",
     },
     Block {
         id: "core-wallet-keys",
@@ -1311,7 +1263,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Checking only: a wallet's private key is never shown, loaded as a key of the session or written."), p("A master key with another method than SHA-512 rounds, or more than 10,000,000 rounds, is refused.")],
         own_calls: &[p("none")],
         screens: &[],
-        learn: "tools",
     },
     Block {
         id: "silent-receive",
@@ -1327,7 +1278,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Scanning stops at K_max, 2323 outputs for one scan key."), p("A script type the protocol does not list, a taproot input under H, an uncompressed key and a scriptSig holding no key matching its hash are skipped."), p("The wallet record keeps public values only.")],
         own_calls: &[p("The faraday-silent 1 record holds the kind, the network, the key's origin, the label count and the address. Neutral."), w("no decision")],
         screens: &["Silent", "Wallets"],
-        learn: "silent_payments",
     },
     Block {
         id: "words-identity",
@@ -1343,7 +1293,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A key with no words has no id and matches nothing.")],
         own_calls: &[p("The id is all 32 bytes of a hash, so two seeds never pass for one. Conservative."), w("no decision")],
         screens: &["Files", "BackupFlow", "VaultContents", "Create", "KeyGen"],
-        learn: "words",
     },
     Block {
         id: "psbt-read",
@@ -1359,7 +1308,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Version 0 here; a version 2 file is read by psbt-v2 and signed as its version 0 form."), p("Version 2 fields in a version 0 file are refused."), p("A 65-byte taproot signature whose sighash byte is 0 is refused."), p("A key origin of more than 16 steps is refused.")],
         own_calls: &[p("A key origin of more than 16 steps anywhere in a PSBT is refused when it is parsed. Conservative, F155.")],
         screens: &["Spend", "Files", "Decode", "Compare", "SpendBackup"],
-        learn: "verifying",
     },
     Block {
         id: "psbt-v2",
@@ -1375,7 +1323,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A taproot signature with a sighash byte of 0 is refused."), p("A key twice in a map, and bytes after the last map, are refused."), p("The fallback locktime, the modifiable flags, the sequence and the required locktimes are held to their sizes and ranges."), p("A version 2 PSBT with an output that has no script yet (a silent payment's) is not signed.")],
         own_calls: &[p("The reader refuses what BIP 370 marks invalid and keeps every pair as read. Conservative."), w("no decision")],
         screens: &["Spend", "Files", "Decode", "SpendBackup"],
-        learn: "verifying",
     },
     Block {
         id: "psbt-review",
@@ -1391,7 +1338,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Supported input scripts: p2pkh, p2sh-p2wpkh, p2wpkh, p2tr key path, and multi or sortedmulti in p2sh, p2wsh and p2sh-p2wsh, with miniscript and taproot trees through a registered wallet."), p("Multisig change is verified only by re-deriving it from a registered wallet."), p("A SegWit v0 input with no previous transaction in a transaction of several inputs is blocked."), p("Only a high fee and an absurd fee rate can be held past; every other danger and every block has no way past."), p("Another device's PSBT for another transaction, one that asks another sighash of an input and one with a signature that does not verify are refused, never merged."), p("An amount or a total over 21,000,000 BTC, in the outputs or the amounts the inputs state, blocks signing.")],
         own_calls: &[p("Change under an unloaded key, or at a path under no loaded account, counts as a payment to others. Conservative, F136."), p("A script of several keys is signed only for a registered wallet that holds a loaded key. Conservative, F135."), p("A miniscript or a taproot tree of one key is signed only through its registered wallet. Conservative, F141."), p("A SegWit v0 input with only a witness UTXO in a transaction of several inputs is refused, which BIP 174 allows. Conservative, F155."), p("The signed-amount memory refuses one transaction stated again with other amounts. Conservative, F155.")],
         screens: &["Spend", "SpendBackup"],
-        learn: "verifying",
     },
     Block {
         id: "sighash-review",
@@ -1407,7 +1353,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("SIGHASH_ALL and SIGHASH_DEFAULT are signed, and ALL with ANYONECANPAY after a caution; NONE, SINGLE and non-standard sighashes are refused."), p("SIGHASH_SINGLE on an input with no output of its index is blocked.")],
         own_calls: &[p("NONE, SINGLE and non-standard sighashes are refused for signing; ALL with ANYONECANPAY is signed after a caution. Conservative, F136.")],
         screens: &["Spend", "SpendBackup"],
-        learn: "verifying",
     },
     Block {
         id: "wif-read",
@@ -1423,7 +1368,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A key is swept and never kept: no vault record, no key slot, no backup."), p("A WIF of the other network kind is refused.")],
         own_calls: &[p("A WIF key is never loaded as a key or kept: it lives for one sweep. Conservative, F171.")],
         screens: &["Tools"],
-        learn: "tools",
     },
     Block {
         id: "sweep-sign",
@@ -1439,7 +1383,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("P2PKH, P2WPKH and P2SH-P2WPKH outputs of the key are signed; a legacy input needs its previous transaction."), p("An output to no loaded wallet's address is flagged, and the hold signs past it.")],
         own_calls: &[p("An output to no loaded wallet's first hundred addresses on either chain is flagged on the review, and the hold signs past it. Neutral, F171."), p("Each signature is made twice and compared, and verified before it is written. Neutral."), w("no decision")],
         screens: &["Tools"],
-        learn: "nonces",
     },
     Block {
         id: "sign-ecdsa",
@@ -1455,7 +1398,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("ALL is signed, and ALL with ANYONECANPAY after a caution; NONE, SINGLE and non-standard sighashes are refused."), p("A SegWit v0 input with no previous transaction, in a transaction of several inputs, is refused."), p("A key comes from the PSBT's origin only; a multisig key with no origin is refused."), p("The app signs with the low-R nonce; the first RFC 6979 nonce is the library's other choice and is not offered in the app.")],
         own_calls: &[p("A key comes from the PSBT's origin only, under the master key's fingerprint; a key whose derived public key differs from the one named, or that the script does not hold, is refused, and an origin under an account's fingerprint matches no key. Conservative, F155."), p("A script of several keys is signed only for a registered wallet that holds a loaded key. Conservative, F135."), p("Only a high fee and an absurd fee rate can be held past; every other danger refuses. Conservative, F136."), p("Each signature is made twice and compared, and verified before it is written. Neutral."), w("no decision"), p("Low-R grinding is the default nonce. Neutral."), w("no decision")],
         screens: &["Spend", "SpendBackup"],
-        learn: "nonces",
     },
     Block {
         id: "sign-schnorr",
@@ -1471,7 +1413,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("SIGHASH_DEFAULT and ALL are signed, and ALL with ANYONECANPAY after a caution; NONE, SINGLE and undefined types are refused."), p("A taproot input that no key of this device can sign is left unsigned."), p("A leaf is signed only when the leaf's script checks a signature against the key, read through the miniscript.")],
         own_calls: &[p("aux_rand is zero, so a signature can be made again byte for byte; BIP 340 recommends fresh randomness against fault attacks. The library offers fresh aux_rand, and the app does not use it. Neutral, F156."), p("A miniscript or a taproot tree of one key is signed only through its registered wallet. Conservative, F141.")],
         screens: &["Spend", "SpendBackup"],
-        learn: "nonces",
     },
     Block {
         id: "sign-musig",
@@ -1487,7 +1428,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Key path only; a nonce or partial signature keyed by a tapleaf hash is a script-path spend and is refused."), p("The wallet must be registered; a participant set no registered wallet has is blocked."), p("Rounds across a lock, with the secret nonce kept in a vault, are not offered (F234).")],
         own_calls: &[p("Each nonce's rand' is RFC 5869 HKDF-Expand of the session's seed, with the draw counter, the input's index and the participant's key as info: a fresh value per call, and a refusal when the counter would wrap. Neutral."), w("no decision"), p("The secret nonce is held in memory for its one session and never serialised. Conservative, F234.")],
         screens: &["Spend"],
-        learn: "nonces",
     },
     Block {
         id: "sign-check",
@@ -1503,7 +1443,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A signature with no previous output to check against is not checked."), p("A signature under a sighash type that was not asked for is flagged."), p("A signature of another device is not recomputed."), p("A finalized taproot signature of 65 bytes with hash type 0x00 is reported invalid, key path and script path alike (BIP 341): it is a danger card, and the PSBT is not refused.")],
         own_calls: &[p("The nonce check is run on signatures a device writes, comparing them with the RFC 6979 or BIP 340 nonce rule. Neutral."), w("no decision")],
         screens: &["Spend", "NonceCheck", "SignerCheck", "Decode", "Compare"],
-        learn: "nonces",
     },
     Block {
         id: "fee-bump",
@@ -1519,7 +1458,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("BIP 125's relay rules are stated or left to the node, not checked."), p("A case the rules do not know is Cannot tell, not a yes.")],
         own_calls: &[p("Whether a replacement only raises the fee is Faraday's own rule; fails closed, a case it does not know is Cannot tell. Neutral, F233.")],
         screens: &["Compare", "Spend", "Files", "Decode"],
-        learn: "tools",
     },
     Block {
         id: "finalize",
@@ -1535,7 +1473,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("An input that has too few signatures stays partial and the transaction is not extracted."), p("A timelock the transaction does not meet stops the input in miniscript's interpreter check."), p("A final input whose funding transaction lacks the spent output is refused."), p("A taproot leaf holding pkh() is signed but left for the coordinator to finalize.")],
         own_calls: &[p("Of several satisfactions of a wsh miniscript, the one with the smaller real signature size is chosen; where two weigh the same, the one Bitcoin Core keeps: an or's first branch, a multi()'s keys named first, a thresh()'s branches named last, a taproot spend's leaf whose script sorts first by its bytes. Neutral, F161.")],
         screens: &["Spend", "SpendBackup"],
-        learn: "verifying",
     },
     Block {
         id: "message-sign",
@@ -1551,7 +1488,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("BIP 322 simple only: no full form, no proof of funds."), p("A nested SegWit address has no BIP 322 simple form and is signed as BIP 137 only."), p("A taproot address is signed as BIP 322 only.")],
         own_calls: &[p("The app signs with the low-R nonce and zero aux_rand for a taproot address. Neutral, F156.")],
         screens: &["Message"],
-        learn: "message",
     },
     Block {
         id: "message-verify",
@@ -1567,7 +1503,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A signature belongs to the one address it was made for."), p("BIP 322 simple only."), p("A taproot signature of 65 bytes with hash type 0x00 is refused as malformed (BIP 341).")],
         own_calls: &[p("The address form is read from the address, not from the BIP 137 header's range, and a P2PKH address is tried in both key encodings; more lenient than BIP 137. Neutral."), w("no decision")],
         screens: &["CheckMessage"],
-        learn: "message",
     },
     Block {
         id: "tx-decode",
@@ -1583,7 +1518,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A raw transaction is read only when its bytes are exactly the serialisation of what was read."), p("A previous transaction with another id does not state the spent output."), p("Amounts that two PSBTs state differently for an input are not used."), p("A transaction with an amount or a total over 21,000,000 BTC, in its outputs or the amounts its inputs are stated to spend, is not decoded.")],
         own_calls: &[p("A previous transaction is attached to an input only when its id is the spent one. Conservative."), w("no decision")],
         screens: &["Decode", "Compare", "Silent"],
-        learn: "verifying",
     },
     Block {
         id: "qr",
@@ -1599,7 +1533,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("One segment per code; the caller picks numeric, alphanumeric or byte mode."), p("The error-correction level is never raised above the one asked for."), p("A frame whose byte count is not width times height yields nothing; a code whose error correction fails is skipped.")],
         own_calls: &[p("The error-correction level is never boosted, so a SeedQR comes out at the level its specification names. Neutral."), w("no decision")],
         screens: &["Transfer", "Spend", "SpendBackup", "Decode", "Create", "Silent", "VaultContents", "Tools", "Convert"],
-        learn: "air_gap",
     },
     Block {
         id: "ur",
@@ -1615,7 +1548,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A multi-part UR may claim at most 2048 fragments."), p("Only the minimal bytewords style is read and written."), p("crypto-output is read and never written."), p("A seed or a private key by UR is refused, saying what it is.")],
         own_calls: &[p("Every part is written as ur:<type>/<seq>-<count>/..., a message of one fragment included. Neutral."), w("no decision"), p("There is no minimum fragment length; a fragment is ceil(length / ceil(length / max)) bytes. Neutral."), w("no decision"), p("A part of another message, and an empty message to animate, are refused. Conservative."), w("no decision")],
         screens: &["Transfer", "Spend", "SpendBackup", "Decode", "Create", "Tools"],
-        learn: "air_gap",
     },
     Block {
         id: "bbqr",
@@ -1631,7 +1563,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("BBQr file types P, T, U and J are read; the others are refused."), p("A frame is at most 4,096 characters, a transfer at most 1,295 parts and 360 KiB put together or decompressed; numbered parts are at most 1,000."), p("Parts of two transfers, a part arriving twice with different contents and parts of uneven length are refused.")],
         own_calls: &[p("Every limit fails closed: a frame, a count or a size past it is refused. Conservative, F155.")],
         screens: &["Transfer", "Spend", "SpendBackup", "Decode", "Create", "Tools"],
-        learn: "air_gap",
     },
     Block {
         id: "kef",
@@ -1647,7 +1578,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A written passphrase is printable ASCII of at most 200 characters; a read one is tried as typed, in NFC and in NFD."), p("A code that inflates past 100 KiB does not open."), p("A count over 550,000 is not written; PBKDF2 runs in steps of 5,000 rounds and stops when told.")],
         own_calls: &[p("What Krux refuses to write is refused here, and a refusal names a version that works. Conservative, F219.")],
         screens: &["KefTool"],
-        learn: "other_backups",
     },
     Block {
         id: "sqlite",
@@ -1663,7 +1593,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A file over 1 GiB, a page size outside 512 to 65,536, a tree deeper than 20 and a database in the write-ahead-log, auto-vacuum or UTF-16 form are refused."), p("Only the table b-tree is read: an index's pages are not, and not checked against the others.")],
         own_calls: &[p("Whatever the reader does not follow is refused, and a page reached twice is refused. Conservative, F229.")],
         screens: &["CoreWallet"],
-        learn: "other_backups",
     },
     Block {
         id: "envelope",
@@ -1679,7 +1608,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A file of no bytes or over 256 KiB is refused."), p("A kind other than file, public-key or signing-subkey is refused."), p("A name is 1 to 128 letters, digits, dots, hyphens or underscores."), p("An envelope over BBQr's 360 KiB is refused.")],
         own_calls: &[p("The SHA-256 shows that the file arrived whole, not who sent it. Neutral."), w("no decision"), p("An envelope is refused unless it is exactly what pack would write for its file. Conservative."), w("no decision")],
         screens: &["Transfer", "Files"],
-        learn: "air_gap",
     },
     Block {
         id: "file-hash",
@@ -1695,7 +1623,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("The digest shows integrity, not origin.")],
         own_calls: &[p("The digest is shown as the file's integrity, not as proof of who made it. Neutral."), w("no decision")],
         screens: &["Files"],
-        learn: "air_gap",
     },
     Block {
         id: "seedqr-make",
@@ -1711,7 +1638,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A SeedQR is made for any word count; one is read back only at 12 and 24 words: 48 or 96 digits, or 16 or 32 bytes."), p("The CompactSeedQR of 15, 18 or 21 words is the entropy itself, a form SeedSigner does not define."), p("The picture carries no wordlist language.")],
         own_calls: &[p("The picture is a copy only when it is checked by a scan or typed words. Neutral, F29.")],
         screens: &["Backup", "BackupFlow", "VaultContents", "Backups", "Convert"],
-        learn: "backups",
     },
     Block {
         id: "seedqr-read",
@@ -1727,7 +1653,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A key whose words are not English is not checked."), p("A key with no words in the session is not checked.")],
         own_calls: &[p("A copy by hand is checked by its form: typed words, or a scan of a SeedQR. Neutral, F29.")],
         screens: &["Entry", "Backup", "Convert"],
-        learn: "backups",
     },
     Block {
         id: "codex32",
@@ -1743,7 +1668,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Seeds of 128, 160, 192, 224, 256 or 512 bits."), p("A threshold of 2 to 9, or 0 for the secret alone, and at most 31 strings."), p("A string that does not hold together, or whose checksum fails, is refused with the reason named."), p("A key of words is never split into codex32 strings.")],
         own_calls: &[p("Recovery is from exactly k shares only. Conservative, F90."), p("The set's identifier is the first 20 bits of the master fingerprint, which puts 20 bits of it on every share. Neutral."), w("no decision")],
         screens: &["Entry", "Backups", "Backup", "VaultContents", "SpendBackup", "KeyGen"],
-        learn: "other_backups",
     },
     Block {
         id: "codex32-make",
@@ -1759,7 +1683,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A worksheet refuses a length that is not codex32's and a symbol outside the bech32 alphabet."), p("A scheme takes any threshold up to 9 and up to 31 strings."), p("The set is not made before every character is in.")],
         own_calls: &[p("A further share is derived only from exactly k strings at an index not in use. Conservative, F90.")],
         screens: &["KeyGen", "Backup"],
-        learn: "other_backups",
     },
     Block {
         id: "codex32-correct",
@@ -1775,7 +1698,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("ms1 and, where a string of the set is in, the threshold and identifier boxes are never changed."), p("Insertions, deletions and swapped boxes are not searched for."), p("A character outside the bech32 alphabet other than ? is refused, not read as unreadable."), p("More than 8 unreadable boxes that are not one run are refused.")],
         own_calls: &[p("Correction is opt-in, off whenever the form opens, proposes only where the correction is unique, and is never applied: the person types the changed boxes again. Conservative, F94."), p("A character outside the bech32 alphabet is not read as an erasure, and more than 8 erasures not in one run are refused; BIP 93 makes the first optional, and python-codex32 accepts both. Conservative, F155.")],
         screens: &["Entry", "Backups"],
-        learn: "other_backups",
     },
     Block {
         id: "codex32qr",
@@ -1791,7 +1713,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A string of any length but 48 characters is refused; no profile is made up for the 74 and 127 character forms.")],
         own_calls: &[p("No code is drawn for a 74 or 127 character string, and none is read but as plain text, until the profile's author publishes a profile for them. Conservative, F95.")],
         screens: &["KeyGen", "Backups"],
-        learn: "other_backups",
     },
     Block {
         id: "slip39",
@@ -1807,7 +1728,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Secrets of 16 to 32 bytes of even length."), p("An iteration exponent above 5 is refused before any PBKDF2 round."), p("A group threshold of 1 over several groups is refused when splitting."), p("A wrong passphrase opens a different wallet: the passphrase is not a check.")],
         own_calls: &[p("Shares with an iteration exponent above 5 are refused; a split writes exponent 1 with the extendable flag set. Conservative, F90."), p("A split with a group threshold of 1 over several groups is refused. Conservative, F90."), p("Secrets above 256 bits are refused. Conservative, F155."), p("The split's randomness is taken from the session's randomness, an answer for every 32 bytes; SLIP-0039 does not say where a split's randomness comes from. Neutral, F154.")],
         screens: &["Backup", "Convert", "Entry", "KeyGen", "SpendBackup"],
-        learn: "other_backups",
     },
     Block {
         id: "xor",
@@ -1823,7 +1743,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Two to four parts; one part alone is the seed itself."), p("Every part is needed: XOR is not a threshold scheme.")],
         own_calls: &[p("none")],
         screens: &["Backup", "Entry", "Tools"],
-        learn: "other_backups",
     },
     Block {
         id: "stick-write",
@@ -1839,7 +1758,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A SeedQR file is made for English words only."), p("A key with no words gets no words file, and a key with no passphrase no passphrase file."), p("A codex32 string this session does not hold gets no file.")],
         own_calls: &[p("A secret goes to a stick only for the backup-stick reason, and only the part that reason names. Conservative."), w("no decision")],
         screens: &["BackupFlow", "Backup", "Backups"],
-        learn: "backups",
     },
     Block {
         id: "outbox",
@@ -1855,7 +1773,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("No file holds the passphrase: the words file and the SeedQR picture carry the words alone."), p("A key with no words is offered nothing."), p("A SeedQR picture is made for English words only.")],
         own_calls: &[p("Nothing is written to the Outbox until the hold on the secret sheet is held to its end. Conservative."), w("no decision")],
         screens: &["Files", "Backup"],
-        learn: "air_gap",
     },
     Block {
         id: "inbox-secret",
@@ -1871,7 +1788,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Text of a seed's words is read only if the words are in a BIP 39 list and their checksum holds."), p("A scanner that loads a seed takes the seed's own forms and refuses a private key.")],
         own_calls: &[p("A secret pasted or scanned where a secret may not go is refused, whatever its form. Conservative."), w("no decision")],
         screens: &["Files", "Explore"],
-        learn: "air_gap",
     },
     Block {
         id: "silent-send",
@@ -1887,7 +1803,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Built in core and not reachable from the app: the device does not send."), p("An eligible input whose public key the PSBT does not state, a P2SH input with no redeem script and a previous transaction that is not the one spent stop the check."), p("A SegWit version above 1 and a sighash other than ALL are refused.")],
         own_calls: &[p("A key a PSBT states for an input counts only where the input's script commits to it, which is stricter than BIP 375's reference validator. Conservative, F89."), p("Spends of SegWit above v1 and sighashes other than ALL are refused. Conservative."), w("no decision")],
         screens: &[],
-        learn: "",
     },
     Block {
         id: "vault-create",
@@ -1903,7 +1818,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("One passphrase, non-empty; no slots, no second passphrase."), p("File sizes 64 KiB, 256 KiB, 1 MiB and 4 MiB only."), p("A vault is made at any cost the reader accepts: memory 8 MiB to 1 GiB, 1 to 100 passes, 1 to 64 lanes."), p("A cost whose memory cannot be allocated is an error that names the MiB needed."), p("A passphrase is put in Unicode NFC, and Argon2id takes that form's UTF-8 bytes.")],
         own_calls: &[p("The file vault is one KDBX 4 file with one passphrase, padded to a multiple of 32 KiB, so a file's length says how much it holds to within 32 KiB and, between two copies, that it grew or shrank (F206). Conservative, F206."), p("Every passphrase is put in Unicode NFC before Argon2id, and nothing else is done to it: compatibility characters, case and spaces are kept as typed. Neutral, F159.")],
         screens: &["CreateVault"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "vault-unlock",
@@ -1919,7 +1833,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Refuses a file longer than the largest vault takes, and one whose version, cipher, KDF or cost is not one the reader takes, before any derivation; a file of another length is not refused."), p("Refuses a file in which any block's HMAC or the header's does not verify."), p("A wrong passphrase and a file that needs a key file as well give the same refusal."), p("KDBX 3.1, AES-KDF, Twofish and an empty passphrase are named and refused.")],
         own_calls: &[p("A file a KeePass app saved with other settings is opened and changed like any vault, and its next seal writes it in Faraday's one shape; it is held read only only for a `faraday.format` other than the one this build writes or a Meta that reads ambiguously (F190). Conservative, F190.")],
         screens: &["Unlock", "VaultContents", "BackupFlow"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "vault-contents",
@@ -1935,7 +1848,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A QR vault is exactly 226 bytes; a plan over 1 MiB, an inline table over its size, a key part of more than 128 bytes, a key path of more than 8 parts and a key outside docs/VAULT.md sections 2.1 and 7 are refused."), p("A QR vault holds one item, a note of at most QR_NOTE_MAX bytes and a passphrase of at most QR_PASSPHRASE_MAX; more is refused as too long, naming the key.")],
         own_calls: &[p("Nothing about Faraday's items refuses a KDBX file: an item that does not read is named Unreadable, by its title, UUID, field and fault, is never made a record and is written back as read; a faraday.format other than 1 makes the vault read-only (owner, 2026-11-03; docs/VAULT.md section 7). Conservative, F194."), p("Whatever the Spec's TOML does not name is refused, so a value that adds a key is not read (F190 point 3, docs/VAULT.md section 7). Conservative, F194."), p("A QR vault's contents are the item's keys at the top of a TOML document, padded to 226 bytes with line feeds (F190 point 5, docs/VAULT.md section 2.1). Neutral, F194.")],
         screens: &[],
-        learn: "faraday:vaults",
     },
     Block {
         id: "vault-qr-pgp",
@@ -1951,7 +1863,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A SKESK v4, a SEIPD v1, a public-key encrypted session key, a second SKESK, compressed data, a signature and trailing data but padding are named \"An OpenPGP message Faraday does not open\"."), p("Argon2 memory 8 MiB to 1 GiB, passes 1 to 100 and lanes 1 to 64; outside them the message is refused right after the key packet, before the data packet is read or any memory is taken; a QR vault is written at 64 MiB to 1 GiB."), p("A wrong passphrase is told from a changed message: the session key's tag fails for the first, a data tag for the second."), p("The passphrase arrives in Unicode NFC; the caller puts it there.")],
         own_calls: &[p("Only AES-256 with OCB and the Argon2 S2K are read: another cipher, AEAD mode or S2K is refused, as are armor and every packet but the three (F178, F190). Conservative, F190.")],
         screens: &[],
-        learn: "faraday:vaults",
     },
     Block {
         id: "qr-vault-seal",
@@ -1967,7 +1878,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A note holds the room the contents leave; a key of other than 12 or 24 English words is not offered; a vault item over the same room is refused with the reason, and a note with the characters to take off."), p("The memory step is one of the steps the message allows; a computer without the room for it refuses.")],
         own_calls: &[p("A passphrase is typed twice and is not measured; the code is only as strong as it. Neutral, F190.")],
         screens: &["QrTool"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "qr-vault-open",
@@ -1983,7 +1893,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A message Faraday does not open, or a stated cost outside the limits, is named before any memory is taken."), p("A wrong passphrase is told from a changed message and may be tried again."), p("No key loads with a stick plugged in; the card says so. A key already loaded is not added twice; a vault that is read-only, full or not open takes no note.")],
         own_calls: &[p("none")],
         screens: &["QrTool"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "vault-kdbx",
@@ -1999,7 +1908,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Version 4.0 and 4.1 only; KDBX 3.1 and older are named and not opened."), p("Argon2 version 1.3 with 8 MiB to 1 GiB of memory, 1 to 100 passes and 1 to 64 lanes, no secret key and no associated data; a cost outside is refused before any memory is asked for."), p("A plaintext of at most 4 MiB; a file too long to hold one is refused before any work, and a gzip body that states more is refused as soon as it is read."), p("The composite key is the passphrase alone; a key file or a challenge-response key cannot be told from a wrong passphrase (KDBX 4 records neither)."), p("The passphrase arrives in Unicode NFC; the container puts it there.")],
         own_calls: &[p("Only the part of KDBX used is written (F178, F190): the file is written in one shape, and a KeePass app's other choices are read. Conservative, F190.")],
         screens: &["BackupFlow", "CreateVault", "Unlock", "VaultContents", "Vaults"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "vault-seal",
@@ -2015,7 +1923,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Refuses changes that do not fit the largest size, and names the bytes over and the next size."), p("Refuses a change the file cannot write, and keeps the vault open with its changes."), p("A vault held read only (a `faraday.format` other than the one this build writes, or a Meta or custom data that reads ambiguously) refuses every change and every seal (`Error::ReadOnly`); a KeePass app's other settings do not hold it read only."), p("Nothing is sealed before the session's answer has arrived.")],
         own_calls: &[p("Each seal counts itself and stamps the sealing computer's clock in the file's custom data, so an older copy can be told from a newer one (F159). Neutral, F159.")],
         screens: &["VaultContents", "BackupFlow"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "vault-reveal",
@@ -2031,7 +1938,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A reason that names another part than the one asked for gives an empty text."), p("A key record's words are given only for a reason that names the words or the SeedQR.")],
         own_calls: &[p("The list of reasons is closed: a new reason is a new variant, seen in review. Conservative, F70.")],
         screens: &["VaultContents"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "vault-edit",
@@ -2047,7 +1953,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A record's size counts against the file; a vault whose records no longer fit the largest size cannot be sealed."), p("A codex32 set's record holds the threshold, identifier, length and each string's state, and no string.")],
         own_calls: &[p("Faraday's own record layouts (`docs/VAULT.md` §7); the payload layouts are read by a second implementation Faraday's authors wrote from that document (`area_vault.py`) and the items by pykeepass, `keepassxc-cli` and keepass-rs. Novel, F97.")],
         screens: &["BackupFlow", "CreateVault", "Unlock", "VaultContents", "Vaults"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "vault-load",
@@ -2063,7 +1968,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A key the session's key store refuses is left out of the loaded list."), p("A passphrase stored beside a key's words is used with them; a passphrase kept alone applies only to the key it was kept for.")],
         own_calls: &[p("Which passphrase goes with which words is decided by the vault's record, not by a guess; a mismatched fingerprint is not loaded. Conservative."), w("no decision")],
         screens: &["VaultContents", "Unlock"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "kdbx",
@@ -2079,7 +1983,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("One entry, as large as the largest vault size (4 MiB of plain text) holds with the document around it; a larger one is refused as not fitting and no file is made. The entry comes from an open vault, whose file is no larger. KDBX states no limit of its own."), p("The file is a vault of the smallest size that holds it."), p("The export is as safe as its passphrase.")],
         own_calls: &[p("Nostr entries are never exported (F27). Neutral, F27."), p("The file's seed, IV, salt, inner key and UUIDs are taken from the session's randomness, an answer for every 32 bytes. Neutral, F154.")],
         screens: &["VaultContents"],
-        learn: "faraday:vaults",
     },
     Block {
         id: "totp",
@@ -2095,7 +1998,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("TOTP only: an otpauth://hotp URI is told apart and not computed."), p("Digits 6 to 8, period 1 to 3600 seconds; a parameter outside that is unreadable."), p("A bare Base32 key is read as SHA1, 6 digits, 30 seconds; a short key is refused."), p("No code is shown while the clock is not checked or set.")],
         own_calls: &[p("A manual clock with a fixed-offset time zone, since a device with no network has no other time (F7). Neutral, F7."), p("A parameter of the otpauth key URI written twice, in a case other than lower, or with a percent-escape in its name, or a parameter name with a space or control character in it, is refused; pyotp keeps the last of a repeated parameter and reads a decoded name. Conservative."), w("no decision")],
         screens: &["Codes"],
-        learn: "faraday:time",
     },
     Block {
         id: "gpg-create",
@@ -2111,7 +2013,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("One key shape only: an Ed25519 primary that certifies and an Ed25519 subkey that signs."), p("A key's expiry is counted from its creation; 0 means never.")],
         own_calls: &[p("Signing waits until the backup flow has written every place the key's plan gives it, two or more; GnuPG has no such gate. Conservative, F32."), p("The primary key's flags are certify only and the signature hash is SHA-512, as GnuPG 2.4 chooses for Ed25519. Neutral, F32.")],
         screens: &["BackupFlow", "VaultContents"],
-        learn: "faraday:gpg",
     },
     Block {
         id: "gpg-sign",
@@ -2127,7 +2028,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Binary signatures only; no text mode, no clear-signing."), p("An expired or revoked key, or one made after the clock, is not signed with."), p("An existing `.asc` of the same name is not overwritten.")],
         own_calls: &[p("Signing takes a hold (F63) and shows the files' names, sizes and SHA-256 first. Conservative, F32.")],
         screens: &["VaultContents", "Files"],
-        learn: "faraday:gpg",
     },
     Block {
         id: "gpg-revoke",
@@ -2143,7 +2043,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Reasons are GnuPG's menu: none, compromised, superseded, no longer used."), p("The kept revocation is not replaced when a new one is made."), p("The file is a secret file: it goes through the secret sheet, with no code or picture.")],
         own_calls: &[p("The revocation is kept in the key's vault record and nothing is written to the Outbox at key generation. Neutral, F32.")],
         screens: &["VaultContents"],
-        learn: "faraday:gpg",
     },
     Block {
         id: "gpg-paperkey",
@@ -2159,7 +2058,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Faraday's key shape only: a key of another algorithm, with no subkey or protected by a passphrase is not written.")],
         own_calls: &[p("The paperkey is computed only while it is held to show, and wiped after. Conservative, F32.")],
         screens: &["VaultContents"],
-        learn: "faraday:gpg",
     },
     Block {
         id: "gpg-restore",
@@ -2175,7 +2073,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Refuses a paperkey protected by a passphrase, one of another algorithm, one for another key or subkey, and one whose secret does not make the public key."), p("A certification by another key is set aside and counted, not restored."), p("The public key is read from Files, a scanned one filed there first; a paperkey's code is taken whole or not at all, every line checked as typed, the raw form by its whole CRC.")],
         own_calls: &[p("A restore that cannot reproduce the certificate's own signatures is refused rather than accepted on the public key alone. Conservative, F155.")],
         screens: &["BackupFlow"],
-        learn: "faraday:gpg",
     },
     Block {
         id: "gpg-verify",
@@ -2191,7 +2088,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Refuses text-mode signatures, versions 5 and 6, a hashed signature expiry, a creation time outside the hashed area and a critical subpacket it does not understand."), p("Refuses a certificate that carries a revocation, and a signature made before the subkey or after either key's expiry."), p("Armour without its checksum, or with anything after it, is refused.")],
         own_calls: &[p("Anything not honoured is refused rather than read, so the release check of F134 cannot be satisfied by a signature of another shape. Conservative, F134.")],
         screens: &["Files", "VaultContents"],
-        learn: "faraday:gpg",
     },
     Block {
         id: "sb-keys",
@@ -2207,7 +2103,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("RSA-2048 only, certificates valid 30 years."), p("Faraday never writes an EFI variable: enrolment happens in the firmware's own setup screen."), p("The Windows policy adds Microsoft's KEK and Windows signing CAs, not the third-party CA.")],
         own_calls: &[p("none")],
         screens: &["VaultContents"],
-        learn: "faraday:secure-boot-keys",
     },
     Block {
         id: "sb-sign",
@@ -2223,7 +2118,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Signs only a release's own boot program, and not an older release's: the release must be at least as new as the running Faraday."), p("Refuses a file the sums do not list exactly once, sums whose first line does not name the release, and a text-mode signature."), p("The signature is appended as one certificate table at the image's end.")],
         own_calls: &[p("A boot program is signed only when it is a release's own. Conservative, F134.")],
         screens: &["VaultContents"],
-        learn: "faraday:secure-boot-keys",
     },
     Block {
         id: "sb-check",
@@ -2239,7 +2133,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Reads the first signature of an image only."), p("A signature table shorter than its header, or starting inside the image's headers, is refused.")],
         own_calls: &[p("Checks the signature alone and not the chain a computer's db would walk. Neutral."), w("no decision")],
         screens: &["VaultContents"],
-        learn: "faraday:secure-boot-keys",
     },
     Block {
         id: "selftest",
@@ -2255,7 +2148,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Runs published vectors only, at small costs (scrypt N = 16, Argon2id over 256 KiB)."), p("The curve context is blinded from a fixed seed, since a self-test has no session to derive one from.")],
         own_calls: &[p("No key is accepted until the checks pass. Conservative."), w("no decision")],
         screens: &["Settings"],
-        learn: "faraday:keys-kept",
     },
     Block {
         id: "starter-write",
@@ -2271,7 +2163,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("An xz stream that asks for more than 128 MiB of memory for one block is refused before it is allocated."), p("A payload whose xz sum does not match writes nothing."), p("SHA-256 shows that the bytes are the release's, not who made them.")],
         own_calls: &[p("Both the compressed and the decompressed sums are checked, and a mismatch after writing is reported as a failure. Conservative."), w("no decision")],
         screens: &["starter:write", "starter:confirm", "starter:writing", "starter:done"],
-        learn: "faraday:checking-written",
     },
     Block {
         id: "starter-signed",
@@ -2287,7 +2178,6 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("Refuses a file that is not the release's program, an unsigned file, and one whose certificate table is not one signature alone at its end."), p("The elevated writer reads the file again and refuses it unless it still has the SHA-256 that was chosen.")],
         own_calls: &[p("Anything but the release's own bytes with the person's signature is refused by name. Conservative, F133.")],
         screens: &["starter:write", "starter:confirm", "starter:writing", "starter:done"],
-        learn: "faraday:checking-written",
     },
     Block {
         id: "starter-recovery-key",
@@ -2303,40 +2193,8 @@ pub static BLOCKS: &[Block] = &[
         limits: &[p("A key that is not eight groups of six digits, or a drive that is not a letter and a colon, is not taken."), p("The key is on the sheet only when the person ticked Include the BitLocker recovery key."), p("The sheet carries nothing else of BitLocker and no QR code of the key.")],
         own_calls: &[p("The sheet carries the key only when it is ticked, and holds it only until the sheet is made. Conservative, F49.")],
         screens: &["starter:start"],
-        learn: "faraday:checking-written",
     },
 ];
-
-/// The Learn page a block's `learn` names (a field of `pages::EN`, or
-/// `faraday:<id>` for one of Faraday's own). A lookup.
-pub fn learn_page(id: &str) -> Option<&'static crate::Page> {
-    match id {
-        "words" => Some(&crate::pages::EN.words),
-        "passphrases" => Some(&crate::pages::EN.passphrases),
-        "xpubs" => Some(&crate::pages::EN.xpubs),
-        "multisig" => Some(&crate::pages::EN.multisig),
-        "faraday:keys-kept" => crate::page("keys-kept"),
-        "other_backups" => Some(&crate::pages::EN.other_backups),
-        "backups" => Some(&crate::pages::EN.backups),
-        "tools" => Some(&crate::pages::EN.tools),
-        "verifying" => Some(&crate::pages::EN.verifying),
-        "coordinators" => Some(&crate::pages::EN.coordinators),
-        "spend_paths" => Some(&crate::pages::EN.spend_paths),
-        "randomness" => Some(&crate::pages::EN.randomness),
-        "faraday:demo" => crate::page("demo"),
-        "timestamps" => Some(&crate::pages::EN.timestamps),
-        "silent_payments" => Some(&crate::pages::EN.silent_payments),
-        "nonces" => Some(&crate::pages::EN.nonces),
-        "message" => Some(&crate::pages::EN.message),
-        "air_gap" => Some(&crate::pages::EN.air_gap),
-        "faraday:vaults" => crate::page("vaults"),
-        "faraday:time" => crate::page("time"),
-        "faraday:gpg" => crate::page("gpg"),
-        "faraday:secure-boot-keys" => crate::page("secure-boot-keys"),
-        "faraday:checking-written" => crate::page("checking-written"),
-        _ => None,
-    }
-}
 
 use crate::construction::{Construction, Item, Part, Table};
 
@@ -2346,7 +2204,6 @@ pub static CONSTRUCTIONS: &[Construction] = &[
     Construction {
         id: "vault",
         title: "How the vault is built",
-        learn: "faraday:vaults",
         actions: &["vault-create", "vault-unlock", "vault-seal"],
         sections: &[
             Part {
@@ -2435,7 +2292,6 @@ pub static CONSTRUCTIONS: &[Construction] = &[
     Construction {
         id: "passphrase-strength",
         title: "Passphrase strength",
-        learn: "faraday:vaults",
         actions: &["vault-create"],
         sections: &[
             Part {
@@ -2508,30 +2364,18 @@ pub fn block(id: &str) -> Option<&'static Block> {
     blocks().iter().find(|b| b.id == id)
 }
 
-/// The blocks a Learn page carries after its sections: those whose
-/// `learn` names this page (`learn_page`). A lookup.
-pub fn for_learn_page(page: &'static crate::Page) -> Vec<&'static Block> {
-    blocks()
-        .iter()
-        .filter(|b| learn_page(b.learn).is_some_and(|p| std::ptr::eq(p, page)))
-        .collect()
-}
-
-/// The constructions a Learn page carries after its sections, in the
-/// manifest's order: those whose `learn` is `page`'s id. A lookup.
-pub fn constructions_for_page(page: &str) -> impl Iterator<Item = &'static Construction> + '_ {
-    CONSTRUCTIONS.iter().filter(move |c| c.learn == page)
-}
-
-/// The constructions drawn after `page`'s own sections, before its
-/// blocks (`docs/CRYPTO-LEARN.md` §18.5): those whose `learn` names this
-/// page (`learn_page`). A lookup.
-pub(crate) fn constructions_for_learn_page(
-    page: &'static crate::Page,
-) -> impl Iterator<Item = &'static Construction> {
-    CONSTRUCTIONS
-        .iter()
-        .filter(move |c| learn_page(c.learn).is_some_and(|p| std::ptr::eq(p, page)))
+/// The constructions drawn after `shown[at]`: those that belong to its
+/// action and to no action of a block shown after it, in the manifest's
+/// order, so that a construction follows the last of the blocks it is
+/// told for (`docs/CRYPTO-LEARN.md` §18.5). A lookup.
+pub fn constructions_after_block<'a>(
+    shown: &'a [&'static Block],
+    at: usize,
+) -> impl Iterator<Item = &'static Construction> + 'a {
+    CONSTRUCTIONS.iter().filter(move |c| {
+        c.actions.contains(&shown[at].id)
+            && !shown[at + 1..].iter().any(|b| c.actions.contains(&b.id))
+    })
 }
 
 /// The construction `id`. A lookup.
@@ -2631,6 +2475,5 @@ pub(crate) const SAMPLE: Block = {
             warn("no decision"),
         ],
         screens: &["Catalog"],
-        learn: "",
     }
 };

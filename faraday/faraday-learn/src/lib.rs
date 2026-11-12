@@ -230,14 +230,6 @@ pub fn page(id: &str) -> Option<&'static LearnPage> {
     OWN.iter().position(|(i, _)| *i == id).map(|n| &own()[n])
 }
 
-/// The constructions drawn after `page`'s own sections, before its
-/// blocks (`docs/CRYPTO-LEARN.md` §18.5). A lookup.
-pub fn constructions_after(
-    page: &'static LearnPage,
-) -> impl Iterator<Item = &'static construction::Construction> {
-    how::constructions_for_learn_page(page)
-}
-
 /// Faraday's own page with an id from [`OWN`].
 pub fn known(id: &str) -> &'static LearnPage {
     page(id).expect("an id from OWN")

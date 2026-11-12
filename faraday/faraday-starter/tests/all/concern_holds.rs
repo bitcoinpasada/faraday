@@ -6,7 +6,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware, Touc
 use faraday_starter::api::{
     Bus, Computer, Concern, Disk, FaradayStick, Kind, Os, Reason, StarterCommand, StarterEvent,
 };
-use faraday_starter::{LearnId, Page, RestartTo, Sheet, Starter, StarterAction, reason_text};
+use faraday_starter::{Page, RestartTo, Sheet, StartGuide, Starter, StarterAction, reason_text};
 
 fn display() -> Event {
     Event::Display(DisplayInfo {
@@ -258,19 +258,19 @@ fn nothing_attached_holds_nothing_and_says_nothing() {
 }
 
 #[test]
-fn the_learn_links_are_drawn_only_where_their_pages_exist() {
-    let link = |id: LearnId| StarterAction::LearnPage(id);
-    let exists = |id: LearnId| id.page().is_some();
+fn the_start_guide_links_are_drawn_only_where_they_are_for() {
+    let link = |id: StartGuide| StarterAction::StartGuide(id);
+    let exists = |_: StartGuide| true;
     // Secure Boot and BitLocker: Home's Turn Secure Boot back on, and the
     // Start page.
     let mut starter = linux();
-    let sb = LearnId::SecureBootBitLocker;
+    let sb = StartGuide::SecureBootBitLocker;
     assert_eq!(offers(&mut starter, link(sb)), exists(sb));
     starter.press(StarterAction::Start);
     assert_eq!(offers(&mut starter, link(sb)), exists(sb));
     // Screens that record: on the warning only.
     let mut starter = linux();
-    let sr = LearnId::ScreensThatRecord;
+    let sr = StartGuide::ScreensThatRecord;
     assert!(!offers(&mut starter, link(sr)));
     starter.starter_event(StarterEvent::Concerns(vec![item(
         Kind::Tv,
@@ -280,7 +280,7 @@ fn the_learn_links_are_drawn_only_where_their_pages_exist() {
     assert_eq!(offers(&mut starter, link(sr)), exists(sr));
     // The boot entry: on Linux's Restart from the stick, and it opens
     // from the sheet.
-    let be = LearnId::BootEntry;
+    let be = StartGuide::BootEntry;
     let mut starter = linux();
     tap(&mut starter, StarterAction::Next);
     assert_eq!(offers(&mut starter, link(be)), exists(be));

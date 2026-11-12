@@ -955,7 +955,6 @@ row = "bip39"
 standards = [
   "BIP 39",
 ]
-learn = "words"
 screens = [
   "Entry",
   "Restore",
@@ -1048,7 +1047,6 @@ fingerprint = "50653bda6fb0d8944f4d5fa47d5bc1312d9b8190a73ef8daf388c4ead9a8ea58"
 reviewed = "2026-11-11"
 places = [
   "core/faraday-bip/README.md",
-  "docs/learn/02-words.md",
 ]
 
 [[action.screens_not]]
@@ -1063,7 +1061,6 @@ row = "bip39"
 standards = [
   "BIP 39",
 ]
-learn = "words"
 screens = [
   "KeyGen",
 ]
@@ -1115,7 +1112,6 @@ row = "bip39"
 standards = [
   "BIP 39",
 ]
-learn = "passphrases"
 screens = [
   "Entry",
   "KeyGen",
@@ -1206,7 +1202,6 @@ row = "single-key"
 standards = [
   "BIP 32",
 ]
-learn = "xpubs"
 screens = [
   "Entry",
   "KeyGen",
@@ -1311,7 +1306,6 @@ standards = [
   "BIP 84",
   "BIP 86",
 ]
-learn = "xpubs"
 screens = [
   "Create",
   "Explore",
@@ -1432,7 +1426,6 @@ standards = [
   "BIP 48",
   "BIP 67",
 ]
-learn = "multisig"
 screens = [
   "Create",
   "Wallets",
@@ -1508,7 +1501,6 @@ action = "Holds a key in memory blinded and on pinned pages."
 row = "keys-held"
 label = "own specification, not yet reviewed outside Faraday"
 standards = []
-learn = "faraday:keys-kept"
 screens = [
   "Settings",
 ]
@@ -1585,7 +1577,6 @@ row = "explore-key"
 standards = [
   "BIP 93",
 ]
-learn = "faraday:keys-kept"
 screens = [
   "Explore",
 ]
@@ -1643,7 +1634,6 @@ row = "explore-key"
 standards = [
   "BIP 32",
 ]
-learn = "xpubs"
 screens = [
   "Explore",
 ]
@@ -1710,7 +1700,6 @@ standards = [
   "SeedQR",
   "Seed XOR",
 ]
-learn = "other_backups"
 screens = ["Convert"]
 functions = [
   "faraday/faraday-keys/src/operations.rs::Keys::master_seed_hex",
@@ -1806,7 +1795,6 @@ row = "convert-seed"
 standards = [
   "SLIP-0039",
 ]
-learn = "other_backups"
 screens = ["Convert"]
 functions = [
   "faraday/faraday-keys/src/slip39_set.rs::Keys::slip39_set_hold",
@@ -1878,7 +1866,6 @@ row = "explore-key"
 standards = [
   "BIP 32",
 ]
-learn = "xpubs"
 screens = [
   "Explore",
 ]
@@ -1935,7 +1922,6 @@ name = "Show a key's words"
 action = "Lends a key's words or passphrase as text for a named reason, and shows them on screen or for copying by hand."
 row = "keys-held"
 standards = []
-learn = "backups"
 screens = [
   "Explore",
   "Backup",
@@ -2005,7 +1991,6 @@ standards = [
   "RFC 8018",
   "RFC 7914",
 ]
-learn = "tools"
 screens = ["CoreWallet"]
 functions = [
   "core/faraday-crypto/src/hash.rs::sha256",
@@ -2075,7 +2060,6 @@ standards = [
   "RFC 2104",
   "FIPS 180-4",
 ]
-learn = "tools"
 screens = []
 functions = [
   "core/faraday-crypto/src/hash.rs::hkdf_sha256",
@@ -2128,7 +2112,6 @@ row = "hash-primitives"
 standards = [
   "RFC 7914",
 ]
-learn = "tools"
 screens = []
 functions = [
   "core/faraday-crypto/src/scrypt.rs::scrypt",
@@ -2199,7 +2182,6 @@ standards = [
   "BIP 173",
   "BIP 350",
 ]
-learn = "verifying"
 screens = [
   "Wallets",
   "Explore",
@@ -2283,7 +2265,6 @@ fingerprint = "39ef5798f79f078cdab561d23e8c93d9136dba11b32e1f7bfea085dd2395ab95"
 reviewed = "2026-11-11"
 places = [
   "core/faraday-bip/README.md",
-  "docs/learn/06-verifying.md",
 ]
 
 [[action]]
@@ -2301,7 +2282,6 @@ standards = [
   "BIP 379",
   "BIP 381",
 ]
-learn = "coordinators"
 screens = [
   "CoreWallet",
   "Wallets",
@@ -2430,7 +2410,6 @@ reviewed = "2026-11-11"
 places = [
   "core/faraday-bip/README.md",
   "docs/INTEROP.md",
-  "docs/learn/19-coordinators.md",
 ]
 
 [[action]]
@@ -2443,7 +2422,6 @@ standards = [
   "BIP 382",
   "BIP 386",
 ]
-learn = "none"
 screens = []
 functions = [
   "core/faraday-bip/src/recovery.rs::RecoveryPolicy::to_wallet_policy",
@@ -2505,7 +2483,6 @@ fingerprint = "4e83e7adacce0a9a9040fcf114c22e175e1c4c9621d476bdb8dca413613598f3"
 reviewed = "2026-11-11"
 places = [
   "core/faraday-bip/README.md",
-  "docs/learn/12-inheritance.md",
 ]
 
 [[action]]
@@ -2519,7 +2496,6 @@ standards = [
   "BIP 341",
   "BIP 342",
 ]
-learn = "multisig"
 screens = [
   "Wallets",
   "Create",
@@ -2598,7 +2574,6 @@ standards = [
   "BIP 388",
   "RFC 8259",
 ]
-learn = "coordinators"
 screens = [
   "Files",
   "Restore",
@@ -2716,7 +2691,6 @@ standards = [
   "BIP 129",
   "BIP 137",
 ]
-learn = "coordinators"
 screens = [
   "Create",
   "Files",
@@ -2804,7 +2778,6 @@ row = "miniscript-compiler"
 standards = [
   "BIP 379",
 ]
-learn = "spend_paths"
 screens = [
   "Tools",
 ]
@@ -2853,7 +2826,6 @@ fingerprint = "b6de3457444dd368df21bf36bc7ad97a3fece03e6c2f8720c10d183755388063"
 reviewed = "2026-11-11"
 places = [
   "core/faraday-bip/README.md",
-  "docs/learn/10-spend-paths.md",
 ]
 
 [[action]]
@@ -2867,7 +2839,6 @@ standards = [
   "BIP 390",
   "BIP 341",
 ]
-learn = "multisig"
 screens = [
   "Create",
   "Wallets",
@@ -2969,7 +2940,6 @@ fingerprint = "8a7acea3e42583e119327955f47164f410248c9878878b2993b47143e2ba8924"
 reviewed = "2026-11-11"
 places = [
   "core/faraday-bip/README.md",
-  "docs/learn/09-multisig.md",
 ]
 
 [[action]]
@@ -2981,7 +2951,6 @@ standards = [
   "SLIP-0132",
   "BIP 32",
 ]
-learn = "xpubs"
 screens = [
   "Tools",
   "Wallets",
@@ -3049,7 +3018,6 @@ fingerprint = "f8dbd15c4810876efda8a4568cfd2a3ea9aa3f06d2bbb093d349582b35b6a017"
 reviewed = "2026-11-11"
 places = [
   "core/faraday-bip/README.md",
-  "docs/learn/11-xpubs.md",
 ]
 
 [[action]]
@@ -3062,7 +3030,6 @@ standards = [
   "BIP 350",
   "Base58Check",
 ]
-learn = "verifying"
 screens = [
   "Files",
   "Spend",
@@ -3129,7 +3096,6 @@ standards = [
   "BIP 380",
   "Base58Check",
 ]
-learn = "tools"
 screens = [
   "Tools",
 ]
@@ -3203,7 +3169,6 @@ row = "dice"
 standards = [
   "Dice hashing of Coldcard and SeedSigner",
 ]
-learn = "randomness"
 screens = [
   "KeyGen",
   "Randomness",
@@ -3274,7 +3239,6 @@ fingerprint = "c422dc3849039a987879eb6f014430252efb389d7b4c87e0c5d569e2f72aa7de"
 reviewed = "2026-11-05"
 places = [
   "docs/OWN-RANDOMNESS.md",
-  "docs/learn/03-randomness.md",
   "tools/reference/dice/README.md",
 ]
 
@@ -3284,7 +3248,6 @@ name = "Pack coins and hex"
 action = "Packs coin flips into entropy most significant bit first, and takes hexadecimal digits as they are."
 row = "coins-hex"
 standards = []
-learn = "randomness"
 screens = [
   "KeyGen",
   "Randomness",
@@ -3354,7 +3317,6 @@ action = "Turns playing-card draws into entropy as SHA-256 of the draws' indices
 row = "cards"
 label = "own specification, not yet reviewed outside Faraday"
 standards = []
-learn = "randomness"
 screens = [
   "KeyGen",
   "Randomness",
@@ -3423,7 +3385,6 @@ action = "Commits to camera frames as SHA-256 over the frames' SHA-256 digests, 
 row = "camera"
 label = "own specification, not yet reviewed outside Faraday"
 standards = []
-learn = "randomness"
 screens = [
   "KeyGen",
   "Randomness",
@@ -3495,7 +3456,6 @@ action = "Records pointer moves and key presses with time and a running count, a
 row = "own-randomness"
 label = "own specification, not yet reviewed outside Faraday"
 standards = []
-learn = "randomness"
 screens = [
   "KeyGen",
   "Randomness",
@@ -3558,7 +3518,6 @@ action = "Combines two to five sources, dice or this device among them, by hashi
 row = "mix-sources"
 label = "own specification, not yet reviewed outside Faraday"
 standards = []
-learn = "randomness"
 screens = [
   "KeyGen",
 ]
@@ -3622,7 +3581,6 @@ name = "Take the device's entropy"
 action = "Hashes the 32 bytes the shell answered the entropy request with into a key's entropy."
 row = "device-random"
 standards = []
-learn = "randomness"
 screens = [
   "KeyGen",
 ]
@@ -3681,7 +3639,6 @@ name = "Read the system's randomness"
 action = "Reads 32 bytes from the system's generator for the desktop app and the Starter, and names the source."
 row = "own-randomness"
 standards = []
-learn = "randomness"
 screens = [
   "Randomness",
   "Settings",
@@ -3741,7 +3698,6 @@ action = "Keeps the session's seed and pool from the shell's answers, mixes a pe
 row = "own-randomness"
 label = "own specification, not yet reviewed outside Faraday"
 standards = []
-learn = "randomness"
 screens = [
   "KeyGen",
   "Randomness",
@@ -3824,7 +3780,6 @@ fingerprint = "d00b710baf7998a76afe38dff68a7214bbe24b8f86b142f720e5f2bba827b57e"
 reviewed = "2026-11-11"
 places = [
   "docs/OWN-RANDOMNESS.md",
-  "docs/learn/03-randomness.md",
 ]
 
 [[action]]
@@ -3835,7 +3790,6 @@ row = "booklet-dice"
 standards = [
   "Booklet dice de-biasing",
 ]
-learn = "other_backups"
 screens = [
   "KeyGen",
 ]
@@ -3892,7 +3846,6 @@ action = "Rolls simulated dice for Faraday Demo from the session's randomness, o
 row = "demo-roller"
 label = "own specification, not yet reviewed outside Faraday"
 standards = []
-learn = "faraday:demo"
 screens = [
   "KeyGen",
 ]
@@ -3957,7 +3910,6 @@ row = "diceware"
 standards = [
   "EFF word lists",
 ]
-learn = "passphrases"
 screens = [
   "VaultContents",
   "CreateVault",
@@ -4001,9 +3953,7 @@ lines = [
 [action.review]
 fingerprint = "a9f02dc6e84b4b7c12f497ed88b406242e53f380531310bb9314acaf6f3ccaf2"
 reviewed = "2026-10-29"
-places = [
-  "docs/learn/05-passphrases.md",
-]
+places = []
 
 [[action]]
 id = "bip85"
@@ -4015,7 +3965,6 @@ standards = [
   "RFC 4648",
   "RFC 1924",
 ]
-learn = "tools"
 screens = [
   "Bip85",
 ]
@@ -4101,7 +4050,6 @@ row = "vanity"
 standards = [
   "EntropyLab vanity counter",
 ]
-learn = "passphrases"
 screens = [
   "Vanity",
 ]
@@ -4170,7 +4118,6 @@ row = "bolt11"
 standards = [
   "BOLT 11",
 ]
-learn = "none"
 screens = ["Invoice"]
 functions = [
   "core/faraday-codec/src/bolt11.rs::decode",
@@ -4243,7 +4190,6 @@ row = "bolt12"
 standards = [
   "BOLT 12",
 ]
-learn = "none"
 screens = ["Invoice"]
 functions = [
   "core/faraday-codec/src/bolt12.rs::decode",
@@ -4319,7 +4265,6 @@ row = "ots"
 standards = [
   "OpenTimestamps",
 ]
-learn = "timestamps"
 screens = ["OtsCheck"]
 functions = [
   "faraday/faraday-ots/src/lib.rs::HashOp::digest",
@@ -4417,7 +4362,6 @@ standards = [
   "LND aezeed",
   "RFC 7914",
 ]
-learn = "tools"
 screens = [
   "Lightning",
 ]
@@ -4510,7 +4454,6 @@ standards = [
   "BIP 32",
   "BIP 39",
 ]
-learn = "tools"
 screens = [
   "Lightning",
 ]
@@ -4587,7 +4530,6 @@ standards = [
   "Core Lightning hsm_secret",
   "BIP 39",
 ]
-learn = "tools"
 screens = [
   "Lightning",
 ]
@@ -4674,7 +4616,6 @@ row = "core-wallet-keys"
 standards = [
   "Bitcoin Core wallet.dat",
 ]
-learn = "tools"
 screens = []
 functions = [
   "faraday/faraday-keys/src/core_wallet.rs::check_private_key",
@@ -4759,7 +4700,6 @@ standards = [
   "BIP 321",
   "BIP 353",
 ]
-learn = "silent_payments"
 screens = [
   "Silent",
   "Wallets",
@@ -4877,7 +4817,6 @@ fingerprint = "b6ab704e576cb0d909250e70fbc906c1b1f8a33a8bd62d1050c48ca295207959"
 reviewed = "2026-11-11"
 places = [
   "core/faraday-bip/README.md",
-  "docs/learn/20-silent-payments.md",
 ]
 
 [[action]]
@@ -4888,7 +4827,6 @@ row = "keys-held"
 standards = [
   "BIP 39",
 ]
-learn = "words"
 screens = [
   "Files",
   "BackupFlow",
@@ -5066,7 +5004,6 @@ name = "Read a PSBT"
 action = "Reads a version 0 PSBT from bytes or base64 and writes it back as it was read."
 row = "psbt-v0"
 standards = ["BIP 174"]
-learn = "verifying"
 screens = [
   "Spend",
   "Files",
@@ -5149,7 +5086,6 @@ name = "Read a version 2 PSBT"
 action = "Reads a version 2 PSBT as its key-value maps, checks BIP 370's shape and converts it to version 0 and back."
 row = "psbt-v2"
 standards = ["BIP 370"]
-learn = "verifying"
 screens = [
   "Spend",
   "Files",
@@ -5232,7 +5168,6 @@ standards = [
   "BIP 173",
   "BIP 350",
 ]
-learn = "verifying"
 screens = ["Spend", "SpendBackup"]
 functions = [
   "core/faraday-psbt/src/inspect.rs::inspect",
@@ -5347,7 +5282,6 @@ standards = [
   "BIP 341",
   "BIP 342",
 ]
-learn = "verifying"
 screens = ["Spend", "SpendBackup"]
 functions = [
   "core/faraday-psbt/src/inspect.rs::sighash_kind",
@@ -5404,7 +5338,6 @@ name = "Read a WIF private key"
 action = "Reads a single private key written as WIF, typed or scanned for a sweep, and works out the addresses it pays."
 row = "wif-sweep"
 standards = []
-learn = "tools"
 screens = ["Tools"]
 functions = [
   "core/faraday-bip/src/wif.rs::SingleKey::decode",
@@ -5474,7 +5407,6 @@ standards = [
   "BIP 174",
   "RFC 6979",
 ]
-learn = "nonces"
 screens = ["Tools"]
 functions = [
   "core/faraday-psbt/src/sweep.rs::sign",
@@ -5547,7 +5479,6 @@ standards = [
   "BIP 174",
   "RFC 6979",
 ]
-learn = "nonces"
 screens = ["Spend", "SpendBackup"]
 functions = [
   "core/faraday-psbt/src/sign.rs::sign",
@@ -5620,7 +5551,7 @@ decision = "no decision"
 [action.review]
 fingerprint = "c8eea08101d1ef21d439a75cbfb343fd773ce1095bb26fdc1dbbfcd6ccb2ab0c"
 reviewed = "2026-11-11"
-places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
+places = ["core/faraday-psbt/README.md#Signing"]
 
 [[action]]
 id = "sign-schnorr"
@@ -5632,7 +5563,6 @@ standards = [
   "BIP 341",
   "BIP 342",
 ]
-learn = "nonces"
 screens = ["Spend", "SpendBackup"]
 functions = ["core/faraday-psbt/src/sign.rs::sign_taproot", "core/faraday-psbt/src/sign.rs::sign_tap_leaf"]
 code = ["core/faraday-psbt/src/sign.rs::sign_taproot", "core/faraday-psbt/src/sign.rs::sign_tap_leaf"]
@@ -5686,7 +5616,7 @@ decision = "F141"
 [action.review]
 fingerprint = "199c44809b79820b20bbe365fbf6403b6847b1f1401193318b1eaae7991f8b3b"
 reviewed = "2026-11-11"
-places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
+places = ["core/faraday-psbt/README.md#Signing"]
 
 [[action]]
 id = "sign-musig"
@@ -5698,7 +5628,6 @@ standards = [
   "BIP 373",
   "BIP 341",
 ]
-learn = "nonces"
 screens = ["Spend"]
 functions = [
   "core/faraday-psbt/src/sign.rs::sign_musig",
@@ -5801,7 +5730,7 @@ decision = "F234"
 [action.review]
 fingerprint = "519032d8accf9ec844f8bebd6e4f16dfa227d90bf0ca3447586ab205b444ec4a"
 reviewed = "2026-11-11"
-places = ["core/faraday-psbt/README.md#MuSig2", "docs/learn/13-nonces.md"]
+places = ["core/faraday-psbt/README.md#MuSig2"]
 
 [[action]]
 id = "sign-check"
@@ -5815,7 +5744,6 @@ standards = [
   "BIP 174",
   "BIP 373",
 ]
-learn = "nonces"
 screens = ["Spend", "NonceCheck", "SignerCheck", "Decode", "Compare"]
 functions = [
   "core/faraday-psbt/src/verify.rs::compare",
@@ -5924,7 +5852,7 @@ decision = "no decision"
 [action.review]
 fingerprint = "b4aaaae6cf8dbecd04ff6a99774384cce2410282dfdc82e5c0d1659d326e204a"
 reviewed = "2026-11-11"
-places = ["core/faraday-psbt/README.md#Signing", "docs/learn/13-nonces.md"]
+places = ["core/faraday-psbt/README.md#Signing"]
 
 [[action]]
 id = "fee-bump"
@@ -5932,7 +5860,6 @@ name = "Compare PSBTs and the fee bump"
 action = "Compares two PSBTs side by side and says whether a replacement only raises the fee of an original: the same inputs, the same payments, a higher fee."
 row = "fee-bump"
 standards = ["BIP 174", "BIP 125"]
-learn = "tools"
 screens = ["Compare", "Spend", "Files", "Decode"]
 functions = [
   "core/faraday-psbt/src/bump.rs::fee_of",
@@ -5996,7 +5923,6 @@ name = "Finalize a transaction"
 action = "Builds the final scriptSig and witness from the partial signatures and extracts the transaction."
 row = "psbt-v0"
 standards = ["BIP 174"]
-learn = "verifying"
 screens = ["Spend", "SpendBackup"]
 functions = [
   "core/faraday-psbt/src/finalize.rs::finalize",
@@ -6069,7 +5995,6 @@ standards = [
   "RFC 6979",
   "BIP 340",
 ]
-learn = "message"
 screens = ["Message"]
 functions = [
   "core/faraday-psbt/src/message.rs::sign",
@@ -6137,7 +6062,6 @@ name = "Check a signed message"
 action = "Checks a signed message against an address, as BIP 137 or BIP 322 simple."
 row = "message-signing"
 standards = ["BIP 137", "BIP 322"]
-learn = "message"
 screens = ["CheckMessage"]
 functions = [
   "core/faraday-psbt/src/message.rs::verify",
@@ -6188,7 +6112,6 @@ name = "Read a transaction"
 action = "Reads a raw transaction, or a PSBT's transaction, to its txid, wtxid, weight and the previous outputs its source states."
 row = "decode-tx"
 standards = ["BIP 141", "BIP 144"]
-learn = "verifying"
 screens = [
   "Decode",
   "Compare",
@@ -6267,7 +6190,6 @@ name = "Make and read QR codes"
 action = "Encodes a payload as a QR code, ISO/IEC 18004 model 2, and reads QR codes from a camera frame or a PNG."
 row = "qr-code"
 standards = ["ISO/IEC 18004"]
-learn = "air_gap"
 screens = [
   "Transfer",
   "Spend",
@@ -6356,7 +6278,6 @@ standards = [
   "BCR-2020-010",
   "BCR-2020-015",
 ]
-learn = "air_gap"
 screens = [
   "Transfer",
   "Spend",
@@ -6477,7 +6398,6 @@ name = "Split and join BBQr parts"
 action = "Splits a file into BBQr or numbered pNofM parts for QR codes and puts received parts together."
 row = "bbqr"
 standards = ["BBQr", "Specter pNofM"]
-learn = "air_gap"
 screens = [
   "Transfer",
   "Spend",
@@ -6552,7 +6472,6 @@ name = "Seal and open Krux codes"
 action = "Writes and reads a Krux encrypted code (KEF): a passphrase and a count of PBKDF2-HMAC-SHA-256 rounds over an id give an AES-256 key, and one of twelve versions (ECB, CBC, CTR or GCM, with or without compression) seals the bytes with the format's own check."
 row = "kef"
 standards = ["KEF"]
-learn = "other_backups"
 screens = ["KefTool"]
 functions = [
   "faraday/faraday-kef/src/lib.rs::seal",
@@ -6646,7 +6565,6 @@ name = "Read a SQLite database"
 action = "Reads a SQLite database file and never writes one: the header, the schema, the one table of two blob columns (key and value) of a Bitcoin Core wallet and its pages, with every file that is not whole refused. It is not cryptography."
 row = "sqlite"
 standards = ["SQLite file format"]
-learn = "other_backups"
 screens = ["CoreWallet"]
 functions = [
   "faraday/faraday-sqlite/src/lib.rs::Database::open",
@@ -6706,7 +6624,6 @@ name = "Wrap a file in an envelope"
 action = "Puts a file in the faraday-file-v1 envelope with its SHA-256 and checks one received, saving a file received once."
 row = "file-envelope"
 standards = []
-learn = "air_gap"
 screens = ["Transfer", "Files"]
 functions = [
   "faraday/faraday-qr/src/envelope.rs::pack",
@@ -6763,7 +6680,6 @@ name = "Hash a file"
 action = "Computes the SHA-256 of a whole file to show and keep."
 row = "file-hash"
 standards = ["FIPS 180-4"]
-learn = "air_gap"
 screens = ["Files"]
 functions = [
   "faraday/faraday-core/src/receipt.rs::sha256_of",
@@ -6816,7 +6732,6 @@ name = "Make a SeedQR"
 action = "Makes a SeedQR or CompactSeedQR picture from a key's words."
 row = "seedqr"
 standards = ["SeedQR", "BIP 39"]
-learn = "backups"
 screens = [
   "Backup",
   "BackupFlow",
@@ -6905,7 +6820,6 @@ name = "Check a SeedQR"
 action = "Checks that a SeedQR read by the scanner is the one a key's words make."
 row = "seedqr"
 standards = ["SeedQR", "BIP 39"]
-learn = "backups"
 screens = ["Entry", "Backup", "Convert"]
 functions = ["faraday/faraday-keys/src/session.rs::Keys::seedqr_reads_as"]
 code = ["faraday/faraday-keys/src/session.rs::Keys::seedqr_reads_as"]
@@ -6952,7 +6866,6 @@ name = "Work with codex32 strings"
 action = "Reads, checksums, splits and recovers codex32 strings, and keeps and gathers the strings of a key's set."
 row = "codex32"
 standards = ["BIP 93"]
-learn = "other_backups"
 screens = [
   "Entry",
   "Backups",
@@ -7039,7 +6952,6 @@ name = "Make codex32 shares"
 action = "Fills the codex32 booklet's worksheets one character at a time and makes a fresh set or derived shares from them."
 row = "codex32"
 standards = ["BIP 93"]
-learn = "other_backups"
 screens = ["KeyGen", "Backup"]
 functions = [
   "core/faraday-bip/src/codex32/worksheet.rs::ChecksumWorksheet::of",
@@ -7121,7 +7033,6 @@ name = "Correct a codex32 string"
 action = "Proposes the one correction a codex32 checksum justifies for a damaged string, within BIP 93's bound."
 row = "codex32"
 standards = ["BIP 93"]
-learn = "other_backups"
 screens = ["Entry", "Backups"]
 functions = ["core/faraday-bip/src/codex32/correct.rs::correct"]
 code = ["core/faraday-bip/src/codex32/correct.rs::correct"]
@@ -7177,7 +7088,6 @@ name = "Make a Codex32QR"
 action = "Writes a 48-character codex32 string as a Codex32QR code."
 row = "codex32qr"
 standards = ["Codex32QR/v1-48", "BIP 93"]
-learn = "other_backups"
 screens = ["KeyGen", "Backups"]
 functions = ["core/faraday-codec/src/qr.rs::codex32qr"]
 code = ["core/faraday-codec/src/qr.rs::codex32qr"]
@@ -7223,7 +7133,6 @@ name = "Split with SLIP-39"
 action = "Splits a master secret into SLIP-39 shares and recovers it from them, with the passphrase's Feistel encryption."
 row = "slip39"
 standards = ["SLIP-0039"]
-learn = "other_backups"
 screens = [
   "Backup",
   "Convert",
@@ -7341,7 +7250,6 @@ name = "Split with Seed XOR"
 action = "Splits a seed into Seed XOR parts, each a BIP 39 mnemonic, and combines parts into the seed."
 row = "seed-xor"
 standards = ["Seed XOR", "BIP 39"]
-learn = "other_backups"
 screens = [
   "Backup",
   "Entry",
@@ -7402,7 +7310,6 @@ standards = [
   "SeedQR",
   "BIP 93",
 ]
-learn = "backups"
 screens = [
   "BackupFlow",
   "Backup",
@@ -7474,7 +7381,6 @@ standards = [
   "BIP 39",
   "SeedQR",
 ]
-learn = "air_gap"
 screens = [
   "Files",
   "Backup",
@@ -7537,7 +7443,6 @@ standards = [
   "SLIP-0039",
   "BIP 32",
 ]
-learn = "air_gap"
 screens = [
   "Files",
   "Explore",
@@ -7610,7 +7515,6 @@ standards = [
   "BIP 375",
   "BIP 352",
 ]
-learn = "none"
 screens = []
 functions = [
   "core/faraday-psbt/src/silent.rs::add_shares",
@@ -7820,7 +7724,6 @@ standards = [
   "RFC 2104",
   "UAX #15",
 ]
-learn = "faraday:vaults"
 screens = ["CreateVault"]
 functions = [
   "faraday/faraday-vault/src/file.rs::create",
@@ -7919,7 +7822,6 @@ standards = [
   "RFC 2104",
   "UAX #15",
 ]
-learn = "faraday:vaults"
 screens = ["Unlock", "VaultContents", "BackupFlow"]
 functions = [
   "faraday/faraday-vault/src/file.rs::open",
@@ -8010,7 +7912,6 @@ name = "Read the items inside a vault"
 action = "Reads the TOML a vault holds into its items: the keys of a QR vault (a seed's words, a codex32 share, a passphrase, a note, or nothing), and the three TOML values a file vault keeps in its custom data (a backup plan, a seed's codex32 facts, its BIP-85 facts). What the Spec does not name is refused: a syntax refusal names the line and every other the key; a value read is written again to the same fields. A file vault's KDBX document is mapped to the records the app reads and back (`kdbx::items`): each Faraday item by its `faraday.kind` in its published text form (BIP-39 words of a list or a seed in hex, a BIP-388 policy or a descriptor, PEM keys and certificates, an armored GPG key, a codex32 string), a person's entry by its six fields, and the database's format, seal count, plans and signed amounts; an item that does not read is named Unreadable, never made a record, and written back as read."
 row = "vault"
 standards = ["TOML v1.0.0"]
-learn = "faraday:vaults"
 screens = []
 functions = [
   "faraday/faraday-vault/src/contents.rs::read_qr",
@@ -8135,7 +8036,6 @@ standards = [
   "RFC 9106",
   "RFC 5869",
 ]
-learn = "faraday:vaults"
 screens = []
 functions = [
   "faraday/faraday-pgp/src/message.rs::parse",
@@ -8237,7 +8137,6 @@ standards = [
   "RFC 9106",
   "RFC 5869",
 ]
-learn = "faraday:vaults"
 screens = ["QrTool"]
 functions = [
   "faraday/faraday-keys/src/qr_vault.rs::qr_seal_note_job",
@@ -8296,7 +8195,6 @@ standards = [
   "RFC 9106",
   "RFC 5869",
 ]
-learn = "faraday:vaults"
 screens = ["QrTool"]
 functions = [
   "faraday/faraday-keys/src/qr_vault.rs::QrOpenJob::run",
@@ -8364,7 +8262,6 @@ standards = [
   "FIPS 197",
   "RFC 1952",
 ]
-learn = "faraday:vaults"
 screens = ["BackupFlow", "CreateVault", "Unlock", "VaultContents", "Vaults"]
 functions = [
   "faraday/faraday-keys/src/job.rs::SealJob::run",
@@ -8505,7 +8402,6 @@ standards = [
   "RFC 8439",
   "RFC 2104",
 ]
-learn = "faraday:vaults"
 screens = [
   "VaultContents",
   "BackupFlow",
@@ -8574,7 +8470,6 @@ name = "Reveal a vault secret"
 action = "Puts a secret of an open vault's record in the clear for the one reason named: a key's words or passphrase, a kept passphrase, an entry's password, TOTP secret or notes, a note's text."
 row = "vault"
 standards = []
-learn = "faraday:vaults"
 screens = ["VaultContents"]
 functions = [
   "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::reveal",
@@ -8645,7 +8540,6 @@ action = "Adds, changes, copies and makes public the records of an open vault, h
 row = "vault"
 label = "own specification, not yet reviewed outside Faraday"
 standards = []
-learn = "faraday:vaults"
 screens = [
   "BackupFlow",
   "CreateVault",
@@ -8723,7 +8617,6 @@ standards = [
   "BIP 39",
   "BIP 32",
 ]
-learn = "faraday:vaults"
 screens = [
   "VaultContents",
   "Unlock",
@@ -8812,7 +8705,6 @@ standards = [
   "RFC 9106",
   "RFC 8439",
 ]
-learn = "faraday:vaults"
 screens = ["VaultContents"]
 functions = [
   "faraday/faraday-vault/src/file.rs::create_holding",
@@ -8905,7 +8797,6 @@ standards = [
   "RFC 4226",
   "otpauth Key URI Format",
 ]
-learn = "faraday:time"
 screens = ["Codes"]
 functions = [
   "faraday/faraday-vault/src/totp.rs::Totp::code",
@@ -8988,7 +8879,6 @@ standards = [
   "RFC 9580",
   "RFC 8032",
 ]
-learn = "faraday:gpg"
 screens = ["BackupFlow", "VaultContents"]
 functions = [
   "faraday/faraday-keys/src/gpg.rs::create",
@@ -9087,7 +8977,6 @@ decision = "F32"
 fingerprint = "6614a2c56d57ba060a3f3778b203b3aacaf0d3e47da4f6ba6cf6cca3cee7c2e3"
 reviewed = "2026-11-11"
 places = [
-  "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
 ]
 
@@ -9101,7 +8990,6 @@ standards = [
   "RFC 9580",
   "RFC 8032",
 ]
-learn = "faraday:gpg"
 screens = [
   "VaultContents",
   "Files",
@@ -9160,7 +9048,6 @@ decision = "F32"
 fingerprint = "64df3f35f66e6132ae14ae85c706e8d7a477305415077e19f078465fe243a5ba"
 reviewed = "2026-11-11"
 places = [
-  "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
 ]
 
@@ -9173,7 +9060,6 @@ standards = [
   "RFC 4880",
   "RFC 9580",
 ]
-learn = "faraday:gpg"
 screens = ["VaultContents"]
 functions = [
   "faraday/faraday-pgp/src/lib.rs::Key::revocation",
@@ -9231,7 +9117,6 @@ decision = "F32"
 fingerprint = "2850fbb78f674fec49059acb7c4de0e64ce9fa5761cbb8ba36a32dbfe9db83bb"
 reviewed = "2026-11-11"
 places = [
-  "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
 ]
 
@@ -9241,7 +9126,6 @@ name = "Write the GPG key as paperkey"
 action = "Writes the GPG key's secret parts in paperkey's text form, for a person to copy onto paper."
 row = "gpg"
 standards = ["paperkey"]
-learn = "faraday:gpg"
 screens = ["VaultContents"]
 functions = [
   "faraday/faraday-pgp/src/lib.rs::Key::paperkey",
@@ -9288,7 +9172,6 @@ decision = "F32"
 fingerprint = "75573ecb89a5fdec85dd9a59c0659c0f3208e89dbd0fe4818062e7d5c8c9c309"
 reviewed = "2026-11-11"
 places = [
-  "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
   "docs/GPG-PAPERKEY.md#2. The format",
 ]
@@ -9304,7 +9187,6 @@ standards = [
   "RFC 9580",
   "RFC 8032",
 ]
-learn = "faraday:gpg"
 screens = ["BackupFlow"]
 functions = [
   "faraday/faraday-pgp/src/certificate.rs::restore",
@@ -9373,7 +9255,6 @@ fingerprint = "f53af58b084d25b8bf714c13fa595cebfd703e99f80b0e7cb10bf2e3e4efd614"
 reviewed = "2026-11-11"
 places = [
   "docs/GPG-PAPERKEY.md#4. The flow",
-  "docs/learn/faraday/gpg.md",
 ]
 
 [[action]]
@@ -9386,7 +9267,6 @@ standards = [
   "RFC 9580",
   "RFC 8032",
 ]
-learn = "faraday:gpg"
 screens = [
   "Files",
   "VaultContents",
@@ -9443,7 +9323,6 @@ decision = "F134"
 fingerprint = "98b001267523014096549e8649bd1c05200bbdd85fcd21f28ecbe46493edc7f3"
 reviewed = "2026-11-11"
 places = [
-  "docs/learn/faraday/gpg.md",
   "docs/decisions/F32.md",
 ]
 
@@ -9459,7 +9338,6 @@ standards = [
   "RFC 5652",
   "RFC 8017",
 ]
-learn = "faraday:secure-boot-keys"
 screens = ["VaultContents"]
 functions = [
   "faraday/faraday-sb/src/lib.rs::make",
@@ -9528,7 +9406,6 @@ reviewed = "2026-11-11"
 places = [
   "docs/decisions/F134.md",
   "faraday/faraday-sb/tests/vectors/make.sh",
-  "docs/learn/faraday/secure-boot-keys.md",
 ]
 
 [[action]]
@@ -9542,7 +9419,6 @@ standards = [
   "RFC 5652",
   "RFC 8017",
 ]
-learn = "faraday:secure-boot-keys"
 screens = ["VaultContents"]
 functions = [
   "faraday/faraday-sb/src/release.rs::sign",
@@ -9604,7 +9480,6 @@ reviewed = "2026-11-03"
 places = [
   "docs/decisions/F134.md",
   "faraday/faraday-sb/tests/vectors/make.sh",
-  "docs/learn/faraday/secure-boot-keys.md",
 ]
 
 [[action]]
@@ -9617,7 +9492,6 @@ standards = [
   "RFC 5652",
   "RFC 8017",
 ]
-learn = "faraday:secure-boot-keys"
 screens = ["VaultContents"]
 functions = [
   "faraday/faraday-sb/src/pe.rs::check",
@@ -9690,7 +9564,6 @@ standards = [
   "RFC 7914",
   "RFC 9106",
 ]
-learn = "faraday:keys-kept"
 screens = ["Settings"]
 functions = [
   "core/faraday-selftest/src/lib.rs::run",
@@ -9772,7 +9645,6 @@ name = "Write an image to a stick"
 action = "Writes an image to a stick and checks it: the SHA-256 of the found image file against the release's image list before any write, of the decompressed bytes against the list as they are written, and of what was read back from the stick, with the stick's own IDs and name taken back out, against the list after; keep data takes a stick as the same build only when its boot partition's SHA-256 is the release's boot partition sum (F244)."
 row = "starter-image"
 standards = ["FIPS 180-4"]
-learn = "faraday:checking-written"
 screens = [
   "starter:write",
   "starter:confirm",
@@ -9881,7 +9753,6 @@ fingerprint = "6d1292c220c6c4da3aeaa76432e126cf95930dd77f794cfa03235858a24b8a75"
 reviewed = "2026-11-11"
 places = [
   "docs/STARTER.md",
-  "docs/learn/faraday/checking-written.md",
 ]
 
 [[action]]
@@ -9893,7 +9764,6 @@ standards = [
   "Authenticode",
   "RFC 8017",
 ]
-learn = "faraday:checking-written"
 screens = [
   "starter:write",
   "starter:confirm",
@@ -9950,7 +9820,6 @@ fingerprint = "455b13444b8d8c22bd010ea7102c66754f736324907b84a3fba27852df59290c"
 reviewed = "2026-11-03"
 places = [
   "docs/decisions/F133.md",
-  "docs/learn/faraday/checking-written.md",
 ]
 
 [[action]]
@@ -9959,7 +9828,6 @@ name = "Read a BitLocker recovery key"
 action = "Reads a BitLocker recovery key, eight groups of six digits, for the system drive, holds it until the notes sheet is made and wipes it."
 row = "starter-recovery-key"
 standards = []
-learn = "faraday:checking-written"
 screens = [
   "starter:start",
 ]
@@ -10018,7 +9886,6 @@ fingerprint = "a0b7bb894d3d1b59c4f677f94db95036d66fb950d091918bdddb625dc6d76753"
 reviewed = "2026-11-11"
 places = [
   "docs/STARTER.md",
-  "docs/learn/faraday/checking-written.md",
 ]
 
 [[not_crypto]]
@@ -10472,7 +10339,6 @@ reason = "The publication's name."
 [[construction]]
 id = "vault"
 title = "How the vault is built"
-learn = "faraday:vaults"
 actions = ["vault-create", "vault-unlock", "vault-seal"]
 
 [[construction.section]]
@@ -10635,7 +10501,6 @@ reviewed = "2026-11-11"
 [[construction]]
 id = "passphrase-strength"
 title = "Passphrase strength"
-learn = "faraday:vaults"
 actions = ["vault-create"]
 
 [[construction.section]]

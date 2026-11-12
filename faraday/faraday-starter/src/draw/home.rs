@@ -412,7 +412,7 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ui.icon(cx, cy, 20.0, Icon::ChevronRight, 9.0, muted);
         y += ROW_H;
         if row.item == Item::SecureBootOn {
-            y += link(ui, tx, y, w - 44.0, LearnId::SecureBootBitLocker);
+            y += link(ui, tx, y, w - 44.0, StartGuide::SecureBootBitLocker);
         }
         ui.rule(x, y, w, Role::OutlineVariant);
     }

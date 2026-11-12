@@ -26,6 +26,7 @@ pub(super) fn sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
     };
     let blocks = starter.how_blocks();
     let release = crate::VERSION;
+    let look = faraday_ui::how::PageLook::SHEET;
     let outside = ui.outside.replace(StarterAction::Cancel.host());
     faraday_ui::sheet::scroll_sheet(
         ui,
@@ -44,7 +45,7 @@ pub(super) fn sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
                 Role::OnSurface,
                 S.starter_how_title,
             );
-            cy += faraday_ui::how::blocks(ui, (x, cy, iw), &blocks, release);
+            cy += faraday_ui::how::blocks(ui, (x, cy, iw), &blocks, release, &look);
             // Pinned to the sheet's foot.
             faraday_ui::sheet::buttons(
                 ui,
