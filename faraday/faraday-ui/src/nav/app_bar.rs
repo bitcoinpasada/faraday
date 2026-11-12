@@ -10,8 +10,8 @@
 use crate::pal::*;
 use crate::{Glyph, Shape, Ui};
 use faraday_draw::tokens::{
-    APP_BAR_H, GAP_SMALL, LABEL_M, MARGIN_COMPACT, MODE_PILL_HEIGHT, NAV_ICON,
-    TITLE_L, TITLE_M, TITLE_S, TOUCH, TypeRole,
+    APP_BAR_H, GAP_SMALL, LABEL_M, MARGIN_COMPACT, MODE_PILL_HEIGHT, NAV_ICON, TITLE_L, TITLE_M,
+    TITLE_S, TOUCH, TypeRole,
 };
 use faraday_draw::widgets::Icon;
 use faraday_strings::EN;
