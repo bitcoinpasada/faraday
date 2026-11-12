@@ -18,7 +18,7 @@ that are not zero and a missing `=`, so an encoding has one spelling.
 
 **Cost.** Version 1.8.3 with `default-features = false` and the `alloc`
 feature: no new crate in the lock file. The edges `faraday-vault`, `faraday-bip`,
-`faraday-pgp`, `faraday-backup` and the Starter's shell to `base64ct` are
+`faraday-pgp` and the Starter's shell to `base64ct` are
 new.
 
 **Reopen when** no Faraday crate has a base64 caller left, or the crate

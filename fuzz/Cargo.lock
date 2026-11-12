@@ -333,14 +333,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faraday-backup"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "faraday-crypto",
-]
-
-[[package]]
 name = "faraday-bip"
 version = "0.1.0"
 dependencies = [
@@ -474,7 +466,6 @@ dependencies = [
  "base64ct",
  "cbc",
  "chacha20",
- "faraday-backup",
  "faraday-bip",
  "faraday-codec",
  "faraday-crypto",

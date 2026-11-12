@@ -9703,7 +9703,7 @@ functions = [
   "core/faraday-selftest/src/lib.rs::schnorr_vector",
   "core/faraday-selftest/src/lib.rs::scrypt_vector",
   "core/faraday-selftest/src/lib.rs::argon2id_vector",
-  "core/faraday-backup/src/lib.rs::argon2id",
+  "core/faraday-crypto/src/argon2.rs::argon2id",
 ]
 code = ["core/faraday-selftest/src/lib.rs::run"]
 
@@ -9718,7 +9718,7 @@ through = [
   { library = "unicode-normalization", crate = "core/faraday-bip" },
   { library = "base16ct", crate = "core/faraday-crypto" },
 ]
-adds = "Each check calls the function the product itself calls (the Argon2id check calls `faraday_backup::argon2id`, which wraps the `faraday_crypto::argon2` the vault calls) and compares with an expected value copied from a vector file; a failure names the check and blocks the app but Exit."
+adds = "Each check calls the function the product itself calls (the Argon2id check calls `faraday_crypto::argon2id`, which wraps the `faraday_crypto::argon2` the vault calls) and compares with an expected value copied from a vector file; a failure names the check and blocks the app but Exit."
 
 [action.checked]
 vectors = [

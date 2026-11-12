@@ -47,7 +47,6 @@ CRATES = [
     "core/faraday-bip",
     "core/faraday-psbt",
     "core/faraday-entropy",
-    "core/faraday-backup",
     "core/faraday-codec",
     "faraday/faraday-intake",
     "faraday/faraday-kef",
@@ -87,7 +86,7 @@ NOT_CRYPTO = {
     "bip39", "serde_json", "serde", "serde_core", "serde_derive",
     "proc-macro2", "quote", "syn", "unicode-ident", "libc", "getrandom", "r-efi",
 }
-CORE = ["faraday-crypto", "faraday-bip", "faraday-psbt", "faraday-entropy", "faraday-backup",
+CORE = ["faraday-crypto", "faraday-bip", "faraday-psbt", "faraday-entropy",
         "faraday-vault", "faraday-qr", "faraday-kef"]
 
 

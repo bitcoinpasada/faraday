@@ -51,7 +51,11 @@ mod secret;
 mod wipe;
 pub mod work;
 
-pub use argon2::{Cost as Argon2Cost, Error as Argon2Error, argon2};
+pub use argon2::{
+    Cost as Argon2Cost, DEVICE_PARAMS as ARGON2_DEVICE_PARAMS, Error as Argon2Error,
+    FileCost as Argon2FileCost, MIN_PARAMS as ARGON2_MIN_PARAMS,
+    StretchError as Argon2StretchError, argon2, argon2id,
+};
 pub use blake2b::{MAX_OUT as BLAKE2B_MAX_OUT, blake2b};
 pub use crc32::crc32;
 pub use hash::{

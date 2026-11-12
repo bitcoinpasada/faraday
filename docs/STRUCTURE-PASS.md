@@ -88,7 +88,7 @@ and its notes say what was read. It is not a human audit and grants no
 trust; every crate it covers stays an exemption in `supply-chain/config.toml`
 and is "not reviewed" by a person. The reads cover every crate the signing and
 key crates (`faraday-keys`, `faraday-psbt`, `faraday-bip`,
-`faraday-crypto`, `faraday-vault`, `faraday-backup`, `faraday-entropy`)
+`faraday-crypto`, `faraday-vault`, `faraday-entropy`)
 and the stick's binary reach that was exempt, except `tiny-skia` and
 `tiny-skia-path` 0.12.0: whole crates `hex_lit`, `crypto-primes`,
 `typenum`, `strict-num` and `getrandom` 0.3.4 (on which the imported

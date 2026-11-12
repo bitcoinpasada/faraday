@@ -274,7 +274,7 @@ interpreter and mempool policy.
   security control. It also holds each area's corpus case count for
   that run, one `cases <area> <count>` line each.
 - **What the stamp covers.** `core/faraday-crypto`, `core/faraday-bip`,
-  `core/faraday-psbt`, `core/faraday-entropy`, `core/faraday-backup`,
+  `core/faraday-psbt`, `core/faraday-entropy`,
   `faraday/faraday-vault`, the signing and derivation code in
   `faraday/faraday-keys`, and the
   `Cargo.lock` entries of rust-bitcoin, rust-miniscript, secp256k1 and

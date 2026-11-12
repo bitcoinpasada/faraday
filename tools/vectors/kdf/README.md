@@ -23,7 +23,7 @@ python3 -I -c "import hashlib; print(hashlib.scrypt(b'', salt=b'', n=16, r=1, p=
 ## Argon2id
 
 RFC 9106's own vectors use a secret and associated data, which
-`faraday_backup::argon2id` does not take, so this answer was computed with
+`faraday_crypto::argon2id` does not take, so this answer was computed with
 two implementations, which agree: argon2-cffi, which binds the
 reference C implementation, and `cryptography`, which calls OpenSSL.
 

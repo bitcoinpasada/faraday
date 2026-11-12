@@ -30,9 +30,9 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::str::FromStr;
 
-use faraday_backup::Cost;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::{MasterKey, Network, ScriptType};
+use faraday_crypto::Argon2FileCost as Cost;
 use faraday_crypto::work::Compute;
 use faraday_psbt::bitcoin::bip32::{DerivationPath, Xpriv};
 use faraday_psbt::bitcoin::hashes::{Hash, sha256d};
@@ -321,7 +321,7 @@ fn scrypt_vector(c: &Compute) -> bool {
 // ----- Argon2id: the known answer in `tools/vectors/kdf/README.md` -----
 //
 // The KDF of a KDBX database and the kept-key blob, both through
-// `faraday_backup::argon2id`, at 256 KiB rather than
+// `faraday_crypto::argon2id`, at 256 KiB rather than
 // their 64 MiB. The answer is the reference C implementation's
 // (argon2-cffi) and OpenSSL's, which agree.
 
@@ -336,7 +336,7 @@ const ARGON2ID_KEY: &str = "cab746b4621993fdc91ec50787980b414a90a692f0bc68dfe19f
 
 /// Costs an Argon2id run (through `argon2id`).
 fn argon2id_vector(c: &Compute) -> bool {
-    let Ok(key) = faraday_backup::argon2id(c, &ARGON2ID_COST, ARGON2ID_PASSWORD, ARGON2ID_SALT)
+    let Ok(key) = faraday_crypto::argon2id(c, &ARGON2ID_COST, ARGON2ID_PASSWORD, ARGON2ID_SALT)
     else {
         return false;
     };

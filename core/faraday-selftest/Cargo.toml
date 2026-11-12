@@ -9,7 +9,6 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-faraday-backup = { path = "../faraday-backup" }
 faraday-bip = { path = "../faraday-bip" }
 faraday-crypto = { path = "../faraday-crypto" }
 faraday-psbt = { path = "../faraday-psbt" }

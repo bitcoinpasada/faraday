@@ -9,7 +9,6 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-faraday-backup = { path = "../../core/faraday-backup" }
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }

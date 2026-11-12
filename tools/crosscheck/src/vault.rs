@@ -1,5 +1,5 @@
 //! What of the vault the cross-check still asks of Faraday's code
-//! (`docs/VAULT.md`): Argon2id through `faraday_backup::argon2id`, a
+//! (`docs/VAULT.md`): Argon2id through `faraday_crypto::argon2id`, a
 //! passphrase's NFC form and the Unicode version `faraday_vault` makes it
 //! under, and the payload layouts of §7 through `faraday_vault::layouts`.
 //!
@@ -10,8 +10,8 @@
 //!
 //! Passphrases travel as JSON text.
 
-use faraday_backup::Cost;
 use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_crypto::Argon2FileCost as Cost;
 use faraday_crypto::work::Compute;
 use faraday_vault::Record;
 use faraday_vault::child::{self, ChildOf};
@@ -46,7 +46,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
     match name {
         // Argon2id, version 1.3, 32 bytes.
         "argon2id" => {
-            let k = faraday_backup::argon2id(
+            let k = faraday_crypto::argon2id(
                 &c,
                 &cost(req)?,
                 &bytes(req, "password"),

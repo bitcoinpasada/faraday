@@ -9,7 +9,7 @@ ways.
 Before anything else the area checks argon2-cffi, and PyCA (44 or later over OpenSSL 3.2
 or later), against `tools/vectors/kdf/`'s known answer (`tools/vectors/vault-primitives/`). Then:
 
-- Argon2id (`faraday_backup::argon2id`) at random small costs, salts and
+- Argon2id (`faraday_crypto::argon2id`) at random small costs, salts and
   passwords, with the costs and salts Argon2 refuses; PyCA's answer or refusal must be
   argon2-cffi's.
 - The payload layouts of §7: words, seed and sheet, made and read, with
@@ -179,7 +179,7 @@ class Vault(Area):
     faraday = (
         "`faraday_vault`'s file (`file::create`, `open` and `seal`, the document model and the "
         "items of §7), its payload layouts and a passphrase's NFC form with the Unicode version "
-        "it is made under, `file::create_holding` (an export), and `faraday_backup::argon2id`"
+        "it is made under, `file::create_holding` (an export), and `faraday_crypto::argon2id`"
     )
     reference = (
         "pykeepass and `keepassxc-cli` (the distribution's packages) for the vault file, both "

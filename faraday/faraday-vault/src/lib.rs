@@ -40,7 +40,7 @@ use alloc::string::String;
 use unicode_normalization::UnicodeNormalization;
 use zeroize::Zeroizing;
 
-pub use faraday_backup::Cost;
+pub use faraday_crypto::Argon2FileCost as Cost;
 pub use records::{Field, Record};
 
 /// The Unicode version a passphrase is put in NFC under: the

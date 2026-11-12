@@ -15,7 +15,6 @@ path = "src/main.rs"
 [dependencies]
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
-faraday-backup = { path = "../../core/faraday-backup" }
 # SeedQR and the QR encoder, and the reader (rqrr) that reads the codes
 # the area draws.
 faraday-codec = { path = "../../core/faraday-codec", features = ["decode"] }

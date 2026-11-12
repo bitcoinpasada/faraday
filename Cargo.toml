@@ -7,7 +7,6 @@ members = [
     "core/faraday-psbt",
     "core/faraday-shell-api",
     "core/faraday-codec",
-    "core/faraday-backup",
     "core/faraday-selftest",
     "core/faraday-draw",
     "faraday/shells/camera",

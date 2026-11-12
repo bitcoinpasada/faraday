@@ -65,7 +65,7 @@ pub enum Work {
     /// QR codes looked for in a picture's pixels (`faraday-codec`).
     QrDecode,
     /// A key stretched: PBKDF2, scrypt or Argon2 (`faraday-crypto`,
-    /// `faraday-backup`, `faraday-vault`).
+    /// `faraday-vault`).
     Kdf,
     /// A canvas reduced and blurred: a sheet's frosted backdrop, made
     /// once when the sheet opens (`faraday-draw`).

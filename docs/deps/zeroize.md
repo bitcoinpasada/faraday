@@ -7,7 +7,7 @@ the single dependency of `faraday-shell-api`, where `EntropyBytes` wipes the
 review 2026-09-11, L4).
 
 It also wipes the Argon2 working memory in `faraday_crypto::argon2`
-(the one Argon2 call `faraday-backup`, the KDBX container and the QR
+(the one Argon2 call the self-test, the KDBX container and the QR
 vault's OpenPGP message make) and the cluster buffer in `faraday-fat`.
 
 **Why this crate.** Its `zeroize()` is a volatile write followed by a

@@ -90,10 +90,10 @@ const NOT_SHIPPED_CRATES: &[&str] = &[
 ];
 
 /// What `faraday-crypto` exports that computes nothing: the compute token,
-/// the secret wrappers, `hex`, which writes and reads base16 text, and `date`,
-/// calendar arithmetic. A path into them is not a path into a primitive
-/// (§4.2 rule 3 would otherwise take the 600 functions of `faraday-core` that
-/// pass the token through).
+/// the secret wrappers, the Argon2id `Cost` a file carries, `hex`, which
+/// writes and reads base16 text, and `date`, calendar arithmetic. A path into
+/// them is not a path into a primitive (§4.2 rule 3 would otherwise take the
+/// 600 functions of `faraday-core` that pass the token through).
 const NOT_COMPUTING: &[&str] = &[
     "work",
     "hex",
@@ -104,6 +104,7 @@ const NOT_COMPUTING: &[&str] = &[
     "Zeroizing",
     "WipeOnFree",
     "Pinned",
+    "Argon2FileCost",
     "pin_failure_to_report",
 ];
 
@@ -524,13 +525,14 @@ fn primitive_path(full: &[String], own_lib: &str, reex: &Reexports) -> bool {
     } else {
         &full[0]
     };
-    if primitive_lib(head)
-        && head != own_lib
-        && !(head == "faraday_crypto"
-            && full
-                .get(1)
-                .is_some_and(|s| NOT_COMPUTING.contains(&s.as_str())))
+    if head == "faraday_crypto"
+        && full
+            .get(1)
+            .is_some_and(|s| NOT_COMPUTING.contains(&s.as_str()))
     {
+        return false;
+    }
+    if primitive_lib(head) && head != own_lib {
         return true;
     }
     reex.get(head)

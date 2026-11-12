@@ -466,7 +466,7 @@ kinds:
 | `WalletMatch` | `Wallet::script_at`, a script derived to match a PSBT |
 | `PngDecode` | `faraday_files::qr_in_png` |
 | `QrDecode` | `faraday_codec::decode::decode_luma` |
-| `Kdf` | `faraday_crypto`'s PBKDF2 and scrypt, `faraday_backup::argon2id`, `faraday-vault`'s Argon2id |
+| `Kdf` | `faraday_crypto`'s PBKDF2, scrypt and `argon2id`, `faraday-vault`'s Argon2id |
 | `Blur` | `faraday_draw::Canvas::frost` |
 | `FullCanvas` | `Canvas::snapshot`, `snapshot_into`, `restore`, `blend_between` |
 
