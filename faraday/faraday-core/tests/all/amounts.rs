@@ -20,13 +20,13 @@ fn spending() -> faraday_psbt::Psbt {
 
 fn offer(app: &mut Faraday, psbt: &faraday_psbt::Psbt, kept: Vec<(String, Vec<u8>)>) {
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("spend.psbt".to_string(), psbt.to_bytes()),
             (
                 "spending-wallet.txt".to_string(),
                 kit().descriptor.into_bytes(),
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept,
     });
@@ -139,14 +139,14 @@ fn sign_with_vault_open(vault: Vec<u8>, psbt: &faraday_psbt::Psbt) -> Faraday {
         )));
     }
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("ledger.kdbx".to_string(), vault),
             ("spend.psbt".to_string(), psbt.to_bytes()),
             (
                 "spending-wallet.txt".to_string(),
                 kit().descriptor.into_bytes(),
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

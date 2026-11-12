@@ -1301,8 +1301,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // process again, as the lock left it, for the rest of the tour.
     let (inbox, outbox, kept) = saved.ok_or("the lock saved nothing")?;
     t.app.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     t.press(Action::Nav(Screen::Vaults));

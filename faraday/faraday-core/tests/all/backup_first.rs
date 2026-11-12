@@ -54,7 +54,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>, height: u16) -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -245,7 +245,7 @@ fn locked(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
     let mut out = None;
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, .. } = c {
-            out = Some(outbox);
+            out = Some(faraday_core::testkit::plain_files(outbox));
         }
     }
     out.expect("nothing queued on locking")

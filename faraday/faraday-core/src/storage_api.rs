@@ -2,6 +2,16 @@
 //! about them, and what the app asks it to do.
 
 use crate::Unrenamed;
+use zeroize::Zeroizing;
+
+/// Inbox or Outbox files as the app and the shell pass them: each one's
+/// bytes wipe when dropped.
+pub type Files = Vec<(String, Zeroizing<Vec<u8>>)>;
+
+/// Files from bytes taken as they are: `Vec<u8>` or already wiping.
+pub fn files_from<B: Into<Zeroizing<Vec<u8>>>>(files: Vec<(String, B)>) -> Files {
+    files.into_iter().map(|(n, b)| (n, b.into())).collect()
+}
 
 /// A stick or card the shell sees, with the files on it.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -474,9 +484,9 @@ pub enum StorageEvent {
     /// The Inbox and Outbox the previous process left, after a lock.
     Restored {
         /// Inbox files.
-        inbox: Vec<(String, Vec<u8>)>,
+        inbox: Files,
         /// Outbox files.
-        outbox: Vec<(String, Vec<u8>)>,
+        outbox: Files,
         /// What the app keeps for itself across a lock: settings and the
         /// signed-amount memory.
         kept: Vec<(String, Vec<u8>)>,
@@ -631,9 +641,9 @@ pub enum StorageCommand {
     /// file until a lock (`docs/VAULT.md`).
     SaveBoxes {
         /// Inbox files.
-        inbox: Vec<(String, Vec<u8>)>,
+        inbox: Files,
         /// Outbox files.
-        outbox: Vec<(String, Vec<u8>)>,
+        outbox: Files,
         /// What the app keeps for itself: settings and the signed-amount
         /// memory, nothing secret (`docs/WALLETS.md` §3.3).
         kept: Vec<(String, Vec<u8>)>,

@@ -20,7 +20,7 @@ fn a_save_that_fails_part_way_leaves_the_gate_first_and_whole() {
     assert!(ok.is_ok());
     // A save that fails on a name it cannot write, listed after the gate.
     let failed = boxes.save(
-        vec![("inbox-file".into(), vec![1])],
+        vec![("inbox-file".into(), vec![1].into())],
         Vec::new(),
         vec![
             ("settings".into(), b"s".to_vec()),

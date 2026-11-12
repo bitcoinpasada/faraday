@@ -315,7 +315,7 @@ impl Worker {
     /// Takes the seal's answer, once.
     pub(crate) fn kef_take_sealed(
         &mut self,
-    ) -> Option<Result<Vec<u8>, faraday_keys::kef::SealError>> {
+    ) -> Option<Result<zeroize::Zeroizing<Vec<u8>>, faraday_keys::kef::SealError>> {
         self.kef.take_sealed()
     }
 

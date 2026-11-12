@@ -2451,7 +2451,7 @@ mod musig_partials {
     fn app_with(files: Vec<(String, Vec<u8>)>) -> faraday_core::Faraday {
         let mut app = faraday_core::testkit::started();
         app.storage(faraday_core::StorageEvent::Restored {
-            inbox: files,
+            inbox: faraday_core::files_from(files),
             outbox: Vec::new(),
             kept: Vec::new(),
         });

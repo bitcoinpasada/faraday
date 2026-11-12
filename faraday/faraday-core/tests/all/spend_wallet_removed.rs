@@ -29,7 +29,7 @@ fn open_spend_of_the_middle_wallet() -> Faraday {
         inbox.push((format!("{id}.psbt"), psbt.to_bytes()));
     }
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

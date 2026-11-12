@@ -1436,7 +1436,10 @@ fn session_with_wallet(seed: u8) -> Faraday {
         .unwrap();
     let mut app = on_screen(seed);
     app.storage(StorageEvent::Restored {
-        inbox: vec![("spending-wallet.txt".into(), kit.descriptor.into_bytes())],
+        inbox: faraday_core::files_from(vec![(
+            "spending-wallet.txt".into(),
+            kit.descriptor.into_bytes(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

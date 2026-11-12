@@ -474,13 +474,13 @@ fn with_gpg_key() -> Faraday {
         .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             vault,
             (
                 "SHA256SUMS".into(),
                 b"3d6f  faraday-0.1.0-linux-x86_64\n".to_vec(),
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -557,10 +557,10 @@ fn a_secret_shown_as_a_code_offers_no_picture() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![(
+        outbox: faraday_core::files_from(vec![(
             "key-words.txt".to_string(),
             format!("{}\n", testkit::test_words(testkit::TEST_SEEDS[0].0)).into_bytes(),
-        )],
+        )]),
         kept: Vec::new(),
     });
     app.press(Action::QrOutbox(0));
@@ -641,10 +641,10 @@ fn files_show_as_qr_is_the_file_and_offers_no_picture() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![(
+        outbox: faraday_core::files_from(vec![(
             "spending-wallet.txt".to_string(),
             spending.descriptor.clone().into_bytes(),
-        )],
+        )]),
         kept: Vec::new(),
     });
     app.press(Action::QrOutbox(0));
@@ -680,7 +680,7 @@ fn on_a_sheet(name: &str, descriptor: &str) -> Faraday {
     let vault = crate::common::vault_of("Sheets", "sheets", 0x5e, records);
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("sheets.kdbx".to_string(), vault)],
+        inbox: faraday_core::files_from(vec![("sheets.kdbx".to_string(), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

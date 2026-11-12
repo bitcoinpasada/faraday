@@ -9,7 +9,7 @@ use faraday_core::{Action, Screen, StorageEvent};
 fn with_inbox(files: Vec<(String, Vec<u8>)>) -> faraday_core::Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

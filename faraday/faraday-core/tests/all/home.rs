@@ -323,7 +323,9 @@ fn with_a_key_loaded_a_stick_plugged_in_while_scanning_waits_then_asks_to_lock()
 fn with_inbox(files: Vec<(&str, Vec<u8>)>) -> Faraday {
     let mut app = shown();
     app.storage(StorageEvent::Restored {
-        inbox: files.into_iter().map(|(n, b)| (n.to_string(), b)).collect(),
+        inbox: faraday_core::files_from(
+            files.into_iter().map(|(n, b)| (n.to_string(), b)).collect(),
+        ),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -621,8 +623,8 @@ fn home_lead_rule_5_reads_what_the_vault_held_when_last_seen_open() {
     // The next process.
     let mut app = shown();
     app.storage(StorageEvent::Restored {
-        inbox: boxes.0,
-        outbox: boxes.1,
+        inbox: faraday_core::files_from(boxes.0),
+        outbox: faraday_core::files_from(boxes.1),
         kept: boxes.2,
     });
     let _ = app.frame();
@@ -666,7 +668,7 @@ fn home_lead_rule_4_a_receipt_with_nothing_loaded_shows_what_was_written() {
     let mut app = shown();
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![wallet],
+        outbox: faraday_core::files_from(vec![wallet]),
         kept: Vec::new(),
     });
     stick(&mut app, true);

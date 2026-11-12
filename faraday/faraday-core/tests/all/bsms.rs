@@ -22,10 +22,12 @@ bc1qrgc6p3kylfztu06ysl752gwwuekhvtfh9vr7zg43jvu60mutamcsv948ej";
 fn with_inbox(files: Vec<(&str, String)>) -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: files
-            .into_iter()
-            .map(|(n, t)| (n.to_string(), t.into_bytes()))
-            .collect(),
+        inbox: faraday_core::files_from(
+            files
+                .into_iter()
+                .map(|(n, t)| (n.to_string(), t.into_bytes()))
+                .collect(),
+        ),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

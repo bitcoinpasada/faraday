@@ -17,7 +17,10 @@ fn with_wallet() -> Faraday {
         .unwrap();
     let mut app = Faraday::new();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("spending-wallet.txt".into(), kit.descriptor.into_bytes())],
+        inbox: faraday_core::files_from(vec![(
+            "spending-wallet.txt".into(),
+            kit.descriptor.into_bytes(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -50,7 +53,7 @@ fn after_idle_lock(outbox: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut next = Faraday::new();
     next.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox,
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     next

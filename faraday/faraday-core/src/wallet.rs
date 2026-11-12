@@ -3607,7 +3607,7 @@ impl Faraday {
         let Some(item) = self.inbox.get(index) else {
             return;
         };
-        let text = String::from_utf8_lossy(&item.bytes).into_owned();
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
         let source = item.name.clone();
         let name = crate::register::name_of_file(&item.name);
         // A wallet .json or an addwallet command carries its own name.

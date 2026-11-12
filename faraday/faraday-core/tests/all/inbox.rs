@@ -28,7 +28,7 @@ fn with_files(files: Vec<(String, Vec<u8>)>) -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -317,12 +317,12 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             kit("vault.kdbx"),
             kit("spending-wallet.txt"),
             ("gmail-codes.txt".into(), CODES.into()),
-        ],
-        outbox: vec![kit("savings-wallet.txt")],
+        ]),
+        outbox: faraday_core::files_from(vec![kit("savings-wallet.txt")]),
         kept: Vec::new(),
     });
     let mut all = Vec::new();

@@ -363,8 +363,8 @@ fn process(boxes: (Files, Files, Files), stick: Option<&str>) -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: boxes.0,
-        outbox: boxes.1,
+        inbox: faraday_core::files_from(boxes.0),
+        outbox: faraday_core::files_from(boxes.1),
         kept: boxes.2,
     });
     app.storage(StorageEvent::Clock {
@@ -395,7 +395,11 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
             kept,
         } = c
         {
-            last = (inbox, outbox, kept);
+            last = (
+                faraday_core::testkit::plain_files(inbox),
+                faraday_core::testkit::plain_files(outbox),
+                kept,
+            );
         }
     }
     last

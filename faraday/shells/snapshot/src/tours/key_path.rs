@@ -28,7 +28,7 @@ pub(crate) fn key_path_tour(t: &mut Tour) -> Result<(), String> {
     let nums = kit("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0");
     let unsigned = testkit::unsigned(&other)?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             (
                 "shared-wallet.txt".to_string(),
                 other.descriptor.clone().into_bytes(),
@@ -38,7 +38,7 @@ pub(crate) fn key_path_tour(t: &mut Tour) -> Result<(), String> {
                 "nums-wallet.txt".to_string(),
                 nums.descriptor.clone().into_bytes(),
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

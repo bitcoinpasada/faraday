@@ -55,7 +55,7 @@ fn files(list: &[(&str, Vec<u8>)]) -> Vec<(String, Vec<u8>)> {
 
 fn restore(app: &mut Faraday, list: &[(&str, Vec<u8>)]) {
     app.storage(StorageEvent::Restored {
-        inbox: files(list),
+        inbox: faraday_core::files_from(files(list)),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

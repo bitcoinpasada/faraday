@@ -70,7 +70,7 @@ fn tile(app: &mut Faraday, name: &str) {
 fn the_qr_tool_takes_no_passphrase_while_a_stick_is_attached_and_opens_nothing() {
     let mut app = started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("code.pgp".to_string(), EMPTY.to_vec())],
+        inbox: faraday_core::files_from(vec![("code.pgp".to_string(), EMPTY.to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -199,7 +199,8 @@ fn the_core_wallet_tool_takes_no_passphrase_while_a_stick_is_attached() {
                 env!("CARGO_MANIFEST_DIR"),
                 "/../../tools/vectors/core-wallet/encrypted.dat"
             ))
-            .unwrap(),
+            .unwrap()
+            .into(),
         )],
         outbox: Vec::new(),
         kept: Vec::new(),

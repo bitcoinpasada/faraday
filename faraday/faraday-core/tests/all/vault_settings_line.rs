@@ -16,7 +16,7 @@ fn settings_of(file: &str) -> String {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.kdbx".into(), bytes)],
+        inbox: faraday_core::files_from(vec![("vault.kdbx".into(), bytes)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

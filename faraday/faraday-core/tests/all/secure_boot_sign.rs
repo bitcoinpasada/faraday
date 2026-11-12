@@ -96,7 +96,7 @@ fn with_keys(files: &[(String, Vec<u8>)]) -> Faraday {
         .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![vault],
+        inbox: faraday_core::files_from(vec![vault]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

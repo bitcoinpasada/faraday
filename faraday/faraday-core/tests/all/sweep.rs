@@ -48,10 +48,10 @@ fn app() -> Faraday {
     let mut app = testkit::started();
     testkit::move_to(&mut app.session, Network::Regtest).unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "spending-wallet.txt".to_string(),
             spending().descriptor.into_bytes(),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

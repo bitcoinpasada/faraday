@@ -18,7 +18,7 @@ fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = faraday_core::testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -124,7 +124,10 @@ fn a_vault_with_both_wallets_loads_the_shared_seed_once() {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.kdbx".to_string(), testkit::test_vault().unwrap())],
+        inbox: faraday_core::files_from(vec![(
+            "vault.kdbx".to_string(),
+            testkit::test_vault().unwrap(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -16,7 +16,7 @@ fn vault_bytes() -> Vec<u8> {
 fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

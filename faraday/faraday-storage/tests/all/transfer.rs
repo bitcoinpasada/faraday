@@ -203,10 +203,12 @@ fn device_codes(files: &[(&str, Vec<u8>)]) -> Vec<Vec<Vec<u8>>> {
     let mut device = Faraday::new();
     device.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: files
-            .iter()
-            .map(|(n, b)| (n.to_string(), b.clone()))
-            .collect(),
+        outbox: faraday_core::files_from(
+            files
+                .iter()
+                .map(|(n, b)| (n.to_string(), b.clone()))
+                .collect(),
+        ),
         kept: Vec::new(),
     });
     (0..files.len())

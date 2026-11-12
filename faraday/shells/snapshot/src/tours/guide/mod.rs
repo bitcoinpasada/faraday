@@ -81,8 +81,8 @@ pub(crate) fn files_in(t: &mut Tour, files: &[(&str, Vec<u8>)], outbox: &[(&str,
         .chain(own(files))
         .collect();
     t.app.storage(StorageEvent::Restored {
-        inbox,
-        outbox: own(outbox),
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(own(outbox)),
         kept: Vec::new(),
     });
     t.pump();

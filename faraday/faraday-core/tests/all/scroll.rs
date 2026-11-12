@@ -22,7 +22,10 @@ fn a_notch_moves_the_page_by_its_pixels_in_the_direction_asked() {
         .unwrap();
     let mut app = Faraday::new();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("spending-wallet.txt".into(), kit.descriptor.into_bytes())],
+        inbox: faraday_core::files_from(vec![(
+            "spending-wallet.txt".into(),
+            kit.descriptor.into_bytes(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -82,14 +85,16 @@ fn long_files_at(width: u16, height: u16, dpi: u16) -> Faraday {
     }));
     let descriptor = testkit::kits()[0].descriptor.clone();
     app.storage(StorageEvent::Restored {
-        inbox: (0..16)
-            .map(|i| {
-                (
-                    format!("wallet-{i:02}.txt"),
-                    descriptor.clone().into_bytes(),
-                )
-            })
-            .collect(),
+        inbox: faraday_core::files_from(
+            (0..16)
+                .map(|i| {
+                    (
+                        format!("wallet-{i:02}.txt"),
+                        descriptor.clone().into_bytes(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+        ),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

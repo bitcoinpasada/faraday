@@ -515,7 +515,7 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         let mut outbox: Files = Vec::new();
         while let Some(c) = app.poll_storage() {
             if let StorageCommand::SaveBoxes { outbox: o, .. } = c {
-                outbox = o;
+                outbox = faraday_core::testkit::plain_files(o);
             }
         }
         let sealed: Files = outbox

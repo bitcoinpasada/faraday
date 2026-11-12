@@ -56,7 +56,7 @@ fn fresh_app(clock: Option<u64>, online: bool) -> Faraday {
     }
     let vault = testkit::test_vault().unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.kdbx".into(), vault)],
+        inbox: faraday_core::files_from(vec![("vault.kdbx".into(), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -262,7 +262,7 @@ fn two_open_vaults_each_show_their_rows_and_a_hotp_entry_shows_no_code() {
     ];
     know_files(&mut app, &inbox);
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -441,7 +441,7 @@ fn on_an_entry(totp: &str) -> Faraday {
     let inbox = vec![("entry.kdbx".to_string(), vault)];
     know_files(&mut app, &inbox);
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

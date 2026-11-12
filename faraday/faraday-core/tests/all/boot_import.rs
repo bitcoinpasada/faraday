@@ -864,7 +864,7 @@ fn a_lock_drops_the_import_and_the_next_process_visits_the_stick() {
     let mut next = testkit::started();
     faraday_core::testkit::move_to(&mut next.session, faraday_core::testkit::NET).unwrap();
     next.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept,
     });
@@ -1318,7 +1318,10 @@ fn import_keeps_a_file_of_a_held_name_beside_it_and_a_same_one_once() {
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("notes.txt".into(), b"Other notes\n".to_vec()), wallet],
+        inbox: faraday_core::files_from(vec![
+            ("notes.txt".into(), b"Other notes\n".to_vec()),
+            wallet,
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

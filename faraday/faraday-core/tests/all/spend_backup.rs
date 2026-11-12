@@ -25,7 +25,7 @@ fn kit(id: &str) -> testkit::Kit {
 fn with_files(files: Vec<(String, Vec<u8>)>, kept: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = shown();
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept,
     });
@@ -187,8 +187,8 @@ fn after_lock(mut app: Faraday) -> Faraday {
     }
     let mut app = shown();
     app.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     app
@@ -401,7 +401,7 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
     // The PSBT copied in during the visit.
     let (name, bytes) = savings_psbt();
     app.storage(StorageEvent::Restored {
-        inbox: {
+        inbox: faraday_core::files_from({
             let mut v: Vec<(String, Vec<u8>)> = app
                 .inbox()
                 .iter()
@@ -409,12 +409,13 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
                 .collect();
             v.push((name, bytes));
             v
-        },
-        outbox: app
-            .outbox
-            .iter()
-            .map(|i| (i.name.clone(), i.bytes.to_vec()))
-            .collect(),
+        }),
+        outbox: faraday_core::files_from(
+            app.outbox
+                .iter()
+                .map(|i| (i.name.clone(), i.bytes.to_vec()))
+                .collect(),
+        ),
         kept: Vec::new(),
     });
     app.press(Action::SpendBackup(F::Pick(0)));
@@ -1067,7 +1068,7 @@ fn check_the_moneys_receive_rows_open_their_codes() {
     let c = testkit::compute();
     let mut app = shown_at(2400);
     app.storage(StorageEvent::Restored {
-        inbox: vec![vault_file(), savings_psbt()],
+        inbox: faraday_core::files_from(vec![vault_file(), savings_psbt()]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

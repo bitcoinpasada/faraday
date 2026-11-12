@@ -43,7 +43,7 @@ fn desktop() -> Faraday {
 /// A file put in the Inbox, and loaded as a wallet.
 fn load_wallet(app: &mut Faraday, text: &str) {
     app.storage(StorageEvent::Restored {
-        inbox: vec![("wallet.txt".to_string(), text.as_bytes().to_vec())],
+        inbox: faraday_core::files_from(vec![("wallet.txt".to_string(), text.as_bytes().to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

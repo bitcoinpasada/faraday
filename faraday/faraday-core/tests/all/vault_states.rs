@@ -64,8 +64,8 @@ fn process_boxes(
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     for i in 0..8u8 {
@@ -111,7 +111,7 @@ fn saved_outbox(app: &mut Faraday) -> Files {
     let mut out = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, .. } = c {
-            out = outbox;
+            out = faraday_core::testkit::plain_files(outbox);
         }
     }
     out
@@ -363,13 +363,13 @@ fn locked_page(app: &mut Faraday) -> (Files, String) {
         } = c
         {
             kept = k;
-            outbox = o;
+            outbox = faraday_core::testkit::plain_files(o);
         }
     }
     let mut next = process(Vec::new());
     next.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: outbox.clone(),
+        outbox: faraday_core::files_from(outbox.clone()),
         kept,
     });
     assert_eq!(next.sheet, Some(Sheet::Locked));
@@ -1190,7 +1190,7 @@ fn lock_boxes(app: &mut Faraday) -> (Files, Files) {
             outbox: o, kept: k, ..
         } = c
         {
-            (outbox, kept) = (o, k);
+            (outbox, kept) = (faraday_core::testkit::plain_files(o), k);
         }
     }
     (outbox, kept)

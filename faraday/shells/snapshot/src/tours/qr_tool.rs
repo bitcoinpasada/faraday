@@ -41,7 +41,7 @@ pub(crate) fn qr_tool_tour(t: &mut Tour) -> Result<(), String> {
         .map(|i| i.bytes.clone())
         .ok_or("no code in the Outbox")?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![("qr-vault.pgp".to_string(), code.to_vec())],
+        inbox: faraday_core::files_from(vec![("qr-vault.pgp".to_string(), code.to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -60,7 +60,10 @@ pub(crate) fn qr_tool_tour(t: &mut Tour) -> Result<(), String> {
     const PASSPHRASE_CODE: &[u8] =
         include_bytes!("../../../../../tools/vectors/vault/qr/qr-passphrase.pgp");
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![("passphrase.pgp".to_string(), PASSPHRASE_CODE.to_vec())],
+        inbox: faraday_core::files_from(vec![(
+            "passphrase.pgp".to_string(),
+            PASSPHRASE_CODE.to_vec(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -103,7 +106,7 @@ fn save_item(t: &mut Tour) -> Result<(), String> {
         vec![note("the safe is behind the books"), note(&"a".repeat(220))],
     )?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![("a.kdbx".into(), file)],
+        inbox: faraday_core::files_from(vec![("a.kdbx".into(), file)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

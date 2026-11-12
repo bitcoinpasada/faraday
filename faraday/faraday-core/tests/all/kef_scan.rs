@@ -100,7 +100,7 @@ fn sealed_raw(app: &mut Faraday, plain: &[u8]) -> Vec<u8> {
     )
     .expect("fresh bytes");
     testkit::settle(app);
-    app.kef_take_sealed().unwrap().unwrap()
+    app.kef_take_sealed().unwrap().unwrap().to_vec()
 }
 
 fn rewrapped(name: &str, count: u32) -> Vec<u8> {

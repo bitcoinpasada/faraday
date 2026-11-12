@@ -56,16 +56,18 @@ fn with_more(kit: &Kit, more: Vec<(String, Vec<u8>)>) -> Faraday {
     }));
     let psbt = testkit::unsigned(kit).unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
-            (
-                "shared-wallet.txt".to_string(),
-                kit.descriptor.clone().into_bytes(),
-            ),
-            ("shared-unsigned.psbt".to_string(), psbt.to_bytes()),
-        ]
-        .into_iter()
-        .chain(more)
-        .collect(),
+        inbox: faraday_core::files_from(
+            vec![
+                (
+                    "shared-wallet.txt".to_string(),
+                    kit.descriptor.clone().into_bytes(),
+                ),
+                ("shared-unsigned.psbt".to_string(), psbt.to_bytes()),
+            ]
+            .into_iter()
+            .chain(more)
+            .collect(),
+        ),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

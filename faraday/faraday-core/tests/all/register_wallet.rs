@@ -37,7 +37,7 @@ fn with_spend(psbt: &faraday_psbt::Psbt) -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![(FILE.to_string(), psbt.to_bytes())],
+        inbox: faraday_core::files_from(vec![(FILE.to_string(), psbt.to_bytes())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

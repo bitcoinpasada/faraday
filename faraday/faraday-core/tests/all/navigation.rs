@@ -236,7 +236,7 @@ fn files_carries_the_inbox_count_on_the_bar_and_both_rails_until_it_empties() {
             .map(|i| (format!("note-{i}.txt"), b"a note".to_vec()))
             .collect();
         app.storage(StorageEvent::Restored {
-            inbox: files,
+            inbox: faraday_core::files_from(files),
             outbox: Vec::new(),
             kept: Vec::new(),
         });

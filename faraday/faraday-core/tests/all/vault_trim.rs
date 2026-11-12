@@ -40,7 +40,7 @@ fn process(inbox: Files) -> Faraday {
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -161,7 +161,7 @@ fn lock(app: &mut Faraday) -> Files {
     let mut written = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, .. } = c {
-            written = outbox;
+            written = faraday_core::testkit::plain_files(outbox);
         }
     }
     written

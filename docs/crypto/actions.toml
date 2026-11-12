@@ -2036,7 +2036,7 @@ fuzz_none = "Takes bytes from callers that parse their own input."
 [action.secrets]
 reveal = "none"
 constant_time = "not stated by the library"
-wiped = "The wrappers keep no state after they return; wiping an input is the caller's; the sha2 and hmac crates are built with their zeroize feature."
+wiped = "The wrappers keep no state after they return; wiping an input is the caller's; the sha2 and hmac crates are built with their zeroize feature, though the hmac crate's states are not wiped with it, so the PBKDF2 block writes HMAC-SHA-256 out over SHA-256 states that wipe on drop."
 
 [action.limits]
 lines = [
@@ -4679,7 +4679,7 @@ other = []
 [action.secrets]
 reveal = "none"
 constant_time = "Not stated; the stored hash and the public key are compared in constant time (subtle), the padding check is not."
-wiped = "The passphrase, the master key, each opened key and the DER are held in zeroizing buffers and wiped as each is checked."
+wiped = "The passphrase, its SHA-512 chain, the records' values, the AES key schedules, the master key, each opened key, the account keys it derives and the DER are held in zeroizing buffers and wiped as each is checked."
 
 [action.limits]
 lines = [
@@ -6543,7 +6543,7 @@ reveal = [
   "Reveal::KefCode",
 ]
 constant_time = "The GCM tag is compared in constant time by aes-gcm; the check bytes of the other versions are compared as Krux does; AES and PBKDF2 state nothing more."
-wiped = "The key, the passphrase bytes and the opened plaintext are Zeroizing values wiped on drop."
+wiped = "The key, the passphrase bytes, the sealed envelope and the code made from it, and the opened plaintext are Zeroizing values wiped on drop; the passphrase's NFC and NFD forms are built in a buffer of their final size, and the stretch and the key file's SHA-256 write into wiping holders. Not wiped: sha2's block message words and unicode-normalization's own buffers."
 
 [action.limits]
 lines = [
@@ -7412,7 +7412,7 @@ fuzz_none = "Takes a held key and a form; no outside input is parsed."
 [action.secrets]
 reveal = ["Reveal::OutboxFile"]
 constant_time = "Not applicable: the words are copied into a file's bytes, not compared or computed on here."
-wiped = "The words and the file's bytes are zeroizing buffers, and the pixels drawn for a picture are wiped once it is made."
+wiped = "The words and the file's bytes are zeroizing buffers, kept so in the message that hands the Outbox to the disk process, and the pixels drawn for a picture are wiped once it is made."
 
 [action.limits]
 lines = [
@@ -7489,7 +7489,7 @@ fuzz_none = "No fuzz target reads a file as a seed; the readers it calls (words,
 [action.secrets]
 reveal = "none"
 constant_time = "Not stated; the seed and master key functions it calls state their own."
-wiped = "The text of a file read as a secret and the words made from it are zeroizing; a file that may hold a secret is dropped from the Inbox at a lock."
+wiped = "The text of a file read as a secret and the words made from it are zeroizing; an Inbox or Outbox file's bytes are held in wiping buffers, as are the messages that hand them to the disk process and back, and the text a wallet file is read from when it is added, restored or used; a file that may hold a secret is dropped from the Inbox at a lock."
 
 [action.limits]
 lines = [
@@ -8373,7 +8373,7 @@ fuzz = ["kdbx_file", "kdbx_body"]
 [action.secrets]
 reveal = "none"
 constant_time = "The header's and every block's HMAC are compared in constant time (`verify_slice`); Argon2, SHA-2, ChaCha20 and AES-CBC state nothing more."
-wiped = "The composite key, the Argon2 output, the encryption key, the HMAC base and every block key are Secret values wiped on drop; the decrypted body, the inflated body, the document and the attachments are Zeroizing buffers, decrypted and unpadded in place; the Argon2 memory is overwritten before release. Not wiped: the SHA-256 and SHA-512 hashers' state, the ChaCha20 and AES-CBC cipher states and the AES key schedule, the inflater's own state, and the NFC normaliser's buffer of combining marks. The passphrase's first SHA-256 is a Zeroizing value; a seal works out the plaintext length before the buffer is grown, so a refusal as too small leaves no copy."
+wiped = "The composite key, the Argon2 output, the encryption key, the HMAC base and every block key are Secret values wiped on drop; the decrypted body, the inflated body, the document and the attachments are Zeroizing buffers, decrypted and unpadded in place; the Argon2 memory is overwritten before release. The SHA-256, SHA-512 and SHA-1 hashers' states wipe when they drop (the crates' zeroize feature), and the hash results the key file and the composite key hold are written straight into wiping holders. The document's carried bytes, field keys, group names and read text are held in wiping buffers that move to a new wiping buffer as they grow. Not wiped: sha2's block message words, the ChaCha20 and AES-CBC cipher states and the AES key schedule, the inflater's own state, and the NFC normaliser's buffer of combining marks. The passphrase's first SHA-256 is a Zeroizing value; a seal works out the plaintext length before the buffer is grown, so a refusal as too small leaves no copy."
 
 [action.limits]
 lines = [

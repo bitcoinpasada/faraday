@@ -72,7 +72,7 @@ fn renaming(name: &str) -> Faraday {
         .find(|(n, _)| n == "spending-wallet.txt")
         .unwrap();
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![file],
+        inbox: faraday_core::files_from(vec![file]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

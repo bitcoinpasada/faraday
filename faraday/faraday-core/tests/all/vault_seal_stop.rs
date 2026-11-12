@@ -69,10 +69,10 @@ fn two_changed_second_nearly_full() -> Faraday {
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("a.kdbx".into(), with_plan("Plans A", A, 5)),
             ("b.kdbx".into(), with_plan("Plans B", B, 6)),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -165,7 +165,10 @@ fn after(kept: Vec<(String, Vec<u8>)>) -> Faraday {
         .unwrap();
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("spending-wallet.txt".into(), kit.descriptor.into_bytes())],
+        inbox: faraday_core::files_from(vec![(
+            "spending-wallet.txt".into(),
+            kit.descriptor.into_bytes(),
+        )]),
         outbox: Vec::new(),
         kept,
     });
@@ -219,10 +222,10 @@ fn two_changed() -> Faraday {
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("a.kdbx".into(), with_plan("Plans A", A, 5)),
             ("b.kdbx".into(), with_plan("Plans B", B, 6)),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

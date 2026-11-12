@@ -138,7 +138,10 @@ fn savings_only() -> (Faraday, usize) {
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("savings.txt".to_string(), testkit::savings().into_bytes())],
+        inbox: faraday_core::files_from(vec![(
+            "savings.txt".to_string(),
+            testkit::savings().into_bytes(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

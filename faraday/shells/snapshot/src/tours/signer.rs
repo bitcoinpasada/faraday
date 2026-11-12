@@ -19,7 +19,7 @@ fn vector(name: &str) -> Result<Vec<u8>, String> {
 
 pub(crate) fn signer_tour(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("sent.psbt".to_string(), vector("signer-core-sent.psbt")?),
             (
                 "signed.psbt".to_string(),
@@ -37,7 +37,7 @@ pub(crate) fn signer_tour(t: &mut Tour) -> Result<(), String> {
                 "random-nonce.psbt".to_string(),
                 vector("signer-random-nonce.psbt")?,
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -99,7 +99,7 @@ pub(crate) fn signer_tour(t: &mut Tour) -> Result<(), String> {
     // The Sent file replaced in Files by another under the same name:
     // its closed card says so, on its one line.
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             (
                 "regtest-sent.psbt".to_string(),
                 vector("signer-core-sent.psbt")?,
@@ -108,7 +108,7 @@ pub(crate) fn signer_tour(t: &mut Tour) -> Result<(), String> {
                 "random-nonce.psbt".to_string(),
                 vector("signer-random-nonce.psbt")?,
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

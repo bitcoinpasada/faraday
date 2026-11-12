@@ -42,7 +42,7 @@ fn opened() -> Faraday {
         )));
     }
     app.storage(StorageEvent::Restored {
-        inbox: vec![kit_file("vault.kdbx")],
+        inbox: faraday_core::files_from(vec![kit_file("vault.kdbx")]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

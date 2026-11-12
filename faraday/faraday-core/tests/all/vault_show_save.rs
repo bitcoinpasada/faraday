@@ -50,7 +50,7 @@ fn opened() -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![kit_file("vault.kdbx")],
+        inbox: faraday_core::files_from(vec![kit_file("vault.kdbx")]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -427,7 +427,7 @@ fn a_japanese_seed_saved_to_a_stick_is_its_words() {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("japanese.kdbx".into(), vault)],
+        inbox: faraday_core::files_from(vec![("japanese.kdbx".into(), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

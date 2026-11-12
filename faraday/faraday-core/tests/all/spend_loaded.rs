@@ -29,7 +29,7 @@ fn with_files(files: Vec<(String, Vec<u8>)>) -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -183,13 +183,13 @@ fn spending_review(claimed: bool) -> Faraday {
     let psbt = faraday_psbt::Psbt::from(psbt);
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("spend.psbt".to_string(), psbt.to_bytes()),
             (
                 "spending-wallet.txt".to_string(),
                 kit.descriptor.clone().into_bytes(),
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -135,7 +135,7 @@ fn rig(on: On, mode: Mode, inbox: Vec<(String, Vec<u8>)>) -> Rig {
         label: format!("{on:?} {mode:?}"),
     };
     rig.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -41,7 +41,7 @@ fn vault_app(clock: Option<u64>) -> Faraday {
     }
     let vault = testkit::test_vault().unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.kdbx".into(), vault)],
+        inbox: faraday_core::files_from(vec![("vault.kdbx".into(), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -336,7 +336,10 @@ fn written_to_stick_shows_the_local_time() {
     });
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
+        outbox: faraday_core::files_from(vec![(
+            "vault.kdbx".into(),
+            testkit::test_vault().unwrap(),
+        )]),
         kept: Vec::new(),
     });
     app.storage(StorageEvent::Sticks(vec![stick("FIRST", false, None)]));

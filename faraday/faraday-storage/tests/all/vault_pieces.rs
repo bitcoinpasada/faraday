@@ -226,7 +226,7 @@ fn a_vault_over_one_frame_is_opened_changed_and_written_back_through_the_app() {
     });
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![waiting],
+        outbox: faraday_core::files_from(vec![waiting]),
         kept: Vec::new(),
     });
     app.storage(StorageEvent::Sticks(vec![stick_with(file.len() as u64)]));

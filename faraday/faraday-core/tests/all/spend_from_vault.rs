@@ -186,7 +186,7 @@ fn with_its_psbt_in_files_the_button_signs_it_and_opens_its_review() {
     let (mut app, w) = on_card("Spending");
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("spend.psbt".to_string(), psbt)],
+        inbox: faraday_core::files_from(vec![("spend.psbt".to_string(), psbt)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -329,7 +329,7 @@ fn wallets_sign_step_says_how_many_more_and_offers_scan_a_key() {
     let (mut app, w) = on_card("Savings");
     let (psbt, _) = testkit::spend_of(&kit("savings")).unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![("savings.psbt".to_string(), psbt.to_bytes())],
+        inbox: faraday_core::files_from(vec![("savings.psbt".to_string(), psbt.to_bytes())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

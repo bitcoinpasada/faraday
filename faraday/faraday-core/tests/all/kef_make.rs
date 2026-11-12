@@ -62,7 +62,7 @@ fn a_seeds_code_made_through_the_form_opens_to_its_entropy() {
     // What the sheet shows is the code's base43 text, as Krux reads it.
     let view = code.view.as_ref().expect("one code");
     let bytes = base43_decode(view.whole.as_deref().unwrap()).unwrap();
-    assert_eq!(bytes, code.bytes);
+    assert_eq!(bytes, *code.bytes);
     let envelope = unwrap(&bytes).unwrap();
     assert_eq!(envelope.version, 20);
     assert_eq!(envelope.id.len(), 8);
@@ -222,7 +222,7 @@ fn the_picture_and_the_file_go_to_the_outbox() {
         .iter()
         .find(|i| i.name == code.file_name)
         .unwrap();
-    assert_eq!(*file.bytes, code.bytes);
+    assert_eq!(*file.bytes, *code.bytes);
 }
 
 #[test]
@@ -241,7 +241,7 @@ fn a_second_code_with_the_same_label_keeps_the_first_in_the_outbox() {
     assert_ne!(first_name, second_name);
     for code in [&first, &second] {
         assert!(
-            app.outbox.iter().any(|i| *i.bytes == code.bytes),
+            app.outbox.iter().any(|i| *i.bytes == *code.bytes),
             "a code's file is missing from the Outbox"
         );
     }

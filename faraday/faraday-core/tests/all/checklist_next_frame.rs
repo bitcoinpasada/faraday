@@ -55,7 +55,7 @@ fn later(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
         )));
     }
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -22,10 +22,10 @@ fn vector(name: &str) -> Vec<u8> {
 fn open_unchosen() -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: crate::files_from(vec![
             ("sent.psbt".into(), vector("signer-core-sent.psbt")),
             ("signed.psbt".into(), vector("signer-core-signed.psbt")),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -1540,7 +1540,7 @@ impl Faraday {
         let Some(item) = self.inbox.get(index) else {
             return;
         };
-        let text = String::from_utf8_lossy(&item.bytes).into_owned();
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
         let name = faraday_bip::multisig_config::parse_named(&c, &text)
             .ok()
             .and_then(|(_, n)| n)

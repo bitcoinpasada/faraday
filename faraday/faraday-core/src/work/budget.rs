@@ -252,7 +252,7 @@ pub(crate) fn heavy_on(panel: Panel) -> (Faraday, usize) {
         b"3d6f  faraday-0.1.0-linux-x86_64\n".to_vec(),
     ));
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: crate::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

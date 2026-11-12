@@ -35,7 +35,7 @@ macro_rules! vector {
 fn only(t: &mut Tour, files: Vec<(String, Vec<u8>)>, kept: Vec<(String, Vec<u8>)>) {
     t.restart();
     t.app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept,
     });

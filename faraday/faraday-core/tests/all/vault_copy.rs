@@ -47,7 +47,7 @@ fn process_kept(inbox: Files, kept: Files) -> Faraday {
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept,
     });
@@ -458,7 +458,7 @@ fn a_copy_survives_a_seal_and_a_reopen() {
     let mut written = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, .. } = c {
-            written = outbox;
+            written = faraday_core::testkit::plain_files(outbox);
         }
     }
     assert_eq!(written.len(), 1, "the target's file was sealed");
@@ -532,7 +532,7 @@ fn lock_all(app: &mut Faraday) -> Files {
     let mut written = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, .. } = c {
-            written = outbox;
+            written = faraday_core::testkit::plain_files(outbox);
         }
     }
     written
@@ -708,7 +708,7 @@ fn an_idle_lock_with_the_target_unable_to_seal_lets_the_original_go_with_its_ite
     let mut written = None;
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, .. } = c {
-            written = Some(outbox);
+            written = Some(faraday_core::testkit::plain_files(outbox));
         }
     }
     let written = written.expect("the lock saved");

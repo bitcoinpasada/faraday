@@ -55,8 +55,8 @@ fn at_the_export_prompt_beside(answers: u8, outbox: Vec<(String, Vec<u8>)>) -> F
         .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![vault],
-        outbox,
+        inbox: faraday_core::files_from(vec![vault]),
+        outbox: faraday_core::files_from(outbox),
         kept: Vec::new(),
     });
     app.storage(StorageEvent::Memory {

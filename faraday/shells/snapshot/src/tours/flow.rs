@@ -21,7 +21,7 @@ fn opened_once(t: &mut Tour) -> Result<(), String> {
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![vault],
+        inbox: faraday_core::files_from(vec![vault]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -48,8 +48,8 @@ fn opened_once(t: &mut Tour) -> Result<(), String> {
     t.pump();
     let (inbox, outbox, kept) = kept.ok_or("the lock saved nothing")?;
     t.app.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     t.press(Action::OpenSetTime);
@@ -203,8 +203,8 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Flow(F::LockWrite));
     let (inbox, outbox, kept) = t.boxes.clone().ok_or("nothing was kept by the lock")?;
     t.app.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     t.app.storage(StorageEvent::Memory {

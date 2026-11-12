@@ -276,7 +276,13 @@ impl Tour {
                     inbox,
                     outbox,
                     kept,
-                } => self.boxes = Some((inbox, outbox, kept)),
+                } => {
+                    self.boxes = Some((
+                        faraday_core::testkit::plain_files(inbox),
+                        faraday_core::testkit::plain_files(outbox),
+                        kept,
+                    ))
+                }
                 StorageCommand::OpenDownloads
                 | StorageCommand::OpenInstitute
                 | StorageCommand::Wipe { .. }
@@ -299,7 +305,11 @@ impl Tour {
                 kept,
             } = c
             {
-                self.boxes = Some((inbox, outbox, kept));
+                self.boxes = Some((
+                    faraday_core::testkit::plain_files(inbox),
+                    faraday_core::testkit::plain_files(outbox),
+                    kept,
+                ));
             }
         }
         let size = self.size();

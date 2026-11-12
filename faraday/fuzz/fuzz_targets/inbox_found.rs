@@ -43,7 +43,7 @@ fuzz_target!(|data: &[u8]| {
     let mut app = testkit::started();
     let _ = testkit::move_to(&mut app.session, testkit::NET);
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

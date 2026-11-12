@@ -16,10 +16,10 @@ fn open_vault() -> Faraday {
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "vault.kdbx".into(),
             crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -35,7 +35,7 @@ fn device_with(entropy: Option<u8>, extra: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut inbox = kit_files("musig-");
     inbox.extend(extra);
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

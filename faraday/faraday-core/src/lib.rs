@@ -271,7 +271,9 @@ pub use screens::qr_code;
 pub use secure_boot::state::SecureBootAtStart;
 pub use state::{EntryState, MessageState, VisitState};
 pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
-pub use storage_api::{BootMedium, OnTaken, StickInfo, StickMake, StorageCommand, StorageEvent};
+pub use storage_api::{
+    BootMedium, Files, OnTaken, StickInfo, StickMake, StorageCommand, StorageEvent, files_from,
+};
 pub use version::{
     BUILD, Program, VERSION, is_release, parse_version_output, version_label, version_line,
 };
@@ -1728,9 +1730,9 @@ impl Faraday {
     }
 
     fn save_boxes(&mut self) {
-        let pack = |v: &Vec<Item>| {
+        let pack = |v: &Vec<Item>| -> Files {
             v.iter()
-                .map(|i| (i.name.clone(), i.bytes.to_vec()))
+                .map(|i| (i.name.clone(), i.bytes.clone()))
                 .collect()
         };
         let kept = self.kept();
