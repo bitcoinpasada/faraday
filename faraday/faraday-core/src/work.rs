@@ -192,6 +192,8 @@ pub fn snapshot() -> Counts {
         for (o, cell) in out.0.iter_mut().zip(c.iter()) {
             *o = cell.get();
         }
+        // The plan crate counts its own maps and checks.
+        out.0[Work::PlanMap as usize] += faraday_plan::maps_counted();
         out
     })
 }

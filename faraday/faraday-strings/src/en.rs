@@ -5165,7 +5165,7 @@ strings! {
     pdf_c32_fusion: "Fusion",
     /// Title of a page of the checksum table. `{}`: the page, the pages.
     pdf_c32_checksum_table: "Checksum table · {} of {}",
-    // ----- plan (faraday-core/src/plan/mod.rs) -----
+    // ----- plan (faraday-plan/src/lib.rs) -----
     /// Text in `vault_name`. `{}`: `v + 1`, `names.join(", ")`.
     plan_vault_names: "Vault {} · {}",
     /// Text in `label`. `{}`: `seed(i)`.

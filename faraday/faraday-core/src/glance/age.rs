@@ -48,13 +48,7 @@ struct Day {
 impl Day {
     /// `YYYY-MM-DD`, or `None`.
     fn parse(s: &str) -> Option<Day> {
-        let mut it = s.trim().split('-');
-        let y: i32 = it.next().filter(|p| p.len() == 4)?.parse().ok()?;
-        let m: u32 = it.next().filter(|p| p.len() == 2)?.parse().ok()?;
-        let d: u32 = it.next().filter(|p| p.len() == 2)?.parse().ok()?;
-        if it.next().is_some() || !(1..=12).contains(&m) || d == 0 || d > month_days(y, m) {
-            return None;
-        }
+        let (y, m, d) = faraday_crypto::date::parse_ymd(s)?;
         Some(Day { y, m, d })
     }
 
@@ -65,12 +59,7 @@ impl Day {
 }
 
 fn month_days(y: i32, m: u32) -> u32 {
-    match m {
-        2 if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) => 29,
-        2 => 28,
-        4 | 6 | 9 | 11 => 30,
-        _ => 31,
-    }
+    faraday_crypto::date::days_in_month(y, m)
 }
 
 /// Whole months from `from` to `to` (not before it): a month-end day
@@ -104,11 +93,6 @@ pub fn age_text(date: &str, today: &str) -> Option<String> {
         _ if m < 24 => fill(EN.glance_age_months, &[&m.to_string()]),
         _ => fill(EN.glance_age_years, &[&(m / 12).to_string()]),
     })
-}
-
-/// Whether `s` is a calendar date, `YYYY-MM-DD`.
-pub(crate) fn is_date(s: &str) -> bool {
-    Day::parse(s).is_some()
 }
 
 /// Whole days from `date` to `today`: `None` where no age is told (as

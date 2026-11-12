@@ -337,7 +337,7 @@ impl Faraday {
         let label = |at: At, what: What| {
             g.as_ref()
                 .and_then(|g| glance::label_of(g, at, what))
-                .unwrap_or_else(|| what.label(&self.plan_shape_now(w), self.medium))
+                .unwrap_or_else(|| what.label(&self.plan_shape_now(w), self.medium.cap()))
         };
         match edit {
             Edit::Add(at @ At::Vault(_), what) => fill(

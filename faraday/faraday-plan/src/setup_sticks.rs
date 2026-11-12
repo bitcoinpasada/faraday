@@ -13,7 +13,7 @@ impl Answers {
     /// goes to the place of its first vault's key, a stick whose first
     /// vault holds a copy, or whose place another stick has, to a place
     /// added after the others; vaults on one stick stay on it.
-    pub(crate) fn place_setup_sticks(&mut self, c: &Compute, shape: &Shape, sticks: &[Vec<usize>]) {
+    pub fn place_setup_sticks(&mut self, c: &Compute, shape: &Shape, sticks: &[Vec<usize>]) {
         let here = shape.here();
         let key_of = |v: usize| here.get(v.min(here.len().saturating_sub(1))).copied();
         let rows = self.vaults.len().max(shape.vault_rows());

@@ -1,4 +1,4 @@
-//! The lists a [`crate::Action::BAnswer`] ticks, as [`Question`] names them,
+//! The lists a `Action::BAnswer` ticks, as [`Question`] names them,
 //! and the question a list number stands for.
 
 use super::Question;

@@ -705,7 +705,7 @@ fn paper_and_vault_puts_one_seed_in_each_vault_each_stick_away_from_the_other_se
             .holds
             .iter()
             .find(|(w, _)| matches!(w, What::VaultStick(_)))
-            .map(|(w, _)| w.label(&shape, faraday_core::Medium::Stick)),
+            .map(|(w, _)| w.label(&shape, faraday_core::Medium::Stick.cap())),
         Some("Stick with Vault 1".to_string())
     );
     // So no one place found spends, even with a vault's passphrase; any

@@ -22,6 +22,29 @@ pub fn days_from_civil(year: i64, month: u32, day: u32) -> i64 {
     era * 146_097 + doe - 719_468
 }
 
+/// The days in month `month` (1 to 12) of `year`.
+pub fn days_in_month(year: i32, month: u32) -> u32 {
+    match month {
+        2 if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    }
+}
+
+/// `YYYY-MM-DD` (surrounding space allowed) as year, month and day, or
+/// `None` for anything else, a day the month does not have included.
+pub fn parse_ymd(s: &str) -> Option<(i32, u32, u32)> {
+    let mut it = s.trim().split('-');
+    let y: i32 = it.next().filter(|p| p.len() == 4)?.parse().ok()?;
+    let m: u32 = it.next().filter(|p| p.len() == 2)?.parse().ok()?;
+    let d: u32 = it.next().filter(|p| p.len() == 2)?.parse().ok()?;
+    if it.next().is_some() || !(1..=12).contains(&m) || d == 0 || d > days_in_month(y, m) {
+        return None;
+    }
+    Some((y, m, d))
+}
+
 /// The proleptic Gregorian year, month (1 to 12) and day of a day count
 /// since 1970-01-01.
 pub fn civil_from_days(days: i64) -> (i64, u32, u32) {

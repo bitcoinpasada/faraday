@@ -1,0 +1,22 @@
+[package]
+name = "faraday-plan"
+version = "0.2.0"
+description = "The backup plan's logic: the answers, the map of what each place keeps, the check and the checklist, with no drawing (docs/BACKUP-FLOW.md)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# Hex, the date check and the Compute token the costly functions take.
+faraday-crypto = { path = "../../core/faraday-crypto" }
+# codex32's character set and values.
+faraday-bip = { path = "../../core/faraday-bip" }
+# The wording the plan's text forms and labels use.
+faraday-strings = { path = "../faraday-strings" }
+# The codex32 set facts a plan's strings are read against.
+faraday-vault = { path = "../faraday-vault" }
+
+[lints]
+workspace = true

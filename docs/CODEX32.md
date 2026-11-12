@@ -546,7 +546,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   no codex32 choice: a key's seed is not split into strings by hand
   (§9.1).
 - **Backups** (C8, §9; `docs/BACKUP-FLOW.md` §17.23): the plan's codex32
-  form (`faraday/faraday-core/src/plan/codex32.rs`: a seed's form, its
+  form (`faraday/faraday-plan/src/codex32.rs`: a seed's form, its
   strings as `What::Codex32Share`, `Codex32QrPaper`, `Codex32ShareFile` and
   `Codex32QrFile`, every check counting k distinct strings as the seed,
   The standard way for a key with a set, the Templates clause); the

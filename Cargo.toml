@@ -33,6 +33,7 @@ members = [
     "faraday/faraday-pgp",
     "faraday/faraday-kef",
     "faraday/faraday-ots",
+    "faraday/faraday-plan",
     "faraday/faraday-sqlite",
     "faraday/faraday-core-wallet",
     "faraday/faraday-sb",

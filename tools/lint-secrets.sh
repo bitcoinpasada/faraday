@@ -3,7 +3,7 @@
 # faraday/.
 #
 # Rules 1 and 2 are applied to every file under core/*/src/, to every
-# file under faraday/faraday-core/src/, to the Bitcoin Core wallet reader's
+# file under faraday/faraday-core/src/ and faraday/faraday-plan/src/, to the Bitcoin Core wallet reader's
 # (faraday/faraday-core-wallet/src/, whose records carry a wallet's keys on
 # their way to faraday-keys) and to the Argon QR Vault library's
 # (aqrv/aqrv/src/, whose items and keys are as secret as Faraday's; its
@@ -79,7 +79,7 @@ report() {
 }
 
 src_files() {
-    { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; find faraday/faraday-core-wallet/src -name '*.rs'; find aqrv/aqrv/src -name '*.rs'; } | sort
+    { find core -path '*/src/*' -name '*.rs'; find faraday/faraday-core/src -name '*.rs'; find faraday/faraday-plan/src -name '*.rs'; find faraday/faraday-core-wallet/src -name '*.rs'; find aqrv/aqrv/src -name '*.rs'; } | sort
 }
 
 # Rule 1: output and logging macros.
@@ -97,7 +97,7 @@ report "output/logging macro in core source (rule 1)" \
 #   backup_flow Sealed     the hash and name of a sealed vault file
 #   plan Seed              a seed as the plan sees it: name and flags
 #   plan Item              one line of the checklist
-ALLOWED="core/faraday-bip/src/slip132.rs:Key core/faraday-draw/src/fonts/mod.rs:Key core/faraday-shell-api/src/lib.rs:Key faraday/faraday-core/src/backup_flow/mod.rs:Sealed faraday/faraday-core/src/plan/mod.rs:Seed faraday/faraday-core/src/plan/mod.rs:Item"
+ALLOWED="core/faraday-bip/src/slip132.rs:Key core/faraday-draw/src/fonts/mod.rs:Key core/faraday-shell-api/src/lib.rs:Key faraday/faraday-core/src/backup_flow/mod.rs:Sealed faraday/faraday-plan/src/lib.rs:Seed faraday/faraday-plan/src/lib.rs:Item"
 rule2() {
     for f in $(src_files); do
         awk -v file="$f" -v allowed="$ALLOWED" '

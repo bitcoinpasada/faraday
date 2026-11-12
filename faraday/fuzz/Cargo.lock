@@ -810,6 +810,7 @@ dependencies = [
  "faraday-learn",
  "faraday-ots",
  "faraday-pgp",
+ "faraday-plan",
  "faraday-psbt",
  "faraday-qr",
  "faraday-sb",
@@ -1037,6 +1038,16 @@ dependencies = [
  "sha1",
  "sha2",
  "zeroize",
+]
+
+[[package]]
+name = "faraday-plan"
+version = "0.2.0"
+dependencies = [
+ "faraday-bip",
+ "faraday-crypto",
+ "faraday-strings",
+ "faraday-vault",
 ]
 
 [[package]]

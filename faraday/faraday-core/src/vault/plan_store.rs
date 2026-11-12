@@ -88,7 +88,7 @@ impl VaultArea {
             let holds: Vec<String> = spot
                 .holds
                 .iter()
-                .map(|(h, _)| h.label(shape, src.medium))
+                .map(|(h, _)| h.label(shape, src.medium.cap()))
                 .collect();
             record.push(
                 field::PLAN_HOLDS,

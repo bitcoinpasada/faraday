@@ -209,7 +209,8 @@ outside review in `docs/STANDARDS.md` §7.
 `faraday-grant` (the `CAP_CHOWN` helper), `faraday-files` (the Place
 trait, the pipe protocol), `faraday-storage` (Inbox/Outbox, PDFs),
 `faraday-scanner` (camera frames), `faraday-strings` (the words on
-screen), `faraday-boot` (the release string the Starter reads a
+screen), `faraday-plan` (the backup plan: what each place keeps, the
+checklist, its codex32 and text forms), `faraday-boot` (the release string the Starter reads a
 stick's version by), `faraday-ui` (the desktop app's and the Starter's drawing),
 `faraday-learn` and `faraday-guides` (Learn pages and the start-from-stick
 guides), every shell but the desktop app's window (`faraday-desktop`, `faraday-stick`,

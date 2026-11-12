@@ -6,7 +6,7 @@
 use std::cell::Cell;
 
 use super::{AloneKind, Reach};
-use crate::strings::{EN, fill};
+use faraday_strings::{EN, fill};
 
 /// The most places whose groups are listed in full.
 const LISTED: usize = 16;
@@ -138,7 +138,7 @@ impl Reach {
 
     /// Whether `self` is nearer a spend than `was`: fewer places, or as
     /// many without the vault's passphrase.
-    pub(crate) fn nearer_than(self, was: Option<Reach>) -> bool {
+    pub fn nearer_than(self, was: Option<Reach>) -> bool {
         !self.cut && was.is_none_or(|w| w.cut || (self.more, self.vault) < (w.more, w.vault))
     }
 }

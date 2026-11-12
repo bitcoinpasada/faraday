@@ -25,7 +25,7 @@ pub use faraday_bip::codex32::CHARSET;
 pub const SECRET: usize = 16;
 
 /// A share index's character, from its value.
-pub(crate) fn index_char(j: usize) -> char {
+pub fn index_char(j: usize) -> char {
     char::from(CHARSET[j % 32])
 }
 
@@ -205,7 +205,7 @@ impl Answers {
     /// it off with `None`. It records nothing as rotated away: only a
     /// rotation does ([`Answers::rotate_c32`]). Strings the map placed
     /// whose index the new form lacks leave the map.
-    pub(crate) fn set_c32(&mut self, shape: &Shape, i: usize, form: Option<C32>) {
+    pub fn set_c32(&mut self, shape: &Shape, i: usize, form: Option<C32>) {
         let keep: Vec<usize> = form.as_ref().map_or(Vec::new(), |f| f.indices.clone());
         self.codex32.retain(|f| f.seed != i);
         if let Some(f) = form {
@@ -227,7 +227,7 @@ impl Answers {
     /// threshold or identifier differs, is recorded as rotated away
     /// ([`Answers::rotated`], `docs/CODEX32.md` §9.7 step 5), then
     /// [`Answers::set_c32`]. The only call that records a set.
-    pub(crate) fn rotate_c32(&mut self, shape: &Shape, i: usize, form: C32) {
+    pub fn rotate_c32(&mut self, shape: &Shape, i: usize, form: C32) {
         if let Some(old) = self.c32(i).map(|o| (i, o.k, o.identifier))
             && old != (i, form.k, form.identifier)
             && !self.rotated.contains(&old)
@@ -239,7 +239,7 @@ impl Answers {
 
     /// Whether seed `i`'s set named `id` was rotated away, whatever its
     /// threshold: its strings are destroyed and its identifier refused.
-    pub(crate) fn rotated_id(&self, i: usize, id: [u8; 4]) -> bool {
+    pub fn rotated_id(&self, i: usize, id: [u8; 4]) -> bool {
         self.rotated.iter().any(|&(x, _, r)| x == i && r == id)
     }
 }
@@ -265,7 +265,7 @@ pub fn rebuilt(needs: &[(usize, usize)], seen: &[(usize, usize)]) -> Vec<usize> 
 
 /// The distinct strings of seed `i` the spots `at` keep on the map
 /// `boxes`, by index.
-pub(crate) fn strings_at(boxes: &[Spot], i: usize, at: &dyn Fn(At) -> bool) -> Vec<usize> {
+pub fn strings_at(boxes: &[Spot], i: usize, at: &dyn Fn(At) -> bool) -> Vec<usize> {
     let mut js: Vec<usize> = boxes
         .iter()
         .filter(|s| at(s.at))
@@ -291,7 +291,7 @@ pub fn standard(c: &Compute, shape: &Shape, sets: &[Option<SetFacts>]) -> Answer
 
 /// Costs what [`standard`] costs. [`standard`] over the answers `a`: The
 /// standard way with other things placed already, such as a setup's sticks.
-pub(crate) fn standard_over(
+pub fn standard_over(
     c: &Compute,
     shape: &Shape,
     sets: &[Option<SetFacts>],
@@ -381,7 +381,7 @@ pub fn sync(a: &mut Answers, shape: &Shape, sets: &[Option<SetFacts>]) {
 /// The most places a plan of `shape` and `a` has: [`max_places`], and
 /// each codex32 seed's further strings a place more (§9.5: three places
 /// for 2 of 3).
-pub(crate) fn max_places_of(shape: &Shape, a: &Answers) -> usize {
+pub fn max_places_of(shape: &Shape, a: &Answers) -> usize {
     max_places(shape)
         + a.codex32
             .iter()
@@ -427,7 +427,7 @@ impl PaperCopy {
 /// How string `j` of seed `i` is copied by hand across the plan's places:
 /// written, drawn as its Codex32QR, or both; `None` where no place keeps
 /// it on paper.
-pub(crate) fn paper_copy(m: &Mapped, i: usize, j: usize) -> Option<PaperCopy> {
+pub fn paper_copy(m: &Mapped, i: usize, j: usize) -> Option<PaperCopy> {
     let on = |want: &dyn Fn(What) -> bool| {
         m.map
             .iter()
@@ -475,7 +475,7 @@ pub fn templates_of(a: &Answers, m: &Mapped) -> Vec<(u8, PaperCopy, usize)> {
 
 /// The strings of seed `i` on paper at the plan's places, by index, each
 /// once, in the set's order: what its checklist item makes or checks.
-pub(crate) fn paper_strings(a: &Answers, m: &Mapped, i: usize) -> Vec<usize> {
+pub fn paper_strings(a: &Answers, m: &Mapped, i: usize) -> Vec<usize> {
     let placed = strings_at(&m.map, i, &|at| matches!(at, At::Place(_)));
     a.c32(i).map_or(Vec::new(), |f| {
         f.indices
@@ -487,7 +487,7 @@ pub(crate) fn paper_strings(a: &Answers, m: &Mapped, i: usize) -> Vec<usize> {
 }
 
 /// The places that keep string `j` of seed `i`, on paper.
-pub(crate) fn places_of_string(m: &Mapped, i: usize, j: usize) -> Vec<usize> {
+pub fn places_of_string(m: &Mapped, i: usize, j: usize) -> Vec<usize> {
     m.map
         .iter()
         .filter_map(|s| match s.at {
@@ -524,7 +524,7 @@ impl Mapped {
 
     /// The codex32 strings the map keeps as files on a stick at a place:
     /// each seed and index, of a set split with a threshold of 2 or more.
-    pub(crate) fn stick_strings(&self, a: &Answers) -> Vec<(usize, usize)> {
+    pub fn stick_strings(&self, a: &Answers) -> Vec<(usize, usize)> {
         let mut out: Vec<(usize, usize)> = self
             .map
             .iter()

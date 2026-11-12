@@ -316,7 +316,7 @@ pub(crate) fn map_rows(
             }
             let label = ui.fit_as(
                 BODY_S,
-                &what.label(shape, app.medium),
+                &what.label(shape, app.medium.cap()),
                 ix + iw - lx - tw - 8.0,
             );
             ui.text_mid_as((lx, cy, 18.0), BODY_S, Role::OnSurface, &label);

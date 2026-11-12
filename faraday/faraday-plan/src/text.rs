@@ -222,7 +222,7 @@ impl SealLine {
             "seals {} {} {}\n",
             String::from_utf8_lossy(&self.id),
             self.count,
-            crate::backups::hex32(&self.digest)
+            crate::hex32(&self.digest)
         )
     }
 
@@ -236,7 +236,7 @@ impl SealLine {
                 .ok()
                 .filter(|b| b.iter().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f')))?,
             count: f.next()?.parse().ok().filter(|c| *c >= 1)?,
-            digest: crate::backups::read_hex32(f.next()?)?,
+            digest: crate::read_hex32(f.next()?)?,
         };
         f.next().is_none().then_some(line)
     }
@@ -248,12 +248,12 @@ impl SealLine {
 }
 
 /// The `seals` lines a plan's text holds, those that read.
-pub(crate) fn seals_in(text: &str) -> Vec<SealLine> {
+pub fn seals_in(text: &str) -> Vec<SealLine> {
     text.lines().filter_map(SealLine::from_line).collect()
 }
 
 /// `text` with its `seals` lines replaced by `lines`, at the end.
-pub(crate) fn with_seals(text: &str, lines: &[SealLine]) -> String {
+pub fn with_seals(text: &str, lines: &[SealLine]) -> String {
     let mut out: String = text
         .lines()
         .filter(|l| !l.starts_with("seals "))
@@ -622,7 +622,9 @@ pub(super) fn note_read(s: &str) -> Option<Note> {
         "holder" => Note::Holder(fp_read(a)?, after(2)),
         "vaultname" => Note::VaultName(a.parse().ok()?, after(2)),
         // A date alone: anything else is refused.
-        "moved" if b.is_empty() && rest.is_empty() && crate::glance::age::is_date(a) => {
+        "moved"
+            if b.is_empty() && rest.is_empty() && faraday_crypto::date::parse_ymd(a).is_some() =>
+        {
             Note::Moved(a.to_string())
         }
         _ => return None,
@@ -664,15 +666,15 @@ pub(super) fn fp_read(s: &str) -> Option<[u8; 4]> {
 }
 
 /// The line said in place of the checklist when a seed here is past the
-/// checklist's numbers ([`crate::bstep::SEEDS`]): it would have no item of
+/// checklist's numbers (`CHECKLIST_SEEDS`): it would have no item of
 /// its own, so no checklist is made. A lookup.
 pub(super) fn past_checklist(shape: &Shape) -> Option<String> {
     let i = shape
         .here()
         .into_iter()
-        .find(|&i| i >= crate::bstep::SEEDS)?;
-    Some(crate::strings::fill(
-        crate::strings::EN.backup_seed_past_checklist,
-        &[&(i + 1).to_string(), &crate::bstep::SEEDS.to_string()],
+        .find(|&i| i >= crate::CHECKLIST_SEEDS)?;
+    Some(faraday_strings::fill(
+        faraday_strings::EN.backup_seed_past_checklist,
+        &[&(i + 1).to_string(), &crate::CHECKLIST_SEEDS.to_string()],
     ))
 }

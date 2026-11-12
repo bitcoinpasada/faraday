@@ -26,6 +26,8 @@ faraday-learn = { path = "../faraday-learn" }
 faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-ots = { path = "../faraday-ots" }
+# The backup plan's logic; this crate draws it.
+faraday-plan = { path = "../faraday-plan" }
 faraday-sb = { path = "../faraday-sb" }
 faraday-keys = { path = "../faraday-keys" }
 # The Bitcoin Core wallet reader (F229); the tool and its screen are here.

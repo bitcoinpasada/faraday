@@ -34,7 +34,8 @@ pub const KEF: u8 = VAULT - SEEDS as u8;
 pub const VAULT: u8 = 128;
 /// How many seeds the numbers above give an item each: the narrowest of
 /// the copy, codex32 and passphrase ranges. A seed past them has none.
-pub const SEEDS: usize = (CODEX32 - COPY) as usize;
+pub const SEEDS: usize = faraday_plan::CHECKLIST_SEEDS;
+const _: () = assert!(CODEX32 - COPY == SEEDS as u8);
 
 /// Whether `n` is a seed's copy by hand.
 pub fn is_copy(n: u8) -> bool {

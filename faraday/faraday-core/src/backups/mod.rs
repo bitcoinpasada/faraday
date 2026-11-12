@@ -310,13 +310,7 @@ fn read_hex4(s: &str) -> Option<[u8; 4]> {
     faraday_crypto::hex::decode_exact(s)
 }
 
-pub(crate) fn hex32(b: &[u8; 32]) -> String {
-    faraday_crypto::hex::encode_string(b)
-}
-
-pub(crate) fn read_hex32(s: &str) -> Option<[u8; 32]> {
-    faraday_crypto::hex::decode_exact(s)
-}
+pub(crate) use faraday_plan::{hex32, read_hex32};
 
 /// Whether locked vault summary `s` is the vault that does a plan's
 /// vault: each of `own` (the seeds the plan puts there, told by
@@ -954,7 +948,7 @@ impl Faraday {
                     holds: spot
                         .holds
                         .iter()
-                        .map(|(h, _)| h.label(&shape, self.medium))
+                        .map(|(h, _)| h.label(&shape, self.medium.cap()))
                         .collect(),
                     tag: spot.holds.iter().map(|(_, t)| *t).fold(Tag::Public, worse),
                     copies: Vec::new(),

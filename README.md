@@ -314,8 +314,8 @@ a vetted crate, and what it is checked against.
 signature, PSBT and message signature is in the `core/` crates
 (`faraday-crypto`, `faraday-bip`, `faraday-psbt`, `faraday-entropy`). The rest
 is in Faraday's other crates, each a library with no interface: the
-vault (`faraday-vault`), OpenPGP (`faraday-pgp`), Secure Boot
-(`faraday-sb`).
+vault (`faraday-vault`), the backup plan's logic (`faraday-plan`), OpenPGP
+(`faraday-pgp`), Secure Boot (`faraday-sb`).
 
 Why this is better than one repository and one application:
 

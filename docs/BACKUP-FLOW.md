@@ -2618,7 +2618,7 @@ the chart's sheets) points here.
 ### 18.1 What is built
 
 - **Dates already kept.** The plan's notes in the vault
-  (`plan::Note`, `faraday/faraday-core/src/plan/mod.rs`) hold
+  (`plan::Note`, `faraday/faraday-plan/src/lib.rs`) hold
   `checked <at> <what> <date>` per thing at a spot and
   `keychecked <fp> <date>` per key a holder keeps. Three presses write
   them (`faraday/faraday-core/src/chart_edit.rs`): a place's **Mark

@@ -1203,7 +1203,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     let holds: Vec<String> = spot
                         .holds
                         .iter()
-                        .map(|(h, _)| h.label(&shape, app.medium))
+                        .map(|(h, _)| h.label(&shape, app.medium.cap()))
                         .collect();
                     let line = if holds.is_empty() {
                         EN.backup_nothing.to_string()

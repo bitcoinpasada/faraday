@@ -79,21 +79,7 @@ pub(crate) fn public_more_files(w: &Wallet) -> Vec<(u8, String)> {
     .collect()
 }
 
-/// Which keys each sheet of a split backup carries: sheet `i` carries `d`
-/// keys starting at key `i`, wrapping, where `d` is `n` less the keys each
-/// sheet leaves off (at most `m − 1`). The split plan.
-pub fn split_plan(n: usize, m: usize, omit: usize) -> Vec<Vec<usize>> {
-    let max_omit = m.saturating_sub(1).min(n.saturating_sub(1));
-    let drop = omit.min(max_omit);
-    let d = n - drop;
-    (0..n)
-        .map(|i| {
-            let mut row: Vec<usize> = (0..d).map(|j| (i + j) % n).collect();
-            row.sort_unstable();
-            row
-        })
-        .collect()
-}
+pub use faraday_plan::split_plan;
 
 /// What a split plan achieves, found by trying every set of sheets rather
 /// than trusting the arithmetic. The split audit.
