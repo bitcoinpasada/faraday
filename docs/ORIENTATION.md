@@ -395,9 +395,9 @@ density.
 ## 11. The guide
 
 The guide says it where a person meets it: Settings' page
-(`docs/guide/screens/settings.md`, Display) lists **Scale** and
+(`docs/history/guide/screens/settings.md`, Display) lists **Scale** and
 **Rotation** and what each suits, and the walkthrough of a first start
-(`docs/guide/walk/first-start.md`) names Rotation for a 7-inch or
+(`docs/history/guide/walk/first-start.md`) names Rotation for a 7-inch or
 10-inch panel. Their pictures are drawn with the guide's other pictures.
 
 ## 12. Batches

@@ -162,28 +162,6 @@ fn setup(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
-/// Costs what the tour's setup costs. The screen reference's pictures
-/// of the sheets of copying and moving an item (`docs/guide/screens/vault.md`):
-/// Remove codex32 set, Copy to another vault, Move's dialog and Save into
-/// a vault's Keep ticks, each from the tour's four open vaults.
-pub(crate) fn guide(t: &mut Tour) -> Result<(), String> {
-    crate::tours::screens::stick_session(t);
-    setup(t)?;
-    item(t, 0, KEYS, 0);
-    t.press(Action::Vault(V::TrimAsk(field::KEY_CODEX32)));
-    t.shot("vault-trim")?;
-    t.press(Action::Vault(V::TrimCancel));
-    t.press(Action::Vault(V::CopyTo));
-    t.shot("vault-copy-to")?;
-    t.press(Action::Vault(V::CopyCancel));
-    t.press(Action::Vault(V::MoveTo));
-    t.press(Action::Vault(V::CopyKeep(1)));
-    t.press(Action::Vault(V::CopyPick(0)));
-    t.shot("vault-move-dialog")?;
-    t.press(Action::Vault(V::CopyCancel));
-    keep_sheet_as(t, "vault-save-keeps")
-}
-
 /// Costs a map of the plan (through `seed_files_at`). The Copy to another
 /// vault sheet from a seed with a set and an origin (an open vault, a
 /// read only one, a locked one, a new one), Move's dialog with a tick

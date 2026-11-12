@@ -11,10 +11,8 @@ and what each choice means. There is one guide, and it is in the app: the websit
 says so and keeps the guides to starting a computer from the stick.
 The owner's choices are F247.
 
-The name of this document: `docs/GUIDE.md` is today the website's index
-of walkthroughs, read by the website's build, and stays so until the
-website's guide page says the guide is in the app (§7). When the guide is built, `docs/GUIDE.md`
-moves to `docs/history/`, and this document, then a Reference, keeps its
+The name of this document: GUIDE.md was the website's index
+of walkthroughs and is now `docs/history/GUIDE.md` (§7). When the guide is built, this document, then a Reference, keeps its
 name, so that what cites it still resolves.
 
 ## 1. Structure: by place, not by concept
@@ -403,16 +401,16 @@ keep a second account of the screens:
   with the Guide button at the screen and step the person is on, and
   links the guides to starting a computer from the stick (`start/`),
   which stay the website's. The website (its own repository) stops
-  reading `docs/guide/walk/` and `docs/guide/screens/`.
-- **The walkthroughs** (`docs/guide/walk/*.md`, twenty-three, about
-  45,000 words) go to `docs/history/`, not published: what a task's
+  reading the walkthroughs and the screen pages.
+- **The walkthroughs** (`docs/history/guide/walk/*.md`, twenty-three, about
+  45,000 words) are in `docs/history/`, not published: what a task's
   steps are is the flow's own cards.
-- **The screen pages** (`docs/guide/screens/*.md`, what each control
-  does) go to `docs/history/`: each is replaced by its place's page.
-- **`docs/GUIDE.md`** (the walkthroughs' index) goes to `docs/history/`.
-- **The pictures.** The 418 files in `docs/guide/pictures/` are the
-  walkthroughs' and the screen pages': they go with them, with `just
-  guide-pictures` and `tools/guide-pictures.py` (out), and no new set is drawn.
+- **The screen pages** (`docs/history/guide/screens/*.md`, what each control
+  does) are in `docs/history/`: each is replaced by its place's page.
+- **`docs/history/GUIDE.md`** (the walkthroughs' index) is in `docs/history/`.
+- **The pictures.** The 418 files in `docs/history/guide/pictures/` are the
+  walkthroughs' and the screen pages': they went with them, and the
+  recipe and script that drew them are out; no new set is drawn.
   The app shows no pictures: the person is looking at the screen. The
   stale pictures are not drawn again: they leave with the walkthroughs.
 
@@ -437,7 +435,7 @@ its folder of start guides moved), `faraday/faraday-learn` (renamed; `pages/` ou
 "Learn:" links, `faraday/faraday-strings/src/en.rs`,
 `faraday/faraday-starter` (its Learn destination and pages),
 `docs/crypto/actions.toml` and `docs/crypto/gen.py` (no `learn` key),
-`tools/lint-guide.py`, `tools/learn/sync.py` (out), `tools/guide-pictures.py` (out),
+`tools/lint-guide.py`, `tools/learn/sync.py` (out), the pictures' script (out),
 `justfile` and `faraday/faraday.just` (the recipes), `tools/lint-docs.sh`,
 `docs/DESIGN.md` §2 and §4.12, `docs/LAYOUT.md` §3 and §6,
 `docs/CRYPTO-LEARN.md` §3.1, §8 and §18, `docs/STARTER.md` §3.1d, §3.6

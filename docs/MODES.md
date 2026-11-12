@@ -192,7 +192,7 @@ sample. "Public set" means its fingerprint (or node id) is in
 
 | Sample | Form | Source | Checked against |
 |---|---|---|---|
-| Guide key · 3dca6805, listed first | BIP-39, 12 words | the user guide's key (`docs/guide/walk/new-key.md`): EntropyLab's dice transcript, `tools/vectors/entropy/dice.json`'s first words vector (F143); not a handout | the vector's entropy, and another implementation's fingerprints |
+| Guide key · 3dca6805, listed first | BIP-39, 12 words | the user guide's key (`docs/history/guide/walk/new-key.md`): EntropyLab's dice transcript, `tools/vectors/entropy/dice.json`'s first words vector (F143); not a handout | the vector's entropy, and another implementation's fingerprints |
 | bacon, flag, gas, great, slice, solution, summer, they, trade, trap, zebra ×24 | BIP-39 English, 24 words | `demo::SEEDS`; the only words valid 24 times (computed: 11 of 2048) | `Keys::add_words_with` |
 | twelve, ocean, piano, silver ×12 | BIP-39, 12 words | new; 130 of the 2048 words are valid 12 times | the same |
 | lucky, olive ×15; glad, school ×18; brave, sunset ×21 | BIP-39, 15, 18, 21 words | new; 57, 26 and 17 words are valid at those lengths | the same |

@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|lightning-cln|vaultway|vaultstates|kept|again|plan|board|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|components|guide|screens|tour|codex32]
+//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|lightning-cln|vaultway|vaultstates|kept|again|plan|board|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|components|tour|codex32]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -82,13 +82,7 @@
 //! written and Done; with `vaultsheets`, a seed with a codex32 set and a
 //! BIP-85 origin copied, moved, kept at a save and trimmed; with `vaultshow`, the test vault's key with its
 //! SeedQR held (`docs/BACKUP-FLOW.md` §17.7), its Save to a stick, and a
-//! wallet's Save to a stick; with `guide`, the pictures of the guide's
-//! walkthroughs (`docs/guide/walk/`), one module for each, from a fresh
-//! stick session and the dice transcript's key; with `screens`, the
-//! pictures of its screen reference (`docs/guide/screens/`). These two
-//! name each picture as its file, with no number, and write
-//! `<name>.mark.json` beside a picture whose next control is marked
-//! (`just guide-pictures`); with
+//! wallet's Save to a stick; with
 //! `tour`, the website tour's pictures (run it with `--network
 //! mainnet`), with the guide's key: Make codex32 shares and a vault's
 //! passphrase, each from dice as the rolls go in, Settings' Appearance
@@ -211,8 +205,6 @@ pub(crate) const TOURS: &[&str] = &[
     "std",
     "parts",
     "panes",
-    "guide",
-    "screens",
     "roller",
     "randomness",
     "dice5",
@@ -276,7 +268,6 @@ fn run(
         host: None,
         boxes: None,
         go_on: true,
-        named: matches!(only, Some("guide" | "screens")),
         pictures,
         targets: Some(Vec::new()),
     };
@@ -365,8 +356,6 @@ fn named_tour(c: &Compute, t: &mut Tour, name: &str) -> Option<Result<(), String
         "std" => tours::standard::standard_tour(t),
         "parts" => tours::partials::partials_tour(t),
         "panes" => tours::panes::panes_tour(t),
-        "guide" => tours::guide::guide_tour(c, t),
-        "screens" => tours::screens::screens_tour(c, t),
         "tour" => tours::site_tour::site_tour(c, t),
         "codex32" => tours::codex32::codex32_tour(t),
         "codex32tour" => tours::codex32::codex32_shares_tour(t),
@@ -401,7 +390,7 @@ fn main() -> ExitCode {
     }
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|lightning-cln|vaultway|vaultstates|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|how|guide|screens|tour|codex32]"
+            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|lightning-cln|vaultway|vaultstates|kept|again|plan|inbox|transfer|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|how|tour|codex32]"
         );
         return ExitCode::from(2);
     }

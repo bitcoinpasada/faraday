@@ -248,7 +248,7 @@ construction holds up"), `docs/INTEROP.md`, `docs/VAULT.md`,
 the crate READMEs (`core/faraday-bip/README.md`, `core/faraday-psbt/README.md`
 and the others), the Learn pages' own prose (`docs/learn/13-nonces.md`
 says how every nonce is derived), Faraday's own pages under
-`docs/learn/faraday/`, the guide's screen pages (`docs/guide/screens/README.md`),
+`docs/learn/faraday/`, the guide's screen pages (`docs/history/guide/screens/README.md`),
 `tools/reference/` and each vector folder's README, and the strings in
 `faraday/faraday-strings/src/en.rs` that state a construction (the
 Settings explainers on how added randomness is mixed).
@@ -775,12 +775,12 @@ The values are the manifest's and the cross-check's, carried by
 
 ### 8.7 The guide's pages
 
-The bar's new button changes the guide's pictures of the screens that
-offer an action, and the guide's text that names the bar's tools. They are
-drawn again (`just guide-pictures`) and each page's "On this screen"
-table says so, after the ?:
+The bar's new button changes the guide's text that names the bar's
+tools. The screen pages and pictures it once changed are history
+(`docs/history/guide/`); the pages now are `docs/guide/`. The old
+screen pages that named it:
 
-- Faraday's screens: `docs/guide/screens/add-a-key.md` (Entry),
+- Faraday's screens: `docs/history/guide/screens/add-a-key.md` (Entry),
   `restore.md`, `files.md`, `spend-tab.md` (SpendBackup), `new-key.md`
   (KeyGen), `vault.md` (VaultContents), `make-a-wallet.md` (Create),
   `explore.md`, `wallets.md` (Wallets, WalletsStart), `calculators.md`
@@ -790,16 +790,14 @@ table says so, after the ?:
   (Bip85), `vanity.md`, `lightning.md`, `silent-payments.md`,
   `messages.md` (Message, CheckMessage), `decode.md`, `qr-and-scan.md`
   (the QR sheet, Transfer) and `files.md` (the stick in Files), all in
-  `docs/guide/screens/`.
-- `docs/guide/screens/learn.md`: the How tab, first among the tabs.
-- `docs/guide/screens/home.md` and `docs/guide/screens/prompts.md`:
+  `docs/history/guide/screens/`.
+- `docs/history/guide/screens/learn.md`: the How tab, first among the tabs.
+- `docs/history/guide/screens/home.md` and `docs/history/guide/screens/prompts.md`:
   the ⋮ menu's first row on the Pi's panel, where they show it.
-- The Starter: `docs/guide/screens/starter-make.md` (What to write,
+- The Starter: `docs/history/guide/screens/starter-make.md` (What to write,
   Confirm, Writing, Done), `starter-learn-and-boot.md` (the new Learn
   page and the Start page's BitLocker tick box) and `starter-menu.md`
   (the ⋮'s first row on a compact window).
-- The walkthroughs whose pictures show those bars, found by the
-  pictures `just guide-pictures` draws again.
 
 ## 9. Tests and checks of reach
 
@@ -1254,7 +1252,7 @@ checked, or named for review.
 | `docs/VAULT.md`, `docs/CODEX32.md`, `docs/TOTP.md`, `docs/QR.md`, `docs/OWN-RANDOMNESS.md`, `docs/WALLETS.md` §3.3, `docs/SPEND-FROM-BACKUP.md` | Their constructions and refusals | Named for review |
 | The crate READMEs under `core/` | What each computes and refuses | Named for review |
 | `docs/learn/` and `docs/learn/faraday/` | The prose of Nonces, Randomness, Backups in other forms, Silent payments, Vaults, GPG, Time, Where keys are kept | Named for review |
-| `docs/guide/screens/README.md` and its pages | What a screen's control computes | Named for review |
+| `docs/history/guide/screens/README.md` and its pages | What a screen's control computes | Named for review |
 | `faraday/faraday-strings/src/en.rs` | Strings that state a construction: Settings' Guided explainers, the Tools tiles' lines | Named for review |
 | `tools/reference/` | The pinned sources an area was written from | Named for review |
 | `docs/deps/` | A primitive crate's page: `**Cryptography:** computes` | Checked (§4.1) |

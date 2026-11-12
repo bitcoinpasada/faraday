@@ -135,7 +135,6 @@ rule's source and misses.
 impact: 3 paths, 7 rules
 change with it:
   docs.readme-index     docs/README.md
-  guide.pictures        (needs Reviewed) the guide's pictures, just guide-pictures
 held by: lint-strings, lint-guide, lint-tokens, lint-layout
 trailer: design.material3 (Material: <the Material page checked>)
 needs a Reviewed: <rule> line in the commit: strings.no-explanation
@@ -227,7 +226,7 @@ The registry checked against itself and the tree, run by `check` and
 A commit waives a rule it does not need to meet with a trailer:
 
 ```
-Impact-skip: docs.readme-index: the document is a page of docs/guide/, which GUIDE.md indexes
+Impact-skip: docs.readme-index: the document is a page of docs/guide/, which `docs/GUIDE-IN-APP.md` describes
 ```
 
 One trailer a rule, the reason in words a reviewer can check. A waiver
@@ -412,7 +411,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `repo.tests-user-facing` | `**/tests/**`, test modules | R | no test states a design rule, a token's value or geometry against a document | `CLAUDE.md` |
 | `tree.top-level` | a top-level entry added | P | `README.md` ("Repository layout") and `tools/lint-tree.sh` | `CLAUDE.md`; H by `lint-tree` for the list |
 | `tree.clean` | any path | H | `lint-tree` (leftovers, 2 MiB) | `CLAUDE.md` |
-| `tree.image-metadata` | `**/*.png` added or changed (the only image form tracked) | R | no metadata; `just guide-pictures` checks the guide's only (planned check: every tracked image) | `tools/README.md` |
+| `tree.image-metadata` | `**/*.png` added or changed (the only image form tracked) | R | no metadata (planned check: every tracked image) | `tools/README.md` |
 | `docs.headers` | `docs/**/*.md` | H | `lint-docs` rules 1, 3, 4 | `CLAUDE.md` |
 | `docs.paths` | `**/*.md` | H | `lint-docs` rule 2 | `CLAUDE.md` |
 | `docs.readme-index` | `docs/*.md` added or deleted, or its Kind line changed | P | `docs/README.md` | `docs/README.md` |
@@ -464,8 +463,6 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `design.maker-pages` | the Starter's maker pages | R | several families at once, no model, no maker's screenshot or name | F14, F18 |
 | `tokens.named` | `core/faraday-draw/src/**`, the screens | H | `lint-tokens` | `CLAUDE.md` |
 | `themes.generated` | `faraday/faraday-ui/src/pal/**`, `tools/themes/**` | H | `lint-themes` | F113 |
-| `guide.screens-named` | a `Screen` or `Sheet` added | H | `lint-guide` | `tools/README.md` |
-| `guide.pictures` | `**/screen.rs`, `faraday/faraday-core/src/screens/**` | R | the guide's pictures drawn again (`just guide-pictures`) | `docs/GUIDE.md` |
 | `learn.sync` | `docs/learn/**`, `faraday/faraday-learn/src/pages/en.rs` | H | `tools/learn/sync.py check` | `CLAUDE.md` |
 | `builds.list` | `faraday/image/boards/**`, `faraday/image/panels/**`, recipes | H | `lint-builds` | `faraday/builds.toml` |
 | `builds.docs` | `faraday/builds.toml` | P | `docs/IMAGES.md` or `docs/DEVELOPING.md` | `faraday/builds.toml` |
@@ -490,7 +487,7 @@ change to the paths they name.
 |---|---|---|---|
 | `app.faraday` | `faraday/faraday-core/**`, `faraday/faraday-ui/**`, `faraday/faraday-strings/**`, `faraday/faraday-learn/**`, `faraday/faraday-keys/**`, `faraday/shells/stick/**`, `faraday/shells/window/**`, `faraday/image/**`, `core/**` | the device app, the stick and the Pi images are built again | n/a |
 | `app.starter` | `faraday/faraday-starter/**`, `faraday/shells/starter/**`, `faraday/faraday-ui/**`, `faraday/faraday-strings/**`, `core/faraday-draw/**`, `faraday/builds.toml` | the Starter is built again | n/a |
-| `website.guide` | `docs/GUIDE.md`, `docs/guide/**` | the guide's pages and pictures made again | yes |
+| `website.guide` | `docs/guide/**` | the guide's pages made again | yes |
 | `website.start` | `docs/learn/faraday/boot/*.md` | a page added needs its description in the site's guide builder | yes, on add |
 | `website.download` | `faraday/builds.toml` | a new hardware id needs its lines and drawing in the site's download builder | yes, on a hardware id added |
 | `website.download-pictures` | Home's screen file | the pictures of Home at each panel size made again | no |

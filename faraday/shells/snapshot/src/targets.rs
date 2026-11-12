@@ -58,12 +58,8 @@ pub(crate) fn line(label: &str, s: &Small) -> String {
 }
 
 /// Writes `targets.txt` beside the pictures in `out`, one line a counted
-/// target, as `cut.txt` is written. The guide's tours write none: their
-/// folder holds pictures only.
+/// target, as `cut.txt` is written.
 pub(crate) fn write(out: &Path, tour: Option<&str>, found: &[Small]) -> Result<(), String> {
-    if matches!(tour, Some("guide" | "screens")) {
-        return Ok(());
-    }
     let label = tour.unwrap_or("default");
     let mut text = String::new();
     for s in found {
@@ -95,9 +91,9 @@ fn collect(size: (u16, u16), dpi: u16, work: &Path) -> Result<Vec<(String, Small
         crate::TOURS
             .iter()
             .copied()
-            // The pictures of the guide and the website are made for
-            // 1280 × 800 on Mainnet; their frames are the named tours'.
-            .filter(|t| !matches!(*t, "guide" | "screens" | "tour"))
+            // The website's pictures are made for 1280 × 800 on Mainnet;
+            // their frames are the named tours'.
+            .filter(|t| *t != "tour")
             .map(Some),
     );
     for only in tours {

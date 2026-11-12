@@ -547,7 +547,7 @@ with the Starter for it to have its own IDs.
   check's line, the Name field, Rename stick, Files' lines of §5.2).
 - Docs: F67 (amended by F174) and F80's partition names, `docs/STARTER.md` §4.1, §4.3,
   §4.4, `docs/MAC.md`, `docs/BACKUP-FLOW.md`, `docs/DEVELOPING.md`,
-  `README.md`, `docs/guide/walk/secure-boot-keys.md`, the Learn pages of
+  `README.md`, `docs/history/guide/walk/secure-boot-keys.md`, the Learn pages of
   §8, and the tests and fixtures that name the old labels
   (`faraday/faraday-disk/tests/disks.rs`, `faraday/faraday-grant/tests/grant.rs`,
   `faraday/shells/starter/tests/`, `faraday/faraday-fat/tests/judged.rs`).
@@ -571,8 +571,8 @@ With F182:
 - Docs: F80's data partition size, `docs/STARTER.md` §1.3, §3.2, §4.1,
   `docs/IMAGES.md`, `docs/ESTABLISHED.md` §3.2,
   `docs/learn/faraday/checking-written.md`, the guide's Written picture
-  (`docs/guide/screens/starter-make.md`) and Get Faraday on a stick
-  (`docs/guide/walk/get-faraday.md`).
+  (`docs/history/guide/screens/starter-make.md`) and Get Faraday on a stick
+  (`docs/history/guide/walk/get-faraday.md`).
 
 ## 10. Tests
 

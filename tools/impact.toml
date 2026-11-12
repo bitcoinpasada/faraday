@@ -346,8 +346,8 @@ act = "the Starter is built again"
 [[consumer]]
 id = "website.guide"
 name = "the website's guide"
-reads = ["docs/GUIDE.md", "docs/guide/**"]
-act = "the guide's pages and pictures are made again"
+reads = ["docs/guide/**"]
+act = "the guide's pages are made again"
 blocking = true
 site_with = ["assets/guide/**"]
 
@@ -535,7 +535,7 @@ source = ["tools/README.md"]
 when = ["**/*.png"]
 on = ["add", "modify"]
 kind = "review"
-misses = "planned check: every tracked image metadata-free; just guide-pictures checks the guide's only"
+misses = "lint-tree checks the tracked png, jpg, jpeg, webp and svg images; a PDF is read by hand"
 
 # ------------------------------------------------------------------ docs
 
@@ -1223,20 +1223,12 @@ held_by = ["lint-themes"]
 # ----------------------------------------------------------------- guide
 
 [[rule]]
-id = "guide.screens-named"
-title = "every Screen and Sheet variant is named by one guide page or the To write list"
+id = "guide.places-paged"
+title = "every place the app reaches has a guide page or is in docs/guide/TO-WRITE.txt"
 source = ["tools/README.md"]
-when = ["faraday/faraday-core/src/lib.rs"]
+when = ["faraday/faraday-core/src/lib.rs", "faraday/faraday-core/src/learn.rs"]
 kind = "held"
 held_by = ["lint-guide"]
-
-[[rule]]
-id = "guide.pictures"
-title = "the guide's pictures are drawn again when a screen changes"
-source = ["docs/GUIDE.md"]
-when = ["**/screen.rs", "faraday/faraday-core/src/screens/**"]
-kind = "review"
-consumers = ["website.guide"]
 
 # ----------------------------------------------------------------- learn
 

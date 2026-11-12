@@ -26,16 +26,6 @@ pub(crate) fn site_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     sign(c, t)
 }
 
-/// A camera's frame with nothing to read in it.
-pub(crate) fn camera(t: &mut Tour) {
-    t.app.event(Event::CameraFrame {
-        width: 640,
-        height: 480,
-        luma: (0..640u32 * 480).map(|i| ((i % 640) / 3) as u8).collect(),
-        chroma: None,
-    });
-}
-
 /// Make codex32 shares, 2 of 3 named `name`, on dice: share A's
 /// characters (BIP 93's vector 2) rolled in, a picture after the 4th,
 /// 10th, 16th and 22nd, each scrolled to the same place: the boxes, the
@@ -44,7 +34,7 @@ fn codex32_dice(t: &mut Tour) -> Result<(), String> {
     use crate::tours::codex32::{SHARES, roll};
     use faraday_core::codex32::{C32, OskPress, SPLITS, Split, WAYS, Way};
     use faraday_core::keygen::Start;
-    crate::tours::screens::stick_session(t);
+    crate::tours::guide::stick_session(t);
     let c = |t: &mut Tour, p: C32| t.press(Action::Codex32(p));
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));

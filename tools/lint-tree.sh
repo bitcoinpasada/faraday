@@ -15,7 +15,7 @@
 #    belongs in a release or a repository of its own.
 #
 # 4. No metadata in an image: every tracked png, jpg, jpeg, webp or svg
-#    passes `tools/guide-pictures.py --check` (a PNG's text, EXIF, ICC and
+#    passes `tools/image-metadata.py --check` (a PNG's text, EXIF, ICC and
 #    time chunks and their kin in the other formats). `--strip` removes it.
 #
 # Run from the repository root; `just lint` does.
@@ -95,8 +95,8 @@ for f in "${FILES[@]}"; do
     esac
 done
 if [ "${#images[@]}" -gt 0 ] \
-    && ! python3 -I -B tools/guide-pictures.py --check "${images[@]}"; then
-    echo "lint-tree: an image carries metadata; strip it with: python3 -I -B tools/guide-pictures.py --strip <image>"
+    && ! python3 -I -B tools/image-metadata.py --check "${images[@]}"; then
+    echo "lint-tree: an image carries metadata; strip it with: python3 -I -B tools/image-metadata.py --strip <image>"
     status=1
 fi
 

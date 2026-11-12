@@ -2,15 +2,12 @@
 //! (`just faraday-starter-snap WxH`).
 //!
 //! ```text
-//! cargo run -p faraday-starter --example snap -- [--guide|--tour] WxH[@DPI] OUT_DIR [THEME]
+//! cargo run -p faraday-starter --example snap -- [--tour] WxH[@DPI] OUT_DIR [THEME]
 //! ```
 //!
 //! The shell's reports are made up here: a laptop, sticks and disks, the
 //! found images. Each picture is `OUT_DIR/<name>.png`, named for the page and
-//! its state. `--guide` draws the user guide's pictures of the Starter
-//! instead (`docs/guide/`), each named as its picture's file, with
-//! `<name>.mark.json` beside one whose next control is marked. `--tour`
-//! draws the website tour's picture of the Starter instead: Home after a
+//! its state. `--tour` draws the website tour's picture of the Starter instead: Home after a
 //! stick is made, one stick attached throughout.
 //!
 //! `FARADAY_SNAP_TEXT=large|larger` draws them at that text size
@@ -332,38 +329,6 @@ impl Snap<'_> {
             self.note_cut(starter, name)?;
         }
         Ok(())
-    }
-
-    /// [`Snap::shot`], with the control pressed next marked beside the
-    /// picture ([`Snap::mark`]).
-    fn shot_marking(
-        &self,
-        starter: &mut Starter,
-        name: &str,
-        next: StarterAction,
-    ) -> Result<(), String> {
-        self.shot(starter, name)?;
-        self.mark(starter, name, next)
-    }
-
-    /// Where the frame last drawn, picture `name`, takes a press on
-    /// `next`, as `<name>.mark.json` (`{"x", "y", "w", "h"}` in the
-    /// picture's pixels); a control it does not offer is named in
-    /// `unmarked.txt` instead.
-    fn mark(&self, starter: &mut Starter, name: &str, next: StarterAction) -> Result<(), String> {
-        if let Some((x, y, w, h)) = starter.hit_box(next) {
-            let path = self.out.join(format!("{name}.mark.json"));
-            let json = format!("{{\"x\": {x}, \"y\": {y}, \"w\": {w}, \"h\": {h}}}\n");
-            return std::fs::write(&path, json).map_err(|e| format!("{}: {e}", path.display()));
-        }
-        use std::io::Write;
-        let path = self.out.join("unmarked.txt");
-        let mut f = std::fs::OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open(&path)
-            .map_err(|e| format!("{}: {e}", path.display()))?;
-        writeln!(f, "{name}: {next:?} is not on screen").map_err(|e| e.to_string())
     }
 
     /// Scrolled down by `dy` wheel units, for what is below the first
@@ -1068,8 +1033,6 @@ pub(crate) fn run(s: &Snap) -> Result<(), String> {
     step_shots(s)
 }
 
-/// The guide's pictures of the Starter (`docs/guide/`), each named as its
-/// picture's file, at the size and scheme given (`just guide-pictures`).
 /// The website tour's picture: a Faraday stick made on a Linux laptop
 /// with one stick attached throughout (Which stick?, Confirm, the write,
 /// Written), then Home with that stick, Faraday's now.
@@ -1091,37 +1054,6 @@ fn run_tour(s: &Snap) -> Result<(), String> {
     h.starter_event(StarterEvent::Disks(vec![written]));
     h.press(StarterAction::Home);
     s.shot(&mut h, "starter-stick")
-}
-
-fn run_guide(s: &Snap) -> Result<(), String> {
-    guide_shots(s)?;
-    guide_start_shots(s)?;
-    guide_tour_shots(s)?;
-    guide_tools_shots(s)?;
-    guide_transfer_shots(s)
-}
-
-/// Transfer from Tools (`docs/guide/walk/starter-tools.md` §2, §3): the
-/// Downloads folder with `payment.psbt` in it, and after a file Faraday
-/// sent was saved there.
-fn guide_transfer_shots(s: &Snap) -> Result<(), String> {
-    use faraday_core::StorageEvent;
-    let mut h = s.starter();
-    h.held().storage(StorageEvent::HostFiles {
-        dir: "~/Downloads".into(),
-        files: vec![
-            ("payment.psbt".into(), 2_342),
-            ("IMG_0412.jpg".into(), 2_300_000),
-        ],
-        opens: true,
-    });
-    h.press(StarterAction::ToolsPage);
-    h.press(StarterAction::Transfer);
-    s.shot(&mut h, "starter-tools-send")?;
-    h.held().storage(StorageEvent::Saved {
-        path: "~/Downloads/payment-signed.psbt".into(),
-    });
-    s.shot(&mut h, "starter-tools-receive")
 }
 
 /// The destinations (`docs/STARTER.md` §3.1d): Make and Tools, the ⋮
@@ -1196,228 +1128,6 @@ fn codex32_template_shots(s: &Snap) -> Result<(), String> {
     Ok(())
 }
 
-/// A USB stick named for no maker, as `docs/GUIDE.md` shows one, as
-/// Windows names its disks: `n` is its number there.
-fn plain(n: u8, size: u64, volumes: &[(&str, bool)]) -> Disk {
-    Disk {
-        device: format!(r"\\.\PhysicalDrive{n}"),
-        ..disk(&format!("disk{n}"), "USB", "Flash Drive", size, volumes)
-    }
-}
-
-/// The pictures in `docs/GUIDE.md` §1, making the stick: a Windows laptop
-/// with Secure Boot on and two sticks named for no maker; Which stick?,
-/// What to write?, Confirm, the write, Done, and a write that failed.
-fn guide_shots(s: &Snap) -> Result<(), String> {
-    let windows = || StarterEvent::Computer(laptop(Os::Windows, true));
-    let sticks = || {
-        StarterEvent::Disks(vec![
-            plain(1, 32 * GB, &[]),
-            plain(2, 64 * GB, &[("PHOTOS", true)]),
-        ])
-    };
-    let mut h = s.starter();
-    h.starter_event(windows());
-    s.shot(&mut h, "starter-home")?;
-    s.shot(&mut h, "starter-tour-home")?;
-    s.shot_marking(&mut h, "1-1-starter-home", StarterAction::Next)?;
-    h.press(StarterAction::Make(Target::Stick));
-    h.starter_event(sticks());
-    s.shot(&mut h, "starter-make-which-stick")?;
-    let n = StarterAction::Disk(h.disk_number("disk1"));
-    s.shot_marking(&mut h, "1-2-which-stick", n)?;
-    let n = StarterAction::Disk(h.disk_number("disk1"));
-    h.press(n);
-    s.shot(&mut h, "starter-make-what-to-write")?;
-    s.shot_marking(&mut h, "1-3-what-to-write", StarterAction::Continue)?;
-    h.press(StarterAction::Mode(Mode::Whole));
-    h.press(StarterAction::Continue);
-    s.shot(&mut h, "starter-make-confirm")?;
-    s.shot(&mut h, "1-4-confirm")?;
-    s.shot_end(&mut h, "get-faraday-confirm-end")?;
-    s.mark(&mut h, "get-faraday-confirm-end", StarterAction::Write)?;
-    h.press(StarterAction::Write);
-    h.starter_event(StarterEvent::WriteProgress {
-        stage: WriteStage::Writing,
-        done: STICK_IMAGE / 3,
-        total: STICK_IMAGE,
-    });
-    s.shot(&mut h, "starter-make-writing")?;
-    s.shot(&mut h, "1-5-writing")?;
-    h.starter_event(StarterEvent::Written(Ok(())));
-    s.shot(&mut h, "1-6-written")?;
-    let mut h = s.starter();
-    h.starter_event(windows());
-    h.starter_event(sticks());
-    to(&mut h, "disk1", Mode::Whole);
-    h.press(StarterAction::Write);
-    h.starter_event(StarterEvent::Written(Err(Reason::BackDiffers {
-        device: r"\\.\PhysicalDrive1".into(),
-        at: 1_200_000_000,
-    })));
-    s.shot(&mut h, "1-6-not-written")
-}
-
-/// The pictures in `docs/GUIDE.md` §1, starting from the stick: Home with
-/// the stick written, Secure Boot on, its restart sheet and the Start
-/// page, with BitLocker on and then suspended; then Secure Boot off,
-/// Home's button and its sheet.
-fn guide_start_shots(s: &Snap) -> Result<(), String> {
-    let written = || {
-        let mut d = plain(1, 32 * GB, &[]);
-        d.faraday = Some(FaradayStick {
-            release: None,
-            read: false,
-            boot_sha256: None,
-        });
-        StarterEvent::Disks(vec![d])
-    };
-    let mut h = s.starter();
-    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
-    h.starter_event(written());
-    s.shot_marking(&mut h, "1-7-home-stick-secure-boot-on", StarterAction::Next)?;
-    h.press(StarterAction::Next);
-    s.shot(&mut h, "1-8-restart-into-bios")?;
-    s.shot(&mut h, "starter-restart")?;
-    h.press(StarterAction::Cancel);
-    h.press(StarterAction::Start);
-    s.shot(&mut h, "1-7-start-page")?;
-    s.shot_end(&mut h, "start-from-the-stick-start-end")?;
-    // BitLocker on drive C:, then suspended for three starts.
-    let read = |protection, starts_left| {
-        StarterEvent::BitLocker(Some(BitLocker {
-            drive: "C:".into(),
-            protection,
-            starts_left,
-        }))
-    };
-    h.starter_event(read(Protection::On, None));
-    s.shot_marking(&mut h, "1-7-bitlocker-on", StarterAction::SuspendBitLocker)?;
-    h.press(StarterAction::SuspendBitLocker);
-    h.starter_event(StarterEvent::BitLockerDone {
-        step: BitLockerStep::Suspend,
-        result: Ok(()),
-    });
-    h.starter_event(read(Protection::Suspended, Some(3)));
-    s.shot(&mut h, "1-7-bitlocker-suspended")?;
-    let mut h = s.starter();
-    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, false)));
-    h.starter_event(written());
-    s.shot_marking(
-        &mut h,
-        "1-7-home-stick-secure-boot-off",
-        StarterAction::Next,
-    )?;
-    h.press(StarterAction::Next);
-    s.shot(&mut h, "1-9-restart-from-stick")
-}
-
-/// The Starter's tour in the guide (`docs/guide/walk/starter-tour.md`)
-/// and its reference pages: Make, Tools, the ⋮ menu over Home, Install,
-/// Appearance, About, the Learn destination, and Start this computer from
-/// the stick for a maker with a page of its own, Secure Boot on.
-fn guide_tour_shots(s: &Snap) -> Result<(), String> {
-    let windows = || StarterEvent::Computer(laptop(Os::Windows, true));
-    let mut h = s.starter();
-    h.starter_event(windows());
-    h.press(StarterAction::MakePage);
-    s.shot(&mut h, "starter-make")?;
-    s.shot_marking(&mut h, "starter-tour-make", StarterAction::ToolsPage)?;
-    h.press(StarterAction::ToolsPage);
-    s.shot(&mut h, "starter-tools")?;
-    s.shot(&mut h, "starter-tour-tools")?;
-    s.shot_marking(&mut h, "starter-tools-tools", StarterAction::Templates)?;
-    let mut h = s.starter();
-    h.starter_event(windows());
-    h.press(StarterAction::Menu);
-    s.shot(&mut h, "starter-menu")?;
-    s.shot_marking(&mut h, "starter-tour-menu", StarterAction::Install)?;
-    for (page, name) in [
-        (StarterAction::Install, "starter-install"),
-        (StarterAction::Appearance, "starter-appearance"),
-        (StarterAction::About, "starter-about"),
-        (StarterAction::Learn, "starter-learn"),
-    ] {
-        let mut h = s.starter();
-        h.starter_event(windows());
-        h.press(page);
-        s.shot(&mut h, name)?;
-    }
-    // A maker with a page of its own, the model made up.
-    let mut h = s.starter();
-    let mut c = laptop(Os::Windows, true);
-    c.maker = "HP".into();
-    c.family = "ExampleBook".into();
-    c.model = "ExampleBook 840".into();
-    h.starter_event(StarterEvent::Computer(c));
-    h.press(StarterAction::Start);
-    s.shot(&mut h, "starter-start")
-}
-
-/// The Starter's other tools in the guide
-/// (`docs/guide/walk/starter-tools.md`): Blank templates from Tools, a
-/// Faraday stick written again keeping its data, a Pi card's Which card?
-/// from Make, and What to
-/// write?'s One I signed with the signed file taken
-/// (`docs/guide/walk/secure-boot-keys.md`).
-fn guide_tools_shots(s: &Snap) -> Result<(), String> {
-    let mut h = s.starter();
-    h.press(StarterAction::ToolsPage);
-    h.press(StarterAction::Templates);
-    s.shot(&mut h, "starter-tools-templates")?;
-    h.press(StarterAction::TemplateChoice(
-        faraday_starter::TemplateChoice::Words,
-    ));
-    s.shot(&mut h, "starter-tools-blank-templates")?;
-    let mut h = s.starter();
-    h.starter_event(StarterEvent::Disks(many()));
-    h.press(StarterAction::Make(Target::Stick));
-    let n = StarterAction::Disk(h.disk_number("sde"));
-    h.press(n);
-    h.press(StarterAction::Mode(Mode::KeepData));
-    s.shot_marking(&mut h, "starter-tools-keep-data", StarterAction::Continue)?;
-    boot_file_signed(&mut h);
-    s.shot(&mut h, "secure-boot-keys-boot-file")?;
-    let mut h = s.starter();
-    let mut reader = disk(
-        "mmcblk0",
-        "",
-        "SD card reader",
-        32 * GB,
-        &[("boot", true), ("rootfs", true)],
-    );
-    reader.bus = Bus::SdReader;
-    h.starter_event(StarterEvent::Disks(vec![reader]));
-    h.press(StarterAction::MakePage);
-    h.press(StarterAction::Make(Target::Pi));
-    s.shot(&mut h, "starter-tools-pi-card")
-}
-
-/// What to write?'s One I signed, a signed `BOOTX64.EFI` from Downloads
-/// taken, as [`boot_file_shots`] ends.
-fn boot_file_signed(h: &mut Starter) {
-    let path = "/media/stick/Downloads/BOOTX64-signed.EFI".to_string();
-    h.press(StarterAction::BootChoice(true));
-    h.starter_event(StarterEvent::BootFiles {
-        folder: "/media/stick/Downloads".into(),
-        files: vec![path.clone()],
-    });
-    h.press(StarterAction::BootFile(0));
-    h.starter_event(StarterEvent::BootFileChecked {
-        path: path.clone(),
-        result: Ok((
-            BootFile {
-                path,
-                sha256: "3f0a9c2e".repeat(8),
-            },
-            BootSigner {
-                subject: "Faraday db".into(),
-                fingerprint: "5a1c0e7b2d9f4c3a".repeat(4),
-            },
-        )),
-    });
-}
-
 /// A guide page at its top, its first steps in circles
 /// (`docs/STARTER.md` §7): HP untouched, Dell with its first three
 /// ticked.
@@ -1436,13 +1146,6 @@ fn step_shots(s: &Snap) -> Result<(), String> {
 
 fn main() -> ExitCode {
     let mut args: Vec<String> = std::env::args().collect();
-    let guide = match args.iter().position(|a| a == "--guide") {
-        Some(i) => {
-            args.remove(i);
-            true
-        }
-        None => false,
-    };
     let tour = match args.iter().position(|a| a == "--tour") {
         Some(i) => {
             args.remove(i);
@@ -1451,7 +1154,7 @@ fn main() -> ExitCode {
         None => false,
     };
     if args.len() != 3 && args.len() != 4 {
-        eprintln!("usage: snap [--guide|--tour] WxH[@DPI] OUT_DIR [THEME]");
+        eprintln!("usage: snap [--tour] WxH[@DPI] OUT_DIR [THEME]");
         return ExitCode::from(2);
     }
     let (size, dpi) = match args[1].split_once('@') {
@@ -1508,13 +1211,7 @@ fn main() -> ExitCode {
         pictures: true,
         targets: None,
     };
-    let done = if guide {
-        run_guide(&snap)
-    } else if tour {
-        run_tour(&snap)
-    } else {
-        run(&snap)
-    };
+    let done = if tour { run_tour(&snap) } else { run(&snap) };
     match done {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

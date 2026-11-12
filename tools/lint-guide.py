@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Guide lint (docs/GUIDE.md, docs/guide/).
+"""Guide lint (docs/guide/).
 
 Keeps the user guide checked against the app, so that a string renamed in
 the app fails `just lint` until the guide follows.
 
-1. Names. Every bold span in docs/GUIDE.md and docs/guide/**/*.md (outside
+1. Names. Every bold span in docs/guide/**/*.md (outside
    fenced code) is joined onto one line and split on " -> " and " . "
    (the arrow and the middle dot the app writes). Each part must be an
    en.rs string, a filled-in en.rs template (`{}` and `{name}` read as
@@ -12,15 +12,7 @@ the app fails `just lint` until the guide follows.
    names, each with its reason).
 2. Links. Every image and every relative link resolves to a file, and a
    `#anchor` to a heading of that file (GitHub's anchors).
-3. Screens. When docs/guide/screens/ exists, every `Screen` and `Sheet`
-   variant is named by the `**Screen:**` line of exactly one page there,
-   or listed under "## To write" in its README.md (a line
-   "- `Screen`: `A`, `B`"), never both; a name in either that is no
-   variant fails. The Starter's own `Page` and `Sheet` variants
-   (faraday/faraday-starter/src/lib.rs) are named the same way, by a
-   page's `**Starter page:**` and `**Starter sheet:**` lines, each by
-   exactly one page; they have no To write list.
-4. Keys (docs/GUIDE-IN-APP.md §1.3). The `**Key:**` lines of
+3. Keys (docs/GUIDE-IN-APP.md §1.3). The `**Key:**` lines of
    docs/guide/<place>.md: a key written twice fails, a key no place
    reaches fails where `guide_key` maps the place by step, tab or
    category (it returns a part key of it; the code's keys are read from
@@ -112,7 +104,7 @@ def allowed_match(part, allowed):
 
 
 def guide_files(root):
-    files = [os.path.join(root, "docs/GUIDE.md")]
+    files = []
     for d, _, names in os.walk(os.path.join(root, "docs/guide")):
         files += [os.path.join(d, n) for n in names if n.endswith(".md")]
     return sorted(f for f in files if os.path.exists(f))
@@ -233,125 +225,6 @@ def check_links(root, files, errors):
                     errors.append(f"{rel}:{n}: no heading for anchor: {target}")
 
 
-CORE = "faraday/faraday-core/src"
-STARTER = "faraday/faraday-starter/src"
-
-
-def enum_variants(root, name, src=CORE):
-    """Variant names of `pub enum <name>` in the crate at `src`."""
-    base = os.path.join(root, src)
-    for d, _, names in os.walk(base):
-        for n in names:
-            if not n.endswith(".rs"):
-                continue
-            with open(os.path.join(d, n), encoding="utf-8") as f:
-                text = f.read()
-            m = re.search(r"pub enum %s\s*\{" % name, text)
-            if not m:
-                continue
-            depth, i, body = 1, m.end(), []
-            while depth:
-                c = text[i]
-                depth += c in "{(" and 1 or (c in "})" and -1 or 0)
-                body.append(c)
-                i += 1
-            flat = re.sub(r"//[^\n]*", "", "".join(body[:-1]))
-            out, depth, cur = [], 0, ""
-            for c in flat:
-                if c in "{(":
-                    depth += 1
-                elif c in "})":
-                    depth -= 1
-                elif depth == 0:
-                    cur += c
-            for v in cur.split(","):
-                v = re.sub(r"#\[[^\]]*\]", "", v).strip()
-                if re.match(r"^[A-Z]\w*$", v):
-                    out.append(v)
-            return out
-    return []
-
-
-SCREENS = "docs/guide/screens"
-TO_WRITE = "docs/guide/screens/README.md"
-
-
-def to_write(root):
-    """{variant: (enum, line)} listed under "## To write" in the screens'
-    README.md: the variants whose page is still to be written."""
-    path = os.path.join(root, TO_WRITE)
-    out = {}
-    if not os.path.exists(path):
-        return out
-    inside = False
-    for num, line in prose_lines(path):
-        if line.startswith("#"):
-            inside = re.match(r"^##\s+To write\s*$", line) is not None
-            continue
-        m = re.match(r"^- `(Screen|Sheet)`:\s*(.*)$", line) if inside else None
-        if m:
-            for v in re.findall(r"`([^`]+)`", m.group(2)):
-                out[v] = (m.group(1), num)
-    return out
-
-
-def named_by(folder, head):
-    """{variant: [file:line, ...]} named by the pages' `**<head>:**` lines."""
-    named = {}
-    for n in sorted(os.listdir(folder)):
-        if n.endswith(".md") and n != "README.md":
-            for num, line in prose_lines(os.path.join(folder, n)):
-                m = re.match(r"^\*\*%s:\*\*\s*(.*)$" % head, line)
-                if m:
-                    for v in re.split(r"[,\s]+", m.group(1).replace("`", "")):
-                        if v:
-                            named.setdefault(v, []).append(f"{SCREENS}/{n}:{num}")
-    return named
-
-
-def check_starter(root, folder, errors):
-    """The Starter's Page and Sheet variants: each named by exactly one
-    page's `**Starter page:**` or `**Starter sheet:**` line."""
-    for enum, head in (("Page", "Starter page"), ("Sheet", "Starter sheet")):
-        named = named_by(folder, head)
-        variants = enum_variants(root, enum, STARTER)
-        for v, places in named.items():
-            if v not in variants:
-                errors.append(f"{places[0]}: `{v}` is not a Starter {enum} variant")
-            elif len(places) > 1:
-                errors.append(f"{places[1]}: `{v}` is named by more than one page: {', '.join(places)}")
-        for v in variants:
-            if v not in named:
-                errors.append(f"{SCREENS}: no page names the Starter's {enum} variant {v}")
-
-
-def check_screens(root, errors):
-    folder = os.path.join(root, SCREENS)
-    if not os.path.isdir(folder):
-        return
-    check_starter(root, folder, errors)
-    named = named_by(folder, "Screen")
-    todo = to_write(root)
-    variants = {enum: enum_variants(root, enum) for enum in ("Screen", "Sheet")}
-    every = {v for vs in variants.values() for v in vs}
-    for v, places in named.items():
-        if v not in every:
-            errors.append(f"{places[0]}: `{v}` is not a Screen or Sheet variant")
-        elif len(places) > 1:
-            errors.append(f"{places[1]}: `{v}` is named by more than one page: {', '.join(places)}")
-    for v, (enum, num) in todo.items():
-        if v not in variants[enum]:
-            errors.append(f"{TO_WRITE}:{num}: `{v}` is not a {enum} variant")
-        elif v in named:
-            errors.append(f"{TO_WRITE}:{num}: `{v}` has a page ({named[v][0]}); take it off To write")
-    for enum, vs in variants.items():
-        for v in vs:
-            if v not in named and v not in todo:
-                errors.append(
-                    f"{SCREENS}: no page names the {enum} variant {v}, and To write does not list it"
-                )
-
-
 KEYS_SRC = "faraday/faraday-core/src/learn.rs"
 KEYS_TO_WRITE = "docs/guide/TO-WRITE.txt"
 KEY_LITERAL = re.compile(r'"([a-z][a-z0-9-]*(?:\.[a-z0-9-]+)?)"')
@@ -433,7 +306,6 @@ def run(root):
     files = guide_files(root)
     count = check_names(root, files, errors)
     check_links(root, files, errors)
-    check_screens(root, errors)
     check_keys(root, errors)
     return count, errors
 
@@ -448,8 +320,8 @@ def self_test():
                 f.write(text)
 
         put(ALLOW, "# test values\nPlace 1  # place name\n")
-        put("docs/GUIDE.md", "# G\n\nPress **Wallets**, then **Make a new wallet** and **Key 2 · Place 1**.\n")
-        put("docs/guide/walk/a.md", "# A\n\n![x](../p.png)\n\n[up](../../GUIDE.md#g)\n")
+        put("docs/guide/g.md", "# G\n\nPress **Wallets**, then **Make a new wallet** and **Key 2 · Place 1**.\n")
+        put("docs/guide/a.md", "# A\n\n![x](p.png)\n\n[up](g.md#g)\n")
         put("docs/guide/p.png", "")
         en = 'strings! {\n    a: "Wallets",\n    b: "Make a new wallet",\n    c: "Key {}",\n}\n'
         put(STRINGS, en)
@@ -457,41 +329,12 @@ def self_test():
         assert not errors, errors
         put(STRINGS, en.replace("Make a new wallet", "Make a wallet"))
         _, errors = run(root)
-        assert len(errors) == 1 and "Make a new wallet" in errors[0] and errors[0].startswith("docs/GUIDE.md:3:"), errors
+        assert len(errors) == 1 and "Make a new wallet" in errors[0] and errors[0].startswith("docs/guide/g.md:3:"), errors
         put(STRINGS, en)
-        put("docs/guide/walk/a.md", "# A\n\n![x](../gone.png)\n\n[up](../../GUIDE.md#nope)\n")
+        put("docs/guide/a.md", "# A\n\n![x](gone.png)\n\n[up](g.md#nope)\n")
         _, errors = run(root)
         assert len(errors) == 2, errors
-        put("docs/guide/walk/a.md", "# A\n")
-        # The screens: each variant on one page, or on the To write list.
-        put(
-            "faraday/faraday-core/src/lib.rs",
-            "pub enum Screen {\n    Home,\n    Files,\n}\npub enum Sheet {\n    Power,\n}\n",
-        )
-        put(SCREENS + "/home.md", "# Home\n\n**Screen:** `Home`, `Power`\n")
-        put(TO_WRITE, "# S\n\n## To write\n\n- `Screen`: `Files`\n")
-        _, errors = run(root)
-        assert not errors, errors
-        put(TO_WRITE, "# S\n\n## To write\n\n- `Screen`: `Home`\n")
-        _, errors = run(root)
-        assert len(errors) == 2 and "take it off" in errors[0] and "Files" in errors[1], errors
-        put(TO_WRITE, "# S\n\n## To write\n\n- `Screen`: `Files`, `Gone`\n")
-        put(SCREENS + "/power.md", "# Power\n\n**Screen:** `Power`\n")
-        _, errors = run(root)
-        assert len(errors) == 2 and "more than one page" in errors[0] and "Gone" in errors[1], errors
-        put(SCREENS + "/power.md", "# Power\n")
-        # The Starter's pages and sheets: each on exactly one page.
-        put(STARTER + "/lib.rs", "pub enum Page {\n    Home,\n    Make,\n}\npub enum Sheet {\n    Restart(RestartTo),\n}\n")
-        put(SCREENS + "/starter.md", "# S\n\n**Starter page:** `Home`, `Make`\n**Starter sheet:** `Restart`\n")
-        _, errors = run(root)
-        assert len(errors) == 1 and "Gone" in errors[0], errors
-        put(SCREENS + "/starter.md", "# S\n\n**Starter page:** `Home`, `Gone`\n**Starter sheet:** `Restart`\n")
-        put(SCREENS + "/starter-2.md", "# S\n\n**Starter sheet:** `Restart`\n")
-        _, errors = run(root)
-        assert len(errors) == 4, errors
-        assert any("`Gone` is not a Starter Page" in e for e in errors), errors
-        assert any("Page variant Make" in e for e in errors), errors
-        assert any("`Restart` is named by more than one page" in e for e in errors), errors
+        put("docs/guide/a.md", "# A\n")
     print("lint-guide self-test: ok")
 
 
