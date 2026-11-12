@@ -30,11 +30,6 @@ use faraday_starter::decide::Target;
 use faraday_starter::notes::Notes;
 use faraday_starter::{LearnId, Starter, StarterAction};
 
-/// A token for the PDFs these snapshots make, counting nothing. Cheap.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a mint: the Starter's snapshots, which draw nothing"
-)]
 /// Whether target `t`, `g` before any neighbour cut it back, is counted
 /// as under the `floor` (`docs/M3-CHECKS.md` §2.2): it is when a side is
 /// short and a neighbour trimmed that side; a side only its clip trims
@@ -43,6 +38,11 @@ fn short(t: faraday_draw::geom::Rect, g: faraday_draw::geom::Rect, floor: i32) -
     (t.w + 1 < floor && t.w < g.w) || (t.h + 1 < floor && t.h < g.h)
 }
 
+/// A token for the PDFs these snapshots make, counting nothing. Cheap.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a mint: the Starter's snapshots, which draw nothing"
+)]
 fn compute() -> faraday_crypto::work::Compute {
     faraday_crypto::work::Compute::new(|_| {})
 }
