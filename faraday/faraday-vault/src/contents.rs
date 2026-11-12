@@ -27,7 +27,6 @@
 
 mod tree;
 
-use alloc::string::String;
 use alloc::vec::Vec;
 
 use faraday_bip::bip39::{Language, Mnemonic};
@@ -130,9 +129,10 @@ pub struct Refusal {
 }
 
 /// The name of the key a [`Refusal`] is at: a prefix, a dot where there is
-/// a prefix, and the first 64 characters of the key. Wiped when it drops.
+/// a prefix, and the first 64 characters of the key, kept as UTF-8 bytes in
+/// a buffer that is wiped when it drops.
 #[derive(Clone)]
-pub struct KeyName(Zeroizing<String>);
+pub struct KeyName(Zeroizing<Vec<u8>>);
 
 impl KeyName {
     /// `prefix`, a dot where there is a prefix, and the first 64
@@ -140,18 +140,23 @@ impl KeyName {
     /// the buffer never grows.
     fn of(prefix: &str, key: &str) -> KeyName {
         let room = prefix.len() + 1 + key.len().min(64 * 4);
-        let mut name = Zeroizing::new(String::with_capacity(room));
+        let mut name = Zeroizing::new(Vec::with_capacity(room));
         if !prefix.is_empty() {
-            name.push_str(prefix);
-            name.push('.');
+            name.extend_from_slice(prefix.as_bytes());
+            name.push(b'.');
         }
-        name.extend(key.chars().take(64));
+        for ch in key.chars().take(64) {
+            let mut b = [0u8; 4];
+            name.extend_from_slice(ch.encode_utf8(&mut b).as_bytes());
+        }
         KeyName(name)
     }
 
     /// The name.
     pub fn as_str(&self) -> &str {
-        &self.0
+        // Every byte was copied from a `&str` or a `char`, so this is
+        // always UTF-8.
+        core::str::from_utf8(&self.0).unwrap_or_default()
     }
 }
 
