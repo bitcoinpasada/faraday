@@ -35,6 +35,8 @@ The built-in keyboard works in Faraday on a Mac laptop from 2011 to 2015, except
 
 On the MacBook (Retina, 12-inch), the MacBook Pro from 2016 and 2017, and every Mac with the T2 chip, the built-in keyboard does not work in Faraday: plug in a USB keyboard. On an iMac, Mac mini or Mac Pro, use a USB keyboard and mouse.
 
+## Older Macs, approval and ISO layout
+
 On a Mac from before 2011, Faraday may not find the built-in keyboard, or a keyboard plugged straight into the Mac. A USB keyboard plugged into a USB 2.0 hub, and the hub into the Mac, is found.
 
 A USB keyboard or mouse is accepted only after the approval code Faraday shows is typed on it, as on any computer.

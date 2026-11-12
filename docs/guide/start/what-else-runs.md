@@ -25,6 +25,8 @@ In 2017 Intel published INTEL-SA-00075 (CVE-2017-5689): AMT firmware versions 6 
 
 Later in 2017 Intel published INTEL-SA-00086: flaws in the Management Engine firmware, in versions from 6 to 11.20, that let someone run their own code on it. All but one need local access to the computer; the one that works over the network is in AMT and needs AMT's administrator access.
 
+## The Management Engine's software
+
 Since version 11, the Management Engine runs an operating system built from parts of MINIX 3, as Positive Technologies' analysis of its firmware showed. Positive Technologies also found a setting, tied to the NSA's High Assurance Platform program, that stops the Management Engine's main processes once the computer has started. It is an off switch, not a backdoor. The me_cleaner tool removes most of the Management Engine's firmware and can set this switch; writing the result usually takes an external flash programmer.
 
 Code planted in firmware survives wiping the disk and installing a new operating system. There is no public evidence of a backdoor in use. What is documented is a closed, highly privileged component that has had serious flaws.

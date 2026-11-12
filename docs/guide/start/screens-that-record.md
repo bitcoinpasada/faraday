@@ -5,13 +5,15 @@
 
 ## A screen that records
 
-A smart TV runs its own software on everything it shows, from every input, HDMI included. Many smart TVs run automatic content recognition: the TV samples what is on screen and sends it to its maker's servers to find out what is being watched.
+A smart TV runs its own software on everything it shows, from every input, HDMI included. Many run automatic content recognition: the TV samples what is on screen and sends it to its maker's servers to find out what is being watched.
+
+Faraday Starter reads each screen's identity (its EDID) and names one that is a TV. The stick has no graphics driver and reads only the screen's name and maker, as the firmware passes them at start; a name that says TV is named before anything is unlocked. When the firmware passes nothing, or the name does not settle it, the first time a secret would be shown Faraday says "On a TV? Stop: a smart TV can record its screen." and waits for I understand.
+
+## The Vizio case
 
 In 2017 the US Federal Trade Commission and the State of New Jersey brought a case against the TV maker Vizio, which settled it. The complaint says Vizio's TVs captured information about a selection of the screen's pixels, second by second, from cable boxes, streaming devices, DVD players and other inputs, and sent it to Vizio's servers, where it was kept indefinitely. The software was on by default.
 
 What such a TV keeps or sends is decided by its own software, which cannot be checked from the computer. A recovery phrase or a key shown on it may leave the room.
-
-Faraday Starter reads each screen's identity (its EDID) and names one that is a TV. On the stick, Faraday has no graphics driver, so it reads the part of the screen's identity the computer's firmware passes it at start: the screen's name and maker. A screen whose name says TV is named before anything is unlocked. When the firmware passes nothing, or the name does not settle it, the first time a secret would be shown Faraday says "On a TV? Stop: a smart TV can record its screen." and waits for I understand.
 
 ## A KVM switch or an IP-KVM
 
@@ -25,17 +27,25 @@ Faraday Starter and the stick name one by its USB identity: the USB-gadget vendo
 
 A wireless keyboard sends each key over the air to its receiver, plugged into the computer. The keys are in the air before they reach the computer, so the stick having no radio does not stop anyone listening.
 
-Many inexpensive wireless keyboards send them unencrypted. In 2016 Bastille Networks disclosed KeySniffer: non-Bluetooth wireless keyboards from Anker, EagleTec, General Electric, Hewlett-Packard, Insignia, Kensington, Radio Shack and Toshiba sent every key unencrypted, readable from several hundred feet away with less than $100 of equipment. Bastille says the list is not exhaustive and that the affected receivers take no firmware update. The same year it disclosed MouseJack (CERT/CC vulnerability note VU#981271): wireless mice and keyboards from several makers on a 2.4 GHz protocol without proper encryption let someone within range, typically a few meters, inject keystrokes or read them. Logitech was listed as affected and released updated firmware.
-
-Logitech's Unifying receivers encrypt the link to their keyboards. In 2019 a researcher reported further flaws in them: two ways to get the encryption key (CVE-2019-13052, CVE-2019-13053) and one way past the barriers to injecting keystrokes (CVE-2019-13054/55). Logitech's firmware updates since August 2019 fix the last; Logitech says it will not fix the first two with a firmware update. Its support page offers an updating tool for Windows and macOS, and on Linux the updates come through fwupd.
-
-Logitech's Bolt receivers use Bluetooth Low Energy in Secure Connections Only mode (security mode 1, level 4): pairing is authenticated LE Secure Connections, with Elliptic Curve Diffie-Hellman P-256, and the link is encrypted with AES-128-CCM. Logitech says the link between a Bolt keyboard and its receiver is always encrypted, and that Bolt devices pair only with Bolt receivers.
-
 A mouse reveals next to nothing: where it moved and what it clicked, not what was typed.
 
 Faraday Starter and the stick name a wireless receiver by its USB identity. The Starter shows it as one line that holds nothing back; the stick shows the same line the first time a secret would be shown, and waits for I understand. A Bolt receiver, known by its ID, gets a line that says its typing is encrypted.
 
-What to do: type with a Bolt keyboard or another whose link is encrypted, a wired keyboard, or the laptop's own; or with no keyboard at all, on Faraday's on-screen keyboard, worked with a mouse: the keyboard button beside the ? brings it up wherever typing goes.
+## Unencrypted wireless keyboards
+
+Many inexpensive wireless keyboards send the keys unencrypted. In 2016 Bastille Networks disclosed KeySniffer: non-Bluetooth wireless keyboards from Anker, EagleTec, General Electric, Hewlett-Packard, Insignia, Kensington, Radio Shack and Toshiba sent every key unencrypted, readable from several hundred feet away with less than $100 of equipment. Bastille says the list is not exhaustive and that the affected receivers take no firmware update. The same year it disclosed MouseJack (CERT/CC vulnerability note VU#981271): wireless mice and keyboards from several makers on a 2.4 GHz protocol without proper encryption let someone within range, typically a few meters, inject keystrokes or read them. Logitech was listed as affected and released updated firmware.
+
+## Logitech Unifying receivers
+
+Logitech's Unifying receivers encrypt the link to their keyboards. In 2019 a researcher reported further flaws in them: two ways to get the encryption key (CVE-2019-13052, CVE-2019-13053) and one way past the barriers to injecting keystrokes (CVE-2019-13054/55). Logitech's firmware updates since August 2019 fix the last; Logitech says it will not fix the first two with a firmware update. Its support page offers an updating tool for Windows and macOS, and on Linux the updates come through fwupd.
+
+## Logitech Bolt receivers
+
+Logitech's Bolt receivers use Bluetooth Low Energy in Secure Connections Only mode (security mode 1, level 4): pairing is authenticated LE Secure Connections, with Elliptic Curve Diffie-Hellman P-256, and the link is encrypted with AES-128-CCM. Logitech says the link between a Bolt keyboard and its receiver is always encrypted, and that Bolt devices pair only with Bolt receivers.
+
+## Typing without a wireless keyboard
+
+Type with a Bolt keyboard or another whose link is encrypted, a wired keyboard, or the laptop's own; or with no keyboard at all, on Faraday's on-screen keyboard, worked with a mouse: the keyboard button beside the ? brings it up wherever typing goes.
 
 ## A virtual machine
 

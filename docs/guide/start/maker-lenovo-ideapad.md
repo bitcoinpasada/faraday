@@ -15,7 +15,7 @@ On Linux, have the disk's passphrase or recovery key ready if it is unlocked by 
 
 3. Right after it turns on, press F2, or Fn+F2, repeatedly. It can take several tries.
 
-If it doesn't open: with the computer off, press the Novo button and choose BIOS Setup, or use Faraday Starter's Restart into the BIOS. The Novo button is a small button or pinhole marked with a curved arrow, on the side or near the power button, pressed with the tip of an unfolded paper clip.
+If it doesn't open: with the computer off, press the Novo button and choose BIOS Setup, or use Faraday Starter's Restart into the BIOS.
 
 4. Look for the tab named Security and, in it, the setting Secure Boot. Set it to Disabled. Press F10, or Fn+F10, and choose Yes to save and exit; Exit → Exit Saving Changes does the same.
 
@@ -23,13 +23,17 @@ If Secure Boot cannot be changed: Device Guard, on the same tab, is Enabled, and
 
 If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
 
+## Choosing the stick
+
 5. The computer restarts. Press F12, or Fn+F12, during power-on. On Windows, do it on this restart, before Windows starts.
 
 From a computer that is off: press the Novo button and choose Boot Menu.
 
+The Novo button is a small button or pinhole marked with a curved arrow, on the side or near the power button, pressed with the tip of an unfolded paper clip.
+
 6. Look for the Boot Option Menu and choose the stick with the arrow keys, then press Enter. If it is listed twice, choose the one that starts with EFI USB Device; the other is for legacy BIOS mode.
 
-If the stick is not listed: see "If something is different" below.
+If the stick is not listed: see "If the stick is not listed" below.
 
 ## Afterwards
 
@@ -41,7 +45,9 @@ If Secure Boot does not stay on: Lenovo's IdeaPad articles do not describe resto
 
 ## If something is different
 
-The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. Windows may ask for it even after Secure Boot is back on, on a computer whose BIOS changes its Secure Boot keys when the setting is turned off and on. Suspending BitLocker first avoids that: Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 times Windows starts, after which Windows turns it back on by itself. To see the key on this computer: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator; Faraday Starter prints it on its sheet when asked to. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it while Secure Boot is still off: turn the computer off and turn Secure Boot back on; Windows then starts without it.
+The BitLocker recovery key: Windows asks for it if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 starts, after which Windows turns it back on by itself. The key is at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off: turn the computer off and turn Secure Boot back on; Windows then starts without the key.
+
+## If the stick is not listed
 
 Stick not in the F12 list: look for the tab named Boot and set USB Boot to Enabled. Lenovo's IdeaPad articles do not describe a setting that hides USB disks.
 

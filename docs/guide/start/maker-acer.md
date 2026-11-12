@@ -29,13 +29,13 @@ On many Acer notebooks the F12 boot menu is off until it is turned on here, and 
 
 If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
 
+## Choosing the stick
+
 7. The computer restarts. Press F12 as the Acer logo appears. On Windows, do it on this restart, before Windows starts.
 
 8. In the boot menu, choose the stick. If it is listed twice, choose the one that starts with UEFI.
 
-The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
-
-If the stick is not listed: see "If something is different" below.
+The stick is listed under the name printed on it (SanDisk, Kingston…), often after "UEFI:", not as Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk. If it is not listed: see "If the stick is not listed" below.
 
 ## Afterwards
 
@@ -47,11 +47,11 @@ If Secure Boot does not stay on: Acer's articles do not describe restoring the S
 
 ## If something is different
 
-The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. Windows may ask for it even after Secure Boot is back on, on a computer whose BIOS changes its Secure Boot keys when the setting is turned off and on. Suspending BitLocker first avoids that: Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 times Windows starts, after which Windows turns it back on by itself. To see the key on this computer: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator; Faraday Starter prints it on its sheet when asked to. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it while Secure Boot is still off: turn the computer off and turn Secure Boot back on; Windows then starts without it.
+The BitLocker recovery key: Windows asks for it if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 starts, after which Windows turns it back on by itself. The key is at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off: turn the computer off and turn Secure Boot back on; Windows then starts without the key.
 
-Stick not in the F12 list: Acer's articles do not describe a setting that hides USB disks from the boot menu.
+## If the stick is not listed
 
-Menu names and where they are differ between Acer models and BIOS versions.
+Stick not in the F12 list: Acer's articles do not describe a setting that hides USB disks from the boot menu. Menu names and where they are differ between Acer models and BIOS versions.
 
 ## Sources
 

@@ -8,39 +8,3 @@
 24  # a word count, a button and a value
 BIP-137  # a signature format button of Sign a message
 BIP-322  # a signature format button of Sign a message
-# Pages and sections written before the length bound (docs/GUIDE-IN-APP.md §2):
-# "length:<file>#<heading>", then the count it is over with. Each is shortened
-# or split when its page is next edited, and leaves this list then.
-length:docs/guide/start/linux.md#Steps  # written before the bound; the section is 193 words, at most 150
-length:docs/guide/start/linux.md#If something is different  # written before the bound; the section is 171 words, at most 150
-length:docs/guide/start/mac-intel.md#Keyboard and mouse  # written before the bound; the section is 162 words, at most 150
-length:docs/guide/start/maker-acer.md#Steps  # written before the bound; the section is 239 words, at most 150
-length:docs/guide/start/maker-acer.md#If something is different  # written before the bound; the section is 192 words, at most 150
-length:docs/guide/start/maker-asus.md#Steps  # written before the bound; the section is 290 words, at most 150
-length:docs/guide/start/maker-asus.md#If something is different  # written before the bound; the section is 213 words, at most 150
-length:docs/guide/start/maker-dell.md#Steps  # written before the bound; the section is 266 words, at most 150
-length:docs/guide/start/maker-dell.md#If something is different  # written before the bound; the section is 284 words, at most 150
-length:docs/guide/start/maker-framework.md#Steps  # written before the bound; the section is 172 words, at most 150
-length:docs/guide/start/maker-framework.md#If something is different  # written before the bound; the section is 191 words, at most 150
-length:docs/guide/start/maker-hp.md#Steps  # written before the bound; the section is 322 words, at most 150
-length:docs/guide/start/maker-hp.md#If something is different  # written before the bound; the section is 290 words, at most 150
-length:docs/guide/start/maker-lenovo-ideapad.md#Steps  # written before the bound; the section is 244 words, at most 150
-length:docs/guide/start/maker-lenovo-ideapad.md#If something is different  # written before the bound; the section is 258 words, at most 150
-length:docs/guide/start/maker-lenovo-thinkpad.md#Steps  # written before the bound; the section is 280 words, at most 150
-length:docs/guide/start/maker-lenovo-thinkpad.md#If something is different  # written before the bound; the section is 201 words, at most 150
-length:docs/guide/start/maker-msi.md#Steps  # written before the bound; the section is 167 words, at most 150
-length:docs/guide/start/maker-msi.md#If something is different  # written before the bound; the section is 193 words, at most 150
-length:docs/guide/start/maker-other.md#Steps  # written before the bound; the section is 252 words, at most 150
-length:docs/guide/start/maker-other.md#If something is different  # written before the bound; the section is 265 words, at most 150
-length:docs/guide/start/maker-surface.md#Steps  # written before the bound; the section is 211 words, at most 150
-length:docs/guide/start/maker-surface.md#If something is different  # written before the bound; the section is 250 words, at most 150
-length:docs/guide/start/not-starting.md#Not in the boot menu  # written before the bound; the section is 166 words, at most 150
-length:docs/guide/start/replace-faraday.md#What it does  # written before the bound; the section is 228 words, at most 150
-length:docs/guide/start/replace-faraday.md#With Secure Boot on  # written before the bound; the section is 270 words, at most 150
-length:docs/guide/start/replace-faraday.md#What the computer can see  # written before the bound; the section is 214 words, at most 150
-length:docs/guide/start/screens-that-record.md#A screen that records  # written before the bound; the section is 239 words, at most 150
-length:docs/guide/start/screens-that-record.md#A wireless keyboard  # written before the bound; the section is 404 words, at most 150
-length:docs/guide/start/secure-boot-bitlocker.md#BitLocker  # written before the bound; the section is 151 words, at most 150
-length:docs/guide/start/what-else-runs.md#What has been found  # written before the bound; the section is 244 words, at most 150
-length:docs/guide/start/windows.md#Steps  # written before the bound; the section is 236 words, at most 150
-length:docs/guide/start/windows.md#If something is different  # written before the bound; the section is 475 words, at most 150

@@ -23,13 +23,15 @@ If it doesn't open: use Faraday Starter's Restart into the BIOS.
 
 If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
 
+## Choosing the stick
+
 5. The computer restarts. Tap F12 repeatedly as soon as the power light comes on. On Windows, do it on this restart, before Windows starts.
 
 6. Look for the heading EFI Boot Devices in the boot menu. The stick is listed under it as EFI USB Device.
 
 With no system on the internal drive, the computer starts from the stick without the menu.
 
-If the stick is not listed: see "If something is different" below.
+If the stick is not listed: see "If the stick is not listed" below.
 
 ## Afterwards
 
@@ -41,7 +43,9 @@ If Secure Boot does not stay on: Framework's guides do not describe restoring th
 
 ## If something is different
 
-The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. Windows may ask for it even after Secure Boot is back on, on a computer whose BIOS changes its Secure Boot keys when the setting is turned off and on. Suspending BitLocker first avoids that: Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 times Windows starts, after which Windows turns it back on by itself. To see the key on this computer: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator; Faraday Starter prints it on its sheet when asked to. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it while Secure Boot is still off: turn the computer off and turn Secure Boot back on; Windows then starts without it.
+The BitLocker recovery key: Windows asks for it if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 starts, after which Windows turns it back on by itself. The key is at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off: turn the computer off and turn Secure Boot back on; Windows then starts without the key.
+
+## If the stick is not listed
 
 Stick not in the F12 list: Framework's guides do not describe a setting that hides USB disks from the boot menu.
 

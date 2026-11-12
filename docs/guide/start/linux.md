@@ -13,11 +13,7 @@ If the disk is unlocked by the TPM (a line with tpm2-device in /etc/crypttab), h
 
 2. Open the BIOS with Faraday Starter's Restart into the BIOS.
 
-By hand, in a terminal:
-
-systemctl reboot --firmware-setup
-
-If that does not work: restart and press the maker's key at power-on, often Esc, Delete, F1, F2, F10, F11 or F12.
+By hand, in a terminal: systemctl reboot --firmware-setup. If that does not work: restart and press the maker's key at power-on, often Esc, Delete, F1, F2, F10, F11 or F12.
 
 3. Find Secure Boot, usually on the Security, Boot or Authentication tab, and set it to Disabled. Save changes and exit.
 
@@ -25,13 +21,13 @@ Leave the Secure Boot keys as they are. Do not delete or clear them.
 
 If the Secure Boot setting cannot be found: exit the BIOS without saving changes. The computer starts as before.
 
+## Choosing the stick
+
 4. Saving restarts the computer. Press the maker's boot menu key at power-on and choose the stick. If it is listed twice, choose the one that starts with UEFI.
 
-The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
+The stick is listed under the name printed on it (SanDisk, Kingston…), often after "UEFI:", not as Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
-Without a boot menu key: choose the stick in the boot override list in the BIOS.
-
-If the stick is not listed: see "If something is different" below.
+Without a boot menu key: choose the stick in the BIOS's boot override list. If the stick is not listed: see "If something is different" below.
 
 ## Afterwards
 
@@ -48,6 +44,8 @@ Stick not in the boot menu: the BIOS's Fast Boot makes some computers skip USB d
 systemctl reboot --firmware-setup works only on a computer started in UEFI mode whose BIOS offers it. The screen at power-on often names the maker's key.
 
 Why Secure Boot goes off: the Faraday on the stick is not signed with Microsoft's keys, so a computer starts it only with Secure Boot off.
+
+## The disk unlocked by the TPM
 
 The disk unlocked by the TPM: such a disk was set up with systemd-cryptenroll --tpm2-pcrs=7, or bound to PCR 7 another way, and Faraday Starter shows this first when /etc/crypttab names a tpm2-device. PCR 7 holds the Secure Boot state: it changes when Secure Boot is turned on or off and when its keys change, and the TPM releases the disk's key only for the state it was bound to. With Secure Boot back on and its keys as they were, the TPM unlocks the disk again.
 

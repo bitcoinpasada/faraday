@@ -17,7 +17,7 @@ The Faraday stick is not signed with Microsoft's key, so the computer starts it 
 
 ## BitLocker
 
-BitLocker encrypts the Windows drive. Device encryption is BitLocker turned on by Windows itself, on many laptops. The drive's key is kept in the computer's security chip, the TPM, which gives it to Windows only when the computer has started the way it always does, Secure Boot included.
+BitLocker encrypts the Windows drive. Device encryption is BitLocker turned on by Windows, on many laptops. The drive's key is kept in the computer's security chip, the TPM, which gives it to Windows only when the computer has started the way it always does, Secure Boot included.
 
 The TPM is asked only when Windows starts. Secure Boot off, Faraday, Secure Boot back on, then Windows: on most computers Windows sees the start it knows and asks for nothing.
 

@@ -11,6 +11,8 @@ USB boot turned off. On some computers the BIOS has a setting that allows starti
 
 A USB-C or Thunderbolt port. On some computers these ports start nothing until the BIOS's Thunderbolt or USB-C boot support is turned on. Use a USB-A port, or turn that setting on.
 
+## Legacy mode and other processors
+
 Legacy mode or CSM. The stick starts in UEFI mode only. A computer set to start in legacy BIOS or CSM mode does not offer it: set the BIOS's boot mode to UEFI. Turning CSM on does not help. Where the stick is listed twice, choose the entry that begins with UEFI.
 
 Not a PC with an Intel or AMD processor. A computer with an ARM processor, such as a Windows laptop with a Snapdragon processor, cannot start the stick.

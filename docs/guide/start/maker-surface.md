@@ -25,13 +25,15 @@ If the Secure Boot setting cannot be found: exit the BIOS without saving changes
 
 5. Look for Exit in the same list and choose Restart now.
 
+## Choosing the stick
+
 6. Start the stick before Windows starts: hold Volume Down, press and release the power button, and keep holding Volume Down until spinning dots appear under the logo.
 
 Or, in Surface UEFI, look for Boot configuration in the list on the left: swipe left on USB Storage to start from it once.
 
 Or, when Windows is already running with Secure Boot off: Settings → System → Recovery, Restart now beside Advanced startup, then Use a device → USB Storage.
 
-If the stick does not start: see "If something is different" below.
+If the stick does not start: see "If the stick is not listed" below.
 
 ## Afterwards
 
@@ -43,7 +45,9 @@ While Secure Boot is off, the Surface shows a red bar with an open padlock at po
 
 ## If something is different
 
-The BitLocker recovery key: with Secure Boot off, Windows cannot start without it. Windows may ask for it even after Secure Boot is back on, on a computer whose BIOS changes its Secure Boot keys when the setting is turned off and on. Suspending BitLocker first avoids that: Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 times Windows starts, after which Windows turns it back on by itself. To see the key on this computer: in Windows, Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: in a terminal run as administrator; Faraday Starter prints it on its sheet when asked to. On a computer signed in with a Microsoft account it is also at aka.ms/myrecoverykey. If Windows asks for it while Secure Boot is still off: turn the computer off and turn Secure Boot back on; Windows then starts without it.
+The BitLocker recovery key: Windows asks for it if it starts with Secure Boot off, and on some computers even after Secure Boot is back on. Faraday Starter's Temporarily suspend BitLocker, before the restart, suspends it for the next 3 starts, after which Windows turns it back on by itself. The key is at Control Panel → BitLocker Drive Encryption → Back up your recovery key; on Windows Home, manage-bde -protectors -get C: as administrator; at aka.ms/myrecoverykey with a Microsoft account; or on Faraday Starter's sheet. If Windows asks while Secure Boot is off: turn the computer off and turn Secure Boot back on; Windows then starts without the key.
+
+## If the stick is not listed
 
 Stick not started: Microsoft's Surface UEFI pages list no Fast Boot setting. The Boot configuration page has two USB settings, and both have to be on: USB Storage in the list of boot devices, and Enable Boot from USB devices under Advanced options.
 
