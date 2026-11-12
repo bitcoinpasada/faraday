@@ -1,5 +1,6 @@
 //! TOTP codes (`docs/TOTP.md` §4, §8): reading a type 6 field 6 value
 //! and computing its code against the published RFC vectors.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_vault::totp::{NotTotp, from_fields, grouped, normalise, parse};
 

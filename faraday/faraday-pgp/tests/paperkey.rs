@@ -11,6 +11,7 @@
 //! tools find them on PATH (`paperkey` also as `FARADAY_PAPERKEY`) and
 //! fail without them. Every call to `gpg` sets its clock
 //! (`--faked-system-time`).
+#![allow(clippy::disallowed_methods)]
 
 use std::ops::Deref;
 use std::path::{Path, PathBuf};

@@ -2,6 +2,7 @@
 //! more is emptied in place and the trailing ones are left off, so an entry
 //! deleted takes its attachment out of the file; every one still referred
 //! to, by an entry, a history entry or a recycle bin entry, is kept.
+#![allow(clippy::disallowed_methods)]
 
 use std::path::PathBuf;
 

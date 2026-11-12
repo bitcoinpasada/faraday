@@ -3,6 +3,7 @@
 //! lengths of a file at its step and at the ceiling; a file a KeePass app saved opened and sealed
 //! as Faraday writes a vault; a read-only vault refused; a seal that does
 //! not fit named by the bytes over.
+#![allow(clippy::disallowed_methods)]
 
 use std::cell::Cell;
 use std::path::PathBuf;

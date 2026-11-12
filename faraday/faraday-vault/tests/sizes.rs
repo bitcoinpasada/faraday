@@ -1,6 +1,7 @@
 //! `faraday-codec` tells a vault by its length, for the programs that
 //! list files without opening them: every length Faraday writes counts, up
 //! to the ceiling (F206).
+#![allow(clippy::disallowed_methods)]
 
 use faraday_codec::vault_file;
 use faraday_vault::file::{CEILING, STEP, file_len};

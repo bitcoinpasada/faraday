@@ -172,6 +172,7 @@ pub(crate) fn valid_ref(name: &[u8]) -> bool {
 
 /// What a reader refuses, naming what it found.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum Refused {
     /// Not well formed XML.
     NotWellFormed,
@@ -236,8 +237,12 @@ fn room(buf: &mut Zeroizing<Vec<u8>>, extra: usize) {
     }
 }
 
-/// A piece of carried bytes.
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
+/// A piece of carried bytes.
 enum Piece {
     Bytes(Zeroizing<Vec<u8>>),
     /// A protected value's plaintext, encrypted when written.
@@ -246,6 +251,10 @@ enum Piece {
 
 /// Bytes kept as read, with the protected values in them.
 #[derive(Default, Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 struct Carried(Vec<Piece>);
 
 impl Carried {
@@ -293,6 +302,10 @@ impl Carried {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// An element with text the model reads: its bytes as read, and the text.
 struct Leaf {
     orig: Carried,
@@ -398,6 +411,10 @@ impl W<'_> {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// An element with parts: its opening and closing tags as read.
 struct Frame<P> {
     tag: &'static [u8],
@@ -508,6 +525,10 @@ impl<P: Part> Frame<P> {
 // ----------------------------------------------------------- the model
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// A key and a value: an entry's field, or an item of custom data.
 pub struct Pair {
     key: Zeroizing<Vec<u8>>,
@@ -519,6 +540,10 @@ pub struct Pair {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// What a pair was when read.
 struct Orig {
     carried: Carried,
@@ -586,6 +611,10 @@ impl Pair {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum CdPart {
     Carried(Carried),
     Item(Pair),
@@ -604,6 +633,10 @@ impl Part for CdPart {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 /// A list of custom data: Faraday's items, with the others kept, not read.
 pub struct CustomData {
     frame: Frame<CdPart>,
@@ -691,6 +724,10 @@ impl CustomData {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum TimesPart {
     Carried(Carried),
     Modified,
@@ -709,6 +746,10 @@ impl Part for TimesPart {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum EntryPart {
     Carried(Carried),
     Uuid,
@@ -730,6 +771,10 @@ impl Part for EntryPart {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 /// An entry.
 pub struct Entry {
     frame: Frame<EntryPart>,
@@ -941,6 +986,10 @@ fn decode_time(text: &[u8]) -> Option<i64> {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum GroupPart {
     Carried(Carried),
     Uuid,
@@ -963,6 +1012,10 @@ impl Part for GroupPart {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
 /// A group.
 pub struct Group {
     frame: Frame<GroupPart>,
@@ -1138,6 +1191,10 @@ impl Group {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum MetaPart {
     Carried(Carried),
     Name,
@@ -1157,6 +1214,10 @@ impl Part for MetaPart {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 struct Meta {
     frame: Frame<MetaPart>,
     label: Vec<u8>,
@@ -1176,6 +1237,10 @@ impl Meta {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum RootPart {
     Carried(Carried),
     Group(Box<Group>),
@@ -1194,6 +1259,10 @@ impl Part for RootPart {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 enum FilePart {
     Carried(Carried),
     Meta(Box<Meta>),
@@ -1213,6 +1282,10 @@ impl Part for FilePart {
 }
 
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret parts are the listed types, whose copies are wiping memory"
+)]
 /// A KDBX 4 XML document.
 pub struct Document {
     prolog: Vec<u8>,

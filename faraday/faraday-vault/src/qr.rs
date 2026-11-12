@@ -14,6 +14,10 @@ use crate::{Record, nfc};
 
 /// Why a QR vault was not sealed or opened.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; its secret part is a KeyName, whose copy is wiping memory"
+)]
 pub enum Error {
     /// The OpenPGP message: not a QR vault, a wrong passphrase, damage.
     Message(message::Error),

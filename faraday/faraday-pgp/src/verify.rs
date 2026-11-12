@@ -55,7 +55,7 @@ pub fn verify_detached(cert: &Certificate, data: &[u8], asc: &[u8]) -> Result<u3
     let [(packet_tag, range)] = block.packets.as_slice() else {
         return Err(Unverified::NotSignature);
     };
-    let body = &block.data[range.clone()];
+    let body = &block.data[range.start..range.end];
     if *packet_tag != tag::SIGNATURE || body.get(1) != Some(&sig::BINARY) {
         return Err(Unverified::NotSignature);
     }

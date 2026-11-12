@@ -2,6 +2,7 @@
 //! Krux's own codes open, every version makes a code it opens again, what
 //! Krux refuses to write is refused, what is not a code is not taken for
 //! one, and a count of 100,000,000 stops when told.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_crypto::work::Compute;
 use faraday_kef::*;

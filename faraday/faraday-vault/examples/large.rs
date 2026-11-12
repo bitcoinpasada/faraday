@@ -23,6 +23,7 @@
 //! sealed at the smallest size that holds it, then opened; the sizes and
 //! the seconds of each are printed. The contents are filler and a throwaway
 //! passphrase: this is a measuring tool, not a vector.
+#![allow(clippy::disallowed_methods)]
 
 use std::time::Instant;
 

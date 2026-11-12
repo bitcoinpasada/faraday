@@ -56,8 +56,12 @@ pub(super) enum Val {
     Table(Table),
 }
 
-/// A key of a table, in a buffer that is wiped when it drops.
 #[derive(Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it but those lint-secrets lists; this one is listed and the copy's secret fields are wiping memory (Zeroizing, an Arc over Zeroizing, a Copy array)"
+)]
+/// A key of a table, in a buffer that is wiped when it drops.
 pub(super) struct Name(Zeroizing<Vec<u8>>);
 
 impl Name {
@@ -125,6 +129,10 @@ impl Table {
 
     /// Adds `val` under the dotted `keys`; `Err` where a key is already
     /// there or a table on the way is not one a dotted key may extend.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a key's name is copied into wiping memory (`Name` holds `Zeroizing`)"
+    )]
     fn insert(&mut self, keys: &[Name], val: Val) -> Result<(), ()> {
         let (last, via) = keys.split_last().ok_or(())?;
         let mut t = self;
@@ -298,6 +306,10 @@ impl Builder<'_> {
     }
 
     /// Opens the table or the array element the header names.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a table's key name is copied into wiping memory (`Name` holds `Zeroizing`)"
+    )]
     fn header(&mut self, array: bool, at: usize) {
         let keys = core::mem::take(&mut self.keys);
         let Some((last, via)) = keys.split_last() else {

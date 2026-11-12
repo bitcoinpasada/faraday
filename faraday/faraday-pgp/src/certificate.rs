@@ -31,6 +31,7 @@ use crate::{
 /// Why a certificate, a paperkey or the pair is not restored
 /// (`docs/GPG-PAPERKEY.md` §4.4).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub enum Refusal {
     /// Not one armoured public key block that Faraday takes as public.
     NotCertificate,
@@ -83,6 +84,7 @@ enum By {
 
 /// A signature by the key, as the certificate states it.
 #[derive(Debug, Clone)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 struct Own {
     place: Place,
     by: By,
@@ -99,6 +101,7 @@ struct Own {
 /// states (dates, expiry, revocation) is a claim until [`restore`] has
 /// made every signature of the key's again.
 #[derive(Debug, Clone)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Certificate {
     primary: Vec<u8>,
     fingerprint: [u8; 20],
@@ -294,7 +297,7 @@ impl Certificate {
         if !block.crc_ok || block.armor.kind != crate::Armor::PublicKey {
             return Err(Refusal::NotCertificate);
         }
-        let body = |r: &core::ops::Range<usize>| block.data[r.clone()].to_vec();
+        let body = |r: &core::ops::Range<usize>| block.data[r.start..r.end].to_vec();
         let mut primary: Option<Vec<u8>> = None;
         let mut subkeys: Vec<Vec<u8>> = Vec::new();
         let mut user_ids: Vec<String> = Vec::new();
@@ -648,6 +651,10 @@ fn rebuild(cert: &Certificate, key: &mut Key) -> Result<(u32, u32, Option<u32>),
 /// entries are the certificate's two keys, each secret unprotected and
 /// making its key's public key, and every signature of the key's made
 /// again and equal.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the certificate is public: its user IDs are copied"
+)]
 pub fn restore(cert: &Certificate, data: &[u8]) -> Result<Restored, Refusal> {
     let entries = paperkey::entries(data)?;
     if entries.len() != 2 {

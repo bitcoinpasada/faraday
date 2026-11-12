@@ -109,6 +109,7 @@ pub enum Kdf {
 
 /// What a file's header states. None of it is secret.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(clippy::disallowed_methods, reason = "a derived Clone of public data")]
 pub struct Header {
     /// 0 or 1: the minor version, 4.0 or 4.1.
     pub minor: u16,

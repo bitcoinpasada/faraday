@@ -1,6 +1,7 @@
 //! The memory the document reader's charge stands for, measured: a
 //! counting allocator holds what a read keeps, against what the reader
 //! charged and what the document's length allows.
+#![allow(clippy::disallowed_methods)]
 
 use base64ct::{Base64, Encoding};
 use faraday_crypto::work::{Compute, Work};

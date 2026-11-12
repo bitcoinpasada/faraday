@@ -1,6 +1,7 @@
 //! `read_public_armor` (`docs/history/PLAN.md` §4.4, F22, F32): a file that is one
 //! armoured block of public OpenPGP packets, each read to its exact end,
 //! reads as a public key or a signature, and anything else does not.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_pgp::{
     Armor, Hash, Key, Reason, armor, armor_with, crc24, read_block, read_public, read_public_armor,

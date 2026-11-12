@@ -11,6 +11,7 @@
 //! not running; nothing skips them. Every call
 //! to `gpg` sets its clock (`--faked-system-time`), so no date in a test
 //! depends on the day it runs.
+#![allow(clippy::disallowed_methods)]
 
 use std::ops::Deref;
 use std::path::{Path, PathBuf};

@@ -4,6 +4,7 @@
 //! made by GnuPG 2.4 (`make.sh` there, its commands in its README), and
 //! `faraday-0.1.7/` is Faraday 0.1.7's published `SHA256SUMS` and its
 //! signature by the release key.
+#![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
 

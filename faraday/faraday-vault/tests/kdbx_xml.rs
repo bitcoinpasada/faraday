@@ -3,6 +3,7 @@
 //! document written again as it was, what the model does not read kept, a
 //! file read back by pykeepass, history and the recycle bin dropped and
 //! counted, and each refusal named.
+#![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

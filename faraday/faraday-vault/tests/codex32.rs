@@ -2,6 +2,7 @@
 //! and one string of a set without its seed, as a codex32 share record
 //! (`docs/VAULT.md` §7, `docs/CODEX32.md` §9.4, §9.5); the committed
 //! vector holds both, and a vault holding neither reads as it always did.
+#![allow(clippy::disallowed_methods)]
 
 #[path = "../examples/vectors.rs"]
 mod vectors;
