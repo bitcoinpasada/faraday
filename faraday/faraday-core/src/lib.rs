@@ -2746,7 +2746,9 @@ impl Faraday {
             | Action::MOut
             | Action::MQr
             | Action::CheckMessage(..)) => self.message_act(a, &c),
-            a @ (Action::CMultiPath(..) | Action::CPathChange) => self.create_act(a, &c),
+            a @ (Action::CMultiPath(..) | Action::CMultiPathChange | Action::CPathChange) => {
+                self.create_act(a, &c)
+            }
             a @ (Action::CreateWallet
             | Action::CreateOver
             | Action::CStep(..)

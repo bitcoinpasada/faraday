@@ -58,7 +58,7 @@ For a single key of any address type, after **Kind**. A row pressed is chosen an
 |---|---|
 | **Signatures needed**, **Keys** | steppers, **-** and **+**. For **All keys · MuSig2**, **Keys** alone |
 | the line under them | what the quorum means: "Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.", or "All 3 keys sign together, …" |
-| **Path** | for the multisig kinds that are a descriptor: **BIP-48** (**m/45'** for the legacy kind) or **BIP-87**, the kind's own path chosen at first. Fixed once the wallet is made |
+| **Path** | for the multisig kinds that are a descriptor: **BIP-48** (**m/45'** for the legacy kind) at first; **Change** offers it and **BIP-87**. Fixed once the wallet is made |
 | **Account** | the account the keys are taken at, 0 at first; **Change** opens its stepper. The legacy kind has it only with **BIP-87** |
 | **Continue** | the next card |
 

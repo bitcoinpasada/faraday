@@ -733,42 +733,41 @@ fn path_row(ui: &mut Ui, x: f32, y: f32, w: f32, path: &str, change: bool) -> f3
     change_row(ui, x, y, w, EN.create_path, path, change)
 }
 
-/// The path choice of a multisig kind: its own path (BIP-48's, or
-/// `m/45'`) or BIP-87's, a segmented button, the first chosen at entry.
-/// Fixed once the wallet is made. Returns its height.
+/// The path row of a multisig kind: its own path (BIP-48's, or `m/45'`)
+/// or BIP-87's, the first chosen at entry, as a value with **Change**;
+/// once Change is pressed, the two as a segmented button. The made
+/// wallet's row has no Change. Returns its height.
 fn path_choice(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::CreateState) -> f32 {
     let own = if c.kind == crate::create::NewKind::MultiLegacy {
         EN.create_path_bip45
     } else {
         EN.create_path_bip48
     };
-    ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.create_path);
     let options = [
         (own, Action::CMultiPath(false)),
         (EN.create_path_bip87, Action::CMultiPath(true)),
     ];
-    let chosen = Some(usize::from(c.at_bip87()));
-    let h = if c.built.is_some() {
-        // The made wallet's choice is shown, not offered.
-        let text = options[usize::from(c.at_bip87())].0;
-        return tokens::CREATE_FIELD_LABEL
-            + ui.wrap_as(
-                (x, y + tokens::CREATE_FIELD_LABEL, w),
-                BODY_M,
-                Role::OnSurface,
-                text,
-            )
-            .max(tokens::CREATE_VALUE_MIN)
-            + tokens::GAP;
-    } else {
-        ui.choices(
+    let locked = c.built.is_some();
+    if c.path_open && !locked {
+        ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, EN.create_path);
+        let h = ui.choices(
             (x, y + tokens::CREATE_FIELD_LABEL + 2.0, w, tokens::TOUCH),
             LABEL_L.size,
             &options,
-            chosen,
-        )
-    };
-    tokens::CREATE_FIELD_LABEL + 2.0 + h + tokens::GAP
+            Some(usize::from(c.at_bip87())),
+        );
+        return tokens::CREATE_FIELD_LABEL + 2.0 + h + tokens::GAP;
+    }
+    let change = (!locked).then_some((EN.create_account_change, Action::CMultiPathChange));
+    change_row(
+        ui,
+        x,
+        y,
+        w,
+        EN.create_path,
+        options[usize::from(c.at_bip87())].0,
+        change,
+    )
 }
 
 /// The Account row (F98), for a kind whose path has an account: its

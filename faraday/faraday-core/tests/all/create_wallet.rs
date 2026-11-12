@@ -998,7 +998,10 @@ fn made_multisig_at(kind: NewKind, bip87: bool) -> (Faraday, usize) {
     app.press(Action::CNext(cstep::KIND));
     let _ = app.frame();
     if bip87 {
-        assert!(app.offers(Action::CMultiPath(true)), "Quorum offers BIP-87");
+        assert!(app.offers(Action::CMultiPathChange), "Quorum offers Change");
+        app.press(Action::CMultiPathChange);
+        let _ = app.frame();
+        assert!(app.offers(Action::CMultiPath(true)), "Change offers BIP-87");
         app.press(Action::CMultiPath(true));
     }
     app.press(Action::CNext(cstep::QUORUM));
@@ -1060,10 +1063,16 @@ fn the_bip_87_choice_is_offered_on_quorum_for_every_multisig_and_the_account_fol
         app.press(Action::CNext(cstep::KIND));
         let _ = app.frame();
         assert!(
-            app.offers(Action::CMultiPath(false)) && app.offers(Action::CMultiPath(true)),
-            "{kind:?}: both paths are offered"
+            app.offers(Action::CMultiPathChange) && !app.offers(Action::CMultiPath(true)),
+            "{kind:?}: the path shows with Change, BIP-87 not yet offered"
         );
         assert!(!app.create().expect("create").bip87, "the first is chosen");
+        app.press(Action::CMultiPathChange);
+        let _ = app.frame();
+        assert!(
+            app.offers(Action::CMultiPath(false)) && app.offers(Action::CMultiPath(true)),
+            "{kind:?}: Change offers both paths"
+        );
         app.press(Action::CMultiPath(true));
         let _ = app.frame();
         assert!(
@@ -1071,6 +1080,29 @@ fn the_bip_87_choice_is_offered_on_quorum_for_every_multisig_and_the_account_fol
             "{kind:?}: an account to choose at m/87'"
         );
     }
+}
+
+#[test]
+fn the_path_row_reads_bip_48_with_change_and_the_made_wallet_has_no_change() {
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, kind_index(NewKind::Multi));
+    app.press(Action::CNext(cstep::KIND));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "BIP-48"), "{texts:?}");
+    assert!(!texts.iter().any(|t| t == "BIP-87"), "{texts:?}");
+    assert!(app.offers(Action::CMultiPathChange));
+    app.press(Action::CMultiPathChange);
+    let _ = app.frame();
+    assert!(app.offers(Action::CMultiPath(true)));
+
+    let (mut app, _) = made_multisig_at(NewKind::Multi, true);
+    app.press(Action::CStep(cstep::QUORUM));
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "BIP-87"), "{texts:?}");
+    assert!(!app.offers(Action::CMultiPathChange), "no Change when made");
 }
 
 #[test]
@@ -1153,6 +1185,7 @@ fn a_wallet_made_from_a_bip_87_wallet_opens_with_bip_87_and_gets_the_cosigners_k
     app.press(Action::CAccount(-1));
     assert_eq!(app.create().unwrap().slots[pos], Source::Cosigner(xpub));
     // Back to the kind's own path: that key is not at it.
+    app.press(Action::CMultiPathChange);
     app.press(Action::CMultiPath(false));
     assert_eq!(app.create().unwrap().slots[pos], Source::Later);
 }
@@ -1169,6 +1202,7 @@ fn from_a_bip_48_wallet_choosing_bip_87_leaves_the_cosigners_slots_to_the_cosign
         app.create().unwrap().slots[pos],
         Source::Cosigner(xpub.clone())
     );
+    app.press(Action::CMultiPathChange);
     app.press(Action::CMultiPath(true));
     assert_eq!(app.create().unwrap().slots[pos], Source::Later);
     app.press(Action::CVaults(false));
@@ -1176,6 +1210,7 @@ fn from_a_bip_48_wallet_choosing_bip_87_leaves_the_cosigners_slots_to_the_cosign
     let line = format!("Needs Key {}'s xpub at BIP-87, account 0", pos + 1);
     let texts = app.drawn_texts();
     assert!(texts.contains(&line), "{line}: {texts:?}");
+    app.press(Action::CMultiPathChange);
     app.press(Action::CMultiPath(false));
     assert_eq!(app.create().unwrap().slots[pos], Source::Cosigner(xpub));
 }

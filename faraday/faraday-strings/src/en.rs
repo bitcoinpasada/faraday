@@ -7008,7 +7008,8 @@ strings! {
     /// Label in `account_row`: the Account row and its stepper, at the
     /// foot of Quorum or the head of Keys (F98).
     create_account: "Account",
-    /// Button in `account_row`: opens the Account row's stepper (F98).
+    /// Button in `account_row` and `path_choice`: opens the Account row's
+    /// stepper (F98), or a multisig path row's two paths.
     create_account_change: "Change",
     /// Segment in `path_choice`: a multisig's own path, BIP-48's, the
     /// default.

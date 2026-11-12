@@ -989,6 +989,10 @@ pub struct CreateState {
     /// The Account row's − n + stepper is open, by its **Change** or by
     /// Check's Path **Change** (F98); closed, the row shows the account.
     pub account_open: bool,
+    /// The multisig path row's two-segment choice is open, by its
+    /// **Change**; closed, the row shows the path chosen. False whenever
+    /// the kind changes.
+    pub path_open: bool,
     /// A multisig kind's keys are taken at BIP-87's `m/87'/coin'/account'`,
     /// not at the kind's own path (BIP-48's, or `m/45'`): the choice on the
     /// card that carries the Account row. False at entry and whenever the
@@ -1110,6 +1114,7 @@ impl CreateArea {
                     c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
                     c.kind_unchosen = false;
                     c.bip87 = false;
+                    c.path_open = false;
                     if c.kind.multi() {
                         c.n = c.n.clamp(2, c.kind.max_keys());
                         c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
@@ -1402,6 +1407,7 @@ impl Faraday {
             Action::CSlotVault(k, v, r) => self.create_slot_vault(k, v, r),
             Action::CAccount(d) => self.create_account_step(d),
             Action::CMultiPath(bip87) => self.create_multi_path(bip87),
+            Action::CMultiPathChange => self.create_multi_path_change(),
             Action::CPathChange => self.create_take_back(),
             Action::NewWalletFrom(i) => self.create_from_wallet(i),
             Action::CSlotFile(k, i) => {

@@ -530,6 +530,9 @@ pub enum Action {
     /// The path choice beside the Account row of a multisig kind: true
     /// BIP-87's `m/87'/coin'/account'`, false the kind's own path.
     CMultiPath(bool),
+    /// The path row's **Change** of a multisig kind: opens the choice
+    /// between the kind's own path and BIP-87's.
+    CMultiPathChange,
     /// Check's Path row **Change**: the made wallet taken back, the
     /// Account row's card open on its stepper (F98).
     CPathChange,

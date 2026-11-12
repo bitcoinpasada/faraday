@@ -589,8 +589,6 @@ pub const SILENT_LINE_GAP: f32 = 14.0;
 /// Height in dp of the label line above a Create card's value or choice
 /// row (Path, Account).
 pub const CREATE_FIELD_LABEL: f32 = 20.0;
-/// Least height in dp of a Create card's wrapped value line.
-pub const CREATE_VALUE_MIN: f32 = 18.0;
 /// Height in dp of a row of the Layout screen's vault chips and the least
 /// height of a board's row of boxes; the board's chips are one touch
 /// target high (`tokens::touch`).

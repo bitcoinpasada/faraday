@@ -325,6 +325,17 @@ impl Faraday {
         self.create_from_refresh();
     }
 
+    /// The multisig path row's **Change**: opens its choice.
+    pub(crate) fn create_multi_path_change(&mut self) {
+        if let Some(c) = self.create.state_mut()
+            && c.built.is_none()
+            && c.kind.has_bip87()
+        {
+            c.path_open = true;
+        }
+        self.create_from_refresh();
+    }
+
     /// The path choice beside the Account row: BIP-87's path (`bip87`) or
     /// the kind's own. A kind that is not a multisig of a descriptor has no
     /// choice. Of the keys already in slots, a cosigner's or a file's at

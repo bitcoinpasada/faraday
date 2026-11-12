@@ -141,6 +141,7 @@ fn making_at(bip87: bool) -> (Faraday, String) {
     app.press(Action::CNext(0));
     if bip87 {
         let _ = app.frame();
+        app.press(Action::CMultiPathChange);
         app.press(Action::CMultiPath(true));
     }
     app.press(Action::CNext(1));

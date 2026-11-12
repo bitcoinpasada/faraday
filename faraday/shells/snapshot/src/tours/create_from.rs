@@ -115,8 +115,10 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::CStep(cstep::QUORUM));
     t.shot("create-from-quorum")?;
     down(t, Action::CNext(cstep::QUORUM), "create-from-quorum-down")?;
+    t.press(Action::CMultiPathChange);
     t.press(Action::CMultiPath(true));
     t.shot("create-from-quorum-bip87")?;
+    t.press(Action::CMultiPathChange);
     t.press(Action::CMultiPath(false));
     t.press(Action::CNext(cstep::QUORUM));
     t.press(Action::CVaults(false));
