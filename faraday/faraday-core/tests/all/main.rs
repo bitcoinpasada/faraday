@@ -91,6 +91,7 @@ mod glance;
 mod gpg;
 mod gpg_restore;
 mod guide_keys;
+mod guide_scroll;
 mod home;
 mod home_scan;
 mod hover;
