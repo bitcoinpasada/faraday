@@ -50,7 +50,7 @@ pub type KeyIdentity = ([u8; 32], Fingerprint, [u8; 32]);
 
 enum What {
     Open {
-        file: Vec<u8>,
+        file: Zeroizing<Vec<u8>>,
         /// The bytes the document's structures may take; none: the
         /// format's limit alone.
         room: Option<usize>,
@@ -104,7 +104,7 @@ pub(crate) struct OpenedSlot {
 
 impl StretchJob {
     /// A vault `file` to open with `passphrase`, which is moved in.
-    pub fn open(file: Vec<u8>, passphrase: SecretText) -> StretchJob {
+    pub fn open(file: impl Into<Zeroizing<Vec<u8>>>, passphrase: SecretText) -> StretchJob {
         Self::open_within(file, passphrase, None, None, None)
     }
 
@@ -114,7 +114,7 @@ impl StretchJob {
     /// file's plaintext may take (`budget`): past either the open ends with
     /// `Error::Memory`; `parsed` is what the body may take once it is whole.
     pub fn open_within(
-        file: Vec<u8>,
+        file: impl Into<Zeroizing<Vec<u8>>>,
         passphrase: SecretText,
         room: Option<usize>,
         budget: Option<Budget>,
@@ -122,7 +122,7 @@ impl StretchJob {
     ) -> StretchJob {
         StretchJob {
             what: What::Open {
-                file,
+                file: file.into(),
                 passphrase,
                 components: fv::kdbx::Components::none(),
                 room,
@@ -613,7 +613,12 @@ impl Signing {
 }
 
 /// A key record of words to load: the words as the record keeps them and
-/// the passphrase to stretch them with.
+/// the passphrase to stretch them with. The mnemonic is held inline: the
+/// vector of these is reserved at its full size, so no growth copies it
+/// to the heap and frees the old one. Stated limit (`docs/SECRET-LEAKS.md`
+/// §8, stack copies, reviewed and not tested): moving the mnemonic into
+/// the record and the record into the vector leaves the word indices once
+/// in the frame that built it, which is not wiped.
 pub(crate) struct WordsToLoad {
     pub(crate) phrase: Zeroizing<Vec<u8>>,
     pub(crate) mnemonic: faraday_bip::bip39::Mnemonic,
