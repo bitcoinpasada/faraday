@@ -33,8 +33,7 @@ It has three sizes in one format, and the total length says which:
   up to 15 bytes. The code holds these bytes as 47 characters of text (§3),
   so it is never read as a seed. 25 × 25 is the size of Krux's smallest
   encrypted 12-word code (KEF version 5, §14) and of a Compact SeedQR of 24
-  words. This size is a proposed option, and whether it stays is §13,
-  question 12.
+  words.
 - **53 bytes:** a 29 × 29 code at low error correction, a 4-byte tag and 32
   bytes of item. 29 × 29 is the size of a standard 24-word SeedQR.
 - **62 bytes:** a 33 × 33 code at medium error correction, an 8-byte tag and
@@ -124,8 +123,7 @@ header, a 12-word seed and the 4-byte tag are placed: 11 bytes, 88 bits. RFC
 (Parameter Choice), step 7, says "A length of 128 bits is sufficient for all
 applications but can be reduced to 64 bits in the case of space constraints."
 This size is that case: the space is the code, and 88 bits is above the 64
-that §4 allows. What the salt does and what 88 bits give up is §12; whether a
-reviewer accepts it is §13, question 12.
+that §4 allows. What the salt does and what 88 bits give up is §12.
 
 Nothing else exists in the clear: no length, no version field apart from the marker,
 no identifier, no fingerprint, no iteration count.
@@ -923,12 +921,6 @@ of all.
     marker bits enter Argon2id as associated data? Many libraries do not
     expose that input, and the tag covers it, which is why it does not.
 11. **Anything else** in this document that a reviewer would not sign.
-12. **The 32-byte size.** Is an 88-bit salt acceptable here, under RFC 9106 §4's
-    reduction for space constraints (§3), given what a salt does (§12)? Is a
-    third size worth its costs: a code held as text where the others are bytes
-    (§3, §9), an Argon2id other than libsodium's, and a 4-codeword error
-    correction? Or should the format keep two sizes and leave 25 × 25 to
-    KEF?
 
 ## 14. Comparison with KEF and with an OpenPGP QR vault
 
