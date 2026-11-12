@@ -123,7 +123,7 @@ need. Each document's header says what kind it is:
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GUIDE.md`: Faraday user guide, the index. Sections 1 to 7 are stubs pointing to `docs/guide/walk/`, one file per walkthrough; all twenty-three walkthroughs hold the written text and their pictures (`docs/guide/pictures/`), checked against the app; it waits on a test by a reader new to Faraday.
-- `docs/GUIDE-IN-APP.md`: The guide, one guide in the app, opened at the section for the place and step the person is on, in place of Learn and of the website's walkthroughs, the website showing the same pages with pictures. Specified (F247), not built.
+- `docs/GUIDE-IN-APP.md`: The guide, one guide in the app, opened at the section for the place and step the person is on, in place of Learn and of the website's walkthroughs, the website's guide page saying the guide is in the app. Specified (F247), not built.
 - `docs/guide/screens/README.md`: the guide's screen reference, one page per screen or group of small screens; every screen and sheet of Faraday has its page.
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145); the PC's and the Pi's builds, the one Pi image and the release's files are built; trials and measurements are open.
 - `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Built (F149).

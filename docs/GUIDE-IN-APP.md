@@ -2,18 +2,18 @@
 
 **Kind:** Spec
 **Status:** Specified (F247); not built
-**Open:** all of it: the guide's pages and their keys, the guide sheet and pane in place of Learn's, the Guide button and destination, the Starter's guide pages, Learn's pages and the website's walkthroughs taken out, the website's guide built from the same pages
+**Open:** all of it: the guide's pages and their keys, the guide sheet and pane in place of Learn's, the Guide button and destination, the Starter's guide pages, Learn's pages and the website's walkthroughs taken out, the website's guide page saying the guide is in the app
 
 Learn is replaced by the guide. Wherever the person is (a flow and its
 step, a screen and its part), the guide button opens the guide at the
 section for that place, and the section says what that place offers
-and what each choice means. There is one guide: the app shows it, and
-the website shows the same pages with the screens' pictures. The
-owner's choices are F247.
+and what each choice means. There is one guide, and it is in the app: the website's guide page
+says so and keeps the guides to starting a computer from the stick.
+The owner's choices are F247.
 
 The name of this document: `docs/GUIDE.md` is today the website's index
-of walkthroughs, read by the website's build, and stays so until that
-build reads the new pages (§9). When the guide is built, `docs/GUIDE.md`
+of walkthroughs, read by the website's build, and stays so until the
+website's guide page says the guide is in the app (§7). When the guide is built, `docs/GUIDE.md`
 moves to `docs/history/`, and this document, then a Reference, keeps its
 name, so that what cites it still resolves.
 
@@ -156,12 +156,10 @@ made at **Make the wallet**.
 
 **Key:** create.sticks
 
-![...](pictures/create.sticks.png)
-
 **Bring in the sticks** ...
 ```
 
-- The header lines and the pictures are the website's and the lint's;
+- The header lines are the lint's;
   the app reads the title, each section's heading, key and paragraphs,
   and the bold spans, which it draws in the medium face.
 - The app reads the files when it is built, as Faraday's own Learn
@@ -366,7 +364,7 @@ Its §8.2 and §8.3 say "Learn" for the sheet and pane, and the How tab
 is first among Learn's page tabs: they read "the guide", and its tabs
 are Guide and Cryptography (§4.2). §3.1's "Learn's own page for the
 action carries the same blocks" goes. §18's constructions are drawn as
-§5.2 says. §8.7 (the guide's pictures of the bars) is §9's pictures. The
+§5.2 says. §8.7 (the guide's pictures of the bars) goes with the pictures (§7). The
 document keeps its name: it is the manifest's, not Learn's.
 
 ### 5.6 The lints
@@ -374,8 +372,7 @@ document keeps its name: it is the manifest's, not Learn's.
 - **learn-sync** (`python3 tools/learn/sync.py check` in the lint
   recipe): taken out with `docs/learn/`.
 - **lint-guide** (`tools/lint-guide.py`) is kept and checks the new
-  pages: bold names are strings (as now), links and pictures resolve (as
-  now), every `Screen` and Starter page is named by one page or listed
+  pages: bold names are strings (as now), links resolve (as now), every `Screen` and Starter page is named by one page or listed
   as still to write (as now, over the new pages), and §1.3's keys and
   §2's length bound.
 - `tools/lint-docs.sh` exempts `docs/learn/` from the header rule; the
@@ -397,38 +394,27 @@ guides and Faraday's held Learn.
   window it goes into the ⋮ after Cryptography.
 - Faraday Demo inside the Starter has the guide as Faraday has it.
 
-## 7. One guide for the app and the website
+## 7. One guide, in the app; the website points to it
 
-The website (its own repository) builds `guide/` from the pinned
-commit's `docs/guide/` pages (as its guide builder reads
-`docs/guide/walk/` and `docs/guide/screens/` today):
+The guide is the app's alone (F247). The website does not show it or
+keep a second account of the screens:
 
-- **One page a place**, at `guide/<place>/`, each section at
-  `#<part>` (its key's part), the contents as its index in the same
-  reading order. The text is the app's, word for word.
-- **What the website adds: pictures.** A section may carry one picture,
-  the screen at that part drawn at 1280 × 800 from the snapshot tours
-  by `just guide-pictures`, named by the key
-  (`docs/guide/pictures/<key>.png`), with its `.mark.json` outlining the
-  control the section is about. The app shows no pictures: the person is
-  looking at the screen. The website also keeps its search, its
-  previous and next, "This page describes Faraday X" and the bug form.
+- **The website's `guide/` page** says the guide is in the app, opened
+  with the Guide button at the screen and step the person is on, and
+  links the guides to starting a computer from the stick (`start/`),
+  which stay the website's. The website (its own repository) stops
+  reading `docs/guide/walk/` and `docs/guide/screens/`.
 - **The walkthroughs** (`docs/guide/walk/*.md`, twenty-three, about
   45,000 words) go to `docs/history/`, not published: what a task's
-  steps are is the flow's own cards, and the guide's contents keep their
-  order (Get Faraday, First start, Make a key, Back it up, Make a wallet,
-  Receive, Spend, Restore). The guide's key (F143) stays a Practice
-  sample: the pictures are drawn with it.
+  steps are is the flow's own cards.
 - **The screen pages** (`docs/guide/screens/*.md`, what each control
   does) go to `docs/history/`: each is replaced by its place's page.
-- **`docs/GUIDE.md`** (the walkthroughs' index) goes to `docs/history/`
-  once the website reads the new pages.
+- **`docs/GUIDE.md`** (the walkthroughs' index) goes to `docs/history/`.
 - **The pictures.** The 418 files in `docs/guide/pictures/` are the
-  walkthroughs' and the screen pages': they go with them, and the new
-  set is drawn under the keys' names. The stale pictures the website
-  waits on are not drawn again: they leave with the walkthroughs.
-- Until the website builds the new pages, its `guide/` page says the
-  guide is in the app, behind the Guide button, and links `start/`.
+  walkthroughs' and the screen pages': they go with them, with `just
+  guide-pictures` and `tools/guide-pictures.py` (out), and no new set is drawn.
+  The app shows no pictures: the person is looking at the screen. The
+  stale pictures are not drawn again: they leave with the walkthroughs.
 
 ## 8. What comes first and which files change
 
@@ -438,11 +424,11 @@ sheet and pane drawing the new pages in place of Learn's, the button's
 and the rail's names, then the pages place by place, each written from
 the screen and the Learn text it replaces, in the contents' order. Learn's
 pages, its sync and the walkthroughs are taken out in the change that
-writes the last place a Learn page served. The website reads the new
-pages after the release that carries them.
+writes the last place a Learn page served. The website's guide page becomes the pointer of §7 with the release
+that carries the guide.
 
-The files that change: `docs/guide/` (the pages, the index, the
-pictures; `walk/` and `screens/` to history), `docs/learn/` (taken out;
+The files that change: `docs/guide/` (the pages and the index; `walk/`,
+`screens/` and `pictures/` to history), `docs/learn/` (taken out;
 its folder of start guides moved), `faraday/faraday-learn` (renamed; `pages/` out,
 `how.rs` and `construction.rs` without `learn`), `faraday/faraday-guides`
 (renamed), `faraday/faraday-core/src/learn.rs`,
@@ -451,7 +437,7 @@ its folder of start guides moved), `faraday/faraday-learn` (renamed; `pages/` ou
 "Learn:" links, `faraday/faraday-strings/src/en.rs`,
 `faraday/faraday-starter` (its Learn destination and pages),
 `docs/crypto/actions.toml` and `docs/crypto/gen.py` (no `learn` key),
-`tools/lint-guide.py`, `tools/learn/sync.py` (out), `tools/guide-pictures.py`,
+`tools/lint-guide.py`, `tools/learn/sync.py` (out), `tools/guide-pictures.py` (out),
 `justfile` and `faraday/faraday.just` (the recipes), `tools/lint-docs.sh`,
 `docs/DESIGN.md` §2 and §4.12, `docs/LAYOUT.md` §3 and §6,
 `docs/CRYPTO-LEARN.md` §3.1, §8 and §18, `docs/STARTER.md` §3.1d, §3.6
