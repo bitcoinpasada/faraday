@@ -431,10 +431,10 @@ fn multipath(c: &Compute, descs: &[String]) -> Option<Result<WalletPolicy, Refus
     let mut found = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
     for d in wallets {
-        if let Ok(w) = WalletPolicy::parse_any(c, &d) {
-            if seen.insert(Seen(zeroize::Zeroizing::new(w.to_descriptor()))) {
-                found.push((rank(&w), w));
-            }
+        if let Ok(w) = WalletPolicy::parse_any(c, &d)
+            && seen.insert(Seen(zeroize::Zeroizing::new(w.to_descriptor())))
+        {
+            found.push((rank(&w), w));
         }
     }
     pick_best(found)

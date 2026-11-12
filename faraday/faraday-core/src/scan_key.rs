@@ -1016,6 +1016,10 @@ impl Faraday {
     }
 }
 
+/// A code read as a file: its name when it carries one, its extension
+/// and its bytes, wiped when dropped.
+pub(crate) type ReadFile = (Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>);
+
 impl Faraday {
     /// Costs what reading the code costs (a mnemonic's checksum, a
     /// codex32 and a SLIP-39 parse, a PSBT and a wallet read) and what
@@ -2259,10 +2263,7 @@ impl Faraday {
     /// for more, and for a code that is refused, which leaves its reason
     /// as the scan's note.
     /// What it read is wiped once done with: it may be a seed.
-    pub(crate) fn read_code(
-        &mut self,
-        bytes: zeroize::Zeroizing<Vec<u8>>,
-    ) -> Option<(Option<String>, &'static str, zeroize::Zeroizing<Vec<u8>>)> {
+    pub(crate) fn read_code(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) -> Option<ReadFile> {
         let c = self.compute();
         let scan = self.camera.scan.as_mut()?;
         scan.reads += 1;
