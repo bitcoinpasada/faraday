@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F247); mostly built: the renames, the guide's pages, the keys and their lookup, the sheet and pane, the Guide button and the Starter's guide destination
-**Open:** the contents list (§4.3: the guide's index page, the **Contents** button and **Here**; their strings exist, nothing draws them), the Guide button's `help` symbol (it still draws the book icon, `Icon::Learn`), the page `secure-boot-keys` (still on `docs/guide/TO-WRITE.txt`), and the length bound of §2 in `tools/lint-guide.py`
+**Open:** the contents list (§4.3: the guide's index page, the **Contents** button and **Here**; their strings exist, nothing draws them), the Guide button's `help` symbol (it still draws the book icon, `Icon::Learn`), and the pages written before the length bound of §2 (listed in `tools/lint-guide.allow` as `length:` lines), which are shortened or split when next edited
 
 Learn is replaced by the guide. Wherever the person is (a flow and its
 step, a screen and its part), the guide button opens the guide at the

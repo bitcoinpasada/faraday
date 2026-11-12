@@ -23,6 +23,12 @@ the app fails `just lint` until the guide follows.
    section of a place that shows its parts at once is found from the
    contents and its address, and needs no place to reach it.
 
+4. Length (docs/GUIDE-IN-APP.md §2). A page's lead is at most two
+   sentences, a section at most 150 words and a choice (a sentence that
+   begins with a bold name) at most 40. A page or section over the bound
+   is a line `length:<file>#<heading>` of tools/lint-guide.allow (the lead's
+   heading is the page's title), with its reason.
+
 The allow list holds one name per line (`re:<pattern>` matches a whole
 name), then `  # reason`. Standard library only; no build. `--self-test` shows a renamed string
 failing. Errors are `file:line: message`.
@@ -347,11 +353,78 @@ def check_starter_pages(root, errors):
             errors.append(f"{where[0]}: `{v}` is no variant of the Starter's Page")
 
 
+LEAD_SENTENCES = 2
+SECTION_WORDS = 150
+CHOICE_WORDS = 40
+HEADER_LINE = re.compile(r"^\*\*[A-Za-z ]+:\*\*")
+
+
+def sections(path):
+    """[(line, heading, [paragraph, ...])] of a page: the lead (under the
+    title) and each `##` section, header lines left out."""
+    out, para = [], []
+
+    def flush():
+        if para and out:
+            text = " ".join(l.strip() for _, l in para)
+            if not HEADER_LINE.match(text):
+                out[-1][2].append(text)
+        para.clear()
+
+    for n, line in prose_lines(path):
+        if line.startswith("#"):
+            flush()
+            out.append((n, line.lstrip("#").strip(), []))
+        elif not line.strip():
+            flush()
+        else:
+            para.append((n, line))
+    flush()
+    return out
+
+
+def sentences(text):
+    return [s for s in re.split(r"(?<=[.!?])\s+(?=[A-Z*`])", text.strip()) if s]
+
+
+def words(text):
+    return len(re.sub(r"[*`]", "", text).split())
+
+
+def length_problems(path):
+    """[(line, heading, message)] where a page breaks the bounds."""
+    found = []
+    for i, (n, heading, paras) in enumerate(sections(path)):
+        if i == 0:
+            count = sum(len(sentences(p)) for p in paras)
+            if count > LEAD_SENTENCES:
+                found.append((n, heading, f"the lead is {count} sentences, at most {LEAD_SENTENCES}"))
+            continue
+        total = sum(words(p) for p in paras)
+        if total > SECTION_WORDS:
+            found.append((n, heading, f"the section is {total} words, at most {SECTION_WORDS}"))
+        for p in paras:
+            for s in sentences(p):
+                if s.startswith("**") and words(s) > CHOICE_WORDS:
+                    found.append((n, heading, f"a choice is {words(s)} words, at most {CHOICE_WORDS}: {s[:40]}"))
+    return found
+
+
+def check_lengths(root, files, errors):
+    allowed = load_allow(root)
+    for path in files:
+        rel = os.path.relpath(path, root)
+        for n, heading, msg in length_problems(path):
+            if f"length:{rel}#{heading}" not in allowed:
+                errors.append(f"{rel}:{n}: {msg} (section {heading!r})")
+
+
 def run(root):
     errors = []
     files = guide_files(root)
     count = check_names(root, files, errors)
     check_links(root, files, errors)
+    check_lengths(root, files, errors)
     check_keys(root, errors)
     check_starter_pages(root, errors)
     return count, errors
@@ -381,6 +454,18 @@ def self_test():
         put("docs/guide/a.md", "# A\n\n![x](gone.png)\n\n[up](g.md#nope)\n")
         _, errors = run(root)
         assert len(errors) == 2, errors
+        put("docs/guide/a.md", "# A\n")
+        words41 = " ".join(["w"] * 40)
+        put("docs/guide/a.md", f"# A\n\nOne. Two. Three.\n\n## S\n\n**Wallets** {words41}.\n")
+        _, errors = run(root)
+        assert len(errors) == 2 and "lead" in errors[0] and "choice" in errors[1], errors
+        put(ALLOW, "length:docs/guide/a.md#A\nlength:docs/guide/a.md#S\n")
+        _, errors = run(root)
+        assert not errors, errors
+        put("docs/guide/a.md", "# A\n\n## S\n\n" + " ".join(["w"] * 151) + "\n")
+        put(ALLOW, "")
+        _, errors = run(root)
+        assert len(errors) == 1 and "section is 151" in errors[0], errors
         put("docs/guide/a.md", "# A\n")
     print("lint-guide self-test: ok")
 
