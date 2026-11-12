@@ -1,16 +1,11 @@
 //! The Guide button: the guide's pages (`docs/guide/`, read through
 //! `faraday_learn::guide`), opened where the person is
 //! (`docs/GUIDE-IN-APP.md` §4). A screen and a step give the key of the
-//! section the guide opens at ([`guide_key`]); the Starter's held app
-//! still shows its start guides as Learn pages ([`Faraday::learn_with`]).
+//! section the guide opens at ([`guide_key`]).
 
 use faraday_learn::Block;
-use faraday_learn::Page as LearnPage;
 
-pub use faraday_learn::{
-    GUIDES, MAKERS, Maker, demo_page, gpg_page, guide_address, guide_id, keys_kept_page, maker,
-    page, secure_boot_keys_page, time_page, vaults_page,
-};
+pub use faraday_learn::{GUIDES, MAKERS, Maker, guide_address, guide_id, maker};
 
 use crate::{Action, Faraday, Screen};
 
@@ -413,12 +408,11 @@ pub fn guide_aim(key: &'static str) -> GuideAim {
 }
 
 /// The guide's state in the sheet and the pane: the place's key, the page
-/// shown, whether the contents is, and how far it is scrolled. The held
-/// app's Learn pages ([`Faraday::learn_with`]) are `pages`.
+/// shown, whether the contents is, and how far it is scrolled.
 #[derive(Default)]
 pub struct LearnState {
     /// The key the guide was opened at, followed with the screen and the
-    /// step ([`guide_key`]); empty for the held app's Learn pages.
+    /// step ([`guide_key`]).
     pub key: &'static str,
     /// The place of the page on show; empty while the contents is.
     pub shown: &'static str,
@@ -429,10 +423,6 @@ pub struct LearnState {
     /// the width the page is laid out at, so the drawing finds it and
     /// the pass after it ([`LearnArea::set_scroll`]) scrolls there.
     pub to: Option<&'static str>,
-    /// The Learn pages of the held app, with the one on show in `page`.
-    pub pages: Vec<&'static LearnPage>,
-    /// The held app's page on show.
-    pub page: usize,
     /// Design units scrolled.
     pub scroll: f32,
     /// The furthest it can scroll, as last drawn.
@@ -441,6 +431,55 @@ pub struct LearnState {
     /// (`docs/CRYPTO-LEARN.md` §8.2). Kept only while the screen offers
     /// blocks ([`Faraday::learn_place`]).
     pub how: bool,
+    /// The lines and heights of the page's texts at the width, font and
+    /// scale they were last laid out at, so a frame drawn again breaks
+    /// none of them ([`faraday_ui::roles::WrapBasis`]).
+    wraps: std::cell::RefCell<Vec<GuideWrap>>,
+}
+
+/// The lines of a text as kept: none for a text of several runs.
+pub type Lines = Option<std::rc::Rc<[(usize, usize)]>>;
+
+/// One text of a guide page, broken into lines for a basis: the text by
+/// where it is, what it was broken for, its height and its lines (none
+/// for a text of several runs, whose height alone is kept).
+pub struct GuideWrap {
+    at: (usize, usize),
+    basis: faraday_ui::roles::WrapBasis,
+    h: f32,
+    lines: Lines,
+}
+
+impl LearnState {
+    /// The kept lines and height of the text at `at` for `basis`, if
+    /// they are kept. A lookup.
+    pub fn wrap_kept(
+        &self,
+        at: (usize, usize),
+        basis: faraday_ui::roles::WrapBasis,
+    ) -> Option<(f32, Lines)> {
+        let kept = self.wraps.borrow();
+        let e = kept.iter().find(|e| e.at == at && e.basis == basis)?;
+        Some((e.h, e.lines.clone()))
+    }
+
+    /// Keeps the lines and height of the text at `at` for `basis`.
+    pub fn wrap_keep(
+        &self,
+        at: (usize, usize),
+        basis: faraday_ui::roles::WrapBasis,
+        h: f32,
+        lines: Lines,
+    ) {
+        let mut kept = self.wraps.borrow_mut();
+        kept.retain(|e| e.at != at);
+        kept.push(GuideWrap {
+            at,
+            basis,
+            h,
+            lines,
+        });
+    }
 }
 
 impl LearnState {
@@ -452,13 +491,8 @@ impl LearnState {
         } else if self.contents {
             2
         } else {
-            self.page + 1
+            1
         }
-    }
-
-    /// Whether the held app's Learn pages are on show, not the guide.
-    pub fn legacy(&self) -> bool {
-        !self.pages.is_empty()
     }
 
     /// The page of the place the guide was opened from, if one is
@@ -479,7 +513,7 @@ impl LearnState {
     /// a page opened from the contents, and from the contents to the
     /// place's page. A lookup.
     pub fn inside(&self) -> bool {
-        if self.legacy() || self.how {
+        if self.how {
             false
         } else if self.contents {
             self.here().is_some()
@@ -728,19 +762,7 @@ impl Faraday {
         self.learn_place();
     }
 
-    /// Opens the Learn sheet on `pages` over the screen on show: for the
-    /// app holding this one ([`Faraday::held`]), whose own screens name
-    /// the pages. Closing the sheet leaves the screen as it was.
-    pub fn learn_with(&mut self, pages: Vec<&'static LearnPage>) {
-        if pages.is_empty() {
-            return;
-        }
-        self.learn.open_pages(pages, &mut self.sheet);
-        self.out.redraw();
-        self.out.command(faraday_shell_api::Command::Draw);
-    }
-
-    /// The Learn sheet's state: its pages, the one on show and its scroll.
+    /// The guide's state: the page on show and its scroll.
     pub fn learn(&self) -> &LearnState {
         self.learn.state()
     }
@@ -749,25 +771,12 @@ impl Faraday {
     pub fn learn_pinned(&self) -> bool {
         self.learn.pinned()
     }
-
-    /// The steps ticked on `page` this session, in order.
-    /// Kept in memory only: leaving and
-    /// reopening the page in the same session keeps them; a new session
-    /// starts unticked.
-    pub fn learn_ticked(&self, page: &'static LearnPage) -> &[u32] {
-        self.learn.ticked(page)
-    }
 }
 
-/// The Learn sheet's area: its state and the steps ticked in this
-/// session.
+/// The Learn sheet's area: its state.
 #[derive(Default)]
 pub(crate) struct LearnArea {
     state: LearnState,
-    /// The steps ticked on each guide page the Learn sheet has shown
-    /// this session, by page; a page with none ticked is not here.
-    /// Session state only, in memory, never written to a file.
-    ticks: Vec<(&'static LearnPage, Vec<u32>)>,
     /// Learn is open as the supporting pane beside the page, on an
     /// extra-large window (`docs/LAYOUT.md` §6), not as the sheet.
     pane: bool,
@@ -828,20 +837,6 @@ impl LearnArea {
         st.shown = place_of(key);
         st.to = (!st.contents).then_some(key);
         st.scroll = 0.0;
-    }
-
-    /// Opens the held app's Learn sheet on `pages`, at the first.
-    pub(crate) fn open_pages(
-        &mut self,
-        pages: Vec<&'static LearnPage>,
-        sheet: &mut Option<crate::Sheet>,
-    ) {
-        self.state = LearnState {
-            pages,
-            ..LearnState::default()
-        };
-        self.close_pane();
-        *sheet = Some(crate::Sheet::Learn);
     }
 
     /// Back inside the guide: from a page opened from the contents to the
@@ -935,22 +930,9 @@ impl LearnArea {
     }
 
     /// A press of a Learn action ([`crate::Action::LearnPage`] and the
-    /// guide's own): the held app's page; in the guide, a tab,
-    /// **Contents**, the first row of the contents, or the page in place
-    /// `i` of it.
+    /// guide's own): a tab, **Contents**, the first row of the contents,
+    /// or the page in place `i` of it.
     pub(crate) fn show_page(&mut self, action: Action) {
-        if self.state.legacy() {
-            match action {
-                Action::LearnTabHow => self.show_how(),
-                Action::LearnPage(i) if usize::from(i) < self.state.pages.len() => {
-                    self.state.page = usize::from(i);
-                    self.state.how = false;
-                    self.state.scroll = 0.0;
-                }
-                _ => {}
-            }
-            return;
-        }
         let st = &mut self.state;
         match action {
             Action::LearnTabHow => self.show_how(),
@@ -999,37 +981,6 @@ impl LearnArea {
         if !self.state.how {
             self.state.how = true;
             self.state.scroll = 0.0;
-        }
-    }
-
-    /// The steps ticked on `page` this session, in order.
-    pub(crate) fn ticked(&self, page: &'static LearnPage) -> &[u32] {
-        self.ticks
-            .iter()
-            .find(|(p, _)| std::ptr::eq(*p, page))
-            .map_or(&[], |(_, d)| d.as_slice())
-    }
-
-    /// Ticks step `n` of the Learn sheet's page on show, or clears its
-    /// tick if it is ticked already.
-    pub(crate) fn tick_step(&mut self, n: u32) {
-        let Some(page) = self.state.pages.get(self.state.page).copied() else {
-            return;
-        };
-        let all = faraday_learn::steps(page);
-        if !all.contains(&n) {
-            return;
-        }
-        let mut done = self.ticked(page).to_vec();
-        if let Some(at) = done.iter().position(|d| *d == n) {
-            done.remove(at);
-        } else {
-            done.push(n);
-        }
-        let done: Vec<u32> = all.into_iter().filter(|s| done.contains(s)).collect();
-        self.ticks.retain(|(p, _)| !std::ptr::eq(*p, page));
-        if !done.is_empty() {
-            self.ticks.push((page, done));
         }
     }
 }

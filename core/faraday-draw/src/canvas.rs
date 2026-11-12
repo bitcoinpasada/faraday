@@ -190,6 +190,15 @@ impl Canvas {
         self.lines
     }
 
+    /// Counts what was drawn since `mark` (a [`Canvas::lines_drawn`]) as
+    /// one line: a line of text set in several faces, a bold word among
+    /// plain ones, is one line, drawn run by run.
+    pub fn join_lines_since(&mut self, mark: u64) {
+        if self.lines > mark {
+            self.lines = mark + 1;
+        }
+    }
+
     /// How many shapes this canvas has filled from their outlines,
     /// counting from its making ([`Canvas::fill_kept`]'s misses): two
     /// counts taken around a frame drawn again say whether it filled

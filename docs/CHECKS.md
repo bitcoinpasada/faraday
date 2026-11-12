@@ -44,7 +44,6 @@ does what is `tools/README.md`'s.
 | `lint-themes` | just lint | `tools/lint-themes.sh` | the colour tables differing from what the vendored material-color-utilities makes | the website's copy of the roles | built |
 | `lint-keys-tests` | just lint | `tools/lint-keys-tests.sh` | a shipped binary with faraday-keys' master-for-tests or faraday-core's testkit feature | - | built |
 | `check-macos` | just lint | `tools/check-macos.sh` | the Starter's macOS code, clippy for both Mac targets | behaviour on a Mac | built |
-| `learn-sync` | just lint | `python3 tools/learn/sync.py check` | docs/learn/ and the Learn pages' en.rs differing | - | built |
 | `lint-guide-self-test` | just lint | `python3 -B tools/lint-guide.py --self-test` | the guide lint's own fixtures | - | built |
 | `lint-guide` | just lint | `python3 -B tools/lint-guide.py` | a bold name that is not an app string, a link that does not resolve, a Screen or Sheet no guide page names | prose that describes old steps with the current names | built |
 | `nextest` | just test | `cargo nextest run --locked --workspace` | every unit and integration test in the workspace | - | built |
@@ -117,7 +116,6 @@ does what is `tools/README.md`'s.
 | `standards.rows-checked`: every STANDARDS row names a cross-check area, a vectors folder or a test, and every area and vectors folder is named by a row | `docs/crypto/actions.toml`<br>`tools/crosscheck/area_*.py`<br>`tools/vectors/**` | held | - | `crypto-verified` | - | `docs/STANDARDS.md` §0 |
 | `standards.disagreements-held`: each disagreement STANDARDS §8 lists is held by a [[disagreement]] that fails when it changes | `docs/STANDARDS.md`<br>`tools/lint-standards.toml` | held | - | `lint-standards` | - | `docs/STANDARDS.md` §8 |
 | `standards.scope`: a new kind of key or signature is a decision | `core/*/src/**`<br>`!core/faraday-draw/**` | review | - | - | - | `docs/decisions/F116.md` |
-| `standards.learn-in-step`: STANDARDS.md and the Learn pages are kept in step until F148 generates both | `docs/STANDARDS.md` | pair | `docs/learn/**` | - | - | `docs/STANDARDS.md` |
 | `standards.text-tool-refuses-secrets`: the online apps' Send text refuses a secret through the device's own classifier; a secret kind added to scan_read is refused by it too, and bare hex stays the one case let through | `faraday/faraday-core/src/scan_read.rs`<br>`faraday/faraday-core/src/transfer/**` | review | - | - | - | `docs/decisions/F236.md`<br>`docs/decisions/F136.md` |
 
 ### 2.6 crypto
@@ -199,7 +197,7 @@ does what is `tools/README.md`'s.
 | `strings.one-file`: every user-facing string is in faraday-strings/src/en.rs | `faraday/**/src/**` | held | - | `lint-strings` | - | `CLAUDE.md`<br>`docs/decisions/F68.md` |
 | `strings.guide-names`: a string renamed is renamed in the guide's bold names | `faraday/faraday-strings/src/en.rs` | held | - | `lint-guide` | - | `CLAUDE.md`<br>`tools/README.md` |
 | `strings.no-explanation`: a working screen carries labels, values and actions, never an explanation; Learn and About explain | `faraday/faraday-strings/src/en.rs` | review | - | - | - | `CLAUDE.md`<br>`docs/decisions/F112.md` |
-| `strings.plain`: text anywhere in the product is plain statement of fact, never mannered prose | `faraday/faraday-strings/src/en.rs`<br>`docs/learn/**`<br>`docs/guide/**` | review | - | - | - | `CLAUDE.md`<br>`docs/DESIGN.md` §2 |
+| `strings.plain`: text anywhere in the product is plain statement of fact, never mannered prose | `faraday/faraday-strings/src/en.rs`<br>`docs/guide/**` | review | - | - | - | `CLAUDE.md`<br>`docs/DESIGN.md` §2 |
 | `strings.medium`: the medium's words come from Medium; "card or stick" on the Pi, "SD card" only for the card it started from | `faraday/faraday-strings/src/en.rs` | review | - | - | - | `docs/decisions/F216.md` |
 
 ### 2.12 design
@@ -233,13 +231,7 @@ does what is `tools/README.md`'s.
 |---|---|---|---|---|---|---|
 | `guide.places-paged`: every place the app reaches has a guide page or is in docs/guide/TO-WRITE.txt | `faraday/faraday-core/src/lib.rs`<br>`faraday/faraday-core/src/learn.rs` | held | - | `lint-guide` | - | `tools/README.md` |
 
-### 2.16 learn
-
-| Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
-|---|---|---|---|---|---|---|
-| `learn.sync`: docs/learn/ and the Learn pages' en.rs are one text | `docs/learn/**`<br>`faraday/faraday-learn/src/pages/en.rs` | held | - | `learn-sync` | - | `CLAUDE.md` |
-
-### 2.17 deps
+### 2.16 deps
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
@@ -247,27 +239,27 @@ does what is `tools/README.md`'s.
 | `deps.page`: a direct dependency added has its page in docs/deps/ | `**/Cargo.toml`<br>lines matching `^\+(?!(name\|version\|edition\|license\|description\|publish\|rust-version\|authors\|default-run\|default-features\|features\|resolver\|members\|repository\|readme\|exclude\|include\|build\|path\|harness\|test\|bench\|doc\|crate-type\|required-features\|workspace\|optional\|package\|git\|branch\|rev\|tag)\b)(?!.*\bpath\s*=)[a-z][a-z0-9_-]*\s*=\s*(\{\|")` | pair | `docs/deps/*.md` | - | a version bump of an existing dependency also matches; the page of the new name is not matched by name; a path dependency on a workspace crate has no page and is not matched | `docs/decisions/F71.md` |
 | `deps.locked`: builds and checks pass --locked | `justfile`<br>`faraday/faraday.just`<br>`**/*.sh`<br>lines matching `^\+.*\bcargo (build\|test\|run\|nextest\|clippy\|check\|doc)\b(?!.*--locked)` | review | - | - | - | `CLAUDE.md`<br>`docs/decisions/F71.md` |
 
-### 2.18 builds
+### 2.17 builds
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
 | `builds.list`: faraday/builds.toml lists every build, and every board and panel directory is named by one | `faraday/builds.toml`<br>`faraday/image/boards/**`<br>`faraday/image/panels/**` | held | - | `lint-builds` | - | `faraday/builds.toml` |
 | `builds.docs`: a build added or changed is in docs/IMAGES.md or docs/DEVELOPING.md | `faraday/builds.toml`<br>lines matching `^[+-]\[\[(build\|hardware)\]\]` | pair | one of `docs/IMAGES.md`<br>`docs/DEVELOPING.md` | - | - | `faraday/builds.toml` |
 
-### 2.19 fuzz
+### 2.18 fuzz
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
 | `fuzz.parser-target`: a parser of untrusted input has its fuzz target in the same change | `core/*/src/**`<br>`faraday/**/src/**`<br>`!core/faraday-draw/**`<br>`!**/screen.rs`<br>`!faraday/faraday-core/src/screens/**`<br>`!faraday/faraday-ui/**`<br>lines matching `^\+.*\bfn\s+(parse\|decode\|read\|from_bytes\|from_str\|deserialize)\w*` | review | - | - | planned: F148's fuzz check | `tools/README.md` |
 | `fuzz.release-two-runs`: a release's fuzz run made of two runs reruns every target whose corpus reaches a changed file or a file naming a changed constant, every target compiling in a change that cannot be followed, and every target after a change to a fuzz crate's manifest, lock, toolchain or the fuzz tools; its record names both runs | `tools/fuzz-release.sh`<br>`tools/fuzz-join.py`<br>`tools/fuzz-plan.py`<br>`tools/fuzz-common.sh`<br>`tools/fuzz-corpus-export.sh`<br>`.github/workflows/fuzz.yml` | review | - | - | whether the rerun targets are the ones the decision names: no check reads a plan against the rules | `docs/decisions/F241.md` |
 
-### 2.20 release
+### 2.19 release
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|
 | `release.before`: before a release: just, just crosscheck --fresh (or runs combined at its seed, F239), the fuzz run and its corpus | `**`<br>at release | review | - | - | - | `tools/README.md` |
 
-### 2.21 impact
+### 2.20 impact
 
 | Rule | Triggered by | Kind | Must change with it | Held by | Misses | Source |
 |---|---|---|---|---|---|---|

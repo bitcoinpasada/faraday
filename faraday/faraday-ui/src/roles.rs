@@ -318,6 +318,49 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         laid.h
     }
 
+    /// [`Ui::wrap_as`] drawing only the lines that can be seen
+    /// ([`Ui::shows`]): a long text mostly scrolled out of its view draws
+    /// the lines in view, and counts the rest by height alone. Returns the
+    /// height used, the same.
+    pub fn wrap_seen(
+        &mut self,
+        (x, y, width): (f32, f32, f32),
+        role: TypeRole,
+        color: impl Into<Paint>,
+        s: &str,
+    ) -> f32 {
+        let laid = self.wrapped_as(role, s, width);
+        self.draw_wrapped_seen((x, y), color, &laid)
+    }
+
+    /// [`Ui::draw_wrapped`] drawing only the lines that can be seen
+    /// ([`Ui::shows`]), as [`Ui::wrap_seen`] does. Returns the height
+    /// used.
+    pub fn draw_wrapped_seen(
+        &mut self,
+        (x, y): (f32, f32),
+        color: impl Into<Paint>,
+        laid: &Wrapped<'_>,
+    ) -> f32 {
+        if !self.shows(y, laid.h) {
+            return laid.h;
+        }
+        let color = self.ink(color.into());
+        let role = laid.role;
+        let face = self.face(role.size, role.face.into());
+        let line = self.line_as(role);
+        let x0 = self.px(x + self.ox);
+        for (i, &(start, end)) in laid.lines.iter().enumerate() {
+            let top = y + i as f32 * line;
+            if self.shows(top, line) {
+                let ly = self.px(top + self.oy) + self.oy_px;
+                self.c
+                    .text_with_face(&face, x0, ly, &laid.s[start..end], color);
+            }
+        }
+        laid.h
+    }
+
     /// `s` in `role` broken into lines at `width` as [`Ui::wrap_as`]
     /// breaks it, drawn nowhere: its height known before what goes under
     /// it is drawn (a row's press), then drawn with [`Ui::draw_wrapped`]

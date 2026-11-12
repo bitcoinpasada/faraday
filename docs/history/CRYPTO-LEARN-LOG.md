@@ -81,3 +81,29 @@ constructions in docs/crypto/actions.toml with §18.3's and §18.4's text,
 drawing of them, and `docs/learn/faraday/vaults.md`'s "Passphrase
 strength" section removed. Each later VAULT-HARDENING batch rewrites its
 planned paragraphs (§18.6).
+
+### 8.7 The guide's pages (from docs/CRYPTO-LEARN.md)
+
+The bar's new button changes the guide's text that names the bar's
+tools. The screen pages and pictures it once changed are history
+(`docs/history/guide/`); the pages now are `docs/guide/`. The old
+screen pages that named it:
+
+- Faraday's screens: `docs/history/guide/screens/add-a-key.md` (Entry),
+  `restore.md`, `files.md`, `spend-tab.md` (SpendBackup), `new-key.md`
+  (KeyGen), `vault.md` (VaultContents), `make-a-wallet.md` (Create),
+  `explore.md`, `wallets.md` (Wallets, WalletsStart), `calculators.md`
+  (Tools), `settings.md` (Settings, Randomness), `back-up-wallet.md`
+  (Backup), `backup-flow.md`, `backups.md`, `create-vault.md`,
+  `vaults.md` (Unlock), `codes.md`, `sign.md` (Spend), `child-seeds.md`
+  (Bip85), `vanity.md`, `lightning.md`, `silent-payments.md`,
+  `messages.md` (Message, CheckMessage), `decode.md`, `qr-and-scan.md`
+  (the QR sheet, Transfer) and `files.md` (the stick in Files), all in
+  `docs/history/guide/screens/`.
+- `docs/history/guide/screens/learn.md`: the How tab, first among the tabs.
+- `docs/history/guide/screens/home.md` and `docs/history/guide/screens/prompts.md`:
+  the ⋮ menu's first row on the Pi's panel, where they show it.
+- The Starter: `docs/history/guide/screens/starter-make.md` (What to write,
+  Confirm, Writing, Done), `starter-learn-and-boot.md` (the new Learn
+  page and the Start page's BitLocker tick box) and `starter-menu.md`
+  (the ⋮'s first row on a compact window).

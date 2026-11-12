@@ -17,7 +17,15 @@ fn every_maker_and_general_guide_has_a_page() {
 // The guides to starting a computer from the stick (docs/STARTER.md §7.2),
 // which the Starter's screens open by id: each id finds its page, and a
 // guide puts what has to be in hand before any firmware step first.
-// `replace-faraday` is faraday-learn's, found through `page`'s fallback.
+
+/// Every step number on `page`, in the order written.
+fn steps_of(page: &faraday_learn::Page) -> Vec<u32> {
+    page.sections
+        .iter()
+        .flat_map(|s| s.paragraphs.iter())
+        .filter_map(|p| faraday_learn::step(p).map(|(n, _)| n))
+        .collect()
+}
 
 fn guide(id: &str) -> &'static faraday_learn::Page {
     faraday_start::page(id).unwrap_or_else(|| panic!("no page {id}"))
@@ -68,7 +76,7 @@ fn step_pages() -> impl Iterator<Item = &'static str> {
 #[test]
 fn every_guide_followed_at_the_computer_is_numbered_steps_from_one() {
     for id in step_pages() {
-        let steps = faraday_learn::steps(guide(id));
+        let steps = steps_of(guide(id));
         assert!(steps.len() >= 4, "{id}: {steps:?}");
         let expected: Vec<u32> = (1..=steps.len() as u32).collect();
         assert_eq!(steps, expected, "{id}");
@@ -113,7 +121,7 @@ fn the_page_for_another_maker_gives_the_common_keys_and_says_to_search() {
 fn every_guide_ends_with_the_step_that_turns_secure_boot_back_on() {
     for id in step_pages() {
         let page = guide(id);
-        let last = faraday_learn::steps(page).len();
+        let last = steps_of(page).len();
         let text = page
             .sections
             .iter()

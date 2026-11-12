@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F148); the manifest, its inventory lint, fingerprints, the re-stamp recipe and the generator built and held by `just lint`
-**Open:** the step-by-step order of a flow's blocks (§8.1, §8.5), the guide's pictures and text of §8.7, the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F159)
+**Open:** the step-by-step order of a flow's blocks (§8.1, §8.5), the ⋮ row's leading icon (§8.3), the cross-check stamp read from the manifest, the website's rendering, §18's constructions on the website (§18.7) and their `vault-slot` and `vault-plain` tables (§18.2; the manifest, check.py, gen.py and Learn's drawing of them are built, F159)
 
 Every screen that does something cryptographic opens a block that says
 how Faraday does it: the standard, the code, what checks it, how the
@@ -50,7 +50,7 @@ pages' text is.
 One TOML file, docs/crypto/actions.toml (new), with a lock file beside
 it, docs/crypto/actions.lock (new), that only the re-stamp recipe writes
 (§5). TOML because three readers need it and none should parse Rust:
-`tools/learn/sync.py`'s neighbours in Python (`tomllib`, in the standard
+the tools' neighbours in Python (`tomllib`, in the standard
 library since 3.11, as `tools/crosscheck/stamp.py` already uses), the
 website's tools in Python, and people reading a diff. No crate is added:
 the Rust side never reads the TOML (§4.3).
@@ -58,7 +58,7 @@ the Rust side never reads the TOML (§4.3).
 A Rust table in `faraday-learn` was considered and not chosen: the
 website and the cross-check stamp would each need a Rust parser or a
 second export, and an entry's prose in Rust string literals is what
-`tools/learn/sync.py` exists to avoid.
+a text file read by a tool avoids.
 
 ### 2.2 Schema
 
@@ -202,11 +202,11 @@ place disagrees, or when a named place no longer exists.
 
 Written by docs/crypto/gen.py (new) from the manifest; `just lint` runs
 it in `check` mode, which regenerates in memory and fails on any
-difference, as `tools/learn/sync.py check` does for the Learn pages.
+difference.
 
 | Place | What is generated |
 |---|---|
-| The Learn blocks | faraday/faraday-learn/src/how.rs (new): a `Block` per action with its nine fields, and for each Learn page the blocks it carries, in the manifest's order. Marked generated at its top; never edited by hand. Each Learn page that names an action shows its blocks after its own sections under the heading **How Faraday does it**. |
+| The Learn blocks | faraday/faraday-learn/src/how.rs (new): a `Block` per action with its nine fields, and for each Learn page the blocks it carries, in the manifest's order. Marked generated at its top; never edited by hand. |
 | The Cross-check field | From the action's area (§10.1) and the stamp: the area's facts and the last passing run's seed and case count. |
 | `tools/crosscheck/README.md`'s "What runs" table and "Known differences" | From the areas' facts (§10.1), between marker lines, so the README and the blocks say the same. |
 | `docs/STANDARDS.md` §1's status table | From the standards table. |
@@ -246,9 +246,9 @@ Found in the tree (§13 lists every one): `docs/SECURITY-MODEL.md`
 construction holds up"), `docs/INTEROP.md`, `docs/VAULT.md`,
 `docs/CODEX32.md`, `docs/TOTP.md`, `docs/QR.md`, `docs/OWN-RANDOMNESS.md`,
 the crate READMEs (`core/faraday-bip/README.md`, `core/faraday-psbt/README.md`
-and the others), the Learn pages' own prose (`docs/learn/13-nonces.md`
+and the others), the Learn pages' own prose (`docs/history/learn/13-nonces.md`
 says how every nonce is derived), Faraday's own pages under
-`docs/learn/faraday/`, the guide's screen pages (`docs/history/guide/screens/README.md`),
+`docs/history/learn/faraday/`, the guide's screen pages (`docs/history/guide/screens/README.md`),
 `tools/reference/` and each vector folder's README, and the strings in
 `faraday/faraday-strings/src/en.rs` that state a construction (the
 Settings explainers on how added randomness is mixed).
@@ -598,18 +598,18 @@ the ⋮ where the layout has them (DESIGN §4.1).
 
 ### 8.2 What it opens
 
-It opens Learn as the ? does, below extra-large the Learn sheet, on an
-extra-large window the supporting pane (LAYOUT §6), on a tab **How
-Faraday does it** placed first among the sheet's tabs. The tab is there
+It opens the guide as the ? does, below extra-large the guide's sheet, on an
+extra-large window the supporting pane (LAYOUT §6), on the tab
+**Cryptography**, one of the two tabs, Guide and Cryptography. The tab is there
 exactly while the bar offers the button: on a step before the action's,
-Learn has no How tab. The ? opens Learn as today, on the screen's first
-page, with the How tab still first among the tabs; on an extra-large
+the guide has no Cryptography tab. The ? opens the guide on the Guide tab, at the
+screen's page; on an extra-large
 window the ? pressed while the pane is shown puts it away, whichever
 tab it shows, as today. **Cryptography** pressed while the pane
-shows the How tab puts it away; pressed while the pane shows another
-tab, it moves the pane to the How tab. Escape, the pane's close button
+shows the Cryptography tab puts it away; pressed while the pane shows the
+Guide tab, it moves the pane to the Cryptography tab. Escape, the pane's close button
 and the mouse's back button put the pane away as they do now. When the
-step changes, the How tab follows the screen's actions as the pane
+step changes, the Cryptography tab follows the screen's actions as the pane
 follows its pages (LAYOUT §6). The pane is never open by itself: only
 the ? or **Cryptography** pressed opens it, and it closes at another
 screen unless its pin is on (owner, 2026-10-29). Its
@@ -617,17 +617,16 @@ tabs stand under its header row, across its width, each label whole:
 the Guide tab and the Cryptography tab.
 
 The tab holds the blocks of the screen's actions, in the order the
-screen offers them, the open step's first (§8.5). Learn's own page for
-the action carries the same blocks after its sections (§3.1).
+screen offers them, the open step's first (§8.5).
 
 ### 8.3 Every size class
 
 | Class | Where the action is |
 |---|---|
-| Compact, the Pi's panel (268 dp) | **Cryptography** goes into the ⋮ overflow menu first, before the ?, wherever the page offers it, not only when the bar's tools would reach the chevron's target (LAYOUT §8): kept on the bar it would take room from the page's name, the way-back line or the eye (owner, 2026-10-28). The ⋮ takes the ? with it. Its row reads "Cryptography", with `Icon::Method` at its start, and it is the menu's first row, above **Learn**, **Show keyboard** and **Show sheets**. On the panel the ⋮ menu is a sheet, as every menu there. |
+| Compact, the Pi's panel (268 dp) | **Cryptography** goes into the ⋮ overflow menu first, before the ?, wherever the page offers it, not only when the bar's tools would reach the chevron's target (LAYOUT §8): kept on the bar it would take room from the page's name, the way-back line or the eye (owner, 2026-10-28). The ⋮ takes the ? with it. Its row reads "Cryptography", with `Icon::Method` at its start, and it is the menu's first row, above **Guide**, **Show keyboard** and **Show sheets**. On the panel the ⋮ menu is a sheet, as every menu there. |
 | Compact, other windows | In the ⋮ as on the Pi, by the same rule. |
 | Medium, expanded, large | On the bar. |
-| Extra-large | On the bar; it opens the supporting pane, and pressed again while the pane shows the How tab puts the pane away (§8.2). |
+| Extra-large | On the bar; it opens the supporting pane, and pressed again while the pane shows the Cryptography tab puts the pane away (§8.2). |
 
 Every target stays 48 dp, and no two overlap (owner, 2026-10-26).
 
@@ -657,7 +656,7 @@ draws them, scrolling within the sheet; at its foot **Close**, a text
 button. A press beside it, Escape and the back arrow close it. The
 Starter has no supporting pane, so the sheet is the same at every
 size. The Starter's Learn destination gets a page for them, Checking
-what is written (`docs/learn/faraday/checking-written.md`, id
+what is written (`docs/history/learn/faraday/checking-written.md`, id
 `checking-written`), listed after **Replacing Faraday on a stick**,
 built from the same blocks after its sections.
 
@@ -774,29 +773,7 @@ The values are the manifest's and the cross-check's, carried by
 
 ### 8.7 The guide's pages
 
-The bar's new button changes the guide's text that names the bar's
-tools. The screen pages and pictures it once changed are history
-(`docs/history/guide/`); the pages now are `docs/guide/`. The old
-screen pages that named it:
-
-- Faraday's screens: `docs/history/guide/screens/add-a-key.md` (Entry),
-  `restore.md`, `files.md`, `spend-tab.md` (SpendBackup), `new-key.md`
-  (KeyGen), `vault.md` (VaultContents), `make-a-wallet.md` (Create),
-  `explore.md`, `wallets.md` (Wallets, WalletsStart), `calculators.md`
-  (Tools), `settings.md` (Settings, Randomness), `back-up-wallet.md`
-  (Backup), `backup-flow.md`, `backups.md`, `create-vault.md`,
-  `vaults.md` (Unlock), `codes.md`, `sign.md` (Spend), `child-seeds.md`
-  (Bip85), `vanity.md`, `lightning.md`, `silent-payments.md`,
-  `messages.md` (Message, CheckMessage), `decode.md`, `qr-and-scan.md`
-  (the QR sheet, Transfer) and `files.md` (the stick in Files), all in
-  `docs/history/guide/screens/`.
-- `docs/history/guide/screens/learn.md`: the How tab, first among the tabs.
-- `docs/history/guide/screens/home.md` and `docs/history/guide/screens/prompts.md`:
-  the ⋮ menu's first row on the Pi's panel, where they show it.
-- The Starter: `docs/history/guide/screens/starter-make.md` (What to write,
-  Confirm, Writing, Done), `starter-learn-and-boot.md` (the new Learn
-  page and the Start page's BitLocker tick box) and `starter-menu.md`
-  (the ⋮'s first row on a compact window).
+Moved to `docs/history/CRYPTO-LEARN-LOG.md`.
 
 ## 9. Tests and checks of reach
 
@@ -1061,7 +1038,7 @@ its Learn page. The inventory finds 861 cryptographic functions under
 of the six `[[not_crypto]]` entries. Screens are `Screen` variants;
 an action with no screen is built and offered nowhere in the app.
 Learn pages are `pages::EN`'s fields, or Faraday's own by id
-(`docs/learn/faraday/<id>.md`); `secure-boot-keys` and
+(`docs/history/learn/faraday/<id>.md`); `secure-boot-keys` and
 `checking-written` are new, their text written, not yet in the apps'
 page lists.
 
@@ -1250,7 +1227,7 @@ checked, or named for review.
 | `docs/INTEROP.md` | What is read and written, the refusals | Named for review |
 | `docs/VAULT.md`, `docs/CODEX32.md`, `docs/TOTP.md`, `docs/QR.md`, `docs/OWN-RANDOMNESS.md`, `docs/WALLETS.md` §3.3, `docs/SPEND-FROM-BACKUP.md` | Their constructions and refusals | Named for review |
 | The crate READMEs under `core/` | What each computes and refuses | Named for review |
-| `docs/learn/` and `docs/learn/faraday/` | The prose of Nonces, Randomness, Backups in other forms, Silent payments, Vaults, GPG, Time, Where keys are kept | Named for review |
+| `docs/history/learn/` and `docs/history/learn/faraday/` | The prose of Nonces, Randomness, Backups in other forms, Silent payments, Vaults, GPG, Time, Where keys are kept | Named for review |
 | `docs/history/guide/screens/README.md` and its pages | What a screen's control computes | Named for review |
 | `faraday/faraday-strings/src/en.rs` | Strings that state a construction: Settings' Guided explainers, the Tools tiles' lines | Named for review |
 | `tools/reference/` | The pinned sources an area was written from | Named for review |
@@ -1321,8 +1298,8 @@ what:
 5. The screens are designed before they are built (§8): the icon, the
    bar's order, the Learn tab and the block's drawing at every size and
    the Pi, the Starter's sheet; the strings (§8.6); the two new Learn
-   pages (`docs/learn/faraday/secure-boot-keys.md`,
-   `docs/learn/faraday/checking-written.md`); DESIGN §4.1 and §4.12 and
+   pages (`docs/history/learn/faraday/secure-boot-keys.md`,
+   `docs/history/learn/faraday/checking-written.md`); DESIGN §4.1 and §4.12 and
    LAYOUT §8 point to §8; the guide's pages (§8.7). The code follows: the
    icon baked, the strings, the pages registered (`secure-boot-keys` in
    `OWN` and on VaultContents' Secure Boot kind, `checking-written` in
@@ -1411,7 +1388,7 @@ makes it a Reference.
 (owner, 2026-10-28; F159.) The vault, and how strong a passphrase is,
 need an account of their own: the file, the keys, opening and sealing,
 what the format promises and what it does not. No block holds that. This section adds it to the manifest as a
-**construction**, drawn in Learn under the vault's page and on
+**construction**, drawn on the Cryptography tab after its actions' blocks and on
 /cryptography beside the vault's actions.
 
 ### 18.1 Why a construction, and not a field of a block
@@ -1428,7 +1405,7 @@ not go into a block's field. Three forms were weighed:
 - **A field on the vault actions** (`action.account`): three actions
   would carry one text, or one would carry it for the others; a tenth
   field breaks §1's fixed nine and the block's drawing (§8.5).
-- **A Learn page of Faraday's own** (`docs/learn/faraday/`): its prose is
+- **A Learn page of Faraday's own** (`docs/history/learn/faraday/`): its prose is
   not in the manifest, so the website's /cryptography page would not
   render it from the pin, and no lint would hold its numbers to the code.
 - **A manifest table, `[[construction]]`** (chosen): one text, in the
@@ -1523,12 +1500,12 @@ reason = "The function's name (RFC 9106)."
   paragraphs and table rows (the type is
   `faraday/faraday-learn/src/construction.rs`), and the lookups
   `constructions_for_page(page)` and, by the page itself,
-  `faraday_learn::constructions_after`. A Learn page draws its own
-  sections, then each construction for it as more sections under the
-  construction's title (`faraday_ui::how::construction`), then its
-  blocks under **How Faraday does it** (§3.1). The drawing is a Learn
-  page's (the title as the page's, headings and paragraphs in the page's
-  type), not a block's list; a table is Material's data table: heads in
+  `faraday_learn::constructions_after`. The Cryptography tab draws the
+  blocks of the screen's actions, then each construction after the
+  blocks of the actions it belongs to, as sections under the
+  construction's title (`faraday_ui::how::construction`). The drawing is
+  the guide's (the title as the page's, headings and paragraphs in the
+  page's type), not a block's list; a table is Material's data table: heads in
   Title S, cells in Body M, a divider under each row, columns sharing the
   width where they do not fit. Each part's height is kept for the width
   and text size it was drawn at, as a block's is, so a part wholly
@@ -1686,7 +1663,7 @@ to a new seed afterwards.
 A second construction, `id = "passphrase-strength"`, on the same Learn
 page (`learn = "faraday:vaults"`, which Create a vault's Learn opens) and
 on /cryptography beside vault-create. It replaces the "Passphrase
-strength" section of `docs/learn/faraday/vaults.md`, whose facts it
+strength" section of `docs/history/learn/faraday/vaults.md`, whose facts it
 keeps. As it ships:
 
 **Words from dice**
@@ -1735,11 +1712,10 @@ The website links them; the device names them as text.
 
 ### 18.5 Where it is drawn
 
-- **In the app:** after the Learn page `faraday:vaults`' own sections,
-  which Vaults, Create a vault, Unlock, the vault's contents and the
-  backup flow open (`faraday/faraday-core/src/learn.rs`,
-  `Faraday::screen_pages`): "How the vault is built", then "Passphrase
-  strength", then the page's blocks.
+- **In the app:** on the Cryptography tab, after the blocks of the
+  vault's actions on the screens that offer them (Vaults, Create a vault,
+  Unlock, the vault's contents and the backup flow): "How the vault is
+  built", then "Passphrase strength".
 - **On /cryptography:** each construction at its own anchor
   (`/cryptography#vault`), before the first of its actions' blocks, in
   §12's group of its actions (Vaults), and in the index (§18.7).
@@ -1817,7 +1793,7 @@ a typed digit, a planned item no Open line names), gen.py's tables and
 placeholders, the two constructions in docs/crypto/actions.toml with
 §18.3's and §18.4's text, `CONSTRUCTIONS` in
 `faraday/faraday-learn/src/how.rs`, the Learn page's drawing of them, and
-`docs/learn/faraday/vaults.md`'s "Passphrase strength" section removed.
+`docs/history/learn/faraday/vaults.md`'s "Passphrase strength" section removed.
 They may come before or after the rename of `docs/history/VAULT-HARDENING.md`
 (§2), its sentences marked. Each later change of that document rewrites
 its planned paragraphs (§18.6).

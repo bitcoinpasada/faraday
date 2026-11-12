@@ -109,7 +109,6 @@ lint-repo:
     # makes (docs/THEMES.md §11.3).
     tools/lint-themes.sh
     tools/lint-keys-tests.sh
-    python3 tools/learn/sync.py check
     # The guide's bold names are the app's strings, its links resolve.
     python3 -B tools/lint-guide.py --self-test
     python3 -B tools/lint-guide.py
@@ -272,17 +271,6 @@ fuzz-corpus-export:
 [group('test')]
 fuzz-join out +parts:
     python3 -I -B tools/fuzz-join.py {{out}} {{parts}}
-
-# The Learn pages as Markdown: docs/learn/ is where the text is edited,
-# en.rs is what the device reads; `lint` fails while the two differ.
-[group('dev')]
-learn-export:
-    python3 tools/learn/sync.py export
-
-[group('dev')]
-learn-import:
-    python3 tools/learn/sync.py import
-    cargo fmt --all
 
 # The cryptographic actions' manifest (docs/CRYPTO-LEARN.md, docs/crypto/check.py).
 # `crypto-review ID` prints an action's entry, what changed in its code and

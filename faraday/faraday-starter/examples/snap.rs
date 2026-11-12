@@ -1128,20 +1128,12 @@ fn codex32_template_shots(s: &Snap) -> Result<(), String> {
     Ok(())
 }
 
-/// A guide page at its top, its first steps in circles
-/// (`docs/STARTER.md` §7): HP untouched, Dell with its first three
-/// ticked.
+/// A start guide page at its top, its first steps in circles
+/// (`docs/STARTER.md` §7).
 fn step_shots(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();
     h.press(StarterAction::StartGuide(StartGuide::Maker("maker-hp")));
-    s.shot(&mut h, "steps-hp")?;
-
-    let mut h = s.starter();
-    h.press(StarterAction::StartGuide(StartGuide::Maker("maker-dell")));
-    for n in 1..=3 {
-        h.held().press(faraday_core::Action::LearnStep(n));
-    }
-    s.shot(&mut h, "steps-dell-ticked")
+    s.shot(&mut h, "steps-hp")
 }
 
 fn main() -> ExitCode {

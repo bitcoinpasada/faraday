@@ -36,8 +36,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
         // their container's.
         tabs_edge: 0.0,
         tabs_top: T::LEARN_PANE_TABS_TOP,
-        end: 0.0,
-        one_tab_row: true,
         after_tabs: T::PAD,
         rule: T::GAP,
         inset: 0.0,
@@ -49,7 +47,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
         after: [T::GAP, T::GAP_SMALL, T::LEARN_PANE_PARA, T::GAP],
         clip_hits: true,
     };
-    let shown = learn_body(app, ui, &look, (x, y, w, view));
+    let (clip, max) = learn_body(app, ui, &look, (x, y, w, view));
     let head = (x + T::LEARN_PANE_PAD, y + T::LEARN_PANE_CLOSE_TOP, T::TOUCH);
     ui.text_mid_as(head, T::TITLE_L, Role::OnSurface, EN.learn_pane_title);
     let close_x = x + w - T::GAP - T::TOUCH;
@@ -60,12 +58,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
         app.learn_pinned(),
     );
     close_button(ui, close_x, y + T::LEARN_PANE_CLOSE_TOP);
-    if let Some((clip, max)) = shown {
-        // Its edges fade into the pane's own container.
-        let region =
-            Region::beside(Slot::LearnPane, clip, app.learn().scroll).on(Role::SurfaceContainer);
-        ui.region_reported(region, max);
-    }
+    // Its edges fade into the pane's own container.
+    let region =
+        Region::beside(Slot::LearnPane, clip, app.learn().scroll).on(Role::SurfaceContainer);
+    ui.region_reported(region, max);
 }
 
 /// The pane's pin in a `TOUCH` square at (x, y), the close button's

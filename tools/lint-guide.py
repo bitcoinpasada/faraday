@@ -34,7 +34,6 @@ import tempfile
 
 STRINGS = "faraday/faraday-strings/src/en.rs"
 ALLOW = "tools/lint-guide.allow"
-LEARN = "faraday/faraday-learn/src/pages/en.rs"
 SEPARATORS = re.compile(r" → | · ")
 LITERAL = re.compile(r'"((?:[^"\\]|\\.)*)"', re.S)
 
@@ -77,11 +76,6 @@ def load_strings(root):
             if len(parts) > 1 and any(p.strip() for p in parts):
                 pat = ".+".join(re.escape(p) for p in parts)
                 templates.append(re.compile("^" + pat + "$", re.S))
-    # Learn page titles are named too (`title: "..."` in faraday-learn).
-    learn = os.path.join(root, LEARN)
-    if os.path.exists(learn):
-        with open(learn, encoding="utf-8") as f:
-            exact.update(unescape(t) for t in re.findall(r'title: "((?:[^"\\]|\\.)*)"', f.read()))
     return exact, templates
 
 

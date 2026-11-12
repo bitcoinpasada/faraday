@@ -1,7 +1,6 @@
 //! The website's guides to starting a computer from the stick
 //! (`docs/STARTER.md` §7): every page under `docs/guide/start/`
-//! except `replace-faraday`, which stays `faraday-learn`'s (the Starter's
-//! Keep data shows it). Read by the
+//! (`docs/guide/start/`). Read by the
 //! Starter, and published by the website at
 //! `https://faradayoffline.app/start/<id>` (§7.4); the desktop app and
 //! the stick carry only the address of the guide for this computer
@@ -12,17 +11,20 @@ use std::sync::OnceLock;
 use faraday_learn::Page as LearnPage;
 
 /// Every guide here, each by its id. Edited as
-/// `docs/guide/start/<id>.md`, beside `replace-faraday`, which is
-/// `faraday-learn`'s. The id is the file's name and stays as it is: the
+/// `docs/guide/start/<id>.md`. The id is the file's name and stays as it is: the
 /// Starter's screens open a page by it, and the website publishes each
 /// guide at `https://faradayoffline.app/start/<id>` (`docs/STARTER.md`
 /// §7.4).
-const OWN: [(&str, &str); 18] = [
+const OWN: [(&str, &str); 19] = [
     (
         "windows",
         include_str!("../../../docs/guide/start/windows.md"),
     ),
     ("linux", include_str!("../../../docs/guide/start/linux.md")),
+    (
+        "replace-faraday",
+        include_str!("../../../docs/guide/start/replace-faraday.md"),
+    ),
     (
         "secure-boot-bitlocker",
         include_str!("../../../docs/guide/start/secure-boot-bitlocker.md"),
@@ -99,8 +101,7 @@ const OWN: [(&str, &str); 18] = [
 /// §7.2), by id, in the order they are read: Windows, Linux, what Secure
 /// Boot and BitLocker are (§3.1b), screens and devices that can record
 /// (§3.1a), when the stick does not start, replacing Faraday on a stick
-/// (`faraday-learn`'s, found through [`faraday_learn::page`]), and
-/// starting an Intel Mac (`docs/MAC.md` §3.1–§3.2).
+/// and starting an Intel Mac (`docs/MAC.md` §3.1–§3.2).
 pub const BOOT: [&str; 7] = [
     "windows",
     "linux",
@@ -122,17 +123,12 @@ fn own() -> &'static [LearnPage] {
 }
 
 /// The id of every guide here, in [`OWN`]'s order: for an app that
-/// lists them all, chained after
-/// `faraday_learn::ids()`.
+/// lists them all.
 pub fn ids() -> impl Iterator<Item = &'static str> {
     OWN.iter().map(|(id, _)| *id)
 }
 
-/// A guide with this id, or, for an id not among them (`replace-faraday`
-/// is `faraday-learn`'s), its page there; `None` for an id neither has.
+/// The guide with this id; `None` for an id not among them.
 pub fn page(id: &str) -> Option<&'static LearnPage> {
-    OWN.iter()
-        .position(|(i, _)| *i == id)
-        .map(|n| &own()[n])
-        .or_else(|| faraday_learn::page(id))
+    OWN.iter().position(|(i, _)| *i == id).map(|n| &own()[n])
 }

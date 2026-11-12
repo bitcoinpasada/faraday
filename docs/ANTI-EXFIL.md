@@ -6,7 +6,7 @@
 
 The problem it solves: a signer that chooses its own nonce can hide the
 private key in it, and the signature it makes that way verifies like an
-honest one (`docs/learn/13-nonces.md`). Two signatures are enough to
+honest one (`docs/history/learn/13-nonces.md`). Two signatures are enough to
 carry out a 12-word seed (Dark Skippy, 2024). Faraday's own nonces are
 deterministic (RFC 6979 with low R, BIP-340 with zero auxiliary
 randomness, F156), so a hidden key in a Faraday signature is caught by

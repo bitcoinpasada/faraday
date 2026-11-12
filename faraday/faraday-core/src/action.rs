@@ -663,8 +663,7 @@ pub enum Action {
     /// Learn's supporting pane's pin: kept open across screens while on,
     /// put away at the next screen while off (`docs/LAYOUT.md` §6).
     LearnPin,
-    /// Show page `i` of the Learn sheet: the held app's page, or in the
-    /// guide the page in place `i` of the contents.
+    /// Show the page in place `i` of the guide's contents.
     LearnPage(u8),
     /// The guide's **Cryptography** tab.
     LearnTabHow,
@@ -678,9 +677,6 @@ pub enum Action {
     /// **How Faraday does it** on the top app bar: Learn on the How tab
     /// (`docs/CRYPTO-LEARN.md` §8.2).
     How,
-    /// Tick step `n` of the guide page on show in the Learn sheet, or
-    /// clear its tick if it is ticked already.
-    LearnStep(u32),
     /// **What is a share?** beside the backup plan's In shares: the
     /// Learn sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).
     LearnShares,

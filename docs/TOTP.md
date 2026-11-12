@@ -175,7 +175,7 @@ link and the title **Set the time**, then from the top a card with
 
 "Goes back" is to the screen it was opened from: Settings, or the codes
 screen (§5), which then shows its codes. The ? button opens the Learn
-page **Time and TOTP codes** (`docs/learn/faraday/time.md`).
+page **Time and TOTP codes** (`docs/history/learn/faraday/time.md`).
 
 Compact layout: the same order, scrolled where it does not fit, as
 every small-panel page is.

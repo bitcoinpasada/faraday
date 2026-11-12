@@ -2462,7 +2462,6 @@ impl Faraday {
                 self.learn.show_page(a);
                 self.learn_bar_synced();
             }
-            Action::LearnStep(n) => self.learn.tick_step(n),
             Action::WordList(a) => self.wordlist.act(a, &mut self.sheet),
             Action::KeyGen(_)
             | Action::KStep(_)

@@ -80,3 +80,7 @@ The quiz asks each word's position, in a random order, with four words to pick f
 Make codex32 has its own cards: **Scheme**, **Identifier**, **Entropy**, **Characters**, **Worksheets**, **Strings** and **Strings made**.
 
 **Scheme** sets **Length**, **48 characters** or **74 characters**, and **Split**: **2 of 3**, **3 of 5**, **Other** with a **Threshold**, or **None, the secret alone**. **Identifier** is four characters that name the set on every string. **Entropy** is **Roll dice** or **Type the characters**. **Worksheets** has a tab for each sum, read against the paper. **Strings** has each string written down, then typed back; **Skip** goes on without. **Strings made** has **Check on another device** and **Lock in**, which loads the key.
+
+The codex32 booklet has worksheets to make the strings on paper: https://secretcodex32.com/. The codex32 user flow guide of SeedSigner's codex32 branch reads and checks strings and Codex32QR codes: https://github.com/FractalEncrypt/FractalEncrypt_seedsigner/blob/codex/codex32-error-correction/docs/codex32_qr/Codex32_User_Flow_Guide.md
+
+Copyright (c) 2022 Blockstream

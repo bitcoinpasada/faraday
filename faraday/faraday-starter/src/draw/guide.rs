@@ -158,3 +158,89 @@ pub(super) fn sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
     );
     ui.outside = outside;
 }
+
+/// The start guide sheet: the guide's own sheet ([`sheet`]) for a page
+/// of the website's guides to starting a computer from the stick: its
+/// title in Title L, its sections' headings in Title S, a step's number
+/// in a circle with its text beside it, and **Done** at its foot.
+pub(super) fn start_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
+    let margin = if starter.compact() {
+        MARGIN_COMPACT
+    } else {
+        MARGIN_WIDE
+    };
+    let sw = if starter.compact() {
+        w - 2.0 * margin
+    } else {
+        (w - 2.0 * margin).min(faraday_draw::tokens::DIALOG_MAX)
+    };
+    let Some(page) = starter.start_shown().and_then(StartGuide::page) else {
+        return;
+    };
+    let outside = ui.outside.replace(StarterAction::Cancel.host());
+    faraday_ui::sheet::scroll_sheet(
+        ui,
+        ((w - sw) / 2.0, sw),
+        h,
+        margin,
+        faraday_draw::tokens::PAD,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy += faraday_ui::sheet::sheet_head(
+                ui,
+                x,
+                cy,
+                iw,
+                Icon::Learn,
+                Role::OnSurface,
+                S.starter_row_guide,
+            );
+            cy += ui.wrap_as((x, cy, iw), TITLE_L, Role::OnSurface, page.title) + GAP;
+            for section in page.sections {
+                if !section.heading.is_empty() {
+                    cy += ui.wrap_as((x, cy, iw), TITLE_S, Role::OnSurface, section.heading)
+                        + GAP / 2.0;
+                }
+                // What follows a step, up to the next, is under it.
+                let mut under = false;
+                for para in section.paragraphs {
+                    if let Some((n, text)) = faraday_learn::step(para) {
+                        under = true;
+                        let line = ui.line_as(BODY_M);
+                        let circle_y = cy + (line - faraday_ui::parts::STEP_SIDE) / 2.0;
+                        faraday_ui::parts::step_circle::<faraday_core::Action>(
+                            ui, x, circle_y, n, false, None,
+                        );
+                        let at = (
+                            x + faraday_ui::parts::STEP_INDENT,
+                            cy,
+                            iw - faraday_ui::parts::STEP_INDENT,
+                        );
+                        let h = ui.wrap_as(at, BODY_M, Role::OnSurface, text);
+                        cy += h.max(faraday_ui::parts::STEP_SIDE + circle_y - cy) + GAP / 2.0;
+                        continue;
+                    }
+                    let (px, pw) = if under {
+                        (
+                            x + faraday_ui::parts::STEP_INDENT,
+                            iw - faraday_ui::parts::STEP_INDENT,
+                        )
+                    } else {
+                        (x, iw)
+                    };
+                    cy += ui.wrap_as((px, cy, pw), BODY_M, Role::OnSurface, para) + GAP / 2.0;
+                }
+                cy += GAP / 2.0;
+            }
+            faraday_ui::sheet::buttons(
+                ui,
+                x,
+                cy,
+                iw,
+                &[(S.starter_done, Style::Ghost, StarterAction::Cancel.host())],
+            );
+            cy - y
+        },
+    );
+    ui.outside = outside;
+}

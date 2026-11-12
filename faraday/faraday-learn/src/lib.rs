@@ -1,7 +1,6 @@
-//! The guide's pages, the Cryptography blocks and the maker table, and the
-//! Learn pages the blocks name ([`pages`], [`page`]), read when Faraday
-//! is built, so the desktop app, the stick and the Starter carry the
-//! same text. Nothing here names a screen of any app: each app maps its
+//! The guide's pages, the Cryptography blocks and the maker table, read
+//! when Faraday is built, so the desktop app, the stick and the Starter
+//! carry the same text. Nothing here names a screen of any app: each app maps its
 //! own screens to pages.
 //!
 //! The website's guides to starting a computer from the stick
@@ -10,63 +9,34 @@
 //! desktop app and the stick carry only the address of the guide for
 //! this computer ([`guide_address`]), not its text.
 
-use std::sync::OnceLock;
-
 use faraday_strings::EN;
-use pages::Page as LearnPage;
 
 pub mod block;
 pub mod construction;
 pub mod guide;
 pub mod how;
-pub mod pages;
 
 pub use block::Block;
 pub use guide::{
     GuideGroup, GuidePage, GuideSection, Span, guide_groups, guide_page, guide_places,
     guide_section,
 };
-pub use pages::{Page, Section};
 
-/// Faraday's own pages, each by its id, read from their files when
-/// Faraday is built, so the desktop app, the stick and the Starter carry
-/// the same text. The guides to starting a computer from the stick
-/// (`docs/guide/start/*.md`) are `faraday-start`' own table, not
-/// this one, except `replace-faraday`, which the Starter's Keep data
-/// shows ([`known`]).
-const OWN: [(&str, &str); 8] = [
-    // The clock and TOTP codes (`docs/TOTP.md`).
-    ("time", include_str!("../../../docs/learn/faraday/time.md")),
-    (
-        "replace-faraday",
-        include_str!("../../../docs/guide/start/replace-faraday.md"),
-    ),
-    // The demo's public seeds and the test networks (F20).
-    ("demo", include_str!("../../../docs/learn/faraday/demo.md")),
-    // GPG keys, their revocation certificate and paperkey (F32).
-    ("gpg", include_str!("../../../docs/learn/faraday/gpg.md")),
-    // Where keys are kept: memory, vaults, the idle lock (F58).
-    (
-        "keys-kept",
-        include_str!("../../../docs/learn/faraday/keys-kept.md"),
-    ),
-    // Vaults (`docs/VAULT.md`, F62).
-    (
-        "vaults",
-        include_str!("../../../docs/learn/faraday/vaults.md"),
-    ),
-    // The three Secure Boot keys (`docs/CRYPTO-LEARN.md` §12).
-    (
-        "secure-boot-keys",
-        include_str!("../../../docs/learn/faraday/secure-boot-keys.md"),
-    ),
-    // What the Starter checks of what it writes (`docs/CRYPTO-LEARN.md`
-    // §8.4).
-    (
-        "checking-written",
-        include_str!("../../../docs/learn/faraday/checking-written.md"),
-    ),
-];
+/// One page of a start guide: its title and the sections under it.
+pub struct Page {
+    /// Title of the page.
+    pub title: &'static str,
+    /// The sections, in the order the page shows them.
+    pub sections: &'static [Section],
+}
+
+/// One section of a [`Page`]: a heading and its paragraphs.
+pub struct Section {
+    /// The heading.
+    pub heading: &'static str,
+    /// The paragraphs under it.
+    pub paragraphs: &'static [&'static str],
+}
 
 /// A maker family's guide (`docs/STARTER.md` §7.6): its page's id, and the
 /// computers it is for, by what the firmware reports (§7.1).
@@ -213,32 +183,10 @@ pub fn guide_address(id: &str) -> String {
     format!("{GUIDES}{id}")
 }
 
-/// Faraday's own pages, read once, in [`OWN`]'s order.
-fn own() -> &'static [LearnPage] {
-    static PAGES: OnceLock<Vec<LearnPage>> = OnceLock::new();
-    PAGES.get_or_init(|| OWN.iter().map(|(_, md)| page_of(md)).collect())
-}
-
-/// The id of every one of Faraday's own pages, in [`OWN`]'s order: for
-/// an app that lists them all.
-pub fn ids() -> impl Iterator<Item = &'static str> {
-    OWN.iter().map(|(id, _)| *id)
-}
-
-/// Faraday's own page with this id, or `None` for an id it does not have.
-pub fn page(id: &str) -> Option<&'static LearnPage> {
-    OWN.iter().position(|(i, _)| *i == id).map(|n| &own()[n])
-}
-
-/// Faraday's own page with an id from [`OWN`].
-pub fn known(id: &str) -> &'static LearnPage {
-    page(id).expect("an id from OWN")
-}
-
 /// A page from its Markdown: `# ` the
 /// title, `## ` a section, paragraphs separated by blank lines. Public
 /// so `faraday-start` reads its own pages the same way.
-pub fn page_of(md: &'static str) -> LearnPage {
+pub fn page_of(md: &'static str) -> Page {
     let mut title = "";
     let mut sections: Vec<(&'static str, Vec<&'static str>)> = Vec::new();
     let mut para: Vec<&'static str> = Vec::new();
@@ -273,7 +221,7 @@ pub fn page_of(md: &'static str) -> LearnPage {
             paragraphs: Box::leak(paragraphs.into_boxed_slice()),
         })
         .collect();
-    LearnPage {
+    Page {
         title,
         sections: Box::leak(sections.into_boxed_slice()),
     }
@@ -291,43 +239,4 @@ pub fn step(para: &str) -> Option<(u32, &str)> {
     let text = para[digits..].strip_prefix(". ")?;
     let n = para[..digits].parse().ok()?;
     (n > 0 && !text.trim().is_empty()).then_some((n, text))
-}
-
-/// Every step number on `page`, in the order written.
-pub fn steps(page: &LearnPage) -> Vec<u32> {
-    page.sections
-        .iter()
-        .flat_map(|s| s.paragraphs.iter())
-        .filter_map(|p| step(p).map(|(n, _)| n))
-        .collect()
-}
-
-/// "Time and TOTP codes".
-pub fn time_page() -> &'static LearnPage {
-    known("time")
-}
-
-/// "GPG keys".
-pub fn gpg_page() -> &'static LearnPage {
-    known("gpg")
-}
-
-/// "Practice and its public seeds".
-pub fn demo_page() -> &'static LearnPage {
-    known("demo")
-}
-
-/// "Where keys are kept".
-pub fn keys_kept_page() -> &'static LearnPage {
-    known("keys-kept")
-}
-
-/// "Vaults".
-pub fn vaults_page() -> &'static LearnPage {
-    known("vaults")
-}
-
-/// "Secure Boot keys".
-pub fn secure_boot_keys_page() -> &'static LearnPage {
-    known("secure-boot-keys")
 }

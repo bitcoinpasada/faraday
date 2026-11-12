@@ -256,6 +256,8 @@ pub enum Sheet {
     /// The Guide: a page of the guide, scrolled to the section of the
     /// step on show (`docs/GUIDE-IN-APP.md` §6).
     Guide,
+    /// A start guide, the page [`Starter::start_shown`] names.
+    StartGuide,
 }
 
 /// Where a restart goes.
@@ -860,6 +862,8 @@ pub struct Starter {
     /// Where the Guide sheet's drawing found that section, units down
     /// the sheet's body: what opening it scrolls to.
     guide_top: std::cell::Cell<f32>,
+    /// The start guide the Start guide sheet shows.
+    start_shown: Option<StartGuide>,
     /// The press under way began on the held app's frame, so its moves
     /// and its release are the held app's too.
     held_touch: bool,
@@ -966,6 +970,7 @@ impl Starter {
             demo: None,
             guide_at: "starter-home",
             guide_top: std::cell::Cell::new(0.0),
+            start_shown: None,
             held_touch: false,
             window: None,
             held_size: None,
@@ -1678,16 +1683,10 @@ impl Starter {
         }
     }
 
-    /// Opens the held desktop app on Transfer, or on the Learn sheet with
-    /// `pages`, as a task page with the way back (§3.1d).
-    fn show_held(&mut self, pages: Option<Vec<&'static faraday_learn::Page>>) {
-        match pages {
-            Some(pages) => {
-                self.held.screen = Screen::Home;
-                self.held.learn_with(pages);
-            }
-            None => self.held.press(Action::Nav(Screen::Transfer)),
-        }
+    /// Opens the held desktop app on Transfer, as a task page with the
+    /// way back (§3.1d).
+    fn show_held(&mut self) {
+        self.held.press(Action::Nav(Screen::Transfer));
         self.showing = self.held_on_show();
         self.held_touch = false;
         self.pressed = None;
@@ -1821,7 +1820,10 @@ impl Starter {
             && !(action == StarterAction::StartGuide(StartGuide::BootEntry)
                 && self.sheet == Some(Sheet::Restart(RestartTo::Stick)))
             && !(action == StarterAction::Back
-                && matches!(self.sheet, Some(Sheet::How | Sheet::Guide)))
+                && matches!(
+                    self.sheet,
+                    Some(Sheet::How | Sheet::Guide | Sheet::StartGuide)
+                ))
         {
             return;
         }
@@ -2033,11 +2035,12 @@ impl Starter {
                 }
             }
             StarterAction::OpenDesktop => self.open_demo_asked(),
-            StarterAction::Transfer => self.show_held(None),
+            StarterAction::Transfer => self.show_held(),
             StarterAction::Learn => self.open(Page::Guide),
             StarterAction::StartGuide(id) => {
-                if let Some(page) = id.page() {
-                    self.show_held(Some(vec![page]));
+                if id.page().is_some() {
+                    self.start_shown = Some(id);
+                    self.sheet = Some(Sheet::StartGuide);
                 }
             }
             StarterAction::Guide => self.guide_press(),

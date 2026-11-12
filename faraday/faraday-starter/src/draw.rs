@@ -168,6 +168,7 @@ fn sheet_over(starter: &Starter, ui: &mut Ui, w: f32, h: f32, sheet: Sheet) {
         Sheet::LetThrough => let_through_sheet(starter, ui, w, h),
         Sheet::How => how::sheet(starter, ui, w, h),
         Sheet::Guide => guide::sheet(starter, ui, w, h),
+        Sheet::StartGuide => guide::start_sheet(starter, ui, w, h),
     }
     ui.in_sheet = false;
 }
@@ -1452,7 +1453,6 @@ fn learn_title(id: StartGuide) -> &'static str {
         StartGuide::StartLinux => S.starter_start_linux,
         StartGuide::NoStart => S.starter_start_no_start,
         StartGuide::KeepData => S.starter_start_keep_data,
-        StartGuide::CheckingWritten => S.starter_start_checking_written,
         StartGuide::Maker(_) => id.page().map_or("", |p| p.title),
         StartGuide::SecureBootBitLocker => S.starter_start_secure_boot_bitlocker,
         StartGuide::ScreensThatRecord => S.starter_start_screens,

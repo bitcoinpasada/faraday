@@ -439,7 +439,6 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `standards.no-way-past` | `core/faraday-psbt/src/**`, a hold added (`lines`) | R | a hold names its decision (planned check: holds listed) | F136 |
 | `standards.out-of-app` | `core/*/src/**` | R | unpublished or unreviewed work compiled out of the app | F234, `docs/STANDARDS.md` §0 |
 | `standards.scope` | a new kind of key or signature | R | a decision | F116 |
-| `standards.learn-in-step` | `docs/STANDARDS.md` | P | `docs/learn/**` (until F148 generates both) | `docs/STANDARDS.md` |
 | `crypto.crosscheck-stamp` | the stamp's files, before a release | H | `lint-crosscheck`, `crypto-fingerprints` | F79, F197 |
 | `crypto.tested` | `core/*/src/**` | R | tested against published vectors or another implementation (planned: F148's inventory and re-stamp) | `CLAUDE.md`, F148 |
 | `crypto.action-covered` | `core/*/src/**`, `faraday/faraday-keys/src/**` | H, planned | F148's inventory | F148 |
@@ -463,7 +462,6 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `design.maker-pages` | the Starter's maker pages | R | several families at once, no model, no maker's screenshot or name | F14, F18 |
 | `tokens.named` | `core/faraday-draw/src/**`, the screens | H | `lint-tokens` | `CLAUDE.md` |
 | `themes.generated` | `faraday/faraday-ui/src/pal/**`, `tools/themes/**` | H | `lint-themes` | F113 |
-| `learn.sync` | `docs/learn/**`, `faraday/faraday-learn/src/pages/en.rs` | H | `tools/learn/sync.py check` | `CLAUDE.md` |
 | `builds.list` | `faraday/image/boards/**`, `faraday/image/panels/**`, recipes | H | `lint-builds` | `faraday/builds.toml` |
 | `builds.docs` | `faraday/builds.toml` | P | `docs/IMAGES.md` or `docs/DEVELOPING.md` | `faraday/builds.toml` |
 | `fuzz.parser-target` | a parser of untrusted input added | R | its fuzz target in the same change (planned: F148's fuzz check) | `tools/README.md` |

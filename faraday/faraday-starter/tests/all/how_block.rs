@@ -134,13 +134,7 @@ fn the_sheet_is_put_away_by_the_back_arrow_and_by_the_button_again() {
 }
 
 #[test]
-fn the_guide_destination_lists_what_is_written_after_replacing_faraday() {
+fn the_guide_destination_lists_replacing_faraday() {
     let s = starter(1280, 800);
-    let pages = s.start_guides();
-    let at = |id: StartGuide| pages.iter().position(|p| *p == id);
-    assert!(at(StartGuide::KeepData).is_some());
-    assert_eq!(
-        at(StartGuide::CheckingWritten),
-        at(StartGuide::KeepData).map(|n| n + 1)
-    );
+    assert!(s.start_guides().contains(&StartGuide::KeepData));
 }

@@ -8258,7 +8258,6 @@ strings! {
     /// The foot of the Starter's sheet of blocks.
     starter_how_close: "Close",
     /// Guide title in the Starter's Learn list.
-    starter_start_checking_written: "Checking what is written",
     /// A block's field (`docs/CRYPTO-LEARN.md` §1).
     how_field_action: "Action",
     /// A block's field: the specifications the action follows (F179).

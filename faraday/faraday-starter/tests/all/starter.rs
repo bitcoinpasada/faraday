@@ -920,9 +920,9 @@ fn transfer_is_the_desktop_apps_and_back_returns_to_home() {
         "Starting a Windows computer from the stick"
     ));
     starter.press(StarterAction::StartGuide(StartGuide::StartWindows));
-    assert!(starter.showing_held());
+    assert_eq!(starter.sheet, Some(Sheet::StartGuide));
     starter.event(Event::Key(faraday_shell_api::Key::Escape));
-    assert!(!starter.showing_held());
+    assert_eq!(starter.sheet, None);
     assert_eq!(starter.page, Page::Guide);
 }
 

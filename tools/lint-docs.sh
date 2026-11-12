@@ -5,8 +5,8 @@
 # exists, and holds what is true now or still to be built, not how it was
 # built (CLAUDE.md, "Docs").
 #
-# 1. Header. Every tracked .md under docs/ (not docs/history/,
-#    docs/learn/ or docs/deps/) carries `**Kind:**` and `**Status:**`
+# 1. Header. Every tracked .md under docs/ (not docs/history/
+#    or docs/deps/) carries `**Kind:**` and `**Status:**`
 #    in its first 12 lines. The root README.md is the project's front
 #    page and has none. Each .md under docs/history/
 #    carries `**Kind:** History` there.
@@ -288,7 +288,7 @@ for f in files:
         continue
     covered = (
         f.startswith("docs/")
-        and not f.startswith(("docs/history/", "docs/learn/", "docs/deps/"))
+        and not f.startswith(("docs/history/", "docs/deps/"))
     )
     history = f.startswith("docs/history/")
     if not (covered or history):

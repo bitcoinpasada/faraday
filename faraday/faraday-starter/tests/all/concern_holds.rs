@@ -279,14 +279,14 @@ fn the_start_guide_links_are_drawn_only_where_they_are_for() {
     )]));
     assert_eq!(offers(&mut starter, link(sr)), exists(sr));
     // The boot entry: on Linux's Restart from the stick, and it opens
-    // from the sheet.
+    // in the start guide's own sheet.
     let be = StartGuide::BootEntry;
     let mut starter = linux();
     tap(&mut starter, StarterAction::Next);
     assert_eq!(offers(&mut starter, link(be)), exists(be));
     if exists(be) {
         tap(&mut starter, link(be));
-        assert!(starter.showing_held());
+        assert_eq!(starter.sheet, Some(Sheet::StartGuide));
     }
     let mut starter = linux();
     starter.starter_event(StarterEvent::Computer(computer(Os::Windows, false)));

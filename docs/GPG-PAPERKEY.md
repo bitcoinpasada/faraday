@@ -7,7 +7,7 @@ A person whose GPG key's vault is lost, but who wrote down its paperkey,
 brings the key back into a vault and signs with it again (F169). The
 paperkey is shown on the key's page, behind its eye (F32, F123); with its public
 key it rebuilds the key in GnuPG (`paperkey --pubring … --secrets …` and
-`gpg --import`, `docs/learn/faraday/gpg.md`, "The paperkey") and, as this
+`gpg --import`, `docs/history/learn/faraday/gpg.md`, "The paperkey") and, as this
 document says, in Faraday.
 
 The owner's ask (2026-10-15):
@@ -648,7 +648,7 @@ paperkey themselves (F32), and these tests are that.
 
 ## 9. Learn and Guide
 
-`docs/learn/faraday/gpg.md`, "Restoring a key from its paperkey", says
+`docs/history/learn/faraday/gpg.md`, "Restoring a key from its paperkey", says
 how a key comes back: why the public key is needed and how it comes in
 (a stick, a file from elsewhere or its code), the ways in, the seven
 lines and what is typed on each, a paperkey scanned as a code, what a

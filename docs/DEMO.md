@@ -258,7 +258,7 @@ any copy made away from the device is.
   Working screens carry no explanation (CLAUDE.md).
 - A press on it does nothing (DESIGN §4.11, Dimmed). It opens no Pull
   sheet and no vault lead.
-- **Where the reason is.** Practice's Learn page (`docs/learn/faraday/demo.md`)
+- **Where the reason is.** Practice's Learn page (`docs/history/learn/faraday/demo.md`)
   comes first in the info button's list on every screen of §4, as it
   does today on Home, Entry, New key and Settings. Its "New key in the
   demo" section stays and gains Generate with dice (§5.2); a new section,

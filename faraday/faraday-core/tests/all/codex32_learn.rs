@@ -1,6 +1,6 @@
 //! Codex32 in the guide and in the demo (`docs/CODEX32.md` §12, §13.3):
 //! Make codex32 shares and the codex32 form open the guide at their own
-//! sections, and Learn's page on other backups says where the guides are,
+//! sections and the Make codex32 section says where the guides are,
 //! and in the demo the codex32 form takes BIP 93's published set,
 //! refuses a set that is not public and checks any string.
 
@@ -115,6 +115,19 @@ fn make_codex32_shares_and_the_codex32_form_open_the_guide_at_the_codex32_sectio
     let mut app = testkit::started();
     codex32_form(&mut app);
     assert!(guide_key(&mut app).starts_with("entry"));
+
+    // The Make codex32 section says where the codex32 guide and the
+    // booklet are.
+    let section = faraday_learn::guide_section("keygen.codex32").expect("the section");
+    let text: String = section
+        .paragraphs
+        .iter()
+        .flatten()
+        .map(|span| span.text.as_str())
+        .collect();
+    assert!(text.contains("https://github.com/FractalEncrypt/FractalEncrypt_seedsigner/blob/codex/codex32-error-correction/docs/codex32_qr/Codex32_User_Flow_Guide.md"));
+    assert!(text.contains("https://secretcodex32.com/"));
+    assert!(text.contains("Copyright (c) 2022 Blockstream"));
 }
 
 #[test]

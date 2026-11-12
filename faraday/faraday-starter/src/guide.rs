@@ -1,7 +1,7 @@
 //! The Starter's pages of the guide (`docs/GUIDE-IN-APP.md` §6): which
 //! guide page and section each page opens, and the sheet that shows it.
 
-use crate::{Page, Sheet, Starter};
+use crate::{Page, Sheet, StartGuide, Starter};
 
 /// The Starter's guide pages, in the order of the guide's index: the
 /// Guide destination lists them so.
@@ -78,6 +78,11 @@ impl Starter {
     /// The section the open Guide sheet is at. A lookup.
     pub(crate) fn guide_at(&self) -> &'static str {
         self.guide_at
+    }
+
+    /// The start guide the open sheet shows. A lookup.
+    pub(crate) fn start_shown(&self) -> Option<StartGuide> {
+        self.start_shown
     }
 
     /// Opens the Guide sheet at `key`; it scrolls to that section when

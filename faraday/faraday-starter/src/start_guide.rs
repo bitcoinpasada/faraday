@@ -24,8 +24,6 @@ pub enum StartGuide {
     /// What else runs on this computer: the management processors
     /// under the operating system.
     WhatElseRuns,
-    /// What the Starter checks of what it writes (CRYPTO-LEARN §8.4).
-    CheckingWritten,
     /// About the boot entry (§3.1c).
     BootEntry,
     /// Starting an Intel Mac from the stick (`docs/MAC.md` §3.1–§3.2).
@@ -45,7 +43,6 @@ impl StartGuide {
             StartGuide::SecureBootBitLocker => "secure-boot-bitlocker",
             StartGuide::ScreensThatRecord => "screens-that-record",
             StartGuide::WhatElseRuns => "what-else-runs",
-            StartGuide::CheckingWritten => "checking-written",
             StartGuide::BootEntry => "boot-entry",
             StartGuide::MacIntel => "mac-intel",
         }
@@ -81,12 +78,11 @@ impl StartGuide {
         }
     }
 
-    pub(crate) const ALL: [StartGuide; 10] = [
+    pub(crate) const ALL: [StartGuide; 9] = [
         StartGuide::StartWindows,
         StartGuide::StartLinux,
         StartGuide::NoStart,
         StartGuide::KeepData,
-        StartGuide::CheckingWritten,
         StartGuide::SecureBootBitLocker,
         StartGuide::ScreensThatRecord,
         StartGuide::BootEntry,
