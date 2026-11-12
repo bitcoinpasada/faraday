@@ -846,7 +846,7 @@ impl std::fmt::Debug for Writing {
             .iter()
             .map(|(n, b)| (n.as_str(), b.len()))
             .collect();
-        f.debug_struct("Writing")
+        f.debug_struct("Writing") // not shown: the type's name in Debug output
             .field("id", &self.id)
             .field("slot", &self.slot)
             .field("target", &self.target)
