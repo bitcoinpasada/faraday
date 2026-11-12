@@ -1038,10 +1038,10 @@ impl Faraday {
                 loaded,
             );
         }
-        let shares: Vec<String> = items
+        let shares: Vec<zeroize::Zeroizing<String>> = items
             .iter()
             .filter(|i| i.kind == FileKind::Share)
-            .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+            .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
             .collect();
         if !shares.is_empty() {
             match crate::restore::merge(&shares) {
@@ -1215,9 +1215,9 @@ impl Faraday {
             let (name, text) = match w.files.first() {
                 Some(k) => (
                     self.wallet_name_in(items, *k),
-                    String::from_utf8_lossy(&items[*k].bytes).into_owned(),
+                    Zeroizing::new(String::from_utf8_lossy(&items[*k].bytes).into_owned()),
                 ),
-                None => (w.name.clone(), w.descriptor.clone()),
+                None => (w.name.clone(), Zeroizing::new(w.descriptor.clone())),
             };
             let source = w
                 .files
@@ -1253,12 +1253,12 @@ impl Faraday {
             let (name, text, source) = match w.files.first() {
                 Some(k) => (
                     self.inbox_wallet_name(*k),
-                    String::from_utf8_lossy(&self.inbox[*k].bytes).into_owned(),
+                    Zeroizing::new(String::from_utf8_lossy(&self.inbox[*k].bytes).into_owned()),
                     self.inbox[*k].name.clone(),
                 ),
                 None => (
                     w.name.clone(),
-                    w.descriptor.clone(),
+                    Zeroizing::new(w.descriptor.clone()),
                     EN.inbox_its_shares.to_string(),
                 ),
             };

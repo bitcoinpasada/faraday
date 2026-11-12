@@ -17,6 +17,7 @@ use crate::{
 };
 use faraday_bip::keys::Network;
 use std::collections::BTreeSet;
+use zeroize::Zeroizing;
 
 /// What one multisig config file, whole or a share, says.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,10 +125,10 @@ fn same_derivation(a: &str, b: &str) -> bool {
 /// derivations, are refused: sheets of two wallets are never combined.
 /// So is a share that names one fingerprint twice: it does not say which
 /// is the wallet's.
-pub fn merge(texts: &[String]) -> Result<Merged, String> {
+pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, String> {
     let mut all: Option<ConfigParts> = None;
     for t in texts {
-        let p = parts(t).ok_or(EN.restore_not_a_multisig)?;
+        let p = parts(t.as_ref()).ok_or(EN.restore_not_a_multisig)?;
         for (i, k) in p.keys.iter().enumerate() {
             if p.keys[..i].iter().any(|x| x.0.eq_ignore_ascii_case(&k.0)) {
                 return Err(fill(EN.restore_key_twice, &[&k.0.to_lowercase()]));
@@ -220,7 +221,7 @@ pub fn readable(c: &Compute, whole: &str) -> bool {
 /// `wallet` as Restore rebuilds it ([`merge`], then
 /// [`crate::wallet::read_wallet`]): the rebuilt wallet's first receive
 /// and change addresses on `network` are the wallet's own.
-pub fn rebuilds(c: &Compute, network: Network, wallet: &Wallet, texts: &[String]) -> bool {
+pub fn rebuilds(c: &Compute, network: Network, wallet: &Wallet, texts: &[impl AsRef<str>]) -> bool {
     let Some(whole) = merge(texts).ok().and_then(|m| m.whole) else {
         return false;
     };
@@ -249,8 +250,8 @@ pub(crate) fn sheets_rebuild(
 ) -> bool {
     let Some(sheets) = plan
         .iter()
-        .map(|row| split_share(wallet, row))
-        .collect::<Option<Vec<String>>>()
+        .map(|row| split_share(wallet, row).map(Zeroizing::new))
+        .collect::<Option<Vec<Zeroizing<String>>>>()
     else {
         return false;
     };
@@ -268,7 +269,7 @@ pub(crate) fn sheets_rebuild(
         vec![(0..m).collect(), (n - m..n).collect()]
     };
     sets.iter().all(|set| {
-        let some: Vec<String> = set.iter().map(|&j| sheets[j].clone()).collect();
+        let some: Vec<Zeroizing<String>> = set.iter().map(|&j| sheets[j].clone()).collect();
         rebuilds(c, network, wallet, &some)
     })
 }
@@ -789,11 +790,11 @@ impl Faraday {
                 self.screen = Screen::Restore;
             }
             Action::RestoreShares => {
-                let texts: Vec<String> = self
+                let texts: Vec<Zeroizing<String>> = self
                     .inbox
                     .iter()
                     .filter(|i| i.kind == FileKind::Share)
-                    .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+                    .map(|i| Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
                     .collect();
                 match restore::merge(&texts).map(|m| m.whole) {
                     Ok(Some(whole)) => {
@@ -1106,15 +1107,15 @@ impl Faraday {
     /// share's wallet read as a description no record keeps
     /// ([`Kept::read_kept`]): a vault's share only where its wallet holds
     /// every key of the shares chosen, all of one wallet.
-    pub fn restore_share_texts(&self, c: &Compute) -> Vec<String> {
+    pub fn restore_share_texts(&self, c: &Compute) -> Vec<Zeroizing<String>> {
         let Some(r) = self.restore.state.as_ref() else {
             return Vec::new();
         };
-        let mut texts: Vec<String> = self
+        let mut texts: Vec<Zeroizing<String>> = self
             .inbox
             .iter()
             .filter(|i| r.shares.contains(&i.name))
-            .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+            .map(|i| Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
             .collect();
         // The shares kept in every open vault (`docs/BACKUP-FLOW.md`
         // §15.6), each where it agrees with the shares in hand.
@@ -1125,7 +1126,7 @@ impl Faraday {
         // own; a share whose wallet does not read is not taken.
         let hand: Vec<(String, String)> = texts
             .iter()
-            .filter_map(|t| parts(t))
+            .filter_map(|t| parts(t.as_str()))
             .flat_map(|p| p.keys.into_iter().map(|(f, _, x)| (f, x)))
             .collect();
         let mut wallet: Option<String> = None;
@@ -1168,7 +1169,7 @@ impl Faraday {
                     continue;
                 }
                 let mut trial = texts.clone();
-                trial.push(t.to_string());
+                trial.push(Zeroizing::new(t.to_string()));
                 if restore::merge(&trial).is_ok() {
                     texts = trial;
                     wallet = of;

@@ -122,6 +122,7 @@ fn a_sheet_in_hand_and_a_vaults_sheet_of_another_wallet_load_no_wallet() {
     app.press(Action::RShare(i));
     let c = testkit::compute();
     let texts = app.restore_share_texts(&c);
+    let texts: Vec<String> = texts.iter().map(|t| t.to_string()).collect();
     assert_eq!(texts, vec![a[0].clone()], "the vault's sheet taken");
     app.press(Action::RRebuild);
     assert!(app.restore().and_then(|r| r.wallet).is_none(), "a wallet");
@@ -169,7 +170,12 @@ fn a_vaults_sheet_of_a_wallet_without_the_keys_in_hand_is_not_taken() {
         .expect("in the Inbox");
     app.press(Action::RShare(i));
     let c = testkit::compute();
-    assert_eq!(app.restore_share_texts(&c), vec![a[2].clone()]);
+    let texts: Vec<String> = app
+        .restore_share_texts(&c)
+        .iter()
+        .map(|t| t.to_string())
+        .collect();
+    assert_eq!(texts, vec![a[2].clone()]);
     app.press(Action::RRebuild);
     assert!(app.restore().and_then(|r| r.wallet).is_none(), "a wallet");
     assert_eq!(app.session.wallets.len(), wallets);

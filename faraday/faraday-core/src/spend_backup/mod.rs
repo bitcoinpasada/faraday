@@ -1173,7 +1173,7 @@ impl Faraday {
     }
 
     /// The split sheets that came in on What do you have?, as text.
-    fn spend_backup_sheets(&self) -> Vec<String> {
+    fn spend_backup_sheets(&self) -> Vec<zeroize::Zeroizing<String>> {
         self.inbox
             .iter()
             .filter(|i| i.kind == FileKind::Share)
@@ -1183,7 +1183,7 @@ impl Faraday {
                     .came
                     .contains(&Came::File(i.name.clone()))
             })
-            .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+            .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
             .collect()
     }
 
@@ -1586,11 +1586,11 @@ impl Faraday {
     /// missing only when asked (`loud`).
     fn spend_backup_rebuild(&mut self, loud: bool) {
         let c = self.compute();
-        let texts: Vec<String> = self
+        let texts: Vec<zeroize::Zeroizing<String>> = self
             .inbox
             .iter()
             .filter(|i| i.kind == FileKind::Share)
-            .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+            .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
             .collect();
         if texts.is_empty() {
             return;

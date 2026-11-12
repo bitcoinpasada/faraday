@@ -337,11 +337,11 @@ fn add_to_vault(app: &View, ui: &mut Ui, x: f32, y: f32, k: usize, style: Style)
 /// Restore the wallet, on a share of a split backup: the shares in the
 /// Inbox put together, or how many keys are still missing.
 fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
-    let texts: Vec<String> = app
+    let texts: Vec<zeroize::Zeroizing<String>> = app
         .inbox
         .iter()
         .filter(|i| i.kind == FileKind::Share)
-        .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+        .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
         .collect();
     match crate::restore::merge(&texts) {
         Ok(m) if m.whole.is_some() => {
@@ -1813,11 +1813,11 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
             ));
         }
         FileKind::Share => {
-            let texts: Vec<String> = app
+            let texts: Vec<zeroize::Zeroizing<String>> = app
                 .inbox
                 .iter()
                 .filter(|i| i.kind == FileKind::Share)
-                .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
+                .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
                 .collect();
             match crate::restore::merge(&texts) {
                 Ok(m) if m.whole.is_some() => out.push((
