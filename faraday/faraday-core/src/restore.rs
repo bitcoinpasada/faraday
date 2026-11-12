@@ -110,7 +110,7 @@ pub struct Merged {
     /// The fingerprints in hand.
     pub have: Vec<String>,
     /// The whole config, once every key is in hand.
-    pub whole: Option<String>,
+    pub whole: Option<zeroize::Zeroizing<String>>,
 }
 
 /// A derivation as written, `'` and `h` alike, for comparing two.
@@ -166,20 +166,31 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, String> {
     // config has no Taproot format.
     if a.format.eq_ignore_ascii_case("P2TR") {
         let whole = (a.keys.len() >= a.n).then(|| {
-            let keys: Vec<String> = a
+            use std::fmt::Write as _;
+            // Sized up front: the text is written once, never regrown.
+            let size = a
                 .keys
                 .iter()
-                .map(|(fp, d, x)| {
-                    let path = d.trim_start_matches("m/").replace('\'', "h");
-                    let fp = fp.to_lowercase();
-                    if path.is_empty() || path == "m" {
-                        format!("[{fp}]{x}/<0;1>/*")
-                    } else {
-                        format!("[{fp}/{path}]{x}/<0;1>/*")
-                    }
-                })
-                .collect();
-            format!("tr({NUMS},sortedmulti_a({},{}))", a.m, keys.join(","))
+                .map(|(fp, d, x)| fp.len() + d.len() + x.len() + 24)
+                .sum::<usize>()
+                + NUMS.len()
+                + 48;
+            let mut out = zeroize::Zeroizing::new(String::with_capacity(size));
+            let _ = write!(out, "tr({NUMS},sortedmulti_a({},", a.m);
+            for (i, (fp, d, x)) in a.keys.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                let path = d.trim_start_matches("m/").replace('\'', "h");
+                let fp = fp.to_lowercase();
+                if path.is_empty() || path == "m" {
+                    let _ = write!(out, "[{fp}]{x}/<0;1>/*");
+                } else {
+                    let _ = write!(out, "[{fp}/{path}]{x}/<0;1>/*");
+                }
+            }
+            out.push_str("))");
+            out
         });
         return Ok(Merged {
             m: a.m,
@@ -189,16 +200,24 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, String> {
         });
     }
     let whole = (a.keys.len() >= a.n).then(|| {
-        let mut out = String::from("# Multisig config rebuilt by Faraday from its shares\n");
+        use std::fmt::Write as _;
+        // Sized up front: the text is written once, never regrown.
+        let size = a
+            .keys
+            .iter()
+            .map(|(fp, d, x)| fp.len() + d.len() + x.len() + 24)
+            .sum::<usize>()
+            + a.name.as_ref().map_or(0, |n| n.len() + 8)
+            + a.format.len()
+            + 128;
+        let mut out = zeroize::Zeroizing::new(String::with_capacity(size));
+        out.push_str("# Multisig config rebuilt by Faraday from its shares\n");
         if let Some(n) = &a.name {
-            out.push_str(&format!("Name: {n}\n"));
+            let _ = writeln!(out, "Name: {n}");
         }
-        out.push_str(&format!(
-            "Policy: {} of {}\nFormat: {}\n",
-            a.m, a.n, a.format
-        ));
+        let _ = write!(out, "Policy: {} of {}\nFormat: {}\n", a.m, a.n, a.format);
         for (fp, d, x) in &a.keys {
-            out.push_str(&format!("\nDerivation: {d}\n{fp}: {x}\n"));
+            let _ = write!(out, "\nDerivation: {d}\n{fp}: {x}\n");
         }
         out
     });
