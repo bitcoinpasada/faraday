@@ -19,6 +19,10 @@ crate = "aqrv/aqrv-cli"
 reason = "The Argon QR Vault's command line (F245), a test tool outside the app: draws the envelope's salt from the system with getrandom and computes nothing else; its seal and open are aqrv's."
 
 [[uncovered]]
+crate = "aqrv/aqrv-app"
+reason = "The Argon QR Vault's screens (F245), a test tool outside the app: takes the compute token and wraps an opened seed's bytes for faraday-bip's master key fingerprint, cross-checked in the bip32 area; its seal and open are aqrv's."
+
+[[uncovered]]
 crate = "aqrv/aqrv-desktop"
 reason = "The Argon QR Vault's desktop window (F245), a test tool outside the app: draws the envelope's salt from the system with getrandom and computes nothing else; its seal and open are aqrv's."
 
