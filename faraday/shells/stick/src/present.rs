@@ -206,6 +206,7 @@ impl Presenter {
         if moved.is_some() {
             took(&mut timings, Bucket::MoveKept);
         }
+        let mut done = false;
         let changed = match (kept, moved, known.changed) {
             (false, ..) => {
                 self.last.clear();
@@ -216,11 +217,30 @@ impl Presenter {
                 vec![(0, frame_rows - 1)]
             }
             (true, None, Some(c)) => bands_of(c, frame_rows),
-            (true, ..) => fb::changed_rows(&self.last, rgba, src_row),
+            (true, _, _) if turn != Turn::R0 => fb::changed_rows(&self.last, rgba, src_row),
+            (true, ..) => {
+                done = true;
+                // Compared, converted and kept in one pass over bands of
+                // rows on threads: nothing is found before it converts.
+                let threads = std::thread::available_parallelism().map_or(1, usize::from);
+                let found = fb::compare_convert_keep(
+                    rgba,
+                    g.depth,
+                    usize::from(fw),
+                    &mut self.last,
+                    &mut self.converted,
+                    threads,
+                );
+                self.rows_converted += found.iter().map(|&(a, b)| (b + 1 - a) as u64).sum::<u64>();
+                took(&mut timings, Bucket::ConvertKeep);
+                found
+            }
         };
-        took(&mut timings, Bucket::Compare);
-        self.convert_bands(rgba, &changed, g, turn);
-        took(&mut timings, Bucket::ConvertKeep);
+        if !done {
+            took(&mut timings, Bucket::Compare);
+            self.convert_bands(rgba, &changed, g, turn);
+            took(&mut timings, Bucket::ConvertKeep);
+        }
 
         // The panel's own rows of the moved view all changed, though
         // none of them was converted again: each shows another row.
@@ -1365,6 +1385,31 @@ mod tests {
                     .collect()
             })
             .collect();
+        time_present(w, h, &frames);
+    }
+
+    /// Measures what `present` costs at 3200 x 1800 for an ordinary
+    /// frame in which a few rows changed (a caret and the clock), the
+    /// compare, convert and keep in bands across threads. Run as
+    /// `convert_step_cost_...` above is.
+    #[test]
+    #[ignore = "a measurement, printed"]
+    fn ordinary_frame_cost_at_3200_by_1800_with_a_few_rows_changed() {
+        let (w, h) = (3200u16, 1800u16);
+        let a: Vec<u8> = (0..usize::from(w) * usize::from(h) * 4)
+            .map(|i| (i as u8).wrapping_mul(7))
+            .collect();
+        let mut b = a.clone();
+        for y in [40usize, 41, 42, 900, 901] {
+            let at = y * usize::from(w) * 4;
+            b[at..at + 400].iter_mut().for_each(|v| *v ^= 0x55);
+        }
+        time_present(w, h, &[a, b]);
+    }
+
+    /// Presents `frames` in turn, twenty times over, and prints what each
+    /// call took at both PC depths.
+    fn time_present(w: u16, h: u16, frames: &[Vec<u8>]) {
         for depth in [Depth::Bgra8888, Depth::Bgr888] {
             let g = Geometry {
                 width: w,

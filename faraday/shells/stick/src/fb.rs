@@ -366,6 +366,87 @@ pub fn convert_keep(
     });
 }
 
+/// The most threads an ordinary frame is compared and converted on, as
+/// a fade's blend is (`faraday-core`'s `fade/bands.rs`).
+const MOST_COMPARE_THREADS: usize = 4;
+
+/// The fewest pixels of a band of the compare, convert and keep pass: a
+/// pass over fewer is not worth a thread.
+const COMPARE_PIXELS: usize = 256 * 1024;
+
+/// Costs a pass over every pixel of an unturned frame, `fw` pixels
+/// across: compares each row with `last`, the kept frame, and converts
+/// and keeps only the rows that differ, into `out` (the whole panel's
+/// rows) and `last`. The rows go in disjoint chunks over threads, the
+/// first on the calling thread, as many as `threads` allows and the
+/// pixels are worth. Returns the changed rows as bands, as
+/// [`changed_rows`] does, and the panel's bytes are what
+/// [`changed_rows`] then [`convert_keep`] leave.
+pub fn compare_convert_keep(
+    rgba: &[u8],
+    depth: Depth,
+    fw: usize,
+    last: &mut [u8],
+    out: &mut [u8],
+    threads: usize,
+) -> Vec<(usize, usize)> {
+    let (src_row, out_row) = (fw * 4, fw * depth.bytes_per_pixel());
+    if src_row == 0 || out_row == 0 || rgba.len() != last.len() {
+        return Vec::new();
+    }
+    let rows = rgba.len() / src_row;
+    let n = threads
+        .min(MOST_COMPARE_THREADS)
+        .min(rows * fw / COMPARE_PIXELS)
+        .clamp(1, rows.max(1));
+    let per = rows.div_ceil(n);
+    let work = |first: usize, s: &[u8], k: &mut [u8], d: &mut [u8]| {
+        let mut bands: Vec<(usize, usize)> = Vec::new();
+        let rows = s
+            .chunks_exact(src_row)
+            .zip(k.chunks_exact_mut(src_row))
+            .zip(d.chunks_exact_mut(out_row));
+        for (y, ((s, k), d)) in rows.enumerate() {
+            if *s == *k {
+                continue;
+            }
+            k.copy_from_slice(s);
+            convert_into(s, depth, d);
+            let y = first + y;
+            match bands.last_mut() {
+                Some((_, end)) if *end + 1 == y => *end = y,
+                _ => bands.push((y, y)),
+            }
+        }
+        bands
+    };
+    let mut parts: Vec<_> = rgba
+        .chunks(per * src_row)
+        .zip(last.chunks_mut(per * src_row))
+        .zip(out.chunks_mut(per * out_row))
+        .enumerate()
+        .map(|(i, ((s, k), d))| (i * per, s, k, d))
+        .collect();
+    if parts.is_empty() {
+        return Vec::new();
+    }
+    let mine = parts.remove(0);
+    let found: Vec<Vec<(usize, usize)>> = if parts.is_empty() {
+        vec![work(mine.0, mine.1, mine.2, mine.3)]
+    } else {
+        std::thread::scope(|scope| {
+            let handles: Vec<_> = parts
+                .into_iter()
+                .map(|(f, s, k, d)| scope.spawn(move || work(f, s, k, d)))
+                .collect();
+            let mut all = vec![work(mine.0, mine.1, mine.2, mine.3)];
+            all.extend(handles.into_iter().map(|h| h.join().expect("a band")));
+            all
+        })
+    };
+    merge_bands(found.concat())
+}
+
 /// The side of the square tiles a turned frame is converted in: a
 /// column's writes stay in cache across a tile.
 const TILE: usize = 16;
@@ -491,6 +572,44 @@ pub fn merge_bands(mut bands: Vec<(usize, usize)>) -> Vec<(usize, usize)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_frame_with_a_few_changed_rows_is_compared_converted_and_kept_as_the_serial_pass_does() {
+        let (w, h) = (1024usize, 1024usize);
+        let before: Vec<u8> = (0..w * h * 4).map(|i| (i % 251) as u8).collect();
+        let mut after = before.clone();
+        for y in [0usize, 1, 255, 256, 700, 1023] {
+            after[y * w * 4 + 8] ^= 0x55;
+        }
+        for depth in [Depth::Bgra8888, Depth::Bgr888, Depth::Rgb565] {
+            let out_len = w * h * depth.bytes_per_pixel();
+            let mut want_out = vec![0u8; out_len];
+            convert_into(&before, depth, &mut want_out);
+            let mut want_last = before.clone();
+            let bands = changed_rows(&want_last, &after, w * 4);
+            for &(a, b) in &bands {
+                convert_keep(&after, (a, b), depth, w, &mut want_last, &mut want_out);
+            }
+            for threads in [1, 4] {
+                let (mut last, mut out) = (before.clone(), vec![0u8; out_len]);
+                convert_into(&before, depth, &mut out);
+                let got = compare_convert_keep(&after, depth, w, &mut last, &mut out, threads);
+                assert_eq!(got, bands, "{depth:?} on {threads} threads");
+                assert_eq!(out, want_out, "{depth:?} on {threads} threads");
+                assert_eq!(last, want_last, "{depth:?} on {threads} threads");
+            }
+        }
+    }
+
+    #[test]
+    fn a_frame_with_no_change_converts_nothing() {
+        let (w, h) = (1024usize, 1024usize);
+        let frame: Vec<u8> = (0..w * h * 4).map(|i| (i % 251) as u8).collect();
+        let (mut last, mut out) = (frame.clone(), vec![7u8; w * h * 4]);
+        let got = compare_convert_keep(&frame, Depth::Bgra8888, w, &mut last, &mut out, 4);
+        assert!(got.is_empty());
+        assert!(out.iter().all(|&b| b == 7));
+    }
 
     #[test]
     fn a_turned_frame_lands_where_the_map_puts_each_pixel() {

@@ -706,6 +706,16 @@ converted copy: the frame goes to `Panel::write_rows`, which compares it
 with the panel's own kept copy, so one comparison and one copy stand, and
 the time counts in the `write` bucket.
 
+An ordinary frame at no turn (no change bands from the core) is compared,
+converted and kept in one pass, `fb::compare_convert_keep`, which costs a
+pass over every pixel of the frame: the rows go in disjoint chunks over
+up to four threads, one per 256 K pixels as the fade's blend is split
+(`faraday-core`'s `fade/bands.rs`), each chunk converting only the rows
+that differ. Its cost at 3200 x 1800 is timed by the ignored
+`present::tests::ordinary_frame_cost_at_3200_by_1800_with_a_few_rows_changed`
+and, with every row changed, `convert_step_cost_at_3200_by_1800_with_every_row_changed`.
+A frame turned a quarter or a half, or given the core's bands, is as it was.
+
 The measurements: moved to `docs/history/SPEED-LOG.md`.
 
 **Tested.** `Panel` writes to a `Sink` (the framebuffer `File`, or a
