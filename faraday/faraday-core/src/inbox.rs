@@ -704,11 +704,9 @@ impl Faraday {
         }
         let kept = self.free_inbox_name(name);
         // The seed asked for is this copy's, not the file held before.
-        if self.visit.load_after.remove(name) {
-            self.visit.load_after.insert(kept.clone());
-        }
+        self.visit.load_after_renamed(name, &kept);
         let told = fill(EN.storage_event_kept_as, &[name, &kept]);
-        self.visit.log.push((told, true));
+        self.visit.log_push((told, true));
         kept
     }
 
@@ -725,7 +723,7 @@ impl Faraday {
         let kept = self.free_inbox_name(&item.name);
         if kept != item.name {
             let told = fill(EN.storage_event_kept_as, &[&item.name, &kept]);
-            self.visit.log.push((told, true));
+            self.visit.log_push((told, true));
         }
         self.inbox.push(Item::new(c, &kept, item.bytes.clone()));
     }
@@ -1584,7 +1582,7 @@ impl Faraday {
                     && crate::vault::more::outbox_may_remove(self, &self.outbox[i].name)
                 {
                     let gone = self.outbox.remove(i);
-                    self.visit.files_menu_mut().renamed.remove(&gone.name);
+                    self.visit.renamed_remove(&gone.name);
                     crate::vault::more::outbox_removed(self, &gone.name);
                     self.save_boxes();
                 }

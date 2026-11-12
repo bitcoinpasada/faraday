@@ -1241,24 +1241,24 @@ impl Faraday {
                 });
                 self.inbox.push(item);
                 if let Some(line) = line {
-                    self.visit.log.push((line, true));
+                    self.visit.log_push((line, true));
                 }
-                self.visit.inn.remove(&name);
-                self.visit.reading.remove(&name);
+                self.visit.inn_unchoose(&name);
+                self.visit.reading_done(&name);
                 self.save_boxes();
             }
             StorageEvent::ReadFailed { name, reason, .. } => {
-                self.visit.reading.remove(&name);
-                self.visit.log.push((format!("{name}: {reason}"), false));
+                self.visit.reading_done(&name);
+                self.visit.log_push((format!("{name}: {reason}"), false));
             }
             StorageEvent::Written { name, wrote_as, .. } => {
                 self.visit_written(&name, &wrote_as);
                 // A rename is carried by one write, to the stick written:
                 // another stick keeps its own name for the same vault.
-                self.visit.files_menu_mut().renamed.remove(&name);
+                self.visit.renamed_remove(&name);
                 // A copy from the Inbox stays there, for the next stick.
-                if self.visit.writing_inbox.remove(&name) {
-                    self.visit.from_inbox.remove(&name);
+                if self.visit.writing_inbox_done(&name) {
+                    self.visit.inbox_unpick(&name);
                 } else {
                     // Written, it leaves For the stick for the receipt. A
                     // vault stays in Files as the stick now holds it, to
@@ -1267,7 +1267,7 @@ impl Faraday {
                         let item = self.outbox.remove(k);
                         self.inbox_vault_written(&c, &item);
                     }
-                    self.visit.out.remove(&name);
+                    self.visit.out_unchoose(&name);
                 }
                 let line = if wrote_as == name {
                     fill(EN.storage_event_wrote_read, &[&name.to_string()])
@@ -1277,7 +1277,7 @@ impl Faraday {
                         &[&name.to_string(), &wrote_as.to_string()],
                     )
                 };
-                self.visit.log.push((line, true));
+                self.visit.log_push((line, true));
                 self.save_boxes();
             }
             StorageEvent::WriteFailed { name, reason, .. } => {
@@ -1356,8 +1356,8 @@ impl Faraday {
                 bytes,
                 payloads,
             } => {
-                self.visit.inn.remove(&name);
-                self.visit.reading.remove(&name);
+                self.visit.inn_unchoose(&name);
+                self.visit.reading_done(&name);
                 // The picture itself comes in as it is, beside what its
                 // codes hold, to be written to another stick; it takes
                 // the exposure of what they hold.
@@ -1578,14 +1578,14 @@ impl Faraday {
         }
         let ids_now: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
         if self.visit.stick >= self.stick.len() {
-            self.visit.stick = 0;
+            self.visit.set_stick(0);
         }
         let names: BTreeSet<String> = self
             .stick
             .get(self.visit.stick)
             .map(|s| s.files.iter().map(|(n, _)| n.clone()).collect())
             .unwrap_or_default();
-        self.visit.inn.retain(|n| names.contains(n));
+        self.visit.inn_retain(|n| names.contains(n));
         self.flow_sticks_changed();
         self.name_taken_pulled();
         if self.stick.is_empty() {
@@ -1627,7 +1627,7 @@ impl Faraday {
             // reminders the sheet listed are seen.
             if self.sheet == Some(Sheet::Pull) {
                 self.sheet = None;
-                if let Some(a) = self.visit.pull_mut().take() {
+                if let Some(a) = self.visit.take_pull() {
                     if self.devices.held.is_empty() {
                         self.devices.understand();
                     }
@@ -1672,8 +1672,8 @@ impl Faraday {
         if self.flow_stick_arrived() {
             return;
         }
-        self.visit.log.clear();
-        self.visit.settings = None;
+        self.visit.log_clear();
+        self.visit.set_settings(None);
         // The first look at the boot stick this power-on: what it holds is
         // copied into memory for the import (`boot_import`).
         let first_look = self.stick.settings().is_none();
@@ -1682,8 +1682,14 @@ impl Faraday {
             self.stick.set_not_now(false);
             self.lock_sheet_replaces_devices();
         } else {
-            self.visit.out = self.visit_default_out(&c);
-            self.visit.inn = self.visit_default_in();
+            {
+                let v = self.visit_default_out(&c);
+                self.visit.set_out(v);
+            }
+            {
+                let v = self.visit_default_in();
+                self.visit.set_inn(v);
+            }
             if self.sheet == Some(Sheet::Import) {
                 self.sheet = None;
             }
@@ -1696,10 +1702,10 @@ impl Faraday {
                     self.screen,
                     Screen::Create | Screen::Restore | Screen::SpendBackup
                 ) {
-                    *self.visit.after_visit_mut() = Some(self.screen);
+                    self.visit.set_after_visit(self.screen);
                 }
                 self.screen = Screen::Files;
-                self.visit.tab_stick = true;
+                self.visit.set_tab_stick(true);
             }
             if first_look
                 && self.import.state().is_none()
@@ -1908,39 +1914,19 @@ impl Faraday {
     fn receipt_add(&mut self, name: &str, failure: Option<String>) {
         let c = self.compute();
         let now = self.clock_now();
-        let Some((label, stick, sent, started)) = self.visit.writing.as_mut() else {
+        let Some((name, hash, opened)) = self.visit.writing_answered(name, now) else {
             return;
         };
-        let Some(k) = sent.iter().position(|(n, _)| n == name) else {
-            return;
-        };
-        let (name, hash) = sent.remove(k);
-        let stick = stick.clone();
-        let opened = (!*started).then(|| {
-            *started = true;
-            Receipt {
-                label: label.clone(),
-                stick: stick.clone(),
-                time: now,
-                files: Vec::new(),
-                by_flow: false,
-            }
-        });
-        if sent.is_empty() {
-            self.visit.writing = None;
-        }
         if let Some(r) = opened {
-            *self.visit.receipt_mut() = Some(r);
+            self.visit.set_receipt(Some(r));
         }
         let hash = self.hash_to_keep(&c, hash);
-        if let Some(r) = self.visit.receipt_mut().as_mut() {
-            r.files.push(ReceiptFile {
-                name,
-                hash,
-                verified: failure.is_none(),
-                failure,
-            });
-        }
+        self.visit.receipt_push(ReceiptFile {
+            name,
+            hash,
+            verified: failure.is_none(),
+            failure,
+        });
     }
 
     /// The vault, by place in [`Faraday::vault_files`], a stick visit
@@ -1973,12 +1959,8 @@ impl Faraday {
     /// stick labelled `label`.
     pub(crate) fn vault_read_from(&mut self, name: &str, bytes: &[u8], label: &str) {
         let c = self.compute();
-        self.visit.vault_from_mut().retain(|(n, ..)| n != name);
-        self.visit.vault_from_mut().push((
-            name.to_string(),
-            sha256_of(&c, bytes),
-            label.to_string(),
-        ));
+        self.visit
+            .vault_from_set(name, sha256_of(&c, bytes), label.to_string());
     }
 
     /// Costs a read of the free memory (on macOS a process, `vm_stat`;
@@ -2297,7 +2279,7 @@ impl Faraday {
             Action::Cancel => {
                 self.read_again_cancel();
                 self.vault_rekey_cancel();
-                *self.visit.pull_mut() = None;
+                self.visit.clear_pull();
                 self.vaults.clear_stick_save();
                 self.devices.cancel();
                 // A seed read and not loaded is wiped.
@@ -2305,7 +2287,7 @@ impl Faraday {
                 self.kef_job_drop();
                 self.seed_read.clear();
                 self.stick.clear_delete_ask();
-                self.visit.taken.clear();
+                self.visit.taken_clear();
                 self.next_mode.clear();
                 self.secret_cancel();
                 self.wordlist.clear();
@@ -2368,7 +2350,7 @@ impl Faraday {
                 && !self.stick.is_empty()
                 && self.pull_what(action).is_some();
             if pull && self.devices.held.is_empty() {
-                *self.visit.pull_mut() = Some(action);
+                self.visit.set_pull(action);
                 self.sheet = Some(Sheet::Pull);
                 return;
             }
@@ -2378,7 +2360,7 @@ impl Faraday {
         // Keys load only with no stick attached: what loads one waits,
         // under a sheet, for the stick to be pulled.
         if self.selftest_passed() && !self.stick.is_empty() && self.pull_what(action).is_some() {
-            *self.visit.pull_mut() = Some(action);
+            self.visit.set_pull(action);
             self.sheet = Some(Sheet::Pull);
             return;
         }
@@ -2555,14 +2537,20 @@ impl Faraday {
                 self.osk_leave();
                 self.list_offset = 0.0;
                 self.wallets.set_card_offset(0.0);
-                *self.visit.files_out_offset_mut() = 0.0;
+                self.visit.set_files_out_offset(0.0);
                 self.glance.set_open(false);
                 self.wallets.set_renaming(None);
                 if s == Screen::Files {
-                    self.visit.out = self.visit_default_out(&c);
-                    self.visit.inn = self.visit_default_in();
-                    self.visit.from_inbox.clear();
-                    self.visit.out_offset = 0.0;
+                    {
+                        let v = self.visit_default_out(&c);
+                        self.visit.set_out(v);
+                    }
+                    {
+                        let v = self.visit_default_in();
+                        self.visit.set_inn(v);
+                    }
+                    self.visit.inbox_pick_none();
+                    self.visit.set_out_offset(0.0);
                 }
             }
             a @ (Action::Entry(..)
@@ -3227,7 +3215,7 @@ impl Faraday {
         if self.visit.load_after.is_empty() {
             return 0;
         }
-        let names = std::mem::take(&mut self.visit.load_after);
+        let names = self.visit.take_load_after();
         let indices: Vec<usize> = self
             .inbox
             .iter()
@@ -3296,11 +3284,11 @@ impl Faraday {
             return;
         };
         let name = item.name.clone();
-        if self.visit.from_inbox.remove(&name) {
+        if self.visit.inbox_unpick(&name) {
             return;
         }
         let Some(ack) = item.copy_ack() else {
-            self.visit.from_inbox.insert(name);
+            self.visit.inbox_pick(name);
             return;
         };
         let holds = item.holds();
@@ -3346,7 +3334,7 @@ impl Faraday {
     fn visit_copy(&mut self) {
         if let Some(stick) = self.stick.get(self.visit.stick) {
             let id = stick.id.clone();
-            self.visit.log.clear();
+            self.visit.log_clear();
             self.vaults.read_free();
             for name in self.visit.inn.clone() {
                 // A vault file this computer has not the memory for now is
@@ -3357,12 +3345,12 @@ impl Faraday {
                     .find(|(n, _)| *n == name)
                     .map_or(0, |(_, size)| *size);
                 if stick.unread_why(&self.vaults, &name, size).is_some() {
-                    self.visit.inn.remove(&name);
+                    self.visit.inn_unchoose(&name);
                     continue;
                 }
                 // A picture's QR codes are read, not its bytes.
                 let stick = id.clone();
-                self.visit.reading.insert(name.clone());
+                self.visit.reading_add(name.clone());
                 self.out
                     .storage_out
                     .push_back(if name.to_ascii_lowercase().ends_with(".png") {
@@ -3593,10 +3581,10 @@ impl Faraday {
     /// that the pointer went to ([`Faraday::slot`]).
     fn scroll_slot(&mut self) -> Option<&mut f32> {
         match self.slot() {
-            ui::Slot::VisitOut => Some(&mut self.visit.out_offset),
+            ui::Slot::VisitOut => Some(self.visit.out_offset_of()),
             ui::Slot::Card => Some(self.wallets.card_offset_mut()),
             ui::Slot::VaultItem => Some(self.vaults.item_offset_mut()),
-            ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
+            ui::Slot::FilesOut => Some(self.visit.files_out_offset_of()),
             s @ (ui::Slot::ListPane | ui::Slot::Sidebar) => self.scroll.offset_of(s),
             ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
             ui::Slot::GuidePane => Some(self.guide.scroll_mut()),
@@ -3900,7 +3888,7 @@ impl Faraday {
         let at = ((y - top) as f32 - thumb as f32 / 2.0).clamp(0.0, room);
         let offset = at / room * max;
         match column {
-            Column::Outbox => self.visit.out_offset = offset,
+            Column::Outbox => self.visit.set_out_offset(offset),
             Column::Stick => self.list_offset = offset,
         }
     }

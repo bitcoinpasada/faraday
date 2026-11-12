@@ -345,14 +345,13 @@ impl Faraday {
             p,
             FilePress::Rename(_) | FilePress::Details(_) | FilePress::StickDelete(_)
         ) {
-            self.file_menu_leave();
+            self.visit.file_menu_leave();
         }
         match p {
             FilePress::Menu(row) => self.file_menu_open(row, false),
             FilePress::Close => {
-                self.file_menu_leave();
-                self.visit.files_menu_mut().renaming = None;
-                self.visit.files_menu_mut().details = None;
+                self.visit.file_menu_leave();
+                self.visit.file_popups_close();
                 if matches!(
                     self.sheet,
                     Some(Sheet::FileMenu | Sheet::Rename | Sheet::Details)
@@ -365,7 +364,7 @@ impl Faraday {
                     return;
                 };
                 let (stem, ext) = split(&from);
-                self.visit.files_menu_mut().renaming = Some(Renaming {
+                self.visit.set_renaming(Renaming {
                     what: Named::File(row),
                     from,
                     stem,
@@ -391,7 +390,7 @@ impl Faraday {
                 } else {
                     String::new()
                 };
-                self.visit.files_menu_mut().renaming = Some(Renaming {
+                self.visit.set_renaming(Renaming {
                     what: Named::Stick(s.id.clone()),
                     stem: from.clone(),
                     from,
@@ -421,7 +420,7 @@ impl Faraday {
                         (None, id)
                     }
                 };
-                self.visit.files_menu_mut().details = Some(Details {
+                self.visit.set_details(Details {
                     name,
                     kind,
                     size,
@@ -448,18 +447,8 @@ impl Faraday {
         if self.sheet != Some(Sheet::FileMenu) || matches!(a, Action::File(_) | Action::Cancel) {
             return;
         }
-        self.file_menu_leave();
+        self.visit.file_menu_leave();
         self.sheet = None;
-    }
-
-    /// The open menu gone: the keyboard stays on its ⋮ when the keyboard
-    /// opened or moved in it.
-    fn file_menu_leave(&mut self) {
-        if let Some(m) = self.visit.files_menu_mut().menu.take()
-            && m.keys
-        {
-            self.visit.files_menu_mut().focus = Some(m.row);
-        }
     }
 
     /// Row `row`'s ⋮ menu opened: its choices worked out here, on the
@@ -474,17 +463,17 @@ impl Faraday {
         }
         let me = Action::File(FilePress::Menu(row));
         let anchor = self.pointer.rect_of(me).map(|r| (r.x, r.y, r.w, r.h));
-        self.visit.files_menu_mut().menu = Some(FileMenu {
-            row,
-            title,
-            lines,
-            at: 0,
-            keys,
-            anchor,
-        });
-        if keys {
-            self.visit.files_menu_mut().focus = Some(row);
-        }
+        self.visit.file_menu_opened(
+            FileMenu {
+                row,
+                title,
+                lines,
+                at: 0,
+                keys,
+                anchor,
+            },
+            keys.then_some(row),
+        );
         self.sheet = Some(Sheet::FileMenu);
         self.scroll.reset_sheet();
     }
@@ -541,7 +530,7 @@ impl Faraday {
         let Ok(to) = self.rename_checked() else {
             return;
         };
-        let Some(r) = self.visit.files_menu_mut().renaming.take() else {
+        let Some(r) = self.visit.take_renaming() else {
             return;
         };
         self.sheet = None;
@@ -556,12 +545,9 @@ impl Faraday {
                     return;
                 };
                 item.name = to.clone();
-                self.visit.files_menu_mut().renamed.remove(&r.from);
-                self.visit.files_menu_mut().renamed.insert(to.clone());
+                self.visit.renamed_to(&r.from, &to);
                 // Chosen on a visit under its old name, it stays chosen.
-                if self.visit.out.remove(&r.from) {
-                    self.visit.out.insert(to.clone());
-                }
+                self.visit.out_renamed(&r.from, &to);
                 // A vault open here seals again under the file's new name.
                 if let Some(id) = (item.kind == FileKind::Vault)
                     .then(|| self.vaults.vault_id_of_file(item.sha))
@@ -604,9 +590,7 @@ impl Faraday {
         let noun = self.medium.noun();
         let line = match refused {
             None => {
-                if self.visit.inn.remove(from) {
-                    self.visit.inn.insert(to.to_string());
-                }
+                self.visit.inn_renamed(from, to);
                 if let Some((label, serial)) = self
                     .stick
                     .iter()
@@ -621,7 +605,7 @@ impl Faraday {
             Some(Unrenamed::SameVault) => (fill(EN.rename_same_vault, &[to, noun]), false),
             Some(Unrenamed::Failed(why)) => (fill(EN.rename_not_done, &[from, &why]), false),
         };
-        self.visit.log.push(line);
+        self.visit.log_push(line);
     }
 
     /// A stick named, or its name taken away, or refused
@@ -637,17 +621,12 @@ impl Faraday {
             None => (fill(EN.stick_name_done, &[noun, &label]), true),
             Some(why) => (fill(EN.stick_name_not_done, &[&why]), false),
         };
-        self.visit.log.push(line);
+        self.visit.log_push(line);
     }
 
     /// A file on a stick hashed, for the Details sheet that asked.
     pub(crate) fn file_hashed(&mut self, stick: &str, name: &str, sha: Result<[u8; 32], String>) {
-        if let Some(d) = self.visit.files_menu_mut().details.as_mut()
-            && d.stick.as_deref() == Some(stick)
-            && d.name == name
-        {
-            d.sha = Some(sha);
-        }
+        self.visit.details_hashed(stick, name, sha);
     }
 
     /// A key for a file's ⋮ (`docs/BACKUP-FLOW.md` §17.20 item 5, as the
@@ -660,16 +639,13 @@ impl Faraday {
     pub(crate) fn file_key(&mut self, key: KeyIn) -> bool {
         match self.sheet {
             Some(Sheet::FileMenu) => {
-                let Some(m) = self.visit.files_menu_mut().menu.as_ref() else {
+                let Some(m) = self.visit.files_menu().menu.as_ref() else {
                     return false;
                 };
                 let n = m.lines.len();
                 match menu::step(key, m.at, n) {
                     Some(Step::To(at)) => {
-                        if let Some(m) = self.visit.files_menu_mut().menu.as_mut() {
-                            m.at = at;
-                            m.keys = true;
-                        }
+                        self.visit.file_menu_moved(at);
                     }
                     Some(Step::Choose) => {
                         if let Some(&(_, a)) = m.lines.get(m.at) {
@@ -678,9 +654,7 @@ impl Faraday {
                     }
                     // Back to its ⋮, the keyboard on it.
                     Some(Step::Close) => {
-                        if let Some(m) = self.visit.files_menu_mut().menu.as_mut() {
-                            m.keys = true;
-                        }
+                        self.visit.file_menu_keys_on();
                         self.file_act(FilePress::Close);
                     }
                     None => {}
@@ -690,14 +664,12 @@ impl Faraday {
             // The register sheet's name, beside Rename's (`register.rs`).
             Some(Sheet::Register) => self.register_key(key),
             Some(Sheet::Rename) => {
-                let Some(r) = self.visit.files_menu_mut().renaming.as_mut() else {
+                if self.visit.files_menu().renaming.is_none() {
                     return false;
-                };
+                }
                 match key {
-                    KeyIn::Char(c) if !c.is_control() => r.stem.push(c),
-                    KeyIn::Backspace => {
-                        r.stem.pop();
-                    }
+                    KeyIn::Char(c) if !c.is_control() => self.visit.rename_type(c),
+                    KeyIn::Backspace => self.visit.rename_backspace(),
                     KeyIn::Enter => self.file_rename_go(),
                     KeyIn::Escape => self.file_act(FilePress::Close),
                     _ => {}
@@ -719,15 +691,11 @@ impl Faraday {
                         dots.push(*r);
                     }
                 }
-                let focus = self
-                    .visit
-                    .files_menu_mut()
-                    .focus
-                    .filter(|r| dots.contains(r));
+                let focus = self.visit.files_menu().focus.filter(|r| dots.contains(r));
                 match key {
                     KeyIn::Tab | KeyIn::BackTab if !dots.is_empty() => {
-                        self.visit.files_menu_mut().focus =
-                            menu::tab(&dots, focus, key == KeyIn::BackTab);
+                        self.visit
+                            .set_file_focus(menu::tab(&dots, focus, key == KeyIn::BackTab));
                         true
                     }
                     KeyIn::Enter | KeyIn::Char(' ') if focus.is_some() => {

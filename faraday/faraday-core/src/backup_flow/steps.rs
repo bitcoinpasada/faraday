@@ -1739,7 +1739,7 @@ impl Faraday {
             Step::Vaults | Step::Make => {
                 // Unlock and Make wait for the stick to be pulled.
                 if self.sheet.is_none() {
-                    *self.visit.pull_mut() = None;
+                    self.visit.clear_pull();
                     self.sheet = Some(Sheet::Pull);
                 }
             }
@@ -3127,7 +3127,7 @@ impl Faraday {
             time,
             files: done.clone(),
         });
-        *self.visit.receipt_mut() = Some(crate::Receipt {
+        self.visit.set_receipt(Some(crate::Receipt {
             by_flow: true,
             label,
             stick: id,
@@ -3141,7 +3141,7 @@ impl Faraday {
                     failure: None,
                 })
                 .collect(),
-        });
+        }));
         self.save_boxes();
         // The medium the machine started from is never pulled.
         let f = &mut self.flows.all[i];

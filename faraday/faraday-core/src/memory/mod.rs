@@ -571,12 +571,14 @@ impl Faraday {
                         }
                     }
                 }
-                "receipt" => *self.visit.receipt_mut() = crate::Receipt::decode(bytes),
+                "receipt" => self.visit.set_receipt(crate::Receipt::decode(bytes)),
                 "renamed" => {
-                    self.visit.files_menu_mut().renamed = String::from_utf8_lossy(bytes)
-                        .lines()
-                        .map(str::to_string)
-                        .collect();
+                    self.visit.set_renamed(
+                        String::from_utf8_lossy(bytes)
+                            .lines()
+                            .map(str::to_string)
+                            .collect(),
+                    );
                 }
                 "backup-flow" => self.flow_restore(bytes),
                 "backup-gate" => gate = Some(bytes),
@@ -591,11 +593,8 @@ impl Faraday {
                         };
                         let hash = faraday_crypto::hex::decode_exact::<32>(hex);
                         if let Some(hash) = hash {
-                            self.visit.vault_from_mut().push((
-                                name.to_string(),
-                                hash,
-                                label.to_string(),
-                            ));
+                            self.visit
+                                .vault_from_add(name.to_string(), hash, label.to_string());
                         }
                     }
                 }

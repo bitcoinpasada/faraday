@@ -653,7 +653,7 @@ impl Faraday {
         // From the Inbox to another stick: ticked on the visit, written
         // from the Inbox when the person presses Write.
         if out.to_visit {
-            self.visit.from_inbox.insert(out.name.clone());
+            self.visit.inbox_pick(out.name.clone());
             return;
         }
         let name = out.name.clone();

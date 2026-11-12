@@ -773,7 +773,7 @@ fn lock_finish(app: &mut Faraday) {
     // its bytes are wiped as it drops.
     app.import.clear_all();
     // A vault write waiting for its name's answer is not kept.
-    app.visit.name_taken_mut().clear();
+    app.visit.name_taken_clear();
     // Nothing secret copied in outlives the process that read it
     // (`docs/VAULT.md`): the next process is clean, and these would be
     // in its memory and in `/run/faraday`. They are still on the stick

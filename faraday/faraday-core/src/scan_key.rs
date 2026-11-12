@@ -1762,7 +1762,7 @@ impl Faraday {
     /// Cancel while the read card's Scan again waits under the Pull or
     /// device sheet goes back to nothing: the code it showed is wiped.
     pub(crate) fn read_again_cancel(&mut self) {
-        if matches!(self.visit.pull_mut(), Some(Action::ReadAgain))
+        if matches!(self.visit.pull(), Some(Action::ReadAgain))
             || matches!(self.devices.after, Some(Action::ReadAgain))
         {
             self.camera.close();

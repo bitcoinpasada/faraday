@@ -278,18 +278,17 @@ impl Faraday {
         match failed {
             None => {
                 self.flow_copy_gone(stick, Some(name));
-                self.visit.inn.retain(|n| n != name);
+                self.visit.inn_retain(|n| n != name);
                 let said = if zeroed {
                     EN.stick_wipe_deleted
                 } else {
                     EN.stick_wipe_name_only
                 };
-                self.visit.log.push((fill(said, &[name]), true));
+                self.visit.log_push((fill(said, &[name]), true));
             }
             Some(why) => self
                 .visit
-                .log
-                .push((fill(EN.stick_wipe_not_deleted, &[name, why]), false)),
+                .log_push((fill(EN.stick_wipe_not_deleted, &[name, why]), false)),
         }
     }
 
@@ -433,7 +432,7 @@ impl Faraday {
         if self.sheet == Some(Sheet::Zeroing) {
             self.sheet = None;
         }
-        self.visit.log.push((line, ok));
+        self.visit.log_push((line, ok));
         self.out.redraw();
         self.out
             .commands

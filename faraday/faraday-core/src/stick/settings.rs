@@ -501,14 +501,14 @@ impl Faraday {
                 if boot(self, &stick) {
                     self.settings_on_stick_known();
                 }
-                self.visit.settings = None;
-                self.visit.log.push((
+                self.visit.set_settings(None);
+                self.visit.log_push((
                     fill(EN.stick_settings_wrote, &[&wrote_as.to_string()]),
                     true,
                 ));
             }
             StorageEvent::WriteFailed { name, reason, .. } if is_file(&name) => {
-                self.visit.log.push((
+                self.visit.log_push((
                     fill(
                         EN.stick_settings_not_written,
                         &[&name.to_string(), &reason.to_string()],

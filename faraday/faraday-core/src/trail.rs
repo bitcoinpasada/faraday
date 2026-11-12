@@ -563,7 +563,7 @@ impl Faraday {
         self.glance.set_focus(None);
         self.list_offset = s.list_offset;
         self.wallets.set_card_offset(s.card_offset);
-        *self.visit.files_out_offset_mut() = s.files_out_offset;
+        self.visit.set_files_out_offset(s.files_out_offset);
         self.vaults.set_item_offset(s.vault_item_offset);
         self.flows.set_board_list_offset(s.board_list_offset);
         match s.screen {

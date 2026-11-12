@@ -334,8 +334,7 @@ impl Faraday {
     pub(crate) fn qr_read(&mut self, name: &str, payloads: Vec<Vec<u8>>) {
         if payloads.is_empty() {
             self.visit
-                .log
-                .push((fill(EN.qr_read_copied_no_qr, &[name]), true));
+                .log_push((fill(EN.qr_read_copied_no_qr, &[name]), true));
         } else {
             // An image is read as the camera reads: a UR in parts can
             // span several images.
@@ -385,12 +384,12 @@ impl Faraday {
                 }
                 self.save_boxes();
                 self.toast(&fill(EN.qr_read_is_in_files, &[&got.to_string()]));
-                self.visit.log.push((
+                self.visit.log_push((
                     fill(EN.qr_read_read_into_files, &[name, &got.to_string()]),
                     true,
                 ));
             } else if seeds == 0 && asked == 0 {
-                self.visit.log.push((
+                self.visit.log_push((
                     format!("{name}: {}", note.unwrap_or_else(|| EN.qr_read_read.into())),
                     true,
                 ));
@@ -441,10 +440,10 @@ impl Faraday {
         let got = self.free_inbox_name(&format!("{stem}-words.txt"));
         self.inbox
             .push(Item::new(&c, &got, words.as_bytes().to_vec()));
-        self.visit.load_after.insert(got.clone());
+        self.visit.load_after_add(got.clone());
         self.save_boxes();
         *seeds += 1;
-        self.visit.log.push((
+        self.visit.log_push((
             fill(
                 EN.qr_read_a_seedqr_copied,
                 &[name, &got, self.medium.noun()],
@@ -501,10 +500,10 @@ impl Faraday {
                         self.inbox_load_named();
                     }
                 } else {
-                    self.visit.load_after.insert(got.clone());
+                    self.visit.load_after_add(got.clone());
                 }
                 self.save_boxes();
-                self.visit.log.push((
+                self.visit.log_push((
                     fill(
                         EN.qr_read_a_seedqr_copied,
                         &[&ask.name, &got, self.medium.noun()],
@@ -525,8 +524,7 @@ impl Faraday {
             }
             (None, None) => self
                 .visit
-                .log
-                .push((fill(EN.qr_read_text_left, &[&ask.name]), true)),
+                .log_push((fill(EN.qr_read_text_left, &[&ask.name]), true)),
             (None, Some(_)) => {}
         }
         if self.import.text.queue.is_empty() {
@@ -575,7 +573,7 @@ impl Faraday {
     /// The import's sheet over Home, or waiting under the new-device
     /// sheet.
     fn import_sheet_up(&mut self) {
-        *self.visit.after_visit_mut() = None;
+        self.visit.clear_after_visit();
         self.screen = Screen::Home;
         // A device waiting to be believed is asked about first
         // (`docs/SECURITY-MODEL.md`); this sheet comes up after.

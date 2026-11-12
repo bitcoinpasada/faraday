@@ -136,9 +136,9 @@ pub(crate) fn beside_plan(
 
 /// The stick visit's area: its state, the pull waiting, the receipt of
 /// what was written, the vault files written from, Files' row menus and
-/// the For the stick list's scroll. The visit state is reached through
-/// [`std::ops::Deref`] and [`std::ops::DerefMut`]; the rest through the
-/// accessors below.
+/// the For the stick list's scroll. The visit state is read through
+/// [`std::ops::Deref`]; it is written, like the rest, through the named
+/// methods below.
 #[derive(Default)]
 pub(crate) struct VisitArea {
     visit: crate::VisitState,
@@ -172,21 +172,25 @@ impl std::ops::Deref for VisitArea {
     }
 }
 
-impl std::ops::DerefMut for VisitArea {
-    fn deref_mut(&mut self) -> &mut crate::VisitState {
-        &mut self.visit
-    }
-}
-
 impl VisitArea {
     /// What was pressed with a stick attached, done when it is pulled.
     pub(crate) fn pull(&self) -> &Option<Action> {
         &self.pull
     }
 
-    /// The press waiting for the pull, to change it.
-    pub(crate) fn pull_mut(&mut self) -> &mut Option<Action> {
-        &mut self.pull
+    /// Waits `action` for the pull.
+    pub(crate) fn set_pull(&mut self, action: Action) {
+        self.pull = Some(action);
+    }
+
+    /// Nothing waits for the pull.
+    pub(crate) fn clear_pull(&mut self) {
+        self.pull = None;
+    }
+
+    /// What waited for the pull, taken to be done.
+    pub(crate) fn take_pull(&mut self) -> Option<Action> {
+        self.pull.take()
     }
 
     /// The flow a stick visit returns to when the stick is pulled.
@@ -194,9 +198,19 @@ impl VisitArea {
         &self.after_visit
     }
 
-    /// The flow the visit returns to, to change it.
-    pub(crate) fn after_visit_mut(&mut self) -> &mut Option<Screen> {
-        &mut self.after_visit
+    /// The visit returns to `screen` when the stick is pulled.
+    pub(crate) fn set_after_visit(&mut self, screen: Screen) {
+        self.after_visit = Some(screen);
+    }
+
+    /// The visit returns to no flow.
+    pub(crate) fn clear_after_visit(&mut self) {
+        self.after_visit = None;
+    }
+
+    /// The flow the visit returns to, taken to go back to it.
+    pub(crate) fn take_after_visit(&mut self) -> Option<Screen> {
+        self.after_visit.take()
     }
 
     /// What the last write to a stick wrote.
@@ -204,9 +218,16 @@ impl VisitArea {
         &self.receipt
     }
 
-    /// The receipt, to change it.
-    pub(crate) fn receipt_mut(&mut self) -> &mut Option<crate::Receipt> {
-        &mut self.receipt
+    /// `receipt` is what the last write to a stick wrote.
+    pub(crate) fn set_receipt(&mut self, receipt: Option<crate::Receipt>) {
+        self.receipt = receipt;
+    }
+
+    /// A file's row added to the receipt.
+    pub(crate) fn receipt_push(&mut self, file: crate::ReceiptFile) {
+        if let Some(r) = self.receipt.as_mut() {
+            r.files.push(file);
+        }
     }
 
     /// Vault files written from: name, hash and the stick's id.
@@ -222,9 +243,16 @@ impl VisitArea {
         self.vault_from.iter().find(|x| matches(x))
     }
 
-    /// The vault files written from, to change them.
-    pub(crate) fn vault_from_mut(&mut self) -> &mut Vec<(String, [u8; 32], String)> {
-        &mut self.vault_from
+    /// The vault file `name` was read from a stick: its hash and the
+    /// stick's label, in place of any earlier read of that name.
+    pub(crate) fn vault_from_set(&mut self, name: &str, sha: [u8; 32], label: String) {
+        self.vault_from.retain(|(n, ..)| n != name);
+        self.vault_from.push((name.to_string(), sha, label));
+    }
+
+    /// A vault file read from a stick, added as it was.
+    pub(crate) fn vault_from_add(&mut self, name: String, sha: [u8; 32], label: String) {
+        self.vault_from.push((name, sha, label));
     }
 
     /// The vault writes waiting for an answer to the name-taken sheet.
@@ -232,9 +260,41 @@ impl VisitArea {
         &self.name_taken
     }
 
-    /// The queue of name-taken answers, to change it.
-    pub(crate) fn name_taken_mut(&mut self) -> &mut std::collections::VecDeque<NameTaken> {
-        &mut self.name_taken
+    /// A refused write joins the queue.
+    pub(crate) fn name_taken_push(&mut self, t: NameTaken) {
+        self.name_taken.push_back(t);
+    }
+
+    /// The queue's free names, one for each entry in order.
+    pub(crate) fn name_taken_set_besides(&mut self, besides: Vec<String>) {
+        for (t, b) in self.name_taken.iter_mut().zip(besides) {
+            t.beside = b;
+        }
+    }
+
+    /// The flow's entries leave the queue.
+    pub(crate) fn name_taken_drop_flow(&mut self) {
+        self.name_taken.retain(|t| !t.flow);
+    }
+
+    /// The entries for the sticks in `ids` leave the queue.
+    pub(crate) fn name_taken_drop_sticks(&mut self, ids: &[String]) {
+        self.name_taken.retain(|t| !ids.contains(&t.stick));
+    }
+
+    /// Every entry leaves the queue, in order.
+    pub(crate) fn name_taken_drain(&mut self) -> Vec<NameTaken> {
+        self.name_taken.drain(..).collect()
+    }
+
+    /// The first entry leaves the queue.
+    pub(crate) fn name_taken_pop(&mut self) -> Option<NameTaken> {
+        self.name_taken.pop_front()
+    }
+
+    /// The queue is emptied.
+    pub(crate) fn name_taken_clear(&mut self) {
+        self.name_taken.clear();
     }
 
     /// A name this write wrote.
@@ -252,9 +312,113 @@ impl VisitArea {
         &self.files_menu
     }
 
-    /// Files' row menus, to change them.
-    pub(crate) fn files_menu_mut(&mut self) -> &mut crate::file_menu::FileMenus {
-        &mut self.files_menu
+    /// The open ⋮ menu leaves; the keyboard stays on its ⋮ when it opened
+    /// or moved in the menu.
+    pub(crate) fn file_menu_leave(&mut self) {
+        if let Some(m) = self.files_menu.menu.take()
+            && m.keys
+        {
+            self.files_menu.focus = Some(m.row);
+        }
+    }
+
+    /// A ⋮ menu opens; `focus` is the ⋮ the keyboard is on, when it opened it.
+    pub(crate) fn file_menu_opened(
+        &mut self,
+        menu: crate::file_menu::FileMenu,
+        focus: Option<crate::file_menu::Row>,
+    ) {
+        self.files_menu.menu = Some(menu);
+        if focus.is_some() {
+            self.files_menu.focus = focus;
+        }
+    }
+
+    /// The keyboard moved in the open menu to its line `at`.
+    pub(crate) fn file_menu_moved(&mut self, at: usize) {
+        if let Some(m) = self.files_menu.menu.as_mut() {
+            m.at = at;
+            m.keys = true;
+        }
+    }
+
+    /// The open menu is closed from the keyboard.
+    pub(crate) fn file_menu_keys_on(&mut self) {
+        if let Some(m) = self.files_menu.menu.as_mut() {
+            m.keys = true;
+        }
+    }
+
+    /// The keyboard is on the ⋮ of `row`, or on none.
+    pub(crate) fn set_file_focus(&mut self, row: Option<crate::file_menu::Row>) {
+        self.files_menu.focus = row;
+    }
+
+    /// The Rename popup and the Details sheet are gone.
+    pub(crate) fn file_popups_close(&mut self) {
+        self.files_menu.renaming = None;
+        self.files_menu.details = None;
+    }
+
+    /// The Rename popup opens.
+    pub(crate) fn set_renaming(&mut self, r: crate::file_menu::Renaming) {
+        self.files_menu.renaming = Some(r);
+    }
+
+    /// The Rename popup closes, giving what it held.
+    pub(crate) fn take_renaming(&mut self) -> Option<crate::file_menu::Renaming> {
+        self.files_menu.renaming.take()
+    }
+
+    /// A character typed into the Rename popup's name.
+    pub(crate) fn rename_type(&mut self, c: char) {
+        if let Some(r) = self.files_menu.renaming.as_mut() {
+            r.stem.push(c);
+        }
+    }
+
+    /// The Rename popup's name loses its last character.
+    pub(crate) fn rename_backspace(&mut self) {
+        if let Some(r) = self.files_menu.renaming.as_mut() {
+            r.stem.pop();
+        }
+    }
+
+    /// The Details sheet opens.
+    pub(crate) fn set_details(&mut self, d: crate::file_menu::Details) {
+        self.files_menu.details = Some(d);
+    }
+
+    /// The hash of the file the Details sheet is about, when it is `name`
+    /// on `stick`.
+    pub(crate) fn details_hashed(
+        &mut self,
+        stick: &str,
+        name: &str,
+        sha: Result<[u8; 32], String>,
+    ) {
+        if let Some(d) = self.files_menu.details.as_mut()
+            && d.stick.as_deref() == Some(stick)
+            && d.name == name
+        {
+            d.sha = Some(sha);
+        }
+    }
+
+    /// The file `name` For the stick is no longer one the person renamed.
+    pub(crate) fn renamed_remove(&mut self, name: &str) {
+        self.files_menu.renamed.remove(name);
+    }
+
+    /// The file `from` For the stick was renamed `to`.
+    pub(crate) fn renamed_to(&mut self, from: &str, to: &str) {
+        self.files_menu.renamed.remove(from);
+        self.files_menu.renamed.insert(to.to_string());
+    }
+
+    /// The files the person renamed, as they were kept.
+    pub(crate) fn set_renamed(&mut self, names: std::collections::BTreeSet<String>) {
+        self.files_menu.renamed = names;
     }
 
     /// How far the For the stick list is scrolled.
@@ -262,9 +426,240 @@ impl VisitArea {
         &self.files_out_offset
     }
 
-    /// The scroll of the For the stick list, to change it.
-    pub(crate) fn files_out_offset_mut(&mut self) -> &mut f32 {
+    /// The For the stick list is scrolled to `offset`.
+    pub(crate) fn set_files_out_offset(&mut self, offset: f32) {
+        self.files_out_offset = offset;
+    }
+
+    /// The offset of the For the stick list, for the scroll that moves
+    /// whichever region is current (`Faraday::scroll_slot`).
+    pub(crate) fn files_out_offset_of(&mut self) -> &mut f32 {
         &mut self.files_out_offset
+    }
+
+    /// The offset of the visit's Outbox list, for the same scroll.
+    pub(crate) fn out_offset_of(&mut self) -> &mut f32 {
+        &mut self.visit.out_offset
+    }
+
+    /// The Outbox list is scrolled to `offset`.
+    pub(crate) fn set_out_offset(&mut self, offset: f32) {
+        self.visit.out_offset = offset;
+    }
+
+    /// The stick shown is the one at `i`.
+    pub(crate) fn set_stick(&mut self, i: usize) {
+        self.visit.stick = i;
+    }
+
+    /// Whether On the stick is the tab shown on a small window.
+    pub(crate) fn set_tab_stick(&mut self, on: bool) {
+        self.visit.tab_stick = on;
+    }
+
+    /// The settings file's row as the person set it, or its default.
+    pub(crate) fn set_settings(&mut self, on: Option<bool>) {
+        self.visit.settings = on;
+    }
+
+    /// A line of what the last write or copy did.
+    pub(crate) fn log_push(&mut self, line: (String, bool)) {
+        self.visit.log.push(line);
+    }
+
+    /// The log is emptied.
+    pub(crate) fn log_clear(&mut self) {
+        self.visit.log.clear();
+    }
+
+    /// The files whose names are taken, while the sheet asks.
+    pub(crate) fn set_taken(&mut self, taken: Vec<Taken>) {
+        self.visit.taken = taken;
+    }
+
+    /// The files whose names were taken, given as the sheet stops asking.
+    pub(crate) fn take_taken(&mut self) -> Vec<Taken> {
+        std::mem::take(&mut self.visit.taken)
+    }
+
+    /// The names loaded as keys when the stick is pulled, given as it is.
+    pub(crate) fn take_load_after(&mut self) -> std::collections::BTreeSet<String> {
+        std::mem::take(&mut self.visit.load_after)
+    }
+
+    /// Nothing is taken: the sheet is not asking.
+    pub(crate) fn taken_clear(&mut self) {
+        self.visit.taken.clear();
+    }
+
+    /// The Outbox files chosen to write are `chosen`.
+    pub(crate) fn set_out(&mut self, chosen: std::collections::BTreeSet<String>) {
+        self.visit.out = chosen;
+    }
+
+    /// The Outbox file `name` is no longer chosen; whether it was.
+    pub(crate) fn out_unchoose(&mut self, name: &str) -> bool {
+        self.visit.out.remove(name)
+    }
+
+    /// Choosing `name` flipped.
+    pub(crate) fn out_toggle(&mut self, name: String) {
+        if !self.visit.out.remove(&name) {
+            self.visit.out.insert(name);
+        }
+    }
+
+    /// Nothing of the Outbox is chosen.
+    pub(crate) fn out_clear(&mut self) {
+        self.visit.out.clear();
+    }
+
+    /// Every name in `names` is chosen.
+    pub(crate) fn out_extend(&mut self, names: impl IntoIterator<Item = String>) {
+        self.visit.out.extend(names);
+    }
+
+    /// The chosen Outbox file `from` was renamed `to`, and stays chosen.
+    pub(crate) fn out_renamed(&mut self, from: &str, to: &str) {
+        if self.visit.out.remove(from) {
+            self.visit.out.insert(to.to_string());
+        }
+    }
+
+    /// The stick files chosen to copy are `chosen`.
+    pub(crate) fn set_inn(&mut self, chosen: std::collections::BTreeSet<String>) {
+        self.visit.inn = chosen;
+    }
+
+    /// The stick file `name` is no longer chosen.
+    pub(crate) fn inn_unchoose(&mut self, name: &str) {
+        self.visit.inn.remove(name);
+    }
+
+    /// Choosing the stick file `name` flipped.
+    pub(crate) fn inn_toggle(&mut self, name: String) {
+        if !self.visit.inn.remove(&name) {
+            self.visit.inn.insert(name);
+        }
+    }
+
+    /// No stick file is chosen.
+    pub(crate) fn inn_clear(&mut self) {
+        self.visit.inn.clear();
+    }
+
+    /// Only the chosen stick files that `keep` says are kept.
+    pub(crate) fn inn_retain(&mut self, keep: impl Fn(&String) -> bool) {
+        self.visit.inn.retain(|n| keep(n));
+    }
+
+    /// The chosen stick file `from` was renamed `to`, and stays chosen.
+    pub(crate) fn inn_renamed(&mut self, from: &str, to: &str) {
+        if self.visit.inn.remove(from) {
+            self.visit.inn.insert(to.to_string());
+        }
+    }
+
+    /// A stick file is asked for and not yet answered.
+    pub(crate) fn reading_add(&mut self, name: String) {
+        self.visit.reading.insert(name);
+    }
+
+    /// A stick file asked for is answered.
+    pub(crate) fn reading_done(&mut self, name: &str) {
+        self.visit.reading.remove(name);
+    }
+
+    /// `name` is loaded as keys when the stick is pulled.
+    pub(crate) fn load_after_add(&mut self, name: String) {
+        self.visit.load_after.insert(name);
+    }
+
+    /// Every name in `names` is loaded as keys when the stick is pulled.
+    pub(crate) fn load_after_extend(&mut self, names: impl IntoIterator<Item = String>) {
+        self.visit.load_after.extend(names);
+    }
+
+    /// The copy of `name` kept as `kept` is loaded in its place.
+    pub(crate) fn load_after_renamed(&mut self, name: &str, kept: &str) {
+        if self.visit.load_after.remove(name) {
+            self.visit.load_after.insert(kept.to_string());
+        }
+    }
+
+    /// The Inbox file `name` is chosen to write to the stick.
+    pub(crate) fn inbox_pick(&mut self, name: String) {
+        self.visit.from_inbox.insert(name);
+    }
+
+    /// The Inbox file `name` is no longer chosen; whether it was.
+    pub(crate) fn inbox_unpick(&mut self, name: &str) -> bool {
+        self.visit.from_inbox.remove(name)
+    }
+
+    /// Every name in `names` is chosen from the Inbox.
+    pub(crate) fn inbox_pick_all(&mut self, names: impl IntoIterator<Item = String>) {
+        self.visit.from_inbox.extend(names);
+    }
+
+    /// No Inbox file is chosen.
+    pub(crate) fn inbox_pick_none(&mut self) {
+        self.visit.from_inbox.clear();
+    }
+
+    /// The Inbox file `name` is sent to be written.
+    pub(crate) fn writing_inbox_add(&mut self, name: String) {
+        self.visit.writing_inbox.insert(name);
+    }
+
+    /// The Inbox file `name` is answered; whether it was sent.
+    pub(crate) fn writing_inbox_done(&mut self, name: &str) -> bool {
+        self.visit.writing_inbox.remove(name)
+    }
+
+    /// The write under way starts as `writing`.
+    pub(crate) fn set_writing(&mut self, writing: crate::Writing) {
+        self.visit.writing = Some(writing);
+    }
+
+    /// `name` is no longer waited for in the write under way; the write is
+    /// over when nothing is left.
+    pub(crate) fn writing_drop_file(&mut self, name: &str) {
+        if let Some((_, _, sent, _)) = self.visit.writing.as_mut() {
+            sent.retain(|(n, _)| n != name);
+            if sent.is_empty() {
+                self.visit.writing = None;
+            }
+        }
+    }
+
+    /// The answer for `name` in the write under way: its hash as sent, and
+    /// the new receipt when it is the write's first answer (made at `now`).
+    /// `None` when `name` was not sent. The write is over when nothing is
+    /// left.
+    pub(crate) fn writing_answered(
+        &mut self,
+        name: &str,
+        now: Option<u64>,
+    ) -> Option<(String, [u8; 32], Option<crate::Receipt>)> {
+        let (label, stick, sent, started) = self.visit.writing.as_mut()?;
+        let k = sent.iter().position(|(n, _)| n == name)?;
+        let (name, hash) = sent.remove(k);
+        let stick = stick.clone();
+        let opened = (!*started).then(|| {
+            *started = true;
+            crate::Receipt {
+                label: label.clone(),
+                stick: stick.clone(),
+                time: now,
+                files: Vec::new(),
+                by_flow: false,
+            }
+        });
+        if sent.is_empty() {
+            self.visit.writing = None;
+        }
+        Some((name, hash, opened))
     }
 }
 
@@ -417,24 +812,19 @@ impl Faraday {
     /// A write given up before anything was written: no receipt row, so
     /// that the proof of an earlier write stays; the log says why.
     fn visit_write_cancelled(&mut self, name: &str, reason: &str) {
-        if let Some((_, _, sent, _)) = self.visit.writing.as_mut() {
-            sent.retain(|(n, _)| n != name);
-            if sent.is_empty() {
-                self.visit.writing = None;
-            }
-        }
+        self.visit.writing_drop_file(name);
         self.visit_write_logged(name, reason);
     }
 
     /// The visit's log line for a file not written.
     fn visit_write_logged(&mut self, name: &str, reason: &str) {
-        let stays = if self.visit.writing_inbox.remove(name) {
+        let stays = if self.visit.writing_inbox_done(name) {
             EN.storage_event_it_stays.to_string()
         } else {
             fill(EN.storage_event_it_still, &[self.medium.for_the()])
         };
         let line = fill(EN.storage_event_not_written, &[name, reason, &stays]);
-        self.visit.log.push((line, false));
+        self.visit.log_push((line, false));
     }
 
     /// The files the write would write whose names are taken on the stick
@@ -480,7 +870,7 @@ impl Faraday {
         }
         let taken = self.visit_taken();
         if !taken.is_empty() {
-            self.visit.taken = taken;
+            self.visit.set_taken(taken);
             self.sheet = Some(Sheet::Taken);
         } else {
             self.visit_write(false);
@@ -491,7 +881,7 @@ impl Faraday {
     /// file; a taken file over the old one when `replace`.
     pub(crate) fn visit_write(&mut self, replace: bool) {
         if !self.clean() {
-            self.visit.taken.clear();
+            self.visit.taken_clear();
             self.sheet = Some(Sheet::WriteOut);
             return;
         }
@@ -499,7 +889,9 @@ impl Faraday {
         if self.sheet == Some(Sheet::Taken) {
             self.sheet = None;
         }
-        let taken: Vec<String> = std::mem::take(&mut self.visit.taken)
+        let taken: Vec<String> = self
+            .visit
+            .take_taken()
             .into_iter()
             .map(|t| t.name)
             .collect();
@@ -514,7 +906,7 @@ impl Faraday {
             Some(s) => format!("{s:08x}"),
             None => format!("id:{}", stick.id),
         };
-        self.visit.log.clear();
+        self.visit.log_clear();
         self.name_taken_wrote_clear();
         let mut sends: Vec<(String, Vec<u8>, bool)> = Vec::new();
 
@@ -527,7 +919,7 @@ impl Faraday {
         }
         for (name, bytes, from_inbox) in self.visit_files() {
             if from_inbox {
-                self.visit.writing_inbox.insert(name.clone());
+                self.visit.writing_inbox_add(name.clone());
             }
             // A vault goes over the same vault on the stick (same salt and
             // length, decided where the stick is read) only when this
@@ -547,7 +939,7 @@ impl Faraday {
             .collect();
         for (name, bytes, replace) in sends {
             let vault = is_vault(&bytes);
-            let renamed = self.visit.files_menu_mut().renamed.contains(&name);
+            let renamed = self.visit.files_menu().renamed.contains(&name);
             let copies = self.vault_copies(&c, &bytes);
             self.out.storage_out.push_back(StorageCommand::Write {
                 stick: id.clone(),
@@ -561,7 +953,7 @@ impl Faraday {
             });
         }
         if !sent.is_empty() {
-            self.visit.writing = Some((label, identity, sent, false));
+            self.visit.set_writing((label, identity, sent, false));
         }
     }
 }
@@ -698,7 +1090,7 @@ impl Faraday {
             _ => EN.vault_taken_unknown.to_string(),
         };
         let beside = self.name_taken_beside(&stick, &name);
-        self.visit.name_taken_mut().push_back(NameTaken {
+        self.visit.name_taken_push(NameTaken {
             stick,
             name,
             on_stick,
@@ -766,9 +1158,7 @@ impl Faraday {
             .iter()
             .map(|t| self.name_taken_beside(&t.stick, &t.name))
             .collect();
-        for (t, b) in self.visit.name_taken_mut().iter_mut().zip(besides) {
-            t.beside = b;
-        }
+        self.visit.name_taken_set_besides(besides);
     }
 
     /// A file of this write was written as `wrote_as`.
@@ -795,7 +1185,7 @@ impl Faraday {
 
     /// The flow's write ended: the questions of its files go with it.
     pub(crate) fn name_taken_flow_ended(&mut self) {
-        self.visit.name_taken_mut().retain(|t| !t.flow);
+        self.visit.name_taken_drop_flow();
         self.name_taken_next();
     }
 
@@ -820,7 +1210,7 @@ impl Faraday {
         };
         if !self.clean() {
             // Every entry is given up as Cancel gives it up.
-            let all: Vec<NameTaken> = self.visit.name_taken_mut().drain(..).collect();
+            let all: Vec<NameTaken> = self.visit.name_taken_drain();
             for t in all {
                 self.name_taken_refused(t);
             }
@@ -831,7 +1221,7 @@ impl Faraday {
             (true, Some(sha)) => OnTaken::Over(sha),
             _ => OnTaken::Beside,
         };
-        self.visit.name_taken_mut().pop_front();
+        self.visit.name_taken_pop();
         let c = self.compute();
         // The same bytes and flags as the first send found, by name and
         // SHA-256; none is a cancel.
@@ -841,7 +1231,7 @@ impl Faraday {
             .and_then(|h| self.name_taken_sent(&c, t.flow, &t.name, h));
         match sent {
             Some((bytes, replace)) => {
-                let renamed = !t.flow && self.visit.files_menu_mut().renamed.contains(&t.name);
+                let renamed = !t.flow && self.visit.files_menu().renamed.contains(&t.name);
                 let copies = self.vault_copies(&c, &bytes);
                 self.out.storage_out.push_back(StorageCommand::Write {
                     stick: t.stick,
@@ -862,7 +1252,7 @@ impl Faraday {
     /// file stays For the stick, the log says why and the receipt is not
     /// touched; a flow's write does not count and can be pressed again.
     pub(crate) fn name_taken_cancel(&mut self) {
-        let Some(t) = self.visit.name_taken_mut().pop_front() else {
+        let Some(t) = self.visit.name_taken_pop() else {
             self.sheet = None;
             return;
         };
@@ -874,7 +1264,7 @@ impl Faraday {
     fn name_taken_refused(&mut self, t: NameTaken) {
         if t.flow {
             // Every file of that write still to ask goes with it.
-            self.visit.name_taken_mut().retain(|o| !o.flow);
+            self.visit.name_taken_drop_flow();
             self.flow_name_taken(&t.name);
         } else {
             self.visit_write_cancelled(&t.name, EN.visit_taken_name_taken);
@@ -894,9 +1284,7 @@ impl Faraday {
             return;
         }
         let ids: Vec<String> = gone.iter().map(|t| t.stick.clone()).collect();
-        self.visit
-            .name_taken_mut()
-            .retain(|t| !ids.contains(&t.stick));
+        self.visit.name_taken_drop_sticks(&ids);
         for t in gone {
             // A flow's write ends with its own pulled problem.
             if !t.flow {
@@ -925,7 +1313,7 @@ impl Faraday {
                 .is_none()
                 .then(|| self.visit_unlocks())
                 .flatten();
-            if let Some(back) = self.visit.after_visit_mut().take() {
+            if let Some(back) = self.visit.take_after_visit() {
                 self.screen = back;
                 if back == Screen::SpendBackup {
                     self.spend_backup_settle();
@@ -942,12 +1330,15 @@ impl Faraday {
     pub(crate) fn visit_act(&mut self, action: Action) {
         match action {
             Action::VisitStick(i) => {
-                self.visit.stick = i;
-                self.visit.inn = self.visit_default_in();
-                self.visit.settings = None;
+                self.visit.set_stick(i);
+                {
+                    let v = self.visit_default_in();
+                    self.visit.set_inn(v);
+                }
+                self.visit.set_settings(None);
             }
             Action::VisitSettings => {
-                self.visit.settings = Some(!self.visit_settings_on());
+                self.visit.set_settings(Some(!self.visit_settings_on()));
             }
             Action::VisitOut(i) => {
                 if let Some(item) = self
@@ -956,9 +1347,7 @@ impl Faraday {
                     .filter(|it| !self.in_the_backup(&it.name))
                 {
                     let n = item.name.clone();
-                    if !self.visit.out.remove(&n) {
-                        self.visit.out.insert(n);
-                    }
+                    self.visit.out_toggle(n);
                 }
             }
             Action::VisitIn(i) => {
@@ -968,13 +1357,11 @@ impl Faraday {
                     && stick.unread_why(&self.vaults, n, *size).is_none()
                 {
                     let n = n.clone();
-                    if !self.visit.inn.remove(&n) {
-                        self.visit.inn.insert(n);
-                    }
+                    self.visit.inn_toggle(n);
                 }
             }
             // Unselect all: everything comes in by default (§4.6).
-            Action::VisitInAll => self.visit.inn.clear(),
+            Action::VisitInAll => self.visit.inn_clear(),
             Action::VisitOutAll => {
                 // Every row but an unprotected secret, which is ticked one
                 // at a time (FLOWS.md decision 6); from the Inbox, every
@@ -985,19 +1372,19 @@ impl Faraday {
                     && all.is_subset(&self.visit.out)
                     && inbox.is_subset(&self.visit.from_inbox);
                 if every {
-                    self.visit.out.clear();
+                    self.visit.out_clear();
                     for n in &inbox {
-                        self.visit.from_inbox.remove(n);
+                        self.visit.inbox_unpick(n);
                     }
                 } else {
-                    self.visit.out.extend(all);
-                    self.visit.from_inbox.extend(inbox);
+                    self.visit.out_extend(all);
+                    self.visit.inbox_pick_all(inbox);
                 }
-                self.visit.settings = Some(!every);
+                self.visit.set_settings(Some(!every));
             }
             Action::VisitInbox(i) => self.visit_inbox(i),
             Action::VisitBar(_) => {}
-            Action::VisitTab(c) => self.visit.tab_stick = c == crate::Column::Stick,
+            Action::VisitTab(c) => self.visit.set_tab_stick(c == crate::Column::Stick),
             Action::VisitWrite => self.visit_write_ask(),
             Action::VisitReplace => self.visit_write(true),
             Action::VisitKeepBoth => self.visit_write(false),
@@ -1006,7 +1393,7 @@ impl Faraday {
             Action::VisitCopy => self.visit_copy(),
             Action::VisitCopyAndLoad => {
                 let inn = self.visit.inn.clone();
-                self.visit.load_after.extend(inn);
+                self.visit.load_after_extend(inn);
                 self.visit_copy();
                 // Straight to the Inbox, where they arrive; the stick's
                 // pull loads them from there.
@@ -1014,7 +1401,7 @@ impl Faraday {
             }
             Action::VisitFrom(back) => {
                 if !self.stick.is_empty() && !self.holds_secret() {
-                    *self.visit.after_visit_mut() = Some(back);
+                    self.visit.set_after_visit(back);
                     self.act(Action::Nav(Screen::Files));
                 }
             }
