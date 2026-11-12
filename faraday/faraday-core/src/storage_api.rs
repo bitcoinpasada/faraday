@@ -303,7 +303,7 @@ pub enum StorageEvent {
     },
     /// A picture on a stick: the QR codes the disk process read from it,
     /// and its bytes as they are. The app keeps and writes the bytes and
-    /// never decodes them (`docs/history/PLAN.md` §12 item 6).
+    /// never decodes them.
     QrRead {
         /// The image's name.
         name: String,
@@ -334,7 +334,7 @@ pub enum StorageEvent {
         reason: String,
     },
     /// An input device the shell holds back until a person says it is
-    /// theirs (`docs/history/PLAN.md` §4.6).
+    /// theirs (`docs/SECURITY-MODEL.md`).
     NewInput {
         /// The shell's number for it.
         id: u32,
@@ -628,7 +628,7 @@ pub enum StorageCommand {
     OpenInstitute,
     /// Keep the Inbox and Outbox where the next process finds them. They
     /// may hold a secret file let out past the secret sheet, or a words
-    /// file until a lock (`docs/history/PLAN.md` §5.2).
+    /// file until a lock (`docs/VAULT.md`).
     SaveBoxes {
         /// Inbox files.
         inbox: Vec<(String, Vec<u8>)>,

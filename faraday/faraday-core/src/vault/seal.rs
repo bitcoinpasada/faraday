@@ -90,7 +90,7 @@ pub(crate) fn sealing(app: &Faraday) -> bool {
 }
 
 /// Seals every open vault with changes into the Outbox, then finishes
-/// the lock (`docs/history/PLAN.md` §5.3). A vault nobody changed or
+/// the lock (`docs/VAULT.md`). A vault nobody changed or
 /// that is read-only is not rewritten: a file's bytes change only when
 /// there is something to keep, which is all a second copy can compare
 /// (`docs/VAULT.md` §9). A vault whose seal cannot be made (the seed or
@@ -747,7 +747,7 @@ fn lock_finish(app: &mut Faraday) {
     // A vault write waiting for its name's answer is not kept.
     app.visit.name_taken_mut().clear();
     // Nothing secret copied in outlives the process that read it
-    // (`docs/history/PLAN.md` §5.3): the next process is clean, and these would be
+    // (`docs/VAULT.md`): the next process is clean, and these would be
     // in its memory and in `/run/faraday`. They are still on the stick
     // they came from.
     // A picture goes as what its codes hold, and as Other when none read.

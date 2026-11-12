@@ -1,7 +1,9 @@
 //! Faraday's app: the screens and the state of each area (the vault, the
 //! backup flows, the Wallets tab's session, the Inbox and the Outbox), every
-//! Tools flow, the readers of formats it takes in (a Bitcoin Core wallet, an
-//! EDID), a PDF writer, Faraday Demo's host and the stick rule. How the
+//! Tools flow and the stick rule. The backup plan's logic (`faraday-plan`), the
+//! readers of formats it takes in (`faraday-core-wallet`), the PDF writer, the
+//! printed sheets, EDID and build ID (`faraday-paper`) and Faraday Demo's host
+//! (`faraday-host`) are crates of their own. How the
 //! code is laid out is `docs/STRUCTURE-PASS.md`; the screens are
 //! `docs/DESIGN.md`; the areas are `docs/VAULT.md`, `docs/STARTER.md` and
 //! `docs/KEYS.md`.
@@ -23,8 +25,7 @@
 //! here (`tools/lint-layout.sh` fails when one is not):
 //!
 //! - The shell's protocol and the app's types: `storage_api` (sticks and
-//!   storage events), `version`, `build` (a build ID described and
-//!   compared, F5), `action` (the `Action` enum), `qr_view`
+//!   storage events), `version`, `action` (the `Action` enum), `qr_view`
 //!   (the QR view and the camera's scan state), `receipt` and `state` (the
 //!   state of Entry, Message and the stick visit). Each other area's state
 //!   is in its own `mod.rs` or file: `DecodeState` in `decode`,
@@ -48,8 +49,8 @@
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
 //!   glance), `walkthrough` (Guided mode's walk-through), `scan_key`, `scan_read`
-//!   (what a code read is), `pdf` (the printed sheets), `picture` (a QR code to keep), `demo` (what Practice refuses),
-//!   `devices` (what else captures the screen or the keys) and `edid` (what a screen says it is).
+//!   (what a code read is), `picture` (a QR code to keep), `demo` (what Practice refuses),
+//!   `devices` (what else captures the screen or the keys).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
 //!   (with `seeds/read.rs`), `wallet` (with `wallet/nonce.rs`, `wallet/account.rs`), `inbox`, `create`, `create_from`,
 //!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`, `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`, `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`), `kef_form` (the form that makes a Krux code, `kef_form/screen.rs`), `dice_entry` (the dice entry Create a vault uses, `dice_entry/screen.rs`), `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`) and `core_wallet` (the tool and screen that read a Bitcoin Core wallet through `faraday-core-wallet`, F229). They hold
@@ -295,7 +296,7 @@ pub(crate) const IDLE_OFF_MIN: u16 = 60;
 /// lock time when that is shorter.
 pub const IDLE_WARN_MS: u64 = 5 * 60_000;
 
-/// The exit code that asks the app loop for a fresh process (`docs/history/PLAN.md` §5.3).
+/// The exit code that asks the app loop for a fresh process (`docs/SECURITY-MODEL.md`).
 pub const RESTART_CODE: u8 = 75;
 
 /// The exit code that asks init to restart the computer instead of
@@ -826,10 +827,10 @@ pub struct Faraday {
     /// The idle lock's timers and what its warning shows.
     idle: idle::Idle,
     /// A secret has been held or typed in this process. Only a fresh
-    /// process is clean (`docs/history/PLAN.md` §5.1).
+    /// process is clean (`docs/SECURITY-MODEL.md`).
     tainted: bool,
     /// New input devices waiting to be believed, and those kept out
-    /// (`docs/history/PLAN.md` §4.6).
+    /// (`docs/SECURITY-MODEL.md`).
     inputs: inputs::InputsArea,
     /// What a frame works out once (`docs/SPEED.md` §3.3): on only while
     /// `render` runs.
@@ -1456,7 +1457,7 @@ impl Faraday {
         }
     }
 
-    /// The clean state of `docs/history/PLAN.md` §5.1: this process has never held or
+    /// The clean state (`docs/SECURITY-MODEL.md`): this process has never held or
     /// typed a secret. Only then may a stick be handed to the disk
     /// process; the shell publishes it for `faraday-grant`, and a lock is
     /// the way back to it.
@@ -1514,7 +1515,7 @@ impl Faraday {
             || self.wallets.spend().is_some()
     }
 
-    /// The idle timers (`docs/history/PLAN.md` §12.3). Returns whether the screen
+    /// The idle timers. Returns whether the screen
     /// changed.
     fn idle_tick(&mut self, now_ms: u64) -> bool {
         if self.hold_idle(now_ms) {
@@ -1674,7 +1675,7 @@ impl Faraday {
             return;
         }
         // A stick arriving while the camera is on is held back, and
-        // arrives when the camera is off (`docs/history/PLAN.md` §5.4): then a clean
+        // arrives when the camera is off (`docs/FLOWS.md`): then a clean
         // process visits it and any other asks to lock first. The
         // scanner is never replaced with its camera still on.
         if self.camera_on() {
@@ -1688,7 +1689,7 @@ impl Faraday {
     fn stick_arrived(&mut self) {
         let c = self.compute();
         // A stick arrived. Only a clean process takes it; any other locks
-        // first (`docs/history/PLAN.md` §5.4). No passphrase field takes typing while
+        // first (`docs/FLOWS.md`). No passphrase field takes typing while
         // it is attached.
         seeds::kef::kef_stick_arrived(self);
         if matches!(

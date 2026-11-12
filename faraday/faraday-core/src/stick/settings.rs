@@ -1,9 +1,9 @@
-//! Settings on the stick (`docs/history/PLAN.md` §5.2): `faraday-settings.txt` on a
+//! Settings on the stick (`docs/SECURITY-MODEL.md`): `faraday-settings.txt` on a
 //! stick's data partition, so the settings outlive a power-off.
 //!
 //! The file is plain text, because the theme and scale are wanted on the
 //! passphrase screen and so cannot be inside a vault. It is read once, at
-//! boot, from the boot stick, and is untrusted input (`docs/history/PLAN.md` §4.4): a
+//! boot, from the boot stick, and is untrusted input (`docs/SECURITY-MODEL.md`): a
 //! line is taken only when its key is known and its value is one Settings
 //! itself offers, and nothing read from it makes a fresh boot less
 //! protected than the defaults. **Never** for the idle times, the
@@ -66,8 +66,7 @@ pub(crate) struct Settings {
     /// What Reduce motion is until the person chooses: on for a screen
     /// that is not the device's own panel (`docs/MOTION.md` §3).
     reduce_motion_default: bool,
-    /// Minutes without input before the session locks; 0 for never
-    /// (`docs/history/PLAN.md` §12.3).
+    /// Minutes without input before the session locks; 0 for never.
     idle_lock_min: u16,
     /// How long each frame of an animated code stays up, in ms.
     qr_frame_ms: u64,

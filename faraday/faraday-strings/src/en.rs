@@ -5090,7 +5090,7 @@ strings! {
     pdf_place: "Place",
     /// Line in `blank_sheet`.
     pdf_holds: "holds",
-    // ----- codex32 blank templates (faraday-core/src/pdf/codex32.rs) -----
+    // ----- codex32 blank templates (faraday-paper/src/pdf.rs) -----
     /// Error in `sheet`: a codex32 template of another length.
     pdf_c32_length: "the codex32 template is for 48, 74 or 127 characters",
     /// Title of the share card. `{}`: the length in characters.

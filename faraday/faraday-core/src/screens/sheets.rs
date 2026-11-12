@@ -1527,7 +1527,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
     });
 }
 
-/// A new input device (`docs/history/PLAN.md` §4.6): its name as it gives it, the
+/// A new input device (`docs/SECURITY-MODEL.md`): its name as it gives it, the
 /// code a keyboard must type, and the person's choice.
 pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.shown_input() else {

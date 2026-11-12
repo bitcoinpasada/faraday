@@ -1,4 +1,4 @@
-//! The boot import (`docs/history/PLAN.md` §5.4; F60, F130): the first
+//! The boot import (`docs/FLOWS.md`; F60, F130): the first
 //! look at the boot stick in a power-on lists its files by name and size,
 //! nothing of them read, and the sheet lists each with a checkbox, every
 //! one ticked, with what it is by its name alone. **Import** reads the
@@ -583,7 +583,7 @@ impl Faraday {
         *self.visit.after_visit_mut() = None;
         self.screen = Screen::Home;
         // A device waiting to be believed is asked about first
-        // (`docs/history/PLAN.md` §4.6); this sheet comes up after.
+        // (`docs/SECURITY-MODEL.md`); this sheet comes up after.
         if matches!(self.sheet, Some(Sheet::NewInput)) {
             self.import.set_under_input(true);
         } else {

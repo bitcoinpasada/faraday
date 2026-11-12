@@ -3832,7 +3832,7 @@ impl Vaults {
     }
 
     /// Costs a parse of each key's words. `session`'s keys and wallets
-    /// that no open vault holds, by label and by name (`docs/history/PLAN.md`
+    /// that no open vault holds, by label and by name (`docs/VAULT.md`
     /// §6.3: locking lists what was not saved).
     pub(crate) fn unsaved(
         &self,

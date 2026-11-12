@@ -1,4 +1,4 @@
-//! What the app keeps across a lock, outside the process (`docs/history/PLAN.md` §5.2,
+//! What the app keeps across a lock, outside the process (`docs/VAULT.md`,
 //! `docs/WALLETS.md` §3.3): its settings, the signed-amount memory, and
 //! what each vault seen open holds (`docs/VAULT.md` §11).
 //!

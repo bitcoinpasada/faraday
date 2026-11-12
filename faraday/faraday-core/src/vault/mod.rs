@@ -1,4 +1,4 @@
-//! Vaults in the app (`docs/VAULT.md`, `docs/history/PLAN.md` §5.3 and §6.1): the
+//! Vaults in the app (`docs/VAULT.md`, `docs/VAULT.md`): the
 //! vaults the Inbox and Outbox hold, unlocking one slot of one, its
 //! contents by kind, creating a vault, and sealing what changed when the
 //! session locks.
@@ -114,7 +114,7 @@ impl Faraday {
     }
 
     /// Costs a parse of each key's words. The session's keys and wallets
-    /// that no open vault holds, by label and by name (`docs/history/PLAN.md` §6.3:
+    /// that no open vault holds, by label and by name (`docs/WALLETS.md`:
     /// locking lists what was not saved). Kept in the drawing memo while a
     /// frame is drawn (`docs/SPEED.md` §3.3).
     ///
@@ -2018,7 +2018,7 @@ impl Faraday {
             .then_some(records::BACKUP_PENDING);
         let label = key.label.clone();
         // A BIP-39 passphrase is stored only when the person asks
-        // (`docs/history/PLAN.md` §6.3).
+        // (`docs/WALLETS.md`).
         let record = self.session.keys.key_record(
             &c,
             k,

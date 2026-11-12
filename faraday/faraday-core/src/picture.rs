@@ -5,8 +5,7 @@
 //! CPU, in the app's own fonts), each module of the code a square of
 //! whole pixels, and written as eight-bit greyscale so that the edges of
 //! the text keep their shades ([`faraday_codec::png::grey_png`]). Encoding a
-//! picture here is allowed: only decoding stays in the disk process
-//! (`docs/history/PLAN.md` §12 item 6).
+//! picture here is allowed: only decoding stays in the disk process.
 //!
 //! Whoever calls it decides what the code holds and what the label
 //! says; the label is plain statements, one a line, each wrapped to the

@@ -370,7 +370,7 @@ pub(super) fn reasons_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
 /// The Inbox's EFI images, each to sign or check with the selected db key;
 /// or, once one is chosen to sign, its SHA-256 and whether it is a
 /// release's boot program (F134) before the hold that signs it, which a
-/// refusal leaves out (`docs/history/PLAN.md` §8).
+/// refusal leaves out (`docs/FLOWS.md`).
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);

@@ -5,6 +5,8 @@
 # 1. The code map. Every module faraday-core's lib.rs declares is named,
 #    in backticks, in lib.rs's `//!` code map, and every .rs file and
 #    folder at the top of faraday/faraday-core/src/ is a declared module.
+#    A module that moved to a crate of its own (faraday-plan,
+#    faraday-core-wallet, faraday-paper, faraday-host) is not listed.
 #    Every `Screen` variant has a row in the map's table, and the file
 #    the row names is the one screens/mod.rs's dispatch draws it from.
 #

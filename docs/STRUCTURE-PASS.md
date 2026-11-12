@@ -147,6 +147,15 @@ map in `lib.rs` has a table from every `Screen` variant to its file.
 
 The moves from the old layout: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
+**Crates split out of faraday-core by function.** The backup plan's logic is
+`faraday-plan`, the Bitcoin Core wallet reader `faraday-core-wallet`, the PDF
+writer, printed sheets, EDID rules and build ID `faraday-paper`, and Faraday
+Demo's host `faraday-host`; the Argon2id cost function is `faraday-crypto`'s
+`argon2` module, since `faraday-backup` is folded into it. What stays in
+faraday-core is the app: each area's state and screen in its folder, and
+the tool and screen of an area whose logic moved out (`core_wallet/`, `plan/`).
+The code map and the layout lint cover faraday-core's own modules only.
+
 **Crate edges, measured in step 5.**
 - **faraday-storage stays on faraday-core.** It is the layer between the
   shells and the app: it takes `&mut Faraday` and feeds stick events
@@ -172,7 +181,7 @@ cannot quietly undo it:
 - **`lint-tokens`:** the count of numbers written in place only falls.
 - **`lint-layout`** (`tools/lint-layout.sh`, counts in
   `tools/lint-layout.counts`):
-  - the code map: every module `lib.rs` declares appears in its `//!`
+  - the code map: every module faraday-core's `lib.rs` declares appears in its `//!`
     code map, every `Screen` variant appears in the map's table, and the
     file named there exists and draws it;
   - a file has no size limit (F248);

@@ -1715,7 +1715,7 @@ pub fn test_vault() -> Result<Vec<u8>, String> {
 }
 
 /// A text file of entries for a vault: a TOTP setup URI and an entry in
-/// `field: value` lines (`docs/history/PLAN.md` §6.4).
+/// `field: value` lines.
 pub const ENTRIES_FILE: &str = "otpauth://totp/Example%20Git:octo?secret=JBSWY3DPEHPK3PXP&issuer=Example%20Git\n\
 \n\
 title: Router admin\n\

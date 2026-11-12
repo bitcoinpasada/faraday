@@ -8,7 +8,7 @@
 //! believed, so nothing waits for the held list to be empty.
 //!
 //! New input devices must show a person is at the screen before they are
-//! believed (`docs/history/PLAN.md` §4.6, layer 3).
+//! believed (`docs/SECURITY-MODEL.md`, layer 3).
 //!
 //! The shell trusts the machine's own keyboard, touchpad and touch panel.
 //! Any other device's input is held back by the shell and reported here
@@ -733,7 +733,7 @@ impl Faraday {
     }
 
     /// A held device acted. The first to act takes the screen; the boot
-    /// import waits under its sheet (`docs/history/PLAN.md` §4.6); one
+    /// import waits under its sheet (`docs/SECURITY-MODEL.md`); one
     /// that acts while a sheet is up waits its turn.
     pub(crate) fn input_used(&mut self, id: u32) {
         if !self.inputs.used(id) {

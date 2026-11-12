@@ -761,7 +761,7 @@ impl Faraday {
     /// vault passphrase, a prompt's line. A secret sheet for an Inbox file
     /// on its way to another stick does not count: it holds a copy of
     /// what the Inbox already holds, and the stick it goes to must stay
-    /// open (`docs/history/PLAN.md` §5.4).
+    /// open (`docs/FLOWS.md`).
     pub(crate) fn secret_typed(&self) -> bool {
         self.keygen.state().is_some()
             || self.secrets.out().is_some_and(|o| !o.to_visit)

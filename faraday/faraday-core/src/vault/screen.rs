@@ -1,4 +1,4 @@
-//! The vault screens (`docs/history/PLAN.md` §6.1, the prototype's Vaults, Unlock,
+//! The vault screens (`docs/VAULT.md`, the prototype's Vaults, Unlock,
 //! Create a vault and Vault contents): drawing only. What a press does is
 //! `vault/mod.rs`.
 

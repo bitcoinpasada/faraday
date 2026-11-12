@@ -127,7 +127,7 @@ impl Item {
     }
 
     /// A lock drops it from the Inbox: it may hold a secret, which the
-    /// next process must not inherit (`docs/history/PLAN.md` §5.3).
+    /// next process must not inherit (`docs/SECURITY-MODEL.md`).
     pub(crate) fn dropped_at_lock(&self) -> bool {
         self.holds().may_be_secret() || self.secret
     }

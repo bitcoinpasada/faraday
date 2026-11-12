@@ -1,4 +1,4 @@
-//! Secure Boot keys in a vault (`docs/history/PLAN.md` §8): making an owner's PK, KEK
+//! Secure Boot keys in a vault (`docs/FLOWS.md`): making an owner's PK, KEK
 //! and db, the enrolment files, signing `BOOTX64.EFI` from the Inbox (only
 //! a Faraday release's own boot program, checked against the release's
 //! signed sums copied in beside it, F134), and checking an image's

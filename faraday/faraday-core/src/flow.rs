@@ -1,5 +1,5 @@
 //! The step-card column every flow is drawn with, the way Create vault
-//! is in the prototype (`docs/history/PLAN.md` §9.1): one card open at a time, the
+//! is in the prototype (`docs/LAYOUT.md`): one card open at a time, the
 //! others closed to a line that says what was chosen, and the column
 //! scrolled so the open card is in view. A card is a flat section on the
 //! page divided from the next by a rule, with no fill and no box
