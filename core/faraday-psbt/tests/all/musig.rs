@@ -1084,6 +1084,32 @@ fn a_version_2_file_takes_a_new_nonce_of_this_device_and_refuses_another_signers
         Err(faraday_psbt::v2::Error::Mismatch)
     );
     assert_eq!(relabelled, file, "nothing changed");
+
+    // A nonce of this device's under another aggregate key than the one
+    // it was made for is not replaced: the new nonce is written only
+    // under the exact key it was made for.
+    let mut elsewhere = psbt.clone();
+    let mut elsewhere_file = file.to_v0(&c).unwrap();
+    let ours_key = established.ours[0].key;
+    faraday_psbt::musig::write_pub_nonce(
+        &mut elsewhere_file.inner_mut().inputs[0],
+        &ours_key,
+        &zoo_key,
+        &ours(&old),
+    );
+    faraday_psbt::musig::write_pub_nonce(
+        &mut elsewhere.inner_mut().inputs[0],
+        &ours_key,
+        &zoo_key,
+        &ours(&new),
+    );
+    let elsewhere_file = faraday_psbt::v2::PsbtV2::from_v0(&c, &elsewhere_file);
+    let mut other_key = elsewhere_file.clone();
+    assert_eq!(
+        other_key.merge_signed_by(&elsewhere, &own),
+        Err(faraday_psbt::v2::Error::Mismatch)
+    );
+    assert_eq!(other_key, elsewhere_file, "nothing changed");
 }
 
 /// A cosigner that strips this device's partial signature and changes

@@ -905,7 +905,7 @@ impl PsbtV2 {
     /// [`PsbtV2::merge_signed`] for a pass that wrote the MuSig2 public
     /// nonces `written` (`SignResult::nonces_written`): a nonce pair on
     /// an input that has another value here is replaced when its
-    /// participant key and its value are exactly one of `written` on
+    /// participant key, aggregate key and value are exactly one of `written` on
     /// that input, as round 1 writes a new nonce over an older one of
     /// this device's. On such an input the MuSig2 partial signatures the
     /// signed PSBT no longer has go, as they were made against the nonce
@@ -938,6 +938,7 @@ impl PsbtV2 {
                     && written.iter().any(|w| {
                         w.input == i
                             && w.participant.serialize()[..] == k[1..34]
+                            && w.aggregate.serialize()[..] == k[34..67]
                             && w.nonce[..] == *v
                     })
             };

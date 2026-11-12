@@ -189,13 +189,16 @@ pub struct InputSignature {
 }
 
 /// A MuSig2 public nonce a pass wrote for one of this device's keys: the
-/// input, the participant key and the 66-byte nonce.
+/// input, the participant key, the aggregate key it is keyed by and the
+/// 66-byte nonce.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NonceWritten {
     /// The input it is on.
     pub input: usize,
     /// The participant key it is for.
     pub participant: secp256k1::PublicKey,
+    /// The aggregate key the entry is keyed by, as the signer wrote it.
+    pub aggregate: secp256k1::PublicKey,
     /// The public nonce, serialized.
     pub nonce: [u8; 66],
 }
@@ -472,6 +475,7 @@ pub fn sign(
                     |(participant, nonce)| NonceWritten {
                         input: i,
                         participant,
+                        aggregate: musig.output_key,
                         nonce,
                     },
                 ));
