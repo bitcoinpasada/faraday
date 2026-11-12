@@ -99,3 +99,27 @@ pub fn vault_passphrase_forms() -> Vec<Form> {
         ),
     ]
 }
+
+/// A vault entry's password.
+pub const ENTRY_PASSWORD: &str = "Garnet-Tundra-Sparrow-5519-Quartz-Heron-Mosaic-731";
+
+/// A vault entry's notes.
+pub const ENTRY_NOTES: &str = "Ledger-Cormorant-Basalt-2086-Willow-Pennant-Ochre-47";
+
+/// A TOTP secret in Base32: 32 characters, 20 bytes.
+pub const TOTP_BASE32: &str = "KRSXG5CTMVRXEZLUKN2XAZLSMVZGK3DT";
+
+/// The TOTP entry's URI, as it is stored.
+pub const TOTP_URI: &str =
+    "otpauth://totp/Leak:me@example.com?secret=KRSXG5CTMVRXEZLUKN2XAZLSMVZGK3DT&issuer=Leak";
+
+/// The forms of a vault entry's secrets: each field's bytes, and the TOTP
+/// secret as bytes and as Base32.
+pub fn entry_forms() -> Vec<Form> {
+    vec![
+        Form::new("entry password", ENTRY_PASSWORD.as_bytes().to_vec()),
+        Form::new("entry notes", ENTRY_NOTES.as_bytes().to_vec()),
+        Form::new("TOTP secret (Base32)", TOTP_BASE32.as_bytes().to_vec()),
+        Form::new("TOTP secret (bytes)", b"TestSecretSupererels".to_vec()),
+    ]
+}

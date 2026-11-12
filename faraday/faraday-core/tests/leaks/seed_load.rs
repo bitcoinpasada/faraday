@@ -41,7 +41,7 @@ fn paste(app: &mut Faraday, text: String) {
 
 /// A lock as a person's: the pool filled for a seal, Lock pressed, the
 /// worker's answers taken.
-fn lock(app: &mut Faraday) {
+pub fn lock(app: &mut Faraday) {
     crate::common::lock(app);
     assert!(app.session.keys.is_empty(), "Lock left a key");
 }
@@ -92,7 +92,7 @@ fn vault() -> Vec<u8> {
 }
 
 /// Unlocks the vault from the Vaults tab, its passphrase typed.
-fn unlock(app: &mut Faraday) {
+pub fn unlock(app: &mut Faraday) {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(app, VAULT_PASSPHRASE);
@@ -113,8 +113,11 @@ fn unlock(app: &mut Faraday) {
 }
 
 #[test]
-#[ignore = "a 48-byte live block holding the master chain code (offset 1) after Lock, seen on GitHub's runner and not on the build machine, in the Load sheet's job on the worker: not attributed yet, perhaps a stale entry of the live list"]
 fn a_vaults_seed_loaded_from_the_load_sheet_leaves_no_copy_after_lock() {
+    load_flow();
+}
+
+fn load_flow() {
     let file = vault();
     let mut forms = seed_forms(PASSPHRASE);
     forms.extend(vault_passphrase_forms());

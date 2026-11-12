@@ -90,27 +90,60 @@ fn frames(trace: &str) -> Vec<String> {
 /// The frames that are Faraday's or a library's: those after the
 /// allocator's own and the standard library's drop glue.
 fn owners(trace: &str) -> Vec<String> {
-    const SKIP: [&str; 6] = [
-        "std::", "core::", "alloc::", "<std::", "<core::", "<alloc::",
+    // The standard library's, and the drop glue, the deallocation and the
+    // allocator's own frames between a free and the code that made it.
+    const SKIP: [&str; 28] = [
+        "std::",
+        "core::",
+        "alloc::",
+        "<std::",
+        "<core::",
+        "<alloc::",
+        "drop_in_place",
+        "drop<",
+        "drop_elements",
+        "drop_inner_table",
+        "dealloc",
+        "deallocate",
+        "try_with",
+        "<hashbrown::",
+        "<bool>::",
+        "<&mut alloc::",
+        "<faraday_leak_scan::",
+        "map_or_else",
+        "format",
+        "{closure#",
+        "drop_glue",
+        "realloc",
+        "grow",
+        "finish_grow",
+        "do_reserve",
+        "reserve",
+        "extend",
+        "spec_extend",
     ];
     let frames = frames(trace);
     let from = frames
         .iter()
-        .position(|f| f.contains("LeakScan as"))
+        .position(|f| f.starts_with("<faraday_leak_scan::LeakScan as"))
         .map_or(0, |i| i + 1);
     frames
         .into_iter()
         .skip(from)
-        .filter(|f| !SKIP.iter().any(|s| f.starts_with(s)) && !f.starts_with("__"))
+        .filter(|f| {
+            !SKIP.iter().any(|s| f.starts_with(s))
+                && !f.starts_with("__")
+                && !f.starts_with("faraday_leak_scan::")
+        })
         .collect()
 }
 
-/// A hit's place: the first frame that is not the standard library's.
-fn place(h: &Hit) -> String {
-    owners(&h.backtrace())
-        .into_iter()
-        .next()
-        .unwrap_or_default()
+/// A frame's name cut to what a line can hold.
+fn short(frame: &str) -> &str {
+    match frame.char_indices().nth(70) {
+        Some((i, _)) => &frame[..i],
+        None => frame,
+    }
 }
 
 /// Fails unless what `flow` found is what its entries allow: `report` is
@@ -118,7 +151,10 @@ fn place(h: &Hit) -> String {
 pub fn verdict(flow: &str, report: Report, live: &[Hit]) {
     let mut problems: Vec<String> = Vec::new();
     for h in live {
-        problems.push(format!("kept after Lock, which no entry passes: {h:?}"));
+        problems.push(format!(
+            "kept after Lock, which no entry passes: {} at {} of {} bytes",
+            h.form, h.offset, h.size
+        ));
     }
     if report.dropped > 0 {
         problems.push(format!("{} more hits than are kept", report.dropped));
@@ -138,15 +174,13 @@ pub fn verdict(flow: &str, report: Report, live: &[Hit]) {
             None => {
                 let key = (h.form.clone(), top);
                 if !seen.contains(&key) {
+                    let top: Vec<&str> = frames.iter().take(8).map(|f| short(f)).collect();
                     problems.push(format!(
-                        "freed with no entry: {h:?}\n    place: {}\n    frames: {}",
-                        place(h),
-                        frames
-                            .iter()
-                            .take(6)
-                            .cloned()
-                            .collect::<Vec<_>>()
-                            .join("\n            ")
+                        "freed with no entry: {} at {} of {} bytes, in {}",
+                        h.form,
+                        h.offset,
+                        h.size,
+                        top.join(" < ")
                     ));
                     seen.push(key);
                 }

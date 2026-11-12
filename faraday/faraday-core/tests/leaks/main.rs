@@ -12,12 +12,15 @@
 #[global_allocator]
 static ALLOC: faraday_leak_scan::LeakScan = faraday_leak_scan::LeakScan;
 
+mod backup;
 #[path = "../all/common.rs"]
 mod common;
 mod entries;
 mod forms;
 mod planted;
+mod readers;
 mod seed_load;
+mod sign;
 
 use faraday_leak_scan::{Armed, Form};
 
