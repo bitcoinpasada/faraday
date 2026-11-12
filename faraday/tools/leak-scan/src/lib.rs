@@ -122,6 +122,39 @@ struct Session {
     dropped: AtomicUsize,
 }
 
+/// The sessions still open: a block one of them lists may be freed by a
+/// thread that is not armed with it (a thread of a pool, one that was
+/// never armed), and that free must take it off the list, or the list
+/// holds an address that is reused and scanned as a block the test keeps.
+static OPEN: Mutex<Vec<Arc<Session>>> = Mutex::new(Vec::new());
+
+/// How many sessions [`OPEN`] holds: the one read a free makes when no
+/// test is running.
+static OPEN_COUNT: AtomicUsize = AtomicUsize::new(0);
+
+/// Takes the block at `ptr`, given back by a thread this allocator does
+/// not scan for (not armed, or inside its own bookkeeping), off every
+/// open session's list of live blocks.
+fn forget(ptr: *mut u8) {
+    if OPEN_COUNT.load(Ordering::Relaxed) == 0 {
+        return;
+    }
+    // A thread already in the bookkeeping may hold a list's lock.
+    if BUSY.try_with(|b| b.replace(true)).unwrap_or(true) {
+        return;
+    }
+    {
+        let open = OPEN.lock().unwrap_or_else(|e| e.into_inner());
+        for s in open.iter() {
+            s.live
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .remove(&(ptr as usize));
+        }
+    }
+    let _ = BUSY.try_with(|b| b.set(false));
+}
+
 thread_local! {
     /// Whether this thread is armed: the one read a disarmed call makes.
     static ON: Cell<bool> = const { Cell::new(false) };
@@ -255,7 +288,7 @@ fn on_alloc(ptr: *mut u8, size: usize, uninit: bool) {
 }
 
 fn on_free(ptr: *mut u8, size: usize) {
-    with_session(|s| {
+    let seen = with_session(|s| {
         s.live
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -263,6 +296,9 @@ fn on_free(ptr: *mut u8, size: usize) {
         let found = find_forms(s, block(ptr, size));
         record(s, &found, size, When::Freed, true);
     });
+    if seen.is_none() {
+        forget(ptr);
+    }
 }
 
 /// The allocator: the system's, with the scan of an armed thread's blocks.
@@ -296,14 +332,17 @@ unsafe impl GlobalAlloc for LeakScan {
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         // What the old block holds is looked for before it can move; it is
         // a hit only if it did move.
-        let found = with_session(|s| {
+        let seen = with_session(|s| {
             s.live
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .remove(&(ptr as usize));
             find_forms(s, block(ptr, layout.size()))
-        })
-        .unwrap_or_default();
+        });
+        if seen.is_none() {
+            forget(ptr);
+        }
+        let found = seen.unwrap_or_default();
         // SAFETY: `ptr` came from `System` through this allocator.
         let new = unsafe { System.realloc(ptr, layout, new_size) };
         let size = if new.is_null() {
@@ -361,6 +400,12 @@ pub fn arm(forms: &[Form]) -> Armed {
             dropped: AtomicUsize::new(0),
         })
     });
+    busy(|| {
+        OPEN.lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(Arc::clone(&session));
+        OPEN_COUNT.fetch_add(1, Ordering::Relaxed);
+    });
     let armed = Armed { session };
     armed.handle().arm_this_thread();
     armed
@@ -405,6 +450,11 @@ impl Armed {
     fn disarm(&self) -> Report {
         busy(|| {
             self.session.open.store(false, Ordering::SeqCst);
+            let mut open = OPEN.lock().unwrap_or_else(|e| e.into_inner());
+            let before = open.len();
+            open.retain(|s| !Arc::ptr_eq(s, &self.session));
+            OPEN_COUNT.fetch_sub(before - open.len(), Ordering::Relaxed);
+            drop(open);
             let _ = ON.try_with(|o| o.set(false));
             self.session
                 .live
