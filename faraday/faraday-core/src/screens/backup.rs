@@ -330,7 +330,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     open: b.open == Some(k),
                     default: false,
                     toggle: Action::BStep(k),
-                    learn: guide::backup_topic(k, split),
                     guide: Some(guide::backup(
                         k,
                         split,
@@ -358,7 +357,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     default: false,
                     toggle: Action::BQ(k),
                     guide: None,
-                    learn: None,
                 }
             }
         })
@@ -655,7 +653,7 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md` §17.19
-/// item 7): copies made outside the plan, and the Learn page on them.
+/// item 7): copies made outside the plan, and the link to the guide on them.
 /// Returns its height; nothing in Steps only.
 pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if !app.guided() {
@@ -673,7 +671,7 @@ pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         BUTTON_H,
         label,
         Style::Ghost,
-        Action::LearnTopic(crate::learn::Topic::ExtraCopies),
+        Action::LearnExtraCopies,
     );
     cy += BUTTON_H + 12.0;
     cy - y

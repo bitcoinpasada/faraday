@@ -274,7 +274,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 default: n == step::CHECK,
                 toggle: Action::Step(n),
                 guide: Some(guide::spend(n, kind, needed, s, app.medium)).filter(|g| !g.is_empty()),
-                learn: guide::spend_topic(n, kind, s),
             })
             .collect();
         (

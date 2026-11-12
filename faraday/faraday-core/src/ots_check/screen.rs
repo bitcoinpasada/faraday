@@ -32,7 +32,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: Action::OtsCheck(O::Step(step)),
             guide: None,
-            learn: (step == ostep::PROOF).then_some(crate::learn::Topic::Timestamps),
         })
         .collect();
     let back_name = if s.back == crate::Screen::Catalog {

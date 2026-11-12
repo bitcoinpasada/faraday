@@ -1,8 +1,7 @@
 //! `Screen::Entry`: typing a seed.
 
 use super::parts::{
-    Cells, dots_field, guide_text_learn, keyed_cells, keyed_pills, never_below, typed_cells,
-    word_keys,
+    Cells, dots_field, guide_text, keyed_cells, keyed_pills, never_below, typed_cells, word_keys,
 };
 use crate::drawing::View;
 use crate::strings::{EN, fill};
@@ -163,15 +162,7 @@ pub(crate) fn entry_words(
         y += button_rows(ui, x, y, width, &langs);
         return keyed_words(app, w, ui, x, y, width, h);
     }
-    y += guide_text_learn(
-        app,
-        ui,
-        x,
-        y,
-        width,
-        EN.entry_type_the_words,
-        crate::learn::Topic::Words,
-    );
+    y += guide_text(app, ui, x, y, width, EN.entry_type_the_words);
 
     let words: Vec<&str> = app.entry.state().typed.split_whitespace().collect();
     y += word_count_row(app, ui, x, y, width, true);
@@ -288,7 +279,7 @@ fn keyed_words(
     let lang = app.entry.state().language();
     let kind = w.keyboard();
     let mut y = y;
-    y += guide_text_learn(
+    y += guide_text(
         app,
         ui,
         x,
@@ -299,7 +290,6 @@ fn keyed_words(
             keyboard::KeyboardKind::Zhuyin => EN.keyed_words_type_each_word,
             _ => EN.keyed_words_type_each,
         },
-        crate::learn::Topic::Words,
     );
     // The words taken, in a grid, the next one's keys in its cell.
     let taken: Vec<u16> = w.committed_indices().collect();
@@ -640,15 +630,7 @@ pub(crate) fn entry_form(
         Form::Codex32 => EN.entry_form_type_one_codex32,
         _ => EN.entry_form_type_one,
     };
-    y += guide_text_learn(
-        app,
-        ui,
-        x,
-        y,
-        width,
-        guide,
-        crate::learn::Topic::OtherBackups,
-    );
+    y += guide_text(app, ui, x, y, width, guide);
     let mut replaced = false;
     if form == Form::Codex32 {
         let (hh, r) = codex32_head(app, ui, (x, y, width), true);

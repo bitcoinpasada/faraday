@@ -3,7 +3,7 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::lightning::NodeSource;
-use crate::screens::{button_rows, guide_text_learn};
+use crate::screens::{button_rows, guide_text};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
@@ -43,15 +43,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let end = body(app, ui, x, y, width, (vx, vw, below));
     if compact {
-        let y = end
-            + crate::compact::screen::about_learn(
-                ui,
-                x,
-                end,
-                width,
-                guide,
-                Some(crate::learn::Topic::Tools),
-            );
+        let y = end + crate::compact::screen::about(ui, x, end, width, guide);
         crate::compact::screen::finish(app, ui, h, y - top + 16.0);
     }
 }
@@ -70,7 +62,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, width: f32, guide: &str) -> f32 {
         EN.lightning_lightning_node
     };
     let y = crate::screens::bar_head(ui, Some(back), title);
-    y + guide_text_learn(app, ui, x, y, width, guide, crate::learn::Topic::Tools)
+    y + guide_text(app, ui, x, y, width, guide)
 }
 
 /// The sources, the aezeed's words, and the node. `vx`, `vw` are where

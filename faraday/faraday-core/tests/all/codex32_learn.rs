@@ -115,17 +115,6 @@ fn make_codex32_shares_and_the_codex32_form_open_the_guide_at_the_codex32_sectio
     let mut app = testkit::started();
     codex32_form(&mut app);
     assert!(guide_key(&mut app).starts_with("entry"));
-    // The page on other backups says where the codex32 guide and the
-    // booklet are.
-    let page = faraday_core::learn::Topic::OtherBackups.page();
-    let text: String = page
-        .sections
-        .iter()
-        .flat_map(|s| s.paragraphs.iter().copied())
-        .collect();
-    assert!(text.contains("https://github.com/FractalEncrypt/FractalEncrypt_seedsigner/blob/codex/codex32-error-correction/docs/codex32_qr/Codex32_User_Flow_Guide.md"));
-    assert!(text.contains("https://secretcodex32.com/"));
-    assert!(text.contains("Copyright (c) 2022 Blockstream"));
 }
 
 #[test]

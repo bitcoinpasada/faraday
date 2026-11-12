@@ -596,7 +596,7 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
 }
 
 /// The backup's last card, in Guided, says extra copies are made outside
-/// the plan and links the Learn page on them; Steps only shows neither
+/// the plan and links the guide's section on them; Steps only shows neither
 /// (`docs/BACKUP-FLOW.md` §17.19 item 7).
 #[test]
 fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
@@ -622,17 +622,14 @@ fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
         t.contains("More copies can be made once the wallet is made"),
         "{t}"
     );
-    assert!(app.offers(Action::LearnTopic(faraday_core::learn::Topic::ExtraCopies)));
-    app.press(Action::LearnTopic(faraday_core::learn::Topic::ExtraCopies));
+    assert!(app.offers(Action::LearnExtraCopies));
+    app.press(Action::LearnExtraCopies);
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
     assert_eq!(app.learn().key, faraday_core::learn::EXTRA_COPIES_KEY);
     app.press(Action::Cancel);
     app.press(Action::Guided(false));
     let _ = app.frame();
-    assert!(
-        !app.offers(Action::LearnTopic(faraday_core::learn::Topic::ExtraCopies)),
-        "not in Steps only"
-    );
+    assert!(!app.offers(Action::LearnExtraCopies), "not in Steps only");
 }
 
 /// While a key made here waits for its backup, no receive address opens a

@@ -824,26 +824,8 @@ pub const SWITCH_HANDLE_PRESSED: f32 = 28.0;
 /// A switch: the state layer round its handle, its diameter.
 pub const SWITCH_STATE: f32 = 40.0;
 
-/// A Guided text's Learn link: the button's height.
-pub const GUIDE_LINK_H: f32 = 32.0;
-
-/// A Guided text's Learn link: the room between the text and the button.
-pub const GUIDE_LINK_ABOVE: f32 = 6.0;
-
-/// A Guided text's Learn link: the room kept under the button, so its
-/// touch target, which reaches out past it to the touch floor, does not
-/// meet that of the control below.
-pub const GUIDE_LINK_BELOW: f32 = 4.0;
-
-/// A Guided text's Learn link: the room added to its label's width.
-pub const GUIDE_LINK_PAD: f32 = 24.0;
-
 /// A Guided text: how far in from its bar the words stand.
 pub const GUIDE_INDENT: f32 = 14.0;
-
-/// A card with its Guided text open: how far down from the card's top its
-/// body starts.
-pub const GUIDE_CARD_HEAD: f32 = 56.0;
 
 /// A Guided text: the room under it.
 pub const GUIDE_AFTER: f32 = 18.0;

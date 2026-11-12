@@ -1,5 +1,5 @@
 //! A key's calculations are blinded from the session's randomness
-//! (`docs/learn/03-randomness.md`, `docs/KEYS.md` §2): a key's signing
+//! (`docs/KEYS.md` §2): a key's signing
 //! context is randomized once when it is made, again from the session's
 //! seed when it joins the session, or when the seed arrives if it joined
 //! before, and again for every key whenever randomness the person adds

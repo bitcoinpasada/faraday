@@ -684,8 +684,8 @@ pub enum Action {
     /// **What is a share?** beside the backup plan's In shares: the
     /// Learn sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).
     LearnShares,
-    /// The Learn page a Guided card links to, under its text.
-    LearnTopic(crate::learn::Topic),
+    /// The guide at Extra copies, from the line under the backup's plan.
+    LearnExtraCopies,
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
     /// Make a new key, for this Create slot or for the session; for the

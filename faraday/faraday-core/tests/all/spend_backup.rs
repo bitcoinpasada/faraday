@@ -278,7 +278,7 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
 /// Read the transaction carries one line and a way to Learn's Verifying,
 /// where why the summary is read before signing is written.
 #[test]
-fn read_the_transaction_leads_to_verifying_in_learn() {
+fn read_the_transaction_opens_the_guide_at_the_place() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     unlock_on_tab(&mut app);
     let savings = wallet_at(&app, "Savings");
@@ -292,19 +292,9 @@ fn read_the_transaction_leads_to_verifying_in_learn() {
         "{text}"
     );
     assert!(!text.contains("Declining costs nothing"), "{text}");
-    let verifying = Action::LearnTopic(faraday_core::learn::Topic::Verifying);
-    assert!(app.offers(verifying));
-    app.press(verifying);
+    app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
     assert_eq!(app.learn().shown, "spend-from-backup");
-    let page = faraday_core::learn::Topic::Verifying.page();
-    assert_eq!(page.title, "Verifying");
-    assert!(
-        page.sections
-            .iter()
-            .flat_map(|s| s.paragraphs)
-            .any(|p| p.contains("Declining costs nothing"))
-    );
 }
 
 /// A transaction brought before Check the money is done leaves the

@@ -6,11 +6,10 @@
 
 use faraday_learn::Block;
 use faraday_learn::Page as LearnPage;
-use faraday_learn::pages::EN;
 
 pub use faraday_learn::{
-    GUIDES, MAKERS, Maker, backup_plan_check_page, demo_page, gpg_page, guide_address, guide_id,
-    keys_kept_page, maker, page, secure_boot_keys_page, shares_page, time_page, vaults_page,
+    GUIDES, MAKERS, Maker, demo_page, gpg_page, guide_address, guide_id, keys_kept_page, maker,
+    page, secure_boot_keys_page, time_page, vaults_page,
 };
 
 use crate::{Action, Faraday, Screen};
@@ -413,144 +412,6 @@ pub fn guide_aim(key: &'static str) -> GuideAim {
     }
 }
 
-/// A Learn page a Guided card links to, named by what it explains. Merged
-/// pages are named by the page they are in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Topic {
-    /// Start here.
-    StartHere,
-    /// Words.
-    Words,
-    /// Randomness.
-    Randomness,
-    /// Backups.
-    Backups,
-    /// Backups in other forms (SLIP-39, codex32, Seed XOR).
-    OtherBackups,
-    /// Passphrases.
-    Passphrases,
-    /// Verifying.
-    Verifying,
-    /// The air gap.
-    AirGap,
-    /// Multisig.
-    Multisig,
-    /// Spend paths and timelocks.
-    SpendPaths,
-    /// Xpubs and privacy.
-    Xpubs,
-    /// Nonces.
-    Nonces,
-    /// Signing a message.
-    Message,
-    /// Tools.
-    Tools,
-    /// Kinds of wallets.
-    WalletKinds,
-    /// Coordinator files.
-    Coordinators,
-    /// Silent payments.
-    SilentPayments,
-    /// Lightning invoices.
-    LightningInvoices,
-    /// Timestamps.
-    Timestamps,
-    /// Bitcoin Core wallets.
-    CoreWallet,
-    /// Shares of a wallet description.
-    Shares,
-    /// A backup plan's check.
-    BackupPlanCheck,
-    /// Vaults.
-    Vaults,
-    /// Wiping a stick, from the wipe sheet.
-    WipingAStick,
-    /// Extra copies, from the backup's last card.
-    ExtraCopies,
-}
-
-impl Topic {
-    /// Every topic, in declaration order.
-    const ALL: &[Topic] = &[
-        Topic::StartHere,
-        Topic::Words,
-        Topic::Randomness,
-        Topic::Backups,
-        Topic::OtherBackups,
-        Topic::Passphrases,
-        Topic::Verifying,
-        Topic::AirGap,
-        Topic::Multisig,
-        Topic::SpendPaths,
-        Topic::Xpubs,
-        Topic::Nonces,
-        Topic::Message,
-        Topic::Tools,
-        Topic::WalletKinds,
-        Topic::Coordinators,
-        Topic::SilentPayments,
-        Topic::LightningInvoices,
-        Topic::Timestamps,
-        Topic::CoreWallet,
-        Topic::Shares,
-        Topic::BackupPlanCheck,
-        Topic::Vaults,
-        Topic::WipingAStick,
-    ];
-
-    /// The label of the link to this page, made once and kept: drawing
-    /// reads it and allocates nothing.
-    pub fn label(self) -> &'static str {
-        static LABELS: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
-        let labels = LABELS.get_or_init(|| {
-            let make = |t: Topic| {
-                crate::strings::fill(faraday_strings::EN.guide_learn_link, &[t.page().title])
-            };
-            Topic::ALL
-                .iter()
-                .copied()
-                .chain([Topic::ExtraCopies])
-                .map(make)
-                .collect()
-        });
-        &labels[Topic::ALL
-            .iter()
-            .position(|&t| t == self)
-            .unwrap_or(Topic::ALL.len())]
-    }
-
-    /// The page this topic is.
-    pub fn page(self) -> &'static LearnPage {
-        match self {
-            Topic::StartHere => &EN.start_here,
-            Topic::Words => &EN.words,
-            Topic::Randomness => &EN.randomness,
-            Topic::Backups => &EN.backups,
-            Topic::OtherBackups => &EN.other_backups,
-            Topic::Passphrases => &EN.passphrases,
-            Topic::Verifying => &EN.verifying,
-            Topic::AirGap => &EN.air_gap,
-            Topic::Multisig => &EN.multisig,
-            Topic::SpendPaths => &EN.spend_paths,
-            Topic::Xpubs => &EN.xpubs,
-            Topic::Nonces => &EN.nonces,
-            Topic::Message => &EN.message,
-            Topic::Tools => &EN.tools,
-            Topic::WalletKinds => &EN.wallet_kinds,
-            Topic::Coordinators => &EN.coordinators,
-            Topic::SilentPayments => &EN.silent_payments,
-            Topic::LightningInvoices => &EN.lightning_invoices,
-            Topic::Timestamps => &EN.timestamps,
-            Topic::CoreWallet => &EN.core_wallet,
-            Topic::Shares => shares_page(),
-            Topic::BackupPlanCheck => backup_plan_check_page(),
-            Topic::Vaults => vaults_page(),
-            Topic::WipingAStick => faraday_learn::wiping_a_stick_page(),
-            Topic::ExtraCopies => faraday_learn::extra_copies_page(),
-        }
-    }
-}
-
 /// The guide's state in the sheet and the pane: the place's key, the page
 /// shown, whether the contents is, and how far it is scrolled. The held
 /// app's Learn pages ([`Faraday::learn_with`]) are `pages`.
@@ -846,15 +707,9 @@ impl Faraday {
         }
     }
 
-    /// A link to a Learn page: **Extra copies** opens the guide at its
-    /// section, every other opens the guide at the current place, as the
-    /// button does (the links go in a later change).
-    pub(crate) fn learn_topic(&mut self, topic: Topic) {
-        if topic == Topic::ExtraCopies {
-            self.learn_open_key(EXTRA_COPIES_KEY);
-        } else {
-            self.learn_open_key(self.screen_key());
-        }
+    /// The Extra copies link: opens the guide at its section.
+    pub(crate) fn learn_extra_copies(&mut self) {
+        self.learn_open_key(EXTRA_COPIES_KEY);
     }
 
     /// The link to the shares page: the guide at the current place.

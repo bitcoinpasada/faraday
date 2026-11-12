@@ -2,7 +2,7 @@
 //! own lists from expanded windows up, and below that Material's primary
 //! tabs In Faraday and On the stick.
 
-use super::parts::{guide_text_learn, kind_line, pull_line, size_text};
+use super::parts::{guide_text, kind_line, pull_line, size_text};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::Region;
@@ -253,7 +253,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Outbox and copies from the Inbox, from (x, y) `w` wide.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h): (f32, f32)) {
-    use crate::compact::screen::{about_learn, finish};
+    use crate::compact::screen::{about, finish};
     let mut y = y;
     if let Some(r) = app.visit.receipt().as_ref() {
         y += super::files::receipt_rows(ui, r, app.tz_min(), x, y, w) + GRID;
@@ -445,7 +445,7 @@ fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h
         Action::VisitWrite,
     );
     y += 54.0;
-    y += about_learn(
+    y += about(
         ui,
         x,
         y,
@@ -454,7 +454,6 @@ fn visit_compact_in(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), (top, h
             EN.visit_write_what_waits,
             &[app.medium.noun(), app.medium.noun(), app.medium.noun()],
         ),
-        Some(crate::learn::Topic::AirGap),
     );
     finish(app, ui, h, y - top + 16.0);
 }
@@ -522,7 +521,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     y += 64.0;
-    y += guide_text_learn(
+    y += guide_text(
         app,
         ui,
         x,
@@ -532,7 +531,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.visit_write_what_waits,
             &[app.medium.noun(), app.medium.noun(), app.medium.noun()],
         ),
-        crate::learn::Topic::AirGap,
     );
     if let Some(line) = super::files::boot_medium_line(app) {
         y += ui.wrap_as((x, y, width), BODY_M, Role::Error, line) + GRID;

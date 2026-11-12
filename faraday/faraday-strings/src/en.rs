@@ -3341,8 +3341,6 @@ strings! {
     /// Row on Sign with {key}: the time the signatures will carry.
     vault_signature_time: "Signature time",
     // ----- guide (faraday-core/src/guide.rs) -----
-    /// A Guided text's link to its Learn page. `{}`: the page's title.
-    guide_learn_link: "Learn: {}",
     /// Text in `spend`.
     guide_this_is_the_wallet: "This is the wallet the transaction spends from, matched from its inputs. If it is not the wallet you meant, stop here.",
     /// Text in `spend`.
@@ -8153,7 +8151,7 @@ strings! {
     power_the_computer_restarts: "The computer powers off, or restarts",
     /// Label of the row in `power_sheet` that gives this computer's BIOS key.
     power_bios_key: "Usual BIOS key",
-    /// Dell's BIOS key (`docs/learn/faraday/boot/maker-dell.md`).
+    /// Dell's BIOS key.
     bios_key_dell: "F2",
     /// HP's BIOS key.
     bios_key_hp: "Esc, then F10",
@@ -8171,23 +8169,23 @@ strings! {
     bios_key_framework: "F2",
     /// Surface's BIOS key.
     bios_key_surface: "Volume Up, held",
-    /// Dell's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    /// Dell's boot menu key.
     boot_key_dell: "F12",
-    /// HP's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    /// HP's boot menu key.
     boot_key_hp: "Esc, then F9",
-    /// Lenovo ThinkPad's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    /// Lenovo ThinkPad's boot menu key.
     boot_key_lenovo_thinkpad: "F12",
-    /// Lenovo IdeaPad, Yoga and Legion's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    /// Lenovo IdeaPad, Yoga and Legion's boot menu key.
     boot_key_lenovo_ideapad: "F12 (or Fn+F12)",
-    /// ASUS's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    /// ASUS's boot menu key.
     boot_key_asus: "Esc, held",
-    /// Acer's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    /// Acer's boot menu key.
     boot_key_acer: "F12",
-    /// MSI's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    /// MSI's boot menu key.
     boot_key_msi: "F11",
-    /// Framework's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    /// Framework's boot menu key.
     boot_key_framework: "F12",
-    /// Surface's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
+    /// Surface's boot menu key.
     boot_key_surface: "Volume Down, held",
     /// Where the Secure Boot setting is in Dell's BIOS.
     secure_boot_dell: "Boot Configuration → Secure Boot",
@@ -11606,7 +11604,7 @@ strings! {
     board_no_seed: "{} holds no seed",
     /// The backup's last card, in Guided. `{}`: `medium.noun()`.
     backup_extra_copies: "More copies can be made once the wallet is made: a vault copied to another {}, words copied by hand. They are not part of the plan.",
-    /// The Learn link under it.
+    /// The guide link under it, which opens the guide at Extra copies.
     backup_extra_copies_link: "Extra copies",
     /// "Any one place lost" with a single place (§19.19).
     plan_no_single_place: "No: a single place",

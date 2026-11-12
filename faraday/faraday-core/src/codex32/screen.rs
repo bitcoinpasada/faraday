@@ -112,19 +112,10 @@ pub(crate) fn cards(k: &KeyGen, m: &Codex32Make) -> Vec<(Card, flow::Card)> {
                     toggle: a(C32::Card(card.index())),
                     // Built only for the open card.
                     guide: open(card).then(|| guide(card).to_string()),
-                    learn: open(card).then(|| learn(card)),
                 },
             )
         })
         .collect()
-}
-
-/// The Learn page a card's walk-through links to.
-fn learn(card: Card) -> crate::learn::Topic {
-    match card {
-        Card::Entropy | Card::Enter => crate::learn::Topic::Randomness,
-        _ => crate::learn::Topic::OtherBackups,
-    }
 }
 
 /// Guided mode's walk-through of a card: what it does and what its

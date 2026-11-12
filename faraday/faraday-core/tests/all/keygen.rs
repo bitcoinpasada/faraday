@@ -1462,17 +1462,17 @@ fn a_key_wanted_by_its_fingerprint_still_opens_add_a_key() {
 }
 
 #[test]
-fn a_guided_card_links_its_learn_page_and_steps_only_does_not() {
+fn a_guided_card_shows_its_text_with_no_link_and_the_guide_opens_at_the_place() {
     use faraday_core::keygen::kstep;
-    use faraday_core::learn::Topic;
     let mut app = opened();
     app.press(Action::KStep(kstep::LENGTH));
     let _ = app.frame();
-    assert!(!app.offers(Action::LearnTopic(Topic::Words)), "Steps only");
+    let shown = |app: &mut Faraday| app.drawn_texts().join(" ").contains("words carry 128 bits");
+    assert!(!shown(&mut app), "Steps only");
     app.press(Action::Guided(true));
     let _ = app.frame();
-    assert!(app.offers(Action::LearnTopic(Topic::Words)));
-    app.press(Action::LearnTopic(Topic::Words));
+    assert!(shown(&mut app));
+    app.press(Action::Learn);
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
     assert_eq!(app.learn().shown, "keygen", "the guide at the place");
 }

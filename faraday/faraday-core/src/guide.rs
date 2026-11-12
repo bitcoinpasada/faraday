@@ -3,10 +3,9 @@
 //!
 //! The rule for this text: two sentences, about 30 words and 40 at most,
 //! saying what the card is for and what its press does. No reassurance
-//! and no theory; Learn has the theory, one press away: each card that
-//! has a Learn page names it in the `*_topic` function beside its text.
+//! and no theory; the guide has the theory, one press away, at the
+//! section of the card.
 
-use crate::learn::Topic;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::wallet::{Kind, step};
@@ -73,31 +72,6 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
     }
 }
 
-/// The Learn page under the walk-through of one step of a spend, if it
-/// has one.
-pub(crate) fn spend_topic(n: u8, kind: Option<Kind>, s: &SpendState) -> Option<Topic> {
-    match n {
-        step::WALLET | step::TRANSACTION => Some(Topic::Verifying),
-        step::CHECK => kind.map(|_| Topic::Verifying),
-        step::NONCES => Some(Topic::Nonces),
-        step::PATH => Some(Topic::SpendPaths),
-        step::SIGNERS => match kind {
-            Some(Kind::Miniscript | Kind::Tree) => Some(Topic::SpendPaths),
-            Some(_) => Some(Topic::Multisig),
-            None => None,
-        },
-        step::SIGN if !s.signed_keys().is_empty() => None,
-        step::SIGN => match kind {
-            Some(Kind::MuSig) => Some(Topic::Nonces),
-            Some(k) if k.has_cosigners() => Some(Topic::Multisig),
-            _ => Some(Topic::AirGap),
-        },
-        step::COLLECT => Some(Topic::Multisig),
-        step::FINISH if s.spend.finished.is_some() => Some(Topic::Verifying),
-        _ => None,
-    }
-}
-
 /// The walk-through for one card of the backup. `split`: the plan splits
 /// the wallet description into shares.
 pub(crate) fn backup(
@@ -141,22 +115,6 @@ pub(crate) fn backup(
     }
 }
 
-/// The Learn page under the walk-through of one card of the backup.
-pub(crate) fn backup_topic(n: u8, split: bool) -> Option<Topic> {
-    use crate::bstep;
-    match n {
-        bstep::BLANK | bstep::FILES | bstep::ENVELOPE => Some(Topic::Backups),
-        n if bstep::is_copy(n) => Some(Topic::Backups),
-        n if bstep::is_codex32(n) => Some(Topic::OtherBackups),
-        n if bstep::is_passphrase(n) => Some(Topic::Passphrases),
-        bstep::PUBLIC | bstep::SHOW => Some(Topic::Xpubs),
-        bstep::SHEETS if split => Some(Topic::Shares),
-        bstep::SHEETS => Some(Topic::Xpubs),
-        n if n >= bstep::VAULT => Some(Topic::Vaults),
-        _ => None,
-    }
-}
-
 /// The walk-through for one card of signing a message.
 pub(crate) fn message(n: u8) -> String {
     use crate::mstep;
@@ -167,13 +125,6 @@ pub(crate) fn message(n: u8) -> String {
         mstep::SIGN => EN.guide_signing_moves.to_string(),
         _ => String::new(),
     }
-}
-
-/// The Learn page under the walk-through of one card of signing a
-/// message.
-pub(crate) fn message_topic(n: u8) -> Option<Topic> {
-    use crate::mstep;
-    matches!(n, mstep::ADDRESS | mstep::FORMAT).then_some(Topic::Message)
 }
 
 /// The walk-through for one card of creating a wallet.
@@ -211,20 +162,6 @@ pub(crate) fn create(
     }
 }
 
-/// The Learn page under the walk-through of one card of creating a
-/// wallet.
-pub(crate) fn create_topic(n: u8, kind: crate::create::NewKind) -> Option<Topic> {
-    use crate::cstep;
-    match n {
-        cstep::KIND => Some(Topic::WalletKinds),
-        cstep::QUORUM => Some(Topic::Multisig),
-        cstep::KEYS if kind.multi() => Some(Topic::Xpubs),
-        cstep::CHECK => Some(Topic::Verifying),
-        cstep::WHERE | cstep::VAULTS => Some(Topic::Vaults),
-        _ => None,
-    }
-}
-
 /// The walk-through for one card of restoring a wallet.
 pub(crate) fn restore(n: u8, medium: Medium) -> String {
     use crate::rstep;
@@ -240,21 +177,6 @@ pub(crate) fn restore(n: u8, medium: Medium) -> String {
             &[medium.nouns(), medium.noun()],
         ),
         _ => EN.guide_restore_session.to_string(),
-    }
-}
-
-/// The Learn page under the walk-through of one card of restoring a
-/// wallet.
-pub(crate) fn restore_topic(n: u8) -> Option<Topic> {
-    use crate::rstep;
-    match n {
-        rstep::KIND => Some(Topic::WalletKinds),
-        rstep::QUORUM => Some(Topic::Multisig),
-        rstep::DESCRIPTION => Some(Topic::Coordinators),
-        rstep::SEEDS => Some(Topic::Passphrases),
-        rstep::CHECK => Some(Topic::Verifying),
-        rstep::WHERE => Some(Topic::Vaults),
-        _ => None,
     }
 }
 
@@ -289,19 +211,5 @@ pub(crate) fn keygen(n: u8, k: &crate::keygen::KeyGen) -> String {
         kstep::CHECK => EN.guide_these_counts.to_string(),
         kstep::WORDS => EN.guide_write_the_words.to_string(),
         _ => EN.guide_answer_from_your.to_string(),
-    }
-}
-
-/// The Learn page under the walk-through of one card of New key.
-pub(crate) fn keygen_topic(n: u8, k: &crate::keygen::KeyGen) -> Option<Topic> {
-    use crate::keygen::kstep;
-    match n {
-        kstep::LENGTH if k.slip39 => Some(Topic::OtherBackups),
-        kstep::LENGTH => Some(Topic::Words),
-        kstep::SOURCE | kstep::ENTER | kstep::CHECK => Some(Topic::Randomness),
-        kstep::KEY if k.slot.is_some() => Some(Topic::Passphrases),
-        kstep::WORDS | kstep::QUIZ if k.slip39 => Some(Topic::OtherBackups),
-        kstep::WORDS | kstep::QUIZ => Some(Topic::Backups),
-        _ => None,
     }
 }

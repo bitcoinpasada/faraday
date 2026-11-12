@@ -1,9 +1,8 @@
-//! Every Learn page: those in [`pages`] and
-//! Faraday's own: read from
-//! `docs/learn/faraday/` when Faraday is built, so the desktop app, the
-//! stick and the Starter carry the same text. Nothing
-//! here names a screen of any app: each app maps its own screens to
-//! pages.
+//! The guide's pages, the Cryptography blocks and the maker table, and the
+//! Learn pages the blocks name ([`pages`], [`page`]), read when Faraday
+//! is built, so the desktop app, the stick and the Starter carry the
+//! same text. Nothing here names a screen of any app: each app maps its
+//! own screens to pages.
 //!
 //! The website's guides to starting a computer from the stick
 //! (`docs/STARTER.md` §7) are not here: they are `faraday-start`' (read by
@@ -29,21 +28,13 @@ pub use guide::{
 };
 pub use pages::{Page, Section};
 
-/// Faraday's own pages, each by its id.
-/// They are edited as `docs/learn/faraday/<id>.md`, beside the other
-/// pages but outside the set `tools/learn/sync.py` keeps in step with
-/// `pages::EN`, and read from those files when Faraday is built, so
-/// the desktop app, the stick and the Starter carry the same text. The
-/// guides to starting a computer from the stick
+/// Faraday's own pages, each by its id, read from their files when
+/// Faraday is built, so the desktop app, the stick and the Starter carry
+/// the same text. The guides to starting a computer from the stick
 /// (`docs/guide/start/*.md`) are `faraday-start`' own table, not
 /// this one, except `replace-faraday`, which the Starter's Keep data
 /// shows ([`known`]).
-const OWN: [(&str, &str); 12] = [
-    // A multisig backup's shares (`docs/history/NEW-WALLET.md` §4.2).
-    (
-        "shares",
-        include_str!("../../../docs/learn/faraday/shares.md"),
-    ),
+const OWN: [(&str, &str); 8] = [
     // The clock and TOTP codes (`docs/TOTP.md`).
     ("time", include_str!("../../../docs/learn/faraday/time.md")),
     (
@@ -54,17 +45,6 @@ const OWN: [(&str, &str); 12] = [
     ("demo", include_str!("../../../docs/learn/faraday/demo.md")),
     // GPG keys, their revocation certificate and paperkey (F32).
     ("gpg", include_str!("../../../docs/learn/faraday/gpg.md")),
-    // What a backup plan's three checks mean (`docs/BACKUP-FLOW.md`).
-    (
-        "backup-plan-check",
-        include_str!("../../../docs/learn/faraday/backup-plan-check.md"),
-    ),
-    // Copies made outside the backup plan (`docs/BACKUP-FLOW.md` §17.19
-    // item 7).
-    (
-        "extra-copies",
-        include_str!("../../../docs/learn/faraday/extra-copies.md"),
-    ),
     // Where keys are kept: memory, vaults, the idle lock (F58).
     (
         "keys-kept",
@@ -74,11 +54,6 @@ const OWN: [(&str, &str); 12] = [
     (
         "vaults",
         include_str!("../../../docs/learn/faraday/vaults.md"),
-    ),
-    // What wiping a stick reaches and what it does not.
-    (
-        "wiping-a-stick",
-        include_str!("../../../docs/learn/faraday/wiping-a-stick.md"),
     ),
     // The three Secure Boot keys (`docs/CRYPTO-LEARN.md` §12).
     (
@@ -268,7 +243,7 @@ pub fn known(id: &str) -> &'static LearnPage {
     page(id).expect("an id from OWN")
 }
 
-/// A page from its Markdown, as `docs/learn/` writes pages: `# ` the
+/// A page from its Markdown: `# ` the
 /// title, `## ` a section, paragraphs separated by blank lines. Public
 /// so `faraday-start` reads its own pages the same way.
 pub fn page_of(md: &'static str) -> LearnPage {
@@ -335,11 +310,6 @@ pub fn steps(page: &LearnPage) -> Vec<u32> {
         .collect()
 }
 
-/// "Shares of a wallet description".
-pub fn shares_page() -> &'static LearnPage {
-    known("shares")
-}
-
 /// "Time and TOTP codes".
 pub fn time_page() -> &'static LearnPage {
     known("time")
@@ -348,21 +318,6 @@ pub fn time_page() -> &'static LearnPage {
 /// "GPG keys".
 pub fn gpg_page() -> &'static LearnPage {
     known("gpg")
-}
-
-/// "A backup plan's check".
-pub fn backup_plan_check_page() -> &'static LearnPage {
-    known("backup-plan-check")
-}
-
-/// "Extra copies".
-pub fn extra_copies_page() -> &'static LearnPage {
-    known("extra-copies")
-}
-
-/// "Wiping a stick".
-pub fn wiping_a_stick_page() -> &'static LearnPage {
-    known("wiping-a-stick")
 }
 
 /// "Practice and its public seeds".

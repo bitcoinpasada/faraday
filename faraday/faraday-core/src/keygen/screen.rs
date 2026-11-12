@@ -116,7 +116,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: !k.locked && matches!(s, kstep::START | kstep::LENGTH | kstep::SOURCE),
             toggle: Action::KStep(s),
             guide: guided(s).then(|| guide::keygen(s, k)),
-            learn: guided(s).then(|| guide::keygen_topic(s, k)).flatten(),
         })
         .collect();
     // Make codex32 shares draws a card each of its own (`docs/CODEX32.md` §6).

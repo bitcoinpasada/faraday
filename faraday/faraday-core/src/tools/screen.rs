@@ -10,7 +10,7 @@ use faraday_bip::slip132::KeyReading;
 use faraday_codec::encodings::ReadAs;
 
 use crate::Action;
-use crate::screens::{button_rows, guide_text_learn};
+use crate::screens::{button_rows, guide_text};
 use crate::tools::{UNITS, tool_name};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -45,14 +45,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.page_begin((x0, cw, h), app.list_offset);
         let top = 12.0;
         let y = body(app, ui, x, top, width);
-        let y = y + crate::compact::screen::about_learn(
-            ui,
-            x,
-            y,
-            width,
-            GUIDE,
-            Some(crate::learn::Topic::Tools),
-        );
+        let y = y + crate::compact::screen::about(ui, x, y, width, GUIDE);
         crate::compact::screen::finish(app, ui, h, y - top + 16.0);
         return;
     }
@@ -72,7 +65,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, width: f32) -> f32 {
     };
     let back = app.named_back((app.back_link_name(t.back), Action::Nav(t.back)));
     let y = crate::screens::bar_head(ui, Some(back), EN.tools_tools);
-    y + guide_text_learn(app, ui, x, y, width, GUIDE, crate::learn::Topic::Tools)
+    y + guide_text(app, ui, x, y, width, GUIDE)
 }
 
 /// The calculators, the field and what it works out. Returns where it

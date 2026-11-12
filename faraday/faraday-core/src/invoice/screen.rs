@@ -44,10 +44,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let mut y = top;
     let guide = EN.invoice_about;
-    let topic = crate::learn::Topic::LightningInvoices;
     // On a small panel the About page comes after what it explains.
     if !compact {
-        y += crate::screens::parts::guide_text_learn(app, ui, x, y, w, guide, topic);
+        y += crate::screens::parts::guide_text(app, ui, x, y, w, guide);
     }
 
     // Material's outlined text field, its edge thicker and in primary
@@ -113,14 +112,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if compact {
         y += INVOICE_BLOCK_GAP
-            + crate::compact::screen::about_learn(
-                ui,
-                x,
-                y + INVOICE_BLOCK_GAP,
-                w,
-                guide,
-                Some(topic),
-            );
+            + crate::compact::screen::about(ui, x, y + INVOICE_BLOCK_GAP, w, guide);
     }
     app.scroll.content_h().set(y - top + INVOICE_TAIL);
     ui.region_close(open, app.scroll.content_h().get() - h);

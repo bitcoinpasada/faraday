@@ -59,9 +59,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: crate::spend_backup::toggle(app, id),
             guide: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
-            // Why the summary is read before signing is Learn's.
-            learn: (id == CardId::Step(step::TRANSACTION))
-                .then_some(crate::learn::Topic::Verifying),
         })
         .collect();
     // From a wallet's card: the wallet's name, and no word on the

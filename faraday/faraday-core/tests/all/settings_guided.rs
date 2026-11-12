@@ -101,14 +101,13 @@ fn guided_on_the_pi_panel_shows_the_open_sections_explainer() {
 
 #[test]
 fn settings_guided_and_a_flows_guided_are_one_setting() {
-    use faraday_core::learn::Topic;
     let mut app = on(1280, 800);
-    // New key's Length, whose Guided text links its Learn page.
+    // New key's Length, whose Guided text names the key's length.
     let flow_guided = |app: &mut Faraday| {
         app.press(Action::KeyGen(None));
         app.press(Action::KStart(faraday_core::keygen::Start::Make.index()));
         let _ = app.frame();
-        app.offers(Action::LearnTopic(Topic::Words))
+        texts(app).contains("words carry 128 bits")
     };
     // Steps only from Settings: the flow shows no Guided text.
     app.press(Action::Nav(Screen::Settings));

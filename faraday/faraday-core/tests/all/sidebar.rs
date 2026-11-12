@@ -612,7 +612,7 @@ fn a_gpg_keys_flow_has_its_row_under_tools() {
     app.press(Action::Nav(Screen::Settings));
     let names = sidebar_texts(&mut app);
     let tools = names.iter().position(|t| t == "Tools").unwrap();
-    let learn = names.iter().position(|t| t == "Learn").unwrap();
+    let learn = names.iter().position(|t| t == "Guide").unwrap();
     let row = names
         .iter()
         .position(|t| t == "GPG key")

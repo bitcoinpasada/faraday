@@ -46,7 +46,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: act(Q::Step(step)),
             guide: None,
-            learn: None,
         })
         .collect();
     let back_name = if s.back == crate::Screen::Catalog {

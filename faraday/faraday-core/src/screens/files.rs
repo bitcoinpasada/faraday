@@ -1,6 +1,6 @@
 //! `Screen::Files`: Inbox and Outbox.
 
-use super::parts::{guide_text_learn, kind_line, pull_line};
+use super::parts::{guide_text, kind_line, pull_line};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::Region;
@@ -404,7 +404,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::Scan,
     );
     y += BUTTON_H + SPACER;
-    y += guide_text_learn(
+    y += guide_text(
         app,
         ui,
         x,
@@ -414,7 +414,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.files_holds_what_was,
             &[app.medium.from_box(), app.medium.for_box()],
         ),
-        crate::learn::Topic::AirGap,
     );
     if let Some(line) = boot_medium_line(app) {
         y += ui.wrap_as((x, y, width), BODY_M, Role::Error, line) + SPACER;
@@ -2211,7 +2210,7 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
 /// Files' foot on a small panel: what power-off asks, and what Files
 /// holds, with its Learn. Returns its height.
 fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
-    use crate::compact::screen::about_learn;
+    use crate::compact::screen::about;
     let mut y = y0;
     if !app.outbox.is_empty() {
         y += 6.0;
@@ -2223,7 +2222,7 @@ fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             &fill(EN.files_power_off_asks, &[app.medium.for_the()]),
         ) + 10.0;
     }
-    y += about_learn(
+    y += about(
         ui,
         x,
         y,
@@ -2232,7 +2231,6 @@ fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             EN.files_holds_what_was,
             &[app.medium.from_box(), app.medium.for_box()],
         ),
-        Some(crate::learn::Topic::AirGap),
     );
     y - y0
 }

@@ -2388,7 +2388,7 @@ impl Faraday {
             Action::Learn | Action::LearnClose | Action::How => self.learn_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
-            Action::LearnTopic(t) => self.learn_topic(t),
+            Action::LearnExtraCopies => self.learn_extra_copies(),
             Action::LearnPin => self.learn_button(action),
             Action::Osk(p) => self.osk_press(p),
             a @ (Action::ScanPaste

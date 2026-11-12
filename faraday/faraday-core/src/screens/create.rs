@@ -64,7 +64,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             guide: (c.open == Some(k))
                 .then(|| create_guide(k, c, app.medium))
                 .filter(|g| !g.is_empty()),
-            learn: create_topic(k, c.kind),
         })
         .collect();
     let col = flow::Column {
@@ -107,16 +106,6 @@ fn create_guide(k: u8, c: &crate::CreateState, medium: crate::medium::Medium) ->
     match k {
         cstep::BACKUP_FORM => EN.create_guide_backup.to_string(),
         _ => guide::create(k, c.kind, c.m, c.n, medium),
-    }
-}
-
-/// The Learn page under card `k`'s walk-through: the Backup card's is
-/// Other backups, where codex32 is.
-fn create_topic(k: u8, kind: crate::create::NewKind) -> Option<crate::learn::Topic> {
-    use crate::cstep;
-    match k {
-        cstep::BACKUP_FORM => Some(crate::learn::Topic::OtherBackups),
-        _ => guide::create_topic(k, kind),
     }
 }
 

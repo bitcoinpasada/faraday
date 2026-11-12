@@ -65,7 +65,6 @@ pub(crate) fn head_card(f: &BackupFlow, r: &RestoreFrom) -> flow::Card {
         default: false,
         toggle: ra(R::Head),
         guide: None,
-        learn: None,
     }
 }
 

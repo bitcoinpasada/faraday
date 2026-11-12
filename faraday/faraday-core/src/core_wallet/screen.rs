@@ -26,7 +26,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: Action::CoreWallet(A::Step(step)),
             guide: None,
-            learn: (step == cstep::FILE).then_some(crate::learn::Topic::CoreWallet),
         })
         .collect();
     let back_name = if s.back == crate::Screen::Catalog {

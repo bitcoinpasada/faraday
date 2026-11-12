@@ -42,7 +42,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: Action::Convert(C::Step(step)),
             guide: None,
-            learn: None,
         })
         .collect();
     // Back names where the flow was opened from; Tools' tile by Tools.
