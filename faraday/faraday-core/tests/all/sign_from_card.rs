@@ -18,13 +18,13 @@ fn the_sign_card_opened_from_its_header_signs_nothing_until_the_steps_before_it_
     let psbt = testkit::unsigned(&kit()).unwrap();
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("spend.psbt".to_string(), psbt.to_bytes()),
             (
                 "spending-wallet.txt".to_string(),
                 kit().descriptor.into_bytes(),
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

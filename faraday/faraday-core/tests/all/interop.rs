@@ -206,7 +206,7 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
     use faraday_shell_api::{App, Event, Key};
     let mut app = faraday_core::testkit::started();
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             (
                 "coldcardQ.json".to_string(),
                 file("bluewallet/coldcardQ.json").into_bytes(),
@@ -215,7 +215,7 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
                 "ccxp-0F056943.json".to_string(),
                 file("sparrow/cc-multisig-keystore-2.json").into_bytes(),
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -569,7 +569,7 @@ fn sparrows_specter_diy_export_loads_from_files_as_sparrow_multisig() {
         // As a scan is kept: its name says nothing of the wallet.
         inbox: vec![(
             "scan-1.txt".to_string(),
-            file("sparrow/specter-diy-export.txt").into_bytes(),
+            file("sparrow/specter-diy-export.txt").into_bytes().into(),
         )],
         outbox: Vec::new(),
         kept: Vec::new(),

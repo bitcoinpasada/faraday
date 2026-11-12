@@ -387,7 +387,7 @@ fn on_testnet_the_unlock_passphrase_is_typed_and_masked_and_no_sample_is_offered
     assert!(!crate::common::strip_offers(&mut app, Action::UseSample));
     let (name, bytes) = ("v.kdbx".to_string(), SAMPLES.inputs.vault.to_vec());
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![(name, bytes)],
+        inbox: faraday_core::files_from(vec![(name, bytes)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

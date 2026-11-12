@@ -55,7 +55,7 @@ fn session(copies: usize, wallets: usize, spend: bool) -> Faraday {
             .expect("a test wallet");
     }
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: crate::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

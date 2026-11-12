@@ -69,7 +69,7 @@ fn unlocked(width: u16, height: u16, dpi: u16) -> Faraday {
     let inbox = vec![("passwords.kdbx".to_string(), many_entries())];
     know_files(&mut app, &inbox);
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -108,7 +108,7 @@ fn copied_in() -> Faraday {
         .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![vault],
+        inbox: faraday_core::files_from(vec![vault]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -979,7 +979,7 @@ fn with_one_file_it_starts_ticked() {
         .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![vault, ("SHA256SUMS".into(), b"hello".to_vec())],
+        inbox: faraday_core::files_from(vec![vault, ("SHA256SUMS".into(), b"hello".to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -1357,8 +1357,8 @@ fn boxes_kept(app: &mut Faraday) -> Option<StorageEvent> {
         } = c
         {
             last = Some(StorageEvent::Restored {
-                inbox,
-                outbox,
+                inbox: faraday_core::files_from(inbox),
+                outbox: faraday_core::files_from(outbox),
                 kept,
             });
         }

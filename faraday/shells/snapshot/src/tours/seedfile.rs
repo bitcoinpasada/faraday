@@ -54,7 +54,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .chain(std::iter::once(vault))
         .collect();
     t.app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

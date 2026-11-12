@@ -232,7 +232,11 @@ fn remade(c: &Compute, bytes: &[u8], m: &KefMark) -> Option<kef_make::Made> {
             Options::default().id
         },
     };
-    Some(kef_make::made(c, bytes.to_vec(), &options))
+    Some(kef_make::made(
+        c,
+        zeroize::Zeroizing::new(bytes.to_vec()),
+        &options,
+    ))
 }
 
 /// Keeps seed `i`'s code in the record as its form stands.

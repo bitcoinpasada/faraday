@@ -220,8 +220,8 @@ pub fn process_unseen(inbox: Files, outbox: Files, kept: Files) -> Faraday {
         app.event(Event::Entropy(EntropyBytes::new([0x50 + i; 32])));
     }
     app.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     app.storage(StorageEvent::Memory {
@@ -532,7 +532,11 @@ impl Shell {
                     if self.fail_save {
                         app.storage(StorageEvent::NotKept);
                     } else {
-                        self.boxes = (inbox, outbox, kept);
+                        self.boxes = (
+                            faraday_core::testkit::plain_files(inbox),
+                            faraday_core::testkit::plain_files(outbox),
+                            kept,
+                        );
                     }
                 }
                 _ => {}
@@ -1594,7 +1598,7 @@ pub fn device(inbox: Files) -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

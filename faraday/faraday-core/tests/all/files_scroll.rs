@@ -32,8 +32,8 @@ fn files_on(width: u16, height: u16, dpi: u16) -> Faraday {
             .collect()
     };
     app.storage(StorageEvent::Restored {
-        inbox: many("in"),
-        outbox: many("out"),
+        inbox: faraday_core::files_from(many("in")),
+        outbox: faraday_core::files_from(many("out")),
         kept: Vec::new(),
     });
     app.press(Action::Nav(Screen::Files));

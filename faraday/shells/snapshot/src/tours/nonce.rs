@@ -20,14 +20,14 @@ fn finished_hex(
 ) -> Result<String, String> {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("spend.psbt".to_string(), unsigned),
             (
                 "wallet.txt".to_string(),
                 kit.descriptor.clone().into_bytes(),
             ),
             ("cosigner.psbt".to_string(), cosigner),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -82,12 +82,12 @@ pub(crate) fn nonce_tour(t: &mut Tour) -> Result<(), String> {
         sig.signature = Signature::from_compact(&compact).map_err(|e| e.to_string())?;
     }
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("savings-cosigner.psbt".to_string(), cosigner.to_bytes()),
             ("savings-final.txn".to_string(), hex.into_bytes()),
             ("savings-unsigned.psbt".to_string(), unsigned.to_bytes()),
             ("savings-damaged.psbt".to_string(), wrong.to_bytes()),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

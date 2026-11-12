@@ -27,10 +27,10 @@ pub(crate) fn gpg_restore_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::OpenSetTime);
     t.press(Action::SetTimeKeep);
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("unprotected.asc".to_string(), CERT.to_vec()),
             ("rsa-key.asc".to_string(), RSA.to_vec()),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

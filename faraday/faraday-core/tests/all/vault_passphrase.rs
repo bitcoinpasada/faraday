@@ -133,10 +133,10 @@ fn shown() -> Faraday {
 fn unlock_has_an_eye_that_shows_the_passphrase_typed() {
     let mut app = shown();
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "vault.kdbx".to_string(),
             crate::common::vault("Test", faraday_core::testkit::VAULT_PASSPHRASE, 7),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -153,10 +153,10 @@ fn an_empty_unlock_field_says_nothing_wrong_until_unlock_is_pressed() {
     let said = faraday_core::strings::EN.vaults_type_the_passphrase;
     let mut app = shown();
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "vault.kdbx".to_string(),
             crate::common::vault("Test", faraday_core::testkit::VAULT_PASSPHRASE, 7),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

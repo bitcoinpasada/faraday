@@ -87,7 +87,7 @@ fn round(app: &mut Faraday, n: usize) {
         *name = format!("{n}-{name}");
     }
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: crate::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -28,7 +28,7 @@ pub(crate) fn device(vault: Vec<u8>) -> Faraday {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.kdbx".into(), vault)],
+        inbox: faraday_core::files_from(vec![("vault.kdbx".into(), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

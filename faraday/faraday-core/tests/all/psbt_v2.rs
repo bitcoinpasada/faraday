@@ -97,13 +97,13 @@ fn a_testkit_psbt_made_version_2_and_back_is_byte_identical() {
 fn signed_from(bytes: Vec<u8>) -> (Faraday, Vec<u8>) {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("spend.psbt".to_string(), bytes),
             (
                 "spending-wallet.txt".to_string(),
                 kit().descriptor.into_bytes(),
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

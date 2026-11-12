@@ -519,9 +519,9 @@ pub enum Boxes {
     /// Held by the shell itself.
     Memory {
         /// Inbox files.
-        inbox: Vec<(String, Vec<u8>)>,
+        inbox: faraday_core::Files,
         /// Outbox files.
-        outbox: Vec<(String, Vec<u8>)>,
+        outbox: faraday_core::Files,
         /// What the app keeps for itself.
         kept: Vec<(String, Vec<u8>)>,
     },
@@ -535,8 +535,8 @@ impl Boxes {
     /// reads.
     pub fn save(
         &mut self,
-        inbox: Vec<(String, Vec<u8>)>,
-        outbox: Vec<(String, Vec<u8>)>,
+        inbox: faraday_core::Files,
+        outbox: faraday_core::Files,
         kept: Vec<(String, Vec<u8>)>,
     ) -> Result<(), String> {
         match self {
@@ -551,6 +551,8 @@ impl Boxes {
                 Ok(())
             }
             Boxes::Dir(dir) => {
+                // The kept files' bytes move into wiping buffers as they are.
+                let kept: faraday_core::Files = faraday_core::files_from(kept);
                 for (sub, mut files) in [("kept", kept), ("inbox", inbox), ("outbox", outbox)] {
                     let d = dir.join(sub);
                     fs::create_dir_all(&d).map_err(|e| e.to_string())?;
@@ -603,8 +605,8 @@ impl Boxes {
                 kept: kept.clone(),
             },
             Boxes::Dir(dir) => {
-                let load = |sub: &str| -> Vec<(String, Vec<u8>)> {
-                    let mut v: Vec<(String, Vec<u8>)> = fs::read_dir(dir.join(sub))
+                let load = |sub: &str| -> faraday_core::Files {
+                    let mut v: faraday_core::Files = fs::read_dir(dir.join(sub))
                         .map(|d| {
                             d.flatten()
                                 .filter_map(|e| {
@@ -615,18 +617,23 @@ impl Boxes {
                                         let _ = fs::remove_file(e.path());
                                         return None;
                                     }
-                                    fs::read(e.path()).ok().map(|b| (name, b))
+                                    fs::read(e.path())
+                                        .ok()
+                                        .map(|b| (name, zeroize::Zeroizing::new(b)))
                                 })
                                 .collect()
                         })
                         .unwrap_or_default();
-                    v.sort();
+                    v.sort_by(|a, b| a.0.cmp(&b.0));
                     v
                 };
                 StorageEvent::Restored {
                     inbox: load("inbox"),
                     outbox: load("outbox"),
-                    kept: load("kept"),
+                    kept: load("kept")
+                        .into_iter()
+                        .map(|(n, mut b)| (n, std::mem::take(&mut *b)))
+                        .collect(),
                 }
             }
         }

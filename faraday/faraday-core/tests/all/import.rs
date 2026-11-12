@@ -197,10 +197,10 @@ fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
 fn import_and_load_under_a_held_name_loads_only_the_copy_from_the_stick() {
     let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             FILE.to_string(),
             faraday_core::testkit::test_words("zebra").into_bytes(),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

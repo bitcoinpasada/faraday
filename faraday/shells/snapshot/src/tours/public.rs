@@ -118,14 +118,14 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .collect();
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             vault,
             (
                 "SHA256SUMS".into(),
                 b"3d6f  faraday-0.1.0-linux-x86_64\n".to_vec(),
             ),
-        ],
-        outbox,
+        ]),
+        outbox: faraday_core::files_from(outbox),
         kept: Vec::new(),
     });
     t.app.storage(StorageEvent::Memory {

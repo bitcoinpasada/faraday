@@ -413,8 +413,8 @@ fn a_picture_keeps_what_its_codes_hold_across_a_lock_and_a_seedqr_does_not_outli
     let (inbox, outbox, kept) = saved.expect("the boxes were not saved");
     let mut next = testkit::started();
     next.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     assert!(
@@ -553,8 +553,8 @@ fn a_gpg_public_key_and_signature_stay_in_the_inbox_across_a_lock() {
     let (inbox, outbox, kept) = saved.expect("the boxes were not saved");
     let mut next = testkit::started();
     next.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     for (name, bytes) in &files {

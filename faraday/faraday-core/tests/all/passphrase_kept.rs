@@ -43,7 +43,7 @@ fn device() -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![kit_file("vault.kdbx")],
+        inbox: faraday_core::files_from(vec![kit_file("vault.kdbx")]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -127,7 +127,7 @@ fn locked_after_backup() -> (Boxes, Boxes) {
     let mut found = None;
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { kept, outbox, .. } = c {
-            found = Some((kept, outbox));
+            found = Some((kept, faraday_core::testkit::plain_files(outbox)));
         }
     }
     found.expect("the device did not ask to keep anything on locking")
@@ -237,7 +237,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
     let mut found = None;
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { kept, outbox, .. } = c {
-            found = Some((kept, outbox));
+            found = Some((kept, faraday_core::testkit::plain_files(outbox)));
         }
     }
     let (kept, outbox) = found.expect("the device did not ask to keep anything on locking");

@@ -16,7 +16,7 @@ pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![vault],
+        inbox: faraday_core::files_from(vec![vault]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

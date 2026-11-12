@@ -366,7 +366,7 @@ fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads(
     let _ = testkit::move_to(&mut app.session, testkit::NET);
     let psbt = testkit::unsigned(savings).expect("Savings' spend");
     app.storage(StorageEvent::Restored {
-        inbox: vec![("savings-unsigned.psbt".into(), psbt.to_bytes())],
+        inbox: crate::files_from(vec![("savings-unsigned.psbt".into(), psbt.to_bytes())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -405,7 +405,7 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
         .expect("Savings loads");
     let psbt = testkit::unsigned(savings).expect("Savings' spend");
     app.storage(StorageEvent::Restored {
-        inbox: vec![("savings-unsigned.psbt".into(), psbt.to_bytes())],
+        inbox: crate::files_from(vec![("savings-unsigned.psbt".into(), psbt.to_bytes())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

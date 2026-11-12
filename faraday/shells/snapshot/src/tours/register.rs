@@ -40,11 +40,11 @@ pub(crate) fn register_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("the third key is in the global map")?;
     xpubs.insert(*other.keys()[0].xpub(), origin);
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("savings-unsigned.psbt".to_string(), with.to_bytes()),
             ("savings-bare.psbt".to_string(), without.to_bytes()),
             ("savings-wrong.psbt".to_string(), wrong.to_bytes()),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -49,10 +49,10 @@ fn sign(k: &Kit, seeds: &str, psbt: &Path, dir: &Path) -> Result<String, String>
     let wallet_file = format!("{}-wallet.txt", k.id);
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("spend.psbt".to_string(), bytes),
             (wallet_file.clone(), k.descriptor.clone().into_bytes()),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

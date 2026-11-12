@@ -120,8 +120,8 @@ fn write_sticks(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Flow(F::WalletLock));
     let (inbox, outbox, kept) = t.boxes.clone().ok_or("nothing was kept by the lock")?;
     t.app.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     t.app.storage(StorageEvent::Memory {

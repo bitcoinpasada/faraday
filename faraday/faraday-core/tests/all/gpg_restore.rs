@@ -593,7 +593,7 @@ fn nothing_of_a_restore_is_cut_off_on_the_pi_panel() {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox: vec![cert_file(&k)],
+        inbox: faraday_core::files_from(vec![cert_file(&k)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

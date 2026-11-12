@@ -129,13 +129,13 @@ fn setup(t: &mut Tour) -> Result<(), String> {
         },
     )?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("a.kdbx".into(), alpha),
             ("b.kdbx".into(), beta),
             ("c.kdbx".into(), newer),
             ("d.kdbx".into(), locked),
             ("e.kdbx".into(), tagged),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -225,11 +225,11 @@ fn more_menu(t: &mut Tour) -> Result<(), String> {
     )?;
     t.restart();
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("keyed.kdbx".into(), keyed),
             ("backup.keyx".into(), vec![7; 32]),
             ("spare.keyx".into(), vec![9; 32]),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -321,7 +321,7 @@ fn secret_sheet(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .collect();
     inbox.push(vault);
     t.app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -63,7 +63,7 @@ fn make(form: &mut KefForm, app: &mut Faraday) -> Envelope {
     let code = form.made().unwrap();
     let view = code.view.as_ref().expect("one code");
     let bytes = base43_decode(view.whole.as_deref().unwrap()).unwrap();
-    assert_eq!(bytes, code.bytes);
+    assert_eq!(bytes, *code.bytes);
     unwrap(&bytes).unwrap()
 }
 

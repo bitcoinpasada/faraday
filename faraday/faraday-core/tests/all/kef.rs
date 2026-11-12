@@ -51,7 +51,10 @@ fn seal(app: &mut Faraday, plaintext: &[u8]) -> Vec<u8> {
     )
     .expect("fresh bytes are here");
     testkit::settle(app);
-    app.kef_take_sealed().expect("an answer").expect("sealed")
+    app.kef_take_sealed()
+        .expect("an answer")
+        .expect("sealed")
+        .to_vec()
 }
 
 #[test]

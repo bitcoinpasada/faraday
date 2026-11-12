@@ -46,7 +46,7 @@ fn app_with(files: Vec<(String, Vec<u8>)>) -> Faraday {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: crate::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

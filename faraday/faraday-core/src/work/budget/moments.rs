@@ -73,7 +73,7 @@ fn startup_to_home_does_its_fixed_work() {
     let before = snapshot();
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: crate::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -98,7 +98,7 @@ fn at_unlock() -> Faraday {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: crate::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -265,7 +265,7 @@ fn with_spend() -> Faraday {
         .expect("Savings loads");
     let psbt = testkit::unsigned(kit).expect("Savings' spend");
     app.storage(StorageEvent::Restored {
-        inbox: vec![("savings-unsigned.psbt".into(), psbt.to_bytes())],
+        inbox: crate::files_from(vec![("savings-unsigned.psbt".into(), psbt.to_bytes())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

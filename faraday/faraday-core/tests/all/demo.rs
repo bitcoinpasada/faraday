@@ -763,7 +763,10 @@ fn in_the_demo_public_seeds_sign_keep_entries_and_go_into_a_vault() {
     };
     let psbt = testkit::unsigned(&kit).unwrap();
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![vault_file(), ("spend.psbt".to_string(), psbt.to_bytes())],
+        inbox: faraday_core::files_from(vec![
+            vault_file(),
+            ("spend.psbt".to_string(), psbt.to_bytes()),
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

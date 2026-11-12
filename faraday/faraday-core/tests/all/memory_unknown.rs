@@ -35,7 +35,7 @@ fn silent(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
         app.event(Event::Entropy(EntropyBytes::new([0x30 + i; 32])));
     }
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

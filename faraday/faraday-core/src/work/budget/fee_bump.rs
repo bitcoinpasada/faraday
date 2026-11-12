@@ -35,7 +35,7 @@ fn files() -> Vec<(String, Vec<u8>)> {
 
 fn restore(app: &mut Faraday) {
     app.storage(StorageEvent::Restored {
-        inbox: files(),
+        inbox: crate::files_from(files()),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -102,7 +102,7 @@ fn a_press_that_changes_nothing_inspects_no_other_file() {
 fn the_file_coming_in_counts_the_one_inspection() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: files().into_iter().take(1).collect(),
+        inbox: crate::files_from(files().into_iter().take(1).collect()),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -123,13 +123,13 @@ fn the_file_coming_in_counts_the_one_inspection() {
 fn a_touch_or_key_with_a_finished_transaction_in_files_does_no_costly_work() {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: crate::files_from(vec![
             files().remove(0),
             (
                 "bump-core-original.tx".into(),
                 vector("bump-core-original.tx"),
             ),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

@@ -174,7 +174,7 @@ fn copied_in(files: &[(String, Vec<u8>)]) -> Faraday {
         .cloned()
         .collect();
     app.storage(StorageEvent::Restored {
-        inbox: text,
+        inbox: faraday_core::files_from(text),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -678,7 +678,7 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
     ];
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: files.clone(),
+        inbox: faraday_core::files_from(files.clone()),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -697,7 +697,7 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
     // The words' vault alone: the words alone.
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

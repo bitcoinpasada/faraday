@@ -34,7 +34,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

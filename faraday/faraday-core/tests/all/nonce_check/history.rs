@@ -81,7 +81,7 @@ fn with_vault(files: &[&faraday_psbt::Psbt]) -> Faraday {
         inbox.push((format!("f{n}.psbt"), f.to_bytes()));
     }
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -1333,7 +1333,7 @@ fn closed_vaults(vaults: &[Vec<u8>], files: &[&faraday_psbt::Psbt]) -> Faraday {
         inbox.push((format!("f{n}.psbt"), f.to_bytes()));
     }
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

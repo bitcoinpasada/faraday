@@ -247,7 +247,7 @@ fn a_vaults_secure_boot_keys_open_the_guide_at_the_vault_contents_page() {
         .find(|(n, _)| n == "vault.kdbx")
         .unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![vault],
+        inbox: faraday_core::files_from(vec![vault]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

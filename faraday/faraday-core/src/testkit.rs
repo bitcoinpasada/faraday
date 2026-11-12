@@ -2639,3 +2639,9 @@ pub fn nonce_history_note(
 pub fn nonce_history_on(app: &mut crate::Faraday, on: bool) {
     app.memory.nonces.set_on(on);
 }
+
+/// Files as the app queued them for the shell, with their bytes copied out
+/// to plain vectors, for a test to compare.
+pub fn plain_files(files: crate::Files) -> Vec<(String, Vec<u8>)> {
+    files.into_iter().map(|(n, b)| (n, b.to_vec())).collect()
+}

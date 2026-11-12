@@ -1632,11 +1632,9 @@ impl Faraday {
             Action::CPathChange => self.create_take_back(),
             Action::NewWalletFrom(i) => self.create_from_wallet(i),
             Action::CSlotFile(k, i) => {
-                let Some(text) = self
-                    .inbox
-                    .get(i)
-                    .map(|it| String::from_utf8_lossy(&it.bytes).into_owned())
-                else {
+                let Some(text) = self.inbox.get(i).map(|it| {
+                    zeroize::Zeroizing::new(String::from_utf8_lossy(&it.bytes).into_owned())
+                }) else {
                     return;
                 };
                 if let Err(e) = self.create_slot_file_key(k, &text)
@@ -2011,13 +2009,15 @@ impl Faraday {
         let current = self.session.network();
         let taken = match (item.kind, item.wallet()) {
             (wallet::FileKind::Key, _) => {
-                let text = String::from_utf8_lossy(&item.bytes).into_owned();
+                let text =
+                    zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
                 self.create_slot_file_key(slot, &text)
             }
             // A file of account keys (Coldcard's export, a single-key
             // file) as Keys offers it, else a descriptor of one key.
             (wallet::FileKind::Wallet, Some(policy)) => {
-                let text = String::from_utf8_lossy(&item.bytes).into_owned();
+                let text =
+                    zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
                 if key_for_slot(kind, bip87, &text).is_ok() {
                     self.create_slot_file_key(slot, &text)
                 } else {

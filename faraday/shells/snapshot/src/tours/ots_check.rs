@@ -17,7 +17,7 @@ fn vector(path: &str) -> Result<Vec<u8>, String> {
 
 pub(crate) fn ots_check_tour(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             (
                 "different-blockchains.txt.ots".to_string(),
                 vector("examples/different-blockchains.txt.ots")?,
@@ -27,7 +27,7 @@ pub(crate) fn ots_check_tour(t: &mut Tour) -> Result<(), String> {
                 vector("examples/different-blockchains.txt")?,
             ),
             ("455605.hex".to_string(), vector("headers/455605.hex")?),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

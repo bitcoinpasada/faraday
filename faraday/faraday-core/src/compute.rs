@@ -560,7 +560,7 @@ impl Faraday {
 
     /// The last seal's answer, if one has come: the envelope's bytes or
     /// why there are none.
-    pub fn kef_sealed(&self) -> Option<&Result<Vec<u8>, SealError>> {
+    pub fn kef_sealed(&self) -> Option<&Result<Zeroizing<Vec<u8>>, SealError>> {
         self.worker.kef().sealed()
     }
 
@@ -570,7 +570,7 @@ impl Faraday {
     }
 
     /// Takes the last seal's answer, leaving none.
-    pub fn kef_take_sealed(&mut self) -> Option<Result<Vec<u8>, SealError>> {
+    pub fn kef_take_sealed(&mut self) -> Option<Result<Zeroizing<Vec<u8>>, SealError>> {
         self.worker.kef_take_sealed()
     }
 
@@ -690,7 +690,7 @@ impl Faraday {
         };
         let (png, file) = self.put_outbox_pair_beside_files(
             png.as_ref().map(|(n, b)| (n.as_str(), b.clone())),
-            (&made.file_name, made.bytes.clone()),
+            (&made.file_name, made.bytes.to_vec()),
         );
         kef_make::Saved { png, file }
     }

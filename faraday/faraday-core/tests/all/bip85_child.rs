@@ -25,8 +25,8 @@ fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     });
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     for i in 0..8u8 {
@@ -86,7 +86,11 @@ fn saved(app: &mut Faraday) -> (Files, Files, Files) {
             kept,
         } = c
         {
-            last = (inbox, outbox, kept);
+            last = (
+                faraday_core::testkit::plain_files(inbox),
+                faraday_core::testkit::plain_files(outbox),
+                kept,
+            );
         }
     }
     last

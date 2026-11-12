@@ -87,10 +87,10 @@ fn drawn_plan() -> (Faraday, usize) {
         .unwrap()
         .unwrap();
     app.storage(StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "shares-wallet.txt".into(),
             format!("wpkh({text}/<0;1>/*)").into_bytes(),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

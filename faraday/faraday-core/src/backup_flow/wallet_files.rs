@@ -317,7 +317,7 @@ pub(crate) fn wallet_share_record(
                             rkind::PLAN => r.public_text(field::PLAN_WALLET),
                             _ => None,
                         })
-                        .map(str::to_string)
+                        .map(|s| zeroize::Zeroizing::new(s.to_string()))
                         .collect::<Vec<_>>()
                 })
                 .chain(
@@ -325,7 +325,11 @@ pub(crate) fn wallet_share_record(
                         .iter()
                         .chain(app.outbox.iter())
                         .filter(|it| it.kind == crate::wallet::FileKind::Wallet)
-                        .filter_map(|it| String::from_utf8(it.bytes.to_vec()).ok()),
+                        .filter_map(|it| {
+                            std::str::from_utf8(&it.bytes)
+                                .ok()
+                                .map(|s| zeroize::Zeroizing::new(s.to_owned()))
+                        }),
                 )
                 .find(|t| of_wallet(t))?;
             let mut s = crate::wallet::Session::on(app.session.network());

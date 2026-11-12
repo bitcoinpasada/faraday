@@ -9,6 +9,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
+use zeroize::Zeroizing;
+
 use faraday_crypto::work::Compute;
 use faraday_keys::kef::{OpenError, OpenJob, Opened, Progress, SealError, SealJob};
 
@@ -19,14 +21,14 @@ pub(crate) struct SealWork {
 
 /// A seal's answer: the envelope's bytes or why there are none.
 pub(crate) struct SealDone {
-    sealed: Result<Vec<u8>, SealError>,
+    sealed: Result<Zeroizing<Vec<u8>>, SealError>,
 }
 
 impl SealWork {
     /// Costs a PBKDF2 of the count's rounds, stopped by Cancel.
     pub(crate) fn run(self, c: &Compute) -> SealDone {
         SealDone {
-            sealed: self.job.run(c),
+            sealed: self.job.run(c).map(Zeroizing::new),
         }
     }
 }
@@ -112,7 +114,7 @@ pub enum KefStart {
 #[derive(Default)]
 pub(crate) struct KefArea {
     progress: Option<Arc<Progress>>,
-    sealed: Option<Result<Vec<u8>, SealError>>,
+    sealed: Option<Result<Zeroizing<Vec<u8>>, SealError>>,
     opened: Option<Result<Opened, OpenError>>,
     /// The timed run's stop, while one is out.
     timing: Option<Arc<AtomicBool>>,
@@ -175,7 +177,7 @@ impl KefArea {
         self.opened = Some(done.opened);
     }
 
-    pub(crate) fn sealed(&self) -> Option<&Result<Vec<u8>, SealError>> {
+    pub(crate) fn sealed(&self) -> Option<&Result<Zeroizing<Vec<u8>>, SealError>> {
         self.sealed.as_ref()
     }
 
@@ -183,7 +185,7 @@ impl KefArea {
         self.opened.as_ref()
     }
 
-    pub(crate) fn take_sealed(&mut self) -> Option<Result<Vec<u8>, SealError>> {
+    pub(crate) fn take_sealed(&mut self) -> Option<Result<Zeroizing<Vec<u8>>, SealError>> {
         self.sealed.take()
     }
 

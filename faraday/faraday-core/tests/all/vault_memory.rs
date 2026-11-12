@@ -341,13 +341,13 @@ fn a_lock_is_not_refused_for_more_than_what_was_added_takes() {
 fn an_unlock_is_checked_against_the_memory_free_now() {
     let mut app = device(crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7));
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             (
                 "vault.kdbx".into(),
                 crate::common::vault("Test", testkit::VAULT_PASSPHRASE, 7),
             ),
             ("second.kdbx".into(), vault_of_entries()),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -731,23 +731,25 @@ fn n_open(n: usize) -> Faraday {
     memory(&mut app, 15_000);
     testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![
-            (
-                "alpha.kdbx".into(),
-                crate::common::vault("Alpha", testkit::VAULT_PASSPHRASE, 7),
-            ),
-            (
-                "beta.kdbx".into(),
-                crate::common::vault("Beta", testkit::VAULT_PASSPHRASE, 8),
-            ),
-            (
-                "gamma.kdbx".into(),
-                crate::common::vault("Gamma", testkit::VAULT_PASSPHRASE, 9),
-            ),
-        ]
-        .into_iter()
-        .take(n)
-        .collect(),
+        inbox: faraday_core::files_from(
+            vec![
+                (
+                    "alpha.kdbx".into(),
+                    crate::common::vault("Alpha", testkit::VAULT_PASSPHRASE, 7),
+                ),
+                (
+                    "beta.kdbx".into(),
+                    crate::common::vault("Beta", testkit::VAULT_PASSPHRASE, 8),
+                ),
+                (
+                    "gamma.kdbx".into(),
+                    crate::common::vault("Gamma", testkit::VAULT_PASSPHRASE, 9),
+                ),
+            ]
+            .into_iter()
+            .take(n)
+            .collect(),
+        ),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

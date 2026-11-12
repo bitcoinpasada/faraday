@@ -36,7 +36,7 @@ fn device(inbox: Files, kept: Files) -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept,
     });
@@ -236,7 +236,7 @@ pub(crate) fn saved_at_lock(app: &mut Faraday) -> (Files, Files) {
     let mut last = (Vec::new(), Vec::new());
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::SaveBoxes { outbox, kept, .. } = c {
-            last = (outbox, kept);
+            last = (faraday_core::testkit::plain_files(outbox), kept);
         }
     }
     last
@@ -2008,10 +2008,10 @@ fn checklist_past_a_lock(other: bool, unloaded: bool) -> Faraday {
             .unwrap()
             .unwrap();
         app.storage(StorageEvent::Restored {
-            inbox: vec![(
+            inbox: faraday_core::files_from(vec![(
                 "second.txt".into(),
                 format!("wpkh({text}/<0;1>/*)").into_bytes(),
-            )],
+            )]),
             outbox: Vec::new(),
             kept: Vec::new(),
         });

@@ -46,10 +46,10 @@ fn a_wallet_file_whose_label_runs_over_lines_loads_under_a_one_line_name_and_its
     let mut app = testkit::started();
     app.session = testkit::session();
     app.storage(StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "savings.json".to_string(),
             specter_file(&format!("descriptor: {other}")).into_bytes(),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -152,10 +152,10 @@ fn a_vault_wallet_named_over_two_lines_reads_as_a_one_line_name() {
     let mut app = testkit::started();
     app.session = testkit::session();
     app.storage(StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "named.kdbx".to_string(),
             vault_with(vec![record], "named phrase"),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

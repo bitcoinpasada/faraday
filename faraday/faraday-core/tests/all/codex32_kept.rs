@@ -84,10 +84,10 @@ pub(crate) fn wallet_and_backup(app: &mut Faraday) {
         .unwrap()
         .unwrap();
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "shares-wallet.txt".into(),
             format!("wpkh({text}/<0;1>/*)").into_bytes(),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -336,7 +336,7 @@ fn locked_after_a_move() -> Vec<(String, Vec<u8>)> {
     let mut written = Vec::new();
     while let Some(c) = app.poll_storage() {
         if let faraday_core::StorageCommand::SaveBoxes { outbox, .. } = c {
-            written = outbox;
+            written = faraday_core::testkit::plain_files(outbox);
         }
     }
     written
@@ -810,7 +810,7 @@ fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
     // key's seed.
     let mut back = testkit::started();
     back.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![text.clone()],
+        inbox: faraday_core::files_from(vec![text.clone()]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

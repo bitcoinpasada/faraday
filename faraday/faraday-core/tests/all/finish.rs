@@ -20,7 +20,7 @@ fn kit(id: &str) -> Kit {
 fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: files,
+        inbox: faraday_core::files_from(files),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -64,14 +64,14 @@ fn a_part_signed_psbt_replaces_its_own_transaction_and_keeps_another() {
     let sign_with = |waiting_part: Vec<u8>| {
         let mut app = faraday_core::testkit::started();
         app.storage(StorageEvent::Restored {
-            inbox: vec![
+            inbox: faraday_core::files_from(vec![
                 ("spend.psbt".to_string(), unsigned.to_bytes()),
                 (
                     "savings-wallet.txt".to_string(),
                     k.descriptor.clone().into_bytes(),
                 ),
-            ],
-            outbox: vec![("spend-part.psbt".to_string(), waiting_part)],
+            ]),
+            outbox: faraday_core::files_from(vec![("spend-part.psbt".to_string(), waiting_part)]),
             kept: Vec::new(),
         });
         app.press(Action::LoadWallet(at(&app, "savings-wallet.txt")));
@@ -102,14 +102,14 @@ fn a_second_spends_remove_takes_off_its_own_file() {
     let psbt = testkit::unsigned(&k).unwrap();
     let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("spend.psbt".to_string(), psbt.to_bytes()),
             ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
-        ],
-        outbox: vec![
+        ]),
+        outbox: faraday_core::files_from(vec![
             ("spend-signed.psbt".to_string(), b"first spend".to_vec()),
             ("spend-final.txn".to_string(), b"first spend".to_vec()),
-        ],
+        ]),
         kept: Vec::new(),
     });
     app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
@@ -310,10 +310,10 @@ fn spending_offered(kept: Vec<(String, Vec<u8>)>) -> Faraday {
     let psbt = testkit::unsigned(&k).unwrap();
     let mut app = faraday_core::testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("spend.psbt".to_string(), psbt.to_bytes()),
             ("spending-wallet.txt".to_string(), k.descriptor.into_bytes()),
-        ],
+        ]),
         outbox: Vec::new(),
         kept,
     });

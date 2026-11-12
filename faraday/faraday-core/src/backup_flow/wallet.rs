@@ -1413,7 +1413,11 @@ impl Faraday {
                         .iter()
                         .chain(self.outbox.iter())
                         .filter(|it| it.kind == crate::wallet::FileKind::Wallet)
-                        .filter_map(|it| String::from_utf8(it.bytes.to_vec()).ok())
+                        .filter_map(|it| {
+                            std::str::from_utf8(&it.bytes)
+                                .ok()
+                                .map(|s| zeroize::Zeroizing::new(s.to_owned()))
+                        })
                         .find(|t| of_wallet(t));
                     match found {
                         Some(t) => w.add.push(Staged::Made(

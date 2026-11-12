@@ -133,7 +133,7 @@ fn on_screen(name: &str, w: u16, h: u16, dpi: u16) -> Faraday {
         // signed it, from Files.
         let (_, cosigner) = testkit::spend().unwrap();
         app.storage(StorageEvent::Restored {
-            inbox: vec![("signed.psbt".to_string(), cosigner.to_bytes())],
+            inbox: faraday_core::files_from(vec![("signed.psbt".to_string(), cosigner.to_bytes())]),
             outbox: Vec::new(),
             kept: Vec::new(),
         });

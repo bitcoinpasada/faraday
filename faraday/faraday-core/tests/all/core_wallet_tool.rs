@@ -25,7 +25,9 @@ fn opened(files: Vec<(&str, Vec<u8>)>) -> Faraday {
     let mut app = testkit::started();
     app.session = Session::on(Network::Testnet);
     app.storage(StorageEvent::Restored {
-        inbox: files.into_iter().map(|(n, b)| (n.to_string(), b)).collect(),
+        inbox: faraday_core::files_from(
+            files.into_iter().map(|(n, b)| (n.to_string(), b)).collect(),
+        ),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

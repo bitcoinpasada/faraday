@@ -20,11 +20,11 @@ fn vector(path: &str) -> Vec<u8> {
 fn checked(proof: &str, file: Vec<u8>, header: &str) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("stamp.ots".to_string(), vector(proof)),
             ("stamped".to_string(), file),
             ("header".to_string(), vector(header)),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -149,7 +149,7 @@ fn with_proof_and_header(extra: Vec<(&str, Vec<u8>)>) -> Faraday {
     inbox.extend(extra.into_iter().map(|(n, b)| (n.to_string(), b)));
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -404,11 +404,11 @@ fn pending_proof(op: faraday_ots::HashOp, file: &[u8]) -> Vec<u8> {
 fn opened(proof: Vec<u8>, file: Vec<u8>) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![
+        inbox: faraday_core::files_from(vec![
             ("stamp.ots".to_string(), proof),
             ("stamped".to_string(), file),
             ("header".to_string(), vector("headers/455605.hex")),
-        ],
+        ]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

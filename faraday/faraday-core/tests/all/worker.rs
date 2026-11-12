@@ -91,7 +91,7 @@ mod vault_open {
         });
         testkit::vault_speed(&mut app, Some(100));
         app.storage(StorageEvent::Restored {
-            inbox: vec![("vault.kdbx".into(), vault("Test", PASS, 7))],
+            inbox: faraday_core::files_from(vec![("vault.kdbx".into(), vault("Test", PASS, 7))]),
             outbox: Vec::new(),
             kept: Vec::new(),
         });
@@ -221,10 +221,10 @@ mod vault_open {
         });
         testkit::vault_speed(&mut app, Some(100));
         app.storage(StorageEvent::Restored {
-            inbox: vec![
+            inbox: faraday_core::files_from(vec![
                 ("vault.kdbx".into(), vault("Test", PASS, 7)),
                 ("second.kdbx".into(), vault("Second", PASS, 8)),
-            ],
+            ]),
             outbox: Vec::new(),
             kept: Vec::new(),
         });
@@ -512,7 +512,7 @@ mod signing {
     fn inbox_of() -> Faraday {
         let mut app = testkit::started();
         app.storage(StorageEvent::Restored {
-            inbox: files(),
+            inbox: faraday_core::files_from(files()),
             outbox: Vec::new(),
             kept: Vec::new(),
         });
@@ -656,7 +656,7 @@ mod signing {
         assert_eq!(app.session.keys.len(), 0, "the lock forgot the key");
         // Unlocked and back at the same transaction before the answer.
         app.storage(StorageEvent::Restored {
-            inbox: files(),
+            inbox: faraday_core::files_from(files()),
             outbox: Vec::new(),
             kept: Vec::new(),
         });
@@ -798,7 +798,10 @@ mod signing {
         fn a_file_that_is_no_psbt_says_what_it_says_inline() {
             let named = |app: &mut Faraday| {
                 app.storage(StorageEvent::Restored {
-                    inbox: vec![("notes.psbt".to_string(), b"not a psbt".to_vec())],
+                    inbox: faraday_core::files_from(vec![(
+                        "notes.psbt".to_string(),
+                        b"not a psbt".to_vec(),
+                    )]),
                     outbox: Vec::new(),
                     kept: Vec::new(),
                 });
@@ -829,13 +832,13 @@ mod signing {
             let make = || {
                 let mut app = testkit::started();
                 app.storage(StorageEvent::Restored {
-                    inbox: vec![
+                    inbox: faraday_core::files_from(vec![
                         ("main.psbt".to_string(), mainnet.clone()),
                         (
                             "spending-wallet.txt".to_string(),
                             kit("spending").descriptor.into_bytes(),
                         ),
-                    ],
+                    ]),
                     outbox: Vec::new(),
                     kept: Vec::new(),
                 });
@@ -878,7 +881,7 @@ mod signing {
             // Unlocked, the wallet and key back, the file opened and
             // signed before the first answer arrives.
             app.storage(StorageEvent::Restored {
-                inbox: files(),
+                inbox: faraday_core::files_from(files()),
                 outbox: Vec::new(),
                 kept: Vec::new(),
             });
@@ -941,7 +944,7 @@ mod signing {
             let make = || {
                 let mut app = testkit::started();
                 app.storage(StorageEvent::Restored {
-                    inbox: files(),
+                    inbox: faraday_core::files_from(files()),
                     outbox: Vec::new(),
                     kept: Vec::new(),
                 });
@@ -1172,11 +1175,13 @@ mod signing {
                 } else {
                     let mut a = testkit::started();
                     a.storage(faraday_core::StorageEvent::Restored {
-                        inbox: testkit::files()
-                            .unwrap()
-                            .into_iter()
-                            .filter(|(n, _)| n.starts_with("musig-"))
-                            .collect(),
+                        inbox: faraday_core::files_from(
+                            testkit::files()
+                                .unwrap()
+                                .into_iter()
+                                .filter(|(n, _)| n.starts_with("musig-"))
+                                .collect(),
+                        ),
                         outbox: Vec::new(),
                         kept: Vec::new(),
                     });
@@ -1336,11 +1341,13 @@ mod signing {
                 [entropy; 32],
             )));
             app.storage(faraday_core::StorageEvent::Restored {
-                inbox: testkit::files()
-                    .unwrap()
-                    .into_iter()
-                    .filter(|(n, _)| n.starts_with("musig-"))
-                    .collect(),
+                inbox: faraday_core::files_from(
+                    testkit::files()
+                        .unwrap()
+                        .into_iter()
+                        .filter(|(n, _)| n.starts_with("musig-"))
+                        .collect(),
+                ),
                 outbox: Vec::new(),
                 kept: Vec::new(),
             });
@@ -1748,13 +1755,13 @@ mod collect {
         let other = testkit::unsigned(&kit("spending")).unwrap();
         let mut app = testkit::started();
         app.storage(StorageEvent::Restored {
-            inbox: vec![
+            inbox: faraday_core::files_from(vec![
                 ("spend.psbt".to_string(), layout(unsigned.to_bytes())),
                 ("same.psbt".to_string(), unsigned.to_bytes()),
                 ("other.psbt".to_string(), other.to_bytes()),
                 ("from-a.psbt".to_string(), theirs.to_bytes()),
                 ("wallet.txt".to_string(), k.descriptor.into_bytes()),
-            ],
+            ]),
             outbox: Vec::new(),
             kept: Vec::new(),
         });
@@ -1981,7 +1988,7 @@ mod collect {
             .collect();
         inbox.push(("late.psbt".to_string(), vec![1, 2, 3]));
         app.storage(StorageEvent::Restored {
-            inbox,
+            inbox: faraday_core::files_from(inbox),
             outbox: Vec::new(),
             kept: Vec::new(),
         });

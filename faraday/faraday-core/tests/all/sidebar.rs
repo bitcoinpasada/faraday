@@ -93,7 +93,7 @@ fn the_session_strip_names_the_current_stage() {
     let mut app = with(0, 0);
     assert_eq!(app.session_stage(&c), "Bring in", "an empty session");
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![("wallet.txt".to_string(), b"wpkh".to_vec())],
+        inbox: faraday_core::files_from(vec![("wallet.txt".to_string(), b"wpkh".to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -141,10 +141,10 @@ fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
     use faraday_core::vault::VaultAction as V;
     let mut app = with(1, 0);
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "vault.kdbx".to_string(),
             faraday_core::testkit::test_vault().unwrap(),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -310,7 +310,7 @@ fn the_lists_scrolled_to_their_end_follow_a_list_that_shrinks() {
 fn the_files_row_names_the_session_stage() {
     let mut app = with(1, 0);
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![("wallet.txt".to_string(), b"wpkh".to_vec())],
+        inbox: faraday_core::files_from(vec![("wallet.txt".to_string(), b"wpkh".to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -884,10 +884,10 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
     use faraday_core::vault::VaultAction as V;
     let mut app = with(0, 0);
     app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![(
+        inbox: faraday_core::files_from(vec![(
             "vault.kdbx".to_string(),
             faraday_core::testkit::test_vault().unwrap(),
-        )],
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

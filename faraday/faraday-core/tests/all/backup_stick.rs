@@ -181,7 +181,7 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     display(&mut app);
     app.storage(StorageEvent::Restored {
-        inbox: testkit::backup_files().unwrap(),
+        inbox: faraday_core::files_from(testkit::backup_files().unwrap()),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -290,7 +290,10 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     });
     faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.kdbx".into(), testkit::test_vault().unwrap())],
+        inbox: faraday_core::files_from(vec![(
+            "vault.kdbx".into(),
+            testkit::test_vault().unwrap(),
+        )]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -358,10 +361,10 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
     display(&mut app);
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![
+        outbox: faraday_core::files_from(vec![
             ("vault.kdbx".into(), vault.clone()),
             ("vault-2.kdbx".into(), vault),
-        ],
+        ]),
         kept: Vec::new(),
     });
     let stick = |label: &str| StickInfo {

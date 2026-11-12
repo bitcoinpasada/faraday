@@ -251,10 +251,12 @@ fn payment(scan: &PublicKey, spend: &PublicKey) -> (Transaction, Transaction) {
 /// Files holding these, as a stick visit leaves them.
 fn files(app: &mut Faraday, files: &[(&str, Vec<u8>)]) {
     app.storage(StorageEvent::Restored {
-        inbox: files
-            .iter()
-            .map(|(n, b)| (n.to_string(), b.clone()))
-            .collect(),
+        inbox: faraday_core::files_from(
+            files
+                .iter()
+                .map(|(n, b)| (n.to_string(), b.clone()))
+                .collect(),
+        ),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

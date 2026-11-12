@@ -31,7 +31,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
         memory_mib: None,
     }));
     app.storage(StorageEvent::Restored {
-        inbox,
+        inbox: faraday_core::files_from(inbox),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -72,7 +72,11 @@ fn locked(app: &mut Faraday) -> Boxes {
             kept,
         } = c
         {
-            last = Some((inbox, outbox, kept));
+            last = Some((
+                faraday_core::testkit::plain_files(inbox),
+                faraday_core::testkit::plain_files(outbox),
+                kept,
+            ));
         }
     }
     last.expect("the lock saved the boxes")
@@ -95,8 +99,8 @@ fn a_secret_let_out_stays_a_secret_across_a_lock() {
     let (inbox, outbox, kept) = locked(&mut app);
     let mut next = device(Vec::new());
     next.storage(StorageEvent::Restored {
-        inbox,
-        outbox,
+        inbox: faraday_core::files_from(inbox),
+        outbox: faraday_core::files_from(outbox),
         kept,
     });
     assert_eq!(next.outbox.len(), 1);

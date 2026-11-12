@@ -45,7 +45,7 @@ pub(crate) fn qr_tour(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     // A vault with a recovery sheet beside the test vault's entry.
     let vault = sheet_vault()?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![("vault.kdbx".to_string(), vault)],
+        inbox: faraday_core::files_from(vec![("vault.kdbx".to_string(), vault)]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });

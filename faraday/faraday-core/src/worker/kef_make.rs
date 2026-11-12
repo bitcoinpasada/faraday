@@ -261,7 +261,7 @@ pub enum MakeStart {
 /// A code made: its bytes, its picture and the files for the Outbox.
 pub struct Made {
     /// The envelope's bytes.
-    pub bytes: Vec<u8>,
+    pub bytes: zeroize::Zeroizing<Vec<u8>>,
     /// The code on a sheet, when it fits one code; otherwise why not.
     pub view: Result<QrView, String>,
     /// The picture's file name.
@@ -295,7 +295,7 @@ impl Saved {
 /// Costs what `QrView::kef` costs, and a SHA-256 pass over the bytes. The code for `bytes`, labelled with
 /// what is on the paper anyway: the version, the count and a typed id; it
 /// never says what the code holds.
-pub(crate) fn made(c: &Compute, bytes: Vec<u8>, options: &Options) -> Made {
+pub(crate) fn made(c: &Compute, bytes: zeroize::Zeroizing<Vec<u8>>, options: &Options) -> Made {
     let envelope = unwrap(&bytes).ok();
     let (version, count, id) = envelope
         .as_ref()

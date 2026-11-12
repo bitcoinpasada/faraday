@@ -16,7 +16,9 @@ fn kit(id: &str) -> testkit::Kit {
 fn scanning(inbox: Vec<(&str, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();
     app.storage(StorageEvent::Restored {
-        inbox: inbox.into_iter().map(|(n, b)| (n.to_string(), b)).collect(),
+        inbox: faraday_core::files_from(
+            inbox.into_iter().map(|(n, b)| (n.to_string(), b)).collect(),
+        ),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
@@ -132,7 +134,7 @@ fn a_code_says_whether_it_is_safe_to_scan() {
     let mut app = Faraday::new();
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
-        outbox: vec![
+        outbox: faraday_core::files_from(vec![
             (
                 "spending-wallet.txt".to_string(),
                 kit("spending").descriptor.into_bytes(),
@@ -141,7 +143,7 @@ fn a_code_says_whether_it_is_safe_to_scan() {
                 "key-words.txt".to_string(),
                 format!("{}\n", testkit::test_words(testkit::TEST_SEEDS[0].0)).into_bytes(),
             ),
-        ],
+        ]),
         kept: Vec::new(),
     });
     app.press(Action::QrOutbox(0));
@@ -929,7 +931,7 @@ fn ctrl_v_on_the_open_scanner_pastes_and_elsewhere_does_nothing() {
 fn keys_card_with_file(name: &str, bytes: &[u8]) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
-        inbox: vec![(name.to_string(), bytes.to_vec())],
+        inbox: faraday_core::files_from(vec![(name.to_string(), bytes.to_vec())]),
         outbox: Vec::new(),
         kept: Vec::new(),
     });
