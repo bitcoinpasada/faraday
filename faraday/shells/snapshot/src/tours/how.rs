@@ -14,7 +14,7 @@ pub(crate) fn how_tour(t: &mut Tour) -> Result<(), String> {
         scroll(t, 240);
         t.shot(&format!("how-{n}-scrolled"))?;
     }
-    t.press(Action::LearnPage(0));
+    t.press(Action::LearnTabGuide);
     t.shot("how-6-page")?;
     // Settings' tabs, Cryptography, Key storage and Glossary, each whole;
     // where Learn is a pane it is pinned, and stays open on the Spend

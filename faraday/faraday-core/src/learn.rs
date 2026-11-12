@@ -1,8 +1,8 @@
-//! The ? button: the Learn pages, read from `faraday_learn::pages::EN`
-//! (edited as `docs/learn/*.md`), so Faraday shows the same text
-//! and never a copy that
-//! drifts. Each screen names the pages that explain it; a wallet's screens
-//! name the pages for its kind.
+//! The Guide button: the guide's pages (`docs/guide/`, read through
+//! `faraday_learn::guide`), opened where the person is
+//! (`docs/GUIDE-IN-APP.md` §4). A screen and a step give the key of the
+//! section the guide opens at ([`guide_key`]); the Starter's held app
+//! still shows its start guides as Learn pages ([`Faraday::learn_with`]).
 
 use faraday_learn::Block;
 use faraday_learn::Page as LearnPage;
@@ -13,9 +13,7 @@ pub use faraday_learn::{
     keys_kept_page, maker, page, secure_boot_keys_page, shares_page, time_page, vaults_page,
 };
 
-use crate::create::NewKind;
-use crate::wallet::Kind;
-use crate::{Faraday, Screen};
+use crate::{Action, Faraday, Screen};
 
 /// What the guide is opened on within a place (`docs/GUIDE-IN-APP.md` §1.2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -397,21 +395,6 @@ pub fn guide_aim(key: &'static str) -> GuideAim {
     }
 }
 
-/// The label of `page`'s tab in the Learn sheet and pane: its title, or
-/// a shorter name where the title is too long for a row of tabs to show
-/// whole beside the others (Material 3 Tabs). A lookup.
-pub fn tab_label(page: &'static LearnPage) -> &'static str {
-    if std::ptr::eq(page, keys_kept_page()) {
-        crate::strings::EN.learn_tab_keys_kept
-    } else {
-        page.title
-    }
-}
-
-/// The tab number the How Faraday does it tab is pressed as
-/// ([`crate::Action::LearnPage`]): no page has it.
-pub const HOW_TAB: u8 = u8::MAX;
-
 /// A Learn page a Guided card links to, named by what it explains. Merged
 /// pages are named by the page they are in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -550,216 +533,106 @@ impl Topic {
     }
 }
 
-/// The Learn sheet's state: which pages, which one is open, and how far
-/// it is scrolled.
+/// The guide's state in the sheet and the pane: the place's key, the page
+/// shown, whether the contents is, and how far it is scrolled. The held
+/// app's Learn pages ([`Faraday::learn_with`]) are `pages`.
 #[derive(Default)]
 pub struct LearnState {
-    /// The pages the screen named.
+    /// The key the guide was opened at, followed with the screen and the
+    /// step ([`guide_key`]); empty for the held app's Learn pages.
+    pub key: &'static str,
+    /// The place of the page on show; empty while the contents is.
+    pub shown: &'static str,
+    /// The contents is on show, in place of a page.
+    pub contents: bool,
+    /// The section the next drawing scrolls to the top, set when the
+    /// guide opens, the step changes or a page opens: its offset needs
+    /// the width the page is laid out at, so the drawing finds it and
+    /// the pass after it ([`LearnArea::set_scroll`]) scrolls there.
+    pub to: Option<&'static str>,
+    /// The Learn pages of the held app, with the one on show in `page`.
     pub pages: Vec<&'static LearnPage>,
-    /// The one on show.
+    /// The held app's page on show.
     pub page: usize,
     /// Design units scrolled.
     pub scroll: f32,
     /// The furthest it can scroll, as last drawn.
     pub max: f32,
-    /// The How Faraday does it tab is on show, in place of the page
+    /// The Cryptography tab is on show, in place of the page
     /// (`docs/CRYPTO-LEARN.md` §8.2). Kept only while the screen offers
     /// blocks ([`Faraday::learn_place`]).
     pub how: bool,
 }
 
 impl LearnState {
-    /// The tab on show, by its place among the tabs the sheet draws when
-    /// the How tab is there: 0 for How, else the page's place from 1.
-    /// A lookup.
+    /// The tab on show, for the fade between tabs: 0 for Cryptography, 2
+    /// for the contents, else the page's place from 1. A lookup.
     pub fn tab(&self) -> usize {
-        if self.how { 0 } else { self.page + 1 }
+        if self.how {
+            0
+        } else if self.contents {
+            2
+        } else {
+            self.page + 1
+        }
+    }
+
+    /// Whether the held app's Learn pages are on show, not the guide.
+    pub fn legacy(&self) -> bool {
+        !self.pages.is_empty()
+    }
+
+    /// The page of the place the guide was opened from, if one is
+    /// written. A lookup.
+    pub fn here(&self) -> Option<&'static faraday_learn::GuidePage> {
+        faraday_learn::guide_page(place_of(self.key))
+    }
+
+    /// The page on show, if one is. A lookup.
+    pub fn shown_page(&self) -> Option<&'static faraday_learn::GuidePage> {
+        if self.contents || self.shown.is_empty() {
+            return None;
+        }
+        faraday_learn::guide_page(self.shown)
+    }
+
+    /// Whether Back goes one step inside the guide before it closes: from
+    /// a page opened from the contents, and from the contents to the
+    /// place's page. A lookup.
+    pub fn inside(&self) -> bool {
+        if self.legacy() || self.how {
+            false
+        } else if self.contents {
+            self.here().is_some()
+        } else {
+            !self.shown.is_empty() && self.shown != place_of(self.key)
+        }
     }
 }
 
-fn for_kind(kind: Kind) -> Vec<&'static LearnPage> {
-    match kind {
-        Kind::Single(_) => vec![&EN.wallet_kinds, &EN.words],
-        Kind::Multi(_) => vec![&EN.multisig, &EN.xpubs, &EN.coordinators],
-        Kind::TapMulti => vec![&EN.multisig, &EN.spend_paths],
-        Kind::Miniscript | Kind::Tree => {
-            vec![&EN.spend_paths, &EN.inheritance, &EN.wallet_kinds]
-        }
-        Kind::MuSig => vec![&EN.nonces, &EN.multisig],
-        Kind::Silent => vec![&EN.silent_payments, &EN.wallet_kinds],
-        Kind::Other => vec![&EN.wallet_kinds],
-    }
+/// The place of a page, as it is kept in a key.
+fn place_of_page(page: &'static faraday_learn::GuidePage) -> &'static str {
+    page.place.as_str()
 }
 
-fn for_new(kind: NewKind) -> Vec<&'static LearnPage> {
-    match kind {
-        NewKind::NativeSegwit | NewKind::Taproot | NewKind::NestedSegwit | NewKind::Legacy => {
-            vec![&EN.wallet_kinds, &EN.words, &EN.backups]
-        }
-        NewKind::Multi | NewKind::MultiNested | NewKind::MultiLegacy => {
-            vec![&EN.multisig, &EN.xpubs, &EN.coordinators]
-        }
-        NewKind::TapMulti => vec![&EN.multisig, &EN.spend_paths],
-        NewKind::MuSig => vec![&EN.nonces, &EN.wallet_kinds],
-    }
+/// The place of a section key.
+fn place_of(key: &'static str) -> &'static str {
+    key.split('.').next().unwrap_or(key)
 }
 
 impl Faraday {
-    /// The Learn pages that explain what is on screen. Where the demo is
-    /// set up (F20), the screens where keys come in and the mode is
-    /// chosen name its page first, and so, while the demo is on (where
-    /// its actions are dimmed), does every screen with an action the demo
-    /// dims (`docs/DEMO.md` §4, §7). The pages of the actions the screen
-    /// offers follow its own.
-    pub fn learn_pages(&self) -> Vec<&'static LearnPage> {
-        let mut pages = self.screen_pages();
-        // The page of each action the screen offers, after the curated ones
-        // (`docs/CRYPTO-LEARN.md` §9.1).
-        if !self.held {
-            let name = self.how_screen_name();
-            for block in faraday_learn::how::screen_blocks(name.as_str()) {
-                let page = faraday_learn::how::learn_page(block.learn);
-                if let Some(page) = page.filter(|p| !pages.iter().any(|q| std::ptr::eq(*q, *p))) {
-                    pages.push(page);
-                }
-            }
-        }
-        let keys_in = self.session.keys.demo()
-            && matches!(
-                self.screen,
-                Screen::Home | Screen::Entry | Screen::KeyGen | Screen::Settings
-            );
-        let dims = self.session.keys.demo()
-            && (matches!(
-                self.screen,
-                Screen::BackupFlow
-                    | Screen::VaultContents
-                    | Screen::Backup
-                    | Screen::Bip85
-                    | Screen::Create
-                    | Screen::Vanity
-                    | Screen::Lightning
-                    | Screen::Silent
-                    | Screen::CreateVault
-            ) || self.sheet == Some(crate::Sheet::Chart));
-        if keys_in || dims {
-            pages.insert(0, demo_page());
-        }
-        pages
-    }
-
-    fn screen_pages(&self) -> Vec<&'static LearnPage> {
-        let wallet = || {
-            self.session
-                .wallets
-                .get(self.wallets.wallet())
-                .map(|w| Kind::of(w.policy()))
-        };
-        match self.screen {
-            Screen::Home => vec![&EN.start_here, &EN.air_gap],
-            Screen::SpendBackup => vec![&EN.inheritance, &EN.verifying, &EN.air_gap, &EN.scams],
-            Screen::WalletsStart => vec![&EN.wallet_kinds, &EN.start_here],
-            Screen::Wallets => wallet().map_or_else(|| vec![&EN.wallet_kinds], for_kind),
-            Screen::Spend => {
-                let mut p = vec![&EN.verifying];
-                if wallet() == Some(Kind::MuSig) {
-                    p.push(&EN.nonces);
-                }
-                p.push(&EN.scams);
-                p
-            }
-            Screen::Create => self
-                .create
-                .state()
-                .map_or_else(|| vec![&EN.wallet_kinds], |c| for_new(c.kind)),
-            // Make codex32 shares and the codex32 form name the codex32
-            // page first (`docs/CODEX32.md` §13.3).
-            Screen::KeyGen if self.keygen.state().is_some_and(|k| k.codex32.is_some()) => {
-                vec![&EN.other_backups, &EN.randomness]
-            }
-            Screen::KeyGen => vec![&EN.randomness, &EN.words],
-            Screen::Randomness => vec![&EN.randomness],
-            Screen::Entry if self.entry.state().form == crate::forms::Form::Codex32 => {
-                vec![&EN.other_backups, &EN.words]
-            }
-            Screen::Entry => vec![&EN.words, &EN.passphrases],
-            Screen::Silent => vec![&EN.silent_payments, &EN.xpubs],
-            Screen::Explore => vec![&EN.xpubs, &EN.glossary, keys_kept_page()],
-            Screen::Vanity => vec![&EN.passphrases, &EN.wallet_kinds],
-            Screen::Lightning => vec![&EN.tools, &EN.glossary],
-            Screen::Tools => vec![&EN.tools, &EN.glossary],
-            Screen::OtsCheck => vec![&EN.timestamps, &EN.tools],
-            Screen::CoreWallet => vec![&EN.core_wallet, &EN.tools],
-            Screen::Bip85 | Screen::Convert | Screen::KefTool | Screen::QrTool => {
-                vec![&EN.words, &EN.passphrases, &EN.tools, &EN.glossary]
-            }
-            Screen::Backup => {
-                // A multisig's backup can keep shares of its description.
-                let splits = self
-                    .backup
-                    .state()
-                    .and_then(|b| self.session.wallets.get(b.wallet))
-                    .is_some_and(crate::wallet_backup::splits);
-                if splits {
-                    vec![
-                        &EN.backups,
-                        backup_plan_check_page(),
-                        shares_page(),
-                        &EN.other_backups,
-                    ]
-                } else {
-                    vec![&EN.backups, backup_plan_check_page(), &EN.other_backups]
-                }
-            }
-            Screen::Backups => vec![&EN.backups, backup_plan_check_page(), vaults_page()],
-            Screen::Restore => vec![&EN.backups, backup_plan_check_page(), &EN.inheritance],
-            Screen::Message | Screen::CheckMessage => vec![&EN.message],
-            Screen::Files => vec![&EN.air_gap, &EN.coordinators],
-            Screen::VaultContents if self.vaults.category == 4 => {
-                vec![gpg_page(), vaults_page(), &EN.passphrases]
-            }
-            // A GPG key restored from its paperkey: the page that says how
-            // its lines are typed.
-            Screen::BackupFlow
-                if self
-                    .flows
-                    .on()
-                    .and_then(|i| self.flows.get(i))
-                    .is_some_and(|f| f.restore.is_some()) =>
-            {
-                vec![gpg_page(), vaults_page(), &EN.passphrases]
-            }
-            // The Secure Boot kind (`crate::vault::CATEGORIES`, place 5).
-            Screen::VaultContents if self.vaults.category == 5 => {
-                vec![secure_boot_keys_page(), vaults_page(), &EN.passphrases]
-            }
-            Screen::Vaults
-            | Screen::CreateVault
-            | Screen::Unlock
-            | Screen::BackupFlow
-            | Screen::VaultContents => {
-                vec![vaults_page(), &EN.passphrases]
-            }
-            Screen::Settings => vec![keys_kept_page(), &EN.glossary],
-            Screen::SetTime | Screen::Codes => vec![time_page()],
-            Screen::Decode => vec![&EN.verifying, &EN.tools],
-            Screen::Invoice => vec![&EN.lightning_invoices, &EN.tools],
-            Screen::NonceCheck => vec![&EN.nonces, &EN.verifying],
-            Screen::SignerCheck => vec![&EN.verifying, &EN.tools],
-            Screen::Compare => vec![&EN.verifying, &EN.tools],
-            Screen::Catalog => vec![&EN.tools, &EN.glossary],
-            Screen::Transfer => vec![&EN.air_gap, &EN.coordinators],
-        }
-    }
-
-    /// The ? and Learn in the navigation open Learn on the screen's
-    /// first page, as the sheet or, on an extra-large window, the
-    /// supporting pane beside the page; pressed again while the pane is
-    /// shown, and the pane's close button, put the pane away.
+    /// The Guide button and the rail's and menu's Guide entry open the
+    /// guide at the section of what is on screen, as the sheet or, on an
+    /// extra-large window, the supporting pane beside the page; pressed
+    /// again while the pane is shown, and the pane's close button, put the
+    /// pane away; Done closes the sheet.
     pub(crate) fn learn_press(&mut self, action: crate::Action) {
         if action == crate::Action::How {
             self.how_press();
         } else if action == crate::Action::LearnClose || self.learn_pane_shown() {
+            if self.sheet == Some(crate::Sheet::Learn) {
+                self.sheet = None;
+            }
             self.learn_close();
         } else {
             self.learn_open();
@@ -767,7 +640,7 @@ impl Faraday {
         }
     }
 
-    /// **How Faraday does it** on the bar: opens Learn on the How tab;
+    /// **Cryptography** on the bar: opens the guide on the Cryptography tab;
     /// while the supporting pane shows that tab it puts the pane away,
     /// and while the pane shows another tab it moves the pane to the How
     /// tab (`docs/CRYPTO-LEARN.md` §8.2).
@@ -815,32 +688,30 @@ impl Faraday {
         !self.held && faraday_learn::how::offered(self.how_screen_name().as_str())
     }
 
-    /// Opens the Learn sheet on the screen's first page.
-    fn learn_open(&mut self) {
-        let pages = self.learn_pages();
-        if pages.is_empty() && !self.how_offered() {
-            return;
-        }
-        self.learn.open(pages, &mut self.sheet);
+    /// The guide's scroll was set by a press, not by a person scrolling:
+    /// the overlay scrollbar does not show for it.
+    pub(crate) fn learn_bar_synced(&mut self) {
+        let (key, _, moved_at) = self.scroll.bar_seen();
+        self.scroll
+            .set_bar_seen(key, self.learn.state().scroll, moved_at);
     }
 
-    /// The pane's pin, which turns it on or off, or **Spending, step by
-    /// step** over Learn's tabs.
+    /// The key of what is on screen now ([`guide_key`]).
+    fn screen_key(&self) -> &'static str {
+        guide_key(self.screen, self.guide_here())
+    }
+
+    /// Opens the guide at the section of what is on screen.
+    fn learn_open(&mut self) {
+        let key = self.screen_key();
+        self.learn.open_at(key, &mut self.sheet);
+    }
+
+    /// The pane's pin, which turns it on or off.
     pub(crate) fn learn_button(&mut self, action: crate::Action) {
         if action == crate::Action::LearnPin {
             self.learn.toggle_pin(self.screen);
-        } else {
-            self.learn_spend();
         }
-    }
-
-    /// The Learn sheet's and pane's first row on the Spend tab,
-    /// **Spending, step by step**: Learn closes, sheet or pane, and the
-    /// Spend tab's steps are on show.
-    fn learn_spend(&mut self) {
-        self.sheet = None;
-        self.learn_close();
-        self.screen = Screen::SpendBackup;
     }
 
     /// Whether the window holds Learn as a supporting pane beside the
@@ -887,6 +758,13 @@ impl Faraday {
     /// Cancel's part in Learn: the open sheet closes; with no sheet open,
     /// Learn's supporting pane is put away, as Cancel closes the sheet.
     pub(crate) fn learn_cancel(&mut self) {
+        // Back inside the guide goes a step before it closes.
+        let open = self.sheet == Some(crate::Sheet::Learn)
+            || (self.sheet.is_none() && self.learn_pane_shown());
+        if open && self.learn.step_back() {
+            self.learn_bar_synced();
+            return;
+        }
         if self.sheet.is_none() {
             self.learn_close();
         }
@@ -906,20 +784,17 @@ impl Faraday {
         take
     }
 
-    /// Keeps Learn where the window and the screen put it, and the pane's
-    /// pages the screen's: called before every frame is drawn and after
-    /// Learn opens. The sheet becomes the pane once the window holds one
-    /// (extra-large), and the pane the sheet once it does not, unless
-    /// another sheet is up; a pane on a screen that keeps the pane's
-    /// place for its own goes, and so does an unpinned pane once the
-    /// screen is another than the one it stood beside (owner,
-    /// 2026-10-29). While the pane is open its pages are the
-    /// Learn pages of the screen on show ([`Faraday::learn_pages`]),
-    /// worked out again here and compared with the ones it last
-    /// followed, so a change of screen or step changes them however it
-    /// came; the tab on show stays where the new pages have it, else the
-    /// first is shown. Costs a lookup of the screen's pages while Learn
-    /// is open.
+    /// Keeps the guide where the window and the screen put it, and the
+    /// pane's page the screen's: called before every frame is drawn and
+    /// after the guide opens. The sheet becomes the pane once the window
+    /// holds one (extra-large), and the pane the sheet once it does not,
+    /// unless another sheet is up; a pane on a screen that keeps the
+    /// pane's place for its own goes, and so does an unpinned pane once
+    /// the screen is another than the one it stood beside (owner,
+    /// 2026-10-29). While the pane is open it follows the screen: a new
+    /// step scrolls to its section, a new place opens its page; the
+    /// contents stays where the person has it until then. Costs a lookup
+    /// of the screen's key while the guide is open.
     pub(crate) fn learn_place(&mut self) {
         if self.learn.state().how && !self.how_offered() {
             self.learn.drop_how();
@@ -938,39 +813,45 @@ impl Faraday {
                 self.learn_close();
                 return;
             }
-            let now = self.learn_pages();
-            if (now.is_empty() && !self.how_offered()) || !self.learn_pane_place_free() {
+            if !self.learn_pane_place_free() {
                 self.learn_close();
             } else {
+                let now = self.screen_key();
                 self.learn.follow(now);
             }
         } else if self.sheet == Some(crate::Sheet::Learn)
             && self.learn_pane_room()
             && self.learn_pane_place_free()
         {
-            let now = self.learn_pages();
+            let now = self.screen_key();
             self.learn.move_to_pane(&mut self.sheet, now, self.screen);
         }
     }
 
-    /// Opens the Learn sheet on a Guided card's topic.
+    /// A link to a Learn page: **Extra copies** opens the guide at its
+    /// section, every other opens the guide at the current place, as the
+    /// button does (the links go in a later change).
     pub(crate) fn learn_topic(&mut self, topic: Topic) {
-        self.learn_on(topic.page());
-    }
-
-    /// Opens the Learn sheet on the page about shares; closing it leaves
-    /// the screen as it was.
-    pub(crate) fn learn_shares(&mut self) {
-        self.learn_on(shares_page());
-    }
-
-    /// The Learn sheet on `page`: on its tab where the screen's pages
-    /// have it, else on it alone.
-    pub(crate) fn learn_on(&mut self, page: &'static LearnPage) {
-        if !self.learn.pane_open() {
-            self.learn_open();
+        if topic == Topic::ExtraCopies {
+            self.learn_open_key(EXTRA_COPIES_KEY);
+        } else {
+            self.learn_open_key(self.screen_key());
         }
-        self.learn.on(page, &mut self.sheet);
+    }
+
+    /// The link to the shares page: the guide at the current place.
+    pub(crate) fn learn_shares(&mut self) {
+        self.learn_open_key(self.screen_key());
+    }
+
+    /// Opens the guide at `key`, where it is not open already; closing it
+    /// leaves the screen as it was.
+    fn learn_open_key(&mut self, key: &'static str) {
+        if !self.learn.pane_open() {
+            self.learn.open_at(key, &mut self.sheet);
+        } else {
+            self.learn.show_key(key);
+        }
         self.learn_place();
     }
 
@@ -981,7 +862,7 @@ impl Faraday {
         if pages.is_empty() {
             return;
         }
-        self.learn.open(pages, &mut self.sheet);
+        self.learn.open_pages(pages, &mut self.sheet);
         self.out.redraw();
         self.out.command(faraday_shell_api::Command::Draw);
     }
@@ -1025,11 +906,11 @@ pub(crate) struct LearnArea {
     /// screen by [`Faraday::learn_place`] before every frame. `None`
     /// while the pane is not open.
     beside: Option<crate::Screen>,
-    /// The screen's Learn pages as the pane last followed them. Kept in
-    /// step with the screen by [`Faraday::learn_place`] before every
-    /// frame: once the screen's pages are no longer these, the pane's
-    /// pages become the new ones. Empty while the pane is not open.
-    followed: Vec<&'static LearnPage>,
+    /// The screen's key as the pane last followed it. Kept in step with
+    /// the screen by [`Faraday::learn_place`] before every frame: once
+    /// the screen's key is another, the pane shows it. Empty while the
+    /// pane is not open.
+    followed: &'static str,
 }
 
 impl LearnArea {
@@ -1043,14 +924,41 @@ impl LearnArea {
         &mut self.state.scroll
     }
 
-    /// Takes the extent and offset a frame drew the sheet with.
-    pub(crate) fn set_scroll(&mut self, max: f32, scroll: f32) {
+    /// Takes the extent and offset a frame drew the sheet with, and the
+    /// offset of the section the guide was to scroll to, where it found
+    /// it: the guide scrolls there and wants another frame.
+    pub(crate) fn set_scroll(&mut self, max: f32, scroll: f32, section: Option<f32>) -> bool {
         self.state.max = max;
         self.state.scroll = scroll;
+        if self.state.to.take().is_none() {
+            return false;
+        }
+        self.state.scroll = section.unwrap_or(0.0).min(max);
+        true
     }
 
-    /// Opens the sheet on `pages`, at the first, and shows it.
-    pub(crate) fn open(
+    /// Opens the guide at `key`, as the sheet: the key's page, scrolled
+    /// to its section; the contents where the place has no page.
+    pub(crate) fn open_at(&mut self, key: &'static str, sheet: &mut Option<crate::Sheet>) {
+        self.state = LearnState::default();
+        self.show_key(key);
+        self.close_pane();
+        *sheet = Some(crate::Sheet::Learn);
+    }
+
+    /// Shows the page of `key`, scrolled to its section; the contents
+    /// where the place has no page.
+    pub(crate) fn show_key(&mut self, key: &'static str) {
+        let st = &mut self.state;
+        st.key = key;
+        st.contents = faraday_learn::guide_page(place_of(key)).is_none();
+        st.shown = place_of(key);
+        st.to = (!st.contents).then_some(key);
+        st.scroll = 0.0;
+    }
+
+    /// Opens the held app's Learn sheet on `pages`, at the first.
+    pub(crate) fn open_pages(
         &mut self,
         pages: Vec<&'static LearnPage>,
         sheet: &mut Option<crate::Sheet>,
@@ -1063,18 +971,35 @@ impl LearnArea {
         *sheet = Some(crate::Sheet::Learn);
     }
 
+    /// Back inside the guide: from a page opened from the contents to the
+    /// contents, from the contents to the place's page. False where Back
+    /// closes the guide.
+    pub(crate) fn step_back(&mut self) -> bool {
+        if !self.state.inside() {
+            return false;
+        }
+        if self.state.contents {
+            let key = self.state.key;
+            self.show_key(key);
+        } else {
+            self.state.contents = true;
+            self.state.scroll = 0.0;
+        }
+        true
+    }
+
     /// Whether Learn is open as the supporting pane.
     pub(crate) fn pane_open(&self) -> bool {
         self.pane
     }
 
-    /// The open sheet becomes the pane, on the pages and tab it shows,
-    /// beside `on`; `screen` is the screen's pages now, which the pane
-    /// follows from here.
+    /// The open sheet becomes the pane, on the page it shows, beside
+    /// `on`; `screen` is the screen's key now, which the pane follows
+    /// from here.
     pub(crate) fn move_to_pane(
         &mut self,
         sheet: &mut Option<crate::Sheet>,
-        screen: Vec<&'static LearnPage>,
+        screen: &'static str,
         on: crate::Screen,
     ) {
         *sheet = None;
@@ -1123,49 +1048,70 @@ impl LearnArea {
         self.pane = false;
         self.pinned = false;
         self.beside = None;
-        self.followed.clear();
+        self.followed = "";
     }
 
-    /// The screen's pages are `screen` now: where they are not the ones
-    /// the pane last followed, the pane shows them, on the tab it showed
-    /// where they have it, else on the first from its top.
-    pub(crate) fn follow(&mut self, screen: Vec<&'static LearnPage>) {
-        let same = screen.len() == self.followed.len()
-            && screen
-                .iter()
-                .zip(&self.followed)
-                .all(|(a, b)| std::ptr::eq(*a, *b));
-        if same {
+    /// The screen's key is `screen` now: where it is not the one the pane
+    /// last followed, the pane shows its page, scrolled to its section.
+    pub(crate) fn follow(&mut self, screen: &'static str) {
+        if screen == self.followed {
             return;
         }
-        let on = self.state.pages.get(self.state.page).copied();
-        let at = on.and_then(|p| screen.iter().position(|q| std::ptr::eq(*q, p)));
-        if at.is_none() {
-            self.state.scroll = 0.0;
-        }
-        self.state.page = at.unwrap_or(0);
-        self.state.pages.clone_from(&screen);
         self.followed = screen;
+        self.show_key(screen);
     }
 
-    /// Moves the sheet to `page`'s tab where it has one, else shows
-    /// `page` alone.
-    pub(crate) fn on(&mut self, page: &'static LearnPage, sheet: &mut Option<crate::Sheet>) {
-        if let Some(i) = self.state.pages.iter().position(|p| std::ptr::eq(*p, page)) {
-            self.state.page = i;
-        } else {
-            self.open(vec![page], sheet);
+    /// A press of a Learn action ([`crate::Action::LearnPage`] and the
+    /// guide's own): the held app's page; in the guide, a tab,
+    /// **Contents**, the first row of the contents, or the page in place
+    /// `i` of it.
+    pub(crate) fn show_page(&mut self, action: Action) {
+        if self.state.legacy() {
+            match action {
+                Action::LearnTabHow => self.show_how(),
+                Action::LearnPage(i) if usize::from(i) < self.state.pages.len() => {
+                    self.state.page = usize::from(i);
+                    self.state.how = false;
+                    self.state.scroll = 0.0;
+                }
+                _ => {}
+            }
+            return;
         }
-    }
-
-    /// Shows the sheet's page `i`.
-    pub(crate) fn show_page(&mut self, i: u8) {
-        if i == HOW_TAB {
-            self.show_how();
-        } else if usize::from(i) < self.state.pages.len() {
-            self.state.page = usize::from(i);
-            self.state.how = false;
-            self.state.scroll = 0.0;
+        let st = &mut self.state;
+        match action {
+            Action::LearnTabHow => self.show_how(),
+            Action::LearnTabGuide => {
+                st.how = false;
+                st.scroll = 0.0;
+                if !st.contents {
+                    st.to = (st.shown == place_of(st.key)).then_some(st.key);
+                }
+            }
+            Action::LearnContents => {
+                st.how = false;
+                st.contents = true;
+                st.scroll = 0.0;
+            }
+            Action::LearnHere => {
+                let key = st.key;
+                st.how = false;
+                self.show_key(key);
+            }
+            Action::LearnPage(n) => {
+                let page = faraday_learn::guide_groups()
+                    .iter()
+                    .flat_map(|g| g.pages.iter())
+                    .nth(usize::from(n));
+                if let Some(page) = page {
+                    st.how = false;
+                    st.contents = false;
+                    st.shown = place_of_page(page);
+                    st.to = Some(place_of_page(page));
+                    st.scroll = 0.0;
+                }
+            }
+            _ => {}
         }
     }
 
@@ -1237,5 +1183,14 @@ impl std::fmt::Write for ScreenName {
         room.copy_from_slice(s.as_bytes());
         self.len = end;
         Ok(())
+    }
+}
+
+impl Faraday {
+    /// What the guide is opened on within the screen's place
+    /// ([`GuideAt`]): the screen as a whole until each screen names its
+    /// own part.
+    fn guide_here(&self) -> GuideAt {
+        GuideAt::Whole
     }
 }

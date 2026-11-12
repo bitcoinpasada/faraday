@@ -663,18 +663,24 @@ pub enum Action {
     /// Learn's supporting pane's pin: kept open across screens while on,
     /// put away at the next screen while off (`docs/LAYOUT.md` §6).
     LearnPin,
-    /// Show the Learn sheet's page, or its How tab for
-    /// [`crate::learn::HOW_TAB`].
+    /// Show page `i` of the Learn sheet: the held app's page, or in the
+    /// guide the page in place `i` of the contents.
     LearnPage(u8),
+    /// The guide's **Cryptography** tab.
+    LearnTabHow,
+    /// The guide's **Guide** tab.
+    LearnTabGuide,
+    /// The guide's **Contents** button.
+    LearnContents,
+    /// The contents' first row: the page of the place the guide was opened
+    /// from.
+    LearnHere,
     /// **How Faraday does it** on the top app bar: Learn on the How tab
     /// (`docs/CRYPTO-LEARN.md` §8.2).
     How,
     /// Tick step `n` of the guide page on show in the Learn sheet, or
     /// clear its tick if it is ticked already.
     LearnStep(u32),
-    /// **Spending, step by step** above Learn's tabs on the Spend tab:
-    /// closes Learn over the tab's steps.
-    LearnSpend,
     /// **What is a share?** beside the backup plan's In shares: the
     /// Learn sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).
     LearnShares,

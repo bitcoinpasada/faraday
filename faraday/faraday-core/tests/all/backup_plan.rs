@@ -617,10 +617,7 @@ fn what_is_a_share_opens_the_page_and_back_returns_to_places() {
     assert!(shows(&mut app, Action::LearnShares));
     app.press(Action::LearnShares);
     assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(
-        app.learn().pages[app.learn().page].title,
-        "Shares of a wallet description"
-    );
+    assert_eq!(app.learn().shown, "backup", "the guide at the place");
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Backup);

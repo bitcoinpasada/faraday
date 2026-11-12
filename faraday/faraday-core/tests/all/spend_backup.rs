@@ -296,7 +296,8 @@ fn read_the_transaction_leads_to_verifying_in_learn() {
     assert!(app.offers(verifying));
     app.press(verifying);
     assert_eq!(app.sheet, Some(Sheet::Learn));
-    let page = app.learn().pages[app.learn().page];
+    assert_eq!(app.learn().shown, "spend-from-backup");
+    let page = faraday_core::learn::Topic::Verifying.page();
     assert_eq!(page.title, "Verifying");
     assert!(
         page.sections
@@ -866,22 +867,17 @@ fn the_spend_tab_opens_from_the_wallets_empty_state() {
     assert_eq!(app.screen, Screen::SpendBackup);
 }
 
-/// Learn offers **Spending, step by step** only on the Spend tab: from
-/// Home it is not there; on the Spend tab it closes Learn over the steps.
+/// The guide opened on the Spend tab is at the page of spending from a
+/// backup; Done closes it over the same tab.
 #[test]
-fn learn_offers_spending_step_by_step_only_on_the_spend_tab() {
+fn the_guide_on_the_spend_tab_opens_at_its_page_and_done_leaves_the_tab() {
     let mut app = shown();
-    app.press(Action::Learn);
-    let _ = app.frame();
-    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
-    assert!(!app.offers(Action::LearnSpend), "not outside the Spend tab");
-    app.press(Action::Cancel);
     app.press(Action::Nav(Screen::SpendBackup));
     app.press(Action::Learn);
     let _ = app.frame();
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
-    assert!(app.offers(Action::LearnSpend), "on the Spend tab");
-    app.press(Action::LearnSpend);
+    assert_eq!(app.learn().shown, "spend-from-backup");
+    app.press(Action::Cancel);
     assert_eq!(app.screen, Screen::SpendBackup);
     assert_eq!(app.sheet, None);
 }

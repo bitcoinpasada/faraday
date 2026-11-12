@@ -19,9 +19,6 @@ use faraday_core::{Action, Faraday, Screen, Sheet, bstep, demo, qstep};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 use faraday_vault::records::kind;
 
-/// The demo's Learn page.
-const DEMO_PAGE: &str = "Practice and its public seeds";
-
 /// The passphrase of the empty vault in Files.
 const VAULT_PHRASE: &str = "faraday";
 
@@ -229,26 +226,28 @@ fn leaving_a_key_flow_at_make_leaves_no_make_form_in_vault_contents() {
 }
 
 #[test]
-fn in_the_demo_the_gpg_key_screen_names_the_demo_page_first() {
+fn in_the_demo_and_on_the_stick_the_gpg_key_screen_opens_the_guide_at_its_page() {
     let mut app = app_on(true);
     crate::common::start(&mut app, Kind::Gpg);
     assert_eq!(app.screen, Screen::BackupFlow);
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(app.learn_pages().first().map(|p| p.title), Some(DEMO_PAGE));
-    // The stick never names it.
+    assert!(app.learn().shown.starts_with("backup"));
+    // The stick opens the same page.
     let mut app = app_on(false);
     crate::common::start(&mut app, Kind::Gpg);
-    assert!(app.learn_pages().iter().all(|p| p.title != DEMO_PAGE));
+    app.press(Action::Learn);
+    assert!(app.learn().shown.starts_with("backup"));
 }
 
 #[test]
-fn on_a_test_network_the_gpg_key_screen_does_not_name_the_demo_page_first() {
+fn on_a_test_network_the_gpg_key_screen_opens_the_guide_at_its_page() {
     let mut app = app_on(false);
     testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     crate::common::start(&mut app, Kind::Gpg);
     assert_eq!(app.screen, Screen::BackupFlow);
-    assert_ne!(app.learn_pages().first().map(|p| p.title), Some(DEMO_PAGE));
+    app.press(Action::Learn);
+    assert!(app.learn().shown.starts_with("backup"));
 }
 
 // ---------------------------------------------------------------------

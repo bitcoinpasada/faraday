@@ -6,7 +6,7 @@
 
 use faraday_core::nav::{BarTool, MenuPress, Overflow};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
-use faraday_learn::how::{BLOCKS, learn_page};
+use faraday_learn::how::BLOCKS;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const SIZES: [(&str, u16, u16, u16); 3] = [
@@ -202,22 +202,20 @@ fn every_action_with_a_screen_is_one_press_from_its_block() {
     );
 }
 
-/// The page of each action is among the screen's Learn pages
-/// (`docs/CRYPTO-LEARN.md` §9.1).
+/// Learn on every screen that offers an action with a block opens the
+/// guide at the screen's page, with the Cryptography tab beside it.
 #[test]
-fn every_actions_learn_page_is_among_its_screens_pages() {
+fn every_screen_with_actions_opens_the_guide_at_a_page_with_the_cryptography_tab() {
     let mut failed = Vec::new();
     for name in screen_names() {
         let mut app = on_screen(name, 1280, 800, 160);
         app.press(Action::Learn);
         let _ = app.frame();
-        for b in BLOCKS.iter().filter(|b| b.screens.contains(&name)) {
-            let Some(page) = learn_page(b.learn) else {
-                continue;
-            };
-            if !app.learn().pages.iter().any(|p| std::ptr::eq(*p, page)) {
-                failed.push(format!("{name}: {} (page {})", b.id, b.learn));
-            }
+        if app.learn().shown.is_empty() && !app.learn().contents {
+            failed.push(format!("{name}: no page"));
+        }
+        if !app.offers(Action::LearnTabHow) {
+            failed.push(format!("{name}: no Cryptography tab"));
         }
     }
     assert!(

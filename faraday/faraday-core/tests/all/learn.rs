@@ -1,62 +1,98 @@
-//! The ? on a screen opens the Learn pages for what is on it: a
-//! multisig being created opens Multisig, a new key opens Randomness, and
-//! another tab shows the next page. On an extra-large window Learn stands
-//! in a supporting pane beside the page (`docs/LAYOUT.md` §6), follows
-//! the page, scrolls on its own and closes; below it, it is the sheet.
+//! The ? on a screen opens the guide at the section of what is on it: a
+//! wallet being created opens Create a key, a new key opens Generate a
+//! key, and Contents lists every page. On an extra-large window the guide
+//! stands in a supporting pane beside the page (`docs/LAYOUT.md` §6),
+//! follows the page, scrolls on its own and closes; below it, it is the
+//! sheet.
 
 use faraday_core::{Action, Faraday, Sheet};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 
+/// The place of the guide's page on show.
 fn shown(app: &Faraday) -> &'static str {
-    app.learn().pages[app.learn().page].title
+    app.learn().shown
 }
 
 #[test]
-fn the_question_mark_opens_the_pages_for_the_screen() {
+fn the_question_mark_opens_the_guide_at_the_page_of_the_screen() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
     crate::common::ckind(&mut app, 4);
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(shown(&app), "Multisig");
-    app.press(Action::LearnPage(1));
-    assert_eq!(shown(&app), "Xpubs and privacy");
+    assert_eq!(shown(&app), "create");
+    assert!(
+        app.learn().key.starts_with("create"),
+        "at the section of the key of what is on screen"
+    );
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
 
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
     app.press(Action::Learn);
-    assert_eq!(shown(&app), "Randomness");
+    assert_eq!(shown(&app), "keygen");
 }
 
 #[test]
-fn the_backups_list_names_the_page_on_a_backup_plans_check_after_backups() {
+fn the_contents_lists_every_page_with_the_places_page_first() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(faraday_core::Screen::Backups));
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(shown(&app), "Backups");
-    app.press(Action::LearnPage(1));
-    assert_eq!(shown(&app), "A backup plan's check");
+    assert_eq!(shown(&app), "backups");
+    assert!(!app.learn().contents);
+    app.press(Action::LearnContents);
+    frame(&mut app);
+    assert!(app.learn().contents, "the contents is on show");
+    assert!(
+        app.offers(Action::LearnHere),
+        "the place's page, first, under Here"
+    );
+    let rows: usize = faraday_learn::guide_groups()
+        .iter()
+        .map(|g| g.pages.len())
+        .sum();
+    assert_eq!(rows, faraday_learn::guide_places().len(), "every page");
 }
 
 #[test]
-fn settings_names_where_keys_are_kept() {
+fn back_from_a_page_opened_in_the_contents_returns_to_the_contents_then_the_places_page() {
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::Nav(faraday_core::Screen::Backups));
+    app.press(Action::Learn);
+    app.press(Action::LearnContents);
+    // The first row after Here is a page in the groups.
+    app.press(Action::LearnPage(0));
+    assert!(!app.learn().contents);
+    let opened = shown(&app);
+    assert_ne!(opened, "backups");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, Some(Sheet::Learn), "Back did not close it");
+    assert!(app.learn().contents, "Back returned to the contents");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, Some(Sheet::Learn));
+    assert_eq!(shown(&app), "backups", "then to the place's page");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None, "and then it closes");
+}
+
+#[test]
+fn settings_opens_the_guide_at_the_settings_page() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(faraday_core::Screen::Settings));
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(shown(&app), "Where keys are kept");
+    assert_eq!(shown(&app), "settings");
 }
 
 #[test]
-fn the_vaults_screen_names_the_vaults_page() {
+fn the_vaults_screen_opens_the_vaults_page() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(faraday_core::Screen::Vaults));
     app.press(Action::Learn);
     assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(shown(&app), "Vaults");
+    assert_eq!(shown(&app), "vaults");
 }
 
 /// The window, `width` × `height` at 160 dpi: one pixel a unit.
@@ -98,11 +134,12 @@ fn at_1920_learn_opens_beside_the_page_whose_controls_stay_pressable() {
         app.offers(Action::LearnClose),
         "the pane and its close button"
     );
-    assert!(app.offers(Action::LearnPage(0)), "the pane's tabs");
+    assert!(app.offers(Action::LearnTabGuide), "the pane's tabs");
     let first = shown(&app);
+    assert_eq!(first, "create");
     // The page's kinds take a press beside the pane, none of them under it.
     let tab = app
-        .hit_box(Action::LearnPage(0))
+        .hit_box(Action::LearnTabGuide)
         .expect("the pane's first tab");
     let kind = app.hit_box(Action::CKind(4)).expect("a kind on the page");
     assert!(
@@ -112,7 +149,7 @@ fn at_1920_learn_opens_beside_the_page_whose_controls_stay_pressable() {
     crate::common::ckind(&mut app, 4);
     frame(&mut app);
     assert!(app.offers(Action::LearnClose), "the pane stays open");
-    assert_ne!(shown(&app), first, "and shows the multisig's pages");
+    assert_eq!(shown(&app), first, "and follows the multisig's step");
 }
 
 #[test]
@@ -126,30 +163,22 @@ fn at_1280_learn_opens_as_the_sheet() {
 #[test]
 fn a_pinned_pane_follows_the_step_and_the_screens_to_their_pages() {
     let mut app = learn_on_create(1920, 1080);
-    // A multisig chosen: the pane shows the pages about it.
+    // A multisig chosen: the pane shows the page of the screen.
     crate::common::ckind(&mut app, 4);
     frame(&mut app);
-    assert_eq!(shown(&app), "Multisig");
+    assert_eq!(shown(&app), "create");
     assert!(app.offers(Action::LearnClose));
     app.press(Action::LearnPin);
     frame(&mut app);
     assert!(app.learn_pinned());
-    // A new key: its pages; the tab on show stays where the next
-    // screen's pages have it too.
+    // A new key: its page.
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
     frame(&mut app);
-    assert_eq!(shown(&app), "Randomness");
-    app.press(Action::LearnPage(1));
-    let words = shown(&app);
+    assert_eq!(shown(&app), "keygen");
     app.press(Action::Entry(None));
     frame(&mut app);
-    assert_eq!(
-        shown(&app),
-        words,
-        "the same page, on the next screen's tab"
-    );
-    assert_eq!(app.learn().page, 0);
+    assert_eq!(shown(&app), "entry", "the next screen's page");
     assert!(app.offers(Action::LearnClose));
 }
 
@@ -159,7 +188,7 @@ fn the_close_button_and_escape_put_the_pane_away() {
     app.press(Action::LearnClose);
     frame(&mut app);
     assert!(!app.offers(Action::LearnClose), "the pane is away");
-    assert!(!app.offers(Action::LearnPage(0)));
+    assert!(!app.offers(Action::LearnTabGuide));
     assert_eq!(app.sheet, None);
     assert!(app.offers(Action::CKind(4)), "the page as it was");
     // Opened again, Escape puts it away and leaves the page on screen.
@@ -177,7 +206,7 @@ fn the_close_button_and_escape_put_the_pane_away() {
 fn a_long_page_scrolls_inside_the_pane_while_the_page_beside_stays() {
     let mut app = learn_on_create(1920, 600);
     let kind = app.hit_box(Action::CKind(4)).expect("a kind on the page");
-    let tab = app.hit_box(Action::LearnPage(0)).expect("the pane's tab");
+    let tab = app.hit_box(Action::LearnTabGuide).expect("the pane's tab");
     // Over the pane's text, under its tabs.
     let (x, y) = (tab.0 + tab.2 / 2, tab.1 + 200);
     for _ in 0..10 {
@@ -190,7 +219,7 @@ fn a_long_page_scrolls_inside_the_pane_while_the_page_beside_stays() {
     }
     assert!(app.learn().scroll > 0.0, "the pane's text moved");
     assert_eq!(
-        app.hit_box(Action::LearnPage(0)),
+        app.hit_box(Action::LearnTabGuide),
         Some(tab),
         "the pane's tabs hold their place"
     );
@@ -204,7 +233,6 @@ fn a_long_page_scrolls_inside_the_pane_while_the_page_beside_stays() {
 #[test]
 fn resizing_across_1600_moves_learn_between_pane_and_sheet() {
     let mut app = learn_on_create(1920, 1080);
-    app.press(Action::LearnPage(1));
     let page = shown(&app);
     window(&mut app, 1280, 800);
     frame(&mut app);
@@ -227,8 +255,8 @@ fn vaults_page_read_to_its_foot(width: u16, height: u16) -> (Vec<String>, Vec<St
     app.press(Action::Nav(faraday_core::Screen::Vaults));
     app.press(Action::Learn);
     frame(&mut app);
-    assert_eq!(shown(&app), "Vaults");
-    let tab = app.hit_box(Action::LearnPage(0)).expect("the page's tab");
+    assert_eq!(shown(&app), "vaults");
+    let tab = app.hit_box(Action::LearnTabGuide).expect("the page's tab");
     let (x, y) = (tab.0 + tab.2 / 2, tab.1 + tab.3 + 80);
     let (mut lines, mut past) = (Vec::new(), Vec::new());
     let mut last = -1.0;
@@ -250,25 +278,14 @@ fn vaults_page_read_to_its_foot(width: u16, height: u16) -> (Vec<String>, Vec<St
 }
 
 #[test]
-fn the_vaults_page_goes_on_to_how_the_vault_is_built_and_passphrase_strength() {
+fn the_vaults_page_read_to_its_foot_shows_each_section() {
     for (w, h) in [(1280, 800), (480, 640)] {
         let (lines, past) = vaults_page_read_to_its_foot(w, h);
         let has = |s: &str| lines.iter().any(|l| l == s);
         assert!(
-            has("How the vault is built"),
-            "{w}x{h}: the vault's account"
+            has("The list") && has("Seal count") && has("Load from"),
+            "{w}x{h}: every section of the page"
         );
-        assert!(has("Passphrase strength"), "{w}x{h}: after it");
-        assert!(
-            has("The file") && has("The keys"),
-            "{w}x{h}: the file, then the keys"
-        );
-        let read = lines.join(" ");
-        assert!(
-            read.contains("32 KiB steps, from one step to 128 MiB"),
-            "{w}x{h}: a vault grows in steps up to 128 MiB"
-        );
-        assert!(has("77.5"), "{w}x{h}: six words of the large list");
         assert!(past.is_empty(), "{w}x{h}: nothing past a side: {past:?}");
     }
 }
@@ -305,7 +322,7 @@ fn on_a_wide_window_the_pane_opens_only_when_learn_or_cryptography_is_pressed() 
         app.press(Action::Learn);
         frame(&mut app);
         assert!(app.offers(Action::LearnClose), "Learn opened the pane");
-        assert_eq!(shown(&app), "Where keys are kept");
+        assert_eq!(shown(&app), "settings");
         app.press(Action::LearnClose);
         frame(&mut app);
         assert!(!app.offers(Action::LearnClose));
@@ -317,9 +334,8 @@ fn on_a_wide_window_the_pane_opens_only_when_learn_or_cryptography_is_pressed() 
 }
 
 /// On Settings at the narrowest and a wide extra-large window the pane's
-/// tabs Cryptography, Key storage and Glossary show whole: each takes a
-/// press side by side, none past the close button's end; every other
-/// page's tab is reached from the row too.
+/// tabs Guide and Cryptography show whole: each takes a press side by
+/// side, none past the close button's end.
 #[test]
 fn the_panes_tabs_on_settings_show_whole() {
     use faraday_core::Screen;
@@ -329,13 +345,9 @@ fn the_panes_tabs_on_settings_show_whole() {
         app.press(Action::Nav(Screen::Settings));
         app.press(Action::Learn);
         frame(&mut app);
-        let close = app.hit_box(Action::LearnClose).expect("the pane");
-        let end = u32::from(close.0) + u32::from(close.2);
-        let tabs = [
-            Action::LearnPage(faraday_core::learn::HOW_TAB),
-            Action::LearnPage(0),
-            Action::LearnPage(1),
-        ];
+        // The pane stands at the window's right edge.
+        let end = u32::from(width);
+        let tabs = [Action::LearnTabGuide, Action::LearnTabHow];
         let mut last = 0;
         for tab in tabs {
             let b = app.hit_box(tab).expect("every tab takes a press");
@@ -343,38 +355,33 @@ fn the_panes_tabs_on_settings_show_whole() {
             last = u32::from(b.0) + u32::from(b.2);
             assert!(last <= end, "{tab:?} at {width} runs past the pane");
         }
-        for i in 0..app.learn().pages.len() {
-            assert!(app.offers(Action::LearnPage(i as u8)), "page {i}'s tab");
-        }
-        assert_eq!(
-            faraday_core::learn::tab_label(faraday_core::learn::keys_kept_page()),
-            "Key storage"
-        );
     }
 }
 
-/// Learn's pane offers **Spending, step by step** on the Spend tab only.
+/// The Cryptography tab is offered only where the screen has blocks.
 #[test]
-fn the_pane_offers_spending_step_by_step_only_on_the_spend_tab() {
+fn the_cryptography_tab_is_offered_only_where_the_screen_has_blocks() {
     use faraday_core::Screen;
     let mut app = faraday_core::testkit::started();
     window(&mut app, 1920, 1080);
-    app.press(Action::Nav(Screen::Settings));
-    app.press(Action::Learn);
-    frame(&mut app);
-    assert!(app.offers(Action::LearnClose));
-    assert!(!app.offers(Action::LearnSpend), "not on Settings");
-    app.press(Action::LearnPin);
-    app.press(Action::Nav(Screen::SpendBackup));
-    frame(&mut app);
-    assert!(app.offers(Action::LearnSpend), "on the Spend tab");
-    app.press(Action::LearnSpend);
-    frame(&mut app);
-    assert!(
-        !app.offers(Action::LearnClose),
-        "Learn closed over the steps"
-    );
-    assert_eq!(app.screen, Screen::SpendBackup);
+    let how = Action::LearnTabHow;
+    for s in [
+        Screen::Home,
+        Screen::Settings,
+        Screen::Vaults,
+        Screen::Backups,
+    ] {
+        app.press(Action::Nav(s));
+        app.press(Action::Learn);
+        frame(&mut app);
+        assert_eq!(app.offers(how), app.how_offered(), "on {s:?}");
+        assert_eq!(
+            app.offers(Action::LearnTabGuide),
+            app.how_offered(),
+            "on {s:?}"
+        );
+        app.press(Action::LearnClose);
+    }
 }
 
 /// Unpinned, the pane goes when the person moves to another screen;
@@ -402,7 +409,7 @@ fn the_pane_closes_at_another_screen_unless_pinned() {
     app.press(Action::Nav(Screen::Settings));
     frame(&mut app);
     assert!(app.offers(Action::LearnClose), "still open on Settings");
-    assert_eq!(shown(&app), "Where keys are kept", "on Settings' pages");
+    assert_eq!(shown(&app), "settings", "on Settings' page");
     app.press(Action::Nav(Screen::Vaults));
     frame(&mut app);
     assert!(app.offers(Action::LearnClose), "and on Vaults");
@@ -436,5 +443,5 @@ fn learn_pressed_straight_after_moving_on_opens_the_pane_there() {
     app.press(Action::Learn);
     frame(&mut app);
     assert!(app.offers(Action::LearnClose), "the pane on Vaults");
-    assert_eq!(shown(&app), "Vaults");
+    assert_eq!(shown(&app), "vaults");
 }

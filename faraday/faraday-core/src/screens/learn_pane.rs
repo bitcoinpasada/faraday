@@ -1,13 +1,13 @@
 //! Learn's supporting pane (`docs/LAYOUT.md` §6): on an extra-large
-//! window, the Learn pages stand in a pane at the right, beside the page
-//! they explain, instead of the sheet over it. The pane holds its place
+//! window, the guide stands in a pane at the right, beside the page
+//! it explains, instead of the sheet over it. The pane holds its place
 //! while the page scrolls beside it and scrolls within itself where it
 //! is taller than the window. Its header row holds the headline, the
 //! pin, which keeps it open across screens, and the close button, which
 //! puts it away (Material 3 Side sheets, Icon buttons), so the
-//! tabs under it run the pane's whole width; its tabs and ticked steps
-//! are the sheet's (`sheets::learn_body`). Which pages it shows is kept
-//! on Learn's state (`Faraday::learn_place`); drawing reads them.
+//! tabs under it run the pane's whole width; its tabs, page and contents
+//! are the sheet's (`sheets::learn_body`). Which page it shows is kept
+//! on the guide's state (`Faraday::learn_place`); drawing reads it.
 
 use crate::ui::Region;
 use faraday_draw::tokens as T;
@@ -42,9 +42,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
         rule: T::GAP,
         inset: 0.0,
         text_top: T::GAP,
-        foot: T::LEARN_PANE_PAD,
+        foot: super::sheets::learn_foot(ui),
         head: T::TITLE_L,
-        heading: T::TITLE_M,
+        heading: T::TITLE_S,
         body: T::BODY_M,
         after: [T::GAP, T::GAP_SMALL, T::LEARN_PANE_PARA, T::GAP],
         clip_hits: true,

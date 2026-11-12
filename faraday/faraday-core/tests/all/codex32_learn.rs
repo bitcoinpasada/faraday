@@ -1,5 +1,6 @@
-//! Codex32 in Learn and in the demo (`docs/CODEX32.md` §12, §13.3):
-//! Make codex32 shares and the codex32 form name the codex32 page first,
+//! Codex32 in the guide and in the demo (`docs/CODEX32.md` §12, §13.3):
+//! Make codex32 shares and the codex32 form open the guide at their own
+//! sections, and Learn's page on other backups says where the guides are,
 //! and in the demo the codex32 form takes BIP 93's published set,
 //! refuses a set that is not public and checks any string.
 
@@ -12,15 +13,16 @@ use faraday_core::testkit;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, Event, Key};
 
-/// The Learn page codex32 is on.
-const CODEX32_PAGE: &str = "Backups in other forms";
-
 /// BIP 93's vector 2, two shares of one set: the demo's public set.
 const SHARE_A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
 const SHARE_C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
 
-fn first_page(app: &Faraday) -> Option<&'static str> {
-    app.learn_pages().first().map(|p| p.title)
+/// The key the guide opens at when Learn is pressed.
+fn guide_key(app: &mut Faraday) -> &'static str {
+    app.press(Action::Learn);
+    let key = app.learn().key;
+    app.press(Action::Cancel);
+    key
 }
 
 /// Add a key with the codex32 form open.
@@ -99,22 +101,23 @@ fn demo() -> Faraday {
 }
 
 #[test]
-fn make_codex32_shares_and_the_codex32_form_open_learn_on_the_codex32_page() {
+fn make_codex32_shares_and_the_codex32_form_open_the_guide_at_the_codex32_section() {
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::WalletsStart));
     let _ = app.frame();
     app.press(Action::KeyGen(None));
     let _ = app.frame();
-    assert_ne!(first_page(&app), Some(CODEX32_PAGE), "BIP-39 words first");
+    assert_ne!(guide_key(&mut app), "keygen.codex32", "BIP-39 words first");
     let _ = app.frame();
     app.press(Action::KStart(Start::MakeCodex32.index()));
-    assert_eq!(first_page(&app), Some(CODEX32_PAGE));
+    assert!(guide_key(&mut app).starts_with("keygen"));
 
     let mut app = testkit::started();
     codex32_form(&mut app);
-    assert_eq!(first_page(&app), Some(CODEX32_PAGE));
-    // The page says where the codex32 guide and the booklet are.
-    let page = app.learn_pages()[0];
+    assert!(guide_key(&mut app).starts_with("entry"));
+    // The page on other backups says where the codex32 guide and the
+    // booklet are.
+    let page = faraday_core::learn::Topic::OtherBackups.page();
     let text: String = page
         .sections
         .iter()

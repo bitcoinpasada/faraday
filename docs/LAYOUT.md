@@ -203,22 +203,17 @@ while on ("Unpin"), sized to read as large as the × beside it
 the close button's, the two targets meeting without overlapping
 (owner, 2026-10-29). The tabs stand under it (`LEARN_PANE_TABS_TOP`)
 across the pane's whole width, a single divider under them, so
-each label shows whole (Material 3 Tabs; Where keys are kept's tab
-reads Key storage). Where a screen's labels together are wider than
-the row, it shows whole tabs only, the one on show among them sharing
-the row, and a chevron (Material's standard icon button in a 48 dp
-target) at an end with tabs past it, whose press shows the next tab
-that way (`faraday-ui`'s tabs). Its tabs and ticked steps are the sheet's, and
-on the Spend tab alone **Spending, step by step** stands above them;
-the page's title is in Title L and its text in Body M. The close button, the
+each label shows whole (Material 3 Tabs: Guide, and Cryptography
+where the screen offers it). Its tabs are the sheet's; the guide's
+page title is in Title L, its section headings in Title S and its
+text in Body M. The close button, the
 ? pressed again, Escape and the mouse's back button put it away, and
 take its pin off. When the person moves to another screen the pane
 closes, unless it is pinned (owner, 2026-10-29); pinned, it stays open
 as the person moves on until it is closed or unpinned. The pin is kept
 for the session in memory only: a lock or a power-off clears it. When
 the step changes, or a pinned pane's screen, the pane shows that
-screen's Learn pages, on the tab it showed where they have it, else on
-the first.
+screen's page of the guide, at the section of the step.
 One pane stands at a time: the codex32 entry (its dice sheet's
 column), Back up and a wallet's backup flow (the board's lists) keep
 the place for their own, and Learn is the sheet there; a pane open on

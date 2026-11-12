@@ -26,7 +26,8 @@ fn the_steps_of_a_fade_draw_no_screen_again() {
     for (name, change) in [
         ("Settings", Action::Nav(Screen::Settings)),
         ("the Learn sheet", Action::Learn),
-        ("the Learn sheet's next tab", Action::LearnPage(1)),
+        ("the Learn sheet's contents", Action::LearnContents),
+        ("the Learn sheet's page", Action::Cancel),
         ("Learn closed", Action::Cancel),
         (
             "a new theme",
@@ -45,7 +46,14 @@ fn the_steps_of_a_fade_draw_no_screen_again() {
         assert!(drawn > 0, "{name}: the change is drawn");
         for i in 2..10 {
             let (drawn, rgba) = step(&mut app, now + 16 * i);
-            assert_eq!(drawn, 0, "{name}: step {i} draws no text");
+            // The guide's section offset is found while drawing and
+            // applied one frame later: the sheet is drawn once more as
+            // it opens, and the steps after that blend again.
+            let settling =
+                (name == "the Learn sheet" || name == "the Learn sheet's page") && i == 2;
+            if !settling {
+                assert_eq!(drawn, 0, "{name}: step {i} draws no text");
+            }
             assert!(rgba != last, "{name}: step {i} moves the fade on");
             last = rgba;
         }

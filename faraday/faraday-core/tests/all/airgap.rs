@@ -148,17 +148,17 @@ fn the_device_changes_mode_without_the_warning() {
 }
 
 #[test]
-fn demo_names_its_learn_page_first_and_the_device_never() {
-    let title = |app: &Faraday| app.learn_pages().first().map(|p| p.title);
-    let app = desktop();
-    assert_eq!(title(&app), Some("Practice and its public seeds"));
-    let device = testkit::started();
-    assert!(
-        device
-            .learn_pages()
+fn the_guide_lists_the_mode_page_in_the_demo_and_on_the_device_alike() {
+    for mut app in [desktop(), testkit::started()] {
+        app.press(Action::Learn);
+        app.press(Action::LearnContents);
+        assert!(app.learn().contents);
+        let mode = faraday_learn::guide_groups()
             .iter()
-            .all(|p| p.title != "Practice and its public seeds")
-    );
+            .flat_map(|g| g.pages.iter())
+            .any(|p| p.place == "mode");
+        assert!(mode, "the contents lists the page on Practice");
+    }
 }
 
 const NEVER: &str = "Never type a seed that holds real bitcoin here.";

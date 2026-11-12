@@ -6,6 +6,8 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
+use faraday_strings::EN;
+
 /// The included pages, by place: the one list of files. A page is added
 /// by a line here.
 const PAGES: [(&str, &str); 51] = [
@@ -168,14 +170,14 @@ impl GuidePage {
 
 /// Header lines the website and the lint read; the app skips them (but for Key).
 const HEADS: [&str; 8] = [
-    "Kind", // not wording: a table head the parser reads
-    "Status", // not wording: a table head the parser reads
-    "Screen", // not wording: a table head the parser reads
-    "Starter page", // not wording: a table head the parser reads
+    "Kind",          // not wording: a table head the parser reads
+    "Status",        // not wording: a table head the parser reads
+    "Screen",        // not wording: a table head the parser reads
+    "Starter page",  // not wording: a table head the parser reads
     "Starter sheet", // not wording: a table head the parser reads
-    "Group", // not wording: a table head the parser reads
-    "Opened from", // not wording: a table head the parser reads
-    "Key", // not wording: a table head the parser reads
+    "Group",         // not wording: a table head the parser reads
+    "Opened from",   // not wording: a table head the parser reads
+    "Key",           // not wording: a table head the parser reads
 ];
 
 /// The runs of `text`, bold where it is between `**`.
@@ -313,6 +315,102 @@ pub fn guide_section(key: &str) -> Option<&'static GuideSection> {
     guide_page(place)?.sections.iter().find(|s| s.key == key)
 }
 
+/// A group of the guide's contents: its heading and the places listed
+/// under it, in reading order.
+pub struct GuideGroup {
+    /// The group's heading.
+    pub title: &'static str,
+    /// Its pages, in reading order.
+    pub pages: Vec<&'static GuidePage>,
+}
+
+/// The contents' groups and the places under each, in reading order
+/// (`docs/GUIDE-IN-APP.md` §4.3). Every place with a page is listed once.
+const ORDER: [&[&str]; 10] = [
+    &["starter-stick", "starter-start"],
+    &["home", "mode", "randomness", "files"],
+    &[
+        "keygen",
+        "entry",
+        "explore",
+        "bip85",
+        "convert",
+        "vanity",
+        "lightning",
+    ],
+    &[
+        "backups",
+        "backup",
+        "backup-flow",
+        "kef-tool",
+        "qr-tool",
+        "gpg-restore",
+    ],
+    &[
+        "wallets-start",
+        "wallets",
+        "create",
+        "restore",
+        "silent",
+        "core-wallet",
+    ],
+    &[
+        "spend",
+        "spend-from-backup",
+        "message",
+        "check-message",
+        "decode",
+        "compare",
+        "signer-check",
+        "nonce-check",
+        "transfer",
+    ],
+    &["vaults", "create-vault", "unlock", "vault-contents"],
+    &["tools", "catalog", "codes", "ots-check", "invoice"],
+    &["settings", "set-time"],
+    &[
+        "starter-home",
+        "starter-make",
+        "starter-tools",
+        "starter-install",
+        "starter-templates",
+        "starter-appearance",
+    ],
+];
+
+/// The heading of the contents' group `i` of [`ORDER`].
+fn group_title(i: usize) -> &'static str {
+    [
+        EN.learn_group_get,
+        EN.learn_group_first,
+        EN.learn_group_keys,
+        EN.learn_group_backups,
+        EN.learn_group_wallets,
+        EN.learn_group_spending,
+        EN.learn_group_vaults,
+        EN.learn_group_tools,
+        EN.learn_group_settings,
+        EN.learn_group_starter,
+    ][i]
+}
+
+/// The guide's contents: the groups, each with its pages that are
+/// written, in reading order. A lookup after the first call, which
+/// parses every page (`all`).
+pub fn guide_groups() -> &'static [GuideGroup] {
+    static GROUPS: OnceLock<Vec<GuideGroup>> = OnceLock::new();
+    GROUPS.get_or_init(|| {
+        ORDER
+            .iter()
+            .enumerate()
+            .map(|(i, places)| GuideGroup {
+                title: group_title(i),
+                pages: places.iter().filter_map(|p| guide_page(p)).collect(),
+            })
+            .collect()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -331,6 +429,16 @@ mod tests {
         assert_eq!(p.sections[1].key, "x.part");
         assert_eq!(p.sections[1].heading, "Part");
         assert_eq!(p.sections[1].paragraphs.len(), 1);
+    }
+
+    #[test]
+    fn the_contents_lists_every_page_once() {
+        let mut listed: Vec<&str> = guide_groups()
+            .iter()
+            .flat_map(|g| g.pages.iter().map(|p| p.place.as_str()))
+            .collect();
+        listed.sort_unstable();
+        assert_eq!(listed, guide_places());
     }
 
     #[test]

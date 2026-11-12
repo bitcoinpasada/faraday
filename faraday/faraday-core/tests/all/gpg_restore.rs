@@ -509,8 +509,8 @@ fn learn_on_a_restore_opens_the_gpg_page() {
     let from = RestoreFrom::read(&cert_file(&k).1).unwrap();
     restore_at_make(&mut app, from);
     assert_eq!(app.screen, Screen::BackupFlow);
-    let first = app.learn_pages().first().map(|p| p.title);
-    assert_eq!(first, Some("GPG keys"));
+    app.press(Action::Learn);
+    assert!(app.learn().shown.starts_with("backup"));
 }
 
 /// paperkey 1.6's raw form of the same key (`--output-type raw`).

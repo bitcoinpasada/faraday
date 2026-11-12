@@ -314,8 +314,8 @@ fn the_learn_sheet_fades_out_and_its_tabs_fade_between_pages() {
         "Learn opens with a fade"
     );
     assert!(
-        fades(&mut app, Action::LearnPage(1), 2_400),
-        "its next tab fades in"
+        fades(&mut app, Action::LearnContents, 2_400),
+        "the contents fades in"
     );
     assert!(
         fades(&mut app, Action::Cancel, 3_400),

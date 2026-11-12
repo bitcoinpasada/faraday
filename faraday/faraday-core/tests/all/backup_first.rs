@@ -625,7 +625,7 @@ fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
     assert!(app.offers(Action::LearnTopic(faraday_core::learn::Topic::ExtraCopies)));
     app.press(Action::LearnTopic(faraday_core::learn::Topic::ExtraCopies));
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
-    assert_eq!(app.learn().pages[app.learn().page].title, "Extra copies");
+    assert_eq!(app.learn().key, faraday_core::learn::EXTRA_COPIES_KEY);
     app.press(Action::Cancel);
     app.press(Action::Guided(false));
     let _ = app.frame();

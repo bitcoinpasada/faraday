@@ -1909,7 +1909,7 @@ strings! {
     /// Text in `tiles`.
     compact_files: "Files",
     /// Text in `tiles`.
-    compact_learn: "Learn",
+    compact_learn: "Guide",
     /// Text in `tiles`.
     compact_backups: "Backups",
     /// Text in `tiles`. `{}`: `without`.
@@ -5313,7 +5313,7 @@ strings! {
     nav_close: "Close",
     /// The overflow menu of a compact top app bar too full for its ?:
     /// what the ? opens, named as the ?'s tooltip names it.
-    bar_menu_learn: "Learn",
+    bar_menu_learn: "Guide",
     /// The overflow menu's keyboard, while the keyboard is put away.
     bar_menu_show_keyboard: "Show keyboard",
     /// The overflow menu's keyboard, while the keyboard is up.
@@ -5340,7 +5340,7 @@ strings! {
     /// Text in `sidebar`. `{}`: `v`.
     sidebar_open_n: "{} open",
     /// Row in `sidebar`.
-    sidebar_learn: "Learn",
+    sidebar_learn: "Guide",
     /// Text in `sidebar`.
     sidebar_bring_in_button: "Bring in",
     /// Text in `sidebar`.
@@ -8210,23 +8210,46 @@ strings! {
     // ----- learn (faraday-core/src/screens/sheets.rs) -----
     /// Button in `learn_sheet`.
     learn_done: "Done",
-    /// Text in `learn_sheet`.
-    learn_spending_step: "Spending, step by step",
+    /// Text button at the foot of the guide's sheet and pane: opens the
+    /// contents.
+    learn_contents: "Contents",
+    /// Heading of the contents' first group, the place the guide was
+    /// opened from.
+    learn_here: "Here",
+    /// A heading of the guide's contents.
+    learn_group_get: "Get Faraday",
+    /// A heading of the guide's contents.
+    learn_group_first: "First start",
+    /// A heading of the guide's contents.
+    learn_group_keys: "Keys",
+    /// A heading of the guide's contents.
+    learn_group_backups: "Backups",
+    /// A heading of the guide's contents.
+    learn_group_wallets: "Wallets",
+    /// A heading of the guide's contents.
+    learn_group_spending: "Spending",
+    /// A heading of the guide's contents.
+    learn_group_vaults: "Vaults",
+    /// A heading of the guide's contents.
+    learn_group_tools: "Tools",
+    /// A heading of the guide's contents.
+    learn_group_settings: "Settings",
+    /// A heading of the guide's contents.
+    learn_group_starter: "The Starter",
+    /// The guide's own tab, beside Cryptography, where a place offers it.
+    learn_tab_guide: "Guide",
     /// The close button's label in Learn's supporting pane
     /// (`screens/learn_pane.rs`).
     learn_close: "Close",
     /// The headline of Learn's supporting pane, at the start of its
     /// header row (`screens/learn_pane.rs`).
-    learn_pane_title: "Learn",
+    learn_pane_title: "Guide",
     /// Tooltip on the pin of Learn's supporting pane while it is off: a
     /// press keeps the pane open across screens (`screens/learn_pane.rs`).
     learn_pin: "Keep open",
     /// Tooltip on the pin of Learn's supporting pane while it is on: a
     /// press lets the pane close at the next screen.
     learn_unpin: "Unpin",
-    /// The tab of the Learn page "Where keys are kept", short so the
-    /// Learn sheet's and pane's tabs fit their row (`screens/sheets.rs`).
-    learn_tab_keys_kept: "Key storage",
     /// Tooltip on the top app bar's How Faraday does it button, in Faraday and the Starter (`docs/CRYPTO-LEARN.md` §8.1).
     tip_how: "Cryptography",
     /// The ⋮ row on a compact bar for the button, first above Learn (§8.3).
@@ -12712,7 +12735,7 @@ strings! {
     /// name, shown alone where this would be cut.
     bar_back_to: "Back to {}",
     /// Tooltip on the top app bar's ?.
-    tip_learn: "Learn",
+    tip_learn: "Guide",
     /// Tooltip on the ⋮ that opens a menu.
     tip_more: "More",
     /// Tooltip on the Lock icon.

@@ -82,24 +82,23 @@ fn the_button_opens_learn_on_the_first_tab_at_every_size() {
         assert_eq!(app.sheet, Some(Sheet::Learn), "{name}");
         assert!(how_tab_open(&mut app), "{name}: the block is on show");
         assert!(shows(&mut app, EN.learn_tab_how), "{name}: the tab");
-        // The ?'s tabs: the pages follow the How tab.
-        app.press(Action::LearnPage(0));
+        // The Guide tab shows the guide's page in its place.
+        app.press(Action::LearnTabGuide);
         let _ = app.frame();
-        assert!(!shows(&mut app, "Sample action"), "{name}: a page's tab");
-        // How stays first: its tab, or where the row is too narrow to
-        // show it whole beside the page's, the chevron that shows it.
-        let how_tab = Action::LearnPage(faraday_core::learn::HOW_TAB);
-        let how = app.hit_box(how_tab).expect("the How tab or its chevron");
-        let page = app.hit_box(Action::LearnPage(0)).expect("the page's tab");
-        assert!(how.0 < page.0, "{name}: How stays first");
-        app.press(Action::LearnPage(faraday_core::learn::HOW_TAB));
+        assert!(!shows(&mut app, "Sample action"), "{name}: the guide tab");
+        // Guide first, Cryptography beside it.
+        let how_tab = Action::LearnTabHow;
+        let how = app.hit_box(how_tab).expect("the Cryptography tab");
+        let page = app.hit_box(Action::LearnTabGuide).expect("the Guide tab");
+        assert!(page.0 < how.0, "{name}: Guide first");
+        app.press(Action::LearnTabHow);
         let _ = app.frame();
         assert!(how_tab_open(&mut app), "{name}: back on the How tab");
     }
 }
 
 #[test]
-fn the_question_mark_opens_a_page_with_the_how_tab_first() {
+fn the_question_mark_opens_the_guide_with_the_cryptography_tab_beside_it() {
     let mut app = app(480, 640, 160, false);
     go(&mut app, Screen::Catalog);
     app.press(Action::Learn);
@@ -204,7 +203,7 @@ fn the_supporting_pane_follows_the_button() {
     assert!(app.offers(Action::LearnClose), "the pane, not the sheet");
     assert!(how_tab_open(&mut app));
     // On another tab, the button moves the pane to the How tab.
-    app.press(Action::LearnPage(0));
+    app.press(Action::LearnTabGuide);
     let _ = app.frame();
     assert!(!app.learn().how);
     app.press(Action::How);
@@ -221,28 +220,26 @@ fn the_supporting_pane_follows_the_button() {
     assert!(shows(&mut app, EN.learn_tab_how));
 }
 
-/// The titles of the tabs Learn opens with on the screen on show.
-fn tabs(app: &mut Faraday) -> Vec<&'static str> {
+/// The place of the guide's page Learn opens on the screen on show.
+fn place(app: &mut Faraday) -> &'static str {
     app.press(Action::Learn);
     let _ = app.frame();
-    let titles = app.learn().pages.iter().map(|p| p.title).collect();
+    let place = app.learn().shown;
     app.press(Action::Cancel);
-    titles
+    place
 }
 
 #[test]
-fn explore_and_child_seeds_list_the_pages_about_where_keys_are_kept_and_tools() {
+fn explore_and_child_seeds_open_the_guide_at_their_own_pages() {
     let mut app = app(1280, 800, 160, false);
     go(&mut app, Screen::Explore);
-    let kept = faraday_learn::keys_kept_page().title;
-    assert!(tabs(&mut app).contains(&kept), "Explore: {kept}");
+    assert_eq!(place(&mut app), "explore");
     go(&mut app, Screen::Bip85);
-    let tools = faraday_learn::pages::EN.tools.title;
-    assert!(tabs(&mut app).contains(&tools), "Child seeds: {tools}");
+    assert_eq!(place(&mut app), "bip85");
 }
 
 #[test]
-fn a_vaults_secure_boot_keys_list_the_page_about_them_and_it_opens() {
+fn a_vaults_secure_boot_keys_open_the_guide_at_the_vault_contents_page() {
     let mut app = app(1280, 800, 160, false);
     let vault = testkit::files()
         .unwrap()
@@ -277,10 +274,8 @@ fn a_vaults_secure_boot_keys_list_the_page_about_them_and_it_opens() {
     );
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(5)));
-    let page = faraday_learn::secure_boot_keys_page();
-    assert!(tabs(&mut app).contains(&page.title), "{}", page.title);
+    assert_eq!(place(&mut app), "vault-contents");
     app.press(Action::Learn);
-    app.press(Action::LearnPage(0));
     let _ = app.frame();
-    assert!(shows(&mut app, page.title));
+    assert_eq!(app.learn().shown, "vault-contents");
 }

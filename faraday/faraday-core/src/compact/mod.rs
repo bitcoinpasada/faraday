@@ -217,7 +217,6 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
 /// end, where the page offers any of them, in place of their buttons.
 fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     let mut right = w - GAP_SMALL;
-    let help = !app.learn_pages().is_empty();
     let how = app.how_offered();
     let keyboard = keyboard_action(app);
     let eye = eye_state(app);
@@ -229,7 +228,7 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     let held = Overflow {
         own,
         how: (over.help || own) && how,
-        help: (over.help || own) && help,
+        help: over.help || own,
         keyboard: over.keyboard && keyboard.is_some(),
         keyboard_up: over.keyboard && keyboard.is_some_and(|(_, shown)| shown),
         eye: over.eye && eye.is_some(),
@@ -242,9 +241,7 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     } else {
         // Immediately left of the ?: **How Faraday does it**
         // (`docs/CRYPTO-LEARN.md` §8.1).
-        if help {
-            right = faraday_ui::nav::help(ui, right, Action::Learn, EN.tip_learn);
-        }
+        right = faraday_ui::nav::help(ui, right, Action::Learn, EN.tip_learn);
         if how {
             right = faraday_ui::nav::icon_action(
                 ui,

@@ -2389,7 +2389,7 @@ impl Faraday {
             Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
             Action::LearnTopic(t) => self.learn_topic(t),
-            Action::LearnSpend | Action::LearnPin => self.learn_button(action),
+            Action::LearnPin => self.learn_button(action),
             Action::Osk(p) => self.osk_press(p),
             a @ (Action::ScanPaste
             | Action::PasteWords
@@ -2454,7 +2454,14 @@ impl Faraday {
             | Action::SecretHold
             | Action::SecretUnprotected
             | Action::SecretForm(..)) => self.secret_act(a),
-            Action::LearnPage(i) => self.learn.show_page(i),
+            a @ (Action::LearnPage(_)
+            | Action::LearnTabHow
+            | Action::LearnTabGuide
+            | Action::LearnContents
+            | Action::LearnHere) => {
+                self.learn.show_page(a);
+                self.learn_bar_synced();
+            }
             Action::LearnStep(n) => self.learn.tick_step(n),
             Action::WordList(a) => self.wordlist.act(a, &mut self.sheet),
             Action::KeyGen(_)

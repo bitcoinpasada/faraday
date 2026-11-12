@@ -49,11 +49,11 @@ fn opening_the_pane_and_closing_it_each_fade() {
 }
 
 #[test]
-fn a_change_of_the_panes_tab_fades() {
+fn a_change_to_the_contents_in_the_pane_fades() {
     let mut app = wide();
     app.press(Action::Learn);
     let _ = counts(&mut app);
-    app.press(Action::LearnPage(1));
+    app.press(Action::LearnContents);
     assert_eq!(counts(&mut app), (1, 0));
 }
 

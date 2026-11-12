@@ -59,7 +59,8 @@ pub(crate) fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
     t.shot("keygen-slot-key")?;
     t.press(Action::Learn);
     t.shot("learn-keygen")?;
-    // The next page, scrolled to the dice table's em dashes.
+    // The contents, then its second page, scrolled.
+    t.press(Action::LearnContents);
     t.press(Action::LearnPage(1));
     let _ = t.app.frame();
     t.app.event(Event::Scroll {

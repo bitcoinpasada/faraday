@@ -1474,8 +1474,7 @@ fn a_guided_card_links_its_learn_page_and_steps_only_does_not() {
     assert!(app.offers(Action::LearnTopic(Topic::Words)));
     app.press(Action::LearnTopic(Topic::Words));
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
-    let l = app.learn();
-    assert!(std::ptr::eq(l.pages[l.page], Topic::Words.page()));
+    assert_eq!(app.learn().shown, "keygen", "the guide at the place");
 }
 
 #[test]
