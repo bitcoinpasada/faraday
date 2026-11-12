@@ -497,8 +497,13 @@ impl EntryArea {
     }
 
     /// The worksheet's pan, for the motion that moves it.
-    pub(crate) fn worksheet_pan(&mut self) -> &mut crate::codex32::SheetPan {
-        &mut self.state.codex32.pan
+    pub(crate) fn worksheet_pan(&self) -> crate::codex32::SheetPan {
+        self.state.codex32.pan
+    }
+
+    /// The worksheet's pan put as `to`, once the motion has moved it.
+    pub(crate) fn set_worksheet_pan(&mut self, to: crate::codex32::SheetPan) {
+        self.state.codex32.pan = to;
     }
 
     /// Puts the words pasted in, `idx` their indices on list `lang`: on
@@ -1012,9 +1017,16 @@ impl MessageArea {
         self.checking = None;
     }
 
-    /// The column's scroll offset, while the flow is open.
-    pub(crate) fn scroll_y_mut(&mut self) -> Option<&mut f32> {
-        self.state.as_mut().map(|m| &mut m.scroll.y)
+    /// How far the column is scrolled, units, while the flow is open.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|x| x.scroll.y)
+    }
+
+    /// The column scrolled to `y` units, while the flow is open.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(x) = self.state.as_mut() {
+            x.scroll.y = y;
+        }
     }
 
     /// Takes the scroll a frame drew the column with.

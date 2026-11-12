@@ -9,7 +9,7 @@
 //!
 //! Lengths are design units and times milliseconds, as everywhere in the
 //! app; `f` is pixels per design unit. Which offset each screen and
-//! sheet scrolls is here too (`Faraday::screen_slot`).
+//! sheet scrolls is here too (`Faraday::screen_offset`).
 
 use faraday_draw::tokens::{self, Easing};
 
@@ -496,7 +496,7 @@ fn unrubber(stretch: f32, d: f32) -> f32 {
 /// the regions the last frame drew, which of them the pointer went to,
 /// the overlay scrollbar's memory and the sheet's own offset. Its fields
 /// are private; the offsets themselves stay where each screen keeps them
-/// (`Faraday::screen_slot`).
+/// (`Faraday::screen_offset`).
 pub(crate) struct Scroll {
     /// What moves the scrolled region: pans, glides, coasts and the
     /// stretch at its ends (`docs/MOTION.md` §3.3).
@@ -556,14 +556,9 @@ impl Scroll {
         &self.panes
     }
 
-    /// The offset this area keeps for `slot`, for the wheel, a trackpad
-    /// and a finger: the list pane's or the sidebar's lists'.
-    pub(crate) fn offset_of(&mut self, slot: ui::Slot) -> Option<&mut f32> {
-        match slot {
-            ui::Slot::ListPane => Some(self.panes.list_offset_mut()),
-            ui::Slot::Sidebar => Some(&mut self.sidebar),
-            _ => None,
-        }
+    /// The sidebar's lists of keys and wallets scrolled to `y` units.
+    pub(crate) fn set_sidebar_offset(&mut self, y: f32) {
+        self.sidebar = y;
     }
 
     /// How far the sidebar's lists of keys and wallets are scrolled,
@@ -701,11 +696,16 @@ impl Scroll {
 
     /// The offset of the open sheet `s`, which starts at its top when it
     /// is not the one scrolled last.
-    pub(crate) fn sheet_offset_of(&mut self, s: Sheet) -> &mut f32 {
+    pub(crate) fn sheet_offset(&mut self, s: Sheet) -> f32 {
         if self.sheet_scroll.1 != Some(s) {
             self.sheet_scroll = (0.0, Some(s));
         }
-        &mut self.sheet_scroll.0
+        self.sheet_scroll.0
+    }
+
+    /// The open sheet scrolled to `y` units.
+    pub(crate) fn set_sheet_offset(&mut self, y: f32) {
+        self.sheet_scroll.0 = y;
     }
 
     /// Which region scrolls now: the one the pointer last went to, while
@@ -774,14 +774,18 @@ impl Faraday {
         let extent = self.region_now();
         let (f, h) = (self.f.max(0.1), self.h);
         let mut m = self.scroll.take_motion(self.reduce_motion());
-        let out = self.scroll_slot().map(|offset| {
+        let out = self.scroll_place().map(|place| {
+            // The motion moves a copy of the offset, which is put back.
+            let mut offset = self.place_offset(place);
             let mut region = Region {
-                offset,
+                offset: &mut offset,
                 max: extent.map(|e| e.max),
                 view: extent.map_or(h, |e| e.view.h as f32 / f),
                 f,
             };
-            go(&mut m, &mut region)
+            let out = go(&mut m, &mut region);
+            self.set_place_offset(place, offset);
+            out
         });
         self.scroll.put_back(m);
         out
@@ -796,7 +800,7 @@ impl Faraday {
     pub(crate) fn glide(&mut self, dy: f32) {
         if self.reduce_motion() {
             self.with_region(|m, r| m.jump(r, dy));
-        } else if self.scroll_slot().is_some() {
+        } else if self.scroll_place().is_some() {
             // A glide on the region the pointer has just moved to starts
             // there, not on the region that was moving.
             self.own_motion();
@@ -843,7 +847,7 @@ impl Faraday {
         self.scroll.stop();
         self.scroll.forget_drawn();
         match (was, k) {
-            (None, Some(_)) => *self.scroll.panes.list_offset_mut() = self.list_offset,
+            (None, Some(_)) => self.scroll.panes.set_list_offset(self.list_offset),
             (Some(_), None) => self.list_offset = self.scroll.panes.list_offset(),
             _ => {}
         }
@@ -900,11 +904,20 @@ impl Faraday {
     /// The codex32 checksum worksheet's pan on the screen shown: Make
     /// codex32 shares' on New key, Check a string's on Add a key's
     /// codex32 form (`docs/CODEX32.md` §7.5).
-    pub(crate) fn worksheet_pan_mut(&mut self) -> Option<&mut crate::codex32::SheetPan> {
+    pub(crate) fn worksheet_pan(&self) -> Option<crate::codex32::SheetPan> {
         match self.screen {
-            Screen::KeyGen => self.keygen.sheet_pan_mut(),
+            Screen::KeyGen => self.keygen.sheet_pan(),
             Screen::Entry => Some(self.entry.worksheet_pan()),
             _ => None,
+        }
+    }
+
+    /// The worksheet's pan put as `to`, once the motion has moved it.
+    fn set_worksheet_pan(&mut self, to: crate::codex32::SheetPan) {
+        match self.screen {
+            Screen::KeyGen => self.keygen.set_sheet_pan(to),
+            Screen::Entry => self.entry.set_worksheet_pan(to),
+            _ => {}
         }
     }
 
@@ -918,12 +931,12 @@ impl Faraday {
 
     /// Whether the region that scrolls now is a worksheet at its end in
     /// the direction a move of `dy` units goes, so the move is the page's.
-    fn worksheet_at_end(&mut self, dy: f32) -> bool {
+    fn worksheet_at_end(&self, dy: f32) -> bool {
         if self.slot() != ui::Slot::Worksheet {
             return false;
         }
         let max = self.region_now().map_or(0.0, |e| e.max);
-        let at = self.worksheet_pan_mut().map_or(0.0, |p| p.y);
+        let at = self.worksheet_pan().map_or(0.0, |p| p.y);
         if dy > 0.0 { at >= max } else { at <= 0.0 }
     }
 
@@ -982,10 +995,11 @@ impl Faraday {
         };
         let f = self.unit_px();
         let mut down = None;
-        if let Some(p) = self.worksheet_pan_mut() {
+        if let Some(mut p) = self.worksheet_pan() {
             p.stop();
             p.x = (((p.x + dx) * f).round() / f).clamp(0.0, max);
             down = Some(p.y);
+            self.set_worksheet_pan(p);
         }
         // Panned across, its scrollbars show as they do when it scrolls
         // down.
@@ -1187,11 +1201,11 @@ impl Faraday {
     /// pan down the sheet, the dice sheet's column's own scroll, or the
     /// input panel's beside the sheets (`docs/CODEX32.md` §5.5, §7.5;
     /// `docs/LAYOUT.md` §16.3).
-    pub(crate) fn codex32_slot(&mut self) -> Option<&mut f32> {
+    fn codex32_place(&self) -> Option<Place> {
         match self.slot() {
-            ui::Slot::DemoPane => self.keygen.pane_offset_mut(),
-            ui::Slot::InputPanel => self.keygen.panel_offset_mut(),
-            _ => self.worksheet_pan_mut().map(|p| &mut p.y),
+            ui::Slot::DemoPane => self.keygen.pane_offset().map(|_| Place::DemoPane),
+            ui::Slot::InputPanel => self.keygen.panel_offset().map(|_| Place::InputPanel),
+            _ => self.worksheet_pan().map(|_| Place::Worksheet),
         }
     }
 
@@ -1199,8 +1213,9 @@ impl Faraday {
     /// scrolls, and the codex32 worksheet's following move.
     pub(crate) fn settle_regions(&mut self) {
         let _ = self.with_region(|m, r| m.settle(r));
-        if let Some(p) = self.worksheet_pan_mut() {
+        if let Some(mut p) = self.worksheet_pan() {
             p.settle();
+            self.set_worksheet_pan(p);
         }
         self.keygen.dice_settle();
     }
@@ -1211,29 +1226,84 @@ impl Faraday {
         // The page following a whole worksheet stops too.
         self.keygen.page_hold();
         if self.slot() == ui::Slot::Worksheet
-            && let Some(p) = self.worksheet_pan_mut()
+            && let Some(mut p) = self.worksheet_pan()
         {
             p.stop();
+            self.set_worksheet_pan(p);
         }
     }
 
-    /// The open sheet's offset, or the screen's region's. A sheet starts
-    /// at its top each time it opens: with none open the sheet's offset
-    /// is cleared, and another kind of sheet starts afresh.
-    pub(crate) fn page_slot(&mut self) -> Option<&mut f32> {
+    /// The open sheet's offset, or the screen's region's, in units. A
+    /// sheet starts at its top each time it opens: with none open the
+    /// sheet's offset is cleared, and another kind of sheet starts afresh.
+    pub(crate) fn page_offset(&mut self) -> Option<f32> {
+        let place = self.page_place()?;
+        Some(self.place_offset(place))
+    }
+
+    /// The open sheet's, or the screen's region's, scrolled to `y` units.
+    pub(crate) fn set_page_offset(&mut self, y: f32) {
+        if let Some(place) = self.page_place() {
+            self.set_place_offset(place, y);
+        }
+    }
+
+    /// The screen's region's offset, whatever sheet is over it, in units.
+    pub(crate) fn screen_offset(&self) -> Option<f32> {
+        Some(self.place_offset(self.screen_place()?))
+    }
+
+    /// The offset of the region that scrolls now, in design units: the
+    /// open sheet's, the screen's, or another region of the screen's
+    /// that the pointer went to ([`Faraday::slot`]).
+    pub(crate) fn scroll_offset(&mut self) -> Option<f32> {
+        let place = self.scroll_place()?;
+        Some(self.place_offset(place))
+    }
+
+    /// The region that scrolls now scrolled to `y` units.
+    pub(crate) fn set_scroll_offset(&mut self, y: f32) {
+        if let Some(place) = self.scroll_place() {
+            self.set_place_offset(place, y);
+        }
+    }
+
+    /// Where the region that scrolls now keeps its offset.
+    fn scroll_place(&mut self) -> Option<Place> {
+        match self.slot() {
+            ui::Slot::VisitOut => Some(Place::VisitOut),
+            ui::Slot::Card => Some(Place::Card),
+            ui::Slot::VaultItem => Some(Place::VaultItem),
+            ui::Slot::FilesOut => Some(Place::FilesOut),
+            ui::Slot::ListPane => Some(Place::ListPane),
+            ui::Slot::Sidebar => Some(Place::Sidebar),
+            ui::Slot::BoardList => Some(Place::BoardList),
+            ui::Slot::GuidePane => Some(Place::Guide),
+            ui::Slot::Worksheet | ui::Slot::DemoPane | ui::Slot::InputPanel => self.codex32_place(),
+            ui::Slot::Page | ui::Slot::WorksheetWhole | ui::Slot::DiceWork => self.page_place(),
+        }
+    }
+
+    /// Where the open sheet keeps its offset, or the screen's region.
+    fn page_place(&mut self) -> Option<Place> {
         match self.sheet {
-            Some(Sheet::Guide) => Some(self.guide.scroll_mut()),
-            Some(Sheet::WordList) => self.wordlist.scroll_mut(),
-            Some(s) => Some(self.scroll.sheet_offset_of(s)),
+            Some(Sheet::Guide) => Some(Place::Guide),
+            Some(Sheet::WordList) => self.wordlist.scroll_y().map(|_| Place::WordList),
+            Some(s) => {
+                // Starts at its top when it is not the one scrolled last.
+                self.scroll.sheet_offset(s);
+                Some(Place::Sheet)
+            }
             None => {
                 self.scroll.reset_sheet();
-                self.screen_slot()
+                self.screen_place()
             }
         }
     }
 
-    /// The screen's region's offset, whatever sheet is over it.
-    pub(crate) fn screen_slot(&mut self) -> Option<&mut f32> {
+    /// Where the screen's region keeps its offset, whatever sheet is over
+    /// it.
+    fn screen_place(&self) -> Option<Place> {
         Some(match self.screen {
             Screen::Files
             | Screen::Wallets
@@ -1251,7 +1321,7 @@ impl Faraday {
             | Screen::Explore
             // Entry scrolls on the wide layout too, not only compact: the
             // word grid can run to 24 cells, taller than the window.
-            | Screen::Entry => &mut self.list_offset,
+            | Screen::Entry => Place::Screen,
             Screen::Home
             | Screen::CheckMessage
             | Screen::Vaults
@@ -1261,31 +1331,156 @@ impl Faraday {
             | Screen::Tools
                 if self.compact =>
             {
-                &mut self.list_offset
+                Place::Screen
             }
-            Screen::SpendBackup => self.spend_backup.scroll_y_mut(),
-            Screen::Vanity => &mut self.vanity.scroll_mut()?.y,
-            Screen::KeyGen => &mut self.keygen.scroll_mut()?.y,
-            Screen::Bip85 => &mut self.bip85.scroll_mut()?.y,
-            Screen::SignerCheck => &mut self.decode.check_scroll_mut()?.y,
-            Screen::Compare => &mut self.decode.compare_scroll_mut()?.y,
-            Screen::Convert => &mut self.tools.convert.scroll_mut()?.y,
-            Screen::KefTool => &mut self.tools.kef_tool.scroll_mut()?.y,
-            Screen::QrTool => &mut self.tools.qr_tool.scroll_mut()?.y,
-            Screen::OtsCheck => &mut self.tools.ots.scroll_mut()?.y,
-            Screen::CoreWallet => &mut self.tools.core_wallet.scroll_mut()?.y,
-            Screen::Silent => &mut self.silent.scroll_mut()?.y,
-            Screen::CreateVault => self.vaults.create_scroll_y_mut()?,
-            Screen::BackupFlow => match self.vaults.create_scroll_y_mut() {
-                Some(y) => y,
-                None => self.flows.scroll_y_mut()?,
+            Screen::SpendBackup => Place::SpendBackup,
+            Screen::Vanity => self.vanity.scroll_y().map(|_| Place::Vanity)?,
+            Screen::KeyGen => self.keygen.scroll_y().map(|_| Place::KeyGen)?,
+            Screen::Bip85 => self.bip85.scroll_y().map(|_| Place::Bip85)?,
+            Screen::SignerCheck => self.decode.check_scroll_y().map(|_| Place::SignerCheck)?,
+            Screen::Compare => self.decode.compare_scroll_y().map(|_| Place::Compare)?,
+            Screen::Convert => self.tools.convert.scroll_y().map(|_| Place::Convert)?,
+            Screen::KefTool => self.tools.kef_tool.scroll_y().map(|_| Place::KefTool)?,
+            Screen::QrTool => self.tools.qr_tool.scroll_y().map(|_| Place::QrTool)?,
+            Screen::OtsCheck => self.tools.ots.scroll_y().map(|_| Place::OtsCheck)?,
+            Screen::CoreWallet => self.tools.core_wallet.scroll_y().map(|_| Place::CoreWallet)?,
+            Screen::Silent => self.silent.scroll_y().map(|_| Place::Silent)?,
+            Screen::CreateVault => self.vaults.create_scroll_y().map(|_| Place::CreateVault)?,
+            Screen::BackupFlow => match self.vaults.create_scroll_y() {
+                Some(_) => Place::CreateVault,
+                None => self.flows.scroll_y().map(|_| Place::BackupFlow)?,
             },
-            Screen::Spend => &mut self.wallets.spend_mut()?.scroll,
-            Screen::Backup => self.backup.scroll_y_mut()?,
-            Screen::Message => self.message.scroll_y_mut()?,
-            Screen::Create => &mut self.create.state_mut()?.scroll.y,
-            Screen::Restore => &mut self.restore.state_mut()?.scroll.y,
+            Screen::Spend => self.wallets.spend().map(|_| Place::Spend)?,
+            Screen::Backup => self.backup.scroll_y().map(|_| Place::Backup)?,
+            Screen::Message => self.message.scroll_y().map(|_| Place::Message)?,
+            Screen::Create => self.create.scroll_y().map(|_| Place::Create)?,
+            Screen::Restore => self.restore.scroll_y().map(|_| Place::Restore)?,
             _ => return None,
         })
     }
+
+    /// How far the region at `place` is scrolled, units. The place is one
+    /// just worked out, so what it names is there.
+    fn place_offset(&self, place: Place) -> f32 {
+        let y = |o: Option<f32>| o.unwrap_or(0.0);
+        match place {
+            Place::VisitOut => self.visit.out_offset(),
+            Place::Card => self.wallets.card_offset(),
+            Place::VaultItem => self.vaults.item_offset(),
+            Place::FilesOut => *self.visit.files_out_offset(),
+            Place::ListPane => self.scroll.panes.list_offset(),
+            Place::Sidebar => self.scroll.sidebar_offset(),
+            Place::BoardList => self.flows.board_list_offset(),
+            Place::Guide => self.guide.scroll_y(),
+            Place::WordList => y(self.wordlist.scroll_y()),
+            Place::Sheet => self.scroll.sheet_scroll.0,
+            Place::Worksheet => self.worksheet_pan().map_or(0.0, |p| p.y),
+            Place::DemoPane => y(self.keygen.pane_offset()),
+            Place::InputPanel => y(self.keygen.panel_offset()),
+            Place::Screen => self.list_offset,
+            Place::SpendBackup => self.spend_backup.scroll_y(),
+            Place::Vanity => y(self.vanity.scroll_y()),
+            Place::KeyGen => y(self.keygen.scroll_y()),
+            Place::Bip85 => y(self.bip85.scroll_y()),
+            Place::SignerCheck => y(self.decode.check_scroll_y()),
+            Place::Compare => y(self.decode.compare_scroll_y()),
+            Place::Convert => y(self.tools.convert.scroll_y()),
+            Place::KefTool => y(self.tools.kef_tool.scroll_y()),
+            Place::QrTool => y(self.tools.qr_tool.scroll_y()),
+            Place::OtsCheck => y(self.tools.ots.scroll_y()),
+            Place::CoreWallet => y(self.tools.core_wallet.scroll_y()),
+            Place::Silent => y(self.silent.scroll_y()),
+            Place::CreateVault => y(self.vaults.create_scroll_y()),
+            Place::BackupFlow => y(self.flows.scroll_y()),
+            Place::Spend => self.wallets.spend().map_or(0.0, |s| s.scroll),
+            Place::Backup => y(self.backup.scroll_y()),
+            Place::Message => y(self.message.scroll_y()),
+            Place::Create => y(self.create.scroll_y()),
+            Place::Restore => y(self.restore.scroll_y()),
+        }
+    }
+
+    /// The region at `place` scrolled to `to` units.
+    fn set_place_offset(&mut self, place: Place, to: f32) {
+        match place {
+            Place::VisitOut => self.visit.set_out_offset(to),
+            Place::Card => self.wallets.set_card_offset(to),
+            Place::VaultItem => self.vaults.set_item_offset(to),
+            Place::FilesOut => self.visit.set_files_out_offset(to),
+            Place::ListPane => self.scroll.panes.set_list_offset(to),
+            Place::Sidebar => self.scroll.set_sidebar_offset(to),
+            Place::BoardList => self.flows.set_board_list_offset(to),
+            Place::Guide => self.guide.set_scroll_y(to),
+            Place::WordList => self.wordlist.set_scroll_y(to),
+            Place::Sheet => self.scroll.set_sheet_offset(to),
+            Place::Worksheet => {
+                if let Some(mut p) = self.worksheet_pan() {
+                    p.y = to;
+                    self.set_worksheet_pan(p);
+                }
+            }
+            Place::DemoPane => self.keygen.set_pane_offset(to),
+            Place::InputPanel => self.keygen.set_panel_offset(to),
+            Place::Screen => self.list_offset = to,
+            Place::SpendBackup => self.spend_backup.set_scroll_y(to),
+            Place::Vanity => self.vanity.set_scroll_y(to),
+            Place::KeyGen => self.keygen.set_scroll_y(to),
+            Place::Bip85 => self.bip85.set_scroll_y(to),
+            Place::SignerCheck => self.decode.set_check_scroll_y(to),
+            Place::Compare => self.decode.set_compare_scroll_y(to),
+            Place::Convert => self.tools.convert.set_scroll_y(to),
+            Place::KefTool => self.tools.kef_tool.set_scroll_y(to),
+            Place::QrTool => self.tools.qr_tool.set_scroll_y(to),
+            Place::OtsCheck => self.tools.ots.set_scroll_y(to),
+            Place::CoreWallet => self.tools.core_wallet.set_scroll_y(to),
+            Place::Silent => self.silent.set_scroll_y(to),
+            Place::CreateVault => self.vaults.set_create_scroll_y(to),
+            Place::BackupFlow => self.flows.set_scroll_y(to),
+            Place::Spend => self.wallets.set_spend_scroll(to),
+            Place::Backup => self.backup.set_scroll_y(to),
+            Place::Message => self.message.set_scroll_y(to),
+            Place::Create => self.create.set_scroll_y(to),
+            Place::Restore => self.restore.set_scroll_y(to),
+        }
+    }
+}
+
+/// Where a scrolled region keeps its offset: one for each area that
+/// keeps one, read and written through that area's own methods.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Place {
+    VisitOut,
+    Card,
+    VaultItem,
+    FilesOut,
+    ListPane,
+    Sidebar,
+    BoardList,
+    Guide,
+    WordList,
+    Sheet,
+    Worksheet,
+    DemoPane,
+    InputPanel,
+    /// The page's own, [`Faraday::list_offset`].
+    Screen,
+    SpendBackup,
+    Vanity,
+    KeyGen,
+    Bip85,
+    SignerCheck,
+    Compare,
+    Convert,
+    KefTool,
+    QrTool,
+    OtsCheck,
+    CoreWallet,
+    Silent,
+    CreateVault,
+    BackupFlow,
+    Spend,
+    Backup,
+    Message,
+    Create,
+    Restore,
 }

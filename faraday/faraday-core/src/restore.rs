@@ -411,9 +411,8 @@ impl RestoreArea {
         self.state.as_ref()
     }
 
-    /// The flow's state to change, only for the scroll offset and the
-    /// seeds' state that `Faraday::screen_slot` and `Faraday::seeds_mut`
-    /// hand out by reference for every screen.
+    /// The flow's state to change, only for the seeds' state that
+    /// `Faraday::seeds_mut` hands out by reference for every screen.
     pub(crate) fn state_mut(&mut self) -> Option<&mut RestoreState> {
         self.state.as_mut()
     }
@@ -422,6 +421,18 @@ impl RestoreArea {
     pub(crate) fn set_error(&mut self, error: String) {
         if let Some(r) = self.state.as_mut() {
             r.error = Some(error);
+        }
+    }
+
+    /// How far the column is scrolled, units, while the flow is open.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|r| r.scroll.y)
+    }
+
+    /// The column scrolled to `y` units, while the flow is open.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(r) = self.state.as_mut() {
+            r.scroll.y = y;
         }
     }
 

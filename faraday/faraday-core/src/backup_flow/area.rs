@@ -269,11 +269,6 @@ impl BackupFlowArea {
         self.board_list_offset
     }
 
-    /// The board's list scroll, to move it.
-    pub(crate) fn board_list_offset_mut(&mut self) -> &mut f32 {
-        &mut self.board_list_offset
-    }
-
     /// Sets the board's list scroll.
     pub(crate) fn set_board_list_offset(&mut self, y: f32) {
         self.board_list_offset = y;
@@ -296,10 +291,16 @@ impl BackupFlowArea {
         }
     }
 
-    /// The flow on screen's scroll offset, to move it.
-    pub(crate) fn scroll_y_mut(&mut self) -> Option<&mut f32> {
-        let i = self.on?;
-        self.all.get_mut(i).map(|f| &mut f.live.scroll.y)
+    /// How far the flow on screen is scrolled, units.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.all.get(self.on?).map(|f| f.live.scroll.y)
+    }
+
+    /// The flow on screen scrolled to `y` units.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(f) = self.on.and_then(|i| self.all.get_mut(i)) {
+            f.live.scroll.y = y;
+        }
     }
 
     /// Sets the flow on screen's scroll, as the drawing pass noted it.

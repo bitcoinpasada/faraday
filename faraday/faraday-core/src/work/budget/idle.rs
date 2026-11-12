@@ -62,9 +62,7 @@ fn asked(app: &mut Faraday) -> bool {
 fn idle_at(app: &mut Faraday, offset: f32) -> (usize, Option<f32>) {
     app.out.toast = None;
     let _ = app.frame();
-    if let Some(o) = app.scroll_slot() {
-        *o = offset;
-    }
+    app.set_scroll_offset(offset);
     app.out.redraw();
     let _ = app.frame();
     app.settle();
@@ -81,7 +79,7 @@ fn idle_at(app: &mut Faraday, offset: f32) -> (usize, Option<f32>) {
         });
         drawn += usize::from(asked(app));
     }
-    (drawn, app.scroll_slot().map(|o| *o))
+    (drawn, app.scroll_offset())
 }
 
 #[test]

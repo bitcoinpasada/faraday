@@ -1097,11 +1097,16 @@ impl CreateArea {
         }
     }
 
-    /// The flow's state to change, only for the scroll offset the wheel
-    /// and drag move through `Faraday::screen_slot`, which hands out the
-    /// offset itself for every screen.
-    pub(crate) fn state_mut(&mut self) -> Option<&mut CreateState> {
-        self.state.as_mut()
+    /// How far the column is scrolled, units, while the flow is open.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|c| c.scroll.y)
+    }
+
+    /// The column scrolled to `y` units, while the flow is open.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(c) = self.state.as_mut() {
+            c.scroll.y = y;
+        }
     }
 
     /// Puts `source` in slot `slot`, for the tests' kit.

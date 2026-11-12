@@ -118,9 +118,16 @@ impl KefToolArea {
         }
     }
 
-    /// The column's scroll, while the tool is open.
-    pub(crate) fn scroll_mut(&mut self) -> Option<&mut flow::Scroll> {
-        self.state.as_mut().map(|s| &mut s.scroll)
+    /// How far the column is scrolled, units, while it is open.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|x| x.scroll.y)
+    }
+
+    /// The column scrolled to `y` units, while it is open.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(x) = self.state.as_mut() {
+            x.scroll.y = y;
+        }
     }
 
     /// Forgets the tool and what was typed.

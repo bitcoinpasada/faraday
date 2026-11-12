@@ -1638,22 +1638,22 @@ impl Faraday {
             return false;
         };
         let (f, max) = (self.f.max(0.01), region.max);
-        let Some(slot) = self.page_slot() else {
+        let Some(slot) = self.page_offset() else {
             return false;
         };
-        let shape = (field.y + (*slot * f).round() as i32, field.h);
+        let shape = (field.y + (slot * f).round() as i32, field.h);
         if !self.panel.reveal_due(action, shape) {
             return false;
         }
         let by = reveal_by(field, region.view, self.f);
-        let Some(slot) = self.page_slot() else {
+        let Some(slot) = self.page_offset() else {
             return false;
         };
-        let to = ((*slot + by).clamp(0.0, max) * f).round() / f;
-        if (to - *slot).abs() * f < 0.5 {
+        let to = ((slot + by).clamp(0.0, max) * f).round() / f;
+        if (to - slot).abs() * f < 0.5 {
             return false;
         }
-        *slot = to;
+        self.set_page_offset(to);
         self.sheet_offset = to;
         true
     }

@@ -134,9 +134,16 @@ impl VanityArea {
         self.state = None;
     }
 
-    /// The column's scroll, while the screen is open.
-    pub(crate) fn scroll_mut(&mut self) -> Option<&mut flow::Scroll> {
-        self.state.as_mut().map(|v| &mut v.scroll)
+    /// How far the column is scrolled, units, while it is open.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|x| x.scroll.y)
+    }
+
+    /// The column scrolled to `y` units, while it is open.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(x) = self.state.as_mut() {
+            x.scroll.y = y;
+        }
     }
 
     /// Takes the column's scroll as the pass left it.

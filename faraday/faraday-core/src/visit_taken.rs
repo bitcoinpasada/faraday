@@ -431,15 +431,9 @@ impl VisitArea {
         self.files_out_offset = offset;
     }
 
-    /// The offset of the For the stick list, for the scroll that moves
-    /// whichever region is current (`Faraday::scroll_slot`).
-    pub(crate) fn files_out_offset_of(&mut self) -> &mut f32 {
-        &mut self.files_out_offset
-    }
-
-    /// The offset of the visit's Outbox list, for the same scroll.
-    pub(crate) fn out_offset_of(&mut self) -> &mut f32 {
-        &mut self.visit.out_offset
+    /// How far the visit's Outbox list is scrolled.
+    pub(crate) fn out_offset(&self) -> f32 {
+        self.visit.out_offset
     }
 
     /// The Outbox list is scrolled to `offset`.

@@ -314,9 +314,14 @@ impl SpendBackupArea {
         self.state.scroll = to;
     }
 
-    /// The column's scroll offset, to move it.
-    pub(crate) fn scroll_y_mut(&mut self) -> &mut f32 {
-        &mut self.state.scroll.y
+    /// How far the column is scrolled, units.
+    pub(crate) fn scroll_y(&self) -> f32 {
+        self.state.scroll.y
+    }
+
+    /// The column scrolled to `y` units.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        self.state.scroll.y = y;
     }
 
     /// Notes the screen the tab is opened from, for Back: Home or

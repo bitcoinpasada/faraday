@@ -121,27 +121,55 @@ impl KeyGenArea {
         self.camera_on
     }
 
-    /// The column's scroll, while the flow is open.
-    pub(crate) fn scroll_mut(&mut self) -> Option<&mut flow::Scroll> {
-        self.state.as_mut().map(|k| &mut k.scroll)
+    /// How far the column is scrolled, units, while it is open.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|x| x.scroll.y)
+    }
+
+    /// The column scrolled to `y` units, while it is open.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(x) = self.state.as_mut() {
+            x.scroll.y = y;
+        }
     }
 
     /// Make codex32 shares' checksum worksheet's pan, while the flow is
     /// open (`ui::Slot::Worksheet`).
-    pub(crate) fn sheet_pan_mut(&mut self) -> Option<&mut crate::codex32::SheetPan> {
-        Some(self.state.as_mut()?.codex32.as_mut()?.pan_mut())
+    pub(crate) fn sheet_pan(&self) -> Option<crate::codex32::SheetPan> {
+        Some(self.state.as_ref()?.codex32.as_ref()?.pan())
     }
 
-    /// The codex32 "Demo only" card's own scroll, while the flow is open
-    /// (`ui::Slot::DemoPane`).
-    pub(crate) fn pane_offset_mut(&mut self) -> Option<&mut f32> {
-        Some(self.state.as_mut()?.codex32.as_mut()?.pane_offset_mut())
+    /// The worksheet's pan put as `to`, while the flow is open.
+    pub(crate) fn set_sheet_pan(&mut self, to: crate::codex32::SheetPan) {
+        if let Some(c) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            c.set_pan(to);
+        }
     }
 
-    /// The codex32 input panel's own scroll beside the sheets, while the
-    /// flow is open (`ui::Slot::InputPanel`).
-    pub(crate) fn panel_offset_mut(&mut self) -> Option<&mut f32> {
-        Some(self.state.as_mut()?.codex32.as_mut()?.panel_offset_mut())
+    /// How far the codex32 "Demo only" card is scrolled within itself,
+    /// while the flow is open (`ui::Slot::DemoPane`).
+    pub(crate) fn pane_offset(&self) -> Option<f32> {
+        Some(self.state.as_ref()?.codex32.as_ref()?.pane_offset())
+    }
+
+    /// The "Demo only" card scrolled to `y` units, while the flow is open.
+    pub(crate) fn set_pane_offset(&mut self, y: f32) {
+        if let Some(c) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            c.set_pane_offset(y);
+        }
+    }
+
+    /// How far the codex32 input panel beside the sheets is scrolled
+    /// within itself, while the flow is open (`ui::Slot::InputPanel`).
+    pub(crate) fn panel_offset(&self) -> Option<f32> {
+        Some(self.state.as_ref()?.codex32.as_ref()?.panel_offset())
+    }
+
+    /// The input panel scrolled to `y` units, while the flow is open.
+    pub(crate) fn set_panel_offset(&mut self, y: f32) {
+        if let Some(c) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            c.set_panel_offset(y);
+        }
     }
 
     /// Sends Make codex32 shares' worksheet view to where the work is

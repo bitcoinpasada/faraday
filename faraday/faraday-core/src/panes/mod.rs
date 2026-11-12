@@ -33,10 +33,9 @@ impl Panes {
         self.list_offset
     }
 
-    /// The list pane's offset, for the wheel, a trackpad and a finger to
-    /// move.
-    pub(crate) fn list_offset_mut(&mut self) -> &mut f32 {
-        &mut self.list_offset
+    /// The list pane scrolled to `y` units.
+    pub(crate) fn set_list_offset(&mut self, y: f32) {
+        self.list_offset = y;
     }
 
     /// Another destination opened: its list from the top, and Settings

@@ -727,9 +727,16 @@ impl WalletBackupArea {
         self.state.take()
     }
 
-    /// The column's scroll offset, to move it.
-    pub(crate) fn scroll_y_mut(&mut self) -> Option<&mut f32> {
-        self.state.as_mut().map(|b| &mut b.scroll.y)
+    /// How far the column is scrolled, units, while the flow is open.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|x| x.scroll.y)
+    }
+
+    /// The column scrolled to `y` units, while the flow is open.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(x) = self.state.as_mut() {
+            x.scroll.y = y;
+        }
     }
 
     /// Sets the column's scroll, as the drawing pass noted it.

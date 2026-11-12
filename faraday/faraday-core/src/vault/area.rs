@@ -68,11 +68,6 @@ impl VaultArea {
         self.item_offset
     }
 
-    /// The item's scroll, to move it.
-    pub(crate) fn item_offset_mut(&mut self) -> &mut f32 {
-        &mut self.item_offset
-    }
-
     /// Sets the item's scroll.
     pub(crate) fn set_item_offset(&mut self, y: f32) {
         self.item_offset = y;
@@ -388,9 +383,16 @@ impl VaultArea {
         self.state.focus = focus;
     }
 
-    /// Create a vault's scroll offset, to move it.
-    pub(crate) fn create_scroll_y_mut(&mut self) -> Option<&mut f32> {
-        self.state.create.as_mut().map(|c| &mut c.scroll.y)
+    /// How far Create a vault is scrolled, units, while it is open.
+    pub(crate) fn create_scroll_y(&self) -> Option<f32> {
+        self.state.create.as_ref().map(|c| c.scroll.y)
+    }
+
+    /// Create a vault scrolled to `y` units, while it is open.
+    pub(crate) fn set_create_scroll_y(&mut self, y: f32) {
+        if let Some(c) = self.state.create.as_mut() {
+            c.scroll.y = y;
+        }
     }
 
     /// Sets Create a vault's scroll, as the drawing pass noted it.

@@ -1028,10 +1028,10 @@ impl Codex32Make {
         self.pane_y
     }
 
-    /// The "Demo only" card's own scroll, which the scroll machinery
-    /// moves (`ui::Slot::DemoPane`).
-    pub(crate) fn pane_offset_mut(&mut self) -> &mut f32 {
-        &mut self.pane_y
+    /// The "Demo only" card scrolled to `y` units within itself
+    /// (`ui::Slot::DemoPane`).
+    pub(crate) fn set_pane_offset(&mut self, y: f32) {
+        self.pane_y = y;
     }
 
     /// How far the input panel beside the sheets is scrolled within
@@ -1040,16 +1040,16 @@ impl Codex32Make {
         self.panel_y
     }
 
-    /// The input panel's own scroll, which the scroll machinery moves
+    /// The input panel scrolled to `y` units within itself
     /// (`ui::Slot::InputPanel`).
-    pub(crate) fn panel_offset_mut(&mut self) -> &mut f32 {
-        &mut self.panel_y
+    pub(crate) fn set_panel_offset(&mut self, y: f32) {
+        self.panel_y = y;
     }
 
-    /// The worksheet's pan, which the scroll machinery moves
-    /// (`Faraday::scroll_slot`, `ui::Slot::Worksheet`).
-    pub(crate) fn pan_mut(&mut self) -> &mut SheetPan {
-        &mut self.pan
+    /// The worksheet's pan put as `to`, once the motion has moved it
+    /// (`ui::Slot::Worksheet`).
+    pub(crate) fn set_pan(&mut self, to: SheetPan) {
+        self.pan = to;
     }
 
     /// Where the entry's work stands on its checksum worksheet as drawn

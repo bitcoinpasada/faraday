@@ -807,9 +807,14 @@ impl GuideArea {
         &self.state
     }
 
-    /// The sheet's scroll offset.
-    pub(crate) fn scroll_mut(&mut self) -> &mut f32 {
-        &mut self.state.scroll
+    /// How far the sheet is scrolled, units.
+    pub(crate) fn scroll_y(&self) -> f32 {
+        self.state.scroll
+    }
+
+    /// The sheet scrolled to `y` units.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        self.state.scroll = y;
     }
 
     /// Takes the extent and offset a frame drew the sheet with, and the

@@ -323,11 +323,6 @@ impl WalletsArea {
         self.card_offset
     }
 
-    /// The wallet card's scroll, to move it.
-    pub(crate) fn card_offset_mut(&mut self) -> &mut f32 {
-        &mut self.card_offset
-    }
-
     /// Scrolls the wallet card's body to `to`.
     pub(crate) fn set_card_offset(&mut self, to: f32) {
         self.card_offset = to;
@@ -341,6 +336,13 @@ impl WalletsArea {
     /// The transaction being signed, to change it.
     pub(crate) fn spend_mut(&mut self) -> Option<&mut SpendState> {
         self.spend.as_mut()
+    }
+
+    /// The transaction being signed scrolled to `y` units, if one is.
+    pub(crate) fn set_spend_scroll(&mut self, y: f32) {
+        if let Some(s) = self.spend.as_mut() {
+            s.scroll = y;
+        }
     }
 
     /// Starts signing `state`.

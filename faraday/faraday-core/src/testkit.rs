@@ -2120,7 +2120,7 @@ pub fn wordlist(app: &crate::Faraday) -> Option<&crate::wordlist::WordListState>
 /// Scrolls the guide sheet to `y` design units, as a tool that scrolls it
 /// from outside does.
 pub fn guide_scroll_to(app: &mut crate::Faraday, y: f32) {
-    *app.guide.scroll_mut() = y;
+    app.guide.set_scroll_y(y);
 }
 
 /// Marks the open spend's steps before Sign done, as a person who has

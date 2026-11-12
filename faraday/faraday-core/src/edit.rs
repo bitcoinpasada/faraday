@@ -400,9 +400,7 @@ impl Faraday {
     /// `before`), is shown from the page's top.
     pub(crate) fn correction_from_top(&mut self, before: bool) {
         if self.compact && !before && self.entry.state().correction.is_open() {
-            if let Some(slot) = self.page_slot() {
-                *slot = 0.0;
-            }
+            self.set_page_offset(0.0);
             self.sheet_offset = 0.0;
         }
     }

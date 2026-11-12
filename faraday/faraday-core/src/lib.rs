@@ -3576,23 +3576,6 @@ impl Faraday {
         }
     }
 
-    /// The offset of the region that scrolls now, in design units: the
-    /// open sheet's, the screen's, or another region of the screen's
-    /// that the pointer went to ([`Faraday::slot`]).
-    fn scroll_slot(&mut self) -> Option<&mut f32> {
-        match self.slot() {
-            ui::Slot::VisitOut => Some(self.visit.out_offset_of()),
-            ui::Slot::Card => Some(self.wallets.card_offset_mut()),
-            ui::Slot::VaultItem => Some(self.vaults.item_offset_mut()),
-            ui::Slot::FilesOut => Some(self.visit.files_out_offset_of()),
-            s @ (ui::Slot::ListPane | ui::Slot::Sidebar) => self.scroll.offset_of(s),
-            ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
-            ui::Slot::GuidePane => Some(self.guide.scroll_mut()),
-            ui::Slot::Worksheet | ui::Slot::DemoPane | ui::Slot::InputPanel => self.codex32_slot(),
-            ui::Slot::Page | ui::Slot::WorksheetWhole | ui::Slot::DiceWork => self.page_slot(),
-        }
-    }
-
     /// Which region scrolls now: the one the pointer last went to, while
     /// it can be reached; else the screen's or the sheet's own.
     fn slot(&self) -> ui::Slot {
@@ -3674,7 +3657,7 @@ impl Faraday {
                 // taken, anywhere else on the track the thumb's middle
                 // comes to the press.
                 if let Some((e, g)) = self.bar_at(x, y) {
-                    let offset = self.scroll_slot().map_or(0.0, |o| *o);
+                    let offset = self.scroll_offset().unwrap_or(0.0);
                     let at = g.top
                         + ((g.track - g.thumb) as f32 * (offset / e.max).clamp(0.0, 1.0)).round()
                             as i32;
@@ -3873,9 +3856,7 @@ impl Faraday {
         let g = ui::BarGeometry::of(e.view, e.max, self.f.max(0.1));
         let room = (g.track - g.thumb).max(1) as f32;
         let at = ((y - g.top - grab) as f32).clamp(0.0, room);
-        if let Some(o) = self.scroll_slot() {
-            *o = at / room * e.max;
-        }
+        self.set_scroll_offset(at / room * e.max);
     }
 
     /// A stick visit column's list scrolled to where its scrollbar is
@@ -3930,8 +3911,8 @@ impl Faraday {
         // page moves as one.
         let f = self.f.max(0.1);
         let whole = self.whole_offset();
-        if let Some(offset) = self.scroll_slot() {
-            *offset = whole(*offset);
+        if let Some(offset) = self.scroll_offset() {
+            self.set_scroll_offset(whole(offset));
         }
         let stretch = (self.scroll.stretch() * f).round() as i32;
         // A scroll step may move the rows already drawn
@@ -3943,9 +3924,9 @@ impl Faraday {
         // once it has rested a moment.
         let key = self.region_key();
         let slot = self.slot();
-        let offset = self.scroll_slot().map_or(0.0, |o| *o);
-        let page_offset = self.screen_slot().map_or(0.0, |o| *o);
-        self.sheet_offset = self.page_slot().map_or(0.0, |o| *o);
+        let offset = self.scroll_offset().unwrap_or(0.0);
+        let page_offset = self.screen_offset().unwrap_or(0.0);
+        self.sheet_offset = self.page_offset().unwrap_or(0.0);
         let (seen_key, seen_offset, moved_at) = self.scroll.bar_seen();
         let moved_at = if seen_key != (key, slot) {
             0
@@ -4014,7 +3995,7 @@ impl Faraday {
                 ui.frost = self.fade.take_frost(&frost_key);
                 ui.guided_shown = self.guided_shown();
                 ui.about_open = self.panel.about_on(self.screen, self.sheet.is_none());
-                ui.offset = self.screen_slot().map_or(page_offset, |o| *o);
+                ui.offset = self.screen_offset().unwrap_or(page_offset);
                 ui.active = slot;
                 (ui.compact, ui.touch) = (self.compact, self.touch_side());
                 ui.note_up = self.note_up();
@@ -4046,7 +4027,7 @@ impl Faraday {
         if let Some(want) = follow_to {
             // A follow moves the page, whatever region the pointer was on.
             self.scroll.went_to(ui::Slot::Page);
-            let now = self.scroll_slot().map_or(want, |o| *o);
+            let now = self.scroll_offset().unwrap_or(want);
             if self.reduce_motion() {
                 self.with_region(|m, r| m.jump(r, want - now));
             } else {
@@ -4147,7 +4128,7 @@ impl Faraday {
         self.guided_moving = None;
         self.fresh.own_settle();
         let whole = self.whole_offset();
-        let offset = self.scroll_slot().map_or(0.0, |o| whole(*o));
+        let offset = self.scroll_offset().map_or(0.0, whole);
         self.scroll
             .set_bar_seen((self.region_key(), self.slot()), offset, 0);
         if self.out.toast.is_some() {

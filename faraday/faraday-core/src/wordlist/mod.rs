@@ -179,9 +179,16 @@ impl WordListArea {
         self.state.as_ref()
     }
 
-    /// The sheet's scroll offset, while it is open.
-    pub(crate) fn scroll_mut(&mut self) -> Option<&mut f32> {
-        self.state.as_mut().map(|w| &mut w.scroll)
+    /// How far the sheet is scrolled, units, while it is open.
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
+        self.state.as_ref().map(|w| w.scroll)
+    }
+
+    /// The sheet scrolled to `y` units, while it is open.
+    pub(crate) fn set_scroll_y(&mut self, y: f32) {
+        if let Some(w) = self.state.as_mut() {
+            w.scroll = y;
+        }
     }
 
     /// Takes the extent and offset a frame drew the sheet with.

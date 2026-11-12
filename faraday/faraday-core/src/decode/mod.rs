@@ -421,9 +421,16 @@ impl DecodeArea {
         self.check.as_deref()
     }
 
-    /// Check a signer's column scroll, while the flow is open.
-    pub(crate) fn check_scroll_mut(&mut self) -> Option<&mut crate::flow::Scroll> {
-        self.check.as_mut().map(|c| &mut c.scroll)
+    /// How far Check a signer's column is scrolled, units, while the flow is open.
+    pub(crate) fn check_scroll_y(&self) -> Option<f32> {
+        self.check.as_ref().map(|x| x.scroll.y)
+    }
+
+    /// Check a signer's column scrolled to `y` units, while the flow is open.
+    pub(crate) fn set_check_scroll_y(&mut self, y: f32) {
+        if let Some(x) = self.check.as_mut() {
+            x.scroll.y = y;
+        }
     }
 
     /// Forgets Check a signer's flow: its two PSBTs and the report.
@@ -443,9 +450,16 @@ impl DecodeArea {
         self.compare.as_deref()
     }
 
-    /// Compare's column scroll, while the flow is open.
-    pub(crate) fn compare_scroll_mut(&mut self) -> Option<&mut crate::flow::Scroll> {
-        self.compare.as_mut().map(|c| &mut c.scroll)
+    /// How far Compare's column is scrolled, units, while the flow is open.
+    pub(crate) fn compare_scroll_y(&self) -> Option<f32> {
+        self.compare.as_ref().map(|x| x.scroll.y)
+    }
+
+    /// Compare's column scrolled to `y` units, while the flow is open.
+    pub(crate) fn set_compare_scroll_y(&mut self, y: f32) {
+        if let Some(x) = self.compare.as_mut() {
+            x.scroll.y = y;
+        }
     }
 
     /// Forgets Compare's flow: its two files and the comparison.
