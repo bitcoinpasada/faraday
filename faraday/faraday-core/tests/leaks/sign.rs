@@ -43,7 +43,10 @@ fn a_psbt_signed_with_the_seed_leaves_no_copy_after_lock() {
     app.storage(StorageEvent::Restored {
         inbox: vec![
             ("spend.psbt".to_string(), psbt.to_bytes().into()),
-            ("leak-wallet.txt".to_string(), kit.descriptor.into_bytes().into()),
+            (
+                "leak-wallet.txt".to_string(),
+                kit.descriptor.into_bytes().into(),
+            ),
         ],
         outbox: Vec::new(),
         kept: Vec::new(),
