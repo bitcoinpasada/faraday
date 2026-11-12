@@ -90,8 +90,13 @@ pub fn node_from_secret(c: &Compute, secret: &[u8; PLAIN_LEN]) -> Node {
         let mut okm = Zeroizing::new([0u8; 32]);
         faraday_crypto::hkdf_sha256(&salt.to_le_bytes(), secret, NODE_INFO, &mut okm[..])
             .expect("32 bytes is within HKDF's output");
-        if let Ok(key) = SecretKey::from_slice(&okm[..]) {
-            return node_of_secret_key(c, &key);
+        if let Ok(mut key) = SecretKey::from_slice(&okm[..]) {
+            let node = node_of_secret_key(c, &key);
+            // libsecp256k1's own overwrite (volatile writes), which the
+            // library calls best effort; the bytes in `okm` are wiped
+            // by `Zeroizing`.
+            key.non_secure_erase();
+            return node;
         }
         salt += 1;
     }
@@ -242,14 +247,14 @@ fn pull(key: &[u8; 32], file: &[u8; ENCRYPTED_LEN]) -> Option<Secret<[u8; PLAIN_
     let (header, body) = file.split_at(HEADER_LEN);
     let mut first = [0u8; 16];
     first.copy_from_slice(&header[..16]);
-    let mut made = hchacha::<R20>(&(*key).into(), &first.into());
+    let mut made = hchacha::<R20>(key.into(), &first.into());
     let mut subkey = Zeroizing::new([0u8; 32]);
     subkey.copy_from_slice(&made);
     made.as_mut_slice().zeroize();
     let mut nonce = [0u8; 12];
     nonce[0] = 1;
     nonce[4..].copy_from_slice(&header[16..]);
-    let mut cipher = ChaCha20::new(&(*subkey).into(), &nonce.into());
+    let mut cipher = ChaCha20::new((&*subkey).into(), &nonce.into());
 
     let mut mac_key = Zeroizing::new([0u8; 32]);
     cipher.apply_keystream(&mut mac_key[..]);
@@ -266,7 +271,7 @@ fn pull(key: &[u8; 32], file: &[u8; ENCRYPTED_LEN]) -> Option<Secret<[u8; PLAIN_
     signed[0] = tag_byte[0];
     signed[64..64 + PLAIN_LEN].copy_from_slice(sealed);
     signed[64 + PLAIN_LEN + 8..].copy_from_slice(&((64 + PLAIN_LEN) as u64).to_le_bytes());
-    let expected = Poly1305::new(&(*mac_key).into()).compute_unpadded(&signed[..]);
+    let expected = Poly1305::new((&*mac_key).into()).compute_unpadded(&signed[..]);
     if !bool::from(expected.as_slice().ct_eq(mac)) {
         return None;
     }
