@@ -31,6 +31,7 @@ use aes_gcm::{AeadInOut, AesGcm};
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, pbkdf2_hmac_sha256_block};
 use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
 use unicode_normalization::UnicodeNormalization;
 use zeroize::Zeroizing;
 
@@ -91,11 +92,16 @@ fn writable_passphrase_bytes(bytes: &[u8]) -> bool {
 pub fn reading_passphrases(text: &str) -> Vec<Zeroizing<Vec<u8>>> {
     let mut out = alloc::vec![Zeroizing::new(text.as_bytes().to_vec())];
     if !text.is_ascii() {
-        let nfc = text.nfc().collect::<Vec<char>>();
-        let nfd = text.nfd().collect::<Vec<char>>();
+        // `char` has no wipe: the forms are held in Zeroizing, with room
+        // for the longest (four bytes a char), so nothing is left behind.
+        let room = text.len() * 4;
+        let mut nfc = Zeroizing::new(Vec::<char>::with_capacity(room));
+        nfc.extend(text.nfc());
+        let mut nfd = Zeroizing::new(Vec::<char>::with_capacity(room));
+        nfd.extend(text.nfd());
         for chars in [nfc, nfd] {
             let mut form = Zeroizing::new(Vec::new());
-            for ch in chars {
+            for &ch in chars.iter() {
                 form.extend_from_slice(ch.encode_utf8(&mut [0; 4]).as_bytes());
             }
             if !out.iter().any(|seen| **seen == *form) {
@@ -493,7 +499,7 @@ fn authenticate(
             sha256_of(&[&plain])
         };
         let want: &[u8] = if s.auth > 0 { exposed } else { &hidden };
-        if sum[..width] == *want {
+        if bool::from(sum[..width].ct_eq(want)) {
             return Some((plain, attempt > 0));
         }
         if s.auth < 0 {

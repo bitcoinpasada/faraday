@@ -14,6 +14,8 @@ zeroize = { workspace = true, features = ["alloc"] }
 # stop and the Compute token.
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 faraday-crypto = { path = "../../core/faraday-crypto" }
+# The constant-time compare of the two SHA-256 checks.
+subtle = { workspace = true }
 # The two SHA-256 checks.
 sha2 = { workspace = true }
 # AES-256 and its modes (docs/KEF.md §11): ECB is a loop over the block
