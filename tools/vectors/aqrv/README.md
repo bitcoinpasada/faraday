@@ -127,3 +127,23 @@ by Faraday's authors, so it is not the outside implementation `docs/AQRV.md` §1
 
 `gen.py` needs `argon2-cffi` and `cryptography`; `check.py` needs `cryptography` (a version with Argon2id), and for the pictures `zxingcpp`, Pillow and `zbarimg`, each skipped with a note if missing. The whole run takes about 40 seconds and up
 to 1 GiB of memory (the one Argon2id run at the 1 GiB step at a time).
+
+## The differential run
+
+`diff.py` compares the two readers and writers on many codes that are not in the vectors. From a seeded
+generator (`--seed`, printed, so a run repeats) it makes valid codes with `check.py`'s `seal` at the lowest
+memory step, one of every kind at every size a round, with random items, passphrases, salts and padding, and
+corrupts each: bit flips in the marker, salt, ciphertext and tag, a changed step or header byte, truncation,
+extension, the tag of another kind, a right tag over a plaintext the kind's layout may refuse, fixed padding,
+a wrong, empty or differently normalised passphrase and, for the 32-byte size, the text form with a changed
+case, character, length or first digit. Writer cases (a bad codex32 checksum, case, prefix, length or
+threshold; a text too long or empty; a kind the size does not hold) and random payloads are added. Each case
+goes to `check.py` and, as JSON lines in one process, to the Rust library through `aqrv-cli`'s example
+`diff_batch`, which runs `open`, `seal` and the recognition as they are, Argon2id included. The outcome (not
+recognised, the header, no tag, the layout rule, the item, the envelope or the refusal) must be the same;
+the run prints the cases per kind and per corruption and every disagreement, and exits 1 on any.
+
+    python3 -I -B tools/vectors/aqrv/diff.py --seed 1 --rounds 12 [--jobs 4]
+
+It builds and runs the example with `cargo` (`--rust COMMAND` runs another binary) and needs what `check.py`
+needs; a round is about 800 cases.
