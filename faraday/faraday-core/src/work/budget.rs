@@ -240,7 +240,7 @@ pub(super) fn heavy() -> (Faraday, usize) {
 }
 
 /// The heaviest session on `panel`.
-pub(super) fn heavy_on(panel: Panel) -> (Faraday, usize) {
+pub(crate) fn heavy_on(panel: Panel) -> (Faraday, usize) {
     let mut app = Faraday::new();
     show(&mut app, panel);
     for i in 0..8u8 {
