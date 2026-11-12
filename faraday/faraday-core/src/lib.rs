@@ -1,8 +1,10 @@
 //! Faraday's app: the screens and the state of each area (the vault, the
 //! backup flows, the Wallets tab's session, the Inbox and the Outbox), every
 //! Tools flow, the readers of formats it takes in (a Bitcoin Core wallet, an
-//! EDID), a PDF writer, Faraday Demo's host and the stick rule
-//! (`docs/VAULT.md`, `docs/STARTER.md`, `docs/KEYS.md`).
+//! EDID), a PDF writer, Faraday Demo's host and the stick rule. How the
+//! code is laid out is `docs/STRUCTURE-PASS.md`; the screens are
+//! `docs/DESIGN.md`; the areas are `docs/VAULT.md`, `docs/STARTER.md` and
+//! `docs/KEYS.md`.
 //!
 //! It is an [`faraday_shell_api::App`], so the shells drive it with events and
 //! read its frame. Removable storage is the one thing that interface has

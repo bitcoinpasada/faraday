@@ -1,4 +1,4 @@
-//! What the grant helper decides (`docs/history/PLAN.md` §4.3, §5.1): which partition
+//! What the grant helper decides (`docs/STICK-IDENTITY.md` §5.2): which partition
 //! nodes go to the disk process, which stay root's, and when they come
 //! back.
 //!
@@ -13,7 +13,7 @@
 //!    a stick made before F174), and the first partition of the Pi's own
 //!    card (`docs/STICK-IDENTITY.md` §5.2). All are known from `/sys` and
 //!    the medium's record (`faraday_boot::medium`); nothing is read from
-//!    a stick for it (`docs/history/PLAN.md` §12, decision 8). A boot
+//!    a stick for it (`docs/STICK-IDENTITY.md` §5.2). A boot
 //!    partition is never handed to any process (F128): Faraday writes no
 //!    boot partition.
 //! 3. Any other partition is handed to the disk process, mode `0600`, but
@@ -23,7 +23,7 @@
 //! 4. When the clean marker goes, every partition handed out is taken
 //!    back, and is decided again when the marker returns.
 //!
-//! It also applies the USB device policy (`docs/history/PLAN.md` §4.6, layer 2). The
+//! It also applies the USB device policy (`docs/SECURITY-MODEL.md`). The
 //! kernel authorises only devices on hard-wired ports by itself
 //! (`usbcore.authorized_default=2`), and `rcS` sets every root hub to
 //! authorise no interface by default. Here each other device is
@@ -73,7 +73,7 @@ pub trait Owner {
 }
 
 /// The USB interface classes that are authorised: mass storage, HID,
-/// video and hub. Nothing else has a driver either (`docs/history/PLAN.md` §4.6).
+/// video and hub. Nothing else has a driver either (`docs/SECURITY-MODEL.md`).
 const STORAGE: u8 = 0x08;
 const ALLOWED: [u8; 4] = [STORAGE, 0x03, 0x0e, 0x09];
 

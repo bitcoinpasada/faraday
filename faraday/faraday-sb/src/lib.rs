@@ -1,4 +1,4 @@
-//! Secure Boot keys Faraday makes (`docs/history/PLAN.md` §8): an owner's PK, KEK and db
+//! Secure Boot keys Faraday makes (`docs/FLOWS.md`, "Secure Boot"): an owner's PK, KEK and db
 //! as RSA-2048 keys with self-signed certificates, the files a computer's
 //! firmware setup enrols them from, Authenticode signatures over
 //! `BOOTX64.EFI` (only a release's own, F134, `release`), and checking
@@ -108,7 +108,7 @@ pub fn make(seed: &[u8; 32], owner: &str, now: u64) -> Result<Keys, Error> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Policy {
     /// Microsoft's KEK CAs and Windows signing CAs too, so Windows and
-    /// its updates still start (`docs/history/PLAN.md` §8). Not the third-party CA.
+    /// its updates still start (`docs/FLOWS.md`, "Secure Boot"). Not the third-party CA.
     Windows,
     /// The owner's keys alone.
     OwnKeysOnly,

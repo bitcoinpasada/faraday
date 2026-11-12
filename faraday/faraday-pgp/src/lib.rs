@@ -1,4 +1,4 @@
-//! The OpenPGP Faraday writes (`docs/history/PLAN.md` §7): version-4 packets for one
+//! The OpenPGP Faraday writes (`docs/GPG-PAPERKEY.md`, `docs/VAULT.md`): version-4 packets for one
 //! kind of key, an Ed25519 certification key with an Ed25519 signing
 //! subkey, and what is made with it: the public certificate, detached
 //! signatures, a revocation certificate, and the secret parts in
@@ -559,7 +559,7 @@ impl Key {
 
     /// The secret parts in `paperkey`'s text form, without its comment
     /// header: what a person copies onto paper to rebuild the key from the
-    /// public certificate (`docs/history/PLAN.md` §7). Compute it only to show it; it is
+    /// public certificate (`docs/GPG-PAPERKEY.md`). Compute it only to show it; it is
     /// wiped on drop.
     pub fn paperkey(&self) -> Zeroizing<String> {
         let mut data = Zeroizing::new(Vec::with_capacity(1 + 2 * (1 + 20 + 2 + 40)));
