@@ -49,6 +49,9 @@ pub(crate) struct SealRun {
     /// The vault whose new memory step was dropped for a retried seal; the
     /// Locked sheet says so only once that seal has been made.
     step_dropped: Option<VaultId>,
+    /// A Lock pressed while this seal of one vault ran, to be done when it
+    /// ends: `Some(may_lose)`, whether it may let go what cannot be sealed.
+    lock_after: Option<bool>,
 }
 
 /// What waits for a lock of one vault to finish.
@@ -89,6 +92,15 @@ pub(crate) fn sealing(app: &Faraday) -> bool {
     app.vaults.state.sealing.is_some()
 }
 
+/// Remembers a lock asked for while a seal runs, to be done when it ends
+/// (the seal finishes first). A lock of every vault already under way is
+/// that lock: nothing is remembered.
+pub(crate) fn lock_after_seal(app: &mut Faraday, may_lose: bool) {
+    if let Some(run) = app.vaults.state.sealing.as_mut().filter(|r| !r.all) {
+        run.lock_after = Some(run.lock_after.unwrap_or(false) || may_lose);
+    }
+}
+
 /// Seals every open vault with changes into the Outbox, then finishes
 /// the lock (`docs/VAULT.md`). A vault nobody changed or
 /// that is read-only is not rewritten: a file's bytes change only when
@@ -126,6 +138,7 @@ pub(crate) fn vault_seal_all(app: &mut Faraday, may_lose: bool) {
         named,
         after: After::Nothing,
         step_dropped: None,
+        lock_after: None,
     });
     seal_next(app);
 }
@@ -178,6 +191,7 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
         named: None,
         after,
         step_dropped: None,
+        lock_after: None,
     });
     seal_next(app);
     !sealing(app)
@@ -564,6 +578,10 @@ fn seal_end(app: &mut Faraday) {
         app.vaults.state.load = None;
         app.vaults.state.pass_seeds = None;
         lock_finish(app);
+    } else if let Some(may_lose) = run.lock_after {
+        // A Lock pressed meanwhile goes first: Create a vault does not
+        // open just before it.
+        app.lock_after_seal_ended(may_lose);
     } else if let After::CreateFrom(screen) = run.after {
         app.vault_act(super::VaultAction::CreateFrom(screen));
     }
@@ -726,13 +744,23 @@ pub(crate) fn sealed(app: &mut Faraday, done: SealDone) {
         // wiped), and the person is told.
         Err(why) => {
             app.vaults.state.store.seal_ended(id, false);
-            app.vaults.state.sealing = None;
+            let lock = app
+                .vaults
+                .state
+                .sealing
+                .take()
+                .and_then(|run| run.lock_after);
             app.out.command(Command::Draw);
             app.toast(&errors::stopped_text(
                 &why,
                 &name,
                 app.vaults.memory_free_mib,
             ));
+            // A Lock pressed meanwhile is not dropped: it goes ahead, and
+            // shows the Lock sheet if it would lose the vault's changes.
+            if let Some(may_lose) = lock {
+                app.lock_after_seal_ended(may_lose);
+            }
             return;
         }
     }

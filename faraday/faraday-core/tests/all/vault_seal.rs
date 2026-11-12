@@ -87,6 +87,57 @@ fn lock(app: &mut Faraday) {
 }
 
 #[test]
+fn a_lock_pressed_while_one_vault_is_sealed_locks_when_the_seal_ends() {
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    randomness(&mut app, 0x21);
+    crate::common::top_up(&mut app);
+    testkit::hold_worker();
+    assert!(
+        !testkit::vault_lock_one(&mut app, 0),
+        "the seal is under way"
+    );
+    testkit::press_on_worker(&mut app, Action::Lock);
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(sealed(&app).is_some(), "the vault was not sealed");
+    assert_eq!(app.vaults().open.len(), 0);
+    assert!(app.restart_requested(), "the device did not lock");
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_fails_to_seal_still_locks() {
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    randomness(&mut app, 0x21);
+    crate::common::top_up(&mut app);
+    let have = app.vaults().open[0].facts().header.cost.memory_kib;
+    let pick = if have == faraday_vault::file::STEPS_KIB[1] {
+        2
+    } else {
+        1
+    };
+    app.press(Action::Vault(V::MemoryAsk));
+    let _ = app.frame();
+    app.press(Action::Vault(V::MemoryStep(pick)));
+    testkit::fail_next_step_seal();
+    testkit::hold_worker();
+    assert!(
+        !testkit::vault_lock_one(&mut app, 0),
+        "the seal is under way"
+    );
+    testkit::press_on_worker(&mut app, Action::Lock);
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(
+        sealed(&app).is_some(),
+        "the Lock did not seal the vault: {:?}",
+        app.toast_text()
+    );
+    assert!(app.restart_requested(), "the device did not lock");
+}
+
+#[test]
 fn with_no_randomness_a_lock_seals_nothing_until_it_arrives() {
     let mut app = device(cheap_vault());
     let held = open_and_change(&mut app);

@@ -2231,6 +2231,12 @@ impl Faraday {
         seal::sealing(self)
     }
 
+    /// Remembers a lock asked for during a seal of one vault, done when it
+    /// ends ([`seal::lock_after_seal`]).
+    pub(crate) fn lock_after_seal(&mut self, may_lose: bool) {
+        seal::lock_after_seal(self, may_lose)
+    }
+
     /// Seals every open vault, then finishes the lock ([`seal`]); `may_lose`
     /// lets a vault that cannot be sealed go.
     pub(crate) fn vault_seal_all(&mut self, may_lose: bool) {

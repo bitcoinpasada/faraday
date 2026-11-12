@@ -2116,6 +2116,7 @@ impl Faraday {
     /// the Lock sheet says what a lock without sealing loses.
     fn lock(&mut self) {
         if self.sealing() {
+            self.lock_after_seal(false);
             return;
         }
         let c = self.compute();
@@ -2128,6 +2129,16 @@ impl Faraday {
             return;
         }
         self.lock_now(false);
+    }
+
+    /// The lock a seal of one vault held back: the seal is over, so the
+    /// lock goes ahead as it would have.
+    pub(crate) fn lock_after_seal_ended(&mut self, may_lose: bool) {
+        if may_lose {
+            self.lock_now(true);
+        } else {
+            self.lock();
+        }
     }
 
     /// The state could not be kept. A lock that would lose the keys that
@@ -2148,6 +2159,7 @@ impl Faraday {
     /// (`vault::seal`).
     fn lock_now(&mut self, may_lose: bool) {
         if self.sealing() {
+            self.lock_after_seal(may_lose);
             return;
         }
         self.job_locked();
