@@ -49,7 +49,7 @@ lookups use it):
 - `<place>` for a lead section, `<place>.<part>` for a part:
   `create`, `create.kind`, `create.backup`, `create.sticks`,
   `keygen.length`, `spend.transaction`, `settings.appearance`,
-  `starter.which-stick`. Lowercase ASCII, words joined by `-`.
+  `starter-stick.disks`. Lowercase ASCII, words joined by `-`.
 - The place's name is the screen's in lowercase where the screen is the
   place (`create` for `Screen::Create`, `keygen` for `Screen::KeyGen`),
   and the flow's where a screen holds several (the GPG restore that
