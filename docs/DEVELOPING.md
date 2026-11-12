@@ -166,6 +166,12 @@ just faraday-testkit                              the test stick's files, into o
 just faraday-snap 480x640 spend                   one tour at one size, into out/snapshots/faraday/480x640/spend/
 ```
 
+Every tour also checks, at each step that follows Lock, a hide or leaving a
+page that showed a secret, that no frame text and no image the core keeps
+across frames (a sheet's frosted page, a fade's frames) still holds a test
+secret; a hit fails the tour naming the step and the form. `just` runs it in
+the snapshot crate's `every_tour_runs_to_its_end` test.
+
 The Argon QR Vault (its specification and vectors are in `https://github.com/bitcoinpasada/aqrv`, F249; `aqrv/` is the reference implementation) is its own pair of programs, a
 window and a command line, built with the same recipes (the container
 leaves each file in `out/linux` or `out/windows`), and its screens are

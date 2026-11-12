@@ -373,6 +373,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.offset = app.sheet_offset;
         // A ⋮ menu, and Length's Other, is a popup on `wide`: the page
         // stays in view under it, undimmed (`docs/BACKUP-FLOW.md` §17.20).
+        #[cfg(feature = "testkit")]
+        crate::leaks::page_drawn(ui);
         if matches!(
             sheet,
             Sheet::BoardMenu | Sheet::FileMenu | Sheet::KeyLengths | Sheet::FigMenu

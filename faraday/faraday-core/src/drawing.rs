@@ -549,7 +549,14 @@ impl Faraday {
     pub(crate) fn render(&mut self, only_moved: bool) {
         self.drawing.clear();
         self.kept.charts_frame(!only_moved, &self.today());
+        #[cfg(feature = "testkit")]
+        let recording = crate::leaks::begin(self.canvas.as_mut());
         self.render_frame(only_moved);
+        #[cfg(feature = "testkit")]
+        {
+            let form = crate::leaks::end(self.canvas.as_mut(), recording);
+            self.fade_marks(only_moved, form);
+        }
         self.kept.charts_done();
         self.drawing.clear();
     }

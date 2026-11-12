@@ -87,6 +87,7 @@ fn collect(size: (u16, u16), dpi: u16, work: &Path) -> Result<Vec<(String, Small
     }
     let compute = faraday_core::testkit::compute();
     let mut found = Vec::new();
+    let mut failed = Vec::new();
     let tours = std::iter::once(None).chain(
         crate::TOURS
             .iter()
@@ -99,7 +100,7 @@ fn collect(size: (u16, u16), dpi: u16, work: &Path) -> Result<Vec<(String, Small
     for only in tours {
         let name = only.unwrap_or("default");
         let out = work.join(name);
-        let small = crate::run(
+        match crate::run(
             &compute,
             size,
             dpi,
@@ -107,9 +108,13 @@ fn collect(size: (u16, u16), dpi: u16, work: &Path) -> Result<Vec<(String, Small
             only,
             faraday_core::Medium::Stick,
             false,
-        )
-        .map_err(|e| format!("tour {name}: {e}"))?;
-        found.extend(small.into_iter().map(|s| (name.to_string(), s)));
+        ) {
+            Ok(small) => found.extend(small.into_iter().map(|s| (name.to_string(), s))),
+            Err(e) => failed.push(format!("tour {name}: {e}")),
+        }
+    }
+    if !failed.is_empty() {
+        return Err(failed.join("\n"));
     }
     Ok(found)
 }
