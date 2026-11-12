@@ -13,12 +13,11 @@ fn aqrv(args: &[&str], stdin: &str) -> Output {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(stdin.as_bytes())
-        .unwrap();
+    // A call the CLI refuses before it reads its input (a code it cannot
+    // read) may close stdin first; the exit status is what is checked.
+    if let Err(e) = child.stdin.take().unwrap().write_all(stdin.as_bytes()) {
+        assert_eq!(e.kind(), std::io::ErrorKind::BrokenPipe, "{e}");
+    }
     child.wait_with_output().unwrap()
 }
 
