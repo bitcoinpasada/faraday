@@ -116,44 +116,62 @@ pub fn guide_key(screen: Screen, at: GuideAt) -> &'static str {
     }
 }
 
-/// The key of an Add a key form.
+/// The key of an Add a key form: `Part(i)` is the form at place `i` of
+/// [`crate::forms::Form::ALL`], so a reordered list moves no key.
 fn entry_key(at: GuideAt) -> &'static str {
+    use crate::forms::Form;
     match at {
-        GuideAt::Part(0) => "entry.words",
-        GuideAt::Part(1) => "entry.shares",
-        GuideAt::Part(2) => "entry.codex32",
-        GuideAt::Part(3) => "entry.xor",
+        GuideAt::Part(i) => match Form::ALL.get(usize::from(i)) {
+            Some(Form::Words) => "entry.words",
+            Some(Form::Slip39) => "entry.shares",
+            Some(Form::Codex32) => "entry.codex32",
+            Some(Form::Xor) => "entry.xor",
+            None => "entry",
+        },
         _ => "entry",
     }
 }
 
-/// The key of a Settings section.
+/// The key of a Settings section: `Part(i)` is section `i` of Settings'
+/// own list, which names each section's key, so a reordered list moves no
+/// key.
 fn settings_key(at: GuideAt) -> &'static str {
     match at {
-        GuideAt::Part(0) => "settings.mode",
-        GuideAt::Part(1) => "settings.session",
-        GuideAt::Part(2) => "settings.time",
-        GuideAt::Part(3) => "settings.randomness",
-        GuideAt::Part(4) => "settings.appearance",
-        GuideAt::Part(5) => "settings.display",
-        GuideAt::Part(6) => "settings.signed-amounts",
-        GuideAt::Part(7) => "settings.nonce-history",
-        GuideAt::Part(8) => "settings.about",
+        GuideAt::Part(i) => {
+            crate::screens::settings_guide_key(usize::from(i)).unwrap_or("settings")
+        }
         _ => "settings",
     }
 }
 
-/// The key of a vault's category.
+/// The key of a vault's category: `Part(i)` is place `i` of
+/// [`crate::vault::CATEGORIES`], found by the category's name, so a
+/// reordered list moves no key.
 fn vault_contents_key(at: GuideAt) -> &'static str {
-    match at {
-        GuideAt::Part(0) => "vault-contents.bitcoin-keys",
-        GuideAt::Part(1) => "vault-contents.wallets",
-        GuideAt::Part(2) => "vault-contents.entries",
-        GuideAt::Part(3) => "vault-contents.notes",
-        GuideAt::Part(4) => "vault-contents.gpg-keys",
-        GuideAt::Part(5) => "vault-contents.secure-boot",
-        _ => "vault-contents",
-    }
+    const KEYS: [(&str, &str); 6] = [
+        (
+            crate::strings::EN.vaults_bitcoin_keys,
+            "vault-contents.bitcoin-keys",
+        ),
+        (crate::strings::EN.vaults_wallets, "vault-contents.wallets"),
+        (crate::strings::EN.vaults_entries, "vault-contents.entries"),
+        (crate::strings::EN.vaults_notes, "vault-contents.notes"),
+        (
+            crate::strings::EN.vaults_gpg_keys,
+            "vault-contents.gpg-keys",
+        ),
+        (
+            crate::strings::EN.vaults_secure_boot,
+            "vault-contents.secure-boot",
+        ),
+    ];
+    let GuideAt::Part(i) = at else {
+        return "vault-contents";
+    };
+    crate::vault::CATEGORIES
+        .get(usize::from(i))
+        .and_then(|c| KEYS.iter().find(|k| k.0 == c.0))
+        .map_or("vault-contents", |k| k.1)
 }
 
 /// The key of a BIP-85 step.
@@ -1187,10 +1205,144 @@ impl std::fmt::Write for ScreenName {
 }
 
 impl Faraday {
-    /// What the guide is opened on within the screen's place
-    /// ([`GuideAt`]): the screen as a whole until each screen names its
-    /// own part.
-    fn guide_here(&self) -> GuideAt {
-        GuideAt::Whole
+    /// A lookup, made when the guide opens or the step changes; never
+    /// while drawing. What the screen on show is at, for [`guide_key`]:
+    /// the open card of a flow, a backup flow's kind and step, the sheet
+    /// before its steps, a Settings section or a vault's category or an
+    /// Add a key form (`docs/GUIDE-IN-APP.md` §1.2). The whole place
+    /// where it holds nothing finer.
+    pub(crate) fn guide_here(&self) -> GuideAt {
+        use crate::trail::StepFlow;
+        let open = |flow: &dyn StepFlow| flow.steps(self).and_then(|s| s.open);
+        let step = |n: Option<u8>| n.map_or(GuideAt::Whole, GuideAt::Step);
+        match self.screen {
+            Screen::Create => step(self.create.state().and_then(|c| c.open)),
+            Screen::Restore => step(open(&crate::restore::RESTORE_STEPS)),
+            Screen::Spend => step(open(&crate::wallet::SPEND_STEPS)),
+            Screen::Message => step(open(&crate::screens::MESSAGE_STEPS)),
+            Screen::Bip85 => step(open(&crate::bip85::BIP85_STEPS)),
+            Screen::Convert => step(open(&crate::convert::CONVERT_STEPS)),
+            Screen::KefTool => step(open(&crate::kef_tool::KEF_TOOL_STEPS)),
+            Screen::CoreWallet => step(open(&crate::core_wallet::tool::CORE_WALLET_STEPS)),
+            Screen::Vanity => step(open(&crate::vanity::VANITY_STEPS)),
+            Screen::KeyGen => step(self.keygen.state().and_then(|k| k.open)),
+            Screen::QrTool
+                if crate::qr_tool::state(self).is_some_and(|s| s.code_to_open().is_some()) =>
+            {
+                GuideAt::Opening
+            }
+            Screen::QrTool => step(open(&crate::qr_tool::QR_TOOL_STEPS)),
+            Screen::Backup => match self.backup.state() {
+                Some(b) if b.stage == crate::BStage::Checklist => {
+                    b.open.map_or(GuideAt::Whole, GuideAt::Item)
+                }
+                Some(b) => step(b.q),
+                None => GuideAt::Whole,
+            },
+            Screen::SpendBackup if self.spend_backup_overview() => GuideAt::Whole,
+            Screen::SpendBackup => match self.spend_backup_open_card() {
+                Some(crate::spend_backup::CardId::Page(p)) => GuideAt::Step(p),
+                Some(crate::spend_backup::CardId::Step(n)) => GuideAt::Inner(n),
+                _ => GuideAt::Whole,
+            },
+            Screen::BackupFlow if self.sheet == Some(crate::Sheet::GpgRestore) => GuideAt::Sheet,
+            Screen::BackupFlow => match self.flow() {
+                Some(f)
+                    if f.restore.is_some()
+                        && f.live.open == Some(crate::backup_flow::gpg_restore::HEAD) =>
+                {
+                    GuideAt::Head
+                }
+                Some(f) => match f
+                    .live
+                    .open
+                    .and_then(|n| crate::backup_flow::Step::ALL.get(usize::from(n)))
+                {
+                    Some(&s) => GuideAt::Flow(f.kind, s),
+                    None => GuideAt::Kind(f.kind),
+                },
+                None => GuideAt::Whole,
+            },
+            Screen::Entry => crate::forms::Form::ALL
+                .iter()
+                .position(|&f| f == self.entry.state().form)
+                .map_or(GuideAt::Whole, |i| GuideAt::Part(i as u8)),
+            Screen::VaultContents => GuideAt::Part(self.vaults.category as u8),
+            Screen::Settings if crate::panes::settings_listed(self.window()) => self
+                .scroll
+                .panes()
+                .settings()
+                .map_or(GuideAt::Whole, GuideAt::Part),
+            _ => GuideAt::Whole,
+        }
+    }
+}
+
+/// The guide opens at the step the person is on (`docs/GUIDE-IN-APP.md`
+/// §1.2).
+#[cfg(test)]
+mod at_tests {
+    use super::{GuideAt, guide_key};
+    use crate::{Action, Screen, testkit};
+
+    fn key(app: &crate::Faraday) -> &'static str {
+        guide_key(app.screen, app.guide_here())
+    }
+
+    #[test]
+    fn a_new_wallets_open_step_names_its_section() {
+        let mut app = testkit::started();
+        app.press(Action::CreateWallet);
+        assert_eq!(app.screen, Screen::Create);
+        app.press(Action::CStep(crate::cstep::WHERE));
+        assert_eq!(key(&app), "create.where");
+        app.press(Action::CStep(crate::cstep::KIND));
+        assert_eq!(key(&app), "create.kind");
+    }
+
+    #[test]
+    fn add_a_key_names_the_form_chosen() {
+        let mut app = testkit::started();
+        app.press(Action::Nav(Screen::Entry));
+        assert_eq!(app.screen, Screen::Entry);
+        let at = crate::forms::Form::ALL
+            .iter()
+            .position(|f| *f == crate::forms::Form::Codex32)
+            .unwrap();
+        app.press(Action::EntryForm(at as u8));
+        assert_eq!(key(&app), "entry.codex32");
+    }
+
+    #[test]
+    fn a_vault_names_the_category_open() {
+        let mut app = testkit::started();
+        app.screen = Screen::VaultContents;
+        app.vaults.set_category(4);
+        assert_eq!(key(&app), "vault-contents.gpg-keys");
+        app.vaults.set_category(5);
+        assert_eq!(key(&app), "vault-contents.secure-boot");
+    }
+
+    #[test]
+    fn compact_settings_names_the_section_open_and_the_list_its_page() {
+        use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
+        let mut app = testkit::started();
+        app.event(Event::Display(DisplayInfo {
+            width: 480,
+            height: 800,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        app.press(Action::Nav(Screen::Settings));
+        assert_eq!(app.guide_here(), GuideAt::Whole);
+        assert_eq!(key(&app), "settings");
+        app.press(Action::SettingsSection(Some(2)));
+        assert_eq!(key(&app), "settings.time");
     }
 }

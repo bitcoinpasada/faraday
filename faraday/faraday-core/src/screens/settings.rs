@@ -65,6 +65,22 @@ fn parts() -> Vec<Part> {
     ]
 }
 
+/// The guide's key of section `i` of [`parts`] (`docs/GUIDE-IN-APP.md`
+/// §1.2): read from the list, so a section moved keeps its key. A lookup.
+pub(crate) fn part_guide_key(i: usize) -> Option<&'static str> {
+    Some(match *parts().get(i)? {
+        Part::Mode => "settings.mode",
+        Part::Session => "settings.session",
+        Part::Time => "settings.time",
+        Part::Randomness => "settings.randomness",
+        Part::Appearance => "settings.appearance",
+        Part::Display => "settings.display",
+        Part::Signed => "settings.signed-amounts",
+        Part::Nonces => "settings.nonce-history",
+        Part::About => "settings.about",
+    })
+}
+
 /// A section's name, as its card and the list of sections show it.
 fn part_title(p: Part) -> &'static str {
     match p {

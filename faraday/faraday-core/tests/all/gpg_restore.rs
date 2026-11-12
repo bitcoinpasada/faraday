@@ -510,7 +510,7 @@ fn learn_on_a_restore_opens_the_gpg_page() {
     restore_at_make(&mut app, from);
     assert_eq!(app.screen, Screen::BackupFlow);
     app.press(Action::Learn);
-    assert!(app.learn().shown.starts_with("backup"));
+    assert!(app.learn().shown.starts_with("gpg-restore"));
 }
 
 /// paperkey 1.6's raw form of the same key (`--output-type raw`).

@@ -69,6 +69,7 @@ pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad, key_path_line, 
 pub(crate) use restore::RSTEPS;
 pub(crate) use settings::display_section as settings_display_section;
 pub(crate) use settings::open_head as settings_open;
+pub(crate) use settings::part_guide_key as settings_guide_key;
 use sheets::{
     devices_sheet, idle_warn_sheet, key_path_sheet, learn_sheet, lock_ask_sheet, lock_sheet,
     locked_sheet, new_input_sheet, potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet,
