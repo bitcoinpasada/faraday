@@ -188,7 +188,7 @@ impl State {
 mod tests {
     use faraday_shell_api::{App, Event, Key, TouchPhase};
 
-    use crate::work::budget::{DESKTOP, PI, Panel, walk_on};
+    use crate::work::budget::{DESKTOP, PI, Panel, heavy_on, walk_on};
     use crate::{Faraday, testkit};
 
     /// Where the region in `slot` is, in pixels, and how far it goes.
@@ -487,5 +487,63 @@ mod tests {
             });
             assert!(screens > 10, "the walk reaches its screens on {panel:?}");
         }
+    }
+
+    /// Home scrolled a few pixels at a time over a session with wallets
+    /// and files, on the Pi's panel: what each step draws is the same
+    /// state drawn whole in one pass, and in two, three and four bands
+    /// on threads, so no row of the frame is left from another frame or
+    /// painted twice.
+    #[test]
+    fn home_scrolled_by_steps_is_the_same_frame_drawn_whole_or_in_bands() {
+        let (mut app, _) = heavy_on(PI);
+        app.press(crate::Action::Nav(crate::Screen::Home));
+        app.settle();
+        app.out.toast = None;
+        let rows = |a: &[u8], b: &[u8]| -> Vec<usize> {
+            let w = 480 * 4;
+            (0..a.len() / w)
+                .filter(|&r| a[r * w..(r + 1) * w] != b[r * w..(r + 1) * w])
+                .collect()
+        };
+        let steps: Vec<i16> = [(9i16, 120), (-23, 60), (5, 80)]
+            .iter()
+            .flat_map(|&(d, n)| std::iter::repeat_n(d, n))
+            .collect();
+        let mut bad: Vec<String> = Vec::new();
+        let (mut scrolled, mut before) = (0, Vec::new());
+        for (i, dy) in steps.into_iter().enumerate() {
+            app.event(Event::Scroll { x: 240, y: 320, dy });
+            while app.poll_command().is_some() {}
+            let drawn = app.frame().rgba.to_vec();
+            scrolled += usize::from(drawn != before);
+            before.clone_from(&drawn);
+            app.draw_banded(0);
+            app.draw_whole_next();
+            let whole = app.frame().rgba.to_vec();
+            if drawn != whole {
+                bad.push(format!(
+                    "step {i} dy {dy}: drawn vs whole, rows {:?}",
+                    rows(&drawn, &whole)
+                ));
+            }
+            for n in [2, 3, 4] {
+                app.draw_banded(n);
+                app.draw_whole_next();
+                let banded = app.frame().rgba.to_vec();
+                app.draw_banded(0);
+                if banded != whole {
+                    bad.push(format!(
+                        "step {i} dy {dy}: {n} bands vs whole, rows {:?}",
+                        rows(&banded, &whole)
+                    ));
+                }
+            }
+            if bad.len() > 12 {
+                break;
+            }
+        }
+        assert!(bad.is_empty(), "{}", bad.join("\n"));
+        assert!(scrolled > 50, "Home scrolled in {scrolled} steps");
     }
 }

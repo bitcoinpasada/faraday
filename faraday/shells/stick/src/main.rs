@@ -128,6 +128,8 @@ mod pointer;
 mod present;
 mod radios;
 mod refresh;
+#[cfg(test)]
+mod scroll_tests;
 mod start_window;
 mod system;
 mod timings;
