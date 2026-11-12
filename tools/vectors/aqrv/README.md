@@ -147,3 +147,23 @@ the run prints the cases per kind and per corruption and every disagreement, and
 
 It builds and runs the example with `cargo` (`--rust COMMAND` runs another binary) and needs what `check.py`
 needs; a round is about 800 cases.
+
+## Results
+
+Run on 2026-11-11 against the library and `check.py` as they are in the commit that adds this section;
+neither found a fault, and nothing was changed to make them pass.
+
+- **Differential run:** `diff.py --seed 7 --rounds 5`, 3945 cases in 482 seconds, 0 disagreements. An
+  earlier run of the same script (`--seed 20261111 --rounds 12`, 9468 cases) also had none. Every kind at
+  every size it holds was sealed and read on both sides; the two writers made the same envelope byte for
+  byte for every valid input and refused the same invalid ones, and the readers gave the same outcome, down
+  to the layout rule, for every corrupted code. Not generated: the 1 GiB memory step, a code where two
+  kinds' tags match (random inputs do not reach it), and a raw key of the wrong length (the Rust item
+  cannot hold one).
+- **Fuzzing:** the five `aqrv_*` targets in `fuzz/`, 600 seconds each, no crash and no failed assertion;
+  the numbers are in `fuzz/README.md`, "2026-11-11: the Argon QR Vault's targets".
+
+This shows the two readers agree and the Rust one does not crash on what it is given. It is not
+independent proof that either is right: `check.py` is a second reader by Faraday's own authors, written
+from the document with the generator unread (see "The second reader"), and an outside implementation is
+still what `docs/AQRV.md` asks for.

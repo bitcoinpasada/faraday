@@ -347,3 +347,22 @@ cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/r
 
 `keep_open` covers less than it did, because `header` now rejects a cost
 the device would not have written before anything else looks at the blob.
+
+## 2026-11-11: the Argon QR Vault's targets
+
+The five `aqrv_*` targets, 600 seconds each on one core, seeded from the
+vectors' cases (`tools/vectors/aqrv/aqrv.json`). Coverage is libFuzzer's
+edge count at the end of the run.
+
+| Target | Time | Execs | Coverage | Result |
+|---|---|---|---|---|
+| `aqrv_recognise` | 600 s | 458 M | 122 | clean |
+| `aqrv_text` | 600 s | 148 M | 91 | clean |
+| `aqrv_item` | 600 s | 193 M | 393 | clean |
+| `aqrv_envelope` | 600 s | 99.7 M | 779 | clean |
+| `aqrv_open` | 600 s | 5.77 k | 1243 | clean |
+
+`aqrv_envelope` takes Argon2id's output from the input, so random
+envelopes rarely carry a matching tag: the item path behind a matching tag
+is reached by the seeds, and `aqrv_item` covers the layouts directly.
+`aqrv_open` runs Argon2id at 64 MiB on every input, hence its few runs.
