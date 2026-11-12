@@ -106,6 +106,40 @@ fn a_lock_pressed_while_one_vault_is_sealed_locks_when_the_seal_ends() {
 }
 
 #[test]
+fn a_lock_pressed_while_one_vault_is_sealed_closes_the_code_on_show_at_once() {
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    let c = testkit::compute();
+    testkit::move_to(&mut app.session, testkit::net()).expect("the test network");
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Savings",
+            &testkit::savings(),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .expect("a wallet");
+    app.press(Action::ShowCode(faraday_core::Code::Descriptor(w)));
+    assert!(app.qr().is_some(), "no code on show");
+    randomness(&mut app, 0x21);
+    crate::common::top_up(&mut app);
+    testkit::hold_worker();
+    assert!(
+        !testkit::vault_lock_one(&mut app, 0),
+        "the seal is under way"
+    );
+    testkit::press_on_worker(&mut app, Action::Lock);
+    assert!(app.qr().is_none(), "the code stays on show during the seal");
+    assert!(!app.restart_requested(), "the lock did not wait");
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(sealed(&app).is_some(), "the vault was not sealed");
+    assert!(app.restart_requested(), "the device did not lock");
+}
+
+#[test]
 fn a_lock_pressed_while_one_vault_fails_to_seal_still_locks() {
     let mut app = device(cheap_vault());
     open_and_change(&mut app);

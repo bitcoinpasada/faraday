@@ -204,6 +204,11 @@ impl BackupFlowArea {
     /// in that file or in this seal (a mark from an earlier session stays
     /// unknown here). The mark is tied to a file once its seal writes one
     /// ([`Self::note_sealed_file`]).
+    // A lock of a file this session wrote that changes nothing writes
+    // nothing, so the older sealed entry (naming fewer keys) stays; safe
+    // only while session keys leave all at once, so a way to remove one
+    // key at a time must first extend the entry on an unwritten seal (or
+    // refuse the clear).
     pub(crate) fn note_sealed_for(
         &mut self,
         (vault, opened): ([u8; 32], Option<[u8; 32]>),

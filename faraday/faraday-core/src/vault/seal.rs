@@ -94,8 +94,11 @@ pub(crate) fn sealing(app: &Faraday) -> bool {
 
 /// Remembers a lock asked for while a seal runs, to be done when it ends
 /// (the seal finishes first). A lock of every vault already under way is
-/// that lock: nothing is remembered.
+/// that lock: nothing is remembered. The code on show closes at once,
+/// whatever the lock waits for: it may be an entry's TOTP secret
+/// (`docs/QR.md` §7.1).
 pub(crate) fn lock_after_seal(app: &mut Faraday, may_lose: bool) {
+    app.qr.close();
     if let Some(run) = app.vaults.state.sealing.as_mut().filter(|r| !r.all) {
         run.lock_after = Some(run.lock_after.unwrap_or(false) || may_lose);
     }
