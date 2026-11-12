@@ -1,4 +1,5 @@
 //! Secure Boot keys, their enrolment files and signed images (faraday-sb).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_sb::Policy;
 use faraday_sb::release::Release;

@@ -1,5 +1,6 @@
 //! Core Lightning's `hsm_secret` as a source of Lightning node key
 //! (`docs/decisions/F228.md`).
+#![allow(clippy::disallowed_methods)]
 
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;

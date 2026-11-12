@@ -18,6 +18,7 @@
 //!
 //! A key is addressed by its place in the store, `i`, as the callers
 //! already hold it; [`KeyInfo::id`] tells keys apart in all 32 bytes.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::bip32::DerivationPath;
@@ -54,6 +55,10 @@ pub struct KeyId(pub [u8; 32]);
 /// What a key says about itself in public. Worked out once, when the key
 /// is added, and kept beside the key.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub struct KeyInfo {
     /// All 32 bytes of what tells the key from another.
     pub id: KeyId,
@@ -870,6 +875,10 @@ impl Keys {
         passphrase: &str,
         label: &str,
     ) -> Result<Fingerprint, Refusal> {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "words copied are Zeroizing, wiped on drop"
+        )]
         let words = self
             .entries
             .get(i)
@@ -888,6 +897,10 @@ impl Keys {
         suffix: &str,
         label: &str,
     ) -> Result<Fingerprint, Refusal> {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "words and passphrase copied are Zeroizing, wiped on drop"
+        )]
         let (words, base) = {
             let key = &self
                 .entries
@@ -933,6 +946,7 @@ impl Keys {
     }
 
     /// Sets key `i`'s label.
+    #[expect(clippy::disallowed_methods, reason = "a label is public")]
     pub fn set_label(&mut self, i: usize, label: &str) {
         if let Some(e) = self.entries.get_mut(i) {
             e.info.label = label.to_string();
@@ -1260,6 +1274,10 @@ impl Keys {
         };
         let fp = e.info.fingerprint.0;
         let need = usize::from(facts.threshold);
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a codex32 set's facts are public"
+        )]
         let facts = facts.clone();
         let facts = &facts;
         // A string at a destroyed index, of another set or of another
@@ -1331,7 +1349,7 @@ impl Keys {
         if need < 2 || string.is_secret() {
             return None;
         }
-        let typed = Zeroizing::new(string.encode().as_str().to_string());
+        let typed = crate::texts::wiped(string.encode().as_str());
         // As in `keep_codex32_among`: a string at a destroyed index, of
         // another set or of another length decides nothing.
         let facts = e.info.codex32.as_ref();
@@ -1448,7 +1466,7 @@ impl Keys {
             && parsed.len() == usize::from(facts.threshold)
             && let Ok(secret) = Codex32::recover(&parsed)
         {
-            out.push(Zeroizing::new(secret.encode().as_str().to_string()));
+            out.push(crate::texts::wiped(secret.encode().as_str()));
         }
         out.extend(held.into_iter().cloned());
         Some(Held(out))
@@ -1572,6 +1590,7 @@ impl Keys {
     pub fn key_text(&self, c: &Compute, i: usize, spec: &Spec) -> Option<Result<String, String>> {
         let key = &self.entries.get(i)?.key;
         if let Some((_, t)) = key.public.borrow().iter().find(|(a, _)| a == spec) {
+            #[expect(clippy::disallowed_methods, reason = "a key text is public")]
             return Some(t.clone());
         }
         let t = crate::texts::key_text(c, &key.master, spec);
@@ -1579,6 +1598,10 @@ impl Keys {
         if kept.len() >= KEY_TEXTS_KEPT {
             kept.clear();
         }
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a key text and its spec are public"
+        )]
         kept.push((spec.clone(), t.clone()));
         Some(t)
     }
@@ -1712,6 +1735,10 @@ impl Keys {
             Option<Zeroizing<[u8; 32]>>,
         ),
     ) -> crate::job::SignJob {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "an Arc count, not a copy of the key"
+        )]
         let masters = self
             .entries
             .iter()
@@ -1726,6 +1753,10 @@ impl Keys {
     /// inspection, a nonce check): the masters behind the same `Arc` a
     /// signing job holds, never a copy. No words, passphrase, seed, codex32
     /// string, text kept, blind, sweep or demo set comes with it.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "an Arc count and public facts, not a copy of a key"
+    )]
     pub fn job_view(&self) -> Keys {
         let mut view = Keys::on(self.network);
         view.entries = self
@@ -1795,6 +1826,7 @@ pub(crate) fn mnemonic_entry(
     label: &str,
 ) -> Entry {
     let lang = mnemonic.language();
+    #[expect(clippy::disallowed_methods, reason = "a label is public")]
     let label = if label.trim().is_empty() {
         fp_text(master.fingerprint())
     } else {
@@ -1815,7 +1847,7 @@ pub(crate) fn mnemonic_entry(
         Some(words),
         lang,
         word_count,
-        (!passphrase.is_empty()).then(|| Zeroizing::new(passphrase.to_string())),
+        (!passphrase.is_empty()).then(|| crate::texts::wiped(passphrase)),
         None,
     )
 }
@@ -1828,7 +1860,7 @@ pub(crate) fn seed_master(
     network: Network,
 ) -> Result<MasterKey, Refusal> {
     let bytes = faraday_crypto::SeedBytes::new(seed)
-        .ok_or_else(|| Refusal::Words(faraday_strings::EN.wallet_a_master_seed.to_string()))?;
+        .ok_or_else(|| Refusal::Words(String::from(faraday_strings::EN.wallet_a_master_seed)))?;
     Ok(MasterKey::from_seed_bytes(
         c,
         &faraday_crypto::Secret::new(bytes),
@@ -1839,6 +1871,7 @@ pub(crate) fn seed_master(
 /// Costs what `Entry::new` costs. The key `master` is, made of the master
 /// seed `seed`, labelled `label` (its fingerprint when the label is empty).
 pub(crate) fn seed_entry(c: &Compute, master: MasterKey, seed: &[u8], label: &str) -> Entry {
+    #[expect(clippy::disallowed_methods, reason = "a label is public")]
     let label = if label.trim().is_empty() {
         fp_text(master.fingerprint())
     } else {
@@ -1902,6 +1935,10 @@ impl Entry {
 
 /// What comparing a copy of a seed with the seed says.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub enum CopyCheck {
     /// Every word matches.
     Matches,

@@ -6,6 +6,7 @@
 //! makes one (`tools/lint-secrets.sh` rule 4), and nothing outside it can
 //! derive a key from one: `to_seed` and the master key are refused there
 //! too.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bip39::{Error, Language, Mnemonic};
 use faraday_bip::slip39;

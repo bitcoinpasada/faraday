@@ -1,4 +1,5 @@
 //! BIP-85 children: a value derived from a master key and an index.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bip39::Language;
 use faraday_bip::bip85;
@@ -38,32 +39,20 @@ pub fn child(c: &Compute, master: &MasterKey, app: App, index: u32) -> Option<Ze
                 .collect();
             Zeroizing::new(words.join(" "))
         }
-        App::Wif => Zeroizing::new(
-            bip85::child_wif(c, master, index)
-                .ok()?
-                .as_str()
-                .to_string(),
-        ),
-        App::Xprv => Zeroizing::new(
-            bip85::child_xprv(c, master, index)
-                .ok()?
-                .as_str()
-                .to_string(),
-        ),
+        App::Wif => crate::texts::wiped(bip85::child_wif(c, master, index).ok()?.as_str()),
+        App::Xprv => crate::texts::wiped(bip85::child_xprv(c, master, index).ok()?.as_str()),
         App::Hex(length) => faraday_crypto::hex::encode_secret(
             bip85::child_hex(c, master, length, index).ok()?.as_bytes(),
         ),
-        App::Base64(length) => Zeroizing::new(
+        App::Base64(length) => crate::texts::wiped(
             bip85::child_password_base64(c, master, length, index)
                 .ok()?
-                .as_str()
-                .to_string(),
+                .as_str(),
         ),
-        App::Base85(length) => Zeroizing::new(
+        App::Base85(length) => crate::texts::wiped(
             bip85::child_password_base85(c, master, length, index)
                 .ok()?
-                .as_str()
-                .to_string(),
+                .as_str(),
         ),
     })
 }

@@ -9,6 +9,7 @@
 //! [`Keys`], one at a time: a new open or [`Keys::qr_forget`] wipes the
 //! old, and [`Keys::clear`] (a lock, the idle warning) wipes it with the
 //! rest of the session's secrets.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::keys::Fingerprint;
@@ -72,6 +73,10 @@ pub enum QrPassOffer {
 
 /// Why a QR vault was not sealed or opened, or an item not offered on.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub enum QrError {
     /// The passphrase is empty.
     EmptyPassphrase,
@@ -386,6 +391,10 @@ impl Keys {
         let Some(HeldItem::Passphrase(text, _)) = &self.qr_item else {
             return Err(QrError::NotHeld);
         };
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a SecretText copy is wiped on drop"
+        )]
         let text = text.clone();
         match self.qr_passphrase_offer(c) {
             Some(QrPassOffer::Loaded) => {

@@ -1,4 +1,5 @@
 //! Reveals and what is worked out of key records: words facts, the session, entries, GPG and Secure Boot keys, loading keys, Codex32.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use super::*;
 
@@ -145,6 +146,7 @@ impl OpenVaults {
                 return Some(KeyLoad::Refused(fp));
             }
         }
+        #[expect(clippy::disallowed_methods, reason = "a label is public")]
         let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
         let loaded = keys.add_mnemonic(c, &m, passphrase, &label, None);
         if loaded.is_ok() {
@@ -299,6 +301,10 @@ impl OpenVaults {
         if r.kind != kind::ENTRY {
             return None;
         }
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a record's fields are Zeroizing: the copy is wiped on drop"
+        )]
         let mut record = r.clone();
         record.set(field::TITLE, title.as_bytes());
         if let Some(n) = r.text(field::NOTES) {
@@ -317,9 +323,11 @@ impl OpenVaults {
         let mut g = [0u8; 16];
         u.copy_from_slice(&uuids[..16]);
         g.copy_from_slice(&uuids[16..]);
+        #[expect(clippy::disallowed_methods, reason = "the names are public")]
+        let names = self.names.clone();
         Some(crate::job::KdbxJob::new(
             record,
-            self.names.clone(),
+            names,
             (id, label.into(), now),
             (u, g),
             passphrase,
@@ -594,13 +602,14 @@ impl OpenVaults {
         if r.kind != kind::KEY {
             return None;
         }
+        #[expect(clippy::disallowed_methods, reason = "a label is public")]
         let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
         let loaded = match record_words(c, r) {
             Some(m) => {
                 // Stored with the key, or kept alone in an open vault
                 // (`docs/BACKUP-FLOW.md` §17.12 item 4).
                 let p = match r.text(field::KEY_PASSPHRASE) {
-                    Some(p) => Zeroizing::new(p.to_string()),
+                    Some(p) => crate::texts::wiped(p),
                     None => self.passphrase_kept_for(c, keys, &m, 0).unwrap_or_default(),
                 };
                 Some(keys.add_mnemonic(c, &m, &p, &label, None))
@@ -663,7 +672,7 @@ impl OpenVaults {
                     }
                 };
                 let (_, list, others) = &mut sets[at];
-                let text = Zeroizing::new(text.to_string());
+                let text = crate::texts::wiped(text);
                 let same = |(x, t): &(Codex32, Zeroizing<String>)| {
                     x.share_index() == share.share_index() && t.eq_ignore_ascii_case(&text)
                 };
@@ -812,7 +821,7 @@ impl OpenVaults {
         let Some(more) = self.codex32_of_key(keys, i, string) else {
             return false;
         };
-        let text = Zeroizing::new(string.encode().as_str().to_string());
+        let text = crate::texts::wiped(string.encode().as_str());
         keys.keep_codex32_among(c, i, &[text.as_str()], &more) > 0
     }
 
@@ -885,7 +894,7 @@ impl OpenVaults {
         // its records name; never strings of two keys together.
         let typed_texts: Vec<Zeroizing<String>> = typed
             .iter()
-            .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+            .map(|s| crate::texts::wiped(s.encode().as_str()))
             .collect();
         let fixed: Vec<&str> = typed_texts.iter().map(|t| t.as_str()).collect();
         let mut tried = false;
@@ -899,11 +908,19 @@ impl OpenVaults {
             if let Some((seed, picked)) = made {
                 // What made the key, then the key's other strings at
                 // indices none of those has.
+                #[expect(
+                    clippy::disallowed_methods,
+                    reason = "the copy is Zeroizing, wiped on drop"
+                )]
                 let mut texts = typed_texts.clone();
                 texts.extend(picked.into_iter().skip(typed.len()));
                 for t in more.iter() {
                     let at = t.as_bytes().get(8);
                     if !texts.iter().any(|x| x.as_bytes().get(8) == at) {
+                        #[expect(
+                            clippy::disallowed_methods,
+                            reason = "the copy is Zeroizing, wiped on drop"
+                        )]
                         texts.push(t.clone());
                     }
                 }
@@ -913,9 +930,9 @@ impl OpenVaults {
         }
         let Some((texts, seed)) = found else {
             return tried.then(|| {
-                Err(Refusal::Words(
-                    faraday_strings::EN.c32_vault_other_seed.to_string(),
-                ))
+                Err(Refusal::Words(String::from(
+                    faraday_strings::EN.c32_vault_other_seed,
+                )))
             });
         };
         let fp = match keys.add_seed(c, &seed, label) {
@@ -1124,6 +1141,6 @@ impl OpenVaults {
         let found = self.passphrases_kept_for(c, keys, m);
         let (id, i) = *found.get(chosen).or_else(|| found.first())?;
         let r = self.slot(id)?.records.get(i)?;
-        Some(Zeroizing::new(r.text(field::PASSPHRASE)?.to_string()))
+        Some(crate::texts::wiped(r.text(field::PASSPHRASE)?))
     }
 }

@@ -6,6 +6,7 @@
 //! Its [`Progress`] is shared with the main thread, which reads the rounds
 //! done for a determinate bar and sets the flag that stops the work at its
 //! next step.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};

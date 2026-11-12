@@ -10,6 +10,7 @@
 //! (`crypto_secretstream_xchacha20poly1305`) of one message, under a key
 //! Argon2id makes from the passphrase; the opening is written here over
 //! RustCrypto's ChaCha20 (with HChaCha20) and Poly1305.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use argon2::Algorithm;
 use chacha20::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};

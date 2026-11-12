@@ -3,6 +3,7 @@
 //! the characters typed one at a time make the published strings; a key
 //! loaded from a master seed writes its shares again and they recover it;
 //! a key of words does too, at any threshold and size.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_bip::codex32::{Codex32, Length, Scheme};
 use faraday_bip::keys::Network;

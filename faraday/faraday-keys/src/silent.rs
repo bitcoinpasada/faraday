@@ -1,4 +1,5 @@
 //! Silent payments (BIP-352): a key's scan and spend halves.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_bip::bitcoin::Transaction;
 use faraday_bip::bitcoin::secp256k1::{All, PublicKey, Secp256k1};
@@ -19,6 +20,10 @@ pub struct Receiver(bip352::Receiver, Secp256k1<All>);
 
 /// Costs two key derivations. The scan and spend keys of `master`, at
 /// `account`.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a secp256k1 context holds no key"
+)]
 pub(crate) fn receiver(c: &Compute, master: &MasterKey, account: u32) -> Receiver {
     Receiver(
         bip352::Receiver::derive(c, master, account),
@@ -45,6 +50,10 @@ impl Receiver {
     /// Costs an address (point additions). The `sp1…` address, unlabelled
     /// for `label` 0 and labelled otherwise; `None` when the address cannot
     /// be made.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a silent-payment address is public"
+    )]
     pub fn address(&self, label: u32) -> Option<String> {
         let a = if label == 0 {
             self.0.address(&self.1)
@@ -66,7 +75,7 @@ impl Receiver {
             return None;
         }
         let k = self.0.scan_key_text().ok()?;
-        Some(Held::of(Zeroizing::new(k.as_str().to_string())))
+        Some(Held::of(crate::texts::wiped(k.as_str())))
     }
 
     /// The scan key as BIP-392's descriptor, `sp([fp/352h/coinh/accounth]spscan1q…)`,
@@ -86,7 +95,7 @@ impl Receiver {
             return None;
         }
         let d = self.0.descriptor(Some((fingerprint, account))).ok()?;
-        Some(Held::of(Zeroizing::new(d.as_str().to_string())))
+        Some(Held::of(crate::texts::wiped(d.as_str())))
     }
 
     /// Costs a scan of the transaction's outputs. The payments `tx` makes

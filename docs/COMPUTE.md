@@ -233,6 +233,10 @@ only by `#[expect]` at §3's sites), `Compute::unchecked`,
 `disallowed-types`: `miniscript::Descriptor` (`testkit.rs` and `examples/`
 under `#[expect]`). Hashing engines are not listed (risk 5). Paths
 resolve through the `faraday_bip::bitcoin`/`miniscript` re-exports.
+`faraday/faraday-keys/clippy.toml` repeats these entries for that crate,
+beside its refusal of copies; the crate turns `disallowed-methods` on in
+every source file outside test code, so in its tests only the costs lint
+holds.
 
 A path that names nothing (mistyped, or moved in a dependency) does not
 fail `-D warnings`: clippy prints a warning about its configuration and

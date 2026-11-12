@@ -22,6 +22,7 @@
 //! The store keeps a change counter per vault ([`OpenVaults::version`]),
 //! which moves with every edit, so that what the caller keeps of a vault's
 //! public records can be told to be in step.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use std::cell::{Cell, OnceCell};
 use std::collections::BTreeSet;
@@ -225,6 +226,7 @@ impl<'a> RecordView<'a> {
 
     /// A copy of the record, when it has no secret field: a plan, a
     /// wallet, a share. `None` for any other.
+    #[expect(clippy::disallowed_methods, reason = "a record with no secret field")]
     pub fn to_public(&self) -> Option<Record> {
         self.record
             .fields
@@ -364,9 +366,17 @@ impl MadeKey {
 }
 
 impl IntoRecord for &MadeKey {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a record's fields are Zeroizing: the copy is wiped on drop"
+    )]
     fn into_record(self) -> Record {
         self.0.clone()
     }
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a record's fields are Zeroizing: the copy is wiped on drop"
+    )]
     fn staged(self) -> Staged {
         Staged::Made(self.0.clone())
     }
@@ -455,6 +465,10 @@ pub(crate) enum Op {
 
 /// What an entry of a record's kind holds for the vault crate: a GPG key
 /// is written from its armored form.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a record's fields are Zeroizing: the copy is wiped on drop"
+)]
 fn body_of(record: &Record) -> Option<Body> {
     if record.kind != kind::GPG {
         return Some(Body::Record(record.clone()));
@@ -621,6 +635,10 @@ impl<'a> Records<'a> {
 /// stand for the key's fingerprint and the fingerprint a secret is for.
 /// The caller sets them once ([`OpenVaults::set_names`]).
 #[derive(Debug, Clone, Default)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub struct Names {
     /// Group of seeds.
     pub group_keys: String,
@@ -700,6 +718,7 @@ impl Names {
     /// no label, when `exact` (a label is the title, so a key with one costs nothing). The title written where the record has none
     /// of its own; with `exact` false a key's fingerprint is a stand-in of
     /// the same length.
+    #[expect(clippy::disallowed_methods, reason = "titles are public")]
     pub(crate) fn title(&self, c: &Compute, r: &Record, exact: bool) -> String {
         let hex = |n: u8| {
             r.field(n)
@@ -768,6 +787,10 @@ pub(crate) struct Built {
 /// opened file: the label, then each entry that reads, then each plan and
 /// signed amounts; a GPG key not in Faraday's own shape goes on the
 /// unreadable list and is not touched by a seal.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a record's fields are Zeroizing: the copy is wiped on drop; titles and paths are public"
+)]
 pub(crate) fn build(opened: &fv::file::Opened) -> Built {
     let read = opened.read();
     let mut built = Built {
@@ -861,6 +884,10 @@ fn is_entry_kind(k: u8) -> bool {
 }
 
 /// What a removed record leaves to take out at the seal.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a custom item's key name is public"
+)]
 fn drop_op(o: &Origin, ops: &mut Vec<Op>) {
     match o {
         Origin::Entry { uuid, .. } => ops.push(Op::Remove(*uuid)),
@@ -875,6 +902,10 @@ fn drop_op(o: &Origin, ops: &mut Vec<Op>) {
 ///
 /// A kind with no place in the file, or no number left for a plan, is a
 /// refusal: the seal does not leave the change out.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a record's fields are Zeroizing: the copy is wiped on drop, and the label is public"
+)]
 fn fresh_op(rec: &Record, plan: &mut Option<u32>, ops: &mut Vec<Op>) -> Result<(), Unwritable> {
     match rec.kind {
         kind::PLAN => {
@@ -900,6 +931,10 @@ fn fresh_op(rec: &Record, plan: &mut Option<u32>, ops: &mut Vec<Op>) -> Result<(
 }
 
 /// What a record present says to write: nothing when it is as read.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a record's fields are Zeroizing: the copy is wiped on drop, and the label is public"
+)]
 fn put_op(
     o: &Origin,
     rec: &Record,
@@ -1625,10 +1660,7 @@ pub(crate) fn codex32_find(
             .filter_map(|(_, t)| parse(t))
             .collect();
         if let Some((seed, texts)) = codex32_pick(c, fp, need, &chosen, &others) {
-            let texts = texts
-                .into_iter()
-                .map(|t| Zeroizing::new(t.to_string()))
-                .collect();
+            let texts = texts.into_iter().map(crate::texts::wiped).collect();
             return Some(Some((seed, texts)));
         }
         // The next choice: the last place that can move, moved on.
@@ -1645,6 +1677,7 @@ pub(crate) fn codex32_find(
 
 /// Every way to pick one of each of `sizes` things, as the choice made at
 /// each place; `None` for more than 16 ways.
+#[expect(clippy::disallowed_methods, reason = "index lists are public")]
 fn combinations(sizes: &[usize]) -> Option<Vec<Vec<usize>>> {
     let mut out: Vec<Vec<usize>> = vec![Vec::new()];
     for &n in sizes {
@@ -1792,6 +1825,7 @@ pub struct Totp {
 /// Costs two Ed25519 public keys. A GPG key's public facts, worked out of
 /// its record: its fingerprints, dates and user IDs. `None` for a record
 /// without a signing subkey, which is kept and shown by its user ID alone.
+#[expect(clippy::disallowed_methods, reason = "a key's user ids are public")]
 pub fn gpg_facts(r: RecordView<'_>) -> Option<GpgFacts> {
     let key = gpg_key(r.raw())?;
     Some(GpgFacts {
@@ -1816,6 +1850,10 @@ pub fn gpg_revocation_kept_at(r: RecordView<'_>) -> Option<u32> {
 
 /// A GPG key's public facts ([`gpg_facts`]).
 #[derive(Debug, Clone)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub struct GpgFacts {
     /// The primary key's fingerprint.
     pub fingerprint: [u8; 20],

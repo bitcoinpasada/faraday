@@ -1,6 +1,7 @@
 //! The private keys of Bitcoin Core's own descriptor wallets
 //! (`tools/vectors/core-wallet/`): each key passes, a wrong passphrase is
 //! its own outcome, and a changed byte fails the key.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;

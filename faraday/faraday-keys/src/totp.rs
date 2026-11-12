@@ -1,4 +1,5 @@
 //! Time-based one-time codes from a vault entry's TOTP field (RFC 6238).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 pub use faraday_vault::totp::NotTotp;
 

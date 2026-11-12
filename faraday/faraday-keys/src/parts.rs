@@ -5,6 +5,7 @@
 //! drops and is neither `Clone` nor `Debug`. A vault just made has its
 //! parts kept in [`OpenVaults`] until the unlock takes them or a lock
 //! clears them ([`OpenVaults::hold_made_parts`]).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_vault as fv;
 use fv::kdbx::keyfile::{self, KeyFileError, SecretError};

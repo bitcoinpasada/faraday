@@ -1,4 +1,5 @@
 //! Opening and sealing a vault: unlock, the seal job and its keys, the seal state.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use super::*;
 
@@ -93,6 +94,10 @@ impl OpenVaults {
         opened: Arc<fv::file::Opened>,
         built: Built,
     ) -> (VaultId, fv::file::Facts) {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "an opened file's facts are public"
+        )]
         let facts = opened.facts().clone();
         let id = VaultId(self.next);
         self.next += 1;
@@ -102,6 +107,10 @@ impl OpenVaults {
             unreadable,
         } = built;
         let records_len = records.len();
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "an Arc count of the copy room, not a copy of a key"
+        )]
         self.slots.push(Slot {
             id,
             digest,
@@ -228,6 +237,10 @@ impl OpenVaults {
         );
         // A key drawn and not yet taken as a document is not written: the
         // file keeps the components it had.
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the key file copied is Zeroizing, wiped on drop"
+        )]
         let parts = (
             if s.key_pending() {
                 None
@@ -240,14 +253,13 @@ impl OpenVaults {
         let ops = ops.map_err(fv::file::Error::from);
         let s = &mut self.slots[at];
         s.sealing = true;
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "an Arc count of the opened file, and the public names"
+        )]
+        let (opened, names) = (Arc::clone(&s.opened), self.names.clone());
         Some(crate::job::SealJob::new(
-            Arc::clone(&s.opened),
-            ops,
-            self.names.clone(),
-            rekey,
-            parts,
-            random,
-            now,
+            opened, ops, names, rekey, parts, random, now,
         ))
     }
 

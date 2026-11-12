@@ -1,0 +1,24 @@
+# Clippy reads the nearest clippy.toml, so this file stands in for
+# ../clippy.toml in this crate: the first group repeats that file's entries
+# (see it for why each is there) and the second is the secret refusal that
+# core/faraday-bip/clippy.toml explains. A file that holds a secret turns the
+# refusal on with `#![cfg_attr(not(test), warn(clippy::disallowed_methods))]`;
+# a legitimate use carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
+disallowed-methods = [
+    { path = "faraday_crypto::work::Compute::new", reason = "a mint: only at docs/COMPUTE.md §3's sites, under #[expect]" },
+    { path = "faraday_crypto::work::Compute::unchecked", reason = "counts nothing: core's tests and the fuzz targets only (docs/COMPUTE.md §3)", allow-invalid = true },
+    { path = "bitcoin::bip32::Xpriv::new_master", reason = "a master key: faraday_bip::keys::MasterKey::from_seed, which takes the token" },
+    { path = "bitcoin::bip32::Xpriv::derive_priv", reason = "a key derivation: faraday_bip::keys::MasterKey::derive, which takes the token" },
+    { path = "bitcoin::bip32::Xpriv::fingerprint", reason = "an elliptic-curve multiplication: MasterKey::fingerprint keeps it" },
+    { path = "bitcoin::bip32::Xpub::from_priv", reason = "an elliptic-curve multiplication: MasterKey::xpub or DerivedKey::to_xpub, which take the token" },
+    { path = "bitcoin::bip32::Xpub::derive_pub", reason = "a key derivation: a wallet's addresses through faraday_bip::policy::WalletPolicy, which takes the token" },
+    { path = "secp256k1::PublicKey::from_secret_key", reason = "an elliptic-curve multiplication: DerivedKey::to_xpub, which takes the token" },
+    { path = "bitcoin::psbt::Psbt::deserialize", reason = "a PSBT parse: faraday_psbt::Psbt::parse_bytes, which takes the token" },
+    { path = "core::clone::Clone::clone", reason = "a copy of a secret is a function of its type (`duplicate`), under #[expect] where it is needed" },
+    { path = "alloc::string::ToString::to_string", reason = "a secret made into text is a second buffer nothing wipes" },
+    { path = "alloc::borrow::ToOwned::to_owned", reason = "a secret made into a second buffer nothing wipes" },
+]
+
+disallowed-types = [
+    { path = "miniscript::Descriptor", reason = "a descriptor parse: faraday_bip::policy::WalletPolicy, which takes the token" },
+]

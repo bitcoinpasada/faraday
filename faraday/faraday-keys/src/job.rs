@@ -10,6 +10,7 @@
 //! and an opened file joins the store on the main thread
 //! ([`crate::vault::OpenVaults::adopt`]). Everything wipes as it drops, at
 //! the job's end on the worker or where a stale answer is dropped.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use std::sync::Arc;
 
@@ -326,6 +327,10 @@ impl Stretched {
     /// ([`StretchJob::making_key_file`]), for `why` (`Reveal::OutboxFile`
     /// of `Part::KeyFile`), to be written to a stick (`docs/KEYS.md` §2).
     /// `None` for a make that drew none or failed, an open, or another reason.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the document copied is Zeroizing, wiped on drop"
+    )]
     pub fn key_file_document(&self, why: Reveal) -> Option<Held<Zeroizing<Vec<u8>>>> {
         if !matches!(why, Reveal::OutboxFile(Part::KeyFile)) {
             return None;
@@ -338,6 +343,7 @@ impl Stretched {
     }
 
     /// Why the run failed, if it did. A lookup.
+    #[expect(clippy::disallowed_methods, reason = "an error is public")]
     pub fn error(&self) -> Option<fv::file::Error> {
         match &self.out {
             Out::Opened(Err(e)) | Out::Made(Err(e)) => Some(e.clone()),
@@ -415,6 +421,7 @@ impl SealJob {
     /// read back of the document and of the file made (the same calls as
     /// `faraday_vault::file::seal_with`).
     pub fn run(self, c: &Compute) -> Sealed {
+        #[expect(clippy::disallowed_methods, reason = "an error is public")]
         let out = match &self.ops {
             Ok(ops) => with_changes(c, &self.names, ops, true, self.now, |changes| {
                 let rekey = fv::file::Rekey {
@@ -489,7 +496,7 @@ impl KdbxJob {
             uuid: self.uuids.0,
             group_uuid: self.uuids.1,
             new: true,
-            record: self.record.clone(),
+            record: self.record,
         };
         with_changes(c, &self.names, &[op], true, *now, |changes| {
             fv::file::create_holding(
@@ -696,6 +703,10 @@ impl KeysJob {
         let network = self.network;
         let mut items = Vec::new();
         for w in &self.words {
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "the passphrase copied is Zeroizing, wiped on drop"
+            )]
             let pass = match &w.own {
                 Some(p) => p.clone(),
                 None => self.kept_for(c, w).unwrap_or_default(),
@@ -707,6 +718,10 @@ impl KeysJob {
             let Ok(master) = crate::session::mnemonic_master(c, &m, pass, network) else {
                 continue;
             };
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "a codex32 set's facts are public"
+            )]
             items.push(LoadedKey {
                 entry: crate::session::mnemonic_entry(c, master, &m, pass, text(&w.label)),
                 codex32: w.codex32.clone(),
@@ -717,6 +732,10 @@ impl KeysJob {
             let Ok(master) = crate::session::seed_master(c, &s.seed, network) else {
                 continue;
             };
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "a codex32 set's facts are public"
+            )]
             items.push(LoadedKey {
                 entry: crate::session::seed_entry(c, master, &s.seed, text(&s.label)),
                 codex32: s.codex32.clone(),
@@ -729,6 +748,10 @@ impl KeysJob {
     /// Costs a PBKDF2 for each passphrase kept alone. The `chosen`th of
     /// the passphrases kept alone for the words of `w` (the first when it
     /// names none), found by the fingerprint each record names.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the passphrase copied is Zeroizing, wiped on drop"
+    )]
     fn kept_for(&self, c: &Compute, w: &WordsToLoad) -> Option<Zeroizing<Vec<u8>>> {
         use crate::identity::{Material, fingerprint};
         let found: Vec<&Zeroizing<Vec<u8>>> = self

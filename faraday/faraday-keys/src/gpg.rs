@@ -2,6 +2,7 @@
 //! certificate, detached signatures, revocations and the paperkey text —
 //! and a key restored from its paperkey and certificate ([`Restore`]).
 //! The packets are faraday-pgp's.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_crypto::work::{Compute, Work};
 use faraday_pgp::length::{NewFormat, new_format_whole};
@@ -240,6 +241,7 @@ fn unix_of(text: &str) -> Option<u32> {
 }
 
 /// What is public of `key`.
+#[expect(clippy::disallowed_methods, reason = "a key's user ids are public")]
 pub(crate) fn facts_of(key: &Key) -> GpgFacts {
     GpgFacts {
         fingerprint: key.fingerprint(),
@@ -335,6 +337,10 @@ const RESTORE_CAP: usize = 256;
 
 /// Why a line typed is not taken (`docs/GPG-PAPERKEY.md` §4.4). Public.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub enum LineRefused {
     /// The line does not read: its characters, its number or its CRC.
     Line(LineError),
@@ -344,6 +350,10 @@ pub enum LineRefused {
 
 /// Why a paperkey read from a code is not taken. Public.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "a derived Clone: no secret type derives it"
+)]
 pub enum CodeRefused {
     /// Neither of paperkey's forms: no line numbered 1, and not its raw
     /// form.
@@ -519,6 +529,10 @@ impl Restore {
     /// whole in place of the lines typed so far, or refused with nothing of
     /// it kept and the lines typed left as they were.
     pub fn paperkey_code(&mut self, bytes: &[u8]) -> Result<(), CodeRefused> {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a public certificate, no secret in it"
+        )]
         let mut read = Restore::new(self.certificate.clone());
         if bytes.starts_with(&[0, 4]) {
             let data = paperkey::read_raw(bytes).map_err(|e| match e {
@@ -599,6 +613,11 @@ impl Restore {
             return Err(Refusal::Unreadable);
         }
         let r = faraday_pgp::restore(&self.certificate, &self.data)?;
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a public certificate, no secret in it"
+        )]
+        let certificate = r.certificate.clone();
         Ok(Restored {
             made: Made {
                 key: MadeKey::of(key_record(
@@ -608,7 +627,7 @@ impl Restore {
                     r.revoked,
                 )),
                 facts: facts_of(&r.key),
-                certificate: r.certificate.clone(),
+                certificate,
             },
             revoked: r.revoked,
             set_aside: r.set_aside,

@@ -1,4 +1,5 @@
 //! Reading a vault's records and editing them.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use super::*;
 
@@ -415,6 +416,10 @@ impl OpenVaults {
         edit: impl FnOnce(&mut Record) -> Result<(), NotSet>,
     ) -> Result<(), NotSet> {
         let s = self.slot(id).filter(|s| !s.locked()).ok_or(NotSet::Full)?;
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a record's fields are Zeroizing: the copy is wiped on drop"
+        )]
         let mut r = s.records.get(i).ok_or(NotSet::Full)?.clone();
         edit(&mut r)?;
         let edit = [(i, &r)];
@@ -448,6 +453,10 @@ impl OpenVaults {
             if grown.iter().any(|(j, _)| *j == i) {
                 continue;
             }
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "a record's fields are Zeroizing: the copy is wiped on drop"
+            )]
             let mut r = s.records.get(i).ok_or(NotSet::Full)?.clone();
             if is_secret(r.kind, number) {
                 return Err(NotSet::Full);
@@ -535,6 +544,10 @@ impl OpenVaults {
             .filter(|s| !s.locked())
             .ok_or(NotSet::Unwritable)?;
         let place = at.filter(|&i| i < s.records.len());
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a record's fields are Zeroizing: the copy is wiped on drop"
+        )]
         let mut record = match place {
             Some(i) => s.records[i].clone(),
             None => Record::new(k),
@@ -600,6 +613,10 @@ impl OpenVaults {
     /// readable as a [`RecordView`], and put into a vault with
     /// [`OpenVaults::insert`]. With `without`, the copy lacks those fields.
     pub fn copy_out(&self, id: VaultId, i: usize, without: &[u8]) -> Option<Held<Record>> {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "a record's fields are Zeroizing: the copy is wiped on drop"
+        )]
         let mut r = self.slot(id)?.records.get(i)?.clone();
         r.fields.retain(|f| !without.contains(&f.number));
         Some(Held::of(r))

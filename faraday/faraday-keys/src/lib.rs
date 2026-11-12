@@ -22,6 +22,15 @@
 //!   `faraday/`.
 //!
 //! This crate does not depend on faraday-core.
+//!
+//! Copies and text-making calls are refused (clippy.toml), beside
+//! faraday/clippy.toml's cost-token entries: every source file turns the
+//! refusal on with its own
+//! `#![cfg_attr(not(test), warn(clippy::disallowed_methods))]`, and a copy of
+//! non-secret data carries `#[expect(clippy::disallowed_methods, reason = ...)]`.
+//! Test code (`#[cfg(test)]` and `tests/`) has both off; the costs lint still
+//! refuses `Compute::unchecked` and a mint outside its list there.
+#![allow(clippy::disallowed_methods)]
 
 pub mod bip85;
 pub mod codex32;
