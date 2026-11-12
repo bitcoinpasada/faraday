@@ -10,6 +10,22 @@ code, and a 12-word seed for a 25 × 25 one. The name says it uses Argon2id and
 is a vault in a QR code. It was first called the Argon2id Compact Envelope
 (ACE), an earlier working name.
 
+Krux's KEF (§14) does the same job with PBKDF2-HMAC-SHA-256 on
+microcontrollers, whose few megabytes of memory leave no room for a
+memory-hard function at the sizes recommended for one. PBKDF2 is a sound
+choice there: it is NIST's approved password-based key derivation (SP
+800-132) and makes each guess cost compute. Where a device has the memory,
+standard practice is a memory-hard function, and Argon2id is the first
+choice among them. RFC 9106 makes Argon2id the variant every implementation
+must support and recommends it with 2 GiB, or with 64 MiB where memory is
+constrained; OWASP's Password Storage Cheat Sheet names Argon2id first,
+scrypt where it is not available, and PBKDF2 where FIPS-140 validation is
+required; Argon2 won the Password Hashing Competition in 2015. AQRV brings
+that practice to a code of the same size, from 64 MiB (RFC 9106's second
+recommended setting) to 1 GiB, for computers and phones that have the
+memory. It is meant as a next step for QR vaults on such devices, beside KEF
+and not in its place.
+
 It has three sizes in one format, and the total length says which:
 
 - **32 bytes:** a 25 × 25 code at low error correction, an 11-byte salt, a
