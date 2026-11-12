@@ -39,6 +39,7 @@ use windows_sys::Win32::UI::Shell::{FOLDERID_Downloads, FOLDERID_LocalAppData, F
 use zeroize::Zeroizing;
 
 use super::bitlocker::{self, Answer, Order, Reply, Verb};
+use super::boot_block;
 use super::devices::{self, Output};
 use super::disks::{RawDisk, RawVolume, Snapshot, disk_device, disk_id, disk_number, stick_read};
 use super::elevated::{self, Elevated, ReadVersion};
@@ -49,6 +50,7 @@ use super::sys::{self, Elevation};
 use crate::finder::found_job;
 use crate::image::Image;
 use crate::platform::Platform;
+use crate::signed;
 use crate::stick;
 use crate::writer::{self, Device, Identity, Job};
 
@@ -512,6 +514,10 @@ fn elevate_write(
         Job::Image(i) => Some(i.sum.size),
         Job::Found { .. } => None,
     };
+    // The boot file a person signed is read here, as chosen, before the
+    // elevation prompt; its bytes go over the pipe, never its path.
+    let boot_file = order.boot_file.clone();
+    let signed = boot_file.as_ref().map(signed::read_chosen).transpose()?;
     let pipe_name = pipe_name();
     let fail = |e: std::io::Error| Reason::WriteFailed(e.to_string());
     let pipe = sys::pipe(&pipe_name).map_err(fail)?;
@@ -540,6 +546,20 @@ fn elevate_write(
             "another program answered on the writer's pipe",
         )));
     }
+    // The boot file's bytes, once, before the elevated copy touches a
+    // disk. A pipe that closes under the write is the elevated copy
+    // having refused: what it reports, or that it ended, is read below.
+    // A block that cannot be sent at all ends here: dropping the pipe
+    // ends the elevated copy, which refuses a short block.
+    if let Some(bytes) = &signed
+        && boot_block::send(&mut &pipe, bytes).is_err()
+    {
+        drop(pipe);
+        let path = boot_file
+            .as_ref()
+            .map_or_else(String::new, |f| f.path.clone());
+        return Err(Reason::BootFileRead(path));
+    }
     let mut reader = BufReader::new(pipe);
     let mut result = None;
     while let Some(m) = pipe::next(&mut reader) {
@@ -552,7 +572,10 @@ fn elevate_write(
         }
     }
     while !child.ended(Duration::from_millis(200)) {}
-    result.unwrap_or_else(|| Err(ended(&child)))
+    // The elevated copy has no path to name: the file is named here.
+    result
+        .unwrap_or_else(|| Err(ended(&child)))
+        .map_err(|r| boot_block::named(r, boot_file.as_ref()))
 }
 
 /// The window's side of keep data's version read: a pipe,
@@ -704,43 +727,65 @@ fn elevated_write(args: &[String]) -> ExitCode {
     let Ok(e) = Elevated::parse(args) else {
         return ExitCode::from(2);
     };
-    let Ok(mut pipe) = OpenOptions::new().write(true).open(&e.pipe) else {
+    // Both ways: the boot file's bytes come in on it (`boot_block`).
+    let Ok(mut pipe) = OpenOptions::new().read(true).write(true).open(&e.pipe) else {
         return ExitCode::from(3);
+    };
+    // Before a disk is unmounted or opened: the boot file the order
+    // names, sent by the window and held to the order's SHA-256.
+    let signed = match &e.order.boot_file {
+        Some(f) => boot_block::receive(&mut pipe, &f.sha256)
+            .map(Some)
+            .map_err(boot_block::Refused::reason),
+        None => Ok(None),
     };
     let mut send = |m: Message| {
         let _ = pipe.write_all(m.encode().as_bytes());
     };
-    let result = job(&e).and_then(|job| {
-        let n = disk_number(&e.order.disk).ok_or(Reason::Gone)?;
-        let mut device = PhysicalDrive {
-            n,
-            locks: Vec::new(),
-        };
-        // Keep data's second check: the window could not
-        // read the stick's version without elevation, so this copy reads
-        // it again and refuses the same build.
-        if e.order.mode == Mode::KeepData {
-            let build = match &job {
-                Job::Found { file, .. } => Some(file.build_id.as_str()),
-                Job::Image(i) => i.build_id.as_deref(),
+    let result = signed
+        .and_then(|signed| job(&e).map(|job| (signed, job)))
+        .and_then(|(signed, job)| {
+            let n = disk_number(&e.order.disk).ok_or(Reason::Gone)?;
+            let mut device = PhysicalDrive {
+                n,
+                locks: Vec::new(),
             };
-            let want = match &job {
-                Job::Found { file, .. } => file.boot_sha256.map(|s| s.to_string()),
-                Job::Image(i) => i.boot_only.then(|| i.sum.sha256.to_string()),
-            };
-            let (on_stick, got) = release_of(&mut device, &e.order.device)?;
-            writer::refuse_same_build(on_stick.as_deref(), got.as_deref(), build, want.as_deref())?;
-        }
-        let mut last = None::<Instant>;
-        let mut progress = |stage: WriteStage, done, total| {
-            let now = Instant::now();
-            if done == total || last.is_none_or(|t| now - t >= PROGRESS_EVERY) {
-                last = Some(now);
-                send(Message::Progress { stage, done, total });
+            // Keep data's second check: the window could not
+            // read the stick's version without elevation, so this copy reads
+            // it again and refuses the same build.
+            if e.order.mode == Mode::KeepData {
+                let build = match &job {
+                    Job::Found { file, .. } => Some(file.build_id.as_str()),
+                    Job::Image(i) => i.build_id.as_deref(),
+                };
+                let want = match &job {
+                    Job::Found { file, .. } => file.boot_sha256.map(|s| s.to_string()),
+                    Job::Image(i) => i.boot_only.then(|| i.sum.sha256.to_string()),
+                };
+                let (on_stick, got) = release_of(&mut device, &e.order.device)?;
+                writer::refuse_same_build(
+                    on_stick.as_deref(),
+                    got.as_deref(),
+                    build,
+                    want.as_deref(),
+                )?;
             }
-        };
-        writer::write(&e.order, job.source(), &mut device, &mut progress)
-    });
+            let mut last = None::<Instant>;
+            let mut progress = |stage: WriteStage, done, total| {
+                let now = Instant::now();
+                if done == total || last.is_none_or(|t| now - t >= PROGRESS_EVERY) {
+                    last = Some(now);
+                    send(Message::Progress { stage, done, total });
+                }
+            };
+            writer::write(
+                &e.order,
+                signed.as_deref(),
+                job.source(),
+                &mut device,
+                &mut progress,
+            )
+        });
     let ok = result.is_ok();
     send(Message::Done(result));
     if ok {

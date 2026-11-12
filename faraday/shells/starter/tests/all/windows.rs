@@ -481,17 +481,17 @@ fn a_malformed_order_is_refused_before_anything_is_opened() {
 }
 
 /// A boot file the person signed (`docs/STARTER.md` §4.5) reaches the
-/// elevated writer by its full path and the SHA-256 Confirm read, which
-/// the writer reads and checks again before it writes; any other form
-/// of either refuses the whole list.
+/// elevated writer as the SHA-256 Confirm read, never as a path: its
+/// bytes come over the pipe, and any other form of the sum, or a
+/// `--boot-file` path, refuses the whole list.
 #[test]
-fn the_elevated_writer_takes_a_signed_boot_file_by_its_full_path_and_sum() {
-    let signed = Elevated {
+fn the_elevated_writer_takes_a_signed_boot_files_sum_and_no_path() {
+    let signed = |path: &str| Elevated {
         pipe: PIPE.into(),
         order: WriteOrder {
             clear_first: false,
             boot_file: Some(BootFile {
-                path: r"D:\Signed files\BOOTX64 (signed).EFI".into(),
+                path: path.into(),
                 sha256: SUM.into(),
             }),
             ..order(
@@ -506,8 +506,14 @@ fn the_elevated_writer_takes_a_signed_boot_file_by_its_full_path_and_sum() {
         },
         image_size: None,
     };
-    let good = signed.args();
-    assert_eq!(Elevated::parse(&split(&command_line(&good))), Ok(signed));
+    let good = signed(r"D:\Signed files\BOOTX64 (signed).EFI").args();
+    assert!(!good.iter().any(|a| a == "--boot-file"));
+    assert!(!good.iter().any(|a| a.contains("BOOTX64")));
+    // The path does not travel: the elevated copy is told the sum alone.
+    assert_eq!(
+        Elevated::parse(&split(&command_line(&good))),
+        Ok(signed(""))
+    );
     let with = |key: &str, value: &str| {
         let mut a = good.clone();
         let i = a.iter().position(|k| k == key).expect("key");
@@ -515,29 +521,98 @@ fn the_elevated_writer_takes_a_signed_boot_file_by_its_full_path_and_sum() {
         a
     };
     let refused = [
-        with("--boot-file", r"Downloads\BOOTX64.EFI"),
-        with("--boot-file", "BOOTX64.EFI"),
-        with("--boot-file", r"\\.\pipe\x"),
-        with("--boot-file", r"\\?\C:\Downloads\BOOTX64.EFI"),
-        with("--boot-file", r"\\server\share\BOOTX64.EFI"),
-        with("--boot-file", r"C:\Downloads\BOOTX64.EFI:hidden"),
-        with("--boot-file", r"C:\Downloads\..\BOOTX64.EFI"),
-        with("--boot-file", r"C:\Downloads\CON.efi"),
-        with("--boot-file", r"C:\Downloads\com1"),
-        with("--boot-file", "C:/Downloads/BOOTX64.EFI"),
-        with("--boot-file", r"C:\"),
-        with("--boot-file", "C:\\a\nb.efi"),
         with("--boot-file-sha256", "abc"),
         with("--boot-file-sha256", &SUM.to_uppercase()),
-        good.iter()
-            .take_while(|a| *a != "--boot-file-sha256")
-            .cloned()
-            .collect(),
         [good.clone(), vec!["--boot-file".into(), r"C:\b.efi".into()]].concat(),
+        [
+            good.clone(),
+            vec!["--boot-file".into(), r"C:\Downloads\BOOTX64.EFI".into()],
+        ]
+        .concat(),
     ];
     for args in refused {
         assert!(Elevated::parse(&args).is_err(), "{args:?} was taken");
     }
+}
+
+/// The boot file's bytes arrive over the pipe as one block: a good one
+/// is taken whole; one whose SHA-256 is not the order's, one over 64 MiB
+/// and one cut off are refused, each by name.
+#[test]
+fn the_elevated_writer_takes_the_boot_files_bytes_over_its_pipe_once_checked() {
+    use faraday_starter_shell::windows::boot_block::{MAX_BLOCK, Refused, receive, send};
+    let bytes: Vec<u8> = (0..5000u32).map(|i| (i % 251) as u8).collect();
+    let sum = faraday_starter_shell::signed::sha256(&bytes);
+    let mut sent = Vec::new();
+    send(&mut sent, &bytes).expect("sent");
+    assert_eq!(receive(&mut Cursor::new(&sent), &sum), Ok(bytes.clone()));
+
+    // Another file's SHA-256.
+    let other = faraday_starter_shell::signed::sha256(b"another file");
+    assert_eq!(receive(&mut Cursor::new(&sent), &other), Err(Refused::Sum));
+    let mut changed = sent.clone();
+    *changed.last_mut().expect("bytes") ^= 1;
+    assert_eq!(receive(&mut Cursor::new(&changed), &sum), Err(Refused::Sum));
+
+    // Over the cap: refused from its length, before any byte is read.
+    let mut large = (MAX_BLOCK + 1).to_le_bytes().to_vec();
+    large.extend_from_slice(&bytes);
+    assert_eq!(receive(&mut Cursor::new(&large), &sum), Err(Refused::Large));
+    assert_eq!(
+        receive(&mut Cursor::new(u64::MAX.to_le_bytes()), &sum),
+        Err(Refused::Large)
+    );
+    assert!(send(&mut Vec::new(), &vec![0u8; MAX_BLOCK as usize + 1]).is_err());
+
+    // Cut off: in the length, or in the bytes.
+    assert_eq!(
+        receive(&mut Cursor::new(&sent[..5]), &sum),
+        Err(Refused::Short)
+    );
+    assert_eq!(
+        receive(&mut Cursor::new(&sent[..sent.len() - 1]), &sum),
+        Err(Refused::Short)
+    );
+    assert_eq!(
+        receive(&mut Cursor::new(Vec::new()), &sum),
+        Err(Refused::Short)
+    );
+}
+
+/// The elevated copy refuses a boot file's block without a path; the
+/// window puts the chosen file's path back, so a person is shown the
+/// file. A block that cannot be sent is an error, not a hang.
+#[test]
+fn a_boot_file_refused_by_the_elevated_writer_is_shown_with_its_name() {
+    use faraday_starter_shell::windows::boot_block::{Refused, named, send};
+    let file = BootFile {
+        path: r"D:\keys\BOOTX64.EFI".into(),
+        sha256: SUM.into(),
+    };
+    for (r, shown) in [
+        (Refused::Short, Reason::BootFileRead(file.path.clone())),
+        (Refused::Large, Reason::BootFileLarge(file.path.clone())),
+        (Refused::Sum, Reason::BootFileChanged(file.path.clone())),
+    ] {
+        assert_eq!(named(r.reason(), Some(&file)), shown);
+    }
+    // Other reasons, and reasons that already name a file, are left.
+    assert_eq!(named(Reason::Declined, Some(&file)), Reason::Declined);
+    assert_eq!(
+        named(Reason::BootFileRead(String::from("x")), Some(&file)),
+        Reason::BootFileRead(String::from("x"))
+    );
+
+    struct Closed;
+    impl std::io::Write for Closed {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::ErrorKind::BrokenPipe.into())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    assert!(send(&mut Closed, b"bytes").is_err());
 }
 
 #[test]

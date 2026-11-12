@@ -375,11 +375,13 @@ pub fn user_sid() -> Option<String> {
     Some(s)
 }
 
-/// Makes the named pipe `name` for the elevated writer to report on:
+/// Makes the named pipe `name` for the elevated writer: it reports on
+/// the pipe, and the window sends the signed boot file's bytes on it:
 /// one instance, local clients only, open to the person's own account
 /// and to an elevated administrator (who could write any disk anyway),
-/// and in no-wait mode until a client connects. Duplex, though only the
-/// client writes: switching to wait mode (`pipe_connected`) needs write
+/// and in no-wait mode until a client connects. Duplex, since the
+/// window sends the boot file's bytes and the client writes its
+/// reports; and switching to wait mode (`pipe_connected`) needs write
 /// access on this end, which an inbound pipe's handle lacks (Windows
 /// answers ERROR_ACCESS_DENIED).
 pub fn pipe(name: &str) -> io::Result<File> {

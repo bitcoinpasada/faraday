@@ -8,15 +8,16 @@
 //! --write --pipe \\.\pipe\faraday-starter-… --disk \\.\PhysicalDrive2
 //!   --device "Disk 2" --serial S --size N --mode whole|keep-data
 //!   (--found PATH --img-sha256 HEX | --image PATH --image-size N) --sha256 HEX
-//!   [--boot-file PATH --boot-file-sha256 HEX] [--name NAME]
+//!   [--boot-file-sha256 HEX] [--name NAME]
 //!   [--clear-first yes]
 //! ```
 //!
-//! `--boot-file` names a boot file the person signed (§4.5) by its full
-//! path on a drive (`X:\…`; never `\\server`, `\\?\` or `\\.\`, a
-//! stream, `.` or `..`, or a device name such as `CON`), with the SHA-256 it had when it was chosen and checked: the
-//! elevated writer reads it again, refuses it unless it has that sum, and
-//! checks it against the release again before anything is written.
+//! `--boot-file-sha256` says a boot file the person signed (§4.5) is to
+//! be written, and the SHA-256 it had when it was chosen and checked. No
+//! path is passed: the window sends the file's bytes over the pipe once
+//! the elevated copy has connected (`boot_block`), and the elevated
+//! writer refuses them unless they have that sum, and checks them
+//! against the release again before anything is written.
 //!
 //! Keep data on a stick whose version Windows did not let the window
 //! read starts it with `--read-version` first:
@@ -99,7 +100,6 @@ impl Elevated {
             }
         }
         if let Some(f) = &o.boot_file {
-            a.extend(["--boot-file".into(), f.path.clone()]);
             a.extend(["--boot-file-sha256".into(), f.sha256.clone()]);
         }
         if let Some(n) = &o.name {
@@ -122,7 +122,7 @@ impl Elevated {
         if !rest.len().is_multiple_of(2) {
             return Err(String::from("a key without its value"));
         }
-        const KEYS: [&str; 15] = [
+        const KEYS: [&str; 14] = [
             "--pipe",
             "--disk",
             "--device",
@@ -132,14 +132,13 @@ impl Elevated {
             "--image",
             "--image-size",
             "--sha256",
-            "--boot-file",
             "--boot-file-sha256",
             "--name",
             "--clear-first",
             "--found",
             "--img-sha256",
         ];
-        let mut got: [Option<&str>; 15] = [None; 15];
+        let mut got: [Option<&str>; 14] = [None; 14];
         for pair in rest.chunks(2) {
             let i = KEYS
                 .iter()
@@ -170,35 +169,29 @@ impl Elevated {
         if !hex_sum(sha256) {
             return Err(String::from("--sha256: not a SHA-256"));
         }
-        let boot_file = match (got[9], got[10]) {
-            (None, None) => None,
-            (Some(path), Some(sum)) => {
-                if !drive_path(path) {
-                    return Err(String::from("--boot-file: not a full path on a drive"));
-                }
-                if !hex_sum(sum) {
-                    return Err(String::from("--boot-file-sha256: not a SHA-256"));
-                }
-                Some(BootFile {
-                    path: path.to_string(),
-                    sha256: sum.to_string(),
-                })
-            }
-            _ => return Err(String::from("--boot-file with --boot-file-sha256")),
+        // The file itself arrives over the pipe; the order names it by
+        // its sum alone, and the window words a refusal with its path.
+        let boot_file = match got[9] {
+            None => None,
+            Some(sum) if hex_sum(sum) => Some(BootFile {
+                path: String::new(),
+                sha256: sum.to_string(),
+            }),
+            Some(_) => return Err(String::from("--boot-file-sha256: not a SHA-256")),
         };
-        let name = match got[11] {
+        let name = match got[10] {
             None => None,
             Some(n) if crate::ids::label_of(n).is_some() => Some(n.to_string()),
             Some(n) => return Err(format!("--name {n}: not a data partition's name")),
         };
-        let clear_first = match got[12] {
+        let clear_first = match got[11] {
             None => false,
             Some("yes") if mode == Mode::Whole => true,
             Some(c) => return Err(format!("--clear-first {c}: not asked for here")),
         };
         let (source, image_size) = match (got[6], got[7]) {
-            (None, None) if got[13].is_some() => {
-                let (path, img) = (got[13].unwrap_or_default(), got[14].unwrap_or_default());
+            (None, None) if got[12].is_some() => {
+                let (path, img) = (got[12].unwrap_or_default(), got[13].unwrap_or_default());
                 if !absolute(path) || path.len() > MAX_PATH || path.chars().any(char::is_control) {
                     return Err(String::from("--found: not a full path"));
                 }
@@ -214,7 +207,7 @@ impl Elevated {
                     None,
                 )
             }
-            _ if got[13].is_some() || got[14].is_some() => {
+            _ if got[12].is_some() || got[13].is_some() => {
                 return Err(String::from("--found stands alone, with --img-sha256"));
             }
             (Some(path), Some(len)) => {
@@ -339,36 +332,6 @@ fn check_serial(serial: &str) -> Result<(), String> {
     } else {
         Ok(())
     }
-}
-
-/// A file's full path on a drive, as the elevated copy opens one the
-/// person chose: `X:\` then names, with no other `:` (a stream), no `/`,
-/// no `.` or `..`, no name Windows takes for a device (`CON`, `NUL`,
-/// `COM1`, any extension after it), no control character, and not
-/// longer than [`MAX_PATH`]. A UNC path, `\\?\` and `\\.\` are not on a
-/// drive.
-pub fn drive_path(p: &str) -> bool {
-    let b = p.as_bytes();
-    let on_drive = b.len() > 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && b[2] == b'\\';
-    if !on_drive || p.len() > MAX_PATH || p[2..].contains([':', '/']) {
-        return false;
-    }
-    if p.chars().any(char::is_control) {
-        return false;
-    }
-    p[3..].split('\\').all(|name| {
-        let stem = name
-            .split('.')
-            .next()
-            .unwrap_or("")
-            .trim_end()
-            .to_ascii_uppercase();
-        let numbered = stem.len() == 4
-            && (stem.starts_with("COM") || stem.starts_with("LPT"))
-            && stem.as_bytes()[3].is_ascii_digit();
-        let device = ["CON", "PRN", "AUX", "NUL"].contains(&stem.as_str()) || numbered;
-        !name.is_empty() && name != "." && name != ".." && !device
-    })
 }
 
 /// A SHA-256 as `sha256sum` prints it: 64 lower-case hex digits.

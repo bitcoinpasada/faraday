@@ -12,6 +12,8 @@
 //! - [`registry`]: this computer's facts (§7.1).
 //! - [`elevated`]: the elevated writer's `--write` arguments.
 //! - [`pipe`]: what the elevated writer reports over its pipe.
+//! - [`boot_block`]: the boot file's bytes the window sends it over the
+//!   same pipe.
 //! - [`install`] and [`shortcut`]: install and uninstall as a plan of
 //!   files and registry values.
 //! - [`bitlocker`]: BitLocker's steps (§6, F49): the elevated copy's
@@ -22,6 +24,7 @@
 //! module) and `win` puts them behind [`crate::platform::Platform`].
 
 pub mod bitlocker;
+pub mod boot_block;
 pub mod devices;
 pub mod disks;
 pub mod elevated;

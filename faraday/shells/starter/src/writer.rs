@@ -152,23 +152,38 @@ where
     F: FnOnce() -> Result<Box<dyn Device>, Reason> + Send + 'static,
 {
     std::thread::spawn(move || {
-        let result = open().and_then(|mut device| {
-            let mut last = None::<Instant>;
-            let mut sent = None;
-            let mut progress = |stage, done, total| {
-                let now = Instant::now();
-                // The end is sent once: keep data from a whole image
-                // stays at its boot partition's end while the rest of
-                // the image streams past.
-                let end = done == total && sent != Some((stage, done, total));
-                if end || last.is_none_or(|t| now - t >= PROGRESS_EVERY) {
-                    last = Some(now);
-                    sent = Some((stage, done, total));
-                    let _ = out.send(StarterEvent::WriteProgress { stage, done, total });
-                }
-            };
-            write(&order, job.source(), &mut *device, &mut progress)
-        });
+        // The in-process writers (Linux, macOS) read the boot file the
+        // order names here, as chosen; the elevated writer on Windows is
+        // sent its bytes over its pipe instead.
+        let result = order
+            .boot_file
+            .as_ref()
+            .map(signed::read_chosen)
+            .transpose()
+            .and_then(|bytes| open().map(|device| (bytes, device)))
+            .and_then(|(bytes, mut device)| {
+                let mut last = None::<Instant>;
+                let mut sent = None;
+                let mut progress = |stage, done, total| {
+                    let now = Instant::now();
+                    // The end is sent once: keep data from a whole image
+                    // stays at its boot partition's end while the rest of
+                    // the image streams past.
+                    let end = done == total && sent != Some((stage, done, total));
+                    if end || last.is_none_or(|t| now - t >= PROGRESS_EVERY) {
+                        last = Some(now);
+                        sent = Some((stage, done, total));
+                        let _ = out.send(StarterEvent::WriteProgress { stage, done, total });
+                    }
+                };
+                write(
+                    &order,
+                    bytes.as_deref(),
+                    job.source(),
+                    &mut *device,
+                    &mut progress,
+                )
+            });
         let _ = out.send(StarterEvent::Written(result));
     });
 }
@@ -404,10 +419,12 @@ pub fn in_use_reason(why: &InUse) -> Reason {
 }
 
 /// Writes `source` to `device` as `order` says, reads it back and
-/// compares, reporting progress as it goes. The error is the reason a
+/// compares, reporting progress as it goes. `signed` holds the bytes of
+/// the boot file the order names, as the window sent them. The error is the reason a
 /// person is shown (as `faraday_starter::reason_text` words it).
 pub fn write(
     order: &WriteOrder,
+    signed: Option<&[u8]>,
     source: Source<'_>,
     device: &mut dyn Device,
     progress: &mut dyn FnMut(WriteStage, u64, u64),
@@ -434,7 +451,7 @@ pub fn write(
     }
     source.check()?;
     source.check_boot_sum(order)?;
-    let (mut patches, captured) = changes(order, &source)?;
+    let (mut patches, captured) = changes(order, signed, &source)?;
     let block = device.block();
     if !block.is_power_of_two() || !(512..=ALIGN as u64).contains(&block) {
         return Err(Reason::Device {
@@ -544,10 +561,15 @@ pub fn write(
 /// ([`place`]); the boot partition keeps the release's serial. A name is
 /// written only with a whole stick or card: keep data does not touch the
 /// data partition.
-fn changes(order: &WriteOrder, source: &Source<'_>) -> Result<(Vec<Patch>, Capture), Reason> {
+fn changes(
+    order: &WriteOrder,
+    signed: Option<&[u8]>,
+    source: &Source<'_>,
+) -> Result<(Vec<Patch>, Capture), Reason> {
     let mut patches = Vec::new();
     if let Some(f) = &order.boot_file {
-        patches.push(signed::prepare(f, source)?);
+        let bytes = signed.ok_or_else(|| Reason::BootFileRead(f.path.clone()))?;
+        patches.push(signed::prepare(f, bytes, source)?);
     }
     let shape = if source.boot_only() {
         Shape::Boot

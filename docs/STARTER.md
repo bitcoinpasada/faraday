@@ -1330,17 +1330,22 @@ partition (F128).
   "compare it with your db key's": the SHA-256 is what tells whose key
   signed it.
 - **The writer.** The order names the file by its full path and the
-  SHA-256 it had when taken. The writer (on Windows the elevated copy,
-  `--boot-file PATH --boot-file-sha256 HEX`, 64 lower-case hex digits
-  and a full path on a drive, `X:\` then names, or the whole list is
-  refused: never `\\server\share`, `\\?\` or `\\.\`, a `:` stream, `/`,
-  `.` or `..`, or a name Windows takes for a device; the window refuses
-  such a file when it is tapped) reads the file again, opening the file
-  itself and never what a reparse point leads to, refusing anything but
-  a plain file, and saying which file could not be read but none of the
-  system's words, refuses it when its SHA-256 differs ("changed after it was
-  chosen"), and checks it against the release again, all before the
-  disk is unmounted or opened. It then writes the release's image, whole
+  SHA-256 it had when taken. The window reads the file again, opening
+  the file itself and never what a reparse point leads to, refusing
+  anything but a plain file, saying which file could not be read but
+  none of the system's words, and refusing it when its SHA-256 differs
+  ("changed after it was chosen"); this happens before the elevation
+  prompt. The writer never opens a path for it: on Windows the elevated
+  copy is given `--boot-file-sha256 HEX` (64 lower-case hex digits) and
+  no path, and the window sends the file's bytes over the pipe the copy
+  reports on, once, as soon as the copy has connected and before it
+  unmounts or opens the disk. The block is eight bytes of length,
+  little-endian, then the bytes; the elevated copy refuses a length over
+  64 MiB before reading a byte, a pipe that ends before the length or
+  the bytes it promised, and bytes whose SHA-256 is not the order's, and
+  the window words each with the file's name. The elevated copy then
+  checks the bytes against the release again, all before the disk is
+  unmounted or opened. It then writes the release's image, whole
   or its boot partition alone as §4.1 says, with that one file written
   over where it is (`faraday_fat::Volume::rewrite_in`): its clusters, the
   clusters it grows by, its entry in `EFI/BOOT` and the FATs differ from

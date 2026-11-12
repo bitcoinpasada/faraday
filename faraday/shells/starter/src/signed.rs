@@ -16,13 +16,14 @@
 //! by name. Which key signed it is not judged here: a computer's db
 //! decides that when it starts the stick.
 //!
-//! The window checks it when it is chosen ([`choose`]); the writer, the
-//! elevated copy on Windows, reads it again, refuses it unless it still
-//! has the SHA-256 that was chosen, and builds and checks it again
-//! ([`prepare`]) before anything is written. The elevated copy opens only
-//! a path on a drive (`X:\…`, `windows::elevated`), refuses a reparse
-//! point or anything but a file, and says no system's words back. The
-//! boot partition written is the release's with that one file written
+//! The window checks it when it is chosen ([`choose`]) and reads it again
+//! ([`read_chosen`]) before the writer starts; the writer, the elevated
+//! copy on Windows, is sent its bytes over its pipe and never opens a
+//! path for it (`windows::boot_block`): it refuses them unless they have
+//! the SHA-256 that was chosen, and builds and checks them again
+//! ([`prepare`]) before anything is written. The window opens the file
+//! itself and never what a reparse point leads to, refuses anything but
+//! a file, and says no system's words. The boot partition written is the release's with that one file written
 //! over where it is (`faraday_fat::Volume::rewrite_in`): its clusters,
 //! the clusters it grows by, its folder entry and the FATs differ,
 //! nothing else.
@@ -80,7 +81,7 @@ fn reparse(_: &std::fs::Metadata) -> bool {
 /// Costs a read of the file at `path`: its bytes, refused past
 /// [`MAX_BOOT_FILE`], and when it is not a plain file. A failure says
 /// which file, and none of the system's words.
-fn read(path: &Path) -> Result<Vec<u8>, Reason> {
+pub fn read(path: &Path) -> Result<Vec<u8>, Reason> {
     let shown = path.display().to_string();
     let unread = || Reason::BootFileRead(shown.clone());
     let f = open(path).map_err(|_| unread())?;
@@ -99,7 +100,7 @@ fn read(path: &Path) -> Result<Vec<u8>, Reason> {
 }
 
 /// Costs a SHA-256 of `bytes`, hex.
-fn sha256(bytes: &[u8]) -> String {
+pub fn sha256(bytes: &[u8]) -> String {
     faraday_payload::hash_image(Cursor::new(bytes), ImageKind::Plain)
         .map(|s| s.sha256.to_string())
         .unwrap_or_default()
@@ -180,10 +181,6 @@ pub fn list(folder: &Path) -> Vec<String> {
 /// chose, as the order names it, and who signed it, for Confirm. The
 /// window's check; the writer makes it again ([`prepare`]).
 pub fn choose(path: &Path, job: &Job) -> Result<(BootFile, BootSigner), Reason> {
-    // The elevated writer opens only a path on a drive: say so now.
-    if cfg!(windows) && !crate::windows::elevated::drive_path(&path.display().to_string()) {
-        return Err(Reason::BootFileRead(path.display().to_string()));
-    }
     let signed = read(path)?;
     let (_, partition) = writer::boot_partition(&job.source())?;
     let (_, signer) = build(&release_file(&partition)?, &signed)?;
@@ -194,19 +191,29 @@ pub fn choose(path: &Path, job: &Job) -> Result<(BootFile, BootSigner), Reason> 
     Ok((file, signer))
 }
 
-/// Costs a read of the boot file, a decompression of the whole source,
-/// its SHA-256 and [`build`]: the writer's own check of the boot file an
-/// order names, made before the disk is touched, and the boot partition
-/// it writes in place of the release's, with the release's own to put
-/// back (`crate::ids`, `docs/STICK-IDENTITY.md` §4.3). Refused when the file is not
-/// the bytes chosen, then as [`build`] refuses it.
-pub fn prepare(file: &BootFile, source: &Source<'_>) -> Result<Patch, Reason> {
+/// Costs a read of the file the order names, as [`choose`] read it, and
+/// its SHA-256: the bytes the window sends the writer, refused with the
+/// file's name when they are not what was chosen.
+pub fn read_chosen(file: &BootFile) -> Result<Vec<u8>, Reason> {
     let signed = read(Path::new(&file.path))?;
     if sha256(&signed) != file.sha256 {
         return Err(Reason::BootFileChanged(file.path.clone()));
     }
+    Ok(signed)
+}
+
+/// Costs a SHA-256 of `signed`, a decompression of the whole source,
+/// its SHA-256 and [`build`]: the writer's own check of the boot file's
+/// bytes the order names (`file.sha256`), made before the disk is touched, and the boot partition
+/// it writes in place of the release's, with the release's own to put
+/// back (`crate::ids`, `docs/STICK-IDENTITY.md` §4.3). Refused when the file is not
+/// the bytes chosen, then as [`build`] refuses it.
+pub fn prepare(file: &BootFile, signed: &[u8], source: &Source<'_>) -> Result<Patch, Reason> {
+    if sha256(signed) != file.sha256 {
+        return Err(Reason::BootFileChanged(file.path.clone()));
+    }
     let (at, partition) = writer::boot_partition(source)?;
-    let (built, _) = build(&release_file(&partition)?, &signed)?;
+    let (built, _) = build(&release_file(&partition)?, signed)?;
     let was = partition.clone();
     let mut v = faraday_fat::Volume::open(partition)
         .map_err(|e| Reason::ReleaseBootFile(ReleaseFault::Fat(e)))?;

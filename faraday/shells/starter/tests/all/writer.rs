@@ -236,12 +236,24 @@ pub(crate) fn run(
     disk: &mut FileDisk,
 ) -> (Result<(), Reason>, Vec<WriteStage>) {
     let mut stages = Vec::new();
-    let r = writer::write(order, job.source(), disk, &mut |stage, done, total| {
-        assert!(done <= total);
-        if stages.last() != Some(&stage) {
-            stages.push(stage);
-        }
-    });
+    // The window reads the boot file the order names and the writer is
+    // handed its bytes.
+    let signed = order
+        .boot_file
+        .as_ref()
+        .map(|f| std::fs::read(&f.path).expect("the boot file"));
+    let r = writer::write(
+        order,
+        signed.as_deref(),
+        job.source(),
+        disk,
+        &mut |stage, done, total| {
+            assert!(done <= total);
+            if stages.last() != Some(&stage) {
+                stages.push(stage);
+            }
+        },
+    );
     (r, stages)
 }
 
@@ -840,6 +852,7 @@ fn keep_data_from_a_whole_image_counts_only_its_boot_partition_as_written() {
     let mut seen = Vec::new();
     let r = writer::write(
         &order,
+        None,
         Job::Image(image).source(),
         &mut disk,
         &mut |stage, done, total| {
@@ -1352,7 +1365,7 @@ fn a_disk_the_computer_uses_but_not_through_a_desktop_mount_is_refused_with_noth
             },
             block,
         };
-        let r = writer::write(&order, job.source(), &mut target, &mut |_, _, _| {});
+        let r = writer::write(&order, None, job.source(), &mut target, &mut |_, _, _| {});
         assert_eq!(r, Err(Reason::InUse(why)), "{name}");
         assert_eq!(target.bus.calls, Vec::<String>::new(), "{name}");
     }

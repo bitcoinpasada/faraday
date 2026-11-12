@@ -517,6 +517,58 @@ fn a_boot_file_changed_after_it_was_chosen_is_not_written() {
 }
 
 #[test]
+fn a_boot_file_changed_on_disk_after_it_was_chosen_is_refused_when_the_window_reads_it() {
+    let release_efi = release_program();
+    let (job, _) = release(&release_efi);
+    let (signed, _) = signed_by_test_key(&release_efi);
+    let path = file("window-read.efi", &signed);
+    let (chosen, _) = signed::choose(&path, &job).expect("taken");
+    assert_eq!(signed::read_chosen(&chosen).as_deref(), Ok(&signed[..]));
+    let (other, _) = signed_by_test_key(&program(3, 30_000));
+    std::fs::write(&path, &other).expect("written");
+    // The window's own check, before any disk is opened.
+    assert_eq!(
+        signed::read_chosen(&chosen),
+        Err(Reason::BootFileChanged(path.display().to_string()))
+    );
+}
+
+#[test]
+fn a_boot_file_that_is_gone_after_it_was_chosen_is_refused_with_its_name() {
+    let release_efi = release_program();
+    let (job, _) = release(&release_efi);
+    let (signed, _) = signed_by_test_key(&release_efi);
+    let path = file("gone.efi", &signed);
+    let (chosen, _) = signed::choose(&path, &job).expect("taken");
+    std::fs::remove_file(&path).expect("removed");
+    assert_eq!(
+        signed::read_chosen(&chosen),
+        Err(Reason::BootFileRead(path.display().to_string()))
+    );
+}
+
+#[test]
+fn a_write_handed_no_boot_file_for_a_chosen_one_is_refused_with_its_name_and_writes_nothing() {
+    let release_efi = release_program();
+    let (job, source) = release(&release_efi);
+    let (signed, _) = signed_by_test_key(&release_efi);
+    let path = file("unsent.efi", &signed);
+    let (chosen, _) = signed::choose(&path, &job).expect("taken");
+    let (stick, before) = old_stick("unsent");
+    let mut disk = FileDisk::new(&stick);
+    let order = keep_data(&disk, source, Some(chosen));
+    let r = faraday_starter_shell::writer::write(
+        &order,
+        None,
+        job.source(),
+        &mut disk,
+        &mut |_, _, _| {},
+    );
+    assert_eq!(r, Err(Reason::BootFileRead(path.display().to_string())));
+    unchanged(&before, &stick);
+}
+
+#[test]
 fn without_a_signed_boot_file_keep_data_writes_the_releases_boot_partition() {
     let release_efi = release_program();
     let (job, source) = release(&release_efi);
