@@ -10,6 +10,7 @@
 mod appearance;
 mod controls;
 pub mod demo;
+pub mod flow;
 pub mod hold;
 pub mod how;
 pub mod keyboard;

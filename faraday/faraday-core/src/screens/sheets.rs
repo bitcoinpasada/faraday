@@ -2131,7 +2131,7 @@ fn guide_one(
 }
 
 /// A paragraph's runs from (x, y), `w` wide, the bold runs in the medium
-/// face, broken at spaces. Only the lines in view are drawn, and a
+/// face (`faraday_ui::flow::word_flow`). Only the lines in view are drawn, and a
 /// paragraph laid out before at this width is not broken again. Returns
 /// the height used.
 fn guide_text(
@@ -2154,43 +2154,12 @@ fn guide_text(
     {
         return h;
     }
-    let line = ui.line_as(role);
-    let (mut px, mut py) = (0.0_f32, 0.0_f32);
-    // A line's runs count as one line of text drawn.
-    let mut mark = ui.c.lines_drawn();
-    for span in para {
-        let role = if span.bold { role.medium() } else { role };
-        let space = ui.measure_as(role, " ");
-        // The words of this span on one line are drawn as one run.
-        let (mut from, mut to, mut run_x) = (0, 0, px);
-        for word in span.text.split_inclusive(' ') {
-            let text = word.trim_end_matches(' ');
-            let tw = ui.measure_as(role, text);
-            if px > 0.0 && px + tw > w {
-                if to > from && ui.shows(y + py, line) {
-                    let run = span.text[from..to].trim_end();
-                    ui.text_mid_as((x + run_x, y + py, line), role, Role::OnSurface, run);
-                }
-                from = to;
-                ui.c.join_lines_since(mark);
-                mark = ui.c.lines_drawn();
-                px = 0.0;
-                run_x = 0.0;
-                py += line;
-            }
-            to += word.len();
-            px += tw;
-            if word.ends_with(' ') {
-                px += space;
-            }
-        }
-        if to > from && ui.shows(y + py, line) {
-            let run = span.text[from..to].trim_end();
-            ui.text_mid_as((x + run_x, y + py, line), role, Role::OnSurface, run);
-        }
-    }
-    ui.c.join_lines_since(mark);
-    let h = py + line;
+    let h = faraday_ui::flow::word_flow(
+        ui,
+        (x, y, w),
+        role,
+        para.iter().map(|s| (s.text.as_str(), s.bold)),
+    );
     state.wrap_keep(at, basis, h, None);
     h
 }

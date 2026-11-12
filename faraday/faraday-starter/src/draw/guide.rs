@@ -40,52 +40,13 @@ pub(super) fn page(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
 /// face, flowing as words from the line's left. Returns its height with
 /// the gap under it.
 fn paragraph(ui: &mut Ui, (x, y, w): (f32, f32, f32), para: &[Span]) -> f32 {
-    // Words, each as the pieces of it in one face: a bold name with a
-    // full stop after it stays one word.
-    let mut words: Vec<Vec<(String, bool)>> = Vec::new();
-    let mut open = false;
-    for span in para {
-        let mut piece = String::new();
-        for ch in span.text.chars() {
-            if ch.is_whitespace() {
-                if !piece.is_empty()
-                    && let Some(word) = words.last_mut()
-                {
-                    word.push((std::mem::take(&mut piece), span.bold));
-                }
-                open = false;
-            } else {
-                if !open {
-                    words.push(Vec::new());
-                    open = true;
-                }
-                piece.push(ch);
-            }
-        }
-        if !piece.is_empty()
-            && let Some(word) = words.last_mut()
-        {
-            word.push((piece, span.bold));
-        }
-    }
-    let role = |bold: bool| if bold { LABEL_L } else { BODY_M };
-    let line = ui.line_as(BODY_M);
-    let space = ui.measure_as(BODY_M, "a a") - ui.measure_as(BODY_M, "aa");
-    let (mut cx, mut cy) = (0.0_f32, 0.0_f32);
-    for word in &words {
-        let ww: f32 = word.iter().map(|(t, b)| ui.measure_as(role(*b), t)).sum();
-        if cx > 0.0 && cx + space + ww > w {
-            cx = 0.0;
-            cy += line;
-        }
-        if cx > 0.0 {
-            cx += space;
-        }
-        for (t, b) in word {
-            cx += ui.text_as(x + cx, y + cy, role(*b), Role::OnSurface, t);
-        }
-    }
-    cy + line + GAP / 2.0
+    let h = faraday_ui::flow::word_flow(
+        ui,
+        (x, y, w),
+        BODY_M,
+        para.iter().map(|s| (s.text.as_str(), s.bold)),
+    );
+    h + GAP / 2.0
 }
 
 /// The Guide sheet: in the Starter's look (`faraday_ui::sheet::scroll_sheet`),
