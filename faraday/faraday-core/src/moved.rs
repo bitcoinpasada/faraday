@@ -546,4 +546,70 @@ mod tests {
         assert!(bad.is_empty(), "{}", bad.join("\n"));
         assert!(scrolled > 50, "Home scrolled in {scrolled} steps");
     }
+
+    /// Every rectangle a fade's step says changed covers every row that
+    /// differs from the frame before, over Home scrolled and the screens
+    /// of the walk faded between, on the Pi's panel: a shell that copies
+    /// only those rectangles shows the frame, with no row left over from
+    /// another.
+    #[test]
+    fn a_fades_changed_rows_cover_every_row_that_differs_from_the_frame_before() {
+        use crate::{Action, Screen};
+        let (mut app, _) = heavy_on(PI);
+        app.settle();
+        let w = 480 * 4;
+        let mut now = 5_000u64;
+        let mut before: Vec<u8> = Vec::new();
+        let (mut bounded, mut frames, mut missed): (u32, u32, Vec<String>) = (0, 0, Vec::new());
+        let mut take = |app: &mut Faraday, what: &str, before: &mut Vec<u8>| {
+            while app.poll_command().is_some() {}
+            let rgba = app.frame().rgba.to_vec();
+            let changed = app.take_changed();
+            frames += 1;
+            if let (Some(rects), true) = (changed, before.len() == rgba.len()) {
+                bounded += 1;
+                for r in (0..rgba.len() / w).filter(|&r| rgba[r * w..][..w] != before[r * w..][..w])
+                {
+                    let covered = rects
+                        .iter()
+                        .any(|c| c.w > 0 && c.h > 0 && (c.y..c.y + c.h).contains(&(r as i32)));
+                    if !covered && missed.len() < 12 {
+                        missed.push(format!(
+                            "{what}: row {r} differs and no rectangle covers it"
+                        ));
+                    }
+                }
+            }
+            *before = rgba;
+        };
+        let screens = [
+            Screen::Home,
+            Screen::Wallets,
+            Screen::Files,
+            Screen::Settings,
+            Screen::Home,
+        ];
+        for (i, screen) in screens.into_iter().cycle().take(15).enumerate() {
+            app.press(Action::Nav(screen));
+            take(&mut app, &format!("nav {i}"), &mut before);
+            for t in 0..40 {
+                now += 16;
+                app.event(Event::Tick { now_ms: now });
+                take(&mut app, &format!("nav {i} tick {t}"), &mut before);
+                if t % 7 == 3 {
+                    app.event(Event::Scroll {
+                        x: 240,
+                        y: 320,
+                        dy: 17,
+                    });
+                    take(&mut app, &format!("nav {i} scroll {t}"), &mut before);
+                }
+            }
+        }
+        assert!(missed.is_empty(), "{}", missed.join("\n"));
+        assert!(
+            bounded > 20,
+            "{bounded} of {frames} frames came with the rectangles that changed"
+        );
+    }
 }

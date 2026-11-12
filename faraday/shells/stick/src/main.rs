@@ -850,6 +850,9 @@ struct Shell {
     drawn: u64,
     /// The last frame drawn was a fade's step, two kept frames blended.
     last_blend: bool,
+    /// When the last frame was put out, while the dev card has not read
+    /// the framebuffer back since (`--timings`).
+    readback_after: Option<Instant>,
     /// The last frame drawn painted a moved strip as it was called.
     last_moved: bool,
     /// `--frames N`, or `None` to run until the core exits.
@@ -1252,6 +1255,34 @@ impl Shell {
             }
             Some(Err(e)) => self.say(&format!("framebuffer write failed: {e}")),
             None => {}
+        }
+    }
+
+    /// On a dev card, a quarter second after the last frame was put
+    /// out: waits for the write, reads the framebuffer back and notes
+    /// the rows that differ from the frame in the timings, with the
+    /// screen the frame was of. A row that stays wrong after a scroll
+    /// shows here and a panel that only shows it wrongly does not.
+    fn read_back(&mut self, screen: &str) {
+        let Some(at) = self.readback_after else {
+            return;
+        };
+        if self.timings.is_none() || at.elapsed() < Duration::from_millis(250) {
+            return;
+        }
+        self.readback_after = None;
+        self.settle();
+        match lock(&self.panel).readback() {
+            Ok(Some(rows)) => {
+                if let Some(t) = self.timings.as_mut() {
+                    t.readback(screen, &rows);
+                }
+            }
+            Ok(None) => {}
+            Err(e) => {
+                self.readback_after = None;
+                self.say(&format!("framebuffer readback failed: {e}"));
+            }
         }
     }
 
@@ -2078,7 +2109,10 @@ fn run(args: Args) -> Result<Exit, String> {
             orient::Setup::detected(fb_size, edid_size, &read(SYS_VENDOR), &read(PRODUCT_NAME))
         }
     };
+    // A dev card (`--timings`) also reads the framebuffer back, to find
+    // a row that differs from the frame put out (`Panel::readback`).
     let fb = OpenOptions::new()
+        .read(args.timings)
         .write(true)
         .create(args.off_device)
         .truncate(false)
@@ -2259,6 +2293,7 @@ fn run(args: Args) -> Result<Exit, String> {
         epoch: Instant::now(),
         drawn: 0,
         last_blend: false,
+        readback_after: None,
         last_moved: false,
         limit: args.frames,
         done: false,
@@ -2762,6 +2797,10 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
         }
         let drawn = shell.drawn;
         shell.flush();
+        if shell.drawn != drawn && shell.timings.is_some() {
+            shell.readback_after = Some(Instant::now());
+        }
+        shell.read_back(&last_screen);
         // Drawing, or a finger down, keeps the loop on the grid: the
         // next deadline is a step after this one, or a step from now
         // when this pass ran past it.

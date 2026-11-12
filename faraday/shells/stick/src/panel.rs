@@ -35,11 +35,21 @@ pub fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 pub trait Sink {
     /// Writes all of `buf` at byte `offset`.
     fn write_at(&mut self, buf: &[u8], offset: u64) -> std::io::Result<()>;
+
+    /// Reads `buf.len()` bytes from byte `offset`, for the dev card's
+    /// readback ([`Panel::readback`]); a sink that cannot says so.
+    fn read_at(&mut self, _buf: &mut [u8], _offset: u64) -> std::io::Result<()> {
+        Err(std::io::ErrorKind::Unsupported.into())
+    }
 }
 
 impl Sink for File {
     fn write_at(&mut self, buf: &[u8], offset: u64) -> std::io::Result<()> {
         self.write_all_at(buf, offset)
+    }
+
+    fn read_at(&mut self, buf: &mut [u8], offset: u64) -> std::io::Result<()> {
+        self.read_exact_at(buf, offset)
     }
 }
 
@@ -78,6 +88,15 @@ impl Sink for Vec<u8> {
             self.resize(at + buf.len(), 0);
         }
         self[at..at + buf.len()].copy_from_slice(buf);
+        Ok(())
+    }
+
+    fn read_at(&mut self, buf: &mut [u8], offset: u64) -> std::io::Result<()> {
+        let at = usize::try_from(offset).map_err(std::io::Error::other)?;
+        let from = self
+            .get(at..at + buf.len())
+            .ok_or(std::io::ErrorKind::UnexpectedEof)?;
+        buf.copy_from_slice(from);
         Ok(())
     }
 }
@@ -333,6 +352,34 @@ impl<S: Sink> Panel<S> {
         self.stale = false;
     }
 
+    /// Costs a read of the whole panel back from the framebuffer, for the
+    /// dev card (`--timings`): the bands of rows whose bytes differ from
+    /// the kept copy, which is what the frame put out. The rows the arrow
+    /// or the text is drawn over are left out. `None` where nothing is
+    /// known to be on the panel (before the first frame, after a blanking
+    /// or a failed write).
+    pub fn readback(&mut self) -> std::io::Result<Option<Vec<(usize, usize)>>> {
+        let g = self.geometry;
+        let row = g.row_bytes();
+        if self.stale || self.shown.len() != row * usize::from(g.height) {
+            return Ok(None);
+        }
+        let over = self.overlay_bands(0, usize::from(g.height) - 1);
+        let mut got = vec![0u8; row];
+        let mut bands = Vec::new();
+        for y in 0..usize::from(g.height) {
+            if over.iter().any(|&(a, b)| (a..=b).contains(&y)) {
+                continue;
+            }
+            self.fb
+                .read_at(&mut got, self.origin + (y * g.stride) as u64)?;
+            if got[..] != self.shown[y * row..(y + 1) * row] {
+                bands.push((y, y));
+            }
+        }
+        Ok(Some(fb::merge_bands(bands)))
+    }
+
     /// The arrow is at `at`, or gone: the rows it leaves and the rows it
     /// lands on are written again from the kept frame, now. Before a
     /// whole frame is on the panel only the place is noted; that frame
@@ -523,6 +570,33 @@ mod tests {
 
     fn frame(fill: u8) -> Vec<u8> {
         vec![fill; 64 * 160]
+    }
+
+    #[test]
+    fn a_row_the_framebuffer_holds_wrong_is_found_by_the_readback() {
+        let (mut panel, path) = panel("readback");
+        assert_eq!(
+            panel.readback().expect("read"),
+            None,
+            "nothing is on it yet"
+        );
+        let f = frame(0x33);
+        for first in (0..160).step_by(CHUNK_ROWS) {
+            panel
+                .write_rows(&f, first, (first + CHUNK_ROWS - 1).min(159))
+                .expect("written");
+        }
+        panel.complete();
+        assert_eq!(panel.readback().expect("read"), Some(vec![]));
+        // A row of the framebuffer changed behind the shell's back.
+        panel.fb.write_at(&[0x44; 64], 64 * 91).expect("written");
+        panel.fb.write_at(&[0x44; 64], 64 * 92).expect("written");
+        panel.fb.write_at(&[0x44; 64], 64 * 130).expect("written");
+        assert_eq!(
+            panel.readback().expect("read"),
+            Some(vec![(91, 92), (130, 130)])
+        );
+        let _ = std::fs::remove_file(path);
     }
 
     fn whole(panel: &mut Panel, frame: &[u8]) {

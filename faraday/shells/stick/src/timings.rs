@@ -257,6 +257,10 @@ pub struct Timings {
     /// The screen's refresh as the writer thread measures it, when it
     /// waits for one: its lines go in each block.
     beat: Option<std::sync::Arc<crate::refresh::Beat>>,
+    /// The framebuffer readbacks since the last block: how many were
+    /// made, how many found rows that differ from the frame put out, and
+    /// the first few of those, as lines for the block.
+    readbacks: (u64, u64, Vec<String>),
 }
 
 /// What kind of frame a pass drew.
@@ -318,6 +322,7 @@ impl Timings {
             step_changes: 0,
             paced: crate::pace::Events::default(),
             beat: None,
+            readbacks: (0, 0, Vec::new()),
         }
     }
 
@@ -579,6 +584,34 @@ impl Timings {
         }
     }
 
+    /// Records one readback of the framebuffer, after the screen `screen`
+    /// last drew: `rows` are the bands of rows that differ from the
+    /// frame put out ([`crate::panel::Panel::readback`]).
+    pub fn readback(&mut self, screen: &str, rows: &[(usize, usize)]) {
+        self.readbacks.0 += 1;
+        if rows.is_empty() {
+            return;
+        }
+        self.readbacks.1 += 1;
+        if self.readbacks.2.len() < 8 {
+            let list: Vec<String> = rows
+                .iter()
+                .take(6)
+                .map(|&(a, b)| {
+                    if a == b {
+                        a.to_string()
+                    } else {
+                        format!("{a}-{b}")
+                    }
+                })
+                .collect();
+            self.readbacks.2.push(format!(
+                "ghost    rows {} differ in the framebuffer from the frame put out, after {screen}\n",
+                list.join(" ")
+            ));
+        }
+    }
+
     /// Records one touch delivered to the core.
     pub fn touch(&mut self) {
         self.touches += 1;
@@ -712,6 +745,13 @@ impl Timings {
         if let Some(beat) = &self.beat {
             out.push_str(&beat.report());
         }
+        out.push_str(&format!(
+            "readback {} with rows differing {}\n",
+            self.readbacks.0, self.readbacks.1
+        ));
+        for line in &self.readbacks.2 {
+            out.push_str(line);
+        }
         let (n, sum, top) = self.clock;
         out.push_str(&format!(
             "clock    samples {n} mean_mhz {} max_mhz {} raised {}\n",
@@ -766,6 +806,7 @@ impl Timings {
         self.steps = [0; STEPS];
         self.step_changes = 0;
         self.paced = crate::pace::Events::default();
+        self.readbacks = (0, 0, Vec::new());
         self.clock = (0, 0, 0);
         self.raised = 0;
         self.fade_steps.clear();
