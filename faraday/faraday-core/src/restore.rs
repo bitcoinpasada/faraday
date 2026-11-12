@@ -213,7 +213,7 @@ pub fn merge<T: AsRef<str>>(texts: &[T]) -> Result<Merged, String> {
         let mut out = zeroize::Zeroizing::new(String::with_capacity(size));
         out.push_str("# Multisig config rebuilt by Faraday from its shares\n");
         if let Some(n) = &a.name {
-            let _ = writeln!(out, "Name: {n}");
+            let _ = writeln!(out, "Name: {n}"); // not shown: a line of the rebuilt config file
         }
         let _ = write!(out, "Policy: {} of {}\nFormat: {}\n", a.m, a.n, a.format);
         for (fp, d, x) in &a.keys {
