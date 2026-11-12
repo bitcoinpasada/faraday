@@ -36,8 +36,9 @@
 //! worked out from them (the discrepancies and the locator of
 //! Berlekamp–Massey, the roots, the changes) are only multiplied (GF(32)'s
 //! masked product), selected with masks and scanned in full, with no
-//! branch, table index or early exit on them; every box is tried and
-//! the verdict is taken once at the end. What still varies is public or
+//! branch, table index or early exit on them; once the locator is
+//! within the bound, every box is tried and the verdict is taken once at
+//! the end. What still varies is public or
 //! the verdict: the string's length, the code chosen for it, which boxes
 //! the caller marked unreadable (and so the count and the run), whether
 //! a correction is found or refused, the Gaussian solve of a long run

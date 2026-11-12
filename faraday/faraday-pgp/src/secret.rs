@@ -181,10 +181,11 @@ pub fn read_secret_at(armored: &[u8]) -> Option<(Key, u32)> {
     let (subkey, subkey_created) = subkey?;
     let cert = Certificate::read(armor(Armor::PublicKey, &public).as_bytes()).ok()?;
     let at = cert.certified_at()?;
-    // The seeds are copied into the key from references, so no by-value
-    // copy of either is left on the stack; the key itself is moved by
-    // value into the `then_some` below and again in `read_secret`, and
-    // each move may leave a copy in that function's frame, not wiped.
+    // The seeds are copied into the key from references; each seed was
+    // returned by value from `seed_of` and moved since, and the key itself
+    // is moved by value into the `then_some` below and on to the caller
+    // (faraday-keys's `record_of`), so each move may leave a copy, not
+    // wiped, in one of these frames.
     let mut key = Key {
         primary_seed: [0; 32],
         created,

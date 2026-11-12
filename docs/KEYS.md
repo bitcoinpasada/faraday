@@ -588,15 +588,17 @@ What was open after step 3:
 states wipe on drop (`sha2`'s `zeroize` feature is on), but each call
 leaves things on the stack, unwiped: the key padded to one hash block, the
 inner hash (the first of the two hashes an HMAC takes), and in the two
-PBKDF2 calls the running sum `U` that `pbkdf2` 0.13 keeps in a plain local
-and each round's HMAC output, which `finalize_fixed()` returns by value.
+PBKDF2 calls the latest round's output `U_i`, which `pbkdf2` 0.13 keeps in
+a plain local, and each round's HMAC output, which `finalize_fixed()`
+returns by value. The running sum is added straight into the caller's
+output buffer.
 The key or password they come from is the caller's and is wiped there.
 `pbkdf2_hmac_sha256_block` (the key stretch of KEF, Krux's encrypted code,
 `docs/KEF.md`) is written by hand: its own copies (the padded key block,
 the inner hash, the states and the sum) are wiped. `sha2`'s software
 compression, which runs on a processor without SHA instructions, keeps
-each block's sixteen message words in its own frame, unwiped, under every
-one of these calls.
+each block's sixteen message words and its eight working variables in
+its own frame, unwiped, under every one of these calls.
 
 ## 5. What does not change
 
