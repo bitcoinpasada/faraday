@@ -363,6 +363,7 @@ impl Faraday {
         // rest is what the frame before showed.
         let form = form.or_else(|| before.and_then(|b| b.form).filter(|_| only_moved));
         let frame = Seen {
+            // not shown: the tours' check names the screen in its failure
             screen: format!("{:?}", (self.screen, self.sheet)),
             form,
         };
@@ -371,6 +372,7 @@ impl Faraday {
             Some(((key, _), _)) if !self.fade.marks.frost_reused => {
                 let page = take_page().unwrap_or_else(|| frame.form.clone());
                 self.fade.marks.frost = Some(Seen {
+                    // not shown: the tours' check names the screen in its failure
                     screen: format!("{key:?}"),
                     form: page,
                 });
@@ -408,9 +410,11 @@ impl Faraday {
             add("frost", &self.fade.marks.frost);
         }
         if self.fade.from.is_some() {
+            // not shown: the tours' check names the kept image in its failure
             add("fade from", &self.fade.marks.from);
         }
         if !self.fade.after.is_empty() {
+            // not shown: the tours' check names the kept image in its failure
             add("fade after", &self.fade.marks.after);
         }
         out
