@@ -168,14 +168,14 @@ impl GuidePage {
 
 /// Header lines the website and the lint read; the app skips them (but for Key).
 const HEADS: [&str; 8] = [
-    "Kind",
-    "Status",
-    "Screen",
-    "Starter page",
-    "Starter sheet",
-    "Group",
-    "Opened from",
-    "Key",
+    "Kind", // not wording: a table head the parser reads
+    "Status", // not wording: a table head the parser reads
+    "Screen", // not wording: a table head the parser reads
+    "Starter page", // not wording: a table head the parser reads
+    "Starter sheet", // not wording: a table head the parser reads
+    "Group", // not wording: a table head the parser reads
+    "Opened from", // not wording: a table head the parser reads
+    "Key", // not wording: a table head the parser reads
 ];
 
 /// The runs of `text`, bold where it is between `**`.
@@ -238,6 +238,7 @@ pub fn parse(place: &str, text: &str) -> GuidePage {
         }
         let first = para[0];
         if let Some((name, value)) = head(first) {
+            // not wording: the table head the parser reads
             if let ("Key", Some((_, key))) = (name, open) {
                 *key = Some(value.to_string());
             }

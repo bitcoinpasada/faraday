@@ -134,13 +134,13 @@ fn the_sheet_is_put_away_by_the_back_arrow_and_by_the_button_again() {
 }
 
 #[test]
-fn the_learn_destination_lists_what_is_written_after_replacing_faraday() {
+fn the_guide_destination_lists_what_is_written_after_replacing_faraday() {
     let s = starter(1280, 800);
-    let pages = s.learn_pages();
-    let keep = LearnId::KeepData.page().expect("the page about replacing");
-    let checking = LearnId::CheckingWritten
-        .page()
-        .expect("the page about what is checked");
-    let at = |p: &faraday_learn::Page| pages.iter().position(|q| std::ptr::eq(*q, p));
-    assert_eq!(at(checking), at(keep).map(|n| n + 1));
+    let pages = s.start_guides();
+    let at = |id: LearnId| pages.iter().position(|p| *p == id);
+    assert!(at(LearnId::KeepData).is_some());
+    assert_eq!(
+        at(LearnId::CheckingWritten),
+        at(LearnId::KeepData).map(|n| n + 1)
+    );
 }

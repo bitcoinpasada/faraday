@@ -8,7 +8,7 @@ use faraday_starter::api::{
     Bus, Computer, Disk, FaradayStick, InstallItem, Installed, Os, StarterEvent,
 };
 use faraday_starter::decide::{Item, Target};
-use faraday_starter::{Page, Starter, StarterAction};
+use faraday_starter::{LearnId, Page, Starter, StarterAction};
 
 const GB: u64 = 1_000_000_000;
 
@@ -120,7 +120,8 @@ fn each_destination_opens_its_page() {
     tap(&mut s, StarterAction::Home);
     assert_eq!(s.page, Page::Home);
     tap(&mut s, StarterAction::Learn);
-    assert!(s.showing_held());
+    assert_eq!(s.page, Page::Guide);
+    assert!(s.drawn_texts().iter().any(|t| t == "Faraday Starter"));
 }
 
 #[test]
@@ -210,25 +211,17 @@ fn larger_text_still_offers_every_destination() {
 }
 
 #[test]
-fn learn_keeps_the_rail_or_the_bar_and_a_destination_leaves_it() {
+fn the_guide_keeps_the_rail_or_the_bar_and_a_start_guide_goes_back_to_it() {
     for (w, h) in [(400, 700), (700, 900), (1300, 800)] {
         let mut s = starter(w, h);
         tap(&mut s, StarterAction::Learn);
-        assert!(s.showing_held(), "{w}");
+        assert_eq!(s.page, Page::Guide, "{w}");
         let t = s.drawn_texts();
-        // The top app bar names it; the guides are under it.
-        assert!(t.iter().any(|x| x == "Learn"), "{w}: {t:?}");
-        // On a narrow window the title wraps onto a second line.
-        let whole = t
-            .iter()
-            .any(|x| x == "Starting a Windows computer from the stick");
-        let wrapped = t
-            .iter()
-            .any(|x| x == "Starting a Windows computer from the")
-            && t.iter().any(|x| x == "stick");
-        assert!(whole || wrapped, "{w}: {t:?}");
+        // The top app bar names it; the guide's pages are under it.
+        assert!(t.iter().any(|x| x == "Guide"), "{w}: {t:?}");
+        assert!(t.iter().any(|x| x == "Starter: Home"), "{w}: {t:?}");
         for d in DESTINATIONS {
-            let (x, y) = at(&mut s, d).expect("a destination beside Learn");
+            let (x, y) = at(&mut s, d).expect("a destination beside the Guide");
             if w < 600 {
                 assert!(y > h - 80, "{w}: {d:?} at {y}");
             } else {
@@ -236,8 +229,12 @@ fn learn_keeps_the_rail_or_the_bar_and_a_destination_leaves_it() {
             }
         }
         assert!(!s.offers_action(StarterAction::Back), "{w}");
-        tap(&mut s, StarterAction::MakePage);
+        s.press(StarterAction::LearnPage(LearnId::StartWindows));
+        assert!(s.showing_held(), "{w}");
+        tap(&mut s, StarterAction::Back);
         assert!(!s.showing_held(), "{w}");
+        assert_eq!(s.page, Page::Guide, "{w}");
+        tap(&mut s, StarterAction::MakePage);
         assert_eq!(s.page, Page::Make, "{w}");
     }
 }

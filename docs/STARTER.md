@@ -573,7 +573,7 @@ under it:
 | **Home** | `Icon::House`, as Faraday's own rail | §3.1 |
 | **Make** | `Glyph::Stick` | two cards: **Faraday stick** (the attached stick's version, or "No Faraday stick attached"; **Make a Faraday stick**, §3.2) and **Pi card** (the Pi image's version, or "Not in this Starter"; **Make a Pi card**, §3.3, disabled without the image) |
 | **Tools** | `Icon::Qr` | two cards: **Transfer** (Send files and text, Receive, §3.6) and **Blank templates** (§3.8) |
-| **Learn** | `Icon::Learn` | the Starter's Learn pages (§3.6, §7) |
+| **Guide** | `Icon::Learn` (the `help` symbol once faraday-ui has it) | the Starter's guide pages, then the start guides under their heading (§3.6, §7) |
 
 On each destination its first card's button is the primary; on Make,
 **Make a Faraday stick** is primary until a stick is attached, then
@@ -697,17 +697,25 @@ the scroll it was opened at (F77). Back from Mode keeps the chosen disk;
 Back from Confirm clears the confirmation. The mouse's forward button opens
 again the page Back left, except Confirm. Tests are `tests/all/navigation.rs`.
 
-**Transfer and Learn** are the held desktop app's frame drawn in the
+**Transfer and the start guides** are the held desktop app's frame drawn in the
 space under the Starter's top app bar (`Starter::compose`, which copies
 the held app's pixels in with `Canvas::place`): the held `Faraday` is
 told the size of that space, and a press, a finger's drag, a hover or a
 turn of the wheel over it reaches it at its own corner. Held, it draws no way back of its
 own and its Learn sheet is the page, with no box and no Done
-(`Faraday::held`); Back and Escape still take its way back. The Learn
-destination keeps the rail or the bar, lit on Learn, and a press on
-another destination leaves it for that page as it was left; Transfer,
-and a Learn page opened from a page's link, are task pages with the way
-back in the top app bar and neither the rail nor the bar.
+(`Faraday::held`); Back and Escape still take its way back. Transfer,
+and a start guide opened from a page's link or from the Guide, are task
+pages with the way back in the top app bar and neither the rail nor the
+bar. The **Guide** destination is the Starter's own page, with the rail
+or the bar lit on it: the Starter's guide pages (`docs/guide/starter-*.md`,
+in the guide's order), each a row that opens a sheet at its lead, then
+the start guides under their heading. The task pages (Which, Disks, What
+to write, Confirm, Writing, Done, Start) carry **Guide** in the top app
+bar, left of Cryptography: a sheet in the Starter's look
+(`faraday_ui::sheet::scroll_sheet`) with the page's title in Title L,
+its sections' headings in Title S and **Done** at its foot, scrolled
+when opened so the page's own section is at its top. Keep data's link
+opens its section, **Replace Faraday, keep data**.
 
 **Faraday Demo** (F126, §5.3) is drawn the same way, as a task page:
 its host (`docs/DESKTOP-HOST.md`), with its strip and its app, fills
@@ -999,7 +1007,9 @@ files and Faraday Demo's sticks stay."). §5 says what each does.
 
 ### 3.6 Transfer and Learn
 
-The desktop app's screens (§2). On Windows, Transfer offers Send,
+Transfer is the desktop app's screen, and the start guides are its Learn
+pages (§2); the Guide destination that lists them is the Starter's own
+(§3.1d). On Windows, Transfer offers Send,
 Send text and Receive; Receive reads the camera through Media Foundation (§8).
 
 ### 3.7 About
@@ -1782,7 +1792,7 @@ guide for this computer, not its text. Pages:
   a firmware password set by an employer.
 - *What else runs on this computer*: Intel's Management Engine and AMT,
   and AMD's PSP, which run below Faraday's kernel; listed in the
-  Starter's Learn row, linked from no screen.
+  Starter's Guide, linked from no screen.
 
 ### 7.3 Buttons that remove steps
 

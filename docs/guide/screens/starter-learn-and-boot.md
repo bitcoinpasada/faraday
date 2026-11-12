@@ -2,8 +2,8 @@
 
 **Kind:** Reference
 **Status:** Checked against the app's pictures in docs/guide/pictures/ (drawn by just guide-pictures) and its code and strings (`faraday/faraday-starter/src/draw.rs`, `faraday/faraday-starter/src/notes.rs`, `faraday/faraday-starter/src/decide.rs`, `faraday/faraday-starter/src/lib.rs`)
-**Starter page:** `Start`
-**Starter sheet:** `Restart`
+**Starter page:** `Start`, `Guide`
+**Starter sheet:** `Restart`, `Guide`
 **Group:** Starter
 
 The page that walks this computer through starting from the stick, the

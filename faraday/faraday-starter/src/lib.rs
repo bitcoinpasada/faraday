@@ -23,9 +23,11 @@ pub mod decide;
 mod demo;
 mod draw;
 mod found;
+mod guide;
 mod how;
 mod learn_id;
 mod name;
+pub use guide::{PLACES as GUIDE_PLACES, guide_key};
 pub use learn_id::LearnId;
 pub mod macs;
 pub mod notes;
@@ -158,6 +160,8 @@ pub enum Page {
     Installed,
     /// About (§3.7).
     About,
+    /// Guide: the Starter's guide pages, then the start guides (§3.1d).
+    Guide,
     /// Appearance: Theme, Mode and Contrast (`docs/THEMES.md` §14).
     Appearance,
     /// Blank templates (§3.8): the choices as value rows, Print, Save the PDF.
@@ -186,6 +190,7 @@ impl Page {
             Page::Home => Some(Destination::Home),
             Page::Make => Some(Destination::Make),
             Page::Tools => Some(Destination::Tools),
+            Page::Guide => Some(Destination::Guide),
             _ => None,
         }
     }
@@ -200,8 +205,8 @@ pub enum Destination {
     Make,
     /// Tools.
     Tools,
-    /// Learn: the desktop app's Learn sheet with the Starter's pages.
-    Learn,
+    /// Guide: the Starter's guide pages and the start guides.
+    Guide,
 }
 
 /// The window's size class (§3.1d, Material 3's window size classes),
@@ -248,6 +253,9 @@ pub enum Sheet {
     LetThrough,
     /// How Faraday does it: the page's blocks (CRYPTO-LEARN §8.4).
     How,
+    /// The Guide: a page of the guide, scrolled to the section of the
+    /// step on show (`docs/GUIDE-IN-APP.md` §6).
+    Guide,
 }
 
 /// Where a restart goes.
@@ -347,7 +355,7 @@ pub enum StarterAction {
     OpenDesktop,
     /// Transfer, the desktop app's own.
     Transfer,
-    /// Learn, the desktop app's sheet with the Starter's pages.
+    /// Guide: the destination listing the guide's pages.
     Learn,
     /// A guide's Learn page.
     LearnPage(LearnId),
@@ -400,6 +408,13 @@ pub enum StarterAction {
     PrintNotes,
     /// The top app bar's How Faraday does it: its sheet (CRYPTO-LEARN §8.4).
     How,
+    /// The top app bar's Guide: its sheet, at the page's section.
+    Guide,
+    /// A row of the Guide destination: the Starter's guide page at this
+    /// place in [`GUIDE_PLACES`], opened at its lead.
+    GuidePage(u8),
+    /// Keep data's link: the guide's section about replacing Faraday.
+    KeepDataGuide,
     /// Include the BitLocker recovery key on the sheet, ticked or not
     /// (F49).
     IncludeKey,
@@ -516,6 +531,9 @@ impl StarterAction {
             StarterAction::ClearFirst => (70, 0),
             StarterAction::Image(n) => (71, u32::from(n)),
             StarterAction::TemplateSize(n) => (72, n as u32),
+            StarterAction::Guide => (73, 0),
+            StarterAction::GuidePage(n) => (74, u32::from(n)),
+            StarterAction::KeepDataGuide => (75, 0),
         };
         (kind << 16) | arg
     }
@@ -613,6 +631,9 @@ impl StarterAction {
             70 => StarterAction::ClearFirst,
             71 => StarterAction::Image(arg as u16),
             72 => StarterAction::TemplateSize(arg as usize),
+            73 => StarterAction::Guide,
+            74 => StarterAction::GuidePage(u8::try_from(arg).ok()?),
+            75 => StarterAction::KeepDataGuide,
             _ => return None,
         })
     }
@@ -707,7 +728,7 @@ pub struct Starter {
     forward: Option<Page>,
     /// How far each destination was scrolled when it was left through
     /// the rail or the bar: Home, Make, Tools (F77).
-    seen_at: [f32; 3],
+    seen_at: [f32; 4],
     /// How many filled buttons the last frame drew (§3.1d: one primary
     /// action a screen).
     primaries: usize,
@@ -833,10 +854,12 @@ pub struct Starter {
     demo: Option<Box<demo::Held>>,
     /// The held app is on screen.
     showing: bool,
-    /// The held app shows Learn as a destination, opened from the rail or
-    /// the bar, which stays beside it; otherwise Transfer or a Learn page
-    /// opened from a page, a task page with the way back (§3.1d).
-    learn_dest: bool,
+    /// The Guide sheet's section, a key of the guide
+    /// (`docs/GUIDE-IN-APP.md` §1.1).
+    guide_at: &'static str,
+    /// Where the Guide sheet's drawing found that section, units down
+    /// the sheet's body: what opening it scrolls to.
+    guide_top: std::cell::Cell<f32>,
     /// The press under way began on the held app's frame, so its moves
     /// and its release are the held app's too.
     held_touch: bool,
@@ -884,7 +907,7 @@ impl Starter {
             menu: false,
             origin: None,
             forward: None,
-            seen_at: [0.0; 3],
+            seen_at: [0.0; 4],
             primaries: 0,
             hits: Vec::new(),
             fields: Vec::new(),
@@ -941,7 +964,8 @@ impl Starter {
             seen: Vec::new(),
             held: Box::new(held),
             demo: None,
-            learn_dest: false,
+            guide_at: "starter-home",
+            guide_top: std::cell::Cell::new(0.0),
             held_touch: false,
             window: None,
             held_size: None,
@@ -1627,9 +1651,10 @@ impl Starter {
 
     fn seen_index(d: Destination) -> usize {
         match d {
-            Destination::Home | Destination::Learn => 0,
+            Destination::Home => 0,
             Destination::Make => 1,
             Destination::Tools => 2,
+            Destination::Guide => 3,
         }
     }
 
@@ -1654,9 +1679,8 @@ impl Starter {
     }
 
     /// Opens the held desktop app on Transfer, or on the Learn sheet with
-    /// `pages`: as the Learn destination when `dest`, beside the rail or
-    /// above the bar, else as a task page with the way back (§3.1d).
-    fn show_held(&mut self, pages: Option<Vec<&'static faraday_learn::Page>>, dest: bool) {
+    /// `pages`, as a task page with the way back (§3.1d).
+    fn show_held(&mut self, pages: Option<Vec<&'static faraday_learn::Page>>) {
         match pages {
             Some(pages) => {
                 self.held.screen = Screen::Home;
@@ -1665,7 +1689,6 @@ impl Starter {
             None => self.held.press(Action::Nav(Screen::Transfer)),
         }
         self.showing = self.held_on_show();
-        self.learn_dest = dest && self.showing;
         self.held_touch = false;
         self.pressed = None;
         self.fit_held();
@@ -1681,46 +1704,33 @@ impl Starter {
             self.held.press(Action::Nav(Screen::Home));
         }
         self.showing = false;
-        self.learn_dest = false;
         self.held_touch = false;
         self.pressed = None;
         self.fit_held();
     }
 
-    /// The destination on screen (§3.1d): Learn while the held app shows
-    /// it as one, none on any task page. A lookup.
+    /// The destination on screen (§3.1d): none on any task page. A lookup.
     pub(crate) fn on_destination(&self) -> Option<Destination> {
         if self.demo.is_some() {
             return None;
         }
         if self.showing {
-            return self.learn_dest.then_some(Destination::Learn);
+            return None;
         }
         self.page.destination()
     }
 
     /// Where the held app's frame lies in the window, in pixels: its left
-    /// and top edges, its width and height. It is under the top app bar,
-    /// beside the rail or above the bar while it shows Learn as a
-    /// destination (§3.1d). A lookup.
+    /// and top edges, its width and height. It is under the top app bar
+    /// (§3.1d). A lookup.
     fn held_area(&self) -> Option<(i32, i32, u16, u16)> {
-        use faraday_draw::tokens::{APP_BAR_H, NAV_BAR_H, RAIL_W};
+        use faraday_draw::tokens::APP_BAR_H;
         let d = self.window?;
         let px = |dp: f32| (dp * self.f).round() as i32;
-        let x = if self.learn_dest && !self.compact() {
-            px(RAIL_W)
-        } else {
-            0
-        };
-        let foot = if self.learn_dest && self.compact() {
-            px(NAV_BAR_H)
-        } else {
-            0
-        };
         let y = px(APP_BAR_H);
-        let w = i32::from(d.width) - x;
-        let h = i32::from(d.height) - y - foot;
-        (w > 0 && h > 0).then_some((x, y, w as u16, h as u16))
+        let w = i32::from(d.width);
+        let h = i32::from(d.height) - y;
+        (w > 0 && h > 0).then_some((0, y, w as u16, h as u16))
     }
 
     /// Tells the held app its size when it changed ([`Starter::held_size`]).
@@ -1768,16 +1778,21 @@ impl Starter {
         self.held.screen == Screen::Transfer || self.held.sheet.is_some()
     }
 
-    /// The Learn pages the Starter's Learn row opens.
-    pub fn learn_pages(&self) -> Vec<&'static faraday_learn::Page> {
-        let mut pages: Vec<&'static faraday_learn::Page> =
-            LearnId::ALL.iter().filter_map(|id| id.page()).collect();
+    /// The start guides the Guide destination lists under their heading:
+    /// this computer's maker page first where there is one, then every
+    /// guide that is written. A lookup.
+    pub fn start_guides(&self) -> Vec<LearnId> {
+        let mut ids: Vec<LearnId> = LearnId::ALL
+            .iter()
+            .copied()
+            .filter(|id| id.page().is_some())
+            .collect();
         if let id @ LearnId::Maker(_) = LearnId::for_computer(&self.computer)
-            && let Some(page) = id.page()
+            && id.page().is_some()
         {
-            pages.insert(0, page);
+            ids.insert(0, id);
         }
-        pages
+        ids
     }
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -1801,10 +1816,12 @@ impl Starter {
                     | StarterAction::UninstallNow
                     | StarterAction::LetThrough
                     | StarterAction::How
+                    | StarterAction::Guide
             )
             && !(action == StarterAction::LearnPage(LearnId::BootEntry)
                 && self.sheet == Some(Sheet::Restart(RestartTo::Stick)))
-            && !(action == StarterAction::Back && self.sheet == Some(Sheet::How))
+            && !(action == StarterAction::Back
+                && matches!(self.sheet, Some(Sheet::How | Sheet::Guide)))
         {
             return;
         }
@@ -2016,16 +2033,20 @@ impl Starter {
                 }
             }
             StarterAction::OpenDesktop => self.open_demo_asked(),
-            StarterAction::Transfer => self.show_held(None, false),
-            StarterAction::Learn => {
-                let pages = self.learn_pages();
-                self.show_held(Some(pages), true);
-            }
+            StarterAction::Transfer => self.show_held(None),
+            StarterAction::Learn => self.open(Page::Guide),
             StarterAction::LearnPage(id) => {
                 if let Some(page) = id.page() {
-                    self.show_held(Some(vec![page]), false);
+                    self.show_held(Some(vec![page]));
                 }
             }
+            StarterAction::Guide => self.guide_press(),
+            StarterAction::GuidePage(n) => {
+                if let Some(place) = GUIDE_PLACES.get(usize::from(n)) {
+                    self.guide_open(place);
+                }
+            }
+            StarterAction::KeepDataGuide => self.guide_open(guide::KEEP_DATA),
             StarterAction::About => self.go(Page::About),
             StarterAction::How => self.how_press(),
             StarterAction::Templates => {
@@ -2286,8 +2307,6 @@ impl Starter {
                 false
             }
             StarterAction::Menu | StarterAction::CloseMenu | StarterAction::RemoveEntry => true,
-            // Learn pressed on Learn: it is shown already.
-            StarterAction::Learn if self.learn_dest => false,
             _ => {
                 let under = self.page;
                 self.leave_held();
@@ -2411,7 +2430,6 @@ impl Starter {
     fn held_after(&mut self) {
         if self.showing && !self.held_on_show() {
             self.showing = false;
-            self.learn_dest = false;
             self.held_touch = false;
             self.fit_held();
             self.pressed = None;

@@ -202,7 +202,7 @@ strings! {
     /// Under it.
     starter_mac_utility_full: "macOS Recovery, Startup Security Utility: Full Security, and Disallow booting from external or removable media",
     /// Guide title.
-    starter_learn_mac_intel: "Starting an Intel Mac from the stick",
+    starter_start_mac_intel: "Starting an Intel Mac from the stick",
     /// Make a Faraday stick's first choice, once the images found include both stick images (docs/MAC.md §6).
     starter_which_title: "For which computer?",
     /// Row.
@@ -237,7 +237,7 @@ strings! {
     /// (`docs/THEMES.md` §14).
     starter_row_appearance: "Appearance",
     /// Home row.
-    starter_row_learn: "Learn",
+    starter_row_learn: "Guide",
     /// Rail and bar destination, and the title of its page.
     starter_nav_make: "Make",
     /// Rail and bar destination, and the title of its page.
@@ -492,16 +492,21 @@ strings! {
     starter_done: "Done",
     /// Button.
     starter_try_again: "Try again",
+    /// The Guide destination's heading over the Starter's own guide pages.
+    starter_guide_head_starter: "Faraday Starter",
+    /// The Guide destination's heading over the guides for starting a
+    /// computer from the stick.
+    starter_guide_head_start: "Starting a computer from the stick",
     /// A guide whose Learn page is not there: `{}` its title.
     starter_guide_placeholder: "Learn: {}",
     /// Guide title.
-    starter_learn_start_windows: "Starting a Windows computer from the stick",
+    starter_start_windows: "Starting a Windows computer from the stick",
     /// Guide title.
-    starter_learn_start_linux: "Starting a Linux computer from the stick",
+    starter_start_linux: "Starting a Linux computer from the stick",
     /// Guide title.
-    starter_learn_no_start: "When the stick does not start",
+    starter_start_no_start: "When the stick does not start",
     /// Guide title.
-    starter_learn_keep_data: "Replacing Faraday on a stick",
+    starter_start_keep_data: "Replacing Faraday on a stick",
     /// Linux with a TPM-unlocked disk (docs/STARTER.md §6.4).
     starter_tpm_line: "A disk here is unlocked by the TPM: have its passphrase ready",
     /// Step and button.
@@ -956,13 +961,13 @@ strings! {
     /// Continue anyway's hold (F136).
     starter_let_through_hold: "Hold to continue",
     /// The link to the Learn page of that name (STARTER §3.1b).
-    starter_learn_secure_boot_bitlocker: "What Secure Boot and BitLocker are",
+    starter_start_secure_boot_bitlocker: "What Secure Boot and BitLocker are",
     /// The link to the Learn page on screens that record (STARTER §3.1a).
-    starter_learn_screens: "Screens and devices that can record",
+    starter_start_screens: "Screens and devices that can record",
     /// The Learn page on the management processors under the OS.
-    starter_learn_what_else_runs: "What else runs on this computer",
+    starter_start_what_else_runs: "What else runs on this computer",
     /// The link on Restart from the stick's sheet (STARTER §3.1c).
-    starter_learn_boot_entry: "About the boot entry",
+    starter_start_boot_entry: "About the boot entry",
     /// Home's row removing the firmware's Faraday stick entry (STARTER §3.1c).
     starter_remove_entry: "Remove the Faraday boot entry",
     /// That row's second line.
@@ -8233,7 +8238,7 @@ strings! {
     /// The foot of the Starter's sheet of blocks.
     starter_how_close: "Close",
     /// Guide title in the Starter's Learn list.
-    starter_learn_checking_written: "Checking what is written",
+    starter_start_checking_written: "Checking what is written",
     /// A block's field (`docs/CRYPTO-LEARN.md` §1).
     how_field_action: "Action",
     /// A block's field: the specifications the action follows (F179).

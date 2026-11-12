@@ -44,7 +44,7 @@ fn destinations(starter: &Starter) -> [fnav::Dest<'static, Action>; 4] {
             Icon::Learn.into(),
             S.starter_row_learn,
             StarterAction::Learn,
-            Destination::Learn,
+            Destination::Guide,
         ),
     ]
 }
@@ -115,6 +115,11 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
     if how {
         ends -= TOUCH;
     }
+    // **Guide** at the bar's end on a task page, left of Cryptography.
+    let guide = starter.guide_offered();
+    if guide {
+        ends -= TOUCH;
+    }
     let name = page_name(starter);
     let back = back_name(starter);
     let back = back
@@ -163,13 +168,23 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
         }
     }
     if how {
-        fnav::icon_action(
+        right = fnav::icon_action(
             ui,
             right,
             Icon::Method,
             StarterAction::How.host(),
             false,
             S.tip_how,
+        );
+    }
+    if guide {
+        fnav::icon_action(
+            ui,
+            right,
+            Icon::Learn,
+            StarterAction::Guide.host(),
+            starter.sheet == Some(Sheet::Guide),
+            S.starter_row_learn,
         );
     }
     ui.ox = 0.0;

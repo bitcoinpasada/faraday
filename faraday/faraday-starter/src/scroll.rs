@@ -36,6 +36,9 @@ pub(crate) struct Scroller {
     /// scrolls, as last drawn.
     sheet_offset: f32,
     sheet_max: f32,
+    /// The Guide sheet was just opened and has yet to be scrolled to its
+    /// section, which its first frame found.
+    pub(crate) guide_pending: bool,
     /// The sheet the last frame drew: a new one opens at its top.
     shown_sheet: Option<Sheet>,
     /// Where the region that scrolls now stood in the last frame, in
@@ -344,6 +347,14 @@ impl Starter {
             ui.frost = self.sheet.and(self.frost.take());
             ui.edit = self.name_edit();
             self.max = self.frame_scrolled(&mut ui);
+            if std::mem::take(&mut self.scroller.guide_pending) && self.sheet == Some(Sheet::Guide)
+            {
+                let s = &mut self.scroller;
+                s.sheet_offset = self.guide_top.get().clamp(0.0, s.sheet_max);
+                if !again {
+                    continue;
+                }
+            }
             self.fields = std::mem::take(&mut ui.fields);
             self.frost = ui.frost.take();
             self.primaries = ui.primaries;

@@ -910,15 +910,20 @@ fn transfer_is_the_desktop_apps_and_back_returns_to_home() {
     assert_eq!(starter.page, Page::Home);
     assert!(shows(&mut starter, "Checklist"));
 
-    // Learn: the sheet with the guides, closed back to Home.
+    // Guide: the destination with the start guides, one opened as a
+    // page of the held app and closed back to the Guide.
     starter.press(StarterAction::Learn);
-    assert!(starter.showing_held());
+    assert!(!starter.showing_held());
+    assert_eq!(starter.page, Page::Guide);
     assert!(shows(
         &mut starter,
         "Starting a Windows computer from the stick"
     ));
+    starter.press(StarterAction::LearnPage(LearnId::StartWindows));
+    assert!(starter.showing_held());
     starter.event(Event::Key(faraday_shell_api::Key::Escape));
     assert!(!starter.showing_held());
+    assert_eq!(starter.page, Page::Guide);
 }
 
 #[test]

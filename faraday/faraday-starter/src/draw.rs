@@ -36,6 +36,7 @@ const S: &Strings = &EN;
 mod appearance;
 mod boot_file;
 mod clear_first;
+mod guide;
 mod home;
 mod how;
 mod images;
@@ -111,6 +112,7 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         Page::Install => install(starter, ui, x, y0, cw),
         Page::Installed => installed(starter, ui, x, y0, cw),
         Page::About => about(starter, ui, x, y0, cw),
+        Page::Guide => guide::page(starter, ui, x, y0, cw),
         Page::Appearance => appearance::page(starter, ui, x, y0, cw),
         Page::Templates => templates(starter, ui, x, y0, cw),
         Page::TemplateWords => template_words(starter, ui, x, y0, cw),
@@ -142,25 +144,11 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
 }
 /// The Starter's own frame round the held desktop app (§3.1d): the top
 /// app bar over it, with the way back on Transfer, a Learn page opened
-/// from a page and Faraday Demo (F126), and on the Learn destination the
-/// rail or the bar at the foot. The held app's frame, or the Demo's, is
+/// from a page and Faraday Demo (F126). The held app's frame, or the Demo's, is
 /// copied in under it ([`Starter::compose`], [`Starter::compose_demo`]).
 fn held_chrome(starter: &Starter, ui: &mut Ui) {
     let (w, h) = (starter.w, starter.h);
-    let compact = starter.compact();
-    let rail_w = if starter.learn_dest && !compact {
-        RAIL_W
-    } else {
-        0.0
-    };
-    nav::top_bar(starter, ui, rail_w, w - rail_w);
-    if starter.learn_dest {
-        if compact {
-            nav::bottom_bar(starter, ui, h, w);
-        } else {
-            nav::rail(starter, ui, h);
-        }
-    }
+    nav::top_bar(starter, ui, 0.0, w);
     if starter.menu {
         nav::menu(starter, ui, w, h);
     }
@@ -179,6 +167,7 @@ fn sheet_over(starter: &Starter, ui: &mut Ui, w: f32, h: f32, sheet: Sheet) {
         Sheet::Uninstall => uninstall_sheet(starter, ui, w, h),
         Sheet::LetThrough => let_through_sheet(starter, ui, w, h),
         Sheet::How => how::sheet(starter, ui, w, h),
+        Sheet::Guide => guide::sheet(starter, ui, w, h),
     }
     ui.in_sheet = false;
 }
@@ -229,6 +218,7 @@ fn page_name_of(starter: &Starter, page: Page) -> String {
         Page::Install => S.starter_row_install.to_string(),
         Page::Installed => S.starter_row_installed.to_string(),
         Page::About => S.starter_row_about.to_string(),
+        Page::Guide => S.starter_row_learn.to_string(),
         Page::Appearance => S.starter_row_appearance.to_string(),
         Page::Templates => S.starter_row_templates.to_string(),
         Page::TemplateWords => S.starter_tpl_words.to_string(),
@@ -250,13 +240,13 @@ fn back_name(starter: &Starter) -> Option<String> {
     if starter.showing {
         // Transfer or a Learn page goes back to the page it was opened
         // from; the Learn destination has none.
-        return (!starter.learn_dest).then(|| match starter.page.destination() {
+        return Some(match starter.page.destination() {
             Some(_) => destination_name(starter.page),
             None => page_name_of(starter, starter.page),
         });
     }
     match starter.page {
-        Page::Home | Page::Make | Page::Tools | Page::Writing => None,
+        Page::Home | Page::Make | Page::Tools | Page::Guide | Page::Writing => None,
         Page::Mode => {
             let target = starter.making.as_ref().map_or(Target::Stick, |m| m.target);
             Some(
@@ -289,6 +279,7 @@ fn destination_name(page: Page) -> String {
     match page {
         Page::Make => S.starter_nav_make,
         Page::Tools => S.starter_nav_tools,
+        Page::Guide => S.starter_row_learn,
         _ => S.starter_home,
     }
     .to_string()
@@ -1121,7 +1112,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 Role::OnSurfaceVariant,
                 S.starter_mode_keep_fact,
             ) + 6.0;
-            y += guide_line(ui, tx, y, w - 36.0, LearnId::KeepData);
+            y += keep_data_guide(ui, tx, y, w - 36.0);
         }
         ui.rule(x, y, w, Role::OutlineVariant);
     }
@@ -1450,21 +1441,37 @@ fn guide_line(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
     }
 }
 
+/// Keep data's link: a row that opens the guide's section about
+/// replacing Faraday (`docs/GUIDE-IN-APP.md` §4.4).
+fn keep_data_guide(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    nav_row(
+        ui,
+        x,
+        y,
+        w,
+        Icon::Learn,
+        S.starter_start_keep_data,
+        "",
+        "",
+        Some(StarterAction::KeepDataGuide),
+    )
+}
+
 /// A guide's title, as its Learn page will carry it; a maker page's is
 /// its page's own.
 fn learn_title(id: LearnId) -> &'static str {
     match id {
-        LearnId::StartWindows => S.starter_learn_start_windows,
-        LearnId::StartLinux => S.starter_learn_start_linux,
-        LearnId::NoStart => S.starter_learn_no_start,
-        LearnId::KeepData => S.starter_learn_keep_data,
-        LearnId::CheckingWritten => S.starter_learn_checking_written,
+        LearnId::StartWindows => S.starter_start_windows,
+        LearnId::StartLinux => S.starter_start_linux,
+        LearnId::NoStart => S.starter_start_no_start,
+        LearnId::KeepData => S.starter_start_keep_data,
+        LearnId::CheckingWritten => S.starter_start_checking_written,
         LearnId::Maker(_) => id.page().map_or("", |p| p.title),
-        LearnId::SecureBootBitLocker => S.starter_learn_secure_boot_bitlocker,
-        LearnId::ScreensThatRecord => S.starter_learn_screens,
-        LearnId::WhatElseRuns => S.starter_learn_what_else_runs,
-        LearnId::BootEntry => S.starter_learn_boot_entry,
-        LearnId::MacIntel => S.starter_learn_mac_intel,
+        LearnId::SecureBootBitLocker => S.starter_start_secure_boot_bitlocker,
+        LearnId::ScreensThatRecord => S.starter_start_screens,
+        LearnId::WhatElseRuns => S.starter_start_what_else_runs,
+        LearnId::BootEntry => S.starter_start_boot_entry,
+        LearnId::MacIntel => S.starter_start_mac_intel,
     }
 }
 

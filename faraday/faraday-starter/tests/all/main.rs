@@ -9,6 +9,7 @@ mod colours_read;
 mod concern_holds;
 mod concern_rules;
 mod demo;
+mod guide;
 mod how_block;
 mod mac;
 mod name_field;
