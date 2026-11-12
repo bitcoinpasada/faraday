@@ -45,7 +45,7 @@ desktop_1280x800 Unlock Resume 2
 desktop_1280x800 VaultContents Chart 10
 desktop_1280x800 VaultContents OpenCodes 1
 desktop_1280x800 VaultContents Resume 4
-desktop_1280x800 VaultContents Vault 16
+desktop_1280x800 VaultContents Vault 15
 desktop_1280x800 Vaults Resume 2
 desktop_1280x800 Wallets Chart 11
 desktop_1280x800 Wallets PickKey 2
@@ -130,8 +130,6 @@ stick_1024x600 SpendBackup SpendBackup 2
 stick_1024x600 Transfer TransferSend 2
 stick_1024x600 Unlock Osk 38
 stick_1024x600 Vanity Osk 38
-stick_1024x600 VaultContents CodePng 1
 stick_1024x600 VaultContents Osk 38
-stick_1024x600 VaultContents ShowCode 1
 stick_1024x600 VaultContents Vault 8
 stick_1024x600 Wallets PickKey 2
