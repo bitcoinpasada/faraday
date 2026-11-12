@@ -113,9 +113,12 @@ pub fn read(bytes: &[u8]) -> Result<Zeroizing<[u8; 32]>, KeyFileError> {
 /// KeePass family opens a vault with it. The caller draws `key` and wipes
 /// the result.
 pub fn write(key: &[u8; 32]) -> Zeroizing<Vec<u8>> {
-    // The hash is held wiping; the hasher is consumed by `digest`, which
+    // The hash is written straight into a wiping array, and the hasher
     // wipes its state as it drops (the `zeroize` feature of sha2).
-    let hash = Zeroizing::new(<[u8; 32]>::from(Sha256::digest(key)));
+    let mut hash = Zeroizing::new([0u8; 32]);
+    let mut hasher = Sha256::new();
+    hasher.update(key);
+    hasher.finalize_into((&mut *hash).into());
     let mut out = Zeroizing::new(Vec::with_capacity(320));
     out.extend_from_slice(
         b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<KeyFile>\n    <Meta>\n        \
@@ -762,7 +765,10 @@ fn key_of(found: Found) -> Result<Zeroizing<[u8; 32]>, KeyFileError> {
             let key = hex_key(&digits).ok_or(KeyFileError::Damaged)?;
             let hash = found.hash.ok_or(KeyFileError::Damaged)?;
             let hash: Vec<u8> = hash.into_iter().filter(|b| !is_ws(b)).collect();
-            let want = Zeroizing::new(<[u8; 32]>::from(Sha256::digest(key.as_slice())));
+            let mut want = Zeroizing::new([0u8; 32]);
+            let mut hasher = Sha256::new();
+            hasher.update(key.as_slice());
+            hasher.finalize_into((&mut *want).into());
             let stated = hex_key_n(&hash).ok_or(KeyFileError::Damaged)?;
             if !bool::from(stated[..].ct_eq(&want[..4])) {
                 return Err(KeyFileError::Damaged);

@@ -27,6 +27,7 @@
 
 mod tree;
 
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use faraday_bip::bip39::{Language, Mnemonic};
@@ -128,54 +129,39 @@ pub struct Refusal {
     pub key: KeyName,
 }
 
-/// The longest key a [`Refusal`] names, in bytes: a prefix, a dot and up
-/// to 64 characters of the key, which is all of it for every key of §7.
-const KEY_NAME_MAX: usize = 80;
-
-/// The name of the key a [`Refusal`] is at, in a fixed buffer: what is
-/// longer than [`KEY_NAME_MAX`] is cut at a character.
-#[derive(Clone, PartialEq, Eq)]
-pub struct KeyName {
-    buf: [u8; KEY_NAME_MAX],
-    len: u8,
-}
+/// The name of the key a [`Refusal`] is at: a prefix, a dot where there is
+/// a prefix, and the first 64 characters of the key. Wiped when it drops.
+#[derive(Clone)]
+pub struct KeyName(Zeroizing<String>);
 
 impl KeyName {
     /// `prefix`, a dot where there is a prefix, and the first 64
-    /// characters of `key`, as many as fit.
+    /// characters of `key`; the room for all of it is reserved first, so
+    /// the buffer never grows.
     fn of(prefix: &str, key: &str) -> KeyName {
-        let mut name = KeyName {
-            buf: [0; KEY_NAME_MAX],
-            len: 0,
-        };
+        let room = prefix.len() + 1 + key.len().min(64 * 4);
+        let mut name = Zeroizing::new(String::with_capacity(room));
         if !prefix.is_empty() {
-            name.push(prefix);
-            name.push(".");
+            name.push_str(prefix);
+            name.push('.');
         }
-        for ch in key.chars().take(64) {
-            let mut b = [0u8; 4];
-            if !name.push(ch.encode_utf8(&mut b)) {
-                break;
-            }
-        }
-        name
-    }
-
-    fn push(&mut self, text: &str) -> bool {
-        let at = usize::from(self.len);
-        let Some(room) = self.buf.get_mut(at..at + text.len()) else {
-            return false;
-        };
-        room.copy_from_slice(text.as_bytes());
-        self.len += text.len() as u8;
-        true
+        name.extend(key.chars().take(64));
+        KeyName(name)
     }
 
     /// The name.
     pub fn as_str(&self) -> &str {
-        core::str::from_utf8(&self.buf[..usize::from(self.len)]).unwrap_or("")
+        &self.0
     }
 }
+
+impl PartialEq for KeyName {
+    fn eq(&self, other: &KeyName) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl Eq for KeyName {}
 
 impl From<&str> for KeyName {
     fn from(key: &str) -> KeyName {

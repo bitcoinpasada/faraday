@@ -100,7 +100,9 @@ pub fn reading_passphrases(text: &str) -> Vec<Zeroizing<Vec<u8>>> {
         let mut nfd = Zeroizing::new(Vec::<char>::with_capacity(room));
         nfd.extend(text.nfd());
         for chars in [nfc, nfd] {
-            let mut form = Zeroizing::new(Vec::new());
+            // Its final size is known, so it never reallocates.
+            let size: usize = chars.iter().map(|ch| ch.len_utf8()).sum();
+            let mut form = Zeroizing::new(Vec::with_capacity(size));
             for &ch in chars.iter() {
                 form.extend_from_slice(ch.encode_utf8(&mut [0; 4]).as_bytes());
             }
