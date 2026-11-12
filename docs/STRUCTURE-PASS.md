@@ -175,9 +175,7 @@ cannot quietly undo it:
   - the code map: every module `lib.rs` declares appears in its `//!`
     code map, every `Screen` variant appears in the map's table, and the
     file named there exists and draws it;
-  - file size (F196): no Rust source file over 5,000 lines, except
-    those in the counts file at their size, which only falls; no review
-    between 2,500 and 5,000 lines;
+  - a file has no size limit (F248);
   - function size: clippy's `too_many_lines` is on and each long
     function carries an `#[expect]`; the number of those and of
     `#[allow(clippy::too_many_arguments)]` is not counted, and each

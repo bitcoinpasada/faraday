@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Layout lint (F74, F196, docs/STRUCTURE-PASS.md §7.1 and §7.2): the code map
-# says where everything is, and no file or function grows back into a
-# monolith.
+# Layout lint (F74, F196, F248, docs/STRUCTURE-PASS.md §7.1 and §7.2): the code map
+# says where everything is, and code stays mapped and shaped by function.
 #
 # 1. The code map. Every module faraday-core's lib.rs declares is named,
 #    in backticks, in lib.rs's `//!` code map, and every .rs file and
@@ -9,13 +8,7 @@
 #    Every `Screen` variant has a row in the map's table, and the file
 #    the row names is the one screens/mod.rs's dispatch draws it from.
 #
-# 2. File size (F196). No tracked .rs file is over 5,000 lines, except
-#    those listed in tools/lint-layout.counts at their size (`file PATH
-#    LINES`). A listed file that grows fails; one that shrinks fails too
-#    until its line is lowered (or removed, at 5,000 or under), so the
-#    count only falls. Not counted, as they are data whose size the
-#    content decides: the strings file (every string is in it, by rule)
-#    and the published word lists.
+# 2. A file has no size limit (F248): code is split by function, not length.
 #
 # 3. Function size. Clippy's `too_many_lines` is on for every crate
 #    (Cargo.toml's workspace lints, `clippy -D warnings`), so a function
@@ -47,14 +40,8 @@ import re
 import subprocess
 import sys
 
-LIMIT = 5000
 COUNTS = "tools/lint-layout.counts"
 CORE = "faraday/faraday-core/src"
-NOT_COUNTED = re.compile(
-    r"^(faraday/faraday-strings/src/en\.rs"
-    r"|core/faraday-bip/src/wordlists/.*"
-    r"|core/faraday-bip/src/diceware/large\.rs)$"
-)
 
 failures = []
 
@@ -118,7 +105,6 @@ for v in table:
         fail(f"{CORE}/lib.rs: the code map's table names `{v}`, which is no Screen")
 
 # ---- the counts file ----
-sizes = {}
 counts = {}
 impl_listed = set()
 for n, line in enumerate(open(COUNTS, encoding="utf-8"), 1):
@@ -126,15 +112,12 @@ for n, line in enumerate(open(COUNTS, encoding="utf-8"), 1):
     if not line:
         continue
     f = line.split()
-    if f[0] == "file" and len(f) == 3:
-        sizes[f[1]] = int(f[2])
-    elif f[0] == "fields" and len(f) == 3 and f[1] == "Faraday":
+    if f[0] == "fields" and len(f) == 3 and f[1] == "Faraday":
         counts["fields Faraday"] = int(f[2])
     elif f[0] == "impl-faraday" and len(f) == 2:
         impl_listed.add(f[1])
     else:
-        fail(f"{COUNTS}:{n}: not `file PATH LINES`, "
-             f"`fields Faraday N` or `impl-faraday PATH`")
+        fail(f"{COUNTS}:{n}: not `fields Faraday N` or `impl-faraday PATH`")
 
 
 for key in ("fields Faraday",):
@@ -150,23 +133,7 @@ def ratchet(what, now, kept, where):
         fail(f"{where}: {what} is {now}, below {kept}: lower it in {COUNTS}")
 
 
-# ---- 2. File size ----
 files = tracked_rs()
-for path in files:
-    if NOT_COUNTED.match(path):
-        continue
-    with open(path, encoding="utf-8", errors="replace") as fh:
-        lines = sum(1 for _ in fh)
-    if path in sizes:
-        if lines <= LIMIT:
-            fail(f"{path}: {lines} lines, at or under {LIMIT}: remove its line from {COUNTS}")
-        else:
-            ratchet("its length", lines, sizes[path], path)
-    elif lines > LIMIT:
-        fail(f"{path}: {lines} lines, over {LIMIT}: split it")
-for path in sizes:
-    if path not in files:
-        fail(f"{COUNTS}: {path} is no tracked file: remove its line")
 
 # ---- 3. Function size ----
 # Every member crate turns the lint on: through the workspace's lints, or

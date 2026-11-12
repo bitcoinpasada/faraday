@@ -422,7 +422,7 @@ H held, P pair, F forbid, T trailer, R review. "planned" names a check F148 or
 | `decisions.held-by` | `docs/decisions/F{n}.md` added | H | `lint-docs` rule 6 (§8) | F149 |
 | `structure.ratchet-raised` | `tools/lint-layout.counts`, `tools/lint-tokens.counts` (`rises`) | P | a decision `docs/decisions/F{n}.md` naming the raised key | `CLAUDE.md`, F74 |
 | `structure.code-map` | `faraday/faraday-core/src/**` | H | `lint-layout` | `CLAUDE.md`, F74 |
-| `structure.size` | `**/*.rs` | H | `lint-layout` counts | `CLAUDE.md`, F74 |
+| `structure.size` | `**/*.rs` | H | `lint-layout` markers, clippy's `too_many_lines` | `CLAUDE.md`, F74 |
 | `structure.impl-faraday` | `faraday/faraday-core/src/**` | H | `lint-layout` | `CLAUDE.md`, F74 |
 | `structure.no-new-mut` | a `fn …_mut(` or `impl DerefMut` added in `faraday/faraday-core/src/**` (`lines`) | P | `docs/STRUCTURE-PASS.md` (§7.3's list) | `docs/STRUCTURE-PASS.md` §7.3 |
 | `structure.areas-private` | `faraday/faraday-core/src/**` | R | an area's state reached through accessors and its own methods | `docs/STRUCTURE-PASS.md` §7.3 |

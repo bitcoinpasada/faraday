@@ -210,7 +210,7 @@ Read this table, then only the decision you need.
 | [F193](decisions/F193.md) | The vault's judges: libraries over the app's primitives judge the file format only, no Node yet, and CPython's tomllib reads the vault's contents | 2026-11-03 | Amended by F211 | crypto |
 | [F194](decisions/F194.md) | A KDBX file is never refused for its contents: a damaged item is Unreadable, and every TOTP form is read for the codes page | 2026-11-03 | Amended by F231 | security |
 | [F195](decisions/F195.md) | A secret the person chose to show is worked out once and held while shown, and wiped when hidden | 2026-11-03 | Active | speed |
-| [F196](decisions/F196.md) | A Rust file may grow to 5,000 lines, and the function counts are no longer ratchets | 2026-11-03 | Active | repository |
+| [F196](decisions/F196.md) | A Rust file may grow to 5,000 lines, and the function counts are no longer ratchets | 2026-11-03 | Amended by F248 | repository |
 | [F197](decisions/F197.md) | The full cross-check runs before a release, and the tip between releases is not kept cross-checked | 2026-11-03 | Amended by F239 | repository |
 | [F198](decisions/F198.md) | The download page has one Pi tile | 2026-11-03 | Active | release |
 | [F199](decisions/F199.md) | A field a signer adds is stated when its content can be checked in full against Sent, and is a finding otherwise | 2026-11-03 | Active | security |
@@ -261,3 +261,4 @@ Read this table, then only the decision you need.
 | [F244](decisions/F244.md) | Keep data refuses the same build only when the stick's boot partition is already exactly the release's | 2026-11-11 | Active | starter |
 | [F245](decisions/F245.md) | The Argon QR Vault is built as a test tool outside Faraday's apps: a library, a command line and a desktop app in `aqrv/`, test data only, into the app only after an outside review | 2026-11-11 | Active | standards |
 | [F246](decisions/F246.md) | Off mainnet, the mode pill stands at the end of the top bar's first line, and a long name steps down, then wraps | 2026-11-11 | Active | design |
+| [F248](decisions/F248.md) | A Rust file has no line limit; code is split by function | 2026-11-12 | Active | repository |

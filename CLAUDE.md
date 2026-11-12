@@ -138,7 +138,7 @@ plan <paths>` lists the ones a change touches.
   `docs/COMPUTE.md` (held by `costs-lint` and the budget tests); a named
   costly operation is held by an instruction count, raised only in a
   commit that says why, and a stated cost says how it was measured (F238).
-- **Code structure** (F74, F196): an area's code, state and screen in its
-  folder, no `.rs` file over 5,000 lines (those over it only fall),
+- **Code structure** (F74, F196, F248): an area's code, state and screen in its
+  folder, code split by function and never by length,
   private area state reached through accessors, `impl Faraday` only as
   glue: `docs/STRUCTURE-PASS.md` §7 (held by `lint-layout`).

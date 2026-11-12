@@ -1,8 +1,6 @@
 # Counts held by tools/lint-layout.sh (F74, F196). Each only falls; raising one
 # is the owner's decision, recorded in DECISIONS.
 #
-# Files over 5,000 lines, at their size: split them, and lower the line.
-
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.
 fields Faraday 83
 
