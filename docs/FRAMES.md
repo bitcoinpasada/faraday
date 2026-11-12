@@ -673,6 +673,13 @@ taking; a card with it is not yet taken. The readers close their own
 nodes on their own threads, so the loop closes none.
 `--timings` also gives a `moved` and a `whole` line and a `by_screen`
 table per block, so a frame mean can be told by what was drawn.
+A quarter second after the last frame is put out, a dev card also reads
+the whole framebuffer back and compares each row with the frame put out
+(the rows the arrow or the text is drawn over left out): a `readback` line
+per block counts the readbacks and those that found a differing row, and a
+`ghost` line names the first rows, with the screen last drawn. A row that
+shows wrong on the panel while the framebuffer holds it right is the
+panel's, not the shell's.
 
 **The calls to the disk process.** Where the image runs a disk process,
 the loop made three kinds of call to it, each waiting on a stick: the
