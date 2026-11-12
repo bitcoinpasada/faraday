@@ -2275,6 +2275,12 @@ impl Faraday {
         seal::secrets_off_screen(self);
     }
 
+    /// What a lock takes off the screen: that and the Seed XOR parts
+    /// ([`seal::lock_secrets_off_screen`]).
+    pub(crate) fn lock_secrets_off_screen(&mut self) {
+        seal::lock_secrets_off_screen(self);
+    }
+
     /// Seals every open vault, then finishes the lock ([`seal`]); `may_lose`
     /// lets a vault that cannot be sealed go.
     pub(crate) fn vault_seal_all(&mut self, may_lose: bool) {

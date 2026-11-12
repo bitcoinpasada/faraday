@@ -138,6 +138,9 @@ pub struct Strings {
     pub skip_ask: bool,
     /// The open string's Codex32QR, while shown (48 characters).
     pub qr: Option<faraday_codec::qr::QrMatrix>,
+    /// The open string is put away while something is typed back: neither
+    /// its text nor its Codex32QR is drawn until a press shows it again.
+    pub shut: bool,
     /// The block of that Codex32QR marked and shown large, by its place
     /// in reading order; the row, where it is marked by rows.
     pub block: u8,
@@ -207,6 +210,7 @@ impl Strings {
         self.found = None;
         self.skip_ask = false;
         self.qr = None;
+        self.shut = false;
         self.block = 0;
         self.note = None;
     }
@@ -218,16 +222,19 @@ impl Strings {
         self.found = None;
         self.skip_ask = false;
         self.qr = None;
+        self.shut = false;
         self.block = 0;
     }
 
     /// What the open string shows put away: back to the list when nothing
-    /// is typed back, else the Codex32QR only, the typed text kept.
+    /// is typed back, else the string closed (neither its text nor its
+    /// Codex32QR drawn), the typed text kept.
     pub fn hide(&mut self) {
         if self.typed.is_empty() {
             self.list();
         } else {
             self.qr = None;
+            self.shut = true;
         }
     }
 

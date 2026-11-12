@@ -110,8 +110,9 @@ pub(crate) fn lock_pending(app: &Faraday) -> bool {
 /// by a lock, first, and by the idle warning. The code on show (it may be
 /// an entry's TOTP secret, `docs/QR.md` §7.1), an open entry's revealed
 /// fields, a key's SeedQR and words on the item page, Create a vault's
-/// passphrases, the backup checklist's seed, Seed XOR parts and codex32
-/// string with its QR, New key's words and codex32 strings, the child of
+/// passphrases, the backup checklist's seed and codex32
+/// string with its QR, the backup chart's passphrase sheet, New key's
+/// words and codex32 strings, the child of
 /// BIP-85, Explore's words and passphrase, the Convert result, the QR,
 /// Krux code and core wallet tools, a Krux code's contents, Lightning's
 /// private key, Vanity's passphrase, the Inbox's passphrase and a scanned
@@ -134,6 +135,15 @@ pub(crate) fn secrets_off_screen(app: &mut Faraday) {
     app.keygen.hide_secrets();
     app.bip85.hide_secrets();
     app.seed_read.hide_secrets();
+    app.glance.set_reveal(false);
+}
+
+/// What a lock takes off the screen: [`secrets_off_screen`] and the
+/// checklist's Seed XOR parts, which the idle warning keeps (they come
+/// from fresh randomness, cannot be shown again and have no eye).
+pub(crate) fn lock_secrets_off_screen(app: &mut Faraday) {
+    secrets_off_screen(app);
+    app.backup.drop_paper();
 }
 
 /// Remembers a lock asked for while a seal runs, to be done when it ends
@@ -141,7 +151,7 @@ pub(crate) fn secrets_off_screen(app: &mut Faraday) {
 /// that lock: nothing is remembered. Every secret on show closes at once,
 /// whatever the lock waits for ([`secrets_off_screen`]).
 pub(crate) fn lock_after_seal(app: &mut Faraday, may_lose: bool) {
-    secrets_off_screen(app);
+    lock_secrets_off_screen(app);
     if let Some(run) = app.vaults.state.sealing.as_mut().filter(|r| !r.all) {
         run.lock_after = Some(run.lock_after.unwrap_or(false) || may_lose);
     }

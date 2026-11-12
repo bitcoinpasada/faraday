@@ -725,14 +725,22 @@ impl WalletBackupArea {
         self.state = None;
     }
 
+    /// Drops the Seed XOR parts on screen. They come from fresh randomness
+    /// and have no eye to bring them back, so only a lock drops them: parts
+    /// made again are a different set.
+    pub(crate) fn drop_paper(&mut self) {
+        if let Some(b) = self.state.as_mut() {
+            b.paper = None;
+        }
+    }
+
     /// What the checklist shows of a seed put away, the backup kept: the
-    /// words, SeedQR and Seed XOR parts hidden, the open codex32 string
-    /// and its QR closed unless something is typed back, the held seed
-    /// dropped (wiped); the typed check stays.
+    /// words and SeedQR hidden (the Seed XOR parts stay: [`Self::drop_paper`]),
+    /// the open codex32 string and its QR closed unless something is typed
+    /// back, the held seed dropped (wiped); the typed check stays.
     pub(crate) fn hide_secrets(&mut self) {
         if let Some(b) = self.state.as_mut() {
             b.reveal = false;
-            b.paper = None;
             // What is typed back stays, with the string it is typed back
             // from; one with nothing typed goes back to the list.
             if let Some(c) = b.c32.as_mut() {

@@ -2112,7 +2112,7 @@ impl Faraday {
         }
         self.job_locked();
         // What is on show goes first, its text wiped.
-        self.secrets_off_screen();
+        self.lock_secrets_off_screen();
         // The vaults seal on the worker; the lock goes on in
         // `lock_finish` when the last is done.
         self.vault_seal_all(may_lose);

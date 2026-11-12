@@ -893,3 +893,48 @@ fn a_string_file_the_plan_came_with_asks_the_hold_once_at_lock_and_write() {
     shell.pump(&mut app);
     assert!(app.restart_requested(), "locked: {:?}", app.toast_text());
 }
+
+#[test]
+fn the_idle_warning_keeps_what_is_typed_back_and_draws_neither_the_string_nor_its_code() {
+    let mut app = device(Vec::new());
+    key_from_strings(&mut app);
+    wallet_and_backup(&mut app);
+    codex32_item(&mut app);
+    type_each_back(&mut app);
+    open_item(&mut app, bstep::of(plan::Item::Codex32(0)));
+    app.press(Action::BC32(Press::Open(ix('a') as u8)));
+    for ch in A[3..9].chars() {
+        app.press(Action::BC32(Press::Key(OskPress::Char(ch))));
+    }
+    let drawn = |app: &mut Faraday| {
+        app.settle();
+        let _ = app.frame();
+        app.drawn_texts().join("\n")
+    };
+    let shows_share = |t: &str| t.contains("zyxw");
+    if app.backup().unwrap().c32.as_ref().unwrap().qr.is_some() {
+        app.press(Action::BC32(Press::Qr));
+    }
+    assert!(
+        shows_share(&drawn(&mut app)),
+        "the string is not shown: {:?}",
+        app.drawn_texts()
+    );
+    let last = app.now_ms();
+    app.event(Event::Tick {
+        now_ms: last + 26 * 60_000,
+    });
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::IdleWarn));
+    app.press(Action::Cancel);
+    let t = drawn(&mut app);
+    assert!(!shows_share(&t), "the string stays on show: {t}");
+    assert!(!t.contains(&A[3..9]), "the typed text stays on show: {t}");
+    // The person's press shows it again, the typed text kept.
+    app.press(Action::BC32(Press::Qr));
+    let t = drawn(&mut app);
+    assert!(shows_share(&t), "the string did not come back: {t}");
+    assert_eq!(
+        app.backup().unwrap().c32.as_ref().unwrap().typed.as_str(),
+        &A[3..9]
+    );
+}

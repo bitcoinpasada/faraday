@@ -113,7 +113,11 @@ fn chips(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) ->
 /// edged in `error` while it differs. Returns the height.
 fn typed_field(ui: &mut Ui, x: f32, y: f32, w: f32, st: &Strings, prefix: &str) -> f32 {
     let mut whole = String::from(prefix);
-    whole.push_str(&st.typed);
+    if st.shut {
+        whole.push_str(&"\u{2022}".repeat(st.typed.chars().count()));
+    } else {
+        whole.push_str(&st.typed);
+    }
     let shown = faraday_ui::grouped(&whole);
     let wrong = matches!(st.found, Some(Found::Differs(_)));
     ui.fill(x, y, w, t::FIELD, t::RADIUS_SMALL, Role::Surface);
@@ -285,12 +289,13 @@ fn one_string(
                 cy,
                 w,
                 &[
-                    (EN.codex32_string, st.qr.is_none(), a(Press::Qr)),
+                    (EN.codex32_string, st.qr.is_none() && !st.shut, a(Press::Qr)),
                     (EN.codex32_codex32qr, st.qr.is_some(), a(Press::Qr)),
                 ],
             );
         }
         match &st.qr {
+            None if st.shut => {}
             Some(q) => {
                 let g = crate::screens::CopyGrid {
                     m: q,

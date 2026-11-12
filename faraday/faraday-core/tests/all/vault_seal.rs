@@ -505,7 +505,7 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_the_backup_checklist_s_words_a
     let word_shown = |app: &mut Faraday| {
         app.settle();
         let _ = app.frame();
-        app.drawn_texts().iter().any(|t| t == word)
+        app.drawn_texts().iter().any(|t| *t == word)
     };
     assert!(
         word_shown(&mut app) || codes_on_screen(&mut app) > 0,
@@ -582,23 +582,23 @@ fn a_lock_from_the_checklist_s_one_vault_seal_through_the_lock_sheet_locks_when_
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     testkit::press_on_worker(&mut app, Action::Lock);
     assert!(!app.restart_requested(), "the lock did not wait");
-    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
-    let two = words.split(' ').take(2).collect::<Vec<_>>().join(" ");
-    assert!(!text_on_screen(&mut app, &two), "the words are on show");
-    assert_eq!(codes_on_screen(&mut app), 0, "a code is on show");
     testkit::release_worker();
     testkit::settle(&mut app);
     assert!(sealed(&app).is_some(), "the vault was not sealed");
     assert!(app.restart_requested(), "the device did not lock");
 }
 
-/// A lock that stops for want of randomness: nothing is sealed or wiped.
+/// A lock that stops in its seal, for want of memory: `lock_now` has taken
+/// what is on show off the screen, nothing is sealed or wiped, and the Lock
+/// sheet shows.
 fn lock_stops(app: &mut Faraday) {
-    app.event(Event::Tick { now_ms: 1_000 });
-    app.event(Event::Tick { now_ms: 120_000 });
+    crate::common::top_up(app);
+    app.storage(StorageEvent::Memory { available_mib: 1 });
     app.press(Action::Lock);
+    testkit::settle(app);
     assert_eq!(app.sheet, Some(Sheet::LockAsk), "the lock did not stop");
     assert!(!app.restart_requested());
+    assert!(sealed(app).is_none(), "the vault was sealed");
 }
 
 #[test]
@@ -634,9 +634,15 @@ fn a_lock_that_stops_keeps_the_check_being_typed_on_the_checklist() {
     assert!(app.backup().unwrap().check.is_some(), "no check is open");
     type_text(&mut app, "aban");
     lock_stops(&mut app);
+    app.press(Action::Cancel);
     assert!(
         app.backup().is_some_and(|b| b.check.is_some()),
         "the check typed was thrown away"
+    );
+    assert!(
+        text_on_screen(&mut app, "aban"),
+        "the check typed is not drawn: {:?}",
+        app.drawn_texts()
     );
 }
 
@@ -894,4 +900,289 @@ fn the_lock_sheet_saves_a_key_in_no_vault_into_the_open_vault() {
         "{texts:?}"
     );
     assert!(!app.offers(save), "{texts:?}");
+}
+
+/// The texts drawn now.
+fn drawn(app: &mut Faraday) -> Vec<String> {
+    app.settle();
+    let _ = app.frame();
+    app.drawn_texts()
+}
+
+/// A screen with a secret behind its eye, the vault open and changed: the
+/// texts the eye adds are on show, then a Lock pressed while one vault is
+/// sealed takes them off at once.
+fn eye_hides_at_lock(app: &mut Faraday, eye: Action) {
+    let hidden = drawn(app);
+    app.press(eye);
+    let shown = drawn(app);
+    let added: Vec<String> = shown
+        .iter()
+        .filter(|t| !hidden.contains(t))
+        .cloned()
+        .collect();
+    assert!(!added.is_empty(), "the eye shows nothing: {shown:?}");
+    lock_during_seal(app);
+    let now = drawn(app);
+    assert!(
+        added.iter().all(|t| !now.contains(t)),
+        "still on show during the seal: {:?}",
+        added.iter().filter(|t| now.contains(t)).collect::<Vec<_>>()
+    );
+    seal_ends_and_locks(app);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_lightning_s_private_key_at_once() {
+    use faraday_shell_api::Key;
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Lightning);
+    app.press(Action::LAezeed);
+    let cipher = "above judge emerge veteran reform crunch system all snap please \
+        shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
+    for w in cipher.split_whitespace() {
+        type_text(&mut app, w);
+        app.event(Event::Key(Key::Char(' ')));
+    }
+    app.event(Event::Key(Key::Enter));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    testkit::settle(&mut app);
+    assert!(app.lightning().unwrap().node.is_some(), "no node key");
+    eye_hides_at_lock(&mut app, Action::LShow);
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_vanity_s_passphrase_at_once() {
+    use faraday_core::vanity::{VanityAction as VA, vstep};
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Vanity(VA::Open));
+    let dial = faraday_core::grind::Dial::ALL
+        .iter()
+        .position(|d| *d == faraday_core::grind::Dial::Passphrase)
+        .unwrap();
+    app.press(Action::Vanity(VA::Dial(dial as u8)));
+    app.press(Action::Vanity(VA::Next(vstep::DIAL)));
+    app.press(Action::Vanity(VA::Next(vstep::SCRIPT)));
+    app.event(Event::Key(faraday_shell_api::Key::Char('q')));
+    app.press(Action::Vanity(VA::Next(vstep::PREFIX)));
+    app.press(Action::Vanity(VA::Start));
+    for t in 1..5000u64 {
+        app.event(Event::Tick { now_ms: t * 100 });
+        if app.vanity().unwrap().grind.find.is_some() {
+            break;
+        }
+    }
+    assert!(app.vanity().unwrap().grind.find.is_some(), "no find");
+    eye_hides_at_lock(&mut app, Action::Vanity(VA::Show));
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_create_a_vault_s_passphrases_at_once() {
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    app.press(Action::Vault(V::CFocus(0, false)));
+    type_text(&mut app, "one phrase");
+    app.press(Action::Vault(V::CFocus(0, true)));
+    type_text(&mut app, "one phrase");
+    // Focus off the phrase boxes, so only the eye shows what is typed.
+    app.press(Action::Vault(V::CName));
+    eye_hides_at_lock(&mut app, Action::Vault(V::CShow));
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_the_inbox_passphrase_at_once() {
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    let words = testkit::test_words("summer");
+    app.storage(StorageEvent::Restored {
+        inbox: vec![("summer-words.txt".into(), words.into_bytes())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    let c = testkit::compute();
+    let fp = app.inbox_found_now(&c).potential()[0].fingerprint;
+    app.press(Action::PotentialOpen(fp.0));
+    assert_eq!(app.sheet, Some(Sheet::Potential));
+    app.press(Action::PotentialType);
+    type_text(&mut app, "a passphrase");
+    eye_hides_at_lock(&mut app, Action::PotentialShow);
+}
+
+/// The checklist on the copy step with the words shown and Seed XOR made.
+fn checklist_with_parts() -> Faraday {
+    use faraday_core::bstep;
+    use faraday_core::seeds::SeedsAction as S;
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    let fp = app.session.keys.last().expect("a key").fingerprint.0;
+    app.press(Action::KeyWallet(fp, 1));
+    app.press(Action::Seeds(S::Make));
+    app.press(Action::Backup(0));
+    let w = app.backup().unwrap().wallet;
+    let shape = app.plan_shape_now(w);
+    let base = if shape.multi() { shape.seeds.len() } else { 2 };
+    let preset = faraday_core::plan::Preset::ALL[2];
+    testkit::set_backup_answers(
+        &mut app,
+        faraday_core::plan::Answers::preset_at(&shape, preset, base),
+    );
+    app.press(Action::BChecklist);
+    if app
+        .backup_items_now(&testkit::compute())
+        .contains(&bstep::BLANK)
+    {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
+        app.press(Action::BStep(bstep::COPY));
+    }
+    app.press(Action::BReveal);
+    crate::common::top_up(&mut app);
+    app.press(Action::BXor(2));
+    app
+}
+
+fn parts_shown(app: &mut Faraday) -> bool {
+    let line = EN.paper_section_parts.replace("{}", "2");
+    text_on_screen(app, &line)
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_takes_the_seed_xor_parts_off_the_screen_at_once() {
+    let mut app = checklist_with_parts();
+    assert!(parts_shown(&mut app), "no parts: {:?}", app.drawn_texts());
+    lock_during_seal(&mut app);
+    assert!(!parts_shown(&mut app), "the parts stay on show");
+    seal_ends_and_locks(&mut app);
+}
+
+#[test]
+fn the_idle_warning_keeps_the_seed_xor_parts_and_hides_the_words() {
+    let mut app = checklist_with_parts();
+    let word = testkit::TEST_SEEDS[1].0;
+    let word_shown = |app: &mut Faraday| drawn(app).iter().any(|t| t == word);
+    assert!(parts_shown(&mut app), "no parts");
+    assert!(word_shown(&mut app), "the words are not shown");
+    let last = app.now_ms();
+    app.event(Event::Tick {
+        now_ms: last + 26 * 60_000,
+    });
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    app.press(Action::Cancel);
+    assert!(parts_shown(&mut app), "the idle warning dropped the parts");
+    assert!(!word_shown(&mut app), "the idle warning left the words");
+}
+
+#[test]
+fn the_idle_warning_hides_lightning_s_private_key() {
+    use faraday_shell_api::Key;
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    app.press(Action::Lightning);
+    app.press(Action::LAezeed);
+    let cipher = "above judge emerge veteran reform crunch system all snap please \
+        shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
+    for w in cipher.split_whitespace() {
+        type_text(&mut app, w);
+        app.event(Event::Key(Key::Char(' ')));
+    }
+    app.event(Event::Key(Key::Enter));
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    testkit::settle(&mut app);
+    let hidden = drawn(&mut app);
+    app.press(Action::LShow);
+    let added: Vec<String> = drawn(&mut app)
+        .into_iter()
+        .filter(|t| !hidden.contains(t))
+        .collect();
+    assert!(!added.is_empty(), "the eye shows nothing: {hidden:?}");
+    let last = app.now_ms();
+    app.event(Event::Tick {
+        now_ms: last + 26 * 60_000,
+    });
+    assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    app.press(Action::Cancel);
+    let now = drawn(&mut app);
+    assert!(added.iter().all(|t| !now.contains(t)), "still on show");
+}
+
+#[test]
+fn a_lock_pressed_while_one_vault_is_sealed_hides_the_chart_s_passphrase_at_once() {
+    use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_core::create::NewKind;
+    use faraday_core::glance::Press;
+    use faraday_core::glance::sheet::{ChartAction as C, Target};
+    use faraday_core::plan::{At, Edit, What};
+    use faraday_core::testkit::KindText;
+    const PASS: &str = "lantern-orchid-41";
+    let mut app = device(cheap_vault());
+    open_and_change(&mut app);
+    let c = testkit::compute();
+    let m = Mnemonic::parse(
+        &c,
+        Language::English,
+        &testkit::test_words(testkit::TEST_SEEDS[0].0),
+    )
+    .unwrap();
+    app.session
+        .keys
+        .add_mnemonic(&c, &m, PASS, "Key", None)
+        .unwrap();
+    let k = app.session.keys.len() - 1;
+    let text = NewKind::NativeSegwit
+        .key_text(&c, app.session.keys.master_for_tests(k))
+        .unwrap();
+    let w = app
+        .session
+        .add_wallet(
+            &c,
+            "Spending",
+            &format!("wpkh({text}/<0;1>/*)"),
+            "test",
+            faraday_core::wallet::Origin::Named,
+        )
+        .unwrap();
+    app.press(Action::Backup(w));
+    let shape = app.plan_shape_now(w);
+    testkit::set_backup_answers(
+        &mut app,
+        faraday_core::plan::Answers::preset_at(&shape, faraday_core::plan::Preset::ALL[1], 2),
+    );
+    app.press(Action::BChecklist);
+    app.press(Action::OpenWallet(w));
+    let _ = app.frame();
+    let press = Press::Loaded(w);
+    app.press(Action::Chart(C::Open(
+        press,
+        Target::CopyTo(What::Passphrase(0)),
+    )));
+    crate::common::a_moment(&mut app);
+    app.press(Action::Chart(C::Edit(
+        press,
+        Edit::Add(At::Place(2), What::Passphrase(0)),
+    )));
+    app.press(Action::Chart(C::Confirm(press)));
+    assert!(
+        matches!(app.chart(), Some((_, Target::PassShow(..)))),
+        "the passphrase is not shown to copy"
+    );
+    app.press(Action::Chart(C::Reveal));
+    assert!(
+        text_on_screen(&mut app, PASS),
+        "the passphrase is not shown"
+    );
+    lock_during_seal(&mut app);
+    assert!(
+        !text_on_screen(&mut app, PASS),
+        "the passphrase stays on show during the seal"
+    );
+    seal_ends_and_locks(&mut app);
 }

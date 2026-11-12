@@ -523,7 +523,7 @@ impl VaultArea {
             None => true,
         };
         if left {
-            self.hide_secrets();
+            self.hide_item_secrets();
         }
     }
 
@@ -531,10 +531,17 @@ impl VaultArea {
     /// paperkey hidden at once, each wiped as it drops. The entry's code
     /// is the refresh's to keep or drop (`Faraday::vault_code_refresh`):
     /// dropped here, it would be made again after every input.
-    pub(crate) fn hide_secrets(&mut self) {
+    pub(crate) fn hide_item_secrets(&mut self) {
         let code = self.state.code.take();
         self.hide_shown();
         self.state.code = code;
+    }
+
+    /// Those and Create a vault's passphrases, hidden at once by a lock
+    /// (the eye of Create a vault stays where the person left it
+    /// otherwise: [`Self::tidy_shown`] leaves it).
+    pub(crate) fn hide_secrets(&mut self) {
+        self.hide_item_secrets();
         if let Some(c) = self.state.create.as_mut() {
             c.shown = false;
         }

@@ -2610,6 +2610,9 @@ impl Faraday {
         if st.qr.take().is_some() {
             return;
         }
+        if std::mem::take(&mut st.shut) {
+            return;
+        }
         let Some(s) = st.at.and_then(|j| st.known(j)) else {
             return;
         };
