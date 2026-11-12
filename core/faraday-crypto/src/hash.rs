@@ -149,8 +149,13 @@ pub const PBKDF2_STEP: u32 = 5_000;
 /// `zeroize`); what it leaves on the stack is the padded key block and the
 /// inner hash; this function's own copies of them, and its states and
 /// blocks, are in [`Zeroizing`](zeroize::Zeroizing), wiped once, at the
-/// end. `sha2`'s software compression keeps each block's message words in
-/// its own frame, unwiped.
+/// end. Stated limits (`docs/SECRET-LEAKS.md` §8, stack copies, reviewed and
+/// not tested): `sha2`'s software compression keeps each block's message
+/// words in its own frame, unwiped; the hashers made for the key and for
+/// `U_1` hold the pads and the key in their buffers until they drop (the
+/// `zeroize` feature wipes them there); and the returned [`Secret`] is
+/// moved to the caller, which leaves its 32 bytes in this frame and the
+/// caller's, as every by-value return does.
 pub fn pbkdf2_hmac_sha256_block(
     c: &Compute,
     password: &[u8],
@@ -192,7 +197,10 @@ pub fn pbkdf2_hmac_sha256_block(
         outer.update(mid.as_slice());
         outer.finalize_into((&mut *u).into());
     }
-    let mut t = Secret::new(*u);
+    // The sum starts as a zero array and U_1 is copied in: no by-value
+    // copy of `u` is made.
+    let mut t = Secret::new([0u8; 32]);
+    t.expose_mut().copy_from_slice(&*u);
     // The states after one block of each pad, and the two blocks each round
     // fills: 32 bytes, 0x80 and the length, (64 + 32) * 8 bits, which are
     // the same every round.

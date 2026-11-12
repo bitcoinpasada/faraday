@@ -112,9 +112,12 @@ pub fn fingerprint_of_seed(c: &Compute, seed: &[u8]) -> Option<Fingerprint> {
 /// Public (a hash of public data).
 pub fn master_id(c: &Compute, m: &MasterKey) -> [u8; 32] {
     let x = m.xpub(c);
-    let mut bytes = x.public_key.serialize().to_vec();
-    bytes.extend_from_slice(x.chain_code.as_bytes());
-    faraday_crypto::sha256_whole(c, &bytes)
+    // Joined in a wiped array, not a Vec: public data, but no unwiped heap
+    // copy of the chain code is left behind.
+    let mut bytes = zeroize::Zeroizing::new([0u8; 65]);
+    bytes[..33].copy_from_slice(&x.public_key.serialize());
+    bytes[33..].copy_from_slice(x.chain_code.as_bytes());
+    faraday_crypto::sha256_whole(c, &*bytes)
 }
 
 /// Costs what `master_of` and `master_id` cost. The fingerprint and
