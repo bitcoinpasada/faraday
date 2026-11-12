@@ -235,6 +235,7 @@ impl Faraday {
             Done::SamplesLoad(l) => self.samples_loaded(*l),
             Done::Stretch(s) => crate::vault::stretch::stretched(self, *s),
             Done::Aezeed(r) => self.aezeed_read(*r),
+            Done::KeysLoad(d) => crate::vault::load_job::loaded(self, *d),
             Done::Kdbx(k) => crate::vault::stretch::kdbx_written(self, *k),
             Done::Seal(d) => crate::vault::seal::sealed(self, *d),
             Done::Sign(d) => crate::signing::signed_spend(self, *d),

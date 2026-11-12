@@ -20,6 +20,7 @@ pub(crate) mod dice;
 pub(crate) mod errors;
 pub(crate) mod keep;
 pub mod load;
+pub(crate) mod load_job;
 pub(crate) mod load_screen;
 pub(crate) mod more;
 pub mod out;
@@ -49,6 +50,7 @@ pub(crate) fn settle(app: &mut crate::Faraday) -> bool {
 }
 
 pub use area::*;
+pub(crate) use load_job::{LoadKeysDone, LoadKeysWork, LoadWallet};
 pub(crate) use seal::{SealDone, SealRun, SealWork};
 #[cfg(feature = "testkit")]
 pub(crate) use seal::{fail_next_step_seal, fail_next_step_seal_and_retry};
@@ -1553,15 +1555,33 @@ impl Faraday {
             .collect()
     }
 
-    /// Loads the records `set` names of open vault `v`: its keys and
-    /// wallets among them.
+    /// Costs what `vault_load_front`, [`faraday_keys::job::KeysJob::run`]
+    /// and `vault_load_wallets` cost. Loads the records `set` names of
+    /// open vault `v`: its keys and wallets among them, the keys
+    /// stretched here, on the calling thread (the Load sheet's press has
+    /// them stretched in a job, [`load_job`]).
     pub(crate) fn vault_load_set(&mut self, v: usize, set: &BTreeSet<usize>) -> (usize, usize) {
         let c = self.compute();
-        let mut wallets = 0;
-        self.vaults.state.refused = None;
-        let Some(open) = self.vaults.open.get(v) else {
+        let Some((job, descs)) = self.vault_load_front(&c, v, set) else {
             return (0, 0);
         };
+        let keys = self.session.keys.adopt_loaded(&c, job.run(&c)).len();
+        (keys, self.vault_load_wallets(&c, descs))
+    }
+
+    /// Costs what `described` costs, and a parse of the words of each key
+    /// record in `set`. The front half of a load of the records `set`
+    /// names of open vault `v`: the job that stretches its keys and the
+    /// descriptions of its wallets, read once when the records changed
+    /// ([`Vaults::described`]), each with its name.
+    pub(crate) fn vault_load_front(
+        &mut self,
+        c: &Compute,
+        v: usize,
+        set: &BTreeSet<usize>,
+    ) -> Option<(faraday_keys::job::KeysJob, Vec<LoadWallet>)> {
+        self.vaults.state.refused = None;
+        let open = self.vaults.open.get(v)?;
         // The passphrase asked for on each key's card, where the Load
         // sheet of this vault is up.
         let chosen = self
@@ -1571,7 +1591,7 @@ impl Faraday {
             .filter(|s| s.name == open.name)
             .map(|s| s.choice.clone())
             .unwrap_or_default();
-        let mut descs: Vec<(faraday_bip::policy::WalletPolicy, String)> = Vec::new();
+        let mut descs: Vec<LoadWallet> = Vec::new();
         let records = self.vaults.records(open.id);
         for (i, r) in records.of(kind::WALLET) {
             if !set.contains(&i) {
@@ -1579,24 +1599,31 @@ impl Faraday {
             }
             // Read once when the records changed (`Vaults::described`),
             // not again here.
-            if let Some(d) = self.vaults.described(&c, open.id, i) {
+            if let Some(d) = self.vaults.described(c, open.id, i) {
                 descs.push((
                     d.policy.clone(),
                     wallet_name_in(r, field::WALLET_NAME, EN.vaults_wallet).into_owned(),
                 ));
             }
         }
-        let keys = self
-            .vaults
-            .store()
-            .load_from_vault(&c, &mut self.session.keys, open.id, set, &chosen)
-            .len();
+        let job =
+            self.vaults
+                .store()
+                .load_job(c, self.session.keys.network(), open.id, set, &chosen);
+        Some((job, descs))
+    }
+
+    /// Costs what `add_policy` costs for each wallet: a derivation at the
+    /// origin path of each of its keys the session holds. The back half of
+    /// a load: the wallets `descs` hold are added to the session, after
+    /// its keys. Returns how many were added.
+    pub(crate) fn vault_load_wallets(&mut self, c: &Compute, descs: Vec<LoadWallet>) -> usize {
         let before = self.session.wallets.len();
         for (policy, name) in descs {
             let to = crate::wallet::Origin::Vault;
             let added = self
                 .session
-                .add_policy(&c, &name, policy, EN.vaults_vault, to);
+                .add_policy(c, &name, policy, EN.vaults_vault, to);
             // A kept MuSig2 wallet two of whose keys are one seed's, or a
             // wallet with a loaded key's fingerprint and another xpub, is
             // left out; the load's toast says why.
@@ -1610,9 +1637,9 @@ impl Faraday {
                 other => self.silent_refused(other),
             }
         }
-        wallets += self.session.wallets.len() - before;
+        let wallets = self.session.wallets.len() - before;
         self.refresh_spend();
-        (keys, wallets)
+        wallets
     }
 
     /// The sheet of vaults the selected item can be copied to, if one is up.
@@ -3476,30 +3503,36 @@ impl Faraday {
                 // A wallet this device cannot load has no card; it is
                 // tried so the toast gives its reason.
                 set.extend(self.vault_musig_one_seed(v));
-                let (keys, wallets) = self.vault_load_set(v, &set);
-                let counts = (wallets == 0 && keys > 0).then(|| {
-                    fill(
-                        EN.vaults_loaded,
-                        &[
-                            &keys.to_string(),
-                            (if keys == 1 {
-                                EN.vaults_seed_inline
-                            } else {
-                                EN.vaults_seeds
-                            }),
-                        ],
-                    )
-                });
-                // Wallets that loaded end in the landing's toast, which
-                // carries the reason.
-                if wallets == 0 {
-                    self.vault_loaded_toast(counts);
-                }
-                self.load_sheet_close(v);
+                load_job::start(self, v, &set);
             }
             VaultAction::LoadNotNow => self.load_sheet_close(v),
             _ => {}
         }
+    }
+
+    /// Costs what `vault_loaded_toast` and `load_sheet_close` cost. A
+    /// press on the Load sheet loaded `keys` and `wallets` from open vault
+    /// `v`: the toast says what, and the sheet is done with.
+    pub(crate) fn load_sheet_loaded(&mut self, v: usize, keys: usize, wallets: usize) {
+        let counts = (wallets == 0 && keys > 0).then(|| {
+            fill(
+                EN.vaults_loaded,
+                &[
+                    &keys.to_string(),
+                    (if keys == 1 {
+                        EN.vaults_seed_inline
+                    } else {
+                        EN.vaults_seeds
+                    }),
+                ],
+            )
+        });
+        // Wallets that loaded end in the landing's toast, which
+        // carries the reason.
+        if wallets == 0 {
+            self.vault_loaded_toast(counts);
+        }
+        self.load_sheet_close(v);
     }
 
     /// The sheet is done with: the boot import goes on to its next vault

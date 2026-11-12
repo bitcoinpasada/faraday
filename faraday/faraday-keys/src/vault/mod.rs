@@ -43,6 +43,7 @@ pub use items::Related;
 use zeroize::Zeroizing;
 
 use crate::identity::{Material, fingerprint};
+use crate::job::{KeysJob, SeedToLoad, WordsToLoad};
 use crate::session::{Held, Keys, Part, Reveal, Revealed, WordsId, words_id};
 
 /// The fields of a GPG record (type 7), by number

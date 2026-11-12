@@ -25,6 +25,8 @@ pub enum Kind {
     VaultStretch,
     /// An aezeed read: its scrypt runs.
     AezeedRead,
+    /// Seeds loaded from an open vault: each one's PBKDF2 runs.
+    KeysLoad,
     /// A KeePass database written: its Argon2id runs.
     KdbxWrite,
     /// The one Argon2id pass that times this computer; it has no busy screen.
@@ -63,6 +65,7 @@ impl Kind {
             Kind::SamplesLoad
             | Kind::VaultStretch
             | Kind::AezeedRead
+            | Kind::KeysLoad
             | Kind::KdbxWrite
             | Kind::VaultMeasure
             | Kind::VaultSeal
@@ -103,6 +106,7 @@ pub(crate) enum Job {
     SamplesLoad(Box<crate::samples::LoadJob>),
     Stretch(Box<crate::vault::StretchWork>),
     Aezeed(Box<crate::lightning::ReadWork>),
+    KeysLoad(Box<crate::vault::LoadKeysWork>),
     Kdbx(Box<crate::vault::KdbxWork>),
     Measure(Box<crate::vault::MeasureWork>),
     Seal(Box<crate::vault::SealWork>),
@@ -124,6 +128,7 @@ pub(crate) enum Done {
     SamplesLoad(Box<crate::samples::Loaded>),
     Stretch(Box<crate::vault::StretchDone>),
     Aezeed(Box<crate::lightning::ReadDone>),
+    KeysLoad(Box<crate::vault::LoadKeysDone>),
     Kdbx(Box<crate::vault::KdbxDone>),
     Measured(Box<crate::vault::MeasureDone>),
     Seal(Box<crate::vault::SealDone>),
@@ -146,6 +151,7 @@ impl Job {
             Job::SamplesLoad(_) => Kind::SamplesLoad,
             Job::Stretch(_) => Kind::VaultStretch,
             Job::Aezeed(_) => Kind::AezeedRead,
+            Job::KeysLoad(_) => Kind::KeysLoad,
             Job::Kdbx(_) => Kind::KdbxWrite,
             Job::Measure(_) => Kind::VaultMeasure,
             Job::Seal(_) => Kind::VaultSeal,
@@ -169,6 +175,7 @@ impl Job {
             Job::SamplesLoad(j) => Done::SamplesLoad(Box::new(j.run(c))),
             Job::Stretch(j) => Done::Stretch(Box::new(j.run(c))),
             Job::Aezeed(j) => Done::Aezeed(Box::new(j.run(c))),
+            Job::KeysLoad(j) => Done::KeysLoad(Box::new(j.run(c))),
             Job::Kdbx(j) => Done::Kdbx(Box::new(j.run(c))),
             Job::Measure(j) => Done::Measured(Box::new(j.run(c))),
             Job::Seal(j) => Done::Seal(Box::new(j.run(c))),

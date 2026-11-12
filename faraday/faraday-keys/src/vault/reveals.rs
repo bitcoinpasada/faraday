@@ -484,7 +484,7 @@ impl OpenVaults {
     // ---- loading keys into the session ----
 
     /// Costs a parse of each key record's words in `set`, and what
-    /// `add_words_with` and `add_seed` cost for each. Loads the key
+    /// [`KeysJob::run`] and [`Keys::adopt_loaded`] cost. Loads the key
     /// records of open vault `id` whose places `set` names into `keys`:
     /// the words (with the passphrase stored beside them, or the one an
     /// open vault keeps alone for them that `chosen` names for the
@@ -499,14 +499,29 @@ impl OpenVaults {
         set: &BTreeSet<usize>,
         chosen: &std::collections::BTreeMap<usize, usize>,
     ) -> Vec<Fingerprint> {
+        let job = self.load_job(c, keys.network(), id, set, chosen);
+        keys.adopt_loaded(c, job.run(c))
+    }
+
+    /// Costs a parse of each key record's words in `set`. The part of
+    /// [`OpenVaults::load_from_vault`] that stretches the keys, as a job
+    /// for the worker: the words, seeds and kept passphrases of the key
+    /// records of open vault `id` whose places `set` names, with `chosen`
+    /// as `load_from_vault` takes it, to be worked out on `network` by
+    /// [`KeysJob::run`] and added by [`Keys::adopt_loaded`]. It holds
+    /// secrets and gives none back.
+    pub fn load_job(
+        &self,
+        c: &Compute,
+        network: Network,
+        id: VaultId,
+        set: &BTreeSet<usize>,
+        chosen: &std::collections::BTreeMap<usize, usize>,
+    ) -> KeysJob {
+        let mut job = KeysJob::new(network);
         let Some(slot) = self.slot(id) else {
-            return Vec::new();
+            return job;
         };
-        type Set = Option<fv::codex32::SetFacts>;
-        type Child = Option<fv::child::ChildOf>;
-        let mut words: Vec<(Zeroizing<String>, String, Set, Child)> = Vec::new();
-        let mut seeds: Vec<(Zeroizing<Vec<u8>>, String, Set)> = Vec::new();
-        let mut passphrases: Vec<Zeroizing<String>> = Vec::new();
         for (i, r) in slot
             .records
             .iter()
@@ -517,36 +532,40 @@ impl OpenVaults {
                 continue;
             }
             let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
-            let set = codex32_set_of(r);
+            let codex32 = codex32_set_of(r);
             if let Some(m) = record_words(c, r) {
-                // Stored with the key, or kept alone in an open vault.
-                let pass = match r.text(field::KEY_PASSPHRASE) {
-                    Some(p) => Zeroizing::new(p.to_string()),
-                    None => self
-                        .passphrase_kept_for(c, keys, &m, chosen.get(&i).copied().unwrap_or(0))
-                        .unwrap_or_default(),
-                };
-                words.push((phrase_of(&m), label, set, child_of_of(r)));
-                passphrases.push(pass);
+                job.words.push(WordsToLoad {
+                    phrase: phrase_of(&m),
+                    mnemonic: m,
+                    // Stored with the key, or kept alone in an open vault.
+                    own: r
+                        .text(field::KEY_PASSPHRASE)
+                        .map(|p| Zeroizing::new(p.to_string())),
+                    chosen: chosen.get(&i).copied().unwrap_or(0),
+                    label,
+                    codex32,
+                    child: child_of_of(r),
+                });
             } else if let Some(seed) = seed_of(r) {
-                seeds.push((seed, label, set));
+                job.seeds.push(SeedToLoad {
+                    seed,
+                    label,
+                    codex32,
+                });
             }
         }
-        let mut loaded = Vec::new();
-        for ((w, label, set, child), p) in words.iter().zip(&passphrases) {
-            if let Ok(fp) = keys.add_words_with(c, w, p, label, None) {
-                keys.set_codex32(keys.len() - 1, set.clone());
-                keys.set_child_of(keys.len() - 1, *child);
-                loaded.push(fp);
+        if job.words.iter().any(|w| w.own.is_none()) {
+            for s in &self.slots {
+                for r in s.records.iter().filter(|r| r.kind == kind::PASSPHRASE) {
+                    if let (Some(fp), Some(p)) =
+                        (r.field(field::PASSPHRASE_KEY), r.text(field::PASSPHRASE))
+                    {
+                        job.kept.push((fp.to_vec(), Zeroizing::new(p.to_string())));
+                    }
+                }
             }
         }
-        for (seed, label, set) in &seeds {
-            if let Ok(fp) = keys.add_seed(c, seed, label) {
-                keys.set_codex32(keys.len() - 1, set.clone());
-                loaded.push(fp);
-            }
-        }
-        loaded
+        job
     }
 
     /// Costs a parse of the record's words, and what `add_mnemonic` or

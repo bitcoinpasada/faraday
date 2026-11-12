@@ -7579,6 +7579,8 @@ strings! {
     working_reading_psbt: "Reading the transaction",
     /// The line of the job that loads the ticked samples.
     working_samples: "Loading the samples",
+    /// The line of the job that loads the seeds ticked on the Load sheet.
+    working_load_seeds: "Loading the seeds",
     /// The line of the job that opens a vault.
     working_vault_open: "Unlocking the vault",
     /// The line of the job that makes a vault.

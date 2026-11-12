@@ -288,7 +288,7 @@ impl std::ops::Deref for Revealed<'_> {
 pub const KEY_TEXTS_KEPT: usize = 64;
 
 /// A key that can sign, held for this session only.
-struct Key {
+pub(crate) struct Key {
     /// Behind an `Arc` that is never opened for change: a signing job
     /// holds a clone ([`Keys::sign_job`]), and the key is wiped as the last
     /// one drops (`docs/KEYS.md` §2). A change of network makes a new key
@@ -330,7 +330,7 @@ pub(crate) struct Secrets<'a> {
     pub(crate) language: Language,
 }
 
-struct Entry {
+pub(crate) struct Entry {
     key: Key,
     info: KeyInfo,
     /// A reblind came while a signing job held the key: it is randomized
@@ -755,10 +755,11 @@ impl Keys {
         self.add_words_with(c, words, "", label, wanted)
     }
 
-    /// Costs a parse of the words and what `add_mnemonic` costs. Adds the
-    /// key the words and a BIP-39 passphrase give. The same words with
-    /// another passphrase are another key. English is read first, then the
-    /// other lists in BIP-39's order.
+    /// Costs a parse of the words and what
+    /// `add_mnemonic` costs. Adds the key the words and a BIP-39
+    /// passphrase give. The same words with another passphrase are
+    /// another key. English is read first, then the other lists in
+    /// BIP-39's order.
     pub fn add_words_with(
         &mut self,
         c: &Compute,
@@ -767,21 +768,8 @@ impl Keys {
         label: &str,
         wanted: Option<Fingerprint>,
     ) -> Result<Fingerprint, Refusal> {
-        let normal = Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
-        let mut first = None;
-        for lang in Language::ALL {
-            match Mnemonic::parse(c, lang, &normal) {
-                Ok(m) => return self.add_mnemonic(c, &m, passphrase, label, wanted),
-                Err(e) => {
-                    first.get_or_insert(e);
-                }
-            }
-        }
-        Err(Refusal::Words(
-            first
-                .map(|e| faraday_strings::bip::bip39_error(&e))
-                .unwrap_or_default(),
-        ))
+        let m = parse_words(c, words)?;
+        self.add_mnemonic(c, &m, passphrase, label, wanted)
     }
 
     /// Costs what `to_seed`, `from_seed`, `info_of` and `push` cost. Adds the key a
@@ -796,11 +784,7 @@ impl Keys {
         wanted: Option<Fingerprint>,
     ) -> Result<Fingerprint, Refusal> {
         self.no_stick()?;
-        let lang = mnemonic.language();
-        let seed = mnemonic
-            .to_seed(c, passphrase.as_bytes())
-            .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
-        let master = MasterKey::from_seed(c, &seed, self.network);
+        let master = mnemonic_master(c, mnemonic, passphrase, self.network)?;
         let fp = master.fingerprint();
         if let Some(w) = wanted
             && w != fp
@@ -814,32 +798,8 @@ impl Keys {
         if self.position(fp).is_some() {
             return Err(Refusal::Duplicate(fp));
         }
-        let label = if label.trim().is_empty() {
-            fp_text(fp)
-        } else {
-            label.trim().to_string()
-        };
-        let mut words = faraday_intake::secret_buf::room();
-        for (k, &i) in mnemonic.indices().iter().enumerate() {
-            if k > 0 {
-                words.push(' ');
-            }
-            words.push_str(lang.word(i));
-        }
-        let word_count = u8::try_from(mnemonic.word_count()).ok();
-        self.push(
-            c,
-            Entry::new(
-                c,
-                master,
-                label,
-                Some(words),
-                lang,
-                word_count,
-                (!passphrase.is_empty()).then(|| Zeroizing::new(passphrase.to_string())),
-                None,
-            ),
-        );
+        let entry = mnemonic_entry(c, master, mnemonic, passphrase, label);
+        self.push(c, entry);
         Ok(fp)
     }
 
@@ -855,34 +815,45 @@ impl Keys {
         label: &str,
     ) -> Result<Fingerprint, Refusal> {
         self.no_stick()?;
-        let bytes = faraday_crypto::SeedBytes::new(seed)
-            .ok_or_else(|| Refusal::Words(faraday_strings::EN.wallet_a_master_seed.to_string()))?;
-        let master =
-            MasterKey::from_seed_bytes(c, &faraday_crypto::Secret::new(bytes), self.network);
+        let master = seed_master(c, seed, self.network)?;
         let fp = master.fingerprint();
         self.allowed(fp)?;
         if self.position(fp).is_some() {
             return Err(Refusal::Duplicate(fp));
         }
-        let label = if label.trim().is_empty() {
-            fp_text(fp)
-        } else {
-            label.trim().to_string()
-        };
-        self.push(
-            c,
-            Entry::new(
-                c,
-                master,
-                label,
-                None,
-                Language::English,
-                None,
-                None,
-                Some(Zeroizing::new(seed.to_vec())),
-            ),
-        );
+        let entry = seed_entry(c, master, seed, label);
+        self.push(c, entry);
         Ok(fp)
+    }
+
+    /// Costs what `push` costs for each key. Adds the keys a load's job
+    /// worked out ([`crate::job::KeysJob`]), in the order the job made
+    /// them, as `add_words_with` and `add_seed` add them: one the session
+    /// refuses (a stick attached, not a sample in the demo, already held)
+    /// is left out. Returns the fingerprints of the keys that joined.
+    pub fn adopt_loaded(
+        &mut self,
+        c: &Compute,
+        loaded: crate::job::KeysLoaded,
+    ) -> Vec<Fingerprint> {
+        let mut out = Vec::new();
+        for item in loaded.items {
+            let fp = item.entry.info.fingerprint;
+            if self.no_stick().is_err() || self.allowed(fp).is_err() || self.position(fp).is_some()
+            {
+                continue;
+            }
+            self.push(c, item.entry);
+            let at = self.entries.len() - 1;
+            if item.codex32.is_some() {
+                self.set_codex32(at, item.codex32);
+            }
+            if item.child.is_some() {
+                self.set_child_of(at, item.child);
+            }
+            out.push(fp);
+        }
+        out
     }
 
     /// Costs what `add_words_with` costs. Adds the key key `i`'s words and
@@ -1771,6 +1742,113 @@ impl Keys {
             .collect();
         view
     }
+}
+
+/// Costs a parse of the words. The mnemonic `words` are, in English if
+/// they read in it, else in the first of the other lists in BIP-39's
+/// order that reads them.
+pub(crate) fn parse_words(c: &Compute, words: &str) -> Result<Mnemonic, Refusal> {
+    let normal = Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
+    let mut first = None;
+    for lang in Language::ALL {
+        match Mnemonic::parse(c, lang, &normal) {
+            Ok(m) => return Ok(m),
+            Err(e) => {
+                first.get_or_insert(e);
+            }
+        }
+    }
+    Err(Refusal::Words(
+        first
+            .map(|e| faraday_strings::bip::bip39_error(&e))
+            .unwrap_or_default(),
+    ))
+}
+
+/// Costs a PBKDF2 (`to_seed`) and what `from_seed` costs. The master key
+/// a mnemonic and a BIP-39 passphrase give on `network`.
+pub(crate) fn mnemonic_master(
+    c: &Compute,
+    mnemonic: &Mnemonic,
+    passphrase: &str,
+    network: Network,
+) -> Result<MasterKey, Refusal> {
+    let seed = mnemonic
+        .to_seed(c, passphrase.as_bytes())
+        .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
+    Ok(MasterKey::from_seed(c, &seed, network))
+}
+
+/// Costs what `Entry::new` costs. The key `master` is, made of the
+/// mnemonic and passphrase it came from, labelled `label` (its
+/// fingerprint when the label is empty).
+pub(crate) fn mnemonic_entry(
+    c: &Compute,
+    master: MasterKey,
+    mnemonic: &Mnemonic,
+    passphrase: &str,
+    label: &str,
+) -> Entry {
+    let lang = mnemonic.language();
+    let label = if label.trim().is_empty() {
+        fp_text(master.fingerprint())
+    } else {
+        label.trim().to_string()
+    };
+    let mut words = faraday_intake::secret_buf::room();
+    for (k, &i) in mnemonic.indices().iter().enumerate() {
+        if k > 0 {
+            words.push(' ');
+        }
+        words.push_str(lang.word(i));
+    }
+    let word_count = u8::try_from(mnemonic.word_count()).ok();
+    Entry::new(
+        c,
+        master,
+        label,
+        Some(words),
+        lang,
+        word_count,
+        (!passphrase.is_empty()).then(|| Zeroizing::new(passphrase.to_string())),
+        None,
+    )
+}
+
+/// Costs what `from_seed_bytes` costs. The master key a master seed gives
+/// on `network`; a refusal for a seed of no length a master seed has.
+pub(crate) fn seed_master(
+    c: &Compute,
+    seed: &[u8],
+    network: Network,
+) -> Result<MasterKey, Refusal> {
+    let bytes = faraday_crypto::SeedBytes::new(seed)
+        .ok_or_else(|| Refusal::Words(faraday_strings::EN.wallet_a_master_seed.to_string()))?;
+    Ok(MasterKey::from_seed_bytes(
+        c,
+        &faraday_crypto::Secret::new(bytes),
+        network,
+    ))
+}
+
+/// Costs what `Entry::new` costs. The key `master` is, made of the master
+/// seed `seed`, labelled `label` (its fingerprint when the label is empty).
+pub(crate) fn seed_entry(c: &Compute, master: MasterKey, seed: &[u8], label: &str) -> Entry {
+    let label = if label.trim().is_empty() {
+        fp_text(master.fingerprint())
+    } else {
+        label.trim().to_string()
+    };
+    Entry::new(
+        c,
+        master,
+        label,
+        None,
+        Language::English,
+        None,
+        None,
+        Some(Zeroizing::new(seed.to_vec())),
+    )
 }
 
 impl Entry {

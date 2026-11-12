@@ -611,3 +611,121 @@ impl Signing {
         (self.psbt, self.musig, self.result)
     }
 }
+
+/// A key record of words to load: the words as the record keeps them and
+/// the passphrase to stretch them with.
+pub(crate) struct WordsToLoad {
+    pub(crate) phrase: Zeroizing<String>,
+    pub(crate) mnemonic: faraday_bip::bip39::Mnemonic,
+    /// The passphrase the record stores with its key; none: the one an
+    /// open vault keeps alone for the key, if one is.
+    pub(crate) own: Option<Zeroizing<String>>,
+    /// Which of the passphrases kept alone for the key is wanted.
+    pub(crate) chosen: usize,
+    pub(crate) label: String,
+    pub(crate) codex32: Option<fv::codex32::SetFacts>,
+    pub(crate) child: Option<fv::child::ChildOf>,
+}
+
+/// A key record of a master seed to load.
+pub(crate) struct SeedToLoad {
+    pub(crate) seed: Zeroizing<Vec<u8>>,
+    pub(crate) label: String,
+    pub(crate) codex32: Option<fv::codex32::SetFacts>,
+}
+
+/// The costly part of loading the key records of open vaults into the
+/// session ([`crate::vault::OpenVaults::load_job`]): the stretch of each
+/// key's words, its master key and its id. The keys come out whole, for
+/// the thread that holds the session to add
+/// ([`crate::Keys::adopt_loaded`]); no secret leaves faraday-keys.
+pub struct KeysJob {
+    pub(crate) network: Network,
+    pub(crate) words: Vec<WordsToLoad>,
+    pub(crate) seeds: Vec<SeedToLoad>,
+    /// The passphrase records the open vaults keep alone, each with the
+    /// fingerprint it names, in the order the vaults are held.
+    pub(crate) kept: Vec<(Vec<u8>, Zeroizing<String>)>,
+}
+
+/// The keys a [`KeysJob`] worked out, in the order they are added.
+pub struct KeysLoaded {
+    pub(crate) items: Vec<LoadedKey>,
+}
+
+pub(crate) struct LoadedKey {
+    pub(crate) entry: crate::session::Entry,
+    pub(crate) codex32: Option<fv::codex32::SetFacts>,
+    pub(crate) child: Option<fv::child::ChildOf>,
+}
+
+impl KeysJob {
+    pub(crate) fn new(network: Network) -> KeysJob {
+        KeysJob {
+            network,
+            words: Vec::new(),
+            seeds: Vec::new(),
+            kept: Vec::new(),
+        }
+    }
+
+    /// Whether the job has no key to work out: a load of wallets alone.
+    pub fn is_empty(&self) -> bool {
+        self.words.is_empty() && self.seeds.is_empty()
+    }
+
+    /// Costs a PBKDF2 for each passphrase kept alone that a words record
+    /// has no passphrase of its own to be tried with, and what
+    /// `add_words_with` and `add_seed` cost for each key: a parse of the
+    /// words, a PBKDF2, a master key and its id. A key that does not
+    /// stretch is left out. Everything the job held is wiped as it ends.
+    pub fn run(self, c: &Compute) -> KeysLoaded {
+        let network = self.network;
+        let mut items = Vec::new();
+        for w in &self.words {
+            let pass = match &w.own {
+                Some(p) => p.clone(),
+                None => self.kept_for(c, w).unwrap_or_default(),
+            };
+            let Ok(m) = crate::session::parse_words(c, &w.phrase) else {
+                continue;
+            };
+            let Ok(master) = crate::session::mnemonic_master(c, &m, &pass, network) else {
+                continue;
+            };
+            items.push(LoadedKey {
+                entry: crate::session::mnemonic_entry(c, master, &m, &pass, &w.label),
+                codex32: w.codex32.clone(),
+                child: w.child,
+            });
+        }
+        for s in &self.seeds {
+            let Ok(master) = crate::session::seed_master(c, &s.seed, network) else {
+                continue;
+            };
+            items.push(LoadedKey {
+                entry: crate::session::seed_entry(c, master, &s.seed, &s.label),
+                codex32: s.codex32.clone(),
+                child: None,
+            });
+        }
+        KeysLoaded { items }
+    }
+
+    /// Costs a PBKDF2 for each passphrase kept alone. The `chosen`th of
+    /// the passphrases kept alone for the words of `w` (the first when it
+    /// names none), found by the fingerprint each record names.
+    fn kept_for(&self, c: &Compute, w: &WordsToLoad) -> Option<Zeroizing<String>> {
+        use crate::identity::{Material, fingerprint};
+        let found: Vec<&Zeroizing<String>> = self
+            .kept
+            .iter()
+            .filter(|(fp, p)| {
+                fingerprint(c, Material::Words(&w.mnemonic), p, self.network)
+                    .is_some_and(|got| got.0[..] == fp[..])
+            })
+            .map(|(_, p)| p)
+            .collect();
+        Some((*found.get(w.chosen).or_else(|| found.first())?).clone())
+    }
+}

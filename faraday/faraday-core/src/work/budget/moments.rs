@@ -162,23 +162,27 @@ const LOAD: Table = &[
     (
         Work::WordsParse,
         2,
-        "the vault's seed read from its record, then parsed again as it is loaded (Session::add_words_with)",
+        "the vault's seed read from its record as the press starts the job (OpenVaults::load_job), then parsed again in the job as it is loaded (KeysJob::run)",
     ),
-    (Work::Kdf, 1, "PBKDF2 for the seed loaded"),
+    (
+        Work::Kdf,
+        1,
+        "PBKDF2 for the seed loaded, in the Load press's job (KeysJob::run)",
+    ),
     (
         Work::MasterKey,
         1,
-        "the seed loaded made a master key, its fingerprint kept on the key",
+        "the seed loaded made a master key in the job, its fingerprint kept on the key",
     ),
     (
         Work::FileHash,
         1,
-        "the loaded key's id (wallet::master_id), kept on the key",
+        "the loaded key's id (wallet::master_id), worked out in the job and kept on the key",
     ),
     (
         Work::KeyDerive,
         23,
-        "the loaded key's master xpub, for its id (wallet::master_id), kept on the key (1); each of the 22 kept wallet keys under the loaded key's fingerprint derived at its origin path, to check it is the loaded key's as the wallet is added (Session::add_policy) (22)",
+        "the loaded key's master xpub, for its id (wallet::master_id), worked out in the job and kept on the key (1); each of the 22 kept wallet keys under the loaded key's fingerprint derived at its origin path, to check it is the loaded key's as the wallet is added (Session::add_policy) (22)",
     ),
     (
         Work::Address,
@@ -214,7 +218,21 @@ fn unlock_to_the_load_sheet_and_load_do_their_fixed_work() {
     check("unlock to the Load sheet", &since(&before), UNLOCK);
 
     let before = snapshot();
-    press_and_draw(&mut app, Action::Vault(V::LoadTicked));
+    testkit::press_on_worker(&mut app, Action::Vault(V::LoadTicked));
+    assert_eq!(
+        since(&before).of(Work::Kdf),
+        0,
+        "the seed's stretch is the job's, not the press's"
+    );
+    testkit::settle(&mut app);
+    for t in 1..4u64 {
+        let _ = app.frame();
+        let now = app.now_ms;
+        app.event(Event::Tick {
+            now_ms: now + t * 16,
+        });
+    }
+    let _ = app.frame();
     assert!(
         !app.session.wallets.is_empty(),
         "the vault's wallets loaded"

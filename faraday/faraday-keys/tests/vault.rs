@@ -2150,3 +2150,105 @@ fn an_open_not_asked_or_given_a_wrong_passphrase_gives_no_identities() {
     assert!(wrong.error().is_some());
     assert!(wrong.identities().is_empty());
 }
+
+#[test]
+fn keys_loaded_through_the_job_give_the_session_the_same_keys_as_adding_them() {
+    let c = compute();
+    let words = |w: &str| {
+        let m = Mnemonic::parse(&c, Language::English, w).expect("the words");
+        faraday_vault::records::words_payload(&m)
+    };
+    let zoo = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong";
+    let seed = [7u8; 32];
+    let mut probe = Keys::on(Network::Mainnet);
+    let kept_fp = probe
+        .add_words_with(&c, ABANDON, "kept", "", None)
+        .expect("a key")
+        .0;
+    let second_fp = probe
+        .add_words_with(&c, ABANDON, "second", "", None)
+        .expect("a key")
+        .0;
+    let passphrase = |fp: [u8; 4], text: &[u8]| {
+        Record::new(kind::PASSPHRASE)
+            .with(field::PASSPHRASE_KEY, &fp)
+            .with(field::PASSPHRASE, text)
+    };
+    let file = made_with(
+        &c,
+        "pass",
+        vec![
+            Record::new(kind::KEY)
+                .with(field::KEY, &words(ABANDON))
+                .with(field::KEY_LABEL, b"Plain"),
+            Record::new(kind::KEY)
+                .with(field::KEY, &words(zoo))
+                .with(field::KEY_PASSPHRASE, b"extra")
+                .with(field::KEY_LABEL, b"Own"),
+            Record::new(kind::KEY).with(field::KEY, &words(ABANDON)),
+            Record::new(kind::KEY)
+                .with(
+                    field::KEY,
+                    &faraday_vault::layouts::seed_payload(&seed).expect("a seed"),
+                )
+                .with(field::KEY_LABEL, b"Seed"),
+            passphrase(kept_fp, b"kept"),
+            passphrase(second_fp, b"second"),
+        ],
+    );
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
+    let places: Vec<usize> = store.records(id).of(kind::KEY).map(|(i, _)| i).collect();
+    let all: std::collections::BTreeSet<usize> = places.iter().copied().collect();
+
+    for (chosen, passphrase) in [(0usize, "kept"), (1, "second")] {
+        let choice = places.iter().map(|&p| (p, chosen)).collect();
+        let mut by_job = Keys::on(Network::Mainnet);
+        let job = store.load_job(&c, Network::Mainnet, id, &all, &choice);
+        assert!(!job.is_empty());
+        let loaded = by_job.adopt_loaded(&c, job.run(&c));
+
+        let mut by_hand = Keys::on(Network::Mainnet);
+        let want = [
+            by_hand.add_words_with(&c, ABANDON, passphrase, "Plain", None),
+            by_hand.add_words_with(&c, zoo, "extra", "Own", None),
+            by_hand.add_seed(&c, &seed, "Seed"),
+        ];
+        assert_eq!(
+            loaded,
+            want.iter()
+                .map(|r| *r.as_ref().expect("added"))
+                .collect::<Vec<_>>(),
+            "the same fingerprints, in the order they are added, the key kept again left out"
+        );
+        assert_eq!(by_job.len(), by_hand.len());
+        for i in 0..by_hand.len() {
+            assert_eq!(by_job.info(i), by_hand.info(i), "key {i} is the same");
+        }
+
+        // What the session already holds is not added again.
+        let again = store.load_job(&c, Network::Mainnet, id, &all, &choice);
+        assert!(by_job.adopt_loaded(&c, again.run(&c)).is_empty());
+        assert_eq!(by_job.len(), 3);
+    }
+
+    // The store's own load is the same as the job's.
+    let mut direct = Keys::on(Network::Mainnet);
+    let fps = store.load_from_vault(&c, &mut direct, id, &all, &Default::default());
+    assert_eq!(fps.len(), 3);
+}
+
+#[test]
+fn a_load_with_a_stick_attached_adds_no_key() {
+    let c = compute();
+    let file = made(&c, "first passphrase");
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file, "first passphrase").expect("opens");
+    let all = store.records(id).of(kind::KEY).map(|(i, _)| i).collect();
+    let mut keys = Keys::on(Network::Mainnet);
+    let job = store.load_job(&c, Network::Mainnet, id, &all, &Default::default());
+    // The stick went on while the job ran.
+    keys.set_stick_attached(Some("stick"));
+    assert!(keys.adopt_loaded(&c, job.run(&c)).is_empty());
+    assert!(keys.is_empty());
+}
