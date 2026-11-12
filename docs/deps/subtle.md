@@ -1,7 +1,7 @@
 # subtle
 
 **Purpose.** Constant-time equality for `Secret<T>`, which is how the session PIN hash and the two PIN entries are
-compared without a timing side channel.
+compared without a timing side channel, and the 4-byte hash check of a key file in `faraday-vault`.
 
 **Why this crate.** `ConstantTimeEq` over byte slices with the same
 volatile-and-fence technique `zeroize` uses to keep the optimiser from

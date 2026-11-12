@@ -13,7 +13,7 @@ authors as `sha2` and `hmac` already in the graph, `no_std`, and version
 0.11 is on the same `digest 0.11` generation, so it adds one crate and
 nothing under it.
 
-**Cost.** One crate, `sha1` 0.11 with `default-features = false`.
+**Cost.** One crate, `sha1` 0.11 with `default-features = false` and `zeroize`, which wipes the hash state as it drops.
 
 **Reopen when** Faraday writes version-6 keys, whose fingerprints are
 SHA-256; this crate then goes.

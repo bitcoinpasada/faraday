@@ -121,7 +121,9 @@ fn yubikey_response(secret: &[u8; 20], salt: &[u8]) -> Zeroizing<[u8; 20]> {
     let mut mac =
         <Hmac<Sha1> as KeyInit>::new_from_slice(secret).expect("HMAC takes any key length");
     mac.update(&padded[..n]);
-    Zeroizing::new(mac.finalize().into_bytes().into())
+    let mut out = Zeroizing::new([0u8; 20]);
+    hmac::digest::FixedOutput::finalize_into(mac, (&mut *out).into());
+    out
 }
 
 /// The composite key (§3.2), the one place it is made: the SHA-256 of
@@ -133,17 +135,25 @@ pub(super) fn composite_key(
     salt: &[u8],
 ) -> Secret<[u8; 32]> {
     let mut all = Sha256::new();
-    let first = Zeroizing::new(<[u8; 32]>::from(Sha256::digest(passphrase)));
+    let mut first = Zeroizing::new([0u8; 32]);
+    let mut inner = Sha256::new();
+    inner.update(passphrase);
+    inner.finalize_into((&mut *first).into());
     all.update(first.as_slice());
     if let Some(key) = &components.key_file {
         all.update(key.as_slice());
     }
     if let Some(secret) = &components.yubikey {
         let response = yubikey_response(secret, salt);
-        let hashed = Zeroizing::new(<[u8; 32]>::from(Sha256::digest(response.as_slice())));
+        let mut hashed = Zeroizing::new([0u8; 32]);
+        let mut inner = Sha256::new();
+        inner.update(response.as_slice());
+        inner.finalize_into((&mut *hashed).into());
         all.update(hashed.as_slice());
     }
-    Secret::new(<[u8; 32]>::from(all.finalize()))
+    let mut out = Secret::new([0u8; 32]);
+    all.finalize_into(out.expose_mut().into());
+    out
 }
 
 /// Costs an Argon2 run: `cost.memory_kib` of memory filled `cost.passes`
@@ -168,15 +178,17 @@ pub(super) fn file_keys(
     let mut encryption = Sha256::new();
     encryption.update(master_seed);
     encryption.update(t.expose());
-    let encryption = Secret::new(<[u8; 32]>::from(encryption.finalize()));
+    let mut encryption_key = Secret::new([0u8; 32]);
+    encryption.finalize_into(encryption_key.expose_mut().into());
     let mut base = Sha512::new();
     base.update(master_seed);
     base.update(t.expose());
     base.update([1u8]);
-    let hmac_base = Secret::new(<[u8; 64]>::from(base.finalize()));
+    let mut hmac_base = Secret::new([0u8; 64]);
+    base.finalize_into(hmac_base.expose_mut().into());
     t.zeroize();
     Ok(Keys {
-        encryption,
+        encryption: encryption_key,
         hmac_base,
     })
 }
@@ -215,7 +227,9 @@ pub(super) fn block_key(base: &Secret<[u8; 64]>, i: u64) -> Secret<[u8; 64]> {
     let mut h = Sha512::new();
     h.update(i.to_le_bytes());
     h.update(base.expose());
-    Secret::new(<[u8; 64]>::from(h.finalize()))
+    let mut out = Secret::new([0u8; 64]);
+    h.finalize_into(out.expose_mut().into());
+    out
 }
 
 /// A running `HMAC-SHA-256` under `key`.

@@ -53,6 +53,7 @@ use base64ct::{Base64, Encoding};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::reader::Reader;
 use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
 use super::xml::{MAX_DEPTH, valid_ref};
@@ -108,16 +109,16 @@ pub fn read(bytes: &[u8]) -> Result<Zeroizing<[u8; 32]>, KeyFileError> {
 /// KeePass family opens a vault with it. The caller draws `key` and wipes
 /// the result.
 pub fn write(key: &[u8; 32]) -> Zeroizing<Vec<u8>> {
-    const HEX: &[u8; 16] = b"0123456789ABCDEF";
-    let hash = Sha256::digest(key);
+    // The hash is held wiping; the hasher is consumed by `digest`, which
+    // wipes its state as it drops (the `zeroize` feature of sha2).
+    let hash = Zeroizing::new(<[u8; 32]>::from(Sha256::digest(key)));
     let mut out = Zeroizing::new(Vec::with_capacity(320));
     out.extend_from_slice(
         b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<KeyFile>\n    <Meta>\n        \
           <Version>2.0</Version>\n    </Meta>\n    <Key>\n        <Data Hash=\"",
     );
     for b in hash.iter().take(4) {
-        out.push(HEX[usize::from(b >> 4)]);
-        out.push(HEX[usize::from(b & 15)]);
+        push_hex(&mut out, *b);
     }
     out.extend_from_slice(b"\">");
     for (i, b) in key.iter().enumerate() {
@@ -133,11 +134,21 @@ pub fn write(key: &[u8; 32]) -> Zeroizing<Vec<u8>> {
             }
             out.extend_from_slice(b"            ");
         }
-        out.push(HEX[usize::from(b >> 4)]);
-        out.push(HEX[usize::from(b & 15)]);
+        push_hex(&mut out, *b);
     }
     out.extend_from_slice(b"\n        </Data>\n    </Key>\n</KeyFile>\n");
     out
+}
+
+/// `b` as two upper-case hexadecimal digits, worked out per nibble with no
+/// table indexed by the byte.
+fn push_hex(out: &mut Vec<u8>, b: u8) {
+    for n in [b >> 4, b & 15] {
+        // `n + '0'`, plus 7 more (to 'A'..'F') when `n` is above 9: the mask
+        // is 0xFF exactly when `9 - n` is negative.
+        let over = ((9u8.wrapping_sub(n)) >> 7).wrapping_neg();
+        out.push(n + b'0' + (over & 7));
+    }
 }
 
 /// The 20-byte secret `text` spells: 40 hexadecimal digits in either case,
@@ -215,7 +226,9 @@ fn xml(bytes: &[u8]) -> Result<Option<Zeroizing<[u8; 32]>>, KeyFileError> {
                 u16::from_be_bytes([p[0], p[1]])
             }
         });
-        let mut text = Zeroizing::new(Vec::new());
+        // UTF-8 takes at most 3 bytes for each 2 of UTF-16: sized up front so
+        // growing leaves no copy behind.
+        let mut text = Zeroizing::new(Vec::with_capacity(bytes.len() / 2 * 3));
         for c in core::char::decode_utf16(units) {
             let Ok(c) = c else { return Ok(None) };
             let mut buf = [0u8; 4];
@@ -242,6 +255,7 @@ fn start_text(
     e: &BytesStart<'_>,
     path: &[Vec<u8>],
     found: &mut Found,
+    cap: usize,
 ) -> Result<Option<Wanted>, KeyFileError> {
     let Some(is_version) = wanted(path, e.name().as_ref()) else {
         return Ok(None);
@@ -249,7 +263,14 @@ fn start_text(
     if !is_version {
         take_hash(e, found)?;
     }
-    Ok(Some((path.len(), is_version, Zeroizing::new(Vec::new()))))
+    // The Data's text is at most the document, so it is sized up front and
+    // never reallocates; the Version holds nothing secret.
+    let room = if is_version { 0 } else { cap };
+    Ok(Some((
+        path.len(),
+        is_version,
+        Zeroizing::new(Vec::with_capacity(room)),
+    )))
 }
 
 /// An element with no text that sits inside the `KeyFile`: an empty Version
@@ -623,7 +644,7 @@ fn scan_document(
                 if text.is_some() {
                     return Err(KeyFileError::Damaged);
                 }
-                text = start_text(&e, &path, &mut found)?;
+                text = start_text(&e, &path, &mut found, src.len())?;
                 path.push(e.name().as_ref().to_vec());
             }
             Event::Empty(e) => {
@@ -698,8 +719,8 @@ fn key_of(found: Found) -> Result<Zeroizing<[u8; 32]>, KeyFileError> {
     }
     let version = found.version.ok_or(KeyFileError::Damaged)?;
     let data = found.data.ok_or(KeyFileError::Damaged)?;
-    let digits: Zeroizing<Vec<u8>> =
-        Zeroizing::new(data.iter().copied().filter(|b| !is_ws(b)).collect());
+    let mut digits: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::with_capacity(data.len()));
+    digits.extend(data.iter().copied().filter(|b| !is_ws(b)));
     // Exactly what KeePassXC reads: it opens with neither ` 2.0 ` nor `2.00`.
     match version.as_slice() {
         b"1.0" | b"1.00" => {
@@ -721,9 +742,9 @@ fn key_of(found: Found) -> Result<Zeroizing<[u8; 32]>, KeyFileError> {
             let key = hex_key(&digits).ok_or(KeyFileError::Damaged)?;
             let hash = found.hash.ok_or(KeyFileError::Damaged)?;
             let hash: Vec<u8> = hash.into_iter().filter(|b| !is_ws(b)).collect();
-            let want = Sha256::digest(key.as_slice());
+            let want = Zeroizing::new(<[u8; 32]>::from(Sha256::digest(key.as_slice())));
             let stated = hex_key_n(&hash).ok_or(KeyFileError::Damaged)?;
-            if stated[..] != want[..4] {
+            if !bool::from(stated[..].ct_eq(&want[..4])) {
                 return Err(KeyFileError::Damaged);
             }
             Ok(key)

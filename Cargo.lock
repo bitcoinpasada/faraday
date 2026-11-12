@@ -1444,6 +1444,7 @@ dependencies = [
  "quick-xml",
  "sha1",
  "sha2",
+ "subtle",
  "toml_parser",
  "unicode-normalization",
  "zeroize",

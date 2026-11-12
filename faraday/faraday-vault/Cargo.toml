@@ -25,11 +25,13 @@ argon2 = { workspace = true }
 chacha20 = { workspace = true }
 # KDBX's key hashes and its HMAC per block, and the TOTP code's HMAC
 # (`docs/TOTP.md` §4): SHA-1, SHA-256 or SHA-512.
-sha2 = { workspace = true }
-hmac = { workspace = true }
+sha2 = { workspace = true, features = ["zeroize"] }
+hmac = { workspace = true, features = ["zeroize"] }
 # A TOTP code's HMAC may be SHA-1 (RFC 6238's default); the version
 # `faraday-pgp` already uses, so no new crate enters the tree.
-sha1 = { version = "0.11", default-features = false }
+sha1 = { version = "0.11", default-features = false, features = ["zeroize"] }
+# The 4-byte hash check of a key file compares in constant time.
+subtle.workspace = true
 
 # The TOML inside a vault (docs/VAULT.md §7): the parser alone, by the
 # publisher F71 trusts, without std; the tree is `contents/tree.rs`.
