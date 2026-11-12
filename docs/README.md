@@ -92,6 +92,7 @@ need. Each document's header says what kind it is:
 - `docs/DEVELOPING.md`: Developing Faraday: build, check, reproduce, try on hardware. Built.
 - `docs/ESTABLISHED.md`: Established implementations first: what Faraday writes itself and why, the timing fixes, what wiping reaches under the security model, the switches to outside code, the order of work, and what the cross-check compares each action with after the switches. Built (F178, F180, F181, F190, F191, F192, F193, F213); how it was built is in `docs/history/ESTABLISHED-LOG.md`; §6 is the work kept for later.
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey, and move a key to a vault on another machine by camera. Built (F169, F215).
+- `docs/GUIDE-IN-APP.md`: The guide, one guide in the app, opened at the section for the place and step the person is on, in place of Learn and of the website's walkthroughs, the website's guide page saying the guide is in the app. Built (F247): the pages by place and step, the keys and their lookup, the sheet and pane, the Guide button and the Starter's guide destination.
 - `docs/HARDWARE.md`: Hardware: boards, platforms and screens. Built; the ESP32-P4 board considered, not supported.
 - `docs/KEF.md`: KEF, Krux's encrypted code, read and written in full. Built (F219).
 - `docs/KERNEL-PATCHES.md`: The kernel patches the images carry. Built.
@@ -122,7 +123,6 @@ need. Each document's header says what kind it is:
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built: the Nostr key's part is open.
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
-- `docs/GUIDE-IN-APP.md`: The guide, one guide in the app, opened at the section for the place and step the person is on, in place of Learn and of the website's walkthroughs, the website's guide page saying the guide is in the app. Specified (F247); the contents list and a few pages and checks are still open.
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145); the PC's and the Pi's builds, the one Pi image and the release's files are built; trials and measurements are open.
 - `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Built (F149).
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
