@@ -63,6 +63,8 @@ A seed's passphrase is written by hand exactly as it is, capitals and spaces inc
 
 A seed's Krux code is shown, copied by hand onto a Krux template and checked.
 
+A code of 37 × 37 squares or less shows **Size**, **By hand** with its sheet in Faraday Starter, Blank templates, Krux code, and a grid in place of the picture, to copy block by block; a larger code cannot be copied by hand.
+
 **Show the code** shows the code. **Scan my copy** reads the copy with the camera. **Check my code** takes the passphrase of the code and **Compare** checks it. **Make another** makes a further code. **Not on Paper** takes the code off every place.
 
 ## Vault
@@ -86,6 +88,8 @@ Each seed is written as a file for the stick. The file is unprotected: anyone wh
 One sheet with the wallet's name, every xpub and the checksum. It cannot spend; it rebuilds the wallet. **Make it** makes a PDF to print.
 
 For a multisig whose description is split, the item is **The shares**: each share holds the description with some keys left off, one alone cannot watch the wallet and enough together rebuild it. **Make them** makes the sheets, text files and pictures.
+
+**Keys left off each share** is a slider from 0 to the most the quorum allows, one fewer than the signatures needed and at most one fewer than the keys; with 0 every share is the whole description. The table lists each share with its keys' fingerprints. Under it, lines say whether any quorum's worth of shares rebuild the wallet or only some, the fewest shares that rebuild it, how many shares each key is on, and **No single share holds every key** or **Each share holds every key**. A share holds account keys and cannot sign.
 
 ## The public files
 
