@@ -203,7 +203,7 @@ done
 # Every string is used: a key no Rust file outside en.rs names as `.key`
 # is dead wording, and goes (STRUCTURE-PASS §7, A11).
 keys=$(grep -oE '^    [a-z0-9_]+: "' "$FARADAY_STRINGS" | sed -E 's/^    ([a-z0-9_]+): "/\1/' | sort -u)
-used=$(find faraday core tools -name '*.rs' -not -path '*/target/*' -not -path "$FARADAY_STRINGS" -print0 \
+used=$(find faraday core tools aqrv -name '*.rs' -not -path '*/target/*' -not -path "$FARADAY_STRINGS" -print0 \
     | xargs -0 grep -hoE '\.[a-z0-9_]+\b' | sed 's/^\.//' | sort -u)
 unused=$(comm -23 <(printf '%s\n' "$keys") <(printf '%s\n' "$used"))
 if [ -n "$unused" ]; then

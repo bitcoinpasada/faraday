@@ -13962,9 +13962,6 @@ strings! {
     /// The Argon QR Vault's tab for opening a code.
     #[cfg(feature = "aqrv")]
     aqrv_tab_open: "Open",
-    /// Make, the item: the heading of the sample list.
-    #[cfg(feature = "aqrv")]
-    aqrv_item_title: "Item",
     /// Make, the item: the choice to type an item.
     #[cfg(feature = "aqrv")]
     aqrv_type_own: "Type my own",

@@ -63,6 +63,7 @@ pub static SAMPLES: [Sample; 7] = [
     Sample {
         name: |s| s.aqrv_sample_note,
         kind: |s| s.aqrv_type_note,
+        // not wording: the sample note's content, test text in several scripts
         item: || Item::Note(Zeroizing::new("Zoë café 日本語 ✓".to_owned())),
     },
     Sample {
