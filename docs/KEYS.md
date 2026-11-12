@@ -349,7 +349,7 @@ impl Keys {
     path from the key and say whether it matches, wiping each step; one
     hardened derivation per step. Costs the
     master key's rounds (at most 10,000,000), so both take the token.
-    `faraday-core`'s `core_wallet::read` calls them.
+    `faraday-core-wallet`'s `read` calls them.
 
   Each comes back as `Held` (an `XprivAscii`, a `WifAscii`, or
   `Zeroizing` strings, every one wiped on drop) and is made once, at the

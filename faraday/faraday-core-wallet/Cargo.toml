@@ -1,0 +1,21 @@
+[package]
+name = "faraday-core-wallet"
+version = "0.2.0"
+description = "A Bitcoin Core descriptor wallet's records, read and checked, never written (F229)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-intake = { path = "../faraday-intake" }
+faraday-keys = { path = "../faraday-keys" }
+faraday-sqlite = { path = "../faraday-sqlite" }
+faraday-strings = { path = "../faraday-strings" }
+zeroize = { workspace = true, features = ["alloc"] }
+
+[lints]
+workspace = true

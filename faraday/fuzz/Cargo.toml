@@ -30,6 +30,7 @@ faraday-vault = { path = "../faraday-vault" }
 faraday-kef = { path = "../faraday-kef" }
 faraday-ots = { path = "../faraday-ots" }
 faraday-sqlite = { path = "../faraday-sqlite" }
+faraday-core-wallet = { path = "../faraday-core-wallet" }
 faraday-boot = { path = "../faraday-boot" }
 # `pe_image` signs any image (`sign-any`); `release_sums` checks a
 # release's sums with faraday-pgp (F134).

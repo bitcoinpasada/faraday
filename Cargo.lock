@@ -890,6 +890,7 @@ dependencies = [
  "faraday-boot",
  "faraday-codec",
  "faraday-core",
+ "faraday-core-wallet",
  "faraday-crypto",
  "faraday-draw",
  "faraday-entropy",
@@ -915,6 +916,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-core-wallet"
+version = "0.2.0"
+dependencies = [
+ "faraday-bip",
+ "faraday-crypto",
+ "faraday-intake",
+ "faraday-keys",
+ "faraday-sqlite",
+ "faraday-strings",
+ "zeroize",
+]
+
+[[package]]
 name = "faraday-crosscheck"
 version = "0.1.0"
 dependencies = [
@@ -922,6 +936,7 @@ dependencies = [
  "faraday-bip",
  "faraday-codec",
  "faraday-core",
+ "faraday-core-wallet",
  "faraday-crypto",
  "faraday-entropy",
  "faraday-intake",

@@ -800,6 +800,7 @@ dependencies = [
  "faraday-bip",
  "faraday-boot",
  "faraday-codec",
+ "faraday-core-wallet",
  "faraday-crypto",
  "faraday-draw",
  "faraday-entropy",
@@ -814,10 +815,22 @@ dependencies = [
  "faraday-sb",
  "faraday-selftest",
  "faraday-shell-api",
- "faraday-sqlite",
  "faraday-strings",
  "faraday-ui",
  "faraday-vault",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-core-wallet"
+version = "0.2.0"
+dependencies = [
+ "faraday-bip",
+ "faraday-crypto",
+ "faraday-intake",
+ "faraday-keys",
+ "faraday-sqlite",
+ "faraday-strings",
  "zeroize",
 ]
 
@@ -894,6 +907,7 @@ dependencies = [
  "faraday-boot",
  "faraday-camera",
  "faraday-core",
+ "faraday-core-wallet",
  "faraday-crypto",
  "faraday-fat",
  "faraday-files",

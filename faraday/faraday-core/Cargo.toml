@@ -28,7 +28,8 @@ faraday-pgp = { path = "../faraday-pgp" }
 faraday-ots = { path = "../faraday-ots" }
 faraday-sb = { path = "../faraday-sb" }
 faraday-keys = { path = "../faraday-keys" }
-faraday-sqlite = { path = "../faraday-sqlite" }
+# The Bitcoin Core wallet reader (F229); the tool and its screen are here.
+faraday-core-wallet = { path = "../faraday-core-wallet" }
 # The boot partitions' names and labels, which a backup refuses
 # (docs/STICK-IDENTITY.md §5.2); std alone.
 faraday-boot = { path = "../faraday-boot" }
@@ -56,6 +57,8 @@ faraday-scanner = { path = "../faraday-scanner" }
 # The test binary's allocator, counting each thread's allocations for the
 # frame budgets (`src/work/budget.rs`).
 faraday-alloc-count = { path = "../tools/alloc-count" }
+# The wallet files `tests/all/core_wallet.rs` builds, read as rows.
+faraday-sqlite = { path = "../faraday-sqlite" }
 # The known answers of Faraday's own specifications (`tools/vectors/`).
 serde_json = { workspace = true, features = ["std"] }
 

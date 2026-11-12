@@ -1145,10 +1145,10 @@ fn 4925d6734d588467b4d51fb06a3d3af88322c8e4e0f5513a4412bf0b95d6db5f faraday/fara
 fn 4b2d2c34fcd9300787190937be4c432eccdb58eb7749b866244270bff380a54d faraday/faraday-keys/src/core_wallet.rs::check_private_key_accounts
 fn 6ca1688bcc059a9387ed4894895b4740b4226e2623f31c615582283000ad03ab faraday/faraday-keys/src/core_wallet.rs::gives
 fn 7ccf1db3820e55f35005ec21839667efa34661809aae8e72333394839057604b faraday/faraday-keys/src/core_wallet.rs::compact_size
-fn be1ec538a14e9c823c1dcbc1d2b86045349cc9c135a6054ad088156c54aba307 faraday/faraday-core/src/core_wallet/normal.rs::key
+fn be1ec538a14e9c823c1dcbc1d2b86045349cc9c135a6054ad088156c54aba307 faraday/faraday-core-wallet/src/normal.rs::key
 fn c852f5af46463d153ec54f8662084d32ccf0b2abff003f025ff5dae67f382638 faraday/faraday-keys/src/core_wallet.rs::hash256
 fn cf80315746c7a6a8ded0218a9bcca7d4f1079c3d655cb779c0441edb3bf73b13 core/faraday-crypto/src/hash.rs::sha512
-fn d442079c3e5f4caf13e38e94f56670cc7c7e7530dd33b742ec2bdf51c8214d53 faraday/faraday-core/src/core_wallet/mod.rs::descriptor_id
+fn d442079c3e5f4caf13e38e94f56670cc7c7e7530dd33b742ec2bdf51c8214d53 faraday/faraday-core-wallet/src/lib.rs::descriptor_id
 fn dc78ecc1e4213b9795d8bf2e61547d3d90fd0d5fb071e262ad422390502806fe faraday/faraday-keys/src/core_wallet.rs::vector
 fn e37dbc7061d3e06118464e5ab3cf20d7824e13a635559e800ef24498eec7f09a faraday/faraday-keys/src/core_wallet.rs::check_encrypted_keys_accounts
 fn ee89503507730e9b22b4039482d3378f283ec2029496d1e5170f07339f7f7133 core/faraday-bip/src/tapmulti.rs::unsorted_text
@@ -3567,7 +3567,7 @@ fn 0216f73bff82492ad67022f8861d70ad5bb7dbc71bc108e5c165fdd57c909f24 faraday/fara
 fn 04f599ca270f05943502661d3918b0175e6a40f5dcdacbb24245f8f1e7e41666 faraday/faraday-core/src/lightning/mod.rs::ReadWork::run
 fn 053beedfa6db680ce59c39a7c6acb0ddedd08f40240f80b53c1e859f4222886e faraday/faraday-ots/src/lib.rs::HashOp::digest_len
 fn 05e2a1d7115134303f30f6cdc5e999d7737ec6844691f3d8893ee63395608871 faraday/faraday-ots/src/lib.rs::Header::block_hash
-fn 08554e208acaa6def9d85df1cd3b5af222ae6c11b7402a070507a3bf6356f48e faraday/faraday-core/src/core_wallet/normal.rs::normalize
+fn 08554e208acaa6def9d85df1cd3b5af222ae6c11b7402a070507a3bf6356f48e faraday/faraday-core-wallet/src/normal.rs::normalize
 fn 085ae81cf06875d9b148e31c3530d7782ace83c6f73f6e3680b93fea516c7fd0 faraday/faraday-core/src/qr_view.rs::QrView::of
 fn 0863eff1c58f52b6dc59a324586e35e695c5f4c86e160e9babab780118b82e3d faraday/faraday-core/src/wallet.rs::Wallet::address_on
 fn 09dc5c31a1b843fcbd39dc000e5ee7dac3e37bd54b5cac9bd86d26224ac6e66c faraday/faraday-core/src/vault/stretch.rs::StretchWork::run
@@ -3575,7 +3575,7 @@ fn 0ad134c5e70f0b9312cef4832effef5b61c8260246713fb3e742903aea9002bf faraday/fara
 fn 0ae073d70e0e9c3714b0f3f343ee51ed7408d378919835857281120c7d6acc40 faraday/faraday-core/src/wallet.rs::Spend::musig_states
 fn 0e2e3a972c4748cb039528a182dbac503261b348f27d627a81db4ff7f2532bca faraday/faraday-core/src/pdf.rs::Page::rect
 fn 0e2eb33c64b4c6f4dd9348190f29372d9f4548df1310b76bdc11df1a77a06be8 faraday/faraday-core/src/qr_view.rs::specter_diy_pictures
-fn 0e43bac1c32bbfaef3af45fa31d2bfd3f341cb058a1e1941c6b4bfd8f900ef69 faraday/faraday-core/src/core_wallet/mod.rs::Reader::uncompared
+fn 0e43bac1c32bbfaef3af45fa31d2bfd3f341cb058a1e1941c6b4bfd8f900ef69 faraday/faraday-core-wallet/src/lib.rs::Reader::uncompared
 fn 0f2c7d960d91789b36229344032fe703be82b4b18e74ac5483a72021efe67b92 faraday/faraday-core/src/memory/mod.rs::tx_hash
 fn 15064923f4de169a3e9e01458a01048f0b4f55e0111952c7849db416bc7e45d4 faraday/faraday-ots/src/lib.rs::Op::apply
 fn 16853e2ec6bcca84658b30aae9213d6bac571c102ee4bdf7956cffda6c28f5bc faraday/faraday-core/src/wallet.rs::Session::quorum
@@ -3603,11 +3603,11 @@ fn 3f4d7ef3c29d9f77519735fdc6650398892e419aec4232d73728f3aac905464c faraday/fara
 fn 43b952061cf996411aa4976b8e98b4e47dbe70ecd4d054d0821aca9240a25af1 faraday/faraday-ots/src/lib.rs::Reader::height
 fn 46a53cb2c2162e2a0602bd65a1bbaef51bf91b482361888dc642b3ba540f58d1 faraday/faraday-ots/src/lib.rs::HashOp::from_tag
 fn 480a5fadcd946682eeb3db04371dcd9764356d9dca9cb54b06a19d6827d3fff9 faraday/faraday-core/src/restore.rs::sheets_rebuild
-fn 4bcfcbba5e7a1973b7f042c4ac704be0a0203d7f3eb835dd1ee887992d27abcd faraday/faraday-core/src/core_wallet/mod.rs::Reader::encrypted_keys
+fn 4bcfcbba5e7a1973b7f042c4ac704be0a0203d7f3eb835dd1ee887992d27abcd faraday/faraday-core-wallet/src/lib.rs::Reader::encrypted_keys
 fn 4d05470f2bb908704a8286ea48c87ede8effc569c1c4156f44283ed04e9f8224 faraday/faraday-core/src/signing/read.rs::ReadWork::run
 fn 4e4c5c699e4dbd736fd6782458e9327d4ecab53a26d61e14034cc2a7951d85b2 faraday/faraday-core/src/wallet.rs::Session::nonce_partials
 fn 4e62df37cbd2c2bd34e80bb16179188a6187d82fbda9cfb3dbb81217a94f1ab2 faraday/faraday-core/src/restore.rs::rebuilds
-fn 50bfbd53117626d53cc4976fbfbe7727187c55abb76ad2ae8e55e7aa59859583 faraday/faraday-core/src/core_wallet/mod.rs::combo_twin
+fn 50bfbd53117626d53cc4976fbfbe7727187c55abb76ad2ae8e55e7aa59859583 faraday/faraday-core-wallet/src/lib.rs::combo_twin
 fn 5574b4e1ed0571494040d7a7f143a5c8f7ab3fa5b1c8e989a786f03c918b2d65 faraday/faraday-core/src/worker.rs::Job::run
 fn 58dfdf96690f276d55e665e8efaeef28294b76f339e363b9933e4c02c1d832ca faraday/faraday-ots/src/lib.rs::HashOp::digest
 fn 597f988a30ddc2329e01a5281a1ecf69d8d11d5253dacfaa295ce3292f8f9e2c faraday/faraday-core/src/public_files.rs::made
@@ -3617,7 +3617,7 @@ fn 5b32639ee1a23893613285184fd296e86f05764a4571ae6a167eb3c892353d71 faraday/fara
 fn 5c35290dcabd9335e9a29130d2828596d083a0acbaafb43410b2d6ee4d73f66d faraday/faraday-core/src/wallet.rs::Wallet::master_proof
 fn 6231e802018030c48853fb73030b2005db4c831788114f71a93569692d6e62eb faraday/faraday-ots/src/lib.rs::HashOp::counts
 fn 629a9a73a34716edba640a636ee5ea36dd4624c8018e90b7dd60e9852cd03d75 faraday/faraday-core/src/pdf.rs::Page::qr
-fn 65a9d36091857f5180500697550dc9890f77d1fe502c624bceed51d955d5926f faraday/faraday-core/src/core_wallet/mod.rs::read_file
+fn 65a9d36091857f5180500697550dc9890f77d1fe502c624bceed51d955d5926f faraday/faraday-core-wallet/src/lib.rs::read_file
 fn 6692be3d12aa89c9dbc52ad800b3659c6972c98d92901679740a5f2d86f7f984 faraday/faraday-core/src/ots_check/hash.rs::start
 fn 66d118fa7f5f2137f6dba1dec5ac94fc0ffe0fbbf363e4be59005e50cfbf0671 faraday/faraday-core/src/compare/words.rs::op
 fn 675ad9d77f32ddd90d93ab3d45b0638da0c6b90c4cf014840a816950c505990b faraday/faraday-core/src/restore.rs::checked_config
@@ -3628,7 +3628,7 @@ fn 6d8de1044ded2852d37593984e047435f02fdfe44f52364e141ee696da797857 faraday/fara
 fn 6f008e2de51c6b3a036b334e3fe19d3ec670a6944ba73dd53200ac6ca7ee7f0c faraday/faraday-core/src/pdf.rs::wallet_sheet
 fn 753045332790b0d26747c7e2a49bef6a5fe5b7091ba5d3fa6463519bf5491bdb faraday/faraday-core/src/wallet.rs::Spend::finish
 fn 7a96d2d07222b3bc45a1f73fd4e78f694d8cf09e83ea3862f5e3d8b61c1e7eef faraday/faraday-core/src/wallet.rs::Spend::aggregate_musig
-fn 7b49f7efa2b78d225f3c1f0df1f47745e711642015c6b01b56908b22efa3febd faraday/faraday-core/src/core_wallet/mod.rs::read
+fn 7b49f7efa2b78d225f3c1f0df1f47745e711642015c6b01b56908b22efa3febd faraday/faraday-core-wallet/src/lib.rs::read
 fn 7b8dcefb25d5fa6995d3b9ee71b6b2529e5f1079e76e0863d57c2db91b2b1119 faraday/faraday-ots/src/lib.rs::Header::time
 fn 7c58add431d08bf983dd3a00e119e2fc1fcfd82ffd8d12bcded7afd10aa89fc8 faraday/faraday-core/src/wallet_backup.rs::rebuilt_as
 fn 7f7e813ee271d7555bd10596e660e2d1b241b4efbdee6eabfef05ab0274270ea faraday/faraday-ots/src/lib.rs::Reader::at_end
@@ -3663,7 +3663,7 @@ fn c230250d09a0d0f881f3bee9915cf197f1d81156a7ebf6b5c41c2aa8efa6a019 faraday/fara
 fn c7c3ec805b9099a88cc9f669f8f6392728ceb5c4ecb6d4033cef50fbd4677f28 faraday/faraday-core/src/wallet.rs::Session::follow
 fn c7d056ba7e6a9be0e1dfc593ad73c48f14105fc31852f974b8d44c410ea882ca faraday/faraday-ots/src/lib.rs::Header::parse
 fn c92f5e10c2c39543f441c6a2b019736d343ec2f7ad2129b83898cf7f1e510036 faraday/faraday-core/src/qr_view.rs::QrView::png
-fn c9e6037b2395777838315aff683a290318d926a2fdd26642bdad88058e6e17db faraday/faraday-core/src/core_wallet/mod.rs::Reader::descriptor
+fn c9e6037b2395777838315aff683a290318d926a2fdd26642bdad88058e6e17db faraday/faraday-core-wallet/src/lib.rs::Reader::descriptor
 fn d0571370bf4afc57c37a85c8379e3364a4142040ff6e26efe39dd6ca50576a65 faraday/faraday-core/src/picture.rs::picture_codes
 fn d3914fb8bdf9a50f04dbbd43a82824c7fd8be5734b1e79f9edf49f9da4d0c123 faraday/faraday-core/src/wallet.rs::Session::key_refs
 fn d46e5c4db0b4fa9fe1ad1ac8bf293f7a58841fec62999795cc667172cafd38f2 faraday/faraday-ots/src/lib.rs::Proof::parse
@@ -3681,7 +3681,7 @@ fn e60ecb074faee556adee24ceca3f77e09e593c60ade1fae01a2bf527245255c1 faraday/fara
 fn ea47332108cb6fc508cb8a569ca4069454db6b18164e429dcaa8951a3146ca7c faraday/faraday-core/src/memory/nonces.rs::NonceEntry::of_signature
 fn ebdd4a9f7ef0dbffc75d0a9b71208a5884e59535dc237cedf3026ea8cd1073d9 faraday/faraday-ots/src/lib.rs::read_attestation
 fn ec566c3ed7acabb918dbcfca2ba3df005c655a18c43f7f525a8509d46588f8c5 faraday/faraday-core/src/ots_check/mod.rs::take_file
-fn ee7624210a97d38dcbd296ea63e8f0ff86d5520c92f4a3d26f8287ede5cd1f11 faraday/faraday-core/src/core_wallet/mod.rs::Reader::private_keys
+fn ee7624210a97d38dcbd296ea63e8f0ff86d5520c92f4a3d26f8287ede5cd1f11 faraday/faraday-core-wallet/src/lib.rs::Reader::private_keys
 fn ef676229ffea2424902c210a3e3e5c488439efff59394f4947b3b3e240ff30c3 faraday/faraday-core/src/public_files.rs::files
 fn f11f89a739fc05fd60fb5afc5d0d744ff5ceb17c63af6cc02f041a95544feb95 faraday/faraday-ots/src/lib.rs::Header::merkle_root
 fn f6aad6d67a1afae5736493aafc5dd4a9bdc10c178fed6da082c249ca6dafeffe faraday/faraday-ots/src/lib.rs::Reader::varuint

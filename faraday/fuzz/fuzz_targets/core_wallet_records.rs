@@ -8,7 +8,7 @@
 #![no_main]
 
 use faraday_bip::keys::Network;
-use faraday_core::core_wallet::read;
+use faraday_core_wallet::read;
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
 use libfuzzer_sys::fuzz_target;

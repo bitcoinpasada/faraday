@@ -1,9 +1,9 @@
 //! A Bitcoin Core descriptor wallet's `wallet.dat`, read whole by
-//! `faraday_core::core_wallet::read_file`, as the cross-check compares it
+//! `faraday_core_wallet::read_file`, as the cross-check compares it
 //! with Bitcoin Core's own answers.
 
 use faraday_bip::keys::Network;
-use faraday_core::core_wallet::{Passphrase, read_file};
+use faraday_core_wallet::{Passphrase, read_file};
 use faraday_crypto::work::Compute;
 use faraday_intake::secret_buf::SecretText;
 use serde_json::{Value, json};

@@ -4686,9 +4686,9 @@ functions = [
   "faraday/faraday-keys/src/core_wallet.rs::gives_accounts",
   "faraday/faraday-keys/src/core_wallet.rs::check_private_key_accounts",
   "faraday/faraday-keys/src/core_wallet.rs::check_encrypted_keys_accounts",
-  "faraday/faraday-core/src/core_wallet/normal.rs::key",
+  "faraday/faraday-core-wallet/src/normal.rs::key",
   "faraday/faraday-keys/src/core_wallet.rs::hash256",
-  "faraday/faraday-core/src/core_wallet/mod.rs::descriptor_id",
+  "faraday/faraday-core-wallet/src/lib.rs::descriptor_id",
   "core/faraday-bip/src/descriptor.rs::key_facts",
   "core/faraday-crypto/src/hash.rs::sha512",
 ]

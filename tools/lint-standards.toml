@@ -103,10 +103,6 @@ file = "faraday/faraday-core/src/vault/seal.rs"
 reason = "SHA-256 over a domain string, a fresh random answer and a counter, for the UUIDs of a seal's new entries and groups: they need to differ, not to be secret, and the hash is faraday-crypto's, cross-checked there."
 
 [[uncovered]]
-file = "faraday/faraday-core/src/core_wallet/mod.rs"
-reason = "The id of a Bitcoin Core descriptor (a SHA-256 of its text) and the call of faraday-keys' checks of a wallet's private keys, which return only pass or fail; the keys are faraday-keys', checked against Bitcoin Core's own wallets; the core_wallet cross-check reads the wallet files' descriptors and cached account keys against Bitcoin Core (F229)."
-
-[[uncovered]]
 file = "faraday/faraday-core/src/create.rs"
 reason = "Names rust-bitcoin's derivation-path types to write a new wallet's path; the keys at it are derived by faraday-keys and faraday-bip, which the stamp covers."
 

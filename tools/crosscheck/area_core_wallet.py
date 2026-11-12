@@ -1,5 +1,5 @@
 """A Bitcoin Core descriptor wallet's wallet.dat, read whole by Faraday
-(`faraday_core::core_wallet::read_file`, F229), against Bitcoin Core
+(`faraday_core_wallet::read_file`, F229), against Bitcoin Core
 itself: the pinned `bitcoind` on regtest, offline (`core_node.py`).
 
 - The three wallet.dat files Core made for the vectors
@@ -428,7 +428,7 @@ class CoreWallet(Area):
     WALLET = True
     LOOPS = (("fresh", 14), ("mutation", 24))
     faraday = (
-        "`faraday_core::core_wallet::read_file` (a wallet.dat read whole through "
+        "`faraday_core_wallet::read_file` (a wallet.dat read whole through "
         "`faraday_sqlite`, the records read and checked, the private keys checked in "
         "`faraday-keys`)"
     )
