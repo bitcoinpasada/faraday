@@ -436,38 +436,75 @@ fn paged(
     match open {
         Some(i) => {
             // Each earlier card closed on its default: its value, and
-            // Change, which opens it.
-            let mut defaults = false;
-            for c in cards[..i].iter().filter(|c| c.default && !c.open) {
+            // Change, which opens it. On a low window whose controls are
+            // full size (the 7-inch panel), rows stacked a row each would
+            // be under the touch floor, and taller they would take the
+            // room the open step's controls are sized to (the word
+            // keyboard): there two or more share one row a touch target
+            // tall, whose Change shows the list of steps; the row's press
+            // reaches down over the gap under the rule, to the title.
+            let closed: Vec<&Card> = cards[..i].iter().filter(|c| c.default && !c.open).collect();
+            let low = faraday_draw::geom::Window {
+                width: col.w,
+                height: col.h,
+            }
+            .low();
+            let full = low && small_touch(ui) == 0.0;
+            let share = full && closed.len() > 1;
+            let rows: Vec<(String, bool, Action)> = if share {
+                let line = closed
+                    .iter()
+                    .map(|c| format!("{} · {}", c.title, c.summary))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                vec![(line, closed.iter().all(|c| c.mono), cards[i].toggle)]
+            } else {
+                closed
+                    .iter()
+                    .map(|c| (format!("{} · {}", c.title, c.summary), c.mono, c.toggle))
+                    .collect()
+            };
+            let row = if share {
+                ui.touch
+            } else {
+                34.0_f32.max(small_touch(ui))
+            };
+            // The gap under the rule that closes the rows.
+            let under = 12.0;
+            let last = rows.len().saturating_sub(1);
+            for (n, (line, mono, toggle)) in rows.iter().enumerate() {
                 let cw = ui.measure_as(LABEL_L, EN.flow_change);
-                let line = format!("{} · {}", c.title, c.summary);
-                let role = if c.mono { BODY_S.mono() } else { BODY_S };
+                let role = if *mono { BODY_S.mono() } else { BODY_S };
                 let room = inner - cw - 16.0;
-                let row = 34.0_f32.max(small_touch(ui));
                 // A line that does not fit in one is wrapped where the flow
                 // asks; it is cut otherwise, below.
-                let (h, after) = if col.wrap_closed && ui.measure_as(role, &line) > room {
-                    let used = ui.wrap_height_as(role, &line, room);
+                let (h, after) = if col.wrap_closed && ui.measure_as(role, line) > room {
+                    let used = ui.wrap_height_as(role, line, room);
                     ui.wrap_as(
                         (M, y + tokens::GAP_SMALL, room),
                         role,
                         Role::OnSurfaceVariant,
-                        &line,
+                        line,
                     );
                     (used + tokens::GAP, tokens::GAP_SMALL)
                 } else {
-                    let line = ui.fit_as(role, &line, room);
+                    let line = ui.fit_as(role, line, room);
                     ui.text_mid_as((M, y, row), role, Role::OnSurfaceVariant, &line);
                     (row, 2.0)
                 };
                 ui.text_right_as((M + inner, y, h), LABEL_L, Role::Primary, EN.flow_change);
-                ui.press_box(M, y, inner, h, c.toggle);
+                let reach = if full && n == last {
+                    after + under
+                } else {
+                    0.0
+                };
+                ui.press_box(M, y, inner, h + reach, *toggle);
                 y += h + after;
-                defaults = true;
             }
+            let defaults = !rows.is_empty();
             if defaults {
                 ui.rule(M, y, inner, Role::OutlineVariant);
-                y += 12.0;
+                y += under;
             }
             // The title says where the page is; tapping it closes the
             // card, which leaves the list of steps, any of which opens.

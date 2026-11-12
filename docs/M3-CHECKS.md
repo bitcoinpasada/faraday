@@ -183,9 +183,8 @@ Everything else under the floor is a defect, on every layout, the
 desktop's included (§8, Q3): it is counted in the ratchet and
 fixed by spacing or sizing the controls: the desktop sidebar's and the
 lists' rows drawn 40 dp or less and stacked with no gap (`Nav`,
-`Resume`, `OpenWallet`, `ExploreKey`, `Vault`, `Step`), the small
-panel's step rows (`KStep`, `CStep`, `RStep`), word entry's candidates
-and the wide keys at 1280 × 800 (`EntryCandidate`, `EntryKey`).
+`Resume`, `OpenWallet`, `ExploreKey`, `Vault`, `Step`), word entry's
+candidates and the wide keys at 1280 × 800 (`EntryCandidate`, `EntryKey`).
 
 F108's split stays: it keeps a press from reaching the wrong control. A
 split target under the floor still counts; the cure is room between the
