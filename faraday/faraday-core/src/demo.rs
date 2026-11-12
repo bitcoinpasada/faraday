@@ -185,17 +185,13 @@ pub(crate) fn pass_box(
     (action, eye): (Action, Action),
     field: PassField,
 ) {
-    crate::vault::screen::secret_box(
-        ui,
-        x,
-        y,
-        w,
-        b,
-        app.pass_shows(shown_eye, &b.text),
-        focused,
-        action,
-        eye,
-    );
+    let show = app.pass_shows(shown_eye, &b.text);
+    // While a vault job runs the field takes no typing.
+    if app.vaults.working.is_some() {
+        crate::vault::screen::secret_box_off(ui, (x, y, w), b, show);
+    } else {
+        crate::vault::screen::secret_box(ui, x, y, w, b, show, focused, action, eye);
+    }
     app.pass_chip_draw(ui, b.text.is_empty(), field);
 }
 

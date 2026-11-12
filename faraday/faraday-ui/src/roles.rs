@@ -13,9 +13,10 @@ use crate::pal::*;
 use crate::{Shape, Ui, W};
 use faraday_draw::text;
 use faraday_draw::tokens::{
-    BODY_L, BODY_M, BODY_S, BUTTON_PAD_V, FIELD_EDGE, FIELD_EDGE_ACTIVE, FIELD_GAP, FIELD_H,
-    FIELD_PAD, FIELD_PAD_V, FIELD_RADIUS, GAP, LABEL_L, LABEL_S, LIST_1, LIST_2, LIST_3,
-    LIST_3_TOP, LIST_PAD, LIST_PAD_V, SHAPE_L, TEXT_FIT_STEP_PCT, TypeFace, TypeRole,
+    BODY_L, BODY_M, BODY_S, BUTTON_PAD_V, DISABLED_CONTAINER, FIELD_EDGE, FIELD_EDGE_ACTIVE,
+    FIELD_GAP, FIELD_H, FIELD_PAD, FIELD_PAD_V, FIELD_RADIUS, GAP, LABEL_L, LABEL_S, LIST_1,
+    LIST_2, LIST_3, LIST_3_TOP, LIST_PAD, LIST_PAD_V, SHAPE_L, TEXT_FIT_STEP_PCT, TypeFace,
+    TypeRole,
 };
 
 impl From<TypeFace> for W {
@@ -612,6 +613,19 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             }
             None => fh,
         }
+    }
+
+    /// A disabled outlined text field's box (Material 3 Text fields,
+    /// disabled state): one even 1 dp outline at on-surface 12%, and
+    /// nothing behind or over it, a trailing icon's area included. What
+    /// the field holds is drawn by the caller at on-surface 38%
+    /// (`DISABLED_CONTENT`).
+    pub fn field_box_off(&mut self, (x, y, w): (f32, f32, f32)) {
+        let rect = self.rect(x, y, w, self.field_h());
+        let color = self.col(Role::OnSurface.at(DISABLED_CONTAINER));
+        let line = (FIELD_EDGE * self.f).max(1.0);
+        self.c
+            .stroke_rounded_rect(rect, FIELD_RADIUS * self.f, line, color);
     }
 
     /// A field's supporting text (Material 3 Text fields) under it at

@@ -189,10 +189,37 @@ pub(crate) fn secret_box(
         y,
         FIELD_H,
         if shown { Icon::EyeOff } else { Icon::Eye },
-        15.0,
+        EYE_GLYPH,
         if shown { primary } else { muted },
     );
     crate::compact::eye_hit(ui, (ex, y, FIELD_H, FIELD_H), eye, shown);
+}
+
+/// The eye's glyph in a secret field, enabled or not.
+const EYE_GLYPH: f32 = 15.0;
+
+/// [`secret_box`] while the field takes no typing: a disabled outlined text
+/// field (Material 3 Text fields), its outline at on-surface 12%, its dots
+/// and its eye at on-surface 38%, no box behind the eye and no press.
+pub(crate) fn secret_box_off(ui: &mut Ui, (x, y, w): (f32, f32, f32), b: &TextBox, show: Show) {
+    let ink = Role::OnSurface.at(tokens::DISABLED_CONTENT);
+    if show == Show::Code {
+        ui.field_box_off((x, y, w));
+        ui.text_mid_as((x + FIELD_PAD, y, FIELD_H), BODY_L.mono(), ink, &b.text);
+        return;
+    }
+    let shown = show == Show::Shown;
+    ui.field_box_off((x, y, w));
+    let dots;
+    let text: &str = if shown {
+        &b.text
+    } else {
+        dots = "•".repeat(b.text.chars().count());
+        &dots
+    };
+    ui.text_mid_as((x + FIELD_PAD, y, FIELD_H), BODY_L.mono(), ink, text);
+    let icon = if shown { Icon::EyeOff } else { Icon::Eye };
+    ui.icon(x + w - FIELD_H, y, FIELD_H, icon, EYE_GLYPH, ink);
 }
 
 /// Several lines of typing. Returns its height.

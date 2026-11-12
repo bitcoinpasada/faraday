@@ -451,6 +451,12 @@ impl VaultArea {
         self.state.drawn = false;
     }
 
+    /// No work waits or runs.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn end_work(&mut self) {
+        self.state.working = None;
+    }
+
     /// A frame has been drawn since the work was asked for.
     pub(crate) fn set_drawn(&mut self) {
         self.state.drawn = true;

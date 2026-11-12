@@ -2558,6 +2558,17 @@ pub fn end_busy(app: &mut crate::Faraday) {
     app.job_locked();
 }
 
+/// The Unlock page as it is while the unlock runs, with no job: for a tour
+/// to picture it. Ends with [`end_unlocking`].
+pub fn show_unlocking(app: &mut crate::Faraday) {
+    app.vaults.start_work(crate::vault::Work::Unlock);
+}
+
+/// Ends what [`show_unlocking`] showed.
+pub fn end_unlocking(app: &mut crate::Faraday) {
+    app.vaults.end_work();
+}
+
 /// The nonce history holds `entries` as what open vault `id` was read to
 /// hold, as the vault's reader will leave it.
 pub fn nonce_history_held(

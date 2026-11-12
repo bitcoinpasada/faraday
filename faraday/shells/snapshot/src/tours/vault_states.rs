@@ -50,10 +50,20 @@ fn only(t: &mut Tour, files: Vec<(String, Vec<u8>)>, kept: Vec<(String, Vec<u8>)
 
 /// Open the first vault under `phrase` and wait for the answer.
 fn unlock(t: &mut Tour, phrase: &str) {
+    typed_unlock(t, phrase);
+    t.press(Action::Vault(V::Unlock));
+    wait_for_unlock(t);
+}
+
+/// The first vault's Unlock with `phrase` typed in it.
+fn typed_unlock(t: &mut Tour, phrase: &str) {
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
     type_text(t, phrase);
-    t.press(Action::Vault(V::Unlock));
+}
+
+/// Tick until the unlock has an answer.
+fn wait_for_unlock(t: &mut Tour) {
     for _ in 0..30 {
         t.tick();
         if t.app.sheet == Some(Sheet::OlderCopy)
@@ -237,7 +247,12 @@ fn create_key_file(t: &mut Tour) -> Result<(), String> {
 /// A wrong passphrase stays on Unlock and says so.
 fn wrong_passphrase(t: &mut Tour, own: &[u8]) -> Result<(), String> {
     only(t, vec![("vault.kdbx".into(), own.to_vec())], Vec::new());
-    unlock(t, "not the passphrase");
+    typed_unlock(t, "not the passphrase");
+    testkit::show_unlocking(&mut t.app);
+    t.shot("unlock-running")?;
+    testkit::end_unlocking(&mut t.app);
+    t.press(Action::Vault(V::Unlock));
+    wait_for_unlock(t);
     if !t.app.vaults().open.is_empty() {
         return Err("a wrong passphrase opened the vault".into());
     }
