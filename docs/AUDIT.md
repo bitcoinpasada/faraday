@@ -212,7 +212,7 @@ trait, the pipe protocol), `faraday-storage` (Inbox/Outbox, PDFs),
 screen), `faraday-plan` (the backup plan: what each place keeps, the
 checklist, its codex32 and text forms), `faraday-boot` (the release string the Starter reads a
 stick's version by), `faraday-ui` (the desktop app's and the Starter's drawing),
-`faraday-learn` and `faraday-guides` (Learn pages and the start-from-stick
+`faraday-learn` and `faraday-start` (Learn pages and the start-from-stick
 guides), every shell but the desktop app's window (`faraday-desktop`, `faraday-stick`,
 `faraday-snapshot`, `faraday-mediafoundation`, the
 Starter's, `faraday-v4l2`, `faraday-avfoundation`), and the dev

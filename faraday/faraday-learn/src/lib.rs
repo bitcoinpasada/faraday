@@ -6,7 +6,7 @@
 //! pages.
 //!
 //! The website's guides to starting a computer from the stick
-//! (`docs/STARTER.md` §7) are not here: they are `faraday-guides`' (read by
+//! (`docs/STARTER.md` §7) are not here: they are `faraday-start`' (read by
 //! the Starter, and published by the website). The
 //! desktop app and the stick carry only the address of the guide for
 //! this computer ([`guide_address`]), not its text.
@@ -32,7 +32,7 @@ pub use pages::{Page, Section};
 /// `pages::EN`, and read from those files when Faraday is built, so
 /// the desktop app, the stick and the Starter carry the same text. The
 /// guides to starting a computer from the stick
-/// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
+/// (`docs/guide/start/*.md`) are `faraday-start`' own table, not
 /// this one, except `replace-faraday`, which the Starter's Keep data
 /// shows ([`known`]).
 const OWN: [(&str, &str); 12] = [
@@ -45,7 +45,7 @@ const OWN: [(&str, &str); 12] = [
     ("time", include_str!("../../../docs/learn/faraday/time.md")),
     (
         "replace-faraday",
-        include_str!("../../../docs/learn/faraday/boot/replace-faraday.md"),
+        include_str!("../../../docs/guide/start/replace-faraday.md"),
     ),
     // The demo's public seeds and the test networks (F20).
     ("demo", include_str!("../../../docs/learn/faraday/demo.md")),
@@ -94,7 +94,7 @@ const OWN: [(&str, &str); 12] = [
 /// computers it is for, by what the firmware reports (§7.1).
 #[derive(Debug)]
 pub struct Maker {
-    /// The page's id in `faraday-guides`' table, `maker-<family>`.
+    /// The page's id in `faraday-start`' table, `maker-<family>`.
     pub id: &'static str,
     /// The maker (`sys_vendor`, `SystemManufacturer`) begins with one of
     /// these, ignoring case.
@@ -267,7 +267,7 @@ pub fn known(id: &str) -> &'static LearnPage {
 
 /// A page from its Markdown, as `docs/learn/` writes pages: `# ` the
 /// title, `## ` a section, paragraphs separated by blank lines. Public
-/// so `faraday-guides` reads its own pages the same way.
+/// so `faraday-start` reads its own pages the same way.
 pub fn page_of(md: &'static str) -> LearnPage {
     let mut title = "";
     let mut sections: Vec<(&'static str, Vec<&'static str>)> = Vec::new();

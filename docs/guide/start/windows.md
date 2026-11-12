@@ -1,5 +1,8 @@
 # Starting a Windows computer from the stick
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## Before you start
 
 The last step turns Secure Boot back on, before Windows starts. With Secure Boot back on, Windows usually starts as before; on some computers it asks for the BitLocker recovery key, as If something is different says.

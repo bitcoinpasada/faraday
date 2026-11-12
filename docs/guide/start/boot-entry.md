@@ -1,5 +1,8 @@
 # The Faraday boot entry on Linux
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## What a boot entry is
 
 A computer's BIOS keeps a list of things it can start, its boot entries. Each has a number, a name and where to start from: Windows Boot Manager, a Linux distribution, a disk. A second list, the boot order, says which entries the BIOS tries at every start, and in which order.

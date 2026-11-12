@@ -83,7 +83,7 @@ FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/draw
 faraday/faraday-starter/src/*.rs
 faraday/faraday-ui/src/*.rs
 $(ls faraday/faraday-learn/src/*.rs | grep -v '/how\.rs$')
-faraday/faraday-guides/src/*.rs
+faraday/faraday-start/src/*.rs
 faraday/faraday-intake/src/*.rs
 faraday/faraday-vault/src/lib.rs
 faraday/faraday-vault/src/records.rs

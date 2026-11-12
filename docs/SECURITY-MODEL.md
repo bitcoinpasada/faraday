@@ -382,7 +382,7 @@ file goes wrong are absent by construction, not patched after the fact.
   screen and keyboard (KVM redirection), where AMT is set up, works
   whatever operating system runs, Faraday included, and Faraday has no
   Management Engine (MEI) driver with which to detect it. The Learn page
-  `docs/learn/faraday/boot/what-else-runs.md` says which computers have
+  `docs/guide/start/what-else-runs.md` says which computers have
   AMT and what to do.
 - A weak passphrase.
 - A malicious device that shows only as a keyboard or mouse and is plugged

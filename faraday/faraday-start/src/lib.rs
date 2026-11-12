@@ -1,5 +1,5 @@
 //! The website's guides to starting a computer from the stick
-//! (`docs/STARTER.md` §7): every page under `docs/learn/faraday/boot/`
+//! (`docs/STARTER.md` §7): every page under `docs/guide/start/`
 //! except `replace-faraday`, which stays `faraday-learn`'s (the Starter's
 //! Keep data shows it). Read by the
 //! Starter, and published by the website at
@@ -12,7 +12,7 @@ use std::sync::OnceLock;
 use faraday_learn::Page as LearnPage;
 
 /// Every guide here, each by its id. Edited as
-/// `docs/learn/faraday/boot/<id>.md`, beside `replace-faraday`, which is
+/// `docs/guide/start/<id>.md`, beside `replace-faraday`, which is
 /// `faraday-learn`'s. The id is the file's name and stays as it is: the
 /// Starter's screens open a page by it, and the website publishes each
 /// guide at `https://faradayoffline.app/start/<id>` (`docs/STARTER.md`
@@ -20,81 +20,78 @@ use faraday_learn::Page as LearnPage;
 const OWN: [(&str, &str); 18] = [
     (
         "windows",
-        include_str!("../../../docs/learn/faraday/boot/windows.md"),
+        include_str!("../../../docs/guide/start/windows.md"),
     ),
-    (
-        "linux",
-        include_str!("../../../docs/learn/faraday/boot/linux.md"),
-    ),
+    ("linux", include_str!("../../../docs/guide/start/linux.md")),
     (
         "secure-boot-bitlocker",
-        include_str!("../../../docs/learn/faraday/boot/secure-boot-bitlocker.md"),
+        include_str!("../../../docs/guide/start/secure-boot-bitlocker.md"),
     ),
     (
         "screens-that-record",
-        include_str!("../../../docs/learn/faraday/boot/screens-that-record.md"),
+        include_str!("../../../docs/guide/start/screens-that-record.md"),
     ),
     // The management processors under the operating system (Intel's
     // Management Engine and AMT, AMD's PSP).
     (
         "what-else-runs",
-        include_str!("../../../docs/learn/faraday/boot/what-else-runs.md"),
+        include_str!("../../../docs/guide/start/what-else-runs.md"),
     ),
     // The Faraday stick boot entry on Linux (`docs/STARTER.md` §3.1c).
     (
         "boot-entry",
-        include_str!("../../../docs/learn/faraday/boot/boot-entry.md"),
+        include_str!("../../../docs/guide/start/boot-entry.md"),
     ),
     (
         "not-starting",
-        include_str!("../../../docs/learn/faraday/boot/not-starting.md"),
+        include_str!("../../../docs/guide/start/not-starting.md"),
     ),
     (
         "mac-intel",
-        include_str!("../../../docs/learn/faraday/boot/mac-intel.md"),
+        include_str!("../../../docs/guide/start/mac-intel.md"),
     ),
     (
         "maker-dell",
-        include_str!("../../../docs/learn/faraday/boot/maker-dell.md"),
+        include_str!("../../../docs/guide/start/maker-dell.md"),
     ),
     (
         "maker-hp",
-        include_str!("../../../docs/learn/faraday/boot/maker-hp.md"),
+        include_str!("../../../docs/guide/start/maker-hp.md"),
     ),
     (
         "maker-lenovo-thinkpad",
-        include_str!("../../../docs/learn/faraday/boot/maker-lenovo-thinkpad.md"),
+        include_str!("../../../docs/guide/start/maker-lenovo-thinkpad.md"),
     ),
     (
         "maker-lenovo-ideapad",
-        include_str!("../../../docs/learn/faraday/boot/maker-lenovo-ideapad.md"),
+        include_str!("../../../docs/guide/start/maker-lenovo-ideapad.md"),
     ),
     (
         "maker-asus",
-        include_str!("../../../docs/learn/faraday/boot/maker-asus.md"),
+        include_str!("../../../docs/guide/start/maker-asus.md"),
     ),
     (
         "maker-acer",
-        include_str!("../../../docs/learn/faraday/boot/maker-acer.md"),
+        include_str!("../../../docs/guide/start/maker-acer.md"),
     ),
     (
         "maker-msi",
-        include_str!("../../../docs/learn/faraday/boot/maker-msi.md"),
+        include_str!("../../../docs/guide/start/maker-msi.md"),
     ),
     (
         "maker-framework",
-        include_str!("../../../docs/learn/faraday/boot/maker-framework.md"),
+        include_str!("../../../docs/guide/start/maker-framework.md"),
     ),
     (
         "maker-surface",
-        include_str!("../../../docs/learn/faraday/boot/maker-surface.md"),
+        include_str!("../../../docs/guide/start/maker-surface.md"),
     ),
     // A maker with no page of its own (`docs/STARTER.md` §7): the
     // common keys, from the pages above, and the same steps. It matches
     // no computer, so it is not in `faraday_learn::MAKERS`.
     (
         "maker-other",
-        include_str!("../../../docs/learn/faraday/boot/maker-other.md"),
+        include_str!("../../../docs/guide/start/maker-other.md"),
     ),
 ];
 

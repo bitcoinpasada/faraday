@@ -291,7 +291,7 @@ unchanged.
   blocks, `docs/CRYPTO-LEARN.md` §8.4) and `boot/replace-faraday` the
   Starter's Keep data section.
 - **The guides to starting a computer from the stick**
-  (`docs/learn/faraday/boot/`, read by `faraday-guides` and published at
+  (`docs/guide/start/`, read by `faraday-start` and published at
   `start/`, `docs/STARTER.md` §7) are directions for the computer's
   firmware, outside Faraday: they stay as they are, as the Starter's and
   the website's, and move under `docs/guide/` (a folder `start`) with the guide. The
@@ -320,8 +320,8 @@ unchanged.
   `/cryptography` as now. A construction names its actions, no longer a
   page.
 - **`MAKERS`, `guide_id`, `guide_address`, `GUIDES`** (the start
-  guides' table and addresses) stay. `faraday/faraday-guides` is renamed
-  faraday-start, so that "guide" names one thing.
+  guides' table and addresses) stay. `faraday-guides` is renamed to
+  `faraday-start`, so that "guide" names one thing.
 - **`faraday/faraday-core/src/learn.rs`** becomes the guide's state:
   `screen_pages` and `Topic` give way to the key of §1.2; the sheet, the
   pane, the pin and the How tab stay; the ticked steps of a page
@@ -428,7 +428,7 @@ that carries the guide.
 The files that change: `docs/guide/` (the pages and the index; `walk/`,
 `screens/` and `pictures/` to history), `docs/learn/` (taken out;
 its folder of start guides moved), `faraday/faraday-learn` (renamed; `pages/` out,
-`how.rs` and `construction.rs` without `learn`), `faraday/faraday-guides`
+`how.rs` and `construction.rs` without `learn`), `faraday/faraday-start`
 (renamed), `faraday/faraday-core/src/learn.rs`,
 `faraday/faraday-core/src/guide.rs`, `faraday/faraday-core/src/screens/sheets.rs`,
 `faraday/faraday-core/src/screens/learn_pane.rs`, the screens that draw

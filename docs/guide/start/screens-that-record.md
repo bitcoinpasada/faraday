@@ -1,5 +1,8 @@
 # Screens and devices that can record
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## A screen that records
 
 A smart TV runs its own software on everything it shows, from every input, HDMI included. Many smart TVs run automatic content recognition: the TV samples what is on screen and sends it to its maker's servers to find out what is being watched.

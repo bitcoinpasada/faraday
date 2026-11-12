@@ -1,5 +1,5 @@
 [package]
-name = "faraday-guides"
+name = "faraday-start"
 version = "0.2.0"
 description = "The website's guides to starting a computer from the stick (docs/STARTER.md §7)"
 edition.workspace = true

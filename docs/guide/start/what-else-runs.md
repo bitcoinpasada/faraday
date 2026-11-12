@@ -1,5 +1,8 @@
 # What else runs on this computer
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## A computer inside the computer
 
 Almost every Intel PC made since about 2008 has a second, small processor in its chipset: the Intel Management Engine, now called the Converged Security and Management Engine (CSME). It has its own memory and its own firmware, signed by Intel. It starts before the main processor and runs whenever the board has power, including when the computer looks switched off. AMD computers have the same kind of processor, the AMD Platform Security Processor (PSP). Intel Macs have the Management Engine too.

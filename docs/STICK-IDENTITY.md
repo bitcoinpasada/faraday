@@ -522,7 +522,7 @@ with the Starter for it to have its own IDs.
   §4.3's check by hand: on a stick, the boot partition's SHA-256
   against its `-boot.vfat` line; on a Pi card, the image's IDs put back
   and the SHA-256 of the whole.
-- `docs/learn/faraday/boot/replace-faraday.md` says that a stick has
+- `docs/guide/start/replace-faraday.md` says that a stick has
   ordinary names, that a computer still sees its files, and that
   someone who opens them can tell it is Faraday's: the settings file's
   name, and Faraday's name in the boot file.

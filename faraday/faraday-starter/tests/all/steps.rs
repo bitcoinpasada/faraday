@@ -42,7 +42,7 @@ fn open_hp(starter: &mut Starter) {
 }
 
 fn hp_page() -> &'static faraday_learn::Page {
-    faraday_guides::page("maker-hp").expect("the HP guide")
+    faraday_start::page("maker-hp").expect("the HP guide")
 }
 
 #[test]

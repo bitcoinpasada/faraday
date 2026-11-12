@@ -1,5 +1,8 @@
 # Replacing Faraday on a stick
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## What it does
 
 Make a Faraday stick → Replace Faraday, keep data writes a new Faraday over the stick's boot partition, reads it back and compares. The data partition, with its vaults and settings file, is not read and not written.

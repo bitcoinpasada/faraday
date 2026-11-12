@@ -318,7 +318,7 @@ reads = [
   "faraday/faraday-learn/**", "faraday/faraday-keys/**", "faraday/shells/stick/**",
   "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/image/**", "core/**",
   "faraday/faraday-boot/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
-  "faraday/faraday-files/**", "faraday/faraday-guides/**", "faraday/faraday-intake/**",
+  "faraday/faraday-files/**", "faraday/faraday-start/**", "faraday/faraday-intake/**",
   "faraday/faraday-payload/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-qr/**",
   "faraday/faraday-samples/**", "faraday/faraday-sb/**", "faraday/faraday-scanner/**",
   "faraday/faraday-storage/**", "faraday/faraday-vault/**", "faraday/faraday-grant/**",
@@ -334,7 +334,7 @@ reads = [
   "faraday/faraday-strings/**", "core/faraday-draw/**", "faraday/builds.toml",
   "faraday/faraday-core/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
   "faraday/faraday-files/**", "faraday/faraday-payload/**", "faraday/faraday-learn/**",
-  "faraday/faraday-guides/**", "faraday/faraday-grant/**", "faraday/faraday-storage/**",
+  "faraday/faraday-start/**", "faraday/faraday-grant/**", "faraday/faraday-storage/**",
   "faraday/faraday-keys/**", "faraday/faraday-vault/**", "faraday/faraday-qr/**",
   "faraday/faraday-scanner/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-intake/**",
   "faraday/faraday-sb/**", "faraday/faraday-boot/**", "faraday/faraday-samples/**",
@@ -354,7 +354,7 @@ site_with = ["assets/guide/**"]
 [[consumer]]
 id = "website.start"
 name = "the website's start pages"
-reads = ["docs/learn/faraday/boot/*.md"]
+reads = ["docs/guide/start/*.md"]
 act = "a page added needs its description in the site's guide builder"
 blocking = true
 site_with = ["tools/guides.py"]
@@ -1197,7 +1197,7 @@ kind = "review"
 id = "design.maker-pages"
 title = "the Starter's maker pages show several families at once, no model, no maker's screenshot or name"
 source = ["docs/decisions/F14.md", "docs/decisions/F18.md"]
-when = ["docs/learn/faraday/boot/**", "faraday/faraday-starter/src/**"]
+when = ["docs/guide/start/**", "faraday/faraday-starter/src/**"]
 kind = "review"
 
 # ---------------------------------------------------------------- tokens

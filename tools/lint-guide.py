@@ -301,12 +301,65 @@ def check_keys(root, errors):
             errors.append(f"{KEYS_TO_WRITE}:{num}: `{place}` has a page; take it off the list")
 
 
+def starter_variants(root):
+    """The variants of the Starter's `Page` enum, or None without the source."""
+    src = os.path.join(root, "faraday/faraday-starter/src/lib.rs")
+    if not os.path.exists(src):
+        return None
+    with open(src, encoding="utf-8") as f:
+        text = f.read()
+    m = re.search(r"pub enum Page \{(.*?)\n\}", text, re.S)
+    if not m:
+        return None
+    body = re.sub(r"//[^\n]*", "", m.group(1))
+    return re.findall(r"^\s{4}([A-Z]\w*)\s*[,{(]", body, re.M)
+
+
+# Starter pages with no guide page of their own: the guide itself, and
+# About, which holds the version, the build's facts and the self-test
+# (docs/GUIDE-IN-APP.md §5.4).
+STARTER_NO_PAGE = {"Guide", "About"}
+
+
+def check_starter_pages(root, errors):
+    """The `**Starter page:**` lines of docs/guide/starter-*.md name every
+    variant of the Starter's `Page` once, except STARTER_NO_PAGE, and nothing
+    else."""
+    variants = starter_variants(root)
+    if variants is None:
+        return
+    folder = os.path.join(root, "docs/guide")
+    named = {}
+    for n in sorted(os.listdir(folder)):
+        if not (n.startswith("starter-") and n.endswith(".md")):
+            continue
+        for num, line in prose_lines(os.path.join(folder, n)):
+            m = re.match(r"^\*\*Starter page:\*\*\s*(.*)$", line)
+            if m:
+                for v in re.findall(r"`([^`]+)`", m.group(1)):
+                    named.setdefault(v, []).append(f"docs/guide/{n}:{num}")
+    for v in variants:
+        where = named.get(v, [])
+        if v in STARTER_NO_PAGE:
+            if where:
+                errors.append(f"Starter page `{v}` has no guide page, but {where[0]} names it")
+            continue
+        if not where:
+            errors.append(f"Starter page `{v}` is named by no docs/guide/starter-*.md page")
+        elif len(where) > 1:
+            errors.append(f"Starter page `{v}` is named more than once: {', '.join(where)}")
+    for v, where in sorted(named.items()):
+        if v not in variants:
+            errors.append(f"{where[0]}: `{v}` is no variant of the Starter's Page")
+
+
 def run(root):
     errors = []
     files = guide_files(root)
     count = check_names(root, files, errors)
     check_links(root, files, errors)
     check_keys(root, errors)
+    check_starter_pages(root, errors)
     return count, errors
 
 

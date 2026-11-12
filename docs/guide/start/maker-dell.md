@@ -1,5 +1,8 @@
 # Starting a Dell computer from the stick
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## Before you start
 
 On Linux, have the disk's passphrase or recovery key ready if it is unlocked by the TPM.

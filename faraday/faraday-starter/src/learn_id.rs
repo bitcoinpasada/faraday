@@ -3,7 +3,7 @@
 use crate::api::{Computer, Os};
 use crate::macs;
 
-/// A guide, by its Learn page (§7.2, `docs/learn/faraday/boot/`). A page
+/// A guide, by its Learn page (§7.2, `docs/guide/start/`). A page
 /// that does not exist shows its title as a line and opens nothing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LearnId {
@@ -34,7 +34,7 @@ pub enum LearnId {
 }
 
 impl LearnId {
-    /// The page's id among the guides (`faraday_guides::BOOT`), which
+    /// The page's id among the guides (`faraday_start::BOOT`), which
     /// is also its name on the website.
     pub fn id(self) -> &'static str {
         match self {
@@ -54,7 +54,7 @@ impl LearnId {
 
     /// The page.
     pub fn page(self) -> Option<&'static faraday_learn::Page> {
-        faraday_guides::page(self.id())
+        faraday_start::page(self.id())
     }
 
     /// Its address on the website (§7.4).

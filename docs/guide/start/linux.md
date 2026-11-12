@@ -1,5 +1,8 @@
 # Starting a Linux computer from the stick
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## Before you start
 
 If the disk is unlocked by the TPM (a line with tpm2-device in /etc/crypttab), have its passphrase or recovery key ready: Linux asks for it at the next start after Secure Boot is turned off. Faraday Starter checks this first. A disk unlocked by a passphrase alone, or not encrypted, has nothing to do here.

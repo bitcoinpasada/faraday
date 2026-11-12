@@ -879,7 +879,7 @@ value each, then
   (`Maker::secure_boot`).
 
 The values come from the maker table (§7.6), each agreeing with the
-maker's guide (a `faraday-guides` test). A computer whose maker has no
+maker's guide (a `faraday-start` test). A computer whose maker has no
 page reads **Not known** on each row; on the boot menu key and BIOS
 key rows the page lists the keys to try ("Not known: try Esc · F2 …",
 every key of the maker table), and the sheet leaves a line to write on
@@ -985,7 +985,7 @@ a known maker, a maker without a page and an Intel Mac (a T2 Mac, one
 without T2, one the table does not know); Print hands the shell that
 PDF to open; the not-found line on the page, on the sheet and in every
 guide's firmware step; the maker table's boot menu key, BIOS key and
-setting agreeing with each maker's guide (`faraday-guides`); the lines
+setting agreeing with each maker's guide (`faraday-start`); the lines
 to circle the keys, the maker's first, for Dell, HP and a maker without
 a page, and none on a Mac. F49's: `docs/history/STARTER-LOG.md` §6.5. Built: `faraday-starter`'s
 `notes.rs`, `tests/all/notes.rs`; `faraday-core`'s `pdf::notes`; the
@@ -1764,9 +1764,9 @@ Mac.
 
 ### 7.2 The guides are Learn pages
 
-Each guide is a Learn page in `docs/learn/faraday/boot/`, round-tripped
+Each guide is a Learn page in `docs/guide/start/`, round-tripped
 into `faraday-learn` as every Learn page is. The Starter
-carries them (`faraday-guides`), and the website publishes the same text
+carries them (`faraday-start`), and the website publishes the same text
 (§7.4); the desktop app and the stick carry only the address of the
 guide for this computer, not its text. Pages:
 
@@ -1936,7 +1936,7 @@ the stick's power sheet (F42) the maker's **boot menu key**
 (`boot_key`), **BIOS key** (`bios_key`) and the **Secure Boot
 setting**'s place (`secure_boot`, the menu path as the page names it;
 "business:" or "desktops:" before a second path of the same maker).
-The text is `faraday-strings`'. A test in `faraday-guides` checks each
+The text is `faraday-strings`'. A test in `faraday-start` checks each
 value against the maker's page: every key named in one numbered step
 (a held key as "Hold" it), every part of the setting's path in one
 paragraph of the Steps.

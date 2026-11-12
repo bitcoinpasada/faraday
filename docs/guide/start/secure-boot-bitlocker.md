@@ -1,5 +1,8 @@
 # What Secure Boot and BitLocker are
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## Turning Secure Boot off to start Faraday is safe
 
 Secure Boot is off only while the computer starts Faraday from the stick, and back on before Windows starts again. Windows always starts with it on, as before.

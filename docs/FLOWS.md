@@ -2068,7 +2068,7 @@ down (Dell's: "Shut down can skip the key").
    value; no other line is added. A computer no maker page matches has
    no row: the reminder and the guide's code, as today.
 4. **The keys**, each as the maker's own guide says it
-   (`docs/learn/faraday/boot/maker-*.md`), a field of `Maker` in
+   (`docs/guide/start/maker-*.md`), a field of `Maker` in
    `faraday-learn`, its text in `faraday-strings`:
 
    | Maker page | BIOS key |

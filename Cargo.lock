@@ -1051,13 +1051,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "faraday-guides"
-version = "0.2.0"
-dependencies = [
- "faraday-learn",
-]
-
-[[package]]
 name = "faraday-intake"
 version = "0.2.0"
 dependencies = [
@@ -1285,6 +1278,13 @@ name = "faraday-sqlite"
 version = "0.2.0"
 
 [[package]]
+name = "faraday-start"
+version = "0.2.0"
+dependencies = [
+ "faraday-learn",
+]
+
+[[package]]
 name = "faraday-starter"
 version = "0.2.0"
 dependencies = [
@@ -1297,9 +1297,9 @@ dependencies = [
  "faraday-draw",
  "faraday-fat",
  "faraday-files",
- "faraday-guides",
  "faraday-learn",
  "faraday-shell-api",
+ "faraday-start",
  "faraday-strings",
  "faraday-ui",
  "png",

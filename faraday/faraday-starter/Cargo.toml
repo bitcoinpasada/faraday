@@ -25,7 +25,7 @@ faraday-ui = { path = "../faraday-ui" }
 # Faraday's own Learn pages.
 faraday-learn = { path = "../faraday-learn" }
 # The website's guides to starting a computer from the stick.
-faraday-guides = { path = "../faraday-guides" }
+faraday-start = { path = "../faraday-start" }
 # A boot partition's refusals: faraday-fat's kinds, worded by faraday-files.
 faraday-fat = { path = "../faraday-fat" }
 # The names a boot partition is kept back by, refused for the data

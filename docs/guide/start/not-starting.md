@@ -1,5 +1,8 @@
 # When the stick does not start
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## Not in the boot menu
 
 Fast Boot. The BIOS's Fast Boot makes some computers skip USB disks at power-on. Set it to Disabled, or to Thorough where that is the choice.

@@ -1,5 +1,8 @@
 # Starting an Intel Mac from the stick
 
+**Kind:** Reference
+**Status:** Checked against the app
+
 ## Which Macs
 
 A Mac with an Intel processor and 64-bit EFI firmware starts the Faraday stick. Faraday Starter names this Mac and its model identifier on Home; the identifier is also in System Information, under Hardware Overview.

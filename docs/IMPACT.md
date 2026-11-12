@@ -488,7 +488,7 @@ change to the paths they name.
 | `app.faraday` | `faraday/faraday-core/**`, `faraday/faraday-ui/**`, `faraday/faraday-strings/**`, `faraday/faraday-learn/**`, `faraday/faraday-keys/**`, `faraday/shells/stick/**`, `faraday/shells/window/**`, `faraday/image/**`, `core/**` | the device app, the stick and the Pi images are built again | n/a |
 | `app.starter` | `faraday/faraday-starter/**`, `faraday/shells/starter/**`, `faraday/faraday-ui/**`, `faraday/faraday-strings/**`, `core/faraday-draw/**`, `faraday/builds.toml` | the Starter is built again | n/a |
 | `website.guide` | `docs/guide/**` | the guide's pages made again | yes |
-| `website.start` | `docs/learn/faraday/boot/*.md` | a page added needs its description in the site's guide builder | yes, on add |
+| `website.start` | `docs/guide/start/*.md` | a page added needs its description in the site's guide builder | yes, on add |
 | `website.download` | `faraday/builds.toml` | a new hardware id needs its lines and drawing in the site's download builder | yes, on a hardware id added |
 | `website.download-pictures` | Home's screen file | the pictures of Home at each panel size made again | no |
 | `website.roles` | `faraday/faraday-ui/src/pal/schemes.rs` | the site's colour roles written again | yes (its `site_check` exists) |
