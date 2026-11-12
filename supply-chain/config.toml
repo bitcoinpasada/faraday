@@ -26,16 +26,6 @@ url = "https://raw.githubusercontent.com/zcash/rust-ecosystem/main/supply-chain/
 audit-as-crates-io = false
 notes = "Vendored in third_party/rqrr and patched (PATCHES.md): first-party code, reviewed as such (F71)"
 
-[[exemptions.ab_glyph]]
-version = "0.2.32"
-criteria = "safe-to-deploy"
-notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.ab_glyph_rasterizer]]
-version = "0.1.10"
-criteria = "safe-to-deploy"
-notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
 [[exemptions.aead]]
 version = "0.5.2"
 criteria = "safe-to-deploy"
@@ -894,11 +884,6 @@ notes = "F211: not reviewed; the rPGP cross-check program only (docs/deps/pgp.md
 
 [[exemptions.orbclient]]
 version = "0.3.55"
-criteria = "safe-to-deploy"
-notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
-
-[[exemptions.owned_ttf_parser]]
-version = "0.25.1"
 criteria = "safe-to-deploy"
 notes = "F71: not reviewed; desktop shells only, linked through winit or softbuffer (docs/deps/winit.md, docs/deps/softbuffer.md)"
 

@@ -20,8 +20,12 @@ Android crates it locks) are the bulk of the desktop dependency tree; that
 is why the stack is exempted as one and kept out of every `core/` crate
 and the device images (`docs/STRUCTURE-PASS.md` §6).
 
-**Version and features.** `winit = "0.30"`, default features, in the
-workspace `Cargo.toml`. It also brings `getrandom` into the graph, which
+**Version and features.** `winit = "0.30"` in the workspace
+`Cargo.toml`, with its default features except the Wayland frame's title:
+`wayland-csd-adwaita-notitle` in place of `wayland-csd-adwaita`, so the
+client-side frame some Wayland desktops (GNOME) ask for is drawn without
+title text and no font is built into the Linux binaries (the titled frame
+brings `ab_glyph` and a copy of Cantarell). It also brings `getrandom` into the graph, which
 the desktop shell uses (`docs/deps/getrandom.md`).
 
 **Review.** Not reviewed: an exemption in `supply-chain/config.toml` (F71).

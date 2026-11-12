@@ -174,7 +174,15 @@ png = "0.18"
 adler2 = { version = "2.0.1", default-features = false }
 # Desktop shell (§4.1): window and software blit only, plus the OS RNG
 # that answers `Command::RequestEntropy` (docs/deps/getrandom.md).
-winit = "0.30"
+# Its default features but the Wayland frame's title, which would embed a
+# font (Cantarell, through sctk-adwaita and ab_glyph) in every Linux build.
+winit = { version = "0.30", default-features = false, features = [
+    "rwh_06",
+    "x11",
+    "wayland",
+    "wayland-dlopen",
+    "wayland-csd-adwaita-notitle",
+] }
 softbuffer = "0.4"
 getrandom = "0.4"
 # Camera capture on Linux (§16.33; docs/deps/libc.md): the C type and
