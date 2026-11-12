@@ -4632,6 +4632,8 @@ functions = [
   "faraday/faraday-core-wallet/src/lib.rs::descriptor_id",
   "core/faraday-bip/src/descriptor.rs::key_facts",
   "core/faraday-crypto/src/hash.rs::sha512",
+  "core/faraday-crypto/src/hash.rs::sha512_into",
+  "core/faraday-crypto/src/hash.rs::sha512_again",
 ]
 code = [
   "faraday/faraday-keys/src/core_wallet.rs::open_master_key",
