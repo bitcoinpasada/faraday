@@ -36,6 +36,7 @@
 //!
 //! Every value here is derived from secret material: the types are
 //! wiped on drop and print nothing.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Zeroize, ZeroizeOnDrop};

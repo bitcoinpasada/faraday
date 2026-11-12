@@ -32,6 +32,7 @@
 //! let secret = recover(&c, &[share], b"TREZOR").unwrap();
 //! assert_eq!(secret.expose().as_bytes().len(), 16);
 //! ```
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes, Zeroize, ZeroizeOnDrop, hmac_sha256, pbkdf2_hmac_sha256};
@@ -272,15 +273,23 @@ pub fn wordlist_sha256() -> &'static str {
 
 /// Secret bytes of a length SLIP-39 works in: 16 to 32, always even. A
 /// master secret, an encrypted master secret, a group secret and a share
-/// value are all one of these. Erased on drop; it has no `Debug` and no
-/// text form.
-#[derive(Clone)]
+/// value are all one of these. Erased on drop; it has no `Debug`, no
+/// `Clone` and no text form: a copy is [`duplicate`](Self::duplicate).
 pub struct SecretBytes {
     buf: [u8; MAX_STRENGTH_BYTES],
     len: u8,
 }
 
 impl SecretBytes {
+    /// A second copy of the bytes, erased on drop like the first.
+    #[must_use]
+    pub fn duplicate(&self) -> Self {
+        Self {
+            buf: self.buf,
+            len: self.len,
+        }
+    }
+
     /// Wraps `bytes`, which must be 16 to 32 bytes and an even length.
     pub fn new(bytes: &[u8]) -> Result<Self, Error> {
         if !(MIN_STRENGTH_BYTES..=MAX_STRENGTH_BYTES).contains(&bytes.len())
@@ -522,9 +531,9 @@ fn checksum(extendable: bool, data: &[u16]) -> [u16; CHECKSUM_WORDS] {
 
 /// One SLIP-39 share: its words and what they say.
 ///
-/// The share value is a secret. `Share` has no `Debug` and no text form,
-/// and its words and value are erased when it is dropped.
-#[derive(Clone)]
+/// The share value is a secret. `Share` has no `Debug`, no `Clone` and no
+/// text form, and its words and value are erased when it is dropped; a copy
+/// is [`duplicate`](Self::duplicate).
 pub struct Share {
     indices: [u16; MAX_WORDS],
     word_count: u8,
@@ -574,6 +583,15 @@ impl Drop for Share {
 impl ZeroizeOnDrop for Share {}
 
 impl Share {
+    /// A second copy of the share, erased on drop like the first.
+    #[must_use]
+    pub fn duplicate(&self) -> Self {
+        Self {
+            value: self.value.duplicate(),
+            ..*self
+        }
+    }
+
     /// Reads a share from its words, separated by any ASCII whitespace.
     pub fn parse(mnemonic: &str) -> Result<Self, Error> {
         let mut indices = Zeroizing::new([0u16; MAX_WORDS]);
@@ -715,7 +733,7 @@ impl Share {
             group_count,
             member_index,
             member_threshold,
-            value: value.clone(),
+            value: value.duplicate(),
         }
     }
 
@@ -1474,7 +1492,7 @@ fn split_secret(
     let len = secret.as_bytes().len();
     if threshold == 1 {
         for slot in out.iter_mut().take(count as usize) {
-            *slot = Some(secret.clone());
+            *slot = Some(secret.duplicate());
         }
         return;
     }

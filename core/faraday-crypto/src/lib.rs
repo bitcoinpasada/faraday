@@ -36,6 +36,8 @@
 //! arrive with the `secp256k1` decision.
 
 #![no_std]
+// Test code copies freely: the refusal in clippy.toml is for what ships.
+#![cfg_attr(test, allow(clippy::disallowed_methods))]
 
 extern crate alloc;
 

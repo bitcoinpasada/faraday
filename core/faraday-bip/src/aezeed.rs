@@ -21,6 +21,7 @@
 //! | Decipher | AEZ v5, `tau` 4, associated data `version ‖ salt` |
 //! | LND node key | `m/1017'/coin'/6'/0/0` from the entropy as the seed |
 //! | ldk-node node key | `m/0'` from the master private key of a BIP-39 seed |
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes, Zeroize, scrypt};

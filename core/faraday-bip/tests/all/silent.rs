@@ -413,7 +413,10 @@ fn a_sender_whose_keys_cancel_partway_pays_as_the_rest_do() {
         .collect();
     let first = rest[0].key;
     let mut cancelling = vec![send(first), send(first.negate())];
-    cancelling.extend(rest.iter().copied());
+    cancelling.extend(rest.iter().map(|k| SendKey {
+        key: k.key,
+        taproot: k.taproot,
+    }));
 
     let receiving = &cases[0]["receiving"][0]["given"]["key_material"];
     let scan = SecretKey::from_slice(&unhex(receiving["scan_priv_key"].as_str().expect("scan")))

@@ -23,6 +23,7 @@
 //!
 //! Private material passes through the decoded buffer, which is erased
 //! before this module returns.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 
@@ -53,6 +54,8 @@ pub const TPUB: [u8; 4] = [0x04, 0x35, 0x87, 0xcf];
 ///
 /// The same vocabulary reports a BIP-32 key and a SLIP-132 one; both go
 /// through the rules above.
+// `allow`, not `expect`: a derive copies `allow` onto what it writes, not `expect`.
+#[allow(clippy::disallowed_methods)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// Not valid base58, or the checksum does not hold.

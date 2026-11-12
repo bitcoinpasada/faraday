@@ -221,7 +221,11 @@ fn a_split_recombines_from_every_threshold_subset() {
         for a in 0..5 {
             for b in a + 1..5 {
                 for k in b + 1..5 {
-                    let chosen = [shares[a].clone(), shares[b].clone(), shares[k].clone()];
+                    let chosen = [
+                        shares[a].duplicate(),
+                        shares[b].duplicate(),
+                        shares[k].duplicate(),
+                    ];
                     let got = recover(&c, &chosen, PASSPHRASE).unwrap();
                     assert_eq!(got.expose().as_bytes(), &secret[..]);
                     subsets += 1;
@@ -231,7 +235,7 @@ fn a_split_recombines_from_every_threshold_subset() {
         assert_eq!(subsets, 10);
 
         // Two of the five are not enough: the set is short a share.
-        let two = [shares[0].clone(), shares[1].clone()];
+        let two = [shares[0].duplicate(), shares[1].duplicate()];
         assert_eq!(
             recover(&c, &two, PASSPHRASE).err(),
             Some(slip39::Error::WrongMemberCount {
@@ -268,7 +272,7 @@ fn a_two_level_split_needs_a_threshold_of_groups_and_of_members() {
         shares
             .iter()
             .filter(|s| s.group_index() == g)
-            .cloned()
+            .map(Share::duplicate)
             .collect()
     };
 
@@ -356,7 +360,7 @@ fn shares_of_two_backups_do_not_combine() {
     .unwrap();
     theirs.truncate(n);
 
-    let mixed = [mine[0].clone(), theirs[1].clone()];
+    let mixed = [mine[0].duplicate(), theirs[1].duplicate()];
     assert_eq!(
         recover(&c, &mixed, PASSPHRASE).err(),
         Some(slip39::Error::BadDigest)
@@ -435,7 +439,11 @@ fn split_at_the_limits(
     let mut at = 0;
     for (gi, g) in groups.iter().enumerate() {
         if gi < group_threshold as usize {
-            chosen.extend(out[at..at + g.threshold as usize].iter().cloned());
+            chosen.extend(
+                out[at..at + g.threshold as usize]
+                    .iter()
+                    .map(Share::duplicate),
+            );
         }
         at += g.count as usize;
     }
@@ -739,7 +747,7 @@ fn a_rotated_set_opens_the_same_wallet() {
         for (seed, (group_threshold, groups, quorum)) in rotations().into_iter().enumerate() {
             let shares = split_ems_to_shares(&ems, seed as u8 + 3, group_threshold, &groups);
             assert!(shares.iter().all(|s| s.identifier() == ems.identifier()));
-            let chosen: Vec<Share> = quorum.iter().map(|&i| shares[i].clone()).collect();
+            let chosen: Vec<Share> = quorum.iter().map(|&i| shares[i].duplicate()).collect();
             let secret = recover(&c, &chosen, PASSPHRASE).unwrap();
             assert_eq!(
                 hex(secret.expose().as_bytes()),
@@ -845,9 +853,9 @@ fn an_added_share_recovers_with_the_old_ones() {
         assert_eq!(added.identifier(), shares[0].identifier());
         for pair in [[0, 4], [1, 2], [3, 4]] {
             let chosen = [
-                added.clone(),
-                shares[pair[0]].clone(),
-                shares[pair[1]].clone(),
+                added.duplicate(),
+                shares[pair[0]].duplicate(),
+                shares[pair[1]].duplicate(),
             ];
             let got = recover(&c, &chosen, PASSPHRASE).unwrap();
             assert_eq!(got.expose().as_bytes(), &secret[..]);
@@ -864,12 +872,12 @@ fn a_replaced_share_is_the_lost_one_word_for_word() {
     for lost in 0..5 {
         let others: Vec<Share> = (0..5)
             .filter(|&i| i != lost)
-            .map(|i| shares[i].clone())
+            .map(|i| shares[i].duplicate())
             .collect();
         for skip in 0..4 {
             let quorum: Vec<Share> = (0..4)
                 .filter(|&i| i != skip)
-                .map(|i| others[i].clone())
+                .map(|i| others[i].duplicate())
                 .collect();
             let again = slip39::derive_member(&quorum, lost as u8).unwrap();
             assert_eq!(again.indices(), shares[lost].indices());
@@ -897,11 +905,11 @@ fn a_share_added_to_a_group_recovers_with_the_other_groups() {
     let added = slip39::derive_member(&shares[3..6], 12).unwrap();
     assert_eq!(added.group_index(), 1);
     let chosen = [
-        shares[0].clone(),
-        shares[2].clone(),
+        shares[0].duplicate(),
+        shares[2].duplicate(),
         added,
-        shares[7].clone(),
-        shares[5].clone(),
+        shares[7].duplicate(),
+        shares[5].duplicate(),
     ];
     let got = recover(&c, &chosen, PASSPHRASE).unwrap();
     assert_eq!(got.expose().as_bytes(), &secret[..]);
@@ -916,7 +924,7 @@ fn a_share_is_not_made_from_a_wrong_quorum_or_at_a_taken_index() {
     let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
     let shares = split_from(7, &secret, 1, &THREE_OF_FIVE);
     let derive = |chosen: &[usize], index: u8| {
-        let given: Vec<Share> = chosen.iter().map(|&i| shares[i].clone()).collect();
+        let given: Vec<Share> = chosen.iter().map(|&i| shares[i].duplicate()).collect();
         slip39::derive_member(&given, index).err()
     };
     let short = E::WrongMemberCount {
@@ -938,7 +946,11 @@ fn a_share_is_not_made_from_a_wrong_quorum_or_at_a_taken_index() {
 
     // Shares of two sets under one identifier: the digest fails.
     let other = split_from(8, &secret, 1, &THREE_OF_FIVE);
-    let mixed = [shares[0].clone(), shares[1].clone(), other[2].clone()];
+    let mixed = [
+        shares[0].duplicate(),
+        shares[1].duplicate(),
+        other[2].duplicate(),
+    ];
     assert_eq!(slip39::derive_member(&mixed, 9).err(), Some(E::BadDigest));
 
     // Two groups' shares, and a group of threshold 1.
@@ -953,7 +965,7 @@ fn a_share_is_not_made_from_a_wrong_quorum_or_at_a_taken_index() {
         },
     ];
     let two = split_from(11, &secret, 2, &groups);
-    let across = [two[0].clone(), two[1].clone()];
+    let across = [two[0].duplicate(), two[1].duplicate()];
     assert_eq!(
         slip39::derive_member(&across, 9).err(),
         Some(E::MixedGroups)
@@ -1026,7 +1038,7 @@ fn the_set_functions_refuse_an_exponent_above_the_highest_read() {
     let ems = Ems::new(0x0123, true, exponent, &[9u8; 16]).unwrap();
     assert_eq!(ems.decrypt(&c, PASSPHRASE).err(), too_high);
     let mut stream = Stream(3);
-    let mut out = vec![Share::default(); 1];
+    let mut out = vec![Share::default()];
     let groups = [GroupSpec {
         threshold: 1,
         count: 1,

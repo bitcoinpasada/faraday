@@ -10,6 +10,7 @@
 //! let seed = m.to_seed(&c, b"TREZOR").unwrap();
 //! assert_eq!(seed.expose()[0], 0xc5);
 //! ```
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_crypto::work::{Compute, Work};
 use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop, pbkdf2_hmac_sha512, sha256};

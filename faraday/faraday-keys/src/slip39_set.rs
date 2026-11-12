@@ -142,7 +142,7 @@ impl HeldSet {
             self.shares
                 .iter()
                 .filter(|s| met.contains(&s.group_index()))
-                .cloned()
+                .map(Share::duplicate)
                 .collect()
         })
     }
@@ -243,15 +243,15 @@ impl Keys {
             .shares
             .iter()
             .filter(|s| s.group_index() == group)
-            .cloned()
+            .map(Share::duplicate)
             .collect();
         let made = slip39::derive_member(&quorum, member_index).map_err(SetRefused::Share)?;
         let line = operations::share_line(&made);
         let read = Share::parse(&line).map_err(|_| SetRefused::NotSameSet)?;
 
         let displaced = quorum.first().ok_or(SetRefused::NotSameSet)?;
-        let mut swapped = quorum.clone();
-        swapped[0] = read.clone();
+        let mut swapped = quorum.iter().map(Share::duplicate).collect::<Vec<Share>>();
+        swapped[0] = read.duplicate();
         let again = slip39::derive_member(&swapped, displaced.member_index())
             .map_err(|_| SetRefused::NotSameSet)?;
         if !bool::from(again.indices().ct_eq(displaced.indices())) {
@@ -372,7 +372,7 @@ impl Keys {
                     .into_iter()
                     .chain(rest.iter().flat_map(|&other| members_of(other, None)))
                     .collect();
-                let own: Vec<Share> = chosen.iter().map(|&n| parsed[n].clone()).collect();
+                let own: Vec<Share> = chosen.iter().map(|&n| parsed[n].duplicate()).collect();
                 let read = slip39::recover_ems(&own).map_err(|_| SetRefused::NotSameSet)?;
                 if !same_ems(&read, &new) {
                     return Err(SetRefused::NotSameSet);

@@ -540,6 +540,13 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
   starts on. It names the network itself now, takes the testkit only in
   its tests, and `tools/lint-keys-tests.sh` fails when a shipped binary
   turns the feature on.
+- **A secret type derives no `Clone`, `PartialEq` or `Debug` and has no
+  `Display`.** A copy is a function of the type (`duplicate`), a comparison
+  one that does not branch on the bytes, a `Debug` one that prints a
+  redaction. `tools/lint-secrets.sh` rule 2 finds a secret type by what it
+  holds, and rule 3 holds a file that uses one; `clippy.toml` in the
+  secret-holding `core/` crates refuses `clone`, `to_string` and `to_owned`
+  where a file turns it on (SECRET-LEAKS §6).
 - **The lint.** `tools/lint-secrets.sh` rule 4 refuses, under faraday/
   outside faraday-keys:
   - (a) a key or seed in hand: `MasterKey`, `SecretKey`, `Xpriv`,

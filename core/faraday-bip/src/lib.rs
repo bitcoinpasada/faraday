@@ -42,6 +42,10 @@
 //! keeps the files that hold secrets free of heap text (its header lists them).
 
 #![no_std]
+// clippy.toml has the refusal; this crate holds public
+// data besides keys, so only its secret files turn the refusal on, each with
+// its own `#![cfg_attr(not(test), warn(clippy::disallowed_methods))]`.
+#![allow(clippy::disallowed_methods)]
 
 extern crate alloc;
 

@@ -113,6 +113,10 @@ pub fn argon2(
     c.count(Work::Kdf);
     let params = Params::new(cost.memory_kib, cost.passes, cost.lanes, Some(32))
         .map_err(|_| Error::Params)?;
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the cost parameters are public, not a secret"
+    )]
     let argon = Argon2::new(algorithm, Version::V0x13, params.clone());
     let blocks = params.block_count();
     let mut memory: Vec<Block> = Vec::new();

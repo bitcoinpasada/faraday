@@ -19,6 +19,7 @@
 //! same best-effort rule as [`crate::keys::MasterKey`]. Like it, the key
 //! carries a signing context of its own, blinded from the key itself
 //! when it is read.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use bitcoin::NetworkKind;
 use bitcoin::base58;
@@ -145,6 +146,7 @@ impl SingleKey {
         let mut out = alloc::vec![ScriptBuf::new_p2pkh(&self.public.pubkey_hash())];
         if let Ok(cpk) = CompressedPublicKey::try_from(self.public) {
             let wpkh = ScriptBuf::new_p2wpkh(&cpk.wpubkey_hash());
+            #[expect(clippy::disallowed_methods, reason = "a script is public")]
             out.push(wpkh.clone());
             out.push(ScriptBuf::new_p2sh(&wpkh.script_hash()));
         }

@@ -9,6 +9,7 @@
 //!
 //! This is a demo for humans at a terminal. It prints secrets. Examples
 //! are outside the secret lint's scope (`src/` only) and may use `std`.
+#![allow(clippy::disallowed_methods)]
 
 use std::process::ExitCode;
 

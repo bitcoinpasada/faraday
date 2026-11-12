@@ -58,6 +58,8 @@
 //! crate is `no_std` and does not allocate.
 
 #![no_std]
+// Test code copies freely: the refusal in clippy.toml is for what ships.
+#![cfg_attr(test, allow(clippy::disallowed_methods))]
 
 use faraday_crypto::{Zeroize, ZeroizeOnDrop};
 

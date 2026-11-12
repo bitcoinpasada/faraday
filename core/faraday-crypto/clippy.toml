@@ -1,0 +1,27 @@
+# Secrets are copied, turned into text or put into a second buffer only where
+# a line says so (docs/SECRET-LEAKS.md §6). clippy's disallowed-methods names
+# a function by its path, not the type it is called on, so this refuses the
+# method wherever it is in force and not only on a secret buffer
+# (`Secret<_>`, `SecretText`, `Zeroizing<_>`, a faraday-keys holder). A
+# legitimate use carries
+# `#[expect(clippy::disallowed_methods, reason = "...")]`.
+#
+# What clippy (1.97) can name here, found by trying each path against a
+# planted call:
+#   - the trait methods `Clone::clone`, `ToString::to_string` and
+#     `ToOwned::to_owned`, below;
+#   - not `<[u8]>::to_vec` or `<[T]>::to_vec` (accepted as a path, never
+#     matched: a slice method has no path of its own to clippy), and not
+#     `String::from` (a path of `From::from`, which this crate cannot refuse
+#     everywhere; `alloc::string::String::from` names nothing). Rule 3 of
+#     tools/lint-secrets.sh holds `String`, `to_owned` and `to_string` in the
+#     secret files; `to_vec` and `String::from` are held by review.
+#
+# A crate with its own clippy.toml is not governed by faraday/clippy.toml
+# (clippy reads the nearest one), so a crate under faraday/ that took one
+# would repeat that file's entries.
+disallowed-methods = [
+    { path = "core::clone::Clone::clone", reason = "a copy of a secret is a function of its type (`duplicate`), under #[expect] where it is needed" },
+    { path = "alloc::string::ToString::to_string", reason = "a secret made into text is a second buffer nothing wipes" },
+    { path = "alloc::borrow::ToOwned::to_owned", reason = "a secret made into a second buffer nothing wipes" },
+]

@@ -45,6 +45,7 @@
 //! script type and network give every address of that kind — `bc1q`,
 //! `bc1p`, `1`, `3` on mainnet — case-insensitively for bech32, which
 //! has one case, and exactly for base58, which has two.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpriv};
 use bitcoin::secp256k1::{All, PublicKey, Secp256k1, SecretKey};

@@ -24,6 +24,7 @@
 //!
 //! The vectors are in `tools/vectors/bip85/`, read by
 //! `core/faraday-bip/tests/all/bip85.rs`.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use faraday_crypto::Zeroize;
 use faraday_crypto::work::Compute;
