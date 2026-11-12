@@ -147,8 +147,10 @@ pub const PBKDF2_STEP: u32 = 5_000;
 /// that hash, each in a block padded once), with nothing cloned and nothing
 /// wiped per round. The `hmac` crate's states wipe on drop (with sha2's
 /// `zeroize`); what it leaves on the stack is the padded key block and the
-/// inner hash, and this keeps both, and the states and blocks here, in
-/// [`Zeroizing`](zeroize::Zeroizing) wiped once, at the end.
+/// inner hash; this function's own copies of them, and its states and
+/// blocks, are in [`Zeroizing`](zeroize::Zeroizing), wiped once, at the
+/// end. `sha2`'s software compression keeps each block's message words in
+/// its own frame, unwiped.
 pub fn pbkdf2_hmac_sha256_block(
     c: &Compute,
     password: &[u8],

@@ -582,15 +582,21 @@ What was open after step 3:
 
 ### 4.2 Stated limits: the HMAC and PBKDF2 calls
 
-`hmac_sha256`, `hmac_sha512`, `hkdf_sha256`, `pbkdf2_hmac_sha512` (the
-BIP-39 seed stretch) and `pbkdf2_hmac_sha256` (SLIP-39 and scrypt) go
-through the `hmac` and `pbkdf2` crates. Their hash states wipe on drop
-(`sha2`'s `zeroize` feature is on), but each call leaves two things on
-the stack, unwiped: the key padded to one hash block, and the inner hash
-(the first of the two hashes an HMAC takes). The key or password they
-come from is the caller's and is wiped there. Only
-`pbkdf2_hmac_sha256_block` (the key stretch of KEF, the vault's encrypted format) is written by hand and
-wipes both.
+`hmac_sha256`, `hmac_sha512`, `hkdf_sha256`, `hkdf_sha256_expand`,
+`pbkdf2_hmac_sha512` (the BIP-39 seed stretch) and `pbkdf2_hmac_sha256`
+(SLIP-39 and scrypt) go through the `hmac` and `pbkdf2` crates. Their hash
+states wipe on drop (`sha2`'s `zeroize` feature is on), but each call
+leaves things on the stack, unwiped: the key padded to one hash block, the
+inner hash (the first of the two hashes an HMAC takes), and in the two
+PBKDF2 calls the running sum `U` that `pbkdf2` 0.13 keeps in a plain local
+and each round's HMAC output, which `finalize_fixed()` returns by value.
+The key or password they come from is the caller's and is wiped there.
+`pbkdf2_hmac_sha256_block` (the key stretch of KEF, Krux's encrypted code,
+`docs/KEF.md`) is written by hand: its own copies (the padded key block,
+the inner hash, the states and the sum) are wiped. `sha2`'s software
+compression, which runs on a processor without SHA instructions, keeps
+each block's sixteen message words in its own frame, unwiped, under every
+one of these calls.
 
 ## 5. What does not change
 

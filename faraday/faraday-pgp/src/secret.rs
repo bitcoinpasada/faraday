@@ -182,9 +182,9 @@ pub fn read_secret_at(armored: &[u8]) -> Option<(Key, u32)> {
     let cert = Certificate::read(armor(Armor::PublicKey, &public).as_bytes()).ok()?;
     let at = cert.certified_at()?;
     // The seeds are copied into the key from references, so no by-value
-    // copy of either is left on the stack; the key itself is returned by
-    // value, and its move may leave a copy in the caller's frame, which is
-    // not wiped.
+    // copy of either is left on the stack; the key itself is moved by
+    // value into the `then_some` below and again in `read_secret`, and
+    // each move may leave a copy in that function's frame, not wiped.
     let mut key = Key {
         primary_seed: [0; 32],
         created,

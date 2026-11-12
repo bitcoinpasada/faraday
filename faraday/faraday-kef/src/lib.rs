@@ -93,7 +93,8 @@ pub fn reading_passphrases(text: &str) -> Vec<Zeroizing<Vec<u8>>> {
     let mut out = alloc::vec![Zeroizing::new(text.as_bytes().to_vec())];
     if !text.is_ascii() {
         // `char` has no wipe: the forms are held in Zeroizing, with room
-        // for the longest (four bytes a char), so nothing is left behind.
+        // for the longest (four bytes a char), so they never reallocate.
+        // unicode-normalization's own buffers are not wiped.
         let room = text.len() * 4;
         let mut nfc = Zeroizing::new(Vec::<char>::with_capacity(room));
         nfc.extend(text.nfc());
