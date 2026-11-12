@@ -484,8 +484,9 @@ impl Keys {
                 crate::words::from_seedqr_digits(digits.expose().as_bytes(), s.language),
             )
         };
-        // Boxed at once, so the matrix is not moved about by value, which
-        // leaves a copy of its modules on the stack at each move.
+        // Boxed after the encoder returned it by value, so that return's
+        // copy of the modules may stay on the stack; boxing only stops the
+        // later moves by value, each of which would leave another.
         let matrix = Box::new(matrix.map_err(|_| Convert::NotGiven)?);
         let held = same_words(&m, read.ok().as_ref(), matrix)?;
         Ok((held, m.word_count()))

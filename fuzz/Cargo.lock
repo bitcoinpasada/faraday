@@ -181,7 +181,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce2dc9ee5f88d11e0beb842c88b33c8a5cf0d1329c4b19494af42b07dbfe8896"
 dependencies = [
  "cipher",
- "zeroize",
 ]
 
 [[package]]
@@ -426,6 +425,7 @@ dependencies = [
  "ocb3",
  "sha1",
  "sha2",
+ "subtle",
  "zeroize",
 ]
 
@@ -479,6 +479,7 @@ dependencies = [
  "quick-xml",
  "sha1",
  "sha2",
+ "subtle",
  "toml_parser",
  "unicode-normalization",
  "zeroize",

@@ -358,7 +358,10 @@ the list is painted in bands:
     a band wrote in it are zeroed when it has painted its run. The
     list's text, which may be a seed's words, is wiped over its whole
     capacity (`zeroize`, capacity kept) when the list is cleared after
-    a frame, so it does not stay until later frames overwrite it.
+    a frame, so it does not stay until later frames overwrite it. The
+    text grows by `push_str` within a frame, so when it outgrows its
+    capacity the old buffer is freed unwiped: a copy of the words so far
+    may stay in freed memory until reused.
   Calls are recorded with caches held (the damage of a call is noted
   when it is recorded, and a path's may be a few pixels larger than its
   ink).

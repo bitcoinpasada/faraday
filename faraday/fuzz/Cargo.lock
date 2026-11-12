@@ -323,7 +323,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce2dc9ee5f88d11e0beb842c88b33c8a5cf0d1329c4b19494af42b07dbfe8896"
 dependencies = [
  "cipher",
- "zeroize",
 ]
 
 [[package]]
@@ -372,6 +371,7 @@ dependencies = [
  "block-buffer",
  "crypto-common",
  "inout",
+ "zeroize",
 ]
 
 [[package]]
@@ -806,6 +806,7 @@ dependencies = [
  "faraday-strings",
  "faraday-ui",
  "faraday-vault",
+ "subtle",
  "zeroize",
 ]
 
@@ -858,6 +859,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-shell-api",
  "tiny-skia 0.12.0",
+ "zeroize",
 ]
 
 [[package]]
@@ -962,6 +964,7 @@ dependencies = [
  "faraday-crypto",
  "miniz_oxide 0.8.9",
  "sha2",
+ "subtle",
  "unicode-normalization",
  "zeroize",
 ]
@@ -1040,6 +1043,7 @@ dependencies = [
  "ocb3",
  "sha1",
  "sha2",
+ "subtle",
  "zeroize",
 ]
 
@@ -1242,6 +1246,7 @@ dependencies = [
  "quick-xml",
  "sha1",
  "sha2",
+ "subtle",
  "toml_parser",
  "unicode-normalization",
  "zeroize",
@@ -1454,6 +1459,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27f864f10dfb56725ce5ce5472bc52252c8f93a4ab86327122cebf62c5f59a17"
 dependencies = [
  "typenum",
+ "zeroize",
 ]
 
 [[package]]
