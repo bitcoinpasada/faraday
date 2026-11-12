@@ -31,6 +31,7 @@
 //! all-`abandon` test phrase; no coin is behind anything here, and the GPG
 //! and Secure Boot keys are placeholders.
 #![allow(dead_code)]
+#![allow(clippy::disallowed_methods)]
 
 use faraday_crypto::work::Compute;
 use faraday_vault::child::{self, ChildOf};

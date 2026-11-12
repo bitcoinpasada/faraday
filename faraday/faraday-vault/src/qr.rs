@@ -3,6 +3,7 @@
 //! [`faraday_pgp::message`] makes, under a passphrase put in Unicode NFC
 //! (§3). Nothing here draws randomness: the caller passes the 95 bytes a
 //! seal needs.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 
@@ -13,7 +14,7 @@ use crate::contents::{Refusal, read_qr, write_qr};
 use crate::{Record, nfc};
 
 /// Why a QR vault was not sealed or opened.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     /// The OpenPGP message: not a QR vault, a wrong passphrase, damage.
     Message(message::Error),
@@ -24,6 +25,21 @@ pub enum Error {
     Memory(u32),
     /// The passphrase is empty (§8): it seals and opens nothing.
     EmptyPassphrase,
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a public value: its fields hold no secret"
+)]
+impl Clone for Error {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Message(a0) => Self::Message(*a0),
+            Self::Contents(a0) => Self::Contents(a0.clone()),
+            Self::Memory(a0) => Self::Memory(*a0),
+            Self::EmptyPassphrase => Self::EmptyPassphrase,
+        }
+    }
 }
 
 /// Costs an Argon2id run at `exponent` (`docs/VAULT.md` §3; a step of

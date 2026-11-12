@@ -2,6 +2,7 @@
 //! XML key file version 2.0, laid out as KeePassXC 2.7.10 writes it, and a
 //! vault made by pykeepass (`tools/vectors/kdbx/keyfile_write.py`) under a
 //! passphrase and that file opening here.
+#![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
 

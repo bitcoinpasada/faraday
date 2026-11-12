@@ -1,5 +1,6 @@
 //! Reading the XML document (`super`): the tokenizer's events checked and
 //! made into the model, every byte of what the model does not read kept.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
@@ -358,6 +359,10 @@ impl<'a> Rd<'a> {
     }
 
     /// The plaintext of a protected element's text, kept in `c`.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the plaintext is kept twice, both copies in wiping memory (`Zeroizing`)"
+    )]
     fn opened(&mut self, t: Text, c: &mut Carried) -> R<Zeroizing<Vec<u8>>> {
         // The secret is a piece, and the bytes after it another, each in a
         // list that grows by doubling; the bytes between are kept too.
@@ -374,6 +379,10 @@ impl<'a> Rd<'a> {
     /// A protected element in carried bytes, from its start tag (`a..b`):
     /// decrypted and kept in `c` when it holds text only. When it holds
     /// markup the attribute means nothing, nothing is consumed, and false.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a copy of the reader's position over the same bytes: a borrow, no new buffer"
+    )]
     fn carried_secret(&mut self, a: usize, b: usize, c: &mut Carried) -> R<bool> {
         let saved = (self.r.clone(), self.pos, self.depth);
         match self.text_or_markup()? {
@@ -493,6 +502,10 @@ impl<'a> Rd<'a> {
 
     /// A key and a value: a field of an entry or an `Item` of custom
     /// data.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the key and value are kept as read and as written, both in wiping memory (`Zeroizing`)"
+    )]
     fn pair(&mut self, a: usize, b: usize, empty: bool) -> R<Pair> {
         self.spend(CARRIED)?;
         let mut c = Carried::default();
@@ -754,6 +767,10 @@ impl<'a> Rd<'a> {
     /// `group` would take a later one after an invalid first; one marked
     /// Protected cannot be read here without moving the stream and is
     /// refused. The bin is then read once, by `skip_element`.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a copy of the reader's position over the same bytes: a borrow, no new buffer"
+    )]
     fn bin_probe(&mut self) -> R<Option<usize>> {
         let saved = (self.r.clone(), self.pos, self.depth);
         let found = self.probe_group();
@@ -762,6 +779,10 @@ impl<'a> Rd<'a> {
         Ok(bin.then_some(count))
     }
 
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a copy of the reader's position over the same bytes: a borrow, no new buffer"
+    )]
     fn probe_group(&mut self) -> R<(bool, usize)> {
         let mut bin = false;
         let mut count = 0;

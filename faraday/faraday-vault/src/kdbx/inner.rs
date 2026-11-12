@@ -1,6 +1,7 @@
 //! The inner header that begins the decrypted body, and the inner random
 //! stream that encrypts the protected values of the XML document
 //! (`docs/VAULT.md` §1.1, §7.1).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -29,11 +30,24 @@ const STREAM_SALSA20: u32 = 2;
 /// it (F206 point 6): the decrypted body an opened file read, of which
 /// each attachment is a range. The XML document is in a buffer of its own,
 /// wiped and freed once it is parsed.
-#[derive(Clone)]
 pub struct Shared {
     buf: Arc<Zeroizing<Vec<u8>>>,
     start: usize,
     end: usize,
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a public value: its fields hold no secret"
+)]
+impl Clone for Shared {
+    fn clone(&self) -> Self {
+        Self {
+            buf: self.buf.clone(),
+            start: self.start,
+            end: self.end,
+        }
+    }
 }
 
 impl Shared {
@@ -48,6 +62,10 @@ impl Shared {
     }
 
     /// Bytes `start..end` of the same buffer, if they lie inside this one.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a second handle on the same buffer, not a second copy of it"
+    )]
     pub(super) fn range(&self, start: usize, end: usize) -> Option<Self> {
         let (from, to) = (self.start.checked_add(start)?, self.start.checked_add(end)?);
         (start <= end && to <= self.end).then(|| Self {
@@ -88,12 +106,24 @@ impl From<Zeroizing<Vec<u8>>> for Shared {
 
 /// An attachment: a binary of the inner header, which entries refer to by
 /// its position. Its bytes are a range of the body the file was read into.
-#[derive(Clone)]
 pub struct Binary {
     /// Whether the file marks it for memory protection.
     pub protected: bool,
     /// Its bytes.
     pub data: Shared,
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a public value: its fields hold no secret"
+)]
+impl Clone for Binary {
+    fn clone(&self) -> Self {
+        Self {
+            protected: self.protected,
+            data: self.data.clone(),
+        }
+    }
 }
 
 /// The attachments a seal writes: those read, with the ones nothing refers

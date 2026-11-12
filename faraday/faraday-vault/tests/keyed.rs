@@ -4,6 +4,7 @@
 //! (`tools/vectors/kdbx/keyed.py`) opening a file Faraday sealed and the
 //! other way. The pykeepass checks are skipped, and said, where it is not
 //! installed.
+#![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;

@@ -46,6 +46,7 @@
 //! root is not a `KeyFile` document and is hashed as any other file is,
 //! except a `KeyFile` root under a declared encoding other than UTF-8 in a
 //! file with a byte at or above 0x80, which is refused.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::borrow::Cow;
 use alloc::vec::Vec;

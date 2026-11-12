@@ -2,6 +2,7 @@
 //! (RFC 9580 §4.2 packet lengths, §5.2.3.7 subpacket lengths): the forms
 //! that are read, and the lengths that are refused because they run past
 //! the data, are cut short or are not allowed there.
+#![allow(clippy::disallowed_methods)]
 
 use faraday_pgp::{Armor, Key, armor, read_public, signature_time};
 

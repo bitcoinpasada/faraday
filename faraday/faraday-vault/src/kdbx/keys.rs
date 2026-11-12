@@ -1,5 +1,6 @@
 //! The keys of a KDBX file (`docs/VAULT.md` §1.1) and the HMAC the
 //! header and the block stream are authenticated with.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use argon2::Algorithm;
 use faraday_crypto::work::Compute;
@@ -76,6 +77,10 @@ impl Components {
     /// `Some(None)` to take the key file out, `Some(Some(key))` to add or
     /// replace it and `None` to keep it; `drop_yubikey` takes the secret
     /// out. A secret is never added (F208 point 5).
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the components are copies in wiping memory (`Zeroizing`)"
+    )]
     pub fn changed(&self, key_file: Option<Option<&[u8; 32]>>, drop_yubikey: bool) -> Components {
         Components {
             key_file: match key_file {

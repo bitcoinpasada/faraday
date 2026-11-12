@@ -1,6 +1,7 @@
 //! Changes the app makes, applied to the document (`docs/VAULT.md` §7):
 //! an item's fields and custom data written from its record by its
 //! published text form, entry by UUID, and the database's own values.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 
@@ -17,7 +18,7 @@ use crate::records::{self, BACKUP_PENDING, NO_LOAD_AT_UNLOCK, Record, field, kin
 use crate::{child, codex32, contents};
 
 /// Why a change was not applied.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Unwritable {
     /// The vault is read-only: its format is not one this build writes, or
     /// its `Meta` or database custom data cannot be told apart from what it
@@ -35,6 +36,17 @@ pub enum Unwritable {
     Unreadable,
     /// A plan's number of 0, or a value that is not its TOML.
     Plan,
+}
+impl Clone for Unwritable {
+    fn clone(&self) -> Self {
+        match self {
+            Self::ReadOnly => Self::ReadOnly,
+            Self::Record(a0) => Self::Record(*a0),
+            Self::Value(a0) => Self::Value(a0),
+            Self::Unreadable => Self::Unreadable,
+            Self::Plan => Self::Plan,
+        }
+    }
 }
 
 /// Where an item goes and what it is called (§7): the entry's UUID (an

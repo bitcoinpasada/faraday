@@ -31,6 +31,7 @@
 //! ([`Error::Passphrase`]); the message for a KeePass file says that a file
 //! which also needs a key file or a security key cannot be opened here
 //! (owner, 2026-11-02; `docs/VAULT.md` §7.1).
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 mod blocks;
 mod gzip;

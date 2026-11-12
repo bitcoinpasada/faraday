@@ -7,6 +7,7 @@
 //! BIP-39 reader, `pem-rfc7468`) or is a fixed shape checked byte by byte;
 //! every secret is in a wiping buffer. Listed in `tools/lint-secrets.sh`:
 //! no heap text.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 

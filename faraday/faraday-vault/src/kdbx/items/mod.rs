@@ -49,6 +49,7 @@
 //! BIP-39 words by `faraday-bip`, a policy and a descriptor by
 //! `faraday-bip`'s wallet policy and descriptor readers, a codex32 string
 //! by its reader, the TOML values by `contents`, PEM by `pem-rfc7468`.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 mod forms;
 mod text;
@@ -641,6 +642,10 @@ type Walked<'a> = Vec<(Path, Marks, &'a Entry)>;
 /// `names` are the groups from the root down to `g`, each stored once; the
 /// entries of `g` share one [`Path`] made from them (at most `MAX_DEPTH`
 /// pointers), so a group name is never copied per entry.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a second handle on a group path's name, not a second copy of it"
+)]
 fn walk<'a>(g: &'a Group, names: &mut Vec<Arc<str>>, marked: Marks, out: &mut Walked<'a>) {
     let marked = Marks {
         same_uuid: marked.same_uuid || g.duplicate_uuid(),

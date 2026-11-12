@@ -108,7 +108,7 @@ pub enum Kdf {
 }
 
 /// What a file's header states. None of it is secret.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Header {
     /// 0 or 1: the minor version, 4.0 or 4.1.
     pub minor: u16,
@@ -123,6 +123,23 @@ pub struct Header {
     /// The header's public custom data (a VariantDictionary other programs
     /// keep outside the encryption), as it was read, to be written back.
     pub public_custom_data: Option<Vec<u8>>,
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a public value: its fields hold no secret"
+)]
+impl Clone for Header {
+    fn clone(&self) -> Self {
+        Self {
+            minor: self.minor,
+            cipher: self.cipher,
+            compression: self.compression,
+            kdf: self.kdf,
+            cost: self.cost,
+            public_custom_data: self.public_custom_data.clone(),
+        }
+    }
 }
 
 /// A header read: what it states and the values the keys come from.

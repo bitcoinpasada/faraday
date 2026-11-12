@@ -10,6 +10,7 @@
 //!
 //! Every string value and every key is kept in a buffer that is wiped when
 //! it drops.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
@@ -57,8 +58,17 @@ pub(super) enum Val {
 }
 
 /// A key of a table, in a buffer that is wiped when it drops.
-#[derive(Clone)]
 pub(super) struct Name(Zeroizing<Vec<u8>>);
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a public value: its fields hold no secret"
+)]
+impl Clone for Name {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
 
 impl Name {
     fn of(text: &str) -> Name {
@@ -125,6 +135,10 @@ impl Table {
 
     /// Adds `val` under the dotted `keys`; `Err` where a key is already
     /// there or a table on the way is not one a dotted key may extend.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a key's name is copied into wiping memory (`Name` holds `Zeroizing`)"
+    )]
     fn insert(&mut self, keys: &[Name], val: Val) -> Result<(), ()> {
         let (last, via) = keys.split_last().ok_or(())?;
         let mut t = self;
@@ -298,6 +312,10 @@ impl Builder<'_> {
     }
 
     /// Opens the table or the array element the header names.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a table's key name is copied into wiping memory (`Name` holds `Zeroizing`)"
+    )]
     fn header(&mut self, array: bool, at: usize) {
         let keys = core::mem::take(&mut self.keys);
         let Some((last, via)) = keys.split_last() else {

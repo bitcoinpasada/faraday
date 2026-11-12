@@ -10,6 +10,7 @@
 //! backend, fails the test and nothing skips. Every call sets its clock
 //! (`--time`), so no date in a test depends on the day it runs, and
 //! reads no certificate store or key store.
+#![allow(clippy::disallowed_methods)]
 
 use std::ops::Deref;
 use std::path::{Path, PathBuf};

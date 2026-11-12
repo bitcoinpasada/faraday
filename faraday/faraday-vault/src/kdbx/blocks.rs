@@ -1,6 +1,7 @@
 //! The HMAC block stream that carries the encrypted body
 //! (`docs/VAULT.md` §1.1): blocks of an HMAC-SHA-256, a length and the
 //! ciphertext, then an empty block.
+#![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
 use alloc::vec::Vec;
 

@@ -1,6 +1,7 @@
 //! The committed vectors (`tools/vectors/vault/`, `docs/VAULT.md` §10) are
 //! what this build writes; each opens under its passphrase to what it was
 //! made from, and each refused file is refused under its name.
+#![allow(clippy::disallowed_methods)]
 
 #[path = "../examples/vectors.rs"]
 mod vectors;

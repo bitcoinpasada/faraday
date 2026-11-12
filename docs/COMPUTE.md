@@ -143,7 +143,10 @@ shows it. Beside that, `faraday/clippy.toml` disallows
 `Compute::unchecked` outright and `Compute::new` except under
 `#[expect(clippy::disallowed_methods, reason = "a mint: …")]` at the sites
 above (clippy reads the nearest `clippy.toml` above each manifest, so this
-governs every crate under `faraday/` and no other); and the costs lint
+governs every crate under `faraday/` that has none of its own; `faraday-vault`,
+`faraday-pgp` and `faraday-kef` each have one that repeats every entry of
+`faraday/clippy.toml` and adds the refusals of `docs/SECRET-LEAKS.md` §6, and a
+change to an entry is made in all four); and the costs lint
 rejects `unchecked` under `faraday/`, a mint outside its list,
 and the `unchecked` feature in any `faraday/**/Cargo.toml`. `faraday/fuzz/`,
 a workspace of its own with no app guarantee, is exempt from both:

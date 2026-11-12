@@ -5,6 +5,7 @@
 //! with its checksum; a GnuPG signature by another key with its issuer
 //! rewritten; and certificates whose subkey is bound by another primary
 //! key or carries no back signature.
+#![allow(clippy::disallowed_methods)]
 
 use std::path::{Path, PathBuf};
 

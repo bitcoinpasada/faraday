@@ -30,7 +30,7 @@ use crate::{
 
 /// Why a certificate, a paperkey or the pair is not restored
 /// (`docs/GPG-PAPERKEY.md` §4.4).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Refusal {
     /// Not one armoured public key block that Faraday takes as public.
     NotCertificate,
@@ -63,6 +63,31 @@ pub enum Refusal {
     NotOurs,
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a public value: its fields hold no secret"
+)]
+impl Clone for Refusal {
+    fn clone(&self) -> Self {
+        match self {
+            Self::NotCertificate => Self::NotCertificate,
+            Self::Algorithm(a0) => Self::Algorithm(a0.clone()),
+            Self::Version(a0) => Self::Version(*a0),
+            Self::Shape => Self::Shape,
+            Self::NoUserId => Self::NoUserId,
+            Self::FormatVersion(a0) => Self::FormatVersion(*a0),
+            Self::OtherKey(a0) => Self::OtherKey(*a0),
+            Self::OtherSubkey(a0) => Self::OtherSubkey(*a0),
+            Self::Count(a0) => Self::Count(*a0),
+            Self::Protected => Self::Protected,
+            Self::Crc => Self::Crc,
+            Self::Unreadable => Self::Unreadable,
+            Self::Mismatch => Self::Mismatch,
+            Self::NotOurs => Self::NotOurs,
+        }
+    }
+}
+
 /// Where a signature sits in the certificate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Place {
@@ -82,7 +107,7 @@ enum By {
 }
 
 /// A signature by the key, as the certificate states it.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Own {
     place: Place,
     by: By,
@@ -95,10 +120,29 @@ struct Own {
     reason: Option<(u8, Vec<u8>)>,
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a public value: its fields hold no secret"
+)]
+impl Clone for Own {
+    fn clone(&self) -> Self {
+        Self {
+            place: self.place,
+            by: self.by,
+            kind: self.kind,
+            body: self.body.clone(),
+            created: self.created,
+            expires: self.expires,
+            flags: self.flags,
+            reason: self.reason.clone(),
+        }
+    }
+}
+
 /// A certificate of Faraday's shape, read: public, all of it. What it
 /// states (dates, expiry, revocation) is a claim until [`restore`] has
 /// made every signature of the key's again.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Certificate {
     primary: Vec<u8>,
     fingerprint: [u8; 20],
@@ -107,6 +151,24 @@ pub struct Certificate {
     user_ids: Vec<String>,
     own: Vec<Own>,
     set_aside: usize,
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a public value: its fields hold no secret"
+)]
+impl Clone for Certificate {
+    fn clone(&self) -> Self {
+        Self {
+            primary: self.primary.clone(),
+            fingerprint: self.fingerprint,
+            subkey: self.subkey.clone(),
+            subkey_fingerprint: self.subkey_fingerprint,
+            user_ids: self.user_ids.clone(),
+            own: self.own.clone(),
+            set_aside: self.set_aside,
+        }
+    }
 }
 
 /// A signature's fields, as far as a restore or a verification reads
@@ -294,7 +356,7 @@ impl Certificate {
         if !block.crc_ok || block.armor.kind != crate::Armor::PublicKey {
             return Err(Refusal::NotCertificate);
         }
-        let body = |r: &core::ops::Range<usize>| block.data[r.clone()].to_vec();
+        let body = |r: &core::ops::Range<usize>| block.data[r.start..r.end].to_vec();
         let mut primary: Option<Vec<u8>> = None;
         let mut subkeys: Vec<Vec<u8>> = Vec::new();
         let mut user_ids: Vec<String> = Vec::new();
@@ -648,6 +710,10 @@ fn rebuild(cert: &Certificate, key: &mut Key) -> Result<(u32, u32, Option<u32>),
 /// entries are the certificate's two keys, each secret unprotected and
 /// making its key's public key, and every signature of the key's made
 /// again and equal.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the certificate is public: its user IDs are copied"
+)]
 pub fn restore(cert: &Certificate, data: &[u8]) -> Result<Restored, Refusal> {
     let entries = paperkey::entries(data)?;
     if entries.len() != 2 {
