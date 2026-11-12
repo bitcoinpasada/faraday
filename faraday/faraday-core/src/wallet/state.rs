@@ -444,6 +444,7 @@ impl WalletsArea {
 
     /// Marks the steps before Sign done on the open spend, as a person who
     /// has been through them has, and its Review gone through.
+    #[cfg(feature = "testkit")]
     pub(crate) fn mark_steps_before_sign_done(&mut self) {
         if let Some(s) = self.spend.as_mut() {
             for n in s.steps.clone() {
@@ -484,7 +485,7 @@ impl WalletsArea {
     }
 
     /// Opens Signers with `error`, scrolled into view.
-    pub(crate) fn open_signers_with(&mut self, error: String) {
+    pub(crate) fn signers_shown_with(&mut self, error: String) {
         if let Some(s) = self.spend.as_mut() {
             s.error = Some(error);
             s.open = Some(step::SIGNERS);

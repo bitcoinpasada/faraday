@@ -157,7 +157,7 @@ pub(crate) fn sign_here(app: &mut Faraday) {
         })
         .unwrap_or_default();
     if !waiting.is_empty() {
-        app.wallets.open_signers_with(fill(
+        app.wallets.signers_shown_with(fill(
             EN.sign_here_backup_first,
             &[&waiting.join(", ").to_string()],
         ));
