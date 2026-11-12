@@ -45,7 +45,17 @@ A wallet row names its keys held here, with how many files agree or that they co
 
 One card per file copied from the stick, headed **From the stick** with the count, each with its name, its kind and a menu. **Empty** files are copied in on a stick visit.
 
-The button follows the kind. **Load the wallet** is a wallet file; **Load this key** is a words file; **Sign** is a PSBT, or **Add to signatures** when it is the open spend's own transaction; **Decode** is a transaction; **Nonce check** is a finished transaction, or a PSBT with a signature and no key here left to sign; **Check the signature** is a signed message; **Read the wallet** is a Bitcoin Core wallet; **Open in QR vault** is a QR vault file; **Make PDF** is a sheet, online only. **Unlock** or **Contents** is a vault. **Import into the vault** is an entries file and **Add to vault** a text file, with a vault open. **Restore the wallet** is a set of shares, with a count; until the set is whole the card reads how many keys are in hand.
+## Inbox buttons
+
+**Key:** files.inbox-buttons
+
+The button follows the kind of file.
+
+**Load the wallet** is a wallet file, **Load this key** a words file and **Read the wallet** a Bitcoin Core wallet. **Sign** is a PSBT, or **Add to signatures** when it is the open spend's own transaction. **Decode** is a transaction. **Nonce check** is a finished transaction, or a PSBT with a signature and no key here left to sign. **Check the signature** is a signed message, **Open in QR vault** a QR vault file and **Make PDF** a sheet, online only. **Unlock** or **Contents** is a vault. **Import into the vault** is an entries file and **Add to vault** a text file, with a vault open. **Restore the wallet** is a set of shares, with a count; until the set is whole the card reads how many keys are in hand.
+
+## Inbox menu
+
+**Key:** files.inbox-menu
 
 The card's menu has the choices the file has: **Add to vault** for a wallet or words file with a vault open, **Restore from its paperkey** for a GPG public key, **Check a signer** and **Compare** for a PSBT, **Details** and **Remove**.
 

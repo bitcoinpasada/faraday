@@ -5,7 +5,7 @@
 **Screen:** `SpendBackup`
 **Key:** spend-from-backup
 
-One column of cards from what is in the envelope to a transaction sent and the device locked. Three stops are on this computer and three on an online one; nothing moves until the last. The wallet is worked out from what comes in, and the steps of a spend are the ones of Spend.
+One column of cards from what is in the envelope to a transaction sent and the device locked, three stops on this computer and three on an online one; nothing moves until the last. The wallet is worked out from what comes in, and the steps of a spend are the ones of Spend.
 
 ## How to spend bitcoin
 

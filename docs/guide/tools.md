@@ -5,7 +5,7 @@
 **Screen:** `Tools`
 **Key:** tools
 
-Six calculators on one page: each takes what is typed, works one thing out and keeps nothing. An extended private key is refused. **Clear** empties the field.
+Six calculators on one page: each takes what is typed, works one thing out and keeps nothing. An extended private key is refused, and **Clear** empties the field.
 
 ## Hashes
 

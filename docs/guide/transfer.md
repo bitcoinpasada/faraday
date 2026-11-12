@@ -27,4 +27,4 @@ Text is refused when it is a secret, holds one, holds a code that may hold one, 
 
 **Key:** transfer.receive
 
-**Scan with the camera** reads codes and saves each whole file into that folder; a line under the buttons says that it was saved, and adds that the file holds a secret where it does, or says that it was not saved, with the reason. **Open folder** shows the folder in the computer's file manager where it can.
+**Scan with the camera** reads codes and saves each whole file into that folder. A line under the buttons says that it was saved, adding that the file holds a secret where it does, or that it was not saved, with the reason. **Open folder** shows the folder in the computer's file manager where it can.

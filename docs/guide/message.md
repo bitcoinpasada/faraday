@@ -35,6 +35,6 @@ The choice is the signature's format, which the person checking it must read.
 
 **Key:** message.sign
 
-**Sign the message** makes the signature and also makes the file for the stick, `message-` and the last six characters of the address, with the address on the first line, the signature on the second and the message from the third.
+**Sign the message** makes the signature and the file for the stick. The file is named `message-` and the last six characters of the address, with the address on the first line, the signature on the second and the message from the third.
 
 **Make the file** writes it again. **Show as QR** shows the same three lines as a code, and the PNG button saves that code as an image. An address, message or format changed afterwards clears the signature.

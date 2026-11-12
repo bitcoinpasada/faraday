@@ -13,7 +13,7 @@ A transaction taken apart, field by field, for one that is only being read. Noth
 
 Under the title is where the transaction came from. **Transaction id** and **Witness id** are its two hashes, **Version** and **Locktime** are its fields, and **Size** gives bytes, virtual bytes and weight units.
 
-**Fee** is the amounts in minus the amounts out, in sats and in sat/vB. **Amounts in** names the PSBT the input amounts were taken from; the input amounts are in a transaction only through a PSBT, so with none of this transaction here the row says **Not here**, and **Fee** says **Not stated: the amounts going in are not here**. PSBTs of it that state different amounts are not used, and the row says **PSBTs of it state different amounts**.
+**Fee** is the amounts in minus the amounts out, in sats and in sat/vB. **Amounts in** names the PSBT the input amounts came from, since a transaction does not hold them. With none here the row says **Not here**, and **Fee** says **Not stated: the amounts going in are not here**. PSBTs of it that state different amounts are not used, and the row says **PSBTs of it state different amounts**.
 
 ## Inputs
 

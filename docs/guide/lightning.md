@@ -5,7 +5,7 @@
 **Screen:** `Lightning`
 **Key:** lightning
 
-Works out a Lightning node's key from a loaded key, an LND aezeed, or Core Lightning's words or hsm_secret file, to confirm which node a backup belongs to. The node id is public; the private key is the node and is a secret. Nothing is signed with it.
+Works out a Lightning node's key from a loaded key, an LND aezeed, or Core Lightning's words or hsm_secret file, to confirm which node a backup belongs to. The node id is public and the private key, which is the node, is secret; nothing is signed with it.
 
 ## Source
 
@@ -19,7 +19,7 @@ Each loaded key has two buttons, ldk-node · and Core Lightning · followed by t
 
 **Key:** lightning.core-lightning
 
-**Core Lightning · hsm_secret** takes 12 to 24 English BIP-39 words with their passphrase, or a file of Files, one button per file that could be an hsm_secret, Use followed by its name; **No hsm_secret in Files** shows when there is none. A file sealed by a passphrase asks for it, and one that asks for nothing is read when chosen. **Read it** works the node out; a wrong passphrase or a changed file shows the reason in one line.
+**Core Lightning · hsm_secret** takes 12 to 24 English BIP-39 words with their passphrase, or a file of Files, listed as Use and its name. **No hsm_secret in Files** shows when there is none. A file sealed by a passphrase asks for it, and one that asks for nothing is read when chosen. **Read it** works the node out; a wrong passphrase or a changed file shows the reason in one line.
 
 ## Node
 

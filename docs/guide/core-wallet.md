@@ -5,7 +5,7 @@
 **Screen:** `CoreWallet`
 **Key:** core-wallet
 
-Reads and checks the `wallet.dat` of a Bitcoin Core descriptor wallet, which is a SQLite database. The file is only read; nothing is written and the private keys are checked and not shown. It opens from Tools and returns there.
+Reads and checks the `wallet.dat` of a Bitcoin Core descriptor wallet, which is a SQLite database. It opens from Tools and returns there; the file is only read and the private keys are checked and not shown.
 
 ## File
 

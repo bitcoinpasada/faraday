@@ -5,7 +5,7 @@
 **Screen:** `KeyGen`
 **Key:** keygen
 
-One card per step, from how the key comes in to its backup quiz. A key is made from randomness, or taken in from words, shares or strings already held. The same cards, headed Add a key, take a key in for a wallet.
+One card per step, from how the key comes in to its backup quiz. A key is made from randomness or taken in from words, shares or strings already held, and the same cards, headed Add a key, take a key in for a wallet.
 
 ## Start
 
@@ -29,7 +29,7 @@ The choice is how many words the key has. Each length adds a checksum to its bit
 
 The choice is where the key's randomness comes from. Each source asks for trust in something different, and nothing can show afterwards that a source was faulty.
 
-**Your own entropy, words verifiable by hand** lists **Dice · Words chosen by the dice** (six rolls name a word, a 5 or 6 in the first five rolled again), **Dice · Flip mode** (1 to 3 is 0, 4 to 6 is 1) and **Coin flips**. **Your entropy, computer generates words** lists **Dice · Hashed (Coldcard, SeedSigner)**, **Dice · Six as zero, hashed (Keystone)**, **Hex entropy**, **Playing cards** and **Mixed sources**; the same rolls make a different key under each hashing. **Made by this device** lists **This device**.
+**Your own entropy, words verifiable by hand** lists **Dice · Words chosen by the dice**, **Dice · Flip mode** and **Coin flips**. Six rolls name a word, a 5 or 6 in the first five rolled again; in flip mode 1 to 3 is 0 and 4 to 6 is 1. **Your entropy, computer generates words** lists **Dice · Hashed (Coldcard, SeedSigner)**, **Dice · Six as zero, hashed (Keystone)**, **Hex entropy**, **Playing cards** and **Mixed sources**. The same rolls make a different key under each hashing. **Made by this device** lists **This device**.
 
 ## Entries
 

@@ -87,6 +87,10 @@ Each seed is written as a file for the stick. The file is unprotected: anyone wh
 
 One sheet with the wallet's name, every xpub and the checksum. It cannot spend; it rebuilds the wallet. **Make it** makes a PDF to print.
 
+## The shares
+
+**Key:** backup.sheets-shares
+
 For a multisig whose description is split, the item is **The shares**: each share holds the description with some keys left off, one alone cannot watch the wallet and enough together rebuild it. **Make them** makes the sheets, text files and pictures.
 
 **Keys left off each share** is a slider from 0 to the most the quorum allows, one fewer than the signatures needed and at most one fewer than the keys; with 0 every share is the whole description. The table lists each share with its keys' fingerprints. Under it, lines say whether any quorum's worth of shares rebuild the wallet or only some, the fewest shares that rebuild it, how many shares each key is on, and **No single share holds every key** or **Each share holds every key**. A share holds account keys and cannot sign.
