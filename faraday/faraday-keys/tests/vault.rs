@@ -429,6 +429,65 @@ fn what_is_read_of_the_words_follows_the_record_it_was_read_from() {
 }
 
 #[test]
+fn the_words_the_totp_code_and_the_paperkey_come_only_for_their_own_reason() {
+    let c = compute();
+    let m = Mnemonic::parse(&c, Language::English, ABANDON).expect("12 words");
+    let file = made_with(
+        &c,
+        "pass",
+        vec![Record::new(kind::KEY).with(field::KEY, &faraday_vault::records::words_payload(&m))],
+    );
+    let mut store = store();
+    let (id, _) = store.unlock(&c, file, "pass").expect("opens");
+    let key = store.records(id).get(AT).unwrap();
+    assert!(store.words_of(&c, key, Reveal::Words).is_some());
+    assert!(store.words_of(&c, key, Reveal::SeedQr).is_some());
+    assert!(store.words_of(&c, key, Reveal::GpgPaperkey).is_none());
+    assert!(
+        store
+            .words_of(&c, key, Reveal::VaultEntry(Part::Totp))
+            .is_none()
+    );
+    assert!(
+        store
+            .words_of(&c, key, Reveal::OutboxFile(Part::Passphrase))
+            .is_none()
+    );
+
+    let doc = with_entries(&entry_xml(
+        9,
+        &[
+            ("Title", "Mail"),
+            ("TimeOtp-Secret-Base32", "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"),
+        ],
+    ));
+    let (id, _) = store.unlock(&c, file_of(&c, &doc), "pass").expect("opens");
+    let at = first(&store, id, kind::ENTRY);
+    assert!(
+        store
+            .totp(id, at, Some(59), Reveal::VaultEntry(Part::Totp))
+            .is_some()
+    );
+    assert!(store.totp(id, at, Some(59), Reveal::Words).is_none());
+    assert!(
+        store
+            .totp(id, at, Some(59), Reveal::VaultEntry(Part::Password))
+            .is_none()
+    );
+
+    let made = gpg_made();
+    let (store, [a, _]) = with_made(&c, &made);
+    let gpg = store.records(a).get(AT).unwrap();
+    assert!(store.gpg_paperkey(gpg, Reveal::GpgPaperkey).is_some());
+    assert!(store.gpg_paperkey(gpg, Reveal::Words).is_none());
+    assert!(
+        store
+            .gpg_paperkey(gpg, Reveal::VaultEntry(Part::Words))
+            .is_none()
+    );
+}
+
+#[test]
 fn the_words_of_an_edited_key_are_judged_by_the_new_value_and_a_shifted_place_keeps_its_own() {
     let c = compute();
     let parse = |t: &str| Mnemonic::parse(&c, Language::English, t).expect("words");

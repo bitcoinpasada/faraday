@@ -156,8 +156,18 @@ impl OpenVaults {
     /// Costs a parse of the words. Key record `r`'s words, held until
     /// they are dropped, for the reason `why` (a SeedQR picture, a file to
     /// a stick, the words on screen). `None` for a record that holds a
-    /// seed rather than words.
-    pub fn words_of(&self, c: &Compute, r: RecordView<'_>, _why: Reveal) -> Option<Held<Mnemonic>> {
+    /// seed rather than words, and for any reason but those that lend words
+    /// (the words, a SeedQR, a record's words on screen, a file or a stick).
+    pub fn words_of(&self, c: &Compute, r: RecordView<'_>, why: Reveal) -> Option<Held<Mnemonic>> {
+        let words = |p: Part| matches!(p, Part::Words | Part::SeedQr);
+        let served = match why {
+            Reveal::Words | Reveal::SeedQr => true,
+            Reveal::VaultEntry(p) | Reveal::OutboxFile(p) | Reveal::BackupStick(p) => words(p),
+            _ => false,
+        };
+        if !served {
+            return None;
+        }
         record_words(c, r.raw()).map(Held::of)
     }
 
@@ -216,7 +226,10 @@ impl OpenVaults {
     /// record with no TOTP secret. `now` is `None` while the clock is not
     /// checked: `Ok(None)` where the secret reads and there is no code to
     /// show yet. The code is revealed for `VaultEntry(Part::Totp)`.
-    pub fn totp(&self, id: VaultId, i: usize, now: Option<u64>, _why: Reveal) -> Option<Totp> {
+    pub fn totp(&self, id: VaultId, i: usize, now: Option<u64>, why: Reveal) -> Option<Totp> {
+        if !matches!(why, Reveal::VaultEntry(Part::Totp)) {
+            return None;
+        }
         let s = self.slot(id)?;
         let r = s.records.get(i)?;
         if r.kind != kind::ENTRY {
@@ -421,7 +434,10 @@ impl OpenVaults {
     /// Costs what `gpg_key` costs and a paperkey encoding. The paperkey
     /// text of GPG record `r`: secret, made only to be shown,
     /// wiped when dropped (`Reveal::GpgPaperkey`).
-    pub fn gpg_paperkey(&self, r: RecordView<'_>, _why: Reveal) -> Option<Held<Zeroizing<String>>> {
+    pub fn gpg_paperkey(&self, r: RecordView<'_>, why: Reveal) -> Option<Held<Zeroizing<String>>> {
+        if why != Reveal::GpgPaperkey {
+            return None;
+        }
         let key = gpg_key(r.raw())?;
         Some(Held::of(crate::gpg::paperkey(&key)))
     }

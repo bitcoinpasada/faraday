@@ -71,7 +71,10 @@ Moved to `docs/history/KEYS-LOG.md`.
   the eye that takes it (`QrVault`). A new reason is a new variant, seen in review.
   A reason gives only its own text: `Reveal::part` names the stored
   text a reason lends, and Explore's three lend none, so `reveal` and
-  a vault record's reveal give them nothing.
+  a vault record's reveal give them nothing. `words_of` serves the
+  words and SeedQR reasons and a vault entry's, a file's or a stick's
+  words or SeedQR; `totp` serves a vault entry's TOTP; `gpg_paperkey`
+  serves `GpgPaperkey`; any other reason gets `None`.
 - **Transient input** stays where it arrives, under lint-secrets' rules,
   until it is handed in:
   - typed words at Done;
@@ -442,7 +445,8 @@ faraday-core sees an open vault's public fields and nothing else.
   secret field as a `Revealed`, for a `Reveal` whose `Part` names it
   (`Password`, `Totp`, `Note`, `EntryNotes`, `Passphrase`, `Words`); a key
   record's words are written out from its payload (it costs a parse).
-  `words_of` gives the words as a held `Mnemonic` for a SeedQR or a file,
+  `words_of` gives the words as a held `Mnemonic` for the words on screen, a
+  SeedQR, a file or a stick,
   `gpg_paperkey` the paperkey text, `totp` the code and account of an
   entry, `kdbx_job` a vault of one entry for a KeePass app, written by `KdbxJob::run`.
 - **Operations by record.** `load_from_vault`, `load_key_record`,
