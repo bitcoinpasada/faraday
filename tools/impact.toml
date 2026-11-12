@@ -887,14 +887,14 @@ misses = "a new way to a QR view that does not set the view fixed, until a revie
 id = "keys.vault-memory-need"
 title = "a change to what opening or sealing a file vault holds in memory keeps the one function that checks it first true, and its factor only falls by a measurement"
 source = ["docs/decisions/F206.md", "docs/VAULT.md §2"]
-when = ["faraday/faraday-vault/src/file.rs", "faraday/faraday-vault/src/kdbx/**", "faraday/faraday-keys/src/vault.rs", "faraday/faraday-keys/src/job.rs"]
+when = ["faraday/faraday-vault/src/file.rs", "faraday/faraday-vault/src/kdbx/**", "faraday/faraday-keys/src/vault/**", "faraday/faraday-keys/src/job.rs"]
 kind = "review"
 
 [[rule]]
 id = "keys.vault-components"
 title = "a file vault's seal writes a file that needs what the copy opened needed: a key file's key and a YubiKey's secret go with the passphrase through every path that seals, and one function makes the composite key"
 source = ["docs/decisions/F208.md", "docs/VAULT.md §3.2"]
-when = ["faraday/faraday-vault/src/file.rs", "faraday/faraday-vault/src/kdbx/**", "faraday/faraday-keys/src/vault.rs", "faraday/faraday-keys/src/job.rs"]
+when = ["faraday/faraday-vault/src/file.rs", "faraday/faraday-vault/src/kdbx/**", "faraday/faraday-keys/src/vault/**", "faraday/faraday-keys/src/job.rs"]
 kind = "review"
 
 [[rule]]

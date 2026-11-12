@@ -602,7 +602,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   `faraday/faraday-core/src/backups/mod.rs`; tested in
   `faraday/faraday-core/tests/all/codex32_round.rs`). At every unlock the share records
   of all open vaults are gathered (`OpenVaults::gather_codex32`,
-  `faraday/faraday-keys/src/vault.rs`): a key held keeps its strings; a key
+  `faraday/faraday-keys/src/vault/`): a key held keeps its strings; a key
   not held loads once `k` strings of one set are in and the seed they
   make has the fingerprint the records name, its set's facts the strings
   found, "Loaded fab6868a from codex32 shares". A vault lists a share

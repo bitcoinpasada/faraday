@@ -6971,10 +6971,10 @@ functions = [
   "faraday/faraday-keys/src/session.rs::Keys::codex32_share_record",
   "faraday/faraday-keys/src/session.rs::Keys::codex32_of_seed",
   "faraday/faraday-keys/src/codex32.rs::Keys::add_codex32",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::codex32_of_seed",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::codex32_count",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::codex32_with_typed",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::gather_codex32",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_of_seed",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_count",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::codex32_with_typed",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::gather_codex32",
 ]
 code = ["core/faraday-bip/src/codex32/mod.rs::Codex32::parse", "core/faraday-bip/src/codex32/mod.rs::Codex32::split"]
 
@@ -7824,7 +7824,7 @@ learn = "faraday:vaults"
 screens = ["CreateVault"]
 functions = [
   "faraday/faraday-vault/src/file.rs::create",
-  "faraday/faraday-keys/src/vault.rs::create",
+  "faraday/faraday-keys/src/vault/mod.rs::create",
 ]
 code = [
   "faraday/faraday-vault/src/file.rs::create",
@@ -7924,8 +7924,8 @@ screens = ["Unlock", "VaultContents", "BackupFlow"]
 functions = [
   "faraday/faraday-vault/src/file.rs::open",
   "faraday/faraday-vault/src/file.rs::inspect",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::unlock",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::opened_digest",
+  "faraday/faraday-keys/src/vault/seal.rs::OpenVaults::unlock",
+  "faraday/faraday-keys/src/vault/seal.rs::OpenVaults::opened_digest",
 ]
 code = [
   "faraday/faraday-vault/src/file.rs::open",
@@ -8369,15 +8369,15 @@ screens = ["BackupFlow", "CreateVault", "Unlock", "VaultContents", "Vaults"]
 functions = [
   "faraday/faraday-keys/src/job.rs::SealJob::run",
   "faraday/faraday-keys/src/job.rs::StretchJob::run",
-  "faraday/faraday-keys/src/vault.rs::measure",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::adopt",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::fits",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::fits_new",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::held_exact",
-  "faraday/faraday-keys/src/vault.rs::Records::unwritable",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::remove",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::remove_where",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::uuid_bytes",
+  "faraday/faraday-keys/src/vault/mod.rs::measure",
+  "faraday/faraday-keys/src/vault/seal.rs::OpenVaults::adopt",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::fits",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::fits_new",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::held_exact",
+  "faraday/faraday-keys/src/vault/mod.rs::Records::unwritable",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::remove",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::remove_where",
+  "faraday/faraday-keys/src/vault/seal.rs::OpenVaults::uuid_bytes",
   "faraday/faraday-core/src/vault/seal.rs::uuid_bytes_from",
   "faraday/faraday-vault/src/kdbx/mod.rs::inspect",
   "faraday/faraday-vault/src/kdbx/mod.rs::checked_header",
@@ -8402,7 +8402,7 @@ functions = [
   "faraday/faraday-vault/src/kdbx/xml/mod.rs::W::secret",
   "faraday/faraday-vault/src/kdbx/keyfile.rs::write",
   "faraday/faraday-keys/src/job.rs::Stretched::key_file_document",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::key_file_document",
+  "faraday/faraday-keys/src/vault/seal.rs::OpenVaults::key_file_document",
 ]
 code = [
   "faraday/faraday-vault/src/kdbx/mod.rs::open",
@@ -8513,7 +8513,7 @@ screens = [
 functions = [
   "faraday/faraday-vault/src/file.rs::seal",
   "faraday/faraday-vault/src/file.rs::Opened::used",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::seal_job",
+  "faraday/faraday-keys/src/vault/seal.rs::OpenVaults::seal_job",
 ]
 code = ["faraday/faraday-vault/src/file.rs::seal"]
 
@@ -8577,10 +8577,10 @@ standards = []
 learn = "faraday:vaults"
 screens = ["VaultContents"]
 functions = [
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::reveal",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::words_of",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::reveal",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::words_of",
 ]
-code = ["faraday/faraday-keys/src/vault.rs::OpenVaults::reveal"]
+code = ["faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::reveal"]
 
 [[action.screens_not]]
 screen = "CreateVault"
@@ -8654,23 +8654,23 @@ screens = [
   "Vaults",
 ]
 functions = [
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::insert",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::insert_at",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::set_public_all",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::set_public",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::set_secret",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::relates",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::passphrases_of_key",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::set_public_all_in",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::set_publics_in",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::edit_record_in",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::set_fields",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::copy_record",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::copy_out",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::stage",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::stage_passphrase",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::insert",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::insert_at",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::set_public_all",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::set_public",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::set_secret",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::relates",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::passphrases_of_key",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::set_public_all_in",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::set_publics_in",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::edit_record_in",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::set_fields",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::copy_record",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::copy_out",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::stage",
+  "faraday/faraday-keys/src/vault/edits.rs::OpenVaults::stage_passphrase",
 ]
-code = ["faraday/faraday-keys/src/vault.rs::OpenVaults::insert"]
+code = ["faraday/faraday-keys/src/vault/edits.rs::OpenVaults::insert"]
 novel_rank = 2
 
 [action.implementation]
@@ -8729,25 +8729,25 @@ screens = [
   "Unlock",
 ]
 functions = [
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::load_from_vault",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::load_key_record",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::load_key_with_passphrase",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::passphrase_kept_for",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::warm",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::word_count",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::words_id",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::record_word_count",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::record_language",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::record_words_id",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::same_words",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::holds_session_words",
-  "faraday/faraday-keys/src/vault.rs::key_identity",
-  "faraday/faraday-keys/src/vault.rs::share_record_id",
-  "faraday/faraday-keys/src/vault.rs::key_account",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::load_from_vault",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::load_key_record",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::load_key_with_passphrase",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::passphrase_kept_for",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::warm",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::word_count",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::words_id",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::record_word_count",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::record_language",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::record_words_id",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::same_words",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::holds_session_words",
+  "faraday/faraday-keys/src/vault/mod.rs::key_identity",
+  "faraday/faraday-keys/src/vault/mod.rs::share_record_id",
+  "faraday/faraday-keys/src/vault/mod.rs::key_account",
   "faraday/faraday-keys/src/session.rs::Keys::key_record",
   "faraday/faraday-keys/src/session.rs::Keys::seed_record_id",
 ]
-code = ["faraday/faraday-keys/src/vault.rs::OpenVaults::load_from_vault"]
+code = ["faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::load_from_vault"]
 
 [[action.screens_not]]
 screen = "CreateVault"
@@ -8817,7 +8817,7 @@ screens = ["VaultContents"]
 functions = [
   "faraday/faraday-vault/src/file.rs::create_holding",
   "core/faraday-crypto/src/argon2.rs::argon2",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::kdbx_job",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::kdbx_job",
   "faraday/faraday-keys/src/job.rs::KdbxJob::run",
 ]
 code = [
@@ -8910,7 +8910,7 @@ screens = ["Codes"]
 functions = [
   "faraday/faraday-vault/src/totp.rs::Totp::code",
   "faraday/faraday-vault/src/totp.rs::from_fields",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::totp",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::totp",
 ]
 code = ["faraday/faraday-vault/src/totp.rs::Totp::code"]
 
@@ -8995,7 +8995,7 @@ functions = [
   "faraday/faraday-pgp/src/lib.rs::Key::certificate",
   "faraday/faraday-pgp/src/lib.rs::Key::fingerprint",
   "faraday/faraday-pgp/src/lib.rs::Key::subkey_fingerprint",
-  "faraday/faraday-keys/src/vault.rs::gpg_facts",
+  "faraday/faraday-keys/src/vault/mod.rs::gpg_facts",
   "faraday/faraday-keys/src/gpg.rs::record_of",
   "faraday/faraday-keys/src/gpg.rs::gpg_key_of",
   "faraday/faraday-pgp/src/secret.rs::armor_secret",
@@ -9108,11 +9108,11 @@ screens = [
 ]
 functions = [
   "faraday/faraday-pgp/src/lib.rs::Key::sign",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::gpg_sign_armored",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::gpg_sign_armored",
 ]
 code = [
   "faraday/faraday-pgp/src/lib.rs::Key::sign",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::gpg_sign_armored",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::gpg_sign_armored",
 ]
 
 [action.implementation]
@@ -9178,9 +9178,9 @@ screens = ["VaultContents"]
 functions = [
   "faraday/faraday-pgp/src/lib.rs::Key::revocation",
   "faraday/faraday-pgp/src/lib.rs::Key::revocation_file",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::gpg_revocation_file",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::gpg_new_revocation_file",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::gpg_keep_revocation",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::gpg_revocation_file",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::gpg_new_revocation_file",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::gpg_keep_revocation",
 ]
 code = [
   "faraday/faraday-pgp/src/lib.rs::Key::revocation",
@@ -9246,7 +9246,7 @@ screens = ["VaultContents"]
 functions = [
   "faraday/faraday-pgp/src/lib.rs::Key::paperkey",
   "faraday/faraday-pgp/src/lib.rs::Key::secret_key",
-  "faraday/faraday-keys/src/vault.rs::OpenVaults::gpg_paperkey",
+  "faraday/faraday-keys/src/vault/reveals.rs::OpenVaults::gpg_paperkey",
 ]
 code = ["faraday/faraday-pgp/src/lib.rs::Key::paperkey"]
 

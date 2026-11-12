@@ -477,7 +477,7 @@ What each piece is and changes:
 - **The other stretches** (built): an aezeed read, a Core Lightning hsm_secret read (the job in `faraday/faraday-keys/src/hsm_secret.rs`, run by the Lightning screen's Core Lightning source), the KDBX export written
   and verified. A BIP-39 seed, SLIP-39 and a chart's passphrase try stay
   drawn first (§2.1). `faraday-core/src/lightning/`, the KDBX writer's
-  call site (`faraday/faraday-keys/src/vault.rs`).
+  call site (`faraday/faraday-keys/src/vault/`).
 - **Signing and checking** (built): `SignJob` with the store's keys behind
   `Arc` (§10 question 1; `Keys::sign_job`, `faraday-core/src/signing.rs`);
   a PSBT's parse and inspection from a file or the last scanned part as a
