@@ -24,6 +24,7 @@ need. Each document's header says what kind it is:
 | Which code computes cryptography, and what checks it? | `docs/AUDIT.md`, then each crypto crate's README (`core/faraday-bip/README.md` and the others) |
 | Why does Faraday write a piece of cryptography itself rather than take a library, and which libraries does it not establish? | `docs/ESTABLISHED.md` |
 | Why is something the way it is? | `docs/DECISIONS.md`, the index; then the one decision, `docs/decisions/F<n>.md` |
+| What does the in-app guide hold, how does it open at the step the person is on, and what replaces Learn and the website's walkthroughs? | `docs/GUIDE-IN-APP.md`; the decision, `docs/decisions/F247.md` |
 | How does a person use Faraday, step by step, with the screens? | `docs/GUIDE.md`, the index; then the one walkthrough, `docs/guide/walk/<name>.md`; what each control on a screen does, `docs/guide/screens/README.md` |
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
@@ -122,6 +123,7 @@ need. Each document's header says what kind it is:
 - `docs/DESKTOP-HOST.md`: Faraday Demo as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GUIDE.md`: Faraday user guide, the index. Sections 1 to 7 are stubs pointing to `docs/guide/walk/`, one file per walkthrough; all twenty-three walkthroughs hold the written text and their pictures (`docs/guide/pictures/`), checked against the app; it waits on a test by a reader new to Faraday.
+- `docs/GUIDE-IN-APP.md`: The guide, one guide in the app, opened at the section for the place and step the person is on, in place of Learn and of the website's walkthroughs, the website showing the same pages with pictures. Specified (F247), not built.
 - `docs/guide/screens/README.md`: the guide's screen reference, one page per screen or group of small screens; every screen and sheet of Faraday has its page.
 - `docs/IMAGES.md`: Images for each piece of hardware. Specified (F145); the PC's and the Pi's builds, the one Pi image and the release's files are built; trials and measurements are open.
 - `docs/IMPACT.md`: What a change brings with it: one registry of rules, checked at landing and before the website publishes. Built (F149).
