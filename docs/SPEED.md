@@ -1,14 +1,14 @@
 # Speed in long flows
 
 **Kind:** Spec
-**Status:** Built; the glyph cache measured (§3.8). The web demo's part is in the website's own repository.
+**Status:** Built; the glyph cache measured (§3.8).
 **Open:** the glyph cache's least-recently-used eviction (§3.8), not scheduled: measured, a frame drawn again never misses, and a dense panel clears once in about ten screen visits.
 
 §2 and §7 are standing rules; §3.3, §8.3 and §9 to §13 say what holds now.
 
 The owner's report: on a slow laptop Faraday became very slow in the
 later stages of setting up a multisig wallet, the backups especially,
-and the desktop app and the web demo slow down in the same flows. The
+and the desktop app slows down in the same flows. The
 ask: Faraday always runs quick and smooth.
 
 ## 1. What is wrong (read from the code at 2e807ae; not yet measured)
@@ -322,13 +322,7 @@ every screen of §8.3's frames).
 
 ### 3.9 The web demo (issue 128, built in the website's own repository)
 
-In the website's `web/index.html`, `pointermove` (both
-`faraday_move` and `faraday_hover`) and `pointerleave` go through a
-`call` that does not force `watch`: the state is read at most every
-150 ms, as `watch` already does when not forced, and at once after any
-other call. `draw` still runs whenever `faraday_dirty` says. The
-website's own handoff file takes the item; the website is rebuilt and
-published by its own flow.
+Moved to `docs/history/SPEED-LOG.md`.
 
 ### 3.10 `--timings` shows events and storage (issue 129)
 

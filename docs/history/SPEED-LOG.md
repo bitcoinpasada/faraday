@@ -592,3 +592,15 @@ Before, the panel's own comparison of the converted rows came on top.
    end, and a pointer moved with the button held that keeps the press as
    it was, each drew the page again.
 4. The Starter's canvas noted no pixel work, so no count could see 1.
+
+## 3.9 The web demo (from docs/SPEED.md)
+
+The website no longer carries the web demo; its web shell and demo page were taken out of the website repository.
+
+In the website's `web/index.html`, `pointermove` (both
+`faraday_move` and `faraday_hover`) and `pointerleave` go through a
+`call` that does not force `watch`: the state is read at most every
+150 ms, as `watch` already does when not forced, and at once after any
+other call. `draw` still runs whenever `faraday_dirty` says. The
+website's own handoff file takes the item; the website is rebuilt and
+published by its own flow.
