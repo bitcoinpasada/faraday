@@ -211,7 +211,7 @@ fn check(app: &mut Faraday, found: &mut Vec<String>, what: &str, over: bool) -> 
 }
 
 /// Home, Settings, Add a key's word entry, New key's first steps, the
-/// lock sheet over Home and a Learn page at Larger on a `width` ×
+/// lock sheet over Home and a guide page at Larger on a `width` ×
 /// `height` display at `dpi`: none with text cut at a side, and the
 /// pages with no text over other text. A sheet's text stands over the
 /// page under it by design, so a sheet is checked for its sides alone.
@@ -250,7 +250,7 @@ fn at_larger((width, height, dpi): (u16, u16, u16)) -> Vec<String> {
         let what = format!("{on}, New key › {name}");
         check(&mut app, &mut found, &what, true);
     }
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     check(&mut app, &mut found, &format!("{on}, Learn"), false);
     app.press(Action::Cancel);
     app.press(Action::Nav(Screen::Home));

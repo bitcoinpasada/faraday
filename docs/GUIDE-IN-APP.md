@@ -60,7 +60,7 @@ lookups use it):
 
 The app works out the key from what it shows, in one function in
 `faraday-core` that matches on `Screen` and fails to build when a
-screen is added, `guide_key` in `faraday/faraday-core/src/learn.rs`; a flow's step is named by a match on its step constants
+screen is added, `guide_key` in `faraday/faraday-core/src/guide.rs`; a flow's step is named by a match on its step constants
 beside them (the `cstep`, `kstep`, `rstep`, `bstep`, `mstep` and `step`
 modules). It is a lookup, done when the guide is opened or the step
 changes, never while drawing.
@@ -160,7 +160,7 @@ made at **Make the wallet**.
   the app reads the title, each section's heading, key and paragraphs,
   and the bold spans, which it draws in the medium face.
 - The app reads the files when it is built, as Faraday's own Learn
-  pages are read today (`include_str!` in `faraday/faraday-learn/src/lib.rs`),
+  pages are read today (`include_str!` in `faraday/faraday-guide/src/lib.rs`),
   parsed once at first use. Nothing is generated into Rust: there is no
   second copy to keep in step.
 - The pages are English, as every string is.
@@ -298,7 +298,7 @@ unchanged.
 
 ### 5.2 The code
 
-- **`faraday/faraday-learn`** becomes the guide's crate, faraday-guide:
+- **`faraday/faraday-guide`** (renamed from faraday-learn) is the guide's crate:
   the pages read from `docs/guide/`, the Cryptography blocks and the
   maker table. Learn's generated pages, its sync script and the
   `learn-export` and `learn-import` recipes are gone.
@@ -319,18 +319,18 @@ unchanged.
 - **`MAKERS`, `guide_id`, `guide_address`, `GUIDES`** (the start
   guides' table and addresses) stay. `faraday-guides` is renamed to
   `faraday-start`, so that "guide" names one thing.
-- **`faraday/faraday-core/src/learn.rs`** becomes the guide's state:
+- **`faraday/faraday-core/src/guide.rs`** (renamed from learn.rs) is the guide's state:
   it works out the key of §1.2 (`guide_key`); the sheet, the pane, the
   pin and the How tab stay; a page has no ticked steps and the Spend tab
   no **Spending, step by step** row (the guide acts on nothing, §4.2).
-- **`faraday/faraday-core/src/guide.rs`** (Guided mode's walk-through,
-  F82) is renamed walkthrough, so "guide" names one thing; its text stays
+- **`faraday/faraday-core/src/walkthrough.rs`** (Guided mode's walk-through,
+  F82) is renamed from guide.rs, so "guide" names one thing; its text stays
   (§5.3).
 
 ### 5.3 The strings and the screens that draw them
 
 - **`guide_learn_link`** ("Learn: {}") and the `*_topic` functions in
-  `faraday/faraday-core/src/guide.rs`, `screens/create.rs` and
+  `faraday/faraday-core/src/walkthrough.rs`, `screens/create.rs` and
   `backup_flow/screen.rs`: taken out. The Guided walk-through stays on
   the open card without a link under it; the guide's button opens that
   card's section.
@@ -423,11 +423,11 @@ that carries the guide.
 
 The files that change: `docs/guide/` (the pages and the index; `walk/`,
 `screens/` and `pictures/` to history), Learn's pages (moved to `docs/history/learn/`;
-its folder of start guides moved), `faraday/faraday-learn` (renamed; `pages/` out,
+its folder of start guides moved), `faraday/faraday-guide` (renamed; `pages/` out,
 `how.rs` and `construction.rs` without `learn`), `faraday/faraday-start`
-(renamed), `faraday/faraday-core/src/learn.rs`,
-`faraday/faraday-core/src/guide.rs`, `faraday/faraday-core/src/screens/sheets.rs`,
-`faraday/faraday-core/src/screens/learn_pane.rs`, the screens that draw
+(renamed), `faraday/faraday-core/src/guide.rs`,
+`faraday/faraday-core/src/walkthrough.rs`, `faraday/faraday-core/src/screens/sheets.rs`,
+`faraday/faraday-core/src/screens/guide_pane.rs`, the screens that draw
 "Learn:" links, `faraday/faraday-strings/src/en.rs`,
 `faraday/faraday-starter` (its Learn destination and pages),
 `docs/crypto/actions.toml` and `docs/crypto/gen.py` (no `learn` key),

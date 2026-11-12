@@ -47,7 +47,7 @@ pub struct Card {
     /// What pressing its header does.
     pub toggle: Action,
     /// The walk-through shown in Guided mode while it is open.
-    pub guide: Option<String>,
+    pub walkthrough: Option<String>,
 }
 
 /// Where the column is scrolled, and whether to bring the open card into
@@ -219,12 +219,15 @@ pub(crate) fn column_wide(
         if card.open {
             open_top = Some(y + settled - top);
         }
-        let guide = card.guide.as_deref().filter(|_| col.guided && card.open);
+        let walkthrough = card
+            .walkthrough
+            .as_deref()
+            .filter(|_| col.guided && card.open);
         // Measured in a pass that draws nothing and keeps no hits, so the
         // card's surface can go down before what is on it.
         let mut draw_open = |ui: &mut Ui| -> f32 {
             let mut used = 0.0;
-            if let Some(text) = guide {
+            if let Some(text) = walkthrough {
                 used += guide_text(ui, (inner_x, y + 56.0, inner_w), text);
                 used += 18.0;
             }
@@ -535,7 +538,7 @@ fn paged(
             // controls need. The tap is the choice there, so it is offered
             // in Steps only too. A flow with no Guided switch (the Spend
             // tab) has a lead that is its own text, always shown.
-            if let Some(text) = card.guide.as_deref() {
+            if let Some(text) = card.walkthrough.as_deref() {
                 if col.switch {
                     let label = EN.flow_about_this_step;
                     y += about(ui, M, y, inner, label, i as u8, text);

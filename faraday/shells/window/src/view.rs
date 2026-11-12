@@ -828,7 +828,7 @@ mod tests {
         let (mut now, mut i, mut said) = (1_000u64, 0usize, 0);
         let changes = [
             Action::Nav(Screen::Settings),
-            Action::Learn,
+            Action::Guide,
             Action::Cancel,
             Action::Nav(Screen::Home),
         ];

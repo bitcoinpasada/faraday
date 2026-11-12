@@ -847,7 +847,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: c.open == Some(k),
             default: k == vstep::PRESET, // the size: closed at entry, with Change
             toggle: va(V::CStep(k)),
-            guide: Some(create_guide(k)),
+            walkthrough: Some(create_guide(k)),
         })
         .collect();
     // A small panel has no side panel, nor has a window too low to hold

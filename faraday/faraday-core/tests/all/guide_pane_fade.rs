@@ -1,4 +1,4 @@
-//! Learn's supporting pane on an extra-large window fades in and out as
+//! the guide's supporting pane on an extra-large window fades in and out as
 //! a change of screen does (`docs/MOTION.md` §3.5): opening, closing,
 //! the close at another screen when unpinned, a change of its tab; one
 //! fade, not two, when a pinned pane follows a change of screen; none
@@ -40,42 +40,42 @@ fn counts(app: &mut Faraday) -> (u32, u32) {
 #[test]
 fn opening_the_pane_and_closing_it_each_fade() {
     let mut app = wide();
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     assert_eq!(counts(&mut app), (1, 0), "opening fades");
-    assert!(app.offers(Action::LearnClose), "the pane is open");
-    app.press(Action::LearnClose);
+    assert!(app.offers(Action::GuideClose), "the pane is open");
+    app.press(Action::GuideClose);
     assert_eq!(counts(&mut app), (1, 0), "closing fades");
-    assert!(!app.offers(Action::LearnClose));
+    assert!(!app.offers(Action::GuideClose));
 }
 
 #[test]
 fn a_change_to_the_contents_in_the_pane_fades() {
     let mut app = wide();
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = counts(&mut app);
-    app.press(Action::LearnContents);
+    app.press(Action::GuideContents);
     assert_eq!(counts(&mut app), (1, 0));
 }
 
 #[test]
 fn an_unpinned_pane_put_away_at_another_screen_fades_once_with_the_screen() {
     let mut app = wide();
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = counts(&mut app);
     app.press(Action::Nav(Screen::Home));
     assert_eq!(counts(&mut app), (1, 0));
-    assert!(!app.offers(Action::LearnClose));
+    assert!(!app.offers(Action::GuideClose));
 }
 
 #[test]
 fn a_pinned_pane_following_to_another_screen_fades_once() {
     let mut app = wide();
-    app.press(Action::Learn);
-    app.press(Action::LearnPin);
+    app.press(Action::Guide);
+    app.press(Action::GuidePin);
     let _ = counts(&mut app);
     app.press(Action::Nav(Screen::Vaults));
     assert_eq!(counts(&mut app), (1, 0), "one fade for the screen and pane");
-    assert!(app.offers(Action::LearnClose), "the pane followed");
+    assert!(app.offers(Action::GuideClose), "the pane followed");
 }
 
 #[test]
@@ -83,8 +83,8 @@ fn with_reduce_motion_the_pane_is_there_and_gone_at_once() {
     let mut app = wide();
     app.press(Action::ReduceMotion(true));
     let _ = counts(&mut app);
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     assert_eq!(counts(&mut app), (0, 1));
-    app.press(Action::LearnClose);
+    app.press(Action::GuideClose);
     assert_eq!(counts(&mut app), (0, 1));
 }

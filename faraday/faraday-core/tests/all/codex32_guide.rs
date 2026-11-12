@@ -17,10 +17,10 @@ use faraday_shell_api::{App, Event, Key};
 const SHARE_A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
 const SHARE_C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
 
-/// The key the guide opens at when Learn is pressed.
+/// The key the guide opens at when the guide is pressed.
 fn guide_key(app: &mut Faraday) -> &'static str {
-    app.press(Action::Learn);
-    let key = app.learn().key;
+    app.press(Action::Guide);
+    let key = app.guide().key;
     app.press(Action::Cancel);
     key
 }
@@ -118,7 +118,7 @@ fn make_codex32_shares_and_the_codex32_form_open_the_guide_at_the_codex32_sectio
 
     // The Make codex32 section says where the codex32 guide and the
     // booklet are.
-    let section = faraday_learn::guide_section("keygen.codex32").expect("the section");
+    let section = faraday_guide::guide_section("keygen.codex32").expect("the section");
     let text: String = section
         .paragraphs
         .iter()

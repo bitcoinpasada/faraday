@@ -1626,7 +1626,7 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
             chip_h(ui),
             &[(label, Style::Secondary, Action::Board(BoardPress::Partials))],
         ) + gap;
-        // The Learn page on shares, as the description card had it.
+        // The guide page on shares, as the description card had it.
         let label = EN.plan_what_is_a_share;
         let bw = (ui.measure_as(LABEL_M, label) + 2.0 * tokens::BOARD_PAD).min(w);
         ui.button(
@@ -1636,7 +1636,7 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
             chip_h(ui),
             label,
             Style::Ghost,
-            Action::LearnShares,
+            Action::GuideShares,
         );
         cy += chip_h(ui) + gap;
     } else if let Some(Some(line)) = v.splits {

@@ -622,14 +622,14 @@ fn the_done_card_says_extra_copies_are_made_outside_the_plan_in_guided_only() {
         t.contains("More copies can be made once the wallet is made"),
         "{t}"
     );
-    assert!(app.offers(Action::LearnExtraCopies));
-    app.press(Action::LearnExtraCopies);
-    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
-    assert_eq!(app.learn().key, faraday_core::learn::EXTRA_COPIES_KEY);
+    assert!(app.offers(Action::GuideExtraCopies));
+    app.press(Action::GuideExtraCopies);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Guide));
+    assert_eq!(app.guide().key, faraday_core::guide::EXTRA_COPIES_KEY);
     app.press(Action::Cancel);
     app.press(Action::Guided(false));
     let _ = app.frame();
-    assert!(!app.offers(Action::LearnExtraCopies), "not in Steps only");
+    assert!(!app.offers(Action::GuideExtraCopies), "not in Steps only");
 }
 
 /// While a key made here waits for its backup, no receive address opens a

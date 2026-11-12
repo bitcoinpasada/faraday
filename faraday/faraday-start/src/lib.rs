@@ -4,11 +4,11 @@
 //! Starter, and published by the website at
 //! `https://faradayoffline.app/start/<id>` (§7.4); the desktop app and
 //! the stick carry only the address of the guide for this computer
-//! (`faraday_learn::guide_address`), not its text.
+//! (`faraday_guide::guide_address`), not its text.
 
 use std::sync::OnceLock;
 
-use faraday_learn::Page as LearnPage;
+use faraday_guide::Page as GuidePage;
 
 /// Every guide here, each by its id. Edited as
 /// `docs/guide/start/<id>.md`. The id is the file's name and stays as it is: the
@@ -90,7 +90,7 @@ const OWN: [(&str, &str); 19] = [
     ),
     // A maker with no page of its own (`docs/STARTER.md` §7): the
     // common keys, from the pages above, and the same steps. It matches
-    // no computer, so it is not in `faraday_learn::MAKERS`.
+    // no computer, so it is not in `faraday_guide::MAKERS`.
     (
         "maker-other",
         include_str!("../../../docs/guide/start/maker-other.md"),
@@ -113,11 +113,11 @@ pub const BOOT: [&str; 7] = [
 ];
 
 /// This crate's own pages, read once, in [`OWN`]'s order.
-fn own() -> &'static [LearnPage] {
-    static PAGES: OnceLock<Vec<LearnPage>> = OnceLock::new();
+fn own() -> &'static [GuidePage] {
+    static PAGES: OnceLock<Vec<GuidePage>> = OnceLock::new();
     PAGES.get_or_init(|| {
         OWN.iter()
-            .map(|(_, md)| faraday_learn::page_of(md))
+            .map(|(_, md)| faraday_guide::page_of(md))
             .collect()
     })
 }
@@ -129,6 +129,6 @@ pub fn ids() -> impl Iterator<Item = &'static str> {
 }
 
 /// The guide with this id; `None` for an id not among them.
-pub fn page(id: &str) -> Option<&'static LearnPage> {
+pub fn page(id: &str) -> Option<&'static GuidePage> {
     OWN.iter().position(|(i, _)| *i == id).map(|n| &own()[n])
 }

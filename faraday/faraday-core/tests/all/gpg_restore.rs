@@ -500,17 +500,17 @@ fn a_key_already_in_an_open_vault_is_not_saved_again() {
     assert_eq!(gpg_records(&app).len(), before.len(), "nothing saved");
 }
 
-/// Learn on a restore opens on the GPG page, which says how a paperkey's
+/// The guide on a restore opens on the GPG page, which says how a paperkey's
 /// lines are typed.
 #[test]
-fn learn_on_a_restore_opens_the_gpg_page() {
+fn guide_on_a_restore_opens_the_gpg_page() {
     let k = paper_key();
     let mut app = with_test_vault();
     let from = RestoreFrom::read(&cert_file(&k).1).unwrap();
     restore_at_make(&mut app, from);
     assert_eq!(app.screen, Screen::BackupFlow);
-    app.press(Action::Learn);
-    assert!(app.learn().shown.starts_with("gpg-restore"));
+    app.press(Action::Guide);
+    assert!(app.guide().shown.starts_with("gpg-restore"));
 }
 
 /// paperkey 1.6's raw form of the same key (`--output-type raw`).

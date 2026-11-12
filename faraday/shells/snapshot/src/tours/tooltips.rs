@@ -47,7 +47,7 @@ pub(crate) fn tooltips_tour(t: &mut Tour) -> Result<(), String> {
         // Home offers no cryptographic action, so on a small panel the ? is
         // on its bar, not in the ⋮ with Cryptography.
         t.press(Action::Nav(Screen::Home));
-        rest_on(t, Action::Learn)?;
+        rest_on(t, Action::Guide)?;
         t.shot(&format!("tip-{slug}-learn"))?;
         t.app.event(Event::HoverEnd);
         t.press(Action::Nav(Screen::Backup));

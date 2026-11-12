@@ -5,7 +5,7 @@ use crate::drawing::{Scrolled, View};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
-use crate::{Action, Code, Screen, flow, guide};
+use crate::{Action, Code, Screen, flow, walkthrough};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP, TITLE_S};
 use faraday_ui::parts::wrap_buttons;
 
@@ -86,7 +86,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: m.open == Some(k),
             default: false,
             toggle: Action::MStep(k),
-            guide: Some(guide::message(k)),
+            walkthrough: Some(walkthrough::message(k)),
         })
         .collect();
     let col = flow::Column {

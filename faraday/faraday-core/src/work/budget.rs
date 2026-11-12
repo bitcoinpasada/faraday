@@ -564,7 +564,7 @@ pub(crate) fn walk_on(
 /// The sheets every main screen offers, by name, each with what opens it.
 pub(super) const SHEETS: [(&str, Action); 3] = [
     ("Power sheet", Action::PowerAsk),
-    ("Learn sheet", Action::Learn),
+    ("Learn sheet", Action::Guide),
     ("Scan sheet", Action::Scan),
 ];
 

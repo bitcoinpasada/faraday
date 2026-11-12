@@ -1938,9 +1938,9 @@ pub(super) fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     );
 }
 
-/// How the Learn sheet or Learn's supporting pane lays out its tabs and
-/// the page on show: one body, [`learn_body`], drawn by both.
-pub(super) struct LearnLook {
+/// How the guide sheet or the guide's supporting pane lays out its tabs and
+/// the page on show: one body, [`guide_body`], drawn by both.
+pub(super) struct GuideLook {
     /// The margin at each side of the text.
     pub(super) pad: f32,
     /// The margin at each side of the tabs.
@@ -1976,32 +1976,32 @@ fn guide_tab_items(app: &View) -> Vec<faraday_ui::tabs::Tab<'static, Action>> {
     if !app.how_offered() {
         return Vec::new();
     }
-    let how = app.learn().how;
+    let how = app.guide().how;
     vec![
         faraday_ui::tabs::Tab {
-            label: EN.learn_tab_guide,
+            label: EN.guide_tab_guide,
             on: !how,
             done: false,
-            action: Action::LearnTabGuide,
+            action: Action::GuideTabGuide,
         },
         faraday_ui::tabs::Tab {
-            label: EN.learn_tab_how,
+            label: EN.guide_tab_how,
             on: how,
             done: false,
-            action: Action::LearnTabHow,
+            action: Action::GuideTabHow,
         },
     ]
 }
 
 /// The height of the foot row under the text, where **Contents** and
 /// Done stand. A lookup.
-pub(super) fn learn_foot(ui: &Ui) -> f32 {
+pub(super) fn guide_foot(ui: &Ui) -> f32 {
     ui.button_height(BUTTON_H) + 2.0 * T::GAP_SMALL
 }
 
 /// The top of a button in the foot row of a box (y, h) tall.
-pub(super) fn learn_foot_top(ui: &Ui, (y, sh): (f32, f32)) -> f32 {
-    y + sh - learn_foot(ui) + T::GAP_SMALL
+pub(super) fn guide_foot_top(ui: &Ui, (y, sh): (f32, f32)) -> f32 {
+    y + sh - guide_foot(ui) + T::GAP_SMALL
 }
 
 /// The guide's body in the box (x, y, w, h), laid out as `look` sets it:
@@ -2009,14 +2009,14 @@ pub(super) fn learn_foot_top(ui: &Ui, (y, sh): (f32, f32)) -> f32 {
 /// scrolled by the guide's own offset, and **Contents** at the foot,
 /// which the sheet and the supporting pane both draw. Returns the text's
 /// view and how far it scrolls.
-pub(super) fn learn_body(
+pub(super) fn guide_body(
     app: &View,
     ui: &mut Ui,
-    look: &LearnLook,
+    look: &GuideLook,
     (x, y, sw, sh): (f32, f32, f32, f32),
 ) -> (faraday_draw::Rect, f32) {
-    let learn = app.learn();
-    let how = learn.how && app.how_offered();
+    let guide = app.guide();
+    let how = guide.how && app.how_offered();
     let pad = look.pad;
     let tabs = guide_tab_items(app);
     let row = !tabs.is_empty();
@@ -2043,15 +2043,15 @@ pub(super) fn learn_body(
     let (bx, bw) = (x + pad + look.inset, sw - 2.0 * pad - 2.0 * look.inset);
     let view = sh - (top - y) - look.foot;
     let clip = ui.rect(x, top, sw, view);
-    let scroll = learn.scroll;
+    let scroll = guide.scroll;
     ui.c.push_clip(clip);
     let mark = ui.presses_mark();
     let at = (bx, top + look.text_top - scroll, bw);
     let (text, section) = if how {
-        (learn_how(app, ui, look, at), None)
-    } else if learn.contents {
+        (guide_how(app, ui, look, at), None)
+    } else if guide.contents {
         (guide_contents(app, ui, look, at), None)
-    } else if let Some(page) = learn.shown_page() {
+    } else if let Some(page) = guide.shown_page() {
         guide_page(app, ui, look, page, at)
     } else {
         (0.0, None)
@@ -2061,12 +2061,12 @@ pub(super) fn learn_body(
     }
     ui.c.pop_clip();
     let max = (look.text_top + text - view).max(0.0);
-    app.learn_scroll(max, scroll.min(max), section);
-    if !learn.contents && !how {
-        let label = EN.learn_contents;
+    app.guide_scroll(max, scroll.min(max), section);
+    if !guide.contents && !how {
+        let label = EN.guide_contents;
         let w = ui.measure_as(LABEL_L, label) + 2.0 * T::BUTTON_PAD;
-        let by = learn_foot_top(ui, (y, sh));
-        let a = Action::LearnContents;
+        let by = guide_foot_top(ui, (y, sh));
+        let a = Action::GuideContents;
         ui.button(x + pad, by, Some(w), BUTTON_H, label, Style::Ghost, a);
     }
     (clip, max)
@@ -2075,7 +2075,7 @@ pub(super) fn learn_body(
 /// The guide's contents: the place's page first under **Here**, then
 /// every page under its group's heading, a one-line list item each, from
 /// (x, y), `w` wide. Returns the height used.
-fn guide_contents(app: &View, ui: &mut Ui, look: &LearnLook, (bx, y, bw): (f32, f32, f32)) -> f32 {
+fn guide_contents(app: &View, ui: &mut Ui, look: &GuideLook, (bx, y, bw): (f32, f32, f32)) -> f32 {
     let [_, after_heading, _, after_section] = look.after;
     let item = |ui: &mut Ui, cy: f32, title: &str, action: Action| {
         let it = faraday_ui::roles::ListItem {
@@ -2087,17 +2087,17 @@ fn guide_contents(app: &View, ui: &mut Ui, look: &LearnLook, (bx, y, bw): (f32, 
         ui.list_item((bx, cy, bw), &it, false)
     };
     let mut cy = y;
-    if let Some(page) = app.learn().here() {
+    if let Some(page) = app.guide().here() {
         let at = (bx, cy, bw);
-        cy += ui.wrap_as(at, look.heading, Role::OnSurface, EN.learn_here) + after_heading;
-        cy += item(ui, cy, &page.title, Action::LearnHere) + after_section;
+        cy += ui.wrap_as(at, look.heading, Role::OnSurface, EN.guide_here) + after_heading;
+        cy += item(ui, cy, &page.title, Action::GuideHere) + after_section;
     }
     let mut n = 0u8;
-    for group in faraday_learn::guide_groups() {
+    for group in faraday_guide::guide_groups() {
         let at = (bx, cy, bw);
         cy += ui.wrap_as(at, look.heading, Role::OnSurface, group.title) + after_heading;
         for page in &group.pages {
-            cy += item(ui, cy, &page.title, Action::LearnPage(n));
+            cy += item(ui, cy, &page.title, Action::GuidePage(n));
             n += 1;
         }
         cy += after_section;
@@ -2114,7 +2114,7 @@ fn guide_one(
     role: T::TypeRole,
     text: &str,
 ) -> f32 {
-    let state = app.learn();
+    let state = app.guide();
     let basis = ui.wrap_basis(role, w);
     let at = (text.as_ptr() as usize, text.len());
     let lines = match state.wrap_kept(at, basis) {
@@ -2139,9 +2139,9 @@ fn guide_text(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     role: T::TypeRole,
-    para: &[faraday_learn::Span],
+    para: &[faraday_guide::Span],
 ) -> f32 {
-    let state = app.learn();
+    let state = app.guide();
     let basis = ui.wrap_basis(role, w);
     if let [one] = para {
         let role = if one.bold { role.medium() } else { role };
@@ -2201,12 +2201,12 @@ fn guide_text(
 fn guide_page(
     app: &View,
     ui: &mut Ui,
-    look: &LearnLook,
-    page: &'static faraday_learn::GuidePage,
+    look: &GuideLook,
+    page: &'static faraday_guide::GuidePage,
     (bx, y, bw): (f32, f32, f32),
 ) -> (f32, Option<f32>) {
     let [after_head, after_heading, after_para, after_section] = look.after;
-    let to = app.learn().to;
+    let to = app.guide().to;
     let mut found = None;
     let mut cy = y;
     cy += guide_one(app, ui, (bx, cy, bw), look.head, &page.title) + after_head;
@@ -2229,7 +2229,7 @@ fn guide_page(
 /// The How Faraday does it tab: the blocks of the screen's actions
 /// from (x, y), `w` wide, drawn as `faraday_ui::how` draws them
 /// (`docs/CRYPTO-LEARN.md` §8.5). Returns the height used.
-fn learn_how(app: &View, ui: &mut Ui, look: &LearnLook, at: (f32, f32, f32)) -> f32 {
+fn guide_how(app: &View, ui: &mut Ui, look: &GuideLook, at: (f32, f32, f32)) -> f32 {
     let blocks = app.how_blocks();
     let page_look = faraday_ui::how::PageLook {
         title: look.head,
@@ -2244,7 +2244,7 @@ fn learn_how(app: &View, ui: &mut Ui, look: &LearnLook, at: (f32, f32, f32)) -> 
 /// the contents, scrolled by the wheel or the arrow keys, and **Contents**
 /// and **Done** at its foot. Held, it is the whole frame, a page under
 /// the holder's top app bar.
-pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+pub(super) fn guide_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let compact = ui.compact;
     let (sw, sh, pad) = if compact {
         (w - 16.0, h - 16.0, 14.0)
@@ -2266,11 +2266,11 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             (x + pad, y + 14.0, T::TOUCH),
             sheet_head(compact),
             Role::OnSurface,
-            EN.learn_pane_title,
+            EN.guide_pane_title,
         );
     }
     let done_w = if compact { 72.0 } else { 96.0 };
-    let look = LearnLook {
+    let look = GuideLook {
         pad,
         tabs_edge: pad,
         tabs_top: if app.held { 14.0 } else { 14.0 + T::TOUCH },
@@ -2278,28 +2278,28 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         rule: 8.0,
         inset: 4.0,
         text_top: 12.0,
-        foot: learn_foot(ui),
+        foot: guide_foot(ui),
         head: T::TITLE_L,
         heading: T::TITLE_S,
         body: BODY_M,
         after: [16.0, 8.0, 12.0, 10.0],
         clip_hits: false,
     };
-    let (clip, max) = learn_body(app, ui, &look, (x, y, sw, sh));
+    let (clip, max) = guide_body(app, ui, &look, (x, y, sw, sh));
     if !app.held {
         // Done closes the guide from wherever it is; Back goes a step.
-        let action = if app.learn().inside() {
-            Action::LearnClose
+        let action = if app.guide().inside() {
+            Action::GuideClose
         } else {
             Action::Cancel
         };
-        let by = learn_foot_top(ui, (y, sh));
+        let by = guide_foot_top(ui, (y, sh));
         ui.button(
             x + sw - pad - done_w,
             by,
             Some(done_w),
             BUTTON_H,
-            EN.learn_done,
+            EN.guide_done,
             Style::Secondary,
             action,
         );

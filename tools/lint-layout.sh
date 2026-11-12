@@ -195,13 +195,13 @@ for path in sorted(impl_listed - having):
 
 # 5. Dependency direction (docs/STRUCTURE-PASS.md §7). A `core/*` crate has
 #    no `path` dependency outside core/, and faraday-ui, faraday-draw,
-#    faraday-strings and faraday-learn depend (normal, build or dev) on
+#    faraday-strings and faraday-guide depend (normal, build or dev) on
 #    neither faraday-core nor faraday-starter. No crate under core/ or
 #    faraday/ has a path dependency into aqrv/ (F245: the Argon QR Vault
 #    is a test tool the apps do not depend on).
 import tomllib
 
-LOWER = {"faraday-ui", "faraday-draw", "faraday-strings", "faraday-learn"}
+LOWER = {"faraday-ui", "faraday-draw", "faraday-strings", "faraday-guide"}
 UPPER = {"faraday-core", "faraday-starter"}
 with open("Cargo.toml", "rb") as fh:
     members = tomllib.load(fh).get("workspace", {}).get("members", [])

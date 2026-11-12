@@ -16,7 +16,7 @@ use faraday_draw::tokens::{
 pub struct Rail<'s, A> {
     /// The destinations, from the top.
     pub top: &'s [Dest<'s, A>],
-    /// Under a divider: what is opened, then closed (Learn, Settings).
+    /// Under a divider: what is opened, then closed (the guide, Settings).
     pub under: &'s [Dest<'s, A>],
     /// At its foot (Lock, Power off).
     pub foot: &'s [Dest<'s, A>],

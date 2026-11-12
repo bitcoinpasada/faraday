@@ -5,7 +5,7 @@ use crate::{Page, Sheet, Starter};
 
 impl Starter {
     /// The name the blocks find the page on show by
-    /// (`faraday_learn::Block::screens`): `starter:` and the page's
+    /// (`faraday_guide::Block::screens`): `starter:` and the page's
     /// task, where the page performs a computing action. The Start page
     /// only while the BitLocker recovery key is offered. A lookup.
     fn how_page(&self) -> Option<&'static str> {
@@ -22,12 +22,12 @@ impl Starter {
     /// The blocks of the computing actions the page on show performs, in
     /// the manifest's order; none while the held desktop app shows. A
     /// lookup.
-    pub fn how_blocks(&self) -> Vec<&'static faraday_learn::Block> {
+    pub fn how_blocks(&self) -> Vec<&'static faraday_guide::Block> {
         if self.showing || self.showing_demo() {
             return Vec::new();
         }
         self.how_page()
-            .map_or_else(Vec::new, faraday_learn::how::for_screen)
+            .map_or_else(Vec::new, faraday_guide::how::for_screen)
     }
 
     /// Whether the page on show has blocks: the top app bar then carries
@@ -35,7 +35,7 @@ impl Starter {
     pub fn how_offered(&self) -> bool {
         !self.showing
             && !self.showing_demo()
-            && self.how_page().is_some_and(faraday_learn::how::offered)
+            && self.how_page().is_some_and(faraday_guide::how::offered)
     }
 
     /// **How Faraday does it** pressed: the sheet opens; pressed again

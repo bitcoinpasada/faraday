@@ -237,9 +237,9 @@ impl<'a> View<'a> {
         a.redraw |= again;
     }
 
-    /// The Learn sheet's end and its scroll as drawn, set after the pass.
-    pub(crate) fn learn_scroll(&self, max: f32, scroll: f32, section: Option<f32>) {
-        self.after.borrow_mut().learn = Some((max, scroll, section));
+    /// The guide sheet's end and its scroll as drawn, set after the pass.
+    pub(crate) fn guide_scroll(&self, max: f32, scroll: f32, section: Option<f32>) {
+        self.after.borrow_mut().guide = Some((max, scroll, section));
     }
 
     /// The word list's end and its scroll as drawn, set after the pass,
@@ -313,9 +313,9 @@ pub(crate) struct After {
     pub redraw: bool,
     /// Step columns' scrolls, in the order drawn.
     pub scrolls: Vec<(Scrolled, flow::Scroll)>,
-    /// The Learn sheet's end and scroll, and where the section it was to
+    /// The guide sheet's end and scroll, and where the section it was to
     /// scroll to was found.
-    pub learn: Option<(f32, f32, Option<f32>)>,
+    pub guide: Option<(f32, f32, Option<f32>)>,
     /// The word list's end and scroll.
     pub wordlist: Option<(f32, f32)>,
     /// How far the wide layout drew the page up under its keyboard.
@@ -521,12 +521,12 @@ impl Faraday {
                 Scrolled::SpendBackup => self.spend_backup.set_scroll(to),
             }
         }
-        if let Some((max, scroll, section)) = a.learn {
+        if let Some((max, scroll, section)) = a.guide {
             // The guide scrolled to its section: another frame shows it.
-            if self.learn.set_scroll(max, scroll, section) {
+            if self.guide.set_scroll(max, scroll, section) {
                 // Opened at its section, the sheet has not been scrolled
                 // by anyone: the overlay scrollbar stays hidden.
-                self.learn_bar_synced();
+                self.guide_bar_synced();
                 self.out.redraw();
                 self.out
                     .commands

@@ -40,7 +40,7 @@ block:
 
 Facts only: plain statements, as every text in the product (CLAUDE.md).
 The block's field labels are strings in `faraday/faraday-strings/src/en.rs`;
-its values are the manifest's, carried by `faraday-learn` as the Learn
+its values are the manifest's, carried by `faraday-guide` as the Learn
 pages' text is.
 
 ## 2. The manifest
@@ -55,7 +55,7 @@ library since 3.11, as `tools/crosscheck/stamp.py` already uses), the
 website's tools in Python, and people reading a diff. No crate is added:
 the Rust side never reads the TOML (§4.3).
 
-A Rust table in `faraday-learn` was considered and not chosen: the
+A Rust table in `faraday-guide` was considered and not chosen: the
 website and the cross-check stamp would each need a Rust parser or a
 second export, and an entry's prose in Rust string literals is what
 a text file read by a tool avoids.
@@ -205,7 +205,7 @@ difference.
 
 | Place | What is generated |
 |---|---|
-| The Learn blocks | faraday/faraday-learn/src/how.rs (new): a `Block` per action with its nine fields, and for each Learn page the blocks it carries, in the manifest's order. Marked generated at its top; never edited by hand. |
+| The Learn blocks | faraday/faraday-guide/src/how.rs (new): a `Block` per action with its nine fields, and for each Learn page the blocks it carries, in the manifest's order. Marked generated at its top; never edited by hand. |
 | The Cross-check field | From the action's area (§10.1) and the stamp: the area's facts and the last passing run's seed and case count. |
 | `tools/crosscheck/README.md`'s "What runs" table and "Known differences" | From the areas' facts (§10.1), between marker lines, so the README and the blocks say the same. |
 | `docs/STANDARDS.md` §1's status table | From the standards table. |
@@ -734,15 +734,15 @@ and every value wraps.
 ### 8.6 The strings
 
 Field labels and the action's name, for `faraday/faraday-strings/src/en.rs`
-(each a key of its own, as the bar's ? and its ⋮ row are, `tip_learn`
-and `bar_menu_learn`). They are added with the code that draws them:
+(each a key of its own, as the bar's ? and its ⋮ row are, `tip_guide`
+and `bar_menu_guide`). They are added with the code that draws them:
 the strings lint fails a key no code names.
 
 | Key | Value | Where |
 |---|---|---|
 | `tip_how` | Cryptography | The bar's button's tooltip, Faraday and the Starter |
 | `bar_menu_how` | Cryptography | The ⋮ row on a compact bar, Faraday and the Starter |
-| `learn_tab_how` | Cryptography | The Learn sheet's and pane's first tab |
+| `guide_tab_how` | Cryptography | The Learn sheet's and pane's first tab |
 | `starter_how_title` | Cryptography | The Starter's sheet's head |
 | `starter_how_close` | Close | The Starter's sheet's foot |
 | `how_field_action` | Action | §1 |
@@ -767,7 +767,7 @@ the strings lint fails a key no code names.
 | `how_repository` | github.com/bitcoinpasada/faraday | The Source field's last entry |
 
 The values are the manifest's and the cross-check's, carried by
-`faraday-learn` (§1), not strings of this file.
+`faraday-guide` (§1), not strings of this file.
 
 ### 8.7 The guide's pages
 
@@ -1215,7 +1215,7 @@ checked, or named for review.
 | `fuzz/`, `faraday/fuzz/` | Fuzz targets | Checked |
 | `core/faraday-selftest/src/lib.rs` | Its check names | Checked |
 | `faraday/faraday-core/src/catalog.rs` | The Tools tiles' standard tags | Checked |
-| `faraday/faraday-core/src/learn.rs` | Which pages each screen opens | Tested (§9.1) |
+| `faraday/faraday-core/src/guide.rs` | Which pages each screen opens | Tested (§9.1) |
 | `docs/SECURITY-MODEL.md` | Where keys live, the vault's cryptography | Named for review |
 | `docs/INTEROP.md` | What is read and written, the refusals | Named for review |
 | `docs/VAULT.md`, `docs/CODEX32.md`, `docs/TOTP.md`, `docs/QR.md`, `docs/OWN-RANDOMNESS.md`, `docs/WALLETS.md` §3.3, `docs/SPEND-FROM-BACKUP.md` | Their constructions and refusals | Named for review |
@@ -1297,7 +1297,7 @@ what:
    icon baked, the strings, the pages registered (`secure-boot-keys` in
    `OWN` and on VaultContents' Secure Boot kind, `checking-written` in
    `OWN` and `LearnId`), `keys_kept_page()` added to Explore's pages and
-   `&EN.tools` to Bip85's (`faraday/faraday-core/src/learn.rs`), the
+   `&EN.tools` to Bip85's (`faraday/faraday-core/src/guide.rs`), the
    guide's pages drawn again, the reachability test (§9.1), the screens
    check (§9.2), one tour rendered per size.
 6. The website comes later, in its own repository (§11).
@@ -1487,13 +1487,13 @@ reason = "The function's name (RFC 9106)."
   `core/faraday-bip/src/diceware/`, its length read from its `WORDS`
   array, and the bits for each count of words). A table typed by hand is
   not allowed.
-- **In faraday-learn:** gen.py writes `CONSTRUCTIONS` and
+- **In faraday-guide:** gen.py writes `CONSTRUCTIONS` and
   `docs/crypto/gen_how.py` puts them after `BLOCKS` in
-  `faraday/faraday-learn/src/how.rs`, each with its title, its page and its sections as headings,
+  `faraday/faraday-guide/src/how.rs`, each with its title, its page and its sections as headings,
   paragraphs and table rows (the type is
-  `faraday/faraday-learn/src/construction.rs`), and the lookups
+  `faraday/faraday-guide/src/construction.rs`), and the lookups
   `constructions_for_page(page)` and, by the page itself,
-  `faraday_learn::constructions_after`. The Cryptography tab draws the
+  `faraday_guide::constructions_after`. The Cryptography tab draws the
   blocks of the screen's actions, then each construction after the
   blocks of the actions it belongs to, as sections under the
   construction's title (`faraday_ui::how::construction`). The drawing is
@@ -1784,7 +1784,7 @@ check.py (`TOP_KEYS` gains `construction` and `name_with_digits`;
 a typed digit, a planned item no Open line names), gen.py's tables and
 placeholders, the two constructions in docs/crypto/actions.toml with
 §18.3's and §18.4's text, `CONSTRUCTIONS` in
-`faraday/faraday-learn/src/how.rs`, the Learn page's drawing of them, and
+`faraday/faraday-guide/src/how.rs`, the Learn page's drawing of them, and
 `docs/history/learn/faraday/vaults.md`'s "Passphrase strength" section removed.
 They may come before or after the rename of `docs/history/VAULT-HARDENING.md`
 (§2), its sentences marked. Each later change of that document rewrites

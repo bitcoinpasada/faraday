@@ -1,8 +1,8 @@
 //! The constructions (`docs/CRYPTO-LEARN.md` §18) the Cryptography tab
 //! draws after the blocks of the actions they belong to.
 
-use faraday_learn::construction::Item;
-use faraday_learn::how;
+use faraday_guide::construction::Item;
+use faraday_guide::how;
 
 #[test]
 fn a_construction_follows_the_last_block_of_its_actions_shown() {

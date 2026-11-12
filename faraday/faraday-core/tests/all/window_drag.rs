@@ -38,7 +38,7 @@ fn empty_strip_room_moves_the_window_and_a_control_does_not() {
         );
         // The ? at the top right is a control, and the page below the
         // strip is not strip.
-        let (qx, qy) = app.where_offered(Action::Learn).expect("? offered");
+        let (qx, qy) = app.where_offered(Action::Guide).expect("? offered");
         assert!(
             !app.is_strip_room(i32::from(qx), i32::from(qy)),
             "{w}x{h}: ?"

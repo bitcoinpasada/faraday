@@ -76,7 +76,7 @@ pub(crate) struct Fade {
     /// The frosted page under the open sheet, and the screen, sheet and
     /// theme it was made for.
     frost: Option<((ScreenKey, Theme), Vec<u8>)>,
-    /// The screen and sheet the last frame drew, whether Learn's pane
+    /// The screen and sheet the last frame drew, whether the guide's pane
     /// stood beside the page and the tab on show in the sheet or the
     /// pane, and the theme, so that a change is known at the next.
     last_drawn: Option<(ScreenKey, (bool, usize), Theme)>,
@@ -288,16 +288,16 @@ pub struct FadeCounts {
 
 impl Faraday {
     /// Before a frame is drawn in full on `canvas`, which still holds the
-    /// frame before it: a change of screen or sheet, of the Learn
-    /// pane's presence, or of the Learn tab, starts a fade from that frame. The first frame ever,
+    /// frame before it: a change of screen or sheet, of the guide
+    /// pane's presence, or of the guide tab, starts a fade from that frame. The first frame ever,
     /// and the first after a resize, have nothing to fade from. Costs a
     /// copy of the whole canvas when a fade starts.
     pub(crate) fn fade_begin(&mut self, canvas: &mut Canvas) {
         // The pane opening, closing or changing its tab is a change as a
         // sheet's is (`docs/MOTION.md` §3.5, Material's side sheets).
-        let pane = self.learn_pane_shown();
-        let page = if pane || self.sheet == Some(Sheet::Learn) {
-            self.learn.state().tab()
+        let pane = self.guide_pane_shown();
+        let page = if pane || self.sheet == Some(Sheet::Guide) {
+            self.guide.state().tab()
         } else {
             0
         };

@@ -16,7 +16,7 @@ faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 # The themes' names.
 faraday-strings = { path = "../faraday-strings" }
 # The block a Learn tab and the Starter's sheet draw.
-faraday-learn = { path = "../faraday-learn" }
+faraday-guide = { path = "../faraday-guide" }
 
 [dev-dependencies]
 # A canvas the size of a display, for the tests.

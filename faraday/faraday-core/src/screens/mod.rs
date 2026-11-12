@@ -13,8 +13,8 @@ mod create;
 use crate::decode::screen as decode;
 mod entry;
 mod files;
+mod guide_pane;
 mod home;
-mod learn_pane;
 mod message;
 mod nonce_check;
 pub(crate) mod parts;
@@ -71,7 +71,7 @@ pub(crate) use settings::display_section as settings_display_section;
 pub(crate) use settings::open_head as settings_open;
 pub(crate) use settings::part_guide_key as settings_guide_key;
 use sheets::{
-    devices_sheet, idle_warn_sheet, key_path_sheet, learn_sheet, lock_ask_sheet, lock_sheet,
+    devices_sheet, guide_sheet, idle_warn_sheet, key_path_sheet, lock_ask_sheet, lock_sheet,
     locked_sheet, new_input_sheet, potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet,
     secret_out_sheet, write_out_sheet,
 };
@@ -301,10 +301,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // chart stands beside it (`docs/DESIGN.md` §4.16).
         let room =
             full_w - SIDEBAR_W - side.map_or(0.0, |s| s.1 * faraday_draw::tokens::SIDE_SHEET_W);
-        // Learn's supporting pane takes its room at the right, so the
+        // The guide's supporting pane takes its room at the right, so the
         // page is laid out beside it and nothing of it is under the pane
         // (`docs/LAYOUT.md` §6).
-        let pane = app.learn_pane_shown();
+        let pane = app.guide_pane_shown();
         let beside = if pane { support_pane_room() } else { 0.0 };
         let (ox, cw) = page_area(app.screen, room - beside);
         let h = full_h;
@@ -330,12 +330,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         if pane {
             // Under the top app bar, as the page is.
             ui.oy = top;
-            learn_pane::draw(app, ui, (x, full_w - x, h - top));
+            guide_pane::draw(app, ui, (x, full_w - x, h - top));
             ui.oy = 0.0;
         }
         // Home's Scan floats at the window's right edge and foot
         // (`docs/LAYOUT.md` §15), whatever area its tiles are laid out
-        // in; beside Learn's pane, at the page's edge.
+        // in; beside the guide's pane, at the page's edge.
         if app.screen == Screen::Home {
             ui.fab(
                 full_w - if pane { beside } else { MARGIN_WIDE },
@@ -379,8 +379,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ) && !app.is_compact()
         {
             ui.still();
-        } else if matches!(sheet, Sheet::Learn) && app.held {
-            // Held, the Learn sheet is the page under the holder's top
+        } else if matches!(sheet, Sheet::Guide) && app.held {
+            // Held, the guide sheet is the page under the holder's top
             // app bar (`docs/STARTER.md` §3.1d).
             ui.clear(Role::Surface);
         } else {
@@ -428,7 +428,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Scan => scan_sheet(app, ui, w, h),
             Sheet::Locked => locked_sheet(app, ui, w, h),
             Sheet::NewInput => new_input_sheet(app, ui, w, h),
-            Sheet::Learn => learn_sheet(app, ui, w, h),
+            Sheet::Guide => guide_sheet(app, ui, w, h),
             Sheet::WordList => crate::wordlist::screen::draw(app, ui, w, h),
             Sheet::SecretOut => secret_out_sheet(app, ui, w, h),
             Sheet::WriteOut => write_out_sheet(app, ui, w, h),

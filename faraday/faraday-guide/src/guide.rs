@@ -381,16 +381,16 @@ const ORDER: [&[&str]; 10] = [
 /// The heading of the contents' group `i` of [`ORDER`].
 fn group_title(i: usize) -> &'static str {
     [
-        EN.learn_group_get,
-        EN.learn_group_first,
-        EN.learn_group_keys,
-        EN.learn_group_backups,
-        EN.learn_group_wallets,
-        EN.learn_group_spending,
-        EN.learn_group_vaults,
-        EN.learn_group_tools,
-        EN.learn_group_settings,
-        EN.learn_group_starter,
+        EN.guide_group_get,
+        EN.guide_group_first,
+        EN.guide_group_keys,
+        EN.guide_group_backups,
+        EN.guide_group_wallets,
+        EN.guide_group_spending,
+        EN.guide_group_vaults,
+        EN.guide_group_tools,
+        EN.guide_group_settings,
+        EN.guide_group_starter,
     ][i]
 }
 

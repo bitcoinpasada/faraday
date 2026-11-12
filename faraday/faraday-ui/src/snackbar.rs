@@ -86,7 +86,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         if let Some(action) = close {
             // Material's standard icon button, centred on the end of the
             // snackbar's height in a touch target; the × is the
-            // multiplication sign, as the Learn pane's close is.
+            // multiplication sign, as the guide pane's close is.
             let (bx, by) = (tx + w - TOUCH, ty + (h - TOUCH) / 2.0);
             let edge = (TOUCH - ICON_BUTTON) / 2.0;
             let ink = fade(SNACKBAR_INK);

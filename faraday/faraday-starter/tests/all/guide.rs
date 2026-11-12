@@ -54,18 +54,18 @@ fn every_page_opens_a_guide_page_that_is_written() {
         let key = guide_key(page);
         let place = key.split('.').next().unwrap();
         assert!(
-            faraday_learn::guide_page(place).is_some(),
+            faraday_guide::guide_page(place).is_some(),
             "{page:?}: {key}"
         );
         if key.contains('.') {
             assert!(
-                faraday_learn::guide_section(key).is_some(),
+                faraday_guide::guide_section(key).is_some(),
                 "{page:?}: {key}"
             );
         }
     }
     for place in GUIDE_PLACES {
-        assert!(faraday_learn::guide_page(place).is_some(), "{place}");
+        assert!(faraday_guide::guide_page(place).is_some(), "{place}");
     }
 }
 
@@ -75,11 +75,11 @@ fn the_guide_destination_lists_the_starters_pages_and_a_press_opens_one() {
     s.press(StarterAction::Learn);
     let texts = s.drawn_texts();
     for place in GUIDE_PLACES {
-        let title = &faraday_learn::guide_page(place).unwrap().title;
+        let title = &faraday_guide::guide_page(place).unwrap().title;
         assert!(texts.iter().any(|t| t == title), "{title}");
     }
     s.press(StarterAction::GuidePage(0));
-    let title = &faraday_learn::guide_page(GUIDE_PLACES[0]).unwrap().title;
+    let title = &faraday_guide::guide_page(GUIDE_PLACES[0]).unwrap().title;
     assert!(s.drawn_texts().iter().filter(|t| *t == title).count() >= 1);
     s.press(StarterAction::Cancel);
     assert_eq!(s.page, Page::Guide);

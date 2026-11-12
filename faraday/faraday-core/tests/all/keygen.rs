@@ -1472,9 +1472,9 @@ fn a_guided_card_shows_its_text_with_no_link_and_the_guide_opens_at_the_place() 
     app.press(Action::Guided(true));
     let _ = app.frame();
     assert!(shown(&mut app));
-    app.press(Action::Learn);
-    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
-    assert_eq!(app.learn().shown, "keygen", "the guide at the place");
+    app.press(Action::Guide);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Guide));
+    assert_eq!(app.guide().shown, "keygen", "the guide at the place");
 }
 
 #[test]

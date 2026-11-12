@@ -871,7 +871,7 @@ the Starter is no longer on screen, as three rows, a label and its
 value each, then
 **Print**:
 
-- **Boot menu key**: the maker's, to start the stick (`faraday_learn::Maker::boot_key`);
+- **Boot menu key**: the maker's, to start the stick (`faraday_guide::Maker::boot_key`);
 - **Usual BIOS key**: the maker's, to get back into the BIOS afterwards and
   turn Secure Boot on before Windows starts (`Maker::bios_key`, F42);
 - **Secure Boot setting**: where the setting is in this maker's BIOS,
@@ -1765,7 +1765,7 @@ Mac.
 ### 7.2 The guides are Learn pages
 
 Each guide is a Learn page in `docs/guide/start/`, round-tripped
-into `faraday-learn` as every Learn page is. The Starter
+into `faraday-guide` as every Learn page is. The Starter
 carries them (`faraday-start`), and the website publishes the same text
 (§7.4); the desktop app and the stick carry only the address of the
 guide for this computer, not its text. Pages:
@@ -1930,7 +1930,7 @@ A maker without a page, or not read, gets the general Windows or Linux
 page, whose firmware route (§7.3) needs no key. Which makers were
 tried is not written down anywhere published.
 
-The table the code reads is `faraday_learn::MAKERS`, one row per maker
+The table the code reads is `faraday_guide::MAKERS`, one row per maker
 page: its vendors and families, and for §3.4's Write down (F47) and
 the stick's power sheet (F42) the maker's **boot menu key**
 (`boot_key`), **BIOS key** (`bios_key`) and the **Secure Boot

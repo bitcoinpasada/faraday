@@ -2,11 +2,11 @@
 //! screen's Cryptography button (two on the Pi's panel, through the ⋮),
 //! its block is on the tab it opens, and the guide opens there at a page
 //! with the Cryptography tab beside it (`docs/CRYPTO-LEARN.md` §9.1). The blocks and their
-//! screens are `faraday-learn`'s generated ones.
+//! screens are `faraday-guide`'s generated ones.
 
 use faraday_core::nav::{BarTool, MenuPress, Overflow};
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
-use faraday_learn::how::BLOCKS;
+use faraday_guide::how::BLOCKS;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 const SIZES: [(&str, u16, u16, u16); 3] = [
@@ -174,7 +174,7 @@ fn every_action_with_a_screen_is_one_press_from_its_block() {
                 failed.push(format!("{name} at {size}: no Cryptography button"));
                 continue;
             }
-            if !app.learn().how {
+            if !app.guide().how {
                 failed.push(format!(
                     "{name} at {size}: Learn is not on the Cryptography tab"
                 ));
@@ -202,19 +202,19 @@ fn every_action_with_a_screen_is_one_press_from_its_block() {
     );
 }
 
-/// Learn on every screen that offers an action with a block opens the
+/// The guide on every screen that offers an action with a block opens the
 /// guide at the screen's page, with the Cryptography tab beside it.
 #[test]
 fn every_screen_with_actions_opens_the_guide_at_a_page_with_the_cryptography_tab() {
     let mut failed = Vec::new();
     for name in screen_names() {
         let mut app = on_screen(name, 1280, 800, 160);
-        app.press(Action::Learn);
+        app.press(Action::Guide);
         let _ = app.frame();
-        if app.learn().shown.is_empty() && !app.learn().contents {
+        if app.guide().shown.is_empty() && !app.guide().contents {
             failed.push(format!("{name}: no page"));
         }
-        if !app.offers(Action::LearnTabHow) {
+        if !app.offers(Action::GuideTabHow) {
             failed.push(format!("{name}: no Cryptography tab"));
         }
     }

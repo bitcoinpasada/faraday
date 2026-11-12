@@ -9,7 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-faraday-learn = { path = "../faraday-learn" }
+faraday-guide = { path = "../faraday-guide" }
 
 [lints]
 workspace = true

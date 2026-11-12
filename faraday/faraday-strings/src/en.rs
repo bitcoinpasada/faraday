@@ -1908,7 +1908,7 @@ strings! {
     /// Text in `tiles`.
     compact_files: "Files",
     /// Text in `tiles`.
-    compact_learn: "Guide",
+    compact_guide: "Guide",
     /// Text in `tiles`.
     compact_backups: "Backups",
     /// Text in `tiles`. `{}`: `without`.
@@ -3339,160 +3339,160 @@ strings! {
     vault_sign_sheet_title: "Sign with {}",
     /// Row on Sign with {key}: the time the signatures will carry.
     vault_signature_time: "Signature time",
-    // ----- guide (faraday-core/src/guide.rs) -----
+    // ----- walkthrough (faraday-core/src/walkthrough.rs) -----
     /// Text in `spend`.
-    guide_this_is_the_wallet: "This is the wallet the transaction spends from, matched from its inputs. If it is not the wallet you meant, stop here.",
+    walkthrough_this_is_the_wallet: "This is the wallet the transaction spends from, matched from its inputs. If it is not the wallet you meant, stop here.",
     /// Text in `spend`.
-    guide_no_wallet_loaded: "Load the wallet first if you have its description. Continue goes on without it, and no output can be shown as change.",
+    walkthrough_no_wallet_loaded: "Load the wallet first if you have its description. Continue goes on without it, and no output can be shown as change.",
     /// Text in `spend`.
-    guide_open_the_same: "Compare these addresses with the ones the software that made this transaction shows. If they match, both read the same wallet and the change comes back to you.",
+    walkthrough_open_the_same: "Compare these addresses with the ones the software that made this transaction shows. If they match, both read the same wallet and the change comes back to you.",
     /// Text in `spend`.
-    guide_read_each_line: "Check each line against what you meant to send: the amount, the address, the change and the fee. Nothing is signed yet; if anything differs, stop.",
+    walkthrough_read_each_line: "Check each line against what you meant to send: the amount, the address, the change and the fee. Nothing is signed yet; if anything differs, stop.",
     /// Text in `spend`.
-    guide_musig2_signs: "Every key adds a one-time nonce before anyone signs. Add the others' copies with their nonces, or go first and share this device's. Keep this session unlocked until the signatures return: locking forgets the nonce.",
+    walkthrough_musig2_signs: "Every key adds a one-time nonce before anyone signs. Add the others' copies with their nonces, or go first and share this device's. Keep this session unlocked until the signatures return: locking forgets the nonce.",
     /// Text in `spend`.
-    guide_this_wallet_can: "Each path lists the keys it needs and how long it waits. The line under it says whether this transaction's sequence allows that path; only the network knows whether the coins are old enough.",
+    walkthrough_this_wallet_can: "Each path lists the keys it needs and how long it waits. The line under it says whether this transaction's sequence allows that path; only the network knows whether the coins are old enough.",
     /// Text in `spend`.
-    guide_this_wallet_has: "Each key below can sign. Which keys are enough depends on the path this transaction takes; some paths wait for a timelock.",
-    /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.guide_of_these } …`.
-    guide_keys_must_sign: "{} {} keys must sign. Keys marked Signs here are loaded on this device. The others are on other devices or with other people; each of them signs the same PSBT and hands it back.",
+    walkthrough_this_wallet_has: "Each key below can sign. Which keys are enough depends on the path this transaction takes; some paths wait for a timelock.",
+    /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.walkthrough_of_these } …`.
+    walkthrough_keys_must_sign: "{} {} keys must sign. Keys marked Signs here are loaded on this device. The others are on other devices or with other people; each of them signs the same PSBT and hands it back.",
     /// Text in `spend`.
-    guide_of_these: "of these",
+    walkthrough_of_these: "of these",
     /// Text in `spend`.
-    guide_keys_must_sign_plural: "of the",
+    walkthrough_keys_must_sign_plural: "of the",
     /// Text in `spend`.
-    guide_signed_each_signature: "Signed. Each signature was checked against its key before it was kept.",
+    walkthrough_signed_each_signature: "Signed. Each signature was checked against its key before it was kept.",
     /// Text in `spend`, Signers, with no wallet loaded.
-    guide_keys_signs_here: "Keys marked Signs here are loaded on this device. The others sign the same PSBT elsewhere.",
+    walkthrough_keys_signs_here: "Keys marked Signs here are loaded on this device. The others sign the same PSBT elsewhere.",
     /// Text in `spend`.
-    guide_spend_round_two: "Round two: this device adds its partial signature over everyone's nonces. The others do the same on their copies; when theirs come back, Faraday combines all of them into one signature.",
-    /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.guide_signature }…`.
-    guide_spend_adds_signatures: "This adds the signature of every key loaded here. On its own it moves nothing: the transaction needs {} {} before it can be broadcast.",
+    walkthrough_spend_round_two: "Round two: this device adds its partial signature over everyone's nonces. The others do the same on their copies; when theirs come back, Faraday combines all of them into one signature.",
+    /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.walkthrough_signature }…`.
+    walkthrough_spend_adds_signatures: "This adds the signature of every key loaded here. On its own it moves nothing: the transaction needs {} {} before it can be broadcast.",
     /// Text in `spend`.
-    guide_signature: "signature",
+    walkthrough_signature: "signature",
     /// Text in `spend`.
-    guide_signatures: "signatures",
+    walkthrough_signatures: "signatures",
     /// Text in `spend`. `{}`: `m.a()`, "a stick".
-    guide_signing_uses: "Signing uses the key loaded here and checks the signature before keeping it. Nothing leaves the device until you write it to {} or show it as a QR code.",
+    walkthrough_signing_uses: "Signing uses the key loaded here and checks the signature before keeping it. Nothing leaves the device until you write it to {} or show it as a QR code.",
     /// Text in `spend`. `{}`: `m.a()`, "a stick".
-    guide_get_the_other: "Each cosigner signs the same PSBT on their own device. Hand it over as a QR code or on {}; scan or copy in each signed copy that comes back. A copy of another transaction is refused.",
+    walkthrough_get_the_other: "Each cosigner signs the same PSBT on their own device. Hand it over as a QR code or on {}; scan or copy in each signed copy that comes back. A copy of another transaction is refused.",
     /// Text in `spend`.
-    guide_there_are_two: "There are two results. The signed PSBT goes back to the wallet that made the transaction, which can broadcast it. The finished transaction can be broadcast as it is, from any node you trust. Either one is enough.",
+    walkthrough_there_are_two: "There are two results. The signed PSBT goes back to the wallet that made the transaction, which can broadcast it. The finished transaction can be broadcast as it is, from any node you trust. Either one is enough.",
     /// Text in `spend`.
-    guide_the_transaction: "The transaction is finished when enough keys have signed. Until then it cannot be broadcast.",
+    walkthrough_the_transaction: "The transaction is finished when enough keys have signed. Until then it cannot be broadcast.",
     /// Text in `backup`.
-    guide_print_the_blank: "Print the blank templates from Faraday Starter on the online computer: they hold no secret. Done marks them printed; you copy each seed onto one by hand next.",
+    walkthrough_print_the_blank: "Print the blank templates from Faraday Starter on the online computer: they hold no secret. Done marks them printed; you copy each seed onto one by hand next.",
     /// Text in `backup`.
-    guide_backup_none_typed: "None of this wallet's seeds were typed into this session, so there is nothing to copy here. Each seed is backed up on the device that holds it.",
+    walkthrough_backup_none_typed: "None of this wallet's seeds were typed into this session, so there is nothing to copy here. Each seed is backed up on the device that holds it.",
     /// Text in `backup`.
-    guide_copy_words: "Copy each seed onto its own template by hand, the words in order. Then type your copy's words back; the first word that differs is named.",
+    walkthrough_copy_words: "Copy each seed onto its own template by hand, the words in order. Then type your copy's words back; the first word that differs is named.",
     /// Text in `backup`, a passphrase on paper.
-    guide_passphrase_on_paper: "Write the passphrase on paper by hand, exactly as it is, capitals and spaces included. Then type your copy back; it is compared whole.",
+    walkthrough_passphrase_on_paper: "Write the passphrase on paper by hand, exactly as it is, capitals and spaces included. Then type your copy back; it is compared whole.",
     /// Text in `backup`, a copy of the SeedQR.
-    guide_copy_seedqr: "Copy each seed's SeedQR onto its own template by hand, square by square; the grey squares are printed already. Then scan your copy; with no camera, type its words back.",
+    walkthrough_copy_seedqr: "Copy each seed's SeedQR onto its own template by hand, square by square; the grey squares are printed already. Then scan your copy; with no camera, type its words back.",
     /// Text in `backup`, a copy of both.
-    guide_copy_both: "Copy each seed onto its own template by hand: the words, then the SeedQR square by square. Type the words back and scan the grid; a mistake is named by its word.",
+    walkthrough_copy_both: "Copy each seed onto its own template by hand: the words, then the SeedQR square by square. Type the words back and scan the grid; a mistake is named by its word.",
     /// Text in `backup`. `{}`: the Copy card's lead.
-    guide_backup_paper: "{} A seed never goes to a printer.",
+    walkthrough_backup_paper: "{} A seed never goes to a printer.",
     /// Text in `backup`. `{}`: `medium.for_the()`.
-    guide_backup_xpub_half: "These files hold xpubs only: they cannot spend, but only they put the keys back together into this wallet. Make the file for each program you use; it waits {}.",
+    walkthrough_backup_xpub_half: "These files hold xpubs only: they cannot spend, but only they put the keys back together into this wallet. Make the file for each program you use; it waits {}.",
     /// Text in `backup`, when the plan splits. `{}`: `medium.for_the()`.
-    guide_instead_of_one: "Each signer gets a share of the wallet description with some keys left off: one share alone cannot watch the wallet, enough together rebuild it. Make them; each waits {} to print.",
+    walkthrough_instead_of_one: "Each signer gets a share of the wallet description with some keys left off: one share alone cannot watch the wallet, enough together rebuild it. Make them; each waits {} to print.",
     /// Text in `backup`.
-    guide_one_envelope: "Put each place's papers in their own envelope and store the envelopes apart. A copy in a vault is one more copy, not a replacement for paper.",
+    walkthrough_one_envelope: "Put each place's papers in their own envelope and store the envelopes apart. A copy in a vault is one more copy, not a replacement for paper.",
     /// Text in `backup`, Write to sticks. `{}`: `medium.noun()`.
-    guide_backup_sticks: "Lock and write locks this session, then each {} of the plan is written in turn, by its place.",
+    walkthrough_backup_sticks: "Lock and write locks this session, then each {} of the plan is written in turn, by its place.",
     /// Text in `backup`, a vault's card. `{}`: `medium.noun()`.
-    guide_backup_vault: "This vault keeps a further copy of the seed, sealed under its passphrase. Save into it; Lock and write, the last item, seals it and writes it to its {}.",
+    walkthrough_backup_vault: "This vault keeps a further copy of the seed, sealed under its passphrase. Save into it; Lock and write, the last item, seals it and writes it to its {}.",
     /// Text in `backup`, the wallet sheet of a plan that does not split. `{}`: `medium.for_the()`.
-    guide_backup_sheet: "One sheet with the wallet's name, every xpub and the checksum: it cannot spend, but it rebuilds the wallet. Make it; the PDF waits {} to print.",
+    walkthrough_backup_sheet: "One sheet with the wallet's name, every xpub and the checksum: it cannot spend, but it rebuilds the wallet. Make it; the PDF waits {} to print.",
     /// Text in `backup`, the descriptor shown to the software.
-    guide_backup_show: "Show this QR code to the watch-only software to load the wallet. It holds xpubs only: it can watch the wallet, not spend.",
+    walkthrough_backup_show: "Show this QR code to the watch-only software to load the wallet. It holds xpubs only: it can watch the wallet, not spend.",
     /// Text in `backup`, the seeds as files. `{}`: `medium.for_the()`, `medium.noun()`.
-    guide_backup_files: "Each seed as a file {}, unprotected: anyone who copies the {} can spend with it. Make it only if your plan needs it; a file never holds the passphrase.",
+    walkthrough_backup_files: "Each seed as a file {}, unprotected: anyone who copies the {} can spend with it. Make it only if your plan needs it; a file never holds the passphrase.",
     /// Text in `message`.
-    guide_a_signed_message: "Pick the wallet and the receive address someone asked you to prove you control. Only single-key wallets whose key is loaded here are listed.",
+    walkthrough_a_signed_message: "Pick the wallet and the receive address someone asked you to prove you control. Only single-key wallets whose key is loaded here are listed.",
     /// Text in `message`.
-    guide_type_the_message: "Type the message exactly as the other side gave it. A single changed character, a space or a line break, makes a different message and the signature will not check.",
+    walkthrough_type_the_message: "Type the message exactly as the other side gave it. A single changed character, a space or a line break, makes a different message and the signature will not check.",
     /// Text in `message`.
-    guide_message_formats: "Use the format the other side asked for. A format this address cannot use is greyed out.",
+    walkthrough_message_formats: "Use the format the other side asked for. A format this address cannot use is greyed out.",
     /// Text in `message`.
-    guide_signing_moves: "Signing moves no money and spends nothing. The result is three lines: the address, the signature and the message. Carry it out as a file or show it as a QR code.",
+    walkthrough_signing_moves: "Signing moves no money and spends nothing. The result is three lines: the address, the signature and the message. Carry it out as a file or show it as a QR code.",
     /// Text in `create`.
-    guide_create_kinds: "Choose how the wallet locks its coins. One key is simplest; a multisig needs several keys, so one lost or stolen key does not lose the money. Pick a kind your other software supports.",
+    walkthrough_create_kinds: "Choose how the wallet locks its coins. One key is simplest; a multisig needs several keys, so one lost or stolen key does not lose the money. Pick a kind your other software supports.",
     /// Text in `create`. `{}`: `m`, `keys`, `m`.
-    guide_of_every_spend: "{} of {}: every spend needs {} signatures. Keep the keys apart, on different devices or with different people, or the quorum protects nothing.",
+    walkthrough_of_every_spend: "{} of {}: every spend needs {} signatures. Keep the keys apart, on different devices or with different people, or the quorum protects nothing.",
     /// Text in `create`.
-    guide_fill_each_slot: "Fill each slot with a key loaded here, a New key, or a cosigner's xpub, scanned or from a file; Someone else adds it later keeps a slot open. Make the wallet, once every slot is filled, makes it.",
+    walkthrough_fill_each_slot: "Fill each slot with a key loaded here, a New key, or a cosigner's xpub, scanned or from a file; Someone else adds it later keeps a slot open. Make the wallet, once every slot is filled, makes it.",
     /// Text in `create`.
-    guide_choose_the_key: "Choose the key: one loaded here, or a new one made here from fresh randomness. A new key exists only in this session until its words are written down in the backup step.",
+    walkthrough_choose_the_key: "Choose the key: one loaded here, or a new one made here from fresh randomness. A new key exists only in this session until its words are written down in the backup step.",
     /// Text in `create`.
-    guide_load_the_wallet: "Load the wallet into the software you will receive with, by the QR code or the descriptor file, and compare these addresses. They must match before you send anything to it.",
+    walkthrough_load_the_wallet: "Load the wallet into the software you will receive with, by the QR code or the descriptor file, and compare these addresses. They must match before you send anything to it.",
     /// Text in `create`, making the vaults.
-    guide_create_vaults: "Make or unlock each vault now, before the keys exist, so each new seed can be saved into it.",
+    walkthrough_create_vaults: "Make or unlock each vault now, before the keys exist, so each new seed can be saved into it.",
     /// Text in `create`, bringing in the sticks. `{}`: `medium.noun()` twice.
-    guide_create_sticks: "Insert each vault's {} in turn. Keys are made only after the {} is removed.",
+    walkthrough_create_sticks: "Insert each vault's {} in turn. Keys are made only after the {} is removed.",
     /// Text in `create` and `restore`, Sticks and vaults. `{}`:
     /// `medium.nouns()`, then `medium.noun()`.
-    guide_create_vaults_how_many: "How many vaults and {} the backup uses, and which vault goes on which {}.",
+    walkthrough_create_vaults_how_many: "How many vaults and {} the backup uses, and which vault goes on which {}.",
     /// Text in `create` and `restore`, Use vaults.
-    guide_create_vaults_where: "Choose whether vaults are part of the backup. A vault keeps a further copy of the seeds, sealed under a passphrase, beside the paper.",
+    walkthrough_create_vaults_where: "Choose whether vaults are part of the backup. A vault keeps a further copy of the seeds, sealed under a passphrase, beside the paper.",
     /// Text in `restore`.
-    guide_the_kind_of_wallet: "Choose the kind written on the backup. A wallet description, scanned or in Files, sets the kind, the quorum and every key for you.",
+    walkthrough_the_kind_of_wallet: "Choose the kind written on the backup. A wallet description, scanned or in Files, sets the kind, the quorum and every key for you.",
     /// Text in `restore`.
-    guide_how_many_keys: "How many keys the wallet has and how many sign, as written on the backup, often as 2 of 3.",
+    walkthrough_how_many_keys: "How many keys the wallet has and how many sign, as written on the backup, often as 2 of 3.",
     /// Text in `restore`.
-    guide_the_descriptor: "The descriptor, wallet file, BIP 129 record or split sheets. Without one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard path.",
+    walkthrough_the_descriptor: "The descriptor, wallet file, BIP 129 record or split sheets. Without one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard path.",
     /// Text in `restore`.
-    guide_one_slot_per: "One slot per key: its seed and passphrase, if it has one, or a cosigner's xpub. A seed that is not one of the description's keys is refused, so a wrong word or passphrase is caught here.",
+    walkthrough_one_slot_per: "One slot per key: its seed and passphrase, if it has one, or a cosigner's xpub. A seed that is not one of the description's keys is refused, so a wrong word or passphrase is caught here.",
     /// Text in `restore`.
-    guide_compare_these: "Compare these addresses with the backup sheet or the wallet software that holds the history. If they match, the wallet is back as it was.",
+    walkthrough_compare_these: "Compare these addresses with the backup sheet or the wallet software that holds the history. If they match, the wallet is back as it was.",
     /// Text in `restore`.
-    guide_restore_session: "The wallet is in this session until you lock.",
+    walkthrough_restore_session: "The wallet is in this session until you lock.",
     /// Text in `keygen`.
-    guide_a_slip_39_key: "Choose the length: shares of 20 words for 128 bits or 33 words for 256. A SLIP-39 key has no BIP-39 words.",
+    walkthrough_a_slip_39_key: "Choose the length: shares of 20 words for 128 bits or 33 words for 256. A SLIP-39 key has no BIP-39 words.",
     /// Text in `keygen`.
-    guide_write_each_share: "Write each share down on its own paper, in order, and keep the papers apart: in different places or with different people. Any of them up to the number needed are the key; fewer are nothing.",
+    walkthrough_write_each_share: "Write each share down on its own paper, in order, and keep the papers apart: in different places or with different people. Any of them up to the number needed are the key; fewer are nothing.",
     /// Text in `keygen`.
-    guide_answer_from_your_papers: "Answer from your papers, not from memory: each share is asked in turn, every word once in a random order. A wrong answer means that share's paper needs correcting.",
+    walkthrough_answer_from_your_papers: "Answer from your papers, not from memory: each share is asked in turn, every word once in a random order. A wrong answer means that share's paper needs correcting.",
     /// Text in `keygen`.
-    guide_12_words_carry: "12 words carry 128 bits and 24 words 256. Either is beyond guessing; most wallets and signers read every length here.",
+    walkthrough_12_words_carry: "12 words carry 128 bits and 24 words 256. Either is beyond guessing; most wallets and signers read every length here.",
     /// Text in `keygen`, the Start card.
-    guide_keygen_start: "Choose how the key comes in: made here from randomness, typed from words you hold, or scanned from a SeedQR. SLIP-39 shares, codex32 and Seed XOR are here too.",
+    walkthrough_keygen_start: "Choose how the key comes in: made here from randomness, typed from words you hold, or scanned from a SeedQR. SLIP-39 shares, codex32 and Seed XOR are here too.",
     /// Text in `keygen`.
-    guide_randomness_you_make: "Dice, coins or cards make a secret that does not depend on this device's software. The device's generator is quicker, but trusts this device. A mix is as good as its best source.",
+    walkthrough_randomness_you_make: "Dice, coins or cards make a secret that does not depend on this device's software. The device's generator is quicker, but trusts this device. A mix is as good as its best source.",
     /// Text in `keygen`.
-    guide_randomness_you: "Dice, coins or cards do not depend on this device's software. In the first group each word is your entries' own bits; in the second they are hashed. The device's generator trusts this device.",
+    walkthrough_randomness_you: "Dice, coins or cards do not depend on this device's software. In the first group each word is your entries' own bits; in the second they are hashed. The device's generator trusts this device.",
     /// Text in `keygen`.
-    guide_roll_one_die_at_a_time: "Roll one die at a time and enter the face: 1 to 3 counts as tails, 4 to 6 as heads.",
+    walkthrough_roll_one_die_at_a_time: "Roll one die at a time and enter the face: 1 to 3 counts as tails, 4 to 6 as heads.",
     /// Text in `keygen`.
-    guide_keygen_dice_flips: "Roll one die at a time and enter the face: 1 to 3 is 0, 4 to 6 is 1. Every 11 rolls make one word, shown as its 11th roll comes in.",
+    walkthrough_keygen_dice_flips: "Roll one die at a time and enter the face: 1 to 3 is 0, 4 to 6 is 1. Every 11 rolls make one word, shown as its 11th roll comes in.",
     /// Text in `keygen`.
-    guide_keygen_dice_words: "Roll one die at a time and enter the face; six rolls make a word, as the line below shows. A 5 or 6 in the first five is rolled again. The last word's checksum is worked out for you.",
+    walkthrough_keygen_dice_words: "Roll one die at a time and enter the face; six rolls make a word, as the line below shows. A 5 or 6 in the first five is rolled again. The last word's checksum is worked out for you.",
     /// Text in `keygen`.
-    guide_flip_a_coin_and_enter: "Flip a coin and enter each result: heads is 1, tails 0. Every 11 flips make one word, shown as its 11th flip comes in. Never choose the side.",
+    walkthrough_flip_a_coin_and_enter: "Flip a coin and enter each result: heads is 1, tails 0. Every 11 flips make one word, shown as its 11th flip comes in. Never choose the side.",
     /// Text in `keygen`.
-    guide_roll_one_die: "Roll one die at a time and press the face that came up. Use a real die on a flat surface, not the same throw twice, and do not pick numbers in your head.",
+    walkthrough_roll_one_die: "Roll one die at a time and press the face that came up. Use a real die on a flat surface, not the same throw twice, and do not pick numbers in your head.",
     /// Text in `keygen`.
-    guide_keygen_coins: "Flip a coin and press what came up, once per flip. Catching the coin in the air is fine; choosing the side is not.",
+    walkthrough_keygen_coins: "Flip a coin and press what came up, once per flip. Catching the coin in the air is fine; choosing the side is not.",
     /// Text in `keygen`.
-    guide_shuffle_a_full: "Shuffle a full deck well, then turn cards over one at a time and enter each: its rank, then its suit. A card cannot come up twice from one deck; past 52, shuffle the deck again and keep going.",
+    walkthrough_shuffle_a_full: "Shuffle a full deck well, then turn cards over one at a time and enter each: its rank, then its suit. A card cannot come up twice from one deck; past 52, shuffle the deck again and keep going.",
     /// Text in `keygen`.
-    guide_type_the_hex: "Type the hex digits you made elsewhere. They become the key as they are, so they must already be random.",
+    walkthrough_type_the_hex: "Type the hex digits you made elsewhere. They become the key as they are, so they must already be random.",
     /// Text in `keygen`.
-    guide_point_the_camera: "Point the camera at something that moves or is lit unevenly and take each picture. The pictures are hashed and never kept.",
+    walkthrough_point_the_camera: "Point the camera at something that moves or is lit unevenly and take each picture. The pictures are hashed and never kept.",
     /// Text in `keygen`.
-    guide_this_device_asks: "This device asks the operating system's generator for 32 fresh bytes when this card opens. The key is those bytes, hashed. Nothing on the screen can show whether they were random.",
+    walkthrough_this_device_asks: "This device asks the operating system's generator for 32 fresh bytes when this card opens. The key is those bytes, hashed. Nothing on the screen can show whether they were random.",
     /// Text in `keygen`.
-    guide_keygen_lock_step: "Lock in adds the key these words make to its slot. A passphrase makes a different key: then both words and passphrase are needed to spend. Leave it empty for none.",
+    walkthrough_keygen_lock_step: "Lock in adds the key these words make to its slot. A passphrase makes a different key: then both words and passphrase are needed to spend. Leave it empty for none.",
     /// Text in `keygen`.
-    guide_lock_in_adds: "Lock in adds the key these words make; its fingerprint shows at once. Words and Quiz follow, to write the words down and check the copy.",
+    walkthrough_lock_in_adds: "Lock in adds the key these words make; its fingerprint shows at once. Words and Quiz follow, to write the words down and check the copy.",
     /// Text in `keygen`.
-    guide_these_counts: "These counts catch a biased die or entries typed instead of rolled. A caution is not a refusal; if one appears and you are not sure why, roll again.",
+    walkthrough_these_counts: "These counts catch a biased die or entries typed instead of rolled. A caution is not a refusal; if one appears and you are not sure why, roll again.",
     /// Text in `keygen`.
-    guide_write_the_words: "Write the words in order on paper before any money goes to this key. Anyone with the words can spend; without them, a lost device loses the money.",
+    walkthrough_write_the_words: "Write the words in order on paper before any money goes to this key. Anyone with the words can spend; without them, a lost device loses the money.",
     /// Text in `keygen`.
-    guide_answer_from_your: "Answer from your paper, not from memory: each word is asked once, in a random order. A wrong answer means the paper needs correcting.",
+    walkthrough_answer_from_your: "Answer from your paper, not from memory: each word is asked once, in a random order. A wrong answer means the paper needs correcting.",
     // ----- held (faraday-core/src/held.rs) -----
     /// Toast in `backup_settle`. `{}`: `names.join(", ")`.
     held_signs_from_now: "{} signs from now on",
@@ -5310,7 +5310,7 @@ strings! {
     nav_close: "Close",
     /// The overflow menu of a compact top app bar too full for its ?:
     /// what the ? opens, named as the ?'s tooltip names it.
-    bar_menu_learn: "Guide",
+    bar_menu_guide: "Guide",
     /// The overflow menu's keyboard, while the keyboard is put away.
     bar_menu_show_keyboard: "Show keyboard",
     /// The overflow menu's keyboard, while the keyboard is up.
@@ -5337,7 +5337,7 @@ strings! {
     /// Text in `sidebar`. `{}`: `v`.
     sidebar_open_n: "{} open",
     /// Row in `sidebar`.
-    sidebar_learn: "Guide",
+    sidebar_guide: "Guide",
     /// Text in `sidebar`.
     sidebar_bring_in_button: "Bring in",
     /// Text in `sidebar`.
@@ -8204,55 +8204,55 @@ strings! {
     secure_boot_framework: "Administer Secure Boot → Enforce Secure Boot",
     /// Where the Secure Boot setting is in Surface's BIOS.
     secure_boot_surface: "Security → Secure Boot",
-    // ----- learn (faraday-core/src/screens/sheets.rs) -----
-    /// Button in `learn_sheet`.
-    learn_done: "Done",
+    // ----- guide (faraday-core/src/screens/sheets.rs) -----
+    /// Button in `guide_sheet`.
+    guide_done: "Done",
     /// Text button at the foot of the guide's sheet and pane: opens the
     /// contents.
-    learn_contents: "Contents",
+    guide_contents: "Contents",
     /// Heading of the contents' first group, the place the guide was
     /// opened from.
-    learn_here: "Here",
+    guide_here: "Here",
     /// A heading of the guide's contents.
-    learn_group_get: "Get Faraday",
+    guide_group_get: "Get Faraday",
     /// A heading of the guide's contents.
-    learn_group_first: "First start",
+    guide_group_first: "First start",
     /// A heading of the guide's contents.
-    learn_group_keys: "Keys",
+    guide_group_keys: "Keys",
     /// A heading of the guide's contents.
-    learn_group_backups: "Backups",
+    guide_group_backups: "Backups",
     /// A heading of the guide's contents.
-    learn_group_wallets: "Wallets",
+    guide_group_wallets: "Wallets",
     /// A heading of the guide's contents.
-    learn_group_spending: "Spending",
+    guide_group_spending: "Spending",
     /// A heading of the guide's contents.
-    learn_group_vaults: "Vaults",
+    guide_group_vaults: "Vaults",
     /// A heading of the guide's contents.
-    learn_group_tools: "Tools",
+    guide_group_tools: "Tools",
     /// A heading of the guide's contents.
-    learn_group_settings: "Settings",
+    guide_group_settings: "Settings",
     /// A heading of the guide's contents.
-    learn_group_starter: "The Starter",
+    guide_group_starter: "The Starter",
     /// The guide's own tab, beside Cryptography, where a place offers it.
-    learn_tab_guide: "Guide",
-    /// The close button's label in Learn's supporting pane
-    /// (`screens/learn_pane.rs`).
-    learn_close: "Close",
-    /// The headline of Learn's supporting pane, at the start of its
-    /// header row (`screens/learn_pane.rs`).
-    learn_pane_title: "Guide",
-    /// Tooltip on the pin of Learn's supporting pane while it is off: a
-    /// press keeps the pane open across screens (`screens/learn_pane.rs`).
-    learn_pin: "Keep open",
-    /// Tooltip on the pin of Learn's supporting pane while it is on: a
+    guide_tab_guide: "Guide",
+    /// The close button's label in the guide's supporting pane
+    /// (`screens/guide_pane.rs`).
+    guide_close: "Close",
+    /// The headline of the guide's supporting pane, at the start of its
+    /// header row (`screens/guide_pane.rs`).
+    guide_pane_title: "Guide",
+    /// Tooltip on the pin of the guide's supporting pane while it is off: a
+    /// press keeps the pane open across screens (`screens/guide_pane.rs`).
+    guide_pin: "Keep open",
+    /// Tooltip on the pin of the guide's supporting pane while it is on: a
     /// press lets the pane close at the next screen.
-    learn_unpin: "Unpin",
+    guide_unpin: "Unpin",
     /// Tooltip on the top app bar's How Faraday does it button, in Faraday and the Starter (`docs/CRYPTO-LEARN.md` §8.1).
     tip_how: "Cryptography",
-    /// The ⋮ row on a compact bar for the button, first above Learn (§8.3).
+    /// The ⋮ row on a compact bar for the button, first above the guide (§8.3).
     bar_menu_how: "Cryptography",
-    /// The first tab of the Learn sheet and of the supporting pane (§8.2).
-    learn_tab_how: "Cryptography",
+    /// The first tab of the guide sheet and of the supporting pane (§8.2).
+    guide_tab_how: "Cryptography",
     /// The head of the Starter's sheet of blocks (§8.4).
     starter_how_title: "Cryptography",
     /// The foot of the Starter's sheet of blocks.
@@ -12390,19 +12390,19 @@ strings! {
     /// What a symbol is the fusion of. `{}`: the kind, the symbols.
     codex32_fused_from: "{}: {}",
     /// Guided: the Scheme card.
-    guide_codex32_scheme: "Choose how long each string is and how many strings any rebuild needs. Continue goes on to the identifier.",
+    walkthrough_codex32_scheme: "Choose how long each string is and how many strings any rebuild needs. Continue goes on to the identifier.",
     /// Guided: the Identifier card.
-    guide_codex32_identifier: "Type four characters that name this set on every string. Continue goes on to where the randomness comes from.",
+    walkthrough_codex32_identifier: "Type four characters that name this set on every string. Continue goes on to where the randomness comes from.",
     /// Guided: the Entropy card.
-    guide_codex32_entropy: "Choose five dice rolled on the de-biasing sheet, or characters you made on paper. Continue opens the sheets.",
+    walkthrough_codex32_entropy: "Choose five dice rolled on the de-biasing sheet, or characters you made on paper. Continue opens the sheets.",
     /// Guided: the entry.
-    guide_codex32_enter: "Enter each roll or character; the sheets fill as you go, as on paper. Continue opens the finished worksheets.",
+    walkthrough_codex32_enter: "Enter each roll or character; the sheets fill as you go, as on paper. Continue opens the finished worksheets.",
     /// Guided: the worksheets.
-    guide_codex32_sheets: "Read each worksheet against your paper, a tab each. Continue shows the strings to write.",
+    walkthrough_codex32_sheets: "Read each worksheet against your paper, a tab each. Continue shows the strings to write.",
     /// Guided: the strings.
-    guide_codex32_strings: "Write each string down, then type it back to check the copy. Continue goes to the next string.",
+    walkthrough_codex32_strings: "Write each string down, then type it back to check the copy. Continue goes to the next string.",
     /// Guided: Strings made.
-    guide_codex32_made: "These facts let another device check the strings. Lock in loads the key the strings make.",
+    walkthrough_codex32_made: "These facts let another device check the strings. Lock in loads the key the strings make.",
     // ----- Codex32 strings typed, checked and scanned (docs/CODEX32.md §8.1, §8.3, §8.5, §10.1), faraday-core -----
     /// The same codex32 string typed or scanned again: nothing changes.
     codex32_form_already_in: "Already in",
@@ -12731,7 +12731,7 @@ strings! {
     /// name, shown alone where this would be cut.
     bar_back_to: "Back to {}",
     /// Tooltip on the top app bar's ?.
-    tip_learn: "Guide",
+    tip_guide: "Guide",
     /// Tooltip on the ⋮ that opens a menu.
     tip_more: "More",
     /// Tooltip on the Lock icon.

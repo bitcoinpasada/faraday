@@ -1,7 +1,7 @@
 //! Material 3's tabs (`docs/DESIGN.md` §4): a row of labels over a rule
 //! in outline-variant, the one shown marked by an indicator in primary.
 //! Primary tabs stand at the top of a pane and name its main pages (the
-//! Learn sheet's and pane's pages); secondary tabs part what is inside
+//! the guide sheet's and pane's pages); secondary tabs part what is inside
 //! one card (codex32's worksheets). Where the labels all fit, each tab
 //! takes an equal share of the row, or its own width where one label is
 //! wider than a share; where they do not, the row scrolls (Material 3

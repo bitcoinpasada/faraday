@@ -14,7 +14,7 @@ pub enum StartGuide {
     NoStart,
     /// Replacing Faraday on a stick.
     KeepData,
-    /// A maker family's page, by its id in `faraday_learn::MAKERS`
+    /// A maker family's page, by its id in `faraday_guide::MAKERS`
     /// (§7.6).
     Maker(&'static str),
     /// What Secure Boot and BitLocker are (§3.1b).
@@ -49,13 +49,13 @@ impl StartGuide {
     }
 
     /// The page.
-    pub fn page(self) -> Option<&'static faraday_learn::Page> {
+    pub fn page(self) -> Option<&'static faraday_guide::Page> {
         faraday_start::page(self.id())
     }
 
     /// Its address on the website (§7.4).
     pub fn address(self) -> String {
-        faraday_learn::guide_address(self.id())
+        faraday_guide::guide_address(self.id())
     }
 
     /// The guide for this computer (§3.4): on a Mac, whatever system it
@@ -72,7 +72,7 @@ impl StartGuide {
             // expected, and Linux's page is the nearer of the two.
             Os::Linux | Os::MacOs => StartGuide::StartLinux,
         };
-        match faraday_learn::guide_id(&c.maker, &c.family, &c.model, general.id()) {
+        match faraday_guide::guide_id(&c.maker, &c.family, &c.model, general.id()) {
             id if id == general.id() => general,
             id => StartGuide::Maker(id),
         }

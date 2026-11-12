@@ -238,7 +238,7 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
         open,
         default: false,
         toggle: fa(F::Open(s.n())),
-        guide: setup_guide(app, f, s),
+        walkthrough: setup_guide(app, f, s),
     }
 }
 
@@ -252,7 +252,7 @@ fn setup_guide(app: &View, f: &BackupFlow, s: Step) -> Option<String> {
     let (m, ms) = (app.medium.noun(), app.medium.nouns());
     match s {
         Step::Sticks => Some(fill(FEN.backup_flow_guide_sticks, &[m, ms, m])),
-        Step::Vaults => Some(FEN.guide_create_vaults.to_string()),
+        Step::Vaults => Some(FEN.walkthrough_create_vaults.to_string()),
         _ => None,
     }
 }

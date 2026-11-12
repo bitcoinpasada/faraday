@@ -805,7 +805,7 @@ fn the_guide_is_the_makers_page_where_there_is_one() {
     assert_eq!(guide_for("", "", "", Os::Linux), "linux");
     assert_eq!(guide_for("", "", "", Os::Windows), "windows");
     // Every maker page is there to open.
-    for m in faraday_core::learn::MAKERS {
+    for m in faraday_core::guide::MAKERS {
         assert!(StartGuide::Maker(m.id).page().is_some(), "no page {}", m.id);
     }
 }

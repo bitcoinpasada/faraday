@@ -183,7 +183,7 @@ cannot quietly undo it:
   - `Faraday`'s top-level field count, which only falls;
   - the files allowed an inherent `impl Faraday`: the list only shrinks;
   - dependency direction: a `core/` crate has no `path` dependency outside
-    `core/`, and faraday-ui, faraday-draw, faraday-strings and faraday-learn
+    `core/`, and faraday-ui, faraday-draw, faraday-strings and faraday-guide
     depend on neither faraday-core nor faraday-starter.
 - **`cargo vet --locked`** in `just lint` (F71), **`cargo-deny`**, fmt,
   and clippy with warnings as errors.

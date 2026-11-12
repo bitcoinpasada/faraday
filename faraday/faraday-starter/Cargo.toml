@@ -23,7 +23,7 @@ faraday-crypto = { path = "../../core/faraday-crypto" }
 # Faraday's drawing.
 faraday-ui = { path = "../faraday-ui" }
 # Faraday's own Learn pages.
-faraday-learn = { path = "../faraday-learn" }
+faraday-guide = { path = "../faraday-guide" }
 # The website's guides to starting a computer from the stick.
 faraday-start = { path = "../faraday-start" }
 # A boot partition's refusals: faraday-fat's kinds, worded by faraday-files.
@@ -40,7 +40,7 @@ zeroize = { workspace = true, features = ["alloc"] }
 # The screens written as PNG by `examples/snap.rs` (`just
 # faraday-starter-snap`); never in the Starter itself.
 png.workspace = true
-# The test kit's `learn_scroll_to`, for the tests and `examples/snap.rs`;
+# The test kit's `guide_scroll_to`, for the tests and `examples/snap.rs`;
 # never in the Starter itself.
 faraday-core = { path = "../faraday-core", features = ["testkit"] }
 # Faraday Demo's app as the shell makes it, for the tests and

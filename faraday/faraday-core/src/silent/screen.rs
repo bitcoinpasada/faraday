@@ -35,7 +35,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: s.open == Some(k),
             default: false,
             toggle: Action::SStep(k),
-            guide: Some(guide(k)),
+            walkthrough: Some(guide(k)),
         })
         .collect();
     let col = flow::Column {

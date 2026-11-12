@@ -22,7 +22,7 @@ use crate::ui::Paint;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
-use crate::{Action, flow, guide};
+use crate::{Action, flow, walkthrough};
 use faraday_draw::widgets::Icon;
 use faraday_ui::Status;
 
@@ -115,7 +115,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // Once locked in, nothing before Key changes: no Change.
             default: !k.locked && matches!(s, kstep::START | kstep::LENGTH | kstep::SOURCE),
             toggle: Action::KStep(s),
-            guide: guided(s).then(|| guide::keygen(s, k)),
+            walkthrough: guided(s).then(|| walkthrough::keygen(s, k)),
         })
         .collect();
     // Make codex32 shares draws a card each of its own (`docs/CODEX32.md` §6).

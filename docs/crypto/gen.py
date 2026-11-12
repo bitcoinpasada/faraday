@@ -39,7 +39,7 @@ actions on that area compare Faraday, wholly or in part, with an implementation
 Faraday's authors wrote (`independence`, F160, F177), that it is, or is in part,
 not checked against an outside source.
 
-faraday/faraday-learn/src/how.rs (the Learn blocks) is written by gen_how.py,
+faraday/faraday-guide/src/how.rs (the Learn blocks) is written by gen_how.py,
 called from `generated`, with its CONSTRUCTIONS (docs/CRYPTO-LEARN.md §18) from
 here: each paragraph's placeholders filled from the code and each table written
 from it (`render_construction`, which check.py also runs). Standard library only
@@ -61,7 +61,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 MANIFEST = "docs/crypto/actions.toml"
 STANDARDS = "docs/STANDARDS.md"
 AUDIT = "docs/AUDIT.md"
-HOW = "faraday/faraday-learn/src/how.rs"
+HOW = "faraday/faraday-guide/src/how.rs"
 AREAS = "tools/crosscheck"
 CC_README = "tools/crosscheck/README.md"
 
@@ -807,7 +807,7 @@ def rs_str(s):
 
 
 def gen_constructions(root, data):
-    """The CONSTRUCTIONS part of faraday/faraday-learn/src/how.rs, which gen_how.py puts
+    """The CONSTRUCTIONS part of faraday/faraday-guide/src/how.rs, which gen_how.py puts
     after the blocks."""
     out = ["use crate::construction::{Construction, Item, Part, Table};", "",
            "/// Every construction (`docs/CRYPTO-LEARN.md` §18), in the manifest's order.",

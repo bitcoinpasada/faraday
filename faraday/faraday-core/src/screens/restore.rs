@@ -8,7 +8,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, short};
 use crate::wallet::{FileKind, Session, fp_text};
-use crate::{Action, Screen, flow, guide};
+use crate::{Action, Screen, flow, walkthrough};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, GAP_SMALL, LABEL_L, LABEL_M};
 use faraday_ui::parts::wrap_buttons;
 
@@ -87,7 +87,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 // Unanswered, it has no value to change.
                 || (k == rstep::WHERE && r.vaults.answer.is_some()),
             toggle: Action::RStep(k),
-            guide: (r.open == Some(k)).then(|| guide::restore(k, app.medium)),
+            walkthrough: (r.open == Some(k)).then(|| walkthrough::restore(k, app.medium)),
         })
         .collect();
     let col = flow::Column {

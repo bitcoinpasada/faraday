@@ -47,7 +47,7 @@
 //! - Screens and drawing: `screens` (the frame, the sidebar, the sheets and
 //!   the screens with no area folder), `drawing`, each area's `screen.rs`
 //!   (`vault/screen.rs`, `keygen/screen.rs`), `glance` (a wallet at a
-//!   glance), `guide` (Guided mode's walk-through), `scan_key`, `scan_read`
+//!   glance), `walkthrough` (Guided mode's walk-through), `scan_key`, `scan_read`
 //!   (what a code read is), `pdf` (the printed sheets), `picture` (a QR code to keep), `demo` (what Practice refuses),
 //!   `devices` (what else captures the screen or the keys) and `edid` (what a screen says it is).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`, its checksum worksheet, `codex32/worksheet_screen.rs`, and its dice and the booklet's dice sheet, `codex32/dice_screen.rs`, and the entry's input panel, `codex32/input_panel.rs`; New key's dice in the input panel, `keygen/dice_panel.rs`), `seeds`
@@ -67,19 +67,19 @@
 //! - Faraday Demo's host: `host` (the strip at the window's foot, the
 //!   preview frame and the pointer carried into the app, with
 //!   `host/screen.rs` and its lists under a finger in `host/scroll.rs`; `docs/DESKTOP-HOST.md`).
-//! - Support: `slow` (the presses whose work waits for a frame), `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/put.rs`, Use a sample, whose buttons Faraday Demo's strip shows), `tools`, `testkit`.
+//! - Support: `slow` (the presses whose work waits for a frame), `wordlist`, `guide`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/put.rs`, Use a sample, whose buttons Faraday Demo's strip shows), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
 //! come before any action, then sends each `Action` to its area's
 //! `<area>_act` (`create_act` in `create`, `restore_act` in `restore`,
 //! `backup_act` in `wallet_backup`, `wallet_act` in `wallet`, `visit_act` in
 //! `visit_taken` and the like). Only navigation, Back, the settings and the
-//! Learn sheet are handled in `act_inner` itself.
+//! the guide sheet are handled in `act_inner` itself.
 //!
 //! Every `Screen` variant and the file that draws it. An area draws in its
 //! own `screen.rs`; a screen with no area folder is in `screens/`, whose
 //! `mod.rs` holds the frame and the dispatch, `sidebar.rs` the sidebar, `sheets.rs` the sheets,
-//! `learn_pane.rs` Learn's supporting pane and `parts.rs` what two or more screens share.
+//! `guide_pane.rs` the guide's supporting pane and `parts.rs` what two or more screens share.
 //!
 //! | `Screen` | Drawn in |
 //! |---|---|
@@ -172,12 +172,12 @@ pub mod dice_entry;
 mod drawing;
 pub mod edid;
 pub mod glance;
-mod guide;
 pub mod pdf;
 pub mod picture;
 mod scan_key;
 pub mod scan_read;
 mod screens;
+mod walkthrough;
 
 // Flows around a key, seed, words or passphrase; key use is faraday-keys (F70).
 pub mod bip85;
@@ -238,9 +238,9 @@ pub mod codes;
 pub mod names;
 pub mod transfer;
 
-// Support: word lists, the Learn pages, the tools page, test data.
+// Support: word lists, the guide pages, the tools page, test data.
+pub mod guide;
 pub mod host;
-pub mod learn;
 pub mod modes;
 pub mod samples;
 #[cfg(feature = "testkit")]
@@ -469,8 +469,8 @@ pub enum Sheet {
     Locked,
     /// A new input device, waiting to be believed or ignored.
     NewInput,
-    /// The Learn pages for the screen on show.
-    Learn,
+    /// The guide pages for the screen on show.
+    Guide,
     /// A word list, every word with its number, over the screen it was opened from.
     WordList,
     /// A secret on its way out: into a vault, or the Outbox after a warning.
@@ -918,8 +918,8 @@ pub struct Faraday {
     /// New key: the key being made, the keys made this session, the
     /// camera and the shell's randomness source.
     keygen: keygen::KeyGenArea,
-    /// The Learn sheet and the steps ticked on its pages.
-    learn: learn::LearnArea,
+    /// The guide sheet and the steps ticked on its pages.
+    guide: guide::GuideArea,
     /// The word-list sheet, while it is open.
     wordlist: wordlist::WordListArea,
     /// BIP-85 being derived.
@@ -970,7 +970,7 @@ pub struct Faraday {
     pub online: bool,
     /// A seed typed here is on an online computer: the seed line is drawn.
     pub seed_line: bool,
-    /// Held by another app that shows only Transfer and the Learn sheet
+    /// Held by another app that shows only Transfer and the guide sheet
     /// (the Starter, `docs/STARTER.md` §2), set with [`Faraday::online`]:
     /// no sidebar, no Home and no way back drawn: the holder's top app bar
     /// is above the frame (§3.1d); leaving Transfer or a sheet ends it.
@@ -1073,7 +1073,7 @@ impl Faraday {
             create: create::CreateArea::default(),
             restore: restore::RestoreArea::default(),
             keygen: keygen::KeyGenArea::default(),
-            learn: learn::LearnArea::default(),
+            guide: guide::GuideArea::default(),
             wordlist: wordlist::WordListArea::default(),
             bip85: bip85::Bip85Area::default(),
             silent: silent::SilentArea::default(),
@@ -2298,7 +2298,7 @@ impl Faraday {
                     // A copy's scan closed by the person: no match.
                     self.backup.scan_closed(&scan.purpose);
                 }
-                self.learn_cancel();
+                self.guide_cancel();
                 self.qr.close();
                 self.glance.set_chart(None);
                 self.glance.work_mut().secret.clear();
@@ -2385,11 +2385,11 @@ impl Faraday {
             Action::Convert(_) | Action::KefTool(_) | Action::QrTool(_) => self.tool_act(action),
             Action::OtsCheck(k) => crate::ots_check::act(self, k),
             Action::CoreWallet(k) => crate::core_wallet::tool::act(self, k),
-            Action::Learn | Action::LearnClose | Action::How => self.learn_press(action),
+            Action::Guide | Action::GuideClose | Action::How => self.guide_press(action),
             Action::NavMenu(to) => self.nav_menu(to),
-            Action::LearnShares => self.learn_shares(),
-            Action::LearnExtraCopies => self.learn_extra_copies(),
-            Action::LearnPin => self.learn_button(action),
+            Action::GuideShares => self.guide_shares(),
+            Action::GuideExtraCopies => self.guide_extra_copies(),
+            Action::GuidePin => self.guide_button(action),
             Action::Osk(p) => self.osk_press(p),
             a @ (Action::ScanPaste
             | Action::PasteWords
@@ -2454,13 +2454,13 @@ impl Faraday {
             | Action::SecretHold
             | Action::SecretUnprotected
             | Action::SecretForm(..)) => self.secret_act(a),
-            a @ (Action::LearnPage(_)
-            | Action::LearnTabHow
-            | Action::LearnTabGuide
-            | Action::LearnContents
-            | Action::LearnHere) => {
-                self.learn.show_page(a);
-                self.learn_bar_synced();
+            a @ (Action::GuidePage(_)
+            | Action::GuideTabHow
+            | Action::GuideTabGuide
+            | Action::GuideContents
+            | Action::GuideHere) => {
+                self.guide.show_page(a);
+                self.guide_bar_synced();
             }
             Action::WordList(a) => self.wordlist.act(a, &mut self.sheet),
             Action::KeyGen(_)
@@ -3419,7 +3419,7 @@ impl Faraday {
         if key == KeyIn::Paste {
             return self.paste();
         }
-        if self.learn_key(key) || self.keygen_walk_key(key) || self.scroll_key(key) {
+        if self.guide_key(key) || self.keygen_walk_key(key) || self.scroll_key(key) {
             return;
         }
         if self.board_key(key) || self.gpg_restore_key(key) || self.chart_key(key) {
@@ -3594,7 +3594,7 @@ impl Faraday {
             ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
             s @ (ui::Slot::ListPane | ui::Slot::Sidebar) => self.scroll.offset_of(s),
             ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
-            ui::Slot::LearnPane => Some(self.learn.scroll_mut()),
+            ui::Slot::GuidePane => Some(self.guide.scroll_mut()),
             ui::Slot::Worksheet | ui::Slot::DemoPane | ui::Slot::InputPanel => self.codex32_slot(),
             ui::Slot::Page | ui::Slot::WorksheetWhole | ui::Slot::DiceWork => self.page_slot(),
         }
@@ -3918,7 +3918,7 @@ impl Faraday {
         self.vault_code_refresh();
         self.vault_codes_refresh();
         self.codex32_refit();
-        self.learn_place();
+        self.guide_place();
     }
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]

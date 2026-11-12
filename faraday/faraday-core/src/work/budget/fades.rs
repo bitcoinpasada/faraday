@@ -1,7 +1,7 @@
 //! A fade's steps cost a blend, not a draw (`docs/MOTION.md` §3.5): once
 //! the frame that shows a change has drawn the new screen, the steps of
 //! the fade that nothing else asks a frame for blend it, kept aside, with
-//! the old one, so a screen that is slow to draw, the Learn sheet over a
+//! the old one, so a screen that is slow to draw, the guide sheet over a
 //! frosted page, fades as smoothly as any other.
 
 use faraday_shell_api::{App, Event};
@@ -25,8 +25,8 @@ fn the_steps_of_a_fade_draw_no_screen_again() {
     let mut now = 1_000;
     for (name, change) in [
         ("Settings", Action::Nav(Screen::Settings)),
-        ("the Learn sheet", Action::Learn),
-        ("the Learn sheet's contents", Action::LearnContents),
+        ("the Learn sheet", Action::Guide),
+        ("the Learn sheet's contents", Action::GuideContents),
         ("the Learn sheet's page", Action::Cancel),
         ("Learn closed", Action::Cancel),
         (

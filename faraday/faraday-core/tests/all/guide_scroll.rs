@@ -9,7 +9,7 @@ fn window(width: u16, height: u16) -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.event(display(width, height));
     app.press(Action::Nav(Screen::Settings));
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = app.frame();
     app
 }

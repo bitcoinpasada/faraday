@@ -82,15 +82,15 @@ fn tap(app: &mut Faraday, action: Action) {
 }
 
 #[test]
-fn homes_grid_offers_learn_and_not_add_a_key() {
+fn homes_grid_offers_guide_and_not_add_a_key() {
     let mut app = panel();
-    find(&mut app, Action::Learn);
+    find(&mut app, Action::Guide);
     assert!(
         on_panel(&mut app, Action::Entry(None)).is_none(),
         "Add a key is reached from Wallets now, not Home"
     );
-    tap(&mut app, Action::Learn);
-    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
+    tap(&mut app, Action::Guide);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Guide));
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn home_offers_every_place_without_a_sidebar() {
 }
 
 /// Spend left the small Home grid (`docs/history/SIMPLIFY.md` §6.2): the
-/// Wallets empty state and the Learn sheet reach it instead.
+/// Wallets empty state and the guide sheet reach it instead.
 #[test]
 fn homes_grid_has_no_spend_tile() {
     let mut app = panel();
@@ -397,7 +397,7 @@ fn scan_never_covers_a_tile() {
         Action::Nav(Screen::WalletsStart),
         Action::Nav(Screen::Vaults),
         Action::Nav(Screen::Files),
-        Action::Learn,
+        Action::Guide,
         Action::Nav(Screen::Catalog),
         Action::Nav(Screen::Settings),
     ] {

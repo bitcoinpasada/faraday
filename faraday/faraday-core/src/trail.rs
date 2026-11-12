@@ -4,7 +4,7 @@
 //! Every input that takes the person from one screen to another puts the
 //! screen it left on the trail, as it was seen: which wallet's card, the
 //! chart or the card, how far each list was scrolled, which vault and
-//! kind, the Learn sheet over it. Back, a flow's Cancel and the Done of a
+//! kind, the guide sheet over it. Back, a flow's Cancel and the Done of a
 //! flow that returns to where it was opened from take the last screen on
 //! the trail that can still be shown and put it back as it was. A screen
 //! reached again by any other way cuts the trail where it was, so the
@@ -312,9 +312,9 @@ pub(crate) trait StepFlow: Sync {
 pub(crate) struct Spot {
     /// The screen.
     screen: Screen,
-    /// The Learn sheet was open over it, the one sheet that is put back:
+    /// The guide sheet was open over it, the one sheet that is put back:
     /// what it shows is kept while it is closed.
-    learn: bool,
+    guide: bool,
     /// The Lock sheet was open over it, asking before a lock seals a
     /// changed vault: put back after Add randomness opened from it
     /// (`docs/OWN-RANDOMNESS.md` §8.2).
@@ -389,7 +389,7 @@ impl Faraday {
     pub(crate) fn spot(&self) -> Spot {
         Spot {
             screen: self.screen,
-            learn: self.sheet == Some(Sheet::Learn),
+            guide: self.sheet == Some(Sheet::Guide),
             lock_ask: self.sheet == Some(Sheet::LockAsk),
             wallet: self.wallets.wallet(),
             glance: self.glance.open(),
@@ -547,13 +547,13 @@ impl Faraday {
 
     /// Puts `s` back on show as it was seen.
     fn land(&mut self, s: Spot) {
-        if self.screen != s.screen && self.sheet != Some(Sheet::Learn) {
+        if self.screen != s.screen && self.sheet != Some(Sheet::Guide) {
             // A sheet the way back opened belongs to where it went.
             self.sheet = None;
         }
         self.screen = s.screen;
-        if s.learn {
-            self.sheet = Some(Sheet::Learn);
+        if s.guide {
+            self.sheet = Some(Sheet::Guide);
         }
         if s.lock_ask {
             self.sheet = Some(Sheet::LockAsk);
@@ -629,8 +629,8 @@ impl Faraday {
             // A sheet's own way out, as Escape takes it.
             (Some(Sheet::Lock), _) => {}
             (Some(_), _) => self.act(Action::Cancel),
-            // Learn's supporting pane goes first, as Escape takes it.
-            (None, _) if self.learn_pane_shown() => self.learn_close(),
+            // The guide's supporting pane goes first, as Escape takes it.
+            (None, _) if self.guide_pane_shown() => self.guide_close(),
             // Out of the screen, where the link lands (F77); a step
             // within it, as the link takes it.
             (None, Some(a)) => self.act(self.as_back(a)),

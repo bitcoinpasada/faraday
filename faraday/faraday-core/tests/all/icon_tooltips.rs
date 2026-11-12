@@ -43,7 +43,7 @@ fn count(app: &mut Faraday, label: &str) -> usize {
 fn labels() -> [&'static str; 7] {
     [
         EN.tip_back,
-        EN.tip_learn,
+        EN.tip_guide,
         EN.tip_more,
         EN.tip_lock,
         EN.tip_keyboard,
@@ -59,24 +59,24 @@ fn all(app: &mut Faraday) -> usize {
 #[test]
 fn resting_the_pointer_on_the_question_mark_names_it_and_leaving_hides_it() {
     let mut app = app();
-    let (x, y) = app.where_offered(Action::Learn).expect("the ? is offered");
-    let before = count(&mut app, EN.tip_learn);
+    let (x, y) = app.where_offered(Action::Guide).expect("the ? is offered");
+    let before = count(&mut app, EN.tip_guide);
     app.event(Event::Hover { x, y });
     tick(&mut app, 300);
     assert_eq!(
-        count(&mut app, EN.tip_learn),
+        count(&mut app, EN.tip_guide),
         before,
         "not before the delay"
     );
     tick(&mut app, 300);
-    assert_eq!(count(&mut app, EN.tip_learn), before + 1, "after it");
+    assert_eq!(count(&mut app, EN.tip_guide), before + 1, "after it");
     app.event(Event::Hover { x, y: y + 300 });
-    assert_eq!(count(&mut app, EN.tip_learn), before, "the pointer gone");
+    assert_eq!(count(&mut app, EN.tip_guide), before, "the pointer gone");
     app.event(Event::Hover { x, y });
     tick(&mut app, 600);
-    assert_eq!(count(&mut app, EN.tip_learn), before + 1);
+    assert_eq!(count(&mut app, EN.tip_guide), before + 1);
     app.event(Event::HoverEnd);
-    assert_eq!(count(&mut app, EN.tip_learn), before);
+    assert_eq!(count(&mut app, EN.tip_guide), before);
 }
 
 #[test]
@@ -102,7 +102,7 @@ fn the_keyboard_on_an_icon_button_names_it_and_escape_hides_it() {
 #[test]
 fn a_finger_on_an_icon_button_shows_no_tooltip_and_the_lift_presses_it() {
     let mut app = app();
-    let (x, y) = app.where_offered(Action::Learn).expect("the ? is offered");
+    let (x, y) = app.where_offered(Action::Guide).expect("the ? is offered");
     let before = all(&mut app);
     let page = app.drawn_texts();
     app.event(Event::Touch {
@@ -124,18 +124,18 @@ fn a_finger_on_an_icon_button_shows_no_tooltip_and_the_lift_presses_it() {
 #[test]
 fn a_press_with_the_pointer_hides_the_tooltip() {
     let mut app = app();
-    let (x, y) = app.where_offered(Action::Learn).expect("the ? is offered");
-    let before = count(&mut app, EN.tip_learn);
+    let (x, y) = app.where_offered(Action::Guide).expect("the ? is offered");
+    let before = count(&mut app, EN.tip_guide);
     app.event(Event::Hover { x, y });
     tick(&mut app, 600);
-    assert_eq!(count(&mut app, EN.tip_learn), before + 1);
+    assert_eq!(count(&mut app, EN.tip_guide), before + 1);
     app.event(Event::Touch {
         x,
         y,
         phase: TouchPhase::Down,
     });
     assert_eq!(
-        count(&mut app, EN.tip_learn),
+        count(&mut app, EN.tip_guide),
         before,
         "a press takes it off"
     );

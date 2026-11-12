@@ -39,7 +39,7 @@ members = [
     "faraday/faraday-sb",
     "faraday/faraday-payload",
     "faraday/faraday-strings",
-    "faraday/faraday-learn",
+    "faraday/faraday-guide",
     "faraday/faraday-start",
     "faraday/faraday-intake",
     "faraday/shells/window",

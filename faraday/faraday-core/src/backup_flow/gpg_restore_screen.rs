@@ -64,7 +64,7 @@ pub(crate) fn head_card(f: &BackupFlow, r: &RestoreFrom) -> flow::Card {
         open: f.live.open == Some(HEAD),
         default: false,
         toggle: ra(R::Head),
-        guide: None,
+        walkthrough: None,
     }
 }
 

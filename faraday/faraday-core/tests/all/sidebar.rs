@@ -69,15 +69,15 @@ fn fp(app: &Faraday, k: usize) -> [u8; 4] {
 }
 
 #[test]
-fn the_sidebar_offers_learn_and_opens_the_learn_sheet() {
+fn the_sidebar_offers_guide_and_opens_the_guide_sheet() {
     let mut app = with(0, 0);
-    assert!(app.offers(Action::Learn));
-    app.press(Action::Learn);
-    assert_eq!(app.sheet, Some(Sheet::Learn));
+    assert!(app.offers(Action::Guide));
+    app.press(Action::Guide);
+    assert_eq!(app.sheet, Some(Sheet::Guide));
 }
 
 /// Spend left the sidebar (`docs/history/SIMPLIFY.md` §6.2): the Wallets empty
-/// state and the Learn sheet are its ways in now.
+/// state and the guide sheet are its ways in now.
 #[test]
 fn the_sidebar_has_no_spend_row() {
     let app = with(0, 0);

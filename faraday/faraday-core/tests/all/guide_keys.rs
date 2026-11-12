@@ -4,7 +4,7 @@
 
 use faraday_core::Screen;
 use faraday_core::backup_flow::{Kind as FlowKind, Step as FlowStep};
-use faraday_core::learn::{GuideAim, GuideAt, guide_aim, guide_key};
+use faraday_core::guide::{GuideAim, GuideAt, guide_aim, guide_key};
 use std::collections::BTreeSet;
 
 /// The places with no page yet, one a line.
@@ -189,7 +189,7 @@ fn every_key_opens_a_page_or_names_one_still_to_write() {
             "{p} in TO-WRITE.txt is no place the app reaches"
         );
         assert!(
-            faraday_learn::guide_page(p).is_none(),
+            faraday_guide::guide_page(p).is_none(),
             "{p} has a page: take it off TO-WRITE.txt"
         );
     }

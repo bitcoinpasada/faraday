@@ -16,7 +16,7 @@ the app fails `just lint` until the guide follows.
    docs/guide/<place>.md: a key written twice fails, a key no place
    reaches fails where `guide_key` maps the place by step, tab or
    category (it returns a part key of it; the code's keys are read from
-   `guide_key` in faraday/faraday-core/src/learn.rs), and a place the code
+   `guide_key` in faraday/faraday-core/src/guide.rs), and a place the code
    reaches that has no page and is not in docs/guide/TO-WRITE.txt fails. A
    section keyed as a reached part with a word more (`<part>-<word>`) is
    read after that part and counts as reached. A
@@ -219,7 +219,7 @@ def check_links(root, files, errors):
                     errors.append(f"{rel}:{n}: no heading for anchor: {target}")
 
 
-KEYS_SRC = "faraday/faraday-core/src/learn.rs"
+KEYS_SRC = "faraday/faraday-core/src/guide.rs"
 KEYS_TO_WRITE = "docs/guide/TO-WRITE.txt"
 KEY_LITERAL = re.compile(r'"([a-z][a-z0-9-]*(?:\.[a-z0-9-]+)?)"')
 

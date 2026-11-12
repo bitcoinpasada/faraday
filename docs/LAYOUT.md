@@ -183,7 +183,7 @@ window too narrow for the page beside it, what the person acts on in
 it sits in a strip pinned at the window's foot that opens to the whole
 pane over the page and never scrolls away. Built for Make codex32
 shares' dice sheet in its column (§16.1, `codex32/pane_screen.rs`)
-and for Learn (`screens/learn_pane.rs`). The "Demo only" card that stood here is
+and for Learn (`screens/guide_pane.rs`). The "Demo only" card that stood here is
 Faraday Demo's host strip now, outside the app (F118,
 `docs/DESKTOP-HOST.md`).
 
@@ -196,12 +196,12 @@ is a card in the surface-container role, Material's large shape. Its
 header row, as Material's side sheet has, holds the headline **Learn**
 in Title L and, at its end, the pin and the close button, each
 Material's standard icon button in a 48 dp target
-(`LEARN_PANE_CLOSE_TOP`); the pin is a toggle, the push pin outlined
+(`GUIDE_PANE_CLOSE_TOP`); the pin is a toggle, the push pin outlined
 in on-surface-variant while off ("Keep open") and filled in primary
 while on ("Unpin"), sized to read as large as the × beside it
-(`LEARN_PANE_PIN_GLYPH`), its button at the end of its target nearest
+(`GUIDE_PANE_PIN_GLYPH`), its button at the end of its target nearest
 the close button's, the two targets meeting without overlapping
-(owner, 2026-10-29). The tabs stand under it (`LEARN_PANE_TABS_TOP`)
+(owner, 2026-10-29). The tabs stand under it (`GUIDE_PANE_TABS_TOP`)
 across the pane's whole width, a single divider under them, so
 each label shows whole (Material 3 Tabs: Guide, and Cryptography
 where the screen offers it). Its tabs are the sheet's; the guide's

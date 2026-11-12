@@ -1,5 +1,5 @@
 [package]
-name = "faraday-learn"
+name = "faraday-guide"
 version = "0.2.0"
 description = "The in-app guide's pages, the Cryptography blocks and the maker table"
 edition.workspace = true

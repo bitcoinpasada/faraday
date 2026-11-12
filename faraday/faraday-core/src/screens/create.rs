@@ -10,7 +10,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::wallet::{fp_text, key_line};
-use crate::{Action, Code, Screen, flow, guide};
+use crate::{Action, Code, Screen, flow, walkthrough};
 use faraday_draw::tokens;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_S};
 use faraday_ui::parts::button_rows;
@@ -61,7 +61,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 || k == cstep::WHERE,
             toggle: Action::CStep(k),
             // Only the open card shows its walk-through: the others make none.
-            guide: (c.open == Some(k))
+            walkthrough: (c.open == Some(k))
                 .then(|| create_guide(k, c, app.medium))
                 .filter(|g| !g.is_empty()),
         })
@@ -105,7 +105,7 @@ fn create_guide(k: u8, c: &crate::CreateState, medium: crate::medium::Medium) ->
     use crate::cstep;
     match k {
         cstep::BACKUP_FORM => EN.create_guide_backup.to_string(),
-        _ => guide::create(k, c.kind, c.m, c.n, medium),
+        _ => walkthrough::create(k, c.kind, c.m, c.n, medium),
     }
 }
 

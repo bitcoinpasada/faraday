@@ -1,5 +1,5 @@
 //! How changes show (`docs/MOTION.md` §3.5): a new screen fades in over
-//! the old one and is then still, and so does the Learn sheet, its tabs
+//! the old one and is then still, and so does the guide sheet, its tabs
 //! and its closing; at once with reduce motion, and on a machine whose
 //! fades come in steps too far apart to read as one, until its frames
 //! come fast again for a while; a slow moment, or a page slow to draw,
@@ -119,12 +119,12 @@ fn a_second_theme_pressed_mid_fade_ends_in_the_second() {
 }
 
 #[test]
-fn the_learn_sheet_fades_in_though_the_frame_it_opens_on_is_slow() {
+fn the_guide_sheet_fades_in_though_the_frame_it_opens_on_is_slow() {
     let mut app = shown();
     let _ = frames(&mut app, 1_016, 1_400);
     let page = app.frame().rgba.to_vec();
     // The ? button.
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let first = frames(&mut app, 1_416, 1_416);
     assert!(first == page, "the fade starts from the page");
     // Frosting the page under a sheet makes its first frame the slowest
@@ -139,7 +139,7 @@ fn the_learn_sheet_fades_in_though_the_frame_it_opens_on_is_slow() {
     app.press(Action::Cancel);
     let _ = frames(&mut app, 2_416, 3_000);
     let page = app.frame().rgba.to_vec();
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let first = frames(&mut app, 3_016, 3_016);
     let second = frames(&mut app, 3_032, 3_032);
     assert!(first == page && second != page, "the next one fades too");
@@ -223,7 +223,7 @@ fn a_slow_moment_does_not_leave_fades_off() {
     let mut now = 1_000;
     // A fade whose first frame is slow and a step of it slow again, as
     // when a sheet opens on a frosted page with the machine busy.
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = frames(&mut app, now + 16, now + 16);
     for gap in [120, 16, 90, 16, 16, 16, 16, 16, 16, 16, 16, 16] {
         now += gap;
@@ -306,15 +306,15 @@ fn a_machine_slow_for_a_while_fades_again_once_its_frames_come_fast() {
 }
 
 #[test]
-fn the_learn_sheet_fades_out_and_its_tabs_fade_between_pages() {
+fn the_guide_sheet_fades_out_and_its_tabs_fade_between_pages() {
     let mut app = shown();
     let _ = frames(&mut app, 1_016, 1_400);
     assert!(
-        fades(&mut app, Action::Learn, 1_400),
+        fades(&mut app, Action::Guide, 1_400),
         "Learn opens with a fade"
     );
     assert!(
-        fades(&mut app, Action::LearnContents, 2_400),
+        fades(&mut app, Action::GuideContents, 2_400),
         "the contents fades in"
     );
     assert!(

@@ -111,7 +111,7 @@ pub(crate) fn cards(k: &KeyGen, m: &Codex32Make) -> Vec<(Card, flow::Card)> {
                     default: false,
                     toggle: a(C32::Card(card.index())),
                     // Built only for the open card.
-                    guide: open(card).then(|| guide(card).to_string()),
+                    walkthrough: open(card).then(|| guide(card).to_string()),
                 },
             )
         })
@@ -122,13 +122,13 @@ pub(crate) fn cards(k: &KeyGen, m: &Codex32Make) -> Vec<(Card, flow::Card)> {
 /// button does.
 fn guide(card: Card) -> &'static str {
     match card {
-        Card::Scheme => EN.guide_codex32_scheme,
-        Card::Identifier => EN.guide_codex32_identifier,
-        Card::Entropy => EN.guide_codex32_entropy,
-        Card::Enter => EN.guide_codex32_enter,
-        Card::Sheets => EN.guide_codex32_sheets,
-        Card::Strings => EN.guide_codex32_strings,
-        Card::Made => EN.guide_codex32_made,
+        Card::Scheme => EN.walkthrough_codex32_scheme,
+        Card::Identifier => EN.walkthrough_codex32_identifier,
+        Card::Entropy => EN.walkthrough_codex32_entropy,
+        Card::Enter => EN.walkthrough_codex32_enter,
+        Card::Sheets => EN.walkthrough_codex32_sheets,
+        Card::Strings => EN.walkthrough_codex32_strings,
+        Card::Made => EN.walkthrough_codex32_made,
     }
 }
 

@@ -309,7 +309,7 @@ id = "app.faraday"
 name = "the device app, the stick and the Pi images"
 reads = [
   "faraday/faraday-core/**", "faraday/faraday-ui/**", "faraday/faraday-strings/**",
-  "faraday/faraday-learn/**", "faraday/faraday-keys/**", "faraday/shells/stick/**",
+  "faraday/faraday-guide/**", "faraday/faraday-keys/**", "faraday/shells/stick/**",
   "faraday/shells/window/**", "faraday/shells/desktop/**", "faraday/image/**", "core/**",
   "faraday/faraday-boot/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
   "faraday/faraday-files/**", "faraday/faraday-start/**", "faraday/faraday-intake/**",
@@ -327,7 +327,7 @@ reads = [
   "faraday/faraday-starter/**", "faraday/shells/starter/**", "faraday/faraday-ui/**",
   "faraday/faraday-strings/**", "core/faraday-draw/**", "faraday/builds.toml",
   "faraday/faraday-core/**", "faraday/faraday-disk/**", "faraday/faraday-fat/**",
-  "faraday/faraday-files/**", "faraday/faraday-payload/**", "faraday/faraday-learn/**",
+  "faraday/faraday-files/**", "faraday/faraday-payload/**", "faraday/faraday-guide/**",
   "faraday/faraday-start/**", "faraday/faraday-grant/**", "faraday/faraday-storage/**",
   "faraday/faraday-keys/**", "faraday/faraday-vault/**", "faraday/faraday-qr/**",
   "faraday/faraday-scanner/**", "faraday/faraday-pgp/**", "faraday/faraday-kef/**", "faraday/faraday-ots/**", "faraday/faraday-plan/**", "faraday/faraday-sqlite/**", "faraday/faraday-core-wallet/**", "faraday/faraday-intake/**",
@@ -760,7 +760,7 @@ held_by = ["crypto-check"]
 id = "crypto.generated"
 title = "STANDARDS and AUDIT's generated sections match the manifest"
 source = ["docs/decisions/F148.md"]
-when = ["docs/STANDARDS.md", "docs/AUDIT.md", "docs/crypto/actions.toml", "faraday/faraday-learn/src/how.rs"]
+when = ["docs/STANDARDS.md", "docs/AUDIT.md", "docs/crypto/actions.toml", "faraday/faraday-guide/src/how.rs"]
 kind = "held"
 held_by = ["crypto-gen"]
 
@@ -1014,7 +1014,7 @@ with = ["docs/decisions/F{n}.md"]
 
 [[rule]]
 id = "structure.layers"
-title = "a core/ crate has no path dependency outside core/, and faraday-ui, faraday-draw, faraday-strings and faraday-learn do not depend on faraday-core or faraday-starter"
+title = "a core/ crate has no path dependency outside core/, and faraday-ui, faraday-draw, faraday-strings and faraday-guide do not depend on faraday-core or faraday-starter"
 source = ["CLAUDE.md", "docs/STRUCTURE-PASS.md"]
 when = ["**/Cargo.toml"]
 kind = "held"
@@ -1212,7 +1212,7 @@ held_by = ["lint-themes"]
 id = "guide.places-paged"
 title = "every place the app reaches has a guide page or is in docs/guide/TO-WRITE.txt"
 source = ["tools/README.md"]
-when = ["faraday/faraday-core/src/lib.rs", "faraday/faraday-core/src/learn.rs"]
+when = ["faraday/faraday-core/src/lib.rs", "faraday/faraday-core/src/guide.rs"]
 kind = "held"
 held_by = ["lint-guide"]
 

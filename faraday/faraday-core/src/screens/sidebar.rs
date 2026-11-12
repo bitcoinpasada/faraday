@@ -61,7 +61,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     // capitals 9 tall, which ends it within the rows' labels' edge.
     ui.wordmark_named(58.0, 31.5, 9.0, Role::OnSurface, name_suffix(app));
 
-    // The places that are always offered, in order; Learn (not a place,
+    // The places that are always offered, in order; the guide (not a place,
     // a sheet) is drawn between Tools and whatever comes after it.
     let items = [
         (Glyph::Icon(Icon::House), EN.sidebar_home, Screen::Home),
@@ -124,15 +124,15 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         if mine().next().is_some() {
             y += 4.0;
         }
-        // Learn, after Tools: opens the Learn sheet, not a screen.
+        // The guide, after Tools: opens the guide sheet, not a screen.
         if screen == Screen::Catalog {
             row(
                 ui,
                 y,
                 Glyph::Icon(Icon::Learn),
-                EN.sidebar_learn,
-                app.sheet == Some(Sheet::Learn) || app.learn_pane_shown(),
-                Action::Learn,
+                EN.sidebar_guide,
+                app.sheet == Some(Sheet::Guide) || app.guide_pane_shown(),
+                Action::Guide,
             );
             y += TOUCH;
         }

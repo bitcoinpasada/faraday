@@ -174,7 +174,7 @@ fn screens() -> Vec<Screen> {
 }
 
 fn sheets() -> Vec<Sheet> {
-    let mut all = every!(Sheet: Lock, LockAsk, Power, Qr, Scan, Locked, NewInput, Learn, WordList,
+    let mut all = every!(Sheet: Lock, LockAsk, Power, Qr, Scan, Locked, NewInput, Guide, WordList,
         SecretOut, WriteOut, IdleWarn, Potential, Import, Pull, Chart, BoardList, BoardSees,
         BoardPartials, BoardMenu, SeedRead, KefRead, Delete, Zeroing, Taken, NameTaken, TextSeed, Devices, VaultSave,
         CancelFlow(Going::Create), CancelKey, FileMenu, Rename, Details, UnlockLoad, SaveAlso, CopyTo, SaveKeeps, Trim, QrNoFit, OlderCopy,
@@ -1268,7 +1268,7 @@ fn overflow_on_the_bar(rig: &Rig) -> Option<Overflow> {
 }
 
 #[test]
-fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_learn_in_its_overflow_menu() {
+fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_guide_in_its_overflow_menu() {
     for mode in [Mode::Testnet, Mode::Practice] {
         let mut rig = rig(On::Stick, mode, Vec::new());
         // New key's passphrase, from Make a new wallet, typed on the
@@ -1287,7 +1287,7 @@ fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_learn_in_its_over
         );
         let found = check(&mut rig, &label).0;
         assert_none(&found);
-        assert!(!rig.offers(Action::Learn), "{label}: no ? on the bar");
+        assert!(!rig.offers(Action::Guide), "{label}: no ? on the bar");
         assert!(rig.offers(Action::ModeSheet), "{label}: the pill stays");
         assert!(
             !rig.offers(Action::CancelFlow),
@@ -1295,7 +1295,7 @@ fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_learn_in_its_over
         );
         let held = overflow_on_the_bar(&rig).unwrap_or_else(|| panic!("{label}: a ⋮"));
         assert!(held.help, "{label}: the ⋮ holds Learn");
-        // The ⋮ opens the menu; its Learn opens the page's Learn.
+        // The ⋮ opens the menu; its guide entry opens the page's guide.
         tap(&mut rig, Action::NavMenu(MenuPress::Open(Some(held))));
         assert_eq!(rig.sheet, Some(Sheet::NavMenu(Some(held))), "{label}");
         assert!(rig.drawn_texts().iter().any(|t| t == "Guide"), "{label}");
@@ -1303,7 +1303,7 @@ fn on_the_pi_a_flows_bar_too_full_for_its_question_mark_offers_learn_in_its_over
         tap(&mut rig, Action::NavMenu(MenuPress::Tool(BarTool::Help)));
         assert_eq!(
             rig.sheet,
-            Some(Sheet::Learn),
+            Some(Sheet::Guide),
             "{label}: Learn opens the Learn sheet"
         );
         assert_eq!(rig.screen, Screen::KeyGen, "{label}: on the same page");
@@ -1453,18 +1453,18 @@ fn on_the_pi_a_flow_is_cancelled_from_the_overflow_menu() {
     assert_ne!(rig.screen, Screen::Spend, "the flow is left");
 }
 
-/// The Learn sheet's tabs, Guide and Cryptography, read whole where the
+/// The guide sheet's tabs, Guide and Cryptography, read whole where the
 /// panel is narrow: each word is drawn inside its tab, none runs under the
 /// other.
 #[test]
 fn on_the_pi_the_guide_sheets_tab_names_are_read_whole() {
     let mut rig = rig(On::Stick, Mode::Mainnet, Vec::new());
     open(&mut rig, Screen::KeyGen);
-    rig.press(Action::Learn);
+    rig.press(Action::Guide);
     let _ = rig.frame();
     let tabs = [
-        (Action::LearnTabGuide, "Guide"),
-        (Action::LearnTabHow, "Cryptography"),
+        (Action::GuideTabGuide, "Guide"),
+        (Action::GuideTabHow, "Cryptography"),
     ];
     assert!(rig.how_offered(), "the screen has blocks, so both tabs");
     let (_, texts) = rig.drawn_past_sides_and_text();

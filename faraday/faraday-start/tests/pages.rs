@@ -5,7 +5,7 @@
 
 #[test]
 fn every_maker_and_general_guide_has_a_page() {
-    for id in faraday_learn::MAKERS
+    for id in faraday_guide::MAKERS
         .iter()
         .map(|m| m.id)
         .chain(["windows", "linux", "mac-intel"])
@@ -19,15 +19,15 @@ fn every_maker_and_general_guide_has_a_page() {
 // guide puts what has to be in hand before any firmware step first.
 
 /// Every step number on `page`, in the order written.
-fn steps_of(page: &faraday_learn::Page) -> Vec<u32> {
+fn steps_of(page: &faraday_guide::Page) -> Vec<u32> {
     page.sections
         .iter()
         .flat_map(|s| s.paragraphs.iter())
-        .filter_map(|p| faraday_learn::step(p).map(|(n, _)| n))
+        .filter_map(|p| faraday_guide::step(p).map(|(n, _)| n))
         .collect()
 }
 
-fn guide(id: &str) -> &'static faraday_learn::Page {
+fn guide(id: &str) -> &'static faraday_guide::Page {
     faraday_start::page(id).unwrap_or_else(|| panic!("no page {id}"))
 }
 
@@ -67,7 +67,7 @@ fn the_linux_guide_asks_for_the_tpm_unlocked_disk_s_passphrase_first() {
 
 /// The pages written as steps.
 fn step_pages() -> impl Iterator<Item = &'static str> {
-    faraday_learn::MAKERS
+    faraday_guide::MAKERS
         .iter()
         .map(|m| m.id)
         .chain(["maker-other", "windows", "linux"])
@@ -162,7 +162,7 @@ fn no_guide_has_a_resume_step_or_a_key_backup_page() {
 
 #[test]
 fn the_windows_guide_and_each_maker_page_say_the_key_may_be_asked_for_and_where_it_is() {
-    for id in faraday_learn::MAKERS
+    for id in faraday_guide::MAKERS
         .iter()
         .map(|m| m.id)
         .chain(["maker-other", "windows"])
@@ -200,10 +200,10 @@ fn every_guide_says_to_exit_without_saving_when_the_setting_cannot_be_found() {
             .paragraphs;
         let off = steps
             .iter()
-            .position(|p| faraday_learn::step(p).is_some() && p.contains("Secure Boot"))
+            .position(|p| faraday_guide::step(p).is_some() && p.contains("Secure Boot"))
             .unwrap_or_else(|| panic!("{id}: no Secure Boot step"));
         let next = (off + 1..steps.len())
-            .find(|&i| faraday_learn::step(steps[i]).is_some())
+            .find(|&i| faraday_guide::step(steps[i]).is_some())
             .unwrap_or(steps.len());
         assert!(
             steps[off + 1..next].iter().any(|p| {
@@ -235,12 +235,12 @@ fn keys_of(value: &str) -> (Vec<String>, bool) {
 
 /// Whether one numbered step of `page` names every key of `value` (a
 /// held key as "Hold <key>", in any case).
-fn a_step_gives(page: &faraday_learn::Page, value: &str) -> bool {
+fn a_step_gives(page: &faraday_guide::Page, value: &str) -> bool {
     let (keys, held) = keys_of(value);
     page.sections
         .iter()
         .flat_map(|s| s.paragraphs.iter().copied())
-        .filter(|p| faraday_learn::step(p).is_some())
+        .filter(|p| faraday_guide::step(p).is_some())
         .any(|p| {
             keys.iter().all(|k| p.contains(k.as_str()))
                 && (!held
@@ -251,7 +251,7 @@ fn a_step_gives(page: &faraday_learn::Page, value: &str) -> bool {
 
 #[test]
 fn the_bios_key_table_agrees_with_the_maker_pages() {
-    for maker in faraday_learn::MAKERS {
+    for maker in faraday_guide::MAKERS {
         assert!(
             a_step_gives(guide(maker.id), maker.bios_key),
             "{}: no step gives {:?}",
@@ -267,7 +267,7 @@ fn the_bios_key_table_agrees_with_the_maker_pages() {
 
 #[test]
 fn the_boot_menu_key_table_agrees_with_the_maker_pages() {
-    for maker in faraday_learn::MAKERS {
+    for maker in faraday_guide::MAKERS {
         assert!(
             a_step_gives(guide(maker.id), maker.boot_key),
             "{}: no step gives {:?}",
@@ -279,7 +279,7 @@ fn the_boot_menu_key_table_agrees_with_the_maker_pages() {
 
 #[test]
 fn the_secure_boot_setting_table_agrees_with_the_maker_pages() {
-    for maker in faraday_learn::MAKERS {
+    for maker in faraday_guide::MAKERS {
         let steps = &guide(maker.id)
             .sections
             .iter()

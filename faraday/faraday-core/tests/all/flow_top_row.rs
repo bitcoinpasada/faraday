@@ -42,7 +42,7 @@ fn clear_of_top_row(app: &mut Faraday, what: &str) -> bool {
     let Some(pill) = boxed(app, Action::ModeSheet) else {
         return false;
     };
-    let zones: Vec<_> = [Some(pill), boxed(app, Action::Learn)]
+    let zones: Vec<_> = [Some(pill), boxed(app, Action::Guide)]
         .into_iter()
         .flatten()
         .collect();
@@ -108,7 +108,7 @@ fn flows_end_before_the_testnet_pill_and_the_question_mark() {
         checked += usize::from(clear_of_top_row(&mut app, "Make codex32 shares"));
         let _ = app.frame();
         let pair = boxed(&app, Action::Guided(true)).expect("the Guided pair");
-        let q = boxed(&app, Action::Learn).map_or(i32::MAX, |b| b.0);
+        let q = boxed(&app, Action::Guide).map_or(i32::MAX, |b| b.0);
         let pill = boxed(&app, Action::ModeSheet).map_or(q, |b| b.0.min(q));
         assert!(
             pair.0 + pair.2 <= pill,

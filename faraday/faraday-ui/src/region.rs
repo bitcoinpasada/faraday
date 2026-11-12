@@ -44,10 +44,10 @@ pub enum Slot {
     /// (`docs/LAYOUT.md` §16.3; `Codex32Make::panel_offset`,
     /// `faraday-core`).
     InputPanel,
-    /// Learn's supporting pane on an extra-large window, which scrolls
+    /// The guide's supporting pane on an extra-large window, which scrolls
     /// within itself beside the page (`docs/LAYOUT.md` §6;
-    /// `LearnState::scroll`, `faraday-core`).
-    LearnPane,
+    /// `GuideState::scroll`, `faraday-core`).
+    GuidePane,
     /// The desktop sidebar's lists of keys and wallets, which scroll
     /// within the sidebar where they are taller than its room
     /// (`Scroll::sidebar_offset`, `faraday-core`).

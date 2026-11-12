@@ -275,7 +275,7 @@ faraday-ui (the components there are built on them), and the fields
 - `Ui::take_presses()`, for the frame's hand-over to the pointer
   (`faraday/faraday-core/src/lib.rs`).
 - `Ui::drop_presses_inside(area)` and `Ui::cover_presses(area)`, for a
-  pane drawn over a page (`screens/learn_pane.rs`) and a surface drawn
+  pane drawn over a page (`screens/guide_pane.rs`) and a surface drawn
   over its foot (`codex32/input_panel.rs`), which take the page's presses
   under them.
 

@@ -124,7 +124,7 @@ fn route_to_frame(
 }
 
 /// The website's guides (§7.4), shared with the stick.
-pub use faraday_learn::GUIDES;
+pub use faraday_guide::GUIDES;
 
 /// The Starter's own version, which About shows and Install compares.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -451,7 +451,7 @@ pub enum TemplateChoice {
 }
 
 /// A maker page's number in an action's code: this plus its place in
-/// `faraday_learn::MAKERS`.
+/// `faraday_guide::MAKERS`.
 const MAKER_CODE: u32 = 0x100;
 
 const ITEMS: [Item; 3] = [Item::MakeStick, Item::Start, Item::SecureBootOn];
@@ -485,7 +485,7 @@ impl StarterAction {
             StarterAction::StartGuide(StartGuide::Maker(id)) => (
                 23,
                 MAKER_CODE
-                    + faraday_learn::MAKERS
+                    + faraday_guide::MAKERS
                         .iter()
                         .position(|m| m.id == id)
                         .unwrap_or(0) as u32,
@@ -571,7 +571,7 @@ impl StarterAction {
             21 => StarterAction::Transfer,
             22 => StarterAction::Learn,
             23 if arg >= MAKER_CODE => StarterAction::StartGuide(StartGuide::Maker(
-                faraday_learn::MAKERS.get((arg - MAKER_CODE) as usize)?.id,
+                faraday_guide::MAKERS.get((arg - MAKER_CODE) as usize)?.id,
             )),
             23 => StarterAction::StartGuide(*StartGuide::ALL.get(arg as usize)?),
             24 => StarterAction::About,

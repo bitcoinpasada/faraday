@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The Learn blocks: faraday/faraday-learn/src/how.rs (docs/CRYPTO-LEARN.md §3.1).
+"""The Learn blocks: faraday/faraday-guide/src/how.rs (docs/CRYPTO-LEARN.md §3.1).
 
     gen_how.py --check-screens    the screens check (§9.2): fail when a screen's code
                                   calls an action's root and the screen is missing from
@@ -45,7 +45,7 @@ import sys
 import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-HOW = "faraday/faraday-learn/src/how.rs"
+HOW = "faraday/faraday-guide/src/how.rs"
 LOCK = "Cargo.lock"
 STAMP = "tools/crosscheck/stamp"
 MARKER = "// ---- lookups (the same in every generation) ----"

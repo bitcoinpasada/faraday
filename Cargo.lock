@@ -896,9 +896,9 @@ dependencies = [
  "faraday-entropy",
  "faraday-fat",
  "faraday-files",
+ "faraday-guide",
  "faraday-intake",
  "faraday-keys",
- "faraday-learn",
  "faraday-ots",
  "faraday-pgp",
  "faraday-plan",
@@ -1051,6 +1051,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-guide"
+version = "0.2.0"
+dependencies = [
+ "faraday-strings",
+]
+
+[[package]]
 name = "faraday-intake"
 version = "0.2.0"
 dependencies = [
@@ -1104,13 +1111,6 @@ dependencies = [
  "serde_json",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "faraday-learn"
-version = "0.2.0"
-dependencies = [
- "faraday-strings",
 ]
 
 [[package]]
@@ -1281,7 +1281,7 @@ version = "0.2.0"
 name = "faraday-start"
 version = "0.2.0"
 dependencies = [
- "faraday-learn",
+ "faraday-guide",
 ]
 
 [[package]]
@@ -1297,7 +1297,7 @@ dependencies = [
  "faraday-draw",
  "faraday-fat",
  "faraday-files",
- "faraday-learn",
+ "faraday-guide",
  "faraday-shell-api",
  "faraday-start",
  "faraday-strings",
@@ -1387,7 +1387,7 @@ version = "0.2.0"
 dependencies = [
  "faraday-codec",
  "faraday-draw",
- "faraday-learn",
+ "faraday-guide",
  "faraday-shell-api",
  "faraday-strings",
 ]

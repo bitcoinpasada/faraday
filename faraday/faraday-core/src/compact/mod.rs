@@ -173,7 +173,7 @@ fn back_end(ui: &Ui) -> f32 {
 
 /// The tools at the bar's right end, each Material's icon button in a
 /// touch target or, for Cancel, its text button: the ? when the page has
-/// something in Learn, the keyboard where the page types, the codex32 eye
+/// something in the guide, the keyboard where the page types, the codex32 eye
 /// and Cancel, and, at the end of the bar's first line left of them, the mode pill
 /// off mainnet. Returns where the tools begin, not counting the pill.
 /// Where they would reach the Back button, the ?, then the keyboard, then
@@ -241,7 +241,7 @@ fn tools_from(app: &View, ui: &mut Ui, w: f32, over: Overflow) -> f32 {
     } else {
         // Immediately left of the ?: **How Faraday does it**
         // (`docs/CRYPTO-LEARN.md` §8.1).
-        right = faraday_ui::nav::help(ui, right, Action::Learn, EN.tip_learn);
+        right = faraday_ui::nav::help(ui, right, Action::Guide, EN.tip_guide);
         if how {
             right = faraday_ui::nav::icon_action(
                 ui,
@@ -342,7 +342,7 @@ pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Over
         lines.push(item(EN.bar_menu_how, BarTool::How));
     }
     if held.help {
-        lines.push(item(EN.bar_menu_learn, BarTool::Help));
+        lines.push(item(EN.bar_menu_guide, BarTool::Help));
     }
     if held.keyboard {
         let label = if held.keyboard_up {
@@ -1028,7 +1028,7 @@ fn tiles(app: &View) -> Vec<Tile> {
     let open = app.vaults.open.len();
     // In two columns: wallets and keys first (every wallet flow,
     // including spending: `docs/history/SIMPLIFY.md` §6.2 moves Spend to the
-    // Wallets empty state and the Learn sheet), then the ways in and
+    // Wallets empty state and the guide sheet), then the ways in and
     // out, then what is used now and then.
     let mut t: Vec<Tile> = vec![
         (
@@ -1062,9 +1062,9 @@ fn tiles(app: &View) -> Vec<Tile> {
         ),
         (
             Icon::Learn.into(),
-            EN.compact_learn,
+            EN.compact_guide,
             String::new(),
-            Action::Learn,
+            Action::Guide,
             true,
         ),
     ];
@@ -1757,7 +1757,7 @@ impl Faraday {
                     BarTool::Cancel => Action::CancelFlow,
                     BarTool::Own => Action::Own(crate::fresh::page::Act::Open),
                     BarTool::How => Action::How,
-                    BarTool::Help => Action::Learn,
+                    BarTool::Help => Action::Guide,
                     BarTool::Keyboard if self.osk_shown() => Action::Osk(OskPress::Hide),
                     BarTool::Keyboard => Action::Osk(OskPress::Show),
                     BarTool::Eye => Action::Codex32(crate::codex32::C32::Eye),

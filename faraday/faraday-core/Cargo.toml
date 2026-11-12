@@ -22,7 +22,7 @@ faraday-qr = { path = "../faraday-qr" }
 faraday-strings = { path = "../faraday-strings" }
 # Faraday's drawing, shared with the Starter.
 faraday-ui = { path = "../faraday-ui" }
-faraday-learn = { path = "../faraday-learn" }
+faraday-guide = { path = "../faraday-guide" }
 faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-ots = { path = "../faraday-ots" }
@@ -46,7 +46,7 @@ zeroize = { workspace = true, features = ["alloc"] }
 testkit = []
 # One sample block, offered on Catalog and the Starter's What to write page, for
 # tests. Never in a snapshot or a shipped build.
-sample-how = ["faraday-learn/sample-how"]
+sample-how = ["faraday-guide/sample-how"]
 
 [dev-dependencies]
 faraday-core = { path = ".", features = ["testkit", "sample-how"] }

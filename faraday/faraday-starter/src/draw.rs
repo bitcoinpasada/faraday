@@ -511,7 +511,7 @@ pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: StartGuide) -> f32 {
     if id.page().is_none() {
         return 0.0;
     }
-    let label = learn_title(id);
+    let label = guide_title(id);
     let action = StarterAction::StartGuide(id).host();
     let label = ui.fit_as(TITLE_S, label, w);
     let tw = ui.measure_as(TITLE_S, &label);
@@ -1423,7 +1423,7 @@ fn guide_line(ui: &mut Ui, x: f32, y: f32, w: f32, id: StartGuide) -> f32 {
         y,
         w,
         Icon::Learn,
-        learn_title(id),
+        guide_title(id),
         "",
         "",
         Some(StarterAction::StartGuide(id)),
@@ -1447,7 +1447,7 @@ fn keep_data_guide(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// A start guide's title; a maker page's is its page's own.
-fn learn_title(id: StartGuide) -> &'static str {
+fn guide_title(id: StartGuide) -> &'static str {
     match id {
         StartGuide::StartWindows => S.starter_start_windows,
         StartGuide::StartLinux => S.starter_start_linux,

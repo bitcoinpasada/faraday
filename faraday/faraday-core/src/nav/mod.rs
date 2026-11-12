@@ -33,9 +33,9 @@ pub enum BarTool {
     /// randomness (`docs/OWN-RANDOMNESS.md` §8.3): the menu's first row after
     /// Cancel.
     Own,
-    /// **How Faraday does it**: Learn on the How tab.
+    /// **How Faraday does it**: the guide on the How tab.
     How,
-    /// The ?: the page's Learn.
+    /// The ?: the page's guide.
     Help,
     /// The keyboard button.
     Keyboard,

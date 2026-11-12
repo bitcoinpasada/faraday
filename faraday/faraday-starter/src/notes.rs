@@ -1,6 +1,6 @@
 //! What to write down before the restart (`docs/STARTER.md` §3.4, F47):
 //! this computer's boot menu key, BIOS key and where the Secure Boot
-//! setting is, from the maker table (`faraday_learn::MAKERS`); on an
+//! setting is, from the maker table (`faraday_guide::MAKERS`); on an
 //! Intel Mac, the Mac's equivalents. The same as a sheet to print: the
 //! rows, the steps in order and the line for a setting that cannot be
 //! found, and on the sheet a line each to circle the boot menu key and
@@ -146,7 +146,7 @@ impl Notes {
         if c.arm {
             return None;
         }
-        let maker = faraday_learn::maker(&c.maker, &c.family, &c.model);
+        let maker = faraday_guide::maker(&c.maker, &c.family, &c.model);
         let row = |label: &str, value: Option<&'static str>, circle: Option<&Circle>| Row {
             label: label.to_string(),
             value,
@@ -156,8 +156,8 @@ impl Notes {
                 .unwrap_or_default(),
         };
         let windows = c.os == Os::Windows;
-        let boot: Vec<&'static str> = faraday_learn::MAKERS.iter().map(|m| m.boot_key).collect();
-        let bios: Vec<&'static str> = faraday_learn::MAKERS.iter().map(|m| m.bios_key).collect();
+        let boot: Vec<&'static str> = faraday_guide::MAKERS.iter().map(|m| m.boot_key).collect();
+        let bios: Vec<&'static str> = faraday_guide::MAKERS.iter().map(|m| m.bios_key).collect();
         let boot_circle = Circle {
             label: S.starter_sheet_boot_key_used,
             keys: circle_keys(maker.map(|m| m.boot_key), &boot),

@@ -35,7 +35,7 @@ impl-faraday faraday/faraday-core/src/in_progress.rs
 impl-faraday faraday/faraday-core/src/inbox.rs
 impl-faraday faraday/faraday-core/src/inputs.rs
 impl-faraday faraday/faraday-core/src/keygen/mod.rs
-impl-faraday faraday/faraday-core/src/learn.rs
+impl-faraday faraday/faraday-core/src/guide.rs
 impl-faraday faraday/faraday-core/src/lib.rs
 impl-faraday faraday/faraday-core/src/lightning/mod.rs
 impl-faraday faraday/faraday-core/src/memory/mod.rs

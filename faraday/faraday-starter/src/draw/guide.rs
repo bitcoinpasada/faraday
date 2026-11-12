@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::GUIDE_PLACES;
-use faraday_learn::Span;
+use faraday_guide::Span;
 
 /// The Guide destination: the Starter's guide pages under their
 /// heading, each a row that opens the page at its lead, then the start
@@ -13,7 +13,7 @@ pub(super) fn page(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
     let mut y = y0;
     y += label(ui, x, y, S.starter_guide_head_starter);
     for (n, place) in GUIDE_PLACES.iter().enumerate() {
-        let (Some(page), Ok(n)) = (faraday_learn::guide_page(place), u8::try_from(n)) else {
+        let (Some(page), Ok(n)) = (faraday_guide::guide_page(place), u8::try_from(n)) else {
             continue;
         };
         y += nav_row(
@@ -108,7 +108,7 @@ pub(super) fn sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
     };
     let key = starter.guide_at();
     let place = key.split('.').next().unwrap_or(key);
-    let page = faraday_learn::guide_page(place);
+    let page = faraday_guide::guide_page(place);
     let outside = ui.outside.replace(StarterAction::Cancel.host());
     faraday_ui::sheet::scroll_sheet(
         ui,
@@ -204,7 +204,7 @@ pub(super) fn start_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
                 // What follows a step, up to the next, is under it.
                 let mut under = false;
                 for para in section.paragraphs {
-                    if let Some((n, text)) = faraday_learn::step(para) {
+                    if let Some((n, text)) = faraday_guide::step(para) {
                         under = true;
                         let line = ui.line_as(BODY_M);
                         let circle_y = cy + (line - faraday_ui::parts::STEP_SIDE) / 2.0;

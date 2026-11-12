@@ -1,10 +1,10 @@
 //! How Faraday does it (`docs/CRYPTO-LEARN.md` §8): a screen that offers
 //! a cryptographic action carries the button in its top app bar beside
-//! the ?, it opens Learn on a first tab of the blocks of the screen's
+//! the ?, it opens the guide on a first tab of the blocks of the screen's
 //! actions, and on the Pi's panel the button is the ⋮ menu's first row
 //! when the bar has no room. Checked with the sample block, which stands
 //! on Catalog; a screen without a block has no button and no
-//! tab. The new Learn pages open from their screens.
+//! tab. The new guide pages open from their screens.
 
 use crate::common::type_text;
 use faraday_core::nav::{BarTool, MenuPress, Overflow};
@@ -47,11 +47,11 @@ fn shows(app: &mut Faraday, text: &str) -> bool {
 /// Whether the tab strip names the How tab and the block's own text is
 /// on show.
 fn how_tab_open(app: &mut Faraday) -> bool {
-    app.learn().how && shows(app, "Sample action") && shows(app, EN.how_field_action)
+    app.guide().how && shows(app, "Sample action") && shows(app, EN.how_field_action)
 }
 
 #[test]
-fn the_button_opens_learn_on_the_first_tab_at_every_size() {
+fn the_button_opens_guide_on_the_first_tab_at_every_size() {
     for (name, (w, h, dpi)) in [
         ("480x640", (480, 640, 160)),
         ("1280x800", (1280, 800, 160)),
@@ -71,27 +71,27 @@ fn the_button_opens_learn_on_the_first_tab_at_every_size() {
             app.press(Action::NavMenu(MenuPress::Tool(BarTool::How)));
         } else {
             assert!(app.offers(Action::How), "{name}: the button is offered");
-            assert!(app.offers(Action::Learn), "{name}: beside the ?");
+            assert!(app.offers(Action::Guide), "{name}: beside the ?");
             // Immediately left of the ?, and the two do not overlap.
             let (hx, _, hw, _) = app.hit_box(Action::How).unwrap();
-            let (lx, ..) = app.hit_box(Action::Learn).unwrap();
+            let (lx, ..) = app.hit_box(Action::Guide).unwrap();
             assert!(hx + hw <= lx, "{name}: left of the ?, clear of it");
             app.press(Action::How);
         }
         let _ = app.frame();
-        assert_eq!(app.sheet, Some(Sheet::Learn), "{name}");
+        assert_eq!(app.sheet, Some(Sheet::Guide), "{name}");
         assert!(how_tab_open(&mut app), "{name}: the block is on show");
-        assert!(shows(&mut app, EN.learn_tab_how), "{name}: the tab");
+        assert!(shows(&mut app, EN.guide_tab_how), "{name}: the tab");
         // The Guide tab shows the guide's page in its place.
-        app.press(Action::LearnTabGuide);
+        app.press(Action::GuideTabGuide);
         let _ = app.frame();
         assert!(!shows(&mut app, "Sample action"), "{name}: the guide tab");
         // Guide first, Cryptography beside it.
-        let how_tab = Action::LearnTabHow;
+        let how_tab = Action::GuideTabHow;
         let how = app.hit_box(how_tab).expect("the Cryptography tab");
-        let page = app.hit_box(Action::LearnTabGuide).expect("the Guide tab");
+        let page = app.hit_box(Action::GuideTabGuide).expect("the Guide tab");
         assert!(page.0 < how.0, "{name}: Guide first");
-        app.press(Action::LearnTabHow);
+        app.press(Action::GuideTabHow);
         let _ = app.frame();
         assert!(how_tab_open(&mut app), "{name}: back on the How tab");
     }
@@ -101,11 +101,11 @@ fn the_button_opens_learn_on_the_first_tab_at_every_size() {
 fn the_question_mark_opens_the_guide_with_the_cryptography_tab_beside_it() {
     let mut app = app(480, 640, 160, false);
     go(&mut app, Screen::Catalog);
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = app.frame();
-    assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert!(!app.learn().how, "the page first");
-    assert!(shows(&mut app, EN.learn_tab_how), "the tab is there");
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+    assert!(!app.guide().how, "the page first");
+    assert!(shows(&mut app, EN.guide_tab_how), "the tab is there");
     assert!(!shows(&mut app, "Sample action"));
 }
 
@@ -114,9 +114,9 @@ fn a_screen_without_a_block_has_no_button_and_no_tab() {
     let mut app = app(480, 640, 160, false);
     go(&mut app, Screen::SetTime);
     assert!(!app.offers(Action::How));
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = app.frame();
-    assert!(!shows(&mut app, EN.learn_tab_how));
+    assert!(!shows(&mut app, EN.guide_tab_how));
 }
 
 #[test]
@@ -185,13 +185,13 @@ fn on_the_pi_a_full_bar_puts_the_button_first_in_the_overflow_menu() {
         .expect("the row");
     let learn = texts
         .iter()
-        .position(|t| t == EN.bar_menu_learn)
+        .position(|t| t == EN.bar_menu_guide)
         .expect("Learn's row");
     assert!(row < learn, "above Learn");
     app.press(Action::NavMenu(MenuPress::Tool(BarTool::How)));
     let _ = app.frame();
-    assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert!(app.learn().how, "Learn opens on the How tab");
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+    assert!(app.guide().how, "Learn opens on the How tab");
 }
 
 #[test]
@@ -200,31 +200,31 @@ fn the_supporting_pane_follows_the_button() {
     go(&mut app, Screen::Catalog);
     app.press(Action::How);
     let _ = app.frame();
-    assert!(app.offers(Action::LearnClose), "the pane, not the sheet");
+    assert!(app.offers(Action::GuideClose), "the pane, not the sheet");
     assert!(how_tab_open(&mut app));
     // On another tab, the button moves the pane to the How tab.
-    app.press(Action::LearnTabGuide);
+    app.press(Action::GuideTabGuide);
     let _ = app.frame();
-    assert!(!app.learn().how);
+    assert!(!app.guide().how);
     app.press(Action::How);
     let _ = app.frame();
-    assert!(app.offers(Action::LearnClose) && app.learn().how);
+    assert!(app.offers(Action::GuideClose) && app.guide().how);
     // On the How tab, it puts the pane away.
     app.press(Action::How);
     let _ = app.frame();
-    assert!(!app.offers(Action::LearnClose));
+    assert!(!app.offers(Action::GuideClose));
     // The ? opens the pane on the first page, with the How tab first.
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = app.frame();
-    assert!(app.offers(Action::LearnClose) && !app.learn().how);
-    assert!(shows(&mut app, EN.learn_tab_how));
+    assert!(app.offers(Action::GuideClose) && !app.guide().how);
+    assert!(shows(&mut app, EN.guide_tab_how));
 }
 
-/// The place of the guide's page Learn opens on the screen on show.
+/// The place of the guide's page the guide opens on the screen on show.
 fn place(app: &mut Faraday) -> &'static str {
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = app.frame();
-    let place = app.learn().shown;
+    let place = app.guide().shown;
     app.press(Action::Cancel);
     place
 }
@@ -275,7 +275,7 @@ fn a_vaults_secure_boot_keys_open_the_guide_at_the_vault_contents_page() {
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(5)));
     assert_eq!(place(&mut app), "vault-contents");
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = app.frame();
-    assert_eq!(app.learn().shown, "vault-contents");
+    assert_eq!(app.guide().shown, "vault-contents");
 }

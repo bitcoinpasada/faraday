@@ -790,7 +790,7 @@ impl Sheet {
     pub(crate) fn scrolls_with_bar(self) -> bool {
         matches!(
             self,
-            Sheet::Learn
+            Sheet::Guide
                 | Sheet::WordList
                 | Sheet::Import
                 | Sheet::UnlockLoad

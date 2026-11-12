@@ -726,9 +726,9 @@ impl Scroll {
             ui::Slot::DemoPane if screen == Screen::KeyGen && sheet_none => ui::Slot::DemoPane,
             // So does the codex32 input panel beside the sheets.
             ui::Slot::InputPanel if screen == Screen::KeyGen && sheet_none => ui::Slot::InputPanel,
-            // Learn's supporting pane scrolls within itself beside the
+            // The guide's supporting pane scrolls within itself beside the
             // page (`docs/LAYOUT.md` §6); put away, the page has it back.
-            ui::Slot::LearnPane if sheet_none => ui::Slot::LearnPane,
+            ui::Slot::GuidePane if sheet_none => ui::Slot::GuidePane,
             // The sidebar's lists scroll within it, beside the page.
             ui::Slot::Sidebar if reach => ui::Slot::Sidebar,
             _ => ui::Slot::Page,
@@ -1210,7 +1210,7 @@ impl Faraday {
     /// is cleared, and another kind of sheet starts afresh.
     pub(crate) fn page_slot(&mut self) -> Option<&mut f32> {
         match self.sheet {
-            Some(Sheet::Learn) => Some(self.learn.scroll_mut()),
+            Some(Sheet::Guide) => Some(self.guide.scroll_mut()),
             Some(Sheet::WordList) => self.wordlist.scroll_mut(),
             Some(s) => Some(self.scroll.sheet_offset_of(s)),
             None => {

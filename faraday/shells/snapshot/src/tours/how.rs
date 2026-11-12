@@ -1,5 +1,5 @@
 //! The how tour (`docs/CRYPTO-LEARN.md` §8): the top app bar's How
-//! Faraday does it beside the ?, the Learn sheet on its first tab with a
+//! Faraday does it beside the ?, the guide sheet on its first tab with a
 //! block, and the tab scrolled down, on Spend, which offers nine actions.
 
 use crate::tour::{Tour, scroll};
@@ -14,15 +14,15 @@ pub(crate) fn how_tour(t: &mut Tour) -> Result<(), String> {
         scroll(t, 240);
         t.shot(&format!("how-{n}-scrolled"))?;
     }
-    t.press(Action::LearnTabGuide);
+    t.press(Action::GuideTabGuide);
     t.shot("how-6-page")?;
     // Settings' tabs, Cryptography, Key storage and Glossary, each whole;
-    // where Learn is a pane it is pinned, and stays open on the Spend
-    // tab, the one screen whose Learn offers Spending, step by step.
+    // where the guide is a pane it is pinned, and stays open on the Spend
+    // tab, the one screen whose the guide offers Spending, step by step.
     t.press(Action::Nav(Screen::Settings));
-    t.press(Action::Learn);
+    t.press(Action::Guide);
     t.shot("how-7-settings")?;
-    t.press(Action::LearnPin);
+    t.press(Action::GuidePin);
     t.press(Action::Nav(Screen::SpendBackup));
     t.shot("how-8-spend-tab")
 }

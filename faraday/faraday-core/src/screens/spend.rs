@@ -9,7 +9,7 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, btc, short, thousands};
 use crate::wallet::{Session, fp_text, network_name, step, txid_known};
-use crate::{Action, Screen, flow, guide};
+use crate::{Action, Screen, flow, walkthrough};
 use faraday_draw::tokens::{BODY_M, BODY_S, LABEL_L, LABEL_M, TITLE_M, TITLE_S};
 use faraday_draw::tokens::{
     BUTTON_H, CHIP_LINE, FACT_INDENT, GAP, GAP_SMALL, PAD, TABLE_AMOUNT_W, TABLE_LABEL_W, TypeRole,
@@ -273,7 +273,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 open: s.open == Some(n),
                 default: n == step::CHECK,
                 toggle: Action::Step(n),
-                guide: Some(guide::spend(n, kind, needed, s, app.medium)).filter(|g| !g.is_empty()),
+                walkthrough: Some(walkthrough::spend(n, kind, needed, s, app.medium))
+                    .filter(|g| !g.is_empty()),
             })
             .collect();
         (

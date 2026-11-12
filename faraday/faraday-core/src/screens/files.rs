@@ -2208,7 +2208,7 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
 }
 
 /// Files' foot on a small panel: what power-off asks, and what Files
-/// holds, with its Learn. Returns its height.
+/// holds, with its guide. Returns its height.
 fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
     use crate::compact::screen::about;
     let mut y = y0;

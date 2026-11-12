@@ -81,7 +81,7 @@ fn clean(s: &str) -> String {
 /// Whether `vendor` (already [`clean`]ed) is one a boot menu entry
 /// drops rather than repeat: empty, or one of the generic strings a
 /// stick without its own vendor reports, ignoring case. Matched as
-/// `faraday_learn::Maker`'s own `vendors` and `families` are (not
+/// `faraday_guide::Maker`'s own `vendors` and `families` are (not
 /// shown).
 fn generic_vendor(vendor: &str) -> bool {
     let vendors: &[&str] = &["USB", "GENERIC", "MASS STORAGE"];
@@ -93,7 +93,7 @@ fn generic_vendor(vendor: &str) -> bool {
 /// applied in the guides): the stick's own vendor and model
 /// (`Disk::vendor`, `Disk::model`; trimmed and collapsed, since those
 /// are space-padded INQUIRY or USB descriptor fields), under the
-/// pattern this computer's maker family (`faraday_learn::maker`, §7.6)
+/// pattern this computer's maker family (`faraday_guide::maker`, §7.6)
 /// is known to use:
 ///
 /// - Lenovo's IdeaPad family (IdeaPad, Yoga, Legion) and Framework:
@@ -123,7 +123,7 @@ pub fn boot_menu_entry(vendor: &str, model: &str, computer: &Computer) -> Option
     if label.is_empty() {
         return None;
     }
-    let maker = faraday_learn::maker(&computer.maker, &computer.family, &computer.model);
+    let maker = faraday_guide::maker(&computer.maker, &computer.family, &computer.model);
     let template = match maker.map(|m| m.id) {
         Some("maker-lenovo-ideapad" | "maker-framework") => EN.starter_boot_menu_efi_usb_device,
         Some("maker-hp") => EN.starter_boot_menu_hp,

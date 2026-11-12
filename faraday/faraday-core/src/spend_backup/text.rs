@@ -12,7 +12,7 @@ use crate::spend_backup::{CardId, Route, page};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::wallet::{Kind, step};
-use crate::{Faraday, Medium, guide};
+use crate::{Faraday, Medium, walkthrough};
 
 /// The map: where each stop happens, its name, and what is done there.
 pub fn map(m: Medium) -> [(&'static str, &'static str, String); 6] {
@@ -177,7 +177,7 @@ pub fn lead(app: &View, id: CardId) -> String {
         // Bring and Put everything away say their how in More about this.
         CardId::Page(_) => return String::new(),
         CardId::Later(_) => EN.spend_backup_this_opens_once,
-        // A label for the lines, over Learn's Verifying; Who signs has no note.
+        // A label for the lines, over the guide's Verifying; Who signs has no note.
         CardId::Step(step::TRANSACTION) => EN.spend_backup_read_the_summary,
         CardId::Step(step::SIGNERS) => return String::new(),
         CardId::Step(step::TXID) => EN.spend_backup_lead_write_down_id,
@@ -193,7 +193,7 @@ pub fn lead(app: &View, id: CardId) -> String {
     s.to_string()
 }
 
-/// The walk-through text of a step (`guide::spend`), as More about this
+/// The walk-through text of a step (`walkthrough::spend`), as More about this
 /// holds it where the card's lead is one line.
 fn walk(app: &View, n: u8) -> String {
     let s = app.wallets.spend();
@@ -202,7 +202,7 @@ fn walk(app: &View, n: u8) -> String {
         .and_then(|w| app.session.wallets.get(w))
         .map(|w| Kind::of(w.policy()));
     match s {
-        Some(s) => guide::spend(n, kind, app.spend_needed(), s, app.medium),
+        Some(s) => walkthrough::spend(n, kind, app.spend_needed(), s, app.medium),
         None => String::new(),
     }
 }

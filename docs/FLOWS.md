@@ -2069,7 +2069,7 @@ down (Dell's: "Shut down can skip the key").
    no row: the reminder and the guide's code, as today.
 4. **The keys**, each as the maker's own guide says it
    (`docs/guide/start/maker-*.md`), a field of `Maker` in
-   `faraday-learn`, its text in `faraday-strings`:
+   `faraday-guide`, its text in `faraday-strings`:
 
    | Maker page | BIOS key |
    |---|---|

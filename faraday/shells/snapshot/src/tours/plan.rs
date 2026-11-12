@@ -47,7 +47,7 @@ pub(crate) fn plan_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("plan-board-two-of-three")?;
     shares_on_paper(c, t);
     t.shot("plan-board-shares-two-of-three")?;
-    t.press(Action::LearnShares);
+    t.press(Action::GuideShares);
     t.shot("plan-learn-shares")?;
     t.press(Action::Cancel);
     t.press(Action::BQ(qstep::PLAN));

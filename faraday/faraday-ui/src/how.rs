@@ -1,5 +1,5 @@
 //! A block (`docs/CRYPTO-LEARN.md` §8.5) drawn as a Material list: the
-//! same list in Faraday's Learn tab and in the Starter's sheet, at every
+//! same list in Faraday's the guide tab and in the Starter's sheet, at every
 //! width. A field is one list item, its headline the field's label in
 //! Body L and its supporting text the value in Body M; an item is as
 //! tall as its text and cuts nothing (F148 records this difference from
@@ -10,8 +10,8 @@ use faraday_draw::tokens::{
     BODY_L, BODY_M, GAP, GAP_SMALL, ICON_GLYPH_SMALL, LIST_PAD_V, PAD, TITLE_M, TITLE_S, TypeRole,
 };
 use faraday_draw::widgets::Icon;
-use faraday_learn::block::{Area, Block, CrossCheck, Kind, Line};
-use faraday_learn::construction::{Construction, Item, Table};
+use faraday_guide::block::{Area, Block, CrossCheck, Kind, Line};
+use faraday_guide::construction::{Construction, Item, Table};
 use faraday_strings::{EN, fill};
 use std::sync::{Arc, Mutex};
 
@@ -40,7 +40,7 @@ pub fn blocks<A: Copy + PartialEq>(
             cy += GAP;
         }
         cy += kept_block(ui, (x, cy, w), b, release);
-        for c in faraday_learn::how::constructions_after_block(blocks, i) {
+        for c in faraday_guide::how::constructions_after_block(blocks, i) {
             cy += GAP;
             ui.rule(x, cy, w, Role::OutlineVariant);
             cy += GAP;

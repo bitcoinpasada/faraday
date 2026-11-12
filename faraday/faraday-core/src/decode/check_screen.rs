@@ -48,7 +48,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 open: s.open == n,
                 default: side.is_some(),
                 toggle: Action::SignerCheck(SignerPress::Card(n)),
-                guide: None,
+                walkthrough: None,
             }
         })
         .collect();

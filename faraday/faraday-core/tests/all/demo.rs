@@ -230,14 +230,14 @@ fn in_the_demo_and_on_the_stick_the_gpg_key_screen_opens_the_guide_at_its_page()
     let mut app = app_on(true);
     crate::common::start(&mut app, Kind::Gpg);
     assert_eq!(app.screen, Screen::BackupFlow);
-    app.press(Action::Learn);
-    assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert!(app.learn().shown.starts_with("gpg-restore"));
+    app.press(Action::Guide);
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+    assert!(app.guide().shown.starts_with("gpg-restore"));
     // The stick opens the same page.
     let mut app = app_on(false);
     crate::common::start(&mut app, Kind::Gpg);
-    app.press(Action::Learn);
-    assert!(app.learn().shown.starts_with("gpg-restore"));
+    app.press(Action::Guide);
+    assert!(app.guide().shown.starts_with("gpg-restore"));
 }
 
 #[test]
@@ -246,8 +246,8 @@ fn on_a_test_network_the_gpg_key_screen_opens_the_guide_at_its_page() {
     testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     crate::common::start(&mut app, Kind::Gpg);
     assert_eq!(app.screen, Screen::BackupFlow);
-    app.press(Action::Learn);
-    assert!(app.learn().shown.starts_with("gpg-restore"));
+    app.press(Action::Guide);
+    assert!(app.guide().shown.starts_with("gpg-restore"));
 }
 
 // ---------------------------------------------------------------------

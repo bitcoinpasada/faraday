@@ -28,8 +28,8 @@ fn dest<'s>(
     action: Action,
 ) -> Dest<'s, Action> {
     let current = match action {
-        Action::Nav(s) => destination_of(app.screen) == s && app.sheet != Some(Sheet::Learn),
-        Action::Learn => app.sheet == Some(Sheet::Learn),
+        Action::Nav(s) => destination_of(app.screen) == s && app.sheet != Some(Sheet::Guide),
+        Action::Guide => app.sheet == Some(Sheet::Guide),
         _ => false,
     };
     Dest {
@@ -98,13 +98,13 @@ fn destinations<'s>(app: &'s View) -> (Vec<Dest<'s, Action>>, Vec<Dest<'s, Actio
 }
 
 /// The navigation rail down the window's left, `h` tall: the
-/// destinations, Learn and Settings under a divider, Lock (while
+/// destinations, the guide and Settings under a divider, Lock (while
 /// something is held) and Power off at its foot.
 pub(crate) fn rail(app: &View, ui: &mut Ui, h: f32) {
     let (mut top, more) = destinations(app);
     top.extend(more);
     let under = [
-        dest(app, Icon::Learn, EN.sidebar_learn, Action::Learn),
+        dest(app, Icon::Learn, EN.sidebar_guide, Action::Guide),
         dest(
             app,
             Icon::Settings,
@@ -140,8 +140,8 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, y: f32, w: f32) {
 /// (`docs/CRYPTO-LEARN.md` §8.1), their right edge at `right`; on the wide
 /// layout the codex32 sheets' eye stands between them, so that it keeps its
 /// place in the page's margin. Returns where the next action ends. A lookup.
-fn learn_tools(app: &View, ui: &mut Ui, mut right: f32, nav: Nav) -> f32 {
-    right = faraday_ui::nav::help(ui, right, Action::Learn, EN.tip_learn);
+fn guide_tools(app: &View, ui: &mut Ui, mut right: f32, nav: Nav) -> f32 {
+    right = faraday_ui::nav::help(ui, right, Action::Guide, EN.tip_guide);
     if nav == Nav::ExpandedRail {
         right = crate::compact::bar_eye(app, ui, right);
     }
@@ -182,7 +182,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
                 );
             }
         }
-        *right = learn_tools(app, ui, *right, nav);
+        *right = guide_tools(app, ui, *right, nav);
         if crate::modes::screen::shows_pill(app) {
             let pw = crate::modes::screen::pill_width(app, ui);
             let px = *right - GAP - pw;

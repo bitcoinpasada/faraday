@@ -62,7 +62,7 @@ and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
    address: `Session::shown` and `broken_checksum` go, with the tests
    that encode them.
 5. `Faraday::makes_secrets()` is `!session.keys.demo()`: unchanged in
-   code, and now it means Practice. `learn.rs`'s two conditions become one
+   code, and now it means Practice. `guide.rs`'s two conditions become one
    (`keys.demo()`).
 6. **A mode change is a lock.** `Action::Mode(Mode)`:
    - the mode in use, or one not in `self.modes`, or any while the

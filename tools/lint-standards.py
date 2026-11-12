@@ -254,7 +254,7 @@ def check_out_of_app(root, data, fns, actions):
             for p in sorted(root.glob("faraday/**/src/**/*.rs")):
                 # The Learn blocks generated from the manifest name functions
                 # as text and call none (F148).
-                if p.relative_to(root).as_posix() == "faraday/faraday-learn/src/how.rs":
+                if p.relative_to(root).as_posix() == "faraday/faraday-guide/src/how.rs":
                     continue
                 for n, line in enumerate(p.read_text().splitlines(), 1):
                     if rx.search(line):

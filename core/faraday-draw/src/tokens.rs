@@ -1225,20 +1225,20 @@ pub const SUPPORT_PANE: f32 = 400.0;
 /// app bar: level with the page's first line (`docs/LAYOUT.md` §3, §6).
 pub const SUPPORT_PANE_TOP: f32 = PAGE_TOP_BAR;
 
-/// Learn's supporting pane (`docs/LAYOUT.md` §6): the margin at each
+/// The guide's supporting pane (`docs/LAYOUT.md` §6): the margin at each
 /// side of its headline, tabs and text.
-pub const LEARN_PANE_PAD: f32 = PAD;
-/// The top of the close button's target in Learn's pane, at the end of
+pub const GUIDE_PANE_PAD: f32 = PAD;
+/// The top of the close button's target in the guide's pane, at the end of
 /// its header row, the headline level with the target's middle.
-pub const LEARN_PANE_CLOSE_TOP: f32 = LEARN_PANE_PAD + 16.0 - TOUCH / 2.0;
-/// The top of the tabs in Learn's pane: under the header row, so the
+pub const GUIDE_PANE_CLOSE_TOP: f32 = GUIDE_PANE_PAD + 16.0 - TOUCH / 2.0;
+/// The top of the tabs in the guide's pane: under the header row, so the
 /// tabs take the pane's whole width (Material 3 Tabs: labels never cut).
-pub const LEARN_PANE_TABS_TOP: f32 = LEARN_PANE_CLOSE_TOP + TOUCH;
-/// The push pin in Learn's pane's header: the size at which it reads as
+pub const GUIDE_PANE_TABS_TOP: f32 = GUIDE_PANE_CLOSE_TOP + TOUCH;
+/// The push pin in the guide's pane's header: the size at which it reads as
 /// large as the close button's × beside it (owner, 2026-10-29).
-pub const LEARN_PANE_PIN_GLYPH: f32 = ICON_GLYPH_BUTTON;
-/// The room between paragraphs in Learn's pane, under its Body M text.
-pub const LEARN_PANE_PARA: f32 = GAP + GAP_SMALL;
+pub const GUIDE_PANE_PIN_GLYPH: f32 = ICON_GLYPH_BUTTON;
+/// The room between paragraphs in the guide's pane, under its Body M text.
+pub const GUIDE_PANE_PARA: f32 = GAP + GAP_SMALL;
 
 /// The input panel's width where it stands beside the sheets
 /// (`docs/LAYOUT.md` §16.3): the codex32 entry's rolls, dice and pad.

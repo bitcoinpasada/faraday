@@ -498,7 +498,7 @@ fn passphrase_key() -> Faraday {
 
 // ---------------------------------------------------------------------
 // `docs/history/NEW-WALLET.md` §4: the plan leads with the whole wallet sheet;
-// shares come second, with a Learn page and a slider.
+// shares come second, with a guide page and a slider.
 // ---------------------------------------------------------------------
 
 /// An app on the test network with Savings (2-of-3) and a 3-of-5 loaded,
@@ -608,16 +608,16 @@ fn a_three_of_five_over_five_places_leaves_two_keys_off_each_share() {
     assert_eq!(app.backup().unwrap().answers.omit, 1);
 }
 
-/// What is a share? opens Learn on the page about shares; closing it
+/// What is a share? opens the guide on the page about shares; closing it
 /// leaves the plan on the board.
 #[test]
 fn what_is_a_share_opens_the_page_and_back_returns_to_places() {
     use faraday_core::{Action, Screen, Sheet, qstep};
     let mut app = places_of("Savings");
-    assert!(shows(&mut app, Action::LearnShares));
-    app.press(Action::LearnShares);
-    assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(app.learn().shown, "backup", "the guide at the place");
+    assert!(shows(&mut app, Action::GuideShares));
+    app.press(Action::GuideShares);
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+    assert_eq!(app.guide().shown, "backup", "the guide at the place");
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Backup);

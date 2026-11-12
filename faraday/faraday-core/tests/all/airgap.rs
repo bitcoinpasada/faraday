@@ -150,10 +150,10 @@ fn the_device_changes_mode_without_the_warning() {
 #[test]
 fn the_guide_lists_the_mode_page_in_the_demo_and_on_the_device_alike() {
     for mut app in [desktop(), testkit::started()] {
-        app.press(Action::Learn);
-        app.press(Action::LearnContents);
-        assert!(app.learn().contents);
-        let mode = faraday_learn::guide_groups()
+        app.press(Action::Guide);
+        app.press(Action::GuideContents);
+        assert!(app.guide().contents);
+        let mode = faraday_guide::guide_groups()
             .iter()
             .flat_map(|g| g.pages.iter())
             .any(|p| p.place == "mode");

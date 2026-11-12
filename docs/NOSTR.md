@@ -572,7 +572,7 @@ this spec.
 ## 9. Learn page
 
 One page, docs/learn/faraday/nostr.md, id `nostr` in
-`faraday-learn`'s `OWN`, opened from the Nostr tile's info and the
+`faraday-guide`'s `OWN`, opened from the Nostr tile's info and the
 BIP-85 screen with Nostr chosen. Outline, a heading each:
 
 - **What the Nostr key is**: one secret key, the nsec, and its public

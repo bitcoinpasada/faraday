@@ -52,7 +52,7 @@ impl Faraday {
         if !self.secure_boot_reminder() {
             return None;
         }
-        faraday_learn::maker(&self.maker, &self.maker_family, &self.maker_model).map(|m| m.bios_key)
+        faraday_guide::maker(&self.maker, &self.maker_family, &self.maker_model).map(|m| m.bios_key)
     }
 
     /// The address of the guide for this computer, when the power-off
@@ -60,13 +60,13 @@ impl Faraday {
     /// computer (`docs/STARTER.md` §7.5).
     pub fn secure_boot_guide(&self) -> Option<String> {
         self.secure_boot_reminder().then(|| {
-            let id = crate::learn::guide_id(
+            let id = crate::guide::guide_id(
                 &self.maker,
                 &self.maker_family,
                 &self.maker_model,
                 "windows",
             );
-            crate::learn::guide_address(id)
+            crate::guide::guide_address(id)
         })
     }
 }

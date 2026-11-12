@@ -58,7 +58,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: open == Some(id),
             default: false,
             toggle: crate::spend_backup::toggle(app, id),
-            guide: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
+            walkthrough: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
         })
         .collect();
     // From a wallet's card: the wallet's name, and no word on the

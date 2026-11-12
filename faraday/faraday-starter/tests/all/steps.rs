@@ -34,7 +34,7 @@ fn a_step_shows_its_circle_and_its_text_without_the_prefix() {
     assert!(seen.iter().any(|t| t == "1"), "{seen:?}");
     // No paragraph is shown with its raw "n. " prefix.
     for t in &seen {
-        assert!(faraday_learn::step(t).is_none(), "{t}");
+        assert!(faraday_guide::step(t).is_none(), "{t}");
     }
     // The text after the step's number is still shown, just not as
     // "1. Plug the stick in.".

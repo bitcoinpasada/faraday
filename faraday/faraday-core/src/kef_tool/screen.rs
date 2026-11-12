@@ -37,7 +37,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: s.open == Some(step),
             default: false,
             toggle: Action::KefTool(K::Step(step)),
-            guide: None,
+            walkthrough: None,
         })
         .collect();
     let back_name = if s.back == crate::Screen::Catalog {

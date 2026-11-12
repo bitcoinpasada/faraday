@@ -102,8 +102,8 @@ fn forward_does_nothing_once_another_screen_is_opened() {
 #[test]
 fn back_closes_a_sheet_as_escape_does_and_leaves_the_screen() {
     let mut app = new_key();
-    app.press(Action::Learn);
-    assert_eq!(app.sheet, Some(Sheet::Learn));
+    app.press(Action::Guide);
+    assert_eq!(app.sheet, Some(Sheet::Guide));
     let _ = app.frame();
     button(&mut app, Event::Back);
     assert_eq!(app.sheet, None);

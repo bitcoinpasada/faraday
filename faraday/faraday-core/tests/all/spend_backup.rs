@@ -275,7 +275,7 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     assert_eq!(here, other.spend().unwrap().spend.psbt.to_bytes());
 }
 
-/// Read the transaction carries one line and a way to Learn's Verifying,
+/// Read the transaction carries one line and a way to the guide's Verifying,
 /// where why the summary is read before signing is written.
 #[test]
 fn read_the_transaction_opens_the_guide_at_the_place() {
@@ -292,9 +292,9 @@ fn read_the_transaction_opens_the_guide_at_the_place() {
         "{text}"
     );
     assert!(!text.contains("Declining costs nothing"), "{text}");
-    app.press(Action::Learn);
-    assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(app.learn().shown, "spend-from-backup");
+    app.press(Action::Guide);
+    assert_eq!(app.sheet, Some(Sheet::Guide));
+    assert_eq!(app.guide().shown, "spend-from-backup");
 }
 
 /// A transaction brought before Check the money is done leaves the
@@ -863,10 +863,10 @@ fn the_spend_tab_opens_from_the_wallets_empty_state() {
 fn the_guide_on_the_spend_tab_opens_at_its_page_and_done_leaves_the_tab() {
     let mut app = shown();
     app.press(Action::Nav(Screen::SpendBackup));
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = app.frame();
-    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
-    assert_eq!(app.learn().shown, "spend-from-backup");
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Guide));
+    assert_eq!(app.guide().shown, "spend-from-backup");
     app.press(Action::Cancel);
     assert_eq!(app.screen, Screen::SpendBackup);
     assert_eq!(app.sheet, None);

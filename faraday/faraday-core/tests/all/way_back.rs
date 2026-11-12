@@ -1,6 +1,6 @@
 //! Back lands exactly on the screen seen before the flow was entered
 //! (F77): the same screen, the same wallet's card, the list scrolled as
-//! far, the Learn sheet open on the same page. A press on the way back,
+//! far, the guide sheet open on the same page. A press on the way back,
 //! the mouse's back button and a flow's Cancel all land there, and the
 //! way back is named after where it lands, "Back to Tools" (F146).
 
@@ -165,11 +165,11 @@ fn back_from_the_spend_tab_after_the_guide_lands_where_it_was_opened_from() {
     let mut app = with(1, 1280, 800);
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::OpenWallet(0));
-    app.press(Action::Learn);
-    assert_eq!(app.sheet, Some(Sheet::Learn));
+    app.press(Action::Guide);
+    assert_eq!(app.sheet, Some(Sheet::Guide));
     app.press(Action::Cancel);
     app.press(Action::Nav(Screen::SpendBackup));
-    app.press(Action::Learn);
+    app.press(Action::Guide);
     let _ = app.frame();
     app.press(Action::Cancel);
     assert_eq!((app.screen, app.sheet), (Screen::SpendBackup, None));

@@ -1,7 +1,7 @@
 //! Navigation by window class (`docs/LAYOUT.md` §3): the Pi's panel
 //! keeps Home's menu; a compact window has the navigation bar at its
 //! foot; a medium, an expanded or a low window the rail at its left,
-//! with Learn, Settings and Lock; a large or extra-large one the
+//! with the guide, Settings and Lock; a large or extra-large one the
 //! expanded rail, which lists the flows in progress. Where there is no
 //! expanded rail, a flow in progress shows its chip on every
 //! destination; a stick being written hides the navigation.
@@ -81,9 +81,9 @@ fn the_pi_panel_shows_homes_menu_and_no_bar() {
     // 480 × 640 at 286 dpi: 268 × 358 dp.
     let mut app = on(480, 640, 286);
     assert_eq!(app.nav(), Nav::Menu);
-    // Wallets and Learn are buttons on the menu itself.
+    // Wallets and the guide are buttons on the menu itself.
     assert!(at(&mut app, Action::Nav(Screen::WalletsStart)).is_some());
-    assert!(at(&mut app, Action::Learn).is_some());
+    assert!(at(&mut app, Action::Guide).is_some());
     assert!(
         !app.offers(Action::NavMenu(MenuPress::Open(None))),
         "no top app bar"
@@ -124,7 +124,7 @@ fn a_compact_window_shows_the_bars_five_destinations_and_each_opens() {
     assert_eq!(app.screen, Screen::Settings);
 }
 
-/// The rail at a window's left: the five destinations, Learn, Settings
+/// The rail at a window's left: the five destinations, the guide, Settings
 /// and (with a key held) Lock, each opening what it names.
 fn the_rail_offers_and_opens(width: u16, height: u16) {
     let mut app = on(width, height, 160);
@@ -140,9 +140,9 @@ fn the_rail_offers_and_opens(width: u16, height: u16) {
         tap(&mut app, p);
         assert_eq!(app.screen, screen, "{dest:?}");
     }
-    let p = in_rail(&mut app, Action::Learn);
+    let p = in_rail(&mut app, Action::Guide);
     tap(&mut app, p);
-    assert_eq!(app.sheet, Some(Sheet::Learn));
+    assert_eq!(app.sheet, Some(Sheet::Guide));
     app.press(Action::Cancel);
     let p = in_rail(&mut app, Action::Nav(Screen::Settings));
     tap(&mut app, p);
@@ -156,12 +156,12 @@ fn the_rail_offers_and_opens(width: u16, height: u16) {
 }
 
 #[test]
-fn a_half_screen_window_shows_the_rail_with_learn_settings_and_lock() {
+fn a_half_screen_window_shows_the_rail_with_guide_settings_and_lock() {
     the_rail_offers_and_opens(760, 1000);
 }
 
 #[test]
-fn a_seven_inch_panel_sized_window_shows_the_rail_with_learn_settings_and_lock() {
+fn a_seven_inch_panel_sized_window_shows_the_rail_with_guide_settings_and_lock() {
     the_rail_offers_and_opens(960, 580);
 }
 

@@ -19,7 +19,7 @@ status=0
 # Faraday's screen code: faraday-core (every module but the test kit:
 # the screens, and the modules whose toasts, errors and labels they
 # show), the two crates split from it that hold no wording
-# (faraday-learn, faraday-intake), the Starter's faraday-starter,
+# (faraday-guide, faraday-intake), the Starter's faraday-starter,
 # Faraday's drawing in faraday-ui, and the two
 # shells' main files, which title their windows. The shells' other files
 # and the stick's shell are platform code: system calls, the writer's
@@ -76,13 +76,13 @@ status=0
 # `// not wording: <why>`, and one that is a developer's text no screen
 # shows (a Display kept for developers, a console line) is marked
 # `// not shown: <why>`, on its line or the comment line above it.
-# The Learn pages (docs/learn, faraday-learn's pages), faraday-learn's
+# The Learn pages (docs/learn, faraday-guide's pages), faraday-guide's
 # generated `how.rs` (the manifest's values, carried as the pages' text is)
 # and the self-test's check names are outside this lint, as CLAUDE.md says.
 FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/drawing/*' -not -path '*/work/*' | sort | grep -v '/testkit\.rs$\|/names\.rs$')
 faraday/faraday-starter/src/*.rs
 faraday/faraday-ui/src/*.rs
-$(ls faraday/faraday-learn/src/*.rs | grep -v '/how\.rs$')
+$(ls faraday/faraday-guide/src/*.rs | grep -v '/how\.rs$')
 faraday/faraday-start/src/*.rs
 faraday/faraday-intake/src/*.rs
 faraday/faraday-vault/src/lib.rs

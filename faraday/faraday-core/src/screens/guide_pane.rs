@@ -1,4 +1,4 @@
-//! Learn's supporting pane (`docs/LAYOUT.md` §6): on an extra-large
+//! the guide's supporting pane (`docs/LAYOUT.md` §6): on an extra-large
 //! window, the guide stands in a pane at the right, beside the page
 //! it explains, instead of the sheet over it. The pane holds its place
 //! while the page scrolls beside it and scrolls within itself where it
@@ -6,14 +6,14 @@
 //! pin, which keeps it open across screens, and the close button, which
 //! puts it away (Material 3 Side sheets, Icon buttons), so the
 //! tabs under it run the pane's whole width; its tabs, page and contents
-//! are the sheet's (`sheets::learn_body`). Which page it shows is kept
-//! on the guide's state (`Faraday::learn_place`); drawing reads it.
+//! are the sheet's (`sheets::guide_body`). Which page it shows is kept
+//! on the guide's state (`Faraday::guide_place`); drawing reads it.
 
 use crate::ui::Region;
 use faraday_draw::tokens as T;
 use faraday_draw::widgets::Icon;
 
-use super::sheets::{LearnLook, learn_body};
+use super::sheets::{GuideLook, guide_body};
 use crate::Action;
 use crate::drawing::View;
 use crate::strings::EN;
@@ -21,7 +21,7 @@ use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Slot, Ui, W};
 
-/// Draws Learn's supporting pane for the page area at `x0`, `cw` wide,
+/// Draws the guide's supporting pane for the page area at `x0`, `cw` wide,
 /// in a window `h` tall, at the one place every supporting pane stands
 /// (`screens::support_pane_place`). Reads the state.
 pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
@@ -30,37 +30,37 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
     let area = ui.rect(x, y, w, view);
     ui.drop_presses_inside(area);
     ui.fill(x, y, w, view, T::SHAPE_L, Role::SurfaceContainer);
-    let look = LearnLook {
-        pad: T::LEARN_PANE_PAD,
+    let look = GuideLook {
+        pad: T::GUIDE_PANE_PAD,
         // The tabs run the pane's whole width, as Material's tabs run
         // their container's.
         tabs_edge: 0.0,
-        tabs_top: T::LEARN_PANE_TABS_TOP,
+        tabs_top: T::GUIDE_PANE_TABS_TOP,
         after_tabs: T::PAD,
         rule: T::GAP,
         inset: 0.0,
         text_top: T::GAP,
-        foot: super::sheets::learn_foot(ui),
+        foot: super::sheets::guide_foot(ui),
         head: T::TITLE_L,
         heading: T::TITLE_S,
         body: T::BODY_M,
-        after: [T::GAP, T::GAP_SMALL, T::LEARN_PANE_PARA, T::GAP],
+        after: [T::GAP, T::GAP_SMALL, T::GUIDE_PANE_PARA, T::GAP],
         clip_hits: true,
     };
-    let (clip, max) = learn_body(app, ui, &look, (x, y, w, view));
-    let head = (x + T::LEARN_PANE_PAD, y + T::LEARN_PANE_CLOSE_TOP, T::TOUCH);
-    ui.text_mid_as(head, T::TITLE_L, Role::OnSurface, EN.learn_pane_title);
+    let (clip, max) = guide_body(app, ui, &look, (x, y, w, view));
+    let head = (x + T::GUIDE_PANE_PAD, y + T::GUIDE_PANE_CLOSE_TOP, T::TOUCH);
+    ui.text_mid_as(head, T::TITLE_L, Role::OnSurface, EN.guide_pane_title);
     let close_x = x + w - T::GAP - T::TOUCH;
     pin_button(
         ui,
         close_x - T::TOUCH,
-        y + T::LEARN_PANE_CLOSE_TOP,
-        app.learn_pinned(),
+        y + T::GUIDE_PANE_CLOSE_TOP,
+        app.guide_pinned(),
     );
-    close_button(ui, close_x, y + T::LEARN_PANE_CLOSE_TOP);
+    close_button(ui, close_x, y + T::GUIDE_PANE_CLOSE_TOP);
     // Its edges fade into the pane's own container.
     let region =
-        Region::beside(Slot::LearnPane, clip, app.learn().scroll).on(Role::SurfaceContainer);
+        Region::beside(Slot::GuidePane, clip, app.guide().scroll).on(Role::SurfaceContainer);
     ui.region_reported(region, max);
 }
 
@@ -68,22 +68,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32)) {
 /// target next after it: Material's standard icon button as a toggle,
 /// `ICON_BUTTON` across at the end of its target nearest the close
 /// button, its state layer on hover and press, the push pin
-/// `LEARN_PANE_PIN_GLYPH` across so it reads the size of the × (owner,
+/// `GUIDE_PANE_PIN_GLYPH` across so it reads the size of the × (owner,
 /// 2026-10-29). Off, outlined in on-surface-variant, as the ×; on,
 /// filled in primary.
 fn pin_button(ui: &mut Ui, x: f32, y: f32, on: bool) {
-    let a = Action::LearnPin;
+    let a = Action::GuidePin;
     let edge = (T::TOUCH - T::ICON_BUTTON) / 2.0;
     let (bx, by) = (x + 2.0 * edge, y + edge);
     let r = T::shape_full(T::ICON_BUTTON);
     let button = Shape::new(bx, by, T::ICON_BUTTON, T::ICON_BUTTON, r);
     let (icon, ink, tip) = if on {
-        (Icon::Pinned, Role::Primary, EN.learn_unpin)
+        (Icon::Pinned, Role::Primary, EN.guide_unpin)
     } else {
-        (Icon::Pin, Role::OnSurfaceVariant, EN.learn_pin)
+        (Icon::Pin, Role::OnSurfaceVariant, EN.guide_pin)
     };
     ui.press_to(button, (x, y, T::TOUCH, T::TOUCH), ink.paint(), a);
-    let size = T::LEARN_PANE_PIN_GLYPH;
+    let size = T::GUIDE_PANE_PIN_GLYPH;
     let glyph = (T::ICON_BUTTON - size) / 2.0;
     ui.icon(bx + glyph, by + glyph, size, icon, size, ink);
     ui.tip_plain((x, y, T::TOUCH, T::TOUCH), a, tip);
@@ -95,7 +95,7 @@ fn pin_button(ui: &mut Ui, x: f32, y: f32, on: bool) {
 /// multiplication sign, as the vault search's clear is: the icon face
 /// has no close glyph.
 fn close_button(ui: &mut Ui, x: f32, y: f32) {
-    let a = Action::LearnClose;
+    let a = Action::GuideClose;
     let edge = (T::TOUCH - T::ICON_BUTTON) / 2.0;
     let (bx, by) = (x + edge, y + edge);
     let r = T::shape_full(T::ICON_BUTTON);
@@ -118,5 +118,5 @@ fn close_button(ui: &mut Ui, x: f32, y: f32) {
         Role::OnSurfaceVariant,
         mark,
     );
-    ui.tip_plain((x, y, T::TOUCH, T::TOUCH), a, EN.learn_close);
+    ui.tip_plain((x, y, T::TOUCH, T::TOUCH), a, EN.guide_close);
 }

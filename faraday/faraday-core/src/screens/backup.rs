@@ -10,7 +10,7 @@ use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui};
 use crate::wallet::{Session, fp_text, key_line};
-use crate::{Action, Code, Faraday, Screen, flow, guide};
+use crate::{Action, Code, Faraday, Screen, flow, walkthrough};
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens as T;
 use faraday_draw::tokens::{BODY_L, BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_S, TITLE_M};
@@ -330,7 +330,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     open: b.open == Some(k),
                     default: false,
                     toggle: Action::BStep(k),
-                    guide: Some(guide::backup(
+                    walkthrough: Some(walkthrough::backup(
                         k,
                         split,
                         keys.len(),
@@ -356,7 +356,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     open: b.q == Some(k),
                     default: false,
                     toggle: Action::BQ(k),
-                    guide: None,
+                    walkthrough: None,
                 }
             }
         })
@@ -671,7 +671,7 @@ pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         BUTTON_H,
         label,
         Style::Ghost,
-        Action::LearnExtraCopies,
+        Action::GuideExtraCopies,
     );
     cy += BUTTON_H + 12.0;
     cy - y

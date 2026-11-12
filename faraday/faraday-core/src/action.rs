@@ -653,35 +653,35 @@ pub enum Action {
     /// Paste words, on Faraday Demo: the clipboard's text as the whole of
     /// the words form's words (F75).
     PasteWords,
-    /// Open the Learn pages for the screen on show.
-    Learn,
+    /// Open the guide pages for the screen on show.
+    Guide,
     /// The docked keyboard of a small panel.
     Osk(compact::OskPress),
-    /// Learn's supporting pane's close button: puts the pane away
+    /// The guide's supporting pane's close button: puts the pane away
     /// (`docs/LAYOUT.md` §6).
-    LearnClose,
-    /// Learn's supporting pane's pin: kept open across screens while on,
+    GuideClose,
+    /// The guide's supporting pane's pin: kept open across screens while on,
     /// put away at the next screen while off (`docs/LAYOUT.md` §6).
-    LearnPin,
+    GuidePin,
     /// Show the page in place `i` of the guide's contents.
-    LearnPage(u8),
+    GuidePage(u8),
     /// The guide's **Cryptography** tab.
-    LearnTabHow,
+    GuideTabHow,
     /// The guide's **Guide** tab.
-    LearnTabGuide,
+    GuideTabGuide,
     /// The guide's **Contents** button.
-    LearnContents,
+    GuideContents,
     /// The contents' first row: the page of the place the guide was opened
     /// from.
-    LearnHere,
-    /// **How Faraday does it** on the top app bar: Learn on the How tab
+    GuideHere,
+    /// **How Faraday does it** on the top app bar: the guide on the How tab
     /// (`docs/CRYPTO-LEARN.md` §8.2).
     How,
     /// **What is a share?** beside the backup plan's In shares: the
-    /// Learn sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).
-    LearnShares,
+    /// The guide sheet on the page about shares (`docs/history/NEW-WALLET.md` §4.2).
+    GuideShares,
     /// The guide at Extra copies, from the line under the backup's plan.
-    LearnExtraCopies,
+    GuideExtraCopies,
     /// The word-list sheet, or a link to it.
     WordList(wordlist::WordListAction),
     /// Make a new key, for this Create slot or for the session; for the
