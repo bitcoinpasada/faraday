@@ -1603,13 +1603,8 @@ impl crate::Faraday {
         match added {
             Ok(fp) => {
                 self.keygen.new_keys += 1;
-                if let Some(slot) = slot
-                    && let Some(c) = self.create.state_mut()
-                {
-                    c.made += 1;
-                    if let Some(s) = c.slots.get_mut(usize::from(slot)) {
-                        *s = crate::create::Source::Here(fp.0);
-                    }
+                if let Some(slot) = slot {
+                    self.create.fill_slot(slot, fp.0, true);
                 }
                 if let Some(k) = self.keygen.state.as_mut() {
                     k.fingerprint = Some(fp.0);
@@ -1729,25 +1724,13 @@ impl crate::Faraday {
         let Some(slot) = slot else {
             return;
         };
-        let Some(c) = self.create.state_mut() else {
+        if self.create.state().is_none() {
             return;
-        };
-        if made {
-            c.made += 1;
         }
-        if let Some(s) = c.slots.get_mut(usize::from(slot)) {
-            *s = crate::create::Source::Here(fp.0);
-        }
-        if !c.kind.multi() && c.built.is_none() {
+        self.create.fill_slot(slot, fp.0, made);
+        if self.create.single_key_unbuilt() {
             self.create_make();
-            if let Some(c) = self.create.state_mut()
-                && c.built.is_some()
-            {
-                c.done[usize::from(crate::cstep::KEYS)] = true;
-                c.done[usize::from(crate::cstep::CHECK)] = true;
-                c.open = Some(crate::cstep::CHECK);
-                c.scroll.follow = true;
-            }
+            self.create.check_opened_after_make();
             if let Some(w) = self.create.state().and_then(|c| c.built)
                 && let Some(wallet) = self.session.wallets.get(w)
             {
@@ -1858,12 +1841,8 @@ impl crate::Faraday {
             return;
         };
         self.return_back(k.back);
-        if k.slot.is_some()
-            && let Some(c) = self.create.state_mut()
-            && c.built.is_none()
-        {
-            c.open = Some(crate::cstep::KEYS);
-            c.scroll.follow = true;
+        if k.slot.is_some() {
+            self.create.open_card_unbuilt(Some(crate::cstep::KEYS));
         }
         if let Some(fp) = k.fingerprint.filter(|_| k.typed()) {
             // A key typed: Add a key's own toast.

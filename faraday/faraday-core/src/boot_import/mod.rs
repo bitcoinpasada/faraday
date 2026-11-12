@@ -286,11 +286,6 @@ impl BootImportArea {
         self.state.is_some()
     }
 
-    /// The import, to change it.
-    pub(crate) fn state_mut(&mut self) -> Option<&mut ImportState> {
-        self.state.as_mut()
-    }
-
     /// Starts an import of `state`.
     pub(crate) fn set(&mut self, state: ImportState) {
         self.state = Some(state);
@@ -518,7 +513,7 @@ impl Faraday {
                 ));
             }
             (Some(words), Some(f)) => {
-                if let Some(imp) = self.import.state_mut() {
+                if let Some(imp) = self.import.state.as_mut() {
                     let item =
                         Item::new(&c, &format!("{stem}-words.txt"), words.as_bytes().to_vec());
                     let mut item = item;
@@ -607,7 +602,7 @@ impl Faraday {
         let Some(b) = boot else {
             return false;
         };
-        let Some(imp) = self.import.state_mut().filter(|i| !i.asked) else {
+        let Some(imp) = self.import.state.as_mut().filter(|i| !i.asked) else {
             return false;
         };
         imp.stick = b.id.clone();
@@ -634,7 +629,7 @@ impl Faraday {
                 name,
                 reason,
             } if self.import_waits(Some(&stick), &name) => {
-                if let Some(imp) = self.import.state_mut()
+                if let Some(imp) = self.import.state.as_mut()
                     && let Some(f) = imp.waiting(&name)
                 {
                     imp.files[f].state = Staged::Failed(reason);
@@ -665,7 +660,7 @@ impl Faraday {
     /// file it asked for is answered.
     fn import_read(&mut self, name: &str, bytes: Vec<u8>) {
         let c = self.compute();
-        let Some(imp) = self.import.state_mut() else {
+        let Some(imp) = self.import.state.as_mut() else {
             return;
         };
         let Some(f) = imp.waiting(name) else {
@@ -724,7 +719,7 @@ impl Faraday {
         if got.is_empty() && note.is_none() {
             note = left.and_then(|s| s.note.clone());
         }
-        let Some(imp) = self.import.state_mut() else {
+        let Some(imp) = self.import.state.as_mut() else {
             return;
         };
         let said = if codes == 0 {
@@ -769,7 +764,7 @@ impl Faraday {
             return;
         }
         let noun = self.medium.started_from();
-        let Some(imp) = self.import.state_mut() else {
+        let Some(imp) = self.import.state.as_mut() else {
             return;
         };
         for f in imp.files.iter_mut() {
@@ -950,7 +945,7 @@ impl Faraday {
                 else {
                     return;
                 };
-                if let Some(imp) = self.import.state_mut()
+                if let Some(imp) = self.import.state.as_mut()
                     && !imp.skip.remove(&f.name)
                 {
                     imp.skip.insert(f.name);
@@ -964,7 +959,7 @@ impl Faraday {
                     return;
                 };
                 let any = view.files.iter().any(|f| f.chosen);
-                if let Some(imp) = self.import.state_mut() {
+                if let Some(imp) = self.import.state.as_mut() {
                     if any {
                         imp.skip
                             .extend(view.files.into_iter().filter(|f| f.enabled).map(|f| f.name));
@@ -988,7 +983,12 @@ impl Faraday {
                 let Some(v) = self.import_field() else {
                     return;
                 };
-                if let Some(names) = self.import.state_mut().and_then(|i| i.unlocking.as_mut()) {
+                if let Some(names) = self
+                    .import
+                    .state
+                    .as_mut()
+                    .and_then(|i| i.unlocking.as_mut())
+                {
                     names.retain(|n| *n != v.name);
                 }
                 self.vaults.clear_unlock();
@@ -1009,7 +1009,7 @@ impl Faraday {
         }
         // Which vault files fit is by what is free now.
         self.vaults.read_free();
-        let Some(imp) = self.import.state_mut() else {
+        let Some(imp) = self.import.state.as_mut() else {
             return;
         };
         imp.asked = true;
@@ -1049,7 +1049,7 @@ impl Faraday {
         if self.import.text_waits_for_import() {
             return;
         }
-        let Some(imp) = self.import.state_mut() else {
+        let Some(imp) = self.import.state.as_mut() else {
             return;
         };
         if !imp.asked
@@ -1112,7 +1112,7 @@ impl Faraday {
             }
         }
         let (keys_before, wallets_before) = (self.session.keys.len(), self.session.wallets.len());
-        if let Some(imp) = self.import.state_mut() {
+        if let Some(imp) = self.import.state.as_mut() {
             imp.wallets_before = wallets_before;
         }
         // Every wallet and seed they hold; with the stick in, the seeds,
@@ -1136,7 +1136,7 @@ impl Faraday {
             (failed, why.as_deref()),
             &renamed,
         );
-        if let Some(imp) = self.import.state_mut() {
+        if let Some(imp) = self.import.state.as_mut() {
             imp.unlocking = Some(vaults);
         }
         // The sheet put off while the files were read stays off: Home

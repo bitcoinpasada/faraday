@@ -411,10 +411,47 @@ impl RestoreArea {
         self.state.as_ref()
     }
 
-    /// The flow's state, for the writers in other areas, until they are
-    /// narrowed.
+    /// The flow's state to change, only for the scroll offset and the
+    /// seeds' state that `Faraday::screen_slot` and `Faraday::seeds_mut`
+    /// hand out by reference for every screen.
     pub(crate) fn state_mut(&mut self) -> Option<&mut RestoreState> {
         self.state.as_mut()
+    }
+
+    /// Shows `error` as the last refusal.
+    pub(crate) fn set_error(&mut self, error: String) {
+        if let Some(r) = self.state.as_mut() {
+            r.error = Some(error);
+        }
+    }
+
+    /// Sets the column's scroll, as the drawing pass noted it.
+    pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
+        if let Some(r) = self.state.as_mut() {
+            r.scroll = to;
+        }
+    }
+
+    /// Opens Seeds with Where and How many done, as a wallet read from its
+    /// description is attached to the setup.
+    pub(crate) fn open_seeds_after_description(&mut self) {
+        if let Some(r) = self.state.as_mut() {
+            r.open = Some(crate::rstep::SEEDS);
+            r.done[crate::rstep::WHERE as usize] = true;
+            r.done[crate::rstep::HOW_MANY as usize] = true;
+            r.scroll.follow = true;
+        }
+    }
+
+    /// The wallet was made from the typed seeds, not read from a
+    /// description: its Seeds card is done.
+    pub(crate) fn made_from_seeds(&mut self) {
+        if let Some(r) = self.state.as_mut()
+            && r.wallet.is_some()
+        {
+            r.described = false;
+            r.next(crate::rstep::SEEDS);
+        }
     }
 
     /// Starts the flow on `state`.

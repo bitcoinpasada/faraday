@@ -390,18 +390,8 @@ impl Faraday {
             }
             PassField::SeedRead(i) => self.seed_read_filled(i),
             PassField::Slot(i) => {
-                if let Some(c) = self.create.state_mut() {
-                    // The first field fills its repeat too, where empty.
-                    let both: &[u8] = if i == 0 { &[0, 1] } else { &[1] };
-                    for &j in both {
-                        let t = if j == 0 { &mut c.pass } else { &mut c.pass2 };
-                        if j == i || t.is_empty() {
-                            t.set(PASSPHRASE);
-                        }
-                    }
-                    c.pass_focus = Some(i);
-                    c.pass_note = None;
-                }
+                // The first field fills its repeat too, where empty.
+                self.create.fill_pass(i, PASSPHRASE);
             }
             PassField::Phrase(i, again) => {
                 let i = usize::from(i);
@@ -424,9 +414,7 @@ impl Faraday {
                 self.vaults.fill_field(usize::from(k), PASSPHRASE);
             }
             PassField::Check => {
-                if let Some(c) = self.backup.check_mut() {
-                    c.typed.set(PASSPHRASE);
-                }
+                self.backup.fill_check(PASSPHRASE);
             }
             PassField::Aezeed => self.lightning.set_passphrase(PASSPHRASE),
             PassField::CoreWallet => crate::core_wallet::tool::fill_faraday(self),

@@ -146,18 +146,18 @@ impl InvoiceArea {
 /// Decode a Lightning invoice opened on its own, empty.
 pub(crate) fn open(app: &mut Faraday) {
     let back = app.screen;
-    app.tools.invoice_mut().open("", back);
+    app.tools.invoice.open("", back);
     app.screen = Screen::Invoice;
 }
 
 /// Decode a Lightning invoice opened on an invoice scanned or carried,
 /// decoded at once.
 pub(crate) fn with(app: &mut Faraday, text: &str) {
-    let back = match (app.screen, app.tools.invoice().state()) {
+    let back = match (app.screen, app.tools.invoice.state()) {
         (Screen::Invoice, Some(s)) => s.back,
         (screen, _) => screen,
     };
-    let area = app.tools.invoice_mut();
+    let area = &mut app.tools.invoice;
     area.open(text, back);
     area.decode();
     app.screen = Screen::Invoice;
@@ -180,13 +180,13 @@ pub(crate) fn scanned(app: &mut Faraday, filed: Option<usize>, text: &str) {
 pub(crate) fn act(app: &mut Faraday, press: InvoicePress) {
     let back = app
         .tools
-        .invoice()
+        .invoice
         .state()
         .map_or(Screen::Catalog, |s| s.back);
     match press {
-        InvoicePress::Decode => app.tools.invoice_mut().decode(),
+        InvoicePress::Decode => app.tools.invoice.decode(),
         InvoicePress::Scan => app.act(Action::ScanFor(crate::Ask::Invoice)),
-        InvoicePress::Clear => app.tools.invoice_mut().open("", back),
+        InvoicePress::Clear => app.tools.invoice.open("", back),
     }
 }
 
@@ -199,13 +199,13 @@ pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
     if key == faraday_shell_api::Key::Escape {
         let back = app
             .tools
-            .invoice()
+            .invoice
             .state()
             .map_or(Screen::Catalog, |s| s.back);
         app.act(Action::Nav(back));
         return true;
     }
-    app.tools.invoice_mut().key(key)
+    app.tools.invoice.key(key)
 }
 
 /// Whether the text is an offer, an invoice request or another BOLT #12

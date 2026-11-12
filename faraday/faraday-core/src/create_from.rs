@@ -127,14 +127,7 @@ impl Faraday {
         let Some(fp) = self.vault_key_load(v, r) else {
             return;
         };
-        if let Some(c) = self.create.state_mut()
-            && let Some(s) = c.slots.get_mut(usize::from(slot))
-        {
-            *s = Source::Here(fp);
-            if c.pass_slot == Some(slot) {
-                c.close_pass();
-            }
-        }
+        self.create.fill_slot_from_vault(slot, fp);
     }
 
     /// Costs the key's seed and master key. Loads record `r` of open vault
@@ -284,29 +277,7 @@ impl Faraday {
     /// account or script type needs the cosigner's xpub again. A slot the
     /// person filled otherwise is kept.
     pub(crate) fn create_from_refresh(&mut self) {
-        let Some(c) = self.create.state_mut() else {
-            return;
-        };
-        if c.built.is_some() {
-            return;
-        }
-        let Some(f) = c.from.as_ref() else {
-            return;
-        };
-        let (kind, account, bip87) = (c.kind, c.account, c.at_bip87());
-        for (i, s) in c.slots.iter_mut().enumerate() {
-            let Some(want) = f.xpub_slot(i, kind, account, bip87) else {
-                continue;
-            };
-            let auto = match &*s {
-                Source::Empty | Source::Later => true,
-                Source::Cosigner(t) => f.xpubs.get(i).and_then(|x| x.as_ref()) == Some(t),
-                Source::Here(_) => false,
-            };
-            if auto {
-                *s = want;
-            }
-        }
+        self.create.refresh_from();
     }
 
     /// The Account row (F98, `docs/history/NEW-WALLET.md` §16.2, §17): the
@@ -314,25 +285,13 @@ impl Faraday {
     /// has one. `d` 0 is the row's **Change**, which opens its stepper;
     /// −1 and +1 step it.
     pub(crate) fn create_account_step(&mut self, d: i8) {
-        if let Some(c) = self.create.state_mut()
-            && c.built.is_none()
-            && c.has_account()
-        {
-            c.account_open = true;
-            c.account =
-                (i64::from(c.account) + i64::from(d)).clamp(0, i64::from(u32::MAX >> 1)) as u32;
-        }
+        self.create.step_account(d);
         self.create_from_refresh();
     }
 
     /// The multisig path row's **Change**: opens its choice.
     pub(crate) fn create_multi_path_change(&mut self) {
-        if let Some(c) = self.create.state_mut()
-            && c.built.is_none()
-            && c.kind.has_bip87()
-        {
-            c.path_open = true;
-        }
+        self.create.open_path_choice();
         self.create_from_refresh();
     }
 
@@ -343,19 +302,7 @@ impl Faraday {
     /// wallet this was started from gets its xpub back where it fits); the
     /// keys held here stay.
     pub(crate) fn create_multi_path(&mut self, bip87: bool) {
-        if let Some(c) = self.create.state_mut()
-            && c.built.is_none()
-            && c.kind.has_bip87()
-            && c.bip87 != bip87
-        {
-            c.bip87 = bip87;
-            let (kind, at) = (c.kind, c.at_bip87());
-            for s in &mut c.slots {
-                if matches!(s, Source::Cosigner(t) if !create::at_kind(kind, t, at)) {
-                    *s = Source::Empty;
-                }
-            }
-        }
+        self.create.choose_path(bip87);
         self.create_from_refresh();
     }
 
@@ -419,21 +366,14 @@ impl Faraday {
         if !self.create_can_take_back() {
             return;
         }
-        let Some(c) = self.create.state_mut() else {
+        let Some(crate::create::TakenBack {
+            wallet: w,
+            added,
+            before,
+        }) = self.create.take_back()
+        else {
             return;
         };
-        let Some(w) = c.built.take() else {
-            return;
-        };
-        c.done[crate::cstep::KEYS as usize] = false;
-        c.done[crate::cstep::CHECK as usize] = false;
-        c.open = Some(c.account_card().unwrap_or(crate::cstep::KIND));
-        c.account_open = true;
-        c.scroll.follow = true;
-        c.path.clear();
-        c.error = None;
-        let added = std::mem::take(&mut c.added);
-        let before = c.before_made.take();
         if let Some((f, was)) = before {
             self.flows.restore(f, *was);
         }

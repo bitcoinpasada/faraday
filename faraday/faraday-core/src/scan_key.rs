@@ -2249,7 +2249,7 @@ impl Faraday {
         };
         let matched = found == crate::wallet_backup::CopyCheck::Matches;
         if matched {
-            self.tools.convert_mut().set_found(true);
+            self.tools.convert.set_found(true);
             self.camera.close();
             self.sheet = None;
             self.out.commands.push_back(Command::CameraOff);

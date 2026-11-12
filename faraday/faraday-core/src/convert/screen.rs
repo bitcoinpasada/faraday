@@ -228,7 +228,7 @@ fn set_entry(app: &View, s: &ConvertState, ui: &mut Ui, (x, y, w): (f32, f32, f3
         BODY_L.size,
         crate::ui::W::R,
         Role::OnSurface,
-        app.tools.convert().set_typed(),
+        app.tools.convert.set_typed(),
         w - 2.0 * FIELD_PAD,
         true,
         here,
@@ -726,7 +726,7 @@ fn found_line(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
 /// count. Returns its height.
 fn check_my_copy(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
-    let check = app.tools.convert().check();
+    let check = app.tools.convert.check();
     if let Some(check) = check {
         let n = check.typed.chars().count();
         let label = crate::strings::fill(EN.convert_your_copy, &[&n.to_string()]);

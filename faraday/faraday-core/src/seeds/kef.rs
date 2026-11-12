@@ -240,7 +240,7 @@ pub(crate) fn kef_timed(app: &mut Faraday, rate_ms: Option<u64>) -> bool {
         return false;
     };
     let mut changed = false;
-    if let Some(k) = app.seed_read.kef_mut()
+    if let Some(k) = app.seed_read.kef.as_mut()
         && matches!(k.stage, Stage::Ask | Stage::Offer)
     {
         k.facts = facts(&k.envelope, Some(rate)).join(" · ");
@@ -265,7 +265,7 @@ pub(crate) fn kef_open_sheet(app: &mut Faraday, envelope: Envelope, depth: u8, a
 
 /// The sheet's presses.
 pub(crate) fn kef_act(app: &mut Faraday, act: KefAct) {
-    let Some(k) = app.seed_read.kef_mut() else {
+    let Some(k) = app.seed_read.kef.as_mut() else {
         return;
     };
     match act {
@@ -299,7 +299,7 @@ pub(crate) fn kef_act(app: &mut Faraday, act: KefAct) {
 
 /// Starts the job with what is typed. Nothing runs before this press.
 fn kef_go(app: &mut Faraday) {
-    let Some(k) = app.seed_read.kef_mut() else {
+    let Some(k) = app.seed_read.kef.as_mut() else {
         return;
     };
     if k.stage != Stage::Ask {
@@ -331,7 +331,7 @@ fn kef_go(app: &mut Faraday) {
 
 /// The next passphrase form goes to the worker; none left is a failure.
 fn kef_try_next(app: &mut Faraday) {
-    let Some(k) = app.seed_read.kef_mut() else {
+    let Some(k) = app.seed_read.kef.as_mut() else {
         return;
     };
     let Some(pass) = k.forms.pop() else {
@@ -363,14 +363,14 @@ pub(crate) fn kef_opened_here(app: &mut Faraday) {
     match answer {
         Ok(opened) => {
             let retried = opened.retried;
-            if let Some(k) = app.seed_read.kef_mut() {
+            if let Some(k) = app.seed_read.kef.as_mut() {
                 k.retried = retried;
                 k.forms.clear();
             }
             kef_road(app, opened.plaintext);
         }
         Err(faraday_keys::kef::OpenError::Cancelled) => {
-            if let Some(k) = app.seed_read.kef_mut() {
+            if let Some(k) = app.seed_read.kef.as_mut() {
                 k.stage = Stage::Ask;
                 k.forms.clear();
             }
@@ -518,7 +518,7 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
 }
 
 fn kef_show(app: &mut Faraday, stage: Stage, shown: Zeroizing<String>) {
-    if let Some(k) = app.seed_read.kef_mut() {
+    if let Some(k) = app.seed_read.kef.as_mut() {
         k.stage = stage;
         k.shown = Some(shown);
         k.eye = false;
@@ -544,7 +544,7 @@ fn kef_read_as_seed(app: &mut Faraday) {
 /// The note is carried to the next seed read as its passphrase: the
 /// scanner for a seed opens (`docs/KEF.md` §6).
 fn kef_use_as_passphrase(app: &mut Faraday) {
-    let Some(k) = app.seed_read.kef_mut() else {
+    let Some(k) = app.seed_read.kef.as_mut() else {
         return;
     };
     let Some(text) = k.shown.take() else {
@@ -575,7 +575,7 @@ pub(crate) fn kef_stick_arrived(app: &mut Faraday) {
 /// Cancel on the sheet: while the key is worked out it stops the work
 /// and asks the passphrase again; anywhere else it closes the sheet.
 pub(crate) fn kef_cancel(app: &mut Faraday) {
-    let Some(k) = app.seed_read.kef_mut() else {
+    let Some(k) = app.seed_read.kef.as_mut() else {
         app.sheet = None;
         return;
     };
@@ -593,7 +593,7 @@ pub(crate) fn kef_read_key(app: &mut Faraday, key: KeyIn) -> bool {
     if app.sheet != Some(Sheet::KefRead) {
         return false;
     }
-    let Some(k) = app.seed_read.kef_mut() else {
+    let Some(k) = app.seed_read.kef.as_mut() else {
         return false;
     };
     if k.stage != Stage::Ask {

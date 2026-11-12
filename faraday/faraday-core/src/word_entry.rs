@@ -1090,9 +1090,7 @@ impl Faraday {
         if back == Some(Screen::Restore)
             && let Some(why) = self.restore_refusal_typed(&c, &m)
         {
-            if let Some(r) = self.restore.state_mut() {
-                r.error = Some(why);
-            }
+            self.restore.set_error(why);
             self.entry.reset();
             self.screen = Screen::Restore;
             return;
@@ -1135,9 +1133,7 @@ impl Faraday {
             }
             // A SeedQR scanned on Restore: the refusal shows there.
             Err(e) if self.screen == Screen::Restore => {
-                if let Some(r) = self.restore.state_mut() {
-                    r.error = Some(e.text());
-                }
+                self.restore.set_error(e.text());
                 self.entry.reset();
             }
             Err(e) => self.entry.set_error(e.text()),

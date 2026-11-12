@@ -206,7 +206,7 @@ impl Faraday {
     /// encrypted code too.
     pub(crate) fn seed_read_offer_kef(&mut self, envelope: faraday_keys::kef::Envelope) {
         if self.sheet == Some(Sheet::SeedRead)
-            && let Some(s) = self.seed_read.state_mut()
+            && let Some(s) = self.seed_read.state.as_mut()
         {
             s.kef = Some(envelope);
         }
@@ -216,7 +216,7 @@ impl Faraday {
     /// beside the key, marked when an 8-character hex id matches
     /// (`docs/KEF.md` §7.3).
     pub(crate) fn seed_read_kef_id(&mut self, id: &[u8]) {
-        let Some(s) = self.seed_read.state_mut() else {
+        let Some(s) = self.seed_read.state.as_mut() else {
             return;
         };
         let shown = faraday_codec::kef::id_text(id).map(str::to_string);

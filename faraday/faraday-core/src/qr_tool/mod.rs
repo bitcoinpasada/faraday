@@ -349,18 +349,18 @@ impl QrToolArea {
 
 /// The tool's state.
 pub fn state(app: &Faraday) -> Option<&QrToolState> {
-    app.tools.qr_tool().state()
+    app.tools.qr_tool.state()
 }
 
 fn st(app: &mut Faraday) -> Option<&mut QrToolState> {
-    app.tools.qr_tool_mut().state.as_mut()
+    app.tools.qr_tool.state.as_mut()
 }
 
 /// Opens the tool on its first card, from the page on show.
 pub(crate) fn open(app: &mut Faraday) {
     let back = app.screen;
     app.session.keys.qr_forget();
-    app.tools.qr_tool_mut().state = Some(QrToolState::new(back));
+    app.tools.qr_tool.state = Some(QrToolState::new(back));
     app.screen = Screen::QrTool;
 }
 
@@ -548,7 +548,7 @@ pub(crate) const MAKE_ANSWERS: usize = QR_RANDOM_LEN.div_ceil(32);
 /// Whether Make would seal now, so draws the system's randomness: a
 /// press that would do nothing does not wait for it.
 pub(crate) fn make_draws(app: &Faraday) -> bool {
-    app.tools.qr_tool().state.as_ref().is_some_and(|s| {
+    app.tools.qr_tool.state.as_ref().is_some_and(|s| {
         s.pick.is_some()
             && s.passphrase_ready()
             && !(s.pick == Some(Pick::Note) && s.note.text.is_empty())
@@ -791,7 +791,7 @@ pub(crate) fn hide(app: &mut Faraday) {
 pub(crate) fn tidy(app: &mut Faraday) {
     let kept = matches!(app.screen, Screen::QrTool | Screen::Randomness);
     if !kept {
-        app.tools.qr_tool_mut().clear();
+        app.tools.qr_tool.clear();
         app.session.keys.qr_forget();
     }
 }

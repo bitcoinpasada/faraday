@@ -141,10 +141,7 @@ fn converted(row: &str) -> (Faraday, Counts) {
 fn convert_shown_once(row: &str, named: &[(Work, u64)]) {
     let (mut app, work) = converted(row);
     costs(&work, named);
-    assert!(
-        app.tools.convert().holds_value(),
-        "the value is held, masked"
-    );
+    assert!(app.tools.convert.holds_value(), "the value is held, masked");
     assert!(crate::convert::shown(&app).is_none());
     assert!(crate::convert::shown_code(&app).is_none());
     // The eye is only a view of what is held: nothing is worked out.
@@ -157,10 +154,10 @@ fn convert_shown_once(row: &str, named: &[(Work, u64)]) {
     let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
     assert!(crate::convert::shown(&app).is_none());
     assert!(crate::convert::shown_code(&app).is_none());
-    assert!(app.tools.convert().holds_value(), "hidden, still held");
+    assert!(app.tools.convert.holds_value(), "hidden, still held");
     app.press(Action::Convert(ConvertAction::Show));
     app.press(Action::Convert(ConvertAction::Done));
-    assert!(!app.tools.convert().holds_value(), "leaving drops it");
+    assert!(!app.tools.convert.holds_value(), "leaving drops it");
 }
 
 #[test]
@@ -201,23 +198,20 @@ fn convert_a_set_is_joined_once_when_shown_and_the_frames_work_out_nothing() {
     app.event(Event::Tick { now_ms: now });
     app.settle();
     let _ = app.frame();
-    assert!(app.tools.convert().holds_value(), "the set is held, masked");
-    assert!(app.tools.convert().shown_text().is_none());
+    assert!(app.tools.convert.holds_value(), "the set is held, masked");
+    assert!(app.tools.convert.shown_text().is_none());
     // The press that opens the eye joins the set once; the frames after
     // it draw what is held.
     let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
-    assert!(app.tools.convert().shown_text().is_some(), "joined, held");
+    assert!(app.tools.convert.shown_text().is_some(), "joined, held");
     frames_work_out_nothing(&mut app);
     let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
-    assert!(app.tools.convert().shown_text().is_none(), "hidden, gone");
-    assert!(app.tools.convert().holds_value());
+    assert!(app.tools.convert.shown_text().is_none(), "hidden, gone");
+    assert!(app.tools.convert.holds_value());
     app.press(Action::Convert(ConvertAction::Show));
-    assert!(app.tools.convert().shown_text().is_some());
+    assert!(app.tools.convert.shown_text().is_some());
     app.press(Action::Convert(ConvertAction::Done));
-    assert!(
-        app.tools.convert().shown_text().is_none(),
-        "leaving drops it"
-    );
+    assert!(app.tools.convert.shown_text().is_none(), "leaving drops it");
 }
 
 #[test]
@@ -245,18 +239,15 @@ fn the_frames_of_a_shown_share_work_out_nothing() {
     app.event(Event::Tick { now_ms: now });
     app.settle();
     let _ = app.frame();
-    assert!(
-        app.tools.convert().holds_value(),
-        "the share is held, masked"
-    );
-    assert!(app.tools.convert().shown_text().is_none());
+    assert!(app.tools.convert.holds_value(), "the share is held, masked");
+    assert!(app.tools.convert.shown_text().is_none());
     let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
-    assert!(app.tools.convert().shown_text().is_some());
+    assert!(app.tools.convert.shown_text().is_some());
     frames_work_out_nothing(&mut app);
     let _ = press_work(&mut app, Action::Convert(ConvertAction::Show));
-    assert!(app.tools.convert().shown_text().is_none(), "hidden, gone");
+    assert!(app.tools.convert.shown_text().is_none(), "hidden, gone");
     app.press(Action::Convert(ConvertAction::Done));
-    assert!(!app.tools.convert().holds_value(), "leaving drops it");
+    assert!(!app.tools.convert.holds_value(), "leaving drops it");
 }
 
 /// The heavy session on the open vault's item `0` of `category`, its page

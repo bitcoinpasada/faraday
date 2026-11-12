@@ -981,23 +981,23 @@ pub(crate) fn source_info<'a>(
 
 /// The flow's state, while it is open.
 pub fn state(app: &Faraday) -> Option<&ConvertState> {
-    app.tools.convert().state()
+    app.tools.convert.state()
 }
 
 /// The value, while its eye is open and it is text: a borrow, no work.
 pub fn shown(app: &Faraday) -> Option<&str> {
-    app.tools.convert().held().and_then(Value::text)
+    app.tools.convert.held().and_then(Value::text)
 }
 
 /// The code, while its eye is open and it is one: a borrow, no work.
 pub fn shown_code(app: &Faraday) -> Option<&QrMatrix> {
-    app.tools.convert().held().and_then(Value::code)
+    app.tools.convert.held().and_then(Value::code)
 }
 
 /// The strings of a result of several, while its eye is open: a borrow, no
 /// work.
 pub fn shown_parts(app: &Faraday) -> Option<Vec<&str>> {
-    match app.tools.convert().held()? {
+    match app.tools.convert.held()? {
         Value::Set(parts) => Some(parts.iter().map(|p| p.as_str()).collect()),
         _ => None,
     }
@@ -1005,12 +1005,12 @@ pub fn shown_parts(app: &Faraday) -> Option<Vec<&str>> {
 
 /// What Check my copy has typed, while it is open.
 pub fn typed(app: &Faraday) -> Option<&str> {
-    app.tools.convert().check().map(|c| &*c.typed)
+    app.tools.convert.check().map(|c| &*c.typed)
 }
 
 /// Whether the last comparison found the copy right, until the next key.
 pub fn found(app: &Faraday) -> Option<bool> {
-    app.tools.convert().found
+    app.tools.convert.found
 }
 
 /// Each group's share count of the SLIP-39 set made, in order; empty for
@@ -1041,7 +1041,7 @@ pub fn order(s: &ConvertState) -> Vec<u8> {
 
 /// Which part of a result of several the last copy matched, by number.
 pub fn found_part(app: &Faraday) -> Option<usize> {
-    app.tools.convert().found_part
+    app.tools.convert.found_part
 }
 
 /// Whether `target` is dimmed in this session: a target that draws
@@ -1059,7 +1059,7 @@ fn has_settings(app: &Faraday, target: Target) -> bool {
 /// The place of the key chosen, if `target` is a row that applies to it. A
 /// lookup.
 fn key_for(app: &Faraday, target: Target) -> Option<usize> {
-    let s = app.tools.convert().state()?;
+    let s = app.tools.convert.state()?;
     let i = if s.aezeed {
         faraday_keys::Keys::AEZEED_SOURCE
     } else {
@@ -1109,7 +1109,7 @@ fn scan_open(app: &mut Faraday) {
     else {
         return;
     };
-    app.tools.convert_mut().forget_found();
+    app.tools.convert.forget_found();
     let mut scan = crate::ScanState::default();
     scan.purpose = crate::ScanPurpose::CheckConvert(fp, target == Target::CompactSeedQr);
     app.camera.open(scan);
@@ -1220,7 +1220,7 @@ fn press(app: &mut Faraday, place: u8) {
         return;
     }
     if has_settings(app, target) {
-        app.tools.convert_mut().open_settings(target);
+        app.tools.convert.open_settings(target);
     } else {
         make(app, target);
     }
@@ -1244,7 +1244,7 @@ fn make(app: &mut Faraday, target: Target) {
     let settings = has_settings(app, target);
     let Some((parts, k, n, slip_t, slip)) = app
         .tools
-        .convert()
+        .convert
         .state()
         .map(|s| (s.parts, s.k, s.n, s.slip_t, s.slip.clone()))
     else {
@@ -1324,7 +1324,7 @@ fn make(app: &mut Faraday, target: Target) {
         paths_of(app, info.fingerprint)
     };
     let checkable = target.checks(info.language);
-    let area = app.tools.convert_mut();
+    let area = &mut app.tools.convert;
     area.made(target, given, checkable, (paths, settings));
 }
 
@@ -1359,7 +1359,7 @@ fn scan_reads(app: &Faraday, c: &Compute, i: usize, grid: &Held<QrMatrix>, compa
 /// alone, or the code's labelled picture, which no vault is offered.
 fn save(app: &mut Faraday) {
     let c = app.compute();
-    let area = app.tools.convert();
+    let area = &app.tools.convert;
     let (Some(held), Some(s)) = (area.held.as_ref(), area.state()) else {
         return;
     };
@@ -1415,7 +1415,7 @@ fn save(app: &mut Faraday) {
 fn from_vault(app: &mut Faraday, v: usize, r: usize) {
     if let Some(fp) = app.vault_key_load(v, r) {
         forget_held(app);
-        app.tools.convert_mut().choose(fp);
+        app.tools.convert.choose(fp);
     }
 }
 
@@ -1431,7 +1431,7 @@ fn forget_held(app: &mut Faraday) {
 pub(crate) fn stick_attached(app: &mut Faraday, _wipe: bool) {
     // The share entry and Check my copy are the secret fields: they close,
     // and what they held is wiped with them.
-    let area = app.tools.convert_mut();
+    let area = &mut app.tools.convert;
     area.wipe_typed();
     area.check = None;
     area.close_share_entry();
@@ -1445,7 +1445,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             forget_held(app);
             let key = (app.session.keys.len() == 1).then(|| app.session.keys[0].fingerprint.0);
             let back = app.screen;
-            app.tools.convert_mut().open(key, back);
+            app.tools.convert.open(key, back);
             app.screen = Screen::Convert;
         }
         ConvertAction::OpenOn(fp) => {
@@ -1456,28 +1456,28 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             let back = app.screen;
             // Explore is kept for the way back; what its eyes show is not.
             app.explore_hide();
-            app.tools.convert_mut().open(Some(fp), back);
+            app.tools.convert.open(Some(fp), back);
             app.screen = Screen::Convert;
         }
-        ConvertAction::Step(s) => app.tools.convert_mut().step(s),
+        ConvertAction::Step(s) => app.tools.convert.step(s),
         ConvertAction::Key(fp) => {
             if app.session.keys.position_of(fp).is_some() {
                 forget_held(app);
-                app.tools.convert_mut().choose(fp);
+                app.tools.convert.choose(fp);
             }
         }
         ConvertAction::VaultKey(v, r) => from_vault(app, v, r),
         ConvertAction::To(place) => press(app, place),
-        ConvertAction::Parts(by) => app.tools.convert_mut().parts(by),
+        ConvertAction::Parts(by) => app.tools.convert.parts(by),
         ConvertAction::SlipGroups(_)
         | ConvertAction::SlipGroupK(_)
         | ConvertAction::SlipK(..)
         | ConvertAction::SlipN(..) => {
             let len = state(app).map_or(32, |s| seed_len_of(&app.session.keys, s));
-            app.tools.convert_mut().slip_press(action, len);
+            app.tools.convert.slip_press(action, len);
         }
-        ConvertAction::K(by) => app.tools.convert_mut().threshold(by),
-        ConvertAction::N(by) => app.tools.convert_mut().count(by),
+        ConvertAction::K(by) => app.tools.convert.threshold(by),
+        ConvertAction::N(by) => app.tools.convert.count(by),
         ConvertAction::SetSource
         | ConvertAction::SetHold
         | ConvertAction::SetAgain
@@ -1497,7 +1497,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             }
         }
         ConvertAction::Show => {
-            let area = app.tools.convert_mut();
+            let area = &mut app.tools.convert;
             if area.held.is_some()
                 && let Some(s) = area.state.as_mut()
             {
@@ -1514,22 +1514,22 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             scan_open(app);
         }
         ConvertAction::Check => {
-            let opening = app.tools.convert().check().is_none();
+            let opening = app.tools.convert.check().is_none();
             if !(opening && crate::stick::refuses_secret(app)) {
-                app.tools.convert_mut().toggle_check();
+                app.tools.convert.toggle_check();
             }
         }
         ConvertAction::Compare => {
             let typed = app
                 .tools
-                .convert()
+                .convert
                 .check()
                 .is_some_and(|c| !c.typed.is_empty());
             if !(typed && crate::stick::refuses_secret(app)) {
-                app.tools.convert_mut().compare();
+                app.tools.convert.compare();
             }
         }
-        ConvertAction::CheckClear => app.tools.convert_mut().clear_check(),
+        ConvertAction::CheckClear => app.tools.convert.clear_check(),
         ConvertAction::Save if state(app).is_some_and(|s| s.set.is_some()) => set::save(app),
         ConvertAction::Save => save(app),
         ConvertAction::Done => {
@@ -1546,14 +1546,14 @@ pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
     if app.screen != Screen::Convert || app.sheet.is_some() || state(app).is_none() {
         return false;
     }
-    let typing = app.tools.convert().entering_share() || app.tools.convert().check().is_some();
+    let typing = app.tools.convert.entering_share() || app.tools.convert.check().is_some();
     if typing && crate::stick::refuses_secret_key(app, key) {
         return true;
     }
     if set::key(app, key) {
         return true;
     }
-    if app.tools.convert_mut().check_key(key) {
+    if app.tools.convert.check_key(key) {
         return true;
     }
     if key == faraday_shell_api::Key::Escape {
@@ -1566,7 +1566,7 @@ pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
 /// Closes the eye: the idle warning, so that nothing secret stays on
 /// screen while no one is there.
 pub(crate) fn hide(app: &mut Faraday) {
-    let area = app.tools.convert_mut();
+    let area = &mut app.tools.convert;
     area.shown_text = None;
     if let Some(s) = area.state.as_mut() {
         s.shown = false;
@@ -1585,7 +1585,7 @@ pub(crate) fn tidy(app: &mut Faraday) {
         || (app.screen == Screen::Lightning && app.lightning.for_convert());
     if !kept {
         forget_held(app);
-        app.tools.convert_mut().clear();
+        app.tools.convert.clear();
     }
 }
 

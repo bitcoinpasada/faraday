@@ -339,8 +339,8 @@ impl Faraday {
             Screen::Invoice if self.invoice().is_some() => Here::Invoice,
             Screen::Transfer if self.transfer_text_here() => Here::TransferText,
             Screen::Tools if self.tools.state().is_some() => Here::Tools,
-            Screen::Convert if self.tools.convert().check().is_some() => Here::Convert,
-            Screen::Convert if self.tools.convert().entering_share() => Here::Share,
+            Screen::Convert if self.tools.convert.check().is_some() => Here::Convert,
+            Screen::Convert if self.tools.convert.entering_share() => Here::Share,
             Screen::KeyGen
                 if self.keygen.state()?.codex32.as_ref()?.open()
                     == Some(crate::codex32::Card::Strings) =>
@@ -512,7 +512,7 @@ impl Faraday {
             }
             Screen::Wallets => self.wallets.renaming().is_some(),
             Screen::Convert => {
-                self.tools.convert().check().is_some() || self.tools.convert().entering_share()
+                self.tools.convert.check().is_some() || self.tools.convert.entering_share()
             }
             Screen::Message => self.message.state().is_some_and(|m| m.typing),
             Screen::Invoice => self.invoice().is_some(),
@@ -727,8 +727,8 @@ impl Faraday {
             Here::Message => &self.message.state()?.text,
             Here::Entry => &self.entry.state().typed,
             Here::Tools => &self.tools.state()?.typed,
-            Here::Convert => &self.tools.convert().check()?.typed,
-            Here::Share => self.tools.convert().set_typed(),
+            Here::Convert => &self.tools.convert.check()?.typed,
+            Here::Share => self.tools.convert.set_typed(),
             Here::Codex32Back => self.keygen.state()?.codex32.as_ref()?.typed_back().0,
             Here::Words => &self.entry.state().typed,
             Here::CheckWords => &self.backup.state()?.check.as_ref()?.typed,
@@ -782,18 +782,18 @@ impl Faraday {
             || self.seed_read.holds_secret()
             || self
                 .tools
-                .core_wallet()
+                .core_wallet
                 .state()
                 .is_some_and(crate::core_wallet::tool::CoreWalletState::holds_secret)
             || self.backup.kef_holds_secret()
             || self
                 .tools
-                .kef_tool()
+                .kef_tool
                 .state()
                 .is_some_and(crate::kef_tool::KefToolState::holds_secret)
             || self
                 .tools
-                .qr_tool()
+                .qr_tool
                 .state()
                 .is_some_and(crate::qr_tool::QrToolState::holds_secret)
             || self.vaults.create.as_ref().is_some_and(|c| {
@@ -1147,16 +1147,16 @@ impl Faraday {
             Screen::Message => self.message.state().is_some(),
             Screen::Vanity => self.vanity.state().is_some(),
             Screen::Bip85 => self.bip85.state().is_some(),
-            Screen::Convert => self.tools.convert().state().is_some(),
+            Screen::Convert => self.tools.convert.state().is_some(),
             Screen::Silent => self.silent.state().is_some(),
             Screen::Explore => self.explore.state().is_some(),
             Screen::Lightning => self.lightning.state().is_some(),
             Screen::Invoice => self.invoice().is_some(),
             Screen::Tools => self.tools.state().is_some(),
-            Screen::KefTool => self.tools.kef_tool().state().is_some(),
-            Screen::QrTool => self.tools.qr_tool().state().is_some(),
-            Screen::OtsCheck => self.tools.ots().state().is_some(),
-            Screen::CoreWallet => self.tools.core_wallet().state().is_some(),
+            Screen::KefTool => self.tools.kef_tool.state().is_some(),
+            Screen::QrTool => self.tools.qr_tool.state().is_some(),
+            Screen::OtsCheck => self.tools.ots.state().is_some(),
+            Screen::CoreWallet => self.tools.core_wallet.state().is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
             Screen::Decode => self.decode().is_some(),

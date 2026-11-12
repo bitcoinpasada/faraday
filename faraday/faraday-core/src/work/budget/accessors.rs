@@ -36,12 +36,7 @@ fn session() -> Faraday {
     app.explore_open();
     app.silent_open();
     app.tools_open();
-    if let Some(t) = testkit::tools_mut(&mut app) {
-        t.tool = crate::tools::Tool::Descriptor;
-        for ch in testkit::kits()[0].descriptor.chars() {
-            t.typed.push(ch);
-        }
-    }
+    testkit::tools_type_descriptor(&mut app, &testkit::kits()[0].descriptor);
     assert!(app.backup().is_some(), "the backup is open");
     assert!(app.wallets.spend().is_some(), "the spend is open");
     assert!(!app.vaults.open.is_empty(), "the test vault is open");

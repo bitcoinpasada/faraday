@@ -209,11 +209,11 @@ impl OtsArea {
 
 /// The state, while the tool is open.
 pub fn state(app: &Faraday) -> Option<&OtsState> {
-    app.tools.ots().state()
+    app.tools.ots.state()
 }
 
 fn st(app: &mut Faraday) -> Option<&mut OtsState> {
-    app.tools.ots_mut().state.as_mut()
+    app.tools.ots.state.as_mut()
 }
 
 /// The first bytes of every proof file.
@@ -419,7 +419,7 @@ pub(crate) fn act(app: &mut Faraday, action: OtsAction) {
     match action {
         OtsAction::Open => {
             let back = app.screen;
-            app.tools.ots_mut().state = Some(OtsState::new(back));
+            app.tools.ots.state = Some(OtsState::new(back));
             app.screen = Screen::OtsCheck;
         }
         OtsAction::Step(k) => {
@@ -756,7 +756,7 @@ pub(crate) fn key(app: &mut Faraday, key: Key) -> bool {
 /// After a press: the tool ends unless it is on show.
 pub(crate) fn tidy(app: &mut Faraday) {
     if app.screen != Screen::OtsCheck {
-        app.tools.ots_mut().clear();
+        app.tools.ots.clear();
     }
 }
 

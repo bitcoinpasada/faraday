@@ -1052,6 +1052,16 @@ impl CreateState {
     }
 }
 
+/// What a made wallet taken back leaves for the caller to undo.
+pub(crate) struct TakenBack {
+    /// The wallet that was made.
+    pub(crate) wallet: usize,
+    /// Whether the creation added it to the session.
+    pub(crate) added: bool,
+    /// The flow that was open before it was made, to put back.
+    pub(crate) before: Option<(usize, Box<backup_flow::BackupFlow>)>,
+}
+
 /// Create's area: the wallet being made, while the flow is open.
 #[derive(Default)]
 pub(crate) struct CreateArea {
@@ -1064,10 +1074,216 @@ impl CreateArea {
         self.state.as_ref()
     }
 
-    /// The flow's state, for the writers in other areas, until they are
-    /// narrowed.
+    /// Opens card `open` (none closes them all) and has the column follow
+    /// it.
+    pub(crate) fn open_card(&mut self, open: Option<u8>) {
+        if let Some(c) = self.state.as_mut() {
+            c.open = open;
+            c.scroll.follow = true;
+        }
+    }
+
+    /// As [`CreateArea::open_card`], where the wallet is not yet made.
+    pub(crate) fn open_card_unbuilt(&mut self, open: Option<u8>) {
+        if self.state.as_ref().is_some_and(|c| c.built.is_none()) {
+            self.open_card(open);
+        }
+    }
+
+    /// Sets the column's scroll, as the drawing pass noted it.
+    pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
+        if let Some(c) = self.state.as_mut() {
+            c.scroll = to;
+        }
+    }
+
+    /// The flow's state to change, only for the scroll offset the wheel
+    /// and drag move through `Faraday::screen_slot`, which hands out the
+    /// offset itself for every screen.
     pub(crate) fn state_mut(&mut self) -> Option<&mut CreateState> {
         self.state.as_mut()
+    }
+
+    /// Puts `source` in slot `slot`, for the tests' kit.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn set_slot(&mut self, slot: usize, source: Source) {
+        if let Some(c) = self.state.as_mut() {
+            c.slots[slot] = source;
+        }
+    }
+
+    /// Notes the child of the keys' seeds the creation's notice is about.
+    pub(crate) fn set_child(&mut self, child: Option<[u8; 4]>) {
+        if let Some(c) = self.state.as_mut() {
+            c.child = child;
+        }
+    }
+
+    /// Lets go of the passphrase fields' focus.
+    pub(crate) fn clear_pass_focus(&mut self) {
+        if let Some(c) = self.state.as_mut() {
+            c.pass_focus = None;
+        }
+    }
+
+    /// Fills passphrase field `i` with `text` as the demo does: the first
+    /// field fills its repeat too, where that is empty.
+    pub(crate) fn fill_pass(&mut self, i: u8, text: &str) {
+        if let Some(c) = self.state.as_mut() {
+            let both: &[u8] = if i == 0 { &[0, 1] } else { &[1] };
+            for &j in both {
+                let t = if j == 0 { &mut c.pass } else { &mut c.pass2 };
+                if j == i || t.is_empty() {
+                    t.set(text);
+                }
+            }
+            c.pass_focus = Some(i);
+            c.pass_note = None;
+        }
+    }
+
+    /// Notes that the Where card is done with no vault set up.
+    pub(crate) fn where_done_no_vault(&mut self) {
+        if let Some(c) = self.state.as_mut() {
+            c.done[cstep::WHERE as usize] = true;
+            c.vaults.answer = Some(false);
+        }
+    }
+
+    /// Puts the vault's key `fp` in slot `slot`, where the slot is there;
+    /// its passphrase fields close if they were on that slot.
+    pub(crate) fn fill_slot_from_vault(&mut self, slot: u8, fp: [u8; 4]) {
+        if let Some(c) = self.state.as_mut()
+            && let Some(s) = c.slots.get_mut(usize::from(slot))
+        {
+            *s = Source::Here(fp);
+            if c.pass_slot == Some(slot) {
+                c.close_pass();
+            }
+        }
+    }
+
+    /// Puts key `fp` in `slot`, counting it as made here when `made`.
+    pub(crate) fn fill_slot(&mut self, slot: u8, fp: [u8; 4], made: bool) {
+        if let Some(c) = self.state.as_mut() {
+            if made {
+                c.made += 1;
+            }
+            if let Some(s) = c.slots.get_mut(usize::from(slot)) {
+                *s = Source::Here(fp);
+            }
+        }
+    }
+
+    /// Whether a single-key creation is still to be made.
+    pub(crate) fn single_key_unbuilt(&self) -> bool {
+        self.state
+            .as_ref()
+            .is_some_and(|c| !c.kind.multi() && c.built.is_none())
+    }
+
+    /// Marks Keys and Check done and opens Check, once the wallet is made.
+    pub(crate) fn check_opened_after_make(&mut self) {
+        if let Some(c) = self.state.as_mut()
+            && c.built.is_some()
+        {
+            c.done[usize::from(cstep::KEYS)] = true;
+            c.done[usize::from(cstep::CHECK)] = true;
+            c.open = Some(cstep::CHECK);
+            c.scroll.follow = true;
+        }
+    }
+
+    /// Fills the slots a wallet this was started from can fill, at the
+    /// kind and account now chosen, where the wallet is not made: an empty
+    /// or deferred slot, or a cosigner's still the wallet's own xpub.
+    pub(crate) fn refresh_from(&mut self) {
+        let Some(c) = self.state.as_mut() else {
+            return;
+        };
+        if c.built.is_some() {
+            return;
+        }
+        let Some(f) = c.from.as_ref() else {
+            return;
+        };
+        let (kind, account, bip87) = (c.kind, c.account, c.at_bip87());
+        for (i, s) in c.slots.iter_mut().enumerate() {
+            let Some(want) = f.xpub_slot(i, kind, account, bip87) else {
+                continue;
+            };
+            let auto = match &*s {
+                Source::Empty | Source::Later => true,
+                Source::Cosigner(t) => f.xpubs.get(i).and_then(|x| x.as_ref()) == Some(t),
+                Source::Here(_) => false,
+            };
+            if auto {
+                *s = want;
+            }
+        }
+    }
+
+    /// The Account row's step by `d`, where the wallet is not made and
+    /// the kind has an account.
+    pub(crate) fn step_account(&mut self, d: i8) {
+        if let Some(c) = self.state.as_mut()
+            && c.built.is_none()
+            && c.has_account()
+        {
+            c.account_open = true;
+            c.account =
+                (i64::from(c.account) + i64::from(d)).clamp(0, i64::from(u32::MAX >> 1)) as u32;
+        }
+    }
+
+    /// Opens the multisig path row's choice, where it applies.
+    pub(crate) fn open_path_choice(&mut self) {
+        if let Some(c) = self.state.as_mut()
+            && c.built.is_none()
+            && c.kind.has_bip87()
+        {
+            c.path_open = true;
+        }
+    }
+
+    /// Chooses the multisig path (`bip87` or the kind's own); a cosigner's
+    /// key at the other path no longer fits and its slot is emptied.
+    pub(crate) fn choose_path(&mut self, bip87: bool) {
+        if let Some(c) = self.state.as_mut()
+            && c.built.is_none()
+            && c.kind.has_bip87()
+            && c.bip87 != bip87
+        {
+            c.bip87 = bip87;
+            let (kind, at) = (c.kind, c.at_bip87());
+            for s in &mut c.slots {
+                if matches!(s, Source::Cosigner(t) if !at_kind(kind, t, at)) {
+                    *s = Source::Empty;
+                }
+            }
+        }
+    }
+
+    /// Takes the made wallet back: Keys and Check are no longer done, the
+    /// card that carries the Account row opens with its stepper open, and
+    /// the made wallet's marks go. Returns what the caller undoes.
+    pub(crate) fn take_back(&mut self) -> Option<TakenBack> {
+        let c = self.state.as_mut()?;
+        let wallet = c.built.take()?;
+        c.done[cstep::KEYS as usize] = false;
+        c.done[cstep::CHECK as usize] = false;
+        c.open = Some(c.account_card().unwrap_or(cstep::KIND));
+        c.account_open = true;
+        c.scroll.follow = true;
+        c.path.clear();
+        c.error = None;
+        let added = std::mem::take(&mut c.added);
+        let before = c.before_made.take();
+        Some(TakenBack {
+            wallet,
+            added,
+            before,
+        })
     }
 
     /// Leaves the new creation's Kind with no row ticked, as Move money
@@ -1583,21 +1799,15 @@ impl Faraday {
         }
         let before = self.create_card_before_keys();
         self.keygen_open(Some(0));
-        if self.screen == Screen::KeyGen
-            && let Some(c) = self.create.state_mut()
-        {
-            c.open = before;
-            c.scroll.follow = true;
+        if self.screen == Screen::KeyGen {
+            self.create.open_card(before);
         }
     }
 
     /// Make a new wallet shown on Keys, its vaults set up: or, where Keys
     /// offers one way on only, its key flow ([`Faraday::create_keys_opened`]).
     pub(crate) fn create_open_keys(&mut self) {
-        if let Some(c) = self.create.state_mut() {
-            c.open = Some(cstep::KEYS);
-            c.scroll.follow = true;
-        }
+        self.create.open_card(Some(cstep::KEYS));
         self.screen = Screen::Create;
         self.create_keys_opened();
     }
@@ -2027,9 +2237,7 @@ impl Faraday {
                 _ => None,
             })
         });
-        if let Some(c) = self.create.state_mut() {
-            c.child = child;
-        }
+        self.create.set_child(child);
         if child.is_some() {
             self.sheet = Some(crate::Sheet::ChildNotice);
         }

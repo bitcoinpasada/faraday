@@ -225,10 +225,10 @@ impl ConvertArea {
 /// holds the share typed.
 pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
     use faraday_shell_api::Key as K;
-    if !app.tools.convert().entering_share() {
+    if !app.tools.convert.entering_share() {
         return false;
     }
-    let area = app.tools.convert_mut();
+    let area = &mut app.tools.convert;
     match key {
         K::Char(c) if c.is_ascii_alphabetic() => area.set_typed.push(c.to_ascii_lowercase()),
         K::Char(' ') => {
@@ -262,7 +262,7 @@ pub(crate) fn key(app: &mut Faraday, key: faraday_shell_api::Key) -> bool {
 /// Holds the share typed, on the press: a refusal shows its reason and
 /// adds nothing.
 fn hold(app: &mut Faraday) {
-    let text = Zeroizing::new(app.tools.convert().set_typed().trim().to_lowercase());
+    let text = Zeroizing::new(app.tools.convert.set_typed().trim().to_lowercase());
     if text.is_empty() {
         return;
     }
@@ -277,7 +277,7 @@ fn hold(app: &mut Faraday) {
         .keys
         .slip39_set_facts()
         .is_some_and(|f| offered(f, SetAct::Add).is_ok());
-    let area = app.tools.convert_mut();
+    let area = &mut app.tools.convert;
     let error = match held {
         Ok(_) => {
             area.set_typed.clear();
@@ -310,17 +310,17 @@ fn source(app: &mut Faraday) {
         return;
     }
     let held = app.session.keys.slip39_set_facts().is_some()
-        && app.tools.convert().state().is_some_and(|s| s.set.is_some());
+        && app.tools.convert.state().is_some_and(|s| s.set.is_some());
     if held {
         let ready = app
             .session
             .keys
             .slip39_set_facts()
             .is_some_and(|f| offered(f, SetAct::Add).is_ok());
-        return app.tools.convert_mut().reopen_set(ready);
+        return app.tools.convert.reopen_set(ready);
     }
     super::forget_held(app);
-    app.tools.convert_mut().choose_set();
+    app.tools.convert.choose_set();
 }
 
 /// A press on the set's flow.
@@ -329,7 +329,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
     if action == C::SetSource {
         return source(app);
     }
-    if app.tools.convert().state().is_none_or(|s| s.set.is_none()) {
+    if app.tools.convert.state().is_none_or(|s| s.set.is_none()) {
         return;
     }
     let facts = app.session.keys.slip39_set_facts().cloned();
@@ -337,18 +337,18 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         C::SetHold => hold(app),
         C::SetAgain => {
             app.session.keys.slip39_set_forget();
-            app.tools.convert_mut().set_typed.clear();
-            app.tools.convert_mut().choose_set();
+            app.tools.convert.set_typed.clear();
+            app.tools.convert.choose_set();
         }
         C::SetAct(a) => {
             if let Some(f) = facts.filter(|f| offered(f, a).is_ok()) {
-                app.tools.convert_mut().open_set_act(a, &f);
+                app.tools.convert.open_set_act(a, &f);
             }
         }
         C::SetGroup(by) => {
             let Some(f) = facts else { return };
             let groups = quorum_groups(&f);
-            let area = app.tools.convert_mut();
+            let area = &mut app.tools.convert;
             if let Some(x) = area.held_set()
                 && let Some(at) = groups.iter().position(|&g| g == x.group)
             {
@@ -359,14 +359,14 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
         }
         C::SetMember(by) => {
             let Some(f) = facts else { return };
-            let area = app.tools.convert_mut();
+            let area = &mut app.tools.convert;
             if let Some(x) = area.held_set() {
                 let next = (x.member + 16).wrapping_add_signed(by) % 16;
                 x.member = free_member(&f, x.group, next, by);
             }
         }
         C::Lost(g, by) => {
-            let area = app.tools.convert_mut();
+            let area = &mut app.tools.convert;
             if let Some(x) = area.held_set()
                 && let Some(n) = x.lost.get_mut(usize::from(g))
             {
@@ -376,7 +376,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             }
         }
         C::Destroy(g, m) => {
-            if let Some(x) = app.tools.convert_mut().held_set() {
+            if let Some(x) = app.tools.convert.held_set() {
                 match x.destroyed.iter().position(|&d| d == (g, m)) {
                     Some(at) => {
                         x.destroyed.remove(at);
@@ -386,7 +386,7 @@ pub(crate) fn act(app: &mut Faraday, action: ConvertAction) {
             }
         }
         C::DestroyOthers => {
-            if let Some(x) = app.tools.convert_mut().held_set() {
+            if let Some(x) = app.tools.convert.held_set() {
                 x.others = !x.others;
             }
         }
@@ -401,7 +401,7 @@ pub(crate) fn make(app: &mut Faraday) {
     let Some(f) = app.session.keys.slip39_set_facts().cloned() else {
         return;
     };
-    let Some((x, slip_t, slip)) = app.tools.convert().state().and_then(|s| {
+    let Some((x, slip_t, slip)) = app.tools.convert.state().and_then(|s| {
         s.set
             .clone()
             .filter(|_| s.settings)
@@ -449,7 +449,7 @@ pub(crate) fn make(app: &mut Faraday) {
         return app.toast(EN.no_randomness);
     }
     app.tools
-        .convert_mut()
+        .convert
         .set_made(given.map_err(|r| refused_text(&r, medium)));
 }
 
@@ -485,7 +485,7 @@ pub fn file(id: u16, x: &SetState) -> String {
 
 /// Offers what was made on the secret sheet.
 pub(crate) fn save(app: &mut Faraday) {
-    let area = app.tools.convert();
+    let area = &app.tools.convert;
     let (Some(held), Some(s), Some(f)) = (
         area.held.as_ref(),
         area.state(),

@@ -49,13 +49,13 @@ impl View<'_> {
     /// Convert a seed's value, held since its press: a borrow, nothing
     /// costs.
     pub(crate) fn convert_held(&self) -> Option<&crate::convert::Value> {
-        self.app.tools.convert().held()
+        self.app.tools.convert.held()
     }
 
     /// The text Convert's open eye shows, held since the press that
     /// opened it: a borrow, nothing costs.
     pub(crate) fn convert_shown_text(&self) -> Option<&str> {
-        self.app.tools.convert().shown_text()
+        self.app.tools.convert.shown_text()
     }
 
     /// The selected key record's words, held since its eye opened them

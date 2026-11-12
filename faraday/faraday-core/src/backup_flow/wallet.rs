@@ -322,12 +322,7 @@ impl Faraday {
             if let Some(w) = self.restore.state().and_then(|r| r.wallet) {
                 self.wallet_flow_attach(w, owner);
             }
-            if let Some(r) = self.restore.state_mut() {
-                r.open = Some(crate::rstep::SEEDS);
-                r.done[crate::rstep::WHERE as usize] = true;
-                r.done[crate::rstep::HOW_MANY as usize] = true;
-                r.scroll.follow = true;
-            }
+            self.restore.open_seeds_after_description();
             self.screen = Screen::Restore;
             self.out.redraw();
             return;
@@ -1875,10 +1870,7 @@ impl Faraday {
             .iter()
             .copied()
             .find(|&k| !self.create_card_done(k) && !(pending && k == cstep::KEYS));
-        if let Some(c) = self.create.state_mut() {
-            c.open = next;
-            c.scroll.follow = true;
-        }
+        self.create.open_card(next);
         self.create_keys_opened();
     }
 
@@ -2304,10 +2296,7 @@ impl Faraday {
             pass_focus: Some(0),
             ..crate::CreateState::default()
         });
-        if let Some(c) = self.create.state_mut() {
-            c.done[cstep::WHERE as usize] = true;
-            c.vaults.answer = Some(false);
-        }
+        self.create.where_done_no_vault();
         self.screen = Screen::Create;
     }
 }

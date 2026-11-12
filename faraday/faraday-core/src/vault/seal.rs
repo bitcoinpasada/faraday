@@ -797,8 +797,8 @@ fn lock_finish(app: &mut Faraday) {
     app.keygen.forget();
     app.wordlist.clear();
     app.bip85.clear();
-    app.tools.convert_mut().clear();
-    app.tools.qr_tool_mut().clear();
+    app.tools.convert.clear();
+    app.tools.qr_tool.clear();
     app.explore.clear();
     app.secrets.clear();
     app.entry.reset();

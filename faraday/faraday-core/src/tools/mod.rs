@@ -172,17 +172,17 @@ pub struct ToolsArea {
     /// What is typed in Tools' Find a tool.
     catalog_find: String,
     /// Convert a seed, a tool with a flow of its own.
-    convert: crate::convert::ConvertArea,
+    pub(crate) convert: crate::convert::ConvertArea,
     /// The Krux code tool.
-    kef_tool: crate::kef_tool::KefToolArea,
+    pub(crate) kef_tool: crate::kef_tool::KefToolArea,
     /// The QR vault tool.
-    qr_tool: crate::qr_tool::QrToolArea,
+    pub(crate) qr_tool: crate::qr_tool::QrToolArea,
     /// Check a timestamp.
-    ots: crate::ots_check::OtsArea,
+    pub(crate) ots: crate::ots_check::OtsArea,
     /// Read a Bitcoin Core wallet.
-    core_wallet: crate::core_wallet::tool::CoreWalletArea,
+    pub(crate) core_wallet: crate::core_wallet::tool::CoreWalletArea,
     /// Decode a Lightning invoice.
-    invoice: crate::invoice::InvoiceArea,
+    pub(crate) invoice: crate::invoice::InvoiceArea,
 }
 
 impl ToolsArea {
@@ -191,54 +191,15 @@ impl ToolsArea {
         self.tools.as_ref()
     }
 
-    /// Convert a seed's flow.
-    pub(crate) fn convert(&self) -> &crate::convert::ConvertArea {
-        &self.convert
-    }
-
-    /// Convert a seed's flow, to change.
-    pub(crate) fn convert_mut(&mut self) -> &mut crate::convert::ConvertArea {
-        &mut self.convert
-    }
-
-    /// The Krux code tool.
-    pub(crate) fn kef_tool(&self) -> &crate::kef_tool::KefToolArea {
-        &self.kef_tool
-    }
-
-    /// The Krux code tool, to change.
-    pub(crate) fn kef_tool_mut(&mut self) -> &mut crate::kef_tool::KefToolArea {
-        &mut self.kef_tool
-    }
-
-    /// The QR vault tool.
-    pub(crate) fn qr_tool(&self) -> &crate::qr_tool::QrToolArea {
-        &self.qr_tool
-    }
-
-    /// The QR vault tool, to change.
-    pub(crate) fn qr_tool_mut(&mut self) -> &mut crate::qr_tool::QrToolArea {
-        &mut self.qr_tool
-    }
-
-    /// The Check a timestamp tool.
-    pub(crate) fn ots(&self) -> &crate::ots_check::OtsArea {
-        &self.ots
-    }
-
-    /// The Check a timestamp tool, to change.
-    pub(crate) fn ots_mut(&mut self) -> &mut crate::ots_check::OtsArea {
-        &mut self.ots
-    }
-
-    /// The Read a Bitcoin Core wallet tool.
-    pub(crate) fn core_wallet(&self) -> &crate::core_wallet::tool::CoreWalletArea {
-        &self.core_wallet
-    }
-
-    /// The Read a Bitcoin Core wallet tool, to change.
-    pub(crate) fn core_wallet_mut(&mut self) -> &mut crate::core_wallet::tool::CoreWalletArea {
-        &mut self.core_wallet
+    /// Opens the Descriptor calculator with `text` typed in, for the test kit.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn type_descriptor(&mut self, text: &str) {
+        if let Some(t) = self.tools.as_mut() {
+            t.tool = Tool::Descriptor;
+            for ch in text.chars() {
+                t.typed.push(ch);
+            }
+        }
     }
 
     /// What is typed in Find a tool.
@@ -268,16 +229,6 @@ impl ToolsArea {
         if screen != Screen::Invoice {
             self.invoice.clear();
         }
-    }
-
-    /// Decode a Lightning invoice's area.
-    pub(crate) fn invoice(&self) -> &crate::invoice::InvoiceArea {
-        &self.invoice
-    }
-
-    /// Decode a Lightning invoice's area, to change.
-    pub(crate) fn invoice_mut(&mut self) -> &mut crate::invoice::InvoiceArea {
-        &mut self.invoice
     }
 
     /// Costs what `account_text` costs. The loaded keys a policy may name
@@ -438,12 +389,6 @@ impl ToolsArea {
             _ => return false,
         }
         true
-    }
-
-    /// The calculator's state, for the test kit.
-    #[cfg(feature = "testkit")]
-    pub(crate) fn state_mut(&mut self) -> Option<&mut ToolsState> {
-        self.tools.as_mut()
     }
 }
 

@@ -1058,9 +1058,7 @@ impl Faraday {
         };
         let Some(w) = self.spend_backup_described() else {
             self.seed_read_open(words);
-            if let Some(s) = self.seed_read.state_mut() {
-                s.spend_backup = Some(crate::seeds::read::ForSpendBackup::Intake);
-            }
+            self.seed_read.for_spend_backup_intake();
             return;
         };
         let note = match self.wallet_key_found(w, fp) {
@@ -1083,9 +1081,7 @@ impl Faraday {
             Found::None => {
                 let reason = self.not_a_wallet_key(w, fp);
                 self.seed_read_for_wallet(words, w, reason);
-                if let Some(s) = self.seed_read.state_mut() {
-                    s.spend_backup = Some(crate::seeds::read::ForSpendBackup::Intake);
-                }
+                self.seed_read.for_spend_backup_intake();
                 return;
             }
         };

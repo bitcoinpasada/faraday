@@ -355,10 +355,12 @@ impl SeedsArea {
         self.state.as_ref()
     }
 
-    /// The sheet's state, for the writers in other areas, until they are
-    /// narrowed.
-    pub(crate) fn state_mut(&mut self) -> Option<&mut read::SeedRead> {
-        self.state.as_mut()
+    /// Notes that the open sheet's seed is for the Spend tab's backup
+    /// intake.
+    pub(crate) fn for_spend_backup_intake(&mut self) {
+        if let Some(s) = self.state.as_mut() {
+            s.spend_backup = Some(read::ForSpendBackup::Intake);
+        }
     }
 
     /// Forgets the sheet, and the Krux code's contents and any passphrase
@@ -372,10 +374,6 @@ impl SeedsArea {
     /// The Krux code sheet's state, while it is open.
     pub(crate) fn kef(&self) -> Option<&crate::seeds::kef::KefRead> {
         self.kef.as_ref()
-    }
-
-    pub(crate) fn kef_mut(&mut self) -> Option<&mut crate::seeds::kef::KefRead> {
-        self.kef.as_mut()
     }
 
     pub(crate) fn set_kef(&mut self, kef: Option<crate::seeds::kef::KefRead>) {
@@ -769,13 +767,8 @@ impl Faraday {
         match self.screen {
             Screen::Restore => {
                 self.restore_wallet(name, &d, SOURCE, crate::wallet::Origin::TypedSeeds);
-                if let Some(r) = self.restore.state_mut()
-                    && r.wallet.is_some()
-                {
-                    // Made from the seeds, not read from a description.
-                    r.described = false;
-                    r.next(crate::rstep::SEEDS);
-                }
+                // Made from the seeds, not read from a description.
+                self.restore.made_from_seeds();
                 self.refresh_spend();
             }
             Screen::SpendBackup => {

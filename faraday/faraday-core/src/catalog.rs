@@ -491,7 +491,7 @@ pub fn matches(tile: &Tile, find: &str) -> bool {
 impl Faraday {
     /// Decode a Lightning invoice's state, while its screen is open.
     pub fn invoice(&self) -> Option<&crate::invoice::InvoiceState> {
-        self.tools.invoice().state()
+        self.tools.invoice.state()
     }
 
     /// What a tile needs first, when it cannot open now.

@@ -185,11 +185,11 @@ impl CoreWalletArea {
 
 /// The state, while the tool is open.
 pub fn state(app: &Faraday) -> Option<&CoreWalletState> {
-    app.tools.core_wallet().state()
+    app.tools.core_wallet.state()
 }
 
 fn st(app: &mut Faraday) -> Option<&mut CoreWalletState> {
-    app.tools.core_wallet_mut().state.as_mut()
+    app.tools.core_wallet.state.as_mut()
 }
 
 /// One refusal of the reader, as one plain line.
@@ -484,7 +484,7 @@ fn open(app: &mut Faraday, file: Option<String>) {
     if let Some(name) = file {
         choose(&mut s, name);
     }
-    app.tools.core_wallet_mut().state = Some(s);
+    app.tools.core_wallet.state = Some(s);
     app.screen = Screen::CoreWallet;
 }
 
@@ -533,7 +533,7 @@ impl ReadWork {
 fn begin(app: &mut Faraday) -> Option<ReadWork> {
     let mode = app.session.network();
     let beside: Vec<String> = app.inbox.iter().map(|i| i.name.clone()).collect();
-    let s = app.tools.core_wallet_mut().state.as_mut()?;
+    let s = app.tools.core_wallet.state.as_mut()?;
     let name = s.file.clone()?;
     let Some(item) = app.inbox.iter().find(|i| i.name == name) else {
         s.refused = Some(EN.core_wallet_none_in_files.to_string());
@@ -614,7 +614,7 @@ fn refusal_text(e: &Refusal) -> String {
 /// Costs what `add_wallet` costs: the descriptors go to Wallets as a
 /// descriptor with its origins does.
 fn take(app: &mut Faraday, pair: usize) {
-    let Some(s) = app.tools.core_wallet().state() else {
+    let Some(s) = app.tools.core_wallet.state() else {
         return;
     };
     if let Some(line) = s.take_refused.clone() {
@@ -712,7 +712,7 @@ pub(crate) fn hide(app: &mut Faraday) {
 /// show.
 pub(crate) fn tidy(app: &mut Faraday) {
     if app.screen != Screen::CoreWallet {
-        app.tools.core_wallet_mut().clear();
+        app.tools.core_wallet.clear();
     }
 }
 

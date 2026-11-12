@@ -2163,9 +2163,9 @@ pub fn catalog_find(app: &crate::Faraday) -> &str {
     app.tools.find()
 }
 
-/// The open calculator's state, to set what it holds.
-pub fn tools_mut(app: &mut crate::Faraday) -> Option<&mut crate::tools::ToolsState> {
-    app.tools.state_mut()
+/// Opens the Descriptor calculator with `text` typed in.
+pub fn tools_type_descriptor(app: &mut crate::Faraday, text: &str) {
+    app.tools.type_descriptor(text);
 }
 
 /// Closes the QR view, as closing its sheet does.
@@ -2201,9 +2201,7 @@ pub fn plain_asked(app: &crate::Faraday) -> Option<(String, String)> {
 
 /// Puts `source` in Create's key slot `slot`.
 pub fn create_set_slot(app: &mut crate::Faraday, slot: usize, source: crate::create::Source) {
-    if let Some(c) = app.create.state_mut() {
-        c.slots[slot] = source;
-    }
+    app.create.set_slot(slot, source);
 }
 
 /// Chooses wallet `i` on the Wallets tab.
@@ -2258,9 +2256,7 @@ pub fn backup_answers_mut(app: &mut crate::Faraday) -> &mut crate::plan::Answers
 
 /// Opens Back up's question `q`, or none.
 pub fn backup_set_q(app: &mut crate::Faraday, q: Option<u8>) {
-    if let Some(b) = app.backup.state_mut() {
-        b.q = q;
-    }
+    app.backup.set_question(q);
 }
 
 /// The backups record as a stick keeps it.

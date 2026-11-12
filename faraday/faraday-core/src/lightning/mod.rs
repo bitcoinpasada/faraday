@@ -751,7 +751,7 @@ impl Faraday {
                 // Back at the flow, not a step forward: its old spot goes.
                 self.trail.drop_screen(Screen::Convert);
                 self.screen = Screen::Convert;
-                self.tools.convert_mut().choose_aezeed(fp);
+                self.tools.convert.choose_aezeed(fp);
             }
         } else {
             self.lightning.read_done(&self.session.keys, done);

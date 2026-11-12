@@ -455,10 +455,7 @@ impl Faraday {
         } else {
             Some(crate::cstep::KEYS)
         };
-        if let Some(cs) = self.create.state_mut() {
-            cs.open = open;
-            cs.scroll.follow = true;
-        }
+        self.create.open_card(open);
     }
 
     /// The Cancel sheet's title over flow `g`.

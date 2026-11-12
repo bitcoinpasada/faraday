@@ -131,11 +131,11 @@ impl KefToolArea {
 
 /// The tool's state.
 pub fn state(app: &Faraday) -> Option<&KefToolState> {
-    app.tools.kef_tool().state()
+    app.tools.kef_tool.state()
 }
 
 fn st(app: &mut Faraday) -> Option<&mut KefToolState> {
-    app.tools.kef_tool_mut().state.as_mut()
+    app.tools.kef_tool.state.as_mut()
 }
 
 /// The text the wallet at `i` makes: its checksummed public descriptor,
@@ -170,7 +170,7 @@ pub(crate) fn act(app: &mut Faraday, action: KefToolAction) {
     match action {
         KefToolAction::Open => {
             let back = app.screen;
-            app.tools.kef_tool_mut().state = Some(KefToolState {
+            app.tools.kef_tool.state = Some(KefToolState {
                 open: Some(kstep::CONTENTS),
                 done: [false; kstep::COUNT],
                 scroll: flow::Scroll::default(),
@@ -394,7 +394,7 @@ fn type_text(app: &mut Faraday, key: Key) -> bool {
 
 /// After a worker's answer: the form takes it and the cards follow.
 pub(crate) fn poll(app: &mut Faraday) {
-    if app.tools.kef_tool().state().is_none() {
+    if app.tools.kef_tool.state().is_none() {
         return;
     }
     if with_form(app, |f, app| f.poll(app)).unwrap_or(false) {
@@ -434,7 +434,7 @@ pub(crate) fn tidy(app: &mut Faraday) {
     crate::wallet_backup::kef::tidy(app);
     let kept = matches!(app.screen, Screen::KefTool | Screen::Randomness);
     if !kept {
-        app.tools.kef_tool_mut().clear();
+        app.tools.kef_tool.clear();
         return;
     }
     if app.sheet != Some(Sheet::KefOptions)

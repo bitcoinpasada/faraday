@@ -688,7 +688,17 @@ impl WalletBackupArea {
         self.state.as_ref()
     }
 
-    /// The backup under way, for the tests' kit to set what it holds.
+    /// Opens question `q` (none closes it), for the tests' kit.
+    #[cfg(any(test, feature = "testkit"))]
+    pub(crate) fn set_question(&mut self, q: Option<u8>) {
+        if let Some(b) = self.state.as_mut() {
+            b.q = q;
+        }
+    }
+
+    /// The backup under way, only for the tests' kit to set the plan
+    /// answers it holds (`testkit::backup_answers_mut` hands them to
+    /// tests across crates by reference).
     #[cfg(any(test, feature = "testkit"))]
     pub(crate) fn state_mut(&mut self) -> Option<&mut BackupState> {
         self.state.as_mut()
@@ -744,9 +754,18 @@ impl WalletBackupArea {
         }
     }
 
-    /// The open typed check, for the word entry that types into it.
-    pub(crate) fn check_mut(&mut self) -> Option<&mut copy_check::WordCheck> {
+    /// The open typed check, for the word entry that types into it. Only
+    /// this module's writers reach it; the typed text goes in through
+    /// [`BackupArea::fill_check`].
+    fn open_check(&mut self) -> Option<&mut copy_check::WordCheck> {
         self.state.as_mut().and_then(|b| b.check.as_mut())
+    }
+
+    /// Types `text` into the open check.
+    pub(crate) fn fill_check(&mut self, text: &str) {
+        if let Some(c) = self.open_check() {
+            c.typed.set(text);
+        }
     }
 
     /// A press that changes only the checklist's own state: a question
@@ -1391,7 +1410,7 @@ impl WalletBackupArea {
 
     /// A key typed into the open check; closed by its Escape.
     pub(crate) fn check_key(&mut self, key: KeyIn) -> copy_check::Typed {
-        let Some(c) = self.check_mut() else {
+        let Some(c) = self.open_check() else {
             return copy_check::Typed::Nothing;
         };
         let typed = c.key(key);
@@ -1405,7 +1424,7 @@ impl WalletBackupArea {
 
     /// The sample the check shows is dismissed.
     pub(crate) fn check_sample_gone(&mut self) {
-        if let Some(c) = self.check_mut() {
+        if let Some(c) = self.open_check() {
             c.sample_gone = true;
         }
     }
@@ -1413,7 +1432,7 @@ impl WalletBackupArea {
     /// Word `k` of the words typed back differs, as `line` says: the
     /// words before it stay and typing resumes at it.
     pub(crate) fn check_wrong(&mut self, k: usize, line: String) {
-        if let Some(c) = self.check_mut() {
+        if let Some(c) = self.open_check() {
             c.wrong(k, line);
         }
     }
@@ -1431,7 +1450,7 @@ impl WalletBackupArea {
 
     /// The passphrase typed back differs: wiped, and said.
     pub(crate) fn passphrase_differs(&mut self) {
-        if let Some(c) = self.check_mut() {
+        if let Some(c) = self.open_check() {
             c.typed.clear();
             c.error = Some(EN.copy_check_passphrase_differs.to_string());
         }
@@ -1753,7 +1772,7 @@ impl Faraday {
     /// The word entry the on-screen keys and the candidates press into.
     pub(crate) fn words_use(&mut self) -> WordsUse<'_> {
         if self.screen == Screen::Backup
-            && let Some(c) = self.backup.check_mut().filter(|c| !c.passphrase)
+            && let Some(c) = self.backup.open_check().filter(|c| !c.passphrase)
         {
             return WordsUse {
                 keys: &mut c.keys,

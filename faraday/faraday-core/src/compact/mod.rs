@@ -1593,9 +1593,7 @@ impl Faraday {
             self.vaults.set_focus(None);
         }
         self.set_time.clear_focus();
-        if let Some(c) = self.create.state_mut() {
-            c.pass_focus = None;
-        }
+        self.create.clear_pass_focus();
     }
 
     /// After a press on a small panel: a press on a field, the one

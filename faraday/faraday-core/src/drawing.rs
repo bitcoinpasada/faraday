@@ -473,19 +473,19 @@ impl Faraday {
                     self.bip85.set_scroll(to);
                 }
                 Scrolled::Convert => {
-                    self.tools.convert_mut().set_scroll(to);
+                    self.tools.convert.set_scroll(to);
                 }
                 Scrolled::KefTool => {
-                    self.tools.kef_tool_mut().set_scroll(to);
+                    self.tools.kef_tool.set_scroll(to);
                 }
                 Scrolled::QrTool => {
-                    self.tools.qr_tool_mut().set_scroll(to);
+                    self.tools.qr_tool.set_scroll(to);
                 }
                 Scrolled::OtsCheck => {
-                    self.tools.ots_mut().set_scroll(to);
+                    self.tools.ots.set_scroll(to);
                 }
                 Scrolled::CoreWallet => {
-                    self.tools.core_wallet_mut().set_scroll(to);
+                    self.tools.core_wallet.set_scroll(to);
                 }
                 Scrolled::KeyGen => {
                     self.keygen.set_scroll(to);
@@ -509,14 +509,10 @@ impl Faraday {
                     self.message.set_scroll(to);
                 }
                 Scrolled::Create => {
-                    if let Some(c) = self.create.state_mut() {
-                        c.scroll = to;
-                    }
+                    self.create.set_scroll(to);
                 }
                 Scrolled::Restore => {
-                    if let Some(r) = self.restore.state_mut() {
-                        r.scroll = to;
-                    }
+                    self.restore.set_scroll(to);
                 }
                 Scrolled::SpendBackup => self.spend_backup.set_scroll(to),
             }
