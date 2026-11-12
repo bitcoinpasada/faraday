@@ -135,7 +135,9 @@ not run every target again. A full run (every target, whole or joined from
 parts) ends with `out/fuzz-map.txt`: the commit, and for each target the
 repository's files in which its corpus, as the run left it, executes code.
 A run of parts has none until `tools/fuzz-release.sh map out/fuzz-corpus`
-makes it from the joined corpus (the workflow's last job does). A later run
+makes it from the joined corpus (the workflow's last job does); it builds
+every target once with coverage and replays the targets' corpora as many at
+once as the machine has cores. A later run
 takes the earlier run's folder (its `fuzz-release.txt`, `fuzz-map.txt` and
 `fuzz-corpus/`):
 
@@ -147,7 +149,8 @@ python3 -I -B tools/fuzz-join.py --later OUT DIR LATER
 `tools/fuzz-plan.py` reads the files that differ between the earlier run's
 commit and the checkout and names the targets to run: those whose corpus
 reaches a changed file, or a file that names a constant or static that
-changed (a file with no code, the strings, counts by the names in it);
+changed (a file with no code, the strings, counts by the names in it: a
+changed string by its field name);
 those that compile in a file whose change cannot be followed (a build
 script, an included file, a crate's manifest); every target after a change
 to a fuzz crate's manifest, lock or toolchain or to the fuzz tools; a new

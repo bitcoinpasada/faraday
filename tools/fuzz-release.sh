@@ -77,13 +77,42 @@ esac
 # shellcheck source=tools/fuzz-common.sh
 . "$(dirname "${BASH_SOURCE[0]}")/fuzz-common.sh"
 
+# One target's part of the map: its instrumented binary built and run over
+# its corpus (the folder $3/NAME when $3 is not empty, else the store's, and
+# the target's seeds) by `cargo fuzz coverage`, then what it covered
+# exported to `$4/NAME.json`, with the binary's dep-info beside it as
+# `NAME.d`. Costs the build of the instrumented binary, a run over the
+# corpus and an export.
+map_target() {
+    local dir="$1" name="$2" from="$3" mapwork="$4" dirs=() bin="" tgt
+    if [ -n "$from" ]; then
+        [ -d "$from/$name" ] && dirs+=("$from/$name")
+    else
+        [ -d "$store/$name" ] && dirs+=("$store/$name")
+    fi
+    [ -d "$dir/corpus/$name" ] && dirs+=("$dir/corpus/$name")
+    cargo fuzz coverage --fuzz-dir "$dir" "$name" "${dirs[@]}" >"$mapwork/$name.log" 2>&1 \
+        || { echo "fuzz-release: the coverage run of $name failed (out/fuzz-map/$name.log)" >&2; return 1; }
+    for tgt in "$dir/target" "$root/target"; do
+        if [ -x "$tgt/$host/coverage/$host/release/$name" ]; then
+            bin="$tgt/$host/coverage/$host/release/$name"
+            break
+        fi
+    done
+    [ -n "$bin" ] || { echo "fuzz-release: no coverage binary for $name" >&2; return 1; }
+    cp "$bin.d" "$mapwork/$name.d" 2>/dev/null || cp "$dir/target/$host/release/$name.d" "$mapwork/$name.d"
+    "$llvmcov" export -summary-only -instr-profile="$dir/coverage/$name/coverage.profdata" "$bin" \
+        >"$mapwork/$name.json" || { echo "fuzz-release: llvm-cov failed for $name" >&2; return 1; }
+}
+
 # The coverage map of the corpus in folder $1 (a `fuzz-corpus/`, one folder
 # a target), or of the store when $1 is empty, at the checked-out commit:
-# `out/fuzz-map.txt` (F241). Costs an instrumented build of every target
-# and a run of each over its corpus.
+# `out/fuzz-map.txt` (F241). Costs an instrumented build of every target, a
+# run of each over its corpus and an export, as many targets at once as the
+# machine has cores.
 map_step() {
     local from="$1" out="${FARADAY_FUZZ_MAP_FILE:-$root/out/fuzz-map.txt}"
-    local mapwork="$root/out/fuzz-map" llvmcov dir name bin dirs tgt
+    local mapwork="$root/out/fuzz-map" dir name pid failed=0
     llvmcov="$(rustc --print sysroot)/lib/rustlib/$host/bin/llvm-cov"
     if [ ! -x "$llvmcov" ]; then
         echo "fuzz-release: the map needs llvm-cov: rustup component add llvm-tools-preview --toolchain $nightly" >&2
@@ -96,29 +125,19 @@ map_step() {
     rm -rf "$mapwork"
     mkdir -p "$mapwork" "$(dirname "$out")"
     echo "fuzz-release: the coverage map"
-    while read -r dir name; do
+    for dir in fuzz faraday/fuzz; do
         cargo metadata --locked --format-version 1 --manifest-path "$dir/Cargo.toml" >/dev/null
-        dirs=()
-        if [ -n "$from" ]; then
-            [ -d "$from/$name" ] && dirs+=("$from/$name")
-        else
-            [ -d "$store/$name" ] && dirs+=("$store/$name")
+    done
+    while read -r dir name; do
+        map_target "$dir" "$name" "$from" "$mapwork" &
+        if [ "$(jobs -r | wc -l)" -ge "$cores" ]; then
+            wait -n || failed=1
         fi
-        [ -d "$dir/corpus/$name" ] && dirs+=("$dir/corpus/$name")
-        cargo fuzz coverage --fuzz-dir "$dir" "$name" "${dirs[@]}" >"$mapwork/$name.log" 2>&1 \
-            || { echo "fuzz-release: the coverage run of $name failed (out/fuzz-map/$name.log)" >&2; return 1; }
-        bin=""
-        for tgt in "$dir/target" "$root/target"; do
-            if [ -x "$tgt/$host/coverage/$host/release/$name" ]; then
-                bin="$tgt/$host/coverage/$host/release/$name"
-                break
-            fi
-        done
-        [ -n "$bin" ] || { echo "fuzz-release: no coverage binary for $name" >&2; return 1; }
-        cp "$bin.d" "$mapwork/$name.d" 2>/dev/null || cp "$dir/target/$host/release/$name.d" "$mapwork/$name.d"
-        "$llvmcov" export -summary-only -instr-profile="$dir/coverage/$name/coverage.profdata" "$bin" \
-            >"$mapwork/$name.json" || { echo "fuzz-release: llvm-cov failed for $name" >&2; return 1; }
     done < <(FARADAY_FUZZ_PREBUILT=1 build_all)
+    for pid in $(jobs -p); do
+        wait "$pid" || failed=1
+    done
+    [ "$failed" = 0 ] || return 1
     {
         echo "Commit: $(git rev-parse HEAD)"
         echo "Toolchain: $(rustc -V)"

@@ -36,6 +36,8 @@ WHOLE = ("fuzz/Cargo.toml", "fuzz/Cargo.lock", "fuzz/rust-toolchain.toml",
          "faraday/fuzz/Cargo.toml", "faraday/fuzz/Cargo.lock", "faraday/fuzz/rust-toolchain.toml")
 WHOLE_PREFIX = ("tools/fuzz-",)
 CONSTANT = re.compile(r"\b(?:const|static)\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)")
+# An entry of a table of text (`name: "wording",`, the strings crate's rows).
+ENTRY = re.compile(r'^\s*([a-z_][a-z0-9_]*)\s*:\s*r?#*"')
 
 
 def fail(msg):
@@ -177,6 +179,8 @@ def plan(earlier, targets_file):
             body = [l[1:] for l in diff.splitlines()
                     if l[:1] in "+-" and not l.startswith(("+++", "---"))]
             names = {m for l in body for m in CONSTANT.findall(l)}
+            if f not in code:
+                names |= {m.group(1) for l in body if (m := ENTRY.match(l))}
             for n in names:
                 for user in git("grep", "-l", "-w", "-F", "-e", n, "HEAD", "--", "*.rs").splitlines():
                     user = user.split(":", 1)[-1]
