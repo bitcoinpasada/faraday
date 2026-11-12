@@ -13,6 +13,7 @@ use crate::backup_flow::{
 use crate::strings::{EN as FEN, fill};
 use crate::vault::{Focus, Form, TextBox, Work};
 use crate::{Action, Faraday, FileKind, Item, Screen, Sheet, StickInfo, StorageCommand, sha256_of};
+use zeroize::Zeroizing;
 
 pub use super::action::{Built, FlowAction, RestorePress, is_hold};
 
@@ -2806,13 +2807,19 @@ impl Faraday {
         stick: &str,
         sends: Vec<(String, Vec<u8>, bool)>,
         asks: &[String],
-    ) -> (Vec<String>, Vec<(String, Vec<u8>)>) {
+    ) -> (Vec<String>, Vec<(String, Zeroizing<Vec<u8>>)>) {
         let (vaults, files): (Vec<_>, Vec<_>) = sends.into_iter().partition(|(_, _, v)| *v);
         let open: Vec<String> = vaults.iter().map(|(n, _, _)| n.clone()).collect();
         let (now, held) = if vaults.is_empty() {
             (files, Vec::new())
         } else {
-            (vaults, files.into_iter().map(|(n, b, _)| (n, b)).collect())
+            (
+                vaults,
+                files
+                    .into_iter()
+                    .map(|(n, b, _)| (n, Zeroizing::new(b)))
+                    .collect(),
+            )
         };
         self.name_taken_wrote_clear();
         for (name, bytes, vault) in now {
@@ -2863,7 +2870,9 @@ impl Faraday {
         let held = std::mem::take(&mut w.held);
         let stick = w.id.clone();
         let c = self.compute();
-        for (name, bytes) in held {
+        for (name, mut bytes) in held {
+            // Moves the buffer out: the emptied wrapper wipes nothing left.
+            let bytes = std::mem::take(&mut *bytes);
             self.flow_push_write(&c, &stick, name, bytes, false, false);
         }
     }

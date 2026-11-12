@@ -433,13 +433,16 @@ enum NoJob {
 /// serves any number of them.
 fn uuid_bytes_from(answer: &[u8], n: usize) -> Zeroizing<Vec<u8>> {
     let mut out = Zeroizing::new(Vec::with_capacity(n + 32));
+    let mut input = Zeroizing::new(Vec::with_capacity(24 + answer.len() + 4));
+    input.extend_from_slice(b"faraday vault seal uuids");
+    input.extend_from_slice(answer);
+    input.extend_from_slice(&0u32.to_be_bytes());
     let mut counter = 0u32;
     while out.len() < n {
-        let mut input = Vec::with_capacity(32 + answer.len() + 4);
-        input.extend_from_slice(b"faraday vault seal uuids");
-        input.extend_from_slice(answer);
-        input.extend_from_slice(&counter.to_be_bytes());
-        out.extend_from_slice(&faraday_crypto::sha256(&input));
+        let tail = input.len() - 4;
+        input[tail..].copy_from_slice(&counter.to_be_bytes());
+        let block = Zeroizing::new(faraday_crypto::sha256(&input));
+        out.extend_from_slice(&*block);
         counter += 1;
     }
     out.truncate(n);

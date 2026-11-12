@@ -800,7 +800,7 @@ pub struct Reading {
 }
 
 /// A write under way (step 6).
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Writing {
     /// The stick's id.
     pub id: String,
@@ -830,11 +830,38 @@ pub struct Writing {
     pub vaults_open: Vec<String>,
     /// The plain files held back until `vaults_open` is empty: name and
     /// bytes.
-    pub held: Vec<(String, Vec<u8>)>,
+    pub held: Vec<(String, zeroize::Zeroizing<Vec<u8>>)>,
     /// The stick's label.
     pub label: String,
     /// The stick's FAT volume serial.
     pub serial: Option<u32>,
+}
+
+/// Prints what a write holds but never the plain files' bytes, only their
+/// names and sizes.
+impl std::fmt::Debug for Writing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let held: Vec<(&str, usize)> = self
+            .held
+            .iter()
+            .map(|(n, b)| (n.as_str(), b.len()))
+            .collect();
+        f.debug_struct("Writing")
+            .field("id", &self.id)
+            .field("slot", &self.slot)
+            .field("target", &self.target)
+            .field("pending", &self.pending)
+            .field("done", &self.done)
+            .field("plain", &self.plain)
+            .field("retried", &self.retried)
+            .field("aliases", &self.aliases)
+            .field("qr", &self.qr)
+            .field("vaults_open", &self.vaults_open)
+            .field("held", &held)
+            .field("label", &self.label)
+            .field("serial", &self.serial)
+            .finish()
+    }
 }
 
 /// What the screen keeps of a flow; none of it is kept across a lock.
