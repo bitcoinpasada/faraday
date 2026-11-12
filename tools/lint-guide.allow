@@ -29,3 +29,5 @@ With your own key  # the title of the guide's own box at a walkthrough's end, no
 1 MiB  # a vault size, drawn by the picker from its byte count
 4 MiB  # a vault size, drawn by the picker from its byte count
 Why:  # the guide's own label before a page's Learn links
+BIP-137  # a signature format button of Sign a message
+BIP-322  # a signature format button of Sign a message
