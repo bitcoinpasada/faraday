@@ -189,7 +189,9 @@ fn sha256_of(parts: &[&[u8]]) -> Zeroizing<[u8; 32]> {
     for p in parts {
         h.update(p);
     }
-    Zeroizing::new(h.finalize().into())
+    let mut out = Zeroizing::new([0u8; 32]);
+    h.finalize_into((&mut *out).into());
+    out
 }
 
 type Gcm4 = AesGcm<Aes256, U12, U4>;
