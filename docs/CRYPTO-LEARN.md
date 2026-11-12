@@ -264,7 +264,7 @@ release (F79).
 
 The inventory is a second binary in `tools/costs-lint`, crypto-inventory
 (new), sharing its source walker: the crate roots under `core/` and
-`faraday/`, the modules each root reaches, and what is compiled for
+`faraday/` (and `aqrv/`'s, for the reach check only: §4.4), the modules each root reaches, and what is compiled for
 tests left out (`#[cfg(test)]`, and a `cfg` naming one of the features
 no shipped binary turns on, `testkit` and `master-for-tests`:
 `tools/lint-keys-tests.sh` fails when one is on in a shipped binary),
@@ -426,8 +426,11 @@ a call to a cryptographic function, which is why a method call on a
 receiver of unknown type keeps the edge to a cryptographic callee.
 
 Every cryptographic function (§4.2) must be covered by exactly one
-action, or listed as not cryptographic (§7). A function covered by none
-fails: "core/faraday-bip/src/bip39.rs::Mnemonic::to_seed_v2 is
+action, or listed as not cryptographic (§7), except under `aqrv/`: the
+Argon QR Vault is a test tool outside Faraday's apps (F245), read so that
+`tools/lint-standards.py` can see that no shipped function reaches its
+`seal` or `open`, and no app offers it, so no action covers it
+(`OUTSIDE_APPS`). A function covered by none fails: "core/faraday-bip/src/bip39.rs::Mnemonic::to_seed_v2 is
 cryptographic (rule 3: sha2) and no action covers it: add it to an
 action's functions, or to [[not_crypto]] with its reason". Covered by two
 roots' closures is allowed; named as a root by two actions fails.

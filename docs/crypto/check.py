@@ -102,6 +102,10 @@ OPEN_ITEM_KEYS = {"spec", "names"}
 NAME_DIGITS_KEYS = {"name", "pattern", "reason"}
 HOLD_KEYS = {"action", "check", "case", "decision"}
 COUNTS = "tools/lint-crypto.counts"
+# The Argon QR Vault, a test tool outside Faraday's apps (F245): the inventory reads its
+# crates so that lint-standards can see that no shipped function reaches its seal or open,
+# and no action covers them, since no app offers it (docs/CRYPTO-LEARN.md §4.4).
+OUTSIDE_APPS = ("aqrv/",)
 STANDARD_KEYS = {"name", "status", "checked", "source"}
 # A standard may also list `tags`: the spellings a Tools tile names it by (catalog.rs).
 STANDARD_OPTIONAL = {"tags"}
@@ -966,6 +970,8 @@ def check_coverage(c):
             e.add("coverage", f"{f} is the root of {len(who)} actions: {', '.join(who)}")
     covered = set().union(*c.closure.values()) if c.closure else set()
     for f in sorted(c.inv.cryptographic - covered - c.not_crypto):
+        if f.startswith(OUTSIDE_APPS):
+            continue
         r = c.inv.fns[f]
         e.add("uncovered", f"{f} is cryptographic (rule {', '.join(map(str, r['rules']))}) and no "
               "action covers it: add it to an action's functions, or to [[not_crypto]] with its reason")
@@ -2531,6 +2537,7 @@ def fixture_inventory(g_hash="g1", f_hash="f1", h_hash="h1", moved=False, extra=
     ]
     if extra:
         recs.append(fn_rec("src/a.rs", "k", "k1"))
+        recs.append(fn_rec("aqrv/aqrv/src/x.rs", "seal", "s1"))
     if test:
         recs.append({"kind": "test", "crate": "c", "file": "src/a.rs", "name": "tests::t_one",
                      "line": 9, "ignored": ignored, "cfg": "cfg(test)"})
@@ -2633,6 +2640,8 @@ def self_test():
         c = check(fixture_inventory(extra=True))
         expect(any("src/a.rs::k is cryptographic" in m for m in msgs(c, "uncovered")),
                "an uncovered function fails")
+        expect(not any("aqrv/" in m for m in msgs(c, "uncovered")),
+               "an uncovered function of the Argon QR Vault, outside the apps, does not")
 
         print("a changed body:")
         c = check(fixture_inventory(g_hash="g2"))
