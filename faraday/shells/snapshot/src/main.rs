@@ -94,6 +94,7 @@
 //! width, not pixels. The Pi's Waveshare panel is `480x640@286`; the
 //! smallest panel the design supports is `240x320@143`.
 
+mod leaks;
 mod targets;
 mod tour;
 mod tours;
@@ -270,11 +271,21 @@ fn run(
         go_on: true,
         pictures,
         targets: Some(Vec::new()),
+        name: only.unwrap_or("default").to_string(),
+        restarts: 0,
+        leaks: Vec::new(),
     };
+    leaks::plant();
     match only.and_then(|name| named_tour(c, &mut t, name)) {
         Some(done) => done,
         None => tours::default::default_tour(c, &mut t, medium),
     }?;
+    if !t.leaks.is_empty() {
+        return Err(format!(
+            "a secret is left after Lock, a hide or leaving a page (docs/SECRET-LEAKS.md §5):\n  {}",
+            t.leaks.join("\n  ")
+        ));
+    }
     Ok(t.targets.take().unwrap_or_default())
 }
 

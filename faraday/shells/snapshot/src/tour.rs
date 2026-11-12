@@ -35,6 +35,14 @@ pub(crate) struct Tour {
     /// The targets under the touch floor each saved frame offers
     /// (`docs/M3-CHECKS.md` §2), collected when this is `Some`.
     pub(crate) targets: Option<Vec<Small>>,
+    /// The tour's name, for what the screens check reports.
+    pub(crate) name: String,
+    /// How many times the process has restarted (a lock), so a press that
+    /// ended it is known.
+    pub(crate) restarts: u32,
+    /// What the screens check found (`crate::leaks`), each a line naming
+    /// the tour, the step and the form; the tour fails with them.
+    pub(crate) leaks: Vec<String>,
 }
 
 /// A press target a saved frame offers under the touch floor, with where
@@ -297,6 +305,7 @@ impl Tour {
 
     /// A fresh process on the same display, as after a lock.
     pub(crate) fn restart(&mut self) {
+        self.restarts += 1;
         // What the lock asked to keep, before this process is gone.
         while let Some(c) = self.app.poll_storage() {
             if let StorageCommand::SaveBoxes {
@@ -356,11 +365,14 @@ impl Tour {
         {
             self.app.press(Action::Board(B::Customize));
         }
+        let before = self.leak_before(a);
+        let restarts = self.restarts;
         self.app.press(a);
         if matches!(a, Action::Board(_)) && self.app.sheet == Some(faraday_core::Sheet::BoardSees) {
             self.app.press(Action::Board(B::SeesKeep));
         }
         self.pump();
+        self.leak_after(a, &before, restarts);
         if self.go_on
             && self.app.sheet == Some(faraday_core::Sheet::Devices)
             && !self.app.device_reminders().is_empty()

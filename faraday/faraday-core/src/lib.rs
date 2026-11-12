@@ -237,6 +237,8 @@ pub mod transfer;
 
 // Support: word lists, the guide pages, the tools page, test data.
 pub mod guide;
+#[cfg(feature = "testkit")]
+pub mod leaks;
 pub mod modes;
 pub mod samples;
 #[cfg(feature = "testkit")]
