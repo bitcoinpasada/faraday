@@ -1,0 +1,40 @@
+# The copies of a test secret the leak tests let through
+# (docs/SECRET-LEAKS.md §7, §9; tests in faraday/faraday-core/tests/leaks).
+# One [[entry]] per copy:
+#   flow   the leak test that finds it
+#   form   the form of the secret found (tests/leaks/forms.rs)
+#   place  the function, as a backtrace names it, that frees the block
+#          (one of the first frames after the allocator's and the
+#          standard library's own)
+#   reason what bounds the copy: the restart at every lock (F181 point 2)
+#   fix    the repository path that removes it, or "none planned yet"
+# An entry its flow no longer hits fails the test; a block still live
+# after Lock is never let through.
+
+[[entry]]
+flow = "seed typed"
+form = "master chain code"
+place = "faraday_keys::identity::master_id"
+reason = "master_id joins the master xpub's public key and chain code in a 66-byte Vec that is not wiped before it is freed; the copy lives until the process restarts at every lock (F181 point 2)"
+fix = "none planned yet"
+
+[[entry]]
+flow = "seed pasted with a passphrase"
+form = "master chain code"
+place = "faraday_keys::identity::master_id"
+reason = "master_id joins the master xpub's public key and chain code in a 66-byte Vec that is not wiped before it is freed; the copy lives until the process restarts at every lock (F181 point 2)"
+fix = "none planned yet"
+
+[[entry]]
+flow = "vault load"
+form = "master chain code"
+place = "faraday_keys::identity::master_id"
+reason = "master_id joins the master xpub's public key and chain code in a 66-byte Vec that is not wiped before it is freed; the copy lives until the process restarts at every lock (F181 point 2)"
+fix = "none planned yet"
+
+[[entry]]
+flow = "vault seal at lock"
+form = "master chain code"
+place = "faraday_keys::identity::master_id"
+reason = "master_id joins the master xpub's public key and chain code in a 66-byte Vec that is not wiped before it is freed; the copy lives until the process restarts at every lock (F181 point 2)"
+fix = "none planned yet"

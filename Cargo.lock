@@ -885,6 +885,7 @@ dependencies = [
  "faraday-guide",
  "faraday-intake",
  "faraday-keys",
+ "faraday-leak-scan",
  "faraday-ots",
  "faraday-paper",
  "faraday-pgp",
@@ -901,6 +902,7 @@ dependencies = [
  "faraday-vault",
  "serde_json",
  "subtle",
+ "unicode-normalization",
  "zeroize",
 ]
 
@@ -1122,6 +1124,10 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
+
+[[package]]
+name = "faraday-leak-scan"
+version = "0.1.0"
 
 [[package]]
 name = "faraday-mediafoundation"

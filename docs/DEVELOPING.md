@@ -129,6 +129,7 @@ just lint-touch-targets   the touch-target ratchet: every snapshot tour at four 
 just lint-op-cost         the instruction count of each named costly operation under valgrind (F238)
 just lint-all             every command of `lint`, run to the end; lists all that failed
 cargo nextest run -p faraday-core -E 'test(/^keygen::/)'     one test module
+cargo nextest run -p faraday-core --test leaks               the leak tests: flows run under an allocator that looks for a test secret in freed memory
 ```
 
 Run the module you touched while working, and `just` once for a finished

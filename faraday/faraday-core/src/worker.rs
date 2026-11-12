@@ -468,12 +468,36 @@ fn hold_gate() {
     }
 }
 
+/// What a test gives to run first on the worker's thread, made on the
+/// thread that starts the worker (`testkit::on_worker_start`).
+#[cfg(feature = "testkit")]
+pub type OnStart = Box<dyn Fn() -> Box<dyn FnOnce() + Send>>;
+
+#[cfg(feature = "testkit")]
+thread_local! {
+    static ON_START: std::cell::RefCell<Option<OnStart>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Sets what the worker this thread starts runs first on its own thread.
+#[cfg(feature = "testkit")]
+pub(crate) fn set_on_start(hook: Option<OnStart>) {
+    ON_START.with(|h| *h.borrow_mut() = hook);
+}
+
 fn spawn(wake: Waker) -> Link {
     let (ask, rx) = channel();
     let (tx, back) = channel();
+    #[cfg(feature = "testkit")]
+    let start = ON_START.with(|h| h.borrow().as_ref().map(|f| f()));
     std::thread::Builder::new()
         .name("worker".into())
-        .spawn(move || worker_loop(&rx, &tx, &wake))
+        .spawn(move || {
+            #[cfg(feature = "testkit")]
+            if let Some(start) = start {
+                start();
+            }
+            worker_loop(&rx, &tx, &wake);
+        })
         .expect("the worker thread starts");
     Link { ask, back }
 }
