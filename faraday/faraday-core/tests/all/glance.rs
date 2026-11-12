@@ -982,6 +982,8 @@ fn preset_saved(app: &mut Faraday, k: u8) {
     let shape = app.plan_shape_now(w);
     let base = if shape.multi() { shape.seeds.len() } else { 2 };
     let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
-    *faraday_core::testkit::backup_answers_mut(app) =
-        faraday_core::plan::Answers::preset_at(&shape, preset, base);
+    faraday_core::testkit::set_backup_answers(
+        app,
+        faraday_core::plan::Answers::preset_at(&shape, preset, base),
+    );
 }

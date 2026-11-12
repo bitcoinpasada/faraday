@@ -158,9 +158,10 @@ fn skip_each(app: &mut Faraday) {
 fn board_edit(app: &mut Faraday, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
     let c = testkit::compute();
     let shape = app.plan_shape_now(app.backup().unwrap().wallet);
-    let a = testkit::backup_answers_mut(app);
-    let m = plan::map(&c, &shape, a);
-    a.set_map(f(m));
+    testkit::change_backup_answers(app, |a| {
+        let m = plan::map(&c, &shape, a);
+        a.set_map(f(m));
+    });
 }
 
 /// The share records open vault `o` holds: each string and fingerprint.

@@ -2967,11 +2967,13 @@ fn with_a_plain_file(app: &mut Faraday) {
         unsigned_txid: None,
     };
     app.outbox.push(note);
-    for f in faraday_core::testkit::flows_mut(app) {
-        for s in &mut f.slots {
-            s.files.push("note.pdf".into());
+    faraday_core::testkit::change_flows(app, |flows| {
+        for f in flows {
+            for s in &mut f.slots {
+                s.files.push("note.pdf".into());
+            }
         }
-    }
+    });
 }
 
 /// The write of the stick `U`, whose `main.kdbx` is a file nobody opened,

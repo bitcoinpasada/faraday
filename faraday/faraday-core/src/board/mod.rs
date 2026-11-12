@@ -249,6 +249,42 @@ pub enum BoardOf {
     Flow(usize),
 }
 
+impl BoardState {
+    /// The open menu's arrows go to its choice `at`.
+    fn menu_to(&mut self, at: usize) {
+        if let Some(m) = self.menu.as_mut() {
+            m.at = at;
+            m.keys = true;
+        }
+    }
+
+    /// The open menu goes on by the keys.
+    fn menu_by_keys(&mut self) {
+        if let Some(m) = self.menu.as_mut() {
+            m.keys = true;
+        }
+    }
+
+    /// The open menu shows `rows` under `title` for `verb`, by the keys,
+    /// with the arrows on its first choice.
+    fn menu_rows(&mut self, verb: Option<Verb>, title: String, rows: Vec<MenuRow>) {
+        if let Some(m) = self.menu.as_mut() {
+            m.verb = verb;
+            m.title = title;
+            m.rows = rows;
+            m.at = 0;
+            m.keys = true;
+        }
+    }
+
+    /// One empty stick fewer at place `p`, as far as it has any.
+    fn one_empty_fewer(&mut self, p: usize) {
+        if let Some(n) = self.empty.get_mut(p) {
+            *n = n.saturating_sub(1);
+        }
+    }
+}
+
 /// What the board holds between presses: the chip held and how.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct BoardState {
@@ -828,21 +864,21 @@ impl Faraday {
         }
     }
 
-    /// What the board on screen holds between presses, to change.
-    fn board_state_mut(&mut self) -> Option<&mut BoardState> {
+    /// Changes what the board on screen holds between presses as `f` says.
+    fn board_edit<R>(&mut self, f: impl FnOnce(&mut BoardState) -> R) -> Option<R> {
         match self.board_of()? {
-            BoardOf::Backup => self.backup.board_mut(),
-            BoardOf::Flow(i) => self.flows.board_mut(i),
+            BoardOf::Backup => self.backup.board_edit(f),
+            BoardOf::Flow(i) => self.flows.board_edit(i, f),
         }
     }
 
     /// The chip held on the board on screen let go, its forms and a
     /// vault's question closed: a press anywhere else (§19.2).
     pub(crate) fn board_let_go(&mut self) {
-        if let Some(st) = self.board_state_mut() {
+        self.board_edit(|st| {
             st.held = None;
             st.removing = None;
-        }
+        });
     }
 
     /// Works out the wallet's shape (`plan_shape`, its fingerprints kept):
@@ -1614,10 +1650,10 @@ impl Faraday {
         };
         let locked = self.board_locked().is_some();
         let set = |app: &mut Faraday, held: Option<Chip>| {
-            if let Some(st) = app.board_state_mut() {
+            app.board_edit(|st| {
                 st.held = held;
                 st.removing = None;
-            }
+            });
         };
         // Until Customize backup the board shows the placement and takes
         // no change (`docs/BACKUP-FLOW.md` §17.6).
@@ -1683,12 +1719,14 @@ impl Faraday {
                     (_, c) => (c, EN.board_menu_move),
                 };
                 let rows = self.board_menu_boxes(chip);
-                if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
-                    m.verb = Some(v);
-                    m.title = title.to_string();
-                    m.rows = rows;
-                    m.at = 0;
-                }
+                self.board_edit(|st| {
+                    if let Some(m) = st.menu.as_mut() {
+                        m.verb = Some(v);
+                        m.title = title.to_string();
+                        m.rows = rows;
+                        m.at = 0;
+                    }
+                });
                 self.scroll.reset_sheet();
             }
             BoardPress::MenuTo(z) => {
@@ -1734,15 +1772,15 @@ impl Faraday {
                 self.board_change(&|a, shape| a.toggle_software(&c, shape));
             }
             BoardPress::SeesKeep => {
-                if let Some(st) = self.board_state_mut() {
+                self.board_edit(|st| {
                     st.sees = None;
-                }
+                });
                 if self.sheet == Some(crate::Sheet::BoardSees) {
                     self.sheet = None;
                 }
             }
             BoardPress::SeesUndo => {
-                let before = self.board_state_mut().and_then(|st| st.sees.take());
+                let before = self.board_edit(|st| st.sees.take()).flatten();
                 if self.sheet == Some(crate::Sheet::BoardSees) {
                     self.sheet = None;
                 }
@@ -1768,9 +1806,9 @@ impl Faraday {
                     .board_state()
                     .and_then(|st| st.partials.as_ref())
                     .is_some_and(|(_, off)| *off);
-                if let Some(st) = self.board_state_mut() {
+                self.board_edit(|st| {
                     st.partials = None;
-                }
+                });
                 if self.sheet == Some(crate::Sheet::BoardPartials) {
                     self.sheet = None;
                 }
@@ -1779,9 +1817,9 @@ impl Faraday {
                 }
             }
             BoardPress::PartialsKeep => {
-                if let Some(st) = self.board_state_mut() {
+                self.board_edit(|st| {
                     st.partials = None;
-                }
+                });
                 if self.sheet == Some(crate::Sheet::BoardPartials) {
                     self.sheet = None;
                 }
@@ -1813,12 +1851,12 @@ impl Faraday {
                 // A press on + stick with nothing held adds an empty stick
                 // there, before and after the lock (§19.16 item 1).
                 if let (None, Zone::NewStick(p)) = (state.held, z) {
-                    if let Some(st) = self.board_state_mut() {
+                    self.board_edit(|st| {
                         if st.empty.len() <= p {
                             st.empty.resize(p + 1, 0);
                         }
                         st.empty[p] += 1;
-                    }
+                    });
                     return;
                 }
                 let Some(c) = state.held else {
@@ -1877,11 +1915,12 @@ impl Faraday {
                 self.board_partials_refresh();
                 // Its empty sticks go with it; the places after move down
                 // with theirs (§19.16 item 1).
-                if self.board_plan().is_some_and(|(_, a)| a.places < places)
-                    && let Some(st) = self.board_state_mut()
-                    && p < st.empty.len()
-                {
-                    st.empty.remove(p);
+                if self.board_plan().is_some_and(|(_, a)| a.places < places) {
+                    self.board_edit(|st| {
+                        if p < st.empty.len() {
+                            st.empty.remove(p);
+                        }
+                    });
                 }
                 if names && self.board_plan().is_some_and(|(_, a)| a.places < places) {
                     self.backup.place_removed(p);
@@ -1901,9 +1940,9 @@ impl Faraday {
                 });
                 if holds && state.removing != Some(v) {
                     set(self, None);
-                    if let Some(st) = self.board_state_mut() {
+                    self.board_edit(|st| {
                         st.removing = Some(v);
-                    }
+                    });
                     return;
                 }
                 set(self, None);
@@ -1933,9 +1972,7 @@ impl Faraday {
             }
             BoardPress::RemoveEmpty(p) => {
                 set(self, None);
-                if let Some(n) = self.board_state_mut().and_then(|st| st.empty.get_mut(p)) {
-                    *n = n.saturating_sub(1);
-                }
+                self.board_edit(|st| st.one_empty_fewer(p));
             }
             BoardPress::RemoveSoftware => {
                 set(self, None);
@@ -1977,7 +2014,7 @@ impl Faraday {
                 self.board_menu_top(z, t),
             ),
         };
-        if let Some(st) = self.board_state_mut() {
+        self.board_edit(|st| {
             st.held = None;
             st.removing = None;
             st.menu = Some(Menu {
@@ -1990,7 +2027,7 @@ impl Faraday {
                 from_list,
                 anchor,
             });
-        }
+        });
         self.sheet = Some(crate::Sheet::BoardMenu);
         self.scroll.reset_sheet();
     }
@@ -2083,9 +2120,9 @@ impl Faraday {
 
     /// The open menu closed, its sheet with it.
     fn board_menu_shut(&mut self) {
-        if let Some(st) = self.board_state_mut() {
+        self.board_edit(|st| {
             st.menu = None;
-        }
+        });
         if self.sheet == Some(crate::Sheet::BoardMenu) {
             self.sheet = None;
         }
@@ -2255,10 +2292,7 @@ impl Faraday {
             let presses = menu.presses();
             let n = presses.len();
             let step = |app: &mut Faraday, at: usize| {
-                if let Some(m) = app.board_state_mut().and_then(|st| st.menu.as_mut()) {
-                    m.at = at;
-                    m.keys = true;
-                }
+                app.board_edit(|st| st.menu_to(at));
             };
             match crate::menu::step(key, menu.at, n) {
                 Some(crate::menu::Step::To(at)) => step(self, at),
@@ -2266,9 +2300,7 @@ impl Faraday {
                     if let Some(&p) = presses.get(menu.at) {
                         self.board_act(p);
                         // Into Move to… or Copy to…, still by the keys.
-                        if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
-                            m.keys = true;
-                        }
+                        self.board_edit(|st| st.menu_by_keys());
                     }
                 }
                 Some(crate::menu::Step::Close) => {
@@ -2280,26 +2312,16 @@ impl Faraday {
                             .board_plan()
                             .map(|(shape, _)| self.board_thing_name(&shape, t))
                             .unwrap_or_default();
-                        if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
-                            m.verb = None;
-                            m.title = title;
-                            m.rows = rows;
-                            m.at = 0;
-                            m.keys = true;
-                        }
+                        self.board_edit(|st| st.menu_rows(None, title, rows));
                     } else if let (Some(Verb::Kef), Chip::List(_)) = (menu.verb, menu.chip) {
                         let rows = self.board_menu_add_rows(menu.chip);
-                        if let Some(m) = self.board_state_mut().and_then(|st| st.menu.as_mut()) {
-                            m.verb = Some(Verb::Add);
-                            m.title = EN.board_menu_add.to_string();
-                            m.rows = rows;
-                            m.at = 0;
-                            m.keys = true;
-                        }
+                        self.board_edit(|st| {
+                            st.menu_rows(Some(Verb::Add), EN.board_menu_add.to_string(), rows)
+                        });
                     } else {
-                        if let Some(st) = self.board_state_mut() {
+                        self.board_edit(|st| {
                             st.focus = Some(menu.chip);
-                        }
+                        });
                         self.board_act(BoardPress::MenuClose);
                     }
                 }
@@ -2327,9 +2349,9 @@ impl Faraday {
         match key {
             K::Tab | K::BackTab if !dots.is_empty() => {
                 let next = crate::menu::tab(&dots, focus, key == K::BackTab);
-                if let Some(st) = self.board_state_mut() {
+                self.board_edit(|st| {
                     st.focus = next;
-                }
+                });
                 true
             }
             K::Enter | K::Char(' ') if focus.is_some() => {
@@ -2391,9 +2413,8 @@ impl Faraday {
                 .board_plan()
                 .map(|(shape, a)| plan::stored_map(&shape, &a))
                 != before
-            && let Some(n) = self.board_state_mut().and_then(|st| st.empty.get_mut(p))
         {
-            *n = n.saturating_sub(1);
+            self.board_edit(|st| st.one_empty_fewer(p));
         }
         if let Some(was) = was {
             self.board_sees_ask(was);
@@ -2445,14 +2466,14 @@ impl Faraday {
                 },
                 &[&place, &r.seeds.to_string(), &shape.m.to_string()],
             );
-            if let Some(st) = self.board_state_mut() {
+            self.board_edit(|st| {
                 st.sees = Some(Sees {
                     before: was,
                     title,
                     line,
                     spend: true,
                 });
-            }
+            });
             self.sheet = Some(crate::Sheet::BoardSees);
             self.scroll.reset_sheet();
             return;
@@ -2467,14 +2488,14 @@ impl Faraday {
         let held = plan::holds_at(&now_m.places, At::Place(p));
         let line = sees_line(&shape, &now, &held);
         let title = fill(EN.board_sees_title, &[&self.board_place_name(p)]);
-        if let Some(st) = self.board_state_mut() {
+        self.board_edit(|st| {
             st.sees = Some(Sees {
                 before: was,
                 title,
                 line,
                 spend: false,
             });
-        }
+        });
         self.sheet = Some(crate::Sheet::BoardSees);
         self.scroll.reset_sheet();
     }
@@ -2528,9 +2549,9 @@ impl Faraday {
             ),
         };
         let off = rebuilds && !whole.is_empty();
-        if let Some(st) = self.board_state_mut() {
+        self.board_edit(|st| {
             st.partials = Some((line, off));
-        }
+        });
         self.sheet = Some(crate::Sheet::BoardPartials);
         self.scroll.reset_sheet();
     }
@@ -2554,10 +2575,10 @@ impl Faraday {
     /// under it.
     pub(crate) fn board_down(&mut self, found: Option<crate::Action>, x: i32, y: i32) -> bool {
         let Some(crate::Action::Board(BoardPress::Chip(c))) = found else {
-            if let Some(st) = self.board_state_mut() {
+            self.board_edit(|st| {
                 st.down = None;
                 st.drag = None;
-            }
+            });
             return false;
         };
         // The narrow column places by tap only (§19.12 item 3); a sheet
@@ -2574,48 +2595,51 @@ impl Faraday {
         if c == Chip::List(Thing::Software) && self.board_locked().is_some() {
             return false;
         }
-        if let Some(st) = self.board_state_mut() {
+        self.board_edit(|st| {
             st.down = Some((c, x, y));
             st.drag = None;
-            return true;
-        }
-        false
+        })
+        .is_some()
     }
 
     /// The finger moved: past the slop a chip pressed is dragged and
     /// follows it. Returns whether the board took the move.
     pub(crate) fn board_move(&mut self, x: i32, y: i32) -> bool {
         let slop = crate::motion::SLOP * self.f;
-        let Some(b) = self.board_state_mut() else {
-            return false;
-        };
-        let Some((c, x0, y0)) = b.down else {
-            return false;
-        };
-        if b.drag.is_none() {
-            let far = ((x - x0) as f32).abs() > slop || ((y - y0) as f32).abs() > slop;
-            if !far {
-                return false;
-            }
-            b.held = Some(c);
-            b.removing = None;
+        let took = self
+            .board_edit(|b| {
+                let Some((c, x0, y0)) = b.down else {
+                    return false;
+                };
+                if b.drag.is_none() {
+                    let far = ((x - x0) as f32).abs() > slop || ((y - y0) as f32).abs() > slop;
+                    if !far {
+                        return false;
+                    }
+                    b.held = Some(c);
+                    b.removing = None;
+                }
+                b.drag = Some((x, y));
+                true
+            })
+            .unwrap_or(false);
+        if took {
+            self.pointer.set_pressed(None);
         }
-        b.drag = Some((x, y));
-        self.pointer.set_pressed(None);
-        true
+        took
     }
 
     /// The finger lifted: a dragged chip is dropped on the zone under it
     /// that takes it, or goes back. Returns whether it was a drag.
     pub(crate) fn board_up(&mut self, x: i32, y: i32) -> bool {
-        let Some(b) = self.board_state_mut() else {
-            return false;
-        };
-        let down = b.down.take();
-        let Some(_) = b.drag.take() else {
-            return false;
-        };
-        let Some((c, ..)) = down else {
+        let Some(c) = self
+            .board_edit(|b| {
+                let down = b.down.take();
+                b.drag.take()?;
+                down.map(|(c, ..)| c)
+            })
+            .flatten()
+        else {
             return false;
         };
         self.pointer.set_pressed(None);
@@ -2640,9 +2664,9 @@ impl Faraday {
         });
         match under {
             Some(z) => {
-                if let Some(st) = self.board_state_mut() {
+                self.board_edit(|st| {
                     st.held = Some(c);
-                }
+                });
                 self.board_act(BoardPress::Zone(z));
             }
             None => self.board_act(BoardPress::LetGo),

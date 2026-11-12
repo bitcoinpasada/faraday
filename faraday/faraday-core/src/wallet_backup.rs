@@ -678,9 +678,11 @@ impl WalletBackupArea {
         self.state.as_ref().map(|s| &s.keeps)
     }
 
-    /// The same, to change.
-    pub(crate) fn keeps_mut(&mut self) -> Option<&mut crate::vault::keep::Left> {
-        self.state.as_mut().map(|s| &mut s.keeps)
+    /// Adds the choices a saved Keep sheet made to the backup under way's.
+    pub(crate) fn keeps_add(&mut self, left: &[([u8; 4], u8)], asks: &[crate::vault::keep::Ask]) {
+        if let Some(s) = self.state.as_mut() {
+            s.keeps.add(left, asks);
+        }
     }
 
     /// The backup under way, while it is open.
@@ -696,12 +698,14 @@ impl WalletBackupArea {
         }
     }
 
-    /// The backup under way, only for the tests' kit to set the plan
-    /// answers it holds (`testkit::backup_answers_mut` hands them to
-    /// tests across crates by reference).
+    /// Changes the plan answers of the backup under way as `f` says, for
+    /// the tests' kit; none where no backup is open.
     #[cfg(any(test, feature = "testkit"))]
-    pub(crate) fn state_mut(&mut self) -> Option<&mut BackupState> {
-        self.state.as_mut()
+    pub(crate) fn edit_answers<R>(
+        &mut self,
+        f: impl FnOnce(&mut crate::plan::Answers) -> R,
+    ) -> Option<R> {
+        self.state.as_mut().map(|b| f(&mut b.answers))
     }
 
     /// The open check's words typed back edited by `f` (`docs/TEXT-CURSOR.md`).
@@ -746,9 +750,13 @@ impl WalletBackupArea {
         }
     }
 
-    /// What the board holds between presses, to change.
-    pub(crate) fn board_mut(&mut self) -> Option<&mut board::BoardState> {
-        self.state.as_mut().map(|b| &mut b.board)
+    /// Changes what the board holds between presses as `f` says, while the
+    /// backup is open.
+    pub(crate) fn board_edit<R>(
+        &mut self,
+        f: impl FnOnce(&mut board::BoardState) -> R,
+    ) -> Option<R> {
+        self.state.as_mut().map(|b| f(&mut b.board))
     }
 
     /// The board's empty sticks, menu and focus let go, where it is not
@@ -1142,7 +1150,7 @@ impl WalletBackupArea {
     }
 
     /// The plan's answers replaced.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "testkit"))]
     pub(crate) fn set_answers(&mut self, answers: plan::Answers) {
         if let Some(b) = self.state.as_mut() {
             b.answers = answers;

@@ -59,9 +59,10 @@ fn backup_shape(app: &Faraday) -> Shape {
 fn board_edit(app: &mut Faraday, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
     let c = faraday_core::testkit::compute();
     let shape = backup_shape(app);
-    let a = faraday_core::testkit::backup_answers_mut(app);
-    let m = plan::map(&c, &shape, a);
-    a.set_map(f(m));
+    faraday_core::testkit::change_backup_answers(app, |a| {
+        let m = plan::map(&c, &shape, a);
+        a.set_map(f(m));
+    });
 }
 
 /// The words and the paper forms of the description taken off every

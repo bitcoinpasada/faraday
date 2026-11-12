@@ -45,7 +45,7 @@ fn focus_of(p: Part) -> Focus {
 /// what it says: the focus, and the words Use made.
 fn with(app: &mut Faraday, now_ms: u64, f: impl FnOnce(&mut DiceEntry, &mut Env) -> Pressed) {
     let reduce = app.reduce_motion();
-    let mut entry = std::mem::take(&mut app.vaults.state_mut().dice);
+    let mut entry = std::mem::take(&mut app.vaults.state.dice);
     let out = f(
         &mut entry,
         &mut Env {
@@ -54,13 +54,13 @@ fn with(app: &mut Faraday, now_ms: u64, f: impl FnOnce(&mut DiceEntry, &mut Env)
             draw: &mut || app.fresh(b"faraday dice roller"),
         },
     );
-    app.vaults.state_mut().dice = entry;
+    app.vaults.state.dice = entry;
     apply(app, out);
 }
 
 fn apply(app: &mut Faraday, out: Pressed) {
     if let Some(f) = out.focus {
-        app.vaults.state_mut().focus = f.map(focus_of);
+        app.vaults.state.focus = f.map(focus_of);
     }
     if let Some(u) = out.used {
         use_words(app, u);
@@ -72,7 +72,7 @@ pub(crate) fn act(app: &mut Faraday, a: V) {
     match a {
         V::Dice(_) if !app.may_load_keys() => {}
         V::Dice(i) => {
-            let out = app.vaults.state_mut().dice.start(i);
+            let out = app.vaults.state.dice.start(i);
             apply(app, out);
         }
         V::Roller(_) if !app.roller_offered() => {}
@@ -89,7 +89,7 @@ fn use_words(app: &mut Faraday, u: crate::dice_entry::Used) {
     // The demo puts its public passphrase in place of the rolled words,
     // which are dropped (`docs/DEMO.md` §5.2).
     let public = !app.makes_secrets();
-    if let Some(c) = app.vaults.state_mut().create.as_mut()
+    if let Some(c) = app.vaults.state.create.as_mut()
         && let Some((a, b)) = c.phrases.get_mut(u.tag)
         && !u.phrase.is_empty()
     {

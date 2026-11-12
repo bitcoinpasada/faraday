@@ -937,7 +937,7 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
             },
         ];
         a.set_map(spots);
-        *faraday_core::testkit::backup_answers_mut(&mut app) = a;
+        faraday_core::testkit::set_backup_answers(&mut app, a);
     }
     app.press(Action::BChecklist);
     assert_eq!(
@@ -2505,14 +2505,16 @@ fn a_passphrase_kept_only_in_the_vault_is_not_taken_out_while_its_key_is_held() 
     // Seed 1 has a passphrase, kept only in Vault 1, and the seed is also a
     // file.
     {
-        let wf = testkit::flows_mut(&mut app)[0].wallet.as_mut().unwrap();
-        wf.shape.seeds[0].passphrase = true;
-        let m = wf.answers.map.clone().expect("the map is the plan");
-        let m = plan::without(&m, At::Vault(0), What::Seed(0));
-        let m = plan::with_added(&m, At::Vault(0), What::SeedPassphrase(0));
-        let m = plan::with_added(&m, At::Place(0), What::SeedFile(0));
-        wf.answers.set_map(m);
-        assert!(!wf.held.is_empty());
+        testkit::change_flows(&mut app, |flows| {
+            let wf = flows[0].wallet.as_mut().unwrap();
+            wf.shape.seeds[0].passphrase = true;
+            let m = wf.answers.map.clone().expect("the map is the plan");
+            let m = plan::without(&m, At::Vault(0), What::Seed(0));
+            let m = plan::with_added(&m, At::Vault(0), What::SeedPassphrase(0));
+            let m = plan::with_added(&m, At::Place(0), What::SeedFile(0));
+            wf.answers.set_map(m);
+            assert!(!wf.held.is_empty());
+        });
     }
     shell.flow(&mut app, F::ChangePlan);
     // The seed out of Vault 1: its file keeps it on a stick, but its
@@ -2779,8 +2781,8 @@ fn two_wallets_in_vaults_keep_each_its_own_vaults_and_a_flow_with_no_owner_match
     }
     assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
     let sb = app.vaults().open[1].vault_id();
-    testkit::flows_mut(&mut app)[1].step = Step::Make;
-    testkit::flows_mut(&mut app)[1].plan.vaults[0].salt = Some(sb);
+    testkit::change_flows(&mut app, |f| f[1].step = Step::Make);
+    testkit::change_flows(&mut app, |f| f[1].plan.vaults[0].salt = Some(sb));
     let fp = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
@@ -2818,7 +2820,7 @@ fn a_done_flow_still_waiting_hands_its_hold_to_the_next_backup() {
     write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
     assert_eq!(step(&app), Step::Done);
     // A copy is gone: the flow is done and waits again.
-    testkit::flows_mut(&mut app)[0].slots[0].written = None;
+    testkit::change_flows(&mut app, |f| f[0].slots[0].written = None);
     assert!(app.backup_flows()[0].waiting());
     shell.flow(&mut app, F::UnlockDone(0));
     faraday_core::testkit::vault_speed(&mut app, Some(180));

@@ -1143,15 +1143,15 @@ fn the_sheet_names_a_file_known_as_another_vault_and_only_then() {
         asked(&mut app);
         app.press(Action::VisitWrite);
         for (id, copy, name) in known {
-            faraday_core::testkit::vault_summaries_mut(&mut app).push(
-                faraday_core::vault::VaultSummary {
+            faraday_core::testkit::change_vault_summaries(&mut app, |summaries| {
+                summaries.push(faraday_core::vault::VaultSummary {
                     file: "any.kdbx".into(),
                     id: [*id; 32],
                     copies: vec![*copy],
                     name: (*name).into(),
                     ..Default::default()
-                },
-            );
+                });
+            });
         }
         app.storage(StorageEvent::NameTaken {
             stick: "S".into(),

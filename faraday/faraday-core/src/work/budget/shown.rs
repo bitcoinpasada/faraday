@@ -21,14 +21,15 @@ fn copy_page() -> Faraday {
     app.press(Action::Backup(w));
     // The first seed's copy takes the SeedQR as well as the words.
     let shape = app.plan_shape_now(w);
-    let answers = testkit::backup_answers_mut(&mut app);
-    let mut map = plan::stored_map(&shape, answers);
-    for spot in &mut map {
-        if spot.at == At::Place(0) && spot.holds.iter().any(|(h, _)| *h == What::Words(0)) {
-            spot.holds.push((What::SeedQr(0), Tag::Secret));
+    testkit::change_backup_answers(&mut app, |answers| {
+        let mut map = plan::stored_map(&shape, answers);
+        for spot in &mut map {
+            if spot.at == At::Place(0) && spot.holds.iter().any(|(h, _)| *h == What::Words(0)) {
+                spot.holds.push((What::SeedQr(0), Tag::Secret));
+            }
         }
-    }
-    answers.set_map(map);
+        answers.set_map(map);
+    });
     app.press(Action::BStep(bstep::COPY));
     assert_eq!(app.backup().and_then(|b| b.open), Some(bstep::COPY));
     app.settle();

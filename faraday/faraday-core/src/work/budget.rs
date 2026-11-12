@@ -498,7 +498,7 @@ pub(crate) fn walk_on(
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::with_plan(c, Kind::Gpg, plan);
     f.step = Step::Make;
-    app.flows.all_mut().push(f);
+    app.flows.change_flows(|all| all.push(f));
     app.press(Action::Flow(F::Show(app.flows.len() - 1)));
     app.press(Action::Vault(V::FocusField(0)));
     type_text(&mut app, "Release");
@@ -509,15 +509,17 @@ pub(crate) fn walk_on(
         "the GPG key was made"
     );
     stop(&mut app, "GPG key flow");
-    for s in &mut app.flows.all_mut().last_mut().expect("the flow").slots {
-        s.written = Some(Written {
-            stick: String::new(),
-            serial: None,
-            label: "STICK".into(),
-            time: None,
-            files: Vec::new(),
-        });
-    }
+    app.flows.change_flows(|all| {
+        for s in &mut all.last_mut().expect("the flow").slots {
+            s.written = Some(Written {
+                stick: String::new(),
+                serial: None,
+                label: "STICK".into(),
+                time: None,
+                files: Vec::new(),
+            });
+        }
+    });
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(Kind::Gpg.category())));
     app.press(Action::Vault(V::GpgSignPick));

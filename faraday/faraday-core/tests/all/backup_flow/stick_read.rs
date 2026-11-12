@@ -858,7 +858,8 @@ fn older_copy_pressed() -> (Shell, Faraday) {
     assert!(
         app.flow().unwrap().plan.vaults[0].salt.is_some(),
         "known: {:?} {:?}",
-        faraday_core::testkit::vault_summaries_mut(&mut app)
+        app.vaults()
+            .summaries
             .iter()
             .map(|s| (s.file.clone(), s.copies.len(), s.name.clone()))
             .collect::<Vec<_>>(),

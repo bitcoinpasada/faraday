@@ -328,23 +328,27 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
 
     // A summary kept before the ids were: not done.
     let ids = app.vaults.summaries[at].ids.clone();
-    for id in &mut app.vaults.summaries_mut()[at].ids {
-        *id = None;
-    }
+    app.vaults.change_summaries(|v| {
+        for id in &mut v[at].ids {
+            *id = None;
+        }
+    });
     assert_eq!(app.backup_vault_fits(&c, 0), None, "nothing is verified");
-    app.vaults.summaries_mut()[at].ids = ids;
+    app.vaults.change_summaries(|v| v[at].ids = ids);
 
     // Another seed's entry under the first seed's fingerprint, and the
     // first seed's entry gone.
     let fp = fp_text(own[0]);
-    let s = &mut app.vaults.summaries_mut()[at];
-    let mine = s.keys.iter().position(|k| *k == fp).expect("the seed");
-    let other = (0..s.keys.len())
-        .find(|&i| i != mine && s.ids[i].is_some())
-        .expect("another seed in the vault");
-    s.keys[other] = fp;
-    s.keys.remove(mine);
-    s.ids.remove(mine);
+    app.vaults.change_summaries(|v| {
+        let s = &mut v[at];
+        let mine = s.keys.iter().position(|k| *k == fp).expect("the seed");
+        let other = (0..s.keys.len())
+            .find(|&i| i != mine && s.ids[i].is_some())
+            .expect("another seed in the vault");
+        s.keys[other] = fp;
+        s.keys.remove(mine);
+        s.ids.remove(mine);
+    });
     assert_eq!(
         app.backup_vault_fits(&c, 0),
         None,

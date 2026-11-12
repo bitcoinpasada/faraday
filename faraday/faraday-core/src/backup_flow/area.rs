@@ -96,9 +96,16 @@ impl BackupFlowArea {
         }
     }
 
-    /// What the person unticked in flow `i`, to change.
-    pub(crate) fn keeps_mut(&mut self, i: usize) -> Option<&mut crate::vault::keep::Left> {
-        self.all.get_mut(i).map(|f| &mut f.keeps)
+    /// Adds the choices a saved Keep sheet made to flow `i`'s.
+    pub(crate) fn keeps_add(
+        &mut self,
+        i: usize,
+        left: &[([u8; 4], u8)],
+        asks: &[crate::vault::keep::Ask],
+    ) {
+        if let Some(f) = self.all.get_mut(i) {
+            f.keeps.add(left, asks);
+        }
     }
 
     /// The Sticks and vaults card of Make a new wallet or Restore `owner`.
@@ -274,9 +281,13 @@ impl BackupFlowArea {
         self.board_list_offset = y;
     }
 
-    /// Flow `i`'s board, to change it.
-    pub(crate) fn board_mut(&mut self, i: usize) -> Option<&mut BoardState> {
-        self.all.get_mut(i).map(|f| &mut f.live.board)
+    /// Changes flow `i`'s board as `f` says, when the flow is there.
+    pub(crate) fn board_edit<R>(
+        &mut self,
+        i: usize,
+        f: impl FnOnce(&mut BoardState) -> R,
+    ) -> Option<R> {
+        self.all.get_mut(i).map(|w| f(&mut w.live.board))
     }
 
     /// The boards not on screen (every flow's but `shown`'s) let go of
@@ -381,10 +392,10 @@ impl BackupFlowArea {
         }
     }
 
-    /// The flows, for the tests' kit to set what they hold.
+    /// Changes the flows as `f` says, for the tests' kit.
     #[cfg(any(test, feature = "testkit"))]
-    pub(crate) fn all_mut(&mut self) -> &mut Vec<BackupFlow> {
-        &mut self.all
+    pub(crate) fn change_flows<R>(&mut self, f: impl FnOnce(&mut Vec<BackupFlow>) -> R) -> R {
+        f(&mut self.all)
     }
 }
 

@@ -58,11 +58,6 @@ impl VaultArea {
         &self.state
     }
 
-    /// The same, to change: the dice entry's rolls, list, roller and focus.
-    pub(crate) fn state_mut(&mut self) -> &mut Vaults {
-        &mut self.state
-    }
-
     /// Design units scrolled past in Vault contents' item, on a desktop.
     pub(crate) fn item_offset(&self) -> f32 {
         self.item_offset
@@ -85,8 +80,8 @@ impl VaultArea {
         }
     }
 
-    /// The field typing at `focus` goes into, to change it.
-    pub(crate) fn text_box(&mut self, focus: Focus) -> Option<&mut TextBox> {
+    /// The field typing at `focus` goes into.
+    fn text_box(&mut self, focus: Focus) -> Option<&mut TextBox> {
         match focus {
             Focus::Passphrase => Some(&mut self.state.passphrase),
             Focus::YubiKey => self.state.yubikey.as_mut(),
@@ -112,6 +107,29 @@ impl VaultArea {
         }
     }
 
+    /// Types `c` into the field at `focus`; false when no field is there.
+    pub(crate) fn type_char(&mut self, focus: Focus, c: char) -> bool {
+        match self.text_box(focus) {
+            Some(b) => {
+                b.text.push(c);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Takes the last character out of the field at `focus`; false when no
+    /// field is there.
+    pub(crate) fn backspace(&mut self, focus: Focus) -> bool {
+        match self.text_box(focus) {
+            Some(b) => {
+                b.text.pop();
+                true
+            }
+            None => false,
+        }
+    }
+
     /// How long one Argon2id pass over 64 MiB takes here, ms, set as if
     /// measured.
     #[cfg(any(test, feature = "testkit"))]
@@ -125,10 +143,10 @@ impl VaultArea {
         self.state.open.swap(a, b);
     }
 
-    /// The vaults' summaries, for the tests' kit to change.
+    /// Changes the vaults' summaries as `f` says, for the tests' kit.
     #[cfg(any(test, feature = "testkit"))]
-    pub(crate) fn summaries_mut(&mut self) -> &mut Vec<VaultSummary> {
-        &mut self.state.summaries
+    pub(crate) fn change_summaries<R>(&mut self, f: impl FnOnce(&mut Vec<VaultSummary>) -> R) -> R {
+        f(&mut self.state.summaries)
     }
 
     /// Costs what [`Vaults::seals_write`] costs. Open vault `i`'s plans take

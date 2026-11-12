@@ -92,8 +92,7 @@ fn a_chart_edit_moving_a_written_sticks_vault_is_refused_and_the_key_stays_held(
     description_file_at(&mut app, 1);
     // Both vaults on one stick at Place 1, the seed in each.
     let shape = app.plan_shape_now(app.backup().unwrap().wallet);
-    {
-        let a = testkit::backup_answers_mut(&mut app);
+    testkit::change_backup_answers(&mut app, |a| {
         let mut m = plan::map(&c, &shape, a);
         for v in 0..2 {
             for p in 0..plan::places_of(&m) {
@@ -104,7 +103,7 @@ fn a_chart_edit_moving_a_written_sticks_vault_is_refused_and_the_key_stays_held(
         m = plan::with_added(&m, At::Stick(0, 0), What::VaultStick(1));
         m = plan::with_added(&m, At::Vault(1), What::Seed(0));
         a.set_map(m);
-    }
+    });
     app.press(Action::BChecklist);
     save_vaults(&mut app);
     app.press(Action::BFilesMake);

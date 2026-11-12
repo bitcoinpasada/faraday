@@ -243,34 +243,35 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
     );
     // The board's drop: Vault 1 again at Place 1 is a second stick of it
     // (§19.12 item 7).
-    let a = faraday_core::testkit::backup_answers_mut(&mut app);
-    a.add_vault_stick(&shape, 0, 0);
-    let m = plan::map(&c, &shape, a);
-    assert_eq!(plan::sticks_at(&m, 0), 3);
-    assert_eq!(held(&m, At::Stick(0, 2)), vec![What::VaultStick(0)]);
-    // A file dropped on Place 1 goes on a stick of files of its own; the
-    // vault dropped again goes on that stick, its first with no vault.
-    let m = plan::with_added(&m, At::Place(0), What::SeedFile(2));
-    assert_eq!(held(&m, At::Stick(0, 3)), vec![What::SeedFile(2)]);
-    let m = plan::with_vault_stick(&m, 0, 1);
-    assert_eq!(
-        held(&m, At::Stick(0, 3)),
-        vec![What::SeedFile(2), What::VaultStick(1)]
-    );
-    a.set_map(m);
-    // Vault 1 taken off the plan: its sticks go, the vault with them.
-    a.remove_vault(&shape, 0);
-    let m = plan::map(&c, &shape, a);
-    assert!(m.iter().all(|s| s.at != At::Vault(0)));
-    assert!(
-        m.iter()
-            .all(|s| s.holds.iter().all(|(w, _)| *w != What::VaultStick(0)))
-    );
-    assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(1)]);
-    assert_eq!(
-        held(&m, At::Stick(0, 1)),
-        vec![What::SeedFile(2), What::VaultStick(1)]
-    );
+    faraday_core::testkit::change_backup_answers(&mut app, |a| {
+        a.add_vault_stick(&shape, 0, 0);
+        let m = plan::map(&c, &shape, a);
+        assert_eq!(plan::sticks_at(&m, 0), 3);
+        assert_eq!(held(&m, At::Stick(0, 2)), vec![What::VaultStick(0)]);
+        // A file dropped on Place 1 goes on a stick of files of its own; the
+        // vault dropped again goes on that stick, its first with no vault.
+        let m = plan::with_added(&m, At::Place(0), What::SeedFile(2));
+        assert_eq!(held(&m, At::Stick(0, 3)), vec![What::SeedFile(2)]);
+        let m = plan::with_vault_stick(&m, 0, 1);
+        assert_eq!(
+            held(&m, At::Stick(0, 3)),
+            vec![What::SeedFile(2), What::VaultStick(1)]
+        );
+        a.set_map(m);
+        // Vault 1 taken off the plan: its sticks go, the vault with them.
+        a.remove_vault(&shape, 0);
+        let m = plan::map(&c, &shape, a);
+        assert!(m.iter().all(|s| s.at != At::Vault(0)));
+        assert!(
+            m.iter()
+                .all(|s| s.holds.iter().all(|(w, _)| *w != What::VaultStick(0)))
+        );
+        assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(1)]);
+        assert_eq!(
+            held(&m, At::Stick(0, 1)),
+            vec![What::SeedFile(2), What::VaultStick(1)]
+        );
+    });
 }
 
 /// Seed B's words file on the stick that carries Vault 1, which holds

@@ -2253,10 +2253,20 @@ pub fn inbox_flip_byte(app: &mut crate::Faraday, at: usize, i: usize) {
     app.inbox.flip_byte(at, i);
 }
 
-/// Back up's plan answers, to set what they hold. Panics where no backup
-/// is open.
-pub fn backup_answers_mut(app: &mut crate::Faraday) -> &mut crate::plan::Answers {
-    &mut app.backup.state_mut().expect("Back up is open").answers
+/// Changes Back up's plan answers as `f` says, and returns what it
+/// returns. Panics where no backup is open.
+pub fn change_backup_answers<R>(
+    app: &mut crate::Faraday,
+    f: impl FnOnce(&mut crate::plan::Answers) -> R,
+) -> R {
+    app.backup.edit_answers(f).expect("Back up is open")
+}
+
+/// Puts `answers` in place of Back up's plan answers. Panics where no
+/// backup is open.
+pub fn set_backup_answers(app: &mut crate::Faraday, answers: crate::plan::Answers) {
+    assert!(app.backup.state().is_some(), "Back up is open");
+    app.backup.set_answers(answers);
 }
 
 /// Opens Back up's question `q`, or none.
@@ -2357,9 +2367,12 @@ pub fn name_taken_body(app: &crate::Faraday) -> Option<String> {
     app.visit.name_taken().front().map(|t| t.body.clone())
 }
 
-/// The vaults' summaries, to change what they hold.
-pub fn vault_summaries_mut(app: &mut crate::Faraday) -> &mut Vec<crate::vault::VaultSummary> {
-    app.vaults.summaries_mut()
+/// Changes the vaults' summaries as `f` says, and returns what it returns.
+pub fn change_vault_summaries<R>(
+    app: &mut crate::Faraday,
+    f: impl FnOnce(&mut Vec<crate::vault::VaultSummary>) -> R,
+) -> R {
+    app.vaults.change_summaries(f)
 }
 
 /// Open vault `id` changed, as the vault's own edits say it.
@@ -2429,13 +2442,16 @@ pub fn vault_swap_open(app: &mut crate::Faraday, a: usize, b: usize) {
 
 /// Puts flow `f` at the end of the backup flows, returning its place.
 pub fn flow_push(app: &mut crate::Faraday, f: crate::backup_flow::BackupFlow) -> usize {
-    app.flows.all_mut().push(f);
+    app.flows.change_flows(|all| all.push(f));
     app.flows.len() - 1
 }
 
-/// The backup flows, to set what they hold.
-pub fn flows_mut(app: &mut crate::Faraday) -> &mut Vec<crate::backup_flow::BackupFlow> {
-    app.flows.all_mut()
+/// Changes the backup flows as `f` says, and returns what it returns.
+pub fn change_flows<R>(
+    app: &mut crate::Faraday,
+    f: impl FnOnce(&mut Vec<crate::backup_flow::BackupFlow>) -> R,
+) -> R {
+    app.flows.change_flows(f)
 }
 
 /// The scan sheet open for `purpose`, as the press that opens it for that

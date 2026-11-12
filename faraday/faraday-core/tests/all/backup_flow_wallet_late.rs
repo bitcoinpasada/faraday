@@ -2173,8 +2173,7 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
     // Vault 1 at Place 1 with the words; Vault 2 at Place 2 with the
     // passphrase, dropped there as the board drops it.
     let shape = app.plan_shape_now(app.backup().unwrap().wallet);
-    {
-        let a = faraday_core::testkit::backup_answers_mut(&mut app);
+    faraday_core::testkit::change_backup_answers(&mut app, |a| {
         let mut m = plan::map(&c, &shape, a);
         for v in 0..2 {
             for w in [What::Seed(0), What::SeedPassphrase(0)] {
@@ -2189,7 +2188,7 @@ fn a_passphrase_alone_in_a_vault_is_saved_as_a_passphrase_record() {
         m = plan::with_added(&m, At::Vault(0), What::Seed(0));
         m = plan::with_added(&m, At::Vault(1), What::Passphrase(0));
         a.set_map(m);
-    }
+    });
     let m = plan::map(&c, &shape, &app.backup().unwrap().answers);
     let held = plan::holds_at(&m, At::Vault(0));
     assert!(held.contains(&What::Seed(0)), "{held:?}");

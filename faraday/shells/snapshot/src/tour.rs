@@ -886,17 +886,19 @@ pub(crate) fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> 
     if !t.app.backup_flows().last().is_some_and(|f| f.made) {
         return Err("the flow made no key".into());
     }
-    for f in faraday_core::testkit::flows_mut(&mut t.app) {
-        for s in &mut f.slots {
-            s.written = Some(faraday_core::backup_flow::Written {
-                stick: String::new(),
-                serial: None,
-                label: "STICK".into(),
-                time: None,
-                files: Vec::new(),
-            });
+    faraday_core::testkit::change_flows(&mut t.app, |flows| {
+        for f in flows {
+            for s in &mut f.slots {
+                s.written = Some(faraday_core::backup_flow::Written {
+                    stick: String::new(),
+                    serial: None,
+                    label: "STICK".into(),
+                    time: None,
+                    files: Vec::new(),
+                });
+            }
         }
-    }
+    });
     t.press(Action::Nav(Screen::VaultContents));
     t.press(Action::Vault(V::Category(kind.category())));
     Ok(())

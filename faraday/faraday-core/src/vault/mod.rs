@@ -2357,9 +2357,7 @@ impl Faraday {
                         .as_ref()
                         .is_some_and(|f| multiline(f.kind, f.fields[k].0));
                     if key == K::Enter && lines {
-                        if let Some(b) = self.vaults.text_box(focus) {
-                            b.text.push('\n');
-                        }
+                        self.vaults.type_char(focus, '\n');
                     } else if key == K::Enter && (k + 1 >= n) {
                         self.vault_act(VaultAction::FormSave);
                     } else {
@@ -2369,15 +2367,16 @@ impl Faraday {
             }
             return true;
         }
-        let Some(b) = self.vaults.text_box(focus) else {
-            return false;
-        };
         match key {
             K::Char(c) if !c.is_control() => {
-                b.text.push(c);
+                if !self.vaults.type_char(focus, c) {
+                    return false;
+                }
             }
             K::Backspace => {
-                b.text.pop();
+                if !self.vaults.backspace(focus) {
+                    return false;
+                }
             }
             _ => return false,
         }

@@ -653,7 +653,7 @@ impl Shell {
         app.press(Action::OpenSetTime);
         app.press(Action::SetTimeKeep);
         self.shown(&app);
-        assert!(faraday_core::testkit::vault_summaries_mut(&mut app).is_empty());
+        assert!(app.vaults().summaries.is_empty());
         app
     }
 
@@ -903,21 +903,22 @@ pub fn know_files(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
             vault_id[2 * k] = b"0123456789abcdef"[usize::from(id >> 4)];
             vault_id[2 * k + 1] = b"0123456789abcdef"[usize::from(id & 15)];
         }
-        let summaries = faraday_core::testkit::vault_summaries_mut(app);
-        match summaries.iter_mut().find(|s| s.id == vault_id) {
-            Some(s) => {
-                if !s.copies.contains(&sha) {
-                    s.copies.push(sha);
+        faraday_core::testkit::change_vault_summaries(app, |summaries| {
+            match summaries.iter_mut().find(|s| s.id == vault_id) {
+                Some(s) => {
+                    if !s.copies.contains(&sha) {
+                        s.copies.push(sha);
+                    }
                 }
+                None => summaries.push(faraday_core::vault::VaultSummary {
+                    file: name.clone(),
+                    id: vault_id,
+                    copies: vec![sha],
+                    name: label,
+                    ..Default::default()
+                }),
             }
-            None => summaries.push(faraday_core::vault::VaultSummary {
-                file: name.clone(),
-                id: vault_id,
-                copies: vec![sha],
-                name: label,
-                ..Default::default()
-            }),
-        }
+        });
     }
 }
 
@@ -1095,17 +1096,19 @@ pub fn make_in_form(app: &mut Faraday, fields: &[&str]) -> Option<String> {
 /// a vault unlocked from a stick holds signs at once.
 pub fn release_all(app: &mut Faraday) {
     use faraday_core::backup_flow::Written;
-    for f in faraday_core::testkit::flows_mut(app) {
-        for s in &mut f.slots {
-            s.written = Some(Written {
-                stick: String::new(),
-                serial: None,
-                label: "STICK".into(),
-                time: None,
-                files: Vec::new(),
-            });
+    faraday_core::testkit::change_flows(app, |flows| {
+        for f in flows {
+            for s in &mut f.slots {
+                s.written = Some(Written {
+                    stick: String::new(),
+                    serial: None,
+                    label: "STICK".into(),
+                    time: None,
+                    files: Vec::new(),
+                });
+            }
         }
-    }
+    });
 }
 
 /// A key made in the open vault by the flow's Make, then released, its
@@ -1390,10 +1393,11 @@ pub fn description_file_at(app: &mut Faraday, p: usize) {
 pub fn second_place(app: &mut Faraday) {
     let w = app.backup().expect("Back up").wallet;
     let shape = app.plan_shape_now(w);
-    let a = faraday_core::testkit::backup_answers_mut(app);
-    if a.places < 2 {
-        a.add_place(&shape);
-    }
+    faraday_core::testkit::change_backup_answers(app, |a| {
+        if a.places < 2 {
+            a.add_place(&shape);
+        }
+    });
 }
 
 /// Back up's plan as preset `k` (by [`plan::Preset::ALL`]) filled it over
@@ -1405,7 +1409,7 @@ pub fn preset_two_places(app: &mut Faraday, k: u8) {
     let preset = plan::Preset::ALL[usize::from(k)];
     let mut a = plan::Answers::preset_at(&shape, preset, 2);
     a.custom = true;
-    *faraday_core::testkit::backup_answers_mut(app) = a;
+    faraday_core::testkit::set_backup_answers(app, a);
     faraday_core::testkit::backup_set_q(app, Some(faraday_core::qstep::BOARD));
 }
 

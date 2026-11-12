@@ -789,8 +789,10 @@ fn preset_saved(app: &mut Faraday, k: u8) {
     let shape = app.plan_shape_now(w);
     let base = if shape.multi() { shape.seeds.len() } else { 2 };
     let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
-    *faraday_core::testkit::backup_answers_mut(app) =
-        faraday_core::plan::Answers::preset_at(&shape, preset, base);
+    faraday_core::testkit::set_backup_answers(
+        app,
+        faraday_core::plan::Answers::preset_at(&shape, preset, base),
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -845,8 +847,10 @@ fn type_back_in(app: &mut Faraday, w: usize, kept: bool) {
 fn plan_as_kept(app: &mut Faraday, w: usize) {
     let shape = app.plan_shape_now(w);
     let text = "seeds 1010\nplaces 2\nsplit 0\nwallet 1100\nsoftware 00001\nform 10\nomit 0\nvault 0 1\nsticks 0 01\n";
-    *faraday_core::testkit::backup_answers_mut(app) =
-        faraday_core::plan::Answers::from_text(&shape, text).expect("the plan loads");
+    faraday_core::testkit::set_backup_answers(
+        app,
+        faraday_core::plan::Answers::from_text(&shape, text).expect("the plan loads"),
+    );
 }
 
 /// When the words line of `place` was last checked, as the chart shows.
@@ -1319,12 +1323,13 @@ fn a_typed_check_closed_with_escape_leaves_no_place_for_the_next_match() {
 fn plan_without(app: &mut Faraday, w: usize, at: usize, what: What) {
     let c = testkit::compute();
     let shape = app.plan_shape_now(w);
-    let a = faraday_core::testkit::backup_answers_mut(app);
-    let mut map = faraday_core::plan::Mapped::of(&c, &shape, a).map.clone();
-    for s in map.iter_mut().filter(|s| s.at == At::Place(at)) {
-        s.holds.retain(|(h, _)| *h != what);
-    }
-    a.map = Some(map);
+    faraday_core::testkit::change_backup_answers(app, |a| {
+        let mut map = faraday_core::plan::Mapped::of(&c, &shape, a).map.clone();
+        for s in map.iter_mut().filter(|s| s.at == At::Place(at)) {
+            s.holds.retain(|(h, _)| *h != what);
+        }
+        a.map = Some(map);
+    });
 }
 
 #[test]

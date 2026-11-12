@@ -129,8 +129,10 @@ fn an_untick_and_the_asked_mark_in_one_flow_do_not_reach_another() {
     shell.flow(&mut app, F::CopyKey);
     assert_eq!(app.sheet, Some(Sheet::SaveKeeps), "{:?}", app.toast_text());
     // A second flow, as the first is before anything is ticked.
-    let second = faraday_core::testkit::flows_mut(&mut app)[0].clone();
-    faraday_core::testkit::flows_mut(&mut app).push(second);
+    faraday_core::testkit::change_flows(&mut app, |flows| {
+        let second = flows[0].clone();
+        flows.push(second);
+    });
     app.press(Action::Vault(V::KeepTick(
         fp,
         faraday_vault::records::field::KEY_CHILD,

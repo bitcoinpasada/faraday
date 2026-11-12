@@ -330,6 +330,11 @@ impl SpendBackupArea {
         self.state.from = matches!(from, Screen::Home | Screen::WalletsStart).then_some(from);
     }
 
+    /// The words route's seeds could not be read: the error they show.
+    pub(crate) fn set_seeds_error(&mut self, error: String) {
+        self.state.seeds.error = Some(error);
+    }
+
     /// The seeds typed on the words route, to change them.
     pub(crate) fn seeds_mut(&mut self) -> &mut crate::seeds::SeedsState {
         &mut self.state.seeds

@@ -265,8 +265,58 @@ impl Worker {
         &self.kef
     }
 
-    pub(crate) fn kef_mut(&mut self) -> &mut kef::KefArea {
-        &mut self.kef
+    /// A timed Key Encryption Format run goes out: the flag that stops it.
+    pub(crate) fn kef_timing_started(&mut self, stop: Arc<std::sync::atomic::AtomicBool>) {
+        self.kef.timing_started(stop);
+    }
+
+    /// The timed run is told to stop.
+    pub(crate) fn kef_stop_timing(&mut self) {
+        self.kef.stop_timing();
+    }
+
+    /// The timed run's answer is in.
+    pub(crate) fn kef_timing_done(&mut self) {
+        self.kef.timing_done();
+    }
+
+    /// A seal or open goes out with its progress.
+    pub(crate) fn kef_started(&mut self, progress: Arc<faraday_keys::kef::Progress>) {
+        self.kef.started(progress);
+    }
+
+    /// The seal or open under way is told to stop.
+    pub(crate) fn kef_stop(&mut self) {
+        self.kef.stop();
+    }
+
+    /// The seal, open and timing are let go.
+    pub(crate) fn kef_clear(&mut self) {
+        self.kef.clear();
+    }
+
+    /// A seal's answer is in.
+    pub(crate) fn kef_sealed_done(&mut self, done: kef::SealDone) {
+        self.kef.sealed_done(done);
+    }
+
+    /// An open's answer is in.
+    pub(crate) fn kef_opened_done(&mut self, done: kef::OpenDone) {
+        self.kef.opened_done(done);
+    }
+
+    /// Takes the seal's answer, once.
+    pub(crate) fn kef_take_sealed(
+        &mut self,
+    ) -> Option<Result<Vec<u8>, faraday_keys::kef::SealError>> {
+        self.kef.take_sealed()
+    }
+
+    /// Takes the open's answer, once.
+    pub(crate) fn kef_take_opened(
+        &mut self,
+    ) -> Option<Result<faraday_keys::kef::Opened, faraday_keys::kef::OpenError>> {
+        self.kef.take_opened()
     }
 
     pub(crate) fn busy(&self) -> Option<&Busy> {

@@ -60,6 +60,15 @@ pub struct Left {
     asked: Vec<[u8; 4]>,
 }
 
+impl Left {
+    /// Takes in the fields left out and the seeds asked about when a sheet
+    /// is saved.
+    pub(crate) fn add(&mut self, left: &[([u8; 4], u8)], asks: &[Ask]) {
+        self.left.extend(left.iter().copied());
+        self.asked.extend(asks.iter().map(|k| k.fp));
+    }
+}
+
 /// A seed the sheet asks about: its fingerprint, its label and the
 /// fields of it that an entry may leave out.
 #[derive(Clone, Debug)]
@@ -275,9 +284,10 @@ pub(crate) fn act(app: &mut Faraday, a: V) {
             if matches!(a, V::KeepCancel) {
                 return;
             }
-            if let Some(l) = s.then.scope().and_then(|sc| flow_left_mut(app, sc)) {
-                l.left.extend(s.left.iter().copied());
-                l.asked.extend(s.asks.iter().map(|k| k.fp));
+            match s.then.scope() {
+                Some(Scope::Backup) => app.backup.keeps_add(&s.left, &s.asks),
+                Some(Scope::Flow(i)) => app.flows.keeps_add(i, &s.left, &s.asks),
+                None => {}
             }
             match s.then {
                 Then::Key { key, with } => {
@@ -294,13 +304,6 @@ pub(crate) fn act(app: &mut Faraday, a: V) {
             }
         }
         _ => {}
-    }
-}
-
-fn flow_left_mut(app: &mut Faraday, scope: Scope) -> Option<&mut Left> {
-    match scope {
-        Scope::Backup => app.backup.keeps_mut(),
-        Scope::Flow(i) => app.flows.keeps_mut(i),
     }
 }
 

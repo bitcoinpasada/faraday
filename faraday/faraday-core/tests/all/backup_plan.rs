@@ -1159,7 +1159,7 @@ fn an_old_plans_stick_of_files_shows_under_not_a_place_and_can_be_emptied() {
         "seeds 1001\nplaces 3\nsplit 0\nsticks 000\nwallet 1001\nsoftware 00001\nform 10\nomit 1\n";
     let a = Answers::from_text(&shape, old).expect("the old plan loads");
     assert!(the_files(&shape, &a) > 0);
-    *faraday_core::testkit::backup_answers_mut(&mut app) = a;
+    faraday_core::testkit::set_backup_answers(&mut app, a);
     open_board(&mut app);
     let n = the_files(&shape, &app.backup().unwrap().answers);
     assert_eq!(n, 4, "three seeds and the description");

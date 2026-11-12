@@ -790,7 +790,7 @@ impl Faraday {
                         self.spend_backup_opened();
                         self.spend_backup_settle();
                     }
-                    Err(e) => self.spend_backup.seeds_mut().error = Some(e.text()),
+                    Err(e) => self.spend_backup.set_seeds_error(e.text()),
                 }
             }
             _ => {}

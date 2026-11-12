@@ -98,9 +98,10 @@ fn a_seed_file_beside_the_wallets_vault_leaves_the_public_files_another_stick() 
     // The plan, written as a custom map, names the wallet at that place.
     {
         let shape = app.plan_shape_now(app.backup().unwrap().wallet);
-        let a = faraday_core::testkit::backup_answers_mut(&mut app);
-        let m = plan::map(&c, &shape, a);
-        a.set_map(plan::with_added(&m, At::Place(p), What::Wallet));
+        faraday_core::testkit::change_backup_answers(&mut app, |a| {
+            let m = plan::map(&c, &shape, a);
+            a.set_map(plan::with_added(&m, At::Place(p), What::Wallet));
+        });
     }
     assert!(
         backup_held(&app, At::Place(p)).contains(&What::Wallet),

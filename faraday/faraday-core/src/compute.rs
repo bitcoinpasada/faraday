@@ -199,7 +199,7 @@ impl Faraday {
             };
             let changed = match done {
                 Done::KefTime(t) => {
-                    self.worker.kef_mut().timing_done();
+                    self.worker.kef_timing_done();
                     crate::seeds::kef::kef_timed(self, t.rate_ms)
                 }
                 Done::Measured(m) => crate::vault::stretch::measured(self, *m),
@@ -246,13 +246,13 @@ impl Faraday {
             Done::QrSeal(d) => crate::qr_tool::sealed(self, *d),
             Done::QrOpen(d) => crate::qr_tool::opened(self, *d),
             Done::KefSeal(d) => {
-                self.worker.kef_mut().sealed_done(*d);
+                self.worker.kef_sealed_done(*d);
                 crate::kef_tool::poll(self);
                 crate::wallet_backup::kef::poll(self);
             }
             Done::KefTime(_) | Done::Measured(_) => {}
             Done::KefOpen(d) => {
-                self.worker.kef_mut().opened_done(*d);
+                self.worker.kef_opened_done(*d);
                 crate::seeds::kef::kef_opened_here(self);
                 crate::kef_tool::poll(self);
                 crate::wallet_backup::kef::poll(self);
@@ -305,7 +305,7 @@ impl Faraday {
                 crate::qr_tool::seal_stopped(self);
                 crate::qr_tool::open_stopped(self);
                 self.worker.stale();
-                self.worker.kef_mut().stop();
+                self.worker.kef_stop();
                 self.worker.set_busy(None);
                 crate::vault::stretch::ended(self);
                 true
@@ -339,7 +339,7 @@ impl Faraday {
             crate::qr_tool::seal_stopped(self);
             crate::qr_tool::open_stopped(self);
             self.worker.stale();
-            self.worker.kef_mut().stop();
+            self.worker.kef_stop();
             self.worker.set_busy(None);
             crate::vault::stretch::ended(self);
             self.out.redraw();
@@ -366,11 +366,11 @@ impl Faraday {
             .is_some_and(|b| b.kind == crate::worker::Kind::KefOpen)
         {
             self.worker.stale();
-            self.worker.kef_mut().stop();
+            self.worker.kef_stop();
             self.worker.set_busy(None);
             crate::vault::stretch::ended(self);
         }
-        self.worker.kef_mut().clear();
+        self.worker.kef_clear();
     }
 
     /// Stops the Krux code being made or being opened to check it, and
@@ -383,17 +383,17 @@ impl Faraday {
             )
         }) {
             self.worker.stale();
-            self.worker.kef_mut().stop();
+            self.worker.kef_stop();
             self.worker.set_busy(None);
             crate::vault::stretch::ended(self);
         }
-        self.worker.kef_mut().clear();
+        self.worker.kef_clear();
     }
 
     /// A lock: the running job's answer has nowhere to go.
     pub(crate) fn job_locked(&mut self) {
         self.worker.locked();
-        self.worker.kef_mut().clear();
+        self.worker.kef_clear();
         self.worker.set_busy(None);
         crate::vault::stretch::ended(self);
     }
@@ -542,15 +542,15 @@ impl Faraday {
             return false;
         }
         let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
-        self.worker.kef_mut().timing_started(Arc::clone(&stop));
+        self.worker.kef_timing_started(Arc::clone(&stop));
         let job = Job::KefTime(Box::new(crate::worker::kef::TimeWork { stop }));
         self.worker.send_quiet(job);
         true
     }
 
     fn kef_started(&mut self, progress: Arc<Progress>, count: u32, line: &'static str, job: Job) {
-        self.worker.kef_mut().stop_timing();
-        self.worker.kef_mut().started(progress);
+        self.worker.kef_stop_timing();
+        self.worker.kef_started(progress);
         self.start(job, line);
         if let Some(b) = self.worker.busy().copied() {
             self.worker.set_busy(Some(Busy { of: count, ..b }));
@@ -570,13 +570,13 @@ impl Faraday {
 
     /// Takes the last seal's answer, leaving none.
     pub fn kef_take_sealed(&mut self) -> Option<Result<Vec<u8>, SealError>> {
-        self.worker.kef_mut().take_sealed()
+        self.worker.kef_take_sealed()
     }
 
     /// Takes the last open's answer, leaving none; what it holds wipes
     /// when dropped.
     pub fn kef_take_opened(&mut self) -> Option<Result<Opened, OpenError>> {
-        self.worker.kef_mut().take_opened()
+        self.worker.kef_take_opened()
     }
 
     /// Notes the rounds done on the running job's `Busy`, for a

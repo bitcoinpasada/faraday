@@ -277,24 +277,28 @@ fn a_locked_vault_is_named_for_a_seed_it_held_and_not_for_another_with_its_finge
 
     // A summary kept before the ids were: nothing is verified.
     let ids = app.vaults().summaries[0].ids.clone();
-    for id in &mut faraday_core::testkit::vault_summaries_mut(&mut app)[0].ids {
-        *id = None;
-    }
+    faraday_core::testkit::change_vault_summaries(&mut app, |summaries| {
+        for id in &mut summaries[0].ids {
+            *id = None;
+        }
+    });
     let vault = line(&lines(&mut app), "Vault").clone();
     assert_eq!(
         (vault.state.as_str(), vault.tone),
         ("A vault is locked", Tone::Dim)
     );
-    faraday_core::testkit::vault_summaries_mut(&mut app)[0].ids = ids;
+    faraday_core::testkit::change_vault_summaries(&mut app, |summaries| summaries[0].ids = ids);
 
     // Test key 2's entry under test key 1's fingerprint, and test key 1
     // gone from the summary.
-    let s = &mut faraday_core::testkit::vault_summaries_mut(&mut app)[0];
-    let i1 = s.keys.iter().position(|k| *k == fp1).expect("test key 1");
-    let i2 = s.keys.iter().position(|k| *k == fp2).expect("test key 2");
-    s.keys[i2] = fp1.clone();
-    s.keys.remove(i1);
-    s.ids.remove(i1);
+    faraday_core::testkit::change_vault_summaries(&mut app, |summaries| {
+        let s = &mut summaries[0];
+        let i1 = s.keys.iter().position(|k| *k == fp1).expect("test key 1");
+        let i2 = s.keys.iter().position(|k| *k == fp2).expect("test key 2");
+        s.keys[i2] = fp1.clone();
+        s.keys.remove(i1);
+        s.ids.remove(i1);
+    });
     let vault = line(&lines(&mut app), "Vault").clone();
     assert!(
         !vault.state.contains(&file),
@@ -430,8 +434,10 @@ fn preset_saved(app: &mut Faraday, k: u8) {
     let shape = app.plan_shape_now(w);
     let base = if shape.multi() { shape.seeds.len() } else { 2 };
     let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
-    *faraday_core::testkit::backup_answers_mut(app) =
-        faraday_core::plan::Answers::preset_at(&shape, preset, base);
+    faraday_core::testkit::set_backup_answers(
+        app,
+        faraday_core::plan::Answers::preset_at(&shape, preset, base),
+    );
 }
 
 /// A page scrolled: the frames drawn are moved ones.

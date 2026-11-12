@@ -558,16 +558,18 @@ fn the_pill_edged_and_the_insert_line_name_the_same_stick() {
     create_with_vaults(&mut app, 2);
     // Place 1 keeps a stick of files too, which the write step asks for.
     let i = app.backup_flows().len() - 1;
-    faraday_core::testkit::flows_mut(&mut app)[i].slots.insert(
-        1,
-        Slot {
-            target: Target::PlaceFiles(0),
-            files: Vec::new(),
-            bound: None,
-            later: false,
-            written: None,
-        },
-    );
+    faraday_core::testkit::change_flows(&mut app, |flows| {
+        flows[i].slots.insert(
+            1,
+            Slot {
+                target: Target::PlaceFiles(0),
+                files: Vec::new(),
+                bound: None,
+                later: false,
+                written: None,
+            },
+        );
+    });
     shell.plug(&mut app, "S1");
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S1");
