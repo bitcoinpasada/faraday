@@ -1166,10 +1166,22 @@ impl Faraday {
         // that lands on Wallets does.
         if self.wallet_flow_wallet(i).is_none() && self.may_load_keys() {
             let o = self.vaults.current;
-            let _ = self.vault_load(o, true);
-            // A wallet of the vault that was left out says why.
-            self.vault_loaded_toast(None);
+            // The keys are stretched in a job; the checklist is shown when
+            // they are in.
+            let then: crate::vault::load_job::Then = Box::new(move |app, _, _| {
+                // A wallet of the vault that was left out says why.
+                app.vault_loaded_toast(None);
+                app.wallet_flow_landed(i);
+            });
+            self.vault_load(o, true, then);
+            return;
         }
+        self.wallet_flow_landed(i);
+    }
+
+    /// The flow's wallet is loaded, if it is: its checklist is shown,
+    /// done.
+    fn wallet_flow_landed(&mut self, i: usize) {
         let Some(w) = self.wallet_flow_wallet(i) else {
             return;
         };

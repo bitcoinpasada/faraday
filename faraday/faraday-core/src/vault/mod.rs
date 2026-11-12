@@ -453,16 +453,19 @@ impl Faraday {
                     .and_then(|slot| self.vault_key_for(&c, &slot));
                 let fp = faraday_bip::keys::Fingerprint(fp);
                 if let Some((v, i)) = found {
-                    let (k, _) = self.vault_load_set(v, &BTreeSet::from([i]));
-                    if k > 0 {
-                        self.toast(&fill(
-                            EN.vaults_loaded_note,
-                            &[
-                                &crate::wallet::fp_text(fp).to_string(),
-                                &self.vaults.open[v].name.to_string(),
-                            ],
-                        ));
-                    }
+                    let then: load_job::Then = Box::new(move |app, k, _| {
+                        if k > 0 {
+                            let name = app.vaults.open.get(v).map(|o| o.name.to_string());
+                            app.toast(&fill(
+                                EN.vaults_loaded_note,
+                                &[
+                                    &crate::wallet::fp_text(fp).to_string(),
+                                    &name.unwrap_or_default(),
+                                ],
+                            ));
+                        }
+                    });
+                    load_job::start_then(self, v, &BTreeSet::from([i]), then);
                 }
             }
             V::LoadWithKeys(v) => {
@@ -480,30 +483,32 @@ impl Faraday {
                         set.extend(w.keys);
                     }
                 }
-                let (keys, wallets) = self.vault_load_set(v, &set);
-                if self.screen == Screen::SpendBackup {
-                    self.spend_backup_settle();
-                    self.spend_backup_vault_loaded();
-                    self.spend_backup_opened();
-                }
-                let counts = fill(
-                    EN.vaults_and_loaded,
-                    &[
-                        &wallets.to_string(),
-                        (if wallets == 1 {
-                            EN.vaults_wallet_inline
-                        } else {
-                            EN.vaults_wallets_inline
-                        }),
-                        &keys.to_string(),
-                        (if keys == 1 {
-                            EN.vaults_seed_inline
-                        } else {
-                            EN.vaults_seeds
-                        }),
-                    ],
-                );
-                self.vault_loaded_toast(Some(counts));
+                let then: load_job::Then = Box::new(move |app, keys, wallets| {
+                    if app.screen == Screen::SpendBackup {
+                        app.spend_backup_settle();
+                        app.spend_backup_vault_loaded();
+                        app.spend_backup_opened();
+                    }
+                    let counts = fill(
+                        EN.vaults_and_loaded,
+                        &[
+                            &wallets.to_string(),
+                            (if wallets == 1 {
+                                EN.vaults_wallet_inline
+                            } else {
+                                EN.vaults_wallets_inline
+                            }),
+                            &keys.to_string(),
+                            (if keys == 1 {
+                                EN.vaults_seed_inline
+                            } else {
+                                EN.vaults_seeds
+                            }),
+                        ],
+                    );
+                    app.vault_loaded_toast(Some(counts));
+                });
+                load_job::start_then(self, v, &set, then);
             }
             V::OpenWalletOf(v, r) => {
                 if let Some(w) = self.vault_load_wallet(v, r) {
@@ -551,33 +556,35 @@ impl Faraday {
             }
             V::LoadAll(v) | V::LoadChosen(v) => {
                 let all = matches!(a, V::LoadAll(_));
-                let (keys, wallets) = self.vault_load(v, all);
-                self.wallets.set_wallet(0);
-                // The list stays on screen with what loaded marked; the
-                // Spend tab goes on to what it needs next.
-                if self.screen == Screen::SpendBackup {
-                    self.spend_backup_settle();
-                    self.spend_backup_vault_loaded();
-                    self.spend_backup_opened();
-                }
-                let counts = fill(
-                    EN.vaults_and_loaded,
-                    &[
-                        &keys.to_string(),
-                        (if keys == 1 {
-                            EN.vaults_seed_inline
-                        } else {
-                            EN.vaults_seeds
-                        }),
-                        &wallets.to_string(),
-                        (if wallets == 1 {
-                            EN.vaults_wallet_inline
-                        } else {
-                            EN.vaults_wallets_inline
-                        }),
-                    ],
-                );
-                self.vault_loaded_toast(Some(counts));
+                let then: load_job::Then = Box::new(move |app, keys, wallets| {
+                    app.wallets.set_wallet(0);
+                    // The list stays on screen with what loaded marked; the
+                    // Spend tab goes on to what it needs next.
+                    if app.screen == Screen::SpendBackup {
+                        app.spend_backup_settle();
+                        app.spend_backup_vault_loaded();
+                        app.spend_backup_opened();
+                    }
+                    let counts = fill(
+                        EN.vaults_and_loaded,
+                        &[
+                            &keys.to_string(),
+                            (if keys == 1 {
+                                EN.vaults_seed_inline
+                            } else {
+                                EN.vaults_seeds
+                            }),
+                            &wallets.to_string(),
+                            (if wallets == 1 {
+                                EN.vaults_wallet_inline
+                            } else {
+                                EN.vaults_wallets_inline
+                            }),
+                        ],
+                    );
+                    app.vault_loaded_toast(Some(counts));
+                });
+                self.vault_load(v, all, then);
             }
             V::CGo => self.vault_create_check(),
             V::Unlock => self.vault_unlock_check(),
@@ -1459,21 +1466,24 @@ impl Faraday {
         out
     }
 
-    /// Loads the keys and wallets of an open vault into the session:
-    /// every one, or the chosen ones.
-    pub(crate) fn vault_load(&mut self, v: usize, all: bool) -> (usize, usize) {
+    /// Costs what `load_job::start_then` costs. Loads the keys and wallets
+    /// of an open vault into the session, every one or the chosen ones,
+    /// then `then` with how many of each joined, when the answer comes.
+    pub(crate) fn vault_load(&mut self, v: usize, all: bool, then: load_job::Then) {
         let Some(open) = self.vaults.open.get(v) else {
-            return (0, 0);
+            return;
         };
         let set: BTreeSet<usize> = (0..self.vaults.records(open.id).len())
             .filter(|i| all || !open.skip.contains(i))
             .collect();
-        self.vault_load_set(v, &set)
+        load_job::start_then(self, v, &set, then);
     }
 
-    /// Loads wallet record `r` of open vault `v`, with the seeds of it the
-    /// vault keeps where keys may load. Returns the wallet's place in the
-    /// session.
+    /// Costs what `load_job::start_replay` costs. Loads wallet record `r` of
+    /// open vault `v`, with the seeds of it the vault keeps where keys may
+    /// load. Returns the wallet's place in the session; none while the
+    /// seeds are worked out in a job, after which the press is run again
+    /// and finds the wallet.
     pub(crate) fn vault_load_wallet(&mut self, v: usize, r: usize) -> Option<usize> {
         let c = self.compute();
         let open = self.vaults.open.get(v)?;
@@ -1499,25 +1509,41 @@ impl Faraday {
                     .filter_map(|(i, k)| {
                         crate::vault::screen::key_fingerprint(&c, self, k)
                             .filter(|f| fps.contains(f))
+                            // A key the session holds is not stretched again.
+                            .filter(|f| {
+                                !keep::fp_bytes(f).is_some_and(|b| {
+                                    self.session
+                                        .keys
+                                        .position(faraday_bip::keys::Fingerprint(b))
+                                        .is_some()
+                                })
+                            })
                             .map(|_| i)
                     }),
             );
         }
-        let (keys, _) = self.vault_load_set(v, &set);
-        let counts = (keys > 0).then(|| {
-            fill(
-                EN.vaults_loaded,
-                &[
-                    &keys.to_string(),
-                    (if keys == 1 {
-                        EN.vaults_seed_inline
-                    } else {
-                        EN.vaults_seeds
-                    }),
-                ],
-            )
+        let after: load_job::Then = Box::new(|app, keys, _| {
+            let counts = (keys > 0).then(|| {
+                fill(
+                    EN.vaults_loaded,
+                    &[
+                        &keys.to_string(),
+                        (if keys == 1 {
+                            EN.vaults_seed_inline
+                        } else {
+                            EN.vaults_seeds
+                        }),
+                    ],
+                )
+            });
+            app.vault_loaded_toast(counts);
         });
-        self.vault_loaded_toast(counts);
+        // The press stops where it is while the keys are worked out, and
+        // is run again when they are in.
+        if load_job::start_replay(self, v, &set, after) {
+            return None;
+        }
+        self.vault_loaded_toast(None);
         self.session.wallets.iter().position(|w| w.same() == want)
     }
 
@@ -1553,20 +1579,6 @@ impl Faraday {
                     .is_some_and(|d| crate::wallet::musig_one_seed(&d.policy))
             })
             .collect()
-    }
-
-    /// Costs what `vault_load_front`, [`faraday_keys::job::KeysJob::run`]
-    /// and `vault_load_wallets` cost. Loads the records `set` names of
-    /// open vault `v`: its keys and wallets among them, the keys
-    /// stretched here, on the calling thread (the Load sheet's press has
-    /// them stretched in a job, [`load_job`]).
-    pub(crate) fn vault_load_set(&mut self, v: usize, set: &BTreeSet<usize>) -> (usize, usize) {
-        let c = self.compute();
-        let Some((job, descs)) = self.vault_load_front(&c, v, set) else {
-            return (0, 0);
-        };
-        let keys = self.session.keys.adopt_loaded(&c, job.run(&c)).len();
-        (keys, self.vault_load_wallets(&c, descs))
     }
 
     /// Costs what `described` costs, and a parse of the words of each key
@@ -1613,17 +1625,23 @@ impl Faraday {
         Some((job, descs))
     }
 
-    /// Costs what `add_policy` costs for each wallet: a derivation at the
-    /// origin path of each of its keys the session holds. The back half of
+    /// Costs what `add_policy_with` costs for each wallet: a derivation at
+    /// the origin path of each of its keys the session holds that the
+    /// load's job did not derive (`derived`). The back half of
     /// a load: the wallets `descs` hold are added to the session, after
     /// its keys. Returns how many were added.
-    pub(crate) fn vault_load_wallets(&mut self, c: &Compute, descs: Vec<LoadWallet>) -> usize {
+    pub(crate) fn vault_load_wallets(
+        &mut self,
+        c: &Compute,
+        descs: Vec<LoadWallet>,
+        derived: &faraday_keys::job::Derived,
+    ) -> usize {
         let before = self.session.wallets.len();
         for (policy, name) in descs {
             let to = crate::wallet::Origin::Vault;
-            let added = self
-                .session
-                .add_policy(c, &name, policy, EN.vaults_vault, to);
+            let added =
+                self.session
+                    .add_policy_with(c, &name, policy, EN.vaults_vault, to, derived);
             // A kept MuSig2 wallet two of whose keys are one seed's, or a
             // wallet with a loaded key's fingerprint and another xpub, is
             // left out; the load's toast says why.
@@ -1680,20 +1698,30 @@ impl Faraday {
         };
         match r.kind() {
             kind::KEY => {
-                let Some(added) =
-                    self.vaults
-                        .store()
-                        .load_key_record(&c, &mut self.session.keys, id, at)
-                else {
-                    return;
-                };
-                match added {
-                    Ok(fp) => self.toast(&fill(
-                        EN.vaults_key_is_loaded,
-                        &[&crate::wallet::fp_text(fp).to_string()],
-                    )),
-                    Err(e) => self.toast(&e.text()),
-                }
+                // The key's words are stretched in a job; the press waits
+                // for the answer.
+                let v = self.vaults.current;
+                let want = crate::vault::screen::key_fingerprint(&c, self, r)
+                    .and_then(|t| keep::fp_bytes(&t));
+                let then: load_job::Then = Box::new(move |app, keys, _| {
+                    if keys > 0 {
+                        let fp = app.session.keys.all().last().map(|k| k.fingerprint);
+                        if let Some(fp) = fp {
+                            app.toast(&fill(
+                                EN.vaults_key_is_loaded,
+                                &[&crate::wallet::fp_text(fp).to_string()],
+                            ));
+                        }
+                    } else if let Some(fp) = want {
+                        let fp = faraday_bip::keys::Fingerprint(fp);
+                        if app.session.keys.all().any(|k| k.fingerprint == fp) {
+                            app.toast(&crate::wallet::Refusal::Duplicate(fp).text());
+                        }
+                    }
+                    app.refresh_spend();
+                });
+                load_job::start_then(self, v, &BTreeSet::from([at]), then);
+                return;
             }
             kind::WALLET => {
                 let text = r.public_text(field::WALLET).unwrap_or("").to_string();

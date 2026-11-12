@@ -766,6 +766,7 @@ impl Session {
         c: &Compute,
         policy: &WalletPolicy,
         only: Option<&[Fingerprint]>,
+        derived: &faraday_keys::job::Derived,
     ) -> Option<Fingerprint> {
         for key in policy.keys() {
             let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
@@ -777,7 +778,12 @@ impl Session {
             let Some(i) = self.keys.position(fp) else {
                 continue;
             };
-            let gives = self.keys.xpub_at(c, i, path);
+            // What a key a load's job added gives there was worked out in
+            // the job.
+            let gives = match derived.get(fp, path) {
+                Some(x) => Some(*x),
+                None => self.keys.xpub_at(c, i, path),
+            };
             if !gives.is_some_and(|x| {
                 x.public_key == key.xpub().public_key && x.chain_code == key.xpub().chain_code
             }) {
@@ -809,7 +815,7 @@ impl Session {
                 i += 1;
                 continue;
             }
-            match self.forged_key(c, &self.wallets[i].policy, Some(&new)) {
+            match self.forged_key(c, &self.wallets[i].policy, Some(&new), &Default::default()) {
                 Some(fp) => {
                     let w = self.wallets.remove(i);
                     let why = Refusal::NotYourKey(fp_text(fp).to_string()).text();
@@ -843,6 +849,22 @@ impl Session {
         source: &str,
         origin: Origin,
     ) -> Result<usize, Refusal> {
+        self.add_policy_with(c, name, policy, source, origin, &Default::default())
+    }
+
+    /// Costs what `add_policy` costs, less the derivations in `derived`.
+    /// [`Session::add_policy`] for a wallet whose keys under the
+    /// fingerprints of keys a load added were derived at their origin
+    /// paths in that load's job: those are not derived again.
+    pub fn add_policy_with(
+        &mut self,
+        c: &Compute,
+        name: &str,
+        policy: WalletPolicy,
+        source: &str,
+        origin: Origin,
+        derived: &faraday_keys::job::Derived,
+    ) -> Result<usize, Refusal> {
         if let Some(w) = policy.silent()
             && crate::silent::check_record(c, &self.keys, w).0
                 == crate::silent::RecordCheck::Differs
@@ -852,7 +874,7 @@ impl Session {
         if musig_one_seed(&policy) {
             return Err(Refusal::MuSigOneSeed);
         }
-        if let Some(fp) = self.forged_key(c, &policy, None) {
+        if let Some(fp) = self.forged_key(c, &policy, None, derived) {
             return Err(Refusal::NotYourKey(fp_text(fp).to_string()));
         }
         let descriptor = same_wallet(&policy);

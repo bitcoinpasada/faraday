@@ -182,7 +182,7 @@ const LOAD: Table = &[
     (
         Work::KeyDerive,
         23,
-        "the loaded key's master xpub, for its id (wallet::master_id), worked out in the job and kept on the key (1); each of the 22 kept wallet keys under the loaded key's fingerprint derived at its origin path, to check it is the loaded key's as the wallet is added (Session::add_policy) (22)",
+        "the loaded key's master xpub, for its id (wallet::master_id), worked out in the job and kept on the key (1); each of the 22 kept wallet keys under the loaded key's fingerprint derived at its origin path, in the same job (KeysJob::check_at), to check it is the loaded key's as the wallet is added on the main thread (Session::add_policy_with), which derives none (22)",
     ),
     (
         Work::Address,
@@ -223,6 +223,11 @@ fn unlock_to_the_load_sheet_and_load_do_their_fixed_work() {
         since(&before).of(Work::Kdf),
         0,
         "the seed's stretch is the job's, not the press's"
+    );
+    assert_eq!(
+        since(&before).of(Work::KeyDerive),
+        0,
+        "the keys' derivations are the job's, not the press's"
     );
     testkit::settle(&mut app);
     for t in 1..4u64 {

@@ -851,10 +851,23 @@ impl Keys {
         c: &Compute,
         loaded: crate::job::KeysLoaded,
     ) -> Vec<Fingerprint> {
+        self.adopt_loaded_derived(c, loaded).0
+    }
+
+    /// Costs what `adopt_loaded` costs. [`Keys::adopt_loaded`], and with the
+    /// fingerprints of the keys that joined what each gives at the origin
+    /// paths the job was asked for ([`crate::job::KeysJob::check_at`]); a
+    /// key left out gives none.
+    pub fn adopt_loaded_derived(
+        &mut self,
+        c: &Compute,
+        loaded: crate::job::KeysLoaded,
+    ) -> (Vec<Fingerprint>, crate::job::Derived) {
         let mut out = Vec::new();
         if loaded.network != self.network {
-            return out;
+            return (out, crate::job::Derived::default());
         }
+        let mut derived = Vec::new();
         for item in loaded.items {
             let fp = item.entry.info.fingerprint;
             if self.no_stick().is_err() || self.allowed(fp).is_err() || self.position(fp).is_some()
@@ -862,6 +875,7 @@ impl Keys {
                 continue;
             }
             self.push(c, item.entry);
+            derived.extend(item.derived);
             let at = self.entries.len() - 1;
             if item.codex32.is_some() {
                 self.set_codex32(at, item.codex32);
@@ -871,7 +885,7 @@ impl Keys {
             }
             out.push(fp);
         }
-        out
+        (out, crate::job::Derived(derived))
     }
 
     /// Costs what `add_words_with` costs. Adds the key key `i`'s words and

@@ -146,8 +146,13 @@ impl Faraday {
             .and_then(|o| self.vaults.records(o.id).get(r))
             .filter(|x| x.kind() == kind::KEY)?;
         let want = crate::vault::screen::key_fingerprint(&c, self, rec).and_then(|t| fp_bytes(&t));
+        // The key's words are stretched in a job; the press is run again
+        // when it is in, and finds it.
+        let nothing: crate::vault::load_job::Then = Box::new(|_, _, _| {});
+        if crate::vault::load_job::start_replay(self, v, &BTreeSet::from([r]), nothing) {
+            return None;
+        }
         let before = self.session.keys.len();
-        self.vault_load_set(v, &BTreeSet::from([r]));
         let fp = if self.session.keys.len() > before {
             self.session.keys.all().last().map(|k| k.fingerprint.0)
         } else {
@@ -223,7 +228,15 @@ impl Faraday {
                     if let Some((v, r)) =
                         wallet_slots.get(j).and_then(|s| self.vault_key_for(&c, s))
                     {
-                        self.vault_load_set(v, &BTreeSet::from([r]));
+                        let nothing: crate::vault::load_job::Then = Box::new(|_, _, _| {});
+                        if crate::vault::load_job::start_replay(
+                            self,
+                            v,
+                            &BTreeSet::from([r]),
+                            nothing,
+                        ) {
+                            return;
+                        }
                     }
                     here(self, *fp)
                 }

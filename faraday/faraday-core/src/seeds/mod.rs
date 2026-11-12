@@ -712,7 +712,18 @@ impl Faraday {
         else {
             return;
         };
-        let (n, _) = self.vault_load_set(v, &std::collections::BTreeSet::from([record]));
+        // The key's words are stretched in a job; the press is run again
+        // when it is in.
+        let (name, key) = (self.vaults.open[v].name.to_string(), want.clone());
+        let told: crate::vault::load_job::Then = Box::new(move |app, n, _| {
+            if n > 0 {
+                app.toast(&fill(EN.seeds_loaded_from_vault, &[&key, &name]));
+            }
+        });
+        let set = std::collections::BTreeSet::from([record]);
+        if crate::vault::load_job::start_replay(self, v, &set, told) {
+            return;
+        }
         let Some(fp) = self
             .session
             .keys
@@ -722,12 +733,6 @@ impl Faraday {
         else {
             return;
         };
-        if n > 0 {
-            self.toast(&fill(
-                EN.seeds_loaded_from_vault,
-                &[&want.to_string(), &self.vaults.open[v].name.to_string()],
-            ));
-        }
         // A vault may keep a seed apart from its passphrase: asked.
         if self.seed_read_loaded(fp) {
             return;

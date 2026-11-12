@@ -53,6 +53,12 @@ impl std::ops::Deref for VaultArea {
 }
 
 impl VaultArea {
+    /// The press now being acted on is `action`, until it is put back:
+    /// returns the one it replaces.
+    pub(crate) fn acting_swap(&mut self, action: Option<crate::Action>) -> Option<crate::Action> {
+        std::mem::replace(&mut self.state.acting, action)
+    }
+
     /// The open vaults and the vault screens' state.
     pub(crate) fn vaults(&self) -> &Vaults {
         &self.state
@@ -2183,6 +2189,11 @@ pub struct Vaults {
     /// The wallet a vault load left out and why (name, reason), until the
     /// load's toast has told the person.
     pub(crate) refused: Option<(String, String)>,
+    /// The press being acted on, to be run again when a load it started
+    /// has answered ([`crate::vault::load_job`]).
+    pub(crate) acting: Option<crate::Action>,
+    /// A press is run again after its load: it starts no load of its own.
+    pub(crate) replaying: bool,
     /// Where an unlock or a creation started from another flow returns.
     pub back_to: Option<Screen>,
     /// Create a vault was opened from Home: Back goes to Home, not the

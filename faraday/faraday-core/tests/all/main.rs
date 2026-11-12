@@ -207,6 +207,7 @@ mod vault_copy;
 mod vault_full;
 mod vault_keys;
 mod vault_load;
+mod vault_load_job;
 mod vault_memory;
 mod vault_name;
 mod vault_passphrase;

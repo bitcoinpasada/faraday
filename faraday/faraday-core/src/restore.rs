@@ -1102,23 +1102,27 @@ impl Faraday {
         let saved = self
             .vaults
             .swap_skip(v, all.difference(&keep).copied().collect());
-        let (keys, _) = self.vault_load(v, false);
+        // The keys are stretched in a job; the screen is Restore's when
+        // they are in.
+        let then: crate::vault::load_job::Then = Box::new(move |app, keys, _| {
+            app.screen = Screen::Restore;
+            if keys > 0 {
+                app.toast(&fill(
+                    EN.restore_from_vault_count,
+                    &[
+                        &keys.to_string(),
+                        (if keys == 1 {
+                            EN.restore_from_vault_key
+                        } else {
+                            EN.restore_from_vault_keys
+                        }),
+                        &source.to_string(),
+                    ],
+                ));
+            }
+        });
+        self.vault_load(v, false, then);
         self.vaults.swap_skip(v, saved);
-        self.screen = Screen::Restore;
-        if keys > 0 {
-            self.toast(&fill(
-                EN.restore_from_vault_count,
-                &[
-                    &keys.to_string(),
-                    (if keys == 1 {
-                        EN.restore_from_vault_key
-                    } else {
-                        EN.restore_from_vault_keys
-                    }),
-                    &source.to_string(),
-                ],
-            ));
-        }
     }
 
     /// Costs what `read_kept` costs. The texts of the shares chosen on the

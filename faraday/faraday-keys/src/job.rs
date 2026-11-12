@@ -14,6 +14,7 @@
 
 use std::sync::Arc;
 
+use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
 use faraday_bip::keys::{Fingerprint, MasterKey, Network};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
@@ -658,6 +659,10 @@ pub struct KeysJob {
     /// The passphrase records the open vaults keep alone, each with the
     /// fingerprint it names, in the order the vaults are held.
     pub(crate) kept: Vec<(Vec<u8>, Zeroizing<Vec<u8>>)>,
+    /// The public keys of kept wallets, each with the fingerprint and
+    /// origin path it names: what a loaded key gives there is worked out in
+    /// the job ([`KeysJob::check_at`]).
+    pub(crate) checks: Vec<(Fingerprint, DerivationPath)>,
 }
 
 /// The keys a [`KeysJob`] worked out, in the order they are added.
@@ -667,8 +672,26 @@ pub struct KeysLoaded {
     pub(crate) items: Vec<LoadedKey>,
 }
 
+/// What the keys a load added give at the origin paths of the wallets'
+/// keys ([`KeysJob::check_at`]): public. A wallet key under one of these
+/// fingerprints is checked against it instead of a derivation of its own.
+#[derive(Default)]
+pub struct Derived(pub(crate) Vec<(Fingerprint, DerivationPath, Xpub)>);
+
+impl Derived {
+    /// What the added key with fingerprint `fp` gives at `path`, if it was
+    /// worked out in the job.
+    pub fn get(&self, fp: Fingerprint, path: &DerivationPath) -> Option<&Xpub> {
+        self.0
+            .iter()
+            .find(|(f, p, _)| *f == fp && p == path)
+            .map(|(_, _, x)| x)
+    }
+}
+
 pub(crate) struct LoadedKey {
     pub(crate) entry: crate::session::Entry,
+    pub(crate) derived: Vec<(Fingerprint, DerivationPath, Xpub)>,
     pub(crate) codex32: Option<fv::codex32::SetFacts>,
     pub(crate) child: Option<fv::child::ChildOf>,
 }
@@ -686,7 +709,37 @@ impl KeysJob {
             words: Vec::new(),
             seeds: Vec::new(),
             kept: Vec::new(),
+            checks: Vec::new(),
         }
+    }
+
+    /// The origin path of each key of `policy` that names a fingerprint
+    /// and a path: the job works out what a loaded key with that
+    /// fingerprint gives there, to check the wallet's key against it
+    /// ([`Derived`]).
+    pub fn check_at(&mut self, policy: &WalletPolicy) {
+        for k in policy.keys() {
+            if let (Some(fp), Some(path)) = (k.fingerprint(), k.path())
+                && path.len() <= faraday_bip::keys::MAX_PATH_STEPS
+            {
+                self.checks.push((fp, path.clone()));
+            }
+        }
+    }
+
+    /// Costs a key derivation (of at most `MAX_PATH_STEPS` steps) per
+    /// kept wallet key under `master`'s fingerprint.
+    fn derive_checks(
+        &self,
+        c: &Compute,
+        master: &MasterKey,
+    ) -> Vec<(Fingerprint, DerivationPath, Xpub)> {
+        let fp = master.fingerprint();
+        self.checks
+            .iter()
+            .filter(|(f, _)| *f == fp)
+            .map(|(f, p)| (*f, p.clone(), master.derive(c, p).to_xpub(c)))
+            .collect()
     }
 
     /// Whether the job has no key to work out: a load of wallets alone.
@@ -718,11 +771,13 @@ impl KeysJob {
             let Ok(master) = crate::session::mnemonic_master(c, &m, pass, network) else {
                 continue;
             };
+            let derived = self.derive_checks(c, &master);
             #[expect(
                 clippy::disallowed_methods,
                 reason = "a codex32 set's facts are public"
             )]
             items.push(LoadedKey {
+                derived,
                 entry: crate::session::mnemonic_entry(c, master, &m, pass, text(&w.label)),
                 codex32: w.codex32.clone(),
                 child: w.child,
@@ -732,11 +787,13 @@ impl KeysJob {
             let Ok(master) = crate::session::seed_master(c, &s.seed, network) else {
                 continue;
             };
+            let derived = self.derive_checks(c, &master);
             #[expect(
                 clippy::disallowed_methods,
                 reason = "a codex32 set's facts are public"
             )]
             items.push(LoadedKey {
+                derived,
                 entry: crate::session::seed_entry(c, master, &s.seed, text(&s.label)),
                 codex32: s.codex32.clone(),
                 child: None,

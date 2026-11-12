@@ -2157,6 +2157,12 @@ impl Faraday {
     }
 
     fn act(&mut self, action: Action) {
+        let outer = self.vaults.acting_swap(Some(action));
+        self.act_noted(action);
+        self.vaults.acting_swap(outer);
+    }
+
+    fn act_noted(&mut self, action: Action) {
         if !self.taken_synced(action) || self.seed_gate(action) {
             return;
         }
