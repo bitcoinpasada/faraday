@@ -352,6 +352,11 @@ fn = "decode"
 target = "fuzz/fuzz_targets/transaction.rs"
 
 [[parser]]
+file = "core/faraday-crypto/src/date.rs"
+fn = "parse_ymd"
+excuse = "reads the dates of the backup plan's notes, held in a vault only after it opens, and the device's own date; it splits ten characters into three fixed-width numbers"
+
+[[parser]]
 file = "core/faraday-crypto/src/hex.rs"
 fn = "decode_exact"
 target = "fuzz/fuzz_targets/hex_decode.rs"
