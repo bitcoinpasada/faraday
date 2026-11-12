@@ -14290,5 +14290,5 @@ strings! {
     aqrv_window_title: "Argon QR Vault",
     /// About's text.
     #[cfg(feature = "aqrv")]
-    aqrv_about_text: "The format is specified in docs/AQRV.md and its test vectors are in tools/vectors/aqrv. The format is not reviewed and is for testing only.",
+    aqrv_about_text: "The format and its test vectors are at github.com/bitcoinpasada/aqrv. The format is not reviewed and is for testing only.",
 }

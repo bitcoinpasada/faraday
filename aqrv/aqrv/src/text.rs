@@ -1,4 +1,4 @@
-//! The 32-byte size as text (`docs/AQRV.md` §3, "The 32-byte size as
+//! The 32-byte size as text (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §3, "The 32-byte size as
 //! text", and §9): the envelope is one number, written in base 45 as
 //! exactly 47 characters of QR's alphanumeric table.
 

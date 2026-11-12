@@ -87,7 +87,7 @@ pub enum Label {
     Key,
 }
 
-/// An item opened, as lines to show (`docs/AQRV.md` §7).
+/// An item opened, as lines to show (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §7).
 pub struct Shown {
     /// The size and step the file's header gave.
     pub header: Header,

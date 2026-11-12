@@ -1,4 +1,4 @@
-//! The Argon QR Vault's item layouts (`docs/AQRV.md` §3, §3.1): the room
+//! The Argon QR Vault's item layouts (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §3, §3.1): the room
 //! of plaintext `P` a reader finds after the tag matched, read as a kind's
 //! item (`aqrv::fuzz_read`). It never panics, and an item it reads is
 //! laid out again by the writer as the bytes it was read from: the same

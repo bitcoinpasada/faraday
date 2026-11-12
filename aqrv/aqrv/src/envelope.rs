@@ -1,4 +1,4 @@
-//! Making and reading an envelope (`docs/AQRV.md` §6): the keys from
+//! Making and reading an envelope (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §6): the keys from
 //! Argon2id and HKDF-Expand, ChaCha20 over `P`, and HMAC-SHA-256 for the
 //! tag of every kind.
 

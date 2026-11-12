@@ -1,5 +1,5 @@
 //! `aqrv::from_text` (the Argon QR Vault's 32-byte size as 47 characters
-//! of QR's alphanumeric table, `docs/AQRV.md` §3, §9) on the input as
+//! of QR's alphanumeric table, `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §3, §9) on the input as
 //! text: it never panics; a text it reads is exactly 47 characters and is
 //! the one `to_text` writes for the bytes it gives. The input's first 32
 //! bytes also go to `to_text`, whose text is read back to those bytes

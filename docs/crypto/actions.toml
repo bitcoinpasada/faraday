@@ -9922,7 +9922,7 @@ reason = "The age passphrase codec is not yet read by an action; the change that
 
 [[vector_no_action]]
 folder = "aqrv"
-reason = "The Argon QR Vault is a draft specification (docs/AQRV.md) with no implementation in any app; its vectors wait for the outside readers."
+reason = "The Argon QR Vault is a draft specification (AQRV specification, https://github.com/bitcoinpasada/aqrv) with no implementation in any app; its vectors wait for the outside readers."
 
 # --- end: vaults, gpg and secure boot, the device and the starter ---
 

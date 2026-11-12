@@ -26,7 +26,7 @@
 # A fourth: no shipped binary turns on faraday-sb's `sign-any` feature,
 # which signs a boot program with no checked release behind it (F134).
 #
-# A fifth: the Argon QR Vault (`aqrv`, docs/AQRV.md, F245) is Faraday's own
+# A fifth: the Argon QR Vault (`aqrv`, AQRV specification, https://github.com/bitcoinpasada/aqrv, F245) is Faraday's own
 # construction, not reviewed outside it, and a test tool: no shipped binary
 # depends on any of its crates, and none turns on faraday-strings' `aqrv`
 # feature, which holds the wording of its app.

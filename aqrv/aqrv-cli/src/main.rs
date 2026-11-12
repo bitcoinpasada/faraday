@@ -1,4 +1,4 @@
-//! The Argon QR Vault's command line (`docs/AQRV.md`): make, open and
+//! The Argon QR Vault's command line (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md`): make, open and
 //! inspect a code, run the test vectors, and remake a code from the text
 //! of a printed sheet (§15). The passphrase is never an argument.
 

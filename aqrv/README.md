@@ -6,15 +6,21 @@ enough for one QR code. It is a draft for outside review: it has had no
 review outside the project, and the code here is for testing it with test
 data only. None of Faraday's apps uses it (F245).
 
+This folder is the format's reference implementation, by the same authors as
+the specification. The specification, its test vectors and the generator that
+writes them are in their own repository, `https://github.com/bitcoinpasada/aqrv` (F249); the vectors here are a
+pinned copy of its files.
+
 ## Where to find it
 
 | What | Where |
 |---|---|
-| The specification: the byte layout, the keys and the tag, recognition, the `.aqrv` file | [`docs/AQRV.md`](../docs/AQRV.md) |
-| How it compares with Krux's KEF and an OpenPGP QR vault | [`docs/AQRV.md` §14](../docs/AQRV.md#14-comparison-with-kef-and-with-an-openpgp-qr-vault) |
-| The security analysis | [`docs/AQRV.md` §12](../docs/AQRV.md#12-security-analysis) |
-| The questions for an outside cryptographer | [`docs/AQRV.md` §13](../docs/AQRV.md#13-questions-for-an-outside-cryptographer) |
-| The test vectors, made with argon2-cffi and PyCA, and the script that checks them | [`tools/vectors/aqrv/`](../tools/vectors/aqrv/) |
+| The specification: the byte layout, the keys and the tag, recognition, the `.aqrv` file | [`AQRV.md`](https://github.com/bitcoinpasada/aqrv/blob/main/AQRV.md) in the specification's repository, `https://github.com/bitcoinpasada/aqrv` |
+| How it compares with Krux's KEF and an OpenPGP QR vault | `AQRV.md` §14 there |
+| The security analysis | `AQRV.md` §12 there |
+| The questions for an outside cryptographer | `AQRV.md` §13 there |
+| The test vectors and `gen.py`, which writes them, made with argon2-cffi and PyCA | `vectors/` there |
+| The vectors as this folder's tests read them, pinned from a named commit of that repository, and the script that checks them | [`tools/vectors/aqrv/`](../tools/vectors/aqrv/) |
 | The library: the format and nothing else | [`aqrv/`](aqrv/) |
 | The command line, `aqrv` | [`aqrv-cli/`](aqrv-cli/) |
 | The desktop test app and its shell | [`aqrv-app/`](aqrv-app/), [`aqrv-desktop/`](aqrv-desktop/) |

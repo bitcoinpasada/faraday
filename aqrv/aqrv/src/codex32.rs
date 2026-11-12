@@ -1,4 +1,4 @@
-//! A codex32 string as an item (`docs/AQRV.md` §3.1): a 4-bit head, then
+//! A codex32 string as an item (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §3.1): a 4-bit head, then
 //! every character after `ms1` and before the checksum as its 5-bit
 //! value, most significant bit first. The checksum is not stored; a
 //! reader makes it with faraday-bip's, so no third BIP 93 checksum exists.

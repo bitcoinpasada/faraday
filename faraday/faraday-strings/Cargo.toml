@@ -13,7 +13,7 @@ faraday-bip = { path = "../../core/faraday-bip" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
 
-# The Argon QR Vault's wording (docs/AQRV.md, F245); only aqrv-app turns it on.
+# The Argon QR Vault's wording (AQRV specification, https://github.com/bitcoinpasada/aqrv, F245); only aqrv-app turns it on.
 [features]
 aqrv = []
 

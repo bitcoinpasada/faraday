@@ -12,7 +12,7 @@
 
 [[uncovered]]
 crate = "aqrv/aqrv"
-reason = "own specification, checked against tools/vectors/aqrv (argon2-cffi, PyCA) and kept out of the app"
+reason = "own specification (https://github.com/bitcoinpasada/aqrv), checked against its vectors pinned in tools/vectors/aqrv (argon2-cffi, PyCA) and kept out of the app"
 
 [[uncovered]]
 crate = "aqrv/aqrv-cli"

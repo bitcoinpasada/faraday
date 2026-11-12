@@ -1,5 +1,5 @@
 //! `aqrv::recognise`, `recognise_code` and `recognise_file` (the Argon QR
-//! Vault, `docs/AQRV.md` §9, §9.1) on the input as a QR payload and as a
+//! Vault, `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §9, §9.1) on the input as a QR payload and as a
 //! file: none panics; a recognised header is the one the length and the
 //! first byte give and the file's reading is the bytes'; a payload is an
 //! envelope only as §9 says (53 or 62 bytes of binary, or 47 characters of

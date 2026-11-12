@@ -1,4 +1,4 @@
-//! The Argon QR Vault's screens (`docs/AQRV.md`): a
+//! The Argon QR Vault's screens (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md`): a
 //! `faraday_shell_api::App` with two tabs, Make and Open. Make is four
 //! screens (the item, the settings, working, the code); Open takes a
 //! file (a typed path, or one dropped on the window), asks for the

@@ -165,7 +165,7 @@ just faraday-testkit                              the test stick's files, into o
 just faraday-snap 480x640 spend                   one tour at one size, into out/snapshots/faraday/480x640/spend/
 ```
 
-The Argon QR Vault (`docs/AQRV.md`) is its own pair of programs, a
+The Argon QR Vault (its specification and vectors are in `https://github.com/bitcoinpasada/aqrv`, F249; `aqrv/` is the reference implementation) is its own pair of programs, a
 window and a command line, built with the same recipes (the container
 leaves each file in `out/linux` or `out/windows`), and its screens are
 drawn to PNG with no window:

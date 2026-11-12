@@ -4,7 +4,7 @@
 It makes valid codes with check.py's `seal` (the lowest memory step, every
 kind at every size, random items, passphrases, salts and padding from a seeded
 generator), makes corrupted ones from them, and gives each to check.py (`read`,
-`seal`, the recognition of docs/AQRV.md section 9) and to the Rust library
+`seal`, the recognition of the AQRV specification (https://github.com/bitcoinpasada/aqrv, AQRV.md) section 9) and to the Rust library
 through `aqrv-cli`'s example `diff_batch`, which reads JSON lines and runs the
 library as it is, Argon2id included. It compares what each says: not
 recognised, or the header, then no tag matches, a layout refusal (the kind and
@@ -14,7 +14,7 @@ the rule) or the item; and, for a writer case, the envelope or the refusal.
 
 Prints the seed, the cases run per kind and per corruption, and every
 disagreement; exits 1 on any. Written by Faraday's authors on both sides, so
-it is robustness testing and not the outside implementation docs/AQRV.md
+it is robustness testing and not the outside implementation AQRV.md
 section 11 asks for.
 """
 
@@ -148,7 +148,7 @@ def seal_op(rng, size, item, fill, pw, step=0, salt=None, padding=None, **tag):
 
 
 def py_recognise(mode, payload):
-    """docs/AQRV.md section 9 and 9.1, on the payload's bytes."""
+    """AQRV.md section 9 and 9.1, on the payload's bytes."""
     if mode == "file":
         return payload if check.recognised(payload) else None
     if len(payload) in (53, 62) and 0xF8 <= payload[0] <= 0xFC:

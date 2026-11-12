@@ -1,4 +1,4 @@
-//! The Argon QR Vault's format: seal and open (`docs/AQRV.md`).
+//! The Argon QR Vault's format: seal and open (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md`).
 //!
 //! One small secret under a passphrase, in 32, 53 or 62 bytes (§3). [`seal`]
 //! writes an envelope (§6 Writing), [`open`] reads one (§6 Reading),

@@ -1,5 +1,5 @@
 //! `aqrv::open` after the key derivation (the Argon QR Vault,
-//! `docs/AQRV.md` §6 Reading): the first 32 bytes of the input stand for
+//! `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §6 Reading): the first 32 bytes of the input stand for
 //! Argon2id's output and the rest is the envelope, so a run does not pay
 //! for 64 MiB of Argon2id each time (`aqrv_open` does, once). The
 //! envelope split, the keystream, every kind's tag and the item's layout

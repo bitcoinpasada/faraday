@@ -263,3 +263,4 @@ Read this table, then only the decision you need.
 | [F246](decisions/F246.md) | Off mainnet, the mode pill stands at the end of the top bar's first line, and a long name steps down, then wraps | 2026-11-11 | Active | design |
 | [F247](decisions/F247.md) | The in-app guide replaces Learn | 2026-11-11 | Active | design |
 | [F248](decisions/F248.md) | A Rust file has no line limit; code is split by function | 2026-11-12 | Active | repository |
+| [F249](decisions/F249.md) | The Argon QR Vault's specification, test vectors and their generator live in their own repository; Faraday keeps the reference implementation in `aqrv/`, `diff.py` and a pinned copy of the vectors | 2026-11-12 | Active | standards |

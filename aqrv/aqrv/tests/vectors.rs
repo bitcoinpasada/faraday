@@ -1,4 +1,4 @@
-//! Every case of `tools/vectors/aqrv/aqrv.json` (`docs/AQRV.md` §11),
+//! Every case of `tools/vectors/aqrv/aqrv.json` (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §11),
 //! computed by libraries the format's authors did not write: a case
 //! opens to what it says, with every intermediate value, and sealing its
 //! inputs again gives its envelope byte for byte; a case does not open

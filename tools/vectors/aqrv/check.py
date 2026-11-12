@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """A second reader and writer for the Argon QR Vault (AQRV), written from
-docs/AQRV.md section 2 to 10 alone, and run over every case of aqrv.json,
+AQRV.md section 2 to 10 alone, and run over every case of aqrv.json,
 the 32-byte size's text forms and the QR pictures.
 
 It takes an envelope and a passphrase and answers: not recognised; refused,
@@ -12,11 +12,11 @@ Libraries other than gen.py's: PyCA cryptography's Argon2id; HKDF-Expand and
 HMAC-SHA-256 over Python's hmac and hashlib; ChaCha20 written out below from
 RFC 8439 and checked against its section 2.4.2 vector before anything else.
 
-    python3 -I -B tools/vectors/aqrv/check.py [--no-qr]
+    python3 -I -B vectors/check.py [--no-qr]
 
 Prints a one-line count and every disagreement; exits 1 on any. Written by
 Faraday's authors, so it is a second reader and not the outside
-implementation docs/AQRV.md section 11 asks for.
+implementation AQRV.md section 11 asks for.
 """
 
 import functools

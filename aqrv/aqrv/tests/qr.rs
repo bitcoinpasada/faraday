@@ -1,4 +1,4 @@
-//! The QR code of one vector at each size (`docs/AQRV.md` §3, §11): the
+//! The QR code of one vector at each size (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §3, §11): the
 //! pictures decode to the envelope's bytes, and the encoder makes the
 //! version and level the format names. The matrix is one encoder's
 //! output and its mask that encoder's choice, so the modules are compared

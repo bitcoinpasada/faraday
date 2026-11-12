@@ -1,4 +1,4 @@
-//! The Argon QR Vault's desktop test app (`docs/AQRV.md`): `aqrv-app` in
+//! The Argon QR Vault's desktop test app (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md`): `aqrv-app` in
 //! a window, run by the frame pacing, input and copy `faraday-window`
 //! shares with the other desktop shells. Nothing here links faraday-core.
 //!

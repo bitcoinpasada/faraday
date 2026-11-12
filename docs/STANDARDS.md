@@ -452,7 +452,7 @@ of each, what a reviewer gets and how a review is recorded, is
 
 The list below is of what is built. One specification is written and not
 built, and is offered for outside review: the Argon QR Vault
-(AQRV, `docs/AQRV.md`), one small secret from a fixed list (a seed, a codex32
+(AQRV; its specification, test vectors and their generator are in their own repository, `https://github.com/bitcoinpasada/aqrv`, F249), one small secret from a fixed list (a seed, a codex32
 string, a passphrase, a note, a raw key) under Argon2id, in a 25 × 25, 29 × 29
 or 33 × 33 QR code. It is
 Faraday's own specification, so under §0 it stays compiled out of the app
@@ -565,6 +565,6 @@ establishes them (`docs/ESTABLISHED.md` §1.2). The tables are written by
 | `quick-xml` | The tokenizer under the XML of a KDBX vault file. It does no cryptography and has no outside review; its default features are off and it is already in the dependency graph. Which references are refused, the nesting cap and everything else the reader does are Faraday's own. | F213 |
 <!-- crypto-manifest: end §10 -->
 
-The Argon QR Vault (`aqrv/aqrv`, `docs/AQRV.md`) is Faraday's own
+The Argon QR Vault (`aqrv/aqrv`, AQRV) is Faraday's own
 construction of this kind, a test tool in `aqrv/` and in no app: the checks
 named in §7 keep it out (F245).

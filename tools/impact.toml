@@ -394,7 +394,7 @@ site_with = ["tools/cryptography.py", "web/cryptography.html"]
 [[consumer]]
 id = "website.vault"
 name = "the website's vault page"
-reads = ["docs/VAULT.md", "docs/KEF.md", "docs/AQRV.md"]
+reads = ["docs/VAULT.md", "docs/KEF.md"]
 act = "the page, written by hand from these, says what they now say"
 blocking = true
 site_with = ["web/vault.html"]
@@ -641,6 +641,13 @@ source = ["docs/decisions/F245.md", "docs/STANDARDS.md §0"]
 when = ["aqrv/**"]
 kind = "held"
 held_by = ["lint-standards", "lint-keys-tests", "lint-layout", "lint-strings", "costs-lint", "lint-secrets"]
+
+[[rule]]
+id = "standards.aqrv-vectors-pinned"
+title = "the pinned copy of the Argon QR Vault's vectors in tools/vectors/aqrv/ is changed only by copying files from a named commit of the specification's repository, with that commit and the files' SHA-256 digests in the folder's README; the vectors are regenerated in that repository, never here"
+source = ["docs/decisions/F249.md"]
+when = ["tools/vectors/aqrv/aqrv.json", "tools/vectors/aqrv/check.py", "tools/vectors/aqrv/qr-*.png"]
+kind = "review"
 
 [[rule]]
 id = "standards.experimental-dev-only"

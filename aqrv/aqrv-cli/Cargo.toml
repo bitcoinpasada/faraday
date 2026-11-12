@@ -1,7 +1,7 @@
 [package]
 name = "aqrv-cli"
 version = "0.2.0"
-description = "The Argon QR Vault's command line (docs/AQRV.md)"
+description = "The Argon QR Vault's command line (AQRV specification, https://github.com/bitcoinpasada/aqrv)"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

@@ -1,8 +1,9 @@
 # Argon QR Vault (AQRV)
 
-**Kind:** Spec
-**Status:** Draft for outside review. Own specification, not yet reviewed outside Faraday; its code is the test vectors' two scripts and a Rust reference implementation by Faraday's authors in `aqrv/` (library, command line, desktop test app), and nothing is compiled into any app (`docs/STANDARDS.md` §0)
-**Open:** a KEF envelope from Krux's own tests among the vectors (§11), an outside second implementation, an outside cryptographic review of the construction and its 4-byte and 8-byte tags (§13), public comment, and whether Faraday ever offers it
+**Kind:** History
+**Status:** Kept as written
+
+Moved on 2026-11-12 to `https://github.com/bitcoinpasada/aqrv` (F249): that repository's `AQRV.md` is the specification now, and this is the text as it last was here, no longer kept.
 
 The Argon QR Vault (AQRV) is a proposed open format for one small secret
 encrypted under a passphrase with Argon2id, small enough for a 29 × 29 QR

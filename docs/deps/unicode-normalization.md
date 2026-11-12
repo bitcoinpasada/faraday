@@ -7,7 +7,7 @@ it, is the listed word. The tests and the sample tools that wrote NFKD
 forms before use the same crate. `faraday-vault` puts every vault
 passphrase in NFC with it before Argon2id (`docs/VAULT.md` §3), so a
 passphrase typed in either form opens the same slot. The Argon QR Vault
-(`aqrv/aqrv`, `docs/AQRV.md` §10) does the same for its passphrase, a test tool
+(`aqrv/aqrv`, `https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §10) does the same for its passphrase, a test tool
 outside Faraday's apps.
 
 **Why this crate.** NFKD needs the Unicode decomposition and

@@ -1,4 +1,4 @@
-//! The item and its layouts (`docs/AQRV.md` §3): entropy and a raw key
+//! The item and its layouts (`https://github.com/bitcoinpasada/aqrv`, `AQRV.md` §3): entropy and a raw key
 //! as the bytes, a text as `len` then the bytes, a codex32 string as
 //! `codex32.rs` packs it.
 
