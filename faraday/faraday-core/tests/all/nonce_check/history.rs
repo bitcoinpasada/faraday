@@ -1363,7 +1363,7 @@ fn lock_all(app: &mut Faraday) -> Vec<Vec<u8>> {
     app.outbox
         .iter()
         .filter(|i| i.kind == faraday_core::wallet::FileKind::Vault)
-        .map(|i| i.bytes.clone())
+        .map(|i| i.bytes.to_vec())
         .collect()
 }
 

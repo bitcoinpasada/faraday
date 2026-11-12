@@ -41,7 +41,7 @@ pub(crate) fn qr_tool_tour(t: &mut Tour) -> Result<(), String> {
         .map(|i| i.bytes.clone())
         .ok_or("no code in the Outbox")?;
     t.app.storage(StorageEvent::Restored {
-        inbox: vec![("qr-vault.pgp".to_string(), code)],
+        inbox: vec![("qr-vault.pgp".to_string(), code.to_vec())],
         outbox: Vec::new(),
         kept: Vec::new(),
     });

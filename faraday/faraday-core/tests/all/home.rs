@@ -291,7 +291,7 @@ fn a_psbt_scanned_from_home_goes_into_files_and_home_stays() {
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Home);
     assert!(app.session.keys.is_empty());
-    assert_eq!(app.inbox().last().map(|i| i.bytes.clone()), Some(psbt));
+    assert_eq!(app.inbox().last().map(|i| i.bytes.to_vec()), Some(psbt));
 }
 
 #[test]

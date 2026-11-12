@@ -317,7 +317,7 @@ fn secret_sheet(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .app
         .inbox()
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .collect();
     inbox.push(vault);
     t.app.storage(StorageEvent::Restored {

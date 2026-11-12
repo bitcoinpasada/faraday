@@ -172,7 +172,7 @@ fn reopened(app: &mut Faraday) -> Vec<Fingerprint> {
         .outbox
         .iter()
         .find(|i| i.name == "vault.kdbx")
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .expect("the lock sealed the vault into the Outbox");
     let mut next = device(vec![vault]);
     unlock(&mut next);
@@ -191,7 +191,7 @@ fn seed_file(app: &mut Faraday, form: u8) -> (String, Vec<u8>) {
     assert_eq!(app.sheet, None);
     let item = app.outbox.last().expect("nothing reached the Outbox");
     assert!(item.secret, "{} is not listed as a secret", item.name);
-    (item.name.clone(), item.bytes.clone())
+    (item.name.clone(), item.bytes.to_vec())
 }
 
 /// The fingerprint Add a key's scanner loads from a SeedQR picture.
@@ -390,7 +390,7 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
         // A public file beside it, which the visit does tick.
         app.outbox.push(faraday_core::Item {
             name: "wallet-descriptor.txt".into(),
-            bytes: b"wpkh([00000000/84h/1h/0h]tpub)".to_vec(),
+            bytes: (b"wpkh([00000000/84h/1h/0h]tpub)".to_vec()).into(),
             kind: FileKind::Text,
             secret: false,
             picture: None,
@@ -666,7 +666,7 @@ fn locked_and_opened(app: &mut Faraday) -> Faraday {
         .outbox
         .iter()
         .find(|i| i.name == "vault.kdbx")
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .expect("the lock sealed the vault into the Outbox");
     let mut next = device(vec![vault]);
     unlock(&mut next);

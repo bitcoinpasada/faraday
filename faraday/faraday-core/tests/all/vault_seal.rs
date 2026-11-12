@@ -77,7 +77,7 @@ pub(crate) fn sealed(app: &Faraday) -> Option<Vec<u8>> {
     app.outbox
         .iter()
         .find(|i| i.kind == FileKind::Vault)
-        .map(|i| i.bytes.clone())
+        .map(|i| i.bytes.to_vec())
 }
 
 /// A lock, the seals run on the worker and taken.

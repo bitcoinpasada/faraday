@@ -46,7 +46,7 @@ pub(crate) fn silent_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             &mut t.app,
             faraday_core::Item {
                 name: format!("{name}.txt"),
-                bytes: text.into_bytes(),
+                bytes: text.into_bytes().into(),
                 kind: faraday_core::wallet::FileKind::Wallet,
                 secret: false,
                 picture: None,

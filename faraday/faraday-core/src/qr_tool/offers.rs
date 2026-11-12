@@ -163,7 +163,7 @@ pub(super) fn use_sample(app: &mut Faraday) {
     app.session.keys.qr_forget();
     if let Some(s) = st(app) {
         *s = super::QrToolState::new(s.back);
-        s.code = Some(code.to_vec());
+        s.code = Some(zeroize::Zeroizing::new(code.to_vec()));
         s.open = Some(super::qstep::CONTENTS);
         s.focus = Some(super::Field::Pass);
     }

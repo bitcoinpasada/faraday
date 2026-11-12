@@ -462,7 +462,7 @@ fn public_out(descriptor: &str, what: u8) -> Vec<(String, String)> {
     app.press(faraday_core::Action::PublicOut(w, what));
     app.outbox
         .iter()
-        .map(|i| (i.name.clone(), String::from_utf8(i.bytes.clone()).unwrap()))
+        .map(|i| (i.name.clone(), String::from_utf8(i.bytes.to_vec()).unwrap()))
         .collect()
 }
 

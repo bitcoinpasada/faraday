@@ -518,7 +518,7 @@ impl Faraday {
                     .decode
                     .check()
                     .and_then(|s| s.returned.as_ref())
-                    .is_some_and(|r| r.bytes == clean);
+                    .is_some_and(|r| *r.bytes == clean);
                 let pick = if held {
                     set.inputs.signer_returned_proprietary
                 } else {

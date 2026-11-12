@@ -161,20 +161,20 @@ fn a_psbt_a_descriptor_and_a_100_kib_file_read_back_on_the_device_as_the_same_by
     send(&mut app, &mut boxes, &host, "spending-unsigned.psbt");
     let item = device_reads(&app);
     assert_eq!(item.kind, FileKind::Psbt);
-    assert_eq!(item.bytes, psbt);
+    assert_eq!(*item.bytes, psbt);
     app.press(Action::Cancel);
 
     send(&mut app, &mut boxes, &host, "spending-wallet.txt");
     let item = device_reads(&app);
     assert_eq!(item.kind, FileKind::Wallet);
-    assert_eq!(item.bytes, descriptor.as_bytes());
+    assert_eq!(*item.bytes, descriptor.as_bytes());
     app.press(Action::Cancel);
 
     // In the file envelope, under its own name.
     send(&mut app, &mut boxes, &host, "notes.bin");
     let item = device_reads(&app);
     assert_eq!(item.name, "notes.bin");
-    assert_eq!(item.bytes, binary);
+    assert_eq!(*item.bytes, binary);
 }
 
 #[test]
@@ -357,7 +357,7 @@ fn a_file_dropped_on_the_window_is_sent() {
     });
     serve_with(&mut app, &mut boxes, Some(&host), &mut Dirs::default());
     assert_eq!(app.screen, Screen::Transfer);
-    assert_eq!(device_reads(&app).bytes, psbt);
+    assert_eq!(*device_reads(&app).bytes, psbt);
 }
 
 #[test]

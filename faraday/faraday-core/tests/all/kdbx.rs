@@ -187,7 +187,7 @@ fn an_export_named_as_a_sealed_vault_waiting_goes_beside_it() {
     testkit::settle(&mut app);
     let file = |name: &str| app.outbox.iter().find(|i| i.name == name);
     assert_eq!(
-        file("mail.kdbx").map(|i| &i.bytes),
+        file("mail.kdbx").map(|i| &*i.bytes),
         Some(&sealed),
         "the sealed vault is still there, unchanged"
     );

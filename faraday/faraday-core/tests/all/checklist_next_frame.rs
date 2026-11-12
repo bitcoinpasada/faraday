@@ -142,7 +142,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
         .outbox
         .iter()
         .filter(|i| i.name.ends_with(".kdbx"))
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .collect();
     assert_eq!(earlier.len(), 1, "one vault sealed at the lock");
     let earlier_name = earlier[0].0.clone();

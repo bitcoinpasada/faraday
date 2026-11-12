@@ -1730,7 +1730,7 @@ impl Faraday {
     fn save_boxes(&mut self) {
         let pack = |v: &Vec<Item>| {
             v.iter()
-                .map(|i| (i.name.clone(), i.bytes.clone()))
+                .map(|i| (i.name.clone(), i.bytes.to_vec()))
                 .collect()
         };
         let kept = self.kept();
@@ -1888,7 +1888,7 @@ impl Faraday {
 
     /// A public or sealed file to the Outbox. A secret never comes this
     /// way: it goes through [`Faraday::offer_secret`], which asks first.
-    fn put_outbox(&mut self, name: &str, bytes: Vec<u8>) {
+    fn put_outbox(&mut self, name: &str, bytes: impl Into<zeroize::Zeroizing<Vec<u8>>>) {
         let c = self.compute();
         self.put_item(Item::new(&c, name, bytes));
     }
@@ -3297,12 +3297,7 @@ impl Faraday {
         } else {
             secrets::Keep::None
         };
-        let mut out = secrets::SecretOut::new(
-            name,
-            zeroize::Zeroizing::new(item.bytes.clone()),
-            &what,
-            gives,
-        );
+        let mut out = secrets::SecretOut::new(name, item.bytes.clone(), &what, gives);
         out.keep = keep;
         out.ack = ack;
         out.to_visit = true;

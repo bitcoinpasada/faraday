@@ -222,7 +222,7 @@ fn the_picture_and_the_file_go_to_the_outbox() {
         .iter()
         .find(|i| i.name == code.file_name)
         .unwrap();
-    assert_eq!(file.bytes, code.bytes);
+    assert_eq!(*file.bytes, code.bytes);
 }
 
 #[test]
@@ -241,7 +241,7 @@ fn a_second_code_with_the_same_label_keeps_the_first_in_the_outbox() {
     assert_ne!(first_name, second_name);
     for code in [&first, &second] {
         assert!(
-            app.outbox.iter().any(|i| i.bytes == code.bytes),
+            app.outbox.iter().any(|i| *i.bytes == code.bytes),
             "a code's file is missing from the Outbox"
         );
     }

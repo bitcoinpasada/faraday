@@ -729,7 +729,7 @@ impl Faraday {
                 return self.lightning.file_changed(asks);
             }
             self.lightning
-                .hsm_job(&self.session.keys, Zeroizing::new(item.bytes.clone()))
+                .hsm_job(&self.session.keys, item.bytes.clone())
         } else {
             self.lightning.read_job(&self.session.keys)
         };

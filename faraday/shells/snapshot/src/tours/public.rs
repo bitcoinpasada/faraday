@@ -115,7 +115,7 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .app
         .outbox
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .collect();
     t.app.storage(StorageEvent::Restored {
         inbox: vec![

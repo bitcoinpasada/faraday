@@ -140,7 +140,7 @@ fn pick_and_hold(app: &mut Faraday) -> Option<Vec<u8>> {
     app.outbox
         .iter()
         .find(|i| i.name == BOOT)
-        .map(|i| i.bytes.clone())
+        .map(|i| i.bytes.to_vec())
 }
 
 fn db_cert(app: &Faraday) -> Vec<u8> {

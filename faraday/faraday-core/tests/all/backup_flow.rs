@@ -1179,7 +1179,7 @@ fn a_copy_that_differs_from_one_already_read_lets_the_person_pick_which_to_unloc
     assert!(offered(&mut app, Action::Flow(F::Tap)));
     shell.flow(&mut app, F::Tap);
     let first = app.inbox().iter().find(|i| i.name == "main.kdbx").unwrap();
-    assert_eq!(first.bytes, main, "the first copy is in Files");
+    assert_eq!(*first.bytes, main, "the first copy is in Files");
     assert!(app.flow().unwrap().slots[1].bound.is_some());
 }
 
@@ -1533,7 +1533,7 @@ fn the_copy_not_picked_is_not_written_over_and_the_vault_goes_beside_it_after_a_
     shell.pull(&mut app, "S2");
     assert_eq!(step(&app), Step::Vaults);
     let kept = app.inbox().iter().find(|i| i.name == "main.kdbx").unwrap();
-    assert_eq!(kept.bytes, later, "the later copy is in Files");
+    assert_eq!(*kept.bytes, later, "the later copy is in Files");
     unlock(&mut app, PHRASE);
     assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
     make_key(&mut shell, &mut app, &GPG_FIELDS);
@@ -2955,7 +2955,7 @@ fn a_new_vault_in_the_flow_goes_beside_what_the_stick_holds_with_no_sheet() {
 fn with_a_plain_file(app: &mut Faraday) {
     let note = faraday_core::Item {
         name: "note.pdf".into(),
-        bytes: b"a plain file".to_vec(),
+        bytes: (b"a plain file".to_vec()).into(),
         kind: faraday_core::wallet::FileKind::Pdf,
         secret: false,
         picture: None,
@@ -3044,10 +3044,10 @@ fn the_answer_writes_the_bytes_first_sent_not_a_file_of_the_same_name() {
         .cloned()
         .expect("the sealed vault");
     let mut other = first.clone();
-    other.bytes = vault("Other", PHRASE_2, 0x42);
+    other.bytes = (vault("Other", PHRASE_2, 0x42)).into();
     app.outbox.insert(0, other);
     shell.press(&mut app, Action::NameTakenBeside);
-    assert_eq!(shell.disk("U").file("main-2.kdbx"), Some(&first.bytes));
+    assert_eq!(shell.disk("U").file("main-2.kdbx"), Some(&*first.bytes));
 }
 
 #[test]

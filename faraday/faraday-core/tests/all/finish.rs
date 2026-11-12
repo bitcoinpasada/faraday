@@ -47,7 +47,7 @@ fn a_signed_psbt_goes_beside_a_different_file_of_its_name() {
         .iter_mut()
         .find(|i| i.name == "spend-signed.psbt")
         .unwrap()
-        .bytes = b"another".to_vec();
+        .bytes = (b"another".to_vec()).into();
     app.press(Action::SignedToOutbox);
     assert_eq!(
         waiting(&app, "spend-signed"),

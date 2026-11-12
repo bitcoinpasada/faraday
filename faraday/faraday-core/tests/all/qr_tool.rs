@@ -410,7 +410,7 @@ fn sealed_note(note: &str, pass: &str) -> Vec<u8> {
         .find(|i| i.name == "qr-vault.pgp")
         .expect("the code is in the Outbox")
         .bytes
-        .clone()
+        .to_vec()
 }
 
 /// The code chosen in Files, where the tool opens on its Open card.

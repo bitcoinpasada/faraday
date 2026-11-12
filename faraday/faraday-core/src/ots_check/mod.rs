@@ -12,6 +12,7 @@ use crate::{Action, Faraday, Screen, flow};
 use faraday_crypto::work::Compute;
 use faraday_ots::{Error, HashOp, Header, Network, Outcome, Proof};
 use std::sync::Arc;
+use zeroize::Zeroizing;
 
 mod hash;
 use faraday_shell_api::Key;
@@ -83,7 +84,7 @@ pub(crate) struct FileGiven {
     pub digests: Vec<(HashOp, Vec<u8>)>,
     /// The whole file, kept to hash it under another operation when a proof
     /// names one; none where only a digest was given.
-    pub bytes: Option<Arc<Vec<u8>>>,
+    pub bytes: Option<Arc<Zeroizing<Vec<u8>>>>,
     /// Whether only the digest was given (typed, scanned or read from a
     /// text), never the file.
     pub digest_only: bool,
@@ -512,7 +513,7 @@ fn take_proof(app: &mut Faraday, c: &Compute, name: String, bytes: &[u8]) {
 /// Costs a pass over the file under the hash the proof names, or the
 /// SHA-256 until a proof is in (`hash::start`): a file over
 /// [`JOB_BYTES`] is hashed on the worker.
-fn take_file(app: &mut Faraday, c: &Compute, name: String, bytes: Vec<u8>) {
+fn take_file(app: &mut Faraday, c: &Compute, name: String, bytes: Zeroizing<Vec<u8>>) {
     let op = st(app)
         .and_then(|s| s.proof.as_ref().map(|p| p.value.file_op()))
         .unwrap_or(HashOp::Sha256);

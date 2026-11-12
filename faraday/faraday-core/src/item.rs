@@ -4,14 +4,16 @@ use crate::receipt::sha256_of;
 use crate::secrets;
 use crate::wallet::{self, FileKind};
 use faraday_crypto::work::Compute;
+use zeroize::Zeroizing;
 
 /// A file in the Inbox or the Outbox.
 #[derive(Clone)]
 pub struct Item {
     /// Its name.
     pub name: String,
-    /// Its contents.
-    pub bytes: Vec<u8>,
+    /// Its contents. An Inbox or Outbox file may be a seed or a share written
+    /// in the clear, so they are wiped when it goes, whatever it holds.
+    pub bytes: Zeroizing<Vec<u8>>,
     /// What it holds.
     pub kind: FileKind,
     /// A secret the person let out unprotected, whatever its contents
@@ -63,19 +65,12 @@ impl std::fmt::Debug for Item {
     }
 }
 
-/// An Inbox or Outbox file may be a seed or a share written in the clear:
-/// its bytes are wiped when it goes, whatever it holds.
-impl Drop for Item {
-    fn drop(&mut self) {
-        zeroize::Zeroize::zeroize(&mut self.bytes);
-    }
-}
-
 impl Item {
     /// Costs a classification, a parse of a wallet file's description and a
     /// hash of a vault or an EFI image. The file as it came in,
     /// classified, with what it describes read once.
-    pub(crate) fn new(c: &Compute, name: &str, bytes: Vec<u8>) -> Item {
+    pub(crate) fn new(c: &Compute, name: &str, bytes: impl Into<Zeroizing<Vec<u8>>>) -> Item {
+        let bytes: Zeroizing<Vec<u8>> = bytes.into();
         let wallet::Classified {
             kind,
             psbt,

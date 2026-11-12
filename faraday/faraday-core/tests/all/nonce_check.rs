@@ -229,7 +229,7 @@ fn a_second_checks_remove_takes_off_its_own_file() {
     )]);
     checked(&mut app);
     app.press(Action::NonceCheck(faraday_core::decode::CheckPress::Out));
-    app.outbox[0].bytes = b"another file".to_vec();
+    app.outbox[0].bytes = (b"another file".to_vec()).into();
     checked(&mut app);
     let _ = app.frame();
     assert!(

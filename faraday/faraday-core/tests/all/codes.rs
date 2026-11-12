@@ -42,7 +42,7 @@ fn outbox(app: &Faraday, name: &str) -> Vec<u8> {
             )
         })
         .bytes
-        .clone()
+        .to_vec()
 }
 
 fn text(bytes: &[u8]) -> String {
@@ -609,7 +609,7 @@ fn specter_diys_addwallet_reads_back_from_its_numbered_parts_shown_and_as_pictur
         .outbox
         .iter()
         .filter(|i| i.name.starts_with("savings-specter-diy-part-"))
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .collect();
     assert_eq!(pictures.len(), q_frames(&mut app, w));
     pictures.sort();

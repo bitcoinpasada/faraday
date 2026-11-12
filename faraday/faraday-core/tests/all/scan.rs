@@ -49,7 +49,7 @@ fn a_psbt_in_bbqr_parts_says_what_is_missing_and_arrives_whole() {
     }
     let item = app.inbox().last().expect("nothing reached the Inbox");
     assert_eq!(item.kind, FileKind::Psbt);
-    assert_eq!(item.bytes, psbt);
+    assert_eq!(*item.bytes, psbt);
 }
 
 #[test]
@@ -62,7 +62,7 @@ fn a_file_in_the_envelope_arrives_under_its_own_name() {
     }
     let item = app.inbox().last().expect("nothing reached the Inbox");
     assert_eq!(item.name, "spending-wallet.txt");
-    assert_eq!(item.bytes, wallet.as_bytes());
+    assert_eq!(*item.bytes, wallet.as_bytes());
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn closing_the_camera_mid_transfer_keeps_the_parts_read() {
         scan(&mut app, p);
     }
     let item = app.inbox().last().expect("the transfer did not complete");
-    assert_eq!(item.bytes, psbt);
+    assert_eq!(*item.bytes, psbt);
 }
 
 #[test]
@@ -254,7 +254,7 @@ fn a_descriptor_that_cannot_be_the_waiting_key_is_filed_and_says_why() {
         );
         assert!(toast.contains(why), "{text}: {toast}");
         assert!(
-            app.inbox().iter().any(|i| i.bytes == text.as_bytes()),
+            app.inbox().iter().any(|i| *i.bytes == text.as_bytes()),
             "{text} is not in the Inbox"
         );
     }
@@ -309,7 +309,7 @@ fn a_cosigners_key_on_another_network_than_the_loaded_keys_is_not_the_waiting_ke
         toast.contains("is in Files, not in Key 2") && toast.contains("Testnet"),
         "{toast}"
     );
-    assert!(app.inbox().iter().any(|i| i.bytes == key.as_bytes()));
+    assert!(app.inbox().iter().any(|i| *i.bytes == key.as_bytes()));
 }
 
 #[test]
@@ -342,7 +342,7 @@ fn a_cosigners_key_that_cannot_be_the_waiting_key_is_filed_and_says_why() {
         );
         assert!(toast.contains(why), "{text}: {toast}");
         assert!(
-            app.inbox().iter().any(|i| i.bytes == text.as_bytes()),
+            app.inbox().iter().any(|i| *i.bytes == text.as_bytes()),
             "{text} is not in the Inbox"
         );
     }
@@ -370,7 +370,7 @@ fn a_descriptor_scanned_with_no_wallet_being_made_goes_to_files() {
         app.toast_text()
     );
     let item = app.inbox().last().expect("not filed");
-    assert_eq!(item.bytes, text.as_bytes());
+    assert_eq!(*item.bytes, text.as_bytes());
     assert_eq!(item.kind, FileKind::Wallet);
 }
 
@@ -537,7 +537,7 @@ fn a_second_ur_animation_starts_again_instead_of_sticking() {
         .last()
         .expect("the second animation did not arrive");
     assert_eq!(item.kind, FileKind::Psbt);
-    assert_eq!(item.bytes, second);
+    assert_eq!(*item.bytes, second);
     // Then the first, from its start, on the scanner opened again.
     app.press(Action::Scan);
     for p in &a {
@@ -547,7 +547,7 @@ fn a_second_ur_animation_starts_again_instead_of_sticking() {
             break;
         }
     }
-    assert_eq!(app.inbox().last().unwrap().bytes, first);
+    assert_eq!(*app.inbox().last().unwrap().bytes, first);
 }
 
 #[test]
@@ -623,7 +623,7 @@ fn paste_reads_the_clipboard_as_a_scan_reads_a_qr() {
     app.clipboard = true;
     paste(&mut app, &kit("spending").descriptor);
     let item = app.inbox().last().expect("the paste did not arrive");
-    assert_eq!(item.bytes, kit("spending").descriptor.as_bytes());
+    assert_eq!(*item.bytes, kit("spending").descriptor.as_bytes());
 }
 
 #[test]
@@ -635,7 +635,14 @@ fn paste_takes_ur_parts_as_the_camera_does() {
     for p in &a[..count] {
         paste(&mut app, p);
     }
-    assert_eq!(app.inbox().last().expect("nothing arrived").bytes, psbt);
+    assert_eq!(
+        app.inbox()
+            .last()
+            .expect("nothing arrived")
+            .bytes
+            .as_slice(),
+        psbt
+    );
 }
 
 #[test]

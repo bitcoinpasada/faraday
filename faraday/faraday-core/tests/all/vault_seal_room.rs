@@ -69,7 +69,7 @@ fn sixty_new_entries_seal_and_all_of_them_come_back() {
         .outbox
         .iter()
         .find(|i| i.kind == FileKind::Vault)
-        .map(|i| i.bytes.clone())
+        .map(|i| i.bytes.to_vec())
         .unwrap_or_else(|| panic!("the vault was not sealed: {:?}", app.drawn_texts()));
 
     let again = open_file(sealed);

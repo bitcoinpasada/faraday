@@ -13,6 +13,7 @@ use faraday_bip::bitcoin::Txid;
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_psbt::signer::{Report, Verdict};
 use faraday_psbt::{Inspection, Level, OutputKind, Psbt};
+use zeroize::Zeroizing;
 
 /// The two cards that choose a PSBT.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,7 +80,7 @@ pub(crate) enum Origin {
 pub(crate) struct Side {
     /// The file's bytes as the person has them: raw, base64 decoded
     /// where the file is text.
-    pub bytes: Vec<u8>,
+    pub bytes: Zeroizing<Vec<u8>>,
     /// Its version 0 form (a version 2 file through `PsbtV2::to_v0`).
     pub psbt: Psbt,
     /// What the closed card shows: the file's name, or "Scanned".

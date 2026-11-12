@@ -386,7 +386,7 @@ fn a_psbt_read_at_add_a_keys_scanner_goes_to_its_spend_from_the_card() {
     app.press(Action::ReadGo(0));
     assert!(app.scan().is_none(), "the scanner stayed open");
     assert_eq!(app.inbox().len(), 1);
-    assert_eq!(app.inbox()[0].bytes, psbt);
+    assert_eq!(*app.inbox()[0].bytes, psbt);
     assert!(app.spend().is_some(), "no spend began");
 }
 

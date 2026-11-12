@@ -359,7 +359,7 @@ fn open_change_and_lock(app: &mut faraday_core::Faraday) -> Vec<u8> {
         .iter()
         .position(|i| i.kind == faraday_core::wallet::FileKind::Vault)
         .expect("the vault was sealed into the Outbox");
-    let bytes = app.outbox[sealed].bytes.clone();
+    let bytes = app.outbox[sealed].bytes.to_vec();
     assert!(bytes.len() as u64 > faraday_files::MAX_READ);
     assert!(app.restart_requested());
     bytes

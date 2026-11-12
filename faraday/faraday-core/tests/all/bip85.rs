@@ -240,7 +240,7 @@ fn an_exported_password_names_neither_its_parent_nor_its_index() {
         .find(|i| i.name.ends_with(".txt"))
         .expect("no password file");
     assert_eq!(out.name, "password.txt");
-    assert_eq!(out.bytes, format!("{}\n", want.as_str()).into_bytes());
+    assert_eq!(*out.bytes, format!("{}\n", want.as_str()).into_bytes());
 }
 
 /// BIP-85's value shows no code of any kind (`docs/QR.md` §7.3).

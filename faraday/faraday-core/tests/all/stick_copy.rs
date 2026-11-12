@@ -238,7 +238,7 @@ fn a_picture_copied_in_keeps_its_bytes_and_its_codes_are_still_read() {
         .iter()
         .find(|i| i.name == png.0)
         .expect("the picture itself is not in the Inbox");
-    assert_eq!(picture.bytes, png.1);
+    assert_eq!(*picture.bytes, png.1);
 
     app.storage(StorageEvent::Sticks(Vec::new()));
     let b = Stick::new("b", &[]);
@@ -563,7 +563,7 @@ fn a_gpg_public_key_and_signature_stay_in_the_inbox_across_a_lock() {
             .iter()
             .find(|i| i.name == *name)
             .unwrap_or_else(|| panic!("{name} did not outlive the lock"));
-        assert_eq!(&item.bytes, bytes);
+        assert_eq!(&*item.bytes, bytes);
         assert_eq!(item.kind, FileKind::Gpg);
     }
 }

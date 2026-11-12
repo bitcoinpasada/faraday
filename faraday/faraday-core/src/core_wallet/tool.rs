@@ -509,7 +509,7 @@ fn choose(s: &mut CoreWalletState, name: String) {
 /// A read of the chosen file, owned, for the worker.
 pub(crate) struct ReadWork {
     name: String,
-    bytes: Vec<u8>,
+    bytes: zeroize::Zeroizing<Vec<u8>>,
     beside: Vec<String>,
     mode: Network,
     passphrase: Option<SecretText>,

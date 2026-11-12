@@ -3,6 +3,7 @@
 //! (`docs/WORKERS.md` §2.1).
 
 use std::sync::Arc;
+use zeroize::Zeroizing;
 
 use faraday_crypto::work::Compute;
 use faraday_ots::HashOp;
@@ -21,14 +22,14 @@ pub(crate) const JOB_BYTES: usize = 3 << 20;
 /// A file to hash under one operation, owned.
 pub(crate) struct HashWork {
     name: String,
-    bytes: Arc<Vec<u8>>,
+    bytes: Arc<Zeroizing<Vec<u8>>>,
     op: HashOp,
 }
 
 /// A file hashed.
 pub(crate) struct HashDone {
     name: String,
-    bytes: Arc<Vec<u8>>,
+    bytes: Arc<Zeroizing<Vec<u8>>>,
     op: HashOp,
     digest: Vec<u8>,
 }
@@ -49,7 +50,13 @@ impl HashWork {
 
 /// Costs a pass over the file: hashes `bytes` under `op` now when they are
 /// at most [`JOB_BYTES`], else starts the job that does.
-pub(super) fn start(app: &mut Faraday, c: &Compute, name: String, bytes: Arc<Vec<u8>>, op: HashOp) {
+pub(super) fn start(
+    app: &mut Faraday,
+    c: &Compute,
+    name: String,
+    bytes: Arc<Zeroizing<Vec<u8>>>,
+    op: HashOp,
+) {
     let work = HashWork { name, bytes, op };
     if work.bytes.len() > JOB_BYTES {
         app.start(

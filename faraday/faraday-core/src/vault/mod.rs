@@ -359,7 +359,7 @@ impl Faraday {
         items
             .iter()
             .find(|i| i.name == f.name)
-            .map(|i| (i.bytes.clone(), i.sha))
+            .map(|i| (i.bytes.to_vec(), i.sha))
     }
 
     /// Runs a vault action.

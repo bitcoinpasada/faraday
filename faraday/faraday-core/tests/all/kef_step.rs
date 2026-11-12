@@ -329,7 +329,7 @@ fn a_code_already_written_once_goes_on_the_next_sticks_too() {
         .bytes
         .clone();
     for i in app.outbox.iter_mut().filter(|i| i.name.ends_with(".png")) {
-        i.bytes = vec![0; 8];
+        i.bytes = (vec![0; 8]).into();
     }
     testkit::outbox_to_files(&mut app, &names);
     reopen(&mut app);
@@ -339,7 +339,7 @@ fn a_code_already_written_once_goes_on_the_next_sticks_too() {
         assert!(disk.iter().any(|(f, _)| f == n), "{n} on a stick");
     }
     let png = disk.iter().find(|(f, _)| f.ends_with(".png")).unwrap();
-    assert_eq!(png.1, right, "the picture is the code's own");
+    assert_eq!(png.1, *right, "the picture is the code's own");
     picture_reads_as_file(&disk);
 }
 
@@ -379,7 +379,7 @@ fn another_code_of_the_same_name_made_later_is_left_alone_and_not_put_on_the_sti
     assert!(done(&app));
     let disk = write_sticks(&mut app, &mut shell);
     let file = disk.iter().find(|(f, _)| f.ends_with(".kef")).unwrap();
-    assert_ne!(file.1, other[0].bytes, "not the other code");
+    assert_ne!(file.1, *other[0].bytes, "not the other code");
     for o in &other {
         assert!(
             app.outbox

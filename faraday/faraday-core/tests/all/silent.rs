@@ -81,7 +81,7 @@ fn the_address_is_bip352s_for_the_key_and_a_label_makes_another() {
     assert_ne!(one, plain);
     // The record lists the label handed out and reads back.
     app.press(Action::SRecord);
-    let text = String::from_utf8(app.outbox[0].bytes.clone()).unwrap();
+    let text = String::from_utf8(app.outbox[0].bytes.to_vec()).unwrap();
     let w = SilentWallet::parse(&text).expect("the record does not read back");
     assert_eq!(w.labels, 1);
     assert_eq!(w.address(), plain);
@@ -453,7 +453,7 @@ fn after_a_label_is_handed_out_the_wallets_checksum_is_its_exported_files() {
     // leaves as it is.
     assert_eq!(before, after);
     app.press(Action::SRecord);
-    let text = String::from_utf8(app.outbox[0].bytes.clone()).unwrap();
+    let text = String::from_utf8(app.outbox[0].bytes.to_vec()).unwrap();
     let exported =
         faraday_core::wallet::read_wallet(&c, &text).expect("the file reads as a wallet");
     assert_eq!(exported.silent().unwrap().labels, 2);
@@ -630,7 +630,7 @@ fn descriptor_out() -> (Faraday, String) {
         .iter()
         .find(|i| i.name == name)
         .unwrap_or_else(|| panic!("no {name}"));
-    let text = String::from_utf8(item.bytes.clone()).unwrap();
+    let text = String::from_utf8(item.bytes.to_vec()).unwrap();
     (app, text)
 }
 

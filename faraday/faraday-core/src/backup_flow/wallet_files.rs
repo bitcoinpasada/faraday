@@ -325,7 +325,7 @@ pub(crate) fn wallet_share_record(
                         .iter()
                         .chain(app.outbox.iter())
                         .filter(|it| it.kind == crate::wallet::FileKind::Wallet)
-                        .filter_map(|it| String::from_utf8(it.bytes.clone()).ok()),
+                        .filter_map(|it| String::from_utf8(it.bytes.to_vec()).ok()),
                 )
                 .find(|t| of_wallet(t))?;
             let mut s = crate::wallet::Session::on(app.session.network());

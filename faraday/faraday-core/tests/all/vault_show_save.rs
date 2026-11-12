@@ -394,7 +394,7 @@ fn save_to_a_stick_says_the_seed_line_first_and_writes_the_ticked_forms() {
     assert_eq!(app.sheet, None);
     let words_file = outbox(&app, &txt);
     assert!(words_file.secret);
-    assert_eq!(words_file.bytes, format!("{}\n", words()).into_bytes());
+    assert_eq!(*words_file.bytes, format!("{}\n", words()).into_bytes());
     let picture = outbox(&app, &png);
     assert!(picture.secret);
     assert_eq!(read_png(&picture.bytes), seedqr_digits());
@@ -463,7 +463,7 @@ fn a_japanese_seed_saved_to_a_stick_is_its_words() {
         .iter()
         .map(|&i| Language::Japanese.word(i))
         .collect();
-    assert_eq!(file.bytes, format!("{}\n", want.join(" ")).into_bytes());
+    assert_eq!(*file.bytes, format!("{}\n", want.join(" ")).into_bytes());
 }
 
 #[test]
@@ -541,7 +541,7 @@ fn a_wallet_s_save_writes_its_descriptor_text_qr_and_software_files() {
         .into_iter()
         .find(|k| k.id == "spending")
         .unwrap();
-    let text = String::from_utf8(outbox(&app, "spending-descriptor.txt").bytes.clone()).unwrap();
+    let text = String::from_utf8(outbox(&app, "spending-descriptor.txt").bytes.to_vec()).unwrap();
     assert_eq!(
         text.trim_end().split('#').next(),
         kit.descriptor.split('#').next()
@@ -552,7 +552,7 @@ fn a_wallet_s_save_writes_its_descriptor_text_qr_and_software_files() {
         String::from_utf8(read_png(&picture.bytes)).unwrap(),
         text.trim_end()
     );
-    let json = String::from_utf8(outbox(&app, "spending-wallet.json").bytes.clone()).unwrap();
+    let json = String::from_utf8(outbox(&app, "spending-wallet.json").bytes.to_vec()).unwrap();
     assert!(json.contains("\"descriptor\""), "{json}");
     assert_eq!(app.outbox.len(), 3, "{:?}", outbox_names(&app));
     assert!(app.session.wallets.is_empty(), "saving it loads the wallet");

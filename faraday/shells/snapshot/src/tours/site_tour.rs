@@ -216,7 +216,7 @@ fn sign(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .app
         .inbox()
         .iter()
-        .rposition(|i| i.bytes == psbt)
+        .rposition(|i| *i.bytes == psbt)
         .ok_or("the PSBT is not in Files")?;
     t.press(Action::StartSpend(at));
     t.shot("sign")

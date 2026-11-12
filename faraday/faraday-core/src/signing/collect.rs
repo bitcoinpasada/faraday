@@ -22,11 +22,12 @@ use crate::{Faraday, wallet::Wallet};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_psbt::{MusigSessionView, Psbt};
+use zeroize::Zeroizing;
 
 /// A Collect to run on the worker, owned.
 pub(crate) struct CollectWork {
     /// The Inbox file's bytes and name.
-    bytes: Vec<u8>,
+    bytes: Zeroizing<Vec<u8>>,
     name: String,
     spend: Spend,
     /// The MuSig2 round's public facts, when the spend holds a round.
@@ -37,7 +38,7 @@ pub(crate) struct CollectWork {
     /// The part file's name, whether this spend put one before, and the
     /// bytes waiting in the Outbox under it.
     part: (String, bool),
-    waiting: Option<Vec<u8>>,
+    waiting: Option<Zeroizing<Vec<u8>>>,
     /// Came while the Spend tab's spend is under way.
     spend_backup: bool,
 }
@@ -46,7 +47,7 @@ pub(crate) struct CollectWork {
 pub(crate) struct Planned {
     pub(crate) plan: PartPlan,
     pub(crate) name: String,
-    pub(crate) waiting: Option<Vec<u8>>,
+    pub(crate) waiting: Option<Zeroizing<Vec<u8>>>,
 }
 
 /// A Collect's answer.
@@ -101,7 +102,7 @@ impl CollectWork {
                     &spend,
                     f.complete,
                     (&part_name, recorded),
-                    waiting.as_deref(),
+                    waiting.as_ref().map(|w| w.as_slice()),
                 ),
                 name: part_name.clone(),
                 waiting: waiting.clone(),

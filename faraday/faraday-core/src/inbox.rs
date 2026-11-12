@@ -318,7 +318,7 @@ impl InboxArea {
     /// Gives file `at` the contents `bytes`.
     #[cfg(feature = "testkit")]
     pub(crate) fn set_bytes(&mut self, at: usize, bytes: Vec<u8>) {
-        self.files.changed()[at].bytes = bytes;
+        self.files.changed()[at].bytes = bytes.into();
     }
 
     /// Flips the lowest bit of byte `i` of file `at`.
@@ -699,22 +699,29 @@ impl Faraday {
             SeedSource::Codex32(_) => b"codex32",
             SeedSource::Loaded => return None,
         };
-        let material: Vec<u8> = match source {
-            SeedSource::Words(k) => items.get(*k)?.bytes.clone(),
-            SeedSource::WordsWith(k, p) => {
-                let mut v = items.get(*k)?.bytes.clone();
-                v.push(0);
-                v.extend_from_slice(&items.get(*p)?.bytes);
-                v
+        let mut material: Zeroizing<Vec<u8>> = Zeroizing::new(Vec::new());
+        match source {
+            SeedSource::Words(k) => {
+                let b = &items.get(*k)?.bytes;
+                material.reserve_exact(b.len());
+                material.extend_from_slice(b);
             }
-            SeedSource::Slip39(ks) | SeedSource::Codex32(ks) => ks
-                .iter()
-                .filter_map(|k| items.get(*k))
-                .flat_map(|i| i.bytes.clone())
-                .collect(),
+            SeedSource::WordsWith(k, p) => {
+                let (w, p) = (&items.get(*k)?.bytes, &items.get(*p)?.bytes);
+                material.reserve_exact(w.len() + 1 + p.len());
+                material.extend_from_slice(w);
+                material.push(0);
+                material.extend_from_slice(p);
+            }
+            SeedSource::Slip39(ks) | SeedSource::Codex32(ks) => {
+                let held: Vec<&Item> = ks.iter().filter_map(|k| items.get(*k)).collect();
+                material.reserve_exact(held.iter().map(|i| i.bytes.len()).sum());
+                for i in held {
+                    material.extend_from_slice(&i.bytes);
+                }
+            }
             SeedSource::Loaded => return None,
         };
-        let material = Zeroizing::new(material);
         self.kept.fingerprint_memo(tag, &material, || {
             self.secret_in(c, items, source)?.fingerprint(
                 c,
@@ -770,7 +777,7 @@ impl Faraday {
         if !self
             .inbox
             .iter()
-            .any(|i| i.name == name && i.bytes != bytes)
+            .any(|i| i.name == name && *i.bytes != bytes)
         {
             self.inbox.retain(|i| i.name != name);
             return name.to_string();

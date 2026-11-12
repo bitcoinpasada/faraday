@@ -19,6 +19,7 @@ use faraday_bip::bitcoin::{Address, Amount, Script, Transaction, TxOut};
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
 use faraday_psbt::transaction::money_total;
+use zeroize::Zeroizing;
 
 use crate::Screen;
 use crate::compare::{self, ComparePress, CompareState, Slot};
@@ -302,7 +303,7 @@ pub struct OutsideCheck {
     /// `None` until Save to a stick.
     pub out_name: Option<String>,
     /// The file Save to a stick puts For the stick: its name and bytes.
-    pub out: (String, Vec<u8>),
+    pub out: (String, Zeroizing<Vec<u8>>),
     /// The screen its back link returns to.
     pub back: Screen,
     /// The hex is shown.
@@ -324,7 +325,7 @@ pub struct OutsideCheck {
 struct Worked {
     finished: Option<Transaction>,
     hex: Option<String>,
-    out: (String, Vec<u8>),
+    out: (String, Zeroizing<Vec<u8>>),
 }
 
 impl OutsideCheck {
@@ -701,7 +702,7 @@ impl Faraday {
         let out = match (&raw, &hex) {
             (None, Some(h)) => (
                 format!("{}-final.txn", crate::result_stem(&name)),
-                h.clone().into_bytes(),
+                Zeroizing::new(h.clone().into_bytes()),
             ),
             _ => (name.clone(), bytes),
         };
@@ -1091,7 +1092,10 @@ impl Faraday {
 
     /// The file at this place of [`check::files`]: its bytes, name and
     /// origin.
-    fn check_file_at(all: &[(bool, usize, &Item)], n: usize) -> (Vec<u8>, String, check::Origin) {
+    fn check_file_at(
+        all: &[(bool, usize, &Item)],
+        n: usize,
+    ) -> (Zeroizing<Vec<u8>>, String, check::Origin) {
         let (out, _, item) = all[n];
         (
             item.bytes.clone(),
@@ -1108,8 +1112,8 @@ impl Faraday {
     fn signer_check_start(
         &mut self,
         c: &Compute,
-        sent: Option<(Vec<u8>, String, check::Origin)>,
-        returned: Option<(Vec<u8>, String, check::Origin)>,
+        sent: Option<(Zeroizing<Vec<u8>>, String, check::Origin)>,
+        returned: Option<(Zeroizing<Vec<u8>>, String, check::Origin)>,
     ) {
         let back = match (self.screen, self.decode.check()) {
             (Screen::SignerCheck, Some(s)) => s.back,
@@ -1144,7 +1148,7 @@ impl Faraday {
         };
         let txid = psbt.inner().unsigned_tx.compute_txid();
         let side = check::Side {
-            bytes: check::raw_bytes(bytes),
+            bytes: Zeroizing::new(check::raw_bytes(bytes)),
             psbt,
             name,
             origin,
@@ -1408,7 +1412,7 @@ impl Faraday {
     fn compare_file_at(
         all: &[(bool, usize, &Item)],
         item: &Item,
-    ) -> (Vec<u8>, String, check::Origin) {
+    ) -> (Zeroizing<Vec<u8>>, String, check::Origin) {
         let outbox = all.iter().any(|(o, _, i)| *o && std::ptr::eq(*i, item));
         (
             item.bytes.clone(),
@@ -1421,7 +1425,11 @@ impl Faraday {
     }
 
     /// The file at this place of Files: its bytes, name and origin.
-    fn compare_item(&self, outbox: bool, k: usize) -> Option<(Vec<u8>, String, check::Origin)> {
+    fn compare_item(
+        &self,
+        outbox: bool,
+        k: usize,
+    ) -> Option<(Zeroizing<Vec<u8>>, String, check::Origin)> {
         let item = if outbox {
             self.outbox.get(k)
         } else {
@@ -1507,7 +1515,11 @@ impl Faraday {
                 .spend
                 .out_bytes()
                 .unwrap_or_else(|_| s.spend.psbt.to_bytes());
-            (bytes, s.spend.source.clone(), check::Origin::Scanned)
+            (
+                Zeroizing::new(bytes),
+                s.spend.source.clone(),
+                check::Origin::Scanned,
+            )
         });
         self.compare_start(c, Some(first), second);
     }
@@ -1517,8 +1529,8 @@ impl Faraday {
     fn compare_start(
         &mut self,
         c: &Compute,
-        first: Option<(Vec<u8>, String, check::Origin)>,
-        second: Option<(Vec<u8>, String, check::Origin)>,
+        first: Option<(Zeroizing<Vec<u8>>, String, check::Origin)>,
+        second: Option<(Zeroizing<Vec<u8>>, String, check::Origin)>,
     ) {
         let back = match (self.screen, self.decode.compare()) {
             (Screen::Compare, Some(s)) => s.back,
@@ -1566,7 +1578,7 @@ impl Faraday {
             .collect();
         outpoints.sort();
         let side = compare::Side {
-            bytes: bytes.to_vec(),
+            bytes: Zeroizing::new(bytes.to_vec()),
             psbt,
             version,
             outpoints,
@@ -1673,7 +1685,7 @@ impl Faraday {
             .compare()
             .map(|s| (differs(&s.first), differs(&s.second)));
         // The ids of the finished transactions the lists show.
-        let ids: Vec<(Vec<u8>, faraday_bip::bitcoin::Txid)> = {
+        let ids: Vec<(Zeroizing<Vec<u8>>, faraday_bip::bitcoin::Txid)> = {
             let kept = self.decode.compare().map(|s| &s.ids[..]).unwrap_or(&[]);
             self.inbox
                 .iter()

@@ -1459,7 +1459,7 @@ pub fn public_files(name: &str, descriptor: &str) -> Result<Vec<(String, Vec<u8>
     Ok(app
         .outbox
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .collect())
 }
 

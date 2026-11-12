@@ -17,6 +17,7 @@ use crate::worker::kef_make::{self, IdChoice, Options, Saved};
 use crate::{Action, Faraday, Screen, Sheet, bstep, plan};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Key;
+use zeroize::Zeroizing;
 
 impl WalletBackupArea {
     /// Seed `i`'s Krux code form, once its item was opened.
@@ -128,7 +129,7 @@ fn box_of(app: &Faraday, name: &str) -> Option<bool> {
 /// the files the flow wrote are moved to), when they are the bytes the
 /// record has the hash of. A file of the name made since is another code:
 /// the answer is then `None`.
-fn kef_bytes(app: &Faraday, c: &Compute, m: &KefMark) -> Option<Vec<u8>> {
+fn kef_bytes(app: &Faraday, c: &Compute, m: &KefMark) -> Option<Zeroizing<Vec<u8>>> {
     app.outbox
         .iter()
         .chain(app.inbox.iter())
@@ -208,7 +209,7 @@ pub(crate) fn stick_put(app: &mut Faraday, i: usize) {
         return;
     }
     if let Some(name) = &m.png
-        && let Some(made) = remade(&c, bytes.clone(), &m)
+        && let Some(made) = remade(&c, &bytes, &m)
         && let Ok(view) = &made.view
         && let Some((_, png)) = view.png(&c)
     {
@@ -219,8 +220,8 @@ pub(crate) fn stick_put(app: &mut Faraday, i: usize) {
 
 /// Costs what `kef_make::made` costs. The code of `bytes` as the record
 /// `m` has it drawn; `None` where the bytes do not read.
-fn remade(c: &Compute, bytes: Vec<u8>, m: &KefMark) -> Option<kef_make::Made> {
-    let env = faraday_keys::kef::unwrap(&bytes).ok()?;
+fn remade(c: &Compute, bytes: &[u8], m: &KefMark) -> Option<kef_make::Made> {
+    let env = faraday_keys::kef::unwrap(bytes).ok()?;
     let options = Options {
         version: env.version,
         low: m.low,
@@ -231,7 +232,7 @@ fn remade(c: &Compute, bytes: Vec<u8>, m: &KefMark) -> Option<kef_make::Made> {
             Options::default().id
         },
     };
-    Some(kef_make::made(c, bytes, &options))
+    Some(kef_make::made(c, bytes.to_vec(), &options))
 }
 
 /// Keeps seed `i`'s code in the record as its form stands.
@@ -253,7 +254,7 @@ fn restore(app: &mut Faraday, i: usize, form: &mut KefForm) {
     let Some(bytes) = kef_bytes(app, &c, &m).filter(|_| named(app, &m)) else {
         return;
     };
-    let Some(made) = remade(&c, bytes, &m) else {
+    let Some(made) = remade(&c, &bytes, &m) else {
         return;
     };
     form.restore(

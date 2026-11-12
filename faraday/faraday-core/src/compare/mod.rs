@@ -14,6 +14,7 @@ use faraday_bip::keys::Fingerprint;
 use faraday_psbt::Psbt;
 use faraday_psbt::bump::{Bump, Line, Outcome};
 use faraday_psbt::diff::Differences;
+use zeroize::Zeroizing;
 
 pub(crate) mod others;
 pub(crate) mod screen;
@@ -79,7 +80,7 @@ pub enum ComparePress {
 /// One side of the comparison: the file as the person has it, read.
 pub(crate) struct Side {
     /// The file's bytes as the person has them (raw, base64 or hex).
-    pub bytes: Vec<u8>,
+    pub bytes: Zeroizing<Vec<u8>>,
     /// Its version 0 form (a version 2 file through `PsbtV2::to_v0`),
     /// or a finished transaction as a PSBT whose inputs are final.
     pub psbt: Psbt,
@@ -116,7 +117,7 @@ pub(crate) struct CompareState {
     /// The ids of the finished transactions in Files that the lists show,
     /// worked out beside the file's bytes by `Faraday::compare_sync`, so
     /// drawing reads them.
-    pub ids: Vec<(Vec<u8>, Txid)>,
+    pub ids: Vec<(Zeroizing<Vec<u8>>, Txid)>,
     /// The card open.
     pub open: u8,
     /// Why a card refused what was given it.
@@ -206,7 +207,10 @@ impl CompareState {
 
     /// A finished transaction's id as `sync` kept it.
     fn id_of(&self, bytes: &[u8]) -> Option<Txid> {
-        self.ids.iter().find(|(b, _)| b == bytes).map(|(_, t)| *t)
+        self.ids
+            .iter()
+            .find(|(b, _)| b.as_slice() == bytes)
+            .map(|(_, t)| *t)
     }
 
     /// A file's line in the lists: "{n} signatures · {id}" for a PSBT,

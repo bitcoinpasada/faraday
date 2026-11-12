@@ -1232,7 +1232,7 @@ impl Faraday {
         // Read on Home's Scan the text is in Files and the card holds no
         // copy.
         let text = match filed.and_then(|at| self.inbox.get(at)) {
-            Some(item) => zeroize::Zeroizing::new(item.bytes.clone()),
+            Some(item) => item.bytes.clone(),
             None => code,
         };
         let text = zeroize::Zeroizing::new(self.scanned_own(&text));
@@ -1721,7 +1721,7 @@ impl Faraday {
             return false;
         };
         let kind = scan_read::public_kind(item.kind, false, &item.bytes);
-        let bytes = zeroize::Zeroizing::new(item.bytes.clone());
+        let bytes = item.bytes.clone();
         let mut card = self.read_card(c, kind, (None, "txt", bytes));
         card.ways.retain(|w| *w != Way::Keep);
         // A text whose own bytes are not UTF-8 is not offered as a message.

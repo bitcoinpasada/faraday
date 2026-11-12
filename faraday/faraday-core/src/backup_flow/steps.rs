@@ -2720,7 +2720,7 @@ impl Faraday {
                     if f.plan.vaults.get(v).is_some_and(|vp| vp.existing) {
                         asks.push(it.name.clone());
                     }
-                    sends.push((it.name.clone(), Zeroizing::new(it.bytes.clone()), true));
+                    sends.push((it.name.clone(), it.bytes.clone(), true));
                 }
                 _ => refused = true,
             }
@@ -2747,7 +2747,7 @@ impl Faraday {
                 .find(|it| it.name == name)
             {
                 Some(it) if it.exposure() != crate::secrets::Exposure::Secret => {
-                    sends.push((it.name.clone(), Zeroizing::new(it.bytes.clone()), false));
+                    sends.push((it.name.clone(), it.bytes.clone(), false));
                 }
                 Some(it)
                     if files_stick
@@ -2756,7 +2756,7 @@ impl Faraday {
                         && f.kind.is_wallet()
                         && f.seed_file_ok_for(&c, slot, &it.name) =>
                 {
-                    sends.push((it.name.clone(), Zeroizing::new(it.bytes.clone()), false));
+                    sends.push((it.name.clone(), it.bytes.clone(), false));
                 }
                 _ => refused = true,
             }
@@ -3033,7 +3033,7 @@ impl Faraday {
             .iter()
             .chain(self.inbox.iter())
             .find(|it| it.name == meant)
-            .map(|it| Zeroizing::new(it.bytes.clone()));
+            .map(|it| it.bytes.clone());
         let (Some(bytes), false) = (item, w.retried.iter().any(|n| n == meant)) else {
             self.flows.all[i].live.writing = None;
             self.name_taken_flow_ended();

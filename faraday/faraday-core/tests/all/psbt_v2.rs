@@ -123,7 +123,7 @@ fn signed_from(bytes: Vec<u8>) -> (Faraday, Vec<u8>) {
         .find(|i| i.name == "spend-signed.psbt")
         .expect("the signed PSBT For the stick")
         .bytes
-        .clone();
+        .to_vec();
     (app, out)
 }
 

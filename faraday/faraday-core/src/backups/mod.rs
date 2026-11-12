@@ -3869,7 +3869,7 @@ impl Faraday {
             .outbox
             .iter()
             .find(|it| it.name == meant)
-            .is_some_and(|it| it.bytes == bytes);
+            .is_some_and(|it| *it.bytes == bytes);
         let key = (0..self.session.keys.len())
             .find(|&k| crate::wallet::fp_text(self.session.keys[k].fingerprint) == fp);
         let reads = match (key, codes) {

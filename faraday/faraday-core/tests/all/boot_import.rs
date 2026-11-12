@@ -1339,7 +1339,7 @@ fn import_keeps_a_file_of_a_held_name_beside_it_and_a_same_one_once() {
         "{names:?}"
     );
     let held = app.inbox().iter().find(|i| i.name == "notes.txt").unwrap();
-    assert_eq!(held.bytes, b"Other notes\n");
+    assert_eq!(*held.bytes, b"Other notes\n");
     assert!(
         app.toast_text()
             .is_some_and(|t| t.ends_with("already in Files, kept as notes-2.txt")),

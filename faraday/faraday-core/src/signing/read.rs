@@ -20,6 +20,7 @@ use crate::wallet::{self, Session, Spend, SpendState, Wallet};
 use crate::worker::Job;
 use crate::{Faraday, Screen, Sheet};
 use faraday_crypto::work::Compute;
+use zeroize::Zeroizing;
 
 /// Where the press that opened the spend goes on from the answer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,7 +34,7 @@ pub(crate) enum Then {
 /// A file to read and work out on the worker: its bytes and a copy of the
 /// session, owned.
 pub(crate) struct ReadWork {
-    bytes: Vec<u8>,
+    bytes: Zeroizing<Vec<u8>>,
     session: Session,
     from: Origin,
 }
@@ -61,7 +62,7 @@ struct Read {
 /// A read's answer.
 pub(crate) struct ReadDone {
     /// The file's bytes as the job was given them.
-    bytes: Vec<u8>,
+    bytes: Zeroizing<Vec<u8>>,
     /// `None` where the file holds no PSBT.
     read: Option<Read>,
     /// The file is a PSBT with silent payment fields, which is not read.

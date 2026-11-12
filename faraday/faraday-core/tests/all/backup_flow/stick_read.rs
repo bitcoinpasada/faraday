@@ -1002,7 +1002,7 @@ fn a_file_known_as_a_vault_outside_the_plan_gets_no_press_and_its_newer_copy_sta
     assert!(
         app.inbox()
             .iter()
-            .any(|i| i.name == "w.kdbx" && i.bytes == w_new),
+            .any(|i| i.name == "w.kdbx" && *i.bytes == w_new),
         "{names:?}"
     );
 }

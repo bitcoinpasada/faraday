@@ -203,7 +203,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
         "savings-descriptor.png",
     ] {
         assert!(in_outbox(&app, name), "{name} is not in the Outbox");
-        let made = &app.outbox.iter().find(|i| i.name == name).unwrap().bytes;
+        let made = &*app.outbox.iter().find(|i| i.name == name).unwrap().bytes;
         let kit = &want.iter().find(|(n, _)| n == name).unwrap().1;
         assert_eq!(made, kit, "{name}");
     }
@@ -365,7 +365,7 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
     app.press(Action::OutboxRemove(at));
     app.outbox.push(faraday_core::Item {
         name: name.clone(),
-        bytes: b"from elsewhere".to_vec(),
+        bytes: (b"from elsewhere".to_vec()).into(),
         kind: faraday_core::wallet::FileKind::Text,
         secret: false,
         picture: None,
@@ -398,7 +398,7 @@ fn a_key_row_is_not_given_another_file_of_the_name() {
     assert!(
         app.outbox
             .iter()
-            .any(|i| i.name == name && i.bytes == b"from elsewhere"),
+            .any(|i| i.name == name && *i.bytes == b"from elsewhere"),
         "the other file stays"
     );
 }
@@ -444,7 +444,7 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
             .iter()
             .find(|i| i.name == format!("xpub-{name}.txt"))
             .expect("the key's file");
-        let text = String::from_utf8(file.bytes.clone()).unwrap();
+        let text = String::from_utf8(file.bytes.to_vec()).unwrap();
         let key = app.session.wallets[w].policy().keys()[usize::from(slot)].key_text();
         assert!(text.contains(&key), "{text}");
         let record = app

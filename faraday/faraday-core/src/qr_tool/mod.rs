@@ -151,7 +151,7 @@ pub struct QrToolState {
     error: Option<String>,
     made: Option<Made>,
     /// A QR vault's bytes brought to the Open card (public: encrypted).
-    code: Option<Vec<u8>>,
+    code: Option<Zeroizing<Vec<u8>>>,
     /// What the code opened to; the item itself is held in `faraday-keys`.
     holds: Option<QrHolds>,
     /// What an opened passphrase does for the keys loaded, worked out when
@@ -191,7 +191,7 @@ impl QrToolState {
 
     /// The QR vault code a scan or a file brought, for the Open card.
     pub fn code_to_open(&self) -> Option<&[u8]> {
-        self.code.as_deref()
+        self.code.as_ref().map(|c| c.as_slice())
     }
 
     /// What the code brought opened to, once opened.
@@ -379,10 +379,10 @@ pub(crate) fn open_item(app: &mut Faraday, id: faraday_keys::vault::VaultId, at:
 
 /// Opens the tool, from the page on show, holding a QR vault code a
 /// scanner read or a file in Files held, for the Open card.
-pub(crate) fn open_code(app: &mut Faraday, bytes: Vec<u8>) {
+pub(crate) fn open_code(app: &mut Faraday, bytes: impl Into<Zeroizing<Vec<u8>>>) {
     open(app);
     if let Some(s) = st(app) {
-        s.code = Some(bytes);
+        s.code = Some(bytes.into());
         s.open = Some(qstep::CONTENTS);
         s.focus = Some(Field::Pass);
     }

@@ -419,7 +419,7 @@ fn making_a_key_keeps_its_revocation_with_it_and_not_in_the_outbox() {
     assert!(names[0].ends_with(".asc") && !names[0].contains("revocation"));
     let rev_text = armor(Armor::PublicKey, &rev);
     for item in &app.outbox {
-        assert_ne!(item.bytes, rev_text.as_bytes());
+        assert_ne!(*item.bytes, rev_text.as_bytes());
         assert!(
             !String::from_utf8_lossy(&item.bytes).contains("revocation certificate"),
             "{}",
@@ -616,7 +616,7 @@ fn the_revocation_is_exported_through_the_secret_sheet_as_a_rev_file() {
         .find(|i| i.name == format!("release-{fpr}.rev"))
         .expect("the .rev file");
     assert!(item.secret, "listed with the unprotected secrets");
-    let text = String::from_utf8(item.bytes.clone()).unwrap();
+    let text = String::from_utf8(item.bytes.to_vec()).unwrap();
     assert!(text.starts_with("This is a revocation certificate for the OpenPGP key:"));
     assert!(text.contains(
         "\n:-----BEGIN PGP PUBLIC KEY BLOCK-----\nComment: This is a revocation certificate\n"
@@ -945,7 +945,7 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
         &mut app,
         Item {
             name: format!("{name}.asc"),
-            bytes: b"-----BEGIN PGP SIGNATURE-----\n...".to_vec(),
+            bytes: (b"-----BEGIN PGP SIGNATURE-----\n...".to_vec()).into(),
             kind: FileKind::Other,
             secret: false,
             picture: None,
@@ -1026,7 +1026,7 @@ fn a_signature_never_overwrites_the_certificate() {
         &mut app,
         Item {
             name: stem.clone(),
-            bytes: b"the file named like the certificate".to_vec(),
+            bytes: (b"the file named like the certificate".to_vec()).into(),
             kind: FileKind::Text,
             secret: false,
             picture: None,
@@ -1110,7 +1110,7 @@ fn the_signature_code_follows_the_file_not_its_place() {
         0,
         Item {
             name: "another".into(),
-            bytes: b"another file".to_vec(),
+            bytes: (b"another file".to_vec()).into(),
             kind: FileKind::Text,
             secret: false,
             picture: None,
@@ -1201,7 +1201,7 @@ fn renewing_asks_the_term_and_updates_the_record_and_the_export_together() {
     app.press(Action::Vault(V::GpgExport));
     assert_eq!(app.outbox.len(), 1);
     assert_eq!(
-        app.outbox[0].bytes,
+        *app.outbox[0].bytes,
         cert.as_bytes(),
         "Export is the record's"
     );

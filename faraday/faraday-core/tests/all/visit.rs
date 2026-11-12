@@ -156,7 +156,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
     for i in 0..n {
         app.outbox.push(Item {
             name: format!("backup-{i:02}.pdf"),
-            bytes: vec![b'%'; 2000],
+            bytes: (vec![b'%'; 2000]).into(),
             kind: FileKind::Pdf,
             secret: false,
             picture: None,
@@ -171,7 +171,7 @@ fn with_outbox(mut app: Faraday, n: usize, secret: bool) -> Faraday {
     if secret {
         app.outbox.push(Item {
             name: "seed-words.txt".into(),
-            bytes: b"words".to_vec(),
+            bytes: (b"words".to_vec()).into(),
             kind: FileKind::Text,
             secret: true,
             picture: None,
@@ -851,7 +851,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
     for (name, bytes) in outbox {
         app.outbox.push(Item {
             name: name.into(),
-            bytes,
+            bytes: bytes.into(),
             kind: FileKind::Pdf,
             secret: false,
             picture: None,
@@ -1195,7 +1195,7 @@ fn a_cancel_on_another_stick_leaves_the_receipt_of_the_last_write() {
     }]));
     app.outbox.push(Item {
         name: "vault.kdbx".into(),
-        bytes: vault,
+        bytes: (vault).into(),
         kind: FileKind::Pdf,
         secret: false,
         picture: None,
@@ -1395,7 +1395,7 @@ fn made_unclean(app: &mut Faraday) {
         app,
         Item {
             name: "my-words.txt".into(),
-            bytes: b"words".to_vec(),
+            bytes: (b"words".to_vec()).into(),
             kind: FileKind::Words,
             secret: false,
             picture: None,

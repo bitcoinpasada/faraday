@@ -1596,7 +1596,7 @@ fn a_vault_made_with_a_chosen_file_opens_with_it_and_the_file_leaves_files_at_cr
         .find(|i| i.name == "vault.kdbx")
         .expect("the vault was not made")
         .bytes
-        .clone();
+        .to_vec();
     // The same bytes brought back as a file open the vault.
     let mut again = process_at(
         800,
@@ -1678,7 +1678,7 @@ fn lock_to_outbox(app: &mut Faraday) -> Files {
     testkit::settle(app);
     app.outbox
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .collect()
 }
 
@@ -2061,7 +2061,7 @@ fn keyx_bytes(app: &Faraday, name: &str) -> Option<Vec<u8>> {
     app.outbox
         .iter()
         .find(|i| i.name == name)
-        .map(|i| i.bytes.clone())
+        .map(|i| i.bytes.to_vec())
 }
 
 #[test]

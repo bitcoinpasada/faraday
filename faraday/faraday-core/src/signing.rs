@@ -21,6 +21,7 @@ use crate::worker::Job;
 use crate::{Faraday, spend_opens_round};
 use faraday_crypto::work::Compute;
 use faraday_psbt::Psbt;
+use zeroize::Zeroizing;
 
 /// A signing to run on the worker: the job, what the press that started
 /// it needs to finish, and what the spend needs worked out after it.
@@ -37,7 +38,7 @@ struct After {
     session: wallet::Session,
     spend: wallet::Spend,
     part: (String, bool),
-    waiting: Option<Vec<u8>>,
+    waiting: Option<Zeroizing<Vec<u8>>>,
 }
 
 /// A signing's answer.
@@ -100,7 +101,7 @@ impl SignWork {
                             &spend,
                             fresh.complete,
                             (&name, recorded),
-                            waiting.as_deref(),
+                            waiting.as_ref().map(|w| w.as_slice()),
                         ),
                         name,
                         waiting,
@@ -309,7 +310,8 @@ fn part_put(app: &mut Faraday, part: Option<collect::Planned>) {
     let kept = app.wallets.spend().is_some_and(|s| {
         let (name, _) = part_name(s);
         let waiting = app.outbox.iter().find(|i| i.name == name);
-        name == planned.name && waiting.map(|w| w.bytes.as_slice()) == planned.waiting.as_deref()
+        name == planned.name
+            && waiting.map(|w| w.bytes.as_slice()) == planned.waiting.as_ref().map(|w| w.as_slice())
     });
     if kept {
         part_apply(app, planned.plan);
@@ -383,7 +385,12 @@ pub(crate) fn part_plan(
     if same {
         PartPlan::Replace(name.to_string(), Box::new(crate::Item::new(c, name, bytes)))
     } else {
-        PartPlan::Beside(crate::visit_taken::beside_plan(c, name, bytes, waiting))
+        PartPlan::Beside(crate::visit_taken::beside_plan(
+            c,
+            name,
+            Zeroizing::new(bytes),
+            waiting,
+        ))
     }
 }
 

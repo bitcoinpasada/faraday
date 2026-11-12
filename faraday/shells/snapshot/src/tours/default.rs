@@ -767,7 +767,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .iter()
         .find(|i| i.name.starts_with("scanned-"))
         .ok_or("nothing scanned")?;
-    if got.bytes != savings {
+    if *got.bytes != savings {
         return Err("the scanned PSBT differs from the one shown".into());
     }
     println!("scanned the Savings PSBT in {parts} UR parts");

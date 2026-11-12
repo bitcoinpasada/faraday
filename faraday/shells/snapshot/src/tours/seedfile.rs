@@ -50,7 +50,7 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .app
         .inbox()
         .iter()
-        .map(|i| (i.name.clone(), i.bytes.clone()))
+        .map(|i| (i.name.clone(), i.bytes.to_vec()))
         .chain(std::iter::once(vault))
         .collect();
     t.app.storage(StorageEvent::Restored {

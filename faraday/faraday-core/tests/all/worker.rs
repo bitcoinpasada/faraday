@@ -786,7 +786,7 @@ mod signing {
             inline.press(Action::ReadGo(0));
 
             let mut app = scanned();
-            assert_eq!(app.inbox().last().map(|i| i.bytes.clone()), Some(psbt));
+            assert_eq!(app.inbox().last().map(|i| i.bytes.to_vec()), Some(psbt));
             testkit::press_on_worker(&mut app, Action::ReadGo(0));
             assert!(app.busy().is_some());
             assert!(app.spend().is_none());
@@ -1189,7 +1189,7 @@ mod signing {
                     &mut other,
                     faraday_core::Item {
                         name: "whole.psbt".to_string(),
-                        bytes: whole.clone(),
+                        bytes: (whole.clone()).into(),
                         kind,
                         secret: false,
                         picture: None,
@@ -1291,7 +1291,7 @@ mod signing {
                 &mut app,
                 faraday_core::Item {
                     name: "copy.psbt".to_string(),
-                    bytes,
+                    bytes: bytes.into(),
                     kind,
                     secret: false,
                     picture: None,
@@ -1372,7 +1372,7 @@ mod signing {
                 app,
                 faraday_core::Item {
                     name: "next.psbt".to_string(),
-                    bytes,
+                    bytes: bytes.into(),
                     kind,
                     secret: false,
                     picture: None,
@@ -1471,7 +1471,7 @@ mod signing {
                 .find(|o| o.name.ends_with("part.psbt"))
                 .expect("the part file is in the Outbox");
             assert_eq!(
-                part.bytes,
+                *part.bytes,
                 file_of(&all[2]),
                 "the file that goes out is the mended one"
             );
@@ -1644,7 +1644,7 @@ mod signing {
                 .iter_mut()
                 .filter(|o| o.name == "musig-part.psbt")
             {
-                o.bytes = b"psbt of another transaction".to_vec();
+                o.bytes = (b"psbt of another transaction".to_vec()).into();
             }
             app.press(Action::Collect(partials[0]));
             let names = |app: &Faraday| -> Vec<String> {
@@ -1688,7 +1688,7 @@ mod signing {
                 .find(|o| o.name == "musig-part.psbt")
                 .expect("the part file is in the Outbox");
             if other {
-                waiting.bytes = another;
+                waiting.bytes = (another).into();
             }
             app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
             give(&mut app, whole);
@@ -1696,7 +1696,7 @@ mod signing {
             app.outbox
                 .iter()
                 .filter(|o| o.name.starts_with("musig-part"))
-                .map(|o| o.bytes.clone())
+                .map(|o| o.bytes.to_vec())
                 .collect()
         }
 
@@ -1977,7 +1977,7 @@ mod collect {
         let mut inbox: Vec<_> = app
             .inbox()
             .iter()
-            .map(|i| (i.name.clone(), i.bytes.clone()))
+            .map(|i| (i.name.clone(), i.bytes.to_vec()))
             .collect();
         inbox.push(("late.psbt".to_string(), vec![1, 2, 3]));
         app.storage(StorageEvent::Restored {

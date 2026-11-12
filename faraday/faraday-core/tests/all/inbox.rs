@@ -528,7 +528,7 @@ fn a_written_vault_beside_another_of_its_name_is_kept_numbered() {
     let held: Vec<(&str, bool)> = app
         .inbox()
         .iter()
-        .map(|i| (i.name.as_str(), i.bytes == a))
+        .map(|i| (i.name.as_str(), *i.bytes == a))
         .collect();
     assert_eq!(held, vec![("v.kdbx", false), ("v-2.kdbx", true)]);
     assert!(

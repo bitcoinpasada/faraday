@@ -10,7 +10,7 @@ pub(crate) fn inbox_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::wallet::FileKind as K;
     let item = |name: &str, kind: K, len: usize, picture: Option<K>| faraday_core::Item {
         name: name.into(),
-        bytes: vec![b'#'; len],
+        bytes: vec![b'#'; len].into(),
         kind,
         secret: false,
         picture,

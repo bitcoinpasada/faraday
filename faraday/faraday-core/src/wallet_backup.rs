@@ -2618,7 +2618,7 @@ impl Faraday {
         self.backup
             .sent(wallet, std::slice::from_ref(&name.to_string()));
         if let Some(i) = self.outbox.iter().find(|i| i.name == name) {
-            let bytes = i.bytes.clone();
+            let bytes = i.bytes.to_vec();
             self.backup.set_xpub_name(wallet, slot, bsms, name, bytes);
         }
     }
@@ -2635,7 +2635,7 @@ impl Faraday {
         let (name, bytes) = self.backup.xpub_name(wallet, slot, bsms, fp)?;
         self.outbox
             .iter()
-            .all(|i| i.name != name || i.bytes == bytes)
+            .all(|i| i.name != name || *i.bytes == bytes)
             .then_some(name)
     }
 }

@@ -405,7 +405,7 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
             let mut v: Vec<(String, Vec<u8>)> = app
                 .inbox()
                 .iter()
-                .map(|i| (i.name.clone(), i.bytes.clone()))
+                .map(|i| (i.name.clone(), i.bytes.to_vec()))
                 .collect();
             v.push((name, bytes));
             v
@@ -413,7 +413,7 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
         outbox: app
             .outbox
             .iter()
-            .map(|i| (i.name.clone(), i.bytes.clone()))
+            .map(|i| (i.name.clone(), i.bytes.to_vec()))
             .collect(),
         kept: Vec::new(),
     });

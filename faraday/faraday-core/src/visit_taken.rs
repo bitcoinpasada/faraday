@@ -126,7 +126,7 @@ pub(crate) enum Beside {
 pub(crate) fn beside_plan(
     c: &faraday_crypto::work::Compute,
     name: &str,
-    bytes: Vec<u8>,
+    bytes: Zeroizing<Vec<u8>>,
     waiting: Option<&[u8]>,
 ) -> Beside {
     if waiting == Some(bytes.as_slice()) {
@@ -664,7 +664,12 @@ impl Faraday {
     /// that goes beside a different file of its name
     /// and not over it: a file of that name holding the same bytes is left
     /// as it is. The name it ended up under.
-    pub(crate) fn put_outbox_beside(&mut self, name: &str, bytes: Vec<u8>) -> String {
+    pub(crate) fn put_outbox_beside(
+        &mut self,
+        name: &str,
+        bytes: impl Into<Zeroizing<Vec<u8>>>,
+    ) -> String {
+        let bytes: Zeroizing<Vec<u8>> = bytes.into();
         let c = self.compute();
         let waiting = self
             .outbox
@@ -726,7 +731,7 @@ impl Faraday {
                 this.outbox
                     .iter()
                     .chain(this.inbox.iter())
-                    .all(|i| !i.name.eq_ignore_ascii_case(name) || i.bytes == **bytes)
+                    .all(|i| !i.name.eq_ignore_ascii_case(name) || *i.bytes == **bytes)
             })
         };
         let mut n = 1;
@@ -738,7 +743,7 @@ impl Faraday {
             if !self
                 .outbox
                 .iter()
-                .any(|i| i.name == *name && i.bytes == **bytes)
+                .any(|i| i.name == *name && *i.bytes == **bytes)
             {
                 self.put_outbox(name, (*bytes).clone());
             }
@@ -776,12 +781,12 @@ impl Faraday {
             .outbox
             .iter()
             .filter(|i| self.visit.out.contains(&i.name))
-            .map(|i| (i.name.clone(), Zeroizing::new(i.bytes.clone()), false))
+            .map(|i| (i.name.clone(), i.bytes.clone(), false))
             .collect();
         for k in self.visit_inbox_rows() {
             let item = &self.inbox[k];
             if self.visit.from_inbox.contains(&item.name) {
-                out.push((item.name.clone(), Zeroizing::new(item.bytes.clone()), true));
+                out.push((item.name.clone(), item.bytes.clone(), true));
             }
         }
         out
@@ -1116,7 +1121,7 @@ impl Faraday {
                 .chain(self.inbox.iter())
                 .find(|i| i.name == name && sha256_of(c, &i.bytes) == sent)
                 .filter(|i| i.exposure() != crate::secrets::Exposure::Secret)
-                .map(|i| (Zeroizing::new(i.bytes.clone()), true))
+                .map(|i| (i.bytes.clone(), true))
         } else {
             self.visit_files()
                 .into_iter()

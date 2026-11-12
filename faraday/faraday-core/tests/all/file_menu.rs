@@ -384,7 +384,7 @@ fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
         &mut app,
         Item {
             name: "spend.psbt".into(),
-            bytes: b"psbt".to_vec(),
+            bytes: (b"psbt".to_vec()).into(),
             kind: FileKind::Psbt,
             secret: false,
             picture: None,
