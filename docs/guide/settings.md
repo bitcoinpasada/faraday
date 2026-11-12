@@ -23,6 +23,12 @@ Shows how many keys are loaded. **Lock** and **Remove every key** appear while a
 
 **Remove every key** unloads the keys and keeps the wallets. **Lock after** locks after the minutes with no input, and **Power off after** powers off after them, on the device only. Each is set to **2 min**, **5 min** or more, or **Never**. A line names any input device ignored until it is unplugged.
 
+## Keys kept
+
+**Key:** settings.keys-kept
+
+A key loaded is in memory only; nothing is written to the stick or the disk on its own. The lock sheet lists under **Kept** what a lock keeps and under **Wiped from memory** what it wipes, a key kept nowhere else in the error tone. **Lock after** offers 2, 5, 10 or 30 minutes and **Power off after** 10, 20, 30 or 60, 30 and 60 at first; power-off waits while files wait for the stick. From the start of Make a new wallet until its keys are sealed in a vault or its backup is done, the idle lock waits and the sidebar reads **Auto-lock off until backup complete**.
+
 ## Time
 
 **Key:** settings.time

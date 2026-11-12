@@ -15,6 +15,14 @@ The top line is the state of the stick. **Scan a QR code** reads a code in place
 
 With none attached the line reads that it is waiting for a stick. With a stick attached while a secret is held, it reads that the stick is attached and to lock to use it, and a press on it locks. Otherwise the line is the stick's label.
 
+## Delete files
+
+**Key:** files.delete-files
+
+**Delete files** on the stick pane, and a file's **Delete from the stick**, open a sheet that writes only the stick's files partition. Its other partitions and partition table are not touched, so zeroing the partition reaches everything Faraday wrote to the stick.
+
+**Chosen files** writes zeros over each file and removes it by name. **The free space** zeroes what earlier deletes left. **The whole partition** deletes every file and zeroes all of it, in **One pass** or **Two passes**. The sheet gives the time on a typical stick, and deleting a vault, zeroing the free space or the partition is a hold. No zeroing is certain: a stick can keep old blocks, so a secret once saved unencrypted is removed surely only by destroying the stick.
+
 ## Open vaults
 
 **Key:** files.open-vaults

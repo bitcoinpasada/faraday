@@ -11,7 +11,7 @@ Shows the current one-time code of every vault entry that holds a TOTP secret, a
 
 **Key:** codes.list
 
-**Now · UTC** gives the local time with seconds, or **Not known** while there is no usable clock reading; **Set the time** opens Set the time and returns here. A row without a checked clock shows **Set the time first** in place of its code.
+**Now · UTC** gives the local time with seconds, or **Not known** while there is no usable clock reading; **Set the time** opens Set the time and returns here. A row without a checked clock shows **Set the time first** in place of its code. A code is worked out from the entry's secret and the time in steps of its period, so a clock wrong by more than a step gives a different code.
 
 One row per entry: its title, under it the account (from the setup's label, else the entry's username) and, with more than one vault open, the vault's name. The code is grouped, with a bar and the seconds left of its period. An entry whose secret is a counter-based one shows **HOTP** and one that cannot be read shows **Unreadable**; neither gives a code. Pressing a row opens the entry in its vault.
 

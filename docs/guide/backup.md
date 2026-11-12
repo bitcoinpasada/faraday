@@ -7,6 +7,24 @@
 
 The plan of where a wallet's keys and files are kept becomes a checklist of one item per thing to make. An item opens once the one before it is done, and the last item writes the sticks.
 
+## Places
+
+**Key:** backup.board
+
+The board lists the places that keep the backup. Each place that keeps a seed says how near it brings a spend: **Can spend alone**, or **Spends with 1 more place** when one other place adds enough seeds. A change that brings a place nearer a spend, or lets it see the balance, asks first: **Keep it** keeps the change and **Take it off** undoes it.
+
+**Add partial descriptions to this backup** gives every place a share of the wallet description, a multisig description with some keys left off; **Remove partial descriptions** takes the shares off. A place with one share alone cannot work out an address.
+
+## The plan
+
+**Key:** backup.plan
+
+The map of the places is checked three ways, by trying every place lost or found in turn. A place is a paper place, a stick of files, or a vault's stick that no paper place keeps.
+
+**Any one place lost: the rest rebuild the wallet** is **Yes** when the other places always hold a quorum of seeds with their passphrases and, for several keys, the whole description or shares that hold every key. **Yes, with the vault's passphrase** means a loss is covered only by a vault. **No** names a single point of failure.
+
+**One place found: can spend** is **Yes** when one place holds a quorum of seeds; **Only with the vault's passphrase** means the vault holds what is missing. **One place found: sees the balance** is **Yes** when one place holds the whole description, or the seed of a single key. **Make the checklist** approves the plan.
+
 ## Print the blank templates
 
 **Key:** backup.blank
@@ -92,3 +110,11 @@ Lists what goes into the envelope of each place. The envelopes are stored apart.
 **Key:** backup.sticks
 
 **Lock and write** locks the session, then writes each stick of the plan in turn, by its place, in the backup flow. **Kept** lists what the lock keeps and **Wiped from memory** what it wipes.
+
+## Extra copies
+
+**Key:** backup.extra-copies
+
+The last card, in Guided only. A copy made outside the plan is not tracked, and the plan's three checks do not count it.
+
+**Extra copies** opens the page on them. A vault is copied to another stick, from the vault on the wallet's chart with **Copy the vault to another stick**; the copy opens with the same passphrase and is copied again after a later change. Words are copied by hand onto a new sheet and checked word by word. Each copy is as sensitive as what it copies.
