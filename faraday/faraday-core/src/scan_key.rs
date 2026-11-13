@@ -1909,7 +1909,7 @@ impl Faraday {
                 self.entry.wipe_typed();
                 self.entry.forget_error();
                 if ours {
-                    self.scan_say(why);
+                    self.scan_say(String::from(&*why));
                 } else {
                     self.scan_not_taken(bytes);
                 }

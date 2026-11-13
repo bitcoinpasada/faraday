@@ -25,9 +25,10 @@
 use crate::backup_flow::{Purpose, Step};
 use crate::drawing::View;
 use crate::medium::Medium;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::{Ui, W};
 use crate::{Action, Faraday, StickInfo};
+use faraday_text::{Num, Text, text};
 use faraday_ui::stick::{PillAt, StickState};
 
 /// The boot stick's folder.
@@ -38,8 +39,8 @@ pub const FIRST_BACKUP: usize = 2;
 
 /// The folder of backup Stick `n` (2 and on: Stick 1 is the boot stick,
 /// whose folder is [`BOOT_FOLDER`]).
-pub fn backup_folder(n: usize) -> String {
-    format!("STICK-{n}")
+pub fn backup_folder(n: usize) -> Text {
+    text!("STICK-{n}")
 }
 
 /// The number a backup stick's folder is for, when it is one.
@@ -70,9 +71,9 @@ pub struct Pill {
     /// 1 the boot stick, `n` Stick `n` from 2.
     pub n: usize,
     /// What it is called: Boot stick, Stick 2.
-    pub label: String,
+    pub label: Text,
     /// The stick's folder in the shell.
-    pub folder: String,
+    pub folder: Text,
     /// The stick is in.
     pub inserted: bool,
     /// The app asks for this stick now: the backup flow for it, or the
@@ -182,12 +183,11 @@ impl Faraday {
     fn boot_pill(&self) -> Pill {
         Pill {
             n: 1,
-            label: match self.medium {
+            label: Text::of(match self.medium {
                 Medium::Stick => EN.stick_pill_boot,
                 Medium::SdCard => EN.backup_flow_pill_boot_card,
-            }
-            .to_string(),
-            folder: BOOT_FOLDER.to_string(),
+            }),
+            folder: Text::of(BOOT_FOLDER),
             // The core relabels the boot stick, so it is found by what it is.
             inserted: self.stick.iter().any(|s| s.boot),
             asked: false,
@@ -215,7 +215,7 @@ impl Faraday {
             .map(|k| f.stick_number(k))
             .collect();
         let mut boot = self.boot_pill();
-        boot.folder = String::new();
+        boot.folder = Text::new();
         boot.asked = wanted.now == Some(1);
         let mut pills = vec![boot];
         pills.extend((0..wanted.count).map(|j| {
@@ -223,7 +223,7 @@ impl Faraday {
             Pill {
                 n,
                 label: self.pill_name(n),
-                folder: String::new(),
+                folder: Text::new(),
                 inserted: lit.contains(&n),
                 asked: wanted.now == Some(n),
             }
@@ -240,8 +240,11 @@ impl Faraday {
     }
 
     /// Pill `n`: Stick 2, Card or stick 2.
-    fn pill_name(&self, n: usize) -> String {
-        fill(EN.backup_flow_pill, &[self.pill_word(), &n.to_string()])
+    fn pill_name(&self, n: usize) -> Text {
+        Text::fill(
+            EN.backup_flow_pill,
+            &[self.pill_word(), &Text::num(n as u64)],
+        )
     }
 
     /// The slot of the flow on screen that the stick `st` reads as, when
@@ -324,7 +327,7 @@ impl Faraday {
     /// which every line naming that stick leads with (§18): "Stick 3", or
     /// "Boot stick" where the boot stick holds it. None on Desktop and the
     /// demo, whose sticks are named by their folders.
-    pub(crate) fn flow_slot_name(&self, k: usize) -> Option<String> {
+    pub(crate) fn flow_slot_name(&self, k: usize) -> Option<Text> {
         if self.shell_sticks {
             return None;
         }
@@ -338,18 +341,18 @@ impl Faraday {
 
     /// Slot `k`'s number written out with the pill's word, for the lines
     /// that say it in a sentence: "Stick", "3".
-    fn flow_slot_word_n(&self, k: usize) -> Option<(&'static str, String)> {
+    fn flow_slot_word_n(&self, k: usize) -> Option<(&'static str, Num)> {
         let n = self.flow()?.stick_number(k);
-        Some((self.pill_word(), n.to_string()))
+        Some((self.pill_word(), Text::num(n as u64)))
     }
 
     /// On a device, the row naming slot `k` of the flow on screen: "Stick
     /// 2 · Vault 1 (Place 1)".
-    pub(crate) fn flow_slot_row(&self, k: usize) -> Option<String> {
+    pub(crate) fn flow_slot_row(&self, k: usize) -> Option<Text> {
         let name = self.flow_slot_name(k)?;
         let f = self.flow()?;
         let t = f.slots.get(k)?.target;
-        Some(fill(
+        Some(Text::fill(
             EN.backup_flow_slot_row,
             &[&name, &f.target_what(&t, self.medium.noun())],
         ))
@@ -357,24 +360,24 @@ impl Faraday {
 
     /// The Insert line for slot `k`: on a device "Insert Stick 3: Vault 2
     /// (Place 2)", else "Insert the stick for Vault 2 (Place 2)".
-    pub(crate) fn flow_insert_line(&self, k: usize) -> String {
+    pub(crate) fn flow_insert_line(&self, k: usize) -> Text {
         let m = self.medium.noun();
         let Some(f) = self.flow() else {
-            return String::new();
+            return Text::new();
         };
         let Some(t) = f.slots.get(k).map(|s| s.target) else {
-            return String::new();
+            return Text::new();
         };
         match self.flow_slot_name(k) {
-            Some(name) => fill(EN.backup_flow_insert_n, &[&name, &f.target_what(&t, m)]),
-            None => fill(EN.backup_flow_insert, &[&f.target_name(&t, m)]),
+            Some(name) => Text::fill(EN.backup_flow_insert_n, &[&name, &f.target_what(&t, m)]),
+            None => Text::fill(EN.backup_flow_insert, &[&f.target_name(&t, m)]),
         }
     }
 
     /// Above the hold on a device, for a stick not yet settled that reads
     /// as another slot's stick (a blank stick read alike, §18): "This reads
     /// as Stick 2".
-    pub(crate) fn flow_stick_reads_as(&self) -> Option<String> {
+    pub(crate) fn flow_stick_reads_as(&self) -> Option<Text> {
         if self.shell_sticks {
             return None;
         }
@@ -389,14 +392,14 @@ impl Faraday {
         let st = self.stick.iter().find(|s| s.id == r.id)?;
         let m = self.flow_record_slot(st).filter(|&m| m != r.slot)?;
         let (word, n) = self.flow_slot_word_n(m)?;
-        Some(fill(EN.backup_flow_reads_as, &[word, &n]))
+        Some(Text::fill(EN.backup_flow_reads_as, &[word, &n]))
     }
 
     /// The line under a refused stick's reason on a device (§18): the
     /// stick it reads as, "This is Stick 2", or "Not one of this
     /// backup's sticks". None where it is the stick wanted, or where the
     /// refusal is not about which stick it is.
-    pub(crate) fn flow_stick_from_elsewhere(&self) -> Option<String> {
+    pub(crate) fn flow_stick_from_elsewhere(&self) -> Option<Text> {
         use crate::backup_flow::Problem;
         if self.shell_sticks {
             return None;
@@ -419,15 +422,15 @@ impl Faraday {
             Some(m) if m == r.slot => None,
             Some(m) => {
                 let (word, n) = self.flow_slot_word_n(m)?;
-                Some(fill(EN.backup_flow_this_is_n, &[word, &n]))
+                Some(Text::fill(EN.backup_flow_this_is_n, &[word, &n]))
             }
-            None => Some(fill(EN.backup_flow_not_ours, &[self.medium.nouns()])),
+            None => Some(Text::fill(EN.backup_flow_not_ours, &[self.medium.nouns()])),
         }
     }
 
     /// The line under slot `k`'s row on a device while the stick just
     /// taken for it is in (§18): "Mark it as Stick 2".
-    pub(crate) fn flow_mark_line(&self, k: usize) -> Option<String> {
+    pub(crate) fn flow_mark_line(&self, k: usize) -> Option<Text> {
         if self.shell_sticks {
             return None;
         }
@@ -444,13 +447,13 @@ impl Faraday {
             return None;
         }
         let (word, n) = self.flow_slot_word_n(k)?;
-        Some(fill(EN.backup_flow_mark_as, &[word, &n]))
+        Some(Text::fill(EN.backup_flow_mark_as, &[word, &n]))
     }
 
     /// The sticks the person pressed since the last call, as folder
     /// names: the shell inserts each one that is out and pulls each one
     /// that is in.
-    pub fn take_stick_toggles(&mut self) -> Vec<String> {
+    pub fn take_stick_toggles(&mut self) -> Vec<Text> {
         std::mem::take(&mut self.stick.toggles)
     }
 
@@ -462,7 +465,7 @@ impl Faraday {
         }
         let n = usize::from(n);
         let folder = if n <= 1 {
-            BOOT_FOLDER.to_string()
+            Text::of(BOOT_FOLDER)
         } else {
             backup_folder(n)
         };
@@ -490,7 +493,7 @@ struct Row {
 /// number alone ("1"); failing all three, the short form, wrapped into
 /// rows.
 struct Layout {
-    texts: Vec<String>,
+    texts: Vec<Text>,
     widths: Vec<f32>,
     rows: Vec<Row>,
 }
@@ -504,8 +507,8 @@ enum Form {
 }
 
 fn layout(pills: &[Pill], ui: &Ui, z: &Size, avail: f32) -> Layout {
-    let build = |form: Form| -> (Vec<String>, Vec<f32>) {
-        let texts: Vec<String> = pills
+    let build = |form: Form| -> (Vec<Text>, Vec<f32>) {
+        let texts: Vec<Text> = pills
             .iter()
             .map(|p| match form {
                 Form::Long => {
@@ -514,9 +517,9 @@ fn layout(pills: &[Pill], ui: &Ui, z: &Size, avail: f32) -> Layout {
                     } else {
                         EN.stick_pill_out
                     };
-                    fill(EN.stick_pill_state, &[&p.label, state])
+                    Text::fill(EN.stick_pill_state, &[&p.label, state])
                 }
-                Form::Number => p.n.to_string(),
+                Form::Number => Text::of(&Text::num(p.n as u64)),
                 Form::Short => p.label.clone(),
             })
             .collect();

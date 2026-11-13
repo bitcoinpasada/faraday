@@ -666,7 +666,10 @@ fn kdbx_start(app: &mut Faraday) -> bool {
         return false;
     };
     app.start(
-        Job::Kdbx(Box::new(KdbxWork { job, name })),
+        Job::Kdbx(Box::new(KdbxWork {
+            job,
+            name: String::from(&*name),
+        })),
         EN.vault_sealing,
     );
     true

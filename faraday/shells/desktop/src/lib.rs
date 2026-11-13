@@ -217,7 +217,8 @@ impl Demo {
     /// noted and what it asked of storage is served. Returns the time
     /// storage took.
     pub fn took(&mut self, app: &mut Faraday) -> Duration {
-        self.toggles.extend(app.take_stick_toggles());
+        self.toggles
+            .extend(app.take_stick_toggles().iter().map(|t| String::from(&**t)));
         self.served |= app.storage_pending();
         let at = Instant::now();
         self.serve(app);

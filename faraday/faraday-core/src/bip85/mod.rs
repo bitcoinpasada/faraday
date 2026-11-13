@@ -8,10 +8,10 @@
 pub(crate) mod screen;
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::bip39::Language;
 use faraday_bip::bip85;
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 use faraday_vault::Record;
 use faraday_vault::records::{self, field, kind};
 use zeroize::Zeroizing;
@@ -84,10 +84,13 @@ pub(crate) fn out_title(title: &str) -> &str {
 /// The title an entry titled `title` carries in a KeePass export and the
 /// file's name: as [`out_title`] calls it, beside any other file waiting in
 /// the Outbox rather than over it, since that may be a sealed vault (F172).
-pub(crate) fn kdbx_out<'a>(outbox: &[crate::Item], title: &'a str) -> (&'a str, String) {
+pub(crate) fn kdbx_out<'a>(outbox: &[crate::Item], title: &'a str) -> (&'a str, Text) {
     let out = out_title(title);
-    let name = format!("{}.kdbx", crate::file_stem(out));
-    (out, crate::visit_taken::outbox_free_name(outbox, &name))
+    let name = text!("{}.kdbx", crate::file_stem(out));
+    (
+        out,
+        Text::of(&crate::visit_taken::outbox_free_name(outbox, &name)),
+    )
 }
 
 /// Where child words go once the person has said whether they are
@@ -109,7 +112,7 @@ pub fn key_name(k: &faraday_keys::KeyInfo) -> std::borrow::Cow<'_, str> {
     let label = k.label.trim();
     match k.child_of {
         Some(of) if label.is_empty() || label.eq_ignore_ascii_case(&fp_text(k.fingerprint)) => {
-            std::borrow::Cow::Owned(child_mark(&of))
+            std::borrow::Cow::Owned(child_mark(&of).as_str().into())
         }
         _ => std::borrow::Cow::Borrowed(k.label.as_str()),
     }
@@ -118,13 +121,13 @@ pub fn key_name(k: &faraday_keys::KeyInfo) -> std::borrow::Cow<'_, str> {
 /// A key recorded as a BIP-85 child seed, as a line: "BIP-85 Words ·
 /// 73c5da0a · index 0", the key it comes from and its index (F166). A
 /// fill.
-pub(crate) fn child_mark(of: &faraday_vault::child::ChildOf) -> String {
-    fill(
+pub(crate) fn child_mark(of: &faraday_vault::child::ChildOf) -> Text {
+    Text::fill(
         EN.bip85_bip_85_index,
         &[
             app_name(Bip85App::Words),
-            &fp_text(faraday_bip::keys::Fingerprint(of.parent)).to_string(),
-            &of.index.to_string(),
+            &fp_text(faraday_bip::keys::Fingerprint(of.parent)),
+            &Text::num(u64::from(of.index)),
         ],
     )
 }
@@ -132,7 +135,7 @@ pub(crate) fn child_mark(of: &faraday_vault::child::ChildOf) -> String {
 /// The mark of a vault key record recorded as a BIP-85 child seed
 /// ([`child_mark`]); `None` for one not recorded as one. A lookup and a
 /// fill.
-pub(crate) fn record_child_mark(r: faraday_keys::vault::RecordView<'_>) -> Option<String> {
+pub(crate) fn record_child_mark(r: faraday_keys::vault::RecordView<'_>) -> Option<Text> {
     use faraday_vault::records::field;
     faraday_vault::child::child_of(r.public(field::KEY_CHILD)?).map(|of| child_mark(&of))
 }
@@ -167,7 +170,7 @@ pub struct Bip85State {
     /// Words for the child seed, bytes for hex, characters for a password.
     pub length: usize,
     /// The index, as typed.
-    pub index: String,
+    pub index: Text,
     /// The value is on screen.
     pub shown: bool,
     /// Where the flow returns to.
@@ -199,15 +202,15 @@ impl Bip85State {
     }
 
     /// The derivation path, as BIP-85 writes it.
-    pub fn path(&self) -> String {
+    pub fn path(&self) -> Text {
         let i = self.index().unwrap_or(0);
         match self.app {
-            Bip85App::Words => format!("m/83696968'/39'/0'/{}'/{i}'", self.length),
-            Bip85App::Wif => format!("m/83696968'/2'/{i}'"),
-            Bip85App::Xprv => format!("m/83696968'/32'/{i}'"),
-            Bip85App::Hex => format!("m/83696968'/128169'/{}'/{i}'", self.length),
-            Bip85App::Base64 => format!("m/83696968'/707764'/{}'/{i}'", self.length),
-            Bip85App::Base85 => format!("m/83696968'/707785'/{}'/{i}'", self.length),
+            Bip85App::Words => text!("m/83696968'/39'/0'/{}'/{i}'", self.length),
+            Bip85App::Wif => text!("m/83696968'/2'/{i}'"),
+            Bip85App::Xprv => text!("m/83696968'/32'/{i}'"),
+            Bip85App::Hex => text!("m/83696968'/128169'/{}'/{i}'", self.length),
+            Bip85App::Base64 => text!("m/83696968'/707764'/{}'/{i}'", self.length),
+            Bip85App::Base85 => text!("m/83696968'/707785'/{}'/{i}'", self.length),
         }
     }
 }
@@ -290,7 +293,7 @@ impl Bip85Area {
             key,
             app: Bip85App::Words,
             length,
-            index: "0".to_string(),
+            index: Text::of("0"),
             shown: false,
             back,
             asking: None,
@@ -348,20 +351,20 @@ impl Bip85Area {
     }
 
     /// What the value is called where it is kept.
-    pub(crate) fn title(&self) -> String {
+    pub(crate) fn title(&self) -> Text {
         let Some(b) = self.state.as_ref() else {
-            return String::new();
+            return Text::new();
         };
         let fp = b
             .key
             .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
             .unwrap_or_default();
-        fill(
+        Text::fill(
             EN.bip85_bip_85_index,
             &[
                 app_name(b.app),
-                &fp.to_string(),
-                &b.index().unwrap_or(0).to_string(),
+                &fp,
+                &Text::num(u64::from(b.index().unwrap_or(0))),
             ],
         )
     }
@@ -416,7 +419,7 @@ impl Bip85Area {
             }
             A::PIndex(delta) => {
                 let i = i64::from(b.index().unwrap_or(0)) + i64::from(delta);
-                b.index = i.clamp(0, i64::from(bip85::MAX_INDEX)).to_string();
+                b.index = Text::of(&Text::int(i.clamp(0, i64::from(bip85::MAX_INDEX))));
                 b.shown = false;
             }
             A::PNext => {
@@ -571,21 +574,21 @@ impl Faraday {
                 }
             }
             _ => {
-                let note = Zeroizing::new(format!("{title}\n{path}\n{}", value.as_str()));
+                let note = text!("{}\n{}\n{}", title.as_str(), path.as_str(), value.as_str());
                 Record::new(kind::NOTE).with(field::NOTE, note.as_bytes())
             }
         };
-        self.vault_push(
-            record,
-            &fill(EN.bip85_is_in_the_vault, &[&title.to_string()]),
-        );
+        self.vault_push(record, &Text::fill(EN.bip85_is_in_the_vault, &[&title]));
     }
 
     /// Child words load as a key of this session, once the person says
     /// whether they are recorded as a child seed (F166).
     pub(crate) fn bip85_load(&mut self) {
         if !self.may_load_keys() {
-            self.toast(&fill(EN.bip85_remove_the_first, &[self.medium.noun()]));
+            self.toast(&Text::fill(
+                EN.bip85_remove_the_first,
+                &[self.medium.noun()],
+            ));
             return;
         }
         if self.bip85.child_of().is_some() && self.makes_secrets() {
@@ -599,7 +602,10 @@ impl Faraday {
     fn bip85_load_as(&mut self, record: bool) {
         let c = self.compute();
         if !self.may_load_keys() {
-            self.toast(&fill(EN.bip85_remove_the_first, &[self.medium.noun()]));
+            self.toast(&Text::fill(
+                EN.bip85_remove_the_first,
+                &[self.medium.noun()],
+            ));
             return;
         }
         let Some(value) = self.bip85_value(&c) else {
@@ -610,7 +616,7 @@ impl Faraday {
                 if record && let Some(i) = self.session.keys.position_of(fp.0) {
                     self.session.keys.set_child_of(i, self.bip85.child_of());
                 }
-                self.toast(&fill(EN.bip85_key_added, &[&fp_text(fp).to_string()]));
+                self.toast(&Text::fill(EN.bip85_key_added, &[&fp_text(fp)]));
             }
             Err(e) => self.toast(&e.text()),
         }
@@ -630,8 +636,8 @@ impl Faraday {
             let Ok(fp) = faraday_keys::identity::fingerprint_of_words(&c, &value, "") else {
                 return;
             };
-            let name = format!("{}-words.txt", fp_text(fp).to_lowercase());
-            let text = Zeroizing::new(format!("{}\n", value.as_str()));
+            let name = text!("{}-words.txt", fp_text(fp).to_lowercase());
+            let text = text!("{}\n", value.as_str());
             self.offer_secret(crate::secrets::SecretOut::new(
                 name,
                 Zeroizing::new(text.as_bytes().to_vec()),
@@ -645,23 +651,21 @@ impl Faraday {
             // A password goes as one of its own, named by nothing of the
             // key it came from or its index, and holding itself alone
             // (F172), beside any other waiting in the Outbox.
-            let name = format!("{}.txt", crate::file_stem(EN.bip85_password_out));
-            let name = crate::visit_taken::outbox_free_name(&self.outbox, &name);
-            (name, Zeroizing::new(format!("{}\n", value.as_str())))
+            let name = text!("{}.txt", crate::file_stem(EN.bip85_password_out));
+            let name = Text::of(&crate::visit_taken::outbox_free_name(&self.outbox, &name));
+            (name, text!("{}\n", value.as_str()))
         } else {
             let fp = b
                 .key
                 .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
                 .unwrap_or_default();
-            let name = format!(
-                "bip85-{fp}-{}-{}.txt",
+            let name = text!(
+                "bip85-{}-{}-{}.txt",
+                fp.as_str(),
                 app_name(b.app).to_lowercase().replace([' ', '(', ')'], ""),
                 b.index().unwrap_or(0)
             );
-            (
-                name,
-                Zeroizing::new(format!("{}\n{}\n", b.path(), value.as_str())),
-            )
+            (name, text!("{}\n{}\n", b.path().as_str(), value.as_str()))
         };
         let what = match b.app {
             Bip85App::Words => EN.bip85_a_child_seed,

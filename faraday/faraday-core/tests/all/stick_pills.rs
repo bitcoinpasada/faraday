@@ -51,7 +51,7 @@ fn click(app: &mut Faraday, a: Action) {
 /// The shell of the desktop app, in little: a folder a click names is
 /// plugged in when it is out and pulled when it is in.
 fn shell_follows(shell: &mut Shell, app: &mut Faraday) {
-    for folder in app.take_stick_toggles() {
+    for folder in app.take_stick_toggles().iter().map(|t| String::from(&**t)) {
         if shell.present.contains(&folder) {
             shell.pull(app, &folder);
         } else {
@@ -101,9 +101,9 @@ fn several_sticks_may_be_in_at_once() {
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);
     app.press(Action::StickPill(1));
-    assert_eq!(app.take_stick_toggles(), vec![BOOT_FOLDER.to_string()]);
+    assert_eq!(app.take_stick_toggles(), [BOOT_FOLDER]);
     app.press(Action::StickPill(3));
-    assert_eq!(app.take_stick_toggles(), vec!["STICK-3".to_string()]);
+    assert_eq!(app.take_stick_toggles(), ["STICK-3"]);
     app.press(Action::StickPill(3));
     shell_follows(&mut shell, &mut app);
     let t = drawn(&mut app);
@@ -272,7 +272,11 @@ fn on_a_device_there_are_no_pills_without_a_flow_and_one_per_stick_of_the_flow()
     let t = drawn(&mut app);
     assert!(!t.iter().any(|s| s.starts_with("Stick ")), "{t:?}");
     create_with_vaults(&mut app, 3);
-    let labels: Vec<String> = app.stick_pills().into_iter().map(|p| p.label).collect();
+    let labels: Vec<String> = app
+        .stick_pills()
+        .into_iter()
+        .map(|p| String::from(&*p.label))
+        .collect();
     assert_eq!(labels, ["Boot stick", "Stick 2", "Stick 3", "Stick 4"]);
     let t = drawn(&mut app);
     for want in ["Stick 2 · out", "Stick 3 · out", "Stick 4 · out"] {
@@ -280,7 +284,11 @@ fn on_a_device_there_are_no_pills_without_a_flow_and_one_per_stick_of_the_flow()
     }
     // The Pi's medium.
     app.medium = Medium::SdCard;
-    let labels: Vec<String> = app.stick_pills().into_iter().map(|p| p.label).collect();
+    let labels: Vec<String> = app
+        .stick_pills()
+        .into_iter()
+        .map(|p| String::from(&*p.label))
+        .collect();
     assert_eq!(
         labels,
         [
@@ -320,18 +328,30 @@ fn the_first_backup_stick_is_stick_2_on_every_shell() {
     let mut shell = Shell::new();
     let mut app = desktop(&mut shell);
     create_with_vaults(&mut app, 2);
-    let labels: Vec<String> = app.stick_pills().into_iter().map(|p| p.label).collect();
+    let labels: Vec<String> = app
+        .stick_pills()
+        .into_iter()
+        .map(|p| String::from(&*p.label))
+        .collect();
     assert_eq!(labels, ["Boot stick", "Stick 2", "Stick 3"]);
     assert_eq!(app.sticks_wanted().unwrap().now, Some(2));
     app.press(Action::StickPill(2));
-    assert_eq!(app.take_stick_toggles(), ["STICK-2".to_string()]);
+    assert_eq!(app.take_stick_toggles(), ["STICK-2"]);
     // A device: the PC stick, then the Pi.
     let mut app = device();
     create_with_vaults(&mut app, 2);
-    let labels: Vec<String> = app.stick_pills().into_iter().map(|p| p.label).collect();
+    let labels: Vec<String> = app
+        .stick_pills()
+        .into_iter()
+        .map(|p| String::from(&*p.label))
+        .collect();
     assert_eq!(labels, ["Boot stick", "Stick 2", "Stick 3"]);
     app.medium = Medium::SdCard;
-    let labels: Vec<String> = app.stick_pills().into_iter().map(|p| p.label).collect();
+    let labels: Vec<String> = app
+        .stick_pills()
+        .into_iter()
+        .map(|p| String::from(&*p.label))
+        .collect();
     assert_eq!(labels, ["Boot card", "Card or stick 2", "Card or stick 3"]);
 }
 
@@ -531,7 +551,11 @@ fn the_boot_stick_taken_for_a_place_is_stick_1_and_the_others_count_on_from_2() 
     assert!(f.slots[0].bound.is_some(), "Place 1 is the boot stick's");
     // One number for the boot stick: its own pill, Stick 1.
     assert_eq!(lit(&app), [1]);
-    let labels: Vec<String> = app.stick_pills().into_iter().map(|p| p.label).collect();
+    let labels: Vec<String> = app
+        .stick_pills()
+        .into_iter()
+        .map(|p| String::from(&*p.label))
+        .collect();
     assert_eq!(labels, ["Boot stick", "Stick 2"]);
     assert_eq!(asked(&app), [2]);
     expect(&mut app, "Boot stick");

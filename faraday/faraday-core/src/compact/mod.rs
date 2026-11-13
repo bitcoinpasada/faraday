@@ -6,7 +6,6 @@
 pub(crate) mod screen;
 
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::ui::Region;
 use crate::ui::{Shape, Unpressed};
 use faraday_draw::tokens::{
@@ -14,6 +13,7 @@ use faraday_draw::tokens::{
     MENU_TILE_SUB_W, TILE_H_COMPACT, TILE_H_GRID, TILE_PAD,
 };
 use faraday_draw::widgets::Icon;
+use faraday_text::{Text, text};
 
 use crate::drawing::View;
 use crate::nav::{BarTool, MenuPress, Overflow};
@@ -327,7 +327,7 @@ pub(crate) fn bar_cancel(app: &View, ui: &mut Ui, right: f32) -> f32 {
 /// names, reading what its button does now.
 pub(crate) fn overflow_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, held: Overflow) {
     let item = |label: &str, t: BarTool| {
-        crate::menu::Line::Item(label.to_string(), Action::NavMenu(MenuPress::Tool(t)))
+        crate::menu::Line::Item(label.into(), Action::NavMenu(MenuPress::Tool(t)))
     };
     let mut lines = Vec::new();
     if cancel_in_menu(app) {
@@ -664,13 +664,10 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let wallets = app.session.wallets.len();
     let vaults = app.vaults.open.len();
     let (dot, line) = match (keys + wallets, vaults) {
-        (0, 0) => (
-            Role::OnSurfaceVariant,
-            EN.compact_nothing_loaded.to_string(),
-        ),
+        (0, 0) => (Role::OnSurfaceVariant, Text::of(EN.compact_nothing_loaded)),
         (_, 0) => (
             Role::Ok,
-            format!(
+            text!(
                 "{keys} {} · {wallets} {}",
                 if keys == 1 {
                     EN.compact_key_inline
@@ -686,10 +683,10 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ),
         (_, v) => (
             Role::Ok,
-            fill(
+            Text::fill(
                 EN.compact_vaults_open,
                 &[
-                    &v.to_string(),
+                    &Text::num(v as u64),
                     (if v == 1 {
                         EN.compact_vault
                     } else {
@@ -1020,7 +1017,7 @@ fn home_head(app: &View, ui: &mut Ui, w: f32, y: f32) {
 
 /// A tile: its icon, its name, a short count, where it goes, and
 /// whether it can be pressed now.
-type Tile = (crate::ui::Glyph, &'static str, String, Action, bool);
+type Tile = (crate::ui::Glyph, &'static str, Text, Action, bool);
 
 fn tiles(app: &View) -> Vec<Tile> {
     let wallets = app.session.wallets.len();
@@ -1035,9 +1032,9 @@ fn tiles(app: &View) -> Vec<Tile> {
             Icon::Wallet.into(),
             EN.compact_wallets,
             if wallets == 0 {
-                String::new()
+                Text::new()
             } else {
-                wallets.to_string()
+                Text::of(&Text::num(wallets as u64))
             },
             Action::Nav(Screen::WalletsStart),
             true,
@@ -1046,9 +1043,9 @@ fn tiles(app: &View) -> Vec<Tile> {
             Icon::Lock.into(),
             EN.compact_vaults,
             match (open, vault_files) {
-                (0, 0) => String::new(),
-                (0, n) => fill(EN.compact_locked, &[&n.to_string()]),
-                (o, _) => fill(EN.compact_open, &[&o.to_string()]),
+                (0, 0) => Text::new(),
+                (0, n) => Text::fill(EN.compact_locked, &[&Text::num(n as u64)]),
+                (o, _) => Text::fill(EN.compact_open, &[&Text::num(o as u64)]),
             },
             Action::Nav(Screen::Vaults),
             true,
@@ -1056,14 +1053,14 @@ fn tiles(app: &View) -> Vec<Tile> {
         (
             Icon::File.into(),
             EN.compact_files,
-            format!("{} · {}", app.inbox.len(), app.outbox.len()),
+            text!("{} · {}", app.inbox.len(), app.outbox.len()),
             Action::Nav(Screen::Files),
             true,
         ),
         (
             Icon::Help.into(),
             EN.compact_guide,
-            String::new(),
+            Text::new(),
             Action::Guide,
             true,
         ),
@@ -1077,9 +1074,9 @@ fn tiles(app: &View) -> Vec<Tile> {
                 Icon::Shield.into(),
                 EN.compact_backups,
                 if without == 0 {
-                    String::new()
+                    Text::new()
                 } else {
-                    fill(EN.compact_not_backed, &[&without.to_string()])
+                    Text::fill(EN.compact_not_backed, &[&Text::num(without as u64)])
                 },
                 Action::Nav(Screen::Backups),
                 true,
@@ -1089,7 +1086,7 @@ fn tiles(app: &View) -> Vec<Tile> {
     t.push((
         Icon::Tools.into(),
         EN.compact_tools,
-        String::new(),
+        Text::new(),
         Action::Nav(Screen::Catalog),
         true,
     ));
@@ -1098,7 +1095,7 @@ fn tiles(app: &View) -> Vec<Tile> {
         t.push((
             Icon::Qr.into(),
             EN.compact_transfer,
-            String::new(),
+            Text::new(),
             Action::Nav(Screen::Transfer),
             true,
         ));
@@ -1106,7 +1103,7 @@ fn tiles(app: &View) -> Vec<Tile> {
     t.push((
         Icon::Settings.into(),
         EN.compact_settings,
-        String::new(),
+        Text::new(),
         Action::Nav(Screen::Settings),
         true,
     ));
@@ -1117,7 +1114,14 @@ fn tiles(app: &View) -> Vec<Tile> {
 /// the wide Home (`crate::screens::home_lead_beside_tiles`), as one prompt row; a lead
 /// that would open or start over a flow whose tile is above it gives way
 /// to the next, or to none (`docs/FLOWS.md`, Flows in progress).
-fn prompts(app: &View) -> Vec<(Glyph, String, Option<Action>, crate::ui::Paint)> {
+fn prompts(
+    app: &View,
+) -> Vec<(
+    Glyph,
+    impl std::ops::Deref<Target = str>,
+    Option<Action>,
+    crate::ui::Paint,
+)> {
     crate::screens::home_lead_beside_tiles(app)
         .map(|(icon, label, _sub, action, enabled)| {
             let tone = if enabled {
@@ -1145,7 +1149,7 @@ pub(crate) struct Osk {
     /// Put away while a field has focus.
     hidden: bool,
     /// Which field had focus on the last frame, when one did.
-    was_field: Option<String>,
+    was_field: Option<Text>,
     /// Where the press that focused that field was, pixels down the
     /// window: what the wide layout keeps in view above the keyboard.
     field_at: i32,
@@ -1238,7 +1242,7 @@ impl CompactArea {
     /// came up on this frame.
     pub(crate) fn track(
         &mut self,
-        field: Option<String>,
+        field: Option<Text>,
         down_y: i32,
         compact: bool,
         wanted: bool,
@@ -1277,7 +1281,7 @@ impl CompactArea {
 
     /// On a small panel, a field focused by itself is to be left
     /// unfocused: the keyboard was down and the field was not pressed.
-    pub(crate) fn unasked(&self, field: Option<&String>) -> bool {
+    pub(crate) fn unasked(&self, field: Option<&Text>) -> bool {
         field.is_some()
             && field != self.osk.was_field.as_ref()
             && !self.osk.pressed
@@ -1533,9 +1537,9 @@ impl Faraday {
 
     /// Which field typing goes to, as far as telling one from another:
     /// none when no field takes typing.
-    fn osk_field(&self) -> Option<String> {
+    fn osk_field(&self) -> Option<Text> {
         self.osk_auto().then(|| {
-            format!(
+            text!(
                 "{:?} {:?} {:?} {} {:?} {:?} {:?}", // not shown: a key compared
                 self.screen,
                 self.sheet,
@@ -1766,24 +1770,24 @@ impl Faraday {
 
     /// Files by direction, as the sidebar's Files row reads it: "3 for
     /// the stick" while any wait, else "20 from the stick", else "none".
-    pub fn files_count(&self) -> String {
+    pub fn files_count(&self) -> Text {
         if !self.outbox.is_empty() {
-            format!("{} {}", self.outbox.len(), self.medium.for_the())
+            text!("{} {}", self.outbox.len(), self.medium.for_the())
         } else if !self.inbox.is_empty() {
-            format!("{} {}", self.inbox.len(), self.medium.from_the())
+            text!("{} {}", self.inbox.len(), self.medium.from_the())
         } else {
-            EN.compact_none.to_string()
+            Text::of(EN.compact_none)
         }
     }
 
     /// Home's status line on a small panel: Files by direction, and
     /// what is attached, by its label or by how many.
-    pub fn home_files_line(&self) -> String {
+    pub fn home_files_line(&self) -> Text {
         let sticks = match self.stick.len() {
-            0 => fill(EN.compact_no_medium, &[self.medium.noun()]),
-            1 => self.stick[0].label.clone(),
-            k => format!("{k} {}", self.medium.nouns()),
+            0 => Text::fill(EN.compact_no_medium, &[self.medium.noun()]),
+            1 => Text::of(&self.stick[0].label),
+            k => text!("{k} {}", self.medium.nouns()),
         };
-        format!("{} · {sticks}", self.files_count())
+        text!("{} · {}", self.files_count().as_str(), sticks.as_str())
     }
 }

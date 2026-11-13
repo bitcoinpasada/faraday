@@ -98,7 +98,7 @@ fn tap_at(host: &mut Host, x: u16, y: u16) {
 /// The shell of the desktop app, in little: a folder pressed is plugged
 /// in when it is out and pulled when it is in.
 fn shell_follows(shell: &mut Shell, app: &mut Faraday) {
-    for folder in app.take_stick_toggles() {
+    for folder in app.take_stick_toggles().iter().map(|t| String::from(&**t)) {
         if shell.present.contains(&folder) {
             shell.pull(app, &folder);
         } else {

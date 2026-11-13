@@ -196,7 +196,9 @@ pub(crate) fn entry_words(
         && words
             .iter()
             .all(|wd| crate::forms::typed_index(lang, wd).is_some());
-    let m = complete.then(|| crate::forms::typed_mnemonic(lang, &app.entry.state().typed));
+    let m = complete.then(|| {
+        crate::forms::typed_mnemonic(lang, &app.entry.state().typed).map_err(|t| String::from(&*t))
+    });
     entry_status(app, ui, x, y, n, m)
 }
 
@@ -312,7 +314,7 @@ fn keyed_words(
     // fingerprint, or the last refusal: on the line above the
     // candidates, to keep the keyboard on screen.
     let (status, tone) = match &app.entry.state().error {
-        Some(e) => (e.clone(), Role::Error.paint()),
+        Some(e) => (String::from(&**e), Role::Error.paint()),
         None => keyed_status(app, lang, &taken),
     };
     ui.text_right_as((x + width, y - 4.0, 24.0), LABEL_L, tone, &status);

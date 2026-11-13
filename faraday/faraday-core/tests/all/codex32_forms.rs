@@ -57,7 +57,7 @@ fn changed(s: &str, n: usize) -> String {
 }
 
 fn error(app: &Faraday) -> Option<String> {
-    testkit::entry(app).error.clone()
+    testkit::entry(app).error.as_deref().map(String::from)
 }
 
 /// The fingerprint of the key `strings` make, loaded on a form of its own.

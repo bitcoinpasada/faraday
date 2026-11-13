@@ -296,7 +296,7 @@ fn figures(app: &View, f: &BackupFlow) -> Vec<Figure> {
                 State::Problem(t) => Item::Text(t.clone(), Role::Error),
             });
             if let Some(mark) = app.flow_mark_line(k) {
-                items.push(Item::Text(mark, Role::Primary));
+                items.push(Item::Text(String::from(&*mark), Role::Primary));
             }
             // The stick the machine started from, read already: any
             // waiting figure may take it, one figure at most (§3.3); a

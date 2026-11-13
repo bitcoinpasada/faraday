@@ -531,7 +531,7 @@ fn slot_rows(
         };
         let name = app
             .flow_slot_row(k)
-            .unwrap_or_else(|| cap(&f.target_name(&s.target, m)));
+            .unwrap_or_else(|| faraday_text::Text::of(&cap(&f.target_name(&s.target, m))));
         let name = ui.fit_as(BODY_S, &name, room);
         ui.text_as(
             x,
@@ -1503,9 +1503,9 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         let Some(wr) = &s.written else {
             continue;
         };
-        let name = app
-            .flow_slot_row(k)
-            .unwrap_or_else(|| f.target_short(&s.target, app.medium.noun()));
+        let name = app.flow_slot_row(k).unwrap_or_else(|| {
+            faraday_text::Text::of(&f.target_short(&s.target, app.medium.noun()))
+        });
         let at = read_time(app, wr.time);
         // What was written to it, the public files with the copies.
         let files: Vec<&str> = wr.files.iter().map(|(n, _)| n.as_str()).collect();

@@ -32,7 +32,7 @@ pub struct EntryState {
     /// The label for the key.
     pub label: String,
     /// The last refusal.
-    pub error: Option<String>,
+    pub error: Option<faraday_text::Text>,
     /// `error` is the passphrase field's refusal of the key just typed:
     /// it stays until the next key.
     pub refused: bool,
@@ -245,7 +245,7 @@ impl EntryArea {
     /// shown.
     pub(crate) fn refuse_round(&mut self, line: String) {
         self.state.parts.codex32.clear();
-        self.state.error = Some(line);
+        self.state.error = Some(faraday_text::Text::of(&line));
     }
 
     /// Sets the screen Back goes to.
@@ -260,7 +260,7 @@ impl EntryArea {
 
     /// Shows `error` as the last refusal.
     pub(crate) fn set_error(&mut self, error: impl AsRef<str>) {
-        self.state.error = Some(String::from(error.as_ref()));
+        self.state.error = Some(faraday_text::Text::of(error.as_ref()));
     }
 
     /// Clears the last refusal, whatever it was.
@@ -270,7 +270,7 @@ impl EntryArea {
 
     /// Takes the last refusal away.
     pub(crate) fn take_error(&mut self) -> Option<String> {
-        self.state.error.take()
+        self.state.error.take().map(|t| String::from(&*t))
     }
 
     /// Puts `text` in as typed.
@@ -540,7 +540,7 @@ impl EntryArea {
     /// one word of the list this form's words come from that its letters
     /// can still become, if only one. `Codex32` has none, since it is
     /// typed as a string, not words.
-    pub(crate) fn tab_word(&self) -> Option<String> {
+    pub(crate) fn tab_word(&self) -> Option<faraday_text::Text> {
         let e = &self.state;
         match e.form {
             Form::Words => completion(e.language(), &e.typed),
@@ -586,7 +586,7 @@ impl EntryArea {
                 zeroize::Zeroize::zeroize(&mut idx);
                 m
             }
-            None => forms::typed_mnemonic(lang, &e.typed),
+            None => forms::typed_mnemonic(lang, &e.typed).map_err(|t| String::from(&*t)),
         }
     }
 
@@ -604,7 +604,7 @@ impl EntryArea {
             // Anything else is refused, and the field says so
             // (`docs/STANDARDS.md`).
             K::Char(c) if !c.is_control() => {
-                e.error = Some(ascii_refused());
+                e.error = Some(faraday_text::Text::of(&ascii_refused()));
                 e.refused = true;
             }
             K::Backspace if second => {
@@ -715,7 +715,7 @@ impl EntryArea {
                 false
             }
             Err(msg) => {
-                e.error = Some(msg);
+                e.error = Some(faraday_text::Text::of(&msg));
                 false
             }
         }
@@ -812,7 +812,7 @@ impl EntryArea {
                 false
             }
             Err(msg) => {
-                e.error = Some(msg);
+                e.error = Some(faraday_text::Text::of(&msg));
                 false
             }
         }
@@ -923,7 +923,7 @@ fn add_slip39(parts: &mut forms::Parts, text: &str) -> Result<(), String> {
 /// seed. The same string again changes nothing; another at an index
 /// already in is handed back to ask about (`docs/CODEX32.md` §8.5).
 fn add_codex32(parts: &mut forms::Parts, given: &str) -> Result<Added, String> {
-    let c = Codex32::parse(given).map_err(|e| forms::codex32_refusal(given, &e))?;
+    let c = Codex32::parse(given).map_err(|e| String::from(&*forms::codex32_refusal(given, &e)))?;
     if let Some(first) = parts.codex32.first()
         && first.identifier() != c.identifier()
     {
@@ -985,7 +985,7 @@ pub struct MessageState {
     /// The name the signed message's file went out under.
     pub out_name: Option<String>,
     /// The last refusal.
-    pub error: Option<String>,
+    pub error: Option<faraday_text::Text>,
 }
 
 /// The message-signing area: the cards while they are open, and the
@@ -1231,7 +1231,7 @@ impl Faraday {
                             m.error = None;
                             m.done[mstep::SIGN as usize] = true;
                         }
-                        Err(e) => m.error = Some(e),
+                        Err(e) => m.error = Some(faraday_text::Text::of(&e)),
                     }
                 }
                 // The signed message goes For the stick as it is made.

@@ -6,11 +6,11 @@
 //! is a master seed and has no words; a Seed XOR key is BIP-39 words again.
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::codex32::Codex32;
 use faraday_bip::slip39;
 use faraday_entropy::SeedXor;
+use faraday_text::{Text, text};
 
 /// Which form Add a key is reading.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -80,20 +80,20 @@ impl Default for Parts {
 impl Parts {
     /// One line per part collected, for the list on screen: what it is,
     /// never its words.
-    pub fn lines(&self, form: Form) -> Vec<String> {
+    pub fn lines(&self, form: Form) -> Vec<Text> {
         match form {
             Form::Slip39 => self
                 .slip39
                 .iter()
                 .map(|s| {
-                    fill(
+                    Text::fill(
                         EN.forms_group_of_member,
                         &[
-                            &(s.group_index() + 1).to_string(),
-                            &s.group_count().to_string(),
-                            &(s.member_index() + 1).to_string(),
-                            &s.member_threshold().to_string(),
-                            &format!("{:04x}", s.identifier()),
+                            &Text::num(u64::from(s.group_index()) + 1),
+                            &Text::num(u64::from(s.group_count())),
+                            &Text::num(u64::from(s.member_index()) + 1),
+                            &Text::num(u64::from(s.member_threshold())),
+                            &text!("{:04x}", s.identifier()),
                         ],
                     )
                 })
@@ -102,29 +102,31 @@ impl Parts {
                 .codex32
                 .iter()
                 .map(|c| {
-                    let id = String::from_utf8_lossy(&c.identifier()).into_owned();
+                    let id = Text::from_utf8_lossy(&c.identifier());
                     if c.is_secret() {
-                        fill(EN.forms_the_secret_id, &[&id.to_string()])
+                        Text::fill(EN.forms_the_secret_id, &[&id])
                     } else {
-                        fill(
+                        Text::fill(
                             EN.forms_share_id_needed,
                             &[
-                                &char::from(c.share_index().to_ascii_uppercase()).to_string(),
-                                &id.to_string(),
-                                &c.threshold().to_string(),
+                                &text!("{}", char::from(c.share_index().to_ascii_uppercase())),
+                                &id,
+                                &Text::num(u64::from(c.threshold())),
                             ],
                         )
                     }
                 })
-                .chain(
-                    (self.codex32_vaults > 0)
-                        .then(|| fill(EN.c32r_in_vaults, &[&self.codex32_vaults.to_string()])),
-                )
+                .chain((self.codex32_vaults > 0).then(|| {
+                    Text::fill(EN.c32r_in_vaults, &[&Text::num(self.codex32_vaults as u64)])
+                }))
                 .collect(),
             Form::Xor => (1..=self.xor.parts())
                 .map(|i| {
                     let words = self.xor.strength().map_or(0, |s| s.words());
-                    fill(EN.forms_part_words, &[&i.to_string(), &words.to_string()])
+                    Text::fill(
+                        EN.forms_part_words,
+                        &[&Text::num(i as u64), &Text::num(words as u64)],
+                    )
                 })
                 .collect(),
             Form::Words => Vec::new(),
@@ -227,7 +229,7 @@ pub struct Checked {
     pub holds: bool,
     /// What the string is, where its checksum holds ("Share C · id
     /// w0za · 2 needed"); where it fails, the refusal.
-    pub what: String,
+    pub what: Text,
     /// Whether it is of the set typed in, where strings are in and its
     /// checksum holds.
     pub of_the_set: Option<bool>,
@@ -316,20 +318,20 @@ pub(crate) fn makes_more(parts: &Parts) -> bool {
 /// The line a string that does not parse is refused with: a share or
 /// the secret whose checksum fails is named by its index ("Share C ·
 /// checksum fails", §8.1), anything else by what is wrong.
-pub(crate) fn codex32_refusal(given: &str, e: &faraday_bip::codex32::Error) -> String {
+pub(crate) fn codex32_refusal(given: &str, e: &faraday_bip::codex32::Error) -> Text {
     if *e == faraday_bip::codex32::Error::BadChecksum
         && let Some(&i) = given.as_bytes().get(8)
     {
         let i = i.to_ascii_lowercase();
         if i == b's' {
-            return EN.codex32_form_secret_fails.to_string();
+            return Text::of(EN.codex32_form_secret_fails);
         }
-        return fill(
+        return Text::fill(
             EN.codex32_form_share_fails,
-            &[&char::from(i.to_ascii_uppercase()).to_string()],
+            &[&text!("{}", char::from(i.to_ascii_uppercase()))],
         );
     }
-    fill(
+    Text::fill(
         EN.forms_not_a_codex32,
         &[&faraday_strings::bip::codex32_error(e)],
     )
@@ -337,17 +339,17 @@ pub(crate) fn codex32_refusal(given: &str, e: &faraday_bip::codex32::Error) -> S
 
 /// What a codex32 string is, by its header: "Share C · id w0za · 2
 /// needed", or "The secret · id w0za".
-pub(crate) fn codex32_what(c: &Codex32) -> String {
-    let id = String::from_utf8_lossy(&c.identifier()).into_owned();
+pub(crate) fn codex32_what(c: &Codex32) -> Text {
+    let id = Text::from_utf8_lossy(&c.identifier());
     if c.is_secret() {
-        fill(EN.codex32_form_checked_secret, &[&id])
+        Text::fill(EN.codex32_form_checked_secret, &[&id])
     } else {
-        fill(
+        Text::fill(
             EN.codex32_form_checked_share,
             &[
-                &char::from(c.share_index().to_ascii_uppercase()).to_string(),
+                &text!("{}", char::from(c.share_index().to_ascii_uppercase())),
                 &id,
-                &c.threshold().to_string(),
+                &Text::num(u64::from(c.threshold())),
             ],
         )
     }
@@ -454,14 +456,16 @@ pub(crate) fn typed_candidates(lang: Language, prefix: &str) -> Vec<u16> {
 }
 
 /// The typed form of the one word a prefix can still become, for Tab.
-pub(crate) fn completion(lang: Language, typed: &str) -> Option<String> {
+pub(crate) fn completion(lang: Language, typed: &str) -> Option<Text> {
     let prefix = typed.rsplit(' ').next().unwrap_or("");
     if prefix.is_empty() {
         return None;
     }
     let c = typed_candidates(lang, prefix);
     match c.as_slice() {
-        [only] => lang.typed(*only).map(|t| t.as_chars().iter().collect()),
+        [only] => lang
+            .typed(*only)
+            .map(|t| t.as_chars().iter().copied().collect()),
         _ => None,
     }
 }
@@ -469,7 +473,7 @@ pub(crate) fn completion(lang: Language, typed: &str) -> Option<String> {
 /// The one SLIP-39 word a prefix can still become, for Tab: the same
 /// rule as [`completion`], over the 1024-word SLIP-39 list instead of a
 /// BIP-39 one.
-pub(crate) fn slip39_completion(typed: &str) -> Option<String> {
+pub(crate) fn slip39_completion(typed: &str) -> Option<Text> {
     let prefix = typed.rsplit(' ').next().unwrap_or("");
     if prefix.is_empty() {
         return None;
@@ -479,24 +483,24 @@ pub(crate) fn slip39_completion(typed: &str) -> Option<String> {
     if c.next().is_some() {
         return None;
     }
-    Some(slip39::word(only).to_string())
+    Some(Text::of(slip39::word(only)))
 }
 
 pub use faraday_intake::file_words;
 
 /// The typed words as a mnemonic in `lang`, when every one is a word.
-pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
+pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, Text> {
     let mut idx = Vec::new();
     for (k, w) in typed.split_whitespace().enumerate() {
         idx.push(typed_index(lang, w).ok_or_else(|| {
-            fill(
+            Text::fill(
                 EN.forms_word_not_in_list,
-                &[&(k + 1).to_string(), language_name(lang)],
+                &[&Text::num(k as u64 + 1), language_name(lang)],
             )
         })?);
     }
     let m = faraday_keys::words::from_indices(lang, &idx)
-        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)));
+        .map_err(|e| faraday_strings::bip::bip39_error(&e));
     zeroize::Zeroize::zeroize(&mut idx);
     m
 }
@@ -523,14 +527,14 @@ pub(crate) fn word_whole(w: &crate::word_entry::WordEntry, lang: Language) -> bo
 /// only one they can be. Space, Tab, Enter and Add key end a word so on
 /// a physical keyboard, as a press on its pill does on the screen.
 pub(crate) fn take_typed(w: &mut crate::word_entry::WordEntry, lang: Language) {
-    let prefix: String = w.prefix().iter().collect();
+    let prefix: Text = w.prefix().iter().copied().collect();
     if prefix.is_empty() {
         return;
     }
     let cands: Vec<u16> = w.candidates().collect();
     let n = cands
         .iter()
-        .position(|&i| lang.word(i) == prefix)
+        .position(|&i| lang.word(i) == prefix.as_str())
         .or((cands.len() == 1).then_some(0));
     if let Some(n) = n {
         w.commit_candidate(n);
@@ -559,7 +563,7 @@ pub(crate) struct WordsMut<'a> {
     /// keyboard.
     pub keys: &'a mut Option<Box<crate::word_entry::WordEntry>>,
     /// The last refusal.
-    pub error: &'a mut Option<String>,
+    pub error: &'a mut Option<Text>,
     /// The list the words are from.
     pub lang: Language,
     /// A word may be typed as its four-digit number.
@@ -642,13 +646,13 @@ pub(crate) fn word_key(w: WordsMut<'_>, key: faraday_shell_api::Key) -> WordKey 
                 typed.truncate(cut);
                 match (number < 2048).then(|| lang.typed(number)).flatten() {
                     Some(t) => {
-                        typed.push_str(&t.as_chars().iter().collect::<String>());
+                        typed.push_str(&t.as_chars().iter().copied().collect::<Text>());
                         typed.push(' ');
                     }
                     None => {
-                        *w.error = Some(fill(
+                        *w.error = Some(Text::fill(
                             EN.forms_word_not_in_list,
-                            &[&at.to_string(), language_name(lang)],
+                            &[&Text::num(at as u64), language_name(lang)],
                         ));
                     }
                 }

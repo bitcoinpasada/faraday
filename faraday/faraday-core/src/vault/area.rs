@@ -3935,7 +3935,7 @@ impl Vaults {
                 name: r
                     .public_text(field::KEY_LABEL)
                     .map(str::to_string)
-                    .or_else(|| crate::bip85::record_child_mark(r))
+                    .or_else(|| crate::bip85::record_child_mark(r).map(|t| String::from(&*t)))
                     .unwrap_or_else(|| EN.vaults_seed.to_string()),
                 detail: fp,
                 seed: true,

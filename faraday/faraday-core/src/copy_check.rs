@@ -26,7 +26,7 @@ pub struct WordCheck {
     /// The on-screen keyboard's shift is on.
     pub shift: bool,
     /// What the last comparison found, until the next key.
-    pub error: Option<String>,
+    pub error: Option<faraday_text::Text>,
     /// The seed's own list.
     pub lang: Language,
     /// The seed's word count.
@@ -148,7 +148,7 @@ impl WordCheck {
                 }
                 // Anything else is refused, and the check says so.
                 KeyIn::Char(ch) if !ch.is_control() => {
-                    self.error = Some(crate::state::ascii_refused());
+                    self.error = Some(faraday_text::Text::of(&crate::state::ascii_refused()));
                 }
                 KeyIn::Backspace | KeyIn::Delete => {
                     self.typed.pop();
@@ -175,7 +175,7 @@ impl WordCheck {
     /// typing resumes at it.
     pub(crate) fn wrong(&mut self, k: usize, line: String) {
         self.keep(k - 1);
-        self.error = Some(line);
+        self.error = Some(faraday_text::Text::of(&line));
     }
 }
 
@@ -197,7 +197,7 @@ pub(crate) enum Typed {
 pub(crate) struct WordsUse<'a> {
     pub keys: &'a mut Option<Box<WordEntry>>,
     pub shift: &'a mut bool,
-    pub error: &'a mut Option<String>,
+    pub error: &'a mut Option<faraday_text::Text>,
     pub lang: Language,
     pub in_check: bool,
 }

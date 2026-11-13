@@ -486,6 +486,10 @@ faraday/faraday-core/src/ots_check/hash.rs
 faraday/faraday-core/src/ots_check/mod.rs
 faraday/faraday-core/src/boot_import/mod.rs
 faraday/faraday-core/src/boot_import/text_ask.rs
+faraday/faraday-core/src/compact/mod.rs
+faraday/faraday-core/src/forms.rs
+faraday/faraday-core/src/stick/pills.rs
+faraday/faraday-core/src/bip85/mod.rs
 faraday/faraday-qr/src/bbqr.rs
 faraday/faraday-qr/src/send.rs
 faraday/faraday-intake/src/lib.rs

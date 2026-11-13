@@ -388,7 +388,11 @@ fn a_wrong_checksum_an_unknown_word_or_a_wrong_count_pasted_is_refused_and_the_w
         let before = words_in(&app);
         paste_words(&mut app, bad, false);
         assert_eq!(words_in(&app), before, "{bad}");
-        let error = testkit::entry(&app).error.clone().unwrap_or_default();
+        let error = testkit::entry(&app)
+            .error
+            .as_deref()
+            .unwrap_or_default()
+            .to_string();
         assert!(
             error.to_lowercase().contains(&why.to_lowercase()),
             "{bad}: {error}"

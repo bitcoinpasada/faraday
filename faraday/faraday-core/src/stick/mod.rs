@@ -117,7 +117,7 @@ pub(crate) struct StickArea {
     problems: Vec<(String, bool)>,
     /// Pills pressed since the shell last asked: the folder names to
     /// insert or pull ([`crate::Faraday::take_stick_toggles`]).
-    toggles: Vec<String>,
+    toggles: Vec<faraday_text::Text>,
     /// The settings the boot stick holds, as `settings_body` writes them:
     /// read from it at boot, or written to it since; `None` until the
     /// boot stick has been looked at.

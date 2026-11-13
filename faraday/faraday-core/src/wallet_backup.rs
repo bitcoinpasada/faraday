@@ -1492,7 +1492,7 @@ impl WalletBackupArea {
     pub(crate) fn passphrase_differs(&mut self) {
         if let Some(c) = self.open_check() {
             c.typed.clear();
-            c.error = Some(EN.copy_check_passphrase_differs.to_string());
+            c.error = Some(faraday_text::Text::of(EN.copy_check_passphrase_differs));
         }
     }
 }

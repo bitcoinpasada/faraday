@@ -95,8 +95,8 @@ fn summary(app: &View, b: &Bip85State, s: u8) -> String {
             Some(l) => format!("{} · {l}", app_name(b.app)),
             None => app_name(b.app).to_string(),
         },
-        pstep::INDEX => b.index.clone(),
-        _ => b.path(),
+        pstep::INDEX => String::from(&*b.index),
+        _ => String::from(&*b.path()),
     }
 }
 

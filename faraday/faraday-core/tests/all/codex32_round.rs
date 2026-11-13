@@ -66,7 +66,11 @@ fn type_string(app: &mut Faraday, s: &str) {
 
 /// What the entry says of the last string typed.
 fn refusal(app: &Faraday) -> String {
-    testkit::entry(app).error.clone().unwrap_or_default()
+    testkit::entry(app)
+        .error
+        .as_deref()
+        .unwrap_or_default()
+        .to_string()
 }
 
 /// Share `index` of a 2-of-3 set named `id` over `seed`.

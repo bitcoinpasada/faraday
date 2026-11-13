@@ -811,7 +811,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
     };
     let taken: Vec<u16> = w.committed_indices().collect();
     let (status, tone) = match &app.entry.state().error {
-        Some(e) => (e.clone(), Role::Error.paint()),
+        Some(e) => (String::from(&**e), Role::Error.paint()),
         None => crate::screens::keyed_status(app, lang, &taken),
     };
     y = keyed_head(

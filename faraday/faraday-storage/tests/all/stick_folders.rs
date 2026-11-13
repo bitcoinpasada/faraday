@@ -29,9 +29,12 @@ fn in_now(dir: &std::path::Path, attached: &[String]) -> Vec<faraday_core::Stick
 #[test]
 fn a_vault_written_to_stick_3_is_there_after_it_is_pulled_and_put_back() {
     let dir = sticks_dir();
-    let (one, two) = (backup_folder(2), backup_folder(3));
+    let (one, two) = (
+        String::from(&*backup_folder(2)),
+        String::from(&*backup_folder(3)),
+    );
     assert_eq!((one.as_str(), two.as_str()), ("STICK-2", "STICK-3"));
-    for name in [&one, &two] {
+    for name in [one.as_str(), two.as_str()] {
         fs::create_dir_all(dir.join(name)).unwrap();
     }
     let vault = vec![7u8; 4096];
