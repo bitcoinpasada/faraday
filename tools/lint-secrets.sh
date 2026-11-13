@@ -337,7 +337,113 @@ rule2_types() {
 report "Clone, PartialEq, Debug derived or Display implemented on a secret type (rule 2)" "$(rule2_types)"
 
 # Rule 3: no heap text in the files that hold secret material.
-SECRET_FILES="faraday/faraday-vault/src/contents.rs faraday/faraday-vault/src/contents/tree.rs faraday/faraday-vault/src/kdbx/mod.rs faraday/faraday-vault/src/kdbx/keys.rs faraday/faraday-vault/src/kdbx/keyfile.rs faraday/faraday-vault/src/kdbx/blocks.rs faraday/faraday-vault/src/kdbx/inner.rs faraday/faraday-vault/src/kdbx/xml/mod.rs faraday/faraday-vault/src/kdbx/xml/read.rs faraday/faraday-vault/src/kdbx/items/mod.rs faraday/faraday-vault/src/kdbx/items/write.rs faraday/faraday-vault/src/kdbx/items/forms.rs faraday/faraday-vault/src/kdbx/gzip.rs faraday/faraday-vault/src/file.rs core/faraday-crypto/src/secret.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-bip/src/wif.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/booklet.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs faraday/faraday-vault/src/layouts.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/codex32/correct.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/message.rs faraday/faraday-keys/src/job.rs faraday/faraday-keys/src/hsm_secret.rs faraday/faraday-keys/src/slip39_set.rs faraday/faraday-pgp/src/secret.rs faraday/faraday-vault/src/qr.rs faraday/faraday-kef/src/lib.rs faraday/faraday-core/src/worker/kef.rs faraday/faraday-core/src/worker.rs faraday/faraday-keys/src/kef.rs faraday/faraday-keys/src/qr_vault.rs faraday/faraday-keys/src/core_wallet.rs faraday/faraday-vault/src/records.rs faraday/faraday-vault/src/kdbx/tests.rs faraday/faraday-ui/src/press.rs faraday/faraday-scanner/src/lib.rs faraday/faraday-samples/src/data.rs faraday/faraday-pgp/src/message/tests.rs faraday/faraday-keys/src/vault/seal.rs faraday/faraday-keys/src/vault/edits.rs faraday/faraday-keys/src/psbt.rs faraday/faraday-keys/src/parts.rs faraday/faraday-keys/src/lib.rs faraday/faraday-host/src/scroll.rs faraday/faraday-guide/src/how.rs faraday/faraday-guide/src/block.rs faraday/faraday-core/src/wallet_backup/shown.rs faraday/faraday-core/src/vault/screen/secret.rs faraday/faraday-core/src/nav/mod.rs faraday/faraday-core/src/fresh/roller/five.rs faraday/faraday-core/src/codex32/walk.rs faraday/faraday-core/src/codex32/tracker.rs core/faraday-draw/src/tokens.rs core/faraday-crypto/src/pinned.rs core/faraday-crypto/src/lib.rs core/faraday-crypto/src/hash.rs core/faraday-crypto/src/argon2.rs core/faraday-codec/src/seedqr.rs core/faraday-codec/src/lib.rs core/faraday-codec/src/decode.rs core/faraday-codec/src/png.rs core/faraday-crypto/src/blake2b.rs core/faraday-crypto/src/scrypt.rs core/faraday-crypto/src/wipe.rs core/faraday-crypto/src/work.rs core/faraday-entropy/src/pointer_keys.rs core/faraday-psbt/src/context.rs core/faraday-psbt/src/lib.rs core/faraday-psbt/src/musig.rs faraday/faraday-core/src/fresh/page.rs faraday/faraday-core/src/work/budget/codex32.rs faraday/faraday-core/src/work.rs faraday/faraday-keys/src/message.rs faraday/faraday-keys/src/vanity.rs faraday/faraday-sb/src/rng.rs"
+SECRET_FILES="faraday/faraday-vault/src/contents.rs
+faraday/faraday-vault/src/contents/tree.rs
+faraday/faraday-vault/src/kdbx/mod.rs
+faraday/faraday-vault/src/kdbx/keys.rs
+faraday/faraday-vault/src/kdbx/keyfile.rs
+faraday/faraday-vault/src/kdbx/blocks.rs
+faraday/faraday-vault/src/kdbx/inner.rs
+faraday/faraday-vault/src/kdbx/xml/mod.rs
+faraday/faraday-vault/src/kdbx/xml/read.rs
+faraday/faraday-vault/src/kdbx/items/mod.rs
+faraday/faraday-vault/src/kdbx/items/write.rs
+faraday/faraday-vault/src/kdbx/items/forms.rs
+faraday/faraday-vault/src/kdbx/gzip.rs
+faraday/faraday-vault/src/file.rs
+core/faraday-crypto/src/secret.rs
+core/faraday-bip/src/bip39.rs
+core/faraday-bip/src/slip39.rs
+core/faraday-bip/src/keys.rs
+core/faraday-bip/src/bip85.rs
+core/faraday-bip/src/xkey.rs
+core/faraday-bip/src/wif.rs
+core/faraday-entropy/src/lib.rs
+core/faraday-entropy/src/dice.rs
+core/faraday-entropy/src/booklet.rs
+core/faraday-entropy/src/coins.rs
+core/faraday-entropy/src/hex.rs
+core/faraday-entropy/src/xor.rs
+core/faraday-entropy/src/cards.rs
+core/faraday-entropy/src/camera.rs
+core/faraday-entropy/src/device.rs
+core/faraday-entropy/src/mix.rs
+faraday/faraday-vault/src/layouts.rs
+core/faraday-bip/src/codex32/mod.rs
+core/faraday-bip/src/codex32/worksheet.rs
+core/faraday-bip/src/codex32/fresh.rs
+core/faraday-bip/src/codex32/correct.rs
+core/faraday-bip/src/silent.rs
+core/faraday-bip/src/dleq.rs
+core/faraday-psbt/src/silent.rs
+core/faraday-bip/src/aez.rs
+core/faraday-bip/src/aezeed.rs
+core/faraday-bip/src/vanity.rs
+faraday/faraday-core/src/word_entry.rs
+faraday/faraday-core/src/quiz.rs
+faraday/faraday-core/src/grind.rs
+faraday/faraday-pgp/src/paperkey.rs
+faraday/faraday-pgp/src/message.rs
+faraday/faraday-keys/src/job.rs
+faraday/faraday-keys/src/hsm_secret.rs
+faraday/faraday-keys/src/slip39_set.rs
+faraday/faraday-pgp/src/secret.rs
+faraday/faraday-vault/src/qr.rs
+faraday/faraday-kef/src/lib.rs
+faraday/faraday-core/src/worker/kef.rs
+faraday/faraday-core/src/worker.rs
+faraday/faraday-keys/src/kef.rs
+faraday/faraday-keys/src/qr_vault.rs
+faraday/faraday-keys/src/core_wallet.rs
+faraday/faraday-vault/src/records.rs
+faraday/faraday-vault/src/kdbx/tests.rs
+faraday/faraday-ui/src/press.rs
+faraday/faraday-scanner/src/lib.rs
+faraday/faraday-samples/src/data.rs
+faraday/faraday-pgp/src/message/tests.rs
+faraday/faraday-keys/src/vault/seal.rs
+faraday/faraday-keys/src/vault/edits.rs
+faraday/faraday-keys/src/psbt.rs
+faraday/faraday-keys/src/parts.rs
+faraday/faraday-keys/src/lib.rs
+faraday/faraday-host/src/scroll.rs
+faraday/faraday-guide/src/how.rs
+faraday/faraday-guide/src/block.rs
+faraday/faraday-core/src/wallet_backup/shown.rs
+faraday/faraday-core/src/vault/screen/secret.rs
+faraday/faraday-core/src/nav/mod.rs
+faraday/faraday-core/src/fresh/roller/five.rs
+faraday/faraday-core/src/codex32/walk.rs
+faraday/faraday-core/src/codex32/tracker.rs
+core/faraday-draw/src/tokens.rs
+core/faraday-crypto/src/pinned.rs
+core/faraday-crypto/src/lib.rs
+core/faraday-crypto/src/hash.rs
+core/faraday-crypto/src/argon2.rs
+core/faraday-codec/src/seedqr.rs
+core/faraday-codec/src/lib.rs
+core/faraday-codec/src/decode.rs
+core/faraday-codec/src/png.rs
+core/faraday-crypto/src/blake2b.rs
+core/faraday-crypto/src/scrypt.rs
+core/faraday-crypto/src/wipe.rs
+core/faraday-crypto/src/work.rs
+core/faraday-entropy/src/pointer_keys.rs
+core/faraday-psbt/src/context.rs
+core/faraday-psbt/src/lib.rs
+core/faraday-psbt/src/musig.rs
+faraday/faraday-core/src/fresh/page.rs
+faraday/faraday-core/src/work/budget/codex32.rs
+faraday/faraday-core/src/work.rs
+faraday/faraday-keys/src/message.rs
+faraday/faraday-keys/src/vanity.rs
+faraday/faraday-sb/src/rng.rs
+core/faraday-text/src/lib.rs
+core/faraday-text/src/text.rs
+core/faraday-text/src/num.rs
+faraday/faraday-intake/src/secret_buf.rs"
+# One path per line above; the checks below match a path between spaces.
+SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
     [ -f "$f" ] || { echo "lint-secrets: missing $f (update SECRET_FILES)"; status=1; }
 done
@@ -346,7 +452,8 @@ done
 #   codex32/fresh.rs   makes shares from entropy through the types of mod.rs
 #   vault/qr.rs        takes the passphrase as text for the PGP layer's seal
 #   worker/kef.rs      holds the KEF worker's answers behind faraday-keys calls
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs"
+#   faraday-text lib   declares and documents the wiping text type of text.rs
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs"
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }

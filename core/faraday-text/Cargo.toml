@@ -1,0 +1,16 @@
+[package]
+name = "faraday-text"
+version = "0.1.0"
+description = "Heap text that wipes itself: one buffer that is zeroed when it grows, is cleared or is dropped"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# The one dependency: wiping the buffer (docs/deps/zeroize.md).
+zeroize = { workspace = true, features = ["alloc"] }
+
+[lints]
+workspace = true

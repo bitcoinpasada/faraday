@@ -1,37 +1,32 @@
 //! Text a person types that may be a secret: seed words, a passphrase,
 //! dice rolls, a share.
 //!
-//! `Zeroizing<String>` wipes a string's buffer when it is dropped, but a
-//! `String` that grows past its capacity moves to a larger buffer and
-//! frees the old one as it is, so every word typed before the move stays
-//! in freed memory until the allocator reuses it. [`SecretText`] never
-//! leaves a copy behind: it starts with room for a long passphrase and,
-//! should it need more, copies into a buffer twice the size and wipes the
-//! old one before freeing it. Clearing, replacing and dropping it wipe
-//! the whole buffer, the bytes past the end included.
+//! A growable buffer that moves to a larger one as it fills frees the old
+//! buffer as it is, so every word typed before the move stays in freed
+//! memory until the allocator reuses it. [`SecretText`] never leaves a
+//! copy behind: it starts with room for a long passphrase and, should it
+//! need more, copies into a buffer twice the size and wipes the old one
+//! before freeing it. Clearing, replacing and dropping it wipe the whole
+//! buffer, the bytes past the end included. It is a [`Text`] under a
+//! name that marks what it holds.
 
 use std::fmt;
 use std::ops::Deref;
 
+use faraday_text::Text;
 use zeroize::Zeroize;
 
-// The room a fresh one starts with, bytes: more than 24 words of the
-// longest BIP-39 list, so a seed phrase never moves.
 use crate::ROOM;
 
 pub use crate::room;
 
-/// A string for typed secrets, wiped whenever it moves, is cleared or is
+/// Text for typed secrets, wiped whenever it moves, is cleared or is
 /// dropped.
-pub struct SecretText {
-    text: String,
-}
+pub struct SecretText(Text);
 
 impl Default for SecretText {
     fn default() -> Self {
-        SecretText {
-            text: String::with_capacity(ROOM),
-        }
+        SecretText(Text::with_room(ROOM))
     }
 }
 
@@ -48,67 +43,40 @@ impl SecretText {
         t
     }
 
-    /// Makes room for `more` bytes without leaving a copy behind.
-    fn room(&mut self, more: usize) {
-        let need = self.text.len() + more;
-        if need <= self.text.capacity() {
-            return;
-        }
-        let mut bigger = String::with_capacity(need.max(self.text.capacity() * 2));
-        bigger.push_str(&self.text);
-        self.text.zeroize();
-        self.text = bigger;
-    }
-
     /// Adds a character at the end.
     pub fn push(&mut self, c: char) {
-        self.room(c.len_utf8());
-        self.text.push(c);
+        self.0.push(c);
     }
 
     /// Adds `s` at the end.
     pub fn push_str(&mut self, s: &str) {
-        self.room(s.len());
-        self.text.push_str(s);
+        self.0.push_str(s);
     }
 
     /// Takes the last character off, wiping its bytes.
     pub fn pop(&mut self) -> Option<char> {
-        let c = self.text.chars().next_back()?;
-        let at = self.text.len() - c.len_utf8();
-        self.truncate(at);
-        Some(c)
+        self.0.pop()
     }
 
     /// Keeps the first `len` bytes, wiping the rest. `len` past the end,
     /// or not on a character boundary, keeps it all.
     pub fn truncate(&mut self, len: usize) {
-        if len >= self.text.len() || !self.text.is_char_boundary(len) {
-            return;
-        }
-        // What is cut still sits in the buffer past the end: written over
-        // with zeros, which needs no more room, and cut again.
-        let tail = self.text.len() - len;
-        self.text.truncate(len);
-        self.text.extend(std::iter::repeat_n('\0', tail));
-        self.text.truncate(len);
+        self.0.truncate(len);
     }
 
     /// Empties it, wiping the whole buffer.
     pub fn clear(&mut self) {
-        // Zeroes every byte of the buffer and keeps it.
-        self.text.zeroize();
+        self.0.clear();
     }
 
     /// Replaces what it holds with `s`.
     pub fn set(&mut self, s: &str) {
-        self.clear();
-        self.push_str(s);
+        self.0.set(s);
     }
 
     /// The text.
     pub fn as_str(&self) -> &str {
-        &self.text
+        self.0.as_str()
     }
 }
 
@@ -116,45 +84,39 @@ impl Deref for SecretText {
     type Target = str;
 
     fn deref(&self) -> &str {
-        &self.text
-    }
-}
-
-impl Drop for SecretText {
-    fn drop(&mut self) {
-        self.text.zeroize();
+        self.0.as_str()
     }
 }
 
 /// Never prints what it holds.
 impl fmt::Debug for SecretText {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "SecretText({} bytes)", self.text.len())
+        write!(f, "SecretText({} bytes)", self.0.len())
     }
 }
 
 impl PartialEq<str> for SecretText {
     fn eq(&self, other: &str) -> bool {
-        self.text == other
+        self.0 == *other
     }
 }
 
 impl PartialEq<&str> for SecretText {
     fn eq(&self, other: &&str) -> bool {
-        self.text == *other
+        self.0 == *other
     }
 }
 
 /// A copy is another [`SecretText`], wiped in its turn.
 impl Clone for SecretText {
     fn clone(&self) -> Self {
-        SecretText::of(&self.text)
+        SecretText(self.0.duplicate())
     }
 }
 
 impl Zeroize for SecretText {
     fn zeroize(&mut self) {
-        self.clear();
+        self.0.clear();
     }
 }
 

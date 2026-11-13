@@ -948,6 +948,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-qr",
  "faraday-strings",
+ "faraday-text",
  "serde",
  "serde_json",
  "zeroize",
@@ -1206,6 +1207,13 @@ version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-crypto",
+ "zeroize",
+]
+
+[[package]]
+name = "faraday-text"
+version = "0.1.0"
+dependencies = [
  "zeroize",
 ]
 

@@ -24,6 +24,8 @@ serde.workspace = true
 serde_json.workspace = true
 # The description reader's refusal lines (`wallet`).
 faraday-strings = { path = "../faraday-strings" }
+# Typed secrets (`SecretText`) are held in wiping heap text.
+faraday-text = { path = "../../core/faraday-text" }
 
 [lints]
 workspace = true

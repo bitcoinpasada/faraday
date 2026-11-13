@@ -6,6 +6,9 @@ the single dependency of `faraday-shell-api`, where `EntropyBytes` wipes the
 32 bytes a shell answered a session's entropy request with (security
 review 2026-09-11, L4).
 
+It is also the single dependency of `faraday-text`, whose `Text` wipes its
+buffer when it grows, is cleared or is dropped.
+
 It also wipes the Argon2 working memory in `faraday_crypto::argon2`
 (the one Argon2 call the self-test, the KDBX container and the QR
 vault's OpenPGP message make), the cluster buffer in `faraday-fat`, and

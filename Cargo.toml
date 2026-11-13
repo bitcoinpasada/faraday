@@ -6,6 +6,7 @@ members = [
     "core/faraday-entropy",
     "core/faraday-psbt",
     "core/faraday-shell-api",
+    "core/faraday-text",
     "core/faraday-codec",
     "core/faraday-selftest",
     "core/faraday-draw",
