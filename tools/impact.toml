@@ -854,12 +854,12 @@ misses = "a flow the leaks test binary does not run, and the tours' check, which
 
 [[rule]]
 id = "keys.secret-types"
-title = "a secret type derives no Clone, PartialEq, Debug or Display, and clippy refuses to_vec, clone, to_owned and String::from on a secret buffer; lint-secrets finds a secret file by the types it uses"
+title = "a secret type derives no Clone, PartialEq, Debug or Display, and clippy refuses to_vec, clone, to_owned and to_string on a secret buffer, and lint-secrets String in a secret file; lint-secrets finds a secret file by the types it uses"
 source = ["docs/decisions/F250.md", "docs/SECRET-LEAKS.md §6"]
 when = ["faraday/**/src/**", "core/**/src/**"]
 kind = "held"
 held_by = ["lint-secrets", "clippy"]
-misses = "the clippy list of copying methods is not built yet (docs/SECRET-LEAKS.md Open line), and clippy names methods, not types"
+misses = "clippy names methods, not types, and cannot name String::from; other copies into a plain Vec (Vec::from, collect, extend_from_slice) are held by review"
 
 [[rule]]
 id = "keys.leak-entries"

@@ -1,8 +1,8 @@
 # Secret leaks: tests that fail on a secret left in memory or on screen
 
 **Kind:** Spec
-**Status:** Specified (F250); the allocator, the flow tests, the tours' check and the clippy refusal of `clone`, `to_string` and `to_owned` (each secret-holding crate's own `clippy.toml`) are built, the rest is in its Open line.
-**Open:** §6's refusal of `to_vec` and `String::from`.
+**Status:** Specified (F250); the allocator, the flow tests, the tours' check and the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) are built, the rest is in its Open line.
+**Open:** §6's rule on every secret type: the types `lint-secrets` rule 2 still lets keep a derive.
 
 Faraday keeps its secrets in types that wipe on drop (`Secret`,
 `SecretText`, `Zeroizing`, `faraday-keys`' holders, `docs/KEYS.md`), and
@@ -148,12 +148,17 @@ had to list one screen by hand.
   list of type names and one-by-one exceptions; it becomes a rule on
   every secret type, found as below.
 - **`clippy::disallowed_methods`** in the crates that hold secrets
-  refuses `to_vec`, `clone`, `to_owned`, `String::from` and `to_string`
-  on a secret buffer (`Secret<_>`, `SecretText`, `Zeroizing<_>`, a
-  `faraday-keys` holder). The repository has no such list today. The
-  lint names methods, not types, so where it cannot tell the type the
-  refusal covers the method in the whole module, and a legitimate use
-  carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
+  refuses `to_vec`, `clone`, `to_owned` and `to_string` on a secret
+  buffer (`Secret<_>`, `SecretText`, `Zeroizing<_>`, a `faraday-keys`
+  holder), each crate's own `clippy.toml` listing them. The lint names
+  methods, not types, so where it cannot tell the type the refusal
+  covers the method in the whole module, and a legitimate use carries
+  `#[expect(clippy::disallowed_methods, reason = "...")]` on the
+  statement that needs it. Clippy can name `String::from` only as
+  `From::from`, which every integer and character conversion also is, so
+  it is not listed: in a secret file `lint-secrets` rule 3 refuses
+  `String` itself. Other copies into a plain `Vec` (`Vec::from`,
+  `collect`, `extend_from_slice`) are held by review.
 - **`lint-secrets` finds a secret file by the types it uses**, not only
   by its place in `SECRET_FILES`: a file that names a secret type
   (`Secret`, `SecretText`, `Zeroizing`, a `faraday-keys` holder,
