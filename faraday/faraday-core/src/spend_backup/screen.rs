@@ -730,7 +730,7 @@ fn summary(app: &View, id: CardId) -> Text {
         CardId::Page(_) => "",
         CardId::Step(n) => {
             return match app.wallets.spend() {
-                Some(s) => Text::of(&step_summary(app, n, s.wallet, app.spend_needed())),
+                Some(s) => step_summary(app, n, s.wallet, app.spend_needed()),
                 None => Text::new(),
             };
         }

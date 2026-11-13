@@ -5,7 +5,7 @@ use crate::compare::ComparePress;
 use crate::drawing::{Scrolled, View};
 use crate::memory::nonces::History;
 use crate::review::unchecked_text;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, btc, short, thousands};
 use crate::wallet::{Session, fp_text, network_name, step, txid_known};
@@ -16,8 +16,26 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::widgets::Icon;
 use faraday_psbt::{Level, OutputKind};
+use faraday_text::{Text, text};
 use faraday_ui::Status;
 use faraday_ui::parts::wrap_buttons;
+
+/// A key's fingerprint as text. A lookup.
+pub(super) fn fp_label(fp: faraday_bip::keys::Fingerprint) -> Text {
+    Text::of(&fp_text(fp))
+}
+
+/// The parts one after another with `sep` between them. A lookup.
+pub(super) fn joined(parts: &[Text], sep: &str) -> Text {
+    let mut out = Text::new();
+    for (k, part) in parts.iter().enumerate() {
+        if k > 0 {
+            out.push_str(sep);
+        }
+        out.push_str(part);
+    }
+    out
+}
 
 /// The spend's nonce check (`nonce_card`), kept on the spend. Returns
 /// its height.
@@ -62,10 +80,10 @@ pub(crate) fn nonce_card(
         cy += 40.0;
     }
     for reuse in &check.reused {
-        let inputs: Vec<String> = reuse.inputs.iter().map(|i| i.to_string()).collect();
-        let line = fill(
+        let inputs: Vec<Text> = reuse.inputs.iter().map(|i| text!("{}", i)).collect();
+        let line = Text::fill(
             EN.nonce_check_one_nonce,
-            &[&reuse.name(), &inputs.join(", ").to_string()],
+            &[&reuse.name(), &joined(&inputs, ", ")],
         );
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }
@@ -76,7 +94,7 @@ pub(crate) fn nonce_card(
         } else {
             EN.psbt_warn_witness_mismatch
         };
-        let line = fill(text, &[&input.to_string()]);
+        let line = Text::fill(text, &[&text!("{}", input)]);
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }
     const SHOWN: usize = 12;
@@ -85,7 +103,7 @@ pub(crate) fn nonce_card(
             (x, cy, 30.0),
             BODY_S,
             Role::OnSurfaceVariant,
-            &fill(EN.nonce_check_input, &[&r.input.to_string()]),
+            &Text::fill(EN.nonce_check_input, &[&text!("{}", r.input)]),
         );
         ui.text_mid_as(
             (x + 70.0, cy, 30.0),
@@ -117,10 +135,10 @@ pub(crate) fn nonce_card(
             } else {
                 Role::Error
             },
-            &fill(
+            &Text::fill(
                 EN.nonce_check_more,
                 &[
-                    &rest.len().to_string(),
+                    &text!("{}", rest.len()),
                     (if ok {
                         EN.nonce_check_none_wrong
                     } else {
@@ -139,20 +157,20 @@ pub(crate) fn nonce_card(
 fn history_lines(ui: &mut Ui, check: &crate::wallet::NonceCheck, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     for used in &check.used_before {
-        let inputs: Vec<String> = used.inputs.iter().map(|i| i.to_string()).collect();
-        let line = fill(EN.nonce_history_used, &[&used.name, &inputs.join(", ")]);
+        let inputs: Vec<Text> = used.inputs.iter().map(|i| text!("{}", i)).collect();
+        let line = Text::fill(EN.nonce_history_used, &[&used.name, &joined(&inputs, ", ")]);
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Error, &line) + GAP;
     }
     let (line, tone) = match check.history {
         History::Clean { .. } if !check.used_before.is_empty() => return cy - y,
         History::Off => return cy - y,
         History::Clean { vaults } if vaults > 1 => (
-            fill(EN.nonce_history_clean_vaults, &[&vaults.to_string()]),
+            Text::fill(EN.nonce_history_clean_vaults, &[&text!("{}", vaults)]),
             Role::OnSurfaceVariant,
         ),
-        History::Clean { .. } => (EN.nonce_history_clean.to_string(), Role::OnSurfaceVariant),
+        History::Clean { .. } => (Text::of(EN.nonce_history_clean), Role::OnSurfaceVariant),
         History::Unread { records, .. } => (
-            fill(EN.nonce_history_unread, &[&records.to_string()]),
+            Text::fill(EN.nonce_history_unread, &[&text!("{}", records)]),
             Role::Warning,
         ),
     };
@@ -161,31 +179,30 @@ fn history_lines(ui: &mut Ui, check: &crate::wallet::NonceCheck, x: f32, y: f32,
 }
 
 /// A nonce check row's verdict and its tone. A lookup.
-fn row_verdict(r: &crate::wallet::NonceRow) -> (String, Role) {
+fn row_verdict(r: &crate::wallet::NonceRow) -> (Text, Role) {
     use crate::wallet::Unmatched;
     use faraday_psbt::verify::Verdict;
     match (r.verdict, r.recomputed) {
-        (Verdict::Invalid, _) => (EN.nonce_check_invalid.to_string(), Role::Error),
+        (Verdict::Invalid, _) => (Text::of(EN.nonce_check_invalid), Role::Error),
         (Verdict::Unchecked(_), _) if r.preimage => {
-            (EN.nonce_check_preimage.to_string(), Role::OnSurfaceVariant)
+            (Text::of(EN.nonce_check_preimage), Role::OnSurfaceVariant)
         }
         (Verdict::Unchecked(why), _) => (
-            fill(EN.nonce_check_not_checked, &[unchecked_text(why)]),
+            Text::fill(EN.nonce_check_not_checked, &[unchecked_text(why)]),
             Role::OnSurfaceVariant,
         ),
         (Verdict::Valid, Some(Some(mode))) => (
-            fill(EN.nonce_check_valid_nonce, &[nonce_mode_text(mode)]),
+            Text::fill(EN.nonce_check_valid_nonce, &[nonce_mode_text(mode)]),
             Role::Ok,
         ),
-        (Verdict::Valid, Some(None)) => (EN.nonce_check_wrong_nonce.to_string(), Role::Error),
+        (Verdict::Valid, Some(None)) => (Text::of(EN.nonce_check_wrong_nonce), Role::Error),
         (Verdict::Valid, None) => (
-            match r.unmatched {
+            Text::of(match r.unmatched {
                 Some(Unmatched::NoOrigin) => EN.nonce_check_no_origin,
                 Some(Unmatched::Finalized) => EN.nonce_check_finalized_here,
                 Some(Unmatched::NotRun) => EN.nonce_check_script_not_run_key,
                 None => EN.nonce_check_valid_signed,
-            }
-            .to_string(),
+            }),
             Role::OnSurfaceVariant,
         ),
     }
@@ -266,8 +283,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let cards: Vec<flow::Card> = steps
             .iter()
             .map(|&n| flow::Card {
-                title: STEPS[n as usize].to_string(),
-                summary: step_summary(app, n, wallet_idx, needed),
+                title: STEPS[n as usize].into(),
+                summary: step_summary(app, n, wallet_idx, needed).as_str().into(),
                 mono: false,
                 done: s.done[n as usize],
                 open: s.open == Some(n),
@@ -327,7 +344,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Where a signing stands: the signatures there, how many are missing,
 /// the line that says what is left, the main button's label and its
 /// style: off while a check on Transaction stops signing here (F136).
-fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel, Style) {
+fn spend_status(app: &View, needed: usize) -> (usize, usize, Text, ActionLabel, Style) {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     let signed_count = s.signers.len();
@@ -348,61 +365,61 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel
         .participating_keys
         .iter()
         .filter(|fp| app.session.keys.key_label(**fp).is_some() && s.to_sign.contains(&fp.0))
-        .map(|fp| fp_text(*fp))
+        .map(|fp| fp_label(*fp))
         .collect::<Vec<_>>();
     let stopped = s.spend.finished.is_none()
         && missing > 0
         && !can_sign_here.is_empty()
         && crate::review::review_stop(i, &s.held).is_some();
     let need_line = if stopped {
-        fill(EN.spend_status_stopped, &[EN.app_transaction])
+        Text::fill(EN.spend_status_stopped, &[EN.app_transaction])
     } else if s.spend.finished.is_some() && s.out_signed && s.out_tx {
-        fill(EN.spend_status_both_wait, &[app.medium.for_the()])
+        Text::fill(EN.spend_status_both_wait, &[app.medium.for_the()])
     } else if missing == 0 {
-        EN.spend_status_complete.to_string()
+        Text::of(EN.spend_status_complete)
     } else if !can_sign_here.is_empty() && to_come > 1 {
-        fill(
+        Text::fill(
             EN.spend_status_sign_and_collect,
-            &[&(to_come - 1).to_string()],
+            &[&text!("{}", (to_come - 1))],
         )
     } else if !can_sign_here.is_empty() {
-        EN.spend_status_sign_here.to_string()
+        Text::of(EN.spend_status_sign_here)
     } else {
-        crate::wallet::collect_line(to_come, count)
+        Text::of(&crate::wallet::collect_line(to_come, count))
     };
     let label = if (s.spend.finished.is_some() || missing == 0) && s.review_owed_shown().is_some() {
         // Review comes first, also for a PSBT signed elsewhere.
-        EN.wallets_review.to_string()
+        Text::of(EN.wallets_review)
     } else if s.spend.finished.is_some() {
         // Both went For the stick at Finish: the next step is writing.
         if app.stick.is_empty() {
-            fill(EN.spend_status_insert, &[app.medium.a()])
+            Text::fill(EN.spend_status_insert, &[app.medium.a()])
         } else {
-            EN.spend_status_open_files.to_string()
+            Text::of(EN.spend_status_open_files)
         }
     } else if missing == 0 {
-        EN.spend_status_finish.to_string()
+        Text::of(EN.spend_status_finish)
     } else if !can_sign_here.is_empty() {
-        fill(
+        Text::fill(
             EN.spend_status_sign_with_keys,
-            &[&can_sign_here.join(", ").to_string()],
+            &[&joined(&can_sign_here, ", ")],
         )
     } else {
-        crate::wallet::collect_line(to_come, count)
+        Text::of(&crate::wallet::collect_line(to_come, count))
     };
     // Two keys or more and Finish not reached: counted where named they
     // would not fit the button.
     let short = (s.spend.finished.is_none() && missing > 0 && can_sign_here.len() > 1).then(|| {
-        fill(
+        Text::fill(
             EN.spend_status_sign_with_count,
-            &[&can_sign_here.len().to_string()],
+            &[&text!("{}", can_sign_here.len())],
         )
     });
     // A press that waits for the system's randomness says so.
     let waits = app.waits_for_randomness(Action::SignHere);
     let label = if waits {
         ActionLabel {
-            long: EN.waiting_for_randomness.to_string(),
+            long: Text::of(EN.waiting_for_randomness),
             short: None,
         }
     } else {
@@ -420,19 +437,19 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, ActionLabel
 /// two or more sign, the same counted, for a button too narrow for
 /// their names.
 struct ActionLabel {
-    long: String,
-    short: Option<String>,
+    long: Text,
+    short: Option<Text>,
 }
 
 impl ActionLabel {
     /// The label as it fits `room` in `role`: the keys named where they
     /// fit, else counted; whatever is left too wide, cut.
-    fn fitted(&self, ui: &Ui, role: TypeRole, room: f32) -> String {
+    fn fitted(&self, ui: &Ui, role: TypeRole, room: f32) -> Text {
         let label = match &self.short {
             Some(short) if ui.measure_as(role, &self.long) > room => short,
             _ => &self.long,
         };
-        String::from(&*ui.fit_as(role, label, room))
+        ui.fit_as(role, label, room)
     }
 }
 
@@ -463,9 +480,9 @@ fn spend_bar(
         (x + pw + 10.0, y + 4.0, 26.0 + g1),
         LABEL_L,
         Role::OnSurface,
-        &fill(
+        &Text::fill(
             EN.spend_bar_count,
-            &[&count.to_string(), &needed.to_string()],
+            &[&text!("{}", count), &text!("{}", needed)],
         ),
     );
     let line = ui.fit_as(BODY_S, &need_line, w);
@@ -508,22 +525,22 @@ fn recipients(inspection: &faraday_psbt::Inspection) -> Vec<&faraday_psbt::Outpu
     inspection.outputs.iter().filter(|o| !o.is_ours()).collect()
 }
 
-pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usize) -> String {
+pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usize) -> Text {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     let reached = s.done[n as usize] || s.open == Some(n);
     match n {
         0 => match wallet.and_then(|w| app.session.wallets.get(w)) {
-            Some(w) => format!("{} · {}", w.name, Session::shape(w)),
-            None => EN.step_summary_no_loaded.to_string(),
+            Some(w) => text!("{} · {}", w.name, Session::shape(w)),
+            None => Text::of(EN.step_summary_no_loaded),
         },
-        1 if reached => EN.step_summary_addresses.to_string(),
+        1 if reached => Text::of(EN.step_summary_addresses),
         2 if reached => match i.fee_rate_sat_vb {
-            Some(rate) => fill(
+            Some(rate) => Text::fill(
                 EN.step_summary_sends,
-                &[&btc(i.amount_to_others.to_sat()), &format!("{rate:.1}")],
+                &[&btc(i.amount_to_others.to_sat()), &text!("{rate:.1}")],
             ),
-            None => fill(
+            None => Text::fill(
                 EN.step_summary_sends_fee_not_known,
                 &[&btc(i.amount_to_others.to_sat())],
             ),
@@ -534,41 +551,41 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
                 .iter()
                 .filter(|fp| app.session.keys.key_label(**fp).is_some())
                 .count();
-            fill(
+            Text::fill(
                 EN.step_summary_here_needed,
-                &[&here.to_string(), &needed.to_string()],
+                &[&text!("{}", here), &text!("{}", needed)],
             )
         }
         5 => {
             let signed = s.signed_keys();
             if signed.is_empty() {
-                EN.step_summary_not_signed.to_string()
+                Text::of(EN.step_summary_not_signed)
             } else {
-                let fps: Vec<String> = signed.iter().map(|f| fp_text(*f)).collect();
-                fill(EN.step_summary_signed_keys, &[&fps.join(", ").to_string()])
+                let fps: Vec<Text> = signed.iter().map(|f| fp_label(*f)).collect();
+                Text::fill(EN.step_summary_signed_keys, &[&joined(&fps, ", ")])
             }
         }
-        6 => fill(
+        6 => Text::fill(
             EN.step_summary_count,
-            &[&s.signers.len().to_string(), &needed.to_string()],
+            &[&text!("{}", s.signers.len()), &text!("{}", needed)],
         ),
         9 => match wallet.and_then(|w| app.session.wallets.get(w)) {
             Some(w) => {
                 let rows = crate::wallet::musig_nonces(&app.session, w, &s.spend.psbt);
                 let have = rows.iter().filter(|r| r.3).count();
-                fill(
+                Text::fill(
                     EN.step_summary_of_nonces,
-                    &[&have.to_string(), &rows.len().to_string()],
+                    &[&text!("{}", have), &text!("{}", rows.len())],
                 )
             }
-            None => String::new(),
+            None => Text::new(),
         },
         8 => {
             let n = wallet
                 .and_then(|w| app.session.wallets.get(w))
                 .map(|w| w.policy().spend_paths().len())
                 .unwrap_or(0);
-            format!(
+            text!(
                 "{n} {}",
                 if n == 1 {
                     EN.step_summary_way_one
@@ -579,12 +596,12 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
         }
         7 => {
             if s.spend.finished.is_some() {
-                EN.step_summary_signed.to_string()
+                Text::of(EN.step_summary_signed)
             } else {
-                EN.step_summary_not_finished.to_string()
+                Text::of(EN.step_summary_not_finished)
             }
         }
-        _ => EN.step_summary_not_reached.to_string(),
+        _ => Text::of(EN.step_summary_not_reached),
     }
 }
 
@@ -646,9 +663,9 @@ pub(crate) fn step_body(
                         (x, cy + name + GAP_SMALL, room),
                         BODY_S,
                         Role::OnSurfaceVariant,
-                        &fill(
+                        &Text::fill(
                             EN.step_wallet_source,
-                            &[&Session::shape(wl).to_string(), &wl.source.to_string()],
+                            &[&text!("{}", Session::shape(wl)), &text!("{}", wl.source)],
                         ),
                     );
                     row = row.max(name + GAP_SMALL + source + GAP);
@@ -712,9 +729,9 @@ pub(crate) fn step_body(
             let mut rows: Vec<ReviewRow> = Vec::new();
             for o in recipients(i) {
                 rows.push((
-                    EN.step_sends.into(),
-                    String::from(&*btc(o.amount.to_sat())),
-                    fill(EN.step_to_address, &[&short(&o.address)]),
+                    Text::of(EN.step_sends),
+                    btc(o.amount.to_sat()),
+                    Text::fill(EN.step_to_address, &[&short(&o.address)]),
                     None,
                 ));
             }
@@ -723,13 +740,13 @@ pub(crate) fn step_body(
                     OutputKind::WalletChange { change, index, .. }
                     | OutputKind::Change { change, index, .. } => {
                         rows.push((
-                            EN.step_change.into(),
-                            String::from(&*btc(o.amount.to_sat())),
-                            fill(
+                            Text::of(EN.step_change),
+                            btc(o.amount.to_sat()),
+                            Text::fill(
                                 EN.step_to_path,
                                 &[
-                                    &(if change { 1 } else { 0 }).to_string(),
-                                    &index.to_string(),
+                                    &text!("{}", (if change { 1 } else { 0 })),
+                                    &text!("{}", index),
                                 ],
                             ),
                             Some((EN.step_verified, Role::Ok.paint())),
@@ -741,26 +758,26 @@ pub(crate) fn step_body(
             // A fee that cannot be worked out is not known, never zero.
             rows.push(match i.fee_rate_sat_vb {
                 Some(rate) => (
-                    EN.step_fee.into(),
-                    String::from(&*btc(i.fee.to_sat())),
-                    fill(
+                    Text::of(EN.step_fee),
+                    btc(i.fee.to_sat()),
+                    Text::fill(
                         EN.step_sat_sat_vb,
-                        &[&thousands(i.fee.to_sat()), &format!("{rate:.1}")],
+                        &[&thousands(i.fee.to_sat()), &text!("{rate:.1}")],
                     ),
                     None,
                 ),
                 None => (
-                    EN.step_fee.into(),
-                    EN.step_fee_not_known.to_string(),
-                    String::new(),
+                    Text::of(EN.step_fee),
+                    Text::of(EN.step_fee_not_known),
+                    Text::new(),
                     None,
                 ),
             });
             let unchecked = i.inputs.iter().any(|inp| inp.amount.is_none());
             rows.push((
-                EN.step_spends.into(),
-                String::from(&*btc(i.total_in.to_sat())),
-                format!(
+                Text::of(EN.step_spends),
+                btc(i.total_in.to_sat()),
+                text!(
                     "{} {}",
                     i.inputs.len(),
                     if i.inputs.len() == 1 {
@@ -780,25 +797,24 @@ pub(crate) fn step_body(
             if txid_known(&s.spend.psbt) {
                 let segwit = i.inputs.iter().all(|inp| {
                     !matches!(inp.script_type, faraday_psbt::ScriptKind::P2pkh)
-                        && !format!("{:?}", inp.script_type).contains("Sh")
-                        || format!("{:?}", inp.script_type).contains("Wsh")
+                        && !text!("{:?}", inp.script_type).contains("Sh")
+                        || text!("{:?}", inp.script_type).contains("Wsh")
                 });
                 rows.push((
-                    EN.step_txid.into(),
-                    String::from(&*short(&s.spend.txid.to_string())),
-                    if segwit {
+                    Text::of(EN.step_txid),
+                    short(&text!("{}", s.spend.txid)),
+                    Text::of(if segwit {
                         EN.step_unchanged_by_signing
                     } else {
                         EN.step_changes_when_signed
-                    }
-                    .to_string(),
+                    }),
                     None,
                 ));
             } else {
                 rows.push((
-                    EN.step_txid.into(),
-                    EN.step_not_known_until.to_string(),
-                    String::new(),
+                    Text::of(EN.step_txid),
+                    Text::of(EN.step_not_known_until),
+                    Text::new(),
                     None,
                 ));
             }
@@ -899,8 +915,8 @@ pub(crate) fn step_body(
                         cy += ui.line_as(BODY_S) + 2.0;
                         for v in &fact.values {
                             let text = match v.label {
-                                Some(l) => format!("{l}: {}", v.text),
-                                None => v.text.clone(),
+                                Some(l) => text!("{l}: {}", v.text),
+                                None => Text::of(&v.text),
                             };
                             cy += ui.wrap_as(
                                 (x + FACT_INDENT, cy, w - FACT_INDENT),
@@ -991,26 +1007,22 @@ pub(crate) fn step_body(
             if s.table && compact {
                 // What and how much on a line, the outpoint or address
                 // under it.
-                let lines = i
-                    .inputs
-                    .iter()
-                    .map(|inp| {
-                        (
-                            EN.step_input,
-                            inp.amount
-                                .map(|a| String::from(&*btc(a.to_sat())))
-                                .unwrap_or_else(|| "?".into()),
-                            format!("{}:{}", &*short(&inp.txid.to_string()), inp.vout),
-                        )
-                    })
-                    .chain(i.outputs.iter().map(|o| {
-                        (
-                            EN.step_output,
-                            String::from(&*btc(o.amount.to_sat())),
-                            o.address.clone(),
-                        )
-                    }))
-                    .collect::<Vec<_>>();
+                let lines =
+                    i.inputs
+                        .iter()
+                        .map(|inp| {
+                            (
+                                EN.step_input,
+                                inp.amount
+                                    .map(|a| btc(a.to_sat()))
+                                    .unwrap_or_else(|| Text::of("?")),
+                                text!("{}:{}", &*short(&text!("{}", inp.txid)), inp.vout),
+                            )
+                        })
+                        .chain(i.outputs.iter().map(|o| {
+                            (EN.step_output, btc(o.amount.to_sat()), Text::of(&o.address))
+                        }))
+                        .collect::<Vec<_>>();
                 for (label, amount, what) in &lines {
                     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, label);
                     ui.text_right_as(
@@ -1027,14 +1039,14 @@ pub(crate) fn step_body(
                 // As wide as its columns (`docs/LAYOUT.md` §17): the name,
                 // the longest outpoint or address, the amount; no wider
                 // than the step.
-                let outpoints: Vec<String> = i
+                let outpoints: Vec<Text> = i
                     .inputs
                     .iter()
-                    .map(|inp| format!("{}:{}", &*short(&inp.txid.to_string()), inp.vout))
+                    .map(|inp| text!("{}:{}", &*short(&text!("{}", inp.txid)), inp.vout))
                     .collect();
                 let what = outpoints
                     .iter()
-                    .map(String::as_str)
+                    .map(Text::as_str)
                     .chain(i.outputs.iter().map(|o| o.address.as_str()))
                     .map(|t| ui.measure_as(BODY_S.mono(), t))
                     .fold(0.0, f32::max);
@@ -1042,8 +1054,8 @@ pub(crate) fn step_body(
                 for (inp, at) in i.inputs.iter().zip(&outpoints) {
                     let a = inp
                         .amount
-                        .map(|a| String::from(&*btc(a.to_sat())))
-                        .unwrap_or_else(|| "?".into());
+                        .map(|a| btc(a.to_sat()))
+                        .unwrap_or_else(|| Text::of("?"));
                     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.step_input);
                     ui.text_as(x + TABLE_LABEL_W, cy, BODY_S.mono(), Role::OnSurface, at);
                     ui.text_right_as((x + tw, cy - 4.0, 20.0), BODY_S.mono(), Role::OnSurface, &a);
@@ -1107,9 +1119,9 @@ pub(crate) fn step_body(
                             (x, cy, 42.0),
                             BODY_S,
                             Role::OnSurfaceVariant,
-                            &(k + 1).to_string(),
+                            &text!("{}", (k + 1)),
                         );
-                        let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
+                        let fp = slot.fingerprint.map(fp_label).unwrap_or_default();
                         ui.text_mid_as((x + 22.0, cy, 42.0), BODY_M.mono(), Role::OnSurface, &fp);
                         // A label that is its fingerprint is not drawn
                         // twice (`docs/history/SCAN-TO-SIGN.md` §3.3).
@@ -1197,7 +1209,7 @@ pub(crate) fn step_body(
                             (x, cy, 30.0),
                             BODY_M.mono(),
                             Role::OnSurface,
-                            &fp_text(*fp),
+                            &fp_label(*fp),
                         );
                         cy += 30.0;
                     }
@@ -1224,14 +1236,14 @@ pub(crate) fn step_body(
                 } else {
                     Style::Disabled
                 };
-                let unlocks: Vec<(String, Action)> = app
+                let unlocks: Vec<(Text, Action)> = app
                     .vault_files()
                     .iter()
                     .enumerate()
                     .filter(|(_, f)| f.open.is_none())
                     .map(|(k, f)| {
                         (
-                            fill(EN.step_unlock, &[&f.name]),
+                            Text::fill(EN.step_unlock, &[&f.name]),
                             Action::Vault(crate::vault::VaultAction::OpenFrom(k, Screen::Spend)),
                         )
                     })
@@ -1251,7 +1263,7 @@ pub(crate) fn step_body(
                 }
                 cy += wrap_buttons(ui, x, cy, w, BUTTON_H, &items) + 2.0;
                 if !may {
-                    let pull = fill(EN.step_remove_the_first, &[app.medium.noun()]);
+                    let pull = Text::fill(EN.step_remove_the_first, &[app.medium.noun()]);
                     ui.text_as(x, cy, LABEL_L, Role::Warning, &pull);
                     cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
                 }
@@ -1267,18 +1279,18 @@ pub(crate) fn step_body(
             cy += 44.0;
         }
         5 => {
-            let mine: Vec<String> = i
+            let mine: Vec<Text> = i
                 .participating_keys
                 .iter()
                 .filter(|fp| {
                     app.session.keys.key_label(**fp).is_some() && s.to_sign.contains(&fp.0)
                 })
-                .map(|fp| fp_text(*fp))
+                .map(|fp| fp_label(*fp))
                 .collect();
             let signed = s.signed_keys();
             if !signed.is_empty() {
-                let fps: Vec<String> = signed.iter().map(|f| fp_text(*f)).collect();
-                let text = fill(EN.step_signed_keys, &[&fps.join(", ").to_string()]);
+                let fps: Vec<Text> = signed.iter().map(|f| fp_label(*f)).collect();
+                let text = Text::fill(EN.step_signed_keys, &[&joined(&fps, ", ")]);
                 ui.icon(x, cy + 10.0, 20.0, Icon::Done, 12.0, Role::Ok);
                 let tx = x + 26.0;
                 if ui.measure_as(TITLE_S, &text) <= x + w - tx {
@@ -1302,8 +1314,8 @@ pub(crate) fn step_body(
                 ui.text_mid_as((x, cy, 40.0), BODY_S, Role::OnSurfaceVariant, line);
                 cy += 44.0;
             } else {
-                let label = fill(EN.step_sign_with_keys, &[&mine.join(", ").to_string()]);
-                let inputs = format!(
+                let label = Text::fill(EN.step_sign_with_keys, &[&joined(&mine, ", ")]);
+                let inputs = text!(
                     "{} {}",
                     i.inputs.len(),
                     if i.inputs.len() == 1 {
@@ -1323,7 +1335,7 @@ pub(crate) fn step_body(
             }
         }
         6 => {
-            let slots: Vec<(String, String, Option<[u8; 4]>)> =
+            let slots: Vec<(Text, Text, Option<[u8; 4]>)> =
                 match wallet.and_then(|wi| app.session.wallets.get(wi)) {
                     Some(wl) => app
                         .session
@@ -1331,8 +1343,8 @@ pub(crate) fn step_body(
                         .iter()
                         .map(|sl| {
                             (
-                                sl.fingerprint.map(fp_text).unwrap_or_default(),
-                                sl.held_by.clone().unwrap_or_default(),
+                                sl.fingerprint.map(fp_label).unwrap_or_default(),
+                                sl.held_by.as_deref().map(Text::of).unwrap_or_default(),
                                 sl.fingerprint.map(|f| f.0),
                             )
                         })
@@ -1340,7 +1352,7 @@ pub(crate) fn step_body(
                     None => i
                         .participating_keys
                         .iter()
-                        .map(|fp| (fp_text(*fp), String::new(), Some(fp.0)))
+                        .map(|fp| (fp_label(*fp), Text::new(), Some(fp.0)))
                         .collect(),
                 };
             let complete = s.complete;
@@ -1351,7 +1363,7 @@ pub(crate) fn step_body(
                         .collected
                         .iter()
                         .find(|(f, _)| Some(f.0) == *raw)
-                        .map(|(_, src)| fill(EN.step_from_inline, &[&src.to_string()]))
+                        .map(|(_, src)| Text::fill(EN.step_from_inline, &[&text!("{}", src)]))
                         .unwrap_or_default()
                 } else {
                     label.clone()
@@ -1391,13 +1403,13 @@ pub(crate) fn step_body(
             cy += 10.0;
             // Cosigners' copies in the Inbox.
             let txid = s.spend.txid;
-            let copies: Vec<(usize, String)> = app
+            let copies: Vec<(usize, Text)> = app
                 .inbox
                 .iter()
                 .enumerate()
                 .filter(|(_, it)| it.name != s.spend.source)
                 .filter(|(_, it)| it.psbt().is_some_and(|p| p.txid == txid))
-                .map(|(k, it)| (k, it.name.clone()))
+                .map(|(k, it)| (k, Text::of(&it.name)))
                 .collect();
             if !complete {
                 if copies.is_empty() {
@@ -1416,7 +1428,7 @@ pub(crate) fn step_body(
                 }
                 for (k, name) in &copies {
                     // No wider than the column; a long name is cut.
-                    let label = fill(EN.step_add_source, &[&name.to_string()]);
+                    let label = Text::fill(EN.step_add_source, &[name]);
                     let bw = (ui.measure_as(TITLE_S, &label) + 32.0).min(w);
                     let label = ui.fit_as(TITLE_S, &label, bw - 24.0);
                     ui.button(
@@ -1459,16 +1471,16 @@ pub(crate) fn step_body(
                             || s.refused.is_some()
                             || s.signers.len() >= needed =>
                     {
-                        r
+                        Text::of(&r)
                     }
-                    _ => fill(
+                    _ => Text::fill(
                         EN.step_needs,
                         &[
-                            &missing.to_string(),
+                            &text!("{}", missing),
                             &(if s.signers.is_empty() {
-                                String::new()
+                                Text::new()
                             } else {
-                                format!(" {}", EN.step_more)
+                                text!(" {}", EN.step_more)
                             }),
                             (if missing == 1 {
                                 EN.step_signature
@@ -1491,7 +1503,7 @@ pub(crate) fn step_body(
                 }
             } else if let Some((_, place)) = s.review_owed_shown() {
                 // Review comes first, also for a PSBT signed elsewhere.
-                let line = fill(EN.primary_finish_step, &[&place.to_string()]);
+                let line = Text::fill(EN.primary_finish_step, &[&text!("{}", place)]);
                 cy += ui.wrap_as((x, cy, w), BODY_M, Role::Warning, &line) + GAP;
                 cy += nonce_check(app, ui, &s.spend.psbt, x, cy, w);
             } else {
@@ -1583,18 +1595,22 @@ pub(crate) fn step_body(
                     let sub = ui.fit_as(BODY_S, sub, half - 28.0);
                     ui.text_as(bx + 14.0, cy + 38.0, BODY_S, Role::OnSurfaceVariant, &sub);
                     let detail = if k == 0 {
-                        s.out_names.signed.clone().unwrap_or_else(|| {
-                            format!("{}-signed.psbt", crate::result_stem(&s.spend.source))
-                        })
+                        s.out_names
+                            .signed
+                            .as_deref()
+                            .map(Text::of)
+                            .unwrap_or_else(|| {
+                                text!("{}-signed.psbt", crate::result_stem(&s.spend.source))
+                            })
                     } else {
                         let Some(tx) = s.spend.finished.as_ref() else {
                             continue;
                         };
-                        fill(
+                        Text::fill(
                             EN.step_vb,
                             &[
-                                &short(&tx.compute_txid().to_string()),
-                                &tx.vsize().to_string(),
+                                &short(&text!("{}", tx.compute_txid())),
+                                &text!("{}", tx.vsize()),
                             ],
                         )
                     };
@@ -1683,7 +1699,7 @@ pub(crate) fn step_body(
                         (x, cy, 40.0),
                         BODY_S,
                         Role::OnSurfaceVariant,
-                        &slot.to_string(),
+                        &text!("{}", slot),
                     );
                     ui.text_mid_as((x + 22.0, cy, 40.0), BODY_M.mono(), Role::OnSurface, fp);
                     if *here {
@@ -1717,17 +1733,17 @@ pub(crate) fn step_body(
                 // randomness (`docs/OWN-RANDOMNESS.md` §8.1 rows 13, 14).
                 cy += super::randomness::row(app, ui, (x, cy, w));
                 let txid = s.spend.txid;
-                let copies: Vec<(usize, String)> = app
+                let copies: Vec<(usize, Text)> = app
                     .inbox
                     .iter()
                     .enumerate()
                     .filter(|(_, it)| it.name != s.spend.source)
                     .filter(|(_, it)| it.psbt().is_some_and(|p| p.txid == txid))
-                    .map(|(k, it)| (k, it.name.clone()))
+                    .map(|(k, it)| (k, Text::of(&it.name)))
                     .collect();
-                let labels: Vec<String> = copies
+                let labels: Vec<Text> = copies
                     .iter()
-                    .map(|(_, name)| fill(EN.step_add_source, &[&name.to_string()]))
+                    .map(|(_, name)| Text::fill(EN.step_add_source, &[name]))
                     .collect();
                 let items: Vec<(&str, Style, Action)> = labels
                     .iter()
@@ -1781,7 +1797,7 @@ pub(crate) fn step_body(
                         cy + 12.0,
                         LABEL_L,
                         Role::OnSurface,
-                        &fill(EN.step_path, &[&(k + 1).to_string()]),
+                        &Text::fill(EN.step_path, &[&text!("{}", (k + 1))]),
                     );
                     // The keys, wrapping; on a small panel under the name.
                     let (left, mut ky) = if ui.compact {
@@ -1791,7 +1807,7 @@ pub(crate) fn step_body(
                     };
                     let mut kx = left;
                     for (slot, fp, here) in &p.keys {
-                        let t = fill(EN.step_key, &[&slot.to_string(), &fp.to_string()]);
+                        let t = Text::fill(EN.step_key, &[&text!("{}", slot), &text!("{}", fp)]);
                         let status = if *here { Status::Ok } else { Status::Neutral };
                         let kw = ui.measure_as(BODY_S, &t) + 34.0;
                         if kx > left && kx + kw > x + w - 10.0 {
@@ -1817,7 +1833,7 @@ pub(crate) fn step_body(
                             ly,
                             BODY_S,
                             Role::OnSurfaceVariant,
-                            &fill(EN.step_waits, &[&l.to_string()]),
+                            &Text::fill(EN.step_waits, &[&text!("{}", l)]),
                         );
                         ly += ui.line_as(BODY_S) + faraday_draw::tokens::GAP_SMALL;
                     }
@@ -1852,12 +1868,7 @@ pub(crate) fn step_body(
 
 /// One line of the review: its label, the amount, the rest of the line,
 /// and a note with its colour.
-type ReviewRow = (
-    String,
-    String,
-    String,
-    Option<(&'static str, crate::ui::Paint)>,
-);
+type ReviewRow = (Text, Text, Text, Option<(&'static str, crate::ui::Paint)>);
 
 #[allow(
     clippy::too_many_arguments,
@@ -1890,29 +1901,28 @@ fn spend_panel(
     y += ui.advance_as(LABEL_L, 30.0);
     let to = recipients(i)
         .first()
-        .map(|o| String::from(&*short(&o.address)))
-        .unwrap_or_else(|| "·".into());
+        .map(|o| short(&o.address))
+        .unwrap_or_else(|| Text::of("·"));
     // Change is verified change only: an output that claims to be change
     // and cannot be verified is among what it sends (F136).
-    let change = if i.outputs.iter().any(|o| o.is_ours()) {
+    let change = Text::of(if i.outputs.iter().any(|o| o.is_ours()) {
         EN.spend_panel_verified
     } else {
         EN.spend_panel_none
-    }
-    .to_string();
-    let facts: [(&str, String, TypeRole, u8); 6] = [
+    });
+    let facts: [(&str, Text, TypeRole, u8); 6] = [
         (
             EN.spend_panel_wallet,
             wallet
                 .and_then(|wi| app.session.wallets.get(wi))
-                .map(|wl| wl.name.clone())
-                .unwrap_or_else(|| EN.spend_panel_not_loaded.into()),
+                .map(|wl| Text::of(&wl.name))
+                .unwrap_or_else(|| Text::of(EN.spend_panel_not_loaded)),
             BODY_M,
             0,
         ),
         (
             EN.spend_panel_sends,
-            fill(EN.spend_panel_btc, &[&btc(i.amount_to_others.to_sat())]),
+            Text::fill(EN.spend_panel_btc, &[&btc(i.amount_to_others.to_sat())]),
             BODY_M.mono(),
             2,
         ),
@@ -1920,11 +1930,11 @@ fn spend_panel(
         (
             EN.spend_panel_fee,
             match i.fee_rate_sat_vb {
-                Some(rate) => fill(
+                Some(rate) => Text::fill(
                     EN.spend_panel_sat_sat,
-                    &[&thousands(i.fee.to_sat()), &format!("{rate:.1}")],
+                    &[&thousands(i.fee.to_sat()), &text!("{rate:.1}")],
                 ),
-                None => EN.step_fee_not_known.to_string(),
+                None => Text::of(EN.step_fee_not_known),
             },
             BODY_M,
             2,
@@ -1932,7 +1942,7 @@ fn spend_panel(
         (EN.spend_panel_change, change, BODY_M, 2),
         (
             EN.spend_panel_txid,
-            String::from(&*short(&s.spend.txid.to_string())),
+            short(&text!("{}", s.spend.txid)),
             BODY_M.mono(),
             3,
         ),
@@ -1957,9 +1967,9 @@ fn spend_panel(
         Role::OnSurfaceVariant,
         EN.spend_panel_signatures,
     );
-    let label = fill(
+    let label = Text::fill(
         EN.spend_panel_count,
-        &[&count.to_string(), &needed.to_string()],
+        &[&text!("{}", count), &text!("{}", needed)],
     );
     let lw = ui.measure_as(LABEL_L, &label);
     ui.text_mid_as(
@@ -2003,26 +2013,26 @@ pub(crate) fn signers_count(
         // With partial signatures this device cannot confirm, the count is
         // of what the file holds rather than of the keys here.
         let k = in_the_file;
-        fill(
+        Text::fill(
             EN.signers_count_in_the_file,
             &[
-                &k.to_string(),
-                &needed.to_string(),
-                &needed.saturating_sub(k).to_string(),
+                &text!("{}", k),
+                &text!("{}", needed),
+                &text!("{}", needed.saturating_sub(k)),
             ],
         )
     } else if enough {
-        fill(
+        Text::fill(
             EN.signers_count_of_signatures_here,
-            &[&here.to_string(), &needed.to_string()],
+            &[&text!("{}", here), &text!("{}", needed)],
         )
     } else {
-        fill(
+        Text::fill(
             EN.signers_count_of_signatures,
             &[
-                &here.to_string(),
-                &needed.to_string(),
-                &(needed - here).to_string(),
+                &text!("{}", here),
+                &text!("{}", needed),
+                &text!("{}", (needed - here)),
             ],
         )
     };
@@ -2074,14 +2084,14 @@ fn review_stop_block(
         cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, why) + GAP;
         return cy - y;
     }
-    let facts = fill(
+    let facts = Text::fill(
         EN.step_fee_hold_facts,
         &[
             &thousands(i.fee.to_sat()),
             &i.fee_rate_sat_vb
-                .map(|r| format!("{r:.1}"))
+                .map(|r| text!("{r:.1}"))
                 .unwrap_or_default(),
-            &i.fee_share_pct().unwrap_or_default().to_string(),
+            &text!("{}", i.fee_share_pct().unwrap_or_default()),
         ],
     );
     cy += ui.wrap_as((x, cy, w), BODY_M, Role::Error, &facts) + GAP_SMALL;
@@ -2213,7 +2223,7 @@ mod tests {
         assert_eq!(row_verdict(&row(true)).0, EN.nonce_check_preimage);
         assert_eq!(
             row_verdict(&row(false)).0,
-            fill(EN.nonce_check_not_checked, &[EN.nonce_unchecked_script])
+            Text::fill(EN.nonce_check_not_checked, &[EN.nonce_unchecked_script])
         );
     }
 }

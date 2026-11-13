@@ -414,6 +414,8 @@ faraday/faraday-host/src/scroll.rs
 faraday/faraday-guide/src/how.rs
 faraday/faraday-guide/src/block.rs
 faraday/faraday-core/src/wallet_backup/shown.rs
+faraday/faraday-core/src/screens/spend.rs
+faraday/faraday-core/src/screens/files.rs
 faraday/faraday-core/src/vault/screen/secret.rs
 faraday/faraday-core/src/vault/area.rs
 faraday/faraday-core/src/vault/mod.rs

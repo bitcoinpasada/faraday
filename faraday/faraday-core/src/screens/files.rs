@@ -1,19 +1,21 @@
 //! `Screen::Files`: Inbox and Outbox.
 
 use super::parts::{guide_text, kind_line, pull_line};
+use super::spend::{fp_label, joined};
 use crate::drawing::View;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::Region;
 use crate::ui::Shape;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
-use crate::wallet::{FileKind, fp_text};
+use crate::wallet::FileKind;
 use crate::{Action, Screen};
 use faraday_draw::tokens as t;
 use faraday_draw::tokens::{
     BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, SHAPE_M, SHAPE_S, TITLE_M, TITLE_S,
 };
 use faraday_draw::widgets::Icon;
+use faraday_text::{Text, text};
 use faraday_ui::parts::wrap_buttons;
 
 /// What the Inbox gives, put together: its wallets, once each, with the
@@ -99,28 +101,30 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
             let nw = ui.text_mid_as((rx + 26.0, ty, 34.0), TITLE_S, Role::OnSurface, &fw.name);
             let n = fw.keys.len().max(1);
-            let line = fill(
+            let line = Text::fill(
                 EN.inbox_panel_of_here,
                 &[
-                    &fw.shape.to_string(),
-                    &fw.seeds_here.to_string(),
-                    &n.to_string(),
+                    &text!("{}", fw.shape),
+                    &text!("{}", fw.seeds_here),
+                    &text!("{}", n),
                     (if n == 1 {
                         EN.inbox_panel_key
                     } else {
                         EN.inbox_panel_keys
                     }),
                     &(if fw.files.len() > 1 {
-                        format!(
+                        text!(
                             " {}",
-                            fill(EN.inbox_panel_files_agree, &[&fw.files.len().to_string()])
+                            &*Text::fill(
+                                EN.inbox_panel_files_agree,
+                                &[&text!("{}", fw.files.len())]
+                            )
                         )
                     } else if fw.from_shares {
-                        format!(" {}", EN.inbox_panel_from_split_sheets)
+                        text!(" {}", EN.inbox_panel_from_split_sheets)
                     } else {
-                        String::new()
-                    })
-                    .to_string(),
+                        Text::new()
+                    }),
                 ],
             );
             let line = ui.fit_as(BODY_S, &line, w - nw - 260.0);
@@ -155,9 +159,9 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (x + 20.0, ty - 6.0, 22.0),
                 BODY_S,
                 Role::OnSurfaceVariant,
-                &fill(
+                &Text::fill(
                     EN.inbox_panel_more_loaded,
-                    &[&(wallets.len() - ROWS).to_string()],
+                    &[&text!("{}", (wallets.len() - ROWS))],
                 ),
             );
             ty += 22.0;
@@ -171,11 +175,11 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .filter(|w| !many || !app.inbox.skip().contains(&w.descriptor))
             .any(|w| w.seeds_here > 0);
         let label = match (chosen, with_seeds) {
-            (0, _) => EN.inbox_panel_nothing.to_string(),
-            (1, true) => EN.inbox_panel_load_the_wallet.to_string(),
-            (1, false) => EN.inbox_panel_load_wallet.to_string(),
-            (n, true) => fill(EN.inbox_panel_load_wallets_seeds, &[&n.to_string()]),
-            (n, false) => fill(EN.inbox_panel_load_wallets, &[&n.to_string()]),
+            (0, _) => Text::of(EN.inbox_panel_nothing),
+            (1, true) => Text::of(EN.inbox_panel_load_the_wallet),
+            (1, false) => Text::of(EN.inbox_panel_load_wallet),
+            (n, true) => Text::fill(EN.inbox_panel_load_wallets_seeds, &[&text!("{}", n)]),
+            (n, false) => Text::fill(EN.inbox_panel_load_wallets, &[&text!("{}", n)]),
         };
         ui.button(
             x + 20.0,
@@ -195,7 +199,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ),
                 BODY_S,
                 Role::Warning,
-                &fill(EN.inbox_panel_keys_load, &[app.medium.noun()]),
+                &Text::fill(EN.inbox_panel_keys_load, &[app.medium.noun()]),
             );
         }
         ty += 54.0;
@@ -222,10 +226,14 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (x + 46.0, ty, 38.0),
                 BODY_M.mono(),
                 Role::OnSurface,
-                &fp_text(s.fingerprint),
+                &fp_label(s.fingerprint),
             );
-            let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
-            let line = ui.fit_as(BODY_S, &from.join(" · "), w - 420.0);
+            let from: Vec<Text> = s
+                .sources
+                .iter()
+                .map(|src| Text::of(&src.name(app)))
+                .collect();
+            let line = ui.fit_as(BODY_S, &joined(&from, " · "), w - 420.0);
             ui.text_mid_as((x + 140.0, ty, 38.0), BODY_S, Role::OnSurfaceVariant, &line);
             let label = EN.inbox_panel_make_wallet;
             let bw = ui.measure_as(LABEL_L, label) + 28.0;
@@ -249,9 +257,9 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (x + 20.0, ty - 6.0, 22.0),
                 BODY_S,
                 Role::OnSurfaceVariant,
-                &fill(
+                &Text::fill(
                     EN.inbox_panel_more,
-                    &[&(potential.len() - ROWS).to_string()],
+                    &[&text!("{}", (potential.len() - ROWS))],
                 ),
             );
             ty += 22.0;
@@ -278,16 +286,16 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
             let fp = xp
                 .fingerprint
-                .map(fp_text)
-                .unwrap_or_else(|| EN.inbox_panel_no_origin.to_string());
+                .map(fp_label)
+                .unwrap_or_else(|| Text::of(EN.inbox_panel_no_origin));
             ui.text_mid_as((x + 46.0, ty, 38.0), BODY_M.mono(), Role::OnSurface, &fp);
-            let line = format!(
+            let line = text!(
                 "{} · {}",
                 xp.path.clone().unwrap_or_default(),
                 xp.files
                     .first()
                     .and_then(|k| app.inbox.get(*k))
-                    .map_or(String::new(), |it| it.name.clone())
+                    .map_or("", |it| it.name.as_str())
             );
             let line = ui.fit_as(BODY_S, &line, w - 460.0);
             ui.text_mid_as((x + 140.0, ty, 38.0), BODY_S, Role::OnSurfaceVariant, &line);
@@ -337,11 +345,11 @@ fn add_to_vault(app: &View, ui: &mut Ui, x: f32, y: f32, k: usize, style: Style)
 /// Restore the wallet, on a share of a split backup: the shares in the
 /// Inbox put together, or how many keys are still missing.
 fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
-    let texts: Vec<zeroize::Zeroizing<String>> = app
+    let texts: Vec<Text> = app
         .inbox
         .iter()
         .filter(|i| i.kind == FileKind::Share)
-        .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
+        .map(|i| Text::from_utf8_lossy(&i.bytes))
         .collect();
     match crate::restore::merge(&texts) {
         Ok(m) if m.whole.is_some() => {
@@ -350,18 +358,18 @@ fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
                 y,
                 None,
                 BUTTON_H,
-                &fill(
+                &Text::fill(
                     EN.restore_shares_button_restore,
-                    &[&texts.len().to_string()],
+                    &[&text!("{}", texts.len())],
                 ),
                 Style::Primary,
                 Action::RestoreShares,
             ) + 8.0
         }
         Ok(m) => {
-            let line = fill(
+            let line = Text::fill(
                 EN.restore_shares_button_progress,
-                &[&m.have.len().to_string(), &m.n.to_string()],
+                &[&text!("{}", m.have.len()), &text!("{}", m.n)],
             );
             ui.text_mid_as((x, y, 36.0), BODY_M, Role::Warning, &line);
             ui.measure_as(BODY_M, &line) + 16.0
@@ -410,7 +418,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         width,
-        &fill(
+        &Text::fill(
             EN.files_holds_what_was,
             &[app.medium.from_box(), app.medium.for_box()],
         ),
@@ -452,7 +460,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y + 2.0,
         BODY_S,
         Role::OnSurfaceVariant,
-        &app.inbox.len().to_string(),
+        &text!("{}", app.inbox.len()),
     );
     // The two lists scroll each on its own under their titles, above the
     // foot, each with its own scrollbar: From the stick by the page's
@@ -505,9 +513,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let line = if item.kind == FileKind::Vault
             && vault_of_row(&app.vault_files(), item).is_some_and(|f| f.open.is_some())
         {
-            kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open)
+            Text::of(
+                &kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open),
+            )
         } else {
-            String::from(&*kind_line(item.kind, item.bytes.len()))
+            kind_line(item.kind, item.bytes.len())
         };
         ui.text_as(x + 66.0, iy + 36.0, BODY_S, Role::OnSurfaceVariant, &line);
         let mut bx = x + 66.0;
@@ -649,7 +659,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if app.inbox.is_empty() {
         ui.stroke(x, iy, colw, 72.0, 12.0, Role::OutlineVariant);
-        let t = &fill(EN.files_empty_files_are, &[app.medium.a()]);
+        let t = &Text::fill(EN.files_empty_files_are, &[app.medium.a()]);
         let tw = ui.measure_as(BODY_M, t);
         ui.text_mid_as(
             (x + (colw - tw) / 2.0, iy, 72.0),
@@ -667,7 +677,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y + 2.0,
         BODY_S,
         Role::OnSurfaceVariant,
-        &app.outbox.len().to_string(),
+        &text!("{}", app.outbox.len()),
     );
     let open = ui.region_open(
         Region::beside(
@@ -685,19 +695,19 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (
             Exposure::Public,
             EN.files_public,
-            EN.files_anyone_may_read.to_string(),
+            Text::of(EN.files_anyone_may_read),
             Role::OnSurfaceVariant,
         ),
         (
             Exposure::Sealed,
             EN.files_written_sealed,
-            fill(EN.files_sealed_under, &[app.medium.a()]),
+            Text::fill(EN.files_sealed_under, &[app.medium.a()]),
             Role::Ok,
         ),
         (
             Exposure::Secret,
             EN.files_unprotected_secrets,
-            fill(EN.files_anyone_who_has, &[app.medium.noun()]),
+            Text::fill(EN.files_anyone_who_has, &[app.medium.noun()]),
             Role::Error,
         ),
     ] {
@@ -794,7 +804,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (x + 26.0, fy, 48.0),
             BODY_S,
             Role::OnSurfaceVariant,
-            &fill(EN.files_power_off_asks, &[app.medium.for_the()]),
+            &Text::fill(EN.files_power_off_asks, &[app.medium.for_the()]),
         );
     }
 }
@@ -807,7 +817,7 @@ fn out_line(
     app: &View,
     item: &crate::Item,
     exposure: crate::secrets::Exposure,
-) -> (String, (&'static str, Role)) {
+) -> (Text, (&'static str, Role)) {
     use crate::secrets::Exposure;
     let open_here = (item.kind == FileKind::Vault)
         .then(|| app.vaults.vault_id_of_file(item.sha))
@@ -815,14 +825,14 @@ fn out_line(
         .and_then(|id| app.vaults.open.iter().find(|v| v.vault_id() == id));
     let line = match open_here {
         // With no seed to seal with, Lock does not seal it.
-        Some(v) if v.changes > 0 => fill(
+        Some(v) if v.changes > 0 => Text::fill(
             if app.seeded() {
                 EN.files_vault_open_unsaved
             } else {
                 EN.vault_open_unsaved
             },
             &[
-                &v.changes.to_string(),
+                &text!("{}", v.changes),
                 (if v.changes == 1 {
                     EN.files_change
                 } else {
@@ -830,8 +840,8 @@ fn out_line(
                 }),
             ],
         ),
-        Some(_) => EN.files_vault_open_sealed.to_string(),
-        None => String::from(&*kind_line(item.kind, item.bytes.len())),
+        Some(_) => Text::of(EN.files_vault_open_sealed),
+        None => Text::of(&kind_line(item.kind, item.bytes.len())),
     };
     let state = match exposure {
         Exposure::Secret => (EN.files_unprotected, Role::Error),
@@ -854,19 +864,17 @@ pub(super) fn boot_medium_line(app: &View) -> Option<&'static str> {
 
 /// The stick, or what waits for one: the line Files shows, and what a
 /// press on it does.
-fn stick_status(app: &View) -> (String, Option<Action>) {
+fn stick_status(app: &View) -> (Text, Option<Action>) {
     if app.stick.is_empty() {
-        (fill(EN.files_waiting_medium, &[app.medium.a()]), None)
+        (Text::fill(EN.files_waiting_medium, &[app.medium.a()]), None)
     } else if app.holds_secret() {
         (
-            fill(EN.files_attached_lock, &[app.medium.cap()]),
+            Text::fill(EN.files_attached_lock, &[app.medium.cap()]),
             Some(Action::Lock),
         )
     } else {
         (
-            app.stick[app.visit.stick.min(app.stick.len() - 1)]
-                .label
-                .clone(),
+            Text::of(&app.stick[app.visit.stick.min(app.stick.len() - 1)].label),
             None,
         )
     }
@@ -920,8 +928,8 @@ pub(super) fn receipt_rows(
     let mut ry = y + 30.0;
     for f in &r.files {
         let (state, tone) = match &f.failure {
-            None => (EN.receipt_rows_verified.to_string(), Role::Ok),
-            Some(why) => (why.clone(), Role::Error),
+            None => (Text::of(EN.receipt_rows_verified), Role::Ok),
+            Some(why) => (Text::of(why), Role::Error),
         };
         let state = ui.fit_as(BODY_S, &state, w / 2.0);
         let sw = ui.measure_as(BODY_S, &state);
@@ -980,7 +988,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
         (x + 48.0, y + 14.0, 28.0),
         TITLE_M,
         Role::OnSurface,
-        &fill(
+        &Text::fill(
             EN.vault_panel_open,
             &[&open.name, &open.label(app.vaults.store())],
         ),
@@ -1035,11 +1043,11 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             );
             let nw = ui.text_mid_as((rx + 26.0, ty, 36.0), TITLE_S, Role::OnSurface, &wt.name);
             let here = wt.keys.len();
-            let line = fill(
+            let line = Text::fill(
                 EN.vault_panel_keys_here,
                 &[
-                    &here.to_string(),
-                    &wt.total.to_string(),
+                    &text!("{}", here),
+                    &text!("{}", wt.total),
                     (if wt.total == 1 {
                         EN.vault_panel_key
                     } else {
@@ -1078,16 +1086,16 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
                 (x + 20.0, ty - 4.0, 26.0),
                 BODY_S,
                 Role::OnSurfaceVariant,
-                &fill(EN.vault_panel_more_listed, &[&more.to_string()]),
+                &Text::fill(EN.vault_panel_more_listed, &[&text!("{}", more)]),
             );
             ty += 26.0;
         }
         let chosen = together.iter().filter(|w| w.chosen || !many).count();
         let label = match chosen {
-            1 if !many => EN.vault_panel_load_wallet.to_string(),
-            0 => EN.vault_panel_nothing.to_string(),
-            1 => EN.vault_panel_load.to_string(),
-            n => fill(EN.vault_panel_load_wallets, &[&n.to_string()]),
+            1 if !many => Text::of(EN.vault_panel_load_wallet),
+            0 => Text::of(EN.vault_panel_nothing),
+            1 => Text::of(EN.vault_panel_load),
+            n => Text::fill(EN.vault_panel_load_wallets, &[&text!("{}", n)]),
         };
         let lw = ui.button(
             x + 20.0,
@@ -1099,9 +1107,9 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             Action::Vault(V::LoadWithKeys(v)),
         );
         let each = if open.each_shown {
-            EN.vault_panel_hide_each.to_string()
+            Text::of(EN.vault_panel_hide_each)
         } else {
-            fill(EN.vault_panel_each_seed, &[&rows.len().to_string()])
+            Text::fill(EN.vault_panel_each_seed, &[&text!("{}", rows.len())])
         };
         let ew = ui.button(
             x + 20.0 + lw + 12.0,
@@ -1154,9 +1162,9 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
         let name = ui.fit_as(TITLE_S, &row.name, colw * 0.5 - 24.0);
         ui.text_mid_as((rx + 52.0, ry, 34.0), TITLE_S, Role::OnSurface, &name);
         let detail = if row.loaded {
-            EN.vault_panel_loaded.to_string()
+            Text::of(EN.vault_panel_loaded)
         } else {
-            String::from(row.detail.as_str())
+            Text::of(&row.detail)
         };
         let face = if row.seed && !row.loaded {
             BODY_S.mono()
@@ -1178,24 +1186,23 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
     let by = y + h - 20.0 - 40.0;
     let seeds = waiting.iter().filter(|r| r.chosen && r.seed).count();
     let wallets = waiting.iter().filter(|r| r.chosen && !r.seed).count();
-    let count =
-        |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
+    let count = |n: usize, one: &str, many: &str| text!("{n} {}", if n == 1 { one } else { many });
     let label = match (seeds, wallets) {
-        (0, 0) if waiting.is_empty() => EN.vault_panel_everything.to_string(),
-        (0, 0) => EN.vault_panel_nothing.to_string(),
-        (s, 0) => fill(
+        (0, 0) if waiting.is_empty() => Text::of(EN.vault_panel_everything),
+        (0, 0) => Text::of(EN.vault_panel_nothing),
+        (s, 0) => Text::fill(
             EN.vault_panel_load_n,
-            &[&count(s, EN.vault_panel_key, EN.vault_panel_keys).to_string()],
+            &[&count(s, EN.vault_panel_key, EN.vault_panel_keys)],
         ),
-        (0, wl) => fill(
+        (0, wl) => Text::fill(
             EN.vault_panel_load_n,
-            &[&count(wl, EN.vault_panel_wallet, EN.vault_panel_wallets).to_string()],
+            &[&count(wl, EN.vault_panel_wallet, EN.vault_panel_wallets)],
         ),
-        (s, wl) => fill(
+        (s, wl) => Text::fill(
             EN.vault_panel_load_keys_wallets,
             &[
-                &count(s, EN.vault_panel_key, EN.vault_panel_keys).to_string(),
-                &count(wl, EN.vault_panel_wallet, EN.vault_panel_wallets).to_string(),
+                &count(s, EN.vault_panel_key, EN.vault_panel_keys),
+                &count(wl, EN.vault_panel_wallet, EN.vault_panel_wallets),
             ],
         ),
     };
@@ -1289,24 +1296,26 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ui.text_as(rx + 26.0, ty + 2.0, TITLE_S, Role::OnSurface, &name);
                 ty += ui.line_as(TITLE_S) + faraday_draw::tokens::GAP_SMALL;
                 let n = fw.keys.len().max(1);
-                let line = fill(
+                let line = Text::fill(
                     EN.inbox_of_here,
                     &[
-                        &fw.shape.to_string(),
-                        &fw.seeds_here.to_string(),
-                        &n.to_string(),
+                        &text!("{}", fw.shape),
+                        &text!("{}", fw.seeds_here),
+                        &text!("{}", n),
                         (if n == 1 { EN.inbox_key } else { EN.inbox_keys }),
                         &(if fw.files.len() > 1 {
-                            format!(
+                            text!(
                                 " {}",
-                                fill(EN.inbox_panel_files_agree, &[&fw.files.len().to_string()])
+                                &*Text::fill(
+                                    EN.inbox_panel_files_agree,
+                                    &[&text!("{}", fw.files.len())]
+                                )
                             )
                         } else if fw.from_shares {
-                            format!(" {}", EN.inbox_panel_from_split_sheets)
+                            text!(" {}", EN.inbox_panel_from_split_sheets)
                         } else {
-                            String::new()
-                        })
-                        .to_string(),
+                            Text::new()
+                        }),
                     ],
                 );
                 let line = ui.fit_as(BODY_S, &line, ix + iw - rx - 26.0);
@@ -1319,7 +1328,10 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ty += 8.0;
             }
             if wallets.len() > ROWS {
-                let more = fill(EN.inbox_more_loaded, &[&(wallets.len() - ROWS).to_string()]);
+                let more = Text::fill(
+                    EN.inbox_more_loaded,
+                    &[&text!("{}", (wallets.len() - ROWS))],
+                );
                 ty += ui.wrap_as((ix, ty, iw), BODY_S, Role::OnSurfaceVariant, &more) + 8.0;
             }
             let chosen = wallets
@@ -1331,11 +1343,11 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 .filter(|w| !many || !app.inbox.skip().contains(&w.descriptor))
                 .any(|w| w.seeds_here > 0);
             let label = match (chosen, with_seeds) {
-                (0, _) => EN.inbox_nothing_chosen.to_string(),
-                (1, true) => EN.inbox_load_wallet_seeds.to_string(),
-                (1, false) => EN.inbox_load_the_wallet.to_string(),
-                (n, true) => fill(EN.inbox_load_wallets_seeds, &[&n.to_string()]),
-                (n, false) => fill(EN.inbox_load_wallets, &[&n.to_string()]),
+                (0, _) => Text::of(EN.inbox_nothing_chosen),
+                (1, true) => Text::of(EN.inbox_load_wallet_seeds),
+                (1, false) => Text::of(EN.inbox_load_the_wallet),
+                (n, true) => Text::fill(EN.inbox_load_wallets_seeds, &[&text!("{}", n)]),
+                (n, false) => Text::fill(EN.inbox_load_wallets, &[&text!("{}", n)]),
             };
             let style = Style::Primary.when(chosen > 0);
             ty += wrap_buttons(
@@ -1351,7 +1363,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     (ix, ty, iw),
                     BODY_S,
                     Role::Warning,
-                    &fill(EN.inbox_keys_load_once, &[app.medium.noun()]),
+                    &Text::fill(EN.inbox_keys_load_once, &[app.medium.noun()]),
                 ) + 8.0;
             }
             ty += 6.0;
@@ -1366,11 +1378,15 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     ty + 2.0,
                     BODY_M.mono(),
                     Role::OnSurface,
-                    &fp_text(s.fingerprint),
+                    &fp_label(s.fingerprint),
                 );
                 ty += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
-                let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
-                let line = ui.fit_as(BODY_S, &from.join(" · "), iw - 26.0);
+                let from: Vec<Text> = s
+                    .sources
+                    .iter()
+                    .map(|src| Text::of(&src.name(app)))
+                    .collect();
+                let line = ui.fit_as(BODY_S, &joined(&from, " · "), iw - 26.0);
                 ui.text_as(ix + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
                 ty += ui.advance_as(BODY_S, 22.0);
                 let style = if may {
@@ -1392,7 +1408,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 );
             }
             if potential.len() > ROWS {
-                let more = fill(EN.inbox_more, &[&(potential.len() - ROWS).to_string()]);
+                let more = Text::fill(EN.inbox_more, &[&text!("{}", (potential.len() - ROWS))]);
                 ty += ui.wrap_as((ix, ty, iw), BODY_S, Role::OnSurfaceVariant, &more) + 8.0;
             }
             ty += 4.0;
@@ -1417,17 +1433,17 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 );
                 let fp = xp
                     .fingerprint
-                    .map(fp_text)
-                    .unwrap_or_else(|| EN.inbox_no_origin.to_string());
+                    .map(fp_label)
+                    .unwrap_or_else(|| Text::of(EN.inbox_no_origin));
                 ui.text_as(ix + 26.0, ty + 2.0, BODY_M.mono(), Role::OnSurface, &fp);
                 ty += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
-                let line = format!(
+                let line = text!(
                     "{} · {}",
                     xp.path.clone().unwrap_or_default(),
                     xp.files
                         .first()
                         .and_then(|k| app.inbox.get(*k))
-                        .map_or(String::new(), |it| it.name.clone())
+                        .map_or("", |it| it.name.as_str())
                 );
                 let line = ui.fit_as(BODY_S, &line, iw - 26.0);
                 ui.text_as(ix + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
@@ -1492,7 +1508,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
     let draw = |ui: &mut Ui| -> f32 {
         let mut ty = y + 14.0;
         ui.icon(ix, ty, 20.0, Icon::Lock, 13.0, Role::Primary);
-        let title = fill(
+        let title = Text::fill(
             EN.vault_open,
             &[&open.name, &open.label(app.vaults.store())],
         );
@@ -1531,11 +1547,11 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 let name = ui.fit_as(TITLE_S, &wt.name, ix + iw - rx - 26.0);
                 ui.text_as(rx + 26.0, ty + 2.0, TITLE_S, Role::OnSurface, &name);
                 ty += ui.line_as(TITLE_S) + faraday_draw::tokens::GAP_SMALL;
-                let line = fill(
+                let line = Text::fill(
                     EN.vault_of_in_this_vault,
                     &[
-                        &here.to_string(),
-                        &wt.total.to_string(),
+                        &text!("{}", here),
+                        &text!("{}", wt.total),
                         (if wt.total == 1 {
                             EN.vault_key_inline
                         } else {
@@ -1552,20 +1568,20 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 ty += 8.0;
             }
             if more > 0 {
-                let line = fill(EN.vault_more_listed_under, &[&more.to_string()]);
+                let line = Text::fill(EN.vault_more_listed_under, &[&text!("{}", more)]);
                 ty += ui.wrap_as((ix, ty, iw), BODY_S, Role::OnSurfaceVariant, &line) + 8.0;
             }
             let chosen = together.iter().filter(|w| w.chosen || !many).count();
             let label = match chosen {
-                1 if !many => EN.vault_load_wallet_keys.to_string(),
-                0 => EN.vault_nothing_chosen.to_string(),
-                1 => EN.vault_load_1_wallet.to_string(),
-                n => fill(EN.vault_load_wallets, &[&n.to_string()]),
+                1 if !many => Text::of(EN.vault_load_wallet_keys),
+                0 => Text::of(EN.vault_nothing_chosen),
+                1 => Text::of(EN.vault_load_1_wallet),
+                n => Text::fill(EN.vault_load_wallets, &[&text!("{}", n)]),
             };
             let each = if open.each_shown {
-                EN.vault_hide_each_seed.to_string()
+                Text::of(EN.vault_hide_each_seed)
             } else {
-                fill(EN.vault_each_seed_wallet, &[&rows.len().to_string()])
+                Text::fill(EN.vault_each_seed_wallet, &[&text!("{}", rows.len())])
             };
             let mut items: Vec<(&str, Style, Action)> = vec![
                 (
@@ -1636,9 +1652,9 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 Role::OnSurfaceVariant,
             );
             let detail = if row.loaded {
-                EN.vault_loaded.to_string()
+                Text::of(EN.vault_loaded)
             } else {
-                String::from(row.detail.as_str())
+                Text::of(&row.detail)
             };
             let face = if row.seed && !row.loaded {
                 BODY_S.mono()
@@ -1665,23 +1681,23 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
         let seeds = waiting.iter().filter(|r| r.chosen && r.seed).count();
         let wallets = waiting.iter().filter(|r| r.chosen && !r.seed).count();
         let count =
-            |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
+            |n: usize, one: &str, many: &str| text!("{n} {}", if n == 1 { one } else { many });
         let label = match (seeds, wallets) {
-            (0, 0) if waiting.is_empty() => EN.vault_everything_loaded.to_string(),
-            (0, 0) => EN.vault_nothing_chosen.to_string(),
-            (s, 0) => fill(
+            (0, 0) if waiting.is_empty() => Text::of(EN.vault_everything_loaded),
+            (0, 0) => Text::of(EN.vault_nothing_chosen),
+            (s, 0) => Text::fill(
                 EN.vault_load_n,
-                &[&count(s, EN.vault_key_inline, EN.vault_keys).to_string()],
+                &[&count(s, EN.vault_key_inline, EN.vault_keys)],
             ),
-            (0, wl) => fill(
+            (0, wl) => Text::fill(
                 EN.vault_load_n,
-                &[&count(wl, EN.vault_wallet_inline, EN.vault_wallets).to_string()],
+                &[&count(wl, EN.vault_wallet_inline, EN.vault_wallets)],
             ),
-            (s, wl) => fill(
+            (s, wl) => Text::fill(
                 EN.vault_load_keys_wallets,
                 &[
-                    &count(s, EN.vault_key_inline, EN.vault_keys).to_string(),
-                    &count(wl, EN.vault_wallet_inline, EN.vault_wallets).to_string(),
+                    &count(s, EN.vault_key_inline, EN.vault_keys),
+                    &count(wl, EN.vault_wallet_inline, EN.vault_wallets),
                 ],
             ),
         };
@@ -1707,23 +1723,23 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
 }
 
 /// Buttons by label, style and action.
-pub(super) type Buttons = Vec<(String, Style, Action)>;
+pub(super) type Buttons = Vec<(Text, Style, Action)>;
 
 /// A line and its colour.
-type Note = Option<(String, crate::ui::Paint)>;
+type Note = Option<(Text, crate::ui::Paint)>;
 
 /// What an Inbox file offers on its card: the way it is used; the rest
 /// is behind its ⋮ (decision 61). A split sheet that does not add up yet says how
 /// many keys are in hand instead of offering a button.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
-    let mut out: Vec<(String, Style, Action)> = Vec::new();
+    let mut out: Vec<(Text, Style, Action)> = Vec::new();
     let mut note = None;
     // What goes into a vault shows only while one is open (F60); the
     // vault's own row unlocks it.
     let vault_open = app.vault_way(Screen::Files).is_none();
     let into_vault =
-        |label: &str, style, action| vault_open.then(|| (label.to_string(), style, action));
+        |label: &str, style, action| vault_open.then(|| (text!("{}", label), style, action));
     let add_to_vault = |style| {
         into_vault(
             EN.inbox_actions_add_to_vault,
@@ -1738,7 +1754,7 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
     match item.kind {
         FileKind::Psbt if same_spend => {
             out.push((
-                EN.inbox_actions_add_signatures.into(),
+                Text::of(EN.inbox_actions_add_signatures),
                 Style::Primary,
                 Action::Collect(k),
             ));
@@ -1752,7 +1768,7 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
             ));
         }
         FileKind::QrVault => out.push((
-            EN.inbox_actions_open_qr_vault.into(),
+            Text::of(EN.inbox_actions_open_qr_vault),
             Style::Primary,
             Action::QrTool(crate::qr_tool::QrToolAction::OpenFile(k)),
         )),
@@ -1762,12 +1778,11 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
             if let Some(at) = vault_at(&files, item) {
                 let open = files[at].open.is_some();
                 out.push((
-                    if open {
+                    Text::of(if open {
                         EN.inbox_actions_contents
                     } else {
                         EN.inbox_actions_unlock
-                    }
-                    .into(),
+                    }),
                     if open {
                         Style::Secondary
                     } else {
@@ -1779,21 +1794,21 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
         }
         FileKind::Psbt | FileKind::Transaction if app.checked_not_signed(k) => {
             out.push((
-                EN.inbox_actions_nonce_check.into(),
+                Text::of(EN.inbox_actions_nonce_check),
                 Style::Primary,
                 Action::NonceCheck(crate::decode::CheckPress::Inbox(k)),
             ));
         }
         FileKind::Psbt => {
             out.push((
-                EN.inbox_actions_sign.into(),
+                Text::of(EN.inbox_actions_sign),
                 Style::Tonal,
                 Action::StartSpend(k),
             ));
         }
         FileKind::Wallet | FileKind::SecretWallet => {
             out.push((
-                EN.inbox_actions_load_wallet.into(),
+                Text::of(EN.inbox_actions_load_wallet),
                 Style::Primary,
                 Action::LoadWallet(k),
             ));
@@ -1801,60 +1816,60 @@ pub(super) fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Button
         FileKind::Text => out.extend(add_to_vault(Style::Primary)),
         FileKind::Transaction => {
             out.push((
-                EN.inbox_actions_decode.into(),
+                Text::of(EN.inbox_actions_decode),
                 Style::Primary,
                 Action::DecodeInbox(k),
             ));
         }
         FileKind::Share => {
-            let texts: Vec<zeroize::Zeroizing<String>> = app
+            let texts: Vec<Text> = app
                 .inbox
                 .iter()
                 .filter(|i| i.kind == FileKind::Share)
-                .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
+                .map(|i| Text::from_utf8_lossy(&i.bytes))
                 .collect();
             match crate::restore::merge(&texts) {
                 Ok(m) if m.whole.is_some() => out.push((
-                    fill(EN.inbox_actions_restore, &[&texts.len().to_string()]),
+                    Text::fill(EN.inbox_actions_restore, &[&text!("{}", texts.len())]),
                     Style::Primary,
                     Action::RestoreShares,
                 )),
                 Ok(m) => {
                     note = Some((
-                        fill(
+                        Text::fill(
                             EN.inbox_actions_of_keys,
-                            &[&m.have.len().to_string(), &m.n.to_string()],
+                            &[&text!("{}", m.have.len()), &text!("{}", m.n)],
                         ),
                         Role::Warning.paint(),
                     ))
                 }
-                Err(e) => note = Some((e.as_str().into(), Role::Error.paint())),
+                Err(e) => note = Some((Text::of(&e), Role::Error.paint())),
             }
         }
         FileKind::Words => {
             out.push((
-                EN.inbox_actions_load.into(),
+                Text::of(EN.inbox_actions_load),
                 Style::Primary,
                 Action::LoadKey(k),
             ));
         }
         FileKind::Message => {
             out.push((
-                EN.inbox_actions_check.into(),
+                Text::of(EN.inbox_actions_check),
                 Style::Primary,
                 Action::CheckMessage(k),
             ));
         }
         FileKind::CoreWallet => {
             out.push((
-                EN.inbox_actions_read_wallet.into(),
+                Text::of(EN.inbox_actions_read_wallet),
                 Style::Primary,
                 Action::CoreWallet(crate::core_wallet::tool::CoreWalletAction::OpenFile(k)),
             ));
         }
         FileKind::Sheet if app.online => {
             out.push((
-                EN.inbox_actions_make.into(),
+                Text::of(EN.inbox_actions_make),
                 Style::Primary,
                 Action::PdfInbox(k),
             ));
@@ -1881,8 +1896,8 @@ fn file_card(
     name: &str,
     line: &str,
     row: crate::file_menu::Row,
-    note: Option<&(String, crate::ui::Paint)>,
-    buttons: &[(String, Style, Action)],
+    note: Option<&(Text, crate::ui::Paint)>,
+    buttons: &[(Text, Style, Action)],
 ) -> f32 {
     let draw = |ui: &mut Ui| -> f32 {
         let mut cy = y + 12.0;
@@ -2069,16 +2084,18 @@ fn compact_inbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         y + 2.0,
         BODY_S,
         Role::OnSurfaceVariant,
-        &app.inbox.len().to_string(),
+        &text!("{}", app.inbox.len()),
     );
     y += ui.advance_as(BODY_S, 28.0);
     for (k, item) in app.inbox.iter().enumerate() {
         let line = if item.kind == FileKind::Vault
             && vault_of_row(&app.vault_files(), item).is_some_and(|f| f.open.is_some())
         {
-            kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open)
+            Text::of(
+                &kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open),
+            )
         } else {
-            String::from(&*kind_line(item.kind, item.bytes.len()))
+            kind_line(item.kind, item.bytes.len())
         };
         let (buttons, note) = inbox_actions(app, k, item);
         y += file_card(
@@ -2104,7 +2121,7 @@ fn compact_inbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             (x, y, w),
             BODY_S,
             Role::OnSurfaceVariant,
-            &fill(EN.files_empty_files_are, &[app.medium.a()]),
+            &Text::fill(EN.files_empty_files_are, &[app.medium.a()]),
         ) + 14.0;
     }
     y - y0
@@ -2122,26 +2139,26 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         y + 2.0,
         BODY_S,
         Role::OnSurfaceVariant,
-        &app.outbox.len().to_string(),
+        &text!("{}", app.outbox.len()),
     );
     y += ui.advance_as(BODY_S, 28.0);
     for (exposure, label, line, tone) in [
         (
             Exposure::Public,
             EN.files_public,
-            EN.files_anyone_may_read.to_string(),
+            Text::of(EN.files_anyone_may_read),
             Role::OnSurfaceVariant,
         ),
         (
             Exposure::Sealed,
             EN.files_written_sealed,
-            fill(EN.files_sealed_under, &[app.medium.a()]),
+            Text::fill(EN.files_sealed_under, &[app.medium.a()]),
             Role::Ok,
         ),
         (
             Exposure::Secret,
             EN.files_unprotected_secrets,
-            fill(EN.files_anyone_who_has, &[app.medium.noun()]),
+            Text::fill(EN.files_anyone_who_has, &[app.medium.noun()]),
             Role::Error,
         ),
     ] {
@@ -2174,7 +2191,7 @@ fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             let (line, state) = out_line(app, item, exposure);
             // No main action: the ⋮ alone (decision 61).
             // The state goes on the line, where the name leaves no room.
-            let line = format!("{} · {line}", state.0);
+            let line = text!("{} · {}", state.0, &*line);
             y += file_card(
                 app,
                 ui,
@@ -2213,7 +2230,7 @@ fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
             (x + 24.0, y + 1.0, w - 24.0),
             BODY_S,
             Role::OnSurfaceVariant,
-            &fill(EN.files_power_off_asks, &[app.medium.for_the()]),
+            &Text::fill(EN.files_power_off_asks, &[app.medium.for_the()]),
         ) + 10.0;
     }
     y += about(
@@ -2221,7 +2238,7 @@ fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         x,
         y,
         w,
-        &fill(
+        &Text::fill(
             EN.files_holds_what_was,
             &[app.medium.from_box(), app.medium.for_box()],
         ),
