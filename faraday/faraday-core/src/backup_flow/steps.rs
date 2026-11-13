@@ -3196,13 +3196,10 @@ impl Faraday {
             .flat_map(|s| s.files.iter().cloned())
             .chain(self.flows[i].public.iter().cloned())
             .collect();
-        let moved: Vec<Item> = self
-            .outbox
-            .iter()
-            .filter(|it| names.contains(&it.name))
-            .cloned()
-            .collect();
-        self.outbox.retain(|it| !names.contains(&it.name));
+        let (moved, kept): (Vec<Item>, Vec<Item>) = std::mem::take(&mut self.outbox)
+            .into_iter()
+            .partition(|it| names.contains(&it.name));
+        self.outbox = kept;
         for it in moved {
             self.inbox.retain(|x| x.name != it.name);
             self.inbox.push(it);

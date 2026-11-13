@@ -7,7 +7,6 @@ use faraday_crypto::work::Compute;
 use zeroize::Zeroizing;
 
 /// A file in the Inbox or the Outbox.
-#[derive(Clone)]
 pub struct Item {
     /// Its name.
     pub name: String,
@@ -66,6 +65,24 @@ impl std::fmt::Debug for Item {
 }
 
 impl Item {
+    /// A second copy of the file, its bytes wiped on drop like the first.
+    #[must_use]
+    pub fn duplicate(&self) -> Item {
+        Item {
+            name: self.name.clone(),
+            bytes: Zeroizing::new(self.bytes.to_vec()),
+            kind: self.kind,
+            secret: self.secret,
+            picture: self.picture,
+            sha: self.sha,
+            facts: self.facts.clone(),
+            wallet: self.wallet.clone(),
+            psbt: self.psbt.clone(),
+            outpoints: self.outpoints.clone(),
+            unsigned_txid: self.unsigned_txid,
+        }
+    }
+
     /// Costs a classification, a parse of a wallet file's description and a
     /// hash of a vault or an EFI image. The file as it came in,
     /// classified, with what it describes read once.

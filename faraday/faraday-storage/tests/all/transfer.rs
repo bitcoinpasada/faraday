@@ -134,7 +134,7 @@ fn device_reads(app: &Faraday) -> faraday_core::Item {
     for m in &q.frames {
         device.event(Event::Scanned { bytes: read(m) });
         if let Some(item) = device.inbox().last() {
-            return item.clone();
+            return item.duplicate();
         }
     }
     panic!(

@@ -169,12 +169,6 @@ faraday/faraday-core/src/codex32/mod.rs:DieRow Clone,PartialEq,Debug one die's t
 core/faraday-shell-api/src/lib.rs:EntropyBytes Clone Event is Clone and the snapshot and replay shells copy events
 core/faraday-codec/src/decode.rs:Decoded Clone,PartialEq,Debug fixed in a later change
 core/faraday-shell-api/src/lib.rs:Command Clone,PartialEq,Debug fixed in a later change
-faraday/faraday-core/src/backup_flow/mod.rs:Writing Clone fixed in a later change
-faraday/faraday-core/src/codes/mod.rs:CodeKind Clone,PartialEq,Debug fixed in a later change
-faraday/faraday-core/src/glance/sheet.rs:View Clone,Debug fixed in a later change
-faraday/faraday-core/src/item.rs:Item Clone fixed in a later change
-faraday/faraday-core/src/storage_api.rs:StorageCommand Clone,PartialEq,Debug fixed in a later change
-faraday/faraday-core/src/transfer/text.rs:SendText Debug fixed in a later change
 faraday/faraday-files/src/proto.rs:Request Clone,PartialEq,Debug fixed in a later change
 faraday/faraday-intake/src/wallet.rs:Seen PartialEq fixed in a later change
 EOF

@@ -1020,7 +1020,7 @@ fn with_one_file_it_starts_ticked() {
 #[test]
 fn a_signature_never_overwrites_the_certificate() {
     let mut app = signing();
-    let cert = app.outbox[0].clone();
+    let cert = app.outbox[0].duplicate();
     let stem = cert.name.trim_end_matches(".asc").to_string();
     testkit::inbox_push(
         &mut app,

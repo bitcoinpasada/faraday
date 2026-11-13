@@ -16,7 +16,6 @@ use crate::vault::VaultAction;
 use crate::{Action, Faraday};
 
 /// What a row shows in place of the code.
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CodeKind {
     /// The code, grouped for display, the seconds left in its period,
     /// and the period itself (for the progress bar's fraction).
@@ -37,6 +36,51 @@ pub enum CodeKind {
     NoClock,
     /// No code is held for the row: nothing is drawn but the row itself.
     NotHeld,
+}
+
+/// Compares the code in constant time and the rest as it is.
+impl PartialEq for CodeKind {
+    fn eq(&self, other: &Self) -> bool {
+        use subtle::ConstantTimeEq;
+        match (self, other) {
+            (
+                Self::Code {
+                    grouped,
+                    left,
+                    period,
+                },
+                Self::Code {
+                    grouped: g2,
+                    left: l2,
+                    period: p2,
+                },
+            ) => bool::from(grouped.as_bytes().ct_eq(g2.as_bytes())) && left == l2 && period == p2,
+            (Self::Hotp, Self::Hotp)
+            | (Self::Unreadable, Self::Unreadable)
+            | (Self::NoClock, Self::NoClock)
+            | (Self::NotHeld, Self::NotHeld) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for CodeKind {}
+
+/// Prints which kind it is and the seconds left, never the code.
+impl std::fmt::Debug for CodeKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Code { left, period, .. } => f
+                .debug_struct(stringify!(Code))
+                .field("left", left)
+                .field("period", period)
+                .finish_non_exhaustive(),
+            Self::Hotp => f.write_str(stringify!(Hotp)),
+            Self::Unreadable => f.write_str(stringify!(Unreadable)),
+            Self::NoClock => f.write_str(stringify!(NoClock)),
+            Self::NotHeld => f.write_str(stringify!(NotHeld)),
+        }
+    }
 }
 
 /// One row of the codes screen (§5.3).

@@ -1185,7 +1185,7 @@ impl Faraday {
             .inbox
             .iter()
             .filter(|i| names.contains(&i.name))
-            .cloned()
+            .map(Item::duplicate)
             .collect();
         let (_, keys) = self.load_found_in(&items, &BTreeSet::new(), &|_| true);
         if keys > 0 {

@@ -355,7 +355,7 @@ fn another_code_of_the_same_name_made_later_is_left_alone_and_not_put_on_the_sti
         .outbox
         .iter()
         .filter(|i| names.contains(&i.name))
-        .cloned()
+        .map(faraday_core::Item::duplicate)
         .collect();
     testkit::outbox_to_files(&mut app, &names);
     reopen(&mut app);
@@ -363,7 +363,10 @@ fn another_code_of_the_same_name_made_later_is_left_alone_and_not_put_on_the_sti
         let last = i.bytes.len() - 1;
         i.bytes[last] ^= 1;
     }
-    let other = others.clone();
+    let other = others
+        .iter()
+        .map(faraday_core::Item::duplicate)
+        .collect::<Vec<_>>();
     app.outbox.extend(others);
     assert!(!done(&app), "Not made while another file holds the names");
     to_lock(&mut app, &mut shell);

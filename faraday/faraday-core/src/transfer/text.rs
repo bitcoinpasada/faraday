@@ -54,13 +54,23 @@ pub enum TextCheck {
 }
 
 /// The Send text card's field, and what its check said.
-#[derive(Debug)]
 pub struct SendText {
     text: Zeroizing<String>,
     check: TextCheck,
     /// A paste was longer than the field holds, so it is cut: refused
     /// until the field is cleared.
     over: bool,
+}
+
+/// Prints the length of the text, never the text.
+impl std::fmt::Debug for SendText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct(stringify!(SendText))
+            .field("len", &self.text.len())
+            .field("check", &self.check)
+            .field("over", &self.over)
+            .finish()
+    }
 }
 
 impl Default for SendText {
