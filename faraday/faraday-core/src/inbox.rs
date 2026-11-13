@@ -163,7 +163,7 @@ impl SessionSeen {
             keys: s
                 .keys
                 .all()
-                .map(|k| (k.fingerprint, k.label.clone()))
+                .map(|k| (k.fingerprint, String::from(&*k.label)))
                 .collect(),
             wallets: s
                 .wallets
@@ -182,7 +182,7 @@ impl SessionSeen {
                 .keys
                 .iter()
                 .zip(s.keys.all())
-                .all(|(a, k)| a.0 == k.fingerprint && a.1 == k.label)
+                .all(|(a, k)| a.0 == k.fingerprint && a.1 == k.label.as_str())
             && self
                 .wallets
                 .iter()
@@ -973,7 +973,7 @@ impl Faraday {
             add_seed(
                 &mut found,
                 key.fingerprint,
-                key.label.clone(),
+                String::from(&*key.label),
                 SeedSource::Loaded,
                 true,
             );

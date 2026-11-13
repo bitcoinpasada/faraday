@@ -407,7 +407,12 @@ impl RestoreLive {
 /// the stick, as its certificate is out already.
 pub(crate) fn built(r: Restored) -> super::Built {
     super::Built {
-        name: r.made.facts.user_ids.first().cloned().unwrap_or_default(),
+        name: r
+            .made
+            .facts
+            .user_ids
+            .first()
+            .map_or_else(String::new, |u| String::from(&**u)),
         subject: r.made.facts.fingerprint.to_vec(),
         record: r.made.key,
         outbox: Vec::new(),

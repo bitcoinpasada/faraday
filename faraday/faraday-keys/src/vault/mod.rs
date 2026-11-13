@@ -35,6 +35,7 @@ use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::{Compute, Work};
 use faraday_intake::secret_buf::SecretText;
 use faraday_intake::wallet::Refusal;
+use faraday_text::Text;
 use faraday_vault::file::Change;
 use faraday_vault::kdbx::items::{self, Body, Damage, Fault, Place, Unreadable, Unwritable};
 use faraday_vault::layouts;
@@ -443,7 +444,7 @@ pub(crate) enum Op {
     /// An entry taken out.
     Remove([u8; 16]),
     /// A plan or signed amounts taken out, by key.
-    RemoveCustom(String),
+    RemoveCustom(Text),
     /// A plan written at its number.
     Plan { n: u32, record: Record },
     /// Signed amounts written.
@@ -451,7 +452,7 @@ pub(crate) enum Op {
     /// A transaction's nonce record written.
     Nonces(Record),
     /// The vault renamed.
-    Label(String),
+    Label(Text),
 }
 
 /// What an entry of a record's kind holds for the vault crate: a GPG key
@@ -486,7 +487,7 @@ pub(crate) fn with_changes<T>(
     f: impl FnOnce(&[Change<'_>]) -> Result<T, fv::file::Error>,
 ) -> Result<T, fv::file::Error> {
     struct Prepared {
-        title: String,
+        title: Text,
         body: Body,
     }
     let prepared: Vec<Option<Prepared>> = ops
@@ -628,33 +629,33 @@ impl<'a> Records<'a> {
 )]
 pub struct Names {
     /// Group of seeds.
-    pub group_keys: String,
+    pub group_keys: &'static str,
     /// Group of wallets.
-    pub group_wallets: String,
+    pub group_wallets: &'static str,
     /// Group of notes.
-    pub group_notes: String,
+    pub group_notes: &'static str,
     /// Group of recovery sheets.
-    pub group_sheets: String,
+    pub group_sheets: &'static str,
     /// Group of GPG keys.
-    pub group_gpg: String,
+    pub group_gpg: &'static str,
     /// Group of Secure Boot keys.
-    pub group_secure_boot: String,
+    pub group_secure_boot: &'static str,
     /// Group of wallet shares.
-    pub group_wallet_shares: String,
+    pub group_wallet_shares: &'static str,
     /// Group of passphrases.
-    pub group_passphrases: String,
+    pub group_passphrases: &'static str,
     /// Group of codex32 shares.
-    pub group_shares: String,
+    pub group_shares: &'static str,
     /// A key with no label: "Key {fingerprint}".
-    pub title_key: String,
+    pub title_key: &'static str,
     /// A note.
-    pub title_note: String,
+    pub title_note: &'static str,
     /// A passphrase: "Passphrase for {for}".
-    pub title_passphrase: String,
+    pub title_passphrase: &'static str,
     /// A codex32 share: "Codex32 share for {for}".
-    pub title_share: String,
+    pub title_share: &'static str,
     /// Secure Boot keys.
-    pub title_secure_boot: String,
+    pub title_secure_boot: &'static str,
 }
 
 impl Names {
@@ -662,24 +663,24 @@ impl Names {
     /// with the hex of a fingerprint among them: the bound of the
     /// names one record's entry may carry.
     pub(crate) fn room(&self) -> usize {
-        let longest = |l: &[&String]| l.iter().map(|s| s.len()).max().unwrap_or(0);
+        let longest = |l: &[&str]| l.iter().map(|s| s.len()).max().unwrap_or(0);
         let groups = longest(&[
-            &self.group_keys,
-            &self.group_wallets,
-            &self.group_notes,
-            &self.group_sheets,
-            &self.group_gpg,
-            &self.group_secure_boot,
-            &self.group_wallet_shares,
-            &self.group_passphrases,
-            &self.group_shares,
+            self.group_keys,
+            self.group_wallets,
+            self.group_notes,
+            self.group_sheets,
+            self.group_gpg,
+            self.group_secure_boot,
+            self.group_wallet_shares,
+            self.group_passphrases,
+            self.group_shares,
         ]);
         let titles = longest(&[
-            &self.title_key,
-            &self.title_note,
-            &self.title_passphrase,
-            &self.title_share,
-            &self.title_secure_boot,
+            self.title_key,
+            self.title_note,
+            self.title_passphrase,
+            self.title_share,
+            self.title_secure_boot,
         ]);
         BOUND_TEXT * (groups + titles) + BOUND_FIELD
     }
@@ -688,15 +689,15 @@ impl Names {
     /// entry, which goes in the root.
     pub(crate) fn group(&self, k: u8) -> &str {
         match k {
-            kind::KEY => &self.group_keys,
-            kind::WALLET => &self.group_wallets,
-            kind::NOTE => &self.group_notes,
-            kind::SHEET => &self.group_sheets,
-            kind::GPG => &self.group_gpg,
-            kind::SECURE_BOOT => &self.group_secure_boot,
-            kind::WALLET_SHARE => &self.group_wallet_shares,
-            kind::PASSPHRASE => &self.group_passphrases,
-            kind::CODEX32_SHARE => &self.group_shares,
+            kind::KEY => self.group_keys,
+            kind::WALLET => self.group_wallets,
+            kind::NOTE => self.group_notes,
+            kind::SHEET => self.group_sheets,
+            kind::GPG => self.group_gpg,
+            kind::SECURE_BOOT => self.group_secure_boot,
+            kind::WALLET_SHARE => self.group_wallet_shares,
+            kind::PASSPHRASE => self.group_passphrases,
+            kind::CODEX32_SHARE => self.group_shares,
             _ => "",
         }
     }
@@ -705,11 +706,10 @@ impl Names {
     /// no label, when `exact` (a label is the title, so a key with one costs nothing). The title written where the record has none
     /// of its own; with `exact` false a key's fingerprint is a stand-in of
     /// the same length.
-    #[expect(clippy::disallowed_methods, reason = "titles are public")]
-    pub(crate) fn title(&self, c: &Compute, r: &Record, exact: bool) -> String {
+    pub(crate) fn title(&self, c: &Compute, r: &Record, exact: bool) -> Text {
         let hex = |n: u8| {
             r.field(n)
-                .map(|b| b.iter().map(|x| format!("{x:02x}")).collect::<String>())
+                .map(faraday_crypto::hex::encode_string)
                 .unwrap_or_default()
         };
         match r.kind {
@@ -721,20 +721,34 @@ impl Names {
                 } else {
                     None
                 };
-                self.title_key.replace(
+                replaced(
+                    self.title_key,
                     "{fingerprint}",
-                    &fp.unwrap_or_else(|| "00000000".to_string()),
+                    fp.as_deref().unwrap_or("00000000"),
                 )
             }
-            kind::NOTE => self.title_note.clone(),
-            kind::SECURE_BOOT => self.title_secure_boot.clone(),
-            kind::PASSPHRASE => self
-                .title_passphrase
-                .replace("{for}", &hex(field::PASSPHRASE_KEY)),
-            kind::CODEX32_SHARE => self.title_share.replace("{for}", &hex(field::CODEX32_KEY)),
-            _ => String::new(),
+            kind::NOTE => Text::of(self.title_note),
+            kind::SECURE_BOOT => Text::of(self.title_secure_boot),
+            kind::PASSPHRASE => {
+                replaced(self.title_passphrase, "{for}", &hex(field::PASSPHRASE_KEY))
+            }
+            kind::CODEX32_SHARE => replaced(self.title_share, "{for}", &hex(field::CODEX32_KEY)),
+            _ => Text::new(),
         }
     }
+}
+
+/// `template` with each `hole` in it replaced by `with`.
+fn replaced(template: &str, hole: &str, with: &str) -> Text {
+    let mut out = Text::with_room(template.len() + with.len());
+    let mut rest = template;
+    while let Some(i) = rest.find(hole) {
+        out.push_str(&rest[..i]);
+        out.push_str(with);
+        rest = &rest[i + hole.len()..];
+    }
+    out.push_str(rest);
+    out
 }
 
 /// What a record was read from, so that a seal writes it back there.
@@ -748,7 +762,7 @@ pub(crate) enum Origin {
         item: usize,
     },
     /// A backup plan or signed amounts in the database's custom data.
-    Custom { key: String },
+    Custom { key: Text },
     /// The vault's label.
     Label,
     /// A record made here.
@@ -803,13 +817,13 @@ pub(crate) fn build(opened: &fv::file::Opened) -> Built {
             None => {
                 let title = match &it.body {
                     Body::Gpg(g) => g.title.duplicate(),
-                    Body::Record(_) => faraday_text::Text::new(),
+                    Body::Record(_) => Text::new(),
                 };
                 built.unreadable.push(Unreadable {
                     title,
                     uuid: Some(it.uuid),
                     what: Damage {
-                        at: faraday_text::Text::of("key"),
+                        at: Text::of("key"),
                         fault: Fault::Value,
                     },
                 });
@@ -819,7 +833,7 @@ pub(crate) fn build(opened: &fv::file::Opened) -> Built {
     for cu in &read.custom {
         built.records.push(cu.record.duplicate());
         built.origin.push(Origin::Custom {
-            key: String::from(&*cu.key),
+            key: Text::of(&cu.key),
         });
     }
     built
@@ -871,16 +885,12 @@ fn is_entry_kind(k: u8) -> bool {
 }
 
 /// What a removed record leaves to take out at the seal.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a custom item's key name is public"
-)]
 fn drop_op(o: &Origin, ops: &mut Vec<Op>) {
     match o {
         Origin::Entry { uuid, .. } => ops.push(Op::Remove(*uuid)),
-        Origin::Custom { key } => ops.push(Op::RemoveCustom(key.clone())),
+        Origin::Custom { key } => ops.push(Op::RemoveCustom(key.duplicate())),
         // The name taken out is a name cleared.
-        Origin::Label => ops.push(Op::Label(String::new())),
+        Origin::Label => ops.push(Op::Label(Text::new())),
         Origin::New => {}
     }
 }
@@ -889,10 +899,6 @@ fn drop_op(o: &Origin, ops: &mut Vec<Op>) {
 ///
 /// A kind with no place in the file, or no number left for a plan, is a
 /// refusal: the seal does not leave the change out.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a record's fields are Zeroizing: the copy is wiped on drop, and the label is public"
-)]
 fn fresh_op(rec: &Record, plan: &mut Option<u32>, ops: &mut Vec<Op>) -> Result<(), Unwritable> {
     match rec.kind {
         kind::PLAN => {
@@ -905,7 +911,7 @@ fn fresh_op(rec: &Record, plan: &mut Option<u32>, ops: &mut Vec<Op>) -> Result<(
         }
         kind::AMOUNTS => ops.push(Op::Signed(rec.duplicate())),
         kind::NONCES => ops.push(Op::Nonces(rec.duplicate())),
-        kind::SLOT_LABEL => ops.push(Op::Label(rec.text(field::LABEL).unwrap_or("").to_string())),
+        kind::SLOT_LABEL => ops.push(Op::Label(Text::of(rec.text(field::LABEL).unwrap_or("")))),
         k if is_entry_kind(k) => ops.push(Op::Put {
             uuid: [0; 16],
             group_uuid: [0; 16],
@@ -943,7 +949,7 @@ fn put_op(
                 // The key names the transaction: one changed to another
                 // leaves the old key to go.
                 let tx = rec.field(field::AMOUNTS_TX).unwrap_or(&[]);
-                let now: String = tx.iter().map(|b| format!("{b:02x}")).collect();
+                let now = faraday_crypto::hex::encode_string(tx);
                 if key.strip_prefix("faraday.signed.") != Some(now.as_str()) {
                     drop_op(o, ops);
                 }
@@ -955,7 +961,7 @@ fn put_op(
         {
             if dirty {
                 let tx = rec.field(field::NONCES_TX).unwrap_or(&[]);
-                let now: String = tx.iter().map(|b| format!("{b:02x}")).collect();
+                let now = faraday_crypto::hex::encode_string(tx);
                 if key.strip_prefix("faraday.nonces.") != Some(now.as_str()) {
                     drop_op(o, ops);
                 }
@@ -1535,13 +1541,13 @@ fn codex32_pick<'a>(
     c: &Compute,
     fp: [u8; 4],
     need: usize,
-    list: &'a [(Codex32, Zeroizing<String>)],
-    others: &'a [(Codex32, Zeroizing<String>)],
+    list: &'a [(Codex32, Text)],
+    others: &'a [(Codex32, Text)],
 ) -> Option<(Zeroizing<Vec<u8>>, Vec<&'a str>)> {
     // The strings of the first `need` indices; where an index has two,
     // each is tried, the first combination whose seed has the fingerprint
     // the records name winning.
-    let alts: Vec<Vec<&(Codex32, Zeroizing<String>)>> = list
+    let alts: Vec<Vec<&(Codex32, Text)>> = list
         .iter()
         .take(need)
         .map(|e| {
@@ -1580,7 +1586,7 @@ fn codex32_pick<'a>(
 }
 
 /// A seed and the strings that made it.
-type Picked = (Zeroizing<Vec<u8>>, Vec<Zeroizing<String>>);
+type Picked = (Zeroizing<Vec<u8>>, Vec<Text>);
 
 /// Costs what `codex32_pick` costs, for each of at most 16 choices of
 /// which strings join `fixed`. Whether the strings of `pool` of the set
@@ -1597,16 +1603,11 @@ pub(crate) fn codex32_find(
     fixed: &[&str],
     pool: &[&str],
 ) -> Option<Option<Picked>> {
-    let parse = |t: &str| {
-        Some((
-            Codex32::parse(t).ok()?,
-            Zeroizing::new(t.to_ascii_lowercase()),
-        ))
-    };
-    let fixed: Vec<(Codex32, Zeroizing<String>)> = fixed.iter().filter_map(|t| parse(t)).collect();
+    let parse = |t: &str| Some((Codex32::parse(t).ok()?, crate::texts::lower(t)));
+    let fixed: Vec<(Codex32, Text)> = fixed.iter().filter_map(|t| parse(t)).collect();
     let first = &fixed.first()?.0;
-    let mut list: Vec<(Codex32, Zeroizing<String>)> = Vec::new();
-    let mut others: Vec<(Codex32, Zeroizing<String>)> = Vec::new();
+    let mut list: Vec<(Codex32, Text)> = Vec::new();
+    let mut others: Vec<(Codex32, Text)> = Vec::new();
     for t in pool {
         let Some((s, text)) = parse(t) else {
             continue;
@@ -1637,7 +1638,7 @@ pub(crate) fn codex32_find(
     // The choices of `want` of the indices, the earlier first.
     let mut at: Vec<usize> = (0..want).collect();
     for _ in 0..16 {
-        let chosen: Vec<(Codex32, Zeroizing<String>)> = fixed
+        let chosen: Vec<(Codex32, Text)> = fixed
             .iter()
             .chain(at.iter().map(|&n| &list[n]))
             .filter_map(|(_, t)| parse(t))
@@ -1794,12 +1795,12 @@ pub enum KeyLoad {
 }
 
 /// Secure Boot enrolment files, by name.
-pub type Enrolment = Vec<(String, Vec<u8>)>;
+pub type Enrolment = Vec<(Text, Vec<u8>)>;
 
 /// A TOTP entry's code and account, as [`OpenVaults::totp`] gives them.
 pub struct Totp {
     /// The account the secret's `otpauth://` label names, when it has one.
-    pub account: Option<String>,
+    pub account: Option<Text>,
     /// The code, or why there is none: `Ok(None)` while the clock is not
     /// checked.
     pub code: Result<Option<crate::totp::Shown>, crate::totp::NotTotp>,
@@ -1815,7 +1816,7 @@ pub fn gpg_facts(r: RecordView<'_>) -> Option<GpgFacts> {
         subkey_fingerprint: key.subkey_fingerprint(),
         created: key.created,
         subkey_created: key.subkey_created,
-        user_ids: key.user_ids.iter().map(|u| String::from(&**u)).collect(),
+        user_ids: key.user_ids.iter().map(Text::duplicate).collect(),
         expiry: key.expiry,
     })
 }
@@ -1846,7 +1847,7 @@ pub struct GpgFacts {
     /// When the subkey was made.
     pub subkey_created: u32,
     /// The user IDs.
-    pub user_ids: Vec<String>,
+    pub user_ids: Vec<Text>,
     /// Seconds after creation the key expires; 0 for never.
     pub expiry: u32,
 }
@@ -1872,7 +1873,7 @@ pub(crate) fn gpg_key(r: &Record) -> Option<faraday_pgp::Key> {
         r.fields
             .iter()
             .filter(|x| x.number == gpg_field::USER_ID)
-            .map(|x| faraday_text::Text::from_utf8_lossy(&x.bytes))
+            .map(|x| Text::from_utf8_lossy(&x.bytes))
             .collect(),
         u32_of(r, gpg_field::EXPIRY).unwrap_or(0),
     )
@@ -2000,7 +2001,7 @@ fn record_words(c: &Compute, r: &Record) -> Option<Mnemonic> {
 }
 
 /// A mnemonic's words, space-separated, in wiped memory.
-fn phrase_of(m: &Mnemonic) -> Zeroizing<String> {
+fn phrase_of(m: &Mnemonic) -> Text {
     let lang = m.language();
     let mut out = crate::texts::room();
     for (k, &i) in m.indices().iter().enumerate() {
@@ -2079,15 +2080,15 @@ fn seed_of(r: &Record) -> Option<Zeroizing<Vec<u8>>> {
 
 /// A wallet recovery sheet record's descriptor, name and note as text.
 /// Empty for a record that holds none. A sheet is public in full.
-pub fn sheet_parts(r: RecordView<'_>) -> (String, String, String) {
+pub fn sheet_parts(r: RecordView<'_>) -> (Text, Text, Text) {
     match r
         .public(field::SHEET)
         .and_then(|p| layouts::payload_of(layouts::KIND_SHEET, p))
     {
         Some(layouts::Opened::Sheet(s)) => (
-            String::from_utf8_lossy(&s.descriptor).into_owned(),
-            String::from_utf8_lossy(&s.name).into_owned(),
-            String::from_utf8_lossy(&s.note).into_owned(),
+            Text::from_utf8_lossy(&s.descriptor),
+            Text::from_utf8_lossy(&s.name),
+            Text::from_utf8_lossy(&s.note),
         ),
         _ => Default::default(),
     }

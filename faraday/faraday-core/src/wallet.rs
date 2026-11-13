@@ -97,14 +97,18 @@ impl KeyTexts for faraday_keys::Keys {
         account: u32,
     ) -> Result<String, String> {
         let spec = kind.spec(self.network(), account)?;
-        self.key_text(c, i, &spec)
-            .unwrap_or_else(|| Err(String::new()))
+        self.key_text(c, i, &spec).map_or_else(
+            || Err(String::new()),
+            |r| r.map(|t| String::from(&*t)).map_err(|e| String::from(&*e)),
+        )
     }
 
     fn text_at(&self, c: &Compute, i: usize, path: &str) -> Result<String, String> {
         let spec = crate::create::path_spec(path)?;
-        self.key_text(c, i, &spec)
-            .unwrap_or_else(|| Err(String::new()))
+        self.key_text(c, i, &spec).map_or_else(
+            || Err(String::new()),
+            |r| r.map(|t| String::from(&*t)).map_err(|e| String::from(&*e)),
+        )
     }
 }
 
@@ -485,7 +489,10 @@ impl Slot {
     }
 }
 
-pub use faraday_keys::fp_text;
+/// A fingerprint as eight hex digits (public).
+pub fn fp_text(fp: Fingerprint) -> String {
+    String::from_utf8_lossy(&fp.to_hex()).into_owned()
+}
 
 /// A wallet's source as a tag: "Vault" reads "From Vault" (`cap`) or
 /// "from Vault" (inline, after another phrase), but a source whose

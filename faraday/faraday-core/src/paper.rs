@@ -6,10 +6,8 @@
 //! hand and never written to a file; only the seed itself goes into a
 //! vault or, past the secret sheet, a file (`crate::secrets`).
 
-use zeroize::Zeroizing;
-
 /// A key's other paper form, on screen.
 pub enum PaperForm {
     /// Seed XOR parts, each a line of words; every one is needed.
-    Xor(faraday_keys::Held<Vec<Zeroizing<String>>>),
+    Xor(faraday_keys::Held<Vec<faraday_text::Text>>),
 }

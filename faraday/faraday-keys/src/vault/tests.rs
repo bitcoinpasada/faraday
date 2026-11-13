@@ -9,17 +9,16 @@ fn compute() -> Compute {
 }
 
 fn names() -> Names {
-    let s = |t: &str| t.to_string();
     Names {
-        group_keys: s("Seeds"),
-        group_notes: s("Notes"),
-        group_shares: s("Shares"),
-        group_passphrases: s("Passphrases"),
-        group_wallet_shares: s("Wallet shares"),
-        title_key: s("Key {fingerprint}"),
-        title_note: s("Note"),
-        title_passphrase: s("Passphrase for {for}"),
-        title_share: s("Codex32 share for {for}"),
+        group_keys: "Seeds",
+        group_notes: "Notes",
+        group_shares: "Shares",
+        group_passphrases: "Passphrases",
+        group_wallet_shares: "Wallet shares",
+        title_key: "Key {fingerprint}",
+        title_note: "Note",
+        title_passphrase: "Passphrase for {for}",
+        title_share: "Codex32 share for {for}",
         ..Names::default()
     }
 }
@@ -34,8 +33,9 @@ fn hostile(n: usize) -> Vec<u8> {
             *len += ch.len_utf8();
             (*len <= n).then_some(ch)
         })
-        .collect::<String>()
-        .into_bytes()
+        .collect::<Text>()
+        .as_bytes()
+        .to_vec()
 }
 
 /// The largest plan the writer takes made of `item`s: the most items
@@ -83,7 +83,7 @@ fn records_of_every_kind(mnemonic: &faraday_bip::bip39::Mnemonic) -> Vec<Record>
         &Zeroizing::new([0x31u8; 32]),
         &Zeroizing::new([0x42u8; 32]),
         1_700_000_000,
-        String::from_utf8(hostile(2_000)).expect("text"),
+        Text::from_utf8_lossy(&hostile(2_000)),
         0,
     )
     .key
@@ -94,7 +94,7 @@ fn records_of_every_kind(mnemonic: &faraday_bip::bip39::Mnemonic) -> Vec<Record>
         &Zeroizing::new([0x31u8; 32]),
         &Zeroizing::new([0x42u8; 32]),
         1_700_000_000,
-        "&".repeat(2_000),
+        Text::from_utf8_lossy(&b"&".repeat(2_000)),
         0,
     )
     .key
@@ -117,7 +117,7 @@ fn records_of_every_kind(mnemonic: &faraday_bip::bip39::Mnemonic) -> Vec<Record>
     let boot = crate::secure_boot::create(
         &[3u8; 32],
         &[4u8; 32],
-        &String::from_utf8(hostile(200)).expect("text"),
+        &Text::from_utf8_lossy(&hostile(200)),
         faraday_sb::Policy::OwnKeysOnly,
         1_700_000_000,
     )

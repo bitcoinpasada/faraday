@@ -448,29 +448,22 @@ pub struct ConvertState {
 /// What a press gave: text, or a code with its word count. Wiped on drop.
 pub enum Value {
     /// A written form.
-    Text(Text),
+    Text(Held<Text>),
     /// A SeedQR or CompactSeedQR, for a seed of this many words.
     Code(Held<Box<QrMatrix>>, usize),
     /// A result of several strings, each one a secret, numbered when shown.
-    Set(Vec<Text>),
+    Set(Held<Vec<Text>>),
 }
 
 impl Value {
-    /// A written form the keys gave, copied into wiping text; the keys' own
-    /// copy is wiped as it goes.
-    pub(crate) fn held_text<T: std::ops::Deref>(held: Held<T>) -> Value
-    where
-        T::Target: AsRef<str>,
-    {
-        Value::Text(Text::of((**held).as_ref()))
+    /// A written form the keys gave, kept as they gave it.
+    pub(crate) fn held_text(held: Held<Text>) -> Value {
+        Value::Text(held)
     }
 
-    /// The strings of a result of several the keys gave, copied the same way.
-    pub(crate) fn held_set<T: std::ops::Deref>(held: Held<Vec<T>>) -> Value
-    where
-        T::Target: AsRef<str>,
-    {
-        Value::Set(held.iter().map(|p| Text::of((**p).as_ref())).collect())
+    /// The strings of a result of several the keys gave, kept as they gave it.
+    pub(crate) fn held_set(held: Held<Vec<Text>>) -> Value {
+        Value::Set(held)
     }
 
     /// The text: a borrow, no work.

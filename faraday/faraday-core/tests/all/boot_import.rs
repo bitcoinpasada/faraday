@@ -982,7 +982,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
         .expect("the seed did not load");
     assert_eq!(
         key.label,
-        format!("{stem}-words"),
+        format!("{stem}-words").as_str(),
         "the picture's label won over the words file's"
     );
 }

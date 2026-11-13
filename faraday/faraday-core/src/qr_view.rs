@@ -1361,7 +1361,7 @@ impl Faraday {
         let mut lines = Vec::new();
         if let Ok(policy) = wallet::read_wallet(c, &text) {
             let w = wallet::Wallet::new(
-                name.clone(),
+                name.as_str().into(),
                 policy,
                 Default::default(),
                 wallet::Origin::Vault,

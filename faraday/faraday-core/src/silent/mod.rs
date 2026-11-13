@@ -397,7 +397,7 @@ impl SilentArea {
     ) -> Option<String> {
         let s = self.state.as_ref()?;
         if let Some((r, _)) = r {
-            return r.address(s.label);
+            return r.address(s.label).map(|t| String::from(&*t));
         }
         match check {
             Some(RecordCheck::Unchecked) if s.label == 0 => {
@@ -484,7 +484,7 @@ impl SilentArea {
         c: &Compute,
         session: &Session,
         why: faraday_keys::Reveal,
-    ) -> Option<(faraday_keys::Held<Zeroizing<String>>, [u8; 4])> {
+    ) -> Option<(faraday_keys::Held<faraday_text::Text>, [u8; 4])> {
         let (r, fp) = self.receiver(c, session)?;
         Some((r.scan_key(why)?, fp))
     }

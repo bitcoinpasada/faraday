@@ -103,20 +103,20 @@ pub fn fault_line(f: Fault) -> String {
 /// have none of their own.
 pub fn names() -> Names {
     Names {
-        group_keys: EN.vault_group_keys.to_string(),
-        group_wallets: EN.vault_group_wallets.to_string(),
-        group_notes: EN.vault_group_notes.to_string(),
-        group_sheets: EN.vault_group_sheets.to_string(),
-        group_gpg: EN.vault_group_gpg.to_string(),
-        group_secure_boot: EN.vault_group_secure_boot.to_string(),
-        group_wallet_shares: EN.vault_group_wallet_shares.to_string(),
-        group_passphrases: EN.vault_group_passphrases.to_string(),
-        group_shares: EN.vault_group_shares.to_string(),
-        title_key: EN.vault_title_key.to_string(),
-        title_note: EN.vault_title_note.to_string(),
-        title_passphrase: EN.vault_title_passphrase.to_string(),
-        title_share: EN.vault_title_share.to_string(),
-        title_secure_boot: EN.vault_title_secure_boot.to_string(),
+        group_keys: EN.vault_group_keys,
+        group_wallets: EN.vault_group_wallets,
+        group_notes: EN.vault_group_notes,
+        group_sheets: EN.vault_group_sheets,
+        group_gpg: EN.vault_group_gpg,
+        group_secure_boot: EN.vault_group_secure_boot,
+        group_wallet_shares: EN.vault_group_wallet_shares,
+        group_passphrases: EN.vault_group_passphrases,
+        group_shares: EN.vault_group_shares,
+        title_key: EN.vault_title_key,
+        title_note: EN.vault_title_note,
+        title_passphrase: EN.vault_title_passphrase,
+        title_share: EN.vault_title_share,
+        title_secure_boot: EN.vault_title_secure_boot,
     }
 }
 

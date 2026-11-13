@@ -5,7 +5,7 @@ use faraday_bip::bip39::Language;
 use faraday_bip::bip85;
 use faraday_bip::keys::MasterKey;
 use faraday_crypto::work::Compute;
-use zeroize::Zeroizing;
+use faraday_text::Text;
 
 /// Which application's value a child is, with the length it takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,22 +28,24 @@ pub enum App {
 /// rest cost. The value of `app` at `index` below `master`, as text: the
 /// child words, the WIF, the xprv, the hex or the password; `None` when
 /// BIP-85 refuses the length or the index.
-pub fn child(c: &Compute, master: &MasterKey, app: App, index: u32) -> Option<Zeroizing<String>> {
+pub fn child(c: &Compute, master: &MasterKey, app: App, index: u32) -> Option<Text> {
     Some(match app {
         App::Words(length) => {
             let m = bip85::child_mnemonic(c, master, Language::English, length, index).ok()?;
-            let words: Vec<&str> = m
-                .indices()
-                .iter()
-                .map(|&w| Language::English.word(w))
-                .collect();
-            Zeroizing::new(words.join(" "))
+            let mut words = Text::new();
+            for (n, &w) in m.indices().iter().enumerate() {
+                if n > 0 {
+                    words.push(' ');
+                }
+                words.push_str(Language::English.word(w));
+            }
+            words
         }
         App::Wif => crate::texts::wiped(bip85::child_wif(c, master, index).ok()?.as_str()),
         App::Xprv => crate::texts::wiped(bip85::child_xprv(c, master, index).ok()?.as_str()),
-        App::Hex(length) => Zeroizing::new(String::from(&*faraday_crypto::hex::encode_secret(
+        App::Hex(length) => faraday_crypto::hex::encode_secret(
             bip85::child_hex(c, master, length, index).ok()?.as_bytes(),
-        ))),
+        ),
         App::Base64(length) => crate::texts::wiped(
             bip85::child_password_base64(c, master, length, index)
                 .ok()?

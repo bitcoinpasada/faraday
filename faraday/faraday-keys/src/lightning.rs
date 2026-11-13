@@ -8,6 +8,7 @@ use faraday_bip::bitcoin::secp256k1::{PublicKey, Secp256k1};
 use faraday_bip::keys::{DerivedKey, MasterKey, Network, SecretKey};
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes};
+use faraday_text::{Text, text};
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::session::{KeyId, KeyInfo, Secrets};
@@ -43,18 +44,14 @@ impl Node {
     /// (`Reveal::LightningKey`), or into a vault record or a file to the
     /// Outbox (`Reveal::VaultEntry` or `Reveal::OutboxFile` of
     /// `Part::NodeKey`). `None` for another reason.
-    pub fn private_hex(&self, why: Reveal) -> Option<Zeroizing<String>> {
+    pub fn private_hex(&self, why: Reveal) -> Option<Text> {
         matches!(
             why,
             Reveal::LightningKey
                 | Reveal::VaultEntry(Part::NodeKey)
                 | Reveal::OutboxFile(Part::NodeKey)
         )
-        .then(|| {
-            Zeroizing::new(String::from(&*faraday_crypto::hex::encode_secret(
-                &self.private[..],
-            )))
-        })
+        .then(|| faraday_crypto::hex::encode_secret(&self.private[..]))
     }
 }
 
@@ -94,12 +91,12 @@ pub fn node_from_words(
     words: &str,
     passphrase: &str,
     network: Network,
-) -> Result<Node, String> {
-    let m = Mnemonic::parse(c, language, words)
-        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))?;
+) -> Result<Node, Text> {
+    let m =
+        Mnemonic::parse(c, language, words).map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     let seed = m
         .to_seed(c, passphrase.as_bytes())
-        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))?;
+        .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     Ok(node_of(c, &aezeed::ldk_node_key(c, &seed, network), None))
 }
 
@@ -112,9 +109,9 @@ pub fn node_from_aezeed(
     words: &[u16; AEZEED_WORDS],
     passphrase: &[u8],
     network: Network,
-) -> Result<Node, String> {
+) -> Result<Node, Text> {
     aezeed::decode(c, words, passphrase)
-        .map_err(|e| format!("{e:?}"))
+        .map_err(|e| text!("{e:?}"))
         .map(|seed| {
             let birthday = aezeed::birthday_date(seed.birthday);
             let mut entropy = Secret::new([0u8; aezeed::ENTROPY_SIZE]);
@@ -150,8 +147,8 @@ pub struct AezeedRead {
 }
 
 enum Found {
-    Node(Result<Node, String>),
-    Seed(Result<(HeldAezeed, [u8; 33]), String>),
+    Node(Result<Node, Text>),
+    Seed(Result<(HeldAezeed, [u8; 33]), Text>),
 }
 
 /// An aezeed read for Convert (`docs/SEED-CONVERSION.md` §4.5): its 16
@@ -186,19 +183,19 @@ fn seed_from_aezeed(
     words: &[u16; AEZEED_WORDS],
     passphrase: &[u8],
     network: Network,
-) -> Result<(HeldAezeed, [u8; 33]), String> {
-    let seed = aezeed::decode(c, words, passphrase).map_err(|e| format!("{e:?}"))?;
+) -> Result<(HeldAezeed, [u8; 33]), Text> {
+    let seed = aezeed::decode(c, words, passphrase).map_err(|e| text!("{e:?}"))?;
     let mut entropy = Secret::new([0u8; aezeed::ENTROPY_SIZE]);
     entropy
         .expose_mut()
         .copy_from_slice(seed.entropy().expose());
     let public = node_of(c, &aezeed::node_key(c, &entropy, network), None).public;
-    let bytes = SeedBytes::new(&entropy.expose()[..]).ok_or_else(|| String::from("length"))?;
+    let bytes = SeedBytes::new(&entropy.expose()[..]).ok_or_else(|| Text::of("length"))?;
     let master = MasterKey::from_seed_bytes(c, &Secret::new(bytes), network);
     let info = KeyInfo {
         id: KeyId(crate::identity::master_id(c, &master)),
         fingerprint: master.fingerprint(),
-        label: String::new(),
+        label: Text::new(),
         language: faraday_bip::bip39::Language::English,
         word_count: None,
         seed_len: Some(aezeed::ENTROPY_SIZE),
@@ -265,14 +262,14 @@ impl crate::Keys {
     /// unless the node is a public one ([`crate::Keys::is_public_node`]),
     /// as a key that is not a sample is: whatever else is typed would be
     /// someone's real node. The refused key wipes as it drops.
-    pub fn aezeed_node(&self, read: AezeedRead) -> Result<Node, String> {
+    pub fn aezeed_node(&self, read: AezeedRead) -> Result<Node, Text> {
         let Found::Node(found) = read.found else {
-            return Err(String::new());
+            return Err(Text::new());
         };
         let node = found?;
         if !self.is_public_node(node.public()) {
-            let id: String = String::from(&*faraday_crypto::hex::encode_string(node.public()));
-            return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
+            let id = faraday_crypto::hex::encode_string(node.public());
+            return Err(Text::fill(faraday_strings::EN.wallet_is_not_a_key, &[&id]));
         }
         Ok(node)
     }
@@ -285,21 +282,21 @@ impl crate::Keys {
     pub fn aezeed_hold(
         &mut self,
         read: AezeedRead,
-    ) -> Result<faraday_bip::keys::Fingerprint, String> {
+    ) -> Result<faraday_bip::keys::Fingerprint, Text> {
         let Found::Seed(found) = read.found else {
-            return Err(String::new());
+            return Err(Text::new());
         };
         if let Some(noun) = self.stick_attached() {
-            return Err(faraday_strings::EN.stick_keys_keys_load.replace("{}", noun));
+            return Err(Text::fill(
+                faraday_strings::EN.stick_keys_keys_load,
+                &[noun],
+            ));
         }
-        let (held, public) = found.map_err(|e| {
-            faraday_strings::EN
-                .lightning_not_an_aezeed
-                .replace("{}", &e)
-        })?;
+        let (held, public) =
+            found.map_err(|e| Text::fill(faraday_strings::EN.lightning_not_an_aezeed, &[&e]))?;
         if !self.is_public_node(&public) {
-            let id: String = String::from(&*faraday_crypto::hex::encode_string(&public));
-            return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
+            let id = faraday_crypto::hex::encode_string(&public);
+            return Err(Text::fill(faraday_strings::EN.wallet_is_not_a_key, &[&id]));
         }
         let fp = held.info.fingerprint;
         self.aezeed = Some(held);
@@ -337,7 +334,7 @@ impl crate::Keys {
         c: &Compute,
         words: &[u16; AEZEED_WORDS],
         passphrase: &[u8],
-    ) -> Result<Node, String> {
+    ) -> Result<Node, Text> {
         self.aezeed_node(AezeedRead {
             found: Found::Node(node_from_aezeed(c, words, passphrase, self.network())),
         })

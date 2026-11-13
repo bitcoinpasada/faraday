@@ -86,7 +86,7 @@ pub(crate) fn wallet_and_backup(app: &mut Faraday) {
     app.storage(faraday_core::StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
             "shares-wallet.txt".into(),
-            format!("wpkh({text}/<0;1>/*)").into_bytes(),
+            format!("wpkh({}/<0;1>/*)", &*text).into_bytes(),
         )]),
         outbox: Vec::new(),
         kept: Vec::new(),

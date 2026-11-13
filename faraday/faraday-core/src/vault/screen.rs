@@ -1652,9 +1652,9 @@ fn item_heading_of(app: &View, r: RecordView<'_>) -> (String, String, bool) {
                 if name.is_empty() {
                     EN.vault_recovery_sheet.into()
                 } else {
-                    name.clone()
+                    String::from(&*name)
                 },
-                fill(EN.vault_recovery_sheet_n, &[&name.to_string()]),
+                fill(EN.vault_recovery_sheet_n, &[&name]),
                 false,
             )
         }

@@ -444,7 +444,7 @@ impl Faraday {
                     .unwrap_or_default();
                 self.toast(&fill(
                     EN.secrets_saved_to_vault,
-                    &[&label.to_string(), &vault.to_string()],
+                    &[&*label, &vault.to_string()],
                 ));
             }
             Keep::Note => self.toast(&fill(

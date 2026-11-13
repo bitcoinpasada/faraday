@@ -10,7 +10,6 @@ pub(crate) mod screen;
 use crate::strings::EN;
 use faraday_keys::totp::NotTotp;
 use faraday_vault::records::field;
-use zeroize::Zeroizing;
 
 use crate::vault::VaultAction;
 use crate::{Action, Faraday};
@@ -21,7 +20,7 @@ pub enum CodeKind {
     /// and the period itself (for the progress bar's fraction).
     Code {
         /// The code, grouped for display (§4.2).
-        grouped: Zeroizing<String>,
+        grouped: faraday_text::Text,
         /// Seconds until the next code.
         left: u32,
         /// The period the code is valid for, seconds.
@@ -117,7 +116,7 @@ pub(crate) fn codes_rows_held(app: &Faraday) -> Vec<CodeRow> {
 
 /// What an entry gives: its code with the seconds left and the period,
 /// Set the time, HOTP or Unreadable.
-type Given = Result<Option<(Zeroizing<String>, u32, u64)>, NotTotp>;
+type Given = Result<Option<(faraday_text::Text, u32, u64)>, NotTotp>;
 
 fn rows(app: &Faraday, now: Option<u64>, held: bool) -> Vec<CodeRow> {
     let mut out = Vec::new();
@@ -129,7 +128,7 @@ fn rows(app: &Faraday, now: Option<u64>, held: bool) -> Vec<CodeRow> {
             let Some(r) = records.get(at) else {
                 continue;
             };
-            let (account, given): (Option<String>, Option<Given>) = if held {
+            let (account, given): (Option<faraday_text::Text>, Option<Given>) = if held {
                 // A record the hold says has no row has none; one it
                 // does not hold yet keeps its row, with no code.
                 let l = hold.and_then(|h| h.of(ov.id, at));
@@ -167,6 +166,7 @@ fn rows(app: &Faraday, now: Option<u64>, held: bool) -> Vec<CodeRow> {
                 .unwrap_or(EN.codes_entry)
                 .to_string();
             let account = account
+                .map(|a| String::from(&*a))
                 .or_else(|| r.public_text(field::USERNAME).map(str::to_string))
                 .unwrap_or_default();
             let kind = match given {

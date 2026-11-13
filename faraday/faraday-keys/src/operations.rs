@@ -14,6 +14,7 @@ use faraday_codec::seedqr;
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, SeedBytes};
 use faraday_entropy::SeedXor;
+use faraday_text::Text;
 use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
@@ -45,7 +46,7 @@ pub enum Paper {
     /// and give back neither the words nor the passphrase.
     Words,
     /// The split was refused, with the reason's text.
-    Refused(String),
+    Refused(Text),
     /// Something else went wrong; there is nothing to say.
     Failed,
 }
@@ -142,7 +143,7 @@ impl Keys {
     /// elliptic-curve multiplication. The Lightning node key ldk-node
     /// derives from key `i`'s words and passphrase, on the store's
     /// network. `None` for a key with no words.
-    pub fn lightning_node(&self, c: &Compute, i: usize) -> Option<Result<lightning::Node, String>> {
+    pub fn lightning_node(&self, c: &Compute, i: usize) -> Option<Result<lightning::Node, Text>> {
         let s = self.secrets(i)?;
         let words = s.words?;
         Some(lightning::node_from_words(
@@ -192,7 +193,7 @@ impl Keys {
         app: bip85::App,
         index: u32,
         _why: Reveal,
-    ) -> Option<Held<Zeroizing<String>>> {
+    ) -> Option<Held<Text>> {
         bip85::child(c, self.secrets(i)?.master, app, index).map(Held::of)
     }
 
@@ -231,7 +232,7 @@ impl Keys {
         parts: u8,
         random: &[u8],
         _why: Reveal,
-    ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
+    ) -> Result<Held<Vec<Text>>, Paper> {
         let s = self.secrets(i).ok_or(Paper::NoWords)?;
         let m = Mnemonic::parse(c, s.language, s.words.ok_or(Paper::NoWords)?)
             .map_err(|_| Paper::NoWords)?;
@@ -295,7 +296,7 @@ impl Keys {
         n: u8,
         random: &[u8],
         why: Reveal,
-    ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
+    ) -> Result<Held<Vec<Text>>, Paper> {
         self.codex32_shares_avoiding(i, k, n, random, &[], why)
     }
 
@@ -311,7 +312,7 @@ impl Keys {
         random: &[u8],
         taken: &[[u8; 4]],
         _why: Reveal,
-    ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
+    ) -> Result<Held<Vec<Text>>, Paper> {
         let s = self.source_secrets(i).ok_or(Paper::NoWords)?;
         let fp = s.master.fingerprint().0;
         let seed: &[u8] = match (s.words, s.seed) {
@@ -319,14 +320,12 @@ impl Keys {
             (None, Some(bytes)) => bytes,
             (None, None) => return Err(Paper::NoWords),
         };
-        let one = |e: codex32::Error| {
-            Paper::Refused(String::from(&*faraday_strings::bip::codex32_error(&e)))
-        };
+        let one = |e: codex32::Error| Paper::Refused(faraday_strings::bip::codex32_error(&e));
         let id = codex32::identifier_for(fp);
         if k == 0 {
             if n != 1 {
-                return Err(Paper::Refused(String::from(
-                    &*faraday_strings::bip::codex32_error(&codex32::Error::BadSplit),
+                return Err(Paper::Refused(faraday_strings::bip::codex32_error(
+                    &codex32::Error::BadSplit,
                 )));
             }
             let secret = Codex32::from_seed(0, id, seed).map_err(one)?;
@@ -373,7 +372,7 @@ impl Keys {
         c: &Compute,
         i: usize,
         why: Reveal,
-    ) -> Result<Held<Zeroizing<String>>, Convert> {
+    ) -> Result<Held<Text>, Convert> {
         let s = self.convert_source(i, why)?;
         let full;
         let seed: &[u8] = match (s.words, s.seed) {
@@ -387,7 +386,7 @@ impl Keys {
             (None, Some(bytes)) => bytes,
             (None, None) => return Err(Convert::NotGiven),
         };
-        let text = Zeroizing::new(String::from(&*faraday_crypto::hex::encode_secret(seed)));
+        let text = faraday_crypto::hex::encode_secret(seed);
         let back = faraday_crypto::hex::decode_vec(&text).map(Zeroizing::new);
         let read = back.as_deref().and_then(|b| fingerprint_of_seed(c, b));
         checked(s.master.fingerprint(), read, text)
@@ -397,12 +396,7 @@ impl Keys {
     /// private key as text: `xprv…` on mainnet, `tprv…` on a test network.
     /// Read back: the text parsed by the strict importer has the key's
     /// fingerprint.
-    pub fn master_xprv(
-        &self,
-        c: &Compute,
-        i: usize,
-        why: Reveal,
-    ) -> Result<Held<Zeroizing<String>>, Convert> {
+    pub fn master_xprv(&self, c: &Compute, i: usize, why: Reveal) -> Result<Held<Text>, Convert> {
         let s = self.convert_source(i, why)?;
         let mut text = crate::texts::room();
         text.push_str(s.master.xpriv_ascii().as_str());
@@ -424,7 +418,7 @@ impl Keys {
         i: usize,
         form: WordsForm,
         why: Reveal,
-    ) -> Result<Held<Zeroizing<String>>, Convert> {
+    ) -> Result<Held<Text>, Convert> {
         let s = self.convert_source(i, why)?;
         let words = s.words.ok_or(Convert::NotGiven)?;
         let lang = s.language;
@@ -433,9 +427,9 @@ impl Keys {
         }
         let m = Mnemonic::parse(c, lang, words).map_err(|_| Convert::NotGiven)?;
         let text = match form {
-            WordsForm::HexEntropy => Zeroizing::new(String::from(
-                &*faraday_crypto::hex::encode_secret(m.entropy().expose().as_bytes()),
-            )),
+            WordsForm::HexEntropy => {
+                faraday_crypto::hex::encode_secret(m.entropy().expose().as_bytes())
+            }
             _ => written_by_word(&m, form),
         };
         let read = match form {
@@ -512,7 +506,7 @@ impl Keys {
         c: &Compute,
         i: usize,
         why: Reveal,
-    ) -> Result<Held<Zeroizing<String>>, Convert> {
+    ) -> Result<Held<Text>, Convert> {
         let s = self.convert_source(i, why)?;
         let seed = match (s.words, s.seed) {
             (Some(_), _) => return Err(Convert::Words),
@@ -562,7 +556,7 @@ impl Keys {
         groups: &[slip39::GroupSpec],
         random: &[u8],
         why: Reveal,
-    ) -> Result<Held<Vec<Zeroizing<String>>>, Convert> {
+    ) -> Result<Held<Vec<Text>>, Convert> {
         let s = self.convert_source(i, why)?;
         let seed = match (s.words, s.seed) {
             (Some(_), _) => return Err(Convert::Words),
@@ -634,7 +628,7 @@ impl Keys {
         parts: u8,
         random: &[u8],
         why: Reveal,
-    ) -> Result<Held<Vec<Zeroizing<String>>>, Convert> {
+    ) -> Result<Held<Vec<Text>>, Convert> {
         let s = self.convert_source(i, why)?;
         if !(2..=4).contains(&parts) {
             return Err(Convert::Refused);
@@ -687,7 +681,7 @@ impl Keys {
         n: u8,
         (random, taken): (&[u8], &[[u8; 4]]),
         why: Reveal,
-    ) -> Result<Held<Vec<Zeroizing<String>>>, Convert> {
+    ) -> Result<Held<Vec<Text>>, Convert> {
         let s = self.convert_source(i, why)?;
         let shares = self
             .codex32_shares_avoiding(i, k, n, random, taken, why)
@@ -741,7 +735,7 @@ impl Keys {
 }
 
 /// One line of secret text: a share, written by hand.
-pub type SecretLine = Zeroizing<String>;
+pub type SecretLine = Text;
 
 /// A SLIP-39 share's words, single spaces between.
 pub(crate) fn share_line(share: &Share) -> SecretLine {
@@ -821,7 +815,7 @@ fn same_words<T>(m: &Mnemonic, read: Option<&Mnemonic>, result: T) -> Result<Hel
 
 /// `m` written word by word in `form`: [`WordsForm::Numbers`] a line each,
 /// [`WordsForm::Words`] and [`WordsForm::Starts`] a space between.
-fn written_by_word(m: &Mnemonic, form: WordsForm) -> Zeroizing<String> {
+fn written_by_word(m: &Mnemonic, form: WordsForm) -> Text {
     use core::fmt::Write as _;
     // The room is a phrase of the longest list's words (Japanese or Korean
     // go over it): the buffer is sized to what is written, so it never moves.
@@ -830,7 +824,7 @@ fn written_by_word(m: &Mnemonic, form: WordsForm) -> Zeroizing<String> {
         .iter()
         .map(|&n| m.language().word_display(n).len() + 4)
         .sum();
-    let mut text = Zeroizing::new(String::with_capacity(words.max(faraday_intake::ROOM)));
+    let mut text = Text::with_room(words.max(faraday_intake::ROOM));
     for (place, &n) in m.indices().iter().enumerate() {
         if place > 0 {
             text.push(if form == WordsForm::Numbers {

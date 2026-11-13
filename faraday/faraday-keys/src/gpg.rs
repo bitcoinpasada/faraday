@@ -41,10 +41,10 @@ pub fn create(
     primary: &Zeroizing<[u8; 32]>,
     subkey: &Zeroizing<[u8; 32]>,
     now: u32,
-    user_id: String,
+    user_id: Text,
     expiry: u32,
 ) -> Made {
-    let key = make(primary, subkey, now, Text::of(&user_id), expiry);
+    let key = make(primary, subkey, now, user_id, expiry);
     let certificate = certificate(&key, now);
     let rev = Zeroizing::new(revocation(&key, now, Reason::Unspecified, ""));
     Made {
@@ -157,7 +157,7 @@ pub fn gpg_key_of(r: &Record, at: u32) -> Option<GpgKey> {
 
 /// The time, reason and text a revocation certificate states: one
 /// signature packet, its creation time first, then the reason subpacket.
-fn revocation_parts(packets: &[u8]) -> Option<(u32, Reason, String)> {
+fn revocation_parts(packets: &[u8]) -> Option<(u32, Reason, Text)> {
     let (len, octets) = new_format_whole(packets, 1, NewFormat::OneOrTwoOctets)?;
     let head = 1 + octets;
     if packets.first()? & 0x3f != 2 || packets.len() != head + len {
@@ -174,14 +174,10 @@ fn revocation_parts(packets: &[u8]) -> Option<(u32, Reason, String)> {
     }
     let why = rest.get(2..1 + n)?;
     let (&code, text) = why.split_first()?;
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "a revocation reason's text is public, in the key's own revocation signature"
-    )]
     Some((
         at,
         Reason::from_code(code)?,
-        String::from_utf8(text.to_vec()).ok()?,
+        Text::of(core::str::from_utf8(text).ok()?),
     ))
 }
 
@@ -254,7 +250,7 @@ pub(crate) fn facts_of(key: &Key) -> GpgFacts {
         subkey_fingerprint: key.subkey_fingerprint(),
         created: key.created,
         subkey_created: key.subkey_created,
-        user_ids: key.user_ids.iter().map(|u| String::from(&**u)).collect(),
+        user_ids: key.user_ids.iter().map(Text::duplicate).collect(),
         expiry: key.expiry,
     }
 }

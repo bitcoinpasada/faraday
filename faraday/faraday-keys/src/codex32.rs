@@ -34,6 +34,7 @@ use faraday_bip::codex32::{
 };
 use faraday_crypto::Secret;
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use faraday_vault::codex32::{SetFacts, State};
 use zeroize::Zeroizing;
 
@@ -428,7 +429,7 @@ impl WorkSet {
     /// The strings to write, in index order (the initial shares, then
     /// the derived ones; the secret alone at threshold 0; of a set made
     /// of strings, only the strings made), as paper forms. `None` until the set is made or for another reason.
-    pub fn strings(&self, why: Reveal) -> Option<Held<Vec<Zeroizing<String>>>> {
+    pub fn strings(&self, why: Reveal) -> Option<Held<Vec<Text>>> {
         if why != Reveal::PaperForm {
             return None;
         }
@@ -502,9 +503,7 @@ impl Keys {
         work: &WorkSet,
         label: &str,
     ) -> Result<faraday_bip::keys::Fingerprint, Refusal> {
-        let seed = work
-            .seed()
-            .ok_or_else(|| Refusal::Words(faraday_text::Text::of("")))?;
+        let seed = work.seed().ok_or_else(|| Refusal::Words(Text::of("")))?;
         let fp = self.add_seed(c, &seed, label)?;
         // The set made is the key's, its plain facts kept with it
         // (`docs/CODEX32.md` §9.4): every string made or given, none
@@ -528,7 +527,7 @@ impl Keys {
         // A set of strings typed in keeps them and those made, so they go
         // to a stick or a vault untyped (§9.5); the secret is never kept.
         if work.is_given() {
-            let texts: Vec<Zeroizing<String>> = work
+            let texts: Vec<Text> = work
                 .given
                 .iter()
                 .chain(work.made.iter().flat_map(Made::strings))
@@ -594,7 +593,7 @@ impl Keys {
         strings: &[Codex32],
         index: u8,
         why: Reveal,
-    ) -> Result<Held<Zeroizing<String>>, crate::Paper> {
+    ) -> Result<Held<Text>, crate::Paper> {
         use crate::Paper;
         if why != Reveal::PaperForm {
             return Err(Paper::Failed);
@@ -603,8 +602,7 @@ impl Keys {
         if k < 2 || self.codex32_rebuilds(c, i, strings) != Some(true) {
             return Err(Paper::Failed);
         }
-        let refused =
-            |e: Error| Paper::Refused(String::from(&*faraday_strings::bip::codex32_error(&e)));
+        let refused = |e: Error| Paper::Refused(faraday_strings::bip::codex32_error(&e));
         let have = strings
             .iter()
             .take(k)
@@ -629,14 +627,13 @@ impl Keys {
         identifier: [u8; 4],
         random: &[u8],
         why: Reveal,
-    ) -> Result<Held<Vec<Zeroizing<String>>>, crate::Paper> {
+    ) -> Result<Held<Vec<Text>>, crate::Paper> {
         use crate::Paper;
         if why != Reveal::PaperForm || k < 2 {
             return Err(Paper::Failed);
         }
         let seed = self.codex32_seed_of(c, i).ok_or(Paper::NoWords)?;
-        let refused =
-            |e: Error| Paper::Refused(String::from(&*faraday_strings::bip::codex32_error(&e)));
+        let refused = |e: Error| Paper::Refused(faraday_strings::bip::codex32_error(&e));
         let need = usize::from(k - 1) * faraday_bip::codex32::symbols_for(seed.len());
         let fresh = random
             .get(..need)

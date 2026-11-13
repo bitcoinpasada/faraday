@@ -52,7 +52,7 @@ fn made_by_make(k: &Key) -> faraday_keys::gpg::Made {
         &zeroize::Zeroizing::new(k.primary_seed),
         &zeroize::Zeroizing::new(k.subkey_seed),
         k.created,
-        String::from(&*k.user_ids[0]),
+        faraday_text::Text::of(&k.user_ids[0]),
         k.expiry,
     )
 }

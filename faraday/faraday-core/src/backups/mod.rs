@@ -2920,7 +2920,7 @@ impl Faraday {
                         faraday_keys::Reveal::PaperForm,
                     )
                     .map_err(|_| Some(EN.c32_set_not_this_seed.to_string()))?;
-                let s = made.clone();
+                let s = zeroize::Zeroizing::new(String::from(&**made));
                 self.c32_added(i, key, j, s);
                 Ok(())
             }
@@ -2941,7 +2941,12 @@ impl Faraday {
                     })?;
                 let list: Vec<(usize, zeroize::Zeroizing<String>)> = made
                     .iter()
-                    .filter_map(|s| Some((index_of(*s.as_bytes().get(8)?)?, s.clone())))
+                    .filter_map(|s| {
+                        Some((
+                            index_of(*s.as_bytes().get(8)?)?,
+                            zeroize::Zeroizing::new(String::from(&**s)),
+                        ))
+                    })
                     .collect();
                 let others: Vec<(usize, usize)> = self
                     .backup

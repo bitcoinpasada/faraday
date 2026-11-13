@@ -89,7 +89,7 @@ pub(crate) fn one_key_wait(app: &mut Faraday, pass: &str, blocks: Option<u32>) -
         .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();
     let descriptor = match blocks {
-        None => format!("wpkh({text}/<0;1>/*)"),
+        None => format!("wpkh({}/<0;1>/*)", &*text),
         Some(n) => {
             let p = "m/48'/1'/0'/2'";
             let (a, b) = (testkit::key(0, p), testkit::key(1, p));
@@ -2010,7 +2010,7 @@ fn checklist_past_a_lock(other: bool, unloaded: bool) -> Faraday {
         app.storage(StorageEvent::Restored {
             inbox: faraday_core::files_from(vec![(
                 "second.txt".into(),
-                format!("wpkh({text}/<0;1>/*)").into_bytes(),
+                format!("wpkh({}/<0;1>/*)", &*text).into_bytes(),
             )]),
             outbox: Vec::new(),
             kept: Vec::new(),

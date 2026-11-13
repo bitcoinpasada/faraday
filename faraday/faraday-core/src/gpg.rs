@@ -21,7 +21,7 @@ use faraday_keys::vault::{GpgFacts as Facts, RecordView, gpg_facts, gpg_field as
 pub(crate) fn paperkey_shown(
     store: &faraday_keys::vault::OpenVaults,
     r: RecordView<'_>,
-) -> Option<faraday_keys::Held<zeroize::Zeroizing<String>>> {
+) -> Option<faraday_keys::Held<faraday_text::Text>> {
     store.gpg_paperkey(r, faraday_keys::Reveal::GpgPaperkey)
 }
 
@@ -82,7 +82,7 @@ pub fn key_id(fp: &[u8; 20]) -> String {
 /// fingerprint's last eight digits.
 pub(crate) fn file_stem(key: &Facts) -> String {
     stem_of(
-        key.user_ids.first().map_or("", String::as_str),
+        key.user_ids.first().map_or("", |u| u.as_str()),
         &key.fingerprint,
     )
 }
@@ -102,7 +102,7 @@ pub(crate) fn stem_of(user_id: &str, fp: &[u8; 20]) -> String {
 /// The user ID's name, as a file name part: lower-case letters and digits
 /// with dashes between.
 pub(crate) fn name_part(key: &Facts) -> String {
-    name_of(key.user_ids.first().map_or("", String::as_str))
+    name_of(key.user_ids.first().map_or("", |u| u.as_str()))
 }
 
 fn name_of(user_id: &str) -> String {
@@ -307,7 +307,7 @@ pub fn shown(r: RecordView<'_>, tz_min: i16) -> Option<Shown> {
         subkey: String::from(&*faraday_pgp::fingerprint_text(&key.subkey_fingerprint)),
         subkey_id: key_id(&key.subkey_fingerprint),
         key_id: key_id(&key.fingerprint),
-        user_ids: key.user_ids.clone(),
+        user_ids: key.user_ids.iter().map(|u| String::from(&**u)).collect(),
         created: local(u64::from(key.created)),
         expires: if key.expiry == 0 {
             EN.gpg_never.to_string()

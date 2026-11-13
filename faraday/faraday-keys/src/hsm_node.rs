@@ -7,6 +7,7 @@
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 use crate::hsm_secret::{HsmRead, PLAIN_LEN, Refusal, node_from_secret};
@@ -23,7 +24,7 @@ pub enum WordsRefusal {
     /// English list, so no node of its could come from them.
     NotEnglish,
     /// The words are not valid BIP-39 words; the line says why.
-    Words(String),
+    Words(Text),
 }
 
 /// Costs a PBKDF2, key derivations and an elliptic-curve multiplication.
@@ -40,8 +41,7 @@ pub fn node_from_words(
     if !matches!(language, Language::English) {
         return Err(WordsRefusal::NotEnglish);
     }
-    let words_error =
-        |e: &_| WordsRefusal::Words(String::from(&*faraday_strings::bip::bip39_error(e)));
+    let words_error = |e: &_| WordsRefusal::Words(faraday_strings::bip::bip39_error(e));
     let m = Mnemonic::parse(c, language, words).map_err(|e| words_error(&e))?;
     let seed = m
         .to_seed(c, passphrase.as_bytes())
@@ -100,10 +100,11 @@ impl crate::Keys {
 
     fn refuse_unless_public(&self, node: Node) -> Result<Node, NodeRefusal> {
         if !self.is_public_node(node.public()) {
-            let id: String = String::from(&*faraday_crypto::hex::encode_string(node.public()));
-            return Err(NodeRefusal::Demo(
-                faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id),
-            ));
+            let id = faraday_crypto::hex::encode_string(node.public());
+            return Err(NodeRefusal::Demo(Text::fill(
+                faraday_strings::EN.wallet_is_not_a_key,
+                &[&id],
+            )));
         }
         Ok(node)
     }
@@ -121,5 +122,5 @@ pub enum NodeRefusal {
     /// The words.
     Words(WordsRefusal),
     /// The demo's line: the node is not a public one.
-    Demo(String),
+    Demo(Text),
 }

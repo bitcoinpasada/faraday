@@ -45,7 +45,7 @@ fn committed(name: &str) -> Vec<u8> {
 }
 
 fn names() -> Names {
-    let s = |t: &str| t.to_string();
+    let s = |t: &'static str| t;
     Names {
         group_keys: s("Seeds"),
         group_wallets: s("Wallets"),

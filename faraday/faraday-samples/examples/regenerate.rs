@@ -99,12 +99,12 @@ fn plain_words(
         listed: true,
         plain: Some(
             fingerprint_of_words(c, phrase, "")
-                .unwrap_or_else(|e| panic!("{name}: {e}"))
+                .unwrap_or_else(|e| panic!("{name}: {}", &*e))
                 .0,
         ),
         with_passphrase: Some(
             fingerprint_of_words(c, phrase, PASSPHRASE)
-                .unwrap_or_else(|e| panic!("{name}: {e}"))
+                .unwrap_or_else(|e| panic!("{name}: {}", &*e))
                 .0,
         ),
         parts: vec![phrase.to_string()],

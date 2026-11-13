@@ -540,7 +540,7 @@ mod an_aezeed_and_a_set_held {
     const WORDS: &str = "above judge emerge veteran reform crunch system all snap please \
         shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
 
-    fn hold_aezeed(keys: &mut Keys, words: &str) -> Result<(), String> {
+    fn hold_aezeed(keys: &mut Keys, words: &str) -> Result<(), faraday_text::Text> {
         let c = compute();
         let mut indices = [0u16; AEZEED_WORDS];
         for (slot, w) in indices.iter_mut().zip(words.split_whitespace()) {

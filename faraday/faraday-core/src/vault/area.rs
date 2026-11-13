@@ -2337,7 +2337,7 @@ pub struct Vaults {
     pub(crate) words: Option<(usize, faraday_keys::Held<faraday_bip::bip39::Mnemonic>)>,
     /// The selected GPG key's paperkey while its eye shows it, held and
     /// dropped as `words` is.
-    pub(crate) paperkey: Option<(usize, faraday_keys::Held<zeroize::Zeroizing<String>>)>,
+    pub(crate) paperkey: Option<(usize, faraday_keys::Held<faraday_text::Text>)>,
     /// The code of the entry on the page, held while the page is open
     /// and made once for each period ([`CodeHeld`]). It shows with no eye,
     /// so it outlives [`Vaults::shown`]: the frame after the page is left
@@ -2450,7 +2450,7 @@ pub(crate) struct ListedCode {
     /// The period's length in seconds; 0 where there is no code.
     pub(crate) period: u64,
     /// The account its URI's label names, public.
-    pub(crate) account: Option<String>,
+    pub(crate) account: Option<faraday_text::Text>,
     /// `None` for a record with no row (not an entry); else a code
     /// (wiped as it drops), Set the time, HOTP or Unreadable.
     pub(crate) result:
@@ -3967,7 +3967,7 @@ impl Vaults {
             .all()
             .enumerate()
             .filter(|(i, _)| !self.store().holds_session_words(c, &session.keys, *i))
-            .map(|(_, k)| k.label.clone())
+            .map(|(_, k)| String::from(&*k.label))
             .collect();
         let wallets = session
             .wallets

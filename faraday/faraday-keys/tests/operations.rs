@@ -747,7 +747,7 @@ fn seed_key(c: &Compute, network: Network, seed: &[u8]) -> Keys {
 
 /// Every conversion of key 0, in the order: hex, xprv, SLIP-39, codex32.
 fn all(c: &Compute, keys: &Keys, why: Reveal) -> [Result<String, Convert>; 4] {
-    let text = |r: Result<faraday_keys::Held<zeroize::Zeroizing<String>>, Convert>| {
+    let text = |r: Result<faraday_keys::Held<faraday_text::Text>, Convert>| {
         r.map(|h| h.release().as_str().to_string())
     };
     [
@@ -915,7 +915,7 @@ fn a_codex32_set_of_a_key_has_an_identifier_of_its_own_each_time() {
         keys.codex32_converted(&c, 0, 2, 3, (&random, &[]), Reveal::PaperForm)
             .map(|h| h.release())
     };
-    let parse = |set: &[zeroize::Zeroizing<String>]| -> Vec<Codex32> {
+    let parse = |set: &[faraday_text::Text]| -> Vec<Codex32> {
         set.iter().map(|s| Codex32::parse(s).unwrap()).collect()
     };
     let (sa, sb) = (set(&keys, 3).unwrap(), set(&keys, 9).unwrap());
@@ -978,7 +978,7 @@ fn seed_xor_is_not_given_for_a_key_on_another_list() {
 
 /// A SLIP-39 set of a key, as SLIP-39's decoder reads it: the key's seed
 /// from the shares at `at` of `shares`.
-fn slip39_back(c: &Compute, shares: &[zeroize::Zeroizing<String>], at: &[usize]) -> Vec<u8> {
+fn slip39_back(c: &Compute, shares: &[faraday_text::Text], at: &[usize]) -> Vec<u8> {
     let parts: Vec<Share> = at
         .iter()
         .map(|&i| Share::parse(&shares[i]).unwrap())
@@ -991,7 +991,7 @@ fn slip39_set(
     keys: &Keys,
     gt: u8,
     shape: &[(u8, u8)],
-) -> Result<Vec<zeroize::Zeroizing<String>>, Convert> {
+) -> Result<Vec<faraday_text::Text>, Convert> {
     let groups: Vec<GroupSpec> = shape
         .iter()
         .map(|&(threshold, count)| GroupSpec { threshold, count })
@@ -1441,7 +1441,7 @@ mod aezeed_source {
         out
     }
 
-    fn hold(keys: &mut Keys, words: &str, pass: &str) -> Result<(), String> {
+    fn hold(keys: &mut Keys, words: &str, pass: &str) -> Result<(), faraday_text::Text> {
         let c = compute();
         let pass = faraday_intake::secret_buf::SecretText::of(pass);
         let read = keys.aezeed_seed_job(&indices(words), pass).run(&c);
@@ -1468,7 +1468,7 @@ mod aezeed_source {
         );
 
         assert_eq!(
-            &**keys.master_seed_hex(&c, i, why).unwrap().release(),
+            &*keys.master_seed_hex(&c, i, why).unwrap().release(),
             ENTROPY
         );
         assert_eq!(

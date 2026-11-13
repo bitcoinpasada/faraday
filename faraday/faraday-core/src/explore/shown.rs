@@ -15,7 +15,6 @@ use faraday_bip::bitcoin::bip32::{ChildNumber, DerivationPath};
 use faraday_bip::keys::{Network, WifAscii, XprivAscii};
 use faraday_crypto::work::Compute;
 use faraday_keys::{Held, Keys, Reveal};
-use zeroize::Zeroizing;
 
 use super::addresses::{PAGE, account_of};
 use super::{ExploreArea, Page};
@@ -51,7 +50,7 @@ pub struct Shown {
     /// Whether the key's own secret is shown.
     secret: bool,
     /// A key with no words: its seed's forms, made when its eye opened.
-    seed: Option<Held<Vec<Zeroizing<String>>>>,
+    seed: Option<Held<Vec<faraday_text::Text>>>,
     /// The account path, the root's extended private key and the
     /// account's.
     xprv: Option<(DerivationPath, Held<XprivAscii>, Held<XprivAscii>)>,
@@ -67,7 +66,7 @@ impl Shown {
 
     /// A key with no words: its seed's forms as shown, the seed in hex
     /// first ([`faraday_keys::Keys::seed_shown`]).
-    pub fn seed(&self) -> Option<&[Zeroizing<String>]> {
+    pub fn seed(&self) -> Option<&[faraday_text::Text]> {
         self.seed.as_deref().map(Vec::as_slice)
     }
 

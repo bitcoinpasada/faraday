@@ -146,8 +146,7 @@ impl OpenVaults {
                 return Some(KeyLoad::Refused(fp));
             }
         }
-        #[expect(clippy::disallowed_methods, reason = "a label is public")]
-        let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
+        let label = Text::of(r.text(field::KEY_LABEL).unwrap_or(""));
         let loaded = keys.add_mnemonic(c, &m, passphrase, &label, None);
         if loaded.is_ok() {
             keys.set_child_of(keys.len() - 1, child_of_of(r));
@@ -239,7 +238,7 @@ impl OpenVaults {
         }
         let account = |t: &str| {
             fv::entries::otpauth_names(t)
-                .map(|(_, a)| String::from(&*a))
+                .map(|(_, a)| a)
                 .filter(|a| !a.is_empty())
         };
         // An entry as read has its TOTP worked out over every field it
@@ -390,21 +389,14 @@ impl OpenVaults {
     /// `i` of open vault `id` keeps, as the file GnuPG keeps it in, for `why` (`Reveal::OutboxFile` of
     /// `Part::Revocation`). `None` for a record that keeps none, or a
     /// reason that names another part.
-    pub fn gpg_revocation_file(
-        &self,
-        id: VaultId,
-        i: usize,
-        why: Reveal,
-    ) -> Option<Held<Zeroizing<String>>> {
+    pub fn gpg_revocation_file(&self, id: VaultId, i: usize, why: Reveal) -> Option<Held<Text>> {
         if why.part() != Some(Part::Revocation) {
             return None;
         }
         let r = self.slot(id)?.records.get(i)?;
         let rev = r.field(gpg_field::REVOCATION)?;
         let key = gpg_key(r)?;
-        Some(Held::of(Zeroizing::new(String::from(
-            &*crate::gpg::revocation_file(&key, rev),
-        ))))
+        Some(Held::of(crate::gpg::revocation_file(&key, rev)))
     }
 
     /// Costs an Ed25519 signature. A new revocation certificate for GPG
@@ -421,35 +413,31 @@ impl OpenVaults {
         reason: faraday_pgp::Reason,
         text: &str,
         why: Reveal,
-    ) -> Option<Held<Zeroizing<String>>> {
+    ) -> Option<Held<Text>> {
         if why.part() != Some(Part::Revocation) {
             return None;
         }
         let key = gpg_key(self.slot(id)?.records.get(i)?)?;
         let rev = Zeroizing::new(crate::gpg::revocation(&key, at, reason, text));
-        Some(Held::of(Zeroizing::new(String::from(
-            &*crate::gpg::revocation_file(&key, &rev),
-        ))))
+        Some(Held::of(crate::gpg::revocation_file(&key, &rev)))
     }
 
     /// Costs an Ed25519 signature. The signature over `data` by GPG record
     /// `i` of open vault `id`'s signing subkey, at `at`, armoured.
-    pub fn gpg_sign_armored(&self, id: VaultId, i: usize, data: &[u8], at: u32) -> Option<String> {
+    pub fn gpg_sign_armored(&self, id: VaultId, i: usize, data: &[u8], at: u32) -> Option<Text> {
         let key = gpg_key(self.slot(id)?.records.get(i)?)?;
-        Some(String::from(&*crate::gpg::sign_armored(&key, data, at)))
+        Some(crate::gpg::sign_armored(&key, data, at))
     }
 
     /// Costs what `gpg_key` costs and a paperkey encoding. The paperkey
     /// text of GPG record `r`: secret, made only to be shown,
     /// wiped when dropped (`Reveal::GpgPaperkey`).
-    pub fn gpg_paperkey(&self, r: RecordView<'_>, why: Reveal) -> Option<Held<Zeroizing<String>>> {
+    pub fn gpg_paperkey(&self, r: RecordView<'_>, why: Reveal) -> Option<Held<Text>> {
         if why != Reveal::GpgPaperkey {
             return None;
         }
         let key = gpg_key(r.raw())?;
-        Some(Held::of(Zeroizing::new(String::from(
-            &*crate::gpg::paperkey(&key),
-        ))))
+        Some(Held::of(crate::gpg::paperkey(&key)))
     }
 
     // ---- Secure Boot keys ----
@@ -467,9 +455,14 @@ impl OpenVaults {
         now: u64,
     ) -> Option<Result<Enrolment, faraday_sb::Error>> {
         let keys = sb_keys(self.slot(id)?.records.get(i)?)?;
-        Some(crate::secure_boot::enrolment(
-            blind_seed, &keys, policy, now,
-        ))
+        Some(
+            crate::secure_boot::enrolment(blind_seed, &keys, policy, now).map(|files| {
+                files
+                    .into_iter()
+                    .map(|(name, bytes)| (Text::of(&name), bytes))
+                    .collect()
+            }),
+        )
     }
 
     /// Costs a SHA-256 of `pe` and an RSA signature. The boot program `pe`
@@ -605,8 +598,7 @@ impl OpenVaults {
         if r.kind != kind::KEY {
             return None;
         }
-        #[expect(clippy::disallowed_methods, reason = "a label is public")]
-        let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
+        let label = Text::of(r.text(field::KEY_LABEL).unwrap_or(""));
         let loaded = match record_words(c, r) {
             Some(m) => {
                 // Stored with the key, or kept alone in an open vault
@@ -643,7 +635,7 @@ impl OpenVaults {
         // Each set, by the fingerprint the records name and its
         // identifier: its strings, one per index, and the other strings
         // of an index it has more than one of.
-        type Strings = Vec<(Codex32, Zeroizing<String>)>;
+        type Strings = Vec<(Codex32, Text)>;
         type Set = ([u8; 4], Strings, Strings);
         let mut sets: Vec<Set> = Vec::new();
         for slot in &self.slots {
@@ -676,7 +668,7 @@ impl OpenVaults {
                 };
                 let (_, list, others) = &mut sets[at];
                 let text = crate::texts::wiped(text);
-                let same = |(x, t): &(Codex32, Zeroizing<String>)| {
+                let same = |(x, t): &(Codex32, Text)| {
                     x.share_index() == share.share_index() && t.eq_ignore_ascii_case(&text)
                 };
                 if list.iter().any(&same) || others.iter().any(&same) {
@@ -747,13 +739,13 @@ impl OpenVaults {
     fn codex32_more_of(
         &self,
         typed: &[faraday_bip::codex32::Codex32],
-    ) -> Vec<([u8; 4], Vec<Zeroizing<String>>)> {
+    ) -> Vec<([u8; 4], Vec<Text>)> {
         use faraday_bip::codex32::Codex32;
         let Some(first) = typed.first().filter(|f| f.threshold() >= 2) else {
             return Vec::new();
         };
         // Each key's strings, by fingerprint.
-        type Group = ([u8; 4], Vec<Zeroizing<String>>);
+        type Group = ([u8; 4], Vec<Text>);
         let mut out: Vec<Group> = Vec::new();
         for r in self.slots.iter().flat_map(|s| s.records.iter()) {
             if r.kind != kind::CODEX32_SHARE {
@@ -785,7 +777,7 @@ impl OpenVaults {
             };
             let group = &mut out[at].1;
             if !group.iter().any(|t| t.eq_ignore_ascii_case(text)) {
-                group.push(Zeroizing::new(text.to_ascii_lowercase()));
+                group.push(crate::texts::lower(text));
             }
         }
         out
@@ -837,7 +829,7 @@ impl OpenVaults {
         keys: &Keys,
         i: usize,
         string: &faraday_bip::codex32::Codex32,
-    ) -> Option<Vec<Zeroizing<String>>> {
+    ) -> Option<Vec<Text>> {
         let fp = keys.info(i)?.fingerprint.0;
         Some(
             self.codex32_more_of(std::slice::from_ref(string))
@@ -895,7 +887,7 @@ impl OpenVaults {
         }
         // Each key's records with those typed, until one makes the key
         // its records name; never strings of two keys together.
-        let typed_texts: Vec<Zeroizing<String>> = typed
+        let typed_texts: Vec<Text> = typed
             .iter()
             .map(|s| crate::texts::wiped(s.encode().as_str()))
             .collect();
@@ -933,7 +925,7 @@ impl OpenVaults {
         }
         let Some((texts, seed)) = found else {
             return tried.then(|| {
-                Err(Refusal::Words(faraday_text::Text::of(
+                Err(Refusal::Words(Text::of(
                     faraday_strings::EN.c32_vault_other_seed,
                 )))
             });
@@ -1140,7 +1132,7 @@ impl OpenVaults {
         keys: &Keys,
         m: &Mnemonic,
         chosen: usize,
-    ) -> Option<Zeroizing<String>> {
+    ) -> Option<Text> {
         let found = self.passphrases_kept_for(c, keys, m);
         let (id, i) = *found.get(chosen).or_else(|| found.first())?;
         let r = self.slot(id)?.records.get(i)?;

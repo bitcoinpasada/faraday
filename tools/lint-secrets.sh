@@ -448,6 +448,9 @@ core/faraday-psbt/src/verify.rs
 faraday/faraday-core/src/fresh/page.rs
 faraday/faraday-core/src/work/budget/codex32.rs
 faraday/faraday-core/src/work.rs
+faraday/faraday-core/src/drawing/allowed.rs
+faraday/faraday-core/src/explore/shown.rs
+faraday/faraday-core/src/paper.rs
 faraday/faraday-keys/src/message.rs
 faraday/faraday-keys/src/vanity.rs
 faraday/faraday-sb/src/rng.rs
@@ -511,7 +514,21 @@ faraday/faraday-core/src/transfer/screen.rs
 faraday/faraday-core/src/transfer/text.rs
 faraday/faraday-core/src/lightning/mod.rs
 faraday/faraday-core/src/lightning/screen.rs
-faraday/faraday-core/src/chart_edit.rs"
+faraday/faraday-core/src/chart_edit.rs
+faraday/faraday-keys/src/bip85.rs
+faraday/faraday-keys/src/codex32.rs
+faraday/faraday-keys/src/gpg.rs
+faraday/faraday-keys/src/hsm_node.rs
+faraday/faraday-keys/src/identity.rs
+faraday/faraday-keys/src/lightning.rs
+faraday/faraday-keys/src/operations.rs
+faraday/faraday-keys/src/session.rs
+faraday/faraday-keys/src/silent.rs
+faraday/faraday-keys/src/texts.rs
+faraday/faraday-keys/src/totp.rs
+faraday/faraday-keys/src/vault/mod.rs
+faraday/faraday-keys/src/vault/reveals.rs
+faraday/faraday-keys/src/vault/tests.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
@@ -522,8 +539,9 @@ done
 #   codex32/fresh.rs   makes shares from entropy through the types of mod.rs
 #   vault/qr.rs        takes the passphrase as text for the PGP layer's seal
 #   worker/kef.rs      holds the KEF worker's answers behind faraday-keys calls
+#   keys/totp.rs       holds the shown one-time code in wiping text
 #   faraday-text lib   declares and documents the wiping text type of text.rs
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs"
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs"
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }

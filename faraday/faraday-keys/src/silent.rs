@@ -6,7 +6,7 @@ use faraday_bip::bitcoin::secp256k1::{All, PublicKey, Secp256k1};
 use faraday_bip::keys::{MasterKey, Network};
 use faraday_bip::silent as bip352;
 use faraday_crypto::work::Compute;
-use zeroize::Zeroizing;
+use faraday_text::Text;
 
 use crate::{Held, Part, Reveal};
 
@@ -50,24 +50,20 @@ impl Receiver {
     /// Costs an address (point additions). The `sp1…` address, unlabelled
     /// for `label` 0 and labelled otherwise; `None` when the address cannot
     /// be made.
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "a silent-payment address is public"
-    )]
-    pub fn address(&self, label: u32) -> Option<String> {
+    pub fn address(&self, label: u32) -> Option<Text> {
         let a = if label == 0 {
             self.0.address(&self.1)
         } else {
             self.0.labelled_address(&self.1, label)
         };
-        a.ok().map(|t| t.as_str().to_string())
+        a.ok().map(|t| Text::of(t.as_str()))
     }
 
     /// The scan key as text, BIP-392's `spscan1q…`, for `why`: into a
     /// vault record (`Reveal::VaultEntry`) or a file to the Outbox
     /// (`Reveal::OutboxFile`), of `Part::ScanKey`. `None` for another
     /// reason.
-    pub fn scan_key(&self, why: Reveal) -> Option<Held<Zeroizing<String>>> {
+    pub fn scan_key(&self, why: Reveal) -> Option<Held<Text>> {
         if !matches!(
             why,
             Reveal::VaultEntry(Part::ScanKey) | Reveal::OutboxFile(Part::ScanKey)
@@ -87,7 +83,7 @@ impl Receiver {
         why: Reveal,
         fingerprint: faraday_bip::keys::Fingerprint,
         account: u32,
-    ) -> Option<Held<Zeroizing<String>>> {
+    ) -> Option<Held<Text>> {
         if !matches!(
             why,
             Reveal::VaultEntry(Part::ScanKey) | Reveal::OutboxFile(Part::ScanKey)

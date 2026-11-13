@@ -7,6 +7,7 @@ use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
 use faraday_bip::keys::{Fingerprint, MasterKey, Network};
 use faraday_bip::slip39;
 use faraday_crypto::work::Compute;
+use faraday_text::Text;
 
 /// What a master key is made from.
 pub enum Material<'a> {
@@ -71,8 +72,8 @@ pub fn fingerprint_of_words(
     c: &Compute,
     words: &str,
     passphrase: &str,
-) -> Result<Fingerprint, String> {
-    let normal = zeroize::Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
+) -> Result<Fingerprint, Text> {
+    let normal = crate::texts::normal_words(words);
     let mut first = None;
     for lang in Language::ALL {
         match Mnemonic::parse(c, lang, &normal) {
@@ -83,7 +84,7 @@ pub fn fingerprint_of_words(
         }
     }
     Err(first
-        .map(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))
+        .map(|e| faraday_strings::bip::bip39_error(&e))
         .unwrap_or_default())
 }
 
@@ -94,10 +95,10 @@ pub fn fingerprint_of_mnemonic(
     c: &Compute,
     m: &Mnemonic,
     passphrase: &str,
-) -> Result<Fingerprint, String> {
+) -> Result<Fingerprint, Text> {
     let seed = m
         .to_seed(c, passphrase.as_bytes())
-        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))?;
+        .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
     Ok(MasterKey::from_seed(c, &seed, Network::Mainnet).fingerprint())
 }
 
@@ -158,12 +159,12 @@ pub fn key_text_of_words(
     passphrase: &str,
     network: Network,
     spec: &crate::texts::Spec,
-) -> Result<String, String> {
-    let normal = zeroize::Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
+) -> Result<Text, Text> {
+    let normal = crate::texts::normal_words(words);
     let m = Mnemonic::parse(c, Language::English, &normal)
-        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))?;
-    let master = master_of(c, Material::Words(&m), passphrase, network)
-        .ok_or_else(|| String::from("no key"))?;
+        .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
+    let master =
+        master_of(c, Material::Words(&m), passphrase, network).ok_or_else(|| Text::of("no key"))?;
     crate::texts::key_text(c, &master, spec)
 }
 
@@ -189,8 +190,8 @@ pub(crate) fn seed_of(
 }
 
 /// The fingerprint as eight hex digits.
-pub fn fp_text(fp: Fingerprint) -> String {
-    String::from_utf8_lossy(&fp.to_hex()).into_owned()
+pub fn fp_text(fp: Fingerprint) -> Text {
+    Text::from_utf8_lossy(&fp.to_hex())
 }
 
 /// Costs a base58 checksum. Whether `text` is a WIF private key: asked to

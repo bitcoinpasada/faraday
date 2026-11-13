@@ -209,9 +209,9 @@ pub(super) fn save_panel(
             any = true;
             ui.text_mid_as((dx, dy, 40.0), BODY_M.mono(), ink, &fp);
             let label = if key.has_passphrase {
-                fill(EN.vault_bip_39_passphrase_n, &[&key.label.to_string()])
+                fill(EN.vault_bip_39_passphrase_n, &[&key.label])
             } else {
-                key.label.clone()
+                String::from(&*key.label)
             };
             if ui.compact {
                 // The key and its name, then its buttons under them.

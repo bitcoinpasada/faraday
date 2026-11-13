@@ -14,7 +14,6 @@
 use faraday_bip::bip39::Mnemonic;
 use faraday_codec::qr::QrMatrix;
 use faraday_keys::vault::RecordView;
-use zeroize::Zeroizing;
 
 use super::View;
 
@@ -42,7 +41,7 @@ impl View<'_> {
 
     /// The BIP-85 child shown, held since the eye opened it (F195): a
     /// borrow, nothing costs.
-    pub(crate) fn bip85_held(&self) -> Option<&faraday_keys::Held<Zeroizing<String>>> {
+    pub(crate) fn bip85_held(&self) -> Option<&faraday_keys::Held<faraday_text::Text>> {
         self.app.bip85.held()
     }
 

@@ -190,7 +190,7 @@ fn a_gpg_key_restored_from_its_paperkey_leaves_no_copy() {
         &zeroize::Zeroizing::new(primary),
         &zeroize::Zeroizing::new(subkey),
         1_780_000_000,
-        "Test Person <test@example.com>".to_string(),
+        faraday_text::Text::of("Test Person <test@example.com>"),
         2 * 31_536_000,
     );
     let text = armor(Armor::PublicKey, &made.certificate);

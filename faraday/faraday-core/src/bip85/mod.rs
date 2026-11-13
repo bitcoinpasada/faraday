@@ -219,7 +219,7 @@ pub(crate) struct Bip85Area {
     /// The child shown, worked out when the eye opened it and wiped on
     /// drop: dropped the moment it is hidden, the card is left or the
     /// session locks (F195). Drawing only reads it.
-    held: Option<faraday_keys::Held<Zeroizing<String>>>,
+    held: Option<faraday_keys::Held<faraday_text::Text>>,
 }
 
 impl Bip85Area {
@@ -242,7 +242,7 @@ impl Bip85Area {
     }
 
     /// The child shown, while its eye is open: a borrow, no work.
-    pub(crate) fn held(&self) -> Option<&faraday_keys::Held<Zeroizing<String>>> {
+    pub(crate) fn held(&self) -> Option<&faraday_keys::Held<faraday_text::Text>> {
         self.held
             .as_ref()
             .filter(|_| self.state.as_ref().is_some_and(|b| b.shown))
@@ -304,7 +304,7 @@ impl Bip85Area {
         &self,
         c: &Compute,
         keys: &Keys,
-    ) -> Option<faraday_keys::Held<Zeroizing<String>>> {
+    ) -> Option<faraday_keys::Held<faraday_text::Text>> {
         let b = self.state.as_ref()?;
         let place = keys.position_of(b.key?)?;
         let i = b.index()?;
@@ -491,7 +491,7 @@ impl Faraday {
 
     /// Costs what `child_mnemonic`, `child_wif`, `child_xprv` and the rest
     /// it calls cost. The value the flow derives, as text.
-    pub fn bip85_value(&self, c: &Compute) -> Option<faraday_keys::Held<Zeroizing<String>>> {
+    pub fn bip85_value(&self, c: &Compute) -> Option<faraday_keys::Held<faraday_text::Text>> {
         // The demo derives no BIP-85 output (`docs/DEMO.md` §4).
         if !self.makes_secrets() {
             return None;

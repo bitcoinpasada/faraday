@@ -5,6 +5,7 @@
 use faraday_bip::bitcoin::bip32::{DerivationPath, Xpub};
 use faraday_bip::keys::{Fingerprint, MasterKey, MultisigScriptType, ScriptType};
 use faraday_crypto::work::Compute;
+use faraday_text::{Text, text};
 
 /// An account key: public, with the origin it is derived at.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,19 +40,22 @@ pub enum Spec {
 
 /// Costs a key derivation. `[fingerprint/path]xpub` of `master` as `spec`
 /// says.
-pub fn key_text(c: &Compute, master: &MasterKey, spec: &Spec) -> Result<String, String> {
+pub fn key_text(c: &Compute, master: &MasterKey, spec: &Spec) -> Result<Text, Text> {
     let key = match spec {
         Spec::Single(t, a) => single_account(c, master, *t, *a)?,
         Spec::Multisig(t, a) => multisig_account(c, master, *t, *a, false)?,
         Spec::Path(p) => account_at(c, master, p),
     };
     if key.path.as_ref().is_empty() {
-        return Ok(format!("[{}]{}", key.fingerprint, key.xpub));
+        return Ok(text!("[{}]{}", key.fingerprint, key.xpub));
     }
-    let shown = format!("{}", key.path)
-        .trim_start_matches("m/")
-        .replace('\'', "h");
-    Ok(format!("[{}/{shown}]{}", key.fingerprint, key.xpub))
+    let path = text!("{}", key.path);
+    let mut out = text!("[{}/", key.fingerprint);
+    for ch in path.trim_start_matches("m/").chars() {
+        out.push(if ch == '\'' { 'h' } else { ch });
+    }
+    out.push_str(&text!("]{}", key.xpub));
+    Ok(out)
 }
 
 /// Costs a key derivation. The account key of `master` for a single-key
@@ -62,10 +66,10 @@ pub fn single_account(
     master: &MasterKey,
     script: ScriptType,
     account: u32,
-) -> Result<AccountKey, String> {
+) -> Result<AccountKey, Text> {
     let a = master
         .account_xpub(c, script, account)
-        .map_err(|e| String::from(&*faraday_strings::bip::keys_error(&e)))?;
+        .map_err(|e| faraday_strings::bip::keys_error(&e))?;
     Ok(AccountKey {
         xpub: *a.xpub(),
         fingerprint: a.master_fingerprint(),
@@ -83,10 +87,10 @@ pub fn multisig_account(
     script: MultisigScriptType,
     account: u32,
     bip87: bool,
-) -> Result<AccountKey, String> {
+) -> Result<AccountKey, Text> {
     let a = master
         .multisig_account_xpub_at(c, script, account, bip87)
-        .map_err(|e| String::from(&*faraday_strings::bip::keys_error(&e)))?;
+        .map_err(|e| faraday_strings::bip::keys_error(&e))?;
     Ok(AccountKey {
         xpub: *a.xpub(),
         fingerprint: a.master_fingerprint(),
@@ -116,14 +120,14 @@ pub(crate) fn bsms_record(
     account: u32,
     bip87: bool,
     description: &str,
-) -> Option<String> {
+) -> Option<Text> {
     let record = master
         .with_multisig_account_secret_at(c, script, account, bip87, |secret, view| {
             faraday_bip::bsms::signer_record(master.secp(), view, secret, "00", description)
         })
         .ok()?
         .ok()?;
-    Some(String::from(&*record.to_text()))
+    Some(record.to_text())
 }
 
 /// A secret's bytes in a buffer wiped on drop: the only copy made of them.
@@ -137,15 +141,32 @@ pub(crate) fn wiped_bytes(bytes: &[u8]) -> zeroize::Zeroizing<Vec<u8>> {
 
 /// An empty buffer wiped on drop with room for a whole seed phrase, for
 /// building one a word at a time without it moving.
-pub(crate) fn room() -> zeroize::Zeroizing<String> {
-    zeroize::Zeroizing::new(String::with_capacity(faraday_intake::ROOM))
+pub(crate) fn room() -> Text {
+    Text::with_room(faraday_intake::ROOM)
+}
+
+/// `words` with its words in single-space order, in a buffer wiped on drop.
+pub(crate) fn normal_words(words: &str) -> Text {
+    let mut out = Text::with_room(words.len());
+    for (n, w) in words.split_whitespace().enumerate() {
+        if n > 0 {
+            out.push(' ');
+        }
+        out.push_str(w);
+    }
+    out
 }
 
 /// A secret's text in a buffer wiped on drop: the only copy made of it.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the text goes straight into a buffer wiped on drop"
-)]
-pub(crate) fn wiped(text: &str) -> zeroize::Zeroizing<String> {
-    zeroize::Zeroizing::new(text.to_string())
+pub(crate) fn wiped(text: &str) -> Text {
+    Text::of(text)
+}
+
+/// `text` with its ASCII letters in lower case, in a buffer wiped on drop.
+pub(crate) fn lower(text: &str) -> Text {
+    let mut out = Text::with_room(text.len());
+    for ch in text.chars() {
+        out.push(ch.to_ascii_lowercase());
+    }
+    out
 }

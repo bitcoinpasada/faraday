@@ -448,7 +448,7 @@ impl Faraday {
                     &c,
                     key,
                     find.suffix.as_str(),
-                    &fill(EN.vanity_vanity_passphrase, &[&label.to_string()]),
+                    &fill(EN.vanity_vanity_passphrase, &[&label]),
                 ) {
                     Ok(fp) => (fp, 0),
                     Err(e) => {
@@ -499,13 +499,14 @@ impl Faraday {
             ScriptType::Taproot => NewKind::Taproot,
         };
         let name = format!(
-            "{label} · {}",
+            "{} · {}",
+            &*label,
             find.address.as_str().get(..10).unwrap_or("")
         );
         match self.session.add_wallet(
             &c,
             &name,
-            &kind.descriptor(1, &[text]),
+            &kind.descriptor(1, &[String::from(&*text)]),
             EN.vanity_vanity_search,
             crate::wallet::Origin::Named,
         ) {

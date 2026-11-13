@@ -547,7 +547,7 @@ pub struct Codex32Make {
     /// ([`Codex32Make::tab_shown`]): a tab shown again shows that place.
     tab_scrolls: Vec<((u8, u8), f32)>,
     cell: Option<Cell>,
-    strings: Option<Held<Vec<Zeroizing<String>>>>,
+    strings: Option<Held<Vec<faraday_text::Text>>>,
     fingerprint: Option<[u8; 4]>,
     at: usize,
     qr: Option<QrMatrix>,
@@ -1494,7 +1494,7 @@ impl Codex32Make {
     }
 
     /// The strings to write, once the set is made.
-    pub fn strings(&self) -> Option<&[Zeroizing<String>]> {
+    pub fn strings(&self) -> Option<&[faraday_text::Text]> {
         self.strings.as_ref().map(|s| s.as_slice())
     }
 

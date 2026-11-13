@@ -136,7 +136,12 @@ fn wallet_names(app: &Faraday) -> Vec<String> {
 }
 
 fn key_labels(app: &Faraday) -> Vec<String> {
-    let mut v: Vec<String> = app.session.keys.all().map(|k| k.label.clone()).collect();
+    let mut v: Vec<String> = app
+        .session
+        .keys
+        .all()
+        .map(|k| String::from(&*k.label))
+        .collect();
     v.sort();
     v
 }

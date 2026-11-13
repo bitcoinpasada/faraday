@@ -32,7 +32,7 @@ fn compute() -> Compute {
 
 fn store() -> OpenVaults {
     let mut s = OpenVaults::default();
-    let t = |x: &str| x.to_string();
+    let t = |x: &'static str| x;
     s.set_names(Names {
         group_keys: t("Seeds"),
         group_wallets: t("Wallets"),

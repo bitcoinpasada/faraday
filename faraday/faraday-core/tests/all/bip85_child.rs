@@ -142,7 +142,7 @@ fn a_child_seed_recorded_in_a_vault_keeps_its_mark_across_a_seal_and_shows_on_ke
     assert_eq!((of.index, of.words), (0, 24));
     // Its label is its own fingerprint; Keys shows the mark.
     let child_fp = faraday_core::wallet::fp_text(key.fingerprint).to_string();
-    assert!(key.label.eq_ignore_ascii_case(&child_fp), "{}", key.label);
+    assert!(key.label.eq_ignore_ascii_case(&child_fp), "{}", &*key.label);
     let mark = format!("BIP-85 Words · {parent} · index 0");
     assert_eq!(faraday_core::bip85::key_name(key), mark);
     app.press(Action::Nav(Screen::VaultContents));

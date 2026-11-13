@@ -25,6 +25,7 @@ use faraday_bip::bitcoin::bip32::DerivationPath;
 use faraday_bip::keys::{Fingerprint, MasterKey, Network, WifAscii, XprivAscii};
 use faraday_crypto::work::Compute;
 use faraday_intake::wallet::Refusal;
+use faraday_text::{Text, text};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroizing;
 
@@ -65,7 +66,7 @@ pub struct KeyInfo {
     /// The master key's fingerprint; the same on every network.
     pub fingerprint: Fingerprint,
     /// What the person called it.
-    pub label: String,
+    pub label: Text,
     /// The BIP-39 list its words are from (English for a key with none).
     pub language: Language,
     /// How many words it has; `None` for a key loaded from a master seed.
@@ -247,14 +248,14 @@ impl<T> std::ops::Deref for Held<T> {
 /// store's own wiped text and makes no copy of it. Empty for a key that
 /// has no such text.
 pub struct Revealed<'a> {
-    text: Text<'a>,
+    text: Source<'a>,
 }
 
 /// A revealed text is the store's own (lent), or made for the guard (a
 /// vault record's words, written out from its payload) and wiped with it.
-enum Text<'a> {
+enum Source<'a> {
     Lent(&'a str),
-    Made(Zeroizing<String>),
+    Made(Text),
 }
 
 impl<'a> Revealed<'a> {
@@ -266,14 +267,14 @@ impl<'a> Revealed<'a> {
     /// A text lent from the store.
     pub(crate) fn lent(text: &'a str) -> Revealed<'a> {
         Revealed {
-            text: Text::Lent(text),
+            text: Source::Lent(text),
         }
     }
 
     /// A text made for this guard.
-    pub(crate) fn made(text: Zeroizing<String>) -> Revealed<'a> {
+    pub(crate) fn made(text: Text) -> Revealed<'a> {
         Revealed {
-            text: Text::Made(text),
+            text: Source::Made(text),
         }
     }
 }
@@ -282,8 +283,8 @@ impl std::ops::Deref for Revealed<'_> {
     type Target = str;
     fn deref(&self) -> &str {
         match &self.text {
-            Text::Lent(t) => t,
-            Text::Made(t) => t.as_str(),
+            Source::Lent(t) => t,
+            Source::Made(t) => t.as_str(),
         }
     }
 }
@@ -299,8 +300,8 @@ pub(crate) struct Key {
     /// one drops (`docs/KEYS.md` §2). A change of network makes a new key
     /// (`MasterKey::for_network`); a reblind of a key a job holds is owed until it lets go.
     master: std::sync::Arc<MasterKey>,
-    words: Option<Zeroizing<String>>,
-    passphrase: Option<Zeroizing<String>>,
+    words: Option<Text>,
+    passphrase: Option<Text>,
     /// The master seed bytes a key loaded by [`Keys::add_seed`] came
     /// from (codex32, SLIP-39), so that a paper form
     /// of it can be written again; `None` for a key made of words. Wiped
@@ -309,7 +310,7 @@ pub(crate) struct Key {
     /// Its public key texts asked for, each derived once
     /// ([`Keys::public_text`]), by what was asked: public, and dropped
     /// when the master key moves network.
-    public: std::cell::RefCell<Vec<(Spec, Result<String, String>)>>,
+    public: std::cell::RefCell<Vec<(Spec, Result<Text, Text>)>>,
     /// Its words' [`WordsId`], once worked out: wiped with the key.
     words_id: std::cell::OnceCell<Option<WordsId>>,
     /// The strings of its codex32 set this session has seen: made here,
@@ -322,7 +323,7 @@ pub(crate) struct Key {
     /// (threshold, identifier, length) at an index not destroyed; a
     /// change of the facts ([`Keys::set_codex32`]) drops those that no
     /// longer are.
-    codex32: Vec<Zeroizing<String>>,
+    codex32: Vec<Text>,
 }
 
 /// A key's secrets as the operations of this crate use them, lent.
@@ -737,7 +738,7 @@ impl Keys {
     /// Refuses a key that is not a sample while the demo is on.
     fn allowed(&self, fp: Fingerprint) -> Result<(), Refusal> {
         if self.demo() && !self.is_public(fp) {
-            return Err(Refusal::NotAllowed(faraday_text::Text::of(&fp_text(fp))));
+            return Err(Refusal::NotAllowed(Text::of(&fp_text(fp))));
         }
         Ok(())
     }
@@ -789,8 +790,8 @@ impl Keys {
             && w != fp
         {
             return Err(Refusal::WrongKey {
-                wanted: faraday_text::Text::of(&fp_text(w)),
-                got: faraday_text::Text::of(&fp_text(fp)),
+                wanted: Text::of(&fp_text(w)),
+                got: Text::of(&fp_text(fp)),
             });
         }
         self.allowed(fp)?;
@@ -898,7 +899,7 @@ impl Keys {
             .entries
             .get(i)
             .and_then(|e| e.key.words.clone())
-            .ok_or_else(|| Refusal::Words(faraday_text::Text::of("")))?;
+            .ok_or_else(|| Refusal::Words(Text::of("")))?;
         self.add_words_with(c, &words, passphrase, label, None)
     }
 
@@ -920,19 +921,16 @@ impl Keys {
             let key = &self
                 .entries
                 .get(i)
-                .ok_or_else(|| Refusal::Words(faraday_text::Text::of("")))?
+                .ok_or_else(|| Refusal::Words(Text::of("")))?
                 .key;
             (
                 key.words
                     .clone()
-                    .ok_or_else(|| Refusal::Words(faraday_text::Text::of("")))?,
+                    .ok_or_else(|| Refusal::Words(Text::of("")))?,
                 key.passphrase.clone(),
             )
         };
-        let passphrase = Zeroizing::new(format!(
-            "{}{suffix}",
-            base.as_deref().map_or("", |p| p.as_str())
-        ));
+        let passphrase = text!("{}{suffix}", base.as_deref().unwrap_or(""));
         let lang = self.entries[i].info.language;
         let m = Mnemonic::parse(c, lang, &words)
             .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
@@ -961,10 +959,9 @@ impl Keys {
     }
 
     /// Sets key `i`'s label.
-    #[expect(clippy::disallowed_methods, reason = "a label is public")]
     pub fn set_label(&mut self, i: usize, label: &str) {
         if let Some(e) = self.entries.get_mut(i) {
-            e.info.label = label.to_string();
+            e.info.label = Text::of(label);
         }
     }
 
@@ -998,8 +995,8 @@ impl Keys {
         let e = self.entries.get(i)?;
         Some(Secrets {
             master: &e.key.master,
-            words: e.key.words.as_deref().map(|w| w.as_str()),
-            passphrase: e.key.passphrase.as_deref().map(|p| p.as_str()),
+            words: e.key.words.as_deref(),
+            passphrase: e.key.passphrase.as_deref(),
             seed: e.key.seed.as_deref().map(|v| v.as_slice()),
             language: e.info.language,
         })
@@ -1015,7 +1012,7 @@ impl Keys {
             Part::Passphrase => e.key.passphrase.as_deref(),
             _ => None,
         });
-        Revealed::lent(text.map_or("", |t| t.as_str()))
+        Revealed::lent(text.unwrap_or(""))
     }
 
     // ---- operations on a key's secret ----
@@ -1273,7 +1270,7 @@ impl Keys {
         c: &Compute,
         i: usize,
         strings: &[&str],
-        more: &[Zeroizing<String>],
+        more: &[Text],
     ) -> usize {
         let Some(e) = self.entries.get(i) else {
             return 0;
@@ -1291,13 +1288,13 @@ impl Keys {
         let facts = &facts;
         // A string at a destroyed index, of another set or of another
         // length is neither a proof nor kept, whichever vault it is from.
-        let more: Vec<&Zeroizing<String>> = more
+        let more: Vec<&Text> = more
             .iter()
-            .filter(|t| of_set(facts, &Zeroizing::new(t.to_ascii_lowercase())))
+            .filter(|t| of_set(facts, &crate::texts::lower(t)))
             .collect();
-        let mut cands: Vec<Zeroizing<String>> = Vec::new();
+        let mut cands: Vec<Text> = Vec::new();
         for s in strings {
-            let lower = Zeroizing::new(s.to_ascii_lowercase());
+            let lower = crate::texts::lower(s);
             if of_set(facts, &lower) && !cands.iter().any(|x| **x == *lower) {
                 cands.push(lower);
             }
@@ -1323,7 +1320,7 @@ impl Keys {
                     continue;
                 };
                 for t in texts {
-                    if !of_set(facts, &Zeroizing::new(t.to_ascii_lowercase())) {
+                    if !of_set(facts, &crate::texts::lower(&t)) {
                         continue;
                     }
                     e.key
@@ -1351,7 +1348,7 @@ impl Keys {
         c: &Compute,
         i: usize,
         string: &faraday_bip::codex32::Codex32,
-        more: &[Zeroizing<String>],
+        more: &[Text],
     ) -> Option<bool> {
         let e = self.entries.get(i)?;
         let need = usize::from(string.threshold());
@@ -1366,9 +1363,10 @@ impl Keys {
             .key
             .codex32
             .iter()
-            .chain(more.iter().filter(|t| {
-                facts.is_none_or(|f| of_set(f, &Zeroizing::new(t.to_ascii_lowercase())))
-            }))
+            .chain(
+                more.iter()
+                    .filter(|t| facts.is_none_or(|f| of_set(f, &crate::texts::lower(t)))),
+            )
             .map(|t| t.as_str())
             .collect();
         let found =
@@ -1454,19 +1452,17 @@ impl Keys {
     /// strings it holds, by share index. A codex32 recovery and a checksum
     /// per string. `None` for another reason, a key with words (they are
     /// lent by [`Keys::reveal`]) or no such key.
-    pub fn seed_shown(&self, i: usize, why: Reveal) -> Option<Held<Vec<Zeroizing<String>>>> {
+    pub fn seed_shown(&self, i: usize, why: Reveal) -> Option<Held<Vec<Text>>> {
         use faraday_bip::codex32::Codex32;
         if why != Reveal::SeedShown {
             return None;
         }
         let e = self.entries.get(i).filter(|e| e.key.words.is_none())?;
-        let mut out = vec![Zeroizing::new(String::from(
-            &*faraday_crypto::hex::encode_secret(e.key.seed.as_ref()?),
-        ))];
+        let mut out = vec![faraday_crypto::hex::encode_secret(e.key.seed.as_ref()?)];
         let Some(facts) = e.info.codex32.as_ref() else {
             return Some(Held(out));
         };
-        let mut held: Vec<&Zeroizing<String>> = e.key.codex32.iter().collect();
+        let mut held: Vec<&Text> = e.key.codex32.iter().collect();
         held.sort_by_key(|s| s.as_bytes().get(8).copied());
         let parsed: Vec<Codex32> = held
             .iter()
@@ -1598,7 +1594,7 @@ impl Keys {
     /// `i` as `spec` says (`[fingerprint/path]xpub`): derived the first
     /// time it is asked, by whoever asks, a frame included, and kept on the
     /// key, a lookup after. `None` for a place with no key.
-    pub fn key_text(&self, c: &Compute, i: usize, spec: &Spec) -> Option<Result<String, String>> {
+    pub fn key_text(&self, c: &Compute, i: usize, spec: &Spec) -> Option<Result<Text, Text>> {
         let key = &self.entries.get(i)?.key;
         if let Some((_, t)) = key.public.borrow().iter().find(|(a, _)| a == spec) {
             #[expect(clippy::disallowed_methods, reason = "a key text is public")]
@@ -1626,7 +1622,7 @@ impl Keys {
         script: faraday_bip::keys::MultisigScriptType,
         account: u32,
         bip87: bool,
-    ) -> Option<Result<crate::texts::AccountKey, String>> {
+    ) -> Option<Result<crate::texts::AccountKey, Text>> {
         Some(crate::texts::multisig_account(
             c,
             &self.entries.get(i)?.key.master,
@@ -1647,7 +1643,7 @@ impl Keys {
         account: u32,
         bip87: bool,
         description: &str,
-    ) -> Option<String> {
+    ) -> Option<Text> {
         crate::texts::bsms_record(
             c,
             &self.entries.get(i)?.key.master,
@@ -1795,7 +1791,7 @@ impl Keys {
 /// they read in it, else in the first of the other lists in BIP-39's
 /// order that reads them.
 pub(crate) fn parse_words(c: &Compute, words: &str) -> Result<Mnemonic, Refusal> {
-    let normal = Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
+    let normal = crate::texts::normal_words(words);
     let mut first = None;
     for lang in Language::ALL {
         match Mnemonic::parse(c, lang, &normal) {
@@ -1837,11 +1833,10 @@ pub(crate) fn mnemonic_entry(
     label: &str,
 ) -> Entry {
     let lang = mnemonic.language();
-    #[expect(clippy::disallowed_methods, reason = "a label is public")]
     let label = if label.trim().is_empty() {
         fp_text(master.fingerprint())
     } else {
-        label.trim().to_string()
+        Text::of(label.trim())
     };
     let mut words = crate::texts::room();
     for (k, &i) in mnemonic.indices().iter().enumerate() {
@@ -1870,11 +1865,8 @@ pub(crate) fn seed_master(
     seed: &[u8],
     network: Network,
 ) -> Result<MasterKey, Refusal> {
-    let bytes = faraday_crypto::SeedBytes::new(seed).ok_or_else(|| {
-        Refusal::Words(faraday_text::Text::of(
-            faraday_strings::EN.wallet_a_master_seed,
-        ))
-    })?;
+    let bytes = faraday_crypto::SeedBytes::new(seed)
+        .ok_or_else(|| Refusal::Words(Text::of(faraday_strings::EN.wallet_a_master_seed)))?;
     Ok(MasterKey::from_seed_bytes(
         c,
         &faraday_crypto::Secret::new(bytes),
@@ -1885,11 +1877,10 @@ pub(crate) fn seed_master(
 /// Costs what `Entry::new` costs. The key `master` is, made of the master
 /// seed `seed`, labelled `label` (its fingerprint when the label is empty).
 pub(crate) fn seed_entry(c: &Compute, master: MasterKey, seed: &[u8], label: &str) -> Entry {
-    #[expect(clippy::disallowed_methods, reason = "a label is public")]
     let label = if label.trim().is_empty() {
         fp_text(master.fingerprint())
     } else {
-        label.trim().to_string()
+        Text::of(label.trim())
     };
     Entry::new(
         c,
@@ -1913,11 +1904,11 @@ impl Entry {
     fn new(
         c: &Compute,
         master: MasterKey,
-        label: String,
-        words: Option<Zeroizing<String>>,
+        label: Text,
+        words: Option<Text>,
         language: Language,
         word_count: Option<u8>,
-        passphrase: Option<Zeroizing<String>>,
+        passphrase: Option<Text>,
         seed: Option<Zeroizing<Vec<u8>>>,
     ) -> Entry {
         let info = KeyInfo {

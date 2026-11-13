@@ -1,14 +1,14 @@
 //! Time-based one-time codes from a vault entry's TOTP field (RFC 6238).
 #![cfg_attr(not(test), warn(clippy::disallowed_methods))]
 
+use faraday_text::Text;
 pub use faraday_vault::totp::NotTotp;
-use zeroize::Zeroizing;
 
 /// A code as it is shown.
 pub struct Shown {
     /// The digits, grouped for reading; wiped when dropped, as a code
     /// held while it shows is.
-    pub grouped: Zeroizing<String>,
+    pub grouped: Text,
     /// Seconds until it changes.
     pub left: u32,
     /// The period it lasts, in seconds.
@@ -30,7 +30,7 @@ pub fn shown(field: &str, now: Option<u64>) -> Result<Option<Shown>, NotTotp> {
 pub fn shown_of(t: &faraday_vault::totp::Totp, now: Option<u64>) -> Option<Shown> {
     let now = now?;
     Some(Shown {
-        grouped: Zeroizing::new(String::from(&*faraday_vault::totp::grouped(&t.code(now)))),
+        grouped: faraday_vault::totp::grouped(&t.code(now)),
         left: t.left(now),
         period: t.period(),
     })
@@ -40,9 +40,7 @@ pub fn shown_of(t: &faraday_vault::totp::Totp, now: Option<u64>) -> Option<Shown
 pub fn code_at(field: &str, now: u64) -> Result<Shown, NotTotp> {
     let code = faraday_vault::totp::parse(field)?;
     Ok(Shown {
-        grouped: Zeroizing::new(String::from(&*faraday_vault::totp::grouped(
-            &code.code(now),
-        ))),
+        grouped: faraday_vault::totp::grouped(&code.code(now)),
         left: code.left(now),
         period: code.period(),
     })
@@ -50,6 +48,6 @@ pub fn code_at(field: &str, now: u64) -> Result<Shown, NotTotp> {
 
 /// The field as it is stored, for a key or URI typed in as `title` and
 /// `account`; `None` when it is no TOTP key.
-pub fn normalise(field: &str, title: &str, account: &str) -> Option<Zeroizing<String>> {
-    faraday_vault::totp::normalise(field, title, account).map(|t| Zeroizing::new(String::from(&*t)))
+pub fn normalise(field: &str, title: &str, account: &str) -> Option<Text> {
+    faraday_vault::totp::normalise(field, title, account)
 }

@@ -413,6 +413,7 @@ impl NewKind {
             _ => return None,
         };
         keys.bsms_record(c, i, script, account, bip87, &format!("Faraday key {fp}"))
+            .map(|t| String::from(&*t))
     }
 
     /// The descriptor over these keys.
@@ -2109,7 +2110,7 @@ impl Faraday {
         if !key.has_words() {
             return;
         }
-        let label = fill(EN.create_pass_lock_passphrase, &[&key.label.to_string()]);
+        let label = fill(EN.create_pass_lock_passphrase, &[&key.label]);
         let (added, new) = match self
             .session
             .keys

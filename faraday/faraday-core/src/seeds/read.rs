@@ -533,7 +533,7 @@ impl Faraday {
                 .session
                 .keys
                 .find(plain)
-                .map(|k| fill(EN.seed_read_key_passphrase, &[&k.label.to_string()]))
+                .map(|k| fill(EN.seed_read_key_passphrase, &[&k.label]))
                 .unwrap_or_default();
             match source.add(&c, &mut self.session.keys, pass, &label) {
                 Ok(fp) => fp,

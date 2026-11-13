@@ -602,6 +602,8 @@ impl Faraday {
                 net,
                 &spec,
             )
+            .map(|t| String::from(&*t))
+            .map_err(|e| String::from(&*e))
         });
         if let Some(st) = self.seeds_mut() {
             match made {

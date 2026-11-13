@@ -58,7 +58,7 @@ fn sizes(app: &Faraday) -> Vec<(String, usize, usize)> {
     }
     for (i, k) in app.session.keys.all().enumerate() {
         out.push((
-            format!("{}'s key texts", k.label),
+            format!("{}'s key texts", &*k.label),
             app.session.keys.texts_kept(i),
             KEY_TEXTS_KEPT,
         ));

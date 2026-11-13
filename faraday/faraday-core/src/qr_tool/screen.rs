@@ -198,7 +198,7 @@ fn contents(app: &View, s: &QrToolState, ui: &mut Ui, (x, y, w): (f32, f32, f32)
             }
             for i in 0..keys.len() {
                 let Some(info) = keys.info(i) else { continue };
-                let label = text!("{} · {}", info.label, info.fingerprint);
+                let label = text!("{} · {}", &*info.label, info.fingerprint);
                 let offered = keys.qr_key_offered(i);
                 let style = Style::chosen(s.key() == Some(i)).when(offered);
                 ui.button(x, cy, Some(w), BUTTON_H, &label, style, act(Q::Key(i)));

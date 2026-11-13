@@ -36,7 +36,7 @@ fn compute() -> Compute {
 
 /// The names the app writes, as the strings hold them.
 fn names() -> Names {
-    let s = |t: &str| t.to_string();
+    let s = |t: &'static str| t;
     Names {
         group_keys: s("Seeds"),
         group_wallets: s("Wallets"),
@@ -595,7 +595,7 @@ fn gpg_made() -> faraday_keys::gpg::Made {
         &primary,
         &subkey,
         MADE,
-        "Test Person <test@example.com>".to_string(),
+        faraday_text::Text::of("Test Person <test@example.com>"),
         2 * YEAR,
     )
 }
@@ -902,7 +902,7 @@ fn paper_made() -> faraday_keys::gpg::Made {
         &primary,
         &subkey,
         MADE,
-        "Test Person <test@example.com>".to_string(),
+        faraday_text::Text::of("Test Person <test@example.com>"),
         2 * YEAR,
     )
 }

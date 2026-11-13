@@ -223,7 +223,7 @@ impl Faraday {
             let name = if k.label.is_empty() || k.label.eq_ignore_ascii_case(&fp) {
                 fill(EN.vaults_seed_n, &[&fp.to_string()])
             } else {
-                k.label.clone()
+                String::from(&*k.label)
             };
             out.wiped.push((format!("{name} · {state}"), nowhere, save));
         }
@@ -1965,7 +1965,7 @@ impl Faraday {
         form: &Form,
         id: VaultId,
         typed: Option<&str>,
-    ) -> Result<Option<Zeroizing<String>>, ()> {
+    ) -> Result<Option<faraday_text::Text>, ()> {
         let Some(t) = typed.filter(|t| !t.trim().is_empty()) else {
             return Ok(None);
         };
@@ -1978,9 +1978,7 @@ impl Faraday {
                 self.vaults.store().reveal(&c, id, i, field::TOTP, why)
             });
         if stored.as_deref().is_some_and(|s| *s == *t) {
-            let mut same = Zeroizing::new(String::with_capacity(t.len()));
-            same.push_str(t);
-            return Ok(Some(same));
+            return Ok(Some(faraday_text::Text::of(t)));
         }
         let text = |n: u8| {
             form.fields
@@ -2088,7 +2086,7 @@ impl Faraday {
             without,
             faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
         )?;
-        Some((record, label))
+        Some((record, String::from(&*label)))
     }
 
     fn vault_save_wallet(&mut self, k: usize) {
@@ -2713,9 +2711,9 @@ impl Faraday {
         // address and no length.
         let uid = match (name.trim(), email.trim()) {
             ("", "") => return Err(EN.gpg_a_key_needs_a_name.to_string()),
-            (n, "") => n.to_string(),
-            ("", e) => format!("<{e}>"),
-            (n, e) => format!("{n} <{e}>"),
+            (n, "") => faraday_text::Text::of(n),
+            ("", e) => faraday_text::text!("<{e}>"),
+            (n, e) => faraday_text::text!("{n} <{e}>"),
         };
         let (Some(primary), Some(subkey)) = (self.fresh(b"gpg primary"), self.fresh(b"gpg subkey"))
         else {
@@ -2735,7 +2733,7 @@ impl Faraday {
             record: made.key,
             subject: made.facts.fingerprint.to_vec(),
             name: if name.trim().is_empty() {
-                uid
+                String::from(&*uid)
             } else {
                 name.trim().to_string()
             },
@@ -2829,7 +2827,10 @@ impl Faraday {
             EN.gpg_fingerprint,
             &[&*faraday_pgp::fingerprint_text(&key.fingerprint)],
         );
-        let who = key.user_ids.first().cloned().unwrap_or_default();
+        let who = key
+            .user_ids
+            .first()
+            .map_or_else(String::new, |u| String::from(&**u));
         let (title, text, name, lines) = match code {
             Code::GpgKey => {
                 let (_, text) = self
@@ -2862,6 +2863,7 @@ impl Faraday {
                     self.vaults
                         .store()
                         .gpg_sign_armored(id, at, &item.bytes, now)
+                        .map(|t| String::from(&*t))
                         .ok_or(EN.gpg_no_gpg_key_is_selected)?,
                     format!("{}.asc.png", item.name),
                     vec![
@@ -3255,7 +3257,7 @@ impl Faraday {
             else {
                 continue;
             };
-            self.put_outbox(&out, sig.into_bytes());
+            self.put_outbox(&out, sig.as_bytes().to_vec());
             written += 1;
         }
         let _ = changed;
