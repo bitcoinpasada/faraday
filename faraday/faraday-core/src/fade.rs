@@ -364,29 +364,33 @@ impl Faraday {
         }
     }
 
-    /// After a frame is drawn: notes what it showed, `form` the planted
-    /// form found in its text, and what each image kept was made of
+    /// After a frame is drawn: notes what it showed, `forms` the planted
+    /// forms found in its text, and what each image kept was made of
     /// (`crate::leaks`). Nothing is drawn or kept.
     #[cfg(feature = "testkit")]
-    pub(crate) fn fade_marks(&mut self, only_moved: bool, form: Option<String>) {
+    pub(crate) fn fade_marks(&mut self, only_moved: bool, forms: crate::leaks::Forms) {
         use crate::leaks::{Seen, take_page};
         let before = self.fade.marks.frame.take();
         // A frame that moved rows drew only the rows that came in: the
         // rest is what the frame before showed.
-        let form = form.or_else(|| before.and_then(|b| b.form).filter(|_| only_moved));
+        let forms = if forms.is_empty() && only_moved {
+            before.map(|b| b.forms).unwrap_or_default()
+        } else {
+            forms
+        };
         let frame = Seen {
             // not shown: the tours' check names the screen in its failure
             screen: format!("{:?}", (self.screen, self.sheet)),
-            form,
+            forms,
         };
         match self.fade.frost.as_ref() {
             None => self.fade.marks.frost = None,
             Some(((key, _), _)) if !self.fade.marks.frost_reused => {
-                let page = take_page().unwrap_or_else(|| frame.form.clone());
+                let page = take_page().unwrap_or_else(|| frame.forms.clone());
                 self.fade.marks.frost = Some(Seen {
                     // not shown: the tours' check names the screen in its failure
                     screen: format!("{key:?}"),
-                    form: page,
+                    forms: page,
                 });
             }
             Some(_) => {}
@@ -395,14 +399,19 @@ impl Faraday {
         self.fade.marks.frame = Some(frame);
     }
 
-    /// The planted form the last frame drawn showed in its text, if any.
+    /// The planted forms the last frame drawn showed in its text.
     #[cfg(feature = "testkit")]
-    pub fn shown_form(&self) -> Option<String> {
-        self.fade.marks.frame.as_ref().and_then(|f| f.form.clone())
+    pub fn shown_forms(&self) -> crate::leaks::Forms {
+        self.fade
+            .marks
+            .frame
+            .as_ref()
+            .map(|f| f.forms.clone())
+            .unwrap_or_default()
     }
 
     /// The images the core keeps across frames now, each with the screen
-    /// it was made from and the planted form that screen showed, for the
+    /// it was made from and the planted forms that screen showed, for the
     /// tours' check (`docs/SECRET-LEAKS.md` §5). The frosted copy of the
     /// page under a sheet, and the two frames of a fade under way.
     #[cfg(feature = "testkit")]
@@ -414,7 +423,7 @@ impl Faraday {
                 out.push(KeptImage {
                     what,
                     screen: s.screen.clone(),
-                    form: s.form.clone(),
+                    forms: s.forms.clone(),
                 });
             }
         };

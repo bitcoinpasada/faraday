@@ -6,10 +6,14 @@
 //! with `testkit`.
 
 use std::cell::RefCell;
+use std::collections::BTreeSet;
 
 use faraday_draw::Canvas;
 
 use crate::ui::Ui;
+
+/// The names of the planted forms a frame's text shows, every one.
+pub type Forms = BTreeSet<String>;
 
 thread_local! {
     /// The planted forms, each a name and its text, as normalised by
@@ -17,9 +21,9 @@ thread_local! {
     /// see each other's.
     static FORMS: RefCell<Vec<(String, String)>> = const { RefCell::new(Vec::new()) };
     /// What the last frame that made a new frosted page found drawn when
-    /// the page was done, before the sheet over it: `Some(form)` once a
+    /// the page was done, before the sheet over it: `Some(forms)` once a
     /// frame made one.
-    static PAGE: RefCell<Option<Option<String>>> = const { RefCell::new(None) };
+    static PAGE: RefCell<Option<Forms>> = const { RefCell::new(None) };
 }
 
 /// Plants `forms`, each a name for the report and the text of one form of
@@ -60,23 +64,24 @@ fn words_of<'a>(texts: impl Iterator<Item = &'a str>) -> String {
     out
 }
 
-/// The name of the first planted form found in `texts`, the strings one
-/// frame drew; `None` when none is.
-pub fn find_form<S: AsRef<str>>(texts: &[S]) -> Option<String> {
+/// The names of every planted form found in `texts`, the strings one
+/// frame drew; empty when none is.
+pub fn find_forms<S: AsRef<str>>(texts: &[S]) -> Forms {
     if !planted() {
-        return None;
+        return Forms::new();
     }
     let drawn = words_of(texts.iter().map(AsRef::as_ref));
     FORMS.with(|f| {
         f.borrow()
             .iter()
-            .find(|(_, text)| drawn.contains(text.as_str()))
+            .filter(|(_, text)| drawn.contains(text.as_str()))
             .map(|(name, _)| name.clone())
+            .collect()
     })
 }
 
-/// The form found in what `c` recorded as drawn.
-pub(crate) fn find_in_ink(c: &Canvas) -> Option<String> {
+/// The forms found in what `c` recorded as drawn.
+pub(crate) fn find_in_ink(c: &Canvas) -> Forms {
     let texts: Vec<&str> = c
         .ink()
         .iter()
@@ -85,7 +90,7 @@ pub(crate) fn find_in_ink(c: &Canvas) -> Option<String> {
             _ => None,
         })
         .collect();
-    find_form(&texts)
+    find_forms(&texts)
 }
 
 /// Before a frame is drawn: turns ink recording on when a form is
@@ -100,10 +105,12 @@ pub(crate) fn begin(c: Option<&mut Canvas>) -> bool {
     }
 }
 
-/// After a frame is drawn: the form it showed, and recording off again
+/// After a frame is drawn: the forms it showed, and recording off again
 /// if [`begin`] turned it on.
-pub(crate) fn end(c: Option<&mut Canvas>, turned_on: bool) -> Option<String> {
-    let c = c?;
+pub(crate) fn end(c: Option<&mut Canvas>, turned_on: bool) -> Forms {
+    let Some(c) = c else {
+        return Forms::new();
+    };
     let found = find_in_ink(c);
     if turned_on {
         c.record_ink(false);
@@ -121,7 +128,7 @@ pub(crate) fn page_drawn(ui: &Ui<'_>) {
 }
 
 /// What the last page made for a frosted copy showed, once.
-pub(crate) fn take_page() -> Option<Option<String>> {
+pub(crate) fn take_page() -> Option<Forms> {
     PAGE.with(|p| p.borrow_mut().take())
 }
 
@@ -134,15 +141,15 @@ pub struct KeptImage {
     pub what: &'static str,
     /// The screen and sheet it was made from, as written for a report.
     pub screen: String,
-    /// The planted form its screen showed when it was made, if any.
-    pub form: Option<String>,
+    /// The planted forms its screen showed when it was made.
+    pub forms: Forms,
 }
 
-/// What a frame showed: its screen and the form found in its text.
+/// What a frame showed: its screen and the forms found in its text.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Seen {
     pub(crate) screen: String,
-    pub(crate) form: Option<String>,
+    pub(crate) forms: Forms,
 }
 
 /// The notes kept with the images of a fade.

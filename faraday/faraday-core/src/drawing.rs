@@ -554,8 +554,8 @@ impl Faraday {
         self.render_frame(only_moved);
         #[cfg(feature = "testkit")]
         {
-            let form = crate::leaks::end(self.canvas.as_mut(), recording);
-            self.fade_marks(only_moved, form);
+            let forms = crate::leaks::end(self.canvas.as_mut(), recording);
+            self.fade_marks(only_moved, forms);
         }
         self.kept.charts_done();
         self.drawing.clear();

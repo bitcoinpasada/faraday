@@ -4276,6 +4276,12 @@ impl Faraday {
         Some(((r.x + r.w / 2) as u16, (r.y + r.h / 2) as u16))
     }
 
+    /// Every control the last frame drawn offers, for the tours' check of
+    /// what a press opened (`docs/SECRET-LEAKS.md` §5).
+    pub fn offered_actions(&self) -> Vec<Action> {
+        self.pointer.hits().iter().map(|(_, a)| *a).collect()
+    }
+
     /// The box the last frame drawn offers `action` in, in pixels
     /// (x, y, w, h): for a test that two controls do not overlap.
     pub fn hit_box(&self, action: Action) -> Option<(u16, u16, u16, u16)> {

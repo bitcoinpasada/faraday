@@ -15,6 +15,7 @@
 //! there under it.
 
 use crate::tour::Tour;
+use faraday_core::leaks::Forms;
 use faraday_core::testkit;
 use faraday_core::{Action, Screen, Sheet};
 use faraday_shell_api::App;
@@ -75,27 +76,53 @@ fn only_hides(a: Action) -> bool {
 #[derive(Default)]
 pub(crate) struct Opened {
     /// The controls that show and hide in turn pressed to show, on the
-    /// screen on show, each with the form the frame showed before it.
-    toggles: Vec<(Action, Option<String>)>,
-    /// The form the frame showed before the last press.
-    last: Option<String>,
+    /// screen on show, each with the forms the frame showed before it.
+    toggles: Vec<(Action, Forms)>,
+    /// The forms the frame showed before the last press.
+    last: Forms,
+    /// The presses since the screen changed or Lock, each with the controls
+    /// the frame offered and the forms it showed before the press: a
+    /// control that only hides hides what the press made it appear opened,
+    /// however many presses (a scroll, a tab) came between.
+    log: Vec<(Vec<Action>, Forms)>,
 }
 
 /// What the screen showed before a press.
 pub(crate) struct Before {
-    /// The planted form the last frame's text showed.
-    form: Option<String>,
-    /// The planted form an image the core keeps was made from.
-    kept: Option<String>,
-    /// The planted form the page under the open sheet showed, from its
+    /// The planted forms the last frame's text showed.
+    forms: Forms,
+    /// The planted forms an image the core keeps was made from.
+    kept: Forms,
+    /// The planted forms the page under the open sheet showed, from its
     /// frosted copy.
-    page: Option<String>,
+    page: Forms,
+    /// The controls the last frame offered.
+    offered: Vec<Action>,
     screen: Screen,
     sheet: Option<Sheet>,
 }
 
+impl Opened {
+    /// The forms the frame showed before the press that made control `a`
+    /// appear, which stays on screen until now: the last entry of the log
+    /// is the press `a` is pressed at. Without such a press in the log,
+    /// the forms before the press before it.
+    fn opener_forms(&self, a: Action) -> Forms {
+        let last = self.log.len() - 1;
+        let mut from = last;
+        while from > 0 && self.log[from - 1].0.contains(&a) {
+            from -= 1;
+        }
+        if from > 0 {
+            self.log[from - 1].1.clone()
+        } else {
+            self.last.clone()
+        }
+    }
+}
+
 impl Tour {
-    /// The state before a press: the planted form the last frame showed,
+    /// The state before a press: the planted forms the last frame showed,
     /// what the images kept were made from, and its screen and sheet.
     pub(crate) fn leak_before(&mut self, a: Action) -> Before {
         // A control of hiding is pressed on the screen as a person sees it:
@@ -105,12 +132,14 @@ impl Tour {
         }
         let kept = self.app.kept_images();
         Before {
-            form: self.app.shown_form(),
-            kept: kept.iter().find_map(|k| k.form.clone()),
+            forms: self.app.shown_forms(),
+            kept: kept.iter().flat_map(|k| k.forms.clone()).collect(),
             page: kept
                 .iter()
-                .find(|k| k.what == "frost")
-                .and_then(|k| k.form.clone()),
+                .filter(|k| k.what == "frost")
+                .flat_map(|k| k.forms.clone())
+                .collect(),
+            offered: self.app.offered_actions(),
             screen: self.app.screen,
             sheet: self.app.sheet,
         }
@@ -121,25 +150,26 @@ impl Tour {
     }
 
     /// Whether press `a` hid a secret, and if so what may still be shown:
-    /// the form the frame showed before the thing hidden was opened. A
+    /// the forms the frame showed before the thing hidden was opened. A
     /// control that shows and hides in turn hides when pressed again on
     /// what it opened; pressed with no secret drawn, or first, it opens.
-    /// A control that only hides hides what the press before it opened.
-    fn hide_of(&mut self, a: Action, before: &Before) -> Option<Option<String>> {
+    /// A control that only hides hides what was opened before it: by the
+    /// press that made the control appear, else by the press before it.
+    fn hide_of(&mut self, a: Action, before: &Before) -> Option<Forms> {
         if !hides(a) {
             return None;
         }
         if only_hides(a) {
-            return Some(self.opened.last.clone());
+            return Some(self.opened.opener_forms(a));
         }
         let at = self.opened.toggles.iter().position(|(t, _)| *t == a);
-        match (at, &before.form) {
-            (Some(i), Some(_)) => Some(self.opened.toggles.remove(i).1),
+        match (at, before.forms.is_empty()) {
+            (Some(i), false) => Some(self.opened.toggles.remove(i).1),
             (at, _) => {
                 if let Some(i) = at {
                     self.opened.toggles.remove(i);
                 }
-                self.opened.toggles.push((a, before.form.clone()));
+                self.opened.toggles.push((a, before.forms.clone()));
                 None
             }
         }
@@ -151,15 +181,22 @@ impl Tour {
     /// tour.
     pub(crate) fn leak_after(&mut self, a: Action, before: &Before, restarts: u32) {
         let lock = restarts != self.restarts || matches!(a, Action::Lock | Action::LockUnsealed);
+        if self.opened.log.len() >= 256 {
+            self.opened.log.remove(0);
+        }
+        self.opened
+            .log
+            .push((before.offered.clone(), before.forms.clone()));
         let hide = self.hide_of(a, before);
-        self.opened.last = before.form.clone();
+        self.opened.last = before.forms.clone();
         if lock || self.app.screen != before.screen {
             self.opened.toggles.clear();
+            self.opened.log.clear();
         }
         // A frame is drawn only where it can matter: the screen showed or
         // kept a secret, or the press locked. Drawing after every press
         // would move the app's own work, which a frame starts.
-        let shown = before.form.is_some() || before.kept.is_some();
+        let shown = !before.forms.is_empty() || !before.kept.is_empty();
         if !lock && !shown {
             return;
         }
@@ -168,11 +205,11 @@ impl Tour {
         let left_page = self.app.screen != before.screen;
         let left_sheet = !left_page && before.sheet.is_some() && self.app.sheet != before.sheet;
         let (event, stays) = if lock && !asking {
-            ("Lock", None)
-        } else if let (Some(stays), Some(_)) = (hide, &before.form) {
+            ("Lock", Forms::new())
+        } else if let (Some(stays), false) = (hide, before.forms.is_empty()) {
             ("a hide", stays)
         } else if left_page {
-            ("leaving a page", None)
+            ("leaving a page", Forms::new())
         } else if left_sheet {
             ("leaving a sheet", before.page.clone())
         } else {
@@ -184,13 +221,13 @@ impl Tour {
             self.n + 1,
             self.leak_key()
         );
-        let wrong = |form: Option<String>| form.filter(|f| stays.as_ref() != Some(f));
-        if let Some(form) = wrong(self.app.shown_form()) {
+        let wrong = |forms: Forms| forms.into_iter().filter(|f| !stays.contains(f));
+        for form in wrong(self.app.shown_forms()) {
             self.leaks
                 .push(format!("{at}: the frame's text shows {form}"));
         }
         for k in self.app.kept_images() {
-            if let Some(form) = wrong(k.form) {
+            for form in wrong(k.forms) {
                 self.leaks.push(format!(
                     "{at}: the kept {} of {} shows {form}",
                     k.what, k.screen

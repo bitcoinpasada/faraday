@@ -125,7 +125,8 @@ showed one**,
 the check reads:
 
 - the text the frame drew (the lines the budget tests already count),
-  against every form of §3 that is text;
+  against every form of §3 that is text, every form it shows noted, not
+  only the first;
 - every frame the core keeps across frames: a sheet's frosted copy of the
   page under it (`Ui::frost`) and the fade's previous frame
   (`faraday-core/src/fade.rs`), and any other kept image. A kept image
@@ -140,7 +141,10 @@ one of the three is not counted. A control that shows and hides in turn
 (an eye, Show the seed) hides when it is pressed again on what it opened;
 pressed first, it opens, though another secret is on the screen. After a
 hide the frame may still show what it showed before the thing hidden was
-opened (a paper form hidden while the seed the person opened stays). A
+opened, which is the press that made the hide control appear, however
+many presses (a scroll, a tab) came between opening it and hiding it (a
+paper form hidden while the seed the person opened stays);
+a form that appeared with the thing hidden is a hit. A
 sheet opened over a page does not leave the page: the page is still there
 under the sheet, and its frosted copy and the fade into the sheet hold it
 rightly. Leaving a sheet (closed, or giving way to another) may leave only
