@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (F250); the allocator, the flow tests, the tours' check and the clippy refusal of `clone`, `to_string` and `to_owned` (each secret-holding crate's own `clippy.toml`) are built, the rest is in its Open line.
-**Open:** §6's refusal of `to_vec` and `String::from`, and the registry's lint that keeps the allocator out of a shipped manifest (§10).
+**Open:** §6's refusal of `to_vec` and `String::from`.
 
 Faraday keeps its secrets in types that wipe on drop (`Secret`,
 `SecretText`, `Zeroizing`, `faraday-keys`' holders, `docs/KEYS.md`), and
@@ -227,8 +227,9 @@ remember:
 - a secret type follows §6: a **held** rule through clippy and
   `lint-secrets`;
 - a change to an allowed entry or to the forms of §3 names its reason,
-  and a test crate's manifest that is shipped never lists the allocator:
-  a **review** rule and a **held** one;
+  and a manifest never lists the allocator, `faraday-leak-scan`, outside
+  a `dev-dependencies` table (`lint-secrets`, rule 6): a **review** rule
+  and a **held** one;
 - a change to how a secret is handled in a local, indexed by or compared:
   a **review** rule that says what the tests cannot see (§8).
 

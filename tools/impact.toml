@@ -879,6 +879,15 @@ kind = "review"
 misses = "everything; no test or script sees a stack temporary, timing or a load indexed by a secret (later work under the Security scope)"
 
 [[rule]]
+id = "keys.leak-allocator-test-only"
+title = "the leak tests' allocator, faraday-leak-scan, is listed only under a manifest's dev-dependencies, never in a shipped crate's dependencies"
+source = ["docs/SECRET-LEAKS.md §10", "docs/decisions/F250.md"]
+when = ["**/Cargo.toml"]
+kind = "held"
+held_by = ["lint-secrets"]
+misses = "an allocator of the same kind under another crate name, and a build that adds the crate by a flag and not a manifest"
+
+[[rule]]
 id = "keys.child-vault-only"
 title = "that a seed is a BIP-85 child of another is kept only in a vault, and only when recorded; nothing written outside one says so, nor of a BIP-85 password"
 source = ["docs/decisions/F166.md", "docs/decisions/F172.md"]
