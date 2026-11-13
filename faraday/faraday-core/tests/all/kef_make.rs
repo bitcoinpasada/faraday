@@ -209,7 +209,7 @@ fn the_label_and_the_files_say_nothing_of_the_contents() {
     }
     for name in [&code.png_name, &code.file_name] {
         for word in ["seed", "words", "passphrase", "hunter"] {
-            assert!(!name.contains(word), "{word} in {name}");
+            assert!(!name.contains(word), "{word} in {}", &**name);
         }
     }
 }
@@ -222,11 +222,11 @@ fn the_picture_and_the_file_go_to_the_outbox() {
     let code = made(&mut app, &options);
     app.kef_save_made(&code);
     let names: Vec<_> = app.outbox.iter().map(|i| i.name.clone()).collect();
-    assert!(names.contains(&code.png_name), "{names:?}");
+    assert!(names.iter().any(|n| *n == *code.png_name), "{names:?}");
     let file = app
         .outbox
         .iter()
-        .find(|i| i.name == code.file_name)
+        .find(|i| i.name == *code.file_name)
         .unwrap();
     assert_eq!(*file.bytes, *code.bytes);
 }

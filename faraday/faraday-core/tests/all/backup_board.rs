@@ -2852,7 +2852,7 @@ fn a_seed_kept_only_as_a_krux_code_is_still_kept_nowhere() {
     assert!(map_holds(&app, What::KefCodePaper(0)));
     let kept = app.backup_kept_nowhere(&c).expect("still kept nowhere");
     let seed = String::from(&*backup_shape(&app).seeds[0].name);
-    assert!(kept.contains(&seed), "{kept}");
+    assert!(kept.contains(&seed), "{}", &*kept);
 }
 
 /// A 15-word seed's **Krux code…** is there, dimmed, and does nothing.

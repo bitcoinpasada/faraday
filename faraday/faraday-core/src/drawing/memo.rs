@@ -140,13 +140,13 @@ impl View<'_> {
         wl: &crate::wallet::Wallet,
         change: bool,
         index: u32,
-    ) -> (String, bool) {
+    ) -> (faraday_text::Text, bool) {
         crate::held::receive_line_on(self, wl, change, index)
     }
 
     /// The line said in place of Make the checklist
     /// ([`crate::Faraday::backup_kept_nowhere`]), from the memo.
-    pub fn backup_kept_nowhere(&self) -> Option<String> {
+    pub fn backup_kept_nowhere(&self) -> Option<faraday_text::Text> {
         crate::held::backup_kept_nowhere_on(self)
     }
 

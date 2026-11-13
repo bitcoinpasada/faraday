@@ -14,6 +14,7 @@ use crate::worker::kef_make;
 use crate::worker::{Answer, Busy, Done, Job};
 use crate::{Action, Command, Faraday, Later, motion};
 use faraday_keys::kef::{Envelope, OpenError, OpenJob, Opened, Progress, SealError, SealJob};
+use faraday_text::Text;
 use std::sync::Arc;
 use zeroize::Zeroizing;
 
@@ -659,7 +660,7 @@ impl Faraday {
     pub fn kef_take_made(
         &mut self,
         options: &kef_make::Options,
-    ) -> Option<Result<kef_make::Made, String>> {
+    ) -> Option<Result<kef_make::Made, Text>> {
         let answer = self.kef_take_sealed()?;
         let bytes = match answer {
             Ok(b) => b,
@@ -674,8 +675,8 @@ impl Faraday {
     /// the Outbox, beside any other of the same name in the Outbox or Files. Neither is a secret
     /// (`docs/QR.md` §7.1). Gives the name the toast reads: the picture's,
     /// or the file's when there is no picture.
-    pub fn kef_save_made(&mut self, made: &kef_make::Made) -> String {
-        self.kef_save_files(made).toast_name().to_string()
+    pub fn kef_save_made(&mut self, made: &kef_make::Made) -> Text {
+        Text::of(self.kef_save_files(made).toast_name())
     }
 
     /// Costs a picture's PNG and a comparison with the files of those
@@ -692,9 +693,6 @@ impl Faraday {
             png.as_ref().map(|(n, b)| (n.as_str(), b.clone())),
             (&made.file_name, made.bytes.to_vec()),
         );
-        kef_make::Saved {
-            png: png.map(|t| String::from(&*t)),
-            file: String::from(&*file),
-        }
+        kef_make::Saved { png, file }
     }
 }

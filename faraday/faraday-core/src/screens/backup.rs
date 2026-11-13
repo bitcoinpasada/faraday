@@ -513,12 +513,7 @@ fn plan_body(
     if let Some(line) = crate::plan::cards::stickless_line(app, ctx) {
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 12.0;
     }
-    if let Some(line) = crate::plan::cards::held_line(
-        app,
-        ctx,
-        app.backup_kept_nowhere()
-            .map(|s| faraday_text::Text::of(&s)),
-    ) {
+    if let Some(line) = crate::plan::cards::held_line(app, ctx, app.backup_kept_nowhere()) {
         // On a small panel, where the way on is pinned at the foot, the
         // line takes its place there, greyed.
         if ui.pinning {

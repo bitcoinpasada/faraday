@@ -78,8 +78,8 @@ fn kept(app: &Faraday, i: usize) -> Option<KefMark> {
             let m = f.made()?;
             let s = f.saved()?;
             Some(KefMark {
-                png: s.png.as_deref().map(faraday_text::Text::of),
-                file: faraday_text::Text::of(&s.file),
+                png: s.png.clone(),
+                file: s.file.clone(),
                 checked: f.checked(),
                 sha: m.sha,
                 low: m.low,
@@ -265,8 +265,8 @@ fn restore(app: &mut Faraday, i: usize, form: &mut KefForm) {
     form.restore(
         made,
         Saved {
-            png: m.png.as_deref().map(Into::into),
-            file: m.file.as_str().into(),
+            png: m.png.as_deref().map(Text::of),
+            file: Text::of(&m.file),
         },
         m.checked,
         m.scanned,

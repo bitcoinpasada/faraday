@@ -359,7 +359,7 @@ fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
     for (change, i) in [(false, 0), (false, 7), (true, 3)] {
         assert_eq!(
             app.receive_line(&c, wl, change, i),
-            (WARNING.to_string(), true)
+            (faraday_text::Text::of(WARNING), true)
         );
     }
     app.press(Action::Backup(w));

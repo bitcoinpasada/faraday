@@ -14,8 +14,10 @@ use faraday_keys::kef::{
 };
 
 use crate::qr_view::QrView;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::worker::kef::{KefId, KefStart};
+use core::fmt::Write;
+use faraday_text::Text;
 
 /// What the code's id is (`docs/KEF.md` §10).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -222,12 +224,12 @@ pub fn refusal_line(e: SealError) -> &'static str {
 }
 
 /// [`refusal_line`] with the version that works filled in.
-pub fn refusal_text(e: SealError) -> String {
+pub fn refusal_text(e: SealError) -> Text {
     match e {
         SealError::Duplicate { instead } | SealError::NulEnd { instead } => {
-            fill(refusal_line(e), &[&instead.to_string()])
+            Text::fill(refusal_line(e), &[&Text::num(u64::from(instead))])
         }
-        _ => refusal_line(e).to_string(),
+        _ => Text::of(refusal_line(e)),
     }
 }
 
@@ -265,9 +267,9 @@ pub struct Made {
     /// The code on a sheet, when it fits one code; otherwise why not.
     pub view: Result<QrView, faraday_text::Text>,
     /// The picture's file name.
-    pub png_name: String,
+    pub png_name: Text,
     /// The bytes' file name.
-    pub file_name: String,
+    pub file_name: Text,
     /// The SHA-256 of the bytes; public.
     pub sha: [u8; 32],
     /// The picture was drawn at low error correction.
@@ -280,15 +282,15 @@ pub struct Made {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Saved {
     /// The picture's, when the code fits one.
-    pub png: Option<String>,
+    pub png: Option<Text>,
     /// The bytes' file.
-    pub file: String,
+    pub file: Text,
 }
 
 impl Saved {
     /// The name a toast reads: the picture's, else the file's.
     pub(crate) fn toast_name(&self) -> &str {
-        self.png.as_deref().unwrap_or(&self.file)
+        self.png.as_deref().unwrap_or(&*self.file)
     }
 }
 
@@ -302,16 +304,22 @@ pub(crate) fn made(c: &Compute, bytes: zeroize::Zeroizing<Vec<u8>>, options: &Op
         .map_or((options.version, options.count, Vec::new()), |e| {
             (e.version, e.count, e.id.clone())
         });
-    let hex: String = id.iter().take(4).map(|b| format!("{b:02x}")).collect();
-    let v = version.to_string();
-    let png_name = fill(EN.kef_code_png_name, &[&v, &hex]);
-    let file_name = fill(EN.kef_code_file_name, &[&v, &hex]);
-    let mut lines = vec![fill(EN.kef_code_label_version, &[&v, &count.to_string()])];
+    let mut hex = Text::new();
+    for b in id.iter().take(4) {
+        let _ = write!(hex, "{b:02x}");
+    }
+    let v = Text::num(u64::from(version));
+    let png_name = Text::fill(EN.kef_code_png_name, &[&v, &hex]);
+    let file_name = Text::fill(EN.kef_code_file_name, &[&v, &hex]);
+    let mut lines = vec![Text::fill(
+        EN.kef_code_label_version,
+        &[&v, &Text::num(u64::from(count))],
+    )];
     let mut label = false;
     if matches!(options.id, IdChoice::Label(_))
         && let Some(t) = id_text(&id)
     {
-        lines.push(fill(EN.kef_code_label_id, &[t]));
+        lines.push(Text::fill(EN.kef_code_label_id, &[t]));
         label = true;
     }
     let text = faraday_codec::kef::base43_encode(&bytes);

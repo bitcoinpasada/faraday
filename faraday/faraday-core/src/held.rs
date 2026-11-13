@@ -8,7 +8,6 @@
 //! line. A key loaded from a vault that says so is held again.
 
 use crate::strings::EN;
-use crate::strings::fill;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::RecordView;
@@ -267,7 +266,7 @@ impl Faraday {
         wl: &wallet::Wallet,
         change: bool,
         index: u32,
-    ) -> (String, bool) {
+    ) -> (Text, bool) {
         receive_line_on(&Now { app: self, c }, wl, change, index)
     }
 
@@ -297,7 +296,7 @@ impl Faraday {
 
     /// Costs what `backup_kept_nowhere_on` costs. The line said in place of
     /// Make the checklist, for a decision ([`backup_kept_nowhere_on`]).
-    pub fn backup_kept_nowhere(&self, c: &Compute) -> Option<String> {
+    pub fn backup_kept_nowhere(&self, c: &Compute) -> Option<Text> {
         backup_kept_nowhere_on(&Now { app: self, c })
     }
 
@@ -404,18 +403,17 @@ impl Faraday {
         // The toast names only what signs now: a key another hold keeps is
         // not among them.
         let held = self.held_keys_now(&c);
-        let names: Vec<String> = released
-            .iter()
-            .filter(|(fp, _)| !held.contains(fp))
-            .map(|(fp, _)| String::from(&*fp_text(*fp)))
-            .collect();
+        let mut names = Text::new();
+        for (fp, _) in released.iter().filter(|(fp, _)| !held.contains(fp)) {
+            if !names.is_empty() {
+                names.push_str(", ");
+            }
+            names.push_str(&fp_text(*fp));
+        }
         if names.is_empty() {
             return;
         }
-        self.toast(&fill(
-            EN.held_signs_from_now,
-            &[&names.join(", ").to_string()],
-        ));
+        self.toast(&Text::fill(EN.held_signs_from_now, &[&names]));
     }
 
     /// Costs what `with_same_words` costs. The fingerprints of the keys of
@@ -601,14 +599,14 @@ impl Faraday {
                     .iter()
                     .any(|h| h.eq_ignore_ascii_case(&text))
                 {
-                    let kept: String = answers
-                        .lines()
-                        .filter(|l| {
-                            !l.strip_prefix("held ")
-                                .is_some_and(|h| h.trim().eq_ignore_ascii_case(&text))
-                        })
-                        .map(|l| format!("{l}\n"))
-                        .collect();
+                    let mut kept = Text::new();
+                    for l in answers.lines().filter(|l| {
+                        !l.strip_prefix("held ")
+                            .is_some_and(|h| h.trim().eq_ignore_ascii_case(&text))
+                    }) {
+                        kept.push_str(l);
+                        kept.push_str("\n");
+                    }
                     self.vaults.edit(id, |s| {
                         s.set_public(id, i, field::PLAN_ANSWERS, kept.as_bytes())
                     });
@@ -780,19 +778,14 @@ impl Faraday {
             if !key.has_passphrase {
                 continue;
             }
-            let pass = zeroize::Zeroizing::new(
-                self.session
-                    .keys
-                    .reveal(
-                        k,
-                        faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Passphrase),
-                    )
-                    .to_string(),
-            );
+            let pass = Text::of(&self.session.keys.reveal(
+                k,
+                faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Passphrase),
+            ));
             let record = Record::new(kind::PASSPHRASE)
                 .with(field::PASSPHRASE_KEY, &fp.0)
                 .with(field::PASSPHRASE, pass.as_bytes());
-            let said = fill(EN.plan_passphrase_label, &[&fp_text(fp)]);
+            let said = Text::fill(EN.plan_passphrase_label, &[&fp_text(fp)]);
             self.vault_push_in(cur, record, &said);
         }
         // Each codex32 string the plan keeps in the vault, as a share
@@ -829,7 +822,11 @@ impl Faraday {
             else {
                 continue;
             };
-            let share = char::from(index).to_ascii_uppercase().to_string();
+            let share = Text::of(
+                char::from(index)
+                    .to_ascii_uppercase()
+                    .encode_utf8(&mut [0; 4]),
+            );
             // Only a string of the plan's set is written: a key loaded
             // with another set holds strings that are not it.
             let record = self
@@ -844,19 +841,19 @@ impl Faraday {
                 .flatten();
             match record {
                 Some(record) => {
-                    let said = fill(
+                    let said = Text::fill(
                         EN.c32_vault_saved,
                         &[&share, &fp.map(fp_text).unwrap_or_default()],
                     );
                     self.vault_push_in(cur, record, &said);
                 }
-                None => self.toast(&fill(EN.c32_vault_missing, &[&share, &form.1])),
+                None => self.toast(&Text::fill(EN.c32_vault_missing, &[&share, &form.1])),
             }
         }
         let Some((name, cs, desc)) = self.session.wallets.get(w).map(|wl| {
             (
                 wl.name.clone(),
-                wl.checksum().to_string(),
+                Text::of(wl.checksum()),
                 Faraday::wallet_text(wl),
             )
         }) else {
@@ -894,15 +891,22 @@ impl Faraday {
                 .with(field::SHARE_NUMBER, &[number])
                 .with(field::SHARE_OF, &[u8::try_from(of).unwrap_or(u8::MAX)])
                 .with(field::SHARE_WALLET, desc.as_bytes());
-            let said = fill(
+            let said = Text::fill(
                 EN.backup_flow_vault_share,
-                &[&name, &(j + 1).to_string(), &of.to_string()],
+                &[
+                    &name,
+                    &Text::num(u64::try_from(j + 1).unwrap_or(u64::MAX)),
+                    &Text::num(u64::try_from(of).unwrap_or(u64::MAX)),
+                ],
             );
             self.vault_push_in(cur, record, &said);
         }
         self.plan_save();
         for (share, id) in self.backup_vault_c32_left(&c, cur, v) {
-            self.toast(&fill(EN.c32_vault_left, &[&share.to_string(), &id]));
+            self.toast(&Text::fill(
+                EN.c32_vault_left,
+                &[share.encode_utf8(&mut [0; 4]), &id],
+            ));
         }
     }
 
@@ -995,12 +999,12 @@ pub(crate) fn receive_line_on(
     wl: &wallet::Wallet,
     change: bool,
     index: u32,
-) -> (String, bool) {
+) -> (Text, bool) {
     if receive_held_on(r, wl) {
-        return (crate::glance::RECEIVE_WARNING.to_string(), true);
+        return (Text::of(crate::glance::RECEIVE_WARNING), true);
     }
     (
-        String::from(&*crate::ui::grouped(&r.address_shown(wl, change, index))),
+        crate::ui::grouped(&r.address_shown(wl, change, index)),
         false,
     )
 }
@@ -1026,7 +1030,7 @@ pub(crate) fn backup_held_seeds_on(r: &impl Reads) -> Vec<usize> {
 /// The line said in place of Make the checklist, when the plan keeps no
 /// copy of a key made here, or of its passphrase. Read through `r`
 /// ([`Reads`]).
-pub(crate) fn backup_kept_nowhere_on(r: &impl Reads) -> Option<String> {
+pub(crate) fn backup_kept_nowhere_on(r: &impl Reads) -> Option<Text> {
     let b = r.app().backup()?;
     let shape = r.plan_shape(b.wallet);
     plan::kept_nowhere_on(
@@ -1034,5 +1038,4 @@ pub(crate) fn backup_kept_nowhere_on(r: &impl Reads) -> Option<String> {
         &r.plan_mapped(&shape, &b.answers),
         &backup_held_seeds_on(r),
     )
-    .map(|t| String::from(&*t))
 }
