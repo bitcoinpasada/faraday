@@ -865,7 +865,7 @@ impl Keys {
     ) -> (Vec<Fingerprint>, crate::job::Derived, Vec<Refusal>) {
         let mut out = Vec::new();
         if loaded.network != self.network {
-            return (out, crate::job::Derived::default());
+            return (out, crate::job::Derived::default(), Vec::new());
         }
         let mut derived = Vec::new();
         // Why keys were left out: those the job could not make, then those
