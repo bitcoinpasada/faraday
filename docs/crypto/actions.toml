@@ -4628,6 +4628,7 @@ functions = [
   "faraday/faraday-keys/src/core_wallet.rs::check_private_key_accounts",
   "faraday/faraday-keys/src/core_wallet.rs::check_encrypted_keys_accounts",
   "faraday/faraday-core-wallet/src/normal.rs::key",
+  "faraday/faraday-core-wallet/src/normal.rs::extended_key_bytes",
   "faraday/faraday-keys/src/core_wallet.rs::hash256",
   "faraday/faraday-core-wallet/src/lib.rs::descriptor_id",
   "core/faraday-bip/src/descriptor.rs::key_facts",
@@ -4658,7 +4659,7 @@ decision = "F229"
 [action.checked]
 vectors = ["core-wallet"]
 crosscheck = "core_wallet"
-independence = { class = "outside", author = "Bitcoin Core (the pinned release's bitcoind on regtest), which makes each wallet and says what it holds (listdescriptors, getwalletinfo, walletpassphrase) and loads or refuses each changed file (loadwallet)" }
+independence = { class = "outside", author = "Bitcoin Core (the pinned release's bitcoind on regtest), which makes each wallet and says what it holds (listdescriptors, getwalletinfo, walletpassphrase) and loads or refuses each changed file (loadwallet); and Bitcoin Core's test framework base58check (`tools/reference/core/test_framework/address.py`, `base58_to_byte`), which decodes the extended keys of Core's descriptors and changes of them" }
 tests = [
   "faraday/faraday-core/tests/all/core_wallet.rs::keys_pass_and_an_encrypted_wallet_needs_its_passphrase",
   "faraday/faraday-core/tests/all/core_wallet.rs::a_changed_byte_is_refused_with_its_record_named",
@@ -4672,7 +4673,7 @@ tests = [
   "faraday/faraday-core/tests/all/core_wallet.rs::an_encrypted_wallet_holds_one_master_key_and_no_plain_key",
   "faraday/faraday-core/tests/all/core_wallet.rs::a_wallet_with_an_uncompressed_key_is_read_as_core_wrote_it",
 ]
-against = "Bitcoin Core's own wallets (`tools/vectors/core-wallet/gen.py` and the `core-wallet` cross-check area), read as Core's listdescriptors, getwalletinfo, walletpassphrase and loadwallet say"
+against = "Bitcoin Core's own wallets (`tools/vectors/core-wallet/gen.py` and the `core-wallet` cross-check area), read as Core's listdescriptors, getwalletinfo, walletpassphrase and loadwallet say; a descriptor's extended key and changes of it, decoded as Core's test framework's base58check does"
 fuzz_none = "The records are fuzzed through core_wallet_records, which reaches these functions."
 other = []
 

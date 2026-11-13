@@ -17,5 +17,10 @@ faraday-sqlite = { path = "../faraday-sqlite" }
 faraday-strings = { path = "../faraday-strings" }
 zeroize = { workspace = true, features = ["alloc"] }
 
+[features]
+# `extended_key_bytes_for_crosscheck`: the key decoder, so the cross-check can
+# compare it with another base58check. Turned on by tools/crosscheck only.
+crosscheck = []
+
 [lints]
 workspace = true

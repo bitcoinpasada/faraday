@@ -11,8 +11,11 @@ The other files are what those import: `key.py`, `script_util.py`,
 `util.py`, `coverage.py`, `authproxy.py` and the three
 `crypto/` modules. Nothing in them reaches the network when imported.
 
-Used by `tools/crosscheck/area_addr.py`, `area_tx.py`, `area_psbt.py`
-and `area_msg.py`.
+Used by `tools/crosscheck/area_addr.py`, `area_compile.py`,
+`area_core_wallet.py`, `area_hash.py`, `area_import.py`,
+`area_miniscript.py`, `area_musig.py`, `area_ots.py`, `area_psbt.py`,
+`area_review.py`, `area_sign.py`, `area_sign_check.py`, `area_taproot.py`
+and `area_tx.py`.
 
 Source: `https://github.com/bitcoin/bitcoin`, tag `v31.1`, commit
 `9be056a8a72b624dae9623b2f7bded92c2a21c91`, folder

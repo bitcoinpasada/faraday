@@ -32,6 +32,15 @@ itself: the pinned `bitcoind` on regtest, offline (`core_node.py`).
   listed differences. The header's database version changed, and a page no
   tree reaches, are each refused by both.
 
+- The extended keys in Core's descriptors on the run (tpubs, as regtest
+  writes them) are decoded by Faraday (`normal.rs::extended_key_bytes`, its own
+  base58check, kept in wiped memory) and by Bitcoin Core's `test_framework`
+  base58check (`address.py`, `base58_to_byte`), which Faraday did not write, as
+  the key, with one character changed, extra leading `1`s, a character cut or
+  added, a character outside the alphabet, a valid checksum over 1, 77, 79 and
+  80 bytes, and the key under the mainnet version: both accept or both refuse,
+  and the accepted 78 bytes are the same.
+
 Known differences, each checked to still hold and counted: see
 `KNOWN`, `KNOWN_SHOWN`, `LENIENT` and `SLOW` below; each is made in
 `directed()` and asked of Core.
@@ -51,7 +60,11 @@ import shutil
 import sqlite3
 
 import core_node
-from common import ROOT, Area, Mismatch, reference
+import re
+from common import ROOT, Area, Mismatch, reference, use_reference
+
+use_reference("core")
+from test_framework.address import base58_to_byte, byte_to_base58  # noqa: E402
 
 VECTORS = ROOT / "tools" / "vectors" / "core-wallet"
 PASSPHRASE = "faraday"
@@ -206,6 +219,46 @@ LOCATORS = ("bestblock_nomerkle", "bestblock")
 # The records whose fault asks Core's address book (`wants_book`).
 BOOK = (("purpose", "Layout"), ("name", "Layout"))
 CROSS_CHAIN = "Wallet files should not be reused across chains"
+
+
+def core_key_bytes(text):
+    """The 78 bytes of an extended key in base58check as Bitcoin Core's
+    test framework (`test_framework/address.py`) decodes it, which checks the
+    alphabet and the checksum, and the length asked here: or an error."""
+    res = base58_to_byte(text)
+    if not isinstance(res, tuple):
+        raise ValueError("empty")
+    data, version = res
+    out = bytes([version]) + data
+    if len(out) != 78:
+        raise ValueError("not 78 bytes")
+    return out.hex()
+
+
+def key_texts(rng, text):
+    """`text`, an extended key Core wrote, and the changes of it that a
+    reader must refuse or read as the reference does."""
+    data, version = base58_to_byte(text)
+    raw = bytes([version]) + data
+    at = rng.randrange(len(text))
+    other = rng.choice([c for c in B58 if c != text[at]])
+    yield text
+    yield text[:at] + other + text[at + 1:]
+    yield "1" + text
+    yield "11" + text
+    yield text + "1"
+    yield text + rng.choice(B58)
+    yield text[:-1]
+    yield text[1:]
+    yield text[:at] + rng.choice("0OIl+/ ") + text[at + 1:]
+    yield ""
+    yield "1111"
+    # A valid checksum over a body of another length, and the same key
+    # under the mainnet version.
+    for n in (1, 77, 79, 80):
+        body = raw[:n] if n <= 78 else raw + rng.randbytes(n - 78)
+        yield byte_to_base58(body[1:], body[0])
+    yield byte_to_base58(bytes.fromhex("0488b21e")[1:] + raw[4:], 0x04)
 
 
 def record_type(key_hex):
@@ -430,16 +483,21 @@ class CoreWallet(Area):
     faraday = (
         "`faraday_core_wallet::read_file` (a wallet.dat read whole through "
         "`faraday_sqlite`, the records read and checked, the private keys checked in "
-        "`faraday-keys`)"
+        "`faraday-keys`), and `normal.rs::extended_key_bytes` (an extended key's own "
+        "base58check decoding, through `faraday_core_wallet::extended_key_bytes_for_crosscheck`)"
     )
     reference = (
         "Bitcoin Core v31.1's `bitcoind` on regtest, offline: it makes each wallet "
         "(`createwallet`, `encryptwallet`, `importdescriptors`, `getnewaddress` with labels, "
         "`generatetoaddress`), says what it holds (`listdescriptors` and "
         "`listdescriptors true`, `getwalletinfo`), opens the passphrase "
-        "(`walletpassphrase`) and loads or refuses a changed file (`loadwallet`)"
+        "(`walletpassphrase`) and loads or refuses a changed file (`loadwallet`); and its "
+        "test framework's base58check (`tools/reference/core/test_framework/address.py`, "
+        "`base58_to_byte`), an implementation Faraday did not write, which decodes the "
+        "extended keys of Core's descriptors and changes of them"
     )
     reference_checked = (
+        "the vendored test framework is hashed against `references.sha256` before any run; "
         "Core's release tarball is checked against its pinned SHA-256 "
         "(`tools/reference/core/release.pin`) before every run and the node's version is "
         "asked; every wallet.dat is one Core wrote and every answer is one Core gave of the "
@@ -707,6 +765,7 @@ class CoreWallet(Area):
             return faraday_listing(v["descriptors"])
 
         want_list = core_listing(facts["pub"])
+        self.keys_read(inputs, facts["pub"])
         # The right passphrase (or none needed).
         right = PASSPHRASE if encrypted else None
         v = need(ask(right), facts_of, "Faraday did not read a wallet Core made")
@@ -740,6 +799,23 @@ class CoreWallet(Area):
                 raise Mismatch(self.name, "core_wallet.read", inputs,
                                [n["passphrase"], n["whole"], n["keys_unchecked"]],
                                ["not-given", True, ">0"], "no passphrase")
+
+    def keys_read(self, inputs, entries):
+        """Faraday's decoding of an extended key's text, which the
+        descriptor reader does itself, against Core's test framework's
+        base58check on the keys of Core's own descriptors and on changes of
+        them: both accept and refuse alike, and the bytes accepted are the
+        same."""
+        keys = sorted({k for d in entries
+                       for k in re.findall(r"[tx]pub[1-9A-HJ-NP-Za-km-z]{100,}", d["desc"])})
+        for key in keys[:3]:
+            for text in key_texts(self.rng, key):
+                got = self.rust.call("core_wallet.xkey", text=text)
+                want = reference(lambda: core_key_bytes(text))
+                self.compared += 1
+                if got[0] != want[0] or (got[0] == "ok" and got[1] != want[1]):
+                    raise Mismatch(self.name, "core_wallet.xkey", {**inputs, "text": text}, got,
+                                   want, "the extended key's base58check decoding")
 
     def prelude(self):
         # The two files Core made for the vectors, with what it said then.
