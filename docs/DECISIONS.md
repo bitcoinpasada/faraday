@@ -34,7 +34,7 @@ Read this table, then only the decision you need.
 | [F17](history/decisions/F17.md) | The BitLocker step is the recovery key; suspending is the extra-safe choice | 2026-10-13 | Superseded by F33 | Starter |
 | [F18](decisions/F18.md) | Firmware sketches in Faraday Starter and the Companion | 2026-10-13 | Amended by F34, F105 | Starter |
 | [F19](decisions/F19.md) | Audits from experts and AIs, published with Faraday's response | 2026-10-13 | Active | repository |
-| [F20](decisions/F20.md) | Faraday Desktop's mainnet is the demo; test networks take any seed | 2026-10-14 | Amended by F81 | platforms |
+| [F20](decisions/F20.md) | Faraday Desktop's mainnet is the demo; test networks take any seed | 2026-10-14 | Amended by F81, F252 | platforms |
 | [F21](history/decisions/F21.md) | The BitLocker step is optional | 2026-10-14 | Superseded by F33 | Starter |
 | [F22](decisions/F22.md) | An armored GPG public key or signature is public | 2026-10-14 | Amended by F32 | signing |
 | [F23](decisions/F23.md) | The PC stick's kernel is 6.18 longterm, ahead of upstream's | 2026-10-14 | Active | stick |
@@ -266,3 +266,4 @@ Read this table, then only the decision you need.
 | [F249](decisions/F249.md) | The Argon QR Vault's specification, test vectors and their generator live in their own repository; Faraday keeps the reference implementation in `aqrv/`, `diff.py` and a pinned copy of the vectors | 2026-11-12 | Active | standards |
 | [F250](decisions/F250.md) | Tests fail on a secret left in memory (a test-only allocator over the flows) or on a screen (the tours), secret types derive no copy and compare, a known freed copy passes only through a named entry; stack temporaries and secret-indexed loads stay review-only; nothing is shipped | 2026-11-12 | Active | keys |
 | [F251](decisions/F251.md) | The check does not type-check the Starter's macOS code while macOS is paused; `just lint-macos` stays, run by hand | 2026-11-12 | Active | repository |
+| [F252](decisions/F252.md) | A shell can no longer fix a session's network; the website demo that used it is gone | 2026-11-12 | Active | platforms |

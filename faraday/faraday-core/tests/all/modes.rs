@@ -391,24 +391,3 @@ fn escape_closes_the_sheet_and_choosing_a_row_locks_into_its_mode() {
     assert!(app.restart_requested());
     assert_eq!(app.mode_after_restart(), Mode::Regtest);
 }
-
-#[test]
-fn a_fixed_sessions_sheet_offers_no_other_mode() {
-    let mut app = demo_app();
-    app.session.keys.fix_network();
-    shown_on(&mut app, false);
-    // The pill still opens the sheet.
-    assert!(crate::common::offered(&mut app, Action::ModeSheet));
-    app.press(Action::ModeSheet);
-    assert_eq!(app.sheet, Some(Sheet::Mode));
-    assert!(crate::common::offered(&mut app, Action::Mode(Mode::Demo)));
-    for m in [Mode::Testnet, Mode::Signet, Mode::Regtest] {
-        assert!(!crate::common::offered(&mut app, Action::Mode(m)), "{m:?}");
-    }
-    // The dimmed rows still name their modes, with no reason line.
-    let names = crate::common::texts(&mut app);
-    for want in ["Testnet", "Signet", "Regtest"] {
-        assert!(names.iter().any(|t| t == want), "{want}");
-    }
-    assert_eq!(app.sheet, Some(Sheet::Mode));
-}

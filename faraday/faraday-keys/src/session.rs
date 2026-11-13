@@ -376,9 +376,6 @@ pub struct Keys {
     /// The demo's public set, when the shell set it ([`Keys::set_demo`]).
     /// `None`, as on the stick: the session takes any key.
     demo: Option<Demo>,
-    /// Set by a shell that must stay on the network it started on
-    /// ([`Keys::fix_network`]): every other one is refused.
-    network_fixed: bool,
     /// While a stick is attached, the name the app gives it ("stick",
     /// "SD card"): no key is added (`docs/SECURITY-MODEL.md`). Kept in
     /// step with the sticks the shell reports by the one place they
@@ -417,7 +414,6 @@ impl Keys {
             entries: Vec::new(),
             network,
             demo: None,
-            network_fixed: false,
             stick: None,
             blind: None,
             sweep: None,
@@ -667,17 +663,6 @@ impl Keys {
     /// The network every key derives for.
     pub fn network(&self) -> Network {
         self.network
-    }
-
-    /// Whether the store's network is fixed ([`Keys::fix_network`]).
-    pub fn network_fixed(&self) -> bool {
-        self.network_fixed
-    }
-
-    /// Keeps the store on the network it is on: every move to another is
-    /// refused, a wallet's or a PSBT's included.
-    pub fn fix_network(&mut self) {
-        self.network_fixed = true;
     }
 
     /// Whether the demo is on: the shell set it up ([`Keys::set_demo`]).
@@ -988,13 +973,10 @@ impl Keys {
     /// taking the network of a wallet or a PSBT); no press of a person
     /// reaches it (F81, `docs/MODES.md` §2.7). The caller says whether
     /// wallets are loaded: they stop it moving between networks whose
-    /// keys are written differently. A fixed store stays on its network.
+    /// keys are written differently.
     pub fn set_network(&mut self, network: Network, wallets_loaded: bool) -> Result<(), Refusal> {
         if network == self.network {
             return Ok(());
-        }
-        if self.network_fixed {
-            return Err(Refusal::NetworkFixed(self.network));
         }
         if wallets_loaded && network.kind() != self.network.kind() {
             return Err(Refusal::Network {

@@ -157,11 +157,11 @@ impl Faraday {
     }
 
     /// Handles `Action::Mode`: a mode change is a lock. The mode in use,
-    /// one this app does not offer, or any while the network is fixed
-    /// closes the sheet and does nothing else. Otherwise the same ask as
+    /// or one this app does not offer closes
+    /// the sheet and does nothing else. Otherwise the same ask as
     /// Lock, and a fresh session in the mode; no warning comes first.
     pub(crate) fn mode_act(&mut self, m: Mode) {
-        if m == self.mode() || !self.modes().contains(&m) || self.session.keys.network_fixed() {
+        if m == self.mode() || !self.modes().contains(&m) {
             self.next_mode.clear();
             self.sheet = None;
             return;

@@ -10577,8 +10577,6 @@ strings! {
     core_wallet_berkeley: "This is a legacy Berkeley DB wallet; Bitcoin Core's migratewallet makes a descriptor wallet of it",
     /// Text in `text`. `{}`: `fp`.
     wallet_is_not_a_key: "{} is not a sample: Practice takes only samples",
-    /// Text in `text`. `{}`: `network_name(*n)`.
-    wallet_runs_on_only: "This app runs on {} only",
     /// Text in `text`: a wallet refused because one of its keys has a
     /// loaded key's fingerprint and is not what that key gives at its
     /// path. `{}`: the key's fingerprint.

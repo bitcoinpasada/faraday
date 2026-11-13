@@ -707,10 +707,10 @@ impl Session {
 
     /// Takes the network a wallet or a PSBT is on. The session moves to it
     /// only when all hold: no key and no wallet is loaded, it is not
-    /// Practice, its network is not fixed, and the mode that network is
-    /// belongs to [`Session::modes`]; that is the same as choosing the
-    /// mode on an empty session, so no lock is needed (F81,
-    /// `docs/MODES.md` §2.8). A network of the same kind needs no move.
+    /// Practice, and the mode that network is belongs to
+    /// [`Session::modes`]; that is the same as choosing the mode on an
+    /// empty session, so no lock is needed (F81, `docs/MODES.md` §2.8). A
+    /// network of the same kind needs no move.
     /// Anything else of another kind is refused, naming both networks.
     pub fn follow(&mut self, network: Option<Network>) -> Result<(), Refusal> {
         let Some(n) = network else { return Ok(()) };
@@ -718,9 +718,6 @@ impl Session {
             return Ok(());
         }
         let empty = self.keys.is_empty() && self.wallets.is_empty();
-        if self.keys.network_fixed() {
-            return Err(Refusal::NetworkFixed(self.network()));
-        }
         if !empty || self.keys.demo() || !self.modes.contains(&Mode::of(n)) {
             return Err(Refusal::Network {
                 offered: n,

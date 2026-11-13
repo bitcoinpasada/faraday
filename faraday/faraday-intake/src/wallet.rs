@@ -61,8 +61,6 @@ pub enum Refusal {
     },
     /// The demo is on, and this key is not one of its public seeds.
     NotAllowed(String),
-    /// The session's network is fixed, at this one.
-    NetworkFixed(Network),
     /// A stick is attached, called this ("stick", "SD card"): keys load
     /// only with none (`docs/SECURITY-MODEL.md`).
     StickAttached(&'static str),
@@ -108,7 +106,6 @@ impl Refusal {
                 &[network_name(*offered), network_name(*loaded)],
             ),
             Refusal::NotAllowed(fp) => fill(EN.wallet_is_not_a_key, &[&fp.to_string()]),
-            Refusal::NetworkFixed(n) => fill(EN.wallet_runs_on_only, &[network_name(*n)]),
             Refusal::StickAttached(noun) => fill(EN.stick_keys_keys_load, &[noun]),
             Refusal::SilentDiffers(fp) => fill(EN.wallet_silent_differs, &[&fp.to_string()]),
             Refusal::NotYourKey(fp) => fill(EN.wallet_not_your_key, &[&fp.to_string()]),

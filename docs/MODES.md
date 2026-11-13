@@ -64,8 +64,8 @@ and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
    code, and now it means Practice. `guide.rs`'s two conditions become one
    (`keys.demo()`).
 6. **A mode change is a lock.** `Action::Mode(Mode)`:
-   - the mode in use, or one not in `self.modes`, or any while the
-     session's network is fixed: closes the sheet, nothing else;
+   - the mode in use, or one not in `self.modes`: closes the sheet,
+     nothing else;
    - otherwise `self.next_mode = Some(m)` and `self.lock()`: the same
      LockAsk, the same refusal when the state cannot be kept
      (`not_kept`, which also clears `next_mode`), the same sheet the Lock
@@ -88,14 +88,12 @@ and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
    note (`network_row_items`, `network_row_note`) go.
 8. **`Session::follow`** (a wallet or a PSBT on another network) moves
    the session only when all hold: no key and no wallet loaded, not
-   Practice, the network not fixed, and the mode it moves to in the
-   caller's `modes`; it is then the same as choosing that mode on an
-   empty session, so no lock is needed. Otherwise a wallet or PSBT of
+   Practice, and the mode it moves to in the caller's `modes`; it is
+   then the same as choosing that mode on an empty session, so no lock
+   is needed. Otherwise a wallet or PSBT of
    another network kind is refused with today's `Refusal::Network` text.
    `follow` takes the allowed modes as an argument (`Session` does not
    know `Faraday`).
-9. A shell can fix the mode (`Keys::fix_network` on Testnet with the
-   demo set): the sheet lists the other three dimmed.
 
 ## 3. The pill and the mode sheet
 
@@ -124,9 +122,7 @@ and `docs/DEMO.md` differ, this holds until DEMO is brought in line.
   per mode in `self.modes`, in that order, divided by rules; the mode in
   use marked by a tick in the accent at the row's right; the Practice row
   carries "Testnet" muted before the tick's place; a press on another row is
-  `Action::Mode(m)`; **Not now** at the foot. A row that cannot be
-  chosen (the three a fixed mode leaves) is dimmed, its label alone: no reason
-  line (DESIGN §4.11, nothing on the device changes it). No line says a
+  `Action::Mode(m)`; **Not now** at the foot. No line says a
   change locks: the Lock sheet or LockAsk, where the lock needs one,
   says what it keeps.
 - Wide: a sheet centred, at most the Load sheet's width (F62,

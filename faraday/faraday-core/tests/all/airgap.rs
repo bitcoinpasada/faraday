@@ -123,20 +123,6 @@ fn a_mainnet_wallet_is_refused_on_a_test_network_holding_another_key() {
 }
 
 #[test]
-fn a_fixed_network_stays_whatever_is_chosen_or_loaded() {
-    let mut app = desktop();
-    app.session.keys.fix_network();
-    app.press(Action::Mode(Mode::Signet));
-    assert!(!app.restart_requested());
-    assert_eq!(app.mode_after_restart(), Mode::Demo);
-    assert_eq!(app.sheet, None);
-    load_wallet(&mut app, &wallet_on(Network::Mainnet));
-    assert!(app.session.wallets.is_empty());
-    let _ = app.frame();
-    assert_eq!(app.sheet, None);
-}
-
-#[test]
 fn the_device_changes_mode_without_the_warning() {
     let c = testkit::compute();
     let mut app = testkit::started();

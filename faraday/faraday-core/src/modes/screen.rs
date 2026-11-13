@@ -166,17 +166,14 @@ pub(crate) fn head(ui: &mut Ui, (x, y, w): (f32, f32, f32), icon: Icon, title: &
 fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     cy += head(ui, (x, cy, w), Icon::Settings, EN.mode_sheet_title);
-    let (now, fixed) = (app.mode(), app.session.keys.network_fixed());
+    let now = app.mode();
     let modes = app.modes();
     for (i, &m) in modes.iter().enumerate() {
         let ry = cy + i as f32 * MODE_ROW;
-        let live = m == now || !fixed;
+        let shape = Shape::new(x, ry + 2.0, w, MODE_ROW - 4.0, 8.0);
         let action = Action::Mode(m);
-        if live {
-            let shape = Shape::new(x, ry + 2.0, w, MODE_ROW - 4.0, 8.0);
-            ui.press_to(shape, (x, ry, w, MODE_ROW), Role::OnSurface.paint(), action);
-        }
-        mode_row(ui, x, ry, w, m, m == now, live);
+        ui.press_to(shape, (x, ry, w, MODE_ROW), Role::OnSurface.paint(), action);
+        mode_row(ui, x, ry, w, m, m == now);
         if i + 1 < modes.len() {
             ui.rule(x, ry + MODE_ROW, w, Role::OutlineVariant);
         }
@@ -193,14 +190,10 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// One row: the mode's name, Practice's network as its value, and the mark on
-/// the one in use. A mode that cannot be chosen is dimmed, its label alone.
-fn mode_row(ui: &mut Ui, x: f32, ry: f32, w: f32, m: Mode, on: bool, live: bool) {
+/// the one in use.
+fn mode_row(ui: &mut Ui, x: f32, ry: f32, w: f32, m: Mode, on: bool) {
     let mark = MODE_ROW;
-    let fg = if live {
-        Role::OnSurface.paint()
-    } else {
-        crate::ui::off()
-    };
+    let fg = Role::OnSurface.paint();
     ui.text_mid_as((x + GAP, ry, MODE_ROW), BODY_M, fg, m.name());
     if on {
         ui.icon(x + w - mark, ry, mark, Icon::Done, LABEL, Role::Primary);
@@ -208,11 +201,7 @@ fn mode_row(ui: &mut Ui, x: f32, ry: f32, w: f32, m: Mode, on: bool, live: bool)
     if m == Mode::Demo {
         let value = network_name(m.network());
         let vw = ui.measure_as(BODY_M, value);
-        let vc = if live {
-            Role::OnSurfaceVariant.paint()
-        } else {
-            crate::ui::off()
-        };
+        let vc = Role::OnSurfaceVariant.paint();
         ui.text_mid_as((x + w - mark - GAP - vw, ry, MODE_ROW), BODY_M, vc, value);
     }
 }
