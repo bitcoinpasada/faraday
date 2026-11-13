@@ -81,8 +81,10 @@
 #      key types, `zeroize`) and is in neither list is reported, so a new
 #      module is found without anyone adding it; so is a listed file that
 #      uses none (unless it is in NAMELESS, with its reason), an excepted
-#      file that no longer uses one or has no heap text (it moves to
-#      SECRET_FILES), and one listed twice.
+#      file that has no heap text (it moves to SECRET_FILES), and one
+#      listed twice. An excepted file leaves that list only into
+#      SECRET_FILES or because it is gone, since a file that holds wiping
+#      text (Text, not a secret name) is read by rule 3 only when listed.
 #
 # Rule 4, the key boundary, rule 5, the dev card's reports, and rule 6, the
 # test allocator, are described where they are checked, below.
@@ -588,7 +590,11 @@ faraday/faraday-core/src/fresh.rs
 faraday/faraday-core/src/fresh/roller/mod.rs
 faraday/faraday-core/src/edit.rs
 faraday/faraday-core/src/dice_entry/mod.rs
-faraday/faraday-core/src/kef_tool/mod.rs"
+faraday/faraday-core/src/kef_tool/mod.rs
+core/faraday-draw/src/canvas/list.rs
+faraday/faraday-core/src/qr_tool/screen.rs
+faraday/faraday-qr/src/specter.rs
+faraday/faraday-core/src/backup_flow/wallet_files.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
@@ -606,9 +612,14 @@ done
 #   glance/sheet.rs    shows a passphrase it reads from the store as wiping text
 #   dice_entry/mod.rs holds a diceware passphrase and the rolls as wiping text
 #   kef_tool/mod.rs    holds a KEF plaintext as wiping text
+#   restore.rs         holds the passphrase and the typed backup text of a restore as wiping text
+#   canvas/list.rs     draws the list's masked text rows from wiping text
+#   qr_tool/screen.rs  holds the QR vault's passphrase and note as wiping text
+#   specter.rs         holds the Specter payload it reads or makes as wiping text
+#   wallet_files.rs    holds the wallet files' text as wiping text
 #   spend_backup/      read a share or a key typed or scanned as wiped text (Text)
 #                      and hand it on to the seeds area
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs"
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs"
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
@@ -627,7 +638,6 @@ done)
 report "a file in SECRET_FILES that uses no secret type (rule 3; remove it, or name it in NAMELESS with why)" "$nameless"
 stale=$(for f in $EXCEPTED; do
     if [ ! -f "$f" ]; then echo "$f: missing"
-    elif ! names_secret "$f"; then echo "$f: uses no secret type any more"
     elif ! has_heap_text "$f"; then echo "$f: has no heap text: move it to SECRET_FILES"
     elif case " $SECRET_FILES " in *" $f "*) true ;; *) false ;; esac; then echo "$f: also in SECRET_FILES"
     fi

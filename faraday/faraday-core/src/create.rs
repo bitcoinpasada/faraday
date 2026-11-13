@@ -434,13 +434,6 @@ impl NewKind {
             }
             plain.push_str(k.as_ref());
         }
-        let mut plain = Text::new();
-        for (i, k) in keys.iter().enumerate() {
-            if i > 0 {
-                plain.push(',');
-            }
-            plain.push_str(k.as_ref());
-        }
         match self {
             NewKind::NativeSegwit => text!("wpkh({list})"),
             NewKind::Taproot => text!("tr({list})"),
