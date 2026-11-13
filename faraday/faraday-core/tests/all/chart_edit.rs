@@ -257,7 +257,7 @@ pub(crate) fn single_key_with_vault() -> (Faraday, usize) {
 }
 
 /// [`single_key_with_vault`], the key loaded with passphrase `pass`.
-fn single_key_with_vault_pass(pass: &str) -> (Faraday, usize) {
+pub(crate) fn single_key_with_vault_pass(pass: &str) -> (Faraday, usize) {
     vault_wallet(pass, None)
 }
 

@@ -253,7 +253,9 @@ fn loads_then_leaves(
         testkit::release_worker();
         testkit::settle_stale(&mut app);
         let _ = app.frame();
-        assert_eq!(app.session.keys.len(), held, "{what}, {name}");
+        // A lock wipes the keys in; the answer arriving after it adds none.
+        let kept = if name == "Lock" { 0 } else { held };
+        assert_eq!(app.session.keys.len(), kept, "{what}, {name}");
     }
     let mut app = make();
     press(&mut app);
@@ -299,37 +301,95 @@ fn convert_from_a_vault_key_loads_it_in_the_job_and_goes_on() {
     loads_then_leaves(&make, &press, 0, 1, "Convert's From a vault");
 }
 
+/// Create on a multisig's keys step over a vault of `records`, unlocked.
+fn create_over(records: Vec<faraday_vault::Record>) -> Faraday {
+    let mut app = app_with(records);
+    use faraday_core::{create::NewKind, cstep};
+    let i = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Multi)
+        .unwrap() as u8;
+    app.press(Action::CreateWallet);
+    crate::common::ckind(&mut app, i);
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CVaults(false));
+    app.press(Action::CNext(cstep::WHERE));
+    app.press(Action::CNext(cstep::QUORUM));
+    let _ = app.frame();
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
+    app
+}
+
+/// The first key record's place in the open vault.
+fn first_key(app: &Faraday) -> usize {
+    let id = app.vaults().open[0].id;
+    app.vaults()
+        .records(id)
+        .of(kind::KEY)
+        .next()
+        .map(|(i, _)| i)
+        .expect("the vault keeps a key")
+}
+
+/// The words of test seed 0 and a passphrase kept alone in the vault, for
+/// the key they make together.
+fn key_and_kept_passphrase() -> Vec<faraday_vault::Record> {
+    use faraday_keys::identity::{Material, fingerprint};
+    let c = testkit::compute();
+    let words = Mnemonic::parse(
+        &c,
+        Language::English,
+        &testkit::test_words(testkit::TEST_SEEDS[0].0),
+    )
+    .unwrap();
+    let fp = fingerprint(&c, Material::Words(&words), "kept alone", testkit::net()).unwrap();
+    vec![
+        key_record(0),
+        faraday_vault::Record::new(kind::PASSPHRASE)
+            .with(field::PASSPHRASE_KEY, &fp.0)
+            .with(field::PASSPHRASE, b"kept alone"),
+    ]
+}
+
 #[test]
 fn a_slot_of_create_filled_from_a_vault_loads_in_the_job_and_is_filled() {
-    let make = || {
-        let mut app = app_with(vec![key_record(0)]);
-        use faraday_core::{create::NewKind, cstep};
-        let i = NewKind::ALL
-            .iter()
-            .position(|k| *k == NewKind::Multi)
-            .unwrap() as u8;
-        app.press(Action::CreateWallet);
-        crate::common::ckind(&mut app, i);
-        app.press(Action::CNext(cstep::KIND));
-        app.press(Action::CVaults(false));
-        app.press(Action::CNext(cstep::WHERE));
-        app.press(Action::CNext(cstep::QUORUM));
-        let _ = app.frame();
-        assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
-        app
-    };
-    let press = |app: &mut Faraday| {
-        let id = app.vaults().open[0].id;
-        let r = app
-            .vaults()
-            .records(id)
-            .of(kind::KEY)
-            .next()
-            .map(|(i, _)| i)
-            .expect("the vault keeps a key");
-        testkit::press_on_worker(app, Action::CSlotVault(0, 0, r));
-    };
-    loads_then_leaves(&make, &press, 0, 1, "Create's slot from a vault");
+    use faraday_core::create::Source;
+    for records in [vec![key_record(0)], key_and_kept_passphrase()] {
+        let kept_alone = records.len() > 1;
+        let make = || create_over(records.clone());
+        let press = |app: &mut Faraday| {
+            let r = first_key(app);
+            testkit::press_on_worker(app, Action::CSlotVault(0, 0, r));
+        };
+        loads_then_leaves(&make, &press, 0, 1, "Create's slot from a vault");
+        let mut app = make();
+        press(&mut app);
+        testkit::settle(&mut app);
+        let loaded = app.session.keys.all().last().unwrap().fingerprint.0;
+        assert_eq!(
+            app.create().unwrap().slots[0],
+            Source::Here(loaded),
+            "the slot holds the key loaded (a passphrase kept alone: {kept_alone})"
+        );
+    }
+}
+
+#[test]
+fn convert_from_a_vault_key_with_a_kept_passphrase_chooses_the_key_loaded() {
+    let mut app = app_with(key_and_kept_passphrase());
+    app.press(Action::Convert(faraday_core::convert::ConvertAction::Open));
+    let _ = app.frame();
+    let r = first_key(&app);
+    testkit::press_on_worker(
+        &mut app,
+        Action::Convert(faraday_core::convert::ConvertAction::VaultKey(0, r)),
+    );
+    testkit::settle(&mut app);
+    let loaded = app.session.keys.all().last().unwrap().fingerprint.0;
+    assert_eq!(
+        faraday_core::convert::state(&app).and_then(|s| s.key),
+        Some(loaded)
+    );
 }
 
 /// A vault of a wallet over the three test seeds and the seeds of `n` of
@@ -360,6 +420,18 @@ fn a_new_wallet_from_this_one_loads_every_seed_the_vault_keeps_of_it() {
     assert_eq!(app.screen, faraday_core::Screen::Create, "the flow went on");
 }
 
+/// What the first wallet's backup plan holds at each place, as the chart
+/// shows it.
+fn plan_holds(app: &Faraday) -> Vec<Vec<String>> {
+    use faraday_core::glance::Backup;
+    let c = testkit::compute();
+    let g = faraday_core::glance::of_now(&c, app, 0).expect("the wallet's chart");
+    let Backup::Plan { nodes, .. } = &g.backup else {
+        panic!("no plan");
+    };
+    nodes.iter().map(|n| n.holds.clone()).collect()
+}
+
 #[test]
 fn a_chart_change_confirmed_before_its_seeds_are_loaded_is_made_when_they_are() {
     use crate::chart_edit::{clock_kept, single_key_with_vault};
@@ -368,6 +440,7 @@ fn a_chart_change_confirmed_before_its_seeds_are_loaded_is_made_when_they_are() 
     use faraday_core::plan::{At, Edit, What};
     let (mut app, _) = single_key_with_vault();
     clock_kept(&mut app);
+    let before = plan_holds(&app);
     app.press(Action::Nav(faraday_core::Screen::VaultContents));
     app.press(Action::Vault(V::Category(1)));
     app.press(Action::Vault(V::Item(0)));
@@ -396,7 +469,8 @@ fn a_chart_change_confirmed_before_its_seeds_are_loaded_is_made_when_they_are() 
     );
     testkit::settle(&mut app);
     assert!(!app.session.keys.is_empty());
-    assert_eq!(app.chart(), None, "the change was confirmed and made");
+    assert_eq!(app.chart(), None, "the change was confirmed");
+    assert_ne!(plan_holds(&app), before, "the change was made");
 }
 
 #[test]
@@ -438,4 +512,237 @@ fn a_key_that_is_not_a_sample_says_why_it_is_not_loaded_in_practice() {
     assert!(app.session.keys.is_empty());
     let said = app.toast_text().unwrap_or_default().to_string();
     assert!(said.contains("not a sample"), "{said}");
+}
+
+// ---------------------------------------------------------------------
+// The boot import's load, a backup's load and Restore from a vault.
+// ---------------------------------------------------------------------
+
+const LEAVES: [(&str, Action); 3] = [
+    ("Back", Action::Back),
+    ("Cancel", Action::Cancel),
+    ("Lock", Action::Lock),
+];
+
+/// A wallet record and the key record of the seed it spends from.
+fn wallet_and_key() -> Vec<faraday_vault::Record> {
+    vec![
+        wallet_record(&testkit::kits()[1].descriptor, b"Spending"),
+        key_record(0),
+    ]
+}
+
+/// The vault's wallet record's place.
+fn wallet_index(app: &Faraday) -> usize {
+    let id = app.vaults().open[0].id;
+    app.vaults()
+        .records(id)
+        .of(kind::WALLET)
+        .next()
+        .map(|(i, _)| i)
+        .expect("the vault keeps a wallet")
+}
+
+/// Restore from a vault pressed with its job held on the worker.
+fn restore_pressed() -> Faraday {
+    let mut app = app_with(wallet_and_key());
+    assert!(app.session.keys.is_empty());
+    let r = wallet_index(&app);
+    app.press(Action::RestoreWallet);
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::RFromVault(0, r));
+    assert!(app.busy().is_some(), "the seeds are loading");
+    assert!(app.session.keys.is_empty(), "no key before the answer");
+    app
+}
+
+#[test]
+fn restore_from_a_vault_left_before_its_answer_adds_no_key() {
+    for (name, action) in LEAVES {
+        let mut app = restore_pressed();
+        app.press(action);
+        testkit::release_worker();
+        testkit::settle_stale(&mut app);
+        let _ = app.frame();
+        assert!(app.session.keys.is_empty(), "{name}");
+        if name != "Lock" {
+            assert_ne!(app.screen, faraday_core::Screen::Restore, "{name}");
+        }
+    }
+}
+
+#[test]
+fn restore_from_a_vault_let_finish_brings_in_the_keys_and_shows_restore() {
+    let mut app = restore_pressed();
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert_eq!(app.session.keys.len(), 1);
+    assert_eq!(app.screen, faraday_core::Screen::Restore);
+}
+
+/// The boot import's vault unlocked, its Load sheet up and Load ticked
+/// pressed so that its job is out on the worker, held there.
+fn import_pressed() -> (Faraday, usize) {
+    use crate::boot_import::{imported, run_unlock, type_in};
+    let mut app = imported();
+    type_in(&mut app, testkit::VAULT_PASSPHRASE);
+    app.press(Action::Import(
+        faraday_core::boot_import::ImportAction::Submit,
+    ));
+    run_unlock(&mut app);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
+    let before = app.session.keys.len();
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Vault(V::LoadTicked));
+    assert!(app.busy().is_some(), "the seeds are loading");
+    assert_eq!(app.session.keys.len(), before, "no key before the answer");
+    (app, before)
+}
+
+#[test]
+fn the_boot_imports_load_left_before_its_answer_adds_no_key() {
+    for (name, action) in LEAVES {
+        let (mut app, before) = import_pressed();
+        app.press(action);
+        testkit::release_worker();
+        testkit::settle_stale(&mut app);
+        let _ = app.frame();
+        // A lock wipes the keys already in; the others leave them.
+        let left = app.session.keys.len();
+        assert!(left <= before, "{name}");
+        if name != "Lock" {
+            assert_eq!(left, before, "{name}");
+        }
+    }
+}
+
+#[test]
+fn the_boot_imports_load_let_finish_brings_in_the_vaults_keys_and_ends_the_import() {
+    let (mut app, before) = import_pressed();
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(app.session.keys.len() > before);
+    assert!(app.import().is_none());
+    assert_eq!(app.screen, faraday_core::Screen::Wallets);
+}
+
+/// A backup of a wallet, written to its sticks after the lock and at Done
+/// with its vault open and its keys not loaded; Unlock from Done pressed
+/// so that the vault's load is out on the worker, held there.
+fn backup_pressed() -> Faraday {
+    use crate::backup_flow_wallet::{PHRASE, restart, single_key, step, write_sticks};
+    use faraday_core::backup_flow::Step;
+    use faraday_core::backup_flow::steps::FlowAction as F;
+    let mut shell = crate::common::Shell::new();
+    let (mut app, _, _) = single_key(&mut shell, true);
+    shell.flow(&mut app, F::WalletLock);
+    let mut app = restart(&mut shell, &mut app);
+    write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
+    assert_eq!(step(&app), Step::Done);
+    // The vault is opened on Vaults, its Load sheet left unpressed.
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
+    app.press(Action::Nav(faraday_core::Screen::Vaults));
+    app.press(Action::Vault(V::Open(0)));
+    crate::common::type_text(&mut app, PHRASE);
+    app.press(Action::Vault(V::Unlock));
+    crate::common::settle(&mut app, 100);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
+    assert!(app.session.keys.is_empty());
+    testkit::hold_worker();
+    testkit::press_on_worker(&mut app, Action::Flow(F::UnlockDone(0)));
+    assert!(app.busy().is_some(), "the seeds are loading");
+    assert!(app.session.keys.is_empty(), "no key before the answer");
+    app
+}
+
+#[test]
+fn a_backups_load_left_before_its_answer_adds_no_key() {
+    for (name, action) in LEAVES {
+        let mut app = backup_pressed();
+        app.press(action);
+        testkit::release_worker();
+        testkit::settle_stale(&mut app);
+        let _ = app.frame();
+        assert!(app.session.keys.is_empty(), "{name}");
+        if name != "Lock" {
+            assert_ne!(app.screen, faraday_core::Screen::Backup, "{name}");
+        }
+    }
+}
+
+#[test]
+fn a_backups_load_let_finish_brings_in_the_keys_and_shows_the_checklist() {
+    let mut app = backup_pressed();
+    testkit::release_worker();
+    testkit::settle(&mut app);
+    assert!(!app.session.keys.is_empty());
+    assert!(!app.session.wallets.is_empty());
+    assert_eq!(app.screen, faraday_core::Screen::Backup);
+}
+
+/// A passphrase typed on a wallet's chart and checked with its seeds not
+/// loaded: loaded first, then compared, by the button or by Enter.
+fn pass_checked(enter: bool, typed: &str) -> Option<bool> {
+    use crate::chart_edit::single_key_with_vault_pass;
+    use faraday_core::glance::Press;
+    use faraday_core::glance::sheet::{ChartAction as C, Target};
+    use faraday_core::plan::{At, Edit, What};
+    const PASS: &str = "lantern-orchid-41";
+    let (mut app, _) = single_key_with_vault_pass(PASS);
+    crate::chart_edit::clock_kept(&mut app);
+    app.press(Action::Nav(faraday_core::Screen::VaultContents));
+    app.press(Action::Vault(V::Category(1)));
+    app.press(Action::Vault(V::Item(0)));
+    let _ = app.frame();
+    let r = app.vault_selected_index().expect("a wallet is chosen");
+    let press = Press::Vault(0, r);
+    app.press(Action::Chart(C::Open(
+        press,
+        Target::CopyTo(What::Passphrase(0)),
+    )));
+    let _ = app.frame();
+    app.press(Action::Chart(C::Edit(
+        press,
+        Edit::Add(At::Place(2), What::Passphrase(0)),
+    )));
+    app.press(Action::Chart(C::Confirm(press)));
+    let Some((_, Target::PassShow(k, n, j))) = app.chart() else {
+        panic!("the passphrase is not shown: {:?}", app.chart());
+    };
+    app.press(Action::Chart(C::Open(press, Target::PassCheck(k, n, j))));
+    while !app.session.keys.is_empty() {
+        app.session.keys.remove(0);
+    }
+    crate::common::type_text(&mut app, typed);
+    if enter {
+        app.event(Event::Key(Key::Enter));
+    } else {
+        testkit::press_on_worker(&mut app, Action::Chart(C::PassTry(press)));
+    }
+    assert!(app.busy().is_some(), "the seeds are loading");
+    testkit::settle(&mut app);
+    assert!(!app.session.keys.is_empty(), "the seeds are in");
+    app.chart_work().result
+}
+
+#[test]
+fn a_passphrase_checked_before_its_seeds_are_loaded_is_compared_when_they_are() {
+    for enter in [false, true] {
+        assert_eq!(
+            pass_checked(enter, "lantern-orchid-41"),
+            Some(true),
+            "{enter}"
+        );
+        assert_eq!(pass_checked(enter, "not it"), Some(false), "{enter}");
+    }
 }

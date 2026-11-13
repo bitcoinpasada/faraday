@@ -58,6 +58,11 @@ impl VaultArea {
         self.state.loads_started
     }
 
+    /// Whether the press now run again has loaded vault `v` already.
+    pub(crate) fn replaying(&self, v: usize) -> bool {
+        self.state.replayed.contains(&v)
+    }
+
     /// Notes the key a load for one key record added, and gives the one
     /// noted before.
     pub(crate) fn key_added_swap(&mut self, fp: Option<[u8; 4]>) -> Option<[u8; 4]> {

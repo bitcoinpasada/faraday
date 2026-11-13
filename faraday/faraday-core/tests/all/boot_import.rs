@@ -163,19 +163,19 @@ fn imported_with(files: &[(String, Vec<u8>)]) -> Faraday {
 }
 
 /// Booted, Import pressed and its reads answered, and the stick pulled.
-fn imported() -> Faraday {
+pub(crate) fn imported() -> Faraday {
     imported_with(&stick_files())
 }
 
 /// Types `passphrase` into the field typing goes to.
-fn type_in(app: &mut Faraday, passphrase: &str) {
+pub(crate) fn type_in(app: &mut Faraday, passphrase: &str) {
     for c in passphrase.chars() {
         app.event(Event::Key(Key::Char(c)));
     }
 }
 
 /// Lets the unlock asked for run: a frame, then the tick after it.
-fn run_unlock(app: &mut Faraday) {
+pub(crate) fn run_unlock(app: &mut Faraday) {
     let _ = app.frame();
     app.event(Event::Tick { now_ms: 1000 });
     let _ = app.frame();

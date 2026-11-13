@@ -94,7 +94,8 @@ pub(crate) fn start_replay(app: &mut Faraday, v: usize, set: &BTreeSet<usize>, t
     begin(app, v, set, Kind::Replay, both)
 }
 
-/// Runs `action` again, its load done: a load it asks for of a vault in
+/// Costs what the press costs, run again with its seeds loaded: runs
+/// `action` again, its load done: a load it asks for of a vault in
 /// `seen` starts no job.
 fn replay(app: &mut Faraday, action: crate::Action, seen: Vec<usize>) {
     let was = std::mem::replace(&mut app.vaults.state.replayed, seen);
@@ -109,7 +110,8 @@ enum Kind {
     Replay,
 }
 
-/// Whether a job was started.
+/// Costs the store read into a job, and for a load of wallets alone their
+/// policies added. Whether a job was started.
 fn begin(app: &mut Faraday, v: usize, set: &BTreeSet<usize>, kind: Kind, then: Then) -> bool {
     if app.vaults.state.replayed.contains(&v) {
         return false;

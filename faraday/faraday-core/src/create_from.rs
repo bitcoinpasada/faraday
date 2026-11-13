@@ -154,7 +154,10 @@ impl Faraday {
                 app.vaults.key_added_swap(fp);
             }
         });
-        self.vaults.key_added_swap(None);
+        // A press run again finds the key its load noted; a first run has none.
+        if !self.vaults.replaying(v) {
+            self.vaults.key_added_swap(None);
+        }
         if crate::vault::load_job::start_replay(self, v, &BTreeSet::from([r]), added) {
             return None;
         }

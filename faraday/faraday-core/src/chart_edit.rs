@@ -809,7 +809,9 @@ impl Faraday {
                 match key {
                     KeyIn::Char(c) if !c.is_control() => self.glance.type_name_char(c),
                     KeyIn::Backspace | KeyIn::Delete => self.glance.erase_name_char(),
-                    KeyIn::Enter => self.chart_save_name(press),
+                    KeyIn::Enter => {
+                        self.act(Action::Chart(glance::sheet::ChartAction::Save(press)))
+                    }
                     KeyIn::Escape => {
                         self.glance.set_chart(None);
                         self.sheet = None;
@@ -827,7 +829,9 @@ impl Faraday {
                     // Anything else is refused, and the sheet says so.
                     KeyIn::Char(c) if !c.is_control() => self.glance.refuse_pass_char(),
                     KeyIn::Backspace | KeyIn::Delete => self.glance.erase_pass_char(),
-                    KeyIn::Enter => self.chart_pass_try(press),
+                    KeyIn::Enter => {
+                        self.act(Action::Chart(glance::sheet::ChartAction::PassTry(press)))
+                    }
                     KeyIn::Escape => {
                         self.glance.close_pass_check();
                         self.glance.set_chart(None);
