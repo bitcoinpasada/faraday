@@ -17,6 +17,7 @@ faraday-codec = { path = "../../core/faraday-codec" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 png.workspace = true
 zeroize = { workspace = true, features = ["alloc"] }
+subtle.workspace = true
 
 [lints]
 workspace = true

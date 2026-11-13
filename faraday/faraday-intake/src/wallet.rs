@@ -429,31 +429,27 @@ pub fn holds_secret(text: &str) -> bool {
 fn multipath(c: &Compute, descs: &[String]) -> Option<Result<WalletPolicy, Refusal>> {
     let wallets = multipath_wallets(c, descs)?;
     let mut found = Vec::new();
-    let mut seen = std::collections::BTreeSet::new();
+    let mut seen: Vec<Seen> = Vec::new();
     for d in wallets {
-        if let Ok(w) = WalletPolicy::parse_any(c, &d)
-            && seen.insert(Seen(zeroize::Zeroizing::new(w.to_descriptor())))
-        {
-            found.push((rank(&w), w));
+        if let Ok(w) = WalletPolicy::parse_any(c, &d) {
+            let this = Seen(faraday_crypto::Secret::new(w.to_descriptor()));
+            if !seen.contains(&this) {
+                seen.push(this);
+                found.push((rank(&w), w));
+            }
         }
     }
     pick_best(found)
 }
 
 /// A descriptor kept only to tell a wallet already seen: it may hold a
-/// silent payments scan key, so it is wiped when dropped.
-#[derive(PartialEq, Eq)]
-struct Seen(zeroize::Zeroizing<String>);
+/// silent payments scan key, so it is wiped when dropped and compared
+/// without a branch on its bytes.
+struct Seen(faraday_crypto::Secret<String>);
 
-impl PartialOrd for Seen {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Seen {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.as_str().cmp(other.0.as_str())
+impl PartialEq for Seen {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
     }
 }
 
@@ -545,9 +541,11 @@ fn rank(w: &WalletPolicy) -> u8 {
 /// and a silent payments wallet beside any other refuses the file.
 fn one_of_several(c: &Compute, all: &[String]) -> Result<WalletPolicy, Refusal> {
     let mut found: Vec<(u8, WalletPolicy)> = Vec::new();
-    let mut seen = std::collections::BTreeSet::new();
+    let mut seen: Vec<Seen> = Vec::new();
     let mut add = |w: WalletPolicy| {
-        if seen.insert(Seen(zeroize::Zeroizing::new(w.to_descriptor()))) {
+        let this = Seen(faraday_crypto::Secret::new(w.to_descriptor()));
+        if !seen.contains(&this) {
+            seen.push(this);
             found.push((rank(&w), w));
         }
     };

@@ -437,7 +437,7 @@ impl Drop for EntropyBytes {
 }
 
 /// Shell → core.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Event {
     /// Display parameters. Must be the first event of a session and is
     /// sent exactly once.
@@ -750,13 +750,66 @@ pub enum Event {
     ExternalScreen,
 }
 
+// An event carries file bytes, the clipboard, a kept blob and entropy, so
+// its Debug names the variant and prints no field.
+impl fmt::Debug for Event {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Event::Display(..) => "Display",
+            Event::Touch { .. } => "Touch",
+            Event::Button(..) => "Button",
+            Event::Key(..) => "Key",
+            Event::KeyUp(..) => "KeyUp",
+            Event::Scroll { .. } => "Scroll",
+            Event::Wheel { .. } => "Wheel",
+            Event::ScrollEnd { .. } => "ScrollEnd",
+            Event::Shift { .. } => "Shift",
+            Event::Back => "Back",
+            Event::Forward => "Forward",
+            Event::Hover { .. } => "Hover",
+            Event::HoverEnd => "HoverEnd",
+            Event::Focus(..) => "Focus",
+            Event::Tick { .. } => "Tick",
+            Event::File { .. } => "File",
+            Event::FileUnavailable { .. } => "FileUnavailable",
+            Event::FileCancelled { .. } => "FileCancelled",
+            Event::FileList { .. } => "FileList",
+            Event::FileWritten { .. } => "FileWritten",
+            Event::FileNotWritten { .. } => "FileNotWritten",
+            Event::Clipboard { .. } => "Clipboard",
+            Event::ClipboardUnavailable { .. } => "ClipboardUnavailable",
+            Event::ClipboardWritten { .. } => "ClipboardWritten",
+            Event::ClipboardNotWritten { .. } => "ClipboardNotWritten",
+            Event::CameraFrame { .. } => "CameraFrame",
+            Event::Scanned { .. } => "Scanned",
+            Event::CameraUnavailable => "CameraUnavailable",
+            Event::CameraFailed(..) => "CameraFailed",
+            Event::Entropy(..) => "Entropy",
+            Event::EntropySource(..) => "EntropySource",
+            Event::SecretKept { .. } => "SecretKept",
+            Event::SecureMac { .. } => "SecureMac",
+            Event::SecureUnavailable => "SecureUnavailable",
+            Event::SecretStored => "SecretStored",
+            Event::SecretNotStored => "SecretNotStored",
+            Event::Secret { .. } => "Secret",
+            Event::SecretUnavailable => "SecretUnavailable",
+            Event::SecretForgotten => "SecretForgotten",
+            Event::Settings { .. } => "Settings",
+            Event::Lock => "Lock",
+            Event::PreviewOffered { .. } => "PreviewOffered",
+            Event::RotationOffered { .. } => "RotationOffered",
+            Event::ExternalScreen => "ExternalScreen",
+        })
+    }
+}
+
 /// Core → shell.
 ///
 /// Later milestones add the general storage commands `StorageRead`,
 /// `StorageWrite` and `StorageDelete` (§4.2). They are absent rather
 /// than stubbed so that a shell cannot compile against an interface the
 /// core does not honour yet.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Command {
     /// Blit [`App::frame`] to the display now.
     Draw,
@@ -903,6 +956,33 @@ pub enum Command {
     /// new [`Event::Display`] at the turned size when the turn changed.
     /// Any other shell does nothing.
     Orientation(Orientation),
+}
+
+// A command carries file bytes, the settings, a blob and a PIN's challenge,
+// so its Debug names the variant and prints no field.
+impl fmt::Debug for Command {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Command::Draw => "Draw",
+            Command::Vibrate { .. } => "Vibrate",
+            Command::Exit => "Exit",
+            Command::RequestFile { .. } => "RequestFile",
+            Command::ReadFile { .. } => "ReadFile",
+            Command::WriteFile { .. } => "WriteFile",
+            Command::RequestClipboard { .. } => "RequestClipboard",
+            Command::WriteClipboard { .. } => "WriteClipboard",
+            Command::CameraOn => "CameraOn",
+            Command::CameraOff => "CameraOff",
+            Command::RequestEntropy => "RequestEntropy",
+            Command::StoreSettings { .. } => "StoreSettings",
+            Command::SecureMac { .. } => "SecureMac",
+            Command::StoreSecret { .. } => "StoreSecret",
+            Command::LoadSecret => "LoadSecret",
+            Command::ForgetSecret => "ForgetSecret",
+            Command::PreviewSize { .. } => "PreviewSize",
+            Command::Orientation(..) => "Orientation",
+        })
+    }
 }
 
 /// A borrowed view of the core-owned framebuffer.

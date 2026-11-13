@@ -2,8 +2,8 @@
 
 **Purpose.** Constant-time equality for `Secret<T>`, which is how the session PIN hash and the two PIN entries are
 compared without a timing side channel, and the 4-byte hash check of a key file in `faraday-vault`.
-It is also used by `aqrv`, `faraday-bip`, `faraday-crypto`, `faraday-core`, `faraday-kef`, `faraday-keys` and
-`faraday-pgp` for constant-time compares and masked selects of secret bytes.
+It is also used by `aqrv`, `faraday-bip`, `faraday-crypto`, `faraday-core`, `faraday-files`, `faraday-kef`,
+`faraday-keys` and `faraday-pgp` for constant-time compares and masked selects of secret bytes.
 
 **Why this crate.** `ConstantTimeEq` over byte slices with the same
 volatile-and-fence technique `zeroize` uses to keep the optimiser from
