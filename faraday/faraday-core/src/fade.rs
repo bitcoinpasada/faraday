@@ -85,6 +85,10 @@ pub(crate) struct Fade {
     theme_fade: bool,
     /// How a whole frame is painted across the cores (`bands.rs`).
     cores: bands::Bands,
+    /// The last frame drawn in full was drawn while a secret was being
+    /// typed or shown (`Faraday::secret_typed`, `Faraday::secret_shown`): a change from it is drawn at once,
+    /// so no image of it is kept to fade from (`docs/SECRET-LEAKS.md` §5).
+    secret_drawn: bool,
     /// What drew each image kept here, for the tours' check of a secret
     /// left in one (`crate::leaks`).
     #[cfg(feature = "testkit")]
@@ -300,7 +304,8 @@ impl Faraday {
     /// Before a frame is drawn in full on `canvas`, which still holds the
     /// frame before it: a change of screen or sheet, of the guide
     /// pane's presence, or of the guide tab, starts a fade from that frame. The first frame ever,
-    /// and the first after a resize, have nothing to fade from. Costs a
+    /// and the first after a resize, have nothing to fade from, nor has a
+    /// frame drawn while a secret was typed or shown. Costs a
     /// copy of the whole canvas when a fade starts.
     pub(crate) fn fade_begin(&mut self, canvas: &mut Canvas) {
         // The pane opening, closing or changing its tab is a change as a
@@ -321,6 +326,13 @@ impl Faraday {
         self.fade.step_at = None;
         self.fade.changed = None;
         if self.fade.last_drawn == Some(drawn_key) {
+            return;
+        }
+        // The frame before showed a secret, typed or shown: it is
+        // not kept, and any fade under way ends where it is.
+        if self.fade.secret_drawn {
+            self.fade.end();
+            self.fade.last_drawn = Some(drawn_key);
             return;
         }
         let own_motion = false;
@@ -420,15 +432,25 @@ impl Faraday {
         out
     }
 
+    /// Whether the frame shows a file's text a secret may be in: the vault
+    /// page's sign list, once it has read the files. Reads state only.
+    fn secret_shown(&self) -> bool {
+        self.screen == crate::Screen::VaultContents
+            && self.vaults.signing
+            && !self.vaults.sign_seen.borrow().is_empty()
+    }
+
     /// After a frame is drawn in full on `canvas`: while a fade is under
     /// way, the new frame is kept aside and the canvas shows it part of
     /// the way from the old, and the frame asks for the next step, so the
-    /// shell keeps drawing from the first one. Costs a blend of the whole
+    /// shell keeps drawing from the first one; whether a secret was typed
+    /// or shown is noted for the next change. Costs a blend of the whole
     /// canvas while a fade is under way. The frame is timed for the gate
     /// (`Fade::shown`).
     pub(crate) fn fade_end(&mut self, canvas: &mut Canvas) {
         // The frame is painted before it is kept aside or shown.
         self.fade.cores.paint(canvas);
+        self.fade.secret_drawn = self.secret_typed() || self.secret_shown();
         // Whatever draws on the canvas after the frame paints as it calls.
         canvas.record_calls(false);
         self.fade.shown(self.now_ms);

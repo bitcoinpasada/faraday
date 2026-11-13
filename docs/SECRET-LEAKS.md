@@ -120,7 +120,8 @@ the heaviest session the flow reaches.
 
 The tours (`just faraday-snap`, `faraday/shells/snapshot`) walk each
 screen's states. For the frame after each of **Lock**, **a hide** (a
-secret opened and then hidden) and **leaving a page that showed one**,
+secret opened and then hidden) and **leaving a page or a sheet that
+showed one**,
 the check reads:
 
 - the text the frame drew (the lines the budget tests already count),
@@ -134,7 +135,21 @@ the check reads:
 
 The tours plant the §3 secrets in the sessions that open a secret
 screen. A hit fails the tour and names the tour, the step and the form.
-It runs on every step of those three kinds, so a screen added later is
+What stays rightly shown is not a hit, and a step that only looks like
+one of the three is not counted. A control that shows and hides in turn
+(an eye, Show the seed) hides when it is pressed again on what it opened;
+pressed first, it opens, though another secret is on the screen. After a
+hide the frame may still show what it showed before the thing hidden was
+opened (a paper form hidden while the seed the person opened stays). A
+sheet opened over a page does not leave the page: the page is still there
+under the sheet, and its frosted copy and the fade into the sheet hold it
+rightly. Leaving a sheet (closed, or giving way to another) may leave only
+what the page under it shows; leaving the page, from under a sheet too,
+leaves nothing. A fade does not start from a frame drawn while a secret
+was typed or shown (`docs/MOTION.md` §3.5), so no image of that frame is
+kept.
+
+It runs on every step of those kinds, so a screen added later is
 covered without its author listing it, as the Lock-during-seal change
 had to list one screen by hand.
 

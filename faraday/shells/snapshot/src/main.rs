@@ -274,6 +274,7 @@ fn run(
         name: only.unwrap_or("default").to_string(),
         restarts: 0,
         leaks: Vec::new(),
+        opened: leaks::Opened::default(),
     };
     leaks::plant();
     match only.and_then(|name| named_tour(c, &mut t, name)) {

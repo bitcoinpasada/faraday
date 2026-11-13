@@ -43,6 +43,8 @@ pub(crate) struct Tour {
     /// What the screens check found (`crate::leaks`), each a line naming
     /// the tour, the step and the form; the tour fails with them.
     pub(crate) leaks: Vec<String>,
+    /// What the screens check keeps from press to press (`crate::leaks`).
+    pub(crate) opened: crate::leaks::Opened,
 }
 
 /// A press target a saved frame offers under the touch floor, with where
