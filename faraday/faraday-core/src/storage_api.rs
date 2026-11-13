@@ -8,6 +8,9 @@ use zeroize::Zeroizing;
 /// bytes wipe when dropped.
 pub type Files = Vec<(String, Zeroizing<Vec<u8>>)>;
 
+/// What the app keeps for itself across a lock: each entry's name and bytes.
+pub type Kept = Vec<(String, Vec<u8>)>;
+
 /// Files from bytes taken as they are: `Vec<u8>` or already wiping.
 pub fn files_from<B: Into<Zeroizing<Vec<u8>>>>(files: Vec<(String, B)>) -> Files {
     files.into_iter().map(|(n, b)| (n, b.into())).collect()

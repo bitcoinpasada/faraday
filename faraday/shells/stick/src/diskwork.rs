@@ -52,10 +52,10 @@ pub fn for_pass<T>(disk: &Mutex<T>, asked: bool) -> Option<MutexGuard<'_, T>> {
 /// What a look at the sticks found.
 pub struct Listing {
     /// The sticks, or why the disk process did not say.
-    pub sticks: Result<Vec<StickInfo>, String>,
+    pub sticks: Result<Vec<StickInfo>, faraday_text::Text>,
     /// The sticks the listing found unusable: their ids, and whether the
     /// reason is that they are read-only.
-    pub problems: Vec<(String, bool)>,
+    pub problems: Vec<(faraday_text::Text, bool)>,
 }
 
 /// The sticks now, as the disk process lists them. A stick not handed out
@@ -65,7 +65,7 @@ pub struct Listing {
 pub fn list(disk: &mut DiskProcess, hide_waiting: bool) -> Listing {
     let sticks = disk.list().map(|mut s| {
         if hide_waiting {
-            s.retain(|s| !disk.waiting().contains(&s.id));
+            s.retain(|s| !disk.waiting().iter().any(|w| *w == *s.id));
         }
         s
     });
@@ -259,7 +259,8 @@ fn run(disk: &Disk, job: Job) -> Reply {
             let start = Instant::now();
             let wrote = lock(disk)
                 .write_copies(&r.stick, &r.name, text.as_bytes(), &[], true, false)
-                .map(drop);
+                .map(drop)
+                .map_err(|e| String::from(&*e));
             Reply::BootReport {
                 name: r.name,
                 wrote,

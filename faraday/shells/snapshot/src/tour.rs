@@ -91,7 +91,10 @@ impl Tour {
         let host = self.host.as_ref()?;
         Some(StorageEvent::HostFiles {
             dir: DOWNLOADS.into(),
-            files: faraday_storage::host_listing(&host.downloads),
+            files: faraday_storage::host_listing(&host.downloads)
+                .into_iter()
+                .map(|(n, size)| (String::from(&*n), size))
+                .collect(),
             opens: host.opens,
         })
     }
@@ -243,7 +246,7 @@ impl Tour {
                         Err(reason) => StorageEvent::ReadFailed {
                             stick,
                             name,
-                            reason,
+                            reason: String::from(&*reason),
                         },
                     };
                     self.app.storage(ev);
@@ -251,7 +254,10 @@ impl Tour {
                 StorageCommand::ReadHost { path } => {
                     let ev = match faraday_storage::read_host(&self.host_path(&path)) {
                         Ok(bytes) => StorageEvent::HostRead { path, bytes },
-                        Err(reason) => StorageEvent::HostReadFailed { path, reason },
+                        Err(reason) => StorageEvent::HostReadFailed {
+                            path,
+                            reason: String::from(&*reason),
+                        },
                     };
                     self.app.storage(ev);
                 }
@@ -266,7 +272,9 @@ impl Tour {
                         Ok(path) => StorageEvent::Saved {
                             path: shown(DOWNLOADS, &path),
                         },
-                        Err(reason) => StorageEvent::SaveFailed { reason },
+                        Err(reason) => StorageEvent::SaveFailed {
+                            reason: String::from(&*reason),
+                        },
                     };
                     self.app.storage(ev);
                     if let Some(files) = self.host_files() {

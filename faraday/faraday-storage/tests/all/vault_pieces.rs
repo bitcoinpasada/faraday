@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use faraday_files::OnTaken;
 use faraday_files::proto::{PIECE, Request, Response, receive, send};
 use faraday_storage::{DiskProcess, Sticks, Transfer, Transferred};
+use faraday_text::Text;
 
 /// A named pipe in a folder of its own.
 fn fifo(dir: &std::path::Path, name: &str) -> PathBuf {
@@ -86,8 +87,8 @@ fn a_vault_longer_than_a_frame_is_written_and_read_back_whole() {
 
     let vault: Vec<u8> = (0..2 * PIECE + 12_345).map(|i| (i % 251) as u8).collect();
     let asked = disk.transfer_later(Transfer::Write {
-        stick: "s".into(),
-        name: "Passwords.kdbx".into(),
+        stick: Text::of("s"),
+        name: Text::of("Passwords.kdbx"),
         bytes: zeroize::Zeroizing::new(vault.clone()),
         copies: Vec::new(),
         replace: false,
@@ -103,8 +104,8 @@ fn a_vault_longer_than_a_frame_is_written_and_read_back_whole() {
     }
 
     let asked = disk.transfer_later(Transfer::Read {
-        stick: "s".into(),
-        name: "Passwords.kdbx".into(),
+        stick: Text::of("s"),
+        name: Text::of("Passwords.kdbx"),
     });
     assert!(asked.is_ok());
     match done(&mut disk) {
@@ -128,8 +129,8 @@ fn a_vault_longer_than_a_frame_is_written_and_read_back_whole() {
 
     // A file that is not a vault is not carried in pieces.
     let other = disk.transfer_later(Transfer::Read {
-        stick: "s".into(),
-        name: "notes.txt".into(),
+        stick: Text::of("s"),
+        name: Text::of("notes.txt"),
     });
     assert!(other.is_err());
 
@@ -245,8 +246,8 @@ fn a_vault_over_one_frame_is_opened_changed_and_written_back_through_the_app() {
 
     // What the stick now holds is the sealed file, byte for byte.
     let read = Transfer::Read {
-        stick: "s".into(),
-        name: "Big.kdbx".into(),
+        stick: Text::of("s"),
+        name: Text::of("Big.kdbx"),
     };
     assert!(disk.transfer_later(read).is_ok());
     match done(&mut disk) {
@@ -400,7 +401,7 @@ fn lying(requests: PathBuf, responses: PathBuf, answers: Vec<(u64, usize)>) {
     }
 }
 
-fn read_against(tag: &str, answers: Vec<(u64, usize)>) -> Result<Vec<u8>, String> {
+fn read_against(tag: &str, answers: Vec<(u64, usize)>) -> Result<Vec<u8>, Text> {
     let dir = std::env::temp_dir().join(format!("faraday-lying-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
@@ -412,8 +413,8 @@ fn read_against(tag: &str, answers: Vec<(u64, usize)>) -> Result<Vec<u8>, String
     };
     let mut disk = DiskProcess::open(&requests, &responses).unwrap();
     let read = Transfer::Read {
-        stick: "s".into(),
-        name: "Passwords.kdbx".into(),
+        stick: Text::of("s"),
+        name: Text::of("Passwords.kdbx"),
     };
     assert!(disk.transfer_later(read).is_ok());
     let result = match done(&mut disk) {
@@ -444,7 +445,7 @@ fn a_vault_read_fails_when_the_disk_process_states_a_length_it_should_not() {
 
 /// The blocking read, which the shell's thread makes of a file that is not
 /// carried off the thread, with the same answers.
-fn blocking_read_against(tag: &str, answers: Vec<(u64, usize)>) -> Result<Vec<u8>, String> {
+fn blocking_read_against(tag: &str, answers: Vec<(u64, usize)>) -> Result<Vec<u8>, Text> {
     let dir =
         std::env::temp_dir().join(format!("faraday-lying-block-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);

@@ -1454,7 +1454,8 @@ impl Shell {
             match (self.disk.as_ref(), boot) {
                 (Some(disk), Some(id)) => lock(disk)
                     .write_copies(&id, &name, text.as_bytes(), &[], true, false)
-                    .map(drop),
+                    .map(drop)
+                    .map_err(|e| String::from(&*e)),
                 _ => self.files.write_named(&name, text.as_bytes()).map(drop),
             }
         });
@@ -1696,7 +1697,7 @@ impl Shell {
                 }
                 for line in said {
                     if self.verbose {
-                        eprintln!("{line}");
+                        eprintln!("{}", &*line);
                     }
                 }
                 if app.restart_requested() {
@@ -1925,12 +1926,17 @@ impl Shell {
             Ok(s) => s,
             Err(e) => {
                 if self.verbose {
-                    eprintln!("disk process: {e}");
+                    eprintln!("disk process: {}", &*e);
                 }
                 self.sticks.clone()
             }
         };
-        (sticks, found.problems)
+        let problems = found
+            .problems
+            .into_iter()
+            .map(|(id, read_only)| (String::from(&*id), read_only))
+            .collect();
+        (sticks, problems)
     }
 
     /// The sticks: from the disk process when there is one, else the boot

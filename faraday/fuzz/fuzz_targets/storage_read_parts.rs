@@ -69,7 +69,7 @@ fuzz_target!(|data: &[u8]| {
             }
             6 => Ok(Response::Failed(faraday_text::Text::of("failed"))),
             _ if c[1] % 2 == 0 => Ok(Response::Held(u64::from(c[2]))),
-            _ => Err("no answer".into()),
+            _ => Err(faraday_text::Text::of("no answer")),
         }
     });
     if let Ok(out) = result {

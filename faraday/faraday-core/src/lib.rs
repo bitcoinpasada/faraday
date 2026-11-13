@@ -274,7 +274,8 @@ pub use secure_boot::state::SecureBootAtStart;
 pub use state::{EntryState, MessageState, VisitState};
 pub use stick::pills::{BOOT_FOLDER, FIRST_BACKUP, Pill, SticksWanted, backup_folder};
 pub use storage_api::{
-    BootMedium, Files, OnTaken, StickInfo, StickMake, StorageCommand, StorageEvent, files_from,
+    BootMedium, Files, Kept, OnTaken, StickInfo, StickMake, StorageCommand, StorageEvent,
+    files_from,
 };
 pub use version::{
     BUILD, Program, VERSION, is_release, parse_version_output, version_label, version_line,

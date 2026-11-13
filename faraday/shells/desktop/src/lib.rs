@@ -332,7 +332,7 @@ impl Demo {
     /// says on stderr.
     fn serve(&mut self, app: &mut Faraday) {
         for line in serve_with(app, &mut self.boxes, Some(&self.host), &mut self.dirs) {
-            eprintln!("{line}");
+            eprintln!("{}", &*line);
         }
     }
 

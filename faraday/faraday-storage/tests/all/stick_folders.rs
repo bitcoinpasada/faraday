@@ -48,8 +48,11 @@ fn a_vault_written_to_stick_3_is_there_after_it_is_pulled_and_put_back() {
     let attached = vec![one.clone(), two.clone()];
     let sticks = in_now(&dir, &attached);
     let back = sticks.iter().find(|s| s.label == two).unwrap();
-    assert_eq!(back.files, vec![(wrote.clone(), vault.len() as u64)]);
-    assert_eq!(fs::read(dir.join(&two).join(&wrote)).unwrap(), vault);
+    assert_eq!(
+        back.files,
+        vec![(String::from(&*wrote), vault.len() as u64)]
+    );
+    assert_eq!(fs::read(dir.join(&two).join(&*wrote)).unwrap(), vault);
     let first = sticks.iter().find(|s| s.label == one).unwrap();
     assert!(first.files.is_empty(), "Stick 2 holds nothing of it");
     let _ = fs::remove_dir_all(&dir);

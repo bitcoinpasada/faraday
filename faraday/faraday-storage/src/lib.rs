@@ -12,7 +12,8 @@ use std::path::{Path, PathBuf};
 
 use faraday_core::{Faraday, StickInfo, StorageCommand, StorageEvent};
 use faraday_files::{Dir, checked};
-use faraday_strings::{EN, fill};
+use faraday_strings::EN;
+use faraday_text::{Text, text};
 
 pub use faraday_files::{MAX_PIXELS, MAX_READ, OnTaken, Unrenamed, Wiped, WriteRefused, foreign};
 
@@ -38,34 +39,36 @@ pub fn stick_info_after(
     label: &str,
     boot: bool,
 ) -> StickInfo {
-    let id = dir.display().to_string();
+    let id = text!("{}", dir.display());
     let mut place = Dir(dir.to_path_buf());
     let listed = faraday_files::listing(&mut place);
-    let files: Vec<(String, u64)> = listed
-        .iter()
-        .map(|(n, s)| (String::from(&**n), *s))
-        .collect();
-    let vaults = match before.iter().find(|s| s.id == id && s.files == files) {
+    let same = |s: &StickInfo| {
+        s.id == *id
+            && s.files.len() == listed.len()
+            && s.files
+                .iter()
+                .zip(&listed)
+                .all(|(a, b)| a.0 == *b.0 && a.1 == b.1)
+    };
+    let vaults = match before.iter().find(|s| same(s)) {
         Some(s) => s.vaults.clone(),
         None => faraday_files::vault_names(c, &mut place, &listed)
             .iter()
-            .map(|n| String::from(&**n))
+            .map(|n| n.as_str().into())
             .collect(),
     };
     StickInfo {
         make: Default::default(),
-        id,
-        label: label.to_string(),
+        id: id.as_str().into(),
+        label: label.into(),
         boot,
         serial: None,
-        files,
+        files: listed
+            .iter()
+            .map(|(n, s)| (n.as_str().into(), *s))
+            .collect(),
         vaults,
     }
-}
-
-/// Text the app keeps as plain heap text.
-fn plain(t: faraday_text::Text) -> String {
-    String::from(&*t)
 }
 
 fn dir(stick: &str) -> Dir {
@@ -73,17 +76,15 @@ fn dir(stick: &str) -> Dir {
 }
 
 /// Reads one file from a stick directory.
-pub fn read(stick: &str, name: &str) -> Result<Vec<u8>, String> {
-    faraday_files::read_whole(&mut dir(stick), name).map_err(|e| String::from(&*e))
+pub fn read(stick: &str, name: &str) -> Result<Vec<u8>, Text> {
+    faraday_files::read_whole(&mut dir(stick), name)
 }
 
 /// Writes a file to a stick directory as a new file, reads it back,
 /// compares, and renames it into place. Returns the name it was written
 /// under.
-pub fn write(stick: &str, name: &str, bytes: &[u8]) -> Result<String, String> {
+pub fn write(stick: &str, name: &str, bytes: &[u8]) -> Result<Text, Text> {
     faraday_files::write(&mut dir(stick), name, bytes)
-        .map(|n| String::from(&*n))
-        .map_err(|e| String::from(&*e))
 }
 
 /// Costs what `faraday_files::write_vault` costs. Writes a sealed vault
@@ -95,10 +96,8 @@ pub fn write_vault(
     name: &str,
     bytes: &[u8],
     copies: &[[u8; 32]],
-) -> Result<String, String> {
+) -> Result<Text, Text> {
     faraday_files::write_vault(c, &mut dir(stick), name, bytes, copies)
-        .map(|n| String::from(&*n))
-        .map_err(|e| String::from(&*e))
 }
 
 /// Finishes a vault write-back a pulled stick interrupted.
@@ -113,14 +112,14 @@ pub fn read_qr_png(
     c: &faraday_crypto::work::Compute,
     stick: &str,
     name: &str,
-) -> Result<faraday_files::Picture, String> {
-    faraday_files::read_qr_png(c, &mut dir(stick), name).map_err(|e| String::from(&*e))
+) -> Result<faraday_files::Picture, Text> {
+    faraday_files::read_qr_png(c, &mut dir(stick), name)
 }
 
 /// Where the sticks' files are: folders, or the disk process.
 pub trait Sticks {
     /// One file's bytes.
-    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String>;
+    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, Text>;
     /// Costs what `faraday_files::write_file` costs where the sticks are
     /// folders. A file written, over a file of its name when `replace`;
     /// the name it went under. `copies`: the SHA-256 of the copies of a
@@ -142,7 +141,7 @@ pub trait Sticks {
         replace: bool,
         renamed: bool,
         on_taken: faraday_files::OnTaken,
-    ) -> Result<String, faraday_files::WriteRefused>;
+    ) -> Result<Text, faraday_files::WriteRefused>;
     /// Starts a transfer that takes long, a vault in pieces, off the
     /// shell's thread (F206 point 7); the answer comes from
     /// [`Sticks::transferred`] on a later pass. Where this place does not
@@ -168,14 +167,14 @@ pub trait Sticks {
     }
     /// Deletes a file, zeros over it first; or only its name, where its
     /// clusters are in use.
-    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, String>;
+    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, Text>;
     /// The free space and the whole data space, in bytes.
-    fn space(&mut self, stick: &str) -> Result<(u64, u64), String>;
+    fn space(&mut self, stick: &str) -> Result<(u64, u64), Text>;
     /// One step of zeros over the free space: the next cluster, of how
     /// many, and whether it is done.
-    fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), String>;
+    fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), Text>;
     /// Every file gone, the volume empty, its layout and label kept.
-    fn make_empty(&mut self, stick: &str) -> Result<(), String>;
+    fn make_empty(&mut self, stick: &str) -> Result<(), Text>;
     /// Starts reading a picture's bytes and QR codes off the shell's
     /// thread; the answer comes from [`Sticks::pictures_read`] on a later
     /// pass. Pictures are read one at a time, in the order asked.
@@ -197,7 +196,7 @@ pub trait Sticks {
     ) -> Result<(), faraday_files::Unrenamed>;
     /// The volume named `label`, or its name taken away where it is
     /// empty (`docs/STICK-IDENTITY.md` §6).
-    fn name(&mut self, stick: &str, label: &str) -> Result<(), String>;
+    fn name(&mut self, stick: &str, label: &str) -> Result<(), Text>;
 }
 
 /// A file read or written, as the app asked it.
@@ -205,16 +204,16 @@ pub enum Transfer {
     /// A file read.
     Read {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file's name.
-        name: String,
+        name: Text,
     },
     /// A file written, as [`Sticks::write`] says.
     Write {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file's name.
-        name: String,
+        name: Text,
         /// The file.
         bytes: zeroize::Zeroizing<Vec<u8>>,
         /// The SHA-256 of the copies of a vault the session has seen.
@@ -233,20 +232,20 @@ pub enum Transferred {
     /// A file read.
     Read {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file's name.
-        name: String,
+        name: Text,
         /// The bytes, or why not.
-        result: Result<Vec<u8>, String>,
+        result: Result<Vec<u8>, Text>,
     },
     /// A file written.
     Write {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The name asked.
-        name: String,
+        name: Text,
         /// The name it went under, or why not.
-        result: Result<String, faraday_files::WriteRefused>,
+        result: Result<Text, faraday_files::WriteRefused>,
     },
 }
 
@@ -289,7 +288,7 @@ fn transfer_now(
 
 /// A picture read for its codes: its stick, its name, and its bytes and
 /// codes or why it was not read.
-pub type PictureRead = (String, String, Result<faraday_files::Picture, String>);
+pub type PictureRead = (Text, Text, Result<faraday_files::Picture, Text>);
 
 /// Pictures in folders read for their QR codes on a thread of their own,
 /// one at a time in the order asked (`docs/SPEED.md` §9): a photograph
@@ -305,7 +304,7 @@ pub struct Pictures {
 /// The pictures' thread, as the shell reaches it: where pictures are
 /// asked for, and where they come back read.
 type Worker = (
-    std::sync::mpsc::Sender<(String, String)>,
+    std::sync::mpsc::Sender<(Text, Text)>,
     std::sync::mpsc::Receiver<PictureRead>,
 );
 
@@ -313,7 +312,7 @@ impl Pictures {
     /// Asks for the picture `name` in the folder `stick`.
     pub fn ask(&mut self, stick: &str, name: &str) {
         let (jobs, _) = self.worker.get_or_insert_with(|| {
-            let (jobs, asked) = std::sync::mpsc::channel::<(String, String)>();
+            let (jobs, asked) = std::sync::mpsc::channel::<(Text, Text)>();
             let (read, done) = std::sync::mpsc::channel();
             std::thread::spawn(move || {
                 // The thread's token, for the pictures it reads
@@ -334,7 +333,7 @@ impl Pictures {
             (jobs, done)
         });
         // The thread ends only when this end is dropped.
-        let _ = jobs.send((stick.to_string(), name.to_string()));
+        let _ = jobs.send((Text::of(stick), Text::of(name)));
     }
 
     /// The pictures read since the last call.
@@ -354,7 +353,7 @@ pub struct Dirs {
 }
 
 impl Sticks for Dirs {
-    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String> {
+    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, Text> {
         read(stick, name)
     }
     fn write(
@@ -367,7 +366,7 @@ impl Sticks for Dirs {
         replace: bool,
         renamed: bool,
         on_taken: faraday_files::OnTaken,
-    ) -> Result<String, faraday_files::WriteRefused> {
+    ) -> Result<Text, faraday_files::WriteRefused> {
         faraday_files::write_file(
             c,
             &mut dir(stick),
@@ -378,21 +377,18 @@ impl Sticks for Dirs {
             renamed,
             on_taken,
         )
-        .map(|n| String::from(&*n))
     }
-    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, String> {
-        faraday_files::wipe(&mut dir(stick), name).map_err(|e| String::from(&*e))
+    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, Text> {
+        faraday_files::wipe(&mut dir(stick), name)
     }
-    fn space(&mut self, stick: &str) -> Result<(u64, u64), String> {
-        faraday_files::Place::space(&mut dir(stick)).map_err(|e| String::from(&*e))
+    fn space(&mut self, stick: &str) -> Result<(u64, u64), Text> {
+        faraday_files::Place::space(&mut dir(stick))
     }
-    fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), String> {
-        faraday_files::Place::zero_free(&mut dir(stick), from)
-            .map(|z| (z.next, z.total, z.done))
-            .map_err(|e| String::from(&*e))
+    fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), Text> {
+        faraday_files::Place::zero_free(&mut dir(stick), from).map(|z| (z.next, z.total, z.done))
     }
-    fn make_empty(&mut self, stick: &str) -> Result<(), String> {
-        faraday_files::Place::make_empty(&mut dir(stick)).map_err(|e| String::from(&*e))
+    fn make_empty(&mut self, stick: &str) -> Result<(), Text> {
+        faraday_files::Place::make_empty(&mut dir(stick))
     }
     fn read_qr_later(&mut self, stick: &str, name: &str) {
         self.pictures.ask(stick, name);
@@ -410,8 +406,8 @@ impl Sticks for Dirs {
     ) -> Result<(), faraday_files::Unrenamed> {
         faraday_files::rename(c, &mut dir(stick), from, to, vaults)
     }
-    fn name(&mut self, _stick: &str, _label: &str) -> Result<(), String> {
-        Err(EN.storage_name_folder.to_string())
+    fn name(&mut self, _stick: &str, _label: &str) -> Result<(), Text> {
+        Err(Text::of(EN.storage_name_folder))
     }
 }
 
@@ -542,7 +538,7 @@ pub enum Boxes {
         /// Outbox files.
         outbox: faraday_core::Files,
         /// What the app keeps for itself.
-        kept: Vec<(String, Vec<u8>)>,
+        kept: faraday_core::Kept,
     },
 }
 
@@ -556,8 +552,8 @@ impl Boxes {
         &mut self,
         inbox: faraday_core::Files,
         outbox: faraday_core::Files,
-        kept: Vec<(String, Vec<u8>)>,
-    ) -> Result<(), String> {
+        kept: faraday_core::Kept,
+    ) -> Result<(), Text> {
         match self {
             Boxes::Memory {
                 inbox: i,
@@ -574,24 +570,24 @@ impl Boxes {
                 let kept: faraday_core::Files = faraday_core::files_from(kept);
                 for (sub, mut files) in [("kept", kept), ("inbox", inbox), ("outbox", outbox)] {
                     let d = dir.join(sub);
-                    fs::create_dir_all(&d).map_err(|e| e.to_string())?;
+                    fs::create_dir_all(&d).map_err(|e| text!("{e}"))?;
                     let mut kept_names: Vec<&str> = Vec::new();
                     for atomic in ATOMIC {
                         let Some(at) = files.iter().position(|(n, _)| n == atomic) else {
                             continue;
                         };
                         let (name, mut bytes) = files.remove(at);
-                        let tmp = d.join(format!(".{name}.tmp"));
+                        let tmp = d.join(&*text!(".{name}.tmp"));
                         let wrote =
                             fs::write(&tmp, &bytes).and_then(|()| fs::rename(&tmp, d.join(&name)));
                         zeroize::Zeroize::zeroize(&mut bytes);
                         if wrote.is_err() {
                             let _ = fs::remove_file(&tmp);
                         }
-                        wrote.map_err(|e| e.to_string())?;
+                        wrote.map_err(|e| text!("{e}"))?;
                         kept_names.push(atomic);
                     }
-                    for e in fs::read_dir(&d).map_err(|e| e.to_string())?.flatten() {
+                    for e in fs::read_dir(&d).map_err(|e| text!("{e}"))?.flatten() {
                         // What was just written stays; one no longer needed
                         // goes.
                         if kept_names.iter().any(|n| e.file_name() == *n) {
@@ -600,10 +596,10 @@ impl Boxes {
                         let _ = fs::remove_file(e.path());
                     }
                     for (name, mut bytes) in files {
-                        let wrote = fs::write(d.join(checked(&name).map_err(plain)?), &bytes);
+                        let wrote = fs::write(d.join(checked(&name)?), &bytes);
                         // The shell's copy goes; the app keeps its own.
                         zeroize::Zeroize::zeroize(&mut bytes);
-                        wrote.map_err(|e| e.to_string())?;
+                        wrote.map_err(|e| text!("{e}"))?;
                     }
                 }
                 Ok(())
@@ -629,16 +625,21 @@ impl Boxes {
                         .map(|d| {
                             d.flatten()
                                 .filter_map(|e| {
-                                    let name = e.file_name().to_string_lossy().into_owned();
+                                    let file = e.file_name();
+                                    let name = file.to_string_lossy();
                                     // A temporary file of a save that was cut
                                     // off is not kept.
-                                    if ATOMIC.iter().any(|a| name == format!(".{a}.tmp")) {
+                                    let temporary = name
+                                        .strip_prefix('.')
+                                        .and_then(|n| n.strip_suffix(".tmp"))
+                                        .is_some_and(|n| ATOMIC.contains(&n));
+                                    if temporary {
                                         let _ = fs::remove_file(e.path());
                                         return None;
                                     }
                                     fs::read(e.path())
                                         .ok()
-                                        .map(|b| (name, zeroize::Zeroizing::new(b)))
+                                        .map(|b| (name.as_ref().into(), zeroize::Zeroizing::new(b)))
                                 })
                                 .collect()
                         })
@@ -676,8 +677,11 @@ impl Host {
     /// The Downloads folder as the app sees it.
     pub fn files(&self) -> StorageEvent {
         StorageEvent::HostFiles {
-            dir: self.downloads.display().to_string(),
-            files: host_listing(&self.downloads),
+            dir: text!("{}", self.downloads.display()).as_str().into(),
+            files: host_listing(&self.downloads)
+                .into_iter()
+                .map(|(n, s)| (n.as_str().into(), s))
+                .collect(),
             opens: self.opens,
         }
     }
@@ -700,14 +704,14 @@ pub fn can_open_folders() -> bool {
 /// The files in a folder of this computer's, newest first, with their
 /// sizes: no folders, and none of an operating system's own
 /// ([`foreign`]: a Windows Downloads folder's `desktop.ini`).
-pub fn host_listing(dir: &Path) -> Vec<(String, u64)> {
+pub fn host_listing(dir: &Path) -> Vec<(Text, u64)> {
     let Ok(d) = fs::read_dir(dir) else {
         return Vec::new();
     };
-    let mut files: Vec<(std::time::SystemTime, String, u64)> = d
+    let mut files: Vec<(std::time::SystemTime, Text, u64)> = d
         .flatten()
         .filter_map(|e| {
-            let name = e.file_name().into_string().ok()?;
+            let name = Text::of(e.file_name().to_str()?);
             if foreign(&name) {
                 return None;
             }
@@ -725,34 +729,34 @@ pub fn host_listing(dir: &Path) -> Vec<(String, u64)> {
 
 /// Reads a file of this computer's that Transfer sends: no more than the
 /// file envelope carries and a byte, so that a larger one is known.
-pub fn read_host(path: &Path) -> Result<Vec<u8>, String> {
+pub fn read_host(path: &Path) -> Result<Vec<u8>, Text> {
     use std::io::Read;
-    let f = fs::File::open(path).map_err(|e| e.to_string())?;
+    let f = fs::File::open(path).map_err(|e| text!("{e}"))?;
     let mut bytes = Vec::new();
     f.take(faraday_core::transfer::MAX_SEND + 1)
         .read_to_end(&mut bytes)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| text!("{e}"))?;
     Ok(bytes)
 }
 
 /// Saves a file Transfer received into `dir` under `name`, or `name (2)`,
 /// `name (3)` and on before its extension when that is taken: a new file
 /// each time, never over one already there. Returns its path.
-pub fn save_download(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, String> {
+pub fn save_download(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, Text> {
     use std::io::Write;
-    let name = checked(name).map_err(plain)?;
-    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let name = checked(name)?;
+    fs::create_dir_all(dir).map_err(|e| text!("{e}"))?;
     let (stem, ext) = match name.rfind('.') {
         Some(i) if i > 0 => (&name[..i], &name[i..]),
         _ => (name, ""),
     };
     for n in 1..1000 {
         let candidate = if n == 1 {
-            name.to_string()
+            Text::of(name)
         } else {
-            format!("{stem} ({n}){ext}")
+            text!("{stem} ({n}){ext}")
         };
-        let path = dir.join(&candidate);
+        let path = dir.join(&*candidate);
         match fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -761,19 +765,19 @@ pub fn save_download(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, St
             Ok(mut f) => {
                 f.write_all(bytes)
                     .and_then(|()| f.sync_all())
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| text!("{e}"))?;
                 return Ok(path);
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
-            Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(text!("{e}")),
         }
     }
-    Err(fill(EN.storage_no_free_name, &[name]))
+    Err(Text::fill(EN.storage_no_free_name, &[name]))
 }
 
 /// Opens a folder in this computer's file manager, or a web address in
 /// its browser.
-fn open_folder(dir: &Path) -> Result<(), String> {
+fn open_folder(dir: &Path) -> Result<(), Text> {
     #[cfg(windows)]
     let program = {
         // From the system folder, not from the search path, so that no
@@ -789,7 +793,7 @@ fn open_folder(dir: &Path) -> Result<(), String> {
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| text!("{e}"))?;
     // Reaped when it ends, without holding the shell up.
     std::thread::spawn(move || child.wait());
     Ok(())
@@ -807,7 +811,7 @@ pub fn serve_with(
     boxes: &mut Boxes,
     host: Option<&Host>,
     sticks: &mut dyn Sticks,
-) -> Vec<String> {
+) -> Vec<Text> {
     let print = host.map(|h| h.print.as_path());
     let mut said = Vec::new();
     loop {
@@ -815,14 +819,14 @@ pub fn serve_with(
         for (stick, name, picture) in sticks.pictures_read() {
             app.storage(match picture {
                 Ok((bytes, payloads)) => StorageEvent::QrRead {
-                    name,
+                    name: name.as_str().into(),
                     bytes,
                     payloads,
                 },
                 Err(reason) => StorageEvent::ReadFailed {
-                    stick,
-                    name,
-                    reason,
+                    stick: stick.as_str().into(),
+                    name: name.as_str().into(),
+                    reason: reason.as_str().into(),
                 },
             });
         }
@@ -838,12 +842,7 @@ pub fn serve_with(
 }
 
 /// Hands the app a finished transfer.
-fn delivered(
-    app: &mut Faraday,
-    sticks: &mut dyn Sticks,
-    said: &mut Vec<String>,
-    done: Transferred,
-) {
+fn delivered(app: &mut Faraday, sticks: &mut dyn Sticks, said: &mut Vec<Text>, done: Transferred) {
     let ev = match done {
         // A vault read for its SHA-256: the bytes are wiped here, and only
         // the hash goes to the app.
@@ -857,18 +856,26 @@ fn delivered(
                 zeroize::Zeroize::zeroize(&mut bytes);
                 sha
             });
-            StorageEvent::Hashed { stick, name, sha }
+            StorageEvent::Hashed {
+                stick: stick.as_str().into(),
+                name: name.as_str().into(),
+                sha: sha.map_err(|e| e.as_str().into()),
+            }
         }
         Transferred::Read {
             stick,
             name,
             result,
         } => match result {
-            Ok(bytes) => StorageEvent::Read { stick, name, bytes },
+            Ok(bytes) => StorageEvent::Read {
+                stick: stick.as_str().into(),
+                name: name.as_str().into(),
+                bytes,
+            },
             Err(reason) => StorageEvent::ReadFailed {
-                stick,
-                name,
-                reason,
+                stick: stick.as_str().into(),
+                name: name.as_str().into(),
+                reason: reason.as_str().into(),
             },
         },
         Transferred::Write {
@@ -877,30 +884,33 @@ fn delivered(
             result,
         } => match result {
             Err(faraday_files::WriteRefused::NameTaken { on_stick, sha }) => {
-                let on_stick = plain(on_stick);
-                said.push(format!("{stick}/{on_stick} has the name of {name}"));
+                said.push(text!(
+                    "{}/{} has the name of {}",
+                    &*stick,
+                    &*on_stick,
+                    &*name
+                ));
                 StorageEvent::NameTaken {
-                    stick,
-                    name,
-                    on_stick,
+                    stick: stick.as_str().into(),
+                    name: name.as_str().into(),
+                    on_stick: on_stick.as_str().into(),
                     sha,
                 }
             }
             Ok(wrote_as) => {
-                said.push(format!("wrote {stick}/{wrote_as}"));
+                said.push(text!("wrote {}/{}", &*stick, &*wrote_as));
                 StorageEvent::Written {
-                    stick,
-                    name,
-                    wrote_as,
+                    stick: stick.as_str().into(),
+                    name: name.as_str().into(),
+                    wrote_as: wrote_as.as_str().into(),
                 }
             }
             Err(faraday_files::WriteRefused::Failed(reason)) => {
-                let reason = plain(reason);
-                said.push(format!("cannot write {stick}/{name}: {reason}"));
+                said.push(text!("cannot write {}/{}: {}", &*stick, &*name, &*reason));
                 StorageEvent::WriteFailed {
-                    stick,
-                    name,
-                    reason,
+                    stick: stick.as_str().into(),
+                    name: name.as_str().into(),
+                    reason: reason.as_str().into(),
                 }
             }
         },
@@ -916,12 +926,16 @@ fn serve_queued(
     host: Option<&Host>,
     print: Option<&Path>,
     sticks: &mut dyn Sticks,
-    said: &mut Vec<String>,
+    said: &mut Vec<Text>,
 ) {
     while let Some(c) = app.poll_storage() {
         match c {
             StorageCommand::Read { stick, name } => {
-                if let Err(t) = sticks.transfer_later(Transfer::Read { stick, name }) {
+                let read = Transfer::Read {
+                    stick: Text::of(&stick),
+                    name: Text::of(&name),
+                };
+                if let Err(t) = sticks.transfer_later(read) {
                     let done = transfer_now(&app.compute(), sticks, t);
                     delivered(app, sticks, said, done);
                 }
@@ -941,8 +955,8 @@ fn serve_queued(
                     faraday_core::OnTaken::Over(sha) => faraday_files::OnTaken::Over(sha),
                 };
                 let t = Transfer::Write {
-                    stick,
-                    name,
+                    stick: Text::of(&stick),
+                    name: Text::of(&name),
                     bytes,
                     copies,
                     replace,
@@ -957,7 +971,10 @@ fn serve_queued(
             StorageCommand::StickSpace { stick } => {
                 let ev = match sticks.space(&stick) {
                     Ok((free, size)) => StorageEvent::StickSpace { stick, free, size },
-                    Err(reason) => StorageEvent::ZeroFailed { stick, reason },
+                    Err(reason) => StorageEvent::ZeroFailed {
+                        stick,
+                        reason: reason.as_str().into(),
+                    },
                 };
                 app.storage(ev);
             }
@@ -970,8 +987,11 @@ fn serve_queued(
                         done,
                     },
                     Err(reason) => {
-                        said.push(format!("cannot zero {stick}: {reason}")); // not shown: a line for a verbose shell's console
-                        StorageEvent::ZeroFailed { stick, reason }
+                        said.push(text!("cannot zero {}: {}", stick, &*reason)); // not shown: a line for a verbose shell's console
+                        StorageEvent::ZeroFailed {
+                            stick,
+                            reason: reason.as_str().into(),
+                        }
                     }
                 };
                 app.storage(ev);
@@ -979,7 +999,7 @@ fn serve_queued(
             StorageCommand::MakeEmpty { stick } => {
                 let ev = match sticks.make_empty(&stick) {
                     Ok(()) => {
-                        said.push(format!("made {stick} empty")); // not shown: a line for a verbose shell's console
+                        said.push(text!("made {} empty", stick)); // not shown: a line for a verbose shell's console
                         StorageEvent::Zeroing {
                             stick,
                             next: 2,
@@ -988,8 +1008,11 @@ fn serve_queued(
                         }
                     }
                     Err(reason) => {
-                        said.push(format!("cannot make {stick} empty: {reason}")); // not shown: a line for a verbose shell's console
-                        StorageEvent::ZeroFailed { stick, reason }
+                        said.push(text!("cannot make {} empty: {}", stick, &*reason)); // not shown: a line for a verbose shell's console
+                        StorageEvent::ZeroFailed {
+                            stick,
+                            reason: reason.as_str().into(),
+                        }
                     }
                 };
                 app.storage(ev);
@@ -997,19 +1020,19 @@ fn serve_queued(
             StorageCommand::Wipe { stick, name } => {
                 let ev = match sticks.wipe(&stick, &name) {
                     Ok(faraday_files::Wiped::Zeroed) => {
-                        said.push(format!("deleted {stick}/{name}, zeros over it first"));
+                        said.push(text!("deleted {}/{}, zeros over it first", stick, name));
                         StorageEvent::Wiped { stick, name }
                     }
                     Ok(faraday_files::Wiped::NameOnly) => {
-                        said.push(format!("removed the name {stick}/{name}, bytes left")); // not shown: a line for a verbose shell's console
+                        said.push(text!("removed the name {}/{}, bytes left", stick, name)); // not shown: a line for a verbose shell's console
                         StorageEvent::WipedName { stick, name }
                     }
                     Err(reason) => {
-                        said.push(format!("cannot delete {stick}/{name}: {reason}"));
+                        said.push(text!("cannot delete {}/{}: {}", stick, name, &*reason));
                         StorageEvent::WipeFailed {
                             stick,
                             name,
-                            reason,
+                            reason: reason.as_str().into(),
                         }
                     }
                 };
@@ -1032,12 +1055,12 @@ fn serve_queued(
                                 faraday_core::Unrenamed::SameVault
                             }
                             faraday_files::Unrenamed::Failed(why) => {
-                                faraday_core::Unrenamed::Failed(plain(why))
+                                faraday_core::Unrenamed::Failed(why.as_str().into())
                             }
                         });
                 said.push(match &refused {
-                    None => format!("renamed {stick}/{from} {to}"),
-                    Some(r) => format!("cannot rename {stick}/{from}: {r:?}"), // not shown: a line for a verbose shell's console
+                    None => text!("renamed {}/{} {}", stick, from, to),
+                    Some(r) => text!("cannot rename {}/{}: {:?}", stick, from, r), // not shown: a line for a verbose shell's console
                 });
                 app.storage(StorageEvent::Renamed {
                     stick,
@@ -1049,13 +1072,13 @@ fn serve_queued(
             StorageCommand::NameStick { stick, label } => {
                 let refused = sticks.name(&stick, &label).err();
                 said.push(match &refused {
-                    None => format!("named {stick} {label:?}"), // not shown: a line for a verbose shell's console
-                    Some(r) => format!("cannot name {stick}: {r}"), // not shown: as above
+                    None => text!("named {} {:?}", stick, label), // not shown: a line for a verbose shell's console
+                    Some(r) => text!("cannot name {}: {}", stick, &**r), // not shown: as above
                 });
                 app.storage(StorageEvent::StickNamed {
                     stick,
                     label,
-                    refused,
+                    refused: refused.map(|r| r.as_str().into()),
                 });
             }
             // A file read for its Details' SHA-256: the bytes are wiped
@@ -1069,7 +1092,11 @@ fn serve_queued(
                     zeroize::Zeroize::zeroize(&mut bytes);
                     sha
                 });
-                app.storage(StorageEvent::Hashed { stick, name, sha });
+                app.storage(StorageEvent::Hashed {
+                    stick,
+                    name,
+                    sha: sha.map_err(|e| e.as_str().into()),
+                });
             }
             // Read off this thread: its answer comes on a later pass.
             StorageCommand::ReadQr { stick, name } => sticks.read_qr_later(&stick, &name),
@@ -1080,18 +1107,20 @@ fn serve_queued(
                     },
                     Some(dir) => {
                         let saved = fs::create_dir_all(dir)
-                            .map_err(|e| e.to_string())
-                            .and_then(|()| checked(&name).map(|n| dir.join(n)).map_err(plain))
+                            .map_err(|e| text!("{e}"))
+                            .and_then(|()| checked(&name).map(|n| dir.join(n)))
                             .and_then(|path| {
                                 fs::write(&path, &bytes)
                                     .map(|()| path)
-                                    .map_err(|e| e.to_string())
+                                    .map_err(|e| text!("{e}"))
                             });
                         match saved {
                             Ok(path) => StorageEvent::Printed {
-                                path: path.display().to_string(),
+                                path: text!("{}", path.display()).as_str().into(),
                             },
-                            Err(reason) => StorageEvent::PrintFailed { reason },
+                            Err(reason) => StorageEvent::PrintFailed {
+                                reason: reason.as_str().into(),
+                            },
                         }
                     }
                 };
@@ -1105,7 +1134,10 @@ fn serve_queued(
                     },
                     Some(_) => match read_host(Path::new(&path)) {
                         Ok(bytes) => StorageEvent::HostRead { path, bytes },
-                        Err(reason) => StorageEvent::HostReadFailed { path, reason },
+                        Err(reason) => StorageEvent::HostReadFailed {
+                            path,
+                            reason: reason.as_str().into(),
+                        },
                     },
                 };
                 app.storage(ev);
@@ -1117,12 +1149,14 @@ fn serve_queued(
                     },
                     Some(h) => match save_download(&h.downloads, &name, &bytes) {
                         Ok(path) => {
-                            said.push(format!("saved {}", path.display()));
+                            said.push(text!("saved {}", path.display()));
                             StorageEvent::Saved {
-                                path: path.display().to_string(),
+                                path: text!("{}", path.display()).as_str().into(),
                             }
                         }
-                        Err(reason) => StorageEvent::SaveFailed { reason },
+                        Err(reason) => StorageEvent::SaveFailed {
+                            reason: reason.as_str().into(),
+                        },
                     },
                 };
                 // The shell's copy goes; the file has it now.
@@ -1139,14 +1173,14 @@ fn serve_queued(
                 if host.is_some_and(|h| h.opens)
                     && let Err(e) = open_folder(Path::new("https://nakamotoinstitute.org"))
                 {
-                    said.push(format!("cannot open nakamotoinstitute.org: {e}")); // not shown: a line for a verbose shell's console
+                    said.push(text!("cannot open nakamotoinstitute.org: {}", &*e)); // not shown: a line for a verbose shell's console
                 }
             }
             StorageCommand::OpenDownloads => {
                 if let Some(h) = host.filter(|h| h.opens)
                     && let Err(e) = open_folder(&h.downloads)
                 {
-                    said.push(format!("cannot open {}: {e}", h.downloads.display())); // not shown: a line for a verbose shell's console
+                    said.push(text!("cannot open {}: {}", h.downloads.display(), &*e)); // not shown: a line for a verbose shell's console
                 }
             }
             StorageCommand::SaveBoxes {
@@ -1155,7 +1189,7 @@ fn serve_queued(
                 kept,
             } => {
                 if let Err(e) = boxes.save(inbox, outbox, kept) {
-                    said.push(format!("cannot keep the Inbox and Outbox: {e}")); // not shown: a line for a verbose shell's console
+                    said.push(text!("cannot keep the Inbox and Outbox: {}", &*e)); // not shown: a line for a verbose shell's console
                     app.storage(StorageEvent::NotKept);
                 }
             }
@@ -1174,15 +1208,15 @@ pub struct DiskProcess {
     seq: u32,
     /// The sticks the last listing found unusable: their ids, and whether
     /// the reason is that they are read-only (else not FAT).
-    problems: Vec<(String, bool)>,
+    problems: Vec<(Text, bool)>,
     /// The sticks the last listing found not handed out yet, by id.
-    waiting: Vec<String>,
+    waiting: Vec<Text>,
     /// Pictures asked for, not yet sent: one is asked of the process at a
     /// time, so it holds one picture's bytes.
-    pictures: std::collections::VecDeque<(String, String)>,
+    pictures: std::collections::VecDeque<(Text, Text)>,
     /// The picture the process is reading: its request's number, stick,
     /// name, and when it was asked.
-    picture: Option<(u32, String, String, std::time::Instant)>,
+    picture: Option<(u32, Text, Text, std::time::Instant)>,
     /// Pictures answered, not yet handed to the app.
     pictures_done: Vec<PictureRead>,
     /// Vaults asked for or written, not yet started.
@@ -1192,7 +1226,7 @@ pub struct DiskProcess {
     /// Transfers finished, not yet handed to the app.
     transfers_done: Vec<Transferred>,
     /// Vaults read for their SHA-256, not yet answered.
-    hashing: Vec<(String, String)>,
+    hashing: Vec<(Text, Text)>,
 }
 
 /// A transfer the disk process is at, with the piece asked now.
@@ -1211,8 +1245,8 @@ struct Flight {
 enum Going {
     /// A file read: what has come so far.
     Read {
-        stick: String,
-        name: String,
+        stick: Text,
+        name: Text,
         out: Vec<u8>,
         /// The length the first piece stated; every piece states it again.
         total: u64,
@@ -1220,8 +1254,8 @@ enum Going {
     /// A file written: the whole of it, and where the piece in flight
     /// starts.
     Write {
-        stick: String,
-        name: String,
+        stick: Text,
+        name: Text,
         bytes: zeroize::Zeroizing<Vec<u8>>,
         copies: Vec<[u8; 32]>,
         replace: bool,
@@ -1282,9 +1316,9 @@ impl DiskProcess {
         {
             let picture = match Response::decode(&frame) {
                 Ok(Response::Qr { bytes, codes }) => Ok((bytes, codes)),
-                Ok(Response::Failed(why)) => Err(plain(why)),
-                Ok(_) => Err(EN.storage_answer_codes.to_string()),
-                Err(_) => Err(EN.storage_answer_malformed.to_string()),
+                Ok(Response::Failed(why)) => Err(why),
+                Ok(_) => Err(Text::of(EN.storage_answer_codes)),
+                Err(_) => Err(Text::of(EN.storage_answer_malformed)),
             };
             self.pictures_done.push((stick, name, picture));
         } else if let Some(f) = self.transfer.as_mut().filter(|f| f.seq == seq) {
@@ -1296,14 +1330,14 @@ impl DiskProcess {
 
     /// The sticks the last listing found unusable, by id: true when the
     /// reason is that the device is read-only, else it is not FAT.
-    pub fn problems(&self) -> &[(String, bool)] {
+    pub fn problems(&self) -> &[(Text, bool)] {
         &self.problems
     }
 
     /// The sticks the last listing found not handed out yet, by id: in,
     /// but nothing on them can be read until `faraday-grant` hands them
     /// over, which it does only while the app is clean.
-    pub fn waiting(&self) -> &[String] {
+    pub fn waiting(&self) -> &[Text] {
         &self.waiting
     }
 
@@ -1318,8 +1352,8 @@ impl DiskProcess {
                 total,
             } => (
                 Request::ReadPart {
-                    stick: faraday_text::Text::of(&stick),
-                    name: faraday_text::Text::of(&name),
+                    stick: stick.clone(),
+                    name: name.clone(),
                     from: out.len() as u64,
                     len: PIECE as u32,
                 },
@@ -1344,16 +1378,16 @@ impl DiskProcess {
                 let last_at = (bytes.len() - 1) / PIECE * PIECE;
                 let req = if at < last_at {
                     Request::Piece {
-                        stick: faraday_text::Text::of(&stick),
-                        name: faraday_text::Text::of(&name),
+                        stick: stick.clone(),
+                        name: name.clone(),
                         at: at as u64,
                         total: bytes.len() as u64,
                         bytes: bytes[at..at + PIECE].to_vec(),
                     }
                 } else {
                     Request::Write {
-                        stick: faraday_text::Text::of(&stick),
-                        name: faraday_text::Text::of(&name),
+                        stick: stick.clone(),
+                        name: name.clone(),
                         copies: copies.clone(),
                         replace,
                         renamed,
@@ -1392,12 +1426,12 @@ impl DiskProcess {
                     what: going,
                 });
             }
-            Err(e) => self.finish(going, e.to_string()),
+            Err(e) => self.finish(going, text!("{e}")),
         }
     }
 
     /// A transfer over, wiping what it held.
-    fn finish(&mut self, going: Going, why: String) {
+    fn finish(&mut self, going: Going, why: Text) {
         self.transfers_done.push(match going {
             Going::Read {
                 stick,
@@ -1422,9 +1456,7 @@ impl DiskProcess {
                 Transferred::Write {
                     stick,
                     name,
-                    result: Err(faraday_files::WriteRefused::Failed(faraday_text::Text::of(
-                        &why,
-                    ))),
+                    result: Err(faraday_files::WriteRefused::Failed(why)),
                 }
             }
         });
@@ -1434,8 +1466,8 @@ impl DiskProcess {
     /// or the file whole.
     fn read_part(
         &mut self,
-        stick: String,
-        name: String,
+        stick: Text,
+        name: Text,
         mut out: Vec<u8>,
         known: u64,
         total: u64,
@@ -1445,7 +1477,7 @@ impl DiskProcess {
         let refused = !accept_part(&mut out, known, total, &part);
         if refused {
             zeroize::Zeroize::zeroize(&mut part);
-            let why = EN.storage_answer_file.to_string();
+            let why = Text::of(EN.storage_answer_file);
             self.finish(
                 Going::Read {
                     stick,
@@ -1481,7 +1513,7 @@ impl DiskProcess {
         if let Some(f) = self.transfer.take() {
             let Some(mut frame) = f.answer else {
                 if f.asked.elapsed() > ASK_WRITE {
-                    self.finish(f.what, EN.storage_disk_silent.to_string());
+                    self.finish(f.what, Text::of(EN.storage_disk_silent));
                 } else {
                     self.transfer = Some(Flight { answer: None, ..f });
                 }
@@ -1489,7 +1521,7 @@ impl DiskProcess {
             };
             let answer = Response::decode(&frame);
             zeroize::Zeroize::zeroize(&mut frame);
-            let answer = answer.map_err(|_| EN.storage_answer_malformed.to_string());
+            let answer = answer.map_err(|_| Text::of(EN.storage_answer_malformed));
             match (f.what, answer) {
                 (what, Err(why)) => self.finish(what, why),
                 (
@@ -1504,10 +1536,10 @@ impl DiskProcess {
                     self.read_part(stick, name, out, known, total, bytes);
                 }
                 (what @ Going::Read { .. }, Ok(Response::Failed(why))) => {
-                    self.finish(what, plain(why));
+                    self.finish(what, why);
                 }
                 (what @ Going::Read { .. }, Ok(_)) => {
-                    self.finish(what, EN.storage_answer_file.to_string());
+                    self.finish(what, Text::of(EN.storage_answer_file));
                 }
                 (
                     Going::Write {
@@ -1539,18 +1571,18 @@ impl DiskProcess {
                                 return;
                             }
                             Response::Failed(why) => Err(faraday_files::WriteRefused::Failed(why)),
-                            _ => Err(faraday_files::WriteRefused::Failed(faraday_text::Text::of(
+                            _ => Err(faraday_files::WriteRefused::Failed(Text::of(
                                 EN.storage_answer_write,
                             ))),
                         }
                     } else {
                         match answer {
-                            Response::Written(n) => Ok(plain(n)),
+                            Response::Written(n) => Ok(n),
                             Response::WriteNameTaken { on_stick, sha } => {
                                 Err(faraday_files::WriteRefused::NameTaken { on_stick, sha })
                             }
                             Response::Failed(why) => Err(faraday_files::WriteRefused::Failed(why)),
-                            _ => Err(faraday_files::WriteRefused::Failed(faraday_text::Text::of(
+                            _ => Err(faraday_files::WriteRefused::Failed(Text::of(
                                 EN.storage_answer_write,
                             ))),
                         }
@@ -1603,13 +1635,13 @@ impl DiskProcess {
     fn ask(
         &mut self,
         req: &faraday_files::proto::Request,
-    ) -> Result<faraday_files::proto::Response, String> {
+    ) -> Result<faraday_files::proto::Response, Text> {
         use faraday_files::proto::{Request, Response, send};
         self.seq = self.seq.wrapping_add(1);
         let mut encoded = req.encode();
         let sent = send(&mut self.tx, self.seq, &encoded);
         zeroize::Zeroize::zeroize(&mut encoded);
-        sent.map_err(|e| e.to_string())?;
+        sent.map_err(|e| text!("{e}"))?;
         let wait = if matches!(req, Request::Write { .. } | Request::Piece { .. }) {
             ASK_WRITE
         } else {
@@ -1622,20 +1654,20 @@ impl DiskProcess {
                 Ok((seq, mut frame)) if seq == self.seq => {
                     let answer = Response::decode(&frame);
                     zeroize::Zeroize::zeroize(&mut frame);
-                    return answer.map_err(|_| EN.storage_answer_malformed.to_string());
+                    return answer.map_err(|_| Text::of(EN.storage_answer_malformed));
                 }
                 Ok((seq, other)) => {
                     self.aside(seq, other);
                     continue;
                 }
-                Err(_) => return Err(EN.storage_disk_silent.to_string()),
+                Err(_) => return Err(Text::of(EN.storage_disk_silent)),
             }
         }
     }
 
     /// The partitions handed out now, by their volume labels. The app
     /// names the boot medium itself (`Medium::boot`), whatever its label.
-    pub fn list(&mut self) -> Result<Vec<StickInfo>, String> {
+    pub fn list(&mut self) -> Result<Vec<StickInfo>, Text> {
         use faraday_files::proto::{Problem, Request, Response};
         match self.ask(&Request::List)? {
             Response::Sticks(s) => {
@@ -1644,32 +1676,36 @@ impl DiskProcess {
                     .filter_map(|s| match s.problem {
                         // Not handed out yet: it waits, no problem is told.
                         None | Some(Problem::NotYet) => None,
-                        Some(p) => Some((plain(s.id.clone()), p == Problem::ReadOnly)),
+                        Some(p) => Some((s.id.clone(), p == Problem::ReadOnly)),
                     })
                     .collect();
                 self.waiting = s
                     .iter()
                     .filter(|s| s.problem == Some(Problem::NotYet))
-                    .map(|s| plain(s.id.clone()))
+                    .map(|s| s.id.clone())
                     .collect();
                 Ok(s.into_iter()
                     .map(|s| StickInfo {
-                        label: plain(s.label),
-                        id: plain(s.id),
+                        label: s.label.as_str().into(),
+                        id: s.id.as_str().into(),
                         boot: s.boot,
                         serial: s.serial,
-                        files: s.files.into_iter().map(|(n, z)| (plain(n), z)).collect(),
-                        vaults: s.vaults.into_iter().map(plain).collect(),
+                        files: s
+                            .files
+                            .into_iter()
+                            .map(|(n, z)| (n.as_str().into(), z))
+                            .collect(),
+                        vaults: s.vaults.into_iter().map(|v| v.as_str().into()).collect(),
                         make: faraday_core::StickMake {
-                            maker: s.make.maker.map(plain),
-                            model: s.make.model.map(plain),
+                            maker: s.make.maker.map(|m| m.as_str().into()),
+                            model: s.make.model.map(|m| m.as_str().into()),
                             size: s.make.size,
                         },
                     })
                     .collect())
             }
-            Response::Failed(why) => Err(plain(why)),
-            _ => Err(EN.storage_answer_listing.to_string()),
+            Response::Failed(why) => Err(why),
+            _ => Err(Text::of(EN.storage_answer_listing)),
         }
     }
 }
@@ -1687,7 +1723,7 @@ impl DiskProcess {
         copies: &[[u8; 32]],
         replace: bool,
         renamed: bool,
-    ) -> Result<String, String> {
+    ) -> Result<Text, Text> {
         self.write_asking(
             stick,
             name,
@@ -1697,7 +1733,7 @@ impl DiskProcess {
             renamed,
             faraday_files::OnTaken::Beside,
         )
-        .map_err(|e| plain(e.text()))
+        .map_err(|e| e.text())
     }
 
     /// [`DiskProcess::write_copies`], a vault's same-name file dealt with as
@@ -1715,7 +1751,7 @@ impl DiskProcess {
         replace: bool,
         renamed: bool,
         on_taken: faraday_files::OnTaken,
-    ) -> Result<String, faraday_files::WriteRefused> {
+    ) -> Result<Text, faraday_files::WriteRefused> {
         use faraday_files::WriteRefused as W;
         use faraday_files::proto::{Request, Response};
         // A file longer than a piece goes in pieces, held by the disk
@@ -1729,23 +1765,23 @@ impl DiskProcess {
         };
         for (k, part) in bytes[..last_at].chunks(piece).enumerate() {
             let mut req = Request::Piece {
-                stick: faraday_text::Text::of(stick),
-                name: faraday_text::Text::of(name),
+                stick: Text::of(stick),
+                name: Text::of(name),
                 at: (k * piece) as u64,
                 total: bytes.len() as u64,
                 bytes: part.to_vec(),
             };
             let answer = self.ask(&req);
             req.wipe();
-            match answer.map_err(|e| W::Failed(faraday_text::Text::of(&e)))? {
+            match answer.map_err(W::Failed)? {
                 Response::Held(_) => {}
                 Response::Failed(why) => return Err(W::Failed(why)),
-                _ => return Err(W::Failed(faraday_text::Text::of(EN.storage_answer_write))),
+                _ => return Err(W::Failed(Text::of(EN.storage_answer_write))),
             }
         }
         let mut req = Request::Write {
-            stick: faraday_text::Text::of(stick),
-            name: faraday_text::Text::of(name),
+            stick: Text::of(stick),
+            name: Text::of(name),
             copies: copies.to_vec(),
             replace,
             renamed,
@@ -1755,11 +1791,11 @@ impl DiskProcess {
         };
         let answer = self.ask(&req);
         req.wipe();
-        match answer.map_err(|e| W::Failed(faraday_text::Text::of(&e)))? {
-            Response::Written(n) => Ok(plain(n)),
+        match answer.map_err(W::Failed)? {
+            Response::Written(n) => Ok(n),
             Response::WriteNameTaken { on_stick, sha } => Err(W::NameTaken { on_stick, sha }),
             Response::Failed(why) => Err(W::Failed(why)),
-            _ => Err(W::Failed(faraday_text::Text::of(EN.storage_answer_write))),
+            _ => Err(W::Failed(Text::of(EN.storage_answer_write))),
         }
     }
 }
@@ -1797,8 +1833,8 @@ fn accept_part(out: &mut Vec<u8>, known: u64, total: u64, part: &[u8]) -> bool {
 /// process's answer to one `ReadPart`. What has come is wiped when the
 /// read fails.
 pub fn read_pieces(
-    mut ask: impl FnMut(u64, u32) -> Result<faraday_files::proto::Response, String>,
-) -> Result<Vec<u8>, String> {
+    mut ask: impl FnMut(u64, u32) -> Result<faraday_files::proto::Response, Text>,
+) -> Result<Vec<u8>, Text> {
     use faraday_files::proto::{PIECE, Response};
     let mut out: Vec<u8> = Vec::new();
     let mut known = 0;
@@ -1808,18 +1844,18 @@ pub fn read_pieces(
             Response::Part { total, bytes } => (total, bytes),
             Response::Failed(why) => {
                 zeroize::Zeroize::zeroize(&mut out);
-                return Err(plain(why));
+                return Err(why);
             }
             _ => {
                 zeroize::Zeroize::zeroize(&mut out);
-                return Err(EN.storage_answer_file.to_string());
+                return Err(Text::of(EN.storage_answer_file));
             }
         };
         let taken = accept_part(&mut out, known, total, &part);
         zeroize::Zeroize::zeroize(&mut part);
         if !taken {
             zeroize::Zeroize::zeroize(&mut out);
-            return Err(EN.storage_answer_file.to_string());
+            return Err(Text::of(EN.storage_answer_file));
         }
         known = total;
         if out.len() as u64 >= total {
@@ -1829,14 +1865,14 @@ pub fn read_pieces(
 }
 
 impl Sticks for DiskProcess {
-    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String> {
+    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, Text> {
         use faraday_files::proto::Request;
         // A file is read in pieces, so that a vault longer than a frame
         // comes whole (F206 point 7).
         read_pieces(|from, len| {
             self.ask(&Request::ReadPart {
-                stick: faraday_text::Text::of(stick),
-                name: faraday_text::Text::of(name),
+                stick: Text::of(stick),
+                name: Text::of(name),
                 from,
                 len,
             })
@@ -1853,54 +1889,54 @@ impl Sticks for DiskProcess {
         replace: bool,
         renamed: bool,
         on_taken: faraday_files::OnTaken,
-    ) -> Result<String, faraday_files::WriteRefused> {
+    ) -> Result<Text, faraday_files::WriteRefused> {
         self.write_asking(stick, name, bytes, copies, replace, renamed, on_taken)
     }
 
-    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, String> {
+    fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, Text> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::Wipe {
-            stick: faraday_text::Text::of(stick),
-            name: faraday_text::Text::of(name),
+            stick: Text::of(stick),
+            name: Text::of(name),
         })? {
             Response::Wiped => Ok(faraday_files::Wiped::Zeroed),
             Response::WipedName => Ok(faraday_files::Wiped::NameOnly),
-            Response::Failed(why) => Err(plain(why)),
-            _ => Err(EN.storage_answer_delete.to_string()),
+            Response::Failed(why) => Err(why),
+            _ => Err(Text::of(EN.storage_answer_delete)),
         }
     }
 
-    fn space(&mut self, stick: &str) -> Result<(u64, u64), String> {
+    fn space(&mut self, stick: &str) -> Result<(u64, u64), Text> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::Space {
-            stick: faraday_text::Text::of(stick),
+            stick: Text::of(stick),
         })? {
             Response::Space { free, size } => Ok((free, size)),
-            Response::Failed(why) => Err(plain(why)),
-            _ => Err(EN.storage_answer_space.to_string()),
+            Response::Failed(why) => Err(why),
+            _ => Err(Text::of(EN.storage_answer_space)),
         }
     }
 
-    fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), String> {
+    fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), Text> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::ZeroFree {
-            stick: faraday_text::Text::of(stick),
+            stick: Text::of(stick),
             from,
         })? {
             Response::Zeroing { next, total, done } => Ok((next, total, done)),
-            Response::Failed(why) => Err(plain(why)),
-            _ => Err(EN.storage_answer_zeroing.to_string()),
+            Response::Failed(why) => Err(why),
+            _ => Err(Text::of(EN.storage_answer_zeroing)),
         }
     }
 
-    fn make_empty(&mut self, stick: &str) -> Result<(), String> {
+    fn make_empty(&mut self, stick: &str) -> Result<(), Text> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::MakeEmpty {
-            stick: faraday_text::Text::of(stick),
+            stick: Text::of(stick),
         })? {
             Response::Zeroing { .. } => Ok(()),
-            Response::Failed(why) => Err(plain(why)),
-            _ => Err(EN.storage_answer_zeroing.to_string()),
+            Response::Failed(why) => Err(why),
+            _ => Err(Text::of(EN.storage_answer_zeroing)),
         }
     }
 
@@ -1927,13 +1963,13 @@ impl Sticks for DiskProcess {
 
     fn hash_later(&mut self, stick: &str, name: &str) -> bool {
         let read = Transfer::Read {
-            stick: stick.to_string(),
-            name: name.to_string(),
+            stick: Text::of(stick),
+            name: Text::of(name),
         };
         if self.transfer_later(read).is_err() {
             return false;
         }
-        self.hashing.push((stick.to_string(), name.to_string()));
+        self.hashing.push((Text::of(stick), Text::of(name)));
         true
     }
 
@@ -1946,8 +1982,7 @@ impl Sticks for DiskProcess {
     }
 
     fn read_qr_later(&mut self, stick: &str, name: &str) {
-        self.pictures
-            .push_back((stick.to_string(), name.to_string()));
+        self.pictures.push_back((Text::of(stick), Text::of(name)));
     }
 
     fn pictures_read(&mut self) -> Vec<PictureRead> {
@@ -1961,7 +1996,7 @@ impl Sticks for DiskProcess {
             .is_some_and(|p| p.3.elapsed() > ASK_PICTURE)
             && let Some((_, stick, name, _)) = self.picture.take()
         {
-            let why = EN.storage_disk_silent.to_string();
+            let why = Text::of(EN.storage_disk_silent);
             self.pictures_done.push((stick, name, Err(why)));
         }
         if self.picture.is_none()
@@ -1969,14 +2004,14 @@ impl Sticks for DiskProcess {
         {
             self.seq = self.seq.wrapping_add(1);
             let req = Request::ReadQr {
-                stick: faraday_text::Text::of(&stick),
-                name: faraday_text::Text::of(&name),
+                stick: stick.clone(),
+                name: name.clone(),
             };
             match send(&mut self.tx, self.seq, &req.encode()) {
                 Ok(()) => {
                     self.picture = Some((self.seq, stick, name, std::time::Instant::now()));
                 }
-                Err(e) => self.pictures_done.push((stick, name, Err(e.to_string()))),
+                Err(e) => self.pictures_done.push((stick, name, Err(text!("{e}")))),
             }
         }
         std::mem::take(&mut self.pictures_done)
@@ -1994,30 +2029,30 @@ impl Sticks for DiskProcess {
         use faraday_files::proto::{Request, Response};
         match self
             .ask(&Request::Rename {
-                stick: faraday_text::Text::of(stick),
-                from: faraday_text::Text::of(from),
-                to: faraday_text::Text::of(to),
+                stick: Text::of(stick),
+                from: Text::of(from),
+                to: Text::of(to),
                 vaults: vaults.to_vec(),
             })
-            .map_err(|e| U::Failed(faraday_text::Text::of(&e)))?
+            .map_err(U::Failed)?
         {
             Response::Renamed => Ok(()),
             Response::NameTaken { same_vault: false } => Err(U::Taken),
             Response::NameTaken { same_vault: true } => Err(U::SameVault),
             Response::Failed(why) => Err(U::Failed(why)),
-            _ => Err(U::Failed(faraday_text::Text::of(EN.storage_answer_rename))),
+            _ => Err(U::Failed(Text::of(EN.storage_answer_rename))),
         }
     }
 
-    fn name(&mut self, stick: &str, label: &str) -> Result<(), String> {
+    fn name(&mut self, stick: &str, label: &str) -> Result<(), Text> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::Name {
-            stick: faraday_text::Text::of(stick),
-            label: faraday_text::Text::of(label),
+            stick: Text::of(stick),
+            label: Text::of(label),
         })? {
             Response::Renamed => Ok(()),
-            Response::Failed(why) => Err(plain(why)),
-            _ => Err(EN.storage_answer_name.to_string()),
+            Response::Failed(why) => Err(why),
+            _ => Err(Text::of(EN.storage_answer_name)),
         }
     }
 }

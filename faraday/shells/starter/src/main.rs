@@ -187,7 +187,7 @@ impl Shell {
             Some(&self.host),
             &mut self.dirs,
         ) {
-            eprintln!("{line}");
+            eprintln!("{}", &*line);
         }
         draw |= self.answer_demo(events);
         while let Some(c) = self.starter.next_command() {
@@ -399,7 +399,7 @@ impl Shell {
                     .map(|p| p.display().to_string())
                     .map_err(|detail| Reason::File {
                         path: self.host.downloads.display().to_string(),
-                        detail,
+                        detail: String::from(&*detail),
                     });
                 let _ = self.tx.send(StarterEvent::TemplateSaved(saved));
             }

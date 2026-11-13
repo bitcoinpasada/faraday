@@ -132,7 +132,7 @@ pub struct Timed<'a> {
 }
 
 impl Sticks for Timed<'_> {
-    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, String> {
+    fn read(&mut self, stick: &str, name: &str) -> Result<Vec<u8>, faraday_text::Text> {
         self.sticks.read(stick, name)
     }
 
@@ -146,7 +146,7 @@ impl Sticks for Timed<'_> {
         replace: bool,
         renamed: bool,
         on_taken: faraday_storage::OnTaken,
-    ) -> Result<String, faraday_storage::WriteRefused> {
+    ) -> Result<faraday_text::Text, faraday_storage::WriteRefused> {
         let start = self.timings.is_some().then(Instant::now);
         let wrote = self
             .sticks
@@ -200,19 +200,23 @@ impl Sticks for Timed<'_> {
         self.sticks.hash_taken(stick, name)
     }
 
-    fn wipe(&mut self, stick: &str, name: &str) -> Result<Wiped, String> {
+    fn wipe(&mut self, stick: &str, name: &str) -> Result<Wiped, faraday_text::Text> {
         self.sticks.wipe(stick, name)
     }
 
-    fn space(&mut self, stick: &str) -> Result<(u64, u64), String> {
+    fn space(&mut self, stick: &str) -> Result<(u64, u64), faraday_text::Text> {
         self.sticks.space(stick)
     }
 
-    fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), String> {
+    fn zero_free(
+        &mut self,
+        stick: &str,
+        from: u32,
+    ) -> Result<(u32, u32, bool), faraday_text::Text> {
         self.sticks.zero_free(stick, from)
     }
 
-    fn make_empty(&mut self, stick: &str) -> Result<(), String> {
+    fn make_empty(&mut self, stick: &str) -> Result<(), faraday_text::Text> {
         self.sticks.make_empty(stick)
     }
 
@@ -235,7 +239,7 @@ impl Sticks for Timed<'_> {
         self.sticks.rename(c, stick, from, to, vaults)
     }
 
-    fn name(&mut self, stick: &str, label: &str) -> Result<(), String> {
+    fn name(&mut self, stick: &str, label: &str) -> Result<(), faraday_text::Text> {
         self.sticks.name(stick, label)
     }
 }

@@ -472,6 +472,7 @@ faraday/faraday-fat/src/lib.rs
 faraday/faraday-files/src/lib.rs
 faraday/faraday-files/src/proto.rs
 faraday/faraday-sqlite/src/lib.rs
+faraday/faraday-storage/src/lib.rs
 faraday/faraday-core/src/testkit.rs
 faraday/faraday-core/src/samples/mod.rs
 faraday/faraday-core/src/review.rs
