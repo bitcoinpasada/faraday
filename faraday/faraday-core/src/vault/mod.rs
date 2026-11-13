@@ -1904,7 +1904,7 @@ impl Faraday {
         if totp_text.is_some() {
             typed.push((
                 field::TOTP,
-                totp_store.as_deref().map_or(&b""[..], str::as_bytes),
+                totp_store.as_ref().map_or(&b""[..], |s| s.as_bytes()),
             ));
         }
         // A new record must still fit in the slot.
@@ -1933,7 +1933,7 @@ impl Faraday {
         form: &Form,
         id: VaultId,
         typed: Option<&str>,
-    ) -> Result<Option<String>, ()> {
+    ) -> Result<Option<Zeroizing<String>>, ()> {
         let Some(t) = typed.filter(|t| !t.trim().is_empty()) else {
             return Ok(None);
         };
@@ -1946,7 +1946,9 @@ impl Faraday {
                 self.vaults.store().reveal(&c, id, i, field::TOTP, why)
             });
         if stored.as_deref().is_some_and(|s| *s == *t) {
-            return Ok(Some(t.to_string()));
+            let mut same = Zeroizing::new(String::with_capacity(t.len()));
+            same.push_str(t);
+            return Ok(Some(same));
         }
         let text = |n: u8| {
             form.fields

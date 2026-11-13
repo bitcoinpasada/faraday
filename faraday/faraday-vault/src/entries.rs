@@ -8,16 +8,12 @@
 //! names the entry from its label when no title line does. Any other
 //! `field: value` line is kept in the notes, so nothing typed is lost.
 
-#![allow(
-    clippy::disallowed_methods,
-    reason = "holds secret text as a plain String until it is moved to wiping text (docs/SECRET-LEAKS.md §6)"
-)]
-
-use alloc::format;
-use alloc::string::{String, ToString};
+use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::records::{Record, field, kind};
+use zeroize::Zeroizing;
+
 use crate::totp;
 
 /// The field a `name:` line fills.
@@ -65,8 +61,8 @@ pub fn otpauth_names(uri: &str) -> Option<(String, String)> {
     let (label, query) = rest.split_once('?').unwrap_or((rest, ""));
     let label = percent_decoded(label);
     let (from_label, account) = match label.split_once(':') {
-        Some((i, a)) => (i.trim().to_string(), a.trim().to_string()),
-        None => (String::new(), label.trim().to_string()),
+        Some((i, a)) => (String::from(i.trim()), String::from(a.trim())),
+        None => (String::new(), String::from(label.trim())),
     };
     let issuer = query
         .split('&')
@@ -78,31 +74,41 @@ pub fn otpauth_names(uri: &str) -> Option<(String, String)> {
     } else if !from_label.is_empty() {
         from_label
     } else {
-        account.clone()
+        String::from(account.as_str())
     };
     Some((title, account))
 }
 
 pub use faraday_intake::looks_like_entries;
 
+/// `s` in wiping text sized to it, so it never grows and leaves a block
+/// behind.
+fn wiped(s: &str) -> Zeroizing<String> {
+    let mut out = Zeroizing::new(String::with_capacity(s.len()));
+    out.push_str(s);
+    out
+}
+
 /// The entries in text, as records. A block with nothing to call it by is
-/// left out.
+/// left out. Passwords, notes and secrets are held in wiping text while
+/// they are read.
 pub fn parse(text: &str) -> Vec<Record> {
     let mut out = Vec::new();
-    let mut fields: Vec<(u8, String)> = Vec::new();
-    let mut extra: Vec<String> = Vec::new();
-    let finish = |fields: &mut Vec<(u8, String)>,
-                  extra: &mut Vec<String>,
+    let mut fields: Vec<(u8, Zeroizing<String>)> = Vec::new();
+    let mut extra: Vec<Zeroizing<String>> = Vec::new();
+    let finish = |fields: &mut Vec<(u8, Zeroizing<String>)>,
+                  extra: &mut Vec<Zeroizing<String>>,
                   out: &mut Vec<Record>| {
         if fields.is_empty() && extra.is_empty() {
             return;
         }
-        let get =
-            |f: &Vec<(u8, String)>, n: u8| f.iter().find(|(k, _)| *k == n).map(|(_, v)| v.clone());
-        let mut title = get(fields, field::TITLE);
-        let mut user = get(fields, field::USERNAME);
+        fn get(f: &[(u8, Zeroizing<String>)], n: u8) -> Option<&str> {
+            f.iter().find(|(k, _)| *k == n).map(|(_, v)| v.as_str())
+        }
+        let mut title = get(fields, field::TITLE).map(String::from);
+        let mut user = get(fields, field::USERNAME).map(String::from);
         if let Some(t) = get(fields, field::TOTP)
-            && let Some((name, account)) = otpauth_names(&t)
+            && let Some((name, account)) = otpauth_names(t)
         {
             if title.is_none() && !name.is_empty() {
                 title = Some(name);
@@ -115,18 +121,19 @@ pub fn parse(text: &str) -> Vec<Record> {
             // A bare key is stored as a URI (`docs/TOTP.md` §4.3); one
             // that reads as neither goes to the notes, as other unknown
             // lines already do.
-            let account = user.clone().unwrap_or_default();
+            let account = user.as_deref().unwrap_or_default();
             let totp_value = get(fields, field::TOTP).and_then(|t| {
-                match totp::normalise(&t, &title, &account) {
-                    Some(s) => Some(s),
-                    None => {
-                        extra.push(format!("totp: {t}"));
-                        None
-                    }
+                let normalised = totp::normalise(t, &title, account);
+                if normalised.is_none() {
+                    let mut line = Zeroizing::new(String::with_capacity("totp: ".len() + t.len()));
+                    line.push_str("totp: ");
+                    line.push_str(t);
+                    extra.push(line);
                 }
+                normalised
             });
             let mut r = Record::new(kind::ENTRY).with(field::TITLE, title.as_bytes());
-            if let Some(u) = user {
+            if let Some(u) = &user {
                 r.push(field::USERNAME, u.as_bytes());
             }
             for n in [field::PASSWORD, field::URL] {
@@ -134,10 +141,18 @@ pub fn parse(text: &str) -> Vec<Record> {
                     r.push(n, v.as_bytes());
                 }
             }
-            let mut notes: Vec<String> = get(fields, field::NOTES).into_iter().collect();
-            notes.append(extra);
+            let mut notes: Vec<&str> = get(fields, field::NOTES).into_iter().collect();
+            notes.extend(extra.iter().map(|e| e.as_str()));
             if !notes.is_empty() {
-                r.push(field::NOTES, notes.join("\n").as_bytes());
+                let size = notes.iter().map(|n| n.len()).sum::<usize>() + notes.len();
+                let mut joined = Zeroizing::new(String::with_capacity(size));
+                for (i, n) in notes.iter().enumerate() {
+                    if i > 0 {
+                        joined.push('\n');
+                    }
+                    joined.push_str(n);
+                }
+                r.push(field::NOTES, joined.as_bytes());
             }
             if let Some(t) = totp_value {
                 r.push(field::TOTP, t.as_bytes());
@@ -158,20 +173,20 @@ pub fn parse(text: &str) -> Vec<Record> {
             if fields.iter().any(|(k, _)| *k == field::TOTP) {
                 finish(&mut fields, &mut extra, &mut out);
             }
-            fields.push((field::TOTP, l.to_string()));
+            fields.push((field::TOTP, wiped(l)));
             continue;
         }
         match l.split_once(':') {
             Some((name, value)) if field_of(name).is_some() => {
                 let n = field_of(name).expect("checked");
-                let value = value.trim().to_string();
+                let value = wiped(value.trim());
                 if n == field::TITLE && fields.iter().any(|(k, _)| *k == field::TITLE) {
                     finish(&mut fields, &mut extra, &mut out);
                 }
                 fields.retain(|(k, _)| *k != n);
                 fields.push((n, value));
             }
-            _ => extra.push(l.to_string()),
+            _ => extra.push(wiped(l)),
         }
     }
     finish(&mut fields, &mut extra, &mut out);
@@ -180,6 +195,8 @@ pub fn parse(text: &str) -> Vec<Record> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::format;
+
     use super::*;
 
     /// The two forms §6.4 names, mixed, with a line no field takes.

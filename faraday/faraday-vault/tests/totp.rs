@@ -303,15 +303,15 @@ fn normalise_of_a_bare_key_and_of_garbage() {
     let bare = "JBSW Y3DP EHPK 3PXP";
     let direct = parse(bare).expect("reads");
     let stored = normalise(bare, "Example", "octo").expect("a bare key normalises");
-    let via_store = parse(&stored).expect("the stored URI reads");
+    let via_store = parse(stored.as_str()).expect("the stored URI reads");
     assert_eq!(direct.code(1_000_000), via_store.code(1_000_000));
     assert!(stored.starts_with("otpauth://totp/Example:octo?secret=JBSWY3DPEHPK3PXP"));
 
-    assert_eq!(normalise("JBSWY3DP18PK3PXP", "Example", ""), None);
+    assert!(normalise("JBSWY3DP18PK3PXP", "Example", "").is_none());
     // A word or a password typed into the field is not a key, though its
     // letters are all Base32.
-    assert_eq!(normalise("hello", "Example", ""), None);
-    assert_eq!(normalise("correcthorse", "Example", ""), None);
+    assert!(normalise("hello", "Example", "").is_none());
+    assert!(normalise("correcthorse", "Example", "").is_none());
 }
 
 /// `grouped` matches the digit count (§4.2).
