@@ -227,7 +227,10 @@ fn in_the_demo_new_key_from_every_source_adds_a_sample_of_its_length_in_place_of
             let mut app = app_on(true);
             let made = new_key(&mut app, way, words);
             assert_eq!(made.split(' ').count(), usize::from(words));
-            assert_ne!(made, faraday_core::samples::repeated(first, words));
+            assert_ne!(
+                made,
+                String::from(&*faraday_core::samples::repeated(first, words))
+            );
             let says = format!("Lock in adds sample {first} \u{d7}{words}");
             assert!(
                 crate::strips::strip(&mut app)

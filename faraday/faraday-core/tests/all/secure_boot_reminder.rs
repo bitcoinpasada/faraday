@@ -128,7 +128,7 @@ fn the_sheet_opens_at_its_top_every_time() {
         // Keys in memory make the sheet long enough to scroll.
         let mut seeds: Vec<String> = faraday_core::testkit::TEST_SEEDS
             .iter()
-            .map(|(w, _)| faraday_core::testkit::test_words(w))
+            .map(|(w, _)| String::from(&*faraday_core::testkit::test_words(w)))
             .collect();
         for i in 1..=20u8 {
             let m = faraday_bip::bip39::Mnemonic::from_entropy(

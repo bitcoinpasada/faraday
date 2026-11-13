@@ -26,7 +26,7 @@ fn kit(internal: &str) -> Kit {
 pub(crate) fn key_path_tour(t: &mut Tour) -> Result<(), String> {
     let other = kit("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
     let nums = kit("50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0");
-    let unsigned = testkit::unsigned(&other)?;
+    let unsigned = testkit::unsigned(&other).map_err(|e| String::from(&*e))?;
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
             (

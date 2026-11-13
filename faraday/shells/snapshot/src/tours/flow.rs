@@ -16,7 +16,8 @@ fn opened_once(t: &mut Tour) -> Result<(), String> {
         unix_secs: 1_791_000_000,
     });
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
-    let vault = faraday_core::testkit::files()?
+    let vault = faraday_core::testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;
@@ -81,7 +82,8 @@ pub(crate) fn flow_beside_tour(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.pump();
     // The second stick holds only a vault nobody has opened here.
-    let other = testkit::kdbx_vault("Work", "work passphrase", 0x77, Vec::new())?;
+    let other = testkit::kdbx_vault("Work", "work passphrase", 0x77, Vec::new())
+        .map_err(|e| String::from(&*e))?;
     let dir = t.kit.join("second-stick");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("work.kdbx"), &other).map_err(|e| e.to_string())?;
@@ -128,7 +130,8 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Flow(F::Continue));
     t.shot("flow-2-insert")?;
     // The stick also carries another vault, one nobody has opened here.
-    let other = testkit::kdbx_vault("Work", "work passphrase", 0x77, Vec::new())?;
+    let other = testkit::kdbx_vault("Work", "work passphrase", 0x77, Vec::new())
+        .map_err(|e| String::from(&*e))?;
     std::fs::write(t.kit.join("work.kdbx"), other).map_err(|e| e.to_string())?;
     let first = t.stick();
     t.app.storage(StorageEvent::Sticks(vec![first.clone()]));

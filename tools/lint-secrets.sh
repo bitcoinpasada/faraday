@@ -471,7 +471,9 @@ faraday/faraday-disk/src/main.rs
 faraday/faraday-fat/src/lib.rs
 faraday/faraday-files/src/lib.rs
 faraday/faraday-files/src/proto.rs
-faraday/faraday-sqlite/src/lib.rs"
+faraday/faraday-sqlite/src/lib.rs
+faraday/faraday-core/src/testkit.rs
+faraday/faraday-core/src/samples/mod.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
@@ -545,7 +547,7 @@ report "heap text in secret-handling source (rule 3)" \
 # Exempt, as they are not shipped or are the boundary's own: faraday-keys;
 # the primitive crates faraday-pgp, -sb and -vault; tests/,
 # examples/ and fuzz/; the snapshot shell and faraday/tools/ (test
-# renders and test data); faraday-core's testkit.rs (the `testkit`
+# renders and test data); faraday-core's testkit.rs and testkit/ (the `testkit`
 # feature, which tools/lint-keys-tests.sh keeps out of every shipped
 # binary); faraday-guide's how.rs, which the manifest generates and which
 # names the functions as text (docs/CRYPTO-LEARN.md §3.1) without calling any.
@@ -564,7 +566,7 @@ boundary_files() {
         -not -path 'faraday/faraday-vault/*' \
         -not -path '*/tests/*' -not -path '*/examples/*' -not -path 'faraday/fuzz/*' \
         -not -path 'faraday/shells/snapshot/*' -not -path 'faraday/tools/*' \
-        -not -path 'faraday/faraday-core/src/testkit.rs' \
+        -not -path 'faraday/faraday-core/src/testkit.rs' -not -path 'faraday/faraday-core/src/testkit/*' \
         -not -path 'faraday/faraday-guide/src/how.rs' | sort
 }
 in_code() {

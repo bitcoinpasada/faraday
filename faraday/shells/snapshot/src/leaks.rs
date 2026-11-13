@@ -37,7 +37,7 @@ const CODEX32: [&str; 3] = [
 
 /// Plants the test secrets' text forms for this thread.
 pub(crate) fn plant() {
-    let phrases: Vec<String> = testkit::TEST_SEEDS
+    let phrases: Vec<_> = testkit::TEST_SEEDS
         .iter()
         .map(|(word, _)| testkit::test_words(word))
         .collect();

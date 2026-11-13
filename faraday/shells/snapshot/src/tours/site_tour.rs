@@ -210,7 +210,9 @@ fn sign(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::CNext(cstep::KEYS));
     t.press(Action::Nav(Screen::Home));
     let kit = single_kit(c, t, 1_200_000)?;
-    let psbt = faraday_core::testkit::unsigned(&kit)?.to_bytes();
+    let psbt = faraday_core::testkit::unsigned(&kit)
+        .map_err(|e| String::from(&*e))?
+        .to_bytes();
     files_in(t, &[("payment.psbt", psbt.clone())], &[]);
     let at = t
         .app

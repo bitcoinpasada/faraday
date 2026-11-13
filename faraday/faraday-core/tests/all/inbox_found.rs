@@ -43,7 +43,7 @@ fn kit_files(pick: impl Fn(&str) -> bool) -> Vec<(String, Vec<u8>)> {
 }
 
 fn words(seed: &str) -> Vec<u8> {
-    format!("{}\n", testkit::test_words(seed)).into_bytes()
+    format!("{}\n", &*testkit::test_words(seed)).into_bytes()
 }
 
 #[test]

@@ -23,8 +23,8 @@ fn open_transaction(t: &mut Tour) {
 pub(crate) fn register_tour(t: &mut Tour) -> Result<(), String> {
     let c = testkit::compute();
     let kit = testkit::kits().remove(0);
-    let with = testkit::unsigned_with_xpubs(&kit)?;
-    let without = testkit::unsigned(&kit)?;
+    let with = testkit::unsigned_with_xpubs(&kit).map_err(|e| String::from(&*e))?;
+    let without = testkit::unsigned(&kit).map_err(|e| String::from(&*e))?;
     // The third key's entry carries another account's key under the
     // origin the input states.
     let mut wrong = with.clone();

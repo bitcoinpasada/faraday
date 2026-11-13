@@ -113,7 +113,7 @@ fn a_secret_let_out_stays_a_secret_across_a_lock() {
 
 #[test]
 fn a_lock_leaves_no_secret_file_from_a_stick_in_the_inbox() {
-    let words = format!("{}\n", testkit::test_words(testkit::TEST_SEEDS[0].0));
+    let words = format!("{}\n", &*testkit::test_words(testkit::TEST_SEEDS[0].0));
     let mut app = device(vec![
         ("seed-words.txt".to_string(), words.into_bytes()),
         (

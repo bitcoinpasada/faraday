@@ -31,7 +31,8 @@ pub(crate) fn kept_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::SecretHold);
     scroll_to_open_next(t);
     t.shot("kept-two-of-three")?;
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

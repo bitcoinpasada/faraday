@@ -541,8 +541,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     println!("MuSig2 spend finished in the app");
     // MuSig2 partial signatures the device cannot confirm, and one that
     // does not verify, each opened from a stick.
-    let unconfirmed = testkit::musig_forged(&[0, 1])?;
-    let false_partial = testkit::musig_false_partial()?;
+    let unconfirmed = testkit::musig_forged(&[0, 1]).map_err(|e| String::from(&*e))?;
+    let false_partial = testkit::musig_false_partial().map_err(|e| String::from(&*e))?;
     for (name, psbt, frame) in [
         ("musig-unconfirmed.psbt", &unconfirmed, "musig-unconfirmed"),
         ("musig-false.psbt", &false_partial, "musig-false"),
@@ -588,7 +588,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // A file with another nonce for this device than the one it holds, and
     // a cosigner's partial that fails under the held one: Sign mends it.
     let mend = "musig-mend.psbt";
-    let mend_psbt = testkit::musig_forged(&[1])?;
+    let mend_psbt = testkit::musig_forged(&[1]).map_err(|e| String::from(&*e))?;
     std::fs::write(t.kit.join(mend), mend_psbt.to_bytes()).map_err(|e| e.to_string())?;
     t.sticks(true);
     t.press(Action::Lock);

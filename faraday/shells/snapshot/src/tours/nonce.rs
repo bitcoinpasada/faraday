@@ -65,7 +65,7 @@ fn finished_hex(
 
 pub(crate) fn nonce_tour(t: &mut Tour) -> Result<(), String> {
     let kit = testkit::kits().remove(0);
-    let (unsigned, cosigner) = testkit::spend()?;
+    let (unsigned, cosigner) = testkit::spend().map_err(|e| String::from(&*e))?;
     let hex = finished_hex(&kit, unsigned.to_bytes(), cosigner.to_bytes())?;
     // The cosigner's copy with its first signature changed by one bit.
     let mut wrong = cosigner.clone();

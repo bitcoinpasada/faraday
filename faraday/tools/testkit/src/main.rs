@@ -33,7 +33,7 @@ use faraday_psbt::Psbt;
 /// calls cost.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn run(c: &Compute, out: &Path) -> Result<(), String> {
-    let (unsigned, cosigned) = testkit::spend()?;
+    let (unsigned, cosigned) = testkit::spend().map_err(|e| String::from(&*e))?;
     println!("spend txid {}", unsigned.unsigned_tx().compute_txid());
     // The flow the screens run: the test wallet, sign here, collect the
     // cosigner's copy, finish.
@@ -99,7 +99,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     // Every other test wallet: its spend signs with the test keys, and
     // finishes once enough of them have signed.
     for kit in testkit::kits() {
-        let (u, cosigned) = testkit::spend_of(&kit)?;
+        let (u, cosigned) = testkit::spend_of(&kit).map_err(|e| String::from(&*e))?;
         let mut all = testkit::session();
         for (word, label) in testkit::TEST_SEEDS {
             all.keys
@@ -169,7 +169,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
             faraday_core::wallet::Origin::Named,
         )
         .map_err(|e| e.text())?;
-    let mut flow = Spend::new(testkit::recovery(&kit)?, "x");
+    let mut flow = Spend::new(testkit::recovery(&kit).map_err(|e| String::from(&*e))?, "x");
     let by = second
         .sign(
             c,
@@ -187,7 +187,8 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
             .collect::<Vec<_>>()
     );
     // MuSig2: the app's order when it signs last.
-    let (mu, nonce_files, partial_files) = testkit::musig_rounds()?;
+    let (mu, nonce_files, partial_files) =
+        testkit::musig_rounds().map_err(|e| String::from(&*e))?;
     let mut s1 = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[0];
     s1.keys
@@ -196,7 +197,9 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     s1.add_wallet(
         c,
         "MuSig2",
-        &testkit::musig_policy()?.to_descriptor_checksummed(),
+        &testkit::musig_policy()
+            .map_err(|e| String::from(&*e))?
+            .to_descriptor_checksummed(),
         "Test wallet",
         faraday_core::wallet::Origin::Named,
     )
@@ -233,7 +236,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         "musig2 3 of 3: nonces collected, signed last, partials collected, aggregated, finished"
     );
     std::fs::create_dir_all(out).map_err(|e| e.to_string())?;
-    let files = testkit::files()?;
+    let files = testkit::files().map_err(|e| String::from(&*e))?;
     // A directory an earlier kit wrote loses the files this kit no longer
     // has, so a stick made from it carries this kit alone.
     if out.join("savings-wallet.txt").exists() {
@@ -254,7 +257,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
 /// Writes the backup test stick's files.
 fn run_backup(out: &Path) -> Result<(), String> {
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
-    for (name, bytes) in testkit::backup_files()? {
+    for (name, bytes) in testkit::backup_files().map_err(|e| String::from(&*e))? {
         std::fs::write(out.join(&name), bytes).map_err(|e| format!("{name}: {e}"))?;
         println!("{name}");
     }

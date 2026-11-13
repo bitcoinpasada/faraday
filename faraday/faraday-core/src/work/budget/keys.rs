@@ -100,7 +100,7 @@ fn fields() -> Vec<Field> {
                 on(app, Screen::Home);
                 app.press(Action::Entry(None));
             },
-            words,
+            String::from(&*words),
         ),
         (
             "Load a key, its passphrase",
@@ -171,7 +171,7 @@ fn fields() -> Vec<Field> {
                 on(app, Screen::Home);
                 app.press(Action::Lightning);
             },
-            other,
+            String::from(&*other),
         ),
         (
             "Rename a wallet",

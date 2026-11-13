@@ -262,7 +262,7 @@ fn a_received_secret_is_saved_only_past_the_hold() {
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
     let mut app = receiving();
     app.event(Event::Scanned {
-        bytes: words.clone().into_bytes(),
+        bytes: words.as_bytes().to_vec(),
     });
     assert!(saves(&mut app).is_empty(), "not saved before the hold");
     let (name, _) = testkit::plain_asked(&app).expect("the hold");
@@ -278,7 +278,7 @@ fn a_received_secret_is_saved_only_past_the_hold() {
     // Another, cancelled: not saved.
     let mut app = receiving();
     app.event(Event::Scanned {
-        bytes: words.into_bytes(),
+        bytes: words.as_bytes().to_vec(),
     });
     app.press(Action::Cancel);
     assert!(saves(&mut app).is_empty(), "cancelled");

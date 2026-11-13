@@ -17,12 +17,13 @@ pub(crate) mod put;
 pub(crate) mod screen;
 
 use crate::inbox::{Part, Secret, part_of};
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::wallet::{Origin, read_wallet, same_wallet};
 use crate::{Action, Faraday, Mode, Screen, Sheet};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_keys::Handout;
+use faraday_text::Text;
 
 /// The passphrase of every sample that has one: the backup, the vault, and
 /// the second fingerprint of each key that takes a passphrase
@@ -249,8 +250,15 @@ pub struct Samples {
 }
 
 /// The phrase of a words sample made of one word: `word` `count` times.
-pub fn repeated(word: &str, count: u8) -> String {
-    vec![word; usize::from(count)].join(" ")
+pub fn repeated(word: &str, count: u8) -> Text {
+    let mut out = Text::new();
+    for i in 0..count {
+        if i > 0 {
+            out.push(' ');
+        }
+        out.push_str(word);
+    }
+    out
 }
 
 impl Samples {
@@ -312,7 +320,7 @@ pub struct Row {
     pub(crate) sample: usize,
     /// What the sample is, as its value: made once when the sheet opens
     /// from what the sample records, never while drawing.
-    pub(crate) kind: String,
+    pub(crate) kind: Text,
     /// Ticked by the person, to load.
     pub(crate) ticked: bool,
     /// Already in the session: shown ticked and dimmed.
@@ -386,16 +394,16 @@ impl SheetState {
 impl SampleWallet {
     /// What the wallet is: its kind and its script, "2-of-3 multisig ·
     /// native SegWit". A few strings put together.
-    pub fn kind_label(&self) -> String {
+    pub fn kind_label(&self) -> Text {
         let en = &EN;
-        let n = |n: u8| n.to_string();
+        let n = |n: u8| Text::num(u64::from(n));
         let kind = match self.kind {
-            SampleKind::Single => en.sample_kind_single.to_string(),
+            SampleKind::Single => Text::of(en.sample_kind_single),
             SampleKind::Multisig { need, total } => {
-                fill(en.sample_kind_multisig, &[&n(need), &n(total)])
+                Text::fill(en.sample_kind_multisig, &[&n(need), &n(total)])
             }
-            SampleKind::MuSig(keys) => fill(en.sample_kind_musig, &[&n(keys)]),
-            SampleKind::Timelock => en.sample_kind_timelock.to_string(),
+            SampleKind::MuSig(keys) => Text::fill(en.sample_kind_musig, &[&n(keys)]),
+            SampleKind::Timelock => Text::of(en.sample_kind_timelock),
         };
         let script = match self.script {
             SampleScript::Legacy => en.wallet_legacy,
@@ -404,39 +412,39 @@ impl SampleWallet {
             SampleScript::Taproot => en.wallet_taproot,
             SampleScript::TaprootTree => en.sample_script_tree,
         };
-        fill(en.sample_type, &[&kind, script])
+        Text::fill(en.sample_type, &[&kind, script])
     }
 }
 
 /// What a sample is called on screen, from the name its data carries: the
 /// string of that name in `faraday-strings`. `None` for a name that is no
 /// string there. The repeated-word samples take their word and its count.
-pub fn label(name: &str, word: &str, count: u8) -> Option<String> {
+pub fn label(name: &str, word: &str, count: u8) -> Option<Text> {
     let en = &EN;
     Some(match name {
-        "sample_words" => fill(en.sample_words, &[word, &count.to_string()]),
-        "sample_guide" => en.sample_guide.to_string(),
-        "sample_abandon" => en.sample_abandon.to_string(),
-        "sample_japanese" => en.sample_japanese.to_string(),
-        "sample_slip39_one" => en.sample_slip39_one.to_string(),
-        "sample_slip39_two_of_three" => en.sample_slip39_two_of_three.to_string(),
-        "sample_slip39_groups" => en.sample_slip39_groups.to_string(),
-        "sample_codex32_secret" => en.sample_codex32_secret.to_string(),
-        "sample_codex32_shares" => en.sample_codex32_shares.to_string(),
-        "sample_xor" => en.sample_xor.to_string(),
-        "sample_aezeed" => en.sample_aezeed.to_string(),
-        "sample_savings" => en.sample_savings.to_string(),
-        "sample_spending" => en.sample_spending.to_string(),
-        "sample_taproot" => en.sample_taproot.to_string(),
-        "sample_nested" => en.sample_nested.to_string(),
-        "sample_legacy" => en.sample_legacy.to_string(),
-        "sample_nested_multisig" => en.sample_nested_multisig.to_string(),
-        "sample_legacy_multisig" => en.sample_legacy_multisig.to_string(),
-        "sample_taproot_multisig" => en.sample_taproot_multisig.to_string(),
-        "sample_inheritance" => en.sample_inheritance.to_string(),
-        "sample_tree" => en.sample_tree.to_string(),
-        "sample_musig" => en.sample_musig.to_string(),
-        "sample_three_of_five" => en.sample_three_of_five.to_string(),
+        "sample_words" => Text::fill(en.sample_words, &[word, &Text::num(u64::from(count))]),
+        "sample_guide" => Text::of(en.sample_guide),
+        "sample_abandon" => Text::of(en.sample_abandon),
+        "sample_japanese" => Text::of(en.sample_japanese),
+        "sample_slip39_one" => Text::of(en.sample_slip39_one),
+        "sample_slip39_two_of_three" => Text::of(en.sample_slip39_two_of_three),
+        "sample_slip39_groups" => Text::of(en.sample_slip39_groups),
+        "sample_codex32_secret" => Text::of(en.sample_codex32_secret),
+        "sample_codex32_shares" => Text::of(en.sample_codex32_shares),
+        "sample_xor" => Text::of(en.sample_xor),
+        "sample_aezeed" => Text::of(en.sample_aezeed),
+        "sample_savings" => Text::of(en.sample_savings),
+        "sample_spending" => Text::of(en.sample_spending),
+        "sample_taproot" => Text::of(en.sample_taproot),
+        "sample_nested" => Text::of(en.sample_nested),
+        "sample_legacy" => Text::of(en.sample_legacy),
+        "sample_nested_multisig" => Text::of(en.sample_nested_multisig),
+        "sample_legacy_multisig" => Text::of(en.sample_legacy_multisig),
+        "sample_taproot_multisig" => Text::of(en.sample_taproot_multisig),
+        "sample_inheritance" => Text::of(en.sample_inheritance),
+        "sample_tree" => Text::of(en.sample_tree),
+        "sample_musig" => Text::of(en.sample_musig),
+        "sample_three_of_five" => Text::of(en.sample_three_of_five),
         _ => return None,
     })
 }
@@ -444,7 +452,7 @@ pub fn label(name: &str, word: &str, count: u8) -> Option<String> {
 impl SampleKey {
     /// What the key is: its form and its size, "BIP-39 · 24 words". A few
     /// strings put together.
-    pub fn kind_label(&self) -> String {
+    pub fn kind_label(&self) -> Text {
         let en = &EN;
         let form = match self.form {
             SampleForm::Words => en.sample_form_bip39,
@@ -454,28 +462,28 @@ impl SampleKey {
             SampleForm::Seed => en.sample_form_seed,
             SampleForm::Aezeed => en.sample_form_aezeed,
         };
-        let n = |n: u8| n.to_string();
+        let n = |n: u8| Text::num(u64::from(n));
         let size = match self.size {
-            SampleSize::Words(c) => fill(en.sample_size_words, &[&n(c)]),
-            SampleSize::JapaneseWords(c) => fill(en.sample_size_words_japanese, &[&n(c)]),
-            SampleSize::Shares(1) => en.sample_size_share.to_string(),
-            SampleSize::Shares(c) => fill(en.sample_size_shares, &[&n(c)]),
+            SampleSize::Words(c) => Text::fill(en.sample_size_words, &[&n(c)]),
+            SampleSize::JapaneseWords(c) => Text::fill(en.sample_size_words_japanese, &[&n(c)]),
+            SampleSize::Shares(1) => Text::of(en.sample_size_share),
+            SampleSize::Shares(c) => Text::fill(en.sample_size_shares, &[&n(c)]),
             SampleSize::Threshold { need, total } => {
-                fill(en.sample_size_threshold, &[&n(need), &n(total)])
+                Text::fill(en.sample_size_threshold, &[&n(need), &n(total)])
             }
-            SampleSize::GroupShares(c) => fill(en.sample_size_groups, &[&n(c)]),
-            SampleSize::Secret => en.sample_size_secret.to_string(),
-            SampleSize::Parts(c) => fill(en.sample_size_parts, &[&n(c)]),
-            SampleSize::Bytes(c) => fill(en.sample_size_bytes, &[&n(c)]),
+            SampleSize::GroupShares(c) => Text::fill(en.sample_size_groups, &[&n(c)]),
+            SampleSize::Secret => Text::of(en.sample_size_secret),
+            SampleSize::Parts(c) => Text::fill(en.sample_size_parts, &[&n(c)]),
+            SampleSize::Bytes(c) => Text::fill(en.sample_size_bytes, &[&n(c)]),
         };
-        fill(en.sample_type, &[form, &size])
+        Text::fill(en.sample_type, &[form, &size])
     }
 
     /// What the key is called on screen.
     ///
     /// Used by faraday-host.
     #[doc(hidden)]
-    pub fn label(&self) -> String {
+    pub fn label(&self) -> Text {
         label(self.name, self.word, self.count).unwrap_or_default()
     }
 
@@ -547,16 +555,19 @@ fn unhex(s: &str) -> Vec<u8> {
 
 /// What Load ticked says it loaded: "1 wallet", "3 keys" or "1 wallet and
 /// 3 keys".
-fn loaded_text(wallets: usize, keys: usize) -> String {
+fn loaded_text(wallets: usize, keys: usize) -> Text {
     let count = |n: usize, one: &str, many: &str| match n {
         0 => None,
-        1 => Some(fill(one, &["1"])),
-        n => Some(fill(many, &[&n.to_string()])),
+        1 => Some(Text::fill(one, &["1"])),
+        n => Some(Text::fill(
+            many,
+            &[&Text::num(u64::try_from(n).unwrap_or(u64::MAX))],
+        )),
     };
     let w = count(wallets, EN.samples_n_wallet, EN.samples_n_wallets);
     let k = count(keys, EN.samples_n_key, EN.samples_n_keys);
     match (w, k) {
-        (Some(w), Some(k)) => fill(EN.samples_loaded_pair, &[&w, &k]),
+        (Some(w), Some(k)) => Text::fill(EN.samples_loaded_pair, &[&w, &k]),
         (w, k) => w.or(k).unwrap_or_default(),
     }
 }
@@ -582,7 +593,7 @@ pub enum Roller {
 #[doc(hidden)]
 pub struct Hosted {
     /// The lines saying what Practice puts in place of the person's own.
-    pub lines: Vec<String>,
+    pub lines: Vec<Text>,
     /// The computer's dice roller.
     pub roller: Option<Roller>,
 }
@@ -676,11 +687,11 @@ impl Faraday {
     /// Costs a wallet read for each sample wallet, once a wallet is loaded.
     /// The sheet's rows as the session stands now, nothing ticked.
     fn samples_rows(&self, c: &Compute, set: &Samples) -> SheetState {
-        let have: Vec<String> = self
+        let have: Vec<Text> = self
             .session
             .wallets
             .iter()
-            .map(|w| same_wallet(w.policy()))
+            .map(|w| Text::of(&same_wallet(w.policy())))
             .collect();
         let wallets = set
             .wallets
@@ -691,7 +702,8 @@ impl Faraday {
                 kind: w.kind_label(),
                 ticked: false,
                 loaded: !have.is_empty()
-                    && read_wallet(c, w.text).is_ok_and(|p| have.contains(&same_wallet(&p))),
+                    && read_wallet(c, w.text)
+                        .is_ok_and(|p| have.iter().any(|h| **h == *same_wallet(&p))),
             })
             .collect();
         let keys = set
@@ -808,7 +820,10 @@ impl Faraday {
         }
         if wallets + keys > 0 {
             self.refresh_spend();
-            self.toast(&fill(EN.samples_loaded, &[&loaded_text(wallets, keys)]));
+            self.toast(&Text::fill(
+                EN.samples_loaded,
+                &[&loaded_text(wallets, keys)],
+            ));
         }
     }
 }
@@ -915,7 +930,7 @@ impl Faraday {
     /// Make codex32 shares' sample set in place of the strings entered,
     /// and Generate with dice's `faraday` in place of the words rolled
     /// (`docs/DEMO.md` §5.1, §5.2; `docs/CODEX32.md` §12). A lookup.
-    fn demo_lines_now(&self) -> Vec<String> {
+    fn demo_lines_now(&self) -> Vec<Text> {
         let mut lines = Vec::new();
         if self.screen == Screen::KeyGen
             && let Some(k) = self.keygen.state()
@@ -926,12 +941,15 @@ impl Faraday {
                 && k.mnemonic.is_some();
             let made = self.made_sample_now().filter(|_| key_open);
             if let Some(s) = made {
-                lines.push(fill(EN.keygen_words_are_sample, &[&s.label()]));
+                lines.push(Text::fill(EN.keygen_words_are_sample, &[&s.label()]));
             } else if key_open
                 && let Some((word, fp)) = self.session.keys.next_handout(k.handout_words())
             {
-                let name = fill(EN.sample_words, &[word, &k.handout_words().to_string()]);
-                lines.push(fill(
+                let name = Text::fill(
+                    EN.sample_words,
+                    &[word, &Text::num(u64::from(k.handout_words()))],
+                );
+                lines.push(Text::fill(
                     EN.keygen_lock_in_adds,
                     &[&name, &crate::wallet::fp_text(fp)],
                 ));
@@ -941,14 +959,17 @@ impl Faraday {
                 && m.sample()
                 && m.open() != Some(crate::codex32::Card::Enter)
             {
-                lines.push(fill(EN.c32r_demo_sample, &[&m.identifier().to_uppercase()]));
+                lines.push(Text::fill(
+                    EN.c32r_demo_sample,
+                    &[&m.identifier().to_uppercase()],
+                ));
             }
         }
         if self.screen == Screen::CreateVault
             && let Some(c) = self.vaults.create.as_ref()
             && (0..c.phrases.len()).any(|i| self.dice_made_public(c, i))
         {
-            lines.push(EN.vault_demo_uses_public.to_string());
+            lines.push(Text::of(EN.vault_demo_uses_public));
         }
         lines
     }

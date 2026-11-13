@@ -376,7 +376,7 @@ fn no_file_holds_the_passphrase() {
     let words = String::from_utf8(files[0].1.clone()).unwrap();
     assert_eq!(
         words.trim(),
-        testkit::test_words(testkit::TEST_SEEDS[SEED].0)
+        &*testkit::test_words(testkit::TEST_SEEDS[SEED].0)
     );
     assert_ne!(scanned(&files[1].1), fp, "the passphrase is in the code");
 }

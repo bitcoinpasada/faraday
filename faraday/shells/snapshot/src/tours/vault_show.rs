@@ -11,7 +11,8 @@ use faraday_shell_api::{App, Event, TouchPhase};
 /// its Save to a stick, and the Spending wallet's Save to a stick; then
 /// the wallets searched, with a match and with none.
 pub(crate) fn vault_show_tour(t: &mut Tour) -> Result<(), String> {
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

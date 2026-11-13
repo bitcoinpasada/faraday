@@ -92,6 +92,7 @@ fn edited(
     tweak: impl FnOnce(String) -> String,
 ) -> Result<Vec<u8>, String> {
     testkit::kdbx_edited("Shared", testkit::VAULT_PASSPHRASE, id, edit, tweak)
+        .map_err(|e| String::from(&*e))
 }
 
 /// The page of the vault `file` (unlocked) once its Load sheet is put away.
@@ -169,7 +170,8 @@ fn keyed_unlock(t: &mut Tour) -> Result<(), String> {
         testkit::VAULT_PASSPHRASE,
         3,
         (Some([7; 32]), Some([0xab; 20])),
-    )?;
+    )
+    .map_err(|e| String::from(&*e))?;
     only(
         t,
         vec![
@@ -264,7 +266,7 @@ fn wrong_passphrase(t: &mut Tour, own: &[u8]) -> Result<(), String> {
 }
 
 pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
-    let own = testkit::test_vault()?;
+    let own = testkit::test_vault().map_err(|e| String::from(&*e))?;
     wrong_passphrase(t, &own)?;
 
     keyed_unlock(t)?;
@@ -293,7 +295,8 @@ pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
     }
     // A vault of Faraday's sealed here, then its copy from before opened
     // in the same power-on: the dialog says it is older.
-    let fresh = testkit::kdbx_vault("Main", testkit::VAULT_PASSPHRASE, 1, Vec::new())?;
+    let fresh = testkit::kdbx_vault("Main", testkit::VAULT_PASSPHRASE, 1, Vec::new())
+        .map_err(|e| String::from(&*e))?;
     only(t, vec![("vault.kdbx".into(), fresh.clone())], Vec::new());
     unlock(t, testkit::VAULT_PASSPHRASE);
     crate::tour::not_now_load(t);
@@ -317,7 +320,7 @@ pub(crate) fn vault_states_tour(t: &mut Tour) -> Result<(), String> {
     unreadable_and_read_only(t)?;
 
     // Change passphrase and Memory on an open vault.
-    let main = testkit::test_vault()?;
+    let main = testkit::test_vault().map_err(|e| String::from(&*e))?;
     only(t, vec![("vault.kdbx".into(), main)], Vec::new());
     unlock(t, testkit::VAULT_PASSPHRASE);
     crate::tour::not_now_load(t);

@@ -14,6 +14,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use faraday_draw::tokens::{BODY_M, GAP, LABEL_L, LABEL_M, PAD, TITLE_M, TOUCH};
 use faraday_draw::widgets::Icon;
+use faraday_text::Text;
 
 /// The sheet, over the screen it was opened from.
 pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
@@ -24,11 +25,11 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 }
 
 /// The rows of `multi_list_valued` and the value under each.
-type Listed = (Vec<(String, bool, bool, Action)>, Vec<String>);
+type Listed = (Vec<(Text, bool, bool, Action)>, Vec<Text>);
 
 /// A list's rows for `multi_list_valued`: the sample's name, ticked once
 /// loaded too, and pressable until it is; and, for each, what it is.
-fn list(rows: &[Row], name: impl Fn(usize) -> String, pick: fn(u8) -> Pick) -> Listed {
+fn list(rows: &[Row], name: impl Fn(usize) -> Text, pick: fn(u8) -> Pick) -> Listed {
     rows.iter()
         .enumerate()
         .filter_map(|(i, r)| {

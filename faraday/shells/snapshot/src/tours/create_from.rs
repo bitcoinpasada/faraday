@@ -19,7 +19,8 @@ use faraday_crypto::work::Compute;
 pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
     use faraday_core::cstep;
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

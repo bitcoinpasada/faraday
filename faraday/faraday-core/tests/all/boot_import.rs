@@ -62,7 +62,9 @@ fn stick_files() -> Vec<(String, Vec<u8>)> {
         psbt,
         (
             "summer-words.txt".into(),
-            testkit::test_words(testkit::TEST_SEEDS[2].0).into_bytes(),
+            testkit::test_words(testkit::TEST_SEEDS[2].0)
+                .as_bytes()
+                .to_vec(),
         ),
         ("vault.kdbx".into(), testkit::test_vault().unwrap()),
         ("zebra-seedqr.png".into(), b"a picture".to_vec()),
@@ -523,7 +525,9 @@ fn a_seed_imported_from_its_file_and_held_by_the_vault_loads_once() {
     let mut files = stick_files();
     files.push((
         "bacon-words.txt".into(),
-        testkit::test_words(testkit::TEST_SEEDS[0].0).into_bytes(),
+        testkit::test_words(testkit::TEST_SEEDS[0].0)
+            .as_bytes()
+            .to_vec(),
     ));
     let mut app = imported_with(&files);
     assert!(key_fps(&app).contains(&fp(0)), "the words file's key");
@@ -925,7 +929,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
     // The stick's sorted listing puts the picture before the words file.
     let files: Vec<(String, Vec<u8>)> = vec![
         (format!("{stem}-compactseedqr.png"), b"a picture".to_vec()),
-        (format!("{stem}-words.txt"), words.into_bytes()),
+        (format!("{stem}-words.txt"), words.as_bytes().to_vec()),
     ];
     let mut app = testkit::started();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
@@ -1138,7 +1142,11 @@ fn fp_with(passphrase: &str) -> String {
 /// as the stick is pulled, the moment a BIP-39 words file's does (F60).
 #[test]
 fn every_kind_of_seed_file_imported_with_the_stick_in_loads_at_the_pull() {
-    let words = || testkit::test_words(testkit::TEST_SEEDS[2].0).into_bytes();
+    let words = || {
+        testkit::test_words(testkit::TEST_SEEDS[2].0)
+            .as_bytes()
+            .to_vec()
+    };
     let line = |s: &str| format!("{s}\n").into_bytes();
     type Case = (&'static str, Vec<(String, Vec<u8>)>, Option<String>);
     let cases: Vec<Case> = vec![

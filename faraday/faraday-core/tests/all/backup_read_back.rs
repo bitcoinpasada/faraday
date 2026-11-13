@@ -536,7 +536,7 @@ fn after_a_seedqr_is_written_and_read_back_the_kept_state_holds_nothing_of_the_s
     });
     let mut app = lock_and_write(&mut shell, &mut app);
     shell.pump(&mut app);
-    let words = testkit::test_words(testkit::TEST_SEEDS[2].0);
+    let words = String::from(&*testkit::test_words(testkit::TEST_SEEDS[2].0));
     let m = Mnemonic::parse(&c, Language::English, &words).unwrap();
     let digits = faraday_codec::seedqr::to_digits(&m)
         .expose()

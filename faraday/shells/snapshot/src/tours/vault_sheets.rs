@@ -93,8 +93,9 @@ fn item(t: &mut Tour, from: usize, category: usize, at: usize) {
 /// of the tour open, one of them locked again.
 fn setup(t: &mut Tour) -> Result<(), String> {
     let pass = testkit::VAULT_PASSPHRASE;
-    let alpha = testkit::kdbx_vault("Alpha", pass, 1, vec![seed()?, entry("Mail")])?;
-    let beta = testkit::kdbx_vault("Beta", pass, 2, Vec::new())?;
+    let alpha = testkit::kdbx_vault("Alpha", pass, 1, vec![seed()?, entry("Mail")])
+        .map_err(|e| String::from(&*e))?;
+    let beta = testkit::kdbx_vault("Beta", pass, 2, Vec::new()).map_err(|e| String::from(&*e))?;
     let newer = testkit::kdbx_edited(
         "Newer",
         pass,
@@ -112,8 +113,10 @@ fn setup(t: &mut Tour) -> Result<(), String> {
                 None => xml,
             }
         },
-    )?;
-    let locked = testkit::kdbx_vault("Gamma", pass, 3, Vec::new())?;
+    )
+    .map_err(|e| String::from(&*e))?;
+    let locked =
+        testkit::kdbx_vault("Gamma", pass, 3, Vec::new()).map_err(|e| String::from(&*e))?;
     let tagged = testkit::kdbx_edited(
         "Saved",
         pass,
@@ -127,7 +130,8 @@ fn setup(t: &mut Tour) -> Result<(), String> {
             let at = xml.find("</Entry>").unwrap_or(0);
             format!("{}<Tags>x</Tags>{}", &xml[..at], &xml[at..])
         },
-    )?;
+    )
+    .map_err(|e| String::from(&*e))?;
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
             ("a.kdbx".into(), alpha),
@@ -222,7 +226,8 @@ fn more_menu(t: &mut Tour) -> Result<(), String> {
         testkit::VAULT_PASSPHRASE,
         3,
         (Some([7; 32]), Some([0xab; 20])),
-    )?;
+    )
+    .map_err(|e| String::from(&*e))?;
     t.restart();
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![
@@ -309,7 +314,8 @@ fn secret_sheet(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let k = t.app.session.keys.len() - 1;
     t.app.session.keys.set_child_of(k, Some(origin()));
     t.app.session.keys.set_codex32(k, Some(set_facts()));
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

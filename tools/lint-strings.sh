@@ -79,7 +79,7 @@ status=0
 # The Learn pages (docs/learn, faraday-guide's pages), faraday-guide's
 # generated `how.rs` (the manifest's values, carried as the pages' text is)
 # and the self-test's check names are outside this lint, as CLAUDE.md says.
-FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/drawing/*' -not -path '*/work/*' | sort | grep -v '/testkit\.rs$\|/names\.rs$')
+FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/drawing/*' -not -path '*/work/*' | sort | grep -v '/testkit\.rs$\|/testkit/\|/names\.rs$')
 faraday/faraday-starter/src/*.rs
 faraday/faraday-ui/src/*.rs
 $(ls faraday/faraday-guide/src/*.rs | grep -v '/how\.rs$')

@@ -11,7 +11,8 @@ use faraday_core::{Action, Screen, StorageEvent};
 /// stick's files.
 pub(crate) fn panes_tour(t: &mut Tour) -> Result<(), String> {
     faraday_core::testkit::vault_speed(&mut t.app, Some(180));
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

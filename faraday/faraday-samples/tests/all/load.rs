@@ -142,10 +142,18 @@ fn every_row_of_the_sheet_says_what_the_sample_is() {
     // A sample added later gets its line from what it records: none is
     // blank, and the sheet and the sample agree.
     for w in SAMPLES.wallets {
-        assert!(texts.contains(&w.kind_label()), "{}", w.name);
+        assert!(
+            texts.contains(&String::from(&*w.kind_label())),
+            "{}",
+            w.name
+        );
     }
     for k in listed() {
-        assert!(texts.contains(&k.kind_label()), "{}", k.name);
+        assert!(
+            texts.contains(&String::from(&*k.kind_label())),
+            "{}",
+            k.name
+        );
     }
 }
 

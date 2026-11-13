@@ -559,7 +559,7 @@ fn a_secret_shown_as_a_code_offers_no_picture() {
         inbox: Vec::new(),
         outbox: faraday_core::files_from(vec![(
             "key-words.txt".to_string(),
-            format!("{}\n", testkit::test_words(testkit::TEST_SEEDS[0].0)).into_bytes(),
+            format!("{}\n", &*testkit::test_words(testkit::TEST_SEEDS[0].0)).into_bytes(),
         )]),
         kept: Vec::new(),
     });

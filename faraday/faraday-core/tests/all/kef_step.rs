@@ -1090,7 +1090,7 @@ fn nothing_scanned_for_the_drawn_code_is_loaded_or_filed() {
     );
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
     open_scan_my_copy(&mut app);
-    scan_copy(&mut app, words.into_bytes());
+    scan_copy(&mut app, words.as_bytes().to_vec());
     scan_copy(&mut app, b"HTTPS://EXAMPLE.ORG".to_vec());
     assert_eq!(app.session.keys.len(), keys);
     assert_eq!(app.session.wallets.len(), wallets);

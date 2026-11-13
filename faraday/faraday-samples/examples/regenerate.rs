@@ -77,7 +77,7 @@ fn words_key(c: &Compute, name: &'static str, word: &'static str, count: u8) -> 
                 .expect("words")
                 .0,
         ),
-        parts: vec![phrase],
+        parts: vec![String::from(&*phrase)],
         combined: String::new(),
         node: None,
     }

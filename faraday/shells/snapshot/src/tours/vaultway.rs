@@ -39,7 +39,8 @@ pub(crate) fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.shot("create-then-gpg")?;
     t.press(Action::Vault(V::Back));
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

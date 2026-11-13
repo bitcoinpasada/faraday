@@ -483,7 +483,7 @@ fn the_demo_adds_the_next_sample_of_its_length_not_loaded() {
         app.press(Action::KNext);
         // The words made are the generator's.
         let made = app.keygen().and_then(|k| k.phrase()).unwrap();
-        assert_ne!(made.as_str(), words("bacon"));
+        assert_ne!(made.as_str(), &*words("bacon"));
         finish(&mut app);
         added(&app)
     };

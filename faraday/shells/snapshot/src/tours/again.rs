@@ -32,7 +32,8 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BStep(bstep::PUBLIC));
     scroll_to(t, Action::PublicOut(0, 7));
     t.shot("again-watch-only-files")?;
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

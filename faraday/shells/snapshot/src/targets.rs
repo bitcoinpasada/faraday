@@ -82,7 +82,7 @@ fn counts_path() -> std::path::PathBuf {
 fn collect(size: (u16, u16), dpi: u16, work: &Path) -> Result<Vec<(String, Small)>, String> {
     let kit = work.join("kit");
     std::fs::create_dir_all(&kit).map_err(|e| e.to_string())?;
-    for (name, bytes) in faraday_core::testkit::files()? {
+    for (name, bytes) in faraday_core::testkit::files().map_err(|e| String::from(&*e))? {
         std::fs::write(kit.join(name), bytes).map_err(|e| e.to_string())?;
     }
     let compute = faraday_core::testkit::compute();

@@ -245,7 +245,7 @@ fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>, bool) {
         }
     }
     if let Some(hosted) = app.demo_hosted_now() {
-        lines.extend(hosted.lines);
+        lines.extend(hosted.lines.iter().map(|l| String::from(&**l)));
         if let Some(which) = hosted.roller {
             ctls.splice(0..0, roller_ctls(app, which));
         }
@@ -1404,13 +1404,14 @@ fn sheet_lists(
         .wallets()
         .iter()
         .map(|r| {
-            faraday_core::samples::label(set.wallets[r.sample()].name, "", 0).unwrap_or_default()
+            let label = faraday_core::samples::label(set.wallets[r.sample()].name, "", 0);
+            label.map_or_else(String::new, |l| String::from(&*l))
         })
         .collect();
     let keys: Vec<String> = state
         .keys()
         .iter()
-        .map(|r| set.keys[r.sample()].label())
+        .map(|r| String::from(&*set.keys[r.sample()].label()))
         .collect();
     cy += tick_list(
         ui,

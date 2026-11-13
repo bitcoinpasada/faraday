@@ -122,4 +122,5 @@ fn sheet_vault() -> Result<Vec<u8>, String> {
         64 * 1024,
         records,
     )
+    .map_err(|e| String::from(&*e))
 }

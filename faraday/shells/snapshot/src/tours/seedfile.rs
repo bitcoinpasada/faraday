@@ -42,7 +42,8 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("seedfile-sheet-no-vault-down")?;
     t.press(Action::Cancel);
     // The test vault, unlocked: it holds test key 1, not test key 2.
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

@@ -65,7 +65,7 @@ fn continue_at_once_with_a_loaded_keys_passphrase_makes_that_keys_wallet() {
     let words = testkit::test_words("summer");
     let mut app = with_inbox(vec![(
         "summer-words.txt".to_string(),
-        format!("{words}\n").into_bytes(),
+        format!("{}\n", &*words).into_bytes(),
     )]);
     let bare = app.inbox_found_now(&c).potential()[0].fingerprint;
     // The key with the passphrase is already loaded.

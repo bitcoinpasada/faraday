@@ -97,7 +97,7 @@ fn run(args: &[String]) -> Result<(), String> {
         }
         ["export", id, dir] => {
             let k = kit(id)?;
-            for (name, bytes) in testkit::public_files(k.name, &k.descriptor)? {
+            for (name, bytes) in testkit::public_files(k.name, &k.descriptor).map_err(|e| String::from(&*e))? {
                 write(Path::new(dir), &name, &bytes)?;
                 println!("{name}");
             }

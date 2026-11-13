@@ -104,7 +104,8 @@ fn save_item(t: &mut Tour) -> Result<(), String> {
         pass,
         1,
         vec![note("the safe is behind the books"), note(&"a".repeat(220))],
-    )?;
+    )
+    .map_err(|e| String::from(&*e))?;
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![("a.kdbx".into(), file)]),
         outbox: Vec::new(),

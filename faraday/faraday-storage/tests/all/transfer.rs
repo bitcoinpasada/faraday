@@ -317,7 +317,7 @@ fn a_seeds_words_received_are_saved_past_the_hold_and_said_to_hold_a_secret() {
     assert!(!path.exists(), "nothing is saved before the hold");
     app.press(Action::SecretHold);
     serve_with(&mut app, &mut boxes, Some(&host), &mut Dirs::default());
-    assert_eq!(fs::read_to_string(&path).unwrap(), words);
+    assert_eq!(fs::read_to_string(&path).unwrap(), &*words);
     let said = format!("Saved {}: this file holds a secret", path.display());
     assert_eq!(app.scan().and_then(|s| s.note.clone()), Some(said.clone()));
     assert_eq!(app.transfer().saved.last(), Some(&(said, true)));

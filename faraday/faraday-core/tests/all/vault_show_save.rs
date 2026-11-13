@@ -103,7 +103,7 @@ fn on_wallet(name: &str) -> Faraday {
 
 /// Test key 1's words, as typed.
 fn words() -> String {
-    testkit::test_words(testkit::TEST_SEEDS[0].0)
+    String::from(&*testkit::test_words(testkit::TEST_SEEDS[0].0))
 }
 
 /// Test key 1's fingerprint in lower case, as the kit's own files name it.

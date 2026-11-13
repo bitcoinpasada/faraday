@@ -45,7 +45,9 @@ pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
         .into_iter()
         .find(|k| k.id == "spending")
         .ok_or("no spending kit")?;
-    let psbt = testkit::unsigned(&kit)?.to_bytes();
+    let psbt = testkit::unsigned(&kit)
+        .map_err(|e| String::from(&*e))?
+        .to_bytes();
     t.app
         .event(faraday_shell_api::Event::Scanned { bytes: psbt });
     t.pump();

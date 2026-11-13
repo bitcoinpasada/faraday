@@ -107,7 +107,8 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("public-more-open")?;
     // A GPG key made in the test vault: its public key and revocation,
     // and a signature, each as a code and a picture.
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

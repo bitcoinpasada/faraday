@@ -10,7 +10,7 @@ const STICK: &str = "S1";
 const FILE: &str = "key-1-words.txt";
 
 fn words() -> String {
-    faraday_core::testkit::test_words("bacon")
+    String::from(&*faraday_core::testkit::test_words("bacon"))
 }
 
 fn attach(app: &mut Faraday) {
@@ -199,7 +199,9 @@ fn import_and_load_under_a_held_name_loads_only_the_copy_from_the_stick() {
     app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![(
             FILE.to_string(),
-            faraday_core::testkit::test_words("zebra").into_bytes(),
+            faraday_core::testkit::test_words("zebra")
+                .as_bytes()
+                .to_vec(),
         )]),
         outbox: Vec::new(),
         kept: Vec::new(),

@@ -546,7 +546,7 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
     app.inbox.push(Item::new(
         &c,
         "words.txt",
-        format!("{}\n", testkit::test_words(word)).into_bytes(),
+        format!("{}\n", &*testkit::test_words(word)).into_bytes(),
     ));
     step(&mut app, "a seed file added", true);
     assert!(!kept_found(&app).seeds[0].loaded);

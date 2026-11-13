@@ -1635,7 +1635,7 @@ impl crate::Faraday {
             return;
         }
         // Words that are a sample's own are kept as made (`docs/MODES.md` §7).
-        let kept = self.made_sample_now().map(crate::samples::SampleKey::label);
+        let kept = self.made_sample_now().map(|s| String::from(&*s.label()));
         let Some(k) = self.keygen.state.as_mut() else {
             return;
         };

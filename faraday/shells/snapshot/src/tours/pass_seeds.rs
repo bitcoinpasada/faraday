@@ -54,7 +54,8 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             .with(field::WALLET, trio.as_bytes())
             .with(field::WALLET_NAME, b"Trio"),
     );
-    let file = testkit::kdbx_vault_at("Trio", "trio phrase", 0x5e, 64 * 1024, records)?;
+    let file = testkit::kdbx_vault_at("Trio", "trio phrase", 0x5e, 64 * 1024, records)
+        .map_err(|e| String::from(&*e))?;
     t.app.storage(StorageEvent::Restored {
         inbox: faraday_core::files_from(vec![("trio.kdbx".into(), file)]),
         outbox: Vec::new(),

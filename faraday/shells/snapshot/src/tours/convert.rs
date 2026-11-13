@@ -25,7 +25,8 @@ fn open(t: &mut Tour) -> Result<(), String> {
 pub(crate) fn convert_tour(t: &mut Tour) -> Result<(), String> {
     open(t)?;
     t.shot("convert-from-empty")?;
-    let vault = testkit::files()?
+    let vault = testkit::files()
+        .map_err(|e| String::from(&*e))?
         .into_iter()
         .find(|(n, _)| n == "vault.kdbx")
         .ok_or("no test vault")?;

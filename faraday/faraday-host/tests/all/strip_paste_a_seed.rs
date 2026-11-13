@@ -100,7 +100,7 @@ fn paste_words_is_in_practices_strip_and_a_sample_pasted_loads() {
     assert!(strip_offers(&mut app, Action::PasteWords));
     let zebra = testkit::test_words("zebra");
     assert!(paste_words(&mut app, &zebra, false));
-    assert_eq!(words_in(&app), zebra);
+    assert_eq!(words_in(&app), *zebra);
     added(&mut app);
 }
 
