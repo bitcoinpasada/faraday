@@ -1886,7 +1886,8 @@ fn sb_keys(r: &Record) -> Option<faraday_sb::Keys> {
     }
     let pair = |key: u8, cert: u8| -> Option<faraday_sb::Pair> {
         Some(faraday_sb::Pair {
-            key: Zeroizing::new(r.field(key)?.to_vec()),
+            key: crate::texts::wiped_bytes(r.field(key)?),
+            #[expect(clippy::disallowed_methods, reason = "a certificate is public")]
             cert: r.field(cert)?.to_vec(),
         })
     };

@@ -80,8 +80,16 @@ impl SealJob {
             passphrase,
             plaintext,
             version: how.version,
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "an envelope's id and IV are public, in the clear"
+            )]
             id: how.id.to_vec(),
             count: how.count,
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "an envelope's id and IV are public, in the clear"
+            )]
             iv: how.iv.to_vec(),
             progress,
         }

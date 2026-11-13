@@ -171,6 +171,10 @@ fn revocation_parts(packets: &[u8]) -> Option<(u32, Reason, String)> {
     }
     let why = rest.get(2..1 + n)?;
     let (&code, text) = why.split_first()?;
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "a revocation reason's text is public, in the key's own revocation signature"
+    )]
     Some((
         at,
         Reason::from_code(code)?,

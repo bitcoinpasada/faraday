@@ -126,6 +126,15 @@ pub(crate) fn bsms_record(
     Some(record.to_text())
 }
 
+/// A secret's bytes in a buffer wiped on drop: the only copy made of them.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the bytes go straight into a buffer wiped on drop"
+)]
+pub(crate) fn wiped_bytes(bytes: &[u8]) -> zeroize::Zeroizing<Vec<u8>> {
+    zeroize::Zeroizing::new(bytes.to_vec())
+}
+
 /// A secret's text in a buffer wiped on drop: the only copy made of it.
 #[expect(
     clippy::disallowed_methods,

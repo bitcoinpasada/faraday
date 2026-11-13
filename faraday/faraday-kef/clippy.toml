@@ -1,5 +1,5 @@
 # Clippy reads the nearest clippy.toml, so this file repeats every entry of
-# faraday/clippy.toml (see it for why each is there) and adds the three
+# faraday/clippy.toml (see it for why each is there) and adds the four
 # refusals of core/faraday-bip/clippy.toml for the secret files of this crate
 # (docs/SECRET-LEAKS.md §6): lib.rs turns them on outside tests with
 # `#![cfg_attr(not(test), warn(clippy::disallowed_methods))]`, and a legitimate
@@ -20,6 +20,7 @@ disallowed-methods = [
     { path = "core::clone::Clone::clone", reason = "a copy of a secret is a function of its type (`duplicate`), under #[expect] where it is needed" },
     { path = "alloc::string::ToString::to_string", reason = "a secret made into text is a second buffer nothing wipes" },
     { path = "alloc::borrow::ToOwned::to_owned", reason = "a secret made into a second buffer nothing wipes" },
+    { path = "slice::to_vec", reason = "a secret copied into a second buffer nothing wipes (`[T]::to_vec`; Zeroizing or a borrow)" },
     { path = "bitcoin::psbt::Psbt::deserialize", reason = "a PSBT parse: faraday_psbt::Psbt::parse_bytes, which takes the token" },
 ]
 

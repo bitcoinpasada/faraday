@@ -222,6 +222,10 @@ impl QrOpenJob {
     /// nothing is worked out until the job runs.
     pub fn new(bytes: &[u8], passphrase: &str) -> QrOpenJob {
         QrOpenJob {
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "a QR vault is encrypted: its bytes are public"
+            )]
             bytes: bytes.to_vec(),
             passphrase: SecretText::of(passphrase),
         }
