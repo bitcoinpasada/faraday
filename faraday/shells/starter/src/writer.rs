@@ -428,7 +428,7 @@ fn back_failed(e: PayloadError, device: &str) -> Back {
 /// while it is read: a read then fails with "the media may have
 /// changed", and the disk is opened again and read from the start,
 /// once.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, reason = "the write's order, source and plan")]
 fn read_back_again(
     order: &WriteOrder,
     source: &Source<'_>,
