@@ -692,7 +692,8 @@ fn a_backups_load_let_finish_brings_in_the_keys_and_shows_the_checklist() {
 
 /// A passphrase typed on a wallet's chart and checked with its seeds not
 /// loaded: loaded first, then compared, by the button or by Enter.
-fn pass_checked(enter: bool, typed: &str) -> Option<bool> {
+/// The passphrase check open on a chart, the seeds not loaded, `typed` in it.
+fn pass_check_typed(typed: &str) -> (Faraday, faraday_core::glance::Press) {
     use crate::chart_edit::single_key_with_vault_pass;
     use faraday_core::glance::Press;
     use faraday_core::glance::sheet::{ChartAction as C, Target};
@@ -724,6 +725,12 @@ fn pass_checked(enter: bool, typed: &str) -> Option<bool> {
         app.session.keys.remove(0);
     }
     crate::common::type_text(&mut app, typed);
+    (app, press)
+}
+
+fn pass_checked(enter: bool, typed: &str) -> Option<bool> {
+    use faraday_core::glance::sheet::ChartAction as C;
+    let (mut app, press) = pass_check_typed(typed);
     if enter {
         app.event(Event::Key(Key::Enter));
     } else {
@@ -745,4 +752,15 @@ fn a_passphrase_checked_before_its_seeds_are_loaded_is_compared_when_they_are() 
         );
         assert_eq!(pass_checked(enter, "not it"), Some(false), "{enter}");
     }
+}
+
+#[test]
+fn escape_on_a_charts_sheet_while_its_seeds_load_leaves_none_of_them_in() {
+    let (mut app, _) = pass_check_typed("lantern-orchid-41");
+    app.event(Event::Key(Key::Enter));
+    assert!(app.busy().is_some(), "the seeds are loading");
+    app.event(Event::Key(Key::Escape));
+    testkit::settle(&mut app);
+    assert!(app.session.keys.is_empty(), "the seeds were not kept");
+    assert_eq!(app.chart(), None, "the sheet is closed");
 }

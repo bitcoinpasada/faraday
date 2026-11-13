@@ -812,6 +812,8 @@ impl Faraday {
                     KeyIn::Enter => {
                         self.act(Action::Chart(glance::sheet::ChartAction::Save(press)))
                     }
+                    // While the seeds load, Escape is Cancel and drops them.
+                    KeyIn::Escape if self.worker.busy().is_some() => self.act(Action::Cancel),
                     KeyIn::Escape => {
                         self.glance.set_chart(None);
                         self.sheet = None;
@@ -832,6 +834,7 @@ impl Faraday {
                     KeyIn::Enter => {
                         self.act(Action::Chart(glance::sheet::ChartAction::PassTry(press)))
                     }
+                    KeyIn::Escape if self.worker.busy().is_some() => self.act(Action::Cancel),
                     KeyIn::Escape => {
                         self.glance.close_pass_check();
                         self.glance.set_chart(None);
