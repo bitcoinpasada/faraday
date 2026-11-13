@@ -134,7 +134,7 @@ fn bip39_vector(c: &Compute) -> bool {
         .iter()
         .map(|&i| Language::English.word(i))
         .collect();
-    if words.join(" ") != BIP39_MNEMONIC {
+    if !BIP39_MNEMONIC.split(' ').eq(words.iter().copied()) {
         return false;
     }
     let Ok(seed) = m.to_seed(c, BIP39_PASSPHRASE) else {
@@ -172,7 +172,10 @@ fn bip39_japanese_vector(c: &Compute) -> bool {
         .iter()
         .map(|&i| Language::Japanese.word_display(i))
         .collect();
-    if words.join(Language::Japanese.separator()) != BIP39_JP_MNEMONIC {
+    if !BIP39_JP_MNEMONIC
+        .split(Language::Japanese.separator())
+        .eq(words.iter().copied())
+    {
         return false;
     }
     let Some(passphrase) = unhex(BIP39_JP_PASSPHRASE_NFKD) else {

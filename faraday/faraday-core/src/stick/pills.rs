@@ -303,7 +303,7 @@ impl Faraday {
                     && w.files.iter().all(|(n, sha)| {
                         st.files.iter().any(|(x, _)| x.as_str() == n.as_str())
                             && read.as_ref().is_none_or(|rd| {
-                                !n.to_ascii_lowercase().ends_with(".kdbx")
+                                !Text::ascii_lowercase(n).ends_with(".kdbx")
                                     || rd.iter().any(|(x, h)| *x == n.as_str() && h == sha)
                             })
                     });

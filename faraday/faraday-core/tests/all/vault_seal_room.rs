@@ -141,7 +141,7 @@ fn saving_a_wallet_into_a_vault_that_cannot_be_written_says_so() {
         .add_wallet(
             &c,
             "Spending",
-            &format!("wpkh({text}/<0;1>/*)"),
+            &format!("wpkh({}/<0;1>/*)", &*text),
             "test",
             faraday_core::wallet::Origin::Named,
         )

@@ -1729,10 +1729,10 @@ fn share_set_of(r: &Record) -> Option<Vec<u8>> {
     Some(
         [
             &[k, index.to_ascii_lowercase()][..],
-            &id.to_ascii_lowercase(),
+            &id.to_ascii_lowercase(), // not text: bytes
             key,
         ]
-        .concat(),
+        .concat(), // not text: bytes
     )
 }
 

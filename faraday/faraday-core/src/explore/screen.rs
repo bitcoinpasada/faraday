@@ -184,7 +184,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some((at, root, account)) = xprvs {
         y += value_row(ui, cols, y, EN.explore_xprv_root, root);
         if !at.is_empty() && path.as_ref().is_some_and(|p| xprv_path(p) == *at) {
-            let name = Text::fill(EN.explore_path_m, &[&text!("{at}").replace('\'', "h")]);
+            let name = Text::fill(
+                EN.explore_path_m,
+                &[&Text::replaced(&text!("{at}"), "'", "h")],
+            );
             y += value_row(ui, cols, y, &name, account);
         }
     }

@@ -48,7 +48,7 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
         let text = faraday_core::create::NewKind::NativeSegwit
             .key_text_at(&c, app.session.keys.master_for_tests(0), a as u32)
             .unwrap();
-        let d = format!("wpkh({text}/<0;1>/*)");
+        let d = format!("wpkh({}/<0;1>/*)", &*text);
         app.session
             .add_wallet(
                 &c,
@@ -362,7 +362,7 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
     };
     // Twelve wallets over the second seed, then one over the first.
     for a in 0..12u32 {
-        let d = format!("wpkh({}/<0;1>/*)", text_of(&app, 1, a));
+        let d = format!("wpkh({}/<0;1>/*)", &*text_of(&app, 1, a));
         app.session
             .add_wallet(
                 &c,
@@ -373,7 +373,7 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
             )
             .unwrap();
     }
-    let d = format!("wpkh({}/<0;1>/*)", text_of(&app, 0, 0));
+    let d = format!("wpkh({}/<0;1>/*)", &*text_of(&app, 0, 0));
     app.session
         .add_wallet(&c, "Ready", &d, "test", faraday_core::wallet::Origin::Named)
         .unwrap();

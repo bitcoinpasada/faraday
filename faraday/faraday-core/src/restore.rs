@@ -55,7 +55,7 @@ pub fn parts(text: &str) -> Option<ConfigParts> {
         }
         let (k, v) = line.split_once(':')?;
         let (k, v) = (k.trim(), v.trim());
-        match k.to_ascii_lowercase().as_str() {
+        match Text::ascii_lowercase(k).as_str() {
             "name" => name = Some(Text::of(v)),
             "policy" => {
                 let (m, n) = v.split_once(" of ")?;
@@ -1396,7 +1396,7 @@ mod tests {
         assert!(parts(&config(15, 16, path)).is_none());
         assert!(parts(&config(16, 16, path)).is_none());
         assert!(parts(&config(3, 4, path)).is_none());
-        let deepest = text!("m{}", "/2147483647h".repeat(255));
+        let deepest = text!("m{}", Text::repeated("/2147483647h", 255).as_str());
         assert!(parts(&config(3, 3, &deepest)).is_some());
         assert!(parts(&config(3, 3, &text!("{}/", &*deepest))).is_none());
         let share = |first: usize| {

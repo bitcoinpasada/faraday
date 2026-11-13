@@ -694,11 +694,11 @@ fn seal_file_name(app: &Faraday, id: VaultId, name: &str) -> Text {
                 let copy = app.vaults.vault_id_of_file(i.sha) == Some(open.vault_id);
                 !copy || open.seal_warn.is_some() && i.sha != Some(open.seal_digest)
             })
-            .map(|i| i.name.to_ascii_lowercase())
+            .map(|i| Text::ascii_lowercase(&i.name))
             .collect()
     };
     let mut taken = others_in(&app.outbox);
-    if !taken.contains(&name.to_ascii_lowercase()) {
+    if !taken.contains(&Text::ascii_lowercase(name)) {
         return Text::of(name);
     }
     taken.extend(others_in(&app.inbox));

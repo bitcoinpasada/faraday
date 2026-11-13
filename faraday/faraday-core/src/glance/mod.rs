@@ -2385,7 +2385,10 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> Text {
 
 /// A codex32 string as the chart names it: "Key 1 codex32 C".
 fn c32_label(key: usize, j: usize) -> Text {
-    let index = text!("{}", plan::codex32::index_char(j).to_ascii_uppercase());
+    let index = text!(
+        "{}",
+        char::to_ascii_uppercase(&plan::codex32::index_char(j))
+    );
     Text::fill(EN.c32_glance_string, &[&Text::num(key as u64), &index])
 }
 

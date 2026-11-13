@@ -171,7 +171,7 @@ fn vector(bytes: &[u8]) -> Option<(&[u8], &[u8])> {
 
 /// The double SHA-256 of `parts` joined, as Core's `Hash`.
 fn hash256(parts: &[&[u8]]) -> Zeroizing<[u8; 32]> {
-    let joined: Zeroizing<Vec<u8>> = Zeroizing::new(parts.concat());
+    let joined: Zeroizing<Vec<u8>> = Zeroizing::new(parts.concat()); // not text: bytes
     let once = Zeroizing::new(sha256(&joined));
     Zeroizing::new(sha256(&*once))
 }
@@ -385,7 +385,7 @@ fn open_master_key(mkey: &[u8], passphrase: &[u8]) -> Result<Secret<[u8; 32]>, O
     if rounds == 0 || rounds > MAX_ROUNDS {
         return Err(OpenError::Rounds(rounds));
     }
-    let mut chain = Zeroizing::new([passphrase, salt].concat());
+    let mut chain = Zeroizing::new([passphrase, salt].concat()); // not text: bytes
     // Each round's digest is written over the last, in one wiping array.
     let mut digest = Zeroizing::new([0u8; 64]);
     sha512_into(&chain, &mut digest);

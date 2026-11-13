@@ -516,7 +516,7 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     // Another wallet, of the same name.
     let name = app.session.wallets[a].name.clone();
-    let keys: Vec<String> = (0..3)
+    let keys: Vec<_> = (0..3)
         .map(|k| {
             NewKind::TapMulti
                 .key_text(&c, app.session.keys.master_for_tests(k))
@@ -1113,7 +1113,7 @@ fn a_key_another_wallet_in_the_vault_uses_is_never_taken_out() {
         .add_wallet(
             &c,
             "Other",
-            &format!("tr({text}/<0;1>/*)"),
+            &format!("tr({}/<0;1>/*)", &*text),
             "test",
             faraday_core::wallet::Origin::Named,
         )
@@ -1222,7 +1222,7 @@ fn a_key_is_never_taken_out_of_a_vault_another_wallets_record_is_in() {
     let text = NewKind::NativeSegwit
         .key_text(&c, app.session.keys.master_for_tests(k))
         .unwrap();
-    let hidden = format!("wpkh({text}/<0;1>/*)");
+    let hidden = format!("wpkh({}/<0;1>/*)", &*text);
     {
         let id = app.vaults().open[0].id;
         faraday_core::testkit::vault_edit(&mut app, id, |s| {

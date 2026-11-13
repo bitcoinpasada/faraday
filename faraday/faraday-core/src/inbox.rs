@@ -847,7 +847,7 @@ impl Faraday {
             .filter_map(|(k, it)| {
                 let fp = it.name.strip_prefix("passphrase-")?.strip_suffix(".txt")?;
                 (fp.len() == 8 && fp.bytes().all(|b| b.is_ascii_hexdigit()))
-                    .then(|| (k, Text::of(&fp.to_ascii_lowercase())))
+                    .then(|| (k, Text::ascii_lowercase(fp)))
             })
             .collect();
         // Each pair is a seed worked out: past the bound the rest are not
@@ -1156,7 +1156,7 @@ impl Faraday {
             }
             let mut c = w.chars();
             if let Some(f) = c.next() {
-                words.extend(f.to_uppercase());
+                words.push_str(&Text::uppercase(f.encode_utf8(&mut [0; 4])));
                 words.push_str(c.as_str());
             }
         }

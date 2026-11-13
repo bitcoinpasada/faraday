@@ -282,7 +282,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
             _ => None,
         };
         if let Some(wrap) = wrap {
-            return WalletPolicy::parse_any(c, &wrap.replace('K', &k.text))
+            return WalletPolicy::parse_any(c, &Text::replaced(wrap, "K", &k.text))
                 .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
         }
     }

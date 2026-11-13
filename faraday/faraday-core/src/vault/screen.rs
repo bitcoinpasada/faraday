@@ -74,7 +74,7 @@ pub(crate) fn text_box(
     // selection in them is by position.
     let dots;
     let shown: &str = if masked {
-        dots = "•".repeat(b.text.chars().count());
+        dots = Text::repeated("•", b.text.chars().count());
         &dots
     } else {
         &b.text
@@ -215,7 +215,7 @@ pub(crate) fn secret_box_off(ui: &mut Ui, (x, y, w): (f32, f32, f32), b: &TextBo
     let text: &str = if shown {
         &b.text
     } else {
-        dots = "•".repeat(b.text.chars().count());
+        dots = Text::repeated("•", b.text.chars().count());
         &dots
     };
     ui.text_mid_as((x + FIELD_PAD, y, FIELD_H), BODY_L.mono(), ink, text);
@@ -552,11 +552,11 @@ pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Text 
 fn two_lines(ui: &mut Ui, s: &str, w: f32) -> (faraday_text::Text, faraday_text::Text) {
     let parts: Vec<&str> = s.split(" · ").collect();
     let mut n = 1;
-    while n < parts.len() && ui.measure_as(BODY_S, &parts[..=n].join(" · ")) <= w {
+    while n < parts.len() && ui.measure_as(BODY_S, &Text::joined(&parts[..=n], " · ")) <= w {
         n += 1;
     }
-    let first = ui.fit_as(BODY_S, &parts[..n].join(" · "), w);
-    let second = ui.fit_as(BODY_S, &parts[n..].join(" · "), w);
+    let first = ui.fit_as(BODY_S, &Text::joined(&parts[..n], " · "), w);
+    let second = ui.fit_as(BODY_S, &Text::joined(&parts[n..], " · "), w);
     (first, second)
 }
 
@@ -1012,7 +1012,7 @@ pub(super) fn machine_rows(
     let (row, tick) = (tokens::TOUCH, tokens::ICON_GLYPH_BUTTON);
     let one = |ui: &mut Ui, cy: f32, on: bool, label: &str, side: &str, act: Action| {
         // A memory's number and unit stay together.
-        let side = &side.replace(' ', "\u{a0}").replace("\u{a0}(", " (");
+        let side = &Text::replaced(&Text::replaced(side, " ", "\u{a0}"), "\u{a0}(", " (");
         ui.checkbox(x, cy + (row - tick) / 2.0, on, true);
         let room = w - tokens::CHECK_LABEL_INDENT - tokens::GAP;
         if ui.measure_as(LABEL_L, label) + tokens::GAP + ui.measure_as(BODY_S, side) <= room {
@@ -1548,11 +1548,7 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
     if rel.is_some() {
         let index = faraday_keys::vault::codex32_share_header(r)
             .map(|(_, _, i)| {
-                Text::of(
-                    char::from(i)
-                        .to_ascii_uppercase()
-                        .encode_utf8(&mut [0u8; 4]),
-                )
+                Text::of(char::to_ascii_uppercase(&char::from(i)).encode_utf8(&mut [0u8; 4]))
             })
             .unwrap_or_default();
         let said = Text::fill(EN.vault_related_share, &[&index]);

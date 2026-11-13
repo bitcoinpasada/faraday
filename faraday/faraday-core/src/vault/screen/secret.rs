@@ -107,7 +107,7 @@ fn masked_box(ui: &mut Ui, (x, y, w): (f32, f32, f32), th: Option<f32>, shown: b
 /// The dots a masked field shows in place of its text.
 fn masked_dots(ui: &mut Ui, x: f32, y: f32) {
     let (tx, ty) = inside(x, y);
-    let dots = crate::secret_text::SecretText::of(&"\u{2022}".repeat(24));
+    let dots = crate::secret_text::SecretText::of(&faraday_text::Text::repeated("\u{2022}", 24));
     ui.text_as(tx, ty, BODY_M.mono(), Role::OnSurfaceVariant, &dots);
 }
 

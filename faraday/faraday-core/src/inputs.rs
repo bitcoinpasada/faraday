@@ -627,7 +627,10 @@ impl Faraday {
                 }
             })
             .collect();
-        let text = Text::fill(EN.inputs_plugged_in_at_start, &[&named.join(", ")]);
+        let text = Text::fill(
+            EN.inputs_plugged_in_at_start,
+            &[&*Text::joined(&named, ", ")],
+        );
         self.inputs.boot_notice = Some((text, None));
         self.out.redraw();
     }
@@ -915,7 +918,7 @@ fn input_code(
     id: u32,
     now_ms: u64,
 ) -> Option<(Text, [(u16, u16); TARGETS_MAX])> {
-    let count = [id.to_le_bytes().as_slice(), &now_ms.to_le_bytes()].concat();
+    let count = [id.to_le_bytes().as_slice(), &now_ms.to_le_bytes()].concat(); // not text: bytes
     let draw = fresh.draw(b"faraday input code", &count)?;
     let code = draw
         .iter()
@@ -924,7 +927,7 @@ fn input_code(
         .collect();
     let mut spots = [(0, 0); TARGETS_MAX];
     for (i, spot) in spots.iter_mut().enumerate() {
-        let n = [count.as_slice(), &[i as u8]].concat();
+        let n = [count.as_slice(), &[i as u8]].concat(); // not text: bytes
         let d = fresh.draw(b"faraday input target", &n)?;
         *spot = (
             u16::from_le_bytes([d[0], d[1]]),

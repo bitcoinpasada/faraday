@@ -35,7 +35,7 @@ fn with_single_key_wallet() -> Faraday {
     let text = faraday_core::create::NewKind::NativeSegwit
         .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();
-    let d = format!("wpkh({text}/<0;1>/*)");
+    let d = format!("wpkh({}/<0;1>/*)", &*text);
     app.session
         .add_wallet(
             &c,
@@ -60,7 +60,7 @@ fn with_watch_only_wallet() -> Faraday {
     let text = faraday_core::create::NewKind::NativeSegwit
         .key_text(&c, elsewhere.keys.master_for_tests(0))
         .unwrap();
-    let d = format!("wpkh({text}/<0;1>/*)");
+    let d = format!("wpkh({}/<0;1>/*)", &*text);
     app.session
         .add_wallet(
             &c,

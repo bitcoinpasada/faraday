@@ -961,7 +961,7 @@ impl Faraday {
             {
                 lines.push(Text::fill(
                     EN.c32r_demo_sample,
-                    &[&m.identifier().to_uppercase()],
+                    &[&*Text::uppercase(&m.identifier())],
                 ));
             }
         }

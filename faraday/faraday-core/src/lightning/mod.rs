@@ -293,7 +293,7 @@ impl LightningArea {
         let Some(l) = self.state.as_mut() else {
             return;
         };
-        let words = Zeroizing::new(l.typed.split_whitespace().collect::<Vec<_>>().join(" "));
+        let words = Text::joined(&l.typed.split_whitespace().collect::<Vec<_>>(), " ");
         match keys.hsm_words_node(c, &words, &l.passphrase) {
             Ok(n) => {
                 l.node = Some(n);
@@ -561,12 +561,12 @@ impl LightningArea {
     /// passphrase left for the person to type (`docs/SCANNING.md` §4.2).
     pub(crate) fn put_aezeed(&mut self, words: &str) {
         if let Some(l) = self.state.as_mut() {
-            let typed = Zeroizing::new(
-                words
+            let typed = Text::joined(
+                &words
                     .split_whitespace()
-                    .map(str::to_lowercase)
-                    .collect::<Vec<_>>()
-                    .join(" "),
+                    .map(Text::lowercase)
+                    .collect::<Vec<_>>(),
+                " ",
             );
             l.source = Some(NodeSource::Aezeed);
             l.typed.set(&typed);

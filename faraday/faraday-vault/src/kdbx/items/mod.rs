@@ -758,11 +758,11 @@ fn share_set_of(r: &Record) -> Option<Vec<u8>> {
     let key = r.field(field::CODEX32_KEY)?;
     Some(
         [
-            &[k, head[8].to_ascii_lowercase()][..],
-            &head[4..8].to_ascii_lowercase(),
+            &[k, head[8].to_ascii_lowercase()][..], // not text: bytes
+            &head[4..8].to_ascii_lowercase(),       // not text: bytes
             key,
         ]
-        .concat(),
+        .concat(), // not text: bytes
     )
 }
 

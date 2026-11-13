@@ -229,7 +229,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 &fp_label(s.fingerprint),
             );
             let from: Vec<faraday_text::Text> = s.sources.iter().map(|src| src.name(app)).collect();
-            let line = ui.fit_as(BODY_S, &from.join(" · "), w - 420.0);
+            let line = ui.fit_as(BODY_S, &faraday_text::Text::joined(&from, " · "), w - 420.0);
             ui.text_mid_as((x + 140.0, ty, 38.0), BODY_S, Role::OnSurfaceVariant, &line);
             let label = EN.inbox_panel_make_wallet;
             let bw = ui.measure_as(LABEL_L, label) + 28.0;
@@ -509,8 +509,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let line = if item.kind == FileKind::Vault
             && vault_of_row(&app.vault_files(), item).is_some_and(|f| f.open.is_some())
         {
-            Text::of(
-                &kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open),
+            Text::replaced(
+                &kind_line(item.kind, item.bytes.len()),
+                EN.files_locked,
+                EN.files_open,
             )
         } else {
             kind_line(item.kind, item.bytes.len())
@@ -1379,7 +1381,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ty += ui.line_as(BODY_M.mono()) + faraday_draw::tokens::GAP_SMALL;
                 let from: Vec<faraday_text::Text> =
                     s.sources.iter().map(|src| src.name(app)).collect();
-                let line = ui.fit_as(BODY_S, &from.join(" · "), iw - 26.0);
+                let line = ui.fit_as(BODY_S, &faraday_text::Text::joined(&from, " · "), iw - 26.0);
                 ui.text_as(ix + 26.0, ty, BODY_S, Role::OnSurfaceVariant, &line);
                 ty += ui.advance_as(BODY_S, 22.0);
                 let style = if may {
@@ -2084,8 +2086,10 @@ fn compact_inbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
         let line = if item.kind == FileKind::Vault
             && vault_of_row(&app.vault_files(), item).is_some_and(|f| f.open.is_some())
         {
-            Text::of(
-                &kind_line(item.kind, item.bytes.len()).replace(EN.files_locked, EN.files_open),
+            Text::replaced(
+                &kind_line(item.kind, item.bytes.len()),
+                EN.files_locked,
+                EN.files_open,
             )
         } else {
             kind_line(item.kind, item.bytes.len())

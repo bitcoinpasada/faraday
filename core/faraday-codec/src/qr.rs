@@ -997,7 +997,7 @@ mod tests {
         let c = Compute::unchecked();
         let s = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
         let lower = codex32qr(&c, s).unwrap();
-        let upper = codex32qr(&c, &s.to_ascii_uppercase()).unwrap();
+        let upper = codex32qr(&c, &faraday_text::Text::ascii_uppercase(s)).unwrap();
         assert_eq!(lower.version(), 3);
         assert_eq!(lower.size(), upper.size());
         let side = lower.size();

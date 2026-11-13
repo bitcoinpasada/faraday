@@ -109,7 +109,7 @@ impl Parts {
                         Text::fill(
                             EN.forms_share_id_needed,
                             &[
-                                &text!("{}", char::from(c.share_index().to_ascii_uppercase())),
+                                &text!("{}", char::from(u8::to_ascii_uppercase(&c.share_index()))),
                                 &id,
                                 &Text::num(u64::from(c.threshold())),
                             ],
@@ -347,7 +347,7 @@ pub(crate) fn codex32_what(c: &Codex32) -> Text {
         Text::fill(
             EN.codex32_form_checked_share,
             &[
-                &text!("{}", char::from(c.share_index().to_ascii_uppercase())),
+                &text!("{}", char::from(u8::to_ascii_uppercase(&c.share_index()))),
                 &id,
                 &Text::num(u64::from(c.threshold())),
             ],

@@ -614,7 +614,7 @@ pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // Every vault a press of Lock without saving lets go is named with its
     // line (the idle lock never does this). Memory short alone: Lock tries
     // again; the person chooses.
-    let lines = blocks.lines.join(" ");
+    let lines = Text::joined(&blocks.lines, " ");
     let mut also: Option<(&str, Action)> = None;
     let (head, line, lock) = if app.seal_waits() {
         (

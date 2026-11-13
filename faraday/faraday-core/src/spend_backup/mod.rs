@@ -1831,7 +1831,10 @@ impl Faraday {
         }
         text.push('\n');
         if let Some(w) = &self.spend_backup.state.wallet {
-            text.push_str(&faraday_text::text!("wallet={}\n", w.replace('\n', " ")));
+            text.push_str(&faraday_text::text!(
+                "wallet={}\n",
+                faraday_text::Text::replaced(w, "\n", " ").as_str()
+            ));
         }
         if self.spend_backup.state.from_card {
             text.push_str("card=1\n");
@@ -1840,7 +1843,10 @@ impl Faraday {
         // at all.
         for c in &self.spend_backup.state.came {
             if let Came::File(name) = c {
-                text.push_str(&faraday_text::text!("came={}\n", name.replace('\n', " ")));
+                text.push_str(&faraday_text::text!(
+                    "came={}\n",
+                    faraday_text::Text::replaced(name, "\n", " ").as_str()
+                ));
             }
         }
         Some(text.as_bytes().to_vec())

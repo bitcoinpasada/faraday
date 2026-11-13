@@ -1160,7 +1160,7 @@ fn a_lock_pressed_while_one_vault_is_sealed_hides_the_chart_s_passphrase_at_once
         .add_wallet(
             &c,
             "Spending",
-            &format!("wpkh({text}/<0;1>/*)"),
+            &format!("wpkh({}/<0;1>/*)", &*text),
             "test",
             faraday_core::wallet::Origin::Named,
         )

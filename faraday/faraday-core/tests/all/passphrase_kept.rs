@@ -188,7 +188,7 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
         .add_wallet(
             &c,
             "Spending",
-            &format!("wpkh({text}/<0;1>/*)"),
+            &format!("wpkh({}/<0;1>/*)", &*text),
             "test",
             faraday_core::wallet::Origin::Named,
         )

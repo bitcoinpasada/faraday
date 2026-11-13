@@ -995,8 +995,8 @@ impl Faraday {
                         What::SeedFile(i) if spot.at == At::Files => {
                             if let Some(fp) = fp_of(i) {
                                 let fps =
-                                    fp_text(faraday_bip::keys::Fingerprint(fp)).to_lowercase();
-                                out.secret.push(text!("{stem}-{fps}-"));
+                                    Text::lowercase(&fp_text(faraday_bip::keys::Fingerprint(fp)));
+                                out.secret.push(text!("{stem}-{}-", &*fps));
                             }
                         }
                         What::SeedFile(i) | What::SeedQrFile(i) | What::PassphraseFile(i) => {
@@ -2387,7 +2387,11 @@ fn on_stick(label: &str, time: Option<u64>, tz_min: i16) -> Text {
 fn lower_first(s: &str) -> Text {
     let mut c = s.chars();
     match c.next() {
-        Some(f) => f.to_lowercase().chain(c).collect(),
+        Some(f) => {
+            let mut t = Text::lowercase(f.encode_utf8(&mut [0; 4]));
+            t.push_str(c.as_str());
+            t
+        }
         None => Text::default(),
     }
 }
@@ -3210,11 +3214,8 @@ impl Faraday {
             plan::What::Codex32QrFile(..) => {
                 let mx = faraday_codec::qr::codex32qr(c, &s)?;
                 let id = s.get(4..8).unwrap_or("");
-                let share = Text::of(
-                    char::from(index)
-                        .to_ascii_uppercase()
-                        .encode_utf8(&mut [0; 4]),
-                );
+                let share =
+                    Text::of(char::to_ascii_uppercase(&char::from(index)).encode_utf8(&mut [0; 4]));
                 let title = Text::fill(EN.c32_picture_title, &[&share, id]);
                 let lines = [Text::of(EN.c32_picture_line)];
                 Some(zeroize::Zeroizing::new(crate::picture::labelled_png(
@@ -3271,7 +3272,7 @@ impl Faraday {
             shape
                 .seeds
                 .get(s)
-                .and_then(|x| read_hex4(&x.name.to_lowercase()))
+                .and_then(|x| read_hex4(&Text::lowercase(&x.name)))
         };
         let mapped = plan::Mapped::of(c, shape, answers);
         let strings = mapped.vault_strings(answers, v);
@@ -3674,7 +3675,7 @@ impl Faraday {
             shape
                 .seeds
                 .get(s)
-                .and_then(|x| read_hex4(&x.name.to_lowercase()))
+                .and_then(|x| read_hex4(&Text::lowercase(&x.name)))
         };
         self.c32_strays_all(&b.answers, o, &fp_of, (&strings, &elsewhere))
     }

@@ -26,7 +26,11 @@ fn check(moment: &str, work: &Counts, table: Table) {
             wrong.push(text!("{k:?} {n} (budget {want})"));
         }
     }
-    assert!(wrong.is_empty(), "{moment}: {}", wrong.join(", "));
+    assert!(
+        wrong.is_empty(),
+        "{moment}: {}",
+        &*faraday_text::Text::joined(&wrong, ", ")
+    );
 }
 
 /// The press, then frames and ticks until it asks for nothing more.

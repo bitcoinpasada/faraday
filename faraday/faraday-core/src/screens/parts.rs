@@ -957,7 +957,7 @@ pub(crate) fn dots_field(
     } else if chip.is_some() && text == crate::demo::PASSPHRASE {
         code_field(ui, x, y, w, tokens::TEXT_FIELD, text);
     } else {
-        let dots = "•".repeat(text.chars().count());
+        let dots = Text::repeated("•", text.chars().count());
         ui.typed(
             x + 12.0,
             y,

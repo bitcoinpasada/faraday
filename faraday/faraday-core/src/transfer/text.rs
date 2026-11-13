@@ -16,7 +16,6 @@ use faraday_crypto::work::Compute;
 use faraday_text::Text;
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
-use zeroize::Zeroizing;
 
 /// The most text sent: at the medium part size and the default speed
 /// about a hundred frames (F236). More goes as a file.
@@ -177,7 +176,7 @@ pub fn check(c: &Compute, text: &str) -> TextCheck {
         return TextCheck::TooLong;
     }
     let cleaned = without_invisible(t);
-    let t = cleaned.trim();
+    let t = cleaned.as_deref().unwrap_or(t).trim();
     if let Some(kind) = scan_read::secret_kind(c, t.as_bytes()) {
         return TextCheck::Secret(kind);
     }
@@ -190,8 +189,8 @@ pub fn check(c: &Compute, text: &str) -> TextCheck {
 
 /// The text without the characters that show nothing and could split a
 /// word the checks read: a zero-width space, joiner or non-joiner, a word
-/// joiner, a byte order mark and a soft hyphen.
-fn without_invisible(t: &str) -> std::borrow::Cow<'_, str> {
+/// joiner, a byte order mark and a soft hyphen, or `None` when it has none.
+fn without_invisible(t: &str) -> Option<Text> {
     let hidden = |ch: char| {
         matches!(
             ch,
@@ -199,9 +198,13 @@ fn without_invisible(t: &str) -> std::borrow::Cow<'_, str> {
         )
     };
     if t.contains(hidden) {
-        std::borrow::Cow::Owned(t.replace(hidden, ""))
+        let mut out = Text::with_room(t.len());
+        for ch in t.chars().filter(|&ch| !hidden(ch)) {
+            out.push(ch);
+        }
+        Some(out)
     } else {
-        std::borrow::Cow::Borrowed(t)
+        None
     }
 }
 
@@ -229,7 +232,7 @@ fn inside(c: &Compute, t: &str) -> Option<TextCheck> {
 
 /// An armoured private key (PEM, PGP).
 fn armour(t: &str) -> Option<Kind> {
-    let upper = t.to_ascii_uppercase();
+    let upper = Text::ascii_uppercase(t);
     (upper.contains("-----BEGIN") && upper.contains("PRIVATE KEY")).then_some(Kind::Wif)
 }
 
@@ -262,14 +265,14 @@ fn is_ur(part: &str) -> bool {
 /// The types of UR known to be public: a PSBT. Parts of any other type
 /// are not shown until the message is whole and read.
 fn ur_is_public(ur_type: &str) -> bool {
-    let t = ur_type.to_ascii_lowercase();
+    let t = Text::ascii_lowercase(ur_type);
     matches!(t.as_str(), "psbt" | "crypto-psbt")
 }
 
 /// The types of UR that hold a private key or a seed's share, and that
 /// the registry does not read: one is refused whole.
 fn ur_is_secret(ur_type: &str) -> bool {
-    let t = ur_type.to_ascii_lowercase();
+    let t = Text::ascii_lowercase(ur_type);
     let t = t.strip_prefix("crypto-").unwrap_or(&t);
     matches!(t, "eckey" | "sskr")
 }
@@ -317,7 +320,7 @@ fn tokens(c: &Compute, t: &str) -> Option<TextCheck> {
         // The `ur:` strings, at the start of a part or after a sign.
         let mut urs: Vec<&str> = Vec::new();
         for &part in &parts {
-            let lower = part.to_ascii_lowercase();
+            let lower = Text::ascii_lowercase(part);
             for (i, _) in lower.match_indices("ur:") {
                 let opens = i == 0
                     || !part[..i]
@@ -349,7 +352,7 @@ fn tokens(c: &Compute, t: &str) -> Option<TextCheck> {
             if let Some(kind) = scan_read::secret_text_kind(c, part).or_else(|| shape(part)) {
                 return Some(TextCheck::Inside(kind));
             }
-            if part.to_ascii_lowercase().contains("prv")
+            if Text::ascii_lowercase(part).contains("prv")
                 && wallet::classify(c, "part.txt", part.as_bytes()).exposure() == Exposure::Secret
             {
                 return Some(TextCheck::Inside(Kind::Xprv));
@@ -391,7 +394,7 @@ fn shape(part: &str) -> Option<Kind> {
             .chars()
             .all(|ch| BECH32.contains(ch.to_ascii_lowercase()))
     {
-        let index = part.as_bytes()[8].to_ascii_lowercase();
+        let index = u8::to_ascii_lowercase(&part.as_bytes()[8]);
         return Some(if index == b's' {
             Kind::Codex32Secret
         } else {
@@ -597,7 +600,7 @@ fn run_kind(c: &Compute, run: &[Text]) -> Kind {
             break;
         }
         for at in [0, run.len() - n] {
-            let joined = Zeroizing::new(run[at..at + n].join(" "));
+            let joined = Text::joined(&run[at..at + n], " ");
             if let Some(kind) = scan_read::secret_text_kind(c, &joined) {
                 return kind;
             }

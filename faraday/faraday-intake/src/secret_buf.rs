@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn typing_past_its_room_keeps_every_character() {
         let mut t = SecretText::new();
-        let phrase = "abandon ".repeat(200);
+        let phrase = faraday_text::Text::repeated("abandon ", 200);
         for c in phrase.chars() {
             t.push(c);
         }

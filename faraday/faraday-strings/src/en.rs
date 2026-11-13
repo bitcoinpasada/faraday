@@ -1043,7 +1043,7 @@ strings! {
     backups_files: "files {}",
     /// Text in `backup_line`.
     backups_planned: "planned",
-    /// Text in `backup_line`. `{}`: `parts.join(" · ")`.
+    /// Text in `backup_line`. `{}`: `parts` joined by " · ".
     backups_backup: "Backup: {}",
     /// Text in `on_stick`. `{}`: `label`, `crate::vault::time_of_day(crate::vau…`.
     backups_on_stick_timed: "On {}, {}",
@@ -1512,7 +1512,7 @@ strings! {
     boot_import_no_qr_code: "No QR code found",
     /// Text in `import_codes`.
     boot_import_its_codes: "Its codes are not complete",
-    /// Text in `import_codes`. `{}`: `n`, `if n == 1 { EN.boot_import_code } els…`, `kinds.join(", ")`.
+    /// Text in `import_codes`. `{}`: `n`, `if n == 1 { EN.boot_import_code } els…`, `kinds` joined by ", ".
     boot_import_qr: "{} QR {} · {}",
     /// Text in `import_codes`.
     boot_import_code: "code",
@@ -2790,7 +2790,7 @@ strings! {
     glance_description: "Description",
     /// Text in `backup_nodes`. `{}`: `number(i)`.
     glance_key_file: "Key {} file",
-    /// Text in `backup_nodes`. `{}`: `inside.join(", ")`.
+    /// Text in `backup_nodes`. `{}`: `inside` joined by ", ".
     glance_in_the_vault: "{} in the vault",
     /// Text in `backup_nodes`. `{}`: `vault_name(v)`.
     glance_copy: "{} · copy",
@@ -2802,7 +2802,7 @@ strings! {
     glance_on_its_own_device: "On its own device",
     /// Text in `backup_nodes`.
     glance_its_own_stick: "Its own stick",
-    /// Text in `backup_nodes`. `{}`: `at.join(", ")`.
+    /// Text in `backup_nodes`. `{}`: `at` joined by ", ".
     glance_stick_places: "Stick at {}",
     /// Text in `backup_nodes`.
     glance_not_here: "Not here",
@@ -3494,7 +3494,7 @@ strings! {
     /// Text in `keygen`.
     walkthrough_answer_from_your: "Answer from your paper, not from memory: each word is asked once, in a random order. A wrong answer means the paper needs correcting.",
     // ----- held (faraday-core/src/held.rs) -----
-    /// Toast in `backup_settle`. `{}`: `names.join(", ")`.
+    /// Toast in `backup_settle`. `{}`: `names` joined by ", ".
     held_signs_from_now: "{} signs from now on",
     /// Text in `backup_extras`. `{}`: `name`, `seed`.
     held_holds_seed: "{} holds seed {}",
@@ -4020,7 +4020,7 @@ strings! {
     /// Text in `ur_bytes_frames`. `{}`: `what`, `frames.len()`.
     ur_bytes_frames_frames: "{} · {} frames, shown in turn",
     // ----- part_note (faraday-core/src/lib.rs) -----
-    /// Text in `part_note`. `{}`: `what`, `have`, `total`, `list.join(", ")`, `more`.
+    /// Text in `part_note`. `{}`: `what`, `have`, `total`, `list` joined by ", ", `more`.
     part_note_of_missing: "{}: {} of {} · missing {}{}",
     /// `what` in `part_note` for Specter's numbered text parts.
     part_note_numbered: "numbered parts",
@@ -4510,9 +4510,9 @@ strings! {
     public_pictures_public_watch: "Public: watch only, spends nothing",
     /// Text in `public_pictures`. `{}`: `i + 1`, `plan.len()`, `m`.
     public_pictures_share: "Share {} of {} · any {} rebuild the wallet",
-    /// Text in `public_pictures`. `{}`: `held.join(" · ")`.
+    /// Text in `public_pictures`. `{}`: `held` joined by " · ".
     public_pictures_holds: "Holds {}",
-    /// Text in `public_pictures`. `{}`: `off.join(" · ")`.
+    /// Text in `public_pictures`. `{}`: `off` joined by " · ".
     public_pictures_leaves: "Leaves off {}",
     /// Text in `public_pictures`.
     public_pictures_not_wallet: "Not a wallet on its own",
@@ -4790,7 +4790,7 @@ strings! {
     // ----- visit_inbox (faraday-core/src/lib.rs) -----
     /// Text in `visit_inbox`.
     visit_inbox_png_no_qr: "A PNG with no QR code read",
-    /// Text in `visit_inbox`. `{}`: `screens::kind_name(k).to_lowercase()`.
+    /// Text in `visit_inbox`. `{}`: `screens::kind_name(k)` in lower case.
     visit_inbox_png_kind: "A PNG of {}",
     /// Text in `visit_inbox`.
     visit_inbox_a_file: "A file Faraday does not read",
@@ -4803,7 +4803,7 @@ strings! {
     /// Text in `visit_inbox`.
     visit_inbox_whoever: "Whoever has it reads it",
     // ----- sign_here (faraday-core/src/lib.rs) -----
-    /// Text in `sign_here`. `{}`: `waiting.join(", ")`.
+    /// Text in `sign_here`. `{}`: `waiting` joined by ", ".
     sign_here_backup_first: "{} waits for its backup: finish the backup first",
     /// Text in `sign_here`.
     sign_here_this_transaction: "This transaction was signed here before with other amounts for its inputs. It is refused.",
@@ -5168,7 +5168,7 @@ strings! {
     /// Title of a page of the checksum table. `{}`: the page, the pages.
     pdf_c32_checksum_table: "Checksum table · {} of {}",
     // ----- plan (faraday-plan/src/lib.rs) -----
-    /// Text in `vault_name`. `{}`: `v + 1`, `names.join(", ")`.
+    /// Text in `vault_name`. `{}`: `v + 1`, `names` joined by ", ".
     plan_vault_names: "Vault {} · {}",
     /// Text in `label`. `{}`: `seed(i)`.
     plan_seed_words: "Seed {}: words",
@@ -5502,7 +5502,7 @@ strings! {
     nonce_check_fields_refused: "Nonce check · final fields fail the script",
     /// The nonce check's headline when only signing data (a `scriptSig` or witness) does not match its output.
     nonce_check_witness_wrong: "Nonce check · signing data does not match its output",
-    /// Text in `nonce_check`. `{}`: `reuse.name()`, `inputs.join(", ")`.
+    /// Text in `nonce_check`. `{}`: `reuse.name()`, `inputs` joined by ", ".
     nonce_check_one_nonce: "{}: one nonce on inputs {} · this gives the key away",
     /// Line in `nonce_card` when the nonce history was compared and nothing was used before.
     nonce_history_clean: "Not seen before in this vault",
@@ -5631,7 +5631,7 @@ strings! {
     potential_a_watch_only: "A watch-only wallet from an xpub",
     /// Text in `potential_sheet`. `{}`: `fp_text(fp)`.
     potential_a_wallet: "A wallet from {}",
-    /// Text in `potential_sheet`. `{}`: `from.join(" · ")`.
+    /// Text in `potential_sheet`. `{}`: `from` joined by " · ".
     potential_sources: "From {}",
     /// Text in `potential_sheet`.
     potential_slip_39_passphrase: "SLIP-39 passphrase · none if left empty",
@@ -5891,7 +5891,7 @@ strings! {
     decode_inputs: "Inputs · {}",
     /// Text in `decode_screen`.
     decode_no_witness: "No witness",
-    /// Text in `decode_screen`. `{}`: `input.witness.len()`, `if input.witness.len() == 1 { EN.deco…`, `sizes.join(", ")`.
+    /// Text in `decode_screen`. `{}`: `input.witness.len()`, `if input.witness.len() == 1 { EN.deco…`, `sizes` joined by ", ".
     decode_witness_bytes: "Witness · {} {} · {} bytes",
     /// Text in `decode_screen`.
     decode_item: "item",
@@ -5918,7 +5918,7 @@ strings! {
     // ----- missing_keys_line (faraday-core/src/screens/wallets.rs) -----
     /// Text in `missing_keys_line`. `{}`: `files[i].name`.
     missing_keys_line_locked: "{} is locked · it may hold them",
-    /// Text in `missing_keys_line`. `{}`: `open_names.join(", ")`.
+    /// Text in `missing_keys_line`. `{}`: `open_names` joined by ", ".
     missing_keys_line_not_open: "Not in {} · perhaps another vault, a paper backup or a SeedQR",
     /// Text in `missing_keys_line`. `{}`: `app.medium.a()`.
     missing_keys_line_elsewhere: "A vault on {}, a paper backup or a SeedQR may hold them",
@@ -6103,7 +6103,7 @@ strings! {
     spend_status_open_files: "Open Files",
     /// Text in `spend_status`.
     spend_status_finish: "Finish",
-    /// Text in `spend_status`. `{}`: `can_sign_here.join(", ")`.
+    /// Text in `spend_status`. `{}`: `can_sign_here` joined by ", ".
     spend_status_sign_with_keys: "Sign with {}",
     /// Text in `spend_status` where `spend_status_sign_with_keys` with
     /// two keys or more is too wide for the button. `{}`: how many keys.
@@ -6128,7 +6128,7 @@ strings! {
     step_summary_here_needed: "{} here · {} needed",
     /// Text in `step_summary`.
     step_summary_not_signed: "Not signed here yet",
-    /// Text in `step_summary`. `{}`: `fps.join(", ")`.
+    /// Text in `step_summary`. `{}`: `fps` joined by ", ".
     step_summary_signed_keys: "Signed with {}",
     /// Text in `step_summary`. `{}`: `s.signers.len()`, `needed`.
     step_summary_count: "{} of {}",
@@ -6492,11 +6492,11 @@ strings! {
     step_collect_a_signature: "Collect a signature",
     /// Text in `step_body`. `{}`: `app.medium.noun()`.
     step_remove_the_first: "Remove the {} first",
-    /// Text in `step_body`. `{}`: `fps.join(", ")`.
+    /// Text in `step_body`. `{}`: `fps` joined by ", ".
     step_signed_keys: "Signed with {}",
     /// Line in `step_body`.
     step_no_signing_key: "No key in this session signs this transaction",
-    /// Text in `step_body`. `{}`: `mine.join(", ")`.
+    /// Text in `step_body`. `{}`: `mine` joined by ", ".
     step_sign_with_keys: "Sign with {}",
     /// The Sign button in `step_body` where `step_sign_with_keys` is too
     /// wide for it and stands as a line above it.
@@ -6632,7 +6632,7 @@ strings! {
     item_title_kef: "Krux code of {}",
     /// Text in `item_title`. `{}`: `v + 1`.
     item_title_vault_number: "Vault {}",
-    /// Text in `item_title`. `{}`: `v + 1`, `names.join(", ")`.
+    /// Text in `item_title`. `{}`: `v + 1`, `names` joined by ", ".
     item_title_vault: "Vault {} · {}",
     /// Text in `item_title`. `{}`: `name`.
     item_title_in_vault: "In {}",
@@ -7196,7 +7196,7 @@ strings! {
     restore_description_i: "I do not have it",
     /// Line in `restore_description`.
     restore_description_shares: "Shares of a split backup",
-    /// Text in `restore_description`. `{}`: `m.have.len()`, `m.n`, `m.have.join(" ")`.
+    /// Text in `restore_description`. `{}`: `m.have.len()`, `m.n`, `m.have` joined by " ".
     restore_description_progress: "{} of {} keys in hand · {}",
     /// Button in `restore_description`.
     restore_description_rebuild: "Rebuild the wallet",
@@ -7798,7 +7798,7 @@ strings! {
     settings_never: "Never",
     /// Text in `settings`. `{}`: `m`.
     settings_min: "{} min",
-    /// Text in `settings`. `{}`: `names.join(", ")`.
+    /// Text in `settings`. `{}`: `names` joined by ", ".
     settings_ignored_until: "Ignored until unplugged: {}",
     /// Row in `settings`, and the mode sheet's title row there.
     settings_mode: "Mode",
@@ -10298,7 +10298,7 @@ strings! {
     vaults_wallets_n: "{} wallets",
     /// Text in `line`. `{}`: `self.keys[0]`.
     vaults_key: "key {}",
-    /// Text in `line`. `{}`: `self.keys.join(", ")`.
+    /// Text in `line`. `{}`: `self.keys` joined by ", ".
     vaults_keys_inline: "keys {}",
     /// Text in `line`. `{}`: `n`.
     vaults_keys: "{} keys",

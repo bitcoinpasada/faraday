@@ -309,7 +309,7 @@ fn key_field(ui: &mut Ui, (x, y, w): (f32, f32, f32), s: &Sweep) -> f32 {
     let mut cy = y;
     cy += ui.wrap_as((x, cy, w), LABEL_M, Role::OnSurfaceVariant, EN.sweep_field) + T::GAP_SMALL;
     ui.field_box((x, cy, w), s.typing, None);
-    let dots = "•".repeat(s.typed.as_str().chars().count());
+    let dots = Text::repeated("•", s.typed.as_str().chars().count());
     let field = Action::Sweep(SweepAction::Field);
     ui.typed(
         x + FIELD_PAD,

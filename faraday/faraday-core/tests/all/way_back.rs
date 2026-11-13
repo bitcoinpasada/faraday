@@ -48,7 +48,7 @@ fn with(wallets: usize, width: u16, height: u16) -> Faraday {
         let text = NewKind::NativeSegwit
             .key_text_at(&c, app.session.keys.master_for_tests(0), a)
             .unwrap();
-        let d = format!("wpkh({text}/<0;1>/*)");
+        let d = format!("wpkh({}/<0;1>/*)", &*text);
         app.session
             .add_wallet(
                 &c,

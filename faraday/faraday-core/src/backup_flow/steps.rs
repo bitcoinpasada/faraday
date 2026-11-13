@@ -813,7 +813,7 @@ impl Faraday {
         let mut short = None;
         let mut kdbx: Vec<Text> = Vec::new();
         for (n, size) in &st.files {
-            if !n.to_ascii_lowercase().ends_with(".kdbx") {
+            if !Text::ascii_lowercase(n).ends_with(".kdbx") {
                 continue;
             }
             match self.vaults.read_refusal(true, *size) {
@@ -3017,7 +3017,7 @@ impl Faraday {
             .and_then(|wf| wf.readback.iter().find(|(n, _)| *n == meant))
             .map(|(_, b)| b.clone());
         let good = match (want, read) {
-            (Some(ReadBack::Codes(h)), Some((_, codes))) => sha256_of(&c, &codes.concat()) == h,
+            (Some(ReadBack::Codes(h)), Some((_, codes))) => sha256_of(&c, &codes.concat()) == h, // not text: bytes
             (Some(ReadBack::Seed(fp)), Some((bytes, codes))) => {
                 self.secret_picture_reads(&c, &meant, (&bytes, &codes), &fp, None)
             }

@@ -311,7 +311,7 @@ mod tests {
             for b in bits {
                 c.push(if b == 0 { 3 } else { 17 }).unwrap();
             }
-            assert_eq!(c.character().unwrap().to_ascii_uppercase(), walk(bits));
+            assert_eq!(u8::to_ascii_uppercase(&c.character().unwrap()), walk(bits));
         }
     }
 
@@ -384,7 +384,7 @@ mod tests {
     fn the_tree_is_the_leaves_of_the_booklet() {
         let leaves: Vec<u8> = LEAVES
             .split(' ')
-            .map(|s| s.as_bytes()[0].to_ascii_lowercase())
+            .map(|s| u8::to_ascii_lowercase(&s.as_bytes()[0]))
             .collect();
         assert_eq!(leaves, TREE);
     }

@@ -236,13 +236,16 @@ fn config(wallet: &Wallet, only: Option<&[usize]>, format: &str, head: &str) -> 
             .path()
             .map(|p| {
                 let shown = text!("{p}");
-                text!("m/{}", shown.trim_start_matches("m/").replace('h', "'"))
+                text!(
+                    "m/{}",
+                    Text::replaced(shown.trim_start_matches("m/"), "h", "'").as_str()
+                )
             })
             .unwrap_or_else(|| Text::of("m"));
         out.push_str(&text!(
             "\nDerivation: {}\n{}: {}\n",
             &*path,
-            fp.to_uppercase(),
+            &*Text::uppercase(&fp),
             key.xpub()
         ));
     }
@@ -2162,9 +2165,9 @@ impl Faraday {
             } else {
                 (Text::of(EN.backup_kept_paper_unchecked), Tone::Warn)
             });
-            let fps = fp_text(fp).to_lowercase();
+            let fps = Text::lowercase(&fp_text(fp));
             let files = ["words.txt", "seedqr.png", "compactseedqr.png"]
-                .map(|end| text!("{stem}-{fps}-{end}"));
+                .map(|end| text!("{stem}-{}-{end}", &*fps));
             if self
                 .outbox
                 .iter()
@@ -3019,11 +3022,11 @@ impl Faraday {
     /// Whether a file of key `k`'s seed, for the wallet whose files are
     /// named `stem`, is For the stick or was written by the last visit.
     pub(crate) fn seed_file_made(&self, stem: &str, k: &faraday_keys::KeyInfo) -> bool {
-        let fps = fp_text(k.fingerprint).to_lowercase();
+        let fps = Text::lowercase(&fp_text(k.fingerprint));
         ["words.txt", "seedqr.png", "compactseedqr.png"]
             .iter()
             .any(|end| {
-                let name = text!("{stem}-{fps}-{end}");
+                let name = text!("{stem}-{}-{end}", &*fps);
                 self.outbox
                     .iter()
                     .any(|i| i.secret && i.name == name.as_str())

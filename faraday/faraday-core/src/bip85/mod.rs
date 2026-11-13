@@ -636,7 +636,7 @@ impl Faraday {
             let Ok(fp) = faraday_keys::identity::fingerprint_of_words(&c, &value, "") else {
                 return;
             };
-            let name = text!("{}-words.txt", fp_text(fp).to_lowercase());
+            let name = text!("{}-words.txt", &*Text::lowercase(&fp_text(fp)));
             let text = text!("{}\n", value.as_str());
             self.offer_secret(crate::secrets::SecretOut::new(
                 name,
@@ -659,10 +659,14 @@ impl Faraday {
                 .key
                 .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
                 .unwrap_or_default();
+            let app = Text::lowercase(app_name(b.app))
+                .chars()
+                .filter(|c| !matches!(c, ' ' | '(' | ')'))
+                .collect::<Text>();
             let name = text!(
                 "bip85-{}-{}-{}.txt",
                 fp.as_str(),
-                app_name(b.app).to_lowercase().replace([' ', '(', ')'], ""),
+                app.as_str(),
                 b.index().unwrap_or(0)
             );
             (name, text!("{}\n{}\n", b.path().as_str(), value.as_str()))

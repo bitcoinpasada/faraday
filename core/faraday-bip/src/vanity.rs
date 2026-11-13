@@ -307,7 +307,7 @@ pub fn can_begin(prefix: &str, kind: impl Into<Kind>, network: Network) -> bool 
     if let Some(set) = first_free(script, network) {
         let first = chars.next().expect("the free part is not empty");
         let first = if is_bech32(script) {
-            first.to_ascii_lowercase()
+            char::to_ascii_lowercase(&first)
         } else {
             first
         };

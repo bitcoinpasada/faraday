@@ -164,7 +164,7 @@ impl StickInfo {
         if self.is_vault(name) {
             return Some(faraday_strings::EN.stick_kind_vault);
         }
-        if name.to_ascii_lowercase().ends_with(".kdbx") {
+        if Text::ascii_lowercase(name).ends_with(".kdbx") {
             return Some(faraday_strings::EN.stick_kind_file);
         }
         crate::stick_kind(name)

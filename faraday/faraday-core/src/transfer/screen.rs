@@ -241,7 +241,11 @@ fn send_text(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 fn lower_first(s: &str) -> Text {
     let mut it = s.chars();
     it.next()
-        .map(|c| c.to_lowercase().chain(it).collect())
+        .map(|c| {
+            let mut t = Text::lowercase(c.encode_utf8(&mut [0; 4]));
+            t.push_str(it.as_str());
+            t
+        })
         .unwrap_or_default()
 }
 

@@ -71,7 +71,7 @@ fn records_of_every_kind(mnemonic: &faraday_bip::bip39::Mnemonic) -> Vec<Record>
     let text = |k: u8, fields: &[u8]| {
         let mut r = Record::new(k);
         for &n in fields {
-            r.push(n, &b"&".repeat(20_000));
+            r.push(n, &b"&".repeat(20_000)); // not text: bytes
         }
         r
     };
@@ -94,7 +94,7 @@ fn records_of_every_kind(mnemonic: &faraday_bip::bip39::Mnemonic) -> Vec<Record>
         &Zeroizing::new([0x31u8; 32]),
         &Zeroizing::new([0x42u8; 32]),
         1_700_000_000,
-        Text::from_utf8_lossy(&b"&".repeat(2_000)),
+        Text::from_utf8_lossy(&b"&".repeat(2_000)), // not text: bytes
         0,
     )
     .key
@@ -138,7 +138,7 @@ fn records_of_every_kind(mnemonic: &faraday_bip::bip39::Mnemonic) -> Vec<Record>
         Record::new(kind::KEY)
             .with(field::KEY, &fv::records::words_payload(mnemonic))
             .with(field::KEY_LABEL, &hostile(20_000))
-            .with(field::KEY_PASSPHRASE, &b"&".repeat(20_000)),
+            .with(field::KEY_PASSPHRASE, &b"&".repeat(20_000)), // not text: bytes
         Record::new(kind::KEY).with(field::KEY, &fv::records::words_payload(mnemonic)),
         // A key that is a child seed of another, whose seed was split
         // into a set with every index known, and that has flags.

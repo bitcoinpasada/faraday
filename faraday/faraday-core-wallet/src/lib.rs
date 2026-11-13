@@ -859,7 +859,7 @@ pub fn read<V: AsRef<[u8]>>(
     }
     for (id, place) in placed {
         if !r.held.contains(&id) {
-            let tail = [id.as_slice(), &place.to_le_bytes()].concat();
+            let tail = [id.as_slice(), &place.to_le_bytes()].concat(); // not text: bytes
             r.fail("walletdescriptorlhcache", &tail, Fault::NotHeld);
         }
     }
@@ -1219,7 +1219,7 @@ impl Reader<'_> {
             }
             if checked {
                 for place in missed {
-                    let tail = [id.as_slice(), &place.to_le_bytes()].concat();
+                    let tail = [id.as_slice(), &place.to_le_bytes()].concat(); // not text: bytes
                     self.fail("walletdescriptorlhcache", &tail, Fault::CacheUnchecked);
                 }
             } else if let Some(&at) = self.at.get(&id) {
@@ -1237,7 +1237,7 @@ impl Reader<'_> {
         for (place, ok) in places.iter().zip(matches) {
             self.compared.insert((*id, *place));
             if !ok {
-                let tail = [id.as_slice(), &place.to_le_bytes()].concat();
+                let tail = [id.as_slice(), &place.to_le_bytes()].concat(); // not text: bytes
                 self.fail("walletdescriptorlhcache", &tail, Fault::CacheKey);
             }
         }

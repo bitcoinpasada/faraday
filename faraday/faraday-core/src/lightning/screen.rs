@@ -179,7 +179,7 @@ fn body(
                 // A dot for each character, so the caret and a press fall
                 // between the characters they stand for (`docs/TEXT-CURSOR.md`
                 // §3).
-                let dots = "•".repeat(l.passphrase.chars().count());
+                let dots = Text::repeated("•", l.passphrase.chars().count());
                 ui.typed(
                     px + faraday_draw::tokens::TYPED_INSET,
                     y,

@@ -102,3 +102,40 @@ fn joined_puts_the_separator_between_parts_only() {
     assert_eq!(Text::joined(&owned, " · "), "x · y");
     assert_eq!(Text::joined(&["", ""], "€"), "€");
 }
+
+#[test]
+fn case_changes_match_str() {
+    for s in [
+        "abc XYZ 123",
+        "Ärger über Öl",
+        "ÉCOLE élève",
+        "straße",
+        "ǅ Σ",
+        "",
+    ] {
+        assert_eq!(Text::lowercase(s), s.to_lowercase().as_str());
+        assert_eq!(Text::uppercase(s), s.to_uppercase().as_str());
+        assert_eq!(Text::ascii_lowercase(s), s.to_ascii_lowercase().as_str());
+        assert_eq!(Text::ascii_uppercase(s), s.to_ascii_uppercase().as_str());
+    }
+}
+
+#[test]
+fn repeat_and_replace_match_str() {
+    assert_eq!(Text::repeated("•", 3), "•••");
+    assert_eq!(Text::repeated("ab", 0), "");
+    for (s, from, to) in [
+        ("a b c", " ", "\u{a0}"),
+        ("m/0h/1h", "h", "'"),
+        ("none", "x", "y"),
+        ("aaa", "aa", "b"),
+        ("x", "", "y"),
+    ] {
+        let want = if from.is_empty() {
+            s.to_string()
+        } else {
+            s.replace(from, to)
+        };
+        assert_eq!(Text::replaced(s, from, to), want.as_str());
+    }
+}

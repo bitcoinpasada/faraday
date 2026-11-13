@@ -32,8 +32,42 @@ use faraday_bip::policy::WalletPolicy;
 use faraday_psbt::Psbt;
 use faraday_text::{Text, text};
 
+mod plain;
 mod public;
+pub use plain::*;
 pub use public::*;
+
+/// What a test kit function refuses with. The kit makes public fixtures and
+/// dummy test seeds only, and exists in test builds only (the `testkit`
+/// feature), so its refusals print their words in a failing test's
+/// `expect`, `unwrap` or `assert_eq!`; [`Text`]'s own `Debug` stays a count
+/// of bytes.
+pub struct KitError(Text);
+
+impl From<Text> for KitError {
+    fn from(t: Text) -> KitError {
+        KitError(t)
+    }
+}
+
+impl From<KitError> for Text {
+    fn from(e: KitError) -> Text {
+        e.0
+    }
+}
+
+impl std::ops::Deref for KitError {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for KitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 
 use crate::wallet::Session;
 
@@ -208,6 +242,12 @@ pub const SPEND_TXID: &str = "e65b496fcae9385082643e05b11fac9bd90461bf3c940a8050
 /// Where every spend pays 0.015 tBTC: the testnet address of BIP-84's
 /// first test key.
 pub(crate) const RECIPIENT: &str = "tb1qcr8te4kr609gcawutmrza0j4xv80jy8zmfp6l0";
+/// Wiping text of `s`, for the plain fixtures of `plain.rs`, which name no
+/// wiping type.
+fn text_of(s: &str) -> Text {
+    Text::of(s)
+}
+
 /// BIP-341's unspendable internal key, for a wallet that spends only by
 /// script.
 const NUMS: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
@@ -232,7 +272,8 @@ fn key_t(n: usize, path: &str) -> Text {
     let m = master(TEST_SEEDS[n].0);
     let path = on_net(path);
     let p: DerivationPath = path.parse().expect("path");
-    let shown = path.trim_start_matches("m/").replace('\'', "h");
+    let shown = Text::replaced(path.trim_start_matches("m/"), "'", "h");
+    let shown = shown.as_str();
     text!(
         "[{}/{shown}]{}",
         m.fingerprint(),
@@ -347,7 +388,7 @@ fn funding(script_pubkey: ScriptBuf) -> Transaction {
 }
 
 /// The unsigned spend of a test wallet.
-pub fn unsigned(kit: &Kit) -> Result<Psbt, Text> {
+pub fn unsigned(kit: &Kit) -> Result<Psbt, KitError> {
     let c = compute();
     let policy =
         WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| text!("{}: {e:?}", kit.id))?;
@@ -398,14 +439,14 @@ pub fn unsigned(kit: &Kit) -> Result<Psbt, Text> {
 /// The unsigned spend of a test wallet with every key's extended public
 /// key and origin in its global map (BIP 174's `PSBT_GLOBAL_XPUB`), as
 /// Sparrow and Bitcoin Core write a multisig spend.
-pub fn unsigned_with_xpubs(kit: &Kit) -> Result<Psbt, Text> {
+pub fn unsigned_with_xpubs(kit: &Kit) -> Result<Psbt, KitError> {
     let c = compute();
     let policy =
         WalletPolicy::parse_any(&c, &kit.descriptor).map_err(|e| text!("{}: {e:?}", kit.id))?;
     let mut psbt = unsigned(kit)?;
     for key in policy.keys() {
         let (Some(fp), Some(path)) = (key.fingerprint(), key.path()) else {
-            return Err(text!("{}: a key with no origin", kit.id));
+            return Err(text!("{}: a key with no origin", kit.id).into());
         };
         psbt.inner_mut()
             .xpub
@@ -453,7 +494,7 @@ fn spend_of_t(kit: &Kit) -> Result<(Psbt, Option<(Text, Psbt)>), Text> {
 }
 
 /// The Savings spend and its cosigner's copy.
-pub fn spend() -> Result<(Psbt, Psbt), Text> {
+pub fn spend() -> Result<(Psbt, Psbt), KitError> {
     let kits = kits();
     let (u, c) = spend_of_t(&kits[0])?;
     Ok((u, c.ok_or_else(|| Text::of("Savings has a cosigner"))?.1))
@@ -653,7 +694,7 @@ fn files_t() -> Result<Vec<(Text, Vec<u8>)>, Text> {
 /// A spend of a miniscript wallet down its timelocked path: the first
 /// input's sequence set to the wait, and the first key's origin removed,
 /// so only the recovery key can sign.
-pub fn recovery(kit: &Kit) -> Result<Psbt, Text> {
+pub fn recovery(kit: &Kit) -> Result<Psbt, KitError> {
     let mut inner = unsigned(kit)?.into_inner();
     inner.unsigned_tx.input[0].sequence = Sequence::from_height(52_560);
     let first = master(TEST_SEEDS[0].0).fingerprint();
@@ -665,7 +706,7 @@ pub fn recovery(kit: &Kit) -> Result<Psbt, Text> {
 
 /// The MuSig2 test wallet: one aggregate key over the three test seeds'
 /// Taproot account keys, every participant signs (BIP-390).
-pub fn musig_policy() -> Result<WalletPolicy, Text> {
+pub fn musig_policy() -> Result<WalletPolicy, KitError> {
     let c = compute();
     let texts: Vec<Text> = TEST_SEEDS
         .iter()
@@ -677,7 +718,8 @@ pub fn musig_policy() -> Result<WalletPolicy, Text> {
         })
         .collect();
     let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
-    WalletPolicy::from_parts(&c, "tr(musig(@0,@1,@2)/**)", &refs).map_err(|e| text!("{e:?}"))
+    WalletPolicy::from_parts(&c, "tr(musig(@0,@1,@2)/**)", &refs)
+        .map_err(|e| KitError::from(text!("{e:?}")))
 }
 
 fn taproot_account(n: usize) -> faraday_bip::bitcoin::bip32::Xpub {
@@ -731,13 +773,17 @@ fn musig_tweaks(
 /// An unsigned spend of the MuSig2 wallet: 0.1 BTC in at its first
 /// address, everything less the fee out to the recipient, with the fields
 /// a coordinator that speaks BIP-373 fills in.
-pub fn musig_unsigned() -> Result<Psbt, Text> {
+pub fn musig_unsigned() -> Result<Psbt, KitError> {
     musig_unsigned_at(0)
 }
 
 /// [`musig_unsigned`] spending the wallet's output at `0/index`.
-pub fn musig_unsigned_at(index: u32) -> Result<Psbt, Text> {
-    musig_spend(&musig_policy()?, &[(0, 0), (1, 0), (2, 0)], index)
+pub fn musig_unsigned_at(index: u32) -> Result<Psbt, KitError> {
+    Ok(musig_spend(
+        &musig_policy()?,
+        &[(0, 0), (1, 0), (2, 0)],
+        index,
+    )?)
 }
 
 /// [`musig_unsigned`] for `policy`, whose keys are the Taproot accounts
@@ -851,13 +897,15 @@ fn key_path_sighash(psbt: &Psbt) -> Result<[u8; 32], Text> {
 /// so the partials made here fit the app's.
 #[allow(clippy::type_complexity)]
 fn musig_rounds_t() -> Result<(Psbt, Vec<(Text, Psbt)>, Vec<(Text, Psbt)>), Text> {
-    musig_rounds_at(0)
+    Ok(musig_rounds_at(0)?)
 }
 
 /// [`musig_rounds`] for the wallet's output at `0/index`.
 #[allow(clippy::type_complexity)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub fn musig_rounds_at(index: u32) -> Result<(Psbt, Vec<(Text, Psbt)>, Vec<(Text, Psbt)>), Text> {
+pub fn musig_rounds_at(
+    index: u32,
+) -> Result<(Psbt, Vec<(Text, Psbt)>, Vec<(Text, Psbt)>), KitError> {
     let c = compute();
     let unsigned = musig_unsigned_at(index)?;
     let policy = musig_policy()?;
@@ -941,9 +989,7 @@ pub fn musig_rounds_at(index: u32) -> Result<(Psbt, Vec<(Text, Psbt)>, Vec<(Text
         )
         .map_err(|e| Text::of(&e))?;
     if device.to_bytes() != again.to_bytes() {
-        return Err(Text::of(
-            "the last signer's MuSig2 pass depends on the session seed",
-        ));
+        return Err(Text::of("the last signer's MuSig2 pass depends on the session seed").into());
     }
     // Round two for keys 2 and 3, over everyone's nonces.
     let nonces =
@@ -1001,11 +1047,11 @@ pub fn musig_rounds_at(index: u32) -> Result<(Psbt, Vec<(Text, Psbt)>, Vec<(Text
 /// signature. The others' nonces are made up. At most all but one
 /// participant can be forged: all would be a BIP-340 signature.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub fn musig_forged(forged: &[usize]) -> Result<Psbt, Text> {
+pub fn musig_forged(forged: &[usize]) -> Result<Psbt, KitError> {
     use faraday_bip::bitcoin::secp256k1::{Parity, PublicKey as Pk, Scalar, SecretKey};
     let tagged = |tag: &str, parts: &[&[u8]]| -> Scalar {
         let t = sha256::Hash::hash(tag.as_bytes()).to_byte_array();
-        let mut data = [t, t].concat();
+        let mut data = [t, t].concat(); // not text: bytes
         for p in parts {
             data.extend_from_slice(p);
         }
@@ -1035,7 +1081,7 @@ pub fn musig_forged(forged: &[usize]) -> Result<Psbt, Text> {
         SecretKey::from_slice(&b).expect("small").public_key(&secp)
     };
     let (a1, a2) = (times_g(101), times_g(102));
-    let aggnonce = [a1.serialize(), a2.serialize()].concat();
+    let aggnonce = [a1.serialize(), a2.serialize()].concat(); // not text: bytes
     let mut agg =
         faraday_bip::musig::key_agg_with(&secp, &est.participants).map_err(|e| text!("{e:?}"))?;
     for t in &est.tweaks {
@@ -1131,7 +1177,7 @@ pub fn musig_forged(forged: &[usize]) -> Result<Psbt, Text> {
         sum1 = add(sum1, n1)?;
         sum2 = add(sum2, n2)?;
         let nonce =
-            faraday_bip::musig::PubNonce::from_bytes(&[n1.serialize(), n2.serialize()].concat())
+            faraday_bip::musig::PubNonce::from_bytes(&[n1.serialize(), n2.serialize()].concat()) // not text: bytes
                 .map_err(|e| text!("{e:?}"))?;
         faraday_psbt::musig::write_pub_nonce(input, pk, &est.output_key, &nonce);
     }
@@ -1142,7 +1188,7 @@ pub fn musig_forged(forged: &[usize]) -> Result<Psbt, Text> {
         }
     };
     let nonce = faraday_bip::musig::PubNonce::from_bytes(
-        &[rest(a1, sum1)?.serialize(), rest(a2, sum2)?.serialize()].concat(),
+        &[rest(a1, sum1)?.serialize(), rest(a2, sum2)?.serialize()].concat(), // not text: bytes
     )
     .map_err(|e| text!("{e:?}"))?;
     faraday_psbt::musig::write_pub_nonce(input, &filler, &est.output_key, &nonce);
@@ -1151,7 +1197,7 @@ pub fn musig_forged(forged: &[usize]) -> Result<Psbt, Text> {
 
 /// [`musig_forged`] for test seed 1, whose partial signature is then made
 /// false, so that it does not verify.
-pub fn musig_false_partial() -> Result<Psbt, Text> {
+pub fn musig_false_partial() -> Result<Psbt, KitError> {
     let mut psbt = musig_forged(&[1])?;
     let input = &mut psbt.inner_mut().inputs[0];
     let entry = faraday_psbt::musig::partial_sigs(input)
@@ -1177,7 +1223,7 @@ pub fn seed_fingerprint(n: usize) -> faraday_bip::keys::Fingerprint {
 /// first file and on both in the second. The nonces are fixed, so the
 /// files are the same each time.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-pub fn musig_two_inputs() -> Result<(Psbt, Psbt), Text> {
+pub fn musig_two_inputs() -> Result<(Psbt, Psbt), KitError> {
     use faraday_bip::bitcoin::sighash::{Prevouts, SighashCache, TapSighashType};
     let c = compute();
     let mut unsigned = musig_unsigned()?;
@@ -1399,7 +1445,12 @@ fn seeds_vault() -> Result<Vec<u8>, Text> {
                 .with(field::KEY_LABEL, label.as_bytes()),
         );
     }
-    kdbx_vault("Test seeds", BACKUP_VAULT_PASSPHRASE, 0x5b, records)
+    Ok(kdbx_vault(
+        "Test seeds",
+        BACKUP_VAULT_PASSPHRASE,
+        0x5b,
+        records,
+    )?)
 }
 
 /// A vault file labelled `label` under `passphrase` holding `records`,
@@ -1410,7 +1461,7 @@ pub fn kdbx_vault(
     passphrase: &str,
     id: u8,
     records: Vec<faraday_vault::Record>,
-) -> Result<Vec<u8>, Text> {
+) -> Result<Vec<u8>, KitError> {
     kdbx_vault_at(
         label,
         passphrase,
@@ -1460,7 +1511,7 @@ pub fn kdbx_vault_at(
     id: u8,
     memory_kib: u32,
     records: Vec<faraday_vault::Record>,
-) -> Result<Vec<u8>, Text> {
+) -> Result<Vec<u8>, KitError> {
     let c = compute();
     let cost = faraday_vault::Cost {
         memory_kib,
@@ -1495,7 +1546,7 @@ pub fn kdbx_vault_at(
         .ok_or_else(|| Text::of("no job"))?
         .run(&c)
         .into_file()
-        .map_err(|e| text!("{e:?}"))
+        .map_err(|e| KitError::from(text!("{e:?}")))
 }
 
 /// A vault file, at the test cost, whose empty document `edit` changes and
@@ -1539,7 +1590,7 @@ fn kdbx_edited_t(
 
 /// `file` (a vault `passphrase` opens) sealed once more, as another
 /// place would: the next seal count and other bytes under `nonce`.
-pub fn kdbx_reseal(file: &[u8], passphrase: &str, nonce: u8) -> Result<Vec<u8>, Text> {
+pub fn kdbx_reseal(file: &[u8], passphrase: &str, nonce: u8) -> Result<Vec<u8>, KitError> {
     let c = compute();
     let mut store = faraday_keys::vault::OpenVaults::default();
     store.set_names(crate::vault::errors::names());
@@ -1558,7 +1609,7 @@ pub fn kdbx_reseal(file: &[u8], passphrase: &str, nonce: u8) -> Result<Vec<u8>, 
         .ok_or_else(|| Text::of("no job"))?
         .run(&c)
         .into_file()
-        .map_err(|e| text!("{e:?}"))
+        .map_err(|e| KitError::from(text!("{e:?}")))
 }
 
 /// The test vault's passphrase.
@@ -1567,7 +1618,7 @@ pub const VAULT_PASSPHRASE: &str = "test vault";
 /// The test stick's vault (`docs/VAULT.md`): one passphrase at the test
 /// cost. It opens test key 1 (ticked at unlock), every test wallet, an
 /// entry and a note. Everything is a dummy.
-pub fn test_vault() -> Result<Vec<u8>, Text> {
+pub fn test_vault() -> Result<Vec<u8>, KitError> {
     let c = compute();
     use faraday_vault::Record;
     use faraday_vault::records::{self, field, kind};

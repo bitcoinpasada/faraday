@@ -484,12 +484,12 @@ fn summary(k: &KeyGen, s: u8) -> Text {
             Some(Source::Coins) if k.by_die => {
                 Text::fill(EN.keygen_coins_from_die, &[source_name(Source::Coins)])
             }
-            Some(Source::Mix) => Text::of(
+            Some(Source::Mix) => Text::joined(
                 &k.mix_list()
                     .iter()
                     .map(|s| source_name(*s))
-                    .collect::<Vec<_>>()
-                    .join(" + "),
+                    .collect::<Vec<_>>(),
+                " + ",
             ),
             Some(s) => Text::of(source_name(s)),
             None => Text::of(EN.keygen_not_chosen),
@@ -1103,9 +1103,9 @@ fn way_line(k: &KeyGen, w: Way) -> Text {
                 Way::DiceSixAsZero => DiceProcedure::SixAsZero,
                 _ => DiceProcedure::Hashed,
             };
-            Text::of(
-                &EN.dice_procedure_rolls
-                    .replacen("{}", &Text::num(k.rolls_for(p) as u64), 1),
+            Text::fill(
+                EN.dice_procedure_rolls,
+                &[&Text::num(k.rolls_for(p) as u64)],
             )
         }
         w => asks(k, w.source()),
@@ -1597,7 +1597,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let entered = if coins { flips.len() } else { rolls.len() };
     let num_w = ui.measure_as(BODY_M.mono(), "00");
-    let code_w = ui.measure_as(BODY_M.mono(), &"0".repeat(per.max(11)));
+    let code_w = ui.measure_as(BODY_M.mono(), &Text::repeated("0", per.max(11)));
     let index_w = ui.measure_as(BODY_M.mono(), "0000");
     // On a small panel the number in the list and the word go on a
     // second line, under the bits.
@@ -1659,7 +1659,11 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Some(i) if coins => text!("{i:011b}"),
         _ if coins => {
             let have = entered.saturating_sub(last * 11).min(11 - checksum);
-            text!("{}{}", code_of(last, have).as_str(), "·".repeat(11 - have))
+            text!(
+                "{}{}",
+                code_of(last, have).as_str(),
+                Text::repeated("·", 11 - have).as_str()
+            )
         }
         _ => code_of(last, per),
     };
@@ -1817,17 +1821,21 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     let all = bits(p, f);
                     (
                         text!("{f}"),
-                        text!("{}{}", &all[..keep], "·".repeat(width - keep)),
+                        text!(
+                            "{}{}",
+                            &all[..keep],
+                            Text::repeated("·", width - keep).as_str()
+                        ),
                     )
                 }
-                None => (Text::of("·"), Text::of(&"·".repeat(width))),
+                None => (Text::of("·"), Text::repeated("·", width)),
             }
         })
         .collect();
     let made = k.checksum_word();
     let sum = match made {
         Some(i) => text!("{:0width$b}", i & ((1 << checksum) - 1), width = checksum),
-        None => Text::of(&"·".repeat(checksum)),
+        None => Text::repeated("·", checksum),
     };
     row(
         ui,
@@ -1943,7 +1951,7 @@ fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
         EN.create_longest_run,
         &Text::fill(
             EN.create_run_face,
-            &[&Text::num(st.longest_run as u64), &side.to_lowercase()],
+            &[&Text::num(st.longest_run as u64), &*Text::lowercase(side)],
         ),
         ink.paint(),
     )
@@ -1997,13 +2005,14 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 &Text::num(n as u64),
                 ink.paint(),
             );
-            let counts = st
-                .counts
-                .iter()
-                .enumerate()
-                .map(|(i, c)| text!("{}:{c}", i + 1))
-                .collect::<Vec<_>>()
-                .join("  ");
+            let counts = Text::joined(
+                &st.counts
+                    .iter()
+                    .enumerate()
+                    .map(|(i, c)| text!("{}:{c}", i + 1))
+                    .collect::<Vec<_>>(),
+                "  ",
+            );
             cy = stat(ui, x, cy, EN.keygen_faces, &counts, ink.paint());
             if !k.procedure().direct() {
                 let high = st.chi_square > faraday_entropy::DICE_CHI_SQUARE_LIMIT
@@ -2021,7 +2030,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                     &text!(
                         "{:.1} · {}",
                         st.chi_square,
-                        judged.replacen("{}", &Text::num(n as u64), 1)
+                        Text::fill(judged, &[&Text::num(n as u64)]).as_str()
                     ),
                     if high {
                         Role::Warning.paint()
@@ -2055,12 +2064,14 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 &Text::num(k.cards.len() as u64),
                 ink.paint(),
             );
-            let suits = SUITS
-                .iter()
-                .zip(st.suits)
-                .map(|(s, c)| text!("{s} {c}"))
-                .collect::<Vec<_>>()
-                .join("   ");
+            let suits = Text::joined(
+                &SUITS
+                    .iter()
+                    .zip(st.suits)
+                    .map(|(s, c)| text!("{s} {c}"))
+                    .collect::<Vec<_>>(),
+                "   ",
+            );
             cy = stat(ui, x, cy, EN.keygen_suits, &suits, ink.paint());
         }
         Some(Source::Hex) => {

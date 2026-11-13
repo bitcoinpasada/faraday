@@ -1644,7 +1644,10 @@ fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         _ => EN.codex32_your_dice,
     };
     let entropy = if m.sample() {
-        Text::fill(EN.c32r_entropy_sample, &[&m.identifier().to_uppercase()])
+        Text::fill(
+            EN.c32r_entropy_sample,
+            &[&*Text::uppercase(&m.identifier())],
+        )
     } else if m.given_kind().is_some() {
         Text::of(EN.c32r_your_shares)
     } else {
@@ -2032,7 +2035,7 @@ fn sum_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<Text> {
     ));
     out.push(Text::of(EN.codex32_addition_wheel));
     if j == sh.steps() {
-        let want = letter(char_of(sh.target()[i]).to_ascii_uppercase());
+        let want = letter(char::to_ascii_uppercase(&char_of(sh.target()[i])));
         let holds = this == Some(sh.target()[i]);
         out.push(Text::fill(
             if holds {
@@ -2055,8 +2058,9 @@ fn lookup_working(work: &WorkSet, share: usize, j: usize, i: usize) -> Vec<Text>
     let w = sh.step_width(j);
     let lead: Vec<Text> = (0..w)
         .map(|n| {
-            sh.sum_cell(j, n)
-                .map_or_else(dot, |v| char_of(v).to_uppercase().collect::<Text>())
+            sh.sum_cell(j, n).map_or_else(dot, |v| {
+                Text::uppercase(char_of(v).encode_utf8(&mut [0; 4]))
+            })
         })
         .collect();
     let lead = Text::joined(&lead, " ");

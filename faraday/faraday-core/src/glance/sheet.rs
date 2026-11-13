@@ -510,7 +510,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             if !at.is_empty() {
                 facts.push((
                     EN.glance_sheet_its_seed,
-                    Text::of(&at.join(" · ")),
+                    Text::joined(&at, " · "),
                     Role::OnSurface.paint(),
                 ));
             }
@@ -1399,7 +1399,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             } else {
                 (
                     EN.glance_sheet_passphrase,
-                    Text::of(&"•".repeat(typed)),
+                    Text::repeated("•", typed),
                     false,
                 )
             });

@@ -57,6 +57,84 @@ impl Text {
         out
     }
 
+    /// One holding `s` in lower case, built in a buffer of its own so no
+    /// unwiped copy is made. Each character is changed on its own, so a
+    /// final capital sigma becomes `σ` where `str`'s gives `ς`.
+    pub fn lowercase(s: &str) -> Text {
+        let mut out = Text::with_room(s.len());
+        for c in s.chars() {
+            for l in char::to_lowercase(c) {
+                out.push(l);
+            }
+        }
+        out
+    }
+
+    /// One holding `s` in upper case, built in a buffer of its own so no
+    /// unwiped copy is made. Each character is changed on its own, so a
+    /// final capital sigma becomes `σ` where `str`'s gives `ς`.
+    pub fn uppercase(s: &str) -> Text {
+        let mut out = Text::with_room(s.len());
+        for c in s.chars() {
+            for u in char::to_uppercase(c) {
+                out.push(u);
+            }
+        }
+        out
+    }
+
+    /// One holding `s` with its ASCII letters in lower case and every other
+    /// character as it is, in a buffer of exactly its size. Costs time
+    /// linear in `s`.
+    pub fn ascii_lowercase(s: &str) -> Text {
+        let mut out = Text::with_room(s.len());
+        for c in s.chars() {
+            out.push(c.to_ascii_lowercase());
+        }
+        out
+    }
+
+    /// One holding `s` with its ASCII letters in upper case and every other
+    /// character as it is, in a buffer of exactly its size. Costs time
+    /// linear in `s`.
+    pub fn ascii_uppercase(s: &str) -> Text {
+        let mut out = Text::with_room(s.len());
+        for c in s.chars() {
+            out.push(c.to_ascii_uppercase());
+        }
+        out
+    }
+
+    /// One holding `s` `times` over, in a buffer of exactly its size. Costs
+    /// time linear in the result.
+    pub fn repeated(s: &str, times: usize) -> Text {
+        let mut out = Text::with_room(s.len().saturating_mul(times));
+        for _ in 0..times {
+            out.push_str(s);
+        }
+        out
+    }
+
+    /// One holding `s` with each `from` in it changed to `to`, in a buffer
+    /// of exactly its size. An empty `from` changes nothing. Costs time
+    /// linear in `s` and the number of changes.
+    pub fn replaced(s: &str, from: &str, to: &str) -> Text {
+        if from.is_empty() {
+            return Text::of(s);
+        }
+        let hits = s.matches(from).count();
+        let mut out =
+            Text::with_room((s.len() + hits * to.len()).saturating_sub(hits * from.len()));
+        let mut rest = s;
+        while let Some(at) = rest.find(from) {
+            out.push_str(&rest[..at]);
+            out.push_str(to);
+            rest = &rest[at + from.len()..];
+        }
+        out.push_str(rest);
+        out
+    }
+
     /// One holding what `args` formats to, in a buffer of exactly its
     /// size: the text is measured first so it is never grown piece by
     /// piece. [`text!`](crate::text) calls it.

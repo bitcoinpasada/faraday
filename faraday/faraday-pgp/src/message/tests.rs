@@ -276,7 +276,7 @@ fn a_cost_outside_the_limits_is_refused_before_anything_runs() {
 }
 
 fn join(parts: &[&[u8]]) -> Vec<u8> {
-    parts.concat()
+    parts.concat() // not text: bytes
 }
 
 #[test]

@@ -727,7 +727,7 @@ mod tests {
         assert!(text.starts_with("ur:crypto-psbt/"));
         assert_eq!(decode_single(&text).unwrap(), Message::Psbt(psbt.to_vec()));
         assert_eq!(
-            decode_single(&text.to_ascii_uppercase()).unwrap(),
+            decode_single(&Text::ascii_uppercase(&text)).unwrap(),
             Message::Psbt(psbt.to_vec())
         );
         let mut d = Decoder::new();
@@ -794,7 +794,7 @@ mod tests {
         let mut e = Encoder::bytes(message, 5).unwrap();
         let mut d = Decoder::new();
         for _ in 0..e.fragment_count() {
-            d.receive(&e.next_part().to_ascii_uppercase()).unwrap();
+            d.receive(&Text::ascii_uppercase(&e.next_part())).unwrap();
         }
         assert_eq!(d.into_message(), Some(Message::Bytes(message.to_vec())));
     }
@@ -816,7 +816,7 @@ mod tests {
         }
         // A part whose header disagrees with its own CBOR.
         let mut e = Encoder::bytes(b"Ten chars!", 5).unwrap();
-        let tampered = e.next_part().replacen("/1-", "/2-", 1);
+        let tampered = Text::replaced(&e.next_part(), "/1-", "/2-");
         assert_eq!(
             Decoder::new().receive(&tampered).unwrap_err(),
             Error::Mismatch

@@ -118,7 +118,7 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Text
             let key = slip132::decode(value).map_err(|_| Error::Key)?;
             keys.push(text!(
                 "[{}/{path}]{}",
-                label.to_ascii_lowercase(),
+                Text::ascii_lowercase(label).as_str(),
                 key.plain.as_str()
             ));
             named.push(key.named);
@@ -275,7 +275,7 @@ Derivation: m/48'/1'/0'/2'
 ";
 
     fn with_format(format: &str) -> Text {
-        Text::of(&CONFIG.replace("Policy:", &text!("Format: {format}\nPolicy:")))
+        Text::replaced(CONFIG, "Policy:", &text!("Format: {format}\nPolicy:"))
     }
 
     #[test]
@@ -302,11 +302,17 @@ Derivation: m/48'/1'/0'/2'
         let c = Compute::unchecked();
         assert_eq!(parse(&c, CONFIG), Err(Error::Template));
         assert_eq!(
-            parse(&c, &with_format("P2WSH").replace("2 of 2", "3 of 2")),
+            parse(
+                &c,
+                &Text::replaced(&with_format("P2WSH"), "2 of 2", "3 of 2")
+            ),
             Err(Error::Threshold)
         );
         assert_eq!(
-            parse(&c, &with_format("P2WSH").replace("2 of 2", "2 of 3")),
+            parse(
+                &c,
+                &Text::replaced(&with_format("P2WSH"), "2 of 2", "2 of 3")
+            ),
             Err(Error::Placeholder),
             "a quorum that names more keys than the file lists"
         );
@@ -374,22 +380,33 @@ Derivation: m/48'/1'/0'/2'
         assert!(vpub_multi.starts_with("Vpub"), "{vpub_multi}");
         assert!(vpub_single.starts_with("vpub"), "{vpub_single}");
         assert!(upub_multi.starts_with("Upub"), "{upub_multi}");
-        let policy = parse(&c, &with_format("P2WSH").replace(tpub, &vpub_multi)).unwrap();
+        let policy = parse(
+            &c,
+            &Text::replaced(&with_format("P2WSH"), tpub, &vpub_multi),
+        )
+        .unwrap();
         assert_eq!(policy, plain);
         assert_eq!(policy.checksum(), plain.checksum());
         for other in [&vpub_single, &upub_multi] {
-            let text = with_format("P2WSH").replace(tpub, other);
+            let text = Text::replaced(&with_format("P2WSH"), tpub, other);
             assert_eq!(parse(&c, &text), Err(Error::Key), "{other}");
             let m = slip132_mismatch(&text).expect("the key that disagrees");
             assert_eq!(m.key, other.as_str());
             assert_eq!(m.around, Script::NativeMultisig);
         }
         // In a P2SH-P2WSH file the `Upub` is the one that agrees.
-        let nested = parse(&c, &with_format("P2SH-P2WSH").replace(tpub, &upub_multi)).unwrap();
+        let nested = parse(
+            &c,
+            &Text::replaced(&with_format("P2SH-P2WSH"), tpub, &upub_multi),
+        )
+        .unwrap();
         assert_eq!(nested, parse(&c, &with_format("P2SH-P2WSH")).unwrap());
         assert_eq!(slip132_mismatch(&with_format("P2WSH")), None);
         assert_eq!(
-            parse(&c, &with_format("P2WSH").replace(tpub, "tpubnotakey")),
+            parse(
+                &c,
+                &Text::replaced(&with_format("P2WSH"), tpub, "tpubnotakey")
+            ),
             Err(Error::Key)
         );
     }

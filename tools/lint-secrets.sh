@@ -66,7 +66,15 @@
 # faraday/faraday-pgp/src/paperkey.rs faraday/faraday-pgp/src/secret.rs (a GPG key's paperkey read back: its
 #   lines, its data and the secret parts in it):
 #   3. No heap text: the tokens `String`, `alloc::string`, `to_string`,
-#      `to_owned` and `format!` may not appear, in code or comments. Words
+#      `to_owned`, `format!` and `.into_owned()` may not appear, in code or
+#      comments, and neither may the calls that build a String from other
+#      text: `.join(` with an argument (not `.join()`), `<[_]>::join(`,
+#      `.concat()`, `.to_lowercase(`, `.to_uppercase(`, `str::to_lowercase`,
+#      `str::to_uppercase`, `.to_ascii_lowercase(`, `.to_ascii_uppercase(`,
+#      `.replace(` and `.replacen(` with a pattern and a replacement, and
+#      `.repeat(`; a line whose call makes no text says `// not text:` and
+#      what it makes, and a receiver named c, ch, b, i, j, x, d or index
+#      or written `char::from(..)` is a char or a byte (see BUILDERS). Words
 #      are u16 indices; text is `&str` borrowed from the embedded lists.
 #      One exception, because it is not Rust's type at all: a byte-string
 #      literal holding the KDBX XML element `<String>`, which the vault's
@@ -74,17 +82,15 @@
 #      Other files in faraday-bip (accounts, descriptors, SLIP-132) hold only
 #      public data and may use String freely. A file is a secret file when
 #      it is in SECRET_FILES below (paths are relative to the repository
-#      root and need not be under core/) or in tools/lint-secrets-excepted.txt,
-#      which names each non-test source file under core/, faraday/ or aqrv/
-#      that uses a secret type and is not yet held by rule 3, with its
-#      reason. A file that uses a secret type (the names of rule 2, 4a's
-#      key types, `zeroize`) and is in neither list is reported, so a new
-#      module is found without anyone adding it; so is a listed file that
-#      uses none (unless it is in NAMELESS, with its reason), an excepted
-#      file that has no heap text (it moves to SECRET_FILES), and one
-#      listed twice. An excepted file leaves that list only into
-#      SECRET_FILES or because it is gone, since a file that holds wiping
-#      text (Text, not a secret name) is read by rule 3 only when listed.
+#      root and need not be under core/). A non-test source file under
+#      core/, faraday/ or aqrv/ that uses a secret type (the names of rule 2,
+#      4a's key types, `zeroize`), and is not in SECRET_FILES, is reported, so
+#      a new module is found without anyone adding it; so is a listed file
+#      that uses none (unless it is in NAMELESS, with its reason), and a
+#      NAMELESS file that now uses one. The wiping text of faraday_text is
+#      not counted as a secret type yet: a file that holds text only as
+#      wiping Text and names no secret type is not found by this lint, and
+#      is held only when someone lists it.
 #
 # Rule 4, the key boundary, rule 5, the dev card's reports, and rule 6, the
 # test allocator, are described where they are checked, below.
@@ -627,7 +633,8 @@ faraday/faraday-core/src/compute.rs
 faraday/faraday-core/src/worker/kef_make.rs
 faraday/faraday-core/src/held.rs
 faraday/faraday-core/src/lib.rs
-faraday/faraday-core/src/state.rs"
+faraday/faraday-core/src/state.rs
+faraday/faraday-core/src/testkit/public.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do
@@ -637,7 +644,6 @@ done
 # with why:
 #   codex32/fresh.rs   makes shares from entropy through the types of mod.rs
 #   vault/qr.rs        takes the passphrase as text for the PGP layer's seal
-#   worker/kef.rs      holds the KEF worker's answers behind faraday-keys calls
 #   keys/totp.rs       holds the shown one-time code in wiping text
 #   vault/dice.rs, vault/screen.rs   hold only public text and wiping text of the vault and its draw
 #   faraday-text lib   declares and documents the wiping text type of text.rs
@@ -654,36 +660,60 @@ done
 #   codes/mod.rs       holds the entry's account and title as wiping text and the shown one-time code
 #   spend_backup/      read a share or a key typed or scanned as wiped text (Text)
 #                      and hand it on to the seeds area
-#   slip132.rs         rewrites the descriptor it is handed, which may hold a private key, as wiping text
 #   caravan.rs         builds the key lines of a config's xpub field, which may hold a private key, as wiping text
 #   drawing/kept.rs    holds the worked-out text a screen shows (a seed's address, a key's text) as wiping text
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs faraday/faraday-core/src/held.rs faraday/faraday-core/src/codes/mod.rs faraday/faraday-core/src/drawing/kept.rs core/faraday-bip/src/slip132.rs faraday/faraday-intake/src/caravan.rs"
-EXCEPTED_FILE=tools/lint-secrets-excepted.txt
-EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
+#   intake lib.rs      reads a split seed's part from a file as wiping text
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs faraday/faraday-core/src/dice_entry/mod.rs faraday/faraday-core/src/kef_tool/mod.rs core/faraday-draw/src/canvas/list.rs faraday/faraday-core/src/qr_tool/screen.rs faraday/faraday-qr/src/specter.rs faraday/faraday-core/src/backup_flow/wallet_files.rs faraday/faraday-core/src/held.rs faraday/faraday-core/src/codes/mod.rs faraday/faraday-core/src/drawing/kept.rs faraday/faraday-intake/src/caravan.rs faraday/faraday-intake/src/lib.rs"
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
-has_heap_text() { grep -E '\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!' "$1" | grep -qvE 'b"[^"]*</?String>|^ +[a-z0-9_]+: "String",$'; }
 unlisted=$(for f in $(type_files); do
     names_secret "$f" || continue
-    case " $SECRET_FILES " in *" $f "*) continue ;; esac
-    grep -qxF "$f" <<< "$EXCEPTED" || echo "$f"
+    case " $SECRET_FILES " in *" $f "*) ;; *) echo "$f" ;; esac
 done)
-report "a file that uses a secret type is in neither SECRET_FILES nor $EXCEPTED_FILE (rule 3)" "$unlisted"
+report "a file that uses a secret type is not in SECRET_FILES (rule 3)" "$unlisted"
 nameless=$(for f in $SECRET_FILES; do
     [ -f "$f" ] || continue
     names_secret "$f" && continue
     case " $NAMELESS " in *" $f "*) ;; *) echo "$f" ;; esac
 done)
 report "a file in SECRET_FILES that uses no secret type (rule 3; remove it, or name it in NAMELESS with why)" "$nameless"
-stale=$(for f in $EXCEPTED; do
-    if [ ! -f "$f" ]; then echo "$f: missing"
-    elif ! has_heap_text "$f"; then echo "$f: has no heap text: move it to SECRET_FILES"
-    elif case " $SECRET_FILES " in *" $f "*) true ;; *) false ;; esac; then echo "$f: also in SECRET_FILES"
-    fi
-done; sort <<< "$EXCEPTED" | uniq -d | sed 's/$/: listed twice/')
-report "$EXCEPTED_FILE is out of date (rule 3)" "$stale"
+redundant=$(for f in $NAMELESS; do
+    [ -f "$f" ] && names_secret "$f" && echo "$f"
+done)
+report "a file in NAMELESS that now names a secret type (rule 3; remove it from NAMELESS)" "$redundant"
+# Files that name the wiping text or hold test text and are not in
+# SECRET_FILES, each with why:
+#   testkit/plain.rs  the test kit's key texts as plain text: public fixtures and
+#                     published dummy data, built only with the `testkit` feature
+#                     for tests, tools and the online Starter, never in the device app
+UNHELD="faraday/faraday-core/src/testkit/plain.rs"
+unheld=$(for f in $UNHELD; do
+    [ -f "$f" ] || { echo "$f: missing"; continue; }
+    case " $SECRET_FILES " in *" $f "*) echo "$f: is in SECRET_FILES" ;; esac
+done)
+report "UNHELD is out of date (rule 3)" "$unheld"
+dup=$(tr ' ' '\n' <<< "$SECRET_FILES" | sort | uniq -d | sed 's/$/: listed twice/')
+report "SECRET_FILES lists a file twice (rule 3)" "$dup"
+# The text builders: the type, its macros and the calls that make a String.
+HEAP_TEXT='\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!|\.into_owned\(\)'
+# The calls that build a String (or a Vec) from other text. A line that holds
+# one of them but not text (a char or a byte, a Vec of bytes, an Option, a
+# path) says so with a `// not text: <what>` comment on the line; a file that
+# builds only paths with `.join(` is in PATH_FILES, with its reason.
+BUILDERS='\.join\([^)]|<\[_\]>::join\(|\.concat\(\)|\bstr::to_(lower|upper)case\b|\.to_(lower|upper)case\(|\.to_ascii_(lower|upper)case\(|\.replacen?\([^,()]*(\([^()]*\))?[^,()]*,|\.repeat\('
+# `.to_ascii_lowercase()` on a char or a byte makes no text: a receiver named
+# c, ch, b, i, j, x, d or index, or `char::from(..)`, is one.
+CHARS='(^|[^A-Za-z0-9_.])(c|ch|b|i|j|x|d|index)\.to_ascii_(lower|upper)case\(|char::from\([^()]*\)\.to_ascii_(lower|upper)case\('
+# Files whose `.join(` is a path's, each with why:
+#   faraday-disk lib.rs, faraday-files lib.rs, faraday-storage lib.rs   build file system paths
+PATH_FILES="faraday/faraday-disk/src/lib.rs faraday/faraday-files/src/lib.rs faraday/faraday-storage/src/lib.rs"
+builders=$(grep -nE "$BUILDERS" $SECRET_FILES | grep -v '// not text:' | grep -vE "$CHARS" \
+    | while IFS=: read -r f n rest; do
+        case " $PATH_FILES " in *" $f "*) case "$rest" in *'.join('*) ! grep -qE '\.(concat|repeat|replacen?|to_[a-z_]*case)\(' <<< "$rest" && continue ;; esac ;; esac
+        echo "$f:$n:$rest"
+    done)
 report "heap text in secret-handling source (rule 3)" \
-    "$(grep -nE '\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!' $SECRET_FILES \
-        | grep -vE 'b"[^"]*</?String>|^[^:]+:[0-9]+: +[a-z0-9_]+: "String",$')"
+    "$( { grep -nE "$HEAP_TEXT" $SECRET_FILES \
+        | grep -vE 'b"[^"]*</?String>|^[^:]+:[0-9]+: +[a-z0-9_]+: "String",$'; echo "$builders"; } | grep .)"
 
 # Rule 4: the key boundary (docs/KEYS.md, F70). Key material is used
 # only in faraday/faraday-keys. Everywhere else under faraday/ these are

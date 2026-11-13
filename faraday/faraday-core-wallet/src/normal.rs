@@ -294,7 +294,7 @@ fn key(
     let mut chain_code = Zeroizing::new([0u8; 32]);
     chain_code.copy_from_slice(&x[13..45]);
     let (fp, path) = match &origin {
-        Some((fp, path)) => (fp.clone(), [path.as_slice(), &steps[..=last]].concat()),
+        Some((fp, path)) => (fp.clone(), [path.as_slice(), &steps[..=last]].concat()), // not text: path steps
         None => (
             faraday_crypto::hex::encode_string(&hash160::Hash::hash(&root).to_byte_array()[..4]),
             steps[..=last].to_vec(),
@@ -389,7 +389,8 @@ mod tests {
     fn a_hash_in_a_wrapper_has_no_key_place() {
         let x = master();
         let x = &*x;
-        let hash = "ab".repeat(32);
+        let hash = Text::repeated("ab", 32);
+        let hash = hash.as_str();
         for wrapper in ["v:sha256", "a:hash160", "sv:ripemd160", "n:hash256"] {
             let body = text!("wsh(and_v({wrapper}({hash}),pk({x}/48h/1h/0h/2h/0/*)))");
             let (_, needs) = listed(&body).expect(wrapper);

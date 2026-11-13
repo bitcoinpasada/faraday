@@ -66,7 +66,7 @@ fn with_a_wallet() -> Faraday {
         .add_wallet(
             &c,
             "Wallet",
-            &format!("wpkh({text}/<0;1>/*)"),
+            &format!("wpkh({}/<0;1>/*)", &*text),
             "test",
             faraday_core::wallet::Origin::Named,
         )

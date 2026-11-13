@@ -296,7 +296,7 @@ impl Faraday {
         let fp = key.fingerprint;
         let fps = Text::of(&crate::wallet::fp_text(fp));
         let name = crate::file_stem(&wallet.name);
-        let stem = text!("{}-{}", name.as_str(), fps.to_lowercase());
+        let stem = text!("{}-{}", name.as_str(), &*Text::lowercase(&fps));
         // The words, one line, as Add a key and other signers read them.
         // Sized first so that no copy is left behind by a reallocation.
         let words = self.session.keys.reveal(

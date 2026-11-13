@@ -502,7 +502,7 @@ pub fn key_line(line: &str) -> Option<Result<KeyLine, Mismatch>> {
         }));
     }
     let text = match origin {
-        Some(o) => text!("[{}]{}", o.to_ascii_lowercase(), plain.as_str()),
+        Some(o) => text!("[{}]{}", Text::ascii_lowercase(o).as_str(), plain.as_str()),
         None => plain,
     };
     Some(Ok(KeyLine { text, named }))

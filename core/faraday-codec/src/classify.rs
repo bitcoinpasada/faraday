@@ -335,7 +335,7 @@ fn fold_precomposed(word: &str, out: &mut faraday_bip::bip39::Typed) -> bool {
     ];
     out.clear();
     for c in word.chars() {
-        let c = c.to_lowercase().next().unwrap_or(c);
+        let c = char::to_lowercase(c).next().unwrap_or(c);
         if ('\u{0300}'..='\u{036F}').contains(&c) {
             continue;
         }
@@ -378,8 +378,8 @@ mod tests {
         ];
         for lang in Language::ALL.into_iter().filter(|l| l.is_latin()) {
             for i in (0..2048u16).step_by(101).chain([2047]) {
-                let upper = lang.word(i).to_uppercase();
-                assert_eq!(word_index(lang, &upper), Some(i), "{lang:?} {upper}");
+                let upper = faraday_text::Text::uppercase(lang.word(i));
+                assert_eq!(word_index(lang, &upper), Some(i), "{lang:?} {}", &*upper);
             }
         }
         let mut composed = 0;
@@ -390,7 +390,7 @@ mod tests {
             }
             let word = COMPOSE
                 .iter()
-                .fold(Text::of(nfkd), |w, (d, c)| Text::of(&w.replace(d, c)));
+                .fold(Text::of(nfkd), |w, (d, c)| Text::replaced(&w, d, c));
             assert!(word.chars().all(|c| !('\u{300}'..='\u{36f}').contains(&c)));
             assert_eq!(
                 word_index(Language::Spanish, &word),
@@ -399,7 +399,7 @@ mod tests {
                 word.as_str()
             );
             assert_eq!(
-                word_index(Language::Spanish, &word.to_uppercase()),
+                word_index(Language::Spanish, &faraday_text::Text::uppercase(&word)),
                 Some(i),
                 "{}",
                 word.as_str()

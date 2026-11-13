@@ -55,7 +55,7 @@ fn backing_up(passphrase: &str) -> Faraday {
         .add_wallet(
             &c,
             "Spending",
-            &format!("wpkh({text}/<0;1>/*)"),
+            &format!("wpkh({}/<0;1>/*)", &*text),
             "test",
             faraday_core::wallet::Origin::Named,
         )

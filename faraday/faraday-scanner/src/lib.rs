@@ -457,7 +457,7 @@ mod tests {
             ));
         }
         row.truncate(W);
-        let frame = row.repeat(1080);
+        let frame = row.repeat(1080); // not text: pixel bytes
         for mode in [ReadMode::Full, ReadMode::Reduced] {
             let mut scanner = Scanner::new(mode);
             scanner.offer(W as u16, 1080, frame.clone());

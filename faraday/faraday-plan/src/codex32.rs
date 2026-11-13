@@ -167,7 +167,7 @@ impl Wanted {
     /// The share as named on screen: its index in upper case.
     pub fn share(&self) -> Text {
         let mut out = Text::new();
-        out.push(char::from(self.index.to_ascii_uppercase()));
+        out.push(char::from(u8::to_ascii_uppercase(&self.index)));
         out
     }
 

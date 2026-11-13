@@ -1952,7 +1952,7 @@ impl Sticks for DiskProcess {
 
     fn transfer_later(&mut self, transfer: Transfer) -> Result<(), Transfer> {
         // A vault's file, the only one that may be longer than a frame.
-        let vault = |name: &str| name.to_ascii_lowercase().ends_with(".kdbx");
+        let vault = |name: &str| faraday_text::Text::ascii_lowercase(name).ends_with(".kdbx");
         match &transfer {
             Transfer::Read { name, .. } if vault(name) => {}
             Transfer::Write { name, bytes, .. }

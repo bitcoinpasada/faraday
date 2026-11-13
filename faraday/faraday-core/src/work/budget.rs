@@ -599,9 +599,9 @@ fn budgets_hold_on(panel: Panel, costs: &'static [(&'static str, u64, u64)]) {
     assert!(
         r.failures.is_empty(),
         "{}\n\nEach screen's frame:\n{}\n\nEach screen's allocations and lines:\n{}",
-        r.failures.join("\n"),
-        r.lines.join("\n"),
-        r.measured.join("\n")
+        Text::joined(&r.failures, "\n").as_str(),
+        Text::joined(&r.lines, "\n").as_str(),
+        Text::joined(&r.measured, "\n").as_str()
     );
 }
 

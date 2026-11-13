@@ -1058,7 +1058,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 fn wallet_once(w: &crate::wallet::Wallet) -> Text {
     let shape = Session::shape(w);
     let kind = shape.rsplit(" · ").next().unwrap_or(&shape);
-    if w.name.to_lowercase().contains(&kind.to_lowercase()) {
+    if Text::lowercase(&w.name).contains(&*Text::lowercase(kind)) {
         Text::of(&shape)
     } else {
         faraday_text::text!("{} · {}", &*w.name, &*shape)
@@ -1137,7 +1137,7 @@ fn came_rows(app: &View) -> Vec<Text> {
                         let fp = key
                             .strip_prefix('[')
                             .and_then(|r| r.split(['/', ']']).next())
-                            .map(str::to_uppercase);
+                            .map(Text::uppercase);
                         match fp {
                             Some(fp) => Text::fill(EN.spend_backup_key_xpub_n, &[&fp]),
                             None => Text::of(EN.spend_backup_key_xpub),

@@ -613,7 +613,7 @@ fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16
     }
     let mut idx = zeroize::Zeroizing::new(Vec::with_capacity(words.len()));
     for (k, w) in words.iter().enumerate() {
-        let lower = zeroize::Zeroizing::new(w.to_lowercase());
+        let lower = Text::lowercase(w);
         let i = crate::forms::typed_index(lang, &lower)
             .or_else(|| lang.index_of(&lower))
             .ok_or_else(|| {
@@ -665,9 +665,7 @@ fn starts_as_form(form: crate::forms::Form, text: &str) -> bool {
     let first = text.split_whitespace().next().unwrap_or("");
     match form {
         Form::Codex32 => text.get(..3).is_some_and(|p| p.eq_ignore_ascii_case("ms1")),
-        Form::Slip39 => {
-            faraday_bip::slip39::index_of(&zeroize::Zeroizing::new(first.to_lowercase())).is_some()
-        }
+        Form::Slip39 => faraday_bip::slip39::index_of(&Text::lowercase(first)).is_some(),
         Form::Xor | Form::Words => {
             let words: Vec<&str> = text.split_whitespace().collect();
             !words.is_empty() && scan_read::on_a_word_list(&words).is_some()
@@ -710,7 +708,7 @@ pub(crate) fn pasted_secret(c: &Compute, text: &str, seeds: bool) -> Option<&'st
     if matches!(t.len(), 48 | 96) && t.bytes().all(|b| b.is_ascii_digit()) {
         return Some(EN.pasted_seedqr);
     }
-    let lower = zeroize::Zeroizing::new(t.to_lowercase());
+    let lower = Text::lowercase(t);
     if faraday_bip::codex32::Codex32::parse(&lower).is_ok()
         || faraday_bip::slip39::Share::parse(&lower).is_ok()
     {
@@ -884,7 +882,7 @@ impl Faraday {
             }
         }
         if seeds && t.contains(char::is_whitespace) {
-            let lower = zeroize::Zeroizing::new(t.to_lowercase());
+            let lower = Text::lowercase(t);
             if let Some(words) = seed_in_code(&c, lower.as_bytes()) {
                 return self.scanned(words.as_bytes().to_vec());
             }
@@ -1941,7 +1939,7 @@ impl Faraday {
         };
         let given = trimmed(&bytes);
         let text = if form == Form::Slip39 {
-            Text::of(&zeroize::Zeroizing::new(given.to_lowercase()))
+            Text::lowercase(&given)
         } else {
             given
         };

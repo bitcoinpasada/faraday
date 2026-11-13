@@ -1441,7 +1441,7 @@ fn save(app: &mut Faraday) {
         k.has_passphrase && target.keeps_passphrase_apart(),
     );
     let fp = fp_text(Fingerprint(fp));
-    let lower = fp.to_lowercase();
+    let lower = Text::lowercase(&fp);
     let (name, bytes, keep) = match held {
         Value::Set(parts) => {
             let mut all = Zeroizing::new(Vec::new());
@@ -1450,18 +1450,18 @@ fn save(app: &mut Faraday) {
                 all.push(b'\n');
             }
             (
-                text!("{lower}-{}.txt", &*target.file_for(lang)),
+                text!("{}-{}.txt", &*lower, &*target.file_for(lang)),
                 all,
                 Keep::Note,
             )
         }
         Value::Text(text) => (
-            text!("{lower}-{}.txt", &*target.file_for(lang)),
+            text!("{}-{}.txt", &*lower, &*target.file_for(lang)),
             Zeroizing::new(text.as_str().as_bytes().to_vec()),
             Keep::Note,
         ),
         Value::Code(grid, words) => (
-            text!("{}-{lower}.png", target.file()),
+            text!("{}-{}.png", target.file(), &*lower),
             crate::backup_flow::seedqr_picture(&c, grid, *words, &fp),
             Keep::None,
         ),

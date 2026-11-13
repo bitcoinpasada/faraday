@@ -1323,7 +1323,7 @@ impl What {
                 },
                 &[
                     seed(i),
-                    &text!("{}", codex32::index_char(j).to_ascii_uppercase()),
+                    &text!("{}", char::to_ascii_uppercase(&codex32::index_char(j))),
                 ],
             ),
         }

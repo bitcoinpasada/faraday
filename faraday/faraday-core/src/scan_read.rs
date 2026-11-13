@@ -252,7 +252,7 @@ pub(crate) fn secret_text_kind(c: &Compute, text: &str) -> Option<Kind> {
             Kind::Codex32Share
         });
     }
-    let lower = zeroize::Zeroizing::new(t.to_lowercase());
+    let lower = Text::lowercase(t);
     if faraday_bip::slip39::Share::parse(&lower).is_ok() {
         return Some(Kind::Slip39Share);
     }
@@ -282,7 +282,7 @@ fn is_aezeed(words: &[&str]) -> bool {
         return false;
     }
     for (slot, w) in idx.iter_mut().zip(words) {
-        match Language::English.index_of(&zeroize::Zeroizing::new(w.to_lowercase())) {
+        match Language::English.index_of(&Text::lowercase(w)) {
             Some(i) => *slot = i,
             None => {
                 zeroize::Zeroize::zeroize(&mut idx);
@@ -399,7 +399,7 @@ pub(crate) fn unknown_kind(data: &[u8]) -> Kind {
 /// text. A lookup.
 fn text_kind(text: &str, printable: bool) -> Kind {
     let t = text.trim();
-    let lower = t.to_ascii_lowercase();
+    let lower = Text::ascii_lowercase(t);
     if lower.starts_with("bitcoin:") {
         return Kind::PaymentRequest;
     }
@@ -566,7 +566,7 @@ pub(crate) fn share_fact(text: &str) -> Option<Text> {
             .chars()
             .flat_map(char::to_uppercase)
             .collect();
-        let index = char::from(s.share_index()).to_ascii_uppercase();
+        let index = char::to_ascii_uppercase(&char::from(s.share_index()));
         return Some(Text::fill(
             EN.read_share_fact,
             &[&text!("{index}"), &id, &text!("{}", s.threshold())],

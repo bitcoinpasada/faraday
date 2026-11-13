@@ -488,7 +488,7 @@ pub fn printed(x: usize, y: usize) -> bool {
 /// §9.4): threshold, identifier, and the index wanted.
 pub fn check(form: &C32, j: usize, typed: &str, made: Option<&str>) -> Found {
     let id = form.id_text();
-    let index = text!("{}", index_char(j).to_ascii_uppercase());
+    let index = text!("{}", char::to_ascii_uppercase(&index_char(j)));
     if let Some(want) = made {
         // The whole string, box for box: one that stops short or runs on
         // differs at the box past the shorter one's end.
@@ -556,7 +556,7 @@ pub fn rotation(form: &C32, marks: &[(usize, u8)]) -> Result<(Vec<usize>, Text),
             if n > 0 {
                 out.push_str(", ");
             }
-            out.push(index_char(j).to_ascii_uppercase());
+            out.push(char::to_ascii_uppercase(&index_char(j)));
         }
         out
     };

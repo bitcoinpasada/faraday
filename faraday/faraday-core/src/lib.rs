@@ -425,7 +425,7 @@ pub(crate) const READ_MAX: u64 = 18 * 1024 * 1024;
 
 /// A file named as Faraday names a seed it writes out: its words, its SeedQR, a BIP-85 child.
 fn seed_by_name(name: &str) -> bool {
-    let lower = name.to_ascii_lowercase();
+    let lower = faraday_text::Text::ascii_lowercase(name);
     lower.ends_with("words.txt") || lower.ends_with("seedqr.png") || lower.starts_with("bip85-")
 }
 
@@ -438,7 +438,7 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
     if stick::settings::is_file(name) {
         return None;
     }
-    let lower = name.to_ascii_lowercase();
+    let lower = faraday_text::Text::ascii_lowercase(name);
     let ext = lower.rsplit('.').next().unwrap_or("");
     match ext {
         "psbt" => Some(EN.stick_kind_psbt),
@@ -3382,9 +3382,8 @@ impl Faraday {
                 // A picture's QR codes are read, not its bytes.
                 let stick = id.clone();
                 self.visit.reading_add(name.clone());
-                self.out
-                    .storage_out
-                    .push_back(if name.to_ascii_lowercase().ends_with(".png") {
+                self.out.storage_out.push_back(
+                    if faraday_text::Text::ascii_lowercase(&name).ends_with(".png") {
                         StorageCommand::ReadQr {
                             stick,
                             name: faraday_text::Text::of(&name),
@@ -3394,7 +3393,8 @@ impl Faraday {
                             stick,
                             name: faraday_text::Text::of(&name),
                         }
-                    });
+                    },
+                );
             }
         }
     }

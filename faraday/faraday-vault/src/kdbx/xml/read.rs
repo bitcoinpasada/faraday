@@ -154,7 +154,7 @@ impl Document {
         }
         let epilog = rd.epilog()?;
         let mut doc = Self {
-            prolog: [bom, &src[..a]].concat(),
+            prolog: [bom, &src[..a]].concat(), // not text: bytes
             epilog,
             file,
             history: rd.history,

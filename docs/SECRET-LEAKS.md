@@ -1,7 +1,7 @@
 # Secret leaks: tests that fail on a secret left in memory or on screen
 
 **Kind:** Reference
-**Status:** Built (F250): the allocator, the flow tests, the tours' check, the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) and `lint-secrets`' rule on every secret type. The files that name a secret type and still build heap text are later work (§8).
+**Status:** Built (F250): the allocator, the flow tests, the tours' check, the clippy refusal of `clone`, `to_string`, `to_owned` and `to_vec` (each secret-holding crate's own `clippy.toml`) and `lint-secrets`' rule on every secret type. Open: `lint-secrets` does not yet count the wiping text of `faraday-text` as a secret type, so a file that holds text only as wiping `Text` and names no secret type is not found by it and is held only when listed.
 
 Faraday keeps its secrets in types that wipe on drop (`Secret`,
 `SecretText`, `Zeroizing`, `faraday-keys`' holders, `docs/KEYS.md`), and
@@ -220,11 +220,11 @@ entry is made only in a commit that says why, and passes review.
 - **Faraday Demo and the Starter** run on an online computer and hold
   test data: no leak work is done for them alone (F181 point 3). The
   tests run in the crates they share with the device.
-- **The excepted files.** A file that names a secret type and still
-  builds heap text is listed with its reason in
-  `tools/lint-secrets-excepted.txt` rather than held by rule 3. This is
-  later work: each is rewritten to build no heap text and moves to
-  `SECRET_FILES`, and the list is then removed.
+- **Held files.** Every file that names a secret type is in `SECRET_FILES`
+  and builds no heap text (rule 3); a new file that does is found by the
+  lint without anyone listing it. A file that holds text only as wiping
+  `Text` and names no secret type is not found yet: it is held when it is
+  listed.
 - **Nothing is shipped.** The allocator is a dev-dependency, no shipped
   program installs it or any other global allocator, and F181's rule
   (`speed.no-wiping-allocator`) holds as it is. If the hits argue for

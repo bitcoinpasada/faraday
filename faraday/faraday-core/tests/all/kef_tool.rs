@@ -96,7 +96,7 @@ fn a_loaded_wallets_descriptor_makes_a_code_with_its_fingerprint_as_id() {
         .add_wallet(
             &c,
             "Spending",
-            &format!("wpkh({text}/<0;1>/*)"),
+            &format!("wpkh({}/<0;1>/*)", &*text),
             "test",
             faraday_core::wallet::Origin::Named,
         )

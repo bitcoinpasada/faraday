@@ -79,7 +79,7 @@ impl RestoreFrom {
         let cert = Certificate::read(file).map_err(|r| refusal_text(&r))?;
         let fp = cert.fingerprint();
         let mut line_one = Text::of("00 04");
-        let hex = faraday_crypto::hex::encode_string(&fp).to_ascii_uppercase();
+        let hex = Text::ascii_uppercase(&faraday_crypto::hex::encode_string(&fp));
         for pair in hex.as_bytes().chunks(2) {
             line_one.push(' ');
             line_one.push(char::from(pair[0]));

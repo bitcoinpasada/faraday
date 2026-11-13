@@ -30,7 +30,6 @@ use faraday_bip::codex32::Codex32;
 use faraday_bip::slip39;
 use faraday_crypto::work::Compute;
 use faraday_text::Text;
-use zeroize::Zeroizing;
 
 /// The room a seed phrase is built in, bytes: more than 24 words of the
 /// longest BIP-39 list, so a seed phrase never moves.
@@ -184,7 +183,7 @@ pub enum Part {
 
 /// Reads a text file as one part of a split seed.
 pub fn part_of(text: &str) -> Option<Part> {
-    let t = Zeroizing::new(text.trim().to_lowercase());
+    let t = faraday_text::Text::lowercase(text.trim());
     if let Ok(s) = slip39::Share::parse(&t) {
         return Some(Part::Slip39(s));
     }

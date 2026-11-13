@@ -267,7 +267,7 @@ fn vault_page(category: usize) -> Faraday {
 
 /// Everything the current frame draws, as one text.
 fn page_text(app: &mut Faraday) -> Text {
-    Text::of(&app.drawn_texts().join(" "))
+    Text::joined(&app.drawn_texts(), " ")
 }
 
 /// A lock, to its end: the vaults are closed.

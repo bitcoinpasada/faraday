@@ -249,7 +249,7 @@ fn a_passphrase_typed_back_stays_checked_when_the_backup_is_opened_again() {
         .add_wallet(
             &c,
             "Spending",
-            &format!("wpkh({text}/<0;1>/*)"),
+            &format!("wpkh({}/<0;1>/*)", &*text),
             "test",
             faraday_core::wallet::Origin::Named,
         )

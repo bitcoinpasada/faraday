@@ -264,8 +264,8 @@ fn presses_hold_on(panel: Panel, least: usize) {
     assert!(
         failures.is_empty(),
         "{}\n\nEach press:\n{}",
-        failures.join("\n"),
-        lines.join("\n")
+        Text::joined(&failures, "\n").as_str(),
+        Text::joined(&lines, "\n").as_str()
     );
 }
 
@@ -372,7 +372,12 @@ fn press_within(app: &mut Faraday, a: Action, canvas: u64) {
             over.push(text!("{k:?} {} (budget {b})", work.of(k)));
         }
     }
-    assert!(over.is_empty(), "{} did {}", &*name, over.join(", "));
+    assert!(
+        over.is_empty(),
+        "{} did {}",
+        &*name,
+        &*faraday_text::Text::joined(&over, ", ")
+    );
 }
 
 /// Frames drawn again on the sheet at rest do nothing costly.

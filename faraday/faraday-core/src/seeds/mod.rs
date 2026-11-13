@@ -326,8 +326,8 @@ pub(crate) fn cosigner_label(key: &str) -> Text {
     };
     match key.strip_prefix('[').and_then(|r| r.split_once(']')) {
         Some((o, x)) => {
-            let fp = o.split('/').next().unwrap_or("").to_uppercase();
-            text!("{fp} · {}", &*short(x))
+            let fp = Text::uppercase(o.split('/').next().unwrap_or(""));
+            text!("{} · {}", &*fp, &*short(x))
         }
         None => short(key),
     }

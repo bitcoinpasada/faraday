@@ -122,7 +122,8 @@ pub type Frames = (Made, Vec<QrMatrix>);
 pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Result<Frames, Error> {
     Ok(match (source, format) {
         (Source::Psbt(bytes), Format::Ur) => {
-            let single = Zeroizing::new(faraday_codec::ur::encode_psbt(bytes).to_ascii_uppercase());
+            let single =
+                faraday_text::Text::ascii_uppercase(&faraday_codec::ur::encode_psbt(bytes));
             if let Ok(m) = encode_bounded(c, Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20)
             {
                 (Made::UrPsbtOne, vec![m])
@@ -145,7 +146,7 @@ pub fn frames(c: &Compute, source: &Source, format: Format, part: usize) -> Resu
             bbqr_frames(c, 'U', text.as_bytes(), part)?
         }
         (Source::Key(_, Some(ur)), Format::Ur) => {
-            let upper = Zeroizing::new(ur.to_ascii_uppercase());
+            let upper = faraday_text::Text::ascii_uppercase(ur);
             let m = encode_bounded(c, Payload::Alphanumeric(upper.as_bytes()), Ecc::Low, 20)
                 .map_err(code_error)?;
             (Made::UrAccount, vec![m])
@@ -227,7 +228,7 @@ pub fn bbqr_frames(c: &Compute, t: char, data: &[u8], part: usize) -> Result<Fra
 /// `ur_bytes_animated`). Bytes as `ur:bytes`: one code when it fits,
 /// else animated.
 pub fn ur_bytes_frames(c: &Compute, data: &[u8], file: bool, part: usize) -> Result<Frames, Error> {
-    let single = Zeroizing::new(faraday_codec::ur::encode_bytes(data).to_ascii_uppercase());
+    let single = faraday_text::Text::ascii_uppercase(&faraday_codec::ur::encode_bytes(data));
     if let Ok(m) = encode_bounded(c, Payload::Alphanumeric(single.as_bytes()), Ecc::Low, 20) {
         return Ok((Made::UrBytesOne { file }, vec![m]));
     }
@@ -286,7 +287,7 @@ pub fn animated(
     let count = (len.div_ceil(frag) * 2).max(4);
     (0..count)
         .map(|_| {
-            let part = Zeroizing::new(enc.next_part().to_ascii_uppercase());
+            let part = faraday_text::Text::ascii_uppercase(&enc.next_part());
             encode(c, Payload::Alphanumeric(part.as_bytes()), Ecc::Low).map_err(code_error)
         })
         .collect()

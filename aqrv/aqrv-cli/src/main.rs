@@ -365,7 +365,7 @@ fn show_item(c: &Compute, item: &Item) {
                     .iter()
                     .map(|i| Language::English.word(*i))
                     .collect();
-                println!("words {}", words.join(" "));
+                println!("words {}", &*faraday_text::Text::joined(&words, " "));
                 if let Ok(seed) = m.to_seed(c, b"") {
                     let key = MasterKey::from_seed(c, &seed, Network::Mainnet);
                     println!("fingerprint {}", key.fingerprint());

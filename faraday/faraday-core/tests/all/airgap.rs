@@ -25,7 +25,7 @@ fn wallet_on(network: Network) -> String {
     let key = NewKind::NativeSegwit
         .key_text(&c, s.keys.master_for_tests(0))
         .unwrap();
-    format!("wpkh({key}/<0;1>/*)")
+    format!("wpkh({}/<0;1>/*)", &*key)
 }
 
 /// The desktop's app: online, in Practice (the public seeds on testnet), a
