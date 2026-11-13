@@ -421,7 +421,7 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
         11 => {
             let net = wallet::policy_network(w.policy(), net).unwrap_or(net);
             if let Some(t) = faraday_intake::caravan::file(&w.name, w.policy(), net) {
-                files.push((format!("{stem}-caravan.json"), t.into_bytes()));
+                files.push((format!("{stem}-caravan.json"), t.as_bytes().to_vec()));
             }
         }
         12 => {

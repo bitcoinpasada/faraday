@@ -119,7 +119,7 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Text
             keys.push(text!(
                 "[{}/{path}]{}",
                 label.to_ascii_lowercase(),
-                key.plain
+                key.plain.as_str()
             ));
             named.push(key.named);
         } else {

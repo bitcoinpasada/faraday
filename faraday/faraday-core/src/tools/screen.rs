@@ -248,7 +248,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         },
         Reading::Key(k) => match k {
             KeyReading::Public(f) => {
-                rows.push(("BIP-32".into(), f.bip32.clone()));
+                rows.push(("BIP-32".into(), String::from(&*f.bip32)));
                 for (s, k) in &f.slip132 {
                     let name = match s {
                         faraday_bip::keys::ScriptType::Legacy => EN.tools_legacy,
@@ -256,11 +256,11 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
                         faraday_bip::keys::ScriptType::NativeSegwit => EN.tools_native_segwit,
                         faraday_bip::keys::ScriptType::Taproot => EN.tools_taproot,
                     };
-                    rows.push((name.to_string(), k.clone()));
+                    rows.push((name.to_string(), String::from(&**k)));
                 }
                 rows.push((EN.tools_depth.into(), f.depth.to_string()));
-                rows.push((EN.tools_fingerprint.into(), f.fingerprint.clone()));
-                rows.push((EN.tools_child.into(), f.child.clone()));
+                rows.push((EN.tools_fingerprint.into(), String::from(&*f.fingerprint)));
+                rows.push((EN.tools_child.into(), String::from(&*f.child)));
             }
             KeyReading::Private => note = Some(EN.tools_that_is_an_extended.into()),
             KeyReading::None => note = Some(EN.tools_not_an_extended.into()),

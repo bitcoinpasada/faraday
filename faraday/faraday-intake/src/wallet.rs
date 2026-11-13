@@ -199,8 +199,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                         .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
                 }
                 if caravan::looks_like(&v) {
-                    let d =
-                        caravan::descriptor(&v).map_err(|e| Refusal::NotAWallet(Text::of(&e)))?;
+                    let d = caravan::descriptor(&v).map_err(Refusal::NotAWallet)?;
                     return WalletPolicy::parse_any(c, &d)
                         .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
                 }

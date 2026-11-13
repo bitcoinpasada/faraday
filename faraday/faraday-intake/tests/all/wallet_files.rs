@@ -174,9 +174,13 @@ fn a_caravan_multisig_config_reads_as_its_2_of_3_with_every_key() {
     let v = parse(&text);
     assert!(caravan::looks_like(&v));
     let d = caravan::descriptor(&v).unwrap();
-    assert!(d.starts_with("wsh(sortedmulti(2,"), "{d}");
+    assert!(d.starts_with("wsh(sortedmulti(2,"), "{}", d.as_str());
     for fp in ["8188029f", "a15e8133", "d31cf7f9"] {
-        assert!(d.contains(&format!("[{fp}/48'/0'/0'/2']")), "{fp}: {d}");
+        assert!(
+            d.contains(&format!("[{fp}/48'/0'/0'/2']")),
+            "{fp}: {}",
+            d.as_str()
+        );
     }
     let w = wallet("sparrow/caravan-multisig-export-1.json");
     assert_eq!(quorum(&w).0, 2);
@@ -205,7 +209,7 @@ fn a_caravan_config_with_a_key_that_has_no_origin_is_refused() {
     let v = parse(&interop("bluewallet/caravan-multisig.json"));
     assert!(caravan::looks_like(&v));
     let why = caravan::descriptor(&v).unwrap_err();
-    assert!(why.contains("bip32Path"), "{why}");
+    assert!(why.contains("bip32Path"), "{}", why.as_str());
 }
 
 #[test]

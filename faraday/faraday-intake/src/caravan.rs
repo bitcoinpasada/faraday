@@ -19,7 +19,8 @@ use faraday_bip::json::{self, Value};
 use faraday_bip::keys::Network;
 use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
 use faraday_bip::slip132::{self, Script};
-use faraday_strings::{EN, fill};
+use faraday_strings::EN;
+use faraday_text::{Text, text};
 
 /// Whether JSON is a Caravan config: it has `extendedPublicKeys` and
 /// `quorum`.
@@ -31,8 +32,8 @@ pub fn looks_like(v: &Value) -> bool {
 /// against `addressType` and the purpose of its path (`slip132`), and its
 /// network against `network`; the refusal's text otherwise. Costs a
 /// base58 decode per key.
-pub fn descriptor(v: &Value) -> Result<String, String> {
-    let bad = |why: &str| fill(EN.wallet_caravan, &[why]);
+pub fn descriptor(v: &Value) -> Result<Text, Text> {
+    let bad = |why: &str| Text::fill(EN.wallet_caravan, &[why]);
     let (wrap, around) = match v.get("addressType").and_then(Value::as_str) {
         Some(t) if t.eq_ignore_ascii_case("P2WSH") => ("wsh(K)", Script::NativeMultisig),
         Some(t) if t.eq_ignore_ascii_case("P2SH-P2WSH") => ("sh(wsh(K))", Script::NestedMultisig),
@@ -85,20 +86,23 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
                 }
                 let p = p.trim().trim_start_matches('m').trim_start_matches('/');
                 Some(if p.is_empty() {
-                    f.to_string()
+                    Text::of(f)
                 } else {
-                    format!("{f}/{p}")
+                    text!("{f}/{p}")
                 })
             }
             _ => None,
         };
         let Some(o) = origin else {
-            return Err(bad(&fill(EN.wallet_caravan_no_origin, &[&short(xpub)])));
+            return Err(bad(&Text::fill(
+                EN.wallet_caravan_no_origin,
+                &[&short(xpub)],
+            )));
         };
-        let line = format!("[{o}]{xpub}");
+        let line = text!("[{}]{xpub}", o.as_str());
         let read = slip132::key_line(&line)
             .ok_or_else(|| bad(EN.wallet_caravan_keys))?
-            .map_err(|m| String::from(&*crate::wallet::mismatch_text(&m)))?;
+            .map_err(|m| crate::wallet::mismatch_text(&m))?;
         if let Some(named) = read.named
             && !slip132::agrees(Some(named), around)
         {
@@ -107,7 +111,7 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
                 named,
                 around,
             };
-            return Err(String::from(&*crate::wallet::mismatch_text(&m)));
+            return Err(crate::wallet::mismatch_text(&m));
         }
         // The key's network against the file's.
         let key = read.text.rsplit(']').next().unwrap_or("");
@@ -118,22 +122,24 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
                 Network::Testnet
             };
             let says = v.get("network").and_then(Value::as_str).unwrap_or("");
-            return Err(bad(&fill(
+            return Err(bad(&Text::fill(
                 EN.wallet_caravan_key_network,
                 &[&short(xpub), network_name(on), says],
             )));
         }
-        written.push(format!("{}/<0;1>/*", read.text));
+        written.push(text!("{}/<0;1>/*", read.text.as_str()));
     }
-    Ok(wrap.replace('K', &format!("sortedmulti({m},{})", written.join(","))))
+    let multi = text!("sortedmulti({m},{})", Text::joined(&written, ",").as_str());
+    let (head, tail) = wrap.split_once('K').unwrap_or((wrap, ""));
+    Ok(text!("{head}{}{tail}", multi.as_str()))
 }
 
 /// A key shortened for a refusal.
-pub(crate) fn short(k: &str) -> String {
+pub(crate) fn short(k: &str) -> Text {
     if k.len() > 16 && k.is_ascii() {
-        format!("{}…{}", &k[..8], &k[k.len() - 6..])
+        text!("{}…{}", &k[..8], &k[k.len() - 6..])
     } else {
-        k.to_string()
+        Text::of(k)
     }
 }
 
@@ -147,7 +153,7 @@ pub fn writes(policy: &WalletPolicy) -> bool {
 /// The wallet as a Caravan config, in the shape Sparrow writes it, each
 /// key named by its fingerprint; `None` for a wallet Caravan cannot hold
 /// ([`writes`]).
-pub fn file(name: &str, policy: &WalletPolicy, network: Network) -> Option<String> {
+pub fn file(name: &str, policy: &WalletPolicy, network: Network) -> Option<Text> {
     let Template::Multi {
         threshold,
         sorted: true,
@@ -169,22 +175,26 @@ pub fn file(name: &str, policy: &WalletPolicy, network: Network) -> Option<Strin
     };
     let mut keys = Vec::new();
     for k in policy.keys() {
-        let fp: String = String::from(&*faraday_crypto::hex::encode_string(&k.fingerprint()?.0));
-        let path = k.path()?.to_string();
-        let path = format!("m/{}", path.trim_start_matches('m').trim_start_matches('/'));
-        let path = path.trim_end_matches('/').replace('h', "'");
-        keys.push(format!(
+        let fp = faraday_crypto::hex::encode_string(&k.fingerprint()?.0);
+        let path = text!("{}", k.path()?);
+        let path = text!("m/{}", path.trim_start_matches('m').trim_start_matches('/'));
+        let path: Text = path
+            .trim_end_matches('/')
+            .chars()
+            .map(|c| if c == 'h' { '\'' } else { c })
+            .collect();
+        keys.push(text!(
             "    {{\n      \"name\": {},\n      \"bip32Path\": {},\n      \"xpub\": {},\n      \"xfp\": {}\n    }}",
             json::quote(&fp),
             json::quote(&path),
-            json::quote(&k.xpub().to_string()),
+            json::quote(text!("{}", k.xpub()).as_str()),
             json::quote(&fp),
         ));
     }
-    Some(format!(
+    Some(text!(
         "{{\n  \"name\": {},\n  \"addressType\": \"{address_type}\",\n  \"network\": \"{net}\",\n  \"client\": {{\n    \"type\": \"public\"\n  }},\n  \"quorum\": {{\n    \"requiredSigners\": {threshold},\n    \"totalSigners\": {}\n  }},\n  \"extendedPublicKeys\": [\n{}\n  ],\n  \"startingAddressIndex\": 0\n}}\n",
         json::quote(name),
         policy.keys().len(),
-        keys.join(",\n"),
+        Text::joined(&keys, ",\n").as_str(),
     ))
 }

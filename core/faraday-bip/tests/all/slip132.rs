@@ -64,7 +64,7 @@ fn every_version_decodes_to_the_account_key_it_names() {
         ),
     ] {
         let k = decode(text).unwrap();
-        assert_eq!(k.plain, plain, "{text}");
+        assert_eq!(k.plain, plain.as_str(), "{text}");
         assert_eq!(k.named, named, "{text}");
         assert_eq!(k.xpub.to_string(), plain);
         let script = named.unwrap();
@@ -73,7 +73,7 @@ fn every_version_decodes_to_the_account_key_it_names() {
     // BIP-32's own version names no script: it is not Legacy.
     let xpub = account(ScriptType::Legacy);
     assert_eq!(decode(&xpub).unwrap().named, None);
-    assert_eq!(decode(&format!("  {xpub}\n")).unwrap().plain, xpub);
+    assert_eq!(decode(&format!("  {xpub}\n")).unwrap().plain, xpub.as_str());
     // Upstream's single-key decoder still calls it Legacy, and still
     // takes no multisig version.
     assert_eq!(decode_xpub(&xpub).unwrap().1, ScriptType::Legacy);
@@ -100,7 +100,7 @@ fn the_test_network_versions_decode_to_tpub() {
         (Script::NestedMultisig, "Upub"),
     ] {
         let spelled = encode(&tpub, script).unwrap();
-        assert!(spelled.starts_with(prefix), "{spelled}");
+        assert!(spelled.starts_with(prefix), "{}", spelled.as_str());
         let k = decode(&spelled).unwrap();
         assert_eq!((k.plain.as_str(), k.named), (tpub.as_str(), Some(script)));
     }
@@ -142,7 +142,7 @@ fn a_version_that_disagrees_with_its_path_or_script_is_a_mismatch() {
 
     let wsh = format!("wsh(sortedmulti(1,[73c5da0a/48h/0h/0h/2h]{ZPUB_MULTI}/<0;1>/*))");
     let plain = plain_descriptor(&wsh).unwrap();
-    assert!(!slip132::mentions(&plain), "{plain}");
+    assert!(!slip132::mentions(&plain), "{}", plain.as_str());
     for (descriptor, named, around) in [
         (
             format!("wpkh([73c5da0a/84h/0h/0h]{ZPUB_MULTI}/<0;1>/*)"),
@@ -176,7 +176,11 @@ fn casas_descriptor_of_ypubs_is_its_nested_multisig_in_xpubs() {
     .trim();
     assert!(slip132::mentions(casa));
     let plain = plain_descriptor(casa).unwrap();
-    assert!(plain.starts_with("sh(wsh(sortedmulti(3,"), "{plain}");
+    assert!(
+        plain.starts_with("sh(wsh(sortedmulti(3,"),
+        "{}",
+        plain.as_str()
+    );
     assert!(!slip132::mentions(&plain));
     assert_eq!(
         faraday_bip::policy::WalletPolicy::parse_any(&c, &plain)

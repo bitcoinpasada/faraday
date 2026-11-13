@@ -310,7 +310,7 @@ fn checked_key(key: &str, around: Script) -> Result<String, Error> {
     if !slip132::agrees(read.named, around) {
         return Err(Error::Key);
     }
-    Ok(read.plain)
+    Ok(String::from(&*read.plain))
 }
 
 /// The text read as JSON, when it is a JSON object.

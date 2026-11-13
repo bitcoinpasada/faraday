@@ -1439,7 +1439,7 @@ mod tests {
         assert!(readable(&c, &config(&zpub_multi)));
         for script in [Script::NativeSegwit, Script::NestedMultisig] {
             let other = encode(xpub(1), script).unwrap();
-            assert!(!readable(&c, &config(&other)), "{other}");
+            assert!(!readable(&c, &config(&other)), "{}", other.as_str());
         }
     }
 }

@@ -95,12 +95,17 @@ fn one_key_is_shown_in_every_spelling() {
     assert_eq!(f.network, Network::Mainnet);
     let prefixes = ["xpub", "ypub", "zpub", "xpub"];
     for ((_, spelling), prefix) in f.slip132.iter().zip(prefixes) {
-        assert!(spelling.starts_with(prefix), "{spelling} is not a {prefix}");
+        assert!(
+            spelling.starts_with(prefix),
+            "{} is not a {prefix}",
+            spelling.as_str()
+        );
         let (decoded, _) = decode_xpub(spelling).expect("a key");
         assert_eq!(
             hex(&decoded.public_key.serialize()),
             VECTOR_1_PUBKEY,
-            "{spelling} is another key"
+            "{} is another key",
+            spelling.as_str()
         );
     }
 

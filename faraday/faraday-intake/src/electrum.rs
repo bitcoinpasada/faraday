@@ -416,7 +416,7 @@ pub fn descriptor(v: &Value) -> Result<String, String> {
         } else if read.named != named {
             return Err(bad(EN.wallet_electrum_mixed));
         }
-        keys.push(format!("{}/<0;1>/*", read.text));
+        keys.push(format!("{}/<0;1>/*", read.text.as_str()));
     }
     let wrap = match named {
         None => "sh(K)",

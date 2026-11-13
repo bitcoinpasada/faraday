@@ -104,7 +104,7 @@ fn read_fields(v: &Value, xpub: &str, fp: &str) -> Result<SingleKey, String> {
         .ok_or_else(|| bad(EN.wallet_single_key_no_type))?;
     Ok(SingleKey {
         source,
-        key: line.text,
+        key: String::from(&*line.text),
         script,
     })
 }

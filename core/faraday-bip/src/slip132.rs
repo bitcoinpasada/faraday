@@ -13,12 +13,13 @@
 //! converted silently.
 
 use alloc::boxed::Box;
-use alloc::string::String;
 use alloc::vec::Vec;
 
 use bitcoin::NetworkKind;
 use bitcoin::base58;
 use bitcoin::bip32::Xpub;
+use faraday_text::{Text, text};
+use zeroize::Zeroizing;
 
 use crate::keys::{Network, ScriptType};
 use crate::xkey::{self, TPUB, XPUB};
@@ -67,10 +68,10 @@ pub fn version_bytes(script_type: ScriptType, kind: NetworkKind) -> [u8; 4] {
 
 /// Encodes `xpub` with the version bytes for `script_type`. The network
 /// comes from the key itself.
-pub fn encode_xpub(xpub: &Xpub, script_type: ScriptType) -> String {
+pub fn encode_xpub(xpub: &Xpub, script_type: ScriptType) -> Text {
     let mut bytes = xpub.encode();
     bytes[..4].copy_from_slice(&version_bytes(script_type, xpub.network));
-    base58::encode_check(&bytes)
+    Text::of(&base58::encode_check(&bytes))
 }
 
 /// Decodes an `xpub`, `tpub`, `ypub`, `upub`, `zpub` or `vpub` string.
@@ -107,18 +108,18 @@ pub enum KeyReading {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyFacts {
     /// The BIP-32 form: `xpub` or `tpub`.
-    pub bip32: String,
+    pub bip32: Text,
     /// The SLIP-132 form for each script type, in [`ScriptType::ALL`]
     /// order.
-    pub slip132: Vec<(ScriptType, String)>,
+    pub slip132: Vec<(ScriptType, Text)>,
     /// Which chain the version bytes name.
     pub network: Network,
     /// How far below the master the key is.
     pub depth: u8,
     /// The key's own fingerprint, as eight hex digits.
-    pub fingerprint: String,
+    pub fingerprint: Text,
     /// The child number the key was derived at.
-    pub child: String,
+    pub child: Text,
 }
 
 /// Reads `text` as an extended key and writes it every other way.
@@ -132,7 +133,8 @@ pub fn key_facts(text: &str, network: Network) -> KeyReading {
     if text.is_empty() {
         return KeyReading::None;
     }
-    if xkey::decode_xpriv(text).is_ok() {
+    if let Ok(mut private) = xkey::decode_xpriv(text) {
+        private.private_key.non_secure_erase();
         return KeyReading::Private;
     }
     let Ok((xpub, _)) = decode_xpub(text) else {
@@ -152,8 +154,8 @@ pub fn key_facts(text: &str, network: Network) -> KeyReading {
             .collect(),
         network: on,
         depth: xpub.depth,
-        fingerprint: alloc::format!("{}", xpub.fingerprint()),
-        child: alloc::format!("{child}"),
+        fingerprint: text!("{}", xpub.fingerprint()),
+        child: text!("{child}"),
     }))
 }
 
@@ -307,7 +309,7 @@ pub struct Key {
     /// The key.
     pub xpub: Xpub,
     /// The key in BIP-32's own encoding, `xpub` or `tpub`.
-    pub plain: String,
+    pub plain: Text,
     /// The script type its version names; `None` for `xpub` and `tpub`,
     /// which name none (they are not Legacy).
     pub named: Option<Script>,
@@ -315,8 +317,8 @@ pub struct Key {
 
 /// The payload and the row of [`NAMED`] its version is, before the key
 /// itself is checked.
-fn named_payload(s: &str) -> Result<(Vec<u8>, usize), Error> {
-    let bytes = xkey::payload(s)?;
+fn named_payload(s: &str) -> Result<(Zeroizing<Vec<u8>>, usize), Error> {
+    let bytes = Zeroizing::new(xkey::payload(s)?);
     let version = xkey::version(&bytes);
     let at = NAMED
         .iter()
@@ -327,7 +329,7 @@ fn named_payload(s: &str) -> Result<(Vec<u8>, usize), Error> {
 
 /// The key behind a payload of row `at`, checked as every extended key
 /// text is ([`xkey::xpub_from_bytes`]).
-fn named_key(mut bytes: Vec<u8>, at: usize) -> Result<Key, Error> {
+fn named_key(mut bytes: Zeroizing<Vec<u8>>, at: usize) -> Result<Key, Error> {
     let (_, kind, named) = NAMED[at];
     let plain = match kind {
         NetworkKind::Main => XPUB,
@@ -337,7 +339,7 @@ fn named_key(mut bytes: Vec<u8>, at: usize) -> Result<Key, Error> {
     let xpub = xkey::xpub_from_bytes(&bytes)?;
     Ok(Key {
         xpub,
-        plain: base58::encode_check(&bytes),
+        plain: Text::of(&base58::encode_check(&bytes)),
         named,
     })
 }
@@ -357,8 +359,8 @@ pub fn decode(text: &str) -> Result<Key, Error> {
 /// as it is for any other type, which SLIP-132 does not name. `None` for
 /// a key that is neither `xpub` nor `tpub`. Costs a base58 decode and
 /// encode.
-pub fn encode(plain: &str, script: Script) -> Option<String> {
-    let mut bytes = xkey::payload(plain.trim()).ok()?;
+pub fn encode(plain: &str, script: Script) -> Option<Text> {
+    let mut bytes = Zeroizing::new(xkey::payload(plain.trim()).ok()?);
     let kind = match xkey::version(&bytes) {
         XPUB => NetworkKind::Main,
         TPUB => NetworkKind::Test,
@@ -368,10 +370,10 @@ pub fn encode(plain: &str, script: Script) -> Option<String> {
         .iter()
         .find(|(_, k, named)| *k == kind && *named == Some(script))
     else {
-        return Some(String::from(plain.trim()));
+        return Some(Text::of(plain.trim()));
     };
     bytes[..4].copy_from_slice(version);
-    Some(base58::encode_check(&bytes))
+    Some(Text::of(&base58::encode_check(&bytes)))
 }
 
 /// A key whose version names one script type where another is.
@@ -402,10 +404,10 @@ pub fn mentions(text: &str) -> bool {
 /// descriptor with no such key comes back as it is; so does one whose
 /// checksum is wrong as written, for the reader to refuse. Costs a
 /// base58 decode per key and a checksum over the descriptor.
-pub fn plain_descriptor(descriptor: &str) -> Result<String, Mismatch> {
+pub fn plain_descriptor(descriptor: &str) -> Result<Text, Mismatch> {
     use miniscript::descriptor::checksum::desc_checksum;
     if !mentions(descriptor) {
-        return Ok(String::from(descriptor));
+        return Ok(Text::of(descriptor));
     }
     let (body, sum) = match descriptor.rsplit_once('#') {
         Some((b, s)) => (b, Some(s.trim())),
@@ -419,10 +421,10 @@ pub fn plain_descriptor(descriptor: &str) -> Result<String, Mismatch> {
     if let Some(s) = sum
         && desc_checksum(desc.trim()).ok().as_deref() != Some(s)
     {
-        return Ok(String::from(descriptor));
+        return Ok(Text::of(descriptor));
     }
     let around = Script::of_descriptor(desc);
-    let mut out = String::with_capacity(desc.len());
+    let mut out = Text::with_room(desc.len());
     let mut rest = desc;
     while !rest.is_empty() {
         let start = rest
@@ -456,7 +458,7 @@ pub fn plain_descriptor(descriptor: &str) -> Result<String, Mismatch> {
             None => out.push_str(word),
         }
     }
-    let mut written = alloc::format!("{label}{out}");
+    let mut written = text!("{label}{}", out.as_str());
     if sum.is_some()
         && let Ok(s) = desc_checksum(out.trim())
     {
@@ -471,7 +473,7 @@ pub fn plain_descriptor(descriptor: &str) -> Result<String, Mismatch> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KeyLine {
     /// The line with its key as `xpub` or `tpub`, the origin in lower case.
-    pub text: String,
+    pub text: Text,
     /// The script type the key's version names.
     pub named: Option<Script>,
 }
@@ -500,7 +502,7 @@ pub fn key_line(line: &str) -> Option<Result<KeyLine, Mismatch>> {
         }));
     }
     let text = match origin {
-        Some(o) => alloc::format!("[{}]{plain}", o.to_ascii_lowercase()),
+        Some(o) => text!("[{}]{}", o.to_ascii_lowercase(), plain.as_str()),
         None => plain,
     };
     Some(Ok(KeyLine { text, named }))
