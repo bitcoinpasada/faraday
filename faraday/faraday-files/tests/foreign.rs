@@ -139,7 +139,7 @@ fn a_partition_windows_and_a_mac_wrote_to_lists_and_keeps_the_psbt_alone() {
     let mut place = Fat(Volume::open(std::fs::read(&img).unwrap()).unwrap());
     assert_eq!(
         listing(&mut place),
-        [(PSBT.to_string(), psbt().len() as u64)]
+        [(faraday_text::Text::of(PSBT), psbt().len() as u64)]
     );
     assert_eq!(read(&mut place, PSBT).unwrap(), psbt());
     for name in [
@@ -166,7 +166,7 @@ fn a_partition_windows_and_a_mac_wrote_to_lists_and_keeps_the_psbt_alone() {
         listing(&mut place),
         [
             (wrote.clone(), signed.len() as u64),
-            (PSBT.to_string(), psbt().len() as u64)
+            (faraday_text::Text::of(PSBT), psbt().len() as u64)
         ]
     );
     std::fs::write(&img, place.0.into_disk()).unwrap();
@@ -179,7 +179,10 @@ fn a_partition_windows_and_a_mac_wrote_to_lists_and_keeps_the_psbt_alone() {
         assert_eq!(bytes, own(f), "{f}");
     }
     assert_eq!(run("mtype", &["-i", i, &format!("::{PSBT}")]).1, psbt());
-    assert_eq!(run("mtype", &["-i", i, &format!("::{wrote}")]).1, signed);
+    assert_eq!(
+        run("mtype", &["-i", i, &format!("::{}", wrote.as_str())]).1,
+        signed
+    );
     let out = Command::new(tool("fsck.fat"))
         .args(["-n", "-v"])
         .arg(&img)

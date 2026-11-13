@@ -40,10 +40,17 @@ pub fn stick_info_after(
 ) -> StickInfo {
     let id = dir.display().to_string();
     let mut place = Dir(dir.to_path_buf());
-    let files = faraday_files::listing(&mut place);
+    let listed = faraday_files::listing(&mut place);
+    let files: Vec<(String, u64)> = listed
+        .iter()
+        .map(|(n, s)| (String::from(&**n), *s))
+        .collect();
     let vaults = match before.iter().find(|s| s.id == id && s.files == files) {
         Some(s) => s.vaults.clone(),
-        None => faraday_files::vault_names(c, &mut place, &files),
+        None => faraday_files::vault_names(c, &mut place, &listed)
+            .iter()
+            .map(|n| String::from(&**n))
+            .collect(),
     };
     StickInfo {
         make: Default::default(),
@@ -56,13 +63,18 @@ pub fn stick_info_after(
     }
 }
 
+/// Text the app keeps as plain heap text.
+fn plain(t: faraday_text::Text) -> String {
+    String::from(&*t)
+}
+
 fn dir(stick: &str) -> Dir {
     Dir(PathBuf::from(stick))
 }
 
 /// Reads one file from a stick directory.
 pub fn read(stick: &str, name: &str) -> Result<Vec<u8>, String> {
-    faraday_files::read_whole(&mut dir(stick), name)
+    faraday_files::read_whole(&mut dir(stick), name).map_err(|e| String::from(&*e))
 }
 
 /// Writes a file to a stick directory as a new file, reads it back,
@@ -70,6 +82,8 @@ pub fn read(stick: &str, name: &str) -> Result<Vec<u8>, String> {
 /// under.
 pub fn write(stick: &str, name: &str, bytes: &[u8]) -> Result<String, String> {
     faraday_files::write(&mut dir(stick), name, bytes)
+        .map(|n| String::from(&*n))
+        .map_err(|e| String::from(&*e))
 }
 
 /// Costs what `faraday_files::write_vault` costs. Writes a sealed vault
@@ -83,6 +97,8 @@ pub fn write_vault(
     copies: &[[u8; 32]],
 ) -> Result<String, String> {
     faraday_files::write_vault(c, &mut dir(stick), name, bytes, copies)
+        .map(|n| String::from(&*n))
+        .map_err(|e| String::from(&*e))
 }
 
 /// Finishes a vault write-back a pulled stick interrupted.
@@ -98,7 +114,7 @@ pub fn read_qr_png(
     stick: &str,
     name: &str,
 ) -> Result<faraday_files::Picture, String> {
-    faraday_files::read_qr_png(c, &mut dir(stick), name)
+    faraday_files::read_qr_png(c, &mut dir(stick), name).map_err(|e| String::from(&*e))
 }
 
 /// Where the sticks' files are: folders, or the disk process.
@@ -362,18 +378,21 @@ impl Sticks for Dirs {
             renamed,
             on_taken,
         )
+        .map(|n| String::from(&*n))
     }
     fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, String> {
-        faraday_files::wipe(&mut dir(stick), name)
+        faraday_files::wipe(&mut dir(stick), name).map_err(|e| String::from(&*e))
     }
     fn space(&mut self, stick: &str) -> Result<(u64, u64), String> {
-        faraday_files::Place::space(&mut dir(stick))
+        faraday_files::Place::space(&mut dir(stick)).map_err(|e| String::from(&*e))
     }
     fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), String> {
-        faraday_files::Place::zero_free(&mut dir(stick), from).map(|z| (z.next, z.total, z.done))
+        faraday_files::Place::zero_free(&mut dir(stick), from)
+            .map(|z| (z.next, z.total, z.done))
+            .map_err(|e| String::from(&*e))
     }
     fn make_empty(&mut self, stick: &str) -> Result<(), String> {
-        faraday_files::Place::make_empty(&mut dir(stick))
+        faraday_files::Place::make_empty(&mut dir(stick)).map_err(|e| String::from(&*e))
     }
     fn read_qr_later(&mut self, stick: &str, name: &str) {
         self.pictures.ask(stick, name);
@@ -581,7 +600,7 @@ impl Boxes {
                         let _ = fs::remove_file(e.path());
                     }
                     for (name, mut bytes) in files {
-                        let wrote = fs::write(d.join(checked(&name)?), &bytes);
+                        let wrote = fs::write(d.join(checked(&name).map_err(plain)?), &bytes);
                         // The shell's copy goes; the app keeps its own.
                         zeroize::Zeroize::zeroize(&mut bytes);
                         wrote.map_err(|e| e.to_string())?;
@@ -721,7 +740,7 @@ pub fn read_host(path: &Path) -> Result<Vec<u8>, String> {
 /// each time, never over one already there. Returns its path.
 pub fn save_download(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf, String> {
     use std::io::Write;
-    let name = checked(name)?;
+    let name = checked(name).map_err(plain)?;
     fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let (stem, ext) = match name.rfind('.') {
         Some(i) if i > 0 => (&name[..i], &name[i..]),
@@ -858,6 +877,7 @@ fn delivered(
             result,
         } => match result {
             Err(faraday_files::WriteRefused::NameTaken { on_stick, sha }) => {
+                let on_stick = plain(on_stick);
                 said.push(format!("{stick}/{on_stick} has the name of {name}"));
                 StorageEvent::NameTaken {
                     stick,
@@ -875,6 +895,7 @@ fn delivered(
                 }
             }
             Err(faraday_files::WriteRefused::Failed(reason)) => {
+                let reason = plain(reason);
                 said.push(format!("cannot write {stick}/{name}: {reason}"));
                 StorageEvent::WriteFailed {
                     stick,
@@ -1011,7 +1032,7 @@ fn serve_queued(
                                 faraday_core::Unrenamed::SameVault
                             }
                             faraday_files::Unrenamed::Failed(why) => {
-                                faraday_core::Unrenamed::Failed(why)
+                                faraday_core::Unrenamed::Failed(plain(why))
                             }
                         });
                 said.push(match &refused {
@@ -1060,7 +1081,7 @@ fn serve_queued(
                     Some(dir) => {
                         let saved = fs::create_dir_all(dir)
                             .map_err(|e| e.to_string())
-                            .and_then(|()| checked(&name).map(|n| dir.join(n)))
+                            .and_then(|()| checked(&name).map(|n| dir.join(n)).map_err(plain))
                             .and_then(|path| {
                                 fs::write(&path, &bytes)
                                     .map(|()| path)
@@ -1261,7 +1282,7 @@ impl DiskProcess {
         {
             let picture = match Response::decode(&frame) {
                 Ok(Response::Qr { bytes, codes }) => Ok((bytes, codes)),
-                Ok(Response::Failed(why)) => Err(why),
+                Ok(Response::Failed(why)) => Err(plain(why)),
                 Ok(_) => Err(EN.storage_answer_codes.to_string()),
                 Err(_) => Err(EN.storage_answer_malformed.to_string()),
             };
@@ -1297,8 +1318,8 @@ impl DiskProcess {
                 total,
             } => (
                 Request::ReadPart {
-                    stick: stick.clone(),
-                    name: name.clone(),
+                    stick: faraday_text::Text::of(&stick),
+                    name: faraday_text::Text::of(&name),
                     from: out.len() as u64,
                     len: PIECE as u32,
                 },
@@ -1323,16 +1344,16 @@ impl DiskProcess {
                 let last_at = (bytes.len() - 1) / PIECE * PIECE;
                 let req = if at < last_at {
                     Request::Piece {
-                        stick: stick.clone(),
-                        name: name.clone(),
+                        stick: faraday_text::Text::of(&stick),
+                        name: faraday_text::Text::of(&name),
                         at: at as u64,
                         total: bytes.len() as u64,
                         bytes: bytes[at..at + PIECE].to_vec(),
                     }
                 } else {
                     Request::Write {
-                        stick: stick.clone(),
-                        name: name.clone(),
+                        stick: faraday_text::Text::of(&stick),
+                        name: faraday_text::Text::of(&name),
                         copies: copies.clone(),
                         replace,
                         renamed,
@@ -1401,7 +1422,9 @@ impl DiskProcess {
                 Transferred::Write {
                     stick,
                     name,
-                    result: Err(faraday_files::WriteRefused::Failed(why)),
+                    result: Err(faraday_files::WriteRefused::Failed(faraday_text::Text::of(
+                        &why,
+                    ))),
                 }
             }
         });
@@ -1481,7 +1504,7 @@ impl DiskProcess {
                     self.read_part(stick, name, out, known, total, bytes);
                 }
                 (what @ Going::Read { .. }, Ok(Response::Failed(why))) => {
-                    self.finish(what, why);
+                    self.finish(what, plain(why));
                 }
                 (what @ Going::Read { .. }, Ok(_)) => {
                     self.finish(what, EN.storage_answer_file.to_string());
@@ -1516,20 +1539,20 @@ impl DiskProcess {
                                 return;
                             }
                             Response::Failed(why) => Err(faraday_files::WriteRefused::Failed(why)),
-                            _ => Err(faraday_files::WriteRefused::Failed(
-                                EN.storage_answer_write.to_string(),
-                            )),
+                            _ => Err(faraday_files::WriteRefused::Failed(faraday_text::Text::of(
+                                EN.storage_answer_write,
+                            ))),
                         }
                     } else {
                         match answer {
-                            Response::Written(n) => Ok(n),
+                            Response::Written(n) => Ok(plain(n)),
                             Response::WriteNameTaken { on_stick, sha } => {
                                 Err(faraday_files::WriteRefused::NameTaken { on_stick, sha })
                             }
                             Response::Failed(why) => Err(faraday_files::WriteRefused::Failed(why)),
-                            _ => Err(faraday_files::WriteRefused::Failed(
-                                EN.storage_answer_write.to_string(),
-                            )),
+                            _ => Err(faraday_files::WriteRefused::Failed(faraday_text::Text::of(
+                                EN.storage_answer_write,
+                            ))),
                         }
                     };
                     zeroize::Zeroize::zeroize(&mut bytes);
@@ -1621,31 +1644,31 @@ impl DiskProcess {
                     .filter_map(|s| match s.problem {
                         // Not handed out yet: it waits, no problem is told.
                         None | Some(Problem::NotYet) => None,
-                        Some(p) => Some((s.id.clone(), p == Problem::ReadOnly)),
+                        Some(p) => Some((plain(s.id.clone()), p == Problem::ReadOnly)),
                     })
                     .collect();
                 self.waiting = s
                     .iter()
                     .filter(|s| s.problem == Some(Problem::NotYet))
-                    .map(|s| s.id.clone())
+                    .map(|s| plain(s.id.clone()))
                     .collect();
                 Ok(s.into_iter()
                     .map(|s| StickInfo {
-                        label: s.label,
-                        id: s.id,
+                        label: plain(s.label),
+                        id: plain(s.id),
                         boot: s.boot,
                         serial: s.serial,
-                        files: s.files,
-                        vaults: s.vaults,
+                        files: s.files.into_iter().map(|(n, z)| (plain(n), z)).collect(),
+                        vaults: s.vaults.into_iter().map(plain).collect(),
                         make: faraday_core::StickMake {
-                            maker: s.make.maker,
-                            model: s.make.model,
+                            maker: s.make.maker.map(plain),
+                            model: s.make.model.map(plain),
                             size: s.make.size,
                         },
                     })
                     .collect())
             }
-            Response::Failed(why) => Err(why),
+            Response::Failed(why) => Err(plain(why)),
             _ => Err(EN.storage_answer_listing.to_string()),
         }
     }
@@ -1674,7 +1697,7 @@ impl DiskProcess {
             renamed,
             faraday_files::OnTaken::Beside,
         )
-        .map_err(faraday_files::WriteRefused::text)
+        .map_err(|e| plain(e.text()))
     }
 
     /// [`DiskProcess::write_copies`], a vault's same-name file dealt with as
@@ -1706,23 +1729,23 @@ impl DiskProcess {
         };
         for (k, part) in bytes[..last_at].chunks(piece).enumerate() {
             let mut req = Request::Piece {
-                stick: stick.into(),
-                name: name.into(),
+                stick: faraday_text::Text::of(stick),
+                name: faraday_text::Text::of(name),
                 at: (k * piece) as u64,
                 total: bytes.len() as u64,
                 bytes: part.to_vec(),
             };
             let answer = self.ask(&req);
             req.wipe();
-            match answer.map_err(W::Failed)? {
+            match answer.map_err(|e| W::Failed(faraday_text::Text::of(&e)))? {
                 Response::Held(_) => {}
                 Response::Failed(why) => return Err(W::Failed(why)),
-                _ => return Err(W::Failed(EN.storage_answer_write.to_string())),
+                _ => return Err(W::Failed(faraday_text::Text::of(EN.storage_answer_write))),
             }
         }
         let mut req = Request::Write {
-            stick: stick.into(),
-            name: name.into(),
+            stick: faraday_text::Text::of(stick),
+            name: faraday_text::Text::of(name),
             copies: copies.to_vec(),
             replace,
             renamed,
@@ -1732,11 +1755,11 @@ impl DiskProcess {
         };
         let answer = self.ask(&req);
         req.wipe();
-        match answer.map_err(W::Failed)? {
-            Response::Written(n) => Ok(n),
+        match answer.map_err(|e| W::Failed(faraday_text::Text::of(&e)))? {
+            Response::Written(n) => Ok(plain(n)),
             Response::WriteNameTaken { on_stick, sha } => Err(W::NameTaken { on_stick, sha }),
             Response::Failed(why) => Err(W::Failed(why)),
-            _ => Err(W::Failed(EN.storage_answer_write.to_string())),
+            _ => Err(W::Failed(faraday_text::Text::of(EN.storage_answer_write))),
         }
     }
 }
@@ -1785,7 +1808,7 @@ pub fn read_pieces(
             Response::Part { total, bytes } => (total, bytes),
             Response::Failed(why) => {
                 zeroize::Zeroize::zeroize(&mut out);
-                return Err(why);
+                return Err(plain(why));
             }
             _ => {
                 zeroize::Zeroize::zeroize(&mut out);
@@ -1812,8 +1835,8 @@ impl Sticks for DiskProcess {
         // comes whole (F206 point 7).
         read_pieces(|from, len| {
             self.ask(&Request::ReadPart {
-                stick: stick.into(),
-                name: name.into(),
+                stick: faraday_text::Text::of(stick),
+                name: faraday_text::Text::of(name),
                 from,
                 len,
             })
@@ -1837,12 +1860,12 @@ impl Sticks for DiskProcess {
     fn wipe(&mut self, stick: &str, name: &str) -> Result<faraday_files::Wiped, String> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::Wipe {
-            stick: stick.into(),
-            name: name.into(),
+            stick: faraday_text::Text::of(stick),
+            name: faraday_text::Text::of(name),
         })? {
             Response::Wiped => Ok(faraday_files::Wiped::Zeroed),
             Response::WipedName => Ok(faraday_files::Wiped::NameOnly),
-            Response::Failed(why) => Err(why),
+            Response::Failed(why) => Err(plain(why)),
             _ => Err(EN.storage_answer_delete.to_string()),
         }
     }
@@ -1850,10 +1873,10 @@ impl Sticks for DiskProcess {
     fn space(&mut self, stick: &str) -> Result<(u64, u64), String> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::Space {
-            stick: stick.into(),
+            stick: faraday_text::Text::of(stick),
         })? {
             Response::Space { free, size } => Ok((free, size)),
-            Response::Failed(why) => Err(why),
+            Response::Failed(why) => Err(plain(why)),
             _ => Err(EN.storage_answer_space.to_string()),
         }
     }
@@ -1861,11 +1884,11 @@ impl Sticks for DiskProcess {
     fn zero_free(&mut self, stick: &str, from: u32) -> Result<(u32, u32, bool), String> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::ZeroFree {
-            stick: stick.into(),
+            stick: faraday_text::Text::of(stick),
             from,
         })? {
             Response::Zeroing { next, total, done } => Ok((next, total, done)),
-            Response::Failed(why) => Err(why),
+            Response::Failed(why) => Err(plain(why)),
             _ => Err(EN.storage_answer_zeroing.to_string()),
         }
     }
@@ -1873,10 +1896,10 @@ impl Sticks for DiskProcess {
     fn make_empty(&mut self, stick: &str) -> Result<(), String> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::MakeEmpty {
-            stick: stick.into(),
+            stick: faraday_text::Text::of(stick),
         })? {
             Response::Zeroing { .. } => Ok(()),
-            Response::Failed(why) => Err(why),
+            Response::Failed(why) => Err(plain(why)),
             _ => Err(EN.storage_answer_zeroing.to_string()),
         }
     }
@@ -1946,8 +1969,8 @@ impl Sticks for DiskProcess {
         {
             self.seq = self.seq.wrapping_add(1);
             let req = Request::ReadQr {
-                stick: stick.clone(),
-                name: name.clone(),
+                stick: faraday_text::Text::of(&stick),
+                name: faraday_text::Text::of(&name),
             };
             match send(&mut self.tx, self.seq, &req.encode()) {
                 Ok(()) => {
@@ -1971,29 +1994,29 @@ impl Sticks for DiskProcess {
         use faraday_files::proto::{Request, Response};
         match self
             .ask(&Request::Rename {
-                stick: stick.into(),
-                from: from.into(),
-                to: to.into(),
+                stick: faraday_text::Text::of(stick),
+                from: faraday_text::Text::of(from),
+                to: faraday_text::Text::of(to),
                 vaults: vaults.to_vec(),
             })
-            .map_err(U::Failed)?
+            .map_err(|e| U::Failed(faraday_text::Text::of(&e)))?
         {
             Response::Renamed => Ok(()),
             Response::NameTaken { same_vault: false } => Err(U::Taken),
             Response::NameTaken { same_vault: true } => Err(U::SameVault),
             Response::Failed(why) => Err(U::Failed(why)),
-            _ => Err(U::Failed(EN.storage_answer_rename.to_string())),
+            _ => Err(U::Failed(faraday_text::Text::of(EN.storage_answer_rename))),
         }
     }
 
     fn name(&mut self, stick: &str, label: &str) -> Result<(), String> {
         use faraday_files::proto::{Request, Response};
         match self.ask(&Request::Name {
-            stick: stick.into(),
-            label: label.into(),
+            stick: faraday_text::Text::of(stick),
+            label: faraday_text::Text::of(label),
         })? {
             Response::Renamed => Ok(()),
-            Response::Failed(why) => Err(why),
+            Response::Failed(why) => Err(plain(why)),
             _ => Err(EN.storage_answer_name.to_string()),
         }
     }

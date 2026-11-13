@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 use faraday_disk::Disks;
 use faraday_files::proto::{self, Problem, Request, Response};
+use faraday_text::Text;
 
 /// A token for the reads these tests ask, counting nothing: the disk
 /// process draws nothing. Cheap.
@@ -234,16 +235,16 @@ fn only_handed_out_fat_partitions_are_listed_and_never_the_boot_one() {
     let closed = d.handle(
         &c,
         Request::Read {
-            stick: "sdc1@sdc#8".into(),
-            name: "anything".into(),
+            stick: Text::of("sdc1@sdc#8"),
+            name: Text::of("anything"),
         },
     );
     assert!(matches!(closed, Response::Failed(_)));
     let refused = d.handle(
         &c,
         Request::Read {
-            stick: "sda1@sda#3".into(),
-            name: "anything".into(),
+            stick: Text::of("sda1@sda#3"),
+            name: Text::of("anything"),
         },
     );
     assert!(matches!(refused, Response::Failed(_)));
@@ -255,10 +256,10 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     let m = Machine::new("write");
     m.disk("sdb", 7, &[("", fat16("TESTSTICK"), true)]);
     let mut d = Disks::new(&m.sys(), &m.dev());
-    let id = "sdb1@sdb#7".to_string();
+    let id = Text::of("sdb1@sdb#7");
     let w = |name: &str, bytes: &[u8]| Request::Write {
         stick: id.clone(),
-        name: name.into(),
+        name: Text::of(name),
         copies: Vec::new(),
         replace: false,
         renamed: false,
@@ -268,12 +269,12 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     };
     assert_eq!(
         d.handle(&c, w("savings-signed.psbt", b"psbt bytes")),
-        Response::Written("savings-signed.psbt".into())
+        Response::Written(Text::of("savings-signed.psbt"))
     );
     // The same name again is a new file beside it.
     assert_eq!(
         d.handle(&c, w("savings-signed.psbt", b"other")),
-        Response::Written("savings-signed-2.psbt".into())
+        Response::Written(Text::of("savings-signed-2.psbt"))
     );
     // Replace, chosen by the person, goes over the old one.
     assert_eq!(
@@ -281,7 +282,7 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
             &c,
             Request::Write {
                 stick: id.clone(),
-                name: "savings-signed-2.psbt".into(),
+                name: Text::of("savings-signed-2.psbt"),
                 copies: Vec::new(),
                 replace: true,
                 renamed: false,
@@ -290,14 +291,14 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
                 bytes: b"replaced".to_vec(),
             }
         ),
-        Response::Written("savings-signed-2.psbt".into())
+        Response::Written(Text::of("savings-signed-2.psbt"))
     );
     assert_eq!(
         d.handle(
             &c,
             Request::Read {
                 stick: id.clone(),
-                name: "savings-signed-2.psbt".into()
+                name: Text::of("savings-signed-2.psbt")
             }
         ),
         Response::Bytes(b"replaced".to_vec())
@@ -315,14 +316,14 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     let body = 12 + 5 + 64 + 36;
     assert_eq!(
         d.handle(&c, w("vault.kdbx", &vault)),
-        Response::Written("vault.kdbx".into())
+        Response::Written(Text::of("vault.kdbx"))
     );
     let first = faraday_crypto::sha256(&vault);
     vault[body + 100] = 9;
     // Over a copy only where the app says its session wrote it.
     let back = |replace: bool| Request::Write {
         stick: id.clone(),
-        name: "vault.kdbx".into(),
+        name: Text::of("vault.kdbx"),
         copies: vec![first],
         replace,
         renamed: false,
@@ -333,14 +334,14 @@ fn a_file_written_reads_back_and_a_vault_goes_back_over_its_own() {
     assert!(matches!(d.handle(&c, back(false)), Response::Failed(_)));
     assert_eq!(
         d.handle(&c, back(true)),
-        Response::Written("vault.kdbx".into())
+        Response::Written(Text::of("vault.kdbx"))
     );
     assert_eq!(
         d.handle(
             &c,
             Request::Read {
                 stick: id.clone(),
-                name: "vault.kdbx".into()
+                name: Text::of("vault.kdbx")
             }
         ),
         Response::Bytes(vault.clone())
@@ -368,11 +369,11 @@ fn a_stick_put_back_is_another_stick() {
     let gone = d.handle(
         &c,
         Request::Read {
-            stick: "sdb1@sdb#7".into(),
-            name: "x".into(),
+            stick: Text::of("sdb1@sdb#7"),
+            name: Text::of("x"),
         },
     );
-    assert_eq!(gone, Response::Failed("the stick is gone".into()));
+    assert_eq!(gone, Response::Failed(Text::of("the stick is gone")));
     assert_eq!(sticks(d.handle(&c, Request::List))[0].id, "sdb1@sdb#9");
 }
 
@@ -642,8 +643,8 @@ fn a_second_faraday_stick_is_not_the_boot_medium_and_its_data_partition_is_usabl
     let wrote = d.handle(
         &c,
         Request::Write {
-            stick: "sdb2@sdb#11".into(),
-            name: "backup.kdbx".into(),
+            stick: Text::of("sdb2@sdb#11"),
+            name: Text::of("backup.kdbx"),
             copies: Vec::new(),
             replace: false,
             renamed: false,
@@ -656,8 +657,8 @@ fn a_second_faraday_stick_is_not_the_boot_medium_and_its_data_partition_is_usabl
     let refused = d.handle(
         &c,
         Request::Read {
-            stick: "sdb1@sdb#11".into(),
-            name: "anything".into(),
+            stick: Text::of("sdb1@sdb#11"),
+            name: Text::of("anything"),
         },
     );
     assert!(matches!(refused, Response::Failed(_)));
@@ -749,7 +750,7 @@ fn a_file_sent_in_pieces_is_written_whole_and_read_back_in_pieces() {
             &c,
             Request::Piece {
                 stick: stick.clone(),
-                name: "big.bin".into(),
+                name: Text::of("big.bin"),
                 at,
                 total: file.len() as u64,
                 bytes: piece.to_vec(),
@@ -762,7 +763,7 @@ fn a_file_sent_in_pieces_is_written_whole_and_read_back_in_pieces() {
         &c,
         Request::Write {
             stick: stick.clone(),
-            name: "big.bin".into(),
+            name: Text::of("big.bin"),
             copies: Vec::new(),
             replace: false,
             renamed: false,
@@ -778,7 +779,7 @@ fn a_file_sent_in_pieces_is_written_whole_and_read_back_in_pieces() {
             &c,
             Request::ReadPart {
                 stick: stick.clone(),
-                name: "big.bin".into(),
+                name: Text::of("big.bin"),
                 from: got.len() as u64,
                 len: 1000,
             },
@@ -797,7 +798,7 @@ fn a_file_sent_in_pieces_is_written_whole_and_read_back_in_pieces() {
         &c,
         Request::Piece {
             stick,
-            name: "x.bin".into(),
+            name: Text::of("x.bin"),
             at: 5,
             total: 9,
             bytes: vec![1],
@@ -809,8 +810,8 @@ fn a_file_sent_in_pieces_is_written_whole_and_read_back_in_pieces() {
 /// Request helpers for the pieced writes below.
 fn piece(stick: &str, name: &str, at: u64, total: u64, bytes: &[u8]) -> Request {
     Request::Piece {
-        stick: stick.into(),
-        name: name.into(),
+        stick: Text::of(stick),
+        name: Text::of(name),
         at,
         total,
         bytes: bytes.to_vec(),
@@ -819,8 +820,8 @@ fn piece(stick: &str, name: &str, at: u64, total: u64, bytes: &[u8]) -> Request 
 
 fn last(stick: &str, name: &str, total: u64, bytes: &[u8]) -> Request {
     Request::Write {
-        stick: stick.into(),
-        name: name.into(),
+        stick: Text::of(stick),
+        name: Text::of(name),
         copies: Vec::new(),
         replace: true,
         renamed: false,
@@ -834,8 +835,8 @@ fn read_all(d: &mut Disks, c: &faraday_crypto::work::Compute, stick: &str, name:
     match d.handle(
         c,
         Request::ReadPart {
-            stick: stick.into(),
-            name: name.into(),
+            stick: Text::of(stick),
+            name: Text::of(name),
             from: 0,
             len: 1 << 20,
         },
@@ -960,7 +961,7 @@ fn an_abandoned_pieced_write_leaves_nothing_to_join() {
         &c,
         Request::Read {
             stick: stick.clone(),
-            name: "v.bin".into(),
+            name: Text::of("v.bin"),
         },
     );
     assert!(

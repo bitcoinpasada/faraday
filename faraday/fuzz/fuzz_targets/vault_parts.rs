@@ -9,48 +9,49 @@
 use std::collections::BTreeMap;
 
 use faraday_files::{Place, Zeroed, finish_vault_writes};
+use faraday_text::Text;
 use libfuzzer_sys::fuzz_target;
 
 #[derive(Default)]
 struct Memory(BTreeMap<String, Vec<u8>>);
 
 impl Place for Memory {
-    fn files(&mut self) -> Result<Vec<(String, u64)>, String> {
+    fn files(&mut self) -> Result<Vec<(Text, u64)>, Text> {
         Ok(self
             .0
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (Text::of(n), b.len() as u64))
             .collect())
     }
-    fn read(&mut self, name: &str, _max: u64) -> Result<Vec<u8>, String> {
-        self.0.get(name).cloned().ok_or("no such file".into())
+    fn read(&mut self, name: &str, _max: u64) -> Result<Vec<u8>, Text> {
+        self.0.get(name).cloned().ok_or(Text::of("no such file"))
     }
-    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
+    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), Text> {
         self.0.insert(name.into(), bytes.to_vec());
         Ok(())
     }
-    fn remove(&mut self, name: &str) -> Result<(), String> {
-        self.0.remove(name).map(|_| ()).ok_or("no such file".into())
+    fn remove(&mut self, name: &str) -> Result<(), Text> {
+        self.0.remove(name).map(|_| ()).ok_or(Text::of("no such file"))
     }
-    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, String> {
+    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, Text> {
         self.remove(name).map(|()| faraday_files::Wiped::Zeroed)
     }
-    fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
-        let b = self.0.remove(from).ok_or("no such file")?;
+    fn rename(&mut self, from: &str, to: &str) -> Result<(), Text> {
+        let b = self.0.remove(from).ok_or(Text::of("no such file"))?;
         self.0.insert(to.into(), b);
         Ok(())
     }
-    fn space(&mut self) -> Result<(u64, u64), String> {
+    fn space(&mut self) -> Result<(u64, u64), Text> {
         Ok((0, 0))
     }
-    fn zero_free(&mut self, _from: u32) -> Result<Zeroed, String> {
+    fn zero_free(&mut self, _from: u32) -> Result<Zeroed, Text> {
         Ok(Zeroed {
             next: 2,
             total: 0,
             done: true,
         })
     }
-    fn make_empty(&mut self) -> Result<(), String> {
+    fn make_empty(&mut self) -> Result<(), Text> {
         self.0.clear();
         Ok(())
     }

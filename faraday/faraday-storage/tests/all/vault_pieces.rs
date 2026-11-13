@@ -40,13 +40,13 @@ fn serve(requests: PathBuf, responses: PathBuf, files: HashMap<String, Vec<u8>>)
             }
             Request::Write { name, bytes, .. } => {
                 held.extend_from_slice(&bytes);
-                files.insert(name.clone(), std::mem::take(&mut held));
+                files.insert(String::from(&*name), std::mem::take(&mut held));
                 Response::Written(name)
             }
             Request::ReadPart {
                 name, from, len, ..
             } => {
-                let file = &files[&name];
+                let file = &files[&*name];
                 let from = from as usize;
                 let to = (from + len as usize).min(file.len());
                 Response::Part {
@@ -54,7 +54,7 @@ fn serve(requests: PathBuf, responses: PathBuf, files: HashMap<String, Vec<u8>>)
                     bytes: file[from..to].to_vec(),
                 }
             }
-            _ => Response::Failed("not asked".into()),
+            _ => Response::Failed(faraday_text::Text::of("not asked")),
         };
         send(&mut tx, seq, &answer.encode()).unwrap();
     }

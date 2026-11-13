@@ -11,6 +11,7 @@ use faraday_files::{
     OnTaken, Place, Unrenamed, WriteRefused, Zeroed, finish_vault_writes, listing, rename,
     vault_names, write_any, write_replacing, write_vault, write_vault_over,
 };
+use faraday_text::Text;
 
 #[derive(Default)]
 struct Memory {
@@ -21,19 +22,22 @@ struct Memory {
 }
 
 impl Place for Memory {
-    fn files(&mut self) -> Result<Vec<(String, u64)>, String> {
+    fn files(&mut self) -> Result<Vec<(Text, u64)>, Text> {
         Ok(self
             .files
             .iter()
-            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .map(|(n, b)| (Text::of(n), b.len() as u64))
             .collect())
     }
-    fn read(&mut self, name: &str, _max: u64) -> Result<Vec<u8>, String> {
-        self.files.get(name).cloned().ok_or("no such file".into())
+    fn read(&mut self, name: &str, _max: u64) -> Result<Vec<u8>, Text> {
+        self.files
+            .get(name)
+            .cloned()
+            .ok_or_else(|| Text::of("no such file"))
     }
-    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
+    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), Text> {
         if self.files.contains_key(name) {
-            return Err("taken".into());
+            return Err(Text::of("taken"));
         }
         let kept = if self.cuts_parts && name.starts_with(".faraday-") {
             &bytes[..bytes.len() - 1]
@@ -43,34 +47,37 @@ impl Place for Memory {
         self.files.insert(name.into(), kept.to_vec());
         Ok(())
     }
-    fn remove(&mut self, name: &str) -> Result<(), String> {
+    fn remove(&mut self, name: &str) -> Result<(), Text> {
         self.files
             .remove(name)
             .map(|_| ())
-            .ok_or("no such file".into())
+            .ok_or_else(|| Text::of("no such file"))
     }
-    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, String> {
+    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, Text> {
         self.remove(name).map(|()| faraday_files::Wiped::Zeroed)
     }
-    fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
+    fn rename(&mut self, from: &str, to: &str) -> Result<(), Text> {
         if self.files.contains_key(to) {
-            return Err("taken".into());
+            return Err(Text::of("taken"));
         }
-        let b = self.files.remove(from).ok_or("no such file")?;
+        let b = self
+            .files
+            .remove(from)
+            .ok_or_else(|| Text::of("no such file"))?;
         self.files.insert(to.into(), b);
         Ok(())
     }
-    fn space(&mut self) -> Result<(u64, u64), String> {
+    fn space(&mut self) -> Result<(u64, u64), Text> {
         Ok((0, 0))
     }
-    fn zero_free(&mut self, _from: u32) -> Result<Zeroed, String> {
+    fn zero_free(&mut self, _from: u32) -> Result<Zeroed, Text> {
         Ok(Zeroed {
             next: 2,
             total: 0,
             done: true,
         })
     }
-    fn make_empty(&mut self) -> Result<(), String> {
+    fn make_empty(&mut self) -> Result<(), Text> {
         self.files.clear();
         Ok(())
     }
@@ -283,7 +290,11 @@ fn two_copies_on_the_stick_are_refused_naming_both() {
         &seen,
     )
     .unwrap_err();
-    assert!(why.contains("a.kdbx") && why.contains("b.kdbx"), "{why}");
+    assert!(
+        why.contains("a.kdbx") && why.contains("b.kdbx"),
+        "{}",
+        why.as_str()
+    );
     assert_eq!(place.files["a.kdbx"], sealed_again(1, 1));
     assert_eq!(place.files["b.kdbx"], sealed_again(1, 2));
     assert_eq!(place.files.len(), 2);
@@ -376,7 +387,7 @@ fn the_shortest_and_longest_vault_are_told_and_one_byte_either_side_is_not() {
 }
 
 /// A write of `new` as `vault.kdbx`, no copy of it proved, `on_taken` said.
-fn taken_write(place: &mut Memory, new: &[u8], on_taken: OnTaken) -> Result<String, WriteRefused> {
+fn taken_write(place: &mut Memory, new: &[u8], on_taken: OnTaken) -> Result<Text, WriteRefused> {
     write_vault_over(
         &compute(),
         place,
@@ -402,7 +413,7 @@ fn asking_about_a_same_name_file_changes_nothing_and_gives_its_sha() {
     assert_eq!(
         refused,
         WriteRefused::NameTaken {
-            on_stick: "Vault.kdbx".into(),
+            on_stick: Text::of("Vault.kdbx"),
             sha: Some(sha(&sealed_again(1, 7)))
         },
         "the name matches ignoring case"

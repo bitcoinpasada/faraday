@@ -453,7 +453,13 @@ aqrv/aqrv-app/src/samples.rs
 aqrv/aqrv-app/src/state.rs
 aqrv/aqrv-app/src/worker.rs
 aqrv/aqrv-cli/src/main.rs
-aqrv/aqrv-cli/src/tty.rs"
+aqrv/aqrv-cli/src/tty.rs
+faraday/faraday-disk/src/lib.rs
+faraday/faraday-disk/src/main.rs
+faraday/faraday-fat/src/lib.rs
+faraday/faraday-files/src/lib.rs
+faraday/faraday-files/src/proto.rs
+faraday/faraday-sqlite/src/lib.rs"
 # One path per line above; the checks below match a path between spaces.
 SECRET_FILES=$(echo $SECRET_FILES)
 for f in $SECRET_FILES; do

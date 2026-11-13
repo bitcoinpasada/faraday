@@ -8,6 +8,7 @@ use faraday_fat::{Disk, Region, Volume, format32};
 use faraday_files::{
     Fat, OnTaken, Place, Wiped, finish_vault_writes, write_replacing, write_vault_over,
 };
+use faraday_text::Text;
 
 /// A whole KDBX 4 file of a vault's shape (as `vault_by_contents.rs`).
 fn vault(salt: u8) -> Vec<u8> {
@@ -96,7 +97,7 @@ fn a_kept_entry_whose_clusters_were_freed_does_not_cost_the_whole_part_file() {
     // name.
     assert_eq!(place.read("mine.kdbx", u64::MAX).unwrap(), vault(2));
     assert!(place.read(PART, u64::MAX).is_err());
-    let names: Vec<String> = place.files().unwrap().into_iter().map(|f| f.0).collect();
+    let names: Vec<Text> = place.files().unwrap().into_iter().map(|f| f.0).collect();
     assert_eq!(names, ["mine.kdbx"]);
 }
 
@@ -139,7 +140,7 @@ fn a_vault_named_as_a_device_is_not_lost_to_a_cut_before_the_rename() {
     // Cut after the original was removed, before the rename.
     place.remove("con.kdbx").unwrap();
     finish_vault_writes(&mut place);
-    let names: Vec<String> = place.files().unwrap().into_iter().map(|f| f.0).collect();
+    let names: Vec<Text> = place.files().unwrap().into_iter().map(|f| f.0).collect();
     assert_eq!(names, ["con.kdbx"]);
     assert_eq!(place.read("con.kdbx", u64::MAX).unwrap(), vault(2));
 }
@@ -256,7 +257,7 @@ fn blank_stick(sectors: u64) -> Vec<u8> {
 fn replace_losing(
     len: usize,
     lost: impl Fn(&[u8]) -> std::ops::Range<usize>,
-) -> (Result<String, String>, Vec<u8>) {
+) -> (Result<Text, Text>, Vec<u8>) {
     let mut img = blank_stick(70_000);
     let mut v = Volume::open(img.clone()).unwrap();
     v.create("notes.txt", b"old").unwrap();

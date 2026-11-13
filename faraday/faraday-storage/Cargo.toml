@@ -13,6 +13,7 @@ faraday-core = { path = "../faraday-core" }
 faraday-files = { path = "../faraday-files" }
 faraday-strings = { path = "../faraday-strings" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-text = { path = "../../core/faraday-text" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]

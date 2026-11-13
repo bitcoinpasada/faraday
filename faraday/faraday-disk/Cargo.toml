@@ -17,6 +17,7 @@ faraday-files = { path = "../faraday-files" }
 # The words of its refusals.
 faraday-strings = { path = "../faraday-strings" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
+faraday-text = { path = "../../core/faraday-text" }
 zeroize = { workspace = true, features = ["alloc"] }
 # O_DIRECT, the flag for the read-back that skips the kernel's cache.
 libc = { workspace = true }

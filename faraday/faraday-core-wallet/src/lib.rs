@@ -710,7 +710,7 @@ pub fn read_file(
         .into_iter()
         .find(|n| beside.iter().any(|b| b.eq_ignore_ascii_case(n)))
     {
-        return Err(Refusal::Beside(name));
+        return Err(Refusal::Beside(String::from(&*name)));
     }
     if is_berkeley_db(file) {
         return Err(Refusal::BerkeleyDb);

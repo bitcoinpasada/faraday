@@ -35,6 +35,7 @@ use faraday_fat::{Disk, Volume};
 use faraday_files::proto::{Make, Problem, Request, Response, Stick};
 use faraday_files::{Fat, Place};
 use faraday_strings::EN;
+use faraday_text::{Text, text};
 
 /// Where a serial of a stick's own comes from: four bytes of the
 /// system's randomness, or `None` when it cannot be read. It is not a
@@ -176,15 +177,15 @@ enum Unreadable {
     /// The boot partition, which is never touched.
     Boot,
     /// Not a FAT volume Faraday reads.
-    NotFat(String),
+    NotFat(Text),
     /// The node could not be read.
-    Other(String),
+    Other(Text),
 }
 
 impl Unreadable {
-    fn text(&self) -> String {
+    fn text(&self) -> Text {
         match self {
-            Unreadable::Boot => EN.disk_boot.into(),
+            Unreadable::Boot => Text::of(EN.disk_boot),
             Unreadable::NotFat(e) | Unreadable::Other(e) => e.clone(),
         }
     }
@@ -203,9 +204,9 @@ fn disk_flag(disk: Option<&Path>, name: &str) -> bool {
 /// A partition handed out, before its files are read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Found {
-    id: String,
+    id: Text,
     node: PathBuf,
-    partname: Option<String>,
+    partname: Option<Text>,
     boot: bool,
     /// Handed out: this process can open its node.
     open: bool,
@@ -226,7 +227,7 @@ fn make_of(disk: &Path) -> Make {
     let text = |p: PathBuf| {
         fs::read_to_string(p)
             .ok()
-            .map(|s| s.trim().to_string())
+            .map(|s| Text::of(s.trim()))
             .filter(|s| !s.is_empty())
     };
     let words = |p: PathBuf| {
@@ -253,24 +254,24 @@ fn number(dir: &Path) -> Option<u32> {
 }
 
 /// The `PARTNAME=` line of a block device's `uevent`.
-fn partname(dir: &Path) -> Option<String> {
+fn partname(dir: &Path) -> Option<Text> {
     let uevent = fs::read_to_string(dir.join("uevent")).ok()?;
     uevent
         .lines()
         .find_map(|l| l.strip_prefix("PARTNAME="))
-        .map(str::to_string)
+        .map(Text::of)
 }
 
 /// What a disk is called this boot: its name and the sequence number the
 /// kernel gave it when it appeared, so the same stick put back is another
 /// disk.
-fn disk_id(disk: &Path) -> String {
+fn disk_id(disk: &Path) -> Text {
     let name = disk
         .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
+        .map(|n| Text::of(&n.to_string_lossy()))
         .unwrap_or_default();
     let seq = fs::read_to_string(disk.join("diskseq")).unwrap_or_default();
-    format!("{name}#{}", seq.trim())
+    text!("{}#{}", &*name, seq.trim())
 }
 
 /// The disk process: its roots, and what it last read of each partition.
@@ -285,7 +286,7 @@ pub struct Disks {
     /// Each partition's listing, kept until this process writes to it:
     /// nothing else writes to a stick while it is in the machine, and a
     /// stick read once a second would show it with its light.
-    seen: BTreeMap<String, Stick>,
+    seen: BTreeMap<Text, Stick>,
     /// The pieces of a vault's file held for the write that follows: the
     /// stick, the name, the length the first piece said the file has and the
     /// bytes so far (`faraday_files::proto::PIECE`). A file of another name
@@ -295,8 +296,8 @@ pub struct Disks {
 
 /// The pieces of one file so far.
 struct Held {
-    stick: String,
-    name: String,
+    stick: Text,
+    name: Text,
     total: u64,
     bytes: Vec<u8>,
 }
@@ -361,7 +362,7 @@ impl Disks {
             return out;
         };
         for e in entries.flatten() {
-            let name = e.file_name().to_string_lossy().into_owned();
+            let name = Text::of(&e.file_name().to_string_lossy());
             let Ok(dir) = fs::canonicalize(e.path()) else {
                 continue;
             };
@@ -370,7 +371,7 @@ impl Disks {
                 continue;
             }
             let Some(disk) = dir.parent() else { continue };
-            let node = self.dev.join(&name);
+            let node = self.dev.join(name.as_str());
             let open = Node::open(&node).is_ok();
             let read_only = flag(&dir.join("ro")) || disk_flag(dir.parent(), "ro");
             // A partition not handed out is listed only when it is on a
@@ -390,12 +391,12 @@ impl Disks {
             // The boot medium: the disk the record names, or the Pi's own
             // card, which is MBR and has no names.
             let seq = fs::read_to_string(disk.join("diskseq")).unwrap_or_default();
-            let children: Vec<String> = siblings
+            let children: Vec<Text> = siblings
                 .iter()
-                .filter_map(|s| s.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .filter_map(|s| s.file_name().map(|n| Text::of(&n.to_string_lossy())))
                 .collect();
             let boot = disk.file_name().is_some_and(|n| n == "mmcblk0")
-                || record.is_boot_disk(children.iter().map(String::as_str), &seq);
+                || record.is_boot_disk(children.iter().map(|c| c.as_str()), &seq);
             let partname = partname(&dir);
             // A boot partition, as faraday-grant knows it: by GPT name, as
             // the Pi's own card's first partition, or as the boot medium's
@@ -407,7 +408,7 @@ impl Disks {
                 continue;
             }
             out.push(Found {
-                id: format!("{name}@{}", disk_id(disk)),
+                id: text!("{}@{}", &*name, &*disk_id(disk)),
                 node,
                 partname,
                 boot,
@@ -433,7 +434,7 @@ impl Disks {
             return out;
         };
         for e in entries.flatten() {
-            let name = e.file_name().to_string_lossy().into_owned();
+            let name = Text::of(&e.file_name().to_string_lossy());
             let Ok(dir) = fs::canonicalize(e.path()) else {
                 continue;
             };
@@ -454,9 +455,9 @@ impl Disks {
             if size == 0 || has_parts {
                 continue;
             }
-            let node = self.dev.join(&name);
+            let node = self.dev.join(name.as_str());
             out.push(Found {
-                id: format!("{name}@{}", disk_id(&dir)),
+                id: text!("{}@{}", &*name, &*disk_id(&dir)),
                 open: Node::open(&node).is_ok(),
                 node,
                 partname: None,
@@ -475,7 +476,7 @@ impl Disks {
         if f.partname.as_deref().is_some_and(layout::is_boot_name) {
             return Err(Unreadable::Boot);
         }
-        let mut node = Node::open(&f.node).map_err(|e| Unreadable::Other(e.to_string()))?;
+        let mut node = Node::open(&f.node).map_err(|e| Unreadable::Other(text!("{e}")))?;
         let mut sector = [0u8; 512];
         node.read_at(0, &mut sector)
             .map_err(|e| Unreadable::Other(faraday_files::fat_text(e)))?;
@@ -503,7 +504,7 @@ impl Disks {
             f.partname
                 .clone()
                 .filter(|n| !n.is_empty())
-                .unwrap_or_else(|| f.id.split('@').next().unwrap_or("").to_string())
+                .unwrap_or_else(|| Text::of(f.id.split('@').next().unwrap_or("")))
         };
         if !f.open {
             // Not handed out yet: nothing on it can be read or written. It
@@ -567,7 +568,7 @@ impl Disks {
             .ok()
             .flatten()
             .or_else(|| f.partname.clone().filter(|n| !n.is_empty()))
-            .unwrap_or_else(|| f.id.split('@').next().unwrap_or("").to_string());
+            .unwrap_or_else(|| Text::of(f.id.split('@').next().unwrap_or("")));
         let serial = v.serial();
         let mut place = Fat(v);
         let files = faraday_files::listing(&mut place);
@@ -588,28 +589,33 @@ impl Disks {
 
     /// Every partition considered, and what became of it: a line each,
     /// for `faraday-disk --list` on a machine being brought up.
-    pub fn explain(&self) -> Vec<String> {
+    pub fn explain(&self) -> Vec<Text> {
         self.found()
             .iter()
             .map(|f| {
                 let what = if !f.open {
                     // not wording: the console's line for a machine being brought up
-                    "not handed out".to_string()
+                    Text::of("not handed out")
                 } else {
                     match Self::volume(f) {
                         // not wording: the console's line, as above
-                        Ok(mut v) => format!("FAT, label {:?}", v.volume_label().ok().flatten()),
+                        Ok(mut v) => {
+                            let label = v.volume_label().ok().flatten();
+                            // not wording: the console's line, as above
+                            text!("FAT, label {:?}", label.as_deref())
+                        }
                         // not wording: the console's line, as above
-                        Err(e) => format!("not listed: {}", e.text()),
+                        Err(e) => text!("not listed: {}", &*e.text()),
                     }
                 };
-                format!(
+                text!(
                     // not wording: the console's line, as above
-                    "{} node {} partname {:?} boot {}: {what}",
-                    f.id,
+                    "{} node {} partname {:?} boot {}: {}",
+                    &*f.id,
                     f.node.display(),
-                    f.partname,
-                    f.boot
+                    f.partname.as_deref(),
+                    f.boot,
+                    &*what
                 )
             })
             .collect()
@@ -632,14 +638,14 @@ impl Disks {
         found.iter().filter_map(|f| self.stick(c, f)).collect()
     }
 
-    fn place(&mut self, id: &str) -> Result<Fat<Node>, String> {
+    fn place(&mut self, id: &str) -> Result<Fat<Node>, Text> {
         let f = self
             .found()
             .into_iter()
             .find(|f| f.id == id)
-            .ok_or(EN.disk_gone)?;
+            .ok_or_else(|| Text::of(EN.disk_gone))?;
         if !f.open {
-            return Err(faraday_files::proto::NOT_OPEN.into());
+            return Err(Text::of(faraday_files::proto::NOT_OPEN));
         }
         Ok(Fat(Self::volume(&f).map_err(|e| e.text())?))
     }
@@ -653,12 +659,12 @@ impl Disks {
     /// the piece refused. The length held now.
     fn hold(
         &mut self,
-        stick: String,
-        name: String,
+        stick: Text,
+        name: Text,
         at: u64,
         total: u64,
         piece: &[u8],
-    ) -> Result<u64, String> {
+    ) -> Result<u64, Text> {
         // A first piece starts the file again: what an earlier, cut-off
         // seal of the name left is wiped.
         let earlier = self.take_held(&stick, &name);
@@ -685,7 +691,7 @@ impl Disks {
             || held.bytes.try_reserve(piece.len()).is_err()
         {
             zeroize::Zeroize::zeroize(&mut held.bytes);
-            return Err(EN.fat_io.to_string());
+            return Err(Text::of(EN.fat_io));
         }
         held.bytes.extend_from_slice(piece);
         self.held.push(held);
@@ -749,7 +755,7 @@ impl Disks {
                         if !fits {
                             zeroize::Zeroize::zeroize(&mut h.bytes);
                             zeroize::Zeroize::zeroize(&mut last);
-                            return Response::Failed(EN.fat_io.to_string());
+                            return Response::Failed(Text::of(EN.fat_io));
                         }
                         h.bytes.extend_from_slice(&last);
                         zeroize::Zeroize::zeroize(&mut last);
@@ -758,7 +764,7 @@ impl Disks {
                     None if last.len() as u64 == total => last,
                     None => {
                         zeroize::Zeroize::zeroize(&mut last);
-                        return Response::Failed(EN.fat_io.to_string());
+                        return Response::Failed(Text::of(EN.fat_io));
                     }
                 };
                 let written =
@@ -858,10 +864,10 @@ impl Disks {
 /// (`docs/STICK-IDENTITY.md` §6). A name FAT cannot hold is refused, and
 /// so is a boot partition's (`EFI`, `bootfs`, `FARADAYBOOT`): a volume
 /// so named is never handed out again.
-fn name_volume(place: &mut Fat<Node>, label: &str) -> Result<(), String> {
+fn name_volume(place: &mut Fat<Node>, label: &str) -> Result<(), Text> {
     let bytes = faraday_fat::label_bytes(label).map_err(faraday_files::fat_text)?;
     if bytes.is_some_and(|b| layout::is_boot_label(&b)) {
-        return Err(EN.stick_name_boot.into());
+        return Err(Text::of(EN.stick_name_boot));
     }
     place.0.set_label(bytes).map_err(faraday_files::fat_text)
 }
@@ -875,7 +881,8 @@ mod node_tests {
     /// that used it would fail.
     #[test]
     fn only_the_read_back_goes_to_the_medium() {
-        let dir = std::env::temp_dir().join(format!("faraday-node-unit-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(text!("faraday-node-unit-{}", std::process::id()).as_str());
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("node.img");
         fs::write(&path, vec![7u8; 8192]).unwrap();

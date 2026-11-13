@@ -209,7 +209,8 @@ fn a_pi_card_is_given_its_own_disk_signature_and_serials() {
 /// on the disk at `path`, as `faraday_fat` reads it.
 fn name_on(path: &Path, at: u64, len: u64) -> Option<String> {
     let mut volume = faraday_fat::Volume::open(read(path, at, len as usize)).expect("a FAT volume");
-    volume.volume_label().expect("its root directory read")
+    let label = volume.volume_label().expect("its root directory read");
+    label.map(|l| String::from(&*l))
 }
 
 #[test]

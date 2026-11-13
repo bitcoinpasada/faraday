@@ -52,7 +52,7 @@ fuzz_target!(|data: &[u8]| {
         );
         assert_eq!(len as usize, PIECE);
         let Some(c) = data.get(at..at + 5) else {
-            return Ok(Response::Failed("input over".into()));
+            return Ok(Response::Failed(faraday_text::Text::of("input over")));
         };
         at += 5;
         match c[0] % 8 {
@@ -67,7 +67,7 @@ fuzz_target!(|data: &[u8]| {
                 handed.extend_from_slice(&bytes);
                 Ok(Response::Part { total, bytes })
             }
-            6 => Ok(Response::Failed("failed".into())),
+            6 => Ok(Response::Failed(faraday_text::Text::of("failed"))),
             _ if c[1] % 2 == 0 => Ok(Response::Held(u64::from(c[2]))),
             _ => Err("no answer".into()),
         }

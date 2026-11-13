@@ -22,6 +22,7 @@
 
 use std::io::{Read, Write};
 
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// The largest frame either side sends or takes: the largest file plus
@@ -50,18 +51,18 @@ pub enum Request {
     /// One file's bytes.
     Read {
         /// The stick, as [`Stick::id`] named it.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
     },
     /// A piece of a file's bytes, for a vault too long for one frame:
     /// the `len` bytes (at most [`PIECE`]) from `from`. Answered
     /// [`Response::Part`].
     ReadPart {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
         /// Where the piece starts.
         from: u64,
         /// How many bytes at most.
@@ -75,9 +76,9 @@ pub enum Request {
     /// is held and is refused. Answered [`Response::Held`].
     Piece {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The name the write will be asked under.
-        name: String,
+        name: Text,
         /// The bytes held before this piece.
         at: u64,
         /// The length of the whole file, stated by every piece.
@@ -88,9 +89,9 @@ pub enum Request {
     /// A file written as `faraday_files::write_any` writes it.
     Write {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The name asked for.
-        name: String,
+        name: Text,
         /// The SHA-256 of every copy of this vault the session has seen,
         /// when it is one: the file on the stick with one of them is
         /// the vault written back over (`docs/VAULT.md` §6).
@@ -113,42 +114,42 @@ pub enum Request {
     /// The QR codes in a picture.
     ReadQr {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The picture.
-        name: String,
+        name: Text,
     },
     /// A file deleted with zeros over it first (`faraday_files::wipe`).
     Wipe {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file.
-        name: String,
+        name: Text,
     },
     /// The free space and the whole data space, in bytes.
     Space {
         /// The stick.
-        stick: String,
+        stick: Text,
     },
     /// One step of zeros over the free space, from cluster `from`.
     ZeroFree {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The cluster the step starts at.
         from: u32,
     },
     /// The volume made empty, its layout and label kept.
     MakeEmpty {
         /// The stick.
-        stick: String,
+        stick: Text,
     },
     /// A file renamed in place (`faraday_files::rename`).
     Rename {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The file.
-        from: String,
+        from: Text,
         /// Its new name.
-        to: String,
+        to: Text,
         /// For each vault the session has seen, the SHA-256 of its copies:
         /// two vault files are the same vault where one list has both.
         vaults: Vec<Vec<[u8; 32]>>,
@@ -157,9 +158,9 @@ pub enum Request {
     /// empty (`docs/STICK-IDENTITY.md` §6); answered `Renamed`.
     Name {
         /// The stick.
-        stick: String,
+        stick: Text,
         /// The name as typed; the disk process writes it as FAT holds it.
-        label: String,
+        label: Text,
     },
 }
 
@@ -346,19 +347,19 @@ impl Eq for Request {}
 pub struct Stick {
     /// The partition and the disk it is on, as this boot numbered them:
     /// a stick pulled and put back is another id.
-    pub id: String,
+    pub id: Text,
     /// Its volume label, or its node's name.
-    pub label: String,
+    pub label: Text,
     /// On the disk the machine booted from.
     pub boot: bool,
     /// Its FAT volume serial number, when its boot sector states one.
     pub serial: Option<u32>,
     /// Its top-level files and their sizes.
-    pub files: Vec<(String, u64)>,
+    pub files: Vec<(Text, u64)>,
     /// The files among them that are vaults by their contents and are
     /// not named `.kdbx` (`docs/VAULT.md` §1.1), read once
     /// when the listing was made.
-    pub vaults: Vec<String>,
+    pub vaults: Vec<Text>,
     /// Why it cannot be used for a backup, when it cannot: found by the disk
     /// process, which alone opens the partition.
     pub problem: Option<Problem>,
@@ -372,9 +373,9 @@ pub struct Stick {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Make {
     /// A USB stick's vendor, or none for a card.
-    pub maker: Option<String>,
+    pub maker: Option<Text>,
     /// A USB stick's model, or a card's name.
-    pub model: Option<String>,
+    pub model: Option<Text>,
     /// The disk's size in bytes.
     pub size: Option<u64>,
 }
@@ -429,7 +430,7 @@ pub enum Response {
     /// A piece of a file to write is held: the length held now.
     Held(u64),
     /// The name a file was written under.
-    Written(String),
+    Written(Text),
     /// A picture: its bytes as they are, and its codes' payloads.
     Qr {
         /// The picture's bytes, unchanged.
@@ -462,7 +463,7 @@ pub enum Response {
     /// ignoring case, and nothing proves it is a copy of the vault.
     WriteNameTaken {
         /// That file's name on the stick.
-        on_stick: String,
+        on_stick: Text,
         /// Its SHA-256, when it could be read.
         sha: Option<[u8; 32]>,
     },
@@ -475,7 +476,7 @@ pub enum Response {
         same_vault: bool,
     },
     /// Why the request failed.
-    Failed(String),
+    Failed(Text),
 }
 
 /// A malformed frame.
@@ -549,9 +550,11 @@ impl In<'_> {
         a.copy_from_slice(b);
         Ok(u64::from_le_bytes(a))
     }
-    fn str(&mut self) -> Result<String, Malformed> {
+    fn str(&mut self) -> Result<Text, Malformed> {
         let n = self.u16()?;
-        String::from_utf8(self.take(n)?.to_vec()).map_err(|_| Malformed)
+        std::str::from_utf8(self.take(n)?)
+            .map(Text::of)
+            .map_err(|_| Malformed)
     }
     fn bytes(&mut self) -> Result<Vec<u8>, Malformed> {
         let n = self.u32()?;
@@ -1092,25 +1095,25 @@ mod tests {
     fn sticks_with_a_problem_read_back_as_written() {
         let r = Response::Sticks(vec![
             Stick {
-                id: "sdc1@8".into(),
-                label: "BIG".into(),
+                id: Text::of("sdc1@8"),
+                label: Text::of("BIG"),
                 boot: false,
                 serial: None,
                 files: Vec::new(),
                 vaults: Vec::new(),
                 problem: Some(Problem::NotFat),
                 make: Make {
-                    maker: Some("SanDisk".into()),
-                    model: Some("Ultra".into()),
+                    maker: Some(Text::of("SanDisk")),
+                    model: Some(Text::of("Ultra")),
                     size: Some(16_000_000_000),
                 },
             },
             Stick {
-                id: "sdd1@9".into(),
-                label: "LOCKED".into(),
+                id: Text::of("sdd1@9"),
+                label: Text::of("LOCKED"),
                 boot: false,
                 serial: Some(1),
-                files: vec![("a.txt".into(), 1)],
+                files: vec![(Text::of("a.txt"), 1)],
                 vaults: Vec::new(),
                 problem: Some(Problem::ReadOnly),
                 make: Make::default(),
@@ -1124,12 +1127,12 @@ mod tests {
         let requests = [
             Request::List,
             Request::Read {
-                stick: "sdb1@7".into(),
-                name: "savings-unsigned.psbt".into(),
+                stick: Text::of("sdb1@7"),
+                name: Text::of("savings-unsigned.psbt"),
             },
             Request::Write {
-                stick: "sdb1@7".into(),
-                name: "vault.kdbx".into(),
+                stick: Text::of("sdb1@7"),
+                name: Text::of("vault.kdbx"),
                 copies: vec![[7; 32], [8; 32]],
                 replace: false,
                 renamed: true,
@@ -1138,8 +1141,8 @@ mod tests {
                 bytes: vec![1, 2, 3],
             },
             Request::Write {
-                stick: "sdb1@7".into(),
-                name: "wallet.json".into(),
+                stick: Text::of("sdb1@7"),
+                name: Text::of("wallet.json"),
                 copies: Vec::new(),
                 replace: true,
                 renamed: false,
@@ -1148,8 +1151,8 @@ mod tests {
                 bytes: vec![4, 5],
             },
             Request::Write {
-                stick: "sdb1@7".into(),
-                name: "vault.kdbx".into(),
+                stick: Text::of("sdb1@7"),
+                name: Text::of("vault.kdbx"),
                 copies: Vec::new(),
                 replace: true,
                 renamed: false,
@@ -1158,45 +1161,45 @@ mod tests {
                 bytes: vec![6],
             },
             Request::ReadPart {
-                stick: "sdb1@7".into(),
-                name: "vault.kdbx".into(),
+                stick: Text::of("sdb1@7"),
+                name: Text::of("vault.kdbx"),
                 from: 1 << 33,
                 len: 4096,
             },
             Request::Piece {
-                stick: "sdb1@7".into(),
-                name: "vault.kdbx".into(),
+                stick: Text::of("sdb1@7"),
+                name: Text::of("vault.kdbx"),
                 at: 4096,
                 total: 9000,
                 bytes: vec![10, 11, 12],
             },
             Request::ReadQr {
-                stick: "sdb1@7".into(),
-                name: "wallet-qr.png".into(),
+                stick: Text::of("sdb1@7"),
+                name: Text::of("wallet-qr.png"),
             },
             Request::Wipe {
-                stick: "sdb1@7".into(),
-                name: "old-seed.txt".into(),
+                stick: Text::of("sdb1@7"),
+                name: Text::of("old-seed.txt"),
             },
             Request::Space {
-                stick: "sdb1@7".into(),
+                stick: Text::of("sdb1@7"),
             },
             Request::ZeroFree {
-                stick: "sdb1@7".into(),
+                stick: Text::of("sdb1@7"),
                 from: 70_000,
             },
             Request::MakeEmpty {
-                stick: "sdb1@7".into(),
+                stick: Text::of("sdb1@7"),
             },
             Request::Rename {
-                stick: "sdb1@7".into(),
-                from: "vault.kdbx".into(),
-                to: "savings.kdbx".into(),
+                stick: Text::of("sdb1@7"),
+                from: Text::of("vault.kdbx"),
+                to: Text::of("savings.kdbx"),
                 vaults: vec![vec![[1; 32], [2; 32]], Vec::new(), vec![[3; 32]]],
             },
             Request::Name {
-                stick: "sdb2@sdb#7".into(),
-                label: "Coffee 1".into(),
+                stick: Text::of("sdb2@sdb#7"),
+                label: Text::of("Coffee 1"),
             },
         ];
         for r in requests {
@@ -1208,23 +1211,23 @@ mod tests {
     fn every_response_reads_back_as_written() {
         let responses = [
             Response::Sticks(vec![Stick {
-                id: "sdb1@7".into(),
-                label: "TESTSTICK".into(),
+                id: Text::of("sdb1@7"),
+                label: Text::of("TESTSTICK"),
                 boot: false,
                 serial: Some(0xcafe_f00d),
-                files: vec![("a.psbt".into(), 1234), ("café.txt".into(), 0)],
-                vaults: vec!["VAULT~1.FVL".into()],
+                files: vec![(Text::of("a.psbt"), 1234), (Text::of("café.txt"), 0)],
+                vaults: vec![Text::of("VAULT~1.FVL")],
                 problem: None,
                 make: Make::default(),
             }]),
             Response::Bytes(vec![9; 100]),
-            Response::Written("signed-2.psbt".into()),
+            Response::Written(Text::of("signed-2.psbt")),
             Response::WriteNameTaken {
-                on_stick: "Vault.KDBX".into(),
+                on_stick: Text::of("Vault.KDBX"),
                 sha: Some([3; 32]),
             },
             Response::WriteNameTaken {
-                on_stick: "vault.kdbx".into(),
+                on_stick: Text::of("vault.kdbx"),
                 sha: None,
             },
             Response::Qr {
@@ -1245,7 +1248,7 @@ mod tests {
             Response::Renamed,
             Response::NameTaken { same_vault: true },
             Response::NameTaken { same_vault: false },
-            Response::Failed("the stick is full".into()),
+            Response::Failed(Text::of("the stick is full")),
         ];
         for r in responses {
             assert_eq!(Response::decode(&r.encode()), Ok(r));
@@ -1255,8 +1258,8 @@ mod tests {
     #[test]
     fn a_frame_that_lies_about_its_lengths_is_refused() {
         let mut b = Request::Read {
-            stick: "s".into(),
-            name: "n".into(),
+            stick: Text::of("s"),
+            name: Text::of("n"),
         }
         .encode();
         b[1] = 200;

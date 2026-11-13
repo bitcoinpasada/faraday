@@ -73,15 +73,18 @@ fn a_folder_refuses_in_the_apps_words() {
     let mut place = Dir(dir.clone());
     assert_eq!(
         place.read("gone.psbt", 1024),
-        Err(EN.fat_not_found.to_string())
+        Err(faraday_text::Text::of(EN.fat_not_found))
     );
     assert_eq!(
         place.rename("a.psbt", "b.psbt"),
-        Err(faraday_strings::fill(EN.files_already_there, &["b.psbt"]))
+        Err(faraday_text::Text::fill(
+            EN.files_already_there,
+            &["b.psbt"]
+        ))
     );
     assert_eq!(
         checked("").unwrap_err(),
-        faraday_strings::fill(EN.files_not_a_name, &[""])
+        faraday_text::Text::fill(EN.files_not_a_name, &[""])
     );
     let _ = std::fs::remove_dir_all(&dir);
 }

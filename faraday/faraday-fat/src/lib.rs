@@ -40,9 +40,9 @@ pub use format::{Format32, FormatError, MIN_CLUSTERS, Region, format32};
 
 use alloc::collections::BTreeSet;
 use alloc::collections::btree_map::Entry as MapEntry;
-use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
+use faraday_text::{Text, text};
 use zeroize::Zeroize;
 
 /// The most a directory holds: FAT numbers a directory's entries with 16
@@ -224,7 +224,7 @@ pub enum Kind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     /// The long name, or the short one when there is none.
-    pub name: String,
+    pub name: Text,
     /// The size in bytes; 0 for a directory.
     pub size: u32,
     /// A directory, listed and never entered.
@@ -520,12 +520,12 @@ impl<D: Disk> Volume<D> {
     }
 
     /// The label in the boot sector, trimmed, when there is one.
-    pub fn label(&self) -> Option<String> {
+    pub fn label(&self) -> Option<Text> {
         let l = self.label?;
-        let s: String = l.iter().map(|&b| char::from(b)).collect();
+        let s: Text = l.iter().map(|&b| char::from(b)).collect();
         let s = s.trim_end();
         // not wording: the label FAT writes for none, compared
-        (!s.is_empty() && s != "NO NAME").then(|| String::from(s))
+        (!s.is_empty() && s != "NO NAME").then(|| Text::of(s))
     }
 
     /// The volume serial number in the boot sector, when there is one.
@@ -537,16 +537,16 @@ impl<D: Disk> Volume<D> {
     /// sees it, trimmed. The root directory's volume-label entry is what
     /// Windows shows and writes (Microsoft's FAT specification, §6); a
     /// volume with none has its boot sector's, and `NO NAME` is none.
-    pub fn volume_label(&mut self) -> Result<Option<String>, Error> {
+    pub fn volume_label(&mut self) -> Result<Option<Text>, Error> {
         let raw = match self.label_slot()? {
             Some((_, name)) => Some(name),
             None => self.label,
         };
         Ok(raw.and_then(|l| {
-            let s: String = l.iter().map(|&b| char::from(b)).collect();
+            let s: Text = l.iter().map(|&b| char::from(b)).collect();
             let s = s.trim_end();
             // not wording: the label FAT writes for none, compared
-            (!s.is_empty() && s != "NO NAME").then(|| String::from(s))
+            (!s.is_empty() && s != "NO NAME").then(|| Text::of(s))
         }))
     }
 
@@ -1778,7 +1778,7 @@ fn parse_dir(bytes: &[u8]) -> Vec<Entry> {
                 units.extend_from_slice(&p?);
             }
             let end = units.iter().position(|&u| u == 0).unwrap_or(units.len());
-            let name: String = char::decode_utf16(units[..end].iter().copied())
+            let name: Text = char::decode_utf16(units[..end].iter().copied())
                 .map(|c| c.unwrap_or(char::REPLACEMENT_CHARACTER))
                 .collect();
             (!name.is_empty()).then_some((name, start))
@@ -1808,23 +1808,23 @@ fn parse_dir(bytes: &[u8]) -> Vec<Entry> {
 
 /// A short name as text, with the lower-case flags Windows sets in
 /// byte 12 applied.
-fn short_text(short: &[u8; 11], flags: u8) -> String {
-    let part = |b: &[u8], lower: bool| -> String {
-        b.iter()
+fn short_text(short: &[u8; 11], flags: u8) -> Text {
+    let part = |b: &[u8], lower: bool| -> Text {
+        let t: Text = b
+            .iter()
             .map(|&c| {
                 let c = char::from(c);
                 if lower { c.to_ascii_lowercase() } else { c }
             })
-            .collect::<String>()
-            .trim_end()
-            .into()
+            .collect();
+        Text::of(t.trim_end())
     };
     let base = part(&short[..8], flags & 0x08 != 0);
     let ext = part(&short[8..], flags & 0x10 != 0);
     if ext.is_empty() {
         base
     } else {
-        alloc::format!("{base}.{ext}")
+        text!("{}.{}", &*base, &*ext)
     }
 }
 
@@ -1936,7 +1936,7 @@ fn short_name(name: &str, taken: &[[u8; 11]]) -> Result<([u8; 11], Option<Vec<u1
         }
     }
     for n in 1u32..1_000_000 {
-        let tail = alloc::format!("~{n}");
+        let tail = text!("~{n}");
         let keep = 8 - tail.len();
         let mut s = [b' '; 11];
         let mut head = b[..b.len().min(keep)].to_vec();

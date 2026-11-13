@@ -50,7 +50,7 @@ fn a_picture_larger_than_the_limit_is_refused_from_its_header() {
     for (w, h) in [(4097, 4096), (4096, 4097), (65_535, 65_535), (100_000, 200)] {
         assert_eq!(
             qr_in_png(&c, &claims(w, h)).map(|v| v.to_vec()),
-            Err("the image is too large".to_string()),
+            Err(faraday_text::Text::of("the image is too large")),
             "{w} × {h}"
         );
     }

@@ -496,7 +496,7 @@ fn a_second_table_holding_rows_is_refused() {
     assert_eq!(
         whole_file(&bytes, &[], None).err(),
         Some(Refusal::File(faraday_sqlite::Error::OtherTable(
-            "extra".to_string()
+            faraday_text::Text::of("extra")
         )))
     );
 }

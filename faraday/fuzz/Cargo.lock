@@ -876,6 +876,7 @@ dependencies = [
 name = "faraday-fat"
 version = "0.2.0"
 dependencies = [
+ "faraday-text",
  "zeroize",
 ]
 
@@ -887,6 +888,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-fat",
  "faraday-strings",
+ "faraday-text",
  "png",
  "subtle",
  "zeroize",
@@ -919,6 +921,7 @@ dependencies = [
  "faraday-starter",
  "faraday-starter-shell",
  "faraday-storage",
+ "faraday-text",
  "faraday-vault",
  "libfuzzer-sys",
 ]
@@ -1134,6 +1137,7 @@ dependencies = [
 name = "faraday-sqlite"
 version = "0.2.0"
 dependencies = [
+ "faraday-text",
  "zeroize",
 ]
 
@@ -1201,6 +1205,7 @@ dependencies = [
  "faraday-crypto",
  "faraday-files",
  "faraday-strings",
+ "faraday-text",
  "zeroize",
 ]
 

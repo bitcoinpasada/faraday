@@ -25,21 +25,22 @@ use std::path::PathBuf;
 
 use faraday_codec::vault_file;
 use faraday_crypto::work::{Compute, Work};
-use faraday_strings::{EN, fill};
+use faraday_strings::EN;
+use faraday_text::{Text, text};
 
 /// Why the computer refused a folder's file, in the strings file's
 /// words: the operating system's own message is not shown.
-fn io_text(e: std::io::Error) -> String {
+fn io_text(e: std::io::Error) -> Text {
     use std::io::ErrorKind as K;
-    match e.kind() {
+    let s = match e.kind() {
         K::NotFound => EN.fat_not_found,
         K::AlreadyExists => EN.fat_exists,
         K::StorageFull => EN.fat_full,
         K::PermissionDenied => EN.files_denied,
         K::ReadOnlyFilesystem => EN.files_read_only,
         _ => EN.fat_io,
-    }
-    .to_string()
+    };
+    Text::of(s)
 }
 
 /// The largest file read from a stick other than a vault, which has its own
@@ -65,12 +66,12 @@ pub const MAX_PIXELS: usize = 4096 * 4096;
 /// A stick's top level.
 pub trait Place {
     /// Every file, hidden ones included, with its size.
-    fn files(&mut self) -> Result<Vec<(String, u64)>, String>;
+    fn files(&mut self) -> Result<Vec<(Text, u64)>, Text>;
     /// A file's bytes; refused over `max`.
-    fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String>;
+    fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, Text>;
     /// A file's bytes as the medium holds them, not a cache in front of
     /// it: the read that checks a write took.
-    fn read_checked(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String> {
+    fn read_checked(&mut self, name: &str, max: u64) -> Result<Vec<u8>, Text> {
         self.read(name, max)
     }
     /// A file's length and its `len` bytes from `from` (fewer where it
@@ -82,7 +83,7 @@ pub trait Place {
         from: u64,
         len: usize,
         max: u64,
-    ) -> Result<(u64, Vec<u8>), String> {
+    ) -> Result<(u64, Vec<u8>), Text> {
         let b = self.read(name, max)?;
         let total = b.len() as u64;
         let start = usize::try_from(from).unwrap_or(usize::MAX).min(b.len());
@@ -92,39 +93,39 @@ pub trait Place {
     /// A file's first `n` bytes (fewer where it is shorter); refused
     /// over `max` in all. Where a place cannot read a part, it reads the
     /// whole.
-    fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, String> {
+    fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, Text> {
         let mut b = self.read(name, max)?;
         b.truncate(n);
         Ok(b)
     }
     /// A new file, on the medium when this returns. Refused when the name
     /// is taken.
-    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String>;
+    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), Text>;
     /// Removes a file.
-    fn remove(&mut self, name: &str) -> Result<(), String>;
+    fn remove(&mut self, name: &str) -> Result<(), Text>;
     /// Whether a file's chain of clusters ends where its size says. A
     /// place with no chains says yes.
-    fn chain_ends(&mut self, _name: &str) -> Result<bool, String> {
+    fn chain_ends(&mut self, _name: &str) -> Result<bool, Text> {
         Ok(true)
     }
     /// Removes a file whose clusters may be torn, freeing none that
     /// another file could hold. Where a place has none, it is
     /// [`Place::remove`].
-    fn discard(&mut self, name: &str) -> Result<(), String> {
+    fn discard(&mut self, name: &str) -> Result<(), Text> {
         self.remove(name)
     }
     /// Overwrites a file with zeros, reads them back, and removes it; or,
     /// where its clusters are in use ([`Wiped::NameOnly`]), removes only
     /// its name.
-    fn wipe(&mut self, name: &str) -> Result<Wiped, String>;
+    fn wipe(&mut self, name: &str) -> Result<Wiped, Text>;
     /// Renames a file; refused when the new name is taken.
-    fn rename(&mut self, from: &str, to: &str) -> Result<(), String>;
+    fn rename(&mut self, from: &str, to: &str) -> Result<(), Text>;
     /// The data space no file holds, and all of it, in bytes.
-    fn space(&mut self) -> Result<(u64, u64), String>;
+    fn space(&mut self) -> Result<(u64, u64), Text>;
     /// One step of zeros over the free space from cluster `from`.
-    fn zero_free(&mut self, from: u32) -> Result<Zeroed, String>;
+    fn zero_free(&mut self, from: u32) -> Result<Zeroed, Text>;
     /// Every file gone and the volume empty, its layout and label kept.
-    fn make_empty(&mut self) -> Result<(), String>;
+    fn make_empty(&mut self) -> Result<(), Text>;
 }
 
 pub use faraday_fat::{Wiped, Zeroed};
@@ -137,38 +138,38 @@ pub(crate) const ZERO_STEP: u64 = 8 << 20;
 pub struct Dir(pub PathBuf);
 
 impl Place for Dir {
-    fn files(&mut self) -> Result<Vec<(String, u64)>, String> {
+    fn files(&mut self) -> Result<Vec<(Text, u64)>, Text> {
         Ok(fs::read_dir(&self.0)
             .map_err(io_text)?
             .filter_map(Result::ok)
             .filter_map(|e| {
                 let meta = e.metadata().ok()?;
                 meta.is_file()
-                    .then(|| (e.file_name().to_string_lossy().into_owned(), meta.len()))
+                    .then(|| (Text::of(&e.file_name().to_string_lossy()), meta.len()))
             })
             .collect())
     }
 
-    fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String> {
+    fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, Text> {
         let path = self.0.join(name);
         let meta = fs::metadata(&path).map_err(io_text)?;
         if meta.len() > max {
-            return Err(fill(
+            return Err(Text::fill(
                 EN.files_larger_than,
-                &[&(max / 1024 / 1024).to_string()],
+                &[&Text::num(max / 1024 / 1024)],
             ));
         }
         fs::read(&path).map_err(io_text)
     }
 
-    fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, String> {
+    fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, Text> {
         use std::io::Read;
         let path = self.0.join(name);
         let meta = fs::metadata(&path).map_err(io_text)?;
         if meta.len() > max {
-            return Err(fill(
+            return Err(Text::fill(
                 EN.files_larger_than,
-                &[&(max / 1024 / 1024).to_string()],
+                &[&Text::num(max / 1024 / 1024)],
             ));
         }
         let mut out = Vec::new();
@@ -186,14 +187,14 @@ impl Place for Dir {
         from: u64,
         len: usize,
         max: u64,
-    ) -> Result<(u64, Vec<u8>), String> {
+    ) -> Result<(u64, Vec<u8>), Text> {
         use std::io::{Read, Seek, SeekFrom};
         let path = self.0.join(name);
         let meta = fs::metadata(&path).map_err(io_text)?;
         if meta.len() > max {
-            return Err(fill(
+            return Err(Text::fill(
                 EN.files_larger_than,
-                &[&(max / 1024 / 1024).to_string()],
+                &[&Text::num(max / 1024 / 1024)],
             ));
         }
         let mut file = fs::File::open(&path).map_err(io_text)?;
@@ -201,24 +202,24 @@ impl Place for Dir {
             .map_err(io_text)?;
         let mut out = Vec::new();
         out.try_reserve_exact(len.min(meta.len() as usize))
-            .map_err(|_| EN.fat_io.to_string())?;
+            .map_err(|_| Text::of(EN.fat_io))?;
         file.take(len as u64)
             .read_to_end(&mut out)
             .map_err(io_text)?;
         Ok((meta.len(), out))
     }
 
-    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
+    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), Text> {
         let mut f = fs::File::create_new(self.0.join(name)).map_err(io_text)?;
         f.write_all(bytes).map_err(io_text)?;
         f.sync_all().map_err(io_text)
     }
 
-    fn remove(&mut self, name: &str) -> Result<(), String> {
+    fn remove(&mut self, name: &str) -> Result<(), Text> {
         fs::remove_file(self.0.join(name)).map_err(io_text)
     }
 
-    fn wipe(&mut self, name: &str) -> Result<Wiped, String> {
+    fn wipe(&mut self, name: &str) -> Result<Wiped, Text> {
         use std::io::{Read, Seek, SeekFrom};
         let path = self.0.join(name);
         let mut f = fs::OpenOptions::new()
@@ -243,7 +244,7 @@ impl Place for Dir {
                 break;
             }
             if back[..n].iter().any(|&b| b != 0) {
-                return Err(EN.fat_fault_unwritten.to_string());
+                return Err(Text::of(EN.fat_fault_unwritten));
             }
         }
         drop(f);
@@ -253,11 +254,11 @@ impl Place for Dir {
 
     // A folder standing for a stick has no free space of its own to
     // write over: the computer's disk holds it.
-    fn space(&mut self) -> Result<(u64, u64), String> {
+    fn space(&mut self) -> Result<(u64, u64), Text> {
         Ok((0, 0))
     }
 
-    fn zero_free(&mut self, _from: u32) -> Result<Zeroed, String> {
+    fn zero_free(&mut self, _from: u32) -> Result<Zeroed, Text> {
         Ok(Zeroed {
             next: 2,
             total: 0,
@@ -265,16 +266,16 @@ impl Place for Dir {
         })
     }
 
-    fn make_empty(&mut self) -> Result<(), String> {
+    fn make_empty(&mut self) -> Result<(), Text> {
         for (name, _) in self.files()? {
             self.wipe(&name)?;
         }
         Ok(())
     }
 
-    fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
+    fn rename(&mut self, from: &str, to: &str) -> Result<(), Text> {
         if self.0.join(to).exists() {
-            return Err(fill(EN.files_already_there, &[to]));
+            return Err(Text::fill(EN.files_already_there, &[to]));
         }
         fs::rename(self.0.join(from), self.0.join(to)).map_err(io_text)
     }
@@ -283,7 +284,7 @@ impl Place for Dir {
 /// Why `faraday-fat` refused, in a few words from the strings file: its
 /// errors are kinds, worded here for every caller that shows one (the
 /// app's Files, the disk process, the Starter's boot file).
-pub fn fat_text(e: faraday_fat::Error) -> String {
+pub fn fat_text(e: faraday_fat::Error) -> Text {
     use faraday_fat::{BadName, Boot, Error, Fault};
     let s = match e {
         Error::Io => EN.fat_io,
@@ -325,14 +326,14 @@ pub fn fat_text(e: faraday_fat::Error) -> String {
             BadName::Character => EN.fat_name_character,
         },
     };
-    s.to_string()
+    Text::of(s)
 }
 
 /// A FAT16 or FAT32 volume.
 pub struct Fat<D: faraday_fat::Disk>(pub faraday_fat::Volume<D>);
 
 impl<D: faraday_fat::Disk> Place for Fat<D> {
-    fn files(&mut self) -> Result<Vec<(String, u64)>, String> {
+    fn files(&mut self) -> Result<Vec<(Text, u64)>, Text> {
         Ok(self
             .0
             .list()
@@ -343,17 +344,17 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
             .collect())
     }
 
-    fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String> {
+    fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, Text> {
         let max = u32::try_from(max).unwrap_or(u32::MAX);
         self.0.read(name, max).map_err(fat_text)
     }
 
-    fn read_checked(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String> {
+    fn read_checked(&mut self, name: &str, max: u64) -> Result<Vec<u8>, Text> {
         let max = u32::try_from(max).unwrap_or(u32::MAX);
         self.0.read_checked(name, max).map_err(fat_text)
     }
 
-    fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, String> {
+    fn head(&mut self, name: &str, n: usize, max: u64) -> Result<Vec<u8>, Text> {
         let max = u32::try_from(max).unwrap_or(u32::MAX);
         self.0.head(name, n, max).map_err(fat_text)
     }
@@ -364,7 +365,7 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
         from: u64,
         len: usize,
         max: u64,
-    ) -> Result<(u64, Vec<u8>), String> {
+    ) -> Result<(u64, Vec<u8>), Text> {
         let max = u32::try_from(max).unwrap_or(u32::MAX);
         self.0
             .read_part(name, from, len, max)
@@ -372,48 +373,48 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
             .map_err(fat_text)
     }
 
-    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
+    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), Text> {
         self.0
             .create(name, bytes)
             .and_then(|()| self.0.flush())
             .map_err(fat_text)
     }
 
-    fn remove(&mut self, name: &str) -> Result<(), String> {
+    fn remove(&mut self, name: &str) -> Result<(), Text> {
         self.0
             .delete(name)
             .and_then(|()| self.0.flush())
             .map_err(fat_text)
     }
 
-    fn chain_ends(&mut self, name: &str) -> Result<bool, String> {
+    fn chain_ends(&mut self, name: &str) -> Result<bool, Text> {
         self.0.chain_exact(name).map_err(fat_text)
     }
 
-    fn discard(&mut self, name: &str) -> Result<(), String> {
+    fn discard(&mut self, name: &str) -> Result<(), Text> {
         self.0
             .discard(name)
             .and_then(|()| self.0.flush())
             .map_err(fat_text)
     }
 
-    fn wipe(&mut self, name: &str) -> Result<Wiped, String> {
+    fn wipe(&mut self, name: &str) -> Result<Wiped, Text> {
         self.0.wipe(name).map_err(fat_text)
     }
 
-    fn space(&mut self) -> Result<(u64, u64), String> {
+    fn space(&mut self) -> Result<(u64, u64), Text> {
         self.0.space().map_err(fat_text)
     }
 
-    fn zero_free(&mut self, from: u32) -> Result<Zeroed, String> {
+    fn zero_free(&mut self, from: u32) -> Result<Zeroed, Text> {
         self.0.zero_free(from, ZERO_STEP).map_err(fat_text)
     }
 
-    fn make_empty(&mut self) -> Result<(), String> {
+    fn make_empty(&mut self) -> Result<(), Text> {
         self.0.make_empty().map_err(fat_text)
     }
 
-    fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
+    fn rename(&mut self, from: &str, to: &str) -> Result<(), Text> {
         self.0
             .rename(from, to)
             .and_then(|()| self.0.flush())
@@ -424,7 +425,7 @@ impl<D: faraday_fat::Disk> Place for Fat<D> {
 /// Deletes a file the person chose from a stick, zeros over it first
 /// ([`Place::wipe`]), or only its name where its clusters are in use. Only a name the app could have written: no hidden
 /// file, nothing outside the top folder.
-pub fn wipe(place: &mut dyn Place, name: &str) -> Result<Wiped, String> {
+pub fn wipe(place: &mut dyn Place, name: &str) -> Result<Wiped, Text> {
     place.wipe(checked(name)?)
 }
 
@@ -472,14 +473,14 @@ pub(crate) fn device_name(name: &str) -> bool {
 
 /// A name the app may read or remove: one path component, no hidden
 /// files, and none of an operating system's own ([`foreign`]).
-pub fn checked(name: &str) -> Result<&str, String> {
+pub fn checked(name: &str) -> Result<&str, Text> {
     if name.is_empty()
         || foreign(name)
         || name.contains('/')
         || name.contains('\\')
         || name.contains('\0')
     {
-        return Err(fill(EN.files_not_a_name, &[name]));
+        return Err(Text::fill(EN.files_not_a_name, &[name]));
     }
     Ok(name)
 }
@@ -488,7 +489,7 @@ pub fn checked(name: &str) -> Result<&str, String> {
 /// `: < > " | ? *` or control character, no trailing space or dot, and
 /// not a device's name ([`device_name`]). A file already on a stick under
 /// a name that fails this is still read and removed under [`checked`].
-pub fn checked_for_write(name: &str) -> Result<&str, String> {
+pub fn checked_for_write(name: &str) -> Result<&str, Text> {
     checked(name)?;
     if name
         .chars()
@@ -497,7 +498,7 @@ pub fn checked_for_write(name: &str) -> Result<&str, String> {
         || name.ends_with('.')
         || device_name(name)
     {
-        return Err(fill(EN.files_not_a_name, &[name]));
+        return Err(Text::fill(EN.files_not_a_name, &[name]));
     }
     Ok(name)
 }
@@ -506,10 +507,10 @@ pub fn checked_for_write(name: &str) -> Result<&str, String> {
 /// vault: the names in `files` that are a vault by its contents
 /// (`docs/VAULT.md` §1.1), whatever the name, a `.kdbx` too.
 /// A file is read only where its length is a length a vault can have. Made once when the listing is, and kept with it.
-pub fn vault_names(c: &Compute, place: &mut dyn Place, files: &[(String, u64)]) -> Vec<String> {
+pub fn vault_names(c: &Compute, place: &mut dyn Place, files: &[(Text, u64)]) -> Vec<Text> {
     let mut out = Vec::new();
     for (n, len) in files {
-        let named = n.to_ascii_lowercase().ends_with(".kdbx");
+        let named = is_kdbx_name(n);
         if (n.starts_with('.') && !named) || foreign(n) || !vault_file::is_vault_len(*len) {
             continue;
         }
@@ -527,8 +528,8 @@ pub fn vault_names(c: &Compute, place: &mut dyn Place, files: &[(String, u64)]) 
 
 /// The files a person sees: none of an operating system's own
 /// ([`foreign`]), sorted by name.
-pub fn listing(place: &mut dyn Place) -> Vec<(String, u64)> {
-    let mut files: Vec<(String, u64)> = place
+pub fn listing(place: &mut dyn Place) -> Vec<(Text, u64)> {
+    let mut files: Vec<(Text, u64)> = place
         .files()
         .unwrap_or_default()
         .into_iter()
@@ -538,7 +539,7 @@ pub fn listing(place: &mut dyn Place) -> Vec<(String, u64)> {
     files
 }
 
-fn has(place: &mut dyn Place, name: &str) -> Result<bool, String> {
+fn has(place: &mut dyn Place, name: &str) -> Result<bool, Text> {
     Ok(place
         .files()?
         .iter()
@@ -546,8 +547,8 @@ fn has(place: &mut dyn Place, name: &str) -> Result<bool, String> {
 }
 
 /// Reads one file the app asked for.
-pub fn read(place: &mut dyn Place, name: &str) -> Result<Vec<u8>, String> {
-    if name.to_ascii_lowercase().ends_with(".kdbx") {
+pub fn read(place: &mut dyn Place, name: &str) -> Result<Vec<u8>, Text> {
+    if is_kdbx_name(name) {
         finish_vault_writes(place);
     }
     place.read(checked(name)?, MAX_READ)
@@ -556,8 +557,8 @@ pub fn read(place: &mut dyn Place, name: &str) -> Result<Vec<u8>, String> {
 /// Reads one file whole, whatever a frame holds: a file that begins as
 /// KDBX 4 up to [`MAX_VAULT_READ`], any other to [`MAX_READ`]. For a place
 /// that does not send the file through a frame.
-pub fn read_whole(place: &mut dyn Place, name: &str) -> Result<Vec<u8>, String> {
-    if name.to_ascii_lowercase().ends_with(".kdbx") {
+pub fn read_whole(place: &mut dyn Place, name: &str) -> Result<Vec<u8>, Text> {
+    if is_kdbx_name(name) {
         finish_vault_writes(place);
     }
     let name = checked(name)?;
@@ -584,8 +585,8 @@ pub fn read_part(
     name: &str,
     from: u64,
     len: usize,
-) -> Result<(u64, Vec<u8>), String> {
-    if name.to_ascii_lowercase().ends_with(".kdbx") && from == 0 {
+) -> Result<(u64, Vec<u8>), Text> {
+    if is_kdbx_name(name) && from == 0 {
         finish_vault_writes(place);
     }
     let name = checked(name)?;
@@ -593,29 +594,38 @@ pub fn read_part(
     place.read_part(name, from, len.min(proto::PIECE), max)
 }
 
+/// Whether a file's name ends in `.kdbx`, ignoring case.
+fn is_kdbx_name(name: &str) -> bool {
+    name.len()
+        .checked_sub(5)
+        .and_then(|i| name.as_bytes().get(i..))
+        .is_some_and(|tail| tail.eq_ignore_ascii_case(b".kdbx"))
+}
+
+/// A file's name in ASCII lower case, for comparing names ignoring case.
+fn lower(name: &str) -> Text {
+    name.chars().map(|c| c.to_ascii_lowercase()).collect()
+}
+
 /// The first of `name`, `stem-2.ext`, `stem-3.ext`… not on the stick.
-fn free_name(place: &mut dyn Place, name: &str) -> Result<String, String> {
-    let taken: Vec<String> = place
-        .files()?
-        .into_iter()
-        .map(|(n, _)| n.to_ascii_lowercase())
-        .collect();
-    if !taken.contains(&name.to_ascii_lowercase()) {
-        return Ok(name.to_string());
+fn free_name(place: &mut dyn Place, name: &str) -> Result<Text, Text> {
+    let taken: Vec<Text> = place.files()?.into_iter().map(|(n, _)| lower(&n)).collect();
+    if !taken.contains(&lower(name)) {
+        return Ok(Text::of(name));
     }
     let (stem, ext) = match name.rfind('.') {
         Some(i) if i > 0 => (&name[..i], &name[i..]),
         _ => (name, ""),
     };
     (2..100)
-        .map(|n| format!("{stem}-{n}{ext}"))
-        .find(|c| !taken.contains(&c.to_ascii_lowercase()))
-        .ok_or_else(|| EN.files_no_free_name.to_string())
+        .map(|n| text!("{stem}-{n}{ext}"))
+        .find(|c| !taken.contains(&lower(c)))
+        .ok_or_else(|| Text::of(EN.files_no_free_name))
 }
 
 /// Writes `bytes` under the hidden name `temp`, reads them back and
 /// compares. The temp file is gone again on any failure.
-fn put_checked(place: &mut dyn Place, temp: &str, bytes: &[u8]) -> Result<(), String> {
+fn put_checked(place: &mut dyn Place, temp: &str, bytes: &[u8]) -> Result<(), Text> {
     if has(place, temp)? {
         place.remove(temp)?;
     }
@@ -623,20 +633,20 @@ fn put_checked(place: &mut dyn Place, temp: &str, bytes: &[u8]) -> Result<(), St
     let back = place.read_checked(temp, bytes.len() as u64);
     if back.as_deref() != Ok(bytes) {
         let _ = place.remove(temp);
-        return Err(EN.files_read_back.to_string());
+        return Err(Text::of(EN.files_read_back));
     }
     Ok(())
 }
 
 /// Writes a file as a new file, reads it back, compares, and renames it
 /// into place. Returns the name it was written under.
-pub fn write(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
+pub fn write(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<Text, Text> {
     let name = free_name(place, checked_for_write(name)?)?;
-    let temp = format!(".faraday-{name}.part");
+    let temp = text!(".faraday-{}.part", &*name);
     put_checked(place, &temp, bytes)?;
     if has(place, &name)? {
         let _ = place.remove(&temp);
-        return Err(fill(EN.files_appeared, &[&name]));
+        return Err(Text::fill(EN.files_appeared, &[&name]));
     }
     if let Err(e) = place.rename(&temp, &name) {
         let _ = place.remove(&temp);
@@ -651,7 +661,7 @@ pub fn write(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, 
 /// its name, as [`write_vault`] does. A read-back that differs leaves the
 /// old file as it was. With no file of that name, the same as [`write`].
 /// Returns the name it was written under.
-pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<String, String> {
+pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Result<Text, Text> {
     let name = checked_for_write(name)?;
     let Some(old) = place
         .files()?
@@ -666,7 +676,7 @@ pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Resul
     if is_vault_on(place, &old) {
         return write(place, name, bytes);
     }
-    let temp = format!(".faraday-{old}.part");
+    let temp = text!(".faraday-{}.part", &*old);
     put_checked(place, &temp, bytes)?;
     // FAT has no atomic replace: the old file goes, then the copy that
     // read back whole takes its name.
@@ -683,7 +693,7 @@ pub fn write_replacing(place: &mut dyn Place, name: &str, bytes: &[u8]) -> Resul
 /// and beginning with KDBX 4's signature (§2.1). Reads twelve bytes of a file that
 /// is not named so.
 fn is_vault_on(place: &mut dyn Place, name: &str) -> bool {
-    if name.to_ascii_lowercase().ends_with(".kdbx") {
+    if is_kdbx_name(name) {
         return true;
     }
     let sized = place.files().is_ok_and(|f| {
@@ -707,12 +717,8 @@ fn has_vault_head(place: &mut dyn Place, name: &str) -> bool {
 /// Costs a read and a SHA-256 pass over each file that begins as a vault
 /// does on the stick. The names of the files on the stick whose SHA-256 is among
 /// `copies`, the SHA-256 of whole files (`docs/VAULT.md` §6).
-fn copies_on(
-    c: &Compute,
-    place: &mut dyn Place,
-    copies: &[[u8; 32]],
-) -> Result<Vec<String>, String> {
-    let mut found: Vec<String> = Vec::new();
+fn copies_on(c: &Compute, place: &mut dyn Place, copies: &[[u8; 32]]) -> Result<Vec<Text>, Text> {
+    let mut found: Vec<Text> = Vec::new();
     if copies.is_empty() {
         return Ok(found);
     }
@@ -745,7 +751,7 @@ pub fn write_vault(
     name: &str,
     bytes: &[u8],
     copies: &[[u8; 32]],
-) -> Result<String, String> {
+) -> Result<Text, Text> {
     write_vault_over(c, place, name, bytes, copies, true, false, OnTaken::Beside)
         .map_err(WriteRefused::text)
 }
@@ -769,26 +775,26 @@ pub enum WriteRefused {
     /// is a copy of the vault; nothing on the stick changed.
     NameTaken {
         /// That file's name on the stick.
-        on_stick: String,
+        on_stick: Text,
         /// Its SHA-256; none when it is over [`MAX_READ`] or cannot be read.
         sha: Option<[u8; 32]>,
     },
     /// Anything else, as the words that say why.
-    Failed(String),
+    Failed(Text),
 }
 
 impl WriteRefused {
     /// The words for why, where nothing asks.
-    pub fn text(self) -> String {
+    pub fn text(self) -> Text {
         match self {
-            WriteRefused::NameTaken { on_stick, .. } => fill(EN.files_appeared, &[&on_stick]),
+            WriteRefused::NameTaken { on_stick, .. } => Text::fill(EN.files_appeared, &[&on_stick]),
             WriteRefused::Failed(why) => why,
         }
     }
 }
 
-impl From<String> for WriteRefused {
-    fn from(why: String) -> Self {
+impl From<Text> for WriteRefused {
+    fn from(why: Text) -> Self {
         WriteRefused::Failed(why)
     }
 }
@@ -814,20 +820,20 @@ pub fn write_vault_over(
     over: bool,
     renamed: bool,
     on_taken: OnTaken,
-) -> Result<String, WriteRefused> {
+) -> Result<Text, WriteRefused> {
     finish_vault_writes(place);
     if !whole_vault(bytes) {
-        return Err(EN.files_not_a_vault.to_string().into());
+        return Err(Text::of(EN.files_not_a_vault).into());
     }
     let mut same = copies_on(c, place, copies)?;
     let original = match same.len() {
         0 => return write_vault_new(c, place, name, bytes, renamed, on_taken),
         1 if !over => {
-            return Err(fill(EN.files_vault_not_ours, &[&same[0]]).into());
+            return Err(Text::fill(EN.files_vault_not_ours, &[&same[0]]).into());
         }
         1 => same.remove(0),
         _ => {
-            return Err(fill(EN.files_vault_twice, &[&same[0], &same[1]]).into());
+            return Err(Text::fill(EN.files_vault_twice, &[&same[0], &same[1]]).into());
         }
     };
     Ok(replace_file(place, &original, name, bytes, renamed)?)
@@ -843,7 +849,7 @@ fn write_vault_new(
     bytes: &[u8],
     renamed: bool,
     on_taken: OnTaken,
-) -> Result<String, WriteRefused> {
+) -> Result<Text, WriteRefused> {
     let asked = checked_for_write(name)?;
     let taken = place
         .files()?
@@ -871,7 +877,7 @@ fn write_vault_new(
         }
         OnTaken::Over(shown) => {
             if sha_of(place) != Some(shown) {
-                return Err(fill(EN.files_taken_changed, &[&old]).into());
+                return Err(Text::fill(EN.files_taken_changed, &[&old]).into());
             }
             Ok(replace_file(place, &old, name, bytes, renamed)?)
         }
@@ -887,14 +893,14 @@ fn replace_file(
     name: &str,
     bytes: &[u8],
     renamed: bool,
-) -> Result<String, String> {
+) -> Result<Text, Text> {
     // The new name is checked before anything is written or removed.
     let new_name = if renamed {
         Some(checked_for_write(name)?)
     } else {
         None
     };
-    let temp = format!(".faraday-{original}.part");
+    let temp = text!(".faraday-{original}.part");
     put_checked(place, &temp, bytes)?;
     // FAT has no atomic replace: the original goes, then the copy that
     // read back whole takes its name, or the person's new one.
@@ -902,7 +908,7 @@ fn replace_file(
     let to = if let Some(n) = new_name {
         free_name(place, n)?
     } else {
-        original.to_string()
+        Text::of(original)
     };
     place.rename(&temp, &to)?;
     Ok(to)
@@ -918,7 +924,7 @@ pub enum Unrenamed {
     /// the copies of one vault the session knows (`docs/VAULT.md` §6).
     SameVault,
     /// The stick refused, or a name is not one the app may use.
-    Failed(String),
+    Failed(Text),
 }
 
 /// Costs a read and a SHA-256 pass over both files where both are vaults
@@ -938,7 +944,10 @@ pub fn rename(
     let to = checked_for_write(to).map_err(Unrenamed::Failed)?;
     let files = place.files().map_err(Unrenamed::Failed)?;
     let Some(&(_, len)) = files.iter().find(|(n, _)| n == from) else {
-        return Err(Unrenamed::Failed(fill(EN.files_not_on_stick, &[from])));
+        return Err(Unrenamed::Failed(Text::fill(
+            EN.files_not_on_stick,
+            &[from],
+        )));
     };
     if let Some((other, olen)) = files
         .iter()
@@ -1027,7 +1036,7 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         };
         // A part file of a vault under another name is told by its
         // contents; a part file of any other file is not this function's.
-        let named = name.to_ascii_lowercase().ends_with(".kdbx");
+        let named = is_kdbx_name(name);
         if !named && !(vault_file::is_vault_len(*len) && *len <= MAX_VAULT_READ) {
             continue;
         }
@@ -1065,9 +1074,9 @@ pub fn finish_vault_writes(place: &mut dyn Place) {
         // `.kdbx` after it, and never a name that could be another
         // kind of file's.
         let target = if named {
-            name.to_string()
+            Text::of(name)
         } else {
-            format!("{name}.kdbx")
+            text!("{name}.kdbx")
         };
         let taken = files.iter().any(|(o, _)| o.eq_ignore_ascii_case(&target));
         // A vault found with a `.kdbx` name had that name on the stick,
@@ -1094,10 +1103,10 @@ pub const SETTINGS_FILE: &str = "faraday-settings.txt";
 /// beside it, read back and compared, then the old file goes and the new
 /// one takes its name. A stick pulled between the two keeps no settings
 /// file, and the next visit writes one.
-pub fn write_settings(place: &mut dyn Place, bytes: &[u8]) -> Result<String, String> {
-    let temp = format!(".faraday-{SETTINGS_FILE}.part");
+pub fn write_settings(place: &mut dyn Place, bytes: &[u8]) -> Result<Text, Text> {
+    let temp = text!(".faraday-{SETTINGS_FILE}.part");
     put_checked(place, &temp, bytes)?;
-    let old: Vec<String> = place
+    let old: Vec<Text> = place
         .files()?
         .into_iter()
         .map(|(n, _)| n)
@@ -1110,7 +1119,7 @@ pub fn write_settings(place: &mut dyn Place, bytes: &[u8]) -> Result<String, Str
         }
     }
     place.rename(&temp, SETTINGS_FILE)?;
-    Ok(SETTINGS_FILE.to_string())
+    Ok(Text::of(SETTINGS_FILE))
 }
 
 /// Costs what [`write_file`] costs. Writes what the app put in the
@@ -1123,7 +1132,7 @@ pub fn write_any(
     name: &str,
     bytes: &[u8],
     replace: bool,
-) -> Result<String, String> {
+) -> Result<Text, Text> {
     write_file(c, place, name, bytes, &[], replace, false, OnTaken::Beside)
         .map_err(WriteRefused::text)
 }
@@ -1148,7 +1157,7 @@ pub fn write_file(
     replace: bool,
     renamed: bool,
     on_taken: OnTaken,
-) -> Result<String, WriteRefused> {
+) -> Result<Text, WriteRefused> {
     if vault_file::is_vault_file(bytes) {
         write_vault_over(c, place, name, bytes, copies, replace, renamed, on_taken)
     } else if name.eq_ignore_ascii_case(SETTINGS_FILE) && bytes.starts_with(b"faraday-settings ") {
@@ -1167,7 +1176,7 @@ pub type Picture = (Vec<u8>, Vec<Vec<u8>>);
 
 /// Costs a read of the file and [`qr_in_png`]: a PNG on a stick, read,
 /// its bytes and its QR codes ([`Picture`]).
-pub fn read_qr_png(c: &Compute, place: &mut dyn Place, name: &str) -> Result<Picture, String> {
+pub fn read_qr_png(c: &Compute, place: &mut dyn Place, name: &str) -> Result<Picture, Text> {
     let bytes = read(place, name)?;
     // Moved, not copied, to whoever holds the picture.
     let mut codes = qr_in_png(c, &bytes).unwrap_or_default();
@@ -1189,28 +1198,30 @@ pub fn picture_answer(c: &Compute, bytes: Vec<u8>) -> proto::Response {
 /// a shell reads pictures off its own thread. The QR codes in a PNG's
 /// bytes, dark on light or light on dark, wiped when dropped: a code may
 /// be a SeedQR.
-pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec<u8>>>, String> {
+pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec<u8>>>, Text> {
     c.count(Work::PngDecode);
     let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
-    let mut reader = decoder.read_info().map_err(|_| EN.files_picture_unread)?;
+    let mut reader = decoder
+        .read_info()
+        .map_err(|_| Text::of(EN.files_picture_unread))?;
     let (w, h) = {
         let info = reader.info();
         (info.width as usize, info.height as usize)
     };
     if w.saturating_mul(h) > MAX_PIXELS {
-        return Err(EN.files_picture_large.into());
+        return Err(Text::of(EN.files_picture_large));
     }
     // The picture may be of a SeedQR: every copy of its pixels is wiped.
     let mut buf = zeroize::Zeroizing::new(vec![
         0u8;
-        reader
-            .output_buffer_size()
-            .ok_or(EN.files_picture_large)?
+        reader.output_buffer_size().ok_or_else(|| {
+            Text::of(EN.files_picture_large)
+        })?
     ]);
     let info = reader
         .next_frame(&mut buf)
-        .map_err(|_| EN.files_picture_unread)?;
+        .map_err(|_| Text::of(EN.files_picture_unread))?;
     let px = &buf[..info.buffer_size()];
     let luma_of =
         |r: u8, g: u8, b: u8| ((u32::from(r) * 3 + u32::from(g) * 6 + u32::from(b)) / 10) as u8;
@@ -1225,10 +1236,10 @@ pub fn qr_in_png(c: &Compute, bytes: &[u8]) -> Result<zeroize::Zeroizing<Vec<Vec
             .chunks_exact(4)
             .map(|p| luma_of(p[0], p[1], p[2]))
             .collect(),
-        png::ColorType::Indexed => return Err(EN.files_picture_unread.into()),
+        png::ColorType::Indexed => return Err(Text::of(EN.files_picture_unread)),
     });
     if luma.len() != w * h {
-        return Err(EN.files_picture_unread.into());
+        return Err(Text::of(EN.files_picture_unread));
     }
     // A code printed light on dark is read too.
     Ok(zeroize::Zeroizing::new(

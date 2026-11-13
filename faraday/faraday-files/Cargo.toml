@@ -16,6 +16,7 @@ faraday-codec = { path = "../../core/faraday-codec" }
 # The count of costly work (`faraday_crypto::work`): a PNG decoded.
 faraday-crypto = { path = "../../core/faraday-crypto" }
 png.workspace = true
+faraday-text = { path = "../../core/faraday-text" }
 zeroize = { workspace = true, features = ["alloc"] }
 subtle.workspace = true
 

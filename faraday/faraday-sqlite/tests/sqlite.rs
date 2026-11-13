@@ -2,6 +2,7 @@
 //! and against those databases with one thing changed.
 
 use faraday_sqlite::{Database, Error, Row, refusing_siblings};
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -101,7 +102,7 @@ fn an_empty_database_reads_and_only_main_may_hold_rows() {
     let db = Database::open(&bytes).unwrap();
     assert!(db.rows("main").unwrap().is_empty());
     db.only_table_with_rows("main").unwrap();
-    assert_eq!(db.rows("nothing"), Err(Error::NoTable("nothing".into())));
+    assert_eq!(db.rows("nothing"), Err(Error::NoTable(Text::of("nothing"))));
 }
 
 #[test]
@@ -110,7 +111,7 @@ fn a_table_other_than_main_holding_records_is_refused() {
     let db = Database::open(&bytes).unwrap();
     assert_eq!(
         db.only_table_with_rows("main"),
-        Err(Error::OtherTable("extra".into()))
+        Err(Error::OtherTable(Text::of("extra")))
     );
 }
 
@@ -363,9 +364,9 @@ fn a_table_name_held_twice_is_refused_whatever_its_case() {
     assert_eq!(rows(&base).unwrap().len(), 1);
     let mut b = base.clone();
     b[at + 5..at + 9].copy_from_slice(b"main");
-    assert_eq!(rows(&b), Err(Error::TableRepeated("main".into())));
+    assert_eq!(rows(&b), Err(Error::TableRepeated(Text::of("main"))));
     b[at + 5..at + 9].copy_from_slice(b"MaIn");
-    assert_eq!(rows(&b), Err(Error::TableRepeated("MaIn".into())));
+    assert_eq!(rows(&b), Err(Error::TableRepeated(Text::of("MaIn"))));
 }
 
 #[test]

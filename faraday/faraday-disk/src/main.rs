@@ -32,6 +32,7 @@ macro_rules! say {
 }
 
 use faraday_crypto::work::Compute;
+use std::ffi::{OsStr, OsString};
 use std::fs::{File, OpenOptions};
 use std::path::Path;
 use std::process::ExitCode;
@@ -41,6 +42,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use faraday_disk::Disks;
 use faraday_files::proto::{self, Request, Response};
 use faraday_strings::EN;
+use faraday_text::{Text, text};
 
 /// The medium the machine started from, as init records it
 /// (`faraday_boot::medium`).
@@ -140,7 +142,7 @@ fn serve_on(
     now: &Now,
     pictures: &Sender<(u64, u32, Vec<u8>)>,
 ) -> std::io::Result<()> {
-    let mut last = String::new();
+    let mut last = Text::new();
     while let Some((seq, mut frame)) = proto::receive(rx)? {
         // A file read or written may be a seed in the clear, and this
         // process outlives the app's locks: what passed through is wiped.
@@ -156,7 +158,7 @@ fn serve_on(
                             pictures.send((talk, seq, bytes))
                         {
                             zeroize::Zeroize::zeroize(&mut bytes);
-                            Response::Failed(EN.disk_pictures_busy.into())
+                            Response::Failed(Text::of(EN.disk_pictures_busy))
                         } else {
                             continue;
                         }
@@ -169,22 +171,29 @@ fn serve_on(
                 // A listing that changed is said on the console, for a
                 // machine being brought up.
                 if let Response::Sticks(s) = &answer {
-                    let now: Vec<String> = s
-                        .iter()
+                    let mut now = Text::new();
+                    for (i, s) in s.iter().enumerate() {
+                        if i > 0 {
+                            now.push_str(", ");
+                        }
                         // not wording: the console's line for a machine being brought up
-                        .map(|s| format!("{} {} files", s.id, s.files.len()))
-                        .collect();
-                    let now = now.join(", ");
+                        now.push_str(&text!("{} {} files", &*s.id, s.files.len()));
+                    }
                     if now != last {
                         // not wording: the console's line, as above
-                        say!("faraday-disk: listing [{now}]");
+                        say!("faraday-disk: listing [{}]", &*now);
                         last = now;
                     }
                 }
                 answer
             }
             Err(_) => {
-                answer_to(now, talk, seq, Response::Failed(EN.disk_malformed.into()))?;
+                answer_to(
+                    now,
+                    talk,
+                    seq,
+                    Response::Failed(Text::of(EN.disk_malformed)),
+                )?;
                 return Ok(());
             }
         };
@@ -202,16 +211,16 @@ fn main() -> ExitCode {
         reason = "a mint: the disk process, which draws nothing (docs/COMPUTE.md §3)"
     )]
     let c = Compute::new(|_| {});
-    let args: Vec<String> = std::env::args().collect();
-    if args.get(1).map(String::as_str) == Some("--list") {
+    let args: Vec<OsString> = std::env::args_os().collect();
+    if args.get(1).is_some_and(|a| a == "--list") {
         let (sys, dev) = match args.len() {
-            4 => (args[2].as_str(), args[3].as_str()),
-            _ => ("/sys", "/dev"),
+            4 => (args[2].as_os_str(), args[3].as_os_str()),
+            _ => (OsStr::new("/sys"), OsStr::new("/dev")),
         };
         let disks = Disks::new(Path::new(sys), Path::new(dev))
             .with_medium(Path::new(RECORD), image_serial());
         for line in disks.explain() {
-            println!("{line}");
+            println!("{}", line.as_str());
         }
         return ExitCode::SUCCESS;
     }
@@ -221,8 +230,8 @@ fn main() -> ExitCode {
         return ExitCode::from(2);
     }
     let (sys, dev) = match args.len() {
-        5 => (args[3].as_str(), args[4].as_str()),
-        _ => ("/sys", "/dev"),
+        5 => (args[3].as_os_str(), args[4].as_os_str()),
+        _ => (OsStr::new("/sys"), OsStr::new("/dev")),
     };
     let mut disks =
         Disks::new(Path::new(sys), Path::new(dev)).with_medium(Path::new(RECORD), image_serial());

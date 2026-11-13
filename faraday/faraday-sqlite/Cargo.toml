@@ -9,6 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+faraday-text = { path = "../../core/faraday-text" }
 zeroize = { workspace = true, features = ["alloc"] }
 
 [lints]

@@ -892,7 +892,8 @@ fn a_rename_cut_part_way_never_loses_the_file() {
             .unwrap();
             let done = v.rename("wallet.txt.new", "wallet.txt").is_ok();
             let mut v = Volume::open(v.into_disk().bytes).unwrap();
-            let names: Vec<String> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+            let names: Vec<faraday_text::Text> =
+                v.list().unwrap().into_iter().map(|e| e.name).collect();
             assert!(
                 (1..=2).contains(&names.len()),
                 "{name}: cut after {left}: {names:?}"
@@ -930,7 +931,8 @@ fn a_rename_that_changes_only_the_case_works() {
         let mut v = open(&img);
         v.create("README.TXT", b"hello").unwrap();
         v.rename("README.TXT", "readme.txt").unwrap();
-        let names: Vec<String> = v.list().unwrap().into_iter().map(|e| e.name).collect();
+        let names: Vec<faraday_text::Text> =
+            v.list().unwrap().into_iter().map(|e| e.name).collect();
         assert_eq!(names, ["readme.txt"], "{name}");
         assert_eq!(v.read("readme.txt", 1 << 20).unwrap(), b"hello");
     }

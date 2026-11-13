@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 
 use faraday_crypto::work::Compute;
 use faraday_files::{OnTaken, Place, Zeroed, write_vault_over};
+use faraday_text::Text;
 
 #[expect(
     clippy::disallowed_methods,
@@ -23,43 +24,49 @@ struct Claimed {
 }
 
 impl Place for Claimed {
-    fn files(&mut self) -> Result<Vec<(String, u64)>, String> {
-        Ok(self.files.iter().map(|(n, f)| (n.clone(), f.0)).collect())
+    fn files(&mut self) -> Result<Vec<(Text, u64)>, Text> {
+        Ok(self.files.iter().map(|(n, f)| (Text::of(n), f.0)).collect())
     }
-    fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, String> {
-        let f = self.files.get(name).ok_or("no such file")?;
+    fn read(&mut self, name: &str, max: u64) -> Result<Vec<u8>, Text> {
+        let f = self
+            .files
+            .get(name)
+            .ok_or_else(|| Text::of("no such file"))?;
         if f.0 > max {
             self.oversized_reads += 1;
-            return Err("too large".into());
+            return Err(Text::of("too large"));
         }
         Ok(f.1.clone())
     }
-    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), String> {
+    fn create(&mut self, name: &str, bytes: &[u8]) -> Result<(), Text> {
         if self.files.contains_key(name) {
-            return Err("taken".into());
+            return Err(Text::of("taken"));
         }
         self.files
             .insert(name.into(), (bytes.len() as u64, bytes.to_vec()));
         Ok(())
     }
-    fn remove(&mut self, name: &str) -> Result<(), String> {
-        self.files.remove(name).map(|_| ()).ok_or("none".into())
+    fn remove(&mut self, name: &str) -> Result<(), Text> {
+        self.files
+            .remove(name)
+            .map(|_| ())
+            .ok_or_else(|| Text::of("none"))
     }
-    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, String> {
+    fn wipe(&mut self, name: &str) -> Result<faraday_files::Wiped, Text> {
         self.remove(name).map(|()| faraday_files::Wiped::Zeroed)
     }
-    fn rename(&mut self, from: &str, to: &str) -> Result<(), String> {
-        let f = self.files.remove(from).ok_or("none")?;
+    fn rename(&mut self, from: &str, to: &str) -> Result<(), Text> {
+        let f = self.files.remove(from).ok_or_else(|| Text::of("none"))?;
         self.files.insert(to.into(), f);
         Ok(())
     }
-    fn space(&mut self) -> Result<(u64, u64), String> {
+    fn space(&mut self) -> Result<(u64, u64), Text> {
         Ok((0, 0))
     }
-    fn zero_free(&mut self, _from: u32) -> Result<Zeroed, String> {
-        Err("not here".into())
+    fn zero_free(&mut self, _from: u32) -> Result<Zeroed, Text> {
+        Err(Text::of("not here"))
     }
-    fn make_empty(&mut self) -> Result<(), String> {
+    fn make_empty(&mut self) -> Result<(), Text> {
         self.files.clear();
         Ok(())
     }
@@ -123,7 +130,7 @@ fn a_same_name_file_over_the_read_limit_is_asked_about_with_no_sha() {
     assert_eq!(
         refused,
         faraday_files::WriteRefused::NameTaken {
-            on_stick: "x.kdbx".into(),
+            on_stick: Text::of("x.kdbx"),
             sha: None
         }
     );

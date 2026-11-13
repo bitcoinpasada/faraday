@@ -26,6 +26,7 @@ faraday-shell-api = { path = "../../core/faraday-shell-api" }
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-qr = { path = "../faraday-qr" }
 faraday-files = { path = "../faraday-files" }
+faraday-text = { path = "../../core/faraday-text" }
 faraday-storage = { path = "../faraday-storage" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-kef = { path = "../faraday-kef" }

@@ -760,7 +760,7 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         Reason::ReleaseBootFile(f) => {
             let why = match f {
                 ReleaseFault::Image => S.secureboot_error_image.to_string(),
-                ReleaseFault::Fat(e) => faraday_files::fat_text(*e),
+                ReleaseFault::Fat(e) => String::from(&*faraday_files::fat_text(*e)),
             };
             fill(S.starter_why_release_boot_file, &[&why])
         }

@@ -55,6 +55,7 @@
 use std::fmt;
 use std::ops::{Deref, Range};
 
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 /// The most levels a b-tree may have, the root counting as one: SQLite's
@@ -83,11 +84,11 @@ const MAGIC: &[u8; 16] = b"SQLite format 3\0";
 /// holds committed data not yet in it: a hot rollback journal, a
 /// write-ahead log and its shared memory. A caller that sees the folder
 /// refuses to read the database when any of them exists.
-pub fn refusing_siblings(file_name: &str) -> [String; 3] {
+pub fn refusing_siblings(file_name: &str) -> [Text; 3] {
     [
-        format!("{file_name}-journal"),
-        format!("{file_name}-wal"),
-        format!("{file_name}-shm"),
+        text!("{file_name}-journal"),
+        text!("{file_name}-wal"),
+        text!("{file_name}-shm"),
     ]
 }
 
@@ -141,7 +142,7 @@ pub enum Error {
     TooDeep,
     /// Two tables of one name (names compared without regard to ASCII
     /// case, as SQLite does).
-    TableRepeated(String),
+    TableRepeated(Text),
     /// A table holding two rows with the same key.
     KeyRepeated,
     /// A table of more than [`MAX_ROWS`] rows.
@@ -160,9 +161,9 @@ pub enum Error {
     /// `sqlite_schema`.
     RootRepeated(u32),
     /// No table of that name.
-    NoTable(String),
+    NoTable(Text),
     /// A table holding records other than the one allowed.
-    OtherTable(String),
+    OtherTable(Text),
 }
 
 impl fmt::Display for Error {
@@ -210,11 +211,11 @@ pub type Row = (Vec<u8>, Zeroizing<Vec<u8>>);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Table {
     /// The table's name.
-    pub name: String,
+    pub name: Text,
     /// The page its b-tree starts on.
     pub root_page: u32,
     /// The `CREATE TABLE` text, if any.
-    pub sql: Option<String>,
+    pub sql: Option<Text>,
 }
 
 /// A database read from bytes, checked as far as its tables go.
@@ -773,12 +774,12 @@ impl<'a> Database<'a> {
                     return Ok(());
                 }
                 if tables.iter().any(|t| t.name.eq_ignore_ascii_case(name)) {
-                    return Err(Error::TableRepeated(name.to_string()));
+                    return Err(Error::TableRepeated(Text::of(name)));
                 }
                 tables.push(Table {
-                    name: name.to_string(),
+                    name: Text::of(name),
                     root_page: root,
-                    sql: sql.map(str::to_string),
+                    sql: sql.map(Text::of),
                 });
             }
             Ok(())
@@ -823,7 +824,7 @@ impl<'a> Database<'a> {
         self.tables
             .iter()
             .find(|t| t.name == name)
-            .ok_or_else(|| Error::NoTable(name.to_string()))
+            .ok_or_else(|| Error::NoTable(Text::of(name)))
     }
 
     fn walk_table(&self, t: &Table, visit: &mut Visit<'_>) -> Result<(), Error> {
