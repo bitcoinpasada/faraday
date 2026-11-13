@@ -81,8 +81,8 @@
 #      file that no longer uses one or has no heap text (it moves to
 #      SECRET_FILES), and one listed twice.
 #
-# Rule 4, the key boundary, and rule 5, the dev card's reports, are
-# described where they are checked, below.
+# Rule 4, the key boundary, rule 5, the dev card's reports, and rule 6, the
+# test allocator, are described where they are checked, below.
 #
 # Exits non-zero on any hit and prints each offending line. Run from the
 # repository root; `just lint` does.
@@ -399,6 +399,37 @@ report "the app's state in a dev report's writer (rule 5a)" \
 # shellcheck disable=SC2086
 report "faraday-core reached past its work counts in a dev report's writer (rule 5b)" \
     "$(in_code '\bfaraday_core::' $REPORT_FILES | grep -vE '\bfaraday_core::(work|FadeCounts)\b')"
+
+# Rule 6: the test allocator stays out of every shipped crate
+# (docs/SECRET-LEAKS.md §8 and §10, F181, F250). No Cargo.toml under the
+# repository (except target/ and out/) names faraday-leak-scan outside a
+# dev-dependencies table, `[target.'...'.dev-dependencies]` and
+# `[dev-dependencies.faraday-leak-scan]` included. The crate's own [package]
+# and the workspace's [workspace] members list are not a dependency.
+leak_scan_outside_dev() {
+    awk '
+        /^[[:space:]]*\[/ {
+            table = $0
+            sub(/^[[:space:]]*/, "", table)
+            sub(/[[:space:]]*(#.*)?$/, "", table)
+            next
+        }
+        /faraday-leak-scan/ {
+            if (table ~ /^\[workspace\]$/ || table ~ /^\[package\]$/) next
+            if (table ~ /dev-dependencies(\.faraday-leak-scan)?\]$/) next
+            if ($0 ~ /^[[:space:]]*#/) next
+            printf "%s: faraday-leak-scan in %s\n", FILENAME, (table == "" ? "the top of the file" : table)
+        }
+    ' "$@"
+}
+leak_scan_headers() {
+    grep -nE '^[[:space:]]*\[.*faraday-leak-scan' "$@" \
+        | grep -vE 'dev-dependencies\.faraday-leak-scan\]' \
+        | sed -E 's/^([^:]*):[0-9]+:[[:space:]]*(.*)$/\1: faraday-leak-scan in \2/'
+}
+# shellcheck disable=SC2046 # the manifest list is split on purpose
+report "the test allocator faraday-leak-scan outside a dev-dependencies table (rule 6)" \
+    "$({ leak_scan_outside_dev $(find . \( -path ./target -o -path ./out -o -path ./.git -o -path ./.claude \) -prune -o -name Cargo.toml -print | sort); leak_scan_headers $(find . \( -path ./target -o -path ./out -o -path ./.git -o -path ./.claude \) -prune -o -name Cargo.toml -print | sort); } | sort -u)"
 
 if [ "$status" -eq 0 ]; then
     echo "lint-secrets: ok"
