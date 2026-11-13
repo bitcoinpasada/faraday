@@ -667,7 +667,7 @@ fn through_a_2_of_3_checklist_the_cards_tick_what_is_done_and_the_rest_wait_for_
             bstep::STICKS
         ]
     );
-    let seed = |i: usize| app.backup_seed_list_now(w)[i].0.clone();
+    let seed = |i: usize| String::from(&*app.backup_seed_list_now(w)[i].0);
     let titles = [
         "Print 2 blank templates".to_string(),
         format!("Copy seed {} by hand", seed(0)),

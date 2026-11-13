@@ -150,7 +150,7 @@ impl Template {
         // (`docs/STARTER.md` §3.8), on its own page after the places.
         let mut sheet = sheet_blank(self.words, self.copy, None, Network::Mainnet, self.places);
         sheet.push_str("paths: blank\n");
-        sheet
+        (&*sheet).into()
     }
 
     /// Costs what `sheet` costs. The PDF of [`Template::sheet`].

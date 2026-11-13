@@ -185,7 +185,7 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
     };
     let shape = app.plan_shape(b.wallet);
     let mapped = app.plan_mapped(&shape, &b.answers);
-    let place = |p: usize| app.place_name(p);
+    let place = |p: usize| -> String { (&*app.place_name(p)).into() };
     if !matches!(st.set, SetStep::None) {
         return (set_step(app, ui, (x, y, w), form, st), false);
     }

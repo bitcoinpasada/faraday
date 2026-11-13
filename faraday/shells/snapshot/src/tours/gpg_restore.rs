@@ -60,7 +60,7 @@ pub(crate) fn gpg_restore_tour(t: &mut Tour) -> Result<(), String> {
     // The flow on the key, at step 4 with its plan set: here a plan of no
     // vaults, so that Restore the key reaches the key's own check.
     let c = faraday_core::testkit::compute();
-    let from = RestoreFrom::read(CERT).map_err(|e| e.clone())?;
+    let from = RestoreFrom::read(CERT).map_err(|e| String::from(&*e))?;
     let mut f = BackupFlow::restoring(&c, from);
     f.plan = Plan::default();
     f.step = Step::Make;

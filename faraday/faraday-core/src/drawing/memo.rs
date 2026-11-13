@@ -8,6 +8,7 @@
 use std::rc::Rc;
 
 use faraday_bip::keys::Fingerprint;
+use faraday_text::Text;
 
 use super::View;
 use crate::backups::Entry;
@@ -213,7 +214,7 @@ impl View<'_> {
 
     /// Wallet `w`'s seeds ([`crate::Faraday::backup_seed_list_now`]), once a
     /// frame each.
-    pub fn backup_seed_list(&self, w: usize) -> Vec<(String, Option<usize>)> {
+    pub fn backup_seed_list(&self, w: usize) -> Vec<(Text, Option<usize>)> {
         if let Some((_, list)) = self
             .drawing
             .seed_lists
@@ -251,7 +252,7 @@ impl View<'_> {
     /// The public files of loaded wallet `wi` under answers `a`
     /// ([`crate::Faraday::backup_public_names_for_now`]): once a frame for the
     /// backup's own answers, on each ask for others.
-    pub(crate) fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<String> {
+    pub(crate) fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<Text> {
         // Kept only for the backup's own answers: another caller's
         // answers are another question.
         let own = self

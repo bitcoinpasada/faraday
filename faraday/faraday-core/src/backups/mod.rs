@@ -1015,9 +1015,11 @@ impl Faraday {
                             }
                         }
                         What::KefCodePaper(_) => {}
-                        What::Wallet if spot.at == At::Files => out.files.extend(public.clone()),
+                        What::Wallet if spot.at == At::Files => {
+                            out.files.extend(public.iter().map(|t| String::from(&**t)))
+                        }
                         What::Wallet if spot.at == At::Software && a.form[plan::form::TEXT] => {
-                            out.files.extend(public.clone())
+                            out.files.extend(public.iter().map(|t| String::from(&**t)))
                         }
                         _ => {}
                     }
@@ -1413,7 +1415,8 @@ impl Faraday {
         else {
             return;
         };
-        let (wallet, answers, names) = (b.wallet, b.answers.clone(), b.names.clone());
+        let (wallet, answers) = (b.wallet, b.answers.clone());
+        let names: Vec<String> = b.names.iter().map(|n| String::from(&**n)).collect();
         let Some(w) = self.session.wallets.get(wallet) else {
             return;
         };
@@ -1966,9 +1969,14 @@ impl Faraday {
             self.plan_notes(c, w, None)
         };
         // The places' names: the backup under way's, else the vault's.
-        let names = match self.backup.state() {
-            Some(b) if wi.is_some_and(|i| i == b.wallet) => b.names.clone(),
-            _ => kept.as_ref().map(|(_, n)| n.clone()).unwrap_or_default(),
+        let names: Vec<String> = match self.backup.state() {
+            Some(b) if wi.is_some_and(|i| i == b.wallet) => {
+                b.names.iter().map(|n| String::from(&**n)).collect()
+            }
+            _ => kept
+                .as_ref()
+                .map(|(_, n)| n.iter().map(|t| String::from(&**t)).collect())
+                .unwrap_or_default(),
         };
         if let Some(r) = self.backups_area.record(sum) {
             return Some(self.record_lines(c, r, &names, &notes, iv));

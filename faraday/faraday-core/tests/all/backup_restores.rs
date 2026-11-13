@@ -131,7 +131,7 @@ fn any_quorum_of_split_sheets_rebuilds_the_wallets_first_addresses() {
             let plan = split_plan(n, m, omit);
             let sheets: Vec<String> = plan
                 .iter()
-                .map(|row| split_share(w, row).expect("a sheet"))
+                .map(|row| String::from(&*split_share(w, row).expect("a sheet")))
                 .collect();
             for q in quorums(n, m) {
                 let some: Vec<String> = q.iter().map(|&j| sheets[j].clone()).collect();
@@ -161,7 +161,7 @@ fn sheets_that_rebuild_another_wallet_are_refused() {
     let (m, n) = Session::quorum(sorted);
     let sheets: Vec<String> = split_plan(n, m, 1)
         .iter()
-        .map(|row| split_share(sorted, row).expect("a sheet"))
+        .map(|row| String::from(&*split_share(sorted, row).expect("a sheet")))
         .collect();
     assert!(faraday_core::restore::rebuilds(
         &c,

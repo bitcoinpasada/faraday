@@ -39,6 +39,25 @@ impl Text {
         t
     }
 
+    /// One holding what `args` formats to, in a buffer of exactly its
+    /// size: the text is measured first so it is never grown piece by
+    /// piece. [`text!`](crate::text) calls it.
+    pub fn formatted(args: fmt::Arguments<'_>) -> Text {
+        struct Count(usize);
+        impl fmt::Write for Count {
+            fn write_str(&mut self, s: &str) -> fmt::Result {
+                self.0 += s.len();
+                Ok(())
+            }
+        }
+        let mut n = Count(0);
+        // Counting never fails.
+        let _ = fmt::Write::write_fmt(&mut n, args);
+        let mut out = Text::with_room(n.0);
+        let _ = fmt::Write::write_fmt(&mut out, args);
+        out
+    }
+
     /// Fills a template's `{}` placeholders from `args`, in order, into a
     /// buffer of exactly the size of the result. A placeholder with no
     /// argument is dropped; a spare argument is ignored.

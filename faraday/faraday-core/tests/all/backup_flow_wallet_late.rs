@@ -222,7 +222,11 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     let split = faraday_core::wallet_backup::split_plan(n, m, omit);
     let texts: Vec<String> = split
         .iter()
-        .map(|row| faraday_core::wallet_backup::split_share(&app.session.wallets[w], row).unwrap())
+        .map(|row| {
+            String::from(
+                &*faraday_core::wallet_backup::split_share(&app.session.wallets[w], row).unwrap(),
+            )
+        })
         .collect();
     let share = |j: usize| texts[j].clone();
     let made = app.session.wallets[w].policy().to_descriptor_checksummed();
@@ -771,7 +775,7 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
         .of(kind::WALLET_SHARE)
         .map(|(_, r)| r.text(field::SHARE).unwrap_or("").to_string())
         .collect();
-    assert_eq!(texts, vec![none_off], "Share 2 with no key left off");
+    assert_eq!(texts, vec![&*none_off], "Share 2 with no key left off");
 }
 
 /// Place names typed on the flow's Places card before the lock are in
@@ -898,7 +902,8 @@ fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
                 format!("w-share-{}-of-{n}.txt", j + 1),
                 faraday_core::wallet_backup::split_share(wallet, &split[j])
                     .unwrap()
-                    .into_bytes(),
+                    .as_bytes()
+                    .to_vec(),
             )
         })
         .collect();

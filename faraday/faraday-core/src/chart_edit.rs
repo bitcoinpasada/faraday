@@ -432,10 +432,7 @@ impl Faraday {
         }
         let mut extras = self.backup.chart_edit(
             &ask.answers,
-            &ask.names
-                .iter()
-                .map(|n| n.as_str().into())
-                .collect::<Vec<_>>(),
+            &ask.names.iter().map(|n| Text::of(n)).collect::<Vec<_>>(),
         );
         self.backups_sync();
         if let Some(v) = self.notes_vault(&c, ask.press, w)
@@ -443,7 +440,7 @@ impl Faraday {
         {
             for line in self.plan_extras(&c, wallet, v) {
                 if !extras.iter().any(|e| *e == *line) {
-                    extras.push(line.as_str().into());
+                    extras.push(Text::of(&line));
                 }
             }
             let notes =
@@ -452,10 +449,7 @@ impl Faraday {
                 v,
                 w,
                 &ask.answers,
-                &ask.names
-                    .iter()
-                    .map(|n| n.as_str().into())
-                    .collect::<Vec<_>>(),
+                &ask.names.iter().map(|n| Text::of(n)).collect::<Vec<_>>(),
                 &extras,
                 Some(&notes),
             );

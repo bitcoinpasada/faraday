@@ -1715,7 +1715,7 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
             out.push_str(&text!("pstick\t{}\n", &*t.code()));
         }
         if let Some(r) = &f.restore {
-            out.push_str(&text!("restore\t{}\n", gpg_restore::file_hex(&r.file)));
+            out.push_str(&text!("restore\t{}\n", &*gpg_restore::file_hex(&r.file)));
         }
         if let Some(w) = &f.wallet {
             out.push_str(&text!(

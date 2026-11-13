@@ -1097,9 +1097,6 @@ impl crate::glance::Reads for View<'_> {
     }
     fn backup_public_names_for(&self, wi: usize, a: &plan::Answers) -> Vec<Text> {
         View::backup_public_names_for(self, wi, a)
-            .iter()
-            .map(|s| Text::of(s))
-            .collect()
     }
     fn backup_vault_fits(&self, v: usize) -> Option<Text> {
         self.kept(|c| self.app.backup_vault_fits(c, v))
@@ -1113,9 +1110,6 @@ impl crate::glance::Reads for View<'_> {
     }
     fn backup_seed_list(&self, w: usize) -> Vec<(Text, Option<usize>)> {
         View::backup_seed_list(self, w)
-            .into_iter()
-            .map(|(s, i)| (Text::of(&s), i))
-            .collect()
     }
     fn address_shown(&self, wl: &Wallet, change: bool, index: u32) -> Text {
         Text::of(&View::address_shown(self, wl, change, index))

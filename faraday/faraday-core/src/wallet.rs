@@ -496,6 +496,12 @@ pub fn fp_text(fp: Fingerprint) -> String {
     String::from_utf8_lossy(&fp.to_hex()).into_owned()
 }
 
+/// A fingerprint as eight hex digits, as one exactly sized [`Text`]
+/// (public).
+pub fn fp_label(fp: Fingerprint) -> faraday_text::Text {
+    faraday_text::Text::from_utf8_lossy(&fp.to_hex())
+}
+
 /// A wallet's source as a tag: "Vault" reads "From Vault" (`cap`) or
 /// "from Vault" (inline, after another phrase), but a source whose
 /// [`Origin`] already reads as a complete statement ("Made here",

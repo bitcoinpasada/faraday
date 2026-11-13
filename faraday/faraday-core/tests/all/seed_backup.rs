@@ -425,8 +425,8 @@ fn kept(app: &Faraday) -> Kept {
     app.backup_kept(&c).expect("no backup open")
 }
 
-fn line(text: &str, tone: Tone) -> (String, Tone) {
-    (text.to_string(), tone)
+fn line(text: &str, tone: Tone) -> (faraday_text::Text, Tone) {
+    (faraday_text::Text::of(text), tone)
 }
 
 /// Test key `n` typed into Add a key. Returns its index in the session.
@@ -572,7 +572,7 @@ fn a_two_of_three_with_one_seed_here_lists_the_other_two_as_not_here() {
     let away = vec![line("Not here: backed up on its own device", Tone::Dim)];
     assert_eq!(seeds[0].lines, away);
     assert_eq!(seeds[2].lines, away);
-    assert_eq!(seeds[1].name, faraday_core::wallet::fp_text(fp));
+    assert_eq!(seeds[1].name, faraday_core::wallet::fp_text(fp).as_str());
     assert_ne!(seeds[1].lines, away);
 }
 

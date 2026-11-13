@@ -311,7 +311,7 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
     );
     assert_eq!(
         app.backup_vault_fits(&c, 0),
-        Some(String::from(name.as_str())),
+        Some(faraday_text::Text::of(name.as_str())),
         "the locked vault is done"
     );
     let sha = app

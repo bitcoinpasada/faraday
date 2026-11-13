@@ -188,7 +188,7 @@ struct Figure {
 fn state_of(app: &View, f: &BackupFlow, k: usize) -> State {
     let r = f.live.reading.as_ref().filter(|r| r.slot == k);
     if let Some(p) = r.and_then(|r| r.problem.as_ref()) {
-        return State::Problem(app.flow_problem_text(p));
+        return State::Problem((&*app.flow_problem_text(p)).into());
     }
     if f.slots[k].bound.is_some() {
         State::Checked

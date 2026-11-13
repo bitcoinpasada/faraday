@@ -566,7 +566,7 @@ impl Faraday {
                 texts(crate::codex32_backup::stick_names(shape, a, what))
             }
             // The Krux code's files, under the names the Outbox gave them.
-            P::KefCode(i) => texts(crate::wallet_backup::kef::stick_names(self, i)),
+            P::KefCode(i) => crate::wallet_backup::kef::stick_names(self, i),
             _ => Vec::new(),
         }
     }

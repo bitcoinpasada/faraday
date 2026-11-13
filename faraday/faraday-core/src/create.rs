@@ -892,7 +892,7 @@ pub(crate) fn paths_text(policy: &WalletPolicy) -> Text {
             .zip(&paths)
             .map(|(k, p)| {
                 let fp = k.fingerprint().or(Some(k.identifier_fingerprint()));
-                text!("{} {}", crate::wallet_backup::fp_of(fp), p.as_str())
+                text!("{} {}", &*crate::wallet_backup::fp_of(fp), p.as_str())
             })
             .fold(Text::new(), |mut all, one| {
                 if !all.is_empty() {

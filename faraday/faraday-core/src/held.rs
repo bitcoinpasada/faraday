@@ -12,6 +12,7 @@ use crate::strings::fill;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::RecordView;
+use faraday_text::Text;
 use faraday_vault::records::{self, Record, field, kind};
 
 use crate::glance::{Now, Reads};
@@ -744,7 +745,7 @@ impl Faraday {
         {
             let held = self.vault_tokens(&c, cur);
             self.backup
-                .note_before(salt, held.iter().map(|t| String::from(&**t)).collect());
+                .note_before(salt, held.iter().map(|t| Text::of(t)).collect());
         }
         let Some(b) = self.backup.state() else {
             return;
@@ -925,7 +926,7 @@ impl Faraday {
                 .answers
                 .vault_seeds(&shape, v)
                 .into_iter()
-                .map(|i| String::from(&*shape.seeds[i].name))
+                .map(|i| Text::of(&shape.seeds[i].name))
                 .collect();
             prior.push((name, seeds));
         }
@@ -940,7 +941,7 @@ impl Faraday {
             return;
         };
         let shape = self.plan_shape_now(b.wallet);
-        let kept: Vec<String> = b
+        let kept: Vec<Text> = b
             .answers
             .vaults_made(&shape)
             .into_iter()
@@ -952,7 +953,7 @@ impl Faraday {
                 continue;
             }
             for seed in seeds {
-                let line = fill(EN.held_holds_seed, &[&name.to_string(), &seed.to_string()]);
+                let line = Text::fill(EN.held_holds_seed, &[name, seed]);
                 if !extras.contains(&line) {
                     extras.push(line);
                 }

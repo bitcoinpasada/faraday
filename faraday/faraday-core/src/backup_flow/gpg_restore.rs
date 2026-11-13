@@ -16,7 +16,8 @@ use faraday_shell_api::Key as KeyIn;
 use super::{BackupFlowArea, RestorePress};
 use crate::Item;
 use crate::secret_text::SecretText;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
+use faraday_text::Text;
 
 /// The head card's number among the cards (`live.open`): not a step's.
 pub const HEAD: u8 = 100;
@@ -26,8 +27,8 @@ pub const SHEET: crate::Action =
     crate::Action::Flow(super::steps::FlowAction::Restore(RestorePress::Sheet));
 
 /// Vault contents' GPG kind: its **Restore from a paperkey** button.
-pub(crate) fn contents_button() -> (String, crate::Action) {
-    (EN.gpg_restore_action.to_string(), SHEET)
+pub(crate) fn contents_button() -> (Text, crate::Action) {
+    (Text::of(EN.gpg_restore_action), SHEET)
 }
 
 /// The bytes a line holds at paperkey's default width.
@@ -46,7 +47,7 @@ pub struct RestoreFrom {
     /// The armoured certificate, as it came.
     pub file: Vec<u8>,
     /// Its first user ID.
-    pub user_id: String,
+    pub user_id: Text,
     /// The primary key's fingerprint.
     pub fingerprint: [u8; 20],
     /// The signing subkey's.
@@ -62,22 +63,22 @@ pub struct RestoreFrom {
     pub set_aside: usize,
     /// Line 1 of its paperkey, as paperkey prints its bytes: `00 04` and
     /// the fingerprint.
-    pub line_one: String,
+    pub line_one: Text,
     /// The fingerprint as GnuPG prints it, in groups of four.
-    pub fingerprint_text: String,
+    pub fingerprint_text: Text,
     /// The subkey's, the same way.
-    pub subkey_text: String,
+    pub subkey_text: Text,
     /// The fingerprint's last eight digits: the flow's chip.
-    pub chip: String,
+    pub chip: Text,
 }
 
 impl RestoreFrom {
     /// Costs a SHA-1 of each key. The certificate in `file`, read for a
     /// restore, or why it is not (`docs/GPG-PAPERKEY.md` §4.4).
-    pub fn read(file: &[u8]) -> Result<RestoreFrom, String> {
+    pub fn read(file: &[u8]) -> Result<RestoreFrom, Text> {
         let cert = Certificate::read(file).map_err(|r| refusal_text(&r))?;
         let fp = cert.fingerprint();
-        let mut line_one = String::from("00 04");
+        let mut line_one = Text::of("00 04");
         let hex = faraday_crypto::hex::encode_string(&fp).to_ascii_uppercase();
         for pair in hex.as_bytes().chunks(2) {
             line_one.push(' ');
@@ -85,14 +86,14 @@ impl RestoreFrom {
             line_one.push(char::from(pair[1]));
         }
         Ok(RestoreFrom {
-            fingerprint_text: String::from(&*fingerprint_text(&fp)),
-            subkey_text: String::from(&*fingerprint_text(&cert.subkey_fingerprint())),
-            chip: hex[hex.len() - 8..].to_string(),
+            fingerprint_text: fingerprint_text(&fp),
+            subkey_text: fingerprint_text(&cert.subkey_fingerprint()),
+            chip: Text::of(&hex[hex.len() - 8..]),
             file: file.to_vec(),
             user_id: cert
                 .user_ids()
                 .first()
-                .map(|u| String::from(&**u))
+                .map(|u| Text::of(u))
                 .unwrap_or_default(),
             fingerprint: fp,
             subkey: cert.subkey_fingerprint(),
@@ -106,22 +107,24 @@ impl RestoreFrom {
 }
 
 /// What a refusal says (`docs/GPG-PAPERKEY.md` §4.4).
-pub fn refusal_text(r: &Refusal) -> String {
+pub fn refusal_text(r: &Refusal) -> Text {
     match r {
-        Refusal::NotCertificate => EN.gpg_restore_not_public.to_string(),
-        Refusal::Algorithm(a) => fill(EN.gpg_restore_algorithm, &[a]),
-        Refusal::Version(v) => fill(EN.gpg_restore_version, &[&v.to_string()]),
-        Refusal::Shape => EN.gpg_restore_shape.to_string(),
-        Refusal::NoUserId => EN.gpg_restore_no_user_id.to_string(),
-        Refusal::FormatVersion(v) => fill(EN.gpg_restore_format, &[&v.to_string()]),
-        Refusal::OtherKey(fp) => fill(EN.gpg_restore_other_key, &[&fingerprint_text(fp)]),
-        Refusal::OtherSubkey(fp) => fill(EN.gpg_restore_other_subkey, &[&fingerprint_text(fp)]),
-        Refusal::Count(n) => fill(EN.gpg_restore_count, &[&n.to_string()]),
-        Refusal::Protected => EN.gpg_restore_protected.to_string(),
-        Refusal::Crc => EN.gpg_restore_crc_all.to_string(),
-        Refusal::Unreadable => EN.gpg_restore_unreadable.to_string(),
-        Refusal::Mismatch => EN.gpg_restore_mismatch.to_string(),
-        Refusal::NotOurs => EN.gpg_restore_not_ours.to_string(),
+        Refusal::NotCertificate => Text::of(EN.gpg_restore_not_public),
+        Refusal::Algorithm(a) => Text::fill(EN.gpg_restore_algorithm, &[a]),
+        Refusal::Version(v) => Text::fill(EN.gpg_restore_version, &[&Text::num((*v).into())]),
+        Refusal::Shape => Text::of(EN.gpg_restore_shape),
+        Refusal::NoUserId => Text::of(EN.gpg_restore_no_user_id),
+        Refusal::FormatVersion(v) => Text::fill(EN.gpg_restore_format, &[&Text::num((*v).into())]),
+        Refusal::OtherKey(fp) => Text::fill(EN.gpg_restore_other_key, &[&fingerprint_text(fp)]),
+        Refusal::OtherSubkey(fp) => {
+            Text::fill(EN.gpg_restore_other_subkey, &[&fingerprint_text(fp)])
+        }
+        Refusal::Count(n) => Text::fill(EN.gpg_restore_count, &[&Text::num(*n as u64)]),
+        Refusal::Protected => Text::of(EN.gpg_restore_protected),
+        Refusal::Crc => Text::of(EN.gpg_restore_crc_all),
+        Refusal::Unreadable => Text::of(EN.gpg_restore_unreadable),
+        Refusal::Mismatch => Text::of(EN.gpg_restore_mismatch),
+        Refusal::NotOurs => Text::of(EN.gpg_restore_not_ours),
     }
 }
 
@@ -131,11 +134,11 @@ pub struct SheetRow {
     /// Its place in the Inbox.
     pub index: usize,
     /// Its user ID, or its file name where it does not read.
-    pub user_id: String,
+    pub user_id: Text,
     /// Its fingerprint in groups of four; empty where it does not read.
-    pub fingerprint: String,
+    pub fingerprint: Text,
     /// Why it is not restored here, where it is not.
-    pub refused: Option<String>,
+    pub refused: Option<Text>,
 }
 
 /// Costs a SHA-1 of each key of each public key. The sheet's rows: every
@@ -153,13 +156,13 @@ pub fn sheet_rows(inbox: &[Item]) -> Vec<SheetRow> {
             Ok(r) => SheetRow {
                 index,
                 user_id: r.user_id,
-                fingerprint: String::from(&*fingerprint_text(&r.fingerprint)),
+                fingerprint: fingerprint_text(&r.fingerprint),
                 refused: None,
             },
             Err(e) => SheetRow {
                 index,
-                user_id: i.name.clone(),
-                fingerprint: String::new(),
+                user_id: Text::of(&i.name),
+                fingerprint: Text::new(),
                 refused: Some(e),
             },
         })
@@ -191,12 +194,12 @@ pub struct RestoreLive {
     /// The line being typed: transient input, wiped when it is handed in.
     typed: SecretText,
     /// Why the line typed was not taken: shown under it.
-    error: Option<String>,
+    error: Option<Text>,
     /// Why **Restore the key** did not restore: shown under the button.
-    refused: Option<String>,
+    refused: Option<Text>,
     /// The open vault that holds the key already, by its place, and its
     /// name.
-    in_vault: Option<(usize, String)>,
+    in_vault: Option<(usize, Text)>,
     /// The line's field was pressed, or a line was typed: the hex keyboard
     /// stands under it. A new restore starts without it.
     pub(crate) focused: bool,
@@ -206,7 +209,7 @@ pub struct RestoreLive {
     /// The fingerprint line 1 names, in groups of four, once it is
     /// checked: public. Kept in step with the lines at every line taken
     /// or cleared.
-    fingerprint_shown: Option<String>,
+    fingerprint_shown: Option<Text>,
 }
 
 impl RestoreLive {
@@ -234,11 +237,7 @@ impl RestoreLive {
 
     /// The fingerprint shown kept in step with the lines checked.
     fn sync_shown(&mut self) {
-        self.fingerprint_shown = self
-            .set
-            .fingerprints()
-            .first()
-            .map(|f| String::from(&*fingerprint_text(f)));
+        self.fingerprint_shown = self.set.fingerprints().first().map(fingerprint_text);
     }
 
     /// The number of the line being typed.
@@ -277,7 +276,7 @@ impl RestoreLive {
     }
 
     /// The open vault that holds the key already.
-    pub fn in_vault(&self) -> Option<&(usize, String)> {
+    pub fn in_vault(&self) -> Option<&(usize, Text)> {
         self.in_vault.as_ref()
     }
 
@@ -297,7 +296,7 @@ impl RestoreLive {
         if !(c.is_ascii_hexdigit() || c == ' ' || c == ':')
             || (c == ':' && self.typed.contains(':'))
         {
-            self.error = Some(EN.gpg_restore_chars.to_string());
+            self.error = Some(Text::of(EN.gpg_restore_chars));
             return;
         }
         self.typed.push(c.to_ascii_uppercase());
@@ -347,7 +346,7 @@ impl RestoreLive {
     /// Costs a CRC-24 over each line and over the whole. A paperkey read
     /// from a code: every line taken at once, in place of those typed, or
     /// why not, those typed kept.
-    fn paperkey_code(&mut self, bytes: &[u8]) -> Result<(), String> {
+    fn paperkey_code(&mut self, bytes: &[u8]) -> Result<(), Text> {
         self.set.paperkey_code(bytes).map_err(|e| code_text(&e))?;
         self.sync_shown();
         self.typed.clear();
@@ -396,8 +395,8 @@ impl RestoreLive {
     }
 
     /// The key is in open vault `o`, named `name`: nothing is saved.
-    pub(crate) fn refuse_in_vault(&mut self, o: usize, name: String) {
-        self.refused = Some(fill(EN.gpg_restore_in_vault, &[&name]));
+    pub(crate) fn refuse_in_vault(&mut self, o: usize, name: Text) {
+        self.refused = Some(Text::fill(EN.gpg_restore_in_vault, &[&name]));
         self.in_vault = Some((o, name));
     }
 }
@@ -412,7 +411,7 @@ pub(crate) fn built(r: Restored) -> super::Built {
             .facts
             .user_ids
             .first()
-            .map_or_else(String::new, |u| String::from(&**u)),
+            .map_or_else(Default::default, |u| (&**u).into()),
         subject: r.made.facts.fingerprint.to_vec(),
         record: r.made.key,
         outbox: Vec::new(),
@@ -420,33 +419,36 @@ pub(crate) fn built(r: Restored) -> super::Built {
 }
 
 /// What a line refused says.
-fn line_text(n: u32, e: &LineRefused) -> String {
+fn line_text(n: u32, e: &LineRefused) -> Text {
     match e {
-        LineRefused::Line(LineError::Chars) => EN.gpg_restore_chars.to_string(),
+        LineRefused::Line(LineError::Chars) => Text::of(EN.gpg_restore_chars),
         // The line handed in is always the next one, so a number refused
         // is the one typed before the colon.
-        LineRefused::Line(LineError::Number { typed }) => {
-            fill(EN.gpg_restore_number, &[&n.to_string(), &typed.to_string()])
+        LineRefused::Line(LineError::Number { typed }) => Text::fill(
+            EN.gpg_restore_number,
+            &[&Text::num(n.into()), &Text::num((*typed).into())],
+        ),
+        LineRefused::Line(LineError::Crc) => {
+            Text::fill(EN.gpg_restore_crc, &[&Text::num(n.into())])
         }
-        LineRefused::Line(LineError::Crc) => fill(EN.gpg_restore_crc, &[&n.to_string()]),
         LineRefused::Paperkey(r) => refusal_text(r),
     }
 }
 
 /// What a paperkey code refused says.
-fn code_text(e: &CodeRefused) -> String {
+fn code_text(e: &CodeRefused) -> Text {
     match e {
-        CodeRefused::NotPaperkey => EN.gpg_restore_not_paperkey.to_string(),
+        CodeRefused::NotPaperkey => Text::of(EN.gpg_restore_not_paperkey),
         CodeRefused::Line(n, e) => line_text(*n, e),
         CodeRefused::Paperkey(r) => refusal_text(r),
-        CodeRefused::Short => EN.gpg_restore_crc_missing.to_string(),
-        CodeRefused::After(n) => fill(EN.gpg_restore_after, &[&n.to_string()]),
+        CodeRefused::Short => Text::of(EN.gpg_restore_crc_missing),
+        CodeRefused::After(n) => Text::fill(EN.gpg_restore_after, &[&Text::num((*n).into())]),
     }
 }
 
 /// The certificate file kept across a lock, as hex.
-pub(crate) fn file_hex(file: &[u8]) -> String {
-    String::from(&*faraday_crypto::hex::encode_string(file))
+pub(crate) fn file_hex(file: &[u8]) -> Text {
+    Text::of(&faraday_crypto::hex::encode_string(file))
 }
 
 /// The certificate file read back from [`file_hex`].
@@ -537,12 +539,12 @@ impl BackupFlowArea {
 
     /// Costs what `RestoreLive::paperkey_code` costs. A paperkey code read for flow
     /// `i`'s step 4: its lines taken, or why not.
-    pub(crate) fn restore_code(&mut self, i: usize, bytes: &[u8]) -> Result<(), String> {
+    pub(crate) fn restore_code(&mut self, i: usize, bytes: &[u8]) -> Result<(), Text> {
         if !self.restore_typing(i) {
-            return Err(EN.gpg_restore_not_paperkey.to_string());
+            return Err(Text::of(EN.gpg_restore_not_paperkey));
         }
         self.restoring_mut(i)
-            .ok_or_else(|| EN.gpg_restore_not_paperkey.to_string())?
+            .ok_or_else(|| Text::of(EN.gpg_restore_not_paperkey))?
             .paperkey_code(bytes)
     }
 
@@ -592,7 +594,7 @@ impl BackupFlowArea {
             .find(|&o| super::record_in(vaults, o, super::Kind::Gpg, &fp).is_some());
         let r = self.restoring_mut(i)?;
         if let Some(o) = held {
-            r.refuse_in_vault(o, String::from(vaults.open[o].name.as_str()));
+            r.refuse_in_vault(o, Text::of(vaults.open[o].name.as_str()));
             return None;
         }
         r.finish(c).map(built)

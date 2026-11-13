@@ -494,12 +494,12 @@ impl Faraday {
             PlainThen::Secret => self.secret_unprotected_now(),
             PlainThen::Plan(before, names, fps) => {
                 for f in names.into_iter().chain(fps) {
-                    self.backup.files_warned(f.as_str().into());
+                    self.backup.files_warned(Text::of(&f));
                 }
                 self.board_sees_ask(*before);
             }
             PlainThen::Lock(name) => {
-                self.backup.files_warned(name.as_str().into());
+                self.backup.files_warned(Text::of(&name));
                 self.wallet_lock_write();
             }
             PlainThen::Transfer(name, bytes) => self.transfer_save(name, bytes),

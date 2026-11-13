@@ -36,7 +36,7 @@ fn sheets(name: &str, descriptor: &str) -> (Vec<String>, String) {
     let (m, n) = Session::quorum(w);
     let out = split_plan(n, m, 1)
         .iter()
-        .map(|row| split_share(w, row).expect("a sheet"))
+        .map(|row| String::from(&*split_share(w, row).expect("a sheet")))
         .collect();
     (out, w.policy().to_descriptor_checksummed())
 }

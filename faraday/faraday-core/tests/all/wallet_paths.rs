@@ -98,7 +98,7 @@ fn the_wallet_sheet_carries_the_paths_and_the_table() {
     let app = with(YEAR);
     let c = testkit::compute();
     let w = &app.session.wallets[0];
-    let sheet = sheet_wallet(&c, &app.session, w);
+    let sheet = String::from(&*sheet_wallet(&c, &app.session, w));
     assert!(sheet.contains("path: Key 1\nwait: Any time\n"), "{sheet}");
     assert!(sheet.contains("unmoved: 365 52560 328\n"), "{sheet}");
     let made = pdf::sheet(&c, &sheet).expect("a PDF");

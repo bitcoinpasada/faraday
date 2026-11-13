@@ -937,9 +937,9 @@ impl Faraday {
     /// Place `p`'s name on the board on screen.
     pub(crate) fn board_place_name(&self, p: usize) -> String {
         if self.board_backup_names() {
-            self.place_name(p)
+            (&*self.place_name(p)).into()
         } else {
-            String::from(&*crate::backup_flow::BackupFlow::place_name(p))
+            (&*crate::backup_flow::BackupFlow::place_name(p)).into()
         }
     }
 
@@ -957,7 +957,7 @@ impl Faraday {
                     _ => fill(EN.plan_vault, &[&n]),
                 }
             }
-            _ => self.backup_vault_title(v),
+            _ => (&*self.backup_vault_title(v)).into(),
         }
     }
 
@@ -1327,7 +1327,9 @@ impl Faraday {
                 // The name being typed is drawn as it is typed, the field's
                 // own text (§19.18).
                 let name = match self.backup.state() {
-                    Some(b) if naming == Some(p) => b.names.get(p).cloned().unwrap_or_default(),
+                    Some(b) if naming == Some(p) => {
+                        b.names.get(p).map(|n| (&**n).into()).unwrap_or_default()
+                    }
                     _ => place_name(p),
                 };
                 CardView {

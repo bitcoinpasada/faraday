@@ -333,7 +333,9 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
         }
         5 => files.push((
             format!("{stem}-wallet.json"),
-            wallet_backup::wallet_json(&w.name, w.policy()).into_bytes(),
+            wallet_backup::wallet_json(&w.name, w.policy())
+                .as_bytes()
+                .to_vec(),
         )),
         6 => {
             if let Some(record) = file_text(c, net, w, 6) {
@@ -379,7 +381,7 @@ pub(crate) fn files(c: &Compute, inp: &Inputs, what: u8, bytes: bool) -> Made {
                     }
                     files.push((
                         format!("{stem}-share-{}-of-{n}.txt", i + 1),
-                        share.into_bytes(),
+                        share.as_bytes().to_vec(),
                     ));
                     // And its code, to scan back.
                     let share = format!("{stem}-share-{}-of-{n}", i + 1);
@@ -683,7 +685,12 @@ fn checklist_parts(app: &mut Faraday) -> Option<(usize, Vec<Part>)> {
                         text,
                     });
                 }
-                parts.push(Part::Ready(app.account_key_files(&c, w)));
+                parts.push(Part::Ready(
+                    app.account_key_files(&c, w)
+                        .into_iter()
+                        .map(|(n, b)| ((&*n).into(), b))
+                        .collect(),
+                ));
             }
             _ => {}
         }

@@ -2826,7 +2826,7 @@ impl Faraday {
     /// person asks ([`Faraday::public_out_job`]).
     pub(crate) fn public_out(&mut self, wallet: usize, what: u8) {
         let files = self.public_made(wallet, what);
-        let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
+        let names: Vec<faraday_text::Text> = files.iter().map(|(n, _)| n.duplicate()).collect();
         for (name, bytes) in files {
             self.put_outbox(&name, bytes);
         }
@@ -2902,7 +2902,11 @@ impl Faraday {
         if let Some(t) = &made.toast {
             self.toast(t);
         }
-        let names: Vec<String> = made.files.iter().map(|(n, _)| n.clone()).collect();
+        let names: Vec<faraday_text::Text> = made
+            .files
+            .iter()
+            .map(|(n, _)| faraday_text::Text::of(n))
+            .collect();
         for (name, bytes) in made.files {
             self.put_outbox(&name, bytes);
         }

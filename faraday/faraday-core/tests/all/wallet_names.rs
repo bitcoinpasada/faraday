@@ -58,10 +58,10 @@ fn a_wallet_file_whose_label_runs_over_lines_loads_under_a_one_line_name_and_its
     let w = &app.session.wallets[0];
     assert!(one_line(&w.name), "{:?}", w.name);
     assert!(w.name.starts_with("Savings"), "{:?}", w.name);
-    let sheet = sheet_wallet(&c, &app.session, w);
+    let sheet = String::from(&*sheet_wallet(&c, &app.session, w));
     assert_eq!(
         values(&sheet, "descriptor"),
-        vec![w.policy().to_descriptor_checksummed().as_str()],
+        vec![&*w.policy().to_descriptor_checksummed()],
         "{sheet}"
     );
     assert_eq!(values(&sheet, "name").len(), 1, "{sheet}");
@@ -84,16 +84,16 @@ fn a_share_sheet_holds_only_the_shares_lines_whatever_the_wallet_is_called() {
         )
         .unwrap();
     assert!(one_line(&s.wallets[i].name), "{:?}", s.wallets[i].name);
-    let sheet = sheet_share(&s.wallets[i], 1, 3, share);
+    let sheet = String::from(&*sheet_share(&s.wallets[i], 1, 3, share));
     assert_eq!(values(&sheet, "line"), own, "{sheet}");
     // A name set on the wallet after it was made is written as one line
     // too.
     s.wallets[i].name = "Savings\r\nline: ms12other\u{85}quorum: 1 of 1".to_string();
-    let sheet = sheet_share(&s.wallets[i], 1, 3, share);
+    let sheet = String::from(&*sheet_share(&s.wallets[i], 1, 3, share));
     assert_eq!(values(&sheet, "line"), own, "{sheet}");
     assert_eq!(values(&sheet, "quorum").len(), 1, "{sheet}");
     assert!(pdf::sheet(&c, &sheet).is_ok());
-    let sheet = sheet_wallet(&c, &s, &s.wallets[i]);
+    let sheet = String::from(&*sheet_wallet(&c, &s, &s.wallets[i]));
     assert_eq!(values(&sheet, "descriptor").len(), 1, "{sheet}");
     assert_eq!(values(&sheet, "name").len(), 1, "{sheet}");
 }
@@ -105,7 +105,7 @@ fn a_sheet_naming_its_descriptor_twice_is_refused() {
     let i = s
         .add_wallet(&c, "Savings", &testkit::savings(), "test", Origin::Named)
         .unwrap();
-    let sheet = sheet_wallet(&c, &s, &s.wallets[i]);
+    let sheet = String::from(&*sheet_wallet(&c, &s, &s.wallets[i]));
     assert!(pdf::sheet(&c, &sheet).is_ok());
     let twice = format!("{sheet}descriptor: {}\n", testkit::three_of_five());
     assert_eq!(
@@ -165,10 +165,10 @@ fn a_vault_wallet_named_over_two_lines_reads_as_a_one_line_name() {
     assert_eq!(app.session.wallets.len(), 1);
     let w = &app.session.wallets[0];
     assert!(one_line(&w.name), "{:?}", w.name);
-    let sheet = sheet_wallet(&c, &app.session, w);
+    let sheet = String::from(&*sheet_wallet(&c, &app.session, w));
     assert_eq!(
         values(&sheet, "descriptor"),
-        vec![w.policy().to_descriptor_checksummed().as_str()],
+        vec![&*w.policy().to_descriptor_checksummed()],
         "{sheet}"
     );
 }

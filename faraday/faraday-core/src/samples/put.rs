@@ -477,7 +477,7 @@ impl Faraday {
                 seedqr_digits(k.parts.first()?)
             }
             ScanPurpose::CheckKef(i) => {
-                crate::wallet_backup::kef::sample_text(self, i).map(String::into_bytes)
+                crate::wallet_backup::kef::sample_text(self, i).map(|t| t.as_bytes().to_vec())
             }
             ScanPurpose::OtsHeader => Some(set.inputs.timestamp_header.as_bytes().to_vec()),
             ScanPurpose::OtsFileHash => Some(set.inputs.timestamp_hash.as_bytes().to_vec()),

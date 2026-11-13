@@ -24,10 +24,7 @@ pub use text::Text;
 /// Builds a [`Text`] the way a format macro builds text: `text!("{}-{}", a, b)`.
 #[macro_export]
 macro_rules! text {
-    ($($arg:tt)*) => {{
-        let mut out = $crate::Text::new();
-        // Writing into a `Text` never fails.
-        let _ = ::core::fmt::Write::write_fmt(&mut out, ::core::format_args!($($arg)*));
-        out
-    }};
+    ($($arg:tt)*) => {
+        $crate::Text::formatted(::core::format_args!($($arg)*))
+    };
 }

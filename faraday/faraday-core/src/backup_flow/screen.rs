@@ -927,7 +927,7 @@ fn bind_card(
                 if seen.is_empty() {
                     String::new()
                 } else {
-                    format!(" · {seen}")
+                    format!(" · {}", &*seen)
                 }
             );
             // The whole line wraps: what was seen of it tells the two apart.

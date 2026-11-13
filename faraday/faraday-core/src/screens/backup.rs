@@ -715,7 +715,12 @@ pub(crate) fn shares_card(
     };
     let (m, keys_n) = Session::quorum(wallet);
     let slots = app.session.slots(wallet);
-    let fp = |j: usize| crate::wallet_backup::fp_of(slots.get(j).and_then(|s| s.fingerprint));
+    let fp = |j: usize| -> String {
+        slots
+            .get(j)
+            .and_then(|s| s.fingerprint)
+            .map_or_else(|| "--------".into(), crate::wallet::fp_text)
+    };
     shares_table(
         ui,
         (x, y, w),
@@ -2318,7 +2323,7 @@ fn public_files(
             } else {
                 Vec::new()
             };
-            (name.to_string(), detail, file, action, extra)
+            (name.to_string(), detail, (&*file).into(), action, extra)
         })
         .collect();
     (rows, more)

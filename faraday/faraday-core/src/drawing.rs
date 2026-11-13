@@ -39,7 +39,7 @@ pub(crate) use kept::Kept;
 mod memo;
 
 /// A wallet's seeds: a name each and the session key that holds it.
-pub(crate) type SeedList = Vec<(String, Option<usize>)>;
+pub(crate) type SeedList = Vec<(faraday_text::Text, Option<usize>)>;
 
 /// A stick the wallet being backed up is written to: its place, the files
 /// it will hold, and the stick's label once written
@@ -64,7 +64,7 @@ pub(crate) struct Drawing {
     /// `held_keys`.
     pub held: OnceCell<Vec<Fingerprint>>,
     /// `backup_public_names_for` per wallet, for the backup's own answers.
-    pub public_names: RefCell<Vec<(usize, Vec<String>)>>,
+    pub public_names: RefCell<Vec<(usize, Vec<faraday_text::Text>)>>,
     /// The backup board as the frame draws it
     /// ([`crate::Faraday::board_view_now`], `docs/BACKUP-FLOW.md` §17).
     pub board: OnceCell<Option<std::rc::Rc<crate::board::BoardView>>>,

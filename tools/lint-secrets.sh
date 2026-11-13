@@ -552,6 +552,10 @@ faraday/faraday-core/src/seeds/kef.rs
 faraday/faraday-core/src/seeds/mod.rs
 faraday/faraday-core/src/seeds/read.rs
 faraday/faraday-core/src/seeds/sweep.rs
+faraday/faraday-core/src/backup_flow/steps.rs
+faraday/faraday-core/src/backup_flow/gpg_restore.rs
+faraday/faraday-core/src/wallet_backup.rs
+faraday/faraday-core/src/wallet_backup/kef.rs
 faraday/faraday-keys/src/bip85.rs
 faraday/faraday-keys/src/codex32.rs
 faraday/faraday-keys/src/gpg.rs

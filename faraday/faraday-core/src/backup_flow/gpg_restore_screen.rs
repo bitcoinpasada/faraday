@@ -58,7 +58,7 @@ pub(crate) fn heading(f: &BackupFlow) -> Option<(&'static str, &str)> {
 pub(crate) fn head_card(f: &BackupFlow, r: &RestoreFrom) -> flow::Card {
     flow::Card {
         title: EN.gpg_restore_public_key.to_string(),
-        summary: format!("{} · {}", r.user_id, r.fingerprint_text),
+        summary: format!("{} · {}", &*r.user_id, &*r.fingerprint_text),
         mono: false,
         done: true,
         open: f.live.open == Some(HEAD),

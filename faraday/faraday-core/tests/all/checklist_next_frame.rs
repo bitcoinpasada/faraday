@@ -165,7 +165,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     app.press(Action::BVaultSave(0));
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     app.press(Action::BNext(bstep::VAULT));
-    let seed2 = app.backup_seed_list_now(w)[1].0.clone();
+    let seed2 = String::from(&*app.backup_seed_list_now(w)[1].0);
     let title = format!("Vault 2 · {seed2}");
     let number = app
         .backup_items_now(&c)

@@ -17,6 +17,7 @@ use crate::worker::kef_make::{self, IdChoice, Options, Saved};
 use crate::{Action, Faraday, Screen, Sheet, bstep, plan};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Key;
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 impl WalletBackupArea {
@@ -177,11 +178,11 @@ pub(crate) fn template_side(app: &Faraday, i: usize) -> usize {
 /// Seed `i`'s Krux code files as the stick lists them: the picture's name
 /// when it has one, and the `.kef` file's. Nothing while the code is not
 /// made.
-pub(crate) fn stick_names(app: &Faraday, i: usize) -> Vec<String> {
+pub(crate) fn stick_names(app: &Faraday, i: usize) -> Vec<Text> {
     let Some(m) = kept(app, i).filter(|m| named(app, m)) else {
         return Vec::new();
     };
-    m.png.into_iter().chain([m.file]).collect()
+    m.png.iter().chain([&m.file]).map(|n| Text::of(n)).collect()
 }
 
 /// Costs a SHA-256 pass, the picture and what `kef_make::made` costs.
@@ -462,11 +463,8 @@ pub(crate) fn scanned(app: &mut Faraday, i: usize, bytes: &[u8]) {
 }
 
 /// The code made for seed `i` as a scanner's sample: its base43 text.
-pub(crate) fn sample_text(app: &Faraday, i: usize) -> Option<String> {
-    app.backup
-        .kef_form(i)?
-        .code_text()
-        .map(|t| String::from(&*t))
+pub(crate) fn sample_text(app: &Faraday, i: usize) -> Option<Text> {
+    app.backup.kef_form(i)?.code_text()
 }
 
 /// A press on the form.
