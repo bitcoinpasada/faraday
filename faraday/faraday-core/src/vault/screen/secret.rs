@@ -54,42 +54,61 @@ pub(crate) fn secret_with<V: AsRef<str>>(
     mono: bool,
     eye: (Action, bool),
 ) -> f32 {
-    let (muted, inset) = (Role::OnSurfaceVariant, Role::SurfaceContainerHighest);
-    let (ink, warn) = (Role::OnSurface, Role::Warning);
     let shown = eye.1;
     let role = if mono { BODY_M.mono() } else { BODY_M };
-    let text = if shown {
-        crate::secret_text::SecretText::of(value().as_ref())
-    } else {
-        crate::secret_text::SecretText::of(&"\u{2022}".repeat(24))
-    };
-    // The text stops short of the eye.
-    let tw = w - 14.0 - tokens::TOUCH;
+    let tw = text_width(w);
+    let (tx, ty) = inside(x, y);
+    let text = shown.then(|| crate::secret_text::SecretText::of(value().as_ref()));
     // Measured in a pass that draws nothing, so the field's surface goes
     // down before the words and does not cover them.
-    let th = if shown {
+    let th = text.as_ref().map(|text| {
         ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-        let th = ui.wrap_as((x + 14.0, y + 14.0, tw), role, ink, &text);
+        let th = ui.wrap_as((tx, ty, tw), role, Role::OnSurface, text);
         ui.c.pop_clip();
         th
-    } else {
-        20.0
-    };
-    let bh = (th.max(20.0) + 28.0).max(tokens::TOUCH);
-    ui.fill(x, y, w, bh, 8.0, inset);
+    });
+    let bh = masked_box(ui, (x, y, w), th, shown);
+    match &text {
+        Some(text) => {
+            ui.wrap_as((tx, ty, tw), role, Role::OnSurface, text);
+        }
+        None => masked_dots(ui, x, y),
+    }
+    secret_eye(ui, x, y, w, eye);
+    bh
+}
+
+/// The width a masked field's text takes: it stops short of the eye.
+fn text_width(w: f32) -> f32 {
+    w - 14.0 - tokens::TOUCH
+}
+
+/// Where a masked field's text starts in the field at `(x, y)`.
+fn inside(x: f32, y: f32) -> (f32, f32) {
+    (x + 14.0, y + 14.0)
+}
+
+/// A masked field's surface and edge (the warning colour while it
+/// shows), around text `th` tall (a line when masked). Returns the
+/// height.
+fn masked_box(ui: &mut Ui, (x, y, w): (f32, f32, f32), th: Option<f32>, shown: bool) -> f32 {
+    let line = 20.0;
+    let bh = (th.unwrap_or(line).max(line) + 28.0).max(tokens::TOUCH);
+    ui.fill(x, y, w, bh, 8.0, Role::SurfaceContainerHighest);
     let edge = if shown {
-        warn.paint()
+        Role::Warning.paint()
     } else {
         Role::Outline.paint()
     };
     ui.stroke(x, y, w, bh, 8.0, edge);
-    if shown {
-        ui.wrap_as((x + 14.0, y + 14.0, tw), role, ink, &text);
-    } else {
-        ui.text_as(x + 14.0, y + 14.0, BODY_M.mono(), muted, &text);
-    }
-    secret_eye(ui, x, y, w, eye);
     bh
+}
+
+/// The dots a masked field shows in place of its text.
+fn masked_dots(ui: &mut Ui, x: f32, y: f32) {
+    let (tx, ty) = inside(x, y);
+    let dots = crate::secret_text::SecretText::of(&"\u{2022}".repeat(24));
+    ui.text_as(tx, ty, BODY_M.mono(), Role::OnSurfaceVariant, &dots);
 }
 
 /// Show SeedQR: the selected key's SeedQR, behind its eye as its words
@@ -156,11 +175,8 @@ pub(super) fn sign_text(
     text: &str,
     eye: (Action, bool),
 ) -> f32 {
-    let (muted, inset) = (Role::OnSurfaceVariant, Role::SurfaceContainerHighest);
-    let (ink, warn) = (Role::OnSurface, Role::Warning);
     let shown = eye.1;
-    // The text stops short of the eye.
-    let tw = w - 14.0 - tokens::TOUCH;
+    let tw = text_width(w);
     let role = BODY_S.mono();
     let laid = shown.then(|| {
         let basis = ui.wrap_basis(role, tw);
@@ -169,21 +185,10 @@ pub(super) fn sign_text(
         });
         ui.wrapped_with(role, text, tw, lines)
     });
-    let th = laid.as_ref().map_or(20.0, |l| l.h);
-    let bh = (th.max(20.0) + 28.0).max(tokens::TOUCH);
-    ui.fill(x, y, w, bh, 8.0, inset);
-    let edge = if shown {
-        warn.paint()
-    } else {
-        Role::Outline.paint()
-    };
-    ui.stroke(x, y, w, bh, 8.0, edge);
+    let bh = masked_box(ui, (x, y, w), laid.as_ref().map(|l| l.h), shown);
     match &laid {
-        Some(l) => ui.draw_wrapped((x + 14.0, y + 14.0), ink, l),
-        None => {
-            let dots = "\u{2022}".repeat(24);
-            ui.text_as(x + 14.0, y + 14.0, BODY_M.mono(), muted, &dots);
-        }
+        Some(l) => ui.draw_wrapped(inside(x, y), Role::OnSurface, l),
+        None => masked_dots(ui, x, y),
     }
     secret_eye(ui, x, y, w, eye);
     bh
