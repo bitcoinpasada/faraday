@@ -506,7 +506,6 @@ pub enum OnTaken {
 }
 
 /// What the app asks the shell to do with storage.
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StorageCommand {
     /// Read a file from a stick.
     Read {
@@ -648,6 +647,292 @@ pub enum StorageCommand {
         /// memory, nothing secret (`docs/WALLETS.md` §3.3).
         kept: Vec<(String, Vec<u8>)>,
     },
+}
+
+/// Whether two byte strings are the same, in time that does not depend on
+/// where they differ.
+fn same_bytes(a: &[u8], b: &[u8]) -> bool {
+    use subtle::ConstantTimeEq;
+    a.ct_eq(b).into()
+}
+
+/// Whether two sets of files are the same: names and, in constant time,
+/// bytes.
+fn same_files(a: &Files, b: &Files) -> bool {
+    a.len() == b.len()
+        && a.iter()
+            .zip(b)
+            .all(|((an, ab), (bn, bb))| an == bn && same_bytes(ab, bb))
+}
+
+/// Compares the bytes a command carries in constant time and the rest
+/// as it is.
+impl PartialEq for StorageCommand {
+    fn eq(&self, other: &Self) -> bool {
+        use StorageCommand as C;
+        match (self, other) {
+            (
+                C::Read { stick, name },
+                C::Read {
+                    stick: s2,
+                    name: n2,
+                },
+            )
+            | (
+                C::ReadQr { stick, name },
+                C::ReadQr {
+                    stick: s2,
+                    name: n2,
+                },
+            )
+            | (
+                C::Wipe { stick, name },
+                C::Wipe {
+                    stick: s2,
+                    name: n2,
+                },
+            )
+            | (
+                C::Hash { stick, name },
+                C::Hash {
+                    stick: s2,
+                    name: n2,
+                },
+            ) => stick == s2 && name == n2,
+            (C::StickSpace { stick }, C::StickSpace { stick: s2 })
+            | (C::MakeEmpty { stick }, C::MakeEmpty { stick: s2 }) => stick == s2,
+            (
+                C::ZeroFree { stick, from },
+                C::ZeroFree {
+                    stick: s2,
+                    from: f2,
+                },
+            ) => stick == s2 && from == f2,
+            (
+                C::Rename {
+                    stick,
+                    from,
+                    to,
+                    vaults,
+                },
+                C::Rename {
+                    stick: s2,
+                    from: f2,
+                    to: t2,
+                    vaults: v2,
+                },
+            ) => stick == s2 && from == f2 && to == t2 && vaults == v2,
+            (
+                C::NameStick { stick, label },
+                C::NameStick {
+                    stick: s2,
+                    label: l2,
+                },
+            ) => stick == s2 && label == l2,
+            (C::ReadHost { path }, C::ReadHost { path: p2 }) => path == p2,
+            (C::OpenDownloads, C::OpenDownloads) | (C::OpenInstitute, C::OpenInstitute) => true,
+            _ => self.same_carrying(other),
+        }
+    }
+}
+
+impl StorageCommand {
+    /// Whether two commands that carry bytes are the same: the bytes in
+    /// constant time, the rest as it is.
+    fn same_carrying(&self, other: &Self) -> bool {
+        use StorageCommand as C;
+        match (self, other) {
+            (
+                C::Write {
+                    stick,
+                    name,
+                    bytes,
+                    copies,
+                    replace,
+                    renamed,
+                    on_taken,
+                },
+                C::Write {
+                    stick: s2,
+                    name: n2,
+                    bytes: b2,
+                    copies: c2,
+                    replace: r2,
+                    renamed: m2,
+                    on_taken: o2,
+                },
+            ) => {
+                stick == s2
+                    && name == n2
+                    && same_bytes(bytes, b2)
+                    && copies == c2
+                    && replace == r2
+                    && renamed == m2
+                    && on_taken == o2
+            }
+            (
+                C::Print { name, bytes },
+                C::Print {
+                    name: n2,
+                    bytes: b2,
+                },
+            )
+            | (
+                C::SaveDownload { name, bytes },
+                C::SaveDownload {
+                    name: n2,
+                    bytes: b2,
+                },
+            ) => name == n2 && same_bytes(bytes, b2),
+            (
+                C::SaveBoxes {
+                    inbox,
+                    outbox,
+                    kept,
+                },
+                C::SaveBoxes {
+                    inbox: i2,
+                    outbox: o2,
+                    kept: k2,
+                },
+            ) => {
+                same_files(inbox, i2)
+                    && same_files(outbox, o2)
+                    && kept.len() == k2.len()
+                    && kept
+                        .iter()
+                        .zip(k2)
+                        .all(|((an, ab), (bn, bb))| an == bn && same_bytes(ab, bb))
+            }
+            _ => false,
+        }
+    }
+}
+
+impl Eq for StorageCommand {}
+
+/// Prints what a command names (the stick, the file) and the length of
+/// the bytes it carries, never the bytes.
+impl std::fmt::Debug for StorageCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use StorageCommand as C;
+        match self {
+            C::Read { stick, name } => f
+                .debug_struct(stringify!(Read))
+                .field("stick", stick)
+                .field("name", name)
+                .finish(),
+            C::StickSpace { stick } => f
+                .debug_struct(stringify!(StickSpace))
+                .field("stick", stick)
+                .finish(),
+            C::ZeroFree { stick, from } => f
+                .debug_struct(stringify!(ZeroFree))
+                .field("stick", stick)
+                .field("from", from)
+                .finish(),
+            C::MakeEmpty { stick } => f
+                .debug_struct(stringify!(MakeEmpty))
+                .field("stick", stick)
+                .finish(),
+            C::Rename {
+                stick,
+                from,
+                to,
+                vaults,
+            } => f
+                .debug_struct(stringify!(Rename))
+                .field("stick", stick)
+                .field("from", from)
+                .field("to", to)
+                .field("vaults", vaults)
+                .finish(),
+            C::NameStick { stick, label } => f
+                .debug_struct(stringify!(NameStick))
+                .field("stick", stick)
+                .field("label", label)
+                .finish(),
+            C::Hash { stick, name } => f
+                .debug_struct(stringify!(Hash))
+                .field("stick", stick)
+                .field("name", name)
+                .finish(),
+            C::ReadHost { path } => f
+                .debug_struct(stringify!(ReadHost))
+                .field("path", path)
+                .finish(),
+            C::OpenDownloads => f.write_str(stringify!(OpenDownloads)),
+            C::OpenInstitute => f.write_str(stringify!(OpenInstitute)),
+            _ => self.fmt_carrying(f),
+        }
+    }
+}
+
+impl StorageCommand {
+    /// Prints a command that carries bytes: their length, not the bytes.
+    fn fmt_carrying(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use StorageCommand as C;
+        match self {
+            C::Write {
+                stick,
+                name,
+                bytes,
+                copies,
+                replace,
+                renamed,
+                on_taken,
+            } => f
+                .debug_struct(stringify!(Write))
+                .field("stick", stick)
+                .field("name", name)
+                .field("len", &bytes.len())
+                .field("copies", copies)
+                .field("replace", replace)
+                .field("renamed", renamed)
+                .field("on_taken", on_taken)
+                .finish(),
+            C::ReadQr { stick, name } => f
+                .debug_struct(stringify!(ReadQr))
+                .field("stick", stick)
+                .field("name", name)
+                .finish(),
+            C::Wipe { stick, name } => f
+                .debug_struct(stringify!(Wipe))
+                .field("stick", stick)
+                .field("name", name)
+                .finish(),
+            C::Print { name, bytes } => f
+                .debug_struct(stringify!(Print))
+                .field("name", name)
+                .field("len", &bytes.len())
+                .finish(),
+            C::SaveDownload { name, bytes } => f
+                .debug_struct(stringify!(SaveDownload))
+                .field("name", name)
+                .field("len", &bytes.len())
+                .finish(),
+            C::SaveBoxes {
+                inbox,
+                outbox,
+                kept,
+            } => f
+                .debug_struct(stringify!(SaveBoxes))
+                .field(
+                    "inbox",
+                    &inbox.iter().map(|(n, b)| (n, b.len())).collect::<Vec<_>>(),
+                )
+                .field(
+                    "outbox",
+                    &outbox.iter().map(|(n, b)| (n, b.len())).collect::<Vec<_>>(),
+                )
+                .field(
+                    "kept",
+                    &kept.iter().map(|(n, b)| (n, b.len())).collect::<Vec<_>>(),
+                )
+                .finish(),
+            _ => Ok(()),
+        }
+    }
 }
 
 /// The disk process's answer to a request on a stick it does not hand out

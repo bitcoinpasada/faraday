@@ -2293,13 +2293,10 @@ pub fn kef_card_png(app: &crate::Faraday, i: usize) -> Option<Vec<u8>> {
 /// Moves the Outbox files called `names` to Files, as a flow does with the
 /// public files it wrote to the sticks.
 pub fn outbox_to_files(app: &mut crate::Faraday, names: &[String]) {
-    let moved: Vec<_> = app
-        .outbox
-        .iter()
-        .filter(|i| names.contains(&i.name))
-        .cloned()
-        .collect();
-    app.outbox.retain(|i| !names.contains(&i.name));
+    let (moved, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut app.outbox)
+        .into_iter()
+        .partition(|i| names.contains(&i.name));
+    app.outbox = kept;
     app.inbox.extend(moved);
 }
 

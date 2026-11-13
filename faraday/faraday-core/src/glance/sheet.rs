@@ -156,7 +156,6 @@ pub(crate) struct Row {
 /// A sheet as shown: its icon and title, its facts (label, value, tone),
 /// lines of what follows, its rows under their headings, a field being
 /// typed, its own button, and a wallet's first addresses.
-#[derive(Debug, Clone)]
 pub(crate) struct View {
     pub icon: Icon,
     pub title: String,

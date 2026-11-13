@@ -3041,9 +3041,9 @@ fn the_answer_writes_the_bytes_first_sent_not_a_file_of_the_same_name() {
         .outbox
         .iter()
         .find(|i| i.name == "main.kdbx")
-        .cloned()
+        .map(faraday_core::Item::duplicate)
         .expect("the sealed vault");
-    let mut other = first.clone();
+    let mut other = first.duplicate();
     other.bytes = (vault("Other", PHRASE_2, 0x42)).into();
     app.outbox.insert(0, other);
     shell.press(&mut app, Action::NameTakenBeside);

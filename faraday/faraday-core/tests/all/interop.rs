@@ -72,7 +72,7 @@ fn scanned(text: &str) -> faraday_core::Item {
     });
     app.inbox()
         .last()
-        .cloned()
+        .map(faraday_core::Item::duplicate)
         .unwrap_or_else(|| panic!("nothing reached the Inbox from {text}"))
 }
 

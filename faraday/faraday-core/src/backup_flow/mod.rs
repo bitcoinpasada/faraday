@@ -800,7 +800,6 @@ pub struct Reading {
 }
 
 /// A write under way (step 6).
-#[derive(Clone)]
 pub struct Writing {
     /// The stick's id.
     pub id: String,
@@ -864,8 +863,31 @@ impl std::fmt::Debug for Writing {
     }
 }
 
+impl Writing {
+    /// A second copy of the write, its held files wiped on drop like the
+    /// first.
+    #[must_use]
+    pub fn duplicate(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            slot: self.slot,
+            target: self.target,
+            pending: self.pending.clone(),
+            done: self.done.clone(),
+            plain: self.plain.clone(),
+            retried: self.retried.clone(),
+            aliases: self.aliases.clone(),
+            qr: self.qr.clone(),
+            vaults_open: self.vaults_open.clone(),
+            held: self.held.clone(),
+            label: self.label.clone(),
+            serial: self.serial,
+        }
+    }
+}
+
 /// What the screen keeps of a flow; none of it is kept across a lock.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct Live {
     /// The card open.
     pub open: Option<u8>,
@@ -917,6 +939,35 @@ pub struct Live {
     /// be typed in place. Set by that press alone and cleared at the next,
     /// and once the string is typed.
     pub c32_wanted: Option<crate::plan::codex32::Wanted>,
+}
+
+/// A copy of the screen's state, its write's held files in wiping memory.
+impl Clone for Live {
+    fn clone(&self) -> Self {
+        Self {
+            open: self.open,
+            scroll: self.scroll,
+            reading: self.reading.clone(),
+            ignored: self.ignored.clone(),
+            writing: self.writing.as_ref().map(Writing::duplicate),
+            problem: self.problem.clone(),
+            no_pass: self.no_pass,
+            not_it: self.not_it.clone(),
+            tried_from: self.tried_from.clone(),
+            unlocking: self.unlocking,
+            creating: self.creating,
+            making: self.making,
+            crowd: self.crowd,
+            want: self.want,
+            fig_menu: self.fig_menu,
+            fig_anchor: self.fig_anchor,
+            later_ask: self.later_ask,
+            stick_sheet: self.stick_sheet,
+            plan_q: self.plan_q,
+            board: self.board.clone(),
+            c32_wanted: self.c32_wanted.clone(),
+        }
+    }
 }
 
 /// One flow (§7).
