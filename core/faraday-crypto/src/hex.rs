@@ -14,9 +14,9 @@
 //! either case (or a mix) and is refused if its length is odd, if it does
 //! not fit the buffer, or if a character is not a hex digit.
 
-use alloc::string::String;
 use alloc::vec;
 
+use faraday_text::Text;
 use zeroize::Zeroizing;
 
 /// Write `bytes` as lower-case hex into `out` and return the text.
@@ -29,16 +29,13 @@ pub fn encode_lower<'a>(bytes: &[u8], out: &'a mut [u8]) -> &'a str {
     base16ct::lower::encode_str(bytes, out).expect("the hex buffer is twice the bytes")
 }
 
-/// `bytes` as lower-case hex in a string that is wiped when dropped, for
-/// key material. The buffer written through is the string's own, so no
-/// other copy is left behind.
-pub fn encode_secret(bytes: &[u8]) -> Zeroizing<String> {
+/// `bytes` as lower-case hex in text that is wiped when it is dropped, for
+/// key material. The digits are written into a buffer that is wiped as soon
+/// as the text is built, so no other copy is left behind.
+pub fn encode_secret(bytes: &[u8]) -> Text {
     let mut buf = Zeroizing::new(vec![0u8; bytes.len() * 2]);
     base16ct::lower::encode(bytes, &mut buf).expect("the hex buffer is twice the bytes");
-    // The digits are ASCII, so the conversion cannot fail; the bytes move
-    // into the string without a copy.
-    let text = String::from_utf8(core::mem::take(&mut *buf)).expect("hex digits are ASCII");
-    Zeroizing::new(text)
+    Text::from_utf8_lossy(&buf)
 }
 
 /// Decode `text` (either case) into the start of `out` and return how many
@@ -49,9 +46,10 @@ pub fn decode_into(text: &str, out: &mut [u8]) -> Option<usize> {
     base16ct::mixed::decode(text, out).ok().map(<[u8]>::len)
 }
 
-/// `bytes` as lower-case hex in a new string, for text that is not secret.
-pub fn encode_string(bytes: &[u8]) -> String {
-    base16ct::lower::encode_string(bytes)
+/// `bytes` as lower-case hex in new text, for text that is not secret; the
+/// text wipes itself all the same, so it is the same as [`encode_secret`].
+pub fn encode_string(bytes: &[u8]) -> Text {
+    encode_secret(bytes)
 }
 
 /// The bytes `text` spells (either case), `None` if its length is odd or a

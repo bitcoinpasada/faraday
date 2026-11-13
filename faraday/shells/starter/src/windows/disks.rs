@@ -609,7 +609,7 @@ impl Snapshot {
 }
 
 fn hex(b: &[u8]) -> String {
-    faraday_crypto::hex::encode_string(b)
+    String::from(&*faraday_crypto::hex::encode_string(b))
 }
 
 fn unhex(s: &str) -> Option<Vec<u8>> {

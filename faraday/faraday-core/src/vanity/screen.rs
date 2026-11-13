@@ -93,10 +93,7 @@ fn summary(app: &View, v: &VanityState, s: u8) -> String {
         }
         vstep::RUN => match (&v.grind.find, v.running) {
             (Some(f), _) => f.address.as_str().to_string(),
-            (None, true) => fill(
-                EN.vanity_tried_count,
-                &[&thousands(v.grind.tested).to_string()],
-            ),
+            (None, true) => fill(EN.vanity_tried_count, &[&thousands(v.grind.tested)]),
             (None, false) => String::new(),
         },
         _ => String::new(),
@@ -218,7 +215,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     cy,
                     BODY_S,
                     Role::OnSurfaceVariant,
-                    &fill(EN.vanity_about_tries, &[&thousands(expected).to_string()]),
+                    &fill(EN.vanity_about_tries, &[&thousands(expected)]),
                 );
                 cy += ui.advance_as(BODY_S, 26.0);
             }
@@ -251,10 +248,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                             Role::OnSurface,
                             &fill(
                                 EN.vanity_found_account,
-                                &[
-                                    &f.account.to_string(),
-                                    &thousands(v.grind.tested).to_string(),
-                                ],
+                                &[&f.account.to_string(), &thousands(v.grind.tested)],
                             ),
                         );
                         cy += ui.advance_as(BODY_S, 30.0);
@@ -326,7 +320,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                 let rate = v
                     .grind
                     .per_second()
-                    .map(|r| fill(EN.vanity_a_second, &[&thousands(r as u64).to_string()]))
+                    .map(|r| fill(EN.vanity_a_second, &[&thousands(r as u64)]))
                     .unwrap_or_else(|| EN.vanity_measuring.into());
                 let left = v
                     .grind
@@ -349,7 +343,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     &fill(
                         EN.vanity_tried,
                         &[
-                            &thousands(v.grind.tested).to_string(),
+                            &thousands(v.grind.tested),
                             &rate.to_string(),
                             &left.to_string(),
                         ],

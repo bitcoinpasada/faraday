@@ -935,7 +935,7 @@ impl Keys {
         ));
         let lang = self.entries[i].info.language;
         let m = Mnemonic::parse(c, lang, &words)
-            .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
+            .map_err(|e| Refusal::Words(String::from(&*faraday_strings::bip::bip39_error(&e))))?;
         self.add_mnemonic(c, &m, &passphrase, label, None)
     }
 
@@ -1460,7 +1460,9 @@ impl Keys {
             return None;
         }
         let e = self.entries.get(i).filter(|e| e.key.words.is_none())?;
-        let mut out = vec![faraday_crypto::hex::encode_secret(e.key.seed.as_ref()?)];
+        let mut out = vec![Zeroizing::new(String::from(
+            &*faraday_crypto::hex::encode_secret(e.key.seed.as_ref()?),
+        ))];
         let Some(facts) = e.info.codex32.as_ref() else {
             return Some(Held(out));
         };
@@ -1805,7 +1807,7 @@ pub(crate) fn parse_words(c: &Compute, words: &str) -> Result<Mnemonic, Refusal>
     }
     Err(Refusal::Words(
         first
-            .map(|e| faraday_strings::bip::bip39_error(&e))
+            .map(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))
             .unwrap_or_default(),
     ))
 }
@@ -1820,7 +1822,7 @@ pub(crate) fn mnemonic_master(
 ) -> Result<MasterKey, Refusal> {
     let seed = mnemonic
         .to_seed(c, passphrase.as_bytes())
-        .map_err(|e| Refusal::Words(faraday_strings::bip::bip39_error(&e)))?;
+        .map_err(|e| Refusal::Words(String::from(&*faraday_strings::bip::bip39_error(&e))))?;
     Ok(MasterKey::from_seed(c, &seed, network))
 }
 

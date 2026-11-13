@@ -92,6 +92,7 @@ dependencies = [
  "faraday-codec",
  "faraday-crypto",
  "faraday-files",
+ "faraday-text",
  "serde_json",
  "subtle",
  "unicode-normalization",
@@ -898,6 +899,7 @@ dependencies = [
  "faraday-shell-api",
  "faraday-sqlite",
  "faraday-strings",
+ "faraday-text",
  "faraday-ui",
  "faraday-vault",
  "serde_json",
@@ -950,6 +952,7 @@ dependencies = [
  "argon2",
  "base16ct",
  "blake2",
+ "faraday-text",
  "hmac",
  "libc",
  "pbkdf2",
@@ -1279,6 +1282,7 @@ dependencies = [
 name = "faraday-shell-api"
 version = "0.1.0"
 dependencies = [
+ "faraday-text",
  "zeroize",
 ]
 
@@ -1382,6 +1386,7 @@ dependencies = [
  "faraday-scanner",
  "faraday-shell-api",
  "faraday-storage",
+ "faraday-text",
  "faraday-v4l2",
  "zeroize",
 ]
@@ -1407,6 +1412,7 @@ version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-crypto",
+ "faraday-text",
  "zeroize",
 ]
 
@@ -1436,6 +1442,7 @@ dependencies = [
  "faraday-guide",
  "faraday-shell-api",
  "faraday-strings",
+ "faraday-text",
 ]
 
 [[package]]

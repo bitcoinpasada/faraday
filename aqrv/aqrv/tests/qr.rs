@@ -50,7 +50,7 @@ fn a_qr_picture_decodes_to_the_envelope_or_its_text_at_each_size() {
         if envelope.len() == 32 {
             // Carried as its text (§3), which is what the entry says it is.
             let bytes: [u8; 32] = envelope.as_slice().try_into().unwrap();
-            assert_eq!(entry["text"].as_str().unwrap(), to_text(&bytes));
+            assert_eq!(entry["text"].as_str().unwrap(), to_text(&bytes).as_str());
             envelope = entry["text"].as_str().unwrap().as_bytes().to_vec();
         }
         let file = entry["png"].as_str().unwrap();

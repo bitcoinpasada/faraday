@@ -62,7 +62,11 @@ pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32
         }
         if let Some(line) = cards::held_line(app, &ctx, None) {
             if ui.pinning {
-                ui.pin = Some((line, Style::Disabled, fa(F::Continue)));
+                ui.pin = Some((
+                    faraday_text::Text::of(&line),
+                    Style::Disabled,
+                    fa(F::Continue),
+                ));
             } else {
                 cy += ui.wrap_as((x + 12.0, cy, w - 12.0), LABEL_L, Role::Warning, &line) + 12.0;
             }

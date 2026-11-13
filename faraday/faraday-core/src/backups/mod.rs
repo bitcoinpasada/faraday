@@ -251,7 +251,7 @@ fn tag_read(s: &str) -> Option<Tag> {
 }
 
 fn hex4(b: [u8; 4]) -> String {
-    faraday_crypto::hex::encode_string(&b)
+    String::from(&*faraday_crypto::hex::encode_string(&b))
 }
 
 /// A `kef` line's fields into the last record `out` holds; a field that

@@ -580,7 +580,7 @@ impl EntryArea {
             Some(w) => {
                 let mut idx: Vec<u16> = w.committed_indices().collect();
                 let m = faraday_keys::words::from_indices(lang, &idx)
-                    .map_err(|e| faraday_strings::bip::bip39_error(&e));
+                    .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)));
                 zeroize::Zeroize::zeroize(&mut idx);
                 m
             }
@@ -1632,7 +1632,7 @@ impl Faraday {
                 .map_err(|_| EN.forms_seed_xor_needs.to_string())
                 .and_then(|e| {
                     faraday_keys::words::from_entropy(Language::English, e.as_bytes())
-                        .map_err(|e| faraday_strings::bip::bip39_error(&e))
+                        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))
                 })
                 .and_then(|m| {
                     let words: Vec<&str> = m

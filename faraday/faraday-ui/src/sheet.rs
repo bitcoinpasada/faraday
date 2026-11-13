@@ -388,7 +388,7 @@ pub fn buttons<A: Copy + PartialEq>(
         ui.sheet_pin = Some(
             items
                 .iter()
-                .map(|&(l, s, a)| (l.to_string(), s, a))
+                .map(|&(l, s, a)| (faraday_text::Text::of(l), s, a))
                 .collect(),
         );
         return 0.0;

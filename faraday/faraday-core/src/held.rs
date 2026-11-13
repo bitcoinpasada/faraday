@@ -998,7 +998,7 @@ pub(crate) fn receive_line_on(
         return (crate::glance::RECEIVE_WARNING.to_string(), true);
     }
     (
-        crate::ui::grouped(&r.address_shown(wl, change, index)),
+        String::from(&*crate::ui::grouped(&r.address_shown(wl, change, index))),
         false,
     )
 }

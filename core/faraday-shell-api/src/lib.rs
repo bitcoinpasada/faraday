@@ -372,7 +372,7 @@ pub enum FileKind {
 pub struct FileEntry {
     /// The name the shell reads the file back by, and the name the core
     /// shows: a plain file name, with no directory in it.
-    pub name: String,
+    pub name: faraday_text::Text,
     /// The file's size in bytes.
     pub size: u64,
     /// When the file was last written, in seconds since the epoch, or

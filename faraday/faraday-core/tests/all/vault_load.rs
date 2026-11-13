@@ -870,7 +870,7 @@ fn a_seed_with_two_passphrases_offers_each_by_its_key_and_loads_the_one_chosen()
         let named = |fp: &[u8; 4]| {
             format!(
                 "Passphrase for key {}",
-                faraday_crypto::hex::encode_string(fp)
+                &*faraday_crypto::hex::encode_string(fp)
             )
         };
         assert_eq!(seed.passphrases.len(), 2, "{:?}", seed.passphrases);

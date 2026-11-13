@@ -40,7 +40,8 @@ pub fn node_from_words(
     if !matches!(language, Language::English) {
         return Err(WordsRefusal::NotEnglish);
     }
-    let words_error = |e: &_| WordsRefusal::Words(faraday_strings::bip::bip39_error(e));
+    let words_error =
+        |e: &_| WordsRefusal::Words(String::from(&*faraday_strings::bip::bip39_error(e)));
     let m = Mnemonic::parse(c, language, words).map_err(|e| words_error(&e))?;
     let seed = m
         .to_seed(c, passphrase.as_bytes())
@@ -99,7 +100,7 @@ impl crate::Keys {
 
     fn refuse_unless_public(&self, node: Node) -> Result<Node, NodeRefusal> {
         if !self.is_public_node(node.public()) {
-            let id: String = faraday_crypto::hex::encode_string(node.public());
+            let id: String = String::from(&*faraday_crypto::hex::encode_string(node.public()));
             return Err(NodeRefusal::Demo(
                 faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id),
             ));

@@ -173,7 +173,7 @@ pub(crate) fn pin_button(
     action: Action,
 ) -> bool {
     if ui.pinning {
-        ui.pin = Some((label.to_string(), style, action));
+        ui.pin = Some((faraday_text::Text::of(label), style, action));
         return false;
     }
     ui.button(x, y, w, h, label, style, action);
@@ -206,7 +206,7 @@ pub(crate) fn next_button_when(
 ) -> bool {
     let style = Style::Primary.when(on);
     if ui.pinning {
-        ui.pin = Some((label.to_string(), style, action));
+        ui.pin = Some((faraday_text::Text::of(label), style, action));
         return false;
     }
     let bw = ui.measure_as(TITLE_S, label) + 36.0;
@@ -241,7 +241,11 @@ pub(crate) fn buttons_and_next_when(
     // Pinned at the foot: only the other buttons are here.
     let next = match next {
         Some((label, action)) if ui.pinning => {
-            ui.pin = Some((label.to_string(), Style::Primary.when(on), action));
+            ui.pin = Some((
+                faraday_text::Text::of(label),
+                Style::Primary.when(on),
+                action,
+            ));
             None
         }
         n => n,

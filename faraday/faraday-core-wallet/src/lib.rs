@@ -492,7 +492,7 @@ fn whole_string(bytes: &[u8]) -> Option<&str> {
 }
 
 fn hex(bytes: &[u8]) -> String {
-    faraday_crypto::hex::encode_string(bytes)
+    String::from(&*faraday_crypto::hex::encode_string(bytes))
 }
 
 /// The id a descriptor's text has: SHA-256 of the text with every hardened

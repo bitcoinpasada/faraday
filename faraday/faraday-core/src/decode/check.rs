@@ -389,7 +389,7 @@ pub(crate) fn shown(
     network: Network,
 ) -> Shown {
     use super::check_words as words;
-    let id = |t: &Txid| faraday_ui::grouped(&t.to_string());
+    let id = |t: &Txid| String::from(&*faraday_ui::grouped(&t.to_string()));
     let mut facts = Vec::new();
     let same = report.verdict != Verdict::NotSameTransaction;
     if sent == returned {
@@ -437,12 +437,12 @@ pub(crate) fn shown(
         }
         facts.push((
             EN.step_sends.to_string(),
-            super::btc(inspection.amount_to_others.to_sat()),
+            String::from(&*super::btc(inspection.amount_to_others.to_sat())),
         ));
         facts.push((
             EN.step_fee.to_string(),
             if inspection.fee_rate_sat_vb.is_some() {
-                super::btc(inspection.fee.to_sat())
+                String::from(&*super::btc(inspection.fee.to_sat()))
             } else {
                 EN.step_fee_not_known.to_string()
             },

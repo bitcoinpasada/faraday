@@ -15,8 +15,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// ticked; a tap ticks or unticks its row. A row not enabled is
     /// dimmed and takes no tap. The rows are `(label, ticked, enabled,
     /// action)`. Returns the list's height; Continue goes under it.
-    pub fn multi_list(&mut self, x: f32, y: f32, w: f32, rows: &[(String, bool, bool, A)]) -> f32 {
-        self.multi_rows(x, y, w, rows, &[], LIST_1)
+    pub fn multi_list(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        rows: &[(impl AsRef<str>, bool, bool, A)],
+    ) -> f32 {
+        self.multi_rows(x, y, w, rows, &[] as &[&str], LIST_1)
     }
 
     /// [`Ui::multi_list`] with a value under each row's label, as a value
@@ -29,8 +35,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         x: f32,
         y: f32,
         w: f32,
-        rows: &[(String, bool, bool, A)],
-        values: &[String],
+        rows: &[(impl AsRef<str>, bool, bool, A)],
+        values: &[impl AsRef<str>],
     ) -> f32 {
         self.multi_rows(x, y, w, rows, values, LIST_2)
     }
@@ -42,8 +48,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         x: f32,
         y: f32,
         w: f32,
-        rows: &[(String, bool, bool, A)],
-        values: &[String],
+        rows: &[(impl AsRef<str>, bool, bool, A)],
+        values: &[impl AsRef<str>],
         rh: f32,
     ) -> f32 {
         // As tall as larger text needs (`docs/TEXT-SIZE.md` §5).
@@ -57,7 +63,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let ry = y + i as f32 * rh;
             let cy = ry + (rh - ICON_GLYPH_BUTTON) / 2.0;
             self.checkbox(x + MULTI_CHECK_X, cy, *on, *enabled);
-            let shown = self.fit_as(BODY_L, label, w - LIST_RESERVE);
+            let shown = self.fit_as(BODY_L, label.as_ref(), w - LIST_RESERVE);
             let fg = if *enabled {
                 Role::OnSurface.paint()
             } else {
@@ -68,7 +74,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                     let (lh, vh) = (self.line_as(BODY_L), self.line_as(BODY_M));
                     let top = ry + (rh - lh - vh) / 2.0;
                     self.text_mid_as((x + LIST_INDENT, top, lh), BODY_L, fg, &shown);
-                    let value = self.fit_as(BODY_M, value, w - LIST_RESERVE);
+                    let value = self.fit_as(BODY_M, value.as_ref(), w - LIST_RESERVE);
                     let vc = if *enabled {
                         Role::OnSurfaceVariant.paint()
                     } else {

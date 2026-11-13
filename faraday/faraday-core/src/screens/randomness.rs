@@ -205,7 +205,7 @@ fn short_status(ui: &Ui, status: &str, w: f32) -> String {
         }
         end = at;
     }
-    ui.fit_as(LABEL_M, status, w)
+    String::from(&*ui.fit_as(LABEL_M, status, w))
 }
 
 /// Add randomness, in the column at `x0`, `cw` wide.

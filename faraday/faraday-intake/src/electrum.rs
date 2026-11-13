@@ -306,7 +306,9 @@ fn fingerprint(k: &Value) -> Result<Option<String>, String> {
                 .as_u64()
                 .and_then(|n| u32::try_from(n).ok())
                 .ok_or_else(bad)?;
-            Some(faraday_crypto::hex::encode_string(&n.to_le_bytes()))
+            Some(String::from(&*faraday_crypto::hex::encode_string(
+                &n.to_le_bytes(),
+            )))
         }
     };
     // Two fingerprints that disagree are an ambiguous input.
@@ -484,7 +486,7 @@ pub fn file(policy: &WalletPolicy) -> Option<String> {
     let (wallet_type, script) = shape(policy)?;
     let mut stores = Vec::new();
     for k in policy.keys() {
-        let fp: String = faraday_crypto::hex::encode_string(&k.fingerprint()?.0);
+        let fp: String = String::from(&*faraday_crypto::hex::encode_string(&k.fingerprint()?.0));
         let path = k.path()?.to_string();
         let path = path.trim_start_matches('m').trim_start_matches('/');
         let derivation = if path.is_empty() {

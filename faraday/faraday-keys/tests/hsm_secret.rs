@@ -24,7 +24,7 @@ fn hex(s: &str) -> Vec<u8> {
 }
 
 fn id_of(node: &faraday_keys::lightning::Node) -> String {
-    faraday_crypto::hex::encode_string(node.public())
+    String::from(&*faraday_crypto::hex::encode_string(node.public()))
 }
 
 /// A plain secret of 0x01 bytes, as Core Lightning's own test of

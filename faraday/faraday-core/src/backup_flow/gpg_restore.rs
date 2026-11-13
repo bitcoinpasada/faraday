@@ -433,7 +433,7 @@ fn code_text(e: &CodeRefused) -> String {
 
 /// The certificate file kept across a lock, as hex.
 pub(crate) fn file_hex(file: &[u8]) -> String {
-    faraday_crypto::hex::encode_string(file)
+    String::from(&*faraday_crypto::hex::encode_string(file))
 }
 
 /// The certificate file read back from [`file_hex`].

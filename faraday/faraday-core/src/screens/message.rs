@@ -62,7 +62,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             summary: match k {
                 mstep::ADDRESS => address
                     .as_deref()
-                    .map(short)
+                    .map(|a| String::from(&*short(a)))
                     .unwrap_or_else(|| EN.message_none_chosen.into()),
                 mstep::TEXT => {
                     let t = m.text.lines().next().unwrap_or("");

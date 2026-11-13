@@ -2,6 +2,8 @@
 //! text", and §9): the envelope is one number, written in base 45 as
 //! exactly 47 characters of QR's alphanumeric table.
 
+use faraday_text::Text;
+
 /// QR's alphanumeric table; a character's index is its digit.
 const TABLE: &[u8; 45] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
 
@@ -25,7 +27,7 @@ pub enum NotText {
 /// §3: the 32 bytes as a number, big-endian, written in base 45 as 47
 /// characters, most significant first. Nothing is trimmed or padded: an
 /// envelope always takes all 47.
-pub fn to_text(envelope: &[u8; 32]) -> String {
+pub fn to_text(envelope: &[u8; 32]) -> Text {
     let mut number = *envelope;
     let mut text = [0u8; TEXT_LEN];
     for ch in text.iter_mut().rev() {
@@ -38,7 +40,7 @@ pub fn to_text(envelope: &[u8; 32]) -> String {
         }
         *ch = TABLE[rest as usize];
     }
-    String::from_utf8(text.to_vec()).expect("the table is ASCII")
+    Text::from_utf8_lossy(&text)
 }
 
 /// §3 and §9: the 32 bytes a text stands for, or why it is not one. The

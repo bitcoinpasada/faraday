@@ -41,9 +41,9 @@ pub fn child(c: &Compute, master: &MasterKey, app: App, index: u32) -> Option<Ze
         }
         App::Wif => crate::texts::wiped(bip85::child_wif(c, master, index).ok()?.as_str()),
         App::Xprv => crate::texts::wiped(bip85::child_xprv(c, master, index).ok()?.as_str()),
-        App::Hex(length) => faraday_crypto::hex::encode_secret(
+        App::Hex(length) => Zeroizing::new(String::from(&*faraday_crypto::hex::encode_secret(
             bip85::child_hex(c, master, length, index).ok()?.as_bytes(),
-        ),
+        ))),
         App::Base64(length) => crate::texts::wiped(
             bip85::child_password_base64(c, master, length, index)
                 .ok()?

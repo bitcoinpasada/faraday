@@ -50,7 +50,11 @@ impl Node {
                 | Reveal::VaultEntry(Part::NodeKey)
                 | Reveal::OutboxFile(Part::NodeKey)
         )
-        .then(|| faraday_crypto::hex::encode_secret(&self.private[..]))
+        .then(|| {
+            Zeroizing::new(String::from(&*faraday_crypto::hex::encode_secret(
+                &self.private[..],
+            )))
+        })
     }
 }
 
@@ -91,11 +95,11 @@ pub fn node_from_words(
     passphrase: &str,
     network: Network,
 ) -> Result<Node, String> {
-    let m =
-        Mnemonic::parse(c, language, words).map_err(|e| faraday_strings::bip::bip39_error(&e))?;
+    let m = Mnemonic::parse(c, language, words)
+        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))?;
     let seed = m
         .to_seed(c, passphrase.as_bytes())
-        .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
+        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))?;
     Ok(node_of(c, &aezeed::ldk_node_key(c, &seed, network), None))
 }
 
@@ -267,7 +271,7 @@ impl crate::Keys {
         };
         let node = found?;
         if !self.is_public_node(node.public()) {
-            let id: String = faraday_crypto::hex::encode_string(node.public());
+            let id: String = String::from(&*faraday_crypto::hex::encode_string(node.public()));
             return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
         }
         Ok(node)
@@ -294,7 +298,7 @@ impl crate::Keys {
                 .replace("{}", &e)
         })?;
         if !self.is_public_node(&public) {
-            let id: String = faraday_crypto::hex::encode_string(&public);
+            let id: String = String::from(&*faraday_crypto::hex::encode_string(&public));
             return Err(faraday_strings::EN.wallet_is_not_a_key.replace("{}", &id));
         }
         let fp = held.info.fingerprint;

@@ -180,7 +180,7 @@ fn split(name: &str) -> (String, String) {
 /// A SHA-256 as it is shown: its hex in groups of eight, four groups
 /// a line.
 pub fn sha_groups(sha: &[u8; 32]) -> [String; 2] {
-    let group = |b: &[u8]| -> String { faraday_crypto::hex::encode_string(b) };
+    let group = |b: &[u8]| -> String { String::from(&*faraday_crypto::hex::encode_string(b)) };
     let line = |half: &[u8]| -> String { half.chunks(4).map(group).collect::<Vec<_>>().join(" ") };
     [line(&sha[..16]), line(&sha[16..])]
 }

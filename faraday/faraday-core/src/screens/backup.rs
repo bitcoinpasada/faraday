@@ -507,7 +507,11 @@ fn plan_body(
         // On a small panel, where the way on is pinned at the foot, the
         // line takes its place there, greyed.
         if ui.pinning {
-            ui.pin = Some((line, Style::PrimaryOff, Action::BChecklist));
+            ui.pin = Some((
+                faraday_text::Text::of(&line),
+                Style::PrimaryOff,
+                Action::BChecklist,
+            ));
             return cy - y;
         }
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 12.0;

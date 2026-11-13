@@ -95,7 +95,7 @@ fn read_fields(v: &Value, xpub: &str, fp: &str) -> Result<SingleKey, String> {
             (Source::Wasabi, format!("84h/{coin}h/0h"))
         }
     };
-    let fp: String = faraday_crypto::hex::encode_string(&bytes);
+    let fp: String = String::from(&*faraday_crypto::hex::encode_string(&bytes));
     let line = slip132::key_line(&format!("[{fp}/{path}]{xpub}"))
         .ok_or_else(|| bad(EN.wallet_single_key_xpub))?
         .map_err(|m| crate::wallet::mismatch_text(&m))?;
@@ -177,7 +177,9 @@ pub fn wasabi_writes(policy: &WalletPolicy) -> bool {
 /// ([`wasabi_writes`]).
 pub fn wasabi_file(policy: &WalletPolicy) -> Option<String> {
     let k = wasabi_key(policy)?;
-    let fp = faraday_crypto::hex::encode_string(&k.fingerprint()?.0).to_ascii_uppercase();
+    let fp = String::from(
+        &*faraday_crypto::hex::encode_string(&k.fingerprint()?.0).to_ascii_uppercase(),
+    );
     Some(format!(
         "{{\"ColdCardFirmwareVersion\": {}, \"MasterFingerprint\": {}, \"ExtPubKey\": {}}}\n",
         json::quote(WASABI_FIRMWARE),

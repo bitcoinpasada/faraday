@@ -17,7 +17,7 @@ use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H};
 
 fn hex(b: &[u8]) -> String {
-    faraday_crypto::hex::encode_string(b)
+    String::from(&*faraday_crypto::hex::encode_string(b))
 }
 
 const GUIDE: &str = EN.tools_calculators_each;
@@ -267,7 +267,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         },
         Reading::Nothing => {
             let sats = crate::tools::units_sats(&t.typed, t.unit);
-            rows.push(("sat".into(), crate::ui::thousands(sats)));
+            rows.push(("sat".into(), String::from(&*crate::ui::thousands(sats))));
             rows.push((
                 "BTC".into(),
                 format!("{}.{:08}", sats / 100_000_000, sats % 100_000_000),

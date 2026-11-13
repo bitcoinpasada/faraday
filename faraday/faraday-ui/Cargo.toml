@@ -15,6 +15,8 @@ faraday-draw = { path = "../../core/faraday-draw" }
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 # The themes' names.
 faraday-strings = { path = "../faraday-strings" }
+# What the fit, grouping and number helpers return: text that wipes itself.
+faraday-text = { path = "../../core/faraday-text" }
 # The block a Learn tab and the Starter's sheet draw.
 faraday-guide = { path = "../faraday-guide" }
 

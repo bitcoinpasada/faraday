@@ -2068,7 +2068,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
         }
         Some(Source::Mix) => {
             for (i, (s, c)) in k.mix_list().iter().zip(k.mixed.commitments()).enumerate() {
-                let hex: String = faraday_crypto::hex::encode_string(&c[..8]);
+                let hex: String = String::from(&*faraday_crypto::hex::encode_string(&c[..8]));
                 cy = stat(
                     ui,
                     x,
@@ -2184,7 +2184,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if k.share_at + 1 < k.shares.len() {
         if ui.pinning {
             ui.pin = Some((
-                EN.keygen_next_share.to_string(),
+                faraday_text::Text::of(EN.keygen_next_share),
                 Style::Primary,
                 Action::KShare(1),
             ));

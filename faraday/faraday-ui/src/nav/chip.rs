@@ -7,6 +7,7 @@ use crate::{Glyph, Shape, Ui, W};
 use faraday_draw::tokens::{
     GAP_SMALL, GRID, ICON_SMALL, LABEL_L, NAV_ICON, STATUS_CHIP_H, STATUS_CHIP_PAD,
 };
+use faraday_text::Text;
 
 /// What a status chip shows and does.
 #[derive(Debug, Clone, Copy)]
@@ -64,7 +65,7 @@ fn chip_drawn<A: Copy + PartialEq>(
     let head_s = ui.fit(size, head.1, head.0, inner.min(hw_full));
     let hw = ui.measure(size, head.1, &head_s);
     let tail_s = if tail.is_empty() {
-        String::new()
+        Text::new()
     } else {
         ui.fit(size, W::R, tail, (inner - hw - GRID).max(0.0))
     };

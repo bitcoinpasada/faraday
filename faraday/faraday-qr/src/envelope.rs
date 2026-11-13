@@ -49,7 +49,7 @@ fn name_ok(name: &str) -> bool {
 }
 
 fn hex(b: &[u8]) -> String {
-    faraday_crypto::hex::encode_string(b)
+    String::from(&*faraday_crypto::hex::encode_string(b))
 }
 
 /// A file in an envelope, as Faraday OS writes one.

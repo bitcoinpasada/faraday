@@ -419,6 +419,7 @@ core/faraday-draw/src/tokens.rs
 core/faraday-crypto/src/pinned.rs
 core/faraday-crypto/src/lib.rs
 core/faraday-crypto/src/hash.rs
+core/faraday-crypto/src/hex.rs
 core/faraday-crypto/src/argon2.rs
 core/faraday-codec/src/seedqr.rs
 core/faraday-codec/src/lib.rs
@@ -438,6 +439,7 @@ faraday/faraday-core/src/work.rs
 faraday/faraday-keys/src/message.rs
 faraday/faraday-keys/src/vanity.rs
 faraday/faraday-sb/src/rng.rs
+faraday/faraday-strings/src/bip.rs
 core/faraday-text/src/lib.rs
 core/faraday-text/src/text.rs
 core/faraday-text/src/num.rs

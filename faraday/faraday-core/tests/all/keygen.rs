@@ -966,7 +966,7 @@ fn a_single_key_create_goes_back_to_back_up_wallet_at_lock_in_and_holds_the_addr
     let wallet = &app.session.wallets[w];
     let k = faraday_core::testkit::compute();
     let first = faraday_core::ui::grouped(&app.session.address_shown(&k, wallet, false, 0));
-    assert!(!on_key.contains(&first), "{first} shown while held");
+    assert!(!on_key.contains(&*first), "{} shown while held", &*first);
 }
 
 #[test]

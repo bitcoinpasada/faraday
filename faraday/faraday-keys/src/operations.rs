@@ -319,12 +319,14 @@ impl Keys {
             (None, Some(bytes)) => bytes,
             (None, None) => return Err(Paper::NoWords),
         };
-        let one = |e: codex32::Error| Paper::Refused(faraday_strings::bip::codex32_error(&e));
+        let one = |e: codex32::Error| {
+            Paper::Refused(String::from(&*faraday_strings::bip::codex32_error(&e)))
+        };
         let id = codex32::identifier_for(fp);
         if k == 0 {
             if n != 1 {
-                return Err(Paper::Refused(faraday_strings::bip::codex32_error(
-                    &codex32::Error::BadSplit,
+                return Err(Paper::Refused(String::from(
+                    &*faraday_strings::bip::codex32_error(&codex32::Error::BadSplit),
                 )));
             }
             let secret = Codex32::from_seed(0, id, seed).map_err(one)?;
@@ -385,7 +387,7 @@ impl Keys {
             (None, Some(bytes)) => bytes,
             (None, None) => return Err(Convert::NotGiven),
         };
-        let text = faraday_crypto::hex::encode_secret(seed);
+        let text = Zeroizing::new(String::from(&*faraday_crypto::hex::encode_secret(seed)));
         let back = faraday_crypto::hex::decode_vec(&text).map(Zeroizing::new);
         let read = back.as_deref().and_then(|b| fingerprint_of_seed(c, b));
         checked(s.master.fingerprint(), read, text)
@@ -431,9 +433,9 @@ impl Keys {
         }
         let m = Mnemonic::parse(c, lang, words).map_err(|_| Convert::NotGiven)?;
         let text = match form {
-            WordsForm::HexEntropy => {
-                faraday_crypto::hex::encode_secret(m.entropy().expose().as_bytes())
-            }
+            WordsForm::HexEntropy => Zeroizing::new(String::from(
+                &*faraday_crypto::hex::encode_secret(m.entropy().expose().as_bytes()),
+            )),
             _ => written_by_word(&m, form),
         };
         let read = match form {

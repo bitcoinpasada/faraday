@@ -82,7 +82,7 @@ impl Receipt {
             u8::from(self.by_flow)
         );
         for f in &self.files {
-            let hash: String = faraday_crypto::hex::encode_string(&f.hash);
+            let hash: String = String::from(&*faraday_crypto::hex::encode_string(&f.hash));
             out.push_str(&format!(
                 "file\t{}\t{hash}\t{}\t{}\n",
                 field(&f.name),

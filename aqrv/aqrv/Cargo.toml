@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-bip = { path = "../../core/faraday-bip" }
+faraday-text = { path = "../../core/faraday-text" }
 # Only `Algorithm::Argon2id`, for faraday-crypto's one Argon2 call.
 argon2.workspace = true
 chacha20.workspace = true

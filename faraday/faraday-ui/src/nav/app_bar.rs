@@ -15,6 +15,7 @@ use faraday_draw::tokens::{
 };
 use faraday_draw::widgets::Icon;
 use faraday_strings::EN;
+use faraday_text::Text;
 
 /// What the bar shows at its left.
 pub struct AppBar<'s, A> {
@@ -62,7 +63,7 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
         // the name wraps it takes both lines and Back's label is left off.
         let label = match &name {
             Name::One(..) => {
-                let back_to = faraday_strings::fill(EN.bar_back_to, &[label]);
+                let back_to = Text::fill(EN.bar_back_to, &[label]);
                 let line = room(x);
                 Some(if ui.measure_as(LABEL_M, &back_to) <= line {
                     back_to
@@ -72,7 +73,7 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
                     .is_some_and(|word| ui.measure_as(LABEL_M, word) > line)
                 {
                     // Not even its first word shows whole: left off, never "T…".
-                    String::new()
+                    Text::new()
                 } else {
                     ui.fit_as(LABEL_M, label, line)
                 })

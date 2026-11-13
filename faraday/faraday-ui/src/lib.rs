@@ -40,6 +40,7 @@ use faraday_draw::fonts::Family;
 use faraday_draw::text::{self, TextAlign};
 use faraday_draw::widgets::Icon;
 use faraday_draw::{Canvas, Color, Font, Rect};
+use faraday_text::Text;
 use std::sync::OnceLock;
 
 /// The overlay scrollbar's thumb, units wide.
@@ -457,7 +458,7 @@ pub struct Ui<'a, A> {
     /// it, and the page scrolls above it).
     pub pinning: bool,
     /// The forward action a page pinned this frame.
-    pub pin: Option<(String, Style, A)>,
+    pub pin: Option<(Text, Style, A)>,
     /// On a small panel, where a step flow's bar tools begin (the ?, the
     /// eye, Cancel and the rest at its right end), set by the frame
     /// before the page is drawn so the bar's title ends before it.
@@ -474,7 +475,7 @@ pub struct Ui<'a, A> {
     /// handed to it rather than drawn in its body.
     pub sheet_pinning: bool,
     /// The buttons a sheet's body handed over.
-    pub sheet_pin: Option<Vec<(String, Style, A)>>,
+    pub sheet_pin: Option<Vec<(Text, Style, A)>>,
     /// Where this frame's floating action button stands, in the
     /// window's units (x, y, width, height): a snackbar drawn after it
     /// stands above it, as Material places one (`snackbar.rs`).
@@ -503,7 +504,7 @@ pub struct Ui<'a, A> {
     /// On the wide layout, the page's name and its way back (the name of
     /// where it lands, and the press), handed over by the page for the
     /// top app bar the frame draws over it (`docs/LAYOUT.md` §3).
-    pub head: Option<(String, Option<(String, A)>)>,
+    pub head: Option<(Text, Option<(Text, A)>)>,
     /// On a small panel, which walk-through is shown on this screen: a
     /// step's place, or the app's own number for its About.
     pub about_open: Option<u8>,
@@ -1592,16 +1593,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// it that fits with "…" after it, or nothing when "…" alone does
     /// not. One pass over its characters' advances, which only add up,
     /// so the first start that does not fit ends the search.
-    pub fn fit(&self, size: f32, w: W, s: &str, max: f32) -> String {
+    pub fn fit(&self, size: f32, w: W, s: &str, max: f32) -> Text {
         let face = self.face(size, w);
         let fits = |pen: u32| text::px_from_64(pen) as f32 / self.f <= max;
         let whole: u32 = s.chars().map(|c| face.advance_64(c)).sum();
         if fits(whole) {
-            return s.to_string();
+            return Text::of(s);
         }
         let ellipsis = face.advance_64('…');
         if !fits(ellipsis) {
-            return String::new();
+            return Text::new();
         }
         let (mut pen, mut end) = (0u32, 0usize);
         for (i, c) in s.char_indices() {
@@ -1611,7 +1612,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             }
             end = i + c.len_utf8();
         }
-        format!("{}…", &s[..end])
+        let mut out = Text::with_room(end + '…'.len_utf8());
+        out.push_str(&s[..end]);
+        out.push('…');
+        out
     }
 
     /// `s` wrapped to `width`. Returns the height used.
@@ -2322,36 +2326,41 @@ impl Status {
 }
 
 /// An address or a txid in groups of four.
-pub fn grouped(s: &str) -> String {
-    s.chars()
-        .collect::<Vec<_>>()
-        .chunks(4)
-        .map(|c| c.iter().collect::<String>())
-        .collect::<Vec<_>>()
-        .join(" ")
+pub fn grouped(s: &str) -> Text {
+    let mut out = Text::with_room(s.len() + s.len() / 4);
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && i % 4 == 0 {
+            out.push(' ');
+        }
+        out.push(c);
+    }
+    out
 }
 
 /// The first two groups of four, an ellipsis and the last four
 /// characters.
-pub fn short(s: &str) -> String {
-    let chars: Vec<char> = s.chars().collect();
-    if chars.len() <= 16 {
+pub fn short(s: &str) -> Text {
+    let count = s.chars().count();
+    if count <= 16 {
         return grouped(s);
     }
-    let head: String = chars[..8].iter().collect();
-    let tail: String = chars[chars.len() - 4..].iter().collect();
-    format!("{} … {}", grouped(&head), tail)
+    let head_end = s.char_indices().nth(8).map_or(s.len(), |(i, _)| i);
+    let tail_start = s.char_indices().nth(count - 4).map_or(s.len(), |(i, _)| i);
+    let mut out = grouped(&s[..head_end]);
+    out.push_str(" … ");
+    out.push_str(&s[tail_start..]);
+    out
 }
 
 /// An amount in BTC with eight decimals.
-pub fn btc(sat: u64) -> String {
-    format!("{}.{:08}", sat / 100_000_000, sat % 100_000_000)
+pub fn btc(sat: u64) -> Text {
+    faraday_text::text!("{}.{:08}", sat / 100_000_000, sat % 100_000_000)
 }
 
 /// A whole number with thousands separators.
-pub fn thousands(n: u64) -> String {
-    let s = n.to_string();
-    let mut out = String::new();
+pub fn thousands(n: u64) -> Text {
+    let s = Text::num(n);
+    let mut out = Text::with_room(s.len() + s.len() / 3);
     for (i, ch) in s.chars().enumerate() {
         if i > 0 && (s.len() - i).is_multiple_of(3) {
             out.push(',');
@@ -2565,7 +2574,7 @@ mod tests {
                 for (size, w) in [(12.0, W::R), (14.0, W::M), (13.0, W::S)] {
                     for max in [0.0, 3.0, 9.5, 20.0, 47.25, 80.0, 133.0, 260.0, 1000.0] {
                         assert_eq!(
-                            ui.fit(size, w, name, max),
+                            ui.fit(size, w, name, max).as_str(),
                             fit_by_popping(&ui, size, w, name, max),
                             "{name:?} at {size} {w:?} in {max} at {dpi} dpi"
                         );

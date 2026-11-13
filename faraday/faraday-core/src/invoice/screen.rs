@@ -125,7 +125,7 @@ fn draw_rows(ui: &mut Ui, rows: &[super::Row], (x, mut y, w): (f32, f32, f32)) -
     for row in rows {
         let face = if row.mono { BODY_M.mono() } else { BODY_M };
         let value = if row.mono {
-            grouped(&row.value)
+            String::from(&*grouped(&row.value))
         } else {
             row.value.clone()
         };

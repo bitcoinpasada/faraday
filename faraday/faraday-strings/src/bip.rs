@@ -6,31 +6,37 @@
 
 use faraday_bip::{bip39, bsms, codex32, keys, musig, policy, slip39};
 
-use crate::{EN, fill};
+use faraday_text::{Num, Text};
+
+use crate::EN;
+
+/// A count or position as digits on the stack.
+fn num(n: impl Into<u64>) -> Num {
+    Text::num(n.into())
+}
 
 /// A BIP-39 refusal.
-pub fn bip39_error(e: &bip39::Error) -> String {
+pub fn bip39_error(e: &bip39::Error) -> Text {
     use bip39::Error as E;
     match e {
-        E::InvalidWordCount => EN.bip_word_count.into(),
-        E::InvalidEntropyLength => EN.bip_entropy_length.into(),
-        E::UnknownWord { position } => fill(
-            EN.bip_word_not_in_list,
-            &[&(u32::from(*position) + 1).to_string()],
-        ),
-        E::BadChecksum => EN.bip_checksum_mismatch.into(),
-        E::PassphraseNotAscii => EN.bip_passphrase_not_ascii.into(),
-        E::PassphraseTooLong => fill(
+        E::InvalidWordCount => Text::of(EN.bip_word_count),
+        E::InvalidEntropyLength => Text::of(EN.bip_entropy_length),
+        E::UnknownWord { position } => {
+            Text::fill(EN.bip_word_not_in_list, &[&num(u32::from(*position) + 1)])
+        }
+        E::BadChecksum => Text::of(EN.bip_checksum_mismatch),
+        E::PassphraseNotAscii => Text::of(EN.bip_passphrase_not_ascii),
+        E::PassphraseTooLong => Text::fill(
             EN.bip_passphrase_too_long,
-            &[&bip39::MAX_PASSPHRASE_BYTES.to_string()],
+            &[&num(bip39::MAX_PASSPHRASE_BYTES as u64)],
         ),
     }
 }
 
 /// A BIP-129 (BSMS) refusal.
-pub fn bsms_error(e: &bsms::Error) -> String {
+pub fn bsms_error(e: &bsms::Error) -> Text {
     use bsms::Error as E;
-    match e {
+    Text::of(match e {
         E::Version => EN.bip_bsms_version,
         E::Lines => EN.bip_bsms_lines,
         E::Token => EN.bip_bsms_token,
@@ -42,14 +48,13 @@ pub fn bsms_error(e: &bsms::Error) -> String {
         E::Address => EN.bip_bsms_address,
         E::FirstAddress => EN.bip_bsms_first_address,
         E::Policy(p) => return policy_error(p),
-    }
-    .into()
+    })
 }
 
 /// A MuSig2 refusal.
-pub fn musig_error(e: &musig::Error) -> String {
+pub fn musig_error(e: &musig::Error) -> Text {
     use musig::Error as E;
-    match e {
+    Text::of(match e {
         E::NoKeys => EN.bip_musig_no_keys,
         E::Infinity => EN.bip_musig_infinity,
         E::TweakOutOfRange => EN.bip_musig_tweak,
@@ -63,14 +68,13 @@ pub fn musig_error(e: &musig::Error) -> String {
         E::PartialSig => EN.bip_musig_partial_sig,
         E::NotAParticipant => EN.bip_musig_not_participant,
         E::VerifyFailed => EN.bip_musig_verify,
-    }
-    .into()
+    })
 }
 
 /// A wallet policy or descriptor refusal.
-pub fn policy_error(e: &policy::Error) -> String {
+pub fn policy_error(e: &policy::Error) -> Text {
     use policy::Error as E;
-    match e {
+    Text::of(match e {
         E::Template => EN.bip_policy_template,
         E::Key => EN.bip_key_not_xpub,
         E::RepeatedKey => EN.bip_policy_repeated_key,
@@ -80,107 +84,103 @@ pub fn policy_error(e: &policy::Error) -> String {
         E::Threshold => EN.bip_policy_threshold,
         E::Checksum => EN.bip_policy_checksum,
         E::IndexOutOfRange => EN.bip_index_out_of_range,
-    }
-    .into()
+    })
 }
 
 /// A key-derivation refusal.
-pub fn keys_error(e: &keys::Error) -> String {
-    match e {
+pub fn keys_error(e: &keys::Error) -> Text {
+    Text::of(match e {
         keys::Error::IndexOutOfRange => EN.bip_index_out_of_range,
         keys::Error::NotMaster => EN.bip_keys_not_master,
-    }
-    .into()
+    })
 }
 
 /// A codex32 refusal.
-pub fn codex32_error(e: &codex32::Error) -> String {
+pub fn codex32_error(e: &codex32::Error) -> Text {
     use codex32::Error as E;
     match e {
-        E::NotPrintable => EN.bip_codex32_not_printable.into(),
-        E::MixedCase => EN.bip_codex32_mixed_case.into(),
-        E::BadPrefix => EN.bip_codex32_prefix.into(),
-        E::BadLength => EN.bip_codex32_length.into(),
+        E::NotPrintable => Text::of(EN.bip_codex32_not_printable),
+        E::MixedCase => Text::of(EN.bip_codex32_mixed_case),
+        E::BadPrefix => Text::of(EN.bip_codex32_prefix),
+        E::BadLength => Text::of(EN.bip_codex32_length),
         E::BadCharacter { position } => {
-            fill(EN.bip_codex32_character, &[&(*position + 1).to_string()])
+            Text::fill(EN.bip_codex32_character, &[&num(*position as u64 + 1)])
         }
-        E::BadThreshold => EN.bip_codex32_threshold.into(),
-        E::SecretIndexRequired => EN.bip_codex32_secret_index.into(),
-        E::BadChecksum => EN.bip_checksum_mismatch.into(),
-        E::WrongKind => EN.bip_codex32_wrong_kind.into(),
-        E::DuplicateIndex => EN.bip_codex32_duplicate_index.into(),
-        E::IdentifierMismatch => EN.bip_codex32_identifier_mismatch.into(),
-        E::ThresholdMismatch => EN.bip_codex32_threshold_mismatch.into(),
-        E::LengthMismatch => EN.bip_codex32_length_mismatch.into(),
-        E::WrongShareCount => EN.bip_codex32_share_count.into(),
-        E::BadShareIndex => EN.bip_codex32_share_index.into(),
-        E::BadIdentifier => EN.bip_codex32_identifier.into(),
-        E::BadSeedLength => EN.bip_codex32_seed_length.into(),
-        E::BadSplit => EN.bip_codex32_split.into(),
-        E::NotEnoughRandomness => EN.bip_codex32_randomness.into(),
+        E::BadThreshold => Text::of(EN.bip_codex32_threshold),
+        E::SecretIndexRequired => Text::of(EN.bip_codex32_secret_index),
+        E::BadChecksum => Text::of(EN.bip_checksum_mismatch),
+        E::WrongKind => Text::of(EN.bip_codex32_wrong_kind),
+        E::DuplicateIndex => Text::of(EN.bip_codex32_duplicate_index),
+        E::IdentifierMismatch => Text::of(EN.bip_codex32_identifier_mismatch),
+        E::ThresholdMismatch => Text::of(EN.bip_codex32_threshold_mismatch),
+        E::LengthMismatch => Text::of(EN.bip_codex32_length_mismatch),
+        E::WrongShareCount => Text::of(EN.bip_codex32_share_count),
+        E::BadShareIndex => Text::of(EN.bip_codex32_share_index),
+        E::BadIdentifier => Text::of(EN.bip_codex32_identifier),
+        E::BadSeedLength => Text::of(EN.bip_codex32_seed_length),
+        E::BadSplit => Text::of(EN.bip_codex32_split),
+        E::NotEnoughRandomness => Text::of(EN.bip_codex32_randomness),
     }
 }
 
 /// A SLIP-39 refusal.
-pub fn slip39_error(e: &slip39::Error) -> String {
+pub fn slip39_error(e: &slip39::Error) -> Text {
     use slip39::Error as E;
     match e {
-        E::InvalidWordCount => EN.bip_slip39_word_count.into(),
-        E::UnknownWord { position } => fill(
-            EN.bip_word_not_in_list,
-            &[&(u32::from(*position) + 1).to_string()],
-        ),
-        E::BadChecksum => EN.bip_checksum_mismatch.into(),
-        E::NonZeroPadding => EN.bip_slip39_padding.into(),
-        E::InvalidSecretLength => EN.bip_slip39_secret_length.into(),
-        E::NoShares => EN.bip_slip39_no_shares.into(),
-        E::MismatchedIdentifiers => EN.bip_slip39_identifiers.into(),
-        E::MismatchedExtendable => EN.bip_slip39_extendable.into(),
-        E::MismatchedIterationExponents => EN.bip_slip39_iteration_exponents.into(),
-        E::MismatchedGroupThresholds => EN.bip_slip39_group_thresholds.into(),
-        E::MismatchedGroupCounts => EN.bip_slip39_group_counts.into(),
-        E::MismatchedValueLengths => EN.bip_slip39_value_lengths.into(),
-        E::MismatchedMemberThresholds => EN.bip_slip39_member_thresholds.into(),
-        E::GroupThresholdExceedsCount => EN.bip_slip39_group_threshold_exceeds.into(),
-        E::GroupIndexOutOfRange => EN.bip_slip39_group_index.into(),
-        E::DuplicateMemberIndex => EN.bip_slip39_duplicate_member.into(),
-        E::WrongGroupCount { needed, given } => fill(
-            EN.bip_slip39_group_count,
-            &[&needed.to_string(), &given.to_string()],
-        ),
+        E::InvalidWordCount => Text::of(EN.bip_slip39_word_count),
+        E::UnknownWord { position } => {
+            Text::fill(EN.bip_word_not_in_list, &[&num(u32::from(*position) + 1)])
+        }
+        E::BadChecksum => Text::of(EN.bip_checksum_mismatch),
+        E::NonZeroPadding => Text::of(EN.bip_slip39_padding),
+        E::InvalidSecretLength => Text::of(EN.bip_slip39_secret_length),
+        E::NoShares => Text::of(EN.bip_slip39_no_shares),
+        E::MismatchedIdentifiers => Text::of(EN.bip_slip39_identifiers),
+        E::MismatchedExtendable => Text::of(EN.bip_slip39_extendable),
+        E::MismatchedIterationExponents => Text::of(EN.bip_slip39_iteration_exponents),
+        E::MismatchedGroupThresholds => Text::of(EN.bip_slip39_group_thresholds),
+        E::MismatchedGroupCounts => Text::of(EN.bip_slip39_group_counts),
+        E::MismatchedValueLengths => Text::of(EN.bip_slip39_value_lengths),
+        E::MismatchedMemberThresholds => Text::of(EN.bip_slip39_member_thresholds),
+        E::GroupThresholdExceedsCount => Text::of(EN.bip_slip39_group_threshold_exceeds),
+        E::GroupIndexOutOfRange => Text::of(EN.bip_slip39_group_index),
+        E::DuplicateMemberIndex => Text::of(EN.bip_slip39_duplicate_member),
+        E::WrongGroupCount { needed, given } => {
+            Text::fill(EN.bip_slip39_group_count, &[&num(*needed), &num(*given)])
+        }
         E::WrongMemberCount {
             group_index,
             needed,
             given,
-        } => fill(
+        } => Text::fill(
             EN.bip_slip39_member_count,
             &[
-                &(u32::from(*group_index) + 1).to_string(),
-                &needed.to_string(),
-                &given.to_string(),
+                &num(u32::from(*group_index) + 1),
+                &num(*needed),
+                &num(*given),
             ],
         ),
-        E::BadDigest => EN.bip_slip39_digest.into(),
-        E::PassphraseNotAscii => EN.bip_passphrase_not_ascii.into(),
-        E::PassphraseTooLong => fill(
+        E::BadDigest => Text::of(EN.bip_slip39_digest),
+        E::PassphraseNotAscii => Text::of(EN.bip_passphrase_not_ascii),
+        E::PassphraseTooLong => Text::fill(
             EN.bip_passphrase_too_long,
-            &[&slip39::MAX_PASSPHRASE_BYTES.to_string()],
+            &[&num(slip39::MAX_PASSPHRASE_BYTES as u64)],
         ),
-        E::InvalidParameters => EN.bip_slip39_parameters.into(),
-        E::IterationExponentTooHigh { exponent } => fill(
+        E::InvalidParameters => Text::of(EN.bip_slip39_parameters),
+        E::IterationExponentTooHigh { exponent } => Text::fill(
             EN.bip_slip39_iteration_too_high,
             &[
-                &exponent.to_string(),
-                &(u64::from(slip39::BASE_ITERATION_COUNT) << exponent).to_string(),
-                &slip39::MAX_READ_ITERATION_EXPONENT.to_string(),
+                &num(*exponent),
+                &num(u64::from(slip39::BASE_ITERATION_COUNT) << exponent),
+                &num(slip39::MAX_READ_ITERATION_EXPONENT),
             ],
         ),
-        E::OutputTooSmall => EN.bip_slip39_output_too_small.into(),
-        E::MixedGroups => EN.bip_slip39_mixed_groups.into(),
-        E::MemberIndexOutOfRange => EN.bip_slip39_member_index.into(),
-        E::MemberIndexTaken => EN.bip_slip39_member_taken.into(),
-        E::SingleMemberGroup => EN.bip_slip39_single_member.into(),
-        E::NotExtendable => EN.bip_slip39_not_extendable.into(),
+        E::OutputTooSmall => Text::of(EN.bip_slip39_output_too_small),
+        E::MixedGroups => Text::of(EN.bip_slip39_mixed_groups),
+        E::MemberIndexOutOfRange => Text::of(EN.bip_slip39_member_index),
+        E::MemberIndexTaken => Text::of(EN.bip_slip39_member_taken),
+        E::SingleMemberGroup => Text::of(EN.bip_slip39_single_member),
+        E::NotExtendable => Text::of(EN.bip_slip39_not_extendable),
     }
 }
 

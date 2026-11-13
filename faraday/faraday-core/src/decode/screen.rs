@@ -98,7 +98,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let face = if *mono { BODY_M.mono() } else { BODY_M };
         if compact {
             ui.text_as(x, y, BODY_S, Role::OnSurfaceVariant, k);
-            let v = if *mono { grouped(v) } else { v.clone() };
+            let v = if *mono {
+                String::from(&*grouped(v))
+            } else {
+                v.clone()
+            };
             let vh = ui.wrap_as((x, y + 18.0, w), face, Role::OnSurface, &v);
             ui.rule(x, y + vh + 26.0, w, Role::OutlineVariant);
             y += vh + 34.0;

@@ -32,7 +32,7 @@ pub const CHECKLIST_SEEDS: usize = 28;
 
 /// The sha-256 or other 32 bytes as lower-case hex.
 pub fn hex32(b: &[u8; 32]) -> String {
-    faraday_crypto::hex::encode_string(b)
+    String::from(&*faraday_crypto::hex::encode_string(b))
 }
 
 /// 64 hex characters as 32 bytes.

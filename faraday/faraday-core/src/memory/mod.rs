@@ -500,7 +500,7 @@ impl Faraday {
                 .vault_from()
                 .iter()
                 .map(|(name, hash, label)| {
-                    let hex: String = faraday_crypto::hex::encode_string(hash);
+                    let hex: String = String::from(&*faraday_crypto::hex::encode_string(hash));
                     format!("{hex}\t{label}\t{name}")
                 })
                 .collect();

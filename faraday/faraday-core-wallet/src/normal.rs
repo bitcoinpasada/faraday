@@ -290,7 +290,9 @@ fn key(
     let (fp, path) = match &origin {
         Some((fp, path)) => (fp.clone(), [path.as_slice(), &steps[..=last]].concat()),
         None => (
-            faraday_crypto::hex::encode_string(&hash160::Hash::hash(&root).to_byte_array()[..4]),
+            String::from(&*faraday_crypto::hex::encode_string(
+                &hash160::Hash::hash(&root).to_byte_array()[..4],
+            )),
             steps[..=last].to_vec(),
         ),
     };

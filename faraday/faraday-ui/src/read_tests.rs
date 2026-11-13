@@ -173,13 +173,7 @@ fn controls(ui: &mut Ui<u8>) {
         ("First".to_string(), true, true, 12),
         ("Second".to_string(), false, true, 13),
     ];
-    ui.multi_list_valued(
-        320.0,
-        300.0,
-        300.0,
-        &rows,
-        &["a value".into(), "b value".into()],
-    );
+    ui.multi_list_valued(320.0, 300.0, 300.0, &rows, &["a value", "b value"]);
     ui.progress((16.0, 380.0, 200.0), Some(0.4), None);
 }
 

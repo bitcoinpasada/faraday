@@ -551,7 +551,7 @@ pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Strin
 
 /// `s`, parts split by " · ", over two lines of `w` at 12 regular: as
 /// many parts as fit on the first, the rest fitted to the second.
-fn two_lines(ui: &mut Ui, s: &str, w: f32) -> (String, String) {
+fn two_lines(ui: &mut Ui, s: &str, w: f32) -> (faraday_text::Text, faraday_text::Text) {
     let parts: Vec<&str> = s.split(" · ").collect();
     let mut n = 1;
     while n < parts.len() && ui.measure_as(BODY_S, &parts[..=n].join(" · ")) <= w {
@@ -2865,7 +2865,7 @@ fn detail(
                 } else {
                     rh + 6.0
                 };
-            let hex: String = faraday_crypto::hex::encode_string(&f.hash);
+            let hex: String = String::from(&*faraday_crypto::hex::encode_string(&f.hash));
             ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), muted, &hex) + 6.0;
             if let Some(t) = &f.text {
                 let eye = (va(V::SignText(fi)), app.vaults.sign_text_shown(&f.hash));

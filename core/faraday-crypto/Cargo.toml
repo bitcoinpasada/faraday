@@ -26,6 +26,7 @@ unchecked = []
 zeroize = { workspace = true, features = ["alloc"] }
 argon2 = { workspace = true }
 base16ct.workspace = true
+faraday-text = { path = "../faraday-text" }
 subtle.workspace = true
 sha2 = { workspace = true, features = ["zeroize"] }
 hmac = { workspace = true, features = ["zeroize"] }

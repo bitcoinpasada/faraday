@@ -18,6 +18,7 @@ use faraday_draw::tokens::{
     LIST_2, LIST_3, LIST_3_TOP, LIST_PAD, LIST_PAD_V, SHAPE_L, TEXT_FIT_STEP_PCT, TypeFace,
     TypeRole,
 };
+use faraday_text::Text;
 
 impl From<TypeFace> for W {
     fn from(face: TypeFace) -> W {
@@ -282,7 +283,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     }
 
     /// `s` in `role` cut with an ellipsis to fit `max`.
-    pub fn fit_as(&self, role: TypeRole, s: &str, max: f32) -> String {
+    pub fn fit_as(&self, role: TypeRole, s: &str, max: f32) -> Text {
         let role = self.stepped(role);
         self.fit(role.size, role.face.into(), s, max)
     }

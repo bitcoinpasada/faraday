@@ -432,7 +432,7 @@ impl ActionLabel {
             Some(short) if ui.measure_as(role, &self.long) > room => short,
             _ => &self.long,
         };
-        ui.fit_as(role, label, room)
+        String::from(&*ui.fit_as(role, label, room))
     }
 }
 
@@ -445,13 +445,13 @@ fn spend_bar(
     cw: f32,
     y: f32,
     needed: usize,
-    step: Option<(String, Style, Action)>,
+    step: Option<(faraday_text::Text, Style, Action)>,
 ) {
     let (count, missing, need_line, label, style) = spend_status(app, needed);
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
     // The button's room for its label.
     let room = w - 24.0;
-    let label = label.fitted(ui, TITLE_M, room);
+    let label = faraday_text::Text::of(&label.fitted(ui, TITLE_M, room));
     let (label, style, action) = step.unwrap_or((label, style, Action::Primary));
     ui.fill(x0, y, cw, spend_bar_h(ui), 0.0, Role::SurfaceContainerLow);
     ui.fill(x0, y, cw, 1.0, 0.0, Role::OutlineVariant);
@@ -611,7 +611,11 @@ pub(crate) fn step_body(
     // ([`spend_bar`]) while the step is read.
     let next = |ui: &mut Ui, cy: f32, label: &str| {
         if ui.pinning {
-            ui.pin = Some((label.to_string(), Style::Primary, Action::StepNext(n)));
+            ui.pin = Some((
+                faraday_text::Text::of(label),
+                Style::Primary,
+                Action::StepNext(n),
+            ));
             return;
         }
         let bw = ui.measure_as(TITLE_S, label) + 36.0;
@@ -709,8 +713,8 @@ pub(crate) fn step_body(
             for o in recipients(i) {
                 rows.push((
                     EN.step_sends.into(),
-                    btc(o.amount.to_sat()),
-                    fill(EN.step_to_address, &[&short(&o.address).to_string()]),
+                    String::from(&*btc(o.amount.to_sat())),
+                    fill(EN.step_to_address, &[&short(&o.address)]),
                     None,
                 ));
             }
@@ -720,7 +724,7 @@ pub(crate) fn step_body(
                     | OutputKind::Change { change, index, .. } => {
                         rows.push((
                             EN.step_change.into(),
-                            btc(o.amount.to_sat()),
+                            String::from(&*btc(o.amount.to_sat())),
                             fill(
                                 EN.step_to_path,
                                 &[
@@ -738,13 +742,10 @@ pub(crate) fn step_body(
             rows.push(match i.fee_rate_sat_vb {
                 Some(rate) => (
                     EN.step_fee.into(),
-                    btc(i.fee.to_sat()),
+                    String::from(&*btc(i.fee.to_sat())),
                     fill(
                         EN.step_sat_sat_vb,
-                        &[
-                            &thousands(i.fee.to_sat()).to_string(),
-                            &format!("{rate:.1}"),
-                        ],
+                        &[&thousands(i.fee.to_sat()), &format!("{rate:.1}")],
                     ),
                     None,
                 ),
@@ -758,7 +759,7 @@ pub(crate) fn step_body(
             let unchecked = i.inputs.iter().any(|inp| inp.amount.is_none());
             rows.push((
                 EN.step_spends.into(),
-                btc(i.total_in.to_sat()),
+                String::from(&*btc(i.total_in.to_sat())),
                 format!(
                     "{} {}",
                     i.inputs.len(),
@@ -784,7 +785,7 @@ pub(crate) fn step_body(
                 });
                 rows.push((
                     EN.step_txid.into(),
-                    short(&s.spend.txid.to_string()),
+                    String::from(&*short(&s.spend.txid.to_string())),
                     if segwit {
                         EN.step_unchanged_by_signing
                     } else {
@@ -997,16 +998,18 @@ pub(crate) fn step_body(
                         (
                             EN.step_input,
                             inp.amount
-                                .map(|a| btc(a.to_sat()))
+                                .map(|a| String::from(&*btc(a.to_sat())))
                                 .unwrap_or_else(|| "?".into()),
-                            format!("{}:{}", short(&inp.txid.to_string()), inp.vout),
+                            format!("{}:{}", &*short(&inp.txid.to_string()), inp.vout),
                         )
                     })
-                    .chain(
-                        i.outputs
-                            .iter()
-                            .map(|o| (EN.step_output, btc(o.amount.to_sat()), o.address.clone())),
-                    )
+                    .chain(i.outputs.iter().map(|o| {
+                        (
+                            EN.step_output,
+                            String::from(&*btc(o.amount.to_sat())),
+                            o.address.clone(),
+                        )
+                    }))
                     .collect::<Vec<_>>();
                 for (label, amount, what) in &lines {
                     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, label);
@@ -1027,7 +1030,7 @@ pub(crate) fn step_body(
                 let outpoints: Vec<String> = i
                     .inputs
                     .iter()
-                    .map(|inp| format!("{}:{}", short(&inp.txid.to_string()), inp.vout))
+                    .map(|inp| format!("{}:{}", &*short(&inp.txid.to_string()), inp.vout))
                     .collect();
                 let what = outpoints
                     .iter()
@@ -1039,7 +1042,7 @@ pub(crate) fn step_body(
                 for (inp, at) in i.inputs.iter().zip(&outpoints) {
                     let a = inp
                         .amount
-                        .map(|a| btc(a.to_sat()))
+                        .map(|a| String::from(&*btc(a.to_sat())))
                         .unwrap_or_else(|| "?".into());
                     ui.text_as(x, cy, BODY_S, Role::OnSurfaceVariant, EN.step_input);
                     ui.text_as(x + TABLE_LABEL_W, cy, BODY_S.mono(), Role::OnSurface, at);
@@ -1590,7 +1593,7 @@ pub(crate) fn step_body(
                         fill(
                             EN.step_vb,
                             &[
-                                &short(&tx.compute_txid().to_string()).to_string(),
+                                &short(&tx.compute_txid().to_string()),
                                 &tx.vsize().to_string(),
                             ],
                         )
@@ -1887,7 +1890,7 @@ fn spend_panel(
     y += ui.advance_as(LABEL_L, 30.0);
     let to = recipients(i)
         .first()
-        .map(|o| short(&o.address))
+        .map(|o| String::from(&*short(&o.address)))
         .unwrap_or_else(|| "·".into());
     // Change is verified change only: an output that claims to be change
     // and cannot be verified is among what it sends (F136).
@@ -1909,10 +1912,7 @@ fn spend_panel(
         ),
         (
             EN.spend_panel_sends,
-            fill(
-                EN.spend_panel_btc,
-                &[&btc(i.amount_to_others.to_sat()).to_string()],
-            ),
+            fill(EN.spend_panel_btc, &[&btc(i.amount_to_others.to_sat())]),
             BODY_M.mono(),
             2,
         ),
@@ -1932,7 +1932,7 @@ fn spend_panel(
         (EN.spend_panel_change, change, BODY_M, 2),
         (
             EN.spend_panel_txid,
-            short(&s.spend.txid.to_string()),
+            String::from(&*short(&s.spend.txid.to_string())),
             BODY_M.mono(),
             3,
         ),

@@ -652,8 +652,11 @@ fn lay_out<'a>(ui: &HostUi, fitted: &'a Fitted, shown: Option<Roller>, room: f32
         };
         let left = room - row.width(ui) - more - opens;
         if left > t::TOUCH {
-            row.section
-                .push(Piece::Lines(ui.fit_as(t::BODY_M, &text, left)));
+            row.section.push(Piece::Lines(String::from(&*ui.fit_as(
+                t::BODY_M,
+                &text,
+                left,
+            ))));
         }
     }
     row
@@ -1507,7 +1510,7 @@ fn sheet_foot(
             look.main,
             &line,
         );
-        texts.push(line);
+        texts.push(String::from(&*line));
     }
     control(host, ui, &not_now, (nx, by), on_raised(&look));
     control(host, ui, &load, (lx, by), on_raised(&look));

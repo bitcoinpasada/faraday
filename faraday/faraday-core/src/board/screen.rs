@@ -468,7 +468,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     } else {
         // Laid out to fit (`chip_size`): the half unit is the rounding of
         // a box placed at a fraction of a pixel.
-        ui.fit_as(role, &cv.name, (right - cx).max(0.0) + 0.5)
+        String::from(&*ui.fit_as(role, &cv.name, (right - cx).max(0.0) + 0.5))
     };
     let nw = ui.measure_as(role, &name);
     // The form toggles, beside the name or on a line under it; drawn

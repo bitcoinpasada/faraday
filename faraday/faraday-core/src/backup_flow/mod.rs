@@ -2501,7 +2501,7 @@ pub(crate) fn record_in(
 
 /// Bytes as lower-case hex.
 pub(crate) fn hex_text(b: &[u8]) -> String {
-    faraday_crypto::hex::encode_string(b)
+    String::from(&*faraday_crypto::hex::encode_string(b))
 }
 
 /// The public value a record of `kind` is known by, as hex.

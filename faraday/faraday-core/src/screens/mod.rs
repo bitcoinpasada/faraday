@@ -223,7 +223,10 @@ pub(crate) fn backup_work_end(app: &crate::Faraday) -> Option<f32> {
 /// the page (`docs/LAYOUT.md` §3, DESIGN §4.1). Returns where the page's
 /// first line stands under the bar. A lookup.
 pub(crate) fn bar_head(ui: &mut Ui, back: Option<(&str, Action)>, name: &str) -> f32 {
-    ui.head = Some((name.to_string(), back.map(|(l, a)| (l.to_string(), a))));
+    ui.head = Some((
+        faraday_text::Text::of(name),
+        back.map(|(l, a)| (faraday_text::Text::of(l), a)),
+    ));
     faraday_draw::tokens::PAGE_TOP_BAR
 }
 

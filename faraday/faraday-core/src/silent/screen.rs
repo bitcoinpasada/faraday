@@ -78,7 +78,7 @@ fn summary(app: &View, s: &SilentState, k: u8) -> String {
         sstep::ADDRESS => app
             .silent_shown()
             .address
-            .map(|a| crate::ui::short(&a))
+            .map(|a| String::from(&*crate::ui::short(&a)))
             .unwrap_or_default(),
         sstep::SCAN => EN.silent_a_secret_shows.to_string(),
         _ => match s.check.as_ref().map(|(_, c)| c.result()) {
@@ -390,7 +390,7 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
                             EN.silent_output_row,
                             &[
                                 &p.vout.to_string(),
-                                &crate::ui::btc(p.amount.to_sat()).to_string(),
+                                &crate::ui::btc(p.amount.to_sat()),
                                 &to.to_string(),
                             ],
                         );

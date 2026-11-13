@@ -732,7 +732,11 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     } else {
         Style::Secondary
     };
-    ui.pin = Some((EN.compact_add_key.to_string(), add, Action::EntryAdd));
+    ui.pin = Some((
+        faraday_text::Text::of(EN.compact_add_key),
+        add,
+        Action::EntryAdd,
+    ));
     y += stack(
         ui,
         x,

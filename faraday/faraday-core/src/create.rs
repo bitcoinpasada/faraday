@@ -857,7 +857,7 @@ pub fn build(
     keys: &[String],
 ) -> Result<WalletPolicy, String> {
     WalletPolicy::parse_any(c, &kind.descriptor(m, keys))
-        .map_err(|e| faraday_strings::bip::policy_error(&e))
+        .map_err(|e| String::from(&*faraday_strings::bip::policy_error(&e)))
 }
 
 /// A wallet's derivation paths as Make a new wallet's Check shows them

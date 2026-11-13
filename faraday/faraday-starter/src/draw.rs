@@ -809,7 +809,7 @@ pub(crate) fn size_text(bytes: u64) -> String {
 
 /// A SHA-256 in groups of four.
 fn grouped(hex: &str) -> String {
-    faraday_ui::grouped(hex)
+    String::from(&*faraday_ui::grouped(hex))
 }
 
 /// A disk's name: maker and model.

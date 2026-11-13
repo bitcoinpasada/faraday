@@ -276,7 +276,7 @@ fn make(c: &Compute, args: &[String]) -> Run {
     // The 32-byte size's text is what its QR code holds (§3): it is
     // printed beside the file and the picture, and `open --text` takes it.
     if let Ok(bytes) = <[u8; 32]>::try_from(envelope.as_slice()) {
-        println!("{}", to_text(&bytes));
+        println!("{}", &*to_text(&bytes));
     } else if p.value("--out").is_none() && p.value("--png").is_none() {
         println!("{}", hex(&envelope));
     }

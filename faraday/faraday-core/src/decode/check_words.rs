@@ -38,14 +38,14 @@ fn amount(sats: u64) -> String {
 /// A script as its address in short form, or its length where it has none.
 fn script(s: &Script, network: Network) -> String {
     match Address::from_script(s, faraday_bip::bitcoin::Network::from(network)) {
-        Ok(a) => faraday_ui::short(&a.to_string()),
+        Ok(a) => String::from(&*faraday_ui::short(&a.to_string())),
         Err(_) => fill(EN.signer_script_bytes, &[&s.len().to_string()]),
     }
 }
 
 /// An outpoint: its transaction's short form and the output's number.
 pub(crate) fn outpoint(o: &OutPoint) -> String {
-    format!("{}:{}", faraday_ui::short(&o.txid.to_string()), o.vout)
+    format!("{}:{}", &*faraday_ui::short(&o.txid.to_string()), o.vout)
 }
 
 /// A pair's type byte.

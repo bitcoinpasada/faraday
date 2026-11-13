@@ -169,7 +169,7 @@ pub fn file(name: &str, policy: &WalletPolicy, network: Network) -> Option<Strin
     };
     let mut keys = Vec::new();
     for k in policy.keys() {
-        let fp: String = faraday_crypto::hex::encode_string(&k.fingerprint()?.0);
+        let fp: String = String::from(&*faraday_crypto::hex::encode_string(&k.fingerprint()?.0));
         let path = k.path()?.to_string();
         let path = format!("m/{}", path.trim_start_matches('m').trim_start_matches('/'));
         let path = path.trim_end_matches('/').replace('h', "'");

@@ -1323,7 +1323,7 @@ impl Faraday {
             Code::NodeId => {
                 let l = self.lightning.state().ok_or(EN.code_view_no_node)?;
                 let n = l.node.as_ref().ok_or(EN.code_view_no_node)?;
-                let id: String = faraday_crypto::hex::encode_string(n.public());
+                let id: String = String::from(&*faraday_crypto::hex::encode_string(n.public()));
                 let kind = match l.source {
                     Some(crate::lightning::NodeSource::Key(fp)) => {
                         fill(EN.lightning_ldk_node, &[&fp_text(Fingerprint(fp))])

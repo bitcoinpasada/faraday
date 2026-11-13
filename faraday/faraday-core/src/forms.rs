@@ -496,7 +496,7 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
         })?);
     }
     let m = faraday_keys::words::from_indices(lang, &idx)
-        .map_err(|e| faraday_strings::bip::bip39_error(&e));
+        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)));
     zeroize::Zeroize::zeroize(&mut idx);
     m
 }

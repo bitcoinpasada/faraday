@@ -1710,7 +1710,7 @@ fn check_record(m: &Codex32Make, fp: &str, ui: &mut Ui, x: f32, y: f32, w: f32) 
                 if m.masked() {
                     MASK.repeat(s.len().min(12))
                 } else {
-                    faraday_ui::short(s.as_str())
+                    String::from(&*faraday_ui::short(s.as_str()))
                 }
             })
             .unwrap_or_default();

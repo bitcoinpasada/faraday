@@ -347,7 +347,7 @@ impl LightningArea {
         why: faraday_keys::Reveal,
     ) -> Option<(String, Zeroizing<String>)> {
         let n = self.state.as_ref()?.node.as_ref()?;
-        let id: String = faraday_crypto::hex::encode_string(n.public());
+        let id: String = String::from(&*faraday_crypto::hex::encode_string(n.public()));
         Some((id, n.private_hex(why)?))
     }
 

@@ -509,17 +509,19 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             }
             // Cut only when the label is wider than the row: `bw - pad`
             // can come out a hair under the label's own width.
-            let shown = if whole <= w {
-                std::borrow::Cow::Borrowed(label)
+            let fitted;
+            let shown: &str = if whole <= w {
+                label
             } else {
-                std::borrow::Cow::Owned(self.fit(size, W::S, label, w - pad))
+                fitted = self.fit(size, W::S, label, w - pad);
+                &fitted
             };
             let style = if off.get(i).copied().unwrap_or(false) {
                 Style::Disabled
             } else {
                 Style::chosen(chosen == Some(i))
             };
-            bx += self.button(bx, by, Some(bw), h, &shown, style, action) + GAP;
+            bx += self.button(bx, by, Some(bw), h, shown, style, action) + GAP;
         }
         by - y + h
     }

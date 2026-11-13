@@ -38,6 +38,7 @@ dependencies = [
  "chacha20",
  "faraday-bip",
  "faraday-crypto",
+ "faraday-text",
  "subtle",
  "unicode-normalization",
  "zeroize",
@@ -368,6 +369,7 @@ dependencies = [
  "argon2",
  "base16ct",
  "blake2",
+ "faraday-text",
  "hmac",
  "pbkdf2",
  "sha2",
@@ -457,6 +459,7 @@ version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-crypto",
+ "faraday-text",
  "zeroize",
 ]
 

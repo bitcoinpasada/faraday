@@ -242,7 +242,7 @@ fn when(unix: u64) -> String {
 }
 
 fn hex(bytes: &[u8]) -> String {
-    faraday_crypto::hex::encode_string(bytes)
+    String::from(&*faraday_crypto::hex::encode_string(bytes))
 }
 
 /// Text an invoice or offer carries, as one line: the rule a wallet's name

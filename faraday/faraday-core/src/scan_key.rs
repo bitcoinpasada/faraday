@@ -605,7 +605,7 @@ fn pasted_words(lang: Language, text: &str) -> Result<zeroize::Zeroizing<Vec<u16
         idx.push(i);
     }
     faraday_keys::words::from_indices(lang, &idx)
-        .map_err(|e| faraday_strings::bip::bip39_error(&e))?;
+        .map_err(|e| String::from(&*faraday_strings::bip::bip39_error(&e)))?;
     Ok(idx)
 }
 

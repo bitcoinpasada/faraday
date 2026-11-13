@@ -406,7 +406,7 @@ fn make(
     // The 32-byte size is carried as its text in alphanumeric mode,
     // version 2 at level L; the others as their bytes (§9).
     let text = match <&[u8; 32]>::try_from(bytes.as_slice()) {
-        Ok(b) if size == Size::Tiny => Some(aqrv::to_text(b)),
+        Ok(b) if size == Size::Tiny => Some(String::from(&*aqrv::to_text(b))),
         _ => None,
     };
     let matrix = match (&text, size) {

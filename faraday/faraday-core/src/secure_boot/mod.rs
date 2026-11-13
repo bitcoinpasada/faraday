@@ -35,7 +35,7 @@ pub fn guid_text(g: &[u8]) -> String {
         u16::from_le_bytes([g[6], g[7]]),
         g[8],
         g[9],
-        faraday_crypto::hex::encode_string(&g[10..])
+        &*faraday_crypto::hex::encode_string(&g[10..])
     )
 }
 

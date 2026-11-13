@@ -97,7 +97,7 @@ fn random_name() -> Option<String> {
         .ok()?
         .read_exact(&mut b)
         .ok()?;
-    Some(faraday_crypto::hex::encode_string(&b))
+    Some(String::from(&*faraday_crypto::hex::encode_string(&b)))
 }
 
 /// Writes a sheet that carries the recovery key (F49) as `name` in a new

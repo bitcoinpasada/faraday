@@ -14,6 +14,7 @@ path = "src/main.rs"
 
 [dependencies]
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
+faraday-text = { path = "../../../core/faraday-text" }
 faraday-crypto = { path = "../../../core/faraday-crypto", features = ["pin-pages"] }
 faraday-core = { path = "../../faraday-core" }
 # The printed sheets, the EDID rules and the build ID.

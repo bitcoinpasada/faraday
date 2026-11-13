@@ -137,7 +137,7 @@ pub fn arrival(a: faraday_qr::Arrived) -> (Option<String>, &'static str, Vec<u8>
         Arrived::Transaction(t) => (
             None,
             "txn",
-            faraday_crypto::hex::encode_string(&t).into_bytes(),
+            faraday_crypto::hex::encode_string(&t).as_bytes().to_vec(),
         ),
         Arrived::File(name, data, _) => (Some(name), "", data),
         Arrived::Keys(t) | Arrived::Descriptor(t) | Arrived::Text(t) => {

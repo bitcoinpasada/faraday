@@ -104,7 +104,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += card_h + 20.0;
     let rows = [
         (EN.check_file, item.name.clone(), BODY_M.mono()),
-        (EN.check_address, grouped(&c.signed.address), BODY_M.mono()),
+        (
+            EN.check_address,
+            String::from(&*grouped(&c.signed.address)),
+            BODY_M.mono(),
+        ),
         (
             EN.check_wallet,
             match c.wallet {

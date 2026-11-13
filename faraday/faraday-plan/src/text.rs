@@ -657,7 +657,7 @@ impl What {
 
 /// A fingerprint as a plan's note writes it: eight lower-case hex digits.
 pub(super) fn fp_code(fp: [u8; 4]) -> String {
-    faraday_crypto::hex::encode_string(&fp)
+    String::from(&*faraday_crypto::hex::encode_string(&fp))
 }
 
 /// A fingerprint a plan's note wrote, read back.

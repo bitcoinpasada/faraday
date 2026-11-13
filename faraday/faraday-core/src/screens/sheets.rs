@@ -752,7 +752,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             .map(|(i, (id, name))| {
                 let on = chosen.map_or(i == 0, |c| c == id);
                 (
-                    ui.fit_as(LABEL_M, name, sw - 96.0),
+                    String::from(&*ui.fit_as(LABEL_M, name, sw - 96.0)),
                     Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )
@@ -934,7 +934,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             .map(|(i, (id, name))| {
                 let on = chosen.map_or(i == 0, |c| c == id);
                 (
-                    ui.fit_as(LABEL_M, name, sw - 96.0),
+                    String::from(&*ui.fit_as(LABEL_M, name, sw - 96.0)),
                     Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )
@@ -950,7 +950,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             .map(|(i, (id, name))| {
                 let on = chosen.map_or(i == 0, |c| c == id);
                 (
-                    ui.fit_as(LABEL_M, name, 180.0),
+                    String::from(&*ui.fit_as(LABEL_M, name, 180.0)),
                     Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )

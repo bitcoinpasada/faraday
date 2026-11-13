@@ -804,6 +804,7 @@ dependencies = [
  "faraday-selftest",
  "faraday-shell-api",
  "faraday-strings",
+ "faraday-text",
  "faraday-ui",
  "faraday-vault",
  "subtle",
@@ -830,6 +831,7 @@ dependencies = [
  "argon2",
  "base16ct",
  "blake2",
+ "faraday-text",
  "hmac",
  "libc",
  "pbkdf2",
@@ -1124,6 +1126,7 @@ dependencies = [
 name = "faraday-shell-api"
 version = "0.1.0"
 dependencies = [
+ "faraday-text",
  "zeroize",
 ]
 
@@ -1207,6 +1210,7 @@ version = "0.2.0"
 dependencies = [
  "faraday-bip",
  "faraday-crypto",
+ "faraday-text",
  "zeroize",
 ]
 
@@ -1225,6 +1229,7 @@ dependencies = [
  "faraday-draw",
  "faraday-guide",
  "faraday-strings",
+ "faraday-text",
 ]
 
 [[package]]

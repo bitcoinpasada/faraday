@@ -140,7 +140,7 @@ impl KefRead {
 fn id_shown(id: &[u8]) -> String {
     let whole = match faraday_codec::kef::id_text(id) {
         Some(t) => t.to_string(),
-        None => format!("0x{}", faraday_crypto::hex::encode_string(id)),
+        None => format!("0x{}", &*faraday_crypto::hex::encode_string(id)),
     };
     if whole.chars().count() <= ID_SHOWN {
         return whole;
@@ -470,7 +470,7 @@ fn kef_road_after_seed(app: &mut Faraday, plain: Zeroizing<Vec<u8>>, offer: bool
         return kef_show(
             app,
             Stage::Bytes,
-            faraday_crypto::hex::encode_secret(&plain),
+            Zeroizing::new(String::from(&*faraday_crypto::hex::encode_secret(&plain))),
         );
     };
     // Past the depth, or said not to be encrypted: a code that parses as

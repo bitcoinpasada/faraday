@@ -428,7 +428,7 @@ pub struct Inscription {
 
 /// Lowercase hex.
 fn hex(bytes: &[u8]) -> String {
-    faraday_crypto::hex::encode_string(bytes)
+    String::from(&*faraday_crypto::hex::encode_string(bytes))
 }
 
 /// One signature as it was found, before it was checked.

@@ -196,17 +196,17 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                         ))
                     })?;
                     return WalletPolicy::parse_any(c, &d)
-                        .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
+                        .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
                 }
                 if caravan::looks_like(&v) {
                     let d = caravan::descriptor(&v).map_err(Refusal::NotAWallet)?;
                     return WalletPolicy::parse_any(c, &d)
-                        .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
+                        .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
                 }
                 if electrum::looks_like(&v) {
                     let d = electrum::descriptor(&v).map_err(Refusal::NotAWallet)?;
                     return WalletPolicy::parse_any(c, &d)
-                        .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
+                        .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
                 }
                 read_json = Some(v);
             }
@@ -241,7 +241,8 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
             return one_of_several(c, &all);
         }
         return WalletPolicy::parse_any(c, &all[0]).or_else(|e| {
-            multipath(c, &all).unwrap_or_else(|| Err(Refusal::NotAWallet(bip::policy_error(&e))))
+            multipath(c, &all)
+                .unwrap_or_else(|| Err(Refusal::NotAWallet(String::from(&*bip::policy_error(&e)))))
         });
     }
     // BIP 129's descriptor record: read whole, its first address checked
@@ -259,7 +260,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
                 Some(m) if e == faraday_bip::policy::Error::Key => {
                     Refusal::NotAWallet(mismatch_text(&m))
                 }
-                _ => Refusal::NotAWallet(bip::policy_error(&e)),
+                _ => Refusal::NotAWallet(String::from(&*bip::policy_error(&e))),
             }
         });
     }
@@ -282,7 +283,7 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
         };
         if let Some(wrap) = wrap {
             return WalletPolicy::parse_any(c, &wrap.replace('K', &k.text))
-                .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e)));
+                .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
         }
     }
     let lines = written
@@ -295,7 +296,8 @@ fn read_any(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
         })
         .collect::<Result<Vec<String>, _>>()?;
     WalletPolicy::parse_any(c, &lines.concat()).or_else(|e| {
-        multipath(c, &lines).unwrap_or_else(|| Err(Refusal::NotAWallet(bip::policy_error(&e))))
+        multipath(c, &lines)
+            .unwrap_or_else(|| Err(Refusal::NotAWallet(String::from(&*bip::policy_error(&e)))))
     })
 }
 
@@ -315,7 +317,7 @@ fn read_whole(c: &Compute, text: &str) -> Option<Result<WalletPolicy, Refusal>> 
     if faraday_bip::silent_wallet::SilentWallet::looks_like_record(text) {
         return Some(
             WalletPolicy::parse_any(c, text)
-                .map_err(|e| Refusal::NotAWallet(bip::policy_error(&e))),
+                .map_err(|e| Refusal::NotAWallet(String::from(&*bip::policy_error(&e)))),
         );
     }
     if faraday_bip::coldcard::looks_like_export(text) {
@@ -373,7 +375,7 @@ fn specter_diy_wallet(c: &Compute, d: &str) -> Result<WalletPolicy, Refusal> {
     let d = slip132::plain_descriptor(d).map_err(|m| Refusal::NotAWallet(mismatch_text(&m)))?;
     WalletPolicy::parse_any(c, &d).or_else(|e| {
         multipath(c, core::slice::from_ref(&d))
-            .unwrap_or_else(|| Err(Refusal::NotAWallet(bip::policy_error(&e))))
+            .unwrap_or_else(|| Err(Refusal::NotAWallet(String::from(&*bip::policy_error(&e)))))
     })
 }
 
@@ -552,7 +554,7 @@ fn one_of_several(c: &Compute, all: &[String]) -> Result<WalletPolicy, Refusal> 
         match WalletPolicy::parse_any(c, d) {
             Ok(w) => add(w),
             Err(e) if !faraday_bip::descriptor::reads_as_descriptor(c, t) => {
-                return Err(Refusal::NotAWallet(bip::policy_error(&e)));
+                return Err(Refusal::NotAWallet(String::from(&*bip::policy_error(&e))));
             }
             Err(_) => {}
         }
@@ -614,10 +616,10 @@ fn coldcard_export(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
             ReadError::FirstAddress { account, first } => {
                 bad(&fill(EN.wallet_its_first_address, &[account, &first]))
             }
-            ReadError::NoDeriv(_) => {
-                Refusal::NotAWallet(bip::policy_error(&faraday_bip::policy::Error::Key))
-            }
-            ReadError::Policy(e) => Refusal::NotAWallet(bip::policy_error(&e)),
+            ReadError::NoDeriv(_) => Refusal::NotAWallet(String::from(&*bip::policy_error(
+                &faraday_bip::policy::Error::Key,
+            ))),
+            ReadError::Policy(e) => Refusal::NotAWallet(String::from(&*bip::policy_error(&e))),
             ReadError::Silent(e) => silent_refusal(&e),
         })
 }

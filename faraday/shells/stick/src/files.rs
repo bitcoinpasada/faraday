@@ -349,7 +349,7 @@ impl Files {
                 found.push((
                     time,
                     FileEntry {
-                        name: listed,
+                        name: faraday_text::Text::of(&listed),
                         size: meta.len(),
                         modified: seconds(time),
                     },

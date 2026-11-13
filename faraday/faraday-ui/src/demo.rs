@@ -31,10 +31,14 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     }
 
     /// Hands the frame a demo line.
-    pub fn demo_line(&mut self, text: impl Into<String>) {
-        let text = text.into();
-        if !self.demo.iter().any(|i| *i == DemoItem::Line(text.clone())) {
-            self.demo.push(DemoItem::Line(text));
+    pub fn demo_line(&mut self, text: impl AsRef<str>) {
+        let text = text.as_ref();
+        if !self
+            .demo
+            .iter()
+            .any(|i| matches!(i, DemoItem::Line(l) if l == text))
+        {
+            self.demo.push(DemoItem::Line(text.into()));
         }
     }
 

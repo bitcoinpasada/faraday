@@ -74,7 +74,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 }
                 rstep::CHECK => match wl.filter(|_| r.done[rstep::SEEDS as usize]) {
                     Some(w) if app.receive_held(w) => crate::glance::RECEIVE_WARNING.to_string(),
-                    Some(w) => short(&app.address_shown(w, false, 0)),
+                    Some(w) => String::from(&*short(&app.address_shown(w, false, 0))),
                     None => String::new(),
                 },
                 _ => String::new(),
