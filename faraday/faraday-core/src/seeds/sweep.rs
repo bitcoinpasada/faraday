@@ -242,7 +242,7 @@ pub(crate) fn review(
         .map(|w| {
             (
                 w.level,
-                crate::review::warning_text(&inspection, w).into_owned(),
+                String::from(&*crate::review::warning_text(&inspection, w)),
             )
         })
         .collect();

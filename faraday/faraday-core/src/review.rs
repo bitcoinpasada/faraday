@@ -2,14 +2,13 @@
 //! on, the fee hold that takes it past a holdable danger, and signing
 //! with what was held.
 
-use std::borrow::Cow;
-
 use faraday_crypto::work::Compute;
 use faraday_psbt::{Detail, Inspection, Level, Psbt, WarningKind as K};
 
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::wallet::{InspectInputs, Session, Signed, SpendState, context};
 use faraday_bip::keys::Fingerprint;
+use faraday_text::{Text, text};
 
 /// Why Review does not go on, from the inspection as it is: a
 /// transaction nothing signs, said with what to do instead, or a
@@ -42,10 +41,30 @@ pub(crate) fn review_stop(inspection: &Inspection, held: &[K]) -> Option<&'stati
     }
 }
 
+/// A warning's words: the strings file's fixed wording as it is, or the
+/// wording filled with what the warning is of.
+pub(crate) enum Words<'a> {
+    /// Fixed wording, borrowed.
+    Fixed(&'a str),
+    /// Wording filled with the warning's data.
+    Made(Text),
+}
+
+impl std::ops::Deref for Words<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        match self {
+            Words::Fixed(s) => s,
+            Words::Made(t) => t,
+        }
+    }
+}
+
 /// The words Review gives warning `w` of inspection `i`: what it states,
 /// worded from its kind and data, an input left unsigned for want of
 /// its wallet (F141) in Review's own words.
-pub(crate) fn warning_text<'a>(_i: &Inspection, w: &'a faraday_psbt::Warning) -> Cow<'a, str> {
+pub(crate) fn warning_text<'a>(_i: &Inspection, w: &'a faraday_psbt::Warning) -> Words<'a> {
     let d = &w.detail;
     input_words(d)
         .or_else(|| output_words(d))
@@ -53,10 +72,10 @@ pub(crate) fn warning_text<'a>(_i: &Inspection, w: &'a faraday_psbt::Warning) ->
 }
 
 /// What a warning about an input states, in the strings file's words.
-fn input_words(d: &Detail) -> Option<Cow<'static, str>> {
+fn input_words(d: &Detail) -> Option<Words<'static>> {
     use Detail as D;
-    let n = |v: usize| v.to_string();
-    let t = |template: &str, args: &[&str]| Cow::Owned(fill(template, args));
+    let n = |v: usize| Text::num(v as u64);
+    let t = |template: &str, args: &[&str]| Words::Made(Text::fill(template, args));
     Some(match d {
         D::InputFault { input, reason } => {
             t(EN.psbt_error_input, &[&n(*input), reason_text(*reason)])
@@ -69,15 +88,15 @@ fn input_words(d: &Detail) -> Option<Cow<'static, str>> {
         ),
         D::KeyNotUnderAccount { input, key, path } => t(
             EN.psbt_warn_key_not_under_account,
-            &[&n(*input), &key.to_string(), &path.to_string()],
+            &[&n(*input), &text!("{key}"), &text!("{path}")],
         ),
         D::KeyInOtherScript { input, key, path } => t(
             EN.psbt_warn_key_other_script,
-            &[&n(*input), &key.to_string(), &path.to_string()],
+            &[&n(*input), &text!("{key}"), &text!("{path}")],
         ),
         D::KeyNotInput { input, key, path } => t(
             EN.psbt_warn_key_not_input,
-            &[&n(*input), &key.to_string(), &path.to_string()],
+            &[&n(*input), &text!("{key}"), &text!("{path}")],
         ),
         D::MultisigShapes {
             input,
@@ -107,69 +126,75 @@ fn input_words(d: &Detail) -> Option<Cow<'static, str>> {
 }
 
 /// What a warning about the outputs or the fee states, in the strings file's words.
-fn output_words(d: &Detail) -> Option<Cow<'static, str>> {
+fn output_words(d: &Detail) -> Option<Words<'static>> {
     use Detail as D;
-    let n = |v: usize| v.to_string();
-    let t = |template: &str, args: &[&str]| Cow::Owned(fill(template, args));
+    let n = |v: usize| Text::num(v as u64);
+    let t = |template: &str, args: &[&str]| Words::Made(Text::fill(template, args));
     Some(match d {
         D::DataOutput { output } => t(EN.psbt_warn_data_output, &[&n(*output)]),
         D::NonStandardOutput { output } => t(EN.psbt_warn_nonstandard_output, &[&n(*output)]),
-        D::Dust { output, sat } => t(EN.psbt_warn_dust, &[&n(*output), &sat.to_string()]),
+        D::Dust { output, sat } => t(EN.psbt_warn_dust, &[&n(*output), &text!("{sat}")]),
         D::SameAddress { first, second } => {
             t(EN.psbt_warn_same_address, &[&n(*first), &n(*second)])
         }
         D::PaysToInput { output, input } => {
             t(EN.psbt_warn_pays_to_input, &[&n(*output), &n(*input)])
         }
-        D::OutputsExceedInputs => Cow::Borrowed(EN.psbt_warn_outputs_exceed),
-        D::OutputsOverMaxMoney => Cow::Borrowed(EN.psbt_warn_outputs_over_max_money),
-        D::InputsOverMaxMoney => Cow::Borrowed(EN.psbt_warn_inputs_over_max_money),
+        D::OutputsExceedInputs => Words::Fixed(EN.psbt_warn_outputs_exceed),
+        D::OutputsOverMaxMoney => Words::Fixed(EN.psbt_warn_outputs_over_max_money),
+        D::InputsOverMaxMoney => Words::Fixed(EN.psbt_warn_inputs_over_max_money),
         D::FeeShare { fee, pct } => t(
             EN.step_review_fee_share,
-            &[&fee.to_string(), &pct.to_string()],
+            &[&text!("{fee}"), &text!("{pct}")],
         ),
-        D::FeeRate { sat_vb } => t(EN.step_review_fee_rate, &[&sat_vb.to_string()]),
+        D::FeeRate { sat_vb } => t(EN.step_review_fee_rate, &[&text!("{sat_vb}")]),
         D::MixedScripts { kinds } => {
-            let kinds: Vec<String> = kinds.iter().map(|k| script_kind_text(*k)).collect();
-            t(EN.psbt_warn_mixed_scripts, &[&kinds.join(", ")])
+            let mut joined = Text::new();
+            for (i, k) in kinds.iter().enumerate() {
+                if i > 0 {
+                    joined.push_str(", ");
+                }
+                joined.push_str(&script_kind_text(*k));
+            }
+            t(EN.psbt_warn_mixed_scripts, &[&joined])
         }
         D::Locktime(lt) => t(EN.psbt_warn_locktime, &[&locktime_text(*lt)]),
-        D::NoParticipatingKey => Cow::Borrowed(EN.psbt_warn_no_key),
+        D::NoParticipatingKey => Words::Fixed(EN.psbt_warn_no_key),
         D::NonceReuse { key } => t(EN.psbt_warn_nonce_reuse, &[key]),
-        D::UnknownFields { count: 1 } => Cow::Borrowed(EN.psbt_warn_unknown_field),
-        D::UnknownFields { count } => t(EN.psbt_warn_unknown_fields, &[&count.to_string()]),
+        D::UnknownFields { count: 1 } => Words::Fixed(EN.psbt_warn_unknown_field),
+        D::UnknownFields { count } => t(EN.psbt_warn_unknown_fields, &[&text!("{count}")]),
         D::Inscription { input } => t(EN.psbt_warn_inscription, &[&n(*input)]),
         D::MusigChangeSpoof { output } => t(EN.psbt_warn_musig_change_spoof, &[&n(*output)]),
         D::WalletChangeSpoof { output } => t(EN.psbt_warn_wallet_change_spoof, &[&n(*output)]),
         D::ChangeKeyNotLoaded { output, key } => t(
             EN.psbt_warn_change_not_loaded,
-            &[&n(*output), &key.to_string()],
+            &[&n(*output), &text!("{key}")],
         ),
         D::ChangeFarIndex { output, index } => t(
             EN.psbt_warn_change_far_index,
-            &[&n(*output), &index.to_string()],
+            &[&n(*output), &text!("{index}")],
         ),
         D::ChangeSpoof { output, key, path } => t(
             EN.psbt_warn_change_spoof,
-            &[&n(*output), &key.to_string(), &path.to_string()],
+            &[&n(*output), &text!("{key}"), &text!("{path}")],
         ),
         D::ChangeNotRegistered { output, key, path } => t(
             EN.psbt_warn_change_not_registered,
-            &[&n(*output), &key.to_string(), &path.to_string()],
+            &[&n(*output), &text!("{key}"), &text!("{path}")],
         ),
         D::ChangeNotUnderAccount { output, key, path } => t(
             EN.psbt_warn_change_not_under_account,
-            &[&n(*output), &key.to_string(), &path.to_string()],
+            &[&n(*output), &text!("{key}"), &text!("{path}")],
         ),
         _ => return None,
     })
 }
 
 /// What a warning about networks or signatures states, in the strings file's words.
-fn other_words(d: &Detail) -> Cow<'static, str> {
+fn other_words(d: &Detail) -> Words<'static> {
     use Detail as D;
-    let n = |v: usize| v.to_string();
-    let t = |template: &str, args: &[&str]| Cow::Owned(fill(template, args));
+    let n = |v: usize| Text::num(v as u64);
+    let t = |template: &str, args: &[&str]| Words::Made(Text::fill(template, args));
     match d {
         D::KeyNetwork {
             key,
@@ -177,7 +202,7 @@ fn other_words(d: &Detail) -> Cow<'static, str> {
             checked,
         } => t(
             EN.psbt_warn_key_network,
-            &[&key.to_string(), loaded.name(), checked.name()],
+            &[&text!("{key}"), loaded.name(), checked.name()],
         ),
         D::XpubNetwork { checked } => t(EN.psbt_warn_xpub_network, &[checked.name()]),
         D::CoinType {
@@ -195,10 +220,10 @@ fn other_words(d: &Detail) -> Cow<'static, str> {
             },
             &[
                 &n(*index),
-                &path.to_string(),
-                &coin.to_string(),
+                &text!("{path}"),
+                &text!("{coin}"),
                 checked.name(),
-                &expected.to_string(),
+                &text!("{expected}"),
             ],
         ),
         D::SighashNone { input, sighash } => t(
@@ -219,7 +244,7 @@ fn other_words(d: &Detail) -> Cow<'static, str> {
         D::SignatureInvalidUnkeyed { input } => t(EN.psbt_warn_signature_unkeyed, &[&n(*input)]),
         D::WitnessMismatch { input } => t(EN.psbt_warn_witness_mismatch, &[&n(*input)]),
         D::FinalFieldsRefused { input } => t(EN.psbt_final_signature_refused, &[&n(*input)]),
-        D::SignatureUnchecked { .. } => Cow::Owned(unchecked_warning(d)),
+        D::SignatureUnchecked { .. } => Words::Made(unchecked_warning(d)),
         D::SignedNone {
             input,
             key,
@@ -268,36 +293,36 @@ fn other_words(d: &Detail) -> Cow<'static, str> {
 
 /// Why faraday-psbt refused to sign or finish, in the strings file's
 /// words: its errors are kinds.
-pub(crate) fn sign_error_text(e: &faraday_psbt::Error) -> String {
+pub(crate) fn sign_error_text(e: &faraday_psbt::Error) -> Text {
     use faraday_psbt::Error as E;
-    let n = |v: usize| v.to_string();
+    let n = |v: usize| Text::num(v as u64);
     match e {
-        E::Base64 => EN.psbt_error_base64.to_string(),
-        E::NotPsbt => EN.psbt_error_not_psbt.to_string(),
-        E::Parse(_) => EN.psbt_error_parse.to_string(),
-        E::UnsupportedVersion(v) => fill(EN.psbt_error_version, &[&v.to_string()]),
-        E::MissingUtxo { input } => fill(EN.psbt_error_no_utxo, &[&n(*input)]),
+        E::Base64 => Text::of(EN.psbt_error_base64),
+        E::NotPsbt => Text::of(EN.psbt_error_not_psbt),
+        E::Parse(_) => Text::of(EN.psbt_error_parse),
+        E::UnsupportedVersion(v) => Text::fill(EN.psbt_error_version, &[&text!("{v}")]),
+        E::MissingUtxo { input } => Text::fill(EN.psbt_error_no_utxo, &[&n(*input)]),
         // Said whole, as the spend's refusal (INTEROP §5, Sweeping a private key).
         E::Unsupported {
             reason: faraday_psbt::Reason::CodeSeparator,
             ..
-        } => EN.sign_codeseparator.to_string(),
+        } => Text::of(EN.sign_codeseparator),
         E::Unsupported { input, reason } | E::Finalize { input, reason } => {
-            fill(EN.psbt_error_input, &[&n(*input), reason_text(*reason)])
+            Text::fill(EN.psbt_error_input, &[&n(*input), reason_text(*reason)])
         }
-        E::KeyMismatch { input } => fill(EN.psbt_error_key_mismatch, &[&n(*input)]),
-        E::NoNonceSeed => EN.no_randomness.to_string(),
-        E::NoSuchKey(fp) => fill(EN.psbt_error_no_such_key, &[&fp.to_string()]),
-        E::Danger(kinds) => fill(EN.psbt_error_danger, &[&n(kinds.len())]),
-        E::NotHoldable(_) => EN.psbt_error_not_holdable.to_string(),
-        E::Blocked(kinds) => fill(EN.psbt_error_blocked, &[&n(kinds.len())]),
-        E::Sighash { input } => fill(EN.psbt_error_sighash, &[&n(*input)]),
-        E::VerifyFailed { input } => fill(EN.psbt_error_verify, &[&n(*input)]),
-        E::Nondeterministic { input } => fill(EN.psbt_error_nondeterministic, &[&n(*input)]),
+        E::KeyMismatch { input } => Text::fill(EN.psbt_error_key_mismatch, &[&n(*input)]),
+        E::NoNonceSeed => Text::of(EN.no_randomness),
+        E::NoSuchKey(fp) => Text::fill(EN.psbt_error_no_such_key, &[&text!("{fp}")]),
+        E::Danger(kinds) => Text::fill(EN.psbt_error_danger, &[&n(kinds.len())]),
+        E::NotHoldable(_) => Text::of(EN.psbt_error_not_holdable),
+        E::Blocked(kinds) => Text::fill(EN.psbt_error_blocked, &[&n(kinds.len())]),
+        E::Sighash { input } => Text::fill(EN.psbt_error_sighash, &[&n(*input)]),
+        E::VerifyFailed { input } => Text::fill(EN.psbt_error_verify, &[&n(*input)]),
+        E::Nondeterministic { input } => Text::fill(EN.psbt_error_nondeterministic, &[&n(*input)]),
         E::MusigPartialSig { input, participant } => {
-            fill(EN.psbt_error_musig_partial, &[&n(*input), participant])
+            Text::fill(EN.psbt_error_musig_partial, &[&n(*input), participant])
         }
-        E::Extract(why) => fill(EN.psbt_error_extract, &[why]),
+        E::Extract(why) => Text::fill(EN.psbt_error_extract, &[why]),
     }
 }
 
@@ -352,81 +377,81 @@ pub(crate) fn reason_text(r: faraday_psbt::Reason) -> &'static str {
 pub(crate) fn name_scripts(mut i: Inspection) -> Inspection {
     for o in &mut i.outputs {
         if o.address.is_empty() {
-            let hex: String = String::from(&*faraday_crypto::hex::encode_string(
-                o.script_pubkey.as_bytes(),
-            ));
-            o.address = fill(EN.psbt_nonstandard_script, &[&hex]);
+            let hex = faraday_crypto::hex::encode_string(o.script_pubkey.as_bytes());
+            o.address = Text::fill(EN.psbt_nonstandard_script, &[&hex])
+                .as_str()
+                .into();
         }
     }
     i
 }
 
 /// A wait a spend path takes, in the strings file's words.
-fn wait_text(lock: faraday_bip::spend::Lock) -> String {
+fn wait_text(lock: faraday_bip::spend::Lock) -> Text {
     use faraday_bip::spend::Lock as L;
     match lock {
-        L::Blocks(n) => fill(EN.psbt_wait_blocks, &[&n.to_string()]),
-        L::Intervals(n) => fill(EN.psbt_wait_intervals, &[&n.to_string()]),
-        L::Height(n) => fill(EN.psbt_wait_height, &[&n.to_string()]),
-        L::Time(n) => fill(EN.psbt_wait_time, &[&n.to_string()]),
-        L::Preimage => EN.psbt_wait_preimage.to_string(),
+        L::Blocks(n) => Text::fill(EN.psbt_wait_blocks, &[&text!("{n}")]),
+        L::Intervals(n) => Text::fill(EN.psbt_wait_intervals, &[&text!("{n}")]),
+        L::Height(n) => Text::fill(EN.psbt_wait_height, &[&text!("{n}")]),
+        L::Time(n) => Text::fill(EN.psbt_wait_time, &[&text!("{n}")]),
+        L::Preimage => Text::of(EN.psbt_wait_preimage),
     }
 }
 
 /// A transaction's locktime, in the strings file's words.
-fn locktime_text(lt: faraday_psbt::Locktime) -> String {
+fn locktime_text(lt: faraday_psbt::Locktime) -> Text {
     use faraday_psbt::LocktimeKind as K;
     match lt.kind {
-        K::Time(t) => fill(EN.psbt_locktime_time, &[&t.to_string()]),
-        K::Height(h) => fill(EN.psbt_locktime_block, &[&h.to_string()]),
-        K::None => fill(EN.psbt_locktime_block, &["0"]),
+        K::Time(t) => Text::fill(EN.psbt_locktime_time, &[&text!("{t}")]),
+        K::Height(h) => Text::fill(EN.psbt_locktime_block, &[&text!("{h}")]),
+        K::None => Text::fill(EN.psbt_locktime_block, &["0"]),
     }
 }
 
 /// A sighash by its name (`SIGHASH_ALL`), or one no algorithm accepts in
 /// the strings file's words.
-pub(crate) fn sighash_text(s: faraday_psbt::SighashKind) -> String {
+pub(crate) fn sighash_text(s: faraday_psbt::SighashKind) -> Text {
     use faraday_psbt::SighashKind as S;
     match s {
-        S::Ecdsa(t) => t.to_string(),
-        S::Taproot(t) => t.to_string(),
-        S::NonStandard(v) => fill(EN.psbt_sighash_nonstandard, &[&format!("0x{v:02x}")]),
+        S::Ecdsa(t) => text!("{t}"),
+        S::Taproot(t) => text!("{t}"),
+        S::NonStandard(v) => Text::fill(EN.psbt_sighash_nonstandard, &[&text!("0x{v:02x}")]),
     }
 }
 
 /// An input's kind of script, by its code name (`p2wpkh`) or in the
 /// strings file's words.
-fn script_kind_text(k: faraday_psbt::ScriptKind) -> String {
+fn script_kind_text(k: faraday_psbt::ScriptKind) -> Text {
     use faraday_psbt::ScriptKind as K;
     match k {
-        K::P2trScript => EN.psbt_kind_tr_script.to_string(),
-        K::Miniscript { wrapper } => fill(EN.psbt_kind_miniscript, &[&wrapper.to_string()]),
-        K::Multisig { wrapper, m, n } => fill(
+        K::P2trScript => Text::of(EN.psbt_kind_tr_script),
+        K::Miniscript { wrapper } => Text::fill(EN.psbt_kind_miniscript, &[&text!("{wrapper}")]),
+        K::Multisig { wrapper, m, n } => Text::fill(
             EN.psbt_kind_multisig,
-            &[&wrapper.to_string(), &m.to_string(), &n.to_string()],
+            &[&text!("{wrapper}"), &text!("{m}"), &text!("{n}")],
         ),
-        K::Unknown => EN.psbt_kind_unknown.to_string(),
-        K::P2pkh | K::P2shP2wpkh | K::P2wpkh | K::P2trKey => k.to_string(),
+        K::Unknown => Text::of(EN.psbt_kind_unknown),
+        K::P2pkh | K::P2shP2wpkh | K::P2wpkh | K::P2trKey => text!("{k}"),
     }
 }
 
 /// The Caution that an element was not checked (`d` is a
 /// `SignatureUnchecked`): a hash preimage is said to be one, not called a
 /// signature.
-fn unchecked_warning(d: &Detail) -> String {
+fn unchecked_warning(d: &Detail) -> Text {
     let Detail::SignatureUnchecked {
         input,
         reason,
         preimage,
     } = d
     else {
-        return String::new();
+        return Text::new();
     };
-    let input = input.to_string();
+    let input = text!("{input}");
     if *preimage {
-        fill(EN.psbt_warn_preimage_unchecked, &[&input])
+        Text::fill(EN.psbt_warn_preimage_unchecked, &[&input])
     } else {
-        fill(
+        Text::fill(
             EN.psbt_warn_signature_unchecked,
             &[&input, unchecked_text(*reason)],
         )
@@ -449,7 +474,7 @@ pub(crate) fn stopped(s: &mut SpendState) -> bool {
     let Some(why) = review_stop(&s.inspection, &s.held) else {
         return false;
     };
-    s.error = Some(why.to_string());
+    s.error = Some(why.into());
     s.follow = true;
     true
 }
@@ -487,7 +512,7 @@ impl Session {
         musig: &mut Option<faraday_psbt::MusigSession>,
         known: Option<&Inspection>,
         accepted: &[faraday_psbt::WarningKind],
-    ) -> Result<faraday_keys::job::SignJob, String> {
+    ) -> Result<faraday_keys::job::SignJob, Text> {
         let refs = self.key_refs(c);
         let policies = self.policies();
         let own;
@@ -505,7 +530,7 @@ impl Session {
             .filter(|fp| self.keys.position(*fp).is_some())
             .collect();
         if selection.is_empty() {
-            return Err(EN.wallet_no_signing_key.to_string());
+            return Err(Text::of(EN.wallet_no_signing_key));
         }
         Ok(self.keys.sign_job(
             psbt.clone(),
@@ -526,7 +551,7 @@ impl Session {
         psbt: &Psbt,
         seed: Option<&zeroize::Zeroizing<[u8; 32]>>,
         s: &mut SpendState,
-    ) -> Result<faraday_keys::job::SignJob, String> {
+    ) -> Result<faraday_keys::job::SignJob, Text> {
         let inputs = self.inspect_inputs();
         let known = (s.inspected_for(&inputs) && s.spend.psbt == *psbt).then_some(&s.inspection);
         self.sign_job(c, psbt, seed, &mut s.musig, known, &s.held)
@@ -547,7 +572,7 @@ pub(crate) fn signers_of(r: &faraday_psbt::SignResult) -> Vec<Fingerprint> {
 pub(crate) fn signed(
     musig: &mut Option<faraday_psbt::MusigSession>,
     done: faraday_keys::job::Signing,
-) -> (Psbt, Result<Signed, String>) {
+) -> (Psbt, Result<Signed, Text>) {
     let (psbt, round, result) = done.into_parts();
     *musig = round;
     let result = result
@@ -561,13 +586,12 @@ mod tests {
     use super::*;
     use faraday_psbt::verify::Unchecked;
 
-    fn text(preimage: bool) -> String {
-        other_words(&Detail::SignatureUnchecked {
+    fn text(preimage: bool) -> Text {
+        Text::of(&other_words(&Detail::SignatureUnchecked {
             input: 0,
             reason: Unchecked::UnsupportedScript,
             preimage,
-        })
-        .into_owned()
+        }))
     }
 
     #[test]

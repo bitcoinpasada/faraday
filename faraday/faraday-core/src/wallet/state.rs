@@ -504,7 +504,12 @@ impl WalletsArea {
         let s = self.spend.as_mut()?;
         let psbt = s.spend.psbt.clone();
         let before = s.spend.psbt.to_bytes();
-        Some((session.sign_spend_job(c, &psbt, seed, s), before))
+        Some((
+            session
+                .sign_spend_job(c, &psbt, seed, s)
+                .map_err(|e| String::from(&*e)),
+            before,
+        ))
     }
 
     /// A signing's answer kept: the round it left, where the spend still

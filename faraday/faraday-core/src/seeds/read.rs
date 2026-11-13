@@ -912,7 +912,7 @@ impl Faraday {
             Some(Ok(result)) => result,
             Some(Err(e)) => {
                 if let Some(s) = self.seed_read.sweep.as_mut() {
-                    s.error = Some(crate::review::sign_error_text(&e));
+                    s.error = Some(String::from(&*crate::review::sign_error_text(&e)));
                 }
                 return;
             }

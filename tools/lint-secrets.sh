@@ -474,6 +474,7 @@ faraday/faraday-files/src/proto.rs
 faraday/faraday-sqlite/src/lib.rs
 faraday/faraday-core/src/testkit.rs
 faraday/faraday-core/src/samples/mod.rs
+faraday/faraday-core/src/review.rs
 faraday/faraday-qr/src/bbqr.rs
 faraday/faraday-qr/src/send.rs
 faraday/faraday-intake/src/lib.rs

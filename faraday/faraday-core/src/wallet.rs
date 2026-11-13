@@ -1320,10 +1320,12 @@ impl Session {
         known: Option<&Inspection>,
         accepted: &[faraday_psbt::WarningKind],
     ) -> Result<Signed, String> {
-        let job = self.sign_job(c, psbt, Some(seed), musig, known, accepted)?;
+        let job = self
+            .sign_job(c, psbt, Some(seed), musig, known, accepted)
+            .map_err(|e| String::from(&*e))?;
         let (made, result) = crate::review::signed(musig, job.run(c));
         *psbt = made;
-        result
+        result.map_err(|e| String::from(&*e))
     }
 }
 
@@ -2643,7 +2645,7 @@ impl Spend {
                 Ok(())
             }
             Ok(None) => Err(EN.wallet_not_enough_signatures.to_string()),
-            Err(e) => Err(crate::review::sign_error_text(&e)),
+            Err(e) => Err(String::from(&*crate::review::sign_error_text(&e))),
         }
     }
 
@@ -2662,7 +2664,7 @@ impl Spend {
         match faraday_psbt::finalize(&mut copy) {
             Ok(Some(_)) => None,
             Ok(None) => Some(EN.wallet_script_unsatisfied.to_string()),
-            Err(e) => Some(crate::review::sign_error_text(&e)),
+            Err(e) => Some(String::from(&*crate::review::sign_error_text(&e))),
         }
     }
 

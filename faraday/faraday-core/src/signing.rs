@@ -82,7 +82,7 @@ impl SignWork {
         let view = signing.round_view();
         let (psbt, round, result) = signing.into_parts();
         let worked = match result {
-            Err(e) => Err(crate::review::sign_error_text(&e)),
+            Err(e) => Err(String::from(&*crate::review::sign_error_text(&e))),
             Ok(r) => {
                 let fps = crate::review::signers_of(&r);
                 let After {

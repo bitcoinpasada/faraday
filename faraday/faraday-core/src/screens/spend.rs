@@ -935,7 +935,7 @@ pub(crate) fn step_body(
                 .map(|k| k.text);
             let lines = caution
                 .iter()
-                .map(|t| (Role::Warning, std::borrow::Cow::Borrowed(t.as_str())))
+                .map(|t| (Role::Warning, crate::review::Words::Fixed(t.as_str())))
                 .chain(i.warnings.iter().map(|wn| {
                     let c = match wn.level {
                         Level::Info => Role::OnSurfaceVariant,
