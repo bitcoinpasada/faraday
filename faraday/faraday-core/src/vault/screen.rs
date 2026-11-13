@@ -10,7 +10,7 @@ use faraday_draw::tokens::{
     BODY_L, BODY_M, BODY_S, BUTTON_H, FIELD_H, FIELD_PAD, LABEL_L, LABEL_M, TITLE_M,
 };
 use faraday_draw::widgets::Icon;
-use faraday_text::Text;
+use faraday_text::{Text, text};
 
 use crate::demo::Show;
 use crate::drawing::{Scrolled, View};
@@ -137,7 +137,7 @@ pub(crate) fn stick_banner(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f
 /// A passphrase field that takes no typing: a stick is attached.
 pub(crate) fn stick_field(medium: crate::Medium, ui: &mut Ui, x: f32, y: f32, w: f32) {
     ui.field_box((x, y, w), false, None);
-    let text = fill(EN.vault_remove_the_first, &[medium.noun()]);
+    let text = Text::fill(EN.vault_remove_the_first, &[medium.noun()]);
     ui.text_mid_as(
         (x + FIELD_PAD, y, FIELD_H),
         BODY_L,
@@ -329,7 +329,7 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        &fill(
+        &Text::fill(
             EN.vault_a_vault_holds,
             &[app.medium.a(), app.medium.for_the()],
         ),
@@ -412,7 +412,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += guide_text(app, ui, x, y, w, EN.vault_choose_the_vault);
     if !app.may_load_keys() {
-        let pull = fill(EN.vault_remove_the_then_type, &[app.medium.noun()]);
+        let pull = Text::fill(EN.vault_remove_the_then_type, &[app.medium.noun()]);
         y += stick_banner(ui, x, y, w, &pull);
     }
     let files = app.vault_files();
@@ -456,11 +456,11 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y + 40.0,
             BODY_S,
             muted,
-            &format!("{where_} · {}", &*file_text(f.len)),
+            &text!("{where_} · {}", &*file_text(f.len)),
         );
         let mem = f.facts.header.cost.memory_kib / 1024;
         let cost = cost_text(&f.facts.header.cost);
-        let time = fill(
+        let time = Text::fill(
             EN.vault_unlock_time_here,
             &[&app.vaults.time_text(mem, f.facts.header.cost.passes)],
         );
@@ -504,7 +504,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 )
             })
             .unwrap_or_default();
-        let line = fill(EN.vault_unlocking, &[&t]);
+        let line = Text::fill(EN.vault_unlocking, &[&t]);
         crate::screens::working_line(ui, (x, y, w, 46.0), &line);
     } else {
         let style = Style::Primary.when(app.may_load_keys());
@@ -518,8 +518,8 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             va(V::Unlock),
         );
         let free = match app.vaults.memory_free_mib {
-            Some(m) => fill(EN.vault_this_computer_free, &[&mib_text(m)]),
-            None => EN.vault_this_computer_memory.to_string(),
+            Some(m) => Text::fill(EN.vault_this_computer_free, &[&mib_text(m)]),
+            None => Text::of(EN.vault_this_computer_memory),
         };
         ui.text_mid_as((x + 180.0, y, 46.0), BODY_S, muted, &free);
     }
@@ -527,22 +527,22 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
 /// The third line of a vault's row: where it is, its size and cost while
 /// open; once locked, what it held when last seen open, or that unlocking shows it.
-pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> String {
+pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> Text {
     let line = if f.open.is_some() {
-        format!(
+        text!(
             "{where_} · {} · {}",
             &*file_text(f.len),
             &*cost_text(&f.facts.header.cost)
         )
     } else {
         match app.vault_summary(f) {
-            Some(s) => s.line(app.tz_min()).as_str().into(),
-            None => EN.vault_unlock_to_see.to_string(),
+            Some(s) => s.line(app.tz_min()),
+            None => Text::of(EN.vault_unlock_to_see),
         }
     };
     // Its currency first (§3.5): never written, current on a stick, or changed since written.
     match app.currency(f) {
-        Some(c) => format!("{} · {line}", c.line().as_str()),
+        Some(c) => text!("{} · {}", &*c.line(), &*line),
         None => line,
     }
 }
@@ -671,7 +671,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        &fill(
+        &Text::fill(
             EN.vault_a_vault_holds,
             &[app.medium.a(), app.medium.for_the()],
         ),
@@ -694,7 +694,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += ui.wrap_as((x, y, w), BODY_M, muted, ONCE_MORE) + 12.0;
     }
     if !app.may_load_keys() {
-        let pull = fill(EN.vault_remove_the_then_type, &[app.medium.noun()]);
+        let pull = Text::fill(EN.vault_remove_the_then_type, &[app.medium.noun()]);
         y += stick_banner(ui, x, y, w, &pull);
     }
     let files = app.vault_files();
@@ -736,10 +736,10 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             app.medium.from_box()
         };
-        let line = ui.fit_as(BODY_S, &format!("{where_} · {}", &*file_text(f.len)), room);
+        let line = ui.fit_as(BODY_S, &text!("{where_} · {}", &*file_text(f.len)), room);
         ui.text_as(x + 60.0, y + 32.0, BODY_S, muted, &line);
         let mem = f.facts.header.cost.memory_kib / 1024;
-        let cost = fill(
+        let cost = Text::fill(
             EN.vault_here,
             &[
                 &cost_text(&f.facts.header.cost),
@@ -799,7 +799,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 )
             })
             .unwrap_or_default();
-        let line = fill(EN.vault_unlocking, &[&t]);
+        let line = Text::fill(EN.vault_unlocking, &[&t]);
         crate::screens::working_line(ui, (x, y, w, 44.0), &line);
         y += 52.0;
     } else {
@@ -817,8 +817,8 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += 52.0;
         }
         let free = match app.vaults.memory_free_mib {
-            Some(m) => fill(EN.vault_this_computer_free, &[&mib_text(m)]),
-            None => EN.vault_this_computer_memory.to_string(),
+            Some(m) => Text::fill(EN.vault_this_computer_free, &[&mib_text(m)]),
+            None => Text::of(EN.vault_this_computer_memory),
         };
         y += ui.wrap_as((x, y, w), BODY_S, muted, &free) + 12.0;
     }
@@ -854,23 +854,23 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let then = app
         .vaults
         .back_to
-        .map(|s| fill(EN.vault_then, &[app.back_name(s)]));
+        .map(|s| Text::fill(EN.vault_then, &[app.back_name(s)]));
     let steps = c.steps();
     let cards: Vec<flow::Card> = steps
         .iter()
         .map(|&k| flow::Card {
-            title: VSTEPS[k as usize].to_string(),
+            title: VSTEPS[k as usize].into(),
             summary: if c.done[k as usize] {
-                summaries[k as usize].clone()
+                summaries[k as usize].as_str().into()
             } else {
-                EN.vault_not_chosen_yet.to_string()
+                EN.vault_not_chosen_yet.into()
             },
             mono: false,
             done: c.done[k as usize],
             open: c.open == Some(k),
             default: k == vstep::PRESET, // the size: closed at entry, with Change
             toggle: va(V::CStep(k)),
-            walkthrough: Some(create_guide(k)),
+            walkthrough: Some(create_guide(k).as_str().into()),
         })
         .collect();
     // A small panel has no side panel, nor has a window too low to hold
@@ -914,28 +914,28 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 }
 
-fn create_guide(k: u8) -> String {
+fn create_guide(k: u8) -> Text {
     match k {
-        vstep::WHERE => EN.vault_a_vault_opens_only.to_string(),
-        vstep::COST => EN.vault_guide_guess_cost.to_string(),
-        vstep::PRESET => EN.vault_a_vault_opens.to_string(),
-        _ => EN.vault_each_passphrase.to_string(),
+        vstep::WHERE => Text::of(EN.vault_a_vault_opens_only),
+        vstep::COST => Text::of(EN.vault_guide_guess_cost),
+        vstep::PRESET => Text::of(EN.vault_a_vault_opens),
+        _ => Text::of(EN.vault_each_passphrase),
     }
 }
 
 /// The summary line of each step, by `vstep`, and of the panel's
 /// choices.
-fn create_summaries(app: &View) -> [String; vstep::COUNT] {
+fn create_summaries(app: &View) -> [Text; vstep::COUNT] {
     let Some(c) = app.vaults.create.as_ref() else {
         return Default::default();
     };
     let mut places = Vec::new();
     if !c.not_here {
-        places.push(EN.vault_this_computer.to_string());
+        places.push(EN.vault_this_computer);
     }
     for (k, m) in MACHINES.iter().enumerate() {
         if c.on[k] {
-            places.push(m.1.to_string());
+            places.push(m.1);
         }
     }
     let (k, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
@@ -946,27 +946,27 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
     };
     let n = c.phrases.len();
     let size = match app.vaults.size_row() {
-        Some(r) => fill(
+        Some(r) => Text::fill(
             EN.vault_cost_row,
-            &[(SIZES[r].0), &mib_text(mem), &passes.to_string()],
+            &[(SIZES[r].0), &mib_text(mem), &Text::num(u64::from(passes))],
         ),
-        None => fill(
+        None => Text::fill(
             EN.vault_cost_row,
-            &[name, &mib_text(mem), &passes.to_string()],
+            &[name, &mib_text(mem), &Text::num(u64::from(passes))],
         ),
     };
     let ok = (0..n).all(|i| vault::Vaults::phrase_ok(c, i));
     if places.is_empty() {
-        places.push(EN.vault_none_chosen.to_string());
+        places.push(EN.vault_none_chosen);
     }
     [
-        places.join(", "),
-        fill(
+        joined(&places, ", "),
+        Text::fill(
             EN.vault_cost_row,
-            &[name, &mib_text(mem), &passes.to_string()],
+            &[name, &mib_text(mem), &Text::num(u64::from(passes))],
         ),
         {
-            let line = fill(
+            let line = Text::fill(
                 EN.vault_kdbx,
                 &[
                     &vault::vault_stem(&c.name.text),
@@ -980,7 +980,7 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
             if c.key == crate::vault::KeyChoice::None {
                 line
             } else {
-                format!("{line} · {}", EN.vault_with_key_file)
+                text!("{} · {}", &*line, EN.vault_with_key_file)
             }
         },
         size,
@@ -989,10 +989,10 @@ fn create_summaries(app: &View) -> [String; vstep::COUNT] {
 
 /// What this computer gives a vault, for its row: the most unlock memory,
 /// and what it has free.
-pub(super) fn here_text(app: &View, limit: u32) -> String {
+pub(super) fn here_text(app: &View, limit: u32) -> Text {
     match app.vaults.memory_free_mib {
-        Some(free) => fill(EN.vault_free, &[&mib_text(limit), &mib_text(free)]),
-        None => EN.vault_memory_not_reported.to_string(),
+        Some(free) => Text::fill(EN.vault_free, &[&mib_text(limit), &mib_text(free)]),
+        None => Text::of(EN.vault_memory_not_reported),
     }
 }
 
@@ -1094,13 +1094,13 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 let on = k == current;
                 let fits = m <= limit;
                 let (note, color) = if k == CUSTOM {
-                    (EN.vault_choose_memory.to_string(), muted)
+                    (Text::of(EN.vault_choose_memory), muted)
                 } else if k == suggested {
-                    (EN.vault_suggested.to_string(), primary)
+                    (Text::of(EN.vault_suggested), primary)
                 } else if fits {
-                    (EN.vault_fits.to_string(), muted)
+                    (Text::of(EN.vault_fits), muted)
                 } else {
-                    (fill(EN.vault_too_large, &[&weakest]), warn)
+                    (Text::fill(EN.vault_too_large, &[&weakest]), warn)
                 };
                 let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
                 let color = on_selected(on, color);
@@ -1113,12 +1113,12 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 let room = w - 44.0 - ui.measure_as(LABEL_L, label);
                 let note = ui.fit_as(BODY_S, &note, room);
                 ui.text_right_as((x + w - 16.0, cy + 5.0, 24.0), BODY_S, color, &note);
-                let detail = fill(
+                let detail = Text::fill(
                     EN.vault_passes_bits,
                     &[
                         &mib_text(m),
-                        &p.to_string(),
-                        &format!("{:.1}", vault::cost_bits(m, p)),
+                        &Text::num(u64::from(p)),
+                        &text!("{:.1}", vault::cost_bits(m, p)),
                     ],
                 );
                 let detail = ui.fit_as(BODY_S.mono(), &detail, w - 32.0);
@@ -1154,7 +1154,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                         cy,
                         Some(44.0),
                         BUTTON_H,
-                        &p.to_string(),
+                        &Text::num(u64::from(*p)),
                         style,
                         va(V::CPasses(i)),
                     ) + 6.0;
@@ -1163,12 +1163,12 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
             }
             // The unlock memory against the most the weakest machine
             // gives a vault.
-            let needs = fill(EN.vault_unlock_memory_n, &[&mib_text(mem)]);
+            let needs = Text::fill(EN.vault_unlock_memory_n, &[&mib_text(mem)]);
             ui.text_as(x, cy, LABEL_L, ink, &needs);
             let room = w - ui.measure_as(LABEL_L, &needs) - 12.0;
             let has = ui.fit_as(
                 BODY_S,
-                &fill(EN.vault_memory_limit, &[&weakest, &mib_text(limit)]),
+                &Text::fill(EN.vault_memory_limit, &[&weakest, &mib_text(limit)]),
                 room,
             );
             ui.text_right_as((x + w, cy - 4.0, 24.0), BODY_S, muted, &has);
@@ -1189,7 +1189,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 cy,
                 BODY_S,
                 muted,
-                &fill(
+                &Text::fill(
                     EN.vault_unlocks_in_here,
                     &[&app.vaults.time_text(mem, passes)],
                 ),
@@ -1200,9 +1200,9 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 cy,
                 BODY_S,
                 muted,
-                &fill(
+                &Text::fill(
                     EN.vault_cost_bits,
-                    &[&format!("{:.1}", vault::cost_bits(mem, passes))],
+                    &[&text!("{:.1}", vault::cost_bits(mem, passes))],
                 ),
             );
             cy += ui.advance_as(BODY_S, 30.0);
@@ -1228,13 +1228,16 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 ui.fill(x, cy, w, row_h, 8.0, selected_or(on, inset));
                 let edge = selected_or(on, Role::OutlineVariant);
                 ui.stroke(x, cy, w, row_h, 8.0, edge);
-                let cost = fill(EN.vault_passes, &[&mib_text(mem), &passes.to_string()]);
+                let cost = Text::fill(
+                    EN.vault_passes,
+                    &[&mib_text(mem), &Text::num(u64::from(passes))],
+                );
                 let time = match app.vaults.seconds(mem, passes) {
-                    Some(_) => fill(
+                    Some(_) => Text::fill(
                         EN.vault_unlocks_in_here,
                         &[&app.vaults.time_text(mem, passes)],
                     ),
-                    None => EN.vault_unlock_time_unmeasured.to_string(),
+                    None => Text::of(EN.vault_unlock_time_unmeasured),
                 };
                 // Short of memory here: what this computer has free, in
                 // place of the time.
@@ -1245,16 +1248,15 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                     let name = ui.fit_as(LABEL_L, label, w - 28.0);
                     ui.text_as(x + 14.0, cy + 6.0, LABEL_L, ink, &name);
                     let here = match app.vaults.seconds(mem, passes) {
-                        Some(_) => fill(
-                            EN.vault_here,
-                            &[&cost.to_string(), &app.vaults.time_text(mem, passes)],
-                        ),
+                        Some(_) => {
+                            Text::fill(EN.vault_here, &[&cost, &app.vaults.time_text(mem, passes)])
+                        }
                         None => cost.clone(),
                     };
                     let here = ui.fit_as(BODY_S, &here, w - 28.0);
                     ui.text_as(x + 14.0, cy + 26.0, BODY_S, muted, &here);
                     if let Some(f) = short {
-                        let has = fill(EN.vault_this_computer_has, &[&mib_text(f)]);
+                        let has = Text::fill(EN.vault_this_computer_has, &[&mib_text(f)]);
                         let has = ui.fit_as(BODY_S, &has, w - 28.0);
                         ui.text_as(x + 14.0, cy + 46.0, BODY_S, warn, &has);
                     }
@@ -1262,7 +1264,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                     ui.text_as(x + 14.0, cy + 8.0, LABEL_L, ink, label);
                     ui.text_right_as((x + w - 14.0, cy + 5.0, 24.0), LABEL_L, ink, &cost);
                     let line = match short {
-                        Some(f) => fill(EN.vault_this_computer_has, &[&mib_text(f)]),
+                        Some(f) => Text::fill(EN.vault_this_computer_has, &[&mib_text(f)]),
                         None => time,
                     };
                     let line = ui.fit_as(BODY_S, &line, w - 28.0);
@@ -1299,7 +1301,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 (x, cy, w),
                 BODY_S,
                 muted,
-                &fill(EN.vault_what_it_holds, &[app.medium.noun()]),
+                &Text::fill(EN.vault_what_it_holds, &[app.medium.noun()]),
             ) + 10.0;
             let nw = w.min(360.0);
             text_box(
@@ -1312,7 +1314,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 app.vaults.focus == Some(Focus::Name),
                 va(V::CName),
             );
-            let file = fill(EN.vault_file_kdbx, &[&vault::vault_stem(&c.name.text)]);
+            let file = Text::fill(EN.vault_file_kdbx, &[&vault::vault_stem(&c.name.text)]);
             if nw + 16.0 + ui.measure_as(BODY_S, &file) <= w {
                 ui.text_mid_as((x + nw + 16.0, cy, FIELD_H), BODY_S, muted, &file);
                 cy += FIELD_H + 16.0;
@@ -1321,7 +1323,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 cy += FIELD_H + 38.0;
             }
             if !may {
-                let pull = fill(EN.vault_remove_the_then, &[app.medium.noun()]);
+                let pull = Text::fill(EN.vault_remove_the_then, &[app.medium.noun()]);
                 cy += stick_banner(ui, x, cy, w, &pull);
             }
             ui.button(
@@ -1409,12 +1411,12 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                 let cost = vault::cost_bits(mem, passes);
                 let strength = match vault::Vaults::phrase_bits(c, i) {
                     Some(own) => Some((
-                        fill(
+                        Text::fill(
                             EN.vault_bits_from_dice,
                             &[
-                                &format!("{own:.1}"),
-                                &format!("{cost:.1}"),
-                                &format!("{:.1}", own + cost),
+                                &text!("{own:.1}"),
+                                &text!("{cost:.1}"),
+                                &text!("{:.1}", own + cost),
                             ],
                         ),
                         if own >= crate::dice_entry::STRONG_BITS as f32 {
@@ -1424,7 +1426,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32, in_page: 
                         },
                     )),
                     None if !a.text.is_empty() && !app.pass_is_public(&a.text) => Some((
-                        fill(EN.vault_typed_its_own, &[&format!("{cost:.1}")]),
+                        Text::fill(EN.vault_typed_its_own, &[&text!("{cost:.1}")]),
                         muted,
                     )),
                     None => None,
@@ -1482,7 +1484,7 @@ fn create_panel(
     px: f32,
     pw: f32,
     h: f32,
-    summaries: &[String; vstep::COUNT],
+    summaries: &[Text; vstep::COUNT],
 ) {
     let (ink, rule) = (Role::OnSurface, Role::OutlineVariant);
     let muted = Role::OnSurfaceVariant;
@@ -1512,7 +1514,7 @@ fn create_panel(
         let v = if live {
             summaries[k].clone()
         } else {
-            EN.vault_not_chosen_yet.to_string()
+            Text::of(EN.vault_not_chosen_yet)
         };
         let v = ui.fit_as(BODY_S, &v, w);
         ui.text_as(
@@ -1538,53 +1540,82 @@ fn create_panel(
 
 /// An item's title, its line, and whether the title is data. A codex32
 /// share kept with others of its set is labelled as another share.
-fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
+fn item_heading(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
     let (title, mut line, mono) = item_heading_of(app, r);
     let rel = r
         .home()
         .and_then(|(id, at)| app.vaults.store().related(id, at));
     if rel.is_some() {
         let index = faraday_keys::vault::codex32_share_header(r)
-            .map(|(_, _, i)| char::from(i).to_ascii_uppercase().to_string())
+            .map(|(_, _, i)| {
+                Text::of(
+                    char::from(i)
+                        .to_ascii_uppercase()
+                        .encode_utf8(&mut [0u8; 4]),
+                )
+            })
             .unwrap_or_default();
-        let said = fill(EN.vault_related_share, &[&index]);
+        let said = Text::fill(EN.vault_related_share, &[&index]);
         line = if line.is_empty() {
             said
         } else {
-            format!("{line} · {said}")
+            text!("{} · {}", &*line, &*said)
         };
     }
     (title, line, mono)
 }
 
+/// `parts` with `sep` between them.
+fn joined(parts: &[&str], sep: &str) -> Text {
+    let mut out = Text::new();
+    for (i, part) in parts.iter().enumerate() {
+        if i > 0 {
+            out.push_str(sep);
+        }
+        out.push_str(part);
+    }
+    out
+}
+
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn item_heading_of(app: &View, r: RecordView<'_>) -> (String, String, bool) {
+fn item_heading_of(app: &View, r: RecordView<'_>) -> (Text, Text, bool) {
     match r.kind() {
         kind::KEY => {
             let fp = app
                 .vault_key_fingerprint(r)
-                .unwrap_or_else(|| EN.vault_key.to_string());
+                .map_or_else(|| Text::of(EN.vault_key), |f| Text::of(&f));
             let words = app
                 .record_word_count(r)
-                .map(|n| fill(EN.vault_words_n, &[&n.to_string()]))
-                .unwrap_or_else(|| EN.vault_master_seed.into());
+                .map(|n| Text::fill(EN.vault_words_n, &[&Text::num(n as u64)]))
+                .unwrap_or_else(|| Text::of(EN.vault_master_seed));
             let loads = r.loads_at_unlock();
             let label = r.public_text(field::KEY_LABEL).unwrap_or("");
-            let mut line = vec![words];
-            line.extend((!label.is_empty()).then(|| label.to_string()));
-            line.extend(crate::bip85::record_child_mark(r).map(|t| String::from(&*t)));
-            if !loads {
-                line.push(EN.vault_not_loaded_at_unlock_inline.to_string());
+            let mut line = words;
+            if !label.is_empty() {
+                line.push_str(" · ");
+                line.push_str(label);
             }
-            (fp, line.join(" · "), true)
+            if let Some(mark) = crate::bip85::record_child_mark(r) {
+                line.push_str(" · ");
+                line.push_str(&mark);
+            }
+            if !loads {
+                line.push_str(" · ");
+                line.push_str(EN.vault_not_loaded_at_unlock_inline);
+            }
+            (fp, line, true)
         }
         kind::WALLET => {
-            let name = super::wallet_name_in(r, field::WALLET_NAME, EN.vault_wallet).into_owned();
+            let name = Text::of(&super::wallet_name_in(
+                r,
+                field::WALLET_NAME,
+                EN.vault_wallet,
+            ));
             let mut line = app
                 .record_described(r)
-                .map_or_else(|| EN.vault_wallet.into(), |d| d.shape.as_str().into());
+                .map_or_else(|| Text::of(EN.vault_wallet), |d| Text::of(&d.shape));
             if !r.loads_at_unlock() {
-                line = format!("{line} · {}", EN.vault_not_loaded_at_unlock_inline);
+                line = text!("{} · {}", &*line, EN.vault_not_loaded_at_unlock_inline);
             }
             (name, line, false)
         }
@@ -1600,10 +1631,8 @@ fn item_heading_of(app: &View, r: RecordView<'_>) -> (String, String, bool) {
                 parts.push(EN.vault_entry);
             }
             (
-                r.public_text(field::TITLE)
-                    .unwrap_or(EN.vault_entry)
-                    .to_string(),
-                parts.join(" · "),
+                Text::of(r.public_text(field::TITLE).unwrap_or(EN.vault_entry)),
+                joined(&parts, " · "),
                 false,
             )
         }
@@ -1611,15 +1640,18 @@ fn item_heading_of(app: &View, r: RecordView<'_>) -> (String, String, bool) {
             // The first line of a note is its title: a secret put on screen.
             let note = app.reveal_record(r, field::NOTE, Reveal::VaultEntry(Part::Note));
             let t: &str = &note;
-            let first: String = t.lines().next().unwrap_or("").chars().take(40).collect();
+            let first: Text = t.lines().next().unwrap_or("").chars().take(40).collect();
             let first = if first.is_empty() {
-                EN.vault_note.to_string()
+                Text::of(EN.vault_note)
             } else {
                 first
             };
             (
                 first,
-                fill(EN.vault_note_characters, &[&t.chars().count().to_string()]),
+                Text::fill(
+                    EN.vault_note_characters,
+                    &[&Text::num(t.chars().count() as u64)],
+                ),
                 false,
             )
         }
@@ -1627,41 +1659,42 @@ fn item_heading_of(app: &View, r: RecordView<'_>) -> (String, String, bool) {
             let (_, name, _) = faraday_keys::vault::sheet_parts(r);
             (
                 if name.is_empty() {
-                    EN.vault_recovery_sheet.into()
+                    Text::of(EN.vault_recovery_sheet)
                 } else {
-                    String::from(&*name)
+                    Text::of(&name)
                 },
-                fill(EN.vault_recovery_sheet_n, &[&name]),
+                Text::fill(EN.vault_recovery_sheet_n, &[&name]),
                 false,
             )
         }
         kind::GPG => {
             let line = match crate::gpg::shown(r, app.tz_min()) {
-                Some(g) if g.expires == EN.gpg_never => EN.vault_ed25519_does.to_string(),
-                Some(g) => fill(EN.vault_ed25519_expires, &[&g.expires.to_string()]),
-                None => "Ed25519".to_string(),
+                Some(g) if g.expires == EN.gpg_never => Text::of(EN.vault_ed25519_does),
+                Some(g) => Text::fill(EN.vault_ed25519_expires, &[&g.expires]),
+                None => Text::of("Ed25519"),
             };
             (
-                r.public_text(faraday_keys::vault::gpg_field::USER_ID)
-                    .unwrap_or(EN.vault_gpg_key)
-                    .to_string(),
+                Text::of(
+                    r.public_text(faraday_keys::vault::gpg_field::USER_ID)
+                        .unwrap_or(EN.vault_gpg_key),
+                ),
                 line,
                 false,
             )
         }
         kind::SECURE_BOOT => (
-            EN.vault_owner_keys.to_string(),
-            EN.vault_pk_kek_db.to_string(),
+            Text::of(EN.vault_owner_keys),
+            Text::of(EN.vault_pk_kek_db),
             false,
         ),
         kind::WALLET_SHARE => {
             let n = |f: u8| {
                 r.public(f)
                     .and_then(|b| b.first())
-                    .map_or(String::new(), |b| b.to_string())
+                    .map_or(Text::new(), |b| Text::of(&Text::num(u64::from(*b))))
             };
             (
-                fill(
+                Text::fill(
                     EN.backup_flow_vault_share,
                     &[
                         &super::wallet_name_in(r, field::SHARE_WALLET_NAME, EN.vault_wallet),
@@ -1669,35 +1702,42 @@ fn item_heading_of(app: &View, r: RecordView<'_>) -> (String, String, bool) {
                         &n(field::SHARE_OF),
                     ],
                 ),
-                String::new(),
+                Text::new(),
                 false,
             )
         }
-        kind::CODEX32_SHARE => crate::codex32_backup::screen::vault_row(r),
+        kind::CODEX32_SHARE => {
+            let (title, line, mono) = crate::codex32_backup::screen::vault_row(r);
+            (Text::of(&title), Text::of(&line), mono)
+        }
         // A key's passphrase kept without its words: named by the key.
         kind::PASSPHRASE => {
             let fp = crate::codex32_backup::screen::record_fp(r, field::PASSPHRASE_KEY);
-            (fill(EN.plan_passphrase_label, &[&fp]), String::new(), true)
+            (
+                Text::fill(EN.plan_passphrase_label, &[&fp]),
+                Text::new(),
+                true,
+            )
         }
-        _ => (EN.vault_record.to_string(), String::new(), false),
+        _ => (Text::of(EN.vault_record), Text::new(), false),
     }
 }
 
 /// The shape of a wallet read already, as the session names one. Costs
 /// the descriptor's checksum.
-pub(crate) fn policy_shape(policy: faraday_bip::policy::WalletPolicy) -> String {
-    Session::shape(&Wallet::new(
-        String::new(),
+pub(crate) fn policy_shape(policy: faraday_bip::policy::WalletPolicy) -> Text {
+    Text::of(&Session::shape(&Wallet::new(
+        "".into(),
         policy,
-        String::new(),
+        "".into(),
         crate::wallet::Origin::Named,
-    ))
+    )))
 }
 
 /// Costs what `key_identity` costs. A key record's fingerprint, worked
 /// out once per key and kept. Four bytes: it finds a candidate; whether
 /// the record is a given key is [`record_is_key`]'s to say.
-pub(crate) fn key_fingerprint(c: &Compute, app: &Faraday, r: RecordView<'_>) -> Option<String> {
+pub(crate) fn key_fingerprint(c: &Compute, app: &Faraday, r: RecordView<'_>) -> Option<Text> {
     key_identity(c, app, r).map(|(fp, _)| fp)
 }
 
@@ -1712,7 +1752,8 @@ pub(crate) fn record_is_key(
     r: RecordView<'_>,
     key: &faraday_keys::KeyInfo,
 ) -> bool {
-    key_identity(c, app, r).is_some_and(|(fp, id)| fp == fp_text(key.fingerprint) && id == key.id.0)
+    key_identity(c, app, r)
+        .is_some_and(|(fp, id)| *fp == *fp_text(key.fingerprint) && id == key.id.0)
 }
 
 /// Costs a PBKDF2 and two elliptic-curve multiplications the first
@@ -1722,21 +1763,21 @@ pub(crate) fn key_identity(
     c: &Compute,
     app: &Faraday,
     r: RecordView<'_>,
-) -> Option<(String, [u8; 32])> {
+) -> Option<(Text, [u8; 32])> {
     app.vaults
         .key_identity(c, app.session.network(), r)
-        .map(|(f, m)| (f.as_str().into(), m))
+        .map(|(f, m)| (Text::of(&f), m))
 }
 
 /// Costs a parse of the words, and a PBKDF2 and two elliptic-curve
 /// multiplications the first time. [`key_identity`] of a vault key record
 /// of session key `k`'s words alone, without its passphrase, kept with the
 /// records' by the same id.
-pub(crate) fn words_identity(c: &Compute, app: &Faraday, k: usize) -> Option<(String, [u8; 32])> {
+pub(crate) fn words_identity(c: &Compute, app: &Faraday, k: usize) -> Option<(Text, [u8; 32])> {
     let id = app.session.keys.words_record_id(c, k)?;
     app.vaults
         .kept_identity(id, || app.session.keys.words_identity(c, k))
-        .map(|(f, m)| (f.as_str().into(), m))
+        .map(|(f, m)| (Text::of(&f), m))
 }
 
 /// Costs a PBKDF2 and a key derivation the first time for a record
@@ -1763,13 +1804,13 @@ pub(crate) fn record_is_policy_key(
         return false;
     };
     let want = faraday_keys::vault::account_bytes(key.xpub());
-    let at = path.to_string();
+    let at = text!("{path}");
     if let Some((.., kept)) = app
         .vaults
         .accounts
         .borrow()
         .iter()
-        .find(|(k, p, _)| *k == id && p.as_str() == at)
+        .find(|(k, p, _)| *k == id && p.as_str() == &*at)
     {
         return kept.is_some_and(|b| b == want);
     }
@@ -1783,11 +1824,11 @@ pub(crate) fn record_is_policy_key(
     got.is_some_and(|b| b == want)
 }
 
-fn words_text(m: &faraday_bip::bip39::Mnemonic) -> zeroize::Zeroizing<String> {
+fn words_text(m: &faraday_bip::bip39::Mnemonic) -> Text {
     let lang = m.language();
     // Sized first, so that no copy is left behind by a reallocation.
     let size: usize = m.indices().iter().map(|i| lang.word(*i).len() + 1).sum();
-    let mut text = zeroize::Zeroizing::new(String::with_capacity(size));
+    let mut text = Text::with_room(size);
     for (k, i) in m.indices().iter().enumerate() {
         if k > 0 {
             text.push(' ');
@@ -1825,7 +1866,7 @@ fn seals_head(
     }
     let unread = app.vaults.store().unreadable(v.id).len();
     if unread > 0 {
-        let line = fill(EN.vault_not_read, &[&unread.to_string()]);
+        let line = Text::fill(EN.vault_not_read, &[&Text::num(unread as u64)]);
         used += ui.wrap_as((x, y + used, w), BODY_S, Role::Warning, &line);
     }
     if !v.settings_text().is_empty() {
@@ -1881,12 +1922,12 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += own_row(app, ui, (x, y, w));
     }
     let state = if v.changes == 0 {
-        EN.vault_open_button.to_string()
+        Text::of(EN.vault_open_button)
     } else {
-        fill(
+        Text::fill(
             EN.vault_open_unsaved,
             &[
-                &v.changes.to_string(),
+                &Text::num(v.changes as u64),
                 (if v.changes == 1 {
                     EN.vault_change
                 } else {
@@ -1941,7 +1982,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_mid_as((from, y, BUTTON_H), BODY_S, muted, &count);
     }
     y += BUTTON_H + tokens::GAP;
-    let sub = format!(
+    let sub = text!(
         "{} · {} · {}",
         &*v.name,
         &*cost_text(&v.facts().header.cost),
@@ -1984,7 +2025,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        &fill(EN.vault_secret_values, &[app.medium.noun()]),
+        &Text::fill(EN.vault_secret_values, &[app.medium.noun()]),
     );
 
     // Three columns: kinds, items, the item. A wallet's chart takes the
@@ -2022,7 +2063,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         let tone = on_selected(on, muted);
         ui.text_mid_as((x + 12.0, ky, 38.0), LABEL_L, tone, label);
-        let n = count.to_string();
+        let n = Text::num(count as u64);
         ui.text_right_as((x + kinds_w - 12.0, ky, 38.0), BODY_S, tone, &n);
         ui.press_box(x, ky, kinds_w, 38.0, va(V::Category(k)));
         ky += 42.0;
@@ -2069,19 +2110,25 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .iter()
         .filter(|i| i.kind == crate::FileKind::Entries)
         .count();
-    let mut extra: Vec<(String, Action)> = Vec::new();
+    let mut extra: Vec<(Text, Action)> = Vec::new();
     let editable = v.read_only().is_none();
     if editable && app.vaults.category == 2 {
-        extra.push((EN.vault_scan_a_code.to_string(), va(V::ScanEntry)));
+        extra.push((Text::of(EN.vault_scan_a_code), va(V::ScanEntry)));
         if entries_files > 0 {
             extra.push((
-                fill(EN.vault_import_from_files, &[&entries_files.to_string()]),
+                Text::fill(
+                    EN.vault_import_from_files,
+                    &[&Text::num(entries_files as u64)],
+                ),
                 va(V::ImportAllEntries),
             ));
         }
     }
     let gpg = editable && app.vaults.category == 4;
-    extra.extend(gpg.then(crate::backup_flow::gpg_restore::contents_button));
+    extra.extend(
+        gpg.then(crate::backup_flow::gpg_restore::contents_button)
+            .map(|(label, press)| (Text::of(&label), press)),
+    );
     // A GPG key's Restore has room round it, for the touch floor.
     let room = tokens::GAP * f32::from(u8::from(gpg));
     if !extra.is_empty() {
@@ -2188,12 +2235,12 @@ fn shows_empty(app: &View, v: &vault::OpenVault) -> bool {
 }
 
 /// An empty vault's next steps: every way to add, then writing it out.
-fn empty_buttons(app: &View) -> Vec<(String, Style, Action)> {
-    let mut out: Vec<(String, Style, Action)> = (0..CATEGORIES.len())
-        .filter_map(|k| add_full(k).map(|a| (a.to_string(), Style::Secondary, va(V::AddKind(k)))))
+fn empty_buttons(app: &View) -> Vec<(Text, Style, Action)> {
+    let mut out: Vec<(Text, Style, Action)> = (0..CATEGORIES.len())
+        .filter_map(|k| add_full(k).map(|a| (Text::of(a), Style::Secondary, va(V::AddKind(k)))))
         .collect();
     out.push((
-        fill(EN.vault_write_to_medium, &[app.medium.a()]),
+        Text::fill(EN.vault_write_to_medium, &[app.medium.a()]),
         Style::Secondary,
         va(V::WriteOut),
     ));
@@ -2317,12 +2364,12 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         + faraday_draw::tokens::GAP_SMALL;
     y += seals_head(app, ui, v, (x, y, w), false);
     let state = if v.changes == 0 {
-        EN.vault_open_button.to_string()
+        Text::of(EN.vault_open_button)
     } else {
-        fill(
+        Text::fill(
             EN.vault_open_unsaved,
             &[
-                &v.changes.to_string(),
+                &Text::num(v.changes as u64),
                 (if v.changes == 1 {
                     EN.vault_change
                 } else {
@@ -2339,7 +2386,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &state,
     );
     y += ui.advance_as(LABEL_L, 22.0);
-    let sub = format!(
+    let sub = text!(
         "{} · {} · {}",
         &*v.name,
         &*cost_text(&v.facts().header.cost),
@@ -2395,11 +2442,11 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += wrap_buttons(ui, x, y, w, BUTTON_H, &items);
     }
     if app.vaults.open.len() > 1 {
-        let labels: Vec<String> = app
+        let labels: Vec<Text> = app
             .vaults
             .open
             .iter()
-            .map(|o| o.label(app.vaults.store()).as_str().into())
+            .map(|o| o.label(app.vaults.store()))
             .collect();
         let items: Vec<(&str, Style, Action)> = labels
             .iter()
@@ -2414,9 +2461,9 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The kinds it holds, each with how many, then a row for each kind
     // to add.
     let listed = listed_kinds(app, v);
-    let kind_labels: Vec<(usize, String)> = listed
+    let kind_labels: Vec<(usize, Text)> = listed
         .iter()
-        .map(|(k, label, n)| (*k, format!("{label} {n}")))
+        .map(|(k, label, n)| (*k, text!("{label} {n}")))
         .collect();
     let kind_items: Vec<(&str, Style, Action)> = kind_labels
         .iter()
@@ -2454,16 +2501,19 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .iter()
         .filter(|i| i.kind == crate::FileKind::Entries)
         .count();
-    let mut extra: Vec<(String, V)> = Vec::new();
+    let mut extra: Vec<(Text, V)> = Vec::new();
     let editable = v.read_only().is_none();
     if let Some(a) = add.filter(|_| editable) {
-        extra.push((a.to_string(), V::Add));
+        extra.push((Text::of(a), V::Add));
     }
     if editable && app.vaults.category == 2 {
-        extra.push((EN.vault_scan_a_code.to_string(), V::ScanEntry));
+        extra.push((Text::of(EN.vault_scan_a_code), V::ScanEntry));
         if entries_files > 0 {
             extra.push((
-                fill(EN.vault_import_from_files, &[&entries_files.to_string()]),
+                Text::fill(
+                    EN.vault_import_from_files,
+                    &[&Text::num(entries_files as u64)],
+                ),
                 V::ImportAllEntries,
             ));
         }
@@ -2498,7 +2548,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         w,
-        &fill(EN.vault_secret_values, &[app.medium.noun()]),
+        &Text::fill(EN.vault_secret_values, &[app.medium.noun()]),
     );
     y += unread::section(app, ui, v, (x, y, w));
     finish(app, ui, h, y - top + 16.0);
@@ -2608,9 +2658,9 @@ fn detail(
     if let Some(p) = &app.vaults.prompt {
         let heading = match p.purpose {
             vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => {
-                EN.vault_load_with_a_bip.to_string()
+                Text::of(EN.vault_load_with_a_bip)
             }
-            vault::Purpose::Kdbx => EN.vault_export_for_keepass.to_string(),
+            vault::Purpose::Kdbx => Text::of(EN.vault_export_for_keepass),
         };
         let heading = ui.fit_as(TITLE_M, &heading, dw);
         ui.text_as(dx, dy, TITLE_M, ink, &heading);
@@ -2727,20 +2777,16 @@ fn detail(
             .and_then(|r| crate::gpg::shown(*r, app.tz_min()))
         {
             if let Some(uid) = g.user_ids.first() {
-                dy += ui.wrap_as((dx, dy, dw), LABEL_L, ink, &format!("\"{uid}\"")) + 4.0;
+                dy += ui.wrap_as((dx, dy, dw), LABEL_L, ink, &text!("\"{uid}\"")) + 4.0;
             }
             dy += ui.wrap_as((dx, dy, dw), BODY_S.mono(), muted, &g.subkey) + 4.0;
             dy += ui.wrap_as(
                 (dx, dy, dw),
                 BODY_S,
                 muted,
-                &fill(
+                &Text::fill(
                     EN.vault_signing_key_ids,
-                    &[
-                        &g.subkey_id.to_string(),
-                        &g.key_id.to_string(),
-                        &g.created.to_string(),
-                    ],
+                    &[&g.subkey_id, &g.key_id, &g.created],
                 ),
             ) + 16.0;
         }
@@ -2751,7 +2797,7 @@ fn detail(
                 dy,
                 BODY_S,
                 muted,
-                &fill(EN.vault_no_file, &[app.medium.from_the()]),
+                &Text::fill(EN.vault_no_file, &[app.medium.from_the()]),
             );
             dy += ui.advance_as(BODY_S, 30.0);
         } else {
@@ -2770,7 +2816,7 @@ fn detail(
             let signed = app
                 .outbox
                 .iter()
-                .any(|o| o.name == format!("{}.asc", f.name));
+                .any(|o| o.name.as_str() == &*text!("{}.asc", f.name));
             // Show as QR and PNG hold one signature over this file each;
             // ticking, Sign and its sheet's hold is the way to make it. They follow
             // the file by its hash, not its place in the Inbox.
@@ -2809,10 +2855,10 @@ fn detail(
                 )
             };
             ui.checkbox(dx, dy + (rh - 18.0) / 2.0, ticked, true);
-            let line = format!(
+            let line = text!(
                 "{} · {}",
                 f.name,
-                &*crate::screens::size_text(f.size as u64)
+                crate::screens::size_text(f.size as u64).as_str()
             );
             let name = ui.fit_as(BODY_M.mono(), &line, name_w);
             ui.text_mid_as((dx + 30.0, dy, rh), BODY_M.mono(), ink, &name);
@@ -2849,7 +2895,7 @@ fn detail(
                 } else {
                     rh + 6.0
                 };
-            let hex: String = String::from(&*faraday_crypto::hex::encode_string(&f.hash));
+            let hex = faraday_crypto::hex::encode_string(&f.hash);
             ey += ui.wrap_as((dx + 30.0, ey, dw - 30.0), BODY_S.mono(), muted, &hex) + 6.0;
             if let Some(t) = &f.text {
                 let eye = (va(V::SignText(fi)), app.vaults.sign_text_shown(&f.hash));
@@ -2954,7 +3000,7 @@ fn detail(
                     ui,
                     &mut dy,
                     EN.vault_load_at_unlock,
-                    &fill(EN.vault_loads_with_wallet, &[w]),
+                    &Text::fill(EN.vault_loads_with_wallet, &[w]),
                     false,
                 ),
                 None => field_row(
@@ -2965,7 +3011,11 @@ fn detail(
                     false,
                 ),
             }
-            let here = app.session.keys.all().any(|k| fp_text(k.fingerprint) == fp);
+            let here = app
+                .session
+                .keys
+                .all()
+                .any(|k| *fp_text(k.fingerprint) == *fp);
             field_row(
                 ui,
                 &mut dy,
@@ -3092,12 +3142,9 @@ fn detail(
                     field_row(ui, &mut dy, EN.vault_user_id, uid, false);
                 }
                 let valid = if g.expires == EN.vault_never {
-                    fill(EN.vault_gpg_no_expiry, &[&g.created.to_string()])
+                    Text::fill(EN.vault_gpg_no_expiry, &[&g.created])
                 } else {
-                    fill(
-                        EN.vault_gpg_validity,
-                        &[&g.created.to_string(), &g.expires.to_string()],
-                    )
+                    Text::fill(EN.vault_gpg_validity, &[&g.created, &g.expires])
                 };
                 field_row(ui, &mut dy, EN.vault_valid, &valid, false);
                 if let Some(t) = &g.revoked {
@@ -3105,15 +3152,15 @@ fn detail(
                         ui,
                         &mut dy,
                         EN.vault_status,
-                        &fill(EN.vault_revoked_date, &[&t.to_string()]),
+                        &Text::fill(EN.vault_revoked_date, &[t]),
                         false,
                     );
                 }
                 // Where the revocation certificate is kept, as GnuPG says
                 // where it stored it.
                 let kept = match &g.revocation_kept {
-                    Some(d) => fill(EN.vault_kept_with_the_key, &[&d.to_string()]),
-                    None => EN.vault_none_kept.to_string(),
+                    Some(d) => Text::fill(EN.vault_kept_with_the_key, &[d]),
+                    None => Text::of(EN.vault_none_kept),
                 };
                 field_row(ui, &mut dy, EN.vault_revocation_certificate, &kept, false);
                 // The paperkey is made only while its eye shows it.
@@ -3130,9 +3177,9 @@ fn detail(
                 // The term now, then the new term to choose: nothing is
                 // renewed until one is chosen.
                 let now_line = if g.expires == EN.vault_never {
-                    EN.vault_term_never.to_string()
+                    Text::of(EN.vault_term_never)
                 } else {
-                    fill(EN.vault_term_until, &[&g.expires.to_string()])
+                    Text::fill(EN.vault_term_until, &[&g.expires])
                 };
                 ui.text_as(dx, dy, BODY_S, muted, &now_line);
                 dy += ui.advance_as(BODY_S, 22.0);

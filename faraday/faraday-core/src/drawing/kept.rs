@@ -1028,7 +1028,9 @@ impl View<'_> {
     /// (`vault::screen::key_fingerprint`), kept by the key's id. Costs a
     /// PBKDF2 and two elliptic-curve multiplications the first time.
     pub fn vault_key_fingerprint(&self, r: RecordView<'_>) -> Option<String> {
-        self.kept(|c| crate::vault::screen::key_fingerprint(c, self.app, r))
+        self.kept(|c| {
+            crate::vault::screen::key_fingerprint(c, self.app, r).map(|t| String::from(&*t))
+        })
     }
 }
 

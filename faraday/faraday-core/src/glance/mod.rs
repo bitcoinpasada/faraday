@@ -157,7 +157,7 @@ impl Reads for Now<'_> {
         self.app.plan_notes(self.c, wallet, v)
     }
     fn key_fingerprint(&self, r: RecordView<'_>) -> Option<String> {
-        crate::vault::screen::key_fingerprint(self.c, self.app, r)
+        crate::vault::screen::key_fingerprint(self.c, self.app, r).map(|t| t.as_str().into())
     }
     fn described(&self, id: VaultId, r: usize) -> Option<&crate::vault::Described> {
         self.app.vaults.described(self.c, id, r)

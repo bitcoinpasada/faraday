@@ -1,6 +1,7 @@
 //! The entry form on the codes screen and the entry detail's badges.
 
 use super::*;
+use faraday_text::text;
 
 /// A small text pill (`docs/DESIGN.md` §4.8): the entry detail's HOTP
 /// and Unreadable badges in place of a code.
@@ -43,13 +44,7 @@ pub(super) fn entry_code_row(app: &View, ui: &mut Ui, dx: f32, y: f32) -> (f32, 
         Some(Ok(Some((grouped, left)))) => {
             let gw = ui.measure_as(BODY_L.mono(), grouped);
             ui.text_as(dx, dy, BODY_L.mono(), ink, grouped);
-            ui.text_as(
-                dx + gw + 12.0,
-                dy + 4.0,
-                BODY_S,
-                muted,
-                &format!("{left} s"),
-            );
+            ui.text_as(dx + gw + 12.0, dy + 4.0, BODY_S, muted, &text!("{left} s"));
             dy += ui.advance_as(BODY_S, 34.0);
         }
         Some(Ok(None)) => {

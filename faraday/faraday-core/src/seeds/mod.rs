@@ -729,7 +729,7 @@ impl Faraday {
             .keys
             .all()
             .map(|k| k.fingerprint)
-            .find(|f| crate::wallet::fp_text(*f) == want)
+            .find(|f| crate::wallet::fp_text(*f) == *want)
         else {
             return;
         };
@@ -879,9 +879,9 @@ pub(crate) fn vault_seeds(c: &Compute, app: &Faraday) -> Vec<(usize, usize, Stri
                     .session
                     .keys
                     .all()
-                    .any(|k| crate::wallet::fp_text(k.fingerprint) == fp)
+                    .any(|k| crate::wallet::fp_text(k.fingerprint) == *fp)
             {
-                out.push((v, i, fp));
+                out.push((v, i, String::from(&*fp)));
             }
         }
     }

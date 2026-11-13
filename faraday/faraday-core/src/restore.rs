@@ -1093,7 +1093,8 @@ impl Faraday {
             .records(open.id)
             .of(kind::KEY)
             .filter(|(_, k)| {
-                vault::screen::key_fingerprint(&c, self, *k).is_some_and(|fp| want.contains(&fp))
+                vault::screen::key_fingerprint(&c, self, *k)
+                    .is_some_and(|fp| want.iter().any(|w| *w == *fp))
             })
             .map(|(i, _)| i)
             .chain([r])

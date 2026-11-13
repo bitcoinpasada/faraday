@@ -417,6 +417,15 @@ faraday/faraday-core/src/wallet_backup/shown.rs
 faraday/faraday-core/src/vault/screen/secret.rs
 faraday/faraday-core/src/vault/area.rs
 faraday/faraday-core/src/vault/mod.rs
+faraday/faraday-core/src/vault/create_key.rs
+faraday/faraday-core/src/vault/dice.rs
+faraday/faraday-core/src/vault/more.rs
+faraday/faraday-core/src/vault/out.rs
+faraday/faraday-core/src/vault/screen/codes.rs
+faraday/faraday-core/src/vault/screen.rs
+faraday/faraday-core/src/vault/seal.rs
+faraday/faraday-core/src/vault/stretch.rs
+faraday/faraday-core/src/vault/unlock_keys.rs
 faraday/faraday-core/src/nav/mod.rs
 faraday/faraday-core/src/fresh/roller/five.rs
 faraday/faraday-core/src/codex32/walk.rs
@@ -559,8 +568,9 @@ done
 #   vault/qr.rs        takes the passphrase as text for the PGP layer's seal
 #   worker/kef.rs      holds the KEF worker's answers behind faraday-keys calls
 #   keys/totp.rs       holds the shown one-time code in wiping text
+#   vault/dice.rs, vault/screen.rs   hold only public text and wiping text of the vault and its draw
 #   faraday-text lib   declares and documents the wiping text type of text.rs
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs"
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs"
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }

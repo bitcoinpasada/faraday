@@ -296,7 +296,7 @@ impl Faraday {
             .into_iter()
             .map(|(name, k)| {
                 k.and_then(|k| crate::vault::screen::words_identity(c, self, k))
-                    .map_or(name, |(fp, _)| fp)
+                    .map_or(name, |(fp, _)| String::from(&*fp))
             })
             .collect()
     }
@@ -1352,7 +1352,7 @@ impl Faraday {
                         let written = if has_pass(r) && !want_pass {
                             Some(base.clone())
                         } else {
-                            key_fingerprint(&c, self, r)
+                            key_fingerprint(&c, self, r).map(|t| String::from(&*t))
                         };
                         let mut left = written
                             .and_then(|t| crate::vault::keep::fp_bytes(&t))

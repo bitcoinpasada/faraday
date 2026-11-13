@@ -11,7 +11,7 @@ use faraday_crypto::work::Compute;
 use faraday_keys::UnlockParts;
 use faraday_keys::job::{Budget, KdbxJob, Parsed, StretchJob, Stretched};
 use faraday_keys::vault::SEAL_RANDOM_LEN;
-use faraday_text::Text;
+use faraday_text::{Text, text};
 use faraday_vault::file::STEPS_KIB;
 use faraday_vault::{Cost, records::field, records::kind};
 use zeroize::Zeroizing;
@@ -31,7 +31,7 @@ pub(crate) enum Plan {
     /// `sha` is the SHA-256 of the bytes the job opens, which is the copy
     /// the open vault is a copy of.
     Unlock {
-        name: String,
+        name: Text,
         sha: Option<[u8; 32]>,
         for_import: bool,
     },
@@ -39,8 +39,8 @@ pub(crate) enum Plan {
     /// first passphrase, kept for a backup flow that unlocks the vault it
     /// made at once. Wiped as it drops.
     Create {
-        typed: String,
-        first: Zeroizing<String>,
+        typed: Text,
+        first: Text,
         /// The vault's root group UUID, which names it (`docs/VAULT.md` §7).
         id: [u8; 16],
         /// The key file the vault needs: a file chosen from Files, read
@@ -56,7 +56,7 @@ pub(crate) enum Made {
     /// A key file drawn at the press: its `.keyx` comes out of the job.
     Drawn,
     /// This file of Files, which leaves Files with the vault made.
-    Chosen(String),
+    Chosen(Text),
 }
 
 /// A vault stretch to run on the worker.
@@ -218,7 +218,7 @@ fn unlock_start(app: &mut Faraday) -> bool {
             act: VaultAct::Unlocked,
             cost,
             plan: Plan::Unlock {
-                name: name.as_str().into(),
+                name,
                 sha,
                 for_import,
             },
@@ -301,12 +301,11 @@ fn create_start(app: &mut Faraday) -> bool {
         passes,
         lanes: 4,
     };
-    let first = Zeroizing::new(
-        form.phrases
-            .first()
-            .map(|(a, _)| a.text.to_string())
-            .unwrap_or_default(),
-    );
+    let first = form
+        .phrases
+        .first()
+        .map(|(a, _)| Text::of(&a.text))
+        .unwrap_or_default();
     let phrase = crate::secret_text::SecretText::of(&first);
     // The vault's name is the database's name: 64 bytes at most
     // (`docs/VAULT.md` §7).
@@ -324,13 +323,13 @@ fn create_start(app: &mut Faraday) -> bool {
     let (job, key) = match (drawn, chosen) {
         (Some(random), _) => (job.making_key_file(&random), Made::Drawn),
         (None, Some((name, parts))) => match job.keyed(parts) {
-            Ok(job) => (job, Made::Chosen(String::from(name.as_str()))),
+            Ok(job) => (job, Made::Chosen(name.duplicate())),
             // Only a YubiKey's secret is refused, and Create offers none.
             Err(_) => return false,
         },
         (None, None) => (job, Made::No),
     };
-    let typed = form.name.text.to_string();
+    let typed = Text::of(&form.name.text);
     app.start(
         Job::Stretch(Box::new(StretchWork {
             job,
@@ -374,7 +373,7 @@ pub(crate) fn stretched(app: &mut Faraday, done: StretchDone) {
 fn unlocked(
     app: &mut Faraday,
     stretched: Stretched,
-    (name, sha): (String, Option<[u8; 32]>),
+    (name, sha): (Text, Option<[u8; 32]>),
     for_import: bool,
 ) {
     // A stick put in while the stretch ran: the press's own refusal.
@@ -513,13 +512,13 @@ fn created(
                 let Some(d) = document else {
                     return;
                 };
-                let keyx = format!("{}.keyx", name.strip_suffix(".kdbx").unwrap_or(&name));
+                let keyx = text!("{}.keyx", name.strip_suffix(".kdbx").unwrap_or(&name));
                 let item = crate::Item::new(&app.compute(), &keyx, d.to_vec());
                 app.outbox_secret(crate::secrets::OutReason::KeyFile, item);
             }
             if let Made::Chosen(f) = &key {
                 // The file is the vault's now: gone from Files, wiped as it drops.
-                app.inbox.retain(|i| i.name != *f);
+                app.inbox.retain(|i| *i.name != **f);
             }
             app.put_outbox(&name, file);
             // The file is a copy of the vault it makes: nothing in the
@@ -578,14 +577,14 @@ fn created(
 /// A KeePass export to write on the worker, with the name its file takes.
 pub(crate) struct KdbxWork {
     job: KdbxJob,
-    name: String,
+    name: Text,
 }
 
 /// A KeePass export's answer: the file (encrypted, so public, written
 /// as a new vault), or why there is none.
 pub(crate) struct KdbxDone {
     file: Result<Vec<u8>, faraday_vault::file::Error>,
-    name: String,
+    name: Text,
 }
 
 impl KdbxWork {
@@ -615,11 +614,7 @@ fn kdbx_start(app: &mut Faraday) -> bool {
         .records(id)
         .get(at)
         .filter(|r| r.kind() == kind::ENTRY)
-        .map(|r| {
-            r.public_text(field::TITLE)
-                .unwrap_or(EN.vaults_entry)
-                .to_string()
-        })
+        .map(|r| Text::of(r.public_text(field::TITLE).unwrap_or(EN.vaults_entry)))
     else {
         return false;
     };
@@ -668,10 +663,7 @@ fn kdbx_start(app: &mut Faraday) -> bool {
         return false;
     };
     app.start(
-        Job::Kdbx(Box::new(KdbxWork {
-            job,
-            name: String::from(&*name),
-        })),
+        Job::Kdbx(Box::new(KdbxWork { job, name })),
         EN.vault_sealing,
     );
     true
@@ -688,7 +680,7 @@ pub(crate) fn kdbx_written(app: &mut Faraday, done: KdbxDone) {
             app.put_outbox(&name, file);
             app.toast(&fill(
                 EN.vaults_waits_sealed,
-                &[&name.to_string(), app.medium.for_the()],
+                &[&name, app.medium.for_the()],
             ));
         }
         Err(why) => {

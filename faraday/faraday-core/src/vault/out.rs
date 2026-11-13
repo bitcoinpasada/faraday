@@ -7,6 +7,8 @@
 //!
 //! Its presses are the vault's glue, in `vault/mod.rs`.
 
+use faraday_text::Text;
+
 /// What a file of the popup is made from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SaveWhat {
@@ -22,14 +24,14 @@ pub enum SaveWhat {
 /// not.
 pub struct SaveFile {
     /// The form, as the popup names it.
-    pub label: String,
+    pub label: Text,
     /// What it is made from.
     pub what: SaveWhat,
     /// The files' names.
-    pub names: Vec<String>,
+    pub names: Vec<Text>,
     /// A wallet's files, made when the popup opened: public, so kept
     /// until it closes. Empty for a seed's, which are made at Save.
-    pub made: Vec<(String, Vec<u8>)>,
+    pub made: Vec<(Text, Vec<u8>)>,
     /// To be saved.
     pub ticked: bool,
 }
@@ -37,11 +39,19 @@ pub struct SaveFile {
 impl SaveFile {
     /// The line of a wallet's public form `label`, ticked or not, made as
     /// the files `made`.
-    pub(crate) fn public(label: &str, made: Vec<(String, Vec<u8>)>, ticked: bool) -> SaveFile {
+    pub(crate) fn public(
+        label: &str,
+        made: Vec<(impl AsRef<str>, Vec<u8>)>,
+        ticked: bool,
+    ) -> SaveFile {
+        let made: Vec<(Text, Vec<u8>)> = made
+            .into_iter()
+            .map(|(n, b)| (Text::of(n.as_ref()), b))
+            .collect();
         SaveFile {
-            label: label.into(),
+            label: Text::of(label),
             what: SaveWhat::Public,
-            names: made.iter().map(|m| m.0.clone()).collect(),
+            names: made.iter().map(|m| m.0.duplicate()).collect(),
             made,
             ticked,
         }

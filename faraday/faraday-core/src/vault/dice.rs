@@ -94,18 +94,15 @@ fn use_words(app: &mut Faraday, u: crate::dice_entry::Used) {
         && let Some((a, b)) = c.phrases.get_mut(u.tag)
         && !u.phrase.is_empty()
     {
-        let (phrase, bits) = if public {
-            (
-                zeroize::Zeroizing::new(crate::demo::PASSPHRASE.to_string()),
-                0.0,
-            )
+        let (phrase, bits): (&str, f32) = if public {
+            (crate::demo::PASSPHRASE, 0.0)
         } else {
-            (u.phrase, u.bits)
+            (&u.phrase, u.bits)
         };
-        a.set(&phrase);
-        b.set(&phrase);
+        a.set(phrase);
+        b.set(phrase);
         if let Some(d) = c.from_dice.get_mut(u.tag) {
-            *d = Some((Text::of(&phrase), bits, u.sim));
+            *d = Some((Text::of(phrase), bits, u.sim));
         }
     }
 }

@@ -14,6 +14,8 @@ use crate::{Action, Screen, testkit};
 /// A wallet's shape, as the session names it.
 fn shape_of(c: &Compute, descriptor: &str) -> String {
     crate::vault::screen::policy_shape(read_wallet(c, descriptor).expect("a test wallet"))
+        .as_str()
+        .into()
 }
 
 #[test]
@@ -204,9 +206,9 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
         .of(kind::KEY)
         .find_map(|(_, r)| key_fingerprint(&c, &app, r))
         .expect("the vault's key record");
-    assert_eq!(record_fp, fp_text(kept));
+    assert_eq!(*record_fp, *fp_text(kept));
     for e in app.vaults.fingerprints.borrow_mut().iter_mut() {
-        if e.1.as_str() == record_fp {
+        if e.1.as_str() == &*record_fp {
             e.1 = faraday_text::Text::of(&fp_text(other));
         }
     }
@@ -263,7 +265,7 @@ fn a_vault_seed_whose_fingerprint_matches_a_slot_but_not_its_key_is_not_offered(
     let other_fp = other.fingerprint.expect("a fingerprint");
     // The vault's record now looks up as the other slot's fingerprint.
     for e in app.vaults.fingerprints.borrow_mut().iter_mut() {
-        if e.1.as_str() == record_fp {
+        if e.1.as_str() == &*record_fp {
             e.1 = faraday_text::Text::of(&fp_text(other_fp));
         }
     }

@@ -22,7 +22,7 @@ use crate::{Action, Faraday, Sheet};
 use faraday_draw::tokens::{BODY_M, BODY_S, DIALOG_MAX, GAP, GAP_SMALL, LIST_1, PAD, RADIUS_SMALL};
 use faraday_draw::widgets::Icon;
 use faraday_keys::vault::VaultId;
-use faraday_text::Text;
+use faraday_text::{Text, text};
 use zeroize::Zeroizing;
 
 fn va(a: V) -> Action {
@@ -209,7 +209,7 @@ fn done(app: &mut Faraday) {
 
 /// The name `{stem}.keyx` in the Outbox: a number after the stem where
 /// another file of Files or the Outbox has it, so no file is replaced.
-fn free_keyx(app: &Faraday, vault_name: &str) -> String {
+fn free_keyx(app: &Faraday, vault_name: &str) -> Text {
     let stem = vault_name.strip_suffix(".kdbx").unwrap_or(vault_name);
     let held = |n: &str| {
         app.outbox
@@ -217,14 +217,14 @@ fn free_keyx(app: &Faraday, vault_name: &str) -> String {
             .chain(app.inbox.iter())
             .any(|i| i.name.eq_ignore_ascii_case(n))
     };
-    let first = format!("{stem}.keyx");
+    let first = text!("{stem}.keyx");
     if !held(&first) {
         return first;
     }
     (2..100)
-        .map(|n| format!("{stem}-{n}.keyx"))
+        .map(|n| text!("{stem}-{n}.keyx"))
         .find(|n| !held(n))
-        .unwrap_or_else(|| format!("{stem}-100.keyx"))
+        .unwrap_or_else(|| text!("{stem}-100.keyx"))
 }
 
 /// **Make a key file**: drawn now, its `.keyx` in the Outbox at once; the
@@ -261,7 +261,7 @@ pub(crate) fn make(app: &mut Faraday) {
     let keyx = free_keyx(app, &name);
     let item = crate::Item::new(&app.compute(), &keyx, document.to_vec());
     app.outbox_secret(crate::secrets::OutReason::KeyFile, item);
-    app.vaults.state.key_outbox.push((id, Text::of(&keyx)));
+    app.vaults.state.key_outbox.push((id, keyx));
     app.vaults.state.key_chosen = None;
     count_key_change(app, id, was);
     done(app);
@@ -348,7 +348,7 @@ fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, anchor: Option<(i32, i32,
     let (key, yubikey) = offered(app);
     let mut lines = Vec::new();
     if key {
-        lines.push(Line::Item(EN.vault_key_file.to_string(), va(V::VKeyAsk)));
+        lines.push(Line::Item(EN.vault_key_file.into(), va(V::VKeyAsk)));
     }
     if yubikey {
         let label = if app.vaults.store().yubikey_removal_pending(v.id) {
@@ -356,7 +356,7 @@ fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32, anchor: Option<(i32, i32,
         } else {
             EN.vault_remove_yubikey
         };
-        lines.push(Line::Item(label.to_string(), va(V::YubiKeyRemoveAsk)));
+        lines.push(Line::Item(label.into(), va(V::YubiKeyRemoveAsk)));
     }
     let title = v.label(app.vaults.store());
     menu::draw(

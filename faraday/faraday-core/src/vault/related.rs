@@ -4,6 +4,7 @@
 
 use faraday_keys::vault::Staged;
 use faraday_keys::vault::VaultId;
+use faraday_text::Text;
 
 /// Records waiting for **Continue**, all for one open vault.
 #[derive(Debug)]
@@ -11,9 +12,9 @@ pub struct SaveHold {
     /// The open vault they go into.
     pub id: VaultId,
     /// The record and what its toast says, in the order saved.
-    pub(super) pending: Vec<(Staged, String)>,
+    pub(super) pending: Vec<(Staged, Text)>,
     /// The lines the dialog says, one per kind held already.
-    pub why: Vec<String>,
+    pub why: Vec<Text>,
     /// A move waiting on this answer: the vault the item is in, its place
     /// there, and its place in `pending`. It leaves that vault only if
     /// its record is saved and that vault is as it was: its version, the

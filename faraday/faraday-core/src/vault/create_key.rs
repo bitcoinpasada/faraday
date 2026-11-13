@@ -8,7 +8,7 @@
 use super::KeyChoice;
 use super::unlock_keys::{self, Bad};
 use crate::drawing::View;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::VaultAction as V;
@@ -76,15 +76,15 @@ pub(crate) fn chosen(app: &Faraday) -> Result<Option<(Text, UnlockParts)>, Text>
 
 /// The chip's text for a key file: the file's name, or the one Create
 /// makes.
-pub(crate) fn chip(app: &View) -> Option<String> {
+pub(crate) fn chip(app: &View) -> Option<Text> {
     let c = app.vaults.create.as_ref()?;
     match &c.key {
         KeyChoice::None => None,
-        KeyChoice::Make => Some(fill(
+        KeyChoice::Make => Some(Text::fill(
             EN.vault_keyx_made_at_create,
             &[&crate::vault::vault_stem(&c.name.text)],
         )),
-        KeyChoice::File(name) => Some(name.as_str().into()),
+        KeyChoice::File(name) => Some(name.duplicate()),
     }
 }
 

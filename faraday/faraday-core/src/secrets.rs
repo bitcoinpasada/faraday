@@ -521,7 +521,7 @@ impl Faraday {
                 s.files
                     .iter()
                     .filter(|f| f.ticked && f.what != crate::vault::out::SaveWhat::Public)
-                    .flat_map(|f| f.names.iter().cloned())
+                    .flat_map(|f| f.names.iter().map(|n| n.as_str().into()))
                     .collect()
             })
             .unwrap_or_default();

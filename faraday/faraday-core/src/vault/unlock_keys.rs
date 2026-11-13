@@ -6,7 +6,7 @@
 //! opened with it.
 
 use crate::drawing::View;
-use crate::strings::{EN, fill};
+use crate::strings::EN;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui};
 use crate::vault::VaultAction as V;
@@ -33,18 +33,18 @@ fn va(a: V) -> Action {
 /// Why Unlock's key file or secret was refused before any run.
 pub(crate) enum Bad {
     /// The key file, said under the buttons.
-    KeyFile(String),
+    KeyFile(Text),
     /// The secret, said under its field.
-    Secret(String),
+    Secret(Text),
 }
 
 /// The files in Files that a key file can be chosen from: those that are
 /// not vaults, by name and size.
-pub(crate) fn candidates(app: &Faraday) -> Vec<(String, usize)> {
+pub(crate) fn candidates(app: &Faraday) -> Vec<(Text, usize)> {
     app.inbox
         .iter()
         .filter(|i| i.kind != FileKind::Vault)
-        .map(|i| (i.name.clone(), i.bytes.len()))
+        .map(|i| (Text::of(&i.name), i.bytes.len()))
         .collect()
 }
 
@@ -52,18 +52,18 @@ pub(crate) fn candidates(app: &Faraday) -> Vec<(String, usize)> {
 fn bytes_named<'a>(app: &'a Faraday, name: &str) -> Result<&'a [u8], Bad> {
     match app.inbox.iter().find(|i| i.name == name) {
         Some(item) => Ok(&item.bytes),
-        None => Err(Bad::KeyFile(fill(EN.vault_key_file_gone, &[name]))),
+        None => Err(Bad::KeyFile(Text::fill(EN.vault_key_file_gone, &[name]))),
     }
 }
 
 /// What a refused key file says, naming the file.
-fn key_file_line(e: KeyFileError, name: &str) -> String {
+fn key_file_line(e: KeyFileError, name: &str) -> Text {
     let line = match e {
         KeyFileError::Empty => EN.vault_key_file_empty,
         KeyFileError::Database => EN.vault_key_file_vault,
         KeyFileError::Damaged => EN.vault_key_file_damaged,
     };
-    fill(line, &[name])
+    Text::fill(line, &[name])
 }
 
 /// Takes the key file `name` of Files, read now (in `faraday-keys`), as
@@ -75,7 +75,7 @@ pub(crate) fn set_named(
     name: &str,
 ) -> Result<bool, Bad> {
     let Some(item) = app.inbox.iter().find(|i| i.name == name) else {
-        return Err(Bad::KeyFile(fill(EN.vault_key_file_gone, &[name])));
+        return Err(Bad::KeyFile(Text::fill(EN.vault_key_file_gone, &[name])));
     };
     let bytes = &item.bytes;
     app.vaults
@@ -88,7 +88,7 @@ pub(crate) fn set_named(
 pub(crate) fn file_parts(app: &Faraday, name: &str) -> Result<UnlockParts, Bad> {
     UnlockParts::read(Some(bytes_named(app, name)?), None).map_err(|e| match e {
         PartsRefused::KeyFile(e) => Bad::KeyFile(key_file_line(e, name)),
-        PartsRefused::Secret(_) => Bad::Secret(String::new()),
+        PartsRefused::Secret(_) => Bad::Secret(Text::new()),
     })
 }
 
@@ -103,10 +103,11 @@ pub(crate) fn parts(app: &Faraday) -> Result<UnlockParts, Bad> {
     let typed = app.vaults.yubikey.as_ref().map(|b| b.text.as_str());
     UnlockParts::read(named.map(|(_, b)| b), typed).map_err(|e| match e {
         PartsRefused::KeyFile(e) => Bad::KeyFile(key_file_line(e, named.map_or("", |n| n.0))),
-        PartsRefused::Secret(e) if e.stray => Bad::Secret(EN.vault_secret_stray.to_string()),
-        PartsRefused::Secret(e) => {
-            Bad::Secret(fill(EN.vault_secret_digits, &[&e.digits.to_string()]))
-        }
+        PartsRefused::Secret(e) if e.stray => Bad::Secret(Text::of(EN.vault_secret_stray)),
+        PartsRefused::Secret(e) => Bad::Secret(Text::fill(
+            EN.vault_secret_digits,
+            &[&Text::num(e.digits as u64)],
+        )),
     })
 }
 
@@ -403,10 +404,10 @@ pub(crate) fn dialog(app: &View, ui: &mut Ui, w: f32, h: f32) {
 }
 
 /// [`candidates`] for drawing: the names.
-fn candidates_view(app: &View) -> Vec<String> {
+fn candidates_view(app: &View) -> Vec<Text> {
     app.inbox
         .iter()
         .filter(|i| i.kind != FileKind::Vault)
-        .map(|i| i.name.clone())
+        .map(|i| Text::of(&i.name))
         .collect()
 }

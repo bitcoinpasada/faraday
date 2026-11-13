@@ -34,7 +34,7 @@ pub(crate) struct SealRun {
     /// Vaults not yet sealed, by id.
     queue: VecDeque<VaultId>,
     /// The vault whose job is out, with its file name.
-    running: Option<(VaultId, String)>,
+    running: Option<(VaultId, Text)>,
     /// A lock of every vault (which then finishes the lock), else of one.
     all: bool,
     /// Whether a vault that cannot be sealed may be let go with its
@@ -69,14 +69,14 @@ pub(crate) enum After {
 pub(crate) struct SealWork {
     job: SealJob,
     id: VaultId,
-    name: String,
+    name: Text,
 }
 
 /// A seal's answer: the file (encrypted, so public) or why there is none.
 pub(crate) struct SealDone {
     sealed: Sealed,
     id: VaultId,
-    name: String,
+    name: Text,
 }
 
 impl SealWork {
@@ -229,9 +229,7 @@ pub(crate) fn vault_lock_one(app: &mut Faraday, i: usize, after: After) -> bool 
             .open
             .iter()
             .find(|o| o.id == target)
-            .map_or_else(String::new, |o| {
-                String::from(o.label(app.vaults.store()).as_str())
-            });
+            .map_or_else(Text::new, |o| o.label(app.vaults.store()));
         app.toast(&fill(EN.vault_moved_lock_first, &[&name]));
         return false;
     }
@@ -533,8 +531,7 @@ fn seal_work(app: &mut Faraday, id: VaultId) -> Result<SealWork, NoJob> {
         .find(|o| o.id == id)
         .ok_or(NoJob::Unwritable)?
         .name
-        .as_str()
-        .into();
+        .duplicate();
     let job = app
         .vaults
         .state
@@ -561,7 +558,7 @@ fn seal_stop(app: &mut Faraday, why: NoJob) {
 /// after it stay open with their changes, nothing is wiped, and the Lock
 /// sheet shows, naming what it names now (a Lock without saving that named
 /// vaults before this one lets go only those).
-fn seal_stopped(app: &mut Faraday, short: Option<(VaultId, faraday_vault::file::Error, String)>) {
+fn seal_stopped(app: &mut Faraday, short: Option<(VaultId, faraday_vault::file::Error, Text)>) {
     app.vaults.state.sealing = None;
     // What the sheet says is read again against the memory free now.
     let free = app.vaults.read_free();
@@ -686,11 +683,11 @@ pub(crate) fn fail_next_step_seal_and_retry() {
 /// A file that cannot be told to be a copy of this vault is not one, and
 /// while the vault open is older than a copy seen, or sealed as often as
 /// one, only the file it was opened from is an earlier copy.
-fn seal_file_name(app: &Faraday, id: VaultId, name: &str) -> String {
+fn seal_file_name(app: &Faraday, id: VaultId, name: &str) -> Text {
     let Some(open) = app.vaults.open.iter().find(|o| o.id == id) else {
-        return name.to_string();
+        return Text::of(name);
     };
-    let others_in = |files: &[crate::Item]| -> Vec<String> {
+    let others_in = |files: &[crate::Item]| -> Vec<_> {
         files
             .iter()
             .filter(|i| {
@@ -702,10 +699,10 @@ fn seal_file_name(app: &Faraday, id: VaultId, name: &str) -> String {
     };
     let mut taken = others_in(&app.outbox);
     if !taken.contains(&name.to_ascii_lowercase()) {
-        return name.to_string();
+        return Text::of(name);
     }
     taken.extend(others_in(&app.inbox));
-    crate::visit_taken::free_name(&taken, name)
+    Text::of(&crate::visit_taken::free_name(&taken, name))
 }
 
 /// The back half: the file to the Outbox, and the next vault.

@@ -1445,7 +1445,7 @@ impl Faraday {
                 .collect();
             let keys: Vec<usize> = seeds
                 .iter()
-                .filter(|(_, f)| fps.contains(f))
+                .filter(|(_, f)| fps.iter().any(|p| p.as_str() == f.as_str()))
                 .map(|(k, _)| *k)
                 .collect();
             // A MuSig2 wallet two of whose keys are one seed's can never
@@ -1508,7 +1508,7 @@ impl Faraday {
                     .of(kind::KEY)
                     .filter_map(|(i, k)| {
                         crate::vault::screen::key_fingerprint(&c, self, k)
-                            .filter(|f| fps.contains(f))
+                            .filter(|f| fps.iter().any(|p| p.as_str() == f.as_str()))
                             // A key the session holds is not stretched again.
                             .filter(|f| {
                                 !keep::fp_bytes(f).is_some_and(|b| {
@@ -3876,9 +3876,9 @@ impl Faraday {
                 }
                 if let Some(name) = crate::backup_flow::wallet::seed_stick_name(form, &fp) {
                     files.push(out::SaveFile {
-                        label: label.into(),
+                        label: Text::of(label),
                         what,
-                        names: vec![name],
+                        names: vec![Text::of(&name)],
                         made: Vec::new(),
                         ticked: true,
                     });
@@ -3988,7 +3988,7 @@ impl Faraday {
                     let Some(bytes) = bytes else {
                         continue;
                     };
-                    self.outbox.retain(|it| it.name != *name);
+                    self.outbox.retain(|it| *it.name != **name);
                     let item = crate::Item::new(&c, name, bytes.to_vec());
                     self.outbox_secret(crate::secrets::OutReason::VaultStick, item);
                     out.push(name.clone());
@@ -4005,7 +4005,10 @@ impl Faraday {
                     &[&Text::num(more.len() as u64)],
                 );
             }
-            (names, false) => self.toast_out_files(names),
+            (names, false) => {
+                let names: Vec<_> = names.iter().map(|n| n.as_str().into()).collect();
+                self.toast_out_files(&names)
+            }
         }
     }
 }
@@ -4032,9 +4035,9 @@ impl Faraday {
             hold.moved = None;
             hold.id = id;
         }
-        hold.pending.push((record, said.into()));
+        hold.pending.push((record, Text::of(said)));
         if !hold.why.iter().any(|w| *w == *line) {
-            hold.why.push(line.as_str().into());
+            hold.why.push(line);
         }
         self.sheet = Some(Sheet::SaveAlso);
     }
