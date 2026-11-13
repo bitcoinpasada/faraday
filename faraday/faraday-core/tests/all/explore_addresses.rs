@@ -362,14 +362,14 @@ fn a_paste_fills_the_field_and_a_secret_is_refused() {
     app.press(Action::X(XAction::Paste));
     app.event(Event::Clipboard {
         kind: FileKind::Text,
-        text: format!("bitcoin:{change_0}?amount=1"),
+        text: faraday_text::text!("bitcoin:{change_0}?amount=1"),
     });
     let e = app.explore().unwrap();
     assert_eq!((e.query.as_str(), e.note), (change_0, None));
     app.press(Action::X(XAction::Paste));
     app.event(Event::Clipboard {
         kind: FileKind::Text,
-        text: ABANDON.into(),
+        text: faraday_text::Text::of(ABANDON),
     });
     let e = app.explore().unwrap();
     assert_eq!(e.query, change_0);
@@ -508,7 +508,7 @@ fn a_paste_of_another_word_lists_words_is_refused() {
     app.press(Action::X(XAction::Paste));
     app.event(Event::Clipboard {
         kind: FileKind::Text,
-        text: ["abaisser"; 12].join(" "),
+        text: faraday_text::Text::of(&["abaisser"; 12].join(" ")),
     });
     let e = app.explore().unwrap();
     assert!(e.query.is_empty(), "the words went in: {}", e.query);

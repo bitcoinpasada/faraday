@@ -4637,9 +4637,7 @@ impl App for Faraday {
                 faraday_shell_api::CameraFailure::InUse => NoPicture::InUse,
                 faraday_shell_api::CameraFailure::NotFound => NoPicture::NotFound,
             }),
-            Event::Clipboard { text, .. } => {
-                self.pasted(faraday_text::Text::of(&zeroize::Zeroizing::new(text)))
-            }
+            Event::Clipboard { text, .. } => self.pasted(text),
             Event::ClipboardUnavailable { .. } => self.pasted(faraday_text::Text::new()),
             Event::RotationOffered { native } => self.rotation_offered_by(native),
             Event::ExternalScreen => self.external_screen(),

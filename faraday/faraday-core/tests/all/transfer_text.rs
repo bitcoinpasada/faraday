@@ -38,7 +38,7 @@ fn shown(text: &str) -> Faraday {
     let mut app = on_transfer();
     app.event(Event::Clipboard {
         kind: FileKind::Text,
-        text: text.to_string(),
+        text: faraday_text::Text::of(text),
     });
     app.press(Action::TransferText(TextPress::Show));
     app

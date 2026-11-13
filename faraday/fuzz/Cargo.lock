@@ -1229,7 +1229,6 @@ dependencies = [
  "faraday-bip",
  "faraday-crypto",
  "faraday-text",
- "zeroize",
 ]
 
 [[package]]
@@ -1302,6 +1301,7 @@ dependencies = [
  "softbuffer",
  "windows-sys 0.52.0",
  "winit",
+ "zeroize",
 ]
 
 [[package]]

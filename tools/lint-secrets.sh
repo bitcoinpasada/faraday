@@ -450,6 +450,8 @@ faraday/faraday-core/src/backups/mod.rs
 faraday/faraday-core/src/backups/screen.rs
 core/faraday-draw/src/tokens.rs
 core/faraday-selftest/src/lib.rs
+core/faraday-shell-api/src/lib.rs
+faraday/faraday-strings/src/en.rs
 core/faraday-crypto/src/pinned.rs
 core/faraday-crypto/src/lib.rs
 core/faraday-crypto/src/hash.rs
@@ -644,7 +646,7 @@ NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs 
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
-has_heap_text() { grep -E '\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!' "$1" | grep -qvE 'b"[^"]*</?String>'; }
+has_heap_text() { grep -E '\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!' "$1" | grep -qvE 'b"[^"]*</?String>|^ +[a-z0-9_]+: "String",$'; }
 unlisted=$(for f in $(type_files); do
     names_secret "$f" || continue
     case " $SECRET_FILES " in *" $f "*) continue ;; esac
@@ -666,7 +668,7 @@ done; sort <<< "$EXCEPTED" | uniq -d | sed 's/$/: listed twice/')
 report "$EXCEPTED_FILE is out of date (rule 3)" "$stale"
 report "heap text in secret-handling source (rule 3)" \
     "$(grep -nE '\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!' $SECRET_FILES \
-        | grep -vE 'b"[^"]*</?String>')"
+        | grep -vE 'b"[^"]*</?String>|^[^:]+:[0-9]+: +[a-z0-9_]+: "String",$')"
 
 # Rule 4: the key boundary (docs/KEYS.md, F70). Key material is used
 # only in faraday/faraday-keys. Everywhere else under faraday/ these are

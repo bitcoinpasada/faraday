@@ -225,11 +225,14 @@ impl Clipboard {
 
     /// The event that answers `RequestClipboard { kind }`: the text
     /// unmodified, or `ClipboardUnavailable` when there is none or it is
-    /// empty. Costs what [`Source::text`] costs. The text is moved into
-    /// the event, not copied, and the core wipes it once routed.
+    /// empty. Costs what [`Source::text`] costs. The source's text is
+    /// copied into wiping text for the event and wiped here.
     pub fn answer(&mut self, kind: FileKind) -> Event {
-        match self.source.text() {
-            Some(text) if !text.is_empty() => Event::Clipboard { kind, text },
+        match self.source.text().map(zeroize::Zeroizing::new) {
+            Some(text) if !text.is_empty() => Event::Clipboard {
+                kind,
+                text: faraday_text::Text::of(&text),
+            },
             _ => Event::ClipboardUnavailable { kind },
         }
     }

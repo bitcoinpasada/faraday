@@ -54,7 +54,7 @@ fuzz_target!(|data: &[u8]| {
     if let Ok(text) = std::str::from_utf8(rest) {
         app.event(Event::Clipboard {
             kind: faraday_shell_api::FileKind::Text,
-            text: text.to_string(),
+            text: faraday_text::Text::of(text),
         });
     }
 });

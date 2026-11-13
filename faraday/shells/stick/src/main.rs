@@ -1573,7 +1573,7 @@ impl Shell {
                             Ok(entries) => Event::FileList {
                                 kind,
                                 entries,
-                                place: self.files.place(),
+                                place: self.files.place().map(|p| faraday_text::Text::of(&p)),
                             },
                             Err(reason) => {
                                 self.say(&reason);

@@ -27,7 +27,7 @@ fn demo_on_testnet() -> Faraday {
 }
 
 /// Paste pressed and the clipboard holding `text`.
-fn paste(app: &mut Faraday, text: String) {
+fn paste(app: &mut Faraday, text: faraday_text::Text) {
     app.press(Action::ScanPaste);
     let asked = std::iter::from_fn(|| app.poll_command())
         .any(|c| matches!(c, Command::RequestClipboard { .. }));
@@ -65,7 +65,7 @@ fn a_seed_pasted_and_loaded_with_a_passphrase_leaves_no_copy_after_lock() {
     let mut app = testkit::started();
     app.clipboard = true;
     app.press(Action::ScanSeed);
-    paste(&mut app, PHRASE.to_string());
+    paste(&mut app, faraday_text::Text::of(PHRASE));
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     app.press(Action::SeedRead(Choice::AddPass));
     app.press(Action::SeedRead(Choice::Field(0)));

@@ -374,7 +374,7 @@ fn the_sweep_scanner_takes_a_pasted_key_on_the_desktop() {
     assert!(asked);
     app.event(Event::Clipboard {
         kind: FileKind::Text,
-        text: WIF.to_string(),
+        text: faraday_text::Text::of(WIF),
     });
     assert_eq!(app.sheet, Some(Sheet::Sweep), "{}", note(&app));
     assert!(app.session.keys.sweep().is_some());

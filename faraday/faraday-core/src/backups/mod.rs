@@ -3893,10 +3893,7 @@ impl Faraday {
         if loaded.is_empty() {
             return;
         }
-        let fps: Vec<Text> = loaded
-            .into_iter()
-            .map(crate::wallet::fp_text)
-            .collect();
+        let fps: Vec<Text> = loaded.into_iter().map(crate::wallet::fp_text).collect();
         self.refresh_spend();
         self.toast(&Text::fill(EN.c32_gathered, &[&*joined(&fps, ", ")]));
     }

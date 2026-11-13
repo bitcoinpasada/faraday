@@ -626,7 +626,7 @@ fn paste(app: &mut Faraday, text: &str) {
     assert!(asked, "Paste did not ask the shell for the clipboard");
     app.event(Event::Clipboard {
         kind: faraday_shell_api::FileKind::Text,
-        text: text.to_string(),
+        text: faraday_text::Text::of(text),
     });
 }
 
@@ -923,7 +923,7 @@ fn ctrl_v_on_the_open_scanner_pastes_and_elsewhere_does_nothing() {
     // The same refusal of a secret as the Paste tile.
     app.event(Event::Clipboard {
         kind: faraday_shell_api::FileKind::Text,
-        text: "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".into(),
+        text: faraday_text::Text::of("xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi"),
     });
     assert!(app.inbox().is_empty() && app.session.keys.is_empty());
     // With the clipboard absent, nothing is asked.

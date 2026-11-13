@@ -69,7 +69,7 @@ fn paste(app: &mut Faraday, text: &str, ctrl_v: bool) {
     assert!(asked, "Paste did not ask the shell for the clipboard");
     app.event(Event::Clipboard {
         kind: FileKind::Text,
-        text: text.to_string(),
+        text: faraday_text::Text::of(text),
     });
     let _ = app.frame();
 }
@@ -315,7 +315,7 @@ fn paste_words(app: &mut Faraday, text: &str, ctrl_v: bool) -> bool {
         .any(|c| matches!(c, Command::RequestClipboard { .. }));
     app.event(Event::Clipboard {
         kind: FileKind::Text,
-        text: text.to_string(),
+        text: faraday_text::Text::of(text),
     });
     let _ = app.frame();
     asked

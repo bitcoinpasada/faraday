@@ -89,7 +89,7 @@ fn answer(command: Command) -> Vec<Event> {
     match command {
         Command::RequestEntropy => entropy(),
         // A name is a path: the typed one.
-        Command::ReadFile { kind, name } => vec![match files::read(Path::new(&name)) {
+        Command::ReadFile { kind, name } => vec![match files::read(Path::new(&*name)) {
             Some(bytes) => Event::File { kind, bytes },
             None => Event::FileUnavailable { kind },
         }],

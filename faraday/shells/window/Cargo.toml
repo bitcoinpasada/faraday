@@ -26,6 +26,8 @@ softbuffer.workspace = true
 getrandom.workspace = true
 # The window icon on X11, from the app's PNG (view.rs, docs/deps/png.md).
 png.workspace = true
+# Wipes the pasted text the system clipboard hands over (clipboard.rs).
+zeroize.workspace = true
 
 # The webcam.
 [target.'cfg(target_os = "linux")'.dependencies]

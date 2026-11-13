@@ -5582,7 +5582,7 @@ strings! {
     // ----- inbox_panel (faraday-core/src/screens/files.rs) -----
     /// Line in `inbox_panel`.
     inbox_panel_wallets: "Wallets",
-    /// Text in `inbox_panel`. `{}`: `fw.shape`, `fw.seeds_here`, `n`, `if n == 1 { EN.inbox_panel_key } else…`, `if fw.files.len() > 1 { format!(" · {…`.
+    /// Text in `inbox_panel`. `{}`: `fw.shape`, `fw.seeds_here`, `n`, `if n == 1 { EN.inbox_panel_key } else…`, `if fw.files.len() > 1 { text!(" · {…`.
     inbox_panel_of_here: "{} · {} of {} {} here{}",
     /// Text in `inbox_panel`, after a space. `{}`: `fw.files.len()`.
     inbox_panel_files_agree: "· {} files say it",
@@ -5897,7 +5897,7 @@ strings! {
     decode_item: "item",
     /// Text in `decode_screen`.
     decode_items: "items",
-    /// Text in `decode_screen`. `{}`: `input.sequence`, `wit`, `if input.script_sig > 0 { format!(" ·…`.
+    /// Text in `decode_screen`. `{}`: `input.sequence`, `wit`, `if input.script_sig > 0 { text!(" ·…`.
     decode_sequence: "Sequence {} · {}{}",
     /// Text in `decode_screen`, after a space. `{}`: `input.script_sig`.
     decode_script_sig_bytes: "· scriptSig {} bytes",
@@ -6119,7 +6119,7 @@ strings! {
     step_summary_no_loaded: "No loaded wallet matches",
     /// Text in `step_summary`.
     step_summary_addresses: "Addresses · Compare",
-    /// Text in `step_summary`. `{}`: `btc(i.amount_to_others.to_sat())`, `i.fee_rate_sat_vb .map(|r| format!("{…`.
+    /// Text in `step_summary`. `{}`: `btc(i.amount_to_others.to_sat())`, `i.fee_rate_sat_vb .map(|r| text!("{…`.
     step_summary_sends: "Sends {} BTC · fee {} sat/vB",
     /// Text in `step_summary` when the fee cannot be worked out (F136).
     /// `{}`: what it sends.
@@ -6454,7 +6454,7 @@ strings! {
     step_fee_hold_cases: "A fee this high is paid on purpose for a child paying for its parent, a large batch or a consolidation.",
     /// Review's hold past a high fee or an absurd fee rate (F136).
     step_fee_hold: "Hold to pay this fee",
-    /// Text in `step_body`. `{}`: `thousands(i.fee.to_sat())`, `i.fee_rate_sat_vb .map(|r| format!("{…`.
+    /// Text in `step_body`. `{}`: `thousands(i.fee.to_sat())`, `i.fee_rate_sat_vb .map(|r| text!("{…`.
     step_sat_sat_vb: "{} sat · {} sat/vB",
     /// Text in `step_body`.
     step_spends: "Spends",
@@ -6542,7 +6542,7 @@ strings! {
     step_remove: "Remove",
     /// Text in `step_body`.
     step_make_again: "Make again",
-    /// Text in `step_body`. `{}`: `short(&tx.compute_txid().to_string())`, `tx.vsize()`.
+    /// Text in `step_body`. `{}`: `short(&text!("{}", tx.compute_txid()))`, `tx.vsize()`.
     step_vb: "{} · {} vB",
     /// Text in `step_body`.
     step_decode_button: "Decode it",
@@ -6595,7 +6595,7 @@ strings! {
     spend_panel_to_label: "To",
     /// Text in `spend_panel`.
     spend_panel_fee: "Fee",
-    /// Text in `spend_panel`. `{}`: `thousands(i.fee.to_sat())`, `i.fee_rate_sat_vb .map(|r| format!("{…`.
+    /// Text in `spend_panel`. `{}`: `thousands(i.fee.to_sat())`, `i.fee_rate_sat_vb .map(|r| text!("{…`.
     spend_panel_sat_sat: "{} sat · {} sat/vB",
     /// Text in `spend_panel`.
     spend_panel_change: "Change",
@@ -7420,7 +7420,7 @@ strings! {
     // ----- inbox (faraday-core/src/screens/files.rs) -----
     /// Line in `inbox_panel_compact`.
     inbox_wallets: "Wallets",
-    /// Text in `inbox_panel_compact`. `{}`: `fw.shape`, `fw.seeds_here`, `n`, `if n == 1 { EN.inbox_key } else { EN.…`, `if fw.files.len() > 1 { format!(" · {…`.
+    /// Text in `inbox_panel_compact`. `{}`: `fw.shape`, `fw.seeds_here`, `n`, `if n == 1 { EN.inbox_key } else { EN.…`, `if fw.files.len() > 1 { text!(" · {…`.
     inbox_of_here: "{} · {} of {} {} here{}",
     /// Text in `inbox_panel_compact`.
     inbox_key: "key",
@@ -9267,7 +9267,7 @@ strings! {
     vault_dice_per_word: "Roll {} dice for each word and type the numbers",
     /// Line in `dice_panel`.
     vault_no_word_yet: "No word yet",
-    /// Text in `dice_panel`. `{}`: `words.len()`, `if words.len() == 1 { FEN.vault_word …`, `own`, `own + vault::cost_bits(mem, passes)`, `if left > 0 { format!(" · {left} of {…`.
+    /// Text in `dice_panel`. `{}`: `words.len()`, `if words.len() == 1 { FEN.vault_word …`, `own`, `own + vault::cost_bits(mem, passes)`, `if left > 0 { text!(" · {left} of {…`.
     vault_dice_strength: "{} {} · {} bits · ≈{} with the unlock cost{}",
     /// Text in `dice_panel`, after a space. `{}`: `left`, `per`.
     vault_dice_for_the_next_word: "· {} of {} dice for the next word",

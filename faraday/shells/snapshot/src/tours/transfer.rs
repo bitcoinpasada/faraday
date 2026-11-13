@@ -112,7 +112,7 @@ fn send_text(t: &mut Tour) -> Result<(), String> {
     let paste = |t: &mut Tour, text: &str| {
         t.app.event(Event::Clipboard {
             kind: faraday_shell_api::FileKind::Text,
-            text: text.to_string(),
+            text: faraday_text::Text::of(&text),
         });
     };
     paste(

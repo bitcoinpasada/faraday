@@ -51,7 +51,7 @@ fn paste(app: &mut Faraday, text: &str) {
     assert!(asked, "Paste did not ask the shell for the clipboard");
     app.event(Event::Clipboard {
         kind: FileKind::Text,
-        text: text.to_string(),
+        text: faraday_text::Text::of(text),
     });
     let _ = app.frame();
 }

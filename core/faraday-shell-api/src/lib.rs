@@ -144,9 +144,9 @@
 
 extern crate alloc;
 
-use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
+use faraday_text::Text;
 
 use zeroize::Zeroize;
 
@@ -372,7 +372,7 @@ pub enum FileKind {
 pub struct FileEntry {
     /// The name the shell reads the file back by, and the name the core
     /// shows: a plain file name, with no directory in it.
-    pub name: faraday_text::Text,
+    pub name: Text,
     /// The file's size in bytes.
     pub size: u64,
     /// When the file was last written, in seconds since the epoch, or
@@ -576,7 +576,7 @@ pub enum Event {
         /// `None` from a shell that has no such name to give. The core
         /// shows it where an empty list would otherwise say only that
         /// there is nothing.
-        place: Option<String>,
+        place: Option<Text>,
     },
     /// The answer to a [`Command::WriteFile`]: the bytes are on the
     /// shell's storage under a name of its choosing.
@@ -597,7 +597,7 @@ pub enum Event {
         /// The kind that was requested.
         kind: FileKind,
         /// The clipboard's text.
-        text: String,
+        text: Text,
     },
     /// The answer to a [`Command::RequestClipboard`] when no text
     /// comes: there is nothing on the clipboard, there is no clipboard
@@ -838,7 +838,7 @@ pub enum Command {
         /// What the core expects to parse.
         kind: FileKind,
         /// The name from the listing.
-        name: String,
+        name: Text,
     },
     /// Store `bytes` as a file. The shell chooses where; `name_hint` is a
     /// plain file name with extension (`signed.psbt`) it should use when it
@@ -851,7 +851,7 @@ pub enum Command {
         /// What the bytes are.
         kind: FileKind,
         /// Suggested file name.
-        name_hint: String,
+        name_hint: Text,
         /// The file content, unmodified.
         bytes: Vec<u8>,
     },
@@ -884,7 +884,7 @@ pub enum Command {
         /// What the text is.
         kind: FileKind,
         /// The text, unmodified.
-        text: String,
+        text: Text,
     },
     /// Start the camera and stream [`Event::CameraFrame`]s, or answer
     /// [`Event::CameraUnavailable`] once. Idempotent while the camera is

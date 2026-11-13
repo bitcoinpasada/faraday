@@ -7,7 +7,7 @@
 
 pub(crate) mod screen;
 
-use crate::strings::{EN, fill_secret};
+use crate::strings::EN;
 use faraday_bip::bip39::Language;
 use faraday_text::{Text, text};
 use faraday_vault::Record;
@@ -633,7 +633,7 @@ impl Faraday {
                 ) else {
                     return;
                 };
-                let note = fill_secret(EN.lightning_lightning, &[&id, private.as_str()]);
+                let note = Text::fill(EN.lightning_lightning, &[&id, private.as_str()]);
                 self.vault_push(
                     Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
                     EN.lightning_the_node,
