@@ -24,7 +24,7 @@ fn unlocked() -> Faraday {
         .with(field::KEY, &faraday_vault::records::words_payload(&words));
     let files = vec![(
         "main.kdbx".to_string(),
-        vault_of("Main", PHRASE, 1, vec![key]),
+        vault_of("Main", PHRASE, 1, vec![key]).into(),
     )];
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
@@ -127,7 +127,7 @@ fn wallets_pressed() -> Faraday {
         .with(field::WALLET_NAME, b"Spending");
     let files = vec![(
         "main.kdbx".to_string(),
-        vault_of("Main", PHRASE, 1, vec![key, wallet]),
+        vault_of("Main", PHRASE, 1, vec![key, wallet]).into(),
     )];
     let mut app = testkit::started();
     // The test wallet is a testnet one.
@@ -208,7 +208,7 @@ fn wallet_record(descriptor: &str, name: &[u8]) -> faraday_vault::Record {
 fn app_with(records: Vec<faraday_vault::Record>) -> Faraday {
     let files = vec![(
         "main.kdbx".to_string(),
-        vault_of("Main", PHRASE, 1, records),
+        vault_of("Main", PHRASE, 1, records).into(),
     )];
     let mut app = testkit::started();
     testkit::move_to(&mut app.session, faraday_bip::keys::Network::Testnet).unwrap();
@@ -356,7 +356,14 @@ fn a_slot_of_create_filled_from_a_vault_loads_in_the_job_and_is_filled() {
     use faraday_core::create::Source;
     for records in [vec![key_record(0)], key_and_kept_passphrase()] {
         let kept_alone = records.len() > 1;
-        let make = || create_over(records.clone());
+        let make = || {
+            create_over(
+                records
+                    .iter()
+                    .map(faraday_vault::Record::duplicate)
+                    .collect(),
+            )
+        };
         let press = |app: &mut Faraday| {
             let r = first_key(app);
             testkit::press_on_worker(app, Action::CSlotVault(0, 0, r));
