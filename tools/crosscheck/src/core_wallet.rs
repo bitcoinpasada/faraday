@@ -9,7 +9,7 @@ use faraday_intake::secret_buf::SecretText;
 use serde_json::{Value, json};
 
 use crate::Answer;
-use crate::json::bytes;
+use crate::json::{bytes, hex, text};
 
 /// Handles `core_wallet.<name>`.
 pub fn handle(name: &str, req: &Value) -> Answer {
@@ -72,6 +72,11 @@ pub fn handle(name: &str, req: &Value) -> Answer {
                 "tx_count": w.tx_count,
             }))
         }
+        // The 78 bytes of an extended key's base58check text, as the
+        // descriptor reader decodes it; a refusal is an error.
+        "xkey" => faraday_core_wallet::extended_key_bytes_for_crosscheck(text(req, "text"))
+            .map(|b| json!(hex(&b)))
+            .ok_or_else(|| "not an extended key".to_string()),
         _ => Err(format!("unknown core_wallet op {name}")),
     }
 }

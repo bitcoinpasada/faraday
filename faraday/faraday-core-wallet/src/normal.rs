@@ -152,7 +152,7 @@ const BASE58: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrst
 /// bytes. The same as `base58::decode_check` with a 78-byte result, but
 /// the work is in wiped memory: a decoded key holds a chain code, and the
 /// library's decoding frees its buffer unwiped.
-fn extended_key_bytes(text: &str) -> Option<Zeroizing<[u8; 78]>> {
+pub(crate) fn extended_key_bytes(text: &str) -> Option<Zeroizing<[u8; 78]>> {
     const TOTAL: usize = 82;
     // The number so far, least significant byte first.
     let mut number = Zeroizing::new([0u8; TOTAL]);

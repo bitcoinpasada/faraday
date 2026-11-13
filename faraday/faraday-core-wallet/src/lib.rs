@@ -49,6 +49,15 @@ use faraday_intake::wallet::network_name;
 mod normal;
 use normal::{Failed, Need};
 
+/// The 78 bytes of an extended key in base58check, or `None`: the decoder
+/// the descriptor reader uses, for the cross-check only.
+#[cfg(feature = "crosscheck")]
+#[doc(hidden)]
+#[must_use]
+pub fn extended_key_bytes_for_crosscheck(text: &str) -> Option<Vec<u8>> {
+    normal::extended_key_bytes(text).map(|k| k.to_vec())
+}
+
 /// The wallet flag bits Bitcoin Core knows (`walletutil.h`).
 const KNOWN_FLAGS: u64 = 0b111 | (0b1111 << 32);
 /// `WALLET_FLAG_DESCRIPTORS`.
