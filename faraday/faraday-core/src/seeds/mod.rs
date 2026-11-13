@@ -793,7 +793,7 @@ impl Faraday {
                 ) {
                     Ok(i) => {
                         self.spend_backup
-                            .choose(self.session.wallets[i].name.clone());
+                            .choose(faraday_text::Text::of(&self.session.wallets[i].name));
                         self.wallets.set_wallet(i);
                         // Made without its description: a guess, which Check
                         // the money walks through (`docs/history/SCAN-TO-SIGN.md` §5).
@@ -802,7 +802,7 @@ impl Faraday {
                         self.spend_backup_opened();
                         self.spend_backup_settle();
                     }
-                    Err(e) => self.spend_backup.set_seeds_error(String::from(&*e.text())),
+                    Err(e) => self.spend_backup.set_seeds_error(e.text()),
                 }
             }
             _ => {}

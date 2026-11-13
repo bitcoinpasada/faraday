@@ -3,11 +3,11 @@
 //! is always shown; its More about this is folded.
 
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::ui::Region;
 use faraday_draw::tokens::{BODY_M, BODY_S, BUTTON_H, LABEL_L, LABEL_M, TITLE_M};
 use faraday_draw::tokens::{FIELD_H, GAP, GAP_SMALL, PROGRESS_H, ROW_CHEVRON_ROOM, TOUCH};
 use faraday_draw::widgets::Icon;
+use faraday_text::Text;
 
 use crate::drawing::{Scrolled, View};
 use crate::screens::{next_button, step_body, step_summary};
@@ -52,7 +52,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .iter()
         .map(|&id| flow::Card {
             title: text::title(app, id),
-            summary: summary(app, id),
+            summary: (&*summary(app, id)).into(),
             mono: matches!(id, CardId::Step(step::TXID)),
             done: done(app, id),
             open: open == Some(id),
@@ -67,9 +67,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .spend_backup_wallet()
         .filter(|_| app.spend_backup.state.from_card)
         .map(|i| {
-            fill(
+            Text::fill(
                 EN.spend_backup_spend_from_n,
-                &[&app.session.wallets[i].name.to_string()],
+                &[&app.session.wallets[i].name],
             )
         });
     let col = flow::Column {
@@ -150,8 +150,8 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         let name = s
             .wallet
             .and_then(|i| app.session.wallets.get(i))
-            .map_or(EN.spend_backup_no_wallet_loaded.to_string(), |w| {
-                w.name.clone()
+            .map_or(Text::of(EN.spend_backup_no_wallet_loaded), |w| {
+                Text::of(&w.name)
             });
         y += next_row(
             ui,
@@ -159,10 +159,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             y,
             w,
             Icon::Sign,
-            &fill(
-                EN.spend_backup_signing_wallet,
-                &[&s.spend.source.to_string(), &name.to_string()],
-            ),
+            &Text::fill(EN.spend_backup_signing_wallet, &[&s.spend.source, &name]),
             Some((
                 EN.spend_backup_continue_signing,
                 s.wallet
@@ -214,31 +211,31 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         );
         let (marker, tone) = if ready {
             (
-                fill(
+                Text::fill(
                     EN.spend_backup_can_spend_count,
-                    &[&here.min(need).to_string(), &need.to_string()],
+                    &[&Text::num(here.min(need) as u64), &Text::num(need as u64)],
                 ),
                 Role::Ok,
             )
         } else if here > 0 {
             (
-                fill(
+                Text::fill(
                     EN.spend_backup_here_needed,
                     &[
-                        &here.to_string(),
+                        &Text::num(here as u64),
                         (if here == 1 {
                             EN.spend_backup_key
                         } else {
                             EN.spend_backup_keys
                         }),
-                        &need.to_string(),
+                        &Text::num(need as u64),
                     ],
                 ),
                 Role::Warning,
             )
         } else {
             (
-                EN.spend_backup_no_key_here.to_string(),
+                Text::of(EN.spend_backup_no_key_here),
                 Role::OnSurfaceVariant,
             )
         };
@@ -336,7 +333,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
                 y + 4.0,
                 None,
                 BUTTON_H,
-                &fill(EN.spend_backup_open, &[&app.inbox[k].name.to_string()]),
+                &Text::fill(EN.spend_backup_open, &[&app.inbox[k].name]),
                 Style::Primary,
                 fa(F::UseWallet(k)),
             ) + 8.0;
@@ -394,13 +391,10 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         let name = s
             .wallet
             .and_then(|i| app.session.wallets.get(i))
-            .map_or(EN.spend_backup_no_wallet_loaded.to_string(), |w| {
-                w.name.clone()
+            .map_or(Text::of(EN.spend_backup_no_wallet_loaded), |w| {
+                Text::of(&w.name)
             });
-        let line = fill(
-            EN.spend_backup_signing_wallet,
-            &[&s.spend.source.to_string(), &name.to_string()],
-        );
+        let line = Text::fill(EN.spend_backup_signing_wallet, &[&s.spend.source, &name]);
         let lh = measured(ui, |ui| {
             ui.wrap_as(
                 (x + 46.0, y + 14.0, w - 60.0),
@@ -477,8 +471,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
             y += 32.0;
         }
         let file = app.inbox.iter().position(|i| i.kind == FileKind::Wallet);
-        let open_label =
-            file.map(|k| fill(EN.spend_backup_open, &[&app.inbox[k].name.to_string()]));
+        let open_label = file.map(|k| Text::fill(EN.spend_backup_open, &[&app.inbox[k].name]));
         let mut items: Vec<(&str, Style, Action)> = Vec::new();
         if let (Some(k), Some(l)) = (file, open_label.as_deref()) {
             items.push((l, Style::Primary, fa(F::UseWallet(k))));
@@ -516,12 +509,12 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
 
 /// What a loaded wallet's card says of its keys here: can spend, how
 /// many are here of how many needed, or none, and its tone.
-fn keys_marker(here: usize, need: usize) -> (String, Role) {
+fn keys_marker(here: usize, need: usize) -> (Text, Role) {
     if here >= need {
         (
-            fill(
+            Text::fill(
                 EN.spend_backup_can_spend_count,
-                &[&here.min(need).to_string(), &need.to_string()],
+                &[&Text::num(here.min(need) as u64), &Text::num(need as u64)],
             ),
             Role::Ok,
         )
@@ -532,15 +525,15 @@ fn keys_marker(here: usize, need: usize) -> (String, Role) {
             EN.spend_backup_keys
         };
         (
-            fill(
+            Text::fill(
                 EN.spend_backup_here_needed,
-                &[&here.to_string(), keys, &need.to_string()],
+                &[&Text::num(here as u64), keys, &Text::num(need as u64)],
             ),
             Role::Warning,
         )
     } else {
         (
-            EN.spend_backup_no_key_here.to_string(),
+            Text::of(EN.spend_backup_no_key_here),
             Role::OnSurfaceVariant,
         )
     }
@@ -680,12 +673,12 @@ fn done(app: &View, id: CardId) -> bool {
     }
 }
 
-fn summary(app: &View, id: CardId) -> String {
+fn summary(app: &View, id: CardId) -> Text {
     let s = match id {
         CardId::Page(page::MAP) => EN.spend_backup_six_stops,
         CardId::Page(page::SAFE) if app.online => EN.spend_backup_desktop_copy,
         CardId::Page(page::SAFE) => {
-            return fill(
+            return Text::fill(
                 EN.spend_backup_running_from_medium,
                 &[app.medium.started_from()],
             );
@@ -694,9 +687,9 @@ fn summary(app: &View, id: CardId) -> String {
             return match app.spend_backup_wallet().map(|i| &app.session.wallets[i]) {
                 Some(w) => wallet_once(w),
                 None => match came_rows(app).len() {
-                    0 => EN.spend_backup_nothing_in_yet.to_string(),
-                    1 => EN.spend_backup_things_one.to_string(),
-                    n => fill(EN.spend_backup_things_count, &[&n.to_string()]),
+                    0 => Text::of(EN.spend_backup_nothing_in_yet),
+                    1 => Text::of(EN.spend_backup_things_one),
+                    n => Text::fill(EN.spend_backup_things_count, &[&Text::num(n as u64)]),
                 },
             };
         }
@@ -711,8 +704,8 @@ fn summary(app: &View, id: CardId) -> String {
         // From the wallet's card Write the payment brings the PSBT too.
         CardId::Page(page::WRITE) if app.spend_backup.state.from_card => {
             return match app.wallets.spend() {
-                Some(s) => fill(EN.spend_backup_signing, &[&s.spend.source.to_string()]),
-                None => String::new(),
+                Some(s) => Text::fill(EN.spend_backup_signing, &[&s.spend.source]),
+                None => Text::new(),
             };
         }
         CardId::Page(page::WRITE) if app.spend_backup_page_done(page::WRITE) => {
@@ -720,30 +713,30 @@ fn summary(app: &View, id: CardId) -> String {
         }
         CardId::Page(page::BRING) => {
             return match app.wallets.spend() {
-                Some(s) => fill(EN.spend_backup_signing, &[&s.spend.source.to_string()]),
-                None => EN.spend_backup_not_here_yet.to_string(),
+                Some(s) => Text::fill(EN.spend_backup_signing, &[&s.spend.source]),
+                None => Text::of(EN.spend_backup_not_here_yet),
             };
         }
         CardId::Page(page::AWAY) => {
             return match app.outbox.len() {
-                0 => fill(EN.spend_backup_nothing_waits, &[app.medium.for_the()]),
-                1 => fill(EN.spend_backup_1_file, &[app.medium.for_the()]),
-                n => fill(
+                0 => Text::fill(EN.spend_backup_nothing_waits, &[app.medium.for_the()]),
+                1 => Text::fill(EN.spend_backup_1_file, &[app.medium.for_the()]),
+                n => Text::fill(
                     EN.spend_backup_files,
-                    &[&n.to_string(), app.medium.for_the()],
+                    &[&Text::num(n as u64), app.medium.for_the()],
                 ),
             };
         }
         CardId::Page(_) => "",
         CardId::Step(n) => {
             return match app.wallets.spend() {
-                Some(s) => step_summary(app, n, s.wallet, app.spend_needed()),
-                None => String::new(),
+                Some(s) => Text::of(&step_summary(app, n, s.wallet, app.spend_needed())),
+                None => Text::new(),
             };
         }
         CardId::Later(_) => EN.spend_backup_after_the_transaction,
     };
-    s.to_string()
+    Text::of(s)
 }
 
 fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
@@ -805,7 +798,15 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// More about this: a quiet button, and the paragraphs while it is open.
-fn more(app: &View, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w: f32) -> f32 {
+fn more(
+    app: &View,
+    ui: &mut Ui,
+    id: CardId,
+    paras: &[impl AsRef<str>],
+    x: f32,
+    y: f32,
+    w: f32,
+) -> f32 {
     let bit = more_bit(id);
     let shown = app.spend_backup.state.more & (1 << u32::from(bit)) != 0;
     let mut cy = y + 4.0;
@@ -823,7 +824,7 @@ fn more(app: &View, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w
     cy += 40.0;
     if shown {
         for p in paras {
-            cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, p) + 10.0;
+            cy += ui.wrap_as((x, cy, w), BODY_S, Role::OnSurfaceVariant, p.as_ref()) + 10.0;
         }
     }
     cy - y
@@ -892,7 +893,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .filter(|f| f.open.is_none())
             .or(locked.first().copied())
         {
-            let head = fill(EN.spend_backup_unlock_n, &[&f.name]);
+            let head = Text::fill(EN.spend_backup_unlock_n, &[&f.name]);
             cy += ui.wrap_as((x, cy, w), TITLE_M, Role::OnSurface, &head) + 12.0;
         }
         cy += vault(app, ui, x, cy, w);
@@ -939,11 +940,11 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += crate::screens::wrap_buttons(ui, x, cy, w, 40.0, &ways);
     // A description already in Files, or on a stick to copy in.
     if !ready {
-        let files: Vec<String> = app
+        let files: Vec<Text> = app
             .inbox
             .iter()
             .filter(|i| i.kind == FileKind::Wallet)
-            .map(|i| fill(EN.spend_backup_open, &[&i.name.to_string()]))
+            .map(|i| Text::fill(EN.spend_backup_open, &[&i.name]))
             .collect();
         let items: Vec<(&str, Style, Action)> = app
             .inbox
@@ -956,7 +957,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if !items.is_empty() {
             cy += crate::screens::wrap_buttons(ui, x, cy, w, 36.0, &items);
         }
-        let label = fill(EN.spend_backup_copy_files_button, &[app.medium.a()]);
+        let label = Text::fill(EN.spend_backup_copy_files_button, &[app.medium.a()]);
         cy += stick_row(app, ui, x, cy, w, &label);
     }
     ui.text_button(x, cy, text::UNSURE, Style::Ghost, fa(F::Unsure));
@@ -989,11 +990,11 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     // Split sheets in Files that add up.
     if !ready {
-        let sheets: Vec<zeroize::Zeroizing<String>> = app
+        let sheets: Vec<Text> = app
             .inbox
             .iter()
             .filter(|i| i.kind == FileKind::Share)
-            .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
+            .map(|i| Text::from_utf8_lossy(&i.bytes))
             .collect();
         if !sheets.is_empty() && crate::restore::merge(&sheets).is_ok_and(|m| m.whole.is_some()) {
             cy += crate::screens::wrap_buttons(
@@ -1014,10 +1015,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if let Some(wi) = app.spend_backup_described() {
         let name = &app.session.wallets[wi].name;
         for fp in app.spend_backup_strays() {
-            let line = fill(
-                EN.spend_backup_seed_not_wallets,
-                &[&fp_text(fp).to_string(), &name.to_string()],
-            );
+            let line = Text::fill(EN.spend_backup_seed_not_wallets, &[&fp_text(fp), name]);
             cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 8.0;
             cy += crate::screens::wrap_buttons(
                 ui,
@@ -1057,27 +1055,27 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 /// The wallet, said once: its name and its shape, or the shape alone
 /// when the name already says it ("Words · native SegWit").
-fn wallet_once(w: &crate::wallet::Wallet) -> String {
+fn wallet_once(w: &crate::wallet::Wallet) -> Text {
     let shape = Session::shape(w);
     let kind = shape.rsplit(" · ").next().unwrap_or(&shape);
     if w.name.to_lowercase().contains(&kind.to_lowercase()) {
-        shape
+        Text::of(&shape)
     } else {
-        format!("{} · {shape}", w.name)
+        faraday_text::text!("{} · {}", w.name, &*shape)
     }
 }
 
 /// What came in, a line each, newest last: the seeds still loaded and
 /// the files still in Files.
-fn came_rows(app: &View) -> Vec<String> {
+fn came_rows(app: &View) -> Vec<Text> {
     let mut sheets = 0;
-    let mut texts: Vec<zeroize::Zeroizing<String>> = Vec::new();
+    let mut texts: Vec<Text> = Vec::new();
     let mut rows = Vec::new();
     // Split sheets already in Files, copied in from a stick say, are
     // listed after what came in on the card.
     let mut came = app.spend_backup.state.came.clone();
     for it in app.inbox.iter().filter(|i| i.kind == FileKind::Share) {
-        let c = Came::File(it.name.clone());
+        let c = Came::File(Text::of(&it.name));
         if !came.contains(&c) {
             came.push(c);
         }
@@ -1092,55 +1090,60 @@ fn came_rows(app: &View) -> Vec<String> {
                 let t = fp_text(f);
                 let label = label.trim();
                 rows.push(if label.is_empty() || label.eq_ignore_ascii_case(&t) {
-                    fill(EN.spend_backup_seed_row, &[&t.to_string()])
+                    Text::fill(EN.spend_backup_seed_row, &[&t])
                 } else {
-                    fill(EN.spend_backup_seed, &[&t.to_string(), label])
+                    Text::fill(EN.spend_backup_seed, &[&t, label])
                 });
             }
             Came::File(name) => {
-                let Some(item) = app.inbox.iter().find(|i| i.name == *name) else {
+                let Some(item) = app.inbox.iter().find(|i| i.name.as_str() == name.as_str()) else {
                     continue;
                 };
                 rows.push(match item.kind {
                     FileKind::Wallet => {
-                        match app.session.wallets.iter().find(|wl| wl.source == *name) {
-                            Some(wl) => fill(
+                        match app
+                            .session
+                            .wallets
+                            .iter()
+                            .find(|wl| wl.source.as_str() == name.as_str())
+                        {
+                            Some(wl) => Text::fill(
                                 EN.spend_backup_description_row_shape,
-                                &[&wl.name.to_string(), &Session::shape(wl).to_string()],
+                                &[&wl.name, &Session::shape(wl)],
                             ),
-                            None => fill(EN.spend_backup_description_row, &[&name.to_string()]),
+                            None => Text::fill(EN.spend_backup_description_row, &[name]),
                         }
                     }
                     FileKind::Share => {
                         sheets += 1;
-                        texts.push(zeroize::Zeroizing::new(
-                            String::from_utf8_lossy(&item.bytes).into_owned(),
-                        ));
+                        texts.push(Text::from_utf8_lossy(&item.bytes));
                         match crate::restore::merge(&texts) {
-                            Ok(m) => fill(
+                            Ok(m) => Text::fill(
                                 EN.spend_backup_part_of_keys,
                                 &[
-                                    &sheets.to_string(),
-                                    &m.have.len().to_string(),
-                                    &m.n.to_string(),
+                                    &Text::num(sheets as u64),
+                                    &Text::num(m.have.len() as u64),
+                                    &Text::num(m.n as u64),
                                 ],
                             ),
-                            Err(_) => fill(EN.spend_backup_part, &[&sheets.to_string()]),
+                            Err(_) => {
+                                Text::fill(EN.spend_backup_part, &[&Text::num(sheets as u64)])
+                            }
                         }
                     }
                     FileKind::Key => {
-                        let t = String::from_utf8_lossy(&item.bytes);
+                        let t = Text::from_utf8_lossy(&item.bytes);
                         let key = crate::create::read_key(&t).unwrap_or_default();
                         let fp = key
                             .strip_prefix('[')
                             .and_then(|r| r.split(['/', ']']).next())
                             .map(str::to_uppercase);
                         match fp {
-                            Some(fp) => fill(EN.spend_backup_key_xpub_n, &[&fp.to_string()]),
-                            None => EN.spend_backup_key_xpub.to_string(),
+                            Some(fp) => Text::fill(EN.spend_backup_key_xpub_n, &[&fp]),
+                            None => Text::of(EN.spend_backup_key_xpub),
                         }
                     }
-                    FileKind::Psbt => EN.spend_backup_transaction.to_string(),
+                    FileKind::Psbt => Text::of(EN.spend_backup_transaction),
                     _ => name.clone(),
                 });
             }
@@ -1227,7 +1230,10 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let s = &app.spend_backup.state.seeds;
             let here = app.seeds_here(s).len();
             if s.n > here {
-                let line = fill(EN.spend_backup_without_description, &[&s.n.to_string()]);
+                let line = Text::fill(
+                    EN.spend_backup_without_description,
+                    &[&Text::num(s.n as u64)],
+                );
                 cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &line) + 12.0;
             }
             cy += crate::seeds::screen::shape(app, ui, s, false, x, cy, w);
@@ -1260,7 +1266,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             w,
-            &fill(EN.spend_backup_remove_the_then, &[app.medium.noun()]),
+            &Text::fill(EN.spend_backup_remove_the_then, &[app.medium.noun()]),
         );
     }
     let compact = ui.compact;
@@ -1288,13 +1294,13 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         );
         ui.icon(x + 14.0, cy + 14.0, 36.0, Icon::Lock, 15.0, muted);
         let where_ = if f.in_outbox {
-            fill(EN.spend_backup_sealed_here, &[app.medium.for_the()])
+            Text::fill(EN.spend_backup_sealed_here, &[app.medium.for_the()])
         } else {
-            fill(EN.spend_backup_copied_from_medium, &[app.medium.a()])
+            Text::fill(EN.spend_backup_copied_from_medium, &[app.medium.a()])
         };
-        let where_ = format!("{where_} · {}", file_text(f.len).as_str());
+        let where_ = faraday_text::text!("{} · {}", &*where_, file_text(f.len).as_str());
         let mem = f.facts.header.cost.memory_kib / 1024;
-        let time = fill(
+        let time = Text::fill(
             EN.spend_backup_unlock_time,
             &[&app.vaults().time_text(mem, f.facts.header.cost.passes)],
         );
@@ -1359,8 +1365,8 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     } else {
         let style = Style::Primary.when(app.may_load_keys());
         let free = match app.vaults.memory_free_mib {
-            Some(m) => fill(EN.spend_backup_this_computer, &[&mib_text(m)]),
-            None => String::new(),
+            Some(m) => Text::fill(EN.spend_backup_this_computer, &[&mib_text(m)]),
+            None => Text::new(),
         };
         if compact {
             // Unlock pinned at the foot; the memory line here.
@@ -1411,13 +1417,13 @@ fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f3
     let (style, note) = match (app.stick.is_empty(), open) {
         (true, _) => (
             Style::Disabled,
-            fill(EN.spend_backup_plug_medium, &[app.medium.noun()]),
+            Text::fill(EN.spend_backup_plug_medium, &[app.medium.noun()]),
         ),
         (false, true) => (
             Style::Disabled,
-            fill(EN.spend_backup_faraday_asks, &[app.medium.a()]),
+            Text::fill(EN.spend_backup_faraday_asks, &[app.medium.a()]),
         ),
-        (false, false) => (Style::Secondary, String::new()),
+        (false, false) => (Style::Secondary, Text::new()),
     };
     let bw = ui.button(
         x,
@@ -1468,12 +1474,12 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         // How many of its keys are here: a vault may hold only some.
         let slots = app.session.slots(wl);
         let here = slots.iter().filter(|s| s.held_by.is_some()).count();
-        let line = fill(
+        let line = Text::fill(
             EN.spend_backup_of_keys_here,
             &[
-                &Session::shape(wl).to_string(),
-                &here.to_string(),
-                &slots.len().to_string(),
+                &Session::shape(wl),
+                &Text::num(here as u64),
+                &Text::num(slots.len() as u64),
             ],
         );
         let tone = Role::OnSurfaceVariant;
@@ -1665,7 +1671,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         let (kind, pass) = Faraday::guess_way(g, g.at);
         let total = Faraday::guess_total(g);
-        let line = fill(
+        let line = Text::fill(
             EN.spend_backup_trying_progress,
             &[
                 crate::spend_backup::kind_label(kind),
@@ -1674,8 +1680,8 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 } else {
                     EN.spend_backup_no_passphrase
                 }),
-                &(g.at + 1).to_string(),
-                &total.to_string(),
+                &Text::num((g.at + 1) as u64),
+                &Text::num(total as u64),
             ],
         );
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::OnSurface, &line) + GAP;
@@ -1723,7 +1729,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             } else {
                 0.0
             };
-            let index = k.to_string();
+            let index = Text::num(k as u64);
             if ui.compact {
                 // Whole, to compare character for character, in the middle
                 // of its row; the rows meet, each on the 4 dp grid.
@@ -1798,7 +1804,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // coin, to its first address.
     if card && let Some((name, address)) = app.spend_backup_wallet().and_then(|i| app.moving_to(i))
     {
-        let head = fill(EN.spend_backup_every_coin_to_wallet, &[&name.to_string()]);
+        let head = Text::fill(EN.spend_backup_every_coin_to_wallet, &[&name]);
         cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Warning, &head) + 4.0;
         cy += ui.wrap_as((x, cy, w), BODY_M.mono(), Role::OnSurface, &address) + 4.0;
         cy += ui.wrap_as(
@@ -1831,9 +1837,9 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ui.demo_offer(EN.scan_sample_psbt, Action::SamplePsbt);
     }
     let label = if card {
-        fill(EN.spend_backup_on_medium, &[app.medium.a()])
+        Text::fill(EN.spend_backup_on_medium, &[app.medium.a()])
     } else {
-        fill(EN.spend_backup_copy_psbt_button, &[app.medium.a()])
+        Text::fill(EN.spend_backup_copy_psbt_button, &[app.medium.a()])
     };
     cy += stick_row(app, ui, x, cy, w, &label);
     // From the wallet's card, only this wallet's.
@@ -1897,9 +1903,9 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 6.0;
         match s.wallet.and_then(|w| app.session.wallets.get(w)) {
             Some(wl) => {
-                let line = fill(
+                let line = Text::fill(
                     EN.spend_backup_spends_from_wallet,
-                    &[&wl.name.to_string(), &Session::shape(wl).to_string()],
+                    &[&wl.name, &Session::shape(wl)],
                 );
                 cy += ui.wrap_as((x, cy, w), LABEL_L, Role::Ok, &line) + 12.0;
             }
@@ -1960,7 +1966,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     (x, cy, 42.0),
                     BODY_S,
                     Role::OnSurfaceVariant,
-                    &(k + 1).to_string(),
+                    &Text::num((k + 1) as u64),
                 );
                 let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
                 ui.text_mid_as((x + 22.0, cy, 42.0), BODY_M.mono(), Role::OnSurface, &fp);
@@ -2096,14 +2102,14 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             Style::Disabled
         };
-        let unlocks: Vec<(String, Action)> = app
+        let unlocks: Vec<(Text, Action)> = app
             .vault_files()
             .iter()
             .enumerate()
             .filter(|(_, f)| f.open.is_none())
             .map(|(k, f)| {
                 (
-                    fill(EN.spend_backup_unlock_n, &[&f.name]),
+                    Text::fill(EN.spend_backup_unlock_n, &[&f.name]),
                     Action::Vault(VaultAction::OpenFrom(k, crate::Screen::SpendBackup)),
                 )
             })
@@ -2123,7 +2129,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         cy += crate::screens::wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
         if !may {
-            let pull = fill(EN.spend_backup_remove_the_first, &[app.medium.noun()]);
+            let pull = Text::fill(EN.spend_backup_remove_the_first, &[app.medium.noun()]);
             ui.text_as(x, cy, LABEL_L, Role::Warning, &pull);
             cy += ui.line_as(LABEL_L) + faraday_draw::tokens::GRID;
         }

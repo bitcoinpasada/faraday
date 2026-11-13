@@ -443,7 +443,7 @@ impl Faraday {
             // Perhaps a seed with a passphrase: the sheet asks for it.
             Found::None => {
                 let reason = self.not_a_wallet_key(w, fp);
-                self.seed_read_for_wallet(words, w, reason.as_str().into());
+                self.seed_read_for_wallet(words, w, reason);
             }
         }
     }

@@ -21,11 +21,11 @@ pub(crate) mod screen;
 pub(crate) mod text;
 
 use crate::strings::EN;
-use crate::strings::fill;
 use crate::wallet::KeyTexts;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Command;
+use faraday_text::Text;
 
 use crate::create::NewKind;
 use crate::scan_key::{Found, key_of};
@@ -171,7 +171,7 @@ pub enum Came {
     /// A seed, by its key's fingerprint.
     Seed([u8; 4]),
     /// A file in Files, by name.
-    File(String),
+    File(Text),
 }
 
 /// A wallet worked out from seeds alone, and the kinds tried on Check
@@ -187,7 +187,7 @@ pub struct Guess {
     /// Is there a word or sentence kept apart from the list? is asked.
     pub asking: bool,
     /// The ways tried that showed no money, as listed.
-    pub tried: Vec<String>,
+    pub tried: Vec<Text>,
     /// Every way was tried.
     pub none: bool,
 }
@@ -236,11 +236,11 @@ pub struct SpendBackupState {
     pub addresses: u32,
     /// The wallet chosen to spend from, by name: names survive a lock,
     /// places in the session do not.
-    pub wallet: Option<String>,
+    pub wallet: Option<Text>,
     /// The column's scroll.
     pub scroll: flow::Scroll,
     /// The last refusal.
-    pub error: Option<String>,
+    pub error: Option<Text>,
     /// The walk-through is shown although something is loaded already.
     pub walkthrough: bool,
     /// The seeds typed on the words route, and the wallet of several
@@ -305,7 +305,7 @@ impl SpendBackupArea {
     }
 
     /// Chooses the wallet to spend from, by name.
-    pub(crate) fn choose(&mut self, name: String) {
+    pub(crate) fn choose(&mut self, name: Text) {
         self.state.wallet = Some(name);
     }
 
@@ -331,8 +331,8 @@ impl SpendBackupArea {
     }
 
     /// The words route's seeds could not be read: the error they show.
-    pub(crate) fn set_seeds_error(&mut self, error: String) {
-        self.state.seeds.error = Some(error);
+    pub(crate) fn set_seeds_error(&mut self, error: Text) {
+        self.state.seeds.error = Some((&*error).into());
     }
 
     /// The seeds typed on the words route, to change them.
@@ -417,37 +417,37 @@ impl Faraday {
     /// (`docs/history/NEW-WALLET.md` §11.2): finish the backup first while a key
     /// made here waits for it (§14.3), else carry on this wallet's spend,
     /// sign its PSBT in Files, or spend from it.
-    pub fn spend_button(&self, c: &Compute, w: usize) -> (String, Action) {
+    pub fn spend_button(&self, c: &Compute, w: usize) -> (Text, Action) {
         spend_button_on(&crate::glance::Now { app: self, c }, w)
     }
 }
 
 /// [`Faraday::spend_button`] read through `r` ([`crate::glance::Reads`]).
-pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (String, Action) {
+pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (Text, Action) {
     let app = r.app();
     // A key made here signs once its backup is done
     // (`docs/history/NEW-WALLET.md` §14.3).
     if !crate::held::wallet_held_on(r, w).is_empty() {
         return (
-            EN.spend_backup_finish_the_backup.to_string(),
+            Text::of(EN.spend_backup_finish_the_backup),
             Action::BackupFirst(w),
         );
     }
     if let Some(s) = app.wallets.spend().filter(|s| s.wallet == Some(w)) {
         return (
-            fill(
+            Text::fill(
                 EN.spend_backup_carry_on_spend,
                 &[
-                    &s.signers.len().to_string(),
-                    &app.spend_needed().to_string(),
+                    &Text::num(s.signers.len() as u64),
+                    &Text::num(app.spend_needed() as u64),
                 ],
             ),
             app.carry_on(),
         );
     }
     let label = match r.psbt_for(w) {
-        Some(_) => fill(EN.spend_backup_sign_the_psbt, &[app.medium.noun()]),
-        None => EN.spend_backup_spend_from_wallet.to_string(),
+        Some(_) => Text::fill(EN.spend_backup_sign_the_psbt, &[app.medium.noun()]),
+        None => Text::of(EN.spend_backup_spend_from_wallet),
     };
     (label, Action::SpendBackup(SpendBackupAction::SpendFrom(w)))
 }
@@ -634,7 +634,7 @@ impl Faraday {
                     && let Some(w) = self.spend_backup_wallet()
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
-                    let checksum = wallet.checksum().to_string();
+                    let checksum = Text::of(wallet.checksum());
                     self.mark_checked(&checksum);
                 }
                 // The spend's own Check is this page, done by the person.
@@ -662,7 +662,7 @@ impl Faraday {
             }
             F::StrayPass(fp) => {
                 if let Some(w) = self.spend_backup_described() {
-                    let reason = String::from(&*self.not_a_wallet_key(w, Fingerprint(fp)));
+                    let reason = self.not_a_wallet_key(w, Fingerprint(fp));
                     self.seed_read_stray(Fingerprint(fp), w, reason);
                 }
             }
@@ -715,17 +715,17 @@ impl Faraday {
                 }
             }
             F::UseWallet(i) => {
-                if let Some(name) = self.inbox.get(i).map(|it| it.name.clone()) {
+                if let Some(name) = self.inbox.get(i).map(|it| Text::of(&it.name)) {
                     self.spend_backup_came(Came::File(name));
                 }
                 self.spend_backup_use_wallet(i);
             }
             F::Rebuild => {
-                let names: Vec<String> = self
+                let names: Vec<Text> = self
                     .inbox
                     .iter()
                     .filter(|i| i.kind == FileKind::Share)
-                    .map(|i| i.name.clone())
+                    .map(|i| Text::of(&i.name))
                     .collect();
                 for n in names {
                     self.spend_backup_came(Came::File(n));
@@ -734,7 +734,7 @@ impl Faraday {
             }
             F::Choose(i) => {
                 if let Some(w) = self.session.wallets.get(i) {
-                    self.spend_backup.state.wallet = Some(w.name.clone());
+                    self.spend_backup.state.wallet = Some(Text::of(&w.name));
                     self.wallets.set_wallet(i);
                     if self.spend_backup.state.open == Some(Open::Page(page::HOLDING)) {
                         self.spend_backup_advance(page::HOLDING);
@@ -766,7 +766,7 @@ impl Faraday {
                     self.wallets.clear_spend();
                 }
                 let w = &self.session.wallets[i];
-                self.spend_backup.state.wallet = Some(w.name.clone());
+                self.spend_backup.state.wallet = Some(Text::of(&w.name));
                 self.wallets.set_wallet(i);
                 self.spend_backup.state.from_card = true;
                 self.spend_backup.state.help = false;
@@ -866,7 +866,7 @@ impl Faraday {
         };
         // Files that describe one wallet in several forms (descriptor,
         // wallet .json, BIP 129 record, Core's import) count once.
-        let mut wallets: Vec<(usize, String)> = Vec::new();
+        let mut wallets: Vec<(usize, Text)> = Vec::new();
         for (k, it) in self.inbox.iter().enumerate() {
             if it.kind != FileKind::Wallet
                 || !(all
@@ -874,12 +874,12 @@ impl Faraday {
                         .spend_backup
                         .state
                         .came
-                        .contains(&Came::File(it.name.clone())))
+                        .contains(&Came::File(Text::of(&it.name))))
             {
                 continue;
             }
             if let Some(p) = it.wallet() {
-                let d = p.to_descriptor();
+                let d = Text::of(&p.to_descriptor());
                 if !wallets.iter().any(|(_, x)| *x == d) {
                     wallets.push((k, d));
                 }
@@ -906,7 +906,7 @@ impl Faraday {
                 .and_then(|p| self.session.spends_from(&c, p))
         };
         if let Some(i) = only.or_else(by_psbt) {
-            self.spend_backup.state.wallet = Some(self.session.wallets[i].name.clone());
+            self.spend_backup.state.wallet = Some(Text::of(&self.session.wallets[i].name));
             self.wallets.set_wallet(i);
         }
     }
@@ -1034,7 +1034,7 @@ impl Faraday {
     }
 
     /// The intake scanner: anything, one code after another, until Done.
-    pub(crate) fn spend_backup_scan(&mut self, note: Option<String>) {
+    pub(crate) fn spend_backup_scan(&mut self, note: Option<Text>) {
         let mut scan = ScanState::default();
         if let Some((decoder, assembler)) = self.camera.take_parts() {
             scan.decoder = decoder;
@@ -1077,20 +1077,22 @@ impl Faraday {
                     Ok(_) => {
                         self.spend_backup_came(Came::Seed(fp.0));
                         self.refresh_spend();
-                        fill(EN.spend_backup_seed_read, &[&fp_text(fp).to_string()])
+                        Text::fill(EN.spend_backup_seed_read, &[&fp_text(fp)])
                     }
-                    Err(e) => String::from(&*e.text()),
+                    Err(e) => e.text(),
                 }
             }
-            Found::Here(n) => fill(EN.spend_backup_key_already, &[&(n + 1).to_string()]),
+            Found::Here(n) => {
+                Text::fill(EN.spend_backup_key_already, &[&Text::num((n + 1) as u64)])
+            }
             Found::None => {
-                let reason = String::from(&*self.not_a_wallet_key(w, fp));
+                let reason = self.not_a_wallet_key(w, fp);
                 self.seed_read_for_wallet(words, w, reason);
                 self.seed_read.for_spend_backup_intake();
                 return;
             }
         };
-        self.camera.say(note);
+        self.camera.say(&note);
     }
 
     /// A SLIP-39 share or a codex32 string read by the intake scanner or
@@ -1098,8 +1100,8 @@ impl Faraday {
     /// the Spend tab once the key is put together. Returns whether it was
     /// one.
     pub(crate) fn intake_key_part(&mut self, bytes: &[u8]) -> bool {
-        let given = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
-        let lower = zeroize::Zeroizing::new(given.to_lowercase());
+        let given = Text::of(Text::from_utf8_lossy(bytes).trim());
+        let lower: Text = given.chars().flat_map(char::to_lowercase).collect();
         // A codex32 string as given: BIP 93 refuses mixed case.
         let (form, text) = if faraday_bip::slip39::Share::parse(&lower).is_ok() {
             (crate::forms::Form::Slip39, lower)
@@ -1130,15 +1132,15 @@ impl Faraday {
         let Some((kind, name)) = self.inbox.get(index).map(|i| (i.kind, i.name.clone())) else {
             return;
         };
-        self.spend_backup_came(Came::File(name.clone()));
+        self.spend_backup_came(Came::File(Text::of(&name)));
         self.spend_backup.state.error = None;
         let note = match kind {
             FileKind::Wallet => {
                 if self.spend_backup_ready() && self.spend_backup_described().is_some() {
-                    EN.spend_backup_wallet_description_read.to_string()
+                    Text::of(EN.spend_backup_wallet_description_read)
                 } else {
                     self.spend_backup_use_wallet(index);
-                    EN.spend_backup_wallet_description.to_string()
+                    Text::of(EN.spend_backup_wallet_description)
                 }
             }
             FileKind::Share => {
@@ -1149,31 +1151,35 @@ impl Faraday {
                 }
                 match crate::restore::merge(&sheets) {
                     Ok(m) if m.whole.is_some() && self.spend_backup_ready() => {
-                        fill(EN.spend_backup_part_read_rebuilt, &[&k.to_string()])
+                        Text::fill(EN.spend_backup_part_read_rebuilt, &[&Text::num(k as u64)])
                     }
-                    Ok(m) => fill(
+                    Ok(m) => Text::fill(
                         EN.spend_backup_part_read_progress,
-                        &[&k.to_string(), &m.have.len().to_string(), &m.n.to_string()],
+                        &[
+                            &Text::num(k as u64),
+                            &Text::num(m.have.len() as u64),
+                            &Text::num(m.n as u64),
+                        ],
                     ),
-                    Err(e) => e.as_str().into(),
+                    Err(e) => Text::of(&e),
                 }
             }
             FileKind::Key => {
                 self.seeds_take_file(index);
-                EN.spend_backup_a_public_key.to_string()
+                Text::of(EN.spend_backup_a_public_key)
             }
             FileKind::Psbt => {
                 self.spend_backup_psbt_kinds(index);
-                EN.spend_backup_a_transaction.to_string()
+                Text::of(EN.spend_backup_a_transaction)
             }
-            _ => fill(EN.spend_backup_is_in_files, &[&name.to_string()]),
+            _ => Text::fill(EN.spend_backup_is_in_files, &[&name]),
         };
         let note = self.spend_backup.state.error.clone().unwrap_or(note);
-        self.camera.say(note);
+        self.camera.say(&note);
     }
 
     /// The split sheets that came in on What do you have?, as text.
-    fn spend_backup_sheets(&self) -> Vec<zeroize::Zeroizing<String>> {
+    fn spend_backup_sheets(&self) -> Vec<Text> {
         self.inbox
             .iter()
             .filter(|i| i.kind == FileKind::Share)
@@ -1181,9 +1187,9 @@ impl Faraday {
                 self.spend_backup
                     .state
                     .came
-                    .contains(&Came::File(i.name.clone()))
+                    .contains(&Came::File(Text::of(&i.name)))
             })
-            .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
+            .map(|i| Text::from_utf8_lossy(&i.bytes))
             .collect()
     }
 
@@ -1226,7 +1232,7 @@ impl Faraday {
     /// A seed whose sheet loaded it from the intake scanner: the camera
     /// comes back on for the next code.
     pub(crate) fn spend_backup_intake_again(&mut self, fp: Option<Fingerprint>) {
-        let note = fp.map(|fp| fill(EN.spend_backup_seed_read, &[&fp_text(fp).to_string()]));
+        let note = fp.map(|fp| Text::fill(EN.spend_backup_seed_read, &[&fp_text(fp)]));
         self.spend_backup_scan(note);
     }
 
@@ -1300,13 +1306,13 @@ impl Faraday {
             return;
         };
         let (kind, pass) = Self::guess_way(g, g.at);
-        let mut label = kind_label(kind).to_string();
+        let mut label = Text::of(kind_label(kind));
         if pass {
             label.push(' ');
             label.push_str(EN.spend_backup_with_a_passphrase);
         }
         g.tried
-            .push(fill(EN.spend_backup_no_money, &[&label.to_string()]));
+            .push(Text::fill(EN.spend_backup_no_money, &[&label]));
         if !g.multi && g.at == 0 {
             g.asking = true;
             return;
@@ -1351,7 +1357,7 @@ impl Faraday {
         let d = match self.seeds_descriptor(&c, &s) {
             Ok(d) => d,
             Err(e) => {
-                self.spend_backup.state.error = Some(e);
+                self.spend_backup.state.error = Some(Text::of(&e));
                 return;
             }
         };
@@ -1365,10 +1371,10 @@ impl Faraday {
             crate::wallet::Origin::TypedSeeds,
         ) {
             Ok(i) => {
-                self.spend_backup.state.wallet = Some(self.session.wallets[i].name.clone());
+                self.spend_backup.state.wallet = Some(Text::of(&self.session.wallets[i].name));
                 self.wallets.set_wallet(i);
             }
-            Err(e) => self.spend_backup.state.error = Some(String::from(&*e.text())),
+            Err(e) => self.spend_backup.state.error = Some(e.text()),
         }
     }
 
@@ -1409,9 +1415,9 @@ impl Faraday {
             .key_label(plain)
             .map(|l| {
                 if l.is_empty() || l.eq_ignore_ascii_case(&fp_text(plain)) {
-                    EN.spend_backup_passphrase_inline.to_string()
+                    Text::of(EN.spend_backup_passphrase_inline)
                 } else {
-                    fill(EN.spend_backup_passphrase_n, &[l])
+                    Text::fill(EN.spend_backup_passphrase_n, &[l])
                 }
             })
             .unwrap_or_default();
@@ -1493,7 +1499,7 @@ impl Faraday {
         let text = match self.session.keys.account_text(&c, key, kind, 0) {
             Ok(t) => t,
             Err(e) => {
-                self.spend_backup.state.error = Some(e);
+                self.spend_backup.state.error = Some(Text::of(&e));
                 return;
             }
         };
@@ -1505,7 +1511,7 @@ impl Faraday {
         self.session
             .wallets
             .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
-        let name = fill(EN.spend_backup_words, &[kind_name(kind)]);
+        let name = Text::fill(EN.spend_backup_words, &[kind_name(kind)]);
         match self.session.add_wallet(
             &c,
             &name,
@@ -1517,7 +1523,7 @@ impl Faraday {
                 self.spend_backup.state.wallet = Some(name);
                 self.wallets.set_wallet(i);
             }
-            Err(e) => self.spend_backup.state.error = Some(String::from(&*e.text())),
+            Err(e) => self.spend_backup.state.error = Some(e.text()),
         }
     }
 
@@ -1532,7 +1538,7 @@ impl Faraday {
             .find(|w| w.origin == crate::wallet::Origin::TypedWords)?;
         SINGLE
             .into_iter()
-            .find(|k| w.name == fill(EN.spend_backup_words, &[kind_name(*k)]))
+            .find(|k| w.name == *Text::fill(EN.spend_backup_words, &[kind_name(*k)]))
     }
 
     fn spend_backup_use_wallet(&mut self, index: usize) {
@@ -1540,25 +1546,25 @@ impl Faraday {
         let Some(item) = self.inbox.get(index) else {
             return;
         };
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&item.bytes).into_owned());
+        let text = Text::from_utf8_lossy(&item.bytes);
         let name = faraday_bip::multisig_config::parse_named(&c, &text)
             .ok()
-            .and_then(|(_, n)| n.map(|n| String::from(&*n)))
-            .or_else(|| crate::wallet::carried_name(&text).map(|t| String::from(&*t)))
-            .unwrap_or_else(|| crate::file_stem(&item.name));
+            .and_then(|(_, n)| n)
+            .or_else(|| crate::wallet::carried_name(&text))
+            .unwrap_or_else(|| Text::of(&crate::file_stem(&item.name)));
         let source = item.name.clone();
         match self
             .session
             .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
         {
             Ok(i) => {
-                self.spend_backup.state.wallet = Some(self.session.wallets[i].name.clone());
+                self.spend_backup.state.wallet = Some(Text::of(&self.session.wallets[i].name));
                 self.wallets.set_wallet(i);
                 self.spend_backup_described_in();
                 self.refresh_spend();
                 self.spend_backup_opened();
             }
-            Err(e) => self.spend_backup.state.error = Some(String::from(&*e.text())),
+            Err(e) => self.spend_backup.state.error = Some(e.text()),
         }
     }
 
@@ -1586,11 +1592,11 @@ impl Faraday {
     /// missing only when asked (`loud`).
     fn spend_backup_rebuild(&mut self, loud: bool) {
         let c = self.compute();
-        let texts: Vec<zeroize::Zeroizing<String>> = self
+        let texts: Vec<Text> = self
             .inbox
             .iter()
             .filter(|i| i.kind == FileKind::Share)
-            .map(|i| zeroize::Zeroizing::new(String::from_utf8_lossy(&i.bytes).into_owned()))
+            .map(|i| Text::from_utf8_lossy(&i.bytes))
             .collect();
         if texts.is_empty() {
             return;
@@ -1600,8 +1606,8 @@ impl Faraday {
                 Some(whole) => {
                     let name = faraday_bip::multisig_config::parse_named(&c, &whole)
                         .ok()
-                        .and_then(|(_, n)| n.map(|n| String::from(&*n)))
-                        .unwrap_or_else(|| EN.spend_backup_restored_wallet.to_string());
+                        .and_then(|(_, n)| n)
+                        .unwrap_or_else(|| Text::of(EN.spend_backup_restored_wallet));
                     match self.session.add_wallet(
                         &c,
                         &name,
@@ -1611,26 +1617,26 @@ impl Faraday {
                     ) {
                         Ok(i) => {
                             self.spend_backup.state.wallet =
-                                Some(self.session.wallets[i].name.clone());
+                                Some(Text::of(&self.session.wallets[i].name));
                             self.wallets.set_wallet(i);
                             self.spend_backup_described_in();
                             self.refresh_spend();
                             self.spend_backup_opened();
                         }
-                        Err(e) => self.spend_backup.state.error = Some(String::from(&*e.text())),
+                        Err(e) => self.spend_backup.state.error = Some(e.text()),
                     }
                 }
                 None if loud => {
-                    self.spend_backup.state.error = Some(fill(
+                    self.spend_backup.state.error = Some(Text::fill(
                         EN.spend_backup_of_keys_in_hand,
-                        &[&m.have.len().to_string(), &m.n.to_string()],
+                        &[&Text::num(m.have.len() as u64), &Text::num(m.n as u64)],
                     ));
                 }
                 None => {}
             },
             Err(e) => {
                 if loud {
-                    self.spend_backup.state.error = Some(e.as_str().into());
+                    self.spend_backup.state.error = Some(Text::of(&e));
                 }
             }
         }
@@ -1678,7 +1684,7 @@ impl Faraday {
         if let Some(w) = w
             && let Some(wl) = self.session.wallets.get(w)
         {
-            self.spend_backup.state.wallet = Some(wl.name.clone());
+            self.spend_backup.state.wallet = Some(Text::of(&wl.name));
             self.wallets.set_wallet(w);
         }
         // The addresses are checked on the tab's own page, Check the
@@ -1770,7 +1776,7 @@ impl Faraday {
                     || !s.spend.collected.is_empty())
         });
         if under_way {
-            self.toast(&fill(EN.spend_backup_psbt_not_this_spend, &[&name]));
+            self.toast(&Text::fill(EN.spend_backup_psbt_not_this_spend, &[&name]));
             return true;
         }
         false
@@ -1803,22 +1809,29 @@ impl Faraday {
             return None;
         }
         let open = match self.spend_backup.state.open {
-            Some(Open::Page(p)) => p.to_string(),
-            Some(Open::Spend) => "spend".to_string(),
-            None => String::new(),
+            Some(Open::Page(p)) => Text::of(&Text::num(u64::from(p))),
+            Some(Open::Spend) => Text::of("spend"),
+            None => Text::new(),
         };
-        let closed: Vec<String> = (0..page::COUNT)
+        let closed: Vec<Text> = (0..page::COUNT)
             .filter(|&p| self.spend_backup.state.closed[p as usize])
-            .map(|p| p.to_string())
+            .map(|p| Text::of(&Text::num(u64::from(p))))
             .collect();
-        let mut text = format!(
-            "active={}\nroute={}\nopen={open}\nclosed={}\n",
+        let mut text = faraday_text::text!(
+            "active={}\nroute={}\nopen={}\nclosed=",
             u8::from(active),
             self.spend_backup.state.route.map(Route::code).unwrap_or(""),
-            closed.join(",")
+            &*open
         );
+        for (k, p) in closed.iter().enumerate() {
+            if k > 0 {
+                text.push(',');
+            }
+            text.push_str(p);
+        }
+        text.push('\n');
         if let Some(w) = &self.spend_backup.state.wallet {
-            text.push_str(&format!("wallet={}\n", w.replace('\n', " ")));
+            text.push_str(&faraday_text::text!("wallet={}\n", w.replace('\n', " ")));
         }
         if self.spend_backup.state.from_card {
             text.push_str("card=1\n");
@@ -1827,17 +1840,17 @@ impl Faraday {
         // at all.
         for c in &self.spend_backup.state.came {
             if let Came::File(name) = c {
-                text.push_str(&format!("came={}\n", name.replace('\n', " ")));
+                text.push_str(&faraday_text::text!("came={}\n", name.replace('\n', " ")));
             }
         }
-        Some(text.into_bytes())
+        Some(text.as_bytes().to_vec())
     }
 
     /// Reads back what the previous process kept.
     pub(crate) fn spend_backup_restore(&mut self, bytes: &[u8]) {
         let mut f = SpendBackupState::default();
         let mut active = false;
-        for line in String::from_utf8_lossy(bytes).lines() {
+        for line in Text::from_utf8_lossy(bytes).lines() {
             match line.split_once('=') {
                 Some(("active", v)) => active = v == "1",
                 Some(("route", v)) => f.route = Route::from_code(v),
@@ -1859,9 +1872,9 @@ impl Faraday {
                         }
                     }
                 }
-                Some(("wallet", v)) if !v.is_empty() => f.wallet = Some(v.to_string()),
+                Some(("wallet", v)) if !v.is_empty() => f.wallet = Some(Text::of(v)),
                 Some(("card", v)) => f.from_card = v == "1",
-                Some(("came", v)) if !v.is_empty() => f.came.push(Came::File(v.to_string())),
+                Some(("came", v)) if !v.is_empty() => f.came.push(Came::File(Text::of(v))),
                 _ => {}
             }
         }

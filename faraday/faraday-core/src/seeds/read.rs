@@ -267,7 +267,7 @@ impl Faraday {
     /// Wallet `w`'s key scanner read a seed whose key with no passphrase
     /// is none of the wallet's: the camera closes and the sheet asks for
     /// its passphrase, saying why.
-    pub(crate) fn seed_read_for_wallet(&mut self, words: &str, w: usize, reason: String) {
+    pub(crate) fn seed_read_for_wallet(&mut self, words: &str, w: usize, reason: faraday_text::Text) {
         let c = self.compute();
         self.camera.close();
         self.out
@@ -277,7 +277,7 @@ impl Faraday {
             source: Source::Words(SecretText::of(words)),
             plain: key_of(&c, words, ""),
             wallet: Some(w),
-            reason: Some(reason),
+            reason: Some(String::from(&*reason)),
             ..SeedRead::default()
         });
         self.sheet = Some(Sheet::SeedRead);
@@ -324,11 +324,11 @@ impl Faraday {
 
     /// Key `fp`, loaded, is none of described wallet `w`'s keys: its
     /// passphrase is asked, and only a key of the wallet loads.
-    pub(crate) fn seed_read_stray(&mut self, fp: Fingerprint, w: usize, reason: String) {
+    pub(crate) fn seed_read_stray(&mut self, fp: Fingerprint, w: usize, reason: faraday_text::Text) {
         self.seed_read_spend_backup(fp, ForSpendBackup::Stray);
         if let Some(s) = self.seed_read.state.as_mut() {
             s.wallet = Some(w);
-            s.reason = Some(reason);
+            s.reason = Some(String::from(&*reason));
         }
     }
 

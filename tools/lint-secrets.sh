@@ -438,6 +438,8 @@ faraday/faraday-core/src/codex32/mod.rs
 faraday/faraday-core/src/codex32/screen.rs
 faraday/faraday-core/src/codex32_correct/mod.rs
 faraday/faraday-core/src/codex32_correct/screen.rs
+faraday/faraday-core/src/spend_backup/mod.rs
+faraday/faraday-core/src/spend_backup/screen.rs
 core/faraday-draw/src/tokens.rs
 core/faraday-selftest/src/lib.rs
 core/faraday-crypto/src/pinned.rs
@@ -578,7 +580,10 @@ done
 #   faraday-text lib   declares and documents the wiping text type of text.rs
 #   codex32_backup     holds the codex32 strings typed back and made as wiping text
 #   glance/sheet.rs    shows a passphrase it reads from the store as wiping text
-NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs"
+#   faraday-text lib   declares and documents the wiping text type of text.rs
+#   spend_backup/      read a share or a key typed or scanned as wiped text (Text)
+#                      and hand it on to the seeds area
+NAMELESS="core/faraday-bip/src/codex32/fresh.rs faraday/faraday-vault/src/qr.rs faraday/faraday-core/src/worker/kef.rs core/faraday-text/src/lib.rs faraday/faraday-keys/src/totp.rs faraday/faraday-core/src/vault/dice.rs faraday/faraday-core/src/vault/screen.rs faraday/faraday-core/src/restore.rs faraday/faraday-core/src/codex32_backup/mod.rs faraday/faraday-core/src/glance/sheet.rs faraday/faraday-core/src/spend_backup/mod.rs faraday/faraday-core/src/spend_backup/screen.rs"
 EXCEPTED_FILE=tools/lint-secrets-excepted.txt
 EXCEPTED=$(sed -n 's/^\([^#:][^:]*\): .*$/\1/p' "$EXCEPTED_FILE")
 names_secret() { grep -qE "$SECRET_NAMES" "$1"; }
