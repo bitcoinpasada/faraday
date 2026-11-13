@@ -245,7 +245,7 @@ impl Keys {
         let mut xor = SeedXor::new();
         let mut out = Vec::new();
         for part in random.chunks_exact(seed.len()).take(randoms) {
-            let part = Zeroizing::new(part.to_vec());
+            let part = crate::texts::wiped_bytes(part);
             if xor.push(&part).is_err() {
                 return Err(Paper::Failed);
             }
@@ -257,7 +257,7 @@ impl Keys {
         let Ok(last) = xor.entropy() else {
             return Err(Paper::Failed);
         };
-        out.push(Zeroizing::new(last.as_bytes().to_vec()));
+        out.push(crate::texts::wiped_bytes(last.as_bytes()));
         let mut lines = Vec::new();
         for e in &out {
             let Ok(part) = Mnemonic::from_entropy(lang, e) else {
@@ -896,7 +896,7 @@ pub fn codex32_seed(parts: &[Codex32]) -> Result<Zeroizing<Vec<u8>>, codex32::Er
         Some(s) => s.to_seed(),
         None => Codex32::recover(parts).and_then(|s| s.to_seed()),
     }?;
-    Ok(Zeroizing::new(seed.expose().bytes().to_vec()))
+    Ok(crate::texts::wiped_bytes(seed.expose().bytes()))
 }
 
 /// Costs a share recovery (SLIP-39). The master secret `shares` make with
@@ -907,7 +907,7 @@ pub fn slip39_seed(
     passphrase: &[u8],
 ) -> Result<Zeroizing<Vec<u8>>, slip39::Error> {
     let secret = slip39::recover(c, shares, passphrase)?;
-    Ok(Zeroizing::new(secret.expose().as_bytes().to_vec()))
+    Ok(crate::texts::wiped_bytes(secret.expose().as_bytes()))
 }
 
 #[cfg(test)]

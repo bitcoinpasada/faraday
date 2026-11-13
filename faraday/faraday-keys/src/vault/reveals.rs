@@ -545,16 +545,17 @@ impl OpenVaults {
             .enumerate()
             .filter(|(i, r)| r.kind == kind::KEY && set.contains(i))
         {
-            let label = Zeroizing::new(r.text(field::KEY_LABEL).unwrap_or("").as_bytes().to_vec());
+            let label =
+                crate::texts::wiped_bytes(r.text(field::KEY_LABEL).unwrap_or("").as_bytes());
             let codex32 = codex32_set_of(r);
             if let Some(m) = record_words(c, r) {
                 job.words.push(WordsToLoad {
-                    phrase: Zeroizing::new(phrase_of(&m).as_bytes().to_vec()),
+                    phrase: crate::texts::wiped_bytes(phrase_of(&m).as_bytes()),
                     mnemonic: m,
                     // Stored with the key, or kept alone in an open vault.
                     own: r
                         .text(field::KEY_PASSPHRASE)
-                        .map(|p| Zeroizing::new(p.as_bytes().to_vec())),
+                        .map(|p| crate::texts::wiped_bytes(p.as_bytes())),
                     chosen: chosen.get(&i).copied().unwrap_or(0),
                     label,
                     codex32,
@@ -574,8 +575,12 @@ impl OpenVaults {
                     if let (Some(fp), Some(p)) =
                         (r.field(field::PASSPHRASE_KEY), r.text(field::PASSPHRASE))
                     {
+                        #[expect(
+                            clippy::disallowed_methods,
+                            reason = "the key is a fingerprint, which is public"
+                        )]
                         job.kept
-                            .push((fp.to_vec(), Zeroizing::new(p.as_bytes().to_vec())));
+                            .push((fp.to_vec(), crate::texts::wiped_bytes(p.as_bytes())));
                     }
                 }
             }

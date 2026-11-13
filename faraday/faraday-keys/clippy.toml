@@ -17,6 +17,7 @@ disallowed-methods = [
     { path = "core::clone::Clone::clone", reason = "a copy of a secret is a function of its type (`duplicate`), under #[expect] where it is needed" },
     { path = "alloc::string::ToString::to_string", reason = "a secret made into text is a second buffer nothing wipes" },
     { path = "alloc::borrow::ToOwned::to_owned", reason = "a secret made into a second buffer nothing wipes" },
+    { path = "slice::to_vec", reason = "a secret copied into a second buffer nothing wipes (`[T]::to_vec`; Zeroizing or a borrow)" },
 ]
 
 disallowed-types = [

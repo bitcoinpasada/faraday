@@ -726,8 +726,17 @@ impl Keys {
     /// store takes only these.
     pub fn set_demo(&mut self, handouts: &[Handout], public: &[Fingerprint], nodes: &[[u8; 33]]) {
         self.demo = Some(Demo {
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "handouts are names, word counts and fingerprints: public"
+            )]
             handouts: handouts.to_vec(),
+            #[expect(clippy::disallowed_methods, reason = "public fingerprints")]
             public: public.to_vec(),
+            #[expect(
+                clippy::disallowed_methods,
+                reason = "Lightning node ids are public keys"
+            )]
             nodes: nodes.to_vec(),
         });
     }
@@ -1061,10 +1070,7 @@ impl Keys {
         self.entries
             .get(i)
             .and_then(|e| e.key.passphrase.as_ref())
-            .is_some_and(|p| {
-                faraday_crypto::Secret::new(p.as_bytes().to_vec())
-                    == faraday_crypto::Secret::new(typed.as_bytes().to_vec())
-            })
+            .is_some_and(|p| bool::from(p.as_bytes().ct_eq(typed.as_bytes())))
     }
 
     /// Costs a parse of the words, and a SHA-256 for the copy's own
@@ -1496,8 +1502,8 @@ impl Keys {
             return None;
         }
         let entropy = m.entropy();
-        Some(Held::of(Zeroizing::new(
-            entropy.expose().as_bytes().to_vec(),
+        Some(Held::of(crate::texts::wiped_bytes(
+            entropy.expose().as_bytes(),
         )))
     }
 
@@ -1885,7 +1891,7 @@ pub(crate) fn seed_entry(c: &Compute, master: MasterKey, seed: &[u8], label: &st
         Language::English,
         None,
         None,
-        Some(Zeroizing::new(seed.to_vec())),
+        Some(crate::texts::wiped_bytes(seed)),
     )
 }
 

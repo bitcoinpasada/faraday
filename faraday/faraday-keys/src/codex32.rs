@@ -146,6 +146,7 @@ impl WorkSet {
         }
         Ok(WorkSet {
             scheme,
+            #[expect(clippy::disallowed_methods, reason = "share indices are public")]
             inputs: initial.to_vec(),
             targets: Self::targets_of(&scheme),
             entered,
@@ -224,7 +225,7 @@ impl WorkSet {
             sheets: given.iter().map(|s| ChecksumWorksheet::of(c, s)).collect(),
             entered: given
                 .iter()
-                .map(|s| Zeroizing::new(s.payload().to_vec()))
+                .map(|s| crate::texts::wiped_bytes(s.payload()))
                 .collect(),
             inputs,
             targets,
@@ -256,6 +257,7 @@ impl WorkSet {
         if scheme.threshold() == 0 {
             return Vec::new();
         }
+        #[expect(clippy::disallowed_methods, reason = "share indices are public")]
         let mut out = scheme.derived_indices().to_vec();
         out.push(b's');
         out
@@ -442,7 +444,7 @@ impl WorkSet {
     /// The master seed the set carries, once made.
     fn seed(&self) -> Option<Zeroizing<Vec<u8>>> {
         let seed: Secret<_> = self.made.as_ref()?.secret().to_seed().ok()?;
-        Some(Zeroizing::new(seed.expose().bytes().to_vec()))
+        Some(crate::texts::wiped_bytes(seed.expose().bytes()))
     }
 
     /// Costs an HMAC-SHA512 and an elliptic-curve multiplication. The
@@ -546,9 +548,9 @@ impl Keys {
             (Some(words), _) => {
                 let m = faraday_bip::bip39::Mnemonic::parse(c, s.language, words).ok()?;
                 let seed = crate::identity::seed_of(c, &m, s.passphrase.unwrap_or(""))?;
-                Some(Zeroizing::new(seed.expose().to_vec()))
+                Some(crate::texts::wiped_bytes(seed.expose()))
             }
-            (None, Some(bytes)) => Some(Zeroizing::new(bytes.to_vec())),
+            (None, Some(bytes)) => Some(crate::texts::wiped_bytes(bytes)),
             (None, None) => None,
         }
     }

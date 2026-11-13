@@ -90,12 +90,21 @@ fn writable_passphrase_bytes(bytes: &[u8]) -> bool {
     (1..=PASSPHRASE_MAX).contains(&bytes.len()) && bytes.iter().all(|b| (0x20..=0x7e).contains(b))
 }
 
+/// A copy of `bytes` in a buffer wiped on drop: the only copy made of them.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the copy goes straight into Zeroizing, which wipes it"
+)]
+fn wiped(bytes: &[u8]) -> Zeroizing<Vec<u8>> {
+    Zeroizing::new(bytes.to_vec())
+}
+
 /// The byte strings a typed passphrase is tried as when reading: as
 /// typed, and, if it holds anything outside ASCII, its NFC and NFD forms
 /// where they differ (`docs/KEF.md` §9). At most three; each is a full
 /// PBKDF2.
 pub fn reading_passphrases(text: &str) -> Vec<Zeroizing<Vec<u8>>> {
-    let mut out = alloc::vec![Zeroizing::new(text.as_bytes().to_vec())];
+    let mut out = alloc::vec![wiped(text.as_bytes())];
     if !text.is_ascii() {
         // `char` has no wipe: the forms are held in Zeroizing, with room
         // for the longest (four bytes a char), so they never reallocate.
@@ -287,7 +296,7 @@ fn prepare(s: &Spec, plaintext: &[u8]) -> Result<(Zeroizing<Vec<u8>>, usize), Se
         }
         Zeroizing::new(deflate(plaintext))
     } else {
-        Zeroizing::new(plaintext.to_vec())
+        wiped(plaintext)
     };
     if s.auth > 0 && s.mode != Mode::Gcm {
         if nul && plain.last() == Some(&0) {
@@ -491,7 +500,7 @@ fn authenticate(
     // A hidden check is the last bytes of what is left.
     let (body, mut hidden) = if s.auth < 0 {
         let at = stripped.len().checked_sub(width)?;
-        (&stripped[..at], Zeroizing::new(stripped[at..].to_vec()))
+        (&stripped[..at], wiped(&stripped[at..]))
     } else {
         (stripped, Zeroizing::new(Vec::new()))
     };
@@ -538,7 +547,7 @@ pub fn open_with_key(key: &[u8; 32], envelope: &Envelope) -> Result<Opened, Open
     let (iv, rest) = envelope.payload.split_at(iv_len);
     let exposed_len = s.auth.max(0) as usize;
     let (cipher, exposed) = rest.split_at(rest.len() - exposed_len);
-    let mut buf = Zeroizing::new(cipher.to_vec());
+    let mut buf = wiped(cipher);
     let (plain, retried) = match s.mode {
         Mode::Ecb => {
             ecb(key, &mut buf, false);
